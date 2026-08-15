@@ -350,12 +350,17 @@ basin's catchment through the T42 coupling matrix.
 
 | estimate | carve | survive | dry | with lake | lake, % of planet |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| Penman (primary) | 1592 | 2037 | 1248 | 938 | 0.988% |
+| Penman (primary) | 1522 | 2107 | 1248 | 962 | 0.945% |
 | land-evaporation sensitivity | 2119 | 1510 | 1248 | 967 | 1.479% |
 
-**1,592 of 3,629 basins carve** under the primary estimate. 1,549 carve under both
-estimates, 1,467 survive under both, and 613 (16.9%) are sensitive to which
-evaporation estimate is used.
+**1,522 of 3,629 basins carve** under the primary estimate, 1,510 survive under
+both, and 597 (16.5%) are sensitive to which evaporation estimate is used.
+
+Note that "carve under both estimates" is no longer independent evidence. Penman
+is floored at the land rate, so it exceeds it by construction and the Penman
+carve set is a strict subset of the land-evaporation one. The two numbers are
+identically 1,522. A genuinely independent second estimate would be needed to
+recover that check.
 
 ## How open-water evaporation was estimated, and why it can be trusted
 
@@ -396,7 +401,7 @@ never hold standing water, and roughly 940 basins with real lakes totalling abou
 
 ## What we are not sending yet
 
-The 613 estimate-sensitive basins are one reason to hold. The larger one is that
+The 597 estimate-sensitive basins are one reason to hold. The larger one is that
 this verdict inherits an assumed biosphere: the vegetated land surface was chosen,
 not modelled, and the albedo bracket showed that choice is worth 3.7 to 7.1 K,
 which flows straight into precipitation, evaporation and runoff here.

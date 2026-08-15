@@ -146,8 +146,20 @@ worth 3.7 to 7.1 K, and the two reach the 290 to 293 K design target at
 No single flux is robust to the question, so the orbit and the biosphere are one
 choice, not two.
 
-The loop is therefore: assume, compute, feed back, repeat. It converges because
-carving is monotone, only ever removing basins.
+The loop is therefore: assume, compute, feed back, repeat.
+
+Monotone carving guarantees the loop *terminates*, since basins are only ever
+removed. It does not guarantee it lands in the right place, and it has a
+direction: carving removes evaporite, which is the brightest lithology, so the
+land darkens, the world warms, open-water evaporation rises, and basins that were
+marginal would have stayed closed. Iteration 1 therefore carves at the coolest,
+brightest state available and cannot take any of it back, so the pipeline
+systematically over-carves. Orogen's applied export bears this out directly:
+evaporite fell from 20.8% of land to 12.65%.
+
+On iteration 2, the already-carved set should be re-evaluated against the new
+climate and the number that would no longer have carved reported. That number is
+the overshoot, and it is the honest measure of how much the first pass cost.
 
 ## 5. Where the pipeline currently stands
 
@@ -158,7 +170,7 @@ carving is monotone, only ever removing basins.
 | hypsometry | rebuilt on the finished terrain |
 | coupling | T42 and T85 matrices built |
 | climate | T42 at 0.96 S-Earth, vegetated, converged on all six criteria, 292.88 K |
-| carve verdict | first pass complete: 1,592 of 3,629 carve |
+| carve verdict | first pass complete: 1,522 of 3,629 carve, 235 partial, 1,872 preserved |
 | biosphere | assumed, not modelled |
 | stellar cycle | deferred to last |
 
@@ -166,7 +178,9 @@ Selected results:
 
 - Land is 43.17% of the surface by `surface_class`.
 - Before carving, 76% of land drains to a closed basin, against roughly 13% on
-  Earth. After the first carve verdict that falls to 34 to 60%.
+  Earth. After the first carve verdict that falls to 50.3% under the Penman
+  estimate, or 33.6% under the land-evaporation sensitivity. Orogen's applied
+  export measures 55.15%.
 - 1,248 basins have zero catchment runoff and survive as dry salt pans rather
   than lakes. That agrees independently with evaporite being 20.8% of the land.
 - Surviving lakes total about 1% of the planet's surface.

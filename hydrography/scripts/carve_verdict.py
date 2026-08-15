@@ -54,6 +54,7 @@ import numpy as np
 import yaml
 
 from _paths import ANALYSIS, CONFIG, DATA, PROJECT_ROOT
+from orbit import orbital_year_days
 from lake_balance import BasinSet, carve_verdict, solve
 
 DRHSFULL = 0.4          # landmod.f90: wetness reaches 1 above this fraction
@@ -199,7 +200,12 @@ def main() -> None:
     means, catch_area = basin_means(args.coupling, fields, n)
 
     # Units cancel in the aridity index, but keep them physical for the solver.
-    year_s = 189.6145 * 86400.0
+    # Orbital period varies with flux, so take it from the config rather than
+    # hardcoding. The literal here was 189.6145 d, the 0.90-flux year, while this
+    # baseline runs at 0.96 and 180.655 d. It cancels out of the aridity index
+    # and the equilibrium lake area, both ratios, but it was making the reported
+    # runoff depth 5% high.
+    year_s = orbital_year_days(config) * 86400.0
     to_km_per_year = year_s / 1000.0
     runoff = means["mrro"] * to_km_per_year
     precip = means["pr"] * to_km_per_year

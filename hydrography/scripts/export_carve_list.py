@@ -50,6 +50,7 @@ import yaml
 
 import carve_verdict as cv
 from _paths import CONFIG, DATA, PROJECT_ROOT
+from orbit import orbital_year_days
 from lake_balance import BasinSet
 
 
@@ -85,7 +86,12 @@ def main() -> None:
     means, _ = cv.basin_means(args.coupling,
                               {"pr": pr, "wet": evap, "pen": penman, "ro": mrro},
                               basins.n)
-    year_s = 189.6145 * 86400.0
+    # Orbital period varies with flux, so take it from the config rather than
+    # hardcoding. The literal here was 189.6145 d, the 0.90-flux year, while this
+    # baseline runs at 0.96 and 180.655 d. It cancels out of the aridity index
+    # and the equilibrium lake area, both ratios, but it was making the reported
+    # runoff depth 5% high.
+    year_s = orbital_year_days(config) * 86400.0
     runoff = means["ro"] * year_s / 1000.0
     precip = means["pr"] * year_s / 1000.0
     crit = basins.catchment_km2 / np.maximum(basins.area_at_spill_km2, 1e-9) - 1.0

@@ -13,24 +13,24 @@
     "penman": {
       "basins_carved": 1522,
       "endorheic_land_km2": 159771982.9525926,
-      "lake_area_km2": 6941929.024408587,
+      "lake_area_km2": 6941929.024408584,
       "dry_survivors": 1248,
       "wet_survivors": 962,
       "basins_without_runoff": 1248,
-      "lake_area_fraction_of_planet": 0.009451322940958394,
+      "lake_area_fraction_of_planet": 0.009451322940958391,
       "solver_converged": true,
-      "median_aridity_index": -8.296139558122336
+      "median_aridity_index": -8.29613955812234
     },
     "wet": {
       "basins_carved": 2119,
       "endorheic_land_km2": 106465578.70634604,
-      "lake_area_km2": 10863857.083307592,
+      "lake_area_km2": 10863857.083307598,
       "dry_survivors": 1248,
       "wet_survivors": 967,
       "basins_without_runoff": 1248,
-      "lake_area_fraction_of_planet": 0.0147909639118654,
+      "lake_area_fraction_of_planet": 0.014790963911865407,
       "solver_converged": true,
-      "median_aridity_index": -23.60675790435432
+      "median_aridity_index": -23.606757904354325
     }
   },
   "agreement": {
