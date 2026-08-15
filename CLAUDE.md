@@ -11,7 +11,8 @@ things run in, and why that order is a loop rather than a line. Read it first.
 
 ```
 config/planet.yaml     Canonical planet/star/orbit/atmosphere parameters. Project-level.
-source/                Canonical World Orogen exports. READ-ONLY — never modify or regenerate in place.
+source/<build>/        World Orogen exports, one namespaced directory per build.
+                       READ-ONLY. Add a build; never overwrite one.
 exoplasim/             The ExoPlaSim climate component (see exoplasim/README.md).
 hydrography/           Drainage, catchments, basin capacity (see hydrography/README.md).
 requirements.txt       Shared Python dependencies for .venv.
@@ -40,7 +41,25 @@ lithology (rock class, erodibility, scarp potential), preserved endorheic basins
 a richer export manifest, non-Earth planet parameters, and direct emission onto
 Gaussian (spectral) grids.
 
-## Reading `source/`
+## Builds
+
+`source/` is namespaced by build, because builds multiply faster than they can be
+swapped in place and a result's provenance should depend on what it was computed
+from, not on when. `config/planet.yaml` names the active one in `source_build`,
+and `lib/builds.py` resolves it; nothing should hardcode a path under `source/`.
+
+| build | terrain | what it is |
+| --- | --- | --- |
+| `precarve-unzoned` | `821aa71b` | the 292.97 K baseline; evaporite one class at 0.50 |
+| `precarve-zoned` | `26fc7691` | same drainage, salt-crust/playa-fill split |
+| `carved-zoned` | `3899a0c5` | iteration-1 carve verdict applied, with the split |
+
+The names are for humans. `manifest.hashes.finalElevation` is the identity, and
+`lib/orogen.py` refuses a build it has not been checked against. The basin
+catalogue hash is `2d1f8e57` on all three, so per-basin work resolves across all
+of them.
+
+## Reading a build
 
 Four exports of the same planet, all from seed 16236323 with 2,500,001 mesh
 regions, and all carrying the same `manifest.hashes.finalElevation`

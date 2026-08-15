@@ -24,7 +24,8 @@ import json
 from netCDF4 import Dataset
 import numpy as np
 
-from _paths import ANALYSIS, DATA, SOURCE
+from builds import build_root, grid_export
+from _paths import ANALYSIS, DATA
 import drainage as dr
 from orogen import Export, LAND, OCEAN
 
@@ -287,7 +288,7 @@ def main() -> None:
     # -- coupling matrices --------------------------------------------------
     couplings = {}
     for g in args.grids:
-        gd = SOURCE / g
+        gd = build_root() / g
         if not (gd / "manifest.json").is_file():
             print(f"  skipping {g}: not present")
             continue

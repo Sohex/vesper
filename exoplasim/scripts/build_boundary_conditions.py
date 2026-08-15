@@ -38,8 +38,9 @@ from pathlib import Path
 import numpy as np
 import yaml
 
-from _paths import CONFIG, INPUTS, SOURCE
+from _paths import CONFIG, INPUTS
 from convert_orogen import write_sra
+from builds import grid_export, mesh_export
 from gridding import land_weighted
 from orogen import Export, LAND
 
@@ -69,8 +70,8 @@ def build(mesh: Export, grid_dir: Path, threshold: float, gravity: float):
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", type=Path, default=CONFIG)
-    ap.add_argument("--mesh", type=Path, default=SOURCE / "exoplasim-T42",
-                    help="export carrying raw/; the mesh is the same for all")
+    ap.add_argument("--mesh", type=Path, default=None,
+                    help="export carrying raw/; defaults to the configured build")
     ap.add_argument("--grid", type=Path, default=None,
                     help="export whose grid to target; defaults to the config resolution")
     ap.add_argument("--output", type=Path, default=None)
@@ -83,9 +84,9 @@ def main() -> None:
     gravity = float(planet["gravity_m_s2"])
 
     resolution = str(model["resolution"]).upper()
-    grid_dir = args.grid or (SOURCE / f"exoplasim-{resolution}")
+    grid_dir = args.grid or grid_export(config, resolution)
     output = args.output or (INPUTS / resolution.lower())
-    ex = Export(args.mesh)
+    ex = Export(args.mesh or mesh_export(config))
     out = build(ex, grid_dir, threshold, gravity)
     if out["land_mask"].shape != (nlat, nlon):
         raise RuntimeError(

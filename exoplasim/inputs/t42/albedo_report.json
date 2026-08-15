@@ -1,9 +1,9 @@
 {
   "mode": "vegetated",
-  "mesh": "/home/cfutro/docs/world/source/exoplasim-T42",
-  "grid": "/home/cfutro/docs/world/source/exoplasim-T42",
+  "mesh": "None",
+  "grid": "/home/cfutro/docs/world/source/carved-zoned/exoplasim-T42",
   "resolution": "T42",
-  "terrain_hash": "821aa71b37a7beda0b59398c7f005b91531050000ca46660d0f724cdb3f401a3",
+  "terrain_hash": "3899a0c57d1eee2f47ba9054c218a171a7aa4532e2437c9104070c2c3dfaece6",
   "codes": [
     174,
     175,
@@ -11,21 +11,18 @@
     212
   ],
   "forest_fraction_value": 0.5,
-  "forest_fraction_land_mean": 0.3942172326695318,
-  "lithology_albedo_overrides": {
-    "evaporite": {
-      "rock_id": 18,
-      "albedo": 0.4,
-      "exported_albedo": 0.5,
-      "regions": 226198
-    }
-  },
+  "forest_fraction_land_mean": 0.43533720405980764,
+  "lithology_albedo_overrides": {},
+  "barren_rock_classes": [
+    "evaporite",
+    "playa_clastic"
+  ],
   "forest_note": "dforest blends snow albedo between forested and unforested endpoints, so it has to agree with the background albedo assumption. ExoPlaSim's default is a uniform 0.5.",
-  "land_mean_bare_rock": 0.3134838636284141,
-  "land_mean_written": 0.20289138366523413,
+  "land_mean_bare_rock": 0.27270260290494996,
+  "land_mean_written": 0.17217827031247024,
   "exoplasim_default_albland": 0.22,
-  "land_min": 0.1499999999999998,
-  "land_max": 0.40000000000000024,
+  "land_min": 0.14999999999999977,
+  "land_max": 0.4434155608745905,
   "files": [
     "/home/cfutro/docs/world/exoplasim/inputs/t42/orogen_T42_surf_0174.sra",
     "/home/cfutro/docs/world/exoplasim/inputs/t42/orogen_T42_surf_0175.sra",

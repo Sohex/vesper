@@ -15,9 +15,6 @@ PROJECT_ROOT = COMPONENT_ROOT.parent
 CONFIG = PROJECT_ROOT / "config" / "planet.yaml"
 SOURCE = PROJECT_ROOT / "source"
 
-# The native mesh is the same for every export; it ships alongside the T42 one.
-MESH_EXPORT = SOURCE / "exoplasim-T42"
-
 DATA = COMPONENT_ROOT / "data"
 ANALYSIS = COMPONENT_ROOT / "analysis"
 

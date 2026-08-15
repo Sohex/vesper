@@ -1,0 +1,58 @@
+"""Resolve which World Orogen build a component should read.
+
+`source/` holds one namespaced directory per build, because builds now multiply
+faster than they can be swapped in place: a carve verdict, a lithology split and
+any future iteration each produce a new terrain, and each one has downstream
+artifacts computed against it. Overwriting `source/` would make a result's
+provenance depend on when it was computed rather than on what it was computed
+from.
+
+Every build carries `manifest.hashes.finalElevation`, so the build a result came
+from is recoverable from the result itself. The name is for humans; the hash is
+the identity.
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+import yaml
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+SOURCE = PROJECT_ROOT / "source"
+CONFIG = PROJECT_ROOT / "config" / "planet.yaml"
+
+
+def _config(config: dict | None = None) -> dict:
+    return config if config is not None else yaml.safe_load(
+        CONFIG.read_text(encoding="utf-8"))
+
+
+def available() -> list[str]:
+    return sorted(p.name for p in SOURCE.iterdir()
+                  if p.is_dir() and (p / "exoplasim-T42").is_dir())
+
+
+def build_root(config: dict | None = None) -> Path:
+    """Directory of the configured build."""
+    name = _config(config).get("source_build")
+    if not name:
+        raise RuntimeError(
+            f"config/planet.yaml has no source_build. Available: {available()}")
+    path = SOURCE / name
+    if not (path / "exoplasim-T42").is_dir():
+        raise RuntimeError(
+            f"source_build {name!r} is not a build directory. Available: {available()}")
+    return path
+
+
+def mesh_export(config: dict | None = None) -> Path:
+    """Export carrying `raw/`. The mesh is identical across grids in a build."""
+    return build_root(config) / "exoplasim-T42"
+
+
+def grid_export(config: dict | None = None, resolution: str | None = None) -> Path:
+    """Export whose grid matches the configured model resolution."""
+    cfg = _config(config)
+    res = (resolution or str(cfg["model"]["resolution"])).upper()
+    return build_root(cfg) / f"exoplasim-{res}"

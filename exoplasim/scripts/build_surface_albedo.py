@@ -59,8 +59,9 @@ from netCDF4 import Dataset
 import numpy as np
 import yaml
 
-from _paths import CONFIG, INPUTS, SOURCE
+from _paths import CONFIG, INPUTS
 from convert_orogen import write_sra
+from builds import grid_export, mesh_export
 from gridding import land_fraction_of_class, land_weighted
 from orogen import Export, LAND
 
@@ -96,8 +97,8 @@ def _rock_id(mesh_dir: Path, code: str) -> int:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", type=Path, default=CONFIG)
-    ap.add_argument("--mesh", type=Path, default=SOURCE / "exoplasim-T42",
-                    help="export carrying raw/; the mesh is the same for all")
+    ap.add_argument("--mesh", type=Path, default=None,
+                    help="export carrying raw/; defaults to the configured build")
     ap.add_argument("--grid", type=Path, default=None,
                     help="export whose grid to target; defaults to the config resolution")
     ap.add_argument("--output", type=Path, default=None)
@@ -117,7 +118,7 @@ def main() -> None:
     nlat, nlon = int(model["latitudes"]), int(model["longitudes"])
 
     resolution = str(model["resolution"]).upper()
-    grid_dir = args.grid or (SOURCE / f"exoplasim-{resolution}")
+    grid_dir = args.grid or grid_export(config, resolution)
     output = args.output or (INPUTS / resolution.lower())
 
     if mode == "uniform":
@@ -128,7 +129,7 @@ def main() -> None:
         print("mode=uniform: removed any albedo SRA; ExoPlaSim will use albland=0.22")
         return
 
-    mesh = Export(args.mesh)
+    mesh = Export(args.mesh or mesh_export(config))
     rock = mesh.surface_rock
     # Classes that cannot carry a canopy. This was a single hardcoded reference
     # to evaporite, which silently became wrong when Orogen split that class:
@@ -140,11 +141,11 @@ def main() -> None:
     barren_applied = []
     for code in barren_codes:
         try:
-            barren |= rock == _rock_id(args.mesh, code)
+            barren |= rock == _rock_id(mesh.root, code)
             barren_applied.append(code)
         except KeyError:
             pass    # class absent from this export; older builds lack playa_clastic
-    evaporite = _rock_id(args.mesh, "evaporite")
+    evaporite = _rock_id(mesh.root, "evaporite")
     is_land = mesh.surface_class == LAND
 
     # Per-region substrate albedo, then integrated over land only. Taking this
@@ -161,7 +162,7 @@ def main() -> None:
     for code, spec in overrides.items():
         value = float(spec["albedo"] if isinstance(spec, dict) else spec)
         expected = float(spec["replaces"]) if isinstance(spec, dict) and "replaces" in spec else None
-        rid = _rock_id(args.mesh, code)
+        rid = _rock_id(mesh.root, code)
         sel = rock == rid
         if not sel.any():
             raise RuntimeError(f"override names rock class {code!r}, absent from this export")
@@ -193,7 +194,7 @@ def main() -> None:
     # Ocean cells carry the water value; ExoPlaSim computes ocean albedo itself,
     # so it is inert, but the array has to be full.
     water_albedo = float(next(r["albedo"] for r in json.loads(
-        (args.mesh / "manifest.json").read_text(encoding="utf-8"))["lithology"]["rockClasses"]
+        (mesh.root / "manifest.json").read_text(encoding="utf-8"))["lithology"]["rockClasses"]
         if r["code"] == "water"))
     field = np.where(land_cells, alb_grid, water_albedo)
 

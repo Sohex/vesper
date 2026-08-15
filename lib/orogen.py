@@ -17,8 +17,7 @@ from pathlib import Path
 
 import numpy as np
 
-_HERE = Path(__file__).resolve().parent
-MESH_EXPORT = _HERE.parent / "source" / "exoplasim-T42"
+from builds import mesh_export as _configured_mesh_export
 
 # Elevation conversion changed meaning in this build: below-sea-level land used
 # to take the bathymetric branch and read ten times too deep. Refuse to run
@@ -35,6 +34,16 @@ _KNOWN_TERRAIN_HASHES = {
     "27b7479aa486f5dacebccb0c638ff839a60a98e617c2437229600ef0bacf32ec":
         "WITHDRAWN 2026-08 build: basin-protection floor drift, superseded by "
         "821aa71b. Do not use.",
+    # Evaporite split into salt crust (0.50) and playa clastics (0.30). The two
+    # have different erodibility, 3.50 against 2.80, so stream power sees a
+    # different surface and the terrain moved on both planets. The basin
+    # catalogue hash did not move, because detection still runs on the
+    # pre-conditioning surface, so per-basin work computed against 821aa71b
+    # still resolves.
+    "26fc76914da14289ff26f15a130192bd84d59031098569adb66186ffdabb28b7":
+        "2026-08 precarve-zoned: threshold selection, crust/fill lithology split",
+    "3899a0c57d1eee2f47ba9054c218a171a7aa4532e2437c9104070c2c3dfaece6":
+        "2026-08 carved-zoned: iteration-1 carve verdict applied, crust/fill split",
 }
 
 # Basin ids are computed on the pre-conditioning surface, so they survive a
@@ -83,7 +92,7 @@ class Export:
     """A World Orogen export directory."""
 
     def __init__(self, root: Path | None = None, *, require_known_build: bool = True):
-        self.root = Path(root or MESH_EXPORT)
+        self.root = Path(root) if root is not None else _configured_mesh_export()
         manifest_path = self.root / "manifest.json"
         if not manifest_path.is_file():
             raise FileNotFoundError(f"No manifest at {manifest_path}")

@@ -1,5 +1,18 @@
 schema_version: 1
 
+# Which World Orogen build every component reads. source/ is namespaced by build
+# because they now multiply faster than they can be swapped in place, and a
+# result's provenance should depend on what it was computed from rather than on
+# when it was computed.
+#
+#   precarve-unzoned  821aa71b  the 292.97 K baseline; evaporite one class at 0.50
+#   precarve-zoned    26fc7691  same drainage, crust/fill split
+#   carved-zoned      3899a0c5  iteration-1 verdict applied, crust/fill split
+#
+# The names are for humans. manifest.hashes.finalElevation is the identity, and
+# every run manifest and analysis report records it.
+source_build: carved-zoned
+
 planet:
   radius_earth: 1.20
   # Surface gravity is canonical, not derived. This is the value World Orogen
