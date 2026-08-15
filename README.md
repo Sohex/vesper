@@ -26,8 +26,7 @@ lithology-modulated erosion), all built from the same terrain:
 - `exoplasim-T63/` — 192x96 Gaussian
 - `exoplasim-T85/` — 256x128 Gaussian
 - `grid-512x256/` — 512x256 uniform, for mapping
-- `maps/` — equirectangular PNGs, from an older 510k-region build of the same
-  seed and not interchangeable with the exports above
+- `maps/` — 16384x8192 equirectangular PNGs of the same build
 
 Each export carries `manifest.json` describing every field, `README.txt`,
 `grid/*.bin`, and a CF-1.8 `planet.nc` with 105 fields: elevation, land mask,
@@ -35,9 +34,10 @@ plates and their kinematics, boundary types, stress, distance fields, lithology,
 hydrology, closed basins, and sub-grid orography. The fork's `tools/README.md` is
 the format reference.
 
-Weight by `grid/gauss_weights.bin` on the Gaussian grids or by `cos(lat)` on the
-uniform grid. `cell_area` in the gridded output is a mesh diagnostic, not the
-cell's area.
+Land is 41.3% of the surface by `land_mask` and 43.2% by `surface_class`; the
+difference is dry closed-basin floor below sea level, which `land_mask` excludes.
+Use `surface_class`. Mean land elevation is 548 m and the highest point is
+5.77 km.
 
 ## `exoplasim/`
 

@@ -10,8 +10,9 @@ __pycache__/
 source/*/raw/
 source/*/grid/
 source/*/planet.nc
-source/*/manifest.json
-source/maps/
+source/exoplasim-*/manifest.json
+source/grid-*/manifest.json
+source/maps/*.png
 
 # ExoPlaSim model output: ~20 GB of NetCDF and restart checkpoints. Expensive to
 # produce and irreplaceable, but a backup target, not a git one.

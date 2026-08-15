@@ -34,8 +34,14 @@ Gaussian (spectral) grids.
 
 ## Reading `source/`
 
-Four exports of the same planet, all from seed 16236323 and identical hashes
-(`manifest.hashes.finalElevation` is the same across all four):
+Four exports of the same planet, all from seed 16236323 with 2,500,001 mesh
+regions, and all carrying the same `manifest.hashes.finalElevation`
+(`821aa71b37a7…`). Check that hash before trusting any number quoted about the
+terrain: the seed and parameters alone do not identify a build, because fixes to
+the generator change the terrain under a fixed seed. This build followed a fix
+to an over-erosion bug, which raised mean land elevation from 138 m to **548 m**
+and the highest point from 4.5 km to 5.8 km. Anything derived from the previous
+`a826bd12…` terrain is not comparable.
 
 | Directory | Grid | Notes |
 | --- | --- | --- |
@@ -52,21 +58,41 @@ the basin hypsometry catalogue; index into it rather than dumping it.
 `planet.nc` is the easy path (105 fields, CF-1.8). Use the `.bin` files when you
 need `raw/` or `gauss_weights.bin`.
 
-### Gotchas that will silently give wrong numbers
+### Choosing a land mask — the one that will bite
 
-- **`cell_area` in `grid/` is not the grid cell's area.** It is the mean area of
-  the mesh regions that fell into the cell (~294 km² almost everywhere), so every
-  row sums to roughly the same value. Using it as an area weight is wrong:
-  it gives a land fraction of 0.486 instead of the correct **0.414**.
-  - On the Gaussian grids weight by `grid/gauss_weights.bin`.
-  - On `grid-512x256` weight by `cos(lat)`.
-  - `raw/cell_area.bin` *is* a real area in km² and sums to 4πR².
+There are two land definitions in the export and they disagree by **1.9% of the
+planet's surface**:
+
+| Field | Definition | Land area |
+| --- | --- | --- |
+| `land_mask` | strictly `elevation_km > 0` | 41.26% |
+| `surface_class == 1` | the actual land surface | 43.17% |
+
+The difference is dry closed-basin floor lying below sea level, down to −5.6 km.
+`land_mask` excludes it and so would flood it. Preserving that terrain is the
+whole point of the fork, so **`surface_class` is almost always the one you
+want**, and certainly the one an ExoPlaSim land/sea mask should be built from.
+Verified on the raw mesh: no `land_mask` region is below sea level, and 48,092
+regions are land by `surface_class` but not by `land_mask`.
+
+`surface_class == 2` (`inland_water`) is **empty**, and that is by design, not a
+bug. Orogen measures basin geometry but never decides water levels — that is a
+precipitation-versus-evaporation balance and belongs downstream. 11.5% of the
+planet's area is flagged `is_endorheic`. Filling those basins is our job, using
+the hypsometry curves in `manifest.basins.preserved[]`.
+
+### Other gotchas
+
 - **`elevation` is not kilometres.** It is the generator's internal shaping
   parameter (nonlinear hypsometric curve; 0.5 ≈ 1.1 km, 1.0 = 6 km; ocean linear
-  at 10 km/unit). Use `elevation_km` for physical orography. Land is
-  `elevation > 0` in either field.
-- **Land cells can sit below sea level.** Preserved endorheic basins are the
-  point of the fork; ~5% of T42 land cells are below −434 m. Do not clamp.
+  at 10 km/unit). Use `elevation_km` for physical orography.
+- **Weighting.** `grid_cell_area` in the gridded output is the true cell area and
+  sums exactly to 4πR², so it is a correct area weight on every grid.
+  `grid/gauss_weights.bin` is equivalent on the Gaussian grids and `cos(lat)` on
+  the uniform one; all three agree to ~2e-4. `raw/cell_area.bin` is the mesh
+  region area. (Earlier exports called the gridded field `cell_area` and it was
+  a mesh diagnostic, not a cell area — that trap is fixed, but any code written
+  against an older export needs checking.)
 - **Distance fields are in cell hops, not km.** Convert with
   `avgEdgeKm = π × 6371 / √numRegions` (`manifest.basins.resolution.avgEdgeKm`
   has it computed for this planet: 15.19 km).
@@ -77,29 +103,21 @@ need `raw/` or `gauss_weights.bin`.
 - `manifest.planetRadiusKm` at the top level says 6371; `manifest.planet.radiusKm`
   says the real 7645.2. Trust the latter.
 
-### `source/maps/` is a different build — do not treat it as canonical
+### `source/maps/`
 
-The PNGs are named for planet code `09oa7lj8kek17v5639gvhe`, which decodes to the
-same seed and sliders but **510,000 mesh regions**. `source/worldorogen_seed.txt`
-holds `01eshm059lt0b9mpgro2y83t`, the code for the current canonical build:
-**2,500,000 regions**, basins preserved, lithology on. Region count is a
-generation parameter, so the maps are a coarser, genuinely different terrain —
-close in aggregate (land fraction 0.413 vs 0.414) but not the same coastlines.
+The four 16384×8192 equirectangular PNGs match the exports: same planet code
+`01eshm059lt0b9mpgro2y83t`, 2.5M regions, and the correct radius and gravity.
+Checked — the land mask agrees with the raw mesh to five decimal places
+(0.412635 vs 0.412640) and the land heightmap's maximum is exactly the mesh's
+5.769 km. `source/maps/manifest.json` records the code and planet parameters, and
+notes that a planet code encodes sliders only, never radius or gravity.
 
-Two further traps if regenerating them:
-
-- `export-maps.mjs --code` **ignores** the code's `basinSlider` and
-  `lithologyStrength` and defaults both on; `export-planet.mjs --code` **honours**
-  them. The two tools disagree.
-- Neither takes planet radius/gravity from the code. The maps were rendered at
-  Earth defaults, so their relief scaling differs from the exports.
-
-To render maps that actually match `source/exoplasim-*/`:
+To re-render them:
 
 ```bash
 cd /home/cfutro/git/planet_heightmap_generation
 node --max-old-space-size=12288 tools/export-maps.mjs \
-    --code 01eshm059lt0b9mpgro2y83t --regions 2500000 \
+    --code 01eshm059lt0b9mpgro2y83t \
     --radius 7645.2 --gravity 10.1989 --width 16384
 ```
 
