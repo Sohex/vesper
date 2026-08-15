@@ -127,7 +127,7 @@ there is no way to say "carve these specific basins". Preservation retains about
 all-or-nothing where what the water balance produces is a per-basin verdict.
 Closing the loop needs something like `--carve-basin ID` or `--preserve-only`.
 
-## Known approximations## Known approximations
+## Known approximations
 
 - **Merged basins.** 323 basins were collapsed into a neighbour to break spill
   cycles, which arise where basins share a saddle and each names the other as
