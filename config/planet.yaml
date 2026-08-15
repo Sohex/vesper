@@ -59,12 +59,30 @@ radiation:
   # Separate visible/near-IR surface albedos, which matter under a red spectrum:
   # snow albedo splits 0.959/0.614 at maximum and 0.496/0.289 at minimum.
   two_band_albedo: true
-  # ExoPlaSim ships a measured K2 dwarf spectrum, and this star is K2.5V, so use
-  # it in place of the 4965 K blackbody. It is not cosmetic: nstarfile takes
-  # precedence over nstartemp in radmod, and the spectrum sets the weighting
-  # that produces every snow, ice, glacier and surface albedo above. A blackbody
-  # has none of a K dwarf's molecular absorption, and albedo feedback is the
-  # quantity this project's current experiment turns on.
+  # WRONG, AND EVERY COMPLETED RUN INHERITS IT. See notes/stellar-spectrum-audit.md.
+  #
+  # This was chosen believing ExoPlaSim ships a measured K2 *dwarf* spectrum
+  # matching this star's K2.5V. It does not. `k2.dat` is the star K2-18, an M2.5V
+  # at about 3450 K, not the spectral type K2; ExoPlaSim ships no K dwarf spectrum
+  # at all. All four of its spectra are M dwarfs from a tidally-locked-planet
+  # study. The model's own log confirms the reading: it puts 11.6% of shortwave
+  # below 0.75 um where the declared 4965 K star would put 41%.
+  #
+  # The reasoning below still holds, which is why this matters. nstarfile does
+  # take precedence over nstartemp, and the spectrum does set the weighting for
+  # every snow, ice and glacier albedo. Those are 0.11 to 0.20 too dark in every
+  # run so far, worth 0.4 to 0.7 K on the current warm baseline and much more on
+  # the cold branch, which is exactly where the albedo-feedback experiment lives.
+  #
+  # The replacement now exists: `k25v`, in exoplasim/inputs/stellarspectra/, built
+  # by exoplasim/scripts/build_stellar_spectrum.py from the BT-Settl grid,
+  # interpolated to 4965 K between the 4900 and 5000 K models at log g 4.5. It
+  # puts 0.382 of shortwave below 0.75 um against this file's 0.116.
+  #
+  # Still set to `k2` so runs in flight stay comparable. Change to `k25v` when
+  # ready to re-baseline; nothing else needs to move, since run_exoplasim.py
+  # searches inputs/stellarspectra/ before the ExoPlaSim package. Expect snow and
+  # ice to brighten by 0.10 to 0.17 and the world to cool.
   stellar_spectrum: k2
 
 surface:

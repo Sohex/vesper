@@ -47,6 +47,16 @@ CURATED = {
         "through the marginal band with a retain fraction, not be flipped to 0.",
     ],
     "known_uncertainties": [
+        {"item": "stellar spectrum", "value": "k2", "range": ["k2", "k25v"],
+         "worth_w_m2": 0.63, "worth_k": 0.59,
+         "note": "Not an uncertainty so much as a known error every completed run "
+                 "carries. ExoPlaSim's k2.dat is the star K2-18, an M2.5V at about "
+                 "3450 K, not the spectral type K2; it puts 0.116 of shortwave "
+                 "below 0.75 um where this world's declared 4965 K star puts 0.382. "
+                 "Snow and ice are 0.10-0.17 too dark everywhere, worth 0.4-0.7 K "
+                 "on the warm baseline and more wherever there is ice. The "
+                 "replacement is built and validated as inputs/stellarspectra/k25v "
+                 "but not yet selected. See exoplasim/notes/stellar-spectrum-audit.md."},
         {"item": "playa_clastic albedo", "value": 0.30, "range": [0.25, 0.33],
          "worth_w_m2": 1.99, "worth_k": 1.87,
          "note": "Dominant remaining albedo lever: 18.8% of land against the salt "

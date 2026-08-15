@@ -1,0 +1,46 @@
+{
+  "generated": "2026-08-15T23:51:43+00:00",
+  "star": {
+    "spectral_type": "K2.5V",
+    "effective_temperature_k": 4965.0,
+    "log_g": 4.5,
+    "metallicity": 0.0
+  },
+  "grid": {
+    "name": "BT-Settl (CIFIST2011)",
+    "reference": "Allard, Homeier, 2012",
+    "server": "SVO Theoretical Spectra Server",
+    "endpoint": "http://svo2.cab.inta-csic.es/theory/newov2/ssap.php",
+    "interpolation_fraction": 0.65,
+    "endpoints": {
+      "4900": {
+        "fid": 3697,
+        "sha256": "c875f58d51a47c897d3ed6301357bad5a3e22e3fc639c2c9b906ac2f48fdf17a"
+      },
+      "5000": {
+        "fid": 3850,
+        "sha256": "996165a5d76b92a99d3dd8043549d6715058a3ead992856ddb4941a2e4d9a684"
+      }
+    }
+  },
+  "converter": {
+    "tool": "exoplasim.makestellarspec.convert",
+    "module_sha256": "9fd6dfa1e706723f9ee704ce08d9a1094a2c14c82992ded10783b01fc0c1de81",
+    "patch": "patches/exoplasim-3.4.2-makestellarspec.patch",
+    "numwavelengths": 2048,
+    "normalize": false
+  },
+  "products": {
+    "k25v.dat": {
+      "sha256": "7196ade540b0496b047b1460a93920bc1099282c9b32324fac3ce1c32579034b",
+      "rows": 965
+    },
+    "k25v_hr.dat": {
+      "sha256": "9d22867104a67816ca3ac309805a4c287332e96af56245beed7d4f537598ad1f",
+      "rows": 2048
+    }
+  },
+  "replaces": "ExoPlaSim's k2.dat, which is the star K2-18 (M2.5V, ~3450 K), not the spectral type K2. See notes/stellar-spectrum-audit.md.",
+  "config_sha256": "0217a3f1bec349154ccf715409157bbffb17d6630b2d18f3e6d28da00319da96",
+  "git_commit": "509d1f6da35f876622924f5a993a547fff9dacf3"
+}

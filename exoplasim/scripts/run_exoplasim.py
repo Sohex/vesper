@@ -119,20 +119,32 @@ def stellar_spectrum_path(config: dict) -> str | None:
     `configure(starspec=...)` needs a real path and both the file and its
     `_hr.dat` companion; it does not search the package. Returning None falls
     back to the blackbody at `startemp`.
+
+    `inputs/stellarspectra/` is searched before the ExoPlaSim package, because
+    spectra we generate are tracked here and the package lives in an untracked
+    `.venv` that any reinstall resets. It also lets a project spectrum shadow a
+    package one of the same name rather than silently losing to it.
     """
     name = config.get("radiation", {}).get("stellar_spectrum")
     if not name:
         return None
-    base = Path(exo.__file__).resolve().parent / "stellarspectra"
-    path = base / f"{name}.dat"
-    companion = base / f"{name}_hr.dat"
-    for p in (path, companion):
-        if not p.is_file():
-            raise RuntimeError(
-                f"stellar spectrum {name!r} needs {p}, which does not exist. "
-                f"Available: {sorted(f.stem for f in base.glob('*.dat') if not f.stem.endswith('_hr'))}"
-            )
-    return str(path)
+    roots = (
+        INPUTS / "stellarspectra",
+        Path(exo.__file__).resolve().parent / "stellarspectra",
+    )
+    for base in roots:
+        path = base / f"{name}.dat"
+        companion = base / f"{name}_hr.dat"
+        if path.is_file() and companion.is_file():
+            return str(path)
+    available = sorted(
+        {f.stem for base in roots for f in base.glob("*.dat")
+         if not f.stem.endswith("_hr")}
+    )
+    raise RuntimeError(
+        f"stellar spectrum {name!r} needs {name}.dat and {name}_hr.dat in one of "
+        f"{[str(r) for r in roots]}, which do not both exist. Available: {available}"
+    )
 
 
 def stage_stellar_spectrum(model, run_dir: Path, spectrum: str | None) -> str | None:

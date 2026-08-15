@@ -1,0 +1,78 @@
+--- a/makestellarspec.py	2026-08-15 17:47:01.096885574 -0600
++++ b/makestellarspec.py	2026-08-15 17:47:01.129013229 -0600
+@@ -6,6 +6,10 @@
+ 
+ cc = 299792458.0 #Speed of light
+ 
++# NumPy 2.0 removed np.trapz in favour of np.trapezoid. Alias rather than
++# calling np.trapz directly so this works on both.
++_trapz = np.trapezoid if hasattr(np, "trapezoid") else np.trapz
++
+ def readspec(sfile,cgs=False):
+     """Read a Phoenix stellar spectrum and return wavelengths, fluxes, and units
+     
+@@ -104,7 +108,7 @@
+     return net
+ 
+ def _normalize(wvls,fluxes):
+-    netf = np.trapz(fluxes,x=wvls)
++    netf = _trapz(fluxes,x=wvls)
+     factor = 1366.941858/netf
+     return fluxes*factor
+ 
+@@ -201,14 +205,14 @@
+         plt.yscale('log')
+         plt.show()
+     f2 = np.interp(w2,w,f)
+-    E0 = np.trapz(f,x=w)
+-    E1 = np.trapz(f2,x=w2)
++    E0 = _trapz(f,x=w)
++    E1 = _trapz(f2,x=w2)
+     print(abs(E0-E1)/E0)
+     if norm:
+         factor = 1366.941858/E1
+         f2*=factor
+-        print(np.trapz(f2,x=w2))
+-        print(np.trapz(_normalize(w,f),x=w))
++        print(_trapz(f2,x=w2))
++        print(_trapz(_normalize(w,f),x=w))
+     #print f2[np.argwhere(w2>40.0)],w[-10:]
+     if plot:
+         plt.plot(w2,f2)
+@@ -218,7 +222,7 @@
+         plt.xlabel("$\lambda$ [$\mu$m]")
+         plt.ylabel("$F_\lambda$ [W/m$^2$/$\mu$m]")
+         plt.show()
+-    wvref = np.loadtxt(Path(__file__).parent.resolve()+"/wvref.txt")
++    wvref = np.loadtxt(Path(__file__).parent.resolve()/"wvref.txt")
+     f3 = np.interp(wvref,w2,f2)
+     writedat(w2,f2/cc,name+"_hr")
+     writedat(wvref,f3/cc,name)
+@@ -287,14 +291,14 @@
+         plt.yscale('log')
+         plt.show()
+     f2 = np.interp(w2,w,f)
+-    E0 = np.trapz(f,x=w)
+-    E1 = np.trapz(f2,x=w2)
++    E0 = _trapz(f,x=w)
++    E1 = _trapz(f2,x=w2)
+     print(abs(E0-E1)/E0)
+     if norm:
+         factor = 1366.941858/E1
+         f2*=factor
+-        print(np.trapz(f2,x=w2))
+-        print(np.trapz(_normalize(w,f),x=w))
++        print(_trapz(f2,x=w2))
++        print(_trapz(_normalize(w,f),x=w))
+     #print f2[np.argwhere(w2>40.0)],w[-10:]
+     if args.plot:
+         plt.plot(w2,f2)
+@@ -304,7 +308,7 @@
+         plt.xlabel("$\lambda$ [$\mu$m]")
+         plt.ylabel("$F_\lambda$ [W/m$^2$/$\mu$m]")
+         plt.show()
+-    wvref = np.loadtxt(Path(__file__).parent.resolve()+"/wvref.txt")
++    wvref = np.loadtxt(Path(__file__).parent.resolve()/"wvref.txt")
+     f3 = np.interp(wvref,w2,f2)
+     writedat(w2,f2/cc,name+"_hr")
+     writedat(wvref,f3/cc,name)

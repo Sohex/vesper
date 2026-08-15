@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated": "2026-08-15T22:50:47.784448+00:00",
-  "git_commit": "af3c7ae49c5af1aec29ff8dccfbca27fa6eae392",
+  "generated": "2026-08-15T23:55:33.302085+00:00",
+  "git_commit": "509d1f6da35f876622924f5a993a547fff9dacf3",
   "generator": "scripts/world_state.py",
   "note": "Generated from the artifacts. Do not edit; re-run the generator. Judgement that no artifact can supply is in `curated`, which lives in the generator under version control.",
   "planet": {
@@ -264,6 +264,19 @@
       "mean_surface_temperature_k": 265.31
     },
     {
+      "run_id": "t42l10p16r8_s092_co20450ppm_rot30h_obl32_e020_glac_gbafe5e8b",
+      "status": "smoke_complete",
+      "orbits_complete": 36,
+      "flux_earth": 0.92,
+      "cycle": null,
+      "resolution": "T42",
+      "land_albedo_source": "vegetated",
+      "source_build": "carved-zoned",
+      "glaciers": true,
+      "converged": null,
+      "mean_surface_temperature_k": 287.028
+    },
+    {
       "run_id": "t42l10p16r8_s096_co20450ppm_rot30h_obl32_e020_glac_g43ca63cf",
       "status": "equilibrated_for_worldbuilding",
       "orbits_complete": 75,
@@ -514,6 +527,17 @@
       "Roughly 228 basins with zero catchment runoff were preserved but have P > E over open water, so a lake there grows and spills. They should go through the marginal band with a retain fraction, not be flipped to 0."
     ],
     "known_uncertainties": [
+      {
+        "item": "stellar spectrum",
+        "value": "k2",
+        "range": [
+          "k2",
+          "k25v"
+        ],
+        "worth_w_m2": 0.63,
+        "worth_k": 0.59,
+        "note": "Not an uncertainty so much as a known error every completed run carries. ExoPlaSim's k2.dat is the star K2-18, an M2.5V at about 3450 K, not the spectral type K2; it puts 0.116 of shortwave below 0.75 um where this world's declared 4965 K star puts 0.382. Snow and ice are 0.10-0.17 too dark everywhere, worth 0.4-0.7 K on the warm baseline and more wherever there is ice. The replacement is built and validated as inputs/stellarspectra/k25v but not yet selected. See exoplasim/notes/stellar-spectrum-audit.md."
+      },
       {
         "item": "playa_clastic albedo",
         "value": 0.3,
