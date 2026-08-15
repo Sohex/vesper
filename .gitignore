@@ -27,3 +27,8 @@ exoplasim/inputs/exoplasim_cycle_t42/
 # summarise them are tracked.
 exoplasim/analysis/**/*_regular_climatology.nc
 exoplasim/analysis/**/*_snapshot_climatology.nc
+
+# Per-region drainage raster, 5.6 MB and rebuilt in seconds by
+# hydrography/scripts/build_hydrography.py. The basin table, the coupling
+# matrices and the report are small and are tracked.
+hydrography/data/regions.nc

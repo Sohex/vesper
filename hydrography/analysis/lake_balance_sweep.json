@@ -1,0 +1,89 @@
+{
+  "note": "Uniform placeholder forcing. This exercises the solver and shows how lake extent scales; it is not a claim about this world's climate. Replace with ExoPlaSim runoff and evaporation integrated over each basin's catchment via coupling_*.nc.",
+  "terrain_hash": "821aa71b37a7beda0b59398c7f005b91531050000ca46660d0f724cdb3f401a3",
+  "basins": 3629,
+  "capacity_km3": 6838339.389490922,
+  "sweep": [
+    {
+      "runoff_mm_per_year": 10.0,
+      "lake_evaporation_mm_per_year": 400.0,
+      "converged": true,
+      "lake_area_fraction_of_planet": 0.008205430309057354,
+      "lake_volume_km3": 166508.2656704253,
+      "basins_filling_to_spill": 26,
+      "basins_dry": 0
+    },
+    {
+      "runoff_mm_per_year": 10.0,
+      "lake_evaporation_mm_per_year": 800.0,
+      "converged": true,
+      "lake_area_fraction_of_planet": 0.0041090762370860606,
+      "lake_volume_km3": 56503.896464103105,
+      "basins_filling_to_spill": 5,
+      "basins_dry": 0
+    },
+    {
+      "runoff_mm_per_year": 10.0,
+      "lake_evaporation_mm_per_year": 1600.0,
+      "converged": true,
+      "lake_area_fraction_of_planet": 0.002055171631608077,
+      "lake_volume_km3": 18568.479119627795,
+      "basins_filling_to_spill": 1,
+      "basins_dry": 0
+    },
+    {
+      "runoff_mm_per_year": 50.0,
+      "lake_evaporation_mm_per_year": 400.0,
+      "converged": true,
+      "lake_area_fraction_of_planet": 0.039414113311781476,
+      "lake_volume_km3": 1796780.3655588438,
+      "basins_filling_to_spill": 538,
+      "basins_dry": 0
+    },
+    {
+      "runoff_mm_per_year": 50.0,
+      "lake_evaporation_mm_per_year": 800.0,
+      "converged": true,
+      "lake_area_fraction_of_planet": 0.02026113066711429,
+      "lake_volume_km3": 645688.216001102,
+      "basins_filling_to_spill": 121,
+      "basins_dry": 0
+    },
+    {
+      "runoff_mm_per_year": 50.0,
+      "lake_evaporation_mm_per_year": 1600.0,
+      "converged": true,
+      "lake_area_fraction_of_planet": 0.010237832582976029,
+      "lake_volume_km3": 232378.5563494452,
+      "basins_filling_to_spill": 33,
+      "basins_dry": 0
+    },
+    {
+      "runoff_mm_per_year": 200.0,
+      "lake_evaporation_mm_per_year": 400.0,
+      "converged": true,
+      "lake_area_fraction_of_planet": 0.08728614069789914,
+      "lake_volume_km3": 6819328.823604095,
+      "basins_filling_to_spill": 3582,
+      "basins_dry": 0
+    },
+    {
+      "runoff_mm_per_year": 200.0,
+      "lake_evaporation_mm_per_year": 800.0,
+      "converged": true,
+      "lake_area_fraction_of_planet": 0.07077372595995211,
+      "lake_volume_km3": 4610646.87349543,
+      "basins_filling_to_spill": 1939,
+      "basins_dry": 0
+    },
+    {
+      "runoff_mm_per_year": 200.0,
+      "lake_evaporation_mm_per_year": 1600.0,
+      "converged": true,
+      "lake_area_fraction_of_planet": 0.039414113311781476,
+      "lake_volume_km3": 1796780.3655588438,
+      "basins_filling_to_spill": 538,
+      "basins_dry": 0
+    }
+  ]
+}

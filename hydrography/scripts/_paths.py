@@ -1,0 +1,21 @@
+"""Canonical locations, resolved from this file rather than the working directory.
+
+`config/` and `source/` are project-level and shared with other components;
+`data/` and `analysis/` belong to the hydrography component.
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+COMPONENT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = COMPONENT_ROOT.parent
+
+CONFIG = PROJECT_ROOT / "config" / "planet.yaml"
+SOURCE = PROJECT_ROOT / "source"
+
+# The native mesh is the same for every export; it ships alongside the T42 one.
+MESH_EXPORT = SOURCE / "exoplasim-T42"
+
+DATA = COMPONENT_ROOT / "data"
+ANALYSIS = COMPONENT_ROOT / "analysis"

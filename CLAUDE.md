@@ -10,13 +10,15 @@ and more components (biomes, hydrology, cultures) are expected alongside it.
 config/planet.yaml     Canonical planet/star/orbit/atmosphere parameters. Project-level.
 source/                Canonical World Orogen exports. READ-ONLY — never modify or regenerate in place.
 exoplasim/             The ExoPlaSim climate component (see exoplasim/README.md).
+hydrography/           Drainage, catchments, basin capacity (see hydrography/README.md).
 requirements.txt       Shared Python dependencies for .venv.
 .venv/                 Python 3.12, already activated in this shell.
 ```
 
-`config/` and `source/` are project-level and shared. Everything ExoPlaSim-specific
-lives under `exoplasim/`. New components get a sibling directory and read the same
-`config/planet.yaml` and `source/`.
+`config/` and `source/` are project-level and shared. Component-specific work
+lives under the component directory. New components get a sibling directory and
+read the same `config/planet.yaml` and `source/`. `hydrography/scripts/orogen.py`
+is a general reader for the export and is meant to be reused, not reimplemented.
 
 Git tracks the scripts, notes, configuration, and analysis products. It does
 **not** track `exoplasim/runs/` (20 GB of model output that took days of CPU
@@ -106,35 +108,29 @@ condition uses the flooding convention. Whatever replaces that script should tak
 `surface_class` from `planet.nc`, or the surfacemask PNG if it stays
 image-based.
 
-### OPEN BUG: `elevation_km` is 10x too deep on dry basin floors
+### Elevation conventions, and a bug that is now fixed
 
-Reported upstream 2026-08-14; check whether the export predates the fix before
-trusting `elevation_km` anywhere below sea level.
+`elevToHeightKm` used to branch on `elevation > 0`, the same test `land_mask`
+uses, so dry closed-basin floors took the bathymetric branch and read ten times
+too deep. Fixed upstream on 2026-08-14: the branch now takes its land flag from
+`surface_class`, and below-sea-level land converts at 1.0 km per unit against
+the ocean's 10. Verified here: dry floors are now exactly `elevation * 1.0`, the
+deepest reads -562 m and matches the catalogue, ocean is untouched at -8.89 km.
+An export whose `finalElevation` hash is not `821aa71b37a7...` predates this and
+should not be trusted below sea level.
 
-`elevToHeightKm` picks its land or ocean branch with the same `elevation > 0`
-test that `land_mask` uses. The mask semantics were fixed; the elevation
-conversion was not. So the 48,092 dry closed-basin-floor regions get the ocean
-scaling of 10 km per unit instead of the land curve, and read exactly ten times
-too deep. Bit-exact: `elevation_km == elevation * 10` for every one of them, with
-`max |elevation_km - 10*elevation| = 0`.
+**The basin catalogue renamed keys in the same pass, and it is a breaking
+change.** Unsuffixed keys (`sinkElevation`, `depth`, `spillElevation`) are the
+generator's model parameter; `Km` and `Km3` keys are genuinely physical,
+converted through the land branch. Volumes and hypsometry are integrated in
+physical height. Read the suffixed keys unless you specifically want model units,
+and do not assume an unsuffixed key is kilometres.
 
-The deepest basin sink reads −5.624 km when `elevation_pre_conditioning` and the
-basin catalogue both say −0.562 km. `manifest.basins.preserved[].sinkElevationKm`
-is **correct**; the gridded and raw `elevation_km` fields are not. 94,392 regions
-(2.8e7 km², 3.8% of the planet) fall below their own basin's catalogued sink.
-`manifest.landSeaMask.deepestDisagreeingElevationKm` is the same symptom and
-should read −0.562.
-
-It propagates to `orogen-heightmap-*.png`, where floors around −500 m render at
-−4,300 to −4,900 m and 239,989 pixels clamp at the −5,000 m encoding floor. The
-land-only heightmap is unaffected, since it only encodes positive elevations.
-
-Two consequences worth holding onto: any hypsometry-driven water balance built on
-`elevation_km` is wrong for precisely the terrain the fork exists to preserve,
-and any topography handed to ExoPlaSim from `surface_class` plus `elevation_km`
-would place −5 km pits in the middle of continents. Until it is fixed, derive
-below-sea-level land depth from `elevation_pre_conditioning`, or from `elevation`
-directly with the land branch.
+Note also that the top-level catalogue entry describes the **natural**
+pre-conditioning basin, while `finalPreserved` describes the finished terrain.
+They differ a lot: for the first basin, 53,968 km2 flooded at spill naturally
+against 10,853 km2 on the finished surface. `hypsometry` is on the natural
+terrain, which is why `hydrography/` recomputes it.
 
 ### Other gotchas
 
@@ -197,6 +193,25 @@ exact contents, and `continue_exoplasim.py` refuses to resume a run whose config
 hash has changed. The gravity change already broke that seal — no run under
 `exoplasim/runs/` can be resumed, which is moot because all of them predate the
 current geography anyway.
+
+## The hydrography component
+
+`hydrography/` resolves drainage over the native mesh and builds everything a
+water balance needs short of the climate itself. See `hydrography/README.md`.
+
+The headline result, and the most consequential thing known about this world so
+far: **76% of the land is endorheic**, against roughly 13% on Earth. That
+follows directly from the fork preserving closed basins instead of carving
+drainage to the sea. Rivers reaching the ocean are the exception here, which
+bears on coastal freshwater flux, sediment delivery, and where settlement makes
+sense.
+
+Two things about the export that any consumer needs to know. `drain_to` is raw
+steepest descent, and `drainage_terminal` is -2 for 63% of the land, which
+drains into 220,649 unpreserved noise pits; integrating precipitation without
+resolving that discards most of the land's water. And the catalogue's
+`hypsometry` is on the natural terrain, so it overstates capacity by about 1.5x.
+`build_hydrography.py` handles both. Use `data/basins.nc`, not the catalogue.
 
 ## The ExoPlaSim component
 

@@ -15,6 +15,7 @@ ExoPlaSim. Other components will sit alongside them.
 | `config/planet.yaml` | canonical planet, star, orbit, and atmosphere parameters |
 | `source/` | World Orogen exports, canonical and read-only |
 | `exoplasim/` | the ExoPlaSim climate component |
+| `hydrography/` | drainage, catchments, basin capacity, lake solver |
 | `requirements.txt`, `.venv/` | shared Python 3.12 environment |
 
 ## `source/`
@@ -53,3 +54,13 @@ a pair of 8-Earth-year stellar activity cycle experiments. The 0.95 case reaches
 
 These results were produced from an earlier revision of the world map. They
 remain physically valid but do not describe the geography now in `source/`.
+
+## `hydrography/`
+
+Resolves drainage over the 2.5M-region mesh, rebuilds basin hypsometry on the
+finished terrain, and couples catchments to the climate grid. See
+`hydrography/README.md`.
+
+76% of the land drains to closed basins rather than to the sea, against roughly
+13% on Earth. How much of that becomes lake is a water balance and waits on
+ExoPlaSim; the solver is built and takes runoff and evaporation as arguments.
