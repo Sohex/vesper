@@ -79,7 +79,7 @@ Principal products are in `exoplasim/analysis/climatology/`:
 
 The Köppen map is explicitly rate-normalized: precipitation rates are
 annualized to 365.2425 days before applying empirical Earth thresholds. That
-avoids classifying this world's 189.6-day orbital year as artificially dry.
+avoids classifying this world's 180.7-day orbital year as artificially dry.
 It is a worldbuilding interpretation, not a dynamic vegetation simulation.
 
 ## Stellar-flux sweep result
