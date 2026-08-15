@@ -716,3 +716,44 @@ bracket used 0.223 and all six results stand unchanged. Only the number quoted
 alongside them was wrong, which also means the endmember separation is 0.091
 rather than 0.117 in land albedo, and the forcing gap is nearer 12 to 16 W/m2
 than 15 to 19.
+
+## The 0.96 baseline climate
+
+First described climate for the current world. Converged on all six criteria;
+five-orbit climatology with 32 snapshots per orbit.
+
+| | |
+| --- | ---: |
+| surface temperature | 292.97 K |
+| 2 m air temperature | 292.23 K |
+| precipitation | 2.949 mm/day |
+| TOA net radiation | -0.351 W/m2 |
+| surface heat flux | +0.090 W/m2 |
+| planetary sea ice | 0.133% |
+| land area fraction | 42.84% |
+
+Koppen classes by land area, largest first: BWh 19.4%, Dfb 16.2%, BSh 11.5%,
+Dfa 6.8%, Af 6.7%, Cfa 5.7%, Aw 5.5%, Dfc 5.1%, Cfb 4.8%, Csa 4.4%.
+
+Broad biome interpretation: continental temperate and mixed forest 28.3%, desert
+19.4%, steppe and semidesert 12.0%, temperate and subtropical forest 11.5%,
+seasonal tropical woodland and savanna 9.0%, everwet tropical forest 6.7%, boreal
+5.9%, Mediterranean woodland 4.7%, monsoon tropical forest 2.2%.
+
+**31.4% of land is desert or steppe.** That is a dry world, and it is the same
+story the hydrography tells independently: 76% of land drained to a closed basin
+before carving, and evaporite covered 20.8% of it. Three separate calculations,
+Koppen from the climate, drainage from the terrain, and lithology from tectonic
+history, agreeing that this planet's interiors do not reach the sea.
+
+### What this climatology is not
+
+It is the climate of a superseded surface. It was computed on the pre-carve
+terrain, so it still carries the 3,629 preserved basins including the 1,522 the
+verdict has since carved. And it used the exported evaporite albedo of 0.50,
+which is now a declared override at 0.40 pending the zoned split upstream. The
+two corrections move in opposite directions, roughly +5.0 and -2.2 W/m2 on the
+pre-carve fractions, so the next baseline is not obviously warmer or cooler and
+the estimate is not worth trusting far enough to skip measuring it.
+
+Quote these numbers as the 0.96 pre-carve baseline, never as Vesper's climate.

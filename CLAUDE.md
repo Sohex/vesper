@@ -20,8 +20,9 @@ requirements.txt       Shared Python dependencies for .venv.
 
 `config/` and `source/` are project-level and shared. Component-specific work
 lives under the component directory. New components get a sibling directory and
-read the same `config/planet.yaml` and `source/`. `hydrography/scripts/orogen.py`
-is a general reader for the export and is meant to be reused, not reimplemented.
+read the same `config/planet.yaml` and `source/`. `lib/` holds the shared
+readers: `orogen.py` for the export, `gridding.py` for mesh-to-grid integration,
+`orbit.py` for the orbital period. Reuse them; do not reimplement.
 
 Git tracks the scripts, notes, configuration, and analysis products. It does
 **not** track `exoplasim/runs/` (20 GB of model output), the `source/` export
@@ -271,19 +272,20 @@ Köppen rate-normalisation, sign conventions). Read the notes before changing
 anything about how runs are configured — most of the non-obvious choices are
 already justified there.
 
-**The existing climate results predate the current geography.** All runs under
-`exoplasim/runs/` were built from `exoplasim/inputs/t42/*.sra`, which
-`convert_orogen.py` derived from the *old* map PNGs — a different, coarser build
-with a different land fraction. The completed flux sweep and stellar-cycle
-experiments are physically valid but describe the old geography. Regenerating
-boundary conditions from `source/exoplasim-T42/` invalidates them for
-comparison.
+**The completed runs under `exoplasim/runs/` span three eras.** The `t42l10p8_*`
+runs used the old 510k-region map PNGs, a uniform 0.22 albedo and a blackbody
+star; they are superseded. The `t21*glac*` runs are the albedo bracket. The
+current baseline is `t42l10p16r8_s096_..._glac_*`: 0.96 S-Earth, vegetated,
+converged at 292.97 K, with a described climatology under
+`exoplasim/analysis/climatology_s096/`.
 
-`convert_orogen.py` still reads the PNGs and does its own conservative regridding
-to a Gaussian grid. That entire step is now redundant: the fork emits T42/T63/T85
-Gaussian grids directly off the mesh, with quadrature weights and sub-grid
-orography, removing the lossy equirectangular intermediate. Replacing it with a
-direct `source/exoplasim-T42/planet.nc` → SRA writer is the obvious next task.
+That climatology is itself provisional. It was computed on the pre-carve terrain
+with evaporite at the exported 0.50, and both have since moved: Orogen has
+applied the carve verdict, and the evaporite albedo is now a declared override at
+0.40 pending a salt-crust and playa-clastics split upstream.
+
+`convert_orogen.py` is superseded by `build_boundary_conditions.py`, which
+integrates the mask and topography from the native mesh.
 
 Scripts anchor their paths in `exoplasim/scripts/_paths.py` and resolve from the
 file location, not the working directory, so they can be run from anywhere:

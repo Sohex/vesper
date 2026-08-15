@@ -4,7 +4,15 @@ This component converts the canonical World Orogen geography in `../source/` to
 ExoPlaSim boundary conditions and runs reproducible climate experiments. All
 commands below are run from the project root.
 
-> **These results predate the current geography.** Every run here was built from
+> **The results in the sections below predate the current geography and are kept
+> as a record, not as a description of this world.** The current baseline is
+> 0.96 S-Earth, vegetated, converged at 292.97 K; see
+> `analysis/climatology_s096/` and `notes/parameter-decisions.md`. The 0.95
+> recommendation below belongs to the superseded configuration: it assumed a
+> uniform 0.22 albedo and a blackbody star, and the albedo bracket has since
+> shown the habitable flux depends on the biosphere.
+>
+> Every run in those sections was built from
 > the equirectangular map PNGs of an earlier, 510k-region World Orogen build.
 > `../source/` now holds full data exports of a 2.5M-region build with preserved
 > endorheic basins and lithology-modulated erosion, including T42/T63/T85
