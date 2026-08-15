@@ -113,6 +113,53 @@ LANDMAP = INPUTS / "t42" / "orogen_T42_surf_0172.sra"
 TOPOMAP = INPUTS / "t42" / "orogen_T42_surf_0129.sra"
 
 
+def stellar_spectrum_path(config: dict) -> str | None:
+    """Resolve the configured stellar spectrum to a file ExoPlaSim will accept.
+
+    `configure(starspec=...)` needs a real path and both the file and its
+    `_hr.dat` companion; it does not search the package. Returning None falls
+    back to the blackbody at `startemp`.
+    """
+    name = config.get("radiation", {}).get("stellar_spectrum")
+    if not name:
+        return None
+    base = Path(exo.__file__).resolve().parent / "stellarspectra"
+    path = base / f"{name}.dat"
+    companion = base / f"{name}_hr.dat"
+    for p in (path, companion):
+        if not p.is_file():
+            raise RuntimeError(
+                f"stellar spectrum {name!r} needs {p}, which does not exist. "
+                f"Available: {sorted(f.stem for f in base.glob('*.dat') if not f.stem.endswith('_hr'))}"
+            )
+    return str(path)
+
+
+def stage_stellar_spectrum(model, run_dir: Path, spectrum: str | None) -> str | None:
+    """Copy the spectrum into the run directory and shorten the namelist entry.
+
+    `radmod.f90` declares `starfile` and `starfilehr` as `character(len=80)`,
+    and `configure()` absolutises whatever path it is given. A venv path is
+    easily longer than that: ours is 90 characters, and Fortran truncates it at
+    80, emits a namelist *warning* rather than an error, then dies with an
+    end-of-file inside `readdat`. The failure names a path that does not exist,
+    which is not obviously a length problem.
+
+    The model runs with the run directory as its working directory, so staging
+    the two files there and referring to them by bare name sidesteps the limit
+    entirely.
+    """
+    if not spectrum:
+        return None
+    src = Path(spectrum)
+    hires = src.with_name(f"{src.stem}_hr.dat")
+    for f in (src, hires):
+        shutil.copyfile(f, run_dir / f.name)
+    model._edit_namelist("radmod_namelist", "STARFILE", f"'{src.name}'")
+    model._edit_namelist("radmod_namelist", "STARFILEHR", f"'{hires.name}'")
+    return src.name
+
+
 def surface_input_paths(config: dict) -> list[Path]:
     """Every SRA file that defines this run's surface, in a stable order."""
     return [INPUTS / "t42" / f"orogen_T42_surf_{code:04d}.sra"
@@ -150,7 +197,7 @@ def geography_tag(config: dict) -> str:
 # Albedo is the exception, because the substrate genuinely varies and we know how
 # from the lithology, so it is supplied when land_albedo_source is not uniform.
 BASE_SURFACE_CODES = {129, 172}
-ALBEDO_SURFACE_CODES = {174, 175, 176}
+ALBEDO_SURFACE_CODES = {174, 175, 176, 212}
 
 
 def intended_surface_codes(config: dict) -> set[int]:
@@ -397,6 +444,7 @@ def main() -> None:
     model.configure(
         flux=derived["stellar_flux_w_m2"],
         startemp=float(star["effective_temperature_k"]),
+        starspec=stellar_spectrum_path(config),
         starradius=derived["stellar_radius_solar"],
         pN2=float(atmosphere["pN2_bar"]),
         pO2=float(atmosphere["pO2_bar"]),
@@ -459,6 +507,7 @@ def main() -> None:
         interpolatetimes=False,
     )
     staged = stage_surface_extras(run_dir, config)
+    spectrum = stage_stellar_spectrum(model, run_dir, stellar_spectrum_path(config))
     model.exportcfg(str(run_dir / f"{identifier}.cfg"))
     surface_report = surface_field_report(run_dir, config)
 
@@ -518,6 +567,7 @@ def main() -> None:
         "namelist_checks": checks,
         "surface_fields": surface_report,
         "surface_fields_staged": staged,
+        "stellar_spectrum": spectrum,
         "postprocessor": {
             "regular_codes": REGULAR_CODES,
             "snapshot_codes": SNAPSHOT_CODES,

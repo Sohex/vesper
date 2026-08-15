@@ -67,6 +67,21 @@ from convert_orogen import write_sra
 # diagnostic agrees rather than silently keeping 0.22.
 ALBEDO_CODES = (174, 175, 176)
 
+# 212 is forest fraction. It is written here rather than left at its default
+# because it is not independent of the albedo assumption: landmod blends snow
+# albedo between forested and unforested endpoints by `dforest`, so leaving it at
+# ExoPlaSim's uniform 0.5 asserts a half-forested planet while the background
+# albedo asserts bare rock. That inconsistency darkens snow on the cold branch,
+# which is exactly where the bistability question is decided.
+FOREST_CODE = 212
+
+# Forest fraction implied by each albedo mode.
+MODE_FOREST_FRACTION = {
+    "lithology": 0.0,   # bare rock carries no canopy
+    "vegetated": 0.5,   # Earth-like mixed cover where anything grows
+    "scaled": 0.25,     # midpoint, matching that mode's compromise character
+}
+
 
 def _rock_id(export: Path, code: str) -> int:
     lit = json.loads((export / "manifest.json").read_text(encoding="utf-8"))["lithology"]
@@ -105,6 +120,8 @@ def main() -> None:
                     help="land-mean albedo for --mode scaled")
     ap.add_argument("--vegetation-albedo", type=float, default=0.15,
                     help="albedo of vegetated ground for --mode vegetated")
+    ap.add_argument("--forest-fraction", type=float, default=None,
+                    help="override the forest fraction implied by --mode")
     args = ap.parse_args()
 
     config = yaml.safe_load(args.config.read_text(encoding="utf-8"))
@@ -113,7 +130,7 @@ def main() -> None:
     nlat, nlon = int(model["latitudes"]), int(model["longitudes"])
 
     if mode == "uniform":
-        for code in ALBEDO_CODES:
+        for code in ALBEDO_CODES + (FOREST_CODE,):
             p = args.output / f"orogen_T42_surf_{code:04d}.sra"
             if p.exists():
                 p.unlink()
@@ -140,6 +157,15 @@ def main() -> None:
         # moves to the target. Clipped to a physical range afterwards.
         field[land] = np.clip(alb[land] * (args.target_mean / raw_mean), 0.05, 0.80)
 
+    # Forest fraction, zero on evaporite because nothing roots in a salt pan and
+    # zero over ocean, where landmod never reads it.
+    rock = _surface_rock(args.export)
+    evaporite = _rock_id(args.export, "evaporite")
+    forest_value = (args.forest_fraction if args.forest_fraction is not None
+                    else MODE_FOREST_FRACTION[mode])
+    forest = np.zeros_like(field)
+    forest[land & (rock != evaporite)] = forest_value
+
     final_mean = float(np.average(field[land], weights=area[land]))
     args.output.mkdir(parents=True, exist_ok=True)
     written = []
@@ -147,6 +173,9 @@ def main() -> None:
         path = args.output / f"orogen_T42_surf_{code:04d}.sra"
         write_sra(path, code, field)
         written.append(str(path))
+    forest_path = args.output / f"orogen_T42_surf_{FOREST_CODE:04d}.sra"
+    write_sra(forest_path, FOREST_CODE, forest)
+    written.append(str(forest_path))
 
     report = {
         "mode": mode,
@@ -154,7 +183,13 @@ def main() -> None:
         "terrain_hash": json.loads(
             (args.export / "manifest.json").read_text(encoding="utf-8")
         )["hashes"]["finalElevation"],
-        "codes": list(ALBEDO_CODES),
+        "codes": list(ALBEDO_CODES) + [FOREST_CODE],
+        "forest_fraction_value": forest_value,
+        "forest_fraction_land_mean": float(np.average(forest[land], weights=area[land])),
+        "forest_note": ("dforest blends snow albedo between forested and "
+                        "unforested endpoints, so it has to agree with the "
+                        "background albedo assumption. ExoPlaSim's default is a "
+                        "uniform 0.5."),
         "land_mean_bare_rock": raw_mean,
         "land_mean_written": final_mean,
         "exoplasim_default_albland": 0.22,

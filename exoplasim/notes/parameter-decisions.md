@@ -506,3 +506,96 @@ a further reason the two-band configuration matters under a 4965 K spectrum.
 
 `run_id` gains a `_glac` marker when the module is on, so a glaciers-on and
 glaciers-off pair cannot share a run directory.
+
+## Full audit of ExoPlaSim configuration
+
+`configure()` takes 102 parameters. We set 26; the rest sit at defaults. Audited
+against the source rather than the documentation, because several defaults are
+wrong for this world in ways nothing announces.
+
+### Changed as a result
+
+**Stellar spectrum.** ExoPlaSim ships `stellarspectra/k2.dat` and this star is
+K2.5V, so the 4965 K blackbody was replaced by the measured spectrum.
+`radmod.f90:801` gives `nstarfile` precedence over `nstartemp`, and the spectrum
+sets the weighting behind every snow, ice, glacier and surface albedo. It is not
+a refinement. Overall snow albedo falls from 0.562 to 0.395, because a real K
+dwarf puts far more flux above 0.75 um than a blackbody of the same effective
+temperature does, and snow is dark there. The below-0.75 um band barely moves,
+0.745 to 0.754; the above-0.75 um band falls 0.431 to 0.347. At orbit 0 the
+planet is 2.6 K warmer, absorbs 29.1 against 9.2 W m-2, and carries 0.075 against
+0.104 sea-ice fraction. The blackbody was biasing this world cold and icy in
+exactly the quantity the current experiment is designed to measure.
+
+**Forest fraction.** `dforest` was at its uniform 0.5 default while the
+background albedo asserted bare rock. It is not decorative: `landmod.f90:383-392`
+blends snow albedo between forested and unforested endpoints by `dforest`, so the
+default was darkening snow as though half the land were canopy. It is now written
+as code 212 by `build_surface_albedo.py`, tracking the albedo mode: 0 for
+`lithology`, 0.5 off-evaporite for `vegetated`.
+
+### Corrected reasoning on glaciers
+
+Enabling the glacier module is still right, but not for the reason recorded when
+it was switched on. `landmod.f90:839-845` hard-clips snow at `dsmax`, whose
+default is **5.0 m water equivalent**, and line 424 pins a glacier cell at exactly
+that. The glacier orography contribution is therefore capped at about five
+metres and is inert. PlaSim cannot grow an ice sheet, and raising `maxsnow` would
+not fix it, because without ice flow the accumulation zone would thicken into a
+tower rather than spread into a sheet.
+
+What the module does contribute is albedo persistence. A glacier cell uses
+`albgmin`/`albgmax` instead of the snow curve, so it holds a minimum albedo of
+0.745 below 0.75 um where snow decays to 0.501 as it approaches melting. That
+hysteresis is a genuine bistability mechanism, and it is what the setting buys.
+
+State the limitation plainly when interpreting: this experiment tests albedo
+bistability including glacier albedo hysteresis and excluding ice-sheet growth.
+
+### Left at defaults, deliberately
+
+- `wetsoil` False. It adjusts land albedo by soil moisture and is tuned to Earth
+  observations, so it is the wrong tool under a K dwarf, and it would fight the
+  lithology albedo we supply.
+- `vegetation` False, so `NVEG=0` and SimBA is off. Vegetation is LPJ-GUESS's job
+  downstream. Note `NCVEG` in `vegmod_namelist` is the growth accelerator, not the
+  on/off switch; reading it as the switch is an easy mistake.
+- `snowicealbedo` None, which is what lets the spectrum compute the albedos above.
+  Setting it would override them with a single number.
+- `co2weathering`, `evolveco2` False. CO2 is fixed at 450 ppm by design; a
+  silicate-weathering feedback is a separate experiment.
+- `aquaplanet`, `desertplanet`, `drycore`, `aerosol`, `synchronous` all False.
+- `modeltop` None, giving `PTOP` 5000 Pa, appropriate for a 1 bar atmosphere.
+
+### Left at defaults, but worth knowing
+
+- `soilwatercap` None, so `WSMAX` is Earth's 0.5 m uniformly. This is the bucket
+  capacity the lake work will want to set per cell from basin hypsometry.
+- `cpsoil` None and `soildepth` 1.0, so land heat capacity is uniform at
+  2.4e6 J m-3 K-1. The export carries per-class rock densities, so this could be
+  made lithology-dependent later; it is second-order next to albedo.
+- `stormclim` False. Turning it on yields tropical-cyclone diagnostics, which is
+  a worldbuilding output rather than a physics correction.
+- Diffusion and physics-filter coefficients are all at resolution-dependent
+  defaults. We enable the filter but tune nothing.
+
+### Two traps found in the process
+
+`starfile` and `starfilehr` are `character(len=80)` in `radmod.f90`, and
+`configure()` absolutises whatever path it is handed. A venv path is easily
+longer: ours was 90 characters. Fortran truncates at 80, emits a namelist
+*warning* rather than an error, then dies with an end-of-file inside `readdat`
+naming a path that does not exist. `stage_stellar_spectrum` copies the two files
+into the run directory and rewrites the namelist to bare names, which the model
+resolves against its own working directory.
+
+T63 additionally requires `pyfft991` to be compiled by hand, per the ExoPlaSim
+tutorial. T42 and T85 do not.
+
+### Model biases to carry into interpretation
+
+From the ExoPlaSim tutorial, and worth repeating wherever results are read: no
+deep-ocean circulation, so high latitudes run somewhat too cold, which matters
+directly for the glaciation question; monsoons come out weak; there is a bias
+toward Mediterranean patterns; and small islands and peninsulas come out drier
+than they should.

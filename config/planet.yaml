@@ -38,9 +38,16 @@ atmosphere:
   ozone: true
 
 radiation:
-  # Use ExoPlaSim's blackbody stellar-temperature correction and retain its
-  # separate visible/near-IR surface albedos for the redder K-dwarf spectrum.
+  # Separate visible/near-IR surface albedos, which matter under a red spectrum:
+  # snow albedo splits 0.959/0.614 at maximum and 0.496/0.289 at minimum.
   two_band_albedo: true
+  # ExoPlaSim ships a measured K2 dwarf spectrum, and this star is K2.5V, so use
+  # it in place of the 4965 K blackbody. It is not cosmetic: nstarfile takes
+  # precedence over nstartemp in radmod, and the spectrum sets the weighting
+  # that produces every snow, ice, glacier and surface albedo above. A blackbody
+  # has none of a K dwarf's molecular absorption, and albedo feedback is the
+  # quantity this project's current experiment turns on.
+  stellar_spectrum: k2
 
 surface:
   mixed_layer_depth_m: 50.0
