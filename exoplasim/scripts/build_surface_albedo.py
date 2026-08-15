@@ -137,6 +137,31 @@ def main() -> None:
     # from the gridded export instead would average open water's 0.06 into every
     # coastal cell.
     region_albedo = mesh.rock_albedo.astype(np.float64).copy()
+
+    # Rock-class overrides, applied before anything else reads the field. These
+    # exist because the export's albedo table was written for plausibility rather
+    # than radiative accuracy, and one of its entries dominates this planet's
+    # energy balance. Recorded in the report so no result is quoted without it.
+    overrides = model.get("lithology_albedo_overrides") or {}
+    applied = {}
+    for code, spec in overrides.items():
+        value = float(spec["albedo"] if isinstance(spec, dict) else spec)
+        expected = float(spec["replaces"]) if isinstance(spec, dict) and "replaces" in spec else None
+        rid = _rock_id(args.mesh, code)
+        sel = rock == rid
+        if not sel.any():
+            raise RuntimeError(f"override names rock class {code!r}, absent from this export")
+        exported = float(np.median(region_albedo[sel]))
+        if expected is not None and abs(exported - expected) > 1e-6:
+            raise RuntimeError(
+                f"override for {code!r} was written against an exported albedo of "
+                f"{expected}, but this export reports {exported}. The class has "
+                "been redefined; re-derive the override or delete it rather than "
+                "applying it to a class that no longer means the same thing."
+            )
+        applied[code] = {"rock_id": rid, "albedo": value,
+                         "exported_albedo": exported, "regions": int(sel.sum())}
+        region_albedo[sel] = value
     if mode == "vegetated":
         region_albedo[is_land & (rock != evaporite)] = args.vegetation_albedo
 
@@ -189,6 +214,7 @@ def main() -> None:
         "codes": list(ALBEDO_CODES) + [FOREST_CODE],
         "forest_fraction_value": forest_value,
         "forest_fraction_land_mean": gmean(forest),
+        "lithology_albedo_overrides": applied,
         "forest_note": ("dforest blends snow albedo between forested and "
                         "unforested endpoints, so it has to agree with the "
                         "background albedo assumption. ExoPlaSim's default is a "

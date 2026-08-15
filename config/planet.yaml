@@ -113,6 +113,39 @@ model:
   # target at non-overlapping fluxes, so the biosphere and the orbit are one
   # choice.
   land_albedo_source: vegetated
+  # Rock-class albedo overrides, applied on top of the export's table.
+  #
+  # Evaporite is the largest single lever in this planet's energy balance and its
+  # exported value is not a measurement. World Orogen assigns 0.50 to the class
+  # "Evaporite / playa fill" and applies it to EVERY cell of a preserved basin,
+  # not just the terminal floor. 0.50 is clean halite crust; a real basin is
+  # zoned, with salt only where it repeatedly floods and dries, surrounded by
+  # playa mud, alluvial fan and dune sand. Typical playa is 0.25-0.35, and Salar
+  # de Uyuni at 0.5-0.7 is an unusually pure end member.
+  #
+  # Sensitivity on the pre-carve terrain, where evaporite is 20.8% of land and
+  # 9.0% of the planet: 2.76 W/m2 per 0.10 of albedo, or 2.59 K. The range 0.50
+  # to 0.30 spans 5.1 K against a design band only 3 K wide, so this constant is
+  # worth more than the flux choice it is being used to justify.
+  #
+  # 0.40 is taken as a mixed-playa value: above typical playa because these
+  # basins do concentrate salt at their floors, below clean crust because most of
+  # a basin's area is not crust. It is a declared assumption, not a measurement,
+  # and every result computed with it inherits that.
+  #
+  # Orogen has proposed zoning the class by depth below spill, which would give a
+  # measured area split between crust and clastics instead of one number. When
+  # that lands this override should be removed rather than retuned.
+  # `replaces` is the exported value this override was written against. If the
+  # export no longer reports that, the class has been redefined and the override
+  # is refused rather than applied blindly. That matters here specifically:
+  # Orogen is splitting evaporite into salt crust and playa clastics, after which
+  # "evaporite" may name the crust alone, where 0.50 is correct and 0.40 would be
+  # wrong. Delete this block when the split lands; do not retune it.
+  lithology_albedo_overrides:
+    evaporite:
+      albedo: 0.40
+      replaces: 0.50
   geography_land_threshold: 0.5
   seasonal_samples_per_orbit: 32
   regular_output_bins_per_orbit: 12
