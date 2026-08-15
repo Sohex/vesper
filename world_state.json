@@ -1,0 +1,563 @@
+{
+  "schema_version": 1,
+  "generated": "2026-08-15T21:19:21.095245+00:00",
+  "git_commit": "400d13f1640a07c1428588421323f1fded0f3025",
+  "generator": "scripts/world_state.py",
+  "note": "Generated from the artifacts. Do not edit; re-run the generator. Judgement that no artifact can supply is in `curated`, which lives in the generator under version control.",
+  "planet": {
+    "radius_earth": 1.2,
+    "gravity_m_s2": 10.1989,
+    "mass_earth": 1.4976,
+    "rotation_hours": 30.0,
+    "obliquity_degrees": 32.0,
+    "eccentricity": 0.02
+  },
+  "star": {
+    "spectral_type": "K2.5V",
+    "mass_solar": 0.8,
+    "luminosity_solar": 0.32359365692962827,
+    "effective_temperature_k": 4965.0
+  },
+  "orbit": {
+    "earth_solar_constant_w_m2": 1361.0,
+    "baseline_flux_earth": 0.96,
+    "sweep_flux_earth": [
+      0.9,
+      0.95,
+      1.0
+    ],
+    "longitude_vernal_equinox_degrees": 102.7
+  },
+  "atmosphere": {
+    "pN2_bar": 0.78025,
+    "pO2_bar": 0.21,
+    "pAr_bar": 0.0093,
+    "pCO2_bar": 0.00045,
+    "ozone": true
+  },
+  "active_configuration": {
+    "source_build": "carved-zoned",
+    "model": {
+      "resolution": "T42",
+      "latitudes": 64,
+      "longitudes": 128,
+      "layers": 10,
+      "precision_bytes": 8,
+      "ncpus": 16,
+      "timestep_minutes": 45.0,
+      "physics_filter": "gp|exp|sp",
+      "output_type": ".nc",
+      "uniform_land_surface": true,
+      "land_albedo_source": "vegetated",
+      "barren_rock_classes": [
+        "evaporite",
+        "playa_clastic"
+      ],
+      "geography_land_threshold": 0.5,
+      "seasonal_samples_per_orbit": 32,
+      "regular_output_bins_per_orbit": 12
+    },
+    "surface": {
+      "mixed_layer_depth_m": 50.0,
+      "sea_ice": true,
+      "glaciers": {
+        "enabled": true,
+        "min_snow_depth_m": 2.0,
+        "initial_height_m": -1.0
+      }
+    },
+    "radiation": {
+      "two_band_albedo": true,
+      "stellar_spectrum": "k2"
+    },
+    "stellar_cycle": {
+      "cases": {
+        "active": {
+          "minimum_flux_earth": 0.91,
+          "maximum_flux_earth": 1.01
+        }
+      },
+      "period_earth_years": 8.0
+    }
+  },
+  "builds": {
+    "carved-zoned": {
+      "terrain_hash": "3899a0c57d1eee2f47ba9054c218a171a7aa4532e2437c9104070c2c3dfaece6",
+      "catalogue_hash": "2d1f8e57c26b60c608deaa62bd3c44b7da04a4ee5bd518249447630095d96a98",
+      "seed": 16236323,
+      "regions": 2500001,
+      "selection_source": "preserve-list",
+      "drainage_hypothesis": {
+        "preserveListGiven": 3629,
+        "carveListGiven": 0,
+        "carvedByRetainZero": 1522
+      },
+      "preserved_basins": 2107,
+      "land_fraction": 0.43173568067758117,
+      "endorheic_fraction_of_land": 0.5518262525256888,
+      "lithology_land_fractions": {
+        "schist": 0.23466,
+        "continental_clastic": 0.23141,
+        "granite": 0.13095,
+        "playa_clastic": 0.11361,
+        "gneiss": 0.08547,
+        "shelf_clastic": 0.07054
+      },
+      "grids": [
+        "T21",
+        "T42",
+        "T63",
+        "T85"
+      ],
+      "superseded": true
+    },
+    "precarve-unzoned": {
+      "terrain_hash": "821aa71b37a7beda0b59398c7f005b91531050000ca46660d0f724cdb3f401a3",
+      "catalogue_hash": "2d1f8e57c26b60c608deaa62bd3c44b7da04a4ee5bd518249447630095d96a98",
+      "seed": 16236323,
+      "regions": 2500001,
+      "selection_source": "threshold",
+      "drainage_hypothesis": {
+        "preserveListGiven": 0,
+        "carveListGiven": 0
+      },
+      "preserved_basins": 3629,
+      "land_fraction": 0.4317358383866897,
+      "endorheic_fraction_of_land": 0.7621534408214234,
+      "lithology_land_fractions": {
+        "schist": 0.22398,
+        "evaporite": 0.20827,
+        "continental_clastic": 0.1887,
+        "granite": 0.11202,
+        "gneiss": 0.08547,
+        "shelf_clastic": 0.06728
+      },
+      "grids": [
+        "T21",
+        "T42",
+        "T63",
+        "T85"
+      ],
+      "superseded": false
+    },
+    "precarve-zoned": {
+      "terrain_hash": "26fc76914da14289ff26f15a130192bd84d59031098569adb66186ffdabb28b7",
+      "catalogue_hash": "2d1f8e57c26b60c608deaa62bd3c44b7da04a4ee5bd518249447630095d96a98",
+      "seed": 16236323,
+      "regions": 2500001,
+      "selection_source": "threshold",
+      "drainage_hypothesis": {
+        "preserveListGiven": 0,
+        "carveListGiven": 0,
+        "carvedByRetainZero": 0
+      },
+      "preserved_basins": 3629,
+      "land_fraction": 0.4317358383866897,
+      "endorheic_fraction_of_land": 0.7614116487358672,
+      "lithology_land_fractions": {
+        "schist": 0.22378,
+        "continental_clastic": 0.18865,
+        "playa_clastic": 0.18797,
+        "granite": 0.11202,
+        "gneiss": 0.08547,
+        "shelf_clastic": 0.06696
+      },
+      "grids": [
+        "T21",
+        "T42",
+        "T63",
+        "T85"
+      ],
+      "superseded": false
+    }
+  },
+  "climate_runs": [
+    {
+      "run_id": "t21l10p8r8_s090_co20450ppm_rot30h_obl32_e020_glac_g86c5409a",
+      "status": "spinup_in_progress",
+      "orbits_complete": 50,
+      "flux_earth": 0.9,
+      "cycle": null,
+      "resolution": "T21",
+      "land_albedo_source": "lithology",
+      "source_build": null,
+      "glaciers": true,
+      "converged": null,
+      "mean_surface_temperature_k": 273.548
+    },
+    {
+      "run_id": "t21l10p8r8_s090_co20450ppm_rot30h_obl32_e020_glac_ge7a7ace3",
+      "status": "spinup_in_progress",
+      "orbits_complete": 50,
+      "flux_earth": 0.9,
+      "cycle": null,
+      "resolution": "T21",
+      "land_albedo_source": "lithology",
+      "source_build": null,
+      "glaciers": true,
+      "converged": null,
+      "mean_surface_temperature_k": 280.685
+    },
+    {
+      "run_id": "t21l10p8r8_s095_co20450ppm_rot30h_obl32_e020_glac_g86c5409a",
+      "status": "spinup_in_progress",
+      "orbits_complete": 50,
+      "flux_earth": 0.95,
+      "cycle": null,
+      "resolution": "T21",
+      "land_albedo_source": "lithology",
+      "source_build": null,
+      "glaciers": true,
+      "converged": null,
+      "mean_surface_temperature_k": 285.668
+    },
+    {
+      "run_id": "t21l10p8r8_s095_co20450ppm_rot30h_obl32_e020_glac_ge7a7ace3",
+      "status": "spinup_in_progress",
+      "orbits_complete": 50,
+      "flux_earth": 0.95,
+      "cycle": null,
+      "resolution": "T21",
+      "land_albedo_source": "lithology",
+      "source_build": null,
+      "glaciers": true,
+      "converged": null,
+      "mean_surface_temperature_k": 290.046
+    },
+    {
+      "run_id": "t21l10p8r8_s100_co20450ppm_rot30h_obl32_e020_glac_g86c5409a",
+      "status": "spinup_in_progress",
+      "orbits_complete": 50,
+      "flux_earth": 1.0,
+      "cycle": null,
+      "resolution": "T21",
+      "land_albedo_source": "lithology",
+      "source_build": null,
+      "glaciers": true,
+      "converged": null,
+      "mean_surface_temperature_k": 294.414
+    },
+    {
+      "run_id": "t21l10p8r8_s100_co20450ppm_rot30h_obl32_e020_glac_ge7a7ace3",
+      "status": "spinup_in_progress",
+      "orbits_complete": 50,
+      "flux_earth": 1.0,
+      "cycle": null,
+      "resolution": "T21",
+      "land_albedo_source": "lithology",
+      "source_build": null,
+      "glaciers": true,
+      "converged": null,
+      "mean_surface_temperature_k": 298.116
+    },
+    {
+      "run_id": "t42_s090_co20450ppm_rot30h_obl32_e020",
+      "status": "smoke_complete",
+      "orbits_complete": 1,
+      "flux_earth": 0.9,
+      "cycle": null,
+      "resolution": "T42",
+      "land_albedo_source": null,
+      "source_build": null,
+      "glaciers": null,
+      "converged": null,
+      "mean_surface_temperature_k": 265.31
+    },
+    {
+      "run_id": "t42l10p16r8_s096_co20450ppm_rot30h_obl32_e020_glac_g43ca63cf",
+      "status": "equilibrated_for_worldbuilding",
+      "orbits_complete": 75,
+      "flux_earth": 0.96,
+      "cycle": null,
+      "resolution": "T42",
+      "land_albedo_source": "vegetated",
+      "source_build": null,
+      "glaciers": true,
+      "converged": true,
+      "mean_surface_temperature_k": 292.92899221578045
+    },
+    {
+      "run_id": "t42l10p16r8_s096_co20450ppm_rot30h_obl32_e020_glac_gbafe5e8b",
+      "status": "smoke_complete",
+      "orbits_complete": 12,
+      "flux_earth": 0.96,
+      "cycle": null,
+      "resolution": "T42",
+      "land_albedo_source": "vegetated",
+      "source_build": "carved-zoned",
+      "glaciers": true,
+      "converged": null,
+      "mean_surface_temperature_k": 288.958
+    },
+    {
+      "run_id": "t42l10p8_cycle8ey_s085-095_co20450ppm_rot30h_obl32_e020",
+      "status": "simulation_complete",
+      "orbits_complete": 62,
+      "flux_earth": 0.8999999999999999,
+      "cycle": "extreme",
+      "resolution": "T42",
+      "land_albedo_source": null,
+      "source_build": null,
+      "glaciers": null,
+      "converged": null,
+      "mean_surface_temperature_k": 277.805
+    },
+    {
+      "run_id": "t42l10p8_cycle8ey_s085-095_co20450ppm_rot30h_obl32_e020",
+      "status": "running",
+      "orbits_complete": 0,
+      "flux_earth": 0.8999999999999999,
+      "cycle": "extreme",
+      "resolution": "T42",
+      "land_albedo_source": null,
+      "source_build": null,
+      "glaciers": null,
+      "converged": null,
+      "mean_surface_temperature_k": null
+    },
+    {
+      "run_id": "t42l10p8_cycle8ey_s088-092_co20450ppm_rot30h_obl32_e020",
+      "status": "simulation_complete",
+      "orbits_complete": 62,
+      "flux_earth": 0.9,
+      "cycle": "control",
+      "resolution": "T42",
+      "land_albedo_source": null,
+      "source_build": null,
+      "glaciers": null,
+      "converged": null,
+      "mean_surface_temperature_k": 279.685
+    },
+    {
+      "run_id": "t42l10p8_s085_co20450ppm_rot30h_obl32_e020",
+      "status": "climatology_complete_quasi_equilibrium",
+      "orbits_complete": 81,
+      "flux_earth": 0.85,
+      "cycle": null,
+      "resolution": "T42",
+      "land_albedo_source": null,
+      "source_build": null,
+      "glaciers": null,
+      "converged": null,
+      "mean_surface_temperature_k": 258.797
+    },
+    {
+      "run_id": "t42l10p8_s085_co20450ppm_rot30h_obl32_e020",
+      "status": "prepared",
+      "orbits_complete": 0,
+      "flux_earth": 0.85,
+      "cycle": null,
+      "resolution": "T42",
+      "land_albedo_source": null,
+      "source_build": null,
+      "glaciers": null,
+      "converged": null,
+      "mean_surface_temperature_k": null
+    },
+    {
+      "run_id": "t42l10p8_s090_co20450ppm_rot30h_obl32_e020",
+      "status": "climatology_complete",
+      "orbits_complete": 51,
+      "flux_earth": 0.9,
+      "cycle": null,
+      "resolution": "T42",
+      "land_albedo_source": null,
+      "source_build": null,
+      "glaciers": null,
+      "converged": null,
+      "mean_surface_temperature_k": 280.71764690877524
+    },
+    {
+      "run_id": "t42l10p8_s090_co20450ppm_rot30h_obl32_e020",
+      "status": "prepared",
+      "orbits_complete": 0,
+      "flux_earth": 0.9,
+      "cycle": null,
+      "resolution": "T42",
+      "land_albedo_source": null,
+      "source_build": null,
+      "glaciers": null,
+      "converged": null,
+      "mean_surface_temperature_k": null
+    },
+    {
+      "run_id": "t42l10p8_s095_co20450ppm_rot30h_obl32_e020",
+      "status": "climatology_complete",
+      "orbits_complete": 51,
+      "flux_earth": 0.95,
+      "cycle": null,
+      "resolution": "T42",
+      "land_albedo_source": null,
+      "source_build": null,
+      "glaciers": null,
+      "converged": null,
+      "mean_surface_temperature_k": 291.93992254517633
+    }
+  ],
+  "current_climate": {
+    "source": "exoplasim/analysis/climatology_s096/baseline_climate_report.json",
+    "global_metrics": {
+      "surface_temperature_k": 292.97197563142356,
+      "air_temperature_2m_k": 292.2306113732911,
+      "precipitation_mm_day": 2.9489773318071557,
+      "toa_net_radiation_w_m2": -0.35109277592637333,
+      "surface_downward_heat_flux_w_m2": 0.08993604054261123,
+      "planetary_sea_ice_fraction": 0.001330433575424605,
+      "ocean_mean_sea_ice_concentration": 0.0023273918625831987,
+      "land_area_fraction": 0.4283585859289112
+    },
+    "koppen_top": {
+      "BWh": 0.19357759812475014,
+      "Dfb": 0.16201299826603496,
+      "BSh": 0.11536706755059117,
+      "Dfa": 0.06833335929848874,
+      "Af": 0.06734245503454284,
+      "Cfa": 0.05727495473634963
+    },
+    "biome_top": {
+      "Continental temperate/mixed forest": 0.28275569374145765,
+      "Desert": 0.19357759812475014,
+      "Steppe/semidesert": 0.1198985317304334,
+      "Temperate/subtropical forest": 0.11463942165598133,
+      "Seasonal tropical woodland/savanna": 0.09022922193315133,
+      "Everwet tropical forest": 0.06734245503454284
+    },
+    "caveat": "Computed on precarve-unzoned with evaporite as one class at 0.50. Both have since been superseded. Quote as the 0.96 pre-carve baseline, never as Vesper's climate."
+  },
+  "hydrography": {
+    "terrain_hash": "821aa71b37a7beda0b59398c7f005b91531050000ca46660d0f724cdb3f401a3",
+    "drainage": {
+      "land_fraction_of_planet": 0.4317358383866897,
+      "endorheic_fraction_of_land": 0.761122105547923,
+      "ocean_draining_fraction_of_land": 0.23887789445207697,
+      "unresolved_regions": 0,
+      "pits_filled": 99085,
+      "median_fill_depth_m": 8.505018224241212
+    },
+    "basins": {
+      "count": 3629,
+      "total_capacity_km3": 6838339.389490922,
+      "total_area_at_spill_km2": 64178391.38765645,
+      "area_at_spill_fraction_of_planet": 0.08731836967360074,
+      "total_catchment_km2": 241521415.5939877,
+      "catchment_to_spill_area_ratio_median": 3.921150087730079,
+      "merged_basins": 323,
+      "spills_to_ocean": 1032,
+      "spills_into_another_basin": 2597,
+      "critical_aridity_index_percentiles": {
+        "5": 1.1006974780060768,
+        "25": 1.8685688942668004,
+        "50": 2.921150087730079,
+        "75": 4.8179198435445025,
+        "95": 11.64651177361583
+      },
+      "capacity_vs_natural_catalogue": 0.6664644218562505
+    },
+    "carve_verdict": {
+      "bounds": {
+        "penman": {
+          "basins_carved": 1522,
+          "endorheic_land_km2": 159771982.9525926,
+          "lake_area_km2": 6941929.024408584,
+          "dry_survivors": 1248,
+          "wet_survivors": 962,
+          "basins_without_runoff": 1248,
+          "lake_area_fraction_of_planet": 0.009451322940958391,
+          "solver_converged": true,
+          "median_aridity_index": -8.29613955812234
+        },
+        "wet": {
+          "basins_carved": 2119,
+          "endorheic_land_km2": 106465578.70634604,
+          "lake_area_km2": 10863857.083307598,
+          "dry_survivors": 1248,
+          "wet_survivors": 967,
+          "basins_without_runoff": 1248,
+          "lake_area_fraction_of_planet": 0.014790963911865407,
+          "solver_converged": true,
+          "median_aridity_index": -23.606757904354325
+        }
+      },
+      "agreement": {
+        "carve_under_both": 1522,
+        "survive_under_both": 1510,
+        "disputed": 597
+      },
+      "penman_ocean_validation": {
+        "penman_mm_per_day": 3.736,
+        "model_mm_per_day": 3.672,
+        "ratio": 1.017,
+        "note": "Ocean cells are already open water, so this is a direct check."
+      }
+    },
+    "carve_list": {
+      "counts": {
+        "carve": 1522,
+        "preserve": 1872,
+        "marginal": 235
+      },
+      "terrain_hash": "821aa71b37a7beda0b59398c7f005b91531050000ca46660d0f724cdb3f401a3",
+      "climate": {
+        "resolution": "T42",
+        "flux_earth": 0.96,
+        "land_surface": "vegetated",
+        "mean_surface_temperature_k": 292.88,
+        "note": "Converged on all six criteria. The biosphere is assumed, not modelled, and that assumption is worth 3.7 to 7.1 K."
+      }
+    }
+  },
+  "curated": {
+    "open_questions": [
+      "Does the climate response follow the albedo arithmetic? Land-mean albedo on carved-zoned is 0.1722 against the baseline's 0.2240, predicting about 299.4 K. The chain is four linear steps across a response we have repeatedly declined to extrapolate.",
+      "The habitable flux depends on the biosphere, which is assumed rather than modelled. Bare rock and vegetated reach 290-293 K at non-overlapping fluxes, so LPJ-GUESS determines not just the climate but where the planet should be placed.",
+      "Iteration 1 systematically over-carved: carving removes bright evaporite, the world warms, and marginal basins would have stayed closed. The overshoot should be measured on iteration 2 by re-evaluating the carved set against the new climate.",
+      "Roughly 228 basins with zero catchment runoff were preserved but have P > E over open water, so a lake there grows and spills. They should go through the marginal band with a retain fraction, not be flipped to 0."
+    ],
+    "known_uncertainties": [
+      {
+        "item": "playa_clastic albedo",
+        "value": 0.3,
+        "range": [
+          0.25,
+          0.33
+        ],
+        "worth_w_m2": 1.99,
+        "worth_k": 1.87,
+        "note": "Dominant remaining albedo lever: 18.8% of land against the salt crust's 2.1%, 2.48 W/m2 per 0.10. Itself a mixture of clay playa and desert-varnished fan gravel. Recorded, not tuned."
+      },
+      {
+        "item": "salt crust extent",
+        "value": 0.106,
+        "range": [
+          0.1,
+          0.4
+        ],
+        "note": "Degenerate with crust albedo in the effective value: 10.6% at 0.50 and 20% at 0.40 are the same planet from the climate side. Only an independent measure of flooding frequency separates them, and the lake solver is not validated enough to provide it."
+      },
+      {
+        "item": "lake levels",
+        "value": null,
+        "note": "The equilibrium solver has never been validated against anything, unlike Penman which was checked against the model's own ocean cells to 1.7%. Least-checked numbers in the pipeline."
+      },
+      {
+        "item": "energy budget closure",
+        "value": 0.45,
+        "note": "Net TOA runs 0.27-0.45 W/m2 more negative than net surface flux across every run, which cannot both be true in steady state. The |mean TOA| < 0.5 criterion is being applied inside a bias of its own size, so margins of 0.004 either way are not resolvable."
+      },
+      {
+        "item": "retain fraction",
+        "value": null,
+        "note": "Measures distance from threshold, not incision capacity. A basin that barely trickles over its sill is cut the same as one that pours. Should become a function of overflow discharge."
+      }
+    ],
+    "next_steps": [
+      "Finish the carved-zoned baseline at 0.96 and compare against the 299.4 K prediction.",
+      "Choose the flux from what it measures, not from the estimate.",
+      "Supply equilibrium lake levels as --water-level so basin floors stop being exported as dry ground.",
+      "Run LPJ-GUESS on the resulting climatology and replace the assumed biosphere.",
+      "Iteration-2 carve verdict, with retain as a function of discharge and the 228 zero-runoff spillers handled.",
+      "One T85 equilibrium once terrain and biosphere settle, for regional products.",
+      "Stellar cycle last, 0.91-1.01 S-Earth over 8 Earth years."
+    ]
+  }
+}

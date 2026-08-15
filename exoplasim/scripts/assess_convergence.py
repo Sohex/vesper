@@ -145,7 +145,21 @@ def main() -> None:
     plot_path = args.output / "baseline_convergence.png"
     fig.savefig(plot_path, dpi=180)
     plt.close(fig)
-    print(json.dumps({"metrics": metrics, "criteria": criteria, "pass": all(criteria.values())}, indent=2))
+    payload = {"metrics": metrics, "criteria": criteria,
+               "pass": all(criteria.values()), "orbits": len(files),
+               "window_orbits": w}
+
+    # Record the verdict with the run as well as in the analysis directory.
+    # Provenance travels with the artifact everywhere else in this project, and a
+    # convergence result that lives only in an output folder cannot be found from
+    # the run it describes.
+    manifest_path = args.run_dir / "run_manifest.json"
+    if manifest_path.is_file():
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest["convergence_assessment"] = payload
+        manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+
+    print(json.dumps(payload, indent=2))
 
 
 if __name__ == "__main__":
