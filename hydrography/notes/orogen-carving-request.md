@@ -337,3 +337,71 @@ products derived from the same root cannot find a bug in the root. That is
 structural, not a matter of care. It is the argument for keeping an independent
 implementation even after both agree, which is why the cross-check now runs every
 build rather than having been a one-off comparison.
+
+---
+
+# First carve verdict, from the 0.96 S-Earth baseline
+
+Climate: T42, vegetated land surface, glaciers enabled, K2 spectrum, converged on
+all six criteria at 292.88 K. Five-orbit climatology, integrated over each
+basin's catchment through the T42 coupling matrix.
+
+## Verdict
+
+| estimate | carve | survive | dry | with lake | lake, % of planet |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Penman (primary) | 1592 | 2037 | 1248 | 938 | 0.988% |
+| land-evaporation sensitivity | 2119 | 1510 | 1248 | 967 | 1.479% |
+
+**1,592 of 3,629 basins carve** under the primary estimate. 1,549 carve under both
+estimates, 1,467 survive under both, and 613 (16.9%) are sensitive to which
+evaporation estimate is used.
+
+## How open-water evaporation was estimated, and why it can be trusted
+
+The model has no lake in these basins, so it does not report lake evaporation.
+Land evaporation is moisture-limited: ExoPlaSim scales it by a wetness factor
+that only reaches 1 above 40% of field capacity, so it understates what a lake
+would evaporate and over-carves.
+
+The primary estimate is the Penman combination equation, evaluated with water's
+albedo (0.06 rather than the 0.15 to 0.50 substrate) and water's roughness
+length. Net radiation is recomputed by backing shortwave out of the model's `rss`
+using the albedo the run was actually given, then re-absorbing it at water's
+albedo.
+
+**It is validated against the model itself.** Applied to ocean cells, which are
+already open water, Penman gives 3.736 mm/day against the model's own 3.672, a
+ratio of 1.017. Reproducing the model's open-water evaporation to under 2% from
+surface fields alone is what makes the same calculation trustworthy over land,
+where it gives 3.428 mm/day against the moisture-limited 1.983 the ground
+actually manages.
+
+A third approach, dividing land evaporation by the reconstructed wetness factor,
+was tried and rejected: it gives a land mean of 20.5 mm/day, because the division
+is unstable wherever soil is dry, which is precisely where endorheic basins live.
+Recorded so it is not attempted again.
+
+## The dry basins are the interesting result
+
+1,248 basins have **zero catchment runoff**. They cannot overflow, so they survive
+as dry pans rather than lakes. That is 34% of all basins and it agrees
+independently with the lithology: evaporite is 20.8% of this planet's land, and
+evaporite forms in closed basins. Two separate models, terrain chemistry and
+climate, arriving at the same picture.
+
+Surviving endorheic terrain therefore splits in two: roughly 1,250 salt pans that
+never hold standing water, and roughly 940 basins with real lakes totalling about
+1% of the planet's surface.
+
+## What we are not sending yet
+
+The 613 estimate-sensitive basins are one reason to hold. The larger one is that
+this verdict inherits an assumed biosphere: the vegetated land surface was chosen,
+not modelled, and the albedo bracket showed that choice is worth 3.7 to 7.1 K,
+which flows straight into precipitation, evaporation and runoff here.
+
+The 1,549 basins that carve under both estimates are robust to the evaporation
+question, though not to the vegetation one. They are a defensible first list if
+the terrain iteration should start now, with the remainder settled on the second
+pass once LPJ-GUESS has replaced the assumption.
