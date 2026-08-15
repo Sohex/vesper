@@ -125,6 +125,45 @@ def couple_to_grid(export: Export, drn: dr.Drainage, grid_dir, n_basins: int):
     }
 
 
+def cross_check_against_export(export: Export, drn: dr.Drainage) -> dict:
+    """Compare our routing against the export's own, and record the agreement.
+
+    The export now routes drainage itself, correctly, and we could in principle
+    read `drainage_terminal` instead of flooding. We do not, for two reasons:
+    the flood also yields the filled surface that the hypsometry curves are built
+    from, and an independent implementation is what caught two routing bugs in
+    the export. Keeping both and recording their agreement turns that into a
+    standing regression check rather than a one-off comparison.
+    """
+    sc, area, dt = export.surface_class, export.cell_area.astype(np.float64), export.drainage_terminal
+    land = sc == LAND
+    sinks = np.array([b.sink for b in export.basins])
+    lut = np.full(export.n_regions, -1, np.int32)
+    lut[sinks] = np.arange(len(sinks))
+    theirs = np.full(export.n_regions, dr.TERMINAL_OCEAN, np.int32)
+    is_sink = np.isin(dt, sinks)
+    theirs[is_sink] = lut[dt[is_sink]]
+
+    mine = drn.catchment_areas(export, len(export.basins))
+    declared = np.array([b.catchment_area_km2 for b in export.basins])
+    ratio = mine / np.maximum(declared, 1e-9)
+    return {
+        "region_agreement": float((theirs[land] == drn.terminal[land]).mean()),
+        "regions_differing": int((theirs[land] != drn.terminal[land]).sum()),
+        "catchment_ratio_median": float(np.median(ratio)),
+        "catchment_ratio_p5": float(np.percentile(ratio, 5)),
+        "catchment_ratio_p95": float(np.percentile(ratio, 95)),
+        "endorheic_land_fraction_ours": float(
+            area[land & (drn.terminal >= 0)].sum() / area[land].sum()),
+        "endorheic_land_fraction_export": float(
+            area[land & (theirs >= 0)].sum() / area[land].sum()),
+        "note": ("Land fractions are normalised by surface_class land area. The "
+                 "export's manifest quotes this figure against land_mask, which "
+                 "excludes 1.91% of the planet in dry sub-sea-level basin floor "
+                 "and inflates the percentage by about 3.5 points."),
+    }
+
+
 def river_mouths(export: Export, drn: dr.Drainage, top: int = 200):
     """Largest discharges reaching the world ocean, on the resolved network."""
     off, adj = export.adjacency
@@ -161,6 +200,11 @@ def main() -> None:
     land = ex.surface_class == LAND
     if (land & (drn.terminal == dr.TERMINAL_NONE)).any():
         raise RuntimeError("priority flood left land regions unresolved")
+
+    agreement = cross_check_against_export(ex, drn)
+    print(f"agreement with the export's own drainage_terminal: "
+          f"{agreement['region_agreement']*100:.3f}% of land, "
+          f"catchment ratio median {agreement['catchment_ratio_median']:.4f}")
 
     spill, spill_target, merged = dr.spill_levels(ex, drn, n_basins)
     if not np.isfinite(spill).all():
@@ -283,6 +327,7 @@ def main() -> None:
                 / sum(b.natural_volume_km3 for b in ex.basins)),
         },
         "coupling": couplings,
+        "cross_check_vs_export_routing": agreement,
         "river_mouths_top": river_mouths(ex, drn, top=50),
         # Sill depth decides whether a marginal sea exchanges freely or turns
         # evaporitic or stratified. The full list stays in the source manifest;

@@ -192,3 +192,63 @@ erosion was previously routing over unfilled pits. Worth confirming it is
 intended, because with an empty hypothesis nothing else on the artifact signals
 that the terrain moved, and every number computed against the previous build is
 now stale.
+
+---
+
+# Follow-up on the re-regenerated export (back to `821aa71b`)
+
+## Verified
+
+- **The revert is clean.** Every hydrography product reproduces the earlier
+  `821aa71b` run to the digit: endorheic share 76.1%, 99,085 pits filled at a
+  median 8.5 m, capacity 6,838,339 km3, critical aridity index median 2.921. The
+  terrain really is bit-identical.
+- **`drainage_terminal` and `finalCatchment` now agree exactly.** Independent
+  check: max per-basin `|ratio - 1|` is 0.00e+00 and both total
+  2.418487e+08 km2 to every digit. The `drainageConsistency` block is doing what
+  it says.
+- **Area conservation is exact.** Land draining to sinks, plus land draining to
+  ocean, plus non-land, sums to 7.349930e+08 km2 against a planet surface area of
+  7.349930e+08, relative error 0.00e+00.
+- **River statistics reproduce.** Sink inflow median 3.189e4 km2 against the
+  reported 3.19e4; inflow-to-floor ratio 7.64x against 7.64x.
+- **Our two routings now agree to 99.888% of land**, 1,207 regions of 1,079,435,
+  with a per-basin catchment ratio of median 1.0000 and p5/p95 both 1.000. The
+  residual is all one direction, ours assigning to ocean where the export assigns
+  to a basin, which is our documented tie-break: we seed the heap so that a
+  saddle reached at equal level goes to the ocean. Neither is wrong; it is a
+  choice at exact ties.
+
+We keep our own flood rather than reading `drainage_terminal`, because it also
+produces the filled surface the hypsometry is built from, and because an
+independent implementation is what surfaced the last two routing bugs. The
+comparison is now a standing regression check recorded in
+`hydrography/data/hydrography_report.json` under `cross_check_vs_export_routing`.
+
+## One correction, on the reported percentage rather than the routing
+
+`drainageConsistency` reports 79.74% of land endorheic. That figure is normalised
+by `land_mask`, not by `surface_class`.
+
+    catchment total          2.418487e+08 km2
+    / land by surface_class  3.173228e+08 km2  ->  76.22%
+    / land by land_mask      3.032877e+08 km2  ->  79.74%
+
+`land_mask` excludes the dry sub-sea-level basin floors, 1.91% of the planet,
+which is the trap the manifest itself now documents and which `surface_class`
+exists to avoid. Using it here inflates the endorheic share by about 3.5 points.
+
+The routing is right and the areas are right; only the normalisation is wrong.
+Worth fixing because a headline percentage is exactly the number that gets
+quoted downstream.
+
+## And a correction against us
+
+Our guess that the previous build's terrain move came from the routing fix
+feeding hydraulic erosion was wrong, and wrong in a way we could have checked:
+the ordering in `pipeline.js` settles it, with post-processing ending at 462 and
+all basin and river work at 504 and beyond, so routing cannot feed erosion. We
+offered a plausible mechanism without checking whether it was reachable, and
+labelled it a probable improvement. The actual cause, a pre-erosion absolute
+protection floor that also served as its own assertion baseline, was a
+regression. Noted so the reasoning error is on the record alongside the fix.

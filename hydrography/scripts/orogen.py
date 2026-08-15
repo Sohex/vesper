@@ -24,10 +24,15 @@ from _paths import MESH_EXPORT
 _KNOWN_TERRAIN_HASHES = {
     "821aa71b37a7beda0b59398c7f005b91531050000ca46660d0f724cdb3f401a3":
         "2026-08 build: over-erosion fixed, sub-sea-level land at 1.0 km/unit",
+    # WITHDRAWN. The terrain move in this build was not an improvement: a basin
+    # protection floor was captured pre-erosion and stored absolute, letting the
+    # carve take back divides that erosion had raised, with the same array used
+    # as the assertion baseline so it never tripped. Reverted upstream; the
+    # regenerated export is bit-identical to 821aa71b again. Kept here only so an
+    # export from that window is recognised rather than silently accepted.
     "27b7479aa486f5dacebccb0c638ff839a60a98e617c2437229600ef0bacf32ec":
-        "2026-08 build: drainage routed on the flood visitation tree, which also "
-        "changed hydraulic erosion (mean land elevation 548 m -> 521 m); "
-        "per-basin carving control added, no carve list applied to this export",
+        "WITHDRAWN 2026-08 build: basin-protection floor drift, superseded by "
+        "821aa71b. Do not use.",
 }
 
 # Basin ids are computed on the pre-conditioning surface, so they survive a
