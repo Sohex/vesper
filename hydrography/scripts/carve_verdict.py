@@ -180,6 +180,13 @@ def main() -> None:
         / f"orogen_{resolution}_surf_0174.sra", *ps_pa.shape)
     penman = penman_open_water(ts, tas, q_air, wind, ps_pa, rss, rls,
                                land_albedo, float(config["planet"]["gravity_m_s2"]))
+    # Floor the open-water estimate at the moisture-limited land rate. Penman
+    # linearises around air temperature, so where the ground runs much hotter
+    # than the air it can return less than the model's own evaporation, which is
+    # impossible for a saturated surface under the same forcing. Without this
+    # floor 43 basins carved under Penman but not under the land rate, which
+    # inverts the nesting the two estimates are supposed to have.
+    penman = np.maximum(penman, evap)
 
     # ExoPlaSim's own wetness factor, reconstructed. Where soil is wet this is 1
     # and land evaporation is already the potential rate.
