@@ -250,6 +250,7 @@ def run_id(config: dict, flux_ratio: float) -> str:
     m = config["model"]
     identifier = (
         f"{str(m['resolution']).lower()}l{int(m['layers'])}p{int(m['ncpus'])}"
+        f"r{int(m['precision_bytes'])}"
         f"_s{round(100 * flux_ratio):03d}"
         f"_co2{round(1e6 * float(a['pCO2_bar'])):04d}ppm"
         f"_rot{float(p['rotation_hours']):g}h"
@@ -478,6 +479,17 @@ def main() -> None:
             "topomap": str(topomap),
             "topomap_sha256": file_sha256(topomap),
         },
+        # ExoPlaSim names the binary most_plasim_t<res>_l<layers>_p<ncpus>.x, with
+        # no precision in the path, and reuses whatever is already there rather
+        # than recompiling. So the compiled precision is invisible shared state.
+        # Recording the binary's digest is what makes a silent swap auditable.
+        "executable": {
+            "path": str(exe_path) if exe_path else None,
+            "sha256": file_sha256(exe_path) if exe_path and exe_path.is_file() else None,
+            "note": ("Built precision is not encoded in the filename. If "
+                     "model.precision_bytes changes, pass recompile=True or "
+                     "remove the binary, or the old one is silently reused."),
+        },
         "software": {
             "python": platform.python_version(),
             "exoplasim": getattr(exo, "__version__", "3.4.2"),
@@ -492,6 +504,8 @@ def main() -> None:
             "snapshot_codes": SNAPSHOT_CODES,
         },
     }
+    exes = sorted(run_dir.glob("most_plasim_*.x"))
+    exe_path = exes[-1] if exes else None
     manifest_path = run_dir / "run_manifest.json"
     manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
     print(

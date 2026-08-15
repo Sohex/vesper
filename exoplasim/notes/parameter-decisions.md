@@ -387,3 +387,44 @@ built around.
 Against the superseded files, which came from the 510k-region map PNGs: land
 fraction 0.4284 against 0.4137, topography maximum 5,101 m against 6,001 m, and
 119 below-sea-level land cells where there were none.
+
+## Precision stays at 8 bytes
+
+ExoPlaSim's `precision` argument sets `-fdefault-real-8` or leaves the compiler
+at 4-byte reals. Its own documentation says 4-byte "may run slightly faster, but
+possibly at the cost of reduced stability". We keep 8, for reasons specific to
+what this project measures rather than a general preference.
+
+The convergence criteria are the binding constraint. They require mean absolute
+TOA and surface imbalances below 0.5 W m-2 and trends below 0.05 W m-2 per orbit.
+Annual means are accumulated by naive summation into plain `real` arrays in
+`plasimmod.f90`, so those accumulators take the compiled precision. Summing of
+order 10^3 to 10^4 samples of a ~300 W m-2 flux at single precision carries a
+worst-case accumulation error around 0.03 to 0.2 W m-2, which is the same order
+as the trend threshold and a large fraction of the absolute one. The 0.85-S-Earth
+endpoint already missed its threshold by 0.004 W m-2; that is the margin we work
+in, and single precision does not resolve it reliably.
+
+The immediate experiment makes it worse. Bracketing the albedo endmembers is a
+comparison between two separate integrations, and numerical noise does not cancel
+in a difference taken across independent runs.
+
+Single precision would be a reasonable tool for exploratory scanning, where the
+question is a several-kelvin difference rather than a fraction of a watt. It is
+the wrong tool for the equilibration diagnostics that gate decisions here.
+
+### The trap, which applies whichever precision is chosen
+
+ExoPlaSim names the binary `most_plasim_t<res>_l<layers>_p<ncpus>.x`. The `p` is
+the CPU count, not the precision, and nothing in the path records what it was
+compiled with. `Model.__init__` reuses whatever exists at that path unless
+`recompile=True`. So changing `model.precision_bytes` alone changes nothing, and
+a binary built once at 4 bytes silently serves every later run that believes it
+is at 8.
+
+Two guards. `run_id` now carries `r8` or `r4`, so runs at different precision
+cannot share a directory. And every run manifest records the executable's SHA-256,
+so a swapped binary is visible in provenance even though the filename is not.
+Neither prevents the mismatch; they make it auditable. Changing precision means
+deleting the binary or passing `recompile=True`, and restart files are not
+portable across the change because the Fortran record layout differs.
