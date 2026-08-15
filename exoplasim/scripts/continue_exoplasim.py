@@ -96,6 +96,19 @@ def year_diagnostics(path: Path) -> dict:
     }
 
 
+
+def config_drift(recorded: dict, current: dict, path: str = "") -> list[str]:
+    """Semantic differences between two parsed configurations, deepest first."""
+    out = []
+    for key in sorted(set(recorded) | set(current)):
+        a, b = recorded.get(key), current.get(key)
+        if isinstance(a, dict) and isinstance(b, dict):
+            out += config_drift(a, b, f"{path}{key}.")
+        elif a != b:
+            out.append(f"{path}{key}: {a!r} -> {b!r}")
+    return out
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=Path, default=CONFIG)
@@ -122,8 +135,16 @@ def main() -> None:
     if not manifest_path.is_file():
         raise RuntimeError(f"No prepared run manifest at {manifest_path}")
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    if manifest["config_sha256"] != file_sha256(config_path):
-        raise RuntimeError("Current configuration differs from the run manifest; refusing to resume")
+    # Compare the parsed configuration against the copy the manifest already
+    # stores, not the file's bytes. Hashing the raw file makes an edited comment
+    # indistinguishable from an edited parameter, which blocks a legitimate
+    # resume and says nothing about why. This reports the offending keys.
+    drift = config_drift(manifest["source_config"], config)
+    if drift:
+        raise RuntimeError(
+            "Configuration differs from the run manifest; refusing to resume:\n  "
+            + "\n  ".join(drift)
+        )
 
     years = output_years(run_dir)
     if not years or years != list(range(years[-1] + 1)):
