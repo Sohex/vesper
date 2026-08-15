@@ -107,10 +107,10 @@ def derive(config: dict, flux_ratio: float) -> dict:
     }
 
 
-# The two SRA files that carry the geography. Every script that locates a run
-# directory has to agree on these, so they live here.
-LANDMAP = INPUTS / "t42" / "orogen_T42_surf_0172.sra"
-TOPOMAP = INPUTS / "t42" / "orogen_T42_surf_0129.sra"
+def surface_sra(config: dict, code: int) -> Path:
+    """Path to a generated surface field, keyed by the configured resolution."""
+    resolution = str(config["model"]["resolution"]).upper()
+    return INPUTS / resolution.lower() / f"orogen_{resolution}_surf_{code:04d}.sra"
 
 
 def stellar_spectrum_path(config: dict) -> str | None:
@@ -162,7 +162,7 @@ def stage_stellar_spectrum(model, run_dir: Path, spectrum: str | None) -> str | 
 
 def surface_input_paths(config: dict) -> list[Path]:
     """Every SRA file that defines this run's surface, in a stable order."""
-    return [INPUTS / "t42" / f"orogen_T42_surf_{code:04d}.sra"
+    return [surface_sra(config, code)
             for code in sorted(intended_surface_codes(config))]
 
 
@@ -215,7 +215,7 @@ def stage_surface_extras(run_dir: Path, config: dict) -> list[int]:
     """
     staged = []
     for code in sorted(intended_surface_codes(config) - BASE_SURFACE_CODES):
-        src = INPUTS / "t42" / f"orogen_T42_surf_{code:04d}.sra"
+        src = surface_sra(config, code)
         if not src.is_file():
             raise RuntimeError(
                 f"{src} is missing. Run build_surface_albedo.py, or set "
@@ -417,8 +417,8 @@ def main() -> None:
 
     nlat = int(config["model"]["latitudes"])
     nlon = int(config["model"]["longitudes"])
-    landmap = LANDMAP.resolve()
-    topomap = TOPOMAP.resolve()
+    landmap = surface_sra(config, 172).resolve()
+    topomap = surface_sra(config, 129).resolve()
     land = read_sra(landmap, 172, nlat, nlon)
     topo = read_sra(topomap, 129, nlat, nlon)
     if not np.all(np.isin(land, [0.0, 1.0])):

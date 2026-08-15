@@ -19,8 +19,7 @@ import yaml
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _paths import CONFIG, INPUTS, RUNS  # noqa: E402
 from run_exoplasim import (  # noqa: E402
-    LANDMAP,
-    TOPOMAP,
+    surface_sra,
     stage_surface_extras,
     surface_field_report,
     REGULAR_CODES,
@@ -139,8 +138,8 @@ def main() -> None:
     star = config["star"]
     model_cfg = config["model"]
     surface = config["surface"]
-    landmap = LANDMAP.resolve()
-    topomap = TOPOMAP.resolve()
+    landmap = surface_sra(config, 172).resolve()
+    topomap = surface_sra(config, 129).resolve()
     model = exo.Earthlike(
         resolution=model_cfg["resolution"],
         layers=int(model_cfg["layers"]),

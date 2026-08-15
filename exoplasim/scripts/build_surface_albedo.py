@@ -61,6 +61,8 @@ import yaml
 
 from _paths import CONFIG, INPUTS, SOURCE
 from convert_orogen import write_sra
+from gridding import land_fraction_of_class, land_weighted
+from orogen import Export, LAND
 
 # 174 broadband, 175 below 0.75 um, 176 above. With NSIMPLEALBEDO=0 the
 # radiation uses the two-band pair; 174 is written too so the broadband
@@ -83,37 +85,22 @@ MODE_FOREST_FRACTION = {
 }
 
 
-def _rock_id(export: Path, code: str) -> int:
-    lit = json.loads((export / "manifest.json").read_text(encoding="utf-8"))["lithology"]
+def _rock_id(mesh_dir: Path, code: str) -> int:
+    lit = json.loads((mesh_dir / "manifest.json").read_text(encoding="utf-8"))["lithology"]
     for r in lit["rockClasses"]:
         if r["code"] == code:
             return int(r["id"])
-    raise KeyError(f"no rock class {code!r} in {export}")
-
-
-def _surface_rock(export: Path) -> np.ndarray:
-    with Dataset(export / "planet.nc") as ds:
-        return np.asarray(ds["surface_rock"][:])
-
-
-def load_albedo(export: Path, nlat: int, nlon: int):
-    with Dataset(export / "planet.nc") as ds:
-        alb = np.asarray(ds["rock_albedo"][:], dtype=np.float64)
-        sc = np.asarray(ds["surface_class"][:])
-        area = np.asarray(ds["grid_cell_area"][:], dtype=np.float64)
-    if alb.shape != (nlat, nlon):
-        raise RuntimeError(
-            f"{export} is {alb.shape}, config asks for {(nlat, nlon)}; "
-            "use the export whose grid matches the model resolution"
-        )
-    return alb, sc, area
+    raise KeyError(f"no rock class {code!r} in {mesh_dir}")
 
 
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", type=Path, default=CONFIG)
-    ap.add_argument("--export", type=Path, default=SOURCE / "exoplasim-T42")
-    ap.add_argument("--output", type=Path, default=INPUTS / "t42")
+    ap.add_argument("--mesh", type=Path, default=SOURCE / "exoplasim-T42",
+                    help="export carrying raw/; the mesh is the same for all")
+    ap.add_argument("--grid", type=Path, default=None,
+                    help="export whose grid to target; defaults to the config resolution")
+    ap.add_argument("--output", type=Path, default=None)
     ap.add_argument("--mode", choices=("lithology", "vegetated", "scaled", "uniform"),
                     default=None)
     ap.add_argument("--target-mean", type=float, default=0.20,
@@ -129,63 +116,79 @@ def main() -> None:
     mode = args.mode or model.get("land_albedo_source", "lithology")
     nlat, nlon = int(model["latitudes"]), int(model["longitudes"])
 
+    resolution = str(model["resolution"]).upper()
+    grid_dir = args.grid or (SOURCE / f"exoplasim-{resolution}")
+    output = args.output or (INPUTS / resolution.lower())
+
     if mode == "uniform":
         for code in ALBEDO_CODES + (FOREST_CODE,):
-            p = args.output / f"orogen_T42_surf_{code:04d}.sra"
+            p = output / f"orogen_{resolution}_surf_{code:04d}.sra"
             if p.exists():
                 p.unlink()
         print("mode=uniform: removed any albedo SRA; ExoPlaSim will use albland=0.22")
         return
 
-    alb, sc, area = load_albedo(args.export, nlat, nlon)
-    land = sc == 1
-    raw_mean = float(np.average(alb[land], weights=area[land]))
+    mesh = Export(args.mesh)
+    rock = mesh.surface_rock
+    evaporite = _rock_id(args.mesh, "evaporite")
+    is_land = mesh.surface_class == LAND
 
-    field = alb.copy()
+    # Per-region substrate albedo, then integrated over land only. Taking this
+    # from the gridded export instead would average open water's 0.06 into every
+    # coastal cell.
+    region_albedo = mesh.rock_albedo.astype(np.float64).copy()
     if mode == "vegetated":
-        # Everything that can carry vegetation does. Evaporite is left at its
-        # bare value: a playa stays a playa, and it is 20.2% of this planet's
-        # land on the T42 grid, 20.8% on the native mesh, which puts a hard
-        # floor under how dark the world can get. Do not take this from
-        # manifest.lithology.compositionLand, which measures against land_mask
-        # and reports 18.6% by dropping the sub-sea-level basin floors.
-        rock = _surface_rock(args.export)
-        evaporite = _rock_id(args.export, "evaporite")
-        field[land & (rock != evaporite)] = args.vegetation_albedo
-    elif mode == "scaled":
-        # Scale about the land mean so the pattern is preserved and the mean
-        # moves to the target. Clipped to a physical range afterwards.
-        field[land] = np.clip(alb[land] * (args.target_mean / raw_mean), 0.05, 0.80)
+        region_albedo[is_land & (rock != evaporite)] = args.vegetation_albedo
 
-    # Forest fraction, zero on evaporite because nothing roots in a salt pan and
-    # zero over ocean, where landmod never reads it.
-    rock = _surface_rock(args.export)
-    evaporite = _rock_id(args.export, "evaporite")
+    fraction, alb_grid = land_weighted(mesh, grid_dir, region_albedo)
+    land_cells = fraction >= float(model["geography_land_threshold"])
+
+    raw_fraction, raw_alb = land_weighted(mesh, grid_dir,
+                                          mesh.rock_albedo.astype(np.float64))
+    area = mesh.cell_area.astype(np.float64)
+    raw_mean = float(np.average(mesh.rock_albedo[is_land], weights=area[is_land]))
+
+    if mode == "scaled":
+        alb_grid = np.clip(alb_grid * (args.target_mean / raw_mean), 0.05, 0.80)
+
+    # Ocean cells carry the water value; ExoPlaSim computes ocean albedo itself,
+    # so it is inert, but the array has to be full.
+    water_albedo = float(next(r["albedo"] for r in json.loads(
+        (args.mesh / "manifest.json").read_text(encoding="utf-8"))["lithology"]["rockClasses"]
+        if r["code"] == "water"))
+    field = np.where(land_cells, alb_grid, water_albedo)
+
     forest_value = (args.forest_fraction if args.forest_fraction is not None
                     else MODE_FOREST_FRACTION[mode])
-    forest = np.zeros_like(field)
-    forest[land & (rock != evaporite)] = forest_value
+    vegetable = land_fraction_of_class(mesh, grid_dir, rock != evaporite)
+    forest = np.where(land_cells, vegetable * forest_value, 0.0)
 
-    final_mean = float(np.average(field[land], weights=area[land]))
-    args.output.mkdir(parents=True, exist_ok=True)
+    gw = np.fromfile(grid_dir / "grid" / "gauss_weights.bin", dtype="float64")
+    def gmean(a):
+        num = (np.where(land_cells, a, 0.0).mean(axis=1) * gw).sum()
+        den = (land_cells.mean(axis=1) * gw).sum()
+        return float(num / den) if den else 0.0
+    final_mean = gmean(field)
+
+    output.mkdir(parents=True, exist_ok=True)
     written = []
     for code in ALBEDO_CODES:
-        path = args.output / f"orogen_T42_surf_{code:04d}.sra"
+        path = output / f"orogen_{resolution}_surf_{code:04d}.sra"
         write_sra(path, code, field)
         written.append(str(path))
-    forest_path = args.output / f"orogen_T42_surf_{FOREST_CODE:04d}.sra"
+    forest_path = output / f"orogen_{resolution}_surf_{FOREST_CODE:04d}.sra"
     write_sra(forest_path, FOREST_CODE, forest)
     written.append(str(forest_path))
 
     report = {
         "mode": mode,
-        "export": str(args.export),
-        "terrain_hash": json.loads(
-            (args.export / "manifest.json").read_text(encoding="utf-8")
-        )["hashes"]["finalElevation"],
+        "mesh": str(args.mesh),
+        "grid": str(grid_dir),
+        "resolution": resolution,
+        "terrain_hash": mesh.terrain_hash,
         "codes": list(ALBEDO_CODES) + [FOREST_CODE],
         "forest_fraction_value": forest_value,
-        "forest_fraction_land_mean": float(np.average(forest[land], weights=area[land])),
+        "forest_fraction_land_mean": gmean(forest),
         "forest_note": ("dforest blends snow albedo between forested and "
                         "unforested endpoints, so it has to agree with the "
                         "background albedo assumption. ExoPlaSim's default is a "
@@ -193,13 +196,13 @@ def main() -> None:
         "land_mean_bare_rock": raw_mean,
         "land_mean_written": final_mean,
         "exoplasim_default_albland": 0.22,
-        "land_min": float(field[land].min()),
-        "land_max": float(field[land].max()),
+        "land_min": float(field[land_cells].min()),
+        "land_max": float(field[land_cells].max()),
         "files": written,
         "caveat": ("Substrate albedo, not land-surface albedo. Vegetation and "
                    "snow are applied by the model on top of this."),
     }
-    (args.output / "albedo_report.json").write_text(
+    (output / "albedo_report.json").write_text(
         json.dumps(report, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(report, indent=2))
 

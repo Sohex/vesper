@@ -67,9 +67,13 @@ surface:
     initial_height_m: -1.0
 
 model:
-  resolution: T42
-  latitudes: 64
-  longitudes: 128
+  # T21 for the albedo-endmember bracket: 4x fewer cells than T42 and
+  # sufficient to answer whether the two branches converge. The mesh is
+  # unchanged, so boundary conditions are integrated from the same
+  # 2.5M-region mesh onto whichever grid this names.
+  resolution: T21
+  latitudes: 32
+  longitudes: 64
   layers: 10
   precision_bytes: 8
   # 16 physical cores on the Ryzen 9 7950X3D. Not 32: those are SMT threads and
@@ -78,7 +82,9 @@ model:
   # T42 the valid choices are 1, 2, 4, 8, 16, 32, 64; 16 leaves 4 latitudes per
   # rank. Spectral transforms need global transposes, so scaling is sublinear
   # and may turn over before 16 -- measured against the 8-core baseline below.
-  ncpus: 16
+  # 32 latitudes at T21, so 8 ranks leaves 4 per rank. 16 would leave 2 and the
+  # global transposes would likely dominate; measured against 8 below.
+  ncpus: 8
   timestep_minutes: 45.0
   physics_filter: "gp|exp|sp"
   output_type: .nc
