@@ -304,16 +304,56 @@ planet, which is honest when no vegetation model has run, but it will be cold
 relative to a vegetated world, and that cold bias propagates into whatever
 vegetation model consumes the output.
 
+### Bracket it before iterating
+
+The gap between the two physical endmembers is larger than it first looks. Bare
+rock gives a land mean of 0.315. A fully vegetated surface, with evaporite left
+bare because nothing grows on a salt pan, gives 0.197. That is 15 to 19 W/m2 of
+absorbed flux depending on the vegetation albedo assumed, against **21 W/m2 for
+the entire 0.85-to-0.95 stellar sweep, which produced a 33 K range**.
+
+So land albedo is not a bootstrap detail to be tuned away. It is comparable to
+the largest forcing this project has deliberately varied, and it acts through a
+positive feedback: darker means warmer means more vegetation means darker. This
+world has already shown a strong ice-albedo nonlinearity over that same forcing
+range, with sea ice going 32.5% to 6.3% to 0.26% across the sweep. A forcing of
+similar size through a second positive feedback is the standard setup for more
+than one stable state.
+
+If that is the case, iterating from a single starting albedo does not find the
+answer. It finds the basin of attraction the starting point was in. The method
+therefore is to run both endmembers as static climates first, with no vegetation
+model in the loop, and compare:
+
+- If the two climates land within a few K, the vegetation feedback is a
+  correction. Pick the branch, iterate twice, done.
+- If they diverge sharply, or one glaciates and the other does not, the world is
+  bistable. That is a first-class worldbuilding finding rather than a problem,
+  and the state is then chosen deliberately and on the record.
+
+Only then run the vegetation loop, warm-starting within a branch, which is
+correct because it follows that branch, and never across branches, which would
+destroy the test.
+
+One coupling to keep in view: 20.2% of the land is evaporite, and evaporite forms
+in closed basins. If the carve verdict removes many basins, there is less
+evaporite and the world is darker. So the drainage hypothesis, the albedo and the
+climate are a three-way loop, not two separate two-way loops, and all three are
+gated on the same first climate pass.
+
 `model.land_albedo_source` chooses which way to be wrong:
 
 - `lithology` writes bare rock as exported. Physically what the surface is before
   anything grows on it, and cold. This is the default, because the first pass
   exists to feed a vegetation model and a bare planet is what that model should
   be handed.
+- `vegetated` is the opposite endmember: vegetated ground everywhere except
+  evaporite. Land mean 0.197. Physical, warm, and the other half of the bracket.
 - `scaled` keeps the lithology pattern but rescales the land mean to
-  `--target-mean`, so evaporite stays bright relative to basalt while the planet
-  sits where a vegetated world would. A bootstrap compromise, not a physical
-  claim.
+  `--target-mean`. Retained for experiments and **not recommended in
+  production**: it pins the mean to a guess at the answer, which is circular, and
+  it leaves every cell somewhere physically wrong, making basalt darker than any
+  real rock and evaporite far too dark for a salt pan.
 - `uniform` accepts ExoPlaSim's 0.22 and writes nothing.
 
 Part of the lithology signal survives vegetation regardless: nothing grows on a

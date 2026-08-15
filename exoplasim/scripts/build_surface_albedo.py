@@ -27,11 +27,23 @@ cold bias propagates into whatever vegetation model consumes the result.
   lithology  bare-rock albedo as exported. Physically what the surface is before
              anything grows on it. Correct for a first pass whose purpose is to
              feed a vegetation model, and biased cold.
+  vegetated  the opposite physical endmember: everything that could carry
+             vegetation set to `--vegetation-albedo`, with evaporite left bare
+             because nothing grows on a salt pan. Land mean about 0.197. Use it
+             with `lithology` to bracket the answer.
   scaled     the lithology *pattern*, rescaled so the land mean matches
-             `--target-mean`. Keeps evaporite bright and basalt dark relative to
-             each other while centring the planet where a vegetated world would
-             sit. A bootstrap compromise, not a physical claim.
+             `--target-mean`. Kept for experiments, but not recommended as a
+             production setting: it fixes the mean to a guess at the answer, and
+             it puts every cell somewhere physically wrong, making basalt darker
+             than any real rock and evaporite far too dark for a salt pan.
   uniform    write nothing and let ExoPlaSim default to 0.22.
+
+The two endmembers are about 15 to 19 W/m2 apart in absorbed flux, against 21
+W/m2 for the entire 0.85-to-0.95 stellar sweep that produced a 33 K range. The
+land albedo is therefore not a bootstrap detail; it is comparable to the largest
+forcing this project has varied on purpose, and with a positive
+vegetation-albedo feedback on top it may select between distinct equilibria
+rather than shifting one. Run both endmembers before trusting either.
 
 Ocean cells are written with the water class value; ExoPlaSim computes ocean
 albedo separately, so the value there is inert, but the array has to be full.
@@ -56,6 +68,19 @@ from convert_orogen import write_sra
 ALBEDO_CODES = (174, 175, 176)
 
 
+def _rock_id(export: Path, code: str) -> int:
+    lit = json.loads((export / "manifest.json").read_text(encoding="utf-8"))["lithology"]
+    for r in lit["rockClasses"]:
+        if r["code"] == code:
+            return int(r["id"])
+    raise KeyError(f"no rock class {code!r} in {export}")
+
+
+def _surface_rock(export: Path) -> np.ndarray:
+    with Dataset(export / "planet.nc") as ds:
+        return np.asarray(ds["surface_rock"][:])
+
+
 def load_albedo(export: Path, nlat: int, nlon: int):
     with Dataset(export / "planet.nc") as ds:
         alb = np.asarray(ds["rock_albedo"][:], dtype=np.float64)
@@ -74,9 +99,12 @@ def main() -> None:
     ap.add_argument("--config", type=Path, default=CONFIG)
     ap.add_argument("--export", type=Path, default=SOURCE / "exoplasim-T42")
     ap.add_argument("--output", type=Path, default=INPUTS / "t42")
-    ap.add_argument("--mode", choices=("lithology", "scaled", "uniform"), default=None)
+    ap.add_argument("--mode", choices=("lithology", "vegetated", "scaled", "uniform"),
+                    default=None)
     ap.add_argument("--target-mean", type=float, default=0.20,
                     help="land-mean albedo for --mode scaled")
+    ap.add_argument("--vegetation-albedo", type=float, default=0.15,
+                    help="albedo of vegetated ground for --mode vegetated")
     args = ap.parse_args()
 
     config = yaml.safe_load(args.config.read_text(encoding="utf-8"))
@@ -97,7 +125,14 @@ def main() -> None:
     raw_mean = float(np.average(alb[land], weights=area[land]))
 
     field = alb.copy()
-    if mode == "scaled":
+    if mode == "vegetated":
+        # Everything that can carry vegetation does. Evaporite is left at its
+        # bare value: a playa stays a playa, and it is 20.2% of this planet's
+        # land, which puts a hard floor under how dark the world can get.
+        rock = _surface_rock(args.export)
+        evaporite = _rock_id(args.export, "evaporite")
+        field[land & (rock != evaporite)] = args.vegetation_albedo
+    elif mode == "scaled":
         # Scale about the land mean so the pattern is preserved and the mean
         # moves to the target. Clipped to a physical range afterwards.
         field[land] = np.clip(alb[land] * (args.target_mean / raw_mean), 0.05, 0.80)
