@@ -1,5 +1,5 @@
 {
-  "generated": "2026-08-15T05:34:46.025633+00:00",
+  "generated": "2026-08-15T05:56:53.203455+00:00",
   "source": {
     "export_root": "/home/cfutro/docs/world/source/exoplasim-T42",
     "terrain_hash": "821aa71b37a7beda0b59398c7f005b91531050000ca46660d0f724cdb3f401a3",
@@ -64,7 +64,9 @@
     "catchment_ratio_p95": 1.0,
     "endorheic_land_fraction_ours": 0.761122105547923,
     "endorheic_land_fraction_export": 0.7621534408214234,
-    "note": "Land fractions are normalised by surface_class land area. The export's manifest quotes this figure against land_mask, which excludes 1.91% of the planet in dry sub-sea-level basin floor and inflates the percentage by about 3.5 points."
+    "endorheic_land_fraction_export_published": 0.7621534408214234,
+    "export_land_denominator": "surface_class == land (subaerial)",
+    "note": "Land fractions are normalised by surface_class land area. The export now publishes its own fraction with the denominator named, and this build asserts the two agree."
   },
   "river_mouths_top": [
     {

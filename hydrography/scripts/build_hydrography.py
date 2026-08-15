@@ -147,6 +147,22 @@ def cross_check_against_export(export: Export, drn: dr.Drainage) -> dict:
     mine = drn.catchment_areas(export, len(export.basins))
     declared = np.array([b.catchment_area_km2 for b in export.basins])
     ratio = mine / np.maximum(declared, 1e-9)
+
+    # The export now publishes its own endorheic fraction with the denominator
+    # named. Assert against the published value rather than recomputing it, so a
+    # future change of denominator on either side shows up here instead of being
+    # silently absorbed.
+    dc = export.manifest["basins"].get("drainageConsistency", {})
+    published = dc.get("fractionOfLand")
+    ours_by_export_routing = float(
+        area[land & (theirs >= 0)].sum() / area[land].sum())
+    if published is not None and abs(published - ours_by_export_routing) > 1e-6:
+        raise RuntimeError(
+            f"export publishes fractionOfLand={published} but its own "
+            f"drainage_terminal gives {ours_by_export_routing}; the denominator "
+            f"is {dc.get('landDenominator')!r}"
+        )
+
     return {
         "region_agreement": float((theirs[land] == drn.terminal[land]).mean()),
         "regions_differing": int((theirs[land] != drn.terminal[land]).sum()),
@@ -155,12 +171,12 @@ def cross_check_against_export(export: Export, drn: dr.Drainage) -> dict:
         "catchment_ratio_p95": float(np.percentile(ratio, 95)),
         "endorheic_land_fraction_ours": float(
             area[land & (drn.terminal >= 0)].sum() / area[land].sum()),
-        "endorheic_land_fraction_export": float(
-            area[land & (theirs >= 0)].sum() / area[land].sum()),
+        "endorheic_land_fraction_export": ours_by_export_routing,
+        "endorheic_land_fraction_export_published": published,
+        "export_land_denominator": dc.get("landDenominator"),
         "note": ("Land fractions are normalised by surface_class land area. The "
-                 "export's manifest quotes this figure against land_mask, which "
-                 "excludes 1.91% of the planet in dry sub-sea-level basin floor "
-                 "and inflates the percentage by about 3.5 points."),
+                 "export now publishes its own fraction with the denominator "
+                 "named, and this build asserts the two agree."),
     }
 
 

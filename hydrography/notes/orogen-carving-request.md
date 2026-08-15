@@ -288,3 +288,52 @@ But we did quote 18.6% from it in two places before checking, and a biome or soi
 model taking parent-material fractions from this table would inherit the same
 bias. Suggest measuring it against `surface_class`, or naming the denominator in
 the block the way `landSeaMask` already does.
+
+---
+
+# Follow-up: denominator corrections verified
+
+All confirmed against the regenerated export.
+
+- `elevHash` 821aa71b and `catalogueHash` 2d1f8e57 both unchanged, and every
+  hydrography product reproduces to the digit: endorheic 76.1%, 99,085 pits at a
+  median 8.5 m, capacity 6,838,339 km3. Manifest numbers moved, terrain did not.
+- `drainageConsistency.fractionOfLand` is 0.7621534408214234, which matches what
+  the export's own `drainage_terminal` field gives to every digit, and
+  `landAreaKm2` matches `surface_class` land area exactly. `build_hydrography.py`
+  now asserts the published fraction against the field rather than recomputing
+  it, so a future denominator change on either side fails the build.
+- `compositionLand` reproduces our figures exactly: evaporite 0.2083 on
+  6.608997e+07 km2, total 3.173228e+08, fractions summing to 1.000000.
+- `computeScarpPotential`: verified zero. Not one of the 48,092 dry-floor regions
+  on the native mesh has nonzero scarp potential, which is a stronger statement
+  than the subset measured upstream. Agreed it is a closed trap rather than a
+  finding.
+
+## One measurement on erodibility, offered as a note
+
+The reasoning for keeping `buildErodibility` on `elevation > 0` is sound and we
+are not disputing it: when it runs, no basin has been preserved yet, so nothing
+below sea level is land and the two definitions coincide at that moment. The
+divergence only exists downstream.
+
+The measurement is still worth recording, because the delivered field no longer
+has the property the docs claim for it. `tools/README.md` describes erodibility as
+"mean-normalised to 1 over land". On the finished export:
+
+    unweighted mean over land_mask (elevation > 0)   0.9735
+    unweighted mean over surface_class (subaerial)   0.9995
+
+Neither is 1, which is expected once cover stripping swaps cells to their basement
+erodibility after the normalisation was applied. So the normalisation is a
+property of the field at the time it was computed, not of the field as shipped.
+Worth a clause in the docs, since a downstream model that assumes mean 1 and
+rescales against it would introduce a few percent of error for no reason.
+
+## On the two implementations
+
+Your framing is the right one and worth keeping: a consistency check between two
+products derived from the same root cannot find a bug in the root. That is
+structural, not a matter of care. It is the argument for keeping an independent
+implementation even after both agree, which is why the cross-check now runs every
+build rather than having been a one-off comparison.
