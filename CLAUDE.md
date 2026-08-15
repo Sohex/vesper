@@ -104,6 +104,36 @@ condition uses the flooding convention. Whatever replaces that script should tak
 `surface_class` from `planet.nc`, or the surfacemask PNG if it stays
 image-based.
 
+### OPEN BUG: `elevation_km` is 10x too deep on dry basin floors
+
+Reported upstream 2026-08-14; check whether the export predates the fix before
+trusting `elevation_km` anywhere below sea level.
+
+`elevToHeightKm` picks its land or ocean branch with the same `elevation > 0`
+test that `land_mask` uses. The mask semantics were fixed; the elevation
+conversion was not. So the 48,092 dry closed-basin-floor regions get the ocean
+scaling of 10 km per unit instead of the land curve, and read exactly ten times
+too deep. Bit-exact: `elevation_km == elevation * 10` for every one of them, with
+`max |elevation_km - 10*elevation| = 0`.
+
+The deepest basin sink reads −5.624 km when `elevation_pre_conditioning` and the
+basin catalogue both say −0.562 km. `manifest.basins.preserved[].sinkElevationKm`
+is **correct**; the gridded and raw `elevation_km` fields are not. 94,392 regions
+(2.8e7 km², 3.8% of the planet) fall below their own basin's catalogued sink.
+`manifest.landSeaMask.deepestDisagreeingElevationKm` is the same symptom and
+should read −0.562.
+
+It propagates to `orogen-heightmap-*.png`, where floors around −500 m render at
+−4,300 to −4,900 m and 239,989 pixels clamp at the −5,000 m encoding floor. The
+land-only heightmap is unaffected, since it only encodes positive elevations.
+
+Two consequences worth holding onto: any hypsometry-driven water balance built on
+`elevation_km` is wrong for precisely the terrain the fork exists to preserve,
+and any topography handed to ExoPlaSim from `surface_class` plus `elevation_km`
+would place −5 km pits in the middle of continents. Until it is fixed, derive
+below-sea-level land depth from `elevation_pre_conditioning`, or from `elevation`
+directly with the land branch.
+
 ### Other gotchas
 
 - **`elevation` is not kilometres.** It is the generator's internal shaping
