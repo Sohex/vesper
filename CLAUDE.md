@@ -198,8 +198,10 @@ current geography anyway.
 
 ## The ExoPlaSim component
 
-See `exoplasim/README.md` for the workflow and results, and
-`exoplasim/notes/parameter-decisions.md` for every physical and format decision
+See `exoplasim/README.md` for the workflow and results,
+`exoplasim/notes/lake-representation.md` for what the model can do with the
+endorheic basins, and `exoplasim/notes/parameter-decisions.md` for every physical
+and format decision
 (ExoPlaSim 3.4.2 calendar bugs, postprocessor code quirks, convergence criteria,
 Köppen rate-normalisation, sign conventions). Read the notes before changing
 anything about how runs are configured — most of the non-obvious choices are
