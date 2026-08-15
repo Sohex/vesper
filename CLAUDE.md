@@ -18,9 +18,11 @@ requirements.txt       Shared Python dependencies for .venv.
 lives under `exoplasim/`. New components get a sibling directory and read the same
 `config/planet.yaml` and `source/`.
 
-This is **not a git repository**. There is no history to fall back on; be careful
-with destructive operations, especially under `exoplasim/runs/` (20 GB of
-irreplaceable model output that took days of CPU time).
+Git tracks the scripts, notes, configuration, and analysis products. It does
+**not** track `exoplasim/runs/` (20 GB of model output that took days of CPU
+time), the `source/` export payloads, or `.venv/`. Those have no history to fall
+back on, so be careful with destructive operations there; `.gitignore` says why
+each is excluded.
 
 ## The upstream generator
 
