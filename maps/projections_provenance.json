@@ -1,0 +1,106 @@
+{
+  "central_meridian": {
+    "lon0": -118.0,
+    "antimeridian_land_fraction": 0.3125
+  },
+  "hemispheres": {
+    "lon0": -28.0,
+    "cut_land_fraction": 0.4222222222222222
+  },
+  "polar_hemispheres": {
+    "lon0": -118.0,
+    "cut": "equator",
+    "cut_land_fraction": 0.39791666666666664
+  },
+  "butterfly": {
+    "equatorial_vertex_lon": 62.5,
+    "join_index": 0,
+    "cut_land_fraction": 0.4159722222222222
+  },
+  "icosahedron": {
+    "quaternion": [
+      -0.5655536323303689,
+      -0.5792057200097962,
+      0.2831701709403963,
+      0.5142805432402104
+    ],
+    "mean_edge_land_fraction": 0.3370370370370371,
+    "mean_cut_edge_land_fraction": 0.14045454545454544,
+    "net_fill_ratio": 0.6060606060606059,
+    "vertices_lonlat": [
+      [
+        15.005159473416342,
+        -11.532718673750237
+      ],
+      [
+        73.72179177605022,
+        13.654068616082387
+      ],
+      [
+        9.512551839305809,
+        51.72357357539608
+      ],
+      [
+        -45.9238652527843,
+        7.212797178375057
+      ],
+      [
+        -43.95135486188339,
+        -56.20120186571448
+      ],
+      [
+        77.28871023632172,
+        -49.70286423848883
+      ],
+      [
+        136.04864513811663,
+        56.201201865714495
+      ],
+      [
+        -102.71128976367828,
+        49.70286423848882
+      ],
+      [
+        -106.27820822394978,
+        -13.654068616082384
+      ],
+      [
+        -170.48744816069419,
+        -51.72357357539607
+      ],
+      [
+        134.07613474721572,
+        -7.212797178375065
+      ],
+      [
+        -164.99484052658366,
+        11.532718673750233
+      ]
+    ]
+  },
+  "basemap": {
+    "source_build": "carved-zoned",
+    "source_export": "source/carved-zoned/exoplasim-T42",
+    "final_elevation_hash": "3899a0c57d1eee2f47ba9054c218a171a7aa4532e2437c9104070c2c3dfaece6",
+    "climatology": "exoplasim/analysis/climatology_s096",
+    "climatology_caveat": "biome and temperature fields are T42 and were computed on the pre-carve terrain; the tint is illustrative, not a result",
+    "resolution": [
+      5760,
+      2880
+    ],
+    "planet_radius_km": 7645.2,
+    "numpy": "2.5.2",
+    "git_commit": "af3c7ae49c5af1aec29ff8dccfbca27fa6eae392"
+  },
+  "outputs": [
+    "vesper_winkel_tripel.png",
+    "vesper_equal_earth.png",
+    "vesper_lambert_azimuthal.png",
+    "vesper_lambert_azimuthal_polar.png",
+    "vesper_waterman_butterfly.png",
+    "vesper_dymaxion.png"
+  ],
+  "width": 3000,
+  "supersample": 2,
+  "git_commit": "af3c7ae49c5af1aec29ff8dccfbca27fa6eae392"
+}

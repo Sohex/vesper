@@ -1,0 +1,5 @@
+# Regenerable intermediates: the nearest-region lookup (66 MB), the base map
+# raster and the land mask. `python maps/build_basemap.py` rebuilds them from
+# source/ and the climatology in about 25 seconds, and the region lookup is
+# cached across runs. Nothing here is a result.
+build/

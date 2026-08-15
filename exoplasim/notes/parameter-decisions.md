@@ -802,3 +802,60 @@ not recurse usefully forever. At some depth the dominant uncertainty stops being
 under a 4965 K spectrum", and neither the terrain model nor the climate model has
 anything to say about that. One more level is probably worth it. The level after
 that is not.
+
+## The carved-zoned baseline, and a calibration error worth more than the result
+
+Ran at 0.96 S-Earth on `carved-zoned`, vegetated, glaciers on, K2 spectrum.
+Converged on all six criteria after 70 orbits.
+
+| | baseline (`precarve-unzoned`) | carved-zoned |
+| --- | ---: | ---: |
+| land-mean albedo prescribed | 0.2240 | 0.1722 |
+| surface temperature | 292.93 K | **295.18 K** |
+| precipitation | 2.954 | 3.128 mm/day |
+| planetary albedo | 0.1519 | 0.1276 |
+| sea ice | 0.133% | 0.018% |
+| mean TOA | -0.496 | -0.464 W/m2 |
+
+**Predicted 299.4 K. Measured 295.18 K.** The albedo arithmetic was right to
+0.0004 in land-mean albedo; the climate response was wrong by a factor of three.
+
+### The sensitivity used for every extrapolation was measured in the wrong regime
+
+0.94 K per W/m2 came from the T21 bracket's 0.90 to 0.95 step, where sea ice fell
+from 11.1% to 2.1%. That step was amplified by the ice-albedo feedback. This run
+sits at 0.018% sea ice with nothing left to lose, so the same forcing buys far
+less warming:
+
+    prescribed forcing        +6.80 W/m2
+    measured warming          +2.25 K
+    implied sensitivity        0.331 K per W/m2
+
+    Planck response alone      0.312 K per W/m2
+
+The realised response is within 6% of the bare Planck value, which says the net
+non-Planck feedback in this state is close to zero: no ice left, and whatever
+water vapour adds is offset by lapse rate and cloud.
+
+So there are two sensitivities on this planet and they differ threefold. Near the
+ice transition it is about 0.94 K per W/m2; in the ice-free state above roughly
+293 K it is about 0.33. Every extrapolation in this project that used the first
+number outside the ice-transition regime overestimated by about three times,
+including the +7.06 K forecast for this run and the 0.925 flux estimate derived
+from it.
+
+Record which regime a sensitivity was measured in whenever one is quoted. The
+project has repeatedly warned against extrapolating across the ice-albedo
+transition and then did exactly that by carrying a coefficient measured inside it
+into a state without it.
+
+### What it means for the flux
+
+At 0.33 K per W/m2 and an ice-free planetary albedo of 0.128, a 0.05 change in
+stellar flux is worth about 14.8 W/m2 absorbed and therefore about 4.9 K, or 98 K
+per unit flux, against the 242 K per unit flux the bracket suggested. Returning
+from 295.18 K to the middle of the 290-293 K band needs roughly -0.037 in flux,
+so about 0.92.
+
+That number is itself an extrapolation, now with a coefficient measured in the
+right regime but still only one point. It should be measured, not trusted.
