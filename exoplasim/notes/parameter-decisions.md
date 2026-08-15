@@ -220,3 +220,46 @@ for worldbuilding interpretation but is described as quasiperiodic rather
 than a strict periodic radiative equilibrium. The orbital year is not an
 integer divisor of the activity cycle, so seasonal state and activity-cycle
 phase do not exactly repeat together.
+
+## Land surface fields are uniform, deliberately
+
+ExoPlaSim's `configure()` runs `rm workdir/*.sra` whenever a landmap or topomap
+is supplied (`__init__.py:2938`) and then writes back only those two. Every other
+surface field is therefore absent from the run directory, and `surfmod.f90:125`
+reads each one with `inquire(exist=)` and skips it silently when it is missing.
+
+The completed runs consequently used uniform land-surface properties: 2.0 m
+roughness, 0.22 background albedo, Earth field capacity, 0.5 forest fraction and
+no glacier mask. `landmod.f90:304-308` presets those before attempting the read,
+so the fallback is a set of namelist values rather than zeros, and nothing about
+the output is corrupt.
+
+This is now a declared choice rather than an accident. `model.uniform_land_
+surface` in `config/planet.yaml` must be true, and `surface_field_report()`
+refuses to run otherwise and records the fallback values in every run manifest.
+
+Keeping it uniform is the defensible option. Earth's roughness, albedo and
+vegetation maps are tied to Earth's continents; imprinting them on this geography
+would place forests and deserts by coincidence of coordinates. A geographic land
+surface should come from this project's own biome work, not from the shipped
+Earth climatology.
+
+One consequence for resolution: the wipe happens regardless of truncation, so the
+fact that ExoPlaSim ships surface data only up to T42 does not constrain us. A
+T63 or T85 run would default to exactly the same uniform values a T42 run already
+does. Resolution can be chosen on cost and on what the geography justifies.
+
+## Run directories are keyed to the geography
+
+`finalize()` selects output as `sorted(glob("MOST*"))[-1]` (`__init__.py:1501`),
+so a shorter run in a directory that still holds a longer previous run copies the
+older world's final year out under the new world's name. `crashtolerant` has the
+same exposure through `cp MOST_REST.%05d plasim_restart`.
+
+We do not call `finalize()`, and the prepare step refuses a directory containing
+any of `MOST.*`, `MOST_REST.*`, `MOST*DIAG*`, `snapshots/` or `highcadence/`
+regardless of `--force-prepare`. Beyond that, `run_id` now ends in a digest of the
+two boundary-condition SRA files, so a change of geography lands in a different
+directory by construction rather than by vigilance. Runs made before that change
+keep their old names and are not resumable, which is correct: they predate both
+the current geography and the current gravity.

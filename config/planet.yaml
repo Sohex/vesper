@@ -56,6 +56,13 @@ model:
   timestep_minutes: 45.0
   physics_filter: "gp|exp|sp"
   output_type: .nc
+  # Only topography (0129) and the land mask (0172) are supplied. ExoPlaSim's
+  # configure() clears every other surface .sra when a landmap is given, so
+  # roughness, albedo, field capacity, forest fraction and the glacier mask all
+  # take uniform namelist defaults. That is deliberate: Earth's surface maps are
+  # tied to Earth's continents and would be meaningless on this geography.
+  # Declared here so the fallback is a decision, not an accident.
+  uniform_land_surface: true
   geography_land_threshold: 0.5
   seasonal_samples_per_orbit: 32
   regular_output_bins_per_orbit: 12

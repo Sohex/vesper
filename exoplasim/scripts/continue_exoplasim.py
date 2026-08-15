@@ -19,6 +19,9 @@ import yaml
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _paths import CONFIG, INPUTS, RUNS  # noqa: E402
 from run_exoplasim import (  # noqa: E402
+    LANDMAP,
+    TOPOMAP,
+    surface_field_report,
     REGULAR_CODES,
     SNAPSHOT_CODES,
     derive,
@@ -135,8 +138,8 @@ def main() -> None:
     star = config["star"]
     model_cfg = config["model"]
     surface = config["surface"]
-    landmap = (INPUTS / "t42" / "orogen_T42_surf_0172.sra").resolve()
-    topomap = (INPUTS / "t42" / "orogen_T42_surf_0129.sra").resolve()
+    landmap = LANDMAP.resolve()
+    topomap = TOPOMAP.resolve()
     model = exo.Earthlike(
         resolution=model_cfg["resolution"],
         layers=int(model_cfg["layers"]),
@@ -205,6 +208,7 @@ def main() -> None:
             interpolatetimes=False,
         )
 
+    surface_field_report(run_dir, config)
     started = datetime.now(timezone.utc).isoformat()
     try:
         model.run(years=args.orbits, crashifbroken=True, clean=True)

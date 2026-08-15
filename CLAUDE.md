@@ -222,6 +222,14 @@ resolving that discards most of the land's water. And the catalogue's
 
 ## The ExoPlaSim component
 
+Two behaviours of ExoPlaSim worth knowing before changing anything here. Its
+`configure()` clears every surface `.sra` when given a landmap, so all land
+surface fields except topography and the land mask are uniform namelist defaults;
+this is declared via `model.uniform_land_surface` and is deliberate, since Earth's
+surface maps are tied to Earth's continents. And its `finalize()` picks output as
+the last glob match, so a run directory shared between worlds can silently emit
+the wrong world's result; `run_id` therefore ends in a geography digest.
+
 See `exoplasim/README.md` for the workflow and results,
 `exoplasim/notes/lake-representation.md` for what the model can do with the
 endorheic basins, and `exoplasim/notes/parameter-decisions.md` for every physical

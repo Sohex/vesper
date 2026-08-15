@@ -18,6 +18,9 @@ import yaml
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _paths import CONFIG, INPUTS, PATCHES, RUNS  # noqa: E402
 from run_exoplasim import (  # noqa: E402
+    LANDMAP,
+    TOPOMAP,
+    surface_field_report,
     REGULAR_CODES,
     derive,
     file_sha256,
@@ -92,8 +95,8 @@ def make_model(
     star = config["star"]
     model_cfg = config["model"]
     surface = config["surface"]
-    landmap = (INPUTS / "t42" / "orogen_T42_surf_0172.sra").resolve()
-    topomap = (INPUTS / "t42" / "orogen_T42_surf_0129.sra").resolve()
+    landmap = LANDMAP.resolve()
+    topomap = TOPOMAP.resolve()
     model = exo.Earthlike(
         resolution=model_cfg["resolution"],
         layers=int(model_cfg["layers"]),
@@ -287,6 +290,7 @@ def main() -> None:
     manifest["last_started_utc"] = datetime.now(timezone.utc).isoformat()
     manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
 
+    surface_field_report(run_dir, config)
     try:
         for year in range(output_start, target_orbits):
             model.run(years=1, crashifbroken=True, clean=True)

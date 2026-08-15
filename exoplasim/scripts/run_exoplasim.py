@@ -106,6 +106,98 @@ def derive(config: dict, flux_ratio: float) -> dict:
     }
 
 
+# The two SRA files that carry the geography. Every script that locates a run
+# directory has to agree on these, so they live here.
+LANDMAP = INPUTS / "t42" / "orogen_T42_surf_0172.sra"
+TOPOMAP = INPUTS / "t42" / "orogen_T42_surf_0129.sra"
+
+
+def geography_tag() -> str:
+    """Short digest of the boundary conditions, for the run directory name.
+
+    Without this, two different worlds sharing a config land in the same
+    directory. ExoPlaSim's finalize() then selects output as the last match of
+    sorted(glob("MOST*")), so a shorter new run in a directory holding a longer
+    old one copies out the previous world's final year under the new world's
+    name, silently. The prepare guard below refuses that case, but naming the
+    directory after the geography stops it arising at all.
+    """
+    digest = hashlib.sha256()
+    for path in (LANDMAP, TOPOMAP):
+        digest.update(file_sha256(path).encode("ascii"))
+    return digest.hexdigest()[:8]
+
+
+# Surface fields we supply ourselves. Everything else falls back to a uniform
+# namelist default, which for a world that is not Earth is the right answer:
+# Earth's albedo, roughness and vegetation maps are tied to Earth's continents.
+INTENDED_SURFACE_CODES = {129, 172}
+
+# The uniform values those fallbacks take, from plasim/src/landmod.f90 preset
+# block and array declarations. Recorded in the manifest so a run says what its
+# land surface actually was rather than leaving it to be inferred.
+UNIFORM_LAND_DEFAULTS = {
+    "dz0clim_roughness_m": 2.0,
+    "dwmax_field_capacity_m": "wsmax (Earth value)",
+    "dalbcl_background_albedo": 0.22,
+    "dforest_fraction": 0.5,
+    "dglac_glacier_mask": 0.0,
+}
+
+
+def surface_field_report(run_dir: Path, config: dict) -> dict:
+    """Record which surface fields are set from file and which are uniform.
+
+    `configure()` runs `rm workdir/*.sra` whenever a landmap or topomap is
+    given (__init__.py:2938) and then writes only those two. So every other
+    surface field is absent, and surfmod reads each one with
+    `inquire(exist=)` and skips it silently when it is (surfmod.f90:125).
+
+    That is not a failure. landmod presets the fields to uniform namelist
+    values before reading, so the fallback is 2.0 m roughness, 0.22 albedo,
+    Earth field capacity, 0.5 forest fraction and no glaciers, not zeros. For a
+    custom world that is a defensible baseline and better than imprinting
+    Earth's geography. It just has to be a declared choice rather than an
+    accident, which is what `model.uniform_land_surface` is for.
+
+    Because the wipe happens regardless of resolution, the shipped-data limit
+    at T42 does not constrain us: a T85 run would default identically.
+    """
+    nlat = int(config["model"]["latitudes"])
+    present = set()
+    for f in run_dir.glob(f"N{nlat:03d}_surf_*.sra"):
+        try:
+            present.add(int(f.stem.rsplit("_", 1)[1]))
+        except (IndexError, ValueError):
+            continue
+
+    missing = sorted(INTENDED_SURFACE_CODES - present)
+    if missing:
+        raise RuntimeError(
+            f"{run_dir} is missing surface fields we supply ourselves: "
+            f"{missing}. surfmod skips these silently, so the run would use "
+            "flat terrain or an all-ocean mask without saying so."
+        )
+
+    declared = bool(config["model"].get("uniform_land_surface", False))
+    defaulted = sorted(present - INTENDED_SURFACE_CODES)
+    if not declared:
+        raise RuntimeError(
+            "Every surface field other than topography and the land mask will "
+            "fall back to a uniform namelist default, because configure() "
+            "clears them. Set model.uniform_land_surface: true in "
+            "config/planet.yaml to declare that this is intended."
+        )
+    return {
+        "from_file": sorted(present),
+        "unexpected_extra_files": defaulted,
+        "uniform_defaults_declared": declared,
+        "uniform_values": UNIFORM_LAND_DEFAULTS,
+        "note": ("Fields absent from the run directory are preset to uniform "
+                 "namelist values by landmod and never read from file."),
+    }
+
+
 def run_id(config: dict, flux_ratio: float) -> str:
     p = config["planet"]
     a = config["atmosphere"]
@@ -117,6 +209,7 @@ def run_id(config: dict, flux_ratio: float) -> str:
         f"_rot{float(p['rotation_hours']):g}h"
         f"_obl{float(p['obliquity_degrees']):g}"
         f"_e{round(1000 * float(p['eccentricity'])):03d}"
+        f"_g{geography_tag()}"
     )
     return identifier.replace(".", "p")
 
@@ -205,10 +298,19 @@ def main() -> None:
     identifier = run_id(config, flux_ratio)
     run_dir = (RUNS / identifier).resolve()
     run_dir.parent.mkdir(parents=True, exist_ok=True)
-    existing_outputs = sorted(run_dir.glob("MOST.*.nc")) if run_dir.exists() else []
-    if existing_outputs:
+    # Any of these left over from an earlier run makes finalize() and the
+    # crash-tolerant rewind pick up the wrong world's state, so refuse the lot
+    # rather than only the primary output, and do it regardless of --force-prepare.
+    stale = []
+    if run_dir.exists():
+        for pattern in ("MOST.*", "MOST_REST.*", "MOST*DIAG*",
+                        "snapshots/*", "highcadence/*"):
+            stale.extend(sorted(run_dir.glob(pattern)))
+    if stale:
         raise RuntimeError(
-            f"{run_dir} already has model output; this command will not overwrite or implicitly resume it"
+            f"{run_dir} already holds model artifacts ({len(stale)}, e.g. "
+            f"{stale[0].name}); this command will not overwrite or implicitly "
+            "resume them. Use a fresh directory or move the old run aside."
         )
     if run_dir.exists() and any(run_dir.iterdir()) and not args.force_prepare:
         raise RuntimeError(
@@ -217,8 +319,8 @@ def main() -> None:
 
     nlat = int(config["model"]["latitudes"])
     nlon = int(config["model"]["longitudes"])
-    landmap = (INPUTS / "t42" / "orogen_T42_surf_0172.sra").resolve()
-    topomap = (INPUTS / "t42" / "orogen_T42_surf_0129.sra").resolve()
+    landmap = LANDMAP.resolve()
+    topomap = TOPOMAP.resolve()
     land = read_sra(landmap, 172, nlat, nlon)
     topo = read_sra(topomap, 129, nlat, nlon)
     if not np.all(np.isin(land, [0.0, 1.0])):
@@ -301,6 +403,7 @@ def main() -> None:
         interpolatetimes=False,
     )
     model.exportcfg(str(run_dir / f"{identifier}.cfg"))
+    surface_report = surface_field_report(run_dir, config)
 
     checks = {
         "N_RUN_STEPS": namelist_value(run_dir / "plasim_namelist", "N_RUN_STEPS"),
@@ -335,6 +438,7 @@ def main() -> None:
             "gfortran": command_version(["gfortran", "--version"]),
         },
         "namelist_checks": checks,
+        "surface_fields": surface_report,
         "postprocessor": {
             "regular_codes": REGULAR_CODES,
             "snapshot_codes": SNAPSHOT_CODES,
