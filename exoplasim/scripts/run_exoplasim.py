@@ -9,6 +9,7 @@ import json
 import math
 from pathlib import Path
 import platform
+import shutil
 import subprocess
 
 import exoplasim as exo
@@ -129,9 +130,39 @@ def geography_tag() -> str:
 
 
 # Surface fields we supply ourselves. Everything else falls back to a uniform
-# namelist default, which for a world that is not Earth is the right answer:
-# Earth's albedo, roughness and vegetation maps are tied to Earth's continents.
-INTENDED_SURFACE_CODES = {129, 172}
+# namelist default, which for a world that is not Earth is mostly the right
+# answer: Earth's roughness and vegetation maps are tied to Earth's continents.
+# Albedo is the exception, because the substrate genuinely varies and we know how
+# from the lithology, so it is supplied when land_albedo_source is not uniform.
+BASE_SURFACE_CODES = {129, 172}
+ALBEDO_SURFACE_CODES = {174, 175, 176}
+
+
+def intended_surface_codes(config: dict) -> set[int]:
+    if str(config["model"].get("land_albedo_source", "uniform")) == "uniform":
+        return set(BASE_SURFACE_CODES)
+    return BASE_SURFACE_CODES | ALBEDO_SURFACE_CODES
+
+
+def stage_surface_extras(run_dir: Path, config: dict) -> list[int]:
+    """Copy the surface fields we generate into the run directory.
+
+    Has to run after `configure()`, which does `rm workdir/*.sra` whenever a
+    landmap or topomap is given and then writes back only those two
+    (`__init__.py:2938`). Anything staged before that call is silently deleted.
+    """
+    staged = []
+    for code in sorted(intended_surface_codes(config) - BASE_SURFACE_CODES):
+        src = INPUTS / "t42" / f"orogen_T42_surf_{code:04d}.sra"
+        if not src.is_file():
+            raise RuntimeError(
+                f"{src} is missing. Run build_surface_albedo.py, or set "
+                "model.land_albedo_source: uniform to accept ExoPlaSim's 0.22."
+            )
+        shutil.copyfile(src, run_dir / f"N{int(config['model']['latitudes']):03d}"
+                                       f"_surf_{code:04d}.sra")
+        staged.append(code)
+    return staged
 
 # The uniform values those fallbacks take, from plasim/src/landmod.f90 preset
 # block and array declarations. Recorded in the manifest so a run says what its
@@ -171,7 +202,7 @@ def surface_field_report(run_dir: Path, config: dict) -> dict:
         except (IndexError, ValueError):
             continue
 
-    missing = sorted(INTENDED_SURFACE_CODES - present)
+    missing = sorted(intended_surface_codes(config) - present)
     if missing:
         raise RuntimeError(
             f"{run_dir} is missing surface fields we supply ourselves: "
@@ -180,7 +211,7 @@ def surface_field_report(run_dir: Path, config: dict) -> dict:
         )
 
     declared = bool(config["model"].get("uniform_land_surface", False))
-    defaulted = sorted(present - INTENDED_SURFACE_CODES)
+    defaulted = sorted(present - intended_surface_codes(config))
     if not declared:
         raise RuntimeError(
             "Every surface field other than topography and the land mask will "
@@ -402,6 +433,7 @@ def main() -> None:
         timeaverage=False,
         interpolatetimes=False,
     )
+    staged = stage_surface_extras(run_dir, config)
     model.exportcfg(str(run_dir / f"{identifier}.cfg"))
     surface_report = surface_field_report(run_dir, config)
 
@@ -439,6 +471,7 @@ def main() -> None:
         },
         "namelist_checks": checks,
         "surface_fields": surface_report,
+        "surface_fields_staged": staged,
         "postprocessor": {
             "regular_codes": REGULAR_CODES,
             "snapshot_codes": SNAPSHOT_CODES,

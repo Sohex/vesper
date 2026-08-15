@@ -1,0 +1,21 @@
+{
+  "mode": "lithology",
+  "export": "/home/cfutro/docs/world/source/exoplasim-T42",
+  "terrain_hash": "27b7479aa486f5dacebccb0c638ff839a60a98e617c2437229600ef0bacf32ec",
+  "codes": [
+    174,
+    175,
+    176
+  ],
+  "land_mean_bare_rock": 0.31456207017999194,
+  "land_mean_written": 0.31456207017999194,
+  "exoplasim_default_albland": 0.22,
+  "land_min": 0.10000000149011612,
+  "land_max": 0.5,
+  "files": [
+    "/home/cfutro/docs/world/exoplasim/inputs/t42/orogen_T42_surf_0174.sra",
+    "/home/cfutro/docs/world/exoplasim/inputs/t42/orogen_T42_surf_0175.sra",
+    "/home/cfutro/docs/world/exoplasim/inputs/t42/orogen_T42_surf_0176.sra"
+  ],
+  "caveat": "Substrate albedo, not land-surface albedo. Vegetation and snow are applied by the model on top of this."
+}

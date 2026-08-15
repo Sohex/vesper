@@ -226,7 +226,11 @@ Two behaviours of ExoPlaSim worth knowing before changing anything here. Its
 `configure()` clears every surface `.sra` when given a landmap, so all land
 surface fields except topography and the land mask are uniform namelist defaults;
 this is declared via `model.uniform_land_surface` and is deliberate, since Earth's
-surface maps are tied to Earth's continents. And its `finalize()` picks output as
+surface maps are tied to Earth's continents. Albedo is the exception and is
+supplied from lithology by `build_surface_albedo.py`: bare rock averages 0.315
+over land against ExoPlaSim's 0.22, worth about -12.5 W/m2, and 18.6% of the land
+is bright evaporite because the drainage is endorheic. Note this is substrate
+albedo, so the first pass is a bare-rock planet and runs cold. And its `finalize()` picks output as
 the last glob match, so a run directory shared between worlds can silently emit
 the wrong world's result; `run_id` therefore ends in a geography digest.
 

@@ -63,6 +63,12 @@ model:
   # tied to Earth's continents and would be meaningless on this geography.
   # Declared here so the fallback is a decision, not an accident.
   uniform_land_surface: true
+  # Background land albedo. Bare-rock albedo from lithology averages 0.315 over
+  # land against ExoPlaSim's uniform 0.22, and ranges 0.10 for basalt to 0.50 for
+  # evaporite, so uniform is a planetary-albedo error of about 0.04. This is
+  # substrate albedo: the first pass is a bare-rock planet and will run cold
+  # relative to a vegetated one. Revisit once a vegetation model has run.
+  land_albedo_source: lithology
   geography_land_threshold: 0.5
   seasonal_samples_per_orbit: 32
   regular_output_bins_per_orbit: 12

@@ -238,7 +238,9 @@ This is now a declared choice rather than an accident. `model.uniform_land_
 surface` in `config/planet.yaml` must be true, and `surface_field_report()`
 refuses to run otherwise and records the fallback values in every run manifest.
 
-Keeping it uniform is the defensible option. Earth's roughness, albedo and
+Albedo is the exception, and is now supplied. See below.
+
+Keeping the rest uniform is the defensible option. Earth's roughness, albedo and
 vegetation maps are tied to Earth's continents; imprinting them on this geography
 would place forests and deserts by coincidence of coordinates. A geographic land
 surface should come from this project's own biome work, not from the shipped
@@ -263,3 +265,57 @@ two boundary-condition SRA files, so a change of geography lands in a different
 directory by construction rather than by vigilance. Runs made before that change
 keep their old names and are not resumable, which is correct: they predate both
 the current geography and the current gravity.
+
+## Background land albedo comes from lithology
+
+Uniform albedo was the one part of the uniform land surface that could not be
+justified. ExoPlaSim's `albland` default is 0.22; area-weighted bare-rock albedo
+over this planet's land is **0.315**, ranging from 0.10 for basalt to 0.50 for
+evaporite. Written as a planetary figure that is an albedo error of +0.041, or
+about -12.5 W/m2 of absorbed flux at 0.90 S-Earth before snow, cloud and
+vegetation feedbacks. For comparison the entire 0.85-to-0.95 flux sweep spans
+roughly 21 W/m2 absorbed, so a uniform 0.22 is a first-order error rather than a
+refinement.
+
+The spread is not incidental to this world. Evaporite covers 18.6% of the land,
+third behind schist at 23.0% and intracratonic clastics at 19.7%, and evaporite
+is the brightest class in the table at 0.50. That is a direct consequence of the
+endorheic drainage: closed basins accumulate playa and salt-pan fill. A planet
+whose land mostly does not drain to the sea is a brighter planet, and the two
+facts come from the same place.
+
+`build_surface_albedo.py` writes codes 174, 175 and 176 from the export's
+`rock_albedo` field, whose own description names it "a surface boundary condition
+for the climate stage". With `NSIMPLEALBEDO=0` the radiation uses the two-band
+pair 175/176; 174 is written as well so the broadband diagnostic agrees rather
+than silently keeping 0.22. Both bands get the same value, because we have one
+albedo per rock class and no spectral split; that reproduces single-band
+behaviour while still varying geographically.
+
+Staging order matters. `configure()` clears `workdir/*.sra` whenever a landmap is
+given, so these files are copied in *after* that call, by `stage_surface_extras`.
+Anything staged earlier is silently deleted.
+
+### The caveat, which is not small
+
+This is substrate albedo, not land-surface albedo. A vegetated Earth-like surface
+sits nearer 0.12 to 0.20. Writing bare rock produces a genuinely bare-rock
+planet, which is honest when no vegetation model has run, but it will be cold
+relative to a vegetated world, and that cold bias propagates into whatever
+vegetation model consumes the output.
+
+`model.land_albedo_source` chooses which way to be wrong:
+
+- `lithology` writes bare rock as exported. Physically what the surface is before
+  anything grows on it, and cold. This is the default, because the first pass
+  exists to feed a vegetation model and a bare planet is what that model should
+  be handed.
+- `scaled` keeps the lithology pattern but rescales the land mean to
+  `--target-mean`, so evaporite stays bright relative to basalt while the planet
+  sits where a vegetated world would. A bootstrap compromise, not a physical
+  claim.
+- `uniform` accepts ExoPlaSim's 0.22 and writes nothing.
+
+Part of the lithology signal survives vegetation regardless: nothing grows on a
+salt pan, so the bright evaporite basins stay bright. That argues for carrying
+the pattern through the loop rather than flattening it.

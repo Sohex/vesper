@@ -21,6 +21,7 @@ from _paths import CONFIG, INPUTS, RUNS  # noqa: E402
 from run_exoplasim import (  # noqa: E402
     LANDMAP,
     TOPOMAP,
+    stage_surface_extras,
     surface_field_report,
     REGULAR_CODES,
     SNAPSHOT_CODES,
@@ -208,6 +209,7 @@ def main() -> None:
             interpolatetimes=False,
         )
 
+    stage_surface_extras(run_dir, config)
     surface_field_report(run_dir, config)
     started = datetime.now(timezone.utc).isoformat()
     try:
