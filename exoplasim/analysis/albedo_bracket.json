@@ -71,6 +71,42 @@
       "alb": 0.15452602084486436,
       "orbits_used": 5,
       "orbits_total": 50
+    },
+    {
+      "run": "t21l10p8r8_s100_co20450ppm_rot30h_obl32_e020_glac_g86c5409a",
+      "flux": 1.0,
+      "status": "spinup_in_progress",
+      "albedo_mode": "lithology",
+      "land_mean_albedo": 0.3160672727174487,
+      "ts": 294.4137630615884,
+      "pr": 3.1568571189907875,
+      "evap": 3.157320319138663,
+      "ntr": -0.3088783407505957,
+      "hfns": 0.008962365289639007,
+      "sic": 0.0003648668329874516,
+      "snd": 0.002555863478300855,
+      "glac": 0.0,
+      "alb": 0.18822829247288136,
+      "orbits_used": 5,
+      "orbits_total": 50
+    },
+    {
+      "run": "t21l10p8r8_s100_co20450ppm_rot30h_obl32_e020_glac_ge7a7ace3",
+      "flux": 1.0,
+      "status": "spinup_in_progress",
+      "albedo_mode": "vegetated",
+      "land_mean_albedo": 0.22513839409006806,
+      "ts": 298.1163861415972,
+      "pr": 3.455074236325651,
+      "evap": 3.454922290695082,
+      "ntr": -0.11601868536057844,
+      "hfns": 0.19252658119906702,
+      "sic": 0.0,
+      "snd": 0.00162218452254446,
+      "glac": 0.0,
+      "alb": 0.14332528220478744,
+      "orbits_used": 5,
+      "orbits_total": 50
     }
   ],
   "verdict": {
@@ -98,6 +134,16 @@
         "spread_k": 4.377795040195679,
         "converged": false,
         "warmest_k": 290.04616084683175,
+        "marginal": false
+      },
+      "1.00": {
+        "temperatures_k": {
+          "lithology": 294.4137630615884,
+          "vegetated": 298.1163861415972
+        },
+        "spread_k": 3.7026230800088342,
+        "converged": false,
+        "warmest_k": 298.1163861415972,
         "marginal": false
       }
     }

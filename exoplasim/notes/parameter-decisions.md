@@ -599,3 +599,62 @@ deep-ocean circulation, so high latitudes run somewhat too cold, which matters
 directly for the glaciation question; monsoons come out weak; there is a bias
 toward Mediterranean patterns; and small islands and peninsulas come out drier
 than they should.
+
+## Albedo-endmember bracket, T21, six cases
+
+Two land-surface endmembers at three fluxes, 50 orbits each, glaciers enabled,
+K2 spectrum, mesh-derived boundary conditions.
+
+| flux | mode | ts K | pr mm/day | TOA W/m2 | sea ice | albedo |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: |
+| 0.90 | bare rock | 273.55 | 1.815 | -0.63 | 11.10% | 0.278 |
+| 0.90 | vegetated | 280.68 | 2.207 | -0.44 | 4.75% | 0.189 |
+| 0.95 | bare rock | 285.67 | 2.487 | -0.33 | 2.09% | 0.212 |
+| 0.95 | vegetated | 290.05 | 2.803 | -0.33 | 0.39% | 0.155 |
+| 1.00 | bare rock | 294.41 | 3.157 | -0.31 | 0.04% | 0.188 |
+| 1.00 | vegetated | 298.12 | 3.455 | -0.12 | 0.00% | 0.143 |
+
+### The result that matters
+
+The land-surface assumption is worth 7.14 K at 0.90, 4.38 K at 0.95 and 3.71 K at
+1.00. It narrows as the sea ice that amplifies it disappears; by 1.00 both
+branches are ice-free and the residual 3.71 K is land albedo alone.
+
+Interpolating to equilibrium, the flux that puts this world in the 290 to 293 K
+design range is **0.9516 to 0.9697 S-Earth if vegetated, and 0.9765 to 0.9936 if
+bare rock**. Those windows do not overlap, by 0.0068 in flux.
+
+The reason is structural rather than a numerical accident: the endmember spread
+near the target, 3.7 to 4.4 K, is wider than the 3 K target range itself.
+Whenever that holds, no single flux can place both branches inside the range.
+
+So the orbit cannot be chosen independently of the biosphere. Either the flux is
+picked and the world's habitability is contingent on its vegetation state, which
+is a defensible and rather appealing worldbuilding fact, or the vegetation state
+is resolved first and the flux follows from it. What cannot be done is to pick a
+flux that is robust to the question.
+
+### What the bracket does not show
+
+It does not show bistability. Albedo is a fixed input here because vegetation is
+not interactive, so the six runs are separately forced problems with separately
+correct answers. A wide spread is sensitivity. Bistability would require one set
+of boundary conditions admitting two stable states, and establishing it needs the
+vegetation feedback actually closed, or at minimum a run with `vegetation=2`.
+
+### Caveats
+
+Every case still carries a negative TOA balance, from -0.63 to -0.12 W/m2, so
+each reported temperature is an upper bound on its own equilibrium. The
+equilibrium estimates above apply the measured 0.94 K per W/m2 to that residual.
+Only three of the six pass the full convergence test unaided; the rest miss on
+mean TOA alone. They should be extended before any of this feeds a carve verdict.
+
+Glaciers formed in none of the six. Mean snow never exceeded 7 mm, so the module
+stayed inert throughout and this bracket measures snow and sea-ice albedo
+feedback only. Enabling it cost nothing and bought nothing here.
+
+Flux sensitivity falls as ice runs out: +12.12 K across 0.90 to 0.95 on the bare
+rock branch, then +8.74 K across 0.95 to 1.00, with sea ice going 11.1% to 2.1%
+to 0.04%. The old sweep's +11.2 K per 0.05 step sits between the two, so the
+model's flux response is unchanged; only the offset moved.

@@ -227,6 +227,20 @@ resolving that discards most of the land's water. And the catalogue's
 `hypsometry` is on the natural terrain, so it overstates capacity by about 1.5x.
 `build_hydrography.py` handles both. Use `data/basins.nc`, not the catalogue.
 
+## Where the climate work stands
+
+A six-case albedo bracket at T21 (two land-surface endmembers x 0.90/0.95/1.00
+S-Earth) is complete; the table is in `exoplasim/notes/parameter-decisions.md`.
+The headline: **the flux that puts this world in the 290-293 K design range is
+0.952-0.970 S-Earth if vegetated and 0.977-0.994 if bare rock, and those windows
+do not overlap.** The endmember spread near the target, 3.7-4.4 K, is wider than
+the 3 K target itself, so no single flux is robust to the vegetation question.
+The orbit and the biosphere have to be chosen together.
+
+That is sensitivity, not bistability: vegetation is not interactive in these
+runs, so they are separately forced problems. Do not describe the world as
+bistable on this evidence.
+
 ## The ExoPlaSim component
 
 Two behaviours of ExoPlaSim worth knowing before changing anything here. Its
