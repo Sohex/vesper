@@ -1,5 +1,14 @@
 #!/usr/bin/env python3
-"""Conservatively remap World Orogen exports to an ExoPlaSim Gaussian grid.
+"""SUPERSEDED by build_boundary_conditions.py. Kept only to reproduce the runs
+that were built with it, and because `write_sra` still lives here.
+
+It reads the equirectangular map PNGs and does its own conservative remap onto a
+Gaussian grid. Both halves are now obsolete: the fork emits Gaussian grids
+directly off the mesh, so the remap is a lossy intermediate, and the PNG land
+mask uses the `elevation > 0` convention, which floods every dry closed-basin
+floor. Do not use it to prepare new runs.
+
+Conservatively remap World Orogen exports to an ExoPlaSim Gaussian grid.
 
 The source exports are never modified. The explicit Orogen land mask controls
 land/sea; the land-only heightmap supplies physical elevation on land. Output

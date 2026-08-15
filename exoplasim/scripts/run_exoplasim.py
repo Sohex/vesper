@@ -113,18 +113,33 @@ LANDMAP = INPUTS / "t42" / "orogen_T42_surf_0172.sra"
 TOPOMAP = INPUTS / "t42" / "orogen_T42_surf_0129.sra"
 
 
-def geography_tag() -> str:
-    """Short digest of the boundary conditions, for the run directory name.
+def surface_input_paths(config: dict) -> list[Path]:
+    """Every SRA file that defines this run's surface, in a stable order."""
+    return [INPUTS / "t42" / f"orogen_T42_surf_{code:04d}.sra"
+            for code in sorted(intended_surface_codes(config))]
 
-    Without this, two different worlds sharing a config land in the same
-    directory. ExoPlaSim's finalize() then selects output as the last match of
+
+def geography_tag(config: dict) -> str:
+    """Short digest of every surface input, for the run directory name.
+
+    Without this, two runs sharing a config land in the same directory.
+    ExoPlaSim's finalize() then selects output as the last match of
     sorted(glob("MOST*")), so a shorter new run in a directory holding a longer
-    old one copies out the previous world's final year under the new world's
-    name, silently. The prepare guard below refuses that case, but naming the
-    directory after the geography stops it arising at all.
+    old one copies out the previous run's final year under the new name,
+    silently. The prepare guard refuses that case, but naming the directory after
+    the inputs stops it arising at all.
+
+    It covers albedo as well as mask and topography, because the planned
+    experiment is exactly two runs differing only in albedo. Digesting the
+    geography alone would put both endmembers in one directory.
     """
     digest = hashlib.sha256()
-    for path in (LANDMAP, TOPOMAP):
+    for path in surface_input_paths(config):
+        if not path.is_file():
+            raise RuntimeError(
+                f"{path} is missing; run build_boundary_conditions.py and "
+                "build_surface_albedo.py before preparing a run"
+            )
         digest.update(file_sha256(path).encode("ascii"))
     return digest.hexdigest()[:8]
 
@@ -240,7 +255,7 @@ def run_id(config: dict, flux_ratio: float) -> str:
         f"_rot{float(p['rotation_hours']):g}h"
         f"_obl{float(p['obliquity_degrees']):g}"
         f"_e{round(1000 * float(p['eccentricity'])):03d}"
-        f"_g{geography_tag()}"
+        f"_g{geography_tag(config)}"
     )
     return identifier.replace(".", "p")
 

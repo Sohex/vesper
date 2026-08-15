@@ -9,6 +9,7 @@ everything else belongs to the ExoPlaSim component.
 from __future__ import annotations
 
 from pathlib import Path
+import sys
 
 COMPONENT_ROOT = Path(__file__).resolve().parents[1]
 PROJECT_ROOT = COMPONENT_ROOT.parent
@@ -20,3 +21,8 @@ INPUTS = COMPONENT_ROOT / "inputs"
 RUNS = COMPONENT_ROOT / "runs"
 ANALYSIS = COMPONENT_ROOT / "analysis"
 PATCHES = COMPONENT_ROOT / "patches"
+
+# Project-level shared modules, notably the World Orogen export reader.
+LIB = PROJECT_ROOT / "lib"
+if str(LIB) not in sys.path:
+    sys.path.insert(0, str(LIB))

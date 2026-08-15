@@ -19,9 +19,14 @@ On Arch Linux the required host tools are `gcc-fortran` and `openmpi`. Activate
 `.venv`, install `requirements.txt`, then run:
 
 ```bash
-python exoplasim/scripts/convert_orogen.py
+python exoplasim/scripts/build_boundary_conditions.py   # land mask + topography
+python exoplasim/scripts/build_surface_albedo.py        # background albedo
 python exoplasim/scripts/run_exoplasim.py --run-years 1
 ```
+
+`convert_orogen.py` is superseded. It remapped the equirectangular PNGs, which is
+a lossy intermediate now that the fork emits Gaussian grids directly, and its
+mask used the `elevation > 0` convention that floods dry closed-basin floors.
 
 The first command writes generated model inputs to `exoplasim/inputs/t42/` and
 geography diagnostics to `exoplasim/analysis/geography/`. The second prepares the 0.90-S-Earth

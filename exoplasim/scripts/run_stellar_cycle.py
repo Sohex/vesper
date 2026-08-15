@@ -19,6 +19,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _paths import CONFIG, INPUTS, PATCHES, RUNS  # noqa: E402
 from run_exoplasim import (  # noqa: E402
     LANDMAP,
+    geography_tag,
     TOPOMAP,
     stage_surface_extras,
     surface_field_report,
@@ -78,6 +79,7 @@ def cycle_run_id(config: dict, case: str, period_earth_years: float) -> str:
         f"_obl{float(p['obliquity_degrees']):g}"
         f"_e{round(1000 * float(p['eccentricity'])):03d}"
     )
+    identifier += f"_g{geography_tag(config)}"
     return identifier.replace(".", "p")
 
 

@@ -4,7 +4,8 @@ The export is a manifest plus flat little-endian binaries. This wraps that in
 something that reads a field by name, keeps the mesh adjacency in CSR form, and
 refuses to silently hand back a field from a build other than the one asked for.
 
-Nothing here is specific to hydrography; other components should use it too.
+Project-level: every component reads the export through this, so conventions
+like the terrain-hash allowlist and the two land definitions are enforced once.
 """
 
 from __future__ import annotations
@@ -16,7 +17,8 @@ from pathlib import Path
 
 import numpy as np
 
-from _paths import MESH_EXPORT
+_HERE = Path(__file__).resolve().parent
+MESH_EXPORT = _HERE.parent / "source" / "exoplasim-T42"
 
 # Elevation conversion changed meaning in this build: below-sea-level land used
 # to take the bathymetric branch and read ten times too deep. Refuse to run

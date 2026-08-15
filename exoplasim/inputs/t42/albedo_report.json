@@ -1,14 +1,14 @@
 {
   "mode": "lithology",
   "export": "/home/cfutro/docs/world/source/exoplasim-T42",
-  "terrain_hash": "27b7479aa486f5dacebccb0c638ff839a60a98e617c2437229600ef0bacf32ec",
+  "terrain_hash": "821aa71b37a7beda0b59398c7f005b91531050000ca46660d0f724cdb3f401a3",
   "codes": [
     174,
     175,
     176
   ],
-  "land_mean_bare_rock": 0.31456207017999194,
-  "land_mean_written": 0.31456207017999194,
+  "land_mean_bare_rock": 0.3145581039475785,
+  "land_mean_written": 0.3145581039475785,
   "exoplasim_default_albland": 0.22,
   "land_min": 0.10000000149011612,
   "land_max": 0.5,

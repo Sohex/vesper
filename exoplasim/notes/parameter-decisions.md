@@ -362,3 +362,28 @@ gated on the same first climate pass.
 Part of the lithology signal survives vegetation regardless: nothing grows on a
 salt pan, so the bright evaporite basins stay bright. That argues for carrying
 the pattern through the loop rather than flattening it.
+
+## Boundary conditions are built from the mesh, not the maps
+
+`build_boundary_conditions.py` replaces `convert_orogen.py`. Two things changed.
+
+Land comes from `surface_class`, not from the PNG mask's `elevation > 0` test.
+The two disagree by 1.9% of the planet, all of it dry basin floor below sea
+level, and the old convention put it under water.
+
+Both fields are integrated from the native 2.5M-region mesh rather than sampled
+from the gridded export. The export resamples categorical fields, `surface_class`
+among them, by taking the region containing the cell centre; at T42 a cell holds
+roughly 300 regions, so a point sample discards the coastline. Land fraction per
+cell is now the area-weighted fraction of its regions that are land, thresholded
+at 0.5, and topography is the land-area-weighted mean elevation over land regions
+only, so ocean depths never drag a coastal cell down.
+
+Dry basin floors keep negative elevation. 119 T42 land cells sit below sea level,
+the deepest at -58 m; the mesh reaches -562 m but a 90,000 km2 cell averages the
+depth away. Flattening them to zero would undo the preservation the pipeline is
+built around.
+
+Against the superseded files, which came from the 510k-region map PNGs: land
+fraction 0.4284 against 0.4137, topography maximum 5,101 m against 6,001 m, and
+119 below-sea-level land cells where there were none.
