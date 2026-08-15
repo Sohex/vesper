@@ -5,7 +5,14 @@ The experiment asks whether this world has one stable climate or more than one.
 Two land-surface endmembers, bare rock at 0.315 land-mean albedo and vegetated at
 0.197, are integrated separately at each flux. If they converge, the vegetation
 feedback is a correction and either branch can be taken forward. If they stay
-apart, the world is bistable and the state is a choice rather than a result.
+apart, the land-surface assumption is a first-order term and the coupled loop
+has to resolve it.
+
+This measures *sensitivity*, not bistability. Albedo is a fixed input here, since
+vegetation is not interactive, so the two cases are separately forced problems
+with separately correct answers. Bistability would mean one set of boundary
+conditions admitting two stable states, which needs the vegetation feedback
+actually closed and cannot be read off a wide spread.
 
 The thresholds below are fixed here rather than chosen after seeing the numbers.
 
@@ -19,7 +26,8 @@ The thresholds below are fixed here rather than chosen after seeing the numbers.
 
   A flux is MARGINAL when its warmer endmember falls short of the target range,
   because that means the habitable case lies at a higher flux and has not been
-  bracketed yet.
+  bracketed yet. Evaluate it on equilibrated values: a run still carrying a
+  negative TOA balance is reporting an upper bound on its own temperature.
 """
 
 from __future__ import annotations
@@ -148,7 +156,7 @@ def main() -> None:
             "marginal": bool(marginal),
         }
         print(f"  {flux:.2f}: spread {spread:5.2f} K -> "
-              f"{'converged' if converged else 'BISTABLE'}; "
+              f"{'converged' if converged else 'SENSITIVE'}; "
               f"warmest {warmest:.2f} K -> "
               f"{'MARGINAL, needs a warmer flux' if marginal else 'reaches the target'}")
 

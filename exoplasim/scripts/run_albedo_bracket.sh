@@ -30,7 +30,7 @@ run_case() {
     echo "    done $(date +%H:%M:%S)" | tee -a "$LOG"
 }
 
-for flux in 0.90 0.95; do
+for flux in ${FLUXES:-0.90 0.95}; do
     for mode in lithology vegetated; do
         if ! run_case "$mode" "$flux"; then
             echo "FAILED: ${mode} @ ${flux}; see $LOG" | tee -a "$LOG"

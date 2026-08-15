@@ -1,5 +1,5 @@
 {
-  "mode": "lithology",
+  "mode": "vegetated",
   "mesh": "/home/cfutro/docs/world/source/exoplasim-T42",
   "grid": "/home/cfutro/docs/world/source/exoplasim-T21",
   "resolution": "T21",
@@ -10,13 +10,13 @@
     176,
     212
   ],
-  "forest_fraction_value": 0.0,
-  "forest_fraction_land_mean": 0.0,
+  "forest_fraction_value": 0.5,
+  "forest_fraction_land_mean": 0.39265958297452513,
   "forest_note": "dforest blends snow albedo between forested and unforested endpoints, so it has to agree with the background albedo assumption. ExoPlaSim's default is a uniform 0.5.",
   "land_mean_bare_rock": 0.3134838636284141,
-  "land_mean_written": 0.31606730670156497,
+  "land_mean_written": 0.22513829191783236,
   "exoplasim_default_albland": 0.22,
-  "land_min": 0.10000000149011602,
+  "land_min": 0.14999999999999966,
   "land_max": 0.5,
   "files": [
     "/home/cfutro/docs/world/exoplasim/inputs/t21/orogen_T21_surf_0174.sra",
