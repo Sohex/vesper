@@ -4,6 +4,9 @@ Worldbuilding project for **Vesper**, a super-Earth around a mid-K dwarf. The
 geography comes from a fork of World Orogen; ExoPlaSim is one consumer of it,
 and more components (biomes, hydrology, cultures) are expected alongside it.
 
+`WORKFLOW.md` is the map: what the components are, how they connect, the order
+things run in, and why that order is a loop rather than a line. Read it first.
+
 ## Layout
 
 ```
