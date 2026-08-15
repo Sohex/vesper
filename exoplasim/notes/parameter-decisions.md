@@ -33,10 +33,16 @@ geopotential expected by SRA code 129 using this planet's gravity.
 
 ## Planet and star
 
-Surface gravity is calculated, not rounded:
+Surface gravity is declared, not calculated from mass and radius. World Orogen
+ran with `10.1989 m s-2` and scaled the terrain's maximum relief as 1/g, so that
+value is a property of the geography rather than a free parameter, and mass
+follows from it: `1.4976 = (10.1989 / 9.80665) * 1.20^2` Earth masses.
 
-`g/g_earth = 1.50 / 1.20^2 = 1.0416667`, or `10.2152604 m s-2` using standard
-gravity 9.80665 m s-2.
+The earlier revision of this file declared 1.50 Earth masses and calculated
+`10.2152604 m s-2`, which is 0.16% away from the gravity the terrain was
+actually built under. Every run predating this change used the calculated value.
+`derive()` now reads `planet.gravity_m_s2` and refuses to run if
+`planet.mass_earth` disagrees with it.
 
 The provisional star is an empirical K2V/K3V midpoint based on the Pecaut--
 Mamajek dwarf sequence: 0.80 solar masses, log luminosity -0.49 (0.32359 solar

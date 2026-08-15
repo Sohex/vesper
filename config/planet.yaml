@@ -2,7 +2,14 @@ schema_version: 1
 
 planet:
   radius_earth: 1.20
-  mass_earth: 1.50
+  # Surface gravity is canonical, not derived. This is the value World Orogen
+  # was run with, and it already scaled the terrain's maximum relief as 1/g, so
+  # the geography in source/ cannot be separated from it. Mass follows from it:
+  # mass_earth = g/g_earth * radius_earth^2 = 1.4976. Earlier revisions declared
+  # 1.50 Earth masses and derived 10.2153 m/s2, which disagreed with the
+  # geography by 0.16%.
+  gravity_m_s2: 10.1989
+  mass_earth: 1.4976
   rotation_hours: 30.0
   obliquity_degrees: 32.0
   eccentricity: 0.02

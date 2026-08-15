@@ -64,11 +64,17 @@ def derive(config: dict, flux_ratio: float) -> dict:
     orbit = config["orbit"]
     model = config["model"]
     rotation_days = float(planet["rotation_hours"]) / 24.0
-    gravity = (
-        EARTH_STANDARD_GRAVITY
-        * float(planet["mass_earth"])
-        / float(planet["radius_earth"]) ** 2
-    )
+    # Gravity is taken from the configuration rather than derived from mass and
+    # radius: World Orogen scaled this terrain's relief as 1/g, so the value it
+    # ran with is canonical. Mass is checked against it so the two cannot drift.
+    gravity = float(planet["gravity_m_s2"])
+    implied_mass = gravity * float(planet["radius_earth"]) ** 2 / EARTH_STANDARD_GRAVITY
+    if abs(implied_mass - float(planet["mass_earth"])) > 5e-4:
+        raise ValueError(
+            f"planet.mass_earth {planet['mass_earth']} disagrees with "
+            f"planet.gravity_m_s2 {gravity} at radius {planet['radius_earth']} "
+            f"(implied mass {implied_mass:.6f})"
+        )
     semimajor_axis_au = math.sqrt(float(star["luminosity_solar"]) / flux_ratio)
     orbital_year_days = (
         EARTH_SIDEREAL_YEAR_DAYS

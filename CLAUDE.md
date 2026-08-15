@@ -146,21 +146,25 @@ node --max-old-space-size=12288 tools/export-maps.mjs \
 
 ## Planet parameters
 
-`config/planet.yaml` is the single source of truth. Radius 1.2 R⊕, mass 1.5 M⊕,
-30 h rotation, 32° obliquity, e = 0.02, around a K2.5V star (0.80 M☉, 0.3236 L☉,
-4965 K). 1 bar atmosphere at 450 ppm CO₂.
+`config/planet.yaml` is the single source of truth. Radius 1.2 R⊕, gravity
+10.1989 m/s² (1.04 g⊕, implying 1.4976 M⊕), 30 h rotation, 32° obliquity,
+e = 0.02, around a K2.5V star (0.80 M☉, 0.3236 L☉, 4965 K). 1 bar atmosphere at
+450 ppm CO₂.
 
-Known inconsistency, unresolved: the ExoPlaSim scripts derive
-`g = 1.50/1.20² × 9.80665 = 10.2153 m/s²`, while the Orogen export was generated
-with `g = 10.1989 m/s²` (1.04 g⊕). A 0.16% difference — it affects the 1/g relief
-scaling in the terrain. Not worth regenerating for, but do not "fix" one to match
-the other without deciding which is right.
+**Gravity is declared, not derived**, and Orogen's value is canonical. It scaled
+this terrain's maximum relief as 1/g, so the geography in `source/` cannot be
+separated from it; mass is what follows. Earlier revisions declared 1.50 M⊕ and
+derived 10.2153 m/s², disagreeing with the geography by 0.16%. `derive()` now
+reads `planet.gravity_m_s2` and raises if `planet.mass_earth` is inconsistent
+with it, so the two cannot drift apart again.
 
 The `model:` block in `planet.yaml` is ExoPlaSim-specific (resolution, layers,
 timestep, output cadence). The rest is world-level. Do not split the file
 casually: `config_sha256` in every `exoplasim/runs/*/run_manifest.json` pins its
 exact contents, and `continue_exoplasim.py` refuses to resume a run whose config
-hash has changed.
+hash has changed. The gravity change already broke that seal — no run under
+`exoplasim/runs/` can be resumed, which is moot because all of them predate the
+current geography anyway.
 
 ## The ExoPlaSim component
 
