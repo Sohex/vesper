@@ -256,7 +256,11 @@ def run_id(config: dict, flux_ratio: float) -> str:
         f"_rot{float(p['rotation_hours']):g}h"
         f"_obl{float(p['obliquity_degrees']):g}"
         f"_e{round(1000 * float(p['eccentricity'])):03d}"
-        f"_g{geography_tag(config)}"
+        # Physics switches that change the answer get a marker, so an on/off
+        # comparison cannot land in one directory. Only non-defaults are named,
+        # to keep the identifier readable.
+        + ("_glac" if config["surface"].get("glaciers", {}).get("enabled") else "")
+        + f"_g{geography_tag(config)}"
     )
     return identifier.replace(".", "p")
 
@@ -409,6 +413,11 @@ def main() -> None:
         keplerian=True,
         meananomaly0=0.0,
         seaice=bool(surface["sea_ice"]),
+        glaciers={
+            "toggle": bool(surface.get("glaciers", {}).get("enabled", False)),
+            "mindepth": float(surface.get("glaciers", {}).get("min_snow_depth_m", 2.0)),
+            "initialh": float(surface.get("glaciers", {}).get("initial_height_m", -1.0)),
+        },
         ozone=bool(atmosphere["ozone"]),
         mldepth=float(surface["mixed_layer_depth_m"]),
         twobandalbedo=bool(config["radiation"]["two_band_albedo"]),

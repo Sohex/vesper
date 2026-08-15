@@ -131,6 +131,11 @@ def make_model(
         keplerian=True,
         meananomaly0=0.0,
         seaice=bool(surface["sea_ice"]),
+        glaciers={
+            "toggle": bool(surface.get("glaciers", {}).get("enabled", False)),
+            "mindepth": float(surface.get("glaciers", {}).get("min_snow_depth_m", 2.0)),
+            "initialh": float(surface.get("glaciers", {}).get("initial_height_m", -1.0)),
+        },
         ozone=bool(atmosphere["ozone"]),
         mldepth=float(surface["mixed_layer_depth_m"]),
         twobandalbedo=bool(config["radiation"]["two_band_albedo"]),

@@ -469,3 +469,40 @@ evaporation of 0.987 mm/day implies 28.6 W/m2 of latent heat against a reported
 over a full orbit.
 
 Note that `pr` and `evap` are in m s-1, not mm/day. The conversion is 86400 x 1000.
+
+## Glaciers are enabled
+
+`NGLACIER` was 0, ExoPlaSim's default, through the first prepare. It is now 1,
+with `GLACELIM` 2.0 m water equivalent and `ICESHEETH` -1.
+
+The reason is not the albedo, which snow already supplies: `dalb` is blended
+toward the snow value continuously with depth whether or not the glacier module
+runs. It is the orography. `glaciermod` keeps a lithographic and a glacier
+orography and sets the surface geopotential to their sum, so an ice sheet raises
+the ground it sits on and grows into its own cold. That is the feedback that
+decides whether a cold branch runs away, and the experiment in progress is
+specifically about whether this world has more than one stable state. Running it
+with the ice-sheet feedback switched off would answer a different question.
+
+Snow does not accumulate without limit in the absence of the module. `newsnow.f90`
+caps `dsnowz` at 3000 m water equivalent, which is ice-sheet scale, so the
+difference is not runaway mass but the missing elevation response.
+
+The module is conservative. `ICESHEETH` -1 places no initial ice, so a glacier
+appears only where snow survives a full model year, and orbit 0 is bit-comparable
+with the module on or off: 263.79 K against 263.77 K, glacier fraction exactly
+zero, mean land snow 9 mm. Whether it ever fires is an outcome, not an
+assumption. After one orbit the deepest land snow is 0.730 m, on a tropical
+summit at 9.8 S rather than at a pole, with the land mean growing 16 mm per
+orbit, so the 2 m threshold is reachable within a 50-orbit spin-up.
+
+Two limitations to carry. The module does not move ice, so continental ice-sheet
+extent is underestimated, as its own documentation says. And `groundoro == 0` is
+treated as a sentinel in the initialisation, but only on the `ICESHEETH >= 0`
+branch, so the 119 land cells we place below sea level are untouched.
+
+Glacier albedo is spectrally split, 0.745 below 0.75 um and 0.431 above, which is
+a further reason the two-band configuration matters under a 4965 K spectrum.
+
+`run_id` gains a `_glac` marker when the module is on, so a glaciers-on and
+glaciers-off pair cannot share a run directory.

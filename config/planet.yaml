@@ -45,6 +45,19 @@ radiation:
 surface:
   mixed_layer_depth_m: 50.0
   sea_ice: true
+  # Persistent snow converts to glacier, and glacier thickness is added to the
+  # surface geopotential. That orographic term is the point: it is the feedback
+  # that makes an ice sheet grow into its own cold, and without it a cold branch
+  # gets snow albedo but no elevation response. On a world testing albedo-driven
+  # bistability, leaving it off would answer a different question.
+  #
+  # initial_height_m -1 places no initial ice, so glaciers only appear where snow
+  # genuinely persists year-round; the module cannot manufacture them. It does
+  # not model ice flow, so continental ice-sheet extent is underestimated.
+  glaciers:
+    enabled: true
+    min_snow_depth_m: 2.0
+    initial_height_m: -1.0
 
 model:
   resolution: T42
