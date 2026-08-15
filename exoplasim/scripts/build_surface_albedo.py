@@ -29,7 +29,7 @@ cold bias propagates into whatever vegetation model consumes the result.
              feed a vegetation model, and biased cold.
   vegetated  the opposite physical endmember: everything that could carry
              vegetation set to `--vegetation-albedo`, with evaporite left bare
-             because nothing grows on a salt pan. Land mean about 0.197. Use it
+             because nothing grows on a salt pan. Land mean about 0.223. Use it
              with `lithology` to bracket the answer.
   scaled     the lithology *pattern*, rescaled so the land mean matches
              `--target-mean`. Kept for experiments, but not recommended as a
@@ -140,11 +140,11 @@ def main() -> None:
     if mode == "vegetated":
         region_albedo[is_land & (rock != evaporite)] = args.vegetation_albedo
 
-    fraction, alb_grid = land_weighted(mesh, grid_dir, region_albedo)
+    fraction, alb_grid, _empty = land_weighted(mesh, grid_dir, region_albedo)
     land_cells = fraction >= float(model["geography_land_threshold"])
 
-    raw_fraction, raw_alb = land_weighted(mesh, grid_dir,
-                                          mesh.rock_albedo.astype(np.float64))
+    raw_fraction, raw_alb, _ = land_weighted(mesh, grid_dir,
+                                             mesh.rock_albedo.astype(np.float64))
     area = mesh.cell_area.astype(np.float64)
     raw_mean = float(np.average(mesh.rock_albedo[is_land], weights=area[is_land]))
 

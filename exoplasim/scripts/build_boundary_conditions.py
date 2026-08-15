@@ -54,11 +54,12 @@ def build(mesh: Export, grid_dir: Path, threshold: float, gravity: float):
     land in each cell. Ocean depths never enter it.
     """
     elev_m = mesh.elevation_km.astype(np.float64) * 1000.0
-    fraction, mean_elev = land_weighted(mesh, grid_dir, elev_m)
+    fraction, mean_elev, empty = land_weighted(mesh, grid_dir, elev_m)
     mask = (fraction >= threshold).astype(np.float64)
     mean_elev = np.where(mask > 0, mean_elev, 0.0)
     return {
         "land_mask": mask,
+        "cells_below_mesh_resolution": empty,
         "land_fraction": fraction,
         "geopotential": mean_elev * gravity,
         "elevation_m": mean_elev,
@@ -116,6 +117,7 @@ def main() -> None:
         "mesh_land_fraction": float(
             ex.cell_area[ex.surface_class == LAND].sum() / ex.cell_area.sum()),
         "land_cells": int(land_cells.sum()),
+        "cells_below_mesh_resolution": out["cells_below_mesh_resolution"],
         "elevation_m": {
             "min": float(e[land_cells].min()),
             "max": float(e[land_cells].max()),

@@ -3,7 +3,7 @@
 
 The experiment asks whether this world has one stable climate or more than one.
 Two land-surface endmembers, bare rock at 0.315 land-mean albedo and vegetated at
-0.197, are integrated separately at each flux. If they converge, the vegetation
+0.223, are integrated separately at each flux. If they converge, the vegetation
 feedback is a correction and either branch can be taken forward. If they stay
 apart, the land-surface assumption is a first-order term and the coupled loop
 has to resolve it.

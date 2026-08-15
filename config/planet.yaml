@@ -72,13 +72,15 @@ surface:
     initial_height_m: -1.0
 
 model:
-  # T21 for the albedo-endmember bracket: 4x fewer cells than T42 and
-  # sufficient to answer whether the two branches converge. The mesh is
-  # unchanged, so boundary conditions are integrated from the same
-  # 2.5M-region mesh onto whichever grid this names.
-  resolution: T21
-  latitudes: 32
-  longitudes: 64
+  # T42 for the iteration-1 baseline. The bracket ran at T21, which was right
+  # for a several-kelvin question. This pass feeds the carve verdict and the
+  # first LPJ-GUESS input, both of which will change and be redone, so the
+  # expensive grid is not warranted yet. T85 comes once terrain and biosphere
+  # have settled: it resolves the median basin catchment across 3.0 cells
+  # against T42's 0.7, and recovers the full 5,769 m mesh relief against 5,101.
+  resolution: T42
+  latitudes: 64
+  longitudes: 128
   layers: 10
   precision_bytes: 8
   # 16 physical cores on the Ryzen 9 7950X3D. Not 32: those are SMT threads and
@@ -87,9 +89,8 @@ model:
   # T42 the valid choices are 1, 2, 4, 8, 16, 32, 64; 16 leaves 4 latitudes per
   # rank. Spectral transforms need global transposes, so scaling is sublinear
   # and may turn over before 16 -- measured against the 8-core baseline below.
-  # 32 latitudes at T21, so 8 ranks leaves 4 per rank. 16 would leave 2 and the
-  # global transposes would likely dominate; measured against 8 below.
-  ncpus: 8
+  # 64 latitudes at T42, so 16 ranks leaves 4 per rank, one per physical core.
+  ncpus: 16
   timestep_minutes: 45.0
   physics_filter: "gp|exp|sp"
   output_type: .nc
@@ -105,9 +106,12 @@ model:
   # evaporite, so uniform is a planetary-albedo error of about 0.04. This is
   # substrate albedo: the first pass is a bare-rock planet and will run cold
   # relative to a vegetated one. Revisit once a vegetation model has run.
-  # The world is taken to be vegetated. The bracket showed this is not a detail:
-  # the two endmembers differ by 3.7-7.1 K and reach the design target at
-  # non-overlapping fluxes, so the biosphere and the orbit are one choice.
+  # The world is taken to be vegetated: 0.15 on anything that can carry a canopy,
+  # with evaporite left at its bare 0.50 because nothing roots in a salt pan.
+  # Land-mean albedo 0.223 against bare rock's 0.314. The bracket showed this is
+  # not a detail: the two endmembers differ by 3.7-7.1 K and reach the design
+  # target at non-overlapping fluxes, so the biosphere and the orbit are one
+  # choice.
   land_albedo_source: vegetated
   geography_land_threshold: 0.5
   seasonal_samples_per_orbit: 32
@@ -131,7 +135,4 @@ stellar_cycle:
     active:
       minimum_flux_earth: 0.91
       maximum_flux_earth: 1.01
-    control:
-      minimum_flux_earth: 0.94
-      maximum_flux_earth: 0.98
   period_earth_years: 8.0

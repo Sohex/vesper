@@ -1,5 +1,5 @@
 {
-  "generated": "2026-08-15T10:53:17.751513+00:00",
+  "generated": "2026-08-15T10:31:00.892201+00:00",
   "mesh": {
     "export_root": "/home/cfutro/docs/world/source/exoplasim-T42",
     "terrain_hash": "821aa71b37a7beda0b59398c7f005b91531050000ca46660d0f724cdb3f401a3",
@@ -17,21 +17,21 @@
     "planet_radius_km": 7645.2,
     "surface_area_km2": 734492839.5500951
   },
-  "grid": "/home/cfutro/docs/world/source/exoplasim-T42",
-  "resolution": "T42",
+  "grid": "/home/cfutro/docs/world/source/exoplasim-T85",
+  "resolution": "T85",
   "method": "Area-weighted land fraction per cell from the native mesh, thresholded; topography is the land-area-weighted mean elevation over land regions only.",
   "land_definition": "surface_class == land (subaerial)",
   "land_threshold": 0.5,
   "gravity_m_s2": 10.1989,
-  "land_fraction_gauss_weighted": 0.4283585859289117,
+  "land_fraction_gauss_weighted": 0.42739807400361934,
   "mesh_land_fraction": 0.4317358136177063,
-  "land_cells": 4106,
-  "cells_below_mesh_resolution": 0,
+  "land_cells": 16489,
+  "cells_below_mesh_resolution": 35,
   "elevation_m": {
-    "min": -57.8696276776753,
-    "max": 5101.476956843967,
-    "mean": 432.5218005362622,
-    "cells_below_sea_level": 119
+    "min": -105.896391313893,
+    "max": 5768.952568778505,
+    "mean": 425.3742138439612,
+    "cells_below_sea_level": 620
   },
   "codes": [
     172,

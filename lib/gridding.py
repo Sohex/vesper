@@ -66,14 +66,36 @@ def land_weighted(export: Export, grid_dir: Path, values: np.ndarray):
     np.add.at(land_area, cell[is_land], area[is_land])
     np.add.at(weighted, cell[is_land], area[is_land] * values[is_land])
 
-    if (total <= 0).any():
-        raise RuntimeError(
-            f"{int((total <= 0).sum())} grid cells contain no mesh region; the "
-            "grid is finer than the mesh and the result would be undefined"
-        )
+    empty = total <= 0
     with np.errstate(invalid="ignore", divide="ignore"):
         mean = np.where(land_area > 0, weighted / np.maximum(land_area, 1e-30), 0.0)
-    return (land_area / total).reshape(nlat, nlon), mean.reshape(nlat, nlon)
+    fraction = np.where(empty, 0.0, land_area / np.maximum(total, 1e-30))
+
+    if empty.any():
+        # Cells finer than the mesh. At T85 this is 35 of 32,768, all polar,
+        # because the 2.5M-region mesh averages 17 km spacing against a polar
+        # cell far narrower than that. Fall back to the nearest region centre,
+        # which is what the exporter's own categorical rule does. Refining the
+        # mesh is not a free fix: region count is a generation parameter, so a
+        # finer mesh is a different planet.
+        nearest = _nearest_region(export, grid_dir, np.flatnonzero(empty), nlat, nlon)
+        fraction[empty] = (export.surface_class[nearest] == LAND).astype(float)
+        mean[empty] = np.where(export.surface_class[nearest] == LAND,
+                               values[nearest], 0.0)
+    return fraction.reshape(nlat, nlon), mean.reshape(nlat, nlon), int(empty.sum())
+
+
+def _nearest_region(export: Export, grid_dir: Path, cells, nlat: int, nlon: int):
+    """Region index nearest each listed flat cell index, on the unit sphere."""
+    from scipy.spatial import cKDTree
+    lat, lon, _ = grid_geometry(grid_dir)
+    rows, cols = np.divmod(cells, nlon)
+    clat = np.deg2rad(lat[rows])
+    clon = np.deg2rad(lon[cols])
+    pts = np.stack([np.cos(clat) * np.sin(clon), np.sin(clat),
+                    np.cos(clat) * np.cos(clon)], axis=1)
+    tree = cKDTree(np.stack([export.x, export.y, export.z], axis=1))
+    return tree.query(pts)[1]
 
 
 def land_fraction_of_class(export: Export, grid_dir: Path, mask: np.ndarray):

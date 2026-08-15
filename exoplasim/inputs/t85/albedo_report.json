@@ -1,8 +1,8 @@
 {
   "mode": "vegetated",
   "mesh": "/home/cfutro/docs/world/source/exoplasim-T42",
-  "grid": "/home/cfutro/docs/world/source/exoplasim-T42",
-  "resolution": "T42",
+  "grid": "/home/cfutro/docs/world/source/exoplasim-T85",
+  "resolution": "T85",
   "terrain_hash": "821aa71b37a7beda0b59398c7f005b91531050000ca46660d0f724cdb3f401a3",
   "codes": [
     174,
@@ -11,18 +11,18 @@
     212
   ],
   "forest_fraction_value": 0.5,
-  "forest_fraction_land_mean": 0.3942172326695318,
+  "forest_fraction_land_mean": 0.39452590428699247,
   "forest_note": "dforest blends snow albedo between forested and unforested endpoints, so it has to agree with the background albedo assumption. ExoPlaSim's default is a uniform 0.5.",
   "land_mean_bare_rock": 0.3134838636284141,
-  "land_mean_written": 0.2240479371313278,
+  "land_mean_written": 0.22381174189100045,
   "exoplasim_default_albland": 0.22,
-  "land_min": 0.1499999999999998,
+  "land_min": 0.14999999999999986,
   "land_max": 0.5,
   "files": [
-    "/home/cfutro/docs/world/exoplasim/inputs/t42/orogen_T42_surf_0174.sra",
-    "/home/cfutro/docs/world/exoplasim/inputs/t42/orogen_T42_surf_0175.sra",
-    "/home/cfutro/docs/world/exoplasim/inputs/t42/orogen_T42_surf_0176.sra",
-    "/home/cfutro/docs/world/exoplasim/inputs/t42/orogen_T42_surf_0212.sra"
+    "/home/cfutro/docs/world/exoplasim/inputs/t85/orogen_T85_surf_0174.sra",
+    "/home/cfutro/docs/world/exoplasim/inputs/t85/orogen_T85_surf_0175.sra",
+    "/home/cfutro/docs/world/exoplasim/inputs/t85/orogen_T85_surf_0176.sra",
+    "/home/cfutro/docs/world/exoplasim/inputs/t85/orogen_T85_surf_0212.sra"
   ],
   "caveat": "Substrate albedo, not land-surface albedo. Vegetation and snow are applied by the model on top of this."
 }

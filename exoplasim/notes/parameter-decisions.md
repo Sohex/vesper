@@ -311,7 +311,7 @@ vegetation model consumes the output.
 
 The gap between the two physical endmembers is larger than it first looks. Bare
 rock gives a land mean of 0.315. A fully vegetated surface, with evaporite left
-bare because nothing grows on a salt pan, gives 0.197. That is 15 to 19 W/m2 of
+bare because nothing grows on a salt pan, gives 0.223. That is 12 to 16 W/m2 of
 absorbed flux depending on the vegetation albedo assumed, against **21 W/m2 for
 the entire 0.85-to-0.95 stellar sweep, which produced a 33 K range**.
 
@@ -351,7 +351,7 @@ gated on the same first climate pass.
   exists to feed a vegetation model and a bare planet is what that model should
   be handed.
 - `vegetated` is the opposite endmember: vegetated ground everywhere except
-  evaporite. Land mean 0.197. Physical, warm, and the other half of the bracket.
+  evaporite. Land mean 0.223. Physical, warm, and the other half of the bracket.
 - `scaled` keeps the lithology pattern but rescales the land mean to
   `--target-mean`. Retained for experiments and **not recommended in
   production**: it pins the mean to a guess at the answer, which is circular, and
@@ -702,3 +702,17 @@ kelvin spread. The production baseline feeds hydrography, the carve verdict and
 eventually biomes, and those want regional detail: the completed sweep was T42,
 the coupling matrices in `hydrography/data/` are built for T42 and T85, and none
 exists for T21. Recommend T42 for the baseline unless there is a reason not to.
+
+### A stale albedo label, corrected
+
+The vegetated endmember was described as 0.197 land-mean albedo in several
+places. The correct figure is **0.223**. The 0.197 came from an early grid-based
+calculation in which an "evaporite" grid cell carried an area-averaged albedo
+rather than the class value of 0.50, so the bright fraction was understated.
+
+This is a labelling error, not a modelling one. The mesh-based path was already
+in place before the T21 bracket ran, so every measured temperature in that
+bracket used 0.223 and all six results stand unchanged. Only the number quoted
+alongside them was wrong, which also means the endmember separation is 0.091
+rather than 0.117 in land albedo, and the forcing gap is nearer 12 to 16 W/m2
+than 15 to 19.
