@@ -1,0 +1,54 @@
+schema_version: 1
+
+planet:
+  radius_earth: 1.20
+  mass_earth: 1.50
+  rotation_hours: 30.0
+  obliquity_degrees: 32.0
+  eccentricity: 0.02
+
+star:
+  # Provisional empirical midpoint between K2V and K3V in the
+  # Pecaut--Mamajek dwarf sequence (see notes/parameter-decisions.md).
+  spectral_type: K2.5V
+  mass_solar: 0.80
+  luminosity_solar: 0.32359365692962827
+  effective_temperature_k: 4965.0
+
+orbit:
+  earth_solar_constant_w_m2: 1361.0
+  baseline_flux_earth: 0.90
+  sweep_flux_earth: [0.85, 0.90, 0.95]
+  longitude_vernal_equinox_degrees: 102.7
+
+atmosphere:
+  # Partial pressures sum to exactly 1 bar. H2O remains interactive; it is not
+  # included as a fixed surface partial pressure.
+  pN2_bar: 0.78025
+  pO2_bar: 0.21000
+  pAr_bar: 0.00930
+  pCO2_bar: 0.00045
+  ozone: true
+
+radiation:
+  # Use ExoPlaSim's blackbody stellar-temperature correction and retain its
+  # separate visible/near-IR surface albedos for the redder K-dwarf spectrum.
+  two_band_albedo: true
+
+surface:
+  mixed_layer_depth_m: 50.0
+  sea_ice: true
+
+model:
+  resolution: T42
+  latitudes: 64
+  longitudes: 128
+  layers: 10
+  precision_bytes: 8
+  ncpus: 8
+  timestep_minutes: 45.0
+  physics_filter: "gp|exp|sp"
+  output_type: .nc
+  geography_land_threshold: 0.5
+  seasonal_samples_per_orbit: 32
+  regular_output_bins_per_orbit: 12

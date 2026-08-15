@@ -1,0 +1,28 @@
+# Python environment
+.venv/
+__pycache__/
+*.py[cod]
+
+# World Orogen export payloads. Regenerable from the planet code in
+# source/worldorogen_seed.txt with the fork's tools/export-planet.mjs; too large
+# and too wholesale-rewritten to belong in history. The per-export README.txt
+# files are tracked so the format stays documented.
+source/*/raw/
+source/*/grid/
+source/*/planet.nc
+source/*/manifest.json
+source/maps/
+
+# ExoPlaSim model output: ~20 GB of NetCDF and restart checkpoints. Expensive to
+# produce and irreplaceable, but a backup target, not a git one.
+exoplasim/runs/
+
+# Patched ExoPlaSim build artifacts, produced by
+# exoplasim/scripts/build_star_cycle_exoplasim.sh from the vendored source.
+exoplasim/inputs/exoplasim_cycle_t42/
+
+# Full climatology fields, ~220 MB, regenerable from exoplasim/runs/ with
+# build_climatology.py. The reports, maps, and classification products that
+# summarise them are tracked.
+exoplasim/analysis/**/*_regular_climatology.nc
+exoplasim/analysis/**/*_snapshot_climatology.nc

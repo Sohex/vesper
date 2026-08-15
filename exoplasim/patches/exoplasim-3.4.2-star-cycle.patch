@@ -1,0 +1,60 @@
+--- a/plasim/src/radmod.f90
++++ b/plasim/src/radmod.f90
+@@ -32,6 +32,11 @@
+       character(len=128) :: aerofile = " " ! Name/path to file constaining aerosol optical data
+       
+       real    :: gsol0   = 1367.0 ! solar constant (set in planet module)
++      integer :: nsolcycle = 0    ! switch for sinusoidal stellar-flux cycle
++      integer :: gsolstart = 0    ! absolute model step at cycle phase zero
++      real    :: gsolamp = 0.0    ! cycle semi-amplitude (W/m2)
++      real    :: gsolperiod = 1.0 ! cycle period (model timesteps)
++      real    :: gsolphase = 0.0  ! phase offset (cycles; zero=mean, rising)
+       real    :: solclat = 1.0    ! cos of lat of insolation if ncstsol=1
+       real    :: solcdec = 1.0    ! cos of dec of insolation if ncstsol=1
+       real    :: clgray  = -1.0   ! cloud grayness (-1 = computed)
+@@ -608,7 +613,8 @@
+      &               ,a0o3,a1o3,aco3,bo3,co3,toffo3,o3scale,newrsc,necham,necham6   &
+      &               ,nsol,nclouds,nswrcl,nrscat,rcl1,rcl2,acl2,clgray,tpofmt   &
+      &               ,acllwr,tswr1,tswr2,tswr3,th2oc,dawn,starbbtemp,nstartemp  &
+-     &               ,nsimplealbedo,nstarfile,starfile,starfilehr,minwavel
++     &               ,nsimplealbedo,nstarfile,starfile,starfilehr,minwavel      &
++     &               ,nsolcycle,gsolstart,gsolamp,gsolperiod,gsolphase
+      namelist/aero_nl/l_source,l_bulk,apart,rhop,fcoeff,l_aerorad,aerofile
+ !
+ !     namelist parameter:
+@@ -762,6 +768,11 @@
+       call mpbcr(o3scale)
+       call mpbcr(co2)
+       call mpbcr(gsol0)
++      call mpbci(nsolcycle)
++      call mpbci(gsolstart)
++      call mpbcr(gsolamp)
++      call mpbcr(gsolperiod)
++      call mpbcr(gsolphase)
+       call mpbcr(solclat)
+       call mpbcr(solcdec)
+       call mpbcr(clgray)
+@@ -1590,6 +1601,7 @@
+       real zrcsu(NHOR,NLEV)  ! clear sky reflexivity (upward beam)
+ !
+       real zftop1(NHOR),zftop2(NHOR) ! top solar radiation
++      real gsolinst,zcyclephase       ! instantaneous cyclic stellar flux
+       real zfu1(NHOR),zfu2(NHOR)     ! upward fluxes
+       real zfd1(NHOR),zfd2(NHOR)     ! downward fluxes
+ !
+@@ -1670,8 +1682,13 @@
+ !
+ !     top solar radiation downward
+ !
+-      zftop1(:) = zsolar1 * gsol0 * gdist2 * zmu1(:) !Adjust down here for redder spectrum. --AYP
+-      zftop2(:) = zsolar2 * gsol0 * gdist2 * zmu1(:)
++      gsolinst = gsol0
++      if (nsolcycle > 0 .and. gsolperiod > 0.0) then
++         zcyclephase = TWOPI * (real(nstep-gsolstart) / gsolperiod + gsolphase)
++         gsolinst = gsol0 + gsolamp * sin(zcyclephase)
++      endif
++      zftop1(:) = zsolar1 * gsolinst * gdist2 * zmu1(:) !Adjust down here for redder spectrum. --AYP
++      zftop2(:) = zsolar2 * gsolinst * gdist2 * zmu1(:)
+ 
+ !     from this point on, all computations are made only for
+ !     points with solar insolation > zero
