@@ -24,6 +24,18 @@ from _paths import MESH_EXPORT
 _KNOWN_TERRAIN_HASHES = {
     "821aa71b37a7beda0b59398c7f005b91531050000ca46660d0f724cdb3f401a3":
         "2026-08 build: over-erosion fixed, sub-sea-level land at 1.0 km/unit",
+    "27b7479aa486f5dacebccb0c638ff839a60a98e617c2437229600ef0bacf32ec":
+        "2026-08 build: drainage routed on the flood visitation tree, which also "
+        "changed hydraulic erosion (mean land elevation 548 m -> 521 m); "
+        "per-basin carving control added, no carve list applied to this export",
+}
+
+# Basin ids are computed on the pre-conditioning surface, so they survive a
+# carve iteration. This hash is the check: if it matches, a carve verdict
+# computed against an earlier export still refers to the same basins.
+_KNOWN_CATALOGUE_HASHES = {
+    "2d1f8e57c26b60c608deaa62bd3c44b7da04a4ee5bd518249447630095d96a98":
+        "2026-08 catalogue, 3629 preserved from 81904 detected",
 }
 
 OCEAN, LAND, INLAND_WATER = 0, 1, 2
@@ -71,6 +83,7 @@ class Export:
         self.manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
 
         self.terrain_hash = self.manifest["hashes"]["finalElevation"]
+        self.catalogue_hash = self.manifest["hashes"].get("basinCatalogue")
         if require_known_build and self.terrain_hash not in _KNOWN_TERRAIN_HASHES:
             raise RuntimeError(
                 f"Export terrain hash {self.terrain_hash[:16]} is not a build this "
@@ -174,6 +187,10 @@ class Export:
             "export_root": str(self.root),
             "terrain_hash": self.terrain_hash,
             "terrain_build": _KNOWN_TERRAIN_HASHES.get(self.terrain_hash, "unrecognised"),
+            "catalogue_hash": self.catalogue_hash,
+            "catalogue_known": self.catalogue_hash in _KNOWN_CATALOGUE_HASHES,
+            "drainage_hypothesis": self.manifest["basins"].get("drainageHypothesis"),
+            "selection_source": self.manifest["basins"].get("selectionSource"),
             "seed": self.manifest["seed"],
             "num_regions": self.n_regions,
             "planet_radius_km": self.radius_km,

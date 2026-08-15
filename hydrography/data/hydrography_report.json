@@ -1,9 +1,17 @@
 {
-  "generated": "2026-08-15T04:14:36.438822+00:00",
+  "generated": "2026-08-15T04:53:43.169726+00:00",
   "source": {
     "export_root": "/home/cfutro/docs/world/source/exoplasim-T42",
-    "terrain_hash": "821aa71b37a7beda0b59398c7f005b91531050000ca46660d0f724cdb3f401a3",
-    "terrain_build": "2026-08 build: over-erosion fixed, sub-sea-level land at 1.0 km/unit",
+    "terrain_hash": "27b7479aa486f5dacebccb0c638ff839a60a98e617c2437229600ef0bacf32ec",
+    "terrain_build": "2026-08 build: drainage routed on the flood visitation tree, which also changed hydraulic erosion (mean land elevation 548 m -> 521 m); per-basin carving control added, no carve list applied to this export",
+    "catalogue_hash": "2d1f8e57c26b60c608deaa62bd3c44b7da04a4ee5bd518249447630095d96a98",
+    "catalogue_known": true,
+    "drainage_hypothesis": {
+      "preserveListGiven": 0,
+      "carveListGiven": 0,
+      "entries": []
+    },
+    "selection_source": "threshold",
     "seed": 16236323,
     "num_regions": 2500001,
     "planet_radius_km": 7645.2,
@@ -11,39 +19,39 @@
   },
   "drainage": {
     "land_fraction_of_planet": 0.4317358383866897,
-    "endorheic_fraction_of_land": 0.761122105547923,
-    "ocean_draining_fraction_of_land": 0.23887789445207697,
+    "endorheic_fraction_of_land": 0.7590874971265663,
+    "ocean_draining_fraction_of_land": 0.2409125028734337,
     "unresolved_regions": 0,
-    "pits_filled": 99085,
-    "median_fill_depth_m": 8.505018224241212
+    "pits_filled": 98304,
+    "median_fill_depth_m": 8.431722410023212
   },
   "basins": {
     "count": 3629,
-    "total_capacity_km3": 6838339.389490922,
-    "total_area_at_spill_km2": 64178391.38765645,
-    "area_at_spill_fraction_of_planet": 0.08731836967360074,
-    "total_catchment_km2": 241521415.5939877,
-    "catchment_to_spill_area_ratio_median": 3.921150087730079,
-    "merged_basins": 323,
-    "spills_to_ocean": 1032,
-    "spills_into_another_basin": 2597,
+    "total_capacity_km3": 6669565.932211306,
+    "total_area_at_spill_km2": 62250604.42060065,
+    "area_at_spill_fraction_of_planet": 0.08469550532001235,
+    "total_catchment_km2": 240875787.904917,
+    "catchment_to_spill_area_ratio_median": 3.9379106243568174,
+    "merged_basins": 329,
+    "spills_to_ocean": 1038,
+    "spills_into_another_basin": 2591,
     "critical_aridity_index_percentiles": {
-      "5": 1.1006974780060768,
-      "25": 1.8685688942668004,
-      "50": 2.921150087730079,
-      "75": 4.8179198435445025,
-      "95": 11.64651177361583
+      "5": 1.1076927229467564,
+      "25": 1.880511072944469,
+      "50": 2.9379106243568174,
+      "75": 4.895970927947677,
+      "95": 12.072583752516472
     },
-    "capacity_vs_natural_catalogue": 0.6664644218562505
+    "capacity_vs_natural_catalogue": 0.6500157640427175
   },
   "coupling": {
     "exoplasim-T42": {
-      "pairs": 14130,
+      "pairs": 14106,
       "n_lat": 64,
       "n_lon": 128
     },
     "exoplasim-T85": {
-      "pairs": 30530,
+      "pairs": 30477,
       "n_lat": 128,
       "n_lon": 256
     }
@@ -53,13 +61,7 @@
       "region": 2190807,
       "lat": -37.607051849365234,
       "lon": 161.77316284179688,
-      "discharge_area_km2": 60692.2421875
-    },
-    {
-      "region": 1044692,
-      "lat": -57.71154022216797,
-      "lon": 72.10128784179688,
-      "discharge_area_km2": 59940.41015625
+      "discharge_area_km2": 61081.0078125
     },
     {
       "region": 2315648,
@@ -77,13 +79,13 @@
       "region": 665601,
       "lat": -13.009309768676758,
       "lon": 61.25557327270508,
-      "discharge_area_km2": 52100.73828125
+      "discharge_area_km2": 52485.69140625
     },
     {
       "region": 548857,
       "lat": -54.30842208862305,
       "lon": -16.012374877929688,
-      "discharge_area_km2": 51968.734375
+      "discharge_area_km2": 52280.40234375
     },
     {
       "region": 994744,
@@ -95,7 +97,7 @@
       "region": 597668,
       "lat": -40.57071304321289,
       "lon": 46.577491760253906,
-      "discharge_area_km2": 50941.390625
+      "discharge_area_km2": 47861.4765625
     },
     {
       "region": 1799822,
@@ -104,10 +106,16 @@
       "discharge_area_km2": 47270.36328125
     },
     {
+      "region": 1044692,
+      "lat": -57.71154022216797,
+      "lon": 72.10128784179688,
+      "discharge_area_km2": 46785.42578125
+    },
+    {
       "region": 698364,
       "lat": 56.21649169921875,
       "lon": -37.56281661987305,
-      "discharge_area_km2": 45832.93359375
+      "discharge_area_km2": 45427.10546875
     },
     {
       "region": 2318520,
@@ -119,7 +127,7 @@
       "region": 1789465,
       "lat": -57.35414505004883,
       "lon": 143.2099609375,
-      "discharge_area_km2": 42666.56640625
+      "discharge_area_km2": 42613.4765625
     },
     {
       "region": 2300583,
@@ -140,12 +148,6 @@
       "discharge_area_km2": 41996.8046875
     },
     {
-      "region": 2176015,
-      "lat": -41.73215103149414,
-      "lon": 173.44363403320312,
-      "discharge_area_km2": 41529.7109375
-    },
-    {
       "region": 1965956,
       "lat": 36.23416519165039,
       "lon": -135.2452850341797,
@@ -155,7 +157,7 @@
       "region": 472984,
       "lat": -46.5328369140625,
       "lon": 25.509241104125977,
-      "discharge_area_km2": 39664.77734375
+      "discharge_area_km2": 39390.12109375
     },
     {
       "region": 542019,
@@ -170,16 +172,16 @@
       "discharge_area_km2": 37035.8671875
     },
     {
-      "region": 1609970,
-      "lat": -60.2610969543457,
-      "lon": 125.45044708251953,
-      "discharge_area_km2": 36009.98828125
-    },
-    {
       "region": 129706,
       "lat": 25.720779418945312,
       "lon": -5.83205509185791,
-      "discharge_area_km2": 35430.5390625
+      "discharge_area_km2": 35227.14453125
+    },
+    {
+      "region": 1153701,
+      "lat": -24.818086624145508,
+      "lon": -85.10704803466797,
+      "discharge_area_km2": 34807.0
     },
     {
       "region": 132303,
@@ -191,7 +193,7 @@
       "region": 1133625,
       "lat": 77.8006820678711,
       "lon": 63.80517578125,
-      "discharge_area_km2": 34054.66796875
+      "discharge_area_km2": 34164.25390625
     },
     {
       "region": 2275921,
@@ -200,10 +202,22 @@
       "discharge_area_km2": 33676.4375
     },
     {
+      "region": 900304,
+      "lat": -9.670182228088379,
+      "lon": -73.46566772460938,
+      "discharge_area_km2": 33337.484375
+    },
+    {
       "region": 800554,
       "lat": 27.33103370666504,
       "lon": -66.08597564697266,
       "discharge_area_km2": 33067.94921875
+    },
+    {
+      "region": 1826700,
+      "lat": 55.03071212768555,
+      "lon": -143.49603271484375,
+      "discharge_area_km2": 33022.66796875
     },
     {
       "region": 430233,
@@ -212,16 +226,22 @@
       "discharge_area_km2": 32964.97265625
     },
     {
-      "region": 900304,
-      "lat": -9.670182228088379,
-      "lon": -73.46566772460938,
-      "discharge_area_km2": 32443.705078125
-    },
-    {
       "region": 1725263,
       "lat": -55.129878997802734,
       "lon": 131.63584899902344,
       "discharge_area_km2": 31321.8515625
+    },
+    {
+      "region": 590386,
+      "lat": 34.0078239440918,
+      "lon": -50.35420227050781,
+      "discharge_area_km2": 31011.89453125
+    },
+    {
+      "region": 1609970,
+      "lat": -60.2610969543457,
+      "lon": 125.45044708251953,
+      "discharge_area_km2": 30984.25
     },
     {
       "region": 609355,
@@ -230,16 +250,10 @@
       "discharge_area_km2": 30862.921875
     },
     {
-      "region": 590386,
-      "lat": 34.0078239440918,
-      "lon": -50.35420227050781,
-      "discharge_area_km2": 30635.70703125
-    },
-    {
       "region": 2322441,
       "lat": -4.658492088317871,
       "lon": -149.37893676757812,
-      "discharge_area_km2": 30539.353515625
+      "discharge_area_km2": 30461.478515625
     },
     {
       "region": 167154,
@@ -251,19 +265,25 @@
       "region": 2119601,
       "lat": -10.164324760437012,
       "lon": -134.9324493408203,
-      "discharge_area_km2": 30080.83984375
+      "discharge_area_km2": 30080.837890625
     },
     {
-      "region": 1037858,
-      "lat": 6.973474025726318,
-      "lon": -80.21208190917969,
-      "discharge_area_km2": 29659.73046875
+      "region": 1981638,
+      "lat": 38.00209045410156,
+      "lon": -138.0235137939453,
+      "discharge_area_km2": 29682.140625
     },
     {
       "region": 59826,
       "lat": 0.1357908844947815,
       "lon": -17.795459747314453,
-      "discharge_area_km2": 29373.228515625
+      "discharge_area_km2": 29549.998046875
+    },
+    {
+      "region": 2192739,
+      "lat": -40.64483642578125,
+      "lon": 173.89993286132812,
+      "discharge_area_km2": 29354.3359375
     },
     {
       "region": 2046306,
@@ -272,16 +292,22 @@
       "discharge_area_km2": 29224.876953125
     },
     {
+      "region": 1037858,
+      "lat": 6.973474025726318,
+      "lon": -80.21208190917969,
+      "discharge_area_km2": 29202.0625
+    },
+    {
       "region": 2039584,
       "lat": -50.46495819091797,
       "lon": 173.49075317382812,
       "discharge_area_km2": 29061.71484375
     },
     {
-      "region": 2192739,
-      "lat": -40.64483642578125,
-      "lon": 173.89993286132812,
-      "discharge_area_km2": 29041.984375
+      "region": 1268595,
+      "lat": 61.928043365478516,
+      "lon": 91.73711395263672,
+      "discharge_area_km2": 28921.330078125
     },
     {
       "region": 2293006,
@@ -314,12 +340,6 @@
       "discharge_area_km2": 28006.9375
     },
     {
-      "region": 1001323,
-      "lat": 51.65715408325195,
-      "lon": -71.24166107177734,
-      "discharge_area_km2": 27768.6015625
-    },
-    {
       "region": 492661,
       "lat": -52.56535339355469,
       "lon": 3.3438303470611572,
@@ -332,22 +352,10 @@
       "discharge_area_km2": 27683.19921875
     },
     {
-      "region": 1268595,
-      "lat": 61.928043365478516,
-      "lon": 91.73711395263672,
-      "discharge_area_km2": 27570.572265625
-    },
-    {
       "region": 1102798,
       "lat": 52.26249694824219,
       "lon": -78.99198913574219,
-      "discharge_area_km2": 27525.6875
-    },
-    {
-      "region": 2058253,
-      "lat": -44.99742889404297,
-      "lon": -156.11508178710938,
-      "discharge_area_km2": 27474.611328125
+      "discharge_area_km2": 27525.685546875
     }
   ],
   "marginal_seas": {
