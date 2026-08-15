@@ -21,8 +21,8 @@ read the same `config/planet.yaml` and `source/`. `hydrography/scripts/orogen.py
 is a general reader for the export and is meant to be reused, not reimplemented.
 
 Git tracks the scripts, notes, configuration, and analysis products. It does
-**not** track `exoplasim/runs/` (20 GB of model output that took days of CPU
-time), the `source/` export payloads, or `.venv/`. Those have no history to fall
+**not** track `exoplasim/runs/` (20 GB of model output), the `source/` export
+payloads, or `.venv/`. Those have no history to fall
 back on, so be careful with destructive operations there; `.gitignore` says why
 each is excluded.
 

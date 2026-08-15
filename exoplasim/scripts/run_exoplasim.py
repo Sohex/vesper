@@ -465,6 +465,16 @@ def main() -> None:
         "STARBBTEMP": namelist_value(run_dir / "radmod_namelist", "STARBBTEMP"),
         "NSIMPLEALBEDO": namelist_value(run_dir / "radmod_namelist", "NSIMPLEALBEDO"),
     }
+    # ExoPlaSim copies its whole run directory in, so every previously built
+    # executable is present. Name the one this run will actually use rather than
+    # taking the last glob match, which sorts p8 after p16.
+    exe_path = run_dir / (
+        f"most_plasim_t{int(str(model_cfg['resolution']).lstrip('Tt'))}"
+        f"_l{int(model_cfg['layers'])}_p{int(model_cfg['ncpus'])}.x"
+    )
+    if not exe_path.is_file():
+        raise RuntimeError(f"expected executable {exe_path} is not in the run directory")
+
     manifest = {
         "schema_version": 1,
         "run_id": identifier,
@@ -504,8 +514,6 @@ def main() -> None:
             "snapshot_codes": SNAPSHOT_CODES,
         },
     }
-    exes = sorted(run_dir.glob("most_plasim_*.x"))
-    exe_path = exes[-1] if exes else None
     manifest_path = run_dir / "run_manifest.json"
     manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
     print(

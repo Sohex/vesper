@@ -428,3 +428,44 @@ so a swapped binary is visible in provenance even though the filename is not.
 Neither prevents the mismatch; they make it auditable. Changing precision means
 deleting the binary or passing `recompile=True`, and restart files are not
 portable across the change because the Fortran record layout differs.
+
+## Cores, and the measured cost of an orbit
+
+16 MPI ranks, one per physical core on a Ryzen 9 7950X3D. Not 32: those are SMT
+siblings and MPI ranks on paired threads contend for the same FPU and cache,
+which does not help a compute-bound spectral model. `NLAT` must divide by the
+rank count, so at T42 the choices are 1, 2, 4, 8, 16, 32 and 64, and 16 leaves
+four latitudes per rank.
+
+Measured, not assumed. At 8 ranks the completed sweep averaged 1.86 to 2.70
+minutes per orbit across the three flux cases. The first 16-rank run took 1 minute
+44 seconds wall clock for the whole prepare, compile check, staging, one orbit and
+postprocessing, at 1411% CPU. So a 50-orbit spin-up is about two hours, not the
+days this note previously implied.
+
+Changing the rank count changes the executable name, so ExoPlaSim rebuilds
+automatically; the T42 build takes about 15 seconds.
+
+## First orbit on the new world
+
+Prepared and run end to end against the regenerated geography, the mesh-derived
+boundary conditions and lithology albedo. Against the old world's first orbit,
+which is the only fair comparison since neither is equilibrated:
+
+| | new | old |
+| --- | ---: | ---: |
+| surface temperature | 263.77 K | 265.29 K |
+| 2 m air temperature | 263.45 K | 264.98 K |
+| precipitation | 0.970 mm/day | 1.003 mm/day |
+| TOA net radiation | 9.43 W/m2 | 16.24 W/m2 |
+| surface heat flux | 23.14 W/m2 | 28.80 W/m2 |
+| planetary sea ice | 0.1035 | 0.0933 |
+| planetary albedo | 0.2551 | not recorded |
+
+Cooler, brighter and closer to balance, which is the expected direction for a
+substrate albedo of 0.315 replacing a uniform 0.22. Internally consistent too:
+evaporation of 0.987 mm/day implies 28.6 W/m2 of latent heat against a reported
+`hfls` of -29.5 W/m2, and precipitation nearly matches evaporation as it should
+over a full orbit.
+
+Note that `pr` and `evap` are in m s-1, not mm/day. The conversion is 86400 x 1000.
