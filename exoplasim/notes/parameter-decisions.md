@@ -757,3 +757,48 @@ pre-carve fractions, so the next baseline is not obviously warmer or cooler and
 the estimate is not worth trusting far enough to skip measuring it.
 
 Quote these numbers as the 0.96 pre-carve baseline, never as Vesper's climate.
+
+## Where the albedo uncertainty actually lives
+
+The evaporite constant was the largest single lever in this planet's energy
+balance. Orogen's crust/fill split did not remove it, it moved it, and it is
+worth knowing exactly where it went.
+
+Per 0.10 of albedo error, on the exports as delivered:
+
+| class | share of land | pre-carve | carved |
+| --- | ---: | ---: | ---: |
+| `playa_clastic` | 18.80% | 2.48 W/m2 (2.34 K) | 1.50 W/m2 (1.41 K) |
+| `evaporite` (crust) | 2.11% | 0.28 W/m2 (0.26 K) | 0.18 W/m2 (0.17 K) |
+
+Nine to one in favour of the fill. Almost the entire remaining sensitivity sits
+on the 0.30 assigned to playa clastics, which was chosen the same way the old
+0.50 was.
+
+That number is also a mixture: "Playa mud / alluvial fan fill" covers light clay
+playa at roughly 0.30-0.35 and desert-varnished fan gravel and pavement at
+roughly 0.15-0.25. A plausible mix spans 0.25 to 0.33, worth 1.99 W/m2 or 1.87 K
+pre-carve, which is 40% of what the whole split was worth.
+
+It is recorded and not overridden. 0.30 is defensible as a central value, and
+picking a different one to make a temperature land would be exactly the error the
+split was meant to fix, one level down.
+
+### A degeneracy neither side can break
+
+Crust area and crust albedo are degenerate in the effective value: from the
+climate side, 10.6% of basin floor at 0.50 and 20% at 0.40 are the same planet.
+Nothing in the terrain geometry separates them. Only an independent measurement
+of crust extent would, and that is flooding frequency, which is a water balance
+and therefore ours, and our lake solver is the least-validated thing in this
+pipeline. So neither side can close it, and both have declined to invent a
+constraint. Left open and labelled.
+
+### Where this stops being worth doing
+
+Each split replaces one guessed number with two better-founded ones, but it does
+not recurse usefully forever. At some depth the dominant uncertainty stops being
+"which facies is this" and becomes "what does bare rock of this type reflect
+under a 4965 K spectrum", and neither the terrain model nor the climate model has
+anything to say about that. One more level is probably worth it. The level after
+that is not.

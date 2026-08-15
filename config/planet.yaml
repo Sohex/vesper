@@ -146,6 +146,23 @@ model:
   # the moment Orogen split that class into crust and clastics. Driven from
   # config now so the next addition is a config change rather than a silent one.
   barren_rock_classes: [evaporite, playa_clastic]
+  #
+  # INHERITED UNCERTAINTY, recorded rather than overridden. After Orogen split
+  # the evaporite domain, the dominant albedo lever is `playa_clastic` at 0.30,
+  # not the salt crust: playa is 18.8% of land against the crust's 2.1%, so per
+  # 0.10 of albedo error it is worth 2.48 W/m2 (2.34 K) pre-carve against the
+  # crust's 0.28. Nine to one.
+  #
+  # And playa_clastic is itself a mixture. Its name is "Playa mud / alluvial fan
+  # fill"; light clay playa runs 0.30-0.35, desert-varnished fan gravel and
+  # pavement run 0.15-0.25. A plausible mix spans 0.25-0.33, worth 1.99 W/m2 or
+  # 1.87 K, which is 40% of what the whole crust/fill split was worth.
+  #
+  # Not overridden. 0.30 is a defensible central value and the range above is
+  # what it is worth; tuning it to make a temperature land would be the same
+  # error one level down. Orogen has proposed separating fan from mud by the same
+  # depth zoning that separated crust from fill, which would resolve it without a
+  # new mechanism.
 
   geography_land_threshold: 0.5
   seasonal_samples_per_orbit: 32
