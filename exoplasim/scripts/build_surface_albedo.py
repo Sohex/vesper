@@ -130,6 +130,20 @@ def main() -> None:
 
     mesh = Export(args.mesh)
     rock = mesh.surface_rock
+    # Classes that cannot carry a canopy. This was a single hardcoded reference
+    # to evaporite, which silently became wrong when Orogen split that class:
+    # playa_clastic is 18.8% of land and nothing roots in playa mud either, but
+    # it would have been handed vegetation albedo because it is "not evaporite".
+    # Driven from config so the next class addition is a config change.
+    barren_codes = model.get("barren_rock_classes") or ["evaporite"]
+    barren = np.zeros(rock.shape, dtype=bool)
+    barren_applied = []
+    for code in barren_codes:
+        try:
+            barren |= rock == _rock_id(args.mesh, code)
+            barren_applied.append(code)
+        except KeyError:
+            pass    # class absent from this export; older builds lack playa_clastic
     evaporite = _rock_id(args.mesh, "evaporite")
     is_land = mesh.surface_class == LAND
 
@@ -163,7 +177,7 @@ def main() -> None:
                          "exported_albedo": exported, "regions": int(sel.sum())}
         region_albedo[sel] = value
     if mode == "vegetated":
-        region_albedo[is_land & (rock != evaporite)] = args.vegetation_albedo
+        region_albedo[is_land & ~barren] = args.vegetation_albedo
 
     fraction, alb_grid, _empty = land_weighted(mesh, grid_dir, region_albedo)
     land_cells = fraction >= float(model["geography_land_threshold"])
@@ -185,7 +199,7 @@ def main() -> None:
 
     forest_value = (args.forest_fraction if args.forest_fraction is not None
                     else MODE_FOREST_FRACTION[mode])
-    vegetable = land_fraction_of_class(mesh, grid_dir, rock != evaporite)
+    vegetable = land_fraction_of_class(mesh, grid_dir, ~barren)
     forest = np.where(land_cells, vegetable * forest_value, 0.0)
 
     gw = np.fromfile(grid_dir / "grid" / "gauss_weights.bin", dtype="float64")
@@ -215,6 +229,7 @@ def main() -> None:
         "forest_fraction_value": forest_value,
         "forest_fraction_land_mean": gmean(forest),
         "lithology_albedo_overrides": applied,
+        "barren_rock_classes": barren_applied,
         "forest_note": ("dforest blends snow albedo between forested and "
                         "unforested endpoints, so it has to agree with the "
                         "background albedo assumption. ExoPlaSim's default is a "

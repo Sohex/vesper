@@ -136,16 +136,17 @@ model:
   # Orogen has proposed zoning the class by depth below spill, which would give a
   # measured area split between crust and clastics instead of one number. When
   # that lands this override should be removed rather than retuned.
-  # `replaces` is the exported value this override was written against. If the
-  # export no longer reports that, the class has been redefined and the override
-  # is refused rather than applied blindly. That matters here specifically:
-  # Orogen is splitting evaporite into salt crust and playa clastics, after which
-  # "evaporite" may name the crust alone, where 0.50 is correct and 0.40 would be
-  # wrong. Delete this block when the split lands; do not retune it.
-  lithology_albedo_overrides:
-    evaporite:
-      albedo: 0.40
-      replaces: 0.50
+  # Rock classes that cannot carry vegetation, so they keep their own albedo in
+  # `vegetated` mode rather than being handed the canopy value. Nothing roots in
+  # salt crust and nothing much roots in playa mud, and between them they are
+  # about 21% of this planet's land, so treating either as vegetable would be a
+  # first-order error in the energy balance.
+  #
+  # This started as a single hardcoded reference to evaporite and became wrong
+  # the moment Orogen split that class into crust and clastics. Driven from
+  # config now so the next addition is a config change rather than a silent one.
+  barren_rock_classes: [evaporite, playa_clastic]
+
   geography_land_threshold: 0.5
   seasonal_samples_per_orbit: 32
   regular_output_bins_per_orbit: 12
