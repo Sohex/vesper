@@ -29,10 +29,17 @@ from run_exoplasim import (  # noqa: E402
 from continue_exoplasim import validate_year, year_diagnostics  # noqa: E402
 
 
-CASES = {
-    "extreme": {"minimum_flux_earth": 0.85, "maximum_flux_earth": 0.95},
-    "control": {"minimum_flux_earth": 0.88, "maximum_flux_earth": 0.92},
-}
+def load_cases(config: dict) -> dict:
+    """Cycle amplitudes, from config rather than hardcoded.
+
+    They were literals here while the baseline was 0.90. The baseline is now
+    0.96 and the amplitudes moved with it, so leaving them in the source would
+    have silently applied the old range about the new centre.
+    """
+    cases = config.get("stellar_cycle", {}).get("cases")
+    if not cases:
+        raise RuntimeError("config/planet.yaml has no stellar_cycle.cases")
+    return cases
 JULIAN_YEAR_DAYS = 365.25
 
 
@@ -65,11 +72,12 @@ def completed_years(run_dir: Path) -> list[int]:
 
 
 def cycle_run_id(config: dict, case: str, period_earth_years: float) -> str:
+    cases = load_cases(config)
     p = config["planet"]
     a = config["atmosphere"]
     m = config["model"]
-    lo = round(100 * CASES[case]["minimum_flux_earth"])
-    hi = round(100 * CASES[case]["maximum_flux_earth"])
+    lo = round(100 * cases[case]["minimum_flux_earth"])
+    hi = round(100 * cases[case]["maximum_flux_earth"])
     identifier = (
         f"{str(m['resolution']).lower()}l{int(m['layers'])}p{int(m['ncpus'])}"
         f"_cycle{period_earth_years:g}ey_s{lo:03d}-{hi:03d}"
@@ -174,7 +182,7 @@ def make_model(
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--case", choices=sorted(CASES), required=True)
+    parser.add_argument("--case", required=True)
     parser.add_argument("--config", type=Path, default=CONFIG)
     parser.add_argument("--period-earth-years", type=float, default=8.0)
     parser.add_argument(
@@ -191,9 +199,12 @@ def main() -> None:
 
     config_path = args.config.resolve()
     config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    cases = load_cases(config)
+    if args.case not in cases:
+        raise SystemExit(f"unknown case {args.case!r}; config defines {sorted(cases)}")
     mean_ratio = 0.5 * (
-        CASES[args.case]["minimum_flux_earth"]
-        + CASES[args.case]["maximum_flux_earth"]
+        cases[args.case]["minimum_flux_earth"]
+        + cases[args.case]["maximum_flux_earth"]
     )
     if not math.isclose(mean_ratio, float(config["orbit"]["baseline_flux_earth"])):
         raise ValueError("Cycle mean must equal the configured baseline flux")
@@ -219,13 +230,13 @@ def main() -> None:
     period_steps = args.period_earth_years * JULIAN_YEAR_DAYS * 86400.0 / timestep_seconds
     earth_constant = float(config["orbit"]["earth_solar_constant_w_m2"])
     semi_amplitude_ratio = 0.5 * (
-        CASES[args.case]["maximum_flux_earth"]
-        - CASES[args.case]["minimum_flux_earth"]
+        cases[args.case]["maximum_flux_earth"]
+        - cases[args.case]["minimum_flux_earth"]
     )
     cycle = {
         "case": args.case,
-        "minimum_flux_earth": CASES[args.case]["minimum_flux_earth"],
-        "maximum_flux_earth": CASES[args.case]["maximum_flux_earth"],
+        "minimum_flux_earth": cases[args.case]["minimum_flux_earth"],
+        "maximum_flux_earth": cases[args.case]["maximum_flux_earth"],
         "mean_flux_earth": mean_ratio,
         "mean_flux_w_m2": mean_ratio * earth_constant,
         "semi_amplitude_w_m2": semi_amplitude_ratio * earth_constant,

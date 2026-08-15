@@ -24,8 +24,13 @@ star:
 
 orbit:
   earth_solar_constant_w_m2: 1361.0
-  baseline_flux_earth: 0.90
-  sweep_flux_earth: [0.85, 0.90, 0.95]
+  # 0.96 puts the vegetated branch at about 291.4 K, mid-range of the 290-293 K
+  # design target. Chosen from the six-case albedo bracket: the vegetated window
+  # for that target is 0.952-0.970 S-Earth. Note the bare-rock window is
+  # 0.977-0.994 and does not overlap it, so this flux is habitable *because* the
+  # world is vegetated, not independently of it.
+  baseline_flux_earth: 0.96
+  sweep_flux_earth: [0.90, 0.95, 1.00]
   longitude_vernal_equinox_degrees: 102.7
 
 atmosphere:
@@ -100,7 +105,33 @@ model:
   # evaporite, so uniform is a planetary-albedo error of about 0.04. This is
   # substrate albedo: the first pass is a bare-rock planet and will run cold
   # relative to a vegetated one. Revisit once a vegetation model has run.
-  land_albedo_source: lithology
+  # The world is taken to be vegetated. The bracket showed this is not a detail:
+  # the two endmembers differ by 3.7-7.1 K and reach the design target at
+  # non-overlapping fluxes, so the biosphere and the orbit are one choice.
+  land_albedo_source: vegetated
   geography_land_threshold: 0.5
   seasonal_samples_per_orbit: 32
   regular_output_bins_per_orbit: 12
+
+stellar_cycle:
+  # Sinusoidal bolometric variation about the baseline flux, applied at every
+  # radiation timestep by patches/exoplasim-3.4.2-star-cycle.patch.
+  #
+  # 0.91 to 1.01 is 10.4% peak-to-peak, essentially the same amplitude as the
+  # earlier 0.85-0.95 experiment's 11.1%, and still implies unusually extensive
+  # and variable spot coverage for a quiet 6-8 Gyr K dwarf. Treat it as an
+  # intentionally active star rather than a typical one.
+  #
+  # Static endpoints on the vegetated branch are about 282.2 and 299.7 K, a
+  # 17.5 K span. The 50 m slab damped the earlier experiment to 0.239 of its
+  # static span, which predicts roughly 4.2 K peak-to-peak here, about 289.3 to
+  # 293.5 K. If that holds the world stays inside the habitable band across the
+  # whole cycle, which is the point of centring it at 0.96.
+  cases:
+    active:
+      minimum_flux_earth: 0.91
+      maximum_flux_earth: 1.01
+    control:
+      minimum_flux_earth: 0.94
+      maximum_flux_earth: 0.98
+  period_earth_years: 8.0

@@ -658,3 +658,47 @@ Flux sensitivity falls as ice runs out: +12.12 K across 0.90 to 0.95 on the bare
 rock branch, then +8.74 K across 0.95 to 1.00, with sea ice going 11.1% to 2.1%
 to 0.04%. The old sweep's +11.2 K per 0.05 step sits between the two, so the
 model's flux response is unchanged; only the offset moved.
+
+## Baseline chosen: vegetated at 0.96 S-Earth
+
+From the bracket, the vegetated branch reaches the 290 to 293 K target between
+0.9516 and 0.9697 S-Earth. 0.96 sits mid-range and gives about **291.4 K**.
+
+The choice is a package, not two independent settings. The bare-rock window,
+0.9765 to 0.9936, does not overlap the vegetated one, so 0.96 is habitable
+*because* the world is vegetated. A world at this orbit that lost its biosphere
+would fall to roughly 286 K, and one that gained a biosphere at 0.98 would rise
+past 297 K. That coupling is a property of the world worth keeping in view rather
+than an artefact to be tidied away.
+
+### The stellar cycle at 0.91 to 1.01
+
+Centred on the baseline, 10.4% peak-to-peak, against the earlier experiment's
+11.1%. Still an intentionally active star: this amplitude implies unusually
+extensive and variable spot coverage for a quiet 6 to 8 Gyr K dwarf, and should
+be presented as a deliberate choice rather than as typical behaviour.
+
+Static endpoints on the vegetated branch are about 282.2 K at 0.91 and 299.7 K at
+1.01, a 17.5 K span. The earlier cycle work measured the 50 m slab damping a
+33.3 K static span to a 7.96 K seasonally adjusted response, a ratio of 0.239. If
+that carries over, the prediction here is about **4.2 K peak-to-peak, roughly
+289.3 to 293.5 K**, which keeps the world inside the habitable band across the
+whole cycle. That is the reason to centre at 0.96 rather than at an endpoint.
+
+The 1.01 endpoint is extrapolated one step beyond the 1.00 run, so it is the
+least supported number in the set. The prediction should be treated as a
+hypothesis the cycle runs will test, not as a result.
+
+Cycle amplitudes now live in `config/planet.yaml` under `stellar_cycle.cases`
+rather than as literals in `run_stellar_cycle.py`. They were hardcoded while the
+baseline was 0.90; leaving them there would have applied the old 0.85-0.95 range
+about the new 0.96 centre without complaint. The script now refuses a case whose
+mean does not equal the configured baseline.
+
+### Resolution still to settle
+
+The bracket ran at T21, which was the right call for a question about a several
+kelvin spread. The production baseline feeds hydrography, the carve verdict and
+eventually biomes, and those want regional detail: the completed sweep was T42,
+the coupling matrices in `hydrography/data/` are built for T42 and T85, and none
+exists for T21. Recommend T42 for the baseline unless there is a reason not to.

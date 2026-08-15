@@ -237,6 +237,10 @@ do not overlap.** The endmember spread near the target, 3.7-4.4 K, is wider than
 the 3 K target itself, so no single flux is robust to the vegetation question.
 The orbit and the biosphere have to be chosen together.
 
+**Chosen: vegetated at 0.96 S-Earth**, about 291.4 K, with an 0.91-1.01 stellar
+cycle centred on it. 0.96 is habitable *because* the world is vegetated; the
+bare-rock branch at that flux would sit near 286 K.
+
 That is sensitivity, not bistability: vegetation is not interactive in these
 runs, so they are separately forced problems. Do not describe the world as
 bistable on this evidence.
