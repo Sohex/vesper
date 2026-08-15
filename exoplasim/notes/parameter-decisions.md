@@ -277,9 +277,12 @@ vegetation feedbacks. For comparison the entire 0.85-to-0.95 flux sweep spans
 roughly 21 W/m2 absorbed, so a uniform 0.22 is a first-order error rather than a
 refinement.
 
-The spread is not incidental to this world. Evaporite covers 18.6% of the land,
-third behind schist at 23.0% and intracratonic clastics at 19.7%, and evaporite
-is the brightest class in the table at 0.50. That is a direct consequence of the
+The spread is not incidental to this world. Evaporite covers 20.8% of the land,
+second behind schist at 22.4% and ahead of intracratonic clastics at 18.9%, and
+evaporite is the brightest class in the table at 0.50. (The manifest's
+`compositionLand` says 18.6%, because it measures against `land_mask` and so
+drops the dry sub-sea-level basin floors where playa fill concentrates. The
+figures here are computed from `surface_rock` against `surface_class`.) That is a direct consequence of the
 endorheic drainage: closed basins accumulate playa and salt-pan fill. A planet
 whose land mostly does not drain to the sea is a brighter planet, and the two
 facts come from the same place.

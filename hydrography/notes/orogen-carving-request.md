@@ -252,3 +252,39 @@ offered a plausible mechanism without checking whether it was reachable, and
 labelled it a probable improvement. The actual cause, a pre-erosion absolute
 protection floor that also served as its own assertion baseline, was a
 regression. Noted so the reasoning error is on the record alongside the fix.
+
+## A published fraction with the same denominator problem
+
+Following up on the endorheic percentage: the artifact itself is clean there.
+`drainageConsistency` publishes absolute areas only, so the 79.74% exists in
+prose rather than in the manifest and nothing downstream can pick it up.
+
+`lithology.compositionLand` is a different matter, because it is in the artifact
+and it looks like data to build on. It is measured against `land_mask` in both
+numerator and denominator: its areas sum to 3.032877e+08 km2, which is the
+`land_mask` land area exactly, against 3.173228e+08 for `surface_class`.
+
+The distortion is not uniform, and it lands where it hurts most:
+
+| class | published | vs surface_class | area gain |
+| --- | ---: | ---: | ---: |
+| evaporite | 0.1860 | 0.2083 | 1.17x |
+| oib | 0.0129 | 0.0133 | 1.08x |
+| pelagic | 0.0133 | 0.0136 | 1.07x |
+| (land overall) | | | 1.046x |
+
+Evaporite is the most affected class, which is the physically expected direction:
+playa and salt-pan fill accumulates in exactly the closed basins below sea level
+that `land_mask` drops. So the table systematically under-reports the lithology
+most characteristic of a planet with preserved endorheic drainage.
+
+Nothing we have built consumes it. Our albedo boundary condition is computed from
+the `rock_albedo` field cell by cell, not from the table, and every land fraction
+in `hydrography/` is computed against `surface_class`. The measurable consequence
+is small: land-mean bare-rock albedo is 0.3083 by the table's denominator against
+0.3135 by `surface_class`, about 0.7 W/m2.
+
+But we did quote 18.6% from it in two places before checking, and a biome or soil
+model taking parent-material fractions from this table would inherit the same
+bias. Suggest measuring it against `surface_class`, or naming the denominator in
+the block the way `landSeaMask` already does.

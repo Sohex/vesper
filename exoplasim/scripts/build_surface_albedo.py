@@ -128,7 +128,10 @@ def main() -> None:
     if mode == "vegetated":
         # Everything that can carry vegetation does. Evaporite is left at its
         # bare value: a playa stays a playa, and it is 20.2% of this planet's
-        # land, which puts a hard floor under how dark the world can get.
+        # land on the T42 grid, 20.8% on the native mesh, which puts a hard
+        # floor under how dark the world can get. Do not take this from
+        # manifest.lithology.compositionLand, which measures against land_mask
+        # and reports 18.6% by dropping the sub-sea-level basin floors.
         rock = _surface_rock(args.export)
         evaporite = _rock_id(args.export, "evaporite")
         field[land & (rock != evaporite)] = args.vegetation_albedo

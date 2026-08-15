@@ -153,6 +153,13 @@ terrain, which is why `hydrography/` recomputes it.
   everything except radius and gravity.
 - `manifest.planetRadiusKm` at the top level says 6371; `manifest.planet.radiusKm`
   says the real 7645.2. Trust the latter.
+- **`lithology.compositionLand` is measured against `land_mask`**, numerator and
+  denominator both, so it omits the dry sub-sea-level basin floors entirely. The
+  distortion is not uniform: evaporite gains 1.17x on area against 1.046x for
+  land overall, so its share is 20.8% rather than the published 18.6%. That is
+  the expected direction, because playa fill accumulates in exactly the closed
+  basins `land_mask` excludes. Compute composition from `surface_rock` and
+  `surface_class` rather than quoting the table.
 
 ### `source/maps/`
 
@@ -228,7 +235,7 @@ surface fields except topography and the land mask are uniform namelist defaults
 this is declared via `model.uniform_land_surface` and is deliberate, since Earth's
 surface maps are tied to Earth's continents. Albedo is the exception and is
 supplied from lithology by `build_surface_albedo.py`: bare rock averages 0.315
-over land against ExoPlaSim's 0.22, worth about -12.5 W/m2, and 18.6% of the land
+over land against ExoPlaSim's 0.22, worth about -12.5 W/m2, and 20.8% of the land
 is bright evaporite because the drainage is endorheic. Note this is substrate
 albedo, so the first pass is a bare-rock planet and runs cold. And its `finalize()` picks output as
 the last glob match, so a run directory shared between worlds can silently emit
