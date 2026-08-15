@@ -206,6 +206,9 @@ def main() -> None:
             ("capacity_km3", volumes[:, -1], "km3", "volume held at spill"),
             ("area_at_spill_km2", areas[:, -1], "km2", "flooded area at spill"),
             ("spill_target", spill_target, "1", "basin index this overflows into, -1 world ocean"),
+            ("critical_aridity_index", catch / np.maximum(areas[:, -1], 1e-9) - 1.0, "1",
+             "basin overflows, and so should carve its outlet, wherever (E-P)/runoff "
+             "over its catchment falls below this"),
         ]:
             v = ds.createVariable(name, data.dtype if data.dtype.kind == "i" else "f8",
                                   ("basin",), zlib=True)
@@ -270,6 +273,11 @@ def main() -> None:
             "merged_basins": int(merged),
             "spills_to_ocean": int((spill_target < 0).sum()),
             "spills_into_another_basin": int((spill_target >= 0).sum()),
+            "critical_aridity_index_percentiles": {
+                str(q): float(v) for q, v in zip(
+                    (5, 25, 50, 75, 95),
+                    np.percentile(catch / np.maximum(areas[:, -1], 1e-9) - 1.0,
+                                  [5, 25, 50, 75, 95]))},
             "capacity_vs_natural_catalogue": float(
                 volumes[:, -1].sum()
                 / sum(b.natural_volume_km3 for b in ex.basins)),

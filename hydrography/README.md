@@ -72,20 +72,62 @@ solver and shows the sensitivity. Under 10 to 200 mm/yr of runoff against 400 to
 planet. That range is a property of the terrain, not a prediction. The real
 answer needs ExoPlaSim runoff and evaporation integrated through `coupling_*.nc`.
 
-## Headline finding
+## Headline finding, and its limit
 
-**76% of this planet's land is endorheic**, against roughly 13% on Earth. That
-is a direct consequence of the fork preserving closed basins instead of carving
-drainage to the sea, and it is the single most important thing this component
-says about the world. Rivers reaching the ocean are the exception here.
+76% of the land drains to a closed basin rather than to the sea, against roughly
+13% on Earth. That follows from the fork preserving closed basins instead of
+carving drainage to them.
 
-Two caveats on that number. It describes drainage on the dry terrain: once
-basins fill and spill, their catchments join whatever is downstream, so the
-effective endorheic share falls with a wetter climate. And it counts area
-draining to a basin, not area under water; how much becomes lake is what the
-solver decides.
+**That figure is the hyper-arid limit, not a property of the world.** It assumes
+no basin ever overflows. A basin that overflows year on year incises its outlet,
+and over the 1e4 to 1e6 years a landscape needs to relax, that drains the lake
+and the depression stops existing. So a basin pinned at its spill is a transient,
+not a landscape state, and the endorheic share depends on how many basins the
+climate keeps overflowing:
 
-## Known approximations
+| (E-P)/runoff over the catchment | basins that carve | endorheic land |
+| ---: | ---: | ---: |
+| 0.8 (humid) | 3593 | 9.0% |
+| 1 | 3515 | 22.8% |
+| 2 | 2583 | 47.6% |
+| 3 | 1753 | 59.0% |
+| 5 | 857 | 66.6% |
+| 10 (arid) | 237 | 72.3% |
+| 50 (hyper-arid) | 9 | 76.0% |
+
+The decision variable is climate-free per basin and is stored as
+`critical_aridity_index` in `basins.nc`. A basin overflows exactly when
+
+    (E - P) / runoff  <=  catchment / area_at_spill - 1
+
+so the index is pure geometry and the climate supplies one number per basin.
+Median here is 2.92, meaning the typical basin overflows unless evaporative
+demand over open water exceeds about three times the runoff depth. Earth's
+surviving endorheic basins sit well above that, which is why Earth keeps only
+13%. `carve_verdict()` in `lake_balance.py` applies it.
+
+## What this component cannot fix
+
+**The terrain has not been carved and we cannot carve it here.** Hydraulic,
+thermal and glacial erosion all acted on this surface, but drainage-enforcement
+carving was disabled globally so that basins would survive to export. The result
+is a landscape whose rims were never cut by the outflow that the water balance
+says crosses them. For the basins that overflow, the terrain is not in
+equilibrium with any climate.
+
+Fixing that means changing elevation, which belongs upstream in World Orogen,
+not here: incision depends on the `erodibility` field, and a second copy of the
+terrain in this component would desynchronise ExoPlaSim's orography from the
+maps and from everything else reading `source/`.
+
+The generator does not currently expose the hook. `--preserve-basin ID` adds a
+basin to the preserved set and `--no-basins` disables preservation globally, but
+there is no way to say "carve these specific basins". Preservation retains about
+80% of natural spill depth and carving retains about 3%, so the two settings are
+all-or-nothing where what the water balance produces is a per-basin verdict.
+Closing the loop needs something like `--carve-basin ID` or `--preserve-only`.
+
+## Known approximations## Known approximations
 
 - **Merged basins.** 323 basins were collapsed into a neighbour to break spill
   cycles, which arise where basins share a saddle and each names the other as

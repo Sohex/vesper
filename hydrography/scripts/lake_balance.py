@@ -196,3 +196,44 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
+def carve_verdict(basins: BasinSet, aridity_index: np.ndarray, land_area_km2: np.ndarray):
+    """Which basins overflow persistently, and so should not be basins at all.
+
+    A basin that overflows year on year incises its outlet. Over the 1e4 to 1e6
+    years a landscape needs to relax, that cuts the sill down and drains the
+    lake, and the depression stops existing. So `solve()` returning "pinned at
+    spill, overflowing forever" is a transient, not a landscape state.
+
+    The verdict is climate-free per basin up to a single number. From the
+    balance, a basin overflows exactly when
+
+        (E - P) / runoff  <=  catchment / area_at_spill - 1
+
+    and the right-hand side is `basins.critical_aridity_index`, pure geometry.
+    Pass the left-hand side per basin, from climate, and get back the basins
+    whose outlets the terrain should have carved.
+
+    Returns (carve, endorheic_land_km2). The area accounts for catchments that
+    pass through a carved basin on their way somewhere else, so it is the land
+    that still has nowhere to drain once the carving is done. Divide by total
+    land yourself; passing only basin-draining land as `land_area_km2` and
+    dividing by its own sum silently answers a different question.
+    """
+    crit = basins.catchment_km2 / np.maximum(basins.area_at_spill_km2, 1e-9) - 1.0
+    carve = np.asarray(aridity_index) <= crit
+
+    eff = np.arange(basins.n)
+    for _ in range(basins.n):
+        nxt = np.where(carve[eff] & (basins.spill_target[eff] >= 0),
+                       basins.spill_target[eff], eff)
+        nxt = np.where(carve[eff] & (basins.spill_target[eff] < 0), -1, nxt)
+        nxt = np.where(eff < 0, -1, nxt)
+        if np.array_equal(nxt, eff):
+            break
+        eff = nxt
+    else:
+        raise RuntimeError("carve cascade did not settle")
+
+    return carve, float(np.sum(np.asarray(land_area_km2)[eff >= 0]))

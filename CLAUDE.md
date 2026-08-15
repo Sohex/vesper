@@ -199,12 +199,19 @@ current geography anyway.
 `hydrography/` resolves drainage over the native mesh and builds everything a
 water balance needs short of the climate itself. See `hydrography/README.md`.
 
-The headline result, and the most consequential thing known about this world so
-far: **76% of the land is endorheic**, against roughly 13% on Earth. That
-follows directly from the fork preserving closed basins instead of carving
-drainage to the sea. Rivers reaching the ocean are the exception here, which
-bears on coastal freshwater flux, sediment delivery, and where settlement makes
-sense.
+76% of the land drains to a closed basin against roughly 13% on Earth, but
+**treat that as the hyper-arid limit rather than a fact about the world**. It
+assumes no basin ever overflows, and a basin that overflows persistently incises
+its outlet and stops being a basin. The endorheic share runs from 9% in a humid
+climate to 76% in a hyper-arid one; `hydrography/README.md` has the curve. The
+decision variable, `critical_aridity_index`, is pure geometry and lives in
+`basins.nc`.
+
+The open gap: the terrain was exported with drainage-enforcement carving
+disabled, so rims survive that the water balance says are overtopped. Carving
+belongs upstream in Orogen, which has the erodibility field, and the generator
+has no per-basin hook for it yet: `--preserve-basin` only adds, `--no-basins`
+is global, and the two retain about 80% and 3% of spill depth respectively.
 
 Two things about the export that any consumer needs to know. `drain_to` is raw
 steepest descent, and `drainage_terminal` is -2 for 63% of the land, which

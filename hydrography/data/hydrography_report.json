@@ -1,5 +1,5 @@
 {
-  "generated": "2026-08-15T04:10:06.109203+00:00",
+  "generated": "2026-08-15T04:14:36.438822+00:00",
   "source": {
     "export_root": "/home/cfutro/docs/world/source/exoplasim-T42",
     "terrain_hash": "821aa71b37a7beda0b59398c7f005b91531050000ca46660d0f724cdb3f401a3",
@@ -27,6 +27,13 @@
     "merged_basins": 323,
     "spills_to_ocean": 1032,
     "spills_into_another_basin": 2597,
+    "critical_aridity_index_percentiles": {
+      "5": 1.1006974780060768,
+      "25": 1.8685688942668004,
+      "50": 2.921150087730079,
+      "75": 4.8179198435445025,
+      "95": 11.64651177361583
+    },
     "capacity_vs_natural_catalogue": 0.6664644218562505
   },
   "coupling": {
