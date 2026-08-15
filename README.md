@@ -34,10 +34,11 @@ plates and their kinematics, boundary types, stress, distance fields, lithology,
 hydrology, closed basins, and sub-grid orography. The fork's `tools/README.md` is
 the format reference.
 
-Land is 41.3% of the surface by `land_mask` and 43.2% by `surface_class`; the
-difference is dry closed-basin floor below sea level, which `land_mask` excludes.
-Use `surface_class`. Mean land elevation is 548 m and the highest point is
-5.77 km.
+Land is 43.2% of the surface. Take it from `surface_class`, which is
+authoritative, or from `orogen-surfacemask-*.png` thresholded at `> 0`; the
+`land_mask` field and `orogen-landmask-*.png` are an elevation-sign test that
+floods 1.9% of the planet's dry below-sea-level basin floor. Mean land elevation
+is 548 m and the highest point is 5.77 km.
 
 ## `exoplasim/`
 

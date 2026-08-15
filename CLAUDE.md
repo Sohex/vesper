@@ -58,28 +58,51 @@ the basin hypsometry catalogue; index into it rather than dumping it.
 `planet.nc` is the easy path (105 fields, CF-1.8). Use the `.bin` files when you
 need `raw/` or `gauss_weights.bin`.
 
-### Choosing a land mask — the one that will bite
+### Choosing a land mask — use `surface_class`, and only `surface_class`
 
-There are two land definitions in the export and they disagree by **1.9% of the
-planet's surface**:
+Two land definitions exist and they disagree by **1.9% of the planet's surface**:
 
-| Field | Definition | Land area |
+| Source | Definition | Land area |
 | --- | --- | --- |
-| `land_mask` | strictly `elevation_km > 0` | 41.26% |
-| `surface_class == 1` | the actual land surface | 43.17% |
+| `surface_class == 1` | **authoritative**; ocean means connected to the world ocean | 43.17% |
+| `land_mask` | elevation-sign test, `elevation_km > 0` | 41.26% |
 
-The difference is dry closed-basin floor lying below sea level, down to −5.6 km.
-`land_mask` excludes it and so would flood it. Preserving that terrain is the
-whole point of the fork, so **`surface_class` is almost always the one you
-want**, and certainly the one an ExoPlaSim land/sea mask should be built from.
-Verified on the raw mesh: no `land_mask` region is below sea level, and 48,092
-regions are land by `surface_class` but not by `land_mask`.
+The 48,092 disagreeing regions are dry closed-basin floor lying below sea level,
+down to −5.6 km, which `land_mask` would flood. Preserving that terrain is the
+whole point of the fork. Both fields now carry descriptions in the manifest
+saying so and pointing at each other, and `manifest.landSeaMask` states the
+disagreement in numbers, so this is checkable rather than folklore.
 
-`surface_class == 2` (`inland_water`) is **empty**, and that is by design, not a
-bug. Orogen measures basin geometry but never decides water levels — that is a
-precipitation-versus-evaporation balance and belongs downstream. 11.5% of the
-planet's area is flagged `is_endorheic`. Filling those basins is our job, using
-the hypsometry curves in `manifest.basins.preserved[]`.
+**Do not reconstruct it as `land_mask | is_endorheic`.** Only 43,554 of the
+48,092 sit inside a preserved basin. The other 4,538 are smaller enclosed
+depressions that `fixupTopology` kept as genuinely not-sea but that never cleared
+the basin selection thresholds, so they are absent from the basin catalogue and
+unflagged by `is_endorheic` (`basin_index == -1` for exactly those 4,538).
+Verified: the naive union misses them and lands at 43.00% instead of 43.17% —
+0.174% of the planet silently flooded. `surface_class` is the only correct
+source.
+
+`surface_class == 2` (`inland_water`) is **empty**, by design rather than
+oversight. Orogen measures basin geometry but never decides water levels — that
+is a precipitation-versus-evaporation balance and belongs downstream. 11.5% of
+the planet's area is flagged `is_endorheic`. Filling those basins is our job,
+using the hypsometry curves in `manifest.basins.preserved[]`, and it feeds back
+into climate through albedo and evaporation.
+
+### Masks in `source/maps/`
+
+Use **`orogen-surfacemask-*.png`**: white land, grey inland water, black ocean,
+so thresholding at `> 0` gives the correct binary land/sea mask. Verified against
+the mesh — 0.431729 against the manifest's 0.431736. It currently holds only two
+levels, because no water levels have been assigned yet; grey appears once they
+are.
+
+`orogen-landmask-*.png` is retained with its old `elevation > 0` meaning rather
+than being silently redefined, so it is the *wrong* mask for land/sea. Note that
+`convert_orogen.py` reads it, which means every existing ExoPlaSim boundary
+condition uses the flooding convention. Whatever replaces that script should take
+`surface_class` from `planet.nc`, or the surfacemask PNG if it stays
+image-based.
 
 ### Other gotchas
 
