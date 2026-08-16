@@ -211,6 +211,32 @@ export const BACK_ARC_END_BASE = 5;
 export const BACK_ARC_DEPTH = 0.14;
 export const BACK_ARC_SUBDUCT_THRESH = 0.50;
 
+// ── Volcanic arc geometry ────────────────────────────────────────────────
+//
+// An arc sits above the point where the descending slab reaches the depth at
+// which it dehydrates and triggers melting in the wedge above. That depth is
+// one of the better-constrained numbers in subduction seismology, near 105 km
+// and remarkably consistent between arcs. The arc-trench gap is then
+// slab_depth / tan(dip), which is why steep slabs give arcs close to the trench
+// and shallow ones push them far inboard.
+//
+// ARC_MEAN_GAP_KM is NOT a free parameter. Applying a fixed belt width to
+// Earth's ~55,000 km of subduction zones reproduces Earth's measured
+// arc-related land share: 80 km gives 3.0% and 105 km gives 3.9% against GLiM's
+// 3.1%. So the width is pinned by physics and validated against Earth, and
+// whatever land fraction it produces on another planet is a consequence of that
+// planet's boundary length rather than a target. On this world, with 4.8x
+// Earth's convergent boundary, it yields 8-9% of land.
+//
+// The dip range varies the gap between margins; the MEAN is then renormalised
+// back onto ARC_MEAN_GAP_KM so the mapping's shape redistributes arcs without
+// moving their total. Same discipline as erodibility being renormalised to a
+// land mean of 1: lithology decides where, never how much.
+export const ARC_SLAB_DEPTH_KM = 105.0;
+export const ARC_DIP_MIN_DEG = 30.0;   // shallow slab, arc far inboard
+export const ARC_DIP_MAX_DEG = 70.0;   // steep slab, arc close to the trench
+export const ARC_MEAN_GAP_KM = 95.0;   // midpoint of the Earth-validated 80-105 km
+
 // ── Noise Layering ──
 // Defaults reduced relative to v1 so textured noise is secondary to phasor
 // ridges and other shaped features. Slider (noiseMag) still scales these,

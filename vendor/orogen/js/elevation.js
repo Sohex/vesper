@@ -58,6 +58,7 @@ import {
     FORELAND_BASIN_DEEPENING_BASE, FORELAND_BASIN_DEEPENING_SCALE,
     BACK_ARC_START_BASE, BACK_ARC_PEAK_BASE, BACK_ARC_END_BASE,
     BACK_ARC_DEPTH, BACK_ARC_SUBDUCT_THRESH,
+    ARC_SLAB_DEPTH_KM, ARC_DIP_MIN_DEG, ARC_DIP_MAX_DEG, ARC_MEAN_GAP_KM,
     WARP_SCALE, OROGENIC_FREQ,
     NOISE_ACTIVITY_SCALE, NOISE_BASE_SCALE, NOISE_ACTIVITY_CONTRIB,
     PLATEAU_SUPPRESS_MIN, PLATEAU_SUPPRESS_SCALE,
@@ -741,13 +742,39 @@ function computeSpatialFields(mesh, r_xyz, r_plate, plateIsOcean, tect, seed, su
     const baEnd   = Math.max(3, Math.round(BACK_ARC_END_BASE * scaleFactor));
     const backArcDist = new Float32Array(numRegions).fill(Infinity);
     const backArcStress = new Float32Array(numRegions);
+    // Arc-trench gap in km, carried outward from each seed with the BFS. The
+    // seed sits on the OVERRIDING plate -- that is what the subductFactor test
+    // below selects, since propensity is low on the plate that does not sink --
+    // so the slab doing the subducting is the steepest neighbour across the
+    // front. Its density contrast sets the dip and therefore how far inboard
+    // the arc lands.
+    const arcGapKm = new Float32Array(numRegions).fill(Infinity);
     const backArcSeeds = [];
     for (let r = 0; r < numRegions; r++) {
         if (r_boundaryType[r] === 1 && r_hasOcean[r] && r_subductFactor[r] < BACK_ARC_SUBDUCT_THRESH) {
             backArcSeeds.push(r);
             backArcDist[r] = 0;
             backArcStress[r] = Math.min(1, r_stress[r] / maxStress);
+            let down = 0;
+            for (let ni = adjOffset[r], niEnd = adjOffset[r + 1]; ni < niEnd; ni++) {
+                const sf = r_subductFactor[adjList[ni]];
+                if (sf > down) down = sf;
+            }
+            const t = Math.max(0, Math.min(1,
+                (down - BACK_ARC_SUBDUCT_THRESH) / (1.5 - BACK_ARC_SUBDUCT_THRESH)));
+            const dipRad = (ARC_DIP_MIN_DEG + t * (ARC_DIP_MAX_DEG - ARC_DIP_MIN_DEG))
+                           * Math.PI / 180;
+            arcGapKm[r] = ARC_SLAB_DEPTH_KM / Math.tan(dipRad);
         }
+    }
+    // Renormalise so the MEAN gap is the Earth-validated width. The dip mapping
+    // then varies arcs between margins without moving their total, which is what
+    // keeps the width a physical constant rather than a tuning knob.
+    if (backArcSeeds.length) {
+        let sum = 0;
+        for (const r of backArcSeeds) sum += arcGapKm[r];
+        const scale = ARC_MEAN_GAP_KM / (sum / backArcSeeds.length);
+        for (const r of backArcSeeds) arcGapKm[r] *= scale;
     }
     {
         let qi = 0;
@@ -761,6 +788,7 @@ function computeSpatialFields(mesh, r_xyz, r_plate, plateIsOcean, tect, seed, su
                 if (nd < backArcDist[nr] && r_plate[nr] === plate) {
                     backArcDist[nr] = nd;
                     backArcStress[nr] = backArcStress[r];
+                    arcGapKm[nr] = arcGapKm[r];
                     backArcSeeds.push(nr);
                 }
             }
@@ -774,7 +802,7 @@ function computeSpatialFields(mesh, r_xyz, r_plate, plateIsOcean, tect, seed, su
         riftDist, riftHalfWidth,
         ridgeDist, ridgeHalfWidth,
         fractureDist, fractureHalfWidth,
-        backArcDist, backArcStress, baStart, baPeak, baEnd,
+        backArcDist, backArcStress, arcGapKm, baStart, baPeak, baEnd,
         interiorBand:    Math.max(4, Math.round(INTERIOR_BAND_BASE * scaleFactor)),
         tectonicReach:   Math.max(6, Math.round(TECTONIC_REACH_BASE * scaleFactor)),
         plateauStart:    Math.max(2, Math.round(PLATEAU_START_BASE * scaleFactor)),
@@ -874,7 +902,7 @@ function buildSkeleton(mesh, r_xyz, plateIsOcean, r_plate, plateVec, plateSeeds,
             dBdry, coastConvergent, maxCD,
             riftDist, riftHalfWidth, ridgeDist, ridgeHalfWidth,
             fractureDist, fractureHalfWidth,
-            backArcDist, backArcStress, baStart, baPeak, baEnd,
+            backArcDist, backArcStress, arcGapKm, baStart, baPeak, baEnd,
             interiorBand, tectonicReach, plateauStart,
             ridgeSigmaBase, ridgePeakShift, ridgeExtent } = sf;
     const { r_basinFactor, r_tectonicActivity, r_t_plateau } = tt;
@@ -2724,6 +2752,7 @@ function buildTectonicsBundle(numRegions, tect, sf, tt) {
         fractureHalfWidth: sf.fractureHalfWidth,
         backArcDist:       sf.backArcDist,
         backArcStress:     sf.backArcStress,
+        arcGapKm:          sf.arcGapKm,
 
         // Stage 3 — terrain archetype weights
         r_basinFactor:     tt.r_basinFactor,

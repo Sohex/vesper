@@ -228,6 +228,15 @@ export const COVER_SEQUENCE = [
         apply: (c) => { c.cover = shelfClass(c.r_xyz, c.r); c.thickKm = LITHO_COVER_SHELF_KM; },
     },
     {
+        code: 'island_arc', domain: 'ocean', produces: ['arc_basalt'],
+        // An ocean-ocean convergent front builds an arc on the overriding
+        // OCEANIC plate. The old rule was continent-only, so island arcs could
+        // not form at all even once the driver was correct. Placed before
+        // `pelagic` because that is the ocean catch-all and must stay last.
+        when: (c) => c.inArcBelt,
+        apply: (c) => { c.cover = BY_CODE.arc_basalt; c.thickKm = LITHO_COVER_ARC_KM; },
+    },
+    {
         code: 'pelagic', domain: 'ocean', produces: ['pelagic'],
         // Pelagic drape thickens away from the ridge: seafloor age grows with
         // ridge distance, and sediment accumulates with age. This is the one
@@ -242,10 +251,10 @@ export const COVER_SEQUENCE = [
         apply: (c) => { c.cover = BY_CODE.flood_basalt; c.thickKm = LITHO_COVER_LIP_KM; },
     },
     {
-        code: 'arc', domain: 'continent', produces: ['arc_basalt', 'arc_andesite'],
-        when: (c) => c.arcV > LITHO_ARC_T,
+        code: 'arc', domain: 'continent', produces: ['arc_andesite'],
+        when: (c) => c.inArcBelt,
         apply: (c) => {
-            c.cover = c.bothOcean ? BY_CODE.arc_basalt : BY_CODE.arc_andesite;
+            c.cover = BY_CODE.arc_andesite;
             c.thickKm = LITHO_COVER_ARC_KM;
         },
     },
@@ -340,7 +349,7 @@ export function classifyLithology(mesh, r_xyz, r_elevation, tectonics, debugLaye
     // every field is overwritten before each walk, so nothing carries over.
     const c = {
         r: 0, r_xyz, shelfCells, basement: 0, elev: 0,
-        craton: 0, basin: 0, plateau: 0, lipV: 0, hotV: 0, arcV: 0, age: 1,
+        craton: 0, basin: 0, plateau: 0, lipV: 0, hotV: 0, inArcBelt: false, age: 1,
         endorheic: 0, saltCrust: 0, bothOcean: 0,
         distCoast: null, distCoastLand: null, riftDist: null,
         riftHalfWidth: Number(t.riftHalfWidth) || 0, foreland: false,
@@ -359,7 +368,25 @@ export function classifyLithology(mesh, r_xyz, r_elevation, tectonics, debugLaye
         const bType = t.r_boundaryType ? t.r_boundaryType[r] : 0;
         const lipV = lip ? lip[r] : 0;
         const hotV = hotspot ? hotspot[r] : 0;
-        const arcV = Math.max(margins ? margins[r] : 0, backArc ? backArc[r] : 0);
+        // Arc position, corrected 2026-08-16. This read
+        //     arcV = max(margins, backArc)
+        // and both operands were wrong. `margins` is populated only on OCEANIC
+        // crust while the arc rule requires domain 'continent', so the two were
+        // mutually exclusive and the rule could never fire -- arc_basalt,
+        // arc_andesite and granodiorite were unreachable code on every world
+        // this generator has ever produced. `backArc` is non-positive
+        // everywhere, so it could never win the max() either.
+        //
+        // The real quantity is distance from the subduction front measured on
+        // the OVERRIDING plate, which backArcDist already is: it seeds where a
+        // convergent front has ocean and low subduction propensity, which is
+        // the overriding side by definition, and floods inboard within the same
+        // plate. arcGapKm carries the dip-derived arc-trench gap out from each
+        // seed. See ARC_SLAB_DEPTH_KM in terrain-config.js.
+        const arcDist = t.backArcDist ? t.backArcDist[r] : Infinity;
+        const arcGap = t.arcGapKm ? t.arcGapKm[r] : Infinity;
+        const inArcBelt = Number.isFinite(arcDist) && Number.isFinite(arcGap)
+                          && arcDist * edgeKm <= arcGap;
 
         let bm;
         // Basement: what is left when everything above is stripped away.
@@ -367,7 +394,7 @@ export function classifyLithology(mesh, r_xyz, r_elevation, tectonics, debugLaye
             bm = R.morb;
         } else {
             if (subduct > LITHO_SUBDUCT_MELANGE_T && bType === 1) bm = R.melange;
-            else if (arcV > LITHO_ARC_T && t.r_hasOcean && t.r_hasOcean[r]) bm = R.granodiorite;
+            else if (inArcBelt) bm = R.granodiorite;   // arc root, unroofed
             else if (fold > LITHO_FOLDBELT_T) bm = stress > 0.6 ? R.gneiss : R.schist;
             else if (craton > LITHO_CRATON_T) bm = R.gneiss;
             else bm = R.granite;
@@ -392,7 +419,7 @@ export function classifyLithology(mesh, r_xyz, r_elevation, tectonics, debugLaye
         c.basement = bm;
         c.elev = elev;
         c.craton = craton; c.basin = basin; c.plateau = plateau;
-        c.lipV = lipV; c.hotV = hotV; c.arcV = arcV;
+        c.lipV = lipV; c.hotV = hotV; c.inArcBelt = inArcBelt;
         c.age = oceanic && Number.isFinite(ridgeD) ? Math.min(1, ridgeD / (ridgeHalf * 8)) : 1;
         c.endorheic = endorheic ? endorheic[r] : 0;
         c.saltCrust = saltCrust ? saltCrust[r] : 0;
