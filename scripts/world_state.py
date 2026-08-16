@@ -56,23 +56,17 @@ CURATED = {
                  "baseline and more wherever there is ice. k25v is now selected; "
                  "results predating it remain valid in kind with the direction of "
                  "the error known. See exoplasim/notes/stellar-spectrum-audit.md."},
-        {"item": "the mrro runoff field is wrong", "value": 25.35,
-         "range": [25.35, 167.83],
-         "note": "Not an uncertainty, a defect. Over land the reported mrro is "
-                 "25.4 mm per Earth year while the water budget says P - E = "
-                 "892.1 - 724.3 = 167.8, a factor of 6.6. In steady state those "
-                 "must match: routing conserves water, there are no glaciers on "
-                 "land in this run at all, and peak snow depth is 0.267 m against "
-                 "a 2 m glacier threshold, so nothing is stored as ice. mrro is "
-                 "the field at fault on three counts. It contains negative values, "
-                 "which drunoff = AMAX1(0., dwatc-dwmax)/deltsec cannot produce. "
-                 "Its shortfall correlates 0.60 with precipitation, losing most "
-                 "where the signal is largest. And an independent offline bucket "
-                 "gives 150 mm, within 11% of the budget and nowhere near mrro. "
-                 "Likely the spectral round-trip in postprocessing ringing on a "
-                 "field that is zero over ocean and spiky over land. Nothing "
-                 "should read mrro until this is understood; pedology now takes "
-                 "P - E."},
+        {"item": "mrro is river-routed, not local runoff", "value": None,
+         "note": "Not a defect, a misreading, and recorded here because this "
+                 "file previously called it one. landmod.f90's roffstep calls "
+                 "mkradv, which advects runoff downhill and modifies its argument "
+                 "in place, so the output is local generation minus river outflow "
+                 "plus inflow. That explains the negative values, the nonzero "
+                 "ocean values, the land shortfall correlating 0.60 with "
+                 "precipitation, and the 99.1% global conservation. The CF name "
+                 "surface_runoff is what misleads. Anything needing water that "
+                 "drains through the local profile should use P - E; pedology "
+                 "does. See exoplasim/notes/water-and-energy-closure.md."},
         {"item": "land runoff, and therefore the whole soil", "value": 0.192,
          "range": [0.192, 0.35],
          "note": "Much less under-determined than previously recorded here, once "
@@ -115,11 +109,18 @@ CURATED = {
          "note": "The equilibrium solver has never been validated against anything, "
                  "unlike Penman which was checked against the model's own ocean "
                  "cells to 1.7%. Least-checked numbers in the pipeline."},
-        {"item": "energy budget closure", "value": 0.45,
-         "note": "Net TOA runs 0.27-0.45 W/m2 more negative than net surface flux "
-                 "across every run, which cannot both be true in steady state. The "
-                 "|mean TOA| < 0.5 criterion is being applied inside a bias of its "
-                 "own size, so margins of 0.004 either way are not resolvable."},
+        {"item": "energy budget closure", "value": 0.446,
+         "note": "Net TOA runs 0.27-0.45 W/m2 more negative than the net surface "
+                 "flux, which cannot both be true in steady state, and the "
+                 "|mean TOA| < 0.5 criterion is applied inside a bias of its own "
+                 "size. Better characterised now: a naive rss+rls+hfss+hfls sum "
+                 "misses the 0.294 W/m2 consumed melting snow, which hfns books "
+                 "correctly and which matches global snowmelt's latent heat of "
+                 "fusion to three digits. So the surface terms are internally "
+                 "consistent and the residual 0.446 sits between the surface and "
+                 "the top of the atmosphere. Fusion does not explain it. Sea-ice "
+                 "mass change, sublimation partitioning and dissipated kinetic "
+                 "energy are not yet eliminated."},
         {"item": "retain fraction", "value": None,
          "note": "Measures distance from threshold, not incision capacity. A basin "
                  "that barely trickles over its sill is cut the same as one that "
@@ -135,8 +136,9 @@ CURATED = {
         "biosphere, then score it against biosphere/notes/productivity-prediction.md.",
         "Carry the nfix_a bracket, 0.102-0.367, through to the productivity "
         "numbers rather than quoting the central value alone.",
-        "Find out why mrro under-reports land runoff 6.6-fold against the water "
-        "budget, and whether other flux fields share the defect.",
+        "Resolve the 0.446 W/m2 that does not close between the top of the "
+        "atmosphere and the surface, which is larger than the convergence "
+        "criterion applied inside it.",
         "Enable model.soil_water_source: pedology and check the soil-runoff loop "
         "converges rather than oscillating; expect a weak response.",
         "Iteration-2 carve verdict, with retain as a function of discharge and the "

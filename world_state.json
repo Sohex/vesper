@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated": "2026-08-16T01:59:33.040908+00:00",
-  "git_commit": "bb3c976f69c65b691790bbab5b45d2a54f3a8b12",
+  "generated": "2026-08-16T02:05:47.321018+00:00",
+  "git_commit": "5f28e648f993e010af81a30b64b60a82b3b8c052",
   "generator": "scripts/world_state.py",
   "note": "Generated from the artifacts. Do not edit; re-run the generator. Judgement that no artifact can supply is in `curated`, which lives in the generator under version control.",
   "planet": {
@@ -279,7 +279,7 @@
     {
       "run_id": "t42l10p16r8_s092_co20450ppm_rot30h_obl32_e020_glac_k25v_gbafe5e8b",
       "status": "smoke_complete",
-      "orbits_complete": 26,
+      "orbits_complete": 30,
       "flux_earth": 0.92,
       "cycle": null,
       "resolution": "T42",
@@ -287,7 +287,7 @@
       "source_build": "carved-zoned",
       "glaciers": true,
       "converged": null,
-      "mean_surface_temperature_k": 287.774
+      "mean_surface_temperature_k": 287.666
     },
     {
       "run_id": "t42l10p16r8_s096_co20450ppm_rot30h_obl32_e020_glac_g43ca63cf",
@@ -565,13 +565,9 @@
         "note": "Resolved going forward, inherited backwards. ExoPlaSim's k2.dat is the star K2-18, an M2.5V at about 3450 K, not the spectral type K2. Every run of the first three eras used it, so their snow and ice are 0.10-0.17 too dark, worth 0.4-0.7 K on the warm baseline and more wherever there is ice. k25v is now selected; results predating it remain valid in kind with the direction of the error known. See exoplasim/notes/stellar-spectrum-audit.md."
       },
       {
-        "item": "the mrro runoff field is wrong",
-        "value": 25.35,
-        "range": [
-          25.35,
-          167.83
-        ],
-        "note": "Not an uncertainty, a defect. Over land the reported mrro is 25.4 mm per Earth year while the water budget says P - E = 892.1 - 724.3 = 167.8, a factor of 6.6. In steady state those must match: routing conserves water, there are no glaciers on land in this run at all, and peak snow depth is 0.267 m against a 2 m glacier threshold, so nothing is stored as ice. mrro is the field at fault on three counts. It contains negative values, which drunoff = AMAX1(0., dwatc-dwmax)/deltsec cannot produce. Its shortfall correlates 0.60 with precipitation, losing most where the signal is largest. And an independent offline bucket gives 150 mm, within 11% of the budget and nowhere near mrro. Likely the spectral round-trip in postprocessing ringing on a field that is zero over ocean and spiky over land. Nothing should read mrro until this is understood; pedology now takes P - E."
+        "item": "mrro is river-routed, not local runoff",
+        "value": null,
+        "note": "Not a defect, a misreading, and recorded here because this file previously called it one. landmod.f90's roffstep calls mkradv, which advects runoff downhill and modifies its argument in place, so the output is local generation minus river outflow plus inflow. That explains the negative values, the nonzero ocean values, the land shortfall correlating 0.60 with precipitation, and the 99.1% global conservation. The CF name surface_runoff is what misleads. Anything needing water that drains through the local profile should use P - E; pedology does. See exoplasim/notes/water-and-energy-closure.md."
       },
       {
         "item": "land runoff, and therefore the whole soil",
@@ -628,8 +624,8 @@
       },
       {
         "item": "energy budget closure",
-        "value": 0.45,
-        "note": "Net TOA runs 0.27-0.45 W/m2 more negative than net surface flux across every run, which cannot both be true in steady state. The |mean TOA| < 0.5 criterion is being applied inside a bias of its own size, so margins of 0.004 either way are not resolvable."
+        "value": 0.446,
+        "note": "Net TOA runs 0.27-0.45 W/m2 more negative than the net surface flux, which cannot both be true in steady state, and the |mean TOA| < 0.5 criterion is applied inside a bias of its own size. Better characterised now: a naive rss+rls+hfss+hfls sum misses the 0.294 W/m2 consumed melting snow, which hfns books correctly and which matches global snowmelt's latent heat of fusion to three digits. So the surface terms are internally consistent and the residual 0.446 sits between the surface and the top of the atmosphere. Fusion does not explain it. Sea-ice mass change, sublimation partitioning and dissipated kinetic energy are not yet eliminated."
       },
       {
         "item": "retain fraction",
@@ -643,7 +639,7 @@
       "Supply equilibrium lake levels as --water-level so basin floors stop being exported as dry ground.",
       "Run LPJ-GUESS on the resulting climatology and replace the assumed biosphere, then score it against biosphere/notes/productivity-prediction.md.",
       "Carry the nfix_a bracket, 0.102-0.367, through to the productivity numbers rather than quoting the central value alone.",
-      "Find out why mrro under-reports land runoff 6.6-fold against the water budget, and whether other flux fields share the defect.",
+      "Resolve the 0.446 W/m2 that does not close between the top of the atmosphere and the surface, which is larger than the convergence criterion applied inside it.",
       "Enable model.soil_water_source: pedology and check the soil-runoff loop converges rather than oscillating; expect a weak response.",
       "Iteration-2 carve verdict, with retain as a function of discharge and the 228 zero-runoff spillers handled.",
       "One T85 equilibrium once terrain and biosphere settle, for regional products.",

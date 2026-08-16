@@ -48,21 +48,20 @@ weathering:
   # `p_minus_e`   precipitation minus evaporation, the land water budget residual
   # `mrro`        ExoPlaSim's reported surface runoff field
   #
-  # They disagree by a factor of 6.6 and the budget is the one to believe. Over
-  # land in the 0.96 climatology, P = 892.1 and E = 724.3 mm per Earth year, so
-  # P - E = 167.8. The reported mrro is 25.4. In steady state those must match,
-  # since routing conserves water and there is nowhere else for it to go: the run
-  # has no glaciers on land at all, and peak snow depth is 0.267 m against the
-  # 2 m glacier threshold, so nothing is being stored as ice.
+  # They disagree by a factor of 6.6, and the reason is that they are not the
+  # same quantity. Over land P = 892.1 and E = 724.3 mm per Earth year, so
+  # P - E = 167.8, while mrro reports 25.4.
   #
-  # mrro is the field at fault, on three counts. It contains negative values,
-  # which drunoff cannot produce, being AMAX1(0., dwatc - dwmax)/deltsec in
-  # landmod.f90. Its shortfall against the budget correlates 0.60 with
-  # precipitation, so it loses the most exactly where the signal is largest. And
-  # an independent offline bucket reproduces 150 mm per Earth year, within 11% of
-  # the budget residual and nowhere near mrro. The likely mechanism is the
-  # spectral round-trip in postprocessing ringing on a field that is zero over
-  # ocean and spiky over land.
+  # mrro is not local runoff generation. landmod.f90's roffstep calls mkradv,
+  # which advects runoff downhill and modifies its argument in place, so what is
+  # output is generation minus river outflow plus river inflow: a net water
+  # divergence. Hence its negative values, its nonzero values over ocean where
+  # there is no soil at all, and its recovering 99.1% of the land budget when
+  # integrated globally. The CF name surface_runoff is what misleads.
+  #
+  # Weathering depends on water draining through the *local* profile, so the
+  # budget residual is the right quantity and the routed field is not. See
+  # exoplasim/notes/water-and-energy-closure.md.
   #
   # Consequences: the land runoff ratio is 18.8%, not 2.8%, against Earth's ~35%,
   # so this world is drier than Earth but not extraordinarily so. Land-mean
