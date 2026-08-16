@@ -270,6 +270,35 @@ now surviving where it was being stripped. Through albedo that is -0.00004 on
 the land mean, which is nothing. The correction buys defensibility, not a
 different world. Terrain hash fb3eb4ab -> 2e06d176.
 
+### `rift_bimodal` is 0% of land, and that one is geography
+
+Measured on the arc-fix build: `rift_bimodal` never appears. It is worth
+separating from the arc bug, because the failure looks identical from the
+composition table and is not the same thing at all.
+
+The arc rules were unreachable -- a predicate that could not be true for the
+cells the rule wanted. The rift rule is reachable and simply has nothing to
+match. It fires inside a continental rift, and a continental rift needs a
+divergent boundary with continental crust on BOTH sides. Boundary topology is
+taken from super plates deliberately, so that small-plate boundaries do not
+open rifts inside a coherent continent. Each of this world's ten continents is
+its own continental super plate, and no two of them are adjacent: every one of
+the 60,859 boundary regions on the planet has an oceanic plate on at least one
+side, with zero exceptions in any boundary class.
+
+Two consequences follow from the same fact, and both are properties of this
+world rather than defects:
+
+- **No continental rifting.** No rift valleys, no bimodal rift volcanics, and
+  `rift_bimodal` is dead weight in the class table for this configuration.
+- **No continent-continent collision anywhere.** Every convergent boundary has
+  an oceanic plate on one side, so all orogeny here is Andean/arc type. There is
+  no Himalayan analogue and no suture belt on this planet.
+
+If either is unwanted it is a plate-configuration question, not a lithology one:
+it needs two continental super plates placed in contact, which is upstream of
+everything in this file.
+
 ### Albedo: the arc classes survived the check
 
 No change needed. `arc_andesite` 0.20 against `granite` 0.30 is a ratio of 0.67

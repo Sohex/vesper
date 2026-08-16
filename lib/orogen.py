@@ -116,6 +116,30 @@ _KNOWN_TERRAIN_HASHES = {
          "2026-08 pre-carve base at g = 12.81 with corrected carbonate/schist "
          "erodibility and the class spread compressed to ~4x "
          "(lithologyStrength 0.682)"},
+    # Same seed, sliders and gravity again. What changed is that the arc and
+    # forearc lithology rules FIRE AT ALL. Three of them were unreachable: they
+    # tested `subductFactor`, which is a property of a cell's own crust and is
+    # high on the DOWNGOING slab, while the rules used it as a proximity measure
+    # for the overriding plate. Melange had the identical bug. They are now keyed
+    # on backArcDist with a dip-modulated arc-trench gap, as a band about the
+    # volcanic front rather than a disc from the trench.
+    #
+    # Melange goes 0.00% -> 6.17% of land and arc andesite appears for the first
+    # time, so this build exposes rock classes no previous one ever did. Their
+    # albedo and erodibility had therefore never been checked; both were audited
+    # here, albedo held and erodibility did not (arc_andesite 0.90 -> 0.50,
+    # rift_bimodal 0.95 -> 0.50, arc_basalt 0.85 -> 0.65, and the acid-vs-basic
+    # ordering had been inverted against Moosdorf).
+    #
+    # PRE-CARVE. No carve verdict has been determined for this terrain.
+    # `rift_bimodal` is 0% here and that is geography, not a bug: continental
+    # rifts need two adjacent continental SUPER plates, each continent is its own
+    # super plate, and none of the ten are adjacent. The same fact means there is
+    # no continent-continent collision anywhere on this world.
+    "2e06d17682075096ab2e0093eb0f5618417cdee38383f1ca153646995bffad5a":
+        {"name": "precarve-zoned-g1281-arcfix", "note":
+         "2026-08 pre-carve base at g = 12.81; arc/forearc rules reachable for "
+         "the first time, arc erodibility and albedo grounded"},
 }
 
 # Basin ids are computed on the pre-conditioning surface, so they survive a
