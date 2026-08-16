@@ -5,9 +5,10 @@ ExoPlaSim climatology and returns leaf area, carbon and plant functional type
 composition per gridcell, which becomes the surface albedo and forest fraction
 that the next climate run is forced with.
 
-Nothing in here runs yet. This directory currently holds the port audit and the
-built model; see `notes/lpj-guess-porting-audit.md` for what was found and what
-order the remaining work goes in.
+Nothing in here runs yet. This directory holds the port audit and the built
+model; see `notes/lpj-guess-porting-audit.md` for what was found and what order
+the remaining work goes in, and `notes/productivity-prediction.md` for what the
+answer is expected to be, registered before the model can contradict it.
 
 ## Why this component exists
 
@@ -29,6 +30,7 @@ a result.
 | build | clean on GCC 16.1.1, MPI on, netCDF off (not installed, not needed) |
 | smoke test | bundled 3-cell demo, 550 years, 73 s, expected PFTs |
 | Earth-assumption audit | complete, see the note |
+| productivity prediction | registered, unscored |
 | calendar patch | not written |
 | input module | not written |
 | soil texture from lithology | not designed |
@@ -65,6 +67,21 @@ Earth-analogue biosphere and should be declared that way rather than presented a
 a prediction. Their degree-day thresholds do need rescaling, because a 181-day
 year accumulates about half the annual degree-days a 365-day year does for the
 same temperatures.
+
+## What the answer is expected to be
+
+Registered in full, with tolerances and known biases, in
+`notes/productivity-prediction.md`. The short version: a dimmer, redder star
+under a clearer sky delivers 0.84 to 0.89 of Earth's PAR photons per square
+metre of land, and a warmer, wetter climate more than repays it, so **per unit
+area this world should be productive within about 30% of Earth**. It has 2.11
+times Earth's land area, so **total NPP should land near 2.1 times Earth's**.
+
+The line that actually decides the pipeline is not either of those. It is tree
+cover, predicted at 55% of land: the climatology that produced these numbers
+assumed a vegetated surface, and if LPJ-GUESS returns substantially less canopy
+than that, the climate is not one that biosphere would sustain and the loop turns
+again.
 
 ## Cost
 
