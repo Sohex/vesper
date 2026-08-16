@@ -1,0 +1,19 @@
+{
+  "name": "world-orogen",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Procedural planet generator — browser app plus a headless generation and data-export pipeline",
+  "type": "module",
+  "license": "GPL-3.0",
+  "scripts": {
+    "export": "node tools/export-planet.mjs",
+    "fields": "node tools/export-planet.mjs --list-fields"
+  },
+  "dependencies": {
+    "delaunator": "^5.0.1",
+    "pngjs": "^7.0.0"
+  },
+  "devDependencies": {
+    "netcdfjs": "^3.0.0"
+  }
+}
