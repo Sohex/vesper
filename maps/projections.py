@@ -425,3 +425,566 @@ def butterfly_net(verts, join_index=1):
     l2, l3 = fan(left_c, 1)
     r2, r3 = fan(right_c, -1)
     return l2 + r2, l3 + r3
+
+
+def tetrahedron():
+    """Unit regular tetrahedron, and its four faces wound anticlockwise seen
+    from outside."""
+    v = np.array(
+        [
+            [1.0, 1.0, 1.0],
+            [1.0, -1.0, -1.0],
+            [-1.0, 1.0, -1.0],
+            [-1.0, -1.0, 1.0],
+        ]
+    ) / np.sqrt(3.0)
+    faces = []
+    for f in [(0, 1, 2), (0, 2, 3), (0, 3, 1), (1, 3, 2)]:
+        a, b, c = (v[i] for i in f)
+        if np.dot(np.cross(b - a, c - a), a + b + c) < 0:
+            f = (f[0], f[2], f[1])
+        faces.append(f)
+    return v, faces
+
+
+# --------------------------------------------------------------------------
+# AuthaGraph-style tetrahedral rectangle
+
+
+class SnyderTriangle:
+    """Snyder's equal-area mapping between a planar and a spherical triangle.
+
+    Each triangle is cut into six sub-sectors by the rays from its centre to
+    its vertices and edge midpoints. Within a sub-sector, azimuth is remapped
+    so that equal fractions of the sector's area lie either side of it, and
+    radius is then remapped so that equal fractions lie inside it. The result
+    is exactly equal-area, and because every face performs the identical
+    construction against the shared edge, it is continuous across face
+    boundaries as well.
+
+    Working inwards from the plane, the azimuth step is the only one without a
+    closed form: the swept spherical area is
+
+        A(psi) = psi - arcsin(cos(rho) sin(psi))
+
+    for a face whose spherical inradius is rho, which Newton solves in a few
+    iterations.
+    """
+
+    def __init__(self, verts3d, side=1.0):
+        self.side = side
+        self.r_in = side / (2.0 * np.sqrt(3.0))  # planar inradius
+        a, b, c = verts3d[0], verts3d[1], verts3d[2]
+        n = a + b + c
+        n /= np.linalg.norm(n)
+        pole = np.cross(a, b)
+        pole /= np.linalg.norm(pole)
+        self.rho = np.arcsin(np.clip(abs(np.dot(n, pole)), 0, 1))  # spherical inradius
+        self.sector = np.pi / 3.0
+        self.a_total = self._area(self.sector)
+
+    def _area(self, psi):
+        return psi - np.arcsin(np.clip(np.cos(self.rho) * np.sin(psi), -1, 1))
+
+    def _psi(self, phi):
+        """Azimuth on the sphere carrying the same area fraction as `phi`."""
+        target = self.a_total * np.tan(phi) / np.tan(self.sector)
+        psi = np.clip(phi, 0.0, self.sector)
+        cr = np.cos(self.rho)
+        for _ in range(24):
+            f = psi - np.arcsin(np.clip(cr * np.sin(psi), -1, 1)) - target
+            d = 1.0 - cr * np.cos(psi) / np.sqrt(np.maximum(1.0 - (cr * np.sin(psi)) ** 2, 1e-15))
+            psi = np.clip(psi - f / np.maximum(d, 1e-9), 0.0, self.sector)
+        return psi
+
+    def to_sphere(self, r, phi):
+        """Planar (radius, azimuth from an edge midpoint) to (z, psi)."""
+        psi = self._psi(phi)
+        r_max = self.r_in / np.cos(phi)
+        t = np.tan(self.rho)
+        cos_zmax = np.cos(psi) / np.sqrt(np.cos(psi) ** 2 + t * t)
+        cos_z = 1.0 - (1.0 - cos_zmax) * np.clip(r / r_max, 0, 1) ** 2
+        return np.arccos(np.clip(cos_z, -1, 1)), psi
+
+
+CANONICAL2D = np.array([[0.0, 1.0 / np.sqrt(3.0)],
+                        [-0.5, -0.5 / np.sqrt(3.0)],
+                        [0.5, -0.5 / np.sqrt(3.0)]])
+
+
+def snyder_face(bary, verts3d, snyder):
+    """Snyder's map for one face, from barycentric coordinates.
+
+    Barycentric input keeps the correspondence between the planar corners and
+    the sphere's, so the face can be laid out canonically and no orientation
+    bookkeeping is needed.
+    """
+    bary = np.asarray(bary, float)
+    p = bary @ CANONICAL2D
+    r = np.linalg.norm(p, axis=-1)
+    ang = np.mod(np.arctan2(p[..., 1], p[..., 0]) - np.pi / 2.0, 2 * np.pi)
+
+    sector = snyder.sector
+    k = np.floor(ang / sector).astype(int)
+    u = ang - k * sector
+    even = (k % 2) == 0
+    phi = np.where(even, sector - u, u)
+    z, psi = snyder.to_sphere(r, phi)
+    psi_total = np.where(even, (k + 1) * sector - psi, k * sector + psi)
+
+    a3, b3, c3 = verts3d[..., 0, :], verts3d[..., 1, :], verts3d[..., 2, :]
+    n = a3 + b3 + c3
+    n = n / np.linalg.norm(n, axis=-1, keepdims=True)
+    e1 = a3 - n * np.sum(a3 * n, axis=-1, keepdims=True)
+    e1 = e1 / np.linalg.norm(e1, axis=-1, keepdims=True)
+    e2 = np.cross(n, e1)
+    d = np.cos(psi_total)[..., None] * e1 + np.sin(psi_total)[..., None] * e2
+    v = np.cos(z)[..., None] * n + np.sin(z)[..., None] * d
+    return v / np.linalg.norm(v, axis=-1, keepdims=True)
+
+
+class TetrahedralRectangle:
+    """AuthaGraph-style world map: a tetrahedron, unfolded into a rectangle.
+
+    A flat tetrahedron is the plane folded by half turns about the points of a
+    triangular lattice, so its development tiles the plane and any fundamental
+    domain of that symmetry is a complete world map. One such domain is a
+    1 by sqrt(3) rectangle whose four side midpoints are the four vertices of
+    the tetrahedron: the pillowcase. It is continuous everywhere inside, cut
+    only along its border, and rectangular, which is the point of the exercise.
+
+    Faces are mapped either by `SnyderTriangle`, which is exactly equal-area
+    and shears badly because one face carries a quarter of the sphere, or by a
+    `SubdividedFace`, which is the idea behind AuthaGraph's 96 triangles:
+    cut the face up, map each piece nearly rigidly, and give up a little area
+    accuracy for much better shapes.
+
+    This is not Narukawa's projection, whose subdivision has never been
+    published; it is the same idea built from parts that can be checked.
+    """
+
+    name = "authagraph"
+    title = "AuthaGraph-style Tetrahedral Rectangle"
+
+    def __init__(self, verts=None, faces=None, margin=2, face_map=None,
+                 subdivision=16, area_weight=0.5):
+        v, f = tetrahedron()
+        self.faces = f if faces is None else faces
+        self.h = np.sqrt(3.0) / 2.0
+        self.extent = (0.0, np.sqrt(3.0), 0.0, 1.0)
+        self.snyder = SnyderTriangle(v[list(self.faces[0])])
+        if face_map is None and subdivision:
+            face_map = optimised_face(subdivision, area_weight)
+        self.face_map = face_map
+        self._build_table(margin)
+        self.verts = v if verts is None else np.asarray(verts, float)
+
+    # -- the development ---------------------------------------------------
+
+    def _corners(self, i, j, up):
+        """Lattice cell corners, in the canonical order used by the table."""
+
+        def p(a, b):
+            return np.array([a + b * 0.5, b * self.h])
+
+        if up:
+            return [p(i, j), p(i + 1, j), p(i, j + 1)]
+        return [p(i + 1, j), p(i, j + 1), p(i + 1, j + 1)]
+
+    def _neighbours(self, i, j, up):
+        """(cell, indices of the two corners it shares with this one)."""
+        if up:
+            return [((i, j, 0), (1, 2)), ((i, j - 1, 0), (0, 1)), ((i - 1, j, 0), (0, 2))]
+        return [((i, j, 1), (0, 1)), ((i, j + 1, 1), (1, 2)), ((i + 1, j, 1), (0, 2))]
+
+    def _build_table(self, margin):
+        """Assign a tetrahedron face to every lattice cell by developing it.
+
+        Walking across a shared edge keeps the two shared vertices and gives
+        the new corner the one vertex the current face does not use. That rule
+        closes consistently: three faces meet at a tetrahedron vertex and each
+        contributes 60 degrees, so six cells meet round a lattice point and the
+        assignment comes back to itself.
+        """
+        i0, i1 = -margin - 2, margin + 2
+        j0, j1 = -margin, margin + 3
+        seed = (0, 0, 1)
+        assign = {seed: tuple(self.faces[0])}
+        stack = [seed]
+        while stack:
+            cell = stack.pop()
+            tri = assign[cell]
+            i, j, up = cell
+            missing = next(v for v in range(4) if v not in tri)
+            corners = self._corners(i, j, up)
+            for nb, (s0, s1) in self._neighbours(i, j, up):
+                if not (i0 <= nb[0] <= i1 and j0 <= nb[1] <= j1):
+                    continue
+                nb_corners = self._corners(*nb)
+                shared = [corners[s0], corners[s1]]
+                mapping = []
+                for pt in nb_corners:
+                    hit = [k for k, s in enumerate(shared) if np.allclose(pt, s, atol=1e-9)]
+                    mapping.append(tri[(s0, s1)[hit[0]]] if hit else missing)
+                mapping = tuple(mapping)
+                if nb in assign:
+                    assert assign[nb] == mapping, "development is inconsistent"
+                    continue
+                assign[nb] = mapping
+                stack.append(nb)
+
+        self.i0, self.j0 = i0, j0
+        shape = (i1 - i0 + 1, j1 - j0 + 1, 2)
+        self.tri_id = np.zeros(shape, np.int16)
+        self.swap = np.zeros(shape, bool)
+        base, _ = tetrahedron()
+        order = {}
+        for (i, j, up), tri in assign.items():
+            # Half the cells develop face-down, so their triple runs clockwise
+            # seen from outside. Put every triple the same way round and record
+            # the swap, which the barycentric coordinates then follow.
+            a, b, c = (base[t] for t in tri)
+            flip = np.dot(np.cross(b - a, c - a), a + b + c) < 0
+            if flip:
+                tri = (tri[0], tri[2], tri[1])
+            k = (i - i0, j - j0, up)
+            self.tri_id[k] = order.setdefault(tri, len(order))
+            self.swap[k] = flip
+        self.ordered_triples = [t for t, _ in sorted(order.items(), key=lambda kv: kv[1])]
+
+    # -- vertex positions --------------------------------------------------
+
+    @property
+    def verts(self):
+        return self._verts
+
+    @verts.setter
+    def verts(self, value):
+        self._verts = np.asarray(value, float)
+        self._corners3 = np.array(
+            [[self._verts[a] for a in tri] for tri in self.ordered_triples]
+        )  # (num triples, 3, 3)
+        if self.face_map is not None:
+            w = self.face_map.weights  # (V, 3)
+            v = np.einsum("vw,twc->tvc", w, self._corners3)
+            self._face_vertex = v / np.linalg.norm(v, axis=-1, keepdims=True)
+
+    # -- the projection ----------------------------------------------------
+
+    def _cell(self, x, y):
+        """Lattice cell and barycentric position within it."""
+        lx = y - 0.5
+        ly = np.sqrt(3.0) - x
+        b = ly / self.h
+        a = lx - ly / np.sqrt(3.0)
+        i = np.floor(a).astype(int)
+        j = np.floor(b).astype(int)
+        fx, fy = a - i, b - j
+        up = (fx + fy) < 1.0
+        bary = np.where(
+            up[..., None],
+            np.stack([1.0 - fx - fy, fx, fy], axis=-1),
+            np.stack([1.0 - fy, 1.0 - fx, fx + fy - 1.0], axis=-1),
+        )
+        ii = np.clip(i - self.i0, 0, self.tri_id.shape[0] - 1)
+        jj = np.clip(j - self.j0, 0, self.tri_id.shape[1] - 1)
+        kk = up.astype(int)
+        swap = self.swap[ii, jj, kk]
+        bary = np.where(swap[..., None], bary[..., [0, 2, 1]], bary)
+        return ii, jj, kk, np.clip(bary, 0.0, 1.0)
+
+    def inverse(self, x, y):
+        ii, jj, kk, bary = self._cell(x, y)
+        if self.face_map is None:
+            corners3 = self._corners3[self.tri_id[ii, jj, kk]]
+            v = snyder_face(bary, corners3, self.snyder)
+        else:
+            v = self.face_map.to_sphere(bary, self._face_vertex[self.tri_id[ii, jj, kk]])
+        lon, lat = to_lonlat(v)
+        x0, x1, y0, y1 = self.extent
+        valid = (x >= x0) & (x <= x1) & (y >= y0) & (y <= y1)
+        return lon, lat, valid
+
+
+# --------------------------------------------------------------------------
+# Subdivided faces: the idea behind AuthaGraph's 96 triangles
+
+
+def subdivision_vertices(n):
+    """Barycentric integer coordinates of a regular triangular subdivision."""
+    verts = [(i, j, n - i - j) for i in range(n + 1) for j in range(n + 1 - i)]
+    return verts, {v: k for k, v in enumerate(verts)}
+
+
+def subdivision_triangles(n, index):
+    tris = []
+    for i in range(n):
+        for j in range(n - i):
+            k = n - 1 - i - j
+            tris.append((index[(i + 1, j, k)], index[(i, j + 1, k)], index[(i, j, k + 1)]))
+            if k >= 1:
+                tris.append(
+                    (
+                        index[(i + 1, j + 1, k - 1)],
+                        index[(i + 1, j, k)],
+                        index[(i, j + 1, k)],
+                    )
+                )
+    return tris
+
+
+def _classes(verts):
+    """Group subdivision vertices into orbits of the triangle's symmetry.
+
+    A face has the symmetry of its three corners, so only the multiset
+    {i, j, k} is free. Parameterising by orbit keeps every face identical and
+    every shared edge palindromic, which is what makes the four faces agree
+    where they meet.
+    """
+    perms = [(0, 1, 2), (0, 2, 1), (1, 0, 2), (1, 2, 0), (2, 0, 1), (2, 1, 0)]
+    reps, of, how = [], {}, {}
+    for v in verts:
+        rep = tuple(sorted(v, reverse=True))
+        if rep not in of:
+            of[rep] = len(reps)
+            reps.append(rep)
+        # a permutation taking the representative to this vertex
+        how[v] = (of[rep], next(p for p in perms if tuple(rep[p[m]] for m in range(3)) == v))
+    stab = [[p for p in perms if tuple(r[p[m]] for m in range(3)) == r] for r in reps]
+    return reps, how, stab
+
+
+class SubdividedFace:
+    """Piecewise-affine map from a planar face to a spherical one.
+
+    A single smooth mapping of a whole tetrahedron face has to absorb the
+    curvature of a quarter of the sphere, and Snyder's does it by shearing
+    everything. Cutting the face into small triangles and mapping each one
+    affinely spreads the work: each piece is nearly flat, so it can be nearly
+    similar to its image, and the curvature is taken up as small kinks along
+    the seams instead of shear across the whole face.
+
+    The vertex positions are the free parameters. Each is a set of weights on
+    the three face corners, normalised onto the sphere, so a vertex on an edge
+    stays on that edge and the corners stay pinned. They are chosen by
+    minimising, over the sub-triangles,
+
+        sum (s1/s2 + s2/s1 - 2)  +  w * sum (log(area / target))^2
+
+    the first term being shape and the second area, which is the trade
+    AuthaGraph makes when it calls itself approximately equal-area.
+    """
+
+    def __init__(self, n, weights):
+        self.n = n
+        self.verts, self.index = subdivision_vertices(n)
+        self.weights = np.asarray(weights, float)  # (num vertices, 3)
+
+    # -- placing the vertices ---------------------------------------------
+
+    @staticmethod
+    def _expand(theta, reps, how, stab, verts):
+        """Free parameters to per-vertex corner weights."""
+        w = np.exp(np.clip(theta, -30, 30)).reshape(len(reps), 3)
+        w = np.where(np.array(reps) > 0, w, 0.0)  # a zero stays zero: edges hold
+        sym = np.zeros_like(w)
+        for r, group in enumerate(stab):
+            for p in group:
+                sym[r] += w[r, list(p)]
+            sym[r] /= len(group)
+        sym /= sym.sum(axis=1, keepdims=True)
+        out = np.empty((len(verts), 3))
+        for m, v in enumerate(verts):
+            r, p = how[v]
+            out[m] = sym[r, list(p)]
+        return out
+
+    @classmethod
+    def optimise(cls, n, face3d, planar_corners=None, area_weight=6.0, initial=None):
+        from scipy.optimize import minimize
+
+        if planar_corners is None:
+            planar_corners = CANONICAL2D
+        verts, index = subdivision_vertices(n)
+        tris = np.array(subdivision_triangles(n, index))
+        reps, how, stab = _classes(verts)
+
+        bary = np.array(verts, float) / n
+        planar = bary @ planar_corners  # (V, 2), the regular mesh, held fixed
+        corners3 = np.asarray(face3d)  # (3, 3)
+        target = spherical_triangle_area(*corners3) / (n * n)
+
+        # Alternate sub-triangles are wound the other way in the plane. Put them
+        # all the same way round, so a negative Jacobian means a genuine fold.
+        p1, p2, p3 = (planar[tris[:, m]] for m in range(3))
+        flip = ((p2 - p1)[:, 0] * (p3 - p1)[:, 1] - (p2 - p1)[:, 1] * (p3 - p1)[:, 0]) < 0
+        tris[flip] = tris[flip][:, [0, 2, 1]]
+
+        p1, p2, p3 = (planar[tris[:, m]] for m in range(3))
+        r2, r3 = p2 - p1, p3 - p1
+        det_r = r2[:, 0] * r3[:, 1] - r2[:, 1] * r3[:, 0]
+
+        def unpack(theta):
+            w = cls._expand(theta, reps, how, stab, verts)
+            v = w @ corners3
+            return v / np.linalg.norm(v, axis=1, keepdims=True)
+
+        def energy(theta):
+            v = unpack(theta)
+            v1, v2, v3 = (v[tris[:, m]] for m in range(3))
+            e1, e2 = v2 - v1, v3 - v1
+            nrm = np.cross(e1, e2)
+            len_n = np.linalg.norm(nrm, axis=1)
+            if np.any(len_n < 1e-12):
+                return 1e6
+            len_e1 = np.linalg.norm(e1, axis=1)
+            u1 = e1 / len_e1[:, None]
+            u2 = np.cross(nrm / len_n[:, None], u1)
+            q2 = np.stack([len_e1, np.zeros_like(len_e1)], axis=1)
+            q3 = np.stack([np.sum(e2 * u1, axis=1), np.sum(e2 * u2, axis=1)], axis=1)
+            det_q = q2[:, 0] * q3[:, 1] - q2[:, 1] * q3[:, 0]
+            det_j = det_q / det_r
+            # A folded triangle is not a map, but a hard cliff here traps the
+            # optimiser: once it steps across, everything nearby is equally
+            # infinite and there is no gradient home. Penalise smoothly.
+            fold = np.clip(1e-3 - det_j, 0.0, None)
+            det_j = np.maximum(det_j, 1e-3)
+            inv = 1.0 / det_r
+            j11 = (q2[:, 0] * r3[:, 1] - q3[:, 0] * r2[:, 1]) * inv
+            j12 = (-q2[:, 0] * r3[:, 0] + q3[:, 0] * r2[:, 0]) * inv
+            j21 = (q2[:, 1] * r3[:, 1] - q3[:, 1] * r2[:, 1]) * inv
+            j22 = (-q2[:, 1] * r3[:, 0] + q3[:, 1] * r2[:, 0]) * inv
+            frob = j11 * j11 + j12 * j12 + j21 * j21 + j22 * j22
+            shape = frob / det_j - 2.0
+            area = spherical_triangle_area(v1, v2, v3)
+            bad = np.clip(1e-4 - area, 0.0, None)
+            area = np.maximum(area, 1e-4)
+            return float(
+                np.sum(shape)
+                + area_weight * np.sum(np.log(area / target) ** 2)
+                + 1e5 * np.sum(fold**2 + bad**2)
+            )
+
+        if initial is None:
+            initial = snyder_weights(n, corners3)
+        pick = {v: m for m, v in enumerate(verts)}
+        theta0 = np.log(
+            np.clip(np.array([initial[pick[rep]] for rep in reps]), 1e-9, None)
+        ).ravel()
+
+        res = minimize(energy, theta0, method="L-BFGS-B",
+                       options={"maxiter": 4000, "maxfun": 40000, "ftol": 1e-14,
+                                "gtol": 1e-10, "eps": 1e-6})
+        res = minimize(energy, res.x, method="Powell",
+                       options={"maxiter": 40000, "maxfev": 60000, "xtol": 1e-10,
+                                "ftol": 1e-12})
+        return cls(n, cls._expand(res.x, reps, how, stab, verts)), float(res.fun)
+
+
+def spherical_triangle_area(v1, v2, v3):
+    """Signed spherical excess, by Van Oosterom and Strackee."""
+    v1, v2, v3 = np.atleast_2d(v1), np.atleast_2d(v2), np.atleast_2d(v3)
+    num = np.sum(v1 * np.cross(v2, v3), axis=-1)
+    den = 1.0 + np.sum(v1 * v2, -1) + np.sum(v2 * v3, -1) + np.sum(v3 * v1, -1)
+    out = 2.0 * np.arctan2(num, den)
+    return out if out.size > 1 else float(out[0])
+
+
+def _subdivided_to_sphere(self, bary, face_vertex):
+    """Locate the sub-triangle holding `bary` and interpolate inside it."""
+    n = self.n
+    x = np.asarray(bary, float) * n
+    idx = np.floor(x).astype(int)
+    idx = np.clip(idx, 0, n)
+    s = idx.sum(axis=-1)
+
+    # An exact grid point floors onto a vertex rather than a triangle; step the
+    # largest coordinate back so it lands in the triangle below it.
+    high = s >= n
+    big = np.argmax(idx, axis=-1)
+    for m in range(3):
+        idx[..., m] -= (high & (big == m)).astype(int)
+    s = idx.sum(axis=-1)
+    frac = x - idx
+    up = s == (n - 1)
+
+    i, j, k = idx[..., 0], idx[..., 1], idx[..., 2]
+    vid = self.vertex_id
+    up_v = np.stack([vid[i + 1, j], vid[i, j + 1], vid[i, j]], axis=-1)
+    dn_v = np.stack([vid[i + 1, j + 1], vid[i + 1, j], vid[i, j + 1]], axis=-1)
+    which = np.where(up[..., None], up_v, dn_v)
+
+    w_up = frac
+    w_dn = np.stack([1.0 - frac[..., 2], 1.0 - frac[..., 1], 1.0 - frac[..., 0]], axis=-1)
+    w = np.where(up[..., None], w_up, w_dn)
+
+    take = np.take_along_axis(face_vertex, which[..., None].repeat(3, axis=-1), axis=-2)
+    v = np.sum(w[..., None] * take, axis=-2)
+    return v / np.linalg.norm(v, axis=-1, keepdims=True)
+
+
+def _subdivided_post_init(self):
+    n = self.n
+    self.vertex_id = np.zeros((n + 2, n + 2), np.int32)
+    for m, (i, j, k) in enumerate(self.verts):
+        self.vertex_id[i, j] = m
+
+
+SubdividedFace.to_sphere = _subdivided_to_sphere
+_orig_init = SubdividedFace.__init__
+
+
+def _sub_init(self, n, weights):
+    _orig_init(self, n, weights)
+    _subdivided_post_init(self)
+
+
+SubdividedFace.__init__ = _sub_init
+
+
+def snyder_weights(n, face3d):
+    """Corner weights whose Snyder images sit at the regular mesh points.
+
+    Snyder is exactly equal-area, so every sub-triangle of the regular planar
+    mesh lands on a sub-triangle of exactly the right spherical area. That
+    makes it the natural starting point: the area term of the energy begins at
+    zero and the optimiser spends its effort on shape.
+    """
+    verts, _ = subdivision_vertices(n)
+    bary = np.array(verts, float) / n
+    face3d = np.asarray(face3d)
+    snyder = SnyderTriangle(face3d)
+    v = snyder_face(bary, np.broadcast_to(face3d, (len(bary), 3, 3)), snyder)
+    w = np.linalg.solve(face3d.T[None, :, :], v[:, :, None])[:, :, 0]
+    w = np.clip(w, 0.0, None)
+    return w / w.sum(axis=1, keepdims=True)
+
+
+_FACE_CACHE = {}
+
+
+def optimised_face(n=16, area_weight=4.0, cache_dir=None):
+    """The subdivided face, optimised once and then cached.
+
+    The mesh depends only on the geometry of a tetrahedron face, not on how
+    the tetrahedron is turned against the world, so the search runs once and
+    every attitude reuses it.
+    """
+    from pathlib import Path
+
+    key = (n, float(area_weight))
+    if key in _FACE_CACHE:
+        return _FACE_CACHE[key]
+    if cache_dir is None:
+        cache_dir = Path(__file__).resolve().parent / "build"
+    cache_dir = Path(cache_dir)
+    path = cache_dir / f"authagraph_mesh_n{n}_w{area_weight:g}.npy"
+    if path.exists():
+        face = SubdividedFace(n, np.load(path))
+    else:
+        verts, faces = tetrahedron()
+        face, _ = SubdividedFace.optimise(n, verts[list(faces[0])], area_weight=area_weight)
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        np.save(path, face.weights)
+    _FACE_CACHE[key] = face
+    return face

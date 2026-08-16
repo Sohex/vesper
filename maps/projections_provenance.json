@@ -78,6 +78,37 @@
       ]
     ]
   },
+  "tetrahedron": {
+    "quaternion": [
+      -0.5492843246860677,
+      0.7507732187710638,
+      -0.23981304339198467,
+      -0.2776976932734244
+    ],
+    "border_land_fraction": 0.12125,
+    "land_mean_anisotropy": 1.3199536548307307,
+    "land_area_grossly_misscaled_fraction": 0.040053958454292486,
+    "subdivision": 16,
+    "area_weight": 0.5,
+    "vertices_lonlat": [
+      [
+        -176.88203585235516,
+        21.02417347324647
+      ],
+      [
+        80.70828671022561,
+        -24.97949809865892
+      ],
+      [
+        -79.45891521091949,
+        -43.14688632321737
+      ],
+      [
+        -10.976841502870942,
+        48.365931667745095
+      ]
+    ]
+  },
   "basemap": {
     "source_build": "carved-zoned",
     "source_export": "source/carved-zoned/exoplasim-T42",
@@ -98,9 +129,10 @@
     "vesper_lambert_azimuthal.png",
     "vesper_lambert_azimuthal_polar.png",
     "vesper_waterman_butterfly.png",
-    "vesper_dymaxion.png"
+    "vesper_dymaxion.png",
+    "vesper_authagraph.png"
   ],
   "width": 3000,
   "supersample": 2,
-  "git_commit": "af3c7ae49c5af1aec29ff8dccfbca27fa6eae392"
+  "git_commit": "f7d0df9effe987d1d45985f9dfd42041cf03ce54"
 }

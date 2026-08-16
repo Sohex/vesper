@@ -1,4 +1,4 @@
-"""Render the Vesper base map into five projections.
+"""Render the Vesper base map into seven projections.
 
 Where a projection has a free orientation, it is chosen against the geography
 rather than assumed: central meridians, the butterfly's cut meridians and the
@@ -30,6 +30,7 @@ OUT = Path(__file__).resolve().parent
 
 BACKGROUND = np.array([13, 16, 21.0])
 GRATICULE = np.array([255, 255, 255.0])
+GRATICULE_HALO = np.array([6, 10, 16.0])
 OUTLINE = np.array([196, 204, 214.0])
 
 
@@ -151,6 +152,128 @@ def best_icosahedron_attitudes(base, trials=1500, keep=8):
         scored.append((cost / len(edges), q))
     scored.sort(key=lambda s: s[0])
     return scored[:keep]
+
+
+def distortion_fields(proj, nx=460, ny=265, h=2e-5):
+    """Anisotropy and area scale, sampled over a projection's plane."""
+    x0, x1, y0, y1 = proj.extent
+    X, Y = np.meshgrid(
+        np.linspace(x0 + 3 * h, x1 - 3 * h, nx), np.linspace(y0 + 3 * h, y1 - 3 * h, ny)
+    )
+
+    def sphere(a, b):
+        lon, lat, _ = proj.inverse(a, b)
+        return np.stack(P.unit(lat, lon), axis=-1)
+
+    dx = (sphere(X + h, Y) - sphere(X - h, Y)) / (2 * h)
+    dy = (sphere(X, Y + h) - sphere(X, Y - h)) / (2 * h)
+    e = np.sum(dx * dx, -1)
+    f = np.sum(dx * dy, -1)
+    g = np.sum(dy * dy, -1)
+    tr = e + g
+    det = np.maximum(e * g - f * f, 1e-30)
+    disc = np.sqrt(np.maximum(tr * tr / 4 - det, 0))
+    aniso = np.sqrt((tr / 2 + disc) / np.maximum(tr / 2 - disc, 1e-30))
+    area = np.sqrt(det)
+    return X, Y, aniso, area / np.median(area)
+
+
+def best_tetrahedron_attitude(base, trials=40000, samples=1600, grid=7000,
+                              cut_max=0.11, gross_max=0.03, seed=11081972):
+    """Attitude that keeps land off the cut and out of the distortion.
+
+    Three things are being placed at once, and the first version of this map
+    only placed one of them. The border is the map's only interruption, so land
+    on it is torn. But the distortion pattern is also fixed in the rectangle --
+    shapes worst at the four side midpoints where the tetrahedron's vertices
+    are, and area worst there too -- so turning the tetrahedron decides which
+    parts of the world land in it. Searching the border alone left exactly as
+    much distortion over land as chance would give.
+
+    Both area terms are weighted by the area a sample stands for on the globe,
+    not by the room it takes up on the page: a region drawn at a third of its
+    size is a third of the evidence on the page and three times the error.
+
+    Turning the tetrahedron rotates the whole map rigidly, so the sample points
+    are mapped to the sphere once and merely rotated per trial.
+    """
+    proj = P.TetrahedralRectangle()
+    x0, x1, y0, y1 = proj.extent
+    eps = 1e-4
+    n = samples // 4
+    t = np.linspace(0, 1, n)
+    bx = np.concatenate([x0 + t * (x1 - x0), x0 + t * (x1 - x0), np.full(n, x0 + eps),
+                         np.full(n, x1 - eps)])
+    by = np.concatenate([np.full(n, y0 + eps), np.full(n, y1 - eps), y0 + t * (y1 - y0),
+                         y0 + t * (y1 - y0)])
+    lon, lat, _ = proj.inverse(bx, by)
+    border = np.stack(P.unit(lat, lon), axis=-1)
+
+    gx, gy, aniso, area = distortion_fields(proj)
+    rng = np.random.default_rng(seed)
+    pick = rng.choice(gx.size, size=min(grid, gx.size), replace=False)
+    lon, lat, _ = proj.inverse(gx.ravel()[pick], gy.ravel()[pick])
+    interior = np.stack(P.unit(lat, lon), axis=-1)
+    scale = area.ravel()[pick]
+    globe = 1.0 / np.maximum(scale, 1e-3)  # world area each sample stands for
+    excess = np.clip(aniso.ravel()[pick] - 1.0, 0.0, None)
+    # Only gross size errors are counted. A continent drawn a fifth too large
+    # reads as correct; one drawn at half size does not.
+    misscaled = ((scale < 0.6) | (scale > 1.67)).astype(float)
+
+    def metrics(q):
+        w, i, j, k = q
+        r = np.array(
+            [
+                [1 - 2 * (j * j + k * k), 2 * (i * j - w * k), 2 * (i * k + w * j)],
+                [2 * (i * j + w * k), 1 - 2 * (i * i + k * k), 2 * (j * k - w * i)],
+                [2 * (i * k - w * j), 2 * (j * k + w * i), 1 - 2 * (i * i + j * j)],
+            ]
+        )
+        bl, ba = P.to_lonlat(border @ r.T)
+        il, ia = P.to_lonlat(interior @ r.T)
+        land = globe * base.land_at(il, ia)
+        total = land.sum()
+        return (
+            float(base.land_at(bl, ba).mean()),
+            float(np.dot(land, excess)) / total,
+            float(np.dot(land, misscaled)) / total,
+        )
+
+    # Random attitudes resolve SO(3) to about six degrees, too coarse to land
+    # in the narrow band that satisfies all three at once, so the best few are
+    # refined with a shrinking step. Refinement descends a penalised cost,
+    # because an attitude usually has to pass through infeasible ground to
+    # reach the good region; the winner is then picked by the standards
+    # themselves, which a penalty alone would let a bad attitude buy its way
+    # past.
+    def penalised(m):
+        cut, shape, gross = m
+        return shape + 20.0 * max(0.0, cut - cut_max) + 6.0 * max(0.0, gross - gross_max)
+
+    quats = random_quaternions(trials, seed=seed)
+    order = sorted(range(trials), key=lambda n: penalised(metrics(quats[n])))
+
+    refined = []
+    rng = np.random.default_rng(seed)
+    for n in order[:32]:
+        q = quats[n]
+        c = penalised(metrics(q))
+        for sigma in (0.06, 0.03, 0.015, 0.007, 0.003):
+            for _ in range(100):
+                trial = q + rng.normal(0, sigma, 4)
+                trial /= np.linalg.norm(trial)
+                ct = penalised(metrics(trial))
+                if ct < c:
+                    q, c = trial, ct
+        refined.append((q, metrics(q)))
+
+    for cmax, gmax in [(cut_max, gross_max), (cut_max * 1.3, gross_max * 2), (1.0, 1.0)]:
+        ok = [(q, m) for q, m in refined if m[0] <= cmax and m[2] <= gmax]
+        if ok:
+            break
+    q, (cut, shape, gross) = min(ok, key=lambda t: t[1][1])
+    return q, {"cut": cut, "land_shape_excess": shape, "land_grossly_misscaled": gross}
 
 
 def face_adjacency(faces):
@@ -289,7 +412,11 @@ def render(proj, base, width, supersample=2, graticule=30.0):
     block = max(supersample, (1 << 22) // W // supersample * supersample)
     for r0 in range(0, H, block):
         r1 = min(r0 + block, H)
-        X, Y = np.meshgrid(xs, ys[r0:r1])
+        # The graticule needs a vertical derivative, so each block is computed
+        # one row proud at each end and trimmed afterwards. Without it every
+        # block boundary leaves a one-pixel discontinuity along the lines.
+        pad0, pad1 = (1 if r0 > 0 else 0), (1 if r1 < H else 0)
+        X, Y = np.meshgrid(xs, ys[r0 - pad0 : r1 + pad1])
         lon, lat, valid = proj.inverse(X, Y)
         rgb = base.sample(lon, lat).astype(np.float64)
         rgb[~valid] = BACKGROUND
@@ -298,6 +425,8 @@ def render(proj, base, width, supersample=2, graticule=30.0):
             rgb = draw_graticule(rgb, lon, lat, valid, graticule, supersample)
         rgb = draw_outline(rgb, valid)
 
+        if pad0 or pad1:
+            rgb = rgb[pad0 : rgb.shape[0] - pad1]
         rows = (r1 - r0) // supersample
         acc[r0 // supersample : r0 // supersample + rows] = (
             rgb.reshape(rows, supersample, width, supersample, 3).mean(axis=(1, 3))
@@ -305,28 +434,54 @@ def render(proj, base, width, supersample=2, graticule=30.0):
     return np.clip(acc, 0, 255).astype(np.uint8)
 
 
-def _line_mask(field, spacing, valid, width_px, wrap=None):
-    """Pixels within half a line width of a multiple of `spacing`."""
-    d = np.abs(np.remainder(field + spacing / 2.0, spacing) - spacing / 2.0)
+def _field_gradient(field, wrap=None):
+    """Degrees of the field per pixel, following the shorter way round."""
     gy = np.gradient(field, axis=0)
     gx = np.gradient(field, axis=1)
     if wrap:
         gy = np.remainder(gy + wrap / 2, wrap) - wrap / 2
         gx = np.remainder(gx + wrap / 2, wrap) - wrap / 2
-    grad = np.hypot(gx, gy)
-    # A face boundary or the antimeridian shows up as a huge gradient; a line
-    # drawn there would be a seam artefact, not a parallel.
-    sane = grad < np.maximum(5 * np.median(grad[valid]) if valid.any() else 1.0, 1e-6)
-    return (d < 0.5 * width_px * np.maximum(grad, 1e-9)) & valid & sane
+    return np.hypot(gx, gy)
+
+
+def _line_coverage(field, spacing, grad, half_width):
+    """Antialiased coverage of the lines at multiples of `spacing`.
+
+    Distance to the nearest line is in degrees; dividing by the local gradient
+    puts it in pixels, which is what makes a line the same weight everywhere
+    however hard the projection is stretching. Coverage then ramps across the
+    last pixel instead of switching, so the lines do not crawl.
+    """
+    d = np.abs(np.remainder(field + spacing / 2.0, spacing) - spacing / 2.0)
+    return np.clip(half_width + 0.5 - d / np.maximum(grad, 1e-12), 0.0, 1.0)
 
 
 def draw_graticule(rgb, lon, lat, valid, spacing, supersample):
-    lw = 1.1 * supersample
-    par = _line_mask(lat, spacing, valid, lw)
-    mer = _line_mask(lon, spacing, valid, lw, wrap=360.0)
-    eq = _line_mask(lat, 180.0, valid, 1.5 * supersample)
-    rgb[par | mer] = rgb[par | mer] * 0.84 + GRATICULE * 0.16
-    rgb[eq] = rgb[eq] * 0.74 + GRATICULE * 0.26
+    """A dark halo under a light line, so the graticule reads over deep ocean
+    and bright desert alike."""
+    glat = _field_gradient(lat)
+    glon = _field_gradient(lon, wrap=360.0)
+
+    # A cut shows up as a jump of many degrees inside one pixel, where a real
+    # parallel is a fraction of a degree; anything above the threshold is a
+    # seam and drawing on it would be an artefact. The old rule was relative to
+    # the median gradient, which also erased lines wherever the projection was
+    # legitimately compressed.
+    ok = valid & (glat < 20.0) & (glon < 20.0)
+    ok &= binary_erosion(valid, iterations=2 * supersample, border_value=1)
+    ok = ok.astype(np.float64)
+
+    s = float(supersample)
+    for field, spacing_, grad, half, colour, alpha in [
+        (lat, spacing, glat, 1.7 * s, GRATICULE_HALO, 0.32),
+        (lon, spacing, glon, 1.7 * s, GRATICULE_HALO, 0.32),
+        (lat, spacing, glat, 0.65 * s, GRATICULE, 0.60),
+        (lon, spacing, glon, 0.65 * s, GRATICULE, 0.60),
+        (lat, 180.0, glat, 0.95 * s, GRATICULE, 0.80),
+        (lon, 180.0, glon, 0.95 * s, GRATICULE, 0.80),
+    ]:
+        a = (_line_coverage(field, spacing_, grad, half) * alpha * ok)[..., None]
+        rgb = rgb * (1.0 - a) + colour * a
     return rgb
 
 
@@ -400,6 +555,25 @@ def main():
         ],
     }
 
+    tetra_q, tetra_m = best_tetrahedron_attitude(base)
+    tetra = P.TetrahedralRectangle(verts=P.rotate(P.tetrahedron()[0], tetra_q))
+    print(
+        f"tetrahedral rectangle border {tetra_m['cut'] * 100:.0f}% land; over land, mean "
+        f"anisotropy {1 + tetra_m['land_shape_excess']:.2f} and "
+        f"{tetra_m['land_grossly_misscaled'] * 100:.0f}% of land area grossly mis-scaled"
+    )
+    prov["tetrahedron"] = {
+        "quaternion": [float(q) for q in tetra_q],
+        "border_land_fraction": tetra_m["cut"],
+        "land_mean_anisotropy": 1 + tetra_m["land_shape_excess"],
+        "land_area_grossly_misscaled_fraction": tetra_m["land_grossly_misscaled"],
+        "subdivision": 16,
+        "area_weight": 0.5,
+        "vertices_lonlat": [
+            [float(a), float(b)] for a, b in zip(*P.to_lonlat(np.asarray(tetra.verts)))
+        ],
+    }
+
     oct_verts = P.octahedron(bfly_lon)
     b2d, b3d = P.butterfly_net(oct_verts, join_index=bfly_join)
 
@@ -410,6 +584,7 @@ def main():
         P.LambertAzimuthalHemispheres.polar(lon0=lon0),
         P.PolyhedralNet(b2d, b3d, "waterman_butterfly", "Waterman Butterfly"),
         P.PolyhedralNet(faces2d, faces3d, "dymaxion", "Dymaxion"),
+        tetra,
     ]
 
     from PIL import Image
