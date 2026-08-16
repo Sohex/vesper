@@ -4,8 +4,8 @@
 // from config/planet.yaml, because the year length is a function of the stellar
 // flux and moves whenever the flux does.
 //
-// generated 2026-08-16T21:04:56+00:00
-// config   sha256 aa5f4c03f27ae0ae
+// generated 2026-08-16T23:44:48+00:00
+// config   sha256 70821b8f86a258b6
 // flux     0.945 S-Earth
 // orbit    182.8014 Earth days
 
@@ -42,13 +42,13 @@ const double VESPER_OBLIQUITY_DEG = 32.0;
 /// Phase of the declination cycle, in days before day 0 of the simulation year.
 /** Earth's 10.5 puts the December solstice ten days before 1 January. This is
  *  fitted to the solar declination the ExoPlaSim climatology actually reports:
- *  rms residual 1.11 deg over 12 bins, max 1.93 deg.
+ *  rms residual 0.92 deg over 12 bins, max 1.66 deg.
  *
  *  IT ASSUMES day 0 of the LPJ-GUESS year is the first climatology bin. The
  *  input module must emit bins in that order or the seasons run out of phase
  *  with the forcing.
  */
-const double VESPER_SOLSTICE_OFFSET_DAYS = 152.85;
+const double VESPER_SOLSTICE_OFFSET_DAYS = 135.15;
 
 /// Fraction of surface shortwave that is photosynthetically active.
 /** Earth's 0.5 scaled by this star's 0.4-0.75 um fraction against the

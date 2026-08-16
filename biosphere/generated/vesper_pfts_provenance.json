@@ -1,8 +1,8 @@
 {
-  "generated": "2026-08-16T21:04:56+00:00",
+  "generated": "2026-08-16T23:44:48+00:00",
   "source": "/home/cfutro/git/lpj-guess/guess_4.1/data/ins/global.ins",
   "source_sha256": "4daa4358a1f2de730601ac64ce3a64e54821838de20f9391ac07f649fefb90d8",
-  "config_sha256": "aa5f4c03f27ae0ae085c69b2840fd41691a2a6bb76aa4a8832885add72055154",
+  "config_sha256": "70821b8f86a258b68abd810bdf274c522d513bcf433e636deb32666234fe8b4f",
   "orbital_year_earth_days": 182.80142503147016,
   "earth_year_days": 365.2568983,
   "scale_factor": 0.5004735732090899,
@@ -88,7 +88,7 @@
       "direction": "up, a duration in years"
     }
   ],
-  "output_sha256": "747814ecede225a031891996c74245e0d0ec659dd0d79aad75845a4c869e3bc5",
-  "git_commit": "13fb86250899dbe27bc8027e8dde39d16f104043",
+  "output_sha256": "581516b663267feea0dc83a310cce1798e5914c8d1e406f5083da1318d01e818",
+  "git_commit": "6d0ca81fb76390f7de9bc3f95806046a34c672e7",
   "generator": "biosphere/scripts/build_vesper_pfts.py"
 }

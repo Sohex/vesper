@@ -1,6 +1,6 @@
 {
-  "generated": "2026-08-16T21:04:56+00:00",
-  "config_sha256": "aa5f4c03f27ae0ae085c69b2840fd41691a2a6bb76aa4a8832885add72055154",
+  "generated": "2026-08-16T23:44:48+00:00",
+  "config_sha256": "70821b8f86a258b68abd810bdf274c522d513bcf433e636deb32666234fe8b4f",
   "flux_earth": 0.945,
   "earth_solar_constant": 1361.0,
   "orbital_year_earth_days": 182.80142503147016,
@@ -27,12 +27,12 @@
   "stellar_constant_w_m2": 1286.145,
   "eccentricity": 0.02,
   "obliquity_deg": 32.0,
-  "solstice_offset_days": 152.85,
+  "solstice_offset_days": 135.15,
   "solstice_fit": {
-    "climatology": "exoplasim/analysis/climatology_s096/baseline_regular_climatology.nc",
+    "climatology": "exoplasim/analysis/climatology/baseline_t42_s0945_regular_climatology.nc",
     "bins": 12,
-    "rms_residual_deg": 1.1141437858747063,
-    "max_abs_residual_deg": 1.9337301736456638,
+    "rms_residual_deg": 0.9151200615069816,
+    "max_abs_residual_deg": 1.664091086519477,
     "note": "day 0 of the simulation year is the first climatology bin"
   },
   "fradpar": 0.46242839799049584,
@@ -53,7 +53,7 @@
     "earth_fradpar": 0.5
   },
   "source_build": "precarve-zoned-g1281-erod4x",
-  "git_commit": "13fb86250899dbe27bc8027e8dde39d16f104043",
-  "header_sha256": "34f95edcdad39b920ecf579680f2d8569f833bf94012e160cea9cad7398448dc",
+  "git_commit": "6d0ca81fb76390f7de9bc3f95806046a34c672e7",
+  "header_sha256": "c80ef896744fab63f4cb288a0bbb1e329a024c1f846ec541df3756d2db5006f3",
   "generator": "biosphere/scripts/build_vesper_header.py"
 }
