@@ -30,15 +30,32 @@ weathering:
   # silicate weathering is limited by water passing through the profile and
   # carrying solutes away, not by water that falls and evaporates.
   #
-  # Read from the primary 2026-08-16, and it was 0.65 here on a secondhand
-  # attribution. Dunne, T. (1978), "Rates of chemical denudation of silicate
-  # rocks in tropical catchments", Nature 274, 244-246, Fig. 1 caption states
+  # The citation chain was wrong here in both halves, corrected 2026-08-16
+  # against the primaries. WHAK does NOT cite Dunne -- 35 references, no Dunne,
+  # and 0.65 appears nowhere in it. WHAK's law is LINEAR in runoff,
+  # W ~ R P^0.3 exp[(T-285)/17.7], because they took from Meybeck (1979) that
+  # cation concentration is independent of runoff.
   #
-  #     chemical denudation rate = 0.28 R^0.66;  n = 30(43);  S_y.x = 0.13
+  # 0.65 is Berner (1994), GEOCARB II, Am. J. Sci. 294(1), 56-91,
+  # doi 10.2475/ajs.294.1.56, which does cite Dunne. Berner combines Dunne's
+  # Kenyan silicate fit C ~ R^-0.4 with Peters (1984) C ~ R^-0.3 for US rivers,
+  # adopts a global C ~ R^-0.35, and gets flux ~ C*R = R^0.65. It enters
+  # GEOCARB as f_B(T) = [J(T)/J(T0)] * [R(T)/R(T0)]^0.65 and everything
+  # downstream, including the exoplanet weathering literature, carries it.
   #
-  # so the exponent is 0.66. The change is immaterial in magnitude -- 0.5% at
-  # this world's runoff ratio -- but the same secondhand path produced two
-  # genuinely wrong numbers elsewhere, so the primary wins.
+  # **0.65 is therefore correct and stays.** It was briefly changed to 0.66 here
+  # on the strength of Dunne's own Fig. 1, which gives
+  # denudation rate = 0.28 R^0.66 for 30 independent Kenyan catchments. That was
+  # a mistake of exactly the kind it was meant to fix: it substituted one
+  # region's single fit for the two-dataset global synthesis the literature
+  # actually uses. Dunne alone would give 0.6, not 0.66, on Berner's reading of
+  # him, because Berner fits concentration where Dunne's caption reports flux.
+  #
+  # What Dunne's caption does supply, and nothing here had recorded:
+  # **S_y.x = 0.13 log units, a factor of 1.35 scatter about the fit.** That is
+  # the honest uncertainty on the runoff term and it dwarfs the third digit of
+  # the exponent. Applicability: silicate lithologies only, rainfall
+  # 250-3000 mm, mean annual air temperature 10-30 C, tropical.
   #
   # The caption carries the part that actually matters and was never recorded:
   # **S_y.x = 0.13 log units is the scatter about the fit, a factor of 1.35.**
@@ -97,7 +114,7 @@ weathering:
   # weathering intensity moves from 0.19 to about 0.66, into the saprock regime
   # the Graham et al. anchor describes rather than the fresh-rock one.
   runoff_source: p_minus_e        # p_minus_e | mrro
-  runoff_exponent: 0.66
+  runoff_exponent: 0.65
   # Temperature e-folding. Berner's exponential fit to silicate weathering,
   # equivalent to an activation energy near 74 kJ/mol at 288 K. Values from 10 to
   # 25 K appear in the literature; 13.7 is the common central choice.

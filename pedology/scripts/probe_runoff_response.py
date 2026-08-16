@@ -222,7 +222,7 @@ def main() -> None:
     # What that runoff would do to weathering, which is the reason to care. The
     # current land-mean W is read from the soil report rather than written here,
     # because it moves whenever the soil or the climatology does.
-    exponent = 0.66   # Dunne (1978) Fig. 1: 0.28 R^0.66
+    exponent = 0.65   # Berner (1994) GEOCARB II, from Dunne (1978) + Peters (1984)
     weathering_shift = (pedology_runoff_mm / max(model_runoff_mm, 1e-9)) ** exponent
     report_path = ANALYSIS / "soil_report.json"
     current_w = None

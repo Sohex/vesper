@@ -392,8 +392,11 @@ is **3.41x** on weathering intensity and 2.83x on water capacity.
 
 **And the bracket is now a sensitivity rather than a genuine uncertainty.**
 Walker, Hays and Kasting define the law on river runoff, and the 0.65 exponent
-traces to Dunne (1978) fitted against runoff, so precipitation was never a
-co-equal alternative. It was a hedge against `mrro`, which looked untrustworthy
+traces through Berner (1994) to Dunne (1978) and Peters (1984), both fitted
+against runoff, so precipitation was never a co-equal alternative. (The chain was
+recorded here as WHAK -> Dunne, which is wrong in both halves: WHAK does not cite
+Dunne and its runoff exponent is 1, not 0.65. The conclusion is unaffected, since
+what matters is that the underlying fits are against runoff, and they are.) It was a hedge against `mrro`, which looked untrustworthy
 at 25 mm per Earth year, and that hedge is spent: `mrro` turned out to be
 river-routed rather than local, P - E gives 168 mm, the global water budget
 closes to one part in ten thousand, and an offline bucket built from ExoPlaSim's
