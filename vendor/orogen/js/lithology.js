@@ -80,6 +80,31 @@ import { avgEdgeKm, PLANET_RADIUS_KM } from './geometry.js';
  *   slope, so a landscape expresses far less than strength implies. Use
  *   --lithology-strength to compress it; 0.682 gives about 4x.
  *
+ *   THE ARC AND FOREARC CLASSES were never checked before 2026-08-16 because the
+ *   rules that produce them could never fire, so nothing ever exposed their
+ *   values. Corrected on the same basis as the rest:
+ *
+ *     arc_andesite 0.90 -> 0.50 and rift_bimodal 0.95 -> 0.50. Both sat about
+ *       2x above Moosdorf's index for acid and intermediate volcanic rocks, and
+ *       the ORDERING was inverted: Moosdorf puts basic volcanic at 1.4 against
+ *       acid at 1.1, because mafic minerals are the less stable ones, so basalt
+ *       should weather FASTER than andesite. Orogen had andesite above basalt.
+ *     arc_basalt 0.85 -> 0.65, matching flood_basalt, since both are basaltic
+ *       and Moosdorf indexes them together at 1.4.
+ *     melange 1.60 is KEPT at 4x granite. Moosdorf's single metamorphic bin is
+ *       dominated by gneiss and schist and never contained melange, which is a
+ *       sheared block-in-matrix unit and genuinely among the weakest rock
+ *       masses there is. Being more differentiated within a coarse bin is not
+ *       an error; exceeding it without reason would be.
+ *
+ *   Their ALBEDOS survived the check. arc_andesite 0.20 against granite 0.30 is
+ *   a ratio of 0.67, and Logan's andesite-to-granite ratio is 0.69. granodiorite
+ *   0.28 and arc_basalt 0.13 interpolate between endpoints confirmed directly.
+ *   Note that Logan's ratios are usable here only because andesite and granite
+ *   are both felsic-to-intermediate: the powder-to-slab factor is itself
+ *   lithology-dependent, 2.2 for basalt against 4.1 for granite, so powder
+ *   ratios compress the felsic/mafic contrast and must not be carried across it.
+ *
  *   densityGCm3 checks out against Daly, Manger & Clark (1966) except evaporite,
  *   corrected 2.2 -> 2.1 per Frumkin (2013).
  *
@@ -132,9 +157,9 @@ export const ROCK_CLASSES = [
     { id:  1, code: 'morb',         name: 'Mid-ocean ridge basalt',              category: 'igneous',     erodibility: 0.70, densityGCm3: 2.9, albedo: 0.1 },
     { id:  2, code: 'oib',          name: 'Ocean island basalt',                 category: 'igneous',     erodibility: 0.80, densityGCm3: 2.9, albedo: 0.1 },
     { id:  3, code: 'flood_basalt', name: 'Continental flood basalt',            category: 'igneous',     erodibility: 0.65, densityGCm3: 2.9, albedo: 0.1 },
-    { id:  4, code: 'arc_basalt',   name: 'Island-arc basalt / basaltic andesite', category: 'igneous',   erodibility: 0.85, densityGCm3: 2.8, albedo: 0.13 },
-    { id:  5, code: 'arc_andesite', name: 'Continental-arc andesite / dacite',   category: 'igneous',     erodibility: 0.90, densityGCm3: 2.7, albedo: 0.2 },
-    { id:  6, code: 'rift_bimodal', name: 'Rift bimodal volcanics',              category: 'igneous',     erodibility: 0.95, densityGCm3: 2.7, albedo: 0.16 },
+    { id:  4, code: 'arc_basalt',   name: 'Island-arc basalt / basaltic andesite', category: 'igneous',   erodibility: 0.65, densityGCm3: 2.8, albedo: 0.13 },
+    { id:  5, code: 'arc_andesite', name: 'Continental-arc andesite / dacite',   category: 'igneous',     erodibility: 0.50, densityGCm3: 2.7, albedo: 0.2 },
+    { id:  6, code: 'rift_bimodal', name: 'Rift bimodal volcanics',              category: 'igneous',     erodibility: 0.50, densityGCm3: 2.7, albedo: 0.16 },
     { id:  7, code: 'granite',      name: 'Granite',                             category: 'igneous',     erodibility: 0.40, densityGCm3: 2.65, albedo: 0.3 },
     { id:  8, code: 'granodiorite', name: 'Arc-root granodiorite',               category: 'igneous',     erodibility: 0.45, densityGCm3: 2.7, albedo: 0.28 },
     { id:  9, code: 'gneiss',       name: 'Cratonic gneiss',                     category: 'metamorphic', erodibility: 0.35, densityGCm3: 2.75, albedo: 0.28 },

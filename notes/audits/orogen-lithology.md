@@ -238,6 +238,52 @@ Since erodibility is renormalised to a land mean of 1, this does not change how
 much erosion happens -- it over-differentiates *where*, giving too much relief
 contrast between resistant and weak terrain.
 
+### Corrected 2026-08-16: the arc classes, and an inverted ordering
+
+The two bolded arc rows above are fixed. `arc_andesite` 0.90 -> 0.50 and
+`rift_bimodal` 0.95 -> 0.50 bring both to about 1.25x granite against Moosdorf's
+1.1, and `arc_basalt` 0.85 -> 0.65 puts island-arc basalt with `flood_basalt`,
+which is where Moosdorf indexes them both.
+
+The ordering was also **inverted**, which is the part worth keeping. Moosdorf
+puts basic volcanic rocks at 1.4 and acid at 1.1: basalt weathers faster than
+andesite, because its mafic minerals are the less stable ones. Orogen had
+andesite *above* basalt at 0.90 against 0.65. Note that `--lithology-strength`
+could never have caught this. It compresses the whole distribution toward the
+mean and preserves relative ordering by construction, so it fixes a spread that
+is too wide and is blind to one that runs backwards. The two corrections are
+independent and both are needed.
+
+`melange` is deliberately **kept** at 4.0x granite. Moosdorf's single metamorphic
+bin is dominated by gneiss and schist and never contained melange, which is a
+sheared block-in-matrix unit and genuinely among the weakest rock masses there
+is. Being more differentiated than a coarse bin is not an error.
+
+These values had never been checked because the rules that assign them could not
+fire (see the arc-terrain section), so nothing they controlled was ever exposed.
+
+**Measured, G_melange vs H_arcerod, both at `--lithology-strength 0.682`:** the
+terrain barely moves. Land mean 0.3953 -> 0.3957 km, land above 1 km 12.412 ->
+12.424%, land fraction and preserved basin count identical. Composition shifts
+0.045 points from `granodiorite` to `arc_andesite`, the more resistant arc rock
+now surviving where it was being stripped. Through albedo that is -0.00004 on
+the land mean, which is nothing. The correction buys defensibility, not a
+different world. Terrain hash fb3eb4ab -> 2e06d176.
+
+### Albedo: the arc classes survived the check
+
+No change needed. `arc_andesite` 0.20 against `granite` 0.30 is a ratio of 0.67
+and Logan's andesite-to-granite powder ratio is 0.69. `granodiorite` 0.28 and
+`arc_basalt` 0.13 interpolate between endpoints confirmed directly.
+
+Logan's ratios are usable across that particular pair only because andesite and
+granite are both felsic to intermediate. The powder-to-slab factor is itself
+lithology-dependent -- 2.2 for basalt against 4.1 for granite in Paragas -- so
+powder ratios systematically compress the felsic/mafic contrast and must not be
+carried across it. Applied naively, Logan would put `flood_basalt` at 0.54x
+granite where three direct slab and field routes put it at 0.33x. That is a trap
+for anything that tries to extend this table from powder data.
+
 **Two values are wrong rather than merely wide.**
 
 - **`carbonate` 1.30 should be near granite, roughly 0.40-0.50.** Moosdorf places
