@@ -307,3 +307,26 @@ python biosphere/scripts/build_vesper_pfts.py     # degree-day limits rescaled
 python biosphere/scripts/build_lpj_driver.py      # climate + soil codes + gridlist
 cd /home/cfutro/git/lpj-guess/build && make -j16
 ```
+
+### Fire is GLOBFIRM, and `cflux.out` is the only place it shows
+
+`run_lpj_guess.py` writes `firemodel "GLOBFIRM"` after its `import` of
+`vesper_pfts.ins`, which still carries the shipped `firemodel "BLAZE"`. The later
+declaration wins, so the generated instruction file is what decides this and the
+PFT file is not worth editing. BLAZE wants a SimFIRE input built from Earth
+observations, and it forces `weathergenerator "GWGEN"`, which wants sub-daily
+statistics this world does not have; the shipped demo makes the same two
+substitutions for the same reason. The mismatch is not silent: LPJ-GUESS aborts
+on BLAZE with a non-GWGEN generator, so a run that starts is a run on GLOBFIRM.
+
+GLOBFIRM writes no `firert.out` and no burned area. Those are BLAZE-only, so the
+`Fire` column of `cflux.out` is the whole diagnostic, and without it in the
+harness's output list the burning is visible only as a mortality in `cmass` and
+`dens` that no output explains.
+
+One gate worth knowing when a short run reports no fire at all. With
+`iftwolayersoil 0`, which `iforganicsoilproperties` requires,
+`vegdynam.cpp:1386` accumulates fire-season days only after model year 100, from
+a hard-coded constant that is not rescaled alongside `nyear_spinup` and
+`distinterval`. The spin-up is far longer than that, so it never reaches a
+reported year, but it does mean fire is off for the first tenth of it.
