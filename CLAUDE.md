@@ -85,20 +85,22 @@ swapped in place and a result's provenance should depend on what it was computed
 from, not on when. `config/planet.yaml` names the active one in `source_build`,
 and `lib/builds.py` resolves it; nothing should hardcode a path under `source/`.
 
-| build | terrain | what it is |
-| --- | --- | --- |
-| `precarve-unzoned` | `821aa71b` | pre-carve; evaporite a single class |
-| `precarve-zoned` | `26fc7691` | same drainage, salt-crust/playa-fill split |
-| `carved-zoned` | `3899a0c5` | **superseded**: verdict decided on antipodal climate |
-| `carved-zoned-v2` | `010f2143` | **superseded**: basin fill lost to cover-chain branch order |
-| `carved-zoned-v4` | `5bed5549` | **active**: corrected verdict, corrected cover chain |
+**No list of builds lives here, and no hash does either.** `lib/orogen.py` is the
+registry: every build it has been checked against, keyed by
+`manifest.hashes.finalElevation`, each with a note on what it is and what
+superseded it. `world_state.json` records which one is active. The names are for
+humans; the hash is the identity, and `lib/orogen.py` refuses a build it has not
+been checked against.
 
-This table is illustrative, not a registry: `lib/orogen.py` holds the authoritative
-list with a note on each build, and `world_state.json` records which one is
-active. The names are for humans; `manifest.hashes.finalElevation` is the
-identity, and `lib/orogen.py` refuses a build it has not been checked against. The basin
-catalogue hash is `2d1f8e57` on all of them, so per-basin work resolves across
-every build here, including the superseded ones.
+A hash in prose is a current value wearing the costume of an identity. It reads
+as durable, because a hash names a thing that never changes -- but *which* hash
+is current changes every iteration, so the sentence around it goes quietly wrong
+while still looking like a fact worth trusting. Cite the registry instead.
+
+Basin ids are computed on the pre-conditioning surface, so they survive a carve
+iteration and per-basin work generally resolves across builds. That is a
+property of when the ids are assigned, not a promise -- `lib/orogen.py` keeps
+the catalogue hashes it has verified, and that is the check.
 
 Superseded means wrong, not merely old, and both are kept registered so results
 already computed from them stay readable and datable. **Registered is not the
@@ -119,17 +121,18 @@ so a build is replaced wholesale rather than edited.
 
 ## Reading a build
 
-Four exports of the same planet, all from seed 16236323 with 2,500,001 mesh
-regions, and all carrying the same `manifest.hashes.finalElevation` within a
-build (`5bed5549…` on the active one). Check that hash before trusting any
-number quoted about the terrain: the seed and parameters alone do not identify a build, because fixes to
-the generator change the terrain under a fixed seed. This build followed a fix
-to an over-erosion bug, which raised mean land elevation from 138 m to **548 m**
-and the highest point from 4.5 km to 5.8 km. Anything derived from the previous
-`a826bd12…` terrain is not comparable.
+Five exports of the same planet per build, all from seed 16236323 with 2,500,001
+mesh regions, and all carrying the same `manifest.hashes.finalElevation` within a
+build. Check that hash against `lib/orogen.py` before trusting any number quoted
+about the terrain: the seed and parameters alone do not identify a build, because
+fixes to the generator change the terrain under a fixed seed, and one such fix
+(over-erosion) moved mean land elevation by a factor of four. Anything derived
+from a superseded terrain is not comparable, and the registry note on each build
+says what moved.
 
 | Directory | Grid | Notes |
 | --- | --- | --- |
+| `exoplasim-T21/` | 64×32 Gaussian | grid only |
 | `exoplasim-T42/` | 128×64 Gaussian | the only one with `raw/` (native 2.5M-region mesh) |
 | `exoplasim-T63/` | 192×96 Gaussian | grid only |
 | `exoplasim-T85/` | 256×128 Gaussian | grid only |
@@ -199,9 +202,9 @@ too deep. Fixed upstream on 2026-08-14: the branch now takes its land flag from
 `surface_class`, and below-sea-level land converts at 1.0 km per unit against
 the ocean's 10. Verified here: dry floors are now exactly `elevation * 1.0`, the
 deepest reads -562 m and matches the catalogue, ocean is untouched at -8.89 km.
-An export whose `finalElevation` hash predates `821aa71b37a7...` predates this
-fix and should not be trusted below sea level. Every build in the table above
-carries it.
+An export that predates this fix should not be trusted below sea level.
+`lib/orogen.py` is where to check: every registered build carries the fix, and
+the registry is what knows that rather than this file.
 
 **The basin catalogue renamed keys in the same pass, and it is a breaking
 change.** Unsuffixed keys (`sinkElevation`, `depth`, `spillElevation`) are the
@@ -480,13 +483,18 @@ Köppen rate-normalisation, sign conventions). Read the notes before changing
 anything about how runs are configured — most of the non-obvious choices are
 already justified there.
 
-**The completed runs under `exoplasim/runs/` span four eras.** The `t42l10p8_*`
-runs used the old 510k-region map PNGs, a uniform 0.22 albedo and a blackbody
-star; they are superseded. The `t21*glac*` runs are the albedo bracket. The
-`_k25v_gbafe5e8b` runs at 0.92, 0.94 and 0.96 are the flux calibration, on the
-now-superseded `carved-zoned` terrain but still the best measurement of the
-slope, which depends on ice and Planck rather than on which basins are bright.
-The iteration-2 baseline runs at 0.945 on `carved-zoned-v4`.
+**The completed runs under `exoplasim/runs/` span several eras**, and which era a
+run belongs to is not visible in its id, because ids are UUIDs. `INDEX.json` is
+the only thing that knows: its `physical` block records the geography, spectrum
+and surface albedo each run actually used, and that triple is what decides
+whether two runs are comparable. Ask the index; do not infer an era from a name.
+
+What survives a re-baseline is decided by what a result depends on, not by how
+old it is. A flux-versus-temperature slope measured on superseded terrain stays
+the best measurement of that slope, because it turns on sea ice and the Planck
+response rather than on which basins are bright. A mean surface temperature from
+the same run does not survive at all. Judge each quoted number by which of those
+it is.
 
 `analysis/climatology_s096/` is superseded as a description of this world. It was
 computed on the pre-carve terrain, under the k2 spectrum, and it is what the
