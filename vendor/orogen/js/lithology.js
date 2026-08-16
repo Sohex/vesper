@@ -61,6 +61,33 @@ import { avgEdgeKm, PLANET_RADIUS_KM } from './geometry.js';
  * brightest natural land surfaces there are. Orogen does not apply it to
  * anything; it is exported for the climate stage to use.
  *
+ * GROUNDING, 2026-08-16. These values were originally chosen by eye. They have
+ * since been checked against the literature; see notes/audits/orogen-lithology.md
+ * in the consuming project for the full audit and citations.
+ *
+ *   erodibility ORDERING is supported (Stock & Montgomery 1999; Sklar & Dietrich
+ *   2001; Portenga & Bierman 2011; Frumkin 2013). Two values were not, and were
+ *   corrected: carbonate 1.30 -> 0.45 and schist 1.10 -> 0.45. Moosdorf, Cohen &
+ *   von Hagke (2018) place carbonate sedimentary rocks in the LOW-erodibility
+ *   group with acid plutonic and metamorphic, and Bursztyn et al. (2015) measure
+ *   limestones at or above granite in tensile strength and Vishnu schist above
+ *   Zoroaster granite. Neither belongs 3x above granite.
+ *
+ *   The remaining SPREAD is wider than the literature supports: quartzite to salt
+ *   is 14x here against Moosdorf's global index of 3.2x and Zondervan et al.
+ *   (2020)'s fluvially expressed contrast of about 4x. Intact rock strength does
+ *   vary by four to five orders of magnitude, but channels adjust width and
+ *   slope, so a landscape expresses far less than strength implies. Use
+ *   --lithology-strength to compress it; 0.682 gives about 4x.
+ *
+ *   densityGCm3 checks out against Daly, Manger & Clark (1966) except evaporite,
+ *   corrected 2.2 -> 2.1 per Frumkin (2013).
+ *
+ *   albedo is NOT yet grounded and is the real exposure, because unlike
+ *   erodibility it is not renormalised: it goes to the climate model as an
+ *   absolute number. The standard compilations key albedo to land cover, not
+ *   lithology, so there is no table to copy; it wants solar-weighted spectra.
+ *
  * THAT MAKES SOME OF THESE NUMBERS LOAD-BEARING DOWNSTREAM. `evaporite` at 0.50
  * used to be applied to every cell of every closed basin, under the name
  * "Evaporite / playa fill" — a clean-halite reflectance spread over a surface
@@ -81,15 +108,15 @@ export const ROCK_CLASSES = [
     { id:  7, code: 'granite',      name: 'Granite',                             category: 'igneous',     erodibility: 0.40, densityGCm3: 2.65, albedo: 0.3 },
     { id:  8, code: 'granodiorite', name: 'Arc-root granodiorite',               category: 'igneous',     erodibility: 0.45, densityGCm3: 2.7, albedo: 0.28 },
     { id:  9, code: 'gneiss',       name: 'Cratonic gneiss',                     category: 'metamorphic', erodibility: 0.35, densityGCm3: 2.75, albedo: 0.28 },
-    { id: 10, code: 'schist',       name: 'Orogenic schist / phyllite',          category: 'metamorphic', erodibility: 1.10, densityGCm3: 2.8, albedo: 0.22 },
+    { id: 10, code: 'schist',       name: 'Orogenic schist / phyllite',          category: 'metamorphic', erodibility: 0.45, densityGCm3: 2.8, albedo: 0.22 },
     { id: 11, code: 'quartzite',    name: 'Quartzite',                           category: 'metamorphic', erodibility: 0.25, densityGCm3: 2.65, albedo: 0.35 },
     { id: 12, code: 'melange',      name: 'Subduction mélange / blueschist',     category: 'metamorphic', erodibility: 1.60, densityGCm3: 2.8, albedo: 0.18 },
     { id: 13, code: 'shelf_clastic', name: 'Shelf sandstone / shale',            category: 'sedimentary', erodibility: 2.20, densityGCm3: 2.5, albedo: 0.3 },
-    { id: 14, code: 'carbonate',    name: 'Carbonate platform',                  category: 'sedimentary', erodibility: 1.30, densityGCm3: 2.7, albedo: 0.35 },
+    { id: 14, code: 'carbonate',    name: 'Carbonate platform',                  category: 'sedimentary', erodibility: 0.45, densityGCm3: 2.7, albedo: 0.35 },
     { id: 15, code: 'foreland_clastic', name: 'Foreland molasse / flysch',       category: 'sedimentary', erodibility: 2.60, densityGCm3: 2.45, albedo: 0.28 },
     { id: 16, code: 'continental_clastic', name: 'Intracratonic clastics',       category: 'sedimentary', erodibility: 2.40, densityGCm3: 2.45, albedo: 0.28 },
     { id: 17, code: 'pelagic',      name: 'Pelagic ooze / abyssal clay',         category: 'sedimentary', erodibility: 3.00, densityGCm3: 2.0, albedo: 0.25 },
-    { id: 18, code: 'evaporite',    name: 'Evaporite salt crust',                category: 'sedimentary', erodibility: 3.50, densityGCm3: 2.2, albedo: 0.5 },
+    { id: 18, code: 'evaporite',    name: 'Evaporite salt crust',                category: 'sedimentary', erodibility: 3.50, densityGCm3: 2.1, albedo: 0.5 },
     { id: 19, code: 'playa_clastic', name: 'Playa mud / alluvial fan fill',      category: 'sedimentary', erodibility: 2.80, densityGCm3: 2.1, albedo: 0.3 },
 ];
 

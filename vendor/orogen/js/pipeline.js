@@ -791,9 +791,18 @@ export function runGeneratePipeline(params, onProgress = () => {}) {
         r_dampen, r_orogenic,
         windResult, oceanResult, precipResult, tempResult,
         noise, seed, nMag, P,
+        // Every parameter that changes the terrain must appear here, because
+        // this is what the export manifest records and therefore the only
+        // account a build gives of itself. `lithologyStrength` and `lithology`
+        // were missing: a build made with --lithology-strength 0.682 got a
+        // different finalElevation hash, so the terrain was distinguishable,
+        // but nothing anywhere said WHY it differed. A hash that changes for an
+        // unrecorded reason is worse than no hash.
         params: { N, P, jitter, nMag, numContinents, smoothing, terrainWarp, hydraulicErosion,
                   thermalErosion, ridgeSharpening, glacialErosion, continentSizeVariety,
-                  temperatureOffset, precipitationOffset, landCoverage, seed },
+                  temperatureOffset, precipitationOffset, landCoverage, seed,
+                  lithology: !!lithology,
+                  lithologyStrength: lithology ? (lithologyStrength ?? 1) : null },
         skipClimate: !!skipClimate,
         _timing,
         _pipelineTiming: timing,
