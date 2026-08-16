@@ -759,6 +759,17 @@ export function erodeComposite(mesh, r_elevation, r_xyz, r_isOcean,
             }
 
             // Implicit stream power solve (ascending elevation order) + sediment deposition
+            //
+            // E = K * A^m * S^n with **n = 1**, and n=1 is baked into the algebra
+            // below rather than being a parameter: the closed form
+            // h' = (h + f*h_recv)/(1 + f) is the Braun-Willett implicit step, and
+            // it exists only for n=1. Any other exponent needs Newton iteration
+            // per cell. This matters beyond erosion -- the argument that gravity
+            // can be applied as a post-hoc 1/g scaling on export rests entirely
+            // on n=1, because slope enters linearly and the whole pipeline is
+            // therefore homogeneous in the vertical scale. At n=2 that breaks and
+            // the relief would have to be solved at the real gravity.
+            // See notes/audits/orogen-gravity.md in the consuming project.
             for (let i = landCount - 1; i >= 0; i--) {
                 const r = landCells[i];
                 const target = drainTarget[r];
