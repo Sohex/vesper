@@ -37,7 +37,8 @@ from pathlib import Path
 import numpy as np
 import yaml
 
-from _paths import CONFIG, INPUTS, PROJECT_ROOT
+from _paths import CONFIG, INPUTS, PROJECT_ROOT  # noqa: E402  (puts lib/ on sys.path)
+from paths import rel  # noqa: E402
 from convert_orogen import write_sra
 
 SOIL_WATER_CODE = 229

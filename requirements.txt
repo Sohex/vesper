@@ -8,4 +8,6 @@ pillow==11.3.0
 PyYAML==6.0.3
 scipy==1.18.0
 xarray==2026.7.0
-
+# Static analysis for scripts/smoke_test.py: F821 undefined names are a
+# crash class that answering --help cannot detect.
+pyflakes==3.4.0

@@ -40,6 +40,7 @@ from _paths import (ANALYSIS, CONFIG, DATA, PEDOGENESIS, PROJECT_ROOT,
                     climatology_path)
 
 import builds
+from paths import rel  # noqa: E402
 import orbit
 from gridding import land_fraction_of_class
 from orogen import Export, LAND

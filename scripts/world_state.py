@@ -24,6 +24,10 @@ import numpy as np
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
+import sys as _sys
+if str(ROOT / "lib") not in _sys.path:
+    _sys.path.insert(0, str(ROOT / "lib"))
+from paths import rel  # noqa: E402
 SCHEMA_VERSION = 1
 
 # --- things no artifact can tell us -----------------------------------------

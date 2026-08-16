@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated": "2026-08-16T19:52:31.124027+00:00",
-  "git_commit": "fd33de92e2a88fa9238ed5dc8d4b2f9fc0565cb9",
+  "generated": "2026-08-16T19:54:36.624954+00:00",
+  "git_commit": "654bd2916ad4529188e803e0dc3880832d3074e5",
   "generator": "scripts/world_state.py",
   "note": "Generated from the artifacts. Do not edit; re-run the generator. Judgement that no artifact can supply is in `curated`, which lives in the generator under version control.",
   "planet": {

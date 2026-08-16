@@ -55,6 +55,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from mie_dust import lognormal_integrate  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
+import sys as _sys
+if str(ROOT / "lib") not in _sys.path:
+    _sys.path.insert(0, str(ROOT / "lib"))
+from paths import rel  # noqa: E402
 DATA = ROOT / "exoplasim" / "data" / "dust"
 OUT = ROOT / "analysis" / "dust_optics.json"
 SPECTRUM = ROOT / "exoplasim" / "inputs" / "stellarspectra" / "k25v.dat"

@@ -23,6 +23,10 @@ import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
+import sys as _sys
+if str(ROOT / "lib") not in _sys.path:
+    _sys.path.insert(0, str(ROOT / "lib"))
+from paths import rel  # noqa: E402
 RUNS = ROOT / "exoplasim" / "runs"
 INDEX = RUNS / "INDEX.json"
 
