@@ -433,6 +433,11 @@ def main() -> None:
         "--force-prepare", action="store_true",
         help="Allow re-preparing an existing run with no climate outputs",
     )
+    parser.add_argument(
+        "--restart-from", type=Path, default=None,
+        help="Seed the initial state from an existing MOST_REST file instead of "
+             "cold-starting. Only the spin-up path changes, not the equilibrium.",
+    )
     args = parser.parse_args()
 
     config_path = args.config.resolve()
@@ -477,6 +482,18 @@ def main() -> None:
     if np.any(topo[land == 0.0] != 0.0):
         raise ValueError("Ocean geopotential must be zero")
 
+    # Seeding the initial state from a nearby equilibrium is worth about 20 of
+    # the 70 orbits a cold start spends climbing from its 269 K initial state.
+    # It is an initial condition and nothing else: the equilibrium a run settles
+    # to is set by its forcing, so this changes the path and not the answer. The
+    # source is recorded in the manifest because the path is no longer a function
+    # of the configuration alone.
+    restart_seed = None
+    if args.restart_from is not None:
+        restart_seed = args.restart_from.resolve()
+        if not restart_seed.is_file():
+            raise RuntimeError(f"--restart-from {restart_seed} does not exist")
+
     atmosphere = config["atmosphere"]
     planet = config["planet"]
     star = config["star"]
@@ -493,6 +510,7 @@ def main() -> None:
         hyperthreading=False,
     )
     model.configure(
+        restartfile=None if restart_seed is None else str(restart_seed),
         flux=derived["stellar_flux_w_m2"],
         startemp=float(star["effective_temperature_k"]),
         starspec=stellar_spectrum_path(config),
@@ -592,6 +610,13 @@ def main() -> None:
         "config_sha256": file_sha256(config_path),
         "source_config": config,
         "derived_parameters": derived,
+        "initial_state": ({"cold_start": True} if restart_seed is None else {
+            "cold_start": False,
+            "restart_from": str(restart_seed),
+            "restart_from_sha256": file_sha256(restart_seed),
+            "restart_from_run": restart_seed.parent.name,
+            "note": "Initial condition only; equilibrium is set by the forcing.",
+        }),
         "geography": {
             "landmap": str(landmap),
             "landmap_sha256": file_sha256(landmap),
