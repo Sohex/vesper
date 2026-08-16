@@ -64,12 +64,23 @@ _KNOWN_TERRAIN_HASHES = {
         "2026-08 carved-zoned-v2: corrected iteration-1 carve verdict, "
         "crust/fill split. SUPERSEDED by 5bed5549 -- basin fill was being "
         "overwritten by cover-chain branch order.",
-    # Same verdict, same catalogue, cover chain now a declared table walked in
-    # order with closed-basin fill first. 99.77% of preserved-basin area carries
-    # fill against 74.6%, and no basin is left without any. The first build on
-    # which terrain, lithology and the drainage verdict are mutually consistent.
+    # SUPERSEDED. Cover chain became a declared table walked in order with
+    # closed-basin fill first, which fixed the lithology. Its verdict integrated
+    # ExoPlaSim's mrro as catchment runoff,
+    # which is river-routed net divergence rather than local generation, so it
+    # under-carved: 749 more basins overflow under precipitation minus
+    # evaporation. Recoverable rather than wrong, since every basin it cut should
+    # have been cut, and the carve list carried those forward.
     "5bed5549315da14b22275fea51a0b6f5b34d79cdf2237c9380e8471e0b431c78":
         "2026-08 carved-zoned-v4: corrected verdict, cover-chain fix, "
+        "crust/fill split. SUPERSEDED by a4d204f6 -- its verdict read mrro as "
+        "catchment runoff.",
+    # Pass 2: 1,838 carved of 3,629, of which 1,089 carried forward from v4 and
+    # 749 decided against P - E. Endorheic land falls 60.10% to 43.06% and
+    # closed-basin fill 16.5% to 12.35%, because a net-divergence field
+    # under-reports exactly the large catchments the criterion turns on.
+    "a4d204f6e3e706597ff1470d064b457768243483ff884e9b574f055774de3ce9":
+        "2026-08 carved-zoned-v5: iteration-2 verdict on P - E runoff, "
         "crust/fill split",
 }
 

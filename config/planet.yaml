@@ -20,7 +20,7 @@ schema_version: 1
 #
 # The names are for humans. manifest.hashes.finalElevation is the identity, and
 # every run manifest and analysis report records it.
-source_build: carved-zoned-v4
+source_build: carved-zoned-v5
 
 planet:
   radius_earth: 1.20

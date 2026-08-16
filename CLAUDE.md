@@ -411,6 +411,22 @@ pinned upstream SHA, rebuilds, copies the result to
 `exoplasim/inputs/exoplasim_cycle_t42/`, and reverses the patch on exit — the
 vendored ExoPlaSim tree in `.venv` is left clean.
 
+## Before an expensive run
+
+    python scripts/check_consistency.py
+
+Verifies that everything in tree describes the same world: terrain hashes agree
+across every artifact that records one, coupling matrices declare the longitude
+convention they were built on, surface inputs exist and are newer than the build
+they claim to describe, and a carve list accounts for every basin. Exit 1 on
+disagreement. Run it after changing `source_build`, which is when most of this
+goes stale at once.
+
+`notes/failure-modes.md` records how this project goes wrong, by class rather
+than as a changelog, because the classes recur and the instances do not. Worth
+reading before adding a component or changing a shared quantity; several of the
+entries cost a terrain rebuild.
+
 ## Conventions
 
 - Prose in docs and reports uses ASCII punctuation and avoids em dashes; match it.

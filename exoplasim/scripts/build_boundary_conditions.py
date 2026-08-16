@@ -103,6 +103,7 @@ def main() -> None:
     m, e = out["land_mask"], out["elevation_m"]
     land_cells = m > 0
     report = {
+        "terrain_hash": mesh.terrain_hash,
         "generated": datetime.now(timezone.utc).isoformat(),
         "mesh": ex.provenance(),
         "grid": str(grid_dir),

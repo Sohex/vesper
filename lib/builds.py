@@ -56,3 +56,39 @@ def grid_export(config: dict | None = None, resolution: str | None = None) -> Pa
     cfg = _config(config)
     res = (resolution or str(cfg["model"]["resolution"])).upper()
     return build_root(cfg) / f"exoplasim-{res}"
+
+
+def component_data(component: str, config: dict | None = None,
+                   *, strict: bool = False) -> Path:
+    """Per-build data directory for a component, e.g. `hydrography/data/<build>`.
+
+    Drainage, basins and coupling matrices are properties of a terrain, so they
+    are namespaced by build exactly as `source/` is. Four scripts were written
+    against the flat `<component>/data/` before that was true, and each one would
+    happily pair one terrain's rows with another's columns: `world_state.py`
+    reported 2,107 basins against a build that had 2,540, and `carve_verdict.py`
+    raised an IndexError only because the counts happened to differ. Had they
+    matched, it would have computed a wrong answer in silence.
+
+    Falls back to the flat directory when no per-build one exists, so older
+    layouts keep working; pass `strict=True` to refuse that fallback.
+    """
+    cfg = _config(config)
+    name = str(cfg.get("source_build", ""))
+    root = PROJECT_ROOT / component / "data"
+    named = root / name
+    if named.is_dir():
+        return named
+    if strict:
+        raise RuntimeError(
+            f"no per-build data at {named}; build it for {name!r} rather than "
+            f"falling back to {root}, which holds whichever build was active "
+            "when it was last written")
+    return root
+
+
+def terrain_hash(config: dict | None = None) -> str:
+    """finalElevation of the configured build. The identity a result belongs to."""
+    import json
+    manifest = mesh_export(config) / "manifest.json"
+    return json.loads(manifest.read_text(encoding="utf-8"))["hashes"]["finalElevation"]
