@@ -130,6 +130,36 @@ convergence criteria, which are fixed in advance, and for the finding that
 weathering intensity is currently bracketed by a factor of 14.6 on the climate
 model's runoff.
 
+## Resolution: T42 first, T85 only behind the climate
+
+LPJ-GUESS gridcells are independent columns. There is no lateral flow between
+them and no communication after the initial split, so cost is exactly linear in
+cell count and resolution buys no dynamics, only a finer view of the forcing.
+
+| | land cells | CPU | wall on 16 ranks |
+| --- | --- | --- | --- |
+| T42 | 4,106 | 6.2 h | 23 min |
+| T85 | 16,489 | 25.0 h | 94 min |
+
+**The biosphere is never the reason to choose a resolution.** Ninety-four
+minutes is nothing beside a T85 ExoPlaSim equilibrium, and the pipeline already
+follows `config.model.resolution`, with T85 exports present for every build. So
+the biosphere should simply match whatever the climate ran at.
+
+Running LPJ-GUESS at T85 on T42 forcing would be worse than pointless: the extra
+cells would carry interpolated climate, so the model would resolve a detail that
+is not in its input, and the output would look sharper than the information
+behind it.
+
+**Expect T85 to lower total NPP, and treat that as a resolution bias rather than
+a result.** Productivity saturates with water, so it is concave, and averaging
+the forcing before the model sees it inflates the answer. The same effect is
+already measured on the Miami side of `productivity-prediction.md`: applied at
+land means it gives 603 gC/m2/yr and applied per gridcell 443, a factor of 0.73
+purely from resolving heterogeneity. T42 to T85 is a much smaller step than that,
+but it points the same way, and it means a T42 and a T85 answer are not directly
+comparable without saying so.
+
 ## Cost
 
 4106 land gridcells at T42, about 24 s each for 550 years, so roughly 1.7 hours
