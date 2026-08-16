@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated": "2026-08-16T02:12:02.075982+00:00",
-  "git_commit": "3e6e5f203552816b0b29b40fe08d9a93521c3fb6",
+  "generated": "2026-08-16T03:53:46.836305+00:00",
+  "git_commit": "4e1ff507e15f5ed3d2d6f3c01850ef867b496874",
   "generator": "scripts/world_state.py",
   "note": "Generated from the artifacts. Do not edit; re-run the generator. Judgement that no artifact can supply is in `curated`, which lives in the generator under version control.",
   "planet": {
@@ -36,7 +36,7 @@
     "ozone": true
   },
   "active_configuration": {
-    "source_build": "carved-zoned",
+    "source_build": "carved-zoned-v2",
     "model": {
       "resolution": "T42",
       "latitudes": 64,
@@ -48,6 +48,7 @@
       "physics_filter": "gp|exp|sp",
       "output_type": ".nc",
       "uniform_land_surface": true,
+      "energy_diagnostics": true,
       "land_albedo_source": "vegetated",
       "barren_rock_classes": [
         "evaporite",
@@ -110,6 +111,36 @@
         "T85"
       ],
       "superseded": true
+    },
+    "carved-zoned-v2": {
+      "terrain_hash": "010f214397338008ae28de1d8ecce93486d7ce8232e1cfb554006cfebbc14b6f",
+      "catalogue_hash": "2d1f8e57c26b60c608deaa62bd3c44b7da04a4ee5bd518249447630095d96a98",
+      "seed": 16236323,
+      "regions": 2500001,
+      "selection_source": "preserve-list",
+      "drainage_hypothesis": {
+        "preserveListGiven": 3629,
+        "carveListGiven": 0,
+        "carvedByRetainZero": 1089
+      },
+      "preserved_basins": 2540,
+      "land_fraction": 0.43173506049195565,
+      "endorheic_fraction_of_land": 0.5963116205338006,
+      "lithology_land_fractions": {
+        "continental_clastic": 0.23815,
+        "schist": 0.23298,
+        "granite": 0.13059,
+        "playa_clastic": 0.10915,
+        "gneiss": 0.08548,
+        "shelf_clastic": 0.06988
+      },
+      "grids": [
+        "T21",
+        "T42",
+        "T63",
+        "T85"
+      ],
+      "superseded": false
     },
     "precarve-unzoned": {
       "terrain_hash": "821aa71b37a7beda0b59398c7f005b91531050000ca46660d0f724cdb3f401a3",
@@ -278,16 +309,55 @@
     },
     {
       "run_id": "t42l10p16r8_s092_co20450ppm_rot30h_obl32_e020_glac_k25v_gbafe5e8b",
-      "status": "smoke_complete",
-      "orbits_complete": 33,
+      "status": "equilibrated_for_worldbuilding",
+      "orbits_complete": 40,
       "flux_earth": 0.92,
       "cycle": null,
       "resolution": "T42",
       "land_albedo_source": "vegetated",
       "source_build": "carved-zoned",
       "glaciers": true,
+      "converged": true,
+      "mean_surface_temperature_k": 287.4672591638082
+    },
+    {
+      "run_id": "t42l10p16r8_s094_co20450ppm_rot30h_obl32_e020_glac_k25v_g38a00766",
+      "status": "smoke_complete",
+      "orbits_complete": 1,
+      "flux_earth": 0.94,
+      "cycle": null,
+      "resolution": "T42",
+      "land_albedo_source": "vegetated",
+      "source_build": "carved-zoned-v2",
+      "glaciers": true,
       "converged": null,
-      "mean_surface_temperature_k": 287.562
+      "mean_surface_temperature_k": 291.883
+    },
+    {
+      "run_id": "t42l10p16r8_s094_co20450ppm_rot30h_obl32_e020_glac_k25v_g38a00766",
+      "status": "prepared",
+      "orbits_complete": 0,
+      "flux_earth": 0.94,
+      "cycle": null,
+      "resolution": "T42",
+      "land_albedo_source": "vegetated",
+      "source_build": "carved-zoned-v2",
+      "glaciers": true,
+      "converged": null,
+      "mean_surface_temperature_k": null
+    },
+    {
+      "run_id": "t42l10p16r8_s094_co20450ppm_rot30h_obl32_e020_glac_k25v_gbafe5e8b",
+      "status": "spinup_in_progress",
+      "orbits_complete": 35,
+      "flux_earth": 0.94,
+      "cycle": null,
+      "resolution": "T42",
+      "land_albedo_source": "vegetated",
+      "source_build": "carved-zoned",
+      "glaciers": true,
+      "converged": null,
+      "mean_surface_temperature_k": 291.404
     },
     {
       "run_id": "t42l10p16r8_s096_co20450ppm_rot30h_obl32_e020_glac_g43ca63cf",
@@ -625,7 +695,7 @@
       {
         "item": "energy budget closure",
         "value": 0.446,
-        "note": "Net TOA runs 0.27-0.45 W/m2 more negative than the net surface flux, which cannot both be true in steady state, and the |mean TOA| < 0.5 criterion is applied inside a bias of its own size. Better characterised now: a naive rss+rls+hfss+hfls sum misses the 0.294 W/m2 consumed melting snow, which hfns books correctly and which matches global snowmelt's latent heat of fusion to three digits. So the surface terms are internally consistent and the residual sits between the surface and the top of the atmosphere. It is structural, not climatic: the gap is -0.4529, -0.4656 and -0.4455 across three runs spanning different fluxes, terrains and mean temperatures, a 2% spread. That rules out sea ice, snow and fusion, all of which scale with climate. It is not the spectral dissipation leak either, since mkdheat returns friction and biharmonic diffusion heating under ndheat, on by default. An atmosphere truly losing this would cool 1.4 K per Earth year and these do not, so a heating term is missing from the diagnostic sum or one diagnostic is offset. PlaSim ships a 28-term decomposition on output codes 360-387 under nenergy, which would name it in a short run. Note rainmod.f90:524 inverts als and alv in that diagnostic, so term 15 is wrong; harmless to physics, fatal to the investigation. See exoplasim/notes/water-and-energy-closure.md."
+        "note": "Net TOA runs 0.27-0.45 W/m2 more negative than the net surface flux, which cannot both be true in steady state, and the |mean TOA| < 0.5 criterion is applied inside a bias of its own size. Better characterised now: a naive rss+rls+hfss+hfls sum misses the 0.294 W/m2 consumed melting snow, which hfns books correctly and which matches global snowmelt's latent heat of fusion to three digits. So the surface terms are internally consistent and the residual sits between the surface and the top of the atmosphere. It is structural, not climatic: the gap is -0.4529, -0.4656 and -0.4455 across three runs spanning different fluxes, terrains and mean temperatures, a 2% spread. That rules out sea ice, snow and fusion, all of which scale with climate. It is not the spectral dissipation leak either, since mkdheat returns friction and biharmonic diffusion heating under ndheat, on by default. An atmosphere truly losing this would cool 1.4 K per Earth year and these do not, so a heating term is missing from the diagnostic sum or one diagnostic is offset. PlaSim ships a 28-term decomposition on output codes 360-387 under nenergy, which would name it in a short run. Note rainmod.f90:524 inverted als and alv in that diagnostic, now fixed. Seasonal resolution reframes it further: per time bin the gap swings about 14 W/m2 peak to peak, repeating closely between orbits, so the annual residual is 3% of a large seasonal storage term failing to cancel rather than a uniform leak. See exoplasim/notes/water-and-energy-closure.md."
       },
       {
         "item": "retain fraction",

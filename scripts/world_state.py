@@ -129,9 +129,12 @@ CURATED = {
                  "term is missing from the diagnostic sum or one diagnostic is "
                  "offset. PlaSim ships a 28-term decomposition on output codes "
                  "360-387 under nenergy, which would name it in a short run. "
-                 "Note rainmod.f90:524 inverts als and alv in that diagnostic, so "
-                 "term 15 is wrong; harmless to physics, fatal to the "
-                 "investigation. See exoplasim/notes/water-and-energy-closure.md."},
+                 "Note rainmod.f90:524 inverted als and alv in that diagnostic, now "
+                 "fixed. Seasonal resolution reframes it further: per time bin "
+                 "the gap swings about 14 W/m2 peak to peak, repeating closely "
+                 "between orbits, so the annual residual is 3% of a large "
+                 "seasonal storage term failing to cancel rather than a uniform "
+                 "leak. See exoplasim/notes/water-and-energy-closure.md."},
         {"item": "retain fraction", "value": None,
          "note": "Measures distance from threshold, not incision capacity. A basin "
                  "that barely trickles over its sill is cut the same as one that "

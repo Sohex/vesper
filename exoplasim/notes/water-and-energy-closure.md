@@ -125,6 +125,35 @@ converts the kinetic energy difference to a temperature tendency, and adds it.
 Surface-friction dissipation is handled separately in `fluxmod.f90` under the
 same switch.
 
+### It is the residue of a much larger seasonal swing
+
+Adding seasonal resolution to the climate series changed the picture again. The
+gap is not a flat offset within an orbit; per time bin it oscillates hard:
+
+```
+orbit 70  +2.23 +6.66 +6.98 +0.95 -7.52 -6.85 -0.79 +0.23 +1.99 -1.39 -5.14 -3.89
+orbit 71  +4.70 +7.53 +5.88 -0.30 -7.04 -4.97 -1.82 -0.23 +0.56 -0.50 -4.87 -4.22
+orbit 72  +4.30 +6.71 +6.06 +0.34 -6.70 -4.64 -1.46 +1.07 +0.71 -1.55 -6.42 -1.52
+```
+
+A swing of about 14 W/m2 peak to peak, repeating closely from orbit to orbit,
+against an annual mean of -0.55, -0.44, -0.26. **The seasonal signal is 34 times
+the annual residual.**
+
+That is what it should look like. Heat goes into the slab ocean and the
+atmosphere through one half of the orbit and comes back out through the other,
+while the top of the atmosphere lags, so TOA and surface disagree strongly within
+a year and should cancel across it. The interesting quantity is therefore not a
+constant leak but **the part that fails to cancel**, which is a very small
+difference between two large numbers.
+
+That reframes the search. A 3% asymmetry in a 14 W/m2 seasonal storage term
+produces the whole residual, so the candidates are things that would bias one
+half of the orbit against the other, rather than things that lose energy
+uniformly. Note the bins are equal-length time averages, so their plain mean is
+the true annual mean and the residual is not a sampling artifact of the 12-bin
+output.
+
 ### What it most likely is
 
 An atmosphere genuinely losing 0.45 W/m2 would cool about 1.4 K per Earth year,
