@@ -52,8 +52,10 @@ The prediction assumes the porting decisions in
 | item | value |
 | --- | --- |
 | calendar | 24-hour steps, 181-day year |
-| `FRADPAR` | 0.40, from the k25v spectrum |
+| `FRADPAR` | 0.4624, from the k25v spectrum over a 400-750 nm window |
 | PFT set | Earth's, as an Earth-analogue biosphere |
+| photosystem window | 400-750 nm, K2V-adapted (see the amendment below) |
+| `nfix_a` | 0.234, LPJ-GUESS's central value; range 0.102-0.367 |
 | `gdd5min` | rescaled by 180.655 / 365.2569 = 0.4946 |
 | CO2 | 450 ppm |
 | nitrogen | a declared constant, not modelled deposition |
@@ -263,6 +265,58 @@ from 0.396 to about 0.48 and re-register; this document becomes void rather than
 wrong. The swing is roughly +20% on light-limited productivity, which is inside
 the tolerance bands above, so adopting it would not by itself falsify anything
 here.
+
+## Amendment: the photosystem window was widened, and the prediction stands
+
+Registered against Earth's 400-700 nm window. That window has since been changed
+to 400-750 nm as a deliberate worldbuilding decision, on Lehmer et al. 2021's
+predicted K2V peaks of 675, 711 and 746 nm. `FRADPAR` moved from 0.3963 to
+0.4624, a rise of 16.8%.
+
+Under the rules at the top of this document that makes the registration void
+rather than wrong, and it is re-registered here rather than quietly edited. The
+numbers themselves do not move: the document already said a redward shift was
+worth roughly +20% on light-limited productivity, which sits inside every
+tolerance band in the table, and 16.8% duly does. **No prediction changes.** What
+changes is that the registered numbers now sit nearer the centre of their bands
+than the conservative edge.
+
+Setting the window exposed a real bug in `build_vesper_header.py`, which had been
+scaling the star's PAR fraction against the Sun's measured over the *same*
+window. Widening the window widened both and cancelled most of the effect,
+giving 0.4076 instead of 0.4624. Earth's 0.5 is anchored to Earth's own
+400-700 nm window, so the solar reference has to stay there whatever window this
+world's biosphere is given.
+
+## Amendment: nitrogen, measured rather than assumed
+
+This document listed nitrogen as "a declared constant" and the biases section
+called deposition the largest unbracketed assumption in the biosphere. Measured
+over 18 cells spanning 63 S to 57 N, that was wrong.
+
+At the declared 0.5 kgN/ha/yr, deposition supplies 0.50 kgN/ha/yr against 4.36
+from biological fixation and 25.4 from mineralisation: **1.7% of the nitrogen
+plants actually receive.** Sweeping deposition over 150-fold, 0.1 to 15
+kgN/ha/yr, moves NPP by 12% non-monotonically, which at `npatch 5` is patch
+stochasticity rather than signal.
+
+The nitrogen lever is `nfix_a`, the Cleveland fixation-against-evapotranspiration
+fit, and LPJ-GUESS brackets it in `global.ins` itself:
+
+| `nfix_a` | fixation | available N | NPP | vs central |
+| --- | --- | --- | --- | --- |
+| 0.102 conservative | 2.60 | 23.74 | 0.2356 | -10.8% |
+| 0.234 central | 4.36 | 30.30 | 0.2642 | - |
+| 0.367 upper | 5.20 | 29.85 | 0.2785 | +5.4% |
+
+A monotone 18.2% span in NPP, all units kgN/ha/yr and kgC/m2 per simulation
+year. That is inside the tolerance bands here, so again no prediction changes,
+but productivity figures should be quoted with the bracket rather than from the
+central value alone.
+
+One thing that does not need correcting: the fit is a flux per unit
+evapotranspiration, so it scales correctly with this world's shorter year
+without intervention.
 
 ## Result
 

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated": "2026-08-16T01:27:32.385619+00:00",
-  "git_commit": "51c2bae4b1ad7aca9baf86faf4695d4107c1f643",
+  "generated": "2026-08-16T01:45:46.815009+00:00",
+  "git_commit": "2ad534f441615b638e2e063005d08dec32e4893a",
   "generator": "scripts/world_state.py",
   "note": "Generated from the artifacts. Do not edit; re-run the generator. Judgement that no artifact can supply is in `curated`, which lives in the generator under version control.",
   "planet": {
@@ -279,7 +279,7 @@
     {
       "run_id": "t42l10p16r8_s092_co20450ppm_rot30h_obl32_e020_glac_k25v_gbafe5e8b",
       "status": "smoke_complete",
-      "orbits_complete": 5,
+      "orbits_complete": 17,
       "flux_earth": 0.92,
       "cycle": null,
       "resolution": "T42",
@@ -287,7 +287,7 @@
       "source_build": "carved-zoned",
       "glaciers": true,
       "converged": null,
-      "mean_surface_temperature_k": 293.093
+      "mean_surface_temperature_k": 288.754
     },
     {
       "run_id": "t42l10p16r8_s096_co20450ppm_rot30h_obl32_e020_glac_g43ca63cf",
@@ -464,33 +464,33 @@
     "caveat": "Computed on precarve-unzoned with evaporite as one class at 0.50. Both have since been superseded. Quote as the 0.96 pre-carve baseline, never as Vesper's climate."
   },
   "hydrography": {
-    "terrain_hash": "821aa71b37a7beda0b59398c7f005b91531050000ca46660d0f724cdb3f401a3",
+    "terrain_hash": "3899a0c57d1eee2f47ba9054c218a171a7aa4532e2437c9104070c2c3dfaece6",
     "drainage": {
-      "land_fraction_of_planet": 0.4317358383866897,
-      "endorheic_fraction_of_land": 0.761122105547923,
-      "ocean_draining_fraction_of_land": 0.23887789445207697,
+      "land_fraction_of_planet": 0.43173568067758117,
+      "endorheic_fraction_of_land": 0.5510699826268739,
+      "ocean_draining_fraction_of_land": 0.4489300173731261,
       "unresolved_regions": 0,
-      "pits_filled": 99085,
-      "median_fill_depth_m": 8.505018224241212
+      "pits_filled": 114996,
+      "median_fill_depth_m": 7.552199065685272
     },
     "basins": {
-      "count": 3629,
-      "total_capacity_km3": 6838339.389490922,
-      "total_area_at_spill_km2": 64178391.38765645,
-      "area_at_spill_fraction_of_planet": 0.08731836967360074,
-      "total_catchment_km2": 241521415.5939877,
-      "catchment_to_spill_area_ratio_median": 3.921150087730079,
-      "merged_basins": 323,
-      "spills_to_ocean": 1032,
-      "spills_into_another_basin": 2597,
+      "count": 2107,
+      "total_capacity_km3": 3462955.9571825666,
+      "total_area_at_spill_km2": 43182464.3583312,
+      "area_at_spill_fraction_of_planet": 0.058752210903545064,
+      "total_catchment_km2": 174867018.9800055,
+      "catchment_to_spill_area_ratio_median": 4.0296443390280485,
+      "merged_basins": 205,
+      "spills_to_ocean": 670,
+      "spills_into_another_basin": 1437,
       "critical_aridity_index_percentiles": {
-        "5": 1.1006974780060768,
-        "25": 1.8685688942668004,
-        "50": 2.921150087730079,
-        "75": 4.8179198435445025,
-        "95": 11.64651177361583
+        "5": 1.1215397081949128,
+        "25": 1.941515648543682,
+        "50": 3.0296443390280485,
+        "75": 5.07664607320212,
+        "95": 15.657799318197005
       },
-      "capacity_vs_natural_catalogue": 0.6664644218562505
+      "capacity_vs_natural_catalogue": 0.6113686340903535
     },
     "carve_verdict": {
       "bounds": {
@@ -574,13 +574,23 @@
         "note": "The single most under-determined quantity in the pipeline. ExoPlaSim reports a 2.8% land runoff ratio where Earth manages ~35%, almost certainly because configure() clears the soil field capacity and it falls back to a uniform 0.5 m bucket. It propagates: weathering intensity 0.19 against 2.81 depending on whether runoff or precipitation drives it, and with it clay 0.28 against 0.55, water capacity 342 against 463 mm, bedrock water 0.14 against 1.05. Two different planets' soils. The fix is self-referential, since the field that would resolve it is the one pedology computes, and build_surface_soil_water.py now supplies it under model.soil_water_source. Whether that loop converges is untested."
       },
       {
+        "item": "nitrogen fixation, nfix_a",
+        "value": 0.234,
+        "range": [
+          0.102,
+          0.367
+        ],
+        "worth_npp_fraction": 0.182,
+        "note": "The real nitrogen lever, and LPJ-GUESS documents the range itself in global.ins as conservative/central/upper. Measured over 18 cells: NPP 0.2356, 0.2642, 0.2785 kgC/m2 across the three, a monotone 18.2% span. It is the Cleveland fixation-versus-evapotranspiration fit, an Earth calibration with no way to check it here. It does scale correctly with this world's calendar, being a flux per unit AET."
+      },
+      {
         "item": "nitrogen deposition",
         "value": 0.5,
         "range": [
           0.1,
-          5.0
+          15.0
         ],
-        "note": "kgN/ha/yr, declared with no basis: this world has no deposition field, no industry and no measured nitrogen cycle. On Earth N limitation is a first-order control on NPP and LPJ-GUESS is run with N enabled, so every productivity number inherits it. The range is a guess at a guess and has never been swept. This is the largest unbracketed assumption in the biosphere."
+        "note": "Declared with no basis, and measured to be second-order, which is the opposite of what was recorded here before. At 0.5 kgN/ha/yr deposition supplies 0.50 against 4.36 from biological fixation and 25.4 from mineralisation, so 1.7% of the nitrogen plants actually receive. Sweeping it over 150x, 0.1 to 15, moves NPP by 12% non-monotonically, which at 18 cells and npatch 5 is patch stochasticity. Recycling and fixation dominate; the assumption stands but carries little."
       },
       {
         "item": "playa_clastic albedo",
@@ -623,7 +633,7 @@
       "Choose the flux from what it measures, not from the estimate.",
       "Supply equilibrium lake levels as --water-level so basin floors stop being exported as dry ground.",
       "Run LPJ-GUESS on the resulting climatology and replace the assumed biosphere, then score it against biosphere/notes/productivity-prediction.md.",
-      "Sweep nitrogen deposition and report the NPP spread, rather than carrying a single declared value into every result.",
+      "Carry the nfix_a bracket, 0.102-0.367, through to the productivity numbers rather than quoting the central value alone.",
       "Enable model.soil_water_source: pedology and check the soil-runoff loop converges rather than oscillating.",
       "Iteration-2 carve verdict, with retain as a function of discharge and the 228 zero-runoff spillers handled.",
       "One T85 equilibrium once terrain and biosphere settle, for regional products.",

@@ -70,13 +70,24 @@ CURATED = {
                  "one pedology computes, and build_surface_soil_water.py now "
                  "supplies it under model.soil_water_source. Whether that loop "
                  "converges is untested."},
-        {"item": "nitrogen deposition", "value": 0.5, "range": [0.1, 5.0],
-         "note": "kgN/ha/yr, declared with no basis: this world has no deposition "
-                 "field, no industry and no measured nitrogen cycle. On Earth N "
-                 "limitation is a first-order control on NPP and LPJ-GUESS is run "
-                 "with N enabled, so every productivity number inherits it. The "
-                 "range is a guess at a guess and has never been swept. This is "
-                 "the largest unbracketed assumption in the biosphere."},
+        {"item": "nitrogen fixation, nfix_a", "value": 0.234,
+         "range": [0.102, 0.367], "worth_npp_fraction": 0.182,
+         "note": "The real nitrogen lever, and LPJ-GUESS documents the range "
+                 "itself in global.ins as conservative/central/upper. Measured "
+                 "over 18 cells: NPP 0.2356, 0.2642, 0.2785 kgC/m2 across the "
+                 "three, a monotone 18.2% span. It is the Cleveland "
+                 "fixation-versus-evapotranspiration fit, an Earth calibration "
+                 "with no way to check it here. It does scale correctly with this "
+                 "world's calendar, being a flux per unit AET."},
+        {"item": "nitrogen deposition", "value": 0.5, "range": [0.1, 15.0],
+         "note": "Declared with no basis, and measured to be second-order, which "
+                 "is the opposite of what was recorded here before. At 0.5 "
+                 "kgN/ha/yr deposition supplies 0.50 against 4.36 from biological "
+                 "fixation and 25.4 from mineralisation, so 1.7% of the nitrogen "
+                 "plants actually receive. Sweeping it over 150x, 0.1 to 15, moves "
+                 "NPP by 12% non-monotonically, which at 18 cells and npatch 5 is "
+                 "patch stochasticity. Recycling and fixation dominate; the "
+                 "assumption stands but carries little."},
         {"item": "playa_clastic albedo", "value": 0.30, "range": [0.25, 0.33],
          "worth_w_m2": 1.99, "worth_k": 1.87,
          "note": "Dominant remaining albedo lever: 18.8% of land against the salt "
@@ -109,8 +120,8 @@ CURATED = {
         "exported as dry ground.",
         "Run LPJ-GUESS on the resulting climatology and replace the assumed "
         "biosphere, then score it against biosphere/notes/productivity-prediction.md.",
-        "Sweep nitrogen deposition and report the NPP spread, rather than "
-        "carrying a single declared value into every result.",
+        "Carry the nfix_a bracket, 0.102-0.367, through to the productivity "
+        "numbers rather than quoting the central value alone.",
         "Enable model.soil_water_source: pedology and check the soil-runoff loop "
         "converges rather than oscillating.",
         "Iteration-2 carve verdict, with retain as a function of discharge and the "
