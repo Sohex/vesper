@@ -502,7 +502,17 @@ def main() -> None:
     DATA.mkdir(parents=True, exist_ok=True)
     # Resolved so a relative or out-of-tree --output does not break the
     # provenance record's relative_to(PROJECT_ROOT).
-    output = (args.output or (DATA / "soilmap.txt")).resolve()
+    # Per build. Soil texture derives from lithology, so a soil map belongs to
+    # the terrain it was computed from, and LPJ-GUESS eats this file directly.
+    if args.output is None:
+        import sys as _sys
+        _sys.path.insert(0, str(PROJECT_ROOT / "lib"))
+        import builds as _b
+        default_out = _b.soilmap(config)
+        default_out.parent.mkdir(parents=True, exist_ok=True)
+    else:
+        default_out = args.output
+    output = Path(default_out).resolve()
     lon_signed = np.where(lon > 180.0, lon - 360.0, lon)
     rows = np.argwhere(land)
     with output.open("w") as handle:

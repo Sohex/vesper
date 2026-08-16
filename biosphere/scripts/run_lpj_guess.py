@@ -149,12 +149,17 @@ def main() -> None:
     parser.add_argument("--nfix-b", type=float, default=-0.172)
     parser.add_argument("--driver", type=Path, default=GENERATED / "vesper_driver.bin")
     parser.add_argument("--soilmap", type=Path,
-                        default=PROJECT_ROOT / "pedology" / "data" / "soilmap.txt")
+                        default=None)
     parser.add_argument("--pfts", type=Path, default=GENERATED / "vesper_pfts.ins")
     parser.add_argument("--label", default=None,
                         help="human tag for the run directory name")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
+    if args.soilmap is None:
+        import sys as _sys
+        _sys.path.insert(0, str(PROJECT_ROOT / 'lib'))
+        import builds as _b
+        args.soilmap = _b.soilmap()
 
     for path in (args.driver, args.soilmap, args.pfts, GUESS_BINARY):
         if not Path(path).is_file():

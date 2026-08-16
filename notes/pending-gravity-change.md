@@ -28,7 +28,11 @@ That has consequences the project was not intending to assert:
 
 ## The target
 
-    density 6.0 g/cm3  ->  M = 1.880 Earth masses,  g = 12.81 m/s2
+    g = 12.81 m/s2  ->  M = 1.881009 Earth masses,  density 6.002 g/cm3
+
+Gravity is the declared value and mass follows, because Orogen scales relief by
+gravity and the terrain therefore cannot be separated from it. `derive()` refuses
+a mass and gravity that disagree, so the pair cannot drift apart.
 
 Earth-like life remains reasonable at that gravity, which is the constraint that
 matters for this world.
@@ -65,3 +69,27 @@ it teaches about method, not for its numbers.
 
 `derive()` in `run_exoplasim.py` already refuses a mass and gravity that
 disagree, so the two cannot be changed independently by accident.
+
+
+## Status
+
+Base regeneration requested from World Orogen on 2026-08-16 at g = 12.81, no
+carve list, with the crust/fill zoning and the cover-chain fix. `planet.yaml` is
+deliberately NOT yet edited: the config and the artifacts must move together, and
+the terrain is the thing that takes time.
+
+When the build lands, in order:
+
+1. Register the hash in `lib/orogen.py`; expect `basinCatalogue` to have moved,
+   which invalidates every carve verdict rather than merely ageing it.
+2. Edit `planet.yaml`: `gravity_m_s2` 12.81, `mass_earth` 1.881009,
+   `source_build` to the new build.
+3. `python scripts/check_consistency.py`, which will list everything stale.
+4. Rebuild hydrography, boundary conditions, albedo, roughness.
+5. Re-derive the baseline flux from scratch. Do not carry 0.945 across: relief
+   compresses by about 20%, which moves lithology exposure and orography, and the
+   flux was measured against neither.
+6. Carve loop again from the pre-carve base.
+
+Prediction made before the build exists, so it can be scored: relief scales as
+1/g, so the highest point should fall from 5.769 km to about 4.6 km.

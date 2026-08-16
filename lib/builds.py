@@ -92,3 +92,15 @@ def terrain_hash(config: dict | None = None) -> str:
     import json
     manifest = mesh_export(config) / "manifest.json"
     return json.loads(manifest.read_text(encoding="utf-8"))["hashes"]["finalElevation"]
+
+
+def soilmap(config: dict | None = None) -> Path:
+    """Pedology's soil map for the configured build.
+
+    Soil texture derives from lithology, so this is per-build like everything
+    else downstream of a terrain. It was a flat `pedology/data/soilmap.txt` with
+    no build in the name, which is the same trap that caught four hydrography
+    scripts with one fewer script in it -- and this one feeds LPJ-GUESS, which
+    would have grown a biosphere on another planet's soil without complaint.
+    """
+    return component_data("pedology", config) / "soilmap.txt"

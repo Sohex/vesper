@@ -260,7 +260,7 @@ def main() -> None:
     default_bedrock_fraction = 0.05
     soil_map = args.soil_map
     if soil_map is None:
-        candidate = PROJECT_ROOT / "pedology" / "data" / "soilmap.txt"
+        candidate = builds.soilmap()
         soil_map = candidate if candidate.is_file() else None
     if soil_map is not None:
         lines = soil_map.read_text().splitlines()

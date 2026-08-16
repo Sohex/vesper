@@ -71,7 +71,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, default=CONFIG)
     parser.add_argument("--soil-map", type=Path,
-                        default=PROJECT_ROOT / "pedology" / "data" / "soilmap.txt")
+                        default=None)
     parser.add_argument("--climatology", type=Path,
                         default=(PROJECT_ROOT / "exoplasim" / "analysis"
                                  / "climatology_s096"
@@ -90,6 +90,11 @@ def main() -> None:
 
     config = yaml.safe_load(args.config.read_text(encoding="utf-8"))
     model = config["model"]
+    if args.soil_map is None:
+        import sys as _sys
+        _sys.path.insert(0, str(PROJECT_ROOT / "lib"))
+        import builds as _b
+        args.soil_map = _b.soilmap(config)
     nlat, nlon = int(model["latitudes"]), int(model["longitudes"])
     resolution = str(model["resolution"]).upper()
 
