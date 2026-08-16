@@ -90,7 +90,7 @@ def main() -> None:
     # year. Getting this wrong looks like missing every line low by 2.
     to_earth = manifest.get("simulation_years_to_earth_years")
     if to_earth is None:
-        to_earth = 365.2568983 / orbit.orbital_year_days(config)
+        to_earth = 1.0 / orbit.earth_years_per_orbit(config)
 
     with nc.Dataset(climatology) as data:
         lat = np.asarray(data["lat"][:], dtype=float)
@@ -98,7 +98,7 @@ def main() -> None:
         land = np.asarray(data["lsm"][0], dtype=float) > 0.5
         temperature = np.asarray(data["tas"][:], dtype=float).mean(axis=0) - 273.15
         precip = (np.asarray(data["pr"][:], dtype=float).mean(axis=0)
-                  * 1000.0 * 86400.0 * 365.2425)
+                  * 1000.0 * 86400.0 * orbit.EARTH_CALENDAR_YEAR_DAYS)
 
     radius_km = 6371.0 * float(config["planet"]["radius_earth"])
     weight = np.cos(np.deg2rad(lat))[:, None] * np.ones((1, len(lon)))

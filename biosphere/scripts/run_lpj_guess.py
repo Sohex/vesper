@@ -232,7 +232,7 @@ def main() -> None:
         "stellar_spectrum": config.get("radiation", {}).get("stellar_spectrum"),
         "orbital_year_earth_days": orbit.orbital_year_days(config),
         "simulation_years_to_earth_years": (
-            365.2568983 / orbit.orbital_year_days(config)),
+            1.0 / orbit.earth_years_per_orbit(config)),
         "unit_note": (
             "LPJ-GUESS reports per simulation year, which is this world's year. "
             "Multiply by simulation_years_to_earth_years before comparing with "

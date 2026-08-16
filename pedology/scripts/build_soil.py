@@ -42,14 +42,14 @@ from _paths import (ANALYSIS, CONFIG, DATA, PEDOGENESIS, PROJECT_ROOT,
 import builds
 import orbit
 from gridding import land_fraction_of_class
-from orogen import Export
+from orogen import Export, LAND
 
 # Coordinate precision shared with biosphere/scripts/build_lpj_driver.py.
 # LPJ-GUESS keys its soil map on an exactly-compared pair of doubles, so both
 # files must round identically or every lookup misses.
 COORD_DECIMALS = 4
 
-EARTH_YEAR_DAYS = 365.2425
+EARTH_YEAR_DAYS = orbit.EARTH_CALENDAR_YEAR_DAYS
 KELVIN = 273.15
 
 # Which pH parent group each Orogen rock category maps to. Kept in code rather
@@ -92,6 +92,36 @@ def lithology_fractions(config: dict) -> tuple[dict[str, np.ndarray], Export, Pa
         if selected.any():
             fractions[code] = land_fraction_of_class(mesh, grid_dir, selected)
     return fractions, mesh, grid_dir
+
+
+def subgrid_slope(mesh: Export, grid_dir: Path) -> np.ndarray:
+    """Representative within-cell gradient, from mesh elevation spread.
+
+    Standard deviation of mesh-region elevation inside each grid cell, divided by
+    the mesh spacing. Land regions only, so a coastal cell is not handed the
+    continental shelf as a hillslope.
+    """
+    from gridding import region_cells
+
+    cell, nlat, nlon = region_cells(mesh, grid_dir)
+    elevation_m = mesh.elevation_km.astype(np.float64) * 1000.0
+    is_land = mesh.surface_class == LAND
+    spacing_km = float(
+        mesh.manifest["basins"]["resolution"]["avgEdgeKm"])
+
+    ncell = nlat * nlon
+    count = np.zeros(ncell)
+    total = np.zeros(ncell)
+    square = np.zeros(ncell)
+    np.add.at(count, cell[is_land], 1.0)
+    np.add.at(total, cell[is_land], elevation_m[is_land])
+    np.add.at(square, cell[is_land], elevation_m[is_land] ** 2)
+
+    with np.errstate(invalid="ignore", divide="ignore"):
+        mean = np.where(count > 0, total / np.maximum(count, 1), 0.0)
+        variance = np.where(count > 1, square / np.maximum(count, 1) - mean ** 2, 0.0)
+    spread = np.sqrt(np.maximum(variance, 0.0))
+    return (spread / (spacing_km * 1000.0)).reshape(nlat, nlon)
 
 
 def weathering_intensity(runoff_mm_yr: np.ndarray, temperature_c: np.ndarray,
@@ -322,6 +352,10 @@ def main() -> None:
             * 1000.0 * 86400.0 * EARTH_YEAR_DAYS
         elevation = np.asarray(data["sg"][:], dtype=float).mean(axis=0) \
             / float(config["planet"]["gravity_m_s2"])
+        # Timestep extrema, so these carry the full 30-hour diurnal swing and a
+        # bin can straddle freezing even where the bin mean never does.
+        bin_min = np.asarray(data["mint"][:], dtype=float) - KELVIN
+        bin_max = np.asarray(data["maxt"][:], dtype=float) - KELVIN
 
     fractions, mesh, grid_dir = lithology_fractions(config)
 
@@ -333,6 +367,25 @@ def main() -> None:
         backward = np.roll(elevation, -1, axis=axis)
         relief = np.maximum(relief, np.maximum(np.abs(elevation - forward),
                                                np.abs(elevation - backward)))
+
+    # Slope for the transport term, from the native mesh rather than from this
+    # grid, and it has to be.
+    #
+    # Catena is a hillslope process and a T42 cell is about 330 km across.
+    # Differencing neighbouring cell centres gives a land-mean gradient of 0.001,
+    # three orders of magnitude below a real hillslope, and the term does
+    # nothing. The mesh resolves 15.19 km, so within-cell elevation spread over
+    # that spacing is a far better representative gradient.
+    #
+    # It is still an underestimate: real catenas run at 100 m scale and gradients
+    # of 0.1 to 0.5. So this term reproduces the *pattern*, mountains thin and
+    # basins deep, rather than the absolute magnitude, and `slope_transport` is
+    # set against that pattern. Recorded rather than tuned away.
+    tan_beta = subgrid_slope(mesh, grid_dir)
+
+    # Fraction of the orbit whose diurnal range straddles freezing. Freeze-thaw
+    # cycling shatters rock; ground frozen solid all bin does not.
+    frost_fraction = np.mean((bin_min < 0.0) & (bin_max > 0.0), axis=0)
 
     erodibility = np.zeros_like(elevation)
     total_share = np.zeros_like(elevation)
@@ -364,6 +417,24 @@ def main() -> None:
     depth = regolith_depth(intensity, relief, runoff, erodibility,
                            pedo["regolith"],
                            pedo["weathering"]["reference_runoff_mm_per_earth_year"])
+
+    # Catena. Frost shattering adds production; slope takes it away again. The
+    # chemical side is untouched: clay fraction still comes from the weathering
+    # intensity, and this only decides how much material there is and how much of
+    # the fine fraction stayed put.
+    catena = pedo["catena"]
+    depth = depth * (1.0 + catena["frost_production_bonus"] * frost_fraction)
+    depth = depth / (1.0 + catena["slope_transport"] * tan_beta)
+    depth = np.clip(depth, pedo["regolith"]["minimum_depth_m"],
+                    pedo["regolith"]["maximum_depth_m"])
+
+    # Fines are shed preferentially downhill, so a slope keeps the coarse
+    # fraction. Moves clay to sand, conserving the total.
+    fines_loss = np.clip(catena["slope_fines_loss"] * tan_beta,
+                         0.0, catena["maximum_fines_loss"])
+    moved = texture["clay"] * fines_loss
+    texture["clay"] = texture["clay"] - moved
+    texture["sand"] = texture["sand"] + moved
     ph = soil_ph(fractions, runoff, endorheic, pedo["ph"],
                  pedo["weathering"]["reference_runoff_mm_per_earth_year"])
 
@@ -467,6 +538,9 @@ def main() -> None:
             "precipitation_mm_per_earth_year": mean(precip),
             "temperature_c": mean(temperature),
             "endorheic_fraction": mean(endorheic),
+            "tan_slope": mean(tan_beta),
+            "frost_cycling_fraction_of_orbit": mean(frost_fraction),
+            "slope_fines_lost": mean(fines_loss),
         },
         "regolith_note": (
             "LPJ-GUESS 4.1.1 has a fixed 1.5 m profile and does not consume "
@@ -495,7 +569,9 @@ def main() -> None:
     print(f"texture             sand {means['sand']:.3f}  silt {means['silt']:.3f}  "
           f"clay {means['clay']:.3f}   inert quartz {means['quartz_inert']:.3f}")
     print(f"pH                  {means['ph']:.2f}")
-    print(f"regolith depth      {means['regolith_depth_m']:.2f} m (not consumed)")
+    print(f"regolith depth      {means['regolith_depth_m']:.2f} m "
+          f"(catena: slope {means['tan_slope']:.3f}, frost cycling "
+          f"{means['frost_cycling_fraction_of_orbit']:.3f} of the orbit)")
     print(f"organic fraction    {means['organic_fraction']:.4f} "
           f"from {means['soil_carbon_kg_m2']:.2f} kgC/m2")
     print(f"bulk density        {means['bulk_density_kg_m3']:.0f} kg/m3")

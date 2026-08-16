@@ -44,7 +44,7 @@ from _paths import CONFIG, GENERATED, GUESS_SOURCE, PROJECT_ROOT
 
 import orbit
 
-EARTH_YEAR_DAYS = 365.2568983
+EARTH_YEAR_DAYS = orbit.EARTH_SIDEREAL_YEAR_DAYS
 
 # Two kinds of scaling, in opposite directions, and confusing them would be
 # worse than doing neither.

@@ -339,7 +339,8 @@ def main() -> None:
         "land_mean_temperature_c": float(
             np.average(tas.mean(axis=(0, 1))[land], weights=lw)),
         "land_mean_precip_mm_per_earth_year": float(
-            np.average(pr.mean(axis=(0, 1))[land], weights=lw) * 365.2425),
+            np.average(pr.mean(axis=(0, 1))[land], weights=lw)
+            * orbit.EARTH_CALENDAR_YEAR_DAYS),
         "land_mean_net_sw_w_m2": float(
             np.average(rss.mean(axis=(0, 1))[land], weights=lw)),
         "soil": soil_summary,

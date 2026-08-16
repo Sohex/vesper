@@ -43,6 +43,8 @@ import numpy as np
 
 from _paths import ANALYSIS
 
+from orbit import EARTH_CALENDAR_YEAR_DAYS
+
 
 COORDINATES = {"time", "lat", "lon", "lev", "levp", "fourier", "modes"}
 ORBITAL_GEOMETRY = {"nu", "lambda", "zdec", "rdist", "rasc"}
@@ -198,7 +200,7 @@ def climate_series(paths: list[Path], years: list[int]) -> dict:
             hfns = per_bin("hfns")
             closure["toa_minus_surface_w_m2"].append(
                 [r6(a - b) for a, b in zip(ntr, hfns)])
-            seconds = 86400.0 * 365.2425
+            seconds = 86400.0 * EARTH_CALENDAR_YEAR_DAYS
             p = per_bin("pr", land)
             e = per_bin("evap", land)
             q = per_bin("mrro", land)

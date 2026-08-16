@@ -206,6 +206,64 @@ adding it moves `config_sha256` and `continue_exoplasim.py` refuses to resume a
 run whose config hash has changed. The code defaults to `uniform` when the key is
 missing, so nothing changes for a run in flight. Add the key when re-baselining.
 
+## Catena: physical production and topographic transport
+
+Chemical weathering alone does not make a soil. Two terms sit on top of it, both
+cheap because the inputs already existed.
+
+**Frost shattering** breaks rock far faster than dissolution, and it needs
+freeze-thaw *cycling* rather than cold: a bin whose diurnal range straddles
+freezing cracks rock, one frozen solid all bin does not. The climatology carries
+`mint` and `maxt` as timestep extrema, so the straddling fraction is directly
+measurable. It comes out at 0.088 of the orbit as a land mean, against 34.8% of
+land having a frost season at all.
+
+**Topographic transport** moves regolith downhill, so ridges keep thin stony
+lithosol and valley floors accumulate deep clay-rich fill:
+
+    depth = depth_weathered * (1 + frost_bonus * frost_fraction)
+                            / (1 + slope_transport * tan(beta))
+
+with fines shed preferentially, moving clay to sand on slopes.
+
+**The slope has to come from the mesh, and that is the interesting part.** Catena
+is a hillslope process; a T42 cell is about 330 km across. Differencing
+neighbouring cell centres gives a land-mean gradient of **0.001**, three orders
+of magnitude below a real hillslope, and the term does nothing at all. Taking the
+within-cell spread of mesh elevation over the 15.19 km mesh spacing instead gives
+**0.031**, thirty times larger and spatially structured.
+
+It is still an underestimate. Real catenas run at 100 m scale and gradients of
+0.1 to 0.5, so even the mesh is coarse by two orders of magnitude. This term
+therefore reproduces the *pattern*, mountains thin and basins deep, and not the
+absolute magnitude. `slope_transport` is set against that pattern, which is a
+weaker claim than a calibration and is stated as such.
+
+### The depth model rails, and that predates the catena
+
+Adding the catena made an existing weakness visible. Regolith depth now
+distributes as:
+
+| percentile | depth m |
+| --- | --- |
+| 5 | 0.02 |
+| 25 | 0.03 |
+| 50 | 0.45 |
+| 75 | 4.70 |
+| 95 | 5.00 |
+
+A quarter of land sits on the 0.02 m floor and a quarter on the 5.00 m ceiling.
+That is the production-against-erosion balance saturating, not a bimodal planet:
+`depth = h_star * ln(production / erosion)` diverges wherever erosion approaches
+zero and floors wherever it exceeds production, and both happen readily.
+
+Earth has nothing like 25% bare rock, so **the depth field should not be quoted
+or used to draw conclusions until this is fixed.** It feeds water capacity, which
+feeds both the biosphere and the ExoPlaSim bucket, so the effect is not confined
+to a diagnostic. The likely fix is a saturating production function bounded by a
+maximum weathering-front depth rather than a logarithm, which is what Heimsath's
+formulation actually implies. Recorded rather than tuned.
+
 ## Known gaps
 - **Time is not represented.** Weathering intensity folds the time integral into
   its normalisation, so a young volcanic surface and an ancient craton weather

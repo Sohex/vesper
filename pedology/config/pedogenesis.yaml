@@ -277,3 +277,43 @@ water:
   # cell from producing a bucket that never fills or never empties.
   minimum_mm: 10.0
   maximum_mm: 800.0
+
+# ---------------------------------------------------------------------------
+# Catena: physical production and topographic transport
+# ---------------------------------------------------------------------------
+# Chemical weathering alone does not make a soil. The catena concept adds two
+# things to it, and both are cheap here because the inputs already exist.
+#
+# PHYSICAL PRODUCTION. Frost shattering breaks rock far faster than dissolution
+# does, and it needs freeze-thaw cycling rather than cold: a bin whose diurnal
+# range straddles freezing cracks rock, one frozen solid all day does not. The
+# climatology carries `mint` and `maxt` as timestep extrema, so the fraction of
+# the orbit spent straddling 0 C is directly measurable. On this world 34.8% of
+# land has a frost season at all, so it is not a polar-only term.
+#
+# TOPOGRAPHIC TRANSPORT. Regolith moves downhill. A steep ridge sheds its fines
+# and keeps thin stony lithosol; a valley floor accumulates deep clay-rich fill.
+# Modelling that as a slope divisor is the standard first-order treatment and it
+# is what makes the soil map look like terrain rather than like a climate map.
+#
+#   depth = depth_weathered * (1 + frost_bonus * frost_fraction)
+#                           / (1 + slope_transport * tan(beta))
+#
+# The chemical side is untouched: clay fraction still comes from the
+# Walker-Hays-Kasting intensity above. This only moves material around and
+# decides how much of it there is.
+catena:
+  # Extra regolith production per unit frost-cycling fraction, relative to the
+  # chemical rate. Frost shattering is commonly an order of magnitude faster
+  # than dissolution in periglacial settings; 3.0 is deliberately conservative
+  # against that, since this world's frost season is short.
+  frost_production_bonus: 3.0
+  # Slope divisor. tan(beta) = 0.1, a 6 degree hillslope, thins the profile by
+  # about a third at k = 4; tan(beta) = 0.5, a 27 degree mountainside, thins it
+  # to a third. Both are the right order for measured catenas.
+  slope_transport: 4.0
+  # Fines are shed preferentially, so what survives on a slope is coarser. This
+  # is the fraction of the clay excess over the sand that migrates per unit
+  # tan(beta), capped so a cliff does not go to pure sand.
+  slope_fines_loss: 0.35
+  maximum_fines_loss: 0.6

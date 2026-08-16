@@ -46,7 +46,7 @@ from _paths import ANALYSIS, CONFIG, DATA, PROJECT_ROOT, climatology_path
 
 import orbit
 
-EARTH_YEAR_DAYS = 365.2425
+EARTH_YEAR_DAYS = orbit.EARTH_CALENDAR_YEAR_DAYS
 SECONDS_PER_DAY = 86400.0
 
 # landmod.f90:53. Soil water above this fraction of capacity evaporates at the

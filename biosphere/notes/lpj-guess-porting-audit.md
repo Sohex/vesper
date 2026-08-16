@@ -140,14 +140,33 @@ crop sowing.
 instead of scattering it across every rate in the model, and it is the one that
 can be checked, because the residual error has a known sign.
 
-Under Option A, `daylength` must be supplied as the lit fraction of the diurnal
-cycle multiplied by 24 h, not by 30 h, so that the light-to-dark ratio and the
-daily radiation total are both preserved. What is then wrong is instantaneous
-irradiance: the same daily energy delivered over a nominal 12 h instead of a real
-15.1 h is 25.9% brighter than reality. Because photosynthesis saturates with
-light, that biases GPP **low**, and the size of the bias can be measured by
-running the same forcing with daylength scaled both ways. Report it; do not
-assume it is small.
+Under Option A, `daylength` is the lit fraction of the diurnal cycle multiplied
+by 24 h, which is what `driver.cpp` already computes, so nothing has to change.
+
+**An earlier version of this note claimed instantaneous irradiance is then 25.9%
+too bright, and that was wrong.** It is exact. The error came from thinking of a
+step as "a Vesper day" rather than as 24 hours of absolute time, and the same
+mistake produces the opposite recommendation, that daily energy should be scaled
+up by 1.25 to avoid light-starving the trees. Both are wrong and for the same
+reason.
+
+The photosynthesis routine uses the daily PAR total divided by daylength,
+`canexch.cpp:718`, so what reaches it is the mean irradiance over daylight hours.
+Energy and daylength both carry the same day-length factor and it cancels:
+
+```
+real   F x 30.209 x 3600 J/m2  over  f x 30.209 h   ->  F x 3600 / f
+model  F x 24     x 3600 J/m2  over  f x 24     h   ->  F x 3600 / f
+```
+
+Ratio 1.000000. `F` is the same number in both, because ExoPlaSim reports a mean
+flux over the timestep and `NETSWRAD_TS` takes it as exactly that. Scaling the
+energy up by 1.25 without scaling daylength would over-supply light by 25% and
+break the annual budget as well.
+
+The annual total is right for the same reason: 181 steps of 86400 s is 0.19%
+more absolute time than the true 180.655-day orbit, which is the year-length
+rounding and nothing else.
 
 The degree-day problem is real and separate. A Vesper year has 181 steps against
 Earth's 365, so annual GDD sums are roughly halved for the same temperatures, and

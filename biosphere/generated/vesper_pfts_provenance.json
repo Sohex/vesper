@@ -1,5 +1,5 @@
 {
-  "generated": "2026-08-16T04:34:31+00:00",
+  "generated": "2026-08-16T04:44:12+00:00",
   "source": "/home/cfutro/git/lpj-guess/guess_4.1/data/ins/global.ins",
   "source_sha256": "4daa4358a1f2de730601ac64ce3a64e54821838de20f9391ac07f649fefb90d8",
   "config_sha256": "eeaae0341aedffb83493498f90aeb85a279f4614210662a279a2de16d5e0d896",
@@ -88,6 +88,6 @@
       "direction": "up, a duration in years"
     }
   ],
-  "output_sha256": "57772a902a057b9c71bc60fa952e88fe73a6f7a2e765f99d63372e4a67de2767",
-  "git_commit": "4b3f2e5589fa0df889301ae5d02a0348e3310818"
+  "output_sha256": "1cf0f437a8e23196647d728ab3061486f173d1edba4d344315cc06fee2da4394",
+  "git_commit": "09e1f1022b7a933650a54628645e6c36de37160b"
 }
