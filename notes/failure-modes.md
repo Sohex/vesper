@@ -189,6 +189,25 @@ uncertainty accurately -- it said the units were "likely, not confirmed" -- and
 that flag was correct and was not acted on. A caveat carried forward verbatim is
 not the same as a caveat resolved.
 
+## 10. A bound asserted in the wrong direction
+
+The Lacis-Hansen ultraviolet weight was computed from a 4965 K blackbody as
+0.469 and recorded as a **floor**, on the reasoning that a real star adds
+chromospheric ultraviolet that a photospheric model lacks, so the true value
+could only be higher. The measured value, from observed IUE spectra of the star
+in question, is **0.335** -- lower, not higher.
+
+The reasoning omitted the larger term. Ultraviolet **line blanketing** in a real
+stellar atmosphere removes far more flux than the chromosphere puts back, so a
+blackbody *overestimates* a cool star's ultraviolet rather than bounding it from
+below. Two effects, opposite signs, and only the smaller one was considered.
+
+**The rule.** Before calling an estimate a bound, enumerate what could push it
+the other way. A bound asserted from one mechanism is a guess wearing a stronger
+word, and it is worse than an unqualified estimate because it discourages the
+check that would correct it. If both directions cannot be enumerated, say
+"estimate" and leave it undefended.
+
 ---
 
 ## Things already checked and disproved: do not re-derive these

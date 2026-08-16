@@ -155,15 +155,27 @@ Two sources would serve: the IUE archive for epsilon Eridani directly, or the
 MUSCLES survey, which publishes panchromatic spectra of low-mass stars including
 the ultraviolet.
 
-### What this tells us that is not a caveat
+### Resolved: the star is declared active
 
 Epsilon Eridani is young and chromospherically active, and Segura notes a quieter
-K2V would receive about 2.5 times less ultraviolet. So the column of 0.794x and
-the surface flux of 0.4x describe an **active** K2V, while our 0.469 UV weight
-describes a star with no chromosphere at all. The two bracket the answer, and
-what sits between them is set by the stellar activity level -- which this project
-has left PROVISIONAL and undecided.
+K2V would receive about 2.5 times less ultraviolet. So every number in that paper
+describes an **active** K2V -- which is what this world has now declared its star
+to be, matching the intense starspot cycle it is built around.
 
-So the ozone numbers, the surface ultraviolet, and the stellar cycle amplitude
-are one decision, not three. Deciding the activity level resolves all of them,
-and until it is decided the honest form is a bracket rather than a value.
+That resolves what had been three loose ends as one decision. The ozone column
+(0.794x), the surface ultraviolet (0.4x Earth) and the Lacis-Hansen ultraviolet
+weight all take their values from the same observed star, so they are mutually
+consistent rather than assembled from different assumptions.
+
+The ultraviolet weight is now measured too, and it corrected an error rather than
+filling a gap. Segura's Table 2 gives incoming ultraviolet at the planet for both
+hosts placed at equal total insolation; summing UV-C, UV-B and the 315-350 nm
+part of UV-A gives 17.92 W/m2 against the Sun's 53.44, so **0.335**. The
+blackbody estimate of 0.469 that this note previously called a floor was an
+overestimate, because ultraviolet line blanketing in a real atmosphere removes
+more flux than the chromosphere restores. Recorded as failure class 10.
+
+The photosphere/chromosphere splice described below is therefore no longer needed
+for the ozone weight, which is the only place it bit. It remains the right
+construction if a spectrum carrying real ultraviolet is ever wanted for another
+purpose.

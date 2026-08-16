@@ -52,6 +52,15 @@ star:
   # Provisional empirical midpoint between K2V and K3V in the
   # Pecaut--Mamajek dwarf sequence (see notes/parameter-decisions.md).
   spectral_type: K2.5V
+  # DETERMINED: this star is chromospherically ACTIVE, of the kind epsilon
+  # Eridani represents -- young, spotted, and with ultraviolet well above a
+  # quiescent K dwarf's. Chosen to match the intense starspot cycle this world is
+  # built around, and it settles a decision three other quantities were waiting
+  # on: the ozone column, the surface ultraviolet environment and the Lacis-
+  # Hansen ultraviolet weight are all functions of activity, so all three now
+  # take their active-star values from Segura et al. (2003), whose K2V IS
+  # epsilon Eridani observed by IUE.
+  activity: active
   # DETERMINED, and now measured rather than chosen. Segura et al. (2003),
   # "Ozone Concentrations and Ultraviolet Fluxes on Earth-Like Planets Around
   # Other Stars", Astrobiology 3, 689-708, models a K2V host explicitly -- very
@@ -227,34 +236,29 @@ model:
   # flux in the band it represents, and applying them unchanged to a K dwarf puts
   # solar band weights on a non-solar spectrum.
   #
-  # Computed rather than tuned: the ratio of this star's flux fraction in each
-  # band to the Sun's.
+  # The ultraviolet weight is MEASURED, from Segura et al. (2003) Table 2, which
+  # reports incoming ultraviolet at the planet for Sun and K2V hosts placed at
+  # equal total insolation. Summing UV-C, UV-B and the 315-350 nm part of UV-A
+  # gives 17.92 W/m2 against the Sun's 53.44, so 0.335.
   #
-  # THE ULTRAVIOLET WEIGHT IS TIED TO AN UNDECIDED PARAMETER. Segura's K2V is
-  # HD 22049, epsilon Eridani, and their spectrum is observed rather than
-  # modelled -- coadded IUE data from 115 to 335 nm merged onto a Kurucz
-  # photosphere at 320 nm. Epsilon Eridani is a young, chromospherically active
-  # star, and the paper notes that an older, quieter K2V would receive about 2.5
-  # times less ultraviolet. So Segura's column of 0.794x and surface UV of 0.4x
-  # both describe an ACTIVE K2V, while 0.469 below is a photospheric floor that
-  # describes a star with no chromosphere at all. The truth sits between them and
-  # is set by the stellar activity level, which planet.yaml still marks
-  # PROVISIONAL.
+  # That table is epsilon Eridani, observed by IUE: a young, chromospherically
+  # ACTIVE K2V, which is the star this world has been declared to have. So this
+  # is the right weight rather than a bound.
   #
-  #   Hartley-Huggins UV, 0.20-0.35 um   0.0321 / 0.0684 = 0.469
-  #   Chappuis visible,   0.44-0.75 um   0.3358 / 0.3673 = 0.914
+  # It also corrects an error recorded here earlier. A 4965 K blackbody gives
+  # 0.469, and that was described as a FLOOR on the grounds that a real star adds
+  # chromospheric ultraviolet a photospheric model lacks. The observed value is
+  # 0.335, which is LOWER, because ultraviolet line blanketing in a real stellar
+  # atmosphere removes more flux than the chromosphere puts back. A blackbody
+  # overestimates a cool star's ultraviolet; it does not bound it from below.
   #
-  # The visible ratio is measured from the k25v spectrum itself. The ultraviolet
-  # one is a 4965 K blackbody estimate, because k25v carries no flux below
-  # 0.34 um and radmod zeroes anything below 0.316 um on the star-file path. A
-  # real K dwarf has chromospheric ultraviolet a photospheric model does not, so
-  # 0.469 is a floor and the true weight is higher. That uncertainty is worth
-  # naming rather than burying: it is the same photosphere-only limitation that
-  # made the earlier surface-UV estimate wrong.
+  # The visible weight stays computed, 0.3358 / 0.3673 = 0.914, measured from the
+  # k25v spectrum itself, where line blanketing is already represented and the
+  # chromosphere contributes nothing.
   #
   # Both default to 1.0 upstream, which reproduces Lacis & Hansen exactly, so the
   # patch leaves any solar-host run bit-identical.
-  ozone_uv_weight: 0.469
+  ozone_uv_weight: 0.335
   ozone_visible_weight: 0.914
   # The same 28 terms per level, codes 460-487. The column totals established
   # that the -0.455 W/m2 residual is not the fixed offset it was recorded as --
@@ -345,10 +349,15 @@ model:
   seasonal_samples_per_orbit: 32
   regular_output_bins_per_orbit: 12
 
-# PROVISIONAL -- NOT DETERMINED. Nothing here has been chosen. The amplitude and
-# period are what some early exploratory runs used, and the range was written
-# around a baseline flux that has since moved twice; it is not centred on the
-# current one and should not be read as a decision that it is.
+# PARTLY DETERMINED. The star's activity level IS now chosen -- see
+# star.activity: active -- which was the decision the ozone column, the surface
+# ultraviolet and the ozone ultraviolet weight were all waiting on, and all three
+# now carry their active-star values.
+#
+# What remains undetermined is this block's own numbers. The amplitude and period
+# are what some early exploratory runs used, and the range was written around a
+# baseline flux that has since moved twice; it is not centred on the current one
+# and should not be read as a decision that it is.
 #
 # Three things have to be settled before this becomes determined, and they
 # interact:
