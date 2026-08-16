@@ -294,7 +294,7 @@ current geography anyway.
 `hydrography/` resolves drainage over the native mesh and builds everything a
 water balance needs short of the climate itself. See `hydrography/README.md`.
 
-60% of the land drains to a closed basin against roughly 13% on Earth, but
+Most of the land drains to a closed basin against about one-fifth on Earth, but
 **treat that as an upper bound rather than a fact about the world**. It assumes
 no basin ever overflows, and a basin that overflows persistently incises its
 outlet and stops being a basin. The decision variable,

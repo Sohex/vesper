@@ -203,10 +203,29 @@ cascade: a basin's overflow is its final equilibrium value with everything
 upstream included, and the paths are disjoint segments, one basin's saddle to
 the next one's sink.
 
+## The Earth comparator, and a correction
+
+Earth's endorheic fraction is **about one-fifth of its land surface**, not the
+13% this document and others here previously claimed. Wang et al. (2018),
+"Recent global decline in endorheic basin water storages", Nature Geoscience 11,
+926-932, states it in its opening sentence and measures 31.8 million km2 across
+48,813 landlocked watersheds delineated from 15-arcsecond HydroSHEDS.
+
+The units match ours, which is the part worth checking. Wang's figure is the
+**catchment area that drains internally**, which is the same measure as this
+component's endorheic share of land -- not the basin-floor area, which is a
+different quantity about three and a half times smaller and which this project
+has already confused once.
+
+So this world is more endorheic than Earth by roughly a factor of two after
+carving, and closer to four before it. Still a large difference and still the
+fact this component exists to handle, but a smaller multiple than the 13%
+comparator implied.
+
 ## Headline finding, and its limit
 
 A far larger share of this planet's land drains to a closed basin than Earth's
-roughly 13%, by a factor of several in every iteration so far. That follows from
+about one-fifth, by roughly a factor of two once carved. That follows from
 the fork preserving closed basins instead of carving drainage to them, and it is
 the fact this component exists to handle.
 
