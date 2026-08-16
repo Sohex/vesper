@@ -105,20 +105,26 @@ def lognormal_integrate(lam_um, n, k, r_mod_um, sigma_g,
     qext_eff = c_ext / np.trapezoid(area * w, lnr)
     ssa = c_sca / c_ext
     g_eff = c_g / c_sca
-    # MEE: um^2 per um^3 / (g/cm^3) -> m^2/g
-    mee = c_ext / (vol * rho_g_cm3)      # um^-1 cm^3 g^-1
-    mee *= 1.0                            # 1 um^2/um^3 = 1e6 m^2/m^3; see below
-    # units: c_ext [um^2], vol [um^3], rho [g/cm^3] = 1e-12 g/um^3
-    mee = c_ext / (vol * rho_g_cm3 * 1e-12)   # um^2/g
-    mee *= 1e-12                              # um^2 -> m^2
+    # Mass extinction efficiency. c_ext is um^2, vol is um^3, and a density in
+    # g/cm^3 is 1e-12 g/um^3, so c_ext/(vol*rho*1e-12) is um^2/g; the trailing
+    # 1e-12 converts um^2 to m^2. The two factors cancel numerically, which is
+    # exactly why this is written out rather than simplified.
+    mee = c_ext / (vol * rho_g_cm3)
     return qext_eff, ssa, g_eff, mee
 
 
 if __name__ == "__main__":
     # --- test 1: Bohren & Huffman worked example -------------------------
-    qe, qs, g = bhmie(5.213, complex(1.55, 0.0))
-    print(f"B&H m=1.55 x=5.213:  Qsca={qs:.5f}   (expect 3.10543)"
-          f"   {'OK' if abs(qs - 3.10543) < 2e-4 else 'FAIL'}")
+    # r = 0.525 um at lam = 0.6328 um. Compute x rather than using the rounded
+    # 5.213 the book prints: that rounding alone shifts Qsca by 4e-4 and reads
+    # as a code error when it is a transcription of the input.
+    x_bh = 2.0 * np.pi * 0.525 / 0.6328
+    qe, qs, g = bhmie(x_bh, complex(1.55, 0.0))
+    print(f"B&H m=1.55 x={x_bh:.6f}:  Qsca={qs:.5f}   (expect 3.10543)"
+          f"   {'OK' if abs(qs - 3.10543) < 1e-4 else 'FAIL'}")
+    # non-absorbing sphere: Qext must equal Qsca exactly
+    print(f"  Qext-Qsca = {qe - qs:+.2e} (must be 0 for k=0)"
+          f"   {'OK' if abs(qe - qs) < 1e-12 else 'FAIL'}")
 
     # --- test 2: OPAC mineral-transported at 0.55 um ---------------------
     # OPAC MITR: r_mod 0.50 um, sigma 2.20, r 0.02-5.0 um, rho 2.6 g/cm3
