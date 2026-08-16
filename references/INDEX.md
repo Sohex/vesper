@@ -291,3 +291,83 @@ Amer. Spec. Publ. 3, 273-290, is the origin of the chemical divide and could not
 be fetched -- it is an old society special publication. It is not held. Both
 papers above restate it in full, so it is cited through them rather than
 secondhand from a citing abstract, but the original has not been read here.
+
+---
+
+# Grounding Orogen's rock-class constants
+
+`vendor/orogen/js/lithology.js` defines 20 rock classes each carrying an
+erodibility, a density and an albedo: sixty numbers with **no citation anywhere
+in the module**. Fetched 2026-08-16 to ground them. See
+`notes/audits/orogen-lithology.md` and `TASKS.md` under `LITH`.
+
+## Erodibility by lithology
+
+| file | citation | status |
+| --- | --- | --- |
+| `moosdorf2018-global-erodibility-index.pdf` | Moosdorf, Cohen, von Hagke (2018). *A global erodibility index to represent sediment production potential of different rock types.* Applied Geography 101, 36-44. `10.1016/j.apgeog.2018.10.010` | **read** -- **the directly comparable source.** Indexes GLiM classes against acid plutonic = 1.0, which is the same normalised form Orogen uses. Three groups: **1.0** acid plutonic, metamorphic AND carbonate sedimentary; 1.1 acid volcanic; 1.2 mixed sedimentary; **1.5** basic plutonic and siliciclastic of all grain sizes; 1.4 basic volcanic; **3.2** unconsolidated. Total spread 3.2x. Built for exactly this use -- regional-to-global erosion models |
+| `stock1999-stream-power-erodibility-lithology.pdf` | Stock, Montgomery (1999). *Geologic constraints on bedrock river incision using the stream power law.* JGR Solid Earth 104(B3), 4983-4993. `10.1029/98JB02139` | **read** -- measured K by lithology: 1e-7 to 1e-6 granite and metamorphic, 1e-5 to 1e-4 volcaniclastic, 1e-4 to 1e-2 mudstone. **Five orders of magnitude**, and no evaporite in the set |
+| `zondervan2020-rock-strength-fluvial-erodibility.pdf` | Zondervan, Stokes, Boulton, Telfer, Mather (2020). *Rock strength and structural controls on fluvial erodibility: Implications for drainage divide mobility in a collisional mountain belt.* EPSL 538, 116221. `10.1016/j.epsl.2020.116221` | **read** -- the reconciling result: within one mountain belt the *fluvially expressed* contrast is a **factor of about 4** via ksn, against two orders of magnitude via intact strength, because channels adjust width and slope. This is why a landscape model wants the expressed number, not the strength number |
+| `sklar2001-rock-strength-river-incision.pdf` | Sklar, Dietrich (2001). *Sediment and rock strength controls on river incision into bedrock.* Geology 29(12), 1087-1090. `10.1130/0091-7613(2001)029<1087:SARSCO>2.0.CO;2` | held -- the strength-to-erodibility law, erosion rate proportional to tensile strength^-2 over 22 lithologies. Uses quartzite as the strong-rock reference |
+| `bursztyn2015-rock-strength-colorado-plateau.pdf` | Bursztyn, Pederson, Tressler, Mackley, Mitchell (2015). *Rock strength along a fluvial transect of the Colorado Plateau - quantifying a fundamental control on geomorphology.* EPSL 429, 90-100. `10.1016/j.epsl.2015.07.042` | held -- 168 localities with Selby rock-mass strength, Schmidt hammer and 672 tensile tests. **Limestones sit at or above granite in tensile strength** (Morgan 11.78, Honaker Trail 11.44 vs Zoroaster granite 7.07 MPa), and Vishnu schist (8.52) is stronger than that granite too |
+| `portenga2011-10be-eroding-surface.pdf` | Portenga, Bierman (2011). *Understanding Earth's eroding surface with 10Be.* GSA Today 21(8), 4-10. `10.1130/G111A.1` | held -- global cosmogenic compilation. Igneous outcrops 8.7 +/- 1.0 m/Myr, sedimentary 20 +/- 2.0; the ordinary-rock baseline erosion rate |
+| `frumkin2013-salt-karst.pdf` | Frumkin (2013). *Salt Karst*, in Shroder (ed.), Treatise on Geomorphology vol. 6, 407-424. `10.1016/B978-0-12-374739-6.00113-5` | held -- the evaporite endmember. Bare salt denudes at **100-120 mm/yr** against ordinary rock at 0.009-0.020, and states rock-salt density as **2.1 g/cm3** |
+| `duvall2004-lithologic-controls-bedrock-channels.pdf` | Duvall, Kirby, Burbank (2004). *Tectonic and lithologic controls on bedrock channel profiles and processes in coastal California.* JGR Earth Surface 109, F03002. `10.1029/2003JF000086` | held -- caveat: K varies with uplift rate at fixed lithology, through channel narrowing. Erodibility is not a pure rock property |
+| `murphy2016-chemical-weathering-bedrock-incision.pdf` | Murphy, Johnson, Gasparini, Sklar (2016). *Chemical weathering as a mechanism for the climatic control of bedrock river incision.* Nature 532, 223-227. `10.1038/nature17449` | held -- same caveat from the other side: weathering lowers rock strength, so K is climate-dependent |
+
+Not held: **Selby (1980)**, *A rock mass strength classification for geomorphic
+purposes*, Z. Geomorph. 24, 31-51, `10.1127/zfg/24/1984/31`. Identity confirmed
+via Crossref but no full text is reachable by any route. Mitigated: Bursztyn
+applies Selby's classification at 168 localities and reports the results, so the
+method is grounded through it rather than cited from an abstract.
+
+No source assigns an erodibility index to **evaporites** within a global
+compilation -- Moosdorf's GLiM class set omits `ev` entirely -- so that endmember
+rests on Frumkin's denudation rates, which are solutional rather than
+stream-power measurements.
+
+## Rock density
+
+| file | citation | status |
+| --- | --- | --- |
+| `daly1966-density-of-rocks.pdf` | Daly, Manger, Clark (1966). *Density of Rocks*, section 4 in Clark (ed.), Handbook of Physical Constants (revised), GSA Memoir 97, 19-26. `10.1130/MEM97-p19` | **read** -- the authoritative bulk-density tables with sample counts and ranges. Every Orogen density checks out against tables 4-1 and 4-5 except evaporite; see the audit |
+
+## Surface albedo and reflectance
+
+No source tabulates broadband albedo per rock type. The spectral libraries below
+supply directional-hemispherical reflectance, which is the quantity a model
+albedo actually wants; the table should be rebuilt by solar-weighting them
+against this world's own K2.5V spectrum rather than by looking up constants.
+
+| file | citation | status |
+| --- | --- | --- |
+| `slater1987-white-sands-vicarious-calibration.pdf` | Slater, Biggar, Holm, Jackson, Mao, Moran, Palmer, Yuan (1987). *Reflectance- and radiance-based methods for the in-flight absolute calibration of multispectral sensors.* Remote Sens. Environ. 22(1), 11-37. `10.1016/0034-4257(87)90026-5` | **read** -- **the gypsum result, and it reverses the expected sign.** White Sands gypsum sand, ground-measured: 0.492 / 0.553 / 0.595 / 0.616 through the visible and near infrared, then **0.414 at 1.55-1.75 um and 0.159 at 2.08-2.35 um** on gypsum's structural-water bands. Band-weighted under K2.5V that is 0.528, at or BELOW a clean halite pan |
+| `malek1990-playa-margin-evapotranspiration.pdf` | Malek, Bingham, McCurdy (1990). *Evapotranspiration from the margin and moist playa of a closed desert valley.* J. Hydrol. 120(1-4), 15-34. `10.1016/0022-1694(90)90139-o` | **read** -- in-situ pyranometer pair on Pilot Valley playa, Utah: thin halite crust over shallow brine, **annual mean 0.64**, above 0.75 after three dry weeks, and **0.24 when the surface is wet**. Wetting is a first-order switch |
+| `craft2019-bonneville-salt-flats-albedo.pdf` | Craft, Horel (2019). *Variations in Surface Albedo Arising from Flooding and Desiccation Cycles on the Bonneville Salt Flats, Utah.* J. Appl. Meteor. Climatol. 58(4), 773-785. `10.1175/JAMC-D-18-0219.1` | **read** -- dry summer halite crust ~0.45, falling to **0.22** under 20-40 mm of flooding and recovering to 0.32 in eight days |
+| `kampf2005-salar-atacama-energy-budget.pdf` | Kampf, Tyler, Ortiz, Munoz, Adkins (2005). *Evaporation and land surface energy budget at the Salar de Atacama, Northern Chile.* J. Hydrol. 310(1-4), 236-252. `10.1016/j.jhydrol.2005.01.005` | **read** -- the crust-type spread, measured 0.4-1.2 um: halite nucleus with detritus **0.18**, rough halite 0.25, halite-gypsum margin 0.46, transition crust 0.49, **carbonate margin crust 0.65**. Attributes the range to ROUGHNESS AND DETRITUS rather than mineralogy |
+| `castellanialegria2026-uyuni-albedo-modis.pdf` | Castellani Alegria, Quense, Alfaro (2026). *Variacion de largo plazo del albedo en el salar de Uyuni, Bolivia, utilizando series temporales MODIS 2001-2020.* Cuadernos de Geografia 35(1), 144-163. `10.15446/rcdg.v35n1.106101` | **read** -- twenty years of MODIS BRDF albedo over the largest halite pan on Earth: **0.65** in wet or cool years, **0.55-0.60** in dry or warm ones. Spanish |
+| `post2000-soil-albedo-from-color.pdf` | Post, Fimbres, Matthias, Sano, Accioly, Batchily, Ferreira (2000). *Predicting Soil Albedo from Soil Color and Spectral Reflectance Data.* Soil Sci. Soc. Am. J. 64(3), 1027-1034. `10.2136/sssaj2000.6431027x` | **read** -- 52 pyranometer measurements over 26 US soils, 0.3-2.8 um: **range 0.048-0.402, mean 0.189**, with albedo = 0.069 x Munsell value - 0.114. Grounds `playa_clastic` and the clastics |
+| `li2015-lava-surface-field-spectrometry.pdf` | Li, Solana, Canters, Chan, Kervyn (2015). *Impact of Environmental Factors on the Spectral Characteristics of Lava Surfaces: Field Spectrometry of Basaltic Lava Flows on Tenerife.* Remote Sensing 7(12), 16986-17012. `10.3390/rs71215864` | **read** -- 18 sites on flows of known age, 350-2500 nm. **Tephra below 0.05**, fresh lava comparably dark, rising above 0.10 only when oxidised or lichen-covered. Orogen's shared 0.10 is the weathered state |
+| `hendersonsellers1983-surface-albedo-climate-modeling.pdf` | Henderson-Sellers, Wilson (1983). *Surface Albedo Data for Climatic Modeling.* Rev. Geophys. Space Phys. 21(8), 1743-1778. `10.1029/RG021i008p01743` | held -- the coarse compilation: salt playas and light sand deserts 0.28-0.44, semidesert and light soils 0.20-0.33, stony deserts and common soils 0.07-0.25 |
+| `coakley2003-surface-reflectance-albedo.pdf` | Coakley (2003). *Reflectance and Albedo, Surface.* In Encyclopedia of Atmospheric Sciences, 1914-1923. `10.1016/B0-12-227090-8/00069-5` | held -- broadband desert 0.36 at 60 degrees solar zenith, plus the direct/diffuse and zenith-angle formalism |
+| `meerdink2019-ecostress-spectral-library-v1.pdf` | Meerdink, Hook, Roberts, Abbott (2019). *The ECOSTRESS spectral library version 1.0.* Remote Sens. Environ. 230, 111196. `10.1016/j.rse.2019.05.015` | held -- ~3400 spectra including **473 rocks**, measured as **directional hemispherical reflectance**, which is the quantity a model albedo wants. The right basis for rebuilding the table |
+| `baldridge2009-aster-spectral-library-v2.pdf` | Baldridge, Hook, Grove, Rivera (2009). *The ASTER spectral library version 2.0.* Remote Sens. Environ. 113(4), 711-715. `10.1016/j.rse.2008.11.007` | held -- >2300 spectra, 0.4-15.4 um, including 100 of the commonest igneous, metamorphic and sedimentary rocks |
+| `kokaly2017-usgs-spectral-library-v7.pdf` | Kokaly et al. (2017). *USGS Spectral Library Version 7.* USGS Data Series 1035. `10.3133/ds1035` | held -- laboratory and field spectra with full provenance, including evaporite minerals and grain-size series |
+| `crowley1991-playa-evaporite-vnir-spectra.pdf` | Crowley (1991). *Visible and Near-Infrared (0.4-2.5 um) Reflectance Spectra of Playa Evaporite Minerals.* JGR Solid Earth 96(B10), 16231-16240. `10.1029/91JB01714` | held -- 35 saline minerals. The mechanism behind the gypsum reversal: anhydrous halite and thenardite are near-featureless and transparent in the near infrared, while hydrous phases (gypsum, trona, natron) carry deep structural-water bands. Figures, not tables |
+| `drake1995-evaporite-mineral-reflectance-spectra.pdf` | Drake (1995). *Reflectance spectra of evaporite minerals (400-2500 nm): applications for remote sensing.* Int. J. Remote Sens. 16(14), 2555-2571. `10.1080/01431169508954576` | held -- the alkaline crusts specifically: natron, thermonatrite, trona, mirabilite, thenardite. Dehydration RAISES reflectance, so a soda pan's albedo is humidity-dependent the way gypsum's is |
+| `gaffey1987-carbonate-mineral-reflectance.pdf` | Gaffey (1987). *Spectral reflectance of carbonate minerals in the visible and near infrared (0.35-2.55 um): Anhydrous carbonate minerals.* JGR Solid Earth 92(B2), 1429-1440. `10.1029/JB092iB02p01429` | held -- the canonical carbonate reference; seven strong bands above 1.6 um |
+| `cosnefroy1996-desert-calibration-sites.pdf` | Cosnefroy, Leroy, Briottet (1996). *Selection and characterization of Saharan and Arabian desert sites for the calibration of optical satellite sensors.* Remote Sens. Environ. 58(1), 101-114. `10.1016/0034-4257(95)00211-1` | held -- **caveat: top-of-atmosphere reflectance, not surface albedo.** Kept as the standard bright-desert reference but it does not directly ground a surface value |
+
+Not obtained: **Zhuang et al. (2023)**, *Visible and near-infrared reflectance
+spectra of igneous rocks and their powders*, Icarus 391, 115346,
+`10.1016/j.icarus.2022.115346` -- no open-access copy anywhere. It is the best
+modern source for solid rock versus powder reflectance of basalt, andesite and
+granite, which is exactly the distinction this table needs; worth an interlibrary
+request. **Penndorf (1956)** `10.21236/AD0098766` -- DTIC serves a broken TLS
+chain. **Hunt and Salisbury (1970-1976)** in Modern Geology -- never deposited
+DOIs, so not attempted rather than guessed; the ASTER and USGS libraries
+incorporate those measurements anyway.
+
+No pyranometer broadband albedo for a **gypsum crust** appears to exist, and none
+for an **alkaline trona/natron pan**. Both will have to be constructed by
+spectral integration.
