@@ -43,7 +43,37 @@ Colour is illustrative:
   glacier model behind it; `glac` is zero everywhere in the baseline run.
 - Sea ice is the annual-mean fraction.
 - Relief is a hillshade of the mesh elevation, sun from the north-west, with
-  vertical exaggeration.
+  vertical exaggeration. Standing water takes the sea's muted shading instead,
+  since a lake surface is flat and the land hillshade would emboss it.
+
+**Lakes and rivers are the exception: those are a result, not a tint.** They
+come from `hydrography/data/surface_water.nc`, which solves a closed-basin water
+balance against the same baseline climatology and accumulates the same water
+down the drainage network. 1,242 of the 2,107 basins hold water, covering 3.09%
+of the planet, and the largest river carries 170,300 m3/s, about 0.8 times the
+Amazon. Inland water is drawn
+a shade greener than the sea so a lake reads as a lake rather than as a bay that
+lost its connection.
+
+Rivers are drawn at the resolution the mesh has, one region across or about
+15 km, so their width carries no information. Weight does: the blend follows
+discharge rather than the line getting fatter, and anything drawn at all is
+drawn solidly, because a line one region wide at 20% opacity is a smudge rather
+than a river.
+
+Lakes that overflow do have rivers leaving them, which they did not in the first
+version of this: `basins.nc` now carries the saddle each basin spills at, so the
+outflow of all 732 overflowing basins is routed onto the mesh. Those are the
+largest rivers on the planet, and adding them took the biggest from 63,800 to
+170,300 m3/s.
+
+One caveat carries through from the hydrography: 87% of the lake area drawn is
+in basins pinned at their spill, which the same water balance says should have
+carved their outlets by now. The lakes are real under this terrain; the terrain
+is the part that has not relaxed.
+
+If `surface_water.nc` has not been built, the map is drawn without standing
+water and says so rather than failing.
 
 The poles are forested rather than icy. That is not a rendering fault: at 32
 degrees obliquity the polar summer reaches about +20 C in the baseline run, and

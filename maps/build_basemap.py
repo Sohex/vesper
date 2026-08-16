@@ -10,6 +10,9 @@ The colour is illustrative. The biome field is T42 (128x64) and was computed on
 the pre-carve terrain, so it is a plausible tint over the current geography
 rather than a result about it.
 
+Lakes and rivers are the exception: those come from the water balance solved in
+hydrography/, on this terrain, and are a result rather than a tint.
+
 Writes maps/build/basemap.npy (H x W x 3 uint8) and a provenance sidecar.
 """
 
@@ -60,6 +63,18 @@ OCEAN_RAMP = [
     (4.0, (38, 90, 140)),
     (9.0, (20, 55, 96)),
 ]
+
+# Inland water, kept a shade greener and lighter than the sea so a lake reads as
+# a lake rather than as a bay that lost its connection.
+LAKE_RAMP = [
+    (0.0, (108, 172, 178)),
+    (0.05, (72, 140, 158)),
+    (0.4, (44, 102, 126)),
+    (2.0, (28, 72, 96)),
+]
+RIVER_RGB = np.array([70, 136, 158.0])
+RIVER_MIN_M3_S = 120.0     # below this nothing is drawn
+RIVER_FULL_M3_S = 8000.0   # at this the line is at full weight
 
 ROCK_EVAPORITE, ROCK_PLAYA = 18, 19
 SALT_RGB = np.array([236, 232, 222.0])
@@ -187,6 +202,35 @@ def fill_ocean_gaps(field, land):
     return out
 
 
+def load_surface_water(idx):
+    """Lakes and rivers from the hydrography water balance, per pixel.
+
+    Optional on purpose: the maps are built from `source/` and a climatology,
+    and this is the one input that comes from another component's solver. If it
+    has not been run, the map is drawn without standing water rather than
+    failing, and says so.
+    """
+    path = ROOT / "hydrography/data/surface_water.nc"
+    if not path.exists():
+        print("  no surface_water.nc; drawing without lakes or rivers")
+        return None
+    ds = nc.Dataset(path)
+    lake = np.asarray(ds["lake"][:]).astype(bool)[idx]
+    depth = np.asarray(ds["lake_depth_km"][:])[idx]
+    discharge = np.asarray(ds["discharge_m3_s"][:])[idx]
+    ds.close()
+    return lake, depth, discharge
+
+
+def lake_colour(depth_km):
+    d = np.sqrt(np.clip(depth_km, 0, None))
+    xs = np.array([np.sqrt(p[0]) for p in LAKE_RAMP])
+    out = np.zeros(depth_km.shape + (3,))
+    for c in range(3):
+        out[..., c] = np.interp(d, xs, [p[1][c] for p in LAKE_RAMP])
+    return out
+
+
 def ocean_colour(depth_km):
     d = np.sqrt(np.clip(depth_km, 0, None))
     xs = np.array([np.sqrt(p[0]) for p in OCEAN_RAMP])
@@ -296,10 +340,37 @@ def main():
 
     rgb = np.where(land[..., None], lrgb, rgb)
 
-    # Relief.
+    # Lakes and rivers, which are the one part of the colour that is a result
+    # rather than a tint: a water balance solved in hydrography/, not a guess.
+    water = np.zeros(elev.shape, bool)
+    surface_water = load_surface_water(idx)
+    if surface_water is not None:
+        lake, lake_depth, discharge = surface_water
+
+        lrgb = lake_colour(lake_depth)
+        # A lake in a place cold enough to hold permanent snow is frozen.
+        lrgb = lrgb * (1 - ice) + ICE_RGB * ice
+        rgb = np.where((lake & land)[..., None], lrgb, rgb)
+
+        # Rivers are drawn at the resolution the mesh actually has: one region
+        # across, about 15 km, so their width is not information. Weight is,
+        # so the blend follows discharge rather than the line getting fatter.
+        weight = np.clip(
+            (np.log10(np.maximum(discharge, 1.0)) - np.log10(RIVER_MIN_M3_S))
+            / (np.log10(RIVER_FULL_M3_S) - np.log10(RIVER_MIN_M3_S)),
+            0, 1,
+        )
+        # Any river drawn at all is drawn solidly. A line one region wide at 20%
+        # opacity is not a river, it is a smudge; discharge sets the last half.
+        river = np.where(weight > 0, 0.55 + 0.45 * weight, 0.0) * land * ~lake
+        rgb = rgb * (1 - river[..., None]) + RIVER_RGB * river[..., None]
+        water = (lake & land) | (river > 0.35)
+
+    # Relief. Standing water is flat, so it takes the muted treatment the sea
+    # gets rather than the land hillshade, which would emboss a lake surface.
     shade = hillshade(elev, lat_deg, radius_km)
     lit = 0.62 + 0.76 * shade
-    lit = np.where(land, lit, 0.90 + 0.18 * shade)  # muted at sea
+    lit = np.where(land & ~water, lit, 0.90 + 0.18 * shade)
     rgb *= lit[..., None]
 
     rgb = np.clip(rgb, 0, 255).astype(np.uint8)

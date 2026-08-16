@@ -121,7 +121,7 @@
     ],
     "planet_radius_km": 7645.2,
     "numpy": "2.5.2",
-    "git_commit": "af3c7ae49c5af1aec29ff8dccfbca27fa6eae392"
+    "git_commit": "e6480d2b04eef39d4d1cc6c353ba3e1b6eb05fe7"
   },
   "outputs": [
     "vesper_winkel_tripel.png",
@@ -134,5 +134,5 @@
   ],
   "width": 3000,
   "supersample": 2,
-  "git_commit": "f7d0df9effe987d1d45985f9dfd42041cf03ce54"
+  "git_commit": "e6480d2b04eef39d4d1cc6c353ba3e1b6eb05fe7"
 }
