@@ -21,6 +21,7 @@
 #include "config.h"
 #include "vesperinput.h"
 #include "soilinput.h"
+#include "parallel.h"
 #include "driver.h"
 #include "parameters.h"
 #include "guess.h"
@@ -50,7 +51,8 @@ void read_or_fail(FILE* in, T* target, size_t count, const char* what) {
 } // namespace
 
 VesperInput::VesperInput()
-	: current(0), nyear(1), co2(0.0), ndep(0.0), have_soilmap(false) {
+	: current(0), total_cells(0), nyear(1), co2(0.0), ndep(0.0),
+	  have_soilmap(false) {
 
 	declare_parameter("nyear", &nyear, 1, 10000,
 		"Number of simulation years to run after spinup");
@@ -137,6 +139,32 @@ void VesperInput::read_driver() {
 		read_or_fail(in, &cell.dtr[0], nbins, "diurnal range");
 	}
 
+	// Keep only this process's share of the cells.
+	//
+	// LPJ-GUESS's own parallel mode splits work by pre-splitting the gridlist
+	// file, one per rank, which is what submit.sh does with awk and split. This
+	// module has no gridlist: the whole planet arrives in one driver file, so
+	// without this every rank would simulate every cell and the run would be
+	// nprocs times slower than serial rather than faster.
+	//
+	// Strided rather than blocked, because cost per cell tracks climate and
+	// climate tracks latitude, and the cells are emitted in latitude order. A
+	// contiguous block would hand one rank the entire ice-free tropics and
+	// another the polar desert.
+	const int rank = GuessParallel::get_rank();
+	const int nprocs = GuessParallel::get_num_processes();
+	if (nprocs > 1) {
+		std::vector<Cell> mine;
+		for (size_t i = rank; i < cells.size(); i += nprocs) {
+			mine.push_back(cells[i]);
+		}
+		total_cells = (int)cells.size();
+		cells.swap(mine);
+	}
+	else {
+		total_cells = (int)cells.size();
+	}
+
 	// A driver file with trailing content is a version mismatch we have not
 	// noticed, so say so rather than silently using a prefix of it.
 	char trailing;
@@ -152,8 +180,16 @@ void VesperInput::init() {
 	read_driver();
 
 	dprintf("Vesper driver: %s\n", (char*)file_driver);
-	dprintf("  %d land cells, %d bins per year, %d-day year\n",
-	        (int)cells.size(), DRIVER_BINS, (int)Date::MAX_YEAR_LENGTH);
+	if (GuessParallel::get_num_processes() > 1) {
+		dprintf("  %d of %d land cells on rank %d of %d, %d bins, %d-day year\n",
+		        (int)cells.size(), total_cells, GuessParallel::get_rank(),
+		        GuessParallel::get_num_processes(), DRIVER_BINS,
+		        (int)Date::MAX_YEAR_LENGTH);
+	}
+	else {
+		dprintf("  %d land cells, %d bins per year, %d-day year\n",
+		        (int)cells.size(), DRIVER_BINS, (int)Date::MAX_YEAR_LENGTH);
+	}
 	dprintf("  CO2 %g ppm, N deposition %g kgN/ha/yr\n", co2, ndep);
 	dprintf("  built from %s\n\n", (char*)provenance);
 

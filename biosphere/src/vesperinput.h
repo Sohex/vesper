@@ -79,8 +79,11 @@ private:
 	/// Every land cell, in the order the driver file lists them
 	std::vector<Cell> cells;
 
-	/// Index of the cell currently being simulated
+	/// Index of the cell currently being simulated, within this rank's share
 	size_t current;
+
+	/// Cells in the driver file before this rank took its share, for reporting
+	int total_cells;
 
 	/// Number of simulation years to run after spin-up
 	int nyear;

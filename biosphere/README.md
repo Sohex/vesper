@@ -34,9 +34,11 @@ a result.
 | productivity prediction | registered, unscored |
 | calendar and astronomy patch | written, applied, verified |
 | PFT degree-day rescale | generated from the orbit, 500 -> 247 gdd5min_est |
-| input module | `vesperinput`, built and run end to end on real cells |
+| input module | `vesperinput`, runs end to end, splits across MPI ranks |
 | soil | from `pedology/`, loop closing at smoke scale |
-| full run | blocked on a current climatology; 3-cell shakedown passes |
+| run harness | not written; runs so far are hand-assembled in scratch |
+| albedo and forest feedback | not written, and it is the component's purpose |
+| full run | blocked on a current climatology; ~25 min on 16 ranks |
 
 The model is not in this repository. It lives at
 `/home/cfutro/git/lpj-guess/guess_4.1` beside `ExoPlaSim` and

@@ -300,13 +300,41 @@ the calendar.
 
 ## Order of work
 
-1. ~~Patch `Date`, `driver.cpp` and `soil.cpp`~~ done, above.
-2. **Rescale the PFT degree-day limits by 0.4946 and record the factor.** The
-   smoke test shows that without this, every tree PFT is excluded for reasons
-   that have nothing to do with the climate. This is a `.ins` file, not a patch.
-3. Write the input module against `config/planet.yaml` and the ExoPlaSim
-   climatology, guaranteeing that day 0 aligns with climatology bin 0.
-4. Decide the lithology-to-soil-code mapping and the nitrogen deposition
-   constant, and write down why.
-5. Shakedown run on whatever climatology exists. Label it.
-6. Score against `productivity-prediction.md`.
+Done:
+
+1. ~~Patch `Date`, `driver.cpp` and `soil.cpp` for the calendar and astronomy.~~
+2. ~~Rescale the PFT degree-day limits.~~ `build_vesper_pfts.py`, factor derived
+   from the configured orbit, `gdd5min_est` 500 to 247.
+3. ~~Write the input module.~~ `vesperinput`, driven by one generated binary,
+   with day 0 pinned to climatology bin 0 by a fitted declination phase.
+4. ~~Soil.~~ Superseded by the `pedology/` component, which weathers lithology
+   under the climate and closes a loop through soil carbon. Nitrogen turned out
+   to be bracketed by `nfix_a`, not by deposition.
+5. ~~Parallelism.~~ `vesperinput` splits cells across MPI ranks itself, strided
+   so latitude bands balance. Verified 5/5/4/4 over 18 cells on 4 ranks with no
+   duplication and none dropped.
+
+Remaining, in the order they block each other:
+
+6. **A run harness.** Every run so far has been hand-assembled in a scratch
+   directory with a hand-written instruction file. There is no `biosphere/runs/`,
+   no run manifest, no provenance record. That is against this project's own
+   convention and it is the next thing to build. It should generate the `.ins`
+   too: the settings are retyped each time, and parallel mode needs absolute
+   import paths because each rank chdirs into its own `runN/`.
+7. **The feedback products.** Turning `lai.out` and `fpc.out` into surface albedo
+   (codes 174, 175, 176) and forest fraction (212) for ExoPlaSim. This is the
+   entire point of the component and it does not exist yet: the climate is still
+   forced with `land_albedo_source: vegetated`, a constant.
+8. **Scoring.** Compare against `productivity-prediction.md`, remembering the
+   x2.022 conversion from simulation years to Earth years.
+
+Blocked on the climate side: the driver is still built from
+`climatology_s096`, which is pre-carve and pre-`k25v`.
+
+## Cost of a full run
+
+5.46 s of CPU per gridcell for 530 years at `npatch 5`, measured on 18 cells
+across 4 ranks. For 4,106 land cells that is about 6.2 hours of CPU, so roughly
+25 minutes of wall clock on 16 ranks. The vegetation is not the expensive half
+of this iteration.
