@@ -46,3 +46,7 @@ biosphere/runs/
 pedology/data/earth_validation_cache/
 pedology/data/reference/
 references/
+
+# Reference PDFs: publisher copyright, many not redistributable. INDEX.md is
+# tracked so the bibliography and its provenance survive; the files are not.
+references/*.pdf
