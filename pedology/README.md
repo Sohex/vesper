@@ -200,6 +200,41 @@ against ExoPlaSim's uniform 0.5 m default, and since
 `drunoff = max(0, dwatc - dwmax)/deltsec`, a smaller bucket overflows sooner and
 produces more runoff, which is the direction needed to fix the 2.8% ratio.
 
+### The offline probe now validates, and says the feedback is weak
+
+`scripts/probe_runoff_response.py` reimplements ExoPlaSim's land bucket and
+checks itself before predicting anything. It used to fail that check by 5.91x,
+which is what prompted looking at `mrro` and finding it river-routed rather than
+local. **The probe was right and the target was wrong.** Validated against the
+land water budget instead, it passes:
+
+| | mm per Earth year |
+| --- | --- |
+| land budget, P - E | 167.83 |
+| offline bucket at ExoPlaSim's 0.5 m | 149.96 |
+| ratio | 0.89, inside the 0.50-2.00 band fixed beforehand |
+
+Mean soil water also matches, 0.204 m against the model's 0.202, so the
+prediction is usable rather than indicative:
+
+| bucket | runoff mm/Earth-yr | ratio to P |
+| --- | --- | --- |
+| 0.500 m, ExoPlaSim's default | 149.96 | 0.168 |
+| **0.133 m, from pedology** | **158.46** | **0.178** |
+
+**Shrinking the bucket 3.75-fold moves runoff by 1.06x.** That is a validated
+result now rather than a hint, and it settles the question the feedback was built
+to answer: the soil will not on its own explain why this world's land runoff
+ratio is 18.8% against Earth's 35%.
+
+The soil water distribution shows why. The bucket sits at a median 15% of
+capacity, so overflow comes from the wettest cells and seasons, which saturate at
+either depth, while dry ground never fills at either. Capacity matters only in
+the narrow band between. The low ratio is therefore a property of the climate,
+high evaporative demand against available precipitation, and not of the bucket it
+was blamed on. Implied weathering shift 0.96x, moving land-mean W from 0.50 to
+0.48, which changes nothing downstream.
+
 **It is off by default and the flag is not in `config/planet.yaml`.** It needs
 `model.soil_water_source: pedology`, and that key is deliberately absent, because
 adding it moves `config_sha256` and `continue_exoplasim.py` refuses to resume a
