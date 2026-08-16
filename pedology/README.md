@@ -411,7 +411,54 @@ the water capacity.
 - The soil-biosphere loop has run one iteration at smoke scale and has never
   been iterated to its convergence criteria.
 
+## The carbonate-silicate thermostat, and how much of it this world has
+
+Weathering only stabilises CO2 if its alkalinity reaches the ocean. A closed
+basin weathers its catchment and then precipitates the carbonate on its own
+floor, so it contributes nothing to the feedback. On a world with a large
+endorheic share the thermostat is weaker than the total weathering rate implies,
+and `thermostat_efficiency.py` measures how much weaker:
+
+    thermostat efficiency = weathering over exorheic land / weathering over land
+
+```bash
+python pedology/scripts/thermostat_efficiency.py --compare-builds \
+    --carve-list hydrography/data/carved-zoned-v4/carve_list.json
+```
+
+Measured on `climatology_s096`, with every terrain held against that one
+climate so the spread is basin geometry and not weather:
+
+| terrain | endorheic area | decoupled weathering | efficiency |
+| --- | ---: | ---: | ---: |
+| `precarve-unzoned` / `precarve-zoned` | 25.6% | 19.8% | 0.802 |
+| `carved-zoned-v4` (configured) | 15.8% | 12.5% | **0.875** |
+| projected, after the pending carve | 11.7% | 9.2% | 0.908 |
+
+**The endorheic share decouples less alkalinity than its area implies.**
+Endorheic land here is drier -- mean weathering intensity 0.401 against 0.525
+on exorheic land -- so 15.8% of the land is 12.5% of the weathering. The
+correction runs in the reassuring direction and it is not large: this world's
+thermostat is degraded by about an eighth, not disabled.
+
+Two caveats attach to the last row. It is a projection of the carve list's
+retain fractions onto the *current* terrain's weathering field, not a
+measurement: the carved export does not exist yet. And carving removes closed
+depressions, which removes their bright evaporite fill and warms the world, so
+the post-carve climate is not the climate this was computed on.
+
+`carved-zoned` reports 0.936 under the same test and should not be read as part
+of a trend. Its verdict was computed with the longitude bug, so every basin was
+judged by its antipode's climate; it carved 1,522 basins where the corrected
+verdict carves 749. It is a different hypothesis about which basins overflow,
+not an earlier point on the same curve. For the same reason there is no useful
+`hydrography` comparison across builds carved under different rules, and the
+three-build reading that preceded this one is withdrawn.
+
 ## Known gaps
+- **The thermostat efficiency ignores the ocean's own weathering budget.**
+  Seafloor weathering and carbonate burial are not represented at all, so 0.875
+  bounds the continental term only.
 - **Time is not represented.** Weathering intensity folds the time integral into
   its normalisation, so a young volcanic surface and an ancient craton weather
   identically under the same climate. Orogen has exhumation data that could

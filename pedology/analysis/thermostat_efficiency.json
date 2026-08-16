@@ -1,0 +1,76 @@
+{
+  "generated": "2026-08-16T05:32:29+00:00",
+  "climatology": "exoplasim/analysis/climatology_s096/baseline_regular_climatology.nc",
+  "climatology_sha256": "a5c81e926747b7fdea23b77cbafbc6a2d91362517a72e3a910e4f70fc0cba177",
+  "source_build": "carved-zoned-v4",
+  "weathering": {
+    "moisture_variable": "runoff",
+    "runoff_source": "p_minus_e",
+    "runoff_exponent": 0.65,
+    "temperature_e_folding_k": 13.7,
+    "reference_runoff_mm_per_earth_year": 300.0,
+    "reference_precipitation_mm_per_earth_year": 750.0,
+    "reference_temperature_c": 14.0,
+    "minimum": 0.02,
+    "maximum": 6.0
+  },
+  "current": {
+    "endorheic_area_fraction": 0.15802542709548403,
+    "decoupled_weathering_fraction": 0.12538373690772414,
+    "thermostat_efficiency": 0.8746162630922758,
+    "mean_weathering_endorheic": 0.40135798311708104,
+    "mean_weathering_exorheic": 0.5254558620041786
+  },
+  "definition": "thermostat efficiency = weathering integrated over exorheic land divided by weathering over all land. Endorheic land weathers; its alkalinity never reaches the ocean, so it is decoupled from the carbonate-silicate feedback.",
+  "config_sha256": "30e954dca7231a46f2a3d79b38ee31322491a40e60395b07fbf9289e84dbed3e",
+  "git_commit": "80178f100a48b7546cea644ba0914de86942a8ed",
+  "pending_carve": {
+    "carve_list": "hydrography/data/carved-zoned-v4/carve_list.json",
+    "carve_list_sha256": "e0dcbce12cec968a9e12e7ad36cb5d5006b274666df69c2bd72fb7b6d0a135e2",
+    "terrain_hash": "5bed5549315da14b22275fea51a0b6f5b34d79cdf2237c9380e8471e0b431c78",
+    "counts": {
+      "carve": 749,
+      "preserve": 1744,
+      "marginal": 47
+    },
+    "catalogue_basins": 2540,
+    "basins_matched": 2540,
+    "endorheic_area_fraction": 0.11670897362631565,
+    "decoupled_weathering_fraction": 0.09248165777156783,
+    "thermostat_efficiency": 0.9075183422284322,
+    "mean_weathering_endorheic": 0.40135798311708104,
+    "mean_weathering_exorheic": 0.5254558620041786,
+    "caveat": "A projection onto the current terrain's weathering field, not a measurement. The carved export does not exist yet."
+  },
+  "other_builds": {
+    "carved-zoned": {
+      "endorheic_area_fraction": 0.15522972091597126,
+      "decoupled_weathering_fraction": 0.0635497931897253,
+      "thermostat_efficiency": 0.9364502068102747,
+      "mean_weathering_endorheic": 0.2070889537506582,
+      "mean_weathering_exorheic": 0.560742834974652
+    },
+    "carved-zoned-v2": {
+      "endorheic_area_fraction": 0.15802542709548403,
+      "decoupled_weathering_fraction": 0.12538373690772414,
+      "thermostat_efficiency": 0.8746162630922758,
+      "mean_weathering_endorheic": 0.40135798311708104,
+      "mean_weathering_exorheic": 0.5254558620041786
+    },
+    "precarve-unzoned": {
+      "endorheic_area_fraction": 0.2561315685770758,
+      "decoupled_weathering_fraction": 0.19770466161487052,
+      "thermostat_efficiency": 0.8022953383851295,
+      "mean_weathering_endorheic": 0.390455432314257,
+      "mean_weathering_exorheic": 0.5455766936862696
+    },
+    "precarve-zoned": {
+      "endorheic_area_fraction": 0.2561315685770758,
+      "decoupled_weathering_fraction": 0.19770466161487052,
+      "thermostat_efficiency": 0.8022953383851295,
+      "mean_weathering_endorheic": 0.390455432314257,
+      "mean_weathering_exorheic": 0.5455766936862696
+    }
+  },
+  "comparison_note": "Every build measured against one climatology, so the spread is basin geometry and not climate. Builds carved under superseded verdicts are not a trend: read them as separate hypotheses about which basins overflow."
+}
