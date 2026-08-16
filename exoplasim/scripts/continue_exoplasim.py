@@ -23,6 +23,10 @@ from run_exoplasim import (  # noqa: E402
     stage_surface_extras,
     surface_field_report,
     REGULAR_CODES,
+    ENERGY_DIAGNOSTIC_CODES,
+    enable_energy_diagnostics,
+    energy_diagnostics_enabled,
+    register_energy_diagnostic_codes,
     SNAPSHOT_CODES,
     derive,
     file_sha256,
@@ -212,11 +216,21 @@ def main() -> None:
             )
         },
     )
-    model._add_postcodes("example.nl", REGULAR_CODES)
+    # Without this a continuation silently drops the diagnostics: nenergy is
+    # namelist state that configure() rebuilds, and the codes are not in
+    # REGULAR_CODES. The run would keep going and the terms would simply stop
+    # appearing partway through, which is the failure mode that is hardest to
+    # notice in a long spin-up.
+    regular_codes = list(REGULAR_CODES)
+    if energy_diagnostics_enabled(config):
+        enable_energy_diagnostics(model, config)
+        register_energy_diagnostic_codes()
+        regular_codes = regular_codes + ENERGY_DIAGNOSTIC_CODES
+    model._add_postcodes("example.nl", regular_codes)
     model.cfgpostprocessor(
         ftype="regular",
         extension=model_cfg["output_type"],
-        variables=[str(code) for code in REGULAR_CODES],
+        variables=[str(code) for code in regular_codes],
         mode="grid",
         times=int(model_cfg["regular_output_bins_per_orbit"]),
         timeaverage=True,

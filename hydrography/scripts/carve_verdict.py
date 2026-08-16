@@ -125,7 +125,7 @@ def annual_mean(ds: Dataset, name: str) -> np.ndarray:
 
 
 def basin_means(coupling: Path, fields: dict[str, np.ndarray], n_basins: int,
-                field_lon: np.ndarray | None = None):
+                field_lon: np.ndarray):
     """Catchment-area-weighted mean of each field, per basin.
 
     The coupling matrix numbers its columns on the Orogen grid, which runs -180
@@ -134,6 +134,13 @@ def basin_means(coupling: Path, fields: dict[str, np.ndarray], n_basins: int,
     shapes match, latitude is unaffected, and every basin simply reads its
     antipode. `field_lon` is the longitude axis the fields are on, and the
     columns are remapped onto the coupling's before anything is indexed.
+
+    It is required, and deliberately has no default. It was optional when the
+    fix first landed, defaulting to the unremapped path, and `export_carve_list`
+    was never updated to pass it: the one caller whose output leaves the project
+    and changes the terrain went on reading the antipode. An argument whose
+    absence silently means "do the wrong thing" reproduces the original bug in
+    the shape of its own fix, so omitting it is now a TypeError at the call site.
     """
     with Dataset(coupling) as ds:
         basin = np.asarray(ds["basin"][:]).astype(np.int64)
@@ -143,15 +150,14 @@ def basin_means(coupling: Path, fields: dict[str, np.ndarray], n_basins: int,
         coupling_lon = (np.asarray(ds["cell_lon"][:])
                         if "cell_lon" in ds.variables else None)
     row, col = np.divmod(cell, nlon)
-    if field_lon is not None:
-        if coupling_lon is None:
-            raise RuntimeError(
-                "this coupling file predates cell_lon and its longitude "
-                "convention cannot be checked; rebuild it with "
-                "build_hydrography.py")
-        wrap = lambda a: (np.asarray(a) + 180.0) % 360.0 - 180.0
-        remap = np.abs(wrap(field_lon)[None, :] - wrap(coupling_lon)[:, None]).argmin(axis=1)
-        col = remap[col]
+    if coupling_lon is None:
+        raise RuntimeError(
+            "this coupling file predates cell_lon and its longitude "
+            "convention cannot be checked; rebuild it with "
+            "build_hydrography.py")
+    wrap = lambda a: (np.asarray(a) + 180.0) % 360.0 - 180.0
+    remap = np.abs(wrap(field_lon)[None, :] - wrap(coupling_lon)[:, None]).argmin(axis=1)
+    col = remap[col]
     weight = np.zeros(n_basins)
     np.add.at(weight, basin, area)
     out = {}

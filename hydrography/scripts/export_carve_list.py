@@ -59,13 +59,18 @@ def main() -> None:
     ap.add_argument("--climatology", type=Path, default=PROJECT_ROOT /
                     "exoplasim/analysis/climatology_s096/baseline_regular_climatology.nc")
     ap.add_argument("--coupling", type=Path, default=DATA / "coupling_exoplasim-T42.nc")
+    # Hydrography is per-build now, so the basin set has to be selectable
+    # alongside the coupling it was built with. Mixing a coupling matrix from one
+    # terrain with a basin catalogue from another would misalign the rows in the
+    # same silent way the longitude convention misaligned the columns.
+    ap.add_argument("--basins", type=Path, default=DATA / "basins.nc")
     ap.add_argument("--config", type=Path, default=CONFIG)
     ap.add_argument("--out-list", type=Path, default=DATA / "carve_list.txt")
     ap.add_argument("--out-json", type=Path, default=DATA / "carve_list.json")
     args = ap.parse_args()
 
     config = yaml.safe_load(args.config.read_text(encoding="utf-8"))
-    basins = BasinSet()
+    basins = BasinSet(args.basins)
     resolution = str(config["model"]["resolution"]).upper()
 
     with Dataset(args.climatology) as ds:
@@ -75,6 +80,7 @@ def main() -> None:
         ps_pa, rss, rls = am(ds, "ps") * 100.0, am(ds, "rss"), am(ds, "rls")
         q_air = np.asarray(ds["hus"][:]).mean(axis=0)[-1]
         wind = np.asarray(ds["spd"][:]).mean(axis=0)[-1]
+        field_lon = np.asarray(ds["lon"][:])
 
     land_albedo = cv.read_sra_field(
         PROJECT_ROOT / "exoplasim" / "inputs" / resolution.lower()
@@ -85,7 +91,7 @@ def main() -> None:
 
     means, _ = cv.basin_means(args.coupling,
                               {"pr": pr, "wet": evap, "pen": penman, "ro": mrro},
-                              basins.n)
+                              basins.n, field_lon=field_lon)
     # Orbital period varies with flux, so take it from the config rather than
     # hardcoding. The literal here was 189.6145 d, the 0.90-flux year, while this
     # baseline runs at 0.96 and 180.655 d. It cancels out of the aridity index
@@ -136,13 +142,16 @@ def main() -> None:
     n_preserve = int((~carved & (retain >= 1.0)).sum())
     n_marginal = basins.n - n_carve - n_preserve
 
-    with Dataset(DATA / "basins.nc") as ds:
+    with Dataset(args.basins) as ds:
         ids = [str(x) for x in ds["basin_id"][:]]
 
     header = f"""# Vesper carve verdict, first pass
 #
 # Produced from a converged ExoPlaSim climatology: {resolution}, 0.96 S-Earth,
-# vegetated land surface, glaciers enabled, measured K2 spectrum, 292.88 K.
+# vegetated land surface, glaciers enabled, 292.88 K. The spectrum was
+# ExoPlaSim's k2.dat, since found to be the star K2-18 rather than a K dwarf;
+# it is retained here because the correction was measured to be radiatively
+# null on this world, at 0.04 W/m2 of absorbed shortwave.
 # Terrain {basins.terrain_hash[:16]}, basin catalogue unchanged.
 #
 # A basin overflows, and so should have its outlet carved, when
@@ -172,6 +181,8 @@ def main() -> None:
         "climatology": str(args.climatology),
         "climate": {
             "resolution": resolution, "flux_earth": 0.96,
+            "stellar_spectrum": "k2 (K2-18, an M2.5V); correction measured null "
+                                "at 0.04 W/m2 absorbed, see stellar-spectrum-audit.md",
             "land_surface": "vegetated", "mean_surface_temperature_k": 292.88,
             "note": "Converged on all six criteria. The biosphere is assumed, "
                     "not modelled, and that assumption is worth 3.7 to 7.1 K.",

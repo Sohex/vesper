@@ -224,6 +224,48 @@ SOIL_WATER_SURFACE_CODES = {229}
 # vaporisation swapped.
 ENERGY_DIAGNOSTIC_CODES = list(range(360, 388))
 
+# Which module each denergy term is accumulated in, from the assignment sites in
+# the PlaSim source. Attribution only: the individual terms are not separately
+# documented upstream, and naming them by physics would be inventing detail that
+# has not been traced. Module plus index is enough to say where a residual is
+# being introduced, which is the question being asked.
+ENERGY_TERM_MODULE = {
+    1: "plasim", 2: "plasim", 3: "plasim", 4: "plasim", 5: "plasim",
+    6: "miscmod", 7: "fluxmod", 8: "fluxmod",
+    9: "radmod", 10: "radmod",
+    11: "rainmod", 12: "rainmod", 13: "rainmod", 14: "rainmod",
+    15: "rainmod", 16: "rainmod",
+    17: "radmod", 18: "radmod", 19: "radmod", 20: "radmod",
+    21: "fluxmod", 22: "fluxmod",
+    23: "plasim", 24: "plasim", 25: "plasim",
+    26: "plasim", 27: "plasim", 28: "radmod",
+}
+
+
+def register_energy_diagnostic_codes() -> int:
+    """Teach the postprocessor about codes 360-387 before it runs.
+
+    pyburn resolves every requested code against its own `ilibrary`, which ships
+    119 entries and none of these. Asking for them produces a run that completes,
+    writes a restart, and then dies in postprocessing with "Going to stop here
+    just in case", naming neither the code nor the reason. So enabling the
+    diagnostics without this crashes at the last step of an otherwise good run.
+
+    `ilibrary` is consulted at call time rather than captured at import, so
+    inserting here is enough and the vendored tree stays untouched. That matters:
+    `.venv` is untracked and any reinstall would silently drop a patch, whereas
+    this travels with the script that depends on it.
+    """
+    from exoplasim import pyburn
+    for i, code in enumerate(ENERGY_DIAGNOSTIC_CODES, start=1):
+        module = ENERGY_TERM_MODULE.get(i, "unknown")
+        pyburn.ilibrary.setdefault(str(code), [
+            f"denergy{i:02d}",
+            f"plasim_energy_budget_term_{i:02d}_{module}",
+            "W m-2",
+        ])
+    return len(ENERGY_DIAGNOSTIC_CODES)
+
 
 def intended_surface_codes(config: dict) -> set[int]:
     """Which surface fields this run supplies rather than leaving at defaults.
@@ -376,6 +418,22 @@ def spectrum_tag(config: dict) -> str:
     return f"_{name}" if name else "_bb"
 
 
+def flux_tag(flux_ratio: float) -> str:
+    """Flux in the run id, at whatever precision the value actually needs.
+
+    This was round(100 * flux), so 0.945 and 0.94 both produced `s094` and two
+    different climates would have shared a directory. The geography digest
+    happened to separate them the first time only because the terrain changed in
+    the same step, which is luck rather than a guard.
+
+    Thousandths, with a single trailing zero dropped, so every id written under
+    the old rule is reproduced exactly: 0.90 -> 090, 0.96 -> 096, 1.00 -> 100,
+    and 0.945 -> 0945. Existing run directories stay findable.
+    """
+    tag = f"{round(flux_ratio * 1000):04d}"
+    return tag[:-1] if tag.endswith("0") else tag
+
+
 def run_id(config: dict, flux_ratio: float) -> str:
     p = config["planet"]
     a = config["atmosphere"]
@@ -383,7 +441,7 @@ def run_id(config: dict, flux_ratio: float) -> str:
     identifier = (
         f"{str(m['resolution']).lower()}l{int(m['layers'])}p{int(m['ncpus'])}"
         f"r{int(m['precision_bytes'])}"
-        f"_s{round(100 * flux_ratio):03d}"
+        f"_s{flux_tag(flux_ratio)}"
         f"_co2{round(1e6 * float(a['pCO2_bar'])):04d}ppm"
         f"_rot{float(p['rotation_hours']):g}h"
         f"_obl{float(p['obliquity_degrees']):g}"
@@ -616,7 +674,9 @@ def main() -> None:
     staged = stage_surface_extras(run_dir, config)
     spectrum = stage_stellar_spectrum(model, run_dir, stellar_spectrum_path(config))
     if enable_energy_diagnostics(model, config):
-        print("energy diagnostics on: nenergy=1, codes 360-387. Term 15 needs "
+        n = register_energy_diagnostic_codes()
+        print(f"energy diagnostics on: nenergy=1, {n} codes 360-387 registered "
+              "with the postprocessor. Term 15 needs "
               "patches/exoplasim-3.4.2-energy-diagnostics.patch and a rebuild.")
     model.exportcfg(str(run_dir / f"{identifier}.cfg"))
     surface_report = surface_field_report(run_dir, config)

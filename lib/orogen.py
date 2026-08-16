@@ -42,8 +42,35 @@ _KNOWN_TERRAIN_HASHES = {
     # still resolves.
     "26fc76914da14289ff26f15a130192bd84d59031098569adb66186ffdabb28b7":
         "2026-08 precarve-zoned: threshold selection, crust/fill lithology split",
+    # SUPERSEDED. The verdict this build applied was decided on climate read
+    # 180 degrees out: the coupling matrix numbers its columns on the Orogen
+    # grid's -180..180 and an ExoPlaSim climatology on 0..360, so every basin
+    # integrated its antipode's rainfall. Of its 1,522 carves, 850 are not
+    # justified by the climate meant to justify them and cannot be un-cut.
+    # Kept registered so results computed from it stay readable and traceable.
     "3899a0c57d1eee2f47ba9054c218a171a7aa4532e2437c9104070c2c3dfaece6":
-        "2026-08 carved-zoned: iteration-1 carve verdict applied, crust/fill split",
+        "2026-08 carved-zoned: iteration-1 carve verdict applied, crust/fill "
+        "split. SUPERSEDED by 010f2143 -- its verdict used antipodal climate.",
+    # SUPERSEDED. The same first pass recomputed after the longitude fix, so its
+    # verdict is the right one: 1,089 carve, 170 marginal, 2,370 preserved. The
+    # lithology under it was not. Correct as a build of the model as it then
+    # stood, but that
+    # model decided which deposit sat on top by the order the branches were
+    # typed in, so closed-basin fill lost to three separate rules: fold-belt
+    # exhumation inside orogens, and basins on oceanic crust or flood basalt
+    # never reaching the endorheic branch at all. 203 preserved basins had no
+    # fill cell anywhere and were reaching ExoPlaSim as vegetated land.
+    "010f214397338008ae28de1d8ecce93486d7ce8232e1cfb554006cfebbc14b6f":
+        "2026-08 carved-zoned-v2: corrected iteration-1 carve verdict, "
+        "crust/fill split. SUPERSEDED by 5bed5549 -- basin fill was being "
+        "overwritten by cover-chain branch order.",
+    # Same verdict, same catalogue, cover chain now a declared table walked in
+    # order with closed-basin fill first. 99.77% of preserved-basin area carries
+    # fill against 74.6%, and no basin is left without any. The first build on
+    # which terrain, lithology and the drainage verdict are mutually consistent.
+    "5bed5549315da14b22275fea51a0b6f5b34d79cdf2237c9380e8471e0b431c78":
+        "2026-08 carved-zoned-v4: corrected verdict, cover-chain fix, "
+        "crust/fill split",
 }
 
 # Basin ids are computed on the pre-conditioning surface, so they survive a

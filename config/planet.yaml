@@ -7,11 +7,20 @@ schema_version: 1
 #
 #   precarve-unzoned  821aa71b  the 292.97 K baseline; evaporite one class at 0.50
 #   precarve-zoned    26fc7691  same drainage, crust/fill split
-#   carved-zoned      3899a0c5  iteration-1 verdict applied, crust/fill split
+#   carved-zoned      3899a0c5  SUPERSEDED, see below
+#   carved-zoned-v2   010f2143  SUPERSEDED, cover-chain branch order
+#   carved-zoned-v4   5bed5549  corrected verdict + cover-chain fix
+#
+# carved-zoned is superseded rather than merely older. Its verdict was decided on
+# climate integrated 180 degrees out of longitude, so 850 of its 1,522 carves are
+# unjustified, and carving cannot be undone within a build. carved-zoned-v2 is
+# the same first pass recomputed after the fix: 1,089 carve, 170 marginal, 2,370
+# preserved. Both stay registered so results already computed from either remain
+# readable and datable.
 #
 # The names are for humans. manifest.hashes.finalElevation is the identity, and
 # every run manifest and analysis report records it.
-source_build: carved-zoned
+source_build: carved-zoned-v4
 
 planet:
   radius_earth: 1.20
@@ -126,6 +135,12 @@ model:
   # tied to Earth's continents and would be meaningless on this geography.
   # Declared here so the fallback is a decision, not an accident.
   uniform_land_surface: true
+  # nenergy in plasim_nl, which the Python API does not expose, so
+  # run_exoplasim.py edits the namelist directly. Adds the 28 energy-budget
+  # terms on codes 360-387 to the regular output, to locate which one carries
+  # the constant -0.455 W/m2 residual. Needs the rebuilt binary for the term-15
+  # latent-heat phase fix; that rebuild is done.
+  energy_diagnostics: true
   # Background land albedo. Bare-rock albedo from lithology averages 0.315 over
   # land against ExoPlaSim's uniform 0.22, and ranges 0.10 for basalt to 0.50 for
   # evaporite, so uniform is a planetary-albedo error of about 0.04. This is
