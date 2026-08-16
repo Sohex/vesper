@@ -5,10 +5,10 @@ ExoPlaSim climatology and returns leaf area, carbon and plant functional type
 composition per gridcell, which becomes the surface albedo and forest fraction
 that the next climate run is forced with.
 
-Nothing in here runs yet. This directory holds the port audit and the built
-model; see `notes/lpj-guess-porting-audit.md` for what was found and what order
-the remaining work goes in, and `notes/productivity-prediction.md` for what the
-answer is expected to be, registered before the model can contradict it.
+No Vesper gridcell has been run yet. What exists is a built model carrying
+Vesper's calendar and astronomy, the audit behind those choices in
+`notes/lpj-guess-porting-audit.md`, and `notes/productivity-prediction.md`, which
+registers what the answer should be before the model can contradict it.
 
 ## Why this component exists
 
@@ -31,7 +31,8 @@ a result.
 | smoke test | bundled 3-cell demo, 550 years, 73 s, expected PFTs |
 | Earth-assumption audit | complete, see the note |
 | productivity prediction | registered, unscored |
-| calendar patch | not written |
+| calendar and astronomy patch | written, applied, verified |
+| PFT degree-day rescale | not written, and the patch shows it is required |
 | input module | not written |
 | soil texture from lithology | not designed |
 | first run | blocked on a `carved-zoned` climatology |
@@ -41,16 +42,24 @@ The model is not in this repository. It lives at
 `planet_heightmap_generation`, for the same reason those do.
 
 ```bash
-cd /home/cfutro/git/lpj-guess/build && cmake ../guess_4.1 -DCMAKE_BUILD_TYPE=Release && make -j16
+cd /home/cfutro/git/lpj-guess/guess_4.1
+patch --forward --strip=1 --directory=. < <world>/biosphere/patches/lpj-guess-4.1.1-vesper.patch
+cd ../build && cmake ../guess_4.1 -DCMAKE_BUILD_TYPE=Release && make -j16
 ```
+
+`--reverse` restores the pristine 4.1.1 tree. The patch collects every planetary
+constant into one block in `framework/guessmath.h` rather than scattering them,
+so what the model assumes about this world is auditable in one place.
 
 ## The three things that decide whether this is credible
 
 **The calendar.** Vesper's year is 180.655 Earth days and its day is 30 hours,
-so nothing about LPJ-GUESS's 365 x 24 h grid survives contact. The audit
-recommends stepping in 24-hour days with a 181-day year, which keeps every
-per-day rate constant calibrated against the absolute time it was calibrated
-against and confines the error to daylength alone.
+so nothing about LPJ-GUESS's 365 x 24 h grid survives contact. Settled and
+patched: 24-hour steps, 181-day year, which keeps every per-day rate constant
+calibrated against the absolute time it was calibrated against and confines the
+error to daylength alone. Verified against the unpatched model on identical
+forcing, where annual evapotranspiration falls to 0.492 of its former value
+against an expected 0.496.
 
 **The PAR fraction.** LPJ-GUESS assumes half of shortwave is photosynthetically
 active, which multiplies straight into productivity. Deriving the right value for
@@ -64,9 +73,18 @@ productivity. Resolved: a correct BT-Settl K2.5V spectrum now exists at
 **The PFTs.** The shipped plant functional types are Earth's, and their
 bioclimatic limits are Earth calibrations. Keeping them is defensible as an
 Earth-analogue biosphere and should be declared that way rather than presented as
-a prediction. Their degree-day thresholds do need rescaling, because a 181-day
-year accumulates about half the annual degree-days a 365-day year does for the
-same temperatures.
+a prediction. Their degree-day thresholds must be rescaled by 0.4946, and this is
+not optional: running the patched model on Earth's own demo data collapses boreal
+needleleaf and temperate broadleaf to grass, because Earth `gdd5min` cannot be
+met in 181 days. That is the next piece of work.
+
+There is a second PFT question the literature answers more sharply than expected.
+Earth's 400-700 nm photosynthetic window is an accident of our star, and Lehmer
+et al. 2021 predict peak pigment absorbance around a K2V at 675, 711 and 746 nm.
+A 400-750 nm window on this spectrum gives 0.99 of Earth's photon flux, so a
+50 nm redward shift would almost exactly cancel the dimmer, redder star. The
+21% oxygen atmosphere caps how far that can go, since anything past about 800 nm
+needs anoxygenic photosynthesis. See the prediction note.
 
 ## What the answer is expected to be
 

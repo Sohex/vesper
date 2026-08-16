@@ -193,21 +193,76 @@ Stated now so they cannot be discovered afterwards as excuses.
 
 ## Not part of the prediction: the photosystem window
 
-Earth's 400-700 nm PAR window is an accident of our star. Under this one, 88% of
-the flux falls beyond 0.75 um, and a biosphere evolving here would plausibly
-extend its photosystems redward.
+Earth's 400-700 nm PAR window is an accident of our star, and every prediction
+above assumes it transplants unchanged. The literature says it probably would
+not, and says so with unusual specificity for this exact spectral type.
+
+**Kiang et al. 2007** ("Spectral signatures of photosynthesis II", Astrobiology
+7:252-274) work through pigment coevolution with the host star and state that
+pigments around F2V stars may peak in the blue, **K2V in the red-orange**, and M
+stars in the near infrared. Vesper's host is K2.5V, so this is nearly a direct
+hit rather than an extrapolation.
+
+**Lehmer et al. 2021** (Frontiers in Astronomy and Space Sciences 8:689441) put
+numbers on it, applying the Marosvolgyi and van Gorkom power-gain optimisation
+model, which solves for the absorbance spectrum maximising photon energy captured
+against thermal emission losses. Predicted peak absorbance wavelengths:
+
+| star | predicted peaks |
+| --- | --- |
+| F2V | 468, 476 nm |
+| G2V (Sun) | 644, 672 nm |
+| **K2V** | **675, 711, 746 nm** |
+| M1V | 753 nm |
+| M5V | 987, 1050 nm |
+
+So the expected shift for this star is modest, about 30 to 75 nm redward, and it
+straddles rather than abandons the 700 nm boundary. A window of roughly 400-750
+nm is what the literature points at.
+
+**That is very nearly the window that restores parity.** Recomputing photon flux
+on the k25v spectrum:
 
 | assumed window | photon flux vs Earth's 400-700 nm |
 | --- | --- |
-| 400-700 nm (Earth's) | 0.81x |
+| 400-700 nm (Earth's, what is registered above) | 0.81x |
+| **400-750 nm (Lehmer K2V optimum)** | **0.99x** |
+| 400-800 nm (chlorophyll f limit) | 1.16x |
 | 400-900 nm | 1.47x |
 | 400-1100 nm | 2.06x |
 
-Running Earth PFTs through LPJ-GUESS silently picks the first row, and every
-prediction above assumes it. That is a worldbuilding choice worth making
-deliberately rather than by default, and it swings aggregate productivity by a
-factor of about 2.5. If a redder photosystem is adopted later, this document is
-void rather than wrong, and should be re-registered.
+A 50 nm extension almost exactly cancels the dimmer, redder star. That is not a
+coincidence so much as the point of the optimisation argument: pigments track the
+photon supply.
+
+**The oxygenic constraint bounds this, and it comes from our own config.**
+`planet.yaml` declares `pO2_bar: 0.21`, which requires oxygenic primary
+production. Kiang et al.'s more dramatic result, that M-star planets could exceed
+Earth's productivity if useful photons extend to 1.1 um, is explicitly for
+*anoxygenic* photosynthesis, which produces no oxygen and cannot sustain that
+atmosphere. Oxygenic photosynthesis is capped near 800 nm on known biochemistry:
+chlorophylls d and f, via far-red light photoacclimation, let some cyanobacteria
+work at 700-800 nm and contribute over 20% of gross photosynthesis in natural
+biofilms, but nothing oxygenic reaches 1.1 um without a three- or four-photon
+scheme nobody has observed. So the bottom two rows of that table are unavailable
+to a world with a 21% oxygen atmosphere, and the honest range is 0.81x to 1.16x,
+not 0.81x to 2.06x.
+
+**Caveats that keep this out of the registered prediction.** Optimal is not the
+same as realised: Earth's chlorophyll a sits where it does partly because of the
+energetics of splitting water and partly because of three billion years of
+contingency, not because it is optimal for a G2V. Lehmer et al. also exclude
+canopy and leaf structure, which is exactly where a land-plant biosphere does
+most of its light harvesting. And LPJ-GUESS has no mechanism to represent a
+different photosystem at all beyond `FRADPAR`.
+
+**What this means for the prediction.** Running Earth PFTs picks the first row,
+and the registered numbers therefore sit at the conservative end by about 23% in
+photon supply. If a K2V-adapted photosystem is adopted later, raise `FRADPAR`
+from 0.396 to about 0.48 and re-register; this document becomes void rather than
+wrong. The swing is roughly +20% on light-limited productivity, which is inside
+the tolerance bands above, so adopting it would not by itself falsify anything
+here.
 
 ## Result
 

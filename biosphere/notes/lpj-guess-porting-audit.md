@@ -87,8 +87,8 @@ quantities:
 | eccentricity | 0.01675 | 0.02 |
 | obliquity | 23.4 deg | 32.0 deg |
 | solstice phase offset | 10.5 days from day 0 | set by `longitude_vernal_equinox_degrees` 102.7 |
-| `daylength = 24.0 * hh / PI` | 24 h rotation | see the calendar decision below |
-| `K = 13750.98708` | 12/pi x 3600, angular units to seconds per day | scales with the rotation period |
+| `daylength = 24.0 * hh / PI` | 24 h rotation | **unchanged**, see below |
+| `K = 13750.98708` | 12/pi x 3600, angular units to seconds per day | **unchanged**, see below |
 | `FRADPAR` | 0.5 | unresolved, see below |
 | `BETA` global shortwave albedo | 0.17 | avoidable |
 
@@ -237,15 +237,76 @@ So the first LPJ-GUESS run is a shakedown on the pre-carve climatology, to prove
 the input module, the patch and the calendar, and it must be labelled as such.
 The first run that means anything waits on a `carved-zoned` climatology.
 
+## The patch, written
+
+`patches/lpj-guess-4.1.1-vesper.patch`, against the pinned 4.1.1 tarball, in the
+same style as `exoplasim/patches/exoplasim-3.4.2-star-cycle.patch`.
+
+```bash
+cd /home/cfutro/git/lpj-guess/guess_4.1
+patch --forward --strip=1 --directory=. < <world>/biosphere/patches/lpj-guess-4.1.1-vesper.patch
+cd ../build && make -j16
+```
+
+Every planetary constant is collected in one block in `framework/guessmath.h`,
+which `guess.h` and `spinupdata.h` both already include, so the assumptions are
+auditable in one place rather than scattered across five files:
+
+| constant | value | replaces |
+| --- | --- | --- |
+| `VESPER_YEAR_LENGTH_DAYS` | 181 | 365, in three places |
+| `VESPER_STELLAR_CONSTANT` | 1306.56 W/m2 | 1360 |
+| `VESPER_ECCENTRICITY` | 0.02 | 0.01675 |
+| `VESPER_OBLIQUITY_DEG` | 32.0 | 23.4 |
+| `VESPER_SOLSTICE_OFFSET_DAYS` | 151.2 | 10.5 |
+| `VESPER_FRADPAR` | 0.396 | 0.5 |
+
+The solstice offset is not a guess. It was fitted to the solar declination the
+ExoPlaSim climatology actually reports, `zdec` over its 12 bins: rms residual
+1.11 degrees, maximum 1.95. **It assumes day 0 of the LPJ-GUESS year is the
+first bin of the climatology**, which the input module has to guarantee or the
+seasons run out of phase with the forcing.
+
+### A correction to the audit above
+
+The audit said `daylength` and `K` scale with the rotation period. Writing the
+patch showed they do not, and both are left alone.
+
+`daylength = 24.0 * hh / PI` computes hh/PI, which *is* the lit fraction of the
+diurnal cycle, and multiplies by 24. Under the registered calendar a step is 24
+hours of real time, so that is already exactly the intended "lit fraction times
+24 h". Likewise `K` converts the angular integral to seconds per 24-hour step,
+which is what a step now is. Driving with `NETSWRAD_TS` supplies a genuine mean
+flux in W/m2, so the energy delivered per step is flux times 86400 seconds, and
+that is correct in absolute time.
+
+So the patch is smaller than the audit implied: geometry and calendar only.
+`QOO` does still matter despite the `NETSWRAD_TS` path, because `w` and
+`climate.qo` are used in the equilibrium-evapotranspiration longwave term
+(`driver.cpp`, Eqn 19), not only in the `SUNSHINE` branch.
+
+### Verified
+
+The patched model builds clean and runs. Feeding it the bundled Earth demo data
+is a deliberate control: same forcing, Vesper calendar, so anything that moves is
+the calendar.
+
+- Annual evapotranspiration falls to **0.492** of the unpatched value against an
+  expected 181/365 = 0.496. The year length is exactly in effect.
+- Annual GPP falls further, to 0.390, because the vegetation itself changed:
+  boreal needleleaf and temperate broadleaf collapse to grass. That is the
+  degree-day problem, arriving on cue. Earth `gdd5min` thresholds cannot be met
+  in 181 days, which is why item 2 below is not optional.
+
 ## Order of work
 
-1. Patch `Date`, `driver.cpp` and `soil.cpp` for Vesper's calendar and astronomy,
-   as a reversible patch file against the pinned 4.1.1 tarball, in the same style
-   as `exoplasim/patches/exoplasim-3.4.2-star-cycle.patch`.
-2. Write the input module against `config/planet.yaml` and the ExoPlaSim
-   climatology.
-3. Decide the lithology-to-soil-code mapping and the nitrogen deposition
+1. ~~Patch `Date`, `driver.cpp` and `soil.cpp`~~ done, above.
+2. **Rescale the PFT degree-day limits by 0.4946 and record the factor.** The
+   smoke test shows that without this, every tree PFT is excluded for reasons
+   that have nothing to do with the climate. This is a `.ins` file, not a patch.
+3. Write the input module against `config/planet.yaml` and the ExoPlaSim
+   climatology, guaranteeing that day 0 aligns with climatology bin 0.
+4. Decide the lithology-to-soil-code mapping and the nitrogen deposition
    constant, and write down why.
-4. Rescale the PFT degree-day limits and record the factor.
-5. Shakedown run on the pre-carve climatology. Label it.
-6. Resolve the PAR fraction before quoting productivity.
+5. Shakedown run on whatever climatology exists. Label it.
+6. Score against `productivity-prediction.md`.
