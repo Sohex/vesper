@@ -260,9 +260,21 @@ def main() -> int:
         for i, line in enumerate(lines):
             if not _re.match(r"^[a-z_]+:\s*$", line):
                 continue
-            window = "\n".join(lines[max(0, i - 8):i])
+            # Scan the WHOLE contiguous comment block above the key, not a fixed
+            # number of lines. A fixed window silently fails a block whose
+            # rationale grew past it, which is backwards: the blocks with the
+            # most to explain are exactly the ones that most need a status, and
+            # an 8-line window flagged `orbit` as unmarked when its marker was
+            # the first line of an 11-line header.
+            j = i - 1
+            while j >= 0 and (lines[j].startswith("#") or not lines[j].strip()):
+                if not lines[j].strip() and j < i - 1:
+                    break          # a blank line ends the block's own header
+                j -= 1
+            window = "\n".join(lines[j + 1:i])
             if not any(k in window for k in
-                       ("DETERMINED", "PROVISIONAL", "UNDETERMINED", "TRANSITIVE")):
+                       ("DETERMINED", "PROVISIONAL", "UNDETERMINED", "TRANSITIVE",
+                        "CANDIDATE")):
                 unmarked.append(line.split(":")[0])
         rep.add(FAIL if unmarked else OK, "config blocks declare their status",
                 f"unmarked: {', '.join(unmarked)}" if unmarked else
@@ -291,14 +303,18 @@ def main() -> int:
             was = rec.get("config_sha256")
             if was != cur:
                 yl = rec.get("year_length_days")
+                # Each artifact names its own generator, so the remediation is
+                # read off the artifact rather than guessed. It used to name one
+                # script for all three, which was wrong for two of them.
+                who = rec.get("generator") or "(generator not recorded)"
                 stale.append(f"{prov.name}"
-                             + (f" (year_length_days={yl})" if yl else ""))
+                             + (f" (year_length_days={yl})" if yl else "")
+                             + f" -> rerun {who}")
         if not list(gen.glob("*_provenance.json")):
             rep.add(WARN, "generated biosphere inputs", "none present")
         else:
             rep.add(FAIL if stale else OK, "generated biosphere inputs current",
-                    ("derived from an older config: " + "; ".join(stale)
-                     + " -- rerun biosphere/scripts/build_vesper_header.py")
+                    "derived from an older config: " + "; ".join(stale)
                     if stale else "all derived from the current config")
     except Exception as exc:
         rep.add(WARN, "generated biosphere inputs", f"not checked: {exc}")
@@ -344,6 +360,64 @@ def main() -> int:
                     f"{len(on_disk)} executables match the manifest")
     except Exception as exc:
         rep.add(WARN, "binaries", f"not checked: {exc}")
+
+    # -- the cycle executable can parse the cycle the config asks for ---------
+    #
+    # The star-cycle patch is deliberately NOT resident, so this binary is
+    # outside the matrix above and nothing else would notice it going stale.
+    # That is the same gap failure class 11 came through: exactly one of six
+    # executables was newer than the patched source, and the run died in
+    # radini_ with "Cannot match namelist object name".
+    #
+    # Checking the namelist names are actually IN the binary is stronger than
+    # checking a timestamp, and it is the specific thing that fails: adding a
+    # component to config/planet.yaml without rebuilding leaves a binary whose
+    # namelist has no slot for it, and Fortran rejects the whole group.
+    try:
+        cyc = ROOT / "exoplasim" / "inputs" / "exoplasim_cycle_t42"
+        m = config["model"]
+        exe = cyc / (f"most_plasim_t{int(str(m['resolution']).lstrip('Tt'))}"
+                     f"_l{int(m['layers'])}_p{int(m['ncpus'])}.x")
+        components = (config.get("stellar_cycle") or {}).get("components") or {}
+        slots = {"medium": "", "long": "2"}
+        if not components:
+            rep.add(WARN, "cycle executable", "no stellar_cycle.components")
+        elif not exe.is_file():
+            rep.add(FAIL, "cycle executable",
+                    f"{exe.name} absent; run "
+                    "exoplasim/scripts/build_star_cycle_exoplasim.sh")
+        else:
+            blob = exe.read_bytes()
+            missing = [f"gsolamp{slots[n]}" for n in components
+                       if n in slots
+                       and f"gsolamp{slots[n]}".encode() not in blob]
+            unslotted = sorted(set(components) - set(slots))
+            patch = (ROOT / "exoplasim" / "patches"
+                     / "exoplasim-3.4.2-star-cycle.patch")
+            problems = []
+            if unslotted:
+                problems.append(f"no namelist slot for {unslotted}")
+            if missing:
+                problems.append(f"binary lacks {missing}")
+            # Compare by CONTENT, not mtime. An mtime test called a correct
+            # binary stale as soon as a git stash/pop rewrote the patch file
+            # without changing a byte of it, and it would equally have missed a
+            # patch edited in place with a preserved timestamp.
+            mf = (ROOT / "exoplasim" / "patches" / "cycle_binary_manifest.json")
+            if not mf.is_file():
+                problems.append("no cycle_binary_manifest.json; rebuild to record one")
+            else:
+                rec = json.loads(mf.read_text(encoding="utf-8"))
+                if rec.get("executable_sha256") != sha256_of(exe):
+                    problems.append("executable differs from its build manifest")
+                elif patch.is_file() and rec.get("patch_sha256") != sha256_of(patch):
+                    problems.append("built from an older star-cycle patch")
+            rep.add(FAIL if problems else OK,
+                    "cycle executable matches the configured cycle",
+                    "; ".join(problems) if problems else
+                    f"{len(components)} components, all present in {exe.name}")
+    except Exception as exc:
+        rep.add(WARN, "cycle executable", f"not checked: {exc}")
 
     rep.show()
     return 1 if rep.failed else 0

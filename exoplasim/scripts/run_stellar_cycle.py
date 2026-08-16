@@ -1,5 +1,21 @@
 #!/usr/bin/env python3
-"""Run or resume smooth sinusoidal stellar-flux experiments with ExoPlaSim."""
+"""Run or resume a superposed-sinusoid stellar-flux experiment with ExoPlaSim.
+
+    python exoplasim/scripts/run_stellar_cycle.py \\
+        --baseline run_xxxxxxxxxxxx --restart MOST_REST.00059
+
+The forcing is two sinusoids about `orbit.baseline_flux_earth`, defined by
+`stellar_cycle.components` in `config/planet.yaml` and applied at every
+radiation timestep by the patched `radmod.f90`. Nothing about the forcing is
+set here.
+
+The cycle is bolometric and grey. That is a measured decision rather than a
+simplification of convenience: a spot-driven swing of this size moves the
+Lacis-Hansen band-1 fraction by 0.007, which is worth under 0.02 K on a world
+this nearly ice-free. It would not be negligible on a much colder branch --
+see exoplasim/notes/parameter-decisions.md for the calculation and the
+condition under which it stops holding.
+"""
 
 from __future__ import annotations
 
@@ -19,10 +35,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _paths import CONFIG, INPUTS, PATCHES, RUNS  # noqa: E402
 from run_exoplasim import (  # noqa: E402
     surface_sra,
-    geography_tag,
-    spectrum_tag,
     stage_surface_extras,
     surface_field_report,
+    physical_fingerprint,
+    run_id,
     REGULAR_CODES,
     derive,
     file_sha256,
@@ -30,18 +46,53 @@ from run_exoplasim import (  # noqa: E402
 from continue_exoplasim import validate_year, year_diagnostics  # noqa: E402
 
 
-def load_cases(config: dict) -> dict:
-    """Cycle amplitudes, from config rather than hardcoded.
-
-    They were literals here while the baseline was 0.90. The baseline is now
-    0.96 and the amplitudes moved with it, so leaving them in the source would
-    have silently applied the old range about the new centre.
-    """
-    cases = config.get("stellar_cycle", {}).get("cases")
-    if not cases:
-        raise RuntimeError("config/planet.yaml has no stellar_cycle.cases")
-    return cases
 JULIAN_YEAR_DAYS = 365.25
+
+# radmod.f90 carries exactly two component slots after the dual-sinusoid patch:
+# the unsuffixed triple and a `2`-suffixed one. Naming them here rather than
+# accepting whatever the config lists means a third component is a loud
+# KeyError instead of a silently dropped forcing.
+COMPONENT_SLOTS = {"medium": "", "long": "2"}
+
+
+def load_components(config: dict) -> dict:
+    """The cycle's components, from config rather than hardcoded.
+
+    The amplitudes were literals in this file while the baseline flux was 0.90.
+    The baseline has moved twice since, so a literal here would have applied an
+    old range about a new centre without anything noticing.
+
+    Two superposed sinusoids, not one. The medium component is climatic and the
+    long one is geomorphic, and their periods are deliberately non-commensurate
+    so grand minima differ in depth rather than repeating -- see the block's own
+    notes in `config/planet.yaml`.
+    """
+    block = config.get("stellar_cycle", {}) or {}
+    components = block.get("components")
+    if not components:
+        raise RuntimeError("config/planet.yaml has no stellar_cycle.components")
+    unknown = set(components) - set(COMPONENT_SLOTS)
+    if unknown:
+        raise RuntimeError(
+            f"stellar_cycle.components has {sorted(unknown)}, but the patched "
+            f"radmod carries only {sorted(COMPONENT_SLOTS)}. Adding a component "
+            "needs a namelist slot in "
+            "exoplasim/patches/exoplasim-3.4.2-star-cycle.patch first.")
+    for name, spec in components.items():
+        for key in ("period_earth_years", "amplitude_flux_peak_to_peak"):
+            if spec.get(key) is None:
+                raise RuntimeError(f"stellar_cycle.components.{name} has no {key}")
+        if float(spec["period_earth_years"]) <= 0:
+            raise RuntimeError(f"component {name} has a non-positive period")
+    # The declared total is a cross-check on the parts, not an input. It exists
+    # because prose elsewhere quotes it, and prose goes stale.
+    declared = block.get("total_amplitude_flux_peak_to_peak")
+    actual = sum(float(s["amplitude_flux_peak_to_peak"]) for s in components.values())
+    if declared is not None and not math.isclose(declared, actual, rel_tol=1e-9):
+        raise RuntimeError(
+            f"stellar_cycle.total_amplitude_flux_peak_to_peak is {declared} but "
+            f"the components sum to {actual}")
+    return components
 
 
 def restart_integer(path: Path, wanted: str) -> int:
@@ -63,32 +114,26 @@ def restart_integer(path: Path, wanted: str) -> int:
     raise KeyError(f"{wanted} was not found in {path}")
 
 
-def completed_years(run_dir: Path) -> list[int]:
-    years = []
-    for path in run_dir.glob("MOST.*.nc"):
-        match = re.fullmatch(r"MOST\.(\d{5})\.nc", path.name)
-        if match:
-            years.append(int(match.group(1)))
-    return sorted(years)
+def completed_years(run_dir: Path, manifest: dict) -> list[int]:
+    """Which orbits are finished, from the files, checked against the manifest.
 
-
-def cycle_run_id(config: dict, case: str, period_earth_years: float) -> str:
-    cases = load_cases(config)
-    p = config["planet"]
-    a = config["atmosphere"]
-    m = config["model"]
-    lo = round(100 * cases[case]["minimum_flux_earth"])
-    hi = round(100 * cases[case]["maximum_flux_earth"])
-    identifier = (
-        f"{str(m['resolution']).lower()}l{int(m['layers'])}p{int(m['ncpus'])}"
-        f"_cycle{period_earth_years:g}ey_s{lo:03d}-{hi:03d}"
-        f"_co2{round(1e6 * float(a['pCO2_bar'])):04d}ppm"
-        f"_rot{float(p['rotation_hours']):g}h"
-        f"_obl{float(p['obliquity_degrees']):g}"
-        f"_e{round(1000 * float(p['eccentricity'])):03d}"
-    )
-    identifier += spectrum_tag(config) + f"_g{geography_tag(config)}"
-    return identifier.replace(".", "p")
+    Enumerating the whole set and requiring it to be contiguous is not the same
+    thing as choosing an artifact by sort order: nothing here is selected, and a
+    gap is an error rather than a silently shorter run. The manifest's own count
+    is then required to agree, so a run interrupted between writing an output and
+    recording it cannot resume from a different place than it reports.
+    """
+    years = sorted(int(m.group(1)) for path in run_dir.glob("MOST.*.nc")
+                   if (m := re.fullmatch(r"MOST\.(\d{5})\.nc", path.name)))
+    if years and years != list(range(years[-1] + 1)):
+        raise RuntimeError(f"Outputs are non-contiguous: {years}")
+    recorded = manifest.get("completed_orbits")
+    if recorded is not None and recorded != len(years):
+        raise RuntimeError(
+            f"manifest records {recorded} completed orbits but {len(years)} are "
+            f"on disk in {run_dir}. Resolve by hand: one of them is wrong, and "
+            "guessing which would resume the cycle at the wrong phase.")
+    return years
 
 
 def make_model(
@@ -163,9 +208,7 @@ def make_model(
             "NSTPW@plasim_namelist": "164",
             "NSOLCYCLE@radmod_namelist": "1",
             "GSOLSTART@radmod_namelist": str(cycle["start_model_step"]),
-            "GSOLAMP@radmod_namelist": repr(cycle["semi_amplitude_w_m2"]),
-            "GSOLPERIOD@radmod_namelist": repr(cycle["period_model_steps"]),
-            "GSOLPHASE@radmod_namelist": "0.0",
+            **cycle["namelist"],
         },
     )
     model._add_postcodes("example.nl", REGULAR_CODES)
@@ -183,45 +226,51 @@ def make_model(
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--case", required=True)
     parser.add_argument("--config", type=Path, default=CONFIG)
     parser.add_argument("--baseline", type=str, default=None,
                         help="run id or directory to centre the cycle on")
     parser.add_argument("--restart", type=str, default=None,
                         help="restart filename within the baseline run")
-    parser.add_argument("--period-earth-years", type=float, default=8.0)
     parser.add_argument(
-        "--cycles", type=float, default=4.0,
-        help="Run at least this many complete stellar cycles in total",
+        "--cycles", type=float, default=2.0,
+        help="Run at least this many periods of the LONGEST component",
     )
     parser.add_argument(
         "--orbits", type=int,
         help="Override the target output-orbit count (useful for validation)",
     )
+    parser.add_argument("--run-id", type=str, default=None,
+                        help="resume this existing run directory")
     args = parser.parse_args()
-    if args.period_earth_years <= 0 or args.cycles <= 0:
-        raise ValueError("Cycle period and number of cycles must be positive")
+    if args.cycles <= 0:
+        raise ValueError("Number of cycles must be positive")
 
     config_path = args.config.resolve()
     config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
-    cases = load_cases(config)
-    if args.case not in cases:
-        raise SystemExit(f"unknown case {args.case!r}; config defines {sorted(cases)}")
-    mean_ratio = 0.5 * (
-        cases[args.case]["minimum_flux_earth"]
-        + cases[args.case]["maximum_flux_earth"]
-    )
-    if not math.isclose(mean_ratio, float(config["orbit"]["baseline_flux_earth"])):
-        raise ValueError("Cycle mean must equal the configured baseline flux")
+    components = load_components(config)
+    # The cycle is variance about the baseline. There is no separate mean to
+    # configure and no opportunity for the two to disagree, which is what the
+    # superseded min/max case representation allowed.
+    mean_ratio = float(config["orbit"]["baseline_flux_earth"])
     derived = derive(config, mean_ratio)
-    identifier = cycle_run_id(config, args.case, args.period_earth_years)
+    identifier = args.run_id or run_id(config, mean_ratio)
     run_dir = (RUNS / identifier).resolve()
+    if args.run_id and not (run_dir / "run_manifest.json").is_file():
+        raise SystemExit(f"--run-id {identifier} has no run_manifest.json")
     run_dir.mkdir(parents=True, exist_ok=True)
     source_dir = (INPUTS / "exoplasim_cycle_t42").resolve()
-    executable = source_dir / "most_plasim_t42_l10_p8.x"
+    model_cfg = config["model"]
+    # Named from the config, not hardcoded. This said p8 while
+    # build_star_cycle_exoplasim.sh had moved to p16, so the cycle run would have
+    # died on a missing executable -- or worse, found a stale p8 left over.
+    executable = source_dir / (
+        f"most_plasim_t{int(str(model_cfg['resolution']).lstrip('Tt'))}"
+        f"_l{int(model_cfg['layers'])}_p{int(model_cfg['ncpus'])}.x")
     patch_file = (PATCHES / "exoplasim-3.4.2-star-cycle.patch").resolve()
     if not executable.is_file():
-        raise RuntimeError("Build the patched cycle executable first")
+        raise RuntimeError(
+            f"{executable} is not built. Run "
+            "exoplasim/scripts/build_star_cycle_exoplasim.sh first.")
 
     # The baseline a cycle varies about must be named, not hardcoded and not
     # chosen by sort order. A cycle is variance around a mean, so starting it
@@ -246,30 +295,55 @@ def main() -> None:
         raise SystemExit(f"no restart at {initial_restart}")
     start_step = restart_integer(initial_restart, "nstep")
     timestep_seconds = float(config["model"]["timestep_minutes"]) * 60.0
-    period_steps = args.period_earth_years * JULIAN_YEAR_DAYS * 86400.0 / timestep_seconds
     earth_constant = float(config["orbit"]["earth_solar_constant_w_m2"])
-    semi_amplitude_ratio = 0.5 * (
-        cases[args.case]["maximum_flux_earth"]
-        - cases[args.case]["minimum_flux_earth"]
-    )
+    steps_per_orbit = derived["runsteps_per_orbit"]
+
+    resolved, namelist = {}, {}
+    for name, spec in components.items():
+        suffix = COMPONENT_SLOTS[name]
+        period_years = float(spec["period_earth_years"])
+        period_steps = period_years * JULIAN_YEAR_DAYS * 86400.0 / timestep_seconds
+        semi_ratio = 0.5 * float(spec["amplitude_flux_peak_to_peak"])
+        phase = float(spec.get("phase_cycles", 0.0))
+        resolved[name] = {
+            "period_earth_years": period_years,
+            "period_local_orbits": period_steps / steps_per_orbit,
+            "period_model_steps": period_steps,
+            "amplitude_flux_peak_to_peak": float(spec["amplitude_flux_peak_to_peak"]),
+            "semi_amplitude_flux_earth": semi_ratio,
+            "semi_amplitude_w_m2": semi_ratio * earth_constant,
+            "phase_cycles": phase,
+            "namelist_slot": f"GSOL*{suffix or '(unsuffixed)'}",
+        }
+        namelist[f"GSOLAMP{suffix}@radmod_namelist"] = repr(semi_ratio * earth_constant)
+        namelist[f"GSOLPERIOD{suffix}@radmod_namelist"] = repr(period_steps)
+        namelist[f"GSOLPHASE{suffix}@radmod_namelist"] = repr(phase)
+
+    longest = max(resolved.values(), key=lambda c: c["period_earth_years"])
+    total_ptp = sum(c["amplitude_flux_peak_to_peak"] for c in resolved.values())
     cycle = {
-        "case": args.case,
-        "minimum_flux_earth": cases[args.case]["minimum_flux_earth"],
-        "maximum_flux_earth": cases[args.case]["maximum_flux_earth"],
+        "components": resolved,
         "mean_flux_earth": mean_ratio,
         "mean_flux_w_m2": mean_ratio * earth_constant,
-        "semi_amplitude_w_m2": semi_amplitude_ratio * earth_constant,
-        "period_earth_years": args.period_earth_years,
-        "period_local_orbits": period_steps / derived["runsteps_per_orbit"],
-        "period_model_steps": period_steps,
+        # The envelope, reached only when the components align. With
+        # non-commensurate periods that is approached rather than attained, which
+        # is the design: see stellar_cycle in config/planet.yaml.
+        "aligned_minimum_flux_earth": mean_ratio - 0.5 * total_ptp,
+        "aligned_maximum_flux_earth": mean_ratio + 0.5 * total_ptp,
+        "total_amplitude_flux_peak_to_peak": total_ptp,
         "start_model_step": start_step,
-        "phase_convention": "sinusoid begins at mean flux and rises",
-        "stellar_spectrum_treatment": "fixed 4965 K blackbody spectral partition",
+        "phase_convention": "each sinusoid begins at mean flux and rises",
+        "stellar_spectrum_treatment": (
+            "fixed 4965 K blackbody spectral partition; the cycle is a grey "
+            "multiplier. A spot-driven 6% bolometric swing shifts the band-1 "
+            "fraction by 0.007, worth under 0.02 K at this ice cover -- see "
+            "exoplasim/notes/parameter-decisions.md."),
+        "namelist": namelist,
     }
     target_orbits = (
         args.orbits
         if args.orbits is not None
-        else math.ceil(args.cycles * period_steps / derived["runsteps_per_orbit"])
+        else math.ceil(args.cycles * longest["period_local_orbits"])
     )
     if target_orbits < 1:
         raise ValueError("Target orbit count must be positive")
@@ -289,6 +363,17 @@ def main() -> None:
         manifest = {
             "schema_version": 1,
             "run_id": identifier,
+            # What this run IS. The id is a UUID and carries no meaning, so
+            # index_runs.py reads this; without it a cycle run indexes as
+            # legacy and its forcing is invisible to everything downstream.
+            # `forcing` is what distinguishes it from a static run at the
+            # same flux, which is otherwise an identical fingerprint.
+            "physical": {**physical_fingerprint(config, mean_ratio),
+                         "forcing": "stellar_cycle",
+                         "cycle_components": {
+                             n: [c["period_earth_years"],
+                                 c["amplitude_flux_peak_to_peak"]]
+                             for n, c in resolved.items()}},
             "status": "prepared",
             "created_utc": datetime.now(timezone.utc).isoformat(),
             "config_path": str(config_path),
@@ -307,9 +392,7 @@ def main() -> None:
         }
         manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
 
-    years = completed_years(run_dir)
-    if years and years != list(range(years[-1] + 1)):
-        raise RuntimeError(f"Outputs are non-contiguous: {years}")
+    years = completed_years(run_dir, manifest)
     output_start = years[-1] + 1 if years else 0
     if output_start >= target_orbits:
         print(json.dumps({"status": "already_complete", "orbits": output_start}))
@@ -338,19 +421,27 @@ def main() -> None:
                 expected_times=int(config["model"]["regular_output_bins_per_orbit"]),
             )
             diagnostic = year_diagnostics(output)
-            diagnostic["cycle_start_phase"] = float(
-                ((year * derived["runsteps_per_orbit"]) / period_steps) % 1.0
-            )
-            diagnostic["cycle_end_phase"] = float(
-                (((year + 1) * derived["runsteps_per_orbit"]) / period_steps) % 1.0
-            )
+            # Phase per component, not one number. With two superposed
+            # sinusoids a single phase is meaningless, and the whole point
+            # of the design is that the two disagree.
+            for edge, offset in (("start", 0), ("end", 1)):
+                diagnostic[f"cycle_{edge}_phase"] = {
+                    n: float(((year + offset) * steps_per_orbit
+                              / c["period_model_steps"] + c["phase_cycles"]) % 1.0)
+                    for n, c in resolved.items()}
+            diagnostic["forcing_flux_earth"] = {
+                edge: mean_ratio + sum(
+                    c["semi_amplitude_flux_earth"]
+                    * math.sin(2 * math.pi * diagnostic[f"cycle_{edge}_phase"][n])
+                    for n, c in resolved.items())
+                for edge in ("start", "end")}
             manifest["diagnostics"] = [
                 d for d in manifest["diagnostics"] if d["year_index"] != year
             ] + [diagnostic]
             manifest["completed_orbits"] = year + 1
-            manifest["completed_cycles"] = (
-                (year + 1) * derived["runsteps_per_orbit"] / period_steps
-            )
+            manifest["completed_cycles"] = {
+                n: (year + 1) * steps_per_orbit / c["period_model_steps"]
+                for n, c in resolved.items()}
             manifest_path.write_text(
                 json.dumps(manifest, indent=2) + "\n", encoding="utf-8"
             )

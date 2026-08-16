@@ -411,13 +411,19 @@ The asymmetry is reinforced by proximity to the ice-free floor: at 0.2% sea ice
 the warm phase has almost nothing left to melt while the cold phase has room to
 grow. Magnitude pending the cold-regime slope.
 
-Two things here are NOT settled and must not be carried as though they were. The
-stellar cycle amplitude is still UNDETERMINED in config at 10.4% against the 4-7%
-this derivation assumes, and its damping factor is known only to a factor of 2.5.
-And the glacier result is unmodelled: it is a lapse-rate calculation off a T42
-climatology using band-mean elevations, the GCM reports `glac = 0` everywhere
-because it cannot see a 4.6 km peak, and it belongs in the derived-surface-class
-work before it is quoted as a property of the world.
+One thing here is NOT settled and must not be carried as though it were. The
+glacier result is unmodelled: the GCM reports `glac = 0` everywhere because it
+cannot see a 4.6 km peak inside a 300 km cell, so the question is entirely
+sub-grid.
+
+`notes/glacier-rough-pass.md` now does that sub-grid integration properly rather
+than with band-mean elevations, and **confirms the mechanism**: the area-weighted
+mean glacier latitude is 47 to 57 degrees in every case and falls as the world
+cools, because relief rather than latitude sets where ice survives. It remains a
+rough pass -- an assumed lapse rate, a temperature criterion with no mass
+balance, and a proxy offset for the 0.945 climatology -- so its areas are an
+upper bound and are not properties of the world. The detailed treatment belongs
+with the downscaling and sub-grid sampling machinery, not in the climate loop.
 
 ## 6. What happens next
 
@@ -453,10 +459,21 @@ permanently. **The terrain therefore ratchets toward the state implied by the
 cycle's wet extreme, not its mean.** Taking the verdict on the mean climate
 systematically under-carves, because overflow is a threshold process and the wet
 phase contributes disproportionately. Bedrock incision is a 10^3 to 10^5 year
-process against a roughly 12.7 year cycle, so it is the integral over many cycles
-that matters rather than any single one -- which means the verdict wants a
+process against cycles of 11 and 57 Earth years, so it is the integral over many
+cycles that matters rather than any single one -- which means the verdict wants a
 climate somewhere between the mean and the wet extreme, weighted by time spent
 overflowing, not the mean alone.
+
+**The two components ratchet differently, and that is the reason there are two.**
+The medium one is too fast for ice to follow and too fast for an outlet to
+incise, so it contributes only through the tail of its distribution. The long one
+is slow enough that glaciers equilibrate and long enough that a wet excursion is
+sustained, so it is the one that actually cuts. And because 57/11 is
+non-commensurate the deepest minima differ in depth rather than repeating, so
+successive advances reach different distances and the landscape ends up recording
+which past minima were severe. A cycle run therefore has to be long enough to
+sample that: its length is set in periods of the LONG component, not the medium
+one.
 
 The cycle run also measures the damping factor, which is currently known only as
 a range of 0.24 to 0.6 -- a factor of 2.5 on every temperature excursion derived

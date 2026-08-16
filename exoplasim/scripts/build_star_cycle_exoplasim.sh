@@ -21,9 +21,12 @@ executable="most_plasim_t42_l10_p16.x"
 #   + exoplasim-3.4.2-ozone-band-weights.patch   -> the sha below
 #
 # Verified 2026-08-16: the star-cycle patch applies to that base with all five
-# hunks clean at offsets of 10 to 12 lines, which is exactly the shift the ozone
-# patch introduces. The two patches coexist. If a THIRD patch lands on
-# radmod.f90, this sha moves again and the comment above needs another line.
+# hunks clean and at zero offset. It was regenerated against this base when the
+# second cycle component was added, rather than being hand-edited, so the offsets
+# the ozone patch used to introduce are now baked into the line numbers. The two
+# patches coexist. If a THIRD patch lands on radmod.f90, this sha moves again and
+# the comment above needs another line -- and the star-cycle patch has to be
+# regenerated against the new base, not merely re-checked.
 base_sha="7fd39458a87a0bc042d17b0b93c2e45cbfc4fc04a560965c974efa734019c0ba"
 
 if [[ ! -f "$source_file" || ! -f "$run_dir/$executable" || ! -d "$bin_dir" ]]; then
@@ -58,3 +61,22 @@ cp -a "$run_dir/." "$target_dir/"
 # the namelist, but a directory should hold what its name claims.
 find "$target_dir" -maxdepth 1 -name 'most_plasim_*.x' ! -name "$executable" -delete
 sha256sum "$target_dir/$executable"
+
+# Record WHAT this binary was built from, by content rather than by timestamp.
+# check_consistency.py used to compare mtimes, which reports a perfectly good
+# binary as stale the moment anything rewrites the patch file without changing
+# it -- a git stash/pop does exactly that. A hash cannot produce that false
+# alarm, and unlike an mtime it also catches a patch edited in place.
+manifest="$component_dir/patches/cycle_binary_manifest.json"
+cat > "$manifest" <<JSON
+{
+  "note": "Written by build_star_cycle_exoplasim.sh. Identifies the cycle executable by content. Do not edit.",
+  "built_utc": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+  "executable": "$executable",
+  "executable_sha256": "$(sha256sum "$target_dir/$executable" | cut -d" " -f1)",
+  "patch": "$(basename "$patch_file")",
+  "patch_sha256": "$(sha256sum "$patch_file" | cut -d" " -f1)",
+  "base_radmod_sha256": "$base_sha"
+}
+JSON
+echo "wrote $manifest"

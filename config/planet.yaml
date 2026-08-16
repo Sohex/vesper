@@ -105,22 +105,23 @@ star:
   luminosity_solar: 0.32359365692962827
   effective_temperature_k: 4965.0
 
-# PROVISIONAL. `baseline_flux_earth` is 0.945 and the evidence has moved past it:
-# the T21 bracket measured 150.2 K per unit flux ratio, and the T42 bootstrap at
-# 0.968 converged at 292.64 K, inside the 290-293 K design band. 0.945 is the
-# value the superseded runs used. It is left here rather than silently changed
-# because moving it is a decision about where the planet sits, and because
-# `config_sha256` pins it into every run manifest.
+# DETERMINED, 2026-08-16. `baseline_flux_earth` is 0.945, chosen from the
+# habitability-by-latitude derivation rather than from a temperature target.
+#
+# This block previously carried three eras of measured temperatures and
+# sensitivities in its comments -- 150.2 and 192.2 K per unit flux, and mean
+# temperatures of 291.4, 292.47 and 292.64 K. Every one of them was measured on a
+# superseded terrain or in a superseded regime, and they disagreed with each
+# other. They are gone rather than updated: per CONVENTIONS in CLAUDE.md, current
+# values live in `world_state.json`, and the dated measurements live in
+# `exoplasim/notes/parameter-decisions.md`. What stays here is what is a
+# decision, a threshold, or an argument that fails without its number.
 orbit:
   earth_solar_constant_w_m2: 1361.0
-  # 0.96 puts the vegetated branch at about 291.4 K, mid-range of the 290-293 K
-  # design target. Chosen from the six-case albedo bracket: the vegetated window
-  # for that target is 0.952-0.970 S-Earth. Note the bare-rock window is
-  # 0.977-0.994 and does not overlap it, so this flux is habitable *because* the
-  # world is vegetated, not independently of it.
-  # Settled on the iteration-2 baseline: converged at 292.47 K on all six
-  # criteria, mid-band against the 290-293 K design target. Measured, not
-  # bracketed: three converged points give 192.2 K per unit flux ratio.
+  # The flux and the biosphere are one choice, not two. The vegetated and
+  # bare-rock windows for the design band DO NOT OVERLAP, so this flux is
+  # habitable *because* the world is vegetated rather than independently of it.
+  # That non-overlap is the load-bearing fact and is why the number is here.
   #
   # This fixes the orbit. a = sqrt(L/F) = 0.585173 AU and the year is 182.801
   # days, and that year is compiled into LPJ-GUESS. Subsequent flux changes
@@ -410,11 +411,24 @@ model:
 # Convergence for a cycle run is also undefined: drift-based criteria assume an
 # approach to a steady state, and a forced cycle has none. Validate against
 # periodicity instead, comparing a year against the same phase one cycle later.
-# UNDETERMINED. Amplitude, period and mechanism are all still open, and the
-# numbers below are from exploratory runs centred on a baseline flux that has
-# since moved twice. Nothing downstream may rely on them. See the block's own
-# notes, and notes/ for the epsilon Eridani measurements that bound the
-# amplitude.
+# CANDIDATE, 2026-08-16. Periods and amplitudes are now CHOSEN -- two components
+# at 11 and 57 Earth years, 2.5% and 3.5% peak-to-peak -- and centred on a
+# baseline flux that is itself DETERMINED, so this block is no longer the
+# free-floating placeholder the header used to describe.
+#
+# It is CANDIDATE rather than DETERMINED because nothing has been run with it
+# yet. What the first cycle run has to return before this is settled: the real
+# damping factor, which is analytic and Planck-only here; whether the cycle-mean
+# temperature sits where the concavity argument says it does; and whether the
+# aligned excursion is tolerable. Amplitudes may want revising afterwards, and
+# revising them is expected rather than a failure.
+#
+# Item 2 below -- whether the variation is bolometric or spot-driven -- IS now
+# decided for modelling purposes: the cycle is applied as a grey multiplier,
+# because a spot-driven swing of this size moves the band-1 fraction by 0.007 and
+# is worth under 0.02 K at this world's ice cover. That measurement, and the ice
+# fraction at which it would stop holding, are in
+# exoplasim/notes/parameter-decisions.md.
 stellar_cycle:
   # Sinusoidal bolometric variation about the baseline flux, applied at every
   # radiation timestep by patches/exoplasim-3.4.2-star-cycle.patch.
@@ -446,9 +460,15 @@ stellar_cycle:
   # landscape records which past minima were severe. An exact ratio erases that.
   #
   # Damping below is ANALYTIC and Planck-only, from a slab thermal timescale of
-  # 1.17 Earth years. Real values include the ice-albedo feedback and will be
-  # larger in the cold phase. Measuring them is what the first cycle run is for,
-  # and the amplitudes may want revising afterwards.
+  # 1.17 Earth years. Measuring the real value is what the first cycle run is for.
+  #
+  # The per-component kelvin figures in the notes below are STALE HIGH-CONFIDENCE
+  # ESTIMATES and are known to be understated. They were computed against a
+  # sensitivity of about 149 K per unit flux ratio; the 0.9125-to-0.968 bracket
+  # measured 201 K per unit flux on this build, 35% larger, because that interval
+  # crosses the ice transition and the earlier figure did not. Corrected
+  # magnitudes are in exoplasim/notes/parameter-decisions.md. THE AMPLITUDES
+  # BELOW ARE STILL THE DECISION; only their predicted consequence moved.
   components:
     medium:
       period_earth_years: 11.0        # 22 local years, ~6.4 per lifetime
@@ -467,12 +487,9 @@ stellar_cycle:
         breathing. Each grand minimum is a distinct historical era.
   total_amplitude_flux_peak_to_peak: 0.060
   alignment_recurrence_earth_years: 314
-  # Aligned excursion about 8.3 K peak-to-peak, so 286 to 294 K at a 290.3 K
-  # mean, with the aligned minimum at flux 0.9166.
-  #
-  # Superseded single-sinusoid case, kept until the components are exercised.
-  cases:
-    active:
-      minimum_flux_earth: 0.91
-      maximum_flux_earth: 1.01
-  period_earth_years: 8.0
+  # The single-sinusoid `cases` representation and its 8-year `period_earth_years`
+  # were removed 2026-08-16. They were superseded rather than merely old: a case
+  # carried its own minimum and maximum, hence its own mean, which could disagree
+  # with orbit.baseline_flux_earth and had to be cross-checked at run time. The
+  # components state amplitudes ABOUT the baseline and have no second mean to
+  # disagree with.

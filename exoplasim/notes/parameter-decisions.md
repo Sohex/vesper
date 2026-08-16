@@ -691,11 +691,134 @@ The 1.01 endpoint is extrapolated one step beyond the 1.00 run, so it is the
 least supported number in the set. The prediction should be treated as a
 hypothesis the cycle runs will test, not as a result.
 
-Cycle amplitudes now live in `config/planet.yaml` under `stellar_cycle.cases`
-rather than as literals in `run_stellar_cycle.py`. They were hardcoded while the
-baseline was 0.90; leaving them there would have applied the old 0.85-0.95 range
-about the new 0.96 centre without complaint. The script now refuses a case whose
-mean does not equal the configured baseline.
+Cycle amplitudes live in `config/planet.yaml` rather than as literals in
+`run_stellar_cycle.py`. They were hardcoded while the baseline was 0.90; leaving
+them there would have applied the old 0.85-0.95 range about the new centre
+without complaint.
+
+**Superseded 2026-08-16** by the two-component design below. The single-sinusoid
+`stellar_cycle.cases` representation carried its own minimum and maximum, so it
+also carried its own mean, which could disagree with `orbit.baseline_flux_earth`;
+the script had to check that they matched. The component representation states
+amplitudes about the baseline and has no second mean to disagree with.
+
+### Two components, 11 and 57 Earth years
+
+*Decided 2026-08-16, against a 0.945 baseline.*
+
+One sinusoid was a placeholder. Epsilon Eridani, the reference for what a K2.5V
+of this activity level can do, genuinely carries both a short and a long cycle at
+once, and the two do different jobs on this world:
+
+| component | period | peak-to-peak | damping | response |
+| --- | --- | --- | --- | --- |
+| medium | 11 Earth yr | 2.5% | 0.83 | ~3.1 K, climatic |
+| long | 57 Earth yr | 3.5% | 0.99 | ~5.2 K, geomorphic |
+
+The periods are **not** epsilon Eri's measured values, and copying them would
+have been a category error: that star bounds the plausible *amplitude* envelope
+(4.3% median, 2.4 to 7.2% at 95%, bolometric), not the periods this world's
+narrative wants. The 6% total is inside that envelope and above its median.
+
+The damping is analytic and Planck-only, from a slab thermal timescale of
+tau = C/(4 sigma T^3) = 1.17 Earth years, giving 1/sqrt(1 + (2 pi tau / P)^2).
+Real damping includes the ice-albedo feedback and will be larger in the cold
+phase. Measuring it is what the first cycle run is for.
+
+**The ratio is deliberately non-commensurate.** At 57/11 = 5.18 the phase
+relationship returns only after about 314 Earth years, so successive grand minima
+differ in depth rather than repeating identically. That is the point rather than
+a detail: glaciers advance further in the deeper minima and leave moraines at
+different distances, so the landscape records which past minima were severe. An
+integer ratio erases that record.
+
+Note that the aligned envelope, 8.3 K peak-to-peak about a 290.3 K mean, is
+approached rather than attained, and the cycle-mean temperature sits slightly
+*below* the static mean at the same flux because T(f) is concave.
+
+### The cold-regime slope, measured 2026-08-16
+
+Two 60-orbit T42 runs on `precarve-zoned-g1281` bracketing the 0.945 baseline:
+
+| flux | run | mean T | fitted asymptote | sea ice |
+| --- | --- | --- | --- | --- |
+| 0.9125 | `run_5aed450f3972` | 282.489 K | 282.491 K | 6.174% |
+| 0.968 | `run_1dbb75d05aca` | 293.741 K | 293.663 K | 0.206% |
+
+**201 K per unit flux ratio**, or 2.01 K per 0.01 — from the fitted asymptotes.
+Run means give 203 and drift-implied endpoints 206, so call it 201 to 206.
+
+**Neither run formally converged, and both are one criterion short.** The cold
+run fails `abs_mean_toa_lt_0.5_w_m2` at -0.653 W/m2 and is still cooling at
+-0.028 K/orbit, with a drift-implied remaining offset of -0.269 K. The warm run
+fails `extrapolated_offset_lt_0.15_k`, though its remaining offset is only
+-0.078 K; its relaxation fit is degenerate, which is what actually trips the
+criterion. Both are *quasi-equilibrated* in the sense this project already uses
+for the 0.85-flux case, and the slope is quoted with that caveat rather than
+without it.
+
+**This supersedes the 290.3 K figure for flux 0.945**, and it supersedes it by
+exactly the mechanism this file already warns about. 290.3 K came from
+extrapolating down from the 0.968 run using a sensitivity near 149 K per unit
+flux, measured where the world is nearly ice-free. The 0.9125-to-0.968 interval
+crosses the ice transition -- sea ice grows thirtyfold across it -- so the true
+interval sensitivity is 35% larger. The chord now gives **289.0 K at 0.945**.
+
+T(f) is concave, because dT/df is larger at low flux where the ice-albedo
+feedback amplifies cooling, so a chord *underestimates* an interior point and the
+true value at 0.945 sits above 289.0 K. How far above is not derivable from two
+points and is what the 0.945 baseline run will measure. Do not quote 289.0 K as
+the mean temperature; quote it as a lower bound with the run pending.
+
+The consequence for the cycle is that its predicted response was understated:
+
+| component | peak-to-peak | static span | damped (analytic) |
+| --- | --- | --- | --- |
+| medium, 11 yr | 2.5% | 5.03 K | 4.18 K |
+| long, 57 yr | 3.5% | 7.05 K | 6.98 K |
+| aligned envelope | 6.0% | 12.08 K | **11.15 K** |
+
+against the 8.3 K written down when the components were chosen. The amplitudes
+are still the decision; only their consequence moved. Note also that the aligned
+envelope is an extreme reached only near the 314-year recurrence: the root-sum-
+square of the two damped semi-amplitudes is about 2.9 K, so a typical excursion
+is roughly +/-2.9 K rather than +/-5.6 K.
+
+### The cycle is grey, and that is measured rather than assumed
+
+The patched `radmod.f90` scales `gsol0` and leaves the Lacis-Hansen band split
+alone, so the cycle is a bolometric multiplier with a fixed 4965 K spectral
+partition. A real spot-driven cycle is not grey: the star reddens at minimum.
+
+Sized before building anything. For a photosphere at 4965 K and spots at 4000 K,
+(T_spot/T_phot)^4 = 0.4213, so a 6% peak-to-peak bolometric swing needs the spot
+covering fraction to move by 10.4 percentage points. Band-1 fractions (below the
+0.75 um split) are 0.4127 for the photosphere and 0.2690 for the spots, so about
+f = 0.10 the model's `zsolar1` runs from 0.4097 at flux maximum to 0.4026 at
+minimum. The cold phase is redder by **0.0071**.
+
+Carried through to what it does, via the effective ice albedo shift of +0.0025:
+
+| sea ice | planetary albedo | temperature |
+| --- | --- | --- |
+| 0.21% | +0.000005 | 0.0011 K |
+| 3.60% | +0.000089 | 0.0183 K |
+| 10.0% | +0.000248 | 0.0509 K |
+
+Under 0.02 K at this world's ice cover. **Runtime spectral interpolation is not
+warranted**, and neither is regenerating the spectrum per phase.
+
+This is the k2-to-k25v correction repeating exactly: fixing a genuinely wrong
+stellar spectrum moved absorbed shortwave by 0.04 W/m2 here, because the spectral
+partition acts on snow and ice and there is almost none of either. The general
+form is in `notes/failure-modes.md` -- a correction's size depends on how much of
+the surface it acts on.
+
+**The condition under which this stops holding is stated so it can be checked**:
+it is negligible because sea ice is a few percent. On a cold branch at 10% ice it
+is 0.05 K, still small; at the sort of ice cover a much colder world carries it
+would not be. Anything that moves this world onto a substantially icier state
+should re-derive the table above rather than inheriting the conclusion.
 
 ### Resolution still to settle
 

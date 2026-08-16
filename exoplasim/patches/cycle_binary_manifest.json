@@ -1,0 +1,9 @@
+{
+  "note": "Written by build_star_cycle_exoplasim.sh. Identifies the cycle executable by content. Do not edit.",
+  "built_utc": "2026-08-16T19:04:04Z",
+  "executable": "most_plasim_t42_l10_p16.x",
+  "executable_sha256": "fdef935a0910177730de62abf7de40e3fe615b2d4b27589ceb5d4a9b6cd3b37f",
+  "patch": "exoplasim-3.4.2-star-cycle.patch",
+  "patch_sha256": "22704de6518bfc9ddfae5be5e71084bdd1841416a286ab8400c97b624eab0e48",
+  "base_radmod_sha256": "7fd39458a87a0bc042d17b0b93c2e45cbfc4fc04a560965c974efa734019c0ba"
+}

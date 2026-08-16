@@ -1,6 +1,6 @@
 --- a/plasim/src/radmod.f90
 +++ b/plasim/src/radmod.f90
-@@ -32,6 +32,11 @@
+@@ -32,6 +32,20 @@
        character(len=128) :: aerofile = " " ! Name/path to file constaining aerosol optical data
        
        real    :: gsol0   = 1367.0 ! solar constant (set in planet module)
@@ -9,20 +9,30 @@
 +      real    :: gsolamp = 0.0    ! cycle semi-amplitude (W/m2)
 +      real    :: gsolperiod = 1.0 ! cycle period (model timesteps)
 +      real    :: gsolphase = 0.0  ! phase offset (cycles; zero=mean, rising)
++!     Second, independent component. A real activity cycle is not one
++!     sinusoid -- epsilon Eridani carries a short and a long period at once --
++!     and this world superposes a medium climatic cycle on a long geomorphic
++!     one. The two periods are deliberately non-commensurate, so the deepest
++!     minima drift instead of repeating on a fixed beat. Amplitude zero
++!     disables it and a one-component run behaves exactly as before.
++      real    :: gsolamp2 = 0.0    ! second semi-amplitude (W/m2)
++      real    :: gsolperiod2 = 1.0 ! second period (model timesteps)
++      real    :: gsolphase2 = 0.0  ! second phase offset (cycles)
        real    :: solclat = 1.0    ! cos of lat of insolation if ncstsol=1
        real    :: solcdec = 1.0    ! cos of dec of insolation if ncstsol=1
        real    :: clgray  = -1.0   ! cloud grayness (-1 = computed)
-@@ -608,7 +613,8 @@
+@@ -618,7 +632,9 @@
       &               ,a0o3,a1o3,aco3,bo3,co3,toffo3,o3scale,newrsc,necham,necham6   &
       &               ,nsol,nclouds,nswrcl,nrscat,rcl1,rcl2,acl2,clgray,tpofmt   &
       &               ,acllwr,tswr1,tswr2,tswr3,th2oc,dawn,starbbtemp,nstartemp  &
 -     &               ,nsimplealbedo,nstarfile,starfile,starfilehr,minwavel
 +     &               ,nsimplealbedo,nstarfile,starfile,starfilehr,minwavel      &
-+     &               ,nsolcycle,gsolstart,gsolamp,gsolperiod,gsolphase
++     &               ,nsolcycle,gsolstart,gsolamp,gsolperiod,gsolphase   &
++     &               ,gsolamp2,gsolperiod2,gsolphase2
       namelist/aero_nl/l_source,l_bulk,apart,rhop,fcoeff,l_aerorad,aerofile
  !
  !     namelist parameter:
-@@ -762,6 +768,11 @@
+@@ -774,6 +790,14 @@
        call mpbcr(o3scale)
        call mpbcr(co2)
        call mpbcr(gsol0)
@@ -31,18 +41,21 @@
 +      call mpbcr(gsolamp)
 +      call mpbcr(gsolperiod)
 +      call mpbcr(gsolphase)
++      call mpbcr(gsolamp2)
++      call mpbcr(gsolperiod2)
++      call mpbcr(gsolphase2)
        call mpbcr(solclat)
        call mpbcr(solcdec)
        call mpbcr(clgray)
-@@ -1590,6 +1601,7 @@
+@@ -1602,6 +1626,7 @@
        real zrcsu(NHOR,NLEV)  ! clear sky reflexivity (upward beam)
  !
        real zftop1(NHOR),zftop2(NHOR) ! top solar radiation
-+      real gsolinst,zcyclephase       ! instantaneous cyclic stellar flux
++      real gsolinst,zcyclephase,zcyclephase2 ! instantaneous cyclic stellar flux
        real zfu1(NHOR),zfu2(NHOR)     ! upward fluxes
        real zfd1(NHOR),zfd2(NHOR)     ! downward fluxes
  !
-@@ -1670,8 +1682,13 @@
+@@ -1682,8 +1707,18 @@
  !
  !     top solar radiation downward
  !
@@ -52,6 +65,11 @@
 +      if (nsolcycle > 0 .and. gsolperiod > 0.0) then
 +         zcyclephase = TWOPI * (real(nstep-gsolstart) / gsolperiod + gsolphase)
 +         gsolinst = gsol0 + gsolamp * sin(zcyclephase)
++         if (gsolperiod2 > 0.0 .and. gsolamp2 /= 0.0) then
++            zcyclephase2 = TWOPI * (real(nstep-gsolstart) / gsolperiod2   &
++     &                              + gsolphase2)
++            gsolinst = gsolinst + gsolamp2 * sin(zcyclephase2)
++         endif
 +      endif
 +      zftop1(:) = zsolar1 * gsolinst * gdist2 * zmu1(:) !Adjust down here for redder spectrum. --AYP
 +      zftop2(:) = zsolar2 * gsolinst * gdist2 * zmu1(:)
