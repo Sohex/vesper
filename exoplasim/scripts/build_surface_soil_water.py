@@ -79,6 +79,13 @@ def main() -> None:
                         help="supplies the grid and the land mask, so they match "
                              "the soil map exactly")
     parser.add_argument("--output", type=Path, default=None)
+    parser.add_argument("--lakes", type=Path, default=None,
+                        help="surface_water.nc; raises dwmax on the lake fraction "
+                             "of each cell so those cells reach the wetness "
+                             "ceiling and evaporate at the potential rate")
+    parser.add_argument("--lake-dwmax-m", type=float, default=None,
+                        help="bucket depth on the lake fraction; defaults to "
+                             "model.lake_dwmax_m, else 0.2 m")
     args = parser.parse_args()
 
     config = yaml.safe_load(args.config.read_text(encoding="utf-8"))
@@ -123,6 +130,55 @@ def main() -> None:
             field[j, i] = value / 1000.0   # mm -> m, the units dwmax is in
             matched += 1
 
+    # Lakes, as an area-weighted bucket depth. `drhs` reaches 1 once soil water
+    # exceeds 40% of dwmax (landmod.f90:52-53), so a SHALLOWER bucket saturates
+    # the wetness factor on less water and evaporates at the potential rate,
+    # where a deeper one needs proportionally more water to get there. The note
+    # in lake-representation.md reads the other way, "large and full"; large is
+    # right for storage and wrong for wetness, and on this planet the lakes sit
+    # in the arid cells where the water to fill a large bucket is not available.
+    #
+    # WHAT THIS CANNOT DO, verified in the source rather than assumed. A lake
+    # here is fed by its catchment, and that water never reaches the evaporating
+    # bucket. `dwatc` gains only from local precipitation minus evaporation
+    # (landmod.f90:1097); routed river water accumulates into `driver`
+    # (landmod.f90:1390), a separate store that discharges to the ocean. So a
+    # cell's annual evaporation is capped by its own precipitation plus storage
+    # however dwmax is set, and lake evaporation stays underestimated. What this
+    # buys is the seasonal partition -- a lake cell that stays at potential rate
+    # while it has water, rather than being moisture-limited from the first dry
+    # day. Sustained open-water evaporation needs the mask flip in
+    # notes/lake-representation.md, and only for the few resolvable lakes.
+    lake_report = None
+    if args.lakes is not None:
+        import sys
+        sys.path.insert(0, str(PROJECT_ROOT / "lib"))
+        from gridding import land_fraction_of_class
+        from orogen import Export
+        from builds import grid_export, mesh_export
+        mesh = Export(mesh_export(config))
+        with nc.Dataset(args.lakes) as lds:
+            lake = np.asarray(lds["lake"][:]).astype(bool)
+            lake_terrain = getattr(lds, "terrain_hash", None)
+        if lake_terrain and lake_terrain != mesh.terrain_hash:
+            raise SystemExit(
+                f"lake solution is on terrain {lake_terrain[:16]}, mesh is "
+                f"{mesh.terrain_hash[:16]}; re-run surface_water.py")
+        f_lake = land_fraction_of_class(mesh, grid_export(config), lake)
+        depth = (args.lake_dwmax_m if args.lake_dwmax_m is not None
+                 else float(model.get("lake_dwmax_m", 0.2)))
+        before = float(field[land].mean())
+        field = np.where(land, (1.0 - f_lake) * field + f_lake * depth, field)
+        lake_report = {
+            "source": str(args.lakes),
+            "lake_dwmax_m": depth,
+            "mean_lake_fraction_of_land_cells": float(f_lake[land].mean()),
+            "land_mean_dwmax_before_m": round(before, 5),
+            "land_mean_dwmax_after_m": round(float(field[land].mean()), 5),
+            "ceiling": "annual lake evaporation is still capped by local "
+                       "precipitation; river water never re-enters dwatc",
+        }
+
     output = args.output or (INPUTS / resolution.lower()
                              / f"orogen_{resolution}_surf_{SOIL_WATER_CODE:04d}.sra")
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -136,6 +192,7 @@ def main() -> None:
         "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "code": SOIL_WATER_CODE,
         "field": "dwmax, maximum soil water capacity, metres",
+        "lakes": lake_report,
         "soil_map": str(args.soil_map.relative_to(PROJECT_ROOT)),
         "soil_map_sha256": hashlib.sha256(args.soil_map.read_bytes()).hexdigest(),
         "config_sha256": hashlib.sha256(args.config.read_bytes()).hexdigest(),

@@ -41,6 +41,16 @@ import builds  # noqa: E402
 CLIMATOLOGY = PROJECT_ROOT / "exoplasim/analysis/climatology_s096"
 SECONDS_PER_DAY = 86400.0
 
+# Set by main() from --data. Hydrography products are per build, because drainage
+# is a property of the terrain, and this script previously read the flat
+# hydrography/data/ whatever build was configured. That silently pairs one
+# terrain's basins with another's coupling matrix.
+_DATA = DATA
+
+
+def data_dir() -> Path:
+    return _DATA
+
 
 def sha256(path):
     h = hashlib.sha256()
@@ -68,7 +78,9 @@ def climate_fields(config):
     out 7.8% high on that same test, which is three times the error for no
     gain, and it duplicated a validated function in this directory.
     """
-    with Dataset(CLIMATOLOGY / "baseline_regular_climatology.nc") as ds:
+    clim = globals().get("_CLIM_FILE") or (
+        CLIMATOLOGY / "baseline_regular_climatology.nc")
+    with Dataset(clim) as ds:
         pr = cv.annual_mean(ds, "pr")
         evap = -cv.annual_mean(ds, "evap")     # code 182 is negative upward
         mrro = cv.annual_mean(ds, "mrro")
@@ -108,7 +120,7 @@ def per_basin_forcing(n_basins, lat, lon, runoff, precip, evaporation, sinks, ex
     # sum, and it is where the coupling grid's longitude convention is
     # reconciled with the climatology's. Doing it twice is how they came to
     # disagree in the first place.
-    means, _ = cv.basin_means(DATA / "coupling_exoplasim-T42.nc",
+    means, _ = cv.basin_means(data_dir() / "coupling_exoplasim-T42.nc",
                               {"runoff": runoff}, n_basins, field_lon=lon)
     catchment_runoff = np.nan_to_num(means["runoff"])
 
@@ -253,11 +265,33 @@ def river_discharge(export, receiver, runoff_per_region):
 
 
 def main():
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--data", type=Path, default=None,
+                    help="hydrography products for this build; defaults to "
+                         "data/<source_build>/ when it exists")
+    ap.add_argument("--climatology", type=Path, default=None,
+                    help="baseline_regular_climatology.nc to force the lakes with")
+    ap.add_argument("--output", type=Path, default=None)
+    args = ap.parse_args()
+
+    global _DATA, CLIMATOLOGY
+    import yaml as _yaml
+    _cfg = _yaml.safe_load((PROJECT_ROOT / "config/planet.yaml").read_text())
+    if args.data is not None:
+        _DATA = args.data
+    else:
+        named = DATA / str(_cfg.get("source_build", ""))
+        _DATA = named if (named / "basins.nc").is_file() else DATA
+    if args.climatology is not None:
+        CLIMATOLOGY = args.climatology.parent
+        globals()["_CLIM_FILE"] = args.climatology
+
     build = builds.build_root()
     export = Export(builds.mesh_export())
     n = export.n_regions
 
-    with Dataset(DATA / "regions.nc") as ds:
+    with Dataset(data_dir() / "regions.nc") as ds:
         terminal = np.asarray(ds["terminal"][:])
         filled_km = np.asarray(ds["filled_km"][:])
         if "receiver" not in ds.variables:
@@ -266,7 +300,7 @@ def main():
             )
         receiver = np.asarray(ds["receiver"][:])
 
-    basins = lb.BasinSet()
+    basins = lb.BasinSet(data_dir() / "basins.nc")
     if basins.terrain_hash != export.terrain_hash:
         raise SystemExit("basins.nc was built from a different terrain")
 
@@ -315,7 +349,7 @@ def main():
     discharge = river_discharge(export, receiver, runoff_per_region)
     before = discharge.max()
 
-    with Dataset(DATA / "basins.nc") as ds:
+    with Dataset(data_dir() / "basins.nc") as ds:
         spill_exit = np.asarray(ds["spill_exit_region"][:])
     overflow_m3_s = solution["overflow_km3_per_year"] * 1e9 / per_year
     discharge, routed = route_overflow(
@@ -325,7 +359,7 @@ def main():
           f"before the overflow was routed; "
           f"{int((discharge > 1000).sum()):,} regions above 1000 m3/s")
 
-    out = DATA / "surface_water.nc"
+    out = args.output or (data_dir() / "surface_water.nc")
     with Dataset(out, "w") as ds:
         ds.createDimension("region", n)
         ds.createDimension("basin", basins.n)

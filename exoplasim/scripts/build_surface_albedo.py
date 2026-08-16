@@ -144,6 +144,10 @@ def main() -> None:
                     default=None)
     ap.add_argument("--vegetation", type=Path, default=None,
                     help="fpc.out from an LPJ-GUESS run, for --mode modelled")
+    ap.add_argument("--lakes", type=Path, default=None,
+                    help="surface_water.nc from hydrography; paints solved lake "
+                         "regions with open water's albedo before gridding, so "
+                         "each cell gets an area-weighted composite")
     ap.add_argument("--climatology", type=Path,
                     default=(CONFIG.parent.parent / "exoplasim" / "analysis"
                              / "climatology_s096"
@@ -230,6 +234,55 @@ def main() -> None:
         region_albedo[sel] = value
     if mode == "vegetated":
         region_albedo[is_land & ~barren] = args.vegetation_albedo
+
+    # Lakes, last, because a lake covers whatever lithology is under it and no
+    # vegetation grows on open water.
+    #
+    # Applied per region and then integrated, which is what makes this a
+    # composite rather than a mask: a lake occupying part of a T42 cell leaves
+    # that cell with an area-weighted albedo, and almost every lake here is far
+    # below the grid. No mask is flipped, per notes/lake-representation.md --
+    # these are surface-property perturbations on cells that stay land.
+    #
+    # This closes a gap rather than refining one. The lake solution existed and
+    # was rendered on maps, but never reached the climate: the cells were being
+    # given their dry substrate albedo, which on this planet is bright playa and
+    # salt crust exactly where the water is.
+    lake_report = None
+    lake_mask = None
+    if args.lakes is not None:
+        area_r = mesh.cell_area.astype(np.float64)
+        water_albedo_value = float(next(
+            r["albedo"] for r in mesh.manifest["lithology"]["rockClasses"]
+            if r["code"] == "water"))
+        with Dataset(args.lakes) as lds:
+            lake = np.asarray(lds["lake"][:]).astype(bool)
+            lake_terrain = getattr(lds, "terrain_hash", None)
+        if lake.shape != region_albedo.shape:
+            raise RuntimeError(
+                f"{args.lakes} has {lake.shape[0]} regions, this mesh has "
+                f"{region_albedo.shape[0]}; they are different builds")
+        if lake_terrain and lake_terrain != mesh.terrain_hash:
+            raise RuntimeError(
+                f"lake solution was computed on terrain {lake_terrain[:16]} and "
+                f"this mesh is {mesh.terrain_hash[:16]}. Lake extent is a "
+                "property of the basin floor, so a solution from another build "
+                "does not describe these lakes; re-run surface_water.py.")
+        lake &= is_land
+        lake_mask = lake
+        before = float(np.average(region_albedo[is_land], weights=area_r[is_land]))
+        region_albedo[lake] = water_albedo_value
+        after = float(np.average(region_albedo[is_land], weights=area_r[is_land]))
+        lake_report = {
+            "source": str(args.lakes),
+            "terrain_hash": lake_terrain,
+            "lake_regions": int(lake.sum()),
+            "lake_fraction_of_land": float(area_r[lake].sum() / area_r[is_land].sum()),
+            "water_albedo": water_albedo_value,
+            "land_mean_albedo_before": round(before, 6),
+            "land_mean_albedo_after": round(after, 6),
+            "delta": round(after - before, 6),
+        }
 
     fraction, alb_grid, _empty = land_weighted(mesh, grid_dir, region_albedo)
     land_cells = fraction >= float(model["geography_land_threshold"])
@@ -339,7 +392,12 @@ def main() -> None:
     else:
         forest_value = (args.forest_fraction if args.forest_fraction is not None
                         else MODE_FOREST_FRACTION[mode])
-        vegetable = land_fraction_of_class(mesh, grid_dir, ~barren)
+        # Open water carries no canopy, so lake regions come out of the
+        # vegetable fraction as well as out of the albedo. Leaving them in
+        # would put forest on the lakes and, through dforest, walk the albedo
+        # we just set back toward the forested endpoint.
+        canopy = ~barren if lake_mask is None else (~barren & ~lake_mask)
+        vegetable = land_fraction_of_class(mesh, grid_dir, canopy)
         forest = np.where(land_cells, vegetable * forest_value, 0.0)
 
     gw = np.fromfile(grid_dir / "grid" / "gauss_weights.bin", dtype="float64")
@@ -377,6 +435,7 @@ def main() -> None:
                         "uniform 0.5."),
         "land_mean_bare_rock": raw_mean,
         "land_mean_written": final_mean,
+        "lakes": lake_report,
         "exoplasim_default_albland": 0.22,
         "land_min": float(field[land_cells].min()),
         "land_max": float(field[land_cells].max()),
