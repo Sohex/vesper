@@ -489,7 +489,7 @@ def main() -> None:
         print(f"carve list    : {hy['carve_list']['counts']}")
     print(f"open questions: {len(CURATED['open_questions'])}, "
           f"uncertainties: {len(CURATED['known_uncertainties'])}")
-    print(f"\nwrote {args.output.relative_to(ROOT)}")
+    print(f"\nwrote {rel(args.output)}")
 
 
 if __name__ == "__main__":

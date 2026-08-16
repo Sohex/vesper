@@ -553,7 +553,7 @@ def main() -> None:
         "iteration": args.iteration,
         "closes_loop_with": (str(args.soil_carbon) if args.soil_carbon
                              else "nothing; iteration 0 has no biosphere"),
-        "climatology": str(climatology.relative_to(PROJECT_ROOT)),
+        "climatology": rel(climatology),
         "climatology_sha256": hashlib.sha256(climatology.read_bytes()).hexdigest(),
         "config_sha256": hashlib.sha256(CONFIG.read_bytes()).hexdigest(),
         "pedogenesis_sha256": hashlib.sha256(PEDOGENESIS.read_bytes()).hexdigest(),
@@ -598,8 +598,7 @@ def main() -> None:
             "LPJ-GUESS 4.1.1 has a fixed 1.5 m profile and does not consume "
             "regolith depth. It is computed and reported so the gap is visible; "
             "see notes/model.md."),
-        "output": (str(output.relative_to(PROJECT_ROOT))
-                   if output.is_relative_to(PROJECT_ROOT) else str(output)),
+        "output": rel(output),
         "output_sha256": hashlib.sha256(output.read_bytes()).hexdigest(),
         "git_commit": subprocess.run(
             ["git", "rev-parse", "HEAD"], capture_output=True, text=True,

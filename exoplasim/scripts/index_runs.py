@@ -136,7 +136,7 @@ def main() -> None:
         "runs": rows,
     }
     args.output.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
-    print(f"wrote {args.output.relative_to(ROOT)}")
+    print(f"wrote {rel(args.output)}")
 
 
 if __name__ == "__main__":

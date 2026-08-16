@@ -193,12 +193,12 @@ def main() -> None:
     land_mean = float(np.average(field[land], weights=weights[land])) if land.any() else 0.0
 
     report = {
-        "climatology": str(args.climatology.relative_to(PROJECT_ROOT)),
+        "climatology": rel(args.climatology),
         "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "code": SOIL_WATER_CODE,
         "field": "dwmax, maximum soil water capacity, metres",
         "lakes": lake_report,
-        "soil_map": str(args.soil_map.relative_to(PROJECT_ROOT)),
+        "soil_map": rel(args.soil_map),
         "soil_map_sha256": hashlib.sha256(args.soil_map.read_bytes()).hexdigest(),
         "config_sha256": hashlib.sha256(args.config.read_bytes()).hexdigest(),
         "resolution": resolution,
@@ -216,7 +216,7 @@ def main() -> None:
             "Requires model.soil_water_source: pedology in config/planet.yaml. "
             "That key is absent on purpose: adding it moves config_sha256 and "
             "blocks resumption of runs in flight."),
-        "output": str(output.relative_to(PROJECT_ROOT)),
+        "output": rel(output),
         "output_sha256": hashlib.sha256(output.read_bytes()).hexdigest(),
         "git_commit": subprocess.run(
             ["git", "rev-parse", "HEAD"], capture_output=True, text=True,
@@ -229,7 +229,7 @@ def main() -> None:
           f"left at default {unmatched_land}")
     print(f"land-mean dwmax   {land_mean:.3f} m against ExoPlaSim's uniform "
           f"{EXOPLASIM_DEFAULT_WSMAX_M} m")
-    print(f"\nwrote {output.relative_to(PROJECT_ROOT)}")
+    print(f"\nwrote {rel(output)}")
     print(f"      {report_path.name}")
     print("\nNOT enabled. Set model.soil_water_source: pedology in "
           "config/planet.yaml when re-baselining;\nthat key is absent by design "
