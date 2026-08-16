@@ -214,7 +214,12 @@ the atmosphere and run hot, which is a larger and less physical error than the
 one it replaces. Revisit only alongside a mask flip, where the water column
 arrives with it.
 
-### Separately: `dz0land = 2.0` m deserves its own look
+### Separately: `dz0land = 2.0` m, now fixed
+
+Superseded by `build_surface_roughness.py`, which supplies code 173 from land
+cover and subgrid relief. Kept because the reasoning is what motivated it.
+
+### The original finding: `dz0land = 2.0` m deserves its own look
 
 Not a lake question, but found while measuring one. The uniform land default
 asserts forest-scale roughness over every land cell, including the 16.5% of land

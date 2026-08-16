@@ -213,6 +213,7 @@ ALBEDO_SURFACE_CODES = {174, 175, 176, 212}
 # dwmax, the soil water bucket whose overflow *is* ExoPlaSim's runoff. Supplied
 # from pedology when asked for; otherwise the uniform namelist default stands.
 SOIL_WATER_SURFACE_CODES = {229}
+ROUGHNESS_SURFACE_CODES = {173}
 
 # PlaSim's own 28-term energy decomposition, denergy(NHOR,28), written to these
 # codes when nenergy > 0. The instrument for the constant -0.455 W/m2 that does
@@ -281,6 +282,8 @@ def intended_surface_codes(config: dict) -> set[int]:
         codes |= ALBEDO_SURFACE_CODES
     if str(config["model"].get("soil_water_source", "uniform")) != "uniform":
         codes |= SOIL_WATER_SURFACE_CODES
+    if str(config["model"].get("roughness_source", "uniform")) != "uniform":
+        codes |= ROUGHNESS_SURFACE_CODES
     return codes
 
 
