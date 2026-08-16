@@ -102,15 +102,40 @@ def year_diagnostics(path: Path) -> dict:
 
 
 
+# Config keys that no script passes to the model. They are declarations for
+# readers, not inputs, so a change to one cannot alter a run and must not block
+# resuming it.
+#
+# Deliberately a short, explicit allowlist rather than a rule. This guard already
+# has a history: it once compared raw file bytes, so an edited comment blocked a
+# legitimate resume, which was fixed by comparing parsed values. This is the same
+# failure one level up -- a semantically real change to a physically inert key.
+# The fix is to name the inert keys, not to loosen the comparison. Anything not
+# listed here is assumed to reach the model.
+INERT_CONFIG_KEYS = {
+    "star.spectral_type",     # a label; the model gets effective_temperature_k
+                              # and the spectrum file, not this
+    "star.surface_uv",        # a design declaration; ExoPlaSim models no
+                              # ultraviolet and nothing reads this
+    "schema_version",         # bookkeeping
+}
+
+
 def config_drift(recorded: dict, current: dict, path: str = "") -> list[str]:
-    """Semantic differences between two parsed configurations, deepest first."""
+    """Semantic differences between two parsed configurations, deepest first.
+
+    Keys in INERT_CONFIG_KEYS are skipped, because they cannot change a run.
+    """
     out = []
     for key in sorted(set(recorded) | set(current)):
+        full = f"{path}{key}"
+        if full in INERT_CONFIG_KEYS:
+            continue
         a, b = recorded.get(key), current.get(key)
         if isinstance(a, dict) and isinstance(b, dict):
-            out += config_drift(a, b, f"{path}{key}.")
+            out += config_drift(a, b, f"{full}.")
         elif a != b:
-            out.append(f"{path}{key}: {a!r} -> {b!r}")
+            out.append(f"{full}: {a!r} -> {b!r}")
     return out
 
 

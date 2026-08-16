@@ -145,10 +145,12 @@ texture:
   carbonate:           {sand: 0.15, silt: 0.35, clay: 0.50, quartz: 0.05}
   foreland_clastic:    {sand: 0.40, silt: 0.36, clay: 0.24, quartz: 0.35}
   continental_clastic: {sand: 0.50, silt: 0.30, clay: 0.20, quartz: 0.40}
+
   pelagic:             {sand: 0.05, silt: 0.30, clay: 0.65, quartz: 0.10}
   evaporite:           {sand: 0.20, silt: 0.35, clay: 0.45, quartz: 0.05}
   playa_clastic:       {sand: 0.25, silt: 0.40, clay: 0.35, quartz: 0.15}
   water:               {sand: 0.40, silt: 0.35, clay: 0.25, quartz: 0.25}
+
 
   # How completely weathering converts weatherable primary minerals to clay.
   # clay_final = clay_primary + weatherable * (1 - exp(-clay_conversion * W)),
@@ -200,6 +202,62 @@ texture:
 # cannot advance forever because water and oxygen must reach it through what has
 # already accumulated. It is a parameterisation rather than a derivation, and
 # that is the trade against a principled form that cannot be evaluated here.
+# ---------------------------------------------------------------------------
+# Parent-rock phosphorus, ppm P
+# ---------------------------------------------------------------------------
+# Phosphorus is rock-derived. Unlike nitrogen it has no atmospheric source, so
+# its supply is weathering, which this component already computes. That makes it
+# the nutrient this pipeline is best placed to say something about, and the one a
+# C-N-P biosphere model would need per gridcell.
+#
+# SOURCES, and what is and is not confirmed. Central values follow Hartmann's
+# per-GLiM-class compilation, recovered second-hand from the supplementary table
+# of Li et al. 2025 (Nature Communications) because the originals are paywalled,
+# cross-checked against EarthChem medians and USGS SIR 2017-5118.
+#
+# Two caveats that belong with any number derived from these. Hartmann's column
+# is labelled "phosphorus (%)" but is almost certainly P2O5 weight percent rather
+# than elemental P -- its global silicate mean of 0.14 matches upper-crust P2O5
+# (0.15) rather than upper-crust P (0.066), and the basic-volcanic value converts
+# to 916 ppm, matching EarthChem's basalt median. Likely, not confirmed against
+# the original. And within-class spreads overlap heavily, so these predict a
+# class mean and not any individual sample.
+#
+# THE AXIS THIS MODEL TURNS ON IS CORROBORATED. Basic volcanic against acid
+# plutonic is 2.3x in Hartmann, and EarthChem medians independently give 2.1 to
+# 2.3x. USGS gives a shallower 1.6x for mafic against felsic, so treat the
+# contrast as 1.6 to 2.3x rather than a point. Basalt carries roughly twice the
+# phosphorus of granite, and that is a separate and larger contrast than the
+# quartz-driven clay contrast already in this file -- the two multiply.
+phosphorus_ppm:
+  granite:             440
+  granodiorite:        700
+  rift_bimodal:        700     # bimodal basalt-rhyolite; between the endmembers
+  morb:               1000     # tholeiite
+  oib:                2800     # alkali basalt, 5-7x granite; the P-richest class
+  flood_basalt:       1000     # tholeiitic
+  arc_basalt:         1000
+  arc_andesite:       1000
+  gneiss:              570
+  schist:              655
+  quartzite:           100     # quartz dilutes everything else
+  melange:             650
+  shelf_clastic:       500
+  carbonate:           400
+  foreland_clastic:    800
+  continental_clastic: 600
+  # Basin fill is not primary rock: it is whatever the catchment delivered, so
+  # its phosphorus reflects upstream lithology rather than its own mineralogy.
+  # Playa clastics carry detrital P at roughly the crustal mean. Salt crust is
+  # halite and gypsum, which carry almost none -- which matters for the aeolian
+  # phosphorus term, because the brightest and most erodible surface is also the
+  # one with the least P to redistribute.
+  playa_clastic:       600
+  evaporite:           150
+  # Seafloor classes, present for completeness; no land cell carries them.
+  pelagic:             700
+  water:                 0
+
 regolith:
   # Asymptote, not a clip: the depth to which weathering can reach at all.
   maximum_depth_m: 5.0

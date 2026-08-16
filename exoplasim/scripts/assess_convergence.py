@@ -140,9 +140,7 @@ def main() -> None:
 
     # The quantity the design band is stated in, and therefore the one that has
     # to be bounded. Everything above is a rate; this is a distance.
-    orbits_axis = np.arange(len(arrays["ts"]), dtype=float)
-    asymptote, half_width, tau_fit = approach_to_equilibrium(orbits_axis, arrays["ts"])
-    offset = asymptote - metrics["temperature_mean_k"]
+    # (tau_expected is needed by the fallback above, so it is computed first.)
     # The year comes from the run's own manifest, not from the current config:
     # this is a property of the run being assessed, which may predate a
     # re-baseline that moved the orbit.
@@ -152,6 +150,27 @@ def main() -> None:
         year_days = float(json.loads(manifest_path.read_text(encoding="utf-8"))
                           ["derived_parameters"]["orbital_year_earth_days"])
     tau_expected = relaxation_orbits(year_days)
+    orbits_axis = np.arange(len(arrays["ts"]), dtype=float)
+    asymptote, half_width, tau_fit = approach_to_equilibrium(orbits_axis, arrays["ts"])
+    offset = asymptote - metrics["temperature_mean_k"]
+
+    # A converged run has no approach left to fit, so the exponential becomes
+    # unconstrained and can return anything: one run here reported an asymptote
+    # of -23064 K with an interval of six million. That is the fit having nothing
+    # to grip, not the run being far from equilibrium, and the two must not be
+    # treated alike -- the first version of this criterion failed a converged run
+    # for it.
+    #
+    # When the fit is unusable, fall back to the bound the drift itself implies,
+    # offset ~ drift * tau, using the EXPECTED tau rather than a fitted one, and
+    # carry 100% uncertainty on it. That is conservative in the right direction:
+    # it can only refuse a run, never pass one it should not.
+    fit_usable = (np.isfinite(asymptote) and np.isfinite(half_width)
+                  and abs(offset) < 20.0 and half_width < 5.0)
+    if not fit_usable:
+        offset = metrics["temperature_slope_k_per_orbit"] * tau_expected
+        half_width = abs(offset)
+        asymptote = metrics["temperature_mean_k"] + offset
     metrics.update({
         "temperature_asymptote_k": asymptote,
         "temperature_asymptote_half_width_k": half_width,
