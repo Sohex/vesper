@@ -33,7 +33,7 @@ REGISTER_INPUT_MODULE("vesper", VesperInput)
 namespace {
 
 /// Little-endian, and both writer and reader are x86-64. Checked via the magic.
-const char DRIVER_MAGIC[8] = {'V','E','S','P','D','R','V','3'};
+const char DRIVER_MAGIC[8] = {'V','E','S','P','D','R','V','4'};
 
 /// Bins per year in the driver file. ExoPlaSim's regular_output_bins_per_orbit.
 const int DRIVER_BINS = 12;
@@ -52,7 +52,7 @@ void read_or_fail(FILE* in, T* target, size_t count, const char* what) {
 
 VesperInput::VesperInput()
 	: current(0), total_cells(0), nyear(1), co2(0.0), ndep(0.0),
-	  have_soilmap(false) {
+	  have_soilmap(false), years(1), loaded_year(-1) {
 
 	declare_parameter("nyear", &nyear, 1, 10000,
 		"Number of simulation years to run after spinup");
@@ -80,11 +80,11 @@ void VesperInput::read_driver() {
 		fail("vesperinput: %s is not a VESPDRV1 driver file", (char*)file_driver);
 	}
 
-	int ncells = 0, nbins = 0, year_length = 0, reserved = 0;
+	int ncells = 0, nbins = 0, year_length = 0, nyears = 0;
 	read_or_fail(in, &ncells, 1, "cell count");
 	read_or_fail(in, &nbins, 1, "bin count");
 	read_or_fail(in, &year_length, 1, "year length");
-	read_or_fail(in, &reserved, 1, "reserved field");
+	read_or_fail(in, &nyears, 1, "years of climate");
 
 	// This world's year is a function of its stellar flux. A driver file and a
 	// binary built at different fluxes describe different planets, and the
@@ -105,6 +105,11 @@ void VesperInput::read_driver() {
 		fclose(in);
 		fail("vesperinput: driver file contains no cells");
 	}
+	if (nyears < 1) {
+		fclose(in);
+		fail("vesperinput: driver file declares %d years of climate", nyears);
+	}
+	years = nyears;
 
 	read_or_fail(in, &co2, 1, "CO2");
 	read_or_fail(in, &ndep, 1, "nitrogen deposition");
@@ -129,14 +134,15 @@ void VesperInput::read_driver() {
 			fail("vesperinput: cell %d has invalid LPJ soil code %d",
 			     i, cell.soilcode);
 		}
-		cell.temp.resize(nbins);
-		cell.prec.resize(nbins);
-		cell.insol.resize(nbins);
-		cell.dtr.resize(nbins);
-		read_or_fail(in, &cell.temp[0], nbins, "temperature");
-		read_or_fail(in, &cell.prec[0], nbins, "precipitation");
-		read_or_fail(in, &cell.insol[0], nbins, "insolation");
-		read_or_fail(in, &cell.dtr[0], nbins, "diurnal range");
+		const size_t span = (size_t)nbins * (size_t)nyears;
+		cell.temp.resize(span);
+		cell.prec.resize(span);
+		cell.insol.resize(span);
+		cell.dtr.resize(span);
+		read_or_fail(in, &cell.temp[0], span, "temperature");
+		read_or_fail(in, &cell.prec[0], span, "precipitation");
+		read_or_fail(in, &cell.insol[0], span, "insolation");
+		read_or_fail(in, &cell.dtr[0], span, "diurnal range");
 	}
 
 	// Keep only this process's share of the cells.
@@ -190,6 +196,13 @@ void VesperInput::init() {
 		dprintf("  %d land cells, %d bins per year, %d-day year\n",
 		        (int)cells.size(), DRIVER_BINS, (int)Date::MAX_YEAR_LENGTH);
 	}
+	if (years > 1) {
+		dprintf("  %d years of climate, cycled; spin-up sees the whole cycle\n",
+		        years);
+	}
+	else {
+		dprintf("  1 year of climate, repeated: a fixed climate\n");
+	}
 	dprintf("  CO2 %g ppm, N deposition %g kgN/ha/yr\n", co2, ndep);
 	dprintf("  built from %s\n\n", (char*)provenance);
 
@@ -218,15 +231,17 @@ void VesperInput::init() {
 	current = 0;
 }
 
-void VesperInput::interpolate(const Cell& cell) {
+void VesperInput::interpolate(const Cell& cell, int year_index) {
 
 	// The framework's own conserving interpolators, so bin means stay means and
 	// bin totals stay totals. They read date.ndaymonth[], which the patched Date
 	// fills with Vesper's months, so no bin length is assumed here.
-	interp_monthly_means_conserve(&cell.temp[0], dtemp);
-	interp_monthly_totals_conserve(&cell.prec[0], dprec, 0.0);
-	interp_monthly_means_conserve(&cell.insol[0], dinsol, 0.0);
-	interp_monthly_means_conserve(&cell.dtr[0], ddtr, 0.0);
+	const size_t offset = (size_t)year_index * (size_t)DRIVER_BINS;
+	interp_monthly_means_conserve(&cell.temp[offset], dtemp);
+	interp_monthly_totals_conserve(&cell.prec[offset], dprec, 0.0);
+	interp_monthly_means_conserve(&cell.insol[offset], dinsol, 0.0);
+	interp_monthly_means_conserve(&cell.dtr[offset], ddtr, 0.0);
+	loaded_year = year_index;
 }
 
 bool VesperInput::getgridcell(Gridcell& gridcell) {
@@ -258,7 +273,10 @@ bool VesperInput::getgridcell(Gridcell& gridcell) {
 	apply_regolith_depth(gridcell, cell.regolith_depth_m,
 	                     cell.bedrock_water_fraction);
 
-	interpolate(cell);
+	// Year 0 of this cell, so day 0 has data before getclimate first runs.
+	// getclimate re-interpolates at the start of every year after that.
+	loaded_year = -1;
+	interpolate(cell, 0);
 
 	clear_all_graphs();
 
@@ -384,6 +402,16 @@ void VesperInput::getlandcover(Gridcell& gridcell) {
 bool VesperInput::getclimate(Gridcell& gridcell) {
 
 	Climate& climate = gridcell.climate;
+	const Cell& cell = cells[current];
+
+	// Step through the years the driver carries, wrapping. One year repeats and
+	// gives a fixed climate; several give interannual variability, which is what
+	// a stellar cycle is. The wrap also means spin-up sees the whole cycle
+	// rather than one arbitrary phase of it.
+	const int wanted = (years > 1) ? (date.year % years) : 0;
+	if (date.day == 0 && wanted != loaded_year) {
+		interpolate(cell, wanted);
+	}
 
 	// Per day of absolute time, so the year length rather than 365. Split evenly
 	// between reduced and oxidised, as demoinput does; neither the split nor the

@@ -1,9 +1,15 @@
 {
-  "generated": "2026-08-16T01:59:12+00:00",
-  "climatology": "exoplasim/analysis/climatology_s096/baseline_regular_climatology.nc",
-  "climatology_sha256": "a5c81e926747b7fdea23b77cbafbc6a2d91362517a72e3a910e4f70fc0cba177",
-  "config_sha256": "a0b9911f5f42764b7dcab63b660fcd5921b5b98c9ca8bf77f7c973af60f7a11a",
-  "source_build": "carved-zoned",
+  "generated": "2026-08-16T03:44:43+00:00",
+  "climatologies": [
+    "exoplasim/analysis/climatology_s096/baseline_regular_climatology.nc"
+  ],
+  "climatology_sha256": [
+    "a5c81e926747b7fdea23b77cbafbc6a2d91362517a72e3a910e4f70fc0cba177"
+  ],
+  "years_of_climate": 1,
+  "years_note": "Cycled by vesperinput, so spin-up sees the whole sequence. One year is a fixed climate; several are how a stellar cycle reaches the biosphere.",
+  "config_sha256": "7f5404532de4bd2598f861f94cac84211fbb3e5a41f46a47721faf28db744bbe",
+  "source_build": "carved-zoned-v2",
   "stellar_spectrum": "k25v",
   "flux_earth": 0.96,
   "orbital_year_earth_days": 180.65500935790158,
@@ -38,13 +44,13 @@
     "method": "dominant land-area share, integrated over the native mesh",
     "cells_with_no_mesh_land_defaulted_to_medium": 0,
     "soil_code_share_of_land_cells": {
-      "1": 0.1276,
-      "3": 0.0955,
-      "4": 0.0728,
-      "5": 0.3558,
-      "6": 0.2462,
-      "7": 0.0999,
-      "9": 0.0022
+      "1": 0.1266,
+      "3": 0.0925,
+      "4": 0.0726,
+      "5": 0.3607,
+      "6": 0.2467,
+      "7": 0.0984,
+      "9": 0.0024
     }
   },
   "soil_code_mapping": {
@@ -69,6 +75,6 @@
     "evaporite": 9,
     "playa_clastic": 3
   },
-  "output_sha256": "e7f02a07437e691633ffa77b56075915c98b724708ec108e63fffdadb2b518f9",
-  "git_commit": "bb3c976f69c65b691790bbab5b45d2a54f3a8b12"
+  "output_sha256": "8182cd251a210e427856beb61ac0506653fc0fdd1da79dcfcc1c4e2f607047f7",
+  "git_commit": "01b41e1f7de956811a8c26136edc4b17bfc9e84e"
 }

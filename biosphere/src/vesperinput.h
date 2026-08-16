@@ -13,6 +13,12 @@
 /// world's year is a function of its stellar flux, so a driver file and a binary
 /// built at different fluxes describe different planets.
 ///
+/// It also carries however many years of climate it was built with, and this
+/// module cycles through them. One year repeats forever, which is the right
+/// forcing for a fixed climate; sixteen give a stellar cycle. Nothing here
+/// assumes a number, because the earlier version did assume one, and a single
+/// repeating year cannot represent a variable star at all.
+///
 ///////////////////////////////////////////////////////////////////////////////////////
 
 #ifndef LPJ_GUESS_VESPERINPUT_H
@@ -61,7 +67,8 @@ private:
 		/// what the soil above holds per unit volume. From pedology, a function
 		/// of weathering intensity; see pedology/config/pedogenesis.yaml.
 		double bedrock_water_fraction;
-		/// mean air temperature per bin, degrees C
+		/// Climate, flattened as [year * bins + bin]. Sized years * bins.
+		/// mean air temperature, degrees C
 		std::vector<double> temp;
 		/// precipitation total per bin, mm
 		std::vector<double> prec;
@@ -121,8 +128,15 @@ private:
 	Timer tprogress, tmute;
 	static const int MUTESEC = 20;
 
-	/// Interpolates the current cell's bins onto days
-	void interpolate(const Cell& cell);
+	/// Years of climate the driver file carries. The forcing cycles through
+	/// them, so 1 is a fixed climate and 16 is roughly one stellar cycle.
+	int years;
+
+	/// Which year of the cycle is currently interpolated, -1 for none
+	int loaded_year;
+
+	/// Interpolates one year of the current cell's bins onto days
+	void interpolate(const Cell& cell, int year_index);
 
 	/// Scales soil water capacity by how much of each layer is really regolith
 	void apply_regolith_depth(Gridcell& gridcell, double depth_m,

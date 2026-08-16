@@ -18,6 +18,12 @@ already used it, so the number is better than driver.cpp's global 0.17 constant.
 and `build_vesper_header.py` fits the declination phase on that assumption. The
 two must be regenerated together after any orbit change.
 
+**One climatology or many.** Pass several to `--climatology` and each becomes one
+year of forcing, in the order given; `vesperinput` cycles through them, so the
+spin-up sees the whole sequence rather than one arbitrary phase of it. One file
+is a fixed climate. Several are how a stellar cycle reaches the biosphere, since
+a single repeating year cannot represent a variable star at all.
+
     python biosphere/scripts/build_lpj_driver.py
 """
 
@@ -42,7 +48,7 @@ import orbit
 from gridding import land_fraction_of_class
 from orogen import Export
 
-MAGIC = b"VESPDRV3"   # V2 added regolith depth; V3 adds the bedrock water fraction
+MAGIC = b"VESPDRV4"   # V2 regolith depth, V3 bedrock water, V4 multiple years
 
 # Coordinate precision shared with pedology/scripts/build_soil.py, so the soil
 # map keys match exactly. See where lon_signed is rounded.
@@ -84,6 +90,18 @@ SOIL_CODE_BY_ROCK = {
     "evaporite":           9,  # vertisol: the shrink-swell salt-affected case
     "playa_clastic":       3,  # playa mud, fine and poorly drained
 }
+
+
+def project_relative(path: Path) -> str:
+    """Relative to the project when it is inside it, absolute when it is not.
+
+    Provenance should read cleanly for tracked inputs without crashing on a
+    scratch path outside the tree, which is exactly what /tmp climatologies are
+    during a test.
+    """
+    path = Path(path).resolve()
+    return str(path.relative_to(PROJECT_ROOT)
+               if path.is_relative_to(PROJECT_ROOT) else path)
 
 
 def area_weights(lat: np.ndarray, nlon: int) -> np.ndarray:
@@ -151,7 +169,9 @@ def soil_codes(config: dict, land: np.ndarray) -> tuple[np.ndarray, dict]:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--climatology", type=Path, default=None)
+    parser.add_argument("--climatology", type=Path, nargs="+", default=None,
+                        help="one or more climatologies, each one year of "
+                             "forcing, cycled in the order given")
     parser.add_argument("--output", type=Path, default=None)
     parser.add_argument("--soil-map", type=Path, default=None,
                         help="pedology soilmap.txt, for its regolith depth "
@@ -165,24 +185,42 @@ def main() -> None:
     args = parser.parse_args()
 
     config = yaml.safe_load(CONFIG.read_text())
-    climatology = args.climatology or climatology_path()
-    if not climatology.is_file():
-        raise SystemExit(f"{climatology} does not exist")
+    climatologies = list(args.climatology) if args.climatology else [climatology_path()]
+    for path in climatologies:
+        if not Path(path).is_file():
+            raise SystemExit(f"{path} does not exist")
+    climatology = Path(climatologies[0])
 
     year_length = int(round(orbit.orbital_year_days(config)))
     co2_ppm = float(config["atmosphere"]["pCO2_bar"]) / 1.0 * 1e6
 
-    with nc.Dataset(climatology) as data:
-        lat = np.asarray(data["lat"][:], dtype=float)
-        lon = np.asarray(data["lon"][:], dtype=float)
-        lsm = np.asarray(data["lsm"][0], dtype=float)
-        tas = np.asarray(data["tas"][:], dtype=float) - KELVIN
-        pr = np.asarray(data["pr"][:], dtype=float) * 1000.0 * 86400.0  # mm/day
-        rss = np.asarray(data["rss"][:], dtype=float)                   # W/m2
-        maxt = np.asarray(data["maxt"][:], dtype=float)
-        mint = np.asarray(data["mint"][:], dtype=float)
+    # Each climatology contributes one year, stacked as [year][bin][lat][lon].
+    tas_y, pr_y, rss_y, dtr_y = [], [], [], []
+    lat = lon = lsm = None
+    for path in climatologies:
+        with nc.Dataset(path) as data:
+            this_lat = np.asarray(data["lat"][:], dtype=float)
+            this_lon = np.asarray(data["lon"][:], dtype=float)
+            if lat is None:
+                lat, lon = this_lat, this_lon
+                lsm = np.asarray(data["lsm"][0], dtype=float)
+            elif not (np.allclose(lat, this_lat) and np.allclose(lon, this_lon)):
+                raise SystemExit(
+                    f"{path} is on a different grid from {climatologies[0]}; "
+                    f"every year has to share one grid")
+            tas_y.append(np.asarray(data["tas"][:], dtype=float) - KELVIN)
+            pr_y.append(np.asarray(data["pr"][:], dtype=float) * 1000.0 * 86400.0)
+            rss_y.append(np.asarray(data["rss"][:], dtype=float))
+            dtr_y.append(np.maximum(
+                np.asarray(data["maxt"][:], dtype=float)
+                - np.asarray(data["mint"][:], dtype=float), 0.0))
+    tas = np.stack(tas_y)   # [year][bin][lat][lon]
+    pr = np.stack(pr_y)
+    rss = np.stack(rss_y)
+    dtr = np.stack(dtr_y)
+    nyears = tas.shape[0]
 
-    nbins = tas.shape[0]
+    nbins = tas.shape[1]
     if nbins != 12:
         raise SystemExit(f"driver format expects 12 bins per year, got {nbins}")
 
@@ -248,7 +286,7 @@ def main() -> None:
     missing_depth = 0
     with output.open("wb") as handle:
         handle.write(MAGIC)
-        handle.write(struct.pack("<iiii", len(rows), nbins, year_length, 0))
+        handle.write(struct.pack("<iiii", len(rows), nbins, year_length, nyears))
         handle.write(struct.pack("<dd", co2_ppm, args.ndep))
         handle.write(provenance)
         for j, i in rows:
@@ -262,18 +300,23 @@ def main() -> None:
             handle.write(struct.pack("<d", depth))
             handle.write(struct.pack(
                 "<d", bedrock_by_coord.get(key, default_bedrock_fraction)))
-            handle.write(tas[:, j, i].astype("<f8").tobytes())
-            handle.write((pr[:, j, i] * bin_days).astype("<f8").tobytes())
-            handle.write(rss[:, j, i].astype("<f8").tobytes())
-            handle.write(np.maximum(maxt[:, j, i] - mint[:, j, i], 0.0)
-                         .astype("<f8").tobytes())
+            # Flattened [year][bin], matching what vesperinput indexes.
+            handle.write(tas[:, :, j, i].astype("<f8").tobytes())
+            handle.write((pr[:, :, j, i] * bin_days[None, :]).astype("<f8").tobytes())
+            handle.write(rss[:, :, j, i].astype("<f8").tobytes())
+            handle.write(dtr[:, :, j, i].astype("<f8").tobytes())
 
     weights = area_weights(lat, len(lon))
     lw = weights[land]
     report = {
         "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        "climatology": str(climatology.relative_to(PROJECT_ROOT)),
-        "climatology_sha256": hashlib.sha256(climatology.read_bytes()).hexdigest(),
+        "climatologies": [project_relative(p) for p in climatologies],
+        "climatology_sha256": [hashlib.sha256(Path(p).read_bytes()).hexdigest()
+                               for p in climatologies],
+        "years_of_climate": nyears,
+        "years_note": ("Cycled by vesperinput, so spin-up sees the whole "
+                       "sequence. One year is a fixed climate; several are how a "
+                       "stellar cycle reaches the biosphere."),
         "config_sha256": hashlib.sha256(CONFIG.read_bytes()).hexdigest(),
         "source_build": config.get("source_build"),
         "stellar_spectrum": config.get("radiation", {}).get("stellar_spectrum"),
@@ -283,7 +326,7 @@ def main() -> None:
         "bins_per_year": nbins,
         "bin_days": bin_days.tolist(),
         "land_cells": int(len(rows)),
-        "regolith_depth_source": (str(soil_map.relative_to(PROJECT_ROOT))
+        "regolith_depth_source": (project_relative(soil_map)
                                   if soil_map else "none, full profile assumed"),
         "cells_without_depth": missing_depth,
         "co2_ppm": co2_ppm,
@@ -293,10 +336,12 @@ def main() -> None:
             "industry, so any value is an assumption and NPP inherits it."),
         "insolation": "NETSWRAD_TS, net downward surface shortwave (rss), W/m2",
         "land_definition": "lsm from the climatology, itself built from surface_class",
-        "land_mean_temperature_c": float(np.average(tas.mean(axis=0)[land], weights=lw)),
+        "land_mean_temperature_c": float(
+            np.average(tas.mean(axis=(0, 1))[land], weights=lw)),
         "land_mean_precip_mm_per_earth_year": float(
-            np.average(pr.mean(axis=0)[land], weights=lw) * 365.2425),
-        "land_mean_net_sw_w_m2": float(np.average(rss.mean(axis=0)[land], weights=lw)),
+            np.average(pr.mean(axis=(0, 1))[land], weights=lw) * 365.2425),
+        "land_mean_net_sw_w_m2": float(
+            np.average(rss.mean(axis=(0, 1))[land], weights=lw)),
         "soil": soil_summary,
         "soil_code_mapping": SOIL_CODE_BY_ROCK,
         "output_sha256": hashlib.sha256(output.read_bytes()).hexdigest(),
@@ -309,13 +354,15 @@ def main() -> None:
 
     print(f"land cells     {len(rows)}")
     print(f"year length    {year_length} days, bins {bin_days.astype(int).tolist()}")
+    print(f"climate years  {nyears} "
+          f"({'cycled' if nyears > 1 else 'fixed climate, repeated'})")
     print(f"CO2            {co2_ppm:.0f} ppm     N deposition {args.ndep} kgN/ha/yr")
     print(f"land means     {report['land_mean_temperature_c']:.2f} C, "
           f"{report['land_mean_precip_mm_per_earth_year']:.0f} mm/Earth-yr, "
           f"{report['land_mean_net_sw_w_m2']:.1f} W/m2 net SW")
     print("soil codes     " + ", ".join(
         f"{k}:{v:.0%}" for k, v in soil_summary["soil_code_share_of_land_cells"].items()))
-    print(f"\nwrote {output.relative_to(PROJECT_ROOT)} "
+    print(f"\nwrote {project_relative(output)} "
           f"({output.stat().st_size / 1e6:.1f} MB)")
     print(f"      {report_path.name}")
 

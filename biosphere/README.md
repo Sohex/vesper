@@ -130,6 +130,46 @@ convergence criteria, which are fixed in advance, and for the finding that
 weathering intensity is currently bracketed by a factor of 14.6 on the climate
 model's runoff.
 
+## Interannual forcing, and the stellar cycle
+
+The driver file carries however many years of climate it was built with and
+`vesperinput` cycles through them. One year is a fixed climate. Several are how a
+variable star reaches the biosphere:
+
+```bash
+python biosphere/scripts/build_lpj_driver.py \
+    --climatology year0.nc year1.nc ... yearN.nc
+```
+
+Each file contributes one year, in the order given, and the wrap means spin-up
+sees the whole sequence rather than one arbitrary phase of it.
+
+This began as a single repeating year, which was not a missing feature but a
+wrong assumption: a fixed climatology cannot represent a variable star at all,
+and the model would have shown a flat line no matter how the star behaved.
+
+Verified with three years at -3, 0 and +3 K on one cell. Annual NPP locks to the
+forcing period exactly and responds strongly:
+
+| phase | offset | NPP kgC/m2 |
+| --- | --- | --- |
+| 0 | -3 K | 0.508 |
+| 1 | 0 K | 0.377 |
+| 2 | +3 K | 0.191 |
+
+Two things worth reading off that. The response is steep, nearly halving per 3 K,
+because this cell is water-limited and warming raises evaporative demand. And the
+mean over the cycle, 0.359, is **4.8% below** the value at the mean climate,
+0.377. That is the concavity argument made concrete: running a variable star on
+its average climate over-predicts productivity, and the error is one-sided.
+
+For the declared 0.91-1.01 cycle, the predicted swing is about 4.2 K
+peak-to-peak after slab damping, so plus or minus 2.1 K on a monthly mean.
+Against the PFT cold-survival thresholds, **13.8% of land sits within that
+distance of one**, where the cycle can kill a PFT outright and a mean-climate run
+would never see it. Survival limits are thresholds, so that is a bias rather than
+noise, and it falls on biome boundaries rather than on global totals.
+
 ## Resolution: T42 first, T85 only behind the climate
 
 LPJ-GUESS gridcells are independent columns. There is no lateral flow between
