@@ -250,6 +250,10 @@ def main() -> None:
     o3 = config["model"].get("ozone_scale")
     if o3 is not None and float(o3) != 1.0:
         model._edit_namelist("radmod_namelist", "O3SCALE", f"{float(o3)}")
+    for key, name in (("ozone_uv_weight", "O3UVW"), ("ozone_visible_weight", "O3VISW")):
+        w = config["model"].get(key)
+        if w is not None and float(w) != 1.0:
+            model._edit_namelist("radmod_namelist", name, f"{float(w)}")
 
     regular_codes = list(REGULAR_CODES)
     if energy_diagnostics_enabled(config):

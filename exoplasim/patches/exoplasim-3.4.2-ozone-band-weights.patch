@@ -1,0 +1,74 @@
+--- a/radmod.f90
++++ b/radmod.f90
+@@ -48,6 +48,15 @@
+       real    :: co3     = 5000.  ! parameter to define o3 profile
+       real    :: toffo3  = 0.25    ! parameter to define o3 profile
+       real    :: o3scale = 1.0    ! scale o3 concentration
++!     Spectral re-weighting of the Lacis & Hansen (1974) ozone absorptances for a
++!     non-solar host. Their three terms give absorptance as a fraction of TOTAL
++!     incident SOLAR flux, so each carries the Sun's share of flux in the band it
++!     represents. Under a differently-shaped spectrum those shares change, and
++!     the unmodified code applies solar band weights to a non-solar star. Both
++!     default to 1.0, reproducing Lacis & Hansen exactly, so a solar-host run is
++!     bit-identical.
++      real    :: o3uvw   = 1.0    ! weight, Hartley-Huggins UV terms
++      real    :: o3visw  = 1.0    ! weight, Chappuis visible term
+       integer :: no3     = 1      ! switch for ozon (0=no,1=yes,2=datafile)
+       integer :: nsol    = 1      ! switch for solang (1/0=yes/no)
+       integer :: nswr    = 1      ! switch for swr (1/0=yes/no)
+@@ -605,6 +614,7 @@
+ !
+       namelist/radmod_nl/ndcycle,ncstsol,solclat,solcdec,no3,co2        &
+      &               ,iyrbp,nswr,nlwr,nfixed,slowdown,nradice,npbroaden,desync    &
++     &               ,o3uvw,o3visw   &
+      &               ,a0o3,a1o3,aco3,bo3,co3,toffo3,o3scale,newrsc,necham,necham6   &
+      &               ,nsol,nclouds,nswrcl,nrscat,rcl1,rcl2,acl2,clgray,tpofmt   &
+      &               ,acllwr,tswr1,tswr2,tswr3,th2oc,dawn,starbbtemp,nstartemp  &
+@@ -759,6 +769,8 @@
+       call mpbcr(bo3)
+       call mpbcr(co3)
+       call mpbcr(toffo3)
++      call mpbcr(o3uvw)
++      call mpbcr(o3visw)
+       call mpbcr(o3scale)
+       call mpbcr(co2)
+       call mpbcr(gsol0)
+@@ -1898,9 +1910,9 @@
+        zto3t(:)=1.
+        zo3(:)=zxo3t(:)+zmbar*zo3t(:)
+        zto3tu(:)=1.                                                     &
+-     &          -(0.02118*zo3(:)/(1.+0.042*zo3(:)+0.000323*zo3(:)**2)   &
+-     &           +1.082*zo3(:)/((1.+138.6*zo3(:))**0.805)               &
+-     &           +0.0658*zo3(:)/(1.+(103.6*zo3(:))**3))/zsolar1
++     &          -(o3visw*0.02118*zo3(:)/(1.+0.042*zo3(:)+0.000323*zo3(:)**2)   &
++     &           +o3uvw*1.082*zo3(:)/((1.+138.6*zo3(:))**0.805)               &
++     &           +o3uvw*0.0658*zo3(:)/(1.+(103.6*zo3(:))**3))/zsolar1
+        ztwvt(:)=1.
+        zwv(:)=zywvt(:)+zbetta*zwvt(:)
+        ztwvtu(:)=1.-2.9*zwv(:)/((1.+141.5*zwv(:))**0.635+5.925*zwv(:))  &
+@@ -1952,9 +1964,9 @@
+ !
+         zo3(:)=zxo3l(:,jlev)
+         zto3(:)=(1.                                                     &
+-     &          -(0.02118*zo3(:)/(1.+0.042*zo3(:)+0.000323*zo3(:)**2)   &
+-     &           +1.082*zo3(:)/((1.+138.6*zo3(:))**0.805)               &
+-     &           +0.0658*zo3(:)/(1.+(103.6*zo3(:))**3))/zsolar1)        &
++     &          -(o3visw*0.02118*zo3(:)/(1.+0.042*zo3(:)+0.000323*zo3(:)**2)   &
++     &           +o3uvw*1.082*zo3(:)/((1.+138.6*zo3(:))**0.805)               &
++     &           +o3uvw*0.0658*zo3(:)/(1.+(103.6*zo3(:))**3))/zsolar1)        &
+      &         /zto3t(:)
+         zto3t(:)=zto3t(:)*zto3(:)
+ !
+@@ -1962,9 +1974,9 @@
+ !
+         zo3(:)=zxo3t(:)+zmbar*(zo3t(:)-zo3l(:,jlev))
+         zto3u(:)=zto3tu(:)                                              &
+-     &         /(1.-(0.02118*zo3(:)/(1.+0.042*zo3(:)+0.000323*zo3(:)**2)&
+-     &              +1.082*zo3(:)/((1.+138.6*zo3(:))**0.805)            &
+-     &              +0.0658*zo3(:)/(1.+(103.6*zo3(:))**3))/zsolar1)
++     &         /(1.-(o3visw*0.02118*zo3(:)/(1.+0.042*zo3(:)+0.000323*zo3(:)**2)&
++     &              +o3uvw*1.082*zo3(:)/((1.+138.6*zo3(:))**0.805)            &
++     &              +o3uvw*0.0658*zo3(:)/(1.+(103.6*zo3(:))**3))/zsolar1)
+         zto3tu(:)=zto3tu(:)/zto3u(:)
+ !
+ !     total T = 1-(A(ozon)+R(rayl.))*(1-dcc)-R(cloud)*dcc

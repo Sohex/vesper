@@ -221,6 +221,30 @@ model:
   # flux in the 200-350 nm Hartley and Huggins bands, so absorption per unit
   # ozone is still overestimated. See notes/ozone.md.
   ozone_scale: 0.794
+  # Spectral re-weighting of the Lacis & Hansen (1974) ozone absorptances, which
+  # radmod.f90 uses and which give absorptance as a fraction of TOTAL INCIDENT
+  # SOLAR flux. Each of their three terms therefore carries the Sun's share of
+  # flux in the band it represents, and applying them unchanged to a K dwarf puts
+  # solar band weights on a non-solar spectrum.
+  #
+  # Computed rather than tuned: the ratio of this star's flux fraction in each
+  # band to the Sun's.
+  #
+  #   Hartley-Huggins UV, 0.20-0.35 um   0.0321 / 0.0684 = 0.469
+  #   Chappuis visible,   0.44-0.75 um   0.3358 / 0.3673 = 0.914
+  #
+  # The visible ratio is measured from the k25v spectrum itself. The ultraviolet
+  # one is a 4965 K blackbody estimate, because k25v carries no flux below
+  # 0.34 um and radmod zeroes anything below 0.316 um on the star-file path. A
+  # real K dwarf has chromospheric ultraviolet a photospheric model does not, so
+  # 0.469 is a floor and the true weight is higher. That uncertainty is worth
+  # naming rather than burying: it is the same photosphere-only limitation that
+  # made the earlier surface-UV estimate wrong.
+  #
+  # Both default to 1.0 upstream, which reproduces Lacis & Hansen exactly, so the
+  # patch leaves any solar-host run bit-identical.
+  ozone_uv_weight: 0.469
+  ozone_visible_weight: 0.914
   # The same 28 terms per level, codes 460-487. The column totals established
   # that the -0.455 W/m2 residual is not the fixed offset it was recorded as --
   # it spans -0.400 to -0.489 across four converged runs, against a claimed

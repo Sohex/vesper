@@ -698,6 +698,10 @@ def main() -> None:
     if o3 is not None and float(o3) != 1.0:
         model._edit_namelist("radmod_namelist", "O3SCALE", f"{float(o3)}")
         print(f"ozone column scaled to {float(o3)} of Earth's (Segura et al. 2003)")
+    for key, name in (("ozone_uv_weight", "O3UVW"), ("ozone_visible_weight", "O3VISW")):
+        w = config["model"].get(key)
+        if w is not None and float(w) != 1.0:
+            model._edit_namelist("radmod_namelist", name, f"{float(w)}")
 
     if enable_energy_diagnostics(model, config):
         n = register_energy_diagnostic_codes()
