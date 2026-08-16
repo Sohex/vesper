@@ -47,10 +47,13 @@ Colour is illustrative:
   since a lake surface is flat and the land hillshade would emboss it.
 
 **Lakes and rivers are the exception: those are a result, not a tint.** They
-come from `hydrography/data/surface_water.nc`, which solves a closed-basin water
-balance against the same baseline climatology and accumulates the same water
-down the drainage network. 1,242 of the 2,107 basins hold water, covering 3.09%
-of the planet, and the largest river carries 170,300 m3/s, about 0.8 times the
+come from `hydrography/data/<build>/surface_water.nc`, which solves a
+closed-basin water balance against the same baseline climatology and accumulates
+the same water down the drainage network. How many basins hold water, and how
+much of the planet they cover, is in `world_state.json` -- the figures that used
+to be quoted here were from a build with 2,107 basins against the active one's
+3,629, which is exactly why they do not belong in prose. The largest river
+carries about 0.8 times the
 Amazon. Inland water is drawn
 a shade greener than the sea so a lake reads as a lake rather than as a bay that
 lost its connection.

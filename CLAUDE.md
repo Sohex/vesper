@@ -499,8 +499,9 @@ Scripts anchor their paths in `exoplasim/scripts/_paths.py` and resolve from the
 file location, not the working directory, so they can be run from anywhere:
 
 ```bash
-python exoplasim/scripts/assess_convergence.py \
-    exoplasim/runs/t42l10p8_s090_co20450ppm_rot30h_obl32_e020
+# run ids are UUIDs; ask the index what exists rather than guessing a name
+python exoplasim/scripts/index_runs.py
+python exoplasim/scripts/assess_convergence.py exoplasim/runs/<run_id>
 ```
 
 ## Environment

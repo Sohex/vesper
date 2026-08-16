@@ -73,11 +73,15 @@ Assess a spin-up and create a separate five-orbit seasonal climatology only
 after it passes:
 
 ```bash
-python exoplasim/scripts/assess_convergence.py \
-  exoplasim/runs/t42l10p8_s090_co20450ppm_rot30h_obl32_e020
-python exoplasim/scripts/continue_exoplasim.py --orbits 5 --seasonal-output
-python exoplasim/scripts/build_climatology.py \
-  exoplasim/runs/t42l10p8_s090_co20450ppm_rot30h_obl32_e020 \
+# Run ids are UUIDs and carry no meaning, so start from the index.
+python exoplasim/scripts/index_runs.py
+
+python exoplasim/scripts/assess_convergence.py exoplasim/runs/<run_id>
+# --run is required: a continuation cannot recompute a name, and being handed
+# one cannot silently resolve to a different run.
+python exoplasim/scripts/continue_exoplasim.py --run <run_id> \
+  --orbits 5 --seasonal-output
+python exoplasim/scripts/build_climatology.py exoplasim/runs/<run_id> \
   --start-year 46 --end-year 50
 python exoplasim/scripts/analyze_climatology.py
 ```
