@@ -135,12 +135,64 @@ carries soil water as a *fraction* of each layer's capacity, computing
 `wcont = Faw_layer / soiltype.awc[layer]`, so a layer scaled to exactly zero
 divides by zero and the NaN propagates through the nitrogen substrate and kills
 the gridcell **silently**: zero LAI and zero evapotranspiration rather than a
-crash. Layers below the bedrock contact therefore keep 2% of their capacity
-rather than none. And because water is fractional, a thinner soil also reads as
-*relatively wetter* for the same absolute water, so the net effect at any one
-cell can go either way through PFT competition: in the smoke set, one cell at
-0.87 m gained LAI because temperate broadleaf evergreen displaced its grass
-entirely. The controlled sweep above is the evidence, not any single cell.
+crash. And because water is fractional, a thinner soil also reads as *relatively
+wetter* for the same absolute water, so the net effect at any one cell can go
+either way through PFT competition: in the smoke set, one cell at 0.87 m gained
+LAI because temperate broadleaf evergreen displaced its grass entirely. The
+controlled sweep above is the evidence, not any single cell.
+
+### Water below the bedrock contact
+
+Rock below the regolith is not dry, and deep-rooted woody plants use what is
+there. `bedrock_water` in `pedogenesis.yaml` is how much, per unit volume,
+relative to the soil above, and it varies with weathering intensity because that
+is what converts impermeable rock into saprock and then saprolite:
+
+    fraction(W) = minimum + (maximum - minimum) * (1 - exp(-shape * W))
+
+Anchored on measurements rather than chosen. Intact bedrock between joints has
+porosity of about 1% or less, so `minimum` is 0.05. Graham, Rossi and Hubbert
+(GSA Today 2010) measured a Sierra Nevada Jeffrey pine site where 75 cm of soil
+at 20% PAWC held 15 cm of water over 275 cm of saprock at 12% PAWC holding 33 cm,
+so `shape` is set to put W = 1, the Earth land mean, near that 0.12/0.20 = 0.60.
+The Swaziland Middleveld saprolites hold two to four times the available water of
+their soils, which sets `maximum` at 2.0. Vesper's land mean W of 0.19 gives
+0.170.
+
+For scale: Rempe and Dietrich (PNAS 2018) measured 100-530 mm of seasonal rock
+moisture, up to 27% of annual rainfall, and Lapides et al. (Biogeosciences 2024)
+added a bedrock vadose zone to LPJ-GUESS itself with 180-480 mm of storage,
+raising annual transpiration by a median of 100-150 mm and turning a model that
+could not tell two catchments apart into one that reproduced both.
+
+**The model cannot represent the top half of that range.** LPJ-GUESS ties a
+layer's saturation capacity to its texture-derived porosity, so scaling `wsats`
+above 1 drives `Frac_air` negative in `Soil::update_soil_diffusivities` and the
+run dies. The fraction is therefore capped at 1.0: sub-bedrock material can match
+the soil above but never exceed it. That is why Lapides et al. added a separate
+bedrock layer with its own porosity rather than rescaling the existing profile.
+
+**Measured worth, across the whole representable range**, at 0.30 m regolith with
+only this parameter varying:
+
+| fraction | | AET mm | LAI | NPP |
+| --- | --- | --- | --- | --- |
+| 0.050 | fresh rock | 364.2 | 2.989 | 0.368 |
+| 0.170 | Vesper land mean | 354.0 | 2.912 | 0.348 |
+| 0.598 | saprock, Earth mean W | 348.2 | 2.851 | 0.367 |
+| 1.000 | model ceiling | 343.0 | 2.743 | 0.336 |
+
+A span of 6% in AET and 9% in NPP, not monotone, with PFT composition stable
+across all four. At three cells and `npatch 5` that is comparable to patch
+stochasticity, so treat under 10% as an upper bound rather than a measurement.
+
+This parameter entered as a hardcoded 0.02 in `vesperinput.cpp`, introduced as a
+guard against the division by zero above. A first attempt to measure it, varying
+that guard 40-fold, suggested it was worth 20-41% of AET. **That figure was
+wrong** and should not be quoted: it changed the interpolation formula at the
+same time as the value. The controlled sweep above is the number. The numerical
+guard survives at 1e-4, but as a guard only, with the physics now declared,
+literature-anchored and varying per cell.
 
 **To the climate.** `exoplasim/scripts/build_surface_soil_water.py` writes
 surface code 0229, `dwmax`, from the `awc` column. Land-mean capacity is 0.342 m

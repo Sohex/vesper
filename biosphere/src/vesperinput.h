@@ -57,6 +57,10 @@ private:
 		int soilcode;
 		/// regolith thickness, m, from the pedology component
 		double regolith_depth_m;
+		/// plant-available water below the bedrock contact, as a fraction of
+		/// what the soil above holds per unit volume. From pedology, a function
+		/// of weathering intensity; see pedology/config/pedogenesis.yaml.
+		double bedrock_water_fraction;
 		/// mean air temperature per bin, degrees C
 		std::vector<double> temp;
 		/// precipitation total per bin, mm
@@ -118,7 +122,8 @@ private:
 	void interpolate(const Cell& cell);
 
 	/// Scales soil water capacity by how much of each layer is really regolith
-	void apply_regolith_depth(Gridcell& gridcell, double depth_m);
+	void apply_regolith_depth(Gridcell& gridcell, double depth_m,
+	                          double bedrock_fraction);
 
 	/// Reads the driver file into `cells`, failing loudly on any mismatch
 	void read_driver();

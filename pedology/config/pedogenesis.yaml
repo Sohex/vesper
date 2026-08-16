@@ -123,6 +123,52 @@ regolith:
   # runoff. Normalised so Earth-like mean land conditions give E ~ P0.
   erosion_reference_relief_m: 200.0
 
+  # ---------------------------------------------------------------------------
+  # Water held below the bedrock contact
+  # ---------------------------------------------------------------------------
+  # How much plant-available water the material *below* the regolith holds, as a
+  # fraction of what the soil above it holds per unit volume. It is not a
+  # rounding term: deep-rooted woody plants demonstrably use it, and on thin
+  # soils it carries a large share of transpiration.
+  #
+  # This entered the model as a hardcoded 0.02 in vesperinput.cpp, introduced as
+  # a numerical guard against a division by zero, and measurement showed it was
+  # doing physical work. It is a declared parameter now, and a function of
+  # weathering rather than a constant, because that is what the observations say.
+  #
+  #   fraction(W) = minimum + (maximum - minimum) * (1 - exp(-shape * W))
+  #
+  # Anchors, all as volumetric plant-available water against the soil above:
+  #
+  #   Fresh rock      Intact bedrock between joints has porosity of about 1% or
+  #                   less (Graham, Rossi and Hubbert, GSA Today 2010), so almost
+  #                   nothing is available. -> `minimum`
+  #
+  #   Saprock         Same paper's Jeffrey pine site in the Sierra Nevada: soil
+  #                   75 cm at 20% PAWC holding 15 cm, over saprock 275 cm at
+  #                   12% PAWC holding 33 cm. Twice the water in rock as in soil,
+  #                   at 0.12/0.20 = 0.60 of the volumetric capacity. `shape` is
+  #                   set so W = 1, the Earth land mean, lands near 0.60.
+  #
+  #   Deep saprolite  Swaziland Middleveld: available water capacity of the
+  #                   saprolite two to four times that of the soils above.
+  #                   -> `maximum`
+  #
+  # For scale, Rempe and Dietrich (PNAS 2018) measured 100-530 mm of seasonal
+  # rock moisture, up to 27% of annual rainfall, and Lapides et al.
+  # (Biogeosciences 2024) added a bedrock vadose zone to LPJ-GUESS itself with
+  # 180-480 mm of storage at their sites, raising annual transpiration by a
+  # median of 100-150 mm and turning a model that could not tell two catchments
+  # apart into one that reproduced both.
+  #
+  # The range is wide because the underlying quantity genuinely varies by two
+  # orders of magnitude between fresh rock and deep saprolite. Report the
+  # bracket; do not tune within it.
+  bedrock_water:
+    minimum: 0.05
+    maximum: 2.00
+    shape: 0.33
+
 # ---------------------------------------------------------------------------
 # pH
 # ---------------------------------------------------------------------------

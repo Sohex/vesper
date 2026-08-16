@@ -361,6 +361,15 @@ def main() -> None:
     water_capacity = np.clip(volumetric * depth * 1000.0,
                              water["minimum_mm"], water["maximum_mm"])
 
+    # Plant-available water below the bedrock contact, as a fraction of what the
+    # soil above holds per unit volume. A function of weathering, because that
+    # is what turns impermeable rock into saprock and then saprolite. See the
+    # anchors in pedogenesis.yaml; this is not a small correction.
+    bedrock = pedo["regolith"]["bedrock_water"]
+    bedrock_fraction = (bedrock["minimum"]
+                        + (bedrock["maximum"] - bedrock["minimum"])
+                        * (1.0 - np.exp(-bedrock["shape"] * intensity)))
+
     DATA.mkdir(parents=True, exist_ok=True)
     output = args.output or (DATA / "soilmap.txt")
     lon_signed = np.where(lon > 180.0, lon - 360.0, lon)
@@ -371,7 +380,7 @@ def main() -> None:
         # here so one artifact carries the whole soil: biosphere reads depth to
         # scale water capacity, and exoplasim reads awc to set its bucket.
         handle.write("Lon Lat sand clay silt orgc ph bulkdensity cn soilc "
-                     "depth awc\n")
+                     "depth awc bedrockfrac\n")
         for j, i in rows:
             handle.write(
                 f"{lon_signed[i]:.{COORD_DECIMALS}f} {lat[j]:.{COORD_DECIMALS}f} "
@@ -380,7 +389,8 @@ def main() -> None:
                 f"{ph[j, i]:.3f} {bulk_density[j, i]:.1f} "
                 f"{pedo['organic']['carbon_nitrogen_ratio']:.1f} "
                 f"{carbon[j, i]:.4f} "
-                f"{depth[j, i]:.4f} {water_capacity[j, i]:.2f}\n")
+                f"{depth[j, i]:.4f} {water_capacity[j, i]:.2f} "
+                f"{bedrock_fraction[j, i]:.4f}\n")
 
     weights = np.cos(np.deg2rad(lat))[:, None] * np.ones((1, len(lon)))
     lw = weights[land]
@@ -423,6 +433,7 @@ def main() -> None:
             "organic_fraction": mean(organic_fraction),
             "bulk_density_kg_m3": mean(bulk_density),
             "water_capacity_mm": mean(water_capacity),
+            "bedrock_water_fraction": mean(bedrock_fraction),
             "soil_carbon_kg_m2": mean(carbon),
             "runoff_mm_per_earth_year": mean(runoff),
             "precipitation_mm_per_earth_year": mean(precip),
@@ -461,6 +472,8 @@ def main() -> None:
     print(f"bulk density        {means['bulk_density_kg_m3']:.0f} kg/m3")
     print(f"water capacity      {means['water_capacity_mm']:.1f} mm "
           f"(ExoPlaSim's uniform default is 500)")
+    print(f"bedrock water       {means['bedrock_water_fraction']:.3f} of soil "
+          f"capacity per unit volume")
     print(f"\nwrote {output.relative_to(PROJECT_ROOT)}")
     print(f"      {report_path.relative_to(PROJECT_ROOT)}")
 

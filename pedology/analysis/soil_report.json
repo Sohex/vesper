@@ -1,11 +1,11 @@
 {
-  "generated": "2026-08-16T00:54:22+00:00",
+  "generated": "2026-08-16T01:11:28+00:00",
   "iteration": null,
   "closes_loop_with": "nothing; iteration 0 has no biosphere",
   "climatology": "exoplasim/analysis/climatology_s096/baseline_regular_climatology.nc",
   "climatology_sha256": "a5c81e926747b7fdea23b77cbafbc6a2d91362517a72e3a910e4f70fc0cba177",
   "config_sha256": "a0b9911f5f42764b7dcab63b660fcd5921b5b98c9ca8bf77f7c973af60f7a11a",
-  "pedogenesis_sha256": "10644f4b100cc145de2e73a923b3e5c84fc7a5e5a0048b61eb33f84233ae46f0",
+  "pedogenesis_sha256": "b2d2ab9919411f1cbff27e2e5f5e80a098de83389e80602ced056ba75e114367",
   "source_build": "carved-zoned",
   "terrain_hash": "3899a0c57d1eee2f47ba9054c218a171a7aa4532e2437c9104070c2c3dfaece6",
   "orbital_year_earth_days": 180.65500935790158,
@@ -29,6 +29,7 @@
     "organic_fraction": 0.0,
     "bulk_density_kg_m3": 1500.0,
     "water_capacity_mm": 342.17892150200623,
+    "bedrock_water_fraction": 0.1419091051541677,
     "soil_carbon_kg_m2": 0.0,
     "runoff_mm_per_earth_year": 25.353658767699503,
     "precipitation_mm_per_earth_year": 892.1376175994565,
@@ -37,6 +38,6 @@
   },
   "regolith_note": "LPJ-GUESS 4.1.1 has a fixed 1.5 m profile and does not consume regolith depth. It is computed and reported so the gap is visible; see notes/model.md.",
   "output": "pedology/data/soilmap.txt",
-  "output_sha256": "23ce62335da443eb63d0782626fc9f96b56ec4b55a1f14880593fb3e2330da53",
-  "git_commit": "c68fbd7d12eee65b67ba169fa361e6094ffebdbc"
+  "output_sha256": "1fb68a02c5b8b2bead9e81a72198d3a56b7b004b38a20a836f7375038daee51c",
+  "git_commit": "f7d0df9effe987d1d45985f9dfd42041cf03ce54"
 }

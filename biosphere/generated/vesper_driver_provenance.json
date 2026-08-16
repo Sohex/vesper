@@ -1,5 +1,5 @@
 {
-  "generated": "2026-08-16T00:54:55+00:00",
+  "generated": "2026-08-16T01:11:44+00:00",
   "climatology": "exoplasim/analysis/climatology_s096/baseline_regular_climatology.nc",
   "climatology_sha256": "a5c81e926747b7fdea23b77cbafbc6a2d91362517a72e3a910e4f70fc0cba177",
   "config_sha256": "a0b9911f5f42764b7dcab63b660fcd5921b5b98c9ca8bf77f7c973af60f7a11a",
@@ -69,6 +69,6 @@
     "evaporite": 9,
     "playa_clastic": 3
   },
-  "output_sha256": "06eff3433c49786af90a72f5c2c4786fdd0c59dd81e1430cfdf7d7b9a5cff2d5",
-  "git_commit": "c68fbd7d12eee65b67ba169fa361e6094ffebdbc"
+  "output_sha256": "e06fe3f559e97456a94b59e4a303efb2a3ff3a796caa1d69faf467a7452fc9e2",
+  "git_commit": "f7d0df9effe987d1d45985f9dfd42041cf03ce54"
 }

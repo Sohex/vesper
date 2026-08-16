@@ -32,7 +32,7 @@ REGISTER_INPUT_MODULE("vesper", VesperInput)
 namespace {
 
 /// Little-endian, and both writer and reader are x86-64. Checked via the magic.
-const char DRIVER_MAGIC[8] = {'V','E','S','P','D','R','V','2'};
+const char DRIVER_MAGIC[8] = {'V','E','S','P','D','R','V','3'};
 
 /// Bins per year in the driver file. ExoPlaSim's regular_output_bins_per_orbit.
 const int DRIVER_BINS = 12;
@@ -121,6 +121,7 @@ void VesperInput::read_driver() {
 		read_or_fail(in, &cell.soilcode, 1, "soil code");
 		read_or_fail(in, &pad, 1, "padding");
 		read_or_fail(in, &cell.regolith_depth_m, 1, "regolith depth");
+		read_or_fail(in, &cell.bedrock_water_fraction, 1, "bedrock water fraction");
 		if (cell.soilcode < 0 || cell.soilcode > 9) {
 			fclose(in);
 			fail("vesperinput: cell %d has invalid LPJ soil code %d",
@@ -218,7 +219,8 @@ bool VesperInput::getgridcell(Gridcell& gridcell) {
 		soil_parameters(gridcell.soiltype, cell.soilcode);
 	}
 
-	apply_regolith_depth(gridcell, cell.regolith_depth_m);
+	apply_regolith_depth(gridcell, cell.regolith_depth_m,
+	                     cell.bedrock_water_fraction);
 
 	interpolate(cell);
 
@@ -227,7 +229,8 @@ bool VesperInput::getgridcell(Gridcell& gridcell) {
 	return true;
 }
 
-void VesperInput::apply_regolith_depth(Gridcell& gridcell, double depth_m) {
+void VesperInput::apply_regolith_depth(Gridcell& gridcell, double depth_m,
+                                       double bedrock_fraction) {
 
 	// LPJ-GUESS gives every gridcell the same 1.5 m profile and derives its
 	// water capacity from texture alone. On a world where relief and erodibility
@@ -246,25 +249,49 @@ void VesperInput::apply_regolith_depth(Gridcell& gridcell, double depth_m) {
 	// changing rootdist would reach into PFT parameters that are Earth
 	// calibrations.
 
-	// LPJ-GUESS carries soil water as a fraction of each layer's capacity, and
-	// computes it as `wcont = Faw_layer / soiltype.awc[layer]` in soilwater.cpp
-	// and canexch.cpp. A layer scaled to exactly zero therefore divides by zero,
-	// and the resulting NaN propagates through the nitrogen substrate and kills
-	// the gridcell silently: it reports zero LAI and zero evapotranspiration
-	// rather than failing. So layers below the bedrock contact keep a small
-	// residual capacity instead of none. Physically this is the water fractured
-	// bedrock holds, which is not zero; numerically it is what keeps the
-	// fraction finite.
-	const double MIN_LAYER_FRACTION = 0.02;
+	// Material below the bedrock contact still holds plant-available water, and
+	// deep-rooted woody plants demonstrably use it. `bedrock_fraction` is how
+	// much, per unit volume, relative to the soil above, and it arrives per cell
+	// from the pedology component as a function of weathering intensity. It can
+	// legitimately exceed 1: deeply weathered saprolite holds more water than the
+	// soil sitting on top of it.
+	//
+	// A hard floor is still needed, but only as a numerical guard and not as
+	// physics. LPJ-GUESS carries soil water as a fraction of each layer's
+	// capacity, computing `wcont = Faw_layer / soiltype.awc[layer]` in
+	// soilwater.cpp and canexch.cpp, so a layer at exactly zero divides by zero
+	// and the NaN propagates through the nitrogen substrate and kills the
+	// gridcell silently, reporting zero LAI rather than failing.
+	const double NUMERICAL_FLOOR = 1.0e-4;
 
 	if (depth_m <= 0.0) {
 		return;
 	}
 
+	double bedrock = bedrock_fraction;
+	if (bedrock < NUMERICAL_FLOOR) {
+		bedrock = NUMERICAL_FLOOR;
+	}
+
+	// Capped at 1: sub-bedrock material can at most match the soil above, never
+	// exceed it. That is a limitation of this model, not of the world. Deeply
+	// weathered saprolite really does hold two to four times what its soil does,
+	// but LPJ-GUESS ties a layer's saturation capacity to its texture-derived
+	// porosity, and scaling `wsats` past that drives `Frac_air` negative in
+	// Soil::update_soil_diffusivities, which is a hard failure.
+	//
+	// Representing the upper half of the observed range needs a genuinely
+	// separate bedrock layer with its own porosity, which is what Lapides et al.
+	// (Biogeosciences 2024) added to this same model rather than rescaling the
+	// existing profile. Recorded here so the ceiling is visible in results.
+	if (bedrock > 1.0) {
+		bedrock = 1.0;
+	}
+
 	const double profile_mm = SOILDEPTH_UPPER + SOILDEPTH_LOWER;
 	double depth_mm = depth_m * 1000.0;
-	if (depth_mm >= profile_mm) {
-		return;   // deeper than the model can represent; nothing to scale
+	if (depth_mm >= profile_mm && bedrock >= 1.0) {
+		return;   // wholly regolith, or rock that holds as much; nothing to do
 	}
 
 	Soiltype& soil = gridcell.soiltype;
@@ -279,9 +306,12 @@ void VesperInput::apply_regolith_depth(Gridcell& gridcell, double depth_m) {
 	for (int layer = 0; layer < NSOILLAYER; layer++) {
 		const double thickness = (layer < NSOILLAYER_UPPER)
 			? upper_layer_mm : lower_layer_mm;
-		double usable = (depth_mm - top_mm) / thickness;
-		usable = usable < MIN_LAYER_FRACTION ? MIN_LAYER_FRACTION
-			: (usable > 1.0 ? 1.0 : usable);
+		// Share of this layer above the bedrock contact. The rest is rock, and
+		// holds `bedrock` times what the same volume of soil would.
+		double regolith_share = (depth_mm - top_mm) / thickness;
+		regolith_share = regolith_share < 0.0 ? 0.0
+			: (regolith_share > 1.0 ? 1.0 : regolith_share);
+		const double usable = regolith_share + (1.0 - regolith_share) * bedrock;
 
 		soil.awc[layer] *= usable;
 		soil.wp[layer] *= usable;

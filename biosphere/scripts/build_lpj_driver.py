@@ -42,7 +42,7 @@ import orbit
 from gridding import land_fraction_of_class
 from orogen import Export
 
-MAGIC = b"VESPDRV2"   # V2 adds regolith depth per cell
+MAGIC = b"VESPDRV3"   # V2 added regolith depth; V3 adds the bedrock water fraction
 
 # Coordinate precision shared with pedology/scripts/build_soil.py, so the soil
 # map keys match exactly. See where lon_signed is rounded.
@@ -216,6 +216,10 @@ def main() -> None:
     # unpatched model assumes anyway.
     default_depth_m = 1.5
     depth_by_coord: dict[tuple[float, float], float] = {}
+    bedrock_by_coord: dict[tuple[float, float], float] = {}
+    # Without a soil map, sub-bedrock layers keep the fresh-rock minimum. It is a
+    # declared physical value, not a numerical guard; see pedogenesis.yaml.
+    default_bedrock_fraction = 0.05
     soil_map = args.soil_map
     if soil_map is None:
         candidate = PROJECT_ROOT / "pedology" / "data" / "soilmap.txt"
@@ -223,14 +227,19 @@ def main() -> None:
     if soil_map is not None:
         lines = soil_map.read_text().splitlines()
         header = lines[0].split()
-        if "depth" not in header:
-            raise SystemExit(
-                f"{soil_map} has no depth column; rebuild it with build_soil.py")
-        column = header.index("depth")
+        for needed in ("depth", "bedrockfrac"):
+            if needed not in header:
+                raise SystemExit(
+                    f"{soil_map} has no {needed} column; rebuild it with "
+                    f"build_soil.py")
+        depth_column = header.index("depth")
+        bedrock_column = header.index("bedrockfrac")
         for line in lines[1:]:
             parts = line.split()
-            depth_by_coord[(round(float(parts[0]), COORD_DECIMALS),
-                            round(float(parts[1]), COORD_DECIMALS))] = float(parts[column])
+            key = (round(float(parts[0]), COORD_DECIMALS),
+                   round(float(parts[1]), COORD_DECIMALS))
+            depth_by_coord[key] = float(parts[depth_column])
+            bedrock_by_coord[key] = float(parts[bedrock_column])
         print(f"regolith depth from {soil_map.name}: {len(depth_by_coord)} cells")
     else:
         print("no soil map found; every cell gets the full 1.5 m profile")
@@ -251,6 +260,8 @@ def main() -> None:
                 depth = default_depth_m
                 missing_depth += 1
             handle.write(struct.pack("<d", depth))
+            handle.write(struct.pack(
+                "<d", bedrock_by_coord.get(key, default_bedrock_fraction)))
             handle.write(tas[:, j, i].astype("<f8").tobytes())
             handle.write((pr[:, j, i] * bin_days).astype("<f8").tobytes())
             handle.write(rss[:, j, i].astype("<f8").tobytes())
