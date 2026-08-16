@@ -63,9 +63,18 @@ Resolves drainage over the 2.5M-region mesh, rebuilds basin hypsometry on the
 finished terrain, and couples catchments to the climate grid. See
 `hydrography/README.md`.
 
-Between 9% and 76% of the land drains to closed basins rather than to the sea
-depending on how arid the climate is, and 60% does so on the current terrain,
-against about one-fifth of Earth's land, depending on how arid the climate turns out to be
-and so how many basins overflow and carve their outlets. The solver is built and
-takes runoff and evaporation as arguments; the terrain still needs carving
-upstream once the verdict exists.
+A far larger share of the land drains to closed basins here than on Earth, where
+the internally drained share is well established (Wang et al. 2018; see
+`references/INDEX.md`).
+
+**But that share is not a property of the terrain, it is a property of the
+terrain and the climate together**, which is why no single figure belongs in this
+paragraph. A basin that overflows persistently incises its outlet and stops being
+a basin, so an arid world keeps its basins closed and a wet one opens them. The
+plausible range across that spectrum is wide enough to span most of the land at
+one end and a small minority at the other, and the terrain moves toward the wet
+end with every carve iteration. The current value, and the bracket around it, are
+in `world_state.json`.
+
+The solver is built and takes runoff and evaporation as arguments; the terrain
+still needs carving upstream once the verdict exists.
