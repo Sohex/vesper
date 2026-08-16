@@ -278,3 +278,40 @@ Both are correct. A basin's catchment is far larger than its floor, which is the
 whole reason a small area of fill can decouple a large share of weathering. They
 are named apart in `world_state.json`; quote the name, never "the endorheic
 share".
+
+## 11. A patched source, and one binary per configuration
+
+ExoPlaSim compiles a separate executable for every (resolution, layers, ranks)
+triple: `most_plasim_t42_l10_p16.x` and `most_plasim_t21_l10_p8.x` are different
+files built from the same source at different times. **Patching the source and
+rebuilding rebuilds only the configuration you are running.** Every other binary
+on disk keeps the old code, silently, until something asks for it.
+
+Found 2026-08-16, moving from the T21 flux bracket to a T42 bootstrap. The ozone
+band-weight patch adds `o3uvw` and `o3visw` to `radmod_nl`. The T21 8-rank binary
+had been rebuilt and carried them; the T42 16-rank binary was three days older
+and did not, so it died in `radini_` with
+
+    Fortran runtime error: Cannot match namelist object name o3visw
+
+Of the six executables present, exactly one was newer than the patched
+`radmod.f90`. The other five would all have failed the same way.
+
+**Why this one is survivable, and what would not be.** The failure is loud
+because the patch added a *namelist key*: an old binary cannot parse a key it was
+not compiled with, so it aborts. A patch that changed only the *value* or
+*meaning* of an existing quantity would not abort. It would run to convergence
+and produce a result from the unpatched physics, and nothing in the run manifest
+records which binary produced it -- `run_id` names the geography, spectrum and
+flux, all of which would be identical.
+
+**How to apply.** After patching the model source, treat every executable older
+than the patched file as stale. Before an expensive run at a new resolution or
+rank count, compare the binary's mtime against the source it should contain.
+Deleting a stale binary is cheap and it is rebuilt on demand; discovering the
+staleness after a converged run is not.
+
+The general form is the one this file keeps returning to: a build product whose
+identity does not record what went into it. The same reasoning put the geography
+digest, the spectrum and the flux into `run_id`, and the binary is the input that
+is still missing from it.

@@ -65,7 +65,12 @@ import yaml  # noqa: E402
 DEFAULT_ATTENUATION = 0.5      # v4->v5 pair; see the module docstring
 FALLBACK_SLOPE = 150.2         # K per unit flux ratio, from the T21 bracket at
                                # 0.95 (288.760 K) and 1.00 (296.270 K), both on
-                               # carved-zoned-v5 with the ozone band-weight fix.
+                               # precarve-zoned-g1281 (terrain 974ceb78, gravity
+                               # 12.81) with the ozone band-weight fix. An
+                               # earlier revision of this comment said
+                               # carved-zoned-v5, which was wrong: the slope is
+                               # measured on the PRE-CARVE base, so it will move
+                               # when the carve removes bright evaporite.
                                # Replaces 203.6, which was 26% high. Measured
                                # between two converged points SPANNING the
                                # target, per the rule that a sensitivity taken
