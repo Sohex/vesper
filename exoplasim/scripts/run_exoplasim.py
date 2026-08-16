@@ -633,6 +633,48 @@ def main() -> None:
         restart_seed = args.restart_from.resolve()
         if not restart_seed.is_file():
             raise RuntimeError(f"--restart-from {restart_seed} does not exist")
+        # A restart FREEZES every land surface boundary condition.
+        #
+        # landmod.f90's landini reads dwmax, dz0clim, dz0climo, dalbcl, dalbcl1
+        # and dalbcl2 from the restart file when restart > 0, and from the
+        # surface .sra files only on a cold start. So seeding from a restart
+        # silently discards any surface field that has changed since -- soil
+        # water, roughness and all three albedo bands.
+        #
+        # This was found by running exactly that: a baseline seeded from the
+        # bootstrap, with a new soil-water map and lake-composited albedo, would
+        # have reproduced the bootstrap and shown that lakes and soil water do
+        # nothing. It only surfaced because it also happened to trap a SIGFPE in
+        # landini. A silent null result is the failure mode this guard exists to
+        # prevent.
+        src_manifest = restart_seed.parent / "run_manifest.json"
+        if src_manifest.is_file():
+            src = json.loads(src_manifest.read_text(encoding="utf-8"))
+            was = set((src.get("surface_fields") or {}).get("from_file") or [])
+            now = intended_surface_codes(config)
+            reason = None
+            if was != now:
+                reason = (f"codes differ: {sorted(was)} then, {sorted(now)} now")
+            else:
+                # Same codes, possibly different content.
+                old_h = src.get("surface_field_sha256") or {}
+                changed = [c for c in sorted(now)
+                           if surface_sra(config, c).is_file()
+                           and old_h.get(str(c)) not in
+                           (None, file_sha256(surface_sra(config, c)))]
+                if changed:
+                    reason = f"content changed for code(s) {changed}"
+                elif not old_h:
+                    reason = ("the source run recorded no surface field hashes, "
+                              "so content changes cannot be ruled out")
+            if reason:
+                raise RuntimeError(
+                    "--restart-from refused: " + reason + ". A restart reads soil "
+                    "water, roughness and albedo from ITSELF, not from the .sra "
+                    "files -- landmod's landini takes dwmax, dz0clim and all "
+                    "three dalbcl bands from the restart when restart > 0 -- so "
+                    "those changes would be silently discarded and the run would "
+                    "reproduce its parent. Cold-start instead.")
 
     atmosphere = config["atmosphere"]
     planet = config["planet"]
@@ -811,6 +853,14 @@ def main() -> None:
         "namelist_checks": checks,
         "surface_fields": surface_report,
         "surface_fields_staged": staged,
+        # Per-code hashes, so a surface field that CHANGED CONTENT under the same
+        # code is detectable. The set of codes alone is not enough: the albedo
+        # rebuilt with lakes composited is still code 174, and a restart would
+        # have discarded it silently.
+        "surface_field_sha256": {
+            str(c): file_sha256(surface_sra(config, c))
+            for c in sorted(intended_surface_codes(config))
+            if surface_sra(config, c).is_file()},
         "stellar_spectrum": spectrum,
         "postprocessor": {
             "regular_codes": regular_codes,
