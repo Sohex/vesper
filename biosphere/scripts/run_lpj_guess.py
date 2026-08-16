@@ -94,6 +94,16 @@ npatch {settings['npatch']}
 nfix_a {settings['nfix_a']}
 nfix_b {settings['nfix_b']}
 
+! Without this, soil carbon never reaches the hydrology and the soil-biosphere
+! loop closes only inside pedology/. Stock LPJ-GUESS derives water-holding
+! capacity from texture alone; iforganicsoilproperties makes it blend the
+! mineral and organic water retention by the organic fraction, which is the
+! path pedology's cpool.out feedback has to travel.
+!
+! It requires a SoilC column in the soil map, which build_soil.py writes, and it
+! requires iftwolayersoil 0, which global.ins already sets.
+iforganicsoilproperties 1
+
 outputdirectory "./"
 """ + "".join(
         f'file_{name.split(".")[0]} "{name}"\n' for name in OUTPUTS)

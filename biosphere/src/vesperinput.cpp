@@ -77,7 +77,14 @@ void VesperInput::read_driver() {
 	read_or_fail(in, magic, 8, "magic");
 	if (memcmp(magic, DRIVER_MAGIC, 8) != 0) {
 		fclose(in);
-		fail("vesperinput: %s is not a VESPDRV1 driver file", (char*)file_driver);
+		char expected[9];
+		memcpy(expected, DRIVER_MAGIC, 8);
+		expected[8] = '\0';
+		char found[9];
+		memcpy(found, magic, 8);
+		found[8] = '\0';
+		fail("vesperinput: %s has magic '%s', expected '%s'. Rebuild it with "
+		     "build_lpj_driver.py.", (char*)file_driver, found, expected);
 	}
 
 	int ncells = 0, nbins = 0, year_length = 0, nyears = 0;

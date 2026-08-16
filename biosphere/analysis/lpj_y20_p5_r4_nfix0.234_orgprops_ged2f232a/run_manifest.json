@@ -1,0 +1,58 @@
+{
+  "run_id": "lpj_y20_p5_r4_nfix0.234_orgprops_ged2f232a",
+  "generated": "2026-08-16T05:22:29+00:00",
+  "wall_seconds": 47.6,
+  "ranks": 4,
+  "settings": {
+    "title": "lpj_y20_p5_r4_nfix0.234_orgprops_ged2f232a",
+    "nyear": 20,
+    "npatch": 5,
+    "nfix_a": 0.234,
+    "nfix_b": -0.172
+  },
+  "cells_simulated": 12,
+  "output_rows": {
+    "anpp.out": 240,
+    "lai.out": 240,
+    "fpc.out": 240,
+    "cmass.out": 240,
+    "aaet.out": 240,
+    "cpool.out": 240,
+    "dens.out": 240,
+    "agpp.out": 240,
+    "nsources.out": 240
+  },
+  "inputs": {
+    "driver": {
+      "path": "/tmp/vd_test.bin",
+      "sha256": "62d04f9ac18ad7f96fc6e34bdb90464679e64b89cd340b021241a9b88acde85c"
+    },
+    "soilmap": {
+      "path": "/home/cfutro/docs/world/pedology/data/soilmap.txt",
+      "sha256": "7d7dd3e441a583fd4926c99aee4e66bcad0143787f3f000d2c6e45f954c97fd3"
+    },
+    "pfts": {
+      "path": "/home/cfutro/docs/world/biosphere/generated/vesper_pfts.ins",
+      "sha256": "1cf0f437a8e23196647d728ab3061486f173d1edba4d344315cc06fee2da4394"
+    },
+    "vesper_h": {
+      "path": "/home/cfutro/docs/world/biosphere/generated/vesper.h",
+      "sha256": "108af9b0e3358a93074ddb4dfa221a86a717c6962225007a763adc6bea48beed"
+    },
+    "binary": {
+      "path": "/home/cfutro/git/lpj-guess/build/guess",
+      "sha256": "95e6721269f12a99dc41cfc6ca1c00c9b33be5c7d2f0d8b0505d06236d3db8f6"
+    }
+  },
+  "config_sha256": "30e954dca7231a46f2a3d79b38ee31322491a40e60395b07fbf9289e84dbed3e",
+  "source_build": "carved-zoned-v4",
+  "stellar_spectrum": "k25v",
+  "orbital_year_earth_days": 182.80142503147016,
+  "simulation_years_to_earth_years": 1.998107499638579,
+  "unit_note": "LPJ-GUESS reports per simulation year, which is this world's year. Multiply by simulation_years_to_earth_years before comparing with anything quoted per Earth year, including notes/productivity-prediction.md.",
+  "software": {
+    "platform": "Linux-7.1.6-1-cachyos-x86_64-with-glibc2.44",
+    "lpj_guess": "4.1.1 + biosphere/patches/lpj-guess-4.1.1-vesper.patch"
+  },
+  "git_commit": "53df292af46d572b9eee9509b0033bfa1f373a4c"
+}
