@@ -359,15 +359,15 @@ against this world's own K2.5V spectrum rather than by looking up constants.
 | `gaffey1987-carbonate-mineral-reflectance.pdf` | Gaffey (1987). *Spectral reflectance of carbonate minerals in the visible and near infrared (0.35-2.55 um): Anhydrous carbonate minerals.* JGR Solid Earth 92(B2), 1429-1440. `10.1029/JB092iB02p01429` | held -- the canonical carbonate reference; seven strong bands above 1.6 um |
 | `cosnefroy1996-desert-calibration-sites.pdf` | Cosnefroy, Leroy, Briottet (1996). *Selection and characterization of Saharan and Arabian desert sites for the calibration of optical satellite sensors.* Remote Sens. Environ. 58(1), 101-114. `10.1016/0034-4257(95)00211-1` | held -- **caveat: top-of-atmosphere reflectance, not surface albedo.** Kept as the standard bright-desert reference but it does not directly ground a surface value |
 
-Not obtained: **Zhuang et al. (2023)**, *Visible and near-infrared reflectance
-spectra of igneous rocks and their powders*, Icarus 391, 115346,
-`10.1016/j.icarus.2022.115346` -- no open-access copy anywhere. It is the best
-modern source for solid rock versus powder reflectance of basalt, andesite and
-granite, which is exactly the distinction this table needs; worth an interlibrary
-request. **Penndorf (1956)** `10.21236/AD0098766` -- DTIC serves a broken TLS
-chain. **Hunt and Salisbury (1970-1976)** in Modern Geology -- never deposited
-DOIs, so not attempted rather than guessed; the ASTER and USGS libraries
-incorporate those measurements anyway.
+Still wanted, one line each so they can be copied:
+
+- Zhuang, Zhang, Ma, Jiang, Yang, Milliken (2023). *Visible and near-infrared reflectance spectra of igneous rocks and their powders.* Icarus 391, 115346. `10.1016/j.icarus.2022.115346` -- no open-access copy; the best modern source for solid rock versus powder reflectance of basalt, andesite and granite
+- Hunt, Salisbury, Lenhoff (1973a). *Visible and near infrared spectra of minerals and rocks: VII. Acid igneous rocks.* Modern Geology 4, 217-224 -- no DOI ever deposited
+- Hunt, Salisbury, Lenhoff (1973b). *Visible and near infrared spectra of minerals and rocks: VIII. Intermediate igneous rocks.* Modern Geology 4, 237-244 -- no DOI ever deposited
+- Hunt, Salisbury, Lenhoff (1974). *Visible and near infrared spectra of minerals and rocks: IX. Basic and ultrabasic igneous rocks.* Modern Geology 5, 15-22 -- no DOI ever deposited
+- Hunt, Salisbury (1976). *Visible and near infrared spectra of minerals and rocks: XI. Sedimentary rocks* and *XII. Metamorphic rocks.* Modern Geology -- no DOI ever deposited
+
+The Hunt and Salisbury series is the primary source Carli 2014 cites for igneous rock spectra, and numbers VII to XII are the ones that would ground this table. The ASTER and USGS libraries incorporate the measurements, so they are covered indirectly.
 
 No pyranometer broadband albedo for a **gypsum crust** appears to exist, and none
 for an **alkaline trona/natron pan**. Both will have to be constructed by

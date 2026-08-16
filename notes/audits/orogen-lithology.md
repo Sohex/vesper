@@ -45,9 +45,15 @@ matter directly and the absence of a source is a real exposure. `LITH-3`.
 
 Grounded 2026-08-16 against sixteen fetched sources; see `references/INDEX.md`.
 
-**There is no citable "granite = 0.30" in the literature.** Nothing tabulates
-broadband albedo per rock type. What exists is directional-hemispherical
-reflectance spectra -- ECOSTRESS v1.0 (473 rocks, and the correct measurement
+**The standard albedo compilations classify by land cover, not by lithology.**
+Tested rather than asserted: Henderson-Sellers and Wilson (1983), 36 pages and
+the standard surface-albedo compilation for climate modelling, and Coakley
+(2003) contain **zero** occurrences of granite, basalt, limestone, sandstone,
+quartz, shale, gneiss, bedrock or "rock type" between them. They tabulate desert,
+soil, snow, water and vegetation. So there is no citable "granite = 0.30" to be
+had from the climate-modelling literature, and a broadband value keyed to
+lithology would have to come from somewhere else. What does exist is
+directional-hemispherical reflectance spectra -- ECOSTRESS v1.0 (473 rocks, and the correct measurement
 geometry for a model albedo), ASTER v2.0, USGS splib07. The defensible
 construction is to solar-weight those against **this world's own K2.5V
 spectrum**, which is already in the tree at

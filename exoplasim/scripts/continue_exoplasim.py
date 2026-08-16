@@ -146,9 +146,18 @@ def main() -> None:
     parser.add_argument("--run", type=str, default=None,
                         help="run id or directory to continue (required)")
     parser.add_argument("--orbits", type=int, default=5)
+    # Snapshots carry orbital phase, which the regular output does not, and
+    # analyze_climatology cannot map output bins onto orbital position without
+    # them. Defaulting them OFF meant a 60-orbit baseline finished with no
+    # snapshots and needed a 12-orbit top-up; that had happened before. They
+    # cost one extra file per bin and the run is the expensive part, so the
+    # default is now ON and the flag turns them off.
     parser.add_argument(
-        "--seasonal-output", action="store_true",
-        help="Also retain instantaneous seasonal snapshots for this segment",
+        "--no-seasonal-output", dest="seasonal_output",
+        action="store_false", default=True,
+        help="Skip instantaneous seasonal snapshots for this segment. They are "
+             "written by default because analyze_climatology needs the orbital "
+             "phase they carry and a run without them has to be extended.",
     )
     args = parser.parse_args()
     if args.orbits < 1:
