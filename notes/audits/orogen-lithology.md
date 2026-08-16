@@ -54,15 +54,46 @@ named rock samples: rhyolite 0.69, granite (Rockport) 0.68, granite (Wisconsin)
 granodiorite 0.61. The chapter also consolidates the whole Hunt and Salisbury
 *Modern Geology* series, its references 10 and 13.
 
-**But the column cannot be used as an albedo as it stands.** Graphic granite is
-listed at **1.13**, which is impossible for a reflectance fraction, so the column
-is normalised against a reference standard rather than absolute. Its definition
-lives in the table's source, reference 16: Logan, Hunt, Salisbury and Balsamo
-(1973), *Compositional implication of Christensen frequency maximums for infrared
-remote sensing applications*, J. Geophys. Res. 78, 4983 -- a mid-infrared
-emission paper, which is not held. Until that is read the column gives ORDERING
-and not level, and the ordering it gives is the expected one: felsic 0.68-0.95,
-intermediate 0.42-0.78, mafic darker still.
+**The column is not an absolute albedo, and the source now held says exactly what
+it is.** Graphic granite is listed at 1.13, impossible for a reflectance
+fraction. Logan et al. (1973), the table's source, states the method: "The
+reflectance values were then integrated over the entire 0.35- to 2.5-um
+wavelength range, and **relative albedos were obtained by dividing this number by
+a value obtained in similar fashion for freshly prepared MgO**." So the column is
+albedo relative to an MgO white standard, and a sample can exceed it.
+
+**And the samples are 0-74 um POWDERS**, packed in a "fairy castle" structure,
+not solid rock faces. That is the single most important qualifier: powdered rock
+is far brighter than the same rock as an outcrop, which is precisely the
+distinction Zhuang et al. (2023) was wanted for. Logan's granite at 0.68 relative
+to MgO is a fine powder, not a granite hillside.
+
+So the table gives a real, citable, systematically ordered measurement that still
+cannot be dropped into `ROCK_CLASSES`. Converting it needs two corrections
+neither of which is in hand: multiply by MgO's own integrated reflectance, and
+then correct powder to solid surface.
+
+What it does establish firmly is the ORDERING and its systematic dependence on
+silica, over 72 rocks spanning acidic to ultrabasic:
+
+| rock | % SiO2 | albedo / MgO |
+| --- | --- | --- |
+| rhyolite | 78.6 | 0.69 |
+| granite, Rockport | 75.9 | 0.68 |
+| biotite granite | 67.5 | 0.81 |
+| syenite | 66.4 | 0.61 |
+| andesite | 66.3 | 0.56 |
+| granodiorite | 61.8 | 0.61 |
+| diorite | 56.6 | 0.53 |
+| hornblende diorite | 54.2 | 0.41 |
+| basalt | 57.9 | 0.41 |
+| gabbro | 57.7 | 0.50 |
+| hypersthene gabbro | 48.2 | 0.34 |
+
+Felsic bright, mafic dark, monotonic in silica apart from anorthosite and a
+couple of glassy outliers. **Orogen's table has that ordering right already**:
+granite 0.30 against basalt 0.10 is the same direction, and the same rough
+factor of two to three that Logan measures between granite and gabbro.
 
 The lesson is the one this project already has a rule for. The claim "no such
 table exists" was made from two compilations that classify by land cover rather
