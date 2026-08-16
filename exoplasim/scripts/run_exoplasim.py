@@ -214,6 +214,16 @@ ALBEDO_SURFACE_CODES = {174, 175, 176, 212}
 # from pedology when asked for; otherwise the uniform namelist default stands.
 SOIL_WATER_SURFACE_CODES = {229}
 
+# PlaSim's own 28-term energy decomposition, denergy(NHOR,28), written to these
+# codes when nenergy > 0. The instrument for the constant -0.455 W/m2 that does
+# not close between the top of the atmosphere and the surface; see
+# notes/water-and-energy-closure.md.
+#
+# Term 15 needs patches/exoplasim-3.4.2-energy-diagnostics.patch applied and
+# ExoPlaSim rebuilt, or it reports the latent heating with sublimation and
+# vaporisation swapped.
+ENERGY_DIAGNOSTIC_CODES = list(range(360, 388))
+
 
 def intended_surface_codes(config: dict) -> set[int]:
     """Which surface fields this run supplies rather than leaving at defaults.
@@ -230,6 +240,31 @@ def intended_surface_codes(config: dict) -> set[int]:
     if str(config["model"].get("soil_water_source", "uniform")) != "uniform":
         codes |= SOIL_WATER_SURFACE_CODES
     return codes
+
+
+def energy_diagnostics_enabled(config: dict) -> bool:
+    """Whether to ask PlaSim for its 28-term energy decomposition.
+
+    Defaults False when the key is absent, so a config predating this option
+    behaves exactly as it did and `config_sha256` does not move. Turning it on
+    adds 28 output fields and is meant for short diagnostic segments, not for
+    production runs.
+    """
+    return bool(config["model"].get("energy_diagnostics", False))
+
+
+def enable_energy_diagnostics(model, config: dict) -> bool:
+    """Set nenergy in plasim_nl, which the Python API does not expose.
+
+    Same mechanism `stage_stellar_spectrum` uses for STARFILE: the namelist is
+    edited directly because `configure()` has no parameter for it.
+    """
+    if not energy_diagnostics_enabled(config):
+        return False
+    model._edit_namelist("plasim_namelist", "NENERGY", "1")
+    if config["model"].get("energy_diagnostics_3d", False):
+        model._edit_namelist("plasim_namelist", "NENER3D", "1")
+    return True
 
 
 def stage_surface_extras(run_dir: Path, config: dict) -> list[int]:
@@ -553,14 +588,17 @@ def main() -> None:
     # Shipped output lists omit orbital phase and several hydrology fields.
     # This private helper is stable in the pinned release and edits those
     # postprocessor-code lists only.
-    model._add_postcodes("example.nl", REGULAR_CODES)
+    regular_codes = list(REGULAR_CODES)
+    if energy_diagnostics_enabled(config):
+        regular_codes = regular_codes + ENERGY_DIAGNOSTIC_CODES
+    model._add_postcodes("example.nl", regular_codes)
     model._add_postcodes("snapshot.nl", SNAPSHOT_CODES)
     model.cfgpostprocessor(
         ftype="regular",
         extension=model_cfg["output_type"],
         # ExoPlaSim 3.4.2 documents integer codes but silently drops derived
         # variables when integers are used. String codes take the correct path.
-        variables=[str(code) for code in REGULAR_CODES],
+        variables=[str(code) for code in regular_codes],
         mode="grid",
         times=int(model_cfg["regular_output_bins_per_orbit"]),
         timeaverage=True,
@@ -577,6 +615,9 @@ def main() -> None:
     )
     staged = stage_surface_extras(run_dir, config)
     spectrum = stage_stellar_spectrum(model, run_dir, stellar_spectrum_path(config))
+    if enable_energy_diagnostics(model, config):
+        print("energy diagnostics on: nenergy=1, codes 360-387. Term 15 needs "
+              "patches/exoplasim-3.4.2-energy-diagnostics.patch and a rebuild.")
     model.exportcfg(str(run_dir / f"{identifier}.cfg"))
     surface_report = surface_field_report(run_dir, config)
 
@@ -645,7 +686,8 @@ def main() -> None:
         "surface_fields_staged": staged,
         "stellar_spectrum": spectrum,
         "postprocessor": {
-            "regular_codes": REGULAR_CODES,
+            "regular_codes": regular_codes,
+            "energy_diagnostics": energy_diagnostics_enabled(config),
             "snapshot_codes": SNAPSHOT_CODES,
         },
     }

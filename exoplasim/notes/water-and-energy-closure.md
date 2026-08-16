@@ -143,12 +143,24 @@ version on 460-487 under `nener3d`. Turning it on for a short segment would name
 the term carrying the 0.455 directly. It is not a spin-up; it is a diagnostic
 run.
 
-`nenergy` is not exposed by ExoPlaSim's Python API, so it needs a namelist edit,
-exactly as this project already does for `STARFILE` in
-`run_exoplasim.py:stage_stellar_spectrum`.
+`nenergy` is not exposed by ExoPlaSim's Python API, so `run_exoplasim.py` now
+edits `plasim_namelist` directly, exactly as it already does for `STARFILE`. Set
+`model.energy_diagnostics: true` in `config/planet.yaml`, optionally with
+`model.energy_diagnostics_3d`, and the 28 codes are added to the regular output
+and recorded in the run manifest.
 
-**The trap.** `rainmod.f90:524-527` assigns the latent heat constants the wrong
-way round:
+Both keys default to false when absent and neither is in `planet.yaml`, so
+nothing changes for a run in flight and `config_sha256` does not move until
+someone chooses.
+
+**The package needs rebuilding for the term-15 fix to take effect**, since the
+`.x` binaries are compiled. That is safe to do at any time: each run directory
+holds its own copy of the executable, so a rebuild cannot disturb a job already
+running, and with `nenergy` at its default of 0 the rebuilt binary is
+behaviourally identical to the current one.
+
+**The trap, now fixed.** `rainmod.f90:524-527` assigned the latent heat
+constants the wrong way round:
 
 ```
 if(zt(jhor) > TMELT) then
@@ -158,12 +170,31 @@ else
 endif
 ```
 
-`zt` is the updated layer temperature and `als` is sublimation, so that is
-inverted. It sits inside `if(nenergy > 0)` and feeds only `denergy(:,15)`, so it
-does not touch the physics and no completed run is affected. But it means that
-**the moment anyone turns these diagnostics on to chase this residual, term 15
-will be wrong**, by `als - alv` on every condensing gridpoint. Fix it before
-reading term 15, or read the other 27.
+`zt` is the updated layer temperature and `als` is sublimation, so that was
+inverted. Confirmed on three independent counts before changing anything:
+
+1. **Physics.** Sublimation is the vapour-to-ice transition and applies below the
+   melting point; vaporisation applies above it.
+2. **The same file disagrees with itself.** The prognostic code at
+   `rainmod.f90:731`, `850`, `944` and `1047` all read
+   `if(ztnew < TMELT) then zlcp=ALS else zlcp=ALV`, under the comment "update
+   constants (ice/water phase)". That is the correct convention, roughly 200
+   lines below the diagnostic that inverts it.
+3. **So does the surface scheme.** `fluxmod.f90:687` uses
+   `where(dt(:,NLEP) > TMELT .or. dls(:) < 0.5)` to select `ALV`, and `ALS`
+   otherwise: vaporisation over warm or ocean surfaces, sublimation over frozen
+   ones.
+
+`zzal` has exactly four references in the file and all of them are the
+diagnostic, so nothing else could have depended on the inverted sense. The fix
+is `patches/exoplasim-3.4.2-energy-diagnostics.patch`, a single comparison
+operator plus the reasoning as a comment. It compiles clean under the project's
+`-fdefault-real-8` promotion.
+
+It sits inside `if(nenergy > 0)`, which defaults to 0, so **no completed run is
+affected and the prognostic physics never was.** It would only ever have been
+wrong for someone enabling these diagnostics to chase this residual, which is
+precisely what is now recommended.
 
 ## Status
 
