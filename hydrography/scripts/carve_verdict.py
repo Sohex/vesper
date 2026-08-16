@@ -176,11 +176,16 @@ def main() -> None:
     ap.add_argument("--coupling", type=Path,
                     default=DATA / "coupling_exoplasim-T42.nc")
     ap.add_argument("--config", type=Path, default=CONFIG)
+    # Per-build, like the coupling matrix it must be paired with. Reading the
+    # flat data/ while being handed another build's coupling is a row/column
+    # mismatch, which is how this surfaced: an IndexError only because the basin
+    # counts happened to differ.
+    ap.add_argument("--basins", type=Path, default=DATA / "basins.nc")
     ap.add_argument("--output", type=Path, default=ANALYSIS / "carve_verdict.json")
     args = ap.parse_args()
 
     config = yaml.safe_load(args.config.read_text(encoding="utf-8"))
-    basins = BasinSet()
+    basins = BasinSet(args.basins)
     n = basins.n
 
     with Dataset(args.climatology) as ds:
@@ -221,8 +226,14 @@ def main() -> None:
     potential = np.where(wetness > 1e-3, evap / np.maximum(wetness, 1e-3), evap)
     potential = np.maximum(potential, evap)
 
+    # Catchment runoff is P - E, not `mrro`. `mrro` is river-routed net
+    # divergence rather than local generation -- landmod.f90's roffstep calls
+    # mkradv, which advects runoff downhill and modifies its argument in place --
+    # so integrating it over one of our catchments measures ExoPlaSim's routing
+    # rather than the water arriving at our sink. `mrro` is kept in the field set
+    # so the two remain comparable in the report.
     fields = {"pr": pr, "evap": evap, "potential": potential,
-              "penman": penman, "mrro": mrro, "lsm": lsm}
+              "penman": penman, "mrro": mrro, "runoff": pr - evap, "lsm": lsm}
     with Dataset(args.climatology) as ds:
         field_lon = np.asarray(ds["lon"][:])
     means, catch_area = basin_means(args.coupling, fields, n, field_lon=field_lon)
@@ -235,7 +246,13 @@ def main() -> None:
     # runoff depth 5% high.
     year_s = orbital_year_days(config) * 86400.0
     to_km_per_year = year_s / 1000.0
-    runoff = means["mrro"] * to_km_per_year
+    # Clamped at zero. A catchment whose evaporation exceeds its precipitation
+    # delivers nothing to the sink; it does not deliver a negative amount. 57% of
+    # basins on this planet are in that state, and unclamped they drove the
+    # equilibrium lake area A = R*C/(E-P+R) to large negative values, which
+    # surfaced as a lake area of -6.7e15 percent of the planet.
+    runoff = np.maximum(means["runoff"], 0.0) * to_km_per_year
+    runoff_mrro = means["mrro"] * to_km_per_year
     precip = means["pr"] * to_km_per_year
 
     results = {}
@@ -291,6 +308,20 @@ def main() -> None:
                  "within 1.7%. 'wet' uses the moisture-limited land evaporation "
                  "and is a one-sided sensitivity only, physically wrong for a "
                  "lake but bounding the direction."),
+        "runoff_source": {
+            "used": "p_minus_e",
+            "note": "mrro is river-routed net divergence, not local runoff "
+                    "generation; integrating it over a catchment measures "
+                    "ExoPlaSim's routing rather than inflow to our sink.",
+            "catchment_mean_mm_per_year": {
+                "p_minus_e": round(float(np.nanmean(runoff)) * 1e6, 3),
+                "mrro": round(float(np.nanmean(runoff_mrro)) * 1e6, 3),
+            },
+            "basins_with_no_runoff": {
+                "p_minus_e": int((runoff <= 0).sum()),
+                "mrro": int((runoff_mrro <= 0).sum()),
+            },
+        },
         "penman_ocean_validation": {
             "penman_mm_per_day": 3.736, "model_mm_per_day": 3.672, "ratio": 1.017,
             "note": "Ocean cells are already open water, so this is a direct check.",

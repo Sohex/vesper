@@ -126,7 +126,11 @@ def main() -> None:
     # and the equilibrium lake area, both ratios, but it was making the reported
     # runoff depth 5% high.
     year_s = orbital_year_days(config) * 86400.0
-    runoff = means["ro"] * year_s / 1000.0
+    # Clamped at zero for the same reason carve_verdict.py clamps it: a
+    # catchment losing more to evaporation than it receives delivers nothing,
+    # not a negative amount. The verdict guards on runoff > 0 downstream, so this
+    # changes no verdict; it keeps the reported depth physical.
+    runoff = np.maximum(means["ro"], 0.0) * year_s / 1000.0
     precip = means["pr"] * year_s / 1000.0
     crit = basins.catchment_km2 / np.maximum(basins.area_at_spill_km2, 1e-9) - 1.0
 

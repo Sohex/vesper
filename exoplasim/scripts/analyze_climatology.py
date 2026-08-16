@@ -317,7 +317,7 @@ def main() -> None:
     fig, axes = plt.subplots(3, 1, figsize=(14, 14), constrained_layout=True)
     hydro = [
         (np.where(land >= 0.5, regular["mrso"].mean(axis=0), np.nan), "Mean soil-water equivalent", "YlGnBu", 0, 0.4, "m"),
-        (np.where(land >= 0.5, np.maximum(regular["mrro"].mean(axis=0), 0.0) * 86400.0 * 1000.0, np.nan), "Mean surface runoff", "Blues", 0, 5, "mm day⁻¹"),
+        (np.where(land >= 0.5, np.maximum(regular["mrro"].mean(axis=0), 0.0) * 86400.0 * 1000.0, np.nan), "Mean river-routed net water flux", "Blues", 0, 5, "mm day⁻¹"),
         (np.where(land >= 0.5, -regular["evap"].mean(axis=0) * 86400.0 * 1000.0, np.nan), "Mean upward land evaporation", "YlGn", 0, 5, "mm day⁻¹"),
     ]
     for ax, (field, title, cmap, low, high, units) in zip(axes, hydro):
