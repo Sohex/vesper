@@ -40,7 +40,7 @@ figure. Level, area and volume curves are rebuilt from the flood
 and are exact at their sample points, verified against brute force to 4e-15
 relative on volume and exactly on area.
 
-**Finds spill levels and targets** on the finished terrain. 1,437 basins overflow
+**Finds spill levels and targets** on the finished terrain. Most basins overflow
 into another basin rather than to the ocean, so filling has to be solved as a
 cascade rather than basin by basin.
 
@@ -82,22 +82,17 @@ planet. That range is a property of the terrain, not a prediction.
 network to get rivers. This is the first thing in the project to decide
 `surface_class == 2`, which World Orogen deliberately leaves empty.
 
-Computed on `carved-zoned`, which is superseded: its carve verdict used
-antipodal climate. The solver and the method stand; the numbers are due a rerun
-on `carved-zoned-v4`.
+Current figures -- how many basins hold water, lake area, largest river -- are in
+`world_state.json` and in the run's own report, not here. They change with every
+carve iteration and every climate re-baseline, and this document is about how the
+solver works.
 
-| | |
-| --- | ---: |
-| basins holding water | 1,242 of 2,107 |
-| basins filled to their spill | 732 |
-| lake area | 22.8 million km2, 3.09% of the planet |
-| largest river | 170,300 m3/s |
-| land above 1,000 m3/s | 15,716 regions |
-
-Against Earth, which is the only calibration available: 2.1x the land area at
-0.72x the runoff depth, so 1.5x the total river discharge, and a largest river
-0.81x the Amazon. Lakes take 7.2% of the land against Earth's 1.8%, a ratio of
-4.0, next to an endorheic share of 55% against Earth's 13%, a ratio of 4.2.
+Against Earth, which is the only calibration available, the ratios are the part
+worth carrying: this world has roughly twice the land at somewhat lower runoff
+depth, so total river discharge is of the same order, and the largest river is
+comparable to the Amazon. Lakes and endorheic drainage are both several times
+Earth's share, and by a similar factor -- which is the consistency check, since
+they are two views of the same aridity.
 Those last two are computed by different routes and agreeing is a check rather
 than a coincidence.
 
@@ -210,17 +205,16 @@ the next one's sink.
 
 ## Headline finding, and its limit
 
-55% of the land drains to a closed basin rather than to the sea, against roughly
-13% on Earth. That follows from the fork preserving closed basins instead of
-carving drainage to them.
+A far larger share of this planet's land drains to a closed basin than Earth's
+roughly 13%, by a factor of several in every iteration so far. That follows from
+the fork preserving closed basins instead of carving drainage to them, and it is
+the fact this component exists to handle.
 
-This was 76% before the iteration-1 carve. These products were stale: they had
-been built on `precarve-unzoned` while `config/planet.yaml` had moved on to
-`carved-zoned`, and rebuilding them on the active terrain is what moved the
-figure. Carving took the count from 3,629 to 2,540 and the endorheic share from
-76% to 60.0%, which is the verdict doing exactly what it was supposed to do.
-(The first, antipodal verdict carved 1,522 and gave 2,107 basins at 55%; those
-figures appear in older products and identify them.)
+The endorheic share falls with each carve iteration, which is the verdict doing
+what it exists to do. It is also the number most likely to be quoted from a stale
+product: these files are per-build, and a figure computed against one terrain
+says nothing about another.
+
 
 **That figure is the hyper-arid limit, not a property of the world.** It assumes
 no basin ever overflows. A basin that overflows year on year incises its outlet,
@@ -274,8 +268,9 @@ band. `--carve-basins FILE` is subtractive. Both are documented in the fork's
 
 **An earlier version of this section said that hook did not exist, and that was
 wrong.** It described the state before iteration 1, which used exactly this
-interface: `carve_list.json` names 1,089 basins at retain 0, and the current
-build's manifest records `carvedByRetainZero: 1089`. Iteration 2 is a run, not a
+interface: the count of retain-0 entries in `carve_list.json` matches
+`carvedByRetainZero` in the resulting build's manifest, which is the check that
+the list was consumed as written. Iteration 2 is a run, not a
 generator change.
 
 The terrain still is not in equilibrium: 770 basins fill to their spill under

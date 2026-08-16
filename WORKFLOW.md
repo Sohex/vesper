@@ -4,12 +4,12 @@ How geography, climate, water and life are computed for this planet, in what
 order, and why the order is not a straight line.
 
 Vesper is a super-Earth: 1.2 Earth radii, surface gravity 10.1989 m/s2, a 30-hour
-day, 32 degrees of obliquity, e = 0.02, orbiting a K2.5V dwarf at 0.945 S-Earth
-with a 182.8-day year. Mean surface temperature about 291.4 K.
+day, 32 degrees of obliquity and e = 0.02, orbiting a K2.5V dwarf. Those are
+declared in `config/planet.yaml` and do not move.
 
-Those last three are provisional pending the iteration-2 baseline now running.
-0.945 is chosen from three converged points on the previous terrain, 192.2 K per
-unit flux ratio, corrected by -0.81 K for the v4 lithology fix.
+The flux, the year, the active build and the mean surface temperature do move,
+every iteration. They are in `world_state.json`, which is generated; see section
+5.
 
 ---
 
@@ -88,13 +88,11 @@ every slider. The current build is `01eshm059lt0b9mpgro2y83t`: seed 16236323,
 
 Verify a build by `manifest.hashes.finalElevation`. A seed alone does not
 identify a planet, because fixes to the generator change the terrain under a
-fixed seed. The current terrain is `5bed5549...` (`carved-zoned-v4`), which is
-the first build on which the terrain, the lithology and the drainage verdict all
-describe the same surface. Three builds precede it and two are superseded rather
-than merely older: `carved-zoned` applied a verdict decided on climate read 180
-degrees out in longitude, and `carved-zoned-v2` carried a lithology chain in
-which closed-basin fill lost to whichever cover rule was typed first. Both stay
-registered in `lib/orogen.py` so results computed from them remain datable.
+fixed seed. Which build is current is in `world_state.json`; `lib/orogen.py`
+holds the registry, and it refuses any terrain hash it has not been checked
+against, with a note on each superseded build saying what was wrong with it.
+Several builds are superseded rather than merely older, and they stay registered
+so results computed from them remain readable and datable.
 
 The fork exports Gaussian grids directly off the mesh at T21, T42 and T85, plus a
 uniform 512x256 for mapping, plus PNG maps. Only the T42 export carries `raw/`,
@@ -243,11 +241,11 @@ astronomy. The patch carries no planetary numbers itself: it points the model at
 a generated `vesper.h`, which `build_vesper_header.py` derives from
 `config/planet.yaml`, because the year length is a function of the stellar flux.
 
-The model steps in 24-hour days with a year rounded from the orbital period,
-which is why the semimajor axis has to be locked before the biosphere is built
-against it and why later flux changes go through luminosity instead. At the
-current 0.945 baseline that period is 182.8 days, not the 180.7 the earlier 0.96
-baseline gave. That keeps every per-day
+The model steps in 24-hour days with a year rounded from the orbital period. That
+is why the semimajor axis has to be locked before the biosphere is built against
+it, and why later flux changes go through luminosity instead: the period is a
+function of the flux, so moving the flux the other way silently invalidates a
+compiled model. That keeps every per-day
 rate constant calibrated against the absolute time it was calibrated against and
 confines the error to daylength, where its sign is known. Stepping in real 30-hour
 Vesper days would put 25.9% into respiration, decomposition and phenology alike.
@@ -267,23 +265,23 @@ Three quantities each depend on the other two.
 
 **Drainage depends on climate.** Which basins survive is a water balance.
 
-**Climate depends on drainage.** Closed-basin fill is 16.5% of this planet's
-land, and it is bright: salt crust 0.50 and playa clastics 0.30 against a land
-mean of 0.276. Carve the basins and the world gets darker. This is also the
-channel through which a lithology bug reached the climate, twice, so it is worth
-measuring on the surface the model actually sees rather than on the rock table.
+**Climate depends on drainage.** Closed-basin fill is a large minority of this
+planet's land and the brightest thing on it -- salt crust and playa clastics
+against a much darker land mean. Carve the basins and the world gets darker. This
+is also the channel through which a lithology bug reached the climate, twice, so
+measure it on the surface the model actually sees rather than on the rock table.
 
-**Climate depends on the biosphere, and the biosphere on climate.** Bare rock
-gives a land-mean albedo of 0.276, a vegetated surface 0.179. That difference is
-worth several kelvin, and bare and vegetated reach the 290 to 293 K design target
-at *non-overlapping* stellar fluxes. No single flux is robust to the question, so
-the orbit and the biosphere are one choice, not two.
+**Climate depends on the biosphere, and the biosphere on climate.** Bare rock and
+a vegetated surface differ in land albedo by enough to be worth several kelvin,
+and the two reach the 290 to 293 K design target at *non-overlapping* stellar
+fluxes. That is the load-bearing fact: no single flux is robust to the vegetation
+question, so the orbit and the biosphere are one choice, not two.
 
 The two interact rather than adding. Vegetation paints everything that can carry
 a canopy at a single value, so it masks bare-rock variation but not the barren
 classes; a lithology change confined to closed-basin fill therefore moves the
-*vegetated* albedo about twice as far as it moves the bare one. The v4 fix is the
-worked example: +0.0034 bare, +0.0077 vegetated.
+*vegetated* albedo roughly twice as far as it moves the bare one. Quote the
+vegetated figure when the question is what the climate will do.
 
 **Soil depends on the biosphere, and the biosphere on soil.** Texture, pH and
 regolith depth are weathering products of lithology under a climate, but the
@@ -299,8 +297,8 @@ direction: carving removes evaporite, which is the brightest lithology, so the
 land darkens, the world warms, open-water evaporation rises, and basins that were
 marginal would have stayed closed. Iteration 1 therefore carves at the coolest,
 brightest state available and cannot take any of it back, so the pipeline
-systematically over-carves. The applied export bears this out directly: closed-
-basin fill fell from 20.9% of land before carving to 16.5% after.
+systematically over-carves. Each applied export bears this out directly: closed-
+basin fill falls with every carve iteration.
 
 Carving is monotone *within* a build, but a build is regenerated from the planet
 code plus a verdict rather than edited, so a wrong verdict is recoverable by
@@ -314,34 +312,38 @@ the overshoot, and it is the honest measure of how much the first pass cost.
 
 ## 5. Where the pipeline currently stands
 
-| stage | state |
-| --- | --- |
-| terrain | `5bed5549` (`carved-zoned-v4`), 2,540 preserved basins after the corrected first carve |
-| drainage | resolved, 112,217 pits filled at a median 8.4 m |
-| hypsometry | rebuilt on the finished terrain; capacity 79.8% of the catalogue's natural figure |
-| coupling | T42 and T85 matrices built, both carrying the `cell_lon` their convention depends on |
-| climate | iteration-2 baseline running at 0.945 S-Earth, vegetated. Three converged points on the superseded `carved-zoned`: 0.92/287.47 K, 0.94/291.29 K, 0.96/295.15 K |
-| carve verdict | first pass, recomputed after the longitude fix: 1,089 carve, 170 marginal, 2,370 preserved. Applied in `carved-zoned-v4` |
-| pedology | built, closing the loop through soil carbon; weathering 0.50 on `P - E`, bracketed to 2.81 if driven by precipitation |
-| biosphere | LPJ-GUESS ported, driven, parallel, harnessed and scored; awaiting a current climatology for the first full run |
-| stellar cycle | deferred to last |
+**`world_state.json` in the project root, generated by `scripts/world_state.py`.**
+It is regenerated from the artifacts after anything that changes a build, a run
+or a verdict, and it is the only place current values are written down.
 
-Selected results:
+They are not repeated here on purpose. This document describes how the pipeline
+works and why it is shaped the way it is; those change slowly. Which build is
+active, how many basins survive, what the world's mean temperature is and how
+much of the land is closed-basin fill change every iteration, and prose restating
+them is wrong within the day. A number appears in this document only when it is a
+decision, a threshold, an identity, or when the magnitude carries an argument
+that fails without it.
 
-- Land is 43.17% of the surface by `surface_class`, and has not moved across any
-  build: the carve changes where water leaves a basin, not where the coast is.
-- Before carving, 76% of land drains to a closed basin, against roughly 13% on
-  Earth. After the corrected first verdict it is 60.0%, measured on the rebuilt
-  drainage and agreeing with the export's own routing to 0.08 points.
-- Closed-basin fill is 16.462% of land, playa clastics 14.517% and salt crust
-  1.944%. On `carved-zoned-v2` the same figure read 12.303%, because fill was
-  being overwritten by the cover chain; 203 basins then had no fill cell at all
-  and were reaching ExoPlaSim as vegetated land.
-- Mean land albedo is 0.2762 bare and 0.1794 vegetated. The vegetated figure is
-  what the climate sees, and it moved +0.0077 on the v4 fix against +0.0034 for
-  the bare figure, because vegetation masks bare-rock variation but not the
-  barren classes.
-- 821 basins spill to the ocean and 1,719 into another basin.
+What does not change between iterations, and is worth knowing before reading the
+generated state:
+
+- **The land fraction is fixed.** Carving changes where water leaves a basin, not
+  where the coast is, so the land/sea split is identical across every build.
+  Anything that moves it is a bug.
+- **This world is far more endorheic than Earth**, by a large factor rather than
+  a little, in every iteration so far. That is the fact the hydrography component
+  exists to handle, and it is why lakes and evaporite matter to the climate here
+  when they would be a detail on Earth.
+- **Carving reduces closed-basin fill, and fill is the brightest thing on the
+  land.** So each carve iteration darkens the world and warms it, which is the
+  feedback that makes this a loop rather than a sequence.
+- **Vegetation masks bare-rock variation but not the barren classes.** A
+  lithology change confined to closed-basin fill therefore moves the *vegetated*
+  land albedo roughly twice as far as it moves the bare one. Bare-rock figures
+  systematically understate what the climate will see.
+- **The basin catalogue is stable across builds.** Basin ids are computed on the
+  pre-conditioning surface, so a verdict computed against one build still refers
+  to the same basins in the next. `manifest.hashes.basinCatalogue` is the check.
 
 ## 6. What happens next
 

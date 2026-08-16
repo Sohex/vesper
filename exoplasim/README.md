@@ -1,5 +1,12 @@
 # Superhabitable-world climate workflow
 
+> Figures in this document are illustrative of method, and were measured on
+> builds and climates that have since moved. Current values live in
+> `world_state.json`, generated from the artifacts. See the convention in
+> `CLAUDE.md`.
+
+
+
 This component converts the canonical World Orogen geography in `../source/` to
 ExoPlaSim boundary conditions and runs reproducible climate experiments. All
 commands below are run from the project root.

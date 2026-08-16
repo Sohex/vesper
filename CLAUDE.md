@@ -52,14 +52,16 @@ and `lib/builds.py` resolves it; nothing should hardcode a path under `source/`.
 
 | build | terrain | what it is |
 | --- | --- | --- |
-| `precarve-unzoned` | `821aa71b` | the 292.97 K baseline; evaporite one class at 0.50 |
+| `precarve-unzoned` | `821aa71b` | pre-carve; evaporite a single class |
 | `precarve-zoned` | `26fc7691` | same drainage, salt-crust/playa-fill split |
 | `carved-zoned` | `3899a0c5` | **superseded**: verdict decided on antipodal climate |
 | `carved-zoned-v2` | `010f2143` | **superseded**: basin fill lost to cover-chain branch order |
 | `carved-zoned-v4` | `5bed5549` | **active**: corrected verdict, corrected cover chain |
 
-The names are for humans. `manifest.hashes.finalElevation` is the identity, and
-`lib/orogen.py` refuses a build it has not been checked against. The basin
+This table is illustrative, not a registry: `lib/orogen.py` holds the authoritative
+list with a note on each build, and `world_state.json` records which one is
+active. The names are for humans; `manifest.hashes.finalElevation` is the
+identity, and `lib/orogen.py` refuses a build it has not been checked against. The basin
 catalogue hash is `2d1f8e57` on all of them, so per-basin work resolves across
 every build here, including the superseded ones.
 
@@ -130,8 +132,8 @@ source.
 oversight -- and filling it is now done downstream: `hydrography/surface_water.py`
 solves lake extent and `build_surface_albedo.py --lakes` carries it into the
 climate as a composite albedo. Orogen measures basin geometry but never decides water levels — that
-is a precipitation-versus-evaporation balance and belongs downstream. 11.5% of
-the planet's area is flagged `is_endorheic`. Filling those basins is our job,
+is a precipitation-versus-evaporation balance and belongs downstream. A large fraction of
+this planet is flagged `is_endorheic`, and it falls with each carve iteration. Filling those basins is our job,
 using the hypsometry curves in `manifest.basins.preserved[]`, and it feeds back
 into climate through albedo and evaporation.
 
@@ -291,7 +293,7 @@ spill under this climate, holding 26% of the land, which is the water balance
 saying their outlets should have been cut. Carving belongs upstream in Orogen,
 and the generator does expose the hook -- `--preserve-basins FILE` takes a
 retain fraction per basin, 0 carves -- so iteration 2 is a run rather than a
-generator change. Iteration 1 used exactly that path for 1,089 basins.
+generator change. Every iteration since has used exactly that path.
 
 Two things about the export that any consumer needs to know. `drain_to` is raw
 steepest descent, and `drainage_terminal` is -2 for 63% of the land, which
@@ -302,31 +304,33 @@ resolving that discards most of the land's water. And the catalogue's
 
 ## Where the climate work stands
 
-A six-case albedo bracket at T21 (two land-surface endmembers x 0.90/0.95/1.00
-S-Earth) is complete; the table is in `exoplasim/notes/parameter-decisions.md`.
-The headline: **the flux that puts this world in the 290-293 K design range is
-0.952-0.970 S-Earth if vegetated and 0.977-0.994 if bare rock, and those windows
-do not overlap.** The endmember spread near the target, 3.7-4.4 K, is wider than
-the 3 K target itself, so no single flux is robust to the vegetation question.
-The orbit and the biosphere have to be chosen together.
+A six-case albedo bracket at T21 established the load-bearing fact, and it has
+survived every re-baseline since: **the flux windows that put this world in the
+290-293 K design range do not overlap between a vegetated surface and a bare-rock
+one.** The endmember spread near the target is wider than the target band itself,
+so no single flux is robust to the vegetation question, and the orbit and the
+biosphere have to be chosen together. The table is in
+`exoplasim/notes/parameter-decisions.md`, measured on terrain since superseded.
 
-**Chosen: vegetated.** The flux has since been measured directly rather than
-bracketed, on three converged T42 points: 0.92/287.47 K, 0.94/291.29 K and
-0.96/295.15 K, a slope of **192.2 K per unit flux ratio**. The 290-293 K band is
-therefore only 0.016 wide in flux. The current baseline is **0.945**, which is
-0.94 plus the -0.81 K correction the `carved-zoned-v4` lithology fix applied to
-the vegetated land albedo.
+**Chosen: vegetated.** The flux itself is measured rather than bracketed now, and
+the current value is in `world_state.json`. The band is narrow -- a couple of
+hundredths of a flux ratio wide -- so it is worth re-deriving after anything that
+moves land albedo, and lithology fixes have moved it more than once.
 
-Do not reuse a sensitivity measured in one regime in another. The bracket's
-implied ~167 K per unit flux was right; a 0.331 K/W/m2 figure measured across an
-albedo step in a nearly ice-free state was not, and using it predicted 291.9 K
-for a run that came in at 287.47 K. Between 0.96 and 0.92 the sea-ice fraction
-grows fiftyfold and the feedback is live. Bracket between converged points
-instead of extrapolating from one.
+Two rules that cost real runs to learn:
 
-That is sensitivity, not bistability: vegetation is not interactive in these
-runs, so they are separately forced problems. Do not describe the world as
-bistable on this evidence.
+**Do not reuse a sensitivity measured in one regime in another.** A figure
+measured across an albedo step in a nearly ice-free state predicted 291.9 K for a
+run that converged at 287.47 K, because the interval it was applied to crosses
+the ice transition and the sea-ice fraction grows fiftyfold across it. Bracket
+between two converged points that span the target instead of extrapolating from
+one.
+
+**Convert a surface albedo change through the atmosphere, or better, measure the
+model's own planetary albedo.** Multiplying a surface-albedo delta by full
+top-of-atmosphere insolation ignores everything above the surface and overstates
+the forcing; roughly half of a surface change reaches the top of the atmosphere,
+before any feedback. Predicting a lithology fix that way was a kelvin out.
 
 ## The ExoPlaSim component
 
@@ -336,8 +340,8 @@ surface fields except topography and the land mask are uniform namelist defaults
 this is declared via `model.uniform_land_surface` and is deliberate, since Earth's
 surface maps are tied to Earth's continents. Albedo is the exception and is
 supplied from lithology by `build_surface_albedo.py`: bare rock averages 0.315
-over land against ExoPlaSim's 0.22, and 16.5% of the land is bright closed-basin
-fill because the drainage is endorheic. Measure that on the surface the model
+over land against ExoPlaSim's 0.22, and a large minority of the land is bright
+closed-basin fill because the drainage is endorheic. Measure that on the surface the model
 sees, not from the rock table: the vegetated land mean is 0.179 against 0.276
 bare, and a lithology change confined to basin fill moves the vegetated figure
 about twice as far, because vegetation masks bare-rock variation but not the
@@ -379,13 +383,13 @@ computed on the pre-carve terrain, under the k2 spectrum, and it is what the
 antipodal carve verdict was taken from. Its numbers remain valid for the surface
 they were computed on.
 
-Two corrections that turned out smaller and larger than expected, in that order.
 The stellar spectrum was wrong for three eras -- `k2.dat` is the star K2-18, an
 M2.5V, not a K dwarf -- but fixing it changed absorbed shortwave by 0.04 W/m2 on
 this nearly ice-free world, because it acts on snow and ice and there is almost
-none. It is not null on the cold branch, so it still matters for the stellar
-cycle. The v4 lithology fix, by contrast, was budgeted at nothing and came in at
--0.81 K.
+none of either. It is not null on the cold branch, so it still matters for the
+stellar cycle. That asymmetry is the general lesson: a correction's size depends
+on how much of the surface it acts on, so estimate it against the state you are
+in rather than the state it was first measured on.
 
 `convert_orogen.py` is superseded by `build_boundary_conditions.py`, which
 integrates the mask and topography from the native mesh.
@@ -429,6 +433,16 @@ entries cost a terrain rebuild.
 
 ## Conventions
 
+- **Do not write current values into prose.** `world_state.json` is generated
+  from the artifacts and is the only place they belong. A number earns a place in
+  a document only if it is a decision, a threshold, an identity, or if the
+  magnitude carries an argument that fails without it: a convergence criterion, a
+  terrain hash, "the two windows do not overlap", "exactly 180 degrees". Mean
+  temperature, basin counts, land composition and the active build are none of
+  those, and every one of them was wrong in these documents within a day of being
+  written. `notes/` is the exception, and the opposite: those are dated records
+  of what was measured, so they keep their numbers and gain a "measured on"
+  rather than losing them.
 - Prose in docs and reports uses ASCII punctuation and avoids em dashes; match it.
 - Every run and analysis product records its provenance (config hash, input
   hashes, software versions) in JSON. Keep that up when adding steps.

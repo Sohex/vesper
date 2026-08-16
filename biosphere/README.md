@@ -1,5 +1,12 @@
 # Biosphere
 
+> Figures in this document are illustrative of method, and were measured on
+> builds and climates that have since moved. Current values live in
+> `world_state.json`, generated from the artifacts. See the convention in
+> `CLAUDE.md`.
+
+
+
 Replaces the assumed vegetation with a modelled one. LPJ-GUESS takes the
 ExoPlaSim climatology and returns leaf area, carbon and plant functional type
 composition per gridcell, which becomes the surface albedo and forest fraction

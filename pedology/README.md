@@ -1,5 +1,12 @@
 # Pedology
 
+> Figures in this document are illustrative of method, and were measured on
+> builds and climates that have since moved. Current values live in
+> `world_state.json`, generated from the artifacts. See the convention in
+> `CLAUDE.md`.
+
+
+
 Turns rock into soil. Parent material sets what minerals are available, climate
 sets how far they have been converted, relief and erosion set how much regolith
 survives, and the biosphere sets the organic fraction. That last one is why this
