@@ -1,0 +1,323 @@
+{
+  "source": {
+    "citation": "Meybeck, M. (1987). Global chemical weathering of surficial rocks estimated from river dissolved loads. American Journal of Science 287(5), 401-428.",
+    "doi": "10.2475/ajs.287.5.401",
+    "file": "references/meybeck1987-global-chemical-weathering.pdf",
+    "sha256": "81f0c02144591607dbbfe01d55fbd3877314d0c206e356d532e4853a642c4534"
+  },
+  "extraction": {
+    "date": "2026-08-16",
+    "method": "ocrmypdf 17.10.0 / tesseract 5.5.3 with --rotate-pages (both tables are landscape in a portrait scan and OCR read them sideways without it), then every numeric cell verified by eye against a 220-260 dpi render.",
+    "why_verified": "OCR silently dropped or mangled cells that the prose around them did not reveal: granite K, peridotite Na, gypsum SO4 6800->6600, and a leading digit on four values (shale outcrop 33.1->3.1, carbonate outcrop 15.9->5.9, and SiO2 for gneiss/volcanic/carbonate 11.x->1.x). The arithmetic identities below catch exactly these, which is why they are recorded and re-run.",
+    "identities": [
+      "table 2C: Ca+Mg+Na+K equals the stated cation sum",
+      "table 2C: outcrop percentages sum to 100",
+      "table 5: every column sums to 100 by construction"
+    ],
+    "checks_passed": 22,
+    "checks_failed": 0
+  },
+  "caution": [
+    "Table 5 covers EXORHEIC runoff only. Most of this world's land drains to a closed basin, so these proportions are not transferable without an argument.",
+    "The 0.6%-outcrop ultramafic row is called 'peridotite' in table 2C and 'gabbro' in table 5. Same slot, different name, in the same paper.",
+    "Table 2C SiO2 is umole/l; every other species is ueq/l. Do not sum them."
+  ],
+  "table_2c": {
+    "title": "Representative analyses used in the Temperate Stream Model",
+    "printed_page": 408,
+    "columns": [
+      "sio2_umol_l",
+      "ca_ueq_l",
+      "mg_ueq_l",
+      "na_ueq_l",
+      "k_ueq_l",
+      "cl_ueq_l",
+      "so4_ueq_l",
+      "hco3_ueq_l",
+      "cation_sum_ueq_l",
+      "outcrop_pct"
+    ],
+    "rows": {
+      "granite": [
+        150,
+        39,
+        31,
+        88,
+        8,
+        0,
+        31,
+        128,
+        166,
+        10.4
+      ],
+      "peridotite": [
+        180,
+        50,
+        500,
+        7,
+        4,
+        0,
+        120,
+        450,
+        560,
+        0.6
+      ],
+      "gneiss": [
+        130,
+        60,
+        57,
+        80,
+        10,
+        0,
+        56,
+        135,
+        207,
+        12.7
+      ],
+      "misc_metamorphic": [
+        95,
+        1375,
+        365,
+        23,
+        9,
+        0,
+        120,
+        1730,
+        1770,
+        2.3
+      ],
+      "volcanic_rocks": [
+        200,
+        154,
+        161,
+        105,
+        14,
+        0,
+        10,
+        425,
+        435,
+        7.9
+      ],
+      "sandstone": [
+        150,
+        88,
+        63,
+        51,
+        21,
+        0,
+        95,
+        125,
+        223,
+        15.8
+      ],
+      "shale": [
+        150,
+        404,
+        240,
+        105,
+        20,
+        20,
+        143,
+        580,
+        770,
+        33.1
+      ],
+      "sedimentary_carbonate_rocks": [
+        100,
+        2560,
+        640,
+        34,
+        13,
+        0,
+        85,
+        3195,
+        3247,
+        15.9
+      ],
+      "gypsum_evaporite": [
+        120,
+        6500,
+        2500,
+        1000,
+        35,
+        1200,
+        6800,
+        2000,
+        10035,
+        0.75
+      ],
+      "halite_evaporite": [
+        120,
+        3000,
+        3000,
+        14000,
+        100,
+        15000,
+        3000,
+        2000,
+        20100,
+        0.5
+      ]
+    }
+  },
+  "table_5": {
+    "title": "Origins of weathering products by rock types (% of total released)",
+    "printed_page": 418,
+    "columns": [
+      "sio2",
+      "ca",
+      "mg",
+      "na",
+      "k",
+      "cl",
+      "so4",
+      "hco3",
+      "cation_sum_meq",
+      "outcrop_pct",
+      "load_pct"
+    ],
+    "rows": {
+      "granite": [
+        10.9,
+        0.6,
+        1.2,
+        5.9,
+        4.9,
+        null,
+        2.0,
+        1.6,
+        1.6,
+        10.4,
+        2.6
+      ],
+      "gabbro": [
+        0.75,
+        0.0,
+        1.1,
+        0.0,
+        0.0,
+        null,
+        0.3,
+        0.3,
+        0.3,
+        0.6,
+        0.2
+      ],
+      "gneiss_and_micaschist": [
+        11.7,
+        1.1,
+        2.8,
+        6.6,
+        8.2,
+        null,
+        4.6,
+        2.0,
+        2.4,
+        12.7,
+        3.3
+      ],
+      "misc_metamorphic": [
+        1.5,
+        4.7,
+        3.2,
+        0.3,
+        1.6,
+        null,
+        1.7,
+        4.7,
+        3.7,
+        2.3,
+        2.6
+      ],
+      "volcanic_rocks": [
+        11.1,
+        1.8,
+        4.9,
+        5.4,
+        6.6,
+        null,
+        0.5,
+        4.2,
+        3.1,
+        7.9,
+        2.8
+      ],
+      "sandstone": [
+        16.6,
+        2.1,
+        3.8,
+        5.2,
+        19.6,
+        null,
+        9.6,
+        2.3,
+        3.2,
+        15.8,
+        5.0
+      ],
+      "shale": [
+        35.1,
+        19.9,
+        30.7,
+        22.6,
+        41.0,
+        7.4,
+        30.3,
+        22.5,
+        23.1,
+        33.1,
+        20.0
+      ],
+      "carbonate_rocks": [
+        11.3,
+        60.4,
+        39.3,
+        3.5,
+        13.1,
+        null,
+        8.6,
+        59.5,
+        46.7,
+        15.9,
+        45.1
+      ],
+      "gypsum": [
+        0.5,
+        7.2,
+        7.2,
+        4.9,
+        1.6,
+        10.0,
+        32.7,
+        1.7,
+        6.8,
+        0.75,
+        8.1
+      ],
+      "rock_salt": [
+        0.4,
+        2.2,
+        5.8,
+        45.6,
+        3.3,
+        82.6,
+        9.6,
+        1.2,
+        9.1,
+        0.5,
+        10.3
+      ]
+    },
+    "global_flux_1e12_g_per_year": {
+      "sio2": 320,
+      "ca": 504,
+      "mg": 118,
+      "na": 132,
+      "k": 24,
+      "cl": 120,
+      "so4": 280,
+      "hco3": 1950
+    },
+    "note": "cl is blank for rocks that release none; recorded as null, not zero"
+  }
+}

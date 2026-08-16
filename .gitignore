@@ -49,7 +49,13 @@ hydrography/data/surface_water.nc
 # that summarise a run are tracked under biosphere/analysis/.
 biosphere/runs/
 pedology/data/earth_validation_cache/
-pedology/data/reference/
+# Bulk reference datasets: large, and redistributable only as their licences
+# allow. Hand-extracted tables are the exception and ARE tracked: they are
+# kilobytes, they carry their own provenance and validation identities, and
+# re-deriving one means re-reading a scanned table by eye. Same reasoning as
+# references/INDEX.md below -- exclude the bulk, keep the record.
+pedology/data/reference/*
+!pedology/data/reference/*.json
 # Reference PDFs: publisher copyright, many not redistributable. The PDFs are
 # excluded; INDEX.md is NOT, because it is the bibliography and the record of
 # which sources have actually been read. A blanket `references/` rule used to
