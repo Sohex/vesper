@@ -460,10 +460,15 @@ they claim to describe, and a carve list accounts for every basin. Exit 1 on
 disagreement. Run it after changing `source_build`, which is when most of this
 goes stale at once.
 
-`notes/failure-modes.md` records how this project goes wrong, by class rather
-than as a changelog, because the classes recur and the instances do not. Worth
-reading before adding a component or changing a shared quantity; several of the
-entries cost a terrain rebuild.
+**Read `notes/failure-modes.md` before quoting a geography number, adding a
+component, or changing a quantity more than one script consumes.** It records how
+this project goes wrong, by class rather than as a changelog, because the classes
+recur and the instances do not. Several entries cost a terrain rebuild.
+
+The one most likely to catch you first: a pre-carve build is a *limit*, not a
+state, and the pre-carve numbers are the ones physically sitting in `source/` at
+the start of every cycle. Three conclusions here have been right in mechanism and
+wrong in magnitude for that reason or one like it.
 
 ## Conventions
 

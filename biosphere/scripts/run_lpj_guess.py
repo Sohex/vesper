@@ -148,7 +148,7 @@ def main() -> None:
                         help="MPI ranks. 16 physical cores on this machine.")
     parser.add_argument("--nfix-a", type=float, default=0.234,
                         help="Cleveland fixation slope. LPJ-GUESS brackets this "
-                             "0.102 to 0.367 and it is worth 18% on NPP; sweep it "
+                             "0.102 to 0.367 and it is worth 18%% on NPP; sweep it "
                              "rather than quoting the central value alone.")
     parser.add_argument("--nfix-b", type=float, default=-0.172)
     parser.add_argument("--driver", type=Path, default=GENERATED / "vesper_driver.bin")

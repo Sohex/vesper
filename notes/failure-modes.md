@@ -130,6 +130,39 @@ downstream looks strange.
 So when adding a component, add the cross-check with it, and prefer the check
 that would have caught the last bug.
 
+## 8. Reading an intermediate configuration as the world
+
+Three conclusions in this project have been right in mechanism and wrong in
+magnitude, and the last two were wrong the same way: a figure was taken from the
+build sitting in front of me rather than from the configuration the pipeline is
+converging on.
+
+- **The carbonate-silicate thermostat** was described as structurally weak
+  because endorheic drainage withholds alkalinity from the ocean. The mechanism
+  is real; measured, the efficiency is 0.906 and rising with each carve. The
+  error was using an area share where a weathering-weighted share was needed --
+  endorheic land is dry, which is *why* it is endorheic, so it weathers less per
+  unit area than its extent implies.
+- **The phosphorus gradient** was described as P-poor uplands against P-rich
+  basin floors. That is the hydrological leg only; aeolian transport from dry
+  lake beds runs the other way and partly refills the uplands, which on Earth is
+  how the Amazon is supplied.
+- **The dust source area** was taken as 26.6% of land, which is the *uncarved*
+  build -- the hyper-arid limit in which no basin has had its outlet cut. Carved
+  and excluding fill that sits under a lake, it is about 12%. The bound fell from
+  -4.6 K to -2 K.
+
+**The rule.** A pre-carve build is a *limit*, not a state. So is any figure taken
+before the lakes are solved, before a verdict is applied, or before the loop this
+project is built around has run. Before quoting a geography number, ask which
+iteration it belongs to and whether the pipeline expects to move it. The
+uncarved numbers are the ones physically present in `source/` at the start of
+every cycle, which is exactly why they keep getting picked up.
+
+Corollary: this world is unusual enough in its drainage that reasoning from one
+transport pathway is reliably insufficient. Where water does something
+surprising here, check whether wind or sediment does the opposite.
+
 ---
 
 ## Things already checked and disproved: do not re-derive these
