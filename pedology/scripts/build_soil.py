@@ -350,7 +350,12 @@ def main() -> None:
 
     config = yaml.safe_load(CONFIG.read_text())
     pedo = yaml.safe_load(PEDOGENESIS.read_text())
-    climatology = args.climatology or climatology_path()
+    # Resolve before use, not just before storing. The provenance write takes
+    # relative_to(PROJECT_ROOT), which raises on a path given relative to the
+    # cwd -- and it raises AFTER the soil map has already been written, leaving
+    # an artifact on disk with no provenance beside it. surface_water.py carries
+    # a comment about this exact failure; it was fixed there and not here.
+    climatology = (args.climatology or climatology_path()).resolve()
     if not climatology.is_file():
         raise SystemExit(f"{climatology} does not exist")
 

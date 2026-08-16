@@ -1,37 +1,37 @@
 {
-  "source_build": "carved-zoned-v4",
-  "terrain_hash": "5bed5549315da14b22275fea51a0b6f5b34d79cdf2237c9380e8471e0b431c78",
+  "source_build": "precarve-zoned-g1281",
+  "terrain_hash": "974ceb78fccfd54c3a842cf4ae8d7ae79029816abd9b4fbf90409165090b0ec1",
   "forcing": "exoplasim/analysis/climatology",
   "forcing_sha256": "2af16c78677ce4286a44edb1d96262d36f9f71b470720b50368a1ea7aabecff2",
-  "orbital_year_days": 180.65500935790158,
+  "orbital_year_days": 182.80142503147016,
   "runoff_source": {
     "field": "P-E from the baseline climatology, not mrro",
     "why": "the run's global water budget closes to 0.03% of the mean and the land surplus matches the sea deficit, but mrro accounts for only 15% of that surplus",
-    "land_mean_p_minus_e_mm_per_day": 0.44856715025967964,
-    "land_mean_mrro_mm_per_day": 0.18055967332365738
+    "land_mean_p_minus_e_mm_per_day": 0.3966489870265151,
+    "land_mean_mrro_mm_per_day": 0.1571963180985696
   },
   "open_water_evaporation": {
     "method": "Penman combination, water albedo and roughness, floored at the model's land rate; shared with carve_verdict.py",
-    "global_mean_mm_per_day": 3.8837354504804993,
-    "ocean_mean_mm_per_day": 3.9711832955795128,
+    "global_mean_mm_per_day": 4.399876294615723,
+    "ocean_mean_mm_per_day": 4.498689311450185,
     "model_ocean_mean_mm_per_day": 2.5865020651491895,
     "validation": "ratio over ocean cells, which already are open water; the only place the estimate can be checked"
   },
   "lakes": {
-    "basins_holding_water": 1467,
-    "basins_at_spill": 836,
-    "solved_area_km2": 20054152.08866753,
-    "painted_area_km2": 19996522.447400093,
-    "planet_fraction": 0.027206411714213834,
-    "total_volume_km3": 1556514.6242607757
+    "basins_holding_water": 2551,
+    "basins_at_spill": 1625,
+    "solved_area_km2": 34833392.18775358,
+    "painted_area_km2": 34757334.21320462,
+    "planet_fraction": 0.047289339792976025,
+    "total_volume_km3": 2552479.8368814886
   },
   "rivers": {
-    "max_discharge_m3_s": 117028.7572862817,
-    "basins_whose_outflow_was_routed": 836,
-    "overflow_routed_m3_s": 1387487.685092494,
-    "regions_above_1000_m3_s": 14880,
-    "land_runoff_km3_per_year": 27145.305275065533,
-    "land_runoff_m3_s": 1739125.724405053
+    "max_discharge_m3_s": 141994.33798916804,
+    "basins_whose_outflow_was_routed": 1625,
+    "overflow_routed_m3_s": 2991713.842531658,
+    "regions_above_1000_m3_s": 11696,
+    "land_runoff_km3_per_year": 24485.643309975974,
+    "land_runoff_m3_s": 1550308.7537322522
   },
-  "git_commit": "7e329ffda2c3e8b23c9cba2a38eaaf09a36f14f2"
+  "git_commit": "9a65163cc627e333b481a8a5f747010235bc164c"
 }

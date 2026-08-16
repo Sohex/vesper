@@ -306,6 +306,13 @@ model:
   # field spans 0.025 to 11.2 m and its exchange coefficient 0.0021 to 0.0249,
   # against the uniform 0.0088.
   roughness_source: lithology
+  # DETERMINED for the re-baseline. Soil water capacity from the pedology soil
+  # map (code 229) rather than ExoPlaSim's uniform 0.5 m bucket. Land-mean dwmax
+  # is 0.151 m, so the uniform default overstates plant-available water more than
+  # threefold, which changes evaporation, which changes P - E, which is the
+  # numerator of the carve criterion. It has to be in place BEFORE the run whose
+  # climatology the verdict uses, not merely before the verdict.
+  soil_water_source: pedology
   # Background land albedo. Bare-rock albedo from lithology averages 0.315 over
   # land against ExoPlaSim's uniform 0.22, and ranges 0.10 for basalt to 0.50 for
   # evaporite, so uniform is a planetary-albedo error of about 0.04. This is
