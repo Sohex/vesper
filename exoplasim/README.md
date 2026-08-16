@@ -1,45 +1,16 @@
 # Superhabitable-world climate workflow
 
-> Figures in this document are illustrative of method, and were measured on
-> builds and climates that have since moved. Current values live in
-> `world_state.json`, generated from the artifacts. See the convention in
-> `CLAUDE.md`.
-
-
-
 This component converts the canonical World Orogen geography in `../source/` to
 ExoPlaSim boundary conditions and runs reproducible climate experiments. All
 commands below are run from the project root.
 
-> **The results in the sections below predate the current geography and are kept
-> as a record, not as a description of this world.** The current baseline is
-> 0.945 S-Earth, vegetated, on terrain `5bed5549` (`carved-zoned-v4`), and is
-> running rather than settled. The flux comes from three converged points on the
-> superseded `carved-zoned` terrain -- 0.92/287.47 K, 0.94/291.29 K,
-> 0.96/295.15 K, a slope of 192.2 K per unit flux ratio -- corrected by -0.81 K
-> for the v4 lithology fix. See `notes/parameter-decisions.md`.
->
-> Two further things invalidate numbers quoted here. The stellar spectrum was
-> `k2.dat`, which is the star K2-18, an M2.5V, and not a K dwarf at all; it is
-> now `k25v`, built for this star's 4965 K. That correction turned out to be
-> radiatively null on this warm world, at 0.04 W/m2 of absorbed shortwave, but it
-> is not null on the cold branch and matters for the stellar cycle. And every
-> carve verdict before the longitude fix integrated each basin's climate from its
-> antipode. See `notes/stellar-spectrum-audit.md` and
-> `../hydrography/README.md`.
->
-> The 0.95 recommendation below belongs to a configuration older than any of
-> that: it assumed a uniform 0.22 albedo and a blackbody star, and the albedo
-> bracket has since shown the habitable flux depends on the biosphere.
->
-> Every run in those sections was built from
-> the equirectangular map PNGs of an earlier, 510k-region World Orogen build.
-> `../source/` now holds full data exports of a 2.5M-region build with preserved
-> endorheic basins and lithology-modulated erosion, including T42/T63/T85
-> Gaussian grids emitted directly off the mesh. The results below remain
-> physically valid for the geography they used; they are not a description of
-> the world as it now stands, and `convert_orogen.py` is superseded by reading
-> `../source/exoplasim-T42/planet.nc` directly.
+It is described here by what it does and how to run it, and it carries no
+results. `world_state.json` holds current values, `runs/INDEX.json` records what
+each run physically was, and the dated measurements live in `notes/`.
+
+`convert_orogen.py` is superseded by `build_boundary_conditions.py`, which
+integrates the mask and topography from the native mesh rather than from the
+equirectangular map PNGs.
 
 ## Reproduce geography conversion
 
@@ -104,43 +75,22 @@ annualized to 365.2425 days before applying empirical Earth thresholds. That
 avoids classifying this world's 180.7-day orbital year as artificially dry.
 It is a worldbuilding interpretation, not a dynamic vegetation simulation.
 
-## Stellar-flux sweep result
+## What the flux sweeps established
 
-**The T42 flux sweep below is the FIRST era and is superseded on every axis
-that matters.** It used the old 510k-region map PNGs, a uniform 0.22 land albedo,
-and a blackbody star rather than a measured spectrum; its output has since been
-deleted, with the derived products kept in `archive/runs/`. It is retained here
-because the *shape* of the response is still instructive -- flux moves surface
-temperature and sea ice together, steeply, across this range -- and for nothing
-else. Do not quote its temperatures.
+The measurements are in `notes/parameter-decisions.md` with the terrain and
+spectrum each was made on, and the current calibration is in
+`analysis/error_budget.json`. Two results from them are methodological and
+outlive any particular terrain.
 
-| Flux | Climate state | Surface T | Precipitation | Planetary sea ice |
-| --- | --- | ---: | ---: | ---: |
-| 0.85 S-Earth | quasi-equilibrated cold/ice-rich | 258.80 K | 1.11 mm/day | 32.54% |
-| 0.90 S-Earth | strictly equilibrated cool | 280.90 K | 2.15 mm/day | 6.33% |
-| 0.95 S-Earth | strictly equilibrated warm | 292.08 K | 2.90 mm/day | 0.264% |
+**The response is strongly nonlinear across the ice-albedo transition**, so a
+flux-to-temperature slope measured on one side of it does not transfer to the
+other. Bracket the target between two converged points that span it rather than
+extrapolating from a sensitivity measured elsewhere. Doing the latter once
+predicted 291.9 K for a run that converged at 287.47 K.
 
-Measured on the superseded pre-carve terrain under a blackbody star. The current
-flux calibration is 150.2 K per unit flux ratio, from the T21 bracket, and is
-carried in `analysis/error_budget.json`.
-
-At the time, the 0.95 case was the strongest candidate for the intended habitable
-world: it reaches the desired 290--293 K range without CO2 tuning. Its broad
-land-area interpretation is about 26.8% continental mixed/temperate forest,
-10.5% temperate/subtropical forest, 8.8% tropical forest, 8.3% seasonal
-tropical woodland/savanna, and 0.7% tundra; however, dry climates remain
-substantial (about 16.1% desert and 16.3% steppe/semidesert).
-
-The 0.85 case ran 76 spin-up orbits. Its last ten-orbit temperature and ice
-trends were effectively stationary, but its mean TOA imbalance was
--0.504 W/m2, missing the predeclared strict limit by 0.004 W/m2. It is labeled
-quasi-equilibrated rather than silently relaxing the rule. Its subsequent
-five-orbit climatology has a -0.573 W/m2 mean TOA residual and should be used
-as a qualitative cold sensitivity endpoint, not at the same confidence as
-0.90 and 0.95.
-
-Endpoint products are under `exoplasim/analysis/climatology/s085/` and
-`exoplasim/analysis/climatology/s095/`; the combined report and plot are under
-`exoplasim/analysis/sweep/`. Because the response is strongly nonlinear and crosses a
-large ice-albedo transition, these three points should not be linearly
-interpolated as a precise flux-to-temperature calibration.
+**Equilibration is reported against its predeclared criterion, including when it
+misses.** One cold case ran 76 spin-up orbits to a stationary temperature and ice
+trend but a mean TOA imbalance of -0.504 W/m2, missing the strict limit by
+0.004 W/m2. It is labelled quasi-equilibrated rather than having the rule quietly
+relaxed around it, and anything derived from it is a qualitative endpoint rather
+than a result of equal confidence. Preserve that standard.
