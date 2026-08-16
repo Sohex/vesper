@@ -45,14 +45,33 @@ matter directly and the absence of a source is a real exposure. `LITH-3`.
 
 Grounded 2026-08-16 against sixteen fetched sources; see `references/INDEX.md`.
 
-**The standard albedo compilations classify by land cover, not by lithology.**
-Tested rather than asserted: Henderson-Sellers and Wilson (1983), 36 pages and
-the standard surface-albedo compilation for climate modelling, and Coakley
-(2003) contain **zero** occurrences of granite, basalt, limestone, sandstone,
-quartz, shale, gneiss, bedrock or "rock type" between them. They tabulate desert,
-soil, snow, water and vegetation. So there is no citable "granite = 0.30" to be
-had from the climate-modelling literature, and a broadband value keyed to
-lithology would have to come from somewhere else. What does exist is
+**A broadband-albedo-per-rock-type table DOES exist, and an earlier claim here
+that it did not was wrong.** Hunt (1982), *Spectroscopic properties of rocks and
+minerals*, chapter 3 of Carmichael's *Handbook of Physical Properties of Rocks*
+volume I, Table 9, has a column headed exactly **"Albedo (0.3-2.5 um)"** against
+named rock samples: rhyolite 0.69, granite (Rockport) 0.68, granite (Wisconsin)
+0.91, andesite (Mt Shasta) 0.56, andesite (Colorado) 0.42, syenite 0.61,
+granodiorite 0.61. The chapter also consolidates the whole Hunt and Salisbury
+*Modern Geology* series, its references 10 and 13.
+
+**But the column cannot be used as an albedo as it stands.** Graphic granite is
+listed at **1.13**, which is impossible for a reflectance fraction, so the column
+is normalised against a reference standard rather than absolute. Its definition
+lives in the table's source, reference 16: Logan, Hunt, Salisbury and Balsamo
+(1973), *Compositional implication of Christensen frequency maximums for infrared
+remote sensing applications*, J. Geophys. Res. 78, 4983 -- a mid-infrared
+emission paper, which is not held. Until that is read the column gives ORDERING
+and not level, and the ordering it gives is the expected one: felsic 0.68-0.95,
+intermediate 0.42-0.78, mafic darker still.
+
+The lesson is the one this project already has a rule for. The claim "no such
+table exists" was made from two compilations that classify by land cover rather
+than lithology -- Henderson-Sellers and Wilson (1983) and Coakley (2003) contain
+zero occurrences of granite, basalt, limestone, sandstone, quartz, shale, gneiss,
+bedrock or "rock type" between them -- and generalised from a checked absence in
+two sources to an unchecked absence everywhere.
+
+What also exists, and is what the table should ultimately be built from, is
 directional-hemispherical reflectance spectra -- ECOSTRESS v1.0 (473 rocks, and the correct measurement
 geometry for a model albedo), ASTER v2.0, USGS splib07. The defensible
 construction is to solar-weight those against **this world's own K2.5V
