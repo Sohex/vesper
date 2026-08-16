@@ -353,6 +353,72 @@ generated state:
   pre-conditioning surface, so a verdict computed against one build still refers
   to the same basins in the next. `manifest.hashes.basinCatalogue` is the check.
 
+## 5b. Where the planet sits, and why
+
+The flux was set by a derivation rather than inherited, on 2026-08-16. Recorded
+here because the previous target had propagated through six files with no
+statement of where it came from, and that is exactly the failure this document
+exists to prevent.
+
+**The old target was 290-293 K and had no derivation.** It traced to a constant
+in `compare_albedo_bracket.py` whose docstring justified it as "the design range
+this project has been aiming at since the first sweep, unchanged". That is a
+number justified by its own persistence. It had reached `CLAUDE.md`, this file,
+`config/planet.yaml` three times, `world_state.json`, and the convergence
+criterion in `assess_convergence.py`, which chose its 0.15 K tolerance *because*
+the band was 3 K wide.
+
+**The mean is now chosen for habitability by latitude band.** Summer and winter
+temperature per band were measured on three converged runs and projected across
+candidate means. The trade is tropics against poles, and the tropics win on area:
+cooling moves half the land out of sustained heat stress at the cost of a tenth
+of it going from harsh to extreme. Flux 0.945 puts the tropics near +33 C in
+their warmest month rather than +36, keeps most land in Earth-like conditions,
+and leaves the polar margins severe but small.
+
+**Glaciers are decoupled from the mean, and that is the load-bearing finding.**
+Cooling is close to useless for making them. Summer amplification is nearly flat
+with latitude, 0.67 to 1.11 K per K of global mean, while winter amplification
+runs 0.92 to 3.30. So cooling buys brutal winters and barely touches the summers
+that control ablation. Freezing a polar summer needs about 19 K of global
+cooling, which would put polar winter near -94 C.
+
+Glaciers come from relief instead. Peaks reach 4.59 km and a summit needs only
+about 1.37 km above its grid cell to sit at freezing in summer, so every band
+poleward of 30 degrees has peaks below freezing year round, with snowfall around
+275 mm/yr water equivalent at 50-60 degrees. The equilibrium line moves roughly
+700 m of elevation over the stellar cycle, so they advance and retreat visibly on
+a generational rhythm.
+
+**The poles are the worst place for glaciers on this world**, which inverts the
+terrestrial intuition and does so from first principles. At 32 degrees obliquity
+the pole receives 0.530 of the stellar constant as daily mean insolation at
+summer solstice against the equator's 0.270 -- nearly double -- and both polar
+caps are land, so there is no ocean buffer and no inherited ice to reflect it
+away. Polar summers reach +39 C, hotter than the tropics, while polar winters
+reach -31 C: a seasonal range of 70 K, beyond anything terrestrial. Earth's poles
+are cold in summer largely *because* ice is already there. Vesper never
+established that feedback.
+
+The cold-summer band is therefore 50-60 degrees, which is where the glaciers are.
+That band being at 50-60 rather than 45 or 65 is this world's particular
+continents rather than a general rule; the inversion itself is mechanism.
+
+**The cycle pulls the mean down slightly.** dT/df is larger at low flux because
+the ice-albedo feedback amplifies cooling, so T(f) is concave and a symmetric
+flux cycle gives a cycle-mean temperature below the static value at mean flux.
+The asymmetry is reinforced by proximity to the ice-free floor: at 0.2% sea ice
+the warm phase has almost nothing left to melt while the cold phase has room to
+grow. Magnitude pending the cold-regime slope.
+
+Two things here are NOT settled and must not be carried as though they were. The
+stellar cycle amplitude is still UNDETERMINED in config at 10.4% against the 4-7%
+this derivation assumes, and its damping factor is known only to a factor of 2.5.
+And the glacier result is unmodelled: it is a lapse-rate calculation off a T42
+climatology using band-mean elevations, the GCM reports `glac = 0` everywhere
+because it cannot see a 4.6 km peak, and it belongs in the derived-surface-class
+work before it is quoted as a property of the world.
+
 ## 6. What happens next
 
 Three nested loops and then a resolution change. The order matters in places
@@ -374,6 +440,32 @@ climate, because the carve changes the drainage the climate is integrated over.
 Check whether step 3 moves anything before assuming it needs iterating:
 LPJ-GUESS computes its own soil carbon internally, so the pedology organic
 feedback may be second-order.
+
+**A2. The stellar cycle, and where it belongs in the order.** The cycle run is
+NOT a final flourish. It has to come after a converged baseline at the chosen
+mean, because a cycle is variance about a mean and centring it on the wrong one
+describes the wrong world -- but it belongs BEFORE the carve verdict, for a
+reason that is easy to miss.
+
+Carving is irreversible. Outlet incision does not undo when the warm phase
+returns, so every cold, wet excursion that pushes a basin to overflow carves it
+permanently. **The terrain therefore ratchets toward the state implied by the
+cycle's wet extreme, not its mean.** Taking the verdict on the mean climate
+systematically under-carves, because overflow is a threshold process and the wet
+phase contributes disproportionately. Bedrock incision is a 10^3 to 10^5 year
+process against a roughly 12.7 year cycle, so it is the integral over many cycles
+that matters rather than any single one -- which means the verdict wants a
+climate somewhere between the mean and the wet extreme, weighted by time spent
+overflowing, not the mean alone.
+
+The cycle run also measures the damping factor, which is currently known only as
+a range of 0.24 to 0.6 -- a factor of 2.5 on every temperature excursion derived
+from a flux amplitude. That single number converts any future amplitude choice
+into a climate without another run, so measuring it once is worth more than the
+run that measures it.
+
+Sequence, then: baseline at the chosen mean, cycle run centred on it, verdict on
+a cycle-informed climate, and only then the terrain loop.
 
 **C. The vegetation-climate loop.** `build_surface_albedo.py --mode modelled`
 turns the run's foliar cover into surface albedo and forest fraction, then the
