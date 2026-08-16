@@ -1,0 +1,477 @@
+{
+  "hashes": {
+    "finalElevation": "a4d204f6e3e706597ff1470d064b457768243483ff884e9b574f055774de3ce9",
+    "preConditioningElevation": "1eb0a0a27e2b175237dd708d6c918ab992377e6001f7089956f47fd03297220d",
+    "preErosionElevation": "f95c712a1a0eea316734597a2a405f177a648d5c1691b1c7dc0ee41b0bb8c2b0",
+    "basinCatalogue": "2d1f8e57c26b60c608deaa62bd3c44b7da04a4ee5bd518249447630095d96a98",
+    "basinsPreserved": "829fd3918518d3b7cca088f1b1a510affd44986d75a76997e7b5817cd12cafa8",
+    "basinMembership": "e3fda4d0e1f41c5ec2c567e09666b54573d9df5aedd55e41195628aa5ef3c5f6",
+    "surfaceRock": "2708d096341fd669c0f32743869e0092b34a6015bd906bdcf949f6f977e2a2b1",
+    "erodibility": "21e562d62b1658c51be05a19698f2044adf57f2ffd50c2ba246cbc0f406fa38f",
+    "params": "7d636d0bfeb89654c5c88dc011f6f4f6391e44bdbf83d0af4ff5a7406396f47d"
+  },
+  "seed": 16236323,
+  "numRegions": 2500001,
+  "planet": {
+    "name": "Vesper",
+    "radiusKm": 7645.2,
+    "radiusEarth": 1.2,
+    "gravityMS2": 10.1989,
+    "gravityEarth": 1.0399983684540592,
+    "surfaceAreaKm2": 734492839.5500951,
+    "rotationPeriodHours": 23.9344696,
+    "obliquityDeg": 23.4392811,
+    "eccentricity": 0.0167086,
+    "solarConstantWM2": 1361,
+    "reliefScale": 0.9615399699967643,
+    "usedByOrogen": [
+      "radiusKm",
+      "gravityMS2"
+    ],
+    "passedThroughForDownstream": [
+      "rotationPeriodHours",
+      "obliquityDeg",
+      "eccentricity",
+      "solarConstantWM2"
+    ],
+    "note": "radiusKm sets every length scale in the terrain model; gravityMS2 scales maximum relief as 1/g. The rest is metadata for ExoPlaSim \u2014 Orogen does not consume it, because it drives climate and climate is handled downstream."
+  },
+  "planetRadiusKm": 6371,
+  "landSeaMask": {
+    "authoritative": "surface_class",
+    "note": "Build a land/sea mask from surface_class (0 ocean, 1 land, 2 inland water). land_mask is an elevation-sign test and floods dry closed basins that lie below sea level but are not connected to the ocean.",
+    "deepestDisagreeingElevationNote": "In physical km, using the land branch of the elevation conversion \u2014 these are dry basin floors, not seabed.",
+    "landFractionBySurfaceClass": 0.4317358383866897,
+    "landFractionByLandMask": 0.4126401422577658,
+    "disagreementFraction": 0.019095696128923954,
+    "disagreeingRegions": 48093,
+    "deepestDisagreeingElevationKm": -0.5623592734336853,
+    "disagreeingInsidePreservedBasin": 20701,
+    "disagreementNote": "Regions that surface_class calls land and land_mask calls ocean: dry closed-basin floor below sea level. Most sit inside a preserved basin; the rest are smaller enclosed depressions that did not clear the basin selection thresholds but are equally not sea."
+  },
+  "version": 1,
+  "basins": {
+    "resolution": {
+      "numRegions": 2500001,
+      "radiusKm": 7645.2,
+      "avgEdgeKm": 15.190379803857212,
+      "avgCellAreaKm2": 293.7970183012307,
+      "minDepthKm": 0.05,
+      "minAreaKm2": 1000,
+      "minCells": 12,
+      "effectiveMinAreaKm2": 3525.5642196147683,
+      "bindingFloor": "minCells"
+    },
+    "selectionSource": "preserve-list",
+    "counts": {
+      "depressionsDetected": 81904,
+      "preserved": 1791,
+      "belowSeaLevelComponentsKept": 922,
+      "belowSeaLevelComponentsFilled": 6880
+    }
+  },
+  "lithology": {
+    "note": "Parent material, not soil. Rock class is derived from tectonic history alone; soil texture requires climate and belongs to a later stage. Erosion responded to these rock types via the erodibility field.",
+    "rockClasses": [
+      {
+        "id": 0,
+        "code": "water",
+        "name": "Open water (no exposed rock)",
+        "category": "none",
+        "erodibility": 1,
+        "densityGCm3": null,
+        "albedo": 0.06
+      },
+      {
+        "id": 1,
+        "code": "morb",
+        "name": "Mid-ocean ridge basalt",
+        "category": "igneous",
+        "erodibility": 0.7,
+        "densityGCm3": 2.9,
+        "albedo": 0.1
+      },
+      {
+        "id": 2,
+        "code": "oib",
+        "name": "Ocean island basalt",
+        "category": "igneous",
+        "erodibility": 0.8,
+        "densityGCm3": 2.9,
+        "albedo": 0.1
+      },
+      {
+        "id": 3,
+        "code": "flood_basalt",
+        "name": "Continental flood basalt",
+        "category": "igneous",
+        "erodibility": 0.65,
+        "densityGCm3": 2.9,
+        "albedo": 0.1
+      },
+      {
+        "id": 4,
+        "code": "arc_basalt",
+        "name": "Island-arc basalt / basaltic andesite",
+        "category": "igneous",
+        "erodibility": 0.85,
+        "densityGCm3": 2.8,
+        "albedo": 0.13
+      },
+      {
+        "id": 5,
+        "code": "arc_andesite",
+        "name": "Continental-arc andesite / dacite",
+        "category": "igneous",
+        "erodibility": 0.9,
+        "densityGCm3": 2.7,
+        "albedo": 0.2
+      },
+      {
+        "id": 6,
+        "code": "rift_bimodal",
+        "name": "Rift bimodal volcanics",
+        "category": "igneous",
+        "erodibility": 0.95,
+        "densityGCm3": 2.7,
+        "albedo": 0.16
+      },
+      {
+        "id": 7,
+        "code": "granite",
+        "name": "Granite",
+        "category": "igneous",
+        "erodibility": 0.4,
+        "densityGCm3": 2.65,
+        "albedo": 0.3
+      },
+      {
+        "id": 8,
+        "code": "granodiorite",
+        "name": "Arc-root granodiorite",
+        "category": "igneous",
+        "erodibility": 0.45,
+        "densityGCm3": 2.7,
+        "albedo": 0.28
+      },
+      {
+        "id": 9,
+        "code": "gneiss",
+        "name": "Cratonic gneiss",
+        "category": "metamorphic",
+        "erodibility": 0.35,
+        "densityGCm3": 2.75,
+        "albedo": 0.28
+      },
+      {
+        "id": 10,
+        "code": "schist",
+        "name": "Orogenic schist / phyllite",
+        "category": "metamorphic",
+        "erodibility": 1.1,
+        "densityGCm3": 2.8,
+        "albedo": 0.22
+      },
+      {
+        "id": 11,
+        "code": "quartzite",
+        "name": "Quartzite",
+        "category": "metamorphic",
+        "erodibility": 0.25,
+        "densityGCm3": 2.65,
+        "albedo": 0.35
+      },
+      {
+        "id": 12,
+        "code": "melange",
+        "name": "Subduction m\u00e9lange / blueschist",
+        "category": "metamorphic",
+        "erodibility": 1.6,
+        "densityGCm3": 2.8,
+        "albedo": 0.18
+      },
+      {
+        "id": 13,
+        "code": "shelf_clastic",
+        "name": "Shelf sandstone / shale",
+        "category": "sedimentary",
+        "erodibility": 2.2,
+        "densityGCm3": 2.5,
+        "albedo": 0.3
+      },
+      {
+        "id": 14,
+        "code": "carbonate",
+        "name": "Carbonate platform",
+        "category": "sedimentary",
+        "erodibility": 1.3,
+        "densityGCm3": 2.7,
+        "albedo": 0.35
+      },
+      {
+        "id": 15,
+        "code": "foreland_clastic",
+        "name": "Foreland molasse / flysch",
+        "category": "sedimentary",
+        "erodibility": 2.6,
+        "densityGCm3": 2.45,
+        "albedo": 0.28
+      },
+      {
+        "id": 16,
+        "code": "continental_clastic",
+        "name": "Intracratonic clastics",
+        "category": "sedimentary",
+        "erodibility": 2.4,
+        "densityGCm3": 2.45,
+        "albedo": 0.28
+      },
+      {
+        "id": 17,
+        "code": "pelagic",
+        "name": "Pelagic ooze / abyssal clay",
+        "category": "sedimentary",
+        "erodibility": 3,
+        "densityGCm3": 2,
+        "albedo": 0.25
+      },
+      {
+        "id": 18,
+        "code": "evaporite",
+        "name": "Evaporite salt crust",
+        "category": "sedimentary",
+        "erodibility": 3.5,
+        "densityGCm3": 2.2,
+        "albedo": 0.5
+      },
+      {
+        "id": 19,
+        "code": "playa_clastic",
+        "name": "Playa mud / alluvial fan fill",
+        "category": "sedimentary",
+        "erodibility": 2.8,
+        "densityGCm3": 2.1,
+        "albedo": 0.3
+      }
+    ],
+    "erodibility": {
+      "strength": 1,
+      "meanBeforeNormalisation": 1.613353672024872,
+      "note": "Mean-normalised to 1 over land before erosion, so lithology redistributes erosion without changing its total. Values drift slightly from 1 afterwards as cells exhume to basement."
+    },
+    "exhumedCells": 23876,
+    "scarp": {
+      "cellsAbove025": 91818,
+      "note": "scarp_potential marks where an escarpment belongs, not geometry. A cliff is a sub-kilometre feature and cells here are tens of km across, so the landform lives below the grid entirely. Intended for a higher-resolution downstream pass or a renderer.",
+      "kind": "Cover is always weaker than basement in this model, so these are stripped-edge scarps (plateau margins, shield/cover boundaries) rather than resistant-caprock cuestas, which would need a third layer."
+    },
+    "exhumationNote": "Cells whose exposed rock changed during erosion because the cover layer was stripped away, revealing basement.",
+    "climateCaveat": "carbonate vs shelf_clastic is assigned by absolute latitude as a proxy for sea-surface temperature \u2014 the one climate-flavoured call in this module. Reclassify those cells downstream if you have real SST.",
+    "compositionLand": [
+      {
+        "code": "continental_clastic",
+        "name": "Intracratonic clastics",
+        "category": "sedimentary",
+        "areaKm2": 80885006.67444205,
+        "fraction": 0.2548981689093812
+      },
+      {
+        "code": "schist",
+        "name": "Orogenic schist / phyllite",
+        "category": "metamorphic",
+        "areaKm2": 70133735.96278477,
+        "fraction": 0.22101699203217842
+      },
+      {
+        "code": "granite",
+        "name": "Granite",
+        "category": "igneous",
+        "areaKm2": 43731977.66202712,
+        "fraction": 0.13781541829752925
+      },
+      {
+        "code": "playa_clastic",
+        "name": "Playa mud / alluvial fan fill",
+        "category": "sedimentary",
+        "areaKm2": 34651046.65531802,
+        "fraction": 0.10919809129502096
+      },
+      {
+        "code": "gneiss",
+        "name": "Cratonic gneiss",
+        "category": "metamorphic",
+        "areaKm2": 25070223.7898314,
+        "fraction": 0.07900542264770126
+      },
+      {
+        "code": "shelf_clastic",
+        "name": "Shelf sandstone / shale",
+        "category": "sedimentary",
+        "areaKm2": 21703271.095138073,
+        "fraction": 0.06839492619146473
+      },
+      {
+        "code": "carbonate",
+        "name": "Carbonate platform",
+        "category": "sedimentary",
+        "areaKm2": 18580867.153269768,
+        "fraction": 0.05855509208498933
+      },
+      {
+        "code": "evaporite",
+        "name": "Evaporite salt crust",
+        "category": "sedimentary",
+        "areaKm2": 4546100.294218063,
+        "fraction": 0.014326420783256702
+      },
+      {
+        "code": "pelagic",
+        "name": "Pelagic ooze / abyssal clay",
+        "category": "sedimentary",
+        "areaKm2": 4066473.726761341,
+        "fraction": 0.012814942465685633
+      },
+      {
+        "code": "oib",
+        "name": "Ocean island basalt",
+        "category": "igneous",
+        "areaKm2": 4053091.719992161,
+        "fraction": 0.012772770879602612
+      },
+      {
+        "code": "flood_basalt",
+        "name": "Continental flood basalt",
+        "category": "igneous",
+        "areaKm2": 3742509.028764248,
+        "fraction": 0.011794011495832198
+      },
+      {
+        "code": "foreland_clastic",
+        "name": "Foreland molasse / flysch",
+        "category": "sedimentary",
+        "areaKm2": 3341583.619688034,
+        "fraction": 0.01053054924436572
+      },
+      {
+        "code": "morb",
+        "name": "Mid-ocean ridge basalt",
+        "category": "igneous",
+        "areaKm2": 2815495.670323372,
+        "fraction": 0.00887265415982818
+      },
+      {
+        "code": "melange",
+        "name": "Subduction m\u00e9lange / blueschist",
+        "category": "metamorphic",
+        "areaKm2": 1440.4911346435547,
+        "fraction": 4.539513163777233e-06
+      }
+    ],
+    "compositionGlobal": [
+      {
+        "code": "pelagic",
+        "name": "Pelagic ooze / abyssal clay",
+        "category": "sedimentary",
+        "areaKm2": 328914068.3899821,
+        "fraction": 0.44750638951116295
+      },
+      {
+        "code": "continental_clastic",
+        "name": "Intracratonic clastics",
+        "category": "sedimentary",
+        "areaKm2": 86156502.29341769,
+        "fraction": 0.11722084574541076
+      },
+      {
+        "code": "schist",
+        "name": "Orogenic schist / phyllite",
+        "category": "metamorphic",
+        "areaKm2": 73811832.21960473,
+        "fraction": 0.10042521653599505
+      },
+      {
+        "code": "shelf_clastic",
+        "name": "Shelf sandstone / shale",
+        "category": "sedimentary",
+        "areaKm2": 52862438.307463884,
+        "fraction": 0.07192236873152326
+      },
+      {
+        "code": "carbonate",
+        "name": "Carbonate platform",
+        "category": "sedimentary",
+        "areaKm2": 52627067.04834676,
+        "fraction": 0.07160213268057601
+      },
+      {
+        "code": "granite",
+        "name": "Granite",
+        "category": "igneous",
+        "areaKm2": 49424511.236614466,
+        "fraction": 0.0672448724529075
+      },
+      {
+        "code": "playa_clastic",
+        "name": "Playa mud / alluvial fan fill",
+        "category": "sedimentary",
+        "areaKm2": 34651046.65531802,
+        "fraction": 0.04714472949548216
+      },
+      {
+        "code": "gneiss",
+        "name": "Cratonic gneiss",
+        "category": "metamorphic",
+        "areaKm2": 26622566.044862986,
+        "fraction": 0.0362215227477998
+      },
+      {
+        "code": "oib",
+        "name": "Ocean island basalt",
+        "category": "igneous",
+        "areaKm2": 9494458.388646841,
+        "fraction": 0.012917753304579326
+      },
+      {
+        "code": "flood_basalt",
+        "name": "Continental flood basalt",
+        "category": "igneous",
+        "areaKm2": 8017015.256669998,
+        "fraction": 0.010907607478542171
+      },
+      {
+        "code": "evaporite",
+        "name": "Evaporite salt crust",
+        "category": "sedimentary",
+        "areaKm2": 4546100.294218063,
+        "fraction": 0.006185229287939829
+      },
+      {
+        "code": "foreland_clastic",
+        "name": "Foreland molasse / flysch",
+        "category": "sedimentary",
+        "areaKm2": 4084451.4261169434,
+        "fraction": 0.005557129616809618
+      },
+      {
+        "code": "morb",
+        "name": "Mid-ocean ridge basalt",
+        "category": "igneous",
+        "areaKm2": 3775178.776075363,
+        "fraction": 0.005136346499589594
+      },
+      {
+        "code": "melange",
+        "name": "Subduction m\u00e9lange / blueschist",
+        "category": "metamorphic",
+        "areaKm2": 5774.040176391602,
+        "fraction": 7.855911681970802e-06
+      }
+    ],
+    "compositionDenominator": {
+      "land": "surface_class == land (subaerial)",
+      "landAreaKm2": 317322823.54369307,
+      "global": "every region, land and seafloor",
+      "note": "This export has two land definitions \u2014 see manifest.landSeaMask. Any published fraction must name which one it used; these do."
+    }
+  }
+}
