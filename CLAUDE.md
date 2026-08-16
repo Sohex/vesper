@@ -354,17 +354,19 @@ caller whose output leaves the project and changes the terrain. An argument
 whose absence silently means "do the wrong thing" is the original bug wearing
 the shape of its fix; it is now required.
 
-The open gap is the terrain, not the tooling: 770 basins still fill to their
-spill under this climate, holding 26% of the land, which is the water balance
-saying their outlets should have been cut. Carving belongs upstream in Orogen,
+The open gap is the terrain, not the tooling: a large minority of basins still
+fill to their spill under this climate, which is the water balance saying their
+outlets should have been cut. How many, and how much land they hold, is in
+`world_state.json` and moves every iteration. Carving belongs upstream in Orogen,
 and the generator does expose the hook -- `--preserve-basins FILE` takes a
 retain fraction per basin, 0 carves -- so iteration 2 is a run rather than a
 generator change. Every iteration since has used exactly that path.
 
 Two things about the export that any consumer needs to know. `drain_to` is raw
-steepest descent, and `drainage_terminal` is -2 for 63% of the land, which
-drains into 220,649 unpreserved noise pits; integrating precipitation without
-resolving that discards most of the land's water. And the catalogue's
+steepest descent, and `drainage_terminal` is -2 for most of the land, which
+drains into unpreserved single-cell noise pits; integrating precipitation without
+resolving that discards most of the land's water. The magnitude is a property of
+the export, so it is per build and lives in `world_state.json`. And the catalogue's
 `hypsometry` is on the natural terrain, so the finished terrain holds 61% of it.
 `build_hydrography.py` handles both. Use `data/basins.nc`, not the catalogue.
 

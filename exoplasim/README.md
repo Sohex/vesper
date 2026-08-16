@@ -86,11 +86,9 @@ python exoplasim/scripts/build_climatology.py exoplasim/runs/<run_id> \
 python exoplasim/scripts/analyze_climatology.py
 ```
 
-The completed 0.90-S-Earth baseline equilibrated after output indices 0--45;
-indices 46--50 form the independent climatology. Its five-orbit global means
-are 280.90 K surface temperature, 2.15 mm/day precipitation, -0.42 W/m2 net
-TOA radiation, -0.15 W/m2 downward surface heat flux, and 0.0633 planetary
-sea-ice fraction. This is a cool baseline, not yet the intended warmer regime.
+Current results are in `world_state.json`, never here. What each completed run
+was is in `exoplasim/runs/INDEX.json`; run ids are UUIDs, so that index is the
+only thing that maps one to its physics.
 
 Principal products are in `exoplasim/analysis/climatology/`:
 
@@ -108,8 +106,13 @@ It is a worldbuilding interpretation, not a dynamic vegetation simulation.
 
 ## Stellar-flux sweep result
 
-The complete T42 sweep held geography, atmospheric composition, rotation,
-obliquity, eccentricity, and model physics fixed:
+**The T42 flux sweep below is the FIRST era and is superseded on every axis
+that matters.** It used the old 510k-region map PNGs, a uniform 0.22 land albedo,
+and a blackbody star rather than a measured spectrum; its output has since been
+deleted, with the derived products kept in `archive/runs/`. It is retained here
+because the *shape* of the response is still instructive -- flux moves surface
+temperature and sea ice together, steeply, across this range -- and for nothing
+else. Do not quote its temperatures.
 
 | Flux | Climate state | Surface T | Precipitation | Planetary sea ice |
 | --- | --- | ---: | ---: | ---: |
@@ -117,7 +120,11 @@ obliquity, eccentricity, and model physics fixed:
 | 0.90 S-Earth | strictly equilibrated cool | 280.90 K | 2.15 mm/day | 6.33% |
 | 0.95 S-Earth | strictly equilibrated warm | 292.08 K | 2.90 mm/day | 0.264% |
 
-The 0.95 case is the strongest candidate for the intended unusually habitable
+Measured on the superseded pre-carve terrain under a blackbody star. The current
+flux calibration is 150.2 K per unit flux ratio, from the T21 bracket, and is
+carried in `analysis/error_budget.json`.
+
+At the time, the 0.95 case was the strongest candidate for the intended habitable
 world: it reaches the desired 290--293 K range without CO2 tuning. Its broad
 land-area interpretation is about 26.8% continental mixed/temperate forest,
 10.5% temperate/subtropical forest, 8.8% tropical forest, 8.3% seasonal

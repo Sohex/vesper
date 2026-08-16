@@ -184,7 +184,8 @@ pass/fail decision, forms the climatology.
 ### 3.4 Hydrography
 
 The export deliberately does not route water: `drain_to` is raw steepest descent,
-and on this planet 63% of the land drains into 220,649 unpreserved pits. Routing
+and on this planet most of the land drains into unpreserved single-cell pits --
+the share is per build and is in `world_state.json`. Routing
 is a hydrology decision and the exporter leaves it downstream.
 
 `build_hydrography.py` resolves it with a priority flood over the 2.5M-region

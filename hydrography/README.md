@@ -19,8 +19,9 @@ evaporation balance, and that belongs downstream.
 
 What arrives is therefore unrouted. `drain_to` is raw steepest descent, and
 `drainage_terminal` is -2 for anything whose chain ends in neither the ocean nor
-a preserved basin sink. On this planet that is **63% of the land**, draining into
-220,649 unpreserved pits, most of them a single mesh cell of noise. Integrating
+a preserved basin sink. On this planet that is **most of the land**, draining
+into unpreserved pits, most of them a single mesh cell of noise -- the exact
+share is per build and is in `world_state.json`. Integrating
 precipitation over catchments without resolving that would silently discard most
 of the land's water.
 
@@ -292,11 +293,12 @@ interface: the count of retain-0 entries in `carve_list.json` matches
 the list was consumed as written. Iteration 2 is a run, not a
 generator change.
 
-The terrain still is not in equilibrium: 770 basins fill to their spill under
+The terrain still is not in equilibrium: many basins fill to their spill under
 this climate, which is the water balance saying their outlets should have been
-cut. Those 770 hold 26% of the land and 87% of the lake area on the map, so what
-is drawn is largely a landscape that has not relaxed yet. That is the case for
-iteration 2, and the numbers for it are already in `surface_water.nc`.
+cut. They hold a large share of both the land and the lake area on the map, so
+what is drawn is largely a landscape that has not relaxed yet. That is the case
+for another carve iteration, and the counts are in `world_state.json` and
+`surface_water.nc` rather than here, because they move with every pass.
 
 ## Known approximations
 

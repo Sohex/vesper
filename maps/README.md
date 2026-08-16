@@ -31,9 +31,11 @@ land.
 
 Colour is illustrative:
 
-- Land tint is the biome class from `exoplasim/analysis/climatology_s096`. That
-  field is T42 and was computed on the pre-carve terrain, so it is a plausible
-  tint over the current geography rather than a result about it.
+- Land tint is the biome class from whichever climatology the active build has
+  produced. Where that climatology was computed on a different terrain than the
+  one being drawn -- which is the usual case early in a cycle -- it is a
+  plausible tint over the geography rather than a result about it, and the map
+  says so in its own provenance block.
 - Bare rock takes over above about 1.8 km, since a T42 cell cannot see a
   mountain.
 - Evaporite crust and playa fill are painted from `surface_rock`, which is why
@@ -49,12 +51,9 @@ Colour is illustrative:
 **Lakes and rivers are the exception: those are a result, not a tint.** They
 come from `hydrography/data/<build>/surface_water.nc`, which solves a
 closed-basin water balance against the same baseline climatology and accumulates
-the same water down the drainage network. How many basins hold water, and how
-much of the planet they cover, is in `world_state.json` -- the figures that used
-to be quoted here were from a build with 2,107 basins against the active one's
-3,629, which is exactly why they do not belong in prose. The largest river
-carries about 0.8 times the
-Amazon. Inland water is drawn
+the same water down the drainage network. How many basins hold water, how much
+of the planet they cover, and what the largest river carries are all in
+`world_state.json`. Inland water is drawn
 a shade greener than the sea so a lake reads as a lake rather than as a bay that
 lost its connection.
 
@@ -66,11 +65,13 @@ than a river.
 
 Lakes that overflow do have rivers leaving them, which they did not in the first
 version of this: `basins.nc` now carries the saddle each basin spills at, so the
-outflow of all 732 overflowing basins is routed onto the mesh. Those are the
-largest rivers on the planet, and adding them took the biggest from 63,800 to
-170,300 m3/s.
+outflow of every overflowing basin is routed onto the mesh. Those are the
+largest rivers on the planet, and adding them multiplied the biggest discharge
+several times over -- a spilling basin drains a catchment far larger than any
+single hillslope network, so leaving them out understated the top of the
+distribution rather than trimming its tail.
 
-One caveat carries through from the hydrography: 87% of the lake area drawn is
+One caveat carries through from the hydrography: most of the lake area drawn is
 in basins pinned at their spill, which the same water balance says should have
 carved their outlets by now. The lakes are real under this terrain; the terrain
 is the part that has not relaxed.
@@ -79,8 +80,9 @@ If `surface_water.nc` has not been built, the map is drawn without standing
 water and says so rather than failing.
 
 The poles are forested rather than icy. That is not a rendering fault: at 32
-degrees obliquity the polar summer reaches about +20 C in the baseline run, and
-both polar caps are land.
+degrees obliquity the polar summer runs well above freezing, and both polar caps
+are land. The obliquity is the load-bearing number and it is a decision; the
+summer temperature is a result and lives in `world_state.json`.
 
 ## The graticule
 
