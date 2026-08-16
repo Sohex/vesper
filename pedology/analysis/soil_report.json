@@ -1,17 +1,28 @@
 {
-  "generated": "2026-08-16T21:04:22+00:00",
+  "generated": "2026-08-16T23:33:44+00:00",
   "iteration": null,
   "closes_loop_with": "nothing; iteration 0 has no biosphere",
   "climatology": "exoplasim/analysis/climatology/baseline_t42_s0945_regular_climatology.nc",
   "climatology_sha256": "ba9fdf733d0dc93d99608c3c40f03a779df7d57758b56b6a6562749366bb063e",
-  "config_sha256": "aa5f4c03f27ae0ae085c69b2840fd41691a2a6bb76aa4a8832885add72055154",
-  "pedogenesis_sha256": "15f65415615634cdc1ff745e450a64a18006846e667b44b7c6245b198b7962fa",
+  "config_sha256": "70821b8f86a258b68abd810bdf274c522d513bcf433e636deb32666234fe8b4f",
+  "pedogenesis_sha256": "c22d61cc7577d768c7d54232fe6ba7be53524e91670fecb788d2d58ff3f3ebca",
   "source_build": "precarve-zoned-g1281-erod4x",
   "terrain_hash": "e2b510660d1cbe999d237734969e9ac9bf8636b6d85a04f513a4bc0d1f92d321",
   "orbital_year_earth_days": 182.80142503147016,
   "land_cells": 4106,
   "moisture_variable": "runoff",
   "runoff_source": "p_minus_e",
+  "andisols": {
+    "note": "Andic properties need ONGOING ejecta supply and enough leaching to weather glass to allophane rather than halloysite. Only the arc classes are known to be resupplied; flood_basalt and oib are undetermined for want of an eruption-age field and are excluded, not assumed absent. Fractions are of total land area.",
+    "resupplied_land_fraction": 0.0,
+    "andic_land_fraction": 0.0,
+    "vitric_land_fraction": 0.0,
+    "halloysitic_land_fraction": 0.0,
+    "undetermined_land_fraction": 0.020533833962087196,
+    "land_mean_andic_p_fixation": 0.0,
+    "andic_p_fixation_note": "Areal fraction of released P that andic material fixes, over and above ordinary soil retention. Zero off andic ground by construction; that is not a claim those soils retain no P.",
+    "allophane_precipitation_mm": 1500.0
+  },
   "weathering_bracket": {
     "note": "Weathering intensity under each moisture driver, land means. The spread is the honest uncertainty in how weathered this world's soils are, and it is wide because the climate model's land hydrology is a uniform bucket.",
     "by_runoff": 0.35585411728353483,
@@ -42,6 +53,6 @@
   },
   "regolith_note": "LPJ-GUESS 4.1.1 has a fixed 1.5 m profile and does not consume regolith depth. It is computed and reported so the gap is visible; see notes/model.md.",
   "output": "pedology/data/precarve-zoned-g1281-erod4x/soilmap.txt",
-  "output_sha256": "e0be8887043edc259162a5906146a2ca6a1041ec4b4de25defd995ad4963be40",
-  "git_commit": "13fb86250899dbe27bc8027e8dde39d16f104043"
+  "output_sha256": "73b70788bbd0217a98a5e9db5830f9195f572b86cc3614cfb76639230f609deb",
+  "git_commit": "343a9752d62f938cbd2cc32a7e0d362d976494aa"
 }

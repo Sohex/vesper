@@ -340,6 +340,110 @@ phosphorus_release_relative:
   pelagic:             0.0814
   water:               0.0
 
+# ---------------------------------------------------------------------------
+# Andisols: volcanism as a process, not just a rock class
+# ---------------------------------------------------------------------------
+# Every other block here treats volcanic rock as a composition. That misses what
+# makes volcanic terrain distinctive on Earth: it is resupplied. Fresh ejecta is
+# glass, glass weathers far faster than the crystalline rock of identical
+# composition, and the short-range-order minerals it weathers to -- allophane,
+# imogolite, ferrihydrite -- give a soil whose bulk density, water retention and
+# phosphorus behaviour do not follow from its texture at all.
+#
+# SOURCE, read: Dahlgren, Saigusa & Ugolini (2004), "The nature, properties and
+# management of volcanic soils", Advances in Agronomy 82, 113-182,
+# doi 10.1016/S0065-2113(03)82003-5. Rate contrast from Wolff-Boenisch et al.
+# (2004) doi 10.1016/j.gca.2004.05.027 and Gislason & Oelkers (2003)
+# doi 10.1016/S0016-7037(03)00176-5.
+#
+# WHY THE ARC AND NOTHING ELSE. Andic properties need ONGOING resupply, because
+# glass is metastable and a surface that stops receiving ash weathers past it.
+# Orogen has no eruption-age field, so this model cannot ask how old a lava
+# surface is -- with one exception. The arc classes are placed as a band about
+# the volcanic front, so arc terrain IS the active front by construction. That
+# is the only place in this pipeline where volcanism is known to be ongoing
+# rather than merely to have happened.
+#
+# `flood_basalt` and `oib` are therefore UNDETERMINED here, not zero. A young
+# LIP carries andisols and an old one does not, and nothing in the export
+# distinguishes them. They are excluded from the andic calculation and their
+# area is reported separately, so the omission is visible rather than assumed
+# away. Fixing it needs an eruption-age or resurfacing-rate field from Orogen.
+#
+# THE MOISTURE THRESHOLD IS NOT A FREE PARAMETER. Allophane forms where leaching
+# removes silica; where silica activity stays high the same parent material goes
+# to halloysite instead, which is an ordinary clay soil with none of the andic
+# properties. Dahlgren gives the boundary directly: halloysite "is found as the
+# dominant mineral in volcanic materials where precipitation is generally less
+# than about 1500 mm" (citing Parfitt et al. 1983, Lowe 1986, Mizota and van
+# Reeuwijk 1989, Takahashi et al. 1993).
+#
+# Note this criterion is stated in PRECIPITATION and is used in precipitation,
+# even though the weathering law above runs on runoff. That is deliberate: the
+# threshold is transferred in the variable it was measured in. Do not "fix" it
+# to match the weathering law's moisture variable.
+#
+# MEASURED CONSEQUENCE on this world, and it is the reason this block is worth
+# having rather than assuming: only about 14% of arc terrain clears 1500 mm.
+# Arc-weighted mean precipitation is barely above the land mean, so this
+# world's arcs are NOT preferentially wet the way Earth's Indonesian and Central
+# American arcs are. Most of its volcanic terrain is halloysitic, and true
+# allophanic Andisols cover well under one percent of land. Anything that
+# assumed "volcanic terrain therefore andisols" would have been wrong by an
+# order of magnitude, in the direction that matters for phosphorus.
+andisol:
+  # Classes with known ongoing ejecta supply. See above for why this is the arc
+  # and only the arc.
+  resupplied_classes: [arc_andesite, arc_basalt]
+  # Volcanic classes whose resupply is unknown. Reported, never counted.
+  undetermined_classes: [flood_basalt, oib, rift_bimodal]
+
+  # Allophane over halloysite. Centre from Dahlgren; the width is a smoothing of
+  # a soft literature boundary ("generally less than about"), not a measured
+  # transition, and no result should turn on its value.
+  allophane_precipitation_mm: 1500.0
+  allophane_transition_mm: 300.0
+
+  # Development: vitric -> andic. Andic horizons need Alox + 1/2Feox >= 2%,
+  # which is a weathering-progress requirement rather than a compositional one.
+  # Half-saturation at W = 1 is not arbitrary: W is normalised so that 1 is
+  # Earth's land-mean weathering intensity, and Earth's andisols form readily at
+  # that intensity. This is the least determined number in the block.
+  development_half_saturation_w: 1.0
+
+  # Phosphate retention, the property that matters most and the one that runs
+  # OPPOSITE to the intuition that volcanic soil is fertile. Andic horizons fix
+  # phosphorus hard: Soil Taxonomy requires >= 85% retention, the WRB andic
+  # horizon >= 70%, and a vitric horizon only > 25%. Dahlgren is explicit that P
+  # availability is HIGH in young volcanic material -- rapid apatite weathering,
+  # little active Al and Fe yet -- and falls as development proceeds, because
+  # allophane, imogolite and Al-humus complexes fix it. So the same terrain is a
+  # phosphorus source early and a phosphorus sink late, and `development` above
+  # is the axis it moves along.
+  phosphate_retention_vitric: 0.25
+  phosphate_retention_andic: 0.85
+
+  # Bulk density, Mg/m3. Andic soil material is defined at <= 0.90 at 33 kPa;
+  # measured allophanic profiles run 0.2-0.9 (Shoji et al. 1996), and <0.9
+  # appears once allophane exceeds ~5%. 0.70 is a representative andic value,
+  # applied in proportion to the andic fraction of the cell.
+  bulk_density_andic: 0.70
+
+  # Extra plant-available water held by noncrystalline material, volumetric.
+  # Andisols retain far more water than their texture implies, because the water
+  # is in allophane micropores and humus rather than between grains -- which is
+  # exactly what the texture terms above cannot represent.
+  #
+  # BRACKET, not a value. Dahlgren gives the relations (available water is about
+  # 60% of 33 kPa water at the surface, 50% at depth) but no headline volumetric
+  # capacity, so this is bounded by the organic term, which is the other
+  # micropore-dominated phase in this file. Report the spread if a result turns
+  # on it; do not tune within it. Treated the same way as `bedrock_water`.
+  volumetric_capacity_allophane: 0.30
+  volumetric_capacity_allophane_minimum: 0.20
+  volumetric_capacity_allophane_maximum: 0.40
+
+
 regolith:
   # Asymptote, not a clip: the depth to which weathering can reach at all.
   maximum_depth_m: 5.0

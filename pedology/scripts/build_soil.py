@@ -196,6 +196,52 @@ def weather_texture(fractions: dict[str, np.ndarray], intensity: np.ndarray,
     }
 
 
+def andisol_properties(fractions: dict[str, np.ndarray], intensity: np.ndarray,
+                       precipitation_mm_yr: np.ndarray, cfg: dict
+                       ) -> dict[str, np.ndarray]:
+    """Andic and vitric fractions, and what they do to the soil.
+
+    Two gates multiply. `resupply` is the area of the cell receiving ongoing
+    volcanic ejecta -- the arc, and only the arc, because it is placed as a band
+    about the volcanic front and is the one part of this pipeline that knows
+    volcanism is still happening. `allophanic` is whether leaching is strong
+    enough that the glass weathers to allophane rather than to halloysite, at
+    Dahlgren's ~1500 mm precipitation boundary.
+
+    Development then splits the resupplied area between vitric (glass still
+    dominant, weak andic expression) and andic (allophane formed). Halloysitic
+    volcanic terrain is neither: it is an ordinary clay soil, and on this world
+    it is most of the volcanic terrain.
+    """
+    zero = np.zeros_like(intensity)
+    resupply = sum((fractions.get(c, zero) for c in cfg["resupplied_classes"]),
+                   start=np.zeros_like(intensity))
+    # Soft boundary, because the source says "generally less than about".
+    allophanic = 1.0 / (1.0 + np.exp(
+        -(precipitation_mm_yr - cfg["allophane_precipitation_mm"])
+        / cfg["allophane_transition_mm"]))
+    # Vitric -> andic with weathering progress. Saturating, so it approaches
+    # full andic expression rather than crossing a step.
+    development = intensity / (intensity + cfg["development_half_saturation_w"])
+    andic = resupply * allophanic * development
+    vitric = resupply * allophanic * (1.0 - development)
+    # Volcanic terrain that weathered to halloysite instead. Tracked because it
+    # is the answer to "why are there so few andisols here", and because it is
+    # where silica stays in the profile rather than leaving in solution.
+    halloysitic = resupply * (1.0 - allophanic)
+    # The ANDIC contribution to phosphate fixation, not a soil's absolute
+    # retention. Halloysitic and non-volcanic material contributes zero here
+    # because it has no andic fixation, which is not the same as saying it
+    # retains no phosphorus -- it retains it the ordinary way, which every other
+    # soil in this map does too and which this term is not about. Read it as:
+    # the fraction of released P in this cell that andic material takes out of
+    # circulation, over and above whatever a normal soil would do.
+    fixation = (cfg["phosphate_retention_andic"] * andic
+                + cfg["phosphate_retention_vitric"] * vitric)
+    return {"andic": andic, "vitric": vitric, "halloysitic": halloysitic,
+            "resupplied": resupply, "andic_p_fixation": fixation}
+
+
 def regolith_depth(intensity: np.ndarray, relief_m: np.ndarray,
                    runoff_mm_yr: np.ndarray, erodibility: np.ndarray,
                    params: dict, weathering_ref: float) -> np.ndarray:
@@ -481,12 +527,24 @@ def main() -> None:
     ph = soil_ph(fractions, runoff, endorheic, pedo["ph"],
                  pedo["weathering"]["reference_runoff_mm_per_earth_year"])
 
+    # Andisols. Volcanism as a process rather than a composition: see the
+    # `andisol` block in pedogenesis.yaml for why this is gated on the arc alone
+    # and on a precipitation threshold rather than on rock type.
+    andisol = andisol_properties(fractions, intensity, precip, pedo["andisol"])
+
     if args.soil_carbon:
         carbon = read_soil_carbon(args.soil_carbon, lon, lat)
     else:
         carbon = np.full(temperature.shape,
                          float(pedo["organic"]["initial_soil_carbon_kg_m2"]))
     organic_fraction, bulk_density = organic_properties(carbon, pedo["organic"])
+
+    # Andic material is far less dense than its texture and organic content
+    # imply, because the porosity is inside allophane and humus rather than
+    # between grains. Blended by andic fraction, not substituted, since a cell
+    # is only partly arc terrain.
+    bulk_density = (bulk_density * (1.0 - andisol["andic"])
+                    + pedo["andisol"]["bulk_density_andic"] * andisol["andic"])
 
     # Plant-available water capacity, mm: volumetric capacity from texture times
     # the depth of regolith that actually exists. This is what ExoPlaSim's dwmax
@@ -496,7 +554,11 @@ def main() -> None:
     volumetric = (water["volumetric_capacity_by_texture"]["sand"] * texture["sand"]
                   + water["volumetric_capacity_by_texture"]["silt"] * texture["silt"]
                   + water["volumetric_capacity_by_texture"]["clay"] * texture["clay"]
-                  + water["volumetric_capacity_organic"] * organic_fraction)
+                  + water["volumetric_capacity_organic"] * organic_fraction
+                  # Noncrystalline material holds water the texture terms cannot
+                  # see. Additive for the same reason the organic term is.
+                  + pedo["andisol"]["volumetric_capacity_allophane"]
+                  * andisol["andic"])
     water_capacity = np.clip(volumetric * depth * 1000.0,
                              water["minimum_mm"], water["maximum_mm"])
 
@@ -530,8 +592,12 @@ def main() -> None:
         # (it matches columns by name and skips what it does not know). They are
         # here so one artifact carries the whole soil: biosphere reads depth to
         # scale water capacity, and exoplasim reads awc to set its bucket.
+        # `andic` and `pfixation` are two more columns LPJ-GUESS's SoilInput
+        # skips by name. They are here because the C-N-P fork needs them: andic
+        # material fixes phosphorus rather than supplying it, and no other
+        # column in this file carries that.
         handle.write("Lon Lat sand clay silt orgc ph bulkdensity cn soilc "
-                     "depth awc bedrockfrac\n")
+                     "depth awc bedrockfrac andic pfixation\n")
         for j, i in rows:
             handle.write(
                 f"{lon_signed[i]:.{COORD_DECIMALS}f} {lat[j]:.{COORD_DECIMALS}f} "
@@ -541,7 +607,9 @@ def main() -> None:
                 f"{pedo['organic']['carbon_nitrogen_ratio']:.1f} "
                 f"{carbon[j, i]:.4f} "
                 f"{depth[j, i]:.4f} {water_capacity[j, i]:.2f} "
-                f"{bedrock_fraction[j, i]:.4f}\n")
+                f"{bedrock_fraction[j, i]:.4f} "
+                f"{andisol['andic'][j, i]:.4f} "
+                f"{andisol['andic_p_fixation'][j, i]:.4f}\n")
 
     weights = np.cos(np.deg2rad(lat))[:, None] * np.ones((1, len(lon)))
     lw = weights[land]
@@ -564,6 +632,29 @@ def main() -> None:
         "land_cells": int(len(rows)),
         "moisture_variable": selector,
         "runoff_source": pedo["weathering"].get("runoff_source", "p_minus_e"),
+        "andisols": {
+            "note": ("Andic properties need ONGOING ejecta supply and enough "
+                     "leaching to weather glass to allophane rather than "
+                     "halloysite. Only the arc classes are known to be "
+                     "resupplied; flood_basalt and oib are undetermined for "
+                     "want of an eruption-age field and are excluded, not "
+                     "assumed absent. Fractions are of total land area."),
+            "resupplied_land_fraction": mean(andisol["resupplied"]),
+            "andic_land_fraction": mean(andisol["andic"]),
+            "vitric_land_fraction": mean(andisol["vitric"]),
+            "halloysitic_land_fraction": mean(andisol["halloysitic"]),
+            "undetermined_land_fraction": mean(sum(
+                (fractions.get(c, np.zeros_like(intensity))
+                 for c in pedo["andisol"]["undetermined_classes"]),
+                start=np.zeros_like(intensity))),
+            "land_mean_andic_p_fixation": mean(andisol["andic_p_fixation"]),
+            "andic_p_fixation_note": (
+                "Areal fraction of released P that andic material fixes, over "
+                "and above ordinary soil retention. Zero off andic ground by "
+                "construction; that is not a claim those soils retain no P."),
+            "allophane_precipitation_mm": pedo["andisol"][
+                "allophane_precipitation_mm"],
+        },
         "weathering_bracket": {
             "note": ("Weathering intensity under each moisture driver, land "
                      "means. The spread is the honest uncertainty in how "
