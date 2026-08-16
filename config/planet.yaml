@@ -59,31 +59,25 @@ radiation:
   # Separate visible/near-IR surface albedos, which matter under a red spectrum:
   # snow albedo splits 0.959/0.614 at maximum and 0.496/0.289 at minimum.
   two_band_albedo: true
-  # WRONG, AND EVERY COMPLETED RUN INHERITS IT. See notes/stellar-spectrum-audit.md.
+  # `k25v`, in exoplasim/inputs/stellarspectra/, built by
+  # exoplasim/scripts/build_stellar_spectrum.py from the BT-Settl (CIFIST2011)
+  # grid, interpolated log-linearly to the declared 4965 K between the 4900 and
+  # 5000 K models at log g 4.5. It puts 0.382 of shortwave below 0.75 um.
   #
-  # This was chosen believing ExoPlaSim ships a measured K2 *dwarf* spectrum
-  # matching this star's K2.5V. It does not. `k2.dat` is the star K2-18, an M2.5V
-  # at about 3450 K, not the spectral type K2; ExoPlaSim ships no K dwarf spectrum
-  # at all. All four of its spectra are M dwarfs from a tidally-locked-planet
-  # study. The model's own log confirms the reading: it puts 11.6% of shortwave
-  # below 0.75 um where the declared 4965 K star would put 41%.
+  # This was `k2` through every run of the first three eras, chosen believing
+  # ExoPlaSim ships a measured K2 *dwarf* spectrum matching this star's K2.5V. It
+  # does not: `k2.dat` is the star K2-18, an M2.5V at about 3450 K. The filename
+  # names the object, not the spectral type, and the package ships no K dwarf at
+  # all. The model's own log settles it, reporting 0.1159 of shortwave below
+  # 0.75 um where this star should put 0.382.
   #
-  # The reasoning below still holds, which is why this matters. nstarfile does
-  # take precedence over nstartemp, and the spectrum does set the weighting for
-  # every snow, ice and glacier albedo. Those are 0.11 to 0.20 too dark in every
-  # run so far, worth 0.4 to 0.7 K on the current warm baseline and much more on
-  # the cold branch, which is exactly where the albedo-feedback experiment lives.
-  #
-  # The replacement now exists: `k25v`, in exoplasim/inputs/stellarspectra/, built
-  # by exoplasim/scripts/build_stellar_spectrum.py from the BT-Settl grid,
-  # interpolated to 4965 K between the 4900 and 5000 K models at log g 4.5. It
-  # puts 0.382 of shortwave below 0.75 um against this file's 0.116.
-  #
-  # Still set to `k2` so runs in flight stay comparable. Change to `k25v` when
-  # ready to re-baseline; nothing else needs to move, since run_exoplasim.py
-  # searches inputs/stellarspectra/ before the ExoPlaSim package. Expect snow and
-  # ice to brighten by 0.10 to 0.17 and the world to cool.
-  stellar_spectrum: k2
+  # It matters because nstarfile takes precedence over nstartemp and the spectrum
+  # sets the weighting for every snow, ice and glacier albedo. Those ran 0.10 to
+  # 0.17 too dark throughout, weakening the very feedback the glacier and
+  # stellar-cycle machinery exists to resolve. See notes/stellar-spectrum-audit.md
+  # for what that biases and by how much; results predating this remain valid in
+  # kind, with the direction of the error known.
+  stellar_spectrum: k25v
 
 surface:
   mixed_layer_depth_m: 50.0

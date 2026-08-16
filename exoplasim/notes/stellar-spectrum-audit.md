@@ -211,3 +211,33 @@ quoted:
 The carve verdict depends on climate through evaporation over catchments, so it
 inherits the same bias, but at a magnitude far below the endorheic-fraction
 spread it already reports.
+
+## Confirmed in the model
+
+The run check the audit deferred has now been done. Under `k25v`,
+`MOST_DIAG.00000` reports an energy fraction below 0.75 microns of 0.38438,
+against 0.11588 under `k2` and 0.3823 from integrating the new file
+independently. The prediction was 0.382. The spectrum the model uses is
+therefore the one intended, and the audit's albedo table can be read as applying
+to the runs from here.
+
+Verified independently before the switch: blackbody fits to the four shipped
+spectra give 3117 K (`k2`), 3046 K (`gj667`), 3033 K (`wolf`) and 2572 K
+(`trap`), none of them within 1800 K of this star. `k25v` fits 4702 K, below its
+nominal 4965 K in the direction line blanketing predicts.
+
+## One thing the correction exposed
+
+`run_id` encoded resolution, flux, CO2, rotation, obliquity, eccentricity,
+glaciers and a digest of every surface input, but not the spectrum. So the
+corrected baseline at 0.96 would have been written into the completed `k2` run's
+directory, where `finalize()` takes `sorted(glob("MOST*"))[-1]` and would have
+copied out the wrong world's output under the new name. This is the same failure
+`geography_tag` was written to prevent, reached by a different route: any
+physical input not in the directory name is a collision waiting for the run that
+changes it.
+
+Both `run_id` and `cycle_run_id` now carry a spectrum marker. Directories written
+before it carry none and are all `k2`; recomputing an id for one yields a name
+that does not exist, so continuing a pre-fix run fails loudly instead of resuming
+the wrong world.

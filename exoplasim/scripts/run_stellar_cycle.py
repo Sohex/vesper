@@ -20,6 +20,7 @@ from _paths import CONFIG, INPUTS, PATCHES, RUNS  # noqa: E402
 from run_exoplasim import (  # noqa: E402
     surface_sra,
     geography_tag,
+    spectrum_tag,
     stage_surface_extras,
     surface_field_report,
     REGULAR_CODES,
@@ -86,7 +87,7 @@ def cycle_run_id(config: dict, case: str, period_earth_years: float) -> str:
         f"_obl{float(p['obliquity_degrees']):g}"
         f"_e{round(1000 * float(p['eccentricity'])):03d}"
     )
-    identifier += f"_g{geography_tag(config)}"
+    identifier += spectrum_tag(config) + f"_g{geography_tag(config)}"
     return identifier.replace(".", "p")
 
 

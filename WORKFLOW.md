@@ -90,16 +90,23 @@ ExoPlaSim 3.4.2, T42, 16 MPI ranks, 45-minute timestep, 10 layers, 50 m slab
 ocean, interactive sea ice, glaciers enabled, and a measured stellar spectrum
 rather than a blackbody.
 
-That spectrum is wrong and every completed run inherits it. ExoPlaSim's `k2.dat`
-is the star K2-18, an M2.5V at about 3450 K, not the spectral type K2; it ships
-no K dwarf spectrum at all. Snow, ice and glacier albedos are consequently 0.10
-to 0.17 too dark everywhere, worth 0.4 to 0.7 K on the current warm baseline and
-more on the cold branch.
+That spectrum is `k25v`, built from BT-Settl and interpolated to 4965 K, and it
+replaces a wrong one that every run of the first three eras inherited.
+ExoPlaSim's `k2.dat` is the star K2-18, an M2.5V at about 3450 K, not the
+spectral type K2; the package ships no K dwarf spectrum at all. Snow, ice and
+glacier albedos were consequently 0.10 to 0.17 too dark everywhere, which
+weakened the very feedback the glacier and stellar-cycle machinery exists to
+resolve. The model confirms the fix from its own log: energy fraction below
+0.75 microns is 0.38438 under `k25v` against 0.11588 under `k2`.
 
-A correct spectrum now exists, `exoplasim/inputs/stellarspectra/k25v`, built from
-BT-Settl and interpolated to 4965 K. It is not yet selected: `planet.yaml` still
-says `k2` so runs in flight stay comparable, and switching is a one-line change
-that re-baselines the world. See `exoplasim/notes/stellar-spectrum-audit.md`.
+Everything before the re-baseline carries that bias. It is not invalidated in
+kind and the direction is known, but it should be stated wherever it is quoted.
+See `exoplasim/notes/stellar-spectrum-audit.md`.
+
+A run directory names its spectrum, as it already named its geography and its
+physics switches. Two runs differing only in spectrum are different climates, and
+without the marker a re-baseline would have landed in the completed run's
+directory. Directories predating the marker carry none and are all `k2`.
 
 Convergence is a fixed six-part test, not a judgement: temperature drift below
 0.05 K per orbit, top-of-atmosphere and surface balance trends below 0.05 W/m2

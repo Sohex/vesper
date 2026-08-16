@@ -303,6 +303,24 @@ def surface_field_report(run_dir: Path, config: dict) -> dict:
     }
 
 
+def spectrum_tag(config: dict) -> str:
+    """Marker naming the stellar spectrum in a run directory.
+
+    The spectrum sets the weighting for every snow, ice and glacier albedo, so
+    two runs differing only in it are different climates. Until the k2/K2.5V
+    correction there was nothing here, and a re-baseline would have landed in the
+    completed run's directory: the same silent-overwrite that `geography_tag`
+    exists to prevent, reached by a different route.
+
+    Directories written before this was added carry no marker and are all `k2`.
+    Recomputing an id for one now yields a name that does not exist on disk, so a
+    continuation of a pre-fix run fails loudly rather than resuming the wrong
+    world. That is the intended direction to fail in.
+    """
+    name = config.get("radiation", {}).get("stellar_spectrum")
+    return f"_{name}" if name else "_bb"
+
+
 def run_id(config: dict, flux_ratio: float) -> str:
     p = config["planet"]
     a = config["atmosphere"]
@@ -319,6 +337,7 @@ def run_id(config: dict, flux_ratio: float) -> str:
         # comparison cannot land in one directory. Only non-defaults are named,
         # to keep the identifier readable.
         + ("_glac" if config["surface"].get("glaciers", {}).get("enabled") else "")
+        + spectrum_tag(config)
         + f"_g{geography_tag(config)}"
     )
     return identifier.replace(".", "p")
