@@ -1,11 +1,11 @@
 {
-  "generated": "2026-08-16T04:44:12+00:00",
+  "generated": "2026-08-16T18:09:00+00:00",
   "source": "/home/cfutro/git/lpj-guess/guess_4.1/data/ins/global.ins",
   "source_sha256": "4daa4358a1f2de730601ac64ce3a64e54821838de20f9391ac07f649fefb90d8",
-  "config_sha256": "eeaae0341aedffb83493498f90aeb85a279f4614210662a279a2de16d5e0d896",
-  "orbital_year_earth_days": 180.65500935790158,
+  "config_sha256": "d6bfb44ac7d092081e63f49a005d7a1b93cf4215df79177cc4ccbe906ff9d4bf",
+  "orbital_year_earth_days": 182.80142503147016,
   "earth_year_days": 365.2568983,
-  "scale_factor": 0.49459711835345666,
+  "scale_factor": 0.5004735732090899,
   "scaled_down_annual_sums": [
     "gdd5min_est",
     "gdd5min"
@@ -30,64 +30,65 @@
     {
       "parameter": "gdd5min_est",
       "from": 500.0,
-      "to": 247.3,
+      "to": 250.24,
       "direction": "down, an annual sum"
     },
     {
       "parameter": "gdd5min_est",
       "from": 500.0,
-      "to": 247.3,
+      "to": 250.24,
       "direction": "down, an annual sum"
     },
     {
       "parameter": "gdd5min_est",
       "from": 350.0,
-      "to": 173.11,
+      "to": 175.17,
       "direction": "down, an annual sum"
     },
     {
       "parameter": "gdd5min_est",
       "from": 2000.0,
-      "to": 989.19,
+      "to": 1000.95,
       "direction": "down, an annual sum"
     },
     {
       "parameter": "gdd5min_est",
       "from": 1100.0,
-      "to": 544.06,
+      "to": 550.52,
       "direction": "down, an annual sum"
     },
     {
       "parameter": "gdd5min_est",
       "from": 350.0,
-      "to": 173.11,
+      "to": 175.17,
       "direction": "down, an annual sum"
     },
     {
       "parameter": "gdd5min_est",
       "from": 2000.0,
-      "to": 989.19,
+      "to": 1000.95,
       "direction": "down, an annual sum"
     },
     {
       "parameter": "nyear_spinup",
       "from": 500.0,
-      "to": 1010.92,
+      "to": 999.05,
       "direction": "up, a duration in years"
     },
     {
       "parameter": "distinterval",
       "from": 100.0,
-      "to": 202.18,
+      "to": 199.81,
       "direction": "up, a duration in years"
     },
     {
       "parameter": "freenyears",
       "from": 100.0,
-      "to": 202.18,
+      "to": 199.81,
       "direction": "up, a duration in years"
     }
   ],
-  "output_sha256": "1cf0f437a8e23196647d728ab3061486f173d1edba4d344315cc06fee2da4394",
-  "git_commit": "09e1f1022b7a933650a54628645e6c36de37160b"
+  "output_sha256": "b8e13e648eca5eada85f824b626af506df4f383761e2380921922a4b78e938a9",
+  "git_commit": "a42413474d6456ef3a48917f4167e0d50ccf573d",
+  "generator": "biosphere/scripts/build_vesper_pfts.py"
 }

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated": "2026-08-16T16:00:33.584670+00:00",
-  "git_commit": "8e2ee260f2afadda9fdf763d7c9d6fa0c163201a",
+  "generated": "2026-08-16T18:08:31.022298+00:00",
+  "git_commit": "a42413474d6456ef3a48917f4167e0d50ccf573d",
   "generator": "scripts/world_state.py",
   "note": "Generated from the artifacts. Do not edit; re-run the generator. Judgement that no artifact can supply is in `curated`, which lives in the generator under version control.",
   "planet": {
@@ -80,13 +80,20 @@
       "stellar_spectrum": "k25v"
     },
     "stellar_cycle": {
-      "cases": {
-        "active": {
-          "minimum_flux_earth": 0.91,
-          "maximum_flux_earth": 1.01
+      "components": {
+        "medium": {
+          "period_earth_years": 11.0,
+          "amplitude_flux_peak_to_peak": 0.025,
+          "note": "The lived rhythm. Damped about 0.83, so roughly 3.1 K peak-to-peak, some thirty times Earth's solar-cycle signal and the dominant climatic fact of any individual life. Fast enough to be planned around, too fast for ice to follow.\n"
+        },
+        "long": {
+          "period_earth_years": 57.0,
+          "amplitude_flux_peak_to_peak": 0.035,
+          "note": "The geomorphic driver. Essentially undamped at 0.99, roughly 5.2 K peak-to-peak, slow enough that glaciers equilibrate rather than merely breathing. Each grand minimum is a distinct historical era.\n"
         }
       },
-      "period_earth_years": 8.0
+      "total_amplitude_flux_peak_to_peak": 0.06,
+      "alignment_recurrence_earth_years": 314
     }
   },
   "builds": {
@@ -134,6 +141,19 @@
       "glaciers": true,
       "converged": false,
       "mean_surface_temperature_k": 293.74106871958975
+    },
+    {
+      "run_id": "run_5aed450f3972",
+      "status": "spinup_in_progress",
+      "orbits_complete": 60,
+      "flux_earth": 0.9125,
+      "cycle": null,
+      "resolution": "T42",
+      "land_albedo_source": "vegetated",
+      "source_build": "precarve-zoned-g1281",
+      "glaciers": true,
+      "converged": false,
+      "mean_surface_temperature_k": 282.48927021968126
     },
     {
       "run_id": "t21l10p8r8_s095_co20450ppm_rot30h_obl32_e020_glac_k25v_g2d192bed",

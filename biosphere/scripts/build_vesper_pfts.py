@@ -159,6 +159,7 @@ def main() -> None:
             ["git", "rev-parse", "HEAD"], capture_output=True, text=True,
             cwd=PROJECT_ROOT).stdout.strip() or None,
     }
+    report["generator"] = "biosphere/scripts/build_vesper_pfts.py"
     report_path = output.with_name(output.stem + "_provenance.json")
     report_path.write_text(json.dumps(report, indent=2) + "\n")
 

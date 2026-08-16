@@ -4,17 +4,17 @@
 // from config/planet.yaml, because the year length is a function of the stellar
 // flux and moves whenever the flux does.
 //
-// generated 2026-08-16T01:40:08+00:00
-// config   sha256 a0b9911f5f42764b
-// flux     0.96 S-Earth
-// orbit    180.6550 Earth days
+// generated 2026-08-16T18:09:00+00:00
+// config   sha256 d6bfb44ac7d09208
+// flux     0.945 S-Earth
+// orbit    182.8014 Earth days
 
 #ifndef LPJ_GUESS_VESPER_H
 #define LPJ_GUESS_VESPER_H
 
 /// Days in a simulation year.
-/** The orbit is 180.6550 Earth days; 181 steps of 24 h is
- *  4344.0 h against the true 4335.7, an error of +0.19%.
+/** The orbit is 182.8014 Earth days; 183 steps of 24 h is
+ *  4392.0 h against the true 4387.2, an error of +0.11%.
  *
  *  The timestep stays 24 h deliberately. Every per-day rate constant in
  *  LPJ-GUESS was calibrated against 24 h of absolute time, so stepping in real
@@ -25,13 +25,13 @@
  *  This sizes arrays, so it is a compile-time constant. Regenerate and rebuild
  *  after any change to orbit.baseline_flux_earth.
  */
-const int VESPER_YEAR_LENGTH_DAYS = 181;
+const int VESPER_YEAR_LENGTH_DAYS = 183;
 
 /// Twelve month lengths summing to VESPER_YEAR_LENGTH_DAYS.
-#define VESPER_MONTH_LENGTHS {15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 16}
+#define VESPER_MONTH_LENGTHS {15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 18}
 
-/// Stellar constant at Vesper's orbit, W/m2. 0.96 x 1361.0.
-const double VESPER_STELLAR_CONSTANT = 1306.5600;
+/// Stellar constant at Vesper's orbit, W/m2. 0.945 x 1361.0.
+const double VESPER_STELLAR_CONSTANT = 1286.1450;
 
 /// Orbital eccentricity. Earth 0.01675.
 const double VESPER_ECCENTRICITY = 0.02;
@@ -42,13 +42,13 @@ const double VESPER_OBLIQUITY_DEG = 32.0;
 /// Phase of the declination cycle, in days before day 0 of the simulation year.
 /** Earth's 10.5 puts the December solstice ten days before 1 January. This is
  *  fitted to the solar declination the ExoPlaSim climatology actually reports:
- *  rms residual 1.11 deg over 12 bins, max 1.95 deg.
+ *  rms residual 1.11 deg over 12 bins, max 1.93 deg.
  *
  *  IT ASSUMES day 0 of the LPJ-GUESS year is the first climatology bin. The
  *  input module must emit bins in that order or the seasons run out of phase
  *  with the forcing.
  */
-const double VESPER_SOLSTICE_OFFSET_DAYS = 151.20000000000002;
+const double VESPER_SOLSTICE_OFFSET_DAYS = 152.85;
 
 /// Fraction of surface shortwave that is photosynthetically active.
 /** Earth's 0.5 scaled by this star's 0.4-0.75 um fraction against the

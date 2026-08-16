@@ -466,6 +466,13 @@ not an earlier point on the same curve. For the same reason there is no useful
 three-build reading that preceded this one is withdrawn.
 
 ## Known gaps
+- **Derived surface classes are designed but not built.** What the rock IS comes
+  from Orogen; what the surface has BECOME under this climate does not exist
+  yet, and albedo, dust emission and the phosphorus return leg all key on it.
+  `notes/derived-surface-classes.md` has the design: two independent axes rather
+  than one cover chain, gypcrete and calcrete windows, and the reason desert
+  pavement enters the dust budget with the opposite sign to the one first
+  assumed.
 - **The thermostat efficiency ignores the ocean's own weathering budget.**
   Seafloor weathering and carbonate burial are not represented at all, so 0.875
   bounds the continental term only.

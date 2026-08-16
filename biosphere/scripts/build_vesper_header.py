@@ -298,6 +298,7 @@ def main() -> None:
     header = GENERATED / "vesper.h"
     header.write_text(render(constants))
     constants["header_sha256"] = hashlib.sha256(header.read_bytes()).hexdigest()
+    constants["generator"] = "biosphere/scripts/build_vesper_header.py"
     (GENERATED / "vesper_provenance.json").write_text(
         json.dumps(constants, indent=2) + "\n")
 

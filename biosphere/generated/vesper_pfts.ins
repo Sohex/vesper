@@ -3,16 +3,16 @@
 !//
 !// global.ins with annual degree-day limits rescaled for Vesper's year.
 !//
-!// orbit        180.6550 Earth days at 0.96 S-Earth
+!// orbit        182.8014 Earth days at 0.945 S-Earth
 !// Earth year   365.2569 days
-!// factor       0.494597
+!// factor       0.500474
 !// rescaled     distinterval, freenyears, gdd5min_est, nyear_spinup
 !// NOT rescaled phengdd5ramp, tcmin_surv, tcmin_est, tcmax_est, twmin_est, twminusc, gdd0_min, gdd0_max, estinterval
 !//
 !// phengdd5ramp is deliberately untouched: it is a within-season accumulation,
 !// already in absolute time, and scaling it would be a real error.
 !//
-!// generated 2026-08-16T04:44:12+00:00
+!// generated 2026-08-16T18:09:00+00:00
 !///////////////////////////////////////////////////////////////////////////////
 
 !///////////////////////////////////////////////////////////////////////////////////////
@@ -107,7 +107,7 @@ file_nflux "nflux.out"
 title 'LPJ-GUESS cohort mode - global pfts'
 
 vegmode "cohort"		! "cohort", "individual" or "population"
-nyear_spinup 1011		! Number of years to spin up the simulation for
+nyear_spinup 999		! Number of years to spin up the simulation for
 ifcalcsla 1			! Whether to calculate SLA from leaf longevity
 				! (PFT-specific value can be specified in this file instead)
 ifcalccton 1			! Whether to calculate leaf C:N min from leaf longevity
@@ -118,7 +118,7 @@ npatch 15			! Number of replicate patches to simulate
 patcharea 1000			! Patch area (m2)
 estinterval 5			! Years between establishment events in cohort mode
 ifdisturb 1			! Whether generic patch-destroying disturbances enabled
-distinterval 202		! Average return time for generic patch-destroying disturbances
+distinterval 200		! Average return time for generic patch-destroying disturbances
 				! Hickler et al. (2011) used 200
 ifbgestab 1			! Whether background establishment enabled
 ifsme 1				! Whether spatial mass effect enabled
@@ -144,7 +144,7 @@ ifbvoc 0                     	! Whether to include BVOC calculations (1) or not 
 
 ifcentury 1			! Whether to use CENTURY SOM dynamics (mandatory for N cycling)
 ifnlim 1			! Whether plant growth limited by available N
-freenyears 202			! Number of years to spin up without N limitation (needed to build up a N pool)
+freenyears 200			! Number of years to spin up without N limitation (needed to build up a N pool)
 nfix_a 0.234			! First term in N fixation eqn (Conservative 0.102, Central 0.234, Upper 0.367)
 nfix_b -0.172			! Second term in N fixation eqn (Conservative 0.524, Central -0.172, Upper -0.754)
 nrelocfrac 0.5			! Fraction of N retranslocated prior to leaf and root shedding
@@ -470,7 +470,7 @@ pft "BNE" (
 	tcmin_est -30
 	tcmax_est -1
 	twmin_est 5
-	gdd5min_est 247.3
+	gdd5min_est 250.2
 	longevity 500
 	fireresist 0.3
 	eps_iso 8.0
@@ -496,7 +496,7 @@ pft "BINE" (
 	tcmin_est -30
 	tcmax_est -1
 	twmin_est 5
-	gdd5min_est 247.3
+	gdd5min_est 250.2
 	longevity 500
 	fireresist 0.3
 	eps_iso 8.0
@@ -521,7 +521,7 @@ pft "BNS" (
 	tcmax_est -2
 	twmin_est -1000		! no limit
 	twminusc 43		! AA from TH 03-11 added this
-	gdd5min_est 173.1		! Changed 2013-04-30 from value 500
+	gdd5min_est 175.2		! Changed 2013-04-30 from value 500
 	phengdd5ramp 100	! Changed 2013-04-30 from value 200
 	longevity 300
 	fireresist 0.3
@@ -548,7 +548,7 @@ pft "TeNE" (
 	tcmin_est -2 		! As in Sitch et al. (2003), a little lower than TeBE
 	tcmax_est 10 		! Hickler et al. (2012) have 9 degC for Pin_hal
 	twmin_est 5  		! low, since Hickler et al. (2012) have -1000 for Jun_oxy
-	gdd5min_est 989.2 	! Changed 2013-04-30 from value 900. As TeBE, a little lower than Jun_oxy, Pin_hal in europe.ins
+	gdd5min_est 1000.9 	! Changed 2013-04-30 from value 900. As TeBE, a little lower than Jun_oxy, Pin_hal in europe.ins
 	longevity 300  		! Hickler et al. (2012) have 350 for Pin_hal
 	fireresist 0.3 		! Hickler et al. (2012) have 0.2 for Pin_hal and 0.4 for Jun_oxy
 	eps_iso 8.0		! Values set to be the same as those for BNE and BINE
@@ -572,7 +572,7 @@ pft "TeBS" (
 	tcmin_est -13
 	tcmax_est 6
 	twmin_est 5
-	gdd5min_est 544.1
+	gdd5min_est 550.5
 	longevity 400
 	fireresist 0.1
 	eps_iso 45.0
@@ -596,7 +596,7 @@ pft "IBS" (
 	tcmin_est -30
 	tcmax_est 7
 	twmin_est -1000  !no limit
-	gdd5min_est 173.1 !from TH 2010-03-10 AA
+	gdd5min_est 175.2 !from TH 2010-03-10 AA
 	longevity 300 !from TH 2010-04-07 was 300 AA
 	fireresist 0.1
 	eps_iso 45.0
@@ -624,7 +624,7 @@ pft "TeBE" (
 	tcmin_est 0
 	tcmax_est 18.8
 	twmin_est 5
-	gdd5min_est 989.2
+	gdd5min_est 1000.9
 	longevity 300 		! from TH 2010-04-07 was 350 AA
 	fireresist 0.3
 	eps_iso 24.0

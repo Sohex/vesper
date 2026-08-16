@@ -350,6 +350,10 @@ def main() -> None:
             ["git", "rev-parse", "HEAD"], capture_output=True, text=True,
             cwd=PROJECT_ROOT).stdout.strip() or None,
     }
+    # Name the generator in the artifact. Without it, a staleness check can
+    # say WHICH file is out of date but not what to re-run, and it named the
+    # wrong script for two of three artifacts for exactly that reason.
+    report["generator"] = "biosphere/scripts/build_lpj_driver.py"
     report_path = output.with_name(output.stem + "_provenance.json")
     report_path.write_text(json.dumps(report, indent=2) + "\n")
 
