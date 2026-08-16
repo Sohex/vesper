@@ -291,20 +291,27 @@ therefore iterates against `biosphere/` rather than running once before it.
 
 The loop is therefore: assume, compute, feed back, repeat.
 
-Monotone carving guarantees the loop *terminates*, since basins are only ever
-removed. It does not guarantee it lands in the right place, and it has a
-direction: carving removes evaporite, which is the brightest lithology, so the
-land darkens, the world warms, open-water evaporation rises, and basins that were
-marginal would have stayed closed. Iteration 1 therefore carves at the coolest,
-brightest state available and cannot take any of it back, so the pipeline
-systematically over-carves. Each applied export bears this out directly: closed-
-basin fill falls with every carve iteration.
+**The verdict map is antitone, not monotone, and that changes what the loop
+does.** Carving removes closed-basin fill, the brightest lithology, so the land
+darkens, the world warms, open-water evaporation rises, and basins that were
+marginal would now stay closed. A larger carve set produces a *smaller* next
+verdict. An antitone map does not approach a fixed point from one side; it
+oscillates, and the successive verdicts bracket the answer rather than converging
+onto it.
 
-Carving is monotone *within* a build, but a build is regenerated from the planet
-code plus a verdict rather than edited, so a wrong verdict is recoverable by
-regenerating and a wrong *terrain* is not the trap it sounds like. That is how
-`carved-zoned` was abandoned: 850 of its 1,522 carves could not be un-cut, but
-the build could be replaced wholesale.
+That is a better procedure than a one-sided approach, because a bracket is
+measurable. Take the verdict at both bounding climates -- the cold, bright,
+bare-rock end and the warm, dark, vegetated end -- and carve only the
+intersection. Everything between the two is the marginal set *by construction*
+rather than by a tolerance chosen after the fact, and the width of the bracket is
+the honest uncertainty on the carve.
+
+Over-carving is a budget item, not a lost landscape. A build is regenerated from
+the planet code plus a verdict rather than edited, so an over-carve costs a
+terrain, hydrography and boundary-condition rebuild and nothing else. That is how
+`carved-zoned` was abandoned once its verdict turned out to have been computed on
+antipodal climate: its carves could not be un-cut *within that build*, and the
+build was replaced wholesale.
 
 On iteration 2, the already-carved set should be re-evaluated against the new
 climate and the number that would no longer have carved reported. That number is
