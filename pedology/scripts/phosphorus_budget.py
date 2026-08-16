@@ -187,20 +187,88 @@ def main() -> None:
             "release_relative": float(p_rel.get(name, 0.0)),
         }
 
-    # The alternative: fill inherits the area-weighted P of everything that
-    # drains to it. Computed globally rather than per basin, which is the
-    # conservative version -- a per-basin figure needs the catchment map and
-    # would only sharpen the contrast, not change its direction.
-    non_fill = land & ~dust_mask
-    inherited = wmean(content, non_fill)
-    result["catchment_inheritance"] = {
-        "mean_content_of_non_fill_land_ppm": round(inherited, 1),
-        "fill_content_if_inherited_ppm": round(inherited, 1),
-        "fill_content_by_class_ppm": round(wmean(content, dust_mask), 1),
-        "enrichment_if_inherited": round(inherited / mean_content, 3),
-        "note": "Upper bound on the inherited case, ignoring the further "
-                "concentration a closed basin applies by evaporating the water "
-                "and keeping the solute. The true value is at least this.",
+    # ---- fill phosphorus as a delivered FLUX, per basin ---------------------
+    #
+    # Fill is not primary rock and must not be assigned P by lithology class. It
+    # is what the catchment delivered, concentrated by a closed basin
+    # evaporating the water and keeping the solute. So the enrichment of a
+    # basin's floor is a property of its geometry and its catchment's rock, and
+    # it has to ARISE rather than be imposed.
+    #
+    # The test case is the Bodele Depression, the floor of former Lake
+    # Mega-Chad and Earth's single largest dust source. What makes it rich is
+    # not that it is a basin: it is that a very large catchment was concentrated
+    # onto a small floor for long enough that aquatic productivity laid down
+    # biogenic sediment, and that it then dried out so wind could deflate it.
+    # Large catchment, small floor, currently dry. Each of those is measured
+    # here, and a basin qualifies only if it has all three.
+    with Dataset(data / "basins.nc") as ds:
+        catchment_km2 = np.asarray(ds["catchment_km2"][:])
+        floor_km2 = np.asarray(ds["area_at_spill_km2"][:])
+
+    # cell_area is in km2, verified against 4*pi*R^2 for this radius, so the
+    # basin floor stays in km2 too. Mixing them was worth a factor of a million
+    # and silently produced a catchment-to-floor ratio of zero for every basin.
+    delivered = np.zeros(len(catchment_km2))     # relative P units per year
+    catch_area = np.zeros(len(catchment_km2))
+    order = np.argsort(terminal[land], kind="stable")
+    t_sorted = terminal[land][order]
+    f_sorted = (flux[land] * area[land])[order]
+    a_sorted = area[land][order]
+    edges = np.searchsorted(t_sorted, np.arange(-1, len(catchment_km2) + 1))
+    for b in range(len(catchment_km2)):
+        lo, hi = edges[b + 1], edges[b + 2]
+        if hi > lo:
+            delivered[b] = f_sorted[lo:hi].sum()
+            catch_area[b] = a_sorted[lo:hi].sum()
+
+    floor = np.maximum(floor_km2, 1e-9)          # km2, as cell_area is
+    areal_catch = np.divide(delivered, np.maximum(catch_area, 1.0))
+    areal_floor = delivered / floor
+    enrich = np.divide(areal_floor, areal_catch,
+                       out=np.zeros_like(areal_floor), where=areal_catch > 0)
+    ratio = np.divide(catch_area, floor,
+                      out=np.zeros_like(floor), where=floor > 0)
+
+    # Currently dry? A basin holding water is not a dust source.
+    wet = np.zeros(len(catchment_km2), dtype=bool)
+    sw = data / "surface_water.nc"
+    if sw.is_file():
+        with Dataset(sw) as ds:
+            if "lake" in ds.variables:
+                lake = np.asarray(ds["lake"][:]).astype(bool)
+                for b in range(len(catchment_km2)):
+                    lo, hi = edges[b + 1], edges[b + 2]
+                    if hi > lo and lake[land][order][lo:hi].any():
+                        wet[b] = True
+
+    have = catch_area > 0
+    bodele = have & (ratio >= 100.0) & ~wet
+    strong = have & (ratio >= 20.0) & ~wet
+    result["basin_fill_as_flux"] = {
+        "note": "Fill phosphorus as delivered flux per unit floor area, relative "
+                "to the same flux spread over its own catchment. Enrichment "
+                "equals the catchment-to-floor area ratio when release is "
+                "uniform, so it is geometry, not an assumption.",
+        "basins_with_catchment": int(have.sum()),
+        "catchment_to_floor_ratio": {
+            "median": round(float(np.median(ratio[have])), 2),
+            "p90": round(float(np.percentile(ratio[have], 90)), 2),
+            "p99": round(float(np.percentile(ratio[have], 99)), 2),
+            "max": round(float(ratio[have].max()), 2),
+        },
+        "largest_catchment_km2": round(float(catch_area[have].max())),
+        "bodele_analogues": {
+            "criteria": "catchment/floor >= 100 and currently dry",
+            "count": int(bodele.sum()),
+            "earth_reference": "Lake Mega-Chad concentrated roughly 2.5e6 km2 "
+                               "onto a roughly 2.5e4 km2 floor, a ratio near 100",
+            "max_enrichment": round(float(enrich[bodele].max()), 1)
+                              if bodele.any() else None,
+        },
+        "strongly_concentrating_and_dry": int(strong.sum()),
+        "share_of_delivered_p_in_strong_basins": round(
+            float(delivered[strong].sum() / max(delivered[have].sum(), 1e-30)), 4),
     }
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
@@ -216,10 +284,15 @@ def main() -> None:
     print(f"\ndust source {a['fraction_of_land']:.1%} of land, "
           f"{a['mean_content_ppm']:.0f} ppm, "
           f"enrichment {a['enrichment_vs_land_mean']:.2f}x")
-    c = result["catchment_inheritance"]
-    print(f"  if fill inherited catchment P instead: "
-          f"{c['fill_content_if_inherited_ppm']:.0f} ppm, "
-          f"{c['enrichment_if_inherited']:.2f}x")
+    f = result["basin_fill_as_flux"]
+    r = f["catchment_to_floor_ratio"]
+    print(f"\ncatchment/floor ratio  median {r['median']}  p99 {r['p99']}  max {r['max']}")
+    bo = f["bodele_analogues"]
+    print(f"  Bodele analogues (ratio >= 100, dry): {bo['count']}"
+          + (f", max enrichment {bo['max_enrichment']}x" if bo['max_enrichment'] else ""))
+    print(f"  strongly concentrating and dry (>= 20): {f['strongly_concentrating_and_dry']}")
+    print(f"  share of delivered P in those basins: "
+          f"{f['share_of_delivered_p_in_strong_basins']:.1%}")
     print(f"\nwrote {args.output.relative_to(PROJECT_ROOT)}")
 
 
