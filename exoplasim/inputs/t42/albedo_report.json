@@ -1,9 +1,9 @@
 {
   "mode": "vegetated",
   "mesh": "None",
-  "grid": "/home/cfutro/docs/world/source/carved-zoned-v4/exoplasim-T42",
+  "grid": "/home/cfutro/docs/world/source/precarve-zoned-g1281/exoplasim-T42",
   "resolution": "T42",
-  "terrain_hash": "5bed5549315da14b22275fea51a0b6f5b34d79cdf2237c9380e8471e0b431c78",
+  "terrain_hash": "974ceb78fccfd54c3a842cf4ae8d7ae79029816abd9b4fbf90409165090b0ec1",
   "codes": [
     174,
     175,
@@ -12,28 +12,19 @@
   ],
   "forest_fraction_value": 0.5,
   "vegetation": null,
-  "forest_fraction_land_mean": 0.4059227950433301,
+  "forest_fraction_land_mean": 0.36369313210601667,
   "lithology_albedo_overrides": {},
   "barren_rock_classes": [
     "evaporite",
     "playa_clastic"
   ],
   "forest_note": "dforest blends snow albedo between forested and unforested endpoints, so it has to agree with the background albedo assumption. ExoPlaSim's default is a uniform 0.5.",
-  "land_mean_bare_rock": 0.2762401142243332,
-  "land_mean_written": 0.1650114234541909,
-  "lakes": {
-    "source": "hydrography/data/carved-zoned-v4/surface_water.nc",
-    "terrain_hash": "5bed5549315da14b22275fea51a0b6f5b34d79cdf2237c9380e8471e0b431c78",
-    "lake_regions": 66634,
-    "lake_fraction_of_land": 0.06301645199538007,
-    "water_albedo": 0.06,
-    "land_mean_albedo_before": 0.178582,
-    "land_mean_albedo_after": 0.164576,
-    "delta": -0.014006
-  },
+  "land_mean_bare_rock": 0.2810198203202874,
+  "land_mean_written": 0.1967665755910228,
+  "lakes": null,
   "exoplasim_default_albland": 0.22,
-  "land_min": 0.06087334079954774,
-  "land_max": 0.38790380508925504,
+  "land_min": 0.14999999999999986,
+  "land_max": 0.4434155608745905,
   "files": [
     "/home/cfutro/docs/world/exoplasim/inputs/t42/orogen_T42_surf_0174.sra",
     "/home/cfutro/docs/world/exoplasim/inputs/t42/orogen_T42_surf_0175.sra",

@@ -32,16 +32,8 @@ schema_version: 1
 #
 # The names are for humans. manifest.hashes.finalElevation is the identity, and
 # every run manifest and analysis report records it.
-source_build: carved-zoned-v5
+source_build: precarve-zoned-g1281
 
-# PENDING CHANGE, DECIDED BUT NOT YET APPLIED. Gravity is moving to about
-# 12.81 m/s2 and mass to about 1.88 Earth. See notes/pending-gravity-change.md.
-#
-# Do not apply it here piecemeal. Orogen scales terrain relief as 1/g, so the
-# change requires a fresh base generation and supersedes every build in
-# `source/`, the basin catalogue with them. Editing this block before that
-# terrain exists would put the config and every artifact out of step, which is
-# the failure mode `lib/orogen.py`'s hash allowlist exists to catch.
 planet:
   radius_earth: 1.20
   # Surface gravity is canonical, not derived. This is the value World Orogen
@@ -50,8 +42,8 @@ planet:
   # mass_earth = g/g_earth * radius_earth^2 = 1.4976. Earlier revisions declared
   # 1.50 Earth masses and derived 10.2153 m/s2, which disagreed with the
   # geography by 0.16%.
-  gravity_m_s2: 10.1989
-  mass_earth: 1.4976
+  gravity_m_s2: 12.81
+  mass_earth: 1.881009
   rotation_hours: 30.0
   obliquity_degrees: 32.0
   eccentricity: 0.02

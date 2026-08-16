@@ -284,14 +284,10 @@ def hydrography() -> dict:
     rep = read_json(data / "hydrography_report.json") or {}
     verdict = read_json(ROOT / "hydrography" / "analysis" / "carve_verdict.json") or {}
     carve = read_json(data / "carve_list.json") or {}
-    if not carve:
-        # The applied verdict lives with the build it was computed FROM, not the
-        # build it produced, so fall back to whichever list the active build's
-        # manifest says it applied rather than silently reporting none.
-        for cand in sorted((ROOT / "hydrography" / "data").glob("*/carve_list.json")):
-            carve = read_json(cand) or {}
-            if carve:
-                break
+    # No fallback to another build's list. An earlier version globbed for any
+    # carve_list.json and took the first alphabetically, which reported one
+    # terrain's verdict against another's basins -- the same silent pairing this
+    # file was fixed for once already. Absent means absent.
     return {
         "products_from": str(data.relative_to(ROOT)),
         # Two different quantities have both been called "the endorheic share"

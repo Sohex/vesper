@@ -103,7 +103,10 @@ def main() -> None:
     m, e = out["land_mask"], out["elevation_m"]
     land_cells = m > 0
     report = {
-        "terrain_hash": mesh.terrain_hash,
+        # Top level as well as inside `mesh`, because the consistency checker
+        # looks here and a report that does not state its terrain cannot be
+        # checked against the build it claims to describe.
+        "terrain_hash": ex.terrain_hash,
         "generated": datetime.now(timezone.utc).isoformat(),
         "mesh": ex.provenance(),
         "grid": str(grid_dir),
