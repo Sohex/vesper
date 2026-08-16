@@ -1,0 +1,28 @@
+{
+  "run_id": "t42l10p16r8_s094_co20450ppm_rot30h_obl32_e020_glac_k25v_g38a00766",
+  "directory": "t42l10p16r8_s094_co20450ppm_rot30h_obl32_e020_glac_k25v_g38a00766",
+  "status": "smoke_complete",
+  "legacy_name": true,
+  "orbits_on_disk": 1,
+  "snapshots_on_disk": 1,
+  "size_gb": 0.37,
+  "executable_sha256": "698b1d47bc61569199fe9006cc7304c2a8cf5a3634bc252b49d4d3f0cf71dde3",
+  "config_sha256": "7f5404532de4bd2598f861f94cac84211fbb3e5a41f46a47721faf28db744bbe",
+  "physical": {
+    "resolution": "T42",
+    "layers": 10,
+    "ranks": 16,
+    "flux_ratio": 0.94,
+    "co2_ppm": 450.0,
+    "rotation_hours": 30.0,
+    "obliquity_degrees": 32.0,
+    "eccentricity": 0.02,
+    "glaciers": true,
+    "stellar_spectrum": "k25v",
+    "geography": null
+  },
+  "source_build": "carved-zoned-v2",
+  "climatologies": {},
+  "converged": null,
+  "convergence_metrics": {}
+}

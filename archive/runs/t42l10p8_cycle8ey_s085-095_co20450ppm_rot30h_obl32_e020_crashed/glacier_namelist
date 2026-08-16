@@ -1,0 +1,5 @@
+ &glacier_nl
+ ICESHEETH = -1.0 
+ NGLACIER  =  0 
+ GLACELIM  =  2.0 
+ /END

@@ -1,0 +1,28 @@
+{
+  "run_id": "t42_s090_co20450ppm_rot30h_obl32_e020",
+  "directory": "t42_s090_co20450ppm_rot30h_obl32_e020",
+  "status": "smoke_complete",
+  "legacy_name": true,
+  "orbits_on_disk": 1,
+  "snapshots_on_disk": 1,
+  "size_gb": 0.31,
+  "executable_sha256": null,
+  "config_sha256": "28d0989f7ec61981effd05ac54bcf4e4003bc6681249f61ab333994c7dd06675",
+  "physical": {
+    "resolution": "T42",
+    "layers": 10,
+    "ranks": 1,
+    "flux_ratio": 0.9,
+    "co2_ppm": 450.0,
+    "rotation_hours": 30.0,
+    "obliquity_degrees": 32.0,
+    "eccentricity": 0.02,
+    "glaciers": null,
+    "stellar_spectrum": null,
+    "geography": null
+  },
+  "source_build": null,
+  "climatologies": {},
+  "converged": null,
+  "convergence_metrics": {}
+}

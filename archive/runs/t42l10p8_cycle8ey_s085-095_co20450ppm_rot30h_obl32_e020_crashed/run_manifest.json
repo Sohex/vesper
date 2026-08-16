@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "run_id": "t42l10p8_cycle8ey_s085-095_co20450ppm_rot30h_obl32_e020",
+  "status": "running",
+  "created_utc": "2026-08-12T11:33:50.117409+00:00",
+  "config_path": "/home/cfutro/docs/world/config/planet.yaml",
+  "config_sha256": "68ed2899f10b7c2e52362e8c955bee72d6bb46b4f40ae1a6bbb0b3a9fe1d6f82",
+  "source_config": {
+    "schema_version": 1,
+    "planet": {
+      "radius_earth": 1.2,
+      "mass_earth": 1.5,
+      "rotation_hours": 30.0,
+      "obliquity_degrees": 32.0,
+      "eccentricity": 0.02
+    },
+    "star": {
+      "spectral_type": "K2.5V",
+      "mass_solar": 0.8,
+      "luminosity_solar": 0.32359365692962827,
+      "effective_temperature_k": 4965.0
+    },
+    "orbit": {
+      "earth_solar_constant_w_m2": 1361.0,
+      "baseline_flux_earth": 0.9,
+      "sweep_flux_earth": [
+        0.85,
+        0.9,
+        0.95
+      ],
+      "longitude_vernal_equinox_degrees": 102.7
+    },
+    "atmosphere": {
+      "pN2_bar": 0.78025,
+      "pO2_bar": 0.21,
+      "pAr_bar": 0.0093,
+      "pCO2_bar": 0.00045,
+      "ozone": true
+    },
+    "radiation": {
+      "two_band_albedo": true
+    },
+    "surface": {
+      "mixed_layer_depth_m": 50.0,
+      "sea_ice": true
+    },
+    "model": {
+      "resolution": "T42",
+      "latitudes": 64,
+      "longitudes": 128,
+      "layers": 10,
+      "precision_bytes": 8,
+      "ncpus": 8,
+      "timestep_minutes": 45.0,
+      "physics_filter": "gp|exp|sp",
+      "output_type": ".nc",
+      "geography_land_threshold": 0.5,
+      "seasonal_samples_per_orbit": 32,
+      "regular_output_bins_per_orbit": 12
+    }
+  },
+  "fixed_orbit_parameters": {
+    "gravity_m_s2": 10.215260416666666,
+    "gravity_earth": 1.0416666666666667,
+    "rotation_days": 1.25,
+    "stellar_radius_solar": 0.7688013533747929,
+    "stellar_flux_ratio_earth": 0.8999999999999999,
+    "stellar_flux_w_m2": 1224.8999999999999,
+    "semimajor_axis_au": 0.5996236383762626,
+    "orbital_year_earth_days": 189.61450265531198,
+    "orbital_year_seconds": 16382693.029418955,
+    "rotations_per_orbit_namelist": 152,
+    "runsteps_per_orbit": 6068,
+    "actual_run_duration_earth_days": 189.625,
+    "snapshot_interval_steps": 189
+  },
+  "cycle": {
+    "case": "extreme",
+    "minimum_flux_earth": 0.85,
+    "maximum_flux_earth": 0.95,
+    "mean_flux_earth": 0.8999999999999999,
+    "mean_flux_w_m2": 1224.8999999999999,
+    "semi_amplitude_w_m2": 68.04999999999998,
+    "period_earth_years": 8.0,
+    "period_local_orbits": 15.409360580092287,
+    "period_model_steps": 93504.0,
+    "start_model_step": 314332,
+    "phase_convention": "sinusoid begins at mean flux and rises",
+    "stellar_spectrum_treatment": "fixed 4965 K blackbody spectral partition"
+  },
+  "initial_restart": "/home/cfutro/docs/world/exoplasim/runs/t42l10p8_s090_co20450ppm_rot30h_obl32_e020/MOST_REST.00050",
+  "initial_restart_sha256": "a8d4db4a66e66cf698184ee9880364fb2e6ff5912945820ddfa94cc6282eb511",
+  "patch_path": "/home/cfutro/docs/world/exoplasim/patches/exoplasim-3.4.2-star-cycle.patch",
+  "patch_sha256": "5340e37e54985b1ee9b03ffc15b40160c11f2fa104adc2d45b5d7943e96b7ce5",
+  "patched_executable": "/home/cfutro/docs/world/exoplasim/inputs/exoplasim_cycle_t42/most_plasim_t42_l10_p8.x",
+  "patched_executable_sha256": "cbb42b4004be581b4601567ee5ac0b19009640596f188c70f5843f6d12e46234",
+  "target_orbits": 1,
+  "diagnostics": [],
+  "last_started_utc": "2026-08-12T11:33:50.160960+00:00"
+}

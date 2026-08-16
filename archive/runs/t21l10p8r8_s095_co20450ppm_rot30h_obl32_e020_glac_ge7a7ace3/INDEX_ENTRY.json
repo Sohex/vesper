@@ -1,0 +1,28 @@
+{
+  "run_id": "t21l10p8r8_s095_co20450ppm_rot30h_obl32_e020_glac_ge7a7ace3",
+  "directory": "t21l10p8r8_s095_co20450ppm_rot30h_obl32_e020_glac_ge7a7ace3",
+  "status": "spinup_in_progress",
+  "legacy_name": true,
+  "orbits_on_disk": 50,
+  "snapshots_on_disk": 1,
+  "size_gb": 0.87,
+  "executable_sha256": "32994df082fabea72f77f08f8303908c33fe5f09bd2e9903ff19e9104df39736",
+  "config_sha256": "fde985c2403cb38d5233d185a873de09ae16a39c84d58dcc1354fe60d13cac67",
+  "physical": {
+    "resolution": "T21",
+    "layers": 10,
+    "ranks": 8,
+    "flux_ratio": 0.95,
+    "co2_ppm": 450.0,
+    "rotation_hours": 30.0,
+    "obliquity_degrees": 32.0,
+    "eccentricity": 0.02,
+    "glaciers": true,
+    "stellar_spectrum": "k2",
+    "geography": null
+  },
+  "source_build": null,
+  "climatologies": {},
+  "converged": null,
+  "convergence_metrics": {}
+}

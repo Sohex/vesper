@@ -1,0 +1,28 @@
+{
+  "run_id": "t42l10p8_cycle8ey_s088-092_co20450ppm_rot30h_obl32_e020",
+  "directory": "t42l10p8_cycle8ey_s088-092_co20450ppm_rot30h_obl32_e020",
+  "status": "simulation_complete",
+  "legacy_name": true,
+  "orbits_on_disk": 62,
+  "snapshots_on_disk": 0,
+  "size_gb": 3.98,
+  "executable_sha256": null,
+  "config_sha256": "68ed2899f10b7c2e52362e8c955bee72d6bb46b4f40ae1a6bbb0b3a9fe1d6f82",
+  "physical": {
+    "resolution": "T42",
+    "layers": 10,
+    "ranks": 8,
+    "flux_ratio": null,
+    "co2_ppm": 450.0,
+    "rotation_hours": 30.0,
+    "obliquity_degrees": 32.0,
+    "eccentricity": 0.02,
+    "glaciers": null,
+    "stellar_spectrum": null,
+    "geography": null
+  },
+  "source_build": null,
+  "climatologies": {},
+  "converged": null,
+  "convergence_metrics": {}
+}
