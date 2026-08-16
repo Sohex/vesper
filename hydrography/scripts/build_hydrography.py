@@ -8,7 +8,7 @@ balance, it needs precipitation and evaporation, and it belongs to
 
 Products, all under `hydrography/data/`:
 
-  regions.nc      per mesh region: resolved drainage terminal and filled surface
+  regions.nc      per mesh region: terminal, receiver and filled surface
   basins.nc       per preserved basin: final-terrain hypsometry, spill, catchment
   coupling_<grid>.nc  sparse basin-by-grid-cell catchment areas, the interface a
                   climate model integrates precipitation over
@@ -24,8 +24,10 @@ import json
 from netCDF4 import Dataset
 import numpy as np
 
-from builds import build_root, grid_export
+# _paths first: it is what puts the project's lib/ on the path, so anything
+# imported from there has to come after it.
 from _paths import ANALYSIS, DATA
+from builds import build_root, grid_export
 import drainage as dr
 from orogen import Export, LAND, OCEAN
 
@@ -117,6 +119,7 @@ def couple_to_grid(export: Export, drn: dr.Drainage, grid_dir, n_basins: int):
     acc = np.zeros(uniq.size)
     np.add.at(acc, inv, export.cell_area[sel].astype(np.float64))
     return {
+        "cell_lat": lat, "cell_lon": lon,
         "n_lat": nlat, "n_lon": nlon,
         "basin": (uniq // (nlat * nlon)).astype(np.int32),
         "cell": (uniq % (nlat * nlon)).astype(np.int32),
@@ -223,7 +226,8 @@ def main() -> None:
           f"{agreement['region_agreement']*100:.3f}% of land, "
           f"catchment ratio median {agreement['catchment_ratio_median']:.4f}")
 
-    spill, spill_target, merged = dr.spill_levels(ex, drn, n_basins)
+    spill, spill_target, spill_region, spill_exit, merged = dr.spill_levels(
+        ex, drn, n_basins)
     if not np.isfinite(spill).all():
         raise RuntimeError(
             f"{int((~np.isfinite(spill)).sum())} basins have no finite spill level; "
@@ -245,6 +249,11 @@ def main() -> None:
         v = ds.createVariable("terminal", "i4", ("region",), zlib=True)
         v.long_name = "preserved basin index, -1 world ocean, -2 not land"
         v[:] = drn.terminal
+        v = ds.createVariable("receiver", "i4", ("region",), zlib=True)
+        v.long_name = ("region this one drains into, -1 at the world ocean or a "
+                       "basin sink; the priority flood's discovery pointer, which "
+                       "routes across filled flats where steepest descent cannot")
+        v[:] = drn.receiver
         v = ds.createVariable("filled_km", "f4", ("region",), zlib=True)
         v.long_name = "depression-filled surface elevation"
         v.units = "km"
@@ -267,6 +276,11 @@ def main() -> None:
             ("capacity_km3", volumes[:, -1], "km3", "volume held at spill"),
             ("area_at_spill_km2", areas[:, -1], "km2", "flooded area at spill"),
             ("spill_target", spill_target, "1", "basin index this overflows into, -1 world ocean"),
+            ("spill_region", spill_region, "1",
+             "region on the basin side of the saddle it overflows at, -1 if it has no exit"),
+            ("spill_exit_region", spill_exit, "1",
+             "region on the far side of that saddle, where the outflow river starts; "
+             "may be ocean, in which case the overflow enters the sea directly"),
             ("critical_aridity_index", catch / np.maximum(areas[:, -1], 1e-9) - 1.0, "1",
              "basin overflows, and so should carve its outlet, wherever (E-P)/runoff "
              "over its catchment falls below this"),
@@ -299,7 +313,18 @@ def main() -> None:
             ds.title = f"Basin catchment area per {g} grid cell (sparse COO)"
             ds.terrain_hash = ex.terrain_hash
             ds.n_lat, ds.n_lon = c["n_lat"], c["n_lon"]
-            ds.note = "cell index is row * n_lon + col, rows north to south"
+            ds.note = ("cell index is row * n_lon + col, rows north to south. "
+                       "The columns are this file's own cell_lon, which comes "
+                       "from the Orogen grid and runs -180 to 180; a climate "
+                       "field on 0 to 360 must be remapped onto it before being "
+                       "indexed, which is what basin_means does.")
+            ds.createDimension("cell_lat", c["n_lat"])
+            ds.createDimension("cell_lon", c["n_lon"])
+            for nm, dat in [("cell_lat", c["cell_lat"]), ("cell_lon", c["cell_lon"])]:
+                v = ds.createVariable(nm, "f8", (nm,))
+                v.units = "degrees_north" if nm.endswith("lat") else "degrees_east"
+                v.long_name = "coordinate the cell index was built on"
+                v[:] = dat
             for nm, dat, ty, un in [("basin", c["basin"], "i4", "1"),
                                     ("cell", c["cell"], "i4", "1"),
                                     ("area_km2", c["area_km2"], "f8", "km2")]:

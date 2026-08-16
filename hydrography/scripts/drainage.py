@@ -35,10 +35,17 @@ class Drainage:
     filled_km: the surface a droplet must rise to in order to leave the region,
                i.e. the depression-filled elevation. Equal to `elevation_km`
                wherever the terrain already drained.
+    receiver:  per region, the neighbour it drains into, or -1 at a seed, which
+               means the world ocean or a basin sink. This is the flood's own
+               discovery pointer: a region is reached from whichever neighbour
+               the front arrived through, which is by construction the way out.
+               Steepest descent on the filled surface would not do, because a
+               filled depression is flat and has no downhill neighbour at all.
     """
 
     terminal: np.ndarray
     filled_km: np.ndarray
+    receiver: np.ndarray
 
     def catchment_areas(self, export: Export, n_basins: int) -> np.ndarray:
         """Total land area draining to each basin, in km2."""
@@ -67,6 +74,7 @@ def resolve(export: Export, *, progress=None) -> Drainage:
     land = sc == LAND
     terminal = np.full(n, TERMINAL_NONE, dtype=np.int32)
     filled = np.full(n, np.nan, dtype=np.float64)
+    receiver = np.full(n, -1, dtype=np.int32)
     heap: list[tuple[float, int]] = []
 
     # Land regions touching the world ocean drain straight out. Done over the
@@ -112,18 +120,25 @@ def resolve(export: Export, *, progress=None) -> Drainage:
             lvl = elev[nb] if elev[nb] > level else level
             terminal[nb] = t
             filled[nb] = lvl
+            receiver[nb] = r
             heapq.heappush(heap, (lvl, rank, int(nb)))
 
-    return Drainage(terminal=terminal, filled_km=filled)
+    return Drainage(terminal=terminal, filled_km=filled, receiver=receiver)
 
 
-def spill_levels(export: Export, drainage: Drainage, n_basins: int) -> np.ndarray:
+def spill_levels(export: Export, drainage: Drainage, n_basins: int):
     """Level at which each basin first touches terrain draining somewhere else.
 
     Measured on the finished terrain, so it supersedes the catalogue's natural
     spill elevation wherever erosion has since cut the rim down. Returns the
-    level, the terminal each basin overflows into, and how many basins were
-    merged away to break spill cycles.
+    level, the terminal each basin overflows into, the two regions either side
+    of the saddle it leaves by, and how many basins were merged away to break
+    spill cycles.
+
+    The saddle is the edge that attains the minimum, so it costs nothing beyond
+    keeping the argument of the reduction rather than only its value. Without
+    it a basin that fills to its spill has a known outflow and nowhere to put
+    it, and the overflow cannot be routed onto the mesh at all.
     """
     off, adj = export.adjacency
     n = export.n_regions
@@ -137,7 +152,8 @@ def spill_levels(export: Export, drainage: Drainage, n_basins: int) -> np.ndarra
     foreign = term[dst] != term[src]
     sel = inside & foreign
     if not sel.any():
-        return np.full(n_basins, np.inf), np.full(n_basins, TERMINAL_OCEAN, np.int32), 0
+        return (np.full(n_basins, np.inf), np.full(n_basins, TERMINAL_OCEAN, np.int32),
+                np.full(n_basins, -1, np.int32), np.full(n_basins, -1, np.int32), 0)
 
     a, b = filled[src[sel]], filled[dst[sel]]
     edge = np.where(np.isfinite(b) & (b > a), b, a)
@@ -148,13 +164,19 @@ def spill_levels(export: Export, drainage: Drainage, n_basins: int) -> np.ndarra
     # than only the single lowest exit is what makes the next step possible.
     key = owner.astype(np.int64) * (n_basins + 1) + (partner.astype(np.int64) + 1)
     uniq, inv = np.unique(key, return_inverse=True)
-    pair_level = np.full(uniq.size, np.inf)
-    np.minimum.at(pair_level, inv, edge)
+    # Take the argument of the minimum, not just its value: sorting by
+    # (group, level) puts each group's lowest exit first, which is the saddle.
+    lowest = np.lexsort((edge, inv))
+    firsts = lowest[np.searchsorted(inv[lowest], np.arange(uniq.size))]
+    pair_level = edge[firsts]
+    pair_src = src[sel][firsts].astype(np.int32)
+    pair_dst = dst[sel][firsts].astype(np.int32)
     pair_owner = (uniq // (n_basins + 1)).astype(np.int32)
     pair_target = (uniq % (n_basins + 1)).astype(np.int32) - 1
 
     order = np.lexsort((pair_level, pair_owner))
     pair_owner, pair_target, pair_level = pair_owner[order], pair_target[order], pair_level[order]
+    pair_src, pair_dst = pair_src[order], pair_dst[order]
     first = np.searchsorted(pair_owner, np.arange(n_basins + 1))
 
     # Basins that meet at a shared saddle each name the other as their outlet,
@@ -170,22 +192,24 @@ def spill_levels(export: Export, drainage: Drainage, n_basins: int) -> np.ndarra
     excluded: dict[int, set[int]] = {}
     fixed = np.zeros(n_basins, dtype=bool)
 
-    def pick(b_i: int) -> tuple[float, int]:
+    def pick(b_i: int) -> tuple[float, int, int]:
         skip = excluded.get(b_i, ())
         for k in range(first[b_i], first[b_i + 1]):
             if pair_target[k] not in skip:
-                return float(pair_level[k]), int(pair_target[k])
+                return float(pair_level[k]), int(pair_target[k]), k
         # Every neighbour was in the cycle we just collapsed. Keep the saddle
         # height, which is real, and send the overflow to the ocean rather than
-        # leaving an infinite spill that would poison the hypsometry.
+        # leaving an infinite spill that would poison the hypsometry. The saddle
+        # itself is still the lowest one, even though the target now says ocean.
         if first[b_i] < first[b_i + 1]:
-            return float(pair_level[first[b_i]]), TERMINAL_OCEAN
-        return np.inf, TERMINAL_OCEAN
+            return float(pair_level[first[b_i]]), TERMINAL_OCEAN, int(first[b_i])
+        return np.inf, TERMINAL_OCEAN, -1
 
     out = np.full(n_basins, np.inf)
     target = np.full(n_basins, TERMINAL_OCEAN, dtype=np.int32)
+    chosen = np.full(n_basins, -1, dtype=np.int64)
     for b_i in range(n_basins):
-        out[b_i], target[b_i] = pick(b_i)
+        out[b_i], target[b_i], chosen[b_i] = pick(b_i)
 
     merged = 0
     for _ in range(n_basins):
@@ -213,8 +237,10 @@ def spill_levels(export: Export, drainage: Drainage, n_basins: int) -> np.ndarra
                     fixed[m] = True
                     merged += 1
             excluded.setdefault(primary, set()).update(cyc)
-            out[primary], target[primary] = pick(primary)
+            out[primary], target[primary], chosen[primary] = pick(primary)
     else:
         raise RuntimeError("spill graph cycle breaking did not terminate")
 
-    return out, target, merged
+    spill_region = np.where(chosen >= 0, pair_src[np.maximum(chosen, 0)], -1).astype(np.int32)
+    spill_exit = np.where(chosen >= 0, pair_dst[np.maximum(chosen, 0)], -1).astype(np.int32)
+    return out, target, spill_region, spill_exit, merged

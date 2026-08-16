@@ -231,25 +231,37 @@ current geography anyway.
 `hydrography/` resolves drainage over the native mesh and builds everything a
 water balance needs short of the climate itself. See `hydrography/README.md`.
 
-76% of the land drains to a closed basin against roughly 13% on Earth, but
-**treat that as the hyper-arid limit rather than a fact about the world**. It
-assumes no basin ever overflows, and a basin that overflows persistently incises
-its outlet and stops being a basin. The endorheic share runs from 9% in a humid
-climate to 76% in a hyper-arid one; `hydrography/README.md` has the curve. The
-decision variable, `critical_aridity_index`, is pure geometry and lives in
-`basins.nc`.
+55% of the land drains to a closed basin against roughly 13% on Earth, but
+**treat that as an upper bound rather than a fact about the world**. It assumes
+no basin ever overflows, and a basin that overflows persistently incises its
+outlet and stops being a basin. The decision variable,
+`critical_aridity_index`, is pure geometry and lives in `basins.nc`. The figure
+was 76% before the iteration-1 carve took the basin count from 3,629 to 2,107.
 
-The open gap: the terrain was exported with drainage-enforcement carving
-disabled, so rims survive that the water balance says are overtopped. Carving
-belongs upstream in Orogen, which has the erodibility field, and the generator
-has no per-basin hook for it yet: `--preserve-basin` only adds, `--no-basins`
-is global, and the two retain about 80% and 3% of spill depth respectively.
+`surface_water.py` solves lakes and rivers against the baseline climatology.
+Lake evaporation is Penman, shared with the carve verdict so that the water and
+the terrain are judged by one rule, and runoff is P-E rather than the model's
+`mrro`, which accounts for only 15% of the land's water surplus.
+
+**The coupling matrix was being read 180 degrees out in longitude**, because it
+numbers its columns on the Orogen grid (-180 to 180) and a climatology numbers
+its own 0 to 360. Every basin read its antipode. Fixed, and the convention is
+now explicit in `coupling_*.nc`. `carve_verdict.py` shared the bug, so the
+iteration-1 verdict behind `carved-zoned` was decided on climate from the wrong
+side of the planet and needs regenerating before anything is built on it.
+
+The open gap is the terrain, not the tooling: 770 basins still fill to their
+spill under this climate, holding 26% of the land, which is the water balance
+saying their outlets should have been cut. Carving belongs upstream in Orogen,
+and the generator does expose the hook -- `--preserve-basins FILE` takes a
+retain fraction per basin, 0 carves -- so iteration 2 is a run rather than a
+generator change. Iteration 1 used exactly that path for 1,522 basins.
 
 Two things about the export that any consumer needs to know. `drain_to` is raw
 steepest descent, and `drainage_terminal` is -2 for 63% of the land, which
 drains into 220,649 unpreserved noise pits; integrating precipitation without
 resolving that discards most of the land's water. And the catalogue's
-`hypsometry` is on the natural terrain, so it overstates capacity by about 1.5x.
+`hypsometry` is on the natural terrain, so the finished terrain holds 61% of it.
 `build_hydrography.py` handles both. Use `data/basins.nc`, not the catalogue.
 
 ## Where the climate work stands

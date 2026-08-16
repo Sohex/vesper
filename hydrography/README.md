@@ -5,8 +5,9 @@ it collects in, and how much each can hold. Everything here except the lake
 solver's forcing is climate-independent and can be built before ExoPlaSim runs.
 
 ```bash
-python hydrography/scripts/build_hydrography.py   # ~7 s
+python hydrography/scripts/build_hydrography.py   # ~13 s, climate-independent
 python hydrography/scripts/lake_balance.py        # solver smoke test and sweep
+python hydrography/scripts/surface_water.py       # ~3 s, needs a climatology
 ```
 
 ## Why this component exists
@@ -26,19 +27,19 @@ of the land's water.
 ## What it does
 
 **Resolves drainage** with a priority flood over the 2.5M-region mesh, filling
-the noise pits while keeping the 3,629 preserved basins as genuine terminals.
+the noise pits while keeping the 2,107 surviving basins as genuine terminals.
 Every land region ends up assigned to the world ocean or to exactly one basin.
-99,085 regions get filled, by a median of 8.5 m, which is the scale that
+114,996 regions get filled, by a median of 7.6 m, which is the scale that
 confirms these were noise rather than landforms.
 
 **Recomputes hypsometry on the finished terrain.** The catalogue's
 `hypsometry` is measured on the natural, pre-conditioning surface and overstates
-what the basins can hold: total capacity there is about 1.5x what the finished
-terrain actually holds. Level, area and volume curves are rebuilt from the flood
+what the basins can hold: the finished terrain holds 61% of the catalogue's
+figure. Level, area and volume curves are rebuilt from the flood
 and are exact at their sample points, verified against brute force to 4e-15
 relative on volume and exactly on area.
 
-**Finds spill levels and targets** on the finished terrain. 2,597 basins overflow
+**Finds spill levels and targets** on the finished terrain. 1,437 basins overflow
 into another basin rather than to the ocean, so filling has to be solved as a
 cascade rather than basin by basin.
 
@@ -54,7 +55,9 @@ Built for T42 and T85.
 | `data/basins.nc` | per basin: hypsometric curves, spill level and target, catchment area, capacity |
 | `data/coupling_<grid>.nc` | sparse basin-by-grid-cell catchment areas |
 | `data/hydrography_report.json` | diagnostics, river mouths, marginal seas, provenance |
+| `data/surface_water.nc` | per region: lake, lake depth, river discharge; per basin: solved area, level, volume, overflow |
 | `analysis/lake_balance_sweep.json` | solver sensitivity under placeholder forcing |
+| `analysis/surface_water_report.json` | the solved water balance and its forcing |
 
 ## The lake solver
 
@@ -69,14 +72,143 @@ and the system iterates to a fixed point.
 Running it directly sweeps uniform placeholder forcing, which exercises the
 solver and shows the sensitivity. Under 10 to 200 mm/yr of runoff against 400 to
 1600 mm/yr of lake evaporation, lake area lands between 0.21% and 8.7% of the
-planet. That range is a property of the terrain, not a prediction. The real
-answer needs ExoPlaSim runoff and evaporation integrated through `coupling_*.nc`.
+planet. That range is a property of the terrain, not a prediction.
+
+## Surface water under a real climate
+
+`surface_water.py` supplies the forcing the solver was waiting for, from the
+`climatology_s096` baseline, and accumulates the same water down the drainage
+network to get rivers. This is the first thing in the project to decide
+`surface_class == 2`, which World Orogen deliberately leaves empty.
+
+| | |
+| --- | ---: |
+| basins holding water | 1,242 of 2,107 |
+| basins filled to their spill | 732 |
+| lake area | 22.8 million km2, 3.09% of the planet |
+| largest river | 170,300 m3/s |
+| land above 1,000 m3/s | 15,716 regions |
+
+Against Earth, which is the only calibration available: 2.1x the land area at
+0.72x the runoff depth, so 1.5x the total river discharge, and a largest river
+0.81x the Amazon. Lakes take 7.2% of the land against Earth's 1.8%, a ratio of
+4.0, next to an endorheic share of 55% against Earth's 13%, a ratio of 4.2.
+Those last two are computed by different routes and agreeing is a check rather
+than a coincidence.
+
+Two choices in the forcing are worth stating, because neither is the obvious
+field:
+
+**Runoff is P-E, not `mrro`.** At steady state they are the same quantity:
+whatever falls on land and does not evaporate has to leave. The baseline run's
+global water budget closes to 0.03% of the mean and the land's surplus matches
+the sea's deficit to three decimals, so the budget is trustworthy. Its `mrro`
+diagnostic accounts for only 15% of that surplus, 0.069 against 0.469 mm/day
+over land, so the diagnostic is the unreliable one and P-E is what a water
+balance can be built on. Both are recorded in the report.
+
+**Lake evaporation is Penman, shared with the carve verdict.** Over land the
+model's `evap` is actual evapotranspiration, throttled by soil moisture, which
+is the wrong quantity for open water: using it would make every lake as dry as
+the desert it sits in. `carve_verdict.penman_open_water` answers the right
+question instead, and using the same function here means the lakes and the
+terrain they sit in are judged by one rule.
+
+It is also the estimate that can be checked. Applied to ocean cells, which
+already are open water:
+
+| mm/day, area-weighted over ocean | | ratio to the model |
+| --- | ---: | ---: |
+| the model's own evaporation | 3.672 | |
+| Penman | 3.763 | 1.025 |
+| Priestley-Taylor at alpha 1.26 | 3.957 | 1.078 |
+
+(Recomputed here with cos-latitude weights; `carve_verdict.py` quotes 1.017 for
+Penman from its own weighting, so the two agree to under a percent.)
+
+A Priestley-Taylor estimate stood here first and was reported as 3.13 mm/day
+"just below" the model, which was wrong twice over: the figure was an unweighted
+cell mean compared against an area-weighted one, and correcting that puts PT
+7.8% *above* the model rather than below it. Penman is three times closer on the
+only ground truth available, and it was already written. Switching moved basins at spill from 683 to 770, so the direction of that error
+was the opposite of what the first reading suggested. (Both figures predate the
+longitude fix below and are quoted only to compare the two estimates.)
+
+Penman is floored at the model's land rate, the same floor the verdict uses: it
+linearises around air temperature and can otherwise fall below the model's own
+evaporation where the ground runs hotter, which is impossible for a saturated
+surface under the same forcing. One caveat stands: the ocean validation is where
+air is near-saturated and wind is well resolved, which is the opposite of an
+inland arid basin, so 2.5% is an upper bound on its accuracy in the places that
+decide the verdict.
+
+### The coupling matrix was being read 180 degrees out
+
+Worth stating plainly because it invalidated a result that had already been
+applied. `basin_means` indexed a climatology field with the coupling matrix's
+own cell numbering, and the two number their columns differently: the coupling
+inherits the Orogen grid, which runs -180 to 180, while an ExoPlaSim
+climatology runs 0 to 360. Every basin was therefore reading the runoff and
+evaporation of its antipode. Nothing about it was visible from the outside: the
+array shapes match, latitude is unaffected, and the resulting fields are
+plausible everywhere.
+
+It was caught by asking the coupling to average a field of known longitude and
+comparing the answer to where the basins actually are. 99.2% of basins came back
+within 20 degrees of the antipode; the same test on latitude was correct. That
+test is cheap and should be rerun whenever either grid changes.
+
+The fix makes the convention explicit rather than assumed. `coupling_*.nc` now
+carries the `cell_lat` and `cell_lon` it was built on, `basin_means` takes the
+longitude axis of the fields it is given and remaps columns before indexing
+anything, and it refuses to run against a coupling file too old to state its own
+convention.
+
+**This reaches further than the lakes.** `carve_verdict.py` shares
+`basin_means`, so the iteration-1 verdict, the 1,522 basins carved to produce
+`carved-zoned`, was decided on climate read from the wrong side of the planet.
+The carve pattern in the current terrain does not correspond to the climate that
+was supposed to justify it. Regenerating that verdict is no longer optional
+tidying before iteration 2; it is a correction.
+
+Lakes are painted by filling each basin to its solved *area*, in ascending order
+of the flooded surface, rather than by thresholding on the solved level. A mesh
+region is 230 km2, so thresholding gives every basin with a smaller lake a 15 km
+blob, and a wet landscape of many small basins comes out speckled with lakes
+that are mostly rounding error. Filling by area reproduces the solved total to
+0.4% and simply does not draw a lake too small to reach a whole region.
+
+Rivers come from the priority flood's own discovery pointer, now kept as
+`receiver` in `regions.nc`. Steepest descent on the filled surface would not do:
+a filled depression is flat and has no downhill neighbour, so whole tributaries
+would be dropped. Accumulation peels leaves off that tree rather than sorting on
+elevation, for the same reason.
+
+**Overflow is routed onto the mesh**, which needs the saddle and not just its
+height. `spill_levels` was taking the minimum over a basin's exit edges and
+keeping only the value; it now keeps the argument too, so `basins.nc` carries
+`spill_region` and `spill_exit_region` either side of the saddle. Without them a
+basin pinned at its spill had a known outflow and nowhere to start it, and the
+largest flows on the planet were missing from the network: routing the 770
+overflowing basins took the biggest river from 63,800 to **170,300 m3/s**.
+
+There is no double counting, because the solver has already resolved the
+cascade: a basin's overflow is its final equilibrium value with everything
+upstream included, and the paths are disjoint segments, one basin's saddle to
+the next one's sink.
 
 ## Headline finding, and its limit
 
-76% of the land drains to a closed basin rather than to the sea, against roughly
+55% of the land drains to a closed basin rather than to the sea, against roughly
 13% on Earth. That follows from the fork preserving closed basins instead of
 carving drainage to them.
+
+This was 76% before the iteration-1 carve. These products were stale: they had
+been built on `precarve-unzoned` while `config/planet.yaml` had moved on to
+`carved-zoned`, and rebuilding them on the active terrain is what moved the
+figure. Carving 1,522 basins took the count from 3,629 to 2,107 and the
+endorheic share from 76% to 55%, which is the verdict doing exactly what it was
+supposed to do.
 
 **That figure is the hyper-arid limit, not a property of the world.** It assumes
 no basin ever overflows. A basin that overflows year on year incises its outlet,
@@ -95,41 +227,72 @@ climate keeps overflowing:
 | 10 (arid) | 237 | 72.3% |
 | 50 (hyper-arid) | 9 | 76.0% |
 
+**That table is from the pre-carve build and has not been regenerated.** It
+still describes the shape of the dependence, which is the point it is making,
+but its counts are the 3,629-basin set. Regenerating it means running
+`carve_verdict.py` against the carved terrain, and that is an iteration-2 carve
+decision rather than a documentation chore, so it is left for whoever takes that
+decision.
+
 The decision variable is climate-free per basin and is stored as
 `critical_aridity_index` in `basins.nc`. A basin overflows exactly when
 
     (E - P) / runoff  <=  catchment / area_at_spill - 1
 
 so the index is pure geometry and the climate supplies one number per basin.
-Median here is 2.92, meaning the typical basin overflows unless evaporative
-demand over open water exceeds about three times the runoff depth. Earth's
+Median here is 3.03 on the carved terrain, meaning the typical basin overflows
+unless evaporative demand over open water exceeds about three times the runoff
+depth. Earth's
 surviving endorheic basins sit well above that, which is why Earth keeps only
 13%. `carve_verdict()` in `lake_balance.py` applies it.
 
 ## What this component cannot fix
 
-**The terrain has not been carved and we cannot carve it here.** Hydraulic,
-thermal and glacial erosion all acted on this surface, but drainage-enforcement
-carving was disabled globally so that basins would survive to export. The result
-is a landscape whose rims were never cut by the outflow that the water balance
-says crosses them. For the basins that overflow, the terrain is not in
-equilibrium with any climate.
+**We cannot carve the terrain here.** Fixing a rim means changing elevation,
+which belongs upstream in World Orogen: incision depends on the `erodibility`
+field, and a second copy of the terrain in this component would desynchronise
+ExoPlaSim's orography from the maps and from everything else reading `source/`.
 
-Fixing that means changing elevation, which belongs upstream in World Orogen,
-not here: incision depends on the `erodibility` field, and a second copy of the
-terrain in this component would desynchronise ExoPlaSim's orography from the
-maps and from everything else reading `source/`.
+What this component can do is decide *which* basins should carve, which is what
+`carve_verdict.py` and `export_carve_list.py` are for. The generator takes it:
+`--preserve-basins FILE` accepts a retain fraction per basin, where 1 keeps the
+rim, 0 carves it and anything between cuts a notch and tapers it over the divide
+band. `--carve-basins FILE` is subtractive. Both are documented in the fork's
+`tools/README.md`.
 
-The generator does not currently expose the hook. `--preserve-basin ID` adds a
-basin to the preserved set and `--no-basins` disables preservation globally, but
-there is no way to say "carve these specific basins". Preservation retains about
-80% of natural spill depth and carving retains about 3%, so the two settings are
-all-or-nothing where what the water balance produces is a per-basin verdict.
-Closing the loop needs something like `--carve-basin ID` or `--preserve-only`.
+**An earlier version of this section said that hook did not exist, and that was
+wrong.** It described the state before iteration 1, which used exactly this
+interface: `carve_list.json` names 1,522 basins at retain 0, and the current
+build's manifest records `carvedByRetainZero: 1522`. Iteration 2 is a run, not a
+generator change.
+
+The terrain still is not in equilibrium: 770 basins fill to their spill under
+this climate, which is the water balance saying their outlets should have been
+cut. Those 770 hold 26% of the land and 87% of the lake area on the map, so what
+is drawn is largely a landscape that has not relaxed yet. That is the case for
+iteration 2, and the numbers for it are already in `surface_water.nc`.
 
 ## Known approximations
 
-- **Merged basins.** 323 basins were collapsed into a neighbour to break spill
+- **A few overflow paths disagree with the cascade.** Most overflowing basins
+  have a saddle opening into exactly the basin the solver routes them to. A
+  handful are cycle-collapsed: their target was reassigned to the cycle's
+  primary while their saddle still leads where it physically leads, so the
+  routed river and the solver's bookkeeping name different destinations.
+- **The two grids are offset half a cell in longitude.** Orogen's exported grid
+  centres its columns at -180 + (k + 0.5) dlon; an ExoPlaSim climatology centres
+  its own at k dlon. Remapping by nearest column leaves up to 1.4 degrees of
+  slip, about 185 km at the equator. Whether the boundary conditions handed to
+  ExoPlaSim carry the same offset is an `exoplasim/` question and has not been
+  checked here.
+- **Catchment forcing is binned, not integrated.** A basin's runoff is a
+  catchment-area-weighted mean over whole grid cells, so a catchment that
+  straddles a cell gets that cell's value entire. Comparing a basin's solved
+  overflow against the discharge the mesh delivers to its sink, the ratio has a
+  median of 0.99, exactly as it should for a lake passing on everything but its
+  own evaporation, and a ninetieth percentile of 1.13. That spread is this
+  binning.
+- **Merged basins.** 205 basins were collapsed into a neighbour to break spill
   cycles, which arise where basins share a saddle and each names the other as
   its outlet. Physically they merge into one lake at that level. The survivor's
   hypsometry still describes only its own depression, so a merged group filled

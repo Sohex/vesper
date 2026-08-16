@@ -124,14 +124,34 @@ def annual_mean(ds: Dataset, name: str) -> np.ndarray:
     return np.asarray(ds[name][:]).mean(axis=0)
 
 
-def basin_means(coupling: Path, fields: dict[str, np.ndarray], n_basins: int):
-    """Catchment-area-weighted mean of each field, per basin."""
+def basin_means(coupling: Path, fields: dict[str, np.ndarray], n_basins: int,
+                field_lon: np.ndarray | None = None):
+    """Catchment-area-weighted mean of each field, per basin.
+
+    The coupling matrix numbers its columns on the Orogen grid, which runs -180
+    to 180, and an ExoPlaSim climatology numbers its own on 0 to 360. Indexing
+    one with the other is off by half a planet, and silently so: the array
+    shapes match, latitude is unaffected, and every basin simply reads its
+    antipode. `field_lon` is the longitude axis the fields are on, and the
+    columns are remapped onto the coupling's before anything is indexed.
+    """
     with Dataset(coupling) as ds:
         basin = np.asarray(ds["basin"][:]).astype(np.int64)
         cell = np.asarray(ds["cell"][:]).astype(np.int64)
         area = np.asarray(ds["area_km2"][:])
         nlon = int(ds.n_lon)
+        coupling_lon = (np.asarray(ds["cell_lon"][:])
+                        if "cell_lon" in ds.variables else None)
     row, col = np.divmod(cell, nlon)
+    if field_lon is not None:
+        if coupling_lon is None:
+            raise RuntimeError(
+                "this coupling file predates cell_lon and its longitude "
+                "convention cannot be checked; rebuild it with "
+                "build_hydrography.py")
+        wrap = lambda a: (np.asarray(a) + 180.0) % 360.0 - 180.0
+        remap = np.abs(wrap(field_lon)[None, :] - wrap(coupling_lon)[:, None]).argmin(axis=1)
+        col = remap[col]
     weight = np.zeros(n_basins)
     np.add.at(weight, basin, area)
     out = {}
@@ -197,7 +217,9 @@ def main() -> None:
 
     fields = {"pr": pr, "evap": evap, "potential": potential,
               "penman": penman, "mrro": mrro, "lsm": lsm}
-    means, catch_area = basin_means(args.coupling, fields, n)
+    with Dataset(args.climatology) as ds:
+        field_lon = np.asarray(ds["lon"][:])
+    means, catch_area = basin_means(args.coupling, fields, n, field_lon=field_lon)
 
     # Units cancel in the aridity index, but keep them physical for the solver.
     # Orbital period varies with flux, so take it from the config rather than

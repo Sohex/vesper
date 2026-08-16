@@ -32,3 +32,9 @@ exoplasim/analysis/**/*_snapshot_climatology.nc
 # hydrography/scripts/build_hydrography.py. The basin table, the coupling
 # matrices and the report are small and are tracked.
 hydrography/data/regions.nc
+
+# Per-region lakes and rivers, 4.6 MB and rebuilt in seconds by
+# hydrography/scripts/surface_water.py once a climatology exists. Same reason
+# as regions.nc; the aggregate result is tracked in
+# hydrography/analysis/surface_water_report.json.
+hydrography/data/surface_water.nc
