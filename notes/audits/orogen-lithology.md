@@ -174,6 +174,40 @@ ambiguous: defensible if it means unconsolidated ooze, badly wrong if it means
 lithified pelagic section, since ribbon chert is among the most resistant rocks
 in a melange. The intended meaning needs pinning down.
 
+## Measured: what correcting erodibility would actually cost
+
+Four builds at full 2.5M resolution, 2026-08-16, about a minute each. `A_control`
+reproduces the production build exactly -- land fraction 0.4317, mean 0.4070 km, max 4.5933 km, 3629 basins, evaporite 2.847%, carbonate 5.557% -- which validates the comparison.
+
+| variant | mask cells differing | mean land dz | land >100 m | basins | finalPreserved spillDepth median | volume median |
+| --- | --- | --- | --- | --- | --- | --- |
+| B, spread narrowed to 4x via `--lithology-strength 0.682` | 0 of 2,500,001 | -12.6 m | 3.49% | 3629 | 6.3% | 12.4% |
+| C, carbonate 1.30->0.45 and schist 1.10->0.45 | 0 of 2,500,001 | +15.6 m | 6.52% | 3629 | 10.1% | 14.9% |
+| D, both together | 0 of 2,500,001 | -3.0 m | 3.88% | 3629 | 5.7% | 8.1% |
+
+Three things fall out, and they separate cleanly.
+
+**The land/sea mask is bit-identical in every variant.** Not close -- zero cells
+of 2,500,001 differ. Erodibility redistributes erosion above sea level and does
+not move the coastline, so ExoPlaSim surface code 172 would be unchanged.
+
+**Basin identity is fully preserved**: 3629 basins, 100% shared ids, and the
+natural catalogue's `depthKm` is unchanged to under 0.05 m because it describes
+the pre-conditioning basin. So an existing carve verdict remaps rather than
+restarting, exactly as it does across a gravity change.
+
+**But the finished basin geometry moves, and that is what the verdict tests.**
+`finalPreserved.volumeKm3` shifts by 8.1% in the median for the combined
+correction, `spillDepthKm` by 5.7%, and more than 3,000 of 3,624 basins move by
+over 1%. The carve verdict is a capacity-against-water-balance test, so
+hydrography and the verdict must be recomputed. The climate need not be: a 3.0 m
+mean orography change is worth about 0.02 K by lapse rate.
+
+**The corrections partially cancel, which is why the fully corrected build is the
+closest to the current one rather than the furthest.** Raising carbonate and
+schist resistance lifts mean elevation; narrowing the spread lowers it. Doing
+only one of the two moves the terrain about five times further than doing both.
+
 ## Density: one value to change
 
 Every Orogen density checks against Daly, Manger and Clark (1966) tables 4-1 and

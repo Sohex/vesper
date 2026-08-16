@@ -32,15 +32,15 @@ Status: `open` | `doing` | `blocked` | `done` | `wontfix` (with a reason).
 | LITH-14 | Split the basalts: a shared 0.10 is the weathered state, fresh lava and tephra are below 0.05 | `notes/audits/orogen-lithology.md` | open |
 | LITH-15 | `playa_clastic` 0.30 sits at the bright end of Post's 52 measured soils (mean 0.189, max 0.402); damp playa is 0.10-0.20 | `notes/audits/orogen-lithology.md` | open |
 | LITH-3 | Ground the 60 uncited rock-class constants | `notes/audits/orogen-lithology.md` | doing -- erodibility and density grounded against 10 sources; albedo outstanding |
-| LITH-7 | Decide whether to narrow the erodibility spread: Orogen runs 14x, Moosdorf's global index 3.2x and Zondervan's expressed contrast ~4x. Changing it regenerates terrain | `notes/audits/orogen-lithology.md` | open |
+| LITH-7 | Narrow the erodibility spread to ~4x via `--lithology-strength 0.682`. MEASURED: combined with LITH-8/9 the mask is bit-identical, basins keep their ids, mean orography moves -3.0 m, but finished basin volume moves 8.1% median so hydrography and the carve verdict must be recomputed | `notes/audits/orogen-lithology.md` | open |
 | LITH-8 | `carbonate` erodibility 1.30 should be ~0.40-0.50: Moosdorf puts carbonate in the LOW group with granite, Bursztyn's limestones are at or above granite in tensile strength | `notes/audits/orogen-lithology.md` | open |
 | LITH-9 | `schist` erodibility 1.10 should be ~0.40-0.55; Bursztyn's Vishnu schist is stronger than Zoroaster granite in tension | `notes/audits/orogen-lithology.md` | open |
 | LITH-10 | Pin down what `pelagic` means: erodibility 3.00 is right for unconsolidated ooze, badly wrong for lithified pelagic section | `notes/audits/orogen-lithology.md` | open |
 | LITH-11 | `evaporite` density 2.2 -> 2.1 per Frumkin; every other density checks out against Daly 1966 | `notes/audits/orogen-lithology.md` | open |
 | LITH-5 | Explain or correct the composition divergence from GLiM: metamorphic 2.1x Earth, evaporite ~10x, volcanic 0.5x | `notes/audits/orogen-lithology.md` | open |
 | LITH-6 | Decide whether `surface_rock` should be renamed; it carries consolidated lithology, and GLiM's largest land class (unconsolidated, 24.6%) has no counterpart | `notes/audits/orogen-lithology.md` | open |
+| GRAV-5 | Bracket the slope exponent | `notes/audits/orogen-gravity.md` | done -- needs NO build: gravity is a post-hoc scalar, so n=2 is the existing export rescaled by 1.1427. Land mean 0.407 -> 0.465 km, peak 4.593 -> 5.249 km, land fraction and basin identity unchanged by construction. Worth ~0.4 K by lapse rate |
 | GRAV-4 | State `n = 1` explicitly at the erosion call site; the whole gravity correctness argument rests on it and nothing says so | `notes/audits/orogen-gravity.md` | open |
-| GRAV-5 | Bracket the slope-exponent uncertainty: generate one build at `g^(-1/2)` instead of `g^(-1)` and compare basin statistics. One pass, and it settles the only live question | `notes/audits/orogen-gravity.md` | open |
 | GRAV-6 | Glacial erosion carries no gravity term, and Glen's law makes ice velocity go as `g^3` (2.23x here). Needs the glacial model rebuilt, not a factor bolted on; justify on its own merits | `notes/audits/orogen-gravity.md` | open |
 | SURF-1 | Implement the derived-surface classifier against the two-axis design | `pedology/notes/derived-surface-classes.md` | blocked on 0.945 climatology |
 | SURF-2 | Re-run `brine_paths.py` weighted by discharge rather than catchment area | `pedology/notes/derived-surface-classes.md` | blocked on 0.945 climatology |
