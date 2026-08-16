@@ -192,20 +192,40 @@ def weather_texture(fractions: dict[str, np.ndarray], intensity: np.ndarray,
 def regolith_depth(intensity: np.ndarray, relief_m: np.ndarray,
                    runoff_mm_yr: np.ndarray, erodibility: np.ndarray,
                    params: dict, weathering_ref: float) -> np.ndarray:
-    """Steady-state regolith thickness from production against erosion.
+    """Steady-state regolith thickness, production against erosion, bounded.
 
-    Heimsath's exponential soil production function balanced against an erosion
-    rate proportional to erodibility, local relief and runoff. Where erosion
-    outruns production the depth floors: that is bare rock.
+    Heimsath's exponential soil production function gives a steady state of
+    `h = h_star * ln(P0 / E)`, and that is what this used to compute. It has a
+    fatal property for a whole planet: it diverges as erosion approaches zero and
+    goes to minus infinity as erosion grows, so both ends had to be clipped, and
+    a quarter of this world's land sat on each clip. That is not a bimodal
+    planet, it is a model railing.
+
+    The reason is dynamic range. Filling 0 to 5 m through a logarithm with
+    `h_star` at Heimsath's 0.5 m needs production over erosion to span e^10,
+    about 22,000. Nothing in these inputs spans that, so almost every cell lands
+    outside and gets clipped.
+
+    Replaced by a saturating form:
+
+        depth = maximum_depth * P / (P + erosion_weight * E)
+
+    Bounded at both ends by construction and monotone in the right directions.
+    As erosion vanishes the profile approaches `maximum_depth`, which is the
+    physical statement that a weathering front cannot advance forever because
+    water and oxygen have to reach it through what has already accumulated. As
+    erosion grows the profile thins smoothly to bare rock.
+
+    This is a parameterisation and not a derivation, unlike the Heimsath form it
+    replaces, and that is the trade: an honest curve that spans the range against
+    a principled one that cannot be evaluated over it.
     """
     erosion = (erodibility
                * np.maximum(relief_m, 0.0) / params["erosion_reference_relief_m"]
                * np.maximum(runoff_mm_yr, 0.0) / weathering_ref)
-    production = intensity
-    with np.errstate(divide="ignore", invalid="ignore"):
-        depth = params["e_folding_depth_m"] * np.log(
-            np.where(erosion > 1e-9, production / erosion, np.inf))
-    depth = np.where(np.isfinite(depth), depth, params["maximum_depth_m"])
+    production = np.maximum(intensity, 1e-9)
+    depth = (params["maximum_depth_m"] * production
+             / (production + params["erosion_weight"] * erosion))
     return np.clip(depth, params["minimum_depth_m"], params["maximum_depth_m"])
 
 

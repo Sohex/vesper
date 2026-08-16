@@ -113,10 +113,21 @@ of the planet, all of it dry closed-basin floor below sea level, and `land_mask`
 would flood it.
 
 Six surface fields are supplied. Topography (129), land mask (172), broadband and
-two-band albedo (174, 175, 176) and forest fraction (212). Everything else falls
-back to a uniform namelist default, which is declared rather than accidental:
-Earth's roughness and vegetation maps are tied to Earth's continents and would be
+two-band albedo (174, 175, 176) and forest fraction (212), with soil water
+capacity (229) when `model.soil_water_source` is set. Everything else falls back
+to a uniform namelist default, which is declared rather than accidental: Earth's
+roughness and vegetation maps are tied to Earth's continents and would be
 meaningless here.
+
+Lakes enter through those same fields rather than through the mask. The solved
+lake extent is applied per mesh region and then integrated, so each cell receives
+an area-weighted composite -- almost every lake on this planet is far below the
+grid. It is worth -0.0139 on land-mean albedo, since the cells carrying water are
+the bright playa and salt crust. Roughness (173) is deliberately *not* supplied:
+water's roughness without a water column's heat capacity would cut turbulent
+exchange 10x and leave the cell decoupled and hot. And no setting of 229 can
+sustain a lake, because routed river water never re-enters the evaporating
+bucket. See `notes/lake-representation.md`.
 
 ### 3.3 Climate
 

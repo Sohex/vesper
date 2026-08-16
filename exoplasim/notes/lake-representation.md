@@ -154,3 +154,72 @@ changing only three input fields.
 Revisit mask flipping and per-cell `ymld` afterwards, for the few dozen basins
 that a cell can actually hold, and only if the first pass shows the lakes are
 large enough to matter.
+
+---
+
+## Revisions after wiring the levers up
+
+The recommendation above named three fields: albedo in 174/175/176, roughness in
+173, and `dwmax` in 229. Albedo is done and behaves as described. The other two
+need correcting, both in the direction of claiming less.
+
+### `dwmax`: the wetness argument has the sign backwards
+
+Lever 2 says a large full bucket evaporates at open water's rate, so set `dwmax`
+from basin hypsometry. The first half is right and the prescription that follows
+from it is not.
+
+`drhs` reaches 1 once soil water exceeds **40% of `dwmax`** (`landmod.f90:52-53`).
+That threshold scales with the bucket, so a *deeper* bucket needs proportionally
+more water to reach the same wetness. Large is right for storage and wrong for
+wetness, and on this planet the two do not point the same way: the lakes sit in
+the arid cells, which are precisely where the water to fill a large bucket does
+not exist. `build_surface_soil_water.py --lakes` therefore sets a **shallower**
+bucket on the lake fraction, defaulting to 0.2 m against the 0.5 m land default.
+
+### `dwmax` cannot sustain a lake at all, and this is the harder limit
+
+A lake here is fed by its catchment. That water never reaches the evaporating
+bucket:
+
+- `dwatc` gains only from local precipitation minus evaporation
+  (`landmod.f90:1097`).
+- Routed river water accumulates into `driver` (`landmod.f90:1390`), a separate
+  store that is advected downhill by `mkradv` and discharged at the coast.
+- Nothing returns `driver` to `dwatc`.
+
+So a cell's annual evaporation is capped by its own precipitation plus storage,
+however `dwmax` is set. Lake evaporation stays underestimated and no setting of
+this field fixes it. What the lever buys is the **seasonal partition**: a lake
+cell that holds potential-rate evaporation while it has water, instead of going
+moisture-limited on the first dry day. That is worth having and is not what the
+section above promised.
+
+This matters less than it sounds for the carve verdict, which computes lake
+evaporation externally with Penman rather than reading it from the model. It
+matters for the climate, as a latent-versus-sensible partition error over the
+3.09% of the planet the lakes cover.
+
+### Roughness: do not supply 173 for lakes
+
+Assessed and rejected, rather than left undone. `dz0land` is 2.0 m and open water
+is about 1.5e-4 m. At this planet's lowest-level reference height of 141.6 m that
+is an exchange coefficient of 0.00882 against 0.00085: supplying water roughness
+would cut turbulent exchange on those cells by **10.4x**.
+
+Real lakes tolerate that because evaporation and a water column's heat capacity
+hold the surface cool. We have neither. A cell given water's roughness, land's
+heat capacity and a moisture supply capped by local rainfall would decouple from
+the atmosphere and run hot, which is a larger and less physical error than the
+one it replaces. Revisit only alongside a mask flip, where the water column
+arrives with it.
+
+### Separately: `dz0land = 2.0` m deserves its own look
+
+Not a lake question, but found while measuring one. The uniform land default
+asserts forest-scale roughness over every land cell, including the 16.5% of land
+that is salt crust and playa. Real values there are nearer 0.001 m, which is an
+exchange coefficient of 0.00114 against the default's 0.00882 -- **7.7x too much
+turbulent exchange** over the most barren surfaces on the planet. That biases
+evaporation and sensible heat everywhere the ground is bare, independently of
+anything to do with lakes.

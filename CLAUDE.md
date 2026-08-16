@@ -127,7 +127,9 @@ Verified: the naive union misses them and lands at 43.00% instead of 43.17% —
 source.
 
 `surface_class == 2` (`inland_water`) is **empty**, by design rather than
-oversight. Orogen measures basin geometry but never decides water levels — that
+oversight -- and filling it is now done downstream: `hydrography/surface_water.py`
+solves lake extent and `build_surface_albedo.py --lakes` carries it into the
+climate as a composite albedo. Orogen measures basin geometry but never decides water levels — that
 is a precipitation-versus-evaporation balance and belongs downstream. 11.5% of
 the planet's area is flagged `is_endorheic`. Filling those basins is our job,
 using the hypsometry curves in `manifest.basins.preserved[]`, and it feeds back

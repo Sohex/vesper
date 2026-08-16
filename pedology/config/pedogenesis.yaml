@@ -133,18 +133,30 @@ texture:
 # ---------------------------------------------------------------------------
 # Regolith depth
 # ---------------------------------------------------------------------------
-# Heimsath et al. 1997 soil production function, P = P0 * exp(-h / h_star),
-# balanced against erosion. At steady state h = h_star * ln(P0 * W / E).
+# Steady-state regolith thickness, production against erosion.
 #
-# NOTE: LPJ-GUESS 4.1.1 has a fixed 1.5 m profile and cannot consume this. It is
-# computed, emitted and reported anyway, because a thin regolith over bedrock is
-# a first-order control on plant-available water and the gap should be visible
-# rather than absent. See ../notes/model.md.
+#   depth = maximum_depth_m * P / (P + erosion_weight * E)
+#
+# This was Heimsath's exponential production function, whose steady state is
+# h = h_star * ln(P0 / E). That form diverges as erosion approaches zero and runs
+# to minus infinity as it grows, so both ends needed clipping, and a quarter of
+# this world's land sat on each clip. The cause is dynamic range: spanning 0 to
+# 5 m through a logarithm at Heimsath's h_star of 0.5 m requires P/E to cover a
+# factor of 22,000, which nothing in these inputs does.
+#
+# The saturating form is bounded at both ends by construction. As erosion
+# vanishes the profile approaches maximum_depth_m, which says a weathering front
+# cannot advance forever because water and oxygen must reach it through what has
+# already accumulated. It is a parameterisation rather than a derivation, and
+# that is the trade against a principled form that cannot be evaluated here.
 regolith:
-  production_rate_mm_per_kyr: 100.0
-  e_folding_depth_m: 0.5
-  minimum_depth_m: 0.02
+  # Asymptote, not a clip: the depth to which weathering can reach at all.
   maximum_depth_m: 5.0
+  minimum_depth_m: 0.02
+  # Erosion's weight against production. Both are dimensionless and near 1 at
+  # Earth-like reference conditions, so 4.0 puts reference depth at 1.0 m, which
+  # is a defensible global mean soil thickness.
+  erosion_weight: 4.0
   # Erosion is taken as proportional to Orogen erodibility, local relief and
   # runoff. Normalised so Earth-like mean land conditions give E ~ P0.
   erosion_reference_relief_m: 200.0
