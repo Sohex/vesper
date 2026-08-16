@@ -87,8 +87,18 @@ def read(run_dir: Path) -> dict | None:
         "executable_sha256": (m.get("executable") or {}).get("sha256"),
         "config_sha256": m.get("config_sha256"),
         "physical": phys,
+        "source_build": (m.get("source_config") or {}).get("source_build"),
+        # Every climatology this run produced, keyed by label, so a consumer can
+        # resolve a climatology back to the run and build that made it WITHOUT
+        # globbing the analysis directory and taking whatever sorts last.
+        "climatologies": {
+            label: {"regular": Path(e.get("regular") or "").name,
+                    "snapshots": Path(e.get("snapshots") or "").name,
+                    "orbit_count": e.get("orbit_count")}
+            for label, e in (m.get("climatologies") or {}).items()},
         "converged": conv.get("sufficiently_equilibrated_for_worldbuilding",
                               conv.get("pass")),
+        "convergence_metrics": conv.get("metrics") or {},
     }
 
 

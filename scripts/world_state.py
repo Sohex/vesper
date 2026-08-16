@@ -221,7 +221,7 @@ def builds(active: str) -> dict:
     return out
 
 
-def climate_runs(active: str) -> list:
+def climate_runs(active: str, index: list) -> list:
     """Runs on the active build only.
 
     Runs on a superseded terrain describe a world we no longer model. They stay
@@ -229,11 +229,11 @@ def climate_runs(active: str) -> list:
     exists; this file is the record of what is true.
     """
     rows = []
-    for man in sorted((ROOT / "exoplasim" / "runs").glob("*/run_manifest.json")):
-        d = json.loads(man.read_text(encoding="utf-8"))
-        run = man.parent
-        if ((d.get("source_config") or {}).get("source_build")) != active:
+    for row in index:
+        if row.get("source_build") != active:
             continue
+        run = ROOT / "exoplasim" / "runs" / row["directory"]
+        d = json.loads((run / "run_manifest.json").read_text(encoding="utf-8"))
         conv = d.get("convergence_assessment") or {}
         # The stellar-cycle runs use fixed_orbit_parameters rather than
         # derived_parameters, and the earliest runs predate several keys, so read
@@ -245,7 +245,7 @@ def climate_runs(active: str) -> list:
         rows.append({
             "run_id": d.get("run_id", run.name),
             "status": d.get("status"),
-            "orbits_complete": len(sorted(run.glob("MOST.*.nc"))),
+            "orbits_complete": row.get("orbits_on_disk"),
             "flux_earth": derived.get("stellar_flux_ratio_earth"),
             "cycle": d.get("cycle", {}).get("case") if isinstance(d.get("cycle"), dict) else None,
             "resolution": model.get("resolution"),
@@ -266,6 +266,10 @@ def _mean_ts(run: Path, last: int = 5) -> float | None:
     has output long before anything assesses it, and a state file reporting null
     for a finished run is worse than one that does the arithmetic.
     """
+    # Enumerating one already-resolved run's own output files. This is not
+    # artifact selection -- the run was chosen through the index -- but it is
+    # still the last directory read in this file, and it exists only because a
+    # run has output before anything assesses it.
     files = sorted(run.glob("MOST.*.nc"))
     if not files:
         return None
@@ -340,11 +344,93 @@ def hydrography() -> dict:
     }
 
 
-def current_climate() -> dict | None:
-    reports = sorted((ROOT / "exoplasim" / "analysis").glob("*/baseline_climate_report.json"))
-    if not reports:
+def cleared(field: str, depends_on: str, expected, found) -> dict:
+    """A field whose dependency has moved, reported as absent rather than stale.
+
+    A derived value computed from a superseded terrain is not a fact about this
+    world, and carrying it with a prose caveat does not help: it stays readable,
+    quotable and wrong. `current_climate` did exactly that -- it reported the
+    pre-carve, wrong-spectrum climatology with a paragraph explaining not to
+    quote it, which is an invitation rather than a guard.
+    """
+    return {
+        "value": None,
+        "invalidated": True,
+        "depends_on": depends_on,
+        "expected": expected,
+        "found": found,
+        "note": f"{field} was computed from a dependency that has since moved; "
+                "regenerate it. Cleared rather than shown, because a stale "
+                "derived value is indistinguishable from a current one.",
+    }
+
+
+def run_index() -> list:
+    """The run set, from its manifest. Never from a directory listing.
+
+    `exoplasim/runs/INDEX.json` is written by `index_runs.py`, which is the one
+    place allowed to enumerate the runs directory. Everything downstream reads
+    the index, so no consumer can pick an artifact by whatever sorts last -- the
+    pattern behind ExoPlaSim's `finalize()` emitting the wrong world's output,
+    behind this file previously reporting one terrain's verdict against
+    another's basins, and behind `current_climate` reporting a superseded
+    climatology because it happened to sort last.
+    """
+    idx = ROOT / "exoplasim" / "runs" / "INDEX.json"
+    if not idx.is_file():
+        raise SystemExit(
+            "exoplasim/runs/INDEX.json is missing. Run "
+            "`python exoplasim/scripts/index_runs.py` -- world_state resolves "
+            "runs through that index and will not enumerate the directory.")
+    return json.loads(idx.read_text(encoding="utf-8"))["runs"]
+
+
+def climatology_build(regular_path: str | None, index: list) -> str | None:
+    """Which build produced a climatology, resolved through the run index."""
+    if not regular_path:
         return None
-    latest = reports[-1]
+    name = Path(regular_path).name
+    for row in index:
+        for entry in (row.get("climatologies") or {}).values():
+            if entry.get("regular") == name:
+                return row.get("source_build")
+    return None
+
+
+def current_climate(active: str, index: list) -> dict | None:
+    """The climate report belonging to the ACTIVE build, resolved by provenance.
+
+    Candidate reports are named by the climatologies the run index says exist,
+    not discovered by walking the analysis directory.
+    """
+    reports = []
+    for row in index:
+        for label in (row.get("climatologies") or {}):
+            for cand in (ROOT / "exoplasim" / "analysis" / label /
+                         "baseline_climate_report.json",
+                         ROOT / "exoplasim" / "analysis" / "climatology" /
+                         f"{label}_baseline_climate_report.json"):
+                if cand.is_file():
+                    reports.append(cand)
+    if not reports:
+        return cleared("current_climate", "source_build", active,
+                       "no baseline_climate_report.json exists for any "
+                       "climatology this build produced; run "
+                       "exoplasim/scripts/analyze_climatology.py")
+    # Pick by provenance, not by glob order. Taking the last match is how
+    # ExoPlaSim's own finalize() emits the wrong world's result, and this
+    # function had the same bug: it reported whichever report sorted last.
+    latest = None
+    for cand in reports:
+        c = json.loads(cand.read_text(encoding="utf-8"))
+        if climatology_build(c.get("source_regular"), index) == active:
+            latest = cand
+            break
+    if latest is None:
+        got = {str(c.relative_to(ROOT)): climatology_build(
+                   json.loads(c.read_text(encoding="utf-8")).get("source_regular"),
+                   index) for c in reports}
+        return cleared("current_climate", "source_build", active, got)
     d = json.loads(latest.read_text(encoding="utf-8"))
     koppen = d.get("koppen_land_area_fractions") or {}
     biome = d.get("biome_land_area_fractions") or {}
@@ -353,9 +439,7 @@ def current_climate() -> dict | None:
         "global_metrics": d.get("global_metrics"),
         "koppen_top": dict(sorted(koppen.items(), key=lambda kv: -kv[1])[:6]),
         "biome_top": dict(sorted(biome.items(), key=lambda kv: -kv[1])[:6]),
-        "caveat": "Computed on precarve-unzoned with evaporite as one class at "
-                  "0.50. Both have since been superseded. Quote as the 0.96 "
-                  "pre-carve baseline, never as Vesper's climate.",
+        "source_build": active,
     }
 
 
@@ -363,6 +447,7 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--output", type=Path, default=ROOT / "world_state.json")
     args = ap.parse_args()
+    index = run_index()
 
     config = yaml.safe_load((ROOT / "config" / "planet.yaml").read_text(encoding="utf-8"))
     state = {
@@ -385,8 +470,8 @@ def main() -> None:
             "stellar_cycle": config.get("stellar_cycle"),
         },
         "builds": builds(config.get("source_build")),
-        "climate_runs": climate_runs(config.get("source_build")),
-        "current_climate": current_climate(),
+        "climate_runs": climate_runs(config.get("source_build"), index),
+        "current_climate": current_climate(config.get("source_build"), index),
         "hydrography": hydrography(),
         "curated": CURATED,
     }

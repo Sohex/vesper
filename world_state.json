@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated": "2026-08-16T13:22:15.853885+00:00",
-  "git_commit": "ea8a3a8cc8ed5bdd2ae62557fa2b28a4b86f3490",
+  "generated": "2026-08-16T13:26:59.097744+00:00",
+  "git_commit": "4305e9f733dcaf60e15c4f0ca223012e1ff20e04",
   "generator": "scripts/world_state.py",
   "note": "Generated from the artifacts. Do not edit; re-run the generator. Judgement that no artifact can supply is in `curated`, which lives in the generator under version control.",
   "planet": {
@@ -162,34 +162,12 @@
     }
   ],
   "current_climate": {
-    "source": "exoplasim/analysis/climatology_s096/baseline_climate_report.json",
-    "global_metrics": {
-      "surface_temperature_k": 292.97197563142356,
-      "air_temperature_2m_k": 292.2306113732911,
-      "precipitation_mm_day": 2.9489773318071557,
-      "toa_net_radiation_w_m2": -0.35109277592637333,
-      "surface_downward_heat_flux_w_m2": 0.08993604054261123,
-      "planetary_sea_ice_fraction": 0.001330433575424605,
-      "ocean_mean_sea_ice_concentration": 0.0023273918625831987,
-      "land_area_fraction": 0.4283585859289112
-    },
-    "koppen_top": {
-      "BWh": 0.19357759812475014,
-      "Dfb": 0.16201299826603496,
-      "BSh": 0.11536706755059117,
-      "Dfa": 0.06833335929848874,
-      "Af": 0.06734245503454284,
-      "Cfa": 0.05727495473634963
-    },
-    "biome_top": {
-      "Continental temperate/mixed forest": 0.28275569374145765,
-      "Desert": 0.19357759812475014,
-      "Steppe/semidesert": 0.1198985317304334,
-      "Temperate/subtropical forest": 0.11463942165598133,
-      "Seasonal tropical woodland/savanna": 0.09022922193315133,
-      "Everwet tropical forest": 0.06734245503454284
-    },
-    "caveat": "Computed on precarve-unzoned with evaporite as one class at 0.50. Both have since been superseded. Quote as the 0.96 pre-carve baseline, never as Vesper's climate."
+    "value": null,
+    "invalidated": true,
+    "depends_on": "source_build",
+    "expected": "precarve-zoned-g1281",
+    "found": "no baseline_climate_report.json exists for any climatology this build produced; run exoplasim/scripts/analyze_climatology.py",
+    "note": "current_climate was computed from a dependency that has since moved; regenerate it. Cleared rather than shown, because a stale derived value is indistinguishable from a current one."
   },
   "hydrography": {
     "products_from": "hydrography/data/precarve-zoned-g1281",
