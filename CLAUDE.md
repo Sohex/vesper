@@ -63,9 +63,16 @@ each is excluded.
 
 ## The upstream generator
 
-The geography comes from a personal fork at
-`/home/cfutro/git/planet_heightmap_generation` (World Orogen). Its
-`tools/README.md` is the authoritative reference for the export format — read it
+The geography comes from a personal fork of World Orogen, vendored into this
+repo at `vendor/orogen/` as a git subtree from the `cf-fork` branch of
+`raguilar011095/planet_heightmap_generation`. It lives here so that a change to
+the generator and the change to whatever consumes it land in ONE commit, and so
+a build's provenance is a commit in this repository rather than the state of a
+directory outside it. Pull upstream with `git subtree pull --prefix vendor/orogen
+orogen-fork cf-fork --squash`. Its generated output stays untracked: the
+subtree's own `.gitignore` excludes `out/`, which runs to 13 GB.
+
+Its `tools/README.md` is the authoritative reference for the export format — read it
 before writing anything that consumes `source/`. The fork adds, over upstream:
 lithology (rock class, erodibility, scarp potential), preserved endorheic basins,
 a richer export manifest, non-Earth planet parameters, and direct emission onto
@@ -267,7 +274,7 @@ notes that a planet code encodes sliders only, never radius or gravity.
 To re-render them:
 
 ```bash
-cd /home/cfutro/git/planet_heightmap_generation
+cd vendor/orogen
 node --max-old-space-size=12288 tools/export-maps.mjs \
     --code 01eshm059lt0b9mpgro2y83t \
     --radius 7645.2 --gravity 10.1989 --width 16384
@@ -530,6 +537,11 @@ convention they were built on, surface inputs exist and are newer than the build
 they claim to describe, and a carve list accounts for every basin. Exit 1 on
 disagreement. Run it after changing `source_build`, which is when most of this
 goes stale at once.
+
+`TASKS.md` is the atomic work tracker. Findings documents under `notes/audits/`
+say what is true; `TASKS.md` says what to do about it, and the two are kept apart
+so a finding can be read without being re-litigated and a task closed without
+editing the argument behind it. Every task cites its source document.
 
 **Read `notes/failure-modes.md` before quoting a geography number, adding a
 component, or changing a quantity more than one script consumes.** It records how
