@@ -31,7 +31,7 @@ working directory, so anything runs from anywhere.
 World Orogen (fork)
    |  seed + planet code -> terrain, lithology, closed basins, hydrology
    v
-source/exoplasim-T21|T42|T85 + grid-512x256 + maps
+source/<build>/exoplasim-T21|T42|T85 + grid-512x256 + maps
    |  raw/ mesh lives in the T42 export and is identical for all of them
    v
 lib/gridding.py            integrate mesh fields onto any model grid
@@ -39,18 +39,40 @@ lib/gridding.py            integrate mesh fields onto any model grid
    |                        v
    |                  exoplasim/build_boundary_conditions.py -> land mask, topography
    |                  exoplasim/build_surface_albedo.py      -> albedo, forest fraction
+   |                  exoplasim/build_surface_soil_water.py  -> dwmax  (off by default)
    |                        |
    |                        v
-   |                  ExoPlaSim spin-up -> climatology
+   |                  ExoPlaSim spin-up
    |                        |
-   v                        v
-hydrography/build_hydrography.py     hydrography/carve_verdict.py
-   drainage, catchments,             which basins overflow
-   hypsometry, coupling matrix   <-- integrates climate over catchments
-   |
+   |                  build_climatology.py -> averaged climatology
+   |                                       -> per-orbit climatologies (--per-year)
+   |                                       -> climate series, per bin per orbit
+   |                        |
+   |          +-------------+-------------+
+   |          |                           |
+   v          v                           v
+hydrography/            pedology/build_soil.py        hydrography/carve_verdict.py
+  drainage,               weathers lithology            which basins overflow
+  catchments,             under the climate         <-- integrates climate over
+  hypsometry,               |                           catchments
+  coupling matrix           v
+   |                  biosphere/build_lpj_driver.py -> one binary, N years
+   |                        |
+   |                        v
+   |                  biosphere/run_lpj_guess.py  (LPJ-GUESS, MPI)
+   |                        |
+   |                        +--> cpool.out ---> back to build_soil.py
+   |                        |                   (soil and biosphere iterate)
+   |                        v
+   |                  fpc.out -> build_surface_albedo.py --mode modelled
+   |                        |     albedo and forest fraction from what grew
+   |                        v
+   |                  back to ExoPlaSim
    v
 carve list -> back to World Orogen -> new terrain
 ```
+
+Three loops close in that diagram, and section 4 says why each has to.
 
 ## 3. The pipeline, step by step
 
@@ -149,6 +171,49 @@ estimated with the Penman combination equation using water's albedo and roughnes
 and validated by applying the same calculation to ocean cells, which *are* open
 water: 3.736 mm/day against the model's own 3.672, a ratio of 1.017.
 
+### 3.6 Pedology
+
+`pedology/` weathers the lithology into soil under the climate, which is the step
+neither the climate model nor the vegetation model does. Parent material sets
+which minerals are available, climate sets how far they have been converted,
+relief and erosion set how much regolith survives, and the biosphere sets the
+organic fraction.
+
+Weathering intensity is the Walker-Hays-Kasting form, a power of runoff times an
+exponential of temperature, normalised so Earth's land mean is 1. Texture comes
+from mixing parent materials and converting weatherable primary minerals to clay,
+with quartz tracked separately because it never becomes clay: that single fact is
+why granite and basalt diverge under identical climate.
+
+Runoff means `P - E`, not the model's `mrro`. `mrro` is river-routed net water
+flux, so it is negative in places and non-zero over ocean; using it understates
+land runoff by 6.6x. See `exoplasim/notes/water-and-energy-closure.md`.
+
+Every Earth calibration lives in `pedology/config/pedogenesis.yaml` with its
+source. Nothing in the scripts hardcodes a Vesper number, so porting the
+component to another world is a config change.
+
+### 3.7 The biosphere
+
+`biosphere/` runs LPJ-GUESS 4.1.1, patched for this world's calendar and
+astronomy. The patch carries no planetary numbers itself: it points the model at
+a generated `vesper.h`, which `build_vesper_header.py` derives from
+`config/planet.yaml`, because the year length is a function of the stellar flux.
+
+The model steps in 24-hour days with a 181-day year. That keeps every per-day
+rate constant calibrated against the absolute time it was calibrated against and
+confines the error to daylength, where its sign is known. Stepping in real 30-hour
+Vesper days would put 25.9% into respiration, decomposition and phenology alike.
+
+Annual degree-day limits are rescaled by the same orbit-derived factor, because a
+181-day year reaches half the annual GDD of a 365-day one and Earth thresholds
+would otherwise exclude every tree for reasons unrelated to the climate.
+
+Forcing arrives as one binary driver file carrying however many years of climate
+it was built with, and the model cycles through them. One year is a fixed
+climate. Several are how a variable star reaches the biosphere; a single
+repeating year cannot represent one at all.
+
 ## 4. Why this is not a straight line
 
 Three quantities each depend on the other two.
@@ -197,8 +262,8 @@ the overshoot, and it is the honest measure of how much the first pass cost.
 | coupling | T42 and T85 matrices built |
 | climate | T42 at 0.96 S-Earth, vegetated, converged on all six criteria, 292.88 K |
 | carve verdict | first pass complete: 1,522 of 3,629 carve, 235 partial, 1,872 preserved |
-| pedology | model built and closing the loop at smoke scale; weathering intensity bracketed 0.19-2.81 on the climate model's runoff |
-| biosphere | LPJ-GUESS ported, driven and running at smoke scale; no full run yet |
+| pedology | built, closing the loop through soil carbon; weathering 0.50 on `P - E`, bracketed to 2.81 if driven by precipitation |
+| biosphere | LPJ-GUESS ported, driven, parallel, harnessed and scored; awaiting a current climatology for the first full run |
 | stellar cycle | deferred to last |
 
 Selected results:
@@ -215,15 +280,65 @@ Selected results:
 
 ## 6. What happens next
 
-1. Send the carve list to World Orogen; regenerate the terrain.
-2. Rebuild hydrography and boundary conditions on the new terrain.
-3. Re-run the T42 baseline; check whether the verdict holds.
-4. Run LPJ-GUESS on the climatology to replace the assumed biosphere, then feed
-   the real vegetation back as albedo and forest fraction.
-5. Once terrain and biosphere have settled, one T85 equilibrium for the regional
-   products: biomes, Koppen, lake maps.
-6. The stellar cycle last, 0.91 to 1.01 S-Earth over 8 Earth years, on the
-   settled world.
+Three nested loops and then a resolution change. The order matters in places
+where it is not obvious, so those places are called out rather than left to be
+rediscovered.
+
+**A. The terrain loop.** Carve list to World Orogen, regenerate the terrain,
+rebuild hydrography and boundary conditions on it, re-run the T42 baseline, take
+the verdict again. Hydrography has to be rebuilt *after* the carve and before the
+climate, because the carve changes the drainage the climate is integrated over.
+
+**B. The soil and biosphere loop, at T42.** For a given climate:
+
+1. `pedology/scripts/build_soil.py`, with no biosphere on the first pass.
+2. `biosphere/scripts/build_lpj_driver.py`, then `run_lpj_guess.py`.
+3. `build_soil.py --soil-carbon <run>/cpool.out`, then LPJ-GUESS again.
+4. Repeat 3 until the criteria in `pedogenesis.yaml` are met.
+
+Check whether step 3 moves anything before assuming it needs iterating:
+LPJ-GUESS computes its own soil carbon internally, so the pedology organic
+feedback may be second-order.
+
+**C. The vegetation-climate loop.** `build_surface_albedo.py --mode modelled`
+turns the run's foliar cover into surface albedo and forest fraction, then the
+climate runs again on it. Two checks belong here and neither is optional.
+
+*The flux.* If the modelled land albedo differs much from the assumed 0.223 the
+world may leave the 290-293 K design band. **Move the flux by changing the star's
+luminosity, not the orbit.** The year length depends on the semimajor axis, which
+is derived as sqrt(L/F), so changing L and F together leaves the orbit and the
+calendar untouched: a 4% flux change needs 2% of luminosity, which is 0.5% of
+effective temperature, inside the spectral-type uncertainty already declared.
+Moving the orbit instead changes the year length, which is compiled into
+LPJ-GUESS and would force a rebuild and a driver regeneration.
+
+*The carve verdict.* It was taken on assumed vegetation. Real vegetation changes
+the climate, which changes evaporation over catchments, which can change the
+verdict. Re-run it; if basins flip, back to loop A.
+
+**D. The resolution change.** Only after A, B and C have settled.
+
+1. Climate at T85, with the T42 vegetation regridded as its boundary condition.
+2. Soil and biosphere at T85 on that climatology, loop B again.
+3. Climate at T85 again with T85 vegetation, unless step 2's vegetation turns out
+   close to the regridded T42 field, which is a cheap comparison worth making
+   first.
+
+**The biosphere never decides the resolution.** LPJ-GUESS gridcells are
+independent columns, so its cost is linear in cell count and trivial either way:
+4,106 land cells at T42 and 16,489 at T85, 23 against 94 minutes on 16 ranks.
+Running it at T85 on T42 forcing would resolve detail that is not in its input.
+Expect T85 to lower total NPP, and treat that as a resolution bias rather than a
+result: productivity saturates with water, so averaging the forcing before the
+model sees it inflates the answer.
+
+**E. The stellar cycle, last, on the settled world.** 0.91 to 1.01 S-Earth over 8
+Earth years. Build the climatology with `--per-year`, pass the sequence to
+`build_lpj_driver.py --climatology y0.nc y1.nc ...`, and the biosphere sees the
+cycle rather than its average. This matters beyond totals: about 14% of land sits
+within one cycle's swing of a PFT cold-survival threshold, and thresholds do not
+average. Then the regional products, biomes, Koppen and lake maps.
 
 ## 7. Conventions this project holds to
 
