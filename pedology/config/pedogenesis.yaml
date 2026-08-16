@@ -26,9 +26,30 @@ weathering:
   # Which moisture variable drives weathering. This is a bracket, not a detail.
   #
   # `runoff` is not one option of two. Walker, Hays and Kasting define the law on
-  # river runoff, and the 0.65 exponent traces to Dunne (1978) fitted against
-  # runoff; silicate weathering is limited by water passing through the profile
-  # and carrying solutes away, not by water that falls and evaporates.
+  # river runoff, and the exponent traces to Dunne (1978) fitted against runoff;
+  # silicate weathering is limited by water passing through the profile and
+  # carrying solutes away, not by water that falls and evaporates.
+  #
+  # Read from the primary 2026-08-16, and it was 0.65 here on a secondhand
+  # attribution. Dunne, T. (1978), "Rates of chemical denudation of silicate
+  # rocks in tropical catchments", Nature 274, 244-246, Fig. 1 caption states
+  #
+  #     chemical denudation rate = 0.28 R^0.66;  n = 30(43);  S_y.x = 0.13
+  #
+  # so the exponent is 0.66. The change is immaterial in magnitude -- 0.5% at
+  # this world's runoff ratio -- but the same secondhand path produced two
+  # genuinely wrong numbers elsewhere, so the primary wins.
+  #
+  # The caption carries the part that actually matters and was never recorded:
+  # **S_y.x = 0.13 log units is the scatter about the fit, a factor of 1.35.**
+  # That is the honest uncertainty on the weathering law, and it dwarfs every
+  # argument this file has had about the exponent's third digit.
+  #
+  # Applicability, since it bounds the transfer: fitted on 30 independent Kenyan
+  # catchments of 43 sampled, silicate lithologies only (gneiss, basalt,
+  # andesite, trachyte, rhyolite, phonolite), rainfall 250-3000 mm and mean
+  # annual air temperature 10-30 C. Tropical and warm. This world's land mean
+  # runoff sits inside the fitted range but toward its dry end.
   #
   # The precipitation branch was a hedge, added when the only runoff field
   # available was `mrro` and it looked untrustworthy at 25 mm per Earth year
@@ -76,7 +97,7 @@ weathering:
   # weathering intensity moves from 0.19 to about 0.66, into the saprock regime
   # the Graham et al. anchor describes rather than the fresh-rock one.
   runoff_source: p_minus_e        # p_minus_e | mrro
-  runoff_exponent: 0.65
+  runoff_exponent: 0.66
   # Temperature e-folding. Berner's exponential fit to silicate weathering,
   # equivalent to an activation energy near 74 kJ/mol at 288 K. Values from 10 to
   # 25 K appear in the literature; 13.7 is the common central choice.
