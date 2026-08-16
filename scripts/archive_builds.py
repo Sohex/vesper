@@ -22,6 +22,11 @@ numbers, which is kilobytes, not the mesh.
 The per-build hydrography products under `hydrography/data/<build>/` are NOT
 touched: they are small, they are what downstream work actually cites, and they
 are derived rather than regenerable in one pass.
+
+Anything the registry in `lib/orogen.py` does not know is SKIPPED, as is any
+build missing one of its five grid exports. `source_build` names the OLD build
+for as long as it takes to generate a new one, so "not active" and "superseded"
+are not the same claim, and only the registry can tell them apart.
 """
 
 from __future__ import annotations
@@ -31,10 +36,18 @@ from datetime import datetime, timezone
 import json
 from pathlib import Path
 import shutil
+import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "source"
 ARCHIVE = ROOT / "archive" / "builds"
+
+sys.path.insert(0, str(ROOT / "lib"))
+from orogen import _KNOWN_TERRAIN_HASHES  # noqa: E402
+
+# A build is these five exports. Fewer means it is still being generated.
+EXPECTED_GRIDS = ["exoplasim-T21", "exoplasim-T42", "exoplasim-T63",
+                  "exoplasim-T85", "grid-512x256"]
 
 # Everything needed to identify a build and to date a result computed from it.
 IDENTITY_KEYS = ["hashes", "seed", "numRegions", "planet", "planetRadiusKm",
@@ -74,12 +87,34 @@ def main() -> None:
         if not man.is_file():
             print(f"  SKIP     {d.name:26}{size/1e9:>6.2f} GB  no T42 manifest")
             continue
+
+        # Refuse anything the registry does not know. An unregistered build is
+        # either mid-generation or unidentified, and deleting its payload is
+        # wrong either way -- a build being written right now is not superseded,
+        # it is the next active one. `source_build` still names the OLD build
+        # while a new one is generated, so keying on that alone would archive the
+        # build currently being produced.
+        try:
+            m = json.loads(man.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            print(f"  SKIP     {d.name:26}{size/1e9:>6.2f} GB  manifest unreadable "
+                  f"(generating?)")
+            continue
+        if m.get("hashes", {}).get("finalElevation") not in _KNOWN_TERRAIN_HASHES:
+            print(f"  SKIP     {d.name:26}{size/1e9:>6.2f} GB  NOT REGISTERED in "
+                  f"lib/orogen.py -- register it or delete it by hand")
+            continue
+        missing = [g for g in EXPECTED_GRIDS if not (d / g / "manifest.json").is_file()]
+        if missing:
+            print(f"  SKIP     {d.name:26}{size/1e9:>6.2f} GB  incomplete, missing "
+                  f"{', '.join(missing)}")
+            continue
+
         freed += size
         print(f"  ARCHIVE  {d.name:26}{size/1e9:>6.2f} GB  -> identity stub")
         if args.execute:
             dest = ARCHIVE / d.name
             dest.mkdir(parents=True, exist_ok=True)
-            m = json.loads(man.read_text(encoding="utf-8"))
             (dest / "identity.json").write_text(
                 json.dumps(stub(m), indent=2) + "\n", encoding="utf-8")
             for extra in ("README.txt", "SUPERSEDED.md"):
