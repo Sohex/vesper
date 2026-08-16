@@ -383,10 +383,21 @@ bracket, a mismatch of references. Each branch now normalises against its own
 Earth land mean, 300 mm for runoff and 750 mm for precipitation, and the bracket
 is **3.41x** on weathering intensity and 2.83x on water capacity.
 
-That is still the largest uncertainty in this component and it is a modelling
-choice rather than a defect: does chemical weathering follow water that drains
-through the profile, or water that arrives on it. Runoff is the physically
-correct answer and is the default. The bracket is reported beside every result.
+**And the bracket is now a sensitivity rather than a genuine uncertainty.**
+Walker, Hays and Kasting define the law on river runoff, and the 0.65 exponent
+traces to Dunne (1978) fitted against runoff, so precipitation was never a
+co-equal alternative. It was a hedge against `mrro`, which looked untrustworthy
+at 25 mm per Earth year, and that hedge is spent: `mrro` turned out to be
+river-routed rather than local, P - E gives 168 mm, the global water budget
+closes to one part in ten thousand, and an offline bucket built from ExoPlaSim's
+own scheme reproduces it independently at a ratio of 0.89.
+
+Report the spread where a result depends on it. Do not present the precipitation
+branch as an equally likely world.
+
+With that demoted, the largest remaining uncertainty in this component is
+`erosion_weight`, which is calibrated rather than measured and sets the level of
+the water capacity.
 
 ### What is not yet earned
 

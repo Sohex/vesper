@@ -25,14 +25,22 @@ schema_version: 1
 weathering:
   # Which moisture variable drives weathering. This is a bracket, not a detail.
   #
-  # `runoff` is the physically correct term: silicate weathering is limited by
-  # water actually passing through the profile and carrying solutes away, not by
-  # water that falls and evaporates. But it is only as good as the climate
-  # model's land hydrology, and ExoPlaSim's is a uniform bucket, because its
-  # configure() clears every surface field when given a landmap and the field
-  # capacity falls back to a namelist default. On this world that yields 25 mm
-  # per Earth year against 892 of precipitation, a runoff ratio of 2.8% where
-  # Earth's land manages about 35%.
+  # `runoff` is not one option of two. Walker, Hays and Kasting define the law on
+  # river runoff, and the 0.65 exponent traces to Dunne (1978) fitted against
+  # runoff; silicate weathering is limited by water passing through the profile
+  # and carrying solutes away, not by water that falls and evaporates.
+  #
+  # The precipitation branch was a hedge, added when the only runoff field
+  # available was `mrro` and it looked untrustworthy at 25 mm per Earth year
+  # against 892 of precipitation. That hedge is spent. `mrro` turned out to be
+  # river-routed rather than local, the budget residual P - E gives 168 mm, the
+  # global water budget closes to one part in ten thousand, and an offline bucket
+  # built from ExoPlaSim's own scheme independently reproduces it at a ratio of
+  # 0.89. The runoff field is corroborated.
+  #
+  # So this is now a sensitivity switch, not a bracket between equals. Report the
+  # spread if a result depends on it; do not present the precipitation branch as
+  # an equally likely world.
   #
   # So `runoff` may be reporting the bucket rather than the planet. Both are
   # computed and both appear in the report; this selects which one the emitted
