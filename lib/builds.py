@@ -104,3 +104,24 @@ def soilmap(config: dict | None = None) -> Path:
     would have grown a biosphere on another planet's soil without complaint.
     """
     return component_data("pedology", config) / "soilmap.txt"
+
+
+def resolution_of(grid_dir: Path) -> str:
+    """Resolution implied by a grid export directory, e.g. `exoplasim-T42` -> T42.
+
+    The grid IS the resolution, so anything writing a surface field should take
+    its resolution from the grid it integrated onto rather than from the config.
+    The two are the same whenever `--grid` is left at its default and differ
+    exactly when someone builds for another resolution -- which is the case that
+    matters, because the output path and the SRA filename both encode it. Reading
+    the resolution from config while reading the data from `--grid` writes T21
+    fields into files named T42, in the T42 directory, with no error.
+    """
+    name = Path(grid_dir).name
+    if "-" in name:
+        tag = name.rsplit("-", 1)[1].upper()
+        if tag.startswith("T") and tag[1:].isdigit():
+            return tag
+    raise RuntimeError(
+        f"cannot read a resolution from grid directory {name!r}; expected "
+        "something like 'exoplasim-T42'")

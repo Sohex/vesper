@@ -40,7 +40,7 @@ import yaml
 
 from _paths import CONFIG, INPUTS
 from convert_orogen import write_sra
-from builds import grid_export, mesh_export
+from builds import resolution_of, grid_export, mesh_export
 from gridding import land_weighted
 from orogen import Export, LAND
 
@@ -83,14 +83,35 @@ def main() -> None:
     threshold = float(model["geography_land_threshold"])
     gravity = float(planet["gravity_m_s2"])
 
-    resolution = str(model["resolution"]).upper()
-    grid_dir = args.grid or grid_export(config, resolution)
+    # Deliberately from the grid, not from config: see builds.resolution_of.
+    grid_dir = args.grid or grid_export(config)
+    # From the grid, not from config: the two differ exactly when someone
+    # builds for another resolution, which is when the filename matters.
+    resolution = resolution_of(grid_dir)
     output = args.output or (INPUTS / resolution.lower())
     ex = Export(args.mesh or mesh_export(config))
     out = build(ex, grid_dir, threshold, gravity)
-    if out["land_mask"].shape != (nlat, nlon):
+    # Against the grid's own dimensions, not the config's. Config's latitudes and
+    # longitudes describe the resolution a *run* uses; this script writes inputs
+    # for whichever grid it was given, and refusing a valid non-default grid on
+    # that basis is the check misfiring rather than catching anything. The grid
+    # export states its own shape, so compare against that.
+    import json as _json
+    grid_shape = None
+    try:
+        gm = _json.loads((grid_dir / "manifest.json").read_text(encoding="utf-8"))
+        grid_shape = (int(gm["grid"]["height"]), int(gm["grid"]["width"]))
+    except Exception:
+        pass
+    if grid_shape is not None and out["land_mask"].shape != grid_shape:
         raise RuntimeError(
-            f"export grid is {out['land_mask'].shape}, config asks for {(nlat, nlon)}"
+            f"integrated grid is {out['land_mask'].shape}, but "
+            f"{grid_dir.name} declares {grid_shape}"
+        )
+    if grid_dir == grid_export(config) and out["land_mask"].shape != (nlat, nlon):
+        raise RuntimeError(
+            f"the configured grid is {out['land_mask'].shape}, config asks for "
+            f"{(nlat, nlon)}; these must agree for the default grid"
         )
 
     output.mkdir(parents=True, exist_ok=True)

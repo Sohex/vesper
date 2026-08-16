@@ -1,14 +1,16 @@
 {
-  "generated": "2026-08-15T06:58:32.793334+00:00",
+  "terrain_hash": "974ceb78fccfd54c3a842cf4ae8d7ae79029816abd9b4fbf90409165090b0ec1",
+  "generated": "2026-08-16T07:20:35.020022+00:00",
   "mesh": {
-    "export_root": "/home/cfutro/docs/world/source/exoplasim-T42",
-    "terrain_hash": "821aa71b37a7beda0b59398c7f005b91531050000ca46660d0f724cdb3f401a3",
-    "terrain_build": "2026-08 build: over-erosion fixed, sub-sea-level land at 1.0 km/unit",
-    "catalogue_hash": "2d1f8e57c26b60c608deaa62bd3c44b7da04a4ee5bd518249447630095d96a98",
+    "export_root": "/home/cfutro/docs/world/source/precarve-zoned-g1281/exoplasim-T42",
+    "terrain_hash": "974ceb78fccfd54c3a842cf4ae8d7ae79029816abd9b4fbf90409165090b0ec1",
+    "terrain_build": "2026-08 precarve-zoned-g1281: pre-carve base at g = 12.81, crust/fill split, orography and basin-km unit fixes",
+    "catalogue_hash": "bc84109168789f519b53fc8197ddc976be93ecd8326b61a8086de85e638343cc",
     "catalogue_known": true,
     "drainage_hypothesis": {
       "preserveListGiven": 0,
       "carveListGiven": 0,
+      "carvedByRetainZero": 0,
       "entries": []
     },
     "selection_source": "threshold",
@@ -17,20 +19,21 @@
     "planet_radius_km": 7645.2,
     "surface_area_km2": 734492839.5500951
   },
-  "grid": "/home/cfutro/docs/world/source/exoplasim-T21",
+  "grid": "source/precarve-zoned-g1281/exoplasim-T21",
   "resolution": "T21",
   "method": "Area-weighted land fraction per cell from the native mesh, thresholded; topography is the land-area-weighted mean elevation over land regions only.",
   "land_definition": "surface_class == land (subaerial)",
   "land_threshold": 0.5,
-  "gravity_m_s2": 10.1989,
+  "gravity_m_s2": 12.81,
   "land_fraction_gauss_weighted": 0.43066161162854305,
   "mesh_land_fraction": 0.4317358136177063,
   "land_cells": 1020,
+  "cells_below_mesh_resolution": 0,
   "elevation_m": {
-    "min": -14.2558391264713,
-    "max": 3703.062191459918,
-    "mean": 449.364303508345,
-    "cells_below_sea_level": 25
+    "min": -14.828572085049942,
+    "max": 2858.362328469096,
+    "mean": 350.4121510338055,
+    "cells_below_sea_level": 30
   },
   "codes": [
     172,

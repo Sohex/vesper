@@ -65,7 +65,7 @@ import yaml
 
 from _paths import CONFIG, INPUTS
 from convert_orogen import write_sra
-from builds import grid_export, mesh_export
+from builds import resolution_of, grid_export, mesh_export
 from gridding import land_fraction_of_class, land_weighted
 from orogen import Export, LAND
 
@@ -172,8 +172,11 @@ def main() -> None:
     mode = args.mode or model.get("land_albedo_source", "lithology")
     nlat, nlon = int(model["latitudes"]), int(model["longitudes"])
 
-    resolution = str(model["resolution"]).upper()
-    grid_dir = args.grid or grid_export(config, resolution)
+    # Deliberately from the grid, not from config: see builds.resolution_of.
+    grid_dir = args.grid or grid_export(config)
+    # From the grid, not from config: the two differ exactly when someone
+    # builds for another resolution, which is when the filename matters.
+    resolution = resolution_of(grid_dir)
     output = args.output or (INPUTS / resolution.lower())
 
     if mode == "uniform":

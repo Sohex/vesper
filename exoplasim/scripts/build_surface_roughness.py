@@ -72,7 +72,7 @@ import yaml
 
 from _paths import CONFIG, INPUTS, PROJECT_ROOT
 from convert_orogen import write_sra
-from builds import grid_export, mesh_export
+from builds import resolution_of, grid_export, mesh_export
 from gridding import land_weighted, region_cells
 from orogen import Export, LAND
 
@@ -112,9 +112,12 @@ def main() -> None:
 
     config = yaml.safe_load(args.config.read_text(encoding="utf-8"))
     model = config["model"]
-    resolution = str(model["resolution"]).upper()
+    # Deliberately from the grid, not from config: see builds.resolution_of.
     mesh = Export(args.mesh or mesh_export(config))
     grid_dir = args.grid or grid_export(config)
+    # From the grid, not from config: the two differ exactly when someone
+    # builds for another resolution, which is when the filename matters.
+    resolution = resolution_of(grid_dir)
 
     rock = mesh.field("surface_rock").astype(int)
     is_land = mesh.surface_class == LAND
