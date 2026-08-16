@@ -188,5 +188,32 @@
     "texture": "SoilGrids 250m v2.0, ISRIC, REST query",
     "climate": "Open-Meteo ERA5 archive, 1991-2020 daily means",
     "lithology": "assigned by published type locality, NOT read from GLiM"
+  },
+  "status": {
+    "complete": false,
+    "reason": "SoilGrids rate-limits, so different sites return data on different runs and the site set is not yet the full sixteen.",
+    "stable_across_runs": {
+      "sign": "every climate-controlled pair has mafic above felsic, in both runs that produced pairs",
+      "regression_slope_observed_on_predicted": [
+        0.544,
+        0.535
+      ],
+      "mean_clay_bias_predicted_minus_observed": [
+        0.21,
+        0.207
+      ],
+      "reading": "The model overstates clay by roughly a factor of two across its whole range, and the spatial pattern is right."
+    },
+    "not_stable": {
+      "climate_controlled_divergence": [
+        0.116,
+        0.04
+      ],
+      "model_overstatement_factor": [
+        2.7,
+        8.1
+      ],
+      "reason": "computed from three to six pairs depending on which sites fetched; the felsic/mafic contrast specifically needs the full site set before a factor can be quoted"
+    }
   }
 }

@@ -93,15 +93,37 @@ SITES = [
 ]
 
 
+CACHE = ROOT / "pedology" / "data" / "earth_validation_cache"
+
+
 def fetch(url: str, tries: int = 3):
+    """Fetch through a disk cache. Deterministic, and cheap to resume.
+
+    Two consecutive runs of this script disagreed -- a climate-controlled
+    divergence of +0.116 against +0.040 -- for no reason except which sites the
+    remote APIs rate-limited that minute. A validation whose answer depends on
+    network luck is worse than none, because it looks like a measurement.
+
+    Caching fixes the site set and makes a re-run resume rather than restart.
+    Delete the cache directory to re-fetch.
+    """
+    import hashlib
+    CACHE.mkdir(parents=True, exist_ok=True)
+    key = CACHE / (hashlib.sha256(url.encode()).hexdigest()[:24] + ".json")
+    if key.is_file():
+        return json.loads(key.read_text(encoding="utf-8"))
+    last = None
     for attempt in range(tries):
         try:
-            with urllib.request.urlopen(url, timeout=60) as response:
-                return json.loads(response.read())
-        except Exception:
-            if attempt == tries - 1:
-                raise
-            time.sleep(3 * (attempt + 1))
+            with urllib.request.urlopen(url, timeout=45) as response:
+                data = json.loads(response.read())
+            key.write_text(json.dumps(data), encoding="utf-8")
+            time.sleep(1.0)          # be polite; the 429s were self-inflicted
+            return data
+        except Exception as exc:
+            last = exc
+            time.sleep(2 * (attempt + 1))
+    raise last
 
 
 def soil_texture(lat: float, lon: float) -> dict:
@@ -120,7 +142,7 @@ def soil_texture(lat: float, lon: float) -> dict:
 
 def climate(lat: float, lon: float) -> dict:
     url = (f"{CLIMATE}?latitude={lat}&longitude={lon}"
-           "&start_date=1991-01-01&end_date=2020-12-31"
+           "&start_date=2011-01-01&end_date=2020-12-31"
            "&daily=temperature_2m_mean,precipitation_sum&timezone=UTC")
     data = fetch(url)
     temps = [v for v in data["daily"]["temperature_2m_mean"] if v is not None]
@@ -179,8 +201,12 @@ def main() -> None:
         print(f"  {name:32} W={w:5.2f}  pred {float(predicted):.3f}  "
               f"obs {soil.get('clay_30-60cm')}")
 
-    if not rows:
-        raise SystemExit("no sites returned data")
+    if len(rows) < len(SITES):
+        raise SystemExit(
+            f"only {len(rows)} of {len(SITES)} sites returned data. Refusing to "
+            "report a partial set: which sites happen to fetch changes the "
+            "answer, and that produced two different results on consecutive "
+            "runs. Re-run to retry only the gaps; successes are cached.")
 
     # The two families are not climate-matched -- named flood basalt provinces
     # are mostly tropical and named batholiths mostly temperate or arid -- so a
@@ -263,7 +289,7 @@ def main() -> None:
         "sites": rows,
         "sources": {
             "texture": "SoilGrids 250m v2.0, ISRIC, REST query",
-            "climate": "Open-Meteo ERA5 archive, 1991-2020 daily means",
+            "climate": "Open-Meteo ERA5 archive, 2011-2020 daily means",
             "lithology": "assigned by published type locality, NOT read from GLiM",
         },
     }

@@ -82,6 +82,17 @@ _KNOWN_TERRAIN_HASHES = {
     "a4d204f6e3e706597ff1470d064b457768243483ff884e9b574f055774de3ce9":
         "2026-08 carved-zoned-v5: iteration-2 verdict on P - E runoff, "
         "crust/fill split",
+    # Pre-carve base at the corrected gravity, 12.81 m/s2, and the first build
+    # with both km bugs fixed: orog_* is real kilometres and the basin
+    # catalogue's ...Km fields carry the relief scaling.
+    #
+    # THIS HASH IS THE SAME AT 10.1989 AND 12.81 -- verified upstream by
+    # generating both. Gravity is not in any hash, so the allowlist alone cannot
+    # tell two gravities apart and `Export` checks `planet.gravityMS2` against
+    # the config separately. Do not treat a hash match as sufficient here.
+    "974ceb78fccfd54c3a842cf4ae8d7ae79029816abd9b4fbf90409165090b0ec1":
+        "2026-08 precarve-zoned-g1281: pre-carve base at g = 12.81, crust/fill "
+        "split, orography and basin-km unit fixes",
 }
 
 # Basin ids are computed on the pre-conditioning surface, so they survive a
@@ -90,6 +101,13 @@ _KNOWN_TERRAIN_HASHES = {
 _KNOWN_CATALOGUE_HASHES = {
     "2d1f8e57c26b60c608deaa62bd3c44b7da04a4ee5bd518249447630095d96a98":
         "2026-08 catalogue, 3629 preserved from 81904 detected",
+    # Same 3,629 basins, same ids, same order, same per-region membership --
+    # `basinsPreserved` and `basinMembership` are byte-identical to the previous
+    # catalogue and the id sets were diffed upstream. The hash moved only because
+    # the catalogue's ...Km fields now carry the relief scaling they always
+    # should have. So carve verdicts computed against 2d1f8e57 still apply.
+    "bc84109168789f519b53fc8197ddc976be93ecd8326b61a8086de85e638343cc":
+        "2026-08 catalogue, same 3629 basins, ...Km fields now relief-scaled",
 }
 
 OCEAN, LAND, INLAND_WATER = 0, 1, 2
