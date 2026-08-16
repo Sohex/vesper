@@ -1,31 +1,31 @@
 {
   "run_dir": "/home/cfutro/docs/world/exoplasim/runs/t42l10p16r8_s0968_co20450ppm_rot30h_obl32_e020_glac_k25v_g83d1b976",
-  "completed_orbits": 28,
+  "completed_orbits": 48,
   "window_orbits": 10,
   "metrics": {
-    "temperature_slope_k_per_orbit": 0.13458082257392906,
-    "toa_balance_slope_w_m2_per_orbit": -0.12766983553997832,
-    "surface_balance_slope_w_m2_per_orbit": -0.09877566568927745,
-    "sea_ice_slope_fraction_per_orbit": -0.000594517838094649,
-    "mean_toa_balance_w_m2": 0.7375962016917612,
-    "mean_surface_balance_w_m2": 1.0845312557480014,
-    "temperature_mean_k": 291.24981576308596,
-    "temperature_last_k": 291.7768119449326,
-    "sea_ice_mean_fraction": 0.009833054585366974,
-    "temperature_asymptote_k": 292.2748027289569,
-    "temperature_asymptote_half_width_k": 0.11977597522676113,
-    "temperature_remaining_offset_k": 1.0249869658709372,
-    "relaxation_orbits_fitted": 7.765868428021092,
+    "temperature_slope_k_per_orbit": 0.01125704530397975,
+    "toa_balance_slope_w_m2_per_orbit": -0.02988571116691451,
+    "surface_balance_slope_w_m2_per_orbit": -0.03587270281158731,
+    "sea_ice_slope_fraction_per_orbit": -0.00010485838339112881,
+    "mean_toa_balance_w_m2": -0.33224245402092734,
+    "mean_surface_balance_w_m2": 0.08156573429194147,
+    "temperature_mean_k": 292.3347620105101,
+    "temperature_last_k": 292.37703898516367,
+    "sea_ice_mean_fraction": 0.005516539963768562,
+    "temperature_asymptote_k": 292.4480435717555,
+    "temperature_asymptote_half_width_k": 0.11328156124537969,
+    "temperature_remaining_offset_k": 0.11328156124537969,
+    "relaxation_orbits_fitted": -221593.73053569964,
     "relaxation_orbits_expected": 10.063170058072947,
-    "remaining_offset_implied_by_drift_k": 1.3543097041167906
+    "remaining_offset_implied_by_drift_k": 0.11328156124537969
   },
   "criteria": {
-    "abs_temperature_slope_lt_0.05_k_per_orbit": false,
-    "abs_toa_slope_lt_0.05_w_m2_per_orbit": false,
-    "abs_surface_slope_lt_0.05_w_m2_per_orbit": false,
+    "abs_temperature_slope_lt_0.05_k_per_orbit": true,
+    "abs_toa_slope_lt_0.05_w_m2_per_orbit": true,
+    "abs_surface_slope_lt_0.05_w_m2_per_orbit": true,
     "abs_sea_ice_slope_lt_0.001_per_orbit": true,
-    "abs_mean_toa_lt_0.5_w_m2": false,
-    "abs_mean_surface_lt_0.5_w_m2": false,
+    "abs_mean_toa_lt_0.5_w_m2": true,
+    "abs_mean_surface_lt_0.5_w_m2": true,
     "extrapolated_offset_lt_0.15_k": false
   },
   "sufficiently_equilibrated_for_worldbuilding": false,
@@ -253,6 +253,166 @@
       "hfns": 0.8855431339293878,
       "sic": 0.0077046213394496655,
       "pr": 2.7978978296641737
+    },
+    {
+      "year_index": 28,
+      "ts": 291.8064153618322,
+      "ntr": 0.3701997189736656,
+      "hfns": 0.827421849190021,
+      "sic": 0.00784797746728588,
+      "pr": 2.7970952988570468
+    },
+    {
+      "year_index": 29,
+      "ts": 291.90002968903036,
+      "ntr": 0.19639262691912407,
+      "hfns": 0.5875365189885549,
+      "sic": 0.007421215689863884,
+      "pr": 2.794622880874321
+    },
+    {
+      "year_index": 30,
+      "ts": 291.96220931389934,
+      "ntr": -0.10312153829239253,
+      "hfns": 0.12304407932316182,
+      "sic": 0.006986911813038804,
+      "pr": 2.8127140379194824
+    },
+    {
+      "year_index": 31,
+      "ts": 291.92983184293865,
+      "ntr": 0.05301190823902221,
+      "hfns": 0.6759579769355272,
+      "sic": 0.008069947837421484,
+      "pr": 2.79170619860157
+    },
+    {
+      "year_index": 32,
+      "ts": 292.00342749090834,
+      "ntr": -0.24812609070982491,
+      "hfns": 0.0050300553613792,
+      "sic": 0.007496781110187766,
+      "pr": 2.8204730305053958
+    },
+    {
+      "year_index": 33,
+      "ts": 292.03199233618585,
+      "ntr": -0.07538809357784904,
+      "hfns": 0.2631607673288468,
+      "sic": 0.007538590572915969,
+      "pr": 2.820838414309048
+    },
+    {
+      "year_index": 34,
+      "ts": 291.9565279112103,
+      "ntr": -0.295698884124171,
+      "hfns": 0.2569245503210174,
+      "sic": 0.0074613438153320446,
+      "pr": 2.827259505631476
+    },
+    {
+      "year_index": 35,
+      "ts": 292.08245182592754,
+      "ntr": -0.14543977392953433,
+      "hfns": 0.37541315766527245,
+      "sic": 0.007194175770825303,
+      "pr": 2.823875019930881
+    },
+    {
+      "year_index": 36,
+      "ts": 292.13153901406434,
+      "ntr": -0.038631417526946654,
+      "hfns": 0.20248791084690665,
+      "sic": 0.006288127146832789,
+      "pr": 2.84372893656281
+    },
+    {
+      "year_index": 37,
+      "ts": 292.2066837426019,
+      "ntr": 0.15529145748937342,
+      "hfns": 0.6321378463728661,
+      "sic": 0.00529415174677627,
+      "pr": 2.806536743815716
+    },
+    {
+      "year_index": 38,
+      "ts": 292.25955958790354,
+      "ntr": -0.2619129484014453,
+      "hfns": 0.07705974846474876,
+      "sic": 0.005495539212333834,
+      "pr": 2.8341281363008273
+    },
+    {
+      "year_index": 39,
+      "ts": 292.2884920683021,
+      "ntr": -0.266334044664387,
+      "hfns": 0.13920925229300574,
+      "sic": 0.005534190354449339,
+      "pr": 2.846567524076096
+    },
+    {
+      "year_index": 40,
+      "ts": 292.2490905322423,
+      "ntr": -0.333849843436278,
+      "hfns": 0.17316276011502849,
+      "sic": 0.006395938467356282,
+      "pr": 2.8411511694003804
+    },
+    {
+      "year_index": 41,
+      "ts": 292.3904896852976,
+      "ntr": -0.10586683075744803,
+      "hfns": 0.489841652721974,
+      "sic": 0.006037921356519022,
+      "pr": 2.819369903103382
+    },
+    {
+      "year_index": 42,
+      "ts": 292.38273243310243,
+      "ntr": -0.31318901014644757,
+      "hfns": -0.008622568999732683,
+      "sic": 0.005825065639216781,
+      "pr": 2.8377748883242924
+    },
+    {
+      "year_index": 43,
+      "ts": 292.31244300113764,
+      "ntr": -0.3092197975958564,
+      "hfns": 0.25186652951080335,
+      "sic": 0.005096484569110499,
+      "pr": 2.833320488765292
+    },
+    {
+      "year_index": 44,
+      "ts": 292.43486761057306,
+      "ntr": -0.18498629304845013,
+      "hfns": 0.04756077703266074,
+      "sic": 0.005771090059425942,
+      "pr": 2.827317409611636
+    },
+    {
+      "year_index": 45,
+      "ts": 292.2840963571835,
+      "ntr": -0.568809755558075,
+      "hfns": -0.20657718690763857,
+      "sic": 0.005304985590014487,
+      "pr": 2.859725081309511
+    },
+    {
+      "year_index": 46,
+      "ts": 292.3688098441948,
+      "ntr": -0.5298978467673822,
+      "hfns": -0.022326196897763013,
+      "sic": 0.0047281340113134165,
+      "pr": 2.8511988032995177
+    },
+    {
+      "year_index": 47,
+      "ts": 292.37703898516367,
+      "ntr": -0.44835816983350396,
+      "hfns": -0.12551742441367209,
+      "sic": 0.00497605037794602,
+      "pr": 2.860139072366441
     }
   ]
 }

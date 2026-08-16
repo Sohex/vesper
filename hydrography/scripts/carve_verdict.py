@@ -53,7 +53,8 @@ from netCDF4 import Dataset
 import numpy as np
 import yaml
 
-from _paths import ANALYSIS, CONFIG, DATA, PROJECT_ROOT
+from _paths import ANALYSIS, CONFIG, DATA, PROJECT_ROOT  # noqa: F401
+from builds import component_data
 from orbit import orbital_year_days
 from lake_balance import BasinSet, carve_verdict, solve
 
@@ -173,19 +174,30 @@ def main() -> None:
     ap.add_argument("--climatology", type=Path,
                     default=Path("exoplasim/analysis/climatology_s096/"
                                  "baseline_regular_climatology.nc"))
+    # Defaults resolve to the ACTIVE BUILD's directory, not the flat data/.
+    #
+    # They used to default to flat, which held another terrain entirely: 2,107
+    # basins against the active build's 3,629. An argument whose absence
+    # silently means "do the wrong thing" is the original bug wearing the shape
+    # of its fix, which this project has now written down twice. component_data
+    # is strict, so a missing per-build directory raises here rather than
+    # falling back to a file from a terrain nobody chose.
+    _build_data = component_data("hydrography", strict=True)
     ap.add_argument("--coupling", type=Path,
-                    default=DATA / "coupling_exoplasim-T42.nc")
+                    default=_build_data / "coupling_exoplasim-T42.nc")
     ap.add_argument("--config", type=Path, default=CONFIG)
     # Per-build, like the coupling matrix it must be paired with. Reading the
     # flat data/ while being handed another build's coupling is a row/column
     # mismatch, which is how this surfaced: an IndexError only because the basin
     # counts happened to differ.
-    ap.add_argument("--basins", type=Path, default=DATA / "basins.nc")
+    ap.add_argument("--basins", type=Path, default=_build_data / "basins.nc")
     ap.add_argument("--output", type=Path, default=ANALYSIS / "carve_verdict.json")
     args = ap.parse_args()
 
     config = yaml.safe_load(args.config.read_text(encoding="utf-8"))
     basins = BasinSet(args.basins)
+    # Ids come from the same file as the verdicts. See _basin_ids.
+    basin_ids = _basin_ids(args.basins)
     n = basins.n
 
     with Dataset(args.climatology) as ds:
@@ -345,16 +357,30 @@ def main() -> None:
             "survive_under_both": int(neither.sum()),
             "disputed": int(disputed.sum()),
         },
-        "carve_list_robust": [bid for bid, flag in zip(_basin_ids(), both) if flag],
-        "carve_list_penman": [bid for bid, flag in zip(_basin_ids(), penman_carve) if flag],
+        "carve_list_robust": [bid for bid, flag in zip(basin_ids, both, strict=True) if flag],
+        "carve_list_penman": [bid for bid, flag in zip(basin_ids, penman_carve, strict=True) if flag],
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
     print(f"\nwrote {args.output}")
 
 
-def _basin_ids() -> list[str]:
-    with Dataset(DATA / "basins.nc") as ds:
+def _basin_ids(path: Path) -> list[str]:
+    """Basin ids from the SAME file the verdict was computed on.
+
+    This read used to be hardcoded to the flat `DATA / "basins.nc"` while the
+    verdict itself came from `--basins`, so the ids labelling a carve list could
+    come from a different terrain than the verdicts they labelled. The flat file
+    held 2,107 basins against the active build's 3,629, and the `zip` that joined
+    them truncated silently to the shorter -- producing a carve list of the wrong
+    terrain's ids attached to the right terrain's verdicts, 1,522 basins short,
+    with no error. That file is the one that leaves the project and changes the
+    terrain.
+
+    The earlier form of this bug raised an IndexError and was caught. This one
+    could not, which is why the zips above now pass `strict=True`.
+    """
+    with Dataset(path) as ds:
         return [str(x) for x in ds["basin_id"][:]]
 
 
