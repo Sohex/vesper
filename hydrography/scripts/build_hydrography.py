@@ -20,6 +20,7 @@ from __future__ import annotations
 import argparse
 from datetime import datetime, timezone
 import json
+from pathlib import Path
 
 from netCDF4 import Dataset
 import numpy as np
@@ -206,13 +207,28 @@ def main() -> None:
     ap.add_argument("--output", type=str, default=None)
     args = ap.parse_args()
 
-    out = DATA if args.output is None else __import__("pathlib").Path(args.output)
-    out.mkdir(parents=True, exist_ok=True)
     ANALYSIS.mkdir(parents=True, exist_ok=True)
 
     ex = Export(args.export)
     n_basins = len(ex.basins)
-    print(f"export: {ex.provenance()['terrain_build']}")
+    terrain_build = ex.provenance()["terrain_build"]
+    print(f"export: {terrain_build}")
+
+    # Output is namespaced by the build being PROCESSED, not by config's active
+    # build and not by the flat data/. This script is the one that creates a
+    # per-build directory, so it takes the name from the export in hand -- if it
+    # took it from config, building a non-active build would overwrite the
+    # active one's products under the active one's name.
+    if args.output is not None:
+        out = Path(args.output)
+    else:
+        if terrain_build == "unrecognised":
+            raise SystemExit(
+                "export terrain is not a registered build, so its products have "
+                "no name to be filed under; register it in lib/orogen.py or pass "
+                "--output explicitly")
+        out = DATA / terrain_build
+    out.mkdir(parents=True, exist_ok=True)
     print(f"{ex.n_regions:,} regions, {n_basins} preserved basins")
 
     print("resolving drainage (priority flood)...")

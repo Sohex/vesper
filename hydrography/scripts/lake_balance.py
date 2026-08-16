@@ -41,7 +41,8 @@ import json
 from netCDF4 import Dataset
 import numpy as np
 
-from _paths import ANALYSIS, DATA
+from _paths import ANALYSIS, DATA  # noqa: F401
+from builds import component_data
 
 TERMINAL_OCEAN = -1
 
@@ -50,7 +51,10 @@ class BasinSet:
     """Basin hypsometry and topology, as built by `build_hydrography.py`."""
 
     def __init__(self, path=None):
-        path = path or (DATA / "basins.nc")
+        # Per-build, strict. Defaulting to the flat data/ paired one terrain's
+        # basins with another's everything else; the flat directory currently
+        # holds 2,107 basins against the active build's 3,629.
+        path = path or (component_data("hydrography", strict=True) / "basins.nc")
         with Dataset(path) as ds:
             self.level_km = np.asarray(ds["level_km"][:])
             self.area_km2 = np.asarray(ds["flooded_area_km2"][:])

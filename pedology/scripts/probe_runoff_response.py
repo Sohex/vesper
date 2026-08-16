@@ -42,7 +42,8 @@ import netCDF4 as nc
 import numpy as np
 import yaml
 
-from _paths import ANALYSIS, CONFIG, DATA, PROJECT_ROOT, climatology_path
+from _paths import ANALYSIS, CONFIG, DATA, PROJECT_ROOT, climatology_path  # noqa: F401
+from builds import component_data
 
 import orbit
 
@@ -105,7 +106,11 @@ def run_bucket(precip_daily: np.ndarray, potential_daily: np.ndarray,
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--climatology", type=Path, default=None)
-    parser.add_argument("--soil-map", type=Path, default=DATA / "soilmap.txt")
+    # Per-build: the soil map is a property of a terrain plus a climatology,
+    # and pedology/data/ is namespaced by build. There is no flat soilmap.txt
+    # any more, so this default pointed at a file that does not exist.
+    parser.add_argument("--soil-map", type=Path,
+                        default=component_data("pedology") / "soilmap.txt")
     parser.add_argument("--years", type=int, default=40)
     args = parser.parse_args()
 

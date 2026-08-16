@@ -281,8 +281,10 @@ def main():
     if args.data is not None:
         _DATA = args.data
     else:
-        named = DATA / str(_cfg.get("source_build", ""))
-        _DATA = named if (named / "basins.nc").is_file() else DATA
+        # Strict: no fallback to the flat directory. Falling back when the
+        # per-build file is missing is the same trap one level down -- it turns
+        # a missing input into a silent read of a terrain nobody chose.
+        _DATA = builds.component_data("hydrography", _cfg, strict=True)
     if args.climatology is not None:
         # Resolve before storing: the provenance write takes relative_to
         # PROJECT_ROOT, which raises on a path given relative to the cwd.

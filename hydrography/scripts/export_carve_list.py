@@ -49,21 +49,26 @@ import numpy as np
 import yaml
 
 import carve_verdict as cv
-from _paths import CONFIG, DATA, PROJECT_ROOT
+from _paths import CONFIG, DATA, PROJECT_ROOT  # noqa: F401
+from builds import component_data
 from orbit import orbital_year_days
 from lake_balance import BasinSet
 
 
 def main() -> None:
     ap = argparse.ArgumentParser()
+    # Every path below is per-build and strict. This script's output leaves
+    # the project and changes the terrain, so a default that quietly reads or
+    # writes the wrong build is the most expensive one here.
+    _bd = component_data("hydrography", strict=True)
     ap.add_argument("--climatology", type=Path, default=PROJECT_ROOT /
                     "exoplasim/analysis/climatology_s096/baseline_regular_climatology.nc")
-    ap.add_argument("--coupling", type=Path, default=DATA / "coupling_exoplasim-T42.nc")
+    ap.add_argument("--coupling", type=Path, default=_bd / "coupling_exoplasim-T42.nc")
     # Hydrography is per-build now, so the basin set has to be selectable
     # alongside the coupling it was built with. Mixing a coupling matrix from one
     # terrain with a basin catalogue from another would misalign the rows in the
     # same silent way the longitude convention misaligned the columns.
-    ap.add_argument("--basins", type=Path, default=DATA / "basins.nc")
+    ap.add_argument("--basins", type=Path, default=_bd / "basins.nc")
     # Which field stands for runoff generated over the catchment. This was
     # `mrro` and should not have been: `mrro` is not local runoff generation but
     # river-routed net divergence, because landmod.f90's roffstep calls mkradv,
@@ -91,8 +96,8 @@ def main() -> None:
                     help="carve_list.json from the pass that produced the "
                          "current build; its retain-0 basins are carried forward")
     ap.add_argument("--config", type=Path, default=CONFIG)
-    ap.add_argument("--out-list", type=Path, default=DATA / "carve_list.txt")
-    ap.add_argument("--out-json", type=Path, default=DATA / "carve_list.json")
+    ap.add_argument("--out-list", type=Path, default=_bd / "carve_list.txt")
+    ap.add_argument("--out-json", type=Path, default=_bd / "carve_list.json")
     args = ap.parse_args()
 
     config = yaml.safe_load(args.config.read_text(encoding="utf-8"))

@@ -210,9 +210,14 @@ def load_surface_water(idx):
     has not been run, the map is drawn without standing water rather than
     failing, and says so.
     """
-    path = ROOT / "hydrography/data/surface_water.nc"
+    # Per-build. This read was the flat hydrography/data/, which holds whatever
+    # build was current when it was last written -- so a map could be drawn with
+    # one terrain's coastlines and another terrain's lakes, and would say
+    # nothing about it. Optional stays optional: a missing solve still draws
+    # without water, but only for the build actually being mapped.
+    path = builds.component_data("hydrography") / "surface_water.nc"
     if not path.exists():
-        print("  no surface_water.nc; drawing without lakes or rivers")
+        print(f"  no surface_water.nc for this build; drawing without lakes or rivers")
         return None
     ds = nc.Dataset(path)
     lake = np.asarray(ds["lake"][:]).astype(bool)[idx]
