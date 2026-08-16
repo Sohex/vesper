@@ -9,8 +9,22 @@ run_dir="$package_dir/plasim/run"
 bin_dir="$package_dir/plasim/bin"
 target_dir="$component_dir/inputs/exoplasim_cycle_t42"
 patch_file="$component_dir/patches/exoplasim-3.4.2-star-cycle.patch"
-executable="most_plasim_t42_l10_p8.x"
-base_sha="eb8e9e1c0127940e607828899ff5dea6653c9835cf9d90b79215f7fc2d0f5261"
+executable="most_plasim_t42_l10_p16.x"
+# The base this patch applies ON TOP OF, not pristine ExoPlaSim 3.4.2.
+#
+# radmod.f90 now carries the ozone band-weight patch as well, so pinning the
+# pristine 3.4.2 sha made this script refuse to run at all. The guard is still
+# worth having -- it is what stops us patching a source we have not checked --
+# but its premise is "3.4.2 + ozone band weights", and it has to say so.
+#
+#   pristine 3.4.2                eb8e9e1c0127940e607828899ff5dea6653c9835c...
+#   + exoplasim-3.4.2-ozone-band-weights.patch   -> the sha below
+#
+# Verified 2026-08-16: the star-cycle patch applies to that base with all five
+# hunks clean at offsets of 10 to 12 lines, which is exactly the shift the ozone
+# patch introduces. The two patches coexist. If a THIRD patch lands on
+# radmod.f90, this sha moves again and the comment above needs another line.
+base_sha="7fd39458a87a0bc042d17b0b93c2e45cbfc4fc04a560965c974efa734019c0ba"
 
 if [[ ! -f "$source_file" || ! -f "$run_dir/$executable" || ! -d "$bin_dir" ]]; then
   echo "ExoPlaSim 3.4.2 source or baseline executable is missing" >&2
@@ -32,7 +46,9 @@ restore_vendor_tree() {
 trap restore_vendor_tree EXIT
 
 patch --forward --strip=1 --directory="$package_dir" < "$patch_file"
-(cd "$package_dir" && ./compile.sh -n 8 -p 8 -r T42 -v 10)
+# Rank count must match model.ncpus in config/planet.yaml: the run_id encodes
+# it, and a cycle run is long enough that 16 ranks against 8 is hours.
+(cd "$package_dir" && ./compile.sh -n 16 -p 16 -r T42 -v 10)
 mkdir -p "$target_dir"
 cp -a "$run_dir/." "$target_dir/"
 sha256sum "$target_dir/$executable"
