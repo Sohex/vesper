@@ -732,9 +732,10 @@ a detail: glaciers advance further in the deeper minima and leave moraines at
 different distances, so the landscape records which past minima were severe. An
 integer ratio erases that record.
 
-Note that the aligned envelope, 8.3 K peak-to-peak about a 290.3 K mean, is
-approached rather than attained, and the cycle-mean temperature sits slightly
-*below* the static mean at the same flux because T(f) is concave.
+Note that the aligned envelope is approached rather than attained. The
+cycle-mean temperature sits very slightly *above* the static mean at the same
+flux, because T(f) is measured convex over this range; see the curvature section
+below. The offset is under 0.05 K.
 
 ### The cold-regime slope, measured 2026-08-16
 
@@ -764,11 +765,10 @@ flux, measured where the world is nearly ice-free. The 0.9125-to-0.968 interval
 crosses the ice transition -- sea ice grows thirtyfold across it -- so the true
 interval sensitivity is 35% larger. The chord now gives **289.0 K at 0.945**.
 
-T(f) is concave, because dT/df is larger at low flux where the ice-albedo
-feedback amplifies cooling, so a chord *underestimates* an interior point and the
-true value at 0.945 sits above 289.0 K. How far above is not derivable from two
-points and is what the 0.945 baseline run will measure. Do not quote 289.0 K as
-the mean temperature; quote it as a lower bound with the run pending.
+The chord was expected to *underestimate* the interior point, on the reasoning
+that the ice-albedo feedback makes dT/df larger at low flux and T(f) therefore
+concave. **Measured, that is wrong** -- see the curvature section below. The
+chord's 289.0 K turned out to be accurate to 0.03 K, not a lower bound.
 
 The consequence for the cycle is that its predicted response was understated:
 

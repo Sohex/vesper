@@ -404,12 +404,21 @@ The cold-summer band is therefore 50-60 degrees, which is where the glaciers are
 That band being at 50-60 rather than 45 or 65 is this world's particular
 continents rather than a general rule; the inversion itself is mechanism.
 
-**The cycle pulls the mean down slightly.** dT/df is larger at low flux because
-the ice-albedo feedback amplifies cooling, so T(f) is concave and a symmetric
-flux cycle gives a cycle-mean temperature below the static value at mean flux.
-The asymmetry is reinforced by proximity to the ice-free floor: at 0.2% sea ice
-the warm phase has almost nothing left to melt while the cold phase has room to
-grow. Magnitude pending the cold-regime slope.
+**The cycle pushes the mean up, very slightly.** This was predicted the other
+way round and measured wrong. The expectation was that the ice-albedo feedback
+would amplify cooling, making T(f) concave and pulling the cycle-mean below the
+static mean. Three converged points say the opposite: the slope is 196 K per unit
+flux across 0.9125-0.945 and 209 across 0.945-0.968, so **T(f) is convex** over
+the range the cycle actually spans.
+
+The reason is that there is not enough ice for the ice-albedo term to lead. Sea
+ice runs 6.2% to 0.2% across the interval, while the Planck response alone goes
+as 1/(4 sigma T^3) and therefore grows with temperature, and the water-vapour
+feedback grows with it too. Both push convex and both outweigh ice here.
+
+The magnitude is negligible either way -- about +0.02 to +0.05 K before damping --
+so nothing downstream changes. The mechanism is corrected because it was stated
+as a reason, and a reason that is backwards will be reused.
 
 One thing here is NOT settled and must not be carried as though it were. The
 glacier result is unmodelled: the GCM reports `glac = 0` everywhere because it
