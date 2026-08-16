@@ -311,6 +311,58 @@ closest to the current one rather than the furthest.** Raising carbonate and
 schist resistance lifts mean elevation; narrowing the spread lowers it. Doing
 only one of the two moves the terrain about five times further than doing both.
 
+## Rock albedo, grounded at last: slabs, not powders
+
+The missing measurement was never a table of numbers -- it was the conversion
+from laboratory powders to solid rock faces. **Paragas et al. (2025), via the
+POSEIDON surface albedo database, measures the same rock as slab, crushed and
+powder**, which is exactly that conversion and exactly what Zhuang et al. (2023)
+was being chased for.
+
+Solar-weighted over 0.3-4 um against `k25v_hr.dat`:
+
+| rock | slab | crushed | powder | powder / slab |
+| --- | --- | --- | --- | --- |
+| basalt with olivine phenocrysts | 0.100 | 0.092 | 0.220 | 2.21 |
+| K1919 basalt | 0.101 | 0.047 | 0.228 | 2.26 |
+| basaltic andesite | 0.073 | 0.066 | 0.201 | 2.74 |
+| STM 101 andesite | 0.082 | 0.075 | 0.298 | 3.63 |
+| Dalmatian granite | 0.123 | 0.284 | 0.504 | 4.08 |
+| olivine gabbronorite | 0.150 | 0.132 | 0.371 | 2.47 |
+
+Median powder/slab **2.74**, range 2.19 to 5.11. That single factor reconciles
+everything: Logan's granite powder at 0.68 relative to MgO and Orogen's 0.30 for
+a granite landscape were never in contradiction, they were measuring different
+things.
+
+Three results follow, and they are what the albedo section of this audit has been
+missing.
+
+**Orogen's basalt at 0.10 is essentially exact.** Paragas basalt slabs read 0.100
+and 0.101. Nothing to change on `morb`, `oib` or `flood_basalt` beyond the
+fresh-versus-weathered spread already noted.
+
+**Orogen's felsic values are about 2.4x too bright.** A granite slab is 0.123
+against the table's 0.30, and andesite 0.082 against 0.20.
+
+**And the felsic-to-mafic contrast collapses on solid rock.** Granite slab 0.123
+against basalt slab 0.100 is a factor of 1.2, where powders show 2 to 3 and
+Orogen's table assumes 3.0. The ORDERING that Logan established survives; its
+SPREAD does not. So the table is wrong in the same direction as its erodibility
+was -- too much contrast between classes, not too little.
+
+One more, in the opposite direction to the evaporites: **silicates get brighter
+under this star**, by +0.006 to +0.087, because they lack the structural-water
+bands that make gypsum and trona lose. The stellar correction has opposite signs
+for rock and for hydrous salt, so it cannot be applied as a single factor.
+
+A caveat that keeps this honest: a real planetary surface is neither a cut slab
+nor a sieved powder. Weathering rinds, regolith and dust cover push it toward the
+particulate end, which is presumably why the Hu (2012) exoplanet surface set
+reads 0.22 for basaltic and 0.52 for granitoid. The slab values are a floor and
+the powder values a ceiling; where a given landscape sits between them is a
+question about regolith, not about rock.
+
 ## Density: one value to change
 
 Every Orogen density checks against Daly, Manger and Clark (1966) tables 4-1 and

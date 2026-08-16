@@ -29,6 +29,7 @@ source/*/maps/*.png
 # regenerable by download. The same exclude-the-bulk-keep-the-record rule as the
 # reference PDFs below; what they ground is written into references/INDEX.md.
 references/splib07/
+references/poseidon_surface_albedo/
 references/*/*.zip
 
 # ExoPlaSim model output: ~20 GB of NetCDF and restart checkpoints. Expensive to

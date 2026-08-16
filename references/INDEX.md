@@ -335,6 +335,19 @@ stream-power measurements.
 
 ## Surface albedo and reflectance
 
+**Rock albedo is grounded by the POSEIDON surface database**, held in
+`references/poseidon_surface_albedo/` (124 MB, gitignored). Directional-
+hemispherical reflectances -- the geometry a model albedo wants -- curated for
+rocky-exoplanet work. Cite Mullens et al. (2026) for the database plus the
+original measurement paper for whatever is used.
+
+| file | citation | status |
+| --- | --- | --- |
+| `poseidon_surface_albedo/Paragas2025-P25/` | Paragas, K. et al. (2025). ApJ 981, 130. Data from Figure 3, redistributed in the POSEIDON database | **read** -- **the key source.** The same rock measured as SLAB, CRUSHED and POWDER, which is the solid-to-powder conversion the Logan/Hunt table needs. Solar-weighted under K2.5V: basalt slab 0.100, K1919 basalt slab 0.101, basaltic andesite slab 0.073, andesite slab 0.082, Dalmatian granite slab 0.123. **Powder/slab ratio median 2.74, range 2.19-5.11** |
+| `poseidon_surface_albedo/Hu2012-H12/` | Hu, Ehlmann, Seager (2012). *Theoretical spectra of terrestrial exoplanet surfaces.* ApJ 752, 7. Table 2 | held -- the classic rocky-exoplanet surface set: Basaltic 0.221, Granitoid 0.521, Ultramafic 0.389, Feldspathic 0.511, Clay 0.541, Fe-oxidized 0.177, Metal-Rich 0.105 under K2.5V. These read far brighter than Paragas SLABS, so treat them as particulate surfaces rather than rock faces |
+| `poseidon_surface_albedo/Hammond2025-H25/` | Hammond et al. (2025), redistributed in the POSEIDON database | held -- granite 0.880, gabbro 0.828, andesite 0.592 under K2.5V. Everything reads 0.6-0.99 and the set includes `Albite_dust`, so this is a particulate library, not slabs |
+
+
 No source tabulates broadband albedo per rock type. The spectral libraries below
 supply directional-hemispherical reflectance, which is the quantity a model
 albedo actually wants; the table should be rebuilt by solar-weighting them
