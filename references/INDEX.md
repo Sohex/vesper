@@ -82,10 +82,11 @@ things, and only the second is a brightness cycle.
 | `borosaikia2018-chromospheric-activity-catalogue.pdf` | Boro Saikia et al., 9 authors (2018). *Chromospheric activity catalogue of 4454 cool stars.* A&A 616, A108. `10.1051/0004-6361/201629518` | S-index and log R'HK only; does **not** convert to bolometric flux without an assumed relation | held |
 | `segura2003-ozone-uv-other-stars.pdf` | Segura, Krelove, Kasting, Sommerlatt, Meadows, Crisp, Cohen, Mlawer (2003). *Ozone Concentrations and Ultraviolet Fluxes on Earth-Like Planets Around Other Stars.* Astrobiology 3(4), 689-708. | read -- source of `model.ozone_scale` | read |
 
-## Geochemistry: the weathering thermostat
+## Geochemistry: weathering, phosphorus and the thermostat
 
 | file | citation | status |
 | --- | --- | --- |
+| `hartmann2014-weathering-phosphorus-release.pdf` | Hartmann, Moosdorf, Lauerwald, Hinderer, West (2014). *Global chemical weathering and associated P-release - The role of lithology, temperature and soil properties.* Chemical Geology 363, 145-163. | **read** -- the source of every per-lithology phosphorus number in `pedology/config/pedogenesis.yaml`, both the content row and the release row. It was read from a secondhand citation first and the wrong row was taken; the correction was then also wrong for the intended use. Both rows are now carried and this file is why. It had been sitting outside the repository entirely until 2026-08-16. |
 | `walker1981-whak-thermostat.pdf` | Walker, Hays, Kasting (1981). *A negative feedback mechanism for the long-term stabilization of Earth's surface temperature.* J. Geophys. Res. 86(C10), 9776-9782. `10.1029/JC086iC10p09776` | held -- the thermostat efficiency figure came from another session and the primary was never held. **Scanned, thin text layer.** |
 | `dunne1978-chemical-denudation-silicate.pdf` | Dunne, T. (1978). *Rates of chemical denudation of silicate rocks in tropical catchments.* Nature 274, 244-246. | **read** -- source of the runoff exponent in the weathering law. **Scanned, no text layer; read as an image.** |
 
@@ -133,3 +134,101 @@ closed-basin surfaces. Resolved: cooling everywhere. See `notes/dust.md`.
 | file | citation | status |
 | --- | --- | --- |
 | `wang2018-endorheic-water-storage.pdf` | Wang et al. (2018). *Recent global decline in endorheic basin water storages.* Nature Geoscience 11, 926-932. `10.1038/s41561-018-0265-7` | read -- source of "Earth is one-fifth endorheic", which corrected the 13% this project had been using. 31.8 million km2 across 48,813 landlocked watersheds in 15 arcsec HydroSHEDS. Measures catchment area draining internally, the same quantity as our own endorheic share. |
+
+---
+
+# Derived surface classes
+
+Fetched 2026-08-16 for the derived-surface-class work: deriving diatomite,
+duricrust, deflation armour and loess as products of surface process history
+rather than as rock types Orogen could know about. See `notes/dust.md` and
+`pedology/analysis/phosphorus_budget.json`.
+
+## Bodélé Depression and biogenic lacustrine phosphorus
+
+The exemplar the whole aeolian phosphorus return leg is modelled on.
+
+| file | citation | status |
+| --- | --- | --- |
+| `hudsonedwards2014-bodele-phosphorus-speciation.pdf` | Hudson-Edwards, Bristow, Cibin, Mason, Peacock (2014). *Solid-phase phosphorus speciation in Saharan Bodélé Depression dusts and source sediments.* Chemical Geology 384, 16-26. `10.1016/j.chemgeo.2014.06.014` | **read** -- Table 1 is the load-bearing one: diatomite 600-610 ppm P, emitted dust 590-930, **aeolian sand 40**. Only 2-4% water soluble. The authigenic apatite is fish bone and scale, "the first-ever report of fish material in aeolian dust" |
+| `bristow2010-fertilizing-amazon-dust.pdf` | Bristow, Hudson-Edwards, Chappell (2010). *Fertilizing the Amazon and equatorial Atlantic with West African dust.* Geophys. Res. Lett. 37(14), L14807. `10.1029/2010GL043486` | held -- 0.12 Tg P/yr exported |
+| `bristow2009-deflation-bodele.pdf` | Bristow, Drake, Armitage (2009). *Deflation in the dustiest place on Earth: The Bodélé Depression, Chad.* Geomorphology 105(1-2), 50-58. `10.1016/j.geomorph.2007.12.014` | held |
+| `bristow2018-auto-abrasion-diatomite.pdf` | Bristow, Moller (2018). *Testing the auto-abrasion hypothesis for dust production using diatomite dune sediments from the Bodélé Depression in Chad.* Sedimentology 65(4), 1322-1330. `10.1111/sed.12423` | held -- the mechanism for WHY diatomite deflates so readily: saltating grains shattering each other |
+| `washington2005-bodele-low-level-jet.pdf` | Washington, Todd (2005). *Atmospheric controls on mineral dust emission from the Bodélé Depression, Chad: The role of the low level jet.* Geophys. Res. Lett. 32(17), L17701. `10.1029/2005GL023597` | held -- the low-level jet is the reason this particular basin exports so much; the mechanism is meteorological, not just geological |
+| `washington2003-dust-storm-source-areas.pdf` | Washington, Todd, Middleton, Goudie (2003). *Dust-Storm Source Areas Determined by the Total Ozone Monitoring Spectrometer and Surface Observations.* Annals AAG 93(2), 297-313. `10.1111/1467-8306.9302003` | held -- the printed title says "Monitoring"; the instrument is Total Ozone MAPPING Spectrometer. The error is the publisher's, reproduce it |
+| `yu2020-disproving-bodele-amazon.pdf` | Yu et al. (2020). *Disproving the Bodélé Depression as the Primary Source of Dust Fertilizing the Amazon Rainforest.* Geophys. Res. Lett. 47(13), e2020GL088020. `10.1029/2020GL088020` | held -- **the premise is contested**; adopt or reject it deliberately rather than by inheritance |
+| `chadwick1999-changing-nutrient-sources.pdf` | Chadwick, Derry, Vitousek, Huebert, Hedin (1999). *Changing sources of nutrients during four million years of ecosystem development.* Nature 397, 491-497. `10.1038/17276` | held -- the empirical demonstration that aeolian P sustains an ecosystem once bedrock P is exhausted |
+
+**The reframe this set forces.** Diatomite at ~600 ppm sits essentially at this
+world's land mean of 628. The Bodélé is not P-rich *material*; it is an enormous,
+exceptionally deflatable source of ordinary-P material. Its export is a mass-flux
+result, not a concentration result, and the 15x contrast is against aeolian sand.
+
+## Dust emission physics and supply limitation
+
+| file | citation | status |
+| --- | --- | --- |
+| `kok2012-physics-windblown-sand-dust.pdf` | Kok, Parteli, Michaels, Bou Karam (2012). *The physics of wind-blown sand and dust.* Rep. Prog. Phys. 75(10), 106901. `10.1088/0034-4885/75/10/106901` | held -- **covers Earth AND Mars**, so the only saltation-threshold review treating non-Earth gravity. Directly relevant at 12.81 m/s2 |
+| `marticorena1995-dust-emission-scheme.pdf` | Marticorena, Bergametti (1995). *Modeling the atmospheric dust cycle: 1. Design of a soil-derived dust emission scheme.* JGR 100(D8), 16415-16430. `10.1029/95JD00690` | held -- the standard scheme |
+| `shao2000-threshold-friction-velocity.pdf` | Shao, Lu (2000). *A simple expression for wind erosion threshold friction velocity.* JGR 105(D17), 22437-22443. `10.1029/2000JD900304` | held |
+| `kok2014-improved-dust-emission-model.pdf` | Kok et al. (2014). *An improved dust emission model - Part 1: Model description and comparison against measurements.* Atmos. Chem. Phys. 14(23), 13023-13041. `10.5194/acp-14-13023-2014` | held |
+| `bullard2011-preferential-dust-sources.pdf` | Bullard et al. (2011). *Preferential dust sources: A geomorphological classification designed for use in global dust-cycle models.* JGR 116(F4), F04034. `10.1029/2011JF002061` | held -- classifies sources by supply and availability regime, written for global models |
+| `macpherson2008-supply-limited-dust-emission.pdf` | Macpherson, Nickling, Gillies, Etyemezian (2008). *Dust emissions from undisturbed and disturbed supply-limited desert surfaces.* JGR Earth Surf. 113(F2), F02S04. `10.1029/2007JF000800` | held -- **not "Macpherson and King"**, a citation that does not exist |
+| `kocurek1999-aeolian-sediment-state.pdf` | Kocurek, Lancaster (1999). *Aeolian system sediment state: theory and Mojave Desert Kelso dune field example.* Sedimentology 46(3), 505-515. `10.1046/j.1365-3091.1999.00227.x` | held -- where supply / availability / transport-capacity is formalised |
+
+## Desert pavement
+
+| file | citation | status |
+| --- | --- | --- |
+| `wells1995-cosmogenic-stone-pavements.pdf` | Wells, McFadden, Poths, Olinger (1995). *Cosmogenic 3He surface-exposure dating of stone pavements: Implications for landscape evolution in deserts.* Geology 23(7), 613-616. `10.1130/0091-7613(1995)023<0613:CHSEDO>2.3.CO;2` | **read** -- and it **inverts the intuitive model**. Cosmogenic ages show the clasts never moved: *"stone pavements are born at the surface."* Deflation lag, water winnowing and shrink-swell are all rejected. Dust is trapped BENEATH the clast mosaic into a cumulic Av horizon, so the surface is a net dust SINK under a non-erodible cover. Citing this as evidence that deflation armours a surface inverts the paper |
+| `mcfadden1987-desert-pavement-origin.pdf` | McFadden, Wells, Jercinovich (1987). *Influences of eolian and pedogenic processes on the origin and evolution of desert pavements.* Geology 15(6), 504-508. `10.1130/0091-7613(1987)15<504:IOEAPP>2.0.CO;2` | held -- proposes the model Wells 1995 tests. Title is "Influences" plural; a widely-copied citing reference list prints the singular |
+| `pelletier2007-desert-pavement-dynamics.pdf` | Pelletier, Cline, DeLong (2007). *Desert pavement dynamics: numerical modeling and field-based calibration.* Earth Surf. Process. Landforms 32(13), 1913-1927. `10.1002/esp.1500` | held -- a numerical model rather than a concept |
+| `haff1996-pavement-healing-disturbance.pdf` | Haff, Werner (1996). *Dynamical Processes on Desert Pavements and the Healing of Surficial Disturbances.* Quaternary Research 45(1), 38-46. `10.1006/qres.1996.0004` | held -- re-formation timescale after disturbance |
+
+## Duricrusts
+
+| file | citation | status |
+| --- | --- | --- |
+| `watson1983-gypsum-crusts-deserts-vol1.pdf` + `watson1983-gypsum-crusts-deserts-vol2.pdf` | Watson (1983). *The origin, nature and distribution of gypsum crusts in deserts.* D.Phil. thesis, Oxford. `10.5287/ora-wv9z40k84` | **read** -- **gypcrete forms below ~250 mm/yr with potential evaporation exceeding precipitation every month**, and about 22% of Earth's land lies within those bounds. Explicitly: gypsum crusts occupy the driest zones while calcretes take the less arid parts |
+| `alonsozarza2003-palustrine-carbonates-calcretes.pdf` | Alonso-Zarza (2003). *Palaeoenvironmental significance of palustrine carbonates and calcretes in the geological record.* Earth-Sci. Rev. 60(3-4), 261-298. `10.1016/S0012-8252(02)00106-X` | **read** -- **calcrete favoured below 500-600 mm/yr, optimum 100-500, upper bound arguably 1000; lower bound as low as 50.** Mineralogy-keyed bands in section 3.6.1 |
+| `machette1985-calcic-soils-sw-usa.pdf` | Machette (1985). *Calcic soils of the southwestern United States.* GSA Special Paper 203, 1-22. `10.1130/SPE203-p1` | held -- Stages I-VI of carbonate morphology |
+| `bachman1977-calcic-soils-calcretes-sw-usa.pdf` | Bachman, Machette (1977). *Calcic soils and calcretes in the southwestern United States.* USGS Open-File Report 77-794. `10.3133/ofr77794` | **read** -- carbonate accumulation **0.22 to 0.51 g/cm2/kyr**, and the two-sided constraint: too dry and solutions never infiltrate, too wet and carbonate leaches out |
+| `nash2011-desert-crusts-rock-coatings.pdf` | Nash (2011). *Desert Crusts and Rock Coatings*, ch. 8, 131-180, in Thomas (ed.), Arid Zone Geomorphology, 3rd edn. `10.1002/9780470710777.ch8` | held -- the only chapter treating calcrete, gypcrete and silcrete together |
+| `ullyott2016-pedogenic-nonpedogenic-silcretes.pdf` | Ullyott, Nash (2016). *Distinguishing pedogenic and non-pedogenic silcretes in the landscape and geological record.* Proc. Geol. Assoc. 127(3), 311-319. `10.1016/j.pgeola.2016.03.001` | held |
+| `fenske2025-duricrust-water-table.html` | Fenske, Braun, Guillocheau, Robin (2025). *A numerical model for duricrust formation by water table fluctuations.* Earth Surf. Dynam. 13(1), 119-146. `10.5194/esurf-13-119-2025` | held -- HTML, the publisher's TLS chain was broken. States the ordering compactly and, usefully, that silcrete cannot be climatically calibrated |
+
+**Silcrete has no climatic window and should be dropped from any classifier**
+rather than given a fabricated threshold. Nash and Ullyott call identifying its
+environmental parameters "highly problematic"; Fenske et al. say climatic
+calibration "will not provide duricrust formation boundaries" for it.
+
+## Aeolian phosphorus deposition, and loess
+
+| file | citation | status |
+| --- | --- | --- |
+| `okin2004-dust-phosphorus-terrestrial.pdf` | Okin, Mahowald, Chadwick, Artaxo (2004). *Impact of desert dust on the biogeochemistry of phosphorus in terrestrial ecosystems.* Global Biogeochem. Cycles 18(2), GB2005. `10.1029/2003GB002145` | held -- deposition to LAND, which is our return leg specifically rather than the ocean |
+| `mahowald2008-global-phosphorus-deposition.pdf` | Mahowald et al. (2008). *Global distribution of atmospheric phosphorus sources, concentrations and deposition rates, and anthropogenic impacts.* Global Biogeochem. Cycles 22(4), GB4026. `10.1029/2008GB003240` | held -- mineral aerosols are 82% of total P globally |
+| `myriokefalitakis2016-bioavailable-phosphorus-ocean.pdf` | Myriokefalitakis, Nenes, Baker, Mihalopoulos, Kanakidou (2016). *Bioavailable atmospheric phosphorous supply to the global ocean: a 3-D global modeling study.* Biogeosciences 13(24), 6519-6543. `10.5194/bg-13-6519-2016` | held -- 1.300 Tg-P/yr total deposited, 0.455 dissolved, a 35% soluble fraction |
+| `nenes2011-atmospheric-acidification-phosphorus.pdf` | Nenes, Krom, Mihalopoulos, Van Cappellen, Shi, Bougiatioti, Zarmpas, Herut (2011). *Atmospheric acidification of mineral aerosols: a source of bioavailable phosphorus for the oceans.* Atmos. Chem. Phys. 11(13), 6265-6272. `10.5194/acp-11-6265-2011` | held -- the acid-processing mechanism itself. Cited by Hudson-Edwards for the finding that acid treatment releases 81-96% of dust P against 2-4% in circum-neutral water, which is why the Bodélé soluble fraction is a floor |
+| `stockdale2016-acid-processing-mineral-dusts.pdf` | Stockdale, Krom, Mortimer, Benning, Carslaw, Herbert, Shi, Myriokefalitakis, Kanakidou, Nenes (2016). *Understanding the nature of atmospheric acid processing of mineral dusts in supplying bioavailable phosphorus to the oceans.* PNAS 113(51), 14639-14644. `10.1073/pnas.1608136113` | held -- apatite is 79-96% of dust P, which bounds how much of a dust-borne P subsidy can ever be bioavailable |
+| `herbert2018-acid-processing-bioavailable-p.pdf` | Herbert et al. (2018). *The Effect of Atmospheric Acid Processing on the Global Deposition of Bioavailable Phosphorus From Dust.* Global Biogeochem. Cycles 32(9), 1367-1385. `10.1029/2018GB005880` | held -- bioavailable fraction rises from ~10% labile to a 22% ocean mean after acid processing |
+| `bettis2003-last-glacial-loess-usa.pdf` | Bettis, Muhs, Roberts, Wintle (2003). *Last Glacial loess in the conterminous USA.* Quat. Sci. Rev. 22(18-19), 1907-1946. `10.1016/S0277-3791(03)00169-0` | held -- mass accumulation rates to 17,500 g/m2/yr, many near-source above 1500. **Last-glacial mid-continent North America, the high end of the global range, not a global typical** |
+| `muhs2013-geologic-records-dust-quaternary.pdf` | Muhs (2013). *The geologic records of dust in the Quaternary.* Aeolian Research 9, 3-48. `10.1016/j.aeolia.2012.08.001` | held -- the broad Quaternary dust-deposition-rate compilation |
+
+## Major-ion weathering by lithology
+
+Needed because **Hartmann et al. (2014) does not supply it.** Section 2.1 defines
+the weathering rate as the fluvial export of *total* Ca + Mg + Na + K + SiO2 plus
+carbonate CO3 -- the cations are summed before the model runs and never separated
+again -- and evaporite dissolution beyond carbonate is explicitly excluded. Its
+Table A1-2 looks like the answer and is a trap: bulk rock composition in weight
+percent, not release.
+
+| file | citation | status |
+| --- | --- | --- |
+| `meybeck1987-global-chemical-weathering.pdf` | Meybeck (1987). *Global chemical weathering of surficial rocks estimated from river dissolved loads.* Am. J. Sci. 287(5), 401-428. `10.2475/ajs.287.5.401` | **read** -- **the per-lithology major-ion source.** Table 2C gives concentrations and Table 5 release fractions for all eight species across 10 rock types. Two limits: it is a **scanned image with no text layer**, and Table 5 covers **exorheic continents only**, awkward for a 76%-endorheic world |
+| `hartmann2011-japan-silicate-weathering-phosphorus.pdf` | Hartmann, Moosdorf (2011). *Chemical weathering rates of silicate-dominated lithological classes and associated liberation rates of phosphorus on the Japanese Archipelago - Implications for global scale analysis.* Chem. Geol. 287(3-4), 125-157. `10.1016/j.chemgeo.2010.12.004` | held -- the upstream calibration for Hartmann 2014, and the one paper that might carry cations ON GLiM CLASSES, which would save the Meybeck mapping. Worth opening first |
+| `gaillardet1999-silicate-weathering-co2.pdf` | Gaillardet, Dupré, Louvat, Allègre (1999). *Global silicate weathering and CO2 consumption rates deduced from the chemistry of large rivers.* Chem. Geol. 159(1-4), 3-30. `10.1016/S0009-2541(99)00031-5` | held -- river-basin endmembers, not a lithological yield table |
+| `bluth1994-lithologic-climatologic-river-chemistry.pdf` | Bluth, Kump (1994). *Lithologic and climatologic controls of river chemistry.* Geochim. Cosmochim. Acta 58(10), 2341-2359. `10.1016/0016-7037(94)90015-9` | held -- 101 monolithologic rivers, but **bicarbonate and silica only**: two of the eight species |
+| `hartmann2012-terrestrial-surface-composition.pdf` | Hartmann, Dürr, Moosdorf, Meybeck, Kempe (2012). *The geochemical composition of the terrestrial surface (without soils) and comparison with the upper continental crust.* Int. J. Earth Sci. 101(1), 365-376. `10.1007/s00531-010-0635-x` | held -- the source of Hartmann 2014's Table A1-2 compositions. Composition, still not release |
+| `hartmannmoosdorf2012-glim-lithological-map.pdf` | Hartmann, Moosdorf (2012). *The new global lithological map database GLiM: A representation of rock properties at the Earth surface.* Geochem. Geophys. Geosyst. 13(12), 2012GC004370. `10.1029/2012GC004370` | held -- the source of our lithology classes. A map, not a chemistry dataset |

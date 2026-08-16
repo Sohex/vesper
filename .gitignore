@@ -55,4 +55,5 @@ pedology/data/reference/
 # which sources have actually been read. A blanket `references/` rule used to
 # sit here and silently swallowed it.
 references/*.pdf
+references/*.html
 references/_*

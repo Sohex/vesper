@@ -270,6 +270,39 @@ def main() -> int:
     except Exception as exc:
         rep.add(WARN, "config blocks declare their status", f"not checked: {exc}")
 
+    # -- generated biosphere inputs vs the config they were derived from -----
+    #
+    # biosphere/generated/ holds a C++ header, a driver and a PFT file, each
+    # DERIVED from config/planet.yaml and each recording the config_sha256 it was
+    # built against. That design is right and it is why the year length is not
+    # written down anywhere by hand. But nothing verified the derivation had
+    # actually been re-run, so all three drifted -- and to three DIFFERENT config
+    # states, which is worse than one stale artifact because they disagree with
+    # each other as well as with the config.
+    #
+    # The year length sizes arrays in a compiled header, so it cannot be checked
+    # at runtime. This is the check.
+    try:
+        gen = ROOT / "biosphere" / "generated"
+        cur = sha256_of(ROOT / "config" / "planet.yaml")
+        stale = []
+        for prov in sorted(gen.glob("*_provenance.json")):
+            rec = json.loads(prov.read_text(encoding="utf-8"))
+            was = rec.get("config_sha256")
+            if was != cur:
+                yl = rec.get("year_length_days")
+                stale.append(f"{prov.name}"
+                             + (f" (year_length_days={yl})" if yl else ""))
+        if not list(gen.glob("*_provenance.json")):
+            rep.add(WARN, "generated biosphere inputs", "none present")
+        else:
+            rep.add(FAIL if stale else OK, "generated biosphere inputs current",
+                    ("derived from an older config: " + "; ".join(stale)
+                     + " -- rerun biosphere/scripts/build_vesper_header.py")
+                    if stale else "all derived from the current config")
+    except Exception as exc:
+        rep.add(WARN, "generated biosphere inputs", f"not checked: {exc}")
+
     # -- binaries vs the patches they should contain -------------------------
     #
     # ExoPlaSim builds one executable per (resolution, layers, ranks) triple, so
