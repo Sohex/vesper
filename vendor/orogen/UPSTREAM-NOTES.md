@@ -1,4 +1,14 @@
-# CLAUDE.md
+# Upstream notes (was CLAUDE.md)
+
+**Renamed on vendoring.** This file is the mainline Orogen project's own agent
+direction. Its goals diverge substantially from what this world uses the
+generator for, so it is deliberately NOT named CLAUDE.md: it must not be picked
+up as instructions inside this repository. The governing instructions are
+`/CLAUDE.md` at the repo root.
+
+Kept because it documents the fork's intent, and because renaming it rather than
+deleting it keeps `git subtree pull` from re-adding it silently as a new file.
+
 
 ## What this fork is
 

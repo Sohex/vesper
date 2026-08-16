@@ -41,6 +41,48 @@ export function elevToHeightKm(elev, isLand) {
     return 6 * t2 * t2 * (5 - 4 * t);  // 0→0, 0.25→0.09, 0.5→1.13, 0.75→3.80, 1.0→6
 }
 
+/**
+ * Physical height in km, INCLUDING this planet's 1/g relief scaling.
+ *
+ * This is the single definition of a rule that was previously written out at
+ * three separate call sites, and it is the one that looks like a bug if you meet
+ * it without the reasoning:
+ *
+ *     positive heights scale by reliefScale; negative ones do not.
+ *
+ * That asymmetry is deliberate and physical, not an oversight.
+ *
+ *   LAND above sea level is limited by how much load a crustal root can carry
+ *   before it fails. That ceiling is sigma/(rho*g), so it goes as 1/g: a
+ *   high-gravity world has subdued topography, a low-gravity one gets Olympus
+ *   Mons. Scaling is correct here.
+ *
+ *   OCEAN DEPTH is an isostatic balance between the water-plus-oceanic-crust
+ *   column and the continental column. Write out that mass balance and g
+ *   multiplies every term, so it CANCELS. Ocean depth is set by density
+ *   contrasts and crustal thicknesses, and a planet at 2 g has the same ocean
+ *   depth as one at 1 g. Scaling it would be wrong.
+ *
+ * The same cancellation is why a `reliefScale` of exactly 1 must be bit-identical
+ * to omitting it: see tools/test-basins.mjs.
+ *
+ * A caveat that follows from taking the argument seriously, and is NOT modelled
+ * here: isostatically compensated LAND -- a high plateau floating on thick crust
+ * -- is gravity-independent for exactly the same reason the ocean is. Only the
+ * strength-supported part of land relief should scale. Separating the two needs a
+ * crustal-thickness field, which this model does not carry, so the uniform 1/g on
+ * land is an upper bound on the correction and over-suppresses plateaus.
+ *
+ * @param elev        model elevation parameter
+ * @param reliefScale REFERENCE_GRAVITY_MS2 / gravityMS2, exactly 1 for Earth
+ * @param isLand      from surface_class, NOT the elevation sign; a dry
+ *                    closed-basin floor below sea level is land
+ */
+export function scaledHeightKm(elev, reliefScale, isLand) {
+    const h = elevToHeightKm(elev, isLand);
+    return h > 0 ? h * reliefScale : h;
+}
+
 // Biome base colors indexed by Köppen class ID (satellite-view palette).
 // 0=Ocean delegated, 1-30 = land biomes.
 const BIOME_COLORS = [

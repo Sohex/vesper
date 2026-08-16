@@ -20,7 +20,7 @@
 import { KOPPEN_CLASSES as KOPPEN_TABLE } from './koppen.js';
 import { BASIN_SURFACE_CLASSES, usesLandHeightBranch } from './basins.js';
 import { ROCK_CLASSES } from './lithology.js';
-import { elevToHeightKm } from './color-map.js';
+import { elevToHeightKm, scaledHeightKm } from './color-map.js';
 import { planetSummary } from './planet-params.js';
 import { hashTypedArray, hashJson } from './sha256.js';
 import {
@@ -385,8 +385,9 @@ export function collectRegionFields(data) {
     const elevKm = new Float32Array(n);
     for (let r = 0; r < n; r++) {
         const isLand = surfaceCls ? usesLandHeightBranch(surfaceCls[r]) : r_elevation[r] > 0;
-        const h = elevToHeightKm(r_elevation[r], isLand);
-        elevKm[r] = h > 0 ? h * reliefScale : h;
+        // Land scales by 1/g, ocean depth does not; scaledHeightKm carries
+        // the reasoning. Do not "fix" the asymmetry.
+        elevKm[r] = scaledHeightKm(r_elevation[r], reliefScale, isLand);
     }
     add('elevation_km', elevKm);
     add('elevation_pre_erosion', data.prePostElev);

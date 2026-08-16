@@ -37,7 +37,7 @@ function sliderFromBasinArea(km2) {
     }
     return best;
 }
-import { elevToHeightKm, elevationToColor, biomeColor } from '../js/color-map.js';
+import { elevToHeightKm, scaledHeightKm, elevationToColor, biomeColor } from '../js/color-map.js';
 import { KOPPEN_CLASSES } from '../js/koppen.js';
 import { usesLandHeightBranch, parseBasinList } from '../js/basins.js';
 import { hashTypedArray, hashJson } from '../js/sha256.js';
@@ -52,10 +52,7 @@ setDelaunator(Delaunator);
 // the elevation sign: a dry closed-basin floor is land, and the bathymetric
 // branch rendered ~-500 m floors at -4,300 to -4,900 m, clamping a quarter of a
 // million pixels at the encoding floor of the full-range heightmap.
-const heightKm = (e, reliefScale, isLand) => {
-    const h = elevToHeightKm(e, isLand);
-    return h > 0 ? h * reliefScale : h;
-};
+const heightKm = (e, reliefScale, isLand) => scaledHeightKm(e, reliefScale, isLand);
 const heightmapColor = (e, reliefScale, isLand) => {
     const t = Math.max(0, Math.min(1, (heightKm(e, reliefScale, isLand) + 5) / 11));  // -5 km → 0, 6 km → 1
     return [t, t, t];

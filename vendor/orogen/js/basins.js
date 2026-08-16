@@ -24,7 +24,7 @@
 
 import { MinHeap } from './min-heap.js';
 import { avgCellAreaKm2, avgEdgeKm, uniformCellArea } from './geometry.js';
-import { elevToHeightKm } from './color-map.js';
+import { scaledHeightKm } from './color-map.js';
 import {
     BASIN_MIN_DEPTH_KM, BASIN_MIN_AREA_KM2, BASIN_MIN_CELLS,
     BASIN_MAX_NEST_DEPTH, BASIN_HYPSOMETRY_LEVELS, BASIN_DIVIDE_RING_KM,
@@ -51,10 +51,8 @@ const EPS = 1e-7;
  * `elevation_km` exactly; the two conversions must stay identical, so if one
  * changes, change both.
  */
-const heightKm = (modelElev, reliefScale = 1) => {
-    const h = elevToHeightKm(modelElev, true);
-    return h > 0 ? h * reliefScale : h;
-};
+const heightKm = (modelElev, reliefScale = 1) =>
+    scaledHeightKm(modelElev, reliefScale, true);
 
 /**
  * Sort key for "largest basin first", in km³ at unit relief. See the note in
