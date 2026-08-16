@@ -55,6 +55,8 @@ private:
 		double lon;
 		double lat;
 		int soilcode;
+		/// regolith thickness, m, from the pedology component
+		double regolith_depth_m;
 		/// mean air temperature per bin, degrees C
 		std::vector<double> temp;
 		/// precipitation total per bin, mm
@@ -114,6 +116,9 @@ private:
 
 	/// Interpolates the current cell's bins onto days
 	void interpolate(const Cell& cell);
+
+	/// Scales soil water capacity by how much of each layer is really regolith
+	void apply_regolith_depth(Gridcell& gridcell, double depth_m);
 
 	/// Reads the driver file into `cells`, failing loudly on any mismatch
 	void read_driver();

@@ -210,12 +210,26 @@ def geography_tag(config: dict) -> str:
 # from the lithology, so it is supplied when land_albedo_source is not uniform.
 BASE_SURFACE_CODES = {129, 172}
 ALBEDO_SURFACE_CODES = {174, 175, 176, 212}
+# dwmax, the soil water bucket whose overflow *is* ExoPlaSim's runoff. Supplied
+# from pedology when asked for; otherwise the uniform namelist default stands.
+SOIL_WATER_SURFACE_CODES = {229}
 
 
 def intended_surface_codes(config: dict) -> set[int]:
-    if str(config["model"].get("land_albedo_source", "uniform")) == "uniform":
-        return set(BASE_SURFACE_CODES)
-    return BASE_SURFACE_CODES | ALBEDO_SURFACE_CODES
+    """Which surface fields this run supplies rather than leaving at defaults.
+
+    `model.soil_water_source` defaults to `uniform` when the key is absent, so a
+    config predating this option behaves exactly as it did. That is deliberate:
+    the key is not in `config/planet.yaml` yet, because adding it moves
+    `config_sha256` and `continue_exoplasim.py` refuses to resume a run whose
+    config hash has changed.
+    """
+    codes = set(BASE_SURFACE_CODES)
+    if str(config["model"].get("land_albedo_source", "uniform")) != "uniform":
+        codes |= ALBEDO_SURFACE_CODES
+    if str(config["model"].get("soil_water_source", "uniform")) != "uniform":
+        codes |= SOIL_WATER_SURFACE_CODES
+    return codes
 
 
 def stage_surface_extras(run_dir: Path, config: dict) -> list[int]:
@@ -229,9 +243,15 @@ def stage_surface_extras(run_dir: Path, config: dict) -> list[int]:
     for code in sorted(intended_surface_codes(config) - BASE_SURFACE_CODES):
         src = surface_sra(config, code)
         if not src.is_file():
+            builder = ("build_surface_soil_water.py"
+                       if code in SOIL_WATER_SURFACE_CODES
+                       else "build_surface_albedo.py")
+            setting = ("model.soil_water_source"
+                       if code in SOIL_WATER_SURFACE_CODES
+                       else "model.land_albedo_source")
             raise RuntimeError(
-                f"{src} is missing. Run build_surface_albedo.py, or set "
-                "model.land_albedo_source: uniform to accept ExoPlaSim's 0.22."
+                f"{src} is missing. Run {builder}, or set {setting}: uniform "
+                f"to accept ExoPlaSim's namelist default."
             )
         shutil.copyfile(src, run_dir / f"N{int(config['model']['latitudes']):03d}"
                                        f"_surf_{code:04d}.sra")

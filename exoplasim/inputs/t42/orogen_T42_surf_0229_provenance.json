@@ -1,0 +1,20 @@
+{
+  "climatology": "exoplasim/analysis/climatology_s096/baseline_regular_climatology.nc",
+  "generated": "2026-08-16T01:01:05+00:00",
+  "code": 229,
+  "field": "dwmax, maximum soil water capacity, metres",
+  "soil_map": "pedology/data/soilmap.txt",
+  "soil_map_sha256": "23ce62335da443eb63d0782626fc9f96b56ec4b55a1f14880593fb3e2330da53",
+  "config_sha256": "a0b9911f5f42764b7dcab63b660fcd5921b5b98c9ca8bf77f7c973af60f7a11a",
+  "resolution": "T42",
+  "land_cells": 4106,
+  "land_cells_matched": 4106,
+  "land_cells_without_soil_left_at_default": 0,
+  "land_mean_capacity_m": 0.34217895273079574,
+  "exoplasim_uniform_default_m": 0.5,
+  "why_this_matters": "landmod.f90 computes runoff as the overflow of this bucket, so a uniform default makes runoff a namelist property rather than a soil property. The 0.96 climatology's 2.8% land runoff ratio against Earth's ~35% is the symptom.",
+  "not_enabled_by_default": "Requires model.soil_water_source: pedology in config/planet.yaml. That key is absent on purpose: adding it moves config_sha256 and blocks resumption of runs in flight.",
+  "output": "exoplasim/inputs/t42/orogen_T42_surf_0229.sra",
+  "output_sha256": "8c5cd625409dcbacfb0e9356968dd88f0a31437bbf7b86074ce9b31c0c695fa4",
+  "git_commit": "c68fbd7d12eee65b67ba169fa361e6094ffebdbc"
+}

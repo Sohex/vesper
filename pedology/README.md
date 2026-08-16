@@ -111,17 +111,50 @@ clay 0.276 against sand 0.407, with 0.286 of the mineral fraction inert quartz.
 
 **This is also where the loop wants to run in the other direction.** Soil water
 holding capacity is exactly the field ExoPlaSim is defaulting, and this component
-computes it. Feeding it back would close a second loop and probably fix the
-runoff at the same time. Not built.
+computes it. That is now built, though not enabled; see below.
+
+## Both loops now close
+
+**To the biosphere.** `soilmap.txt` carries a `depth` column, LPJ-GUESS's own
+`SoilInput` ignores it, and `vesperinput` scales each soil layer's water capacity
+by how much of that layer is really regolith rather than rock. Verified on one
+cell at four thicknesses, everything else held fixed:
+
+| profile | AET mm | LAI | NPP |
+| --- | --- | --- | --- |
+| 1.50 m (unscaled) | 393.2 | 2.899 | 0.375 |
+| 0.60 m | 307.1 | 2.374 | 0.301 |
+| 0.30 m | 264.6 | 2.068 | 0.259 |
+
+Monotone and in the right direction. Cells with more regolith than the model's
+1.5 m profile come out bit-identical to the unscaled run, which is the check that
+the scaling does nothing where it should do nothing.
+
+Two things that bit, both worth knowing before touching this again. LPJ-GUESS
+carries soil water as a *fraction* of each layer's capacity, computing
+`wcont = Faw_layer / soiltype.awc[layer]`, so a layer scaled to exactly zero
+divides by zero and the NaN propagates through the nitrogen substrate and kills
+the gridcell **silently**: zero LAI and zero evapotranspiration rather than a
+crash. Layers below the bedrock contact therefore keep 2% of their capacity
+rather than none. And because water is fractional, a thinner soil also reads as
+*relatively wetter* for the same absolute water, so the net effect at any one
+cell can go either way through PFT competition: in the smoke set, one cell at
+0.87 m gained LAI because temperate broadleaf evergreen displaced its grass
+entirely. The controlled sweep above is the evidence, not any single cell.
+
+**To the climate.** `exoplasim/scripts/build_surface_soil_water.py` writes
+surface code 0229, `dwmax`, from the `awc` column. Land-mean capacity is 0.342 m
+against ExoPlaSim's uniform 0.5 m default, and since
+`drunoff = max(0, dwatc - dwmax)/deltsec`, a smaller bucket overflows sooner and
+produces more runoff, which is the direction needed to fix the 2.8% ratio.
+
+**It is off by default and the flag is not in `config/planet.yaml`.** It needs
+`model.soil_water_source: pedology`, and that key is deliberately absent, because
+adding it moves `config_sha256` and `continue_exoplasim.py` refuses to resume a
+run whose config hash has changed. The code defaults to `uniform` when the key is
+missing, so nothing changes for a run in flight. Add the key when re-baselining.
 
 ## Known gaps
-
-- **Regolith depth is computed but not consumed.** LPJ-GUESS 4.1.1 has a fixed
-  1.5 m profile. A thin soil over bedrock holds far less plant-available water
-  than a deep one, and at present the model cannot be told. Emitted and reported
-  so the gap is visible; the fix is a patch scaling available water capacity by
-  depth.
-- **Soil water capacity is not fed back to ExoPlaSim**, as above.
 - **Time is not represented.** Weathering intensity folds the time integral into
   its normalisation, so a young volcanic surface and an ancient craton weather
   identically under the same climate. Orogen has exhumation data that could

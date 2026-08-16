@@ -32,7 +32,7 @@ REGISTER_INPUT_MODULE("vesper", VesperInput)
 namespace {
 
 /// Little-endian, and both writer and reader are x86-64. Checked via the magic.
-const char DRIVER_MAGIC[8] = {'V','E','S','P','D','R','V','1'};
+const char DRIVER_MAGIC[8] = {'V','E','S','P','D','R','V','2'};
 
 /// Bins per year in the driver file. ExoPlaSim's regular_output_bins_per_orbit.
 const int DRIVER_BINS = 12;
@@ -120,6 +120,7 @@ void VesperInput::read_driver() {
 		read_or_fail(in, &cell.lat, 1, "latitude");
 		read_or_fail(in, &cell.soilcode, 1, "soil code");
 		read_or_fail(in, &pad, 1, "padding");
+		read_or_fail(in, &cell.regolith_depth_m, 1, "regolith depth");
 		if (cell.soilcode < 0 || cell.soilcode > 9) {
 			fclose(in);
 			fail("vesperinput: cell %d has invalid LPJ soil code %d",
@@ -217,11 +218,95 @@ bool VesperInput::getgridcell(Gridcell& gridcell) {
 		soil_parameters(gridcell.soiltype, cell.soilcode);
 	}
 
+	apply_regolith_depth(gridcell, cell.regolith_depth_m);
+
 	interpolate(cell);
 
 	clear_all_graphs();
 
 	return true;
+}
+
+void VesperInput::apply_regolith_depth(Gridcell& gridcell, double depth_m) {
+
+	// LPJ-GUESS gives every gridcell the same 1.5 m profile and derives its
+	// water capacity from texture alone. On a world where relief and erodibility
+	// are known, that is a real omission: a plant on 0.2 m of regolith over
+	// bedrock has a seventh of the water a plant on a deep profile has, and no
+	// combination of sand and clay fractions can express it.
+	//
+	// So each layer's capacity is scaled by the fraction of that layer which is
+	// actually regolith rather than rock. A layer entirely above the bedrock
+	// contact is untouched; one entirely below it holds nothing.
+	//
+	// This scales capacity, not the layer geometry: the layers still exist and
+	// still conduct heat, they simply hold less water. Rooting depth is
+	// unchanged, which slightly overstates how much of the profile deep-rooted
+	// PFTs can reach on thin soil. Recorded rather than corrected, because
+	// changing rootdist would reach into PFT parameters that are Earth
+	// calibrations.
+
+	// LPJ-GUESS carries soil water as a fraction of each layer's capacity, and
+	// computes it as `wcont = Faw_layer / soiltype.awc[layer]` in soilwater.cpp
+	// and canexch.cpp. A layer scaled to exactly zero therefore divides by zero,
+	// and the resulting NaN propagates through the nitrogen substrate and kills
+	// the gridcell silently: it reports zero LAI and zero evapotranspiration
+	// rather than failing. So layers below the bedrock contact keep a small
+	// residual capacity instead of none. Physically this is the water fractured
+	// bedrock holds, which is not zero; numerically it is what keeps the
+	// fraction finite.
+	const double MIN_LAYER_FRACTION = 0.02;
+
+	if (depth_m <= 0.0) {
+		return;
+	}
+
+	const double profile_mm = SOILDEPTH_UPPER + SOILDEPTH_LOWER;
+	double depth_mm = depth_m * 1000.0;
+	if (depth_mm >= profile_mm) {
+		return;   // deeper than the model can represent; nothing to scale
+	}
+
+	Soiltype& soil = gridcell.soiltype;
+
+	const double upper_layer_mm = SOILDEPTH_UPPER / (double)NSOILLAYER_UPPER;
+	const double lower_layer_mm = SOILDEPTH_LOWER
+		/ (double)(NSOILLAYER - NSOILLAYER_UPPER);
+
+	double top_mm = 0.0;
+	double kept_upper = 0.0;
+	double kept_lower = 0.0;
+	for (int layer = 0; layer < NSOILLAYER; layer++) {
+		const double thickness = (layer < NSOILLAYER_UPPER)
+			? upper_layer_mm : lower_layer_mm;
+		double usable = (depth_mm - top_mm) / thickness;
+		usable = usable < MIN_LAYER_FRACTION ? MIN_LAYER_FRACTION
+			: (usable > 1.0 ? 1.0 : usable);
+
+		soil.awc[layer] *= usable;
+		soil.wp[layer] *= usable;
+		soil.wsats[layer] *= usable;
+
+		if (layer < NSOILLAYER_UPPER) {
+			kept_upper += usable * thickness;
+		}
+		else {
+			kept_lower += usable * thickness;
+		}
+		top_mm += thickness;
+	}
+
+	// The aggregate two-layer figures have to move with the per-layer ones or
+	// the hydrology and the diagnostics disagree with each other.
+	const double upper_scale = kept_upper / SOILDEPTH_UPPER;
+	const double lower_scale = kept_lower / SOILDEPTH_LOWER;
+	soil.gawc[0] *= upper_scale;
+	soil.gawc[1] *= lower_scale;
+	soil.gwp[0] *= upper_scale;
+	soil.gwp[1] *= lower_scale;
+	soil.gwsats[0] *= upper_scale;
+	soil.gwsats[1] *= lower_scale;
+	soil.wtot = soil.gawc[0] + soil.gawc[1] + soil.gwp[0] + soil.gwp[1];
 }
 
 void VesperInput::getlandcover(Gridcell& gridcell) {

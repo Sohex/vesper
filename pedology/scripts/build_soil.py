@@ -349,12 +349,29 @@ def main() -> None:
                          float(pedo["organic"]["initial_soil_carbon_kg_m2"]))
     organic_fraction, bulk_density = organic_properties(carbon, pedo["organic"])
 
+    # Plant-available water capacity, mm: volumetric capacity from texture times
+    # the depth of regolith that actually exists. This is what ExoPlaSim's dwmax
+    # bucket should be, and its runoff is literally the overflow of that bucket,
+    # so it is the field that closes the loop back to the climate.
+    water = pedo["water"]
+    volumetric = (water["volumetric_capacity_by_texture"]["sand"] * texture["sand"]
+                  + water["volumetric_capacity_by_texture"]["silt"] * texture["silt"]
+                  + water["volumetric_capacity_by_texture"]["clay"] * texture["clay"]
+                  + water["volumetric_capacity_organic"] * organic_fraction)
+    water_capacity = np.clip(volumetric * depth * 1000.0,
+                             water["minimum_mm"], water["maximum_mm"])
+
     DATA.mkdir(parents=True, exist_ok=True)
     output = args.output or (DATA / "soilmap.txt")
     lon_signed = np.where(lon > 180.0, lon - 360.0, lon)
     rows = np.argwhere(land)
     with output.open("w") as handle:
-        handle.write("Lon Lat sand clay silt orgc ph bulkdensity cn soilc\n")
+        # `depth` and `awc` are extra columns LPJ-GUESS's own SoilInput ignores
+        # (it matches columns by name and skips what it does not know). They are
+        # here so one artifact carries the whole soil: biosphere reads depth to
+        # scale water capacity, and exoplasim reads awc to set its bucket.
+        handle.write("Lon Lat sand clay silt orgc ph bulkdensity cn soilc "
+                     "depth awc\n")
         for j, i in rows:
             handle.write(
                 f"{lon_signed[i]:.{COORD_DECIMALS}f} {lat[j]:.{COORD_DECIMALS}f} "
@@ -362,7 +379,8 @@ def main() -> None:
                 f"{texture['silt'][j, i]:.4f} {organic_fraction[j, i]:.5f} "
                 f"{ph[j, i]:.3f} {bulk_density[j, i]:.1f} "
                 f"{pedo['organic']['carbon_nitrogen_ratio']:.1f} "
-                f"{carbon[j, i]:.4f}\n")
+                f"{carbon[j, i]:.4f} "
+                f"{depth[j, i]:.4f} {water_capacity[j, i]:.2f}\n")
 
     weights = np.cos(np.deg2rad(lat))[:, None] * np.ones((1, len(lon)))
     lw = weights[land]
@@ -404,6 +422,7 @@ def main() -> None:
             "regolith_depth_m": mean(depth),
             "organic_fraction": mean(organic_fraction),
             "bulk_density_kg_m3": mean(bulk_density),
+            "water_capacity_mm": mean(water_capacity),
             "soil_carbon_kg_m2": mean(carbon),
             "runoff_mm_per_earth_year": mean(runoff),
             "precipitation_mm_per_earth_year": mean(precip),
@@ -440,6 +459,8 @@ def main() -> None:
     print(f"organic fraction    {means['organic_fraction']:.4f} "
           f"from {means['soil_carbon_kg_m2']:.2f} kgC/m2")
     print(f"bulk density        {means['bulk_density_kg_m3']:.0f} kg/m3")
+    print(f"water capacity      {means['water_capacity_mm']:.1f} mm "
+          f"(ExoPlaSim's uniform default is 500)")
     print(f"\nwrote {output.relative_to(PROJECT_ROOT)}")
     print(f"      {report_path.relative_to(PROJECT_ROOT)}")
 

@@ -42,7 +42,7 @@ import orbit
 from gridding import land_fraction_of_class
 from orogen import Export
 
-MAGIC = b"VESPDRV1"
+MAGIC = b"VESPDRV2"   # V2 adds regolith depth per cell
 
 # Coordinate precision shared with pedology/scripts/build_soil.py, so the soil
 # map keys match exactly. See where lon_signed is rounded.
@@ -153,6 +153,10 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--climatology", type=Path, default=None)
     parser.add_argument("--output", type=Path, default=None)
+    parser.add_argument("--soil-map", type=Path, default=None,
+                        help="pedology soilmap.txt, for its regolith depth "
+                             "column. Without it every cell is given the full "
+                             "profile depth, which is LPJ-GUESS's own default.")
     parser.add_argument("--ndep", type=float, default=0.5,
                         help="nitrogen deposition, kgN/ha/yr. A declared "
                              "assumption: this world has no deposition field and "
@@ -207,7 +211,32 @@ def main() -> None:
     output = args.output or (GENERATED / "vesper_driver.bin")
     output.parent.mkdir(parents=True, exist_ok=True)
 
+    # Regolith depth, keyed on the same rounded coordinates the soil map uses.
+    # Absent, every cell gets LPJ-GUESS's full 1.5 m profile, which is what the
+    # unpatched model assumes anyway.
+    default_depth_m = 1.5
+    depth_by_coord: dict[tuple[float, float], float] = {}
+    soil_map = args.soil_map
+    if soil_map is None:
+        candidate = PROJECT_ROOT / "pedology" / "data" / "soilmap.txt"
+        soil_map = candidate if candidate.is_file() else None
+    if soil_map is not None:
+        lines = soil_map.read_text().splitlines()
+        header = lines[0].split()
+        if "depth" not in header:
+            raise SystemExit(
+                f"{soil_map} has no depth column; rebuild it with build_soil.py")
+        column = header.index("depth")
+        for line in lines[1:]:
+            parts = line.split()
+            depth_by_coord[(round(float(parts[0]), COORD_DECIMALS),
+                            round(float(parts[1]), COORD_DECIMALS))] = float(parts[column])
+        print(f"regolith depth from {soil_map.name}: {len(depth_by_coord)} cells")
+    else:
+        print("no soil map found; every cell gets the full 1.5 m profile")
+
     rows = np.argwhere(land)
+    missing_depth = 0
     with output.open("wb") as handle:
         handle.write(MAGIC)
         handle.write(struct.pack("<iiii", len(rows), nbins, year_length, 0))
@@ -216,6 +245,12 @@ def main() -> None:
         for j, i in rows:
             handle.write(struct.pack("<dd", float(lon_signed[i]), float(lat[j])))
             handle.write(struct.pack("<ii", int(codes[j, i]), 0))
+            key = (float(lon_signed[i]), float(lat[j]))
+            depth = depth_by_coord.get(key)
+            if depth is None:
+                depth = default_depth_m
+                missing_depth += 1
+            handle.write(struct.pack("<d", depth))
             handle.write(tas[:, j, i].astype("<f8").tobytes())
             handle.write((pr[:, j, i] * bin_days).astype("<f8").tobytes())
             handle.write(rss[:, j, i].astype("<f8").tobytes())
@@ -237,6 +272,9 @@ def main() -> None:
         "bins_per_year": nbins,
         "bin_days": bin_days.tolist(),
         "land_cells": int(len(rows)),
+        "regolith_depth_source": (str(soil_map.relative_to(PROJECT_ROOT))
+                                  if soil_map else "none, full profile assumed"),
+        "cells_without_depth": missing_depth,
         "co2_ppm": co2_ppm,
         "ndep_kgn_ha_yr": args.ndep,
         "ndep_note": (

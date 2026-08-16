@@ -179,3 +179,29 @@ convergence:
   # Fraction of land cells whose clay content moves by more than 0.02
   texture_cells_moved_tolerance: 0.05
   maximum_iterations: 6
+
+# ---------------------------------------------------------------------------
+# Plant-available water capacity
+# ---------------------------------------------------------------------------
+# Volumetric plant-available water, field capacity minus wilting point, as a
+# fraction of soil volume. Loam holds the most: sand drains and clay holds water
+# too tightly for roots to take it. These are standard textbook mid-range values.
+#
+# Multiplied by regolith depth, this gives the millimetres of water the ground
+# can actually hold, which is two things at once:
+#
+#   - what LPJ-GUESS's fixed 1.5 m profile should be scaled down to where the
+#     regolith is thinner than that
+#   - what ExoPlaSim's dwmax bucket should be, whose overflow *is* its runoff
+#
+# So this is the field that closes the loop back to the climate model.
+water:
+  volumetric_capacity_by_texture:
+    sand: 0.07
+    silt: 0.20
+    clay: 0.13
+  volumetric_capacity_organic: 0.30
+  # ExoPlaSim's uniform namelist default is 500 mm. The bounds keep a degenerate
+  # cell from producing a bucket that never fills or never empties.
+  minimum_mm: 10.0
+  maximum_mm: 800.0
