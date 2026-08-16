@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated": "2026-08-16T01:45:46.815009+00:00",
-  "git_commit": "2ad534f441615b638e2e063005d08dec32e4893a",
+  "generated": "2026-08-16T01:59:33.040908+00:00",
+  "git_commit": "bb3c976f69c65b691790bbab5b45d2a54f3a8b12",
   "generator": "scripts/world_state.py",
   "note": "Generated from the artifacts. Do not edit; re-run the generator. Judgement that no artifact can supply is in `curated`, which lives in the generator under version control.",
   "planet": {
@@ -279,7 +279,7 @@
     {
       "run_id": "t42l10p16r8_s092_co20450ppm_rot30h_obl32_e020_glac_k25v_gbafe5e8b",
       "status": "smoke_complete",
-      "orbits_complete": 17,
+      "orbits_complete": 26,
       "flux_earth": 0.92,
       "cycle": null,
       "resolution": "T42",
@@ -287,7 +287,7 @@
       "source_build": "carved-zoned",
       "glaciers": true,
       "converged": null,
-      "mean_surface_temperature_k": 288.754
+      "mean_surface_temperature_k": 287.774
     },
     {
       "run_id": "t42l10p16r8_s096_co20450ppm_rot30h_obl32_e020_glac_g43ca63cf",
@@ -565,13 +565,22 @@
         "note": "Resolved going forward, inherited backwards. ExoPlaSim's k2.dat is the star K2-18, an M2.5V at about 3450 K, not the spectral type K2. Every run of the first three eras used it, so their snow and ice are 0.10-0.17 too dark, worth 0.4-0.7 K on the warm baseline and more wherever there is ice. k25v is now selected; results predating it remain valid in kind with the direction of the error known. See exoplasim/notes/stellar-spectrum-audit.md."
       },
       {
-        "item": "land runoff, and therefore the whole soil",
-        "value": 0.028,
+        "item": "the mrro runoff field is wrong",
+        "value": 25.35,
         "range": [
-          0.028,
+          25.35,
+          167.83
+        ],
+        "note": "Not an uncertainty, a defect. Over land the reported mrro is 25.4 mm per Earth year while the water budget says P - E = 892.1 - 724.3 = 167.8, a factor of 6.6. In steady state those must match: routing conserves water, there are no glaciers on land in this run at all, and peak snow depth is 0.267 m against a 2 m glacier threshold, so nothing is stored as ice. mrro is the field at fault on three counts. It contains negative values, which drunoff = AMAX1(0., dwatc-dwmax)/deltsec cannot produce. Its shortfall correlates 0.60 with precipitation, losing most where the signal is largest. And an independent offline bucket gives 150 mm, within 11% of the budget and nowhere near mrro. Likely the spectral round-trip in postprocessing ringing on a field that is zero over ocean and spiky over land. Nothing should read mrro until this is understood; pedology now takes P - E."
+      },
+      {
+        "item": "land runoff, and therefore the whole soil",
+        "value": 0.192,
+        "range": [
+          0.192,
           0.35
         ],
-        "note": "The single most under-determined quantity in the pipeline. ExoPlaSim reports a 2.8% land runoff ratio where Earth manages ~35%, almost certainly because configure() clears the soil field capacity and it falls back to a uniform 0.5 m bucket. It propagates: weathering intensity 0.19 against 2.81 depending on whether runoff or precipitation drives it, and with it clay 0.28 against 0.55, water capacity 342 against 463 mm, bedrock water 0.14 against 1.05. Two different planets' soils. The fix is self-referential, since the field that would resolve it is the one pedology computes, and build_surface_soil_water.py now supplies it under model.soil_water_source. Whether that loop converges is untested."
+        "note": "Much less under-determined than previously recorded here, once the mrro defect above is set aside. The land runoff ratio is 18.8% against Earth's ~35%, not 2.8%: drier than Earth but not extraordinarily so. Weathering intensity is 0.50 rather than 0.19, and the runoff-versus-precipitation bracket narrows from 14.6x to 5.6x. Land-mean clay 0.33, water capacity 263 mm. The remaining spread is whether weathering follows drainage or rainfall, which is a modelling choice, not a defect."
       },
       {
         "item": "nitrogen fixation, nfix_a",
@@ -634,7 +643,8 @@
       "Supply equilibrium lake levels as --water-level so basin floors stop being exported as dry ground.",
       "Run LPJ-GUESS on the resulting climatology and replace the assumed biosphere, then score it against biosphere/notes/productivity-prediction.md.",
       "Carry the nfix_a bracket, 0.102-0.367, through to the productivity numbers rather than quoting the central value alone.",
-      "Enable model.soil_water_source: pedology and check the soil-runoff loop converges rather than oscillating.",
+      "Find out why mrro under-reports land runoff 6.6-fold against the water budget, and whether other flux fields share the defect.",
+      "Enable model.soil_water_source: pedology and check the soil-runoff loop converges rather than oscillating; expect a weak response.",
       "Iteration-2 carve verdict, with retain as a function of discharge and the 228 zero-runoff spillers handled.",
       "One T85 equilibrium once terrain and biosphere settle, for regional products.",
       "Stellar cycle last, 0.91-1.01 S-Earth over 8 Earth years."

@@ -56,20 +56,33 @@ CURATED = {
                  "baseline and more wherever there is ice. k25v is now selected; "
                  "results predating it remain valid in kind with the direction of "
                  "the error known. See exoplasim/notes/stellar-spectrum-audit.md."},
-        {"item": "land runoff, and therefore the whole soil", "value": 0.028,
-         "range": [0.028, 0.35],
-         "note": "The single most under-determined quantity in the pipeline. "
-                 "ExoPlaSim reports a 2.8% land runoff ratio where Earth manages "
-                 "~35%, almost certainly because configure() clears the soil field "
-                 "capacity and it falls back to a uniform 0.5 m bucket. It "
-                 "propagates: weathering intensity 0.19 against 2.81 depending on "
-                 "whether runoff or precipitation drives it, and with it clay 0.28 "
-                 "against 0.55, water capacity 342 against 463 mm, bedrock water "
-                 "0.14 against 1.05. Two different planets' soils. The fix is "
-                 "self-referential, since the field that would resolve it is the "
-                 "one pedology computes, and build_surface_soil_water.py now "
-                 "supplies it under model.soil_water_source. Whether that loop "
-                 "converges is untested."},
+        {"item": "the mrro runoff field is wrong", "value": 25.35,
+         "range": [25.35, 167.83],
+         "note": "Not an uncertainty, a defect. Over land the reported mrro is "
+                 "25.4 mm per Earth year while the water budget says P - E = "
+                 "892.1 - 724.3 = 167.8, a factor of 6.6. In steady state those "
+                 "must match: routing conserves water, there are no glaciers on "
+                 "land in this run at all, and peak snow depth is 0.267 m against "
+                 "a 2 m glacier threshold, so nothing is stored as ice. mrro is "
+                 "the field at fault on three counts. It contains negative values, "
+                 "which drunoff = AMAX1(0., dwatc-dwmax)/deltsec cannot produce. "
+                 "Its shortfall correlates 0.60 with precipitation, losing most "
+                 "where the signal is largest. And an independent offline bucket "
+                 "gives 150 mm, within 11% of the budget and nowhere near mrro. "
+                 "Likely the spectral round-trip in postprocessing ringing on a "
+                 "field that is zero over ocean and spiky over land. Nothing "
+                 "should read mrro until this is understood; pedology now takes "
+                 "P - E."},
+        {"item": "land runoff, and therefore the whole soil", "value": 0.192,
+         "range": [0.192, 0.35],
+         "note": "Much less under-determined than previously recorded here, once "
+                 "the mrro defect above is set aside. The land runoff ratio is "
+                 "18.8% against Earth's ~35%, not 2.8%: drier than Earth but not "
+                 "extraordinarily so. Weathering intensity is 0.50 rather than "
+                 "0.19, and the runoff-versus-precipitation bracket narrows from "
+                 "14.6x to 5.6x. Land-mean clay 0.33, water capacity 263 mm. The "
+                 "remaining spread is whether weathering follows drainage or "
+                 "rainfall, which is a modelling choice, not a defect."},
         {"item": "nitrogen fixation, nfix_a", "value": 0.234,
          "range": [0.102, 0.367], "worth_npp_fraction": 0.182,
          "note": "The real nitrogen lever, and LPJ-GUESS documents the range "
@@ -122,8 +135,10 @@ CURATED = {
         "biosphere, then score it against biosphere/notes/productivity-prediction.md.",
         "Carry the nfix_a bracket, 0.102-0.367, through to the productivity "
         "numbers rather than quoting the central value alone.",
+        "Find out why mrro under-reports land runoff 6.6-fold against the water "
+        "budget, and whether other flux fields share the defect.",
         "Enable model.soil_water_source: pedology and check the soil-runoff loop "
-        "converges rather than oscillating.",
+        "converges rather than oscillating; expect a weak response.",
         "Iteration-2 carve verdict, with retain as a function of discharge and the "
         "228 zero-runoff spillers handled.",
         "One T85 equilibrium once terrain and biosphere settle, for regional "

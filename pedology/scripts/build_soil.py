@@ -299,8 +299,25 @@ def main() -> None:
         temperature = np.asarray(data["tas"][:], dtype=float).mean(axis=0) - KELVIN
         # Runoff and precipitation are rates; annualise on Earth years so the
         # Earth-calibrated weathering law is fed the units it was fitted in.
-        runoff = np.asarray(data["mrro"][:], dtype=float).mean(axis=0) \
-            * 1000.0 * 86400.0 * EARTH_YEAR_DAYS
+        # Runoff, from whichever source the config trusts. See pedogenesis.yaml:
+        # the reported mrro field and the land water budget disagree by 6.6x and
+        # the budget wins.
+        scale = 1000.0 * 86400.0 * EARTH_YEAR_DAYS
+        source = pedo["weathering"].get("runoff_source", "p_minus_e")
+        if source == "mrro":
+            runoff = np.asarray(data["mrro"][:], dtype=float).mean(axis=0) * scale
+        elif source == "p_minus_e":
+            evaporation = -np.asarray(data["evap"][:], dtype=float).mean(axis=0)
+            runoff = (np.asarray(data["pr"][:], dtype=float).mean(axis=0)
+                      - evaporation) * scale
+            # Clipped at zero. Per cell the residual can go negative where the
+            # postprocessing is noisy or a river routes water through; at the
+            # land mean it is the conserved quantity and no clipping applies.
+            runoff = np.maximum(runoff, 0.0)
+        else:
+            raise SystemExit(
+                f"weathering.runoff_source is {source!r}; expected 'p_minus_e' "
+                f"or 'mrro'")
         precip = np.asarray(data["pr"][:], dtype=float).mean(axis=0) \
             * 1000.0 * 86400.0 * EARTH_YEAR_DAYS
         elevation = np.asarray(data["sg"][:], dtype=float).mean(axis=0) \
@@ -422,6 +439,7 @@ def main() -> None:
         "orbital_year_earth_days": orbit.orbital_year_days(config),
         "land_cells": int(len(rows)),
         "moisture_variable": selector,
+        "runoff_source": pedo["weathering"].get("runoff_source", "p_minus_e"),
         "weathering_bracket": {
             "note": ("Weathering intensity under each moisture driver, land "
                      "means. The spread is the honest uncertainty in how "
