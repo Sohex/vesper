@@ -197,10 +197,43 @@ result, not a concentration result, and the 15x contrast is against aeolian sand
 | `ullyott2016-pedogenic-nonpedogenic-silcretes.pdf` | Ullyott, Nash (2016). *Distinguishing pedogenic and non-pedogenic silcretes in the landscape and geological record.* Proc. Geol. Assoc. 127(3), 311-319. `10.1016/j.pgeola.2016.03.001` | held |
 | `fenske2025-duricrust-water-table.html` | Fenske, Braun, Guillocheau, Robin (2025). *A numerical model for duricrust formation by water table fluctuations.* Earth Surf. Dynam. 13(1), 119-146. `10.5194/esurf-13-119-2025` | held -- HTML, the publisher's TLS chain was broken. States the ordering compactly and, usefully, that silcrete cannot be climatically calibrated |
 
-**Silcrete has no climatic window and should be dropped from any classifier**
-rather than given a fabricated threshold. Nash and Ullyott call identifying its
-environmental parameters "highly problematic"; Fenske et al. say climatic
-calibration "will not provide duricrust formation boundaries" for it.
+**Silcrete has no climatic window** and must not be given a fabricated
+threshold. Fenske et al. say climatic calibration "will not provide duricrust
+formation boundaries" for it, because it forms across a broad range of
+environments.
+
+**Corrected 2026-08-16: that is not a reason to drop it.** The claim is that
+*climate* will not place silcrete, and it was over-read as "nothing will".
+Ullyott and Nash recognise four types, and only the first is the problem case:
+
+| type | setting | placeable from |
+| --- | --- | --- |
+| pedogenic | within soil profiles on stable palaeosurfaces, >10^6 yr | climate only, and only coarsely -- tropical/subtropical with alternating wet and dry seasons. This is the unplaceable one |
+| groundwater | silicification at or near a water table, or at zones of groundwater outflow | hydrology |
+| drainage-line | silicification of alluvial fills in fluvial systems | hydrology |
+| pan/lacustrine | silicification of sediments at the margins of ephemeral lake basins | hydrology |
+
+The three non-pedogenic types form under climates "ranging from cold to arid",
+so climate genuinely carries no information about them -- and does not need to,
+because their controls are hydrogeomorphic and this project resolves drainage,
+water tables and ephemeral lake margins already. Fenske's own model is a
+water-table fluctuation model, which is the mechanism for the second row.
+
+## Silcrete as a knappable resource
+
+Ullyott and Nash's paragraph on knapping properties is why this class is worth
+placing at all, and it aligns with the split above rather than cutting across it:
+**pedogenic silcrete requires heat treatment before use in stone tool
+manufacture, while non-pedogenic is workable untreated.**
+
+So the type this project can place is precisely the type that is usable without
+fire, and the type it cannot place is the one that needs it.
+
+| file | citation | status |
+| --- | --- | --- |
+| `nash2013-silcrete-provenancing-tsodilo.pdf` | Nash, Coulson, Staurset, Ullyott, Babutsi, Hopkinson, Smith (2013). *Provenancing of silcrete raw materials indicates long-distance transport to Tsodilo Hills, Botswana, during the Middle Stone Age.* J. Human Evolution 64(4), 280-288. `10.1016/j.jhevol.2013.01.010` | **read** -- silcrete carried **220 km** from Lake Ngami and **295 km** from the Boteti River, in a direct line and further on the ground, *despite local quartz and quartzite being available*. The sources are pan-margin and drainage-line silcretes in the Okavango endorheic system, which is the closest Earth analogue to this world's setting |
+| `schmidt2013-silcrete-heat-treatment-msa.pdf` | Schmidt, Porraz, Slodczyk, Bellot-Gurlet, Archer, Miller (2013). *Heat treatment in the South African Middle Stone Age: temperature induced transformations of silcrete and their technological implications.* J. Archaeological Science 40(9), 3519-3531. `10.1016/j.jas.2012.10.016` | **read** -- note the DOI is a 2012 stem despite the 2013 volume. Si-OH + HO-Si -> Si-O-Si begins between **200 and 300 C**, healing crystal defects and closing pores. Effective temperatures are higher than flint's but the tolerated heating rate is fast, so unlike flint it needs **no dedicated hearth** and can ride along with other fire use: "only a minor supplementary investment in time and firewood" |
+| `brown2009-fire-engineering-tool-heat-treatment.pdf` | Brown, Marean, Herries, Jacobs, Tribolo, Braun, Roberts, Meyer, Bernatchez (2009). *Fire As an Engineering Tool of Early Modern Humans.* Science 325(5942), 859-862. `10.1126/science.1175028` | held -- the original demonstration that MSA silcrete was intentionally heat-treated, regularly by 72 ka and as early as 164 ka |
 
 ## Aeolian phosphorus deposition, and loess
 
@@ -226,9 +259,35 @@ percent, not release.
 
 | file | citation | status |
 | --- | --- | --- |
-| `meybeck1987-global-chemical-weathering.pdf` | Meybeck (1987). *Global chemical weathering of surficial rocks estimated from river dissolved loads.* Am. J. Sci. 287(5), 401-428. `10.2475/ajs.287.5.401` | **read** -- **the per-lithology major-ion source.** Table 2C gives concentrations and Table 5 release fractions for all eight species across 10 rock types. Two limits: it is a **scanned image with no text layer**, and Table 5 covers **exorheic continents only**, awkward for a 76%-endorheic world |
+| `meybeck1987-global-chemical-weathering.pdf` | Meybeck (1987). *Global chemical weathering of surficial rocks estimated from river dissolved loads.* Am. J. Sci. 287(5), 401-428. `10.2475/ajs.287.5.401` | **read, and extracted 2026-08-16.** **The per-lithology major-ion source.** Table 2C (p. 408) gives concentrations and Table 5 (p. 418) release fractions for all eight species across 10 rock types. Both are now in `pedology/data/reference/meybeck1987_tables.json`, machine-readable and arithmetically validated. `-ocr.pdf` alongside is a searchable copy. Remaining limit: Table 5 covers **exorheic continents only**, awkward for a world where most land drains to a closed basin |
 | `hartmann2011-japan-silicate-weathering-phosphorus.pdf` | Hartmann, Moosdorf (2011). *Chemical weathering rates of silicate-dominated lithological classes and associated liberation rates of phosphorus on the Japanese Archipelago - Implications for global scale analysis.* Chem. Geol. 287(3-4), 125-157. `10.1016/j.chemgeo.2010.12.004` | held -- the upstream calibration for Hartmann 2014, and the one paper that might carry cations ON GLiM CLASSES, which would save the Meybeck mapping. Worth opening first |
 | `gaillardet1999-silicate-weathering-co2.pdf` | Gaillardet, Dupré, Louvat, Allègre (1999). *Global silicate weathering and CO2 consumption rates deduced from the chemistry of large rivers.* Chem. Geol. 159(1-4), 3-30. `10.1016/S0009-2541(99)00031-5` | held -- river-basin endmembers, not a lithological yield table |
 | `bluth1994-lithologic-climatologic-river-chemistry.pdf` | Bluth, Kump (1994). *Lithologic and climatologic controls of river chemistry.* Geochim. Cosmochim. Acta 58(10), 2341-2359. `10.1016/0016-7037(94)90015-9` | held -- 101 monolithologic rivers, but **bicarbonate and silica only**: two of the eight species |
 | `hartmann2012-terrestrial-surface-composition.pdf` | Hartmann, Dürr, Moosdorf, Meybeck, Kempe (2012). *The geochemical composition of the terrestrial surface (without soils) and comparison with the upper continental crust.* Int. J. Earth Sci. 101(1), 365-376. `10.1007/s00531-010-0635-x` | held -- the source of Hartmann 2014's Table A1-2 compositions. Composition, still not release |
 | `hartmannmoosdorf2012-glim-lithological-map.pdf` | Hartmann, Moosdorf (2012). *The new global lithological map database GLiM: A representation of rock properties at the Earth surface.* Geochem. Geophys. Geosyst. 13(12), 2012GC004370. `10.1029/2012GC004370` | held -- the source of our lithology classes. A map, not a chemistry dataset |
+
+## The endorheic half: what happens to those ions after release
+
+Meybeck's Table 5 is exorheic-only, which looks like a fatal gap on a world where
+most land drains internally. It is not, and the reason is in his own section 6:
+he **assumes the rock proportions are identical** in the exorheic and endorheic
+areas (99.9 and 15.8 million km2), and restricts to exorheic only because
+endorheic *waters* are "much affected by evaporation and precipitation
+processes".
+
+So Table 2C, the per-lithology release, was never exorheic-specific. Only Table
+5's percentages are, because they are shares of an **export** flux and a closed
+basin exports nothing. The counterpart is not another release table -- it is a
+model of what happens to the solutes once they cannot leave.
+
+| file | citation | status |
+| --- | --- | --- |
+| `eugster1979-closed-basin-brine-evolution.pdf` | Eugster, Jones (1979). *Behavior of major solutes during closed-basin brine evolution.* Am. J. Sci. 279(6), 609-631. `10.2475/ajs.279.6.609` | **read** -- the direct endorheic counterpart to Meybeck, in the same journal. Gives five behaviour types spanning all eight major solutes: **I** conserved (Na, Cl; Cl to halite saturation, so it measures the concentration factor); **II** cation-anion pair precipitating a mineral, the minor one crashing at the branching point (Ca, CO3); **III** gradual removal across the whole range, linear but shallower (HCO3+CO3, via precipitation, degassing and efflorescent-crust dissolution); **IV** sigmoid, removal only mid-range by exchange, sorption or biogenic reduction (K, SO4); **V** constant after saturation with a solid (SiO2). Na is enriched over K up to 100-fold. Scanned with no text layer; a searchable OCR copy is what is filed here |
+| `deocampo2014-geochemistry-saline-lakes.pdf` | Deocampo, Jones (2014). *Geochemistry of Saline Lakes*, in Treatise on Geochemistry 2nd edn, vol. 7, 437-469. `10.1016/b978-0-08-095975-7.00515-5` | **read** -- the modern synthesis, and the quantitative route. The **chemical divide** (Hardie and Eugster 1970): calcite precipitation removes Ca and CO3 in equal equivalents, so whichever is in excess dominates everything afterward, and the early calcite decides whether the brine turns carbonate-rich or carbonate-poor. The **Spencer Triangle** in Ca-SO4-(HCO3+CO3) applies it, with the CaCO3-SO4 join as the calcite divide and CaCO3-CaSO4 as the gypsum divide. Those are exactly three of Meybeck's Table 2C columns, so the two papers compose directly |
+| `gibbs1970-world-water-chemistry.pdf` | Gibbs (1970). *Mechanisms Controlling World Water Chemistry.* Science 170(3962), 1088-1090. `10.1126/science.170.3962.1088` | held -- the global framing: rock dominance, atmospheric precipitation dominance, and evaporation-crystallisation. Endorheic waters are the third limb, which is where this world mostly sits |
+
+Hardie, Eugster (1970), *The evolution of closed-basin brines*, Mineral. Soc.
+Amer. Spec. Publ. 3, 273-290, is the origin of the chemical divide and could not
+be fetched -- it is an old society special publication. It is not held. Both
+papers above restate it in full, so it is cited through them rather than
+secondhand from a citing abstract, but the original has not been read here.
