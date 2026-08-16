@@ -6,11 +6,24 @@ commands below are run from the project root.
 
 > **The results in the sections below predate the current geography and are kept
 > as a record, not as a description of this world.** The current baseline is
-> 0.96 S-Earth, vegetated, converged at 292.97 K; see
-> `analysis/climatology_s096/` and `notes/parameter-decisions.md`. The 0.95
-> recommendation below belongs to the superseded configuration: it assumed a
-> uniform 0.22 albedo and a blackbody star, and the albedo bracket has since
-> shown the habitable flux depends on the biosphere.
+> 0.945 S-Earth, vegetated, on terrain `5bed5549` (`carved-zoned-v4`), and is
+> running rather than settled. The flux comes from three converged points on the
+> superseded `carved-zoned` terrain -- 0.92/287.47 K, 0.94/291.29 K,
+> 0.96/295.15 K, a slope of 192.2 K per unit flux ratio -- corrected by -0.81 K
+> for the v4 lithology fix. See `notes/parameter-decisions.md`.
+>
+> Two further things invalidate numbers quoted here. The stellar spectrum was
+> `k2.dat`, which is the star K2-18, an M2.5V, and not a K dwarf at all; it is
+> now `k25v`, built for this star's 4965 K. That correction turned out to be
+> radiatively null on this warm world, at 0.04 W/m2 of absorbed shortwave, but it
+> is not null on the cold branch and matters for the stellar cycle. And every
+> carve verdict before the longitude fix integrated each basin's climate from its
+> antipode. See `notes/stellar-spectrum-audit.md` and
+> `../hydrography/README.md`.
+>
+> The 0.95 recommendation below belongs to a configuration older than any of
+> that: it assumed a uniform 0.22 albedo and a blackbody star, and the albedo
+> bracket has since shown the habitable flux depends on the biosphere.
 >
 > Every run in those sections was built from
 > the equirectangular map PNGs of an earlier, 510k-region World Orogen build.

@@ -263,11 +263,37 @@ def _mean_ts(run: Path, last: int = 5) -> float | None:
         return None
 
 
+def hydrography_dir() -> Path:
+    """Hydrography products for the configured build.
+
+    These are per-build, because drainage is a property of the terrain. The flat
+    `hydrography/data/` predates that and still holds whichever build was active
+    when it was written, so preferring it would report another terrain's basins
+    against the current one. That is how this file came to say 2,107 basins and
+    1,522 carves while the active build had 2,540 and 1,089.
+    """
+    import yaml
+    cfg = yaml.safe_load((ROOT / "config" / "planet.yaml").read_text(encoding="utf-8"))
+    named = ROOT / "hydrography" / "data" / str(cfg.get("source_build", ""))
+    return named if (named / "hydrography_report.json").is_file() else (
+        ROOT / "hydrography" / "data")
+
+
 def hydrography() -> dict:
-    rep = read_json(ROOT / "hydrography" / "data" / "hydrography_report.json") or {}
+    data = hydrography_dir()
+    rep = read_json(data / "hydrography_report.json") or {}
     verdict = read_json(ROOT / "hydrography" / "analysis" / "carve_verdict.json") or {}
-    carve = read_json(ROOT / "hydrography" / "data" / "carve_list.json") or {}
+    carve = read_json(data / "carve_list.json") or {}
+    if not carve:
+        # The applied verdict lives with the build it was computed FROM, not the
+        # build it produced, so fall back to whichever list the active build's
+        # manifest says it applied rather than silently reporting none.
+        for cand in sorted((ROOT / "hydrography" / "data").glob("*/carve_list.json")):
+            carve = read_json(cand) or {}
+            if carve:
+                break
     return {
+        "products_from": str(data.relative_to(ROOT)),
         "terrain_hash": (rep.get("source") or {}).get("terrain_hash"),
         "drainage": rep.get("drainage"),
         "basins": rep.get("basins"),

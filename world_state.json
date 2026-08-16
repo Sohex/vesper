@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated": "2026-08-16T03:53:46.836305+00:00",
-  "git_commit": "4e1ff507e15f5ed3d2d6f3c01850ef867b496874",
+  "generated": "2026-08-16T04:10:43.613586+00:00",
+  "git_commit": "70fc30c66de358dcf4c3ede2c452f04a9ca50ccf",
   "generator": "scripts/world_state.py",
   "note": "Generated from the artifacts. Do not edit; re-run the generator. Judgement that no artifact can supply is in `curated`, which lives in the generator under version control.",
   "planet": {
@@ -36,7 +36,7 @@
     "ozone": true
   },
   "active_configuration": {
-    "source_build": "carved-zoned-v2",
+    "source_build": "carved-zoned-v4",
     "model": {
       "resolution": "T42",
       "latitudes": 64,
@@ -133,6 +133,36 @@
         "playa_clastic": 0.10915,
         "gneiss": 0.08548,
         "shelf_clastic": 0.06988
+      },
+      "grids": [
+        "T21",
+        "T42",
+        "T63",
+        "T85"
+      ],
+      "superseded": false
+    },
+    "carved-zoned-v4": {
+      "terrain_hash": "5bed5549315da14b22275fea51a0b6f5b34d79cdf2237c9380e8471e0b431c78",
+      "catalogue_hash": "2d1f8e57c26b60c608deaa62bd3c44b7da04a4ee5bd518249447630095d96a98",
+      "seed": 16236323,
+      "regions": 2500001,
+      "selection_source": "preserve-list",
+      "drainage_hypothesis": {
+        "preserveListGiven": 3629,
+        "carveListGiven": 0,
+        "carvedByRetainZero": 1089
+      },
+      "preserved_basins": 2540,
+      "land_fraction": 0.43173506049195565,
+      "endorheic_fraction_of_land": 0.6009597150298291,
+      "lithology_land_fractions": {
+        "continental_clastic": 0.23817,
+        "schist": 0.21033,
+        "playa_clastic": 0.14517,
+        "granite": 0.13059,
+        "gneiss": 0.07706,
+        "shelf_clastic": 0.066
       },
       "grids": [
         "T21",
@@ -319,6 +349,19 @@
       "glaciers": true,
       "converged": true,
       "mean_surface_temperature_k": 287.4672591638082
+    },
+    {
+      "run_id": "t42l10p16r8_s0945_co20450ppm_rot30h_obl32_e020_glac_k25v_g6e105968",
+      "status": "smoke_complete",
+      "orbits_complete": 6,
+      "flux_earth": 0.945,
+      "cycle": null,
+      "resolution": "T42",
+      "land_albedo_source": "vegetated",
+      "source_build": "carved-zoned-v4",
+      "glaciers": true,
+      "converged": null,
+      "mean_surface_temperature_k": 292.123
     },
     {
       "run_id": "t42l10p16r8_s094_co20450ppm_rot30h_obl32_e020_glac_k25v_g38a00766",
@@ -534,33 +577,34 @@
     "caveat": "Computed on precarve-unzoned with evaporite as one class at 0.50. Both have since been superseded. Quote as the 0.96 pre-carve baseline, never as Vesper's climate."
   },
   "hydrography": {
-    "terrain_hash": "3899a0c57d1eee2f47ba9054c218a171a7aa4532e2437c9104070c2c3dfaece6",
+    "products_from": "hydrography/data/carved-zoned-v4",
+    "terrain_hash": "5bed5549315da14b22275fea51a0b6f5b34d79cdf2237c9380e8471e0b431c78",
     "drainage": {
-      "land_fraction_of_planet": 0.43173568067758117,
-      "endorheic_fraction_of_land": 0.5510699826268739,
-      "ocean_draining_fraction_of_land": 0.4489300173731261,
+      "land_fraction_of_planet": 0.43173506049195565,
+      "endorheic_fraction_of_land": 0.6001457231459145,
+      "ocean_draining_fraction_of_land": 0.3998542768540855,
       "unresolved_regions": 0,
-      "pits_filled": 114996,
-      "median_fill_depth_m": 7.552199065685272
+      "pits_filled": 112217,
+      "median_fill_depth_m": 8.425500243902206
     },
     "basins": {
-      "count": 2107,
-      "total_capacity_km3": 3462955.9571825666,
-      "total_area_at_spill_km2": 43182464.3583312,
-      "area_at_spill_fraction_of_planet": 0.058752210903545064,
-      "total_catchment_km2": 174867018.9800055,
-      "catchment_to_spill_area_ratio_median": 4.0296443390280485,
-      "merged_basins": 205,
-      "spills_to_ocean": 670,
-      "spills_into_another_basin": 1437,
+      "count": 2540,
+      "total_capacity_km3": 5823309.110117994,
+      "total_area_at_spill_km2": 44716745.97156525,
+      "area_at_spill_fraction_of_planet": 0.060839688732002226,
+      "total_catchment_km2": 190439592.27470088,
+      "catchment_to_spill_area_ratio_median": 3.7656419326879824,
+      "merged_basins": 216,
+      "spills_to_ocean": 821,
+      "spills_into_another_basin": 1719,
       "critical_aridity_index_percentiles": {
-        "5": 1.1215397081949128,
-        "25": 1.941515648543682,
-        "50": 3.0296443390280485,
-        "75": 5.07664607320212,
-        "95": 15.657799318197005
+        "5": 1.0998795172527753,
+        "25": 1.8264352380294895,
+        "50": 2.7656419326879824,
+        "75": 4.548441863810839,
+        "95": 12.262208574239839
       },
-      "capacity_vs_natural_catalogue": 0.6113686340903535
+      "capacity_vs_natural_catalogue": 0.7978849340377834
     },
     "carve_verdict": {
       "bounds": {
@@ -601,14 +645,15 @@
     },
     "carve_list": {
       "counts": {
-        "carve": 1522,
-        "preserve": 1872,
-        "marginal": 235
+        "carve": 1089,
+        "preserve": 2370,
+        "marginal": 170
       },
       "terrain_hash": "821aa71b37a7beda0b59398c7f005b91531050000ca46660d0f724cdb3f401a3",
       "climate": {
         "resolution": "T42",
         "flux_earth": 0.96,
+        "stellar_spectrum": "k2 (K2-18, an M2.5V); correction measured null at 0.04 W/m2 absorbed, see stellar-spectrum-audit.md",
         "land_surface": "vegetated",
         "mean_surface_temperature_k": 292.88,
         "note": "Converged on all six criteria. The biosphere is assumed, not modelled, and that assumption is worth 3.7 to 7.1 K."

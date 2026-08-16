@@ -14,10 +14,12 @@ model can contradict it.
 ## Why this component exists
 
 The albedo bracket left the biosphere as the largest unresolved lever on this
-world. Bare rock gives a land-mean albedo of 0.314 and a vegetated surface 0.223,
-worth 3.7 to 7.1 K, and the two endmembers reach the 290-293 K design band at
-non-overlapping stellar fluxes: 0.977-0.994 bare against 0.952-0.970 vegetated.
-The project picked 0.96 and vegetated, which means the current baseline is
+world. Bare rock gives a land-mean albedo of 0.276 and a vegetated surface 0.179,
+worth several kelvin, and the two endmembers reach the 290-293 K design band at
+non-overlapping stellar fluxes. The bracket's windows (0.977-0.994 bare against
+0.952-0.970 vegetated) were measured on pre-carve terrain at T21; the flux has
+since been measured directly on the current terrain and the vegetated baseline
+is 0.945. The project picked vegetated, which means the current baseline is
 habitable *because* the world is assumed to be vegetated. That assumption is
 currently a constant in `config/planet.yaml` (`land_albedo_source: vegetated`,
 0.15 on anything that can carry a canopy). This component is what turns it into

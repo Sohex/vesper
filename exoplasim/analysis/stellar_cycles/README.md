@@ -1,5 +1,23 @@
 # Eight-Earth-year stellar-cycle experiments
 
+> **Superseded as a description of this world, kept as the only measurement of
+> how hard the ocean damps a cycle.** These ran on the 510k-region terrain, at a
+> 0.90 baseline, with a blackbody partition rather than a measured spectrum, and
+> before the carve. The world now sits near 0.945 on `carved-zoned-v4` with the
+> `k25v` spectrum.
+>
+> The number worth carrying forward is the damping: the 50 m slab reduced the
+> swing to **0.239 of the static span**. Treat even that as provisional, because
+> damping goes as 1/sqrt(1 + (w*tau)^2) and tau = C/lambda depends on the
+> feedback strength, which has moved. The current lambda of 1.31 W/m2/K gives
+> tau near 4 Earth years and predicts about 0.30 at an 8-year period. The two
+> disagree by more than rounding, and the measured value is the one taken on a
+> colder world with far more sea ice, where the feedback is stronger and tau
+> longer. Re-measure on the settled world before quoting either.
+>
+> Both cases below use amplitudes centred on 0.90. The active configuration is a
+> single case centred on the current baseline; the control case was dropped.
+
 Two T42 ExoPlaSim integrations were started from the equilibrated 0.90-S-Earth
 baseline and run for 62 local orbits (4.024 stellar cycles). The physical orbit
 was held fixed at 0.599624 AU and 189.6145 Earth days. Irradiance varies as a

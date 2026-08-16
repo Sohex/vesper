@@ -63,7 +63,8 @@ Resolves drainage over the 2.5M-region mesh, rebuilds basin hypsometry on the
 finished terrain, and couples catchments to the climate grid. See
 `hydrography/README.md`.
 
-Between 9% and 76% of the land drains to closed basins rather than to the sea,
+Between 9% and 76% of the land drains to closed basins rather than to the sea
+depending on how arid the climate is, and 60% does so on the current terrain,
 against roughly 13% on Earth, depending on how arid the climate turns out to be
 and so how many basins overflow and carve their outlets. The solver is built and
 takes runoff and evaporation as arguments; the terrain still needs carving

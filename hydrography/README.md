@@ -27,9 +27,10 @@ of the land's water.
 ## What it does
 
 **Resolves drainage** with a priority flood over the 2.5M-region mesh, filling
-the noise pits while keeping the 2,107 surviving basins as genuine terminals.
+the noise pits while keeping the surviving basins as genuine terminals -- 2,540
+on the active `carved-zoned-v4`.
 Every land region ends up assigned to the world ocean or to exactly one basin.
-114,996 regions get filled, by a median of 7.6 m, which is the scale that
+112,217 regions get filled, by a median of 8.4 m, which is the scale that
 confirms these were noise rather than landforms.
 
 **Recomputes hypsometry on the finished terrain.** The catalogue's
@@ -80,6 +81,10 @@ planet. That range is a property of the terrain, not a prediction.
 `climatology_s096` baseline, and accumulates the same water down the drainage
 network to get rivers. This is the first thing in the project to decide
 `surface_class == 2`, which World Orogen deliberately leaves empty.
+
+Computed on `carved-zoned`, which is superseded: its carve verdict used
+antipodal climate. The solver and the method stand; the numbers are due a rerun
+on `carved-zoned-v4`.
 
 | | |
 | --- | ---: |
@@ -167,6 +172,12 @@ convention.
 **This reaches further than the lakes.** `carve_verdict.py` shares
 `basin_means`, so the iteration-1 verdict, the 1,522 basins carved to produce
 `carved-zoned`, was decided on climate read from the wrong side of the planet.
+That verdict has since been regenerated: 1,089 carve, 170 marginal, 2,370
+preserve, with only 58.3% of verdicts unchanged and retain fractions correlating
+at 0.267. 850 of the original carves were unjustified and 417 were missed. It is
+applied in `carved-zoned-v4`, and the corrected carve set is visibly more
+physical -- carved basins carry 5.7x the median catchment runoff of preserved
+ones, where under the old verdict the two were nearly indistinguishable.
 The carve pattern in the current terrain does not correspond to the climate that
 was supposed to justify it. Regenerating that verdict is no longer optional
 tidying before iteration 2; it is a correction.
@@ -206,9 +217,10 @@ carving drainage to them.
 This was 76% before the iteration-1 carve. These products were stale: they had
 been built on `precarve-unzoned` while `config/planet.yaml` had moved on to
 `carved-zoned`, and rebuilding them on the active terrain is what moved the
-figure. Carving 1,522 basins took the count from 3,629 to 2,107 and the
-endorheic share from 76% to 55%, which is the verdict doing exactly what it was
-supposed to do.
+figure. Carving took the count from 3,629 to 2,540 and the endorheic share from
+76% to 60.0%, which is the verdict doing exactly what it was supposed to do.
+(The first, antipodal verdict carved 1,522 and gave 2,107 basins at 55%; those
+figures appear in older products and identify them.)
 
 **That figure is the hyper-arid limit, not a property of the world.** It assumes
 no basin ever overflows. A basin that overflows year on year incises its outlet,
@@ -262,8 +274,8 @@ band. `--carve-basins FILE` is subtractive. Both are documented in the fork's
 
 **An earlier version of this section said that hook did not exist, and that was
 wrong.** It described the state before iteration 1, which used exactly this
-interface: `carve_list.json` names 1,522 basins at retain 0, and the current
-build's manifest records `carvedByRetainZero: 1522`. Iteration 2 is a run, not a
+interface: `carve_list.json` names 1,089 basins at retain 0, and the current
+build's manifest records `carvedByRetainZero: 1089`. Iteration 2 is a run, not a
 generator change.
 
 The terrain still is not in equilibrium: 770 basins fill to their spill under

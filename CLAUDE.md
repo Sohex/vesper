@@ -54,19 +54,34 @@ and `lib/builds.py` resolves it; nothing should hardcode a path under `source/`.
 | --- | --- | --- |
 | `precarve-unzoned` | `821aa71b` | the 292.97 K baseline; evaporite one class at 0.50 |
 | `precarve-zoned` | `26fc7691` | same drainage, salt-crust/playa-fill split |
-| `carved-zoned` | `3899a0c5` | iteration-1 carve verdict applied, with the split |
+| `carved-zoned` | `3899a0c5` | **superseded**: verdict decided on antipodal climate |
+| `carved-zoned-v2` | `010f2143` | **superseded**: basin fill lost to cover-chain branch order |
+| `carved-zoned-v4` | `5bed5549` | **active**: corrected verdict, corrected cover chain |
 
 The names are for humans. `manifest.hashes.finalElevation` is the identity, and
 `lib/orogen.py` refuses a build it has not been checked against. The basin
-catalogue hash is `2d1f8e57` on all three, so per-basin work resolves across all
-of them.
+catalogue hash is `2d1f8e57` on all of them, so per-basin work resolves across
+every build here, including the superseded ones.
+
+Superseded means wrong, not merely old, and both are kept registered so results
+already computed from them stay readable and datable. `carved-zoned` applied a
+verdict in which every basin had integrated its antipode's climate; 850 of its
+1,522 carves are unjustified. `carved-zoned-v2` fixed that but carried a
+lithology chain that decided which deposit sat on top by the order the branches
+were written, so closed-basin fill was overwritten in orogens and on oceanic and
+flood-basalt crust: 203 preserved basins had no fill cell anywhere and were
+reaching ExoPlaSim as vegetated land.
+
+A wrong verdict is recoverable and a wrong build is not the trap it sounds like:
+Orogen regenerates terrain from the planet code plus a carve list in one pass,
+so a build is replaced wholesale rather than edited.
 
 ## Reading a build
 
 Four exports of the same planet, all from seed 16236323 with 2,500,001 mesh
-regions, and all carrying the same `manifest.hashes.finalElevation`
-(`821aa71b37a7…`). Check that hash before trusting any number quoted about the
-terrain: the seed and parameters alone do not identify a build, because fixes to
+regions, and all carrying the same `manifest.hashes.finalElevation` within a
+build (`5bed5549…` on the active one). Check that hash before trusting any
+number quoted about the terrain: the seed and parameters alone do not identify a build, because fixes to
 the generator change the terrain under a fixed seed. This build followed a fix
 to an over-erosion bug, which raised mean land elevation from 138 m to **548 m**
 and the highest point from 4.5 km to 5.8 km. Anything derived from the previous
@@ -141,8 +156,9 @@ too deep. Fixed upstream on 2026-08-14: the branch now takes its land flag from
 `surface_class`, and below-sea-level land converts at 1.0 km per unit against
 the ocean's 10. Verified here: dry floors are now exactly `elevation * 1.0`, the
 deepest reads -562 m and matches the catalogue, ocean is untouched at -8.89 km.
-An export whose `finalElevation` hash is not `821aa71b37a7...` predates this and
-should not be trusted below sea level.
+An export whose `finalElevation` hash predates `821aa71b37a7...` predates this
+fix and should not be trusted below sea level. Every build in the table above
+carries it.
 
 **The basin catalogue renamed keys in the same pass, and it is a breaking
 change.** Unsuffixed keys (`sinkElevation`, `depth`, `spillElevation`) are the
@@ -190,7 +206,7 @@ terrain, which is why `hydrography/` recomputes it.
 - **`lithology.compositionLand` is measured against `land_mask`**, numerator and
   denominator both, so it omits the dry sub-sea-level basin floors entirely. The
   distortion is not uniform: evaporite gains 1.17x on area against 1.046x for
-  land overall, so its share is 20.8% rather than the published 18.6%. That is
+  land overall, so its share is understated. That is
   the expected direction, because playa fill accumulates in exactly the closed
   basins `land_mask` excludes. Compute composition from `surface_rock` and
   `surface_class` rather than quoting the table.
@@ -240,12 +256,13 @@ current geography anyway.
 `hydrography/` resolves drainage over the native mesh and builds everything a
 water balance needs short of the climate itself. See `hydrography/README.md`.
 
-55% of the land drains to a closed basin against roughly 13% on Earth, but
+60% of the land drains to a closed basin against roughly 13% on Earth, but
 **treat that as an upper bound rather than a fact about the world**. It assumes
 no basin ever overflows, and a basin that overflows persistently incises its
 outlet and stops being a basin. The decision variable,
 `critical_aridity_index`, is pure geometry and lives in `basins.nc`. The figure
-was 76% before the iteration-1 carve took the basin count from 3,629 to 2,107.
+was 76% before the corrected first carve took the basin count from 3,629 to
+2,540.
 
 `surface_water.py` solves lakes and rivers against the baseline climatology.
 Lake evaporation is Penman, shared with the carve verdict so that the water and
@@ -255,16 +272,24 @@ the terrain are judged by one rule, and runoff is P-E rather than the model's
 **The coupling matrix was being read 180 degrees out in longitude**, because it
 numbers its columns on the Orogen grid (-180 to 180) and a climatology numbers
 its own 0 to 360. Every basin read its antipode. Fixed, and the convention is
-now explicit in `coupling_*.nc`. `carve_verdict.py` shared the bug, so the
-iteration-1 verdict behind `carved-zoned` was decided on climate from the wrong
-side of the planet and needs regenerating before anything is built on it.
+now explicit in `coupling_*.nc`; `basin_means` requires the field longitude
+axis and refuses a coupling file too old to state its own. The verdict has been
+regenerated -- 1,089 carve, 170 marginal, 2,370 preserve, against the old
+1,522/235/1,872 -- and applied in `carved-zoned-v4`. Only 58.3% of verdicts
+were unchanged.
+
+The fix's own first version left `export_carve_list.py` still on the unremapped
+path, because `field_lon` was optional and defaulted to it. That was the one
+caller whose output leaves the project and changes the terrain. An argument
+whose absence silently means "do the wrong thing" is the original bug wearing
+the shape of its fix; it is now required.
 
 The open gap is the terrain, not the tooling: 770 basins still fill to their
 spill under this climate, holding 26% of the land, which is the water balance
 saying their outlets should have been cut. Carving belongs upstream in Orogen,
 and the generator does expose the hook -- `--preserve-basins FILE` takes a
 retain fraction per basin, 0 carves -- so iteration 2 is a run rather than a
-generator change. Iteration 1 used exactly that path for 1,522 basins.
+generator change. Iteration 1 used exactly that path for 1,089 basins.
 
 Two things about the export that any consumer needs to know. `drain_to` is raw
 steepest descent, and `drainage_terminal` is -2 for 63% of the land, which
@@ -283,9 +308,19 @@ do not overlap.** The endmember spread near the target, 3.7-4.4 K, is wider than
 the 3 K target itself, so no single flux is robust to the vegetation question.
 The orbit and the biosphere have to be chosen together.
 
-**Chosen: vegetated at 0.96 S-Earth**, about 291.4 K, with an 0.91-1.01 stellar
-cycle centred on it. 0.96 is habitable *because* the world is vegetated; the
-bare-rock branch at that flux would sit near 286 K.
+**Chosen: vegetated.** The flux has since been measured directly rather than
+bracketed, on three converged T42 points: 0.92/287.47 K, 0.94/291.29 K and
+0.96/295.15 K, a slope of **192.2 K per unit flux ratio**. The 290-293 K band is
+therefore only 0.016 wide in flux. The current baseline is **0.945**, which is
+0.94 plus the -0.81 K correction the `carved-zoned-v4` lithology fix applied to
+the vegetated land albedo.
+
+Do not reuse a sensitivity measured in one regime in another. The bracket's
+implied ~167 K per unit flux was right; a 0.331 K/W/m2 figure measured across an
+albedo step in a nearly ice-free state was not, and using it predicted 291.9 K
+for a run that came in at 287.47 K. Between 0.96 and 0.92 the sea-ice fraction
+grows fiftyfold and the feedback is live. Bracket between converged points
+instead of extrapolating from one.
 
 That is sensitivity, not bistability: vegetation is not interactive in these
 runs, so they are separately forced problems. Do not describe the world as
@@ -299,11 +334,26 @@ surface fields except topography and the land mask are uniform namelist defaults
 this is declared via `model.uniform_land_surface` and is deliberate, since Earth's
 surface maps are tied to Earth's continents. Albedo is the exception and is
 supplied from lithology by `build_surface_albedo.py`: bare rock averages 0.315
-over land against ExoPlaSim's 0.22, worth about -12.5 W/m2, and 20.8% of the land
-is bright evaporite because the drainage is endorheic. Note this is substrate
-albedo, so the first pass is a bare-rock planet and runs cold. And its `finalize()` picks output as
-the last glob match, so a run directory shared between worlds can silently emit
-the wrong world's result; `run_id` therefore ends in a geography digest.
+over land against ExoPlaSim's 0.22, and 16.5% of the land is bright closed-basin
+fill because the drainage is endorheic. Measure that on the surface the model
+sees, not from the rock table: the vegetated land mean is 0.179 against 0.276
+bare, and a lithology change confined to basin fill moves the vegetated figure
+about twice as far, because vegetation masks bare-rock variation but not the
+barren classes. Note this is substrate albedo: real vegetation arrives from
+LPJ-GUESS in loop C of `WORKFLOW.md`.
+
+Its `finalize()` picks output as the last glob match, so a run directory shared
+between worlds can silently emit the wrong world's result. `run_id` therefore
+names everything physical: a geography digest, the spectrum, and the flux at
+thousandths. The last two were added after near-misses -- a k25v re-baseline
+would have landed in the completed k2 run's directory, and `round(100 * flux)`
+mapped 0.945 and 0.94 to the same name. Anything physical missing from that name
+is a collision waiting for the run that changes it.
+
+`model.energy_diagnostics` adds PlaSim's 28-term energy decomposition on codes
+360-387. The postprocessor ships 119 codes and none of those, so
+`run_exoplasim.py` registers them at run time; patching the vendored tree would
+be undone silently by any reinstall of the untracked `.venv`.
 
 See `exoplasim/README.md` for the workflow and results,
 `exoplasim/notes/lake-representation.md` for what the model can do with the
@@ -314,17 +364,26 @@ Köppen rate-normalisation, sign conventions). Read the notes before changing
 anything about how runs are configured — most of the non-obvious choices are
 already justified there.
 
-**The completed runs under `exoplasim/runs/` span three eras.** The `t42l10p8_*`
+**The completed runs under `exoplasim/runs/` span four eras.** The `t42l10p8_*`
 runs used the old 510k-region map PNGs, a uniform 0.22 albedo and a blackbody
 star; they are superseded. The `t21*glac*` runs are the albedo bracket. The
-current baseline is `t42l10p16r8_s096_..._glac_*`: 0.96 S-Earth, vegetated,
-converged at 292.97 K, with a described climatology under
-`exoplasim/analysis/climatology_s096/`.
+`_k25v_gbafe5e8b` runs at 0.92, 0.94 and 0.96 are the flux calibration, on the
+now-superseded `carved-zoned` terrain but still the best measurement of the
+slope, which depends on ice and Planck rather than on which basins are bright.
+The iteration-2 baseline runs at 0.945 on `carved-zoned-v4`.
 
-That climatology is itself provisional. It was computed on the pre-carve terrain
-with evaporite at the exported 0.50, and both have since moved: Orogen has
-applied the carve verdict, and the evaporite albedo is now a declared override at
-0.40 pending a salt-crust and playa-clastics split upstream.
+`analysis/climatology_s096/` is superseded as a description of this world. It was
+computed on the pre-carve terrain, under the k2 spectrum, and it is what the
+antipodal carve verdict was taken from. Its numbers remain valid for the surface
+they were computed on.
+
+Two corrections that turned out smaller and larger than expected, in that order.
+The stellar spectrum was wrong for three eras -- `k2.dat` is the star K2-18, an
+M2.5V, not a K dwarf -- but fixing it changed absorbed shortwave by 0.04 W/m2 on
+this nearly ice-free world, because it acts on snow and ice and there is almost
+none. It is not null on the cold branch, so it still matters for the stellar
+cycle. The v4 lithology fix, by contrast, was budgeted at nothing and came in at
+-0.81 K.
 
 `convert_orogen.py` is superseded by `build_boundary_conditions.py`, which
 integrates the mask and topography from the native mesh.

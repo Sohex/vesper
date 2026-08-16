@@ -4,8 +4,12 @@ How geography, climate, water and life are computed for this planet, in what
 order, and why the order is not a straight line.
 
 Vesper is a super-Earth: 1.2 Earth radii, surface gravity 10.1989 m/s2, a 30-hour
-day, 32 degrees of obliquity, e = 0.02, orbiting a K2.5V dwarf at 0.96 S-Earth
-with a 180.7-day year. Mean surface temperature 292.9 K.
+day, 32 degrees of obliquity, e = 0.02, orbiting a K2.5V dwarf at 0.945 S-Earth
+with a 182.8-day year. Mean surface temperature about 291.4 K.
+
+Those last three are provisional pending the iteration-2 baseline now running.
+0.945 is chosen from three converged points on the previous terrain, 192.2 K per
+unit flux ratio, corrected by -0.81 K for the v4 lithology fix.
 
 ---
 
@@ -84,7 +88,13 @@ every slider. The current build is `01eshm059lt0b9mpgro2y83t`: seed 16236323,
 
 Verify a build by `manifest.hashes.finalElevation`. A seed alone does not
 identify a planet, because fixes to the generator change the terrain under a
-fixed seed. The current terrain is `821aa71b37a7...`.
+fixed seed. The current terrain is `5bed5549...` (`carved-zoned-v4`), which is
+the first build on which the terrain, the lithology and the drainage verdict all
+describe the same surface. Three builds precede it and two are superseded rather
+than merely older: `carved-zoned` applied a verdict decided on climate read 180
+degrees out in longitude, and `carved-zoned-v2` carried a lithology chain in
+which closed-basin fill lost to whichever cover rule was typed first. Both stay
+registered in `lib/orogen.py` so results computed from them remain datable.
 
 The fork exports Gaussian grids directly off the mesh at T21, T42 and T85, plus a
 uniform 512x256 for mapping, plus PNG maps. Only the T42 export carries `raw/`,
@@ -127,10 +137,23 @@ Everything before the re-baseline carries that bias. It is not invalidated in
 kind and the direction is known, but it should be stated wherever it is quoted.
 See `exoplasim/notes/stellar-spectrum-audit.md`.
 
-A run directory names its spectrum, as it already named its geography and its
-physics switches. Two runs differing only in spectrum are different climates, and
-without the marker a re-baseline would have landed in the completed run's
-directory. Directories predating the marker carry none and are all `k2`.
+A run directory names everything that changes the answer: resolution, flux, CO2,
+rotation, obliquity, eccentricity, the physics switches, the spectrum, and a
+digest of every surface input. Two of those were added after they had already
+nearly caused a collision. The spectrum marker was missing when the k25v
+re-baseline would have landed in the completed k2 run's directory, and the flux
+was rounded to hundredths, so 0.945 and 0.94 both resolved to `s094`. Only the
+geography digest separated them, which was luck. Anything physical that is not in
+the directory name is a collision waiting for the run that changes it.
+
+Enabling `model.energy_diagnostics` adds PlaSim's 28-term energy decomposition on
+codes 360-387, which is the instrument for the constant -0.455 W/m2 that does not
+close between the top of the atmosphere and the surface. The postprocessor does
+not ship those codes, so `run_exoplasim.py` registers them at run time rather
+than patching the vendored tree, which a reinstall would silently undo. The
+residual needs a settled run: a segment taken one orbit off a restart sits several
+W/m2 out of balance, because `configure()` resets the surface fields a restart
+does not carry.
 
 Convergence is a fixed six-part test, not a judgement: temperature drift below
 0.05 K per orbit, top-of-atmosphere and surface balance trends below 0.05 W/m2
@@ -200,7 +223,11 @@ astronomy. The patch carries no planetary numbers itself: it points the model at
 a generated `vesper.h`, which `build_vesper_header.py` derives from
 `config/planet.yaml`, because the year length is a function of the stellar flux.
 
-The model steps in 24-hour days with a 181-day year. That keeps every per-day
+The model steps in 24-hour days with a year rounded from the orbital period,
+which is why the semimajor axis has to be locked before the biosphere is built
+against it and why later flux changes go through luminosity instead. At the
+current 0.945 baseline that period is 182.8 days, not the 180.7 the earlier 0.96
+baseline gave. That keeps every per-day
 rate constant calibrated against the absolute time it was calibrated against and
 confines the error to daylength, where its sign is known. Stepping in real 30-hour
 Vesper days would put 25.9% into respiration, decomposition and phenology alike.
@@ -220,16 +247,23 @@ Three quantities each depend on the other two.
 
 **Drainage depends on climate.** Which basins survive is a water balance.
 
-**Climate depends on drainage.** Evaporite forms in closed basins and is 20.8% of
-this planet's land at albedo 0.50, the brightest class there is. Carve the basins
-and the world gets darker.
+**Climate depends on drainage.** Closed-basin fill is 16.5% of this planet's
+land, and it is bright: salt crust 0.50 and playa clastics 0.30 against a land
+mean of 0.276. Carve the basins and the world gets darker. This is also the
+channel through which a lithology bug reached the climate, twice, so it is worth
+measuring on the surface the model actually sees rather than on the rock table.
 
 **Climate depends on the biosphere, and the biosphere on climate.** Bare rock
-gives a land-mean albedo of 0.314, a vegetated surface 0.223. That difference is
-worth 3.7 to 7.1 K, and the two reach the 290 to 293 K design target at
-*non-overlapping* stellar fluxes: 0.977 to 0.994 bare, 0.952 to 0.970 vegetated.
-No single flux is robust to the question, so the orbit and the biosphere are one
-choice, not two.
+gives a land-mean albedo of 0.276, a vegetated surface 0.179. That difference is
+worth several kelvin, and bare and vegetated reach the 290 to 293 K design target
+at *non-overlapping* stellar fluxes. No single flux is robust to the question, so
+the orbit and the biosphere are one choice, not two.
+
+The two interact rather than adding. Vegetation paints everything that can carry
+a canopy at a single value, so it masks bare-rock variation but not the barren
+classes; a lithology change confined to closed-basin fill therefore moves the
+*vegetated* albedo about twice as far as it moves the bare one. The v4 fix is the
+worked example: +0.0034 bare, +0.0077 vegetated.
 
 **Soil depends on the biosphere, and the biosphere on soil.** Texture, pH and
 regolith depth are weathering products of lithology under a climate, but the
@@ -245,8 +279,14 @@ direction: carving removes evaporite, which is the brightest lithology, so the
 land darkens, the world warms, open-water evaporation rises, and basins that were
 marginal would have stayed closed. Iteration 1 therefore carves at the coolest,
 brightest state available and cannot take any of it back, so the pipeline
-systematically over-carves. Orogen's applied export bears this out directly:
-evaporite fell from 20.8% of land to 12.65%.
+systematically over-carves. The applied export bears this out directly: closed-
+basin fill fell from 20.9% of land before carving to 16.5% after.
+
+Carving is monotone *within* a build, but a build is regenerated from the planet
+code plus a verdict rather than edited, so a wrong verdict is recoverable by
+regenerating and a wrong *terrain* is not the trap it sounds like. That is how
+`carved-zoned` was abandoned: 850 of its 1,522 carves could not be un-cut, but
+the build could be replaced wholesale.
 
 On iteration 2, the already-carved set should be re-evaluated against the new
 climate and the number that would no longer have carved reported. That number is
@@ -256,27 +296,32 @@ the overshoot, and it is the honest measure of how much the first pass cost.
 
 | stage | state |
 | --- | --- |
-| terrain | `821aa71b`, 3,629 preserved basins, no carve list applied |
-| drainage | resolved, 99,085 pits filled at a median 8.5 m |
-| hypsometry | rebuilt on the finished terrain |
-| coupling | T42 and T85 matrices built |
-| climate | T42 at 0.96 S-Earth, vegetated, converged on all six criteria, 292.88 K |
-| carve verdict | first pass complete: 1,522 of 3,629 carve, 235 partial, 1,872 preserved |
+| terrain | `5bed5549` (`carved-zoned-v4`), 2,540 preserved basins after the corrected first carve |
+| drainage | resolved, 112,217 pits filled at a median 8.4 m |
+| hypsometry | rebuilt on the finished terrain; capacity 79.8% of the catalogue's natural figure |
+| coupling | T42 and T85 matrices built, both carrying the `cell_lon` their convention depends on |
+| climate | iteration-2 baseline running at 0.945 S-Earth, vegetated. Three converged points on the superseded `carved-zoned`: 0.92/287.47 K, 0.94/291.29 K, 0.96/295.15 K |
+| carve verdict | first pass, recomputed after the longitude fix: 1,089 carve, 170 marginal, 2,370 preserved. Applied in `carved-zoned-v4` |
 | pedology | built, closing the loop through soil carbon; weathering 0.50 on `P - E`, bracketed to 2.81 if driven by precipitation |
 | biosphere | LPJ-GUESS ported, driven, parallel, harnessed and scored; awaiting a current climatology for the first full run |
 | stellar cycle | deferred to last |
 
 Selected results:
 
-- Land is 43.17% of the surface by `surface_class`.
+- Land is 43.17% of the surface by `surface_class`, and has not moved across any
+  build: the carve changes where water leaves a basin, not where the coast is.
 - Before carving, 76% of land drains to a closed basin, against roughly 13% on
-  Earth. After the first carve verdict that falls to 50.3% under the Penman
-  estimate, or 33.6% under the land-evaporation sensitivity. Orogen's applied
-  export measures 55.15%.
-- 1,248 basins have zero catchment runoff and survive as dry salt pans rather
-  than lakes. That agrees independently with evaporite being 20.8% of the land.
-- Surviving lakes total about 1% of the planet's surface.
-- Precipitation 2.95 mm/day, sea ice 0.12%, planetary albedo 0.152.
+  Earth. After the corrected first verdict it is 60.0%, measured on the rebuilt
+  drainage and agreeing with the export's own routing to 0.08 points.
+- Closed-basin fill is 16.462% of land, playa clastics 14.517% and salt crust
+  1.944%. On `carved-zoned-v2` the same figure read 12.303%, because fill was
+  being overwritten by the cover chain; 203 basins then had no fill cell at all
+  and were reaching ExoPlaSim as vegetated land.
+- Mean land albedo is 0.2762 bare and 0.1794 vegetated. The vegetated figure is
+  what the climate sees, and it moved +0.0077 on the v4 fix against +0.0034 for
+  the bare figure, because vegetation masks bare-rock variation but not the
+  barren classes.
+- 821 basins spill to the ocean and 1,719 into another basin.
 
 ## 6. What happens next
 
@@ -304,14 +349,29 @@ feedback may be second-order.
 turns the run's foliar cover into surface albedo and forest fraction, then the
 climate runs again on it. Two checks belong here and neither is optional.
 
-*The flux.* If the modelled land albedo differs much from the assumed 0.223 the
+*The flux.* If the modelled land albedo differs much from the assumed value the
 world may leave the 290-293 K design band. **Move the flux by changing the star's
-luminosity, not the orbit.** The year length depends on the semimajor axis, which
-is derived as sqrt(L/F), so changing L and F together leaves the orbit and the
-calendar untouched: a 4% flux change needs 2% of luminosity, which is 0.5% of
-effective temperature, inside the spectral-type uncertainty already declared.
-Moving the orbit instead changes the year length, which is compiled into
-LPJ-GUESS and would force a rebuild and a driver regeneration.
+luminosity, not the orbit.** The year length depends on the semimajor axis, and
+moving the orbit changes it; the year is compiled into LPJ-GUESS, so that would
+force a rebuild and a driver regeneration. With the semimajor axis locked,
+F = L/a^2, so luminosity is the free parameter and the calendar does not move.
+
+Mind the scaling, and mind the spectrum. L scales **1:1** with F at fixed orbit,
+not 2:1 as an earlier revision of this document said, and at fixed radius
+L ~ T^4, so the effective temperature moves as F^(1/4):
+
+| flux change | luminosity | effective temperature | band-1 fraction |
+| --- | --- | --- | --- |
+| 1.5% | 1.5% | 18 K | ~0.9% |
+| 4% | 4% | 49 K | ~2.3% |
+
+`k25v` is interpolated to 4965 K between the 4900 and 5000 K BT-Settl models, and
+that 100 K grid step is worth 4.7% in the fraction of flux below 0.75 um. So
+small adjustments are free, but **past about 2 to 3% in luminosity, re-run
+`build_stellar_spectrum.py` at the new effective temperature**, and past roughly
++35 K the target leaves the 4900-5000 K bracket entirely and the pinned SVO grid
+points have to change with it. The spectrum exists to get snow and ice albedo
+right, so letting it drift silently would undo the reason it was built.
 
 *The carve verdict.* It was taken on assumed vegetation. Real vegetation changes
 the climate, which changes evaporation over catchments, which can change the

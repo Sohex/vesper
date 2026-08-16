@@ -277,7 +277,9 @@ vegetation feedbacks. For comparison the entire 0.85-to-0.95 flux sweep spans
 roughly 21 W/m2 absorbed, so a uniform 0.22 is a first-order error rather than a
 refinement.
 
-The spread is not incidental to this world. Evaporite covers 20.8% of the land,
+The spread is not incidental to this world. Evaporite covered 20.8% of the land
+on the pre-carve terrain this was computed on; closed-basin fill is 16.5% on the
+current `carved-zoned-v4`, split 1.9% salt crust and 14.5% playa clastics,
 second behind schist at 22.4% and ahead of intracratonic clastics at 18.9%, and
 evaporite is the brightest class in the table at 0.50. (The manifest's
 `compositionLand` says 18.6%, because it measures against `land_mask` and so
@@ -859,3 +861,42 @@ so about 0.92.
 
 That number is itself an extrapolation, now with a coefficient measured in the
 right regime but still only one point. It should be measured, not trusted.
+
+---
+
+## Superseded numbers in this file, and what replaced them
+
+This file records decisions with the evidence available when they were taken, so
+the numbers below are left where they are rather than rewritten. What follows is
+the index of which ones have since moved and why.
+
+**Land albedo 0.223 (vegetated) and 0.314 (bare).** Both were measured on the
+pre-carve terrain. On `carved-zoned-v4` they are **0.179 and 0.276**. Two changes
+moved them: carving removed bright closed-basin fill, and the v4 lithology fix
+restored fill that the cover chain had been overwriting. Note the two move by
+different amounts -- the v4 fix was +0.0034 bare against +0.0077 vegetated --
+because vegetation paints everything that can carry a canopy at one value, so it
+masks bare-rock variation but not the barren classes. When a lithology change is
+confined to basin fill, expect the vegetated figure to move about twice as far.
+
+**Evaporite at 20.8% of land.** That was one class on the pre-carve terrain. It
+is now split, and closed-basin fill is 16.5% of land on `carved-zoned-v4`: 1.9%
+salt crust, 14.5% playa clastics.
+
+**The albedo bracket's flux windows, 0.952-0.970 vegetated and 0.977-0.994
+bare.** Measured at T21 on pre-carve terrain. The vegetated window has since been
+measured directly on the current terrain from three converged T42 points, giving
+192.2 K per unit flux ratio and a baseline of **0.945**. The bracket's *implied*
+sensitivity of about 167 K per unit flux was right; a later 0.331 K/W/m2 figure,
+measured across an albedo step in a nearly ice-free state, was not, and using it
+predicted 291.9 K for a run that converged at 287.47 K.
+
+**The measured stellar spectrum.** Every run before the k25v re-baseline used
+`k2.dat`, which is the star K2-18, an M2.5V at about 3450 K, not a K dwarf. The
+correction changed absorbed shortwave by 0.04 W/m2 on this world, because it acts
+on snow and ice and there is almost none at 291 K. It is not null on the cold
+branch. See `stellar-spectrum-audit.md`.
+
+**Any carve verdict before the longitude fix.** The coupling matrix numbers its
+columns -180 to 180 and a climatology numbers its own 0 to 360, so every basin
+integrated its antipode's climate. See `../../hydrography/README.md`.
