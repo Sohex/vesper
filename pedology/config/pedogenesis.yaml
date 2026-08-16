@@ -74,7 +74,12 @@ weathering:
   # 25 K appear in the literature; 13.7 is the common central choice.
   temperature_e_folding_k: 13.7
   # Reference conditions, Earth global land means. W = 1 here by construction.
+  # Earth's land mean for whichever moisture variable drives the law. These have
+  # to match: comparing this world's 892 mm of precipitation against Earth's
+  # 300 mm of *runoff* is not a bracket, it is a unit error, and it was inflating
+  # the runoff-versus-precipitation spread from 2.8x to 5.6x.
   reference_runoff_mm_per_earth_year: 300.0
+  reference_precipitation_mm_per_earth_year: 750.0
   reference_temperature_c: 14.0
   # W is clipped before use. The upper bound matters: the exponential runs away
   # in hot wet cells and there is no evidence soils keep differentiating past

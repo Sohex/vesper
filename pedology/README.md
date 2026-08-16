@@ -333,6 +333,73 @@ railing model and is 133 mm now, so the `dwmax` field handed to ExoPlaSim is
 feedback on runoff is therefore a larger perturbation than previously estimated,
 not a smaller one.
 
+## Where this stands, honestly
+
+Checked over all 4,106 land cells rather than asserted.
+
+**Sound.** Textures sum to 1 to rounding, nothing is NaN or negative, and no
+field rails except `orgc` and `bulkdensity`, which are zero and uniform because
+iteration 0 has no biosphere. Every relationship the model claims to represent is
+present in the output with the right sign: clay rises with temperature (+0.31)
+and runoff (+0.60), sand mirrors it (-0.42), pH falls with leaching (-0.57), and
+water capacity tracks depth and texture as it must.
+
+**Plausible against Earth**, where a comparison exists at all:
+
+| | Vesper | Earth |
+| --- | --- | --- |
+| clay | 0.30 | 0.20-0.30 |
+| sand | 0.40 | 0.35-0.45 |
+| pH | 6.85 | ~6.5, higher in arid |
+| plant-available water | 130 mm | 100-200 mm root zone |
+| regolith depth | 1.03 m | 0.5-2 m |
+
+### The pattern is terrain; the level is weathering
+
+Two things are true at once and they are easy to conflate.
+
+*Within* a configuration, depth is set by terrain and almost nothing else.
+Regressing log depth on climate and soil variables gives r-squared of 0.006
+against runoff, 0.027 against temperature, 0.063 against the bedrock fraction.
+Relief, erodibility and slope do the work. That matches Earth, where soil depth
+is a topographic story rather than a climatic one.
+
+*Between* configurations, the weathering driver moves the whole field. Switching
+the moisture variable from runoff to precipitation multiplies land-mean depth by
+2.74 and water capacity by 2.83.
+
+So the texture work, which is where most of the physics went, contributes little
+to the field that actually reaches the other models: `awc = volumetric x depth`,
+and depth varies 229-fold across the planet while the texture-derived volumetric
+capacity varies 4.5-fold. **Depth sets the water capacity almost entirely.**
+Texture matters to LPJ-GUESS's own soil physics, and to anyone reading a soil
+map, but not to the number that feeds the bucket.
+
+### A unit error was inflating the headline uncertainty
+
+The runoff-versus-precipitation bracket was reported as 5.6x. It was comparing
+this world's 892 mm of *precipitation* against Earth's 300 mm of *runoff*: not a
+bracket, a mismatch of references. Each branch now normalises against its own
+Earth land mean, 300 mm for runoff and 750 mm for precipitation, and the bracket
+is **3.41x** on weathering intensity and 2.83x on water capacity.
+
+That is still the largest uncertainty in this component and it is a modelling
+choice rather than a defect: does chemical weathering follow water that drains
+through the profile, or water that arrives on it. Runoff is the physically
+correct answer and is the default. The bracket is reported beside every result.
+
+### What is not yet earned
+
+- `erosion_weight` is calibrated against a declared 1 m target, not measured.
+  It sets the level of the field that matters most.
+- The catena slope term carries the pattern and not the magnitude, because even
+  the 15.19 km mesh is two orders of magnitude coarser than a hillslope.
+- Nothing here has been validated against an independent product, unlike the
+  Penman evaporation which was checked against the model's own ocean cells. The
+  Earth comparison above is a plausibility check, not a validation.
+- The soil-biosphere loop has run one iteration at smoke scale and has never
+  been iterated to its convergence criteria.
+
 ## Known gaps
 - **Time is not represented.** Weathering intensity folds the time integral into
   its normalisation, so a young volcanic surface and an ancient craton weather

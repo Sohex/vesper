@@ -125,14 +125,16 @@ def subgrid_slope(mesh: Export, grid_dir: Path) -> np.ndarray:
 
 
 def weathering_intensity(runoff_mm_yr: np.ndarray, temperature_c: np.ndarray,
-                         params: dict) -> np.ndarray:
+                         params: dict, reference: float | None = None) -> np.ndarray:
     """Walker-Hays-Kasting weathering intensity, normalised to Earth land means.
 
     Dimensionless and clipped. It is an intensity rather than a rate: the time
     integral is folded into the reference, because soil age is not known on
     either world well enough to carry explicitly.
     """
-    q_ratio = np.maximum(runoff_mm_yr, 0.0) / params["reference_runoff_mm_per_earth_year"]
+    if reference is None:
+        reference = params["reference_runoff_mm_per_earth_year"]
+    q_ratio = np.maximum(runoff_mm_yr, 0.0) / reference
     thermal = np.exp((temperature_c - params["reference_temperature_c"])
                      / params["temperature_e_folding_k"])
     intensity = np.power(np.maximum(q_ratio, 1e-6), params["runoff_exponent"]) * thermal
@@ -429,7 +431,12 @@ def main() -> None:
 
     # Both moisture drivers, so the bracket is visible whichever one is selected.
     intensity_by_runoff = weathering_intensity(runoff, temperature, pedo["weathering"])
-    intensity_by_precip = weathering_intensity(precip, temperature, pedo["weathering"])
+    # Against Earth's precipitation, not Earth's runoff. The two branches have to
+    # be normalised against their own reference or the comparison is a unit error
+    # rather than a bracket.
+    intensity_by_precip = weathering_intensity(
+        precip, temperature, pedo["weathering"],
+        pedo["weathering"]["reference_precipitation_mm_per_earth_year"])
     selector = pedo["weathering"].get("moisture_variable", "runoff")
     if selector == "runoff":
         intensity = intensity_by_runoff

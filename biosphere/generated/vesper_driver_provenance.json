@@ -1,5 +1,5 @@
 {
-  "generated": "2026-08-16T05:01:27+00:00",
+  "generated": "2026-08-16T05:10:17+00:00",
   "climatologies": [
     "exoplasim/analysis/climatology_s096/baseline_regular_climatology.nc"
   ],
@@ -8,7 +8,7 @@
   ],
   "years_of_climate": 1,
   "years_note": "Cycled by vesperinput, so spin-up sees the whole sequence. One year is a fixed climate; several are how a stellar cycle reaches the biosphere.",
-  "config_sha256": "eeaae0341aedffb83493498f90aeb85a279f4614210662a279a2de16d5e0d896",
+  "config_sha256": "cbec7f6c91835a2e41d94f6b89c6d31390d5d08e679b7702124b5fc97ed0718e",
   "source_build": "carved-zoned-v4",
   "stellar_spectrum": "k25v",
   "flux_earth": 0.96,
@@ -76,5 +76,5 @@
     "playa_clastic": 3
   },
   "output_sha256": "c13936afb1581297fe2b5972ecc504b4c3f27163e2d465a2996f0918d7d4495d",
-  "git_commit": "efa2eb725037280f72e7edccd286a480819566bc"
+  "git_commit": "7e329ffda2c3e8b23c9cba2a38eaaf09a36f14f2"
 }
