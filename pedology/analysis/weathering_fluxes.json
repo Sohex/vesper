@@ -1,5 +1,5 @@
 {
-  "generated": "2026-08-16T23:42:05+00:00",
+  "generated": "2026-08-16T23:55:20+00:00",
   "climatology": "exoplasim/analysis/climatology/baseline_t42_s0945_regular_climatology.nc",
   "climatology_sha256": "ba9fdf733d0dc93d99608c3c40f03a779df7d57758b56b6a6562749366bb063e",
   "source_build": "precarve-zoned-g1281-erod4x",
@@ -8,17 +8,17 @@
   "land_area_km2": 314667073.3589603,
   "method": "Flux = concentration x runoff, per lithology, with concentrations from Meybeck (1987) Table 2C. CO2 consumption is the bicarbonate flux at 1 mol CO2 per mol HCO3 for silicates, 0.5 for carbonate rocks whose other half is rock-derived, and 0 for evaporites.",
   "co2": {
-    "silicate_consumption_mol_per_year": 10148062793217.223,
-    "silicate_endorheic_mol_per_year": 2425411588255.4272,
-    "silicate_exorheic_mol_per_year": 7722651204961.795,
-    "silicate_endorheic_fraction": 0.2390024222038247,
+    "silicate_consumption_mol_per_year": 10147296965194.2,
+    "silicate_endorheic_mol_per_year": 2425251308175.289,
+    "silicate_exorheic_mol_per_year": 7722045657018.91,
+    "silicate_endorheic_fraction": 0.23900466464064646,
     "silicate_note": "SILICATE ONLY, and this is the number to compare with any published figure. Carbonate weathering also consumes CO2 on land but returns it when the carbonate reprecipitates in the ocean, so it does not belong to the long-term thermostat.",
-    "all_lithologies_mol_per_year": 14505408814361.865,
+    "all_lithologies_mol_per_year": 14504642986338.844,
     "all_lithologies_note": "Silicate plus carbonate-derived, the latter at 0.5. Reported for completeness; do NOT compare it with a silicate figure.",
-    "endorheic_mol_per_year": 3074066358730.3906,
-    "endorheic_fraction": 0.21192552364927109,
+    "endorheic_mol_per_year": 3073906078650.2524,
+    "endorheic_fraction": 0.21192566280641323,
     "volcanic_mol_per_year": 671145470719.5939,
-    "volcanic_share": 0.04626863532829836,
+    "volcanic_share": 0.04627107825761105,
     "dessert_volcanic_mol_per_year": 1075462780972.1826,
     "dessert_note": "Independent check on the volcanic part only, from Dessert et al. (2003) Eq. 2 fitted on basaltic provinces. It is LINEAR in runoff where the Meybeck route is also linear, so the two agreeing is a check on the concentration, not on the runoff law. Neither uses Berner's 0.65 exponent, which applies to the global lithological mix rather than to basalt.",
     "earth_silicate_consumption_mol_per_year": 11700000000000.0,
@@ -92,9 +92,9 @@
       "land_fraction": 0.005527635064456568
     },
     "melange": {
-      "meybeck_class": "misc_metamorphic",
-      "hco3_ueq_l": 1730.0,
-      "silicate_co2_mol_per_year": 1152071721.5879204,
+      "meybeck_class": "shale",
+      "hco3_ueq_l": 580.0,
+      "silicate_co2_mol_per_year": 386243698.5670485,
       "land_fraction": 3.831660276074038e-06
     },
     "evaporite": {
@@ -105,26 +105,27 @@
     }
   },
   "dominant_class": {
-    "note": "Which lithology the carbon budget actually rests on. This is reported because the answer was a surprise and is a warning: `melange` maps to Meybeck's misc_metamorphic, which is serpentinite, marble and amphibolite at 1730 ueq/l bicarbonate, thirteen times granite. That mapping was chosen when the melange rule could not fire and the class was 0.00% of land, so nothing rested on it. The arc fix made the rule reachable and melange is now over 6% of land, where it supplies close to half of this planet's silicate CO2 drawdown. The mapping has not been re-examined against what a subduction melange actually weathers like, and until it is, the carbon result inherits its uncertainty.",
-    "sensitivity": "Remapping melange to Meybeck's gneiss, at 135 ueq/l, would cut total silicate consumption by roughly 40% and move the implied outgassing from about 1.5x Earth to about 0.9x. The carbon conclusion is therefore decided by an unexamined lithology mapping, not by this world's climate or relief."
+    "note": "Which lithology the carbon budget rests on, reported every run so that one class quietly deciding the planet's carbon cycle is visible in the output rather than found by accident. It has happened once already and cost a factor of 1.4 on the answer.",
+    "what_happened": "`melange` was mapped to Meybeck's misc_metamorphic, chosen when the melange rule could not fire and the class was 0.00% of land. The arc fix made it reachable at over 6% of land, at which point that unexamined choice supplied 46% of the planet's silicate CO2 drawdown. It was wrong twice: misc_metamorphic is MARBLE by its own chemistry, Ca + Mg = 1740 against HCO3 1730, so it gave a forearc province carbonate chemistry AND fed rock-derived bicarbonate into the silicate total at full weight. Melange now maps to shale, the greywacke and argillite the forearc province actually is, and carbonate-bearing classes are excluded from the silicate total rather than one class being tested by name.",
+    "the_general_lesson": "A judgment made while a class is absent is not a judgment. Three separate values in this project -- arc albedo, arc erodibility, and this mapping -- went unchecked for exactly that reason, and all three surfaced together when one bug in the tectonic model was fixed."
   },
   "carbon_balance": {
     "note": "At steady state the atmosphere's CO2 is set by outgassing balancing burial, and silicate weathering is what converts CO2 into buriable alkalinity. So a silicate consumption rate is also a statement about the outgassing this world needs.",
-    "silicate_consumption_over_earth": 0.8673557942920703,
-    "implied_outgassing_over_earth": 0.8673557942920703,
+    "silicate_consumption_over_earth": 0.8672903389054871,
+    "implied_outgassing_over_earth": 0.8672903389054871,
     "reading": "config/planet.yaml fixes CO2 at 450 ppm. That is an ASSUMPTION, not a result: nothing in this project solves the carbonate-silicate balance, and the word 'outgassing' appears nowhere else in it. This says what the assumption costs. Sustaining 450 ppm at this climate needs an outgassing rate of roughly this multiple of Earth's. If the real rate were Earth-like, CO2 would draw down until weathering fell to meet it, and the world would settle colder and thinner-aired than the climate runs assume.",
     "why_it_is_high": "Not because this world weathers hard. Per unit land area it weathers LESS than Earth, because it is drier -- land runoff is about half Earth's. It has 2.1x Earth's land area, and area wins. A big-land planet is a high-outgassing planet or it is a cold one.",
     "not_solved_here": "Meybeck's concentrations carry no CO2 dependence, so this cannot be iterated to a self-consistent CO2. Doing that needs a weathering law in pCO2 and a climate response to it, which is a coupled calculation across pedology and exoplasim rather than an analysis in either. What is bounded here is the size of the assumption, not its resolution.",
     "and_the_feedback_is_weaker_still": "Only the exorheic part joins the marine carbonate feedback that stabilises CO2; see thermostat_efficiency.py. Endorheic alkalinity still buries carbon, on its own basin floor, but it is decoupled from the loop that regulates."
   },
   "silica": {
-    "release_mol_per_year": 5543749076500.984,
-    "endorheic_mol_per_year": 1201928887038.8647,
-    "exorheic_mol_per_year": 4341820189462.1196,
-    "endorheic_fraction": 0.21680795260623145,
+    "release_mol_per_year": 5543785703058.607,
+    "endorheic_mol_per_year": 1201936552607.9148,
+    "exorheic_mol_per_year": 4341849150450.6924,
+    "endorheic_fraction": 0.2168079029362164,
     "volcanic_mol_per_year": 315833162691.5736,
-    "volcanic_share": 0.05697104221948591,
-    "land_yield_t_sio2_per_km2_per_year": 1.058478858181095,
+    "volcanic_share": 0.05697066582449655,
+    "land_yield_t_sio2_per_km2_per_year": 1.0584858513614062,
     "earth_reference_yield": 3.3,
     "earth_reference_note": "Durr et al. (2011) give a global mean exorheic DSi yield of 3.3 t SiO2/km2/yr, and note that fresh unweathered ash can exceed 50 locally. The Meybeck concentrations used here are for ordinary volcanic terrain, not fresh tephra, so this is a floor on the volcanic contribution rather than a central estimate."
   },

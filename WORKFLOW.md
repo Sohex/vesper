@@ -328,6 +328,14 @@ and exoplasim rather than an analysis in either, and the weathering
 concentrations currently in use carry no CO2 dependence at all. What exists is a
 bound on the size of the assumption, not its resolution.
 
+One caution about reading any of it. The budget is a sum over lithologies, and
+a class that is a small share of the land can still decide the total if its
+solute chemistry is extreme -- which is how an unexamined mapping for a rock
+that was 0.00% of land came to supply nearly half the planet's CO2 drawdown once
+a tectonic bug was fixed and the class appeared. `weathering_fluxes.py` now
+reports per-class contributions for that reason. Check which class is on top
+before quoting the total.
+
 Two things about it are worth holding on to. The requirement is driven by **land
 area, not by weathering intensity**: this world weathers less per unit area than
 Earth, being drier, and needs more outgassing anyway because it has roughly twice

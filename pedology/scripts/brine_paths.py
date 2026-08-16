@@ -67,7 +67,41 @@ ROCK_TO_MEYBECK = {
     # inert. Meybeck's misc_metamorphic is serpentinite/marble/amphibolite and
     # releases 1375 ueq/l Ca, which quartzite emphatically does not.
     "quartzite":           "sandstone",
-    "melange":             "misc_metamorphic",
+    # Melange -> SHALE, corrected 2026-08-16, and the correction mattered more
+    # than any other entry in this map.
+    #
+    # It was `misc_metamorphic`, chosen when the melange rule could not fire and
+    # the class was 0.00% of land, so nothing rested on it. The arc fix made the
+    # rule reachable and melange is now over 6% of land, at which point the
+    # choice was supplying close to half of this planet's silicate CO2 drawdown.
+    #
+    # It was wrong twice over. Meybeck's misc_metamorphic is MARBLE: 2.3% of
+    # Earth's outcrop, Ca 1375 ueq/l against sedimentary carbonate's 2560, and
+    # Ca + Mg = 1740 against HCO3 1730 -- a near-exact carbonate balance, which
+    # is the signature of carbonate dissolution rather than silicate weathering.
+    # So it gave a forearc province marble chemistry, AND that bicarbonate was
+    # entering the silicate total at full weight when most of it is
+    # rock-derived.
+    #
+    # What Orogen's class actually is decides the replacement. It is not the
+    # accretionary prism alone: `elevation.js` assigns it to the whole forearc
+    # province -- prism, forearc basin and serpentinite together -- because at
+    # ~15 km cells they cannot be separated. That province is greywacke,
+    # argillite and clastic basin fill by volume, which is Meybeck's shale, and
+    # is what shelf, foreland and pelagic clastics already map to.
+    #
+    # `gneiss` is not the alternative it looks like. A forearc is not felsic
+    # crystalline basement, and mapping it there would swap one wrong rock for
+    # another while happening to give a smaller number.
+    #
+    # KNOWN UNDER-REPRESENTATION: serpentinite. Melanges carry it, ultramafic
+    # weathering is Mg-rich and a real CO2 sink, and Meybeck has a peridotite
+    # row at 500 ueq/l Mg for exactly that rock. It is left out because the
+    # serpentinite fraction of a forearc is volumetrically minor and nothing
+    # here constrains it. This biases Mg and CO2 low, and that direction is
+    # deliberate: it is the conservative side of a term that has already been
+    # wrong once by being too generous.
+    "melange":             "shale",
     # "Shelf sandstone / shale" is a mixture. Shale is far more reactive and
     # dominates the solute load of any such mixture, so it is mapped there;
     # --clastic-as-sandstone tests the other choice.

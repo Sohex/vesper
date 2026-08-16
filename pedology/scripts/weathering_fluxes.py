@@ -82,14 +82,26 @@ from build_soil import EARTH_YEAR_DAYS, KELVIN, lithology_fractions
 
 # Bicarbonate from carbonate dissolution is half rock-derived, so only half of it
 # represents atmospheric CO2 drawdown. Silicate weathering is fully atmospheric.
-CO2_PER_HCO3 = {"sedimentary_carbonate_rocks": 0.5}
+#
+# `misc_metamorphic` is on the carbonate side of that line despite its name, and
+# missing it was a real error here. Meybeck's class is MARBLE: Ca 1375 ueq/l
+# against sedimentary carbonate's 2560, and Ca + Mg = 1740 against HCO3 1730, a
+# near-exact carbonate balance. Treating it as silicate let rock-derived
+# bicarbonate into the silicate total at full weight.
+CO2_PER_HCO3 = {
+    "sedimentary_carbonate_rocks": 0.5,
+    "misc_metamorphic": 0.5,
+    # Neither silicate nor carbonate weathering in the carbon-cycle sense.
+    # Halite and gypsum dissolution consume no atmospheric CO2 at all.
+    "halite_evaporite": 0.0,
+    "gypsum_evaporite": 0.0,
+}
 DEFAULT_CO2_PER_HCO3 = 1.0
 
-# Meybeck's evaporite classes deliver bicarbonate that is neither silicate nor
-# carbonate weathering in the carbon-cycle sense. Halite dissolution consumes no
-# CO2 at all.
-CO2_PER_HCO3["halite_evaporite"] = 0.0
-CO2_PER_HCO3["gypsum_evaporite"] = 0.0
+# Classes whose bicarbonate is wholly or partly rock-derived are excluded from
+# the SILICATE total, not merely down-weighted in it. Listing them here rather
+# than testing one name inline is the fix for having tested one name inline.
+CARBONATE_BEARING = {"sedimentary_carbonate_rocks", "misc_metamorphic"}
 
 MEYBECK = PROJECT_ROOT / "pedology" / "data" / "reference" / "meybeck1987_tables.json"
 
@@ -183,7 +195,7 @@ def main() -> None:
                * frac * litres)
         silica_flux += si
         co2_flux += co2
-        if klass != "sedimentary_carbonate_rocks":
+        if klass not in CARBONATE_BEARING:
             silicate_co2 += co2
             per_class[code] = {
                 "meybeck_class": klass,
@@ -276,24 +288,29 @@ def main() -> None:
             key=lambda kv: -kv[1]["silicate_co2_mol_per_year"])),
         "dominant_class": {
             "note": (
-                "Which lithology the carbon budget actually rests on. This is "
-                "reported because the answer was a surprise and is a warning: "
-                "`melange` maps to Meybeck's misc_metamorphic, which is "
-                "serpentinite, marble and amphibolite at 1730 ueq/l "
-                "bicarbonate, thirteen times granite. That mapping was chosen "
-                "when the melange rule could not fire and the class was 0.00% "
-                "of land, so nothing rested on it. The arc fix made the rule "
-                "reachable and melange is now over 6% of land, where it "
-                "supplies close to half of this planet's silicate CO2 "
-                "drawdown. The mapping has not been re-examined against what a "
-                "subduction melange actually weathers like, and until it is, "
-                "the carbon result inherits its uncertainty."),
-            "sensitivity": (
-                "Remapping melange to Meybeck's gneiss, at 135 ueq/l, would "
-                "cut total silicate consumption by roughly 40% and move the "
-                "implied outgassing from about 1.5x Earth to about 0.9x. The "
-                "carbon conclusion is therefore decided by an unexamined "
-                "lithology mapping, not by this world's climate or relief."),
+                "Which lithology the carbon budget rests on, reported every run "
+                "so that one class quietly deciding the planet's carbon cycle is "
+                "visible in the output rather than found by accident. It has "
+                "happened once already and cost a factor of 1.4 on the answer."),
+            "what_happened": (
+                "`melange` was mapped to Meybeck's misc_metamorphic, chosen when "
+                "the melange rule could not fire and the class was 0.00% of "
+                "land. The arc fix made it reachable at over 6% of land, at "
+                "which point that unexamined choice supplied 46% of the "
+                "planet's silicate CO2 drawdown. It was wrong twice: "
+                "misc_metamorphic is MARBLE by its own chemistry, Ca + Mg = "
+                "1740 against HCO3 1730, so it gave a forearc province "
+                "carbonate chemistry AND fed rock-derived bicarbonate into the "
+                "silicate total at full weight. Melange now maps to shale, the "
+                "greywacke and argillite the forearc province actually is, and "
+                "carbonate-bearing classes are excluded from the silicate total "
+                "rather than one class being tested by name."),
+            "the_general_lesson": (
+                "A judgment made while a class is absent is not a judgment. "
+                "Three separate values in this project -- arc albedo, arc "
+                "erodibility, and this mapping -- went unchecked for exactly "
+                "that reason, and all three surfaced together when one bug in "
+                "the tectonic model was fixed."),
         },
         "carbon_balance": {
             "note": (
