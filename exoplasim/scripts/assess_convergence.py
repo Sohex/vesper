@@ -207,7 +207,11 @@ def main() -> None:
         "annual_records": records,
     }
     args.output.mkdir(parents=True, exist_ok=True)
-    report_path = args.output / "baseline_convergence.json"
+    # Named by the run, not fixed. A fixed filename meant every assessment
+    # overwrote the last, so a run's convergence record could not survive the
+    # next run being assessed -- and assessing a run silently destroyed the
+    # evidence for a previous one.
+    report_path = args.output / f"{run_dir.name}_convergence.json"
     report_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
 
     if report["sufficiently_equilibrated_for_worldbuilding"]:
@@ -248,7 +252,7 @@ def main() -> None:
         f"Baseline spin-up convergence: {'PASS' if all(criteria.values()) else 'NOT YET'} "
         f"({len(files)} orbits, {w}-orbit window)"
     )
-    plot_path = args.output / "baseline_convergence.png"
+    plot_path = args.output / f"{run_dir.name}_convergence.png"
     fig.savefig(plot_path, dpi=180)
     plt.close(fig)
     payload = {"metrics": metrics, "criteria": criteria,

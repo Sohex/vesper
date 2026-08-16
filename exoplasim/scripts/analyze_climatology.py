@@ -228,11 +228,31 @@ def categorical_map(
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--regular", type=Path, default=ANALYSIS / "climatology" / "baseline_regular_climatology.nc")
-    parser.add_argument("--snapshots", type=Path, default=ANALYSIS / "climatology" / "baseline_snapshot_climatology.nc")
+    # --label is required and the climatology paths are DERIVED from it.
+    #
+    # These used to default to a fixed `baseline_regular_climatology.nc`, so
+    # running with no arguments silently analysed whichever file had been given
+    # that name -- which was the superseded first-era climatology, reporting
+    # 280.9 K for a world whose baseline is 293.8 K. build_climatology.py names
+    # its products by label; this reads them back by the same label, so the two
+    # cannot disagree.
+    parser.add_argument("--label", required=True,
+                        help="climatology label, as passed to build_climatology.py")
+    parser.add_argument("--regular", type=Path, default=None,
+                        help="override; normally derived from --label")
+    parser.add_argument("--snapshots", type=Path, default=None,
+                        help="override; normally derived from --label")
     parser.add_argument("--output", type=Path, default=ANALYSIS / "climatology")
-    parser.add_argument("--label", default="baseline")
     args = parser.parse_args()
+    clim = ANALYSIS / "climatology"
+    if args.regular is None:
+        args.regular = clim / f"{args.label}_regular_climatology.nc"
+    if args.snapshots is None:
+        args.snapshots = clim / f"{args.label}_snapshot_climatology.nc"
+    for pth in (args.regular, args.snapshots):
+        if not pth.is_file():
+            raise SystemExit(f"no climatology at {pth}; build it first with "
+                             f"build_climatology.py --label {args.label}")
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=True)
 
@@ -258,7 +278,7 @@ def main() -> None:
                  f"{display_label} annual mean surface temperature (5-orbit climatology)",
                  "coolwarm", -35, 35)
     fig.colorbar(mesh, ax=ax, label="°C", orientation="horizontal", pad=0.09)
-    save_map(fig, output / "annual_surface_temperature.png")
+    save_map(fig, output / f"{args.label}_annual_surface_temperature.png")
 
     masks = season_masks(snap["lambda"])
     seasonal_ts = [snap["ts"][mask].mean(axis=0) - 273.15 for mask in masks]
@@ -267,7 +287,7 @@ def main() -> None:
         mesh = panel(ax, lon, lat, field, land, name, "coolwarm", -45, 40)
     fig.colorbar(mesh, ax=axes.ravel().tolist(), label="surface temperature (°C)", shrink=0.75)
     fig.suptitle("Seasonal surface temperature by simulated solar longitude")
-    save_map(fig, output / "seasonal_surface_temperature.png")
+    save_map(fig, output / f"{args.label}_seasonal_surface_temperature.png")
 
     fig, axes = plt.subplots(2, 1, figsize=(14, 10), constrained_layout=True)
     mesh = panel(axes[0], lon, lat, annual_pr, land, "Annual mean precipitation rate", "YlGnBu", 0, 8)
@@ -276,7 +296,7 @@ def main() -> None:
     p_minus_e = (np.maximum(regular["pr"], 0.0) + regular["evap"]).mean(axis=0) * 86400.0 * 1000.0
     mesh = panel(axes[1], lon, lat, p_minus_e, land, "Annual mean precipitation minus evaporation", "BrBG", -4, 4)
     fig.colorbar(mesh, ax=axes[1], label="mm day⁻¹")
-    save_map(fig, output / "precipitation_and_water_balance.png")
+    save_map(fig, output / f"{args.label}_precipitation_and_water_balance.png")
 
     regular_season_masks = season_masks(phase_regular)
     fig, axes = plt.subplots(2, 2, figsize=(15, 8), constrained_layout=True)
@@ -285,7 +305,7 @@ def main() -> None:
         mesh = panel(ax, lon, lat, field, land, name, "YlGnBu", 0, 10)
     fig.colorbar(mesh, ax=axes.ravel().tolist(), label="precipitation rate (mm day⁻¹)", shrink=0.75)
     fig.suptitle("Seasonal precipitation by simulated solar longitude")
-    save_map(fig, output / "seasonal_precipitation.png")
+    save_map(fig, output / f"{args.label}_seasonal_precipitation.png")
 
     u = regular["ua"][:, -1].mean(axis=0)
     v = regular["va"][:, -1].mean(axis=0)
@@ -299,7 +319,7 @@ def main() -> None:
     skip = (slice(None, None, 4), slice(None, None, 4))
     ax.quiver(plon[::4], lat[::4], pu[skip], pv[skip], color="white", scale=230, width=0.002)
     fig.colorbar(mesh, ax=ax, label="wind speed (m s⁻¹)", orientation="horizontal", pad=0.09)
-    save_map(fig, output / "annual_lowest_level_winds.png")
+    save_map(fig, output / f"{args.label}_annual_lowest_level_winds.png")
 
     fig, axes = plt.subplots(2, 2, figsize=(15, 8), constrained_layout=True)
     fields = [
@@ -312,7 +332,7 @@ def main() -> None:
         mesh = panel(ax, lon, lat, field, land, title, cmap, low, high)
         fig.colorbar(mesh, ax=ax, label=units)
     fig.suptitle("Snow and sea ice")
-    save_map(fig, output / "snow_and_sea_ice.png")
+    save_map(fig, output / f"{args.label}_snow_and_sea_ice.png")
 
     fig, axes = plt.subplots(3, 1, figsize=(14, 14), constrained_layout=True)
     hydro = [
@@ -323,12 +343,12 @@ def main() -> None:
     for ax, (field, title, cmap, low, high, units) in zip(axes, hydro):
         mesh = panel(ax, lon, lat, field, land, title, cmap, low, high)
         fig.colorbar(mesh, ax=ax, label=units)
-    save_map(fig, output / "hydrology.png")
+    save_map(fig, output / f"{args.label}_hydrology.png")
 
     classes = koppen(regular["tas"], regular["pr"], phase_regular, lat, land)
     class_indices, class_names = categorical_map(
         classes, KOPPEN_COLORS, lon, lat, land,
-        "Rate-normalized Köppen–Geiger climate interpretation", output / "koppen_geiger.png",
+        "Rate-normalized Köppen–Geiger climate interpretation", output / f"{args.label}_koppen_geiger.png",
     )
     biomes = np.vectorize(biome_for)(classes)
     biome_palette = {
@@ -341,10 +361,10 @@ def main() -> None:
     }
     biome_indices, biome_names = categorical_map(
         biomes, biome_palette, lon, lat, land,
-        "Broad ecological interpretation from simulated climate", output / "biome_interpretation.png",
+        "Broad ecological interpretation from simulated climate", output / f"{args.label}_biome_interpretation.png",
     )
 
-    classification_nc = output / "baseline_classification.nc"
+    classification_nc = output / f"{args.label}_baseline_classification.nc"
     # netCDF4 1.7.4 emits a harmless NumPy 2.5 deprecation from assignment internals.
     with warnings.catch_warnings(), Dataset(classification_nc, "w", format="NETCDF4") as nc:
         warnings.filterwarnings(
@@ -405,7 +425,11 @@ def main() -> None:
         "lowest_wind_sigma": float(regular["lev"][-1]),
         "snapshot_product": snapshot_attrs.get("climatology_product"),
     }
-    (output / "baseline_climate_report.json").write_text(
+    # Named by label, like every other product of this pipeline. A fixed
+    # filename meant each run silently overwrote the previous one's report, so
+    # two climatologies could never coexist and the file's name told you nothing
+    # about which world it described.
+    (output / f"{args.label}_baseline_climate_report.json").write_text(
         json.dumps(report, indent=2) + "\n", encoding="utf-8"
     )
     print(json.dumps(report["global_metrics"], indent=2))

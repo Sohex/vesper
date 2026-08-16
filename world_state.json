@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated": "2026-08-16T13:34:29.385604+00:00",
-  "git_commit": "547ec8e8498e6fe1b49501676465918f7a9bdfeb",
+  "generated": "2026-08-16T16:00:33.584670+00:00",
+  "git_commit": "8e2ee260f2afadda9fdf763d7c9d6fa0c163201a",
   "generator": "scripts/world_state.py",
   "note": "Generated from the artifacts. Do not edit; re-run the generator. Judgement that no artifact can supply is in `curated`, which lives in the generator under version control.",
   "planet": {
@@ -56,6 +56,7 @@
       "ozone_visible_weight": 0.914,
       "energy_diagnostics_3d": true,
       "roughness_source": "lithology",
+      "soil_water_source": "pedology",
       "land_albedo_source": "vegetated",
       "barren_rock_classes": [
         "evaporite",
@@ -122,6 +123,19 @@
   },
   "climate_runs": [
     {
+      "run_id": "run_1dbb75d05aca",
+      "status": "spinup_in_progress",
+      "orbits_complete": 60,
+      "flux_earth": 0.968,
+      "cycle": null,
+      "resolution": "T42",
+      "land_albedo_source": "vegetated",
+      "source_build": "precarve-zoned-g1281",
+      "glaciers": true,
+      "converged": false,
+      "mean_surface_temperature_k": 293.74106871958975
+    },
+    {
       "run_id": "t21l10p8r8_s095_co20450ppm_rot30h_obl32_e020_glac_k25v_g2d192bed",
       "status": "equilibrated_for_worldbuilding",
       "orbits_complete": 60,
@@ -162,12 +176,34 @@
     }
   ],
   "current_climate": {
-    "value": null,
-    "invalidated": true,
-    "depends_on": "source_build",
-    "expected": "precarve-zoned-g1281",
-    "found": "no baseline_climate_report.json exists for any climatology this build produced; run exoplasim/scripts/analyze_climatology.py",
-    "note": "current_climate was computed from a dependency that has since moved; regenerate it. Cleared rather than shown, because a stale derived value is indistinguishable from a current one."
+    "source": "exoplasim/analysis/climatology/baseline_t42_s0968_baseline_climate_report.json",
+    "global_metrics": {
+      "surface_temperature_k": 293.73756637615963,
+      "air_temperature_2m_k": 293.1019675590841,
+      "precipitation_mm_day": 2.9320850274111536,
+      "toa_net_radiation_w_m2": -0.3837769942052649,
+      "surface_downward_heat_flux_w_m2": 0.04456259346215735,
+      "planetary_sea_ice_fraction": 0.0020248814569112745,
+      "ocean_mean_sea_ice_concentration": 0.0035422231613531445,
+      "land_area_fraction": 0.4283585859289112
+    },
+    "koppen_top": {
+      "BSh": 0.1574848093808938,
+      "BWh": 0.1552514054593778,
+      "Dfa": 0.1165302772171984,
+      "Dfb": 0.09000154135338238,
+      "Af": 0.07410321686651584,
+      "Aw": 0.07227433443785852
+    },
+    "biome_top": {
+      "Continental temperate/mixed forest": 0.2776713276945202,
+      "Steppe/semidesert": 0.16407548020780316,
+      "Desert": 0.1552514054593778,
+      "Seasonal tropical woodland/savanna": 0.10886538298042146,
+      "Temperate/subtropical forest": 0.09085100875697637,
+      "Everwet tropical forest": 0.07410321686651584
+    },
+    "source_build": "precarve-zoned-g1281"
   },
   "hydrography": {
     "products_from": "hydrography/data/precarve-zoned-g1281",
