@@ -44,3 +44,4 @@ hydrography/data/surface_water.nc
 # that summarise a run are tracked under biosphere/analysis/.
 biosphere/runs/
 pedology/data/earth_validation_cache/
+pedology/data/reference/

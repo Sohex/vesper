@@ -1,32 +1,32 @@
 {
   "run_dir": "/home/cfutro/docs/world/exoplasim/runs/t21l10p8r8_s100_co20450ppm_rot30h_obl32_e020_glac_k25v_g2d192bed",
-  "completed_orbits": 40,
+  "completed_orbits": 43,
   "window_orbits": 10,
   "metrics": {
-    "temperature_slope_k_per_orbit": -0.006889112390041397,
-    "toa_balance_slope_w_m2_per_orbit": -0.07250869036805375,
-    "surface_balance_slope_w_m2_per_orbit": -0.05344538363026057,
-    "sea_ice_slope_fraction_per_orbit": 1.772606998675776e-05,
-    "mean_toa_balance_w_m2": -0.09173418369289557,
-    "mean_surface_balance_w_m2": 0.29316478787380823,
-    "temperature_mean_k": 295.4829500800475,
-    "temperature_last_k": 295.4453343768978,
-    "sea_ice_mean_fraction": 0.00035110440398946686,
-    "temperature_asymptote_k": 295.41191194296584,
-    "temperature_asymptote_half_width_k": 0.07103813708165198,
-    "temperature_remaining_offset_k": -0.07103813708165198,
-    "relaxation_orbits_fitted": -246878.25037519532,
+    "temperature_slope_k_per_orbit": -0.020173419814422843,
+    "toa_balance_slope_w_m2_per_orbit": 0.020701294893654843,
+    "surface_balance_slope_w_m2_per_orbit": 0.04652525596909952,
+    "sea_ice_slope_fraction_per_orbit": -9.30907088333733e-06,
+    "mean_toa_balance_w_m2": -0.20711337122908852,
+    "mean_surface_balance_w_m2": 0.14935792715244298,
+    "temperature_mean_k": 295.479235662527,
+    "temperature_last_k": 295.28797265947674,
+    "sea_ice_mean_fraction": 0.0003754953390837462,
+    "temperature_asymptote_k": 295.2712143557104,
+    "temperature_asymptote_half_width_k": 0.2080213068165771,
+    "temperature_remaining_offset_k": -0.2080213068165771,
+    "relaxation_orbits_fitted": -214859.4121466347,
     "relaxation_orbits_expected": 10.311653092543771,
-    "remaining_offset_implied_by_drift_k": -0.07103813708165198
+    "remaining_offset_implied_by_drift_k": -0.2080213068165771
   },
   "criteria": {
     "abs_temperature_slope_lt_0.05_k_per_orbit": true,
-    "abs_toa_slope_lt_0.05_w_m2_per_orbit": false,
-    "abs_surface_slope_lt_0.05_w_m2_per_orbit": false,
+    "abs_toa_slope_lt_0.05_w_m2_per_orbit": true,
+    "abs_surface_slope_lt_0.05_w_m2_per_orbit": true,
     "abs_sea_ice_slope_lt_0.001_per_orbit": true,
     "abs_mean_toa_lt_0.5_w_m2": true,
     "abs_mean_surface_lt_0.5_w_m2": true,
-    "extrapolated_offset_lt_0.15_k": true
+    "extrapolated_offset_lt_0.15_k": false
   },
   "sufficiently_equilibrated_for_worldbuilding": false,
   "annual_records": [
@@ -349,6 +349,30 @@
       "hfns": 0.5066542859205697,
       "sic": 0.0002655734999717482,
       "pr": 3.102850938727342
+    },
+    {
+      "year_index": 40,
+      "ts": 295.60995553013737,
+      "ntr": -0.06289762674339124,
+      "hfns": -0.17550509723697946,
+      "sic": 0.00033517223685099835,
+      "pr": 3.0821023382728256
+    },
+    {
+      "year_index": 41,
+      "ts": 295.45093409742015,
+      "ntr": -0.2566616970251827,
+      "hfns": 0.4124866868003874,
+      "sic": 0.00029892408162479324,
+      "pr": 3.1177657307376787
+    },
+    {
+      "year_index": 42,
+      "ts": 295.28797265947674,
+      "ntr": 0.026820938154849056,
+      "hfns": 0.44161911956310895,
+      "sic": 0.00035826186039105665,
+      "pr": 3.1502895174355903
     }
   ]
 }

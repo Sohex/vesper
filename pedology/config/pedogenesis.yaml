@@ -207,55 +207,56 @@ texture:
 # ---------------------------------------------------------------------------
 # Phosphorus is rock-derived. Unlike nitrogen it has no atmospheric source, so
 # its supply is weathering, which this component already computes. That makes it
-# the nutrient this pipeline is best placed to say something about, and the one a
-# C-N-P biosphere model would need per gridcell.
+# the nutrient this pipeline is best placed to say something about.
 #
-# SOURCES, and what is and is not confirmed. Central values follow Hartmann's
-# per-GLiM-class compilation, recovered second-hand from the supplementary table
-# of Li et al. 2025 (Nature Communications) because the originals are paywalled,
-# cross-checked against EarthChem medians and USGS SIR 2017-5118.
+# SOURCE, read directly: Hartmann, Moosdorf, Lauerwald, Hinderer & West (2014),
+# "Global chemical weathering and associated P-release - The role of lithology,
+# temperature and soil properties", Chemical Geology 363, 145-163, Table A1-2.
+# The paper gives P2O5 weight percent per lithological class and the elemental P
+# content beside it, at P2O5 x 0.4364. Values below are the elemental row in ppm.
 #
-# Two caveats that belong with any number derived from these. Hartmann's column
-# is labelled "phosphorus (%)" but is almost certainly P2O5 weight percent rather
-# than elemental P -- its global silicate mean of 0.14 matches upper-crust P2O5
-# (0.15) rather than upper-crust P (0.066), and the basic-volcanic value converts
-# to 916 ppm, matching EarthChem's basalt median. Likely, not confirmed against
-# the original. And within-class spreads overlap heavily, so these predict a
-# class mean and not any individual sample.
+# Read from the paper rather than a citation of it, and that mattered. These were
+# first entered from a second-hand table which turned out to report Hartmann's
+# "P content in % relative to Cat + SiO2 release" -- a release-normalised ratio,
+# not a rock content -- so every value was low by about half and the units were
+# misidentified. The class contrast survived; the magnitudes did not.
 #
-# THE AXIS THIS MODEL TURNS ON IS CORROBORATED. Basic volcanic against acid
-# plutonic is 2.3x in Hartmann, and EarthChem medians independently give 2.1 to
-# 2.3x. USGS gives a shallower 1.6x for mafic against felsic, so treat the
-# contrast as 1.6 to 2.3x rather than a point. Basalt carries roughly twice the
-# phosphorus of granite, and that is a separate and larger contrast than the
-# quartz-driven clay contrast already in this file -- the two multiply.
+# Class mapping is to Hartmann's own classes, which is why these are grounded
+# rather than interpolated: PA acid plutonic, PB basic plutonic, VA acid
+# volcanic, VB basic volcanic, MT metamorphic, SS siliciclastic, SC carbonate
+# sedimentary, SU unconsolidated sediment, EP evaporite. Intermediate classes
+# follow the paper's own convention of averaging the two endmembers.
+#
+# Basic volcanic against acid plutonic is 1.94x, so basalt carries roughly twice
+# the phosphorus of granite. That contrast is separate from and larger than the
+# quartz-driven clay contrast already in this file, and the two multiply.
+# Within-class spreads overlap, so these predict a class mean, not a sample.
 phosphorus_ppm:
-  granite:             440
-  granodiorite:        700
-  rift_bimodal:        700     # bimodal basalt-rhyolite; between the endmembers
-  morb:               1000     # tholeiite
-  oib:                2800     # alkali basalt, 5-7x granite; the P-richest class
-  flood_basalt:       1000     # tholeiitic
-  arc_basalt:         1000
-  arc_andesite:       1000
-  gneiss:              570
-  schist:              655
-  quartzite:           100     # quartz dilutes everything else
-  melange:             650
-  shelf_clastic:       500
-  carbonate:           400
-  foreland_clastic:    800
-  continental_clastic: 600
-  # Basin fill is not primary rock: it is whatever the catchment delivered, so
-  # its phosphorus reflects upstream lithology rather than its own mineralogy.
-  # Playa clastics carry detrital P at roughly the crustal mean. Salt crust is
-  # halite and gypsum, which carry almost none -- which matters for the aeolian
-  # phosphorus term, because the brightest and most erodible surface is also the
-  # one with the least P to redistribute.
-  playa_clastic:       600
-  evaporite:           150
+  granite:             700     # PA
+  granodiorite:       1485     # PI, the paper's mean of PA and PB
+  rift_bimodal:        830     # VI, mean of VA and VB
+  morb:               1350     # VB
+  oib:                1350     # VB
+  flood_basalt:       1350     # VB
+  arc_basalt:         1350     # VB
+  arc_andesite:        830     # VI
+  gneiss:              790     # MT
+  schist:              790     # MT
+  quartzite:           200     # MT diluted by quartz
+  melange:             520     # SM
+  shelf_clastic:       520     # SS
+  carbonate:           480     # SC
+  foreland_clastic:    520     # SS
+  continental_clastic: 520     # SS
+  # Basin fill is not primary rock: it is whatever the catchment delivered.
+  # Playa clastics are unconsolidated sediment; salt crust is the paper's
+  # evaporite class, which is the lowest of all. That matters for the aeolian
+  # phosphorus term, because the brightest and most erodible surface on this
+  # planet is also the one with the least P to redistribute.
+  playa_clastic:       520     # SU
+  evaporite:           260     # EP
   # Seafloor classes, present for completeness; no land cell carries them.
-  pelagic:             700
+  pelagic:             520
   water:                 0
 
 regolith:

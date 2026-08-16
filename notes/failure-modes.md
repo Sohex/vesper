@@ -163,6 +163,32 @@ Corollary: this world is unusual enough in its drainage that reasoning from one
 transport pathway is reliably insufficient. Where water does something
 surprising here, check whether wind or sediment does the opposite.
 
+## 9. A number taken from a citation rather than from the paper
+
+Parent-rock phosphorus was entered from a second-hand table that cited Hartmann
+et al. 2014. The values were wrong: they came from that paper's "P content in %
+relative to Cat + SiO2 release" row, a release-normalised ratio, not from its
+rock-content row. Every value was low by roughly half, the units were
+misidentified as P2O5 weight percent, and the ppm conversions applied on top of
+that were meaningless.
+
+Two things made it look sound. The class-to-class *contrast* was nearly right --
+2.33x reported against 1.94x actual -- because a ratio row and a content row rank
+the classes the same way. And it cross-checked plausibly against an independent
+compilation, which agreed on the contrast for the same reason.
+
+**The rule.** A contrast surviving a cross-check is not evidence that the
+magnitudes are right; ratios are preserved by exactly the transformations that
+corrupt values. When a number will be integrated rather than compared, read the
+source table, not a citation of it. The tell here was available and ignored: the
+same paper prints P2O5 and elemental P as adjacent rows differing by 0.4364, so
+"which row is this" was a question the data itself was asking.
+
+Corollary for delegated work. The agent that produced these flagged its own
+uncertainty accurately -- it said the units were "likely, not confirmed" -- and
+that flag was correct and was not acted on. A caveat carried forward verbatim is
+not the same as a caveat resolved.
+
 ---
 
 ## Things already checked and disproved: do not re-derive these
