@@ -114,15 +114,17 @@ return cooling, so the bracket never crosses zero even though the paragraph
 immediately above says the sign is not uniform. The prose was right and the
 numbers did not implement it.
 
-Computed here with a Bohren-Huffman Mie code, integrated over the Balkanski
-source distribution (number-median radius 0.295 um, sigma 2.0, density 2.6) and
+Computed by `exoplasim/scripts/dust_optics.py`, which is the authority for
+these numbers; `analysis/dust_optics.json` is its product and carries the input
+hashes. A Bohren-Huffman Mie code integrated over the Balkanski source
+distribution (number-median radius 0.295 um, sigma 2.0, density 2.6) and
 band-averaged on the k25v spectrum with correct bin-width weighting:
 
 | indices | band (um) | ssa | g | a_c |
 | --- | --- | --- | --- | --- |
-| Di Biagio 2019, measured | 0.34-0.75 | 0.965 | 0.700 | 0.504 |
-| OPAC, absorbing end | 0.34-0.75 | 0.889 | 0.716 | 0.289 |
-| OPAC, absorbing end | 0.75-4.00 | 0.951 | 0.685 | 0.456 |
+| Di Biagio 2019, measured | 0.34-0.75 | 0.967 | 0.698 | 0.515 |
+| OPAC, absorbing end | 0.34-0.75 | 0.895 | 0.714 | 0.300 |
+| OPAC, absorbing end | 0.75-4.00 | 0.952 | 0.686 | 0.456 |
 
 Salt crust is 0.40 to 0.50. **The reversal sits inside our own stated albedo
 range for the surface that makes this world unusual**, and band 2 carries 61.6%
@@ -137,8 +139,10 @@ and asymmetry parameter to three or four decimals.
 
 **Resolved, by digitising Rocha-Lima et al. (2018) Fig. 10.** Its values above
 950 nm exist only as a plot, so they were extracted by colour-thresholding the
-marker series and mapping through the axis frame, then checked against the four
-values the paper states in text: mixed-mode Algeria reads 0.0032 at 450 nm
+marker series and mapping through the axis frame -- reproducibly, by
+`dust_optics.py --digitize`, with the extracted points committed as
+`exoplasim/data/dust/rochalima2018_fig10_digitized.csv` -- then checked against
+the four values the paper states in text: mixed-mode Algeria reads 0.0032 at 450 nm
 against a stated 0.0030, and 0.0005 at 850 nm against 0.0005. Accuracy is about
 +/-0.0005 in k.
 
