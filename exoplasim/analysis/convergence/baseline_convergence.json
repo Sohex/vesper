@@ -1,23 +1,23 @@
 {
   "run_dir": "/home/cfutro/docs/world/exoplasim/runs/t42l10p16r8_s0968_co20450ppm_rot30h_obl32_e020_glac_k25v_g83d1b976",
-  "completed_orbits": 48,
+  "completed_orbits": 60,
   "window_orbits": 10,
   "metrics": {
-    "temperature_slope_k_per_orbit": 0.01125704530397975,
-    "toa_balance_slope_w_m2_per_orbit": -0.02988571116691451,
-    "surface_balance_slope_w_m2_per_orbit": -0.03587270281158731,
-    "sea_ice_slope_fraction_per_orbit": -0.00010485838339112881,
-    "mean_toa_balance_w_m2": -0.33224245402092734,
-    "mean_surface_balance_w_m2": 0.08156573429194147,
-    "temperature_mean_k": 292.3347620105101,
-    "temperature_last_k": 292.37703898516367,
-    "sea_ice_mean_fraction": 0.005516539963768562,
-    "temperature_asymptote_k": 292.4480435717555,
-    "temperature_asymptote_half_width_k": 0.11328156124537969,
-    "temperature_remaining_offset_k": 0.11328156124537969,
-    "relaxation_orbits_fitted": -221593.73053569964,
+    "temperature_slope_k_per_orbit": 0.012776134531249247,
+    "toa_balance_slope_w_m2_per_orbit": -0.004406938426777082,
+    "surface_balance_slope_w_m2_per_orbit": -0.0044571800430518475,
+    "sea_ice_slope_fraction_per_orbit": 8.164393307967412e-05,
+    "mean_toa_balance_w_m2": -0.3543470341766974,
+    "mean_surface_balance_w_m2": 0.04387581745089951,
+    "temperature_mean_k": 292.515363787007,
+    "temperature_last_k": 292.63809961317116,
+    "sea_ice_mean_fraction": 0.004041947174625807,
+    "temperature_asymptote_k": 292.6439322014798,
+    "temperature_asymptote_half_width_k": 0.12856841447277928,
+    "temperature_remaining_offset_k": 0.12856841447277928,
+    "relaxation_orbits_fitted": -302760.1941052139,
     "relaxation_orbits_expected": 10.063170058072947,
-    "remaining_offset_implied_by_drift_k": 0.11328156124537969
+    "remaining_offset_implied_by_drift_k": 0.12856841447277928
   },
   "criteria": {
     "abs_temperature_slope_lt_0.05_k_per_orbit": true,
@@ -413,6 +413,102 @@
       "hfns": -0.12551742441367209,
       "sic": 0.00497605037794602,
       "pr": 2.860139072366441
+    },
+    {
+      "year_index": 48,
+      "ts": 292.4760733673247,
+      "ntr": -0.3089148828958257,
+      "hfns": 0.20286103055457505,
+      "sic": 0.003863786703472406,
+      "pr": 2.851086552681214
+    },
+    {
+      "year_index": 49,
+      "ts": 292.55408155309397,
+      "ntr": 0.15917824972119665,
+      "hfns": 0.6606251269915221,
+      "sic": 0.003029800710615633,
+      "pr": 2.817488415522587
+    },
+    {
+      "year_index": 50,
+      "ts": 292.50293566129704,
+      "ntr": -0.23088258597254283,
+      "hfns": 0.0884669271440582,
+      "sic": 0.0031088389121620183,
+      "pr": 2.85475565082943
+    },
+    {
+      "year_index": 51,
+      "ts": 292.46401615784345,
+      "ntr": -0.14862089828073607,
+      "hfns": 0.21114569678037978,
+      "sic": 0.0036204859894356923,
+      "pr": 2.8338650840828277
+    },
+    {
+      "year_index": 52,
+      "ts": 292.48087855356215,
+      "ntr": -0.4731797390352937,
+      "hfns": -0.08204136072190123,
+      "sic": 0.004347396821617091,
+      "pr": 2.8610830389749067
+    },
+    {
+      "year_index": 53,
+      "ts": 292.5839940205955,
+      "ntr": -0.6238661393822559,
+      "hfns": -0.036231834881242486,
+      "sic": 0.004401791411262855,
+      "pr": 2.8471526601419033
+    },
+    {
+      "year_index": 54,
+      "ts": 292.4478322319566,
+      "ntr": -0.7272265678617629,
+      "hfns": -0.2682068044077461,
+      "sic": 0.004382929978817284,
+      "pr": 2.8620174832500687
+    },
+    {
+      "year_index": 55,
+      "ts": 292.4010814023805,
+      "ntr": -0.11744924916144073,
+      "hfns": 0.23092032273224408,
+      "sic": 0.00384605956725888,
+      "pr": 2.856245181742653
+    },
+    {
+      "year_index": 56,
+      "ts": 292.5121205882884,
+      "ntr": -0.19001562258465662,
+      "hfns": 0.19370066543256556,
+      "sic": 0.003983445899621483,
+      "pr": 2.8361533488609365
+    },
+    {
+      "year_index": 57,
+      "ts": 292.5261469284152,
+      "ntr": -0.134536994465304,
+      "hfns": 0.09578718891922926,
+      "sic": 0.003880985325757541,
+      "pr": 2.841007094765934
+    },
+    {
+      "year_index": 58,
+      "ts": 292.5965327125607,
+      "ntr": -0.3146279555637547,
+      "hfns": 0.29311811161705537,
+      "sic": 0.004354837521746239,
+      "pr": 2.856327041400664
+    },
+    {
+      "year_index": 59,
+      "ts": 292.63809961317116,
+      "ntr": -0.5830645894592267,
+      "hfns": -0.2879007381056475,
+      "sic": 0.004492700318578981,
+      "pr": 2.858982052679329
     }
   ]
 }

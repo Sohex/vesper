@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated": "2026-08-16T10:40:40.769606+00:00",
-  "git_commit": "3d2fe7fce1d90a9280a58baae2c62d6c3b1a7ad7",
+  "generated": "2026-08-16T12:59:19.185339+00:00",
+  "git_commit": "bb81e5e5995c80a27e5da9bec8fb8aa423d88930",
   "generator": "scripts/world_state.py",
   "note": "Generated from the artifacts. Do not edit; re-run the generator. Judgement that no artifact can supply is in `curated`, which lives in the generator under version control.",
   "planet": {
@@ -40,12 +40,12 @@
   "active_configuration": {
     "source_build": "precarve-zoned-g1281",
     "model": {
-      "resolution": "T21",
-      "latitudes": 32,
-      "longitudes": 64,
+      "resolution": "T42",
+      "latitudes": 64,
+      "longitudes": 128,
       "layers": 10,
       "precision_bytes": 8,
-      "ncpus": 8,
+      "ncpus": 16,
       "timestep_minutes": 45.0,
       "physics_filter": "gp|exp|sp",
       "output_type": ".nc",
@@ -354,7 +354,7 @@
     },
     {
       "run_id": "t21l10p8r8_s095_co20450ppm_rot30h_obl32_e020_glac_k25v_g2d192bed",
-      "status": "spinup_in_progress",
+      "status": "equilibrated_for_worldbuilding",
       "orbits_complete": 60,
       "flux_earth": 0.95,
       "cycle": null,
@@ -362,8 +362,8 @@
       "land_albedo_source": "vegetated",
       "source_build": "precarve-zoned-g1281",
       "glaciers": true,
-      "converged": null,
-      "mean_surface_temperature_k": 288.8
+      "converged": true,
+      "mean_surface_temperature_k": 288.77657368920376
     },
     {
       "run_id": "t21l10p8r8_s100_co20450ppm_rot30h_obl32_e020_glac_g86c5409a",
@@ -507,6 +507,19 @@
       "glaciers": true,
       "converged": false,
       "mean_surface_temperature_k": 291.37971393018444
+    },
+    {
+      "run_id": "t42l10p16r8_s0968_co20450ppm_rot30h_obl32_e020_glac_k25v_g83d1b976",
+      "status": "spinup_in_progress",
+      "orbits_complete": 60,
+      "flux_earth": 0.968,
+      "cycle": null,
+      "resolution": "T42",
+      "land_albedo_source": "vegetated",
+      "source_build": "precarve-zoned-g1281",
+      "glaciers": true,
+      "converged": false,
+      "mean_surface_temperature_k": 292.515363787007
     },
     {
       "run_id": "t42l10p16r8_s096_co20450ppm_rot30h_obl32_e020_glac_g43ca63cf",
