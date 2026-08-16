@@ -45,8 +45,12 @@ Status: `open` | `doing` | `blocked` | `done` | `wontfix` (with a reason).
 | SURF-1 | Implement the derived-surface classifier against the two-axis design | `pedology/notes/derived-surface-classes.md` | blocked on 0.945 climatology |
 | SURF-2 | Re-run `brine_paths.py` weighted by discharge rather than catchment area | `pedology/notes/derived-surface-classes.md` | blocked on 0.945 climatology |
 | SURF-3 | Loess: needs a dust emission scheme and a transport path, neither of which exists | `pedology/notes/derived-surface-classes.md` | blocked |
-| REF-2 | Selby (1980) rock mass strength classification is not held; no full text reachable by any route. Grounded through Bursztyn 2015, which applies it at 168 localities | `references/INDEX.md` | open |
-| REF-1 | Hardie & Eugster (1970), the origin of the chemical divide, could not be fetched and is not held; cited through Eugster & Jones 1979 and Deocampo & Jones 2014 | `references/INDEX.md` | open |
+| REF-2 | NOT HELD: Selby (1980), *A rock mass strength classification for geomorphic purposes*, Z. Geomorph. 24, 31-51, `10.1127/zfg/24/1984/31`. No full text reachable. Grounded through Bursztyn 2015, which applies it at 168 localities | `references/INDEX.md` | open |
+| REF-3 | NOT HELD: Zhuang et al. (2023), *Visible and near-infrared reflectance spectra of igneous rocks and their powders*, Icarus 391, 115346, `10.1016/j.icarus.2022.115346`. The best modern source for solid-rock vs powder reflectance of basalt/andesite/granite. Worth an interlibrary request | `references/INDEX.md` | open |
+| REF-4 | NOT HELD: Penndorf (1956), *Luminous and Spectral Reflectance as Well as Colors of Natural Objects*, `10.21236/AD0098766`. DTIC serves a broken TLS chain | `references/INDEX.md` | open |
+| REF-5 | NOT HELD: Hunt & Salisbury, *Visible and near-infrared spectra of minerals and rocks* series, Modern Geology 1970-1976. No DOIs ever deposited. Covered indirectly by ASTER and USGS libraries | `references/INDEX.md` | open |
+| REF-6 | DOES NOT EXIST: no pyranometer broadband albedo for a gypsum crust, and none for an alkaline trona/natron pan. Both must be constructed by spectral integration | `notes/audits/orogen-lithology.md` | open |
+| REF-1 | NOT HELD: Hardie, Eugster (1970), *The evolution of closed-basin brines*, Special Publications of the Mineralogical Society of America 3, 273-290. No DOI; society special publication. Cited through Eugster & Jones 1979 and Deocampo & Jones 2014, both of which restate it in full | `references/INDEX.md` | open |
 
 ## Done
 
