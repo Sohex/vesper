@@ -31,7 +31,25 @@ build. Then `scripts/check_consistency.py`, which will list everything stale.
 **2. Terrain-only products.** Hydrography; boundary conditions; roughness;
 albedo without lakes.
 
-**3. Flux bracket.** The flux must be re-derived, not carried: relief compresses
+**3. Flux bracket.** Two caveats on how the slope gets quoted.
+
+*Points must clear the extrapolated-offset criterion, not just the drift test.*
+The first T21 point at 0.90 passed every drift criterion and still had +0.348 K
+of approach left, with a fitted time constant matching the expected one. A point
+that enters a bracket a third of a kelvin low bends the slope.
+
+*The bracket varies two things.* Flux is moved by semimajor axis, which is
+correct here -- it keeps the star fixed, so `k25v` stays valid, where moving
+luminosity across a 10% flux range would shift the effective temperature by about
+65 K and leave the 4900-5000 K window the spectrum was interpolated in. But the
+year moves with it, 189.6 to 175.2 days across the bracket, so the measured slope
+carries a small year-length effect through seasonality. Second-order for an
+annual mean; state it rather than imply the bracket varied one thing.
+
+The knobs swap at lock: semimajor axis while searching, luminosity afterwards,
+once the calendar is fixed and LPJ-GUESS is compiled against it.
+
+*Original text follows.* The flux must be re-derived, not carried: relief compresses
 about 20%, which moves lithology exposure and orography, and mean land rock
 albedo has separately moved from 0.3135 to 0.2810 through the cover-chain fix.
 Two converged runs spanning the design band, then interpolate. Do **not**
