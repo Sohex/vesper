@@ -36,6 +36,10 @@ cold bias propagates into whatever vegetation model consumes the result.
              production setting: it fixes the mean to a guess at the answer, and
              it puts every cell somewhere physically wrong, making basalt darker
              than any real rock and evaporite far too dark for a salt pan.
+  modelled   the answer rather than an endmember: per-cell cover from an
+             LPJ-GUESS run, blended against the lithology substrate. This is the
+             mode that closes the loop, and the only one that is not an
+             assumption. Needs --vegetation pointing at a run's fpc.out.
   uniform    write nothing and let ExoPlaSim default to 0.22.
 
 The two endmembers are about 15 to 19 W/m2 apart in absorbed flux, against 21
@@ -78,12 +82,44 @@ ALBEDO_CODES = (174, 175, 176)
 # which is exactly where the bistability question is decided.
 FOREST_CODE = 212
 
-# Forest fraction implied by each albedo mode.
+# Forest fraction implied by each albedo mode. `modelled` is absent because it
+# does not imply one: it reads tree cover per cell from LPJ-GUESS.
 MODE_FOREST_FRACTION = {
     "lithology": 0.0,   # bare rock carries no canopy
     "vegetated": 0.5,   # Earth-like mixed cover where anything grows
     "scaled": 0.25,     # midpoint, matching that mode's compromise character
 }
+
+# LPJ-GUESS grass PFTs. Everything else in fpc.out except Lon, Lat, Year and
+# Total is a tree, so this is the list that has to be right rather than a list of
+# a dozen tree codes that would silently miss a newly added one.
+GRASS_PFTS = ("C3G", "C4G")
+
+
+def read_foliar_cover(path: Path) -> dict[tuple[float, float], tuple[float, float]]:
+    """Tree and grass foliar projective cover per cell, from a run's fpc.out.
+
+    Takes the last simulated year per cell, which is the equilibrium the run
+    reached. Coordinates are rounded to two decimals because that is the
+    precision LPJ-GUESS prints them at, coarser than the driver's four.
+    """
+    lines = path.read_text().splitlines()
+    header = lines[0].split()
+    pfts = [name for name in header[3:] if name != "Total"]
+    grass = [i for i, name in enumerate(pfts) if name in GRASS_PFTS]
+    trees = [i for i, name in enumerate(pfts) if name not in GRASS_PFTS]
+    latest: dict[tuple[float, float], tuple[int, list[float]]] = {}
+    for line in lines[1:]:
+        parts = line.split()
+        if len(parts) < 3 + len(pfts):
+            continue
+        key = (round(float(parts[0]), 2), round(float(parts[1]), 2))
+        year = int(float(parts[2]))
+        values = [float(v) for v in parts[3:3 + len(pfts)]]
+        if key not in latest or year > latest[key][0]:
+            latest[key] = (year, values)
+    return {key: (sum(values[i] for i in trees), sum(values[i] for i in grass))
+            for key, (_, values) in latest.items()}
 
 
 def _rock_id(mesh_dir: Path, code: str) -> int:
@@ -102,8 +138,23 @@ def main() -> None:
     ap.add_argument("--grid", type=Path, default=None,
                     help="export whose grid to target; defaults to the config resolution")
     ap.add_argument("--output", type=Path, default=None)
-    ap.add_argument("--mode", choices=("lithology", "vegetated", "scaled", "uniform"),
+    ap.add_argument("--mode",
+                    choices=("lithology", "vegetated", "scaled", "modelled",
+                             "uniform"),
                     default=None)
+    ap.add_argument("--vegetation", type=Path, default=None,
+                    help="fpc.out from an LPJ-GUESS run, for --mode modelled")
+    ap.add_argument("--climatology", type=Path,
+                    default=(CONFIG.parent.parent / "exoplasim" / "analysis"
+                             / "climatology_s096"
+                             / "baseline_regular_climatology.nc"),
+                    help="coordinate source for --mode modelled. Must be the "
+                         "climatology the LPJ-GUESS driver was built from.")
+    ap.add_argument("--tree-albedo", type=float, default=0.13,
+                    help="albedo of full tree cover. Closed canopy is dark; "
+                         "0.12-0.15 covers needleleaf through broadleaf.")
+    ap.add_argument("--grass-albedo", type=float, default=0.19,
+                    help="albedo of full grass cover, lighter than forest")
     ap.add_argument("--target-mean", type=float, default=0.20,
                     help="land-mean albedo for --mode scaled")
     ap.add_argument("--vegetation-albedo", type=float, default=0.15,
@@ -191,6 +242,89 @@ def main() -> None:
     if mode == "scaled":
         alb_grid = np.clip(alb_grid * (args.target_mean / raw_mean), 0.05, 0.80)
 
+    # --- the loop closure -----------------------------------------------------
+    # Blend the lithology substrate against what actually grew, cell by cell,
+    # instead of asserting a single land-surface albedo. This is the only mode
+    # whose answer came from a model rather than from a choice.
+    vegetation_summary = None
+    tree_cover = None
+    if mode == "modelled":
+        if args.vegetation is None:
+            raise SystemExit("--mode modelled needs --vegetation <run>/fpc.out")
+        cover = read_foliar_cover(args.vegetation)
+        nlat_g, nlon_g = alb_grid.shape
+
+        # Coordinates come from the climatology, not from the export's
+        # planet.nc, and this is not a preference.
+        #
+        # The two label the same grid differently. planet.nc runs its longitudes
+        # from -178.5938, ExoPlaSim's output from 0, offset by half a cell and an
+        # origin. The *grids* are identical: taking the land mask from each and
+        # comparing gives 4106 cells both ways and 100% cellwise agreement. Only
+        # the labels disagree.
+        #
+        # LPJ-GUESS's printed coordinates descend from the driver file, which was
+        # built from the climatology, so matching against planet.nc's labels
+        # returns zero cells out of 4106. That failure has now happened three
+        # times in this project on three different scripts. Share the coordinate
+        # source; never reconstruct one.
+        if args.climatology is None or not args.climatology.is_file():
+            raise SystemExit(
+                "--mode modelled needs --climatology, the same one the LPJ-GUESS "
+                "driver was built from, for its coordinates")
+        with Dataset(args.climatology) as data:
+            lat_axis = np.asarray(data["lat"][:], dtype=float)
+            lon_axis = np.asarray(data["lon"][:], dtype=float)
+        if (len(lat_axis), len(lon_axis)) != (nlat_g, nlon_g):
+            raise SystemExit(
+                f"climatology grid is {len(lat_axis)}x{len(lon_axis)} but the "
+                f"surface grid is {nlat_g}x{nlon_g}")
+        lon_signed = np.where(lon_axis > 180.0, lon_axis - 360.0, lon_axis)
+
+        tree_cover = np.zeros_like(alb_grid)
+        grass_cover = np.zeros_like(alb_grid)
+        matched = 0
+        for j in range(nlat_g):
+            for i in range(nlon_g):
+                if not land_cells[j, i]:
+                    continue
+                entry = cover.get((round(float(lon_signed[i]), 2),
+                                   round(float(lat_axis[j]), 2)))
+                if entry is None:
+                    continue
+                tree_cover[j, i], grass_cover[j, i] = entry
+                matched += 1
+
+        # LPJ-GUESS is not told which ground is salt crust or playa mud. It is
+        # given a soil texture there and will happily grow on it if the climate
+        # allows, so the barren classes are masked out here rather than trusted.
+        # They are 12.65% of carved-zoned land and the brightest surfaces on the
+        # planet, so letting vegetation cover them would be a real error.
+        barren_fraction = land_fraction_of_class(mesh, grid_dir, barren)
+        rootable = np.clip(1.0 - barren_fraction, 0.0, 1.0)
+        tree_cover *= rootable
+        grass_cover *= rootable
+
+        total_cover = np.clip(tree_cover + grass_cover, 0.0, 1.0)
+        alb_grid = np.where(
+            land_cells,
+            tree_cover * args.tree_albedo
+            + grass_cover * args.grass_albedo
+            + (1.0 - total_cover) * alb_grid,
+            alb_grid)
+
+        missing = int(land_cells.sum()) - matched
+        vegetation_summary = {
+            "source": str(args.vegetation),
+            "land_cells_matched": matched,
+            "land_cells_without_vegetation_left_bare": missing,
+            "tree_albedo": args.tree_albedo,
+            "grass_albedo": args.grass_albedo,
+            "barren_masked": ("barren classes forced to zero cover; LPJ-GUESS is "
+                              "not told which ground is salt crust or playa"),
+            "coordinate_source": str(args.climatology),
+        }
+
     # Ocean cells carry the water value; ExoPlaSim computes ocean albedo itself,
     # so it is inert, but the array has to be full.
     water_albedo = float(next(r["albedo"] for r in json.loads(
@@ -198,10 +332,15 @@ def main() -> None:
         if r["code"] == "water"))
     field = np.where(land_cells, alb_grid, water_albedo)
 
-    forest_value = (args.forest_fraction if args.forest_fraction is not None
-                    else MODE_FOREST_FRACTION[mode])
-    vegetable = land_fraction_of_class(mesh, grid_dir, ~barren)
-    forest = np.where(land_cells, vegetable * forest_value, 0.0)
+    if mode == "modelled" and args.forest_fraction is None:
+        # Tree cover per cell, which is what 212 is for. No longer a constant.
+        forest_value = None
+        forest = np.where(land_cells, np.clip(tree_cover, 0.0, 1.0), 0.0)
+    else:
+        forest_value = (args.forest_fraction if args.forest_fraction is not None
+                        else MODE_FOREST_FRACTION[mode])
+        vegetable = land_fraction_of_class(mesh, grid_dir, ~barren)
+        forest = np.where(land_cells, vegetable * forest_value, 0.0)
 
     gw = np.fromfile(grid_dir / "grid" / "gauss_weights.bin", dtype="float64")
     def gmean(a):
@@ -228,6 +367,7 @@ def main() -> None:
         "terrain_hash": mesh.terrain_hash,
         "codes": list(ALBEDO_CODES) + [FOREST_CODE],
         "forest_fraction_value": forest_value,
+        "vegetation": vegetation_summary,
         "forest_fraction_land_mean": gmean(forest),
         "lithology_albedo_overrides": applied,
         "barren_rock_classes": barren_applied,

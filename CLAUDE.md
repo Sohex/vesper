@@ -172,6 +172,15 @@ terrain, which is why `hydrography/` recomputes it.
 - **Distance fields are in cell hops, not km.** Convert with
   `avgEdgeKm = π × 6371 / √numRegions` (`manifest.basins.resolution.avgEdgeKm`
   has it computed for this planet: 15.19 km).
+- **Never match by longitude between the export and ExoPlaSim output.**
+  `source/<build>/exoplasim-*/planet.nc` labels longitudes from −178.5938;
+  ExoPlaSim's own output labels them from 0. Same grid, different labels: take
+  the land mask from each and they agree on 4,106 cells and 100% of cells. Only
+  the coordinate axes disagree. Anything that keys on lon/lat across that
+  boundary silently matches zero cells, which has now happened three times on
+  three different scripts. Share one coordinate source — in practice the
+  climatology, since the LPJ-GUESS driver and the pedology soil map are both
+  built from it — and never reconstruct one.
 - **`manifest.planet` rotation/obliquity/eccentricity are Earth defaults**
   (23.93 h, 23.44°, 0.0167), not this world's. Orogen does not consume them, so
   they were never overridden. **`config/planet.yaml` is authoritative** for
