@@ -58,7 +58,7 @@ The prediction assumes the porting decisions in
 | `nfix_a` | 0.234, LPJ-GUESS's central value; range 0.102-0.367 |
 | `gdd5min` | rescaled by 180.655 / 365.2569 = 0.4946 |
 | CO2 | 450 ppm |
-| nitrogen | a declared constant, not modelled deposition |
+| nitrogen | deposition 0.5 kgN/ha/yr declared; fixation and mineralisation dominate it, see the amendment |
 
 If any of those change, the prediction is void rather than wrong.
 
