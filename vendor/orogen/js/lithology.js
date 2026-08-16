@@ -83,10 +83,40 @@ import { avgEdgeKm, PLANET_RADIUS_KM } from './geometry.js';
  *   densityGCm3 checks out against Daly, Manger & Clark (1966) except evaporite,
  *   corrected 2.2 -> 2.1 per Frumkin (2013).
  *
- *   albedo is NOT yet grounded and is the real exposure, because unlike
- *   erodibility it is not renormalised: it goes to the climate model as an
- *   absolute number. The standard compilations key albedo to land cover, not
- *   lithology, so there is no table to copy; it wants solar-weighted spectra.
+ *   albedo, grounded 2026-08-16 by solar-weighting measured spectra against this
+ *   world's own K2.5V stellar spectrum. Most values SURVIVED the check:
+ *
+ *     basalt family 0.10 -- three independent routes agree. Paragas (2025) slab
+ *       0.100, USGS weathered basalt 0.103, and Longhi et al. (2006) rank
+ *       ferromagnesian rocks in albedo class 1-2 (<25%).
+ *     granite / granodiorite / gneiss 0.28-0.30 -- Longhi et al. put quartz-rich
+ *       gneisses and granofels in class 3, 26-35%, on rock slabs. An earlier
+ *       reading called these 2.4x too bright on the strength of one Paragas
+ *       sample, "Dalmatian granite" at 0.123, which is a dark decorative stone
+ *       and not representative. One sample is not a lithology.
+ *     carbonate 0.35 -- impure marbles are class 2-3, 0.16-0.35, fresh and
+ *       weathered alike. This sits at the top edge: defensible, not settled.
+ *
+ *   Two were corrected:
+ *
+ *     quartzite 0.35 -> 0.45. Freshly cut quartzite is albedo class 5, above
+ *       45%, and USGS quartz sand solar-weights to 0.535 under this star.
+ *       Weathering DARKENS it, down to class 1-3, so 0.45 is chosen below the
+ *       fresh value rather than at it.
+ *     playa_clastic 0.30 -> 0.19. Post et al. (2000) measured 52 soils with a
+ *       pyranometer over 0.3-2.8 um: mean 0.189, range 0.048-0.402. That is the
+ *       same quantity, measured in the field.
+ *
+ *   evaporite stays 0.50: field halite crusts run 0.45 at Bonneville when dry,
+ *   0.55-0.65 at Uyuni over twenty years of MODIS, 0.64 annual at Pilot Valley,
+ *   and 0.18-0.25 where detritus-loaded. 0.50 is a fair dry-crust central value,
+ *   and the wet case is handled downstream by compositing solved lakes over it
+ *   rather than by moving this number.
+ *
+ *   NOTE THAT WEATHERING HAS NO CONSISTENT SIGN: it darkens quartzite by three
+ *   albedo classes and leaves marble unchanged. There is no single slab-to-
+ *   weathered factor to apply, which is why these are per-class judgements
+ *   against measurements rather than one blend fraction.
  *
  * THAT MAKES SOME OF THESE NUMBERS LOAD-BEARING DOWNSTREAM. `evaporite` at 0.50
  * used to be applied to every cell of every closed basin, under the name
@@ -109,7 +139,7 @@ export const ROCK_CLASSES = [
     { id:  8, code: 'granodiorite', name: 'Arc-root granodiorite',               category: 'igneous',     erodibility: 0.45, densityGCm3: 2.7, albedo: 0.28 },
     { id:  9, code: 'gneiss',       name: 'Cratonic gneiss',                     category: 'metamorphic', erodibility: 0.35, densityGCm3: 2.75, albedo: 0.28 },
     { id: 10, code: 'schist',       name: 'Orogenic schist / phyllite',          category: 'metamorphic', erodibility: 0.45, densityGCm3: 2.8, albedo: 0.22 },
-    { id: 11, code: 'quartzite',    name: 'Quartzite',                           category: 'metamorphic', erodibility: 0.25, densityGCm3: 2.65, albedo: 0.35 },
+    { id: 11, code: 'quartzite',    name: 'Quartzite',                           category: 'metamorphic', erodibility: 0.25, densityGCm3: 2.65, albedo: 0.45 },
     { id: 12, code: 'melange',      name: 'Subduction mélange / blueschist',     category: 'metamorphic', erodibility: 1.60, densityGCm3: 2.8, albedo: 0.18 },
     { id: 13, code: 'shelf_clastic', name: 'Shelf sandstone / shale',            category: 'sedimentary', erodibility: 2.20, densityGCm3: 2.5, albedo: 0.3 },
     { id: 14, code: 'carbonate',    name: 'Carbonate platform',                  category: 'sedimentary', erodibility: 0.45, densityGCm3: 2.7, albedo: 0.35 },
@@ -117,7 +147,7 @@ export const ROCK_CLASSES = [
     { id: 16, code: 'continental_clastic', name: 'Intracratonic clastics',       category: 'sedimentary', erodibility: 2.40, densityGCm3: 2.45, albedo: 0.28 },
     { id: 17, code: 'pelagic',      name: 'Pelagic ooze / abyssal clay',         category: 'sedimentary', erodibility: 3.00, densityGCm3: 2.0, albedo: 0.25 },
     { id: 18, code: 'evaporite',    name: 'Evaporite salt crust',                category: 'sedimentary', erodibility: 3.50, densityGCm3: 2.1, albedo: 0.5 },
-    { id: 19, code: 'playa_clastic', name: 'Playa mud / alluvial fan fill',      category: 'sedimentary', erodibility: 2.80, densityGCm3: 2.1, albedo: 0.3 },
+    { id: 19, code: 'playa_clastic', name: 'Playa mud / alluvial fan fill',      category: 'sedimentary', erodibility: 2.80, densityGCm3: 2.1, albedo: 0.19 },
 ];
 
 const BY_CODE = Object.fromEntries(ROCK_CLASSES.map(c => [c.code, c.id]));

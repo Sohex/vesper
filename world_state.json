@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated": "2026-08-16T21:05:13.949866+00:00",
-  "git_commit": "13fb86250899dbe27bc8027e8dde39d16f104043",
+  "generated": "2026-08-16T21:45:20.342063+00:00",
+  "git_commit": "6197bada2648b0f5645a9bc5e8adcd76d2b010e8",
   "generator": "scripts/world_state.py",
   "note": "Generated from the artifacts. Do not edit; re-run the generator. Judgement that no artifact can supply is in `curated`, which lives in the generator under version control.",
   "planet": {
@@ -128,7 +128,21 @@
       "superseded": false
     }
   },
-  "climate_runs": [],
+  "climate_runs": [
+    {
+      "run_id": "run_4017804889b3",
+      "status": "smoke_complete",
+      "orbits_complete": 5,
+      "flux_earth": 0.945,
+      "cycle": null,
+      "resolution": "T42",
+      "land_albedo_source": "vegetated",
+      "source_build": "precarve-zoned-g1281-erod4x",
+      "glaciers": true,
+      "converged": null,
+      "mean_surface_temperature_k": 274.096
+    }
+  ],
   "current_climate": {
     "value": null,
     "invalidated": true,

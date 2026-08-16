@@ -66,7 +66,7 @@ import yaml
 from _paths import CONFIG, INPUTS
 from convert_orogen import write_sra
 from builds import resolution_of, grid_export, mesh_export
-from gridding import land_fraction_of_class, land_weighted
+from gridding import land_fraction_of_class, land_weighted, region_cells
 from orogen import Export, LAND
 
 # 174 broadband, 175 below 0.75 um, 176 above. With NSIMPLEALBEDO=0 the
@@ -272,6 +272,76 @@ def main() -> None:
                 "property of the basin floor, so a solution from another build "
                 "does not describe these lakes; re-run surface_water.py.")
         lake &= is_land
+
+        # --- derived evaporite: salt crust is the EPHEMERAL zone -------------
+        #
+        # Orogen assigns `evaporite` geometrically -- the lowest quarter of each
+        # basin's depth range -- because it has no water balance to consult. That
+        # is the only rule it can apply, and it overstates salt: 2.85% of land
+        # against Earth's modern salt flats at 0.13-0.34%.
+        #
+        # Salt crust is where brine repeatedly evaporates to saturation, which is
+        # the shoreline zone that wets and dries, not the deep floor. A lake
+        # shallower than the local annual evaporation depth dries within an orbit
+        # and leaves crust; a deeper one persists and is painted as water below.
+        # Deriving it here gives 0.47% of land, and two independent routes agree
+        # the geometric rule is 6-7x too generous.
+        #
+        # This belongs in the derived-surface classifier once that exists; it is
+        # here because albedo is what reaches the model and the classifier is not
+        # built yet. See pedology/notes/derived-surface-classes.md.
+        evap_report = None
+        if args.climatology is not None and Path(args.climatology).is_file():
+            import run_exoplasim as _rx
+            year_s = float(_rx.derive(
+                config, float(config["orbit"]["baseline_flux_earth"])
+            )["orbital_year_seconds"])
+            with Dataset(args.climatology) as cds:
+                ev_grid = ((-np.asarray(cds["evap"][:]).mean(axis=0) * year_s).ravel()
+                           if "evap" in cds.variables else None)
+            if ev_grid is not None:
+                cellidx, _nla, _nlo = region_cells(mesh, grid_dir)
+                evaporite_id = next(r["id"] for r in
+                                    mesh.manifest["lithology"]["rockClasses"]
+                                    if r["code"] == "evaporite")
+                with Dataset(args.lakes) as lds:
+                    depth_m = np.asarray(lds["lake_depth_km"][:]) * 1000.0
+                e_local = ev_grid[cellidx]
+                ephemeral = is_land & (depth_m > 0) & (depth_m <= e_local)
+                salt_a = float(next(r["albedo"] for r in
+                                    mesh.manifest["lithology"]["rockClasses"]
+                                    if r["code"] == "evaporite"))
+                playa_a = float(next(r["albedo"] for r in
+                                     mesh.manifest["lithology"]["rockClasses"]
+                                     if r["code"] == "playa_clastic"))
+                geo_salt = is_land & (mesh.surface_rock == evaporite_id)
+                before_e = float(np.average(region_albedo[is_land],
+                                            weights=area_r[is_land]))
+                # Geometric salt that is not ephemeral becomes playa; ephemeral
+                # ground becomes salt crust regardless of what Orogen called it.
+                region_albedo[geo_salt & ~ephemeral] = playa_a
+                region_albedo[ephemeral] = salt_a
+                after_e = float(np.average(region_albedo[is_land],
+                                           weights=area_r[is_land]))
+                evap_report = {
+                    "method": "salt crust = regions whose solved lake depth is at "
+                              "or below the local annual evaporation depth, so "
+                              "they dry within one orbit",
+                    # The albedo now depends on a CLIMATOLOGY, which it did not
+                    # before. Record which one: an evaporite split derived from
+                    # another climate describes another world's salt flats.
+                    "climatology": str(args.climatology),
+                    "orbital_year_seconds": year_s,
+                    "geometric_salt_fraction_of_land":
+                        float(area_r[geo_salt].sum() / area_r[is_land].sum()),
+                    "derived_salt_fraction_of_land":
+                        float(area_r[ephemeral].sum() / area_r[is_land].sum()),
+                    "salt_albedo": salt_a, "playa_albedo": playa_a,
+                    "land_mean_albedo_before": round(before_e, 6),
+                    "land_mean_albedo_after": round(after_e, 6),
+                    "delta": round(after_e - before_e, 6),
+                }
+
         lake_mask = lake
         before = float(np.average(region_albedo[is_land], weights=area_r[is_land]))
         region_albedo[lake] = water_albedo_value
@@ -439,6 +509,7 @@ def main() -> None:
         "land_mean_bare_rock": raw_mean,
         "land_mean_written": final_mean,
         "lakes": lake_report,
+        "derived_evaporite": evap_report,
         "exoplasim_default_albland": 0.22,
         "land_min": float(field[land_cells].min()),
         "land_max": float(field[land_cells].max()),

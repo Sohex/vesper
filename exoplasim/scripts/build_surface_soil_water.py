@@ -232,9 +232,17 @@ def main() -> None:
           f"{EXOPLASIM_DEFAULT_WSMAX_M} m")
     print(f"\nwrote {rel(output)}")
     print(f"      {report_path.name}")
-    print("\nNOT enabled. Set model.soil_water_source: pedology in "
-          "config/planet.yaml when re-baselining;\nthat key is absent by design "
-          "because adding it moves config_sha256 and blocks resuming runs.")
+    # Say what is actually true rather than printing the same warning forever.
+    # This read "NOT enabled" unconditionally, long after the key was set, which
+    # tells a reader to go and do something already done.
+    if str(config["model"].get("soil_water_source", "uniform")) != "uniform":
+        print(f"\nENABLED: model.soil_water_source is "
+              f"{config['model']['soil_water_source']!r}, so code 229 reaches "
+              "the model and replaces ExoPlaSim's uniform 0.5 m field capacity.")
+    else:
+        print("\nNOT enabled. Set model.soil_water_source: pedology in "
+              "config/planet.yaml when re-baselining; adding that key moves "
+              "config_sha256 and blocks resuming existing runs.")
 
 
 if __name__ == "__main__":

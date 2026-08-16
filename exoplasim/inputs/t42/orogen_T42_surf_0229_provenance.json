@@ -1,6 +1,6 @@
 {
   "climatology": "exoplasim/analysis/climatology/baseline_t42_s0945_regular_climatology.nc",
-  "generated": "2026-08-16T21:04:30+00:00",
+  "generated": "2026-08-16T21:33:15+00:00",
   "code": 229,
   "field": "dwmax, maximum soil water capacity, metres",
   "lakes": null,
@@ -17,5 +17,5 @@
   "not_enabled_by_default": "Requires model.soil_water_source: pedology in config/planet.yaml. That key is absent on purpose: adding it moves config_sha256 and blocks resumption of runs in flight.",
   "output": "exoplasim/inputs/t42/orogen_T42_surf_0229.sra",
   "output_sha256": "57b6904d350b4c533cb9552d5571d7d5e04e6fd1bfb6aa152198b5305dc39844",
-  "git_commit": "13fb86250899dbe27bc8027e8dde39d16f104043"
+  "git_commit": "6197bada2648b0f5645a9bc5e8adcd76d2b010e8"
 }
