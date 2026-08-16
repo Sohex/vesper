@@ -1,0 +1,54 @@
+{
+  "generated": "2026-08-16T00:28:21+00:00",
+  "config_sha256": "a0b9911f5f42764b7dcab63b660fcd5921b5b98c9ca8bf77f7c973af60f7a11a",
+  "flux_earth": 0.96,
+  "earth_solar_constant": 1361.0,
+  "orbital_year_earth_days": 180.65500935790158,
+  "year_length_days": 181,
+  "month_lengths": [
+    15,
+    15,
+    15,
+    15,
+    15,
+    15,
+    15,
+    15,
+    15,
+    15,
+    15,
+    16
+  ],
+  "modelled_year_hours": 4344.0,
+  "true_year_hours": 4335.720224589638,
+  "year_length_error_percent": 0.1909665518407802,
+  "rotation_hours": 30.0,
+  "rotation_error_percent": 25.0,
+  "stellar_constant_w_m2": 1306.56,
+  "eccentricity": 0.02,
+  "obliquity_deg": 32.0,
+  "solstice_offset_days": 151.20000000000002,
+  "solstice_fit": {
+    "climatology": "exoplasim/analysis/climatology_s096/baseline_regular_climatology.nc",
+    "bins": 12,
+    "rms_residual_deg": 1.1139903946687795,
+    "max_abs_residual_deg": 1.9496257401804726,
+    "note": "day 0 of the simulation year is the first climatology bin"
+  },
+  "fradpar": 0.39630897954197336,
+  "fradpar_detail": {
+    "spectrum": "exoplasim/inputs/stellarspectra/k25v.dat",
+    "spectrum_sha256": "7196ade540b0496b047b1460a93920bc1099282c9b32324fac3ce1c32579034b",
+    "par_window_um": [
+      0.4,
+      0.7
+    ],
+    "star_par_fraction": 0.3093306488954166,
+    "solar_par_fraction_same_method": 0.3902644967228849,
+    "ratio": 0.7926179590839467,
+    "earth_fradpar": 0.5
+  },
+  "source_build": "carved-zoned",
+  "git_commit": "1a889196d9ed482a6554ade28f98097c69279fbb",
+  "header_sha256": "70cd5453ba5daf4c790097b1eb626e78186ba0a38cdff36f18aa50fbb270cc6d"
+}

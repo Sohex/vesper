@@ -5,10 +5,11 @@ ExoPlaSim climatology and returns leaf area, carbon and plant functional type
 composition per gridcell, which becomes the surface albedo and forest fraction
 that the next climate run is forced with.
 
-No Vesper gridcell has been run yet. What exists is a built model carrying
-Vesper's calendar and astronomy, the audit behind those choices in
-`notes/lpj-guess-porting-audit.md`, and `notes/productivity-prediction.md`, which
-registers what the answer should be before the model can contradict it.
+The port is complete and runs end to end on real Vesper cells at smoke scale.
+What remains before a full run is a current climatology. The audit behind the
+porting choices is in `notes/lpj-guess-porting-audit.md`, and
+`notes/productivity-prediction.md` registers what the answer should be before the
+model can contradict it.
 
 ## Why this component exists
 
@@ -32,10 +33,10 @@ a result.
 | Earth-assumption audit | complete, see the note |
 | productivity prediction | registered, unscored |
 | calendar and astronomy patch | written, applied, verified |
-| PFT degree-day rescale | not written, and the patch shows it is required |
-| input module | not written |
-| soil texture from lithology | not designed |
-| first run | blocked on a `carved-zoned` climatology |
+| PFT degree-day rescale | generated from the orbit, 500 -> 247 gdd5min_est |
+| input module | `vesperinput`, built and run end to end on real cells |
+| soil texture from lithology | mapped, but it is parent material not soil; see below |
+| full run | blocked on a current climatology; 3-cell shakedown passes |
 
 The model is not in this repository. It lives at
 `/home/cfutro/git/lpj-guess/guess_4.1` beside `ExoPlaSim` and
@@ -47,9 +48,10 @@ patch --forward --strip=1 --directory=. < <world>/biosphere/patches/lpj-guess-4.
 cd ../build && cmake ../guess_4.1 -DCMAKE_BUILD_TYPE=Release && make -j16
 ```
 
-`--reverse` restores the pristine 4.1.1 tree. The patch collects every planetary
-constant into one block in `framework/guessmath.h` rather than scattering them,
-so what the model assumes about this world is auditable in one place.
+`--reverse` restores the pristine 4.1.1 tree. The patch itself contains no
+planetary numbers: it points `framework/guessmath.h` at a generated `vesper.h`
+and wires `vesperinput` into the build. Copy `src/vesperinput.*` into `modules/`
+alongside it. See "Running it" below for the generators.
 
 ## The three things that decide whether this is credible
 
@@ -76,7 +78,10 @@ Earth-analogue biosphere and should be declared that way rather than presented a
 a prediction. Their degree-day thresholds must be rescaled by 0.4946, and this is
 not optional: running the patched model on Earth's own demo data collapses boreal
 needleleaf and temperate broadleaf to grass, because Earth `gdd5min` cannot be
-met in 181 days. That is the next piece of work.
+met in 181 days. `build_vesper_pfts.py` does it, deriving the factor from the
+configured orbit; `gdd5min_est` 500 becomes 247. It deliberately leaves
+`phengdd5ramp` alone, which is a within-season accumulation already in absolute
+time, and scaling that would be a real error.
 
 There is a second PFT question the literature answers more sharply than expected.
 Earth's 400-700 nm photosynthetic window is an accident of our star, and Lehmer
@@ -101,8 +106,62 @@ assumed a vegetated surface, and if LPJ-GUESS returns substantially less canopy
 than that, the climate is not one that biosphere would sustain and the loop turns
 again.
 
+## Soil is currently lithology, and that is a known shortcut
+
+`build_lpj_driver.py` maps World Orogen rock classes onto LPJ soil texture codes
+through a table, `SOIL_CODE_BY_ROCK`. That table is parent material, not soil.
+Soil texture is what a rock weathers *into under a climate*, and the same granite
+gives coarse grus in a cold arid place and deep kaolinitic clay in a wet tropical
+one. The mapping ignores that, and so assigns the same texture to both.
+
+Everything a real pedogenesis stage needs already exists in this pipeline, which
+is what makes the shortcut conspicuous. Jenny's five soil-forming factors are
+climate, organisms, relief, parent material and time: ExoPlaSim has the first,
+LPJ-GUESS itself produces the second, Orogen has relief, erodibility and
+lithology for the third and fourth, and the fifth is a modelling choice.
+
+Three things the current table gets demonstrably wrong:
+
+- **No climate dependence at all**, as above. This is the first-order error.
+- **Salinity and sodicity are absent.** 12.65% of carved-zoned land is evaporite
+  or playa, and the only handling is the blunt rule that nothing roots there.
+  Salt-affected soil is a gradient, not a binary.
+- **Regolith depth is not represented.** Orogen knows erosion rate and exhumation;
+  a thin soil over bedrock holds far less water than a deep one, and LPJ-GUESS's
+  soil codes cannot say so.
+
+**Not built yet, deliberately.** The next run should measure how much this
+matters before anything is built on top of it: run once with the lithology
+mapping and once with uniform medium soil, and report the spread in NPP. If it is
+small the mapping is adequate and a pedology stage is a refinement; if it is
+large the stage is required and the current numbers carry its uncertainty. That
+is the same bracket-before-building discipline the albedo and evaporation
+questions got.
+
+If it is required, it belongs as a sibling component reading lithology, climate,
+relief and drainage, and feeding LPJ-GUESS's richer `SoilInput` interface, which
+takes sand, clay, organic carbon, pH, C:N and bulk density per cell rather than
+one of ten codes. Note that it closes another loop: soil organic matter is a
+product of the biosphere that the biosphere then grows in.
+
 ## Cost
 
 4106 land gridcells at T42, about 24 s each for 550 years, so roughly 1.7 hours
 across 16 cores. The vegetation loop is not the expensive half of this
 iteration; ExoPlaSim is.
+
+## Running it
+
+Everything flux-dependent is generated, never written down, because the year
+length is a function of `orbit.baseline_flux_earth` and moves whenever the flux
+does. Regenerate all three after any orbit change, and rebuild: the year length
+sizes arrays at compile time, so a stale binary is silently wrong rather than
+failing. The driver file records the year length it was built for and
+`vesperinput` refuses a mismatch, which is the backstop for exactly that.
+
+```bash
+python biosphere/scripts/build_vesper_header.py   # vesper.h, installed into the tree
+python biosphere/scripts/build_vesper_pfts.py     # degree-day limits rescaled
+python biosphere/scripts/build_lpj_driver.py      # climate + soil codes + gridlist
+cd /home/cfutro/git/lpj-guess/build && make -j16
+```

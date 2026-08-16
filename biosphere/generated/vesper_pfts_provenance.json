@@ -1,0 +1,62 @@
+{
+  "generated": "2026-08-16T00:33:18+00:00",
+  "source": "/home/cfutro/git/lpj-guess/guess_4.1/data/ins/global.ins",
+  "source_sha256": "4daa4358a1f2de730601ac64ce3a64e54821838de20f9391ac07f649fefb90d8",
+  "config_sha256": "a0b9911f5f42764b7dcab63b660fcd5921b5b98c9ca8bf77f7c973af60f7a11a",
+  "orbital_year_earth_days": 180.65500935790158,
+  "earth_year_days": 365.2568983,
+  "scale_factor": 0.49459711835345666,
+  "scaled_parameters": [
+    "gdd5min_est",
+    "gdd5min"
+  ],
+  "deliberately_unscaled": [
+    "phengdd5ramp",
+    "tcmin_surv",
+    "tcmin_est",
+    "tcmax_est",
+    "twmin_est",
+    "twminusc",
+    "gdd0_min",
+    "gdd0_max"
+  ],
+  "changes": [
+    {
+      "parameter": "gdd5min_est",
+      "from": 500.0,
+      "to": 247.3
+    },
+    {
+      "parameter": "gdd5min_est",
+      "from": 500.0,
+      "to": 247.3
+    },
+    {
+      "parameter": "gdd5min_est",
+      "from": 350.0,
+      "to": 173.11
+    },
+    {
+      "parameter": "gdd5min_est",
+      "from": 2000.0,
+      "to": 989.19
+    },
+    {
+      "parameter": "gdd5min_est",
+      "from": 1100.0,
+      "to": 544.06
+    },
+    {
+      "parameter": "gdd5min_est",
+      "from": 350.0,
+      "to": 173.11
+    },
+    {
+      "parameter": "gdd5min_est",
+      "from": 2000.0,
+      "to": 989.19
+    }
+  ],
+  "output_sha256": "fbfdc17d048c8e49a57f77110409ddfbc56dd1d4b39ce3ef813af5b7fa73ba90",
+  "git_commit": "1a889196d9ed482a6554ade28f98097c69279fbb"
+}
