@@ -220,9 +220,15 @@ def regolith_depth(intensity: np.ndarray, relief_m: np.ndarray,
     replaces, and that is the trade: an honest curve that spans the range against
     a principled one that cannot be evaluated over it.
     """
+    # Moisture-driven denudation plus a floor that does not need runoff. A dry
+    # slope still loses material to wind, dry ravel and creep; without the floor
+    # erosion is exactly zero wherever P - E is, and every arid cell pins to the
+    # ceiling.
+    moisture = (np.maximum(runoff_mm_yr, 0.0) / weathering_ref
+                + params["dry_erosion_baseline"])
     erosion = (erodibility
                * np.maximum(relief_m, 0.0) / params["erosion_reference_relief_m"]
-               * np.maximum(runoff_mm_yr, 0.0) / weathering_ref)
+               * moisture)
     production = np.maximum(intensity, 1e-9)
     depth = (params["maximum_depth_m"] * production
              / (production + params["erosion_weight"] * erosion))

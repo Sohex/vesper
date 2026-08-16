@@ -1,5 +1,5 @@
 {
-  "generated": "2026-08-16T03:44:43+00:00",
+  "generated": "2026-08-16T05:01:27+00:00",
   "climatologies": [
     "exoplasim/analysis/climatology_s096/baseline_regular_climatology.nc"
   ],
@@ -8,8 +8,8 @@
   ],
   "years_of_climate": 1,
   "years_note": "Cycled by vesperinput, so spin-up sees the whole sequence. One year is a fixed climate; several are how a stellar cycle reaches the biosphere.",
-  "config_sha256": "7f5404532de4bd2598f861f94cac84211fbb3e5a41f46a47721faf28db744bbe",
-  "source_build": "carved-zoned-v2",
+  "config_sha256": "eeaae0341aedffb83493498f90aeb85a279f4614210662a279a2de16d5e0d896",
+  "source_build": "carved-zoned-v4",
   "stellar_spectrum": "k25v",
   "flux_earth": 0.96,
   "orbital_year_earth_days": 180.65500935790158,
@@ -45,11 +45,11 @@
     "cells_with_no_mesh_land_defaulted_to_medium": 0,
     "soil_code_share_of_land_cells": {
       "1": 0.1266,
-      "3": 0.0925,
-      "4": 0.0726,
-      "5": 0.3607,
-      "6": 0.2467,
-      "7": 0.0984,
+      "3": 0.1098,
+      "4": 0.0728,
+      "5": 0.3609,
+      "6": 0.2314,
+      "7": 0.096,
       "9": 0.0024
     }
   },
@@ -75,6 +75,6 @@
     "evaporite": 9,
     "playa_clastic": 3
   },
-  "output_sha256": "8182cd251a210e427856beb61ac0506653fc0fdd1da79dcfcc1c4e2f607047f7",
-  "git_commit": "01b41e1f7de956811a8c26136edc4b17bfc9e84e"
+  "output_sha256": "c13936afb1581297fe2b5972ecc504b4c3f27163e2d465a2996f0918d7d4495d",
+  "git_commit": "efa2eb725037280f72e7edccd286a480819566bc"
 }

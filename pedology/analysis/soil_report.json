@@ -1,11 +1,11 @@
 {
-  "generated": "2026-08-16T04:46:18+00:00",
+  "generated": "2026-08-16T05:01:19+00:00",
   "iteration": null,
   "closes_loop_with": "nothing; iteration 0 has no biosphere",
   "climatology": "exoplasim/analysis/climatology_s096/baseline_regular_climatology.nc",
   "climatology_sha256": "a5c81e926747b7fdea23b77cbafbc6a2d91362517a72e3a910e4f70fc0cba177",
   "config_sha256": "eeaae0341aedffb83493498f90aeb85a279f4614210662a279a2de16d5e0d896",
-  "pedogenesis_sha256": "fdf035024b2b1b6a9211561888299eda13c8b8f2df9dc63e831c9cde732a6db2",
+  "pedogenesis_sha256": "1bd523e376aeb56d395421798152f5f15055df75c6229c5e80f0b46ea3d3acd5",
   "source_build": "carved-zoned-v4",
   "terrain_hash": "5bed5549315da14b22275fea51a0b6f5b34d79cdf2237c9380e8471e0b431c78",
   "orbital_year_earth_days": 180.65500935790158,
@@ -26,10 +26,10 @@
     "clay": 0.326854824152023,
     "quartz_inert": 0.2829060648035578,
     "ph": 6.965839652882097,
-    "regolith_depth_m": 1.9051923987432762,
+    "regolith_depth_m": 1.0426119080776999,
     "organic_fraction": 0.0,
     "bulk_density_kg_m3": 1500.0,
-    "water_capacity_mm": 245.90897739805922,
+    "water_capacity_mm": 133.42832412367,
     "bedrock_water_fraction": 0.2846755105024627,
     "soil_carbon_kg_m2": 0.0,
     "runoff_mm_per_earth_year": 171.42734155777026,
@@ -42,6 +42,6 @@
   },
   "regolith_note": "LPJ-GUESS 4.1.1 has a fixed 1.5 m profile and does not consume regolith depth. It is computed and reported so the gap is visible; see notes/model.md.",
   "output": "pedology/data/soilmap.txt",
-  "output_sha256": "012e9300e7e98206706d121610f75b4d702bd540c32f36f84f38a51ac0e95ce2",
-  "git_commit": "09e1f1022b7a933650a54628645e6c36de37160b"
+  "output_sha256": "7d7dd3e441a583fd4926c99aee4e66bcad0143787f3f000d2c6e45f954c97fd3",
+  "git_commit": "efa2eb725037280f72e7edccd286a480819566bc"
 }

@@ -195,7 +195,7 @@ guard survives at 1e-4, but as a guard only, with the physics now declared,
 literature-anchored and varying per cell.
 
 **To the climate.** `exoplasim/scripts/build_surface_soil_water.py` writes
-surface code 0229, `dwmax`, from the `awc` column. Land-mean capacity is 0.342 m
+surface code 0229, `dwmax`, from the `awc` column. Land-mean capacity is 0.133 m
 against ExoPlaSim's uniform 0.5 m default, and since
 `drunoff = max(0, dwatc - dwmax)/deltsec`, a smaller bucket overflows sooner and
 produces more runoff, which is the direction needed to fix the 2.8% ratio.
@@ -239,30 +239,64 @@ therefore reproduces the *pattern*, mountains thin and basins deep, and not the
 absolute magnitude. `slope_transport` is set against that pattern, which is a
 weaker claim than a calibration and is stated as such.
 
-### The depth model rails, and that predates the catena
+### The depth model railed, and was replaced
 
-Adding the catena made an existing weakness visible. Regolith depth now
-distributes as:
+Adding the catena made an existing weakness visible: a quarter of land sat on the
+0.02 m floor and a quarter on the 5.00 m ceiling. That was
+`depth = h_star * ln(production / erosion)`, Heimsath's exponential production
+function at steady state, which diverges as erosion approaches zero and runs to
+minus infinity as it grows.
+
+The cause is dynamic range. Spanning 0 to 5 m through a logarithm at Heimsath's
+`h_star` of 0.5 m needs production over erosion to cover a factor of **22,000**.
+Nothing in these inputs covers that, so nearly every cell landed outside and was
+clipped.
+
+Two changes fixed it.
+
+**A saturating form**, bounded at both ends by construction:
+
+    depth = maximum_depth * P / (P + erosion_weight * E)
+
+As erosion vanishes the profile approaches `maximum_depth`, which is the physical
+statement that a weathering front cannot advance forever because water and oxygen
+have to reach it through what has already accumulated. As erosion grows it thins
+smoothly to bare rock. It is a parameterisation and not a derivation, unlike the
+form it replaces, and that is the trade: a curve that spans the range against a
+principled one that cannot be evaluated over it.
+
+**Erosion that does not require runoff.** With erosion built purely from runoff,
+it was exactly zero wherever `P - E` was, so the entire arid fraction pinned to
+the ceiling: 18% of land, even after the saturating form removed the floor
+problem. A slope in a desert still loses material to wind, dry ravel and creep,
+so a `dry_erosion_baseline` of 0.15 now floors the moisture term.
+
+The result:
 
 | percentile | depth m |
 | --- | --- |
-| 5 | 0.02 |
-| 25 | 0.03 |
-| 50 | 0.45 |
-| 75 | 4.70 |
-| 95 | 5.00 |
+| 5 | 0.09 |
+| 25 | 0.29 |
+| 50 | 0.66 |
+| 75 | 1.46 |
+| 95 | 3.24 |
 
-A quarter of land sits on the 0.02 m floor and a quarter on the 5.00 m ceiling.
-That is the production-against-erosion balance saturating, not a bimodal planet:
-`depth = h_star * ln(production / erosion)` diverges wherever erosion approaches
-zero and floors wherever it exceeds production, and both happen readily.
+Land mean 1.04 m, **0.0% of land on the floor and 0.5% on the ceiling**, against
+25% on each before. `erosion_weight` is the one free scale parameter and there is
+no measurement of this world's soils to fit it to, so it is calibrated against a
+declared Earth-analogue target of about 1 m mean thickness. That target was
+chosen before looking at what it does downstream, which is the difference between
+calibrating and tuning.
 
-Earth has nothing like 25% bare rock, so **the depth field should not be quoted
-or used to draw conclusions until this is fixed.** It feeds water capacity, which
-feeds both the biosphere and the ExoPlaSim bucket, so the effect is not confined
-to a diagnostic. The likely fix is a saturating production function bounded by a
-maximum weathering-front depth rather than a logarithm, which is what Heimsath's
-formulation actually implies. Recorded rather than tuned.
+The land-mean plant-available water capacity that falls out, 133 mm, sits in the
+middle of Earth's typical 100-200 mm root zone. That is a check on the result
+rather than an input to it.
+
+**This changes the downstream numbers.** Water capacity was 347 mm under the
+railing model and is 133 mm now, so the `dwmax` field handed to ExoPlaSim is
+0.133 m against its uniform 0.5 m default rather than 0.342 m. The soil-water
+feedback on runoff is therefore a larger perturbation than previously estimated,
+not a smaller one.
 
 ## Known gaps
 - **Time is not represented.** Weathering intensity folds the time integral into
