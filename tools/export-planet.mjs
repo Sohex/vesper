@@ -1,0 +1,546 @@
+#!/usr/bin/env node
+/**
+ * Headless planet generation + full data export.
+ *
+ * Runs the same pipeline the browser worker runs (js/pipeline.js) and writes
+ * every field the simulation produced — including all the tectonic internals
+ * that used to stay inside assignElevation — as flat binaries with a JSON
+ * manifest, and optionally as NetCDF for direct ingestion downstream.
+ *
+ * Requires: npm i delaunator
+ *
+ * Usage:
+ *   node tools/export-planet.mjs --out out/world-01
+ *   node tools/export-planet.mjs --seed 12345 --regions 250000 --grid 1024x512 --netcdf
+ *   node tools/export-planet.mjs --grid 128x64 --grid-method mean --only elevation,plates,tectonics
+ *   node tools/export-planet.mjs --list-fields
+ *
+ * Run with --help for the full option list.
+ */
+
+import fs from 'node:fs';
+import path from 'node:path';
+import Delaunator from 'delaunator';
+
+import { setDelaunator } from '../js/sphere-mesh.js';
+import { buildExportBundle, FIELD_GROUPS, gridCoords, zipStore } from '../js/data-export.js';
+import { writeNetCDF, netcdfDtype } from './lib/netcdf-write.mjs';
+import { ROCK_CLASSES } from '../js/lithology.js';
+import { spectralGrid } from '../js/geometry.js';
+import { decodePlanetCode } from '../js/planet-code.js';
+import { basinAreaFromSlider } from '../js/terrain-config.js';
+import { parseBasinList } from '../js/basins.js';
+import { gravityFromMassRadius, makePlanet, planetSummary } from '../js/planet-params.js';
+
+setDelaunator(Delaunator);
+
+// Defaults mirror the app's slider defaults.
+const DEFAULTS = {
+    regions: 100000,
+    plates: 24,
+    jitter: 0.75,
+    noise: 1.0,
+    continents: 5,
+    continentSizeVariety: 0,
+    landCoverage: 0.3,
+    terrainWarp: 0,
+    smoothing: 0,
+    hydraulic: 0.4,
+    thermal: 0.3,
+    ridge: 0.3,
+    glacial: 0.3,
+    temperatureOffset: 0,
+    precipitationOffset: 0,
+    basinMinDepthKm: 0.05,
+    basinMinAreaKm2: 1000,
+    basinMinCells: 12,
+};
+
+const HELP = `
+Headless World Orogen generation + data export.
+
+  --out DIR              output directory (default: out/planet-<seed>)
+  --code STR             planet code; supplies seed and every slider. Any explicit
+                         flag given alongside it wins. Codes predating the basin and
+                         rock-contrast sliders decode with both OFF, which is what
+                         those planets were — pass the flags to enable them.
+  --seed N               generation seed (default: random)
+  --regions N            mesh region count (default: ${DEFAULTS.regions})
+  --plates N             number of tectonic plates (default: ${DEFAULTS.plates})
+  --continents N         number of continents (default: ${DEFAULTS.continents})
+  --continent-variety F  continent size variety 0..1 (default: ${DEFAULTS.continentSizeVariety})
+  --land-coverage F      target land fraction (default: ${DEFAULTS.landCoverage})
+  --jitter F             mesh point jitter 0..1 (default: ${DEFAULTS.jitter})
+  --noise F              tectonic noise magnitude (default: ${DEFAULTS.noise})
+  --warp F               terrain warp strength (default: ${DEFAULTS.terrainWarp})
+  --smoothing F          pre-erosion smoothing (default: ${DEFAULTS.smoothing})
+  --hydraulic F          hydraulic erosion (default: ${DEFAULTS.hydraulic})
+  --thermal F            thermal erosion (default: ${DEFAULTS.thermal})
+  --ridge F              ridge sharpening (default: ${DEFAULTS.ridge})
+  --glacial F            glacial erosion (default: ${DEFAULTS.glacial})
+  --temp-offset F        climate temperature offset (default: 0)
+  --precip-offset F      climate precipitation offset (default: 0)
+
+  --no-basins            disable endorheic basin preservation (vanilla drainage)
+  --preserve-basin ID    always preserve this basin id, bypassing the size floors
+                         (repeatable; get ids from --list-basins)
+  --basin-min-depth KM   depth-below-spill floor (default: ${DEFAULTS.basinMinDepthKm})
+  --basin-min-area KM2   basin floor area floor (default: ${DEFAULTS.basinMinAreaKm2})
+  --basin-min-cells N    resolution floor in mesh cells (default: ${DEFAULTS.basinMinCells})
+  --water-level ID=KM    lake surface elevation for a preserved basin (repeatable).
+                         Orogen never infers these; supply them or leave basins dry.
+  --preserve-basins FILE explicit drainage hypothesis: the preserved set becomes
+                         exactly the basins listed, ignoring the size floors. One id
+                         per line, optional retain fraction 0-1 after it (1 = keep the
+                         rim, 0 = carve it open, between = proportional incision).
+                         '#' comments; a JSON array of ids or {id,retain} also works.
+  --carve-basins FILE    same format, subtractive: threshold selection minus these.
+  --list-basins          generate, print the basin catalogue, and exit
+
+  --no-lithology         uniform erodibility (upstream erosion, no rock types)
+  --lithology-strength F 0 = uniform erodibility, 1 = full rock contrast (default: 1)
+  --list-rocks           print the rock-class table and exit
+
+  --planet NAME          label for the planet (default: Earth)
+  --radius KM            planetary radius (default: 6371). Sets every length scale.
+  --gravity MS2          surface gravity (default: 9.80665). Scales max relief as 1/g.
+  --mass-radius M,R      surface gravity from Earth masses and Earth radii instead
+  --rotation HOURS       rotation period, passed through for ExoPlaSim
+  --obliquity DEG        axial tilt, passed through for ExoPlaSim
+  --eccentricity E       orbital eccentricity, passed through for ExoPlaSim
+  --solar-constant WM2   insolation, passed through for ExoPlaSim
+
+  --grid WxH             equirectangular grid size (default: 1024x512)
+  --grid T42             spectral truncation instead: T21 T31 T42 T63 T85 T106 T127 T170.
+                         Emits Gauss-Legendre latitudes directly, skipping the lossy
+                         equirect intermediate a spectral model would otherwise need.
+  --no-subgrid           skip the sub-grid orography statistics
+  --grid-method M        'mean' (area-weighted) or 'nearest' (default: mean)
+  --no-grid              skip the gridded output
+  --no-raw               skip the per-region output
+  --no-climate           skip wind/ocean/precipitation/temperature/Koppen entirely
+  --only G1,G2           limit to field groups: ${Object.keys(FIELD_GROUPS).join(', ')}
+  --netcdf               additionally write planet.nc (gridded fields, CF-ish)
+  --zip                  write a single planet.zip instead of a directory tree
+  --list-fields          print the field catalogue and exit (no generation)
+  --quiet                suppress progress output
+  --help
+`;
+
+function parseArgs(argv) {
+    const a = {
+        out: null, seed: null, ...DEFAULTS,
+        gridWidth: 1024, gridHeight: 512, gridMethod: 'mean',
+        grid: true, raw: true, climate: true,
+        only: null, netcdf: false, zip: false, listFields: false, quiet: false,
+        preserveBasins: true, preserveBasin: [], waterLevels: {}, listBasins: false,
+        lithology: true, lithologyStrength: undefined, listRocks: false,
+        preserveBasinList: null, carveBasinList: null,
+        gridType: 'uniform', gridTruncation: null, subgrid: true, planet: {},
+        code: null, _explicit: new Set(),
+    };
+    const num = (v, flag) => {
+        const n = Number(v);
+        if (!Number.isFinite(n)) throw new Error(`${flag} expects a number, got "${v}"`);
+        return n;
+    };
+    for (let i = 2; i < argv.length; i++) {
+        const f = argv[i];
+        a._explicit.add(f);
+        switch (f) {
+            case '--help': case '-h': console.log(HELP); process.exit(0); break;
+            case '--out': a.out = argv[++i]; break;
+            case '--code': a.code = argv[++i]; break;
+            case '--seed': a.seed = num(argv[++i], f); break;
+            case '--regions': case '--n': a.regions = num(argv[++i], f); break;
+            case '--plates': a.plates = num(argv[++i], f); break;
+            case '--continents': a.continents = num(argv[++i], f); break;
+            case '--continent-variety': a.continentSizeVariety = num(argv[++i], f); break;
+            case '--land-coverage': a.landCoverage = num(argv[++i], f); break;
+            case '--jitter': a.jitter = num(argv[++i], f); break;
+            case '--noise': a.noise = num(argv[++i], f); break;
+            case '--warp': a.terrainWarp = num(argv[++i], f); break;
+            case '--smoothing': a.smoothing = num(argv[++i], f); break;
+            case '--hydraulic': a.hydraulic = num(argv[++i], f); break;
+            case '--thermal': a.thermal = num(argv[++i], f); break;
+            case '--ridge': a.ridge = num(argv[++i], f); break;
+            case '--glacial': a.glacial = num(argv[++i], f); break;
+            case '--temp-offset': a.temperatureOffset = num(argv[++i], f); break;
+            case '--precip-offset': a.precipitationOffset = num(argv[++i], f); break;
+            case '--grid': {
+                const spec = argv[++i];
+                const t = spectralGrid(spec);
+                if (t) {
+                    a.gridWidth = t.width; a.gridHeight = t.height;
+                    a.gridType = 'gaussian'; a.gridTruncation = t.truncation;
+                    break;
+                }
+                const m = /^(\d+)x(\d+)$/.exec(spec);
+                if (!m) throw new Error(`--grid expects WxH or a truncation like T42, got "${spec}"`);
+                a.gridWidth = +m[1]; a.gridHeight = +m[2];
+                a.gridType = 'uniform'; a.gridTruncation = null;
+                break;
+            }
+            case '--no-subgrid': a.subgrid = false; break;
+            case '--planet': a.planet.name = argv[++i]; break;
+            case '--radius': a.planet.radiusKm = num(argv[++i], f); break;
+            case '--gravity': a.planet.gravityMS2 = num(argv[++i], f); break;
+            case '--mass-radius': {
+                const parts = String(argv[++i]).split(',');
+                if (parts.length !== 2) throw new Error('--mass-radius expects M,R in Earth units');
+                a.planet.gravityMS2 = gravityFromMassRadius(Number(parts[0]), Number(parts[1]));
+                break;
+            }
+            case '--rotation': a.planet.rotationPeriodHours = num(argv[++i], f); break;
+            case '--obliquity': a.planet.obliquityDeg = num(argv[++i], f); break;
+            case '--eccentricity': a.planet.eccentricity = num(argv[++i], f); break;
+            case '--solar-constant': a.planet.solarConstantWM2 = num(argv[++i], f); break;
+            case '--grid-method': a.gridMethod = argv[++i]; break;
+            case '--no-grid': a.grid = false; break;
+            case '--no-raw': a.raw = false; break;
+            case '--no-climate': a.climate = false; break;
+            case '--only': a.only = argv[++i].split(',').map(s => s.trim()).filter(Boolean); break;
+            case '--netcdf': a.netcdf = true; break;
+            case '--zip': a.zip = true; break;
+            case '--list-fields': a.listFields = true; break;
+            case '--no-basins': a.preserveBasins = false; break;
+            case '--list-basins': a.listBasins = true; break;
+            case '--preserve-basins': a.preserveBasinList = parseBasinList(fs.readFileSync(argv[++i], 'utf8')); break;
+            case '--carve-basins': a.carveBasinList = parseBasinList(fs.readFileSync(argv[++i], 'utf8')); break;
+            case '--no-lithology': a.lithology = false; break;
+            case '--lithology-strength': a.lithologyStrength = num(argv[++i], f); break;
+            case '--list-rocks': a.listRocks = true; break;
+            case '--preserve-basin': a.preserveBasin.push(argv[++i]); break;
+            case '--basin-min-depth': a.basinMinDepthKm = num(argv[++i], f); break;
+            case '--basin-min-area': a.basinMinAreaKm2 = num(argv[++i], f); break;
+            case '--basin-min-cells': a.basinMinCells = num(argv[++i], f); break;
+            case '--water-level': {
+                const spec = argv[++i];
+                const eq = spec ? spec.lastIndexOf('=') : -1;
+                if (eq <= 0) throw new Error(`--water-level expects ID=KM, got "${spec}"`);
+                const id = spec.slice(0, eq);
+                const km = Number(spec.slice(eq + 1));
+                if (!Number.isFinite(km)) throw new Error(`--water-level: "${spec.slice(eq + 1)}" is not a number`);
+                a.waterLevels[id] = km;
+                break;
+            }
+            case '--quiet': a.quiet = true; break;
+            default: throw new Error(`Unknown option: ${f} (try --help)`);
+        }
+    }
+    if (a.gridMethod !== 'mean' && a.gridMethod !== 'nearest') {
+        throw new Error(`--grid-method must be 'mean' or 'nearest'`);
+    }
+    if (a.only) {
+        const bad = a.only.filter(g => !FIELD_GROUPS[g]);
+        if (bad.length) throw new Error(`Unknown field group(s): ${bad.join(', ')}. Valid: ${Object.keys(FIELD_GROUPS).join(', ')}`);
+    }
+    if (!a.raw && !a.grid) throw new Error('Nothing to export: --no-raw and --no-grid together');
+    return a;
+}
+
+/** A NetCDF variable name has to be a valid identifier. */
+function ncName(name) {
+    const s = name.replace(/[^A-Za-z0-9_]/g, '_');
+    return /^[A-Za-z_]/.test(s) ? s : `v_${s}`;
+}
+
+function writeNetCDFFile(outDir, manifest, args, files) {
+    const { gridWidth: W, gridHeight: H } = args;
+    const coords = gridCoords(W, H, args.gridType);
+    const byPath = new Map(files.map(f => [f.name, f.bytes]));
+
+    const variables = [
+        { name: 'lat', dtype: 'float64', dimensions: ['lat'], data: coords.lat,
+          attributes: { units: 'degrees_north', long_name: 'latitude', standard_name: 'latitude', axis: 'Y' } },
+        { name: 'lon', dtype: 'float64', dimensions: ['lon'], data: coords.lon,
+          attributes: { units: 'degrees_east', long_name: 'longitude', standard_name: 'longitude', axis: 'X' } },
+    ];
+
+    for (const entry of manifest.grid.fields) {
+        if (entry.name === 'lat' || entry.name === 'lon') continue;
+        const bytes = byPath.get(entry.path);
+        if (!bytes) continue;
+        const dtype = netcdfDtype(entry.dtype);
+        const data = typedFromBytes(bytes, entry.dtype);
+        variables.push({
+            name: ncName(entry.name),
+            dtype,
+            dimensions: ['lat', 'lon'],
+            data,
+            attributes: {
+                units: entry.units === '1' ? '1' : entry.units,
+                long_name: entry.description,
+                orogen_group: entry.group,
+                orogen_resample: entry.method,
+            },
+        });
+    }
+
+    const nc = writeNetCDF({
+        dimensions: { lat: H, lon: W },
+        variables,
+        attributes: {
+            Conventions: 'CF-1.8',
+            title: `World Orogen planet ${manifest.seed}`,
+            source: 'World Orogen (worldbuilding fork), tools/export-planet.mjs',
+            seed: String(manifest.seed),
+            num_regions: String(manifest.numRegions),
+            planet_radius_km: manifest.planetRadiusKm,
+            comment: 'Equirectangular, cell-centre registered. Elevation in km, sea level at 0. '
+                   + 'Categorical fields are nearest-region sampled; continuous fields are area-weighted means.',
+        },
+    });
+    fs.writeFileSync(path.join(outDir, 'planet.nc'), nc);
+    return nc.length;
+}
+
+function typedFromBytes(bytes, dtype) {
+    const buf = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+    switch (dtype) {
+        case 'float64': return new Float64Array(buf);
+        case 'int32': return new Int32Array(buf);
+        case 'uint32': return new Uint32Array(buf);
+        case 'int16': return new Int16Array(buf);
+        case 'uint16': return new Uint16Array(buf);
+        case 'int8': return new Int8Array(buf);
+        case 'uint8': return new Uint8Array(buf);
+        default: return new Float32Array(buf);
+    }
+}
+
+function humanBytes(n) {
+    const u = ['B', 'KB', 'MB', 'GB'];
+    let i = 0;
+    while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; }
+    return `${n.toFixed(i === 0 ? 0 : 1)} ${u[i]}`;
+}
+
+function printBasins(b, out = console.log) {
+    const pad = (v, n) => String(v).padStart(n);
+    const console = { log: out };   // shadow so --quiet cannot swallow the listing
+    console.log(`\n${b.catalogue.length} depressions detected; ${b.selected.length} preserved.`);
+    console.log(`Selection floors: depth >= ${b.resolution.minDepthKm} km, area >= ${b.resolution.minAreaKm2} km2, `
+              + `>= ${b.resolution.minCells} cells (mean cell ${b.resolution.avgCellAreaKm2.toFixed(0)} km2).`);
+    console.log('\nPreserved basins, largest first by volume:\n');
+    console.log('  id                              depth_m    area_km2  catch_km2  retain  spills_into');
+    for (let i = 0; i < b.selected.length; i++) {
+        const s = b.selected[i], f = b.finalMeasurements[i], c = b.finalCatchments[i];
+        console.log(`  ${s.id.padEnd(30)} ${pad((s.depthKm * 1000).toFixed(0), 7)} `
+            + `${pad(Math.round(s.areaKm2), 11)} ${pad(Math.round(c.catchmentAreaKm2), 10)} `
+            + `${pad((100 * (f.retainedFraction ?? 0)).toFixed(0) + '%', 7)}  ${s.spillsInto ?? '-'}`);
+    }
+    console.log('\nRetention is the fraction of the basin\'s natural spill depth surviving erosion.');
+    console.log('Pass an id to --preserve-basin to force-keep one below the size floors,');
+    console.log('or to --water-level ID=KM to fill it. Orogen does not decide lake levels.');
+}
+
+function listRocks() {
+    console.log('\nRock classes. `erodibility` is a relative stream-power multiplier; the field');
+    console.log('built from it is mean-normalised to 1 over land, so lithology decides where');
+    console.log('erosion goes, not how much of it there is.\n');
+    console.log('  id  code                  erod  dens  category      name');
+    for (const c of ROCK_CLASSES) {
+        console.log(`  ${String(c.id).padStart(2)}  ${c.code.padEnd(20)} ${c.erodibility.toFixed(2).padStart(5)} `
+            + `${(c.densityGCm3 ?? '-').toString().padStart(5)}  ${c.category.padEnd(13)} ${c.name}`);
+    }
+    console.log('\nSurface rock is the cover where it survives and the basement where erosion');
+    console.log('has stripped it. This is parent material, not soil — soil needs climate.');
+}
+
+function listFields() {
+    for (const [group, names] of Object.entries(FIELD_GROUPS)) {
+        console.log(`\n${group}`);
+        for (const n of names) console.log(`  ${n}`);
+    }
+    console.log('\nFields present in a given run depend on the parameters — climate fields');
+    console.log('need climate enabled, super-plate fields need --plates >= 8. Anything the');
+    console.log('pipeline produces but this list omits is still exported, under group "other".');
+}
+
+async function main() {
+    const args = parseArgs(process.argv);
+    if (args.listFields) { listFields(); return; }
+    if (args.listRocks) { listRocks(); return; }
+
+    // A planet code fills in the sliders; anything given explicitly overrides it.
+    if (args.code) {
+        const d = decodePlanetCode(args.code);
+        if (!d) throw new Error(`Could not decode planet code "${args.code}"`);
+        const set = (flag, key, value) => { if (!args._explicit.has(flag)) args[key] = value; };
+        set('--seed', 'seed', d.seed);
+        set('--regions', 'regions', d.N);
+        set('--plates', 'plates', d.P);
+        set('--continents', 'continents', d.numContinents);
+        set('--continent-variety', 'continentSizeVariety', d.continentSizeVariety);
+        set('--land-coverage', 'landCoverage', d.landCoverage);
+        set('--jitter', 'jitter', d.jitter);
+        set('--noise', 'noise', d.roughness);
+        set('--warp', 'terrainWarp', d.terrainWarp);
+        set('--smoothing', 'smoothing', d.smoothing);
+        set('--hydraulic', 'hydraulic', d.hydraulicErosion);
+        set('--thermal', 'thermal', d.thermalErosion);
+        set('--ridge', 'ridge', d.ridgeSharpening);
+        set('--glacial', 'glacial', d.glacialErosion);
+        set('--temp-offset', 'temperatureOffset', d.temperatureOffset);
+        set('--precip-offset', 'precipitationOffset', d.precipitationOffset);
+        args.toggledIndices = d.toggledIndices || [];
+        // Any explicit basin or lithology flag means the caller is driving that
+        // feature and the code must not override it. Listing only ONE of each
+        // group is a trap: passing --basin-min-cells alongside a legacy code
+        // (whose slider says "off") silently disabled basin preservation
+        // entirely while looking like it had configured it.
+        const BASIN_FLAGS = ['--no-basins', '--basin-min-area', '--basin-min-cells',
+                             '--basin-min-depth', '--preserve-basin',
+                             '--preserve-basins', '--carve-basins'];
+        const LITHO_FLAGS = ['--no-lithology', '--lithology-strength'];
+        const touched = (flags) => flags.some(f => args._explicit.has(f));
+
+        if (!touched(BASIN_FLAGS)) {
+            const basinArea = basinAreaFromSlider(d.basinSlider ?? 0);
+            args.preserveBasins = basinArea > 0;
+            if (basinArea > 0) args.basinMinAreaKm2 = basinArea;
+        }
+        if (!touched(LITHO_FLAGS)) {
+            const strength = d.lithologyStrength ?? 0;
+            args.lithology = strength > 0;
+            args.lithologyStrength = strength;
+        }
+    }
+
+    const seed = args.seed ?? Math.floor(Math.random() * 16777216);
+    const outDir = args.out ?? path.join('out', `planet-${args.code || seed}`);
+    const log = args.quiet ? () => {} : (...m) => console.log(...m);
+
+    // The simulation modules log diagnostics to console.log unconditionally.
+    // --quiet is meant for scripting, so silence them; warnings and errors
+    // still go to stderr.
+    const stdout = console.log.bind(console);   // survives the --quiet stub below
+    if (args.quiet) console.log = () => {};
+
+    // Imported here rather than at the top so the simulation modules' import-time
+    // logging lands after the --quiet stub is installed.
+    const { runGeneratePipeline } = await import('../js/pipeline.js');
+
+    const pl = makePlanet(args.planet);
+    log(`Generating planet ${seed} — ${args.regions} regions, ${args.plates} plates`);
+    if (pl.radiusKm !== 6371 || pl.gravityMS2 !== 9.80665) {
+        log(`  ${pl.name}: R=${pl.radiusKm} km (${pl.radiusEarth.toFixed(2)} Earth), `
+          + `g=${pl.gravityMS2.toFixed(2)} m/s² (${pl.gravityEarth.toFixed(2)} Earth), `
+          + `relief x${pl.reliefScale.toFixed(2)}`);
+    }
+    const t0 = performance.now();
+
+    let lastPct = -1;
+    const ctx = runGeneratePipeline({
+        N: args.regions,
+        P: args.plates,
+        jitter: args.jitter,
+        nMag: args.noise,
+        numContinents: args.continents,
+        continentSizeVariety: args.continentSizeVariety,
+        landCoverage: args.landCoverage,
+        terrainWarp: args.terrainWarp,
+        smoothing: args.smoothing,
+        hydraulicErosion: args.hydraulic,
+        thermalErosion: args.thermal,
+        ridgeSharpening: args.ridge,
+        glacialErosion: args.glacial,
+        temperatureOffset: args.temperatureOffset,
+        precipitationOffset: args.precipitationOffset,
+        seed,
+        toggledIndices: args.toggledIndices || [],
+        skipClimate: !args.climate,
+        preserveBasins: args.preserveBasins,
+        preserveBasin: args.preserveBasin,
+        basinMinDepthKm: args.basinMinDepthKm,
+        basinMinAreaKm2: args.basinMinAreaKm2,
+        basinMinCells: args.basinMinCells,
+        inlandWaterLevels: args.waterLevels,
+        preserveBasinList: args.preserveBasinList,
+        carveBasinList: args.carveBasinList,
+        lithology: args.lithology,
+        lithologyStrength: args.lithologyStrength,
+        planet: args.planet,
+    }, (pct, label) => {
+        if (pct !== lastPct) { log(`  [${String(pct).padStart(3)}%] ${label}`); lastPct = pct; }
+    });
+
+    log(`Generated in ${((performance.now() - t0) / 1000).toFixed(1)}s`);
+
+    if (ctx.hydrology) {
+        const big = (ctx.hydrology.dischargeDistribution || [])
+            .find(d => d.aboveKm2 === 1e4);
+        log(`Hydrology: ${ctx.hydrology.mouthCount} coastal outlets`
+          + (big ? ` (${big.outlets} above 10,000 km2)` : '')
+          + `, ${ctx.hydrology.oceanBasins.length} marginal seas`);
+    }
+    if (ctx.lithology) {
+        const top = ctx.lithology.composition.slice(0, 3)
+            .map(c => `${c.code} ${(100 * c.fraction).toFixed(0)}%`).join(', ');
+        log(`Lithology: ${ctx.lithology.exhumedCells} cells exhumed to basement; land surface ${top}`);
+    }
+    if (ctx.basins) {
+        const b = ctx.basins;
+        log(`Basins: ${b.catalogue.length} depressions detected, ${b.selected.length} preserved`
+          + (b.source && b.source !== 'threshold' ? ` (${b.source})` : ''));
+        for (const w of b.warnings) console.warn(`  warning: ${w}`);
+    }
+
+    if (args.listBasins) {
+        if (!ctx.basins) { console.error('Basin preservation is disabled (--no-basins) — nothing to list.'); return; }
+        printBasins(ctx.basins, stdout);
+        return;
+    }
+
+    // buildExportBundle reads the same shape state.curData has, plus the extras
+    // the pipeline keeps: plateTable, superPlateData, tectonics.
+    const { files, manifest } = buildExportBundle(ctx, {
+        raw: args.raw,
+        grid: args.grid,
+        gridWidth: args.gridWidth,
+        gridHeight: args.gridHeight,
+        gridMethod: args.gridMethod,
+        gridType: args.gridType,
+        gridTruncation: args.gridTruncation,
+        subgridOrography: args.subgrid,
+        groups: args.only,
+        onProgress: (frac, label) => log(`  [${String(Math.round(frac * 100)).padStart(3)}%] ${label}`),
+    });
+
+    fs.mkdirSync(outDir, { recursive: true });
+    let total = 0;
+
+    if (args.zip) {
+        const zip = zipStore(files);
+        fs.writeFileSync(path.join(outDir, 'planet.zip'), zip);
+        total = zip.length;
+        log(`\nWrote ${path.join(outDir, 'planet.zip')} — ${humanBytes(total)}, ${files.length} entries`);
+    } else {
+        for (const f of files) {
+            const dest = path.join(outDir, f.name);
+            fs.mkdirSync(path.dirname(dest), { recursive: true });
+            fs.writeFileSync(dest, f.bytes);
+            total += f.bytes.length;
+        }
+        log(`\nWrote ${files.length} files to ${outDir} — ${humanBytes(total)}`);
+    }
+
+    if (args.netcdf) {
+        if (!args.grid) {
+            console.warn('  --netcdf ignored: NetCDF output is gridded and --no-grid was set');
+        } else {
+            const n = writeNetCDFFile(outDir, manifest, args, files);
+            log(`Wrote ${path.join(outDir, 'planet.nc')} — ${humanBytes(n)}`);
+        }
+    }
+
+    const nFields = (manifest.grid ?? manifest.raw).fields.length;
+    log(`${nFields} fields exported. Field catalogue and units are in manifest.json.`);
+}
+
+main().catch(err => {
+    console.error(`\nerror: ${err.message}`);
+    if (process.env.DEBUG) console.error(err.stack);
+    process.exit(1);
+});
