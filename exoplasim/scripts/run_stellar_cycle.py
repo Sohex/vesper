@@ -185,6 +185,10 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--case", required=True)
     parser.add_argument("--config", type=Path, default=CONFIG)
+    parser.add_argument("--baseline", type=str, default=None,
+                        help="run id or directory to centre the cycle on")
+    parser.add_argument("--restart", type=str, default=None,
+                        help="restart filename within the baseline run")
     parser.add_argument("--period-earth-years", type=float, default=8.0)
     parser.add_argument(
         "--cycles", type=float, default=4.0,
@@ -219,13 +223,27 @@ def main() -> None:
     if not executable.is_file():
         raise RuntimeError("Build the patched cycle executable first")
 
-    baseline_dir = Path(
-        "runs/t42l10p8_s090_co20450ppm_rot30h_obl32_e020"
-    ).resolve()
-    baseline_restarts = sorted(baseline_dir.glob("MOST_REST.*"))
-    if not baseline_restarts:
-        raise RuntimeError("The equilibrated 0.90 baseline restart is missing")
-    initial_restart = baseline_restarts[-1]
+    # The baseline a cycle varies about must be named, not hardcoded and not
+    # chosen by sort order. A cycle is variance around a mean, so starting it
+    # from whichever restart sorts last -- of whichever run someone once wired in
+    # -- centres the whole experiment on an unknown state.
+    if args.baseline is None:
+        raise SystemExit(
+            "--baseline is required: the run id or directory whose equilibrated "
+            "restart this cycle starts from. "
+            "`python exoplasim/scripts/index_runs.py` lists what is available.")
+    cand = Path(args.baseline)
+    baseline_dir = (cand if cand.is_dir() else RUNS / args.baseline).resolve()
+    if not (baseline_dir / "run_manifest.json").is_file():
+        raise SystemExit(f"{baseline_dir} has no run_manifest.json")
+    if args.restart is None:
+        raise SystemExit(
+            "--restart is required: the restart file to begin from, e.g. "
+            "MOST_REST.00059. Naming it is the point -- a cycle centred on the "
+            "wrong state is not detectable from its own output.")
+    initial_restart = baseline_dir / args.restart
+    if not initial_restart.is_file():
+        raise SystemExit(f"no restart at {initial_restart}")
     start_step = restart_integer(initial_restart, "nstep")
     timestep_seconds = float(config["model"]["timestep_minutes"]) * 60.0
     period_steps = args.period_earth_years * JULIAN_YEAR_DAYS * 86400.0 / timestep_seconds

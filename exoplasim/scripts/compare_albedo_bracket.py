@@ -88,12 +88,17 @@ def albedo_mode(run_dir: Path, nlat: int, nlon: int) -> tuple[str, float]:
     from the run itself rather than from `inputs/`, which later cases overwrite.
     """
     from run_exoplasim import read_sra
-    cand = sorted(run_dir.glob("N*_surf_0174.sra"))
-    if not cand:
+    # Named exactly, not globbed. ExoPlaSim writes these as N<nlat>_surf_<code>,
+    # so the filename is fully determined by the grid the run already declares --
+    # there is nothing to choose between, and sorting to pick [0] would silently
+    # take another resolution's file if one were ever present.
+    apath = run_dir / f"N{nlat:03d}_surf_0174.sra"
+    if not apath.is_file():
         return "uniform", float("nan")
-    field = read_sra(cand[0], 174, nlat, nlon)
-    mask = sorted(run_dir.glob("N*_surf_0172.sra"))
-    land = read_sra(mask[0], 172, nlat, nlon) > 0.5 if mask else np.ones_like(field, bool)
+    field = read_sra(apath, 174, nlat, nlon)
+    mpath = run_dir / f"N{nlat:03d}_surf_0172.sra"
+    land = (read_sra(mpath, 172, nlat, nlon) > 0.5 if mpath.is_file()
+            else np.ones_like(field, bool))
     w = gauss_weights(nlat)[:, None] * np.ones_like(field)
     mean = float((field[land] * w[land]).sum() / w[land].sum())
     # The two endmembers are 0.12 apart, so a midpoint split is unambiguous.
