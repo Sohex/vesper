@@ -95,15 +95,84 @@ closure". Fusion does not explain it: snowfall's fusion equivalent is 0.403 and
 snowmelt's 0.294, and the difference of 0.109 is the wrong size and would need
 snow to be accumulating somewhere it demonstrably is not on land.
 
-So that one stands, and now stands better characterised: the surface budget is
-internally consistent once fusion is counted, so the residual sits between the
-surface and the top of the atmosphere rather than within the surface terms.
-Candidates not yet eliminated are sea-ice mass change, sublimation partitioning
-between `prsn`, `snm` and `evap`, and whether dissipated kinetic energy is
-returned as heat.
+### It is structural, not climatic
+
+The decisive observation is that the gap barely moves across runs that differ
+enormously:
+
+| run | mean TOA | mean surface | gap |
+| --- | --- | --- | --- |
+| `convergence`, 0.90 flux, old terrain | -0.4960 | -0.0431 | **-0.4529** |
+| `convergence_carved`, 295.18 K | -0.4635 | +0.0021 | **-0.4656** |
+| `convergence_s096`, 292.97 K | -0.3374 | +0.1081 | **-0.4455** |
+
+TOA moves by 0.16 W/m2 and the surface by 0.15, but the gap between them holds at
+**-0.455 +/- 0.010**, a 2% spread across different fluxes, terrains and mean
+temperatures.
+
+That rules out every state-dependent candidate. Sea-ice mass change, snow
+accumulation and latent heat of fusion all scale strongly with climate, and a
+term that varies by 2% while the climate varies by tens of kelvin is not one of
+them. This is a fixed offset.
+
+### It is not the classic spectral leak either
+
+The usual suspect in a spectral model is kinetic energy removed by hyperdiffusion
+and never returned as heat. That is closed here. `plasim.f90` calls `mkdheat`
+whenever `ndheat > 0`, which is the default, and that routine recomputes the wind
+field before and after *both* Rayleigh friction and biharmonic diffusion,
+converts the kinetic energy difference to a temperature tendency, and adds it.
+Surface-friction dissipation is handled separately in `fluxmod.f90` under the
+same switch.
+
+### What it most likely is
+
+An atmosphere genuinely losing 0.45 W/m2 would cool about 1.4 K per Earth year,
+given a column mass near 1e4 kg/m2. These runs do not cool. So the energy is not
+actually leaving: something that heats the atmosphere is missing from the sum of
+`rst`, `rlut`, `rss`, `rls`, `hfss` and `hfls`, or one of those diagnostics is
+offset from the others by a constant.
+
+Distinguishing those two needs the model to say, not us.
+
+## What to do about it, and one trap on the way
+
+**PlaSim already has the instrument.** `denergy(NHOR,28)` is a 28-term energy
+decomposition, written to output codes 360-387 when `nenergy > 0`, with a 3D
+version on 460-487 under `nener3d`. Turning it on for a short segment would name
+the term carrying the 0.455 directly. It is not a spin-up; it is a diagnostic
+run.
+
+`nenergy` is not exposed by ExoPlaSim's Python API, so it needs a namelist edit,
+exactly as this project already does for `STARFILE` in
+`run_exoplasim.py:stage_stellar_spectrum`.
+
+**The trap.** `rainmod.f90:524-527` assigns the latent heat constants the wrong
+way round:
+
+```
+if(zt(jhor) > TMELT) then
+  zzal=als      ! sublimation, above the melting point
+else
+  zzal=alv      ! vaporisation, below it
+endif
+```
+
+`zt` is the updated layer temperature and `als` is sublimation, so that is
+inverted. It sits inside `if(nenergy > 0)` and feeds only `denergy(:,15)`, so it
+does not touch the physics and no completed run is affected. But it means that
+**the moment anyone turns these diagnostics on to chase this residual, term 15
+will be wrong**, by `als - alv` on every condensing gridpoint. Fix it before
+reading term 15, or read the other 27.
+
+## Status
+
+Unresolved, but narrowed from "energy does not close" to "a constant -0.455 W/m2
+offset between the top-of-atmosphere and surface diagnostics, not climate
+dependent, not the spectral dissipation leak, resolvable with a diagnostic run".
 
 It remains larger than the |mean TOA| < 0.5 W/m2 convergence criterion it sits
-inside, which is the reason it is worth resolving rather than merely recording.
+inside, which is why it is worth resolving rather than merely recording.
 
 ## What this cost, and what it saved
 

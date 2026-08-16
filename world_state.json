@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated": "2026-08-16T02:05:47.321018+00:00",
-  "git_commit": "5f28e648f993e010af81a30b64b60a82b3b8c052",
+  "generated": "2026-08-16T02:12:02.075982+00:00",
+  "git_commit": "3e6e5f203552816b0b29b40fe08d9a93521c3fb6",
   "generator": "scripts/world_state.py",
   "note": "Generated from the artifacts. Do not edit; re-run the generator. Judgement that no artifact can supply is in `curated`, which lives in the generator under version control.",
   "planet": {
@@ -279,7 +279,7 @@
     {
       "run_id": "t42l10p16r8_s092_co20450ppm_rot30h_obl32_e020_glac_k25v_gbafe5e8b",
       "status": "smoke_complete",
-      "orbits_complete": 30,
+      "orbits_complete": 33,
       "flux_earth": 0.92,
       "cycle": null,
       "resolution": "T42",
@@ -287,7 +287,7 @@
       "source_build": "carved-zoned",
       "glaciers": true,
       "converged": null,
-      "mean_surface_temperature_k": 287.666
+      "mean_surface_temperature_k": 287.562
     },
     {
       "run_id": "t42l10p16r8_s096_co20450ppm_rot30h_obl32_e020_glac_g43ca63cf",
@@ -625,7 +625,7 @@
       {
         "item": "energy budget closure",
         "value": 0.446,
-        "note": "Net TOA runs 0.27-0.45 W/m2 more negative than the net surface flux, which cannot both be true in steady state, and the |mean TOA| < 0.5 criterion is applied inside a bias of its own size. Better characterised now: a naive rss+rls+hfss+hfls sum misses the 0.294 W/m2 consumed melting snow, which hfns books correctly and which matches global snowmelt's latent heat of fusion to three digits. So the surface terms are internally consistent and the residual 0.446 sits between the surface and the top of the atmosphere. Fusion does not explain it. Sea-ice mass change, sublimation partitioning and dissipated kinetic energy are not yet eliminated."
+        "note": "Net TOA runs 0.27-0.45 W/m2 more negative than the net surface flux, which cannot both be true in steady state, and the |mean TOA| < 0.5 criterion is applied inside a bias of its own size. Better characterised now: a naive rss+rls+hfss+hfls sum misses the 0.294 W/m2 consumed melting snow, which hfns books correctly and which matches global snowmelt's latent heat of fusion to three digits. So the surface terms are internally consistent and the residual sits between the surface and the top of the atmosphere. It is structural, not climatic: the gap is -0.4529, -0.4656 and -0.4455 across three runs spanning different fluxes, terrains and mean temperatures, a 2% spread. That rules out sea ice, snow and fusion, all of which scale with climate. It is not the spectral dissipation leak either, since mkdheat returns friction and biharmonic diffusion heating under ndheat, on by default. An atmosphere truly losing this would cool 1.4 K per Earth year and these do not, so a heating term is missing from the diagnostic sum or one diagnostic is offset. PlaSim ships a 28-term decomposition on output codes 360-387 under nenergy, which would name it in a short run. Note rainmod.f90:524 inverts als and alv in that diagnostic, so term 15 is wrong; harmless to physics, fatal to the investigation. See exoplasim/notes/water-and-energy-closure.md."
       },
       {
         "item": "retain fraction",
@@ -639,7 +639,7 @@
       "Supply equilibrium lake levels as --water-level so basin floors stop being exported as dry ground.",
       "Run LPJ-GUESS on the resulting climatology and replace the assumed biosphere, then score it against biosphere/notes/productivity-prediction.md.",
       "Carry the nfix_a bracket, 0.102-0.367, through to the productivity numbers rather than quoting the central value alone.",
-      "Resolve the 0.446 W/m2 that does not close between the top of the atmosphere and the surface, which is larger than the convergence criterion applied inside it.",
+      "Run a short segment with nenergy=1 to name the constant -0.455 W/m2 offset between the top-of-atmosphere and surface budgets, fixing the inverted als/alv in rainmod.f90:524 first.",
       "Enable model.soil_water_source: pedology and check the soil-runoff loop converges rather than oscillating; expect a weak response.",
       "Iteration-2 carve verdict, with retain as a function of discharge and the 228 zero-runoff spillers handled.",
       "One T85 equilibrium once terrain and biosphere settle, for regional products.",

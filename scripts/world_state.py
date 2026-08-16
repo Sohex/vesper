@@ -117,10 +117,21 @@ CURATED = {
                  "misses the 0.294 W/m2 consumed melting snow, which hfns books "
                  "correctly and which matches global snowmelt's latent heat of "
                  "fusion to three digits. So the surface terms are internally "
-                 "consistent and the residual 0.446 sits between the surface and "
-                 "the top of the atmosphere. Fusion does not explain it. Sea-ice "
-                 "mass change, sublimation partitioning and dissipated kinetic "
-                 "energy are not yet eliminated."},
+                 "consistent and the residual sits between the surface and the "
+                 "top of the atmosphere. It is structural, not climatic: the gap "
+                 "is -0.4529, -0.4656 and -0.4455 across three runs spanning "
+                 "different fluxes, terrains and mean temperatures, a 2% spread. "
+                 "That rules out sea ice, snow and fusion, all of which scale "
+                 "with climate. It is not the spectral dissipation leak either, "
+                 "since mkdheat returns friction and biharmonic diffusion heating "
+                 "under ndheat, on by default. An atmosphere truly losing this "
+                 "would cool 1.4 K per Earth year and these do not, so a heating "
+                 "term is missing from the diagnostic sum or one diagnostic is "
+                 "offset. PlaSim ships a 28-term decomposition on output codes "
+                 "360-387 under nenergy, which would name it in a short run. "
+                 "Note rainmod.f90:524 inverts als and alv in that diagnostic, so "
+                 "term 15 is wrong; harmless to physics, fatal to the "
+                 "investigation. See exoplasim/notes/water-and-energy-closure.md."},
         {"item": "retain fraction", "value": None,
          "note": "Measures distance from threshold, not incision capacity. A basin "
                  "that barely trickles over its sill is cut the same as one that "
@@ -136,9 +147,9 @@ CURATED = {
         "biosphere, then score it against biosphere/notes/productivity-prediction.md.",
         "Carry the nfix_a bracket, 0.102-0.367, through to the productivity "
         "numbers rather than quoting the central value alone.",
-        "Resolve the 0.446 W/m2 that does not close between the top of the "
-        "atmosphere and the surface, which is larger than the convergence "
-        "criterion applied inside it.",
+        "Run a short segment with nenergy=1 to name the constant -0.455 W/m2 "
+        "offset between the top-of-atmosphere and surface budgets, fixing the "
+        "inverted als/alv in rainmod.f90:524 first.",
         "Enable model.soil_water_source: pedology and check the soil-runoff loop "
         "converges rather than oscillating; expect a weak response.",
         "Iteration-2 carve verdict, with retain as a function of discharge and the "
