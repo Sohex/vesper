@@ -1,9 +1,9 @@
 {
   "mode": "vegetated",
   "mesh": "None",
-  "grid": "/home/cfutro/docs/world/source/precarve-zoned-g1281/exoplasim-T42",
+  "grid": "/home/cfutro/docs/world/source/precarve-zoned-g1281-erod4x/exoplasim-T42",
   "resolution": "T42",
-  "terrain_hash": "974ceb78fccfd54c3a842cf4ae8d7ae79029816abd9b4fbf90409165090b0ec1",
+  "terrain_hash": "e2b510660d1cbe999d237734969e9ac9bf8636b6d85a04f513a4bc0d1f92d321",
   "codes": [
     174,
     175,
@@ -12,28 +12,28 @@
   ],
   "forest_fraction_value": 0.5,
   "vegetation": null,
-  "forest_fraction_land_mean": 0.3528916018855135,
+  "forest_fraction_land_mean": 0.3526713937655742,
   "lithology_albedo_overrides": {},
   "barren_rock_classes": [
     "evaporite",
     "playa_clastic"
   ],
   "forest_note": "dforest blends snow albedo between forested and unforested endpoints, so it has to agree with the background albedo assumption. ExoPlaSim's default is a uniform 0.5.",
-  "land_mean_bare_rock": 0.2810198203202874,
-  "land_mean_written": 0.16993299989545282,
+  "land_mean_bare_rock": 0.28114653153749125,
+  "land_mean_written": 0.1694341300202129,
   "lakes": {
-    "source": "/home/cfutro/docs/world/hydrography/data/precarve-zoned-g1281/surface_water.nc",
-    "terrain_hash": "974ceb78fccfd54c3a842cf4ae8d7ae79029816abd9b4fbf90409165090b0ec1",
-    "lake_regions": 115779,
-    "lake_fraction_of_land": 0.10953304217154361,
+    "source": "hydrography/data/precarve-zoned-g1281-erod4x/surface_water.nc",
+    "terrain_hash": "e2b510660d1cbe999d237734969e9ac9bf8636b6d85a04f513a4bc0d1f92d321",
+    "lake_regions": 118637,
+    "lake_fraction_of_land": 0.11224068988732096,
     "water_albedo": 0.06,
-    "land_mean_albedo_before": 0.195635,
-    "land_mean_albedo_after": 0.169441,
-    "delta": -0.026194
+    "land_mean_albedo_before": 0.195641,
+    "land_mean_albedo_after": 0.168961,
+    "delta": -0.026681
   },
   "exoplasim_default_albland": 0.22,
   "land_min": 0.059999999999999956,
-  "land_max": 0.38790380508925504,
+  "land_max": 0.4388782350792632,
   "files": [
     "/home/cfutro/docs/world/exoplasim/inputs/t42/orogen_T42_surf_0174.sra",
     "/home/cfutro/docs/world/exoplasim/inputs/t42/orogen_T42_surf_0175.sra",

@@ -1,6 +1,6 @@
 {
-  "generated": "2026-08-16T18:09:00+00:00",
-  "config_sha256": "d6bfb44ac7d092081e63f49a005d7a1b93cf4215df79177cc4ccbe906ff9d4bf",
+  "generated": "2026-08-16T21:04:56+00:00",
+  "config_sha256": "aa5f4c03f27ae0ae085c69b2840fd41691a2a6bb76aa4a8832885add72055154",
   "flux_earth": 0.945,
   "earth_solar_constant": 1361.0,
   "orbital_year_earth_days": 182.80142503147016,
@@ -52,8 +52,8 @@
     "ratio": 0.9248567959809917,
     "earth_fradpar": 0.5
   },
-  "source_build": "precarve-zoned-g1281",
-  "git_commit": "a42413474d6456ef3a48917f4167e0d50ccf573d",
-  "header_sha256": "62fa0bb3640fcdfbe7ef150f642a2b4572ff99a1909299e1fc36f426d5890fc6",
+  "source_build": "precarve-zoned-g1281-erod4x",
+  "git_commit": "13fb86250899dbe27bc8027e8dde39d16f104043",
+  "header_sha256": "34f95edcdad39b920ecf579680f2d8569f833bf94012e160cea9cad7398448dc",
   "generator": "biosphere/scripts/build_vesper_header.py"
 }

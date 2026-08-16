@@ -24,7 +24,8 @@ from builds import mesh_export as _configured_mesh_export
 # against an export that predates the fix rather than producing quiet nonsense.
 _KNOWN_TERRAIN_HASHES = {
     "821aa71b37a7beda0b59398c7f005b91531050000ca46660d0f724cdb3f401a3":
-        "2026-08 build: over-erosion fixed, sub-sea-level land at 1.0 km/unit",
+        {"name": "precarve-unzoned", "note":
+         "2026-08 build: over-erosion fixed, sub-sea-level land at 1.0 km/unit"},
     # WITHDRAWN. The terrain move in this build was not an improvement: a basin
     # protection floor was captured pre-erosion and stored absolute, letting the
     # carve take back divides that erosion had raised, with the same array used
@@ -32,8 +33,9 @@ _KNOWN_TERRAIN_HASHES = {
     # regenerated export is bit-identical to 821aa71b again. Kept here only so an
     # export from that window is recognised rather than silently accepted.
     "27b7479aa486f5dacebccb0c638ff839a60a98e617c2437229600ef0bacf32ec":
-        "WITHDRAWN 2026-08 build: basin-protection floor drift, superseded by "
-        "821aa71b. Do not use.",
+        {"name": "withdrawn-basin-floor-drift", "note":
+         "WITHDRAWN 2026-08 build: basin-protection floor drift, superseded by "
+        "821aa71b. Do not use."},
     # Evaporite split into salt crust (0.50) and playa clastics (0.30). The two
     # have different erodibility, 3.50 against 2.80, so stream power sees a
     # different surface and the terrain moved on both planets. The basin
@@ -41,7 +43,8 @@ _KNOWN_TERRAIN_HASHES = {
     # pre-conditioning surface, so per-basin work computed against 821aa71b
     # still resolves.
     "26fc76914da14289ff26f15a130192bd84d59031098569adb66186ffdabb28b7":
-        "2026-08 precarve-zoned: threshold selection, crust/fill lithology split",
+        {"name": "precarve-zoned", "note":
+         "2026-08 precarve-zoned: threshold selection, crust/fill lithology split"},
     # SUPERSEDED. The verdict this build applied was decided on climate read
     # 180 degrees out: the coupling matrix numbers its columns on the Orogen
     # grid's -180..180 and an ExoPlaSim climatology on 0..360, so every basin
@@ -49,8 +52,9 @@ _KNOWN_TERRAIN_HASHES = {
     # justified by the climate meant to justify them and cannot be un-cut.
     # Kept registered so results computed from it stay readable and traceable.
     "3899a0c57d1eee2f47ba9054c218a171a7aa4532e2437c9104070c2c3dfaece6":
-        "2026-08 carved-zoned: iteration-1 carve verdict applied, crust/fill "
-        "split. SUPERSEDED by 010f2143 -- its verdict used antipodal climate.",
+        {"name": "carved-zoned", "note":
+         "2026-08 carved-zoned: iteration-1 carve verdict applied, crust/fill "
+        "split. SUPERSEDED by 010f2143 -- its verdict used antipodal climate."},
     # SUPERSEDED. The same first pass recomputed after the longitude fix, so its
     # verdict is the right one: 1,089 carve, 170 marginal, 2,370 preserved. The
     # lithology under it was not. Correct as a build of the model as it then
@@ -61,9 +65,10 @@ _KNOWN_TERRAIN_HASHES = {
     # never reaching the endorheic branch at all. 203 preserved basins had no
     # fill cell anywhere and were reaching ExoPlaSim as vegetated land.
     "010f214397338008ae28de1d8ecce93486d7ce8232e1cfb554006cfebbc14b6f":
-        "2026-08 carved-zoned-v2: corrected iteration-1 carve verdict, "
-        "crust/fill split. SUPERSEDED by 5bed5549 -- basin fill was being "
-        "overwritten by cover-chain branch order.",
+        {"name": "carved-zoned-v2", "note":
+         "2026-08 corrected iteration-1 carve verdict, crust/fill split. "
+         "SUPERSEDED by 5bed5549 -- basin fill was being overwritten by "
+         "cover-chain branch order."},
     # SUPERSEDED. Cover chain became a declared table walked in order with
     # closed-basin fill first, which fixed the lithology. Its verdict integrated
     # ExoPlaSim's mrro as catchment runoff,
@@ -72,16 +77,16 @@ _KNOWN_TERRAIN_HASHES = {
     # evaporation. Recoverable rather than wrong, since every basin it cut should
     # have been cut, and the carve list carried those forward.
     "5bed5549315da14b22275fea51a0b6f5b34d79cdf2237c9380e8471e0b431c78":
-        "2026-08 carved-zoned-v4: corrected verdict, cover-chain fix, "
-        "crust/fill split. SUPERSEDED by a4d204f6 -- its verdict read mrro as "
-        "catchment runoff.",
+        {"name": "carved-zoned-v4", "note":
+         "2026-08 corrected verdict, cover-chain fix, crust/fill split. "
+         "SUPERSEDED by a4d204f6 -- its verdict read mrro as catchment runoff."},
     # Pass 2: 1,838 carved of 3,629, of which 1,089 carried forward from v4 and
     # 749 decided against P - E. Endorheic land falls 60.10% to 43.06% and
     # closed-basin fill 16.5% to 12.35%, because a net-divergence field
     # under-reports exactly the large catchments the criterion turns on.
     "a4d204f6e3e706597ff1470d064b457768243483ff884e9b574f055774de3ce9":
-        "2026-08 carved-zoned-v5: iteration-2 verdict on P - E runoff, "
-        "crust/fill split",
+        {"name": "carved-zoned-v5", "note":
+         "2026-08 iteration-2 verdict on P - E runoff, crust/fill split"},
     # Pre-carve base at the corrected gravity, 12.81 m/s2, and the first build
     # with both km bugs fixed: orog_* is real kilometres and the basin
     # catalogue's ...Km fields carry the relief scaling.
@@ -91,8 +96,9 @@ _KNOWN_TERRAIN_HASHES = {
     # tell two gravities apart and `Export` checks `planet.gravityMS2` against
     # the config separately. Do not treat a hash match as sufficient here.
     "974ceb78fccfd54c3a842cf4ae8d7ae79029816abd9b4fbf90409165090b0ec1":
-        "2026-08 precarve-zoned-g1281: pre-carve base at g = 12.81, crust/fill "
-        "split, orography and basin-km unit fixes",
+        {"name": "precarve-zoned-g1281", "note":
+         "2026-08 pre-carve base at g = 12.81, crust/fill split, orography and "
+         "basin-km unit fixes"},
     # Same seed, same sliders, same gravity. What changed is lithology: two
     # erodibility values corrected against the literature (carbonate 1.30 ->
     # 0.45, schist 1.10 -> 0.45) and the class spread compressed to about 4x
@@ -106,9 +112,10 @@ _KNOWN_TERRAIN_HASHES = {
     # geometry: finalPreserved volumeKm3 by 8.1% in the median, which is what the
     # carve criterion tests, so hydrography and the verdict must be recomputed.
     "e2b510660d1cbe999d237734969e9ac9bf8636b6d85a04f513a4bc0d1f92d321":
-        "2026-08 precarve-zoned-g1281-erod4x: pre-carve base at g = 12.81 with "
-        "corrected carbonate/schist erodibility and the class spread compressed "
-        "to ~4x (lithologyStrength 0.682)",
+        {"name": "precarve-zoned-g1281-erod4x", "note":
+         "2026-08 pre-carve base at g = 12.81 with corrected carbonate/schist "
+         "erodibility and the class spread compressed to ~4x "
+         "(lithologyStrength 0.682)"},
 }
 
 # Basin ids are computed on the pre-conditioning surface, so they survive a
@@ -289,7 +296,17 @@ class Export:
         return {
             "export_root": str(self.root),
             "terrain_hash": self.terrain_hash,
-            "terrain_build": _KNOWN_TERRAIN_HASHES.get(self.terrain_hash, "unrecognised"),
+            # The NAME, which is a directory-safe build id, not the note.
+            # These were prose strings and `build_hydrography.py` files its
+            # products under this value, so a build whose note began with
+            # something other than its own name produced a directory called
+            # "2026-08 precarve-zoned-g1281-erod4x: pre-carve base at g = ...".
+            # Registry entries are {name, note} now so the two cannot be
+            # confused.
+            "terrain_build": (_KNOWN_TERRAIN_HASHES.get(self.terrain_hash) or {})
+                             .get("name", "unrecognised"),
+            "terrain_build_note": (_KNOWN_TERRAIN_HASHES.get(self.terrain_hash) or {})
+                                  .get("note"),
             "catalogue_hash": self.catalogue_hash,
             "catalogue_known": self.catalogue_hash in _KNOWN_CATALOGUE_HASHES,
             "drainage_hypothesis": self.manifest["basins"].get("drainageHypothesis"),

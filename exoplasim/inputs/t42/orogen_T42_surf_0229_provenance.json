@@ -1,28 +1,21 @@
 {
-  "climatology": "exoplasim/analysis/climatology/bootstrap_t42_s0968_regular_climatology.nc",
-  "generated": "2026-08-16T14:01:41+00:00",
+  "climatology": "exoplasim/analysis/climatology/baseline_t42_s0945_regular_climatology.nc",
+  "generated": "2026-08-16T21:04:30+00:00",
   "code": 229,
   "field": "dwmax, maximum soil water capacity, metres",
-  "lakes": {
-    "source": "/home/cfutro/docs/world/hydrography/data/precarve-zoned-g1281/surface_water.nc",
-    "lake_dwmax_m": 0.2,
-    "mean_lake_fraction_of_land_cells": 0.1386545272182498,
-    "land_mean_dwmax_before_m": 0.13188,
-    "land_mean_dwmax_after_m": 0.14265,
-    "ceiling": "annual lake evaporation is still capped by local precipitation; river water never re-enters dwatc"
-  },
-  "soil_map": "pedology/data/precarve-zoned-g1281/soilmap.txt",
-  "soil_map_sha256": "1405f062553924dad54519be3d35ced0ae415d075534004560c7eaa97b2d6ad9",
-  "config_sha256": "13f7fc8a1f0482c4b25689ced0c79909999641d030342feed57882aff01dad36",
+  "lakes": null,
+  "soil_map": "pedology/data/precarve-zoned-g1281-erod4x/soilmap.txt",
+  "soil_map_sha256": "e0be8887043edc259162a5906146a2ca6a1041ec4b4de25defd995ad4963be40",
+  "config_sha256": "aa5f4c03f27ae0ae085c69b2840fd41691a2a6bb76aa4a8832885add72055154",
   "resolution": "T42",
   "land_cells": 4106,
   "land_cells_matched": 4106,
   "land_cells_without_soil_left_at_default": 0,
-  "land_mean_capacity_m": 0.1510262799110602,
+  "land_mean_capacity_m": 0.14451572786862274,
   "exoplasim_uniform_default_m": 0.5,
   "why_this_matters": "landmod.f90 computes runoff as the overflow of this bucket, so a uniform default makes runoff a namelist property rather than a soil property. The 0.96 climatology's 2.8% land runoff ratio against Earth's ~35% is the symptom.",
   "not_enabled_by_default": "Requires model.soil_water_source: pedology in config/planet.yaml. That key is absent on purpose: adding it moves config_sha256 and blocks resumption of runs in flight.",
   "output": "exoplasim/inputs/t42/orogen_T42_surf_0229.sra",
-  "output_sha256": "aa7d5590035034419ab895c63931806d080e8591ec0cbab2518a775f5dcc5ed2",
-  "git_commit": "9a65163cc627e333b481a8a5f747010235bc164c"
+  "output_sha256": "57b6904d350b4c533cb9552d5571d7d5e04e6fd1bfb6aa152198b5305dc39844",
+  "git_commit": "13fb86250899dbe27bc8027e8dde39d16f104043"
 }

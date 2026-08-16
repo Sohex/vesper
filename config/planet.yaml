@@ -22,6 +22,14 @@ schema_version: 1
 #   carved-zoned      3899a0c5  SUPERSEDED, see below
 #   carved-zoned-v2   010f2143  SUPERSEDED, cover-chain branch order
 #   carved-zoned-v4   5bed5549  corrected verdict + cover-chain fix
+#   precarve-zoned-g1281      974ceb78  pre-carve base at g = 12.81
+#   precarve-zoned-g1281-erod4x e2b51066  ACTIVE: carbonate and schist erodibility
+#                                       corrected against the literature, class
+#                                       spread compressed to ~4x. Land/sea mask
+#                                       BIT-IDENTICAL to 974ceb78 and the basin
+#                                       catalogue unchanged, so carve verdicts
+#                                       remap; finished basin volume moves 8.1%
+#                                       median, so hydrography must be recomputed.
 #
 # carved-zoned is superseded rather than merely older. Its verdict was decided on
 # climate integrated 180 degrees out of longitude, so 850 of its 1,522 carves are
@@ -32,7 +40,7 @@ schema_version: 1
 #
 # The names are for humans. manifest.hashes.finalElevation is the identity, and
 # every run manifest and analysis report records it.
-source_build: precarve-zoned-g1281
+source_build: precarve-zoned-g1281-erod4x
 
 # DETERMINED. Radius and gravity are Orogen's and canonical; mass follows from
 # gravity, not the other way round. Rotation, obliquity and eccentricity chosen.

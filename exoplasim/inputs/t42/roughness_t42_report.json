@@ -1,8 +1,8 @@
 {
-  "generated": "2026-08-16T07:12:49+00:00",
+  "generated": "2026-08-16T21:03:26+00:00",
   "code": 173,
   "field": "dz0clim, total aerodynamic roughness length, metres",
-  "terrain_hash": "974ceb78fccfd54c3a842cf4ae8d7ae79029816abd9b4fbf90409165090b0ec1",
+  "terrain_hash": "e2b510660d1cbe999d237734969e9ac9bf8636b6d85a04f513a4bc0d1f92d321",
   "replaces_uniform": 2.0,
   "surface_z0_m": {
     "bare": 0.003,
@@ -11,23 +11,23 @@
     "forest_fraction_used": null
   },
   "orographic": {
-    "coefficient_solved": 0.005384,
+    "coefficient_solved": 0.005452,
     "relation": "z0_oro = coefficient * stdev(elevation) within the cell",
     "subgrid_stdev_m": {
       "min": 0.0,
-      "median": 69.91,
-      "max": 2046.19
+      "median": 68.16,
+      "max": 2025.86
     },
     "mesh_regions_per_land_cell_median": 155
   },
   "land_mean_m": 2.0,
-  "land_min_m": 0.003543,
-  "land_max_m": 11.0189,
+  "land_min_m": 0.003621,
+  "land_max_m": 11.0485,
   "exchange_coefficient": {
     "note": "ce = k^2 / ln(141.6 / z0)^2, the quantity roughness acts through",
     "uniform_default": 0.008817,
-    "this_field_land_max": 0.024541,
-    "this_field_land_min": 0.001425
+    "this_field_land_max": 0.024592,
+    "this_field_land_min": 0.001431
   },
   "file": "/home/cfutro/docs/world/exoplasim/inputs/t42/orogen_T42_surf_0173.sra"
 }

@@ -1,10 +1,10 @@
 {
-  "terrain_hash": "974ceb78fccfd54c3a842cf4ae8d7ae79029816abd9b4fbf90409165090b0ec1",
-  "generated": "2026-08-16T07:14:05.215090+00:00",
+  "terrain_hash": "e2b510660d1cbe999d237734969e9ac9bf8636b6d85a04f513a4bc0d1f92d321",
+  "generated": "2026-08-16T21:00:17.812788+00:00",
   "mesh": {
-    "export_root": "/home/cfutro/docs/world/source/precarve-zoned-g1281/exoplasim-T42",
-    "terrain_hash": "974ceb78fccfd54c3a842cf4ae8d7ae79029816abd9b4fbf90409165090b0ec1",
-    "terrain_build": "2026-08 precarve-zoned-g1281: pre-carve base at g = 12.81, crust/fill split, orography and basin-km unit fixes",
+    "export_root": "/home/cfutro/docs/world/source/precarve-zoned-g1281-erod4x/exoplasim-T42",
+    "terrain_hash": "e2b510660d1cbe999d237734969e9ac9bf8636b6d85a04f513a4bc0d1f92d321",
+    "terrain_build": "2026-08 precarve-zoned-g1281-erod4x: pre-carve base at g = 12.81 with corrected carbonate/schist erodibility and the class spread compressed to ~4x (lithologyStrength 0.682)",
     "catalogue_hash": "bc84109168789f519b53fc8197ddc976be93ecd8326b61a8086de85e638343cc",
     "catalogue_known": true,
     "drainage_hypothesis": {
@@ -19,7 +19,7 @@
     "planet_radius_km": 7645.2,
     "surface_area_km2": 734492839.5500951
   },
-  "grid": "/home/cfutro/docs/world/source/precarve-zoned-g1281/exoplasim-T42",
+  "grid": "/home/cfutro/docs/world/source/precarve-zoned-g1281-erod4x/exoplasim-T42",
   "resolution": "T42",
   "method": "Area-weighted land fraction per cell from the native mesh, thresholded; topography is the land-area-weighted mean elevation over land regions only.",
   "land_definition": "surface_class == land (subaerial)",
@@ -30,10 +30,10 @@
   "land_cells": 4106,
   "cells_below_mesh_resolution": 0,
   "elevation_m": {
-    "min": -60.30378267527208,
-    "max": 3993.4564760131416,
-    "mean": 337.3919040853683,
-    "cells_below_sea_level": 144
+    "min": -59.95320531825591,
+    "max": 3991.3841025252127,
+    "mean": 334.6787723868171,
+    "cells_below_sea_level": 146
   },
   "codes": [
     172,
