@@ -1,0 +1,29 @@
+{
+  "generated": "2026-08-16T01:51:50+00:00",
+  "purpose": "offline estimate of ExoPlaSim's runoff response to a pedology-supplied soil water capacity, to decide whether the loop is worth spinning up",
+  "climatology": "exoplasim/analysis/climatology_s096/baseline_regular_climatology.nc",
+  "config_sha256": "a0b9911f5f42764b7dcab63b660fcd5921b5b98c9ca8bf77f7c973af60f7a11a",
+  "bucket_scheme": "landmod.f90 beta-method, drhsfull 0.4",
+  "spin_up_years": 40,
+  "validation": {
+    "model_runoff_mm_per_earth_year": 25.3536587676995,
+    "offline_runoff_mm_per_earth_year": 149.95684577905698,
+    "ratio": 5.914603771906154,
+    "tolerance": 2.0,
+    "passed": false,
+    "model_soil_water_m": 0.202409350991838,
+    "offline_soil_water_m": 0.20420135591673474,
+    "caveat": "Monthly-mean forcing cannot generate event-driven runoff, so the offline bucket is expected to under-produce. The validation is what decides whether it under-produces enough to invalidate the comparison.",
+    "diagnosis": "Failed, and the way it failed is the useful part: the offline bucket reproduces the model's mean soil water almost exactly, 0.204 against 0.202 m, while over-producing runoff nearly sixfold. So the storage is right and the overflow accounting is not. The likely cause is that E = drhs * E_potential is not ExoPlaSim's scheme: its surface flux is bulk aerodynamic, E = C * (drhs * q_sat(Ts) - q), where drhs scales the surface humidity rather than the flux, so evaporation stops entirely once drhs falls to the ambient relative humidity instead of declining linearly to zero. Reproducing that offline needs surface temperature, humidity and wind at the model's timestep, which is most of a land surface scheme and no longer cheap."
+  },
+  "verdict": "Offline shortcut rejected. Only a real ExoPlaSim run can answer this. The relative response suggests the feedback is weak, which lowers the expected payoff of that run but does not remove the need for it.",
+  "prediction": {
+    "pedology_capacity_m": 0.34217895273079574,
+    "runoff_mm_per_earth_year": 158.84550230743184,
+    "runoff_ratio": 0.17805044779397336,
+    "change_vs_offline_default": 1.0592747632306911,
+    "implied_weathering_multiplier": 3.29615239635825
+  },
+  "precipitation_mm_per_earth_year": 892.1376175994567,
+  "git_commit": "0fcdb6cfe0072c0240727104a65f022ad190e0f3"
+}
