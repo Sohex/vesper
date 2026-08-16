@@ -31,7 +31,7 @@
 
 import {
     LITHO_CRATON_T, LITHO_FOLDBELT_T, LITHO_BASIN_T, LITHO_PLATEAU_T,
-    LITHO_SUBDUCT_MELANGE_T, LITHO_ARC_T, LITHO_LIP_T, LITHO_HOTSPOT_T,
+    LITHO_SUBDUCT_MELANGE_T, LITHO_LIP_T, LITHO_HOTSPOT_T, ARC_HALF_WIDTH_KM,
     LITHO_SHELF_DIST_CELLS, LITHO_CARBONATE_LAT_DEG,
     LITHO_COVER_BASIN_KM, LITHO_COVER_CRATON_KM, LITHO_COVER_PLATEAU_KM,
     LITHO_COVER_LIP_KM, LITHO_COVER_SHELF_KM, LITHO_COVER_PELAGIC_MAX_KM,
@@ -385,8 +385,10 @@ export function classifyLithology(mesh, r_xyz, r_elevation, tectonics, debugLaye
         // seed. See ARC_SLAB_DEPTH_KM in terrain-config.js.
         const arcDist = t.backArcDist ? t.backArcDist[r] : Infinity;
         const arcGap = t.arcGapKm ? t.arcGapKm[r] : Infinity;
+        // A BAND about the volcanic front, not a disc from the trench. Inside
+        // arcGap - ARC_HALF_WIDTH_KM is forearc and gets no arc rock.
         const inArcBelt = Number.isFinite(arcDist) && Number.isFinite(arcGap)
-                          && arcDist * edgeKm <= arcGap;
+                          && Math.abs(arcDist * edgeKm - arcGap) <= ARC_HALF_WIDTH_KM;
 
         let bm;
         // Basement: what is left when everything above is stripped away.

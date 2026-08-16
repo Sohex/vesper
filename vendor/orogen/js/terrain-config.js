@@ -236,6 +236,15 @@ export const ARC_SLAB_DEPTH_KM = 105.0;
 export const ARC_DIP_MIN_DEG = 30.0;   // shallow slab, arc far inboard
 export const ARC_DIP_MAX_DEG = 70.0;   // steep slab, arc close to the trench
 export const ARC_MEAN_GAP_KM = 95.0;   // midpoint of the Earth-validated 80-105 km
+// Half-width of the arc belt about the volcanic front. The arc is a BAND, not a
+// disc reaching back to the trench: everything between trench and front is
+// forearc -- accretionary prism, forearc basin, serpentinite -- and carries no
+// batholith. Arc plutons are emplaced at and behind the front, and Earth's
+// batholith belts run 50-150 km wide (Sierra Nevada ~100, Peruvian Coastal ~60).
+// This is also what the Earth check actually validated: 55,000 km of subduction
+// zone times a ~100 km BELT width reproduces the 3.1% arc share. A disc of
+// radius ARC_MEAN_GAP_KM would instead count the whole forearc as arc.
+export const ARC_HALF_WIDTH_KM = 50.0;
 
 // ── Noise Layering ──
 // Defaults reduced relative to v1 so textured noise is secondary to phasor
