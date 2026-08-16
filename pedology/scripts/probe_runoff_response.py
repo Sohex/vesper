@@ -112,7 +112,10 @@ def main() -> None:
     config = yaml.safe_load(CONFIG.read_text())
     climatology = args.climatology or climatology_path()
     year_length = int(round(orbit.orbital_year_days(config)))
-    earth_years_per_orbit = EARTH_YEAR_DAYS / orbit.orbital_year_days(config)
+    # Orbits per Earth year, 2.022. Named for what it is: an earlier version
+    # called this earth_years_per_orbit while holding its reciprocal, which now
+    # collides with the helper of that name in lib/orbit.py.
+    orbits_per_earth_year = 1.0 / orbit.earth_years_per_orbit(config)
 
     with nc.Dataset(climatology) as data:
         lat = np.asarray(data["lat"][:], dtype=float)
@@ -150,15 +153,27 @@ def main() -> None:
     offline_runoff, offline_water = run_bucket(
         liquid_daily, potential_daily, default_capacity, args.years)
 
-    model_runoff_mm = land_mean(model_runoff.mean(axis=0)) * 1000.0 * EARTH_YEAR_DAYS
-    offline_runoff_mm = land_mean(offline_runoff) * 1000.0 * earth_years_per_orbit
+    routed_mm = land_mean(model_runoff.mean(axis=0)) * 1000.0 * EARTH_YEAR_DAYS
+    offline_runoff_mm = land_mean(offline_runoff) * 1000.0 * orbits_per_earth_year
     precip_mm = land_mean(precip.mean(axis=0)) * 1000.0 * EARTH_YEAR_DAYS
+    evap_mm = land_mean(evaporation.mean(axis=0)) * 1000.0 * EARTH_YEAR_DAYS
 
+    # Validate against the land water budget, not against mrro.
+    #
+    # The first version of this probe compared itself to mrro and reported a
+    # 5.91x failure. mrro is river-routed net water flux, not local runoff
+    # generation: it is negative in places and non-zero over ocean, and it
+    # recovers only 15% of the land's water surplus. The probe was right and the
+    # target was wrong. In steady state the local runoff a bucket generates has
+    # to equal P - E, and that is what this now checks.
+    model_runoff_mm = precip_mm - evap_mm
     ratio = offline_runoff_mm / max(model_runoff_mm, 1e-9)
     valid = (1.0 / VALIDATION_TOLERANCE) <= ratio <= VALIDATION_TOLERANCE
 
     print("VALIDATION, offline bucket at ExoPlaSim's own 0.5 m capacity")
-    print(f"  model runoff        {model_runoff_mm:8.2f} mm per Earth year")
+    print(f"  land budget P - E   {model_runoff_mm:8.2f} mm per Earth year")
+    print(f"    P {precip_mm:.2f}, E {evap_mm:.2f}; mrro reports {routed_mm:.2f} "
+          f"but is river-routed, not local")
     print(f"  offline runoff      {offline_runoff_mm:8.2f} mm per Earth year")
     print(f"  ratio               {ratio:8.2f}  (pass band "
           f"{1/VALIDATION_TOLERANCE:.2f}-{VALIDATION_TOLERANCE:.2f})")
@@ -192,7 +207,7 @@ def main() -> None:
 
     pedology_runoff, pedology_water = run_bucket(
         liquid_daily, potential_daily, pedology_capacity, args.years)
-    pedology_runoff_mm = land_mean(pedology_runoff) * 1000.0 * earth_years_per_orbit
+    pedology_runoff_mm = land_mean(pedology_runoff) * 1000.0 * orbits_per_earth_year
 
     print("PREDICTION, offline bucket at the pedology capacity")
     print(f"  capacity            {land_mean(pedology_capacity):8.4f} m "
@@ -204,13 +219,22 @@ def main() -> None:
           f"the offline 0.5 m case")
     print()
 
-    # What that runoff would do to weathering, which is the reason to care.
+    # What that runoff would do to weathering, which is the reason to care. The
+    # current land-mean W is read from the soil report rather than written here,
+    # because it moves whenever the soil or the climatology does.
     exponent = 0.65
     weathering_shift = (pedology_runoff_mm / max(model_runoff_mm, 1e-9)) ** exponent
-    if valid:
+    report_path = ANALYSIS / "soil_report.json"
+    current_w = None
+    if report_path.is_file():
+        current_w = json.loads(report_path.read_text())["land_means"].get(
+            "weathering_intensity")
+    if valid and current_w is not None:
         print(f"  implied weathering intensity shift: {weathering_shift:.2f}x, so "
-              f"land-mean W moves from 0.192 toward {0.192 * weathering_shift:.2f} "
-              f"(precipitation-driven is 2.81)")
+              f"land-mean W moves from {current_w:.2f} toward "
+              f"{current_w * weathering_shift:.2f}")
+    elif valid:
+        print(f"  implied weathering intensity shift: {weathering_shift:.2f}x")
     else:
         print("  VALIDATION FAILED, so the absolute numbers above are not usable.")
         print("  What may still survive is the RELATIVE response, since both cases")
@@ -230,7 +254,9 @@ def main() -> None:
         "bucket_scheme": "landmod.f90 beta-method, drhsfull 0.4",
         "spin_up_years": args.years,
         "validation": {
+            "target": "land budget P - E, not mrro",
             "model_runoff_mm_per_earth_year": model_runoff_mm,
+            "routed_mrro_mm_per_earth_year": routed_mm,
             "offline_runoff_mm_per_earth_year": offline_runoff_mm,
             "ratio": ratio,
             "tolerance": VALIDATION_TOLERANCE,
@@ -265,6 +291,7 @@ def main() -> None:
             "runoff_ratio": pedology_runoff_mm / precip_mm,
             "change_vs_offline_default": pedology_runoff_mm / max(offline_runoff_mm, 1e-9),
             "implied_weathering_multiplier": weathering_shift,
+            "current_land_mean_weathering_intensity": current_w,
         },
         "precipitation_mm_per_earth_year": precip_mm,
         "git_commit": subprocess.run(
