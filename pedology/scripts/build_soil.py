@@ -371,7 +371,9 @@ def main() -> None:
                         * (1.0 - np.exp(-bedrock["shape"] * intensity)))
 
     DATA.mkdir(parents=True, exist_ok=True)
-    output = args.output or (DATA / "soilmap.txt")
+    # Resolved so a relative or out-of-tree --output does not break the
+    # provenance record's relative_to(PROJECT_ROOT).
+    output = (args.output or (DATA / "soilmap.txt")).resolve()
     lon_signed = np.where(lon > 180.0, lon - 360.0, lon)
     rows = np.argwhere(land)
     with output.open("w") as handle:
@@ -444,7 +446,8 @@ def main() -> None:
             "LPJ-GUESS 4.1.1 has a fixed 1.5 m profile and does not consume "
             "regolith depth. It is computed and reported so the gap is visible; "
             "see notes/model.md."),
-        "output": str(output.relative_to(PROJECT_ROOT)),
+        "output": (str(output.relative_to(PROJECT_ROOT))
+                   if output.is_relative_to(PROJECT_ROOT) else str(output)),
         "output_sha256": hashlib.sha256(output.read_bytes()).hexdigest(),
         "git_commit": subprocess.run(
             ["git", "rev-parse", "HEAD"], capture_output=True, text=True,
@@ -474,7 +477,7 @@ def main() -> None:
           f"(ExoPlaSim's uniform default is 500)")
     print(f"bedrock water       {means['bedrock_water_fraction']:.3f} of soil "
           f"capacity per unit volume")
-    print(f"\nwrote {output.relative_to(PROJECT_ROOT)}")
+    print(f"\nwrote {report['output']}")
     print(f"      {report_path.relative_to(PROJECT_ROOT)}")
 
 

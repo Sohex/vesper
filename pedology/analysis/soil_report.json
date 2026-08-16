@@ -1,5 +1,5 @@
 {
-  "generated": "2026-08-16T01:11:28+00:00",
+  "generated": "2026-08-16T01:26:50+00:00",
   "iteration": null,
   "closes_loop_with": "nothing; iteration 0 has no biosphere",
   "climatology": "exoplasim/analysis/climatology_s096/baseline_regular_climatology.nc",
@@ -39,5 +39,5 @@
   "regolith_note": "LPJ-GUESS 4.1.1 has a fixed 1.5 m profile and does not consume regolith depth. It is computed and reported so the gap is visible; see notes/model.md.",
   "output": "pedology/data/soilmap.txt",
   "output_sha256": "1fb68a02c5b8b2bead9e81a72198d3a56b7b004b38a20a836f7375038daee51c",
-  "git_commit": "f7d0df9effe987d1d45985f9dfd42041cf03ce54"
+  "git_commit": "51c2bae4b1ad7aca9baf86faf4695d4107c1f643"
 }

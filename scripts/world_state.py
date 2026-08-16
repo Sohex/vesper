@@ -47,16 +47,36 @@ CURATED = {
         "through the marginal band with a retain fraction, not be flipped to 0.",
     ],
     "known_uncertainties": [
-        {"item": "stellar spectrum", "value": "k2", "range": ["k2", "k25v"],
+        {"item": "stellar spectrum", "value": "k25v", "range": ["k2", "k25v"],
          "worth_w_m2": 0.63, "worth_k": 0.59,
-         "note": "Not an uncertainty so much as a known error every completed run "
-                 "carries. ExoPlaSim's k2.dat is the star K2-18, an M2.5V at about "
-                 "3450 K, not the spectral type K2; it puts 0.116 of shortwave "
-                 "below 0.75 um where this world's declared 4965 K star puts 0.382. "
-                 "Snow and ice are 0.10-0.17 too dark everywhere, worth 0.4-0.7 K "
-                 "on the warm baseline and more wherever there is ice. The "
-                 "replacement is built and validated as inputs/stellarspectra/k25v "
-                 "but not yet selected. See exoplasim/notes/stellar-spectrum-audit.md."},
+         "note": "Resolved going forward, inherited backwards. ExoPlaSim's k2.dat "
+                 "is the star K2-18, an M2.5V at about 3450 K, not the spectral "
+                 "type K2. Every run of the first three eras used it, so their "
+                 "snow and ice are 0.10-0.17 too dark, worth 0.4-0.7 K on the warm "
+                 "baseline and more wherever there is ice. k25v is now selected; "
+                 "results predating it remain valid in kind with the direction of "
+                 "the error known. See exoplasim/notes/stellar-spectrum-audit.md."},
+        {"item": "land runoff, and therefore the whole soil", "value": 0.028,
+         "range": [0.028, 0.35],
+         "note": "The single most under-determined quantity in the pipeline. "
+                 "ExoPlaSim reports a 2.8% land runoff ratio where Earth manages "
+                 "~35%, almost certainly because configure() clears the soil field "
+                 "capacity and it falls back to a uniform 0.5 m bucket. It "
+                 "propagates: weathering intensity 0.19 against 2.81 depending on "
+                 "whether runoff or precipitation drives it, and with it clay 0.28 "
+                 "against 0.55, water capacity 342 against 463 mm, bedrock water "
+                 "0.14 against 1.05. Two different planets' soils. The fix is "
+                 "self-referential, since the field that would resolve it is the "
+                 "one pedology computes, and build_surface_soil_water.py now "
+                 "supplies it under model.soil_water_source. Whether that loop "
+                 "converges is untested."},
+        {"item": "nitrogen deposition", "value": 0.5, "range": [0.1, 5.0],
+         "note": "kgN/ha/yr, declared with no basis: this world has no deposition "
+                 "field, no industry and no measured nitrogen cycle. On Earth N "
+                 "limitation is a first-order control on NPP and LPJ-GUESS is run "
+                 "with N enabled, so every productivity number inherits it. The "
+                 "range is a guess at a guess and has never been swept. This is "
+                 "the largest unbracketed assumption in the biosphere."},
         {"item": "playa_clastic albedo", "value": 0.30, "range": [0.25, 0.33],
          "worth_w_m2": 1.99, "worth_k": 1.87,
          "note": "Dominant remaining albedo lever: 18.8% of land against the salt "
@@ -88,7 +108,11 @@ CURATED = {
         "Supply equilibrium lake levels as --water-level so basin floors stop being "
         "exported as dry ground.",
         "Run LPJ-GUESS on the resulting climatology and replace the assumed "
-        "biosphere.",
+        "biosphere, then score it against biosphere/notes/productivity-prediction.md.",
+        "Sweep nitrogen deposition and report the NPP spread, rather than "
+        "carrying a single declared value into every result.",
+        "Enable model.soil_water_source: pedology and check the soil-runoff loop "
+        "converges rather than oscillating.",
         "Iteration-2 carve verdict, with retain as a function of discharge and the "
         "228 zero-runoff spillers handled.",
         "One T85 equilibrium once terrain and biosphere settle, for regional "
