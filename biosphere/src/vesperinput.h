@@ -22,6 +22,7 @@
 #include "inputmodule.h"
 #include "gutil.h"
 #include "externalinput.h"
+#include "soilinput.h"
 #include <vector>
 
 /// Input module driving LPJ-GUESS from an ExoPlaSim climatology of Vesper
@@ -80,6 +81,17 @@ private:
 
 	/// Path to the driver file, from the instruction file
 	xtring file_driver;
+
+	/// Optional soil map from the pedology component. When set, soil physical
+	/// properties come from measured texture, organic content, pH and bulk
+	/// density rather than from the driver file's single LPJ soil code.
+	xtring file_soilmap;
+
+	/// Reader for that map. LPJ-GUESS's own, so the format is theirs not ours.
+	SoilInput soilinput;
+
+	/// Whether a soil map was supplied
+	bool have_soilmap;
 
 	/// Atmospheric CO2, ppm, from the driver file
 	double co2;

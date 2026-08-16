@@ -1,0 +1,41 @@
+{
+  "generated": "2026-08-16T00:47:42+00:00",
+  "iteration": 1,
+  "closes_loop_with": "/tmp/claude-1000/-home-cfutro-docs-world/77a9a4eb-449f-4c57-b19e-ff72da7e1e60/scratchpad/lpj_run/cpool.out",
+  "climatology": "exoplasim/analysis/climatology_s096/baseline_regular_climatology.nc",
+  "climatology_sha256": "a5c81e926747b7fdea23b77cbafbc6a2d91362517a72e3a910e4f70fc0cba177",
+  "config_sha256": "a0b9911f5f42764b7dcab63b660fcd5921b5b98c9ca8bf77f7c973af60f7a11a",
+  "pedogenesis_sha256": "6799e01b3ac0bd224ddb7e0cb1f27cdffdc2b562bbe028bf2bcb68daf850b9f2",
+  "source_build": "carved-zoned",
+  "terrain_hash": "3899a0c57d1eee2f47ba9054c218a171a7aa4532e2437c9104070c2c3dfaece6",
+  "orbital_year_earth_days": 180.65500935790158,
+  "land_cells": 4106,
+  "moisture_variable": "runoff",
+  "weathering_bracket": {
+    "note": "Weathering intensity under each moisture driver, land means. The spread is the honest uncertainty in how weathered this world's soils are, and it is wide because the climate model's land hydrology is a uniform bucket.",
+    "by_runoff": 0.1916574180931707,
+    "by_precipitation": 2.807823031940969,
+    "runoff_ratio": 0.028418999790548627,
+    "earth_land_runoff_ratio_for_reference": 0.35
+  },
+  "land_means": {
+    "weathering_intensity": 0.1916574180931707,
+    "sand": 0.40687406385248615,
+    "silt": 0.3171969762954862,
+    "clay": 0.2759289598520277,
+    "quartz_inert": 0.2856106783079526,
+    "ph": 7.111206878443621,
+    "regolith_depth_m": 2.665390606917963,
+    "organic_fraction": 1.100283133221642e-06,
+    "bulk_density_kg_m3": 1499.9916546566756,
+    "soil_carbon_kg_m2": 0.00042485385215343147,
+    "runoff_mm_per_earth_year": 25.353658767699503,
+    "precipitation_mm_per_earth_year": 892.1376175994565,
+    "temperature_c": 17.34001997015074,
+    "endorheic_fraction": 0.1619212281020685
+  },
+  "regolith_note": "LPJ-GUESS 4.1.1 has a fixed 1.5 m profile and does not consume regolith depth. It is computed and reported so the gap is visible; see notes/model.md.",
+  "output": "pedology/data/soilmap.txt",
+  "output_sha256": "87b0627a25caf6f04d8d182730c6110edc3f4e76e2b7713a2cca12ca01b82686",
+  "git_commit": "cbb1e3b4e42cbcb489fed17451a625b70d55b056"
+}

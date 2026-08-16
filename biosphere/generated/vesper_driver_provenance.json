@@ -1,5 +1,5 @@
 {
-  "generated": "2026-08-16T00:32:00+00:00",
+  "generated": "2026-08-16T00:46:24+00:00",
   "climatology": "exoplasim/analysis/climatology_s096/baseline_regular_climatology.nc",
   "climatology_sha256": "a5c81e926747b7fdea23b77cbafbc6a2d91362517a72e3a910e4f70fc0cba177",
   "config_sha256": "a0b9911f5f42764b7dcab63b660fcd5921b5b98c9ca8bf77f7c973af60f7a11a",
@@ -29,9 +29,9 @@
   "ndep_note": "Declared, not measured. This world has no deposition field and no industry, so any value is an assumption and NPP inherits it.",
   "insolation": "NETSWRAD_TS, net downward surface shortwave (rss), W/m2",
   "land_definition": "lsm from the climatology, itself built from surface_class",
-  "land_mean_temperature_c": 17.340019970150742,
-  "land_mean_precip_mm_per_earth_year": 892.1376175994567,
-  "land_mean_net_sw_w_m2": 149.26150262297332,
+  "land_mean_temperature_c": 17.340018866310086,
+  "land_mean_precip_mm_per_earth_year": 892.1376307881092,
+  "land_mean_net_sw_w_m2": 149.26149925940223,
   "soil": {
     "method": "dominant land-area share, integrated over the native mesh",
     "cells_with_no_mesh_land_defaulted_to_medium": 0,
@@ -67,6 +67,6 @@
     "evaporite": 9,
     "playa_clastic": 3
   },
-  "output_sha256": "6690dd350f07bbe63e81396a37ad955352b7c885cc0d8541228b43e653709f27",
-  "git_commit": "1a889196d9ed482a6554ade28f98097c69279fbb"
+  "output_sha256": "17f83b6c1bd4ec6b0edd5eb9a513e5de9d45351f112325e12a684a76ba3a300b",
+  "git_commit": "cbb1e3b4e42cbcb489fed17451a625b70d55b056"
 }

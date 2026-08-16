@@ -43,6 +43,10 @@ from gridding import land_fraction_of_class
 from orogen import Export
 
 MAGIC = b"VESPDRV1"
+
+# Coordinate precision shared with pedology/scripts/build_soil.py, so the soil
+# map keys match exactly. See where lon_signed is rounded.
+COORD_DECIMALS = 4
 PROVENANCE_BYTES = 64
 KELVIN = 273.15
 
@@ -188,7 +192,14 @@ def main() -> None:
     bin_days[-1] += year_length - base * 12
 
     # ExoPlaSim's longitudes run 0..360; LPJ-GUESS expects -180..180.
-    lon_signed = np.where(lon > 180.0, lon - 360.0, lon)
+    #
+    # Rounded to COORD_DECIMALS because LPJ-GUESS's soil map lookup keys on
+    # std::pair<double,double> and compares it exactly. pedology/build_soil.py
+    # writes its coordinates to the same precision, so the two round-trip to
+    # identical doubles and the lookup needs no search radius. That agreement is
+    # a contract between the two scripts, not a coincidence.
+    lon_signed = np.round(np.where(lon > 180.0, lon - 360.0, lon), COORD_DECIMALS)
+    lat = np.round(lat, COORD_DECIMALS)
 
     provenance = f"{config.get('source_build')}|{climatology.parent.name}".encode()
     provenance = provenance[:PROVENANCE_BYTES].ljust(PROVENANCE_BYTES, b"\0")

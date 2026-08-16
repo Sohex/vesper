@@ -35,7 +35,7 @@ a result.
 | calendar and astronomy patch | written, applied, verified |
 | PFT degree-day rescale | generated from the orbit, 500 -> 247 gdd5min_est |
 | input module | `vesperinput`, built and run end to end on real cells |
-| soil texture from lithology | mapped, but it is parent material not soil; see below |
+| soil | from `pedology/`, loop closing at smoke scale |
 | full run | blocked on a current climatology; 3-cell shakedown passes |
 
 The model is not in this repository. It lives at
@@ -106,43 +106,27 @@ assumed a vegetated surface, and if LPJ-GUESS returns substantially less canopy
 than that, the climate is not one that biosphere would sustain and the loop turns
 again.
 
-## Soil is currently lithology, and that is a known shortcut
+## Soil comes from `pedology/`
 
-`build_lpj_driver.py` maps World Orogen rock classes onto LPJ soil texture codes
-through a table, `SOIL_CODE_BY_ROCK`. That table is parent material, not soil.
-Soil texture is what a rock weathers *into under a climate*, and the same granite
-gives coarse grus in a cold arid place and deep kaolinitic clay in a wet tropical
-one. The mapping ignores that, and so assigns the same texture to both.
+`vesperinput` takes `file_soilmap`, the map `pedology/scripts/build_soil.py`
+emits, and uses LPJ-GUESS's own richer `SoilInput` path: sand, clay, silt,
+organic carbon, pH, bulk density and C:N per cell rather than one of ten texture
+codes. The driver file still carries a soil code per cell, derived from
+lithology alone through `SOIL_CODE_BY_ROCK`, and that is the fallback when no
+soil map is given. Which one was used is printed at the top of the run, because
+the difference is invisible in the output otherwise.
 
-Everything a real pedogenesis stage needs already exists in this pipeline, which
-is what makes the shortcut conspicuous. Jenny's five soil-forming factors are
-climate, organisms, relief, parent material and time: ExoPlaSim has the first,
-LPJ-GUESS itself produces the second, Orogen has relief, erodibility and
-lithology for the third and fourth, and the fifth is a modelling choice.
+The fallback is parent material, not soil, and the distinction matters: the same
+granite gives coarse grus in a cold arid place and deep kaolinitic clay in a wet
+tropical one. Prefer the soil map.
 
-Three things the current table gets demonstrably wrong:
-
-- **No climate dependence at all**, as above. This is the first-order error.
-- **Salinity and sodicity are absent.** 12.65% of carved-zoned land is evaporite
-  or playa, and the only handling is the blunt rule that nothing roots there.
-  Salt-affected soil is a gradient, not a binary.
-- **Regolith depth is not represented.** Orogen knows erosion rate and exhumation;
-  a thin soil over bedrock holds far less water than a deep one, and LPJ-GUESS's
-  soil codes cannot say so.
-
-**Not built yet, deliberately.** The next run should measure how much this
-matters before anything is built on top of it: run once with the lithology
-mapping and once with uniform medium soil, and report the spread in NPP. If it is
-small the mapping is adequate and a pedology stage is a refinement; if it is
-large the stage is required and the current numbers carry its uncertainty. That
-is the same bracket-before-building discipline the albedo and evaporation
-questions got.
-
-If it is required, it belongs as a sibling component reading lithology, climate,
-relief and drainage, and feeding LPJ-GUESS's richer `SoilInput` interface, which
-takes sand, clay, organic carbon, pH, C:N and bulk density per cell rather than
-one of ten codes. Note that it closes another loop: soil organic matter is a
-product of the biosphere that the biosphere then grows in.
+That component closes a loop with this one: soil organic matter is a product of
+the biosphere, and it changes the bulk density and water-holding capacity the
+biosphere then grows in. Iteration 0 runs on mineral soil; every iteration after
+feeds `cpool.out` back into `build_soil.py`. See `pedology/README.md` for the
+convergence criteria, which are fixed in advance, and for the finding that
+weathering intensity is currently bracketed by a factor of 14.6 on the climate
+model's runoff.
 
 ## Cost
 

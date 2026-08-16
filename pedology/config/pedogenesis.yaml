@@ -1,0 +1,181 @@
+schema_version: 1
+
+# Earth calibrations for the pedogenesis model. Every number here is an Earth
+# measurement being transplanted to another world, so each carries its source and
+# what it is worth. Nothing in pedology/scripts/ hardcodes any of it: the model is
+# meant to run on a world with a different star, gravity and year without editing
+# code, and this file is where a different world's soils get argued about.
+#
+# See ../notes/model.md for the derivations and the limits.
+
+# ---------------------------------------------------------------------------
+# Chemical weathering
+# ---------------------------------------------------------------------------
+# The Walker-Hays-Kasting form used throughout the exoplanet weathering
+# literature: W scales as a power of runoff and an exponential of temperature.
+# It is the standard because it is the least parameterised thing that captures
+# both controls, not because it is precise.
+#
+#   W = (q / q_ref)^runoff_exponent * exp((T - T_ref) / temperature_e_folding_k)
+#
+# W is dimensionless and normalised so that Earth's global mean land conditions
+# give W = 1. It is an *intensity*, not a rate: the time integral is folded into
+# the reference, because neither this world's soil age nor Earth's is known well
+# enough to carry explicitly.
+weathering:
+  # Which moisture variable drives weathering. This is a bracket, not a detail.
+  #
+  # `runoff` is the physically correct term: silicate weathering is limited by
+  # water actually passing through the profile and carrying solutes away, not by
+  # water that falls and evaporates. But it is only as good as the climate
+  # model's land hydrology, and ExoPlaSim's is a uniform bucket, because its
+  # configure() clears every surface field when given a landmap and the field
+  # capacity falls back to a namelist default. On this world that yields 25 mm
+  # per Earth year against 892 of precipitation, a runoff ratio of 2.8% where
+  # Earth's land manages about 35%.
+  #
+  # So `runoff` may be reporting the bucket rather than the planet. Both are
+  # computed and both appear in the report; this selects which one the emitted
+  # soil map is built from. Do not tune it to make a result land.
+  #
+  # This is also the clearest place the loop wants to run the other way: soil
+  # water holding capacity is exactly the field ExoPlaSim is defaulting, and
+  # this component computes it.
+  moisture_variable: runoff       # runoff | precipitation
+  runoff_exponent: 0.65
+  # Temperature e-folding. Berner's exponential fit to silicate weathering,
+  # equivalent to an activation energy near 74 kJ/mol at 288 K. Values from 10 to
+  # 25 K appear in the literature; 13.7 is the common central choice.
+  temperature_e_folding_k: 13.7
+  # Reference conditions, Earth global land means. W = 1 here by construction.
+  reference_runoff_mm_per_earth_year: 300.0
+  reference_temperature_c: 14.0
+  # W is clipped before use. The upper bound matters: the exponential runs away
+  # in hot wet cells and there is no evidence soils keep differentiating past
+  # deep tropical ferralsol, which is where the clay ceiling is anyway.
+  minimum: 0.02
+  maximum: 6.0
+
+# ---------------------------------------------------------------------------
+# Texture
+# ---------------------------------------------------------------------------
+# Fresh regolith texture per rock class, before any chemical weathering, keyed by
+# World Orogen's rock class codes. Three numbers per class:
+#
+#   sand, silt, clay   fractions of the fine earth, summing to 1
+#   quartz             fraction that is chemically inert and never becomes clay
+#
+# The distinction matters: granite and basalt both start sandy, but granite's
+# sand is mostly quartz and stays sand forever, while basalt's is feldspar and
+# pyroxene and weathers to clay. That single fact is why humid tropical basalt
+# terrain carries deep clay and humid tropical granite terrain carries sand.
+texture:
+  # Igneous, felsic: quartz-rich, weathers to sandy grus
+  granite:             {sand: 0.70, silt: 0.20, clay: 0.10, quartz: 0.45}
+  granodiorite:        {sand: 0.65, silt: 0.23, clay: 0.12, quartz: 0.30}
+  rift_bimodal:        {sand: 0.60, silt: 0.25, clay: 0.15, quartz: 0.25}
+  # Igneous, mafic: little quartz, so nearly all of it can become clay
+  morb:                {sand: 0.50, silt: 0.30, clay: 0.20, quartz: 0.02}
+  oib:                 {sand: 0.50, silt: 0.30, clay: 0.20, quartz: 0.02}
+  flood_basalt:        {sand: 0.45, silt: 0.32, clay: 0.23, quartz: 0.02}
+  arc_basalt:          {sand: 0.50, silt: 0.30, clay: 0.20, quartz: 0.05}
+  arc_andesite:        {sand: 0.55, silt: 0.28, clay: 0.17, quartz: 0.15}
+  # Metamorphic
+  gneiss:              {sand: 0.65, silt: 0.22, clay: 0.13, quartz: 0.35}
+  schist:              {sand: 0.30, silt: 0.42, clay: 0.28, quartz: 0.20}
+  quartzite:           {sand: 0.90, silt: 0.07, clay: 0.03, quartz: 0.92}
+  melange:             {sand: 0.40, silt: 0.35, clay: 0.25, quartz: 0.20}
+  # Sedimentary: already weathering products once, so they start further along
+  shelf_clastic:       {sand: 0.45, silt: 0.33, clay: 0.22, quartz: 0.40}
+  carbonate:           {sand: 0.15, silt: 0.35, clay: 0.50, quartz: 0.05}
+  foreland_clastic:    {sand: 0.40, silt: 0.36, clay: 0.24, quartz: 0.35}
+  continental_clastic: {sand: 0.50, silt: 0.30, clay: 0.20, quartz: 0.40}
+  pelagic:             {sand: 0.05, silt: 0.30, clay: 0.65, quartz: 0.10}
+  evaporite:           {sand: 0.20, silt: 0.35, clay: 0.45, quartz: 0.05}
+  playa_clastic:       {sand: 0.25, silt: 0.40, clay: 0.35, quartz: 0.15}
+  water:               {sand: 0.40, silt: 0.35, clay: 0.25, quartz: 0.25}
+
+  # How completely weathering converts weatherable primary minerals to clay.
+  # clay_final = clay_primary + weatherable * (1 - exp(-clay_conversion * W)),
+  # where weatherable = 1 - quartz - clay_primary. Saturating, because a soil
+  # cannot become more than entirely clay and ferralsols top out around 0.6-0.8.
+  clay_conversion: 0.55
+  # Sand and silt give up their share of what becomes clay in this ratio. Sand
+  # goes first: coarse primary grains have the most surface area to lose.
+  sand_to_silt_loss_ratio: 2.0
+
+# ---------------------------------------------------------------------------
+# Regolith depth
+# ---------------------------------------------------------------------------
+# Heimsath et al. 1997 soil production function, P = P0 * exp(-h / h_star),
+# balanced against erosion. At steady state h = h_star * ln(P0 * W / E).
+#
+# NOTE: LPJ-GUESS 4.1.1 has a fixed 1.5 m profile and cannot consume this. It is
+# computed, emitted and reported anyway, because a thin regolith over bedrock is
+# a first-order control on plant-available water and the gap should be visible
+# rather than absent. See ../notes/model.md.
+regolith:
+  production_rate_mm_per_kyr: 100.0
+  e_folding_depth_m: 0.5
+  minimum_depth_m: 0.02
+  maximum_depth_m: 5.0
+  # Erosion is taken as proportional to Orogen erodibility, local relief and
+  # runoff. Normalised so Earth-like mean land conditions give E ~ P0.
+  erosion_reference_relief_m: 200.0
+
+# ---------------------------------------------------------------------------
+# pH
+# ---------------------------------------------------------------------------
+# Base cations leach with drainage, so pH falls as runoff rises. Parent material
+# sets the starting point. Endorheic basins run the other way: salts concentrate
+# rather than leaving, and the soil goes alkaline and sodic.
+ph:
+  # pH of a fresh, unleached soil on each rock category
+  parent_by_category:
+    igneous_mafic: 7.6
+    igneous_felsic: 6.4
+    metamorphic: 6.6
+    sedimentary_clastic: 6.8
+    carbonate: 8.0
+    evaporite: 8.8
+  # pH lost per e-folding of the leaching index (runoff over reference runoff)
+  leaching_slope: 0.9
+  minimum: 3.8
+  maximum: 9.5
+  # Added where drainage is closed and salts accumulate
+  endorheic_alkalinity_bonus: 0.8
+
+# ---------------------------------------------------------------------------
+# Organic matter, the loop closure
+# ---------------------------------------------------------------------------
+# Soil organic carbon is not a property of the rock. It is what the biosphere
+# leaves behind, which means it can only come from the vegetation model, which
+# in turn needs the soil. Iteration 0 runs with `initial_soil_carbon_kg_m2`;
+# every iteration after reads LPJ-GUESS's own cpool output.
+organic:
+  initial_soil_carbon_kg_m2: 0.0
+  # Bulk density of pure organic matter and of mineral soil, for the mixing rule
+  # and for converting kgC/m2 into a mass fraction.
+  organic_bulk_density_kg_m3: 224.0
+  mineral_bulk_density_kg_m3: 1500.0
+  # Carbon is this fraction of organic matter by mass (van Bemmelen)
+  carbon_fraction_of_organic_matter: 0.58
+  # Depth over which soil carbon is taken to be distributed, for the fraction
+  # calculation. LPJ-GUESS's own upper layer is 0.5 m.
+  reference_depth_m: 0.5
+  maximum_organic_fraction: 0.60
+  # Soil C:N. A single declared value: this world has no measured nitrogen
+  # cycle, and the deposition rate feeding LPJ-GUESS is itself an assumption.
+  carbon_nitrogen_ratio: 12.0
+
+# ---------------------------------------------------------------------------
+# Convergence of the soil-biosphere loop
+# ---------------------------------------------------------------------------
+# Fixed before any iteration has been run, in the same way the albedo bracket's
+# criteria were written into the script docstring before any run finished.
+convergence:
+  # Land-mean soil organic carbon, relative change between iterations
+  soil_carbon_relative_tolerance: 0.02
+  # Fraction of land cells whose clay content moves by more than 0.02
+  texture_cells_moved_tolerance: 0.05
+  maximum_iterations: 6

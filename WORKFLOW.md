@@ -17,6 +17,8 @@ source/              World Orogen exports. Canonical, read-only.
 lib/                 Shared readers: orogen.py (the export), gridding.py (mesh to grid).
 hydrography/         Drainage, catchments, basin capacity, lake balance, carve verdict.
 exoplasim/           Boundary conditions, climate integrations, climatology.
+pedology/            Weathers lithology into soil texture, pH and organic content.
+biosphere/           LPJ-GUESS: vegetation, leaf area, carbon, PFT composition.
 ```
 
 Each component owns its own `scripts/`, `data/` or `analysis/`, and reads
@@ -164,6 +166,12 @@ worth 3.7 to 7.1 K, and the two reach the 290 to 293 K design target at
 No single flux is robust to the question, so the orbit and the biosphere are one
 choice, not two.
 
+**Soil depends on the biosphere, and the biosphere on soil.** Texture, pH and
+regolith depth are weathering products of lithology under a climate, but the
+organic fraction is what the vegetation leaves behind, and it changes the bulk
+density and water-holding capacity the vegetation then grows in. `pedology/`
+therefore iterates against `biosphere/` rather than running once before it.
+
 The loop is therefore: assume, compute, feed back, repeat.
 
 Monotone carving guarantees the loop *terminates*, since basins are only ever
@@ -189,7 +197,8 @@ the overshoot, and it is the honest measure of how much the first pass cost.
 | coupling | T42 and T85 matrices built |
 | climate | T42 at 0.96 S-Earth, vegetated, converged on all six criteria, 292.88 K |
 | carve verdict | first pass complete: 1,522 of 3,629 carve, 235 partial, 1,872 preserved |
-| biosphere | assumed, not modelled |
+| pedology | model built and closing the loop at smoke scale; weathering intensity bracketed 0.19-2.81 on the climate model's runoff |
+| biosphere | LPJ-GUESS ported, driven and running at smoke scale; no full run yet |
 | stellar cycle | deferred to last |
 
 Selected results:
