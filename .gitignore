@@ -16,7 +16,12 @@ source/maps/*.png
 
 # ExoPlaSim model output: ~20 GB of NetCDF and restart checkpoints. Expensive to
 # produce and irreplaceable, but a backup target, not a git one.
-exoplasim/runs/
+# Contents, not the directory itself: git does not descend into an excluded
+# directory, so a negation for a file inside one never takes effect.
+exoplasim/runs/*
+# The index IS tracked. Run ids are UUIDs, so this is the only record of what
+# each run was, and it has to survive the output being deleted.
+!exoplasim/runs/INDEX.json
 
 # Patched ExoPlaSim build artifacts, produced by
 # exoplasim/scripts/build_star_cycle_exoplasim.sh from the vendored source.
@@ -45,8 +50,9 @@ hydrography/data/surface_water.nc
 biosphere/runs/
 pedology/data/earth_validation_cache/
 pedology/data/reference/
-references/
-
-# Reference PDFs: publisher copyright, many not redistributable. INDEX.md is
-# tracked so the bibliography and its provenance survive; the files are not.
+# Reference PDFs: publisher copyright, many not redistributable. The PDFs are
+# excluded; INDEX.md is NOT, because it is the bibliography and the record of
+# which sources have actually been read. A blanket `references/` rule used to
+# sit here and silently swallowed it.
 references/*.pdf
+references/_*

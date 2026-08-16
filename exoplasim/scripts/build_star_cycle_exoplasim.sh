@@ -51,4 +51,10 @@ patch --forward --strip=1 --directory="$package_dir" < "$patch_file"
 (cd "$package_dir" && ./compile.sh -n 16 -p 16 -r T42 -v 10)
 mkdir -p "$target_dir"
 cp -a "$run_dir/." "$target_dir/"
+# Keep only the executable this script actually built with the cycle patch.
+# cp -a brings the whole run directory, so every OTHER resolution and rank count
+# arrives too -- steady binaries sitting in a directory named "cycle". They fail
+# loudly rather than silently, because a steady binary cannot parse nsolcycle in
+# the namelist, but a directory should hold what its name claims.
+find "$target_dir" -maxdepth 1 -name 'most_plasim_*.x' ! -name "$executable" -delete
 sha256sum "$target_dir/$executable"

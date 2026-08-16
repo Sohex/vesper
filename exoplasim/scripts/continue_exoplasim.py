@@ -143,6 +143,8 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=Path, default=CONFIG)
     parser.add_argument("--flux-ratio", type=float, default=None)
+    parser.add_argument("--run", type=str, default=None,
+                        help="run id or directory to continue (required)")
     parser.add_argument("--orbits", type=int, default=5)
     parser.add_argument(
         "--seasonal-output", action="store_true",
@@ -159,8 +161,18 @@ def main() -> None:
         if args.flux_ratio is None else args.flux_ratio
     )
     derived = derive(config, flux_ratio)
-    identifier = run_id(config, flux_ratio)
-    run_dir = (RUNS / identifier).resolve()
+    # A run id is a UUID and cannot be recomputed, so a continuation must be told
+    # which run to continue. That is the safer direction: the old behaviour
+    # rebuilt the name from config and could silently resolve to a different run
+    # than the one intended -- which it did, when a patch changed the physics
+    # without moving anything the name encoded.
+    if args.run is None:
+        raise SystemExit(
+            "--run is required: pass the run id or its directory. "
+            "`python exoplasim/scripts/index_runs.py` lists what is on disk.")
+    cand = Path(args.run)
+    run_dir = (cand if cand.is_dir() else RUNS / args.run).resolve()
+    identifier = run_dir.name
     manifest_path = run_dir / "run_manifest.json"
     if not manifest_path.is_file():
         raise RuntimeError(f"No prepared run manifest at {manifest_path}")

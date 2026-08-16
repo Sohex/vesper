@@ -11,6 +11,7 @@ from pathlib import Path
 import platform
 import shutil
 import subprocess
+import uuid
 
 import exoplasim as exo
 from netCDF4 import Dataset
@@ -449,26 +450,57 @@ def flux_tag(flux_ratio: float) -> str:
     return tag[:-1] if tag.endswith("0") else tag
 
 
-def run_id(config: dict, flux_ratio: float) -> str:
+def physical_fingerprint(config: dict, flux_ratio: float) -> dict:
+    """Everything about a run that makes it a different climate.
+
+    Recorded in the manifest and indexed by `index_runs.py` so a run is findable
+    by what it is. It is deliberately NOT the run's identity -- see `run_id`.
+    """
     p = config["planet"]
     a = config["atmosphere"]
     m = config["model"]
-    identifier = (
-        f"{str(m['resolution']).lower()}l{int(m['layers'])}p{int(m['ncpus'])}"
-        f"r{int(m['precision_bytes'])}"
-        f"_s{flux_tag(flux_ratio)}"
-        f"_co2{round(1e6 * float(a['pCO2_bar'])):04d}ppm"
-        f"_rot{float(p['rotation_hours']):g}h"
-        f"_obl{float(p['obliquity_degrees']):g}"
-        f"_e{round(1000 * float(p['eccentricity'])):03d}"
-        # Physics switches that change the answer get a marker, so an on/off
-        # comparison cannot land in one directory. Only non-defaults are named,
-        # to keep the identifier readable.
-        + ("_glac" if config["surface"].get("glaciers", {}).get("enabled") else "")
-        + spectrum_tag(config)
-        + f"_g{geography_tag(config)}"
-    )
-    return identifier.replace(".", "p")
+    return {
+        "resolution": str(m["resolution"]),
+        "layers": int(m["layers"]),
+        "ranks": int(m["ncpus"]),
+        "precision_bytes": int(m["precision_bytes"]),
+        "flux_ratio": round(float(flux_ratio), 6),
+        "co2_ppm": round(1e6 * float(a["pCO2_bar"]), 3),
+        "rotation_hours": float(p["rotation_hours"]),
+        "obliquity_degrees": float(p["obliquity_degrees"]),
+        "eccentricity": float(p["eccentricity"]),
+        "glaciers": bool(config["surface"].get("glaciers", {}).get("enabled")),
+        "stellar_spectrum": config.get("radiation", {}).get("stellar_spectrum"),
+        "geography": geography_tag(config),
+    }
+
+
+def run_id(config: dict, flux_ratio: float) -> str:
+    """A UUID. Not derived from anything.
+
+    This used to spell out the physical parameters --
+    `t42l10p16r8_s0968_co20450ppm_rot30h_obl32_e020_glac_k25v_g83d1b976` -- so
+    that two different climates could not share a directory, which matters
+    because ExoPlaSim's `finalize()` picks output as the last glob match.
+
+    **A derived identifier can only separate runs along the dimensions it
+    encodes, and that is not a property you can maintain.** The ozone band-weight
+    patch changed the physics and moved nothing in the encoded set, so the
+    pre-patch and post-patch runs at the same flux computed the same identifier
+    and landed in the same directory. Adding the patch stack to the name would
+    have fixed that instance and not the next one; the encoded set is a list of
+    everything someone has thought of so far.
+
+    A UUID is unique unconditionally, so no run can ever collide with another
+    regardless of what changed between them, including things nothing here
+    models. What the run *was* belongs in the manifest, which is written anyway,
+    and in `exoplasim/runs/INDEX.json`, which is generated from the manifests.
+
+    The cost is that a continuation cannot recompute the directory name and must
+    be given it. That is the safer direction: recomputation could silently
+    resolve to a different run, and being handed an id cannot.
+    """
+    return "run_" + uuid.uuid4().hex[:12]
 
 
 def validate_outputs(run_dir: Path) -> dict:
@@ -736,6 +768,11 @@ def main() -> None:
     manifest = {
         "schema_version": 1,
         "run_id": identifier,
+        # What this run IS, as opposed to what it is called. The id is a UUID and
+        # carries no meaning, so this is the only place the physics is written
+        # down in a machine-readable form; exoplasim/scripts/index_runs.py builds
+        # exoplasim/runs/INDEX.json from it.
+        "physical": physical_fingerprint(config, flux_ratio),
         "status": "prepared",
         "config_path": str(config_path),
         "config_sha256": file_sha256(config_path),
