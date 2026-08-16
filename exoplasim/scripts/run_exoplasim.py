@@ -690,6 +690,15 @@ def main() -> None:
     )
     staged = stage_surface_extras(run_dir, config)
     spectrum = stage_stellar_spectrum(model, run_dir, stellar_spectrum_path(config))
+    # Ozone column scaling, set through the namelist because the Python API does
+    # not expose o3scale. The model prescribes an Earth column and derives
+    # nothing about it from the host star; Segura et al. (2003) measure 0.794 of
+    # Earth's for a K2V host at 1 PAL O2.
+    o3 = config["model"].get("ozone_scale")
+    if o3 is not None and float(o3) != 1.0:
+        model._edit_namelist("radmod_namelist", "O3SCALE", f"{float(o3)}")
+        print(f"ozone column scaled to {float(o3)} of Earth's (Segura et al. 2003)")
+
     if enable_energy_diagnostics(model, config):
         n = register_energy_diagnostic_codes()
         print(f"energy diagnostics on: nenergy=1, {n} codes 360-387 registered "

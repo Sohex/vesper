@@ -247,6 +247,10 @@ def main() -> None:
     # REGULAR_CODES. The run would keep going and the terms would simply stop
     # appearing partway through, which is the failure mode that is hardest to
     # notice in a long spin-up.
+    o3 = config["model"].get("ozone_scale")
+    if o3 is not None and float(o3) != 1.0:
+        model._edit_namelist("radmod_namelist", "O3SCALE", f"{float(o3)}")
+
     regular_codes = list(REGULAR_CODES)
     if energy_diagnostics_enabled(config):
         enable_energy_diagnostics(model, config)

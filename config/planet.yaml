@@ -52,9 +52,23 @@ star:
   # Provisional empirical midpoint between K2V and K3V in the
   # Pecaut--Mamajek dwarf sequence (see notes/parameter-decisions.md).
   spectral_type: K2.5V
-  # DETERMINED, as a design choice rather than a derivation: the activity level
-  # is whatever puts surface ultraviolet in the terrestrial range. See
-  # exoplasim/notes/ozone.md.
+  # DETERMINED, and now measured rather than chosen. Segura et al. (2003),
+  # "Ozone Concentrations and Ultraviolet Fluxes on Earth-Like Planets Around
+  # Other Stars", Astrobiology 3, 689-708, models a K2V host explicitly -- very
+  # nearly this star -- with an Earth-like O2 atmosphere:
+  #
+  #   ozone column at 1 PAL O2   6.64e18 cm-2 against the Sun's 8.36e18, so 0.794x
+  #   surface UV-B               "about 0.4 times Earth's flux"
+  #
+  # So this world is substantially BETTER protected from ultraviolet than Earth,
+  # not comparably. The star's lower ultraviolet output wins against the thinner
+  # ozone column it produces; the two do not cancel.
+  #
+  # This replaces a declared choice of `earth_like`, which was reached from an
+  # order-of-magnitude cancellation argument that gave 1.05x and was wrong by a
+  # factor of 2.6. The lesson is recorded in notes/failure-modes.md: the
+  # cancellation was two rough estimates multiplying to about one, which is not
+  # evidence of anything.
   #
   # This closes a dimension instead of opening one. Surface UV is the product of
   # how much the star emits and how much the ozone column absorbs, and neither is
@@ -73,7 +87,7 @@ star:
   # What this does NOT settle is ozone's radiative effect on the climate, which
   # is a different quantity from its shielding of the surface. That still wants
   # the o3scale sensitivity test.
-  surface_uv: earth_like
+  surface_uv_relative_to_earth: 0.4
   mass_solar: 0.80
   luminosity_solar: 0.32359365692962827
   effective_temperature_k: 4965.0
@@ -196,6 +210,17 @@ model:
   # the constant -0.455 W/m2 residual. Needs the rebuilt binary for the term-15
   # latent-heat phase fix; that rebuild is done.
   energy_diagnostics: true
+  # Scales ExoPlaSim's prescribed Earth ozone column, which no part of the model
+  # derives from the host star. 0.794 is measured, not assumed: Segura et al.
+  # (2003) Table 1 gives 6.64e18 cm-2 for a K2V host at 1 PAL O2 against the
+  # Sun's 8.36e18. Set through radmod_nl directly, like NENERGY and STARFILE,
+  # since the Python API does not expose it.
+  #
+  # This corrects only the column. The absorption coefficients remain fitted to a
+  # solar-shaped band 1, and a 4965 K star puts proportionally less of its band-1
+  # flux in the 200-350 nm Hartley and Huggins bands, so absorption per unit
+  # ozone is still overestimated. See notes/ozone.md.
+  ozone_scale: 0.794
   # The same 28 terms per level, codes 460-487. The column totals established
   # that the -0.455 W/m2 residual is not the fixed offset it was recorded as --
   # it spans -0.400 to -0.489 across four converged runs, against a claimed

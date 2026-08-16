@@ -56,38 +56,56 @@ whether this is worth caring about for surface climate at all. In a ten-layer
 model there is not much stratosphere to heat, so the surface effect may well be
 small even though the bias is real.
 
-## Surface ultraviolet: closed by decision, not by calculation
+## Surface ultraviolet: measured, not chosen
 
-The biosphere half of this question is now settled by choosing rather than
-computing. `star.surface_uv: earth_like` in `config/planet.yaml`.
+Settled by Segura et al. (2003), "Ozone Concentrations and Ultraviolet Fluxes on
+Earth-Like Planets Around Other Stars", Astrobiology 3, 689-708, read directly.
+It models a K2V host explicitly, which is very nearly this star, with an
+Earth-like O2 atmosphere.
 
-The reasoning, and its honest status. A photospheric estimate puts UV-B at the
-planet at about 0.45 times Earth's -- a cooler star emits far less at 300 nm,
-partly offset by a geometric factor of 1.73 from a smaller star at a closer
-orbit -- and a halved ozone column would transmit about 2.3 times as much, which
-multiplies to roughly Earth's. **That near-cancellation is not a result.** It is
-two rough estimates multiplying to about one, and the 0.5 column was chosen with
-nothing behind it. It should not be quoted as a finding.
+    ozone column, 1 PAL O2    6.64e18 cm-2   against the Sun's 8.36e18   = 0.794x
+    surface UV-B              "about 0.4 times Earth's flux"
 
-What is defensible is the choice it motivated. Surface UV is a product of stellar
-emission and ozone absorption, and neither factor is known here: BT-Settl carries
-no chromosphere, which is where a K dwarf's 200-320 nm flux mostly originates,
-and the ozone column is prescribed as Earth's. Fixing the product means neither
-factor has to be pinned separately, and it removes a free dimension rather than
-adding one.
+So this world is **substantially better protected from ultraviolet than Earth**,
+not comparably. The star's lower ultraviolet output beats the thinner ozone
+column it produces.
 
-It is also physically self-consistent, because ozone is UV-produced: a more
-active star makes more ozone, which absorbs more of the extra ultraviolet. The
-column tracks the incident flux and buffers the surface. That is what allows this
-world to carry a dramatic bolometric activity cycle and a terrestrial surface UV
-environment at once, where those two would otherwise pull against each other.
+`config/planet.yaml` now carries `model.ozone_scale: 0.794` and
+`star.surface_uv_relative_to_earth: 0.4`, and `run_exoplasim.py` sets `O3SCALE`
+through the namelist directly, as it already does for `NENERGY` and `STARFILE`.
 
-**This does not settle ozone's radiative effect**, which is a different quantity
-from its shielding. The column that produces Earth-like surface UV under a
-weaker, redder star is probably not Earth's column, and its effect on
-stratospheric heating is still unmeasured. The `o3scale` sensitivity test
-stands.
+### What this replaced, and why it was wrong
 
-Nothing goes into LPJ-GUESS. It models no ultraviolet, adding a damage term would
-need a calibration this project cannot supply, and the answer above is that the
-surface environment is terrestrial anyway.
+An earlier version of this file closed the question by *choosing*: declaring
+surface UV Earth-like so that neither the stellar emission nor the ozone column
+had to be pinned. The arithmetic behind it took photospheric UV-B at 0.45x
+Earth's and a halved ozone column transmitting 2.3x, multiplying to 1.05x.
+
+Both inputs were wrong and the answer was wrong by a factor of 2.6. The column is
+0.794x rather than 0.5x, and the surface flux is 0.4x rather than 1.05x. The
+cancellation that motivated the choice was two rough estimates landing near one,
+which was flagged at the time as not being evidence -- correctly, and the flag
+should have been treated as a work item rather than a disclaimer.
+
+What survives is the mechanism: ozone is UV-produced, so the column does track
+incident ultraviolet and does buffer the surface. It simply does not buffer it
+all the way to parity.
+
+### Consequences
+
+- **The biosphere faces less ultraviolet stress than Earth's**, so a UV damage
+  term in LPJ-GUESS remains unnecessary -- now for a measured reason rather than
+  an assumed one.
+- **The stellar activity level is no longer pinned by this.** The earlier
+  reasoning made activity a free parameter fixed by requiring Earth-like surface
+  UV. With the column and the surface flux both measured for a quiescent K2V,
+  activity returns to being undetermined, and the stellar-cycle block in
+  `planet.yaml` stays PROVISIONAL on its own merits.
+- **The radiative half is still only half corrected.** `ozone_scale` fixes the
+  column. The absorption coefficients are still fitted to a solar-shaped band 1,
+  and a 4965 K star puts proportionally less of its band-1 flux in the 200-350 nm
+  Hartley and Huggins bands, so absorption per unit ozone remains overestimated.
+  The sensitivity test now measures a known correction rather than a guess.
+
+Nothing goes into LPJ-GUESS. It models no ultraviolet, and the surface
+environment is measured as gentler than Earth's.

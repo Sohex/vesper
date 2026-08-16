@@ -45,3 +45,4 @@ hydrography/data/surface_water.nc
 biosphere/runs/
 pedology/data/earth_validation_cache/
 pedology/data/reference/
+references/
