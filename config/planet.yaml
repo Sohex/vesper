@@ -52,6 +52,28 @@ star:
   # Provisional empirical midpoint between K2V and K3V in the
   # Pecaut--Mamajek dwarf sequence (see notes/parameter-decisions.md).
   spectral_type: K2.5V
+  # DETERMINED, as a design choice rather than a derivation: the activity level
+  # is whatever puts surface ultraviolet in the terrestrial range. See
+  # exoplasim/notes/ozone.md.
+  #
+  # This closes a dimension instead of opening one. Surface UV is the product of
+  # how much the star emits and how much the ozone column absorbs, and neither is
+  # known here: BT-Settl is a photospheric model and carries no chromosphere,
+  # which is where a K dwarf's 200-320 nm flux mostly comes from, and the ozone
+  # column is prescribed as Earth's rather than computed. Pinning the product
+  # means neither factor has to be determined separately.
+  #
+  # It is defensible rather than merely convenient because ozone is itself
+  # UV-produced, so the column tracks the incident ultraviolet and buffers the
+  # surface against the star's activity. That is what lets this world have a
+  # dramatic bolometric activity cycle and a terrestrial surface UV environment
+  # at the same time -- the two would otherwise pull against each other, since
+  # the cycle wants an active star and the biosphere wants a quiet one.
+  #
+  # What this does NOT settle is ozone's radiative effect on the climate, which
+  # is a different quantity from its shielding of the surface. That still wants
+  # the o3scale sensitivity test.
+  surface_uv: earth_like
   mass_solar: 0.80
   luminosity_solar: 0.32359365692962827
   effective_temperature_k: 4965.0

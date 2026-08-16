@@ -56,6 +56,38 @@ whether this is worth caring about for surface climate at all. In a ten-layer
 model there is not much stratosphere to heat, so the surface effect may well be
 small even though the bias is real.
 
-It matters more for the biosphere than the climate if the column is genuinely
-thinner: less ozone means more surface ultraviolet, which LPJ-GUESS does not
-model and which would be a real constraint on a land biosphere.
+## Surface ultraviolet: closed by decision, not by calculation
+
+The biosphere half of this question is now settled by choosing rather than
+computing. `star.surface_uv: earth_like` in `config/planet.yaml`.
+
+The reasoning, and its honest status. A photospheric estimate puts UV-B at the
+planet at about 0.45 times Earth's -- a cooler star emits far less at 300 nm,
+partly offset by a geometric factor of 1.73 from a smaller star at a closer
+orbit -- and a halved ozone column would transmit about 2.3 times as much, which
+multiplies to roughly Earth's. **That near-cancellation is not a result.** It is
+two rough estimates multiplying to about one, and the 0.5 column was chosen with
+nothing behind it. It should not be quoted as a finding.
+
+What is defensible is the choice it motivated. Surface UV is a product of stellar
+emission and ozone absorption, and neither factor is known here: BT-Settl carries
+no chromosphere, which is where a K dwarf's 200-320 nm flux mostly originates,
+and the ozone column is prescribed as Earth's. Fixing the product means neither
+factor has to be pinned separately, and it removes a free dimension rather than
+adding one.
+
+It is also physically self-consistent, because ozone is UV-produced: a more
+active star makes more ozone, which absorbs more of the extra ultraviolet. The
+column tracks the incident flux and buffers the surface. That is what allows this
+world to carry a dramatic bolometric activity cycle and a terrestrial surface UV
+environment at once, where those two would otherwise pull against each other.
+
+**This does not settle ozone's radiative effect**, which is a different quantity
+from its shielding. The column that produces Earth-like surface UV under a
+weaker, redder star is probably not Earth's column, and its effect on
+stratospheric heating is still unmeasured. The `o3scale` sensitivity test
+stands.
+
+Nothing goes into LPJ-GUESS. It models no ultraviolet, adding a damage term would
+need a calibration this project cannot supply, and the answer above is that the
+surface environment is terrestrial anyway.
