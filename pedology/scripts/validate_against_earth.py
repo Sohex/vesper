@@ -75,7 +75,7 @@ SITES = [
     # Mafic: named large igneous provinces, basalt beyond dispute.
     ("Deccan Traps, Maharashtra", 19.00, 75.00, "flood_basalt", "mafic"),
     ("Deccan Traps, Malwa", 22.60, 76.20, "flood_basalt", "mafic"),
-    ("Columbia River Basalt", 46.30, -119.30, "flood_basalt", "mafic"),
+    ("Columbia River Basalt", 46.60, -118.50, "flood_basalt", "mafic"),
     ("Parana Traps, Parana", -24.50, -51.50, "flood_basalt", "mafic"),
     ("Parana Traps, Rio Grande do Sul", -28.50, -53.50, "flood_basalt", "mafic"),
     ("Ethiopian Traps, Shewa", 9.50, 39.00, "flood_basalt", "mafic"),
@@ -87,7 +87,7 @@ SITES = [
     ("Sierra Nevada Batholith", 37.50, -119.00, "granite", "felsic"),
     ("Yilgarn craton", -30.00, 120.00, "granite", "felsic"),
     ("Namaqualand granite", -29.70, 17.90, "granite", "felsic"),
-    ("Bohus granite, Sweden", 58.40, 11.60, "granite", "felsic"),
+    ("Bohus granite, Sweden", 58.30, 11.95, "granite", "felsic"),
     ("Guiana Shield granite", 4.50, -60.00, "granite", "felsic"),
     ("Minas Gerais granite-gneiss", -19.00, -44.00, "gneiss", "felsic"),
 ]
@@ -184,7 +184,8 @@ def main() -> None:
             np.array([clim["temperature_c"]]), weathering))[0])
 
         p = parents[rock]
-        weatherable = max(0.0, 1.0 - p["quartz"] - p["clay"])
+        weatherable = (max(0.0, 1.0 - p["quartz"] - p["clay"])
+                       * texture_cfg.get("clay_yield", 1.0))
         predicted = p["clay"] + weatherable * (
             1.0 - np.exp(-texture_cfg["clay_conversion"] * w))
 

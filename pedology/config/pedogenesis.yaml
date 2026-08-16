@@ -139,6 +139,28 @@ texture:
   # where weatherable = 1 - quartz - clay_primary. Saturating, because a soil
   # cannot become more than entirely clay and ferralsols top out around 0.6-0.8.
   clay_conversion: 0.55
+  # Fraction of weatherable material that ends up as clay-SIZED silicate. The
+  # rest leaves as solute, or becomes iron and aluminium sesquioxides, or is a
+  # resistant primary mineral other than quartz -- none of which a texture
+  # analysis counts as clay. Without it the model converts every weatherable
+  # grain to clay given enough intensity, which took basalt to 0.95 clay where
+  # no soil on Earth exceeds about 0.8 and the wettest site measured here reads
+  # 0.60.
+  #
+  # 0.55 is an Earth calibration like everything else in this file, and for once
+  # a measured one: the regression of SoilGrids clay on this model's prediction
+  # over sixteen type localities has slope 0.543 (intercept 0.035), so the model
+  # was about twice as steep as Earth across its whole range. See
+  # `scripts/validate_against_earth.py` and `analysis/earth_validation.json`.
+  #
+  # It does NOT fix the felsic-versus-mafic contrast, which stays overstated by
+  # about a factor of two after this. That is a separate problem in the quartz
+  # fractions below rather than in the conversion, and it is recorded rather
+  # than tuned away: granite is declared 45% inert where typical modal quartz in
+  # granite is 25-35%, so the weatherable contrast against basalt's 2% is too
+  # strong. Fixing it means changing mineralogy, which wants a mineralogical
+  # source and not a fit to seven site pairs.
+  clay_yield: 0.55
   # Sand and silt give up their share of what becomes clay in this ratio. Sand
   # goes first: coarse primary grains have the most surface area to lose.
   sand_to_silt_loss_ratio: 2.0

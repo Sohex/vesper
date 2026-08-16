@@ -174,7 +174,11 @@ def weather_texture(fractions: dict[str, np.ndarray], intensity: np.ndarray,
     for array in (sand, silt, clay, quartz):
         array[covered] /= total[covered]
 
-    weatherable = np.clip(1.0 - quartz - clay, 0.0, 1.0)
+    # Only part of the weatherable fraction becomes clay-sized silicate; the rest
+    # leaves as solute or becomes sesquioxide, neither of which a texture
+    # analysis counts. Calibrated against SoilGrids over sixteen type
+    # localities; see pedogenesis.yaml.
+    weatherable = np.clip(1.0 - quartz - clay, 0.0, 1.0) * texture_cfg["clay_yield"]
     converted = weatherable * (1.0 - np.exp(-texture_cfg["clay_conversion"] * intensity))
 
     ratio = texture_cfg["sand_to_silt_loss_ratio"]
