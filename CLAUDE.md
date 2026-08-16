@@ -383,17 +383,52 @@ barren classes. Note this is substrate albedo: real vegetation arrives from
 LPJ-GUESS in loop C of `WORKFLOW.md`.
 
 Its `finalize()` picks output as the last glob match, so a run directory shared
-between worlds can silently emit the wrong world's result. `run_id` therefore
-names everything physical: a geography digest, the spectrum, and the flux at
-thousandths. The last two were added after near-misses -- a k25v re-baseline
-would have landed in the completed k2 run's directory, and `round(100 * flux)`
-mapped 0.945 and 0.94 to the same name. Anything physical missing from that name
-is a collision waiting for the run that changes it.
+between worlds can silently emit the wrong world's result. `run_id` used to name
+everything physical to prevent that -- geography digest, spectrum, flux at
+thousandths -- and each of those was added after a near-miss.
+
+**`run_id` is now a UUID, and that is the fix rather than a retreat from one.** A
+derived identifier separates runs only along the dimensions it encodes, and the
+encoded set is just a list of everything someone has thought of so far. The ozone
+band-weight patch changed the physics and moved nothing in it, so the pre-patch
+and post-patch runs at the same flux computed the same name and shared a
+directory. A UUID collides with nothing, including along dimensions nothing here
+models.
+
+What a run *was* lives in `run_manifest.json`, which gains a `physical` block, and
+in `exoplasim/runs/INDEX.json`, generated from those manifests by
+`index_runs.py`. That index is tracked even though `runs/` is not, because it is
+the only record that survives deleting the output. A continuation must now be
+given `--run`; it cannot recompute a name, which is the safer direction.
 
 `model.energy_diagnostics` adds PlaSim's 28-term energy decomposition on codes
 360-387. The postprocessor ships 119 codes and none of those, so
 `run_exoplasim.py` registers them at run time; patching the vendored tree would
 be undone silently by any reinstall of the untracked `.venv`.
+
+**Patched source and per-configuration binaries.** ExoPlaSim compiles a separate
+executable for every (resolution, layers, ranks) triple, so patching the source
+and running rebuilds *only the configuration you are running*. Every other binary
+keeps the old code until something asks for it. This is failure class 11 and it
+fired three times in a single day.
+
+So, two rules:
+
+- **After any patch, rebuild everything**: `python
+  exoplasim/scripts/rebuild_binaries.py`. It deletes every executable, rebuilds
+  the matrix, and writes `exoplasim/patches/binary_manifest.json` recording which
+  patches are compiled into which sha256. The star-cycle tree is separate and
+  needs `build_star_cycle_exoplasim.sh` afterwards.
+- **After any `.venv` reinstall, do the same.** `.venv` is untracked and
+  reinstallable, and a reinstall restores pristine ExoPlaSim and discards every
+  applied patch with no warning at all. `rebuild_binaries.py --verify` is the
+  cheap check that tells you whether that has happened; `check_consistency.py`
+  runs the same check.
+
+The ozone patch is *resident* in the source -- it must be applied for any build
+to be correct. The star-cycle patch is not: it is applied and reversed around its
+own build, because a cycle binary and a steady binary are different things and
+only one can be in the tree at a time.
 
 See `exoplasim/README.md` for the workflow and results,
 `exoplasim/notes/lake-representation.md` for what the model can do with the

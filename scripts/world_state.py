@@ -176,9 +176,23 @@ def read_json(path: Path):
     return json.loads(path.read_text(encoding="utf-8")) if path.is_file() else None
 
 
-def builds() -> dict:
+def builds(active: str) -> dict:
+    """The active build only.
+
+    `world_state.json` is what the project currently knows, and a superseded
+    build is not that -- it is history. Enumerating all seven put six wrong
+    terrains next to the right one under identical keys, which is how a reader
+    (or a script) picks the wrong basin count.
+
+    The registry is a separate thing and stays complete: `lib/orogen.py` keeps
+    every build it has been checked against, so results already computed from a
+    superseded terrain stay readable and datable. Identity belongs in the
+    registry; state belongs here.
+    """
     out = {}
     for d in sorted((ROOT / "source").iterdir()):
+        if d.name != active:
+            continue
         man = d / "exoplasim-T42" / "manifest.json"
         if not man.is_file():
             continue
@@ -207,11 +221,19 @@ def builds() -> dict:
     return out
 
 
-def climate_runs() -> list:
+def climate_runs(active: str) -> list:
+    """Runs on the active build only.
+
+    Runs on a superseded terrain describe a world we no longer model. They stay
+    on disk and stay in `exoplasim/runs/INDEX.json`, which is the record of what
+    exists; this file is the record of what is true.
+    """
     rows = []
     for man in sorted((ROOT / "exoplasim" / "runs").glob("*/run_manifest.json")):
         d = json.loads(man.read_text(encoding="utf-8"))
         run = man.parent
+        if ((d.get("source_config") or {}).get("source_build")) != active:
+            continue
         conv = d.get("convergence_assessment") or {}
         # The stellar-cycle runs use fixed_orbit_parameters rather than
         # derived_parameters, and the earliest runs predate several keys, so read
@@ -362,8 +384,8 @@ def main() -> None:
             "radiation": config["radiation"],
             "stellar_cycle": config.get("stellar_cycle"),
         },
-        "builds": builds(),
-        "climate_runs": climate_runs(),
+        "builds": builds(config.get("source_build")),
+        "climate_runs": climate_runs(config.get("source_build")),
         "current_climate": current_climate(),
         "hydrography": hydrography(),
         "curated": CURATED,
@@ -372,7 +394,7 @@ def main() -> None:
                            encoding="utf-8")
 
     b = state["builds"]
-    print(f"builds        : {len(b)}  (active: {config.get('source_build')})")
+    print(f"active build  : {config.get('source_build')}")
     print(f"climate runs  : {len(state['climate_runs'])}, "
           f"{sum(1 for r in state['climate_runs'] if r['converged'])} converged")
     hy = state["hydrography"]

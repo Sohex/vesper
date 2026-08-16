@@ -34,6 +34,8 @@ schema_version: 1
 # every run manifest and analysis report records it.
 source_build: precarve-zoned-g1281
 
+# DETERMINED. Radius and gravity are Orogen's and canonical; mass follows from
+# gravity, not the other way round. Rotation, obliquity and eccentricity chosen.
 planet:
   radius_earth: 1.20
   # Surface gravity is canonical, not derived. This is the value World Orogen
@@ -48,6 +50,8 @@ planet:
   obliquity_degrees: 32.0
   eccentricity: 0.02
 
+# DETERMINED. Spectral type, activity level, and the surface ultraviolet that
+# follows from them are all decided; see the notes inside the block.
 star:
   # Provisional empirical midpoint between K2V and K3V in the
   # Pecaut--Mamajek dwarf sequence (see notes/parameter-decisions.md).
@@ -101,6 +105,12 @@ star:
   luminosity_solar: 0.32359365692962827
   effective_temperature_k: 4965.0
 
+# PROVISIONAL. `baseline_flux_earth` is 0.945 and the evidence has moved past it:
+# the T21 bracket measured 150.2 K per unit flux ratio, and the T42 bootstrap at
+# 0.968 converged at 292.64 K, inside the 290-293 K design band. 0.945 is the
+# value the superseded runs used. It is left here rather than silently changed
+# because moving it is a decision about where the planet sits, and because
+# `config_sha256` pins it into every run manifest.
 orbit:
   earth_solar_constant_w_m2: 1361.0
   # 0.96 puts the vegetated branch at about 291.4 K, mid-range of the 290-293 K
@@ -122,6 +132,7 @@ orbit:
   sweep_flux_earth: [0.90, 0.95, 1.00]
   longitude_vernal_equinox_degrees: 102.7
 
+# DETERMINED. 1 bar at 450 ppm CO2, chosen.
 atmosphere:
   # Partial pressures sum to exactly 1 bar. H2O remains interactive; it is not
   # included as a fixed surface partial pressure.
@@ -131,6 +142,9 @@ atmosphere:
   pCO2_bar: 0.00045
   ozone: true
 
+# DETERMINED. The k25v spectrum replaced ExoPlaSim's k2.dat, which is the star
+# K2-18, an M2.5V, not a K dwarf. Two-band surface albedo is required under a red
+# spectrum and is on.
 radiation:
   # Separate visible/near-IR surface albedos, which matter under a red spectrum:
   # snow albedo splits 0.959/0.614 at maximum and 0.496/0.289 at minimum.
@@ -155,6 +169,11 @@ radiation:
   # kind, with the direction of the error known.
   stellar_spectrum: k25v
 
+# PARTLY DETERMINED. Sea ice and glaciers are decided. `mixed_layer_depth_m` is
+# NOT: 50 m is a default, it sets seasonal amplitude, and this world's year is
+# half Earth's so it damps seasonality about twice as hard as Earth's ocean does.
+# `analysis/error_budget.json` carries it as a structural item awaiting one
+# perturbation run.
 surface:
   mixed_layer_depth_m: 50.0
   sea_ice: true
@@ -172,6 +191,11 @@ surface:
     min_snow_depth_m: 2.0
     initial_height_m: -1.0
 
+# TRANSITIVE, except where noted. Resolution, layers, ranks and timestep are
+# operational choices that change with what is being run, not properties of the
+# world -- they moved from T21/8 to T42/16 between the flux bracket and the
+# bootstrap. The ozone scale and band weights inside the block ARE determined and
+# say so.
 model:
   # T42 for the iteration-1 baseline. The bracket ran at T21, which was right
   # for a several-kelvin question. This pass feeds the carve verdict and the
@@ -379,6 +403,11 @@ model:
 # Convergence for a cycle run is also undefined: drift-based criteria assume an
 # approach to a steady state, and a forced cycle has none. Validate against
 # periodicity instead, comparing a year against the same phase one cycle later.
+# UNDETERMINED. Amplitude, period and mechanism are all still open, and the
+# numbers below are from exploratory runs centred on a baseline flux that has
+# since moved twice. Nothing downstream may rely on them. See the block's own
+# notes, and notes/ for the epsilon Eridani measurements that bound the
+# amplitude.
 stellar_cycle:
   # Sinusoidal bolometric variation about the baseline flux, applied at every
   # radiation timestep by patches/exoplasim-3.4.2-star-cycle.patch.

@@ -95,6 +95,11 @@ def json_terrain(path: Path) -> str | None:
     return d.get("terrain_hash") or (d.get("source") or {}).get("terrain_hash")
 
 
+def sha256_of(path) -> str:
+    import hashlib
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
 def main() -> int:
     config = yaml.safe_load((ROOT / "config" / "planet.yaml").read_text(encoding="utf-8"))
     rep = Report()
@@ -235,6 +240,72 @@ def main() -> int:
                 f"year = {derived['orbital_year_earth_days']:.3f} d")
     except Exception as exc:
         rep.add(FAIL, "config", str(exc))
+
+    # -- config blocks declare their determination status --------------------
+    #
+    # A value that has never been decided must not be indistinguishable from one
+    # that has. stellar_cycle carried an amplitude and a centre from before there
+    # was a baseline flux to centre on, and both were later read back as though
+    # they had been chosen.
+    try:
+        import re as _re
+        text = (ROOT / "config" / "planet.yaml").read_text(encoding="utf-8")
+        lines = text.splitlines()
+        unmarked = []
+        for i, line in enumerate(lines):
+            if not _re.match(r"^[a-z_]+:\s*$", line):
+                continue
+            window = "\n".join(lines[max(0, i - 8):i])
+            if not any(k in window for k in
+                       ("DETERMINED", "PROVISIONAL", "UNDETERMINED", "TRANSITIVE")):
+                unmarked.append(line.split(":")[0])
+        rep.add(FAIL if unmarked else OK, "config blocks declare their status",
+                f"unmarked: {', '.join(unmarked)}" if unmarked else
+                "every top-level block is marked")
+    except Exception as exc:
+        rep.add(WARN, "config blocks declare their status", f"not checked: {exc}")
+
+    # -- binaries vs the patches they should contain -------------------------
+    #
+    # ExoPlaSim builds one executable per (resolution, layers, ranks) triple, so
+    # patching the source and running rebuilds only the configuration in use and
+    # leaves the rest silently stale. That is failure class 11, and it fired
+    # three times in one day. .venv is untracked and reinstallable, and a
+    # reinstall discards every patch without warning, so this is also the check
+    # that says a reinstall has happened.
+    try:
+        manifest = ROOT / "exoplasim" / "patches" / "binary_manifest.json"
+        run_dir = (ROOT / ".venv" / "lib" / "python3.12" / "site-packages"
+                   / "exoplasim" / "plasim" / "run")
+        on_disk = sorted(run_dir.glob("most_plasim_*.x")) if run_dir.is_dir() else []
+        if not manifest.is_file():
+            rep.add(FAIL, "binary manifest",
+                    "absent; run exoplasim/scripts/rebuild_binaries.py")
+        elif not on_disk:
+            rep.add(WARN, "binaries", "none built")
+        else:
+            mf = json.loads(manifest.read_text(encoding="utf-8"))
+            known = mf.get("binaries", {})
+            src = (ROOT / ".venv" / "lib" / "python3.12" / "site-packages"
+                   / "exoplasim" / "plasim" / "src")
+            bad = []
+            for exe in on_disk:
+                rec = known.get(exe.name)
+                if rec is None:
+                    bad.append(f"{exe.name}: not in manifest")
+                    continue
+                if rec["sha256"] != sha256_of(exe):
+                    bad.append(f"{exe.name}: sha differs from manifest")
+                    continue
+                for name, want in (rec.get("sources") or {}).items():
+                    got = sha256_of(src / name) if (src / name).is_file() else None
+                    if got != want:
+                        bad.append(f"{exe.name}: built from an older {name}")
+            rep.add(FAIL if bad else OK, "binaries carry current patches",
+                    "; ".join(bad) if bad else
+                    f"{len(on_disk)} executables match the manifest")
+    except Exception as exc:
+        rep.add(WARN, "binaries", f"not checked: {exc}")
 
     rep.show()
     return 1 if rep.failed else 0
