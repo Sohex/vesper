@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated": "2026-08-16T07:14:13.849756+00:00",
-  "git_commit": "6e78da266781b08c988f04d6d590c5390051f171",
+  "generated": "2026-08-16T10:34:29.780308+00:00",
+  "git_commit": "9d1c037cf56fe66dedcfef4d8612aa10f4450a2c",
   "generator": "scripts/world_state.py",
   "note": "Generated from the artifacts. Do not edit; re-run the generator. Judgement that no artifact can supply is in `curated`, which lives in the generator under version control.",
   "planet": {
@@ -14,6 +14,8 @@
   },
   "star": {
     "spectral_type": "K2.5V",
+    "activity": "active",
+    "surface_uv_relative_to_earth": 0.4,
     "mass_solar": 0.8,
     "luminosity_solar": 0.32359365692962827,
     "effective_temperature_k": 4965.0
@@ -38,17 +40,20 @@
   "active_configuration": {
     "source_build": "precarve-zoned-g1281",
     "model": {
-      "resolution": "T42",
-      "latitudes": 64,
-      "longitudes": 128,
+      "resolution": "T21",
+      "latitudes": 32,
+      "longitudes": 64,
       "layers": 10,
       "precision_bytes": 8,
-      "ncpus": 16,
+      "ncpus": 8,
       "timestep_minutes": 45.0,
       "physics_filter": "gp|exp|sp",
       "output_type": ".nc",
       "uniform_land_surface": true,
       "energy_diagnostics": true,
+      "ozone_scale": 0.794,
+      "ozone_uv_weight": 0.335,
+      "ozone_visible_weight": 0.914,
       "energy_diagnostics_3d": true,
       "roughness_source": "lithology",
       "land_albedo_source": "vegetated",
@@ -348,6 +353,19 @@
       "mean_surface_temperature_k": 290.046
     },
     {
+      "run_id": "t21l10p8r8_s095_co20450ppm_rot30h_obl32_e020_glac_k25v_g2d192bed",
+      "status": "spinup_in_progress",
+      "orbits_complete": 60,
+      "flux_earth": 0.95,
+      "cycle": null,
+      "resolution": "T21",
+      "land_albedo_source": "vegetated",
+      "source_build": "precarve-zoned-g1281",
+      "glaciers": true,
+      "converged": null,
+      "mean_surface_temperature_k": 288.8
+    },
+    {
       "run_id": "t21l10p8r8_s100_co20450ppm_rot30h_obl32_e020_glac_g86c5409a",
       "status": "spinup_in_progress",
       "orbits_complete": 50,
@@ -372,6 +390,19 @@
       "glaciers": true,
       "converged": null,
       "mean_surface_temperature_k": 298.116
+    },
+    {
+      "run_id": "t21l10p8r8_s100_co20450ppm_rot30h_obl32_e020_glac_k25v_g2d192bed",
+      "status": "equilibrated_for_worldbuilding",
+      "orbits_complete": 60,
+      "flux_earth": 1.0,
+      "cycle": null,
+      "resolution": "T21",
+      "land_albedo_source": "vegetated",
+      "source_build": "precarve-zoned-g1281",
+      "glaciers": true,
+      "converged": true,
+      "mean_surface_temperature_k": 296.31450329075886
     },
     {
       "run_id": "t42_s090_co20450ppm_rot30h_obl32_e020",

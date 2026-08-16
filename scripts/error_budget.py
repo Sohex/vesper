@@ -63,8 +63,13 @@ import yaml  # noqa: E402
 
 # Measured, not assumed. Each is sourced in the comment beside it.
 DEFAULT_ATTENUATION = 0.5      # v4->v5 pair; see the module docstring
-FALLBACK_SLOPE = 203.6         # K per unit flux ratio, from the two runs that
-                               # pass the extrapolated-offset criterion
+FALLBACK_SLOPE = 150.2         # K per unit flux ratio, from the T21 bracket at
+                               # 0.95 (288.760 K) and 1.00 (296.270 K), both on
+                               # carved-zoned-v5 with the ozone band-weight fix.
+                               # Replaces 203.6, which was 26% high. Measured
+                               # between two converged points SPANNING the
+                               # target, per the rule that a sensitivity taken
+                               # across one regime does not transfer to another.
 FALLBACK_PLANETARY_ALBEDO = 0.266
 FALLBACK_LAND_FRACTION = 0.4317
 
@@ -109,12 +114,24 @@ OTHER_ITEMS = [
      "a subgrid lake the column is dry, so VPD is too high, E is overstated and "
      "the verdict under-carves. Opposite in sign to the albedo-driven "
      "over-carve, and the only item here whose magnitude is unknown."),
-    ("dust, radiative", "unpriced",
-     "Aerosols are off entirely (L_AERO = 0). Bounded at -0.5 to -2 K using a "
-     "DRY source area of about 12% of land -- carved, and excluding fill that "
-     "sits under a lake. An earlier version of this used 26.6%, which is the "
-     "uncarved hyper-arid limit, and overstated it. Sign is not uniform: dust "
-     "is darker than salt crust and brighter than vegetation. See notes/dust.md."),
+    ("dust, radiative", "TWO-SIDED, -2 K to weakly positive",
+     "Aerosols are off entirely (L_AERO = 0), and ExoPlaSim 3.4.2 cannot switch "
+     "them on: radmod.f90 declares aero_nl but never reads it, so l_aerorad is "
+     "pinned at 0. Reported upstream. Cooling magnitude bounded at -0.5 to -2 K "
+     "on a DRY source area of about 12% of land. "
+     "THE SIGN IS NOT ONE-WAY, and the earlier one-signed entry here was wrong "
+     "for the same reason the GCM would have been. Aerosol forcing reverses "
+     "sign at a critical surface albedo a_c; Mie over the Balkanski source "
+     "distribution, band-averaged on the k25v spectrum, gives a_c = 0.504 in "
+     "band 1 on Di Biagio measured indices, 0.289 on OPAC, and 0.456 in band 2. "
+     "Salt crust is 0.40-0.50, so the reversal sits INSIDE our own albedo range "
+     "and band 2 carries 61.6% of the flux. Dust cools over ocean (0.07) and "
+     "vegetated land (0.18) in every case; over closed-basin fill the sign is "
+     "undetermined by present data. Rocha-Lima 2018 finds fine-mode k rising "
+     "from a ~650 nm minimum through the SWIR, which would lower a_c further "
+     "and favour warming, but its NIR values exist only in a figure. "
+     "Resolving this needs band-2 refractive indices, NOT a GCM run: the "
+     "calculation is analytic once ssa and g are known. See notes/dust.md."),
     ("roughness distribution", "land median 0.502 m under a 2.0 m mean",
      "Anchored to ExoPlaSim's tuned land mean, which the distribution says is "
      "carried by a rough tail. Anchoring inflates mid-range cells; direction "

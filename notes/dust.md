@@ -102,6 +102,52 @@ the decisive argument for modelling rather than declaring: a spatially varying
 sign cannot be recorded as a bias direction the way the missing ocean heat
 transport can. Either it is computed or it is unknown.
 
+## The bracket above does not span its own sign statement
+
+Measured 2026-08-16, and it corrects the two tables above rather than extending
+them.
+
+Aerosol top-of-atmosphere forcing reverses sign at a critical surface albedo
+`a_c`: below it the layer scatters and cools, above it the layer is darker than
+the ground and warms. Both tables above bracket the bright case at a = 0.40 and
+return cooling, so the bracket never crosses zero even though the paragraph
+immediately above says the sign is not uniform. The prose was right and the
+numbers did not implement it.
+
+Computed here with a Bohren-Huffman Mie code, integrated over the Balkanski
+source distribution (number-median radius 0.295 um, sigma 2.0, density 2.6) and
+band-averaged on the k25v spectrum with correct bin-width weighting:
+
+| indices | band (um) | ssa | g | a_c |
+| --- | --- | --- | --- | --- |
+| Di Biagio 2019, measured | 0.34-0.75 | 0.965 | 0.700 | 0.504 |
+| OPAC, absorbing end | 0.34-0.75 | 0.889 | 0.716 | 0.289 |
+| OPAC, absorbing end | 0.75-4.00 | 0.951 | 0.685 | 0.456 |
+
+Salt crust is 0.40 to 0.50. **The reversal sits inside our own stated albedo
+range for the surface that makes this world unusual**, and band 2 carries 61.6%
+of the stellar flux (the model's own figure, not a blackbody estimate). Over
+ocean at 0.07 and vegetated land at 0.18 every case cools without ambiguity.
+
+The Mie code is validated against two independent targets before any of this was
+believed: Bohren and Huffman's worked example (m = 1.55, x = 5.213, Qsca =
+3.10543) to 4.5e-6, and OPAC's four published mineral components across four
+wavelengths, reproducing mass extinction efficiency, single-scattering albedo
+and asymmetry parameter to three or four decimals.
+
+Rocha-Lima et al. (2018) pushes the same way and is not yet usable. Its headline
+result is that fine-mode k **rises** from a minimum near 650 nm through the
+shortwave infrared, which would lower `a_c` further and favour warming, and it
+also means OPAC may not be an over-absorbing endmember in band 2 at all. But its
+values above 950 nm exist only in a figure, its real part is an assumed constant
+of 1.56 rather than a retrieval, and its data are available only on request.
+
+**The consequence for the plan is that this does not need a GCM.** The sign is an
+analytic function of ssa, g and the surface albedo map we already build, and done
+offline the longwave term can be included, which ExoPlaSim's shortwave-only
+aerosol block cannot do at all. What is missing is band-2 refractive indices,
+not model machinery.
+
 ## Is the patch error-prone?
 
 Less than it looks, because the parameters split cleanly.
