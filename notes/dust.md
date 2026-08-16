@@ -135,12 +135,43 @@ believed: Bohren and Huffman's worked example (m = 1.55, x = 5.213, Qsca =
 wavelengths, reproducing mass extinction efficiency, single-scattering albedo
 and asymmetry parameter to three or four decimals.
 
-Rocha-Lima et al. (2018) pushes the same way and is not yet usable. Its headline
-result is that fine-mode k **rises** from a minimum near 650 nm through the
-shortwave infrared, which would lower `a_c` further and favour warming, and it
-also means OPAC may not be an over-absorbing endmember in band 2 at all. But its
-values above 950 nm exist only in a figure, its real part is an assumed constant
-of 1.56 rather than a retrieval, and its data are available only on request.
+**Resolved, by digitising Rocha-Lima et al. (2018) Fig. 10.** Its values above
+950 nm exist only as a plot, so they were extracted by colour-thresholding the
+marker series and mapping through the axis frame, then checked against the four
+values the paper states in text: mixed-mode Algeria reads 0.0032 at 450 nm
+against a stated 0.0030, and 0.0005 at 850 nm against 0.0005. Accuracy is about
++/-0.0005 in k.
+
+Fine-mode k does rise from its ~650 nm minimum through the shortwave infrared,
+about fivefold by 2450 nm. **That does not make band 2 more absorbing**, because
+absorption efficiency goes as the size parameter times k, i.e. as k/lambda, and
+lambda grows faster than k does: k/lambda is 0.0035 at 0.52 um and 0.0028 at
+1.25 um. Band-2 single-scattering albedo therefore comes out *higher* than band
+1, not lower.
+
+| band 2 indices | ssa | g | a_c |
+| --- | --- | --- | --- |
+| Rocha-Lima Algeria fine | 0.975 | 0.684 | 0.570 |
+| Rocha-Lima Mauritania fine | 0.964 | 0.687 | 0.508 |
+| OPAC | 0.952 | 0.691 | 0.453 |
+
+So `a_c` is 0.51-0.57 in band 2 against 0.50 in band 1, and salt crust tops out
+at 0.50. **Dust cools over every surface on this world**, including closed-basin
+fill, narrowly at the bright end. The evaporite mineralogy of the actual source
+pushes the same way, being less absorbing than the Saharan silicate dust
+measured here.
+
+Two corrections this forced. OPAC is **1.0 to 2.1x** more absorbing than measured
+in the near-IR, not the 8-22x inferred earlier from the ARIA Peters file --
+Peters is the outlier, running 3-10x below Rocha-Lima. And the two-sided entry
+this section previously argued for was an overcorrection: the sign is one-signed
+cooling. What stands is the narrower point that the original bracket was
+one-signed *by construction* and could not have shown a reversal had one existed.
+
+Remaining caveats: k digitised from a figure; n taken as 1.52 (Di Biagio
+measured) where Rocha-Lima assumed 1.56; k held flat above 2.45 um, which
+carries about 5% of the flux; and `a_c` depends on the assumed size
+distribution.
 
 **The consequence for the plan is that this does not need a GCM.** The sign is an
 analytic function of ssa, g and the surface albedo map we already build, and done
