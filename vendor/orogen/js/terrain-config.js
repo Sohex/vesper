@@ -579,8 +579,12 @@ export const LITHO_CRATON_T = 0.45;          // craton weight above which baseme
 export const LITHO_FOLDBELT_T = 0.40;        // fold-belt weight marking an orogen
 export const LITHO_BASIN_T = 0.35;           // basin weight marking a filled basin
 export const LITHO_PLATEAU_T = 0.45;         // plateau weight marking a capped upland
-export const LITHO_SUBDUCT_MELANGE_T = 0.65; // subduction factor above which mélange forms
-export const LITHO_ARC_T = 0.05;             // margin/back-arc contribution marking arc volcanism (km)
+// LITHO_ARC_T and LITHO_SUBDUCT_MELANGE_T were REMOVED 2026-08-16. Both drove
+// rules that could never fire: LITHO_ARC_T was compared against `margins`, a
+// dimensionless oceanic feature label, by a rule restricted to continents, and
+// LITHO_SUBDUCT_MELANGE_T tested subductFactor, which is high on the DOWNGOING
+// slab rather than the overriding plate where a prism sits. Arc and forearc
+// position now come from backArcDist and ARC_HALF_WIDTH_KM above.
 export const LITHO_LIP_T = 0.02;             // flood-basalt contribution marking a LIP (km)
 export const LITHO_HOTSPOT_T = 0.05;         // hotspot contribution marking an ocean island (km)
 export const LITHO_SHELF_DIST_CELLS = 2.0;   // shelf reach, in units of 100 km

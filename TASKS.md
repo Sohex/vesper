@@ -28,8 +28,6 @@ Status: `open` | `doing` | `blocked` | `done` | `wontfix` (with a reason).
 
 | LITH-14 | Split the basalts: a shared 0.10 is the weathered state, fresh lava and tephra are below 0.05 | `notes/audits/orogen-lithology.md` | open |
 
-| LITH-16 | Rename `melange` to the subduction melange it actually models, or split blueschist out. One erodibility cannot serve a sheared block-in-matrix unit and a competent high-grade rock | `notes/audits/orogen-lithology.md` | open |
-
 | LITH-5 | Explain or correct the composition divergence from GLiM: metamorphic 2.1x Earth, evaporite ~10x, volcanic 0.5x | `notes/audits/orogen-lithology.md` | open |
 | LITH-6 | Decide whether `surface_rock` should be renamed; it carries consolidated lithology, and GLiM's largest land class (unconsolidated, 24.6%) has no counterpart | `notes/audits/orogen-lithology.md` | open |
 | GRAV-5 | Bracket the slope exponent | `notes/audits/orogen-gravity.md` | done -- needs NO build: gravity is a post-hoc scalar, so n=2 is the existing export rescaled by 1.1427. Land mean 0.407 -> 0.465 km, peak 4.593 -> 5.249 km, land fraction and basin identity unchanged by construction. Worth ~0.4 K by lapse rate |
@@ -64,6 +62,7 @@ Status: `open` | `doing` | `blocked` | `done` | `wontfix` (with a reason).
 | LITH-1 | Assign evaporite mineralogy downstream from the chemical divide, not from Orogen's single geometric `evaporite | `notes/audits/orogen-lithology.md` | wontfix -- superseded by LITH-2. The brine divide predicts which mineral a basin grows, but albedo should not be split on it |
 | REF-1 | NOT HELD: Hardie, Eugster (1970), *The evolution of closed-basin brines*, Special Publications of the Mineralo | `references/INDEX.md` | done -- Hardie & Eugster (1970) obtained, MSA_SP3_273-290.pdf |
 | REF-5 | NOT HELD: Hunt & Salisbury, *Visible and near-infrared spectra of minerals and rocks* series, Modern Geology 1 | `references/INDEX.md` | done -- superseded by Hunt (1982) in Carmichael's Handbook, which consolidates the whole Modern Geology series |
+| LITH-16 | Rename `melange`, or split blueschist out | `notes/audits/orogen-lithology.md` | done -- renamed to "Subduction melange (block-in-matrix)". The assignment rule produces sheared prism, not blueschist, and it now fires in the forearc where a prism belongs: 0.00% -> 6.17% of land |
 | LITH-0 | Determine whether the missing gypsum class is an Orogen oversight | `notes/audits/orogen-lithology.md` | wontfix -- it is not. Orogen assigns evaporite geometrically and has no basis for mineralogy; the decision belongs downstream. Superseded by LITH-1 |
 | GRAV-0 | Determine whether unscaled bathymetry is a bug | `notes/audits/orogen-gravity.md` | wontfix -- g cancels in the isostatic balance, so scaling ocean depth would be wrong. The rule is now stated once in `scaledHeightKm` instead of being triplicated |
 | GRAV-1 | Decide whether to give Orogen's erosion physical units so gravity enters generation | `notes/audits/orogen-gravity.md` | wontfix -- the erosion law is n = 1, at which post-hoc 1/g scaling and correct-gravity erosion are the SAME operation, and the network is at grade nearly everywhere. Difference is 5.7% of local relief on single-cell headwaters and nothing elsewhere. Superseded by GRAV-4/5/6 |

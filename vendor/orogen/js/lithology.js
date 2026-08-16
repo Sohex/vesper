@@ -31,7 +31,7 @@
 
 import {
     LITHO_CRATON_T, LITHO_FOLDBELT_T, LITHO_BASIN_T, LITHO_PLATEAU_T,
-    LITHO_SUBDUCT_MELANGE_T, LITHO_LIP_T, LITHO_HOTSPOT_T, ARC_HALF_WIDTH_KM,
+    LITHO_LIP_T, LITHO_HOTSPOT_T, ARC_HALF_WIDTH_KM,
     LITHO_SHELF_DIST_CELLS, LITHO_CARBONATE_LAT_DEG,
     LITHO_COVER_BASIN_KM, LITHO_COVER_CRATON_KM, LITHO_COVER_PLATEAU_KM,
     LITHO_COVER_LIP_KM, LITHO_COVER_SHELF_KM, LITHO_COVER_PELAGIC_MAX_KM,
@@ -140,7 +140,7 @@ export const ROCK_CLASSES = [
     { id:  9, code: 'gneiss',       name: 'Cratonic gneiss',                     category: 'metamorphic', erodibility: 0.35, densityGCm3: 2.75, albedo: 0.28 },
     { id: 10, code: 'schist',       name: 'Orogenic schist / phyllite',          category: 'metamorphic', erodibility: 0.45, densityGCm3: 2.8, albedo: 0.22 },
     { id: 11, code: 'quartzite',    name: 'Quartzite',                           category: 'metamorphic', erodibility: 0.25, densityGCm3: 2.65, albedo: 0.45 },
-    { id: 12, code: 'melange',      name: 'Subduction mélange / blueschist',     category: 'metamorphic', erodibility: 1.60, densityGCm3: 2.8, albedo: 0.18 },
+    { id: 12, code: 'melange',      name: 'Subduction mélange (block-in-matrix)', category: 'metamorphic', erodibility: 1.60, densityGCm3: 2.8, albedo: 0.18 },
     { id: 13, code: 'shelf_clastic', name: 'Shelf sandstone / shale',            category: 'sedimentary', erodibility: 2.20, densityGCm3: 2.5, albedo: 0.3 },
     { id: 14, code: 'carbonate',    name: 'Carbonate platform',                  category: 'sedimentary', erodibility: 0.45, densityGCm3: 2.7, albedo: 0.35 },
     { id: 15, code: 'foreland_clastic', name: 'Foreland molasse / flysch',       category: 'sedimentary', erodibility: 2.60, densityGCm3: 2.45, albedo: 0.28 },
@@ -326,8 +326,6 @@ export function classifyLithology(mesh, r_xyz, r_elevation, tectonics, debugLaye
     const dl = debugLayers || {};
     const lip = dl.lip || null;
     const hotspot = dl.hotspot || null;
-    const margins = dl.margins || null;
-    const backArc = dl.backArc || null;
 
     // Stress normalised to [0,1] so the metamorphic grade threshold means the
     // same thing regardless of how hard this particular planet is colliding.
@@ -389,13 +387,24 @@ export function classifyLithology(mesh, r_xyz, r_elevation, tectonics, debugLaye
         // arcGap - ARC_HALF_WIDTH_KM is forearc and gets no arc rock.
         const inArcBelt = Number.isFinite(arcDist) && Number.isFinite(arcGap)
                           && Math.abs(arcDist * edgeKm - arcGap) <= ARC_HALF_WIDTH_KM;
+        // The forearc is everything trenchward of the arc band: accretionary
+        // prism, forearc basin, serpentinite. It is where melange belongs, and
+        // it is on the OVERRIDING plate, which is what backArcDist measures
+        // from. A resolution caveat: at ~15 km cells the prism proper cannot be
+        // separated from the forearc basin, so this is the whole province.
+        const inForearc = Number.isFinite(arcDist) && Number.isFinite(arcGap)
+                          && arcDist * edgeKm < arcGap - ARC_HALF_WIDTH_KM;
 
         let bm;
         // Basement: what is left when everything above is stripped away.
         if (oceanic) {
             bm = R.morb;
         } else {
-            if (subduct > LITHO_SUBDUCT_MELANGE_T && bType === 1) bm = R.melange;
+            // Melange had the SAME bug the arc rules did: subductFactor is high
+            // on the DOWNGOING slab, so this fired on ocean floor and melange
+            // came to 0.00% of land on every world. An accretionary prism sits
+            // on the overriding plate, in the forearc.
+            if (inForearc) bm = R.melange;
             else if (inArcBelt) bm = R.granodiorite;   // arc root, unroofed
             else if (fold > LITHO_FOLDBELT_T) bm = stress > 0.6 ? R.gneiss : R.schist;
             else if (craton > LITHO_CRATON_T) bm = R.gneiss;
