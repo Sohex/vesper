@@ -70,21 +70,27 @@ def component_data(component: str, config: dict | None = None,
     raised an IndexError only because the counts happened to differ. Had they
     matched, it would have computed a wrong answer in silence.
 
-    Falls back to the flat directory when no per-build one exists, so older
-    layouts keep working; pass `strict=True` to refuse that fallback.
+    **Never falls back to the flat directory.** It used to, "so older layouts
+    keep working", and that fallback is the original bug wearing the shape of its
+    fix: it turns a missing input into a silent read of whichever build happened
+    to be active when the flat directory was last written. Returning a path that
+    does not exist is strictly better -- the caller fails on a missing file,
+    naming it, instead of succeeding against the wrong terrain.
+
+    `strict=True` additionally refuses to return the path at all, raising here
+    rather than at the caller's first read. Use it where the failure should
+    surface at argument-parse time, which is most places.
     """
     cfg = _config(config)
     name = str(cfg.get("source_build", ""))
-    root = PROJECT_ROOT / component / "data"
-    named = root / name
-    if named.is_dir():
-        return named
-    if strict:
+    named = PROJECT_ROOT / component / "data" / name
+    if strict and not named.is_dir():
         raise RuntimeError(
-            f"no per-build data at {named}; build it for {name!r} rather than "
-            f"falling back to {root}, which holds whichever build was active "
-            "when it was last written")
-    return root
+            f"no per-build data at {named}; build it for {name!r}. There is no "
+            "fallback: the flat directory holds whichever build was active when "
+            "it was last written, and reading it would pair one terrain's rows "
+            "with another's columns.")
+    return named
 
 
 def terrain_hash(config: dict | None = None) -> str:

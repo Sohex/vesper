@@ -101,6 +101,11 @@ def sha256_of(path) -> str:
 
 
 def main() -> int:
+    import argparse
+    argparse.ArgumentParser(
+        description="Verify that everything in tree describes the same world. "
+                    "Exit 1 on disagreement. Takes no arguments; it audits the "
+                    "artifacts as they are.").parse_args()
     config = yaml.safe_load((ROOT / "config" / "planet.yaml").read_text(encoding="utf-8"))
     rep = Report()
     build = str(config.get("source_build", ""))
