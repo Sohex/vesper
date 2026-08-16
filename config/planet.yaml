@@ -17,30 +17,23 @@ schema_version: 1
 # result's provenance should depend on what it was computed from rather than on
 # when it was computed.
 #
-#   precarve-unzoned  821aa71b  the 292.97 K baseline; evaporite one class at 0.50
-#   precarve-zoned    26fc7691  same drainage, crust/fill split
-#   carved-zoned      3899a0c5  SUPERSEDED, see below
-#   carved-zoned-v2   010f2143  SUPERSEDED, cover-chain branch order
-#   carved-zoned-v4   5bed5549  corrected verdict + cover-chain fix
-#   precarve-zoned-g1281      974ceb78  pre-carve base at g = 12.81
-#   precarve-zoned-g1281-erod4x e2b51066  ACTIVE: carbonate and schist erodibility
-#                                       corrected against the literature, class
-#                                       spread compressed to ~4x. Land/sea mask
-#                                       BIT-IDENTICAL to 974ceb78 and the basin
-#                                       catalogue unchanged, so carve verdicts
-#                                       remap; finished basin volume moves 8.1%
-#                                       median, so hydrography must be recomputed.
-#
-# carved-zoned is superseded rather than merely older. Its verdict was decided on
-# climate integrated 180 degrees out of longitude, so 850 of its 1,522 carves are
-# unjustified, and carving cannot be undone within a build. carved-zoned-v2 is
-# the same first pass recomputed after the fix: 1,089 carve, 170 marginal, 2,370
-# preserved. Both stay registered so results already computed from either remain
-# readable and datable.
-#
-# The names are for humans. manifest.hashes.finalElevation is the identity, and
-# every run manifest and analysis report records it.
+# lib/orogen.py is the registry and holds the hash, the note and what superseded
+# what. No list of builds belongs here: it goes stale the moment a build lands,
+# and a stale list beside the live setting reads as though it were checked.
 source_build: precarve-zoned-g1281-erod4x
+
+# Which climatology every downstream component reads by default. Named here
+# rather than hardcoded in a _paths helper, because it was hardcoded to
+# `climatology_s096` -- computed on pre-carve terrain under the wrong stellar
+# spectrum, and the surface the antipodal carve verdict was taken from. Six
+# scripts across pedology and biosphere defaulted to it silently.
+#
+# NOTE this is still not the active build's climate. Every climatology in tree
+# predates the current terrain, so anything derived from one is provisional
+# until the re-baseline runs. check_consistency.py compares terrain hashes and
+# will say so; that is the intended way to find out, rather than a comment here
+# that has to be remembered.
+baseline_climatology: exoplasim/analysis/climatology/baseline_t42_s0945_regular_climatology.nc
 
 # DETERMINED. Radius and gravity are Orogen's and canonical; mass follows from
 # gravity, not the other way round. Rotation, obliquity and eccentricity chosen.
