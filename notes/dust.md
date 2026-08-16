@@ -66,10 +66,35 @@ fraction of 0.20:
 | 0.10 | -1.53 K | -0.86 K |
 | 0.30 | -4.60 K | -2.59 K |
 
-Earth's global dust AOD is about 0.03 and this planet's closed-basin fill is
-roughly ten times Earth's dust-source area, so 0.1 to 0.3 is not an extreme
-bracket. **That puts dust above every item in the error budget except the
-biosphere question**, which by the project's own rule makes it worth refining.
+**Corrected: the first version of this bound used the wrong source area.** It
+took closed-basin fill at 26.6% of land, which is the figure for the *uncarved*
+build -- the hyper-arid limit, where no basin has had its outlet cut. That is not
+this world's expected configuration.
+
+Two corrections, both reducing it:
+
+- **Carving removes fill.** Two carve passes took it from 26.6% to 12.4% of land.
+  The uncarved figure describes a planet the drainage verdict says does not
+  survive.
+- **Wet fill is not a dust source.** On the build where a lake solution exists,
+  4.4 points of the 16.5% sit under water, leaving **12.0% of land as dry
+  closed-basin fill**. A flooded playa emits nothing.
+
+So the realistic dry-source area is around 10 to 12% of land. Earth's
+*preferential* dust sources -- topographic lows holding fine sediment, not
+deserts in general -- are a few percent of land, so this world is perhaps two to
+four times Earth, not ten.
+
+| dust AOD over land | over vegetation (a=0.20) | over playa (a=0.40) |
+| ---: | ---: | ---: |
+| 0.03, Earth-like | -0.46 K | -0.26 K |
+| 0.06, ~2x Earth source | -0.92 K | -0.52 K |
+| 0.12, ~4x Earth source | -1.84 K | -1.03 K |
+
+That is a smaller claim than the first version made. Dust is plausibly worth half
+a kelvin to two kelvin, which puts it above the lake compositing and the
+lithology fixes but **well below the biosphere question**, and comparable to the
+structural items rather than dominating them.
 
 **And the sign is not uniform.** Dust is darker than salt crust and brighter than
 vegetation, so it warms over its own source regions and cools elsewhere. That is

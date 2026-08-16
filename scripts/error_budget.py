@@ -110,11 +110,11 @@ OTHER_ITEMS = [
      "the verdict under-carves. Opposite in sign to the albedo-driven "
      "over-carve, and the only item here whose magnitude is unknown."),
     ("dust, radiative", "unpriced",
-     "Aerosols are off entirely (L_AERO = 0). About a quarter of this planet's "
-     "land is closed-basin fill, which on Earth is the most efficient dust "
-     "source there is, so a dusty atmosphere is plausible and its albedo effect "
-     "is unknown. ExoPlaSim's dust source is a uniform mixing ratio over all "
-     "land, which cannot represent it. See notes/dust.md."),
+     "Aerosols are off entirely (L_AERO = 0). Bounded at -0.5 to -2 K using a "
+     "DRY source area of about 12% of land -- carved, and excluding fill that "
+     "sits under a lake. An earlier version of this used 26.6%, which is the "
+     "uncarved hyper-arid limit, and overstated it. Sign is not uniform: dust "
+     "is darker than salt crust and brighter than vegetation. See notes/dust.md."),
     ("roughness distribution", "land median 0.502 m under a 2.0 m mean",
      "Anchored to ExoPlaSim's tuned land mean, which the distribution says is "
      "carried by a rough tail. Anchoring inflates mid-range cells; direction "
