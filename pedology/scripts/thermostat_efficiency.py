@@ -134,7 +134,7 @@ def pending_carve(terrain: dict, build: str, carve_list: Path) -> tuple[np.ndarr
     # closed. See CLAUDE.md on why the naive union is wrong.
     fraction[terrain["endorheic"] & (terrain["basin_index"] < 0)] = 1.0
     provenance = {
-        "carve_list": str(carve_list.relative_to(PROJECT_ROOT)),
+        "carve_list": str((carve_list.relative_to(PROJECT_ROOT) if carve_list.is_relative_to(PROJECT_ROOT) else carve_list)),
         "carve_list_sha256": sha256(carve_list),
         "terrain_hash": verdict.get("terrain_hash"),
         "counts": verdict.get("counts"),

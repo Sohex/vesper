@@ -194,9 +194,17 @@ terrain, which is why `hydrography/` recomputes it.
   has it computed for this planet: 15.19 km).
 - **Never match by longitude between the export and ExoPlaSim output.**
   `source/<build>/exoplasim-*/planet.nc` labels longitudes from −178.5938;
-  ExoPlaSim's own output labels them from 0. Same grid, different labels: take
-  the land mask from each and they agree on 4,106 cells and 100% of cells. Only
-  the coordinate axes disagree. Anything that keys on lon/lat across that
+  ExoPlaSim's own output labels them from 0. Same grid, different labels, and the
+  correct mapping is **by index**: for these files that is a roll of zero, and
+  the two axes are also half a cell apart, so do not "fix" the offset by rolling
+  until the labels line up. Only the coordinate axes disagree; the cells are the
+  same cells.
+
+  This is *not* a claim that the export's gridded `surface_class` and the mask we
+  integrate for ExoPlaSim agree cell for cell. They do not: 276 of 8,192 differ,
+  in both directions, because `build_boundary_conditions.py` integrates from the
+  native mesh while the export emits by the region containing the cell centre.
+  That difference is the reason the mesh integration exists and is expected. Anything that keys on lon/lat across that
   boundary silently matches zero cells, which has now happened three times on
   three different scripts. Share one coordinate source — in practice the
   climatology, since the LPJ-GUESS driver and the pedology soil map are both

@@ -294,6 +294,18 @@ def hydrography() -> dict:
                 break
     return {
         "products_from": str(data.relative_to(ROOT)),
+        # Two different quantities have both been called "the endorheic share"
+        # and they differ by a factor of three or so, because a basin's catchment
+        # is far larger than its floor. Named apart here before someone quotes
+        # one as the other.
+        "endorheic_note": {
+            "drainage_share_of_land": "fraction of LAND AREA that drains to a "
+                "closed basin; the hydrography figure, and the one the carve "
+                "verdict is about",
+            "basin_floor_share_of_land": "fraction of LAND AREA inside a "
+                "preserved basin, i.e. is_endorheic cells; the lithology and "
+                "thermostat figure",
+        },
         "terrain_hash": (rep.get("source") or {}).get("terrain_hash"),
         "drainage": rep.get("drainage"),
         "basins": rep.get("basins"),

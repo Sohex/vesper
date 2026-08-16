@@ -129,3 +129,61 @@ downstream looks strange.
 
 So when adding a component, add the cross-check with it, and prefer the check
 that would have caught the last bug.
+
+---
+
+## Things already checked and disproved: do not re-derive these
+
+Each cost a real investigation and each is the kind of plausible-sounding claim
+that gets raised again by the next reviewer. Recorded so the answer is cheaper
+than the check was.
+
+**LPJ-GUESS does not have a daylength irradiance bias from the 30-hour day.**
+`canexch.cpp:718` divides daily PAR by daylength, so energy and daylength both
+carry the day-length factor and the ratio is exactly 1. The mirror-image
+suggestion, scaling energy up to compensate, would introduce the bug it thinks it
+is fixing.
+
+**The stellar cycle does not cross PFT survival thresholds.** `tcmin_surv` tests
+`mtemp_min20`, a twenty-year running mean of coldest-month means. A cycle shorter
+than that is invisible to it. Any claim that N% of land sits within a cycle's
+swing of a threshold has to reckon with the averaging first.
+
+**`mrro` is not defective.** It is river-routed net divergence rather than local
+generation, which explains the negative values, the nonzero ocean values and the
+99.1% global conservation. It is the wrong field for catchment runoff, which is a
+different statement, and the one that matters.
+
+**Bedrock water fraction is worth 6-9% of AET, not 20-41%.** The larger figure
+came from a test that changed a formula and a parameter together.
+
+**Per-gridcell available water capacity does reach LPJ-GUESS.** Nothing is
+spelled "AWC" or "water-holding capacity", which is why a grep for those finds
+nothing and concludes the loop is open. It is not: `soilinput.cpp:41` takes the
+texture path for any file with more than three columns, `soilinput.cpp:318-334`
+runs a Cosby pedotransfer per gridcell on the sand and clay columns
+`build_soil.py` writes, and `iforganicsoilproperties` blends organic retention in
+and fails loudly without a SoilC column rather than silently doing nothing.
+`vesperinput.cpp:293` then scales capacity by regolith depth per layer.
+
+Two traps in that code. LPJ-GUESS carries soil water as a *fraction* of layer
+capacity, so a layer scaled to exactly zero divides by zero and the resulting NaN
+kills the gridcell **silently** -- zero LAI, zero AET, no crash. And because
+water is fractional, thinner soil reads as relatively *wetter* for the same
+absolute water, so a single cell can move either way through PFT competition.
+Trust a controlled sweep, never one cell.
+
+## One quantity, two meanings, three times the value
+
+"The endorheic share of land" names two different measurements that differ by a
+factor of about 3.5:
+
+- **12.4% of land** is inside a preserved basin (`is_endorheic` cell area). This
+  is the lithology and thermostat figure.
+- **43.0% of land** *drains* to a closed basin. This is the hydrography figure
+  and the one the carve verdict is about.
+
+Both are correct. A basin's catchment is far larger than its floor, which is the
+whole reason a small area of fill can decouple a large share of weathering. They
+are named apart in `world_state.json`; quote the name, never "the endorheic
+share".
