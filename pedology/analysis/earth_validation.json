@@ -1,0 +1,192 @@
+{
+  "verdict": {
+    "claim_survives": true,
+    "claim": "mafic parent material weathers to more clay than felsic under the same climate",
+    "climate_controlled_observed_divergence": 0.0397,
+    "climate_controlled_model_divergence": 0.3202,
+    "model_overstatement_factor": 8.07,
+    "regression_slope_observed_on_predicted": 0.5351,
+    "regression_intercept": 0.0455,
+    "reading": "The mechanism is real and the magnitude is not. Every climate-controlled pair has the predicted sign, and the regression slope near 0.54 says the model moves about twice as far as Earth does across its whole range, not just between families. The likely cause is that nothing caps clay: at high intensity the model takes basalt to 0.95, and the wettest observed site here is 0.60."
+  },
+  "climate_controlled_pairs": [
+    {
+      "mafic": "Deccan Traps, Maharashtra",
+      "felsic": "Dharwar craton granite",
+      "weathering_intensity": 2.216,
+      "observed_divergence": 0.051,
+      "model_divergence": 0.3639
+    },
+    {
+      "mafic": "Karoo basalt, Lesotho",
+      "felsic": "Yilgarn craton",
+      "weathering_intensity": 0.787,
+      "observed_divergence": 0.064,
+      "model_divergence": 0.2434
+    },
+    {
+      "mafic": "Hawaii, Kohala old surface",
+      "felsic": "Dharwar craton granite",
+      "weathering_intensity": 2.207,
+      "observed_divergence": 0.004,
+      "model_divergence": 0.3534
+    }
+  ],
+  "note": "Registered prediction: the model puts basalt 0.257 clay above granite at Earth-mean weathering intensity, rising to 0.40 at high intensity. Observed is SoilGrids 30-60cm, which is below the organic horizon and closer to the weathered parent.",
+  "n_sites": 10,
+  "observed_divergence_mafic_minus_felsic": 0.2398,
+  "predicted_divergence_mafic_minus_felsic": 0.4634,
+  "mafic_mean_observed": 0.4318,
+  "felsic_mean_observed": 0.192,
+  "mafic_mean_predicted": 0.728,
+  "felsic_mean_predicted": 0.2647,
+  "bias_predicted_minus_observed": 0.2068,
+  "correlation_predicted_vs_observed": 0.8221,
+  "sites": [
+    {
+      "site": "Deccan Traps, Maharashtra",
+      "lat": 19.0,
+      "lon": 75.0,
+      "rock": "flood_basalt",
+      "family": "mafic",
+      "temperature_c": 24.96,
+      "precipitation_mm_yr": 806.3,
+      "weathering_intensity": 2.3329,
+      "clay_predicted": 0.7721,
+      "clay_observed_0_5cm": 0.438,
+      "clay_observed_30_60cm": 0.448,
+      "sand_observed_0_5cm": 0.296
+    },
+    {
+      "site": "Deccan Traps, Malwa",
+      "lat": 22.6,
+      "lon": 76.2,
+      "rock": "flood_basalt",
+      "family": "mafic",
+      "temperature_c": 26.19,
+      "precipitation_mm_yr": 1089.4,
+      "weathering_intensity": 3.1042,
+      "clay_predicted": 0.844,
+      "clay_observed_0_5cm": 0.452,
+      "clay_observed_30_60cm": 0.409,
+      "sand_observed_0_5cm": 0.213
+    },
+    {
+      "site": "Parana Traps, Parana",
+      "lat": -24.5,
+      "lon": -51.5,
+      "rock": "flood_basalt",
+      "family": "mafic",
+      "temperature_c": 19.87,
+      "precipitation_mm_yr": 1762.7,
+      "weathering_intensity": 2.6744,
+      "clay_predicted": 0.8077,
+      "clay_observed_0_5cm": 0.362,
+      "clay_observed_30_60cm": 0.434,
+      "sand_observed_0_5cm": 0.316
+    },
+    {
+      "site": "Ethiopian Traps, Shewa",
+      "lat": 9.5,
+      "lon": 39.0,
+      "rock": "flood_basalt",
+      "family": "mafic",
+      "temperature_c": 13.87,
+      "precipitation_mm_yr": 1709.8,
+      "weathering_intensity": 1.6923,
+      "clay_predicted": 0.6843,
+      "clay_observed_0_5cm": 0.501,
+      "clay_observed_30_60cm": 0.598,
+      "sand_observed_0_5cm": 0.165
+    },
+    {
+      "site": "Karoo basalt, Lesotho",
+      "lat": -29.5,
+      "lon": 28.5,
+      "rock": "flood_basalt",
+      "family": "mafic",
+      "temperature_c": 8.46,
+      "precipitation_mm_yr": 1002.1,
+      "weathering_intensity": 0.8057,
+      "clay_predicted": 0.4985,
+      "clay_observed_0_5cm": 0.292,
+      "clay_observed_30_60cm": 0.301,
+      "sand_observed_0_5cm": 0.462
+    },
+    {
+      "site": "Hawaii, Kohala old surface",
+      "lat": 20.1,
+      "lon": -155.75,
+      "rock": "oib",
+      "family": "mafic",
+      "temperature_c": 16.45,
+      "precipitation_mm_yr": 2070.8,
+      "weathering_intensity": 2.3147,
+      "clay_predicted": 0.7616,
+      "clay_observed_0_5cm": 0.366,
+      "clay_observed_30_60cm": 0.401,
+      "sand_observed_0_5cm": 0.388
+    },
+    {
+      "site": "Dharwar craton granite",
+      "lat": 14.2,
+      "lon": 76.6,
+      "rock": "granite",
+      "family": "felsic",
+      "temperature_c": 25.35,
+      "precipitation_mm_yr": 656.0,
+      "weathering_intensity": 2.0992,
+      "clay_predicted": 0.4082,
+      "clay_observed_0_5cm": 0.33,
+      "clay_observed_30_60cm": 0.397,
+      "sand_observed_0_5cm": 0.4
+    },
+    {
+      "site": "Sierra Nevada Batholith",
+      "lat": 37.5,
+      "lon": -119.0,
+      "rock": "granite",
+      "family": "felsic",
+      "temperature_c": 1.0,
+      "precipitation_mm_yr": 805.2,
+      "weathering_intensity": 0.4053,
+      "clay_predicted": 0.1899,
+      "clay_observed_0_5cm": 0.028,
+      "clay_observed_30_60cm": 0.023,
+      "sand_observed_0_5cm": 0.696
+    },
+    {
+      "site": "Yilgarn craton",
+      "lat": -30.0,
+      "lon": 120.0,
+      "rock": "granite",
+      "family": "felsic",
+      "temperature_c": 19.84,
+      "precipitation_mm_yr": 259.6,
+      "weathering_intensity": 0.7686,
+      "clay_predicted": 0.2551,
+      "clay_observed_0_5cm": 0.157,
+      "clay_observed_30_60cm": 0.237,
+      "sand_observed_0_5cm": 0.736
+    },
+    {
+      "site": "Namaqualand granite",
+      "lat": -29.7,
+      "lon": 17.9,
+      "rock": "granite",
+      "family": "felsic",
+      "temperature_c": 17.85,
+      "precipitation_mm_yr": 160.3,
+      "weathering_intensity": 0.4859,
+      "clay_predicted": 0.2055,
+      "clay_observed_0_5cm": 0.073,
+      "clay_observed_30_60cm": 0.111,
+      "sand_observed_0_5cm": 0.856
+    }
+  ],
+  "sources": {
+    "texture": "SoilGrids 250m v2.0, ISRIC, REST query",
+    "climate": "Open-Meteo ERA5 archive, 1991-2020 daily means",
+    "lithology": "assigned by published type locality, NOT read from GLiM"
+  }
+}
