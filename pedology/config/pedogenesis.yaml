@@ -109,18 +109,34 @@ weathering:
 # pyroxene and weathers to clay. That single fact is why humid tropical basalt
 # terrain carries deep clay and humid tropical granite terrain carries sand.
 texture:
+  # `quartz` is a fraction of the FINE EARTH, i.e. of the whole rock. The values
+  # here were originally read off the QAPF classification, where granite spans
+  # 20-60% quartz -- but QAPF normalises Q, A, P and F to 100% *after excluding
+  # mafic minerals and accessories*, so its Q is not a whole-rock fraction. A
+  # granite at the QAPF mid-range of about 31% Q, carrying 10% mafics, is 0.28
+  # quartz by whole rock, not 0.45.
+  #
+  # Corrected below as QAPF mid-range x (1 - mafic fraction). This is a
+  # mineralogical correction rather than a fit: it was derived from the
+  # classification, applied, and the Earth validation re-run afterwards to see
+  # what happened, not adjusted until the validation agreed.
+  #
+  # Sedimentary classes are deliberately NOT rescaled. Their quartz is high for a
+  # different and real reason -- quartz survives transport and sorting, so
+  # sandstones genuinely reach 60-90% quartz -- and QAPF does not apply to them.
+  #
   # Igneous, felsic: quartz-rich, weathers to sandy grus
-  granite:             {sand: 0.70, silt: 0.20, clay: 0.10, quartz: 0.45}
-  granodiorite:        {sand: 0.65, silt: 0.23, clay: 0.12, quartz: 0.30}
-  rift_bimodal:        {sand: 0.60, silt: 0.25, clay: 0.15, quartz: 0.25}
+  granite:             {sand: 0.70, silt: 0.20, clay: 0.10, quartz: 0.28}
+  granodiorite:        {sand: 0.65, silt: 0.23, clay: 0.12, quartz: 0.18}
+  rift_bimodal:        {sand: 0.60, silt: 0.25, clay: 0.15, quartz: 0.19}
   # Igneous, mafic: little quartz, so nearly all of it can become clay
   morb:                {sand: 0.50, silt: 0.30, clay: 0.20, quartz: 0.02}
   oib:                 {sand: 0.50, silt: 0.30, clay: 0.20, quartz: 0.02}
   flood_basalt:        {sand: 0.45, silt: 0.32, clay: 0.23, quartz: 0.02}
   arc_basalt:          {sand: 0.50, silt: 0.30, clay: 0.20, quartz: 0.05}
-  arc_andesite:        {sand: 0.55, silt: 0.28, clay: 0.17, quartz: 0.15}
+  arc_andesite:        {sand: 0.55, silt: 0.28, clay: 0.17, quartz: 0.08}
   # Metamorphic
-  gneiss:              {sand: 0.65, silt: 0.22, clay: 0.13, quartz: 0.35}
+  gneiss:              {sand: 0.65, silt: 0.22, clay: 0.13, quartz: 0.26}
   schist:              {sand: 0.30, silt: 0.42, clay: 0.28, quartz: 0.20}
   quartzite:           {sand: 0.90, silt: 0.07, clay: 0.03, quartz: 0.92}
   melange:             {sand: 0.40, silt: 0.35, clay: 0.25, quartz: 0.20}

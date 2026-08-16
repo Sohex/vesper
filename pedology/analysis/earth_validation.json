@@ -3,10 +3,10 @@
     "claim_survives": true,
     "claim": "mafic parent material weathers to more clay than felsic under the same climate",
     "climate_controlled_observed_divergence": 0.0961,
-    "climate_controlled_model_divergence": 0.2121,
-    "model_overstatement_factor": 2.21,
-    "regression_slope_observed_on_predicted": 0.8126,
-    "regression_intercept": 0.0221,
+    "climate_controlled_model_divergence": 0.1599,
+    "model_overstatement_factor": 1.66,
+    "regression_slope_observed_on_predicted": 0.9203,
+    "regression_intercept": -0.0324,
     "reading": "The mechanism is real and the magnitude is not. Every climate-controlled pair has the predicted sign, and the regression slope near 0.54 says the model moves about twice as far as Earth does across its whole range, not just between families. The likely cause is that nothing caps clay: at high intensity the model takes basalt to 0.95, and the wettest observed site here is 0.60."
   },
   "climate_controlled_pairs": [
@@ -15,61 +15,61 @@
       "felsic": "Dharwar craton granite",
       "weathering_intensity": 2.303,
       "observed_divergence": 0.051,
-      "model_divergence": 0.2568
+      "model_divergence": 0.1908
     },
     {
       "mafic": "Columbia River Basalt",
       "felsic": "Idaho Batholith",
       "weathering_intensity": 0.504,
       "observed_divergence": 0.049,
-      "model_divergence": 0.1745
+      "model_divergence": 0.1525
     },
     {
       "mafic": "Parana Traps, Parana",
       "felsic": "Guiana Shield granite",
       "weathering_intensity": 2.747,
       "observed_divergence": 0.111,
-      "model_divergence": 0.2457
+      "model_divergence": 0.1711
     },
     {
       "mafic": "Parana Traps, Rio Grande do Sul",
       "felsic": "Guiana Shield granite",
       "weathering_intensity": 2.737,
       "observed_divergence": 0.092,
-      "model_divergence": 0.2447
+      "model_divergence": 0.1701
     },
     {
       "mafic": "Ethiopian Traps, Shewa",
       "felsic": "Minas Gerais granite-gneiss",
       "weathering_intensity": 1.593,
       "observed_divergence": 0.224,
-      "model_divergence": 0.1613
+      "model_divergence": 0.1315
     },
     {
       "mafic": "Karoo basalt, Lesotho",
       "felsic": "Bohus granite, Sweden",
       "weathering_intensity": 0.774,
       "observed_divergence": 0.142,
-      "model_divergence": 0.1853
+      "model_divergence": 0.1527
     },
     {
       "mafic": "Hawaii, Kohala old surface",
       "felsic": "Dharwar craton granite",
       "weathering_intensity": 2.143,
       "observed_divergence": 0.004,
-      "model_divergence": 0.2165
+      "model_divergence": 0.1505
     }
   ],
   "note": "Registered prediction: the model puts basalt 0.257 clay above granite at Earth-mean weathering intensity, rising to 0.40 at high intensity. Observed is SoilGrids 30-60cm, which is below the organic horizon and closer to the weathered parent.",
   "n_sites": 16,
   "observed_divergence_mafic_minus_felsic": 0.1789,
-  "predicted_divergence_mafic_minus_felsic": 0.2684,
+  "predicted_divergence_mafic_minus_felsic": 0.2314,
   "mafic_mean_observed": 0.394,
   "felsic_mean_observed": 0.2151,
   "mafic_mean_predicted": 0.4819,
-  "felsic_mean_predicted": 0.2134,
-  "bias_predicted_minus_observed": 0.0431,
-  "correlation_predicted_vs_observed": 0.8048,
+  "felsic_mean_predicted": 0.2505,
+  "bias_predicted_minus_observed": 0.0616,
+  "correlation_predicted_vs_observed": 0.8404,
   "sites": [
     {
       "site": "Deccan Traps, Maharashtra",
@@ -192,7 +192,7 @@
       "temperature_c": 25.53,
       "precipitation_mm_yr": 702.1,
       "weathering_intensity": 2.2225,
-      "clay_predicted": 0.2746,
+      "clay_predicted": 0.3406,
       "clay_observed_0_5cm": 0.33,
       "clay_observed_30_60cm": 0.397,
       "sand_observed_0_5cm": 0.4
@@ -206,7 +206,7 @@
       "temperature_c": 2.85,
       "precipitation_mm_yr": 868.0,
       "weathering_intensity": 0.4872,
-      "clay_predicted": 0.1582,
+      "clay_predicted": 0.1802,
       "clay_observed_0_5cm": 0.112,
       "clay_observed_30_60cm": 0.097,
       "sand_observed_0_5cm": 0.465
@@ -220,7 +220,7 @@
       "temperature_c": 1.58,
       "precipitation_mm_yr": 808.2,
       "weathering_intensity": 0.424,
-      "clay_predicted": 0.1515,
+      "clay_predicted": 0.1709,
       "clay_observed_0_5cm": 0.028,
       "clay_observed_30_60cm": 0.023,
       "sand_observed_0_5cm": 0.696
@@ -234,7 +234,7 @@
       "temperature_c": 20.1,
       "precipitation_mm_yr": 242.6,
       "weathering_intensity": 0.7496,
-      "clay_predicted": 0.1836,
+      "clay_predicted": 0.2152,
       "clay_observed_0_5cm": 0.157,
       "clay_observed_30_60cm": 0.237,
       "sand_observed_0_5cm": 0.736
@@ -248,7 +248,7 @@
       "temperature_c": 17.93,
       "precipitation_mm_yr": 139.2,
       "weathering_intensity": 0.4457,
-      "clay_predicted": 0.1538,
+      "clay_predicted": 0.1741,
       "clay_observed_0_5cm": 0.073,
       "clay_observed_30_60cm": 0.111,
       "sand_observed_0_5cm": 0.856
@@ -262,7 +262,7 @@
       "temperature_c": 8.14,
       "precipitation_mm_yr": 991.3,
       "weathering_intensity": 0.7816,
-      "clay_predicted": 0.1865,
+      "clay_predicted": 0.2191,
       "clay_observed_0_5cm": 0.153,
       "clay_observed_30_60cm": 0.159,
       "sand_observed_0_5cm": 0.524
@@ -276,7 +276,7 @@
       "temperature_c": 25.07,
       "precipitation_mm_yr": 1117.1,
       "weathering_intensity": 2.9057,
-      "clay_predicted": 0.2974,
+      "clay_predicted": 0.372,
       "clay_observed_0_5cm": 0.245,
       "clay_observed_30_60cm": 0.323,
       "sand_observed_0_5cm": 0.327
@@ -290,7 +290,7 @@
       "temperature_c": 20.83,
       "precipitation_mm_yr": 767.8,
       "weathering_intensity": 1.671,
-      "clay_predicted": 0.3019,
+      "clay_predicted": 0.3317,
       "clay_observed_0_5cm": 0.324,
       "clay_observed_30_60cm": 0.374,
       "sand_observed_0_5cm": 0.326
