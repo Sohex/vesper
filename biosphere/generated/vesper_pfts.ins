@@ -6,13 +6,13 @@
 !// orbit        180.6550 Earth days at 0.96 S-Earth
 !// Earth year   365.2569 days
 !// factor       0.494597
-!// rescaled     gdd5min_est
-!// NOT rescaled phengdd5ramp, tcmin_surv, tcmin_est, tcmax_est, twmin_est, twminusc, gdd0_min, gdd0_max
+!// rescaled     distinterval, freenyears, gdd5min_est, nyear_spinup
+!// NOT rescaled phengdd5ramp, tcmin_surv, tcmin_est, tcmax_est, twmin_est, twminusc, gdd0_min, gdd0_max, estinterval
 !//
 !// phengdd5ramp is deliberately untouched: it is a within-season accumulation,
 !// already in absolute time, and scaling it would be a real error.
 !//
-!// generated 2026-08-16T00:33:18+00:00
+!// generated 2026-08-16T04:34:31+00:00
 !///////////////////////////////////////////////////////////////////////////////
 
 !///////////////////////////////////////////////////////////////////////////////////////
@@ -107,7 +107,7 @@ file_nflux "nflux.out"
 title 'LPJ-GUESS cohort mode - global pfts'
 
 vegmode "cohort"		! "cohort", "individual" or "population"
-nyear_spinup 500		! Number of years to spin up the simulation for
+nyear_spinup 1011		! Number of years to spin up the simulation for
 ifcalcsla 1			! Whether to calculate SLA from leaf longevity
 				! (PFT-specific value can be specified in this file instead)
 ifcalccton 1			! Whether to calculate leaf C:N min from leaf longevity
@@ -118,7 +118,7 @@ npatch 15			! Number of replicate patches to simulate
 patcharea 1000			! Patch area (m2)
 estinterval 5			! Years between establishment events in cohort mode
 ifdisturb 1			! Whether generic patch-destroying disturbances enabled
-distinterval 100		! Average return time for generic patch-destroying disturbances
+distinterval 202		! Average return time for generic patch-destroying disturbances
 				! Hickler et al. (2011) used 200
 ifbgestab 1			! Whether background establishment enabled
 ifsme 1				! Whether spatial mass effect enabled
@@ -144,7 +144,7 @@ ifbvoc 0                     	! Whether to include BVOC calculations (1) or not 
 
 ifcentury 1			! Whether to use CENTURY SOM dynamics (mandatory for N cycling)
 ifnlim 1			! Whether plant growth limited by available N
-freenyears 100			! Number of years to spin up without N limitation (needed to build up a N pool)
+freenyears 202			! Number of years to spin up without N limitation (needed to build up a N pool)
 nfix_a 0.234			! First term in N fixation eqn (Conservative 0.102, Central 0.234, Upper 0.367)
 nfix_b -0.172			! Second term in N fixation eqn (Conservative 0.524, Central -0.172, Upper -0.754)
 nrelocfrac 0.5			! Fraction of N retranslocated prior to leaf and root shedding

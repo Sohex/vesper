@@ -46,8 +46,26 @@ import orbit
 
 EARTH_YEAR_DAYS = 365.2568983
 
-# Parameters that are annual degree-day sums and therefore scale with the year.
-SCALED = ("gdd5min_est", "gdd5min")
+# Two kinds of scaling, in opposite directions, and confusing them would be
+# worse than doing neither.
+#
+# SCALED_DOWN are annual *sums*. A shorter year accumulates less, so a threshold
+# has to come down by the year ratio to mean the same climate.
+SCALED_DOWN = ("gdd5min_est", "gdd5min")
+
+# SCALED_UP are *durations counted in years*. A simulation year is only 0.4946
+# Earth years, so representing the same absolute span needs more of them: the
+# reciprocal, 2.022.
+#
+# This is the same trap gdd5min was, one level up, and it is easy to miss because
+# "500 years of spin-up" reads like an absolute statement and is not. At
+# nyear_spinup 500 this world gets 247 Earth years of soil and vegetation
+# development where Earth practice assumes 500.
+#
+#   nyear_spinup   time for vegetation and soil pools to reach steady state
+#   distinterval   mean return time of generic patch-destroying disturbance
+#   freenyears     time allowed to build an N pool before N limitation bites
+SCALED_UP = ("nyear_spinup", "distinterval", "freenyears")
 
 # Named so the decision not to scale them is explicit and reviewable, rather
 # than an omission someone later reads as an oversight.
@@ -55,6 +73,10 @@ DELIBERATELY_UNSCALED = (
     "phengdd5ramp",   # within-season accumulation, already absolute time
     "tcmin_surv", "tcmin_est", "tcmax_est", "twmin_est", "twminusc",
     "gdd0_min", "gdd0_max",  # "no restriction" sentinels, 0 and 100000
+    # Counted in growing seasons rather than in absolute time. One simulation
+    # year is one seasonal cycle on this world just as on Earth, so these are
+    # already in the right unit.
+    "estinterval",
 )
 
 
@@ -79,11 +101,23 @@ def main() -> None:
         if value <= 0.0 or value >= 1e4:
             return match.group(0)
         new = value * factor
-        changes.append({"parameter": name, "from": value, "to": round(new, 2)})
+        changes.append({"parameter": name, "from": value, "to": round(new, 2),
+                        "direction": "down, an annual sum"})
         return f"{name}{gap}{new:.1f}"
 
-    pattern = re.compile(r"\b(" + "|".join(SCALED) + r")(\s+)([0-9.]+)")
-    rescaled = pattern.sub(rescale, text)
+    def rescale_up(match: re.Match) -> str:
+        name, gap, value = match.group(1), match.group(2), float(match.group(3))
+        if value <= 0.0:
+            return match.group(0)
+        new = value / factor
+        changes.append({"parameter": name, "from": value, "to": round(new, 2),
+                        "direction": "up, a duration in years"})
+        return f"{name}{gap}{new:.0f}"
+
+    rescaled = re.compile(
+        r"\b(" + "|".join(SCALED_DOWN) + r")(\s+)([0-9.]+)").sub(rescale, text)
+    rescaled = re.compile(
+        r"\b(" + "|".join(SCALED_UP) + r")(\s+)([0-9.]+)").sub(rescale_up, rescaled)
 
     rescaled_names = ", ".join(sorted({c["parameter"] for c in changes})) or "nothing"
     header = f"""!///////////////////////////////////////////////////////////////////////////////
@@ -116,7 +150,8 @@ def main() -> None:
         "orbital_year_earth_days": orbital_days,
         "earth_year_days": EARTH_YEAR_DAYS,
         "scale_factor": factor,
-        "scaled_parameters": SCALED,
+        "scaled_down_annual_sums": SCALED_DOWN,
+        "scaled_up_year_counts": SCALED_UP,
         "deliberately_unscaled": DELIBERATELY_UNSCALED,
         "changes": changes,
         "output_sha256": hashlib.sha256(output.read_bytes()).hexdigest(),

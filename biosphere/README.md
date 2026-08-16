@@ -165,12 +165,28 @@ mean over the cycle, 0.359, is **4.8% below** the value at the mean climate,
 0.377. That is the concavity argument made concrete: running a variable star on
 its average climate over-predicts productivity, and the error is one-sided.
 
-For the declared 0.91-1.01 cycle, the predicted swing is about 4.2 K
-peak-to-peak after slab damping, so plus or minus 2.1 K on a monthly mean.
-Against the PFT cold-survival thresholds, **13.8% of land sits within that
-distance of one**, where the cycle can kill a PFT outright and a mean-climate run
-would never see it. Survival limits are thresholds, so that is a bias rather than
-noise, and it falls on biome boundaries rather than on global totals.
+### Correction: the cycle does not reach survival thresholds
+
+An earlier version of this file argued that the cycle would cross PFT
+cold-survival limits on the 13.8% of land lying within 2.1 K of one, and that
+thresholds do not average. **That is wrong for this model**, and the reason is
+worth knowing.
+
+`tcmin_surv` is not compared against a cold year. `vegdynam.cpp:153` tests it
+against `climate.mtemp_min20`, which `driver.cpp:617-627` builds as the **mean of
+the last twenty years' coldest monthly means**. That is a deliberate choice in
+LPJ-GUESS: one hard winter does not extirpate a species, so the model smooths
+before it kills. Twenty simulation years is 9.9 Earth years, which spans about
+1.2 periods of an 8-Earth-year stellar cycle, so the window averages the cycle
+almost exactly.
+
+So the cycle reaches the vegetation through **productivity**, which responds
+annually and is where the 4.8% concavity effect measured above lives, and not
+through survival. Biome boundaries move because growth changes, not because
+plants freeze.
+
+The 13.8% figure is still the right measure of how much land is climatically
+marginal. It is not a measure of what this model will do with it.
 
 ## Resolution: T42 first, T85 only behind the climate
 
@@ -201,6 +217,67 @@ land means it gives 603 gC/m2/yr and applied per gridcell 443, a factor of 0.73
 purely from resolving heterogeneity. T42 to T85 is a much smaller step than that,
 but it points the same way, and it means a T42 and a T85 answer are not directly
 comparable without saying so.
+
+**The concavity is not the only thing that moves, and the other one is not a
+bias.** T85 resolves higher, steeper relief: `CLAUDE.md` records it recovering
+the full 5,769 m of mesh relief against T42's 5,101. Sharper orography means
+stronger forced ascent on windward slopes and deeper rain shadows behind them, so
+precipitation redistributes rather than merely smoothing differently. Expect
+windward coasts wetter and lee basins drier, and expect that to run past the
+biosphere into the carve verdict, since a drier rain-shadow basin is less likely
+to overflow and more likely to survive as a basin. A T85 pass is therefore not
+only a finer picture of the same world; parts of it are a different water
+balance, and the carve verdict should be re-taken rather than assumed to carry
+over.
+
+## Spin-up is in simulation years, and that halves it
+
+`nyear_spinup 500` reads like an absolute statement and is not. A simulation year
+is 0.4946 Earth years, so the shipped 500 gives this world **247 Earth years** of
+vegetation and soil development where Earth practice assumes 500.
+
+`build_vesper_pfts.py` therefore scales year *counts* up by 2.022, the reciprocal
+of the factor it scales annual *sums* down by. Confusing those two directions
+would be worse than doing neither, so both lists are named in that script:
+
+| parameter | shipped | rescaled | why |
+| --- | --- | --- | --- |
+| `nyear_spinup` | 500 | 1011 | time to reach steady state |
+| `distinterval` | 100 | 202 | disturbance return time |
+| `freenyears` | 100 | 202 | time to build an N pool before N limits |
+| `estinterval` | 5 | 5 | counted in growing seasons, not absolute time |
+
+Slow soil carbon does not need integrating for all of that: `ifcentury 1` solves
+the equilibrium pool sizes analytically, accumulating running means between 70%
+and 80% of the spin-up and solving at the end of that window
+(`guess.h:3030-3034`). What the longer spin-up buys is enough absolute time for
+the *vegetation* to reach steady state before that solve happens, which slow
+forest succession needs.
+
+The cost is a doubled run, 23 minutes to about 46 on 16 ranks. Not a
+consideration.
+
+## The 30-hour day widens the diurnal range, and this model cannot see it
+
+A 30-hour rotation gives longer daytime heating and longer nighttime cooling than
+Earth's, so the real diurnal temperature range is wider, and on marginal ground a
+night could dip below a freezing threshold that the daily mean never approaches.
+
+The forcing carries this correctly: `dtr` in the driver comes from ExoPlaSim's
+own `maxt` and `mint`, which are timestep extrema and so include the full 30-hour
+trough.
+
+**LPJ-GUESS has nowhere to put it.** `climate.dtr` is read in exactly one place,
+`bvoc.cpp:276`, for leaf temperature in the biogenic VOC scheme, which is off.
+There is no daily-minimum mortality anywhere in the model; every cold limit runs
+through `mtemp_min20`, a twenty-year mean of monthly means. So a wider diurnal
+range is physically real here and radiatively present in the climate, and the
+vegetation model is structurally blind to it.
+
+Recorded rather than worked around. Representing it would mean adding a frost
+mortality mechanism that LPJ-GUESS does not have, which is a much larger change
+than this project needs, and the data is already in the driver if it is ever
+wanted.
 
 ## Cost
 

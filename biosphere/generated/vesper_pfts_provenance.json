@@ -1,14 +1,19 @@
 {
-  "generated": "2026-08-16T00:33:18+00:00",
+  "generated": "2026-08-16T04:34:31+00:00",
   "source": "/home/cfutro/git/lpj-guess/guess_4.1/data/ins/global.ins",
   "source_sha256": "4daa4358a1f2de730601ac64ce3a64e54821838de20f9391ac07f649fefb90d8",
-  "config_sha256": "a0b9911f5f42764b7dcab63b660fcd5921b5b98c9ca8bf77f7c973af60f7a11a",
+  "config_sha256": "eeaae0341aedffb83493498f90aeb85a279f4614210662a279a2de16d5e0d896",
   "orbital_year_earth_days": 180.65500935790158,
   "earth_year_days": 365.2568983,
   "scale_factor": 0.49459711835345666,
-  "scaled_parameters": [
+  "scaled_down_annual_sums": [
     "gdd5min_est",
     "gdd5min"
+  ],
+  "scaled_up_year_counts": [
+    "nyear_spinup",
+    "distinterval",
+    "freenyears"
   ],
   "deliberately_unscaled": [
     "phengdd5ramp",
@@ -18,45 +23,71 @@
     "twmin_est",
     "twminusc",
     "gdd0_min",
-    "gdd0_max"
+    "gdd0_max",
+    "estinterval"
   ],
   "changes": [
     {
       "parameter": "gdd5min_est",
       "from": 500.0,
-      "to": 247.3
+      "to": 247.3,
+      "direction": "down, an annual sum"
     },
     {
       "parameter": "gdd5min_est",
       "from": 500.0,
-      "to": 247.3
+      "to": 247.3,
+      "direction": "down, an annual sum"
     },
     {
       "parameter": "gdd5min_est",
       "from": 350.0,
-      "to": 173.11
+      "to": 173.11,
+      "direction": "down, an annual sum"
     },
     {
       "parameter": "gdd5min_est",
       "from": 2000.0,
-      "to": 989.19
+      "to": 989.19,
+      "direction": "down, an annual sum"
     },
     {
       "parameter": "gdd5min_est",
       "from": 1100.0,
-      "to": 544.06
+      "to": 544.06,
+      "direction": "down, an annual sum"
     },
     {
       "parameter": "gdd5min_est",
       "from": 350.0,
-      "to": 173.11
+      "to": 173.11,
+      "direction": "down, an annual sum"
     },
     {
       "parameter": "gdd5min_est",
       "from": 2000.0,
-      "to": 989.19
+      "to": 989.19,
+      "direction": "down, an annual sum"
+    },
+    {
+      "parameter": "nyear_spinup",
+      "from": 500.0,
+      "to": 1010.92,
+      "direction": "up, a duration in years"
+    },
+    {
+      "parameter": "distinterval",
+      "from": 100.0,
+      "to": 202.18,
+      "direction": "up, a duration in years"
+    },
+    {
+      "parameter": "freenyears",
+      "from": 100.0,
+      "to": 202.18,
+      "direction": "up, a duration in years"
     }
   ],
-  "output_sha256": "fbfdc17d048c8e49a57f77110409ddfbc56dd1d4b39ce3ef813af5b7fa73ba90",
-  "git_commit": "1a889196d9ed482a6554ade28f98097c69279fbb"
+  "output_sha256": "57772a902a057b9c71bc60fa952e88fe73a6f7a2e765f99d63372e4a67de2767",
+  "git_commit": "4b3f2e5589fa0df889301ae5d02a0348e3310818"
 }

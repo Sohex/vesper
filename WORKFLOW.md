@@ -396,9 +396,26 @@ model sees it inflates the answer.
 **E. The stellar cycle, last, on the settled world.** 0.91 to 1.01 S-Earth over 8
 Earth years. Build the climatology with `--per-year`, pass the sequence to
 `build_lpj_driver.py --climatology y0.nc y1.nc ...`, and the biosphere sees the
-cycle rather than its average. This matters beyond totals: about 14% of land sits
-within one cycle's swing of a PFT cold-survival threshold, and thresholds do not
-average. Then the regional products, biomes, Koppen and lake maps.
+cycle rather than its average. That matters because productivity responds
+annually and saturates, so a run on the cycle mean over-predicts it: 4.8% at the
+one cell measured. It does *not* reach survival thresholds, which LPJ-GUESS gates
+on a twenty-year mean of coldest-month means and which therefore smooth the cycle
+away almost exactly. Then the regional products, biomes, Koppen and lake maps.
+
+Three things about the calendar and the resolution that are easy to get wrong,
+each worked through in `biosphere/README.md`:
+
+- **Spin-up is counted in simulation years**, so the shipped 500 is 247 Earth
+  years. Year counts are scaled up by 2.022 while annual sums are scaled down by
+  0.4946; the two directions are opposite and both lists are named in
+  `build_vesper_pfts.py`.
+- **T85 redistributes precipitation, it does not merely resolve it.** Steeper
+  relief means stronger orographic ascent and deeper rain shadows, so lee basins
+  dry and windward coasts wet. That reaches the carve verdict, which should be
+  re-taken at T85 rather than carried over from T42.
+- **The 30-hour day widens the real diurnal range and LPJ-GUESS cannot see it.**
+  `dtr` reaches only the biogenic VOC scheme, and every cold limit runs through a
+  twenty-year mean, so there is no daily-minimum mortality to trigger.
 
 ## 7. Conventions this project holds to
 
