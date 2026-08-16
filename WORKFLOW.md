@@ -21,7 +21,7 @@ source/              World Orogen exports. Canonical, read-only.
 lib/                 Shared readers: orogen.py (the export), gridding.py (mesh to grid).
 hydrography/         Drainage, catchments, basin capacity, lake balance, carve verdict.
 exoplasim/           Boundary conditions, climate integrations, climatology.
-pedology/            Weathers lithology into soil texture, pH and organic content.
+pedology/            Weathers lithology into soil, and into solute fluxes: CO2, silica, phosphorus.
 biosphere/           LPJ-GUESS: vegetation, leaf area, carbon, PFT composition.
 ```
 
@@ -231,6 +231,27 @@ Runoff means `P - E`, not the model's `mrro`. `mrro` is river-routed net water
 flux, so it is negative in places and non-zero over ocean; using it understates
 land runoff by 6.6x. See `exoplasim/notes/water-and-energy-closure.md`.
 
+**Volcanism enters here as a process, not only as a rock class.** Andic soil
+properties need ongoing ejecta, because volcanic glass is metastable and a
+surface that stops receiving ash weathers past it. The arc classes are the only
+place in this pipeline where volcanism is known to be *continuing*, since they
+are placed as a band about the volcanic front; flood basalt and ocean-island
+provinces are reported undetermined for want of an eruption-age field rather
+than counted or assumed absent. The second gate is leaching, at the literature's
+own boundary: below about 1500 mm of precipitation the same parent material
+weathers to halloysite instead, which is an ordinary clay soil. The consequence
+on this world is that most volcanic terrain is *not* andisol, and the reason
+matters -- andic material FIXES phosphorus rather than supplying it, so getting
+this wrong would have inverted a nutrient result rather than merely scaling one.
+
+**The same weathering also produces solute fluxes, and they leave the
+component.** `weathering_fluxes.py` computes CO2 consumption and dissolved silica
+per lithology from concentrations times runoff. Silica is the supply side of
+silcrete and diatomite, and the endorheic share is what matters there: silica
+reaching the ocean is diluted into an enormous reservoir, while silica reaching a
+closed basin concentrates until it saturates. CO2 is the carbon cycle, and
+section 4 says why that loop is left open.
+
 Every Earth calibration lives in `pedology/config/pedogenesis.yaml` with its
 source. Nothing in the scripts hardcodes a Vesper number, so porting the
 component to another world is a config change.
@@ -291,6 +312,30 @@ density and water-holding capacity the vegetation then grows in. `pedology/`
 therefore iterates against `biosphere/` rather than running once before it.
 
 The loop is therefore: assume, compute, feed back, repeat.
+
+**One loop is deliberately left open: the carbon cycle.** `config/planet.yaml`
+fixes CO2 at 450 ppm, and nothing in this project solves the carbonate-silicate
+balance that would set it. That is a defensible choice for a snapshot climate --
+CO2 was chosen alongside the flux to land the target temperature -- but it should
+be read as an assumption rather than a result, because the pipeline now measures
+what the assumption costs. Silicate weathering converts CO2 into buriable
+alkalinity, so a weathering rate is also a statement about the outgassing the
+world needs to hold its atmosphere steady.
+
+Closing this loop is not a matter of adding a step. It needs a weathering law in
+pCO2 and a climate response to it, which is a coupled calculation across pedology
+and exoplasim rather than an analysis in either, and the weathering
+concentrations currently in use carry no CO2 dependence at all. What exists is a
+bound on the size of the assumption, not its resolution.
+
+Two things about it are worth holding on to. The requirement is driven by **land
+area, not by weathering intensity**: this world weathers less per unit area than
+Earth, being drier, and needs more outgassing anyway because it has roughly twice
+the land. A big-land planet is a high-outgassing planet or it is a cold one. And
+only the exorheic share joins the marine carbonate feedback that stabilises CO2 --
+endorheic alkalinity still buries carbon, on its own basin floor, but it is
+decoupled from the loop that regulates. `pedology/scripts/thermostat_efficiency.py`
+measures that share.
 
 **The verdict map is antitone, not monotone, and that changes what the loop
 does.** Carving removes closed-basin fill, the brightest lithology, so the land
