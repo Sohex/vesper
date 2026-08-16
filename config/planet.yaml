@@ -1,5 +1,17 @@
 schema_version: 1
 
+# DETERMINED vs PROVISIONAL
+#
+# Every block below is one or the other, and each says which. A determined value
+# has been decided or measured and downstream work may rely on it. A provisional
+# one is a placeholder, an interim result, or a parameter for test runs that were
+# exploring rather than deciding, and it will move.
+#
+# The distinction is not cosmetic: `stellar_cycle` has carried an amplitude and a
+# centre since before there was a baseline flux to centre on, and both were read
+# back later as though they had been chosen. They had not. A value that has never
+# been decided should not be indistinguishable from one that has.
+
 # Which World Orogen build every component reads. source/ is namespaced by build
 # because they now multiply faster than they can be swapped in place, and a
 # result's provenance should depend on what it was computed from rather than on
@@ -22,6 +34,14 @@ schema_version: 1
 # every run manifest and analysis report records it.
 source_build: carved-zoned-v5
 
+# PENDING CHANGE, DECIDED BUT NOT YET APPLIED. Gravity is moving to about
+# 12.81 m/s2 and mass to about 1.88 Earth. See notes/pending-gravity-change.md.
+#
+# Do not apply it here piecemeal. Orogen scales terrain relief as 1/g, so the
+# change requires a fresh base generation and supersedes every build in
+# `source/`, the basin catalogue with them. Editing this block before that
+# terrain exists would put the config and every artifact out of step, which is
+# the failure mode `lib/orogen.py`'s hash allowlist exists to catch.
 planet:
   radius_earth: 1.20
   # Surface gravity is canonical, not derived. This is the value World Orogen
@@ -240,6 +260,31 @@ model:
   seasonal_samples_per_orbit: 32
   regular_output_bins_per_orbit: 12
 
+# PROVISIONAL -- NOT DETERMINED. Nothing here has been chosen. The amplitude and
+# period are what some early exploratory runs used, and the range was written
+# around a baseline flux that has since moved twice; it is not centred on the
+# current one and should not be read as a decision that it is.
+#
+# Three things have to be settled before this becomes determined, and they
+# interact:
+#
+#   1. The amplitude, as a stipulated property of the star. The current range is
+#      roughly 100x the Sun's total irradiance cycle, which is defensible for a
+#      young active K dwarf but is a worldbuilding choice rather than an estimate.
+#   2. The mechanism. A secular luminosity change moves effective temperature as
+#      F^(1/4) and needs the spectrum rebuilt past a couple of percent. A spot
+#      and facular activity cycle moves bolometric flux with almost no change in
+#      effective temperature, but with a strongly non-grey signature concentrated
+#      in the blue -- which is the band snow and ice albedo respond to, and the
+#      whole reason a measured spectrum is used at all. The two give different
+#      cryosphere responses at the same flux. Which one this is has not been
+#      decided.
+#   3. The period, in absolute time rather than local years, since a stellar
+#      dynamo does not know about this planet's orbit.
+#
+# Convergence for a cycle run is also undefined: drift-based criteria assume an
+# approach to a steady state, and a forced cycle has none. Validate against
+# periodicity instead, comparing a year against the same phase one cycle later.
 stellar_cycle:
   # Sinusoidal bolometric variation about the baseline flux, applied at every
   # radiation timestep by patches/exoplasim-3.4.2-star-cycle.patch.
