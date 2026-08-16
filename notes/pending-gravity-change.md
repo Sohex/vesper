@@ -37,7 +37,31 @@ a mass and gravity that disagree, so the pair cannot drift apart.
 Earth-like life remains reasonable at that gravity, which is the constraint that
 matters for this world.
 
-## What it invalidates, which is nearly everything geographic
+## Correction: it invalidates far less than this note first claimed
+
+Written before the generator was tested, and wrong in the direction that mattered.
+Orogen runs its pipeline in model units and applies the 1/g relief scaling only
+at the model-unit-to-km conversion on export. Two builds differing only in
+gravity are bit-identical in every hash. Verified upstream on two 30k-region
+planets: all nine hashes equal, peak elevation 5.769 km against 4.593 km.
+
+So of the four things this note predicted:
+
+- **The terrain hash does not move.** Which makes it insufficient identity: a
+  build from another gravity would pass the allowlist while every vertical
+  quantity was off by the ratio. `lib/orogen.py` now reads `gravityMS2` and the
+  preflight checks it against config.
+- **The basin catalogue does not move.** All 3,629 ids stay valid.
+- **Existing carve verdicts transfer and replay.** They *should* still be
+  recomputed, because relief compresses by 20% and the water balance follows the
+  climate -- but that is a choice about accuracy, not a forced restart.
+- **Erosion did not respond to gravity either**, having also run in model units.
+  The landscape's shape is identical; only the vertical scale changes.
+
+The relief prediction was right and the mechanism behind it was wrong, which is
+the least useful way to be right.
+
+## What it does invalidate
 
 Orogen scales maximum terrain relief as 1/g. The geography in `source/` therefore
 cannot be separated from the gravity it was generated with -- `CLAUDE.md` already

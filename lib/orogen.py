@@ -146,6 +146,21 @@ class Export:
                 "with require_known_build=False."
             )
 
+        # Gravity is NOT in the terrain hash, and this is not an oversight in the
+        # hash: Orogen runs its whole pipeline in model units and applies the 1/g
+        # relief scaling only at the model-unit-to-km conversion on export. So two
+        # builds at different gravities are bit-identical in `finalElevation`,
+        # `basinCatalogue` and `params` alike, and differ only in
+        # `manifest.planet.gravityMS2` and the `elevation_km` it scales.
+        #
+        # For us that means the terrain hash is not sufficient identity. A build
+        # generated at another gravity would pass the allowlist silently while
+        # every vertical quantity derived from it was off by the ratio -- 31% at
+        # the gravities this project has used. Gravity is therefore checked
+        # separately, against the config that declares it.
+        self.gravity_m_s2 = float(self.manifest["planet"]["gravityMS2"])
+        self.relief_scale = self.manifest["planet"].get("reliefScale")
+
         if self.manifest.get("raw") is None:
             raise RuntimeError(
                 f"{self.root} has no raw/ mesh; hydrography needs the native mesh"

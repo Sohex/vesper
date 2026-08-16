@@ -248,9 +248,35 @@ node --max-old-space-size=12288 tools/export-maps.mjs \
 e = 0.02, around a K2.5V star (0.80 M☉, 0.3236 L☉, 4965 K). 1 bar atmosphere at
 450 ppm CO₂.
 
-**Gravity is declared, not derived**, and Orogen's value is canonical. It scaled
-this terrain's maximum relief as 1/g, so the geography in `source/` cannot be
-separated from it; mass is what follows. Earlier revisions declared 1.50 M⊕ and
+**Gravity is declared, not derived**, and Orogen's value is canonical. Mass is
+what follows.
+
+But it does not enter the terrain the way this file used to say. Orogen runs its
+whole pipeline in model units; the 1/g relief scaling is applied only at the
+model-unit-to-km conversion on export. So two builds differing only in gravity
+are **bit-identical in every hash**, `finalElevation`, `basinCatalogue` and
+`params` alike, and differ only in `manifest.planet.gravityMS2` and the
+`elevation_km` it scales. Consequences worth holding onto:
+
+- The terrain hash is not sufficient identity for us. `lib/orogen.py` reads
+  `gravityMS2` separately and `scripts/check_consistency.py` checks it against
+  the config, because a build from another gravity would otherwise pass the
+  allowlist while every vertical quantity was off by the ratio.
+- **Basin ids and carve verdicts survive a gravity change.** The catalogue is
+  bit-identical, so an existing verdict replays. Whether it *should* is a
+  separate question -- the climate driving the water balance moves -- but nothing
+  forces the loop to restart from zero.
+- Erosion also ran in model units, so a higher-gravity planet does not get
+  steeper-slope collapse. The landscape's shape is identical; only the vertical
+  scale changes.
+- The catalogue's own `depthKm`, `volumeKm3` and hypsometry do **not** carry the
+  scaling, while `elevation_km` does. Anything mixing the two is comparing
+  verticals that differ by `reliefScale`. Our hypsometry is rebuilt from
+  `elevation_km` so the carve criterion is safe; the one exception is a reported
+  diagnostic, which says so.
+- `orog_mean/std/min/max` are declared `units: 'km'` and are neither scaled nor
+  converted through the hypsometric curve -- they are raw model units. We do not
+  consume them. Anything that starts to must convert them first. Earlier revisions declared 1.50 M⊕ and
 derived 10.2153 m/s², disagreeing with the geography by 0.16%. `derive()` now
 reads `planet.gravity_m_s2` and raises if `planet.mass_earth` is inconsistent
 with it, so the two cannot drift apart again.

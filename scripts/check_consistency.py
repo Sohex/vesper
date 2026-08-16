@@ -138,6 +138,21 @@ def main() -> int:
             rep.add(OK if got == want else FAIL, f"terrain {path.name}",
                     got[:16] if got == want else f"is {got[:16]}, build is {want[:16]}")
 
+    # -- gravity, which the terrain hash cannot see --------------------------
+    try:
+        from orogen import Export as _Export
+        ex = _Export(builds.mesh_export(config))
+        declared = float(config["planet"]["gravity_m_s2"])
+        if abs(ex.gravity_m_s2 - declared) > 1e-6:
+            rep.add(FAIL, "gravity build vs config",
+                    f"build was generated at {ex.gravity_m_s2} m/s2, config "
+                    f"declares {declared}; every vertical km is off by "
+                    f"{declared / ex.gravity_m_s2:.4f}x")
+        else:
+            rep.add(OK, "gravity build vs config", f"{declared} m/s2")
+    except Exception as exc:
+        rep.add(WARN, "gravity build vs config", f"not checked: {exc}")
+
     # -- stale flat data -----------------------------------------------------
     flat = ROOT / "hydrography" / "data"
     if data != flat:

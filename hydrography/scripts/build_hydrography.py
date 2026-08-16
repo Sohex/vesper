@@ -364,9 +364,21 @@ def main() -> None:
                     (5, 25, 50, 75, 95),
                     np.percentile(catch / np.maximum(areas[:, -1], 1e-9) - 1.0,
                                   [5, 25, 50, 75, 95]))},
+            # Numerator is ours, from elevation_km, which carries Orogen's 1/g
+            # relief scaling. Denominator is the catalogue's, which does NOT --
+            # js/basins.js converts with a bare elevToHeightKm and no
+            # reliefScale, so basin depths and volumes are on the unscaled
+            # vertical while elevation_km is on the scaled one. The ratio is
+            # therefore distorted by reliefScale, which was 4% at 10.1989 m/s2
+            # and is 31% at 12.81. Reported with the factor so it stays readable
+            # rather than silently drifting with gravity.
             "capacity_vs_natural_catalogue": float(
                 volumes[:, -1].sum()
                 / sum(b.natural_volume_km3 for b in ex.basins)),
+            "capacity_vs_natural_catalogue_note":
+                "numerator on the relief-scaled vertical, denominator on the "
+                "unscaled catalogue vertical; divide by reliefScale "
+                f"({ex.relief_scale}) to compare like with like",
         },
         "coupling": couplings,
         "cross_check_vs_export_routing": agreement,
