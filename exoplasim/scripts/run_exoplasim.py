@@ -225,6 +225,11 @@ ROUGHNESS_SURFACE_CODES = {173}
 # vaporisation swapped.
 ENERGY_DIAGNOSTIC_CODES = list(range(360, 388))
 
+# The same 28 terms resolved per level, under nener3d. A column total says the
+# atmosphere is losing energy; these say at which level, which is the difference
+# between a number and a lead.
+ENERGY_3D_CODES = list(range(460, 488))
+
 # Which module each denergy term is accumulated in, from the assignment sites in
 # the PlaSim source. Attribution only: the individual terms are not separately
 # documented upstream, and naming them by physics would be inventing detail that
@@ -265,7 +270,14 @@ def register_energy_diagnostic_codes() -> int:
             f"plasim_energy_budget_term_{i:02d}_{module}",
             "W m-2",
         ])
-    return len(ENERGY_DIAGNOSTIC_CODES)
+    for i, code in enumerate(ENERGY_3D_CODES, start=1):
+        module = ENERGY_TERM_MODULE.get(i, "unknown")
+        pyburn.ilibrary.setdefault(str(code), [
+            f"dener3d{i:02d}",
+            f"plasim_energy_budget_term_{i:02d}_{module}_per_level",
+            "W m-2",
+        ])
+    return len(ENERGY_DIAGNOSTIC_CODES) + len(ENERGY_3D_CODES)
 
 
 def intended_surface_codes(config: dict) -> set[int]:
@@ -652,6 +664,8 @@ def main() -> None:
     regular_codes = list(REGULAR_CODES)
     if energy_diagnostics_enabled(config):
         regular_codes = regular_codes + ENERGY_DIAGNOSTIC_CODES
+        if config["model"].get("energy_diagnostics_3d", False):
+            regular_codes = regular_codes + ENERGY_3D_CODES
     model._add_postcodes("example.nl", regular_codes)
     model._add_postcodes("snapshot.nl", SNAPSHOT_CODES)
     model.cfgpostprocessor(

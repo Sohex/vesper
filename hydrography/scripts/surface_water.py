@@ -284,8 +284,11 @@ def main():
         named = DATA / str(_cfg.get("source_build", ""))
         _DATA = named if (named / "basins.nc").is_file() else DATA
     if args.climatology is not None:
-        CLIMATOLOGY = args.climatology.parent
-        globals()["_CLIM_FILE"] = args.climatology
+        # Resolve before storing: the provenance write takes relative_to
+        # PROJECT_ROOT, which raises on a path given relative to the cwd.
+        clim_path = args.climatology.resolve()
+        CLIMATOLOGY = clim_path.parent
+        globals()["_CLIM_FILE"] = clim_path
 
     build = builds.build_root()
     export = Export(builds.mesh_export())

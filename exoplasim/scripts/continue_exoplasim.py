@@ -24,6 +24,7 @@ from run_exoplasim import (  # noqa: E402
     surface_field_report,
     REGULAR_CODES,
     ENERGY_DIAGNOSTIC_CODES,
+    ENERGY_3D_CODES,
     enable_energy_diagnostics,
     energy_diagnostics_enabled,
     register_energy_diagnostic_codes,
@@ -226,6 +227,8 @@ def main() -> None:
         enable_energy_diagnostics(model, config)
         register_energy_diagnostic_codes()
         regular_codes = regular_codes + ENERGY_DIAGNOSTIC_CODES
+        if config["model"].get("energy_diagnostics_3d", False):
+            regular_codes = regular_codes + ENERGY_3D_CODES
     model._add_postcodes("example.nl", regular_codes)
     model.cfgpostprocessor(
         ftype="regular",

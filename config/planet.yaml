@@ -51,7 +51,17 @@ orbit:
   # for that target is 0.952-0.970 S-Earth. Note the bare-rock window is
   # 0.977-0.994 and does not overlap it, so this flux is habitable *because* the
   # world is vegetated, not independently of it.
-  baseline_flux_earth: 0.96
+  # Settled on the iteration-2 baseline: converged at 292.47 K on all six
+  # criteria, mid-band against the 290-293 K design target. Measured, not
+  # bracketed: three converged points give 192.2 K per unit flux ratio.
+  #
+  # This fixes the orbit. a = sqrt(L/F) = 0.585173 AU and the year is 182.801
+  # days, and that year is compiled into LPJ-GUESS. Subsequent flux changes
+  # should therefore move the star's luminosity and leave the orbit alone.
+  # L scales 1:1 with F at fixed a, and Teff as F^(1/4), so past 2 to 3% in
+  # luminosity the spectrum needs rebuilding at the new temperature; see
+  # WORKFLOW.md section 6 loop C.
+  baseline_flux_earth: 0.945
   sweep_flux_earth: [0.90, 0.95, 1.00]
   longitude_vernal_equinox_degrees: 102.7
 
@@ -141,6 +151,12 @@ model:
   # the constant -0.455 W/m2 residual. Needs the rebuilt binary for the term-15
   # latent-heat phase fix; that rebuild is done.
   energy_diagnostics: true
+  # The same 28 terms per level, codes 460-487. The column totals established
+  # that the -0.455 W/m2 residual is not the fixed offset it was recorded as --
+  # it spans -0.400 to -0.489 across four converged runs, against a claimed
+  # +/-0.010 -- but no single term carries it. Per-level says where in the
+  # column the imbalance appears, which is what turns a number into a lead.
+  energy_diagnostics_3d: true
   # Aerodynamic roughness from land cover and subgrid relief, code 173, by
   # build_surface_roughness.py. Replaces the uniform dz0land = 2.0 m, which
   # asserts forest-scale roughness over the 16.5% of land that is salt crust and
