@@ -591,6 +591,11 @@ def main() -> None:
     derived = derive(config, flux_ratio)
     identifier = run_id(config, flux_ratio)
     run_dir = (RUNS / identifier).resolve()
+    # Announce the id on its own line, in a machine-readable form. It is a UUID,
+    # so a caller cannot reconstruct it, and the alternative -- picking the
+    # newest or first run_* directory afterwards -- is selection by sort order,
+    # which is the pattern this project has now been bitten by four times.
+    print(f"RUN_ID={identifier}", flush=True)
     run_dir.parent.mkdir(parents=True, exist_ok=True)
     # Any of these left over from an earlier run makes finalize() and the
     # crash-tolerant rewind pick up the wrong world's state, so refuse the lot
