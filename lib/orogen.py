@@ -93,6 +93,22 @@ _KNOWN_TERRAIN_HASHES = {
     "974ceb78fccfd54c3a842cf4ae8d7ae79029816abd9b4fbf90409165090b0ec1":
         "2026-08 precarve-zoned-g1281: pre-carve base at g = 12.81, crust/fill "
         "split, orography and basin-km unit fixes",
+    # Same seed, same sliders, same gravity. What changed is lithology: two
+    # erodibility values corrected against the literature (carbonate 1.30 ->
+    # 0.45, schist 1.10 -> 0.45) and the class spread compressed to about 4x
+    # with --lithology-strength 0.682, since Orogen ran 14x against Moosdorf's
+    # global index of 3.2x and Zondervan's fluvially expressed contrast of ~4x.
+    #
+    # The land/sea mask is BIT-IDENTICAL to 974ceb78 -- zero cells of 2,500,001
+    # differ -- and so are basinCatalogue, basinMembership and basinsPreserved,
+    # so a carve verdict computed against the old export still refers to these
+    # basins. Mean land elevation moves -3.0 m. What does move is finished basin
+    # geometry: finalPreserved volumeKm3 by 8.1% in the median, which is what the
+    # carve criterion tests, so hydrography and the verdict must be recomputed.
+    "e2b510660d1cbe999d237734969e9ac9bf8636b6d85a04f513a4bc0d1f92d321":
+        "2026-08 precarve-zoned-g1281-erod4x: pre-carve base at g = 12.81 with "
+        "corrected carbonate/schist erodibility and the class spread compressed "
+        "to ~4x (lithologyStrength 0.682)",
 }
 
 # Basin ids are computed on the pre-conditioning surface, so they survive a

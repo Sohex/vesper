@@ -27,16 +27,14 @@ Status: `open` | `doing` | `blocked` | `done` | `wontfix` (with a reason).
 | --- | --- | --- | --- |
 | LITH-1 | Assign evaporite mineralogy downstream from the chemical divide, not from Orogen's single geometric `evaporite` class | `notes/audits/orogen-lithology.md` | open |
 | LITH-2 | Basin-fill albedo: do NOT split evaporite by mineralogy with gypsum brighter -- band-weighted under K2.5V gypsum is 0.528 against clean halite 0.55-0.65, so that pushes the error the wrong way | `notes/audits/orogen-lithology.md` | open |
-| LITH-12 | Rebuild the whole albedo table by solar-weighting ECOSTRESS/ASTER/USGS directional-hemispherical spectra against `k25v_hr.dat`. No broadband-per-rock-type table exists to look up | `notes/audits/orogen-lithology.md` | open |
+| LITH-12 | Rebuild the albedo table by solar-weighting spectra against `k25v_hr.dat`. splib07 covers the EVAPORITES (halite 11, gypsum 11, trona 6) but has zero granite/sandstone/gneiss/schist/quartzite/andesite/gabbro spectra of 3,156, so the crystalline classes still need ECOSTRESS | `notes/audits/orogen-lithology.md` | open |
 | LITH-13 | Couple basin-fill albedo to wetness: measured halite crusts swing 0.64->0.24 on wetting, and `surface_water.py` already knows which basins hold water. A static 0.50 is wrong by up to 0.28 there | `notes/audits/orogen-lithology.md` | open |
 | LITH-14 | Split the basalts: a shared 0.10 is the weathered state, fresh lava and tephra are below 0.05 | `notes/audits/orogen-lithology.md` | open |
 | LITH-15 | `playa_clastic` 0.30 sits at the bright end of Post's 52 measured soils (mean 0.189, max 0.402); damp playa is 0.10-0.20 | `notes/audits/orogen-lithology.md` | open |
 | LITH-3 | Ground the 60 uncited rock-class constants | `notes/audits/orogen-lithology.md` | doing -- erodibility and density grounded against 10 sources; albedo outstanding |
 | LITH-7 | Narrow the erodibility spread to ~4x via `--lithology-strength 0.682`. MEASURED: combined with LITH-8/9 the mask is bit-identical, basins keep their ids, mean orography moves -3.0 m, but finished basin volume moves 8.1% median so hydrography and the carve verdict must be recomputed | `notes/audits/orogen-lithology.md` | open |
-| LITH-8 | `carbonate` erodibility 1.30 should be ~0.40-0.50: Moosdorf puts carbonate in the LOW group with granite, Bursztyn's limestones are at or above granite in tensile strength | `notes/audits/orogen-lithology.md` | open |
-| LITH-9 | `schist` erodibility 1.10 should be ~0.40-0.55; Bursztyn's Vishnu schist is stronger than Zoroaster granite in tension | `notes/audits/orogen-lithology.md` | open |
-| LITH-10 | Pin down what `pelagic` means: erodibility 3.00 is right for unconsolidated ooze, badly wrong for lithified pelagic section | `notes/audits/orogen-lithology.md` | open |
-| LITH-11 | `evaporite` density 2.2 -> 2.1 per Frumkin; every other density checks out against Daly 1966 | `notes/audits/orogen-lithology.md` | open |
+| LITH-16 | Rename `melange` to the subduction melange it actually models, or split blueschist out. One erodibility cannot serve a sheared block-in-matrix unit and a competent high-grade rock | `notes/audits/orogen-lithology.md` | open |
+| LITH-17 | Ground or correct the evaporite share: `LITHO_SALT_CRUST_DEPTH_FRAC = 0.25` gives 10.7% of basin fill as salt against Earth's ~1.5%, about 7x. One-parameter fix, but GLiM's `ev` is a bedrock class while Orogen's is a surface crust | `notes/audits/orogen-lithology.md` | open |
 | LITH-5 | Explain or correct the composition divergence from GLiM: metamorphic 2.1x Earth, evaporite ~10x, volcanic 0.5x | `notes/audits/orogen-lithology.md` | open |
 | LITH-6 | Decide whether `surface_rock` should be renamed; it carries consolidated lithology, and GLiM's largest land class (unconsolidated, 24.6%) has no counterpart | `notes/audits/orogen-lithology.md` | open |
 | GRAV-5 | Bracket the slope exponent | `notes/audits/orogen-gravity.md` | done -- needs NO build: gravity is a post-hoc scalar, so n=2 is the existing export rescaled by 1.1427. Land mean 0.407 -> 0.465 km, peak 4.593 -> 5.249 km, land fraction and basin identity unchanged by construction. Worth ~0.4 K by lapse rate |
@@ -57,6 +55,10 @@ Status: `open` | `doing` | `blocked` | `done` | `wontfix` (with a reason).
 | id | task | source | closed |
 | --- | --- | --- | --- |
 | LITH-4 | Fetch bare-rock and evaporite albedo literature | `notes/audits/orogen-lithology.md` | done -- 16 sources fetched and indexed, every DOI confirmed against Crossref before fetching |
+| LITH-10 | Pin down what `pelagic` means | `notes/audits/orogen-lithology.md` | done -- the class is `Pelagic ooze / abyssal clay`, assigned in the ocean domain with thickness growing by seafloor age. Unconsolidated, so 3.00 is correct beside Moosdorf's 3.2 |
+| LITH-8 | `carbonate` erodibility 1.30 -> 0.45 | `notes/audits/orogen-lithology.md` | done -- applied |
+| LITH-9 | `schist` erodibility 1.10 -> 0.45 | `notes/audits/orogen-lithology.md` | done -- applied |
+| LITH-11 | `evaporite` density 2.2 -> 2.1 | `notes/audits/orogen-lithology.md` | done -- applied |
 | LITH-0 | Determine whether the missing gypsum class is an Orogen oversight | `notes/audits/orogen-lithology.md` | wontfix -- it is not. Orogen assigns evaporite geometrically and has no basis for mineralogy; the decision belongs downstream. Superseded by LITH-1 |
 | GRAV-0 | Determine whether unscaled bathymetry is a bug | `notes/audits/orogen-gravity.md` | wontfix -- g cancels in the isostatic balance, so scaling ocean depth would be wrong. The rule is now stated once in `scaledHeightKm` instead of being triplicated |
 | GRAV-1 | Decide whether to give Orogen's erosion physical units so gravity enters generation | `notes/audits/orogen-gravity.md` | wontfix -- the erosion law is n = 1, at which post-hoc 1/g scaling and correct-gravity erosion are the SAME operation, and the network is at grade nearly everywhere. Difference is 5.7% of local relief on single-cell headwaters and nothing elsewhere. Superseded by GRAV-4/5/6 |

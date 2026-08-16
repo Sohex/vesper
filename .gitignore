@@ -7,12 +7,29 @@ __pycache__/
 # source/worldorogen_seed.txt with the fork's tools/export-planet.mjs; too large
 # and too wholesale-rewritten to belong in history. The per-export README.txt
 # files are tracked so the format stays documented.
+#
+# THESE PATTERNS WERE WRITTEN FOR THE OLD FLAT LAYOUT and silently stopped
+# matching when source/ became namespaced by build. `source/exoplasim-*/` does
+# not match `source/<build>/exoplasim-T42/`, so an entire export payload --
+# including 83 MB manifests -- was committed instead. Both depths are matched
+# now. Check `git ls-files source/ | wc -l` after adding a build; it should not
+# grow by more than the README.txt files.
 source/*/raw/
 source/*/grid/
 source/*/planet.nc
-source/exoplasim-*/manifest.json
-source/grid-*/manifest.json
+source/*/manifest.json
+source/*/*/raw/
+source/*/*/grid/
+source/*/*/planet.nc
+source/*/*/manifest.json
 source/maps/*.png
+source/*/maps/*.png
+
+# Bulk spectral libraries: gigabytes, redistributed under their own terms, and
+# regenerable by download. The same exclude-the-bulk-keep-the-record rule as the
+# reference PDFs below; what they ground is written into references/INDEX.md.
+references/splib07/
+references/*/*.zip
 
 # ExoPlaSim model output: ~20 GB of NetCDF and restart checkpoints. Expensive to
 # produce and irreplaceable, but a backup target, not a git one.

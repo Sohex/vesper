@@ -81,6 +81,43 @@ over-weights the visible.
 **Splitting evaporite into gypsum and halite with gypsum set brighter would push
 the error the wrong way.** `LITH-2` is rewritten accordingly.
 
+### Confirmed against USGS splib07, which also settles what the library can and cannot do
+
+The library was obtained 2026-08-16 and tested directly rather than from its
+documentation. Of 3,156 spectra in `splib07a`: granite 0, sandstone 0, gneiss 0,
+schist 0, quartzite 0, andesite 0, gabbro 0, basalt 8, limestone 1. **So it does
+not close the crystalline-rock gap.** But it carries halite 11, gypsum 11 and
+trona 6, which are the load-bearing classes, so it does close the evaporite one.
+
+Solar-weighted over 0.35-2.5 um against `k25v_hr.dat`, matched grain-size series:
+
+| mineral | Sun | K2.5V | change |
+| --- | --- | --- | --- |
+| halite | 0.832 | 0.845 | **+0.013** |
+| gypsum, selenite | 0.775 | 0.746 | **-0.029** |
+| trona | 0.809 | 0.782 | **-0.027** |
+
+**The stellar response is the robust part and it confirms the Slater result from
+full spectra**: anhydrous halite gains under a redder star while both hydrous
+salts lose, a relative shift of 0.042 in halite's favour, because 19.1% of this
+star's shortwave falls beyond 1.4 um against 11.7% of the Sun's.
+
+**The absolute ordering is not robust.** Across samples, halite spans 0.311 to
+0.877 and gypsum 0.738 to 0.858, so **the within-mineral spread is several times
+the between-mineral difference**. Which of the two is brighter depends on which
+specimen you pick.
+
+And every one of these is a pure mineral separate reading 0.74 to 0.88, against
+field crusts measured at 0.18 to 0.65. The gap is roughness, detrital loading and
+moisture -- exactly what Kampf et al. attribute the field range to.
+
+**The synthesis, and it strengthens rather than weakens the recommendation.** Use
+the library for spectral SHAPE and stellar response, where it is authoritative;
+use the field measurements for absolute LEVEL, where the library is not
+applicable. And do not split evaporite by mineralogy for albedo purposes: the
+within-mineral spread exceeds the between-mineral difference, and surface state
+dominates both.
+
 **Surface state dominates mineralogy anyway.** Measured halite crusts span 0.18
 to 0.75, and Kampf et al. attribute the range to roughness and detrital loading
 rather than composition: Atacama nucleus with detritus 0.18, rough halite 0.25,
@@ -165,14 +202,30 @@ contrast between resistant and weak terrain.
   Zoroaster granite in tension and equal in compression. Placing it modestly
   above gneiss on foliation anisotropy is defensible; 2.75x is not.
 
-Two more are questionable rather than settled. `melange` at 4.0x relative to
-Moosdorf's single metamorphic bin may be legitimate -- subduction melange really
-is weak, and Moosdorf's one metamorphic class is coarse against Orogen's four.
-Being more differentiated *within* a Moosdorf class is not automatically wrong;
-exceeding Moosdorf's entire between-class range is. And `pelagic` at 3.00 is
-ambiguous: defensible if it means unconsolidated ooze, badly wrong if it means
-lithified pelagic section, since ribbon chert is among the most resistant rocks
-in a melange. The intended meaning needs pinning down.
+Two more were flagged as ambiguous and both resolve on the class definitions
+rather than on further measurement.
+
+**`pelagic` at 3.00 is correct.** The ambiguity was whether the class means
+unconsolidated ooze or lithified pelagic section, and the class settles it: it is
+`Pelagic ooze / abyssal clay`, assigned in the ocean domain as a cover whose
+thickness grows with seafloor age. Unconsolidated, and 3.00 sits right beside
+Moosdorf's unconsolidated index of 3.2. Nothing to change.
+
+**`melange` at 1.60 is right for what the class mostly is and wrong for what its
+name also claims.** It is assigned where the subduction factor exceeds a
+threshold on a convergent boundary, so it is genuinely subduction melange: a
+sheared, block-in-matrix unit that is one of the weakest rock masses there is,
+and 4x granite is defensible for it even though it exceeds Moosdorf's whole
+between-class range, because Moosdorf's single metamorphic bin is dominated by
+gneiss and schist and never contained melange. Being more differentiated *within*
+a Moosdorf class is not an error; the coarse bin is.
+
+The problem is the name, `Subduction melange / blueschist`, which conflates the
+weak sheared matrix with blueschist -- a competent, high-grade metamorphic rock
+that behaves nothing like it. One erodibility cannot serve both. Either the
+class should be renamed to the melange it actually models, or blueschist should
+be split out. Renaming is the honest fix, since the assignment rule is a
+subduction threshold and produces melange, not blueschist.
 
 ## Measured: what correcting erodibility would actually cost
 
