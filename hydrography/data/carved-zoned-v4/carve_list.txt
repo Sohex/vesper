@@ -1,20 +1,24 @@
-# Vesper carve verdict, first pass
+# Vesper carve verdict, pass 2, 1089 basins carried forward
 #
-# Produced from a converged ExoPlaSim climatology: T42, 0.96 S-Earth,
-# vegetated land surface, glaciers enabled, 292.88 K. The spectrum was
-# ExoPlaSim's k2.dat, since found to be the star K2-18 rather than a K dwarf;
-# it is retained here because the correction was measured to be radiatively
-# null on this world, at 0.04 W/m2 of absorbed shortwave.
+# Produced from a converged ExoPlaSim climatology: T42,
+# 0.945 S-Earth, vegetated land surface, glaciers enabled,
+# 292.44 K, climatology climatology_s0945_regular_climatology.nc.
 # Terrain 5bed5549315da14b, basin catalogue unchanged.
 #
 # A basin overflows, and so should have its outlet carved, when
 #     (E - P) / runoff  <=  catchment / area_at_spill - 1
 # Open-water evaporation is the Penman combination equation with water's albedo
 # and roughness, validated against the model over ocean cells to within 1.7%.
+# Catchment runoff is precipitation minus evaporation over the catchment; see the sidecar.
 #
 #   retain 1.0   1744 basins  comfortably closed
 #   retain 0<r<1   47 basins  within 25% of their threshold
-#   retain 0.0    749 basins  overflow under both estimates
+#   retain 0.0   1838 basins  carved
+#                            1089 of them carried forward,  749 decided here
+#
+# The counts above are of the whole 3629-entry catalogue. This pass could
+# only decide the 2540 basins the current build still has; the rest were
+# carved by an earlier pass and are held at 0 to keep the loop monotone.
 #
 # Carved basins are listed explicitly at retain 0 rather than omitted, so this
 # file is the complete verdict rather than a subset of it. If your parser would

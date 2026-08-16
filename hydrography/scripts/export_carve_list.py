@@ -191,23 +191,43 @@ def main() -> None:
         if carried and any(float(v) > 0 for v in carried.values()):
             raise RuntimeError("carried-forward entries must all be retain 0")
 
-    header = f"""# Vesper carve verdict, first pass
+    pass_label = ("first pass" if not carried
+                  else f"pass {len(carried) and 2}, {len(carried)} basins carried forward")
+    n_carried = len(carried)
+    n_zero = n_carve + n_carried
+    n_total = basins.n + n_carried
+    n_here = basins.n
+    clim_name = args.climatology.name
+    flux_earth = float(config["orbit"]["baseline_flux_earth"])
+    with Dataset(args.climatology) as ds:
+        _ts = np.asarray(ds["ts"][:]).mean(axis=0)
+        _lat = np.asarray(ds["lat"][:])
+        _w = np.cos(np.deg2rad(_lat))[:, None] * np.ones_like(_ts)
+        mean_ts = float((_w * _ts).sum() / _w.sum())
+    runoff_source = ("precipitation minus evaporation over the catchment"
+                     if args.runoff_source == "p_minus_e"
+                     else "the model's mrro field")
+    header = f"""# Vesper carve verdict, {pass_label}
 #
-# Produced from a converged ExoPlaSim climatology: {resolution}, 0.96 S-Earth,
-# vegetated land surface, glaciers enabled, 292.88 K. The spectrum was
-# ExoPlaSim's k2.dat, since found to be the star K2-18 rather than a K dwarf;
-# it is retained here because the correction was measured to be radiatively
-# null on this world, at 0.04 W/m2 of absorbed shortwave.
+# Produced from a converged ExoPlaSim climatology: {resolution},
+# {flux_earth:g} S-Earth, vegetated land surface, glaciers enabled,
+# {mean_ts:.2f} K, climatology {clim_name}.
 # Terrain {basins.terrain_hash[:16]}, basin catalogue unchanged.
 #
 # A basin overflows, and so should have its outlet carved, when
 #     (E - P) / runoff  <=  catchment / area_at_spill - 1
 # Open-water evaporation is the Penman combination equation with water's albedo
 # and roughness, validated against the model over ocean cells to within 1.7%.
+# Catchment runoff is {runoff_source}; see the sidecar.
 #
 #   retain 1.0   {n_preserve:4d} basins  comfortably closed
 #   retain 0<r<1 {n_marginal:4d} basins  within 25% of their threshold
-#   retain 0.0   {n_carve:4d} basins  overflow under both estimates
+#   retain 0.0   {n_zero:4d} basins  carved
+#                            {n_carried:4d} of them carried forward, {n_carve:4d} decided here
+#
+# The counts above are of the whole {n_total:d}-entry catalogue. This pass could
+# only decide the {n_here:d} basins the current build still has; the rest were
+# carved by an earlier pass and are held at 0 to keep the loop monotone.
 #
 # Carved basins are listed explicitly at retain 0 rather than omitted, so this
 # file is the complete verdict rather than a subset of it. If your parser would
