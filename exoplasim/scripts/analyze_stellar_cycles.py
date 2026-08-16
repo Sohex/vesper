@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import argparse
 import json
 from pathlib import Path
 
@@ -14,12 +15,6 @@ from numpy.polynomial.legendre import leggauss
 from _paths import ANALYSIS, RUNS
 
 
-RUNS = {
-    "extreme 0.85–0.95": RUNS
-    / "t42l10p8_cycle8ey_s085-095_co20450ppm_rot30h_obl32_e020",
-    "control 0.88–0.92": RUNS
-    / "t42l10p8_cycle8ey_s088-092_co20450ppm_rot30h_obl32_e020",
-}
 OUTDIR = ANALYSIS / "stellar_cycles"
 FIELDS = ["ts", "ntr", "hfns", "sic", "pr", "snd"]
 
@@ -30,13 +25,28 @@ def global_mean(field: np.ndarray, weights: np.ndarray) -> np.ndarray:
     )
 
 
-def load_run(run_dir: Path) -> dict:
+def load_run(run_dir: Path, fold_on: str | None = None) -> dict:
+    """Load one cycle run, phase-folded on a single named component.
+
+    The forcing carries every component, but a phase fold is defined against one
+    period at a time -- with non-commensurate periods there is no single phase
+    that describes both. `fold_on` names which; the default is the longest,
+    since that is the one a composite needs the most orbits to resolve.
+    """
     manifest = json.loads((run_dir / "run_manifest.json").read_text(encoding="utf-8"))
     if manifest["status"] != "simulation_complete":
         raise RuntimeError(f"Run is not complete: {run_dir}")
     cycle = manifest["cycle"]
+    components = cycle["components"]
+    if fold_on is None:
+        fold_on = max(components, key=lambda n: components[n]["period_earth_years"])
+    if fold_on not in components:
+        raise RuntimeError(
+            f"{run_dir.name} has no cycle component {fold_on!r}; "
+            f"it has {sorted(components)}"
+        )
     orbit_steps = int(manifest["fixed_orbit_parameters"]["runsteps_per_orbit"])
-    period_steps = float(cycle["period_model_steps"])
+    period_steps = float(components[fold_on]["period_model_steps"])
     files = sorted(run_dir.glob("MOST.[0-9][0-9][0-9][0-9][0-9].nc"))
     if len(files) != int(manifest["completed_orbits"]):
         raise RuntimeError(f"Output count disagrees with manifest in {run_dir}")
@@ -102,13 +112,26 @@ def load_run(run_dir: Path) -> dict:
         for state in composite_sums
     }
     orbit_number = np.arange(len(files), dtype=float) + 0.5
-    cycle_age = orbit_number * orbit_steps / period_steps
+    age_steps = orbit_number * orbit_steps
+    cycle_age = age_steps / period_steps
     phase = cycle_age % 1.0
-    forcing = cycle["mean_flux_earth"] + (
-        cycle["semi_amplitude_w_m2"] / 1361.0
-    ) * np.sin(2.0 * np.pi * phase)
+    # Every component contributes at its own period, exactly as radmod sums them:
+    # flux = mean + sum_i amp_i * sin(2pi * (age/period_i + phase_i)). Folding on
+    # one component does not remove the others from the forcing, so reconstruct
+    # from all of them rather than from the folded one alone.
+    forcing = np.full(age_steps.shape, float(cycle["mean_flux_earth"]))
+    for spec in components.values():
+        forcing += float(spec["semi_amplitude_flux_earth"]) * np.sin(
+            2.0
+            * np.pi
+            * (
+                age_steps / float(spec["period_model_steps"])
+                + float(spec.get("phase_cycles", 0.0))
+            )
+        )
     return {
         "manifest": manifest,
+        "fold_on": fold_on,
         "cycle_age": cycle_age,
         "phase": phase,
         "forcing": forcing,
@@ -317,9 +340,43 @@ def plot_composite_maps(all_data: dict[str, dict]) -> None:
     plt.close(fig)
 
 
+def label_for(run_dir: Path, data: dict) -> str:
+    """Name a run by what it physically is, since run ids are UUIDs."""
+    cycle = data["manifest"]["cycle"]
+    mean = float(cycle["mean_flux_earth"])
+    ptp = float(cycle["total_amplitude_flux_peak_to_peak"])
+    return f"{run_dir.name} ({mean - ptp / 2:.3f}-{mean + ptp / 2:.3f} S-Earth)"
+
+
 def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Phase-fold and compare completed stellar-cycle runs.",
+    )
+    parser.add_argument(
+        "run",
+        nargs="+",
+        help="run ids under exoplasim/runs/ (ids are UUIDs -- see index_runs.py)",
+    )
+    parser.add_argument(
+        "--fold-on",
+        default=None,
+        help="cycle component to phase-fold on; default is the longest period",
+    )
+    args = parser.parse_args()
+
+    run_dirs = []
+    for run_id in args.run:
+        run_dir = RUNS / run_id
+        if not (run_dir / "run_manifest.json").is_file():
+            raise SystemExit(
+                f"no run manifest at {run_dir}. Run ids are UUIDs and carry no "
+                f"meaning; list what exists with index_runs.py."
+            )
+        run_dirs.append(run_dir)
+
     OUTDIR.mkdir(parents=True, exist_ok=True)
-    all_data = {label: load_run(path) for label, path in RUNS.items()}
+    loaded = [(d, load_run(d, args.fold_on)) for d in run_dirs]
+    all_data = {label_for(d, data): data for d, data in loaded}
     report = {label: run_report(label, data) for label, data in all_data.items()}
     plot_timeseries(all_data)
     plot_phase_response(all_data)
