@@ -174,9 +174,37 @@ evidence that such a resource is worth carrying a long way past substitutes.
 
 Two cautions. Silcrete distribution is **patchy rather than continuous** even
 where the setting is right, so the classifier should produce sparse outcrops, not
-a blanket. And silicification needs a dissolved silica source; where that comes
-from on this world is unresolved, though diatomaceous basin fill is an obvious
-candidate worth checking rather than assuming.
+a blanket. And silicification needs a dissolved silica source.
+
+**The silica source is now resolved, measured 2026-08-16 on the arc-bearing
+build.** `pedology/scripts/weathering_fluxes.py` computes it from the same
+Meybeck Table 2C the brine paths use. Three results place it:
+
+- **21.6% of this world's dissolved silica is delivered to closed basins.** That
+  is the silcrete and diatomite supply, and it is large because the drainage is
+  largely interior. Silica reaching the ocean is diluted into an enormous
+  reservoir; silica reaching a closed basin has nowhere to go and concentrates
+  until it saturates. Eugster and Jones' behaviour type V is exactly that, SiO2
+  constant after saturation with a solid, so a closed basin fed by silica-rich
+  runoff is a silica-precipitating setting by construction.
+- **Volcanic terrain supplies 13.8% of it from 8% of land**, so it is enriched
+  but not dominant. Meybeck puts volcanic rock at 200 umol/l against granite's
+  150, the highest of the common classes. This is a floor rather than a central
+  estimate: Meybeck's class is ordinary volcanic terrain, and Durr et al. (2011)
+  note fresh unweathered ash releases far more, with local yields above
+  50 t SiO2/km2/yr against a global mean of 3.3.
+- **The whole-land yield is about 1.1 t SiO2/km2/yr against Earth's exorheic
+  mean of 3.3.** This world is silica-poor per unit area because it is dry, and
+  its total delivery is respectable only because it has twice Earth's land.
+
+So the answer to the open question is: the silica is there, it is not primarily
+volcanic, and the closed basins concentrate it. Diatomaceous basin fill is a
+consumer of that silica rather than its origin, which reverses the guess this
+section previously carried.
+
+What is NOT yet placed is which basins. That needs the per-basin catchment
+routing `brine_paths.py` already does, run on a build whose arc rules fire, and
+that is blocked on hydrography for the current terrain. See TASKS VOLC-3.
 
 ## Diatomite, and why the stellar cycle matters here
 
