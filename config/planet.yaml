@@ -429,6 +429,48 @@ stellar_cycle:
   # static span, which predicts roughly 4.2 K peak-to-peak here, about 289.3 to
   # 293.5 K. If that holds the world stays inside the habitable band across the
   # whole cycle, which is the point of centring it at 0.96.
+  # CANDIDATE, 2026-08-16. Two superposed components rather than one sinusoid,
+  # because epsilon Eridani genuinely has both a short and a long cycle, and
+  # because the two do different jobs here: the medium one is climatic and the
+  # long one is geomorphic.
+  #
+  # The periods are NOT epsilon Eri's values. That star is a reference for what a
+  # K2.5V of this activity can do, not a template to copy. What was taken from it
+  # is the plausible amplitude envelope -- 4.3% median, 2.4-7.2% at 95%,
+  # bolometric. The 6% total here is inside that and above its median.
+  #
+  # The ratio is deliberately non-integer. At 57/11 = 5.18 the phase relationship
+  # returns only after about 314 Earth years, so grand minima differ in depth
+  # rather than repeating identically. That is the point: glaciers advancing
+  # further in the deeper minima leave moraines at different distances, so the
+  # landscape records which past minima were severe. An exact ratio erases that.
+  #
+  # Damping below is ANALYTIC and Planck-only, from a slab thermal timescale of
+  # 1.17 Earth years. Real values include the ice-albedo feedback and will be
+  # larger in the cold phase. Measuring them is what the first cycle run is for,
+  # and the amplitudes may want revising afterwards.
+  components:
+    medium:
+      period_earth_years: 11.0        # 22 local years, ~6.4 per lifetime
+      amplitude_flux_peak_to_peak: 0.025
+      note: >
+        The lived rhythm. Damped about 0.83, so roughly 3.1 K peak-to-peak,
+        some thirty times Earth's solar-cycle signal and the dominant climatic
+        fact of any individual life. Fast enough to be planned around, too fast
+        for ice to follow.
+    long:
+      period_earth_years: 57.0        # 114 local years, ~1.2 per lifetime
+      amplitude_flux_peak_to_peak: 0.035
+      note: >
+        The geomorphic driver. Essentially undamped at 0.99, roughly 5.2 K
+        peak-to-peak, slow enough that glaciers equilibrate rather than merely
+        breathing. Each grand minimum is a distinct historical era.
+  total_amplitude_flux_peak_to_peak: 0.060
+  alignment_recurrence_earth_years: 314
+  # Aligned excursion about 8.3 K peak-to-peak, so 286 to 294 K at a 290.3 K
+  # mean, with the aligned minimum at flux 0.9166.
+  #
+  # Superseded single-sinusoid case, kept until the components are exercised.
   cases:
     active:
       minimum_flux_earth: 0.91
