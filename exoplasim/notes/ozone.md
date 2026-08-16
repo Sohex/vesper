@@ -109,3 +109,61 @@ all the way to parity.
 
 Nothing goes into LPJ-GUESS. It models no ultraviolet, and the surface
 environment is measured as gentler than Earth's.
+
+
+## The photosphere/chromosphere gap, and how to close it
+
+Worth stating precisely, because it is an input gap rather than a model defect
+and it has three compounding layers.
+
+A star's ultraviolet comes from two places. The **photosphere** radiates roughly
+as a blackbody at the effective temperature, and its output collapses toward
+short wavelengths on the Wien tail. The **chromosphere** is hot, magnetically
+heated plasma above it, at 10^4 K and more, radiating in emission lines rather
+than a continuum. For the Sun at 5772 K the photosphere still supplies useful
+flux at 250-300 nm. At 4965 K it does not, so the chromosphere supplies
+proportionally far more of a K dwarf's ultraviolet than of the Sun's.
+
+Our spectrum has none of it:
+
+1. `k25v` is built from **BT-Settl**, a photospheric model in radiative-convective
+   equilibrium. It has no mechanism that produces a chromosphere, so it has no
+   chromospheric emission, by construction rather than by omission.
+2. The file starts at 0.34 microns regardless.
+3. `radmod.f90:226` zeroes flux below 0.316 microns on the star-file path.
+
+ExoPlaSim would consume ultraviolet if it were given any. Nothing is broken; the
+information was never supplied.
+
+### Where it actually bites
+
+Only in one place that matters: the Hartley-Huggins weight in the ozone
+absorptance, `model.ozone_uv_weight`. Everything else is either insensitive --
+ultraviolet is a few percent of total flux even for the Sun, so the energy budget
+barely notices -- or already answered from a proper photochemical model, as the
+column and the surface flux now are.
+
+### The correction, and it is a known construction
+
+Use an **observed** ultraviolet spectrum instead of a modelled photosphere, and
+splice it onto the photospheric model where the two overlap. That is exactly what
+Segura et al. did: coadded IUE observations of epsilon Eridani from 115 to 335 nm,
+merged onto a Kurucz photosphere at 320 nm. `build_stellar_spectrum.py` already
+performs the analogous merge for the BT-Settl grid, so the machinery exists.
+
+Two sources would serve: the IUE archive for epsilon Eridani directly, or the
+MUSCLES survey, which publishes panchromatic spectra of low-mass stars including
+the ultraviolet.
+
+### What this tells us that is not a caveat
+
+Epsilon Eridani is young and chromospherically active, and Segura notes a quieter
+K2V would receive about 2.5 times less ultraviolet. So the column of 0.794x and
+the surface flux of 0.4x describe an **active** K2V, while our 0.469 UV weight
+describes a star with no chromosphere at all. The two bracket the answer, and
+what sits between them is set by the stellar activity level -- which this project
+has left PROVISIONAL and undecided.
+
+So the ozone numbers, the surface ultraviolet, and the stellar cycle amplitude
+are one decision, not three. Deciding the activity level resolves all of them,
+and until it is decided the honest form is a bracket rather than a value.

@@ -230,6 +230,17 @@ model:
   # Computed rather than tuned: the ratio of this star's flux fraction in each
   # band to the Sun's.
   #
+  # THE ULTRAVIOLET WEIGHT IS TIED TO AN UNDECIDED PARAMETER. Segura's K2V is
+  # HD 22049, epsilon Eridani, and their spectrum is observed rather than
+  # modelled -- coadded IUE data from 115 to 335 nm merged onto a Kurucz
+  # photosphere at 320 nm. Epsilon Eridani is a young, chromospherically active
+  # star, and the paper notes that an older, quieter K2V would receive about 2.5
+  # times less ultraviolet. So Segura's column of 0.794x and surface UV of 0.4x
+  # both describe an ACTIVE K2V, while 0.469 below is a photospheric floor that
+  # describes a star with no chromosphere at all. The truth sits between them and
+  # is set by the stellar activity level, which planet.yaml still marks
+  # PROVISIONAL.
+  #
   #   Hartley-Huggins UV, 0.20-0.35 um   0.0321 / 0.0684 = 0.469
   #   Chappuis visible,   0.44-0.75 um   0.3358 / 0.3673 = 0.914
   #
