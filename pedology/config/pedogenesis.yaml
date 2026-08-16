@@ -259,6 +259,49 @@ phosphorus_ppm:
   pelagic:             520
   water:                 0
 
+# ---------------------------------------------------------------------------
+# Phosphorus release per unit chemical weathering, dimensionless (percent)
+# ---------------------------------------------------------------------------
+# NOT the same quantity as phosphorus_ppm above, and the distinction is the one
+# this project got wrong twice in opposite directions.
+#
+# `phosphorus_ppm` is how much phosphorus the rock CONTAINS. This is how much
+# phosphorus is RELEASED per unit of cation-and-silica weathering flux, which is
+# what pairs with a weathering intensity. Hartmann et al. (2014) states the
+# distinction explicitly: "The P-contents in lithological classes relative to the
+# SiO2 and the major cation content are given in Appendix 1 Table A1-2, last
+# lines. The P-release FP is thus calculated as FP = b_relative P-content *
+# F_Si+cations."
+#
+# LPJ-GUESS-CNP uses exactly this, as FCW,i = (b_carbonate + b_silicate)_i * p_i
+# * q with p_i cited to Table A1-2 (Dantas de Paula et al. 2025, Eq. A7), so a
+# model driven by our weathering intensity wants these values, not the contents.
+#
+# The two rows rank the classes almost identically, which is why a contrast
+# check cannot tell them apart -- see failure class 9. Basic volcanic against
+# acid plutonic is 2.30x here against 1.93x by content.
+phosphorus_release_relative:
+  granite:             0.0915   # PA
+  granodiorite:        0.2210   # PI, mean of PA and PB as the paper does
+  rift_bimodal:        0.1242   # VI, mean of VA and VB
+  morb:                0.2102   # VB
+  oib:                 0.2102   # VB
+  flood_basalt:        0.2102   # VB
+  arc_basalt:          0.2102   # VB
+  arc_andesite:        0.1242   # VI
+  gneiss:              0.1048   # MT
+  schist:              0.1048   # MT
+  quartzite:           0.0300   # MT, diluted by quartz
+  melange:             0.0814   # SM
+  shelf_clastic:       0.0766   # SS
+  carbonate:           0.1143   # SC
+  foreland_clastic:    0.0766   # SS
+  continental_clastic: 0.0766   # SS
+  playa_clastic:       0.0814   # SU
+  evaporite:           0.0624   # EP
+  pelagic:             0.0814
+  water:               0.0
+
 regolith:
   # Asymptote, not a clip: the depth to which weathering can reach at all.
   maximum_depth_m: 5.0

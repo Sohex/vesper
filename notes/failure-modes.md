@@ -184,6 +184,19 @@ source table, not a citation of it. The tell here was available and ignored: the
 same paper prints P2O5 and elemental P as adjacent rows differing by 0.4364, so
 "which row is this" was a question the data itself was asking.
 
+**And the correction was itself half wrong**, which is the more useful part. The
+values were replaced with the elemental rock-content row on the grounds that the
+release row is "not a rock content". True, but the intended use was to multiply
+by a weathering intensity, and Hartmann states plainly that P release is computed
+as the release-relative content times the cation-and-silica flux -- so the
+release row was the right one for that purpose all along. The agent had the right
+numbers with the wrong description; the correction had the right description of
+the wrong numbers.
+
+The deeper error was never asking what the number was *for*. Both rows are
+correct data; which one is correct depends entirely on what multiplies it. The
+config now carries both, labelled by the equation each belongs to.
+
 Corollary for delegated work. The agent that produced these flagged its own
 uncertainty accurately -- it said the units were "likely, not confirmed" -- and
 that flag was correct and was not acted on. A caveat carried forward verbatim is
