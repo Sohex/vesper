@@ -52,6 +52,54 @@ That also weakens, in the same direction, the conclusion that this planet should
 show P-poor uplands against P-rich basin floors. The gradient is probably real
 but shallower than the hydrology alone implies.
 
+## Priced before deciding
+
+The budget's own stopping rule says to refine an input when its plausible range
+exceeds the effect of the last thing refined. So, a crude bound before building
+anything, using scattering-aerosol forcing
+`F = -tau * S/4 * beta * (1 - a_surface)^2 * land_fraction` at an upscatter
+fraction of 0.20:
+
+| dust AOD over land | over vegetation (a=0.20) | over playa (a=0.40) |
+| ---: | ---: | ---: |
+| 0.03, Earth-like | -0.46 K | -0.26 K |
+| 0.10 | -1.53 K | -0.86 K |
+| 0.30 | -4.60 K | -2.59 K |
+
+Earth's global dust AOD is about 0.03 and this planet's closed-basin fill is
+roughly ten times Earth's dust-source area, so 0.1 to 0.3 is not an extreme
+bracket. **That puts dust above every item in the error budget except the
+biosphere question**, which by the project's own rule makes it worth refining.
+
+**And the sign is not uniform.** Dust is darker than salt crust and brighter than
+vegetation, so it warms over its own source regions and cools elsewhere. That is
+the decisive argument for modelling rather than declaring: a spatially varying
+sign cannot be recorded as a bias direction the way the missing ocean heat
+transport can. Either it is computed or it is unknown.
+
+## Is the patch error-prone?
+
+Less than it looks, because the parameters split cleanly.
+
+The optics are **not** haze-locked: `l_aerorad = 1` reads extinction, scattering,
+backscatter and asymmetry for both bands from a supplied `aerofile`, so mineral
+dust is representable. Three of the four parameters are Earth-calibratable --
+`apart` (dust effective radius, 1 to 2 microns, against a haze default of 5 nm),
+`rhop` (2500 kg/m3 for mineral dust, against a default of 1000, which is water),
+and the `aerofile` itself, band-averaged from published dust refractive indices
+for this star's bands.
+
+The fourth, `fcoeff`, sets the total loading and has no Vesper calibration. It
+should be **bracketed rather than chosen**, anchored so that an Earth-like source
+area gives Earth's dust AOD and then spanned across the playa-fraction ratio.
+That is the same treatment `pedogenesis.yaml` gives every constant it cannot
+verify.
+
+Two simplifications that remain and should be stated wherever a number is
+quoted: the scheme is monodisperse where real dust spans 0.1 to 20 microns, and
+the source term has no wind-speed threshold even once it is weighted by surface
+type.
+
 ## What to do
 
 Not in the GCM. Model the aeolian phosphorus term the way the carve verdict and

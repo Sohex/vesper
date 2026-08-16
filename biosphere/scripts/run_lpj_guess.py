@@ -53,8 +53,12 @@ COMPONENT_ROOT = Path(__file__).resolve().parents[1]
 ANALYSIS = COMPONENT_ROOT / "analysis"
 
 # Output files worth keeping. LPJ-GUESS writes one per quantity, per rank.
+#
+# cflux.out carries the Fire column, which is the only fire diagnostic GLOBFIRM
+# produces: firert.out and burned area are written under BLAZE only. Without it
+# the burning is visible in cmass and dens as a mortality no output explains.
 OUTPUTS = ("anpp.out", "lai.out", "fpc.out", "cmass.out", "aaet.out",
-           "cpool.out", "dens.out", "agpp.out", "nsources.out")
+           "cpool.out", "dens.out", "agpp.out", "nsources.out", "cflux.out")
 
 
 def sha256(path: Path) -> str:
