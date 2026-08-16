@@ -196,12 +196,31 @@ def main() -> int:
                 f"missing {missing}" if missing else
                 f"{len(codes)} present: {codes}")
         if not missing:
-            src = builds.mesh_export(config) / "manifest.json"
-            older = [c for c in codes
-                     if rx.surface_sra(config, c).stat().st_mtime < src.stat().st_mtime]
-            rep.add(FAIL if older else OK, "surface inputs current",
-                    f"older than the build: {older}" if older else
-                    "all newer than the build manifest")
+            # Currency by CONTENT, via the reports written alongside the .sra
+            # files, not by mtime. An mtime comparison against the build
+            # manifest fires whenever a file is restored or touched without
+            # changing: restoring the export from a backup gave the manifest a
+            # new mtime and every surface input read as stale, which is the same
+            # false positive the cycle-binary check had. The terrain hash the
+            # reports already carry is the thing that actually matters, and it
+            # is checked above; this adds the check that a report EXISTS for the
+            # active resolution, since a missing report is how an .sra survives
+            # a build change unnoticed.
+            res = str(config["model"]["resolution"]).lower()
+            reports = sorted((ROOT / "exoplasim" / "inputs" / res).glob("*report*.json"))
+            stale = []
+            for r in reports:
+                try:
+                    got = json.loads(r.read_text(encoding="utf-8")).get("terrain_hash")
+                except (OSError, json.JSONDecodeError):
+                    got = None
+                if got != want:
+                    stale.append(r.name)
+            rep.add(FAIL if (stale or not reports) else OK, "surface inputs current",
+                    f"reports describe another build: {stale}" if stale else
+                    (f"no surface reports under exoplasim/inputs/{res}"
+                     if not reports else
+                     f"{len(reports)} reports all describe {want[:16]}"))
     except Exception as exc:
         rep.add(WARN, "surface inputs", f"not checked: {exc}")
 
