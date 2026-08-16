@@ -1,5 +1,5 @@
 {
-  "generated": "2026-08-16T00:28:21+00:00",
+  "generated": "2026-08-16T01:40:08+00:00",
   "config_sha256": "a0b9911f5f42764b7dcab63b660fcd5921b5b98c9ca8bf77f7c973af60f7a11a",
   "flux_earth": 0.96,
   "earth_solar_constant": 1361.0,
@@ -35,20 +35,24 @@
     "max_abs_residual_deg": 1.9496257401804726,
     "note": "day 0 of the simulation year is the first climatology bin"
   },
-  "fradpar": 0.39630897954197336,
+  "fradpar": 0.46242839799049584,
   "fradpar_detail": {
     "spectrum": "exoplasim/inputs/stellarspectra/k25v.dat",
     "spectrum_sha256": "7196ade540b0496b047b1460a93920bc1099282c9b32324fac3ce1c32579034b",
     "par_window_um": [
       0.4,
+      0.75
+    ],
+    "solar_reference_window_um": [
+      0.4,
       0.7
     ],
-    "star_par_fraction": 0.3093306488954166,
-    "solar_par_fraction_same_method": 0.3902644967228849,
-    "ratio": 0.7926179590839467,
+    "star_par_fraction": 0.36093877202426156,
+    "solar_par_fraction_over_earth_window": 0.3902644967228849,
+    "ratio": 0.9248567959809917,
     "earth_fradpar": 0.5
   },
   "source_build": "carved-zoned",
-  "git_commit": "1a889196d9ed482a6554ade28f98097c69279fbb",
-  "header_sha256": "70cd5453ba5daf4c790097b1eb626e78186ba0a38cdff36f18aa50fbb270cc6d"
+  "git_commit": "127afdb909b54618f80d5a060ff88e301f4a88e7",
+  "header_sha256": "108af9b0e3358a93074ddb4dfa221a86a717c6962225007a763adc6bea48beed"
 }

@@ -44,11 +44,30 @@ SOLAR_EFFECTIVE_TEMPERATURE_K = 5772.0
 # Sun rather than as an absolute.
 EARTH_FRADPAR = 0.5
 
-# Earth's photosystem window. Lehmer et al. 2021 put the optimum for a K2V at
-# 675, 711 and 746 nm, so a biosphere evolved here would plausibly run to about
-# 0.75 um. Widening this is a worldbuilding decision, not a correction: pass
-# --par-window to make it, and re-register the productivity prediction.
-PAR_WINDOW_UM = (0.40, 0.70)
+# The window Earth's 0.5 is anchored to. The solar reference must always be
+# measured over THIS window, never over whatever window this world's biosphere
+# is given: 0.5 means "half of shortwave is 400-700 nm light, as Earth's plants
+# use it". Scaling the star's wider window against the Sun's equally widened one
+# would cancel most of the very effect being modelled.
+EARTH_PAR_WINDOW_UM = (0.40, 0.70)
+
+# The photosystem window this world's biosphere is taken to use.
+#
+# 0.40-0.75 um, not Earth's 0.40-0.70. Lehmer et al. 2021 predict peak pigment
+# absorbance around a K2V at 675, 711 and 746 nm, and Kiang et al. 2007 put
+# K2V pigments in the red-orange, so a biosphere that evolved under this star
+# would plausibly run about 50 nm redder than ours. That is a worldbuilding
+# decision, taken deliberately, not a correction to a bug.
+#
+# The upper bound is not free: oxygenic photosynthesis is capped near 0.80 um on
+# known biochemistry, via the chlorophyll d and f of far-red light
+# photoacclimation, and this world declares pO2 = 0.21 bar, which requires
+# oxygenic primary production. Kiang's more dramatic result, that photons out to
+# 1.1 um could exceed Earth's productivity, is for anoxygenic photosynthesis and
+# cannot sustain that atmosphere.
+#
+# Pass --par-window to bracket it. See biosphere/notes/productivity-prediction.md.
+PAR_WINDOW_UM = (0.40, 0.75)
 
 
 def planck(wavelength_um: np.ndarray, temperature_k: float) -> np.ndarray:
@@ -95,13 +114,14 @@ def derive_fradpar(config: dict, window: tuple[float, float]) -> tuple[float, di
     wavelength, flux = np.loadtxt(spectrum, skiprows=1, unpack=True)
     star = par_fraction(wavelength, flux, window)
     sun = par_fraction(wavelength, planck(wavelength, SOLAR_EFFECTIVE_TEMPERATURE_K),
-                       window)
+                       EARTH_PAR_WINDOW_UM)
     return EARTH_FRADPAR * star / sun, {
         "spectrum": str(spectrum.relative_to(PROJECT_ROOT)),
         "spectrum_sha256": hashlib.sha256(spectrum.read_bytes()).hexdigest(),
         "par_window_um": list(window),
+        "solar_reference_window_um": list(EARTH_PAR_WINDOW_UM),
         "star_par_fraction": star,
-        "solar_par_fraction_same_method": sun,
+        "solar_par_fraction_over_earth_window": sun,
         "ratio": star / sun,
         "earth_fradpar": EARTH_FRADPAR,
     }
@@ -206,7 +226,8 @@ const double VESPER_SOLSTICE_OFFSET_DAYS = {constants['solstice_offset_days']};
 
 /// Fraction of surface shortwave that is photosynthetically active.
 /** Earth's {constants['fradpar_detail']['earth_fradpar']} scaled by this star's {constants['fradpar_detail']['par_window_um'][0]}-{constants['fradpar_detail']['par_window_um'][1]} um fraction against the
- *  Sun's measured the same way: {constants['fradpar_detail']['star_par_fraction']:.4f} / {constants['fradpar_detail']['solar_par_fraction_same_method']:.4f} = {constants['fradpar_detail']['ratio']:.4f}.
+ *  Sun's over Earth's own {constants['fradpar_detail']['solar_reference_window_um'][0]}-{constants['fradpar_detail']['solar_reference_window_um'][1]} um window, which is what the 0.5 is
+ *  anchored to: {constants['fradpar_detail']['star_par_fraction']:.4f} / {constants['fradpar_detail']['solar_par_fraction_over_earth_window']:.4f} = {constants['fradpar_detail']['ratio']:.4f}.
  *
  *  The window is Earth's photosystem transplanted unchanged, which is a
  *  deliberate conservative choice rather than a physical claim. See

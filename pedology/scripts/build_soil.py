@@ -182,7 +182,15 @@ def regolith_depth(intensity: np.ndarray, relief_m: np.ndarray,
 def soil_ph(fractions: dict[str, np.ndarray], runoff_mm_yr: np.ndarray,
             endorheic: np.ndarray, params: dict, reference_runoff: float
             ) -> np.ndarray:
-    """Parent pH, leached down by drainage, pushed up where drainage is closed."""
+    """Parent pH, leached down by drainage, pushed up where drainage is closed.
+
+    Deliberately takes runoff, not whatever `weathering.moisture_variable`
+    selects. Leaching is base cations physically leaving the profile, which
+    requires water to drain through it; rain that falls and evaporates carries
+    nothing away. So this stays on runoff even when weathering is driven by
+    precipitation, and pH is consequently the one soil property that does not
+    move when that switch is flipped. Intended, not an oversight.
+    """
     shape = runoff_mm_yr.shape
     parent = np.zeros(shape)
     total = np.zeros(shape)

@@ -4,7 +4,7 @@
 // from config/planet.yaml, because the year length is a function of the stellar
 // flux and moves whenever the flux does.
 //
-// generated 2026-08-16T00:28:21+00:00
+// generated 2026-08-16T01:40:08+00:00
 // config   sha256 a0b9911f5f42764b
 // flux     0.96 S-Earth
 // orbit    180.6550 Earth days
@@ -51,13 +51,14 @@ const double VESPER_OBLIQUITY_DEG = 32.0;
 const double VESPER_SOLSTICE_OFFSET_DAYS = 151.20000000000002;
 
 /// Fraction of surface shortwave that is photosynthetically active.
-/** Earth's 0.5 scaled by this star's 0.4-0.7 um fraction against the
- *  Sun's measured the same way: 0.3093 / 0.3903 = 0.7926.
+/** Earth's 0.5 scaled by this star's 0.4-0.75 um fraction against the
+ *  Sun's over Earth's own 0.4-0.7 um window, which is what the 0.5 is
+ *  anchored to: 0.3609 / 0.3903 = 0.9249.
  *
  *  The window is Earth's photosystem transplanted unchanged, which is a
  *  deliberate conservative choice rather than a physical claim. See
  *  biosphere/notes/productivity-prediction.md.
  */
-const double VESPER_FRADPAR = 0.396309;
+const double VESPER_FRADPAR = 0.462428;
 
 #endif // LPJ_GUESS_VESPER_H
