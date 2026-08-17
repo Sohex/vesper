@@ -94,4 +94,65 @@ and to say which basins carry it.
 
 ## Results
 
-Not yet run.
+**Not run. The test is well posed and the data it needs is not in the sources
+that describe these basins.** Recorded on 2026-08-17, because the reason is a
+property of the literature rather than a gap in effort, and the next attempt
+should start from the right kind of source instead of repeating this one.
+
+### What the test needs, restated after trying
+
+    A_lake / A_catch = R / (R + E_lake - P_lake)
+
+`R` has to be **runoff depth over the catchment, measured independently of the
+lake**. That independence is the whole test. Everything else can be had.
+
+### What the reviews actually carry
+
+Two were fetched and read.
+
+Yapiyev et al. (2017) is the right kind of paper and gives the terms for two
+basins. For Great Salt Lake: catchment 55,000 km2, historically more than 89,000;
+lake 2,470-5,490 km2; lake precipitation 370 mm/yr and lake evaporation 1,000
+mm/yr; inflow composed of 66% river discharge and 31% direct precipitation. For
+Issyk-Kul: basin about 40,000 km2, and a balance of roughly 300 mm/yr each from
+direct precipitation, surface runoff and groundwater against 800 mm/yr of lake
+evaporation and under 100 mm/yr of irrigation withdrawal.
+
+**Every one of those terms is expressed per unit LAKE area, and that is what
+makes them useless here.** A balance written that way closes on itself: Issyk-Kul
+gives 300 + 300 = 600 in against 500 + 100 out, which is exact, and confirms
+nothing except that the authors' numbers are consistent. To predict an area, the
+supply term has to be a depth over the *catchment*, which none of these state.
+
+Great Salt Lake shows the circularity plainly. Its river inflow can be recovered
+from the balance -- (E - P) x A_lake, or about 2.77 km3/yr at the mid-range area
+-- and that is the same equation being tested, so it can only ever agree with
+itself. The paper's own numbers are also mutually inconsistent at the 19% level:
+the 31% precipitation share implies a lake evaporation of 1,193 mm/yr against the
+1,000 stated, which is what a century of disequilibrium looks like in a table.
+
+Wurtsbaugh et al. (2017) supplementary gives annual volume series for the Aral
+Sea, Great Salt Lake, Owens, Urmia, Walker and the Dead Sea. It is the best
+available evidence for the disequilibrium warned about above -- the Aral falls
+from 100% to 4.5% of maximum volume within the record -- and carries no water
+balance at all.
+
+### What would actually work
+
+Gauged discharge per basin, in km3/yr, against a stated catchment area. That
+exists, in per-basin hydrology papers and in discharge archives, but it is one
+source per basin rather than one source for the set, so the assembly is the work
+and the definitions have to be reconciled by hand: basin against catchment
+against active catchment, and lake area at which epoch.
+
+The alternative is gridded: basin polygons from HydroBASINS crossed with a
+gridded runoff product, area-averaged properly. That gives `R` over the catchment
+by construction and would let the test run over dozens of basins instead of a
+handful. `pedology/scripts/validate_against_earth.py` already establishes the
+pattern for reaching a live dataset from inside this project, so the machinery is
+not novel; the data volume is the cost.
+
+**Do not accept a two-basin version of this test.** With N of 2, definitional
+ambiguity in the catchment area alone moves the answer by more than the pass
+threshold, and a result that cannot distinguish the model from the bookkeeping is
+worse than none.

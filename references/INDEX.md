@@ -85,6 +85,21 @@ under-carves. These quantify that.
 There is **no** dedicated review of the complementary relationship for small water
 bodies in arid settings. It exists only as sections inside the above.
 
+### Validating the lake solver against Earth (HYD-4)
+
+Fetched 2026-08-17 to test the equilibrium relation on real terminal lakes. See
+`hydrography/notes/lake-solver-validation.md`, which records why the test did not
+run on them.
+
+| file | citation | status |
+| --- | --- | --- |
+| `yapiyev_2017_essentials-of-endorheic-basins-and-lakes-a-review-in-the-context-of-cu.pdf` | Yapiyev, Sagintayev, Inglezakis, Samarkhanov, Verhoef (2017). *Essentials of Endorheic Basins and Lakes: A Review in the Context of Current and Future Water Resource Management and Mitigation Activities in Central Asia.* Water 9(10), 798. `10.3390/w9100798` | **read** -- the right kind of source and still not usable for this test. Gives Great Salt Lake at 55,000 km2 catchment, 2,470-5,490 km2 lake, lake precipitation 370 and evaporation 1,000 mm/yr; Issyk-Kul at about 40,000 km2 basin with precipitation, surface runoff and groundwater near 300 mm/yr each against 800 mm/yr of evaporation. **Every term is per unit LAKE area**, so the balances close on themselves and cannot predict an area |
+| `wurtsbaugh_2017_decline-of-the-world-s-saline-lakes.pdf` | Wurtsbaugh, Miller, Null, DeRose, Wilcock, Hahnenberger, Howe, Moore (2017). *Decline of the world's saline lakes.* Nature Geoscience 10, 816-821. `10.1038/ngeo3052` | held -- this copy is the supplementary information only: annual volume series for the Aral Sea, Great Salt Lake, Owens, Urmia, Walker and the Dead Sea, with no water balance. It is the evidence for the disequilibrium the test has to work around, the Aral falling from 100% to 4.5% of maximum volume within the record |
+
+What the test needs and these do not have: **gauged discharge in km3/yr against a
+stated catchment area**, so that runoff is a depth over the catchment measured
+independently of the lake.
+
 ## Star: activity, cycles and spectrum
 
 `config/planet.yaml` sets a bolometric cycle of 0.91 to 1.01, i.e. 10.4%
