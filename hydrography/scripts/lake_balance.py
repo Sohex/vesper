@@ -60,12 +60,25 @@ class BasinSet:
             self.area_km2 = np.asarray(ds["flooded_area_km2"][:])
             self.volume_km3 = np.asarray(ds["volume_km3"][:])
             self.spill_km = np.asarray(ds["spill_km"][:])
+            self.sink_elevation_km = np.asarray(ds["sink_elevation_km"][:])
             self.spill_target = np.asarray(ds["spill_target"][:])
             self.catchment_km2 = np.asarray(ds["catchment_km2"][:])
             self.capacity_km3 = np.asarray(ds["capacity_km3"][:])
             self.area_at_spill_km2 = np.asarray(ds["area_at_spill_km2"][:])
             self.terrain_hash = ds.terrain_hash
         self.n = self.level_km.shape[0]
+
+    @property
+    def depth_at_spill_m(self):
+        """Spill point down to the basin floor: what a sill has to be cut by.
+
+        The depth of the lake when the basin is full, and so the length the
+        overflow has to remove before the depression is gone. Floored at 1 m,
+        which affects the three basins whose sink sits at or above their own
+        spill level -- a rounding artifact of the conditioning surface, not a
+        basin.
+        """
+        return np.maximum((self.spill_km - self.sink_elevation_km) * 1000.0, 1.0)
 
     def level_for_area(self, basin: int, area_km2: float) -> float:
         """Invert the hypsometric curve. Area is monotone in level."""

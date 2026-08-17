@@ -27,25 +27,33 @@ precipitation than it evaporates, and it then fills until it spills. Dividing by
 runoff loses that case, which is how 228 dry pans came to be carved on one pass
 and pinned shut on the next.
 
-**How deeply the outlet is cut** is Q again, through stream power. Incision goes
-as `K Q^m S^n`, so a basin that pours cuts its sill orders of magnitude faster
-than one that trickles over it, and across the 1e4 to 1e6 years a landscape takes
-to relax that is the difference between a drained depression and a lake with a
-notch in its rim.
+**How deeply the outlet is cut** is Q against the depth of the basin. Incision
+goes as `K Q^m S^n`, so what an overflow achieves over a relaxation window is a
+LENGTH; whether that length empties the basin depends on how far it is from the
+spill point down to the floor.
 
-    retain_incision = 1 - (Q / Q_full) ** INCISION_EXPONENT, clipped to [0, 1]
+    cut    = COEFFICIENT * erodibility * Q ** INCISION_EXPONENT     [metres]
+    retain = clip(1 - cut / depth_at_spill, 0, 1)
 
-`Q_full` is per basin, being the declared constant divided by the erodibility of
-the rock at that basin's own sill: soft rock is cut through by less water. That
-factor is the export's `erodibility`, which is already a relative stream-power
-multiplier normalised to 1 over land, and it is the contrast a channel network
-expresses rather than the contrast between intact rock samples. The two differ by
-orders of magnitude and the expressed one is what a landscape model wants; see
-`sill_erodibility` below.
+Retain is then the fraction of the impoundment that survives, which is what
+Orogen cuts with and what a reader of the map sees. A predecessor compared the
+cut against a declared discharge instead and never asked about depth, so it said
+the same thing about a 14 m pan and a 1,420 m trough, and the marginal class came
+out as a razor-thin band around one discharge: 30 basins of 3,621, all of them
+trickles. Depth spans two orders of magnitude across this build and it decides
+the answer. Tanganyika carries 1,491 m3/s across its sill and is still a basin,
+because its floor is 577 m below that sill.
 
-No absolute time-to-cut is attempted even so. What this mapping carries is the
-ordering, which the previous one did not have at all: a trickle and a torrent
-both went out at retain 0.
+The erodibility factor is the export's own, a relative stream-power multiplier
+normalised to 1 over land, and it is the contrast a channel network expresses
+rather than the contrast between intact rock samples; see `sill_erodibility`.
+
+`COEFFICIENT` is calibrated, not declared, and the constant block says why: the
+relaxation window is undefined in a generator with no time axis, so it is settled
+the way this project settles every other missing-time question, by an
+expected-value argument over a stationary population. Earth is one randomly
+chosen moment in such a population, and matching the density of its standing
+through-flowing impounded basins fixes the number.
 
 **The uncertainty is a third thing, it is kept apart, and it turns out not to
 decide anything.** Retain is the larger of the incision value and the margin
@@ -102,39 +110,56 @@ from orogen import Export
 from lake_balance import BasinSet
 
 
-# Declared before any verdict was taken with them, in the same way the albedo
-# bracket's criteria were.
-#
-# Q_FULL_M3_S is the overflow above which the sill is treated as cut through
-# within the relaxation window. 1 m3/s is the perennial-stream boundary: above
-# it a channel flows year round and works on its bed every year, below it flow
-# is seasonal to ephemeral and the same volume arrives as pulses that spend most
-# of the window not cutting anything. It is a declared scale, not a fitted one,
-# and the sidecar records it so a verdict can be re-read against a different
-# choice. An order of magnitude either way moves retain by a factor of about
-# three at fixed discharge, so report it whenever a marginal count is quoted.
+# INCISION_M_PER_SQRT_Q is the depth of sill incision a basin's own overflow
+# achieves, in metres per (m3/s)^0.5 at land-mean rock, over however long this
+# landscape has been relaxing. That last clause is why it is calibrated and not
+# declared: **Orogen has no time axis** -- its lithology module says so directly,
+# "no ages, no stratigraphy and no unconformities, because there are no timesteps
+# to hang them on" -- so the relaxation window is UNDEFINED here rather than
+# unmeasured, and asking the generator for it asks for a concept it does not
+# have. `hydrography/notes/retain-fraction.md` carries the calibration; the short
+# form is that the project's standing move for a missing time axis is an
+# expected-value argument over a stationary population, and Earth is a randomly
+# chosen moment in one. Matching the DENSITY of standing through-flowing
+# impounded basins, at the size Vesper's mesh can resolve, gives 161 with a
+# bracket of 128 to 218 from the Poisson error on Earth's 15.
 #
 # INCISION_EXPONENT is the discharge exponent m in `K Q^m S^n`, 0.5 being the
-# middle of the 0.4 to 0.6 range detachment-limited bedrock studies fit. The
-# mapping is far less sensitive to it than to Q_FULL.
-Q_FULL_M3_S = 1.0
+# middle of the 0.4 to 0.6 range detachment-limited bedrock studies fit.
+INCISION_M_PER_SQRT_Q = 161.0
+INCISION_M_PER_SQRT_Q_BRACKET = (128.0, 218.0)
 INCISION_EXPONENT = 0.5
 KM3_PER_YEAR_TO_M3_PER_S = 1e9
 
 
-def incision_retain(q_km3_per_year, year_s: float, q_full_m3_s=Q_FULL_M3_S):
+def incision_retain(q_km3_per_year, year_s: float, depth_m, erodibility,
+                    coefficient: float = INCISION_M_PER_SQRT_Q):
     """Rim surviving the overflow. 1 keeps it, 0 cuts it.
 
-    Takes the overflow at spill level in km3 per Vesper year. A basin that does
-    not overflow gets 1 by construction, since Q is then zero or negative.
+    Takes the overflow at spill level in km3 per Vesper year, the depth from the
+    spill point down to the basin floor, and the sill's own erodibility. A basin
+    that does not overflow gets 1 by construction, since Q is then zero.
 
-    `q_full_m3_s` is per basin once the sill's own rock is known, since a soft
-    sill is cut through by less water than a hard one.
+        cut     = coefficient * erodibility * Q ** INCISION_EXPONENT
+        retain  = clip(1 - cut / depth_at_spill, 0, 1)
+
+    **Dividing by the depth is the whole point.** What the overflow can cut is a
+    length, and whether that empties the basin depends on how deep the basin is.
+    The previous mapping compared the cut against a declared discharge instead,
+    which said the same thing about a 14 m pan and a 1,420 m trough -- the fifth
+    and ninety-fifth percentiles of this build -- and so made the marginal class
+    a razor-thin band around one discharge rather than a property of the terrain.
+    Tanganyika carries 1,491 m3/s across its sill and is still a basin, because
+    its floor is 577 m below that sill.
+
+    Retain is then literally the fraction of the impoundment that survives, which
+    is what Orogen cuts with and what a reader of the map sees.
     """
     q = np.asarray(q_km3_per_year, dtype=float) * KM3_PER_YEAR_TO_M3_PER_S / year_s
-    cut = np.power(np.clip(q, 0.0, None) / np.asarray(q_full_m3_s, dtype=float),
-                   INCISION_EXPONENT)
-    return np.clip(1.0 - cut, 0.0, 1.0)
+    cut = coefficient * np.asarray(erodibility, dtype=float) * np.power(
+        np.clip(q, 0.0, None), INCISION_EXPONENT)
+    depth = np.maximum(np.asarray(depth_m, dtype=float), 1.0)
+    return np.clip(1.0 - cut / depth, 0.0, 1.0)
 
 
 def sill_erodibility(basins_path: Path, terrain_hash: str) -> np.ndarray:
@@ -325,8 +350,7 @@ def main() -> None:
     # What the water can actually cut, which is the half the margin never knew.
     # The sill's own rock sets how much water that takes.
     sill_ero = sill_erodibility(args.basins, basins.terrain_hash)
-    q_full = Q_FULL_M3_S / sill_ero
-    retain_incision = incision_retain(q_pen, year_s, q_full)
+    retain_incision = incision_retain(q_pen, year_s, basins.depth_at_spill_m, sill_ero)
 
     # Either is a reason to leave a rim standing: that the basin may not overflow
     # at all, or that its overflow cannot cut. Taking the larger keeps both.
@@ -393,15 +417,16 @@ def main() -> None:
 #
 # A basin overflows when more water arrives than its lake surface can evaporate,
 #     Q = runoff * (catchment - area_at_spill) - (E - P) * area_at_spill  >  0
-# and retain is then what that Q can cut, as 1 - (Q/Q_full)^{INCISION_EXPONENT:g}, where Q_full is
-# {Q_FULL_M3_S:g} m3/s at land-mean rock and less where the sill itself is softer,
-# floored by how uncertain the overflow test itself is. Open-water evaporation is
+# and retain is then what that Q can cut against how deep the basin is,
+#     retain = 1 - {INCISION_M_PER_SQRT_Q:g} * erodibility * Q^{INCISION_EXPONENT:g} / depth_at_spill
+# in metres, with the coefficient calibrated against the density of Earth's own
+# standing through-flowing impounded basins. Open-water evaporation is
 # the Penman combination equation with water's albedo and roughness, validated
 # against the model over ocean cells to within 1.7%.
 # Catchment runoff is {runoff_source}; see the sidecar.
 #
-#   retain 1.0   {n_preserve:4d} basins  closed, or spilling too little to cut
-#   retain 0<r<1 {n_marginal:4d} basins  a notch: uncertain, or a trickle over the sill
+#   retain 1.0   {n_preserve:4d} basins  closed: the lake surface evaporates all that arrives
+#   retain 0<r<1 {n_marginal:4d} basins  a notch: the outlet is cut, but not to the floor
 #   retain 0.0   {n_zero:4d} basins  carved
 #                            {n_carried:4d} of them carried forward, {n_carve:4d} decided here
 #
@@ -450,17 +475,24 @@ def main() -> None:
             "retain_mapping": "max(incision, margin), the larger of what the "
                               "overflow cannot cut and what the overflow test "
                               "cannot decide",
-            "retain_incision_mapping": f"1 - (Q / Q_full)**{INCISION_EXPONENT:g}, clipped to [0, 1]",
-            "retain_incision_q_full_m3_per_s": Q_FULL_M3_S,
-            "retain_incision_q_full_note": "per basin, divided by the sill's own "
-                "erodibility; the constant above is the value at land-mean rock",
+            "retain_incision_mapping":
+                f"1 - {INCISION_M_PER_SQRT_Q:g} * erodibility * "
+                f"Q**{INCISION_EXPONENT:g} / depth_at_spill_m, clipped to [0, 1]",
+            "retain_incision_coefficient_m_per_sqrt_q": INCISION_M_PER_SQRT_Q,
+            "retain_incision_coefficient_bracket": list(INCISION_M_PER_SQRT_Q_BRACKET),
             "retain_incision_exponent": INCISION_EXPONENT,
-            "retain_incision_rationale": "stream power goes as K Q^m S^n, so "
-                "overflow discharge and not distance from the threshold is what "
-                "cuts a sill. Q_full is the perennial-stream scale, declared "
-                "rather than fitted; no absolute time-to-cut is attempted "
-                "because Stock and Montgomery (1999) measure K across five "
-                "orders of magnitude by lithology",
+            "retain_incision_rationale":
+                "stream power goes as K Q^m S^n, so what the overflow achieves is "
+                "a LENGTH of incision, and whether that empties the basin depends "
+                "on the depth from spill point to floor. Dividing by the depth is "
+                "what makes retain the surviving fraction of the impoundment "
+                "rather than a band around one discharge. The coefficient absorbs "
+                "K, the sub-grid slope term and the relaxation window, and it is "
+                "CALIBRATED rather than declared because Orogen has no time axis: "
+                "matching the density of Earth's standing through-flowing "
+                "impounded basins, at the size this mesh resolves, gives 161 with "
+                "a Poisson bracket of 128 to 218. See "
+                "hydrography/notes/retain-fraction.md",
             "sill_rock": "K from the export's erodibility field, a relative "
                 "stream-power multiplier mean-normalised to 1 over land, taken "
                 "as the geometric mean of the two regions either side of the "
@@ -517,7 +549,7 @@ def main() -> None:
     if carried:
         print(f"carried   {len(carried):5d}  retain 0.0, from the previous pass")
     print(f"carve     {n_carve:5d}  retain 0.0  (this pass, of {basins.n} remaining)")
-    print(f"          {n_trickle:5d}  overflow, but too little to cut through")
+    print(f"          {n_trickle:5d}  outlet cut, but not through to the basin floor")
     print(f"          {n_lake_fed:5d}  overflow fed by the lake surface, no catchment runoff")
     if n_marginal:
         print(f"marginal  {n_marginal:5d}  retain {retain[mid].min():.3f}"

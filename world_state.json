@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated": "2026-08-17T21:58:10.074711+00:00",
-  "git_commit": "f75ac5e865cdfa22bed679674915fbc443abb2cd",
+  "generated": "2026-08-17T22:35:12.708755+00:00",
+  "git_commit": "e6f36fb4e163364b3c0e518690ef394e2d1416a7",
   "generator": "scripts/world_state.py",
   "note": "Generated from the artifacts. Do not edit; re-run the generator. Only derived values live here. Findings are in `notes/`, with their evidence, and open work is in `TASKS.md`.",
   "planet": {
@@ -296,9 +296,9 @@
     },
     "carve_list": {
       "counts": {
-        "carve": 1580,
+        "carve": 1512,
         "preserve": 2011,
-        "marginal": 30
+        "marginal": 98
       },
       "terrain_hash": "e931b0d9947a232210a3cc11ba82003b5da15765d86e87956bc44c220932760e",
       "climate": {

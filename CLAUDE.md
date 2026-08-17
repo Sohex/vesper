@@ -15,6 +15,7 @@ describes, and the pointers below are the map:
 | `vendor/orogen/tools/README.md` | the authoritative export format |
 | `<component>/README.md` | what that component does and how to run it |
 | `notes/failure-modes.md` | how this project goes wrong, by class |
+| `notes/no-time-axis.md` | Orogen has no time axis. Read before asking any component for a duration, an age, or a rate |
 | `notes/external-data.md` | routes into data this project does not generate; check the AWS Registry of Open Data before an API |
 | `notes/audits/` | findings: what is true, with its evidence |
 | `TASKS.md` | what to do about a finding, tracked atomically; closed ones move to `archive/tasks.md` |
