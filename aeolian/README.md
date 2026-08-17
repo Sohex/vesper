@@ -43,28 +43,45 @@ cases report converged.
 
 ### What it says now, and why that is still not an answer
 
+Measured 2026-08-17 on the baseline climatology, at the measured wind tail:
+
 | | z0 = 3e-6 m | z0 = 1e-4 m | z0 = 1e-3 m |
 | --- | ---: | ---: | ---: |
-| emission, Tg per Earth year | 3381 | 19.7 | 0.0 |
-| land-mean optical depth | 0.0597 | 0.0002 | 0.0000 |
-| deposition, g/m2 per Earth year | 4.80 | 0.018 | 0.000 |
+| emission, Tg per Earth year | 79830 | 3240 | 0.0 |
+| land-mean optical depth | 2.074 | 0.0672 | 0.0000 |
+| deposition, g/m2 per Earth year | 154.2 | 5.09 | 0.000 |
 
 Earth for scale: about 2000 Tg per year and a land-mean dust optical depth near
-0.03. So the smooth end of the roughness bracket is Earth-like and the rough end
-is nothing, across a bracket that spans plausible playa surfaces.
+0.03. So the central roughness is now a couple of Earths of emission at twice
+Earth's optical depth, and the smooth end is a dust world. Only the rough end is
+nothing, across a bracket that spans plausible playa surfaces.
 
-The wind tail moves it as much again. Emission in Tg per Earth year against the
-Weibull shape:
+**These numbers are 150 to 250 times the ones this table carried before
+2026-08-17, and the cause was a defective wind rather than anything aeolian.**
+The binned climatology's `spd` is partly vector-cancelled by the model's output
+accumulation, so it understated the near-surface speed by a median factor of
+1.554 over this grid. Emission is threshold-gated and then roughly cubic, which
+is how 1.55 on the wind became 158 on the emission: most of it is cells crossing
+the threshold at all rather than emitting harder once over it. The correction is
+`speed_bias_correction` in `build_dust.py`, it is per cell rather than global,
+and it is recorded in `dust_baseline.json`. `notes/failure-modes.md` class 15 is
+the general form of the mistake.
+
+The wind tail moves it as much again. Emission in Tg per Earth year, and the
+land-mean optical depth in brackets, against the Weibull shape:
 
 | shape k | z0 = 3e-6 m | z0 = 1e-4 m |
 | ---: | ---: | ---: |
-| 1.50 | 77165 | 7235 |
-| 2.00 | 29394 | 1465 |
-| 2.50 | 14056 | 398 |
-| 3.00 | 7885 | 131 |
-| 3.98 (measured) | 3469 | 20 |
+| 1.50 | 474169 (13.48) | 76840 (2.102) |
+| 2.00 | 258267 (7.184) | 29071 (0.756) |
+| 2.50 | 168221 (4.579) | 13723 (0.339) |
+| 3.00 | 122211 (3.263) | 7594 (0.177) |
+| 3.97 (measured) | 79830 (2.074) | 3240 (0.067) |
 
-**The measured 3.98 is an upper bound and the table above is therefore a lower
+Reproduce any row with `--weibull-shape`; the measurement is what runs by
+default.
+
+**The measured 3.97 is an upper bound and the table above is therefore a lower
 bound at every row.** It comes from snapshots 5.7 days apart, and averaging
 removes variance, which biases the shape parameter high. Earth's near-surface
 winds sit at 1.5 to 2.5. So the physically expected range is the top of that
@@ -73,14 +90,16 @@ table, not the bottom.
 ### The reopening test, stated without tuning
 
 `notes/dust.md` reopens the in-model question at a land-mean optical depth above
-0.10. At the measured k = 3.98 the answer is **0.0000 to 0.0597, below the
-threshold**. At an Earth-like k of 2.0 the same chain gives roughly eight times
-the emission at the smooth end, which puts the optical depth around 0.5 and
-**well above it**.
+0.10. **It crosses.** At the measured k the answer spans 0.0000 to 2.074 across
+the roughness bracket, and the central roughness is 0.0672, which is the only
+cell of that table still below the threshold. It stops being below it at any
+shape under about 3.5, and every reason there is to distrust the measured 3.97
+points downward.
 
-So the test is not decidable on what is currently known, and the two parameters
-that decide it are the wind tail and the aeolian roughness. Neither is a
-free knob to be set by what answer is wanted.
+So the test is decided in one direction and not the other: dust cannot be
+dismissed as negligible, and how far above the threshold it sits is not known.
+The two parameters that decide the magnitude are the wind tail and the aeolian
+roughness. Neither is a free knob to be set by what answer is wanted.
 
 ### What would decide it, and what to ask for
 
@@ -96,8 +115,9 @@ the tail rather than the body. Bottom-level wind alone is sufficient. That is
 roughly 190 MB per variable at T42, and about 25 minutes of model time at the
 rate the baseline is running.
 
-It cannot be run until the baseline settles, and the request is recorded rather
-than acted on.
+The baseline has settled, so this is runnable now. It is DUST-5, and it is the
+one measurement that would turn the reopening test from crossed-with-unknown-
+magnitude into a number.
 
 ## What the component does get right
 
@@ -107,7 +127,7 @@ from `substrate_class`, which is consolidated lithology plus closed-basin fill,
 so the only unconsolidated material is the fill; weights the two barren classes
 separately, because a cemented salt crust is not a silicate soil and Kok's
 fragmentation theory does not describe halite cement; removes standing water
-from the solved lake extent; and removes snow. It gives **16.4% of land** as
+from the solved lake extent; and removes snow. It gives **16.1% of land** as
 bare erodible ground against a playa fraction of 23.9%, and the difference is
 lakes and crust rather than an assumption.
 
