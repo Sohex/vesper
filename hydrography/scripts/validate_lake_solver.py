@@ -192,9 +192,16 @@ def lake_precipitation(lat: float, lon: float, cache: Path,
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--data-dir", type=Path, required=True,
-                    help="directory holding the HydroBASINS, HydroLAKES and "
-                         "GLEV downloads")
+    ap.add_argument("--data-dir", type=Path,
+                    default=PROJECT_ROOT / "hydrography" / "data" / "reference",
+                    help="HydroBASINS, HydroLAKES and GLEV downloads; see the "
+                         "README there for what they are and how to re-fetch")
+    ap.add_argument("--extract", type=Path, default=None,
+                    help="the tracked per-lake table. Written after the bulk "
+                         "sources are read, and read INSTEAD of them when it "
+                         "exists, so the test re-runs without 6 GB on disk")
+    ap.add_argument("--rebuild-extract", action="store_true",
+                    help="re-read the bulk sources even though an extract exists")
     ap.add_argument("--glev", type=Path, default=None)
     ap.add_argument("--output", type=Path,
                     default=ANALYSIS / "lake_solver_validation.json")
@@ -203,6 +210,14 @@ def main() -> None:
                          "selection, which is reported")
     args = ap.parse_args()
     glev_path = args.glev or (args.data_dir / "glev_evaporation_rate.csv")
+    extract = args.extract or (args.data_dir / "endorheic_lakes.json")
+
+    if extract.is_file() and not args.rebuild_extract:
+        print(f"reading {extract.name}, the tracked extract")
+        lakes = pd.DataFrame(json.loads(extract.read_text(encoding="utf-8"))["lakes"])
+        n_sinks = json.loads(extract.read_text(encoding="utf-8"))["sink_basin_count"]
+        truncated = 0
+        return score(lakes, n_sinks, truncated, args, extract)
 
     print("selecting endorheic sink basins")
     sinks = endorheic_sinks(args.data_dir)
@@ -229,6 +244,29 @@ def main() -> None:
         for row in lakes.itertuples()
     ]
 
+    keep = ["Hylak_id", "Lake_name", "Country", "Lake_area", "Wshd_area",
+            "Dis_avg", "Pour_lat", "Pour_long", "Elevation",
+            "evap_mm_yr", "precip_mm_yr"]
+    extract.parent.mkdir(parents=True, exist_ok=True)
+    extract.write_text(json.dumps({
+        "note": "Per-lake inputs for HYD-4, extracted from HydroLAKES, "
+                "HydroBASINS, GLEV and ERA5. Tracked so the test re-runs "
+                "without the bulk sources; see the README beside this file.",
+        "generated": datetime.now(timezone.utc).isoformat(),
+        "selection": "HydroBASINS level 5 ENDO > 0, grouped by MAIN_BAS, the "
+                     "lake of largest Wshd_area in each, Lake_type == 1, "
+                     f"Lake_area >= {MIN_LAKE_KM2} km2, Dis_avg > 0",
+        "sink_basin_count": int(len(sinks)),
+        "system_count": int(sinks["MAIN_BAS"].nunique()),
+        "endorheic_area_km2": float(sinks["SUB_AREA"].sum()),
+        "lakes": json.loads(lakes[keep].round(4).to_json(orient="records")),
+    }, indent=2) + "\n", encoding="utf-8")
+    print(f"  wrote {extract}")
+    return score(lakes, int(len(sinks)), truncated, args, extract)
+
+
+def score(lakes, n_sinks: int, truncated: int, args, extract: Path) -> None:
+    """The test itself, on whatever the extract or the bulk sources supplied."""
     have = lakes.dropna(subset=["evap_mm_yr", "precip_mm_yr"]).copy()
     # Supply as a depth over the dry catchment, which is the whole point.
     seconds = 365.25 * 86400.0
@@ -236,7 +274,6 @@ def main() -> None:
                             / ((have["Wshd_area"] - have["Lake_area"]) * 1e6)
                             * 1000.0)
     have["net_evap_mm_yr"] = have["evap_mm_yr"] - have["precip_mm_yr"]
-    usable = have[have["net_evap_mm_yr"] > 0].copy()
     have["predicted_ratio"] = (have["runoff_mm_yr"]
                                / (have["runoff_mm_yr"] + have["net_evap_mm_yr"]))
     have["predicted_km2"] = have["predicted_ratio"] * have["Wshd_area"]
@@ -279,8 +316,9 @@ def main() -> None:
             "lake_precipitation": "ERA5 via the Open-Meteo archive, 1991-2020 "
                                   "at the lake pour point",
         },
+        "extract": str(extract.relative_to(PROJECT_ROOT)),
         "counts": {
-            "sink_basins": int(len(sinks)),
+            "sink_basins": n_sinks,
             "terminal_lakes_selected": int(len(lakes)),
             "truncated_to": truncated,
             "with_evaporation_and_precipitation": int(len(have)),

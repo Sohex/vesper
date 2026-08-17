@@ -91,6 +91,15 @@ hydrography/analysis/cache_era5/
 # references/INDEX.md below -- exclude the bulk, keep the record.
 pedology/data/reference/*
 !pedology/data/reference/*.json
+
+# Same rule for hydrography: HydroLAKES, HydroBASINS and GLEV are gigabytes and
+# carry their own licences, so the bulk is excluded and the extract is not.
+# hydrography/data/reference/README.md records the exact sources and how to
+# re-fetch them, and endorheic_lakes.json is the table the validation actually
+# reads -- kilobytes, and enough to re-run the test without re-downloading 6 GB.
+hydrography/data/reference/*
+!hydrography/data/reference/*.json
+!hydrography/data/reference/README.md
 # Reference PDFs: publisher copyright, many not redistributable. The PDFs are
 # excluded; INDEX.md is NOT, because it is the bibliography and the record of
 # which sources have actually been read. A blanket `references/` rule used to
