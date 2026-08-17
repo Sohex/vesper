@@ -19,6 +19,12 @@ not been checked against, and results already computed from a superseded terrain
 have to stay readable and datable. That needs the hashes and the headline
 numbers, which is kilobytes, not the mesh.
 
+**The payload is not deleted until the stub has been checked.** `verify()`
+confirms `identity.json` exists, parses, and records the terrain hash of the
+build being deleted, and raises otherwise. The stub IS the archive here: a build
+that cannot be identified from it cannot be recognised or dated again, and the
+export takes a full generator pass to rebuild.
+
 The per-build hydrography products under `hydrography/data/<build>/` are NOT
 touched: they are small, they are what downstream work actually cites, and they
 are derived rather than regenerable in one pass.
@@ -63,6 +69,32 @@ def stub(manifest: dict) -> dict:
     lit = manifest.get("lithology") or {}
     out["lithology"] = {k: v for k, v in lit.items() if k != "perRegion"}
     return out
+
+
+def verify(dest: Path, expected_hash: str) -> None:
+    """Confirm the identity stub is on disk and readable before the payload goes.
+
+    The stub IS the archive here -- once the export is deleted, a build that
+    cannot be identified from it is a build that cannot be recognised or dated
+    again, and the payload takes a full generator pass to rebuild. So this
+    checks the file parses and still carries the terrain hash it was written
+    for, rather than trusting that write_text succeeded.
+
+    Raises rather than returning a flag: there is no sensible way to continue.
+    """
+    identity = dest / "identity.json"
+    if not identity.is_file():
+        raise RuntimeError(f"archive incomplete: {identity} missing; nothing deleted")
+    try:
+        recorded = json.loads(identity.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(f"archive corrupt: {identity} does not parse ({exc}); "
+                           f"nothing deleted") from exc
+    got = (recorded.get("hashes") or {}).get("finalElevation")
+    if got != expected_hash:
+        raise RuntimeError(
+            f"archive wrong: {identity} records finalElevation {got!r} but the "
+            f"build being deleted is {expected_hash!r}; nothing deleted")
 
 
 def main() -> None:
@@ -120,6 +152,8 @@ def main() -> None:
             for extra in ("README.txt", "SUPERSEDED.md"):
                 for p in d.rglob(extra):
                     shutil.copy2(p, dest / f"{p.parent.name}_{extra}")
+            # Check the stub before the export goes, not after.
+            verify(dest, m.get("hashes", {}).get("finalElevation"))
             shutil.rmtree(d)
 
     print(f"\n{'freed' if args.execute else 'would free'} {freed/1e9:.1f} GB")

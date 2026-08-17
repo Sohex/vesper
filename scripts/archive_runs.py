@@ -11,8 +11,18 @@ Those are what anything downstream ever cites.
 
 So "archive" here does not mean move the directory. Moving 50 GB into a folder
 called `archive/` leaves 50 GB. It means extract the derived products into
-`archive/runs/<directory>/`, which is tracked, and delete the raw output, which
-is not.
+`archive/runs/<directory>/`, which is tracked, and delete the run, which is not.
+
+The whole run directory goes, kept files included, because they are in the
+archive by then. An earlier version deleted only the raw output and left the
+small files in place, which meant every dead run still appeared in INDEX.json as
+though it were present, and the same file existed in two places with only one of
+them tracked.
+
+**Nothing is deleted until the archive has been checked.** `verify()` confirms
+each extracted file is present at the same size and that the JSON among them
+parses, and raises otherwise. A half-written manifest is silent until someone
+reads it, by which time the original is long gone.
 
 **Live is defined by the active build**, not by recency. A run is live if its
 `source_build` matches `config/planet.yaml`. Everything else is dead by
@@ -30,6 +40,7 @@ from datetime import datetime, timezone
 import json
 from pathlib import Path
 import shutil
+import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -47,6 +58,33 @@ KEEP_GLOBS = ["*_climate_series.json", "*.cfg", "*_namelist", "*.nl"]
 # would have missed the next one too. For a dead run the safe default is delete,
 # because the terrain that produced it is superseded and the keep list is the
 # complete set of things anything cites.
+
+
+def verify(dest: Path, kept: list[Path]) -> None:
+    """Confirm the archive is complete and readable before anything is deleted.
+
+    Extract-then-delete is only safe if the extract worked. This checks the
+    copies exist at the same size, and that the JSON among them parses -- a
+    truncated or half-written manifest is exactly the failure that would make
+    the archive worthless, and it is silent until someone tries to read it
+    months later with the original long gone.
+
+    Raises rather than returning a flag: there is no sensible way to continue.
+    """
+    for src in kept:
+        copy = dest / src.name
+        if not copy.is_file():
+            raise RuntimeError(f"archive incomplete: {copy} missing; nothing deleted")
+        if copy.stat().st_size != src.stat().st_size:
+            raise RuntimeError(
+                f"archive corrupt: {copy} is {copy.stat().st_size} bytes against "
+                f"{src.stat().st_size} at source; nothing deleted")
+    for js in sorted(dest.glob("*.json")):
+        try:
+            json.loads(js.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as exc:
+            raise RuntimeError(f"archive corrupt: {js} does not parse ({exc}); "
+                               f"nothing deleted") from exc
 
 
 def load_index() -> list:
@@ -103,20 +141,29 @@ def main() -> None:
                 shutil.copy2(p, dest / p.name)
             (dest / "INDEX_ENTRY.json").write_text(
                 json.dumps(r, indent=2) + "\n", encoding="utf-8")
-            for p in drop:
-                p.unlink()
-            # Directories that held only dropped files.
-            for d in sorted((q for q in run.rglob("*") if q.is_dir()),
-                            key=lambda q: -len(q.parts)):
-                if not any(d.iterdir()):
-                    d.rmdir()
-            if not any(run.iterdir()):
-                run.rmdir()
+            # Check before deleting anything at all, including the raw output.
+            verify(dest, keep)
+            # The WHOLE directory goes, kept files included. They live in the
+            # tracked archive now, and leaving copies behind under runs/ left
+            # every dead run still registering in INDEX.json as though it were
+            # present -- the same file in two places, one of them the record and
+            # one of them not.
+            shutil.rmtree(run)
 
     print(f"\n{'freed' if args.execute else 'would free'} {freed/1e9:.1f} GB")
     if not args.execute:
         print("dry run; pass --execute to do it")
         return
+
+    # INDEX.json is generated from the run directories, so archiving invalidates
+    # it the moment a directory goes. Regenerate here rather than leaving a
+    # stale index that lists runs which no longer exist -- the record of an
+    # archived run is archive/runs/<dir>/INDEX_ENTRY.json, which is tracked.
+    reindex = ROOT / "exoplasim" / "scripts" / "index_runs.py"
+    if reindex.is_file():
+        subprocess.run([sys.executable, str(reindex)], check=True,
+                       stdout=subprocess.DEVNULL)
+        print("reindexed exoplasim/runs/INDEX.json")
 
     (ARCHIVE / "README.md").write_text(
         "# Archived runs\n\n"
