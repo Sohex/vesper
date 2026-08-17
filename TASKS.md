@@ -14,8 +14,8 @@ Status: `open` | `doing` | `blocked` | `done` | `wontfix` (with a reason).
 
 - IDs are stable and never reused. Prefix by area: `LITH` lithology, `GRAV`
   gravity, `VOLC` volcanism and weathering fluxes, `SURF` derived surface
-  classes, `CLIM` climate, `HYD` hydrography, `BIO` biosphere, `MIN` economic minerals, `REF`
-  references and provenance.
+  classes, `CLIM` climate, `HYD` hydrography, `BIO` biosphere, `MIN` economic minerals,
+  `DUST` the aeolian component, `REF` references and provenance.
 - One line per task. If it needs a paragraph, it needs a findings document.
 - A task that turns out to be wrong is closed `wontfix` with the reason, not
   deleted. The reasoning is the point.
@@ -35,7 +35,10 @@ Status: `open` | `doing` | `blocked` | `done` | `wontfix` (with a reason).
 | GRAV-6 | Glacial erosion carries no gravity term, and Glen's law makes ice velocity go as `g^3` (2.23x here) | `notes/audits/orogen-gravity.md` | blocked on the downscaling pass, deliberately. The audit's recommendation was Option B, carry it as a declared gap: `iceFlow` is a heuristic accumulation rather than a Glen's-law velocity, so a rigorous g^3 on it is precision theatre. Decisive on top of that, a glacial valley is 1-5 km against a 15.19 km mesh cell, so the process is SUB-GRID and cannot be resolved here at any gravity. It belongs with the downscaling machinery, which has to persist sub-grid hypsometry anyway |
 | SURF-1 | Implement the derived-surface classifier against the two-axis design | `pedology/notes/derived-surface-classes.md` | blocked on the re-baseline -- there is no climatology at all now, and `baseline_climatology` is null until one exists |
 | SURF-2 | Re-run `brine_paths.py` weighted by discharge rather than catchment area | `pedology/notes/derived-surface-classes.md` | blocked on the re-baseline, same reason as SURF-1 |
-| SURF-3 | Loess: needs a dust emission scheme and a transport path, neither of which exists | `pedology/notes/derived-surface-classes.md` | blocked |
+| SURF-3 | Loess: needs the deposition field DUST-1 produces | `pedology/notes/derived-surface-classes.md` | blocked on DUST-1 |
+| DUST-1 | Build the offline dust component: Kok-style emission over the erodible fraction with a subgrid wind distribution, transport on the climatology's winds, and removal by settling plus below-cloud scavenging. Products are a deposition flux and an optical depth map | `notes/dust.md` | blocked on the baseline climatology, which it reads. Every other input exists: z0, clay, erodibility, the lake solution, `mrso`, `prc` and `prl` |
+| DUST-2 | Price the dust radiative forcing from DUST-1's optical depth and the optics already computed, longwave included, and put it in the error budget as a number rather than an unpriced item | `notes/dust.md`, `analysis/dust_optics.json` | blocked on DUST-1 |
+| DUST-3 | Feed the dust field forward as a PRESCRIBED aerosol distribution in the next iteration's run, and reopen the interactive question only if DUST-1 exceeds a land-mean optical depth of 0.10 or 1.5 W/m2 of global forcing | `notes/dust.md` | blocked on DUST-1 and DUST-2 |
 | HYD-3 | Measure the overshoot: re-evaluate an already-carved set against the climate that carving produced, and report how many would no longer have carved | `WORKFLOW.md` section 4 | blocked -- it applies to a verdict taken on carved terrain, and a pre-carve base restarts the count at iteration 1 |
 | HYD-4 | Validate the lake equilibrium solver against something. It is the least-checked product in the pipeline, and it is the only thing that could break the crust-extent against crust-albedo degeneracy | `exoplasim/notes/parameter-decisions.md` | blocked on the re-baseline |
 | HYD-6 | Check the first real verdict against the retain change: how many basins sit between 0 and 1 for want of discharge rather than for uncertainty, and whether the lake-fed spillers are a handful or a population. The second decides whether `Q_full` is worth calibrating | `hydrography/notes/retain-fraction.md` | blocked on the re-baseline |

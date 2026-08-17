@@ -206,21 +206,92 @@ quoted: the scheme is monodisperse where real dust spans 0.1 to 20 microns, and
 the source term has no wind-speed threshold even once it is weighted by surface
 type.
 
-## What to do
+## What to do, revisited 2026-08-17
 
-Not in the GCM. Model the aeolian phosphorus term the way the carve verdict and
-the thermostat efficiency are modelled: outside the climate model, from its
-climatology. Everything needed is already here -- the playa and salt-crust
-distribution from lithology, surface winds and precipitation from the
-climatology, and the basin-to-cell coupling matrix that already integrates
-climate over catchments.
+Reopened before the baseline run, because the first decision was taken when
+nothing downstream needed a deposition field and three things now do: loess
+(SURF-3), the phosphorus return leg above, and the derived-surface classifier.
+A second opinion argued for fixing ExoPlaSim's scheme properly in Fortran --
+Kok (2014) brittle-fragmentation emission, a subgrid wind PDF, wet scavenging,
+and four to six size bins. The physics in that list is right. The conclusion
+here is still not to do it in the GCM, for reasons that are specific to this
+world rather than general.
 
-Two things that would need declaring rather than deriving, and should be
-bracketed rather than guessed: the phosphorus content of basin fill, and an
-emission efficiency. Both are Earth calibrations of the kind
-`pedogenesis.yaml` already carries.
+### What the built-in scheme is, and why nobody should enable it
 
-Separately unquantified: dust has a radiative effect as well as a chemical one.
-Bright dust over dark ground cools and over ice warms, and a quarter of this
-planet's land is a potential source. That belongs in the error budget as an
-unpriced item rather than being assumed negligible.
+Unchanged and now agreed from both directions: `fcoeff * land` is a boundary
+condition, not an emission scheme. It would emit as much from forest as from
+salt pan, which is exactly the distinction that makes dust interesting here.
+
+### Why not fix it in place
+
+**The sign is already resolved, offline, and that was the expensive part.**
+`dust_optics.py` settles it with a Mie code validated against Bohren-Huffman and
+OPAC: dust cools over every surface on this world, narrowly including salt
+crust, because the critical albedo is 0.51-0.57 in band 2 against a crust that
+tops out at 0.50. An interactive scheme would not buy the sign. It would buy the
+feedback, which is a smaller quantity.
+
+**ExoPlaSim's radiation caps the return, and in the direction that matters.**
+Its aerosol block is shortwave only, and dust's longwave warming is on the order
+of a third of the net effect on Earth. So an interactive implementation would
+overestimate the cooling by roughly that much, and fixing it means patching
+`radmod` rather than `aerocore`. Offline, the longwave term is arithmetic.
+
+**The emitting fraction is not the playa fraction, and this world is the case
+where that distinction bites.** Kok's brittle fragmentation is calibrated on
+silicate soils. A cemented salt crust is not a silicate soil and emits far less
+than loose clastics; the Bodele is efficient because it is diatomite, not
+because it is a salt pan. This project already separates `evaporite` from
+`playa_clastic`, derives the ephemeral crust from the lake solution, and knows
+which basins hold water. Those fields are the source map, and none of them exist
+inside the GCM.
+
+**The source area is at its maximum on a pre-carve terrain.** Carving removes
+fill, which is why the estimate above was corrected from 26.6% to about 12% of
+land. Calibrating an emission scheme now would calibrate it against a landscape
+the carve verdict says does not survive.
+
+### What to build instead
+
+An offline dust component, on the same footing as the carve verdict and the
+thermostat efficiency: computed from a climatology rather than inside the model.
+Every input it needs already exists.
+
+| term | from |
+| --- | --- |
+| friction velocity, and a subgrid wind distribution over the gridbox | `spd`, `ua`, `va` in the climatology; emission goes as roughly u* cubed above a threshold, so a gridbox-mean wind emits almost nothing and a Weibull over the box is not optional |
+| threshold, moisture-gated | `mrso` from the climatology |
+| drag partitioning | the z0 field `build_surface_roughness.py` already writes, 0.0036 to 11.1 m |
+| erodible fraction | lithology, clay from pedology, erodibility per region |
+| what is not a source | the lake solution, the derived ephemeral crust, and vegetation cover |
+| transport | the climatology's winds |
+| removal | gravitational settling, plus below-cloud scavenging from `prc` and `prl`, without which fine-mode lifetime is out by an order of magnitude |
+
+Products: a deposition flux, which is what loess, the phosphorus return leg and
+the minerals overlay all want, and an aerosol optical depth map, which with the
+optics already computed gives the radiative forcing including longwave.
+
+### When it enters the climate, and the test for whether it should
+
+**Not in this baseline.** The order is forced rather than chosen: a dust model
+reads winds, soil moisture and precipitation, so it cannot precede the
+climatology it is driven by. The baseline runs without dust and the forcing is
+carried as a bias with a number rather than as an unpriced item.
+
+**Fed forward as a prescribed field, not as interactive dust.** The next
+iteration's run can take a supplied aerosol distribution; that captures the
+spatial pattern, which is the part the built-in scheme gets wrong, without
+writing coupled emission physics in Fortran.
+
+**The threshold for reopening, fixed here before the answer is known.** If the
+offline land-mean dust optical depth exceeds **0.10**, or the forcing exceeds
+**1.5 W/m2** in the global mean, the feedback is large enough that a prescribed
+field is no longer defensible and the emission scheme belongs in the model. Both
+numbers are chosen against the pricing above, where 0.12 was the four-times-Earth
+case worth about 1.8 K over vegetation.
+
+Below that, prescribed is the answer and the Generic PCM is not: it carries all
+of this properly and costs two orders of magnitude in runtime plus a pipeline
+rewrite, which is not a trade worth making for a term whose sign is settled and
+whose source area is uncertain by a factor of two.
