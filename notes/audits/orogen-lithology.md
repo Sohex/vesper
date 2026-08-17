@@ -600,6 +600,44 @@ rather than a defect. Earth's shields are exposed because glacial scour and
 epeirogenic uplift stripped their platforms, and Orogen models neither. **Visible
 shields are therefore not reachable by any parameter here**; cratonic basement is.
 
+### A granitoid-gneiss-granulite continuum: possible, cheap, and not worth it
+
+Assessed and declined, with the working kept because the cost estimate was
+wrong the first time and the correction is the useful part.
+
+**It needs no new rock class.** `gneiss` already exists and is fully grounded --
+erodibility 0.35, density 2.75, albedo 0.28, phosphorus 790 ppm, Meybeck gneiss.
+Relabelling deeply exhumed granite as gneiss costs one rule and no new grounding.
+The axis is real too: metamorphic grade is depth of formation, and `erosionDelta`
+is an exhumation proxy the export already carries.
+
+**Granulite is better covered than assumed.** Daly (1966) has "Granulite,
+Lapland" at 2.93 g/cm3 hypersthene-bearing and 2.73 hypersthene-free; Moosdorf
+bins it metamorphic at 1.0, Hartmann as MT at 790 ppm, Meybeck as gneiss, and
+the pH parent class is metamorphic. Only albedo is genuinely absent. The first
+reading of this section called the grounding expensive without checking, and it
+is not.
+
+**It fails on usefulness instead.** Relabelling trades one divergence for
+another rather than reducing them:
+
+| split | plutonic /GLiM | metamorphic /GLiM | sum of absolute error |
+| --- | ---: | ---: | ---: |
+| as built | 2.70 | 1.42 | 2.12 |
+| granite > p50 -> gneiss | 1.89 | 1.84 | 1.73 |
+| granite > p75 -> gneiss | 2.29 | 1.63 | 1.92 |
+| granite > p90 -> gneiss | 2.54 | 1.50 | 2.04 |
+
+Both classes are already over-represented, so moving area between them improves
+one ratio by spoiling the other. The underlying fact is that this world exposes
+more crystalline basement than Earth full stop -- 59% of continental basement is
+the granite fallback and cover strips widely -- and a relabelling changes what
+the table SAYS without changing how much basement outcrops.
+
+If it is ever wanted for legibility rather than for the Earth comparison, p90 is
+the defensible rule: the deepest-exhumed 1.10% of land, a statement about
+exhumation rather than a fit to GLiM.
+
 **The one real defect was the basin factor.** `r_t_craton` was multiplied by
 `(1 - basin)`, which says a craton under sedimentary cover is not a craton. On
 Earth most cratonic area IS covered -- the Russian Platform, the North American
