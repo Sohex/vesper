@@ -313,6 +313,37 @@ def energy_diagnostics_enabled(config: dict) -> bool:
     return bool(config["model"].get("energy_diagnostics", False))
 
 
+def disable_low_io(model) -> None:
+    """Turn off PlaSim's low-I/O output path, which writes a corrupt first bin.
+
+    `NLOWIO = 1` is PlaSim's default (`plasimmod.f90:151`) and accumulates fields
+    over each output interval, dividing in place at write time. The first record
+    of every model call comes out wrong under it: the free troposphere is right
+    to 5% and the boundary layer is missing entirely, so bottom-level wind reads
+    7.5x the other bins and humidity 27% low. Scalars are within 2%.
+
+    Proven to be this path rather than the postprocessor by running one orbit at
+    `NLOWIO = 0` through the same `pyburn` averaging: the humidity ratio goes
+    from 0.714 to 0.930, which is inside the ordinary seasonal spread. See
+    `exoplasim/notes/first-output-bin.md`.
+
+    The exact line is NOT pinned, and a patch is deliberately not written on the
+    obvious candidate: `naccuout` persists across runs through the restart while
+    the accumulators do not (`plasim.f90:767`), but a counter error scales a
+    field uniformly and this one changes its vertical structure. So the setting
+    is turned off rather than the bug fixed; CLIM-5 carries the patch.
+
+    What it costs: about 2.4 GB per orbit against 96 MB, because output becomes
+    182 instantaneous records per orbit, one roughly every 24 hours, instead of
+    12 accumulated bins. `pyburn` still averages them to 12 for the .nc, so
+    nothing downstream changes shape. Samples are also strictly more information
+    than an accumulation, since an average can be recomputed from them and an
+    accumulation cannot be undone -- which is what makes a proper mean wind
+    speed recoverable at all.
+    """
+    model._edit_namelist("plasim_namelist", "NLOWIO", "0")
+
+
 def enable_energy_diagnostics(model, config: dict) -> bool:
     """Set nenergy in plasim_nl, which the Python API does not expose.
 
@@ -784,6 +815,7 @@ def main() -> None:
         if w is not None and float(w) != 1.0:
             model._edit_namelist("radmod_namelist", name, f"{float(w)}")
 
+    disable_low_io(model)
     if enable_energy_diagnostics(model, config):
         n = register_energy_diagnostic_codes()
         print(f"energy diagnostics on: nenergy=1, {n} codes 360-387 registered "

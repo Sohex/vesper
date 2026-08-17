@@ -30,6 +30,26 @@ experiment, records a complete manifest, and runs one smoke orbit. It refuses
 to overwrite an existing run with climate output. See
 `exoplasim/notes/parameter-decisions.md` for physical and format assumptions.
 
+### Output mode: NLOWIO is forced to 0
+
+`disable_low_io()` sets `NLOWIO = 0` on every prepare and every continuation.
+PlaSim's default is 1, and under it the FIRST output record of every model call
+is corrupt: the free troposphere is right to 5% and the boundary layer is
+missing, so bottom-level wind reads 7.5x the other bins and humidity 27% low.
+Scalars stay within 2%. It is the model's low-I/O accumulation, not the
+postprocessor -- proven by running one orbit at `NLOWIO = 0` through the same
+`pyburn` averaging, which takes the humidity ratio from 0.714 to 0.930.
+
+The cost is about 2.4 GB per orbit against 96 MB, because output becomes 182
+instantaneous records per orbit, roughly daily, instead of 12 accumulated bins.
+`pyburn` still averages to 12 for the `.nc`, so nothing downstream changes shape,
+and samples are strictly more information than an accumulation: a mean can be
+recomputed from them, and an accumulation cannot be undone. Delete run
+directories once their climatologies are extracted.
+
+It has to be reapplied on every continuation because `configure()` rewrites the
+namelist each time. See `exoplasim/notes/first-output-bin.md` and CLIM-5.
+
 ### Which resume path is valid
 
 `continue_exoplasim.py` continues the SAME run: same config, same surface fields,

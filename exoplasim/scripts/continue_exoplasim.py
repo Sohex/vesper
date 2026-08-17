@@ -25,6 +25,7 @@ from run_exoplasim import (  # noqa: E402
     REGULAR_CODES,
     ENERGY_DIAGNOSTIC_CODES,
     ENERGY_3D_CODES,
+    disable_low_io,
     enable_energy_diagnostics,
     energy_diagnostics_enabled,
     register_energy_diagnostic_codes,
@@ -292,6 +293,10 @@ def main() -> None:
 
     regular_codes = list(REGULAR_CODES)
     if energy_diagnostics_enabled(config):
+        # Every continuation re-runs configure(), which rewrites the
+        # namelist, so this has to be reapplied here and not only at
+        # prepare time. See run_exoplasim.disable_low_io.
+        disable_low_io(model)
         enable_energy_diagnostics(model, config)
         register_energy_diagnostic_codes()
         regular_codes = regular_codes + ENERGY_DIAGNOSTIC_CODES
