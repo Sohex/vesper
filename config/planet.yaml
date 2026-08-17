@@ -1,528 +1,132 @@
 schema_version: 1
 
-# DETERMINED vs PROVISIONAL
+# Canonical parameters for Vesper. Every component reads this file and nothing
+# copies a value out of it into prose or into a script.
 #
-# Every block below is one or the other, and each says which. A determined value
-# has been decided or measured and downstream work may rely on it. A provisional
-# one is a placeholder, an interim result, or a parameter for test runs that were
-# exploring rather than deciding, and it will move.
+# Each block is marked DETERMINED or PROVISIONAL. A determined value has been
+# decided or measured and downstream work may rely on it; a provisional one is a
+# placeholder or an interim result and it will move. The distinction is not
+# cosmetic: `stellar_cycle` carried an amplitude and a centre before there was a
+# baseline flux to centre on, and both were later read back as though they had
+# been chosen.
 #
-# The distinction is not cosmetic: `stellar_cycle` has carried an amplitude and a
-# centre since before there was a baseline flux to centre on, and both were read
-# back later as though they had been chosen. They had not. A value that has never
-# been decided should not be indistinguishable from one that has.
+# Why each value is what it is: notes/config-rationale.md, keyed by setting.
+# Current measured values: world_state.json, which is generated.
 
-# Which World Orogen build every component reads. source/ is namespaced by build
-# because they now multiply faster than they can be swapped in place, and a
-# result's provenance should depend on what it was computed from rather than on
-# when it was computed.
-#
-# lib/orogen.py is the registry and holds the hash, the note and what superseded
-# what. No list of builds belongs here: it goes stale the moment a build lands,
-# and a stale list beside the live setting reads as though it were checked.
+# DETERMINED. lib/orogen.py is the registry: it holds the hash, the note, and
+# what superseded what.
 source_build: precarve-craton
 
-# Which climatology every downstream component reads by default. Named here
-# rather than hardcoded in a _paths helper, because it was hardcoded to
-# `climatology_s096` -- computed on pre-carve terrain under the wrong stellar
-# spectrum, and the surface the antipodal carve verdict was taken from. Six
-# scripts across pedology and biosphere defaulted to it silently.
-#
-# Which climatology every downstream component reads by default. Named here
-# rather than hardcoded in a _paths helper, because it was hardcoded once and
-# six scripts across pedology and biosphere took a superseded default silently.
-#
-# NULL means no baseline is named, and `climatology_path()` raises rather than
-# falling back. That is the point: a stale default returns a plausible number
-# from the wrong world, which is worse than an error. Set it to the regular
-# climatology of the current baseline.
-#
-# A named climatology is not automatically the ACTIVE build's climate.
-# check_consistency.py compares terrain hashes and reports the mismatch; that is
-# where to find out, not a comment here that has to be kept true by hand.
-#
-# BOOTSTRAP, and it is labelled as one. This is the climatology of the first run
-# on a new terrain, which exists so that lakes, the lake compositing in the
-# albedo and the pedology soil water field can be built at all. It is not the
-# baseline: the run whose climatology the carve verdict uses is the one made
-# afterwards, with those fields in place. Repoint this at that one when it
-# exists, and expect the name to change with it.
+# BOOTSTRAP. The climatology of the first run on a new terrain, which exists so
+# that lakes, the lake compositing in the albedo and soil water can be built at
+# all. Repoint at the baseline once that run exists. Null means no baseline is
+# named and every consumer raises rather than falling back.
 baseline_climatology: exoplasim/analysis/climatology/bootstrap_regular_climatology.nc
 
 # DETERMINED. Radius and gravity are Orogen's and canonical; mass follows from
-# gravity, not the other way round. Rotation, obliquity and eccentricity chosen.
+# gravity as mass_earth = (g/g_earth) * radius_earth^2, and derive() raises if
+# these two disagree.
 planet:
   radius_earth: 1.20
-  # Surface gravity is canonical, not derived. This is the value World Orogen
-  # was run with, and it already scaled the terrain's maximum relief as 1/g, so
-  # the geography in source/ cannot be separated from it. Mass follows from it:
-  # mass_earth = (g/g_earth) * radius_earth^2, and `derive()` raises if the two
-  # keys below disagree, so they cannot drift apart. The formula is written here
-  # and the value is NOT: this comment used to carry a copy of the mass, and it
-  # was still asserting the pre-correction figure long after the value beneath
-  # it had changed.
   gravity_m_s2: 12.81
   mass_earth: 1.881009
   rotation_hours: 30.0
   obliquity_degrees: 32.0
   eccentricity: 0.02
 
-# DETERMINED. Spectral type, activity level, and the surface ultraviolet that
-# follows from them are all decided; see the notes inside the block.
+# DETERMINED. Spectral type, activity and the surface ultraviolet that follows
+# from them. The star is chromospherically active, of the kind epsilon Eridani
+# represents, which is what the starspot cycle below is built on.
 star:
-  # Provisional empirical midpoint between K2V and K3V in the
-  # Pecaut--Mamajek dwarf sequence (see notes/parameter-decisions.md).
   spectral_type: K2.5V
-  # DETERMINED: this star is chromospherically ACTIVE, of the kind epsilon
-  # Eridani represents -- young, spotted, and with ultraviolet well above a
-  # quiescent K dwarf's. Chosen to match the intense starspot cycle this world is
-  # built around, and it settles a decision three other quantities were waiting
-  # on: the ozone column, the surface ultraviolet environment and the Lacis-
-  # Hansen ultraviolet weight are all functions of activity, so all three now
-  # take their active-star values from Segura et al. (2003), whose K2V IS
-  # epsilon Eridani observed by IUE.
   activity: active
-  # DETERMINED, and now measured rather than chosen. Segura et al. (2003),
-  # "Ozone Concentrations and Ultraviolet Fluxes on Earth-Like Planets Around
-  # Other Stars", Astrobiology 3, 689-708, models a K2V host explicitly -- very
-  # nearly this star -- with an Earth-like O2 atmosphere:
-  #
-  #   ozone column at 1 PAL O2   6.64e18 cm-2 against the Sun's 8.36e18, so 0.794x
-  #   surface UV-B               "about 0.4 times Earth's flux"
-  #
-  # So this world is substantially BETTER protected from ultraviolet than Earth,
-  # not comparably. The star's lower ultraviolet output wins against the thinner
-  # ozone column it produces; the two do not cancel.
-  #
-  # This replaces a declared choice of `earth_like`, which was reached from an
-  # order-of-magnitude cancellation argument that gave 1.05x and was wrong by a
-  # factor of 2.6. The lesson is recorded in notes/failure-modes.md: the
-  # cancellation was two rough estimates multiplying to about one, which is not
-  # evidence of anything.
-  #
-  # This closes a dimension instead of opening one. Surface UV is the product of
-  # how much the star emits and how much the ozone column absorbs, and neither is
-  # known here: BT-Settl is a photospheric model and carries no chromosphere,
-  # which is where a K dwarf's 200-320 nm flux mostly comes from, and the ozone
-  # column is prescribed as Earth's rather than computed. Pinning the product
-  # means neither factor has to be determined separately.
-  #
-  # It is defensible rather than merely convenient because ozone is itself
-  # UV-produced, so the column tracks the incident ultraviolet and buffers the
-  # surface against the star's activity. That is what lets this world have a
-  # dramatic bolometric activity cycle and a terrestrial surface UV environment
-  # at the same time -- the two would otherwise pull against each other, since
-  # the cycle wants an active star and the biosphere wants a quiet one.
-  #
-  # What this does NOT settle is ozone's radiative effect on the climate, which
-  # is a different quantity from its shielding of the surface. That still wants
-  # the o3scale sensitivity test.
+  # Measured, not assumed: Segura et al. (2003) model a K2V host with an
+  # Earth-like O2 atmosphere. This world is better protected than Earth.
   surface_uv_relative_to_earth: 0.4
   mass_solar: 0.80
   luminosity_solar: 0.32359365692962827
   effective_temperature_k: 4965.0
 
-# DETERMINED, 2026-08-16. `baseline_flux_earth` is 0.945, chosen from the
-# habitability-by-latitude derivation rather than from a temperature target.
-#
-# This block previously carried three eras of measured temperatures and
-# sensitivities in its comments -- 150.2 and 192.2 K per unit flux, and mean
-# temperatures of 291.4, 292.47 and 292.64 K. Every one of them was measured on a
-# superseded terrain or in a superseded regime, and they disagreed with each
-# other. They are gone rather than updated: per CONVENTIONS in CLAUDE.md, current
-# values live in `world_state.json`, and the dated measurements live in
-# `exoplasim/notes/parameter-decisions.md`. What stays here is what is a
-# decision, a threshold, or an argument that fails without its number.
+# DETERMINED, 2026-08-16, from the habitability-by-latitude derivation rather
+# than from a temperature target. The flux and the biosphere are one choice:
+# bare rock and a vegetated surface reach a given design mean at non-overlapping
+# fluxes. Move the flux by luminosity once the calendar is locked, not by the
+# orbit; WORKFLOW.md section 6C says why.
 orbit:
   earth_solar_constant_w_m2: 1361.0
-  # The flux and the biosphere are one choice, not two. The vegetated and
-  # bare-rock windows for the design band DO NOT OVERLAP, so this flux is
-  # habitable *because* the world is vegetated rather than independently of it.
-  # That non-overlap is the load-bearing fact and is why the number is here.
-  #
-  # This fixes the orbit. a = sqrt(L/F) = 0.585173 AU and the year is 182.801
-  # days, and that year is compiled into LPJ-GUESS. Subsequent flux changes
-  # should therefore move the star's luminosity and leave the orbit alone.
-  # L scales 1:1 with F at fixed a, and Teff as F^(1/4), so past 2 to 3% in
-  # luminosity the spectrum needs rebuilding at the new temperature; see
-  # WORKFLOW.md section 6 loop C.
   baseline_flux_earth: 0.945
   sweep_flux_earth: [0.90, 0.95, 1.00]
   longitude_vernal_equinox_degrees: 102.7
 
-# DETERMINED. 1 bar at 450 ppm CO2, chosen -- and CHECKED, 2026-08-16.
-#
-# 450 ppm is prescribed. Nothing in this project solves the carbonate-silicate
-# balance that would set it, and closing that loop is deliberately not on the
-# roadmap: it would replace a prescribed CO2 with a prescribed OUTGASSING rate,
-# which is no better constrained, at the cost of a weathering law in pCO2 and
-# several coupled climate integrations. One free parameter would move, not go.
-#
-# What was done instead is a check, and 450 ppm passes it with room.
-#
-# At steady state a planet's outgassing equals its own silicate weathering, so
-# the ratio of this world's silicate CO2 consumption to Earth's IS the ratio of
-# outgassing it needs. That comparison avoids absolute outgassing estimates,
-# which span a factor of several depending on whether metamorphic and
-# diagenetic sources are counted. `pedology/scripts/weathering_fluxes.py`
-# computes it.
-#
-# Holding 450 ppm at this climate asks for about 1.07x Earth's outgassing.
-# Radiogenic heat production scales with mass at fixed composition and this
-# planet is 1.881 Earth masses, so the first-order expectation is near 1.9x.
-# The requirement sits below the supply with a margin around 1.7x.
-#
-# Read it as a FLOOR, not a target: supplying more breaks nothing, it settles
-# the thermostat at a higher CO2 and a warmer state, which is a different world
-# rather than an inconsistent one. What the check rules out is the opposite
-# case, where 450 ppm would have needed an implausible outgassing rate and the
-# world would quietly draw down to something colder than every run assumes.
-#
-# Two limits on the check itself. It is a plausibility bound rather than a
-# derivation -- melt production depends on spreading rate and mantle
-# temperature, higher gravity compresses the melting column, and 43% land means
-# less ocean basin than Earth, so the sign of the net correction is not claimed.
-# And it is computed on a climatology and terrain that both predate the current
-# build, so the requirement moves on the re-baseline. The margin is wide, not
-# unlimited. Re-run it after.
+# DETERMINED. 1 bar total at 450 ppm CO2. The carbon cycle is not solved
+# anywhere in this project, so read CO2 as an assumption rather than a result;
+# WORKFLOW.md section 4 says what the assumption costs.
 atmosphere:
-  # Partial pressures sum to exactly 1 bar. H2O remains interactive; it is not
-  # included as a fixed surface partial pressure.
   pN2_bar: 0.78025
   pO2_bar: 0.21000
   pAr_bar: 0.00930
   pCO2_bar: 0.00045
   ozone: true
 
-# DETERMINED. The k25v spectrum replaced ExoPlaSim's k2.dat, which is the star
-# K2-18, an M2.5V, not a K dwarf. Two-band surface albedo is required under a red
-# spectrum and is on.
+# DETERMINED. The spectrum is a measured K dwarf interpolated to this star's
+# effective temperature, NOT ExoPlaSim's k2.dat, which is the star K2-18 at
+# about 3450 K and made snow and ice 0.10-0.17 too dark in every run before it.
 radiation:
-  # Separate visible/near-IR surface albedos, which matter under a red spectrum:
-  # snow albedo splits 0.959/0.614 at maximum and 0.496/0.289 at minimum.
   two_band_albedo: true
-  # `k25v`, in exoplasim/inputs/stellarspectra/, built by
-  # exoplasim/scripts/build_stellar_spectrum.py from the BT-Settl (CIFIST2011)
-  # grid, interpolated log-linearly to the declared 4965 K between the 4900 and
-  # 5000 K models at log g 4.5. It puts 0.382 of shortwave below 0.75 um.
-  #
-  # This was `k2` through every run of the first three eras, chosen believing
-  # ExoPlaSim ships a measured K2 *dwarf* spectrum matching this star's K2.5V. It
-  # does not: `k2.dat` is the star K2-18, an M2.5V at about 3450 K. The filename
-  # names the object, not the spectral type, and the package ships no K dwarf at
-  # all. The model's own log settles it, reporting 0.1159 of shortwave below
-  # 0.75 um where this star should put 0.382.
-  #
-  # It matters because nstarfile takes precedence over nstartemp and the spectrum
-  # sets the weighting for every snow, ice and glacier albedo. Those ran 0.10 to
-  # 0.17 too dark throughout, weakening the very feedback the glacier and
-  # stellar-cycle machinery exists to resolve. See notes/stellar-spectrum-audit.md
-  # for what that biases and by how much; results predating this remain valid in
-  # kind, with the direction of the error known.
   stellar_spectrum: k25v
 
-# PARTLY DETERMINED. Sea ice and glaciers are decided. `mixed_layer_depth_m` is
-# NOT: 50 m is a default, it sets seasonal amplitude, and this world's year is
-# half Earth's so it damps seasonality about twice as hard as Earth's ocean does.
-# `scripts/error_budget.py` emits it as a structural item awaiting one
-# perturbation run.
+# DETERMINED. Slab ocean, interactive sea ice, glaciers on.
 surface:
   mixed_layer_depth_m: 50.0
   sea_ice: true
-  # Persistent snow converts to glacier, and glacier thickness is added to the
-  # surface geopotential. That orographic term is the point: it is the feedback
-  # that makes an ice sheet grow into its own cold, and without it a cold branch
-  # gets snow albedo but no elevation response. On a world testing albedo-driven
-  # bistability, leaving it off would answer a different question.
-  #
-  # initial_height_m -1 places no initial ice, so glaciers only appear where snow
-  # genuinely persists year-round; the module cannot manufacture them. It does
-  # not model ice flow, so continental ice-sheet extent is underestimated.
   glaciers:
     enabled: true
     min_snow_depth_m: 2.0
     initial_height_m: -1.0
 
-# TRANSITIVE, except where noted. Resolution, layers, ranks and timestep are
-# operational choices that change with what is being run, not properties of the
-# world -- they moved from T21/8 to T42/16 between the flux bracket and the
-# bootstrap. The ozone scale and band weights inside the block ARE determined and
-# say so.
+# DETERMINED for the re-baseline. Resolution, layers and ranks together select
+# which compiled binary runs, so changing any of them needs a rebuild.
 model:
-  # T42 for the iteration-1 baseline. The bracket ran at T21, which was right
-  # for a several-kelvin question. This pass feeds the carve verdict and the
-  # first LPJ-GUESS input, both of which will change and be redone, so the
-  # expensive grid is not warranted yet. T85 comes once terrain and biosphere
-  # have settled: it resolves the median basin catchment across 3.0 cells
-  # against T42's 0.7, and recovers the full 5,769 m mesh relief against 5,101.
   resolution: T42
   latitudes: 64
   longitudes: 128
   layers: 10
   precision_bytes: 8
-  # 16 physical cores on the Ryzen 9 7950X3D. Not 32: those are SMT threads and
-  # MPI ranks on sibling threads contend for the same FPU and cache, which does
-  # not help a compute-bound spectral model. NLAT must divide by ncpus, so at
-  # T42 the valid choices are 1, 2, 4, 8, 16, 32, 64; 16 leaves 4 latitudes per
-  # rank. Spectral transforms need global transposes, so scaling is sublinear
-  # and may turn over before 16 -- measured against the 8-core baseline below.
-  # 64 latitudes at T42, so 16 ranks leaves 4 per rank, one per physical core.
-  # RESOLUTION-DEPENDENT, and not simply "all the physical cores". Measured on
-  # this machine, one orbit:
-  #
-  #   T42, 16 ranks   111 s      T21, 16 ranks    75 s
-  #                              T21,  8 ranks    53 s
-  #
-  # At T21 each of 16 ranks holds about 128 gridpoints, and the global transposes
-  # a spectral model needs cost more than the arithmetic they carry, so half the
-  # ranks run 1.4x faster and leave 8 cores free for a second run. At T42 there
-  # is enough work per rank for 16 to pay. NLAT must divide by ncpus: 32 at T21
-  # allows 1, 2, 4, 8, 16, 32.
   ncpus: 16
   timestep_minutes: 45.0
   physics_filter: "gp|exp|sp"
   output_type: .nc
-  # Only topography (0129) and the land mask (0172) are supplied. ExoPlaSim's
-  # configure() clears every other surface .sra when a landmap is given, so
-  # roughness, albedo, field capacity, forest fraction and the glacier mask all
-  # take uniform namelist defaults. That is deliberate: Earth's surface maps are
-  # tied to Earth's continents and would be meaningless on this geography.
-  # Declared here so the fallback is a decision, not an accident.
+  # Declares that ExoPlaSim's configure() clears every surface field when handed
+  # a landmap, so anything not supplied here falls back to a namelist default.
   uniform_land_surface: true
-  # nenergy in plasim_nl, which the Python API does not expose, so
-  # run_exoplasim.py edits the namelist directly. Adds the 28 energy-budget
-  # terms on codes 360-387 to the regular output, to locate which one carries
-  # the constant -0.455 W/m2 residual. Needs the rebuilt binary for the term-15
-  # latent-heat phase fix; that rebuild is done.
+  # PlaSim's 28-term energy decomposition, codes 360-387 and 460-487. On for the
+  # re-baseline to name the constant -0.455 W/m2 gap between the top of the
+  # atmosphere and the surface; see TASKS.md CLIM-1.
   energy_diagnostics: true
-  # Scales ExoPlaSim's prescribed Earth ozone column, which no part of the model
-  # derives from the host star. 0.794 is measured, not assumed: Segura et al.
-  # (2003) Table 1 gives 6.64e18 cm-2 for a K2V host at 1 PAL O2 against the
-  # Sun's 8.36e18. Set through radmod_nl directly, like NENERGY and STARFILE,
-  # since the Python API does not expose it.
-  #
-  # This corrects only the column. The absorption coefficients remain fitted to a
-  # solar-shaped band 1, and a 4965 K star puts proportionally less of its band-1
-  # flux in the 200-350 nm Hartley and Huggins bands, so absorption per unit
-  # ozone is still overestimated. See notes/ozone.md.
+  energy_diagnostics_3d: true
   ozone_scale: 0.794
-  # Spectral re-weighting of the Lacis & Hansen (1974) ozone absorptances, which
-  # radmod.f90 uses and which give absorptance as a fraction of TOTAL INCIDENT
-  # SOLAR flux. Each of their three terms therefore carries the Sun's share of
-  # flux in the band it represents, and applying them unchanged to a K dwarf puts
-  # solar band weights on a non-solar spectrum.
-  #
-  # The ultraviolet weight is MEASURED, from Segura et al. (2003) Table 2, which
-  # reports incoming ultraviolet at the planet for Sun and K2V hosts placed at
-  # equal total insolation. Summing UV-C, UV-B and the 315-350 nm part of UV-A
-  # gives 17.92 W/m2 against the Sun's 53.44, so 0.335.
-  #
-  # That table is epsilon Eridani, observed by IUE: a young, chromospherically
-  # ACTIVE K2V, which is the star this world has been declared to have. So this
-  # is the right weight rather than a bound.
-  #
-  # It also corrects an error recorded here earlier. A 4965 K blackbody gives
-  # 0.469, and that was described as a FLOOR on the grounds that a real star adds
-  # chromospheric ultraviolet a photospheric model lacks. The observed value is
-  # 0.335, which is LOWER, because ultraviolet line blanketing in a real stellar
-  # atmosphere removes more flux than the chromosphere puts back. A blackbody
-  # overestimates a cool star's ultraviolet; it does not bound it from below.
-  #
-  # The visible weight stays computed, 0.3358 / 0.3673 = 0.914, measured from the
-  # k25v spectrum itself, where line blanketing is already represented and the
-  # chromosphere contributes nothing.
-  #
-  # Both default to 1.0 upstream, which reproduces Lacis & Hansen exactly, so the
-  # patch leaves any solar-host run bit-identical.
   ozone_uv_weight: 0.335
   ozone_visible_weight: 0.914
-  # The same 28 terms per level, codes 460-487. The column totals established
-  # that the -0.455 W/m2 residual is not the fixed offset it was recorded as --
-  # it spans -0.400 to -0.489 across four converged runs, against a claimed
-  # +/-0.010 -- but no single term carries it. Per-level says where in the
-  # column the imbalance appears, which is what turns a number into a lead.
-  energy_diagnostics_3d: true
-  # Aerodynamic roughness from land cover and subgrid relief, code 173, by
-  # build_surface_roughness.py. Replaces the uniform dz0land = 2.0 m, which
-  # asserts forest-scale roughness over the 16.5% of land that is salt crust and
-  # playa. Those are closed-basin floors, flat by construction, and they are the
-  # cells the carve verdict integrates evaporation over: the default gives them
-  # 7.7x the turbulent exchange a real playa surface has.
-  #
-  # NVEG is 0 in these runs, so landmod.f90:409 takes dz0 = dz0clim directly and
-  # 173 is the field that matters; SIMBA's separate vegetation and orographic
-  # terms never run.
-  #
-  # The land mean is anchored to ExoPlaSim's own 2.0 m, so this redistributes
-  # roughness without moving the global value the model was tuned against. The
-  # field spans 0.025 to 11.2 m and its exchange coefficient 0.0021 to 0.0249,
-  # against the uniform 0.0088.
   roughness_source: lithology
-  # BOOTSTRAP: uniform, and it goes back to `pedology` before the baseline run.
-  # Soil water capacity comes from the pedology soil map as code 229, and that
-  # soil has to be weathered under a climatology, so on a terrain that has none
-  # yet the field cannot exist and run_exoplasim refuses to start without it.
-  # The flip cannot happen mid-run either, since it moves config_sha256 and
-  # continue_exoplasim will not resume across that, so the bootstrap has to be
-  # finished before it moves. WORKFLOW section 6A has the order.
-  #
-  # It has to be `pedology` BEFORE the run whose climatology the verdict uses,
-  # not merely before the verdict: land-mean dwmax is 0.151 m against the uniform
-  # 0.5 m bucket, which changes evaporation, which changes P - E, which is the
-  # numerator of the carve criterion.
+  # BOOTSTRAP: uniform now, pedology before the baseline run. Code 229 comes
+  # from a soil weathered under a climatology, so it cannot exist on a terrain
+  # that has none yet, and the flip cannot happen mid-run because it moves
+  # config_sha256. WORKFLOW.md section 6A has the order.
   soil_water_source: uniform
-  # Background land albedo, from lithology rather than ExoPlaSim's uniform 0.22.
-  # Rock classes run 0.10 for basalt to 0.50 for evaporite, so a uniform value is
-  # a planetary-albedo error of a few hundredths.
-  #
-  # The world is taken to be vegetated: 0.15 on anything that can carry a canopy,
-  # with evaporite left at its bare 0.50 because nothing roots in a salt pan. The
-  # bracket showed this is not a detail: the two endmembers differ by 3.7-7.1 K
-  # and reach a given design mean at non-overlapping fluxes, so the biosphere and
-  # the orbit are one choice, not two.
-  #
-  # What the land mean comes out at is per build and belongs in the albedo report
-  # beside the .sra files, not here. It moves with the lithology, which is why
-  # the flux is re-derived on every new terrain rather than carried.
   land_albedo_source: vegetated
-  # No rock-class albedo overrides, and the key is absent rather than empty.
-  #
-  # There was one: evaporite forced to 0.40, because Orogen assigned clean-halite
-  # 0.50 to every cell of a preserved basin when most of a basin floor is playa
-  # mud and fan gravel rather than crust. That override was removed when the
-  # generator zoned the class, which is what it was written to wait for: the
-  # export now carries salt crust and playa clastics separately, so the split is
-  # measured from the terrain instead of averaged into one declared number.
-  #
-  # Both values are the generator's now, and both are cited there rather than
-  # here: crust stays 0.50, and playa clastics moved 0.30 -> 0.19 on Post et al.
-  # (2000), 52 pyranometer measurements over 0.3-2.8 um with a mean of 0.189.
-  # See `vendor/orogen/js/lithology.js` and `references/INDEX.md`.
-  #
-  # It is still the largest lever on this planet's energy balance, and it is
-  # larger now than when that was first written, because playa clastics are a
-  # bigger share of land on this terrain than evaporite was on the old one. If
-  # this class moves again, the flux moves with it.
-  # Rock classes that cannot carry vegetation, so they keep their own albedo in
-  # `vegetated` mode rather than being handed the canopy value. Nothing roots in
-  # salt crust and nothing much roots in playa mud, and between them they are
-  # about 21% of this planet's land, so treating either as vegetable would be a
-  # first-order error in the energy balance.
-  #
-  # This started as a single hardcoded reference to evaporite and became wrong
-  # the moment Orogen split that class into crust and clastics. Driven from
-  # config now so the next addition is a config change rather than a silent one.
+  # Classes that cannot carry vegetation, so they keep their own albedo in
+  # `vegetated` mode. Nothing roots in salt crust or playa mud, and between them
+  # they are about a quarter of this planet's land.
   barren_rock_classes: [evaporite, playa_clastic]
-  #
-  # INHERITED UNCERTAINTY, recorded rather than overridden. After Orogen split
-  # the evaporite domain, the dominant albedo lever is `playa_clastic` at 0.30,
-  # not the salt crust: playa is 18.8% of land against the crust's 2.1%, so per
-  # 0.10 of albedo error it is worth 2.48 W/m2 (2.34 K) pre-carve against the
-  # crust's 0.28. Nine to one.
-  #
-  # And playa_clastic is itself a mixture. Its name is "Playa mud / alluvial fan
-  # fill"; light clay playa runs 0.30-0.35, desert-varnished fan gravel and
-  # pavement run 0.15-0.25. A plausible mix spans 0.25-0.33, worth 1.99 W/m2 or
-  # 1.87 K, which is 40% of what the whole crust/fill split was worth.
-  #
-  # Not overridden. 0.30 is a defensible central value and the range above is
-  # what it is worth; tuning it to make a temperature land would be the same
-  # error one level down. Orogen has proposed separating fan from mud by the same
-  # depth zoning that separated crust from fill, which would resolve it without a
-  # new mechanism.
-
   geography_land_threshold: 0.5
   seasonal_samples_per_orbit: 32
   regular_output_bins_per_orbit: 12
 
-# PARTLY DETERMINED. The star's activity level IS now chosen -- see
-# star.activity: active -- which was the decision the ozone column, the surface
-# ultraviolet and the ozone ultraviolet weight were all waiting on, and all three
-# now carry their active-star values.
-#
-# What remains undetermined is this block's own numbers. The amplitude and period
-# are what some early exploratory runs used, and the range was written around a
-# baseline flux that has since moved twice; it is not centred on the current one
-# and should not be read as a decision that it is.
-#
-# Three things have to be settled before this becomes determined, and they
-# interact:
-#
-#   1. The amplitude, as a stipulated property of the star. The current range is
-#      roughly 100x the Sun's total irradiance cycle, which is defensible for a
-#      young active K dwarf but is a worldbuilding choice rather than an estimate.
-#   2. The mechanism. A secular luminosity change moves effective temperature as
-#      F^(1/4) and needs the spectrum rebuilt past a couple of percent. A spot
-#      and facular activity cycle moves bolometric flux with almost no change in
-#      effective temperature, but with a strongly non-grey signature concentrated
-#      in the blue -- which is the band snow and ice albedo respond to, and the
-#      whole reason a measured spectrum is used at all. The two give different
-#      cryosphere responses at the same flux. Which one this is has not been
-#      decided.
-#   3. The period, in absolute time rather than local years, since a stellar
-#      dynamo does not know about this planet's orbit.
-#
-# Convergence for a cycle run is also undefined: drift-based criteria assume an
-# approach to a steady state, and a forced cycle has none. Validate against
-# periodicity instead, comparing a year against the same phase one cycle later.
-# CANDIDATE, 2026-08-16. Periods and amplitudes are now CHOSEN -- two components
-# at 11 and 57 Earth years, 2.5% and 3.5% peak-to-peak -- and centred on a
-# baseline flux that is itself DETERMINED, so this block is no longer the
-# free-floating placeholder the header used to describe.
-#
-# It is CANDIDATE rather than DETERMINED because nothing has been run with it
-# yet. What the first cycle run has to return before this is settled: the real
-# damping factor, which is analytic and Planck-only here; whether the cycle-mean
-# temperature sits where the concavity argument says it does; and whether the
-# aligned excursion is tolerable. Amplitudes may want revising afterwards, and
-# revising them is expected rather than a failure.
-#
-# Item 2 below -- whether the variation is bolometric or spot-driven -- IS now
-# decided for modelling purposes: the cycle is applied as a grey multiplier,
-# because a spot-driven swing of this size moves the band-1 fraction by 0.007 and
-# is worth under 0.02 K at this world's ice cover. That measurement, and the ice
-# fraction at which it would stop holding, are in
-# exoplasim/notes/parameter-decisions.md.
+# PROVISIONAL. Amplitudes and periods are chosen rather than derived; the
+# damping factors quoted in the notes are analytic and Planck-only, and
+# measuring them is what the first cycle run is for. The two components do
+# different jobs and the ratio is deliberately non-commensurate.
 stellar_cycle:
-  # Sinusoidal bolometric variation about the baseline flux, applied at every
-  # radiation timestep by patches/exoplasim-3.4.2-star-cycle.patch.
-  #
-  # 0.91 to 1.01 is 10.4% peak-to-peak, essentially the same amplitude as the
-  # earlier 0.85-0.95 experiment's 11.1%, and still implies unusually extensive
-  # and variable spot coverage for a quiet 6-8 Gyr K dwarf. Treat it as an
-  # intentionally active star rather than a typical one.
-  #
-  # Static endpoints on the vegetated branch are about 282.2 and 299.7 K, a
-  # 17.5 K span. The 50 m slab damped the earlier experiment to 0.239 of its
-  # static span, which predicts roughly 4.2 K peak-to-peak here, about 289.3 to
-  # 293.5 K. If that holds the world stays inside the habitable band across the
-  # whole cycle, which is the point of centring it at 0.96.
-  # CANDIDATE, 2026-08-16. Two superposed components rather than one sinusoid,
-  # because epsilon Eridani genuinely has both a short and a long cycle, and
-  # because the two do different jobs here: the medium one is climatic and the
-  # long one is geomorphic.
-  #
-  # The periods are NOT epsilon Eri's values. That star is a reference for what a
-  # K2.5V of this activity can do, not a template to copy. What was taken from it
-  # is the plausible amplitude envelope -- 4.3% median, 2.4-7.2% at 95%,
-  # bolometric. The 6% total here is inside that and above its median.
-  #
-  # The ratio is deliberately non-integer. At 57/11 = 5.18 the phase relationship
-  # returns only after about 314 Earth years, so grand minima differ in depth
-  # rather than repeating identically. That is the point: glaciers advancing
-  # further in the deeper minima leave moraines at different distances, so the
-  # landscape records which past minima were severe. An exact ratio erases that.
-  #
-  # Damping below is ANALYTIC and Planck-only, from a slab thermal timescale of
-  # 1.17 Earth years. Measuring the real value is what the first cycle run is for.
-  #
-  # The per-component kelvin figures in the notes below are STALE HIGH-CONFIDENCE
-  # ESTIMATES and are known to be understated. They were computed against a
-  # sensitivity of about 149 K per unit flux ratio; the 0.9125-to-0.968 bracket
-  # measured 201 K per unit flux on this build, 35% larger, because that interval
-  # crosses the ice transition and the earlier figure did not. Corrected
-  # magnitudes are in exoplasim/notes/parameter-decisions.md. THE AMPLITUDES
-  # BELOW ARE STILL THE DECISION; only their predicted consequence moved.
   components:
     medium:
       period_earth_years: 11.0        # 22 local years, ~6.4 per lifetime
@@ -541,9 +145,3 @@ stellar_cycle:
         breathing. Each grand minimum is a distinct historical era.
   total_amplitude_flux_peak_to_peak: 0.060
   alignment_recurrence_earth_years: 314
-  # The single-sinusoid `cases` representation and its 8-year `period_earth_years`
-  # were removed 2026-08-16. They were superseded rather than merely old: a case
-  # carried its own minimum and maximum, hence its own mean, which could disagree
-  # with orbit.baseline_flux_earth and had to be cross-checked at run time. The
-  # components state amplitudes ABOUT the baseline and have no second mean to
-  # disagree with.
