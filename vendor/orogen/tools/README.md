@@ -318,7 +318,7 @@ the exhumed material goes. Altiplano, Qaidam and Tarim hold kilometres of fill
 inside the most actively deforming belts on Earth. Orogen applied the thinning to
 basin fill for one release, and the failure mode is worth knowing because it was
 silent: the cells kept `cover_rock` = `playa_clastic`/`evaporite` while
-`cover_thickness` went to 0, so `surface_rock` reported orogenic basement and any
+`cover_thickness` went to 0, so `substrate_class` reported orogenic basement and any
 check on the cover class still passed. It cost 15% of preserved-basin area on
 Vesper and 0.0027 of mean land rock albedo, which ExoPlaSim integrates directly.
 
@@ -351,7 +351,7 @@ without one. Together the three cost 15% of preserved-basin area and 0.0034 of
 mean land rock albedo.
 
 If you consume basin extent, read `basin_index` / `is_endorheic`; if you consume
-the exposed surface, read `surface_rock`. They answer different questions, and
+the substrate, read `substrate_class`. They answer different questions, and
 after these fixes they agree over closed basins: 99.8% of preserved-basin area on
 Vesper is fill, and no preserved basin lacks it entirely. The residual is cells
 whose veneer erosion has stripped to basement, which is the model working.

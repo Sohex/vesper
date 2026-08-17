@@ -159,7 +159,7 @@ def main() -> None:
         raise SystemExit(f"rock classes with no Meybeck mapping: {unmapped}")
 
     # Per-region release vector, from its surface rock class.
-    rock = export.surface_rock.astype(np.int32)
+    rock = export.substrate_class.astype(np.int32)
     area = export.cell_area.astype(np.float64)
     land = export.surface_class == LAND
     release = np.zeros((len(SPECIES), export.n_regions))

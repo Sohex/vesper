@@ -123,7 +123,7 @@ def soil_codes(config: dict, land: np.ndarray) -> tuple[np.ndarray, dict]:
     """
     mesh = Export(builds.mesh_export(config))
     grid_dir = builds.grid_export(config, str(config["model"]["resolution"]).upper())
-    rock = mesh.surface_rock
+    rock = mesh.substrate_class
     classes = {c["id"]: c["code"] for c in mesh.manifest["lithology"]["rockClasses"]}
 
     unknown = sorted({classes[i] for i in np.unique(rock) if i in classes}

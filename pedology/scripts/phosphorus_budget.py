@@ -86,7 +86,7 @@ def main() -> None:
     ex = Export(builds.build_root(cfg) / "exoplasim-T42")
     land = ex.surface_class == LAND
     area = ex.cell_area
-    rock = ex.surface_rock
+    rock = ex.substrate_class
     # The class legend lives in the manifest, indexed by id, not as a field.
     names = {c["id"]: c["code"] for c in ex.manifest["lithology"]["rockClasses"]}
 

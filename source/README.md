@@ -153,7 +153,7 @@ manifest rather than trusting a figure quoted anywhere.
   distortion is not uniform: evaporite gains 1.17x on area against 1.046x for
   land overall, so its share is understated. That is
   the expected direction, because playa fill accumulates in exactly the closed
-  basins `land_mask` excludes. Compute composition from `surface_rock` and
+  basins `land_mask` excludes. Compute composition from `substrate_class` and
   `surface_class` rather than quoting the table.
 
 ## Generating a build

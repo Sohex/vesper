@@ -219,7 +219,7 @@ as good to about 10%, not better.
 | insolation as `NETSWRAD_TS` | `rss` | ready |
 | cloud fraction (alternative path) | `clt` | ready |
 | atmospheric CO2 | `config/planet.yaml`, 450 ppm | ready, a constant |
-| soil texture class | Orogen `surface_rock` via lithology | needs a mapping, does not exist yet |
+| soil texture class | Orogen `substrate_class` via lithology | needs a mapping, does not exist yet |
 | nitrogen deposition | no source | must be declared, as the albedo constants were |
 | gridlist | T42 land cells from `surface_class` | 4106 cells |
 | daylength, insolation geometry | computed internally, see above | needs the patch |

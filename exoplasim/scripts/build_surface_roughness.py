@@ -119,7 +119,7 @@ def main() -> None:
     # builds for another resolution, which is when the filename matters.
     resolution = resolution_of(grid_dir)
 
-    rock = mesh.field("surface_rock").astype(int)
+    rock = mesh.field("substrate_class").astype(int)
     is_land = mesh.surface_class == LAND
     area = mesh.cell_area.astype(np.float64)
     elev_km = mesh.field("elevation_km").astype(np.float64)

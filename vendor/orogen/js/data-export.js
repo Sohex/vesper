@@ -217,11 +217,18 @@ export const FIELD_META = {
         { categorical: true, dtype: 'int32' }),
 
     // Lithology
-    surface_rock: M('1', 'Exposed rock class; see basins-adjacent rockClasses[] in the manifest', { categorical: true, dtype: 'uint8' }),
+    // Named `substrate_class`, not `surface_rock`, and the distinction is the
+    // point: this is the top of the cover/basement stack, which is consolidated
+    // lithology plus closed-basin fill. It is NOT what is at the surface.
+    // Surficial cover -- soil, duricrust, loess, deflation armour, dune sand --
+    // is a product of surface process history and is derived downstream. GLiM's
+    // largest land class on Earth is unconsolidated sediment at 24.6%, and this
+    // field deliberately has no counterpart for most of it.
+    substrate_class: M('1', 'Substrate class: consolidated lithology plus closed-basin fill, at the top of the cover/basement stack. NOT the surface -- surficial cover is derived downstream. See rockClasses[] in the manifest', { categorical: true, dtype: 'uint8' }),
     basement_rock: M('1', 'Crystalline / oceanic basement rock class beneath the cover', { categorical: true, dtype: 'uint8' }),
     cover_rock: M('1', 'Sedimentary or volcanic cover rock class, where cover survives', { categorical: true, dtype: 'uint8' }),
     cover_thickness: M('km', 'Remaining thickness of the cover layer after erosion; 0 means basement is exposed'),
-    surface_rock_pre_erosion: M('1', 'Exposed rock class before erosion, for comparison against surface_rock', { categorical: true, dtype: 'uint8' }),
+    substrate_class_pre_erosion: M('1', 'Substrate class before erosion, for comparison against substrate_class', { categorical: true, dtype: 'uint8' }),
     erodibility: M('1', 'Relative stream-power multiplier from the exposed rock, mean-normalised to 1 over land'),
     rock_albedo: M('1', 'Bare-rock shortwave albedo from the exposed rock class. A surface boundary '
         + 'condition for the climate stage; vegetation, snow AND INLAND WATER override it where '
@@ -301,8 +308,8 @@ export const FIELD_GROUPS = {
              'inland_water_level', 'elevation_pre_conditioning', 'drainage_terminal'],
     orography: ['orog_mean', 'orog_std', 'orog_min', 'orog_max', 'orog_count',
                 'orog_anisotropy', 'orog_angle'],
-    lithology: ['surface_rock', 'basement_rock', 'cover_rock', 'cover_thickness',
-                'surface_rock_pre_erosion', 'erodibility', 'scarp_potential', 'rock_albedo'],
+    lithology: ['substrate_class', 'basement_rock', 'cover_rock', 'cover_thickness',
+                'substrate_class_pre_erosion', 'erodibility', 'scarp_potential', 'rock_albedo'],
     hydrology: ['flow_accumulation', 'drain_to', 'ocean_basin_index'],
     climate: ['tempSummer', 'tempWinter', 'tempContinentality', 'continentality',
               'precipSummer', 'precipWinter', 'rainShadowSummer', 'rainShadowWinter',
@@ -472,11 +479,11 @@ export function collectRegionFields(data) {
     // Lithology. Absent when lithology was disabled.
     if (data.lithology) {
         const L = data.lithology;
-        add('surface_rock', L.r_surfaceRock);
+        add('substrate_class', L.r_surfaceRock);
         add('basement_rock', L.r_basementRock);
         add('cover_rock', L.r_coverRock);
         add('cover_thickness', L.r_coverThicknessKm);
-        add('surface_rock_pre_erosion', L.r_surfaceRockPreErosion);
+        add('substrate_class_pre_erosion', L.r_surfaceRockPreErosion);
         add('erodibility', L.r_erodibility);
         add('scarp_potential', L.r_scarpPotential);
         add('rock_albedo', L.r_albedo);

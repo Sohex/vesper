@@ -453,7 +453,8 @@ consumes density yet, but it is a directly stated primary value.
 ## Composition against GLiM
 
 Hartmann and Moosdorf (2012) is the Earth comparator and is already held.
-Computed from `surface_rock` weighted by `cell_area` over `surface_class == 1`
+Computed from `substrate_class` (then named `surface_rock`) weighted by
+`cell_area` over `surface_class == 1`
 -- not from `manifest.lithology.compositionLand`, which uses `land_mask` as its
 denominator and omits the dry sub-sea-level floors:
 
@@ -504,10 +505,21 @@ an argument rather than an assumption. `LITH-5`.
 
 **GLiM's largest land class has no Orogen counterpart at all**: unconsolidated
 sediment, 24.6% of Earth's land, including alluvium 4.1%, dune sand 5.3% and
-loess 1.1%. This is defensible if `surface_rock` is understood as consolidated
+loess 1.1%. This is defensible if the field is understood as consolidated
 lithology plus basin fill, with surficial cover derived downstream -- which is
-exactly this project's architecture. But the field is named `surface_rock` and
-described as the exposed surface, which overclaims. `LITH-6`.
+exactly this project's architecture. The architecture was never the problem; the
+NAME was. `surface_rock`, described as the exposed rock class, claimed to be the
+thing this project derives downstream.
+
+Renamed to `substrate_class`, and the description now says what it excludes as
+well as what it holds. `LITH-6`, done.
+
+One correction to the finding above while resolving it: `playa_clastic` covers
+23.79% of land against GLiM's unconsolidated 24.6%, so the AREA is matched
+almost exactly. The class correspondence still fails, because Earth's
+unconsolidated includes dune sand and loess outside basins and this world has no
+class for those -- but they are missing as a surficial-cover question, which is
+`SURF-3`, not as a bedrock one.
 
 Also absent, in rough order of how much they would matter: basic plutonic
 (gabbro, 0.7% of Earth, and Meybeck has a gabbro row), ultramafic and

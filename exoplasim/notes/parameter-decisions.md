@@ -284,7 +284,7 @@ second behind schist at 22.4% and ahead of intracratonic clastics at 18.9%, and
 evaporite is the brightest class in the table at 0.50. (The manifest's
 `compositionLand` says 18.6%, because it measures against `land_mask` and so
 drops the dry sub-sea-level basin floors where playa fill concentrates. The
-figures here are computed from `surface_rock` against `surface_class`.) That is a direct consequence of the
+figures here are computed from `substrate_class`, then named `surface_rock`, against `surface_class`.) That is a direct consequence of the
 endorheic drainage: closed basins accumulate playa and salt-pan fill. A planet
 whose land mostly does not drain to the sea is a brighter planet, and the two
 facts come from the same place.

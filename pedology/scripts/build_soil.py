@@ -84,7 +84,7 @@ def lithology_fractions(config: dict) -> tuple[dict[str, np.ndarray], Export, Pa
     mesh = Export(builds.mesh_export(config))
     resolution = str(config["model"]["resolution"]).upper()
     grid_dir = builds.grid_export(config, resolution)
-    rock = mesh.surface_rock
+    rock = mesh.substrate_class
     classes = {c["id"]: c["code"] for c in mesh.manifest["lithology"]["rockClasses"]}
 
     fractions: dict[str, np.ndarray] = {}

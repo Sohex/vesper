@@ -287,7 +287,7 @@ def main():
 
     elev = raw(src, "elevation_km", np.float32)[idx].astype(np.float64)
     sclass = raw(src, "surface_class", np.uint8)[idx]
-    rock = raw(src, "surface_rock", np.uint8)[idx]
+    rock = raw(src, "substrate_class", np.uint8)[idx]
     endo = raw(src, "is_endorheic", np.uint8)[idx].astype(bool)
     land = sclass == 1
 

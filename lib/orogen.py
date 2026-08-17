@@ -266,10 +266,23 @@ class Export:
         self._cache[name] = a
         return a
 
+    # Fields the fork has renamed. A bare AttributeError on an old name sends the
+    # reader looking for a typo; naming the replacement costs one dict.
+    RENAMED = {
+        "surface_rock": "substrate_class",
+        "surface_rock_pre_erosion": "substrate_class_pre_erosion",
+    }
+
     def __getattr__(self, name: str) -> np.ndarray:
         # Convenience: export.elevation_km rather than export.field("elevation_km").
         if name.startswith("_"):
             raise AttributeError(name)
+        if name in self.RENAMED:
+            raise AttributeError(
+                f"{name!r} was renamed to {self.RENAMED[name]!r}. It is the top "
+                f"of the cover/basement stack -- consolidated lithology plus "
+                f"basin fill -- and was never what is at the surface, which is "
+                f"derived downstream.")
         try:
             return self.field(name)
         except KeyError as exc:

@@ -38,7 +38,7 @@ Colour is illustrative:
   says so in its own provenance block.
 - Bare rock takes over above about 1.8 km, since a T42 cell cannot see a
   mountain.
-- Evaporite crust and playa fill are painted from `surface_rock`, which is why
+- Evaporite crust and playa fill are painted from `substrate_class`, which is why
   the closed basins read pale.
 - Permanent snow is where the warmest month falls below freezing after a
   6.5 K/km correction from the T42 orography to the mesh orography. There is no

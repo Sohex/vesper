@@ -188,7 +188,7 @@ def main() -> None:
         return
 
     mesh = Export(args.mesh or mesh_export(config))
-    rock = mesh.surface_rock
+    rock = mesh.substrate_class
     # Classes that cannot carry a canopy. This was a single hardcoded reference
     # to evaporite, which silently became wrong when Orogen split that class:
     # playa_clastic is 18.8% of land and nothing roots in playa mud either, but
@@ -314,7 +314,7 @@ def main() -> None:
                 playa_a = float(next(r["albedo"] for r in
                                      mesh.manifest["lithology"]["rockClasses"]
                                      if r["code"] == "playa_clastic"))
-                geo_salt = is_land & (mesh.surface_rock == evaporite_id)
+                geo_salt = is_land & (mesh.substrate_class == evaporite_id)
                 before_e = float(np.average(region_albedo[is_land],
                                             weights=area_r[is_land]))
                 # Geometric salt that is not ephemeral becomes playa; ephemeral
