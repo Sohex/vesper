@@ -32,12 +32,14 @@ the noise pits while keeping the surviving basins as genuine terminals. How many
 survive is a property of the build and is in `world_state.json`; it named a
 count and a build here, and both were several iterations out of date.
 Every land region ends up assigned to the world ocean or to exactly one basin.
-112,217 regions get filled, by a median of 8.4 m, which is the scale that
-confirms these were noise rather than landforms.
+The fill depth has a median of a few metres, which is the scale that confirms
+these were noise rather than landforms; the counts are in the hydrography
+report for the build they were computed on.
 
 **Recomputes hypsometry on the finished terrain.** The catalogue's
 `hypsometry` is measured on the natural, pre-conditioning surface and overstates
-what the basins can hold: the finished terrain holds 61% of the catalogue's
+what the basins can hold: the finished terrain holds substantially less of the
+catalogue's
 figure. Level, area and volume curves are rebuilt from the flood
 and are exact at their sample points, verified against brute force to 4e-15
 relative on volume and exactly on area.
@@ -103,10 +105,11 @@ field:
 
 **Runoff is P-E, not `mrro`.** At steady state they are the same quantity:
 whatever falls on land and does not evaporate has to leave. The baseline run's
-global water budget closes to 0.03% of the mean and the land's surplus matches
-the sea's deficit to three decimals, so the budget is trustworthy. Its `mrro`
-diagnostic accounts for only 15% of that surplus, 0.069 against 0.469 mm/day
-over land, so the diagnostic is the unreliable one and P-E is what a water
+global water budget closes to a small fraction of a percent and the land's
+surplus matches the sea's deficit, so the budget is trustworthy. Its `mrro`
+diagnostic accounts for a fraction of that surplus, because it is river-routed
+net divergence rather than local generation, so the diagnostic is the unreliable
+one and P-E is what a water
 balance can be built on. Both are recorded in the report.
 
 **Lake evaporation is Penman, shared with the carve verdict.** Over land the
@@ -167,12 +170,12 @@ anything, and it refuses to run against a coupling file too old to state its own
 convention.
 
 **This reaches further than the lakes.** `carve_verdict.py` shares
-`basin_means`, so the iteration-1 verdict, the 1,522 basins carved to produce
-`carved-zoned`, was decided on climate read from the wrong side of the planet.
-That verdict has since been regenerated: 1,089 carve, 170 marginal, 2,370
-preserve, with only 58.3% of verdicts unchanged and retain fractions correlating
-at 0.267. 850 of the original carves were unjustified and 417 were missed. It is
-applied in `carved-zoned-v4`, and the corrected carve set is visibly more
+`basin_means`, so the iteration-1 verdict that produced `carved-zoned` was
+decided on climate read from the wrong side of the planet. It was regenerated
+afterwards, and barely half of the per-basin outcomes were unchanged -- a
+majority of the original carves were unjustified, and others were missed
+entirely. The counts for each verdict are in the hydrography report of the build
+that produced it. The corrected carve set is visibly more
 physical -- carved basins carry 5.7x the median catchment runoff of preserved
 ones, where under the old verdict the two were nearly indistinguishable.
 The carve pattern in the current terrain does not correspond to the climate that
@@ -197,8 +200,8 @@ height. `spill_levels` was taking the minimum over a basin's exit edges and
 keeping only the value; it now keeps the argument too, so `basins.nc` carries
 `spill_region` and `spill_exit_region` either side of the saddle. Without them a
 basin pinned at its spill had a known outflow and nowhere to start it, and the
-largest flows on the planet were missing from the network: routing the 770
-overflowing basins took the biggest river from 63,800 to **170,300 m3/s**.
+largest flows on the planet were missing from the network: routing the
+overflowing basins multiplied the biggest river's discharge severalfold.
 
 There is no double counting, because the solver has already resolved the
 cascade: a basin's overflow is its final equilibrium value with everything
@@ -244,19 +247,14 @@ and the depression stops existing. So a basin pinned at its spill is a transient
 not a landscape state, and the endorheic share depends on how many basins the
 climate keeps overflowing:
 
-| (E-P)/runoff over the catchment | basins that carve | endorheic land |
-| ---: | ---: | ---: |
-| 0.8 (humid) | 3593 | 9.0% |
-| 1 | 3515 | 22.8% |
-| 2 | 2583 | 47.6% |
-| 3 | 1753 | 59.0% |
-| 5 | 857 | 66.6% |
-| 10 (arid) | 237 | 72.3% |
-| 50 (hyper-arid) | 9 | 76.0% |
+The dependence is steep and monotone: as the aridity threshold rises from humid
+to hyper-arid, the number of basins that carve falls by more than two orders of
+magnitude while the endorheic share of land rises from under a tenth to roughly
+three quarters. `probe_runoff_response.py` emits the table for the build in
+hand; it is not reproduced here, because the counts belong to whichever terrain
+produced them and the SHAPE is the point being made.
 
-**That table is from the pre-carve build and has not been regenerated.** It
-still describes the shape of the dependence, which is the point it is making,
-but its counts are the 3,629-basin set. Regenerating it means running
+Regenerating it means running
 `carve_verdict.py` against the carved terrain, and that is an iteration-2 carve
 decision rather than a documentation chore, so it is left for whoever takes that
 decision.

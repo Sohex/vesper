@@ -109,8 +109,9 @@ region containing the cell centre, which at T42 discards the coastline, and
 averages continuous fields over all regions in a cell, which drags a coastal
 cell's albedo toward open water's 0.06.
 
-Land comes from `surface_class`, never from `land_mask`. The two disagree by 1.9%
-of the planet, all of it dry closed-basin floor below sea level, and `land_mask`
+Land comes from `surface_class`, never from `land_mask`. The two disagree over
+dry closed-basin floor below sea level -- `manifest.landSeaMask` has the size of
+the disagreement -- and `land_mask`
 would flood it.
 
 Seven surface fields are supplied. Topography (129), land mask (172), roughness
@@ -192,7 +193,7 @@ the share is per build and is in `world_state.json`. Routing
 is a hydrology decision and the exporter leaves it downstream.
 
 `build_hydrography.py` resolves it with a priority flood over the 2.5M-region
-mesh, which fills the noise pits while keeping the 3,629 preserved basins as
+mesh, which fills the noise pits while keeping the preserved basins as
 terminals. It then rebuilds each basin's hypsometry on the *finished* terrain,
 because the catalogue's curves are measured on the pre-conditioning surface and
 overstate capacity by about 1.5x. Finally it writes a sparse basin-by-grid-cell
@@ -590,8 +591,9 @@ verdict. Re-run it; if basins flip, back to loop A.
    first.
 
 **The biosphere never decides the resolution.** LPJ-GUESS gridcells are
-independent columns, so its cost is linear in cell count and trivial either way:
-4,106 land cells at T42 and 16,489 at T85, 23 against 94 minutes on 16 ranks.
+independent columns, so its cost is linear in land-cell count and trivial at
+either resolution -- tens of minutes against a couple of hours on 16 ranks,
+where the climate model's cost is what actually decides.
 Running it at T85 on T42 forcing would resolve detail that is not in its input.
 Expect T85 to lower total NPP, and treat that as a resolution bias rather than a
 result: productivity saturates with water, so averaging the forcing before the

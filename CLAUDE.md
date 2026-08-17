@@ -108,12 +108,12 @@ same as present**: only the active build has a payload under `source/`. The
 others are identity stubs in `archive/builds/`, which is enough to recognise a
 build and date a result, and the payload is regenerable in one pass from the
 planet code plus a carve list. `carved-zoned` applied a
-verdict in which every basin had integrated its antipode's climate; 850 of its
-1,522 carves are unjustified. `carved-zoned-v2` fixed that but carried a
+verdict in which every basin had integrated its ANTIPODE's climate, so a majority
+of its carves are unjustified. `carved-zoned-v2` fixed that but carried a
 lithology chain that decided which deposit sat on top by the order the branches
 were written, so closed-basin fill was overwritten in orogens and on oceanic and
-flood-basalt crust: 203 preserved basins had no fill cell anywhere and were
-reaching ExoPlaSim as vegetated land.
+flood-basalt crust, leaving preserved basins with no fill cell anywhere that
+reached ExoPlaSim as vegetated land. `lib/orogen.py` carries the counts.
 
 A wrong verdict is recoverable and a wrong build is not the trap it sounds like:
 Orogen regenerates terrain from the planet code plus a carve list in one pass,
@@ -148,27 +148,25 @@ need `raw/` or `gauss_weights.bin`.
 
 ### Choosing a land mask — use `surface_class`, and only `surface_class`
 
-Two land definitions exist and they disagree by **1.9% of the planet's surface**:
+Two land definitions exist and they disagree:
 
-| Source | Definition | Land area |
-| --- | --- | --- |
-| `surface_class == 1` | **authoritative**; ocean means connected to the world ocean | 43.17% |
-| `land_mask` | elevation-sign test, `elevation_km > 0` | 41.26% |
+| Source | Definition |
+| --- | --- |
+| `surface_class == 1` | **authoritative**; ocean means connected to the world ocean |
+| `land_mask` | elevation-sign test, `elevation_km > 0` |
 
-The 48,092 disagreeing regions are dry closed-basin floor lying below sea level,
-down to −5.6 km, which `land_mask` would flood. Preserving that terrain is the
-whole point of the fork. Both fields now carry descriptions in the manifest
-saying so and pointing at each other, and `manifest.landSeaMask` states the
-disagreement in numbers, so this is checkable rather than folklore.
+The disagreeing regions are dry closed-basin floor lying below sea level, which
+`land_mask` would flood. Preserving that terrain is the whole point of the fork.
+Both fields carry descriptions in the manifest saying so and pointing at each
+other, and **`manifest.landSeaMask` states the disagreement in numbers** -- read
+it from there, so it is checkable rather than folklore and cannot go stale here.
 
-**Do not reconstruct it as `land_mask | is_endorheic`.** Only 43,554 of the
-48,092 sit inside a preserved basin. The other 4,538 are smaller enclosed
+**Do not reconstruct it as `land_mask | is_endorheic`.** Most of the disagreeing
+regions sit inside a preserved basin, but not all: the rest are smaller enclosed
 depressions that `fixupTopology` kept as genuinely not-sea but that never cleared
 the basin selection thresholds, so they are absent from the basin catalogue and
-unflagged by `is_endorheic` (`basin_index == -1` for exactly those 4,538).
-Verified: the naive union misses them and lands at 43.00% instead of 43.17% —
-0.174% of the planet silently flooded. `surface_class` is the only correct
-source.
+carry `basin_index == -1`. The naive union misses exactly those and silently
+floods them. `surface_class` is the only correct source.
 
 `surface_class == 2` (`inland_water`) is **empty**, by design rather than
 oversight -- and filling it is now done downstream: `hydrography/surface_water.py`
@@ -201,8 +199,8 @@ old `elevation > 0` meaning rather than being silently redefined, so it is the
 uses, so dry closed-basin floors took the bathymetric branch and read ten times
 too deep. Fixed upstream on 2026-08-14: the branch now takes its land flag from
 `surface_class`, and below-sea-level land converts at 1.0 km per unit against
-the ocean's 10. Verified here: dry floors are now exactly `elevation * 1.0`, the
-deepest reads -562 m and matches the catalogue, ocean is untouched at -8.89 km.
+the ocean's 10. Verified here: dry floors are now exactly `elevation * 1.0` and agree with the
+catalogue, and ocean depths are untouched.
 An export that predates this fix should not be trusted below sea level.
 `lib/orogen.py` is where to check: every registered build carries the fix, and
 the registry is what knows that rather than this file.
@@ -216,9 +214,10 @@ and do not assume an unsuffixed key is kilometres.
 
 Note also that the top-level catalogue entry describes the **natural**
 pre-conditioning basin, while `finalPreserved` describes the finished terrain.
-They differ a lot: for the first basin, 53,968 km2 flooded at spill naturally
-against 10,853 km2 on the finished surface. `hypsometry` is on the natural
-terrain, which is why `hydrography/` recomputes it.
+They differ by a large factor -- the natural surface floods far more area at
+spill than the finished one does. `hypsometry` is on the natural terrain, which
+is why `hydrography/` recomputes it on the finished one. Compare the two in the
+manifest rather than trusting a figure quoted anywhere.
 
 ### Other gotchas
 
@@ -233,8 +232,8 @@ terrain, which is why `hydrography/` recomputes it.
   a mesh diagnostic, not a cell area — that trap is fixed, but any code written
   against an older export needs checking.)
 - **Distance fields are in cell hops, not km.** Convert with
-  `avgEdgeKm = π × 6371 / √numRegions` (`manifest.basins.resolution.avgEdgeKm`
-  has it computed for this planet: 15.19 km).
+  `avgEdgeKm = π × R / √numRegions`, and `manifest.basins.resolution.avgEdgeKm`
+  has it computed for the build in hand. Read it from there.
 - **Never match by longitude between the export and ExoPlaSim output.**
   `source/<build>/exoplasim-*/planet.nc` labels longitudes from −178.5938;
   ExoPlaSim's own output labels them from 0. Same grid, different labels, and the
@@ -244,9 +243,9 @@ terrain, which is why `hydrography/` recomputes it.
   same cells.
 
   This is *not* a claim that the export's gridded `surface_class` and the mask we
-  integrate for ExoPlaSim agree cell for cell. They do not: 276 of 8,192 differ,
-  in both directions, because `build_boundary_conditions.py` integrates from the
-  native mesh while the export emits by the region containing the cell centre.
+  integrate for ExoPlaSim agree cell for cell. They do not, in both directions,
+  because `build_boundary_conditions.py` integrates from the native mesh while
+  the export emits by the region containing the cell centre.
   That difference is the reason the mesh integration exists and is expected. Anything that keys on lon/lat across that
   boundary silently matches zero cells, which has now happened three times on
   three different scripts. Share one coordinate source — in practice the
@@ -350,23 +349,23 @@ Most of the land drains to a closed basin against about one-fifth on Earth, but
 **treat that as an upper bound rather than a fact about the world**. It assumes
 no basin ever overflows, and a basin that overflows persistently incises its
 outlet and stops being a basin. The decision variable,
-`critical_aridity_index`, is pure geometry and lives in `basins.nc`. The figure
-was 76% before the corrected first carve took the basin count from 3,629 to
-2,540.
+`critical_aridity_index`, is pure geometry and lives in `basins.nc`. The
+fraction falls with each carve iteration and is in `world_state.json`.
 
 `surface_water.py` solves lakes and rivers against the baseline climatology.
 Lake evaporation is Penman, shared with the carve verdict so that the water and
 the terrain are judged by one rule, and runoff is P-E rather than the model's
-`mrro`, which accounts for only 15% of the land's water surplus.
+`mrro`, which accounts for a small fraction of the land's water surplus because
+it is river-routed net divergence rather than local generation.
 
 **The coupling matrix was being read 180 degrees out in longitude**, because it
 numbers its columns on the Orogen grid (-180 to 180) and a climatology numbers
 its own 0 to 360. Every basin read its antipode. Fixed, and the convention is
 now explicit in `coupling_*.nc`; `basin_means` requires the field longitude
-axis and refuses a coupling file too old to state its own. The verdict has been
-regenerated -- 1,089 carve, 170 marginal, 2,370 preserve, against the old
-1,522/235/1,872 -- and applied in `carved-zoned-v4`. Only 58.3% of verdicts
-were unchanged.
+axis and refuses a coupling file too old to state its own. The verdict was regenerated
+afterwards and barely half of its per-basin outcomes were unchanged, which is the
+measure of how much the bug moved. The counts are in the hydrography report for
+the build that produced them.
 
 The fix's own first version left `export_carve_list.py` still on the unremapped
 path, because `field_lon` was optional and defaulted to it. That was the one
@@ -387,7 +386,8 @@ steepest descent, and `drainage_terminal` is -2 for most of the land, which
 drains into unpreserved single-cell noise pits; integrating precipitation without
 resolving that discards most of the land's water. The magnitude is a property of
 the export, so it is per build and lives in `world_state.json`. And the catalogue's
-`hypsometry` is on the natural terrain, so the finished terrain holds 61% of it.
+`hypsometry` is on the natural terrain, so the finished terrain holds substantially
+less than it; the ratio is per build and `build_hydrography.py` recomputes it.
 `build_hydrography.py` handles both. Use `data/basins.nc`, not the catalogue.
 
 ## Where the climate work stands
