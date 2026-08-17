@@ -1,63 +1,82 @@
-# Two things the carve verdict gets wrong, and neither is measured yet
+# What the retain fraction measures, and what it used to
 
-Recorded 2026-08-16. Both concern `hydrography/scripts/export_carve_list.py`,
-which turns the overflow test into the per-basin retain fraction Orogen consumes.
-They were carried in `world_state.json` as curated judgement, which is a state
-file and the wrong place for an argument, so they are written down here with
-their evidence and tracked as HYD-1 and HYD-2 in `TASKS.md`.
+Changed 2026-08-16, in `hydrography/scripts/export_carve_list.py`. Recorded here
+because the verdict leaves this project and changes the terrain, so what the
+number means has to be readable without reading the script.
 
-Neither has been re-measured against the active build, because there is no
-climatology on it. The counts below are from the verdict that was current when
-each was noticed, and they are quoted as history rather than as current values.
+## It used to measure our uncertainty, and hand that to a landscape
 
-## 1. A basin with no catchment can still fill from its own surface
+Retain is the fraction of a basin's rim Orogen leaves standing: 1 keeps it, 0
+carves the outlet open, and a value between cuts a notch at the saddle and tapers
+it over the divide band. It was computed as the distance from the basin's own
+overflow threshold, in units of the evaporation uncertainty we happen to have,
 
-The retain fraction is built from the fractional margin
+    retain = min(1, ((E_penman - (P + critical * runoff)) / E_penman) / 0.25)
 
-    margin = (E_penman - E*) / E_penman,   E* = P + critical * runoff
+with every overflowing basin flattened to 0. So the notch Orogen cut encoded how
+sure we were, not what the water could do, and a basin that trickled over its
+sill was carved exactly as wide as one pouring a large catchment through it.
 
-which says how far open-water evaporation would have to fall before the basin
-starts overflowing. With `runoff` zero the expression loses its second term and
-reduces to a comparison of evaporation against precipitation alone. That sent 228
-dry salt pans to be carved wide open, and the guard added at
-`hydrography/scripts/export_carve_list.py:180` pins every zero-runoff basin to
-retain 1 instead.
+## It now measures what the overflow can cut, floored by what we do not know
 
-The guard's justification is that a basin with no catchment runoff receives
-nothing and can never overflow. That is true of the catchment and not of the
-basin. The lake surface receives precipitation directly, so where P exceeds
-open-water E the water body grows, and since the imbalance does not close as the
-surface expands it grows until it spills. The 228 are exactly the set where that
-inequality held, which is why they were carved before the guard existed.
+Two quantities, computed separately and combined by taking the larger, because
+either is a reason to leave a rim standing.
 
-So both treatments are wrong at the same 228 basins, in opposite directions: the
-old one carved them on an expression that had lost its runoff term, the current
-one preserves them on an argument that only covers the catchment. What the set
-needs is the marginal band, with a retain fraction built from the direct
-precipitation balance over the lake surface rather than from the catchment one.
+**The overflow itself**, as the water that has to leave at spill level:
 
-The size of the error is bounded and small in area -- these are pans, and 1,248
-basins had zero catchment runoff in the same verdict -- but it is not bounded in
-kind, because a basin that spills is a basin that stops existing.
+    Q = runoff * (catchment - area_at_spill) - (E - P) * area_at_spill
 
-## 2. Retain measures distance from a threshold, not the ability to cut
+**What that Q can cut**, through stream power, `dz/dt` going as `K Q^m S^n`:
 
-`retain = min(1, margin / TOLERANCE)` scales the notch Orogen cuts by how close
-the basin sits to its own overflow threshold, in units of the evaporation
-uncertainty we actually have. TOLERANCE is 0.25, set from the biosphere
-assumption rather than from anything about the basin.
+    retain_incision = 1 - (Q / Q_full) ** 0.5,  clipped to [0, 1]
 
-What incises an outlet is discharge. Stream power goes with the flux over the
-sill, so a basin that barely trickles over and one that pours the runoff of a
-large catchment through the same saddle receive the same treatment from this
-mapping, when the second should cut orders of magnitude faster. The verdict is
-correct in kind -- both overflow, both eventually drain -- and wrong in degree,
-which matters because the retain fraction is precisely a statement of degree.
+`Q_full` is 1 m3/s, the perennial-stream scale: above it a channel flows year
+round and works on its bed every year, below it the same volume arrives as
+seasonal pulses that spend most of the relaxation window not cutting. It is
+declared, not fitted, and it is recorded in the sidecar so a verdict can be
+re-read against another choice. An order of magnitude either way moves retain by
+about a factor of three at fixed discharge, so quote it with any marginal count.
 
-The consequence is a systematic over-cut on marginal trickle basins and an
-under-cut on the large spillers, which is the opposite of the ordering the
-landscape would produce. Making retain a function of overflow discharge needs the
-discharge, which is the catchment integral the verdict already computes, so the
-input exists and only the mapping is missing.
+No absolute time-to-cut is attempted, and that is deliberate. Stock and
+Montgomery (1999), read and indexed in `references/INDEX.md`, measure the
+erodibility K across five orders of magnitude by lithology, which is far wider
+than the discharge spread between basins. A cutting rate without the sill's own
+rock class would be arithmetic with an unknown in it. What the mapping carries is
+the ordering, which the old one did not have at all.
 
-Not quantified: no one has compared the two orderings on a real verdict.
+**The uncertainty is kept apart**, as the same margin expression as before, and
+retain is the larger of the two. Where the two evaporation estimates disagree
+about whether a basin overflows, the rim is kept.
+
+## The same change fixes the dry pans, by construction
+
+The old test divided by catchment runoff, so a basin with none was undefined and
+was treated as never overflowing. It is not: a lake surface gaining more
+precipitation than it evaporates grows, and since the imbalance does not close as
+the surface expands, it grows until it spills. Those basins were being carved
+wide open on one pass, when the margin expression lost its runoff term and
+compared evaporation against precipitation alone, and then pinned shut on the
+next by a guard that answered for the catchment and not for the lake.
+
+`Q` needs no guard. With runoff zero it reduces to `(P - E) * area_at_spill`,
+which is positive exactly when the lake surface gains, so those basins now go
+through the marginal band on the same footing as every other. The run prints how
+many came out that way.
+
+## What is checked, and what is not
+
+Checked on 200,000 synthetic basins: wherever catchment runoff is positive, the
+discharge test and the ratio test it replaces agree on every basin, so the
+verdict is unchanged where the old one was defined. Where runoff is zero the
+ratio test carves nothing and the discharge test carves exactly the basins whose
+lake surface gains water.
+
+Not checked against a real verdict, because no build has a climatology yet. Two
+things to look at on the first one: how many basins land between 0 and 1 for
+having too little discharge rather than too much uncertainty, and whether the
+lake-fed spillers are a handful or a large population. The second decides whether
+`Q_full` is worth calibrating.
+
+The missing term is the sill's own rock: `basins.nc` carries `spill_region`, and
+the export carries a rock class and an erodibility per region, so the K in the
+stream-power law is available and is not yet used. That is HYD-5.

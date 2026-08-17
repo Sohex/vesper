@@ -11,14 +11,45 @@ Three outcomes per basin, and the middle one is the point:
              notch at the saddle and tapers it over the divide band, producing a
              through-flowing valley with a residual lake.
 
-The retain fraction measures how close a basin is to its own threshold, in units
-of the uncertainty we actually have.
+Retain is what Orogen cuts with, so it answers a geomorphic question: how much of
+the rim survives the water crossing it. Two separate things decide that, and they
+are computed separately here.
+
+**Whether the basin overflows** is the balance at spill level,
+
+    Q = runoff * (catchment - area_at_spill) - (E - P) * area_at_spill
+
+which is the same test as `(E - P) / runoff <= catchment / area_at_spill - 1`
+wherever runoff is positive, and is defined where it is not. A basin with no
+catchment at all still gains water when its own lake surface receives more
+precipitation than it evaporates, and it then fills until it spills. Dividing by
+runoff loses that case, which is how 228 dry pans came to be carved on one pass
+and pinned shut on the next.
+
+**How deeply the outlet is cut** is Q again, through stream power. Incision goes
+as `K Q^m S^n`, so a basin that pours cuts its sill orders of magnitude faster
+than one that trickles over it, and across the 1e4 to 1e6 years a landscape takes
+to relax that is the difference between a drained depression and a lake with a
+notch in its rim.
+
+    retain_incision = 1 - (Q / Q_FULL) ** INCISION_EXPONENT, clipped to [0, 1]
+
+No absolute time-to-cut is attempted. Stock and Montgomery (1999) measure K
+across five orders of magnitude by lithology, so a cutting rate without the
+sill's own rock class would be arithmetic with an unknown in it. What this
+mapping carries is the ordering, which the previous one did not have at all: a
+trickle and a torrent both went out at retain 0.
+
+**The uncertainty is a third thing, and it is kept apart.** The two evaporation
+estimates disagree over a band of basins, and where we do not know whether a
+basin overflows, the rim is kept. So retain is the larger of the incision value
+and the margin below, since either is a reason to leave a rim standing.
 
 A basin balances exactly at an evaporation of `E* = P + critical * runoff`. Under
 the Penman estimate it evaporates `E_penman`. The fractional margin
 
     margin = (E_penman - E*) / E_penman
-    retain = min(1, margin / TOLERANCE)
+    retain_margin = min(1, margin / TOLERANCE)
 
 says how much open-water evaporation would have to fall before the basin starts
 overflowing. A basin needing a 3% change is genuinely marginal and keeps little
@@ -54,6 +85,37 @@ from _paths import CONFIG, DATA, PROJECT_ROOT  # noqa: F401
 from builds import component_data
 from orbit import orbital_year_days
 from lake_balance import BasinSet
+
+
+# Declared before any verdict was taken with them, in the same way the albedo
+# bracket's criteria were.
+#
+# Q_FULL_M3_S is the overflow above which the sill is treated as cut through
+# within the relaxation window. 1 m3/s is the perennial-stream boundary: above
+# it a channel flows year round and works on its bed every year, below it flow
+# is seasonal to ephemeral and the same volume arrives as pulses that spend most
+# of the window not cutting anything. It is a declared scale, not a fitted one,
+# and the sidecar records it so a verdict can be re-read against a different
+# choice. An order of magnitude either way moves retain by a factor of about
+# three at fixed discharge, so report it whenever a marginal count is quoted.
+#
+# INCISION_EXPONENT is the discharge exponent m in `K Q^m S^n`, 0.5 being the
+# middle of the 0.4 to 0.6 range detachment-limited bedrock studies fit. The
+# mapping is far less sensitive to it than to Q_FULL.
+Q_FULL_M3_S = 1.0
+INCISION_EXPONENT = 0.5
+KM3_PER_YEAR_TO_M3_PER_S = 1e9
+
+
+def incision_retain(q_km3_per_year, year_s: float):
+    """Rim surviving the overflow, from discharge alone. 1 keeps it, 0 cuts it.
+
+    Takes the overflow at spill level in km3 per Vesper year. A basin that does
+    not overflow gets 1 by construction, since Q is then zero or negative.
+    """
+    q = np.asarray(q_km3_per_year, dtype=float) * KM3_PER_YEAR_TO_M3_PER_S / year_s
+    cut = np.power(np.clip(q, 0.0, None) / Q_FULL_M3_S, INCISION_EXPONENT)
+    return np.clip(1.0 - cut, 0.0, 1.0)
 
 
 def main() -> None:
@@ -153,22 +215,36 @@ def main() -> None:
     year_s = orbital_year_days(config) * 86400.0
     # Clamped at zero for the same reason carve_verdict.py clamps it: a
     # catchment losing more to evaporation than it receives delivers nothing,
-    # not a negative amount. The verdict guards on runoff > 0 downstream, so this
-    # changes no verdict; it keeps the reported depth physical.
+    # not a negative amount. It keeps the reported depth physical, and the
+    # discharge below reads the same clamped field.
     runoff = np.maximum(means["ro"], 0.0) * year_s / 1000.0
     precip = means["pr"] * year_s / 1000.0
     crit = basins.catchment_km2 / np.maximum(basins.area_at_spill_km2, 1e-9) - 1.0
 
+    # Reported, not decided on. The index is undefined where a basin has no
+    # catchment runoff, which is exactly the set the discharge form handles.
     def index(field):
         e = means[field] * year_s / 1000.0
         return np.where(runoff > 0, (e - precip) / np.where(runoff > 0, runoff, 1.0),
                         np.inf)
 
     idx_wet, idx_pen = index("wet"), index("pen")
-    carve_wet, carve_pen = idx_wet <= crit, idx_pen <= crit
-    carved = carve_pen                      # nests inside carve_wet
-    preserved = ~carve_wet
-    marginal = carve_wet & ~carve_pen
+
+    # The verdict, as the water that has to leave at spill level. Runoff is
+    # generated over the dry catchment; the lake surface itself gains P and
+    # loses E, which is the term the ratio form divides away.
+    dry_km2 = np.maximum(basins.catchment_km2 - basins.area_at_spill_km2, 0.0)
+
+    def discharge(field):
+        e = means[field] * year_s / 1000.0
+        return runoff * dry_km2 - (e - precip) * basins.area_at_spill_km2
+
+    q_wet, q_pen = discharge("wet"), discharge("pen")
+    # E_wet is the model's own land evaporation and E_pen is Penman over open
+    # water, floored at it, so q_wet >= q_pen everywhere and the sets nest.
+    carved = q_pen > 0.0
+    preserved = q_wet <= 0.0
+    marginal = ~carved & ~preserved
     assert int(carved.sum() + preserved.sum() + marginal.sum()) == basins.n
 
     TOLERANCE = 0.25
@@ -176,13 +252,14 @@ def main() -> None:
     e_balance = precip + crit * runoff              # evaporation that exactly balances
     with np.errstate(divide="ignore", invalid="ignore"):
         margin = np.where(e_pen > 0, (e_pen - e_balance) / np.where(e_pen > 0, e_pen, 1.0), 1.0)
-    retain = np.clip(margin / TOLERANCE, 0.0, 1.0)
-    # A basin with no catchment runoff receives nothing and can never overflow,
-    # whatever the evaporation is. The margin expression does not know that: with
-    # runoff zero it reduces to a comparison of evaporation against precipitation
-    # alone, which sent 228 dry salt pans to be carved wide open.
-    retain = np.where(runoff > 0, retain, 1.0)
-    retain = np.where(carved, 0.0, retain)
+    retain_margin = np.where(carved, 0.0, np.clip(margin / TOLERANCE, 0.0, 1.0))
+
+    # What the water can actually cut, which is the half the margin never knew.
+    retain_incision = incision_retain(q_pen, year_s)
+
+    # Either is a reason to leave a rim standing: that the basin may not overflow
+    # at all, or that its overflow cannot cut. Taking the larger keeps both.
+    retain = np.maximum(retain_incision, retain_margin)
 
     # The superseded mapping, kept for comparison in the sidecar only.
     span = idx_pen - idx_wet
@@ -191,12 +268,13 @@ def main() -> None:
                      (crit - idx_wet) / np.where(span > 1e-9, span, 1.0), 0.5)
     retain_span = np.where(carved, 0.0, np.where(preserved, 1.0, np.clip(1.0 - f, 0.0, 1.0)))
 
-    # Verdict now follows retain, since a basin can be preserved by the Penman
-    # test yet sit close enough to its threshold to warrant a partial cut.
-    verdict_name = np.where(carved, "carve",
+    # The verdict follows retain rather than the overflow test, because what
+    # Orogen does to a basin is set by retain. A basin can overflow and still
+    # keep most of its rim, if what crosses the sill is a trickle.
+    verdict_name = np.where(retain <= 0.0, "carve",
                             np.where(retain >= 1.0, "preserve", "marginal"))
-    n_carve = int(carved.sum())
-    n_preserve = int((~carved & (retain >= 1.0)).sum())
+    n_carve = int((retain <= 0.0).sum())
+    n_preserve = int((retain >= 1.0).sum())
     n_marginal = basins.n - n_carve - n_preserve
 
     with Dataset(args.basins) as ds:
@@ -232,21 +310,26 @@ def main() -> None:
     runoff_source = ("precipitation minus evaporation over the catchment"
                      if args.runoff_source == "p_minus_e"
                      else "the model's mrro field")
+    land_surface = str(config["model"].get("land_albedo_source", "uniform"))
+    glaciers = ("glaciers enabled" if (config["surface"].get("glaciers") or {}).get("enabled")
+                else "glaciers off")
     header = f"""# Vesper carve verdict, {pass_label}
 #
 # Produced from a converged ExoPlaSim climatology: {resolution},
-# {flux_earth:g} S-Earth, vegetated land surface, glaciers enabled,
+# {flux_earth:g} S-Earth, {land_surface} land surface, {glaciers},
 # {mean_ts:.2f} K, climatology {clim_name}.
 # Terrain {basins.terrain_hash[:16]}, basin catalogue unchanged.
 #
-# A basin overflows, and so should have its outlet carved, when
-#     (E - P) / runoff  <=  catchment / area_at_spill - 1
-# Open-water evaporation is the Penman combination equation with water's albedo
-# and roughness, validated against the model over ocean cells to within 1.7%.
+# A basin overflows when more water arrives than its lake surface can evaporate,
+#     Q = runoff * (catchment - area_at_spill) - (E - P) * area_at_spill  >  0
+# and retain is then what that Q can cut, as 1 - (Q/{Q_FULL_M3_S:g} m3/s)^{INCISION_EXPONENT:g},
+# floored by how uncertain the overflow test itself is. Open-water evaporation is
+# the Penman combination equation with water's albedo and roughness, validated
+# against the model over ocean cells to within 1.7%.
 # Catchment runoff is {runoff_source}; see the sidecar.
 #
-#   retain 1.0   {n_preserve:4d} basins  comfortably closed
-#   retain 0<r<1 {n_marginal:4d} basins  within 25% of their threshold
+#   retain 1.0   {n_preserve:4d} basins  closed, or spilling too little to cut
+#   retain 0<r<1 {n_marginal:4d} basins  a notch: uncertain, or a trickle over the sill
 #   retain 0.0   {n_zero:4d} basins  carved
 #                            {n_carried:4d} of them carried forward, {n_carve:4d} decided here
 #
@@ -273,19 +356,38 @@ def main() -> None:
         "terrain_hash": basins.terrain_hash,
         "climatology": str(args.climatology),
         "climate": {
-            "resolution": resolution, "flux_earth": 0.96,
-            "stellar_spectrum": "k2 (K2-18, an M2.5V); correction measured null "
-                                "at 0.04 W/m2 absorbed, see stellar-spectrum-audit.md",
-            "land_surface": "vegetated", "mean_surface_temperature_k": 292.88,
-            "note": "Converged on all six criteria. The biosphere is assumed, "
-                    "not modelled, and that assumption is worth 3.7 to 7.1 K.",
+            "resolution": resolution,
+            "flux_earth": flux_earth,
+            "stellar_spectrum": str(config["radiation"].get("stellar_spectrum")),
+            "land_surface": land_surface,
+            "mean_surface_temperature_k": round(mean_ts, 2),
+            "note": None if land_surface == "modelled" else
+                    "The land surface is assumed rather than modelled, and the "
+                    "albedo bracket puts that assumption at 3.7 to 7.1 K.",
         },
         "method": {
-            "test": "(E - P) / runoff <= catchment / area_at_spill - 1",
+            "test": "Q = runoff*(catchment - area_at_spill) - (E - P)*area_at_spill > 0",
+            "test_note": "equivalent to (E - P) / runoff <= catchment / "
+                         "area_at_spill - 1 wherever catchment runoff is "
+                         "positive, and defined where it is not: a basin with no "
+                         "catchment still fills if its own lake surface gains "
+                         "more precipitation than it evaporates",
             "open_water_evaporation": "Penman combination, water albedo and "
                                       "roughness, floored at the model's land rate",
             "penman_ocean_validation_ratio": 1.017,
-            "retain_mapping": "min(1, ((E_penman - (P + critical*runoff)) / E_penman) / 0.25)",
+            "retain_mapping": "max(incision, margin), the larger of what the "
+                              "overflow cannot cut and what the overflow test "
+                              "cannot decide",
+            "retain_incision_mapping": f"1 - (Q / Q_full)**{INCISION_EXPONENT:g}, clipped to [0, 1]",
+            "retain_incision_q_full_m3_per_s": Q_FULL_M3_S,
+            "retain_incision_exponent": INCISION_EXPONENT,
+            "retain_incision_rationale": "stream power goes as K Q^m S^n, so "
+                "overflow discharge and not distance from the threshold is what "
+                "cuts a sill. Q_full is the perennial-stream scale, declared "
+                "rather than fitted; no absolute time-to-cut is attempted "
+                "because Stock and Montgomery (1999) measure K across five "
+                "orders of magnitude by lithology",
+            "retain_margin_mapping": "min(1, ((E_penman - (P + critical*runoff)) / E_penman) / 0.25)",
             "retain_tolerance": TOLERANCE,
             "retain_tolerance_rationale": "fractional change in open-water "
                 "evaporation that would flip the verdict; 0.25 is set by the "
@@ -300,7 +402,12 @@ def main() -> None:
                 "id": ids[i],
                 "verdict": str(verdict_name[i]),
                 "retain": round(float(retain[i]), 4),
+                "retain_incision": round(float(retain_incision[i]), 4),
+                "retain_margin": round(float(retain_margin[i]), 4),
                 "retain_span_superseded": round(float(retain_span[i]), 4),
+                "overflow_km3_per_year": round(float(q_pen[i]), 6),
+                "overflow_m3_per_s": round(
+                    float(q_pen[i]) * KM3_PER_YEAR_TO_M3_PER_S / year_s, 6),
                 "evaporation_margin": None if not np.isfinite(margin[i])
                                       else round(float(margin[i]), 4),
                 "critical_aridity_index": round(float(crit[i]), 4),
@@ -321,12 +428,19 @@ def main() -> None:
     }
     args.out_json.write_text(json.dumps(sidecar, indent=2) + "\n", encoding="utf-8")
 
-    mid = (~carved) & (retain < 1.0)
+    mid = (retain > 0.0) & (retain < 1.0)
+    n_trickle = int((carved & (retain > 0.0)).sum())
+    n_lake_fed = int((carved & (runoff <= 0)).sum())
     if carried:
         print(f"carried   {len(carried):5d}  retain 0.0, from the previous pass")
     print(f"carve     {n_carve:5d}  retain 0.0  (this pass, of {basins.n} remaining)")
-    print(f"marginal  {n_marginal:5d}  retain {retain[mid].min():.3f}"
-          f"-{retain[mid].max():.3f}, median {np.median(retain[mid]):.3f}")
+    print(f"          {n_trickle:5d}  overflow, but too little to cut through")
+    print(f"          {n_lake_fed:5d}  overflow fed by the lake surface, no catchment runoff")
+    if n_marginal:
+        print(f"marginal  {n_marginal:5d}  retain {retain[mid].min():.3f}"
+              f"-{retain[mid].max():.3f}, median {np.median(retain[mid]):.3f}")
+    else:
+        print(f"marginal  {n_marginal:5d}")
     print(f"preserve  {n_preserve:5d}  retain 1.0")
     print(f"\nwrote {args.out_list}\n      {args.out_json}")
 
