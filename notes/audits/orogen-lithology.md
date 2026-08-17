@@ -497,11 +497,60 @@ appearing where shelf terrain used to be. Whether that is right is a question
 about how wide the forearc province should be at 15 km resolution, not about
 archetype weighting.
 
-**Evaporite is untouched at 9.5x and is now the only unexplained divergence.**
-It is plausibly the endorheic setting -- Earth is about one-fifth endorheic by
-catchment and this world is far more -- but Earth's evaporite *outcrop* is 0.3%
-against that one-fifth, so the relationship is not linear and 9.5x still wants
-an argument rather than an assumption. `LITH-5`.
+### The plutonic excess is the arc root, and it is a resurfacing question
+
+Left open when the evaporite item closed, because it is a different finding that
+the arc fix created rather than revealed.
+
+Plutonic went 1.65x GLiM to 2.71x when the arc rules began firing, and the
+granite half is not what moved. `granodiorite` -- the unroofed arc root -- went
+from absent to 7.29% of land, against GLiM's intermediate plutonic at 0.4% and
+acid plutonic at 5.7%. However it is binned, that is an order of magnitude more
+exposed arc-root batholith than Earth carries.
+
+The mechanism is in `elevation.js`: granodiorite is the BASEMENT under the arc
+belt, so every arc cell whose cover erodes away exposes batholith. On Earth the
+exhumed batholiths are ancient arcs -- the Sierra Nevada, the Coast Ranges --
+while an ACTIVE arc is buried under its own volcanics, because it is resurfaced
+faster than it is unroofed. Orogen has no way to make that distinction: the same
+missing input as `VOLC-2`, which is an eruption-age or resurfacing-rate field.
+Without one, an active arc and a stripped extinct one are the same cells.
+
+So this is not an archetype-weighting problem and not a threshold to tune. It is
+the absence of a resurfacing rate, showing up in a second place. `LITH-20`.
+
+### The evaporite 9.5x is a category error, not an excess
+
+Resolved 2026-08-16, and the resolution is in the GLiM paper itself.
+
+**GLiM's first-level `ev` is a DOMINANCE class.** A map unit is `ev` only if it
+was interpreted as dominated by evaporites. Hartmann and Moosdorf say plainly
+what that omits, using Asia as the worked example: evaporites there "are rarely
+dominant and are therefore mapped only in a few areas as lithological class
+(xx = ev: 0.28%). However, they occur subordinately in other lithological units
+covering a far larger area (zz = ev: 8.52%)." Globally the same pair is **0.3%
+dominant against 3.8% present** -- a factor of thirteen inside the same dataset,
+between two numbers that both mean "evaporite".
+
+Against evaporite PRESENCE, this world's 2.85% is **0.75x Earth**, not 9.5x. The
+divergence was measured against the wrong column.
+
+**And 2.85% is not the number to compare anyway.** Orogen assigns salt crust by
+a geometric proxy -- the deepest quarter of a basin's relief -- and says so at
+the call site: "deliberately a geometric proxy for flooding frequency and not a
+water balance". `LITH-17` replaced it downstream with the ephemeral zone from the
+actual water balance, which is **0.47% of land**. That is 0.12x Earth's evaporite
+presence and 1.6x its dominant outcrop.
+
+So there is no evaporite excess to explain. On the physically derived number this
+world has LESS surface evaporite than Earth relative to how much evaporite Earth
+actually has, which is what a dry world with low runoff should give: a salt crust
+needs a sump that repeatedly floods and dries, and flooding is what this world is
+short of.
+
+The general lesson is the one this project keeps relearning. Both numbers were
+called "evaporite", both came from GLiM, and picking the wrong one moved the
+answer by a factor of thirteen. `LITH-5`, done.
 
 **GLiM's largest land class has no Orogen counterpart at all**: unconsolidated
 sediment, 24.6% of Earth's land, including alluvium 4.1%, dune sand 5.3% and
