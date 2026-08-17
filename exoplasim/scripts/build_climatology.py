@@ -66,9 +66,17 @@ def identity_from_run(run_dir: Path) -> dict:
         return {}
     m = json.loads(manifest_path.read_text(encoding="utf-8"))
     phys = m.get("physical") or {}
+    # The build name has never been a top-level key in a run manifest; it is
+    # inside the config the run recorded. Reading only the top level meant this
+    # stamp was silently dropped -- `{k: v for ... if v is not None}` below turns
+    # a missing identity into an absent attribute rather than an error -- and
+    # every climatology this script has written carried no build identity, which
+    # check_consistency reported as predating the stamping rather than as a bug.
+    # lib/provenance.py:require_build is the check that goes quiet without it.
+    source_build = m.get("source_build") or (m.get("source_config") or {}).get("source_build")
     out = {
         "vesper_run_id": m.get("run_id"),
-        "vesper_source_build": m.get("source_build"),
+        "vesper_source_build": source_build,
         "vesper_config_sha256": m.get("config_sha256"),
         "vesper_geography": phys.get("geography"),
         "vesper_flux_ratio": phys.get("flux_ratio"),

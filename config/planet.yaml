@@ -40,7 +40,14 @@ source_build: precarve-craton
 # A named climatology is not automatically the ACTIVE build's climate.
 # check_consistency.py compares terrain hashes and reports the mismatch; that is
 # where to find out, not a comment here that has to be kept true by hand.
-baseline_climatology: null
+#
+# BOOTSTRAP, and it is labelled as one. This is the climatology of the first run
+# on a new terrain, which exists so that lakes, the lake compositing in the
+# albedo and the pedology soil water field can be built at all. It is not the
+# baseline: the run whose climatology the carve verdict uses is the one made
+# afterwards, with those fields in place. Repoint this at that one when it
+# exists, and expect the name to change with it.
+baseline_climatology: exoplasim/analysis/climatology/bootstrap_regular_climatology.nc
 
 # DETERMINED. Radius and gravity are Orogen's and canonical; mass follows from
 # gravity, not the other way round. Rotation, obliquity and eccentricity chosen.

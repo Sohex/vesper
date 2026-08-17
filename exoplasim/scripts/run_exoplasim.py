@@ -822,6 +822,12 @@ def main() -> None:
         # down in a machine-readable form; exoplasim/scripts/index_runs.py builds
         # exoplasim/runs/INDEX.json from it.
         "physical": physical_fingerprint(config, flux_ratio),
+        # Which terrain this run is of, by name, at the top level rather than
+        # only inside the config copy below. Everything downstream verifies build
+        # identity through lib/provenance.py, and build_climatology was looking
+        # for it here and finding nothing, so every climatology went out
+        # unstamped and every check on it went quiet.
+        "source_build": config.get("source_build"),
         "status": "prepared",
         "config_path": str(config_path),
         "config_sha256": file_sha256(config_path),
