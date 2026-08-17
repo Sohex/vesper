@@ -107,3 +107,5 @@ hydrography/data/reference/*
 references/*.pdf
 references/*.html
 references/_*
+references/*.zip
+references/ecospeclib*/
