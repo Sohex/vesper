@@ -735,8 +735,13 @@ Expect T85 to lower total NPP, and treat that as a resolution bias rather than a
 result: productivity saturates with water, so averaging the forcing before the
 model sees it inflates the answer.
 
-**E. The stellar cycle, last, on the settled world.** 0.91 to 1.01 S-Earth over 8
-Earth years. Build the climatology with `--per-year`, pass the sequence to
+**E. The cycle reaching the biosphere, last, on the settled world.** This is not
+a second decision about when to run the cycle: A2 says when, and why it has to
+precede the verdict. What is left for the end is letting LPJ-GUESS see it, on a
+world whose terrain and climate have stopped moving. The amplitudes and periods
+are the two components in `config/planet.yaml`, and the run has to be long enough
+to sample the long one, which A2 also covers. Build the climatology with
+`--per-year`, pass the sequence to
 `build_lpj_driver.py --climatology y0.nc y1.nc ...`, and the biosphere sees the
 cycle rather than its average. That matters because productivity responds
 annually and saturates, so a run on the cycle mean over-predicts it: 4.8% at the
