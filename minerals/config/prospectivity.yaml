@@ -1,0 +1,91 @@
+schema_version: 1
+
+# Tectonic and magmatic ore prospectivity, per deposit type, as a 0-1 field.
+#
+# NOT deposits. A porphyry system is one to two kilometres against a 15.19 km
+# mesh cell and a vein is under a hundredth of one, so placing individual bodies
+# here would invent detail the grid cannot hold. See notes/economic-minerals.md.
+#
+# NOT a lithology and NOT an erodibility modifier. This field is read only by
+# what comes after climate. Nothing upstream may consume it, which is why it is
+# computed downstream from the export rather than inside Orogen: a value that
+# never exists during generation cannot feed back into erosion or albedo, so the
+# constraint is structural instead of remembered.
+#
+# THESE RULES ARE FIRST ORDER. Each names the control it encodes and that control
+# is standard economic geology, but the weights are judgment. They are stated
+# here rather than in code so that disagreeing with one is an edit to a config
+# and not a patch.
+
+# Exhumation is the axis that separates the two big hydrothermal families, and it
+# is the reason this layer is worth computing at all rather than just reading the
+# rock map.
+#
+# A porphyry forms 1-5 km down and is destroyed by deep erosion. An orogenic gold
+# system forms 5-15 km down and is REVEALED by it. So the same erosion that
+# strips one exposes the other, and a map of arcs alone cannot tell you which you
+# are looking at. Orogen tracks it: `cover_thickness` surviving means shallow,
+# and basement exposed means the section above is gone.
+exhumation:
+  # Cover still present at all: the shallow section survives, so a porphyry
+  # emplaced in it can too.
+  cover_preserved_km: 0.05
+  # `erosionDelta` in model units, above which the section removed is deep
+  # enough to have reached an orogenic gold system's formation level. Set from
+  # the granite exhumation distribution on this build -- p75 -- rather than from
+  # an absolute depth, because erosionDelta carries no physical unit.
+  deep_exhumation_delta: 0.058
+
+deposits:
+
+  porphyry_cu:
+    name: Porphyry Cu-Mo-Au
+    # Continental-arc magmatism, emplaced 1-5 km below the surface above a
+    # batholith. Requires the arc AND a preserved shallow section: where the arc
+    # root is unroofed the porphyry level has already been eroded off. On this
+    # world 59.5% of the arc belt is stripped to granodiorite, so this rule
+    # rejects most of the arc rather than accepting all of it, which is the
+    # whole point of keying on exhumation.
+    hosts: {arc_andesite: 1.0, arc_basalt: 0.6, granodiorite: 0.1}
+    require_cover: true
+
+  orogenic_au:
+    name: Orogenic gold
+    # Greenschist-facies fold belts, in shear zones, formed 5-15 km deep during
+    # orogeny. Deep exhumation HELPS: it is what brings the level to surface.
+    # Scales with fold-belt weight and with stress, which is the proxy available
+    # for structural preparation.
+    hosts: {schist: 1.0, gneiss: 0.7, quartzite: 0.5}
+    fold_belt_weight: 1.0
+    stress_weight: 0.6
+    favour_deep_exhumation: true
+
+  vms:
+    name: Volcanogenic massive sulphide
+    # Seafloor hydrothermal systems at spreading centres and in back-arcs. On
+    # LAND they exist only where that crust was obducted or accreted, so this
+    # keys on the forearc assemblage and on island-arc volcanics rather than on
+    # ocean floor, which is unreachable.
+    hosts: {melange: 1.0, arc_basalt: 0.8, morb: 0.3}
+
+  magmatic_nicu:
+    name: Magmatic Ni-Cu-PGE
+    # Sulphide segregation in large igneous province feeder systems and layered
+    # intrusions. Keys on the flood-basalt province directly.
+    hosts: {flood_basalt: 1.0, oib: 0.2}
+
+  podiform_cr:
+    name: Podiform chromite
+    # Mantle sequence of an ophiolite, so it needs obducted ocean crust. Same
+    # domain as VMS and a different level of the same section, which is why both
+    # key on melange.
+    hosts: {melange: 1.0}
+
+  kimberlite:
+    name: Kimberlite / diamond
+    # Requires a thick, cold, depleted cratonic keel: kimberlite that does not
+    # pass through one carries no diamonds. This is the only entry that keys on
+    # `r_t_craton`, and until the craton basin double-count was removed this
+    # world had almost none -- see notes/audits/orogen-lithology.md.
+    craton_weight: 1.0
+    craton_threshold: 0.30

@@ -1,0 +1,47 @@
+{
+  "generated": "2026-08-17T03:27:05+00:00",
+  "source_build": "precarve-craton",
+  "terrain_hash": "e931b0d9947a232210a3cc11ba82003b5da15765d86e87956bc44c220932760e",
+  "config_sha256": "b2ca131c8fa36411477f53b2675019c9d29a73046d1e056948c76b70f7ba09a2",
+  "generator": "minerals/scripts/build_prospectivity.py",
+  "git_commit": "c0b35fcfaeba550f6eaae354f59be7f5c93bb84e",
+  "deposits": {
+    "porphyry_cu": {
+      "name": "Porphyry Cu-Mo-Au",
+      "land_fraction_nonzero": 0.0740707557592033,
+      "land_fraction_above_half": 0.04769016746017599,
+      "mean_over_land": 0.049845524013896865
+    },
+    "orogenic_au": {
+      "name": "Orogenic gold",
+      "land_fraction_nonzero": 0.2287433424129677,
+      "land_fraction_above_half": 0.04801320816073822,
+      "mean_over_land": 0.10665902252779737
+    },
+    "vms": {
+      "name": "Volcanogenic massive sulphide",
+      "land_fraction_nonzero": 0.1763936389485624,
+      "land_fraction_above_half": 0.07483139740132233,
+      "mean_over_land": 0.10505871991846462
+    },
+    "magmatic_nicu": {
+      "name": "Magmatic Ni-Cu-PGE",
+      "land_fraction_nonzero": 0.021424002004089986,
+      "land_fraction_above_half": 0.00956761412727782,
+      "mean_over_land": 0.011938891737975044
+    },
+    "podiform_cr": {
+      "name": "Podiform chromite",
+      "land_fraction_nonzero": 0.07362464154066407,
+      "land_fraction_above_half": 0.07362464154066407,
+      "mean_over_land": 0.07362464154066407
+    },
+    "kimberlite": {
+      "name": "Kimberlite / diamond",
+      "land_fraction_nonzero": 0.043580755702297885,
+      "land_fraction_above_half": 0.027719144820185518,
+      "mean_over_land": 0.02996222004016469
+    }
+  },
+  "note": "Relative within this world, normalised by the land maximum per deposit type. A 1.0 is the most favourable cell here, not an absolute grade or tonnage, and cross-type comparison of the numbers is meaningless."
+}

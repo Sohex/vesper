@@ -144,6 +144,7 @@ exoplasim/             The ExoPlaSim climate component (see exoplasim/README.md)
 hydrography/           Drainage, catchments, basin capacity (see hydrography/README.md).
 pedology/              Soil formation, texture, phosphorus (see pedology/README.md).
 biosphere/             LPJ-GUESS port and the C-N-P fork (see biosphere/README.md).
+minerals/              Ore prospectivity, a field not deposits (see minerals/README.md).
 maps/                  Rendering and cartography.
 references/            Primary literature. PDFs untracked; INDEX.md tracked, and
                        it records which sources have actually been READ rather

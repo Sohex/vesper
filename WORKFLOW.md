@@ -26,6 +26,7 @@ hydrography/         Drainage, catchments, basin capacity, lake balance, carve v
 exoplasim/           Boundary conditions, climate integrations, climatology.
 pedology/            Weathers lithology into soil, and into solute fluxes: CO2, silica, phosphorus.
 biosphere/           LPJ-GUESS: vegetation, leaf area, carbon, PFT composition.
+minerals/            Ore prospectivity per deposit type. Reads the export; never feeds climate.
 ```
 
 Each component owns its own `scripts/`, `data/` or `analysis/`, and reads
@@ -287,7 +288,9 @@ repeating year cannot represent one at all.
 
 ## 3.8 Economic minerals, when they arrive
 
-Designed, not built: `notes/economic-minerals.md`. One rule governs where it
+The tectonic half is built: `minerals/scripts/build_prospectivity.py`. The
+weathering, drainage and brine half waits on a climate. Design in
+`notes/economic-minerals.md`. One rule governs where it
 attaches, and it is worth stating here because it is expensive to retrofit.
 
 **Minerals are an overlay, never a lithology.** `substrate_class` sets

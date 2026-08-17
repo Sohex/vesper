@@ -51,6 +51,13 @@ exoplasim/inputs/exoplasim_cycle_t42/
 exoplasim/analysis/**/*_regular_climatology.nc
 exoplasim/analysis/**/*_snapshot_climatology.nc
 
+# Per-region ore prospectivity, a few MB and rebuilt in seconds by
+# minerals/scripts/build_prospectivity.py from the export alone. The report
+# beside it carries the summary and the provenance and IS tracked. Per build,
+# and written as a glob for that reason -- the hydrography rules below were flat
+# paths against per-build output and matched nothing for several builds.
+minerals/data/*/prospectivity.nc
+
 # Per-region drainage raster, 5.6 MB and rebuilt in seconds by
 # hydrography/scripts/build_hydrography.py. The basin table, the coupling
 # matrices and the report are small and are tracked.
