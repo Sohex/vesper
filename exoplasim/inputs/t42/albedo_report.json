@@ -1,0 +1,36 @@
+{
+  "mode": "vegetated",
+  "mesh": "None",
+  "grid": "/home/cfutro/docs/world/source/precarve-craton/exoplasim-T42",
+  "resolution": "T42",
+  "terrain_hash": "e931b0d9947a232210a3cc11ba82003b5da15765d86e87956bc44c220932760e",
+  "codes": [
+    174,
+    175,
+    176,
+    212
+  ],
+  "forest_fraction_value": 0.5,
+  "vegetation": null,
+  "forest_fraction_land_mean": 0.36319329944922163,
+  "lithology_albedo_overrides": {},
+  "barren_rock_classes": [
+    "evaporite",
+    "playa_clastic"
+  ],
+  "forest_note": "dforest blends snow albedo between forested and unforested endpoints, so it has to agree with the background albedo assumption. ExoPlaSim's default is a uniform 0.5.",
+  "land_mean_bare_rock": 0.24750575431058977,
+  "land_mean_written": 0.1700586349565493,
+  "lakes": null,
+  "derived_evaporite": null,
+  "exoplasim_default_albland": 0.22,
+  "land_min": 0.14999999999999986,
+  "land_max": 0.4247899340347615,
+  "files": [
+    "/home/cfutro/docs/world/exoplasim/inputs/t42/orogen_T42_surf_0174.sra",
+    "/home/cfutro/docs/world/exoplasim/inputs/t42/orogen_T42_surf_0175.sra",
+    "/home/cfutro/docs/world/exoplasim/inputs/t42/orogen_T42_surf_0176.sra",
+    "/home/cfutro/docs/world/exoplasim/inputs/t42/orogen_T42_surf_0212.sra"
+  ],
+  "caveat": "Substrate albedo, not land-surface albedo. Vegetation and snow are applied by the model on top of this."
+}

@@ -351,24 +351,32 @@ model:
   # field spans 0.025 to 11.2 m and its exchange coefficient 0.0021 to 0.0249,
   # against the uniform 0.0088.
   roughness_source: lithology
-  # DETERMINED for the re-baseline. Soil water capacity from the pedology soil
-  # map (code 229) rather than ExoPlaSim's uniform 0.5 m bucket. Land-mean dwmax
-  # is 0.151 m, so the uniform default overstates plant-available water more than
-  # threefold, which changes evaporation, which changes P - E, which is the
-  # numerator of the carve criterion. It has to be in place BEFORE the run whose
-  # climatology the verdict uses, not merely before the verdict.
-  soil_water_source: pedology
-  # Background land albedo. Bare-rock albedo from lithology averages 0.315 over
-  # land against ExoPlaSim's uniform 0.22, and ranges 0.10 for basalt to 0.50 for
-  # evaporite, so uniform is a planetary-albedo error of about 0.04. This is
-  # substrate albedo: the first pass is a bare-rock planet and will run cold
-  # relative to a vegetated one. Revisit once a vegetation model has run.
+  # BOOTSTRAP: uniform, and it goes back to `pedology` before the baseline run.
+  # Soil water capacity comes from the pedology soil map as code 229, and that
+  # soil has to be weathered under a climatology, so on a terrain that has none
+  # yet the field cannot exist and run_exoplasim refuses to start without it.
+  # The flip cannot happen mid-run either, since it moves config_sha256 and
+  # continue_exoplasim will not resume across that, so the bootstrap has to be
+  # finished before it moves. WORKFLOW section 6A has the order.
+  #
+  # It has to be `pedology` BEFORE the run whose climatology the verdict uses,
+  # not merely before the verdict: land-mean dwmax is 0.151 m against the uniform
+  # 0.5 m bucket, which changes evaporation, which changes P - E, which is the
+  # numerator of the carve criterion.
+  soil_water_source: uniform
+  # Background land albedo, from lithology rather than ExoPlaSim's uniform 0.22.
+  # Rock classes run 0.10 for basalt to 0.50 for evaporite, so a uniform value is
+  # a planetary-albedo error of a few hundredths.
+  #
   # The world is taken to be vegetated: 0.15 on anything that can carry a canopy,
-  # with evaporite left at its bare 0.50 because nothing roots in a salt pan.
-  # Land-mean albedo 0.223 against bare rock's 0.314. The bracket showed this is
-  # not a detail: the two endmembers differ by 3.7-7.1 K and reach the design
-  # target at non-overlapping fluxes, so the biosphere and the orbit are one
-  # choice.
+  # with evaporite left at its bare 0.50 because nothing roots in a salt pan. The
+  # bracket showed this is not a detail: the two endmembers differ by 3.7-7.1 K
+  # and reach a given design mean at non-overlapping fluxes, so the biosphere and
+  # the orbit are one choice, not two.
+  #
+  # What the land mean comes out at is per build and belongs in the albedo report
+  # beside the .sra files, not here. It moves with the lithology, which is why
+  # the flux is re-derived on every new terrain rather than carried.
   land_albedo_source: vegetated
   # Rock-class albedo overrides, applied on top of the export's table.
   #

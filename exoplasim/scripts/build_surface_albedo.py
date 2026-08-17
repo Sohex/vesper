@@ -253,6 +253,11 @@ def main() -> None:
     # salt crust exactly where the water is.
     lake_report = None
     lake_mask = None
+    # Bound here rather than inside the lake block, which is the only place it is
+    # filled in: the first albedo of a re-baseline runs with no lakes, because
+    # they need a climatology this terrain does not have yet, and the report at
+    # the end reads this whether or not that block ran.
+    evap_report = None
     if args.lakes is not None:
         area_r = mesh.cell_area.astype(np.float64)
         water_albedo_value = float(next(
@@ -290,7 +295,6 @@ def main() -> None:
         # This belongs in the derived-surface classifier once that exists; it is
         # here because albedo is what reaches the model and the classifier is not
         # built yet. See pedology/notes/derived-surface-classes.md.
-        evap_report = None
         if args.climatology is not None and Path(args.climatology).is_file():
             import run_exoplasim as _rx
             year_s = float(_rx.derive(

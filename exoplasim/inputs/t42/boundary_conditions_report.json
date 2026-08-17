@@ -1,0 +1,43 @@
+{
+  "terrain_hash": "e931b0d9947a232210a3cc11ba82003b5da15765d86e87956bc44c220932760e",
+  "generated": "2026-08-17T04:53:56.545143+00:00",
+  "mesh": {
+    "export_root": "/home/cfutro/docs/world/source/precarve-craton/exoplasim-T42",
+    "terrain_hash": "e931b0d9947a232210a3cc11ba82003b5da15765d86e87956bc44c220932760e",
+    "terrain_build": "precarve-craton",
+    "terrain_build_note": "2026-08 pre-carve base at g = 12.81; craton basin double-count removed, arc/forearc rules reachable, substrate_class naming",
+    "catalogue_hash": "7b56935b498da4e8ee0db6861092c21caa524503c3aefaa0fbff3782451612dd",
+    "catalogue_known": false,
+    "drainage_hypothesis": {
+      "preserveListGiven": 0,
+      "carveListGiven": 0,
+      "carvedByRetainZero": 0,
+      "entries": []
+    },
+    "selection_source": "threshold",
+    "seed": 16236323,
+    "num_regions": 2500001,
+    "planet_radius_km": 7645.2,
+    "surface_area_km2": 734492839.5500951
+  },
+  "grid": "/home/cfutro/docs/world/source/precarve-craton/exoplasim-T42",
+  "resolution": "T42",
+  "method": "Area-weighted land fraction per cell from the native mesh, thresholded; topography is the land-area-weighted mean elevation over land regions only.",
+  "land_definition": "surface_class == land (subaerial)",
+  "land_threshold": 0.5,
+  "gravity_m_s2": 12.81,
+  "land_fraction_gauss_weighted": 0.42816883800921834,
+  "mesh_land_fraction": 0.43171897530555725,
+  "land_cells": 4105,
+  "cells_below_mesh_resolution": 0,
+  "elevation_m": {
+    "min": -59.8555838951779,
+    "max": 3992.945680632766,
+    "mean": 328.1552534655,
+    "cells_below_sea_level": 144
+  },
+  "codes": [
+    172,
+    129
+  ]
+}
