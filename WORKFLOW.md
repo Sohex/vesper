@@ -285,6 +285,25 @@ it was built with, and the model cycles through them. One year is a fixed
 climate. Several are how a variable star reaches the biosphere; a single
 repeating year cannot represent one at all.
 
+## 3.8 Economic minerals, when they arrive
+
+Designed, not built: `notes/economic-minerals.md`. One rule governs where it
+attaches, and it is worth stating here because it is expensive to retrofit.
+
+**Minerals are an overlay, never a lithology.** `substrate_class` sets
+erodibility and therefore terrain, bare-rock albedo and therefore climate, soil
+texture and therefore the biosphere, and solute chemistry and therefore the
+weathering fluxes. A mesh cell is 15 km across and a porphyry is one or two, so
+admitting ore as a rock class would move the planet's energy balance on the
+strength of a mine. The layer is prospectivity per cell, read only by what comes
+after climate, and consequently rebuildable without invalidating a climate run.
+
+The split is by genesis: whatever concentrates a deposit has to be modelled where
+the deposit is placed. Tectonic and magmatic types go in Orogen, which has arcs,
+fold belts, LIPs and cratons; weathering, drainage and brine types go downstream,
+which has climate, runoff and the chemical divide. Supergene enrichment needs
+both and is the case that shows why this is a split rather than a handover.
+
 ## 4. Why this is not a straight line
 
 Three quantities each depend on the other two.
