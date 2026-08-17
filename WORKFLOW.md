@@ -616,6 +616,22 @@ the drift criteria alone: a T21 point at 0.90 once passed every drift test with
 kelvin low bends the slope. Which knob moves the flux is in loop C below, and it
 depends on whether the calendar is locked.
 
+**Change one thing at a time between runs, and prefer that to hitting a
+temperature.** Re-deriving the flux is right when the flux is the answer you
+want; it is wrong when it destroys a comparison you need more. The bootstrap and
+the baseline differ in their surface fields -- lakes, the lake compositing in the
+albedo, soil water -- and if they also differ in flux then nothing measures what
+those fields are worth, and the bracket's slope stays measured in a regime the
+model has left. Hold the flux, measure the surface, and move the flux afterwards
+on a slope measured with the surface in place.
+
+The temperature target is a weaker constraint than it looks, which is what makes
+this trade easy. The design mean came out of the habitability-by-latitude
+derivation in section 5b rather than being specified, so it is a property of the
+terrain it was derived on. And it cannot be held to better than the terms already
+outstanding: run-to-run spread on a converged pair is 0.23 K, and dust is priced
+at 0.5 to 2 K of cooling that nothing has computed yet.
+
 That is three converged runs before the first verdict: two for the flux bracket
 and one for the baseline. The bootstrap is one of the bracket runs rather than a
 fourth, since any converged climatology will do for fields that are themselves
