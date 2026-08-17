@@ -639,17 +639,18 @@ def main() -> None:
         "andisols": {
             "note": ("Andic properties need ONGOING ejecta supply and enough "
                      "leaching to weather glass to allophane rather than "
-                     "halloysite. Only the arc classes are known to be "
-                     "resupplied; flood_basalt and oib are undetermined for "
-                     "want of an eruption-age field and are excluded, not "
-                     "assumed absent. Fractions are of total land area."),
+                     "halloysite. The arc is resupplied because subduction "
+                     "is ongoing; flood_basalt and oib are excluded on a "
+                     "duration argument -- a province erupts for order 1% "
+                     "of its life -- not for want of an age field. "
+                     "Fractions are of total land area."),
             "resupplied_land_fraction": mean(andisol["resupplied"]),
             "andic_land_fraction": mean(andisol["andic"]),
             "vitric_land_fraction": mean(andisol["vitric"]),
             "halloysitic_land_fraction": mean(andisol["halloysitic"]),
-            "undetermined_land_fraction": mean(sum(
+            "unresupplied_land_fraction": mean(sum(
                 (fractions.get(c, np.zeros_like(intensity))
-                 for c in pedo["andisol"]["undetermined_classes"]),
+                 for c in pedo["andisol"]["unresupplied_classes"]),
                 start=np.zeros_like(intensity))),
             "land_mean_andic_p_fixation": mean(andisol["andic_p_fixation"]),
             "andic_p_fixation_note": (

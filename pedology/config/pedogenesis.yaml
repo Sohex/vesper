@@ -364,11 +364,24 @@ phosphorus_release_relative:
 # is the only place in this pipeline where volcanism is known to be ongoing
 # rather than merely to have happened.
 #
-# `flood_basalt` and `oib` are therefore UNDETERMINED here, not zero. A young
-# LIP carries andisols and an old one does not, and nothing in the export
-# distinguishes them. They are excluded from the andic calculation and their
-# area is reported separately, so the omission is visible rather than assumed
-# away. Fixing it needs an eruption-age or resurfacing-rate field from Orogen.
+# `flood_basalt` and `oib` are EXCLUDED, and the reason is a duration argument
+# rather than a missing measurement. Orogen has no time axis at all -- its own
+# lithology module says so, "no ages, no stratigraphy and no unconformities,
+# because there are no timesteps to hang them on" -- so a province's age is not
+# unmeasured here, it is undefined. Asking for an eruption-age field asks the
+# generator for a concept it does not have.
+#
+# It does not need one. A flood basalt emplaces most of its volume in about a
+# million years and then persists for hundreds: the Deccan and Siberian traps
+# are still mapped at 66 and 252 Ma. So a randomly chosen moment finds a given
+# LIP erupting with probability of order one percent. A hotspot chain is the
+# same shape -- Hawaii spans some 80 Myr and the active volcanism is confined to
+# its youngest end. Expected value says these provinces are old, decisively, and
+# treating them as not-resupplied is the correct default rather than a hedge.
+#
+# The arc is the exception precisely because it is not a province but a boundary
+# process: it is active for as long as the plate is subducting, which is the
+# whole time the terrain exists.
 #
 # THE MOISTURE THRESHOLD IS NOT A FREE PARAMETER. Allophane forms where leaching
 # removes silica; where silica activity stays high the same parent material goes
@@ -395,8 +408,10 @@ andisol:
   # Classes with known ongoing ejecta supply. See above for why this is the arc
   # and only the arc.
   resupplied_classes: [arc_andesite, arc_basalt]
-  # Volcanic classes whose resupply is unknown. Reported, never counted.
-  undetermined_classes: [flood_basalt, oib, rift_bimodal]
+  # Volcanic classes treated as NOT resupplied, on the duration argument above.
+  # Still reported separately, because their area is what the argument is being
+  # applied to and a reader should be able to see how much rests on it.
+  unresupplied_classes: [flood_basalt, oib, rift_bimodal]
 
   # Allophane over halloysite. Centre from Dahlgren; the width is a smoothing of
   # a soft literature boundary ("generally less than about"), not a measured

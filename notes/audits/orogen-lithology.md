@@ -512,12 +512,20 @@ The mechanism is in `elevation.js`: granodiorite is the BASEMENT under the arc
 belt, so every arc cell whose cover erodes away exposes batholith. On Earth the
 exhumed batholiths are ancient arcs -- the Sierra Nevada, the Coast Ranges --
 while an ACTIVE arc is buried under its own volcanics, because it is resurfaced
-faster than it is unroofed. Orogen has no way to make that distinction: the same
-missing input as `VOLC-2`, which is an eruption-age or resurfacing-rate field.
-Without one, an active arc and a stripped extinct one are the same cells.
+faster than it is unroofed.
 
-So this is not an archetype-weighting problem and not a threshold to tune. It is
-the absence of a resurfacing rate, showing up in a second place. `LITH-20`.
+**It is a cover thickness, not a missing field.** The first reading of this was
+that Orogen cannot distinguish an active arc from a stripped extinct one without
+a resurfacing rate. It does not need one: resurfacing IS representable, as a
+cover that erosion cannot outpace, and the parameter already exists.
+`LITHO_COVER_ARC_KM` is 1.0 km -- thinner than a LIP's 1.2 and far thinner than
+basin fill's 3.0 -- so the arc veneer strips under ordinary erosion and 59.5% of
+the arc belt reaches basement. An arc that is being resupplied for as long as the
+plate subducts should be the hardest cover on the map to remove, not one of the
+easiest.
+
+That makes it testable in one build rather than blocked on a generator feature.
+`LITH-20`.
 
 ### The evaporite 9.5x is a category error, not an excess
 
