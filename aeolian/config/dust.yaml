@@ -197,8 +197,17 @@ transport:
   steering_sigma: 0.5
   # Steady state per time bin, reached by explicit stepping. Convergence is
   # checked rather than assumed.
-  max_iterations: 4000
+  # The explicit step is CFL-limited by the convergence of the longitude grid at
+  # the poles, and the finest bin relaxes on a timescale of years where nothing
+  # rains. At 4000 iterations the solver reached 27.6 days against a 1351-day
+  # relaxation time and reported not-converged, correctly.
+  max_iterations: 40000
   convergence_fraction: 1.0e-4
+  # Floor on cos(latitude) in the grid spacing, purely numerical. Without it the
+  # polar rows set a 14 km cell width and a 597 s step for the whole globe. Dust
+  # sources are not polar, so the distortion is where it does not matter, but it
+  # IS a distortion of polar transport and it is declared rather than hidden.
+  polar_coslat_floor: 0.2
   # Horizontal diffusion, as a numerical regulariser for the upwind advection
   # rather than as physics. Reported so it is not mistaken for a transport term.
   diffusion_m2_s: 50000.0

@@ -380,3 +380,43 @@ checkpoint. Ask of any resume mechanism which fields it restores rather than
 re-reads. The same question applies to `configure()`, which clears surface fields
 when handed a landmap, and to anything else that decides between a file and a
 saved state.
+
+## 14. A bad bin in a shared artifact, inherited silently by everything
+
+Every orbit of `run_b014469b8091` writes a corrupted first output bin. In `spd`,
+`ua` and `va` the lower troposphere is inflated, worsening monotonically
+downward: 1.02x at the model top, 2.5x at sigma 0.30, and **7.5x at the bottom
+level**. It is systematic and not a restart shock -- orbits 86, 87, 88 and 90
+give 7.50, 7.57, 7.54 and 7.58 -- so it is a property of how the first output
+interval of each model year is accumulated. The snapshot climatology built from
+the same run is clean, which localises it to the regular binned output.
+
+Found 2026-08-17 while chasing a dust emission flux that came out 1700x Earth's.
+Emission goes as roughly u* cubed above a threshold, so the bad bin was
+**100.00%** of the annual total and every other bin together was a rounding
+error. The physics and the unit conversions were correct throughout; six hours
+of suspicion pointed at them anyway.
+
+**The reason this is a class and not an incident is who else reads it.**
+`carve_verdict.py`, `surface_water.py` and `export_carve_list.py` all take
+`np.asarray(ds["spd"][:]).mean(axis=0)[-1]` for the Penman wind. That average
+includes the bad bin and is inflated **1.55x**, which inflates open-water
+evaporation, which biases the carve verdict toward less overflow and therefore
+toward UNDER-carving. The lake solution already committed on this build carries
+it too.
+
+**What made it invisible.** The defect is in one of twelve bins of one field of
+a shared product, and every consumer reduces that field to a single time mean
+before using it. A 55% error in a mean looks like a climate, not a bug. Nothing
+in the chain compares two things that should agree, so nothing had a chance to
+notice.
+
+**The rule.** A field that is reduced over an axis should be checked ALONG that
+axis at least once, at the point where it enters the project. A per-bin global
+mean printed beside its own median would have shown this the day the climatology
+was built. `aeolian/scripts/build_dust.py:flag_anomalous_bins` does that now for
+wind, and it is one function that any consumer can call.
+
+The general form is the one this file keeps arriving at from different
+directions: a derived product carries no evidence of its own health, and the
+consumer that reduces it destroys the evidence before looking.

@@ -172,6 +172,30 @@ def drag_efficiency(z0_m: np.ndarray, cfg: dict) -> np.ndarray:
     return np.clip(1.0 - np.log(z0_cm / z0s) / denom, 0.0, 1.0)
 
 
+def flag_anomalous_bins(spd: np.ndarray, factor: float = 2.5) -> list[int]:
+    """Time bins whose near-surface wind is wildly out of line with the rest.
+
+    THIS EXISTS BECAUSE OF A REAL DEFECT, not as defensive habit. Every orbit of
+    run_b014469b8091 carries a corrupted first output bin: `spd`, `ua` and `va`
+    are inflated in the lower troposphere, worsening downward from 1.02x at the
+    model top to 7.5x at the bottom level. It is systematic rather than a
+    restart shock -- orbits 86, 87, 88 and 90 all show 7.50 to 7.58 -- so it is
+    a property of how the first output interval of each year is accumulated.
+
+    Consuming it silently cost this component a factor of 1700 in emission: bin
+    0 alone was 100.00% of the annual total, because emission goes as roughly
+    u* cubed above a threshold and that bin's wind is 7.5x too large.
+
+    The same field is read by `carve_verdict.py`, `surface_water.py` and
+    `export_carve_list.py`, all of which take `spd.mean(axis=0)[-1]` for the
+    Penman wind and therefore inherit a 1.55x inflation of open-water
+    evaporation. That is not this component's to fix and it is reported instead.
+    """
+    bottom = spd[:, -1, :, :].mean(axis=(1, 2))
+    median = np.median(bottom)
+    return [int(i) for i in np.where(bottom > factor * median)[0]]
+
+
 def weibull_shape_from_snapshots(snapshot: Path, mask) -> float | None:
     """Weibull shape implied by the instantaneous winds, over erodible cells.
 
@@ -266,7 +290,8 @@ def advect_to_steady_state(emission, u, v, loss_rate, lat, lon, cfg):
     radius = 6.371e6 * 1.2                       # Vesper, 1.2 Earth radii
     dlon = np.deg2rad(360.0 / nlon)
     dphi = np.abs(np.gradient(np.deg2rad(lat)))
-    coslat = np.maximum(np.cos(np.deg2rad(lat)), 1e-3)
+    coslat = np.maximum(np.cos(np.deg2rad(lat)),
+                        tr.get("polar_coslat_floor", 1e-3))
     dx = (radius * coslat * dlon)[:, None] * np.ones((1, nlon))
     dy = (radius * dphi)[:, None] * np.ones((1, nlon))
 
@@ -415,6 +440,18 @@ def main() -> None:
         snd = np.asarray(ds["snd"][:], dtype=float)
     nbin, nlat, nlon = tas.shape
 
+    # A corrupted time bin is not a rounding error here: emission goes as u*
+    # cubed above a threshold, so one bin with 7.5x the wind is the whole answer.
+    bad_bins = flag_anomalous_bins(spd)
+    good = [t for t in range(nbin) if t not in bad_bins]
+    if bad_bins:
+        print(f"  EXCLUDING time bins {bad_bins}: near-surface wind is out of "
+              f"line with the other bins by more than 2.5x. See "
+              f"flag_anomalous_bins for what this defect is and who else "
+              f"inherits it.")
+    if len(good) < 2:
+        raise SystemExit("too few usable time bins; refusing to guess a climate")
+
     z0 = read_sra_grid(
         PROJECT_ROOT / "exoplasim" / "inputs" / resolution.lower()
         / f"orogen_{resolution}_surf_0173.sra", nlat, nlon)
@@ -496,24 +533,24 @@ def main() -> None:
     outcomes, fields = {}, {}
     for shelter, z0a in ends:
         emission, load, converged = run_one(
-            z0a, cfg, nbin, nlat, nlon, frac_bin, d_bin, rho_p, u_bottom,
+            good, z0a, cfg, nbin, nlat, nlon, frac_bin, d_bin, rho_p, u_bottom,
             z_ref, rho_a, tas, grav_pct, clay_pct, f_clay, erodible,
             land_fraction, snd, pr, prc, prl, ua_col, va_col, lat, lon, gravity,
             args.variant)
 
         column = load.sum(axis=0)
-        aod_annual = (column * mee).mean(axis=0)
+        aod_annual = (column * mee)[good].mean(axis=0)
         deposition = np.zeros((nlat, nlon))
-        for t in range(nbin):
+        for t in good:
             precip_mm_hr = (prc[t] + prl[t]) * 1000.0 * 3600.0
             wet = (cfg["removal"]["scavenging_a"]
                    * np.maximum(precip_mm_hr, 0.0) ** cfg["removal"]["scavenging_b"])
             for b, db in enumerate(d_bin):
                 vs = settling_velocity(db, rho_p, rho_a[t], tas[t], gravity)
                 deposition += load[b, t] * (
-                    vs / cfg["transport"]["dust_scale_height_m"] + wet) / nbin
+                    vs / cfg["transport"]["dust_scale_height_m"] + wet) / len(good)
         dep = deposition * EARTH_YEAR_S * 1000.0            # g/m2 per Earth year
-        emit_mean = gmean(emission.mean(axis=0))
+        emit_mean = gmean(emission[good].mean(axis=0))
         outcomes[shelter] = {
             "aeolian_z0_m": z0a,
             "global_emission_Tg_per_earth_year":
@@ -526,7 +563,7 @@ def main() -> None:
             "transport_converged": bool(converged),
         }
         fields[shelter] = {"aod": aod_annual, "deposition": dep,
-                           "emission": emission.mean(axis=0)}
+                           "emission": emission[good].mean(axis=0)}
 
     lo = min(o["land_mean_aod"] for o in outcomes.values())
     hi = max(o["land_mean_aod"] for o in outcomes.values())
@@ -546,6 +583,9 @@ def main() -> None:
         "config_sha256": sha256(args.config),
         "dust_config_sha256": sha256(args.dust_config),
         "lake_solution": rel(lakes),
+        "excluded_time_bins": bad_bins,
+        "excluded_because": "near-surface wind out of line with the other bins "
+                            "by more than 2.5x; see flag_anomalous_bins",
         "grid": {"resolution": resolution, "latitudes": nlat,
                  "longitudes": nlon, "time_bins": nbin},
         "size_bins": [
@@ -643,7 +683,7 @@ def main() -> None:
     print(f"\nwrote {rel(output)}\n      {rel(field_path)}")
 
 
-def run_one(z0_aeolian, cfg, nbin, nlat, nlon, frac_bin, d_bin, rho_p, u_bottom,
+def run_one(good, z0_aeolian, cfg, nbin, nlat, nlon, frac_bin, d_bin, rho_p, u_bottom,
             z_ref, rho_a, tas, grav_pct, clay_pct, f_clay, erodible,
             land_fraction, snd, pr, prc, prl, ua_col, va_col, lat, lon, gravity,
             variant):
@@ -652,7 +692,7 @@ def run_one(z0_aeolian, cfg, nbin, nlat, nlon, frac_bin, d_bin, rho_p, u_bottom,
     total_emission = np.zeros((nbin, nlat, nlon))
     load = np.zeros((len(frac_bin), nbin, nlat, nlon))
     converged = True
-    for t in range(nbin):
+    for t in good:
         # The erodible patch is its own surface: the reference wind drives it
         # through ITS roughness, not the grid cell's. Shelter by surrounding
         # terrain is not represented and biases this high; see the config.

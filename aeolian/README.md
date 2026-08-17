@@ -12,62 +12,92 @@ python aeolian/scripts/build_dust.py --variant arid_bare_ground   # the bracket 
 Products are `analysis/dust_<variant>.json` and a matching `.nc` carrying annual
 mean optical depth, deposition flux, emission and the erodible fraction.
 
-## STATUS: THE MACHINERY WORKS AND THE NUMBERS DO NOT
+## STATUS: the chain is sound, the answer is undetermined by two parameters
 
-Read this before quoting anything from this component.
+The 1700x emission excess is found, and it was not in this component.
 
-The model runs end to end, every constant is grounded in a primary source, and
-the provenance is stamped. **Its emission is three to four orders of magnitude
-above Earth's**, which is about 2000 Tg per year: this build produces 3.4e6 Tg
-per Earth year at the central roughness. The optical depths that follow are
-physically impossible, around 50 rather than around 0.05.
+**Every orbit of the source run carries a corrupted first output bin.** In
+`spd`, `ua` and `va` the lower troposphere is inflated, worsening downward from
+1.02x at the model top to **7.5x at the bottom level**. It is systematic rather
+than a restart shock: orbits 86, 87, 88 and 90 of `run_b014469b8091` give 7.50,
+7.57, 7.54 and 7.58. The snapshot climatology built from the same run is clean,
+so it is the regular 12-bin output's first interval specifically.
 
-So the reopening test in `notes/dust.md` is reported as CROSSED and that result
-must not be used. A number that is four orders out does not answer a question
-whose threshold is a factor of two.
+Emission goes as roughly u* cubed above a threshold, so that one bin was
+**100.00% of the annual total**. Excluding it, and with the transport fixed
+below, emission falls from 3.4e6 Tg per Earth year to a range that brackets
+Earth's ~2000. Nothing in the physics or the unit conversions was wrong; the
+driver was.
 
-Two causes are known and one is not.
+`flag_anomalous_bins` now detects it and the run excludes it loudly rather than
+consuming it. That is a guard against a known defect, not defensive habit.
 
-**Known and fixed: the subgrid wind shape was declared and is measurable.**
-Emission goes as roughly u* cubed above a threshold, and the mean u* over source
-cells on this world sits BELOW the threshold, so every gram of dust comes from
-the tail of the distribution. The shape parameter was declared at k = 2 with a
-bracket of 1.5 to 3.0. Measured from the snapshot climatology's 32 instantaneous
-samples it is **3.98**, outside that bracket, and worth two orders of magnitude
-on the answer by itself. `weibull_shape_from_snapshots` now measures it rather
-than taking the declared value. That is a lower bound on emission, because
-samples 5.7 days apart resolve synoptic but not sub-daily variance.
+**Transport now converges, and the reason it did not is worth recording.** It
+was neither a CFL violation nor a cycle nor a missing sink. The explicit step is
+CFL-limited by the convergence of the longitude grid at the poles, which gave a
+14 km cell and a 597 s step, so 4000 iterations covered 27.6 days -- against a
+relaxation time of 1351 days for the 0.5 um bin where nothing rains. The
+integration was being stopped at 2% of the way. A declared polar `cos(lat)`
+floor of 0.2 relaxes the step to 6029 s and the iteration cap is now 40000; all
+cases report converged.
 
-**Known and not fixed: transport does not reach steady state.** The advection
-solver reports `transport_converged: false` at 4000 iterations for every case,
-so the loads are still growing when it stops and the optical depths are upper
-bounds of an unconverged integration.
+### What it says now, and why that is still not an answer
 
-**Not diagnosed: the emission magnitude itself.** With the measured wind shape
-the duty cycle above threshold is a few percent, and a hand calculation of Kok
-equation 18 at representative values gives an annual mean around 4e-8 kg/m2/s,
-which over this world's source area would be of order 1e5 Tg per year. The model
-returns fifty times more than that. The discrepancy is somewhere in the u* chain
-or in the flux assembly and it was not found.
+| | z0 = 3e-6 m | z0 = 1e-4 m | z0 = 1e-3 m |
+| --- | ---: | ---: | ---: |
+| emission, Tg per Earth year | 3381 | 19.7 | 0.0 |
+| land-mean optical depth | 0.0597 | 0.0002 | 0.0000 |
+| deposition, g/m2 per Earth year | 4.80 | 0.018 | 0.000 |
 
-## The structural finding, which matters more than the bug
+Earth for scale: about 2000 Tg per year and a land-mean dust optical depth near
+0.03. So the smooth end of the roughness bracket is Earth-like and the rough end
+is nothing, across a bracket that spans plausible playa surfaces.
 
-**A 12-bin climatology has averaged away exactly the variance that drives dust
-emission.** Because the mean friction velocity over the source cells lies below
-the threshold, the emission is entirely a property of the wind distribution's
-tail, and the tail is not in the driver. Measuring it from snapshots recovers
-synoptic variance and still misses the diurnal and sub-daily part.
+The wind tail moves it as much again. Emission in Tg per Earth year against the
+Weibull shape:
 
-`notes/dust.md` framed the reopening test around feedback magnitude: run it in
-the GCM if the forcing is large enough that a prescribed field stops being
-defensible. This is a different failure mode and the note does not anticipate
-it. The offline route is compromised here not because the feedback is missing
-but because **the driver has lost the information the emission depends on**. An
-in-model scheme sees every timestep's wind and does not have this problem at
-all.
+| shape k | z0 = 3e-6 m | z0 = 1e-4 m |
+| ---: | ---: | ---: |
+| 1.50 | 77165 | 7235 |
+| 2.00 | 29394 | 1465 |
+| 2.50 | 14056 | 398 |
+| 3.00 | 7885 | 131 |
+| 3.98 (measured) | 3469 | 20 |
 
-That is a decision for the pipeline rather than for this component, and it is
-recorded here rather than resolved.
+**The measured 3.98 is an upper bound and the table above is therefore a lower
+bound at every row.** It comes from snapshots 5.7 days apart, and averaging
+removes variance, which biases the shape parameter high. Earth's near-surface
+winds sit at 1.5 to 2.5. So the physically expected range is the top of that
+table, not the bottom.
+
+### The reopening test, stated without tuning
+
+`notes/dust.md` reopens the in-model question at a land-mean optical depth above
+0.10. At the measured k = 3.98 the answer is **0.0000 to 0.0597, below the
+threshold**. At an Earth-like k of 2.0 the same chain gives roughly eight times
+the emission at the smooth end, which puts the optical depth around 0.5 and
+**well above it**.
+
+So the test is not decidable on what is currently known, and the two parameters
+that decide it are the wind tail and the aeolian roughness. Neither is a
+free knob to be set by what answer is wanted.
+
+### What would decide it, and what to ask for
+
+The wind tail can be measured rather than fitted. ExoPlaSim writes high-cadence
+output and every run directory already contains a `highcadence.nl`. A short
+high-cadence segment off the settled baseline would give a real gust
+distribution instead of a Weibull fitted to 32 samples.
+
+**Specification: one orbit, sampled every four timesteps.** At the 45-minute
+timestep that is 3-hourly, 1464 samples per cell over 183 days, which resolves
+the diurnal cycle on a 30-hour day and gives enough independent samples to fit
+the tail rather than the body. Bottom-level wind alone is sufficient. That is
+roughly 190 MB per variable at T42, and about 25 minutes of model time at the
+rate the baseline is running.
+
+It cannot be run until the baseline settles, and the request is recorded rather
+than acted on.
 
 ## What the component does get right
 
