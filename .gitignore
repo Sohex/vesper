@@ -78,6 +78,12 @@ hydrography/data/*/surface_water.nc
 # that summarise a run are tracked under biosphere/analysis/.
 biosphere/runs/
 pedology/data/earth_validation_cache/
+
+# ERA5 precipitation at each Earth lake's pour point, cached by
+# hydrography/scripts/validate_lake_solver.py so a re-run does not re-fetch 146
+# thirty-year series. Delete the directory to refresh it. The result it feeds is
+# tracked in hydrography/analysis/lake_solver_validation.json.
+hydrography/analysis/cache_era5/
 # Bulk reference datasets: large, and redistributable only as their licences
 # allow. Hand-extracted tables are the exception and ARE tracked: they are
 # kilobytes, they carry their own provenance and validation identities, and

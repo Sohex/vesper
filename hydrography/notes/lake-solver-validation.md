@@ -137,6 +137,32 @@ available evidence for the disequilibrium warned about above -- the Aral falls
 from 100% to 4.5% of maximum volume within the record -- and carries no water
 balance at all.
 
+### The selection rule was amended, before any prediction was computed
+
+Recorded because the registered version of it failed, and quietly replacing a
+registered rule is the thing this project's conventions exist to prevent.
+
+The rule registered above chose HydroBASINS basins flagged `ENDO == 1`, an
+endorheic *sink*. Applied, it returned 54 lakes, of which four of the five
+largest were reservoirs, and it missed every major terminal lake on Earth.
+Balkhash, Chad, Turkana, Urmia, Van, Eyre and Qinghai all sit in basins flagged
+`ENDO == 2`, part of an endorheic system rather than its sink, so the sink flag
+selects headwater sub-basins instead of the systems they belong to.
+
+The amended rule takes `ENDO > 0`, groups by `MAIN_BAS` -- the identifier of the
+whole endorheic system -- and takes the lake with the largest `Wshd_area` in
+each, which is the most downstream. It also requires `Lake_type == 1`, a natural
+lake, since a dam sets a reservoir's area rather than its evaporation.
+
+It selects 146 terminal lakes and captures 2.78e7 km2 of endorheic land, against
+the 3.18e7 km2 Wang et al. (2018) measure for Earth, which is an independent
+check that the selection is finding the right land rather than a subset of it.
+The Caspian Sea is outside the test either way: HydroBASINS classifies its shore
+basins `ENDO == 0`, treating it as a sea.
+
+No predicted area had been computed when this was changed. The pass thresholds
+are untouched.
+
 ### What would actually work
 
 Gauged discharge per basin, in km3/yr, against a stated catchment area. That
