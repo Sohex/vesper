@@ -43,9 +43,14 @@ one is a config edit. Each names the control it encodes, and they are first
 order.
 
 The axis worth understanding is **exhumation**, because it is what a rock map
-alone cannot tell you. A porphyry forms 1-5 km below the surface and is destroyed
-by deep erosion; an orogenic gold system forms 5-15 km down and is revealed by
-it. The same erosion that removes one exposes the other. Orogen tracks it through
+alone cannot tell you. A porphyry ore zone is shallow -- Sillitoe (2010) puts the
+parental plutons at 5-15 km with the mineralised stocks above them and the
+epithermal counterparts under 1 km -- so deep erosion removes it. Orogenic gold
+is the opposite, and Groves et al. (1998) sharpen what that means: it is a
+crustal continuum from 15-20 km to the surface, epizonal under 6 km, mesozonal
+6-12, hypozonal beyond 12. Exhumation therefore does not decide whether gold is
+present, it decides which class is exposed. The same erosion that removes a
+porphyry brings a mesozonal gold system to surface. Orogen tracks it through
 `cover_thickness` and `erosionDelta`, which is why porphyry prospectivity here
 rejects most of the arc belt rather than accepting all of it -- 59.5% of it is
 stripped to its granodiorite root, and the porphyry level went with the section

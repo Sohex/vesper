@@ -304,6 +304,17 @@ process rather than as a rock composition.
 | `parfitt_1989_phosphate-reactions-with-natural-allophane-ferrihydrite-and-goethite.pdf` | Parfitt (1989). *Phosphate reactions with natural allophane, ferrihydrite and goethite.* J. Soil Sci. 40(2), 359-369. `10.1111/j.1365-2389.1989.tb01280.x` | held -- the mechanism behind andic phosphate retention |
 | `parfitt_1990_allophane-in-new-zealand-a-review.pdf` | Parfitt (1990). *Allophane in New Zealand - a review.* Aust. J. Soil Res. 28(3), 343-360. `10.1071/SR9900343` | held -- allophane occurrence and properties |
 
+## Ore genesis: the depth controls the minerals layer keys on
+
+Fetched 2026-08-16 for `minerals/`. These three ground the exhumation axis, which
+is the part of that layer doing real work rather than recolouring the rock map.
+
+| file | citation | status |
+| --- | --- | --- |
+| `sillitoe2010-porphyry-copper-systems.pdf` | Sillitoe (2010). *Porphyry Copper Systems.* Economic Geology 105(1), 3-41. `10.2113/gsecongeo.105.1.3` | **read** -- the depth anchors. Parental plutons at **5 to 15 km paleodepth**, feeding "vertically elongate (>3 km) stocks or dike swarms and associated mineralization" above them; the high-sulfidation epithermal counterparts sit at **<1 km paleodepth**. The paper does not state a single porphyry ore-zone depth, so the 1-5 km bracket used in `minerals/config/prospectivity.yaml` is DERIVED from those two anchors and is labelled as a bracket there, not quoted as his figure |
+| `groves1998-orogenic-gold-classification.pdf` | Groves, Goldfarb, Gebre-Mariam, Hagemann, Robert (1998). *Orogenic gold deposits: A proposed classification in the context of their crustal distribution and relationship to other gold deposit types.* Ore Geology Reviews 13(1-5), 7-27. `10.1016/S0169-1368(97)00012-7` | **read**, and it corrected the assumption it was fetched to confirm. Orogenic gold is a crustal CONTINUUM, not a depth band: "gold deposition from 15-20 km to the near surface environment", split into **epizonal (<6 km), mesozonal (6-12 km) and hypozonal (>12 km)**. So exhumation does not gate the deposit type as such; it selects WHICH class is exposed, and only the mesozonal and hypozonal need several kilometres removed |
+| `shirey2013-geology-of-diamonds.pdf` | Shirey, Shigley (2013). *Recent Advances in Understanding the Geology of Diamonds.* Gems & Gemology 49(4), 188-222. `10.5741/GEMS.49.4.188` | **read** -- the craton requirement, stated directly: "only the cratonic lithospheric keel is cold enough at high enough pressures to retain diamonds", with the diamond stability field beginning at **>140 km** depth. This is why the kimberlite rule keys on `r_t_craton` and why it was unusable before the craton basin double-count was fixed |
+
 ## The endorheic half: what happens to those ions after release
 
 Meybeck's Table 5 is exorheic-only, which looks like a fatal gap on a world where

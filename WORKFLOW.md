@@ -286,12 +286,12 @@ it was built with, and the model cycles through them. One year is a fixed
 climate. Several are how a variable star reaches the biosphere; a single
 repeating year cannot represent one at all.
 
-## 3.8 Economic minerals, when they arrive
+## 3.8 Economic minerals
 
-The tectonic half is built: `minerals/scripts/build_prospectivity.py`. The
-weathering, drainage and brine half waits on a climate. Design in
-`notes/economic-minerals.md`. One rule governs where it
-attaches, and it is worth stating here because it is expensive to retrofit.
+`minerals/` emits ore prospectivity per deposit type. The tectonic and magmatic
+half is built; the weathering, drainage and brine half waits on a climate.
+Design in `notes/economic-minerals.md`. Two rules govern where it attaches, and
+both are expensive to retrofit.
 
 **Minerals are an overlay, never a lithology.** `substrate_class` sets
 erodibility and therefore terrain, bare-rock albedo and therefore climate, soil
@@ -308,11 +308,26 @@ resolution this pipeline runs at. Deposits belong with the downscaling pass,
 which is where glacial overdeepening goes for the same reason -- if a thing is
 smaller than a cell, it is not this pipeline's to place.
 
-The split is by genesis: whatever concentrates a deposit has to be modelled where
-the deposit is placed. Tectonic and magmatic types go in Orogen, which has arcs,
-fold belts, LIPs and cratons; weathering, drainage and brine types go downstream,
-which has climate, runoff and the chemical divide. Supergene enrichment needs
-both and is the case that shows why this is a split rather than a handover.
+The split is by genesis: whatever concentrates a deposit has to be MODELLED
+wherever the deposit is placed. Tectonic and magmatic types depend on arcs, fold
+belts, LIPs and cratons, which Orogen models; weathering, drainage and brine
+types depend on climate, runoff and the chemical divide, which it does not.
+Supergene enrichment needs both, and is the case that shows why this is a split
+rather than a handover.
+
+Note that the tectonic half is nonetheless COMPUTED downstream, from the export
+rather than inside the generator. Every input but one is already exported, and
+keeping the arithmetic outside means a value that does not exist during
+generation cannot feed back into erodibility or albedo -- the overlay rule above
+becomes structural instead of remembered -- while a rule change costs no rebuild.
+
+**Exhumation is what earns the layer**, rather than it being a recolouring of the
+rock map. A porphyry forms one to five kilometres down and is destroyed by deep
+erosion; an orogenic gold system forms five to fifteen down and is revealed by
+it. The same erosion that removes one exposes the other, and Orogen tracks it
+through `cover_thickness` and `erosionDelta`. So porphyry prospectivity rejects
+the 59.5% of the arc belt stripped to its granodiorite root, where the porphyry
+level went with the section above it.
 
 ## 4. Why this is not a straight line
 

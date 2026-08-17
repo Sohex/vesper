@@ -1,10 +1,10 @@
 {
-  "generated": "2026-08-17T03:27:05+00:00",
+  "generated": "2026-08-17T03:34:20+00:00",
   "source_build": "precarve-craton",
   "terrain_hash": "e931b0d9947a232210a3cc11ba82003b5da15765d86e87956bc44c220932760e",
-  "config_sha256": "b2ca131c8fa36411477f53b2675019c9d29a73046d1e056948c76b70f7ba09a2",
+  "config_sha256": "4dc775f911024a3a41603ab9e46feb9b7faaffc4b5deebfbd88bb104be0825aa",
   "generator": "minerals/scripts/build_prospectivity.py",
-  "git_commit": "c0b35fcfaeba550f6eaae354f59be7f5c93bb84e",
+  "git_commit": "5573fe637c62f840bf7d3e657ab27b6a41de6a7d",
   "deposits": {
     "porphyry_cu": {
       "name": "Porphyry Cu-Mo-Au",
