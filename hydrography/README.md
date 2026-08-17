@@ -71,10 +71,6 @@ already had.
 | `analysis/lake_balance_sweep.json` | solver sensitivity under placeholder forcing |
 | `analysis/surface_water_report.json` | the solved water balance and its forcing |
 
-None of these exist right now: every one was computed on a superseded terrain
-and was archived and deleted. They come back when the component is re-run on
-the current build.
-
 ## The lake solver
 
 `lake_balance.py` is machinery, not a result. At equilibrium

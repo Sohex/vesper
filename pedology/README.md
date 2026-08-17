@@ -19,8 +19,7 @@ python pedology/scripts/build_soil.py --soil-carbon <cpool.out> --iteration 1
 
 Writes `data/<source_build>/soilmap.txt`, which is LPJ-GUESS's own `SoilInput`
 format, and `analysis/soil_report.json`. The soil map is per build, because
-texture derives from lithology. Neither exists right now: both were computed on
-a superseded terrain and have been deleted.
+texture derives from lithology.
 
 ## Why this component exists
 

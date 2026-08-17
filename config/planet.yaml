@@ -28,18 +28,18 @@ source_build: precarve-zoned-g1281-arcfix
 # spectrum, and the surface the antipodal carve verdict was taken from. Six
 # scripts across pedology and biosphere defaulted to it silently.
 #
-# NOTE this is still not the active build's climate. Every climatology in tree
-# predates the current terrain, so anything derived from one is provisional
-# until the re-baseline runs. check_consistency.py compares terrain hashes and
-# will say so; that is the intended way to find out, rather than a comment here
-# that has to be remembered.
-# NULL, deliberately. Every climatology in tree was computed on a superseded
-# terrain and has been archived and deleted; there is no current climate for this
-# world until the re-baseline runs. `climatology_path()` raises on a null value
-# rather than falling back, so anything that needs a climate says so plainly
-# instead of quietly producing a number from the wrong world.
+# Which climatology every downstream component reads by default. Named here
+# rather than hardcoded in a _paths helper, because it was hardcoded once and
+# six scripts across pedology and biosphere took a superseded default silently.
 #
-# Set this to the new baseline's regular climatology once it exists.
+# NULL means no baseline is named, and `climatology_path()` raises rather than
+# falling back. That is the point: a stale default returns a plausible number
+# from the wrong world, which is worse than an error. Set it to the regular
+# climatology of the current baseline.
+#
+# A named climatology is not automatically the ACTIVE build's climate.
+# check_consistency.py compares terrain hashes and reports the mismatch; that is
+# where to find out, not a comment here that has to be kept true by hand.
 baseline_climatology: null
 
 # DETERMINED. Radius and gravity are Orogen's and canonical; mass follows from
