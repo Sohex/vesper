@@ -237,28 +237,37 @@ def speed_bias_correction(snapshot: Path, spd: np.ndarray,
     return np.where(binned > 0.01, truth / np.maximum(binned, 1e-6), 1.0)
 
 
-def weibull_shape_from_snapshots(snapshot: Path, mask) -> float | None:
-    """Weibull shape implied by the instantaneous winds, over erodible cells.
+def weibull_shape_from_samples(samples: Path, mask) -> tuple[float, int] | None:
+    """Weibull shape implied by instantaneous winds, over erodible cells.
 
     The regular climatology is a 12-bin mean and has averaged away exactly the
-    variance that drives dust emission, so the shape parameter cannot be read
-    from it. The snapshot climatology keeps 32 instantaneous samples per orbit
-    and can, through the coefficient of variation:
+    variance that drives dust emission, so the shape cannot be read from it.
+    Instantaneous samples can, through the coefficient of variation:
 
         cv = sqrt( Gamma(1 + 2/k) / Gamma(1 + 1/k)^2 - 1 )
 
-    THIS IS AN UPPER BOUND ON k, and therefore a LOWER bound on emission. The
-    samples are about 5.7 days apart, so they resolve synoptic variance and not
-    the diurnal and sub-daily variance that produces real dust events. A
-    distribution built from them is narrower than the true one.
+    **How fast the samples come decides the answer, and by a lot.** Measured
+    2026-08-17 over the same 2,614 erodible cells of the same world: the 32
+    snapshots of a climatology, 5.7 days apart, give k = 3.965, and 1,463
+    three-hourly samples from a high-cadence orbit give **k = 2.012**. The
+    snapshots resolve synoptic variance and not the diurnal and sub-daily
+    variance that produces real dust events, so a shape fitted to them is an
+    upper bound and the emission it implies is a lower bound. That was stated
+    here before it was measured, and the measurement is a factor of two.
+
+    Prefer a high-cadence extract; `aeolian/scripts/extract_high_cadence_wind.py`
+    produces one. Returns the shape and the number of samples it came from,
+    because a shape quoted without its cadence is not interpretable.
     """
     from math import gamma as gfn
-    if not snapshot.is_file():
+    if not samples.is_file():
         return None
-    with Dataset(snapshot) as ds:
+    with Dataset(samples) as ds:
         if "spd" not in ds.variables:
             return None
-        spd = np.asarray(ds["spd"][:, -1, :, :], dtype=float)
+        spd = np.asarray(ds["spd"][:], dtype=float)
+        if spd.ndim == 4:                       # a climatology carries levels
+            spd = spd[:, -1, :, :]
     mean, std = spd.mean(axis=0), spd.std(axis=0)
     with np.errstate(invalid="ignore", divide="ignore"):
         cv = np.where(mean > 0.1, std / np.maximum(mean, 1e-6), np.nan)
@@ -267,7 +276,7 @@ def weibull_shape_from_snapshots(snapshot: Path, mask) -> float | None:
     sel = mask & np.isfinite(cv)
     if not np.any(sel):
         return None
-    return float(np.median(np.interp(cv[sel], cvs[::-1], ks[::-1])))
+    return float(np.median(np.interp(cv[sel], cvs[::-1], ks[::-1]))), int(spd.shape[0])
 
 
 def moisture_threshold_factor(gravimetric_pct: np.ndarray,
@@ -444,6 +453,12 @@ def main() -> None:
     ap.add_argument("--climatology", type=Path, default=None,
                     help="defaults to the configured baseline_climatology")
     ap.add_argument("--output", type=Path, default=None)
+    ap.add_argument("--gust-samples", type=Path, default=None,
+                    help="instantaneous near-surface winds to fit the subgrid "
+                         "distribution from. Defaults to the snapshot "
+                         "climatology, which is 32 samples an orbit and biases "
+                         "the shape high by a factor of two; prefer a "
+                         "high-cadence extract")
     ap.add_argument("--weibull-shape", type=float, default=None,
                     help="override the shape measured from the snapshots. For "
                          "the sensitivity sweep in aeolian/README.md ONLY: the "
@@ -563,8 +578,9 @@ def main() -> None:
     # The wind-tail shape is measured from the snapshot climatology rather than
     # declared, because the declared value turned out to be wrong by enough to
     # move the answer two orders of magnitude. See the config note.
-    snap = snapshot_sibling(clim_path)
-    k_measured = weibull_shape_from_snapshots(snap, erodible > 0.05)
+    gust_source = args.gust_samples or snapshot_sibling(clim_path)
+    fitted = weibull_shape_from_samples(gust_source, erodible > 0.05)
+    k_measured, k_samples = fitted if fitted else (None, 0)
     if k_measured is not None:
         cfg["subgrid_wind"]["weibull_shape"] = k_measured
     if args.weibull_shape is not None:
@@ -667,14 +683,14 @@ def main() -> None:
         "mass_extinction_efficiency_m2_kg": round(mee, 2),
         "subgrid_wind": {
             "weibull_shape_used": cfg["subgrid_wind"]["weibull_shape"],
-            "measured_from": rel(snap) if k_measured is not None else None,
-            "note": "Measured from the 32 instantaneous samples of the snapshot "
-                    "climatology, not declared. It is an UPPER bound on the "
-                    "shape and so a LOWER bound on emission, because samples "
-                    "5.7 days apart resolve synoptic but not sub-daily "
-                    "variance. Emission spans two orders of magnitude across "
-                    "the plausible range of this one parameter, which is the "
-                    "headline uncertainty of this component.",
+            "measured_from": rel(gust_source) if k_measured is not None else None,
+            "measured_from_samples": k_samples,
+            "note": "Measured, not declared, and the sampling cadence decides "
+                    "it: 32 snapshots 5.7 days apart give 3.965, while 1463 "
+                    "three-hourly samples from a high-cadence orbit give 2.012. "
+                    "Snapshots resolve synoptic but not sub-daily variance, so "
+                    "a shape fitted to them is an upper bound and the emission "
+                    "a lower bound. Quote the sample count with the shape.",
         },
         "speed_bias_correction": {
             "median": round(float(np.median(speed_ratio)), 4),

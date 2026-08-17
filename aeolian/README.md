@@ -41,76 +41,44 @@ integration was being stopped at 2% of the way. A declared polar `cos(lat)`
 floor of 0.2 relaxes the step to 6029 s and the iteration cap is now 40000; all
 cases report converged.
 
-### What it says now, and why that is still not an answer
+### What it says now, with the wind tail measured
 
-Measured 2026-08-17 on the baseline climatology, at the measured wind tail:
+Measured 2026-08-17 on the baseline climatology, at k = 2.012 fitted from 1,463
+three-hourly samples of a high-cadence orbit (DUST-5):
 
 | | z0 = 3e-6 m | z0 = 1e-4 m | z0 = 1e-3 m |
 | --- | ---: | ---: | ---: |
-| emission, Tg per Earth year | 79830 | 3240 | 0.0 |
-| land-mean optical depth | 2.074 | 0.0672 | 0.0000 |
-| deposition, g/m2 per Earth year | 154.2 | 5.09 | 0.000 |
+| emission, Tg per Earth year | 255296 | 28507 | 31.9 |
+| land-mean optical depth | 7.098 | 0.740 | 0.0005 |
+| deposition, g/m2 per Earth year | 524.7 | 55.1 | 0.04 |
 
 Earth for scale: about 2000 Tg per year and a land-mean dust optical depth near
-0.03. So the central roughness is now a couple of Earths of emission at twice
-Earth's optical depth, and the smooth end is a dust world. Only the rough end is
-nothing, across a bracket that spans plausible playa surfaces.
+0.03. The central roughness is therefore something like fourteen Earths of
+emission at twenty-five times Earth's optical depth. This is a dusty world.
 
-**These numbers are 150 to 250 times the ones this table carried before
-2026-08-17, and the cause was a defective wind rather than anything aeolian.**
-The binned climatology's `spd` is partly vector-cancelled by the model's output
-accumulation, so it understated the near-surface speed by a median factor of
-1.554 over this grid. Emission is threshold-gated and then roughly cubic, which
-is how 1.55 on the wind became 158 on the emission: most of it is cells crossing
-the threshold at all rather than emitting harder once over it. The correction is
-`speed_bias_correction` in `build_dust.py`, it is per cell rather than global,
-and it is recorded in `dust_baseline.json`. `notes/failure-modes.md` class 15 is
-the general form of the mistake.
+**The wind tail was the whole uncertainty and it is now measured.** DUST-1 had to
+fit the subgrid distribution to the 32 snapshots of a climatology, 5.7 days
+apart, which gave k = 3.965. This file said at the time that such a fit is an
+upper bound on the shape and therefore a lower bound on emission, because
+snapshots that far apart resolve synoptic and not sub-daily variance. One orbit
+of three-hourly output settles it: **k = 2.012**, inside the 1.5 to 2.5 range
+Earth's near-surface winds occupy, and a factor of two from the snapshot fit.
+Emission is 8.8x higher at the central roughness as a result.
 
-The wind tail moves it as much again. Emission in Tg per Earth year, and the
-land-mean optical depth in brackets, against the Weibull shape:
-
-| shape k | z0 = 3e-6 m | z0 = 1e-4 m |
-| ---: | ---: | ---: |
-| 1.50 | 474169 (13.48) | 76840 (2.102) |
-| 2.00 | 258267 (7.184) | 29071 (0.756) |
-| 2.50 | 168221 (4.579) | 13723 (0.339) |
-| 3.00 | 122211 (3.263) | 7594 (0.177) |
-| 3.97 (measured) | 79830 (2.074) | 3240 (0.067) |
-
-Reproduce any row with `--weibull-shape`; the measurement is what runs by
-default.
-
-**The measured 3.97 is an upper bound and the table above is therefore a lower
-bound at every row.** It comes from snapshots 5.7 days apart, and averaging
-removes variance, which biases the shape parameter high. Earth's near-surface
-winds sit at 1.5 to 2.5. So the physically expected range is the top of that
-table, not the bottom.
+The roughness bracket is now the only large uncertainty left, and it no longer
+spans the answer: the rough end has gone from exactly zero to 31.9 Tg per year.
 
 ### The reopening test, stated without tuning
 
 `notes/dust.md` reopens the in-model question at a land-mean optical depth above
-0.10. **It crosses.** At the measured k the answer spans 0.0000 to 2.074 across
-the roughness bracket, and the central roughness is 0.0672, which is the only
-cell of that table still below the threshold. It stops being below it at any
-shape under about 3.5, and every reason there is to distrust the measured 3.97
-points downward.
+0.10. **It crosses, at 7.4x, at the central roughness.** It crosses at 71x at the
+smooth end. Only the roughest end of the bracket is below it.
 
-So the test is decided in one direction and not the other: dust cannot be
-dismissed as negligible, and how far above the threshold it sits is not known.
-The two parameters that decide the magnitude are the wind tail and the aeolian
-roughness. Neither is a free knob to be set by what answer is wanted.
-
-### Extracting the high-cadence wind
-
-`continue_exoplasim.py --high-cadence` writes a raw `MOST_HC.NNNNN`, 15.3 GB for
-one T42 orbit at one sample every fourth timestep. Do NOT hand that to pyburn
-whole: it holds the entire decoded record set in memory whatever output codes it
-is given, 18.9 MB a sample, and on the first attempt it reached 27.6 GB resident
-in 73 minutes and wrote nothing. `aeolian/scripts/extract_high_cadence_wind.py`
-splits the raw on timestep boundaries and feeds pyburn one chunk at a time,
-checkpointing as it goes, and emits the bottom model level alone at about 290 MB.
-`notes/large-data.md` is the general rule.
+That was a pre-committed threshold, fixed before the answer was known, and what
+it commits to is that a prescribed field is no longer defensible and the emission
+scheme belongs inside the model. That is a bigger change than this component was
+built to imply and it is DUST-3's problem now, not a conclusion this file should
+quietly draw.
 
 ### What would decide it, and what to ask for
 
