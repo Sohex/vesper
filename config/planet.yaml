@@ -385,29 +385,24 @@ model:
   # beside the .sra files, not here. It moves with the lithology, which is why
   # the flux is re-derived on every new terrain rather than carried.
   land_albedo_source: vegetated
-  # Rock-class albedo overrides, applied on top of the export's table.
+  # No rock-class albedo overrides, and the key is absent rather than empty.
   #
-  # Evaporite is the largest single lever in this planet's energy balance and its
-  # exported value is not a measurement. World Orogen assigns 0.50 to the class
-  # "Evaporite / playa fill" and applies it to EVERY cell of a preserved basin,
-  # not just the terminal floor. 0.50 is clean halite crust; a real basin is
-  # zoned, with salt only where it repeatedly floods and dries, surrounded by
-  # playa mud, alluvial fan and dune sand. Typical playa is 0.25-0.35, and Salar
-  # de Uyuni at 0.5-0.7 is an unusually pure end member.
+  # There was one: evaporite forced to 0.40, because Orogen assigned clean-halite
+  # 0.50 to every cell of a preserved basin when most of a basin floor is playa
+  # mud and fan gravel rather than crust. That override was removed when the
+  # generator zoned the class, which is what it was written to wait for: the
+  # export now carries salt crust and playa clastics separately, so the split is
+  # measured from the terrain instead of averaged into one declared number.
   #
-  # Sensitivity on the pre-carve terrain, where evaporite is 20.8% of land and
-  # 9.0% of the planet: 2.76 W/m2 per 0.10 of albedo, or 2.59 K. The range 0.50
-  # to 0.30 spans 5.1 K against a design band only 3 K wide, so this constant is
-  # worth more than the flux choice it is being used to justify.
+  # Both values are the generator's now, and both are cited there rather than
+  # here: crust stays 0.50, and playa clastics moved 0.30 -> 0.19 on Post et al.
+  # (2000), 52 pyranometer measurements over 0.3-2.8 um with a mean of 0.189.
+  # See `vendor/orogen/js/lithology.js` and `references/INDEX.md`.
   #
-  # 0.40 is taken as a mixed-playa value: above typical playa because these
-  # basins do concentrate salt at their floors, below clean crust because most of
-  # a basin's area is not crust. It is a declared assumption, not a measurement,
-  # and every result computed with it inherits that.
-  #
-  # Orogen has proposed zoning the class by depth below spill, which would give a
-  # measured area split between crust and clastics instead of one number. When
-  # that lands this override should be removed rather than retuned.
+  # It is still the largest lever on this planet's energy balance, and it is
+  # larger now than when that was first written, because playa clastics are a
+  # bigger share of land on this terrain than evaporite was on the old one. If
+  # this class moves again, the flux moves with it.
   # Rock classes that cannot carry vegetation, so they keep their own albedo in
   # `vegetated` mode rather than being handed the canopy value. Nothing roots in
   # salt crust and nothing much roots in playa mud, and between them they are

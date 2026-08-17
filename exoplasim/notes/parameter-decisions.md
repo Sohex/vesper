@@ -1010,6 +1010,25 @@ confined to basin fill, expect the vegetated figure to move about twice as far.
 is now split, and closed-basin fill is 16.5% of land on `carved-zoned-v4`: 1.9%
 salt crust, 14.5% playa clastics.
 
+**Playa clastics at 0.30 albedo, and the 0.25-0.33 plausible mix around it.**
+The generator moved that class to **0.19** and cites Post et al. (2000) for it:
+52 pyranometer measurements over 0.3-2.8 um with a mean of 0.189, which is the
+same quantity measured in the field rather than a mixture argued from facies.
+See `vendor/orogen/js/lithology.js`.
+
+The sensitivity section above is therefore an underestimate now, in two ways at
+once. The class is a larger share of land on `precarve-craton` than it was when
+that was written, and it sits below the bottom of the 0.25-0.33 range the
+mixture argument produced, so the lever is both longer and pulled further. It
+remains the largest single lever on this planet's energy balance.
+
+Note the two groundings disagree and both are in `references/INDEX.md`:
+Henderson-Sellers and Wilson (1983) put salt playas and light sand deserts at
+0.28-0.44, against Post's all-soils mean of 0.189. The generator took the field
+pyranometer measurement, which is the right *kind* of number; whether US
+agricultural soils are the right *population* for playa mud and desert-varnished
+fan gravel is not settled here.
+
 **The albedo bracket's flux windows, 0.952-0.970 vegetated and 0.977-0.994
 bare.** Measured at T21 on pre-carve terrain. The vegetated window has since been
 measured directly on the current terrain from three converged T42 points, giving
