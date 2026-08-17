@@ -104,7 +104,20 @@ closed-basin geometry.
 The catch is that `iceFlow` is a heuristic accumulation rather than a Glen's-law
 velocity, so multiplying it by `g^3` would attach a rigorous factor to an
 imprecise quantity and read as more trustworthy than it is. Fixing this properly
-means rebuilding the glacial model, which is its own project. `GRAV-6`.
+means rebuilding the glacial model, which is its own project.
+
+**And it belongs downstream, not here.** A glacial valley is 1 to 5 km wide
+against a 15.19 km mesh cell, so glacial erosion is a SUB-GRID process on this
+mesh: 0.07 to 0.33 of a cell. Attaching a `g^3` velocity term to a process the
+grid cannot resolve buys nothing, whatever the term's rigour. The place it can
+be resolved is the downscaling pass, which needs sub-grid hypsometry persisted
+anyway -- see the closing section of `notes/glacier-rough-pass.md`, which reached
+the same conclusion from the other direction.
+
+The scale reinforces it. This world's glaciers run a few times Earth's mountain
+glaciation with no ice sheets at all, so the affected area is small as well as
+unresolved. `GRAV-6` is therefore a declared gap deferred to downscaling, which
+is Option B below rather than an outstanding task.
 
 ## SWOT: make gravity physical, or roll with what we have
 
