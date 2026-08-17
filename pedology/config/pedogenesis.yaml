@@ -209,13 +209,36 @@ texture:
   # was about twice as steep as Earth across its whole range. See
   # `scripts/validate_against_earth.py` and `analysis/earth_validation.json`.
   #
-  # It does NOT fix the felsic-versus-mafic contrast, which is still overstated,
-  # though by less than when this was written: the QAPF correction above took
-  # granite from 45% inert quartz to 28%, and the divergence now reads 0.231
-  # predicted against 0.179 observed, 29% high rather than the factor of two
-  # this comment used to claim. It is recorded rather than tuned away, because
-  # fixing it means changing mineralogy and that wants a mineralogical source
-  # rather than a fit to seven site pairs.
+  # It does NOT fix the felsic-versus-mafic contrast, still overstated at 0.231
+  # predicted against 0.179 observed, though by less than the factor of two this
+  # comment once claimed: the QAPF correction above took granite from 45% inert
+  # quartz to 28% and closed most of the gap.
+  #
+  # **Quartz cannot close the rest, and this comment used to say it could.**
+  # Measured by sweeping the parameters against the sixteen sites: raising
+  # felsic quartz makes the divergence WORSE, 0.232 at the configured 0.28 going
+  # to 0.273 at 0.45 and 0.296 at 0.55, because inert quartz leaves less material
+  # to convert and so makes granite sandier still. Closing the gap through quartz
+  # would need granite BELOW 0.28, which is below the modal range of any real
+  # granite. The mineralogy is not the problem; the QAPF correction already took
+  # what there was to take.
+  #
+  # What controls the contrast is the PRIMARY CLAY fractions above, and they are
+  # not a mineralogical quantity at all: fresh granite contains no clay, so those
+  # values describe the texture of freshly produced regolith rather than of rock.
+  # Two ways to reach the observed divergence, and they are not equivalent:
+  # raising felsic primary clay to 0.18 hits 0.173 but takes the overall bias
+  # from +0.062 to +0.091, while lowering mafic primary clay to 0.16 gives 0.187
+  # AND cuts the bias to +0.040 and the mafic bias from +0.088 to +0.044. The
+  # second is also the physically defensible direction, since fresh basaltic
+  # regolith is sandy and gravelly rather than a fifth clay.
+  #
+  # It stays as it is until a source says what fresh regolith texture is. Three
+  # parameters have now been compared against these same sixteen sites and one
+  # has been fitted to them; fitting a second would reproduce the calibration set
+  # and nothing else. What this wants is a weathering chronosequence with
+  # particle-size data on young basalt and granite surfaces, which is a different
+  # literature from mineralogy. See LITH-23.
   #
   # A residual +0.062 of clay against SoilGrids survives both corrections, and
   # it is NOT a conversion-rate error: it barely varies with weathering

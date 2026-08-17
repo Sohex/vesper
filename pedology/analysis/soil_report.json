@@ -1,11 +1,11 @@
 {
-  "generated": "2026-08-17T18:32:11+00:00",
+  "generated": "2026-08-17T18:41:58+00:00",
   "iteration": null,
   "closes_loop_with": "nothing; iteration 0 has no biosphere",
   "climatology": "exoplasim/analysis/climatology/bootstrap_regular_climatology.nc",
   "climatology_sha256": "e5c57e74bdff6fa4ed69e048c6b0816a381f4c66a3a62d118880a23473a73fa1",
   "config_sha256": "3e5274699aca5964f522cf3a2494c7cf642ce4a962d99d1dac4b86a428f2313c",
-  "pedogenesis_sha256": "0e4faee5fd5eca1d43f6c0c959fdbf832ed91c534aa4b3a49c640f24e70ba376",
+  "pedogenesis_sha256": "19d00e018a4c048d1003a0be2b081a73dd0bb3b34b0e4aca252b56ea05003e3f",
   "source_build": "precarve-craton",
   "terrain_hash": "e931b0d9947a232210a3cc11ba82003b5da15765d86e87956bc44c220932760e",
   "orbital_year_earth_days": 182.80142503147016,
@@ -54,5 +54,5 @@
   "regolith_note": "LPJ-GUESS 4.1.1 has a fixed 1.5 m profile and does not consume regolith depth. It is computed and reported so the gap is visible; see notes/model.md.",
   "output": "pedology/data/precarve-craton/soilmap.txt",
   "output_sha256": "8fbe3d1650abc9add1747989deaae7947f6876da23850dcadd6591f832a55e70",
-  "git_commit": "3d62198285bce05f4ce884336c16e0363f07dd2b"
+  "git_commit": "be1c06ed854dd84032e27e7f84d9554c9f4ec0b6"
 }
