@@ -34,27 +34,16 @@ if str(LIB) not in sys.path:
 
 
 def climatology_path(name: str | None = None) -> Path:
-    """The regular (binned) climatology downstream components are driven from.
+    """The climatology this component is driven from.
 
-    Read from `config/planet.yaml`'s `baseline_climatology` rather than
-    hardcoded. It used to default to `climatology_s096`, which is on pre-carve
-    terrain under the superseded `k2` spectrum and is the surface the antipodal
-    carve verdict was taken from -- and six scripts across two components took
-    that default silently. A stale default is worse than a missing one: it
-    produces a plausible number instead of an error.
-
-    `name` still accepts a directory under exoplasim/analysis/ for the old
-    layout, so existing callers that pass one keep working.
+    Delegates to `lib/paths.py`, which is the one copy. This module
+    kept its own, and so did biosphere, `surface_water.py` and two
+    exoplasim builders; they did not stay in step, and three of them
+    were still naming the superseded `climatology_s096` when a
+    re-baseline ran them for the first time in months.
     """
-    if name is not None:
-        return (PROJECT_ROOT / "exoplasim" / "analysis" / name
-                / "baseline_regular_climatology.nc")
-    import yaml
-    config = yaml.safe_load(
-        (PROJECT_ROOT / "config" / "planet.yaml").read_text(encoding="utf-8"))
-    declared = config.get("baseline_climatology")
-    if not declared:
-        raise SystemExit(
-            "config/planet.yaml has no `baseline_climatology`. Name one there "
-            "or pass --climatology; there is deliberately no fallback.")
-    return PROJECT_ROOT / declared
+    import sys as _sys
+    if str(PROJECT_ROOT / "lib") not in _sys.path:
+        _sys.path.insert(0, str(PROJECT_ROOT / "lib"))
+    from paths import climatology_path as _resolve
+    return _resolve(name, root=PROJECT_ROOT)

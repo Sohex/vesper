@@ -148,12 +148,15 @@ def main() -> None:
                     help="surface_water.nc from hydrography; paints solved lake "
                          "regions with open water's albedo before gridding, so "
                          "each cell gets an area-weighted composite")
-    ap.add_argument("--climatology", type=Path,
-                    default=(CONFIG.parent.parent / "exoplasim" / "analysis"
-                             / "climatology_s096"
-                             / "baseline_regular_climatology.nc"),
-                    help="coordinate source for --mode modelled. Must be the "
-                         "climatology the LPJ-GUESS driver was built from.")
+    # Resolved from config.baseline_climatology, not hardcoded; the default
+    # here named the superseded `climatology_s096` until 2026-08-17. Left
+    # optional because the first albedo of a re-baseline runs before any
+    # climatology exists. See lib/paths.py:climatology_path.
+    ap.add_argument("--climatology", type=Path, default=None,
+                    help="coordinate source for --mode modelled, and the "
+                         "evaporation field the derived evaporite split needs. "
+                         "Must be the climatology the LPJ-GUESS driver was "
+                         "built from when used for the former.")
     ap.add_argument("--tree-albedo", type=float, default=0.13,
                     help="albedo of full tree cover. Closed canopy is dark; "
                          "0.12-0.15 covers needleleaf through broadleaf.")

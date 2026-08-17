@@ -46,7 +46,7 @@ import numpy as np
 import yaml
 
 from _paths import CONFIG, INPUTS, PROJECT_ROOT  # noqa: E402  (puts lib/ on sys.path)
-from paths import rel  # noqa: E402
+from paths import climatology_path, rel  # noqa: E402
 from sra import write_sra
 
 SOIL_WATER_CODE = 229
@@ -81,12 +81,13 @@ def main() -> None:
     parser.add_argument("--config", type=Path, default=CONFIG)
     parser.add_argument("--soil-map", type=Path,
                         default=None)
-    parser.add_argument("--climatology", type=Path,
-                        default=(PROJECT_ROOT / "exoplasim" / "analysis"
-                                 / "climatology_s096"
-                                 / "baseline_regular_climatology.nc"),
+    # Resolved from config.baseline_climatology, not hardcoded. The default
+    # here named `climatology_s096` until 2026-08-17: pre-carve terrain under
+    # the superseded k2 spectrum. See lib/paths.py:climatology_path.
+    parser.add_argument("--climatology", type=Path, default=None,
                         help="supplies the grid and the land mask, so they match "
-                             "the soil map exactly")
+                             "the soil map exactly; defaults to the configured "
+                             "baseline_climatology")
     parser.add_argument("--output", type=Path, default=None)
     parser.add_argument("--lakes", type=Path, default=None,
                         help="surface_water.nc; raises dwmax on the lake fraction "
@@ -96,6 +97,8 @@ def main() -> None:
                         help="bucket depth on the lake fraction; defaults to "
                              "model.lake_dwmax_m, else 0.2 m")
     args = parser.parse_args()
+    if args.climatology is None:
+        args.climatology = climatology_path()
 
     config = yaml.safe_load(args.config.read_text(encoding="utf-8"))
     model = config["model"]

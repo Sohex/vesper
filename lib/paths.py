@@ -38,3 +38,43 @@ def rel(path: Path | str, root: Path | None = None) -> str:
         return str(p.relative_to(base))
     except ValueError:
         return str(p)
+
+
+def climatology_path(name: str | None = None, root: Path | None = None) -> Path:
+    """The climatology every downstream component is driven from.
+
+    Read from `config/planet.yaml`'s `baseline_climatology`, with no fallback,
+    because a fallback here is the most expensive kind of bug this project has:
+    it returns a plausible number computed from a different world instead of an
+    error. The default it replaced pointed at `climatology_s096`, which is
+    pre-carve terrain under the superseded `k2` spectrum and the surface the
+    antipodal carve verdict was taken from.
+
+    It lives in `lib/` because copies of it did not stay in step. pedology and
+    biosphere were migrated to the config key; `surface_water.py` kept a private
+    module constant, and `build_surface_albedo.py` and
+    `build_surface_soil_water.py` kept an argparse default, all three still
+    naming the superseded directory. Two of those only surfaced when a
+    re-baseline ran them for the first time in months.
+
+    Returns the FILE. Callers must not rebuild the name from a directory: the
+    label is chosen per product, so a bootstrap climatology is
+    `bootstrap_regular_climatology.nc` and reconstructing
+    `baseline_regular_climatology.nc` beside it finds nothing.
+
+    `name` still accepts a directory under `exoplasim/analysis/` for the old
+    layout, so existing callers that pass one keep working.
+    """
+    import yaml
+    project = Path(root) if root is not None else Path(__file__).resolve().parents[1]
+    if name is not None:
+        return (project / "exoplasim" / "analysis" / name
+                / "baseline_regular_climatology.nc")
+    config = yaml.safe_load(
+        (project / "config" / "planet.yaml").read_text(encoding="utf-8"))
+    declared = config.get("baseline_climatology")
+    if not declared:
+        raise SystemExit(
+            "config/planet.yaml has no `baseline_climatology`. Name one there "
+            "or pass --climatology; there is deliberately no fallback.")
+    return project / declared

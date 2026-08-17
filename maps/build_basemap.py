@@ -36,10 +36,14 @@ BUILD_DIR = Path(__file__).resolve().parent / "build"
 # long before anything noticed -- nothing noticed because the script has no
 # argparse, so --help ran main() and the only signal was a stack trace.
 def _climatology() -> Path:
+    """The climatology FILE. It used to return the directory and callers
+    appended `baseline_regular_climatology.nc`, which finds nothing once a
+    product is labelled anything else -- a bootstrap climatology is
+    `bootstrap_regular_climatology.nc`."""
     import sys as _sys
-    _sys.path.insert(0, str(ROOT / "pedology" / "scripts"))
-    from _paths import climatology_path
-    return climatology_path().parent
+    _sys.path.insert(0, str(ROOT / "lib"))
+    from paths import climatology_path
+    return climatology_path()
 
 WIDTH, HEIGHT = 5760, 2880
 
@@ -299,7 +303,7 @@ def main():
     clim_elev_m = np.asarray(cls["surface_elevation"][:])
     cls.close()
 
-    clm = nc.Dataset(_climatology() / "baseline_regular_climatology.nc")
+    clm = nc.Dataset(_climatology())
     tas = np.asarray(clm["tas"][:])  # (12, 64, 128)
     sic = np.asarray(clm["sic"][:]).mean(axis=0)
     lsm = np.asarray(clm["lsm"][:]).mean(axis=0)

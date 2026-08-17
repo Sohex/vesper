@@ -108,11 +108,12 @@ model:
   ozone_uv_weight: 0.335
   ozone_visible_weight: 0.914
   roughness_source: lithology
-  # BOOTSTRAP: uniform now, pedology before the baseline run. Code 229 comes
-  # from a soil weathered under a climatology, so it cannot exist on a terrain
-  # that has none yet, and the flip cannot happen mid-run because it moves
-  # config_sha256. WORKFLOW.md section 6A has the order.
-  soil_water_source: uniform
+  # Soil water capacity from the pedology soil map as code 229, land-mean
+  # 0.151 m against ExoPlaSim's uniform 0.5 m bucket. It was `uniform` for the
+  # bootstrap because 229 needs a soil weathered under a climatology and the
+  # terrain had none; that run produced one, so it is `pedology` from the
+  # baseline run onward. The flip moves config_sha256 and cannot happen mid-run.
+  soil_water_source: pedology
   land_albedo_source: vegetated
   # Playa clastics are about a quarter of this terrain's land and the largest
   # lever on its energy balance. The export's 0.19 comes from Post et al.'s
