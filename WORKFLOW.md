@@ -566,8 +566,14 @@ python pedology/scripts/build_soil.py                 # soil, with no biosphere 
 python exoplasim/scripts/build_surface_soil_water.py  # 229, from that soil
 python exoplasim/scripts/run_exoplasim.py             # the BASELINE; hours
 python exoplasim/scripts/build_climatology.py <run>   # repoint baseline_climatology
-python hydrography/scripts/carve_verdict.py           # the verdict, on that climatology
+python exoplasim/scripts/run_stellar_cycle.py         # A2 below; hours. NOT optional
+python hydrography/scripts/carve_verdict.py           # the verdict, weighted per A2
+python hydrography/scripts/export_carve_list.py       # the list Orogen consumes
 ```
+
+**The cycle run is in that list because leaving it to prose lost it once.** A2
+said it belongs before the verdict, nothing tracked it, and a full verdict was
+taken on the mean climate before anyone noticed. It is now CYC-1 as well.
 
 **The first climate run on a new terrain is a bootstrap, and its numbers are not
 the baseline.** Three of the surface fields a run consumes cannot be built
@@ -641,6 +647,21 @@ about to be rebuilt.
 first verdict taken on one is iteration 1, whatever a previous line of builds had
 already carved, and the overshoot measurement in section 4 applies only where the
 terrain being re-verdicted is itself the carved one.
+
+**A3. Hold the land-albedo mode fixed across a carve.** `build_surface_albedo.py`
+has a `modelled` mode that takes tree cover from an LPJ-GUESS `fpc.out` instead of
+asserting a uniform vegetated endmember, and it is the mode this project should
+end up in. Do NOT adopt it on the same iteration as a carve. The two land-albedo
+endmembers are 15 to 19 W/m2 apart in absorbed flux, against 21 W/m2 for the
+entire 0.85-to-0.95 stellar sweep that produced a 33 K range, so switching modes
+is a forcing change comparable to the largest this project varies on purpose and
+it requires the flux to be re-derived. Change the terrain or change the surface,
+not both: an iteration that moves both cannot attribute what it measures.
+
+The corollary is the answer to "when does the biosphere run". Not before the
+carve, because its driver is built from a climatology and a soil the carve
+replaces. After the re-baseline, on final terrain, where its output can be
+adopted deliberately in the iteration after that.
 
 **B. The soil and biosphere loop, at T42.** For a given climate:
 
