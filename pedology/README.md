@@ -119,8 +119,27 @@ capacity is exactly the field ExoPlaSim was defaulting, and this component
 computes it; `model.soil_water_source: pedology` is now set in
 `config/planet.yaml`. See below for what it is worth, which is little.
 
-Texture figures are not quoted here. There is no soil on the active build,
-because there is no climatology on it to weather under.
+**The land means hide a bimodal world, and that is the fact to carry.** Measured
+on the bootstrap climatology, 2026-08-17: land runoff averages 130 mm per Earth
+year and its MEDIAN is 3.8. Two thirds of the land is under 50 mm/yr. So a mean
+runoff ratio of 16% describes almost none of the surface; a wet minority carries
+the whole figure, and the same skew runs through everything derived from it --
+plant-available water capacity averages 151 mm against a median of 84, and
+regolith depth averages 1.16 m against a median of 0.66.
+
+It is also why land-mean weathering intensity is 0.380 while the intensity of the
+land-mean climate is 0.572. Weathering goes as runoff to the 0.65, which is
+concave, so on a skewed distribution the mean of the intensity sits well below
+the intensity of the mean. Quoting either without the other overstates by 50% or
+understates by a third. Neither is wrong; they answer different questions, and
+the one that feeds the solute fluxes is the mean of the intensity.
+
+**The texture model carries a known positive clay bias**, which any land-mean
+clay figure inherits. `validate_against_earth.py` over 15 type localities:
+predicted clay exceeds SoilGrids by **+0.062** on average, correlation 0.840, and
+the mafic-felsic divergence the model exists to reproduce comes out 0.231 against
+an observed 0.179. The direction is right and the magnitude is 29% high. Read a
+land-mean clay of 0.29 as nearer 0.23 in Earth-comparable terms.
 
 ## Both loops now close
 
