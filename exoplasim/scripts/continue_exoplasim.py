@@ -165,11 +165,6 @@ def main() -> None:
 
     config_path = args.config.resolve()
     config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
-    flux_ratio = float(
-        config["orbit"]["baseline_flux_earth"]
-        if args.flux_ratio is None else args.flux_ratio
-    )
-    derived = derive(config, flux_ratio)
     # A run id is a UUID and cannot be recomputed, so a continuation must be told
     # which run to continue. That is the safer direction: the old behaviour
     # rebuilt the name from config and could silently resolve to a different run
@@ -196,6 +191,25 @@ def main() -> None:
             "Configuration differs from the run manifest; refusing to resume:\n  "
             + "\n  ".join(drift)
         )
+
+    # The flux comes from the RUN, not from the config, and that is the whole
+    # point of reading it here rather than above. A run prepared with
+    # --flux-ratio carries a flux the config does not: `source_config` still
+    # holds the baseline, so config_drift sees nothing to complain about, and a
+    # continuation that took the config's value silently integrated a bracket
+    # point at the baseline flux. That is exactly what happened to the first 0.91
+    # point, which spent 45 orbits at 0.945 while its manifest said 0.91 --
+    # detected only because two runs 0.035 apart converged to the same
+    # temperature, which is not physical.
+    manifest_flux = float(manifest["physical"]["flux_ratio"])
+    if args.flux_ratio is not None and abs(args.flux_ratio - manifest_flux) > 1e-9:
+        raise SystemExit(
+            f"--flux-ratio {args.flux_ratio:g} does not match this run's "
+            f"{manifest_flux:g}. A continuation cannot change the physics of the "
+            "run it continues; start a new run instead."
+        )
+    flux_ratio = manifest_flux
+    derived = derive(config, flux_ratio)
 
     years = output_years(run_dir)
     if not years or years != list(range(years[-1] + 1)):

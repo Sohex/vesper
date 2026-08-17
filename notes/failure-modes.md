@@ -315,3 +315,36 @@ The general form is the one this file keeps returning to: a build product whose
 identity does not record what went into it. The same reasoning put the geography
 digest, the spectrum and the flux into `run_id`, and the binary is the input that
 is still missing from it.
+
+## 12. A continuation that re-derives the physics from config
+
+`run_exoplasim.py --flux-ratio 0.91` prepares a run at 0.91 and stamps it in the
+manifest. `continue_exoplasim.py` then took its flux from
+`config/planet.yaml:orbit.baseline_flux_earth`, so continuing that run integrated
+it at the baseline instead, and the manifest went on saying 0.91.
+
+Found 2026-08-17, on the first flux bracket of the re-baseline. Nothing failed:
+the run converged cleanly, passed all seven convergence criteria, and reported a
+temperature. It was caught because two runs whose fluxes differed by 0.035
+converged to the same temperature, which no amount of internal consistency can
+make physical.
+
+**The drift check could not have caught it, and that is the general shape.**
+`config_drift` compares the config against the manifest's `source_config`, and
+both said 0.945. The flux that made this run different from the baseline never
+lived in the config at all: it arrived as a command-line argument at prepare
+time. So a value that is part of a run's identity was being re-derived from a
+source that had never held it.
+
+**The rule.** A continuation continues; it does not re-decide. Anything that
+defines the run has to be read back from the run, and an argument that disagrees
+with what is on disk is an error rather than an override. `continue_exoplasim.py`
+now takes the flux from `physical.flux_ratio` and refuses a `--flux-ratio` that
+does not match it.
+
+**What it cost, and what to check.** Forty-five orbits, about two hours, and a
+run whose manifest had to be corrected rather than trusted -- the correction is
+recorded in the manifest itself, against the namelist on disk, which is the only
+artifact that recorded what actually ran. When a segment finishes, the namelist
+in the run directory is the ground truth for what was integrated; the manifest is
+a claim about it.
