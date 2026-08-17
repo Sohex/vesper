@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Write ExoPlaSim land mask and topography from the World Orogen mesh.
 
-Replaces `convert_orogen.py`, which read the equirectangular map PNGs and did its
-own conservative remap onto a Gaussian grid. That path is obsolete twice over:
-the fork now emits Gaussian grids directly off the mesh, and the PNG land mask
-uses the `elevation > 0` convention, which floods every dry closed-basin floor.
+Integrates from the mesh rather than remapping the equirectangular map PNGs.
+That older path was obsolete twice over: the fork emits Gaussian grids directly
+off the mesh, so a remap is a lossy intermediate, and the PNG land mask uses the
+`elevation > 0` convention, which floods every dry closed-basin floor.
 
 Two decisions worth stating, because they are where this differs from just
 reading `planet.nc`:
@@ -39,7 +39,7 @@ import numpy as np
 import yaml
 
 from _paths import CONFIG, INPUTS
-from convert_orogen import write_sra
+from sra import write_sra
 from builds import resolution_of, grid_export, mesh_export
 from gridding import land_weighted
 from orogen import Export, LAND

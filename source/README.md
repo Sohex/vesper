@@ -76,8 +76,8 @@ into climate through albedo and evaporation.
 integrates it from the native mesh, which is the current path and the correct
 one.
 
-An image path exists and nothing current uses it: the one script that did,
-`convert_orogen.py`, is superseded. If you are working from the PNGs anyway,
+An image path exists and nothing current uses it. If you are working from the
+PNGs anyway,
 `orogen-surfacemask-*.png` is the right one -- white land, grey inland water,
 black ocean, so thresholding at `> 0` gives land/sea, and grey appears only once
 water levels are assigned downstream. `orogen-landmask-*.png` keeps its old

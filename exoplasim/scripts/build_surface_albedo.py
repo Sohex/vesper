@@ -64,7 +64,7 @@ import numpy as np
 import yaml
 
 from _paths import CONFIG, INPUTS
-from convert_orogen import write_sra
+from sra import write_sra
 from builds import resolution_of, grid_export, mesh_export
 from gridding import land_fraction_of_class, land_weighted, region_cells
 from orogen import Export, LAND

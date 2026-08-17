@@ -8,10 +8,6 @@ It is described here by what it does and how to run it, and it carries no
 results. `world_state.json` holds current values, `runs/INDEX.json` records what
 each run physically was, and the dated measurements live in `notes/`.
 
-`convert_orogen.py` is superseded by `build_boundary_conditions.py`, which
-integrates the mask and topography from the native mesh rather than from the
-equirectangular map PNGs.
-
 ## Reproduce geography conversion
 
 On Arch Linux the required host tools are `gcc-fortran` and `openmpi`. Activate
@@ -23,9 +19,10 @@ python exoplasim/scripts/build_surface_albedo.py        # background albedo
 python exoplasim/scripts/run_exoplasim.py --run-years 1
 ```
 
-`convert_orogen.py` is superseded. It remapped the equirectangular PNGs, which is
-a lossy intermediate now that the fork emits Gaussian grids directly, and its
-mask used the `elevation > 0` convention that floods dry closed-basin floors.
+`build_boundary_conditions.py` integrates the mask and topography from the
+native mesh. Do not go back to remapping the equirectangular PNGs: that is a
+lossy intermediate now the fork emits Gaussian grids directly, and the PNG mask
+uses the `elevation > 0` convention, which floods every dry closed-basin floor.
 
 The first command writes generated model inputs to `exoplasim/inputs/t42/` and
 geography diagnostics to `exoplasim/analysis/geography/`. The second prepares the 0.90-S-Earth
@@ -74,6 +71,35 @@ The Köppen map is explicitly rate-normalized: precipitation rates are
 annualized to 365.2425 days before applying empirical Earth thresholds. That
 avoids classifying this world's 180.7-day orbital year as artificially dry.
 It is a worldbuilding interpretation, not a dynamic vegetation simulation.
+
+## Every script here
+
+The workflow above uses a few of these. The rest are tools you will not find
+unless told they exist.
+
+| script | what it does |
+| --- | --- |
+| `build_boundary_conditions.py` | land mask and topography, integrated from the Orogen mesh |
+| `build_surface_albedo.py` | background land albedo from lithology, optionally composited with solved lakes |
+| `build_surface_roughness.py` | aerodynamic roughness length per cell, surface code 0173 |
+| `build_surface_soil_water.py` | feeds pedology's soil water capacity back as `dwmax` |
+| `build_stellar_spectrum.py` | this star's spectrum from BT-Settl |
+| `sra.py` | writes ExoPlaSim's `.sra` surface format; imported by the builders above |
+| `run_exoplasim.py` | prepare, validate and run an experiment |
+| `continue_exoplasim.py` | resume a prepared run from its latest restart |
+| `finalize_existing_segment.py` | record a completed segment after post-run bookkeeping failed |
+| `run_stellar_cycle.py` | run or resume a superposed-sinusoid stellar-flux experiment |
+| `rebuild_binaries.py` | rebuild every executable and record which patches each contains |
+| `index_runs.py` | index every run by what it is, since a UUID says nothing |
+| `assess_convergence.py` | spin-up convergence against the predeclared criteria |
+| `build_climatology.py` | average an equilibrated segment into climatologies |
+| `analyze_climatology.py` | diagnostics, maps and a rate-normalised Koppen interpretation |
+| `analyze_smoke.py` | audit and plot a one-orbit smoke run |
+| `analyze_stellar_cycles.py` | phase-folded response of completed cycle runs |
+| `compare_flux_sweep.py` | compare equilibrated reports across a flux sweep |
+| `compare_albedo_bracket.py` | compare albedo endmembers and decide whether the bracket resolved |
+| `dust_optics.py` | two-band mineral dust optics, and the sign of its forcing |
+| `mie_dust.py` | Bohren and Huffman Mie code with lognormal size integration |
 
 ## What the flux sweeps established
 

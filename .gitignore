@@ -54,13 +54,17 @@ exoplasim/analysis/**/*_snapshot_climatology.nc
 # Per-region drainage raster, 5.6 MB and rebuilt in seconds by
 # hydrography/scripts/build_hydrography.py. The basin table, the coupling
 # matrices and the report are small and are tracked.
-hydrography/data/regions.nc
+#
+# PER BUILD. These were written as flat paths while the component wrote flat
+# output, and were never updated when it moved to data/<source_build>/ -- so
+# the rule matched nothing and both rasters were tracked under every build.
+hydrography/data/*/regions.nc
 
 # Per-region lakes and rivers, 4.6 MB and rebuilt in seconds by
 # hydrography/scripts/surface_water.py once a climatology exists. Same reason
-# as regions.nc; the aggregate result is tracked in
-# hydrography/analysis/surface_water_report.json.
-hydrography/data/surface_water.nc
+# as regions.nc, and per build for the same reason; the aggregate result is
+# tracked in hydrography/analysis/surface_water_report.json.
+hydrography/data/*/surface_water.nc
 
 # LPJ-GUESS output: one set of files per gridcell per year, tens of MB per run
 # and regenerable from the driver file. The manifest and the analysis products

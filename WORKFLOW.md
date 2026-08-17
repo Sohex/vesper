@@ -502,6 +502,26 @@ rebuild hydrography and boundary conditions on it, re-run the T42 baseline, take
 the verdict again. Hydrography has to be rebuilt *after* the carve and before the
 climate, because the carve changes the drainage the climate is integrated over.
 
+Concretely, from a build in `source/` with nothing derived from it yet. Each
+step reads the one before, and `check_consistency.py` reports which are still
+missing at any point:
+
+```bash
+python hydrography/scripts/build_hydrography.py       # drainage, basins, coupling
+python exoplasim/scripts/build_boundary_conditions.py # land mask, topography
+python exoplasim/scripts/build_surface_albedo.py      # lithology albedo
+python exoplasim/scripts/build_surface_roughness.py   # z0
+python exoplasim/scripts/run_exoplasim.py             # the baseline; hours
+python exoplasim/scripts/build_climatology.py <run>   # then set baseline_climatology
+python hydrography/scripts/surface_water.py           # lakes, now a climate exists
+python exoplasim/scripts/build_surface_albedo.py --lakes   # albedo again, with lakes
+```
+
+The albedo appears twice on purpose: lakes need a climate, the climate needs an
+albedo, and the loop is entered by building the albedo without them first. Set
+`baseline_climatology` in `config/planet.yaml` once the climatology exists --
+until then every consumer raises rather than guessing.
+
 **B. The soil and biosphere loop, at T42.** For a given climate:
 
 1. `pedology/scripts/build_soil.py`, with no biosphere on the first pass.
