@@ -50,7 +50,7 @@ ARCHIVE = ROOT / "archive" / "runs"
 
 # Small enough to keep, and the only things anything cites.
 KEEP_NAMES = ["run_manifest.json", "baseline_convergence.json",
-              "baseline_climate_report.json"]
+              "baseline_climate_report.json", "climate_report.json"]
 KEEP_GLOBS = ["*_climate_series.json", "*.cfg", "*_namelist", "*.nl"]
 
 # Everything not in the keep list goes. A denylist of output patterns missed

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated": "2026-08-17T21:27:51.269226+00:00",
-  "git_commit": "02c916e14f131df9720818cd75a6ac587c2944d6",
+  "generated": "2026-08-17T21:31:28.119089+00:00",
+  "git_commit": "01dfe6ed6cb360a82d9e535e9c036eeadac810a0",
   "generator": "scripts/world_state.py",
   "note": "Generated from the artifacts. Do not edit; re-run the generator. Only derived values live here. Findings are in `notes/`, with their evidence, and open work is in `TASKS.md`.",
   "planet": {
@@ -194,12 +194,34 @@
     }
   ],
   "current_climate": {
-    "value": null,
-    "invalidated": true,
-    "depends_on": "source_build",
-    "expected": "precarve-craton",
-    "found": "no baseline_climate_report.json exists for any climatology this build produced; run exoplasim/scripts/analyze_climatology.py",
-    "note": "current_climate was computed from a dependency that has since moved; regenerate it. Cleared rather than shown, because a stale derived value is indistinguishable from a current one."
+    "source": "exoplasim/analysis/climatology/baseline_climate_report.json",
+    "global_metrics": {
+      "surface_temperature_k": 289.7963877892114,
+      "air_temperature_2m_k": 289.1575154928423,
+      "precipitation_mm_day": 2.6558224761667857,
+      "toa_net_radiation_w_m2": -0.6144773451989156,
+      "surface_downward_heat_flux_w_m2": -0.0958181014277808,
+      "planetary_sea_ice_fraction": 0.014839572515705609,
+      "ocean_mean_sea_ice_concentration": 0.02595096857618406,
+      "land_area_fraction": 0.42816883800921784
+    },
+    "koppen_top": {
+      "BWh": 0.1482255243118319,
+      "BSh": 0.13247905670464846,
+      "Dsa": 0.08842025537024219,
+      "Dfc": 0.08329674889549195,
+      "Dfb": 0.07829082480062027,
+      "Af": 0.0613069050595201
+    },
+    "biome_top": {
+      "Continental temperate/mixed forest": 0.25515303514066606,
+      "Steppe/semidesert": 0.14925728097115507,
+      "Desert": 0.14892892223567017,
+      "Boreal forest/woodland": 0.11022927102169398,
+      "Temperate/subtropical forest": 0.09525746705440918,
+      "Seasonal tropical woodland/savanna": 0.09517601643591769
+    },
+    "source_build": "precarve-craton"
   },
   "hydrography": {
     "products_from": "hydrography/data/precarve-craton",

@@ -45,6 +45,19 @@ def _climatology() -> Path:
     from paths import climatology_path
     return climatology_path()
 
+
+def _classification() -> Path:
+    """The classification product beside the configured climatology.
+
+    Derived from the climatology's own filename rather than hardcoded, so it
+    follows whatever label that product carries. Three call sites used to divide
+    the climatology DIRECTORY by a fixed `baseline_classification.nc`, which
+    broke the moment `_climatology()` started returning a file.
+    """
+    clim = _climatology()
+    return clim.with_name(clim.name.replace("_regular_climatology.nc",
+                                            "_classification.nc"))
+
 WIDTH, HEIGHT = 5760, 2880
 
 # Biome palette, indexed by biome_index from baseline_classification.nc.
@@ -153,7 +166,7 @@ def upsample(field, smooth=True):
     """
     from scipy.ndimage import gaussian_filter, map_coordinates
 
-    ds = nc.Dataset(_climatology() / "baseline_classification.nc")
+    ds = nc.Dataset(_classification())
     clat = np.asarray(ds["lat"][:], dtype=float)
     clon = np.asarray(ds["lon"][:], dtype=float)
     ds.close()
@@ -298,7 +311,7 @@ def main():
     lat_deg, _, _ = pixel_directions()
 
     print("reading climatology")
-    cls = nc.Dataset(_climatology() / "baseline_classification.nc")
+    cls = nc.Dataset(_classification())
     biome = np.asarray(cls["biome_index"][:])
     clim_elev_m = np.asarray(cls["surface_elevation"][:])
     cls.close()
@@ -310,7 +323,7 @@ def main():
     clm.close()
     warmest = tas.max(axis=0)
 
-    clat = np.asarray(nc.Dataset(_climatology() / "baseline_classification.nc")["lat"][:])
+    clat = np.asarray(nc.Dataset(_classification())["lat"][:])
     clim_land = lsm > 0.5
 
     def prepare(field, mask=None):

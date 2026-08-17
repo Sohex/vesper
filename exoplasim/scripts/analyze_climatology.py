@@ -364,7 +364,10 @@ def main() -> None:
         "Broad ecological interpretation from simulated climate", output / f"{args.label}_biome_interpretation.png",
     )
 
-    classification_nc = output / f"{args.label}_baseline_classification.nc"
+    # The label already names the product; "baseline" was hardcoded here from
+    # when there was only ever one, and a run labelled `baseline` produced
+    # `baseline_baseline_classification.nc`.
+    classification_nc = output / f"{args.label}_classification.nc"
     # netCDF4 1.7.4 emits a harmless NumPy 2.5 deprecation from assignment internals.
     with warnings.catch_warnings(), Dataset(classification_nc, "w", format="NETCDF4") as nc:
         warnings.filterwarnings(
@@ -429,7 +432,7 @@ def main() -> None:
     # filename meant each run silently overwrote the previous one's report, so
     # two climatologies could never coexist and the file's name told you nothing
     # about which world it described.
-    (output / f"{args.label}_baseline_climate_report.json").write_text(
+    (output / f"{args.label}_climate_report.json").write_text(
         json.dumps(report, indent=2) + "\n", encoding="utf-8"
     )
     print(json.dumps(report["global_metrics"], indent=2))

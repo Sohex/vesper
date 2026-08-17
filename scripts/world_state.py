@@ -323,7 +323,11 @@ def current_climate(active: str, index: list) -> dict | None:
     reports = []
     for row in index:
         for label in (row.get("climatologies") or {}):
-            for cand in (ROOT / "exoplasim" / "analysis" / label /
+            # The last two are the old layout and the old doubled name,
+            # kept so reports already on disk stay findable.
+            for cand in (ROOT / "exoplasim" / "analysis" / "climatology" /
+                         f"{label}_climate_report.json",
+                         ROOT / "exoplasim" / "analysis" / label /
                          "baseline_climate_report.json",
                          ROOT / "exoplasim" / "analysis" / "climatology" /
                          f"{label}_baseline_climate_report.json"):
