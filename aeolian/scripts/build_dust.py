@@ -469,12 +469,22 @@ def main() -> None:
 
     rho_a = ps / (R_DRY * tas)
     u_bottom = spd[:, -1, :, :]
-    ua_col = np.average(ua[:, lev >= cfg["transport"]["steering_sigma"], :, :]
-                        if np.any(lev >= cfg["transport"]["steering_sigma"])
-                        else ua[:, -3:, :, :], axis=1)
-    va_col = np.average(va[:, lev >= cfg["transport"]["steering_sigma"], :, :]
-                        if np.any(lev >= cfg["transport"]["steering_sigma"])
-                        else va[:, -3:, :, :], axis=1)
+    # `ua` and `va` on SIGMA levels are u*cos(phi) and v*cos(phi), not physical
+    # winds: burn7 applies its RevCosPhi rescaling only in the pressure-level
+    # path (burn7.cpp:4542, and gated on `selected` at that). Verified against
+    # code 259, which IS physical: spd matches |ua,va|/cos(phi) to within 5%
+    # everywhere outside the polar rows, where 1/cos diverges.
+    #
+    # Advecting on the unscaled components would understate transport by cos(phi)
+    # -- a factor of two by 60 degrees -- so they are divided here. The polar
+    # floor is the same one the advection solver uses and for the same reason.
+    coslat = np.maximum(np.cos(np.deg2rad(lat)),
+                        cfg["transport"].get("polar_coslat_floor", 0.2))[:, None]
+    sel = lev >= cfg["transport"]["steering_sigma"]
+    if not np.any(sel):
+        sel = np.zeros_like(lev, dtype=bool); sel[-3:] = True
+    ua_col = np.average(ua[:, sel, :, :], axis=1) / coslat
+    va_col = np.average(va[:, sel, :, :], axis=1) / coslat
 
     f_eff = drag_efficiency(z0, cfg)
     clay_pct = np.nan_to_num(clay, nan=0.0) * 100.0

@@ -420,3 +420,52 @@ wind, and it is one function that any consumer can call.
 The general form is the one this file keeps arriving at from different
 directions: a derived product carries no evidence of its own health, and the
 consumer that reduces it destroys the evidence before looking.
+
+## 15. Two errors that nearly cancel, and the correction that would break it
+
+A follow-on to class 14, and the more useful half. Having found that bin 0 of
+the binned climatology carries corrupted winds, the obvious fix is to drop it
+from the Penman wind the carve verdict uses. **That fix would have made the
+number worse**, and only measuring the whole chain showed why.
+
+Three quantities, bottom level, global area-weighted, measured on the bootstrap
+climatology:
+
+| quantity | m/s |
+| --- | ---: |
+| binned `spd`, all 12 bins, what the consumers currently use | 7.732 |
+| binned `spd`, excluding the corrupt bin 0 | 4.997 |
+| snapshot `spd`, 32 instantaneous samples | 7.488 |
+
+**Two independent facts had to be established before any of those could be
+called right.**
+
+First, `spd` (code 259) is the physical wind speed and `ua`/`va` on SIGMA levels
+are not physical winds: they are u*cos(phi) and v*cos(phi). `burn7.cpp` applies
+its `RevCosPhi` rescaling only in the pressure-level path, at line 4542 and
+gated on `selected`. Measured, `spd` matches `|ua,va|/cos(phi)` to within 5%
+everywhere outside the polar rows, where 1/cos diverges. So
+`sqrt(ua^2 + va^2)` is the wrong field by a factor that reaches two by 60
+degrees, and anything advecting on those components is understating transport.
+
+Second, the binned and snapshot products are not the same average. The model
+vector-averages u and v over each bin before burn7 sees them, so binned `spd` is
+the speed of the TIME-MEAN VECTOR. The snapshot file holds instantaneous fields,
+so its `spd` is the MEAN OF INSTANTANEOUS SPEED. The ratio between the two
+products is 1.45, and the mean-of-speed over speed-of-mean ratio computed
+independently from the snapshot components is 1.59 -- agreeing to 9%, which is
+what confirms the reading.
+
+**A turbulent flux wants the mean of the speed**, because the aerodynamic term
+is essentially linear in wind speed. That is 7.488, the snapshot number.
+
+So the currently used 7.732 is high by 3.3%, and it is high by 3.3% because a
++55% error from the corrupt bin and a -33% error from vector averaging nearly
+cancel. Dropping bin 0 alone would have taken it to 4.997 and made a 3% error
+into a 33% one, in a quantity the carve verdict is sensitive to.
+
+**The rule.** When a bug is found in one term of a chain, measure the chain
+before correcting the term. A compensating error is not a reason to leave a bug
+in place, but it decides what the correction has to be: here the fix is to read
+the snapshot product, which is right for the right reason, rather than to patch
+the binned one, which would be wrong in a new direction.
