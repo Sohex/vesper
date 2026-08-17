@@ -162,6 +162,8 @@ def main() -> None:
     climatology = args.climatology or climatology_path()
     if not climatology.is_file():
         raise SystemExit(f"{climatology} does not exist")
+    from provenance import require_build
+    require_build(climatology, "climatology")
 
     weathering = read_weathering(climatology, pedo["weathering"])
     terrain = read_terrain(build)

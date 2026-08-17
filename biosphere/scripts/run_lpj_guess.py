@@ -34,6 +34,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import uuid
 import json
 import platform
 import shutil
@@ -171,15 +172,27 @@ def main() -> None:
 
     config = yaml.safe_load(CONFIG.read_text())
 
+    # The driver is built from a climatology and lives in a FLAT directory, so
+    # nothing about its path says which build it belongs to. The soil map is
+    # per build and resolves strictly; pairing the two without checking is how
+    # one terrain's forcing gets run against another's soil.
+    _sys.path.insert(0, str(PROJECT_ROOT / "lib"))
+    from provenance import require_build
+    require_build(Path(args.driver), "LPJ-GUESS driver", config,
+                  allow_unstamped=False)
+
     # The run id pins what the numbers depend on: the forcing, the soil and the
     # compiled planetary constants. Two runs sharing a name share those.
     header = GENERATED / "vesper.h"
-    digest = hashlib.sha256(
-        (short(args.driver) + short(args.soilmap) + short(header)).encode()
-    ).hexdigest()[:8]
-    label = f"_{args.label}" if args.label else ""
-    run_id = (f"lpj_y{args.nyear}_p{args.npatch}_r{args.ranks}"
-              f"_nfix{args.nfix_a:g}{label}_g{digest}")
+    # A UUID, for the reason ExoPlaSim run ids are UUIDs: a derived name
+    # separates runs only along the dimensions it happens to encode, and the
+    # encoded set is just a list of everything someone has thought of so far.
+    # This name carried years, patches, ranks, the fixation slope and a digest
+    # of three inputs -- and nothing about CO2, ndep, or the spectrum, so two
+    # runs differing only in those computed the same name and would have shared
+    # a directory. What a run WAS lives in run_manifest.json, which records all
+    # of it including the input hashes.
+    run_id = f"lpj_{uuid.uuid4().hex}"
 
     run_dir = RUNS / run_id
     if run_dir.exists():
@@ -234,6 +247,16 @@ def main() -> None:
     manifest = {
         "run_id": run_id,
         "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        # What the run id used to spell out. Ids are UUIDs now, so this block is
+        # the only place a run's physical description survives.
+        "physical": {
+            "nyear": args.nyear,
+            "npatch": args.npatch,
+            "ranks": args.ranks,
+            "nfix_a": args.nfix_a,
+            "nfix_b": args.nfix_b,
+            "label": args.label,
+        },
         "wall_seconds": round(elapsed, 1),
         "ranks": args.ranks,
         "settings": settings,

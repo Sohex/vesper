@@ -186,6 +186,13 @@ def main() -> None:
 
     config = yaml.safe_load(CONFIG.read_text())
     climatologies = list(args.climatology) if args.climatology else [climatology_path()]
+    # Each climatology becomes one year of forcing, so they must all describe
+    # the same world as the soil map and the compiled header.
+    import sys as _sys
+    _sys.path.insert(0, str(PROJECT_ROOT / "lib"))
+    from provenance import require_build
+    for _c in climatologies:
+        require_build(Path(_c), "climatology", config)
     for path in climatologies:
         if not Path(path).is_file():
             raise SystemExit(f"{path} does not exist")

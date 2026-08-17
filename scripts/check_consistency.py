@@ -116,6 +116,37 @@ def main() -> int:
         return 1
     rep.add(OK, f"active build", f"{build}  {want[:16]}")
 
+    # -- the named baseline climatology belongs to the active build ----------
+    #
+    # A climatology is the most widely shared artifact here: pedology,
+    # hydrography and the biosphere all read one. It has the same grid, the
+    # same variables and the same units whichever world it describes, so a
+    # superseded one produces a plausible number rather than an error. The
+    # consumers now check at the point of reading; this is the same check
+    # applied once, ahead of an expensive run.
+    declared = config.get("baseline_climatology")
+    if not declared:
+        rep.add(WARN, "baseline climatology",
+                "none named in config; anything needing a climate will raise")
+    else:
+        clim = ROOT / declared
+        if not clim.is_file():
+            rep.add(FAIL, "baseline climatology",
+                    f"config names {declared}, which does not exist")
+        else:
+            sys.path.insert(0, str(ROOT / "lib"))
+            from provenance import artifact_build
+            got = artifact_build(clim)
+            if got is None:
+                rep.add(WARN, "baseline climatology",
+                        f"{Path(declared).name} carries no build identity; it "
+                        f"predates the stamping in build_climatology.py")
+            elif got != build:
+                rep.add(FAIL, "baseline climatology",
+                        f"{Path(declared).name} is on {got}, config names {build}")
+            else:
+                rep.add(OK, "baseline climatology", f"on {build}")
+
     # -- terrain hash across every artifact that records one -----------------
     data = builds.component_data("hydrography", config)
     checked = 0

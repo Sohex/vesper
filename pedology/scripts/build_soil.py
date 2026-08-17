@@ -405,6 +405,10 @@ def main() -> None:
     climatology = (args.climatology or climatology_path()).resolve()
     if not climatology.is_file():
         raise SystemExit(f"{climatology} does not exist")
+    # Deliberate, not assumed: this soil map pairs a climatology with a
+    # lithology, and they have to be the same world.
+    from provenance import require_build
+    require_build(climatology, "climatology", config)
 
     with nc.Dataset(climatology) as data:
         lat = np.asarray(data["lat"][:], dtype=float)

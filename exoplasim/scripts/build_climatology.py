@@ -50,7 +50,35 @@ COORDINATES = {"time", "lat", "lon", "lev", "levp", "fourier", "modes"}
 ORBITAL_GEOMETRY = {"nu", "lambda", "zdec", "rdist", "rasc"}
 
 
-def average_files(paths: list[Path], output: Path, product: str) -> None:
+def identity_from_run(run_dir: Path) -> dict:
+    """What world a climatology describes, read from the run that produced it.
+
+    A climatology is the most widely shared artifact in this project --
+    pedology, hydrography and the biosphere all read one -- and until now it
+    carried orbit counts and source filenames but nothing that said which
+    terrain, flux or spectrum it was. So a consumer could not tell a current
+    climatology from a superseded one, and none of them checked. That is the
+    root of a whole class of failure here: a stale climatology produces a
+    plausible number from the wrong world rather than an error.
+    """
+    manifest_path = run_dir / "run_manifest.json"
+    if not manifest_path.is_file():
+        return {}
+    m = json.loads(manifest_path.read_text(encoding="utf-8"))
+    phys = m.get("physical") or {}
+    out = {
+        "vesper_run_id": m.get("run_id"),
+        "vesper_source_build": m.get("source_build"),
+        "vesper_config_sha256": m.get("config_sha256"),
+        "vesper_geography": phys.get("geography"),
+        "vesper_flux_ratio": phys.get("flux_ratio"),
+        "vesper_stellar_spectrum": phys.get("stellar_spectrum"),
+    }
+    return {k: v for k, v in out.items() if v is not None}
+
+
+def average_files(paths: list[Path], output: Path, product: str,
+                  identity: dict | None = None) -> None:
     """Write a compressed, same-grid mean across corresponding model orbits."""
     if not paths:
         raise ValueError("No input files supplied")
@@ -70,6 +98,10 @@ def average_files(paths: list[Path], output: Path, product: str) -> None:
         dst.setncattr("climatology_end_year_index", int(paths[-1].name.split(".")[-2]))
         dst.setncattr("climatology_created_utc", datetime.now(timezone.utc).isoformat())
         dst.setncattr("climatology_source_files", ",".join(path.name for path in paths))
+        # Which world this describes. Without it a climatology is anonymous and
+        # every consumer has to be told out of band which build it belongs to.
+        for key, value in (identity or {}).items():
+            dst.setncattr(key, value)
 
         for name, source in template.variables.items():
             fill = source.getncattr("_FillValue") if "_FillValue" in source.ncattrs() else None
@@ -258,14 +290,18 @@ def main() -> None:
     output_dir = args.output.resolve()
     regular_output = output_dir / f"{args.label}_regular_climatology.nc"
     snapshot_output = output_dir / f"{args.label}_snapshot_climatology.nc"
-    average_files(regular, regular_output, "time-bin means averaged across model orbits")
-    average_files(snapshots, snapshot_output, "instantaneous orbital snapshots averaged across model orbits")
+    identity = identity_from_run(run_dir)
+    average_files(regular, regular_output,
+                  "time-bin means averaged across model orbits", identity)
+    average_files(snapshots, snapshot_output,
+                  "instantaneous orbital snapshots averaged across model orbits",
+                  identity)
 
     per_year_outputs = []
     if args.per_year:
         for year, path in zip(years, regular):
             target = output_dir / f"{args.label}_year{year:05d}_regular_climatology.nc"
-            average_files([path], target, f"single model orbit {year}")
+            average_files([path], target, f"single model orbit {year}", identity)
             per_year_outputs.append(str(target))
 
     series = climate_series(regular, list(years))

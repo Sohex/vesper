@@ -41,16 +41,34 @@ none of them is advice.
    a rebuild only refreshes the configuration you ran. `.venv` is untracked, and
    reinstalling it silently discards every applied patch.
    `python exoplasim/scripts/rebuild_binaries.py`, then `--verify`.
-5. **Run ids are UUIDs. Ask the index; never guess or derive a name.**
-   `exoplasim/runs/INDEX.json` is the only record of what a run physically was,
-   and it is tracked even though the output is not.
-6. **`source/` is read-only. Add a build; never overwrite one.**
-7. **Before an expensive run**, and after changing `source_build`:
+5. **Pointing one component at another's output is a decision. Make it one.**
+   Two mechanisms, and prefer the first:
+   - **Namespace it.** Write per build, to `<component>/data/<source_build>/`,
+     and resolve with `builds.component_data(..., strict=True)`. A mismatch is
+     then impossible rather than merely detectable.
+   - **Stamp and check it**, where an artifact cannot be namespaced because it
+     is large or shared. The producer records `source_build`; the consumer calls
+     `lib/provenance.py:require_build` at the point of reading. A superseded
+     climatology has the same grid, variables and units as a current one, so
+     without this it yields a plausible number instead of an error.
+
+   No silent defaults across that boundary. A default that resolves to another
+   component's latest output is an assumption wearing the costume of a
+   convenience.
+6. **Generated things get a UUID and a manifest, never a derived name.** A name
+   built from parameters separates runs only along the dimensions it encodes,
+   and that set is just a list of what someone thought of at the time. Both
+   ExoPlaSim and LPJ-GUESS runs collided this way. What a run *was* belongs in
+   its `run_manifest.json`, under a `physical` block, and in
+   `exoplasim/runs/INDEX.json` -- which is tracked even though the output is
+   not. Ask the index what exists; never guess or derive a name.
+7. **`source/` is read-only. Add a build; never overwrite one.**
+8. **Before an expensive run**, and after changing `source_build`:
 
        python scripts/check_consistency.py     # do the artifacts agree?
        python scripts/smoke_test.py            # does the code that makes them?
 
-8. **Read `notes/failure-modes.md`** before quoting a geography number, adding a
+9. **Read `notes/failure-modes.md`** before quoting a geography number, adding a
    component, or changing a quantity that more than one script consumes. The one
    most likely to catch you first: a pre-carve build is a *limit*, not a state,
    and pre-carve numbers are what is physically sitting in `source/` at the start

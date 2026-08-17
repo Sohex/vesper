@@ -1,0 +1,125 @@
+"""Check that an artifact from another component describes the world we are in.
+
+Pointing one module at another's output is a decision, and it should look like
+one. This is the check that makes it deliberate instead of assumed.
+
+## Why
+
+The components here hand each other files: the climate model's climatology
+drives pedology, hydrography and the biosphere; hydrography's coupling matrix
+drives the carve verdict; pedology's soil map drives LPJ-GUESS. Every one of
+those pairings is only meaningful if both sides describe the SAME terrain under
+the SAME climate, and nothing about a NetCDF file on disk makes that visible.
+
+The failure is silent by construction. A superseded climatology has the same
+grid, the same variables and the same units as a current one, so every consumer
+reads it happily and produces a number that is simply about a different planet.
+This project has hit that repeatedly -- a hardcoded climatology default that
+outlived the terrain it was built on, a flat per-component directory holding
+whichever build was active when it was last written, a coupling matrix paired
+with another build's basin catalogue.
+
+## The two mechanisms, and when to use which
+
+**Namespacing** is the stronger one and should be preferred: write per-build,
+under `<component>/data/<source_build>/`, and resolve with
+`builds.component_data(..., strict=True)`. A mismatch is then impossible rather
+than merely detectable, because the wrong file is not at the path at all.
+
+**Stamping and checking** is for artifacts that cannot be namespaced -- usually
+because they are large, shared, or named by something other than the build. Those
+carry their identity as attributes or in a provenance sidecar, and the consumer
+verifies it here. That is what this module is for.
+
+Use `require_build` at the point of reading, not at the end. A check that runs
+after the expensive part has already used the wrong input still wastes the run.
+"""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
+# Stamped onto climatologies by exoplasim/scripts/build_climatology.py.
+BUILD_ATTR = "vesper_source_build"
+GEOGRAPHY_ATTR = "vesper_geography"
+
+
+def active_build(config: dict | None = None) -> str:
+    """The build every component is supposed to be working on."""
+    if config is None:
+        import yaml
+        config = yaml.safe_load(
+            (PROJECT_ROOT / "config" / "planet.yaml").read_text(encoding="utf-8"))
+    build = config.get("source_build")
+    if not build:
+        raise SystemExit("config/planet.yaml names no source_build")
+    return build
+
+
+def artifact_build(path: Path) -> str | None:
+    """Which build an artifact says it came from, or None if it does not say.
+
+    Understands a NetCDF file with the stamped attributes, a JSON provenance
+    document, and a data file sitting beside a `*_provenance.json`. Returns None
+    rather than raising when an artifact carries no identity at all: that is a
+    different problem from carrying the wrong one, and the caller decides how
+    strict to be about it.
+    """
+    path = Path(path)
+    if path.suffix == ".json":
+        try:
+            return json.loads(path.read_text(encoding="utf-8")).get("source_build")
+        except (OSError, json.JSONDecodeError):
+            return None
+
+    sidecar = path.with_name(path.stem + "_provenance.json")
+    if sidecar.is_file():
+        try:
+            return json.loads(sidecar.read_text(encoding="utf-8")).get("source_build")
+        except (OSError, json.JSONDecodeError):
+            return None
+
+    if path.suffix == ".nc":
+        try:
+            import netCDF4 as nc
+            with nc.Dataset(path) as data:
+                if BUILD_ATTR in data.ncattrs():
+                    return str(data.getncattr(BUILD_ATTR))
+        except Exception:
+            return None
+    return None
+
+
+def require_build(path: Path, what: str, config: dict | None = None,
+                  allow_unstamped: bool = True) -> str | None:
+    """Raise unless `path` describes the active build.
+
+    `what` names the artifact in the error, because "does not match" is useless
+    without saying which of several inputs is the wrong one.
+
+    `allow_unstamped` governs artifacts produced before identity was stamped, or
+    by a generator that does not stamp. The default permits them with a warning
+    printed, because refusing outright would make every pre-existing artifact
+    unusable; pass False where the pairing is expensive or changes the terrain,
+    and an unidentifiable input should stop the run.
+    """
+    want = active_build(config)
+    got = artifact_build(path)
+    if got is None:
+        if allow_unstamped:
+            print(f"  warning: {what} ({Path(path).name}) carries no build "
+                  f"identity, so it cannot be checked against {want}")
+            return None
+        raise SystemExit(
+            f"{what} ({path}) carries no build identity and this consumer "
+            f"requires one. Regenerate it, or pass the check explicitly.")
+    if got != want:
+        raise SystemExit(
+            f"{what} ({path}) was built from {got!r}, but config/planet.yaml "
+            f"names {want!r}. These describe different worlds; pairing them "
+            f"would silently mix one terrain's rows with another's. Rebuild it "
+            f"for {want!r}, or change source_build deliberately.")
+    return got
