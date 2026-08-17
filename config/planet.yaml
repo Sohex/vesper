@@ -20,7 +20,7 @@ schema_version: 1
 # lib/orogen.py is the registry and holds the hash, the note and what superseded
 # what. No list of builds belongs here: it goes stale the moment a build lands,
 # and a stale list beside the live setting reads as though it were checked.
-source_build: precarve-zoned-g1281-arcfix
+source_build: precarve-substrate
 
 # Which climatology every downstream component reads by default. Named here
 # rather than hardcoded in a _paths helper, because it was hardcoded to

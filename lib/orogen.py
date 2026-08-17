@@ -136,10 +136,20 @@ _KNOWN_TERRAIN_HASHES = {
     # rifts need two adjacent continental SUPER plates, each continent is its own
     # super plate, and none of the ten are adjacent. The same fact means there is
     # no continent-continent collision anywhere on this world.
+    # Regenerated from the recipe in source/README.md after the previous export
+    # was deleted unconsumed. Same hash to the bit, which is the check that the
+    # recipe reproduces: the `--code` path and the explicit-slider path give
+    # identical terrain.
+    #
+    # NOTE the hash does not cover the SCHEMA. This export renames
+    # `surface_rock` to `substrate_class`, and nothing in any hash moves,
+    # exactly as nothing moves when gravity changes. Two exports can share a
+    # terrain hash and disagree on field names, so read the manifest field list
+    # rather than assuming one from the hash.
     "2e06d17682075096ab2e0093eb0f5618417cdee38383f1ca153646995bffad5a":
-        {"name": "precarve-zoned-g1281-arcfix", "note":
-         "2026-08 pre-carve base at g = 12.81; arc/forearc rules reachable for "
-         "the first time, arc erodibility and albedo grounded"},
+        {"name": "precarve-substrate", "note":
+         "2026-08 pre-carve base at g = 12.81; arc/forearc rules reachable, arc "
+         "erodibility and albedo grounded, surface_rock renamed substrate_class"},
 }
 
 # Basin ids are computed on the pre-conditioning surface, so they survive a
