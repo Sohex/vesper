@@ -1,0 +1,756 @@
+{
+  "generated": "2026-08-17T04:47:50.838363+00:00",
+  "source": {
+    "export_root": "/home/cfutro/docs/world/source/precarve-craton/exoplasim-T42",
+    "terrain_hash": "e931b0d9947a232210a3cc11ba82003b5da15765d86e87956bc44c220932760e",
+    "terrain_build": "precarve-craton",
+    "terrain_build_note": "2026-08 pre-carve base at g = 12.81; craton basin double-count removed, arc/forearc rules reachable, substrate_class naming",
+    "catalogue_hash": "7b56935b498da4e8ee0db6861092c21caa524503c3aefaa0fbff3782451612dd",
+    "catalogue_known": false,
+    "drainage_hypothesis": {
+      "preserveListGiven": 0,
+      "carveListGiven": 0,
+      "carvedByRetainZero": 0,
+      "entries": []
+    },
+    "selection_source": "threshold",
+    "seed": 16236323,
+    "num_regions": 2500001,
+    "planet_radius_km": 7645.2,
+    "surface_area_km2": 734492839.5500951
+  },
+  "drainage": {
+    "land_fraction_of_planet": 0.4317189425633888,
+    "endorheic_fraction_of_land": 0.7622290062392155,
+    "ocean_draining_fraction_of_land": 0.23777099376078448,
+    "unresolved_regions": 0,
+    "pits_filled": 97603,
+    "median_fill_depth_m": 6.922302767634392
+  },
+  "basins": {
+    "count": 3621,
+    "total_capacity_km3": 6034393.282278474,
+    "total_area_at_spill_km2": 63174525.82194829,
+    "area_at_spill_fraction_of_planet": 0.0859525531943494,
+    "total_catchment_km2": 241863194.84909272,
+    "catchment_to_spill_area_ratio_median": 3.747916200695083,
+    "merged_basins": 321,
+    "spills_to_ocean": 1042,
+    "spills_into_another_basin": 2579,
+    "critical_aridity_index_percentiles": {
+      "5": 1.1128824779331512,
+      "25": 1.8272390630304498,
+      "50": 2.747916200695083,
+      "75": 4.5184738390028585,
+      "95": 10.614839389907043
+    },
+    "capacity_vs_natural_catalogue": 0.7554447634588477
+  },
+  "coupling": {
+    "exoplasim-T42": {
+      "pairs": 14135,
+      "n_lat": 64,
+      "n_lon": 128
+    },
+    "exoplasim-T85": {
+      "pairs": 30504,
+      "n_lat": 128,
+      "n_lon": 256
+    }
+  },
+  "cross_check_vs_export_routing": {
+    "region_agreement": 0.9991912143458008,
+    "regions_differing": 873,
+    "catchment_ratio_median": 1.0,
+    "catchment_ratio_p5": 1.0,
+    "catchment_ratio_p95": 1.0,
+    "endorheic_land_fraction_ours": 0.7622290062392155,
+    "endorheic_land_fraction_export": 0.7629547203568442,
+    "endorheic_land_fraction_export_published": 0.7629547203568442,
+    "export_land_denominator": "surface_class == land (subaerial)",
+    "note": "Land fractions are normalised by surface_class land area. The export now publishes its own fraction with the denominator named, and this build asserts the two agree."
+  },
+  "river_mouths_top": [
+    {
+      "region": 532485,
+      "lat": 46.22682571411133,
+      "lon": 34.08559036254883,
+      "discharge_area_km2": 1230186.0
+    },
+    {
+      "region": 1965956,
+      "lat": 36.23416519165039,
+      "lon": -135.2452850341797,
+      "discharge_area_km2": 819132.0625
+    },
+    {
+      "region": 750739,
+      "lat": -64.04766082763672,
+      "lon": 24.14128303527832,
+      "discharge_area_km2": 762651.8125
+    },
+    {
+      "region": 72218,
+      "lat": -17.59037208557129,
+      "lon": 8.745753288269043,
+      "discharge_area_km2": 551289.375
+    },
+    {
+      "region": 1371565,
+      "lat": 75.27235412597656,
+      "lon": 112.51091766357422,
+      "discharge_area_km2": 513598.3125
+    },
+    {
+      "region": 2301267,
+      "lat": -32.25143814086914,
+      "lon": 173.76669311523438,
+      "discharge_area_km2": 431918.5
+    },
+    {
+      "region": 2191142,
+      "lat": -40.78418731689453,
+      "lon": 173.75038146972656,
+      "discharge_area_km2": 394494.125
+    },
+    {
+      "region": 1316995,
+      "lat": 62.115455627441406,
+      "lon": -96.60205841064453,
+      "discharge_area_km2": 338764.3125
+    },
+    {
+      "region": 1777066,
+      "lat": -57.12483215332031,
+      "lon": 140.85594177246094,
+      "discharge_area_km2": 320537.75
+    },
+    {
+      "region": 282397,
+      "lat": 12.535717964172363,
+      "lon": 37.54921340942383,
+      "discharge_area_km2": 292389.15625
+    },
+    {
+      "region": 2359829,
+      "lat": 4.9370503425598145,
+      "lon": -152.97645568847656,
+      "discharge_area_km2": 279203.03125
+    },
+    {
+      "region": 1310782,
+      "lat": 61.876922607421875,
+      "lon": 95.92174530029297,
+      "discharge_area_km2": 224236.984375
+    },
+    {
+      "region": 1443951,
+      "lat": 71.2180404663086,
+      "lon": 118.74169921875,
+      "discharge_area_km2": 214677.90625
+    },
+    {
+      "region": 585083,
+      "lat": -50.08055114746094,
+      "lon": 34.10529327392578,
+      "discharge_area_km2": 172132.703125
+    },
+    {
+      "region": 1346212,
+      "lat": 80.91590881347656,
+      "lon": 118.93325805664062,
+      "discharge_area_km2": 168461.34375
+    },
+    {
+      "region": 2266541,
+      "lat": -24.28463363647461,
+      "lon": -153.0759735107422,
+      "discharge_area_km2": 167393.078125
+    },
+    {
+      "region": 2404571,
+      "lat": 13.716143608093262,
+      "lon": -161.90591430664062,
+      "discharge_area_km2": 167302.984375
+    },
+    {
+      "region": 633263,
+      "lat": -17.926528930664062,
+      "lon": 58.70149612426758,
+      "discharge_area_km2": 154700.625
+    },
+    {
+      "region": 2089350,
+      "lat": -42.92021560668945,
+      "lon": -156.53411865234375,
+      "discharge_area_km2": 152769.734375
+    },
+    {
+      "region": 2053215,
+      "lat": 39.54518508911133,
+      "lon": -146.49542236328125,
+      "discharge_area_km2": 151548.578125
+    },
+    {
+      "region": 892591,
+      "lat": 26.144187927246094,
+      "lon": -71.39259338378906,
+      "discharge_area_km2": 145862.34375
+    },
+    {
+      "region": 2332431,
+      "lat": 21.9577579498291,
+      "lon": -159.04788208007812,
+      "discharge_area_km2": 141724.875
+    },
+    {
+      "region": 1982393,
+      "lat": -54.158267974853516,
+      "lon": -178.57130432128906,
+      "discharge_area_km2": 136912.484375
+    },
+    {
+      "region": 679771,
+      "lat": 26.189075469970703,
+      "lon": -59.474822998046875,
+      "discharge_area_km2": 130981.609375
+    },
+    {
+      "region": 1981638,
+      "lat": 38.00209045410156,
+      "lon": -138.0235137939453,
+      "discharge_area_km2": 126893.1484375
+    },
+    {
+      "region": 1221363,
+      "lat": 55.19137954711914,
+      "lon": 87.69181060791016,
+      "discharge_area_km2": 122168.109375
+    },
+    {
+      "region": 2434936,
+      "lat": -17.95758628845215,
+      "lon": 174.95135498046875,
+      "discharge_area_km2": 120757.2734375
+    },
+    {
+      "region": 46262,
+      "lat": -1.06244695186615,
+      "lon": -15.645461082458496,
+      "discharge_area_km2": 119510.515625
+    },
+    {
+      "region": 1030653,
+      "lat": 29.938053131103516,
+      "lon": -78.2786865234375,
+      "discharge_area_km2": 114349.2578125
+    },
+    {
+      "region": 1901148,
+      "lat": -24.788326263427734,
+      "lon": 125.0177230834961,
+      "discharge_area_km2": 113680.3203125
+    },
+    {
+      "region": 430233,
+      "lat": 30.390039443969727,
+      "lon": -40.508487701416016,
+      "discharge_area_km2": 112363.5625
+    },
+    {
+      "region": 2441345,
+      "lat": -16.18984031677246,
+      "lon": 173.16822814941406,
+      "discharge_area_km2": 111428.578125
+    },
+    {
+      "region": 2315648,
+      "lat": -27.301605224609375,
+      "lon": 163.56671142578125,
+      "discharge_area_km2": 107956.546875
+    },
+    {
+      "region": 1027536,
+      "lat": -60.48250961303711,
+      "lon": 68.85157012939453,
+      "discharge_area_km2": 101595.953125
+    },
+    {
+      "region": 1195099,
+      "lat": 71.15266418457031,
+      "lon": 82.22906494140625,
+      "discharge_area_km2": 99834.6875
+    },
+    {
+      "region": 1572559,
+      "lat": 30.71870994567871,
+      "lon": 107.52300262451172,
+      "discharge_area_km2": 95762.90625
+    },
+    {
+      "region": 539970,
+      "lat": 49.454288482666016,
+      "lon": 29.238794326782227,
+      "discharge_area_km2": 95455.9765625
+    },
+    {
+      "region": 7527,
+      "lat": 2.3020317554473877,
+      "lon": 5.924544811248779,
+      "discharge_area_km2": 94168.9453125
+    },
+    {
+      "region": 1044692,
+      "lat": -57.71154022216797,
+      "lon": 72.10128784179688,
+      "discharge_area_km2": 93130.140625
+    },
+    {
+      "region": 1954701,
+      "lat": 43.2744140625,
+      "lon": -140.80979919433594,
+      "discharge_area_km2": 90842.21875
+    },
+    {
+      "region": 1942886,
+      "lat": 24.83785629272461,
+      "lon": -127.65892791748047,
+      "discharge_area_km2": 86552.734375
+    },
+    {
+      "region": 210308,
+      "lat": -1.5907834768295288,
+      "lon": -33.632118225097656,
+      "discharge_area_km2": 84319.984375
+    },
+    {
+      "region": 367902,
+      "lat": 14.925760269165039,
+      "lon": 43.070701599121094,
+      "discharge_area_km2": 83990.359375
+    },
+    {
+      "region": 1309893,
+      "lat": -37.52703094482422,
+      "lon": -93.48616027832031,
+      "discharge_area_km2": 81424.234375
+    },
+    {
+      "region": 957981,
+      "lat": 62.08686065673828,
+      "lon": 60.10043716430664,
+      "discharge_area_km2": 77092.1796875
+    },
+    {
+      "region": 2346792,
+      "lat": -28.12198257446289,
+      "lon": 174.30316162109375,
+      "discharge_area_km2": 76509.5625
+    },
+    {
+      "region": 548857,
+      "lat": -54.30842208862305,
+      "lon": -16.012374877929688,
+      "discharge_area_km2": 76063.21875
+    },
+    {
+      "region": 1546951,
+      "lat": -68.3788070678711,
+      "lon": -130.1458282470703,
+      "discharge_area_km2": 75886.1484375
+    },
+    {
+      "region": 148536,
+      "lat": -26.911779403686523,
+      "lon": -8.81859302520752,
+      "discharge_area_km2": 75004.1875
+    },
+    {
+      "region": 2384510,
+      "lat": -24.505247116088867,
+      "lon": 176.1331329345703,
+      "discharge_area_km2": 74194.3671875
+    }
+  ],
+  "marginal_seas": {
+    "count": 5859,
+    "largest": [
+      {
+        "index": 4779,
+        "id": "orogen-basin-r18v0w-1nbztcg",
+        "deepestCell": 2093072,
+        "maxDepthKm": 0.043696749955415726,
+        "sillDepthKm": 0,
+        "sillElevationKm": 1.6786154446890578e-05,
+        "sillFrom": 2113223,
+        "sillTo": 2113833,
+        "enclosed": true,
+        "adjacentToOpenOcean": false,
+        "areaKm2": 668581.5387072563,
+        "volumeBelowSillKm3": 8783.234545182675,
+        "cellCount": 2281
+      },
+      {
+        "index": 4281,
+        "id": "orogen-basin-r13tsq-1r7sqok",
+        "deepestCell": 1858202,
+        "maxDepthKm": 0.2234981656074524,
+        "sillDepthKm": 0,
+        "sillElevationKm": 0.00020013753965031356,
+        "sillFrom": 1930232,
+        "sillTo": 1931829,
+        "enclosed": true,
+        "adjacentToOpenOcean": false,
+        "areaKm2": 465517.95736408234,
+        "volumeBelowSillKm3": 34144.735945849316,
+        "cellCount": 1592
+      },
+      {
+        "index": 4972,
+        "id": "orogen-basin-r1b0bo-1ic6ohl",
+        "deepestCell": 2193252,
+        "maxDepthKm": 0.13320325314998627,
+        "sillDepthKm": 0,
+        "sillElevationKm": 6.314733764156699e-05,
+        "sillFrom": 2128076,
+        "sillTo": 2129673,
+        "enclosed": true,
+        "adjacentToOpenOcean": false,
+        "areaKm2": 394418.65831661224,
+        "volumeBelowSillKm3": 15772.749917806937,
+        "cellCount": 1348
+      },
+      {
+        "index": 102,
+        "id": "orogen-basin-r1b2v-1j9kb88",
+        "deepestCell": 61015,
+        "maxDepthKm": 0.3223576247692108,
+        "sillDepthKm": 0,
+        "sillElevationKm": 0.0013304180465638638,
+        "sillFrom": 33709,
+        "sillTo": 33942,
+        "enclosed": true,
+        "adjacentToOpenOcean": false,
+        "areaKm2": 221316.25882911682,
+        "volumeBelowSillKm3": 17328.220959485,
+        "cellCount": 760
+      },
+      {
+        "index": 5258,
+        "id": "orogen-basin-r1ccux-1dptm57",
+        "deepestCell": 2256153,
+        "maxDepthKm": 0.12166012823581696,
+        "sillDepthKm": 0,
+        "sillElevationKm": 5.402614988270216e-05,
+        "sillFrom": 2218058,
+        "sillTo": 2217071,
+        "enclosed": true,
+        "adjacentToOpenOcean": false,
+        "areaKm2": 219012.51753997803,
+        "volumeBelowSillKm3": 10706.736546912205,
+        "cellCount": 738
+      },
+      {
+        "index": 3190,
+        "id": "orogen-basin-ruibw-1ek4c35",
+        "deepestCell": 1423436,
+        "maxDepthKm": 0.10834936052560806,
+        "sillDepthKm": 0,
+        "sillElevationKm": 9.322048572357744e-05,
+        "sillFrom": 1390276,
+        "sillTo": 1386095,
+        "enclosed": true,
+        "adjacentToOpenOcean": false,
+        "areaKm2": 178582.04724502563,
+        "volumeBelowSillKm3": 4411.919190547525,
+        "cellCount": 607
+      },
+      {
+        "index": 2408,
+        "id": "orogen-basin-rnna9-p4ezrl",
+        "deepestCell": 1103265,
+        "maxDepthKm": 0.05179320648312569,
+        "sillDepthKm": 0,
+        "sillElevationKm": 4.167849328950979e-05,
+        "sillFrom": 1079022,
+        "sillTo": 1084190,
+        "enclosed": true,
+        "adjacentToOpenOcean": false,
+        "areaKm2": 173211.89387321472,
+        "volumeBelowSillKm3": 3619.008442130989,
+        "cellCount": 590
+      },
+      {
+        "index": 508,
+        "id": "orogen-basin-r3vb8-2c7xq3",
+        "deepestCell": 180548,
+        "maxDepthKm": 0.05333338677883148,
+        "sillDepthKm": 0,
+        "sillElevationKm": 0.0005074806977063417,
+        "sillFrom": 191638,
+        "sillTo": 193612,
+        "enclosed": true,
+        "adjacentToOpenOcean": false,
+        "areaKm2": 167520.25543880463,
+        "volumeBelowSillKm3": 3069.327097243949,
+        "cellCount": 565
+      },
+      {
+        "index": 1087,
+        "id": "orogen-basin-r9n2d-r8r7z9",
+        "deepestCell": 449797,
+        "maxDepthKm": 0.17011487483978271,
+        "sillDepthKm": 0,
+        "sillElevationKm": 0.001163544482551515,
+        "sillFrom": 498660,
+        "sillTo": 501244,
+        "enclosed": true,
+        "adjacentToOpenOcean": false,
+        "areaKm2": 162842.24402809143,
+        "volumeBelowSillKm3": 9448.84486612433,
+        "cellCount": 554
+      },
+      {
+        "index": 5159,
+        "id": "orogen-basin-r1as55-4kxy2d",
+        "deepestCell": 2182649,
+        "maxDepthKm": 0.14810660481452942,
+        "sillDepthKm": 0,
+        "sillElevationKm": 8.644945046398789e-05,
+        "sillFrom": 2188194,
+        "sillTo": 2189181,
+        "enclosed": true,
+        "adjacentToOpenOcean": false,
+        "areaKm2": 142669.2504377365,
+        "volumeBelowSillKm3": 6545.235571203802,
+        "cellCount": 490
+      },
+      {
+        "index": 4907,
+        "id": "orogen-basin-r19sob-1203ham",
+        "deepestCell": 2136683,
+        "maxDepthKm": 0.1286848932504654,
+        "sillDepthKm": 0,
+        "sillElevationKm": 0.0003364075382705778,
+        "sillFrom": 2128842,
+        "sillTo": 2130439,
+        "enclosed": true,
+        "adjacentToOpenOcean": false,
+        "areaKm2": 117676.53170204163,
+        "volumeBelowSillKm3": 4343.314421832299,
+        "cellCount": 399
+      },
+      {
+        "index": 955,
+        "id": "orogen-basin-r7qmt-xmxcu",
+        "deepestCell": 361109,
+        "maxDepthKm": 0.2112714797258377,
+        "sillDepthKm": 0,
+        "sillElevationKm": 0.00231586373411119,
+        "sillFrom": 355187,
+        "sillTo": 353590,
+        "enclosed": true,
+        "adjacentToOpenOcean": false,
+        "areaKm2": 103398.68239593506,
+        "volumeBelowSillKm3": 4145.989803464461,
+        "cellCount": 356
+      },
+      {
+        "index": 1560,
+        "id": "orogen-basin-rdl9e-1us5zxp",
+        "deepestCell": 634082,
+        "maxDepthKm": 0.14454296231269836,
+        "sillDepthKm": 0,
+        "sillElevationKm": 0.000942020327784121,
+        "sillFrom": 618489,
+        "sillTo": 622670,
+        "enclosed": true,
+        "adjacentToOpenOcean": false,
+        "areaKm2": 98431.57525062561,
+        "volumeBelowSillKm3": 3595.696275322023,
+        "cellCount": 340
+      },
+      {
+        "index": 5799,
+        "id": "orogen-basin-r1gzml-pwv9py",
+        "deepestCell": 2472285,
+        "maxDepthKm": 0.05752772465348244,
+        "sillDepthKm": 0,
+        "sillElevationKm": 0.00012718408834189177,
+        "sillFrom": 2469070,
+        "sillTo": 2469680,
+        "enclosed": true,
+        "adjacentToOpenOcean": false,
+        "areaKm2": 89373.16124153137,
+        "volumeBelowSillKm3": 2157.0961358906984,
+        "cellCount": 307
+      },
+      {
+        "index": 4074,
+        "id": "orogen-basin-r116v3-ctgimp",
+        "deepestCell": 1735167,
+        "maxDepthKm": 0.21967455744743347,
+        "sillDepthKm": 0,
+        "sillElevationKm": 0.00017946542357094586,
+        "sillFrom": 1731452,
+        "sillTo": 1727271,
+        "enclosed": true,
+        "adjacentToOpenOcean": false,
+        "areaKm2": 87574.8710899353,
+        "volumeBelowSillKm3": 7776.908122075609,
+        "cellCount": 297
+      },
+      {
+        "index": 1890,
+        "id": "orogen-basin-rh1pa-gculsp",
+        "deepestCell": 795358,
+        "maxDepthKm": 0.4763590395450592,
+        "sillDepthKm": 0,
+        "sillElevationKm": 0.1254822015762329,
+        "sillFrom": 815043,
+        "sillTo": 817627,
+        "enclosed": true,
+        "adjacentToOpenOcean": false,
+        "areaKm2": 86130.41738700867,
+        "volumeBelowSillKm3": 11286.378701672755,
+        "cellCount": 294
+      },
+      {
+        "index": 159,
+        "id": "orogen-basin-r13ys-107106u",
+        "deepestCell": 51796,
+        "maxDepthKm": 0.10298589617013931,
+        "sillDepthKm": 0,
+        "sillElevationKm": 0.001610271050594747,
+        "sillFrom": 62221,
+        "sillTo": 62598,
+        "enclosed": true,
+        "adjacentToOpenOcean": false,
+        "areaKm2": 84663.29455184937,
+        "volumeBelowSillKm3": 2883.5001948024164,
+        "cellCount": 287
+      },
+      {
+        "index": 865,
+        "id": "orogen-basin-r7f28-nev70x",
+        "deepestCell": 346112,
+        "maxDepthKm": 0.13043440878391266,
+        "sillDepthKm": 0,
+        "sillElevationKm": 0.0005482733831740916,
+        "sillFrom": 335488,
+        "sillTo": 336098,
+        "enclosed": true,
+        "adjacentToOpenOcean": false,
+        "areaKm2": 83794.99401473999,
+        "volumeBelowSillKm3": 3957.143420163941,
+        "cellCount": 284
+      },
+      {
+        "index": 5245,
+        "id": "orogen-basin-r1cpab-apfh8p",
+        "deepestCell": 2272259,
+        "maxDepthKm": 0.13236398994922638,
+        "sillDepthKm": 0,
+        "sillElevationKm": 0.002554585924372077,
+        "sillFrom": 2208413,
+        "sillTo": 2207803,
+        "enclosed": true,
+        "adjacentToOpenOcean": false,
+        "areaKm2": 83354.69561767578,
+        "volumeBelowSillKm3": 3956.6348282231947,
+        "cellCount": 284
+      },
+      {
+        "index": 2928,
+        "id": "orogen-basin-rrog9-j080wk",
+        "deepestCell": 1291401,
+        "maxDepthKm": 0.0942283570766449,
+        "sillDepthKm": 0,
+        "sillElevationKm": 0.00043340877164155245,
+        "sillFrom": 1269420,
+        "sillTo": 1266836,
+        "enclosed": true,
+        "adjacentToOpenOcean": false,
+        "areaKm2": 80001.50507831573,
+        "volumeBelowSillKm3": 2226.6643825370475,
+        "cellCount": 267
+      },
+      {
+        "index": 4429,
+        "id": "orogen-basin-r14pyv-1crvzzg",
+        "deepestCell": 1899895,
+        "maxDepthKm": 0.08887449651956558,
+        "sillDepthKm": 0,
+        "sillElevationKm": 5.6685181334614754e-05,
+        "sillFrom": 1929251,
+        "sillTo": 1932445,
+        "enclosed": true,
+        "adjacentToOpenOcean": false,
+        "areaKm2": 76749.224984169,
+        "volumeBelowSillKm3": 1993.6902250772182,
+        "cellCount": 265
+      },
+      {
+        "index": 3375,
+        "id": "orogen-basin-ru05k-18uij5j",
+        "deepestCell": 1399880,
+        "maxDepthKm": 0.11281417310237885,
+        "sillDepthKm": 0,
+        "sillElevationKm": 0.0028400865849107504,
+        "sillFrom": 1439106,
+        "sillTo": 1443287,
+        "enclosed": true,
+        "adjacentToOpenOcean": false,
+        "areaKm2": 76163.38623428345,
+        "volumeBelowSillKm3": 3257.6000439598224,
+        "cellCount": 253
+      },
+      {
+        "index": 127,
+        "id": "orogen-basin-r19l4-8fqhv5",
+        "deepestCell": 59080,
+        "maxDepthKm": 0.3960435688495636,
+        "sillDepthKm": 0,
+        "sillElevationKm": 0.0015742777613922954,
+        "sillFrom": 37942,
+        "sillTo": 37565,
+        "enclosed": true,
+        "adjacentToOpenOcean": false,
+        "areaKm2": 66156.02367401123,
+        "volumeBelowSillKm3": 2536.9714806005386,
+        "cellCount": 225
+      },
+      {
+        "index": 5344,
+        "id": "orogen-basin-r1cdpy-8p57lr",
+        "deepestCell": 2257270,
+        "maxDepthKm": 0.08476771414279938,
+        "sillDepthKm": 0,
+        "sillElevationKm": 0.0003629373968578875,
+        "sillFrom": 2271033,
+        "sillTo": 2271643,
+        "enclosed": true,
+        "adjacentToOpenOcean": false,
+        "areaKm2": 65168.09503173828,
+        "volumeBelowSillKm3": 2260.5698026162186,
+        "cellCount": 218
+      },
+      {
+        "index": 1427,
+        "id": "orogen-basin-rcuas-1vbih1",
+        "deepestCell": 599140,
+        "maxDepthKm": 0.22907501459121704,
+        "sillDepthKm": 0,
+        "sillElevationKm": 0.0014491114998236299,
+        "sillFrom": 572834,
+        "sillTo": 571847,
+        "enclosed": true,
+        "adjacentToOpenOcean": false,
+        "areaKm2": 62151.95414352417,
+        "volumeBelowSillKm3": 6489.032528184384,
+        "cellCount": 215
+      }
+    ],
+    "source": "manifest.hydrology.oceanBasins"
+  }
+}
