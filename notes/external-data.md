@@ -43,6 +43,12 @@ make a re-run resume rather than restart;
 downloads. It refuses `HEAD` outright and returns 403 without a browser
 `User-Agent`, so a naive probe reports the data as unavailable when it is not.
 
+**Copernicus DEM**, `s3://copernicus-dem-90m` and `copernicus-dem-30m`, no
+credentials. One-degree COG tiles, 4.2 MB each at 90 m, named
+`Copernicus_DSM_COG_30_N37_00_E095_00_DEM`. Read a tile straight out of S3 with
+`fsspec` and `rasterio.io.MemoryFile` rather than downloading it. Used for HYD-7
+to measure what representing a real basin at mesh scale costs its storage.
+
 **Zenodo**, for datasets published with a paper. The record API,
 `https://zenodo.org/api/records/<id>`, lists files and sizes without
 authentication, which is worth checking before starting a multi-gigabyte

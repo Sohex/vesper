@@ -23,6 +23,8 @@ shapely==2.1.2
 # request rather than downloading a chunk, which is the only sane way in: an
 # ERA5 chunk is 95 MB for 21 days. Note the mirror is a ROLLING window of about
 # 4.6 years, not the 1940-onward archive, so it cannot serve a 1991-2020 normal.
+# Reads Copernicus DEM COG tiles out of S3 without downloading them.
+rasterio==1.5.1
 omfiles==1.2.0
 fsspec==2026.7.0
 s3fs==2026.7.0

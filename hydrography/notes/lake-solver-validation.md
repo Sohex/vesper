@@ -166,3 +166,83 @@ Earth's endorheic basins do have measured hypsometry in places -- the Great Basi
 pluvial lakes and the Tibetan closed basins are both mapped. That is a different
 and larger piece of work than this one, and it is the only route to testing the
 half of the solver this world actually exercises.
+
+---
+
+## HYD-7: the spill cap, and what a 15 km representation costs
+
+Measured 2026-08-17, on Copernicus DEM 90 m from the AWS Registry of Open Data.
+HYD-4 could not reach the cap because it needed hypsometry; this does, by asking
+the question the cap actually turns on.
+
+### The question, narrowed
+
+The cap engages when a basin's storage is exhausted, so what has to be right is
+`area_at_spill` and `capacity`. Those come from flooding the terrain at the mesh
+scale of about 15 km. The test is therefore not "is the algorithm correct" but
+**what does representing a real basin at 15 km do to its measured storage**, and
+in which direction.
+
+Two real endorheic basins, deliberately in different settings: the Qaidam in
+Tibet, a broad pan, and the Great Salt Lake basin in the Basin and Range, a
+graben. Each DEM is used at its native 90 m and then block-averaged to the mesh
+scale, and the flooded area and volume compared level by level.
+
+| depth above floor | Qaidam area | Qaidam volume | Great Salt area | Great Salt volume |
+| ---: | ---: | ---: | ---: | ---: |
+| 25 m | 0.00 | 0.00 | 0.63 | 0.55 |
+| 50 m | 0.00 | 0.00 | 0.76 | 0.64 |
+| 100 m | 0.65 | 0.51 | 0.76 | 0.71 |
+| 200 m | 0.72 | 0.66 | 0.79 | 0.77 |
+| 400 m | 1.03 | 0.87 | 1.00 | 0.87 |
+
+Ratios are coarse over native, so below 1 means the mesh scale sees less.
+
+### The result, and it is one-signed
+
+**A 15 km representation understates storage, by 13% at 400 m of depth and by 30
+to 50% in the shallow range, and on a broad pan it can miss shallow flooding
+entirely.** The Qaidam shows literally no flooded area at 25 or 50 m above its
+floor, because block-averaging fills the depression's own floor with the ridges
+around it.
+
+That direction matters more than the magnitude. Understated storage means a given
+water supply fills a basin sooner, and understated `area_at_spill` raises the
+critical aridity index, which is the threshold a basin overflows against. **Both
+channels push the same way: toward spilling, and therefore toward over-carving.**
+
+**The shallow end is where this world lives.** Vesper's basins have a median mean
+depth at spill of 46.5 m, which sits in the 25-to-100 m band where the deficit is
+worst rather than in the 400 m band where it converges.
+
+### What it does not say
+
+Vesper's terrain is generated at mesh scale, so it never had sub-grid depressions
+to lose. This is not a bug in `build_hydrography.py` and it is not a correction
+to apply. It is a statement about how much storage a real world of this relief
+would have that the represented one does not, and it belongs in the error budget
+as a one-signed bias on the carve verdict.
+
+### The shape check, which passes
+
+Separately, and cheaply: the area-volume scaling of the solved lakes matches
+Earth's form. Fitting `V = c A^k` over lakes above 10 km2,
+
+| population | n | exponent k | median mean depth |
+| --- | ---: | ---: | ---: |
+| Vesper solved lakes, all | 2032 | 1.259 | 34.4 m |
+| Vesper, evaporation-limited only | 296 | 1.628 | 8.7 m |
+| Earth endorheic terminal lakes | 146 | 1.168 | 3.0 m |
+| Earth, all natural lakes above 10 km2 | 14591 | 1.208 | 6.7 m |
+
+The exponent is the shape: how fast area grows as a basin fills, which is what
+decides when the cap engages. Ours is 1.26 against Earth's 1.17 to 1.21, so the
+basins fill like real ones do. The level differs -- our lakes are deeper for
+their area -- and that is confounded between a real property of this terrain and
+Earth's terminal lakes being shrunken relicts, which HYD-4 measured independently
+as an eightfold under-prediction in the dry tail, in the same direction.
+
+Do not compare Vesper's basins-at-spill against Earth's modern lakes: at spill
+they are basins filled to the brim, at 0.799 and 46.5 m, and Earth's endorheic
+lakes are mostly nothing like full. That comparison was run first and is a
+category error.
