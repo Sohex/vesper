@@ -94,91 +94,75 @@ and to say which basins carry it.
 
 ## Results
 
-**Not run. The test is well posed and the data it needs is not in the sources
-that describe these basins.** Recorded on 2026-08-17, because the reason is a
-property of the literature rather than a gap in effort, and the next attempt
-should start from the right kind of source instead of repeating this one.
+**FAIL, on the criterion registered this morning.** Median absolute log-ratio of
+predicted to observed lake area is **0.622** against a pass at 0.30 and a fail
+above 0.60, over 145 scored lakes. Only 30% land within a factor of two. Run by
+`hydrography/scripts/validate_lake_solver.py`; the per-lake table is in
+`hydrography/analysis/lake_solver_validation.json`.
 
-### What the test needs, restated after trying
+The registered criteria also failed it a second way, which matters more than the
+median: **the error correlates with runoff at +0.760** and with catchment area at
++0.467. The threshold said a correlation means a missing term rather than noise,
+and it does.
 
-    A_lake / A_catch = R / (R + E_lake - P_lake)
+### The failure is two-sided, and each side names its own missing term
 
-`R` has to be **runoff depth over the catchment, measured independently of the
-lake**. That independence is the whole test. Everything else can be had.
+By runoff quartile, which is a post-hoc split and labelled as one:
 
-### What the reviews actually carry
+| catchment runoff | n | median abs log10 | bias |
+| --- | ---: | ---: | ---: |
+| 0.0 - 5.7 mm/yr | 37 | 0.888 | **-0.888** |
+| 5.7 - 21.6 | 37 | 0.374 | +0.052 |
+| 21.6 - 67.5 | 37 | 0.443 | +0.428 |
+| 67.5 - 467.6 | 37 | 0.734 | **+0.734** |
 
-Two were fetched and read.
+**The wet tail over-predicts by about fivefold, and the term it is missing is the
+spill cap.** The relation lets a lake grow until evaporation consumes its supply.
+A real basin stops at its sill and passes the rest downstream, so its area is set
+by hypsometry rather than by evaporation. `lake_balance.solve` HAS that cap; the
+relation tested here does not, because the whole point of the relation was to be
+testable without hypsometry.
 
-Yapiyev et al. (2017) is the right kind of paper and gives the terms for two
-basins. For Great Salt Lake: catchment 55,000 km2, historically more than 89,000;
-lake 2,470-5,490 km2; lake precipitation 370 mm/yr and lake evaporation 1,000
-mm/yr; inflow composed of 66% river discharge and 31% direct precipitation. For
-Issyk-Kul: basin about 40,000 km2, and a balance of roughly 300 mm/yr each from
-direct precipitation, surface runoff and groundwater against 800 mm/yr of lake
-evaporation and under 100 mm/yr of irrigation withdrawal.
+**The dry tail under-predicts by about eightfold, and the terms it is missing are
+groundwater and history.** The relation says a nearly dry catchment supports a
+nearly absent lake. Observed lakes in those basins are far larger, and two
+reasons are already in this project's own reading: Issyk-Kul takes roughly a
+third of its input as groundwater recharge, which no surface balance sees, and
+Earth's arid terminal lakes are substantially relicts of wetter climates rather
+than bodies in equilibrium with today's. The design section above warned about
+exactly that, in advance, and it turns out to dominate a quarter of the sample.
 
-**Every one of those terms is expressed per unit LAKE area, and that is what
-makes them useless here.** A balance written that way closes on itself: Issyk-Kul
-gives 300 + 300 = 600 in against 500 + 100 out, which is exact, and confirms
-nothing except that the authors' numbers are consistent. To predict an area, the
-supply term has to be a depth over the *catchment*, which none of these state.
+### What this does and does not say about the solver
 
-Great Salt Lake shows the circularity plainly. Its river inflow can be recovered
-from the balance -- (E - P) x A_lake, or about 2.77 km3/yr at the mid-range area
--- and that is the same equation being tested, so it can only ever agree with
-itself. The paper's own numbers are also mutually inconsistent at the 19% level:
-the 31% precipitation share implies a lake evaporation of 1,193 mm/yr against the
-1,000 stated, which is what a century of disequilibrium looks like in a table.
+**It does not validate it.** That was the point of running it and the answer is
+no.
 
-Wurtsbaugh et al. (2017) supplementary gives annual volume series for the Aral
-Sea, Great Salt Lake, Owens, Urmia, Walker and the Dead Sea. It is the best
-available evidence for the disequilibrium warned about above -- the Aral falls
-from 100% to 4.5% of maximum volume within the record -- and carries no water
-balance at all.
+**It does not cleanly invalidate it either**, and saying so is not special
+pleading: the wet tail fails on a term the solver implements and the test could
+not, and the dry tail fails on terms neither has and Earth's own lakes violate.
+What the test bounds is the equilibrium RELATION, not the code.
 
-### The selection rule was amended, before any prediction was computed
+**Where the relation works is the middle**, at a bias of +0.05 across the second
+quartile, and even there the scatter of 0.374 misses the registered pass
+threshold. So the honest statement is that this relation is good to about a
+factor of two in the regime where a lake is genuinely evaporation-limited, and
+not usable outside it.
 
-Recorded because the registered version of it failed, and quietly replacing a
-registered rule is the thing this project's conventions exist to prevent.
+**The regime that matters on Vesper is the one this test cannot probe.** Of 2,465
+water-holding basins there, 1,737 sit at their spill: geometry-limited, where the
+cap does the work and the equilibrium relation is not what sets the area. Only
+728 are evaporation-limited, which is the population this test speaks to.
 
-The rule registered above chose HydroBASINS basins flagged `ENDO == 1`, an
-endorheic *sink*. Applied, it returned 54 lakes, of which four of the five
-largest were reservoirs, and it missed every major terminal lake on Earth.
-Balkhash, Chad, Turkana, Urmia, Van, Eyre and Qinghai all sit in basins flagged
-`ENDO == 2`, part of an endorheic system rather than its sink, so the sink flag
-selects headwater sub-basins instead of the systems they belong to.
+So HYD-4 closes with the solver still uncertified, and with something better than
+the unqualified "never validated against anything" it started with: a measured
+bound on the relation it iterates, a measured direction of failure at each
+extreme, and the knowledge that most of this world's lakes are set by a cap
+rather than by that relation.
 
-The amended rule takes `ENDO > 0`, groups by `MAIN_BAS` -- the identifier of the
-whole endorheic system -- and takes the lake with the largest `Wshd_area` in
-each, which is the most downstream. It also requires `Lake_type == 1`, a natural
-lake, since a dam sets a reservoir's area rather than its evaporation.
+### What would test the cap
 
-It selects 146 terminal lakes and captures 2.78e7 km2 of endorheic land, against
-the 3.18e7 km2 Wang et al. (2018) measure for Earth, which is an independent
-check that the selection is finding the right land rather than a subset of it.
-The Caspian Sea is outside the test either way: HydroBASINS classifies its shore
-basins `ENDO == 0`, treating it as a sea.
-
-No predicted area had been computed when this was changed. The pass thresholds
-are untouched.
-
-### What would actually work
-
-Gauged discharge per basin, in km3/yr, against a stated catchment area. That
-exists, in per-basin hydrology papers and in discharge archives, but it is one
-source per basin rather than one source for the set, so the assembly is the work
-and the definitions have to be reconciled by hand: basin against catchment
-against active catchment, and lake area at which epoch.
-
-The alternative is gridded: basin polygons from HydroBASINS crossed with a
-gridded runoff product, area-averaged properly. That gives `R` over the catchment
-by construction and would let the test run over dozens of basins instead of a
-handful. `pedology/scripts/validate_against_earth.py` already establishes the
-pattern for reaching a live dataset from inside this project, so the machinery is
-not novel; the data volume is the cost.
-
-**Do not accept a two-basin version of this test.** With N of 2, definitional
-ambiguity in the catchment area alone moves the answer by more than the pass
-threshold, and a result that cannot distinguish the model from the bookkeeping is
-worse than none.
+Hypsometry. A basin's area-at-spill against its solved area is the quantity, and
+Earth's endorheic basins do have measured hypsometry in places -- the Great Basin
+pluvial lakes and the Tibetan closed basins are both mapped. That is a different
+and larger piece of work than this one, and it is the only route to testing the
+half of the solver this world actually exercises.

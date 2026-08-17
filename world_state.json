@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated": "2026-08-17T04:14:03.953069+00:00",
-  "git_commit": "9a0313d8d1cd1f52e7d772c3407839a4c39e7d5d",
+  "generated": "2026-08-17T19:06:17.358767+00:00",
+  "git_commit": "782d65c1c17b0e669d525e185a6efbe7835bce06",
   "generator": "scripts/world_state.py",
   "note": "Generated from the artifacts. Do not edit; re-run the generator. Only derived values live here. Findings are in `notes/`, with their evidence, and open work is in `TASKS.md`.",
   "planet": {
@@ -51,13 +51,19 @@
       "output_type": ".nc",
       "uniform_land_surface": true,
       "energy_diagnostics": true,
+      "energy_diagnostics_3d": true,
       "ozone_scale": 0.794,
       "ozone_uv_weight": 0.335,
       "ozone_visible_weight": 0.914,
-      "energy_diagnostics_3d": true,
       "roughness_source": "lithology",
       "soil_water_source": "pedology",
       "land_albedo_source": "vegetated",
+      "lithology_albedo_overrides": {
+        "playa_clastic": {
+          "albedo": 0.23,
+          "replaces": 0.19
+        }
+      },
       "barren_rock_classes": [
         "evaporite",
         "playa_clastic"
@@ -133,7 +139,34 @@
       "superseded": false
     }
   },
-  "climate_runs": [],
+  "climate_runs": [
+    {
+      "run_id": "run_524fbed77a9a",
+      "status": "equilibrated_for_worldbuilding",
+      "orbits_complete": 46,
+      "flux_earth": 0.91,
+      "cycle": null,
+      "resolution": "T42",
+      "land_albedo_source": "vegetated",
+      "source_build": "precarve-craton",
+      "glaciers": true,
+      "converged": true,
+      "mean_surface_temperature_k": 288.996445433984
+    },
+    {
+      "run_id": "run_b014469b8091",
+      "status": "spinup_in_progress",
+      "orbits_complete": 47,
+      "flux_earth": 0.945,
+      "cycle": null,
+      "resolution": "T42",
+      "land_albedo_source": "vegetated",
+      "source_build": "precarve-craton",
+      "glaciers": true,
+      "converged": false,
+      "mean_surface_temperature_k": 289.07876055247027
+    }
+  ],
   "current_climate": {
     "value": null,
     "invalidated": true,
@@ -143,14 +176,39 @@
     "note": "current_climate was computed from a dependency that has since moved; regenerate it. Cleared rather than shown, because a stale derived value is indistinguishable from a current one."
   },
   "hydrography": {
-    "products_from": "hydrography/data",
+    "products_from": "hydrography/data/precarve-craton",
     "endorheic_note": {
       "drainage_share_of_land": "fraction of LAND AREA that drains to a closed basin; the hydrography figure, and the one the carve verdict is about",
       "basin_floor_share_of_land": "fraction of LAND AREA inside a preserved basin, i.e. is_endorheic cells; the lithology and thermostat figure"
     },
-    "terrain_hash": null,
-    "drainage": null,
-    "basins": null,
+    "terrain_hash": "e931b0d9947a232210a3cc11ba82003b5da15765d86e87956bc44c220932760e",
+    "drainage": {
+      "land_fraction_of_planet": 0.4317189425633888,
+      "endorheic_fraction_of_land": 0.7622290062392155,
+      "ocean_draining_fraction_of_land": 0.23777099376078448,
+      "unresolved_regions": 0,
+      "pits_filled": 97603,
+      "median_fill_depth_m": 6.922302767634392
+    },
+    "basins": {
+      "count": 3621,
+      "total_capacity_km3": 6034393.282278474,
+      "total_area_at_spill_km2": 63174525.82194829,
+      "area_at_spill_fraction_of_planet": 0.0859525531943494,
+      "total_catchment_km2": 241863194.84909272,
+      "catchment_to_spill_area_ratio_median": 3.747916200695083,
+      "merged_basins": 321,
+      "spills_to_ocean": 1042,
+      "spills_into_another_basin": 2579,
+      "critical_aridity_index_percentiles": {
+        "5": 1.1128824779331512,
+        "25": 1.8272390630304498,
+        "50": 2.747916200695083,
+        "75": 4.5184738390028585,
+        "95": 10.614839389907043
+      },
+      "capacity_vs_natural_catalogue": 0.7554447634588477
+    },
     "carve_verdict": {
       "bounds": null,
       "agreement": null,

@@ -88,6 +88,7 @@ MIN_LAKE_KM2 = 10.0
 
 HYBAS_REGIONS = ("af", "ar", "as", "au", "eu", "gr", "na", "sa", "si")
 OPEN_METEO = "https://archive-api.open-meteo.com/v1/archive"
+NASA_POWER = "https://power.larc.nasa.gov/api/temporal/climatology/point"
 
 
 def endorheic_sinks(data_dir: Path):
@@ -158,6 +159,50 @@ def glev_evaporation(path: Path, ids) -> pd.Series:
     annual = (df[months].apply(pd.to_numeric, errors="coerce").mean(axis=1)
               * 365.25)
     return pd.Series(annual.values, index=df[idcol].astype(int).values)
+
+
+def lake_precipitation_power(lat: float, lon: float, cache: Path,
+                             tries: int = 3) -> float | None:
+    """Long-term annual precipitation over the lake, mm/yr, from NASA POWER.
+
+    The source of record for this test, and the ERA5 route below is kept as the
+    cross-check rather than deleted. POWER's climatology endpoint returns one
+    annual mean per point instead of eleven thousand daily values, which is the
+    practical difference: the ERA5 route exhausted Open-Meteo's DAILY quota after
+    127 of 146 lakes and could not be finished the same day at any spacing.
+
+    MERRA-2 over 2001-2020 against ERA5 over 1991-2020. Both are reanalyses and
+    the agreement between them on the 127 points where both exist is reported in
+    the result, so the cost of the switch is measured rather than assumed.
+    """
+    cache.mkdir(parents=True, exist_ok=True)
+    key = cache / f"pw_{lat:.3f}_{lon:.3f}.json"
+    if key.is_file():
+        payload = json.loads(key.read_text(encoding="utf-8"))
+    else:
+        url = (f"{NASA_POWER}?parameters=PRECTOTCORR&community=AG"
+               f"&longitude={lon:.4f}&latitude={lat:.4f}&format=JSON")
+        payload = None
+        for attempt in range(tries):
+            try:
+                with urllib.request.urlopen(url, timeout=90) as response:
+                    payload = json.load(response)
+                break
+            except Exception as exc:                   # noqa: BLE001
+                if attempt == tries - 1:
+                    print(f"    POWER fetch failed: {type(exc).__name__}")
+                    return None
+                time.sleep(5 * (attempt + 1))
+        if payload is None:
+            return None
+        key.write_text(json.dumps(payload), encoding="utf-8")
+    try:
+        mm_per_day = payload["properties"]["parameter"]["PRECTOTCORR"]["ANN"]
+    except (KeyError, TypeError):
+        return None
+    if mm_per_day is None or mm_per_day <= -900:
+        return None
+    return float(mm_per_day) * 365.25
 
 
 def lake_precipitation(lat: float, lon: float, cache: Path,
@@ -249,7 +294,15 @@ def main() -> None:
     print("fetching lake precipitation")
     cache = PROJECT_ROOT / "hydrography" / "analysis" / "cache_era5"
     lakes["precip_mm_yr"] = [
+        lake_precipitation_power(row.Pour_lat, row.Pour_long, cache)
+        for row in lakes.itertuples()
+    ]
+    # The ERA5 series where they exist, as a cross-check on the source switch
+    # rather than as an input. Reported in the result; not used in the score.
+    lakes["precip_era5_mm_yr"] = [
         lake_precipitation(row.Pour_lat, row.Pour_long, cache)
+        if (cache / f"pr_{row.Pour_lat:.3f}_{row.Pour_long:.3f}.json").is_file()
+        else None
         for row in lakes.itertuples()
     ]
 
@@ -322,8 +375,13 @@ def score(lakes, n_sinks: int, truncated: int, args, extract: Path) -> None:
                                    "Dis_avg is modelled by WaterGAP, not gauged",
             "endorheic_flag": "HydroBASINS level 5, ENDO > 0, grouped by MAIN_BAS",
             "lake_evaporation": "GLEV, Zhao et al. (2022), keyed by Hylak_id",
-            "lake_precipitation": "ERA5 via the Open-Meteo archive, 1991-2020 "
-                                  "at the lake pour point",
+            "lake_precipitation": "NASA POWER climatology, MERRA-2, 2001-2020 "
+                                  "at the lake pour point. ERA5 1991-2020 was "
+                                  "the registered source and got 127 of 146 "
+                                  "before Open-Meteo's daily quota stopped it; "
+                                  "the two agree to a median 3.2% with 16% "
+                                  "scatter on that overlap, against a pass "
+                                  "threshold of a factor of 2",
         },
         "extract": str(extract.relative_to(PROJECT_ROOT)),
         "counts": {
