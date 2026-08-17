@@ -298,6 +298,13 @@ admitting ore as a rock class would move the planet's energy balance on the
 strength of a mine. The layer is prospectivity per cell, read only by what comes
 after climate, and consequently rebuildable without invalidating a climate run.
 
+It emits a continuous 0-1 prospectivity field and does NOT place individual
+deposits. A porphyry is one to two kilometres against a 15.19 km cell and a vein
+is under a hundredth of one, so a discrete deposit is invisible at every
+resolution this pipeline runs at. Deposits belong with the downscaling pass,
+which is where glacial overdeepening goes for the same reason -- if a thing is
+smaller than a cell, it is not this pipeline's to place.
+
 The split is by genesis: whatever concentrates a deposit has to be modelled where
 the deposit is placed. Tectonic and magmatic types go in Orogen, which has arcs,
 fold belts, LIPs and cratons; weathering, drainage and brine types go downstream,

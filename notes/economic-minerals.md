@@ -89,10 +89,29 @@ here, because continental rifting needs two adjacent continental super-plates an
 this world has none. That is geography rather than a gap, and it removes
 carbonatite-hosted rare earths along with it.
 
-## Open question
+## Prospectivity, not deposits
 
-Prospectivity or occurrence? A continuous 0-1 favourability field is honest about
-what the model knows and composes cleanly with downstream use. Discrete deposits
-are what a culture actually finds and mines. The likely answer is both -- a
-field, plus a sampling of it into point deposits with a declared seed -- but the
-sampling rule is undecided and should not be invented in passing.
+**This layer emits a continuous 0-1 favourability field. It does not place
+individual deposits.**
+
+The reason is resolution, and it is the same reason glacial erosion is deferred
+in `notes/audits/orogen-gravity.md`. A mesh cell is 15.19 km across. A porphyry
+system is one to two kilometres, 0.07 to 0.13 of a cell; a vein or lode is tens
+to hundreds of metres, under a hundredth of one. A discrete deposit is invisible
+at every resolution this pipeline currently runs at, so placing one here would be
+inventing detail the grid cannot hold and then carrying it as though it were
+resolved.
+
+A field is what the model actually knows: this cell has the setting, the host and
+the structural control, so it is favourable. That composes cleanly -- downstream
+work can threshold it, sample it, or read it as a gradient -- and it stays honest
+about the fact that favourability is all the evidence supports.
+
+Discrete deposits belong with the downscaling pass, alongside glacial
+overdeepening and the sub-grid hypsometry that `notes/glacier-rough-pass.md`
+already assigns there. That pass will have the resolution to place a deposit
+somewhere meaningful, and the prospectivity field is exactly the input it wants.
+
+Two sub-grid features, resolved independently, landing in the same place is the
+useful signal: **if a thing is smaller than a cell, it is not this pipeline's to
+place.**
