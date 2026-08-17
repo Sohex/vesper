@@ -49,7 +49,11 @@ none of them is advice.
 6. **Generated runs get a UUID, never a derived name.** A parameter-built name
    separates runs only along the dimensions it encodes. ExoPlaSim and LPJ-GUESS
    both collided that way. Ask `exoplasim/runs/INDEX.json` what exists.
-7. **`source/` is read-only. Add a build; never overwrite one.**
+7. **`source/` is read-only. Add a build; never overwrite one.** But a build is
+   DISPOSABLE until a climate run has consumed it: before that nothing depends
+   on it, so the answer to a generator change is to regenerate rather than to
+   migrate. After that it is not, because runs and verdicts start depending on
+   it. What must survive either way is the recipe, in `source/README.md`.
 8. **Before an expensive run**, and after changing `source_build`:
 
        python scripts/check_consistency.py     # do the artifacts agree?

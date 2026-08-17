@@ -109,12 +109,20 @@ def main() -> int:
     config = yaml.safe_load((ROOT / "config" / "planet.yaml").read_text(encoding="utf-8"))
     rep = Report()
     build = str(config.get("source_build", ""))
+    # A build being ABSENT is a legitimate state, not a crash. One is disposable
+    # until a climate run has consumed it, so between a generator change and the
+    # next generation there is deliberately nothing in source/. Report it and run
+    # the checks that do not need a build, rather than exiting before the summary
+    # and leaving the caller with a traceback instead of a work list.
+    want = None
     try:
         want = builds.terrain_hash(config)
     except Exception as exc:
-        print(f"cannot resolve the configured build {build!r}: {exc}")
-        return 1
-    rep.add(OK, f"active build", f"{build}  {want[:16]}")
+        rep.add(FAIL, "active build",
+                f"{build!r} is not present: {exc}. Generate it -- the recipe is "
+                f"in source/README.md -- then register its hash in lib/orogen.py")
+    if want is not None:
+        rep.add(OK, f"active build", f"{build}  {want[:16]}")
 
     # -- the named baseline climatology belongs to the active build ----------
     #
@@ -146,6 +154,15 @@ def main() -> int:
                         f"{Path(declared).name} is on {got}, config names {build}")
             else:
                 rep.add(OK, "baseline climatology", f"on {build}")
+
+    if want is None:
+        # Everything below compares artifacts against the build. With no build
+        # there is nothing to compare against, and each of those checks would
+        # report a second, derived failure for the same one cause.
+        rep.add(WARN, "artifact checks",
+                "skipped: they compare against the active build, which is absent")
+        rep.show()
+        return 1 if rep.failed else 0
 
     # -- terrain hash across every artifact that records one -----------------
     data = builds.component_data("hydrography", config)

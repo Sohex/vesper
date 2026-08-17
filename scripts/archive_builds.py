@@ -56,8 +56,13 @@ EXPECTED_GRIDS = ["exoplasim-T21", "exoplasim-T42", "exoplasim-T63",
                   "exoplasim-T85", "grid-512x256"]
 
 # Everything needed to identify a build and to date a result computed from it.
-IDENTITY_KEYS = ["hashes", "seed", "numRegions", "planet", "planetRadiusKm",
-                 "landSeaMask", "code", "version", "generated"]
+# `params` is in here because it is the RECIPE. Without it a stub can identify a
+# build but not reproduce it, and the payload is only safe to delete because it
+# is reproducible -- so omitting the sliders quietly made that false. Found when
+# an unconsumed build was about to be deleted and the only record of its
+# generation flags was an untracked scratch script.
+IDENTITY_KEYS = ["hashes", "seed", "numRegions", "params", "planet",
+                 "planetRadiusKm", "landSeaMask", "code", "version", "generated"]
 
 
 def stub(manifest: dict) -> dict:

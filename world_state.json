@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated": "2026-08-17T01:08:46.904698+00:00",
-  "git_commit": "ef22e717d0f05f9586cd658d9a7eb762849ba5f1",
+  "generated": "2026-08-17T01:38:17.941441+00:00",
+  "git_commit": "390440f770fb4283c30cb12e62e3fad7fda13de7",
   "generator": "scripts/world_state.py",
   "note": "Generated from the artifacts. Do not edit; re-run the generator. Judgement that no artifact can supply is in `curated`, which lives in the generator under version control.",
   "planet": {
@@ -96,43 +96,7 @@
       "alignment_recurrence_earth_years": 314
     }
   },
-  "builds": {
-    "precarve-zoned-g1281-arcfix": {
-      "terrain_hash": "2e06d17682075096ab2e0093eb0f5618417cdee38383f1ca153646995bffad5a",
-      "catalogue_hash": "bc84109168789f519b53fc8197ddc976be93ecd8326b61a8086de85e638343cc",
-      "seed": 16236323,
-      "regions": 2500001,
-      "selection_source": "threshold",
-      "drainage_hypothesis": {
-        "preserveListGiven": 0,
-        "carveListGiven": 0,
-        "carvedByRetainZero": 0
-      },
-      "preserved_basins": 3629,
-      "land_fraction": 0.4317358383866897,
-      "endorheic_fraction_of_land": 0.763171903578747,
-      "lithology_land_fractions": {
-        "playa_clastic": 0.23785,
-        "continental_clastic": 0.18848,
-        "schist": 0.11835,
-        "granite": 0.1112,
-        "granodiorite": 0.07287,
-        "melange": 0.06169
-      },
-      "land_elevation_km": {
-        "mean": 0.3957,
-        "max": 4.5933,
-        "min": -0.5624
-      },
-      "grids": [
-        "T21",
-        "T42",
-        "T63",
-        "T85"
-      ],
-      "superseded": false
-    }
-  },
+  "builds": {},
   "climate_runs": [],
   "current_climate": {
     "value": null,
