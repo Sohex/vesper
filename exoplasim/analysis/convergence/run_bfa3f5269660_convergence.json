@@ -29,6 +29,9 @@
     "extrapolated_offset_lt_0.15_k": true
   },
   "sufficiently_equilibrated_for_worldbuilding": false,
+  "failed_criteria": [
+    "abs_mean_toa_lt_0.5_w_m2"
+  ],
   "annual_records": [
     {
       "year_index": 0,

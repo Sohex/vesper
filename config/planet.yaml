@@ -17,11 +17,13 @@ schema_version: 1
 # what superseded what.
 source_build: precarve-craton
 
-# BOOTSTRAP. The climatology of the first run on a new terrain, which exists so
-# that lakes, the lake compositing in the albedo and soil water can be built at
-# all. Repoint at the baseline once that run exists. Null means no baseline is
-# named and every consumer raises rather than falling back.
-baseline_climatology: exoplasim/analysis/climatology/bootstrap_regular_climatology.nc
+# The baseline: the run whose climatology the carve verdict uses, made with
+# lakes, the reconciled playa albedo and soil water all in place. Quasi-
+# equilibrated at 289.72 K, missing only the TOA criterion and by 0.0014 W/m2,
+# inside a structural offset of its own size. The bootstrap it replaces is still
+# on disk and is what the surface fields were built from. Null means no baseline
+# is named and every consumer raises rather than falling back.
+baseline_climatology: exoplasim/analysis/climatology/baseline_regular_climatology.nc
 
 # DETERMINED. Radius and gravity are Orogen's and canonical; mass follows from
 # gravity as mass_earth = (g/g_earth) * radius_earth^2, and derive() raises if

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated": "2026-08-17T19:06:17.358767+00:00",
-  "git_commit": "782d65c1c17b0e669d525e185a6efbe7835bce06",
+  "generated": "2026-08-17T21:26:42.697262+00:00",
+  "git_commit": "c57537f86b1aa80dc1bb6f2f773ba62f6de74ec2",
   "generator": "scripts/world_state.py",
   "note": "Generated from the artifacts. Do not edit; re-run the generator. Only derived values live here. Findings are in `notes/`, with their evidence, and open work is in `TASKS.md`.",
   "planet": {
@@ -154,9 +154,9 @@
       "mean_surface_temperature_k": 288.996445433984
     },
     {
-      "run_id": "run_b014469b8091",
-      "status": "spinup_in_progress",
-      "orbits_complete": 47,
+      "run_id": "run_8c2e1ff9ab5e",
+      "status": "quasi_equilibrated",
+      "orbits_complete": 66,
       "flux_earth": 0.945,
       "cycle": null,
       "resolution": "T42",
@@ -164,7 +164,33 @@
       "source_build": "precarve-craton",
       "glaciers": true,
       "converged": false,
-      "mean_surface_temperature_k": 289.07876055247027
+      "mean_surface_temperature_k": 289.7650170371082
+    },
+    {
+      "run_id": "run_b014469b8091",
+      "status": "quasi_equilibrated",
+      "orbits_complete": 91,
+      "flux_earth": 0.945,
+      "cycle": null,
+      "resolution": "T42",
+      "land_albedo_source": "vegetated",
+      "source_build": "precarve-craton",
+      "glaciers": true,
+      "converged": false,
+      "mean_surface_temperature_k": 289.15053958510987
+    },
+    {
+      "run_id": "run_bfa3f5269660",
+      "status": "quasi_equilibrated",
+      "orbits_complete": 46,
+      "flux_earth": 0.91,
+      "cycle": null,
+      "resolution": "T42",
+      "land_albedo_source": "vegetated",
+      "source_build": "precarve-craton",
+      "glaciers": true,
+      "converged": false,
+      "mean_surface_temperature_k": 281.92164542711214
     }
   ],
   "current_climate": {

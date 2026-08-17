@@ -204,6 +204,7 @@ def main() -> None:
         "metrics": metrics,
         "criteria": criteria,
         "sufficiently_equilibrated_for_worldbuilding": bool(all(criteria.values())),
+        "failed_criteria": sorted(name for name, ok in criteria.items() if not ok),
         "annual_records": records,
     }
     args.output.mkdir(parents=True, exist_ok=True)
@@ -214,21 +215,30 @@ def main() -> None:
     report_path = args.output / f"{run_dir.name}_convergence.json"
     report_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
 
-    if report["sufficiently_equilibrated_for_worldbuilding"]:
-        manifest_path = run_dir / "run_manifest.json"
-        if manifest_path.is_file():
-            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    # A run that has been assessed and misses is NOT "spinup_in_progress", and
+    # leaving it labelled that way is how the baseline this project built its
+    # production climatology from came to be recorded as still spinning up.
+    #
+    # This does not round a miss into a pass. `sufficiently_equilibrated_for_
+    # worldbuilding` stays strictly all-or-nothing and is what any consumer
+    # should test. What is added is the third state the prose convention has
+    # always used and the code never had: quasi-equilibrated, carrying WHICH
+    # criteria failed and the metric each failed on, so the label can never be a
+    # hand-wave. One cold case in this project is called quasi-equilibrated for
+    # missing by 0.004 W/m2; that standard is preserved by recording the margin,
+    # not by widening the threshold.
+    failed = report["failed_criteria"]
+    manifest_path = run_dir / "run_manifest.json"
+    if manifest_path.is_file():
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        if report["sufficiently_equilibrated_for_worldbuilding"]:
             manifest["status"] = "equilibrated_for_worldbuilding"
-            manifest["equilibrium_cutoff_year_index"] = len(files) - 1
-            manifest["convergence_assessment"] = {
-                "report": str(report_path.resolve()),
-                "window_orbits": w,
-                "metrics": metrics,
-                "criteria": criteria,
-            }
-            manifest_path.write_text(
-                json.dumps(manifest, indent=2) + "\n", encoding="utf-8"
-            )
+        else:
+            manifest["status"] = "quasi_equilibrated"
+        manifest["equilibrium_cutoff_year_index"] = len(files) - 1
+        manifest_path.write_text(
+            json.dumps(manifest, indent=2) + "\n", encoding="utf-8"
+        )
 
     years = np.arange(len(files))
     fig, axes = plt.subplots(2, 2, figsize=(12, 7.5), constrained_layout=True)
@@ -255,8 +265,11 @@ def main() -> None:
     plot_path = args.output / f"{run_dir.name}_convergence.png"
     fig.savefig(plot_path, dpi=180)
     plt.close(fig)
+    # One writer for this key. There were two, and this one silently clobbered
+    # the other, losing the report path and the failure list every time.
     payload = {"metrics": metrics, "criteria": criteria,
-               "pass": all(criteria.values()), "orbits": len(files),
+               "pass": all(criteria.values()), "failed_criteria": failed,
+               "report": str(report_path.resolve()), "orbits": len(files),
                "window_orbits": w}
 
     # Record the verdict with the run as well as in the analysis directory.

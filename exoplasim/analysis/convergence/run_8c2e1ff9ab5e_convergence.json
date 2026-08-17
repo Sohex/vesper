@@ -1,23 +1,23 @@
 {
   "run_dir": "/home/cfutro/docs/world/exoplasim/runs/run_8c2e1ff9ab5e",
-  "completed_orbits": 61,
+  "completed_orbits": 66,
   "window_orbits": 10,
   "metrics": {
-    "temperature_slope_k_per_orbit": 0.0035026772086526963,
-    "toa_balance_slope_w_m2_per_orbit": -0.021882785815850493,
-    "surface_balance_slope_w_m2_per_orbit": -0.018799360011891544,
-    "sea_ice_slope_fraction_per_orbit": 0.00011900155723689852,
-    "mean_toa_balance_w_m2": -0.501412795414356,
-    "mean_surface_balance_w_m2": -0.03825830685496037,
-    "temperature_mean_k": 289.72300511387186,
-    "temperature_last_k": 289.7704849352048,
-    "sea_ice_mean_fraction": 0.015502544596011972,
-    "temperature_asymptote_k": 289.75762313724465,
-    "temperature_asymptote_half_width_k": 0.03461802337276846,
-    "temperature_remaining_offset_k": 0.03461802337276846,
-    "relaxation_orbits_fitted": -341270.4909362233,
+    "temperature_slope_k_per_orbit": 0.006104241082584543,
+    "toa_balance_slope_w_m2_per_orbit": -0.006381486037981995,
+    "surface_balance_slope_w_m2_per_orbit": -0.006033055011680058,
+    "sea_ice_slope_fraction_per_orbit": -0.00017816764190748327,
+    "mean_toa_balance_w_m2": -0.6010225447799961,
+    "mean_surface_balance_w_m2": -0.10027446466889622,
+    "temperature_mean_k": 289.7650170371082,
+    "temperature_last_k": 289.7721162833712,
+    "sea_ice_mean_fraction": 0.01544368853549202,
+    "temperature_asymptote_k": 289.8253471069039,
+    "temperature_asymptote_half_width_k": 0.06033006979572865,
+    "temperature_remaining_offset_k": 0.06033006979572865,
+    "relaxation_orbits_fitted": -275772.14931736985,
     "relaxation_orbits_expected": 9.88330391600209,
-    "remaining_offset_implied_by_drift_k": 0.03461802337276846
+    "remaining_offset_implied_by_drift_k": 0.06033006979572865
   },
   "criteria": {
     "abs_temperature_slope_lt_0.05_k_per_orbit": true,
@@ -29,6 +29,9 @@
     "extrapolated_offset_lt_0.15_k": true
   },
   "sufficiently_equilibrated_for_worldbuilding": false,
+  "failed_criteria": [
+    "abs_mean_toa_lt_0.5_w_m2"
+  ],
   "annual_records": [
     {
       "year_index": 0,
@@ -517,6 +520,46 @@
       "hfns": -0.25322765622787297,
       "sic": 0.015515455323429546,
       "pr": 2.665289041020903
+    },
+    {
+      "year_index": 61,
+      "ts": 289.80651550684877,
+      "ntr": -0.590111651395557,
+      "hfns": -0.03332095549053745,
+      "sic": 0.01532944629416925,
+      "pr": 2.6570665855067084
+    },
+    {
+      "year_index": 62,
+      "ts": 289.8554838517534,
+      "ntr": -0.6676178768167599,
+      "hfns": 0.06521481958632513,
+      "sic": 0.01426526054330335,
+      "pr": 2.6450188325634594
+    },
+    {
+      "year_index": 63,
+      "ts": 289.7980129792802,
+      "ntr": -0.5917974432838128,
+      "hfns": -0.38916035598449666,
+      "sic": 0.015026551140777908,
+      "pr": 2.662979152760266
+    },
+    {
+      "year_index": 64,
+      "ts": 289.74981029435315,
+      "ntr": -0.5619695412707798,
+      "hfns": 0.021031146556649432,
+      "sic": 0.015023111127325982,
+      "pr": 2.649996889286811
+    },
+    {
+      "year_index": 65,
+      "ts": 289.7721162833712,
+      "ntr": -0.6608902074948174,
+      "hfns": -0.1428551623431047,
+      "sic": 0.014553493419311407,
+      "pr": 2.664050923251371
     }
   ]
 }
