@@ -1,10 +1,10 @@
 {
-  "generated": "2026-08-17T03:34:20+00:00",
+  "generated": "2026-08-17T03:38:34+00:00",
   "source_build": "precarve-craton",
   "terrain_hash": "e931b0d9947a232210a3cc11ba82003b5da15765d86e87956bc44c220932760e",
-  "config_sha256": "4dc775f911024a3a41603ab9e46feb9b7faaffc4b5deebfbd88bb104be0825aa",
+  "config_sha256": "68c3f078aef0a3d85b91ff4199d8e8cc40a32f1af5bcbbb40e03085a0d7f5345",
   "generator": "minerals/scripts/build_prospectivity.py",
-  "git_commit": "5573fe637c62f840bf7d3e657ab27b6a41de6a7d",
+  "git_commit": "47310ce07c0d810115c60725348dc86d77425848",
   "deposits": {
     "porphyry_cu": {
       "name": "Porphyry Cu-Mo-Au",
@@ -16,7 +16,7 @@
       "name": "Orogenic gold",
       "land_fraction_nonzero": 0.2287433424129677,
       "land_fraction_above_half": 0.04801320816073822,
-      "mean_over_land": 0.10665902252779737
+      "mean_over_land": 0.1040564483215652
     },
     "vms": {
       "name": "Volcanogenic massive sulphide",

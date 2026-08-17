@@ -62,6 +62,12 @@ deposits:
     # world 59.5% of the arc belt is stripped to granodiorite, so this rule
     # rejects most of the arc rather than accepting all of it, which is the
     # whole point of keying on exhumation.
+    # These weights express the ARC SETTING and its exhumation level, not a host
+    # lithology preference: Sillitoe notes only that host rheology and
+    # composition "may strongly influence the size, grade, and type" of
+    # mineralization, and gives no ranking. Continental arc leads, island arc
+    # follows, and exposed arc root is heavily discounted because reaching it
+    # means the porphyry level has gone.
     hosts: {arc_andesite: 1.0, arc_basalt: 0.6, granodiorite: 0.1}
     require_cover: true
 
@@ -72,30 +78,47 @@ deposits:
     # gate presence -- it selects the mesozonal (6-12 km) and hypozonal (>12 km)
     # deposits, which is what this weighting means. Scales with fold-belt weight
     # and with stress, the available proxy for structural preparation.
-    hosts: {schist: 1.0, gneiss: 0.7, quartzite: 0.5}
+    # Host weights from Groves' facies association: "a strong association of
+    # gold and greenschist facies rocks", with "some significant deposits" in
+    # higher grade terranes and a few extending into granulite facies. So
+    # greenschist-grade schist leads and higher-grade gneiss follows at a
+    # discount. Quartzite was in this list at 0.5 and has been REMOVED: competent
+    # units plausibly act as structural traps, but Groves does not support it and
+    # nothing else here does either.
+    hosts: {schist: 1.0, gneiss: 0.5}
     fold_belt_weight: 1.0
     stress_weight: 0.6
     favour_deep_exhumation: true
 
   vms:
     name: Volcanogenic massive sulphide
-    # Seafloor hydrothermal systems at spreading centres and in back-arcs. On
-    # LAND they exist only where that crust was obducted or accreted, so this
-    # keys on the forearc assemblage and on island-arc volcanics rather than on
-    # ocean floor, which is unreachable.
+    # Hannington (2014) gives the settings directly: the modern analogues are
+    # black smokers "at modern mid-ocean ridges, submarine volcanic arcs, and in
+    # back-arc basins", and he treats ophiolite-hosted massive sulfide as its own
+    # familiar case. All three are represented here, weighted by how reachable
+    # they are on LAND: obducted ophiolite in the forearc leads, island-arc
+    # volcanics follow, and MORB is discounted because ocean floor is not
+    # prospectable.
     hosts: {melange: 1.0, arc_basalt: 0.8, morb: 0.3}
 
   magmatic_nicu:
     name: Magmatic Ni-Cu-PGE
-    # Sulphide segregation in large igneous province feeder systems and layered
-    # intrusions. Keys on the flood-basalt province directly.
+    # Naldrett (2010): these "fall naturally into two major groupings", the
+    # komatiite-related class and the class associated "with flood basaltic
+    # magmatism". Only the second is available here -- his komatiite class
+    # "ranges from 2.7 to 1.9 Ga" and this world has no time axis, so it cannot
+    # be Archean. `oib` carries a small weight as the other expression of plume
+    # magmatism, which is a weaker inference than the flood-basalt entry.
     hosts: {flood_basalt: 1.0, oib: 0.2}
 
   podiform_cr:
     name: Podiform chromite
-    # Mantle sequence of an ophiolite, so it needs obducted ocean crust. Same
-    # domain as VMS and a different level of the same section, which is why both
-    # key on melange.
+    # Arai & Miura (2015): "Podiform chromitites are commonly found within the
+    # Moho transition zone to mantle section of ophiolites, as well as in
+    # non-ophiolitic peridotite massifs", hosted in moderately refractory
+    # harzburgite. So it needs obducted ocean crust and sits in the MANTLE
+    # section -- the same domain as VMS at a different level of the same
+    # ophiolite, which is why both key on melange.
     hosts: {melange: 1.0}
 
   kimberlite:

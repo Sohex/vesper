@@ -82,7 +82,10 @@ one atmospheric state, not a history.
 
 **Anything keyed on absolute age.** Same reason. Deposit types whose defining
 control is "Archean" or "Proterozoic" cannot be placed, only their tectonic
-setting can.
+setting can. The concrete casualty is komatiite-hosted Ni: Naldrett (2010) splits
+magmatic sulphide deposits into a komatiite-related class and a flood-basalt
+class, and puts the komatiite one at 2.7 to 1.9 Ga. Only the flood-basalt class
+is available here, and `magmatic_nicu` keys on it alone.
 
 **Rift-hosted deposits, on the current geography.** `rift_bimodal` is 0% of land
 here, because continental rifting needs two adjacent continental super-plates and
