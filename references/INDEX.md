@@ -15,6 +15,27 @@ Titles are verbatim as the publisher deposited them, verified against Crossref o
 the publisher landing page. Where the published title differs from a preprint's,
 the published form is given.
 
+## Getting a paper
+
+`paperfetch` (in `.venv`) takes a DOI, arXiv id, URL, title or pasted citation,
+identifies the work through Crossref/OpenAlex/arXiv, then walks open access,
+Google Scholar and Sci-Hub until it has a verified PDF. `--batch` takes a list,
+`--audit` re-checks what is already on disk.
+
+**Confirm the DOI first.** A guessed one resolves to a real but wrong paper and
+nothing about the result says so: `10.1016/j.jas.2013.04.016`, guessed for
+Schmidt et al. (2013) on silcrete heat treatment, returned a study of Roman
+cattle morphology. A vague title-only query is the other failure -- three phrased
+as topic descriptions rather than exact titles all matched below 45% similarity.
+Look the identifier up, or quote the published title verbatim.
+
+**Check this file before fetching.** Most of what a question needs is usually
+already here, and re-fetching a paper already marked *read* has happened.
+
+Then file it under the naming convention above and add a row, with *read* or
+*held* set honestly -- an optimistic *read* is exactly the failure this file
+exists to catch.
+
 ---
 
 ## Biosphere: photosynthesis under a non-solar spectrum
