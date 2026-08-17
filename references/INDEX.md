@@ -100,6 +100,26 @@ What the test needs and these do not have: **gauged discharge in km3/yr against 
 stated catchment area**, so that runoff is a depth over the catchment measured
 independently of the lake.
 
+### Dust emission, transport and removal (DUST-1)
+
+Fetched 2026-08-17 to ground `aeolian/config/dust.yaml`. Every constant in that
+file traces to one of these; see `aeolian/README.md` for what the component does
+with them and why its numbers are not yet usable.
+
+| file | citation | status |
+| --- | --- | --- |
+| `kok_2014_an-improved-dust-emission-model-part-1-model-description-and-compariso.pdf` | Kok, Mahowald, Fratini, Gillies, Ishizuka, Leys, Mikami, Park, Park, Van Pelt, Zobeck (2014). *An improved dust emission model - Part 1: model description and comparison against measurements.* Atmos. Chem. Phys. 14, 13023-13041. `10.5194/acp-14-13023-2014` | **read** -- equation 18a and 18b are the emission scheme, with the fitted coefficients Cd0 = (4.4 +/- 0.5)e-5, Ce = 2.0 +/- 0.3, Ca = 2.7 +/- 1.0, and u*st0 = 0.16 m/s for a bed of 100 um loose sand. Chosen over Marticorena-Bergametti because the emitted size distribution comes from fragmentation physics rather than a fit, so there is one fewer knob to tune on a world with no observations to tune against |
+| `kok_2010_a-scaling-theory-for-the-size-distribution-of-emitted-dust-aerosols-su.pdf` | Kok (2011). *A scaling theory for the size distribution of emitted dust aerosols suggests climate models underestimate the size of the global dust cycle.* PNAS 108(3), 1016-1021. `10.1073/pnas.1014798108` | **read** -- equation 6 is the emitted volume size distribution, with Ds = 3.4 +/- 1.9 um, sigma_s = 3.0 +/- 0.4 and the side-crack propagation length lambda = 12 +/- 1 um. This copy is the arXiv version, which carries a 2010 date for a 2011 paper |
+| `fecan_1999_parametrization-of-the-increase-of-the-aeolian-erosion-threshold-wind.pdf` | Fecan, Marticorena, Bergametti (1999). *Parametrization of the increase of the aeolian erosion threshold wind friction velocity due to soil moisture for arid and semi-arid areas.* Ann. Geophys. 17, 149-157. `10.1007/s00585-999-0149-7` | **read** -- equations 14 and 15, the soil-moisture threshold correction: A = 1.21, b = 0.68, and the residual moisture w' = 0.0014 (%clay)^2 + 0.17 (%clay), with a stated mean relative error on w' of about 12% |
+| `marticorena_1995_modeling-the-atmospheric-dust-cycle-1-design-of-a-soilderived-dust-emi.pdf` | Marticorena, Bergametti (1995). *Modeling the atmospheric dust cycle 1: design of a soil-derived dust emission scheme.* JGR 100(D8), 16415-16430. `10.1029/95JD00690` | **read** -- the drag partition, feff = 1 - ln(z0/z0s)/ln(0.35 (X/z0s)^0.8) with X = 10 cm. CAUTION recorded in `aeolian/config/dust.yaml`: this partitions stress between a bed and centimetre-scale roughness ELEMENTS, and feeding it a GCM grid-cell roughness that carries 15 km orographic variance returns zero emission over 99% of this world's source area. It is the wrong input, not a null result |
+| `sportisse_2007_a-review-of-parameterizations-for-modelling-dry-deposition-and-scaveng.pdf` | Sportisse (2007). *A review of parameterizations for modelling dry deposition and scavenging of radionuclides.* Atmos. Environ. 41(13), 2683-2698. `10.1016/j.atmosenv.2006.11.057` | **read in part** -- below-cloud scavenging as Lambda = A p^B with p in mm/h. Table 12 gives the particle-size dependence used here, A = 1.72e-6 and B = 0.61 near 2 um, against 3.49e-6 and 1.09 at 1.66 um; the NAME model's below-cloud snow values, A = 8.05e-5 and B = 0.305, are the top of the bracket |
+
+Not held: **Cakmur, Miller, Torres (2004)**, on integrating dust emission over a
+subgrid wind distribution. The approach is followed and cited in
+`aeolian/config/dust.yaml`, but the Weibull shape parameter is now MEASURED from
+this world's own snapshot climatology rather than taken from that paper, so the
+source is not load bearing.
+
 ## Star: activity, cycles and spectrum
 
 `config/planet.yaml` sets a bolometric cycle of 0.91 to 1.01, i.e. 10.4%

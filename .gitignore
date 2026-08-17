@@ -109,3 +109,8 @@ references/*.html
 references/_*
 references/*.zip
 references/ecospeclib*/
+
+# Offline dust fields, rebuilt in minutes by aeolian/scripts/build_dust.py once a
+# climatology exists. The JSON report beside them IS tracked: it carries the
+# numbers, the brackets and the provenance, and it is kilobytes.
+aeolian/analysis/*.nc

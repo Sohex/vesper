@@ -1,0 +1,117 @@
+{
+  "generated": "2026-08-17T19:47:12.292474+00:00",
+  "git_commit": "6c133d9aef276a822157dabea9ee73c0294b4e19",
+  "variant": "baseline",
+  "note": "Offline dust: emission, transport and deposition from a climatology rather than inside the climate model. notes/dust.md says why; aeolian/README.md says what the numbers mean. The two shelter ends bracket how much the surrounding terrain shields an erodible patch, which this component does not claim to know.",
+  "source_build": "precarve-craton",
+  "terrain_hash": "e931b0d9947a232210a3cc11ba82003b5da15765d86e87956bc44c220932760e",
+  "climatology": "exoplasim/analysis/climatology/bootstrap_regular_climatology.nc",
+  "climatology_sha256": "e5c57e74bdff6fa4ed69e048c6b0816a381f4c66a3a62d118880a23473a73fa1",
+  "config_sha256": "3e5274699aca5964f522cf3a2494c7cf642ce4a962d99d1dac4b86a428f2313c",
+  "dust_config_sha256": "262f0d6c15fa2c1b3b3b96ac23542550ee0ad8e22d7dc58f2f8e0bb1bacce8fc",
+  "lake_solution": "hydrography/data/precarve-craton/surface_water.nc",
+  "grid": {
+    "resolution": "T42",
+    "latitudes": 64,
+    "longitudes": 128,
+    "time_bins": 12
+  },
+  "size_bins": [
+    {
+      "edges_um": [
+        0.1,
+        1.0
+      ],
+      "mass_fraction_emitted": 0.0078,
+      "mean_diameter_um": 0.742
+    },
+    {
+      "edges_um": [
+        1.0,
+        2.5
+      ],
+      "mass_fraction_emitted": 0.0636,
+      "mean_diameter_um": 1.869
+    },
+    {
+      "edges_um": [
+        2.5,
+        5.0
+      ],
+      "mass_fraction_emitted": 0.2019,
+      "mean_diameter_um": 3.834
+    },
+    {
+      "edges_um": [
+        5.0,
+        20.0
+      ],
+      "mass_fraction_emitted": 0.7267,
+      "mean_diameter_um": 9.367
+    }
+  ],
+  "source_map": {
+    "erodible_weights": {
+      "playa_clastic": 1.0,
+      "evaporite": 0.1
+    },
+    "erodible_fraction_of_land": 0.1638,
+    "land_fraction": 0.4317
+  },
+  "mass_extinction_efficiency_m2_kg": 771.62,
+  "subgrid_wind": {
+    "weibull_shape_used": 3.9755179797148945,
+    "measured_from": "exoplasim/analysis/climatology/bootstrap_snapshot_climatology.nc",
+    "note": "Measured from the 32 instantaneous samples of the snapshot climatology, not declared. It is an UPPER bound on the shape and so a LOWER bound on emission, because samples 5.7 days apart resolve synoptic but not sub-daily variance. Emission spans two orders of magnitude across the plausible range of this one parameter, which is the headline uncertainty of this component."
+  },
+  "shelter_bracket": {
+    "low": {
+      "aeolian_z0_m": 3e-06,
+      "global_emission_Tg_per_earth_year": 12915048.386,
+      "land_mean_aod": 195.36484,
+      "global_mean_aod": 186.68213,
+      "max_aod": 669.9407,
+      "land_mean_deposition_g_m2_per_earth_year": 15565.7885,
+      "max_deposition_g_m2_per_earth_year": 56888.079,
+      "transport_converged": false
+    },
+    "central": {
+      "aeolian_z0_m": 0.0001,
+      "global_emission_Tg_per_earth_year": 3401214.744,
+      "land_mean_aod": 51.97785,
+      "global_mean_aod": 48.972,
+      "max_aod": 201.4797,
+      "land_mean_deposition_g_m2_per_earth_year": 4124.8634,
+      "max_deposition_g_m2_per_earth_year": 17043.121,
+      "transport_converged": false
+    },
+    "high": {
+      "aeolian_z0_m": 0.001,
+      "global_emission_Tg_per_earth_year": 325434.207,
+      "land_mean_aod": 4.99278,
+      "global_mean_aod": 4.68524,
+      "max_aod": 19.9921,
+      "land_mean_deposition_g_m2_per_earth_year": 395.7327,
+      "max_deposition_g_m2_per_earth_year": 1687.027,
+      "transport_converged": false
+    }
+  },
+  "reopening_test": {
+    "from": "notes/dust.md",
+    "land_mean_aod_threshold": 0.1,
+    "forcing_threshold_w_m2": 1.5,
+    "land_mean_aod_range": [
+      4.99278,
+      195.36484
+    ],
+    "crosses": true,
+    "forcing_is_DUST_2": "this script does not price the forcing"
+  },
+  "caveats": [
+    "No dust-climate feedback: the climatology is an input and does not respond. That is what makes this defensible offline and it is also its limit.",
+    "Vegetation cover is not modelled. Non-barren land is assumed to carry a canopy and not emit, which is the project's declared position and is generous on a world whose median land runoff is a few mm per Earth year. The `arid_bare_ground` variant brackets it.",
+    "Dust is a well-mixed column of declared scale height advected by a single steering wind, not a three-dimensional tracer.",
+    "The evaporite erodible weight is a declared suppression for crust cementation, not a measured efficiency, and it is the widest bracket in aeolian/config/dust.yaml.",
+    "The shelter bracket spans a factor that is not a small correction: feeding MB95 the cell-mean roughness shuts emission off almost everywhere, and treating the patch as exposed removes shelter that is physically real."
+  ]
+}
