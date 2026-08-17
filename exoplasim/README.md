@@ -78,8 +78,9 @@ It is a worldbuilding interpretation, not a dynamic vegetation simulation.
 ## What the flux sweeps established
 
 The measurements are in `notes/parameter-decisions.md` with the terrain and
-spectrum each was made on, and the current calibration is in
-`analysis/error_budget.json`. Two results from them are methodological and
+spectrum each was made on. The flux calibration is an analysis product rather
+than a stored value: regenerate it with `scripts/error_budget.py` once a current
+climatology exists. Two results from them are methodological and
 outlive any particular terrain.
 
 **The response is strongly nonlinear across the ice-albedo transition**, so a
@@ -180,11 +181,6 @@ the best measurement of that slope, because it turns on sea ice and the Planck
 response rather than on which basins are bright. A mean surface temperature from
 the same run does not survive at all. Judge each quoted number by which of those
 it is.
-
-`analysis/climatology_s096/` is superseded as a description of this world. It was
-computed on the pre-carve terrain, under the k2 spectrum, and it is what the
-antipodal carve verdict was taken from. Its numbers remain valid for the surface
-they were computed on.
 
 The stellar spectrum was wrong for three eras -- `k2.dat` is the star K2-18, an
 M2.5V, not a K dwarf -- but fixing it changed absorbed shortwave by 0.04 W/m2 on

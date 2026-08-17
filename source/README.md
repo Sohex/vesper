@@ -62,7 +62,7 @@ carry `basin_index == -1`. The naive union misses exactly those and silently
 floods them. `surface_class` is the only correct source.
 
 `surface_class == 2` (`inland_water`) is **empty**, by design rather than
-oversight -- and filling it is now done downstream: `hydrography/surface_water.py`
+oversight -- and filling it is now done downstream: `hydrography/scripts/surface_water.py`
 solves lake extent and `build_surface_albedo.py --lakes` carries it into the
 climate as a composite albedo. Orogen measures basin geometry but never decides water levels -- that
 is a precipitation-versus-evaporation balance and belongs downstream. A large fraction of

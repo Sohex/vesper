@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated": "2026-08-17T00:50:01.248304+00:00",
-  "git_commit": "1f262bee1bb7e66cc8bc58434a4e6e226d64506d",
+  "generated": "2026-08-17T00:59:17.105543+00:00",
+  "git_commit": "90e94e5ce2987b29d9555d091e6fba91c75493fd",
   "generator": "scripts/world_state.py",
   "note": "Generated from the artifacts. Do not edit; re-run the generator. Judgement that no artifact can supply is in `curated`, which lives in the generator under version control.",
   "planet": {
@@ -152,41 +152,9 @@
     "drainage": null,
     "basins": null,
     "carve_verdict": {
-      "bounds": {
-        "penman": {
-          "basins_carved": 749,
-          "endorheic_land_km2": 150807638.5576172,
-          "lake_area_km2": 3957340.353176504,
-          "dry_survivors": 1451,
-          "wet_survivors": 318,
-          "basins_without_runoff": 1451,
-          "lake_area_fraction_of_planet": 0.005387854230956205,
-          "solver_converged": true,
-          "median_aridity_index": -0.6221145171986254
-        },
-        "wet": {
-          "basins_carved": 1089,
-          "endorheic_land_km2": 140918913.87544012,
-          "lake_area_km2": 5246360.2969172485,
-          "dry_survivors": 1451,
-          "wet_survivors": 139,
-          "basins_without_runoff": 1451,
-          "lake_area_fraction_of_planet": 0.007142833822766093,
-          "solver_converged": true,
-          "median_aridity_index": -1.0
-        }
-      },
-      "agreement": {
-        "carve_under_both": 749,
-        "survive_under_both": 1451,
-        "disputed": 340
-      },
-      "penman_ocean_validation": {
-        "penman_mm_per_day": 3.736,
-        "model_mm_per_day": 3.672,
-        "ratio": 1.017,
-        "note": "Ocean cells are already open water, so this is a direct check."
-      }
+      "bounds": null,
+      "agreement": null,
+      "penman_ocean_validation": null
     },
     "carve_list": null
   },

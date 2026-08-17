@@ -19,8 +19,8 @@ the published form is given.
 
 ## Biosphere: photosynthesis under a non-solar spectrum
 
-The largest single item in `analysis/error_budget.json`: bare rock versus
-vegetated is worth about +4 K, so what the biosphere does under a K dwarf sets
+The largest single item in the error budget (`scripts/error_budget.py`): bare
+rock versus vegetated is worth about +4 K, so what the biosphere does under a K dwarf sets
 where the planet is placed. `biosphere/notes/productivity-prediction.md`
 concludes that widening the photosynthetic window from 400-700 to 400-750 nm
 takes photon flux from 0.81x Earth to 0.99x -- near parity -- and that conclusion
@@ -47,8 +47,8 @@ arXiv preprint, and these files are the preprints.
 
 ## Hydrography: evaporation over dry ground
 
-`analysis/error_budget.json` lists "Penman over a dry land column" as the only
-item whose magnitude is unknown, and its sign is one-way: over a subgrid lake in
+The error budget (`scripts/error_budget.py`) lists "Penman over a dry land
+column" as the only item whose magnitude is unknown, and its sign is one-way: over a subgrid lake in
 a dry column, VPD is too high, E is overstated, and the carve verdict
 under-carves. These quantify that.
 
@@ -142,7 +142,7 @@ closed-basin surfaces. Resolved: cooling everywhere. See `notes/dust.md`.
 Fetched 2026-08-16 for the derived-surface-class work: deriving diatomite,
 duricrust, deflation armour and loess as products of surface process history
 rather than as rock types Orogen could know about. See `notes/dust.md` and
-`pedology/analysis/phosphorus_budget.json`.
+`pedology/scripts/phosphorus_budget.py`.
 
 ## Bodélé Depression and biogenic lacustrine phosphorus
 

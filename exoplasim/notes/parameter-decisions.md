@@ -739,7 +739,11 @@ below. The offset is under 0.05 K.
 
 ### The cold-regime slope, measured 2026-08-16
 
-Two 60-orbit T42 runs on `precarve-zoned-g1281` bracketing the 0.945 baseline:
+Two 60-orbit T42 runs on `precarve-zoned-g1281` bracketing the 0.945 baseline.
+Both runs have since been archived and their output deleted; the ids below
+resolve under `archive/runs/`, which keeps each run's manifest, convergence
+assessment and climate series. The measurement stands -- a flux slope turns on
+sea ice and the Planck response, not on which terrain produced it.
 
 | flux | run | mean T | fitted asymptote | sea ice |
 | --- | --- | --- | --- | --- |

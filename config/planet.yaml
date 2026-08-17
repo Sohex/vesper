@@ -217,7 +217,7 @@ radiation:
 # PARTLY DETERMINED. Sea ice and glaciers are decided. `mixed_layer_depth_m` is
 # NOT: 50 m is a default, it sets seasonal amplitude, and this world's year is
 # half Earth's so it damps seasonality about twice as hard as Earth's ocean does.
-# `analysis/error_budget.json` carries it as a structural item awaiting one
+# `scripts/error_budget.py` emits it as a structural item awaiting one
 # perturbation run.
 surface:
   mixed_layer_depth_m: 50.0

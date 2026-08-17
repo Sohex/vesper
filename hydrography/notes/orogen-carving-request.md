@@ -223,7 +223,8 @@ We keep our own flood rather than reading `drainage_terminal`, because it also
 produces the filled surface the hypsometry is built from, and because an
 independent implementation is what surfaced the last two routing bugs. The
 comparison is now a standing regression check recorded in
-`hydrography/data/hydrography_report.json` under `cross_check_vs_export_routing`.
+`hydrography/data/<build>/hydrography_report.json` under
+`cross_check_vs_export_routing`.
 
 ## One correction, on the reported percentage rather than the routing
 

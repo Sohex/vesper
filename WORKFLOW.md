@@ -138,7 +138,7 @@ cover and subgrid relief rather than from lake extent: giving a lake cell water'
 roughness without a water column's heat capacity would cut turbulent exchange 10x
 and leave it decoupled and hot. And no setting of 229 can
 sustain a lake, because routed river water never re-enters the evaporating
-bucket. See `notes/lake-representation.md`.
+bucket. See `exoplasim/notes/lake-representation.md`.
 
 ### 3.3 Climate
 

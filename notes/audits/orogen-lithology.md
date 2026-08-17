@@ -177,7 +177,7 @@ years of MODIS, Pilot Valley 0.64 annual mean. Wetting is a first-order switch -
 flooding. On a dust-loaded, periodically flooded endorheic world the low end is
 not exotic, and at 1.7 W/m2 per 0.10 the measured spread is worth about
 +/-4 W/m2. **A static 0.50 is wrong by up to 0.28 wherever
-`hydrography/surface_water.py` puts standing water or a damp crust**, which is a
+`hydrography/scripts/surface_water.py` puts standing water or a damp crust**, which is a
 coupling the albedo build should carry and currently does not. `LITH-13`.
 
 Two smaller corrections, both supported:

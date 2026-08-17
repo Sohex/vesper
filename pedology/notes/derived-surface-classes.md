@@ -296,7 +296,7 @@ class to a Meybeck lithology, weights the released chemistry over each basin's
 catchment, and applies the divide. All 3,629 basins resolve, and the split is
 lopsided: about 90% of them, holding roughly 93% of endorheic catchment area, sit
 on the alkaline side, with Ca/HCO3 running from 0.41 to 1.39 and a median near
-0.82. Current values are in `pedology/analysis/brine_paths.json`.
+0.82. Current values come from `pedology/scripts/brine_paths.py`; run it.
 
 The 20-to-10 rock class mapping is a judgment and is written out in full rather
 than defaulted, since a silent default would push every unmatched class to one

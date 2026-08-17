@@ -54,15 +54,26 @@ Built for T42 and T85.
 
 ## Products
 
+Everything under `data/` is **per build**, written to `data/<source_build>/`.
+The paths below are shown relative to that directory. There is no flat
+fallback and `component_data` is strict about it: a flat `data/basins.nc`
+would hold whichever build was active when it was last written, and pairing
+one terrain's rows with another's columns is a failure this project has
+already had.
+
 | File | Contents |
 | --- | --- |
-| `data/regions.nc` | per mesh region: resolved terminal, depression-filled surface |
-| `data/basins.nc` | per basin: hypsometric curves, spill level and target, catchment area, capacity |
-| `data/coupling_<grid>.nc` | sparse basin-by-grid-cell catchment areas |
-| `data/hydrography_report.json` | diagnostics, river mouths, marginal seas, provenance |
-| `data/surface_water.nc` | per region: lake, lake depth, river discharge; per basin: solved area, level, volume, overflow |
+| `data/<build>/regions.nc` | per mesh region: resolved terminal, depression-filled surface |
+| `data/<build>/basins.nc` | per basin: hypsometric curves, spill level and target, catchment area, capacity |
+| `data/<build>/coupling_<grid>.nc` | sparse basin-by-grid-cell catchment areas |
+| `data/<build>/hydrography_report.json` | diagnostics, river mouths, marginal seas, provenance |
+| `data/<build>/surface_water.nc` | per region: lake, lake depth, river discharge; per basin: solved area, level, volume, overflow |
 | `analysis/lake_balance_sweep.json` | solver sensitivity under placeholder forcing |
 | `analysis/surface_water_report.json` | the solved water balance and its forcing |
+
+None of these exist right now: every one was computed on a superseded terrain
+and was archived and deleted. They come back when the component is re-run on
+the current build.
 
 ## The lake solver
 
