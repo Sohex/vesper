@@ -404,6 +404,19 @@ compilation -- Moosdorf's GLiM class set omits `ev` entirely -- so that endmembe
 rests on Frumkin's denudation rates, which are solutional rather than
 stream-power measurements.
 
+### Fresh regolith texture: what LITH-23 went looking for
+
+Fetched 2026-08-17 to ground the primary clay fractions in
+`pedology/config/pedogenesis.yaml`. The search failed in an instructive way and
+the outcome is recorded in that file: the quantity is not a rock property, so no
+per-lithology table of it exists to be looked up.
+
+| file | citation | status |
+| --- | --- | --- |
+| `bockheim_1980_solution-and-use-of-chronofunctions-in-studying-soil-development.pdf` | Bockheim (1980). *Solution and use of chronofunctions in studying soil development.* Geoderma 24(1), 71-85. `10.1016/0016-7061(80)90035-X` | **read** -- the one that settles the question by not answering it. Parent-material clay across the compiled studies spans **under 2% to 38%**, and the rate of clay accumulation correlates with the clay content of the parent material rather than with climate. The spread is dominated by whether the material is till, alluvium or in-situ residuum, which is why a per-rock-type table of fresh regolith clay does not exist: comminution history sets it, not lithology |
+| `1987_soils-developed-in-granitic-alluvium-near-merced-california.pdf` | Harden (1987). *Soils developed in granitic alluvium near Merced, California.* USGS Bulletin 1590-A. `10.3133/b1590a` | held -- the granitic chronosequence, 0.2 ka to 3 Ma. Reports clay as **g/cm2 of profile mass**, not as a fraction, and the per-horizon particle-size tables are in supplementary material not carried by this PDF. Also alluvium rather than in-situ residuum, which is the wrong comminution path for a model whose regolith is produced in place |
+| `chadwick_2003_the-impact-of-climate-on-the-biogeochemical-functioning-of-volcanic-so.pdf` | Chadwick, Gavenda, Kelly, Ziegler, Olson, Elliott, Hendricks (2003). *The impact of climate on the biogeochemical functioning of volcanic soils.* Chem. Geol. 202(3-4), 195-223. `10.1016/j.chemgeo.2002.09.001` | held -- the Hawaii substrate-age and climate matrix on basalt, and geochemical rather than physical: no particle-size tables. Useful later for the andisol and phosphorus work rather than for texture |
+
 ## Rock density
 
 | file | citation | status |
