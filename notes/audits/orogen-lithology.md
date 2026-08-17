@@ -467,12 +467,40 @@ denominator and omits the dry sub-sea-level floors:
 | volcanic | 3.01% | 6.2% | 0.5x |
 | evaporite | 2.85% | 0.3% | 9.5x |
 
-The evaporite excess is plausibly the endorheic setting -- Earth is about
-one-fifth endorheic by catchment and this world is far more -- but Earth's
-evaporite *outcrop* is 0.3% against that one-fifth, so the relationship is not
-linear and 9.5x wants an argument rather than an assumption. The volcanic
-shortfall and the metamorphic excess are unexplained and may point at archetype
-weighting. `LITH-5`.
+### Re-measured on the arc-bearing build, 2026-08-16
+
+The table above was measured before the arc and forearc rules could fire. With
+them firing the picture changes enough that two of its three flagged divergences
+are gone and a new one has appeared:
+
+| group | ratio to GLiM, before | after |
+| --- | --- | --- |
+| volcanic | 0.49x | **1.28x** |
+| metamorphic | 2.06x | **1.42x** |
+| plutonic | 1.65x | **2.71x** |
+| carbonate | 0.71x | **0.49x** |
+| evaporite | 9.50x | 9.49x |
+| playa fill | 0.97x | 0.97x |
+| siliciclastic | 0.83x | 0.80x |
+
+**The volcanic shortfall was the unreachable arc rules**, and it is now a mild
+excess rather than a factor of two deficit. The metamorphic excess halved for
+the same reason: schist lost ground to the forearc.
+
+**Two new things to explain, and they are probably one thing.** Plutonic doubled,
+because `granodiorite` is the unroofed arc root and that rule fires now too;
+carbonate fell, because the arc band and forearc province are COASTAL and
+overwrite exactly the shelf where carbonate is assigned. So the arc fix moved
+four groups, and the two that got worse are both consequences of arc terrain
+appearing where shelf terrain used to be. Whether that is right is a question
+about how wide the forearc province should be at 15 km resolution, not about
+archetype weighting.
+
+**Evaporite is untouched at 9.5x and is now the only unexplained divergence.**
+It is plausibly the endorheic setting -- Earth is about one-fifth endorheic by
+catchment and this world is far more -- but Earth's evaporite *outcrop* is 0.3%
+against that one-fifth, so the relationship is not linear and 9.5x still wants
+an argument rather than an assumption. `LITH-5`.
 
 **GLiM's largest land class has no Orogen counterpart at all**: unconsolidated
 sediment, 24.6% of Earth's land, including alluvium 4.1%, dune sand 5.3% and
