@@ -77,6 +77,16 @@ is the same order as the discharge term rather than swamping it.
 retain is the larger of the two. Where the two evaporation estimates disagree
 about whether a basin overflows, the rim is kept.
 
+**That second term has never once decided anything, and it cannot.** Taking the
+larger of the two lets the margin raise a retain, never lower one, and the margin
+is positive exactly when the basin does not overflow -- which is exactly when the
+incision term is already 1. The two conditions are the same condition, read off
+the sign of `Q` either way. Measured on the first real verdict: zero basins of
+3,621 where `retain_margin` exceeds `retain_incision`, and `retain` equals
+`retain_incision` everywhere. The expression is kept and reported in the sidecar
+because it is the honest statement of how close a preserved basin sits to its
+threshold, which is worth reading; it is not a second input to the cut.
+
 ## The same change fixes the dry pans, by construction
 
 The old test divided by catchment runoff, so a basin with none was undefined and
@@ -105,12 +115,41 @@ join is by mesh region index and it resolves for every basin, with the terrain
 hash on `basins.nc` verified against the export's before the lookup runs, since a
 region index does not survive a terrain change.
 
-Not checked against a real verdict, because no build has a climatology yet. Two
-things to look at on the first one: how many basins land between 0 and 1 for
-having too little discharge rather than too much uncertainty, and whether the
-lake-fed spillers are a handful or a large population. The second decides whether
-`Q_full` is worth calibrating. That is HYD-6.
-
 What is still missing from the stream-power law is the slope term, `S^n`. The
 saddle geometry that would give it is sub-grid, and unlike the rock it is not in
 the export.
+
+## The first real verdict, and what it says about Q_full
+
+Measured 2026-08-17 on `precarve-craton` under the baseline climatology, 3,621
+basins: 1,580 carved, 30 marginal, 2,011 preserved.
+
+All 30 are marginal for want of discharge. None is marginal for uncertainty, for
+the structural reason given above, and there are **no lake-fed spillers at all**:
+every basin that overflows has catchment runoff doing it. So the case the
+discharge test was rewritten to handle exists in the algebra and not on this
+terrain, which is the right way round -- the old ratio test would have been
+undefined for it either way.
+
+**`Q_full` is not worth calibrating**, and the discharge distribution is why. The
+30 marginal basins overflow at 0.008 to 1.70 m3/s; the carved ones have a median
+of 234 m3/s, a ninety-fifth percentile of 1,916 and a maximum of 38,650. The
+boundary sits in an almost empty part of the distribution, so moving it costs
+little:
+
+| `Q_full` at land-mean rock | carve | marginal | preserve |
+| ---: | ---: | ---: | ---: |
+| 0.1 m3/s | 1605 | 5 | 2011 |
+| 1.0 (declared) | 1580 | 30 | 2011 |
+| 10 | 1490 | 120 | 2011 |
+| 100 | 1127 | 483 | 2011 |
+
+An order of magnitude either way takes the marginal count from 0.1% of basins to
+3.3%. Two orders take it to 13%, which is where it would start to matter, and
+100 m3/s is not a defensible reading of "perennial stream". The preserved count
+does not move at all at any value, because it is set by the overflow test and not
+by the incision mapping.
+
+The number to keep an eye on instead is the 2,011: that is the overflow test, and
+it is decided by the open-water evaporation, which is where the uncertainty
+actually lives.

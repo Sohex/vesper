@@ -428,23 +428,35 @@ the binned climatology carries corrupted winds, the obvious fix is to drop it
 from the Penman wind the carve verdict uses. **That fix would have made the
 number worse**, and only measuring the whole chain showed why.
 
-Three quantities, bottom level, global area-weighted, measured on the bootstrap
-climatology:
+Bottom level, global area-weighted, on the baseline climatology:
 
 | quantity | m/s |
 | --- | ---: |
-| binned `spd`, all 12 bins, what the consumers currently use | 7.732 |
-| binned `spd`, excluding the corrupt bin 0 | 4.997 |
-| snapshot `spd`, 32 instantaneous samples | 7.488 |
+| binned `spd`, all 12 bins, what the consumers used | 8.411 |
+| binned `spd`, excluding the corrupt bin 0 | 5.033 |
+| `sqrt(ua^2+va^2)` from the binned components | 3.922 |
+| snapshot `spd`, 32 instantaneous samples an orbit | 7.356 |
 
-**What explains the 1.5x is mundane, and I got it wrong the first time.**
-`build_climatology.py` averages across the five orbits of its window. In that
-average `ua` and `va` combine as VECTORS while `spd` combines as a SCALAR, so
-`sqrt(mean_ua^2 + mean_va^2)` lands below `mean(spd)`. The discrepancy is a
-property of the climatology product, not of the model: in the raw per-orbit
-snapshots there is none at all, 7.501 against 7.501, and within a bin `spd` runs
-only 1.185x the speed of the bin-mean vector, which is ordinary within-bin
-variance over four days.
+Dropping the bad bin turns a 14% error into a 32% one, in the other direction.
+
+**The mechanism is in the model's output accumulation, and I got it wrong twice
+before getting it right.** In the snapshots `spd` is exactly `sqrt(ua^2+va^2)`,
+ratio 1.000 and correlation 1.0000 at every level on every orbit, so the field is
+what it claims and the snapshot value is the mean of instantaneous speeds. The
+binned `spd` is not the same average of the same thing: it lands between the
+speed of the time-mean vector and the mean of the speeds, because the records
+pyburn averages have already been accumulated over an output interval by the
+model, and a vector accumulated over an interval loses whatever reverses inside
+it. With a 30-hour day and a ~1-day output interval, that is most of a diurnal
+cycle.
+
+**Locating an averaging error means finding the earliest artifact that has it.**
+My second explanation put the vector averaging in `build_climatology.py`, on the
+grounds that it averages five orbits and `ua`, `va` combine as vectors there
+while `spd` combines as a scalar. That is true and it is not the cause: the gap
+is already 5.002 against 7.342 within a SINGLE orbit's pyburn output, which
+`build_climatology.py` has not touched. One measurement on the upstream artifact
+would have shown that, and I reasoned about the code instead.
 
 **The wrong mechanism, recorded because it was nearly paved into a component.**
 I concluded instead that `ua` and `va` on sigma levels carried a cos(phi) factor
@@ -461,13 +473,18 @@ there, which mimics a 1/cos signature closely enough to pass a casual test. My
 own test returned 0.88 to 1.08 in mid-latitudes and 0.41 to 0.62 at the poles,
 and I read the polar failure as the approximation breaking down rather than as
 the refutation it was.
-**A turbulent flux wants the mean of the speed**, because the aerodynamic term
-is essentially linear in wind speed. That is 7.488, the snapshot number.
 
-So the currently used 7.732 is high by 3.3%, and it is high by 3.3% because a
-+55% error from the corrupt bin and a -33% error from vector averaging nearly
-cancel. Dropping bin 0 alone would have taken it to 4.997 and made a 3% error
-into a 33% one, in a quantity the carve verdict is sensitive to.
+**A turbulent flux wants the mean of the speed**, because the aerodynamic term
+is essentially linear in wind speed. That is the snapshot number, and it is what
+the consumers now read.
+
+The value in use was high, and it was high by an amount that depended on the run,
+because a large positive error from the corrupt bin and a large negative one from
+the interval accumulation partly cancelled. On the bootstrap climatology the
+residual was 3.1% and the cancellation looked almost complete, which is what made
+the whole thing look ignorable; on the baseline it is 14%. **Do not carry a
+cancellation from one run to another.** Neither error is a property of the world,
+so nothing constrains them to keep the same ratio.
 
 **Two rules, and the second is the one that nearly did damage.**
 

@@ -92,10 +92,9 @@ def climate_fields(config):
         rss, rls = cv.annual_mean(ds, "rss"), cv.annual_mean(ds, "rls")
         ts, tas = cv.annual_mean(ds, "ts"), cv.annual_mean(ds, "tas")
         ps_pa = cv.annual_mean(ds, "ps") * 100.0
-        q_air = np.asarray(ds["hus"][:]).mean(axis=0)[-1]
-        wind = np.asarray(ds["spd"][:]).mean(axis=0)[-1]
         lat = np.asarray(ds["lat"][:])
         lon = np.asarray(ds["lon"][:])
+    q_air, wind = cv.turbulent_forcing(clim)
 
     runoff = np.clip(pr - evap, 0.0, None)
 

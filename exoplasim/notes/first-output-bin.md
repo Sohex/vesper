@@ -90,30 +90,59 @@ so a partial first interval is the most likely trigger.
 
 ## What to do about it
 
-**Exclude bin 0 from any average over the time axis of a wind or humidity
-field.** Do not exclude it from scalars, where it is within noise and dropping it
-would discard a twelfth of the year for nothing.
+**Wind is read from the snapshot product, humidity from the binned one with the
+first record dropped.** `hydrography/scripts/carve_verdict.py:turbulent_forcing`
+is the single place that does it, and the other two Penman consumers call it.
 
-**But do not assume that dropping it gives the number a flux calculation wants.**
-Three quantities disagree in this run and only the first is explained here:
+The two fields need different treatment because only one of them has a second
+problem. Measured on the baseline climatology, bottom level, area-weighted:
 
-| quantity | bottom-level global mean |
+| | m/s |
 | --- | ---: |
-| binned `spd`, all 12 bins | 7.732 m/s |
-| binned `spd`, bins 1-11 | 4.997 |
-| snapshot `spd`, 32 instantaneous samples | 7.488 |
-| `sqrt(ua^2+va^2)` from binned components, bins 1-11 | 3.38 |
-| `sqrt(ua^2+va^2)` from snapshots, per sample then averaged | 5.03 |
+| binned `spd`, all 12 bins | 8.411 |
+| binned `spd`, bins 1-11 | 5.033 |
+| `sqrt(ua^2+va^2)` from the binned components, bins 1-11 | 3.922 |
+| snapshot `spd`, 32 instantaneous samples an orbit | 7.356 |
+| `sqrt(ua^2+va^2)` from the snapshots, per sample then averaged | 7.356 |
 
-The gap between the magnitude of a mean and the mean of a magnitude accounts for
-part of this, since a time-mean of vector components understates a mean speed.
-What it does not account for is `spd` disagreeing with `sqrt(ua^2+va^2)` by about
-1.5x in the snapshots, where both should be instantaneous. Code 259 is not
-written by `outmod.f90`, so `burn7` derives it, and which frequency it derives it
-at decides which of these numbers a Penman calculation should read. That is open;
-see CLIM-2.
+**In the snapshots `spd` is exactly `sqrt(ua^2+va^2)`.** Ratio 1.000, correlation
+1.0000, at every model level and on all five orbits of the climatology. So code
+259 is the instantaneous wind speed and there is nothing to resolve about what it
+means. An earlier reading of this table had the two disagreeing by 1.5x in the
+snapshots; they do not.
 
-The practical consequence today is that the uncorrected Penman wind of 7.73 m/s
-is within 3% of the snapshot value of 7.49, so a correction that only removes
-bin 0 would move it to 5.00 and could be a larger error than the one it fixes.
-Resolve what code 259 is before correcting any consumer.
+**The binned `spd` is the one that is not what it looks like.** It sits between
+the speed of the time-mean vector, 3.922, and the mean of instantaneous speeds,
+7.356 -- so the model's output accumulation cancels the reversing component over
+each output interval, and pyburn then averages twelve of those. That is a
+partially vector-averaged speed, and a bulk aerodynamic formula wants the mean of
+the speed. The snapshot product gives it, at 32 samples an orbit: coarse, but
+unbiased, which the binned product is not.
+
+So for wind, dropping bin 0 was never the fix. It takes 8.411 to 5.033 and the
+answer is 7.356.
+
+**For humidity there is no snapshot to switch to** -- `hus` is absent from the
+snapshot output despite code 133 being requested -- and none is needed, because
+the binned mean is the right kind of average and only the one record is bad.
+Dropping it costs a twelfth of the seasonal cycle. That is worth 0.08%:
+reconstructing the record by cyclic interpolation from its neighbours instead
+gives an annual mean 0.08% from simply dropping it, against the 2.1% the
+uncorrected mean is out by.
+
+**Do not drop it from anything else.** Every scalar is within 2% and dropping a
+bin there discards a twelfth of the year for nothing.
+
+The repair is gated on detecting the defect, by the first bin's global-mean
+bottom-level wind exceeding three times the median of the others. The observed
+factor is 7 to 9 and no seasonal cycle approaches 3. A climatology from an
+`NLOWIO = 0` run passes through untouched.
+
+## What this cost before it was found
+
+The uncorrected Penman wind of 8.411 m/s was 14% high, not the 3% a comparison
+against a different run had suggested, and it fed the carve verdict, the lake
+solution and the soil. The near-cancellation of two errors is what made it look
+harmless: the corrupt record inflates and the vector averaging deflates, and how
+completely they cancel depends on the run. Do not carry a cancellation between
+runs.

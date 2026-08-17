@@ -78,3 +78,47 @@ def climatology_path(name: str | None = None, root: Path | None = None) -> Path:
             "config/planet.yaml has no `baseline_climatology`. Name one there "
             "or pass --climatology; there is deliberately no fallback.")
     return project / declared
+
+
+def snapshot_sibling(regular: Path) -> Path:
+    """The instantaneous-sample product beside a binned climatology.
+
+    Two fields have to be read from here rather than from the binned product:
+    wind speed and specific humidity.
+
+    Wind wants it on the physics. A turbulent flux is driven by the mean of the
+    SPEED, and the binned `spd` is much closer to the speed of a time-mean
+    vector, which cancels where the wind reverses: 5.14 m/s per orbit against
+    7.50 from instantaneous samples over the same orbits.
+
+    Humidity wants it because of a defect. PlaSim's low-I/O path wrote a corrupt
+    first output record per model call -- in these same two fields -- and a
+    binned mean carries it. Runs from 2026-08-17 set `NLOWIO = 0` and no longer
+    produce it, but every climatology built before that does; see
+    `exoplasim/notes/first-output-bin.md`. The two errors happened to run
+    opposite ways, so the uncorrected binned wind was within 3.1% of this and
+    dropping the bad record alone would have been 33% low.
+
+    Taken from the given path rather than from config, so a `--climatology`
+    override stays self-consistent.
+    """
+    regular = Path(regular)
+    stem = regular.name
+    if "_regular_climatology.nc" not in stem:
+        raise ValueError(
+            f"{regular} is not a *_regular_climatology.nc, so its snapshot "
+            "sibling cannot be named; pass the binned product")
+    snapshot = regular.with_name(
+        stem.replace("_regular_climatology.nc", "_snapshot_climatology.nc"))
+    if not snapshot.is_file():
+        raise FileNotFoundError(
+            f"no snapshot climatology at {snapshot}. Wind and humidity are read "
+            "from instantaneous samples, not from the binned mean; rebuild the "
+            "climatology so both products exist.")
+    return snapshot
+
+
+def snapshot_climatology_path(name: str | None = None,
+                              root: Path | None = None) -> Path:
+    """`snapshot_sibling` of the configured climatology."""
+    return snapshot_sibling(climatology_path(name, root=root))

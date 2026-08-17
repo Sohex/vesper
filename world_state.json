@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated": "2026-08-17T21:31:28.119089+00:00",
-  "git_commit": "01dfe6ed6cb360a82d9e535e9c036eeadac810a0",
+  "generated": "2026-08-17T21:51:54.718352+00:00",
+  "git_commit": "d65696a77f006da8c1fd056c917a80c16f7b959d",
   "generator": "scripts/world_state.py",
   "note": "Generated from the artifacts. Do not edit; re-run the generator. Only derived values live here. Findings are in `notes/`, with their evidence, and open work is in `TASKS.md`.",
   "planet": {
@@ -258,10 +258,57 @@
       "capacity_vs_natural_catalogue": 0.7554447634588477
     },
     "carve_verdict": {
-      "bounds": null,
-      "agreement": null,
-      "penman_ocean_validation": null
+      "bounds": {
+        "penman": {
+          "basins_carved": 1610,
+          "endorheic_land_km2": 172935540.28324676,
+          "lake_area_km2": 8845770.515239824,
+          "dry_survivors": 1580,
+          "wet_survivors": 498,
+          "basins_without_runoff": 1580,
+          "lake_area_fraction_of_planet": 0.012043372023421414,
+          "solver_converged": true,
+          "median_aridity_index": -0.910135014439083
+        },
+        "wet": {
+          "basins_carved": 2041,
+          "endorheic_land_km2": 160535164.2974465,
+          "lake_area_km2": 6492257.509165766,
+          "dry_survivors": 1580,
+          "wet_survivors": 169,
+          "basins_without_runoff": 1580,
+          "lake_area_fraction_of_planet": 0.008839102520241535,
+          "solver_converged": true,
+          "median_aridity_index": -1.0
+        }
+      },
+      "agreement": {
+        "carve_under_both": 1610,
+        "survive_under_both": 1580,
+        "disputed": 431
+      },
+      "penman_ocean_validation": {
+        "penman_mm_per_day": 3.736,
+        "model_mm_per_day": 3.672,
+        "ratio": 1.017,
+        "note": "Ocean cells are already open water, so this is a direct check."
+      }
     },
-    "carve_list": null
+    "carve_list": {
+      "counts": {
+        "carve": 1580,
+        "preserve": 2011,
+        "marginal": 30
+      },
+      "terrain_hash": "e931b0d9947a232210a3cc11ba82003b5da15765d86e87956bc44c220932760e",
+      "climate": {
+        "resolution": "T42",
+        "flux_earth": 0.945,
+        "stellar_spectrum": "k25v",
+        "land_surface": "vegetated",
+        "mean_surface_temperature_k": 289.79,
+        "note": "The land surface is assumed rather than modelled, and the albedo bracket puts that assumption at 3.7 to 7.1 K."
+      }
+    }
   }
 }

@@ -56,6 +56,7 @@ import yaml
 from _paths import ANALYSIS, CONFIG, DATA, PROJECT_ROOT  # noqa: F401
 from builds import component_data
 from orbit import orbital_year_days
+from paths import climatology_path, snapshot_sibling
 from lake_balance import BasinSet, carve_verdict, solve
 
 DRHSFULL = 0.4          # landmod.f90: wetness reaches 1 above this fraction
@@ -74,6 +75,65 @@ SIGMA_LOWEST = 0.9828   # lowest model level
 def saturation_vapour_pressure(temp_k):
     """Buck/Tetens saturation vapour pressure over water, Pa."""
     return 610.94 * np.exp(17.625 * (temp_k - 273.15) / (temp_k - 30.11))
+
+
+# A first output record whose global-mean bottom-level wind exceeds this
+# multiple of the other records' median is the low-I/O defect, not weather. The
+# observed factor is 7 to 9 and no seasonal cycle approaches 3, so the gate is
+# wide on purpose: it must not fire on a clean climatology.
+BAD_FIRST_BIN_WIND_RATIO = 3.0
+
+
+def _area_weights(ds, shape):
+    lat = np.asarray(ds["lat"][:])
+    return np.broadcast_to(np.cos(np.deg2rad(lat))[:, None], shape)
+
+
+def turbulent_forcing(climatology):
+    """Near-surface wind speed and specific humidity for the Penman calculation.
+
+    Everything else Penman needs is a time mean of a field that means the same
+    thing averaged. These two are not, and they are wrong in different ways, so
+    they are read differently.
+
+    **Wind comes from the instantaneous product.** A turbulent flux is driven by
+    the mean of the SPEED, and the binned `spd` is not that: on the baseline
+    climatology it is 5.03 m/s at the bottom level against 3.92 for the speed of
+    the time-mean vector and 7.34 for the mean of instantaneous speeds. It sits
+    between the two, so the model's output accumulation cancels part of the
+    reversing component. The snapshot product does not: in it `spd` equals
+    `sqrt(ua^2 + va^2)` sample by sample, ratio 1.000 and correlation 1.0000 at
+    every level, which is what the field is supposed to be and settles what code
+    259 means. 32 samples an orbit is coarse but unbiased.
+
+    **Humidity comes from the binned product with the first record dropped.**
+    There is no `hus` in the snapshot output to switch to, and the binned mean
+    does not need switching, only repairing: PlaSim's low-I/O path wrote a
+    corrupt first record per orbit -- in the wind and humidity fields only -- and
+    it is 27% low in humidity. Dropping it costs a twelfth of the seasonal cycle,
+    which is worth 0.08% here: reconstructing that record by cyclic interpolation
+    from its neighbours instead gives an annual mean 0.08% away from simply
+    dropping it, against the 2.1% the uncorrected mean is out by. Runs from
+    2026-08-17 set `NLOWIO = 0` and do not produce the record, so the repair is
+    gated on detecting it and a clean climatology passes through untouched. See
+    `exoplasim/notes/first-output-bin.md`.
+
+    Split out so the verdict, the carve list and the surface-water solve cannot
+    drift apart on it, which is how they came to disagree before.
+    """
+    with Dataset(snapshot_sibling(climatology)) as ds:
+        spd = np.asarray(ds["spd"][:])[:, -1]
+        wind = spd.mean(axis=0)
+
+    with Dataset(climatology) as ds:
+        hus = np.asarray(ds["hus"][:])[:, -1]
+        binned = np.asarray(ds["spd"][:])[:, -1]
+        w = _area_weights(ds, binned.shape[1:])
+    per_bin = np.array([np.average(b, weights=w) for b in binned])
+    if per_bin[0] > BAD_FIRST_BIN_WIND_RATIO * np.median(per_bin[1:]):
+        hus = hus[1:]
+    q_air = hus.mean(axis=0)
+    return q_air, wind
 
 
 def penman_open_water(ts, tas, q_air, wind, ps_pa, rss, rls, land_albedo, gravity):
@@ -199,9 +259,6 @@ def main() -> None:
     if args.basins is None:
         args.basins = _build_data / "basins.nc"
     if args.climatology is None:
-        import sys as _sys
-        _sys.path.insert(0, str(PROJECT_ROOT / "pedology" / "scripts"))
-        from _paths import climatology_path
         args.climatology = climatology_path()
 
     config = yaml.safe_load(args.config.read_text(encoding="utf-8"))
@@ -221,8 +278,7 @@ def main() -> None:
         ps_pa = annual_mean(ds, "ps") * 100.0          # hPa -> Pa
         rss = annual_mean(ds, "rss")
         rls = annual_mean(ds, "rls")
-        q_air = np.asarray(ds["hus"][:]).mean(axis=0)[-1]    # lowest level
-        wind = np.asarray(ds["spd"][:]).mean(axis=0)[-1]
+    q_air, wind = turbulent_forcing(args.climatology)
 
     # Background albedo as supplied to the run, for backing shortwave out of rss.
     # Read directly rather than importing from the ExoPlaSim component: both

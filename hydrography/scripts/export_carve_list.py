@@ -3,13 +3,14 @@
 
 Three outcomes per basin, and the middle one is the point:
 
-  carved     Both evaporation estimates say the basin overflows. Retain 0, which
-             Orogen treats as not preserved, so drainage enforcement carves the
-             outlet as it would have without preservation at all.
-  preserved  Neither estimate says it overflows. Retain 1, rim intact.
-  marginal   The two estimates disagree. Retain between 0 and 1, which cuts a
-             notch at the saddle and tapers it over the divide band, producing a
-             through-flowing valley with a residual lake.
+  carved     The basin overflows, and with enough discharge to cut its sill
+             through within the relaxation window. Retain 0, which Orogen treats
+             as not preserved, so drainage enforcement carves the outlet as it
+             would have without preservation at all.
+  preserved  The basin does not overflow. Retain 1, rim intact.
+  marginal   The basin overflows but only trickles over. Retain between 0 and 1,
+             which cuts a notch at the saddle and tapers it over the divide band,
+             producing a through-flowing valley with a residual lake.
 
 Retain is what Orogen cuts with, so it answers a geomorphic question: how much of
 the rim survives the water crossing it. Two separate things decide that, and they
@@ -46,10 +47,16 @@ No absolute time-to-cut is attempted even so. What this mapping carries is the
 ordering, which the previous one did not have at all: a trickle and a torrent
 both went out at retain 0.
 
-**The uncertainty is a third thing, and it is kept apart.** The two evaporation
-estimates disagree over a band of basins, and where we do not know whether a
-basin overflows, the rim is kept. So retain is the larger of the incision value
-and the margin below, since either is a reason to leave a rim standing.
+**The uncertainty is a third thing, it is kept apart, and it turns out not to
+decide anything.** Retain is the larger of the incision value and the margin
+below, on the reasoning that either is a reason to leave a rim standing. But
+taking the larger lets the margin raise a retain and never lower one, and the
+margin is positive exactly when the basin does not overflow, which is exactly
+when the incision term is already 1. Both read the sign of the same `Q`, so
+`retain` equals `retain_incision` on every basin -- measured, 0 of 3,621 where it
+does not. The margin is still computed and still written to the sidecar, because
+how close a preserved basin sits to its threshold is worth reading; it is not a
+second input to the cut, and a marginal count is a discharge statement.
 
 A basin balances exactly at an evaporation of `E* = P + critical * runoff`. Under
 the Penman estimate it evaporates `E_penman`. The fractional margin
@@ -90,6 +97,7 @@ import carve_verdict as cv
 from _paths import CONFIG, DATA, PROJECT_ROOT  # noqa: F401
 from builds import component_data
 from orbit import orbital_year_days
+from paths import climatology_path
 from orogen import Export
 from lake_balance import BasinSet
 
@@ -241,8 +249,6 @@ def main() -> None:
     if args.out_json is None:
         args.out_json = _bd / "carve_list.json"
     if args.climatology is None:
-        sys.path.insert(0, str(PROJECT_ROOT / "pedology" / "scripts"))
-        from _paths import climatology_path
         args.climatology = climatology_path()
 
     config = yaml.safe_load(args.config.read_text(encoding="utf-8"))
@@ -254,9 +260,8 @@ def main() -> None:
         pr, evap, mrro = am(ds, "pr"), -am(ds, "evap"), am(ds, "mrro")
         ts, tas = am(ds, "ts"), am(ds, "tas")
         ps_pa, rss, rls = am(ds, "ps") * 100.0, am(ds, "rss"), am(ds, "rls")
-        q_air = np.asarray(ds["hus"][:]).mean(axis=0)[-1]
-        wind = np.asarray(ds["spd"][:]).mean(axis=0)[-1]
         field_lon = np.asarray(ds["lon"][:])
+    q_air, wind = cv.turbulent_forcing(args.climatology)
 
     land_albedo = cv.read_sra_field(
         PROJECT_ROOT / "exoplasim" / "inputs" / resolution.lower()
