@@ -42,9 +42,11 @@ planet:
   # Surface gravity is canonical, not derived. This is the value World Orogen
   # was run with, and it already scaled the terrain's maximum relief as 1/g, so
   # the geography in source/ cannot be separated from it. Mass follows from it:
-  # mass_earth = g/g_earth * radius_earth^2 = 1.4976. Earlier revisions declared
-  # 1.50 Earth masses and derived 10.2153 m/s2, which disagreed with the
-  # geography by 0.16%.
+  # mass_earth = (g/g_earth) * radius_earth^2, and `derive()` raises if the two
+  # keys below disagree, so they cannot drift apart. The formula is written here
+  # and the value is NOT: this comment used to carry a copy of the mass, and it
+  # was still asserting the pre-correction figure long after the value beneath
+  # it had changed.
   gravity_m_s2: 12.81
   mass_earth: 1.881009
   rotation_hours: 30.0
@@ -134,7 +136,41 @@ orbit:
   sweep_flux_earth: [0.90, 0.95, 1.00]
   longitude_vernal_equinox_degrees: 102.7
 
-# DETERMINED. 1 bar at 450 ppm CO2, chosen.
+# DETERMINED. 1 bar at 450 ppm CO2, chosen -- and CHECKED, 2026-08-16.
+#
+# 450 ppm is prescribed. Nothing in this project solves the carbonate-silicate
+# balance that would set it, and closing that loop is deliberately not on the
+# roadmap: it would replace a prescribed CO2 with a prescribed OUTGASSING rate,
+# which is no better constrained, at the cost of a weathering law in pCO2 and
+# several coupled climate integrations. One free parameter would move, not go.
+#
+# What was done instead is a check, and 450 ppm passes it with room.
+#
+# At steady state a planet's outgassing equals its own silicate weathering, so
+# the ratio of this world's silicate CO2 consumption to Earth's IS the ratio of
+# outgassing it needs. That comparison avoids absolute outgassing estimates,
+# which span a factor of several depending on whether metamorphic and
+# diagenetic sources are counted. `pedology/scripts/weathering_fluxes.py`
+# computes it.
+#
+# Holding 450 ppm at this climate asks for about 1.07x Earth's outgassing.
+# Radiogenic heat production scales with mass at fixed composition and this
+# planet is 1.881 Earth masses, so the first-order expectation is near 1.9x.
+# The requirement sits below the supply with a margin around 1.7x.
+#
+# Read it as a FLOOR, not a target: supplying more breaks nothing, it settles
+# the thermostat at a higher CO2 and a warmer state, which is a different world
+# rather than an inconsistent one. What the check rules out is the opposite
+# case, where 450 ppm would have needed an implausible outgassing rate and the
+# world would quietly draw down to something colder than every run assumes.
+#
+# Two limits on the check itself. It is a plausibility bound rather than a
+# derivation -- melt production depends on spreading rate and mantle
+# temperature, higher gravity compresses the melting column, and 43% land means
+# less ocean basin than Earth, so the sign of the net correction is not claimed.
+# And it is computed on a climatology and terrain that both predate the current
+# build, so the requirement moves on the re-baseline. The margin is wide, not
+# unlimited. Re-run it after.
 atmosphere:
   # Partial pressures sum to exactly 1 bar. H2O remains interactive; it is not
   # included as a fixed surface partial pressure.

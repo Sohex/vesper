@@ -3,9 +3,12 @@
 How geography, climate, water and life are computed for this planet, in what
 order, and why the order is not a straight line.
 
-Vesper is a super-Earth: 1.2 Earth radii, surface gravity 10.1989 m/s2, a 30-hour
-day, 32 degrees of obliquity and e = 0.02, orbiting a K2.5V dwarf. Those are
-declared in `config/planet.yaml` and do not move.
+Vesper is a super-Earth orbiting a K2.5V dwarf: larger than Earth, higher
+gravity, a longer day, and more obliquity. Every one of those is declared in
+`config/planet.yaml`, which is the only place they are written down. They are
+stable rather than immutable -- the gravity has been corrected once, and the
+prose copies of it that were scattered through this repo all went stale at that
+moment while continuing to read as current.
 
 The flux, the year, the active build and the mean surface temperature do move,
 every iteration. They are in `world_state.json`, which is generated; see section

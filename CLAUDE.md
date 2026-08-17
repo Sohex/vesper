@@ -277,18 +277,27 @@ notes that a planet code encodes sliders only, never radius or gravity.
 To re-render them:
 
 ```bash
+# Gravity and radius are read from the config rather than typed, because a typed
+# copy of either renders the maps for a planet this project no longer has. Run
+# these two from the repo root, before cd-ing.
+GRAV=$(python -c "import yaml;print(yaml.safe_load(open('config/planet.yaml'))['planet']['gravity_m_s2'])")
+RAD=$(python -c "import yaml;print(yaml.safe_load(open('config/planet.yaml'))['planet']['radius_earth']*6371)")
+
 cd vendor/orogen
 node --max-old-space-size=12288 tools/export-maps.mjs \
     --code 01eshm059lt0b9mpgro2y83t \
-    --radius 7645.2 --gravity 10.1989 --width 16384
+    --radius $RAD --gravity $GRAV --width 16384
 ```
 
 ## Planet parameters
 
-`config/planet.yaml` is the single source of truth. Radius 1.2 R⊕, gravity
-10.1989 m/s² (1.04 g⊕, implying 1.4976 M⊕), 30 h rotation, 32° obliquity,
-e = 0.02, around a K2.5V star (0.80 M☉, 0.3236 L☉, 4965 K). 1 bar atmosphere at
-450 ppm CO₂.
+`config/planet.yaml` is the single source of truth, and the values are not
+copied here. Read them from it. This paragraph used to restate the gravity and
+the mass derived from it; both were superseded by a gravity correction and went
+on reading as current in six files at once.
+
+Mass is not an independent parameter: gravity is declared, radius is declared,
+and `derive()` raises if `planet.mass_earth` disagrees with them.
 
 **Gravity is declared, not derived**, and Orogen's value is canonical. Mass is
 what follows.
@@ -318,10 +327,7 @@ are **bit-identical in every hash**, `finalElevation`, `basinCatalogue` and
   diagnostic, which says so.
 - `orog_mean/std/min/max` are declared `units: 'km'` and are neither scaled nor
   converted through the hypsometric curve -- they are raw model units. We do not
-  consume them. Anything that starts to must convert them first. Earlier revisions declared 1.50 M⊕ and
-derived 10.2153 m/s², disagreeing with the geography by 0.16%. `derive()` now
-reads `planet.gravity_m_s2` and raises if `planet.mass_earth` is inconsistent
-with it, so the two cannot drift apart again.
+  consume them. Anything that starts to must convert them first.
 
 The `model:` block in `planet.yaml` is ExoPlaSim-specific (resolution, layers,
 timestep, output cadence). The rest is world-level. Do not split the file

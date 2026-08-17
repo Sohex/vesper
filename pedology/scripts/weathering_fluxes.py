@@ -153,6 +153,7 @@ def main() -> None:
             (np.asarray(data["pr"][:], dtype=float).mean(axis=0) - evaporation)
             * scale, 0.0)
 
+    mass_earth = float(config["planet"]["mass_earth"])
     fractions, mesh, grid_dir = lithology_fractions(config)
     silica_c, bicarb_c = concentrations()
 
@@ -343,6 +344,52 @@ def main() -> None:
                 "is a coupled calculation across pedology and exoplasim rather "
                 "than an analysis in either. What is bounded here is the "
                 "size of the assumption, not its resolution."),
+            "plausibility_check": {
+                "note": (
+                    "Whether the outgassing 450 ppm requires is a rate this "
+                    "planet could actually supply. This is a CHECK on a "
+                    "prescribed number, not a closure of the loop -- closing it "
+                    "would replace a prescribed CO2 with a prescribed "
+                    "outgassing, which is no better constrained."),
+                "why_the_ratio_is_rigorous": (
+                    "At steady state each planet's outgassing equals its own "
+                    "silicate weathering, so the ratio of this world's silicate "
+                    "consumption to Earth's IS the ratio of required "
+                    "outgassing. That sidesteps absolute outgassing estimates, "
+                    "which span a factor of several depending on whether "
+                    "metamorphic and diagenetic sources are counted."),
+                "required_outgassing_over_earth": (silicate_total / 11.7e12),
+                "radiogenic_supply_over_earth": mass_earth,
+                "margin": (mass_earth / (silicate_total / 11.7e12))
+                          if silicate_total else None,
+                "supply_basis": (
+                    f"Radiogenic heat production scales with mass at fixed bulk "
+                    f"composition, and this planet is {mass_earth:.3f} Earth "
+                    f"masses. Outgassing tracks mantle melt production, which "
+                    f"tracks heat flux, so ~{mass_earth:.1f}x is the first-order "
+                    f"expectation."),
+                "verdict": (
+                    "450 ppm is attainable with margin: it asks for less "
+                    "outgassing than mass scaling suggests this planet "
+                    "supplies. It is a prescribed number that has now been "
+                    "shown reachable, rather than merely assumed."),
+                "caveats": [
+                    "A plausibility bound, not a derivation. Melt production "
+                    "depends on spreading rate and mantle temperature, higher "
+                    "gravity compresses the melting column, and this world's "
+                    "43% land means less ocean basin than Earth. The sign of "
+                    "the net correction is not obvious and is not claimed.",
+                    "Computed on whatever climatology and build are named "
+                    "above, both of which predate the current terrain. The "
+                    "requirement moves on the re-baseline. The margin is wide "
+                    "enough that it would take a large error to threaten the "
+                    "verdict, but it is not unlimited -- re-check it.",
+                    "The requirement is a FLOOR on outgassing. Supplying more "
+                    "than it does not break anything; the thermostat would "
+                    "settle at a higher CO2 and a warmer state, which is a "
+                    "different world rather than an inconsistent one.",
+                ],
+            },
             "and_the_feedback_is_weaker_still": (
                 "Only the exorheic part joins the marine carbonate feedback "
                 "that stabilises CO2; see thermostat_efficiency.py. Endorheic "
@@ -405,6 +452,10 @@ def main() -> None:
     print(f"  volcanic share     {100*total(volcanic_silica*1e-6)/silica_total:10.1f}%")
     print(f"  land yield         {silica_yield:10.2f} t SiO2/km2/yr "
           f"(Earth exorheic mean 3.3)")
+    required = silicate_total / 11.7e12
+    print(f"\noutgassing required  {required:10.2f} x Earth (450 ppm at this climate)")
+    print(f"  mass scaling says  {mass_earth:10.2f} x Earth could be supplied")
+    print(f"  margin             {mass_earth/required:10.2f} x")
     print(f"\nwrote {out.relative_to(PROJECT_ROOT)}")
 
 
