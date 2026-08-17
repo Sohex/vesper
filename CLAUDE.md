@@ -41,27 +41,14 @@ none of them is advice.
    a rebuild only refreshes the configuration you ran. `.venv` is untracked, and
    reinstalling it silently discards every applied patch.
    `python exoplasim/scripts/rebuild_binaries.py`, then `--verify`.
-5. **Pointing one component at another's output is a decision. Make it one.**
-   Two mechanisms, and prefer the first:
-   - **Namespace it.** Write per build, to `<component>/data/<source_build>/`,
-     and resolve with `builds.component_data(..., strict=True)`. A mismatch is
-     then impossible rather than merely detectable.
-   - **Stamp and check it**, where an artifact cannot be namespaced because it
-     is large or shared. The producer records `source_build`; the consumer calls
-     `lib/provenance.py:require_build` at the point of reading. A superseded
-     climatology has the same grid, variables and units as a current one, so
-     without this it yields a plausible number instead of an error.
-
-   No silent defaults across that boundary. A default that resolves to another
-   component's latest output is an assumption wearing the costume of a
-   convenience.
-6. **Generated things get a UUID and a manifest, never a derived name.** A name
-   built from parameters separates runs only along the dimensions it encodes,
-   and that set is just a list of what someone thought of at the time. Both
-   ExoPlaSim and LPJ-GUESS runs collided this way. What a run *was* belongs in
-   its `run_manifest.json`, under a `physical` block, and in
-   `exoplasim/runs/INDEX.json` -- which is tracked even though the output is
-   not. Ask the index what exists; never guess or derive a name.
+5. **Pointing one component at another's output is deliberate, never
+   defaulted.** Namespace per build and resolve with
+   `builds.component_data(..., strict=True)`, or stamp `source_build` on the
+   artifact and verify it with `lib/provenance.py:require_build` at the point of
+   reading. That module says why; `check_consistency.py` enforces it.
+6. **Generated runs get a UUID, never a derived name.** A parameter-built name
+   separates runs only along the dimensions it encodes. ExoPlaSim and LPJ-GUESS
+   both collided that way. Ask `exoplasim/runs/INDEX.json` what exists.
 7. **`source/` is read-only. Add a build; never overwrite one.**
 8. **Before an expensive run**, and after changing `source_build`:
 

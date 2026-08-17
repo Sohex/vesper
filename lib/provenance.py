@@ -33,6 +33,12 @@ verifies it here. That is what this module is for.
 
 Use `require_build` at the point of reading, not at the end. A check that runs
 after the expensive part has already used the wrong input still wastes the run.
+
+And do not put a silent default across a component boundary. A default that
+resolves to another component's latest output is an assumption wearing the
+costume of a convenience: it is right until the day it is not, and on that day
+it produces a number rather than an error. Require the argument, or resolve it
+per build and strictly.
 """
 
 from __future__ import annotations
