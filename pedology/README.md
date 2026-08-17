@@ -103,8 +103,8 @@ capacity. It was once quoted as 14.6x, which was a mismatch of reference values
 rather than a bracket; "A unit error was inflating the headline uncertainty"
 below has the arithmetic.
 
-**This world's land runoff ratio is 18.8% against Earth's roughly 35%**: drier
-than Earth, and not extraordinarily so. It was read as 2.8% for a while and
+**This world's land runoff ratio is a sixth against Earth's roughly a third**:
+drier than Earth, and not extraordinarily so. It was read as 2.8% for a while and
 blamed on the climate model, on the grounds that ExoPlaSim's `configure()` clears
 every surface field when handed a landmap, so soil field capacity falls back to a
 uniform namelist default. Both halves of that were wrong. `mrro` is river-routed
