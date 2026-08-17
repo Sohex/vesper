@@ -1,6 +1,6 @@
 {
-  "generated": "2026-08-17T20:12:58.807293+00:00",
-  "git_commit": "becc295b247d272144ee83620cf409e5e3824f2b",
+  "generated": "2026-08-17T20:17:53.611052+00:00",
+  "git_commit": "5b3b865842c62b0d6220377f3303cdbada40fad1",
   "variant": "baseline",
   "note": "Offline dust: emission, transport and deposition from a climatology rather than inside the climate model. notes/dust.md says why; aeolian/README.md says what the numbers mean. The two shelter ends bracket how much the surrounding terrain shields an erodible patch, which this component does not claim to know.",
   "source_build": "precarve-craton",
@@ -72,21 +72,21 @@
     "low": {
       "aeolian_z0_m": 3e-06,
       "global_emission_Tg_per_earth_year": 3381.412,
-      "land_mean_aod": 0.05137,
-      "global_mean_aod": 0.03131,
-      "max_aod": 2.1325,
-      "land_mean_deposition_g_m2_per_earth_year": 4.2653,
-      "max_deposition_g_m2_per_earth_year": 204.415,
+      "land_mean_aod": 0.05965,
+      "global_mean_aod": 0.03713,
+      "max_aod": 2.1745,
+      "land_mean_deposition_g_m2_per_earth_year": 4.8012,
+      "max_deposition_g_m2_per_earth_year": 207.958,
       "transport_converged": true
     },
     "central": {
       "aeolian_z0_m": 0.0001,
       "global_emission_Tg_per_earth_year": 19.724,
-      "land_mean_aod": 0.00017,
-      "global_mean_aod": 0.00012,
-      "max_aod": 0.03,
-      "land_mean_deposition_g_m2_per_earth_year": 0.0151,
-      "max_deposition_g_m2_per_earth_year": 2.767,
+      "land_mean_aod": 0.00021,
+      "global_mean_aod": 0.00015,
+      "max_aod": 0.0346,
+      "land_mean_deposition_g_m2_per_earth_year": 0.0178,
+      "max_deposition_g_m2_per_earth_year": 3.175,
       "transport_converged": true
     },
     "high": {
@@ -106,7 +106,7 @@
     "forcing_threshold_w_m2": 1.5,
     "land_mean_aod_range": [
       0.0,
-      0.05137
+      0.05965
     ],
     "crosses": false,
     "forcing_is_DUST_2": "this script does not price the forcing"

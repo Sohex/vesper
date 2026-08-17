@@ -469,22 +469,22 @@ def main() -> None:
 
     rho_a = ps / (R_DRY * tas)
     u_bottom = spd[:, -1, :, :]
-    # `ua` and `va` on SIGMA levels are u*cos(phi) and v*cos(phi), not physical
-    # winds: burn7 applies its RevCosPhi rescaling only in the pressure-level
-    # path (burn7.cpp:4542, and gated on `selected` at that). Verified against
-    # code 259, which IS physical: spd matches |ua,va|/cos(phi) to within 5%
-    # everywhere outside the polar rows, where 1/cos diverges.
+    # `ua` and `va` are PHYSICAL winds and need no rescaling. Checked against
+    # the raw artifact rather than inferred from burn7's source: on
+    # MOST_SNAP.00086 the largest pointwise difference between `spd` and
+    # sqrt(ua^2 + va^2) is 1.9e-06 m/s, and the ratio is 1.0000 at 82 degrees
+    # where cos(phi) is 0.134. A cos(phi) factor could not hide there.
     #
-    # Advecting on the unscaled components would understate transport by cos(phi)
-    # -- a factor of two by 60 degrees -- so they are divided here. The polar
-    # floor is the same one the advection solver uses and for the same reason.
-    coslat = np.maximum(np.cos(np.deg2rad(lat)),
-                        cfg["transport"].get("polar_coslat_floor", 0.2))[:, None]
+    # A previous version of this file divided by cos(phi) on the strength of
+    # `RevCosPhi` appearing in burn7.cpp's pressure-level path. That was wrong
+    # and it is recorded in TASKS.md as CLIM-4, closed wontfix, so nobody
+    # rediscovers the same false lead in the same source file.
     sel = lev >= cfg["transport"]["steering_sigma"]
     if not np.any(sel):
-        sel = np.zeros_like(lev, dtype=bool); sel[-3:] = True
-    ua_col = np.average(ua[:, sel, :, :], axis=1) / coslat
-    va_col = np.average(va[:, sel, :, :], axis=1) / coslat
+        sel = np.zeros_like(lev, dtype=bool)
+        sel[-3:] = True
+    ua_col = np.average(ua[:, sel, :, :], axis=1)
+    va_col = np.average(va[:, sel, :, :], axis=1)
 
     f_eff = drag_efficiency(z0, cfg)
     clay_pct = np.nan_to_num(clay, nan=0.0) * 100.0

@@ -437,25 +437,30 @@ climatology:
 | binned `spd`, excluding the corrupt bin 0 | 4.997 |
 | snapshot `spd`, 32 instantaneous samples | 7.488 |
 
-**Two independent facts had to be established before any of those could be
-called right.**
+**What explains the 1.5x is mundane, and I got it wrong the first time.**
+`build_climatology.py` averages across the five orbits of its window. In that
+average `ua` and `va` combine as VECTORS while `spd` combines as a SCALAR, so
+`sqrt(mean_ua^2 + mean_va^2)` lands below `mean(spd)`. The discrepancy is a
+property of the climatology product, not of the model: in the raw per-orbit
+snapshots there is none at all, 7.501 against 7.501, and within a bin `spd` runs
+only 1.185x the speed of the bin-mean vector, which is ordinary within-bin
+variance over four days.
 
-First, `spd` (code 259) is the physical wind speed and `ua`/`va` on SIGMA levels
-are not physical winds: they are u*cos(phi) and v*cos(phi). `burn7.cpp` applies
-its `RevCosPhi` rescaling only in the pressure-level path, at line 4542 and
-gated on `selected`. Measured, `spd` matches `|ua,va|/cos(phi)` to within 5%
-everywhere outside the polar rows, where 1/cos diverges. So
-`sqrt(ua^2 + va^2)` is the wrong field by a factor that reaches two by 60
-degrees, and anything advecting on those components is understating transport.
+**The wrong mechanism, recorded because it was nearly paved into a component.**
+I concluded instead that `ua` and `va` on sigma levels carried a cos(phi) factor
+and were not physical winds, from `RevCosPhi` appearing in `burn7.cpp`'s
+pressure-level path at line 4542, supported by a ratio that grew with latitude.
+It is refuted pointwise on the raw artifact: on `MOST_SNAP.00086` the largest
+difference between `spd` and `sqrt(ua^2 + va^2)` anywhere in the field is
+**1.9e-06 m/s**, and the ratio is 1.0000 at 82 degrees where cos(phi) is 0.134.
+A cos(phi) factor cannot hide at 82 degrees.
 
-Second, the binned and snapshot products are not the same average. The model
-vector-averages u and v over each bin before burn7 sees them, so binned `spd` is
-the speed of the TIME-MEAN VECTOR. The snapshot file holds instantaneous fields,
-so its `spd` is the MEAN OF INSTANTANEOUS SPEED. The ratio between the two
-products is 1.45, and the mean-of-speed over speed-of-mean ratio computed
-independently from the snapshot components is 1.59 -- agreeing to 9%, which is
-what confirms the reading.
-
+The latitude dependence that convinced me is real and has the other cause:
+wind direction varies more at high latitude, so vector averaging cancels more
+there, which mimics a 1/cos signature closely enough to pass a casual test. My
+own test returned 0.88 to 1.08 in mid-latitudes and 0.41 to 0.62 at the poles,
+and I read the polar failure as the approximation breaking down rather than as
+the refutation it was.
 **A turbulent flux wants the mean of the speed**, because the aerodynamic term
 is essentially linear in wind speed. That is 7.488, the snapshot number.
 
@@ -464,8 +469,23 @@ So the currently used 7.732 is high by 3.3%, and it is high by 3.3% because a
 cancel. Dropping bin 0 alone would have taken it to 4.997 and made a 3% error
 into a 33% one, in a quantity the carve verdict is sensitive to.
 
-**The rule.** When a bug is found in one term of a chain, measure the chain
-before correcting the term. A compensating error is not a reason to leave a bug
-in place, but it decides what the correction has to be: here the fix is to read
-the snapshot product, which is right for the right reason, rather than to patch
-the binned one, which would be wrong in a new direction.
+**Two rules, and the second is the one that nearly did damage.**
+
+When a bug is found in one term of a chain, measure the chain before correcting
+the term. A compensating error is not a reason to leave a bug in place, but it
+decides what the correction has to be: here the fix is to read the snapshot
+product, which is right for the right reason, rather than to patch the binned
+one, which would be wrong in a new direction.
+
+**And a mechanism that explains the right number can still be the wrong
+mechanism.** The cos(phi) story predicted the observed 1.5x, was consistent with
+a real line of source code, and was wrong. Agreement with the number you are
+trying to explain is the weakest possible evidence for a mechanism, because the
+number is what you selected the mechanism to reproduce. The test that settles it
+is the one the mechanism makes a DIFFERENT prediction for -- here, the poles,
+where cos(phi) is 0.134 and the story demanded a ratio of 7.5. That test was
+available, I ran a version of it, and I explained away the disagreement instead
+of accepting it.
+
+This project's standing rule covers it and I did not apply it: check the claim
+against the artifact, not against the source that suggested it.
