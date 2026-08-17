@@ -171,9 +171,9 @@ def basin_means(coupling: Path, fields: dict[str, np.ndarray], n_basins: int,
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--climatology", type=Path,
-                    default=Path("exoplasim/analysis/climatology_s096/"
-                                 "baseline_regular_climatology.nc"))
+    ap.add_argument("--climatology", type=Path, default=None,
+                    help="regular climatology; defaults to config's "
+                         "baseline_climatology")
     # Defaults resolve to the ACTIVE BUILD's directory, not the flat data/.
     #
     # They used to default to flat, which held another terrain entirely: 2,107
@@ -182,17 +182,27 @@ def main() -> None:
     # of its fix, which this project has now written down twice. component_data
     # is strict, so a missing per-build directory raises here rather than
     # falling back to a file from a terrain nobody chose.
-    _build_data = component_data("hydrography", strict=True)
-    ap.add_argument("--coupling", type=Path,
-                    default=_build_data / "coupling_exoplasim-T42.nc")
+    # Resolved AFTER parse_args, so --help does not need a build to exist.
+    ap.add_argument("--coupling", type=Path, default=None)
     ap.add_argument("--config", type=Path, default=CONFIG)
     # Per-build, like the coupling matrix it must be paired with. Reading the
     # flat data/ while being handed another build's coupling is a row/column
     # mismatch, which is how this surfaced: an IndexError only because the basin
     # counts happened to differ.
-    ap.add_argument("--basins", type=Path, default=_build_data / "basins.nc")
+    ap.add_argument("--basins", type=Path, default=None)
     ap.add_argument("--output", type=Path, default=ANALYSIS / "carve_verdict.json")
     args = ap.parse_args()
+
+    _build_data = component_data("hydrography", strict=True)
+    if args.coupling is None:
+        args.coupling = _build_data / "coupling_exoplasim-T42.nc"
+    if args.basins is None:
+        args.basins = _build_data / "basins.nc"
+    if args.climatology is None:
+        import sys as _sys
+        _sys.path.insert(0, str(PROJECT_ROOT / "pedology" / "scripts"))
+        from _paths import climatology_path
+        args.climatology = climatology_path()
 
     config = yaml.safe_load(args.config.read_text(encoding="utf-8"))
     basins = BasinSet(args.basins)

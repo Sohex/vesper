@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated": "2026-08-17T00:17:10.759347+00:00",
-  "git_commit": "64b73509dab300466741e980df4f151a39514c87",
+  "generated": "2026-08-17T00:50:01.248304+00:00",
+  "git_commit": "1f262bee1bb7e66cc8bc58434a4e6e226d64506d",
   "generator": "scripts/world_state.py",
   "note": "Generated from the artifacts. Do not edit; re-run the generator. Judgement that no artifact can supply is in `curated`, which lives in the generator under version control.",
   "planet": {
@@ -38,7 +38,7 @@
     "ozone": true
   },
   "active_configuration": {
-    "source_build": "precarve-zoned-g1281-erod4x",
+    "source_build": "precarve-zoned-g1281-arcfix",
     "model": {
       "resolution": "T42",
       "latitudes": 64,
@@ -97,8 +97,8 @@
     }
   },
   "builds": {
-    "precarve-zoned-g1281-erod4x": {
-      "terrain_hash": "e2b510660d1cbe999d237734969e9ac9bf8636b6d85a04f513a4bc0d1f92d321",
+    "precarve-zoned-g1281-arcfix": {
+      "terrain_hash": "2e06d17682075096ab2e0093eb0f5618417cdee38383f1ca153646995bffad5a",
       "catalogue_hash": "bc84109168789f519b53fc8197ddc976be93ecd8326b61a8086de85e638343cc",
       "seed": 16236323,
       "regions": 2500001,
@@ -110,17 +110,17 @@
       },
       "preserved_basins": 3629,
       "land_fraction": 0.4317358383866897,
-      "endorheic_fraction_of_land": 0.7647757823125562,
+      "endorheic_fraction_of_land": 0.763171903578747,
       "lithology_land_fractions": {
-        "playa_clastic": 0.23784,
-        "schist": 0.19197,
-        "continental_clastic": 0.18869,
-        "granite": 0.11201,
-        "gneiss": 0.07447,
-        "shelf_clastic": 0.06192
+        "playa_clastic": 0.23785,
+        "continental_clastic": 0.18848,
+        "schist": 0.11835,
+        "granite": 0.1112,
+        "granodiorite": 0.07287,
+        "melange": 0.06169
       },
       "land_elevation_km": {
-        "mean": 0.4041,
+        "mean": 0.3957,
         "max": 4.5933,
         "min": -0.5624
       },
@@ -133,65 +133,24 @@
       "superseded": false
     }
   },
-  "climate_runs": [
-    {
-      "run_id": "run_4017804889b3",
-      "status": "smoke_complete",
-      "orbits_complete": 5,
-      "flux_earth": 0.945,
-      "cycle": null,
-      "resolution": "T42",
-      "land_albedo_source": "vegetated",
-      "source_build": "precarve-zoned-g1281-erod4x",
-      "glaciers": true,
-      "converged": null,
-      "mean_surface_temperature_k": 274.096
-    }
-  ],
+  "climate_runs": [],
   "current_climate": {
     "value": null,
     "invalidated": true,
     "depends_on": "source_build",
-    "expected": "precarve-zoned-g1281-erod4x",
-    "found": {
-      "exoplasim/analysis/climatology/baseline_t42_s0968_baseline_climate_report.json": "precarve-zoned-g1281"
-    },
+    "expected": "precarve-zoned-g1281-arcfix",
+    "found": "no baseline_climate_report.json exists for any climatology this build produced; run exoplasim/scripts/analyze_climatology.py",
     "note": "current_climate was computed from a dependency that has since moved; regenerate it. Cleared rather than shown, because a stale derived value is indistinguishable from a current one."
   },
   "hydrography": {
-    "products_from": "hydrography/data/precarve-zoned-g1281-erod4x",
+    "products_from": "hydrography/data",
     "endorheic_note": {
       "drainage_share_of_land": "fraction of LAND AREA that drains to a closed basin; the hydrography figure, and the one the carve verdict is about",
       "basin_floor_share_of_land": "fraction of LAND AREA inside a preserved basin, i.e. is_endorheic cells; the lithology and thermostat figure"
     },
-    "terrain_hash": "e2b510660d1cbe999d237734969e9ac9bf8636b6d85a04f513a4bc0d1f92d321",
-    "drainage": {
-      "land_fraction_of_planet": 0.4317358383866897,
-      "endorheic_fraction_of_land": 0.7639572942818197,
-      "ocean_draining_fraction_of_land": 0.2360427057181803,
-      "unresolved_regions": 0,
-      "pits_filled": 96795,
-      "median_fill_depth_m": 7.091747797642239
-    },
-    "basins": {
-      "count": 3629,
-      "total_capacity_km3": 6145794.756968037,
-      "total_area_at_spill_km2": 63905370.3220911,
-      "area_at_spill_fraction_of_planet": 0.08694690890906215,
-      "total_catchment_km2": 242421085.68830705,
-      "catchment_to_spill_area_ratio_median": 3.7409728321131825,
-      "merged_basins": 321,
-      "spills_to_ocean": 1032,
-      "spills_into_another_basin": 2597,
-      "critical_aridity_index_percentiles": {
-        "5": 1.1007145968981935,
-        "25": 1.8118000762273172,
-        "50": 2.7409728321131825,
-        "75": 4.472132863621318,
-        "95": 10.611943974327982
-      },
-      "capacity_vs_natural_catalogue": 0.7693547533340215
-    },
+    "terrain_hash": null,
+    "drainage": null,
+    "basins": null,
     "carve_verdict": {
       "bounds": {
         "penman": {

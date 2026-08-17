@@ -20,7 +20,7 @@ schema_version: 1
 # lib/orogen.py is the registry and holds the hash, the note and what superseded
 # what. No list of builds belongs here: it goes stale the moment a build lands,
 # and a stale list beside the live setting reads as though it were checked.
-source_build: precarve-zoned-g1281-erod4x
+source_build: precarve-zoned-g1281-arcfix
 
 # Which climatology every downstream component reads by default. Named here
 # rather than hardcoded in a _paths helper, because it was hardcoded to
@@ -33,7 +33,14 @@ source_build: precarve-zoned-g1281-erod4x
 # until the re-baseline runs. check_consistency.py compares terrain hashes and
 # will say so; that is the intended way to find out, rather than a comment here
 # that has to be remembered.
-baseline_climatology: exoplasim/analysis/climatology/baseline_t42_s0945_regular_climatology.nc
+# NULL, deliberately. Every climatology in tree was computed on a superseded
+# terrain and has been archived and deleted; there is no current climate for this
+# world until the re-baseline runs. `climatology_path()` raises on a null value
+# rather than falling back, so anything that needs a climate says so plainly
+# instead of quietly producing a number from the wrong world.
+#
+# Set this to the new baseline's regular climatology once it exists.
+baseline_climatology: null
 
 # DETERMINED. Radius and gravity are Orogen's and canonical; mass follows from
 # gravity, not the other way round. Rotation, obliquity and eccentricity chosen.

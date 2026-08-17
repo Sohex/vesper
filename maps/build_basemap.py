@@ -31,7 +31,15 @@ from lib import builds  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 BUILD_DIR = Path(__file__).resolve().parent / "build"
-CLIMATOLOGY = ROOT / "exoplasim/analysis/climatology_s096"
+# Resolved at call time, not import time, and from the config rather than a
+# hardcoded directory. It pointed at `climatology_s096`, which was superseded
+# long before anything noticed -- nothing noticed because the script has no
+# argparse, so --help ran main() and the only signal was a stack trace.
+def _climatology() -> Path:
+    import sys as _sys
+    _sys.path.insert(0, str(ROOT / "pedology" / "scripts"))
+    from _paths import climatology_path
+    return climatology_path().parent
 
 WIDTH, HEIGHT = 5760, 2880
 
@@ -141,7 +149,7 @@ def upsample(field, smooth=True):
     """
     from scipy.ndimage import gaussian_filter, map_coordinates
 
-    ds = nc.Dataset(CLIMATOLOGY / "baseline_classification.nc")
+    ds = nc.Dataset(_climatology() / "baseline_classification.nc")
     clat = np.asarray(ds["lat"][:], dtype=float)
     clon = np.asarray(ds["lon"][:], dtype=float)
     ds.close()
@@ -266,6 +274,9 @@ def hillshade(elev_km, lat_deg, radius_km, exaggeration=14.0):
 
 
 def main():
+    import argparse
+    argparse.ArgumentParser(description=__doc__ or "Render the basemap").parse_args()
+
     src = builds.mesh_export()
     manifest = json.loads((src / "manifest.json").read_text())
     radius_km = manifest["planet"]["radiusKm"]
@@ -283,19 +294,19 @@ def main():
     lat_deg, _, _ = pixel_directions()
 
     print("reading climatology")
-    cls = nc.Dataset(CLIMATOLOGY / "baseline_classification.nc")
+    cls = nc.Dataset(_climatology() / "baseline_classification.nc")
     biome = np.asarray(cls["biome_index"][:])
     clim_elev_m = np.asarray(cls["surface_elevation"][:])
     cls.close()
 
-    clm = nc.Dataset(CLIMATOLOGY / "baseline_regular_climatology.nc")
+    clm = nc.Dataset(_climatology() / "baseline_regular_climatology.nc")
     tas = np.asarray(clm["tas"][:])  # (12, 64, 128)
     sic = np.asarray(clm["sic"][:]).mean(axis=0)
     lsm = np.asarray(clm["lsm"][:]).mean(axis=0)
     clm.close()
     warmest = tas.max(axis=0)
 
-    clat = np.asarray(nc.Dataset(CLIMATOLOGY / "baseline_classification.nc")["lat"][:])
+    clat = np.asarray(nc.Dataset(_climatology() / "baseline_classification.nc")["lat"][:])
     clim_land = lsm > 0.5
 
     def prepare(field, mask=None):
@@ -393,7 +404,7 @@ def main():
         "source_build": src.parent.name,
         "source_export": str(src.relative_to(ROOT)),
         "final_elevation_hash": manifest["hashes"]["finalElevation"],
-        "climatology": str(CLIMATOLOGY.relative_to(ROOT)),
+        "climatology": str(_climatology().relative_to(ROOT)),
         "climatology_caveat": (
             "biome and temperature fields are T42 and were computed on the "
             "pre-carve terrain; the tint is illustrative, not a result"

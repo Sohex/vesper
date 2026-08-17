@@ -154,6 +154,9 @@ def climate(lat: float, lon: float) -> dict:
 
 
 def main() -> None:
+    import argparse
+    argparse.ArgumentParser(description=__doc__).parse_args()
+
     cfg = yaml.safe_load(
         (ROOT / "pedology" / "config" / "pedogenesis.yaml").read_text(encoding="utf-8"))
     weathering = cfg["weathering"]

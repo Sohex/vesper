@@ -1,0 +1,29 @@
+{
+  "run_id": "run_4017804889b3",
+  "directory": "run_4017804889b3",
+  "status": "smoke_complete",
+  "legacy_name": false,
+  "orbits_on_disk": 5,
+  "snapshots_on_disk": 5,
+  "size_gb": 2.03,
+  "executable_sha256": "238af7e8dddab0b942de371aa6266017e955f2e699d2c0fd7bdb4a6e74e66281",
+  "config_sha256": "aa5f4c03f27ae0ae085c69b2840fd41691a2a6bb76aa4a8832885add72055154",
+  "physical": {
+    "resolution": "T42",
+    "layers": 10,
+    "ranks": 16,
+    "precision_bytes": 8,
+    "flux_ratio": 0.945,
+    "co2_ppm": 450.0,
+    "rotation_hours": 30.0,
+    "obliquity_degrees": 32.0,
+    "eccentricity": 0.02,
+    "glaciers": true,
+    "stellar_spectrum": "k25v",
+    "geography": "d5f6adf1"
+  },
+  "source_build": "precarve-zoned-g1281-erod4x",
+  "climatologies": {},
+  "converged": null,
+  "convergence_metrics": {}
+}

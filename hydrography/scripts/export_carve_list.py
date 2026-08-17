@@ -40,6 +40,7 @@ which is to say it called them marginal and then declined to cut them.
 from __future__ import annotations
 
 import argparse
+import sys
 from datetime import datetime, timezone
 import json
 from pathlib import Path
@@ -57,18 +58,23 @@ from lake_balance import BasinSet
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    # Every path below is per-build and strict. This script's output leaves
-    # the project and changes the terrain, so a default that quietly reads or
-    # writes the wrong build is the most expensive one here.
-    _bd = component_data("hydrography", strict=True)
-    ap.add_argument("--climatology", type=Path, default=PROJECT_ROOT /
-                    "exoplasim/analysis/climatology_s096/baseline_regular_climatology.nc")
-    ap.add_argument("--coupling", type=Path, default=_bd / "coupling_exoplasim-T42.nc")
+    # Every per-build path below defaults to None and is resolved AFTER
+    # parse_args. Resolving them while building the parser meant --help did
+    # real work and died on a missing build, which is also why nothing caught
+    # that the climatology default pointed at a superseded directory.
+    #
+    # The paths are per-build and strict. This script's output leaves the
+    # project and changes the terrain, so a default that quietly reads or writes
+    # the wrong build is the most expensive one here.
+    ap.add_argument("--climatology", type=Path, default=None,
+                    help="regular climatology; defaults to config's "
+                         "baseline_climatology")
+    ap.add_argument("--coupling", type=Path, default=None)
     # Hydrography is per-build now, so the basin set has to be selectable
     # alongside the coupling it was built with. Mixing a coupling matrix from one
     # terrain with a basin catalogue from another would misalign the rows in the
     # same silent way the longitude convention misaligned the columns.
-    ap.add_argument("--basins", type=Path, default=_bd / "basins.nc")
+    ap.add_argument("--basins", type=Path, default=None)
     # Which field stands for runoff generated over the catchment. This was
     # `mrro` and should not have been: `mrro` is not local runoff generation but
     # river-routed net divergence, because landmod.f90's roffstep calls mkradv,
@@ -96,9 +102,23 @@ def main() -> None:
                     help="carve_list.json from the pass that produced the "
                          "current build; its retain-0 basins are carried forward")
     ap.add_argument("--config", type=Path, default=CONFIG)
-    ap.add_argument("--out-list", type=Path, default=_bd / "carve_list.txt")
-    ap.add_argument("--out-json", type=Path, default=_bd / "carve_list.json")
+    ap.add_argument("--out-list", type=Path, default=None)
+    ap.add_argument("--out-json", type=Path, default=None)
     args = ap.parse_args()
+
+    _bd = component_data("hydrography", strict=True)
+    if args.coupling is None:
+        args.coupling = _bd / "coupling_exoplasim-T42.nc"
+    if args.basins is None:
+        args.basins = _bd / "basins.nc"
+    if args.out_list is None:
+        args.out_list = _bd / "carve_list.txt"
+    if args.out_json is None:
+        args.out_json = _bd / "carve_list.json"
+    if args.climatology is None:
+        sys.path.insert(0, str(PROJECT_ROOT / "pedology" / "scripts"))
+        from _paths import climatology_path
+        args.climatology = climatology_path()
 
     config = yaml.safe_load(args.config.read_text(encoding="utf-8"))
     basins = BasinSet(args.basins)
