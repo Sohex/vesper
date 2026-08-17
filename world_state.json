@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated": "2026-08-17T21:26:42.697262+00:00",
-  "git_commit": "c57537f86b1aa80dc1bb6f2f773ba62f6de74ec2",
+  "generated": "2026-08-17T21:27:51.269226+00:00",
+  "git_commit": "02c916e14f131df9720818cd75a6ac587c2944d6",
   "generator": "scripts/world_state.py",
   "note": "Generated from the artifacts. Do not edit; re-run the generator. Only derived values live here. Findings are in `notes/`, with their evidence, and open work is in `TASKS.md`.",
   "planet": {
@@ -144,7 +144,7 @@
       "run_id": "run_524fbed77a9a",
       "status": "equilibrated_for_worldbuilding",
       "orbits_complete": 46,
-      "flux_earth": 0.91,
+      "flux_earth": 0.945,
       "cycle": null,
       "resolution": "T42",
       "land_albedo_source": "vegetated",
