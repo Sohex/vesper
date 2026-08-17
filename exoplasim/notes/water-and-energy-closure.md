@@ -245,3 +245,40 @@ recorded energy closure gap was never real.
 
 None of it needed a model run. The general lesson is the cheap one: before
 calling a surprising number a defect, close the budget it belongs to.
+
+## The 28 terms, first look
+
+Measured 2026-08-17 on `run_b014469b8091`, the 0.945 bootstrap on
+`precarve-craton`, at orbits 65, 75 and 85 of an 86-orbit spin-up. This is the
+first run made with `nenergy` on, so it is the first time the decomposition has
+existed on this world rather than being described.
+
+The terms are written and readable: codes 360-387 as `denergy01` to `denergy28`,
+and 460-487 as `dener3d01` to `dener3d28` on 10 layers. Two of them are not
+fluxes and should not be summed with the rest: `denergy01` returns about 1.9e9,
+and `denergy28` is the mass-weighted column temperature, 251.70 K, which
+`radmod.f90:1290` builds as `sum(dt * dsigma)`.
+
+The gap this note exists to explain is stable and still there:
+
+| orbit | net top minus net surface | large-scale condensation, 11 + 15 | convection, 12 + 16 |
+| --- | ---: | ---: | ---: |
+| 65 | -0.5453 | -1.5699 | +0.0000 |
+| 75 | -0.4893 | -1.5884 | +0.0000 |
+| 85 | -0.4085 | -1.5525 | +0.0000 |
+
+**The convective pair cancels to machine precision and the large-scale pair does
+not.** Whatever 11 and 15 are, they are built the same way for the same process,
+and one pair balances while the other misses by a steady -1.55 to -1.59 W/m2
+across orbits that differ in their own imbalance.
+
+That is a lead rather than an answer, and it should not be quoted as one: the
+non-cancellation is about three times the gap and does not track it orbit by
+orbit, so at most it contains the gap rather than being it. Some of the
+difference is expected -- snowmelt's latent heat of fusion is 0.294 W/m2 by the
+independent route in this note, and it has to be booked somewhere.
+
+What remains for CLIM-1 is to read `rainmod.f90` for what exactly is accumulated
+into 11 and into 15, and whether the difference is a term the surface-to-top sum
+is missing or a diagnostic that was never meant to close. The 3D set on 460-487
+can then say which layers it lives in, which the column sums cannot.
