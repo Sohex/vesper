@@ -101,6 +101,17 @@ dismissed as negligible, and how far above the threshold it sits is not known.
 The two parameters that decide the magnitude are the wind tail and the aeolian
 roughness. Neither is a free knob to be set by what answer is wanted.
 
+### Extracting the high-cadence wind
+
+`continue_exoplasim.py --high-cadence` writes a raw `MOST_HC.NNNNN`, 15.3 GB for
+one T42 orbit at one sample every fourth timestep. Do NOT hand that to pyburn
+whole: it holds the entire decoded record set in memory whatever output codes it
+is given, 18.9 MB a sample, and on the first attempt it reached 27.6 GB resident
+in 73 minutes and wrote nothing. `aeolian/scripts/extract_high_cadence_wind.py`
+splits the raw on timestep boundaries and feeds pyburn one chunk at a time,
+checkpointing as it goes, and emits the bottom model level alone at about 290 MB.
+`notes/large-data.md` is the general rule.
+
 ### What would decide it, and what to ask for
 
 The wind tail can be measured rather than fitted. ExoPlaSim writes high-cadence
