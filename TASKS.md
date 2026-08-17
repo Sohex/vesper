@@ -39,10 +39,7 @@ Status: `open` | `doing` | `blocked` | `done` | `wontfix` (with a reason).
 | SURF-1 | Implement the derived-surface classifier against the two-axis design | `pedology/notes/derived-surface-classes.md` | blocked on the re-baseline -- there is no climatology at all now, and `baseline_climatology` is null until one exists |
 | SURF-2 | Re-run `brine_paths.py` weighted by discharge rather than catchment area | `pedology/notes/derived-surface-classes.md` | blocked on the re-baseline, same reason as SURF-1 |
 | SURF-3 | Loess: needs a dust emission scheme and a transport path, neither of which exists | `pedology/notes/derived-surface-classes.md` | blocked |
-| REF-2 | NOT HELD: Selby (1980), *A rock mass strength classification for geomorphic purposes*, Z. Geomorph. 24, 31-51, `10.1127/zfg/24/1984/31`. No full text reachable. Grounded through Bursztyn 2015, which applies it at 168 localities | `references/INDEX.md` | open |
-| REF-4 | NOT HELD: Penndorf (1956), *Luminous and Spectral Reflectance as Well as Colors of Natural Objects*, `10.21236/AD0098766`. DTIC serves a broken TLS chain | `references/INDEX.md` | open |
 
-| REF-6 | DOES NOT EXIST: no pyranometer broadband albedo for a gypsum crust, and none for an alkaline trona/natron pan. Both must be constructed by spectral integration | `notes/audits/orogen-lithology.md` | open |
 
 ## Closed
 
