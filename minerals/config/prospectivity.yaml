@@ -54,21 +54,38 @@ exhumation:
 
 deposits:
 
-  porphyry_cu:
-    name: Porphyry Cu-Mo-Au
-    # Continental-arc magmatism, emplaced 1-5 km below the surface above a
-    # batholith. Requires the arc AND a preserved shallow section: where the arc
-    # root is unroofed the porphyry level has already been eroded off. On this
-    # world 59.5% of the arc belt is stripped to granodiorite, so this rule
-    # rejects most of the arc rather than accepting all of it, which is the
-    # whole point of keying on exhumation.
-    # These weights express the ARC SETTING and its exhumation level, not a host
-    # lithology preference: Sillitoe notes only that host rheology and
-    # composition "may strongly influence the size, grade, and type" of
-    # mineralization, and gives no ranking. Continental arc leads, island arc
-    # follows, and exposed arc root is heavily discounted because reaching it
-    # means the porphyry level has gone.
-    hosts: {arc_andesite: 1.0, arc_basalt: 0.6, granodiorite: 0.1}
+  # Arc magmatism, emplaced shallow above a batholith, and requiring both the arc
+  # AND a preserved shallow section: where the arc root is unroofed the porphyry
+  # level has already eroded off. On this world 59.5% of the arc belt is stripped
+  # to granodiorite, so this rejects most of the arc rather than accepting all of
+  # it, which is the point of keying on exhumation.
+  #
+  # SPLIT by arc type, on Cooke et al. (2005), and the split IS the grounding.
+  # Sillitoe gives no host ranking, only that rheology and composition "may
+  # strongly influence the size, grade, and type" of mineralization. Cooke gives
+  # something better than a ranking: the two metal associations have DIFFERENT
+  # distributions. Giant Cu-Mo deposits cluster in central and northern Chile and
+  # southwest Arizona, with "compressive tectonic environments, thickened
+  # continental crust, and active uplift and erosion"; the 25 largest gold-rich
+  # porphyries are "concentrated in the southwest Pacific and South America".
+  # Continental arc and island arc are both prospective, for different metals, so
+  # a single weighted class would have thrown that away.
+  #
+  # Orogen already carries the distinction: `arc_andesite` is continental-arc
+  # andesite/dacite, `arc_basalt` is island-arc basalt/basaltic andesite.
+
+  porphyry_cu_mo:
+    name: Porphyry Cu-Mo
+    # Thickened continental crust.
+    hosts: {arc_andesite: 1.0, arc_basalt: 0.3, granodiorite: 0.1}
+    require_cover: true
+
+  porphyry_au:
+    name: Gold-rich porphyry
+    # Island-arc association, the southwest Pacific style. Continental arc keeps
+    # a lower weight rather than zero, since Cooke also places giant gold-rich
+    # porphyries in South America.
+    hosts: {arc_basalt: 1.0, arc_andesite: 0.4, granodiorite: 0.1}
     require_cover: true
 
   orogenic_au:

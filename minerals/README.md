@@ -56,6 +56,18 @@ rejects most of the arc belt rather than accepting all of it -- 59.5% of it is
 stripped to its granodiorite root, and the porphyry level went with the section
 above.
 
+**Porphyry is split by arc type**, and the split is what the literature supports
+rather than a weighting. Cooke et al. (2005) show the two metal associations have
+different distributions: giant Cu-Mo clusters where continental crust is
+thickened, while the largest gold-rich porphyries concentrate in the southwest
+Pacific island arcs. Orogen already carries that distinction, since
+`arc_andesite` is continental-arc and `arc_basalt` is island-arc.
+
+On this world the split has a clear answer. Continental arc outweighs island arc
+about forty to one by area, so Cu-Mo reaches high favourability across 4.65% of
+land while gold-rich porphyry clears 0.5 on 0.12%. This is a copper planet rather
+than a gold one, and that follows from its arcs being continental.
+
 Kimberlite is the other entry worth noting: it needs a thick cratonic keel, and
 before the craton basin double-count was removed this world had almost none. See
 `../notes/audits/orogen-lithology.md`.

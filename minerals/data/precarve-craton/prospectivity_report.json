@@ -1,16 +1,22 @@
 {
-  "generated": "2026-08-17T03:38:34+00:00",
+  "generated": "2026-08-17T03:42:47+00:00",
   "source_build": "precarve-craton",
   "terrain_hash": "e931b0d9947a232210a3cc11ba82003b5da15765d86e87956bc44c220932760e",
-  "config_sha256": "68c3f078aef0a3d85b91ff4199d8e8cc40a32f1af5bcbbb40e03085a0d7f5345",
+  "config_sha256": "c7c2b81773a1a3bf980fb31ea55d78a11fa81e55964311b057fb46fb94daa1e3",
   "generator": "minerals/scripts/build_prospectivity.py",
-  "git_commit": "47310ce07c0d810115c60725348dc86d77425848",
+  "git_commit": "641a91cde161e63ee900796d6a9be999361027b6",
   "deposits": {
-    "porphyry_cu": {
-      "name": "Porphyry Cu-Mo-Au",
+    "porphyry_cu_mo": {
+      "name": "Porphyry Cu-Mo",
       "land_fraction_nonzero": 0.0740707557592033,
-      "land_fraction_above_half": 0.04769016746017599,
-      "mean_over_land": 0.049845524013896865
+      "land_fraction_above_half": 0.046483411599517736,
+      "mean_over_land": 0.049483497241313734
+    },
+    "porphyry_au": {
+      "name": "Gold-rich porphyry",
+      "land_fraction_nonzero": 0.0740707557592033,
+      "land_fraction_above_half": 0.0012067558606582596,
+      "mean_over_land": 0.022438179646740945
     },
     "orogenic_au": {
       "name": "Orogenic gold",
