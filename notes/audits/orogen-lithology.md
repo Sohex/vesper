@@ -579,8 +579,33 @@ two errors are complementary and visible at 24 plates, where plutonic runs 2.13x
 GLiM while metamorphic runs 0.67x -- an excess and a deficit of similar size,
 which is what one misfiled class looks like.
 
-Whether to fix it is a worldbuilding decision rather than a correction. This world
-currently has no cratonic shields at all, and Earth's are prominent.
+**Three levers were tested and none of them moves it.** Recorded because the
+negative results bound the problem, and because each was a plausible hypothesis
+that measurement killed.
+
+| lever | tried | gneiss |
+| --- | --- | --- |
+| `CRATON_TECTONIC_MULT` | 2.5, 1.8, 1.4, 1.1, 0.9 | 0.49% at every value |
+| basin factor `(1 - basin)` | halved, then removed | 0.49% either way |
+| plate count | 24 and 100 | 0.44% and 0.49% |
+
+The gates were measured directly and both are tight -- of the land where the
+tectonic gate opens at all, the implied basin factor averages 0.625, and only
+0.17% of land is both quiet and non-basin. But opening either gate produces no
+gneiss, so neither is what actually binds. Something further along the craton
+path is inert, and it is not any of the three obvious parameters.
+
+That makes this a code investigation rather than a configuration change, and a
+bounded one: the craton branch reads a weight that is computed, thresholded and
+then apparently ignored. It should be traced before any more parameters are
+swept.
+
+Whether cratons SHOULD exist here is a separate and easier question. This world
+currently has none, and Earth's are prominent -- but a 1.881 Earth-mass planet
+carries roughly twice Earth's radiogenic inventory, and vigorous convection
+delaminates the depleted lithospheric keels that make a craton survive. So less
+cratonic area than Earth is well supported by the mass alone, without appealing
+to the planet being young. Some, but not much.
 
 `LITH-20`, closed. The residual granite excess -- 11.12% of land against GLiM's
 5.7% acid plutonic, and cratonic rather than arc -- is untouched by any of this
