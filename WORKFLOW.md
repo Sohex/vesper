@@ -86,9 +86,11 @@ Three loops close in that diagram, and section 4 says why each has to.
 
 ### 3.1 Geography
 
-World Orogen generates the terrain from a planet code, which encodes seed and
-every slider. The current build is `01eshm059lt0b9mpgro2y83t`: seed 16236323,
-2,500,001 mesh regions, closed basins preserved, lithology-modulated erosion.
+World Orogen generates the terrain from a planet code, which encodes the seed and
+every slider, plus a carve list. The code is in `source/worldorogen_seed.txt` and
+is not a build: it survives across builds, while a build is what one pass of the
+generator produced from it. The exports carry the seed and the mesh region count
+in each `manifest.json`.
 
 Verify a build by `manifest.hashes.finalElevation`. A seed alone does not
 identify a planet, because fixes to the generator change the terrain under a

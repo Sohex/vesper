@@ -36,6 +36,12 @@ Status: `open` | `doing` | `blocked` | `done` | `wontfix` (with a reason).
 | SURF-1 | Implement the derived-surface classifier against the two-axis design | `pedology/notes/derived-surface-classes.md` | blocked on the re-baseline -- there is no climatology at all now, and `baseline_climatology` is null until one exists |
 | SURF-2 | Re-run `brine_paths.py` weighted by discharge rather than catchment area | `pedology/notes/derived-surface-classes.md` | blocked on the re-baseline, same reason as SURF-1 |
 | SURF-3 | Loess: needs a dust emission scheme and a transport path, neither of which exists | `pedology/notes/derived-surface-classes.md` | blocked |
+| HYD-1 | Route the zero-catchment-runoff basins whose lake surface has P > E through the marginal band, rather than the blanket preserve the guard at `export_carve_list.py:180` gives them | `hydrography/notes/carve-verdict-open-items.md` | blocked on the re-baseline -- the set has to be re-measured against a climate before it can be handled |
+| HYD-2 | Make the retain fraction a function of overflow discharge rather than of distance from the evaporation threshold | `hydrography/notes/carve-verdict-open-items.md` | open -- the discharge is already computed, so the mapping can be written now, but it cannot be checked until a verdict exists |
+| HYD-3 | Measure the iteration-1 overshoot: re-evaluate the already-carved set against the new climate and report how many would no longer have carved | `WORKFLOW.md` section 4 | blocked on the re-baseline |
+| HYD-4 | Validate the lake equilibrium solver against something. It is the least-checked product in the pipeline, and it is the only thing that could break the crust-extent against crust-albedo degeneracy | `exoplasim/notes/parameter-decisions.md` | blocked on the re-baseline |
+| CLIM-1 | Name the constant -0.455 W/m2 gap between the top-of-atmosphere and surface budgets from the 28-term decomposition on codes 360-387. Needs a settled run: a segment taken off a restart sits several W/m2 out of balance | `exoplasim/notes/water-and-energy-closure.md` | blocked on the re-baseline |
+| BIO-2 | Quote productivity with the `nfix_a` bracket 0.102-0.367 carried through rather than the central value alone; the span is 18.2% of NPP and it is the largest nitrogen lever | `biosphere/notes/productivity-prediction.md` | blocked on the re-baseline -- no LPJ-GUESS run exists on this build |
 
 
 ## Closed

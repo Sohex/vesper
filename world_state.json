@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
-  "generated": "2026-08-17T02:59:37.769668+00:00",
-  "git_commit": "e8048b6b27fec373b7cdeabe948b1b528439f97a",
+  "generated": "2026-08-17T04:14:03.953069+00:00",
+  "git_commit": "9a0313d8d1cd1f52e7d772c3407839a4c39e7d5d",
   "generator": "scripts/world_state.py",
-  "note": "Generated from the artifacts. Do not edit; re-run the generator. Judgement that no artifact can supply is in `curated`, which lives in the generator under version control.",
+  "note": "Generated from the artifacts. Do not edit; re-run the generator. Only derived values live here. Findings are in `notes/`, with their evidence, and open work is in `TASKS.md`.",
   "planet": {
     "radius_earth": 1.2,
     "gravity_m_s2": 12.81,
@@ -157,106 +157,5 @@
       "penman_ocean_validation": null
     },
     "carve_list": null
-  },
-  "curated": {
-    "open_questions": [
-      "Does the climate response follow the albedo arithmetic? Land-mean albedo on carved-zoned is 0.1722 against the baseline's 0.2240, predicting about 299.4 K. The chain is four linear steps across a response we have repeatedly declined to extrapolate.",
-      "The habitable flux depends on the biosphere, which is assumed rather than modelled. Bare rock and vegetated reach 290-293 K at non-overlapping fluxes, so LPJ-GUESS determines not just the climate but where the planet should be placed.",
-      "Iteration 1 systematically over-carved: carving removes bright evaporite, the world warms, and marginal basins would have stayed closed. The overshoot should be measured on iteration 2 by re-evaluating the carved set against the new climate.",
-      "Roughly 228 basins with zero catchment runoff were preserved but have P > E over open water, so a lake there grows and spills. They should go through the marginal band with a retain fraction, not be flipped to 0."
-    ],
-    "known_uncertainties": [
-      {
-        "item": "stellar spectrum",
-        "value": "k25v",
-        "range": [
-          "k2",
-          "k25v"
-        ],
-        "worth_w_m2": 0.63,
-        "worth_k": 0.59,
-        "note": "Resolved going forward, inherited backwards. ExoPlaSim's k2.dat is the star K2-18, an M2.5V at about 3450 K, not the spectral type K2. Every run of the first three eras used it, so their snow and ice are 0.10-0.17 too dark, worth 0.4-0.7 K on the warm baseline and more wherever there is ice. k25v is now selected; results predating it remain valid in kind with the direction of the error known. See exoplasim/notes/stellar-spectrum-audit.md."
-      },
-      {
-        "item": "mrro is river-routed, not local runoff",
-        "value": null,
-        "note": "Not a defect, a misreading, and recorded here because this file previously called it one. landmod.f90's roffstep calls mkradv, which advects runoff downhill and modifies its argument in place, so the output is local generation minus river outflow plus inflow. That explains the negative values, the nonzero ocean values, the land shortfall correlating 0.60 with precipitation, and the 99.1% global conservation. The CF name surface_runoff is what misleads. Anything needing water that drains through the local profile should use P - E; pedology does. See exoplasim/notes/water-and-energy-closure.md."
-      },
-      {
-        "item": "land runoff, and therefore the whole soil",
-        "value": 0.192,
-        "range": [
-          0.192,
-          0.35
-        ],
-        "note": "Much less under-determined than previously recorded here, once the mrro defect above is set aside. The land runoff ratio is 18.8% against Earth's ~35%, not 2.8%: drier than Earth but not extraordinarily so. Weathering intensity is 0.50 rather than 0.19, and the runoff-versus-precipitation bracket narrows from 14.6x to 5.6x. Land-mean clay 0.33, water capacity 263 mm. The remaining spread is whether weathering follows drainage or rainfall, which is a modelling choice, not a defect."
-      },
-      {
-        "item": "nitrogen fixation, nfix_a",
-        "value": 0.234,
-        "range": [
-          0.102,
-          0.367
-        ],
-        "worth_npp_fraction": 0.182,
-        "note": "The real nitrogen lever, and LPJ-GUESS documents the range itself in global.ins as conservative/central/upper. Measured over 18 cells: NPP 0.2356, 0.2642, 0.2785 kgC/m2 across the three, a monotone 18.2% span. It is the Cleveland fixation-versus-evapotranspiration fit, an Earth calibration with no way to check it here. It does scale correctly with this world's calendar, being a flux per unit AET."
-      },
-      {
-        "item": "nitrogen deposition",
-        "value": 0.5,
-        "range": [
-          0.1,
-          15.0
-        ],
-        "note": "Declared with no basis, and measured to be second-order, which is the opposite of what was recorded here before. At 0.5 kgN/ha/yr deposition supplies 0.50 against 4.36 from biological fixation and 25.4 from mineralisation, so 1.7% of the nitrogen plants actually receive. Sweeping it over 150x, 0.1 to 15, moves NPP by 12% non-monotonically, which at 18 cells and npatch 5 is patch stochasticity. Recycling and fixation dominate; the assumption stands but carries little."
-      },
-      {
-        "item": "playa_clastic albedo",
-        "value": 0.3,
-        "range": [
-          0.25,
-          0.33
-        ],
-        "worth_w_m2": 1.99,
-        "worth_k": 1.87,
-        "note": "Dominant remaining albedo lever: 18.8% of land against the salt crust's 2.1%, 2.48 W/m2 per 0.10. Itself a mixture of clay playa and desert-varnished fan gravel. Recorded, not tuned."
-      },
-      {
-        "item": "salt crust extent",
-        "value": 0.106,
-        "range": [
-          0.1,
-          0.4
-        ],
-        "note": "Degenerate with crust albedo in the effective value: 10.6% at 0.50 and 20% at 0.40 are the same planet from the climate side. Only an independent measure of flooding frequency separates them, and the lake solver is not validated enough to provide it."
-      },
-      {
-        "item": "lake levels",
-        "value": null,
-        "note": "The equilibrium solver has never been validated against anything, unlike Penman which was checked against the model's own ocean cells to 1.7%. Least-checked numbers in the pipeline."
-      },
-      {
-        "item": "energy budget closure",
-        "value": 0.446,
-        "note": "Net TOA runs 0.27-0.45 W/m2 more negative than the net surface flux, which cannot both be true in steady state, and the |mean TOA| < 0.5 criterion is applied inside a bias of its own size. Better characterised now: a naive rss+rls+hfss+hfls sum misses the 0.294 W/m2 consumed melting snow, which hfns books correctly and which matches global snowmelt's latent heat of fusion to three digits. So the surface terms are internally consistent and the residual sits between the surface and the top of the atmosphere. It is structural, not climatic: the gap is -0.4529, -0.4656 and -0.4455 across three runs spanning different fluxes, terrains and mean temperatures, a 2% spread. That rules out sea ice, snow and fusion, all of which scale with climate. It is not the spectral dissipation leak either, since mkdheat returns friction and biharmonic diffusion heating under ndheat, on by default. An atmosphere truly losing this would cool 1.4 K per Earth year and these do not, so a heating term is missing from the diagnostic sum or one diagnostic is offset. PlaSim ships a 28-term decomposition on output codes 360-387 under nenergy, which would name it in a short run. Note rainmod.f90:524 inverted als and alv in that diagnostic, now fixed. Seasonal resolution reframes it further: per time bin the gap swings about 14 W/m2 peak to peak, repeating closely between orbits, so the annual residual is 3% of a large seasonal storage term failing to cancel rather than a uniform leak. See exoplasim/notes/water-and-energy-closure.md."
-      },
-      {
-        "item": "retain fraction",
-        "value": null,
-        "note": "Measures distance from threshold, not incision capacity. A basin that barely trickles over its sill is cut the same as one that pours. Should become a function of overflow discharge."
-      }
-    ],
-    "next_steps": [
-      "Finish the carved-zoned baseline at 0.96 and compare against the 299.4 K prediction.",
-      "Choose the flux from what it measures, not from the estimate.",
-      "Supply equilibrium lake levels as --water-level so basin floors stop being exported as dry ground.",
-      "Run LPJ-GUESS on the resulting climatology and replace the assumed biosphere, then score it against biosphere/notes/productivity-prediction.md.",
-      "Carry the nfix_a bracket, 0.102-0.367, through to the productivity numbers rather than quoting the central value alone.",
-      "Run a short segment with nenergy=1 to name the constant -0.455 W/m2 offset between the top-of-atmosphere and surface budgets, fixing the inverted als/alv in rainmod.f90:524 first.",
-      "Enable model.soil_water_source: pedology and check the soil-runoff loop converges rather than oscillating; expect a weak response.",
-      "Iteration-2 carve verdict, with retain as a function of discharge and the 228 zero-runoff spillers handled.",
-      "One T85 equilibrium once terrain and biosphere settle, for regional products.",
-      "Stellar cycle last, 0.91-1.01 S-Earth over 8 Earth years."
-    ]
   }
 }

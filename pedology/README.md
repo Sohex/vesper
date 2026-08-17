@@ -93,33 +93,34 @@ biosphere is modifying the soil it grows in.
 
 ## The finding that matters most so far
 
-**Weathering intensity is bracketed by a factor of 14.6 and the bracket is the
-climate model's land hydrology, not the soil model.**
+**The moisture driver is runoff, and the choice of it is a sensitivity rather
+than an uncertainty.** Weathering is limited by water passing through the profile
+and carrying solutes away, not by water that falls and evaporates, and the fits
+underneath the Walker-Hays-Kasting law are against runoff, so precipitation was
+never a co-equal alternative. It is reported as a spread where a result depends
+on it, and the spread is 3.41x on weathering intensity and 2.83x on water
+capacity. It was once quoted as 14.6x, which was a mismatch of reference values
+rather than a bracket; "A unit error was inflating the headline uncertainty"
+below has the arithmetic.
 
-| moisture driver | land-mean W |
-| --- | --- |
-| runoff | 0.192 |
-| precipitation | 2.808 |
+**This world's land runoff ratio is 18.8% against Earth's roughly 35%**: drier
+than Earth, and not extraordinarily so. It was read as 2.8% for a while and
+blamed on the climate model, on the grounds that ExoPlaSim's `configure()` clears
+every surface field when handed a landmap, so soil field capacity falls back to a
+uniform namelist default. Both halves of that were wrong. `mrro` is river-routed
+rather than locally generated, so `P - E` is the quantity that drains through the
+profile, and shrinking the bucket 3.75-fold moves runoff by only 1.06x, measured
+below rather than argued. The low ratio is a property of the climate, high
+evaporative demand against the precipitation available, and not of the bucket it
+was blamed on. See `exoplasim/notes/water-and-energy-closure.md`.
 
-Runoff is the physically correct term: weathering is limited by water passing
-through the profile and carrying solutes away, not by water that falls and
-evaporates. But ExoPlaSim reports 25 mm per Earth year of runoff against 892 of
-precipitation, a runoff ratio of 2.8% where Earth's land manages about 35%.
+**This is also where the loop runs in the other direction.** Soil water holding
+capacity is exactly the field ExoPlaSim was defaulting, and this component
+computes it; `model.soil_water_source: pedology` is now set in
+`config/planet.yaml`. See below for what it is worth, which is little.
 
-That is very likely the model rather than the planet. ExoPlaSim's `configure()`
-clears every surface field when handed a landmap, so soil field capacity falls
-back to a uniform namelist default; `model.uniform_land_surface` in
-`config/planet.yaml` already declares this. A bucket with the wrong depth
-everywhere will not produce a believable runoff field.
-
-`runoff` is the default because it is the right variable, and the bracket is
-reported beside every result rather than resolved by picking the convenient one.
-Under it, Vesper's soils come out markedly less weathered than Earth's: land-mean
-clay 0.276 against sand 0.407, with 0.286 of the mineral fraction inert quartz.
-
-**This is also where the loop wants to run in the other direction.** Soil water
-holding capacity is exactly the field ExoPlaSim is defaulting, and this component
-computes it. That is now built, though not enabled; see below.
+Texture figures are not quoted here. There is no soil on the active build,
+because there is no climatology on it to weather under.
 
 ## Both loops now close
 
@@ -243,11 +244,10 @@ high evaporative demand against available precipitation, and not of the bucket i
 was blamed on. Implied weathering shift 0.96x, moving land-mean W from 0.50 to
 0.48, which changes nothing downstream.
 
-**It is off by default and the flag is not in `config/planet.yaml`.** It needs
-`model.soil_water_source: pedology`, and that key is deliberately absent, because
-adding it moves `config_sha256` and `continue_exoplasim.py` refuses to resume a
-run whose config hash has changed. The code defaults to `uniform` when the key is
-missing, so nothing changes for a run in flight. Add the key when re-baselining.
+**`model.soil_water_source: pedology` is set**, which it was not while runs were
+in flight: adding the key moves `config_sha256`, and `continue_exoplasim.py`
+refuses to resume a run whose config hash has changed, so it was held until the
+re-baseline. The code still defaults to `uniform` when the key is absent.
 
 ## Catena: physical production and topographic transport
 
