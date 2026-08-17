@@ -514,18 +514,35 @@ exhumed batholiths are ancient arcs -- the Sierra Nevada, the Coast Ranges --
 while an ACTIVE arc is buried under its own volcanics, because it is resurfaced
 faster than it is unroofed.
 
-**It is a cover thickness, not a missing field.** The first reading of this was
-that Orogen cannot distinguish an active arc from a stripped extinct one without
-a resurfacing rate. It does not need one: resurfacing IS representable, as a
-cover that erosion cannot outpace, and the parameter already exists.
-`LITHO_COVER_ARC_KM` is 1.0 km -- thinner than a LIP's 1.2 and far thinner than
-basin fill's 3.0 -- so the arc veneer strips under ordinary erosion and 59.5% of
-the arc belt reaches basement. An arc that is being resupplied for as long as the
-plate subducts should be the hardest cover on the map to remove, not one of the
-easiest.
+**Two explanations were proposed and MEASUREMENT refuted both.** They are
+recorded because the measurement is the useful part.
 
-That makes it testable in one build rather than blocked on a generator feature.
-`LITH-20`.
+The first was that Orogen cannot separate an active arc from a stripped extinct
+one without a resurfacing rate. The second was that resurfacing is representable
+as a cover erosion cannot outpace, making `LITHO_COVER_ARC_KM` -- 1.0 km, thinner
+than a LIP's 1.2 -- the culprit.
+
+Builds at 1.0, 2.0 and 3.0 km say otherwise. Tripling the cover moves
+granodiorite from 7.29% of land to 7.10%, and the stripped share of the arc belt
+from 59.5% to 58.0%. The belt itself does not move at all, at 12.24%.
+
+The direct measurement says why. Of the granodiorite cells, **94.1% were assigned
+arc_andesite cover and eroded it to zero** -- maximum surviving thickness 0.0001
+km. Cells that keep their cover retain 0.494 km of the 1.0 assigned. So arc-belt
+erosion is bimodal: a cell either loses under a kilometre or loses more than
+three, and almost nothing lies between. No plausible cover thickness sits inside
+that gap, which is exactly why tripling it did nothing.
+
+**So the arc root is exposed because arc terrain erodes deeply, which is
+physical**, and there is that much arc terrain because this world was given 100
+plates deliberately. Both are consequences of choices rather than defects, and
+the plutonic excess against GLiM follows from them. What would change it is the
+plate count or the erosion sliders, and both are worldbuilding decisions that
+have already been made and liked.
+
+`LITH-20`, closed. The residual granite excess -- 11.12% of land against GLiM's
+5.7% acid plutonic, and cratonic rather than arc -- is untouched by any of this
+and is the part that would still repay an explanation.
 
 ### The evaporite 9.5x is a category error, not an excess
 
