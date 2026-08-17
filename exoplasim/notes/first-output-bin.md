@@ -57,6 +57,37 @@ snapshots of the same orbit, a factor of 7, while its maximum exceeds the
 snapshot maximum by only 1.54. A mean seven times larger than the mean of the
 instantaneous states it supposedly averages is not an average of them.
 
+## Where it comes from: the model's low-I/O path, not the postprocessor
+
+Tested 2026-08-17 by running one orbit from the bootstrap's final restart with
+`NLOWIO = 0` instead of the default 1, in an isolated copy, and putting the
+result through the same `pyburn` averaging the production files get.
+
+| | bin 0 over bins 1-11, bottom-level specific humidity |
+| --- | ---: |
+| `NLOWIO = 1`, production | 0.714 |
+| `NLOWIO = 0`, this test | 0.930 |
+
+0.930 is inside the ordinary seasonal spread: the twelve bins run 0.00706 to
+0.00797 and bin 0 is simply the lowest of them. The defect is gone.
+
+**Only the model's output path changed.** `pyburn` did the same 12-bin averaging
+in both cases -- it reported "going from 182 timestamps to 12" for the test -- so
+the averaging is not at fault and neither is the vector transform that derives
+`ua`, `va` and `spd` from divergence and vorticity.
+
+`NLOWIO = 1` is PlaSim's default, set in `plasimmod.f90:151`. It is the path that
+accumulates fields over the output interval and divides in place at write time,
+`outmod.f90:257` onward, using `naccuout`. That is where the bug is.
+
+**What is not yet pinned is the line.** A wrong divisor would scale a field
+uniformly, and this does not: the ratio runs 1.04 at the model top and 11.2 at
+the surface, so bin 0 has a different vertical structure rather than a scaled
+one. Whatever is wrong involves the vertical weighting of the accumulation, not
+just its count. Note also that each orbit is a separate model call and the first
+output interval of a call is short -- the records are stamped 319 then every 480 --
+so a partial first interval is the most likely trigger.
+
 ## What to do about it
 
 **Exclude bin 0 from any average over the time axis of a wind or humidity
