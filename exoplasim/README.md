@@ -30,6 +30,24 @@ experiment, records a complete manifest, and runs one smoke orbit. It refuses
 to overwrite an existing run with climate output. See
 `exoplasim/notes/parameter-decisions.md` for physical and format assumptions.
 
+### Which resume path is valid
+
+`continue_exoplasim.py` continues the SAME run: same config, same surface fields,
+more orbits. That is the normal spin-up path and it has no caveat.
+
+`run_exoplasim.py --restart-from` seeds a NEW run from another's restart. It is
+valid only when the surface fields are identical and the FORCING differs -- flux
+or CO2, which are namelist parameters rather than restart state. Use it for a
+flux bracket, where it saves the whole cold spin-up.
+
+It is refused, by a guard, whenever a surface field differs, and the refusal is
+correct rather than conservative: `landmod`'s `landini` takes `dwmax`, `dz0clim`
+and all three `dalbcl` bands from the restart when `restart > 0`, so the `.sra`
+files are read only on a cold start. A seeded run with a new albedo or a new soil
+water field would discard it and reproduce its parent while every manifest
+recorded the new values. Every step of loop A adds a surface field, so every step
+of loop A needs a cold start. See `notes/failure-modes.md` class 13.
+
 Continue a validated experiment from its latest restart (seasonal snapshots are
 written by default; `--no-seasonal-output` skips them for a segment, and a run
 without them has to be extended before it can produce a climatology):

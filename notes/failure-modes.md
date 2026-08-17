@@ -348,3 +348,35 @@ recorded in the manifest itself, against the namelist on disk, which is the only
 artifact that recorded what actually ran. When a segment finishes, the namelist
 in the run directory is the ground truth for what was integrated; the manifest is
 a claim about it.
+
+## 13. State that lives in the checkpoint rather than in the inputs
+
+`run_exoplasim.py --restart-from` seeds a new run from another run's restart
+file, and it is refused whenever the surface fields differ. The reason is that
+`landmod`'s `landini` takes `dwmax`, `dz0clim` and all three `dalbcl` bands from
+the restart when `restart > 0`. The `.sra` files are read only on a cold start.
+
+So a seeded run with new soil water, new roughness or a new albedo would ignore
+every one of them and silently reproduce its parent, while the run directory,
+the manifest and the surface-field hashes all recorded the new values. Nothing
+would look wrong.
+
+Hit again 2026-08-17, seeding the baseline from the bootstrap to skip 86 orbits
+of spin-up: the guard refused it on the surface codes differing by 229. The guard
+existed because this had been found once already; what did not exist was the rule
+written anywhere a person planning a run would read it, which is why it was
+attempted a second time.
+
+**The rule, and it is not "restarts are useless".** They are valid across runs
+exactly when the SURFACE is unchanged and the FORCING differs, because flux and
+CO2 are namelist parameters rather than restart state. That is precisely the flux
+bracket, and the 0.91 point was cold-started for want of noticing, which cost
+about 45 orbits. They are invalid the moment any boundary field moves, which is
+every step of loop A, because each one adds a surface field.
+
+**The general shape.** A checkpoint is a second source of truth for state that
+also has an input file, and the two silently disagree in favour of the
+checkpoint. Ask of any resume mechanism which fields it restores rather than
+re-reads. The same question applies to `configure()`, which clears surface fields
+when handed a landmap, and to anything else that decides between a file and a
+saved state.
