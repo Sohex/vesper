@@ -29,6 +29,7 @@ from run_exoplasim import (  # noqa: E402
     enable_energy_diagnostics,
     energy_diagnostics_enabled,
     register_energy_diagnostic_codes,
+    HIGH_CADENCE_CODES,
     SNAPSHOT_CODES,
     derive,
     file_sha256,
@@ -119,6 +120,14 @@ INERT_CONFIG_KEYS = {
     "star.surface_uv",        # a design declaration; ExoPlaSim models no
                               # ultraviolet and nothing reads this
     "schema_version",         # bookkeeping
+    # Which climatology DOWNSTREAM components read. Nothing on the run or resume
+    # path touches it: only the surface-field builders do, and what they produce
+    # is guarded where it belongs, by the staged `.sra` files' own hashes through
+    # `surface_field_report` on every resume. Leaving it here blocked a resume
+    # for the entirely expected act of naming the baseline the run itself
+    # produced, which is a false positive that trains people to reach for a
+    # bypass.
+    "baseline_climatology",
 }
 
 
@@ -160,9 +169,26 @@ def main() -> None:
              "written by default because analyze_climatology needs the orbital "
              "phase they carry and a run without them has to be extended.",
     )
+    # DUST-5 wants a gust distribution rather than a climatology: 32 seasonal
+    # snapshots resolve synoptic variance and not the diurnal and sub-daily
+    # variance that actually lifts dust, so a Weibull fitted to them is too
+    # narrow and the emission it implies is a lower bound. Sampling every fourth
+    # timestep gives 1462 samples a cell over one orbit, which resolves a
+    # 30-hour day. The field list is trimmed to the winds in
+    # `high_cadence_namelist`, because the default list at this cadence is tens
+    # of gigabytes for fields nothing asks for.
+    parser.add_argument(
+        "--high-cadence", action="store_true",
+        help="write near-surface wind every fourth timestep for this segment, "
+             "into highcadence/MOST_HC.NNNNN.nc. For DUST-5")
+    parser.add_argument(
+        "--high-cadence-interval", type=int, default=4,
+        help="timesteps between high-cadence samples (default 4)")
     args = parser.parse_args()
     if args.orbits < 1:
         raise ValueError("--orbits must be positive")
+    if args.high_cadence and args.high_cadence_interval < 1:
+        raise ValueError("--high-cadence-interval must be positive")
 
     config_path = args.config.resolve()
     config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
@@ -272,6 +298,12 @@ def main() -> None:
         restartfile=str(restart),
         runsteps=int(derived["runsteps_per_orbit"]),
         snapshots=(int(derived["snapshot_interval_steps"]) if args.seasonal_output else 0),
+        highcadence=(
+            {"toggle": 1, "start": 1,
+             "end": int(derived["runsteps_per_orbit"]) * args.orbits,
+             "interval": int(args.high_cadence_interval)}
+            if args.high_cadence else
+            {"toggle": 0, "start": 0, "end": 0, "interval": 4}),
         otherargs={
             "N_DAYS_PER_YEAR@plasim_namelist": str(
                 derived["rotations_per_orbit_namelist"]
@@ -318,6 +350,18 @@ def main() -> None:
             ftype="snapshot",
             extension=model_cfg["output_type"],
             variables=[str(code) for code in SNAPSHOT_CODES],
+            mode="grid",
+            times=None,
+            timeaverage=False,
+            interpolatetimes=False,
+        )
+
+    if args.high_cadence:
+        model._add_postcodes("highcadence.nl", HIGH_CADENCE_CODES)
+        model.cfgpostprocessor(
+            ftype="highcadence",
+            extension=model_cfg["output_type"],
+            variables=[str(code) for code in HIGH_CADENCE_CODES],
             mode="grid",
             times=None,
             timeaverage=False,

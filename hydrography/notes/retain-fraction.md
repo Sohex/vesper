@@ -119,7 +119,7 @@ What is still missing from the stream-power law is the slope term, `S^n`. The
 saddle geometry that would give it is sub-grid, and unlike the rock it is not in
 the export.
 
-## The first real verdict, and what it says about Q_full
+## The first real verdict, and what Earth says about Q_full
 
 Measured 2026-08-17 on `precarve-craton` under the baseline climatology, 3,621
 basins: 1,580 carved, 30 marginal, 2,011 preserved.
@@ -131,11 +131,16 @@ discharge test was rewritten to handle exists in the algebra and not on this
 terrain, which is the right way round -- the old ratio test would have been
 undefined for it either way.
 
-**`Q_full` is not worth calibrating**, and the discharge distribution is why. The
-30 marginal basins overflow at 0.008 to 1.70 m3/s; the carved ones have a median
-of 234 m3/s, a ninety-fifth percentile of 1,916 and a maximum of 38,650. The
-boundary sits in an almost empty part of the distribution, so moving it costs
-little:
+### Thirty of 3,621 is not a small residual, it is a missing landform class
+
+Marginal is not a hedge. It is the instruction that makes Orogen cut a notch and
+taper it over the divide band, which is a through-flowing valley holding a
+residual lake -- a distinct and conspicuous landform, and one of the few this
+project decides rather than inherits. Thirty of them is a statement that Vesper
+essentially does not have that landform. That is a result, and it should not
+rest on a constant nobody has checked.
+
+`Q_full` moves it by a factor of four either way within an order of magnitude:
 
 | `Q_full` at land-mean rock | carve | marginal | preserve |
 | ---: | ---: | ---: | ---: |
@@ -144,12 +149,67 @@ little:
 | 10 | 1490 | 120 | 2011 |
 | 100 | 1127 | 483 | 2011 |
 
-An order of magnitude either way takes the marginal count from 0.1% of basins to
-3.3%. Two orders take it to 13%, which is where it would start to matter, and
-100 m3/s is not a defensible reading of "perennial stream". The preserved count
-does not move at all at any value, because it is set by the overflow test and not
-by the incision mapping.
+The preserved count does not move at any value, because it is set by the
+overflow test. Everything in dispute is the split between a carved outlet and a
+notched one.
 
-The number to keep an eye on instead is the 2,011: that is the overflow test, and
-it is decided by the open-water evaporation, which is where the uncertainty
-actually lives.
+### Earth falsifies Q_full = 1 m3/s outright
+
+Measured 2026-08-17 from HydroLAKES v1.0 joined to HydroBASINS level 5, both
+already in `hydrography/data/reference/` for HYD-4. The selection, declared
+before the numbers were read: natural lakes (`Lake_type == 1`) with mean depth
+above 20 m and area above 100 km2, whose pour point falls in a HydroBASINS basin
+with `ENDO == 0`, at latitude under 35 degrees. Depth and area select an
+impounded basin rather than a river widening; `ENDO == 0` selects one whose sill
+a river is actually crossing, which is the situation `retain` describes; the
+latitude cut keeps out sills that were under an ice sheet 20,000 years ago and
+have had no time to be cut at all. That gives 34 lakes, and dropping five Amazon
+floodplain water bodies, which have a river stage rather than a bedrock rim,
+leaves 29. The extract is `hydrography/data/reference/exorheic_impounded_lakes.json`.
+
+**Every one of the 29 has a through-flow above 1 m3/s.** The smallest is 1.3, the
+first quartile is 23 and the median is 55. Under the mapping as declared, all 29
+get `retain = 0` -- Tanganyika, Malawi, Albert, Toba and Titicaca's neighbours
+included -- which is to say the rule as written erases every terrestrial example
+of the landform it is supposed to produce.
+
+### The deeper fault is that the rule never asks how deep the basin is
+
+`Q_full` is a discharge, so it says the same thing about a 14 m pan and a 1,420 m
+trough. Those are the fifth and ninety-fifth percentiles of depth at spill on
+this build, and that field is in the export and currently does nothing. Earth is
+unambiguous that it should: Tanganyika carries 1,491 m3/s across its sill and is
+still a basin, because its floor is 577 m below the sill and the notch has taken
+a small fraction of that. Depth is what decides whether a cut outlet leaves a
+lake behind.
+
+A mapping that asks the question would compare what the overflow can cut against
+what has to go:
+
+    retain = clip(1 - C * erodibility * Q**0.5 / depth_at_spill, 0, 1)
+
+`C` absorbs the incision coefficient and the relaxation window into one constant
+with units of metres per (m3/s)^0.5, which is a quantity Earth bounds directly:
+every standing lake in the sample requires its own cut to be less than its own
+depth, so `C` is bounded above by the minimum of `depth / sqrt(Q)` over the
+sample. That minimum is 0.54, at Lake Albert.
+
+| `C`, m per (m3/s)^0.5 | carve | marginal | preserve |
+| ---: | ---: | ---: | ---: |
+| 0.54, the Earth bound | 76 | 1534 | 2011 |
+| 5 | 582 | 1028 | 2011 |
+| 20 | 1093 | 517 | 2011 |
+| 50 | 1335 | 275 | 2011 |
+| 200 | 1534 | 76 | 2011 |
+
+**The landform class is substantial at every value in that range**, which is the
+finding. It was absent only because the rule could not see depth.
+
+What is still open is `C` itself, and Earth bounds it from one side only. The 29
+lakes bound the cut achieved over their own lifetimes, which for rift lakes is
+short and is offset by subsidence; over the 1e5 to 1e7 years a landscape takes to
+integrate, basins demonstrably do drain, so the true `C` is well above 0.54 and
+nothing here says how far. That is HYD-8, and it is a declared parameter rather
+than a measurement either way -- but declaring one that Earth's own basins
+survive is a different act from declaring one that erases all of them.
+

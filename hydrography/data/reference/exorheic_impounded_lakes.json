@@ -1,0 +1,354 @@
+{
+ "note": "Earth's sill-impounded through-flowing basins, the terrestrial analogue of a MARGINAL carve verdict: a lake that persists although a river crosses its sill. Extracted for HYD-8; hydrography/notes/retain-fraction.md carries the argument.",
+ "generated": "2026-08-17",
+ "sources": [
+  "HydroLAKES v1.0 polygons",
+  "HydroBASINS level 5 v1c"
+ ],
+ "selection": "Lake_type == 1 (natural), Depth_avg > 20 m, Lake_area > 100 km2, |Pour_lat| < 35 deg, and the pour point inside a HydroBASINS basin with ENDO == 0. Depth and area select an impounded basin over a river widening; ENDO == 0 selects a sill a river actually crosses; the latitude cut excludes sills that were under an ice sheet 20 kyr ago. Declared before the numbers were read.",
+ "floodplain_flag": "Amazon varzea water bodies, a river stage rather than a bedrock rim. Flagged rather than deleted; the 29-lake statistics exclude them.",
+ "count": 34,
+ "count_excluding_floodplain": 29,
+ "lakes": [
+  {
+   "Hylak_id": 17,
+   "Lake_name": "Tanganyika",
+   "Lake_area": 32826.65,
+   "Depth_avg": 577.0,
+   "Dis_avg": 1490.748,
+   "Pour_lat": -5.91118,
+   "Pour_long": 29.185417,
+   "floodplain": false
+  },
+  {
+   "Hylak_id": 18,
+   "Lake_name": "Malawi",
+   "Lake_area": 29544.0,
+   "Depth_avg": 261.3,
+   "Dis_avg": 1119.676,
+   "Pour_lat": -14.417702,
+   "Pour_long": 35.236458,
+   "floodplain": false
+  },
+  {
+   "Hylak_id": 159,
+   "Lake_name": "Albert",
+   "Lake_area": 5526.92,
+   "Depth_avg": 25.0,
+   "Dis_avg": 2170.649,
+   "Pour_lat": 2.761442,
+   "Pour_long": 31.410473,
+   "floodplain": false
+  },
+  {
+   "Hylak_id": 160,
+   "Lake_name": "Toba",
+   "Lake_area": 1129.03,
+   "Depth_avg": 212.6,
+   "Dis_avg": 133.695,
+   "Pour_lat": 2.433957,
+   "Pour_long": 99.147011,
+   "floodplain": false
+  },
+  {
+   "Hylak_id": 162,
+   "Lake_name": "Edward",
+   "Lake_area": 2241.98,
+   "Depth_avg": 34.2,
+   "Dis_avg": 194.543,
+   "Pour_lat": -0.140928,
+   "Pour_long": 29.602017,
+   "floodplain": false
+  },
+  {
+   "Hylak_id": 163,
+   "Lake_name": "Kivu",
+   "Lake_area": 2400.88,
+   "Depth_avg": 237.0,
+   "Dis_avg": 64.438,
+   "Pour_lat": -2.48862,
+   "Pour_long": 28.892849,
+   "floodplain": false
+  },
+  {
+   "Hylak_id": 859,
+   "Lake_name": "Saumatre",
+   "Lake_area": 117.64,
+   "Depth_avg": 30.1,
+   "Dis_avg": 9.546,
+   "Pour_lat": 18.585417,
+   "Pour_long": -72.00625,
+   "floodplain": false
+  },
+  {
+   "Hylak_id": 865,
+   "Lake_name": "Peten Itza",
+   "Lake_area": 105.38,
+   "Depth_avg": 32.2,
+   "Dis_avg": 13.326,
+   "Pour_lat": 16.997917,
+   "Pour_long": -89.83125,
+   "floodplain": false
+  },
+  {
+   "Hylak_id": 870,
+   "Lake_name": "Atitla",
+   "Lake_area": 122.74,
+   "Depth_avg": 72.2,
+   "Dis_avg": 27.663,
+   "Pour_lat": 14.702083,
+   "Pour_long": -91.18125,
+   "floodplain": false
+  },
+  {
+   "Hylak_id": 895,
+   "Lake_name": null,
+   "Lake_area": 318.57,
+   "Depth_avg": 29.2,
+   "Dis_avg": 2265.058,
+   "Pour_lat": -2.578953,
+   "Pour_long": -57.854039,
+   "floodplain": true
+  },
+  {
+   "Hylak_id": 897,
+   "Lake_name": null,
+   "Lake_area": 226.43,
+   "Depth_avg": 22.4,
+   "Dis_avg": 324.109,
+   "Pour_lat": -2.74877,
+   "Pour_long": -56.752493,
+   "floodplain": true
+  },
+  {
+   "Hylak_id": 898,
+   "Lake_name": null,
+   "Lake_area": 321.62,
+   "Depth_avg": 20.2,
+   "Dis_avg": 212.755,
+   "Pour_lat": -2.778102,
+   "Pour_long": -56.886458,
+   "floodplain": true
+  },
+  {
+   "Hylak_id": 903,
+   "Lake_name": null,
+   "Lake_area": 388.07,
+   "Depth_avg": 37.8,
+   "Dis_avg": 3180.958,
+   "Pour_lat": -3.366191,
+   "Pour_long": -57.733993,
+   "floodplain": true
+  },
+  {
+   "Hylak_id": 906,
+   "Lake_name": "Mamia",
+   "Lake_area": 180.7,
+   "Depth_avg": 23.2,
+   "Dis_avg": 172.546,
+   "Pour_lat": -4.071027,
+   "Pour_long": -62.958152,
+   "floodplain": true
+  },
+  {
+   "Hylak_id": 927,
+   "Lake_name": "Mandiora",
+   "Lake_area": 144.53,
+   "Depth_avg": 22.7,
+   "Dis_avg": 1.258,
+   "Pour_lat": -18.082743,
+   "Pour_long": -57.524515,
+   "floodplain": false
+  },
+  {
+   "Hylak_id": 1400,
+   "Lake_name": "Pangong",
+   "Lake_area": 285.46,
+   "Depth_avg": 87.3,
+   "Dis_avg": 10.121,
+   "Pour_lat": 33.961051,
+   "Pour_long": 78.427167,
+   "floodplain": false
+  },
+  {
+   "Hylak_id": 1403,
+   "Lake_name": "Bangong",
+   "Lake_area": 332.93,
+   "Depth_avg": 50.0,
+   "Dis_avg": 2.492,
+   "Pour_lat": 33.745615,
+   "Pour_long": 79.028088,
+   "floodplain": false
+  },
+  {
+   "Hylak_id": 1424,
+   "Lake_name": "Na",
+   "Lake_area": 188.28,
+   "Depth_avg": 33.7,
+   "Dis_avg": 6.067,
+   "Pour_lat": 31.924262,
+   "Pour_long": 91.509741,
+   "floodplain": false
+  },
+  {
+   "Hylak_id": 1452,
+   "Lake_name": "La-ang",
+   "Lake_area": 261.27,
+   "Depth_avg": 32.5,
+   "Dis_avg": 46.34,
+   "Pour_lat": 30.846343,
+   "Pour_long": 81.226042,
+   "floodplain": false
+  },
+  {
+   "Hylak_id": 1454,
+   "Lake_name": "Ma-p'ang yung-ts'o",
+   "Lake_area": 413.6,
+   "Depth_avg": 44.8,
+   "Dis_avg": 40.85,
+   "Pour_lat": 30.760503,
+   "Pour_long": 81.374084,
+   "floodplain": false
+  },
+  {
+   "Hylak_id": 1477,
+   "Lake_name": "P'u-mo-ts'o",
+   "Lake_area": 283.19,
+   "Depth_avg": 36.4,
+   "Dis_avg": 31.018,
+   "Pour_lat": 28.622366,
+   "Pour_long": 90.443693,
+   "floodplain": false
+  },
+  {
+   "Hylak_id": 1479,
+   "Lake_name": "Erh",
+   "Lake_area": 242.26,
+   "Depth_avg": 40.0,
+   "Dis_avg": 32.004,
+   "Pour_lat": 25.641445,
+   "Pour_long": 100.216545,
+   "floodplain": false
+  },
+  {
+   "Hylak_id": 1485,
+   "Lake_name": "Fuxian",
+   "Lake_area": 215.37,
+   "Depth_avg": 65.3,
+   "Dis_avg": 14.043,
+   "Pour_lat": 24.519521,
+   "Pour_long": 102.935417,
+   "floodplain": false
+  },
+  {
+   "Hylak_id": 1535,
+   "Lake_name": "Taal",
+   "Lake_area": 235.04,
+   "Depth_avg": 65.7,
+   "Dis_avg": 25.59,
+   "Pour_lat": 13.928981,
+   "Pour_long": 120.953997,
+   "floodplain": false
+  },
+  {
+   "Hylak_id": 1556,
+   "Lake_name": "Mainit",
+   "Lake_area": 142.66,
+   "Depth_avg": 28.9,
+   "Dis_avg": 59.265,
+   "Pour_lat": 9.332196,
+   "Pour_long": 125.521606,
+   "floodplain": false
+  },
+  {
+   "Hylak_id": 1561,
+   "Lake_name": "Lano",
+   "Lake_area": 353.81,
+   "Depth_avg": 74.5,
+   "Dis_avg": 50.24,
+   "Pour_lat": 7.99725,
+   "Pour_long": 124.288408,
+   "floodplain": false
+  },
+  {
+   "Hylak_id": 1589,
+   "Lake_name": "Danau Singkarak",
+   "Lake_area": 108.05,
+   "Depth_avg": 44.9,
+   "Dis_avg": 71.892,
+   "Pour_lat": -0.564583,
+   "Pour_long": 100.551042,
+   "floodplain": false
+  },
+  {
+   "Hylak_id": 1592,
+   "Lake_name": "Onangue",
+   "Lake_area": 249.01,
+   "Depth_avg": 29.2,
+   "Dis_avg": 69.584,
+   "Pour_lat": -0.873064,
+   "Pour_long": 10.027171,
+   "floodplain": false
+  },
+  {
+   "Hylak_id": 1594,
+   "Lake_name": "Danau Poso",
+   "Lake_area": 365.64,
+   "Depth_avg": 53.9,
+   "Dis_avg": 90.674,
+   "Pour_lat": -1.744154,
+   "Pour_long": 120.648899,
+   "floodplain": false
+  },
+  {
+   "Hylak_id": 1600,
+   "Lake_name": "Danau Matano",
+   "Lake_area": 160.89,
+   "Depth_avg": 61.3,
+   "Dis_avg": 25.17,
+   "Pour_lat": -2.532063,
+   "Pour_long": 121.472846,
+   "floodplain": false
+  },
+  {
+   "Hylak_id": 1602,
+   "Lake_name": "Towuti",
+   "Lake_area": 559.75,
+   "Depth_avg": 120.0,
+   "Dis_avg": 138.984,
+   "Pour_lat": -2.765459,
+   "Pour_long": 121.353125,
+   "floodplain": false
+  },
+  {
+   "Hylak_id": 1606,
+   "Lake_name": "Danau Paniai",
+   "Lake_area": 138.67,
+   "Depth_avg": 80.3,
+   "Dis_avg": 104.552,
+   "Pour_lat": -3.955258,
+   "Pour_long": 136.365574,
+   "floodplain": false
+  },
+  {
+   "Hylak_id": 1609,
+   "Lake_name": "Danau Ranau",
+   "Lake_area": 125.35,
+   "Depth_avg": 76.9,
+   "Dis_avg": 21.903,
+   "Pour_lat": -4.811955,
+   "Pour_long": 103.919895,
+   "floodplain": false
+  },
+  {
+   "Hylak_id": 1625,
+   "Lake_name": null,
+   "Lake_area": 155.3,
+   "Depth_avg": 37.3,
+   "Dis_avg": 14.657,
+   "Pour_lat": -11.777083,
+   "Pour_long": 160.50625,
+   "floodplain": false
+  }
+ ]
+}

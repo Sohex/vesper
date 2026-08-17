@@ -43,6 +43,13 @@ SNAPSHOT_CODES = [
     318, 320, 321,
 ]
 
+# High-cadence output is a gust distribution and nothing else. At one sample
+# every fourth timestep a full field list runs to tens of gigabytes an orbit for
+# variables nothing reads, so this is the near-surface wind alone: `spd` is what
+# the Weibull is fitted to, and `ua`/`va` are kept because a direction is what
+# distinguishes a real gust from a reversing mean. DUST-5.
+HIGH_CADENCE_CODES = [131, 132, 259]
+
 
 def file_sha256(path: Path) -> str:
     digest = hashlib.sha256()

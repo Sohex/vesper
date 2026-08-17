@@ -38,3 +38,12 @@ averaged to an annual rate.
 Lake precipitation is not here. It comes from ERA5 through the Open-Meteo archive
 at each lake's pour point, cached under `hydrography/analysis/cache_era5/`, which
 is excluded for the same reason.
+
+## exorheic_impounded_lakes.json
+
+Earth's sill-impounded through-flowing basins: a lake that persists although a
+river crosses its sill, which is the terrestrial analogue of a MARGINAL carve
+verdict. Extracted from HydroLAKES joined to HydroBASINS by pour point, with the
+selection declared in the file and the argument in
+`hydrography/notes/retain-fraction.md`. It is what falsified `Q_full = 1 m3/s`,
+which gives every one of these basins a retain of 0.
