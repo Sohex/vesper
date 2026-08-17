@@ -114,6 +114,19 @@ model:
   # config_sha256. WORKFLOW.md section 6A has the order.
   soil_water_source: uniform
   land_albedo_source: vegetated
+  # Playa clastics are about a quarter of this terrain's land and the largest
+  # lever on its energy balance. The export's 0.19 comes from Post et al.'s
+  # all-soils field mean, which is the right kind of measurement on the wrong
+  # population; 0.23 is that field level corrected by how much brighter saline
+  # desert soils are than the soil population in ECOSTRESS, measured in one
+  # library so the laboratory-over-field offset cancels, and re-weighted to this
+  # star. Derivation in analysis/playa_albedo.py, argument in
+  # notes/audits/orogen-lithology.md. `replaces` refuses to fire if the class is
+  # redefined, which is what retired the previous override.
+  lithology_albedo_overrides:
+    playa_clastic:
+      albedo: 0.23
+      replaces: 0.19
   # Classes that cannot carry vegetation, so they keep their own albedo in
   # `vegetated` mode. Nothing roots in salt crust or playa mud, and between them
   # they are about a quarter of this planet's land.
