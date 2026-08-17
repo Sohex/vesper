@@ -540,6 +540,48 @@ the plutonic excess against GLiM follows from them. What would change it is the
 plate count or the erosion sliders, and both are worldbuilding decisions that
 have already been made and liked.
 
+### The craton archetype effectively never fires
+
+`LITH-21`, and it is the fourth rule this audit has found producing almost
+nothing.
+
+Granite is the FALLBACK basement -- `else bm = R.granite` -- so it takes every
+continental cell that is not forearc, arc belt, fold belt or craton. On the
+current build that is 58.87% of land, of which 11.12% is exposed where cover has
+stripped. Against GLiM's acid plutonic at 5.7% that is 1.95x.
+
+The craton branch is what should be claiming the stable interiors, and it claims
+0.75% of land. `r_t_craton = max(0, 1 - 2.5 * tecActivity) * (1 - basin)` needs
+tectonic activity below 0.40 to be non-zero at all, and below about 0.22 to clear
+the 0.45 threshold. Land-mean activity here is 0.668.
+
+**The obvious explanation is wrong.** With 100 plates against Orogen's default of
+24, the natural reading is a constant calibrated for a quieter world. Builds at
+both plate counts say otherwise:
+
+| | 24 plates | 100 plates | GLiM |
+| --- | ---: | ---: | ---: |
+| granite | 11.16% | 11.12% | 5.7% |
+| gneiss | 0.44% | 0.49% | -- |
+| schist | 4.16% | 11.83% | -- |
+| plutonic | 2.13x | 2.71x | 6.8% |
+| metamorphic | 0.67x | 1.42x | 13.0% |
+
+Granite is 11.1% at BOTH, and gneiss is under half a percent at both. Plate count
+moves schist, granodiorite and melange; it does not move the two classes this
+finding is about. So the craton term is near-dead at the default plate count too,
+and this is not a regime mismatch.
+
+**What it produces is a category substitution.** Earth maps a great deal of
+undifferentiated Precambrian basement as gneiss and granulite, inside the 13.0%
+metamorphic class. Orogen labels the same material granite, inside plutonic. The
+two errors are complementary and visible at 24 plates, where plutonic runs 2.13x
+GLiM while metamorphic runs 0.67x -- an excess and a deficit of similar size,
+which is what one misfiled class looks like.
+
+Whether to fix it is a worldbuilding decision rather than a correction. This world
+currently has no cratonic shields at all, and Earth's are prominent.
+
 `LITH-20`, closed. The residual granite excess -- 11.12% of land against GLiM's
 5.7% acid plutonic, and cratonic rather than arc -- is untouched by any of this
 and is the part that would still repay an explanation.
