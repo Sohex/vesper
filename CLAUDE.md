@@ -16,7 +16,7 @@ describes, and the pointers below are the map:
 | `<component>/README.md` | what that component does and how to run it |
 | `notes/failure-modes.md` | how this project goes wrong, by class |
 | `notes/audits/` | findings: what is true, with its evidence |
-| `TASKS.md` | what to do about a finding, tracked atomically |
+| `TASKS.md` | what to do about a finding, tracked atomically; closed ones move to `archive/tasks.md` |
 | `world_state.json` | every current value |
 
 ## The rules that will bite you
