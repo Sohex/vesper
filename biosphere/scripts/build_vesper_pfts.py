@@ -9,7 +9,7 @@ Two kinds of parameter, and only one of them scales.
 
 **Annual sums scale.** `gdd5min_est` is the minimum growing degree-days above
 5 C a PFT needs *in a year* to establish. Degree-days accumulate per day at the
-same rate on both worlds, so a 181-day year reaches roughly half the annual total
+same rate on both worlds, so a Vesper year reaches roughly half the annual total
 for identical temperatures. Left alone, Earth thresholds exclude nearly every
 tree PFT for reasons that have nothing to do with the climate. This is not
 hypothetical: the patched model run on Earth's own demo data collapses boreal

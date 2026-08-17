@@ -66,9 +66,10 @@ alongside it. See "Running it" below for the generators.
 
 ## The three things that decide whether this is credible
 
-**The calendar.** Vesper's year is 180.655 Earth days and its day is 30 hours,
-so nothing about LPJ-GUESS's 365 x 24 h grid survives contact. Settled and
-patched: 24-hour steps, 181-day year, which keeps every per-day rate constant
+**The calendar.** Vesper's year is a few hundred Earth days and its day is 30
+hours, so nothing about LPJ-GUESS's 365 x 24 h grid survives contact. Settled and
+patched: 24-hour steps, a year length derived from `lib/orbit.py` and rounded to
+whole days, which keeps every per-day rate constant
 calibrated against the absolute time it was calibrated against and confines the
 error to daylength alone. Verified against the unpatched model on identical
 forcing, where annual evapotranspiration falls to 0.492 of its former value
@@ -89,7 +90,7 @@ Earth-analogue biosphere and should be declared that way rather than presented a
 a prediction. Their degree-day thresholds must be rescaled by 0.4946, and this is
 not optional: running the patched model on Earth's own demo data collapses boreal
 needleleaf and temperate broadleaf to grass, because Earth `gdd5min` cannot be
-met in 181 days. `build_vesper_pfts.py` does it, deriving the factor from the
+met in a Vesper year. `build_vesper_pfts.py` does it, deriving the factor from the
 configured orbit; `gdd5min_est` 500 becomes 247. It deliberately leaves
 `phengdd5ramp` alone, which is a within-season accumulation already in absolute
 time, and scaling that would be a real error.

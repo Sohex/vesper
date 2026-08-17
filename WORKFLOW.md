@@ -280,7 +280,7 @@ confines the error to daylength, where its sign is known. Stepping in real 30-ho
 Vesper days would put 25.9% into respiration, decomposition and phenology alike.
 
 Annual degree-day limits are rescaled by the same orbit-derived factor, because a
-181-day year reaches half the annual GDD of a 365-day one and Earth thresholds
+Vesper year reaches about half the annual GDD of a 365-day one and Earth thresholds
 would otherwise exclude every tree for reasons unrelated to the climate.
 
 Forcing arrives as one binary driver file carrying however many years of climate

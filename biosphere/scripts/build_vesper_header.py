@@ -8,7 +8,7 @@ moves, and a hardcoded year silently desynchronises the model from its forcing.
 
 This project has already been bitten by exactly that. `lib/orbit.py` exists
 because 189.6145 d, the 0.90-flux year, was still sitting in the hydrography
-scripts after the baseline moved to 0.96 and 180.655 d.
+scripts after an orbit change moves the year length.
 
     python biosphere/scripts/build_vesper_header.py
 
