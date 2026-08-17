@@ -94,13 +94,18 @@ ROCK_TO_MEYBECK = {
     # crystalline basement, and mapping it there would swap one wrong rock for
     # another while happening to give a smaller number.
     #
-    # KNOWN UNDER-REPRESENTATION: serpentinite. Melanges carry it, ultramafic
-    # weathering is Mg-rich and a real CO2 sink, and Meybeck has a peridotite
-    # row at 500 ueq/l Mg for exactly that rock. It is left out because the
-    # serpentinite fraction of a forearc is volumetrically minor and nothing
-    # here constrains it. This biases Mg and CO2 low, and that direction is
-    # deliberate: it is the conservative side of a term that has already been
-    # wrong once by being too generous.
+    # KNOWN UNDER-REPRESENTATION: serpentinite. Melanges carry it and Meybeck
+    # has a peridotite row for exactly that rock. It is left out because the
+    # serpentinite fraction of a forearc is volumetrically minor, nothing here
+    # constrains it, and the effect is small: at a generous 10% of melange the
+    # planet's silicate CO2 total moves about half a percent.
+    #
+    # The bias directions, since intuition gets one of them backwards.
+    # Meybeck's peridotite is LOWER in bicarbonate than shale, 450 against 580,
+    # so omitting serpentinite biases CO2 and Ca HIGH, not low. It biases Mg
+    # (500 against 240) and silica (180 against 150) LOW. Ultramafic rock being
+    # an efficient CO2 sink per unit area is a statement about reaction rate,
+    # not about the solute concentration this table carries.
     "melange":             "shale",
     # "Shelf sandstone / shale" is a mixture. Shale is far more reactive and
     # dominates the solute load of any such mixture, so it is mapped there;
