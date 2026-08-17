@@ -43,11 +43,15 @@ SNAPSHOT_CODES = [
     318, 320, 321,
 ]
 
-# High-cadence output is a gust distribution and nothing else. At one sample
-# every fourth timestep a full field list runs to tens of gigabytes an orbit for
-# variables nothing reads, so this is the near-surface wind alone: `spd` is what
-# the Weibull is fitted to, and `ua`/`va` are kept because a direction is what
-# distinguishes a real gust from a reversing mean. DUST-5.
+# High-cadence output is a gust distribution and nothing else, so this is the
+# near-surface wind alone: `spd` is what the Weibull is fitted to, and `ua`/`va`
+# are kept because a direction is what distinguishes a real gust from a reversing
+# mean. DUST-5.
+#
+# This trims the POSTPROCESSED file. The raw one the model writes is 15 GB for a
+# single T42 orbit at one sample every fourth timestep regardless of this list,
+# because the model's output path takes no field list; it is cleaned up after
+# pyburn runs, but the disk has to be free first.
 HIGH_CADENCE_CODES = [131, 132, 259]
 
 

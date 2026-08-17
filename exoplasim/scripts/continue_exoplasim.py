@@ -174,9 +174,11 @@ def main() -> None:
     # variance that actually lifts dust, so a Weibull fitted to them is too
     # narrow and the emission it implies is a lower bound. Sampling every fourth
     # timestep gives 1462 samples a cell over one orbit, which resolves a
-    # 30-hour day. The field list is trimmed to the winds in
-    # `high_cadence_namelist`, because the default list at this cadence is tens
-    # of gigabytes for fields nothing asks for.
+    # 30-hour day. The postprocessed field list is trimmed to the winds by
+    # HIGH_CADENCE_CODES; note that this does NOT shrink what the model writes.
+    # The raw `MOST_HC.NNNNN` is 15 GB for one orbit at T42 whatever is asked
+    # for, because the model's own output path does not take a field list. It is
+    # deleted once pyburn has run, but the disk has to be there first.
     parser.add_argument(
         "--high-cadence", action="store_true",
         help="write near-surface wind every fourth timestep for this segment, "
