@@ -146,6 +146,19 @@ _KNOWN_TERRAIN_HASHES = {
     # exactly as nothing moves when gravity changes. Two exports can share a
     # terrain hash and disagree on field names, so read the manifest field list
     # rather than assuming one from the hash.
+    # Craton weight no longer multiplied by (1 - basin). That factor said a
+    # craton under sedimentary cover is not a craton, which is backwards --
+    # Earth's cratons are mostly platform -- and cover is modelled separately,
+    # so it double-counted. Cratonic BASEMENT goes 1.41% of land to 3.46%.
+    # Exposed gneiss barely moves, because these cratons carry thick basin
+    # cover; that is the shield-versus-platform distinction, not a failure.
+    #
+    # The terrain hash moves even though this is a lithology change, because
+    # craton weight also feeds CRATON_AMP_SUPPRESS and therefore relief.
+    "e931b0d9947a232210a3cc11ba82003b5da15765d86e87956bc44c220932760e":
+        {"name": "precarve-craton", "note":
+         "2026-08 pre-carve base at g = 12.81; craton basin double-count "
+         "removed, arc/forearc rules reachable, substrate_class naming"},
     "2e06d17682075096ab2e0093eb0f5618417cdee38383f1ca153646995bffad5a":
         {"name": "precarve-substrate", "note":
          "2026-08 pre-carve base at g = 12.81; arc/forearc rules reachable, arc "

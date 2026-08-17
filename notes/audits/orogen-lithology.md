@@ -579,9 +579,38 @@ two errors are complementary and visible at 24 plates, where plutonic runs 2.13x
 GLiM while metamorphic runs 0.67x -- an excess and a deficit of similar size,
 which is what one misfiled class looks like.
 
-**Three levers were tested and none of them moves it.** Recorded because the
-negative results bound the problem, and because each was a plausible hypothesis
-that measurement killed.
+**Traced, and the levers were working the whole time.** The three sweeps below
+measured SURFACE gneiss, which does not move. Basement does:
+
+| | current | mult 1.1 | mult 0.9 | half basin | no basin |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| gneiss basement | 1.41% | 2.23% | 3.11% | 3.06% | 3.46% |
+| granite basement | 46.63% | 45.81% | 44.94% | 44.98% | 44.58% |
+| gneiss SURFACE | 0.49% | 0.49% | 0.49% | 0.49% | 0.49% |
+
+So the craton branch fires, responds to its parameters, and takes basement from
+the granite fallback exactly as intended. What it cannot do is reach the surface:
+the cells it claims are quiet, low-relief ground, and quiet ground here carries
+the thickest cover. The cover over gneiss basement is playa fill at 35.7%,
+continental clastics at 15.4% and evaporite at 15.2% -- these cratons are buried
+under basins.
+
+That is the shield-versus-platform distinction, and it is correct behaviour
+rather than a defect. Earth's shields are exposed because glacial scour and
+epeirogenic uplift stripped their platforms, and Orogen models neither. **Visible
+shields are therefore not reachable by any parameter here**; cratonic basement is.
+
+**The one real defect was the basin factor.** `r_t_craton` was multiplied by
+`(1 - basin)`, which says a craton under sedimentary cover is not a craton. On
+Earth most cratonic area IS covered -- the Russian Platform, the North American
+mid-continent -- and cover is already modelled separately as `cover_rock` and
+`cover_thickness`, so the factor double-counted and left the archetype claiming
+under 1% of land. Removed. Cratonic basement roughly doubles to 3.46%, about a
+third of Earth's cratonic share, which is the intent for a planet whose mass
+implies keel-delaminating convection.
+
+The earlier sweeps are kept below because the record of what was measured, and
+of measuring the wrong field for three rounds, is worth more than the conclusion.
 
 | lever | tried | gneiss |
 | --- | --- | --- |

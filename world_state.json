@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated": "2026-08-17T02:16:07.531624+00:00",
-  "git_commit": "96ecf9693acfee3c3305d319170483e717301951",
+  "generated": "2026-08-17T02:59:37.769668+00:00",
+  "git_commit": "e8048b6b27fec373b7cdeabe948b1b528439f97a",
   "generator": "scripts/world_state.py",
   "note": "Generated from the artifacts. Do not edit; re-run the generator. Judgement that no artifact can supply is in `curated`, which lives in the generator under version control.",
   "planet": {
@@ -38,7 +38,7 @@
     "ozone": true
   },
   "active_configuration": {
-    "source_build": "precarve-substrate",
+    "source_build": "precarve-craton",
     "model": {
       "resolution": "T42",
       "latitudes": 64,
@@ -97,9 +97,9 @@
     }
   },
   "builds": {
-    "precarve-substrate": {
-      "terrain_hash": "2e06d17682075096ab2e0093eb0f5618417cdee38383f1ca153646995bffad5a",
-      "catalogue_hash": "bc84109168789f519b53fc8197ddc976be93ecd8326b61a8086de85e638343cc",
+    "precarve-craton": {
+      "terrain_hash": "e931b0d9947a232210a3cc11ba82003b5da15765d86e87956bc44c220932760e",
+      "catalogue_hash": "7b56935b498da4e8ee0db6861092c21caa524503c3aefaa0fbff3782451612dd",
       "seed": 16236323,
       "regions": 2500001,
       "selection_source": "threshold",
@@ -108,15 +108,15 @@
         "carveListGiven": 0,
         "carvedByRetainZero": 0
       },
-      "preserved_basins": 3629,
-      "land_fraction": 0.4317358383866897,
-      "endorheic_fraction_of_land": 0.763171903578747,
+      "preserved_basins": 3621,
+      "land_fraction": 0.4317189425633888,
+      "endorheic_fraction_of_land": 0.7629547203568442,
       "lithology_land_fractions": {
-        "playa_clastic": 0.23785,
-        "continental_clastic": 0.18848,
-        "schist": 0.11835,
-        "granite": 0.1112,
-        "granodiorite": 0.07287,
+        "playa_clastic": 0.23869,
+        "continental_clastic": 0.18923,
+        "schist": 0.11795,
+        "granite": 0.11047,
+        "granodiorite": 0.07288,
         "melange": 0.06169
       },
       "land_elevation_km": {
@@ -138,7 +138,7 @@
     "value": null,
     "invalidated": true,
     "depends_on": "source_build",
-    "expected": "precarve-substrate",
+    "expected": "precarve-craton",
     "found": "no baseline_climate_report.json exists for any climatology this build produced; run exoplasim/scripts/analyze_climatology.py",
     "note": "current_climate was computed from a dependency that has since moved; regenerate it. Cleared rather than shown, because a stale derived value is indistinguishable from a current one."
   },

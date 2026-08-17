@@ -859,7 +859,22 @@ function classifyTerrain(mesh, r_xyz, tect, sf, seed) {
 
         const basin = r_basinFactor[r];
         r_t_foldBelt[r] = Math.min(1, stressNorm * FOLD_BELT_MULT);
-        r_t_craton[r]   = Math.max(0, 1 - tecActivity * CRATON_TECTONIC_MULT) * (1 - basin);
+        // NO basin factor. It used to be multiplied by (1 - basin), which says a
+        // craton under sedimentary cover is not a craton -- and on Earth most
+        // cratonic area IS covered. A craton is shield plus platform, and the
+        // platform is the larger part: the Russian Platform and the North
+        // American mid-continent are cratons with basin fill on top. Cover is
+        // already modelled separately here, as cover_rock and cover_thickness,
+        // so suppressing craton-ness by basin depth double-counted it and left
+        // the archetype claiming under 1% of land.
+        //
+        // Removing it roughly doubles cratonic BASEMENT, 1.41% of land to 3.46%,
+        // about a third of Earth's cratonic share -- which is the intent for a
+        // 1.881 Earth-mass planet whose vigorous convection delaminates cratonic
+        // keels. Exposed gneiss barely moves, because the added cratons are the
+        // quiet low-relief ground that carries the thickest cover. That is the
+        // shield-versus-platform distinction and it is the correct behaviour.
+        r_t_craton[r]   = Math.max(0, 1 - tecActivity * CRATON_TECTONIC_MULT);
         r_t_basin[r]    = basin * Math.max(0, 1 - tecActivity * BASIN_TECTONIC_MULT);
         const isPlateauZone = sf_r < 0.45 && dMtn !== Infinity && dMtn > plateauStart;
         r_t_plateau[r] = isPlateauZone ? 1 : 0;
