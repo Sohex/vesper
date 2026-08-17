@@ -144,10 +144,19 @@ def glev_evaporation(path: Path, ids) -> pd.Series:
     df = pd.concat(keep, ignore_index=True)
     idcol = df.columns[0]
     months = [c for c in df.columns if c != idcol]
-    # Monthly rates in mm/month; the annual total is their sum per year, and the
-    # columns are a monthly time series, so the mean month times twelve is the
-    # long-term annual rate.
-    annual = df[months].apply(pd.to_numeric, errors="coerce").mean(axis=1) * 12.0
+    # The columns are a monthly time series of DAILY rates, mm/day, so the annual
+    # rate is the mean month times the days in a year. The unit is not stated in
+    # the file and reading it as mm/month put every lake 30 times too low.
+    #
+    # It is settled by the data's own seasonal cycle rather than by assumption:
+    # Great Salt Lake peaks at 6.65 in July and August and sits at exactly 0
+    # through the ice-covered winter, which is a daily rate; 6.65 mm in a July
+    # would be absurd. The resulting 1,157 mm/yr then agrees with the roughly
+    # 1,000 mm/yr Yapiyev et al. (2017) give for the same lake from an unrelated
+    # source, which is the check that the conversion is right rather than merely
+    # self-consistent.
+    annual = (df[months].apply(pd.to_numeric, errors="coerce").mean(axis=1)
+              * 365.25)
     return pd.Series(annual.values, index=df[idcol].astype(int).values)
 
 
