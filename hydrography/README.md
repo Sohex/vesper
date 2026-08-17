@@ -208,6 +208,12 @@ cascade: a basin's overflow is its final equilibrium value with everything
 upstream included, and the paths are disjoint segments, one basin's saddle to
 the next one's sink.
 
+The fix's own first version left `export_carve_list.py` on the unremapped path,
+because `field_lon` was optional and defaulted to it -- and that was the one
+caller whose output leaves the project and changes the terrain. An argument
+whose absence silently means "do the wrong thing" is the original bug wearing
+the shape of its fix. It is now required.
+
 ## The Earth comparator, and a correction
 
 Earth's endorheic fraction is **about one-fifth of its land surface**, not the

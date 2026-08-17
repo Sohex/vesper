@@ -94,3 +94,108 @@ trend but a mean TOA imbalance of -0.504 W/m2, missing the strict limit by
 0.004 W/m2. It is labelled quasi-equilibrated rather than having the rule quietly
 relaxed around it, and anything derived from it is a qualitative endpoint rather
 than a result of equal confidence. Preserve that standard.
+
+## Two ExoPlaSim behaviours to know before changing anything
+
+Two behaviours of ExoPlaSim worth knowing before changing anything here. Its
+`configure()` clears every surface `.sra` when given a landmap, so all land
+surface fields except topography and the land mask are uniform namelist defaults;
+this is declared via `model.uniform_land_surface` and is deliberate, since Earth's
+surface maps are tied to Earth's continents. Albedo is the exception and is
+supplied from lithology by `build_surface_albedo.py`, because this world's bare
+rock is markedly brighter than ExoPlaSim's uniform default and a large minority
+of the land is bright closed-basin fill. **Measure it on the surface the model
+sees, not from the rock table**: a lithology change confined to basin fill moves
+the VEGETATED land albedo roughly twice as far as the bare one, because
+vegetation masks bare-rock variation but not the barren classes. Note this is
+substrate albedo -- real vegetation arrives from LPJ-GUESS in loop C of
+`WORKFLOW.md`. Current values are in `world_state.json`.
+
+Its `finalize()` picks output as the last glob match, so a run directory shared
+between worlds can silently emit the wrong world's result. `run_id` used to name
+everything physical to prevent that -- geography digest, spectrum, flux at
+thousandths -- and each of those was added after a near-miss.
+
+**`run_id` is now a UUID, and that is the fix rather than a retreat from one.** A
+derived identifier separates runs only along the dimensions it encodes, and the
+encoded set is just a list of everything someone has thought of so far. The ozone
+band-weight patch changed the physics and moved nothing in it, so the pre-patch
+and post-patch runs at the same flux computed the same name and shared a
+directory. A UUID collides with nothing, including along dimensions nothing here
+models.
+
+What a run *was* lives in `run_manifest.json`, which gains a `physical` block, and
+in `exoplasim/runs/INDEX.json`, generated from those manifests by
+`index_runs.py`. That index is tracked even though `runs/` is not, because it is
+the only record that survives deleting the output. A continuation must now be
+given `--run`; it cannot recompute a name, which is the safer direction.
+
+`model.energy_diagnostics` adds PlaSim's 28-term energy decomposition on codes
+360-387. The postprocessor ships 119 codes and none of those, so
+`run_exoplasim.py` registers them at run time; patching the vendored tree would
+be undone silently by any reinstall of the untracked `.venv`.
+
+**Patched source and per-configuration binaries.** ExoPlaSim compiles a separate
+executable for every (resolution, layers, ranks) triple, so patching the source
+and running rebuilds *only the configuration you are running*. Every other binary
+keeps the old code until something asks for it. This is failure class 11 and it
+fired three times in a single day.
+
+So, two rules:
+
+- **After any patch, rebuild everything**: `python
+  exoplasim/scripts/rebuild_binaries.py`. It deletes every executable, rebuilds
+  the matrix, and writes `exoplasim/patches/binary_manifest.json` recording which
+  patches are compiled into which sha256. The star-cycle tree is separate and
+  needs `build_star_cycle_exoplasim.sh` afterwards.
+- **After any `.venv` reinstall, do the same.** `.venv` is untracked and
+  reinstallable, and a reinstall restores pristine ExoPlaSim and discards every
+  applied patch with no warning at all. `rebuild_binaries.py --verify` is the
+  cheap check that tells you whether that has happened; `check_consistency.py`
+  runs the same check.
+
+The ozone patch is *resident* in the source -- it must be applied for any build
+to be correct. The star-cycle patch is not: it is applied and reversed around its
+own build, because a cycle binary and a steady binary are different things and
+only one can be in the tree at a time.
+
+See `exoplasim/README.md` for the workflow and results,
+`exoplasim/notes/lake-representation.md` for what the model can do with the
+endorheic basins, and `exoplasim/notes/parameter-decisions.md` for every physical
+and format decision
+(ExoPlaSim 3.4.2 calendar bugs, postprocessor code quirks, convergence criteria,
+Köppen rate-normalisation, sign conventions). Read the notes before changing
+anything about how runs are configured — most of the non-obvious choices are
+already justified there.
+
+**The completed runs under `exoplasim/runs/` span several eras**, and which era a
+run belongs to is not visible in its id, because ids are UUIDs. `INDEX.json` is
+the only thing that knows: its `physical` block records the geography, spectrum
+and surface albedo each run actually used, and that triple is what decides
+whether two runs are comparable. Ask the index; do not infer an era from a name.
+
+What survives a re-baseline is decided by what a result depends on, not by how
+old it is. A flux-versus-temperature slope measured on superseded terrain stays
+the best measurement of that slope, because it turns on sea ice and the Planck
+response rather than on which basins are bright. A mean surface temperature from
+the same run does not survive at all. Judge each quoted number by which of those
+it is.
+
+`analysis/climatology_s096/` is superseded as a description of this world. It was
+computed on the pre-carve terrain, under the k2 spectrum, and it is what the
+antipodal carve verdict was taken from. Its numbers remain valid for the surface
+they were computed on.
+
+The stellar spectrum was wrong for three eras -- `k2.dat` is the star K2-18, an
+M2.5V, not a K dwarf -- but fixing it changed absorbed shortwave by 0.04 W/m2 on
+this nearly ice-free world, because it acts on snow and ice and there is almost
+none of either. It is not null on the cold branch, so it still matters for the
+stellar cycle. That asymmetry is the general lesson: a correction's size depends
+on how much of the surface it acts on, so estimate it against the state you are
+in rather than the state it was first measured on.
+
+**Convert a surface albedo change through the atmosphere, or better, measure
+the model's own planetary albedo.** Multiplying a surface-albedo delta by full
+top-of-atmosphere insolation ignores everything above the surface and overstates
+the forcing; roughly half of a surface change reaches the top of the atmosphere,
+before any feedback. Predicting a lithology fix that way was a kelvin out.

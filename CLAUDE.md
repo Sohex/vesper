@@ -1,25 +1,127 @@
 # CLAUDE.md
 
 Worldbuilding project for **Vesper**, a super-Earth around a mid-K dwarf. The
-geography comes from a fork of World Orogen; ExoPlaSim is one consumer of it,
-and more components (biomes, hydrology, cultures) are expected alongside it.
+geography comes from a fork of World Orogen; ExoPlaSim, hydrography, pedology and
+the biosphere are consumers of it, and more components are expected alongside
+them.
+
+This file is directives and design intent. Detail lives with the thing it
+describes, and the pointers below are the map:
+
+| Read this | For |
+| --- | --- |
+| `WORKFLOW.md` | what the components are, how they connect, the order they run in, and why that order is a loop. **Read it first.** |
+| `source/README.md` | how to read an export: field conventions, the land-mask rule, the traps |
+| `vendor/orogen/tools/README.md` | the authoritative export format |
+| `<component>/README.md` | what that component does and how to run it |
+| `notes/failure-modes.md` | how this project goes wrong, by class |
+| `notes/audits/` | findings: what is true, with its evidence |
+| `TASKS.md` | what to do about a finding, tracked atomically |
+| `world_state.json` | every current value |
+
+## The rules that will bite you
+
+These are the ones that have already cost real work. Each is enforced somewhere;
+none of them is advice.
+
+1. **Take land from `surface_class`, never from `land_mask`.** They disagree over
+   dry closed-basin floor below sea level, and preserving that terrain is the
+   entire point of the fork. Do not reconstruct it as `land_mask | is_endorheic`
+   either -- that misses the depressions too small to enter the basin catalogue.
+   See `source/README.md`.
+2. **`config/planet.yaml` is the single source of truth for the planet.** Do not
+   copy its values into prose or into a script. Gravity is declared and Orogen's
+   is canonical; mass follows from it and `derive()` raises if they disagree.
+3. **Never match by longitude across the export/ExoPlaSim boundary.** The two
+   label the same grid differently. Map by index, share one coordinate source,
+   and never reconstruct one. This has silently matched zero cells on three
+   separate scripts.
+4. **After any patch, and after any `.venv` reinstall, rebuild every binary.**
+   ExoPlaSim compiles one executable per (resolution, layers, ranks) triple, so
+   a rebuild only refreshes the configuration you ran. `.venv` is untracked, and
+   reinstalling it silently discards every applied patch.
+   `python exoplasim/scripts/rebuild_binaries.py`, then `--verify`.
+5. **Run ids are UUIDs. Ask the index; never guess or derive a name.**
+   `exoplasim/runs/INDEX.json` is the only record of what a run physically was,
+   and it is tracked even though the output is not.
+6. **`source/` is read-only. Add a build; never overwrite one.**
+7. **Before an expensive run**, and after changing `source_build`:
+
+       python scripts/check_consistency.py     # do the artifacts agree?
+       python scripts/smoke_test.py            # does the code that makes them?
+
+8. **Read `notes/failure-modes.md`** before quoting a geography number, adding a
+   component, or changing a quantity that more than one script consumes. The one
+   most likely to catch you first: a pre-carve build is a *limit*, not a state,
+   and pre-carve numbers are what is physically sitting in `source/` at the start
+   of every cycle.
+
+## Conventions
+
+- **Do not write current values into prose.** `world_state.json` is generated
+  from the artifacts and is the only place they belong. A number earns a place in
+  a document only if it is a decision, a threshold, an identity, or if the
+  magnitude carries an argument that fails without it: a convergence criterion, a
+  terrain hash, "the two windows do not overlap", "exactly 180 degrees". Mean
+  temperature, basin counts, land composition and the active build are none of
+  those, and every one of them was wrong in these documents within a day of being
+  written. `notes/` is the exception and the opposite: those are dated records of
+  what was measured, so they keep their numbers and gain a "measured on".
+- **Rewrite superseded content; do not mark it.** A reader grepping for a number
+  lands on the number, not on the warning above it.
+- Prose in docs and reports uses ASCII punctuation and avoids em dashes; match it.
+- Keep citations and table cells on one source line, even where that breaks
+  column alignment. They get copied out.
+- Every run and analysis product records its provenance (config hash, input
+  hashes, software versions) in JSON. Keep that up when adding steps.
+- Claims about convergence and equilibration are stated with their exact criteria
+  and are labelled honestly when they miss. One cold case is called
+  "quasi-equilibrated" for missing its threshold by 0.004 W/m2. Preserve that
+  standard rather than rounding results into passes.
+- Scripts anchor their paths in a `_paths.py` and resolve from the file location,
+  not the working directory, so they run from anywhere.
+- **Findings and tasks are kept apart.** A document under `notes/audits/` says
+  what is true and carries its evidence; `TASKS.md` says what to do about it and
+  cites the document. That way a finding can be read without being re-litigated,
+  and a task closed without editing the argument behind it.
+
+## State, identity and history
 
 `world_state.json` is what the project currently knows. It is generated by
 `scripts/world_state.py`, never edited, and re-run after anything that changes a
 build, a run or a verdict.
 
 **It tracks the live thread only** -- the active build and the runs on it, not
-the six superseded builds or the runs that belong to them. A derived value whose
-dependency has moved is *cleared*, not carried with a caveat: `current_climate`
-used to report a pre-carve, wrong-spectrum climatology alongside a paragraph
-explaining not to quote it, which is an invitation rather than a guard. It now
-emits an invalidation record naming the dependency and what to run.
+the superseded builds or the runs belonging to them. A derived value whose
+dependency has moved is *cleared*, not carried with a caveat: a stale derived
+value is indistinguishable from a current one, so it emits an invalidation
+record naming the dependency and what to run.
 
-Identity lives in the registry, state lives here: `lib/orogen.py` keeps every
-build it has been checked against so old results stay readable and datable.
+**Identity lives in the registry, state lives in world_state.** `lib/orogen.py`
+keeps every build it has been checked against, so results already computed from a
+superseded terrain stay readable and datable.
 
-`WORKFLOW.md` is the map: what the components are, how they connect, the order
-things run in, and why that order is a loop rather than a line. Read it first.
+## Design intent
+
+- **The orbit and the biosphere are one choice, not two.** The flux windows that
+  put this world in its design temperature range do not overlap between a
+  vegetated surface and a bare-rock one, and the endmember spread near the target
+  is wider than the target band. No single flux is robust to the vegetation
+  question. Chosen: vegetated. The band is narrow, so re-derive after anything
+  that moves land albedo.
+- **The pipeline is a loop, not a line.** Drainage depends on climate, climate on
+  drainage, and both on the biosphere. `WORKFLOW.md` section 4 says why, and
+  which loop is deliberately left open.
+- **Do not reuse a sensitivity measured in one regime in another.** Bracket
+  between two converged points that span the target rather than extrapolating
+  from one. Doing the latter across the ice transition predicted 291.9 K for a
+  run that converged at 287.47 K.
+- **A correction's size depends on how much of the surface it acts on.** Estimate
+  it against the state you are in, not the state it was first measured in.
+- **A judgment made while a class is absent is not a judgment.** Values that
+  nothing exposes go unchecked; three of them surfaced at once when a single
+  tectonic bug was fixed. When a rule starts firing for the first time, audit
+  everything it controls.
 
 ## Layout
 
@@ -72,7 +174,7 @@ directory outside it. Pull upstream with `git subtree pull --prefix vendor/oroge
 orogen-fork cf-fork --squash`. Its generated output stays untracked: the
 subtree's own `.gitignore` excludes `out/`, which runs to 13 GB.
 
-Its `tools/README.md` is the authoritative reference for the export format — read it
+Its `tools/README.md` is the authoritative reference for the export format -- read it
 before writing anything that consumes `source/`. The fork adds, over upstream:
 lithology (rock class, erodibility, scarp potential), preserved endorheic basins,
 a richer export manifest, non-Earth planet parameters, and direct emission onto
@@ -106,430 +208,12 @@ Superseded means wrong, not merely old, and both are kept registered so results
 already computed from them stay readable and datable. **Registered is not the
 same as present**: only the active build has a payload under `source/`. The
 others are identity stubs in `archive/builds/`, which is enough to recognise a
-build and date a result, and the payload is regenerable in one pass from the
-planet code plus a carve list. `carved-zoned` applied a
-verdict in which every basin had integrated its ANTIPODE's climate, so a majority
-of its carves are unjustified. `carved-zoned-v2` fixed that but carried a
-lithology chain that decided which deposit sat on top by the order the branches
-were written, so closed-basin fill was overwritten in orogens and on oceanic and
-flood-basalt crust, leaving preserved basins with no fill cell anywhere that
-reached ExoPlaSim as vegetated land. `lib/orogen.py` carries the counts.
+build and date a result. What each superseded build got wrong, and what replaced
+it, is a note against its hash in `lib/orogen.py`.
 
 A wrong verdict is recoverable and a wrong build is not the trap it sounds like:
 Orogen regenerates terrain from the planet code plus a carve list in one pass,
 so a build is replaced wholesale rather than edited.
-
-## Reading a build
-
-Five exports of the same planet per build, all from seed 16236323 with 2,500,001
-mesh regions, and all carrying the same `manifest.hashes.finalElevation` within a
-build. Check that hash against `lib/orogen.py` before trusting any number quoted
-about the terrain: the seed and parameters alone do not identify a build, because
-fixes to the generator change the terrain under a fixed seed, and one such fix
-(over-erosion) moved mean land elevation by a factor of four. Anything derived
-from a superseded terrain is not comparable, and the registry note on each build
-says what moved.
-
-| Directory | Grid | Notes |
-| --- | --- | --- |
-| `exoplasim-T21/` | 64×32 Gaussian | grid only |
-| `exoplasim-T42/` | 128×64 Gaussian | the only one with `raw/` (native 2.5M-region mesh) |
-| `exoplasim-T63/` | 192×96 Gaussian | grid only |
-| `exoplasim-T85/` | 256×128 Gaussian | grid only |
-| `grid-512x256/` | 512×256 uniform | grid only; for mapping/visualisation |
-
-Each has `manifest.json` (the field catalogue — path, dtype, shape, units,
-description, plus semantic blocks for lithology, basins, hydrology, plates),
-`README.txt`, `grid/<field>.bin`, and `planet.nc`. The manifest is ~66 MB, mostly
-the basin hypsometry catalogue; index into it rather than dumping it.
-
-`planet.nc` is the easy path (105 fields, CF-1.8). Use the `.bin` files when you
-need `raw/` or `gauss_weights.bin`.
-
-### Choosing a land mask — use `surface_class`, and only `surface_class`
-
-Two land definitions exist and they disagree:
-
-| Source | Definition |
-| --- | --- |
-| `surface_class == 1` | **authoritative**; ocean means connected to the world ocean |
-| `land_mask` | elevation-sign test, `elevation_km > 0` |
-
-The disagreeing regions are dry closed-basin floor lying below sea level, which
-`land_mask` would flood. Preserving that terrain is the whole point of the fork.
-Both fields carry descriptions in the manifest saying so and pointing at each
-other, and **`manifest.landSeaMask` states the disagreement in numbers** -- read
-it from there, so it is checkable rather than folklore and cannot go stale here.
-
-**Do not reconstruct it as `land_mask | is_endorheic`.** Most of the disagreeing
-regions sit inside a preserved basin, but not all: the rest are smaller enclosed
-depressions that `fixupTopology` kept as genuinely not-sea but that never cleared
-the basin selection thresholds, so they are absent from the basin catalogue and
-carry `basin_index == -1`. The naive union misses exactly those and silently
-floods them. `surface_class` is the only correct source.
-
-`surface_class == 2` (`inland_water`) is **empty**, by design rather than
-oversight -- and filling it is now done downstream: `hydrography/surface_water.py`
-solves lake extent and `build_surface_albedo.py --lakes` carries it into the
-climate as a composite albedo. Orogen measures basin geometry but never decides water levels — that
-is a precipitation-versus-evaporation balance and belongs downstream. A large fraction of
-this planet is flagged `is_endorheic`, and it falls with each carve iteration. Filling those basins is our job,
-using the hypsometry curves in `manifest.basins.preserved[]`, and it feeds back
-into climate through albedo and evaporation.
-
-### Masks: take them from `planet.nc`, not from an image
-
-`surface_class` in `planet.nc` is the mask. `build_boundary_conditions.py`
-integrates it from the native mesh, which is the current path and the correct
-one.
-
-There is an image path and it is **not present in this working tree**:
-`source/maps/` does not exist. The PNGs are gitignored payload, regenerable from
-the planet code (see below), and nothing current consumes them — the one script
-that did, `convert_orogen.py`, is superseded. If they are ever regenerated, two
-things carry over. `orogen-surfacemask-*.png` is the right one, white land, grey
-inland water, black ocean, so thresholding at `> 0` gives land/sea; grey appears
-only once water levels are assigned downstream. `orogen-landmask-*.png` keeps its
-old `elevation > 0` meaning rather than being silently redefined, so it is the
-*wrong* mask and floods the dry closed basins.
-
-### Elevation conventions, and a bug that is now fixed
-
-`elevToHeightKm` used to branch on `elevation > 0`, the same test `land_mask`
-uses, so dry closed-basin floors took the bathymetric branch and read ten times
-too deep. Fixed upstream on 2026-08-14: the branch now takes its land flag from
-`surface_class`, and below-sea-level land converts at 1.0 km per unit against
-the ocean's 10. Verified here: dry floors are now exactly `elevation * 1.0` and agree with the
-catalogue, and ocean depths are untouched.
-An export that predates this fix should not be trusted below sea level.
-`lib/orogen.py` is where to check: every registered build carries the fix, and
-the registry is what knows that rather than this file.
-
-**The basin catalogue renamed keys in the same pass, and it is a breaking
-change.** Unsuffixed keys (`sinkElevation`, `depth`, `spillElevation`) are the
-generator's model parameter; `Km` and `Km3` keys are genuinely physical,
-converted through the land branch. Volumes and hypsometry are integrated in
-physical height. Read the suffixed keys unless you specifically want model units,
-and do not assume an unsuffixed key is kilometres.
-
-Note also that the top-level catalogue entry describes the **natural**
-pre-conditioning basin, while `finalPreserved` describes the finished terrain.
-They differ by a large factor -- the natural surface floods far more area at
-spill than the finished one does. `hypsometry` is on the natural terrain, which
-is why `hydrography/` recomputes it on the finished one. Compare the two in the
-manifest rather than trusting a figure quoted anywhere.
-
-### Other gotchas
-
-- **`elevation` is not kilometres.** It is the generator's internal shaping
-  parameter (nonlinear hypsometric curve; 0.5 ≈ 1.1 km, 1.0 = 6 km; ocean linear
-  at 10 km/unit). Use `elevation_km` for physical orography.
-- **Weighting.** `grid_cell_area` in the gridded output is the true cell area and
-  sums exactly to 4πR², so it is a correct area weight on every grid.
-  `grid/gauss_weights.bin` is equivalent on the Gaussian grids and `cos(lat)` on
-  the uniform one; all three agree to ~2e-4. `raw/cell_area.bin` is the mesh
-  region area. (Earlier exports called the gridded field `cell_area` and it was
-  a mesh diagnostic, not a cell area — that trap is fixed, but any code written
-  against an older export needs checking.)
-- **Distance fields are in cell hops, not km.** Convert with
-  `avgEdgeKm = π × R / √numRegions`, and `manifest.basins.resolution.avgEdgeKm`
-  has it computed for the build in hand. Read it from there.
-- **Never match by longitude between the export and ExoPlaSim output.**
-  `source/<build>/exoplasim-*/planet.nc` labels longitudes from −178.5938;
-  ExoPlaSim's own output labels them from 0. Same grid, different labels, and the
-  correct mapping is **by index**: for these files that is a roll of zero, and
-  the two axes are also half a cell apart, so do not "fix" the offset by rolling
-  until the labels line up. Only the coordinate axes disagree; the cells are the
-  same cells.
-
-  This is *not* a claim that the export's gridded `surface_class` and the mask we
-  integrate for ExoPlaSim agree cell for cell. They do not, in both directions,
-  because `build_boundary_conditions.py` integrates from the native mesh while
-  the export emits by the region containing the cell centre.
-  That difference is the reason the mesh integration exists and is expected. Anything that keys on lon/lat across that
-  boundary silently matches zero cells, which has now happened three times on
-  three different scripts. Share one coordinate source — in practice the
-  climatology, since the LPJ-GUESS driver and the pedology soil map are both
-  built from it — and never reconstruct one.
-- **`manifest.planet` rotation/obliquity/eccentricity are Earth defaults**
-  (23.93 h, 23.44°, 0.0167), not this world's. Orogen does not consume them, so
-  they were never overridden. **`config/planet.yaml` is authoritative** for
-  everything except radius and gravity.
-- `manifest.planetRadiusKm` at the top level says 6371; `manifest.planet.radiusKm`
-  says the real 7645.2. Trust the latter.
-- **`lithology.compositionLand` is measured against `land_mask`**, numerator and
-  denominator both, so it omits the dry sub-sea-level basin floors entirely. The
-  distortion is not uniform: evaporite gains 1.17x on area against 1.046x for
-  land overall, so its share is understated. That is
-  the expected direction, because playa fill accumulates in exactly the closed
-  basins `land_mask` excludes. Compute composition from `surface_rock` and
-  `surface_class` rather than quoting the table.
-
-### `source/maps/`
-
-**`source/maps/` is absent from this working tree.** The PNGs are gitignored
-payload and were last rendered at the pre-correction gravity, so they no longer
-match the mesh: the heightmap peak they carried is the current mesh peak divided
-by `reliefScale`, about a quarter too high. The land MASK is unaffected, because
-a mask does not scale with gravity.
-
-Re-render before using them, with the command below, which reads gravity and
-radius from the config for exactly this reason. A planet code encodes sliders
-only — never radius or gravity — so the code alone does not pin a rendering.
-
-To re-render them:
-
-```bash
-# Gravity and radius are read from the config rather than typed, because a typed
-# copy of either renders the maps for a planet this project no longer has. Run
-# these two from the repo root, before cd-ing.
-GRAV=$(python -c "import yaml;print(yaml.safe_load(open('config/planet.yaml'))['planet']['gravity_m_s2'])")
-RAD=$(python -c "import yaml;print(yaml.safe_load(open('config/planet.yaml'))['planet']['radius_earth']*6371)")
-
-cd vendor/orogen
-node --max-old-space-size=12288 tools/export-maps.mjs \
-    --code 01eshm059lt0b9mpgro2y83t \
-    --radius $RAD --gravity $GRAV --width 16384
-```
-
-## Planet parameters
-
-`config/planet.yaml` is the single source of truth, and the values are not
-copied here. Read them from it. This paragraph used to restate the gravity and
-the mass derived from it; both were superseded by a gravity correction and went
-on reading as current in six files at once.
-
-Mass is not an independent parameter: gravity is declared, radius is declared,
-and `derive()` raises if `planet.mass_earth` disagrees with them.
-
-**Gravity is declared, not derived**, and Orogen's value is canonical. Mass is
-what follows.
-
-But it does not enter the terrain the way this file used to say. Orogen runs its
-whole pipeline in model units; the 1/g relief scaling is applied only at the
-model-unit-to-km conversion on export. So two builds differing only in gravity
-are **bit-identical in every hash**, `finalElevation`, `basinCatalogue` and
-`params` alike, and differ only in `manifest.planet.gravityMS2` and the
-`elevation_km` it scales. Consequences worth holding onto:
-
-- The terrain hash is not sufficient identity for us. `lib/orogen.py` reads
-  `gravityMS2` separately and `scripts/check_consistency.py` checks it against
-  the config, because a build from another gravity would otherwise pass the
-  allowlist while every vertical quantity was off by the ratio.
-- **Basin ids and carve verdicts survive a gravity change.** The catalogue is
-  bit-identical, so an existing verdict replays. Whether it *should* is a
-  separate question -- the climate driving the water balance moves -- but nothing
-  forces the loop to restart from zero.
-- Erosion also ran in model units, so a higher-gravity planet does not get
-  steeper-slope collapse. The landscape's shape is identical; only the vertical
-  scale changes.
-- The catalogue's own `depthKm`, `volumeKm3` and hypsometry do **not** carry the
-  scaling, while `elevation_km` does. Anything mixing the two is comparing
-  verticals that differ by `reliefScale`. Our hypsometry is rebuilt from
-  `elevation_km` so the carve criterion is safe; the one exception is a reported
-  diagnostic, which says so.
-- `orog_mean/std/min/max` are declared `units: 'km'` and are neither scaled nor
-  converted through the hypsometric curve -- they are raw model units. We do not
-  consume them. Anything that starts to must convert them first.
-
-The `model:` block in `planet.yaml` is ExoPlaSim-specific (resolution, layers,
-timestep, output cadence). The rest is world-level. Do not split the file
-casually: `config_sha256` in every `exoplasim/runs/*/run_manifest.json` pins its
-exact contents, and `continue_exoplasim.py` refuses to resume a run whose config
-hash has changed. The gravity change already broke that seal — no run under
-`exoplasim/runs/` can be resumed, which is moot because all of them predate the
-current geography anyway.
-
-## The hydrography component
-
-`hydrography/` resolves drainage over the native mesh and builds everything a
-water balance needs short of the climate itself. See `hydrography/README.md`.
-
-Most of the land drains to a closed basin against about one-fifth on Earth, but
-**treat that as an upper bound rather than a fact about the world**. It assumes
-no basin ever overflows, and a basin that overflows persistently incises its
-outlet and stops being a basin. The decision variable,
-`critical_aridity_index`, is pure geometry and lives in `basins.nc`. The
-fraction falls with each carve iteration and is in `world_state.json`.
-
-`surface_water.py` solves lakes and rivers against the baseline climatology.
-Lake evaporation is Penman, shared with the carve verdict so that the water and
-the terrain are judged by one rule, and runoff is P-E rather than the model's
-`mrro`, which accounts for a small fraction of the land's water surplus because
-it is river-routed net divergence rather than local generation.
-
-**The coupling matrix was being read 180 degrees out in longitude**, because it
-numbers its columns on the Orogen grid (-180 to 180) and a climatology numbers
-its own 0 to 360. Every basin read its antipode. Fixed, and the convention is
-now explicit in `coupling_*.nc`; `basin_means` requires the field longitude
-axis and refuses a coupling file too old to state its own. The verdict was regenerated
-afterwards and barely half of its per-basin outcomes were unchanged, which is the
-measure of how much the bug moved. The counts are in the hydrography report for
-the build that produced them.
-
-The fix's own first version left `export_carve_list.py` still on the unremapped
-path, because `field_lon` was optional and defaulted to it. That was the one
-caller whose output leaves the project and changes the terrain. An argument
-whose absence silently means "do the wrong thing" is the original bug wearing
-the shape of its fix; it is now required.
-
-The open gap is the terrain, not the tooling: a large minority of basins still
-fill to their spill under this climate, which is the water balance saying their
-outlets should have been cut. How many, and how much land they hold, is in
-`world_state.json` and moves every iteration. Carving belongs upstream in Orogen,
-and the generator does expose the hook -- `--preserve-basins FILE` takes a
-retain fraction per basin, 0 carves -- so iteration 2 is a run rather than a
-generator change. Every iteration since has used exactly that path.
-
-Two things about the export that any consumer needs to know. `drain_to` is raw
-steepest descent, and `drainage_terminal` is -2 for most of the land, which
-drains into unpreserved single-cell noise pits; integrating precipitation without
-resolving that discards most of the land's water. The magnitude is a property of
-the export, so it is per build and lives in `world_state.json`. And the catalogue's
-`hypsometry` is on the natural terrain, so the finished terrain holds substantially
-less than it; the ratio is per build and `build_hydrography.py` recomputes it.
-`build_hydrography.py` handles both. Use `data/basins.nc`, not the catalogue.
-
-## Where the climate work stands
-
-A six-case albedo bracket at T21 established the load-bearing fact, and it has
-survived every re-baseline since: **the flux windows that put this world in the
-290-293 K design range do not overlap between a vegetated surface and a bare-rock
-one.** The endmember spread near the target is wider than the target band itself,
-so no single flux is robust to the vegetation question, and the orbit and the
-biosphere have to be chosen together. The table is in
-`exoplasim/notes/parameter-decisions.md`, measured on terrain since superseded.
-
-**Chosen: vegetated.** The flux itself is measured rather than bracketed now, and
-the current value is in `world_state.json`. The band is narrow -- a couple of
-hundredths of a flux ratio wide -- so it is worth re-deriving after anything that
-moves land albedo, and lithology fixes have moved it more than once.
-
-Two rules that cost real runs to learn:
-
-**Do not reuse a sensitivity measured in one regime in another.** A figure
-measured across an albedo step in a nearly ice-free state predicted 291.9 K for a
-run that converged at 287.47 K, because the interval it was applied to crosses
-the ice transition and the sea-ice fraction grows fiftyfold across it. Bracket
-between two converged points that span the target instead of extrapolating from
-one.
-
-**Convert a surface albedo change through the atmosphere, or better, measure the
-model's own planetary albedo.** Multiplying a surface-albedo delta by full
-top-of-atmosphere insolation ignores everything above the surface and overstates
-the forcing; roughly half of a surface change reaches the top of the atmosphere,
-before any feedback. Predicting a lithology fix that way was a kelvin out.
-
-## The ExoPlaSim component
-
-Two behaviours of ExoPlaSim worth knowing before changing anything here. Its
-`configure()` clears every surface `.sra` when given a landmap, so all land
-surface fields except topography and the land mask are uniform namelist defaults;
-this is declared via `model.uniform_land_surface` and is deliberate, since Earth's
-surface maps are tied to Earth's continents. Albedo is the exception and is
-supplied from lithology by `build_surface_albedo.py`: bare rock averages 0.315
-over land against ExoPlaSim's 0.22, and a large minority of the land is bright
-closed-basin fill because the drainage is endorheic. Measure that on the surface the model
-sees, not from the rock table: the vegetated land mean is 0.179 against 0.276
-bare, and a lithology change confined to basin fill moves the vegetated figure
-about twice as far, because vegetation masks bare-rock variation but not the
-barren classes. Note this is substrate albedo: real vegetation arrives from
-LPJ-GUESS in loop C of `WORKFLOW.md`.
-
-Its `finalize()` picks output as the last glob match, so a run directory shared
-between worlds can silently emit the wrong world's result. `run_id` used to name
-everything physical to prevent that -- geography digest, spectrum, flux at
-thousandths -- and each of those was added after a near-miss.
-
-**`run_id` is now a UUID, and that is the fix rather than a retreat from one.** A
-derived identifier separates runs only along the dimensions it encodes, and the
-encoded set is just a list of everything someone has thought of so far. The ozone
-band-weight patch changed the physics and moved nothing in it, so the pre-patch
-and post-patch runs at the same flux computed the same name and shared a
-directory. A UUID collides with nothing, including along dimensions nothing here
-models.
-
-What a run *was* lives in `run_manifest.json`, which gains a `physical` block, and
-in `exoplasim/runs/INDEX.json`, generated from those manifests by
-`index_runs.py`. That index is tracked even though `runs/` is not, because it is
-the only record that survives deleting the output. A continuation must now be
-given `--run`; it cannot recompute a name, which is the safer direction.
-
-`model.energy_diagnostics` adds PlaSim's 28-term energy decomposition on codes
-360-387. The postprocessor ships 119 codes and none of those, so
-`run_exoplasim.py` registers them at run time; patching the vendored tree would
-be undone silently by any reinstall of the untracked `.venv`.
-
-**Patched source and per-configuration binaries.** ExoPlaSim compiles a separate
-executable for every (resolution, layers, ranks) triple, so patching the source
-and running rebuilds *only the configuration you are running*. Every other binary
-keeps the old code until something asks for it. This is failure class 11 and it
-fired three times in a single day.
-
-So, two rules:
-
-- **After any patch, rebuild everything**: `python
-  exoplasim/scripts/rebuild_binaries.py`. It deletes every executable, rebuilds
-  the matrix, and writes `exoplasim/patches/binary_manifest.json` recording which
-  patches are compiled into which sha256. The star-cycle tree is separate and
-  needs `build_star_cycle_exoplasim.sh` afterwards.
-- **After any `.venv` reinstall, do the same.** `.venv` is untracked and
-  reinstallable, and a reinstall restores pristine ExoPlaSim and discards every
-  applied patch with no warning at all. `rebuild_binaries.py --verify` is the
-  cheap check that tells you whether that has happened; `check_consistency.py`
-  runs the same check.
-
-The ozone patch is *resident* in the source -- it must be applied for any build
-to be correct. The star-cycle patch is not: it is applied and reversed around its
-own build, because a cycle binary and a steady binary are different things and
-only one can be in the tree at a time.
-
-See `exoplasim/README.md` for the workflow and results,
-`exoplasim/notes/lake-representation.md` for what the model can do with the
-endorheic basins, and `exoplasim/notes/parameter-decisions.md` for every physical
-and format decision
-(ExoPlaSim 3.4.2 calendar bugs, postprocessor code quirks, convergence criteria,
-Köppen rate-normalisation, sign conventions). Read the notes before changing
-anything about how runs are configured — most of the non-obvious choices are
-already justified there.
-
-**The completed runs under `exoplasim/runs/` span several eras**, and which era a
-run belongs to is not visible in its id, because ids are UUIDs. `INDEX.json` is
-the only thing that knows: its `physical` block records the geography, spectrum
-and surface albedo each run actually used, and that triple is what decides
-whether two runs are comparable. Ask the index; do not infer an era from a name.
-
-What survives a re-baseline is decided by what a result depends on, not by how
-old it is. A flux-versus-temperature slope measured on superseded terrain stays
-the best measurement of that slope, because it turns on sea ice and the Planck
-response rather than on which basins are bright. A mean surface temperature from
-the same run does not survive at all. Judge each quoted number by which of those
-it is.
-
-`analysis/climatology_s096/` is superseded as a description of this world. It was
-computed on the pre-carve terrain, under the k2 spectrum, and it is what the
-antipodal carve verdict was taken from. Its numbers remain valid for the surface
-they were computed on.
-
-The stellar spectrum was wrong for three eras -- `k2.dat` is the star K2-18, an
-M2.5V, not a K dwarf -- but fixing it changed absorbed shortwave by 0.04 W/m2 on
-this nearly ice-free world, because it acts on snow and ice and there is almost
-none of either. It is not null on the cold branch, so it still matters for the
-stellar cycle. That asymmetry is the general lesson: a correction's size depends
-on how much of the surface it acts on, so estimate it against the state you are
-in rather than the state it was first measured on.
-
-`convert_orogen.py` is superseded by `build_boundary_conditions.py`, which
-integrates the mask and topography from the native mesh.
-
-Scripts anchor their paths in `exoplasim/scripts/_paths.py` and resolve from the
-file location, not the working directory, so they can be run from anywhere:
-
-```bash
-# run ids are UUIDs; ask the index what exists rather than guessing a name
-python exoplasim/scripts/index_runs.py
-python exoplasim/scripts/assess_convergence.py exoplasim/runs/<run_id>
-```
 
 ## Environment
 
@@ -541,52 +225,6 @@ Matplotlib is forced to `Agg` with its cache at `/tmp/world-matplotlib-cache`.
 `exoplasim/patches/exoplasim-3.4.2-star-cycle.patch` adds a sinusoidal stellar-flux
 cycle to `radmod.f90`. `build_star_cycle_exoplasim.sh` applies it, verifies the
 pinned upstream SHA, rebuilds, copies the result to
-`exoplasim/inputs/exoplasim_cycle_t42/`, and reverses the patch on exit — the
+`exoplasim/inputs/exoplasim_cycle_t42/`, and reverses the patch on exit; the
 vendored ExoPlaSim tree in `.venv` is left clean.
 
-## Before an expensive run
-
-    python scripts/check_consistency.py     # do the artifacts agree?
-    python scripts/smoke_test.py            # does the code that makes them?
-
-Verifies that everything in tree describes the same world: terrain hashes agree
-across every artifact that records one, coupling matrices declare the longitude
-convention they were built on, surface inputs exist and are newer than the build
-they claim to describe, and a carve list accounts for every basin. Exit 1 on
-disagreement. Run it after changing `source_build`, which is when most of this
-goes stale at once.
-
-`TASKS.md` is the atomic work tracker. Findings documents under `notes/audits/`
-say what is true; `TASKS.md` says what to do about it, and the two are kept apart
-so a finding can be read without being re-litigated and a task closed without
-editing the argument behind it. Every task cites its source document.
-
-**Read `notes/failure-modes.md` before quoting a geography number, adding a
-component, or changing a quantity more than one script consumes.** It records how
-this project goes wrong, by class rather than as a changelog, because the classes
-recur and the instances do not. Several entries cost a terrain rebuild.
-
-The one most likely to catch you first: a pre-carve build is a *limit*, not a
-state, and the pre-carve numbers are the ones physically sitting in `source/` at
-the start of every cycle. Three conclusions here have been right in mechanism and
-wrong in magnitude for that reason or one like it.
-
-## Conventions
-
-- **Do not write current values into prose.** `world_state.json` is generated
-  from the artifacts and is the only place they belong. A number earns a place in
-  a document only if it is a decision, a threshold, an identity, or if the
-  magnitude carries an argument that fails without it: a convergence criterion, a
-  terrain hash, "the two windows do not overlap", "exactly 180 degrees". Mean
-  temperature, basin counts, land composition and the active build are none of
-  those, and every one of them was wrong in these documents within a day of being
-  written. `notes/` is the exception, and the opposite: those are dated records
-  of what was measured, so they keep their numbers and gain a "measured on"
-  rather than losing them.
-- Prose in docs and reports uses ASCII punctuation and avoids em dashes; match it.
-- Every run and analysis product records its provenance (config hash, input
-  hashes, software versions) in JSON. Keep that up when adding steps.
-- Claims about convergence and equilibration are stated with their exact criteria
-  and are labelled honestly when they miss (the 0.85-flux case is called
-  "quasi-equilibrated" for missing a threshold by 0.004 W/m²). Preserve that
-  standard rather than rounding results into passes.
