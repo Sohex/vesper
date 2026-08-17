@@ -556,11 +556,13 @@ python hydrography/scripts/build_hydrography.py       # drainage, basins, coupli
 python exoplasim/scripts/build_boundary_conditions.py # land mask, topography
 python exoplasim/scripts/build_surface_albedo.py      # lithology albedo, no lakes yet
 python exoplasim/scripts/build_surface_roughness.py   # z0
+                                                      # soil_water_source: uniform
 python exoplasim/scripts/run_exoplasim.py             # BOOTSTRAP run; hours
 python exoplasim/scripts/build_climatology.py <run>   # then set baseline_climatology
 python hydrography/scripts/surface_water.py           # lakes, now a climate exists
 python exoplasim/scripts/build_surface_albedo.py --lakes <surface_water.nc>
 python pedology/scripts/build_soil.py                 # soil, with no biosphere yet
+                                                      # soil_water_source: pedology
 python exoplasim/scripts/build_surface_soil_water.py  # 229, from that soil
 python exoplasim/scripts/run_exoplasim.py             # the BASELINE; hours
 python exoplasim/scripts/build_climatology.py <run>   # repoint baseline_climatology
@@ -576,6 +578,16 @@ forest fraction, the lithology half of the albedo -- is a pure function of the
 terrain. So the loop is entered by running the model on the fields that do not
 need it, and the run exists to produce the climatology the rest need. This is
 written here because discovering it one field at a time costs a run each time.
+
+**`model.soil_water_source` has to say `uniform` for the bootstrap and `pedology`
+for the baseline, and the flip goes between them.** With it set to `pedology`,
+`run_exoplasim.py` requires surface code 229 and refuses to start without it,
+which is the one field the bootstrap exists to make possible. Flipping the key
+moves `config_sha256`, and `continue_exoplasim.py` will not resume a run whose
+config hash has changed, so the bootstrap has to be finished -- converged,
+seasonal window run, climatology built -- before the key moves. Every other
+surface field the config asks for is a pure function of the terrain and is built
+before the bootstrap starts.
 
 **Lakes and soil water have to be in place before the run whose climatology the
 verdict uses, not merely before the verdict.** Both change evaporation, which is

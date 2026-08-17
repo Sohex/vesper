@@ -178,9 +178,10 @@ edits `plasim_namelist` directly, exactly as it already does for `STARFILE`. Set
 `model.energy_diagnostics_3d`, and the 28 codes are added to the regular output
 and recorded in the run manifest.
 
-Both keys default to false when absent and neither is in `planet.yaml`, so
-nothing changes for a run in flight and `config_sha256` does not move until
-someone chooses.
+Both keys default to false when absent, so nothing changed for the runs that were
+in flight when this was written. Both are now set in `planet.yaml`, which means
+every run made under it carries the decomposition rather than only a diagnostic
+segment.
 
 **The package needs rebuilding for the term-15 fix to take effect**, since the
 `.x` binaries are compiled. That is safe to do at any time: each run directory

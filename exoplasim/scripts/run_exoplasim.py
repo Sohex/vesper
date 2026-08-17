@@ -285,10 +285,12 @@ def intended_surface_codes(config: dict) -> set[int]:
     """Which surface fields this run supplies rather than leaving at defaults.
 
     `model.soil_water_source` defaults to `uniform` when the key is absent, so a
-    config predating this option behaves exactly as it did. That is deliberate:
-    the key is not in `config/planet.yaml` yet, because adding it moves
-    `config_sha256` and `continue_exoplasim.py` refuses to resume a run whose
-    config hash has changed.
+    config predating this option behaves exactly as it did.
+
+    Setting it to `pedology` makes 229 mandatory here, and 229 comes from a soil
+    weathered under a climatology. On a terrain that has none yet, the bootstrap
+    run has to go out with the key at `uniform`; see WORKFLOW section 6A, which
+    also says why the flip cannot happen mid-run.
     """
     codes = set(BASE_SURFACE_CODES)
     if str(config["model"].get("land_albedo_source", "uniform")) != "uniform":
