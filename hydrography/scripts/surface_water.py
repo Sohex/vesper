@@ -38,7 +38,9 @@ from orogen import LAND, Export  # noqa: E402
 
 import builds  # noqa: E402
 
-CLIMATOLOGY = PROJECT_ROOT / "exoplasim/analysis/climatology_s096"
+# Set by main(), from config.baseline_climatology or --climatology. There is
+# no module-level default on purpose; see the note in main().
+_CLIM_FILE = None
 SECONDS_PER_DAY = 86400.0
 
 # Set by main() from --data. Hydrography products are per build, because drainage
@@ -78,8 +80,11 @@ def climate_fields(config):
     out 7.8% high on that same test, which is three times the error for no
     gain, and it duplicated a validated function in this directory.
     """
-    clim = globals().get("_CLIM_FILE") or (
-        CLIMATOLOGY / "baseline_regular_climatology.nc")
+    clim = _CLIM_FILE
+    if clim is None:
+        raise RuntimeError(
+            "no climatology resolved; main() sets it from "
+            "config.baseline_climatology or --climatology")
     with Dataset(clim) as ds:
         pr = cv.annual_mean(ds, "pr")
         evap = -cv.annual_mean(ds, "evap")     # code 182 is negative upward
@@ -275,7 +280,7 @@ def main():
     ap.add_argument("--output", type=Path, default=None)
     args = ap.parse_args()
 
-    global _DATA, CLIMATOLOGY
+    global _DATA, _CLIM_FILE
     import yaml as _yaml
     _cfg = _yaml.safe_load((PROJECT_ROOT / "config/planet.yaml").read_text())
     if args.data is not None:
@@ -285,12 +290,28 @@ def main():
         # per-build file is missing is the same trap one level down -- it turns
         # a missing input into a silent read of a terrain nobody chose.
         _DATA = builds.component_data("hydrography", _cfg, strict=True)
+    # The climatology comes from the config, or from --climatology, and there is
+    # deliberately no fallback. This script used to default to a module constant
+    # pointing at `climatology_s096`: pre-carve terrain, the superseded k2
+    # spectrum, and the surface the antipodal carve verdict was taken from. That
+    # is the hardcoded default `config.baseline_climatology` exists to replace,
+    # and it was replaced in pedology and biosphere while this file kept its own
+    # copy of it. A missing climatology raises; a stale one returns a plausible
+    # number from the wrong world.
     if args.climatology is not None:
         # Resolve before storing: the provenance write takes relative_to
         # PROJECT_ROOT, which raises on a path given relative to the cwd.
         clim_path = args.climatology.resolve()
-        CLIMATOLOGY = clim_path.parent
-        globals()["_CLIM_FILE"] = clim_path
+    else:
+        declared = _cfg.get("baseline_climatology")
+        if not declared:
+            raise SystemExit(
+                "config/planet.yaml has no `baseline_climatology`. Name one "
+                "there or pass --climatology; there is deliberately no fallback.")
+        clim_path = (PROJECT_ROOT / declared).resolve()
+        if not clim_path.is_file():
+            raise SystemExit(f"config names {declared}, which does not exist")
+    _CLIM_FILE = clim_path
 
     build = builds.build_root()
     export = Export(builds.mesh_export())
@@ -370,7 +391,7 @@ def main():
         ds.createDimension("basin", basins.n)
         ds.title = "Lakes and rivers under the baseline climatology"
         ds.terrain_hash = export.terrain_hash
-        ds.forcing = str(CLIMATOLOGY.relative_to(PROJECT_ROOT))
+        ds.forcing = str(_CLIM_FILE.relative_to(PROJECT_ROOT))
         ds.caveat = (
             "The forcing is a T42 run on the pre-carve terrain and these lakes "
             "are not fed back into it. Open-water evaporation is the Penman "
@@ -396,7 +417,7 @@ def main():
                 v.long_name = note
             v[:] = data
 
-    with Dataset(CLIMATOLOGY / "baseline_regular_climatology.nc") as ds:
+    with Dataset(_CLIM_FILE) as ds:
         land_mask = cv.annual_mean(ds, "lsm") > 0.5
         model_evap = -cv.annual_mean(ds, "evap")
     area_weight_all = np.cos(np.deg2rad(lat))[:, None] * np.ones((1, runoff.shape[1]))
@@ -405,8 +426,8 @@ def main():
     report = {
         "source_build": build.name,
         "terrain_hash": export.terrain_hash,
-        "forcing": str(CLIMATOLOGY.relative_to(PROJECT_ROOT)),
-        "forcing_sha256": sha256(CLIMATOLOGY / "baseline_regular_climatology.nc"),
+        "forcing": str(_CLIM_FILE.relative_to(PROJECT_ROOT)),
+        "forcing_sha256": sha256(_CLIM_FILE),
         "orbital_year_days": year_days,
         "runoff_source": {
             "field": "P-E from the baseline climatology, not mrro",
