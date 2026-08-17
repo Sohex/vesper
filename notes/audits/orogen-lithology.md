@@ -753,3 +753,57 @@ it audited.
 - `erodibility` is renormalised to a land mean of 1, so lithology redistributes
   erosion instead of scaling it, and the existing erosion slider keeps its
   meaning. That is a careful piece of design.
+
+## Playa clastics: the two groundings reconciled, and the class is too dark
+
+Measured 2026-08-17, by `analysis/playa_albedo.py`. The class is about a quarter
+of `precarve-craton`'s land and the largest single lever on this planet's energy
+balance, and it carried two grounded values that disagreed by a factor of two.
+
+`vendor/orogen/js/lithology.js` moved it from 0.30 to **0.19** citing Post et al.
+(2000): 52 pyranometer measurements over 26 US soils, mean 0.189.
+Henderson-Sellers and Wilson (1983) put salt playas and light sand deserts at
+**0.28-0.44**. Both are read and both are in `references/INDEX.md`.
+
+**They are not measuring the same thing, and the resolution is that each is
+right about a different half of the question.**
+
+Post is the right KIND of measurement -- a field pyranometer over a real surface
+is exactly what a model albedo wants -- and the wrong POPULATION, since 26 US
+agricultural soils are not a sample of playa mud and desert-varnished fan gravel.
+Henderson-Sellers is a compilation whose "salt playa" is this project's OTHER
+class: a salt-encrusted surface is `evaporite` at 0.50, and `playa_clastic` is
+the clastic apron around and under it.
+
+The ECOSTRESS library supplies the missing term, because it measures saline
+desert soils as directional hemispherical reflectance -- the geometry a model
+albedo wants -- but as prepared laboratory samples rather than crusted field
+surfaces.
+
+| quantity | value |
+| --- | ---: |
+| ECOSTRESS soils, all, sun-weighted over Post's 0.3-2.8 um band, n=69 | 0.289 |
+| Post et al., field pyranometer, n=26 | 0.189 |
+| laboratory over field | 1.53x |
+| ECOSTRESS desert and saline soils, same weighting, n=9 | 0.330 |
+| desert and saline over the whole soil population, same preparation | 1.141x |
+| this star over the Sun, from the same spectra | 1.067x |
+| **reconciled field albedo under a K2.5V** | **0.230** |
+
+**The preparation offset never enters the answer**, which is the point of taking
+a ratio inside one library: numerator and denominator share it and it cancels.
+That 1.53x is the same trap this file already records for powders against slabs,
+where the factor runs 2.2 to 4.1 and is lithology-dependent; soils are gentler
+but not negligible.
+
+What does not cancel is that Post's soils and ECOSTRESS's soils are different
+soils, so the 1.141x carries whatever real difference sits between the two
+populations as well as the material's own brightness. That is the residual
+uncertainty here, and it is why this is reported as 0.23 rather than 0.230.
+
+**So 0.19 is too dark, by about 20%, and 0.30 was too bright by about 30%.** On
+this terrain the correction is worth about +0.0096 on land-mean albedo, near
+-1.3 W/m2 and about +0.9 K, which partly offsets the darkening the lakes bring.
+The mechanism for applying it without a new build is
+`model.lithology_albedo_overrides`, whose `replaces` guard refuses to fire
+against a class whose exported value has since moved.
