@@ -12,23 +12,36 @@ turns it into a small netCDF holding the bottom model level alone.
 Chunked, checkpointed and reporting progress throughout, because this is a
 15 GB input and `notes/large-data.md` says that is not optional.
 
-## Why this exists rather than calling pyburn once
+## Why this exists: pyburn cannot read a high-cadence file at all
 
-Calling `pyburn.postprocess` on the whole file does not work at this cadence.
-Measured 2026-08-17 on a single T42 orbit: 15.3 GB of raw, 1462 samples, and
-pyburn had reached 27.6 GB resident after 73 minutes with nothing written before
-it was killed. The cost is 18.9 MB per sample, which is very close to a full
-decoded T42 record at ~280 field-levels, so **pyburn holds the entire decoded
-record set in memory whatever you ask it to emit.** Restricting the output codes
-to three winds bought nothing at all.
+Not "not efficiently". At all, and for a reason unrelated to size.
 
-The fix is not to reimplement pyburn. The raw file carries SPECTRAL divergence
-and vorticity, not gridpoint winds -- `outmod.f90:hcadencesp` writes codes 155
-and 138 -- so `ua`, `va` and `spd` are all derived through a spectral transform,
-and hand-rolling that to save memory would trade a resource problem for a
-correctness risk. Instead this splits the raw file on timestep boundaries and
-hands pyburn one chunk at a time: the same code doing the same transform with a
-bounded working set.
+`pyburn.readallvariables` builds its time axis by counting records of code 139,
+and reshapes every variable to `(ntimes, nlev, dim1)`. The high-cadence stream
+writes its GRIDPOINT fields twice per timestep and its SPECTRAL fields once, so
+`ntimes` comes out at twice the true sample count and every spectral variable
+fails to reshape. That would have happened on the original file too, after
+however many hours, so the run that was killed at 73 minutes was never going to
+produce anything.
+
+The winds are the spectral half: `outmod.f90:hcadencesp` writes divergence (155)
+and vorticity (138), and `ua`, `va` and `spd` are all derived from them by a
+transform. So this keeps the spectral records, plus exactly ONE code 139 per
+timestep to serve as the time marker, and drops the rest. That fixes the axis
+and shrinks a timestep from 350 records to 43 on the way.
+
+## And it could not have been done in one pass either
+
+`pyburn.readfile` opens with `fbuffer = fb.read()`. Measured 2026-08-17: 15.3 GB
+of raw, 18.9 MB resident per sample, 27.6 GB after 73 minutes. That per-sample
+figure is a full decoded T42 record at ~280 field-levels, so **pyburn holds the
+entire decoded record set whatever you ask it to emit** -- restricting the output
+codes bought nothing. Hence chunks, even after the filter above cuts a timestep
+to 43 records.
+
+Reimplementing the spectral transform to avoid all this would trade a resource
+problem for a correctness risk, which is the wrong trade. This is the same
+pyburn doing the same transform on a bounded working set.
 
 ## The raw format, as far as this needs it
 
@@ -71,7 +84,12 @@ from netCDF4 import Dataset
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _paths import CONFIG, PROJECT_ROOT  # noqa: E402
 
-WIND_CODES = ["131", "132", "259"]
+# 139 is not wanted for itself. pyburn builds its ENTIRE time axis by counting
+# occurrences of code 139 -- `readallvariables` appends to `variables["time"]`
+# on every one -- and its assembly loop leaves `variable` unbound for any code
+# in the file that is not also in this list. So 139 has to be both present in
+# the chunk and requested here.
+WIND_CODES = ["139", "131", "132", "259"]
 FIELDS = ("spd", "ua", "va")
 GRID_DESCRIPTOR_CODE = 333
 HEADER_BYTES = 32
@@ -100,6 +118,7 @@ def scan_records(path: Path):
     `[date, time, start, end]` bracketing every record belonging to one sample.
     """
     preamble = None
+    main_header = None
     samples: list[list[int]] = []
     with open(path, "rb") as fh:
         while True:
@@ -124,6 +143,7 @@ def scan_records(path: Path):
             end = fh.tell()
             if code == GRID_DESCRIPTOR_CODE:
                 preamble = (pos, end)
+                main_header = np.frombuffer(body, "<i4")
                 continue
             if samples and samples[-1][0] == date and samples[-1][1] == tim:
                 samples[-1][3] = end
@@ -131,23 +151,53 @@ def scan_records(path: Path):
                 samples.append([date, tim, pos, end])
     if preamble is None:
         raise SystemExit(f"{path}: no code {GRID_DESCRIPTOR_CODE} grid descriptor")
-    return preamble, samples
+    return preamble, samples, main_header
 
 
-def write_chunk(src: Path, dst: Path, preamble, group) -> None:
-    """The grid descriptor, then one contiguous run of samples, copied blockwise."""
+TIME_MARKER_CODE = 139        # surface temperature, and pyburn's clock
+
+
+def spectral_dim1(preamble_header) -> int:
+    """A spectral record's first dimension, NESP, from the grid descriptor.
+
+    Derived rather than declared: it is `(ntru + 1) * (ntru + 2)`, so it moves
+    with the truncation and a hardcoded 1892 would silently be T42-only.
+    """
+    ntru = int(preamble_header[7])
+    return (ntru + 1) * (ntru + 2)
+
+
+def write_chunk(src: Path, dst: Path, preamble, group,
+                spectral_dim1_value: int) -> None:
+    """The grid descriptor, then the records that make a readable time axis.
+
+    Keeps every spectral record, because that is where the winds are, and
+    exactly one code 139 per timestep, because that is what pyburn counts to get
+    `ntimes`. Dropping the second copy of each gridpoint field is the whole fix:
+    with both present the axis comes out doubled and nothing reshapes.
+    """
     with open(src, "rb") as fh, open(dst, "wb") as out:
         fh.seek(preamble[0])
         out.write(fh.read(preamble[1] - preamble[0]))
-        start, end = group[0][2], group[-1][3]
-        fh.seek(start)
-        remaining = end - start
-        while remaining > 0:
-            block = fh.read(min(1 << 24, remaining))
-            if not block:
-                break
-            out.write(block)
-            remaining -= len(block)
+        for _date, _time, start, end in group:
+            fh.seek(start)
+            seen_marker = 0
+            while fh.tell() < end:
+                head_len = int(np.frombuffer(fh.read(4), "<i4")[0])
+                head = fh.read(head_len)
+                fh.read(4)
+                body_len = int(np.frombuffer(fh.read(4), "<i4")[0])
+                body = fh.read(body_len)
+                fh.read(4)
+                code, dim1 = (int(x) for x in np.frombuffer(head, "<i4")[[0, 4]])
+                keep = dim1 == spectral_dim1_value
+                if code == TIME_MARKER_CODE:
+                    seen_marker += 1
+                    keep = seen_marker == 1
+                if keep:
+                    n32, m32 = np.int32(head_len).tobytes(), np.int32(body_len).tobytes()
+                    out.write(n32 + head + n32)
+                    out.write(m32 + body + m32)
 
 
 def open_output(path: Path, n_time: int, lat, lon) -> None:
@@ -177,6 +227,7 @@ def main() -> None:
                     help="discard the checkpoint and start over")
     args = ap.parse_args()
 
+    args.raw = args.raw.resolve()
     if not args.raw.is_file():
         raise SystemExit(f"no raw file at {args.raw}")
     config = yaml.safe_load(args.config.read_text(encoding="utf-8"))
@@ -193,7 +244,8 @@ def main() -> None:
 
     print(f"scanning {args.raw.name}  ({args.raw.stat().st_size / 1e9:.1f} GB)", flush=True)
     t0 = time.time()
-    preamble, samples = scan_records(args.raw)
+    preamble, samples, main_header = scan_records(args.raw)
+    nesp = spectral_dim1(main_header)
     groups = [samples[i:i + args.chunk] for i in range(0, len(samples), args.chunk)]
     offsets, at = [], 0
     for g in groups:
@@ -214,19 +266,25 @@ def main() -> None:
                   flush=True)
 
     import exoplasim.pyburn as pyburn
-    radius_m = float(planet["radius_earth"]) * 6371000.0
+    # EARTH RADII, not metres. `Model.configure` passes `radius=radius_earth`
+    # straight through to pyburn, whose own default is 1.0. Passing metres scales
+    # every wind by 6.371e6 and yields a global mean of 4.7e7 m/s, which is
+    # exactly how this was caught: the answer was checked against the snapshot
+    # climatology's 7.356 m/s before being used for anything.
+    radius_earth = float(planet["radius_earth"])
     started = time.time()
     todo = [k for k in range(len(groups)) if k not in state["done"]]
 
     for i, k in enumerate(todo):
         chunk_raw = work / f"chunk{k:04d}"
         chunk_nc = work / f"chunk{k:04d}.nc"
-        write_chunk(args.raw, chunk_raw, preamble, groups[k])
+        write_chunk(args.raw, chunk_raw, preamble, groups[k], nesp)
         pyburn.postprocess(
             str(chunk_raw), str(chunk_nc), logfile=str(work / "pyburn.log"),
             variables=WIND_CODES, mode="grid",
             timeaverage=False, times=None, interpolatetimes=False,
-            radius=radius_m, gravity=float(planet["gravity_m_s2"]), gascon=287.0)
+            radius=radius_earth, gravity=float(planet["gravity_m_s2"]),
+            gascon=287.0)
         with Dataset(chunk_nc) as ds:
             slab = {v: np.asarray(ds[v][:, -1, :, :], dtype="f4") for v in FIELDS}
             lat, lon = np.asarray(ds["lat"][:]), np.asarray(ds["lon"][:])
@@ -253,7 +311,10 @@ def main() -> None:
 
     shutil.rmtree(work, ignore_errors=True)
     with Dataset(out, "a") as ds:
-        ds.source_raw = str(args.raw.relative_to(PROJECT_ROOT))
+        try:
+            ds.source_raw = str(args.raw.relative_to(PROJECT_ROOT))
+        except ValueError:
+            ds.source_raw = str(args.raw)
         ds.samples = len(samples)
     print(f"\nwrote {out}  ({out.stat().st_size / 1e6:.0f} MB, {len(samples)} samples)",
           flush=True)
