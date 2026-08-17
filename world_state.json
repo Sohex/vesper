@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated": "2026-08-16T21:45:20.342063+00:00",
-  "git_commit": "6197bada2648b0f5645a9bc5e8adcd76d2b010e8",
+  "generated": "2026-08-17T00:17:10.759347+00:00",
+  "git_commit": "64b73509dab300466741e980df4f151a39514c87",
   "generator": "scripts/world_state.py",
   "note": "Generated from the artifacts. Do not edit; re-run the generator. Judgement that no artifact can supply is in `curated`, which lives in the generator under version control.",
   "planet": {
@@ -118,6 +118,11 @@
         "granite": 0.11201,
         "gneiss": 0.07447,
         "shelf_clastic": 0.06192
+      },
+      "land_elevation_km": {
+        "mean": 0.4041,
+        "max": 4.5933,
+        "min": -0.5624
       },
       "grids": [
         "T21",

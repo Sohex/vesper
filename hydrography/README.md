@@ -28,8 +28,9 @@ of the land's water.
 ## What it does
 
 **Resolves drainage** with a priority flood over the 2.5M-region mesh, filling
-the noise pits while keeping the surviving basins as genuine terminals -- 2,540
-on the active `carved-zoned-v4`.
+the noise pits while keeping the surviving basins as genuine terminals. How many
+survive is a property of the build and is in `world_state.json`; it named a
+count and a build here, and both were several iterations out of date.
 Every land region ends up assigned to the world ocean or to exactly one basin.
 112,217 regions get filled, by a median of 8.4 m, which is the scale that
 confirms these were noise rather than landforms.

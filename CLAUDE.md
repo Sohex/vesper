@@ -179,20 +179,21 @@ this planet is flagged `is_endorheic`, and it falls with each carve iteration. F
 using the hypsometry curves in `manifest.basins.preserved[]`, and it feeds back
 into climate through albedo and evaporation.
 
-### Masks in `source/maps/`
+### Masks: take them from `planet.nc`, not from an image
 
-Use **`orogen-surfacemask-*.png`**: white land, grey inland water, black ocean,
-so thresholding at `> 0` gives the correct binary land/sea mask. Verified against
-the mesh — 0.431729 against the manifest's 0.431736. It currently holds only two
-levels, because no water levels have been assigned yet; grey appears once they
-are.
+`surface_class` in `planet.nc` is the mask. `build_boundary_conditions.py`
+integrates it from the native mesh, which is the current path and the correct
+one.
 
-`orogen-landmask-*.png` is retained with its old `elevation > 0` meaning rather
-than being silently redefined, so it is the *wrong* mask for land/sea. Note that
-`convert_orogen.py` reads it, which means every existing ExoPlaSim boundary
-condition uses the flooding convention. Whatever replaces that script should take
-`surface_class` from `planet.nc`, or the surfacemask PNG if it stays
-image-based.
+There is an image path and it is **not present in this working tree**:
+`source/maps/` does not exist. The PNGs are gitignored payload, regenerable from
+the planet code (see below), and nothing current consumes them — the one script
+that did, `convert_orogen.py`, is superseded. If they are ever regenerated, two
+things carry over. `orogen-surfacemask-*.png` is the right one, white land, grey
+inland water, black ocean, so thresholding at `> 0` gives land/sea; grey appears
+only once water levels are assigned downstream. `orogen-landmask-*.png` keeps its
+old `elevation > 0` meaning rather than being silently redefined, so it is the
+*wrong* mask and floods the dry closed basins.
 
 ### Elevation conventions, and a bug that is now fixed
 
@@ -267,12 +268,15 @@ terrain, which is why `hydrography/` recomputes it.
 
 ### `source/maps/`
 
-The four 16384×8192 equirectangular PNGs match the exports: same planet code
-`01eshm059lt0b9mpgro2y83t`, 2.5M regions, and the correct radius and gravity.
-Checked — the land mask agrees with the raw mesh to five decimal places
-(0.412635 vs 0.412640) and the land heightmap's maximum is exactly the mesh's
-5.769 km. `source/maps/manifest.json` records the code and planet parameters, and
-notes that a planet code encodes sliders only, never radius or gravity.
+**`source/maps/` is absent from this working tree.** The PNGs are gitignored
+payload and were last rendered at the pre-correction gravity, so they no longer
+match the mesh: the heightmap peak they carried is the current mesh peak divided
+by `reliefScale`, about a quarter too high. The land MASK is unaffected, because
+a mask does not scale with gravity.
+
+Re-render before using them, with the command below, which reads gravity and
+radius from the config for exactly this reason. A planet code encodes sliders
+only — never radius or gravity — so the code alone does not pin a rendering.
 
 To re-render them:
 

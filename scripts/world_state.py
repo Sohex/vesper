@@ -218,11 +218,51 @@ def builds(active: str) -> dict:
                 (b.get("drainageConsistency") or {}).get("fractionOfLand"),
             "lithology_land_fractions": {k: round(v, 5) for k, v in
                                          sorted(comp.items(), key=lambda kv: -kv[1])[:6]},
+            # Land elevation, area-weighted over surface_class land. Here
+            # because it was being written into README prose instead, where it
+            # survived a gravity correction that changed it by a quarter and
+            # went on reading as current. reliefScale is applied at export, so
+            # these move whenever gravity does even though no hash changes.
+            "land_elevation_km": land_elevation(d),
             "grids": sorted(p.name.replace("exoplasim-", "") for p in d.iterdir()
                             if p.is_dir() and p.name.startswith("exoplasim-")),
             "superseded": (d / "SUPERSEDED.md").is_file(),
         }
     return out
+
+
+def land_elevation(build_dir: Path) -> dict | None:
+    """Area-weighted land elevation from the native mesh, in physical km.
+
+    From `elevation_km`, which carries the 1/g relief scaling, and masked by
+    `surface_class` rather than `land_mask` -- the latter would drop the dry
+    below-sea-level basin floors, which is most of what makes this world's
+    hypsometry unusual.
+    """
+    root = build_dir / "exoplasim-T42"
+    try:
+        man = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
+        raw = man["raw"]["fields"]
+        names = raw if isinstance(raw, dict) else {f["name"]: f for f in raw}
+
+        def field(name: str):
+            spec = names[name]
+            return np.fromfile(root / spec["path"], dtype=spec["dtype"])
+
+        z = field("elevation_km").astype(float)
+        area = field("cell_area").astype(float)
+        land = field("surface_class") == 1
+        if not land.any():
+            return None
+        return {
+            "mean": round(float(np.average(z[land], weights=area[land])), 4),
+            "max": round(float(z[land].max()), 4),
+            "min": round(float(z[land].min()), 4),
+        }
+    except Exception:
+        # The payload is deleted for every build but the active one, and a
+        # missing mesh is not a state error.
+        return None
 
 
 def climate_runs(active: str, index: list) -> list:

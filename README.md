@@ -37,11 +37,16 @@ plates and their kinematics, boundary types, stress, distance fields, lithology,
 hydrology, closed basins, and sub-grid orography. The fork's `tools/README.md` is
 the format reference.
 
-Land is 43.2% of the surface. Take it from `surface_class`, which is
-authoritative, or from `orogen-surfacemask-*.png` thresholded at `> 0`; the
-`land_mask` field and `orogen-landmask-*.png` are an elevation-sign test that
-floods 1.9% of the planet's dry below-sea-level basin floor. Mean land elevation
-is 548 m and the highest point is 5.77 km.
+Land is 43.2% of the surface, and that figure is stable: carving moves where
+water leaves a basin, not where the coast is. Take it from `surface_class`,
+which is authoritative. `land_mask` is an elevation-sign test that floods 1.9%
+of the planet as dry below-sea-level basin floor, and preserving that terrain is
+the point of the fork.
+
+Land elevation is in `world_state.json` and not here. It is scaled by 1/g at
+export, so it moves when gravity does without any hash changing -- which is
+exactly how the figures that used to sit in this paragraph came to be a quarter
+too high while still reading as current.
 
 ## `exoplasim/`
 
@@ -50,12 +55,10 @@ climate experiments. See `exoplasim/README.md` for the workflow and results and
 `exoplasim/notes/parameter-decisions.md` for the reasoning behind every
 parameter.
 
-Completed so far: a T42 stellar-flux sweep at 0.85, 0.90, and 0.95 S-Earth, and
-a pair of 8-Earth-year stellar activity cycle experiments. The 0.95 case reaches
-292 K and is the strongest candidate for the intended habitable regime.
-
-These results were produced from an earlier revision of the world map. They
-remain physically valid but do not describe the geography now in `source/`.
+No results are quoted here. `exoplasim/runs/INDEX.json` records what each run
+physically was -- geography, spectrum and surface albedo -- and that triple is
+what decides whether two runs are comparable. Current values are in
+`world_state.json`.
 
 ## `hydrography/`
 
