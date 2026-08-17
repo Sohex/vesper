@@ -110,10 +110,14 @@ TOA moves by 0.16 W/m2 and the surface by 0.15, but the gap between them holds a
 **-0.455 +/- 0.010**, a 2% spread across different fluxes, terrains and mean
 temperatures.
 
-That rules out every state-dependent candidate. Sea-ice mass change, snow
-accumulation and latent heat of fusion all scale strongly with climate, and a
-term that varies by 2% while the climate varies by tens of kelvin is not one of
-them. This is a fixed offset.
+Those three readings look like a fixed offset, and that reading did not survive
+a settled run: see below, where the baseline gives -0.5230 over its climatology
+and -0.3539 on a single clean orbit. All three above were made under
+`NLOWIO = 1`, whose corrupt first output record contaminates `hfss` and `hfls`
+and therefore `hfns`, so their agreement with each other is partly a shared
+defect. What the three do still rule out is a strongly state-dependent term: sea
+ice, snow accumulation and fusion all scale with climate far more steeply than
+anything here moves.
 
 ### It is not the classic spectral leak either
 
@@ -226,11 +230,154 @@ affected and the prognostic physics never was.** It would only ever have been
 wrong for someone enabling these diagnostics to chase this residual, which is
 precisely what is now recommended.
 
+## The instrument was reading a snapshot, and that is why it had not answered
+
+Measured 2026-08-17 on the settled baseline `run_8c2e1ff9ab5e`.
+
+**`denergy` has no accumulator.** Every other field on the regular output stream
+is summed across the output interval and divided at write time -- `ashfl`,
+`alhfl`, `assol`, `asthr`, `atsol`, `atthr` and the rest, at `outmod.f90:2519`
+onward. The 28 energy terms are not: `outmod.f90:1162` writes
+`denergy(1,jdiag)` straight from the live array. So under `NLOWIO = 1` the terms
+are **instantaneous values at the output timestep** while every flux they would
+be compared against is a **time mean over the interval**. Comparing them is
+comparing two different averages of two different things.
+
+The size of that is measurable, because one pair is an algebraic identity.
+`denergy(:,7)`, the atmosphere's heating from the sensible flux, and `dshfl`,
+the surface sensible flux written as `hfss`, reduce to the same expression:
+substituting `ztn` from `fluxmod.f90:534` into both gives `term 7 = -dshfl`
+exactly. They should agree to rounding.
+
+| | -hfss | term 7 | difference |
+| --- | ---: | ---: | ---: |
+| orbit 65, `NLOWIO = 1` | 22.4054 | 20.8062 | +1.5992, 7.14% |
+| orbit 66, `NLOWIO = 0` | 22.5691 | 22.5351 | +0.0340, 0.15% |
+
+**A factor of 47, on a quantity that is an identity.** Under `NLOWIO = 0` the
+model writes instantaneous records and pyburn averages them, so both fields get
+the same average and the identity shows through. Under `NLOWIO = 1` it does not.
+
+So the "first look" reading below, taken on `run_b014469b8091` under
+`NLOWIO = 1`, is snapshot noise at the several-percent level and its individual
+term values should not be quoted. Runs from 2026-08-17 set `NLOWIO = 0` for
+unrelated reasons -- the corrupt first output record, `first-output-bin.md` --
+and that incidentally makes this instrument work. The alternative fix, an
+accumulator for `denergy` in `outmod.f90` beside the others, is CLIM-6 and buys
+back the disk rather than the correctness.
+
+## The large-scale condensation lead is closed: it is the missing latent heat of fusion
+
+The standing lead was that terms 11 and 15 fail to cancel while 12 and 16 cancel
+to machine precision. That is real, it survives the averaging change, and it is
+now named.
+
+**`mklsp` has no ice phase.** `rainmod.f90:362` sets
+`zlcpe(:) = ALV/(acpd*(1.+ADV*dq(:,jlev)))` unconditionally, at every level and
+every temperature, and the scheme's heating is `ztn = ztn - zdqdt*zlcpe`. So
+large-scale condensation always releases the latent heat of vaporisation, even at
+210 K where the condensate is ice. Term 15, after the energy-diagnostics patch,
+books `ALS` below `TMELT`. The two therefore differ by `(ALS - ALV)/ALV` wherever
+condensation happens below freezing, and that is **13.344%**.
+
+That is exactly what the vertical structure shows. The residual as a fraction of
+term 11, by model level:
+
+| sigma | T, K | 11 | 15 | sum | sum / 11 |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| 0.094 | 202.9 | +0.0411 | -0.0465 | -0.0055 | 13.4% |
+| 0.188 | 219.7 | +0.6969 | -0.7898 | -0.0930 | 13.3% |
+| 0.297 | 237.6 | +1.7281 | -1.9587 | -0.2306 | 13.3% |
+| 0.421 | 252.8 | +2.1544 | -2.4419 | -0.2875 | 13.3% |
+| 0.554 | 263.8 | +2.5868 | -2.9200 | -0.3332 | 12.9% |
+| 0.691 | 272.2 | +2.6334 | -2.8791 | -0.2456 | 9.3% |
+| 0.818 | 279.0 | +2.5851 | -2.8026 | -0.2175 | 8.4% |
+| 0.922 | 283.7 | +3.7487 | -3.8854 | -0.1367 | 3.6% |
+| 0.983 | 287.0 | +0.9854 | -1.0073 | -0.0219 | 2.2% |
+
+A flat 13.3% at every sub-freezing level, falling away exactly as the level
+crosses the melting point. And the prediction closes: 69% of term 11 acts below
+273.15 K, so the expected residual is `-0.13344 * 11.8533 = -1.5817` against a
+measured **-1.5714**, 0.7% apart.
+
+**It is not the gap and cannot be.** It is nearly constant at -1.55 to -1.59
+while the gap swings +/-7 W/m2 through the orbit, the correlation across bins is
+0.32, and it is a physics deficiency rather than an accounting error: the model
+is self-consistent in using `ALV` throughout, so it loses no energy. What it
+loses is the fusion, which it never had.
+
+### What that means for the patch, which is kept
+
+`patches/exoplasim-3.4.2-energy-diagnostics.patch` made term 15 book `ALS` below
+freezing. Its justification, recorded above, was that "the same file disagrees
+with itself" at `rainmod.f90:731`, `850`, `944` and `1047`. Those lines are real
+and they do switch phase -- but they are in `mkrain` and `kuo`, not in `mklsp`.
+`mklsp` has no phase switch to be inconsistent with, so the patch did not restore
+agreement, it created a deliberate disagreement between the diagnostic and the
+scheme it describes.
+
+The patch is kept anyway, because the disagreement now has a **predicted value**
+rather than being noise: 11 + 15 should equal `-0.13344` times the part of term
+11 acting below `TMELT`, and it does, to 0.7%. So the pair still works as an
+audit -- the test is agreement with that prediction rather than cancellation to
+zero -- and it additionally measures a real shortcoming of the model, worth
+**1.57 W/m2** of atmospheric heating that Earth would have and Vesper's
+atmosphere does not. Reverting would hide that and buy nothing.
+
+## What the gap is not, and where it now stands
+
+On the settled baseline, all twelve bins, area-weighted:
+
+| | W/m2 |
+| --- | ---: |
+| TOA net, `ntr` | -0.6188 |
+| `rst + rlut` | -0.6188 |
+| surface `hfns` | -0.0958 |
+| `rss + rls + hfss + hfls` | +0.3139 |
+| **gap, `ntr - hfns`** | **-0.5230** |
+
+**It is not a radiation-diagnostic offset.** `ntr` equals `rst + rlut` to
+0.0000. The atmosphere's radiative heating computed inside `radstep` from the
+flux profiles, terms 9 + 10, agrees with the same quantity taken from the flux
+diagnostics, `ntr - (rss + rls)`, to +0.115 W/m2 on the climatology and +0.028 on
+the clean orbit, with per-bin residuals that change sign. Terms 17 to 20 are
+nested sub-splits of term 9 -- 17 + 18 = 9 and 19 + 20 = 18, both to five
+digits -- and must not be summed with it.
+
+**It is not the fixed constant this note claimed.** The -0.455 +/- 0.010 across
+three earlier runs does not hold: the settled baseline gives -0.5230 over the
+climatology and -0.3539 on orbit 66. Some of that spread is the corrupt first
+output record, which contaminates `hfss` and `hfls` and therefore `hfns` on every
+`NLOWIO = 1` run, and the earlier three were all of that kind.
+
+**What survives.** The melt booking accounts for -0.4221 of it:
+`hfns - (rss + rls + hfss + hfls)` is the latent heat of fusion consumed by
+snowmelt, which `hfns` correctly includes. That leaves
+`ntr - (rss + rls + hfss + hfls) = -0.7761` as the quantity still unexplained,
+against a gridpointd physics sum of +0.4763.
+
 ## Status
 
-Unresolved, but narrowed from "energy does not close" to "a constant -0.455 W/m2
-offset between the top-of-atmosphere and surface diagnostics, not climate
-dependent, not the spectral dissipation leak, resolvable with a diagnostic run".
+Open, and narrowed twice more on 2026-08-17 against the settled baseline.
+
+**Closed.** The large-scale condensation lead, which was the standing candidate:
+it is the missing latent heat of fusion in `mklsp`, predicted and measured to
+0.7%, worth 1.57 W/m2, and structurally incapable of being the gap. The radiation
+diagnostics, which are internally consistent to 0.03 W/m2 on a clean orbit. And
+the claim that the gap is a fixed -0.455.
+
+**Found.** The instrument was mis-deployed. `denergy` is written unaccumulated
+while everything it would be compared against is a time mean, so under
+`NLOWIO = 1` -- which is every run made before 2026-08-17 -- the 28 terms are
+snapshots and disagree with the fluxes by several percent. That is why turning
+the decomposition on did not answer the question. Runs now set `NLOWIO = 0` and
+the terms are usable; exactly one clean orbit exists, orbit 66 of the baseline.
+
+**Open.** `ntr - (rss + rls + hfss + hfls) = -0.7761` on the climatology,
+-0.7761 against a gridpointd physics sum of +0.4763. The next step is not a new
+instrument but more of the clean one: several `NLOWIO = 0` orbits, so the annual
+residual can be separated from the +/-7 W/m2 seasonal storage swing it hides
+inside. That is CLIM-1 still.
 
 It remains larger than the |mean TOA| < 0.5 W/m2 convergence criterion it sits
 inside, which is why it is worth resolving rather than merely recording.
@@ -246,39 +393,18 @@ recorded energy closure gap was never real.
 None of it needed a model run. The general lesson is the cheap one: before
 calling a surprising number a defect, close the budget it belongs to.
 
-## The 28 terms, first look
+## The 28 terms, first look, and why its numbers are not quotable
 
 Measured 2026-08-17 on `run_b014469b8091`, the 0.945 bootstrap on
-`precarve-craton`, at orbits 65, 75 and 85 of an 86-orbit spin-up. This is the
-first run made with `nenergy` on, so it is the first time the decomposition has
-existed on this world rather than being described.
+`precarve-craton`, at orbits 65, 75 and 85. This was the first run made with
+`nenergy` on, and it was made under `NLOWIO = 1`, so every term in it is an
+instantaneous snapshot at the output step rather than a mean over it. The
+sensible-heat identity above puts that error at 7% of the term. **Individual
+values from this reading are superseded and should not be quoted**; what
+survives is the structural observation it produced, that 11 and 15 fail to
+cancel while 12 and 16 cancel exactly, and that is now closed above.
 
-The terms are written and readable: codes 360-387 as `denergy01` to `denergy28`,
-and 460-487 as `dener3d01` to `dener3d28` on 10 layers. Two of them are not
-fluxes and should not be summed with the rest: `denergy01` returns about 1.9e9,
-and `denergy28` is the mass-weighted column temperature, 251.70 K, which
-`radmod.f90:1290` builds as `sum(dt * dsigma)`.
-
-The gap this note exists to explain is stable and still there:
-
-| orbit | net top minus net surface | large-scale condensation, 11 + 15 | convection, 12 + 16 |
-| --- | ---: | ---: | ---: |
-| 65 | -0.5453 | -1.5699 | +0.0000 |
-| 75 | -0.4893 | -1.5884 | +0.0000 |
-| 85 | -0.4085 | -1.5525 | +0.0000 |
-
-**The convective pair cancels to machine precision and the large-scale pair does
-not.** Whatever 11 and 15 are, they are built the same way for the same process,
-and one pair balances while the other misses by a steady -1.55 to -1.59 W/m2
-across orbits that differ in their own imbalance.
-
-That is a lead rather than an answer, and it should not be quoted as one: the
-non-cancellation is about three times the gap and does not track it orbit by
-orbit, so at most it contains the gap rather than being it. Some of the
-difference is expected -- snowmelt's latent heat of fusion is 0.294 W/m2 by the
-independent route in this note, and it has to be booked somewhere.
-
-What remains for CLIM-1 is to read `rainmod.f90` for what exactly is accumulated
-into 11 and into 15, and whether the difference is a term the surface-to-top sum
-is missing or a diagnostic that was never meant to close. The 3D set on 460-487
-can then say which layers it lives in, which the column sums cannot.
+Two of the 28 are not fluxes and must never be summed with the rest:
+`denergy01` is an absolute column enthalpy, of order 1.9e9, and `denergy28` is
+the mass-weighted column temperature in kelvin, which `radmod.f90:1290` builds as
+`sum(dt * dsigma)`.
