@@ -32,13 +32,19 @@ than one that trickles over it, and across the 1e4 to 1e6 years a landscape take
 to relax that is the difference between a drained depression and a lake with a
 notch in its rim.
 
-    retain_incision = 1 - (Q / Q_FULL) ** INCISION_EXPONENT, clipped to [0, 1]
+    retain_incision = 1 - (Q / Q_full) ** INCISION_EXPONENT, clipped to [0, 1]
 
-No absolute time-to-cut is attempted. Stock and Montgomery (1999) measure K
-across five orders of magnitude by lithology, so a cutting rate without the
-sill's own rock class would be arithmetic with an unknown in it. What this
-mapping carries is the ordering, which the previous one did not have at all: a
-trickle and a torrent both went out at retain 0.
+`Q_full` is per basin, being the declared constant divided by the erodibility of
+the rock at that basin's own sill: soft rock is cut through by less water. That
+factor is the export's `erodibility`, which is already a relative stream-power
+multiplier normalised to 1 over land, and it is the contrast a channel network
+expresses rather than the contrast between intact rock samples. The two differ by
+orders of magnitude and the expressed one is what a landscape model wants; see
+`sill_erodibility` below.
+
+No absolute time-to-cut is attempted even so. What this mapping carries is the
+ordering, which the previous one did not have at all: a trickle and a torrent
+both went out at retain 0.
 
 **The uncertainty is a third thing, and it is kept apart.** The two evaporation
 estimates disagree over a band of basins, and where we do not know whether a
@@ -84,6 +90,7 @@ import carve_verdict as cv
 from _paths import CONFIG, DATA, PROJECT_ROOT  # noqa: F401
 from builds import component_data
 from orbit import orbital_year_days
+from orogen import Export
 from lake_balance import BasinSet
 
 
@@ -107,15 +114,71 @@ INCISION_EXPONENT = 0.5
 KM3_PER_YEAR_TO_M3_PER_S = 1e9
 
 
-def incision_retain(q_km3_per_year, year_s: float):
-    """Rim surviving the overflow, from discharge alone. 1 keeps it, 0 cuts it.
+def incision_retain(q_km3_per_year, year_s: float, q_full_m3_s=Q_FULL_M3_S):
+    """Rim surviving the overflow. 1 keeps it, 0 cuts it.
 
     Takes the overflow at spill level in km3 per Vesper year. A basin that does
     not overflow gets 1 by construction, since Q is then zero or negative.
+
+    `q_full_m3_s` is per basin once the sill's own rock is known, since a soft
+    sill is cut through by less water than a hard one.
     """
     q = np.asarray(q_km3_per_year, dtype=float) * KM3_PER_YEAR_TO_M3_PER_S / year_s
-    cut = np.power(np.clip(q, 0.0, None) / Q_FULL_M3_S, INCISION_EXPONENT)
+    cut = np.power(np.clip(q, 0.0, None) / np.asarray(q_full_m3_s, dtype=float),
+                   INCISION_EXPONENT)
     return np.clip(1.0 - cut, 0.0, 1.0)
+
+
+def sill_erodibility(basins_path: Path, terrain_hash: str) -> np.ndarray:
+    """The rock at each basin's outlet, as a relative stream-power multiplier.
+
+    The export's `erodibility` is exactly this quantity and says so: a relative
+    stream-power multiplier from the exposed rock, mean-normalised to 1 over
+    land. So it enters as `K` does, and Q_full divides by it: a soft sill is cut
+    through by less water than a hard one.
+
+    **It is the expressed contrast, not the intact-rock one, and that is the
+    number a landscape model wants.** Stock and Montgomery (1999) measure K
+    across five orders of magnitude between lithologies, but Zondervan (2020)
+    measures the contrast a real channel network expresses at about 4x, because
+    channels adjust width and slope in response to the rock they are in. This
+    field spans under 4x, which is the right order; using the intact-rock spread
+    would make the rock the only term that mattered and the discharge decorative.
+
+    The saddle is smaller than a mesh cell, so the two regions either side of it
+    bracket the rock being cut rather than naming it. Their geometric mean is
+    what is used, that being the right average for a multiplicative factor, and
+    the two sides agree only loosely: correlation 0.34 on the current build.
+    """
+    export = Export()
+    if export.terrain_hash != terrain_hash:
+        raise SystemExit(
+            f"basins.nc was built from terrain {terrain_hash[:16]} and the "
+            f"configured export is {export.terrain_hash[:16]}. The sill lookup "
+            "is by region index, which does not survive a terrain change."
+        )
+    try:
+        ero = export.field("erodibility")
+    except Exception:
+        print("note: the export carries no erodibility field; sills are uniform")
+        with Dataset(basins_path) as ds:
+            return np.ones(ds.dimensions["basin"].size)
+
+    with Dataset(basins_path) as ds:
+        inner = np.asarray(ds["spill_region"][:])
+        outer = np.asarray(ds["spill_exit_region"][:])
+    if inner.size and max(int(inner.max()), int(outer.max())) >= ero.size:
+        raise SystemExit("spill regions index past the export's mesh")
+
+    # -1 marks a basin whose saddle was not resolved on one side or either.
+    # Fall back through the side that exists to the land mean, which is 1.
+    a = np.where(inner >= 0, ero[np.maximum(inner, 0)], np.nan)
+    b = np.where(outer >= 0, ero[np.maximum(outer, 0)], np.nan)
+    with np.errstate(invalid="ignore"):
+        both = np.sqrt(a * b)
+    out = np.where(np.isfinite(both), both,
+                   np.where(np.isfinite(a), a, np.where(np.isfinite(b), b, 1.0)))
+    return np.clip(out, 1e-3, None)
 
 
 def main() -> None:
@@ -255,7 +318,10 @@ def main() -> None:
     retain_margin = np.where(carved, 0.0, np.clip(margin / TOLERANCE, 0.0, 1.0))
 
     # What the water can actually cut, which is the half the margin never knew.
-    retain_incision = incision_retain(q_pen, year_s)
+    # The sill's own rock sets how much water that takes.
+    sill_ero = sill_erodibility(args.basins, basins.terrain_hash)
+    q_full = Q_FULL_M3_S / sill_ero
+    retain_incision = incision_retain(q_pen, year_s, q_full)
 
     # Either is a reason to leave a rim standing: that the basin may not overflow
     # at all, or that its overflow cannot cut. Taking the larger keeps both.
@@ -322,7 +388,8 @@ def main() -> None:
 #
 # A basin overflows when more water arrives than its lake surface can evaporate,
 #     Q = runoff * (catchment - area_at_spill) - (E - P) * area_at_spill  >  0
-# and retain is then what that Q can cut, as 1 - (Q/{Q_FULL_M3_S:g} m3/s)^{INCISION_EXPONENT:g},
+# and retain is then what that Q can cut, as 1 - (Q/Q_full)^{INCISION_EXPONENT:g}, where Q_full is
+# {Q_FULL_M3_S:g} m3/s at land-mean rock and less where the sill itself is softer,
 # floored by how uncertain the overflow test itself is. Open-water evaporation is
 # the Penman combination equation with water's albedo and roughness, validated
 # against the model over ocean cells to within 1.7%.
@@ -380,6 +447,8 @@ def main() -> None:
                               "cannot decide",
             "retain_incision_mapping": f"1 - (Q / Q_full)**{INCISION_EXPONENT:g}, clipped to [0, 1]",
             "retain_incision_q_full_m3_per_s": Q_FULL_M3_S,
+            "retain_incision_q_full_note": "per basin, divided by the sill's own "
+                "erodibility; the constant above is the value at land-mean rock",
             "retain_incision_exponent": INCISION_EXPONENT,
             "retain_incision_rationale": "stream power goes as K Q^m S^n, so "
                 "overflow discharge and not distance from the threshold is what "
@@ -387,6 +456,14 @@ def main() -> None:
                 "rather than fitted; no absolute time-to-cut is attempted "
                 "because Stock and Montgomery (1999) measure K across five "
                 "orders of magnitude by lithology",
+            "sill_rock": "K from the export's erodibility field, a relative "
+                "stream-power multiplier mean-normalised to 1 over land, taken "
+                "as the geometric mean of the two regions either side of the "
+                "saddle. It is the fluvially expressed contrast rather than the "
+                "intact-rock one, which is what a landscape model wants; see "
+                "Zondervan (2020) in references/INDEX.md",
+            "sill_erodibility_range": [round(float(sill_ero.min()), 4),
+                                       round(float(sill_ero.max()), 4)],
             "retain_margin_mapping": "min(1, ((E_penman - (P + critical*runoff)) / E_penman) / 0.25)",
             "retain_tolerance": TOLERANCE,
             "retain_tolerance_rationale": "fractional change in open-water "
@@ -408,6 +485,7 @@ def main() -> None:
                 "overflow_km3_per_year": round(float(q_pen[i]), 6),
                 "overflow_m3_per_s": round(
                     float(q_pen[i]) * KM3_PER_YEAR_TO_M3_PER_S / year_s, 6),
+                "sill_erodibility": round(float(sill_ero[i]), 4),
                 "evaporation_margin": None if not np.isfinite(margin[i])
                                       else round(float(margin[i]), 4),
                 "critical_aridity_index": round(float(crit[i]), 4),
