@@ -30,8 +30,9 @@ experiment, records a complete manifest, and runs one smoke orbit. It refuses
 to overwrite an existing run with climate output. See
 `exoplasim/notes/parameter-decisions.md` for physical and format assumptions.
 
-Continue a validated experiment from its latest restart (seasonal snapshots
-are omitted during spin-up unless `--seasonal-output` is supplied):
+Continue a validated experiment from its latest restart (seasonal snapshots are
+written by default; `--no-seasonal-output` skips them for a segment, and a run
+without them has to be extended before it can produce a climatology):
 
 ```bash
 python exoplasim/scripts/continue_exoplasim.py --orbits 5
@@ -47,8 +48,7 @@ python exoplasim/scripts/index_runs.py
 python exoplasim/scripts/assess_convergence.py exoplasim/runs/<run_id>
 # --run is required: a continuation cannot recompute a name, and being handed
 # one cannot silently resolve to a different run.
-python exoplasim/scripts/continue_exoplasim.py --run <run_id> \
-  --orbits 5 --seasonal-output
+python exoplasim/scripts/continue_exoplasim.py --run <run_id> --orbits 5
 python exoplasim/scripts/build_climatology.py exoplasim/runs/<run_id> \
   --start-year 46 --end-year 50
 python exoplasim/scripts/analyze_climatology.py
