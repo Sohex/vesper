@@ -8,9 +8,7 @@ that bucket overflowing:
 
 `configure()` clears every surface field when handed a landmap, so `dwmax` falls
 back to the uniform namelist default of `wsmax = 0.5 m` everywhere. That default
-is why `model.uniform_land_surface` exists, and it is the most likely reason the
-0.96 climatology reports a land runoff ratio of 2.8% where Earth's land manages
-about 35%.
+is why `model.uniform_land_surface` exists.
 
 `pedology/` computes the real capacity from texture and regolith depth, which is
 exactly the field being defaulted. Supplying it makes runoff a property of the
@@ -19,10 +17,20 @@ and the biosphere. That is the third loop in this pipeline.
 
     python exoplasim/scripts/build_surface_soil_water.py
 
-**This changes climate results.** It is off unless `model.soil_water_source` is
-set to `pedology` in `config/planet.yaml`, and that key is deliberately absent by
-default: adding it moves `config_sha256` and blocks resumption of any run in
-flight. Add it when re-baselining, not before.
+**Expect the effect to be small, and build it anyway.** The uniform bucket was
+once the leading suspect for this world's land runoff ratio, and an offline
+bucket experiment refuted that: shrinking it 3.75-fold moves runoff by 1.06x,
+because the bucket sits at a median 15% of capacity, so overflow comes from the
+wettest cells and seasons, which saturate at either depth. The low ratio is the
+climate, not the namelist. What this field buys is a soil-borne runoff field
+rather than a namelist-borne one, which is the loop, and 229 is cheap once the
+soil exists. See `pedology/README.md`.
+
+**This changes climate results**, so it belongs in the run whose climatology the
+carve verdict will use, not after it. `model.soil_water_source: pedology` is set
+in `config/planet.yaml`; the code defaults to `uniform` when the key is absent,
+which is what kept runs in flight resumable while the key was held back, since
+adding it moves `config_sha256`.
 """
 
 from __future__ import annotations

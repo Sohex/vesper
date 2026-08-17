@@ -21,8 +21,14 @@ The thresholds below are fixed here rather than chosen after seeing the numbers.
                    the residual drift a 50-orbit spin-up leaves behind and well
                    below the 15 K their forcing difference could produce.
 
-  TARGET_K         the design range this project has been aiming at since the
-                   first sweep, unchanged: 290 to 293 K.
+  TARGET_K         290 to 293 K, the design range in force when this experiment
+                   was registered and run. It was retired on 2026-08-16 for
+                   having no derivation beyond its own persistence, and the mean
+                   is now chosen by habitability per latitude band; see WORKFLOW
+                   section 5b. The constant stays as it was, because a threshold
+                   is not rewritten after the results it judged have been seen.
+                   Read the verdicts this script produced against that band, not
+                   against the current one.
 
   A flux is MARGINAL when its warmer endmember falls short of the target range,
   because that means the habitable case lies at a higher flux and has not been

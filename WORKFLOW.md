@@ -345,8 +345,7 @@ measure it on the surface the model actually sees rather than on the rock table.
 
 **Climate depends on the biosphere, and the biosphere on climate.** Bare rock and
 a vegetated surface differ in land albedo by enough to be worth several kelvin,
-and the two reach the 290 to 293 K design target at *non-overlapping* stellar
-fluxes. That is the load-bearing fact: no single flux is robust to the vegetation
+and the two reach any given design mean at *non-overlapping* stellar fluxes. That is the load-bearing fact: no single flux is robust to the vegetation
 question, so the orbit and the biosphere are one choice, not two.
 
 The two interact rather than adding. Vegetation paints everything that can carry
@@ -555,18 +554,65 @@ missing at any point:
 ```bash
 python hydrography/scripts/build_hydrography.py       # drainage, basins, coupling
 python exoplasim/scripts/build_boundary_conditions.py # land mask, topography
-python exoplasim/scripts/build_surface_albedo.py      # lithology albedo
+python exoplasim/scripts/build_surface_albedo.py      # lithology albedo, no lakes yet
 python exoplasim/scripts/build_surface_roughness.py   # z0
-python exoplasim/scripts/run_exoplasim.py             # the baseline; hours
+python exoplasim/scripts/run_exoplasim.py             # BOOTSTRAP run; hours
 python exoplasim/scripts/build_climatology.py <run>   # then set baseline_climatology
 python hydrography/scripts/surface_water.py           # lakes, now a climate exists
-python exoplasim/scripts/build_surface_albedo.py --lakes   # albedo again, with lakes
+python exoplasim/scripts/build_surface_albedo.py --lakes <surface_water.nc>
+python pedology/scripts/build_soil.py                 # soil, with no biosphere yet
+python exoplasim/scripts/build_surface_soil_water.py  # 229, from that soil
+python exoplasim/scripts/run_exoplasim.py             # the BASELINE; hours
+python exoplasim/scripts/build_climatology.py <run>   # repoint baseline_climatology
+python hydrography/scripts/carve_verdict.py           # the verdict, on that climatology
 ```
 
-The albedo appears twice on purpose: lakes need a climate, the climate needs an
-albedo, and the loop is entered by building the albedo without them first. Set
-`baseline_climatology` in `config/planet.yaml` once the climatology exists --
-until then every consumer raises rather than guessing.
+**The first climate run on a new terrain is a bootstrap, and its numbers are not
+the baseline.** Three of the surface fields a run consumes cannot be built
+without a climatology: the lakes, the lake compositing inside the albedo (174 to
+176), and soil water capacity (229), which comes from a soil that has to be
+weathered under a climate. Everything else -- topography, land mask, roughness,
+forest fraction, the lithology half of the albedo -- is a pure function of the
+terrain. So the loop is entered by running the model on the fields that do not
+need it, and the run exists to produce the climatology the rest need. This is
+written here because discovering it one field at a time costs a run each time.
+
+**Lakes and soil water have to be in place before the run whose climatology the
+verdict uses, not merely before the verdict.** Both change evaporation, which is
+the numerator of the carve criterion, so a verdict taken on a climate that lacked
+them is a verdict on the wrong evaporation. Their weights are not equal and the
+ordering is worth its cost for one of them: lakes are worth -0.0139 on land-mean
+albedo, because the cells carrying water are the bright playa and salt crust,
+while the soil bucket has been measured at 1.06x on runoff for a 3.75-fold change
+in capacity. Build both, and expect the lakes to be what moves the answer.
+
+Set `baseline_climatology` in `config/planet.yaml` once a climatology exists --
+until then every consumer raises rather than guessing -- and repoint it at the
+baseline once that run finishes, so nothing downstream reads the bootstrap.
+
+Seasonal snapshots are written by default, and `analyze_climatology.py` needs the
+orbital phase they carry. A segment run with `--no-seasonal-output` has to be
+extended before it can produce a climatology, which has happened once.
+
+**The flux is re-derived on a new terrain, not carried.** Terrain moves lithology
+exposure, relief and therefore land albedo, so the flux that lands the design mean
+moves with it. Take two converged points spanning the target and interpolate;
+never extrapolate from one, which this project has paid for twice. A point counts
+only if it clears the remaining-offset test in `assess_convergence.py` rather than
+the drift criteria alone: a T21 point at 0.90 once passed every drift test with
++0.348 K of approach still to run, and a point entering a bracket a third of a
+kelvin low bends the slope. Which knob moves the flux is in loop C below, and it
+depends on whether the calendar is locked.
+
+That is three converged runs before the first verdict: two for the flux bracket
+and one for the baseline. The bootstrap is one of the bracket runs rather than a
+fourth, since any converged climatology will do for fields that are themselves
+about to be rebuilt.
+
+**Know which base you are on, because a pre-carve build restarts the count.** The
+first verdict taken on one is iteration 1, whatever a previous line of builds had
+already carved, and the overshoot measurement in section 4 applies only where the
+terrain being re-verdicted is itself the carved one.
 
 **B. The soil and biosphere loop, at T42.** For a given climate:
 
@@ -621,11 +667,23 @@ turns the run's foliar cover into surface albedo and forest fraction, then the
 climate runs again on it. Two checks belong here and neither is optional.
 
 *The flux.* If the modelled land albedo differs much from the assumed value the
-world may leave the 290-293 K design band. **Move the flux by changing the star's
-luminosity, not the orbit.** The year length depends on the semimajor axis, and
-moving the orbit changes it; the year is compiled into LPJ-GUESS, so that would
-force a rebuild and a driver regeneration. With the semimajor axis locked,
-F = L/a^2, so luminosity is the free parameter and the calendar does not move.
+world may leave the design mean derived in section 5b. **Move the flux by
+changing the star's luminosity, not the orbit.** The year length depends on the
+semimajor axis, and moving the orbit changes it; the year is compiled into
+LPJ-GUESS, so that would force a rebuild and a driver regeneration. With the
+semimajor axis locked, F = L/a^2, so luminosity is the free parameter and the
+calendar does not move.
+
+The knobs swap at the lock, and the lock is what makes this a rule rather than a
+preference. Before the calendar is fixed, the semimajor axis is the better knob:
+it keeps the star itself untouched, so `k25v` stays valid, where covering the
+same flux range with luminosity moves the effective temperature far enough to
+leave the window the spectrum was interpolated in. Once LPJ-GUESS is compiled
+against a year, that knob costs a rebuild and a driver regeneration, and
+luminosity is the only cheap one left. A bracket taken on the axis varies two
+things rather than one, because the year moves with it, so the measured slope
+carries a small seasonality effect through the calendar. That is second order for
+an annual mean, and it is stated rather than implied.
 
 Mind the scaling, and mind the spectrum. L scales **1:1** with F at fixed orbit,
 not 2:1 as an earlier revision of this document said, and at fixed radius
