@@ -10,7 +10,7 @@ describes, and the pointers below are the map:
 
 | Read this | For |
 | --- | --- |
-| `WORKFLOW.md` | what the components are, how they connect, the order they run in, and why that order is a loop. **Read it first.** |
+| `WORKFLOW.md` | CANONICAL for pipeline flow: what the components are, how they connect, the order they run in, why that order is a loop, and the register of every artifact with the step that generates it. **Read it first.** |
 | `source/README.md` | how to read an export: field conventions, the land-mask rule, the traps |
 | `vendor/orogen/tools/README.md` | the authoritative export format |
 | `<component>/README.md` | what that component does and how to run it |
@@ -135,6 +135,15 @@ none of them is advice.
   on retrofitting a criterion and conservation's verdict that the criterion read
   the wrong quantity pointed opposite ways and no document settled it.
 
+- **`WORKFLOW.md` is canonical for the pipeline, and an artifact that no step in
+  it generates does not exist.** Every artifact this project keeps has to appear
+  in the register in section 2b, against the step that produces it and the things
+  that read it. A script that writes something not in the register is either a
+  missing step or a product nobody should be reading, and both are defects. This
+  is not bookkeeping: it is what makes rule 7 usable, because "what is now
+  worthless" can only be answered from a graph that is complete. When you add a
+  generator, add its row in the same commit.
+
 - **Findings and tasks are kept apart.** A document under `notes/audits/` says
   what is true and carries its evidence; `TASKS.md` says what to do about it and
   cites the document. That way a finding can be read without being re-litigated,
@@ -191,6 +200,9 @@ hydrography/           Drainage, catchments, basin capacity (see hydrography/REA
 pedology/              Soil formation, texture, phosphorus (see pedology/README.md).
 biosphere/             LPJ-GUESS port and the C-N-P fork (see biosphere/README.md).
 minerals/              Ore prospectivity, a field not deposits (see minerals/README.md).
+aeolian/               Offline dust: emission, transport, deposition (see aeolian/README.md).
+                       Reads a climatology and the lake solution; its deposition
+                       feeds pedology, and its optical depth feeds the radiation.
 maps/                  Rendering and cartography.
 references/            Primary literature. PDFs untracked; INDEX.md tracked, and
                        it records which sources have actually been READ rather

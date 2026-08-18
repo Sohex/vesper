@@ -200,6 +200,38 @@ def check_one_grid_convention(files: list[Path]) -> list[str]:
     return bad
 
 
+def check_registered_in_workflow(files) -> list[str]:
+    """Every generator that writes an artifact is named in `WORKFLOW.md`.
+
+    `WORKFLOW.md` is canonical for the pipeline and its section 2b register is
+    the list of what exists. A script that writes a product nobody declared has
+    no recorded consumers, so nothing can say what it invalidates when it moves,
+    and `CLAUDE.md` rule 7 stops being answerable -- "what is now worthless"
+    needs a complete graph.
+
+    This can fail in the direction that matters: add a generator, forget the
+    row, and the check goes red. It deliberately does NOT test the reverse,
+    because a row naming a step that has not been written yet is a plan rather
+    than an error.
+    """
+    workflow = (ROOT / "WORKFLOW.md").read_text(encoding="utf-8")
+    writes = re.compile(r"write_text|to_netcdf|savefig|json\.dump|write_sra"
+                        r"|Dataset\([^)]*['\"]w['\"]|open\([^)]*['\"]w")
+    missing = []
+    for f in files:
+        if f.name.startswith("_"):
+            continue
+        src = f.read_text(encoding="utf-8", errors="ignore")
+        if not writes.search(src):
+            continue                      # a module, not a step
+        if "def main(" not in src and "__main__" not in src:
+            continue                      # imported, not run
+        if f.name not in workflow:
+            missing.append(f"{f.relative_to(ROOT)} writes an artifact and is in "
+                           "no step or register row in WORKFLOW.md")
+    return missing
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--skip-help", action="store_true",
@@ -215,7 +247,9 @@ def main() -> None:
               ("defaults scoped to the active build", check_build_scoped_defaults()),
               ("no artifact selection by sort order", check_no_order_picks(files)),
               ("one grid convention, in lib/gridding.py",
-               check_one_grid_convention(files))]
+               check_one_grid_convention(files)),
+              ("every generator is registered in WORKFLOW.md",
+               check_registered_in_workflow(files))]
     if not args.skip_help:
         checks.insert(1, ("entry points answer --help", check_help(files)))
 
