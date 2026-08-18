@@ -75,6 +75,7 @@ import argparse
 import hashlib
 import json
 import subprocess
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -585,12 +586,15 @@ def main() -> None:
 
     optics = json.loads((PROJECT_ROOT / "analysis" / "dust_optics.json").read_text(
         encoding="utf-8"))
+    # Which refractive indices this world's dust has is declared once, in
+    # aeolian/config/dust.yaml, and every consumer reads it from there. DUST-12.
+    sys.path.insert(0, str(PROJECT_ROOT / "exoplasim" / "scripts"))
+    from dust_indices import selection as _index_selection
+    sel = _index_selection(cfg)
     band1 = next(r for r in optics["results"]
-                 if r["indices"] == cfg["optics"]["band1_indices"]
-                 and r["band"] == "band 1")
+                 if r["indices"] == sel["band1"] and r["band"] == "band 1")
     band2 = next(r for r in optics["results"]
-                 if r["indices"] == cfg["optics"]["band2_indices"]
-                 and r["band"] == "band 2")
+                 if r["indices"] == sel["band2"] and r["band"] == "band 2")
     f1 = float(optics["stellar_flux_fraction_band1"])
     # m2/g to m2/kg, flux-weighted across the two bands.
     mee = 1000.0 * (f1 * band1["mass_extinction_efficiency_m2_g"]
@@ -668,6 +672,7 @@ def main() -> None:
             "land_fraction": round(gmean(land_fraction), 4),
         },
         "mass_extinction_efficiency_m2_kg": round(mee, 2),
+        "optics_indices": sel,
         "gravity_threshold_scaling": {
             "factor": round(gravity_threshold_scaling(cfg["emission"], gravity), 4),
             "exponent": cfg["emission"]["gravity_scaling_exponent"],

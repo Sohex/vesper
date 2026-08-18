@@ -388,20 +388,26 @@ tools, and the reason stated rather than one quietly standing in for the other.
 
 ### The longwave is priced, and it changes the sign (DUST-2, 2026-08-17)
 
-`analysis/dust_forcing.json`, from `exoplasim/scripts/dust_forcing.py`, at the
-land-mean optical depth of 0.376:
+`analysis/dust_forcing.json`, from `exoplasim/scripts/dust_forcing.py`, at a
+land-mean optical depth of 0.376 and on the refractive indices
+`aeolian/config/dust.yaml` declares:
 
 | surface | shortwave | longwave | net |
 | --- | ---: | ---: | ---: |
-| ocean, a = 0.07 | -8.5 | +6.7 | -1.8 |
-| vegetated land, a = 0.18 | -5.2 | +6.7 | +1.5 |
-| playa fill, a = 0.40 | +0.4 | +6.7 | +7.1 |
-| salt crust, a = 0.50 | +2.7 | +6.7 | +9.4 |
+| ocean, a = 0.07 | -9.5 | +6.7 | -2.8 |
+| vegetated land, a = 0.18 | -6.9 | +6.7 | -0.2 |
+| playa fill, a = 0.40 | -2.4 | +6.7 | +4.3 |
+| salt crust, a = 0.50 | -0.7 | +6.7 | +6.0 |
 
 W/m2, for the fine end of the size bracket; the coarse end differs by under 16%
 term by term and is in the file, though the net moves further, being a small
 residual of two large ones. The longwave is a clear-sky window estimate and is an UPPER
 bound, because part of the band is already opaque to water vapour and CO2.
+
+The absorbing OPAC end of the index bracket, `--indices bracket`, is a different
+table: -8.5/+6.7/-1.8 over ocean and +2.7/+6.7/+9.4 over salt crust, at the same
+burden. Which one this world's dust is, and why the answer is one file's to give,
+is the DUST-12 section below.
 
 Re-measured 2026-08-17 under PHYS-2. The two shortwave bands were being weighted
 0.2566/0.7434, which was this script integrating `k25v.dat` a second time and
@@ -414,18 +420,19 @@ shortwave term moved +0.25 to +0.5 W/m2 and the global mean net from +0.34 to
 
 **The sign claim in this note's own pricing section is superseded.** Dust on this
 world does not simply cool. It cools over ocean, is near neutral over vegetated
-land and warms strongly over the bright closed-basin fill -- which is exactly the
-surface that makes this world unusual, and exactly where the dust is.
+land and warms over the bright closed-basin fill -- which is exactly the surface
+that makes this world unusual, and exactly where the dust is.
 
-The global mean lands at **+0.55 to +0.67 W/m2**, below the 1.5 W/m2 half of the
-reopening threshold. That is not reassurance: it is ocean cooling cancelling land
-warming across a net that spans 11 W/m2 by surface, -1.8 over ocean against +9.4
-over salt crust, and a redistribution that large drives circulation whatever its
-mean is.
+The global mean lands at **-0.48 to -0.15 W/m2** across the size bracket, and at
++0.55 to +0.67 at the absorbing end of the index bracket. Every one of those is
+below the 1.5 W/m2 half of the reopening threshold, and none of them is
+reassurance: it is ocean cooling cancelling land warming across a net that spans
+9 W/m2 by surface, -2.8 over ocean against +6.0 over salt crust, and a
+redistribution that large drives circulation whatever its mean is.
 
 **And it settles what DUST-3 must not do.** Switching ExoPlaSim's aerosol on as
-shipped applies the shortwave alone, which is -3.3 to -3.8 W/m2 in the global
-mean against a true +0.55 to +0.67. An error of 4.0 to 4.3 W/m2, against 21 W/m2
+shipped applies the shortwave alone, which is -4.2 to -4.8 W/m2 in the global
+mean against a true -0.15 to -0.48. An error of 4.0 to 4.3 W/m2, against 21 W/m2
 for the entire 0.85-to-0.95 stellar sweep that produced a 33 K range. In kelvin,
 on the canonical conversion in `lib/sensitivity.py`, that is **3.3 to 3.6 K of
 spurious cooling**: the second largest item in the error budget, behind only the
@@ -556,11 +563,13 @@ So the answer is split in two, and DUST-10 has now settled the first half.
 Computed 2026-08-17, and re-measured after HYD-13 corrected the grid mapping.
 `analysis/dust_surface_forcing.nc` carries the per-cell dust perturbation to
 `rss` and `rls`, and `carve_verdict.py --dust-forcing` adds them before Penman.
-Surface forcing, not top-of-atmosphere, which is the whole point:
+Surface forcing, not top-of-atmosphere, which is the whole point. At a land-mean
+optical depth of 0.376, on the coarse end of the size bracket, and on OPAC
+indices, which is the combination that field was written with:
 
 | surface | shortwave | longwave | net |
 | --- | ---: | ---: | ---: |
-| ocean, a = 0.07 | -12.3 | +4.5 | -7.8 |
+| ocean, a = 0.07 | -12.2 | +4.5 | -7.8 |
 | vegetated land, a = 0.18 | -10.8 | +4.5 | -6.3 |
 | playa fill, a = 0.40 | -7.9 | +4.5 | -3.4 |
 | salt crust, a = 0.50 | -6.6 | +4.5 | -2.1 |
@@ -569,16 +578,24 @@ Negative everywhere, including over the bright fill where the TOA term is
 positive. Area-weighted the perturbation is -10.4 W/m2 shortwave and +3.8
 longwave.
 
-**Verdict with the dust surface forcing applied: 1,744 carved against 1,721
-without. Twenty-three MORE basins carve.** Dust dims the lake, Penman evaporation
-falls, more basins overflow. The direction is the opposite of the
-top-of-atmosphere reading and the same as this note's corrected one; the earlier
-claim that dust closes basins through the lake is dead.
+**Verdict with that surface forcing applied: 1,744 carved against 1,721 without.
+Twenty-three MORE basins carve.** Dust dims the lake, Penman evaporation falls,
+more basins overflow. The direction is the opposite of the top-of-atmosphere
+reading and the same as this note's corrected one; the earlier claim that dust
+closes basins through the lake is dead.
 
 It is small, and it survived every correction of the day almost unchanged: the
 first measurement gave 24 basins on a mapping that turned out to shift every
 basin half a planet, and the corrected mapping gives 23. The lake term does not
 depend on the things that were wrong around it.
+
+**That COUNT does not survive DUST-12 and the burden below; the MECHANISM does.**
+The forcing field is now built from the indices the config declares, which cut
+the surface shortwave perturbation to 0.805x and the surface net to 0.69x of the
+numbers above, so the lake limb is about a third smaller than 23 basins at the
+same burden. It is the same sign, the same mechanism and the same recoverable
+direction. Re-derive the count with `carve_verdict.py --dust-forcing` once the
+burden is settled; do not quote 23 as though the field it came from still exists.
 
 **So the lake term is settled, small, and in the recoverable direction.** A
 dust-free verdict under-carves by about 23 basins on this limb, and an
@@ -608,3 +625,81 @@ the term is no longer small, so it no longer applies. The reason it is out now i
 compute: it costs two orders of magnitude in runtime, and this project runs its
 models iteratively on one workstation. A model that cannot go round the loop is
 not an option however correct it is.
+
+## One optical dataset for both halves of the chain (DUST-12, 2026-08-18)
+
+The offline forcing and the aerofile ExoPlaSim reads were built from DIFFERENT
+refractive indices for the same dust. `dust_forcing.py` computed everything from
+OPAC; `dust_aerofile.py` and `build_surface_dust.py` built the model's optics
+from the measured datasets `aeolian/config/dust.yaml` selects. Neither was a
+defect in itself. There was no declared answer for the two to share, so each
+carried its own, and the same burden was priced at absorption optical depths a
+factor of 2.5 apart.
+
+**`aeolian/config/dust.yaml` now declares it, once, under `optics.indices`, and
+all four consumers resolve that declaration through
+`exoplasim/scripts/dust_indices.py`.** The choice is the measured datasets in the
+shortwave -- Di Biagio in band 1, Rocha-Lima Algeria in band 2 -- with OPAC in
+the thermal infrared because nothing else in this repository reaches past 2.45
+um. The argument is in the config beside the keys: this world's dust is
+evaporite-bearing playa fill rather than the Saharan silicate either dataset was
+measured on, and the measured pair extrapolates from the side this world's
+mineralogy is on; the size distribution the optics are integrated over is
+Balkanski's, and Balkanski is the paper that reevaluated dust forcing on the
+grounds that OPAC is too absorbing, so pairing the two was half of each of two
+papers that disagree. OPAC stays as `optics.indices_bracket`, priced by
+`dust_forcing.py --indices bracket`.
+
+Measured 2026-08-18 at a land-mean optical depth of 0.376, which is the burden
+every earlier number in this note was computed at, so the two columns differ in
+the indices and in nothing else:
+
+| quantity | declared (measured) | bracket (OPAC) |
+| --- | ---: | ---: |
+| shortwave absorption optical depth, fine end | 0.0105 | 0.0265 |
+| TOA net over ocean, W/m2 | -2.8 | -1.8 |
+| TOA net over salt crust, W/m2 | +6.0 | +9.4 |
+| global mean net across the size bracket, W/m2 | -0.48 to -0.15 | +0.55 to +0.67 |
+| surface shortwave over ocean, coarse end, W/m2 | -9.8 | -12.2 |
+| shortwave-only error DUST-3 would make, W/m2 | 4.0 to 4.3 | 4.0 to 4.3 |
+
+The absorption ratio is 0.396, which is the factor the task predicted from the
+single-scattering albedos alone. What moves with it: the global-mean net changes
+SIGN, from a weak warming to a weak cooling, and the warming over bright
+closed-basin fill is about 40% smaller. What does not move: the sign per surface,
+the reopening threshold verdict, and the shortwave-only error that settles what
+DUST-3 must not do, because that error is carried by the thermal term and the
+thermal term is OPAC's on both sides.
+
+**The mixture is stated rather than hidden.** The shortwave sits at the measured
+end and the thermal infrared at the absorbing one, which biases the net warm and
+the surface dimming small, so both push the lake limb toward fewer basins
+overflowing. The measured longwave alternatives are known and rejected for stated
+reasons rather than unexamined: Di Biagio et al. (2017) pins its k constant below
+6 um by the authors' own statement, and Di Biagio et al. (2014) is a pellet-method
+retrieval over 2.5-25 um. Both are in `references/INDEX.md`. Fetching a measured
+thermal k that spans the band would remove the last unmatched dataset here.
+
+**The in-model side did not move.** `vesper_dust_aerosol.dat` regenerates
+byte-identical, because the aerofile was already built from the declared choice;
+it was the offline forcing that was reading a different dust. No binary rebuild
+and no boundary field follows from this.
+
+### The burden underneath all of it collapsed, and that is a separate defect
+
+Found while re-deriving the above, 2026-08-18. `aeolian/analysis/dust_baseline`
+was regenerated in `018ec97` with the subgrid wind shape fitted to the 32-sample
+snapshot climatology, which is `build_dust.py`'s DEFAULT gust source, rather than
+to the 1,463 three-hourly samples DUST-5 measured and which have to be passed
+with `--gust-samples`. The shape went from 2.012 to 4.600, and emission with it
+from 14,029 to 350 Tg per Earth year: a factor of 40, and land-mean optical depth
+from 0.376 to 0.00524.
+
+Nothing warned. The high-cadence extract is still on disk, DUST-5's measurement
+is still the defensible one, and `aeolian/README.md` still describes the world
+the measurement produced. **Every dust number now on disk is the snapshot-fitted
+one**, including `analysis/dust_forcing.json`, `analysis/dust_surface_forcing.nc`
+and the prescribed-dust field DUST-11 would run with, which is 70x too thin. The
+fix is one re-run of the chain with `--gust-samples` pointed at the high-cadence
+wind file, and then everything below it again; it is not DUST-12's to make,
+because DUST-12 is which dust, not how much.

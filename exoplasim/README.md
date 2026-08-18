@@ -141,6 +141,7 @@ unless told they exist.
 | `analyze_stellar_cycles.py` | phase-folded response of completed cycle runs |
 | `compare_flux_sweep.py` | compare equilibrated reports across a flux sweep |
 | `compare_albedo_bracket.py` | compare albedo endmembers and decide whether the bracket resolved |
+| `dust_indices.py` | the one place a refractive-index dataset NAME becomes n and k; `aeolian/config/dust.yaml` declares which |
 | `dust_optics.py` | two-band mineral dust optics, and the sign of its forcing |
 | `mie_dust.py` | Bohren and Huffman Mie code with lognormal size integration |
 | `dust_aerofile.py` | writes the model's `aerofile` from the dust optics, and validates the round trip |

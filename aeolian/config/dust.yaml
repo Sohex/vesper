@@ -292,10 +292,77 @@ size_distribution:
 # integrated against this star's spectrum, from a Mie code validated against
 # Bohren-Huffman and OPAC. Optical depth is column mass times mass extinction
 # efficiency.
+#
+# WHICH REFRACTIVE INDICES THIS WORLD'S DUST HAS IS DECLARED HERE, ONCE, AND
+# EVERY CONSUMER READS IT FROM HERE. That is the point of the block. Until
+# DUST-12 the offline forcing computed everything from OPAC while the aerofile
+# the model reads was built from the measured datasets, so the two priced the
+# same dust at absorption optical depths differing by a factor of 2.5. Neither
+# was wrong; there was no declared answer for them to share. The consumers are
+# `aeolian/scripts/build_dust.py`, `exoplasim/scripts/dust_aerofile.py`,
+# `exoplasim/scripts/build_surface_dust.py` and
+# `exoplasim/scripts/dust_forcing.py`, and all four resolve these names through
+# `exoplasim/scripts/dust_indices.py`. The names are the `indices` labels in
+# `analysis/dust_optics.json`, which is also where the numbers are.
+#
+# THE CHOICE IS THE MEASURED DATASETS IN THE SHORTWAVE, and it is a choice
+# between two defensible datasets rather than a defect in either. Three
+# arguments, in the order they should be weighed:
+#
+# 1. MINERALOGY. OPAC's mineral component carries its shortwave absorption in an
+#    assumed hematite content, and is 1.0 to 2.1x more absorbing than the
+#    measurements (`notes/dust.md`). Di Biagio et al. (2019) measured 19 natural
+#    soils and Rocha-Lima et al. (2018) measured Saharan dust in the field.
+#    This world's source is neither: it is closed-basin fill, `playa_clastic` at
+#    weight 1.0 and `evaporite` crust at 0.1 above, and evaporite-bearing playa
+#    dust is LESS absorbing than the Saharan silicate the measurements were made
+#    on, not more. `analysis/dust_optics.json` already carries that as a caveat.
+#    Both datasets are an extrapolation to this world and the measured one
+#    extrapolates from the side this world's mineralogy is on.
+#
+# 2. INTERNAL CONSISTENCY. `dust_optics.py` integrates over the Balkanski et al.
+#    (2007) source size distribution, and Balkanski is the paper that reevaluated
+#    mineral dust forcing on the grounds that OPAC's indices are too absorbing.
+#    Taking Balkanski's size distribution with OPAC's k is half of each of two
+#    papers that disagree with one another.
+#
+# 3. THE DIRECTION OF ERROR FOR THE CARVE RUNS THE OTHER WAY, and that is why
+#    the bracket below is kept rather than deleted. Absorption is what suppresses
+#    precipitation through the fast adjustment, and precipitation sets the runoff
+#    the carve criterion divides by, so choosing the less absorbing dataset
+#    understates the suppression and therefore understates how much a dust-free
+#    carve list OVER-carves. Over-carving is the irreversible direction. That is
+#    an argument for PRICING the absorbing end, not for adopting it: adopting a
+#    dataset believed to be too absorbing because the resulting verdict is safer
+#    would be choosing an input for its outcome, which is what "physics is not a
+#    knob" forbids. The bound is carried in `indices_bracket` and priced by
+#    `dust_forcing.py --indices bracket`.
+#
+# THE LONGWAVE IS NOT THE SAME KIND OF CHOICE. The measured shortwave datasets
+# stop at 0.95 and 2.45 um, so OPAC is the only dataset in this repository that
+# reaches the thermal infrared at all, and its longwave basis is Volz (1973)
+# Saharan dust. The measured alternatives are known and rejected for stated
+# reasons rather than unexamined: Di Biagio et al. (2017) pins its k constant
+# below 6 um by the authors' own statement, and Di Biagio et al. (2014) retrieves
+# k over 2.5-25 um by the pellet method. Both are in `references/INDEX.md`.
+#
+# The consequence is a mixture and it is stated rather than hidden: the
+# shortwave sits at the measured end and the thermal infrared at the absorbing
+# one, which biases the NET forcing warm and the surface dimming small. Both
+# push the lake limb of the carve toward fewer basins overflowing.
 optics:
   source: analysis/dust_optics.json
-  # Which entry to use for the band-1 and band-2 efficiency. Di Biagio is the
-  # measured-index case and Rocha-Lima the digitised one; OPAC is the absorbing
-  # end and is carried as the bracket in dust_optics.json rather than here.
-  band1_indices: Di Biagio 2019 measured
-  band2_indices: Rocha-Lima Algeria fine
+  # The declared choice. `longwave` is read by anything integrating past 4 um:
+  # `dust_forcing.py`'s thermal term and `build_surface_dust.py`'s DUSTQLW.
+  indices:
+    band1: Di Biagio 2019 measured
+    band2: Rocha-Lima Algeria fine
+    longwave: OPAC
+  # The absorbing end, as a bound rather than an alternative. Priced offline by
+  # `dust_forcing.py --indices bracket`. Running it IN the model would mean
+  # regenerating the aerofile and the boundary field against it and paying for a
+  # second climate run, which is not wired because it is not worth a run.
+  indices_bracket:
+    band1: OPAC
+    band2: OPAC
+    longwave: OPAC
