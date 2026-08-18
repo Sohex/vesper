@@ -1,0 +1,358 @@
+# THE PIPELINE GRAPH. Single source of truth for what steps exist, what each
+# generates, and what must precede it.
+#
+# WORKFLOW.md owns the REASONING -- why the order is what it is, what each stage
+# is for, why the loops close, and the traps. It references step ids from here
+# and does not restate them. This file owns the graph and nothing else: no
+# rationale, no narrative, no current values. Two representations of one thing in
+# two files is the duplication both documents exist to prevent.
+#
+# The graph is directed and CYCLIC by design. Each loop carries an exit predicate
+# rather than a topological order, and `scripts/pipeline.py` plans one pass at a
+# time rather than solving the cycle.
+#
+# consumers are NOT declared: they are derived from `needs`. Declaring both would
+# be the same duplication one level down.
+
+version: 1
+
+loops:
+  A:
+    name: the terrain loop
+    exit: >
+      Successive verdicts bracket rather than converge, because the map is
+      antitone: a larger carve set produces a smaller next verdict. Exit by
+      carving the INTERSECTION of the verdicts taken at the two bounding
+      climates, which makes the marginal set a construction rather than a
+      tolerance.
+  B:
+    name: the soil and biosphere loop
+    exit: the criteria in pedology/config/pedogenesis.yaml
+  C:
+    name: the vegetation-climate loop
+    exit: re-take the verdict on modelled vegetation; if basins flip, re-enter A
+  D:
+    name: the resolution change
+    exit: only after A, B and C have settled
+
+# cost: seconds | minutes | hours. `hours` is what must never run by accident.
+# gate: a condition that must hold before the step is meaningful. Absent means
+#       none. A gate is NOT a request for a preference -- it is a statement that
+#       the recorded procedure does not yet cover this case.
+
+steps:
+
+  - id: stellar_spectrum
+    script: exoplasim/scripts/build_stellar_spectrum.py
+    cost: minutes
+    needs: []
+    writes: ["exoplasim/inputs/stellarspectra/{name}.dat", "exoplasim/inputs/stellarspectra/{name}_hr.dat", "exoplasim/inputs/stellarspectra/{name}_provenance.json"]
+
+  - id: rebuild_binaries
+    script: exoplasim/scripts/rebuild_binaries.py
+    cost: minutes
+    needs: []
+    writes: [exoplasim/patches/binary_manifest.json]
+
+  - id: cycle_binary
+    script: exoplasim/scripts/build_star_cycle_exoplasim.sh
+    cost: minutes
+    needs: [rebuild_binaries]
+    writes: [exoplasim/patches/cycle_binary_manifest.json]
+
+  - id: hydrography
+    script: hydrography/scripts/build_hydrography.py
+    loop: A
+    cost: minutes
+    needs: []
+    writes: ["hydrography/data/{build}/regions.nc", "hydrography/data/{build}/basins.nc", "hydrography/data/{build}/hydrography_report.json"]
+
+  - id: boundary_conditions
+    script: exoplasim/scripts/build_boundary_conditions.py
+    loop: A
+    cost: minutes
+    needs: []
+    writes: [exoplasim/inputs/t42/boundary_conditions_report.json]
+
+  - id: surface_albedo
+    script: exoplasim/scripts/build_surface_albedo.py
+    loop: A
+    cost: minutes
+    needs: []
+    writes: [exoplasim/inputs/t42/albedo_report.json]
+
+  - id: surface_roughness
+    script: exoplasim/scripts/build_surface_roughness.py
+    loop: A
+    cost: minutes
+    needs: []
+    writes: [exoplasim/inputs/t42/roughness_t42_report.json]
+
+  - id: bootstrap_run
+    script: exoplasim/scripts/run_exoplasim.py
+    loop: A
+    cost: hours
+    needs: [rebuild_binaries, boundary_conditions, surface_albedo, surface_roughness]
+    writes: []
+    presence: by_index   # UUID-named; ask exoplasim/runs/INDEX.json, not the path
+
+  - id: assess_convergence
+    script: exoplasim/scripts/assess_convergence.py
+    loop: A
+    cost: minutes
+    needs: [bootstrap_run, state_energy]
+    writes: [exoplasim/analysis/convergence/]
+
+  - id: state_energy
+    script: exoplasim/scripts/close_state_energy.py
+    loop: A
+    cost: minutes
+    needs: [bootstrap_run]
+    writes: [exoplasim/analysis/energy/]
+
+  - id: climatology
+    script: exoplasim/scripts/build_climatology.py
+    loop: A
+    cost: minutes
+    needs: [assess_convergence]
+    writes: [exoplasim/analysis/climatology/baseline_regular_climatology.nc, exoplasim/analysis/climatology/baseline_snapshot_climatology.nc, exoplasim/analysis/climatology/baseline_climate_series.json]
+
+  - id: analyze_climatology
+    script: exoplasim/scripts/analyze_climatology.py
+    loop: A
+    cost: minutes
+    needs: [climatology]
+    writes: [exoplasim/analysis/climatology/baseline_climate_report.json, exoplasim/analysis/climatology/baseline_classification.nc]
+
+  - id: index_runs
+    script: exoplasim/scripts/index_runs.py
+    cost: seconds
+    needs: [bootstrap_run]
+    writes: [exoplasim/runs/INDEX.json]
+
+  - id: surface_water
+    script: hydrography/scripts/surface_water.py
+    loop: A
+    cost: minutes
+    needs: [hydrography, climatology]
+    writes: ["hydrography/data/{build}/surface_water.nc", hydrography/analysis/surface_water_report.json]
+
+  - id: soil
+    script: pedology/scripts/build_soil.py
+    loop: A
+    cost: minutes
+    needs: [climatology, hydrography]
+    writes: [pedology/analysis/soil_report.json]
+
+  - id: surface_soil_water
+    script: exoplasim/scripts/build_surface_soil_water.py
+    loop: A
+    cost: minutes
+    needs: [soil]
+    writes: [exoplasim/inputs/t42/orogen_T42_surf_0229_provenance.json]
+
+  - id: dust
+    script: aeolian/scripts/build_dust.py
+    loop: A
+    cost: minutes
+    needs: [climatology, surface_water]
+    writes: [aeolian/analysis/dust_baseline.nc, aeolian/analysis/dust_baseline.json]
+
+  - id: dust_optics
+    script: exoplasim/scripts/dust_optics.py
+    cost: minutes
+    needs: [stellar_spectrum]
+    writes: [analysis/dust_optics.json]
+
+  - id: dust_aerofile
+    script: exoplasim/scripts/dust_aerofile.py
+    cost: seconds
+    needs: [dust_optics]
+    writes: [exoplasim/data/dust/vesper_dust_aerosol.dat, exoplasim/data/dust/vesper_dust_aerosol.provenance.json]
+
+  - id: surface_dust
+    script: exoplasim/scripts/build_surface_dust.py
+    loop: A
+    cost: minutes
+    needs: [dust, dust_aerofile]
+    writes: [exoplasim/inputs/t42/orogen_T42_surf_1811_provenance.json]
+    gate: only when model.dust_source is set; a no-op at ndustrad = 0
+
+  - id: dust_forcing
+    script: exoplasim/scripts/dust_forcing.py
+    cost: minutes
+    needs: [dust, dust_optics]
+    writes: [analysis/dust_forcing.json, analysis/dust_surface_forcing.nc]
+
+  - id: shortwave_band_weights
+    script: exoplasim/scripts/shortwave_band_weights.py
+    cost: minutes
+    needs: [stellar_spectrum]
+    writes: [exoplasim/analysis/shortwave_band_weights.json]
+
+  - id: baseline_run
+    script: exoplasim/scripts/run_exoplasim.py
+    loop: A
+    cost: hours
+    needs: [surface_water, surface_albedo, surface_soil_water, rebuild_binaries]
+    writes: []
+    presence: by_index
+
+  - id: stellar_cycle_run
+    script: exoplasim/scripts/run_stellar_cycle.py
+    loop: A
+    cost: hours
+    needs: [baseline_run, cycle_binary]
+    writes: []
+    presence: by_index
+    gate: >
+      requires a FINAL baseline, not merely a converged one: anything still
+      outstanding that moves the mean has to land first (WORKFLOW A2)
+
+  - id: carve_verdict
+    script: hydrography/scripts/carve_verdict.py
+    loop: A
+    cost: minutes
+    needs: [climatology, hydrography, surface_water, stellar_cycle_run, dust_forcing]
+    writes: [hydrography/analysis/carve_verdict.json]
+
+  - id: carve_list
+    script: hydrography/scripts/export_carve_list.py
+    loop: A
+    cost: seconds
+    needs: [carve_verdict]
+    writes: ["hydrography/data/{build}/carve_list.txt", "hydrography/data/{build}/carve_list.json"]
+
+  - id: orogen
+    script: vendor/orogen
+    loop: A
+    cost: hours
+    needs: [carve_list]
+    writes: ["source/{build}/"]
+    gate: >
+      the carve gate: nothing outstanding may touch a step upstream of
+      carve_list. Computed by `pipeline.py --status`; the residual is arbitrated,
+      not ignored.
+
+  - id: weathering_fluxes
+    script: pedology/scripts/weathering_fluxes.py
+    cost: minutes
+    needs: [soil, hydrography]
+    writes: [pedology/analysis/weathering_fluxes.json]
+
+  - id: thermostat_efficiency
+    script: pedology/scripts/thermostat_efficiency.py
+    cost: minutes
+    needs: [weathering_fluxes]
+    writes: [pedology/analysis/thermostat_efficiency.json]
+
+  - id: brine_paths
+    script: pedology/scripts/brine_paths.py
+    cost: minutes
+    needs: [hydrography, climatology]
+    writes: [pedology/analysis/brine_paths.json]
+
+  - id: surface_classes
+    script: pedology/scripts/build_surface_classes.py
+    cost: minutes
+    needs: [soil, brine_paths, dust, surface_water]
+    writes: [pedology/analysis/surface_classes.nc]
+
+  - id: phosphorus_budget
+    script: pedology/scripts/phosphorus_budget.py
+    cost: minutes
+    needs: [soil, dust, surface_water]
+    writes: [pedology/analysis/phosphorus_budget.json]
+
+  - id: vesper_header
+    script: biosphere/scripts/build_vesper_header.py
+    loop: B
+    cost: minutes
+    needs: []
+    writes: [biosphere/generated/vesper_provenance.json]
+
+  - id: vesper_pfts
+    script: biosphere/scripts/build_vesper_pfts.py
+    loop: B
+    cost: minutes
+    needs: [vesper_header]
+    writes: [biosphere/generated/vesper_pfts_provenance.json]
+
+  - id: lpj_driver
+    script: biosphere/scripts/build_lpj_driver.py
+    loop: B
+    cost: minutes
+    needs: [climatology, soil, vesper_pfts]
+    writes: [biosphere/generated/vesper_driver_provenance.json]
+
+  - id: lpj_run
+    script: biosphere/scripts/run_lpj_guess.py
+    loop: B
+    cost: hours
+    needs: [lpj_driver]
+    writes: [biosphere/runs/]
+
+  - id: prospectivity
+    script: minerals/scripts/build_prospectivity.py
+    cost: minutes
+    needs: [hydrography]
+    writes: [minerals/data/prospectivity.nc, minerals/data/prospectivity_report.json]
+
+  - id: downstream_prospectivity
+    script: minerals/scripts/build_downstream_prospectivity.py
+    cost: minutes
+    needs: [prospectivity, brine_paths, surface_classes, soil]
+    writes: [minerals/data/downstream_prospectivity.nc, minerals/data/downstream_prospectivity_report.json]
+
+  - id: error_budget
+    script: scripts/error_budget.py
+    cost: seconds
+    needs: [carve_list, climatology]
+    writes: [analysis/error_budget.json]
+
+  - id: basemap
+    script: maps/build_basemap.py
+    cost: minutes
+    needs: [analyze_climatology, surface_water]
+    writes: [maps/build/basemap_provenance.json]
+
+  - id: projections
+    script: maps/render_projections.py
+    cost: minutes
+    needs: [basemap]
+    writes: [maps/build/projections_provenance.json]
+
+  - id: world_state
+    script: scripts/world_state.py
+    cost: seconds
+    needs: [index_runs, analyze_climatology, carve_list, hydrography]
+    writes: [world_state.json]
+
+# Run, never generate an artifact, and gate the expensive steps.
+checks:
+  - id: check_consistency
+    script: scripts/check_consistency.py
+  - id: smoke_test
+    script: scripts/smoke_test.py
+
+# Present, deliberately outside the graph: depended on by nothing.
+one_offs:
+  - hydrography/scripts/validate_lake_solver.py
+  - hydrography/scripts/lake_balance.py
+  - pedology/scripts/validate_against_earth.py
+  - pedology/scripts/probe_runoff_response.py
+  - biosphere/scripts/score_prediction.py
+  - exoplasim/scripts/compare_flux_sweep.py
+  - exoplasim/scripts/compare_albedo_bracket.py
+  - exoplasim/scripts/analyze_stellar_cycles.py
+  - exoplasim/scripts/analyze_smoke.py
+  - exoplasim/scripts/mie_dust.py
+  - exoplasim/scripts/run_albedo_bracket.sh
+  - exoplasim/scripts/finalize_existing_segment.py
+  - exoplasim/scripts/extract_high_cadence_wind.py
+  - exoplasim/scripts/continue_exoplasim.py
+  - aeolian/scripts/dust_runoff_sensitivity.py
+  - aeolian/scripts/extract_high_cadence_wind.py
+  - scripts/archive_runs.py
+  - scripts/archive_builds.py
+  - scripts/compare_exports.py

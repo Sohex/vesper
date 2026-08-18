@@ -203,8 +203,7 @@ def check_one_grid_convention(files: list[Path]) -> list[str]:
 def check_registered_in_workflow(files) -> list[str]:
     """Every generator that writes an artifact is named in `WORKFLOW.md`.
 
-    `WORKFLOW.md` is canonical for the pipeline and its section 2b register is
-    the list of what exists. A script that writes a product nobody declared has
+    `config/pipeline.yaml` is the graph and the list of what exists. A script that writes a product nobody declared has
     no recorded consumers, so nothing can say what it invalidates when it moves,
     and `CLAUDE.md` rule 7 stops being answerable -- "what is now worthless"
     needs a complete graph.
@@ -214,7 +213,11 @@ def check_registered_in_workflow(files) -> list[str]:
     because a row naming a step that has not been written yet is a plan rather
     than an error.
     """
-    workflow = (ROOT / "WORKFLOW.md").read_text(encoding="utf-8")
+    import yaml
+    graph = yaml.safe_load((ROOT / "config" / "pipeline.yaml").read_text(encoding="utf-8"))
+    declared = {Path(s["script"]).name for s in graph["steps"]}
+    declared |= {Path(s["script"]).name for s in graph.get("checks", [])}
+    declared |= {Path(s).name for s in graph.get("one_offs", [])}
     writes = re.compile(r"write_text|to_netcdf|savefig|json\.dump|write_sra"
                         r"|Dataset\([^)]*['\"]w['\"]|open\([^)]*['\"]w")
     missing = []
@@ -226,9 +229,9 @@ def check_registered_in_workflow(files) -> list[str]:
             continue                      # a module, not a step
         if "def main(" not in src and "__main__" not in src:
             continue                      # imported, not run
-        if f.name not in workflow:
-            missing.append(f"{f.relative_to(ROOT)} writes an artifact and is in "
-                           "no step or register row in WORKFLOW.md")
+        if f.name not in declared:
+            missing.append(f"{f.relative_to(ROOT)} writes an artifact and is in no "
+                           "step, check or one_off in config/pipeline.yaml")
     return missing
 
 
@@ -248,7 +251,7 @@ def main() -> None:
               ("no artifact selection by sort order", check_no_order_picks(files)),
               ("one grid convention, in lib/gridding.py",
                check_one_grid_convention(files)),
-              ("every generator is registered in WORKFLOW.md",
+              ("every generator is declared in config/pipeline.yaml",
                check_registered_in_workflow(files))]
     if not args.skip_help:
         checks.insert(1, ("entry points answer --help", check_help(files)))

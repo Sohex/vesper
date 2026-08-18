@@ -58,21 +58,25 @@ none of them is advice.
    migrate. After that it is not, because runs and verdicts start depending on
    it. What must survive either way is the recipe, in `source/README.md`.
 
-   That is one case of the general rule, and the general rule is this. **An
-   artifact is worth something only if it is FIXED and something downstream has
-   employed it.** Everything else is freely regenerable, and the only thing
-   worth knowing about it is whether it is current with respect to its inputs.
-   It follows that **an upstream change makes everything below it worthless,
-   not stale**: there is nothing to reconcile, migrate or carry with a caveat,
-   and the question after any such change is "what is now worthless" rather than
-   "what needs updating". In this project exactly one artifact meets the test,
-   and it is the CARVE, because Orogen consumes the list, the terrain is
-   regenerated around it, and incision does not undo. Climatologies, run output,
-   verdicts, soil, dust fields, prospectivity and `world_state.json` are derived
-   state. What is durable is not an artifact at all: it is the code, the
-   configuration, the decisions, and the findings about MECHANISMS. "The floor
-   was binding on 73% of the overflowing set" survives every regeneration;
-   "1,938 basins carve" does not.
+   That is one case of the general rule, and the general rule is this. **What
+   is durable is what the world is RECONSTRUCTED FROM; everything else is
+   output.** The durable set is small and complete: the planet code and seed,
+   the carve list, `config/planet.yaml`, the code, and the decisions and
+   findings about MECHANISMS. Given those, every other artifact in this
+   repository can be regenerated, which is why **an upstream change makes
+   everything below it worthless rather than stale** -- there is nothing to
+   reconcile, migrate or carry with a caveat, and the question after any change
+   is "what is now worthless" rather than "what needs updating".
+
+   The carve list is in the durable set because Orogen CONSUMES it, in the same
+   way it consumes the seed, and not because incision is irreversible. Incision
+   being irreversible is a fact about the world, not about the pipeline: a wrong
+   verdict is recoverable, because a build is replaced wholesale rather than
+   edited. Carving is an ordinary step that happens to be a convenient
+   bottleneck, and treating it as sacred obscures the actual rule. Climatologies,
+   run output, verdicts, soil, dust fields, prospectivity and `world_state.json`
+   are all output. "The floor was binding on 73% of the overflowing set"
+   survives every regeneration; "1,938 basins carve" does not.
 
 8. **Before an expensive run**, and after changing `source_build`:
 
