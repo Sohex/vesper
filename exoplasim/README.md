@@ -160,6 +160,7 @@ unless told they exist.
 | `analyze_smoke.py` | audit and plot a one-orbit smoke run |
 | `analyze_stellar_cycles.py` | phase-folded response of completed cycle runs |
 | `compare_flux_sweep.py` | compare equilibrated reports across a flux sweep |
+| `run_albedo_bracket.sh` | drives the four bracket cases end to end, threading each run's announced id into its own continuation; `--self-test` checks that threading without a model |
 | `compare_albedo_bracket.py` | compare albedo endmembers and decide whether the bracket resolved |
 | `dust_optics.py` | two-band mineral dust optics, and the sign of its forcing |
 | `mie_dust.py` | Bohren and Huffman Mie code with lognormal size integration |
