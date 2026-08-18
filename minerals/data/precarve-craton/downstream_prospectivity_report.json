@@ -1,5 +1,5 @@
 {
-  "generated": "2026-08-18T04:09:45+00:00",
+  "generated": "2026-08-18T04:22:49+00:00",
   "generator": "minerals/scripts/build_downstream_prospectivity.py",
   "source_build": "precarve-craton",
   "terrain_hash": "e931b0d9947a232210a3cc11ba82003b5da15765d86e87956bc44c220932760e",
@@ -7,33 +7,33 @@
   "climatology_sha256": "60efe80f6901b14b5317f3177e66b4bb421a5cc913077f2075b259f24c651196",
   "tectonic_field": "minerals/data/precarve-craton/prospectivity.nc",
   "brine_paths": "pedology/analysis/brine_paths.json",
-  "config_sha256": "22c5bdc918a70c5d4b328dd75434eec125d7faff0c7a9e168f06838df720124e",
-  "git_commit": "6f7a38ce7bb162b97a93c310c152cddc66203abf",
+  "config_sha256": "2ec48b085a3066f6196cad829cb0103efefa2bebdeae41d218cf80d06d2e9d18",
+  "git_commit": "bcbfda4643991f64df27bbf7aa7b1c73361c3ed8",
   "deposits": {
     "bauxite": {
       "name": "Bauxite",
-      "grounding": "declared",
-      "land_fraction_nonzero": 0.010223830842521563,
-      "land_fraction_above_half": 0.005278187381233387,
-      "mean_over_land": 0.005664529855514358
+      "grounding": "sourced",
+      "land_fraction_nonzero": 0.0319085922565305,
+      "land_fraction_above_half": 0.003895124537303648,
+      "mean_over_land": 0.007144417015307162
     },
     "laterite_ni": {
       "name": "Nickel laterite",
-      "grounding": "declared",
-      "land_fraction_nonzero": 0.006233015460765399,
-      "land_fraction_above_half": 0.003330504932611289,
-      "mean_over_land": 0.003534410289894987
+      "grounding": "sourced",
+      "land_fraction_nonzero": 0.011968360588174212,
+      "land_fraction_above_half": 0.0025427538549747325,
+      "mean_over_land": 0.0034311803366470187
     },
     "supergene_cu": {
       "name": "Supergene copper enrichment",
-      "grounding": "declared",
-      "land_fraction_nonzero": 0.016708308554859094,
-      "land_fraction_above_half": 0.012211659141959784,
-      "mean_over_land": 0.01266290853328438
+      "grounding": "sourced",
+      "land_fraction_nonzero": 0.018559238999091586,
+      "land_fraction_above_half": 0.013212587394931447,
+      "mean_over_land": 0.013758597963066242
     },
     "placer_au": {
       "name": "Placer gold",
-      "grounding": "declared",
+      "grounding": "sourced-negative",
       "land_fraction_nonzero": 0.034089014660501994,
       "land_fraction_above_half": 0.005425320479218364,
       "mean_over_land": 0.009446268812503062

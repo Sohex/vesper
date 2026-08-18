@@ -85,16 +85,39 @@ regenerated when either moves. One file would have given the durable half the
 disposable half's lifetime.
 
 **The rules are not equally grounded and the artifact says so per rule.** Each
-carries `derived`, `sourced` or `declared`, in the config, in the report, and as
-an attribute on the netCDF variable, so the distinction travels with the number.
-Soda ash and gypsum are DERIVED: they are the two sides of Hardie and Eugster's
-chemical divide, which decides irreversibly which way a brine goes, and there is
-no free choice in them. Everything else is DECLARED. Two of those deserve naming
-because they are weaker than the rest: **lithium and boron are not among
-Meybeck's eight species at all**, so they cannot be derived from the divide in
-any form, and what stands in is a geological association with silicic volcanic
-and arc volcanic catchments. That is an association, not a mechanism this
-pipeline models.
+carries `derived`, `sourced`, `sourced-negative` or `declared`, in the config, in
+the report, and as an attribute on the netCDF variable, so the distinction
+travels with the number.
+
+DERIVED: soda ash and gypsum are the two sides of Hardie and Eugster's chemical
+divide, which decides irreversibly which way a brine goes, and there is no free
+choice in them.
+
+SOURCED: bauxite, nickel laterite and supergene copper's dry end, on literature
+read 2026-08-17 and listed in `references/INDEX.md`. **One of the three moved by
+an order of magnitude when it was sourced.** Supergene copper carried a 100 mm/yr
+lower bound described as the conventional semi-arid band and chosen without a
+source; Reich et al. (2009) measured the Atacama and put meteoric enrichment
+above 10 mm/yr with shutdown below 1-4, so the invented bound was excluding the
+best-documented enrichment province on Earth by a factor of ten. Note also that
+Sillitoe (2010), which is held and read, does NOT contain this: it delegates the
+whole subject at p. 5 to Sillitoe (2005), which sits in an Economic Geology
+volume that could not be fetched at all.
+
+SOURCED-NEGATIVE, which is the interesting label. The placer rule has no gradient
+or discharge threshold and no transport-distance decay, and BOTH absences are
+quoted rather than confessed. Slingerland and Smith (1986) say at p. 143 that the
+regional criteria a rule like this wants were never established; Knight et al.
+(1999) show gold is progressively flattened rather than lost with distance, so a
+decay length would remove prospectivity the evidence says is still there. A
+number in either place would have been invented and then quoted back as sourced.
+
+DECLARED, what remains: the wet end of the supergene window, any relief term for
+bauxite or nickel laterite, potash, and **lithium and borate entirely -- neither
+element is among Meybeck's eight species**, so unlike soda and gypsum they cannot
+be derived from the divide in any form, and what stands in is a geological
+association with silicic volcanic and arc volcanic catchments. That is an
+association, not a mechanism this pipeline models.
 
 **Tin and gem placers are not emitted**, alongside the exclusions below and for a
 resolution-adjacent reason: cassiterite needs specialised S-type granite and gem

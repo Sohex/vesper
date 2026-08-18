@@ -105,7 +105,29 @@ Both are gated on the basin not overflowing. A basin pinned at its spill never
 reaches saturation, so nothing crystallises whatever its chemistry, and the lake
 solver already computed that boolean.
 
-**Potash is weaker and lithium and borate weaker still, and the config says so
+**The weathering and drainage rules are sourced, and one of them moved by an
+order of magnitude when it was.** Supergene copper first carried a 100 mm/yr
+lower bound described as "the conventional semi-arid band", chosen without a
+source. Reich et al. (2009) measured the Atacama and put meteoric enrichment at
+above 10 mm/yr, shutting down below 1-4. The invented bound was excluding the
+best-documented enrichment province on Earth by a factor of ten.
+
+Bauxite is Price et al. (1997), whose criteria are the right shape because they
+are themselves thresholds applied to gridded climate fields and validated against
+observed bauxite: above 1200 mm/yr, mean annual temperature above 22 C, and 6 or
+fewer months below 60 mm. The monthly half carries the mechanism, an oscillating
+water table through a short dry season, so an annual mean would lose it -- and it
+needed the calendar conversion, because a Vesper bin is half an Earth month, so
+the COUNT transfers unchanged and the DEPTH halves.
+
+**The placer rule's missing thresholds are quoted, not confessed.** It has no
+gradient or discharge term because Slingerland and Smith (1986) state at p. 143
+that the regional criteria were never established, and no distance decay because
+Knight et al. (1999) show gold is progressively flattened rather than lost, so a
+decay length would remove prospectivity the evidence says is still there. That is
+`grounding: sourced-negative`, and it is a better outcome than a number.
+
+**Potash is declared, and lithium and borate weaker still, and the config says so
 per rule.** Potassium is Eugster and Jones' behaviour type IV, removed mid-range
 by exchange and sorption and surviving only where concentration runs far, so
 potash needs both a high K supply and extreme evaporation. Lithium and boron are

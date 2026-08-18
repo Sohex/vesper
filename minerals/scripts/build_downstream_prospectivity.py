@@ -35,13 +35,30 @@ same here.
 ## How well grounded each rule is
 
 Unequally, and the config says so per rule rather than leaving a reader to guess.
-Two of the brine entries are DERIVED -- soda and gypsum fall out of the chemical
-divide with no free choice, because Hardie and Eugster's first calcite decides
-irreversibly which way a brine goes and `brine_paths.py` already solves it. The
-rest are DECLARED: no bauxite, laterite or placer paper is held in
-`references/`, and lithium and boron are not among Meybeck's eight species at
-all, so those two rest on a geological association rather than on anything this
-pipeline models. The report carries the grounding beside every number.
+Four labels, and every rule carries one in the config, in the report and as an
+attribute on its netCDF variable, so the distinction travels with the number.
+
+DERIVED, meaning no free choice: soda ash and gypsum are the two sides of Hardie
+and Eugster's chemical divide, which decides irreversibly which way a brine goes,
+and `brine_paths.py` already solves it per basin.
+
+SOURCED: bauxite on Price et al. (1997), whose thresholds are themselves applied
+to gridded climate fields and validated against observed bauxite; nickel laterite
+on Butt and Cluzel (2013); supergene copper's dry end on Reich et al. (2009),
+measured in the Atacama.
+
+SOURCED-NEGATIVE, and this is the label worth understanding. The placer rule has
+NO gradient or discharge threshold and NO transport-distance decay, and both
+absences are quoted rather than confessed. Slingerland and Smith (1986) p. 143
+say the regional criteria were never established; Knight et al. (1999) find that
+gold is progressively flattened rather than lost with distance, so a decay length
+would remove prospectivity the evidence says is still there. A number in either
+place would have been invented and then quoted back as though sourced.
+
+DECLARED, what is left: the wet end of the supergene window, any relief term for
+bauxite or nickel laterite, potash, and lithium and borate entirely -- neither
+element is among Meybeck's eight species, so unlike soda and gypsum they cannot
+be derived from the divide in any form.
 """
 
 from __future__ import annotations
@@ -64,6 +81,7 @@ from _paths import CONFIG, DATA, DOWNSTREAM, PROJECT_ROOT
 import builds
 from gridding import climatology_cells
 from orogen import LAND, Export
+from orbit import orbital_year_days
 from paths import climatology_path, rel
 from provenance import require_build
 
@@ -184,17 +202,37 @@ def main() -> None:
     with nc.Dataset(climatology) as ds:
         clim_lat = np.asarray(ds["lat"][:], dtype=float)
         scale = 1000.0 * 86400.0 * EARTH_YEAR_DAYS
-        pr = np.asarray(ds["pr"][:], dtype=float).mean(axis=0) * scale
+        pr_bins = np.asarray(ds["pr"][:], dtype=float) * scale
+        tas_bins = np.asarray(ds["tas"][:], dtype=float) - 273.15
+        pr = pr_bins.mean(axis=0)
         evap = -np.asarray(ds["evap"][:], dtype=float).mean(axis=0) * scale
-        tas = np.asarray(ds["tas"][:], dtype=float).mean(axis=0) - 273.15
+        tas = tas_bins.mean(axis=0)
     # Runoff is P - E and NOT `mrro`, which is river-routed net divergence.
     # Clamped at zero: a catchment delivers zero or more, never less.
     runoff = np.maximum(pr - evap, 0.0)
+
+    # SEASONALITY, and the calendar conversion that goes with it. Price et al.
+    # (1997) count months with under 60 mm of rain, and Butt and Cluzel (2013)
+    # bound the warmest and coldest monthly means. Vesper's year is 183 days in
+    # 12 bins, so a bin is 15.2 days against an Earth month's 30.4.
+    #
+    # The two halves convert differently and getting that backwards is the trap.
+    # The COUNT is a fraction of a year and transfers unchanged: 6 of 12 either
+    # way. The DEPTH is an accumulation over a shorter interval, so 60 mm per
+    # Earth month is 30 mm over a Vesper bin, and applying 60 directly would
+    # call a bin dry that received Earth's monthly rain at Earth's monthly rate.
+    # The bin length comes from the configured orbit rather than a constant.
+    year_days = orbital_year_days(config)
+    bin_days = year_days / pr_bins.shape[0]
+    earth_month_days = EARTH_YEAR_DAYS / 12.0
+    bin_accumulation_mm = pr_bins * (bin_days / EARTH_YEAR_DAYS)
 
     row, col = climatology_cells(mesh, grid_dir, clim_lat)
     precip = pr[row, col]
     runoff_region = runoff[row, col]
     temperature = tas[row, col]
+    warmest = tas_bins.max(axis=0)[row, col]
+    coldest = tas_bins.min(axis=0)[row, col]
 
     soil = load_module("pedology", "build_soil")
     pedo = yaml.safe_load(
@@ -251,13 +289,25 @@ def main() -> None:
             score = share * (discharge >= cut)
         else:
             score = host_weight(spec, substrate, basement, codes)
-            score = score * (intensity >= spec["minimum_weathering_intensity"])
             score = score * (precip >= spec["minimum_precipitation_mm_yr"])
+            if key == "bauxite":
+                dry_bin_mm = (spec["dry_month_mm_per_earth_month"]
+                              * bin_days / earth_month_days)
+                dry_bins = (bin_accumulation_mm < dry_bin_mm).sum(axis=0)
+                score = score * (dry_bins[row, col] <= spec["maximum_dry_bins"])
+                score = score * (temperature >= spec["minimum_temperature_c"])
+            elif key == "laterite_ni":
+                lo, hi = spec["warmest_bin_temperature_c"]
+                score = score * (warmest >= lo) * (warmest <= hi)
+                lo, hi = spec["coldest_bin_temperature_c"]
+                score = score * (coldest >= lo) * (coldest <= hi)
             if spec.get("require_exorheic"):
                 score = score * exorheic
-            # Scale by intensity itself, not only by clearing its gate: the
-            # difference between three times Earth's mean and ten is the
-            # difference between a lateritic soil and an ore body.
+            # Scale by weathering intensity, which is the Walker-Hays-Kasting
+            # form normalised so Earth's land mean is 1. The climatic gates above
+            # decide WHETHER, and this decides how far past the threshold a cell
+            # sits: the difference between three times Earth's mean and ten is
+            # the difference between a lateritic soil and an ore body.
             score = score * intensity
 
         score = np.where(land, score, 0.0)
