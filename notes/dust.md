@@ -291,7 +291,64 @@ field is no longer defensible and the emission scheme belongs in the model. Both
 numbers are chosen against the pricing above, where 0.12 was the four-times-Earth
 case worth about 1.8 K over vegetation.
 
-Below that, prescribed is the answer and the Generic PCM is not: it carries all
-of this properly and costs two orders of magnitude in runtime plus a pipeline
-rewrite, which is not a trade worth making for a term whose sign is settled and
-whose source area is uncertain by a factor of two.
+Below that, prescribed would have been the answer.
+
+## The test fired, and this is what was decided
+
+Measured 2026-08-17, once DUST-5 replaced a wind tail fitted to 32 snapshots with
+one measured from 1,463 three-hourly samples: land-mean optical depth **0.740** at
+the central roughness, against the 0.10 above. It crosses by 7.4x, and by 71x at
+the smooth end of the roughness bracket.
+
+**The emission scheme goes into the fork, and the source map stays outside it.**
+Not either/or; the boundary goes where this project already puts it for every
+other surface field.
+
+`aeolian/` keeps computing the source map -- erodible fraction, clay, aeolian
+roughness -- because those are pure functions of terrain, lithology, the lake
+solution and the soil, exactly like the albedo, roughness and soil-water capacity
+fields that already reach the model as boundary conditions. That is the half a
+GCM structurally cannot know, and it is the half whose absence made the built-in
+scheme useless: `fcoeff * land_mask` emits as much from forest as from salt pan.
+
+The flux goes in the time loop, because it has to see the model's own winds. The
+emission law is a threshold and then roughly a cube, and that nonlinearity is not
+a detail: the same nonlinearity turned a factor of two in the wind-tail shape
+into a factor of 8.8 in emission. A prescribed field cannot respond to the winds
+that the dust itself changes, and that is exactly what the reopening test
+objected to.
+
+**Most of the machinery is already there**, which is what makes this a bounded
+change rather than a component. ExoPlaSim carries 3-D aerosol transport in
+`aerocore.f90` -- Lin and Rood flux-form semi-Lagrangian with a gravitational
+settling term -- and radiative coupling in `radmod.f90` under `l_aerorad`, which
+builds a per-layer optical depth in both shortwave bands from an optical-constants
+file. `Model.configure` already exposes `aerosol`, `aerorad` and `aerofile`, so
+none of that needs namelist surgery. And `aerocore.f90:621` already has the hook,
+labelled for this:
+
+    case(2) ! Case 2: dust
+      mmr(:,:,NLEV,ic) = fcoeff*land
+
+That one line is what gets replaced.
+
+**What is genuinely missing, and must not be waved through.** `apart = 50e-9` m
+and `rhop = 1000` kg/m3 are photochemical haze, not mineral dust: 50 nm at the
+density of ice, against 0.1 to 20 um at about 2650. Whether the size distribution
+survives depends on what `NAERO` permits; if it carries bins then Kok's
+fragmentation distribution maps onto them, and if it does not then an effective
+radius has to be chosen to reproduce the mass extinction efficiency already in
+`analysis/dust_optics.json`, with the loss declared. `aerofile` also has to be
+written in the format `radmod.f90` reads.
+
+**The offline chain does not go away.** It remains the producer of the deposition
+field, because loess (SURF-3) and the phosphorus return leg want size-resolved
+deposition, which a single-mode in-model aerosol will not give. Two products, two
+tools, and the reason stated rather than one quietly standing in for the other.
+
+**The Generic PCM is still out, but not for the reason given above.** That reason
+was that the trade is not worth making "for a term whose sign is settled" -- and
+the term is no longer small, so it no longer applies. The reason it is out now is
+compute: it costs two orders of magnitude in runtime, and this project runs its
+models iteratively on one workstation. A model that cannot go round the loop is
+not an option however correct it is.
