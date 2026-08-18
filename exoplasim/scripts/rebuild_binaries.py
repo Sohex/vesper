@@ -87,7 +87,6 @@ MANIFEST = PATCHES / "binary_manifest.json"
 RESIDENT_PATCHES = [
     ("exoplasim-3.4.2-ozone-band-weights.patch", "src"),
     ("exoplasim-3.4.2-energy-diagnostics.patch", "src"),
-    ("exoplasim-3.4.2-lowio-first-record.patch", "src"),
     ("exoplasim-3.4.2-denergy-accumulator.patch", "src"),
     ("exoplasim-3.4.2-prescribed-dust.patch", "src"),
     ("exoplasim-3.4.2-rayleigh-reference-grid.patch", "src"),
@@ -99,6 +98,9 @@ RESIDENT_PATCHES = [
     ("exoplasim-3.4.2-aerosol-apart.patch", "src"),
     ("exoplasim-3.4.2-aerosol-longwave.patch", "src"),
     ("exoplasim-3.4.2-makestellarspec.patch", "pkg"),
+    ("exoplasim-3.4.2-nlowio-broadcast.patch", "src"),
+    ("exoplasim-3.4.2-arasc-output.patch", "src"),
+    ("exoplasim-3.4.2-lowio-first-record.patch", "src"),
 ]
 
 # Patches that are AUTHORED and verified but NOT applied to the vendored source

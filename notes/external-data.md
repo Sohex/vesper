@@ -88,14 +88,24 @@ Not a dataset but a build tool, and it is here because the route into it is the
 same kind of thing: something this project needs, does not generate, and would
 otherwise be re-discovered by search. Built 2026-08-18.
 
-**Why it exists.** A system update on 2026-08-18 took `gcc-fortran` from 16.1.1
-to 16.2.1. Under 16.2.1 the resident patch that adds `use restartmod` to
-`plasim.f90`, which holds the main time-stepping loop, takes an ExoPlaSim orbit
-from 124 s to over 330 s. The new compiler appears to pessimise the whole
-translation unit; 16.1.1 did not. A system downgrade is not the answer, because
-a partial upgrade is unsupported on Arch and on CachyOS. So the old compiler
-lives in a private prefix that only this model's build points at, and pacman's
-database is never touched.
+**Why it exists, and why nothing uses it.** A system update on 2026-08-18 took
+`gcc-fortran` from 16.1.1 to 16.2.1 at about the same time as ExoPlaSim orbits
+stopped completing. The two were read as cause and effect and this prefix was
+built to get the old compiler back. That reading was WRONG. The orbits were
+never slow, they were DEADLOCKED, on every compiler equally, because `nlowio` is
+not broadcast to the non-root MPI tasks; `notes/audits/nlowio-collective-deadlock.md`
+carries the evidence. One full T42 orbit takes 77.7 s built with 16.1.1 and
+78.2 s built with 16.2.1, and the PRE-update binary deadlocks exactly like the
+post-update one. Nothing in this project needs this prefix, and the model is
+built with the system compiler.
+
+It stays written down because the ROUTE is worth keeping. Recovering a
+superseded toolchain from the pacman cache and running it from a private prefix
+without touching pacman's database is not obvious, it took a while to get right,
+and a real toolchain regression will want it one day. What follows is that
+recipe, verified on 2026-08-18. The version in the heading is the one that
+happened to be cached then; check `/var/log/pacman.log` for what is actually
+available rather than assuming.
 
 **Where it comes from.** `/var/cache/pacman/pkg/`, which still holds the
 packages pacman replaced. `/var/log/pacman.log` says which version was in place
@@ -127,7 +137,10 @@ and no package metadata. It comes to 300 MB.
 a driver at `PREFIX/bin/gfortran` finds `PREFIX/lib/gcc/x86_64-pc-linux-gnu/16/f951`
 by itself; `gfortran -print-search-dirs` shows every path pointing inside the
 prefix. `as` and `ld` are deliberately NOT in the prefix and come from the
-system binutils on `PATH`, which is correct, because binutils did not change.
+system binutils on `PATH`. Note that binutils DID move in the same transaction,
+2.47-2 to 2.47-4, so "the assembler did not change" is not one of the things
+this prefix holds fixed. It is the same upstream version at a new pkgrel, and
+nothing has ever implicated it.
 
 **To build with it**, override the compiler OpenMPI's wrappers call. ExoPlaSim's
 `bld/compilerargs` invokes `mpif90`, `mpicc` and `mpicxx`, and the three
@@ -181,10 +194,10 @@ compile time if it does.
 
 **This prefix is not managed by pacman.** It receives no security updates, it is
 invisible to `pacman -Qo` and to every dependency check, and nothing will ever
-tell you it is out of date. It is a BUILD TOOL for reproducing a known-fast
-binary, not a general compiler: do not put it on `PATH`, and do not use it for
-anything but this model. When the regression is fixed upstream, delete the
-directory and drop the three variables. Re-creating it needs nothing but the
+tell you it is out of date. It is a BUILD TOOL, not a general
+compiler: do not put it on `PATH`, and do not use it for anything but a
+deliberate compiler comparison. There is no regression to wait out, so nothing
+here is pending; delete the directory whenever the disk is wanted. Re-creating it needs nothing but the
 package files, so if the pacman cache is ever cleared with `paccache` or
 `pacman -Sc`, copy those four files somewhere durable first.
 

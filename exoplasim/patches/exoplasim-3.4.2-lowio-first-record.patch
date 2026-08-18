@@ -123,17 +123,6 @@
         do jlev=1,NLEV
          zqout(:,jlev)=gq(:,jlev)/exp(gp(:))
          call gp2fc(zqout(1,jlev),NLON,NLPP)
---- a/outmod.f90
-+++ b/outmod.f90
-@@ -271,7 +271,7 @@
-         
-         !Solar right ascension
-         arasc = arasc/real(max(1,naccuout))
--        call writescalar(40,rasc*180./PI,54)
-+        call writescalar(40,arasc*180./PI,54)
-       endif
-       
-       return
 --- a/make_plasim
 +++ b/make_plasim
 @@ -38,7 +38,7 @@

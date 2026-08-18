@@ -276,8 +276,8 @@ dropping a bin discards a twelfth of the year for nothing.
 
 ## The patch
 
-`exoplasim/patches/exoplasim-3.4.2-lowio-first-record.patch`, **written and not
-applied.** It:
+`exoplasim/patches/exoplasim-3.4.2-lowio-first-record.patch`, **resident since
+2026-08-18 and compiled into all five binaries.** It:
 
 - saves and restores the six spectral accumulators with the root-only array
   routines the model already uses for `sz`, `sd`, `st`, `sp` and `so`, under new
@@ -290,15 +290,15 @@ applied.** It:
   accumulators;
 - recomputes `sqout` every timestep under low I/O, at the cost of `NLEV`
   transform pairs per step;
-- writes `arasc` instead of `rasc` for code 54.
+- (the code 54 `arasc`/`rasc` fix was SPLIT OUT of this patch on 2026-08-18 and now lives in `exoplasim/patches/exoplasim-3.4.2-arasc-output.patch`, which is resident alongside it; the parent carried a duplicate copy until then and the two could not both apply).
 
-It applies cleanly with `patch -p1 -d <exoplasim src>` and both files pass
-`gfortran -fsyntax-only` against the built module set, with no diagnostic the
-unpatched sources do not already produce. It has not been compiled into a
-binary and no run has used it.
+It is in `RESIDENT_PATCHES` and `rebuild_binaries.py --verify` unwinds it with
+the rest of the stack. **No run has used it**, because every run in
+`exoplasim/runs/` predates the rebuild that landed it, so the corrections above
+are still the operative guidance for reading existing output.
 
-**Applying it obliges a rebuild of every executable** (CLAUDE.md rule 4), which
-is why it is left unapplied here. It also changes the restart file layout: a
-restart written by a patched binary cannot be read by an unpatched one. It buys
-back the 25x output volume that `NLOWIO = 0` costs; it does not change any
-result, because no current result comes from the low-I/O path.
+It changes the restart file layout: a restart written by a patched binary cannot
+be read by an unpatched one, and the reverse, so a run started before 2026-08-18
+cannot be resumed by a current binary. It buys back the 25x output volume that
+`NLOWIO = 0` costs; it does not change any result, because no current result
+comes from the low-I/O path.

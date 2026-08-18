@@ -56,13 +56,24 @@
 #
 # WHY IT IS ITS OWN PATCH. Split out of
 # `exoplasim-3.4.2-lowio-first-record.patch` on 2026-08-18, when that patch was
-# dropped from `RESIDENT_PATCHES`. Under gcc-fortran 16.2.1 the low-I/O patch
-# roughly triples model runtime even though none of its code executes at
-# `NLOWIO = 0`, which is what `run_exoplasim.py` sets: it adds `use restartmod`
-# to `plasim.f90`, the translation unit holding the main time-stepping loop, and
-# the new compiler pessimises the whole unit. This one-line fix was bundled with
-# it and has nothing to do with the restart defect that patch exists for, so it
-# would have been parked for no reason.
+# dropped from `RESIDENT_PATCHES`. The reason recorded at the time was that the
+# parent tripled model runtime under gcc-fortran 16.2.1. THAT WAS WRONG. The
+# compiler is not involved at all: the same orbit takes 77.7 s built with 16.1.1
+# and 78.2 s with 16.2.1. What the parent actually did was DEADLOCK the model at
+# `NLOWIO = 0`, by making a per-timestep condition depend on `nlowio`, which was
+# never broadcast to the non-root tasks. See
+# `notes/audits/nlowio-collective-deadlock.md`. The parent is resident again,
+# with `exoplasim-3.4.2-nlowio-broadcast.patch` under it.
+#
+# The split is kept anyway, on the merits it should have been made on: this is a
+# one-line output-labelling slip in `outsc`, the parent repairs a restart
+# accumulator defect, and they are different bugs touching different files.
+# Apart, either can be reverted or re-based without disturbing the other.
+#
+# IF YOU ARE COMPARING THE TWO: until 2026-08-18 the parent still carried a
+# byte-identical copy of the hunk below, so the split left a DUPLICATE and the
+# two patches could not both apply. The hunk was removed from the parent and
+# this file owns it. Neither patch should ever contain it twice again.
 #
 # The independence is the point and it is a constraint on this file, not a
 # description of it. This patch touches `outmod.f90` only. It must not touch
