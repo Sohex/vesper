@@ -477,10 +477,39 @@ usually dominates, which would mean **dust suppresses lake evaporation, keeps
 basins overflowing, and makes a dust-free verdict UNDER-carve** -- the opposite
 of the first reading here.
 
-That is a preliminary indication and not a result. What settles it is computing
-the dust SURFACE forcing per cell and running it through the Penman already in
-`carve_verdict.py`, which is bounded offline work and does not need in-model
-dust. Until that is done, neither direction should be quoted.
+That is a preliminary indication and not a result -- and it is only half the
+question, because it is only the lake.
+
+**The catchment is the other half, and it is probably the larger one.** Runoff is
+the denominator of the carve criterion, and it is the small residual of two large
+numbers: 168 mm/yr against a land precipitation of 892 and an evaporation of 724,
+so 19% of P. Global precipitation is constrained by atmospheric radiative
+cooling, and an absorbing aerosol suppresses it through a fast adjustment that
+does not wait for a temperature response. This dust absorbs about 11.9 W/m2 of
+shortwave where it sits and about 7.5 W/m2 in the global mean, against a global
+latent heating of 77, which is a **precipitation reduction of order 10%**. What
+that does to runoff depends on how much of the reduction evaporation takes with
+it:
+
+| E falls as fast as P | runoff | change |
+| ---: | ---: | ---: |
+| 100% | 151 mm/yr | -9.8% |
+| 80% | 137 | -18.2% |
+| 50% | 116 | -30.9% |
+
+The criterion divides by runoff, so -10% on runoff is worth about the same as
++10% on lake evaporation: 144 basins, and 235 at 20%. **This limb closes basins
+whichever way the lake term goes**, and it is the one an offline Penman
+perturbation cannot see, because it is a precipitation response and not a surface
+energy balance.
+
+So the answer is now split in two. DUST-10 settles the lake term offline. The
+catchment term needs a climate run with dust in it -- but a PRESCRIBED field is
+enough for that, because the question is one iteration deep and does not need
+emission to respond. That is a much smaller fork change than DUST-3: the
+radiation has to see a dust field and it has to have a longwave term, and
+nothing else. Transport, emission, wet deposition and size bins are all DUST-3's
+problem and none of them is needed to answer this.
 
 **Note the interaction with A2 either way.** `WORKFLOW.md` A2 says the stellar
 cycle makes a mean-climate verdict under-carve, because carving is irreversible
