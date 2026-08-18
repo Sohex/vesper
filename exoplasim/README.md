@@ -170,6 +170,7 @@ unless told they exist.
 | `dust_forcing.py` | prices the dust radiative forcing per surface, shortwave and longwave |
 | `build_surface_dust.py` | the prescribed dust column as surface code 1811, read only at `ndustrad = 1` |
 | `shortwave_band_weights.py` | integrates the H2O and CO2 band absorptances against this star, for `h2osww` and `co2sww`, and fits the closed form the CO2 patch codes |
+| `corrk_cross_check.py` | checks those two absorptances against correlated-k tables from a modern line list; `--checks` runs the falsifiable checks, `--bands` the per-band CO2 comparison. Needs the LMD Generic PCM bundle, and writes nothing |
 
 ## What the flux sweeps established
 
@@ -267,7 +268,9 @@ rather than a weight, because `swr` has no shortwave CO2 at all, so its default
 is 0.0 and not 1.0. Arguments in `exoplasim/notes/ozone.md`,
 `exoplasim/notes/shortwave-water-vapour.md` and
 `exoplasim/notes/shortwave-co2.md`; values in `config/planet.yaml`; derivation in
-`exoplasim/scripts/shortwave_band_weights.py`.
+`exoplasim/scripts/shortwave_band_weights.py`. Both were derived from Howard's
+1950s band data and both have been checked against correlated-k tables built from
+a modern line list, in `exoplasim/notes/corrk-cross-check.md`.
 `rebuild_binaries.py` keeps two lists and they mean different things.
 `RESIDENT_PATCHES` is what is applied to the vendored source right now, and
 `--verify` fails when one of them is missing. `PENDING_PATCHES` is what has been

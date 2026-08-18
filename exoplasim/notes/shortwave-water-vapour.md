@@ -106,6 +106,15 @@ The weight moves from 1.346 to 1.301. Dropping the 0.72 and 0.81 um bands
 instead moves it to 1.363. **The weight is insensitive to the reconstruction's
 level error**, and 1.301 to 1.363 is the bracket that produces.
 
+**Both halves of that were checked afterwards against a modern line list and both
+held.** `exoplasim/notes/corrk-cross-check.md` reruns this quantity from
+correlated-k tables on HITRAN2020, with these same two spectra: the weight comes
+out at 1.3271, inside the bracket, and the excess over Eq. 21 comes out at 1.127,
+which confirms the level offset is a deficit in Eq. 21's pressure treatment rather
+than an error here. The corollary is a separate defect that nothing fixes: the
+model's absolute clear-sky water vapour shortwave absorption is low by about 12%,
+and `h2osww` is a ratio and does not touch it.
+
 The 0.72 and 0.81 um bands are the one assumed input here and it is worth saying
 so plainly. Howard never measured them; Yamamoto estimated them from Fowle's data
 and says they "cannot be neglected ... because of the large solar energy in this

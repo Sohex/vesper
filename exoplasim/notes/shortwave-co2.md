@@ -119,6 +119,22 @@ tuned to it.
 
 It passes, both ways, which is what licenses the number for this star.
 
+## An independent check, and the one place it disagrees
+
+`exoplasim/notes/corrk-cross-check.md` runs the same quantity from correlated-k
+tables built on HITRAN2020, at the same paths and against the same two spectra.
+`co2sww` agrees to 0.03% and the absorptance to 8%, which is inside the check's
+own temperature-grid uncertainty, and 1.92 W/m2 lands between the two ends of
+the 2.7 um bracket below.
+
+**The per-band attribution does not agree, and reason 1 above overstates what the
+overlap treatment can do.** It is computed band by band, but at Howard's band-mean
+resolution, which spreads saturation out of the water band cores and into the
+wings. Correlated-k puts the 2.7 um clear fraction at 0.003 rather than 0.171,
+which is Yamamoto's verdict, and the 2.0 um one at 0.718 rather than 0.479. Those
+two errors have opposite signs and nearly cancel, so reason 3 survives and the
+total is right for a compensating reason. Do not correct one band alone.
+
 ## The weight
 
     co2_sw_weight = 1.510          bracket, from the 2.7 um decision, 1.508 to 1.510
