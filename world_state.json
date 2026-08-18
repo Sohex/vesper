@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated": "2026-08-18T01:40:04.497618+00:00",
-  "git_commit": "1df187272b5d483d2df5e130c1b9656e6c4f67e8",
+  "generated": "2026-08-18T02:09:45.261478+00:00",
+  "git_commit": "7b851163c31f6072d39d7a85f4b9d6475548c606",
   "generator": "scripts/world_state.py",
   "note": "Generated from the artifacts. Do not edit; re-run the generator. Only derived values live here. Findings are in `notes/`, with their evidence, and open work is in `TASKS.md`.",
   "planet": {
@@ -288,10 +288,11 @@
         "disputed": 417
       },
       "penman_ocean_validation": {
-        "penman_mm_per_day": 3.736,
-        "model_mm_per_day": 3.672,
-        "ratio": 1.017,
-        "note": "Ocean cells are already open water, so this is a direct check."
+        "penman_mm_per_day": 2.9076,
+        "model_mm_per_day": 2.7916,
+        "ratio": 1.0415,
+        "ocean_cells": 4087,
+        "note": "Ocean cells are already open water, so this is a direct check. COMPUTED; it was hardcoded until 2026-08-17."
       }
     },
     "carve_list": {

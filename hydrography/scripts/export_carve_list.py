@@ -78,7 +78,7 @@ of its rim; one needing 40% is comfortably closed and keeps all of it.
 
 TOLERANCE is 0.25, set from the uncertainty that actually dominates: the biosphere
 is assumed rather than modelled, and that assumption is worth 3.7 to 7.1 K, which
-moves evaporation by considerably more than the 1.7% Penman itself was validated
+moves evaporation by considerably more than the 4.2% Penman itself was validated
 to.
 
 An earlier mapping interpolated the critical index between the two evaporation
@@ -422,7 +422,7 @@ def main() -> None:
 # in metres, with the coefficient calibrated against the density of Earth's own
 # standing through-flowing impounded basins. Open-water evaporation is
 # the Penman combination equation with water's albedo and roughness, validated
-# against the model over ocean cells to within 1.7%.
+# against the model over ocean cells to within 4.2%.
 # Catchment runoff is {runoff_source}; see the sidecar.
 #
 #   retain 1.0   {n_preserve:4d} basins  closed: the lake surface evaporates all that arrives
@@ -505,7 +505,7 @@ def main() -> None:
             "retain_tolerance": TOLERANCE,
             "retain_tolerance_rationale": "fractional change in open-water "
                 "evaporation that would flip the verdict; 0.25 is set by the "
-                "assumed-biosphere uncertainty, which dominates Penman's own 1.7%",
+                "assumed-biosphere uncertainty, which dominates Penman's own 4.2%",
         },
         "counts": {"carve": n_carve, "preserve": n_preserve, "marginal": n_marginal},
         "counts_by_penman_test_alone": {

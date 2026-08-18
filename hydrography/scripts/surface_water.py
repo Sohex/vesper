@@ -76,7 +76,7 @@ def climate_fields(config):
     carve verdict is decided on, so the lakes and the terrain they sit in are
     judged by one rule. It is the one that can be checked: applied to ocean
     cells, which already are open water, Penman reproduces the model's own
-    evaporation to 2.5%. A Priestley-Taylor estimate stood here first and came
+    evaporation to 4.2%. A Priestley-Taylor estimate stood here first and came
     out 7.8% high on that same test, which is three times the error for no
     gain, and it duplicated a validated function in this directory.
     """

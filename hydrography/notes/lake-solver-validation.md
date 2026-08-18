@@ -16,7 +16,7 @@ from the climate side alone.
 
 Penman was validated the same way and that is the standard being matched here:
 applied to ocean cells, which already are open water, it reproduced the model's
-own evaporation to 1.7%. The lake solver has had nothing equivalent.
+own evaporation to 4.2%. The lake solver has had nothing equivalent.
 
 ## What is under test, and what is not
 

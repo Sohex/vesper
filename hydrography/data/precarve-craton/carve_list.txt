@@ -12,7 +12,7 @@
 # in metres, with the coefficient calibrated against the density of Earth's own
 # standing through-flowing impounded basins. Open-water evaporation is
 # the Penman combination equation with water's albedo and roughness, validated
-# against the model over ocean cells to within 1.7%.
+# against the model over ocean cells to within 4.2%.
 # Catchment runoff is precipitation minus evaporation over the catchment; see the sidecar.
 #
 #   retain 1.0   2060 basins  closed: the lake surface evaporates all that arrives

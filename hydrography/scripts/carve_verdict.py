@@ -129,13 +129,64 @@ def penman_open_water(ts, tas, q_air, wind, ps_pa, rss, rls, land_albedo, gravit
 
     scale_height = GASCON * tas / gravity
     z_ref = scale_height * np.log(1.0 / SIGMA_LOWEST)
-    ce = KARMAN ** 2 / np.log(np.maximum(z_ref, 1.0) / Z0_WATER) ** 2
+    ce_neutral = KARMAN ** 2 / np.log(np.maximum(z_ref, 1.0) / Z0_WATER) ** 2
     rho = ps_pa / (GASCON * tas)
-    r_a = 1.0 / np.maximum(ce * np.maximum(wind, 0.1), 1e-6)
+    u = np.maximum(wind, 0.1)
 
+    # NEUTRAL, deliberately, and PHYS-4 records why the obvious correction was
+    # tried and backed out. An evaporating lake under arid air was argued to be
+    # a stable surface layer, where neutral overstates exchange by 20-30%. Two
+    # things came out of implementing it with ExoPlaSim's own stability function
+    # (fluxmod.f90:241-256, ECHAM Report 218), so that this and the model would
+    # agree about the same air over the same water:
+    #
+    #   The sign is not obviously stable. Closing the surface temperature
+    #   through the energy balance, T_s = T_a + r_a (Rn - LE)/(rho cp), makes a
+    #   dark lake in bright arid surroundings run WARMER than the air over most
+    #   land cells here -- it absorbs far more shortwave than the 0.22-0.50
+    #   ground and cannot evaporate it all away. Median Ri came out -0.21, only
+    #   13% of land cells stable.
+    #
+    #   And it fails the one check available. Against the model's own
+    #   evaporation over ocean, neutral gives a ratio of 1.0415 and the
+    #   stability correction 1.0612. It moves the answer away from the model,
+    #   not toward it -- probably because over water the model takes the Miller
+    #   et al. (1992) free-convection branch rather than the general one, and
+    #   because the Penman-implied surface temperature is not the closure the
+    #   model uses.
+    #
+    # So it is not applied. The physics argument stands and the implementation
+    # does not, which is a reason to do it properly rather than to ship this.
+    r_a = 1.0 / np.maximum(ce_neutral * u, 1e-6)
     aerodynamic = (rho * CP_AIR / r_a) * np.maximum(es_a - e_air, 0.0) / gamma
-    latent = (delta * np.maximum(net_radiation, 0.0) + gamma * aerodynamic) / (delta + gamma)
+    latent = (delta * np.maximum(net_radiation, 0.0)
+              + gamma * aerodynamic) / (delta + gamma)
     return np.maximum(latent, 0.0) / (lam * 1000.0)   # W/m2 -> m/s of water
+
+
+def validate_over_ocean(penman, evap, lsm) -> dict:
+    """Penman against the model's own evaporation where the surface IS open water.
+
+    The one place this scheme can be checked without an assumption: an ocean cell
+    is already the surface Penman is written for, so the model's `evap` is the
+    right answer and the difference is the method's error.
+
+    **This used to be three hardcoded constants.** It reported 3.736 against
+    3.672 for a ratio of 1.017 whatever the inputs were, and was quoted all the
+    same -- including as the check that a dust perturbation had not broken
+    Penman, which it could not have detected. Computed now, so it moves when the
+    method moves, which is the only reason to have it.
+    """
+    ocean = lsm < 0.5
+    day = 86400.0 * 1000.0
+    p_mm = float(np.average(penman[ocean], weights=np.ones(ocean.sum()))) * day
+    m_mm = float(np.average(evap[ocean], weights=np.ones(ocean.sum()))) * day
+    return {"penman_mm_per_day": round(p_mm, 4),
+            "model_mm_per_day": round(m_mm, 4),
+            "ratio": round(p_mm / m_mm, 4) if m_mm else None,
+            "ocean_cells": int(ocean.sum()),
+            "note": "Ocean cells are already open water, so this is a direct "
+                    "check. COMPUTED; it was hardcoded until 2026-08-17."}
 
 
 def read_sra_field(path: Path, nlat: int, nlon: int) -> np.ndarray:
@@ -282,6 +333,7 @@ def main() -> None:
         / f"orogen_{resolution}_surf_0174.sra", *ps_pa.shape)
     penman = penman_open_water(ts, tas, q_air, wind, ps_pa, rss, rls,
                                land_albedo, float(config["planet"]["gravity_m_s2"]))
+    ocean_validation = validate_over_ocean(penman, evap, lsm)
     # Floor the open-water estimate at the moisture-limited land rate. Penman
     # linearises around air temperature, so where the ground runs much hotter
     # than the air it can return less than the model's own evaporation, which is
@@ -375,7 +427,7 @@ def main() -> None:
         "note": ("'penman' is the primary estimate: the Penman combination "
                  "equation with water's albedo and roughness. Validated against "
                  "the model over ocean cells, which are already open water, to "
-                 "within 1.7%. 'wet' uses the moisture-limited land evaporation "
+                 "within 4.2%. 'wet' uses the moisture-limited land evaporation "
                  "and is a one-sided sensitivity only, physically wrong for a "
                  "lake but bounding the direction."),
         "runoff_source": {
@@ -392,10 +444,7 @@ def main() -> None:
                 "mrro": int((runoff_mrro <= 0).sum()),
             },
         },
-        "penman_ocean_validation": {
-            "penman_mm_per_day": 3.736, "model_mm_per_day": 3.672, "ratio": 1.017,
-            "note": "Ocean cells are already open water, so this is a direct check.",
-        },
+        "penman_ocean_validation": ocean_validation,
         "bounds": {
             label: {
                 "basins_carved": int(r["carve"].sum()),

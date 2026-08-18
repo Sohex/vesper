@@ -1,5 +1,5 @@
 {
-  "generated": "2026-08-18T01:39:14.179235+00:00",
+  "generated": "2026-08-18T02:09:45.083536+00:00",
   "terrain_hash": "e931b0d9947a232210a3cc11ba82003b5da15765d86e87956bc44c220932760e",
   "climatology": "/home/cfutro/docs/world/exoplasim/analysis/climatology/baseline_regular_climatology.nc",
   "climate": {
@@ -31,7 +31,7 @@
     ],
     "retain_margin_mapping": "min(1, ((E_penman - (P + critical*runoff)) / E_penman) / 0.25)",
     "retain_tolerance": 0.25,
-    "retain_tolerance_rationale": "fractional change in open-water evaporation that would flip the verdict; 0.25 is set by the assumed-biosphere uncertainty, which dominates Penman's own 1.7%"
+    "retain_tolerance_rationale": "fractional change in open-water evaporation that would flip the verdict; 0.25 is set by the assumed-biosphere uncertainty, which dominates Penman's own 4.2%"
   },
   "counts": {
     "carve": 1478,

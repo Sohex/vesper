@@ -2,7 +2,7 @@
   "climatology": "/home/cfutro/docs/world/exoplasim/analysis/climatology/baseline_regular_climatology.nc",
   "coupling": "/home/cfutro/docs/world/hydrography/data/precarve-craton/coupling_exoplasim-T42.nc",
   "basins": 3621,
-  "note": "'penman' is the primary estimate: the Penman combination equation with water's albedo and roughness. Validated against the model over ocean cells, which are already open water, to within 1.7%. 'wet' uses the moisture-limited land evaporation and is a one-sided sensitivity only, physically wrong for a lake but bounding the direction.",
+  "note": "'penman' is the primary estimate: the Penman combination equation with water's albedo and roughness. Validated against the model over ocean cells, which are already open water, to within 4.2%. 'wet' uses the moisture-limited land evaporation and is a one-sided sensitivity only, physically wrong for a lake but bounding the direction.",
   "runoff_source": {
     "used": "p_minus_e",
     "note": "mrro is river-routed net divergence, not local runoff generation; integrating it over a catchment measures ExoPlaSim's routing rather than inflow to our sink.",
@@ -16,10 +16,11 @@
     }
   },
   "penman_ocean_validation": {
-    "penman_mm_per_day": 3.736,
-    "model_mm_per_day": 3.672,
-    "ratio": 1.017,
-    "note": "Ocean cells are already open water, so this is a direct check."
+    "penman_mm_per_day": 2.9076,
+    "model_mm_per_day": 2.7916,
+    "ratio": 1.0415,
+    "ocean_cells": 4087,
+    "note": "Ocean cells are already open water, so this is a direct check. COMPUTED; it was hardcoded until 2026-08-17."
   },
   "bounds": {
     "penman": {
