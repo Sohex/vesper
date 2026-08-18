@@ -356,3 +356,8 @@ for another carve iteration, and the counts are in `world_state.json` and
   attributed whole.
 - The solver finds equilibrium, not a seasonal cycle. Basins with large storage
   relative to annual throughput will lag; nothing here models that.
+
+## One-off tools
+
+- `scripts/validate_lake_solver.py` -- one-off: checks the lake solver against real endorheic basins on Copernicus DEM tiles, which is where HYD-7's mesh-scale storage deficit was measured. Registered under `one_offs` in `config/pipeline.yaml`; it generates nothing the pipeline reads.
+

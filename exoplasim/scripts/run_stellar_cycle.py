@@ -271,6 +271,14 @@ def main() -> None:
     run_dir = (RUNS / identifier).resolve()
     if args.run_id and not (run_dir / "run_manifest.json").is_file():
         raise SystemExit(f"--run-id {identifier} has no run_manifest.json")
+    # Announced HERE, not after the integration, and matching
+    # `run_exoplasim.py`'s line exactly so one parser reads both. The id is a
+    # UUID, so a caller that is not told it can only find the directory by
+    # listing and picking, which is selection by sort order -- the pattern
+    # `smoke_test.py` check 4 exists to lint for. This bit CLIM-10 in the albedo
+    # bracket; the resume path here has the same shape and printing the id only
+    # once the run finishes is no use to a run that died in the middle.
+    print(f"RUN_ID={identifier}", flush=True)
     run_dir.mkdir(parents=True, exist_ok=True)
     source_dir = (INPUTS / "exoplasim_cycle_t42").resolve()
     model_cfg = config["model"]

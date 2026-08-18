@@ -152,3 +152,9 @@ No dust-climate feedback: the climatology is an input and does not respond.
 No vertical structure: a well-mixed column of declared scale height advected by
 a single steering wind. No inter-bin microphysics, which is correct for mineral
 dust because it neither coagulates nor grows appreciably.
+
+## One-off tools
+
+- `scripts/dust_runoff_sensitivity.py` -- one-off: converts a precipitation change into a basin count, which is what prices the catchment half of the dust question in WORKFLOW A4. Registered under `one_offs` in `config/pipeline.yaml`.
+- `scripts/extract_high_cadence_wind.py` -- one-off: pulls instantaneous near-surface winds out of a high-cadence run segment. This is what DUST-5 measured and what `build_dust.py --gust-samples` must be given; the 32-sample snapshot climatology fits a Weibull shape about twice too high and costs a factor of 40 on emission. Registered under `one_offs` in `config/pipeline.yaml`.
+

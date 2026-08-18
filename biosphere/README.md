@@ -335,3 +335,8 @@ One gate worth knowing when a short run reports no fire at all. With
 a hard-coded constant that is not rescaled alongside `nyear_spinup` and
 `distinterval`. The spin-up is far longer than that, so it never reaches a
 reported year, but it does mean fire is off for the first tenth of it.
+
+## One-off tools
+
+- `scripts/score_prediction.py` -- one-off: scores a productivity prediction against an LPJ-GUESS run, the machinery behind BIO-2's nitrogen bracket. Registered under `one_offs` in `config/pipeline.yaml`; it generates nothing the pipeline reads.
+

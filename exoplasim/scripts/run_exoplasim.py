@@ -320,14 +320,20 @@ def surface_input_paths(config: dict) -> list[Path]:
 
 
 def geography_tag(config: dict) -> str:
-    """Short digest of every surface input, for the run directory name.
+    """Short digest of every surface input, carried in the run's identity.
 
-    Without this, two runs sharing a config land in the same directory.
-    ExoPlaSim's finalize() then selects output as the last match of
-    sorted(glob("MOST*")), so a shorter new run in a directory holding a longer
-    old one copies out the previous run's final year under the new name,
-    silently. The prepare guard refuses that case, but naming the directory after
-    the inputs stops it arising at all.
+    NOT the directory name any more: names are UUIDs, per CLAUDE.md rule 6,
+    because a parameter-built name separates runs only along the dimensions it
+    encodes and both ExoPlaSim and LPJ-GUESS collided that way. What this value
+    is now is `physical_fingerprint["geography"]`, and it is load-bearing there
+    -- it is the field that lets `INDEX.json` tell two runs on different surfaces
+    apart, which is how the albedo bracket's cases are distinguishable at all.
+
+    What it used to prevent is now prevented by the prepare guard. Two runs
+    sharing a config landing in one directory made ExoPlaSim's finalize() select
+    output as the last match of sorted(glob("MOST*")), so a shorter new run in a
+    directory holding a longer old one copied out the previous run's final year
+    under the new name, silently. The guard refuses that case directly.
 
     It covers albedo as well as mask and topography, because the planned
     experiment is exactly two runs differing only in albedo. Digesting the

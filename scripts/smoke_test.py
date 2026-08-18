@@ -249,6 +249,28 @@ def check_registered_in_workflow(files) -> list[str]:
     return missing
 
 
+def check_registered_paths_exist() -> list[str]:
+    """Every script `config/pipeline.yaml` names actually exists.
+
+    The register is only usable if its paths resolve: CLAUDE.md leans on it to
+    answer "what is now worthless", and a row pointing at nothing answers that
+    question wrongly and silently. This found `exoplasim/scripts/
+    extract_high_cadence_wind.py`, registered under `one_offs` while the script
+    lived in `aeolian/scripts/` -- a path left behind when the script moved, with
+    the real one registered three lines below it.
+
+    Cheap, and it fails the moment a script is renamed without the register
+    following, which is the whole point of having one.
+    """
+    import yaml
+    graph = yaml.safe_load(
+        (ROOT / "config" / "pipeline.yaml").read_text(encoding="utf-8"))
+    named = ([(s["script"], f"step {s['id']}") for s in graph["steps"]]
+             + [(o, "one_offs") for o in graph.get("one_offs", [])])
+    return [f"{path} is named by {where} in config/pipeline.yaml and does not exist"
+            for path, where in named if not (ROOT / path).exists()]
+
+
 def check_documented_in_component(files) -> list[str]:
     """Every pipeline step is named in its component's README.
 
@@ -266,13 +288,20 @@ def check_documented_in_component(files) -> list[str]:
     graph = yaml.safe_load(
         (ROOT / "config" / "pipeline.yaml").read_text(encoding="utf-8"))
     missing = []
-    for step in graph["steps"]:
-        script = Path(step["script"])
+    # `one_offs` are checked too, and that omission is why this was extended.
+    # `run_albedo_bracket.sh` is registered there rather than as a step, so the
+    # steps-only version passed while the script that re-derives the flux on new
+    # terrain was named in no README at all. A tool being run occasionally is a
+    # reason to write it down, not a reason not to.
+    entries = ([(Path(s["script"]), "a pipeline step") for s in graph["steps"]]
+               + [(Path(o), "registered under one_offs")
+                  for o in graph.get("one_offs", [])])
+    for script, what in entries:
         readme = ROOT / script.parts[0] / "README.md"
         if not readme.is_file():
             continue                     # no component README to be absent from
         if script.name not in readme.read_text(encoding="utf-8"):
-            missing.append(f"{script} is a pipeline step and is not named in "
+            missing.append(f"{script} is {what} and is not named in "
                            f"{script.parts[0]}/README.md")
     return missing
 
@@ -527,6 +556,8 @@ def main() -> None:
                check_one_grid_convention(files)),
               ("every generator is declared in config/pipeline.yaml",
                check_registered_in_workflow(files)),
+              ("every registered script exists",
+               check_registered_paths_exist()),
               ("every step is named in its component README",
                check_documented_in_component(files)),
               ("local_slope_deg reproduces an analytic gradient",

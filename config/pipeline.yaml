@@ -349,7 +349,6 @@ one_offs:
   - exoplasim/scripts/mie_dust.py
   - exoplasim/scripts/run_albedo_bracket.sh
   - exoplasim/scripts/finalize_existing_segment.py
-  - exoplasim/scripts/extract_high_cadence_wind.py
   - exoplasim/scripts/continue_exoplasim.py
   - aeolian/scripts/dust_runoff_sensitivity.py
   - aeolian/scripts/extract_high_cadence_wind.py
