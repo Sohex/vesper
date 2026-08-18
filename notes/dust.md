@@ -371,7 +371,11 @@ then `nrho * PI * apart**2 * Qext * dz`. Everything spectral and size-resolved i
 `analysis/dust_optics.json` has to be reduced to that, which is doable and has to
 be done knowingly.
 
-**And there is an undocumented sink.** `aerocore.f90:869` applies
+**And there is a sink that is documented but not physical.** The comment above
+it says "put in a sink term at the bottom level to avoid infinite build-up of
+haze particles", so it is a deliberate stability hack rather than an oversight --
+which is worse, not better, because it means nothing physical was intended.
+`aerocore.f90:869` applies
 `mmr(:,:,nl,ic) = mmr(:,:,nl,ic)*10e-3` to the bottom level on every step, with
 no comment: a 99% removal of the surface layer per timestep, presumably standing
 in for dry deposition. Whatever emission is injected is scaled by it, so it has
