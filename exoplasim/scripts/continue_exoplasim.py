@@ -22,6 +22,9 @@ from run_exoplasim import (  # noqa: E402
     surface_sra,
     stage_surface_extras,
     surface_field_report,
+    stage_stellar_spectrum,
+    stellar_spectrum_path,
+    verify_stellar_spectrum,
     REGULAR_CODES,
     ENERGY_DIAGNOSTIC_CODES,
     ENERGY_3D_CODES,
@@ -283,6 +286,7 @@ def main() -> None:
     model.configure(
         flux=derived["stellar_flux_w_m2"],
         startemp=float(star["effective_temperature_k"]),
+        starspec=stellar_spectrum_path(config),
         starradius=derived["stellar_radius_solar"],
         pN2=float(atmosphere["pN2_bar"]),
         pO2=float(atmosphere["pO2_bar"]),
@@ -326,6 +330,15 @@ def main() -> None:
             )
         },
     )
+    # Constructing the model on an existing run directory re-copies the shipped
+    # namelists over the configured ones, so the spectrum has to be staged again
+    # here and not only at prepare time. Without it `NSTARFILE` stays 0 and
+    # `solarini` falls back to a blackbody at `STARBBTEMP`, which is what every
+    # continuation on this build did: 0.3844 of the flux below 0.75 um on the
+    # first orbit and 0.4184 on every orbit after it.
+    stage_stellar_spectrum(model, run_dir, stellar_spectrum_path(config))
+    verify_stellar_spectrum(model, config)
+
     # Without this a continuation silently drops the diagnostics: nenergy is
     # namelist state that configure() rebuilds, and the codes are not in
     # REGULAR_CODES. The run would keep going and the terms would simply stop

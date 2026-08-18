@@ -128,7 +128,7 @@ band-averaged on the k25v spectrum with correct bin-width weighting:
 
 Salt crust is 0.40 to 0.50. **The reversal sits inside our own stated albedo
 range for the surface that makes this world unusual**, and band 2 carries 61.6%
-of the stellar flux (the model's own figure, not a blackbody estimate). Over
+of the stellar flux (`lib/stellar.py`, the same integration `solarini` does). Over
 ocean at 0.07 and vegetated land at 0.18 every case cools without ambiguity.
 
 The Mie code is validated against two independent targets before any of this was
@@ -393,30 +393,39 @@ land-mean optical depth of 0.376:
 
 | surface | shortwave | longwave | net |
 | --- | ---: | ---: | ---: |
-| ocean, a = 0.07 | -8.7 | +6.7 | -2.0 |
-| vegetated land, a = 0.18 | -5.6 | +6.7 | +1.1 |
-| playa fill, a = 0.40 | -0.1 | +6.7 | +6.6 |
-| salt crust, a = 0.50 | +2.0 | +6.7 | +8.7 |
+| ocean, a = 0.07 | -8.5 | +6.7 | -1.8 |
+| vegetated land, a = 0.18 | -5.2 | +6.7 | +1.5 |
+| playa fill, a = 0.40 | +0.4 | +6.7 | +7.1 |
+| salt crust, a = 0.50 | +2.7 | +6.7 | +9.4 |
 
 W/m2, for the fine end of the size bracket; the coarse end differs by under 16%
 term by term and is in the file, though the net moves further, being a small
 residual of two large ones. The longwave is a clear-sky window estimate and is an UPPER
 bound, because part of the band is already opaque to water vapour and CO2.
 
+Re-measured 2026-08-17 under PHYS-2. The two shortwave bands were being weighted
+0.2566/0.7434, which was this script integrating `k25v.dat` a second time and
+counting the bin width twice. The band split now comes from `lib/stellar.py`,
+which reproduces what `radmod.f90:solarini` does with the hi-res spectrum, at
+0.3844/0.6156. Band 1 is the more absorbing band, so under-weighting it made the
+layer look more scattering than it is and every surface cooler than it is: the
+shortwave term moved +0.25 to +0.5 W/m2 and the global mean net from +0.34 to
++0.55. Nothing about the sign or the threshold changed.
+
 **The sign claim in this note's own pricing section is superseded.** Dust on this
 world does not simply cool. It cools over ocean, is near neutral over vegetated
 land and warms strongly over the bright closed-basin fill -- which is exactly the
 surface that makes this world unusual, and exactly where the dust is.
 
-The global mean lands at **+0.34 to +0.61 W/m2**, below the 1.5 W/m2 half of the
+The global mean lands at **+0.55 to +0.67 W/m2**, below the 1.5 W/m2 half of the
 reopening threshold. That is not reassurance: it is ocean cooling cancelling land
-warming across a net that spans 11 W/m2 by surface, -2.0 over ocean against +8.7
+warming across a net that spans 11 W/m2 by surface, -1.8 over ocean against +9.4
 over salt crust, and a redistribution that large drives circulation whatever its
 mean is.
 
 **And it settles what DUST-3 must not do.** Switching ExoPlaSim's aerosol on as
-shipped applies the shortwave alone, which is -3.4 to -4.0 W/m2 in the global
-mean against a true +0.34 to +0.61. An error of 4.0 to 4.3 W/m2, against 21 W/m2
+shipped applies the shortwave alone, which is -3.3 to -3.8 W/m2 in the global
+mean against a true +0.55 to +0.67. An error of 4.0 to 4.3 W/m2, against 21 W/m2
 for the entire 0.85-to-0.95 stellar sweep that produced a 33 K range. Converting
 that error into kelvin is where this note stops: the local slope used below gives
 about 2 K and the sweep's own 33-per-21 gives nearly 7, a factor of 3.4 apart
@@ -436,7 +445,7 @@ and worse: the aerosol acts in the two shortwave bands only.
 Worth settling, because "dust is a radiation question, the carve is a water
 question" is an easy assumption and it is wrong.
 
-The global mean is negligible. +0.61 W/m2 is **+0.3 to +0.5 K** across the
+The global mean is negligible. +0.67 W/m2 is **+0.3 to +0.6 K** across the
 sensitivities this project has in use, and it moves nothing on any of them.
 
 **The size of the local effect is real.** From the current carve list, the number

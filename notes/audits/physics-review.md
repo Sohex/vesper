@@ -35,26 +35,31 @@ spectrum. **The water vapour term was not, and neither was CO2.** The
 either; `th2oc` is the LONGWAVE continuum coefficient and is a different thing.
 
 Water vapour absorbs in the near-infrared, which is precisely where a K dwarf
-puts more of its flux. The model prints its own numbers at run time
-(`MOST_DIAG.00070`):
+puts more of its flux:
 
 | | share above 0.75 um |
 | --- | ---: |
-| this star, the model's own integration | 0.5816 |
+| this star, `lib/stellar.py` on `k25v_hr.dat`, the integration `solarini` does | 0.6156 |
 | the Sun, the scheme's own reference (`zsolar1 = 0.517`, radmod.f90:311) | 0.483 |
-| **ratio** | **1.204** |
+| **ratio** | **1.275** |
 
-So the H2O shortwave absorptance is being applied with about 20% too little
+So the H2O shortwave absorptance is being applied with about 27% too little
 weight on the band that does the absorbing.
+
+**This ratio was 1.204 until 2026-08-17 and that figure was wrong.** It came from
+`MOST_DIAG.00070`, and finding 2 below establishes that every orbit after the
+first of every run reports a 4965 K BLACKBODY's partition rather than this star's.
+0.5816 is the blackbody. Take the band shares from `lib/stellar.py` and not from
+a run log until a run exists that was integrated against the spectrum.
 
 **Magnitude.** Measured atmospheric shortwave absorption on the baseline is
 `rst - rss = 229.46 - 169.68 = 59.78 W/m2`. Water vapour is the dominant clear-sky
 shortwave absorber; taking it at 55-75% of that total gives 33-45 W/m2, and a
-1.204 scaling adds **+6.5 to +9 W/m2** of atmospheric absorption with an equal
+1.275 scaling adds **+9 to +12 W/m2** of atmospheric absorption with an equal
 reduction at the surface. The scaling is first-order and will be sublinear
 because strong bands saturate, so treat it as an upper bound -- but even half of
 it is comparable to the 5.7 W/m2 that made shortwave-only dust unacceptable, and
-to a third of the 21 W/m2 that spans the entire 0.85-to-0.95 stellar sweep.
+to half of the 21 W/m2 that spans the entire 0.85-to-0.95 stellar sweep.
 
 **Sign.** Two effects, both pointing the same way at the top of the atmosphere
 and opposite ways at the surface. Intercepting the beam higher means less reaches
@@ -71,40 +76,136 @@ Rayleigh cross-section and knows the solar reference share.
 
 ---
 
-## 2. Three different values are in use for this star's band-1 flux share [numeric]
+## 2. The model has been running on a blackbody since the first orbit of every run [numeric]
 
-The fraction of stellar flux below 0.75 um is load-bearing: it weights the
-two-band surface, snow and sea-ice albedos, and it band-weights the dust optics.
-Three values are in circulation:
+Resolved 2026-08-17. The finding started as three irreconcilable values for the
+fraction of stellar flux below ExoPlaSim's 0.75 um band edge -- a number that
+weights the two-band surface, snow, sea-ice and glacier albedos, divides the
+ozone transmissivity, and band-weights the dust optics:
 
-| value | source |
+| value | where it was |
 | ---: | --- |
-| 0.3777 | `analysis/dust_optics.json`, integrated from `k25v.dat` |
-| 0.3862 | `k25v_hr.dat` integrated the same way |
-| 0.4184 | what the model itself prints at run time |
+| 0.3777 | `analysis/dust_optics.json`, integrating `k25v.dat` |
+| 0.2566 | `dust_forcing.py`, integrating `k25v.dat` a second time and a different way |
+| 0.3862 | `k25v_hr.dat` integrated naively at the band edge |
+| 0.4184 | what the model prints at run time |
 
-The first two differ because `dust_optics.py:64` reads `k25v.dat`, which spans
-0.340-14.01 um, while the high-resolution file spans 0.200-100 um. That is a
-truncation difference and it is small.
+All four are now one, and the reason the model's differed is not an integration
+difference at all.
 
-**The model's 0.4184 is not explained by either file**, and it is 10.8% from the
-value the dust optics use. It is the model's number that matters most, because it
-weights the snow and ice albedo -- and getting a stellar spectrum wrong in
-exactly that place is what previously made snow and ice 0.10-0.17 too dark and
-cost this project a baseline re-run.
+### 0.4184 is a 4965 K Planck curve, not this star
 
-**Magnitude.** For dust, negligible: the band-1 and band-2 mass extinction
-efficiencies are 779.4 and 766.9 m2/kg, so a 0.04 shift in weight moves the
-flux-weighted value by 0.5 m2/kg on 771.6, or 0.07%. For the two-band albedo it
-is not negligible -- snow albedo is 0.745 below 0.75 um and 0.431 above, a
-difference of 0.314, so a 0.041 shift in the weight moves the broadband snow
-albedo by 0.013.
+`radmod.f90:813` takes the spectrum branch only when `NSTARFILE > 0`. Otherwise
+`solarini` builds a blackbody at `STARBBTEMP` and reports its partition in the
+same line of `MOST_DIAG`, with nothing distinguishing the two cases. Reproducing
+`solarini`'s own grid -- 1024 logarithmic points from `minwavel` to 0.75 um and
+1024 more from 0.75 to 100 um, trapezoidal, band edge assigned to band 1 --
+gives 0.418350 for a 4965 K Planck curve and 0.384383 for `k25v_hr.dat`. The
+model prints 0.418350399 and 0.384383172. Both to nine digits.
 
-**What settles it.** Read `radmod.f90`'s band integration and find why it differs
-from a direct integration of either file. Then make one value canonical and have
-everything read it, as `config/planet.yaml` already does for gravity.
+The check that makes this an explanation rather than a coincidence:
+`radmod.f90:207` states that the scheme's default partitioning of 0.517 is what
+a 5772 K spectrum produces through this code. The same reproduction returns
+0.517000.
 
----
+### Which orbits ran on which star
+
+`MOST_DIAG.00000` of all four runs on this build reports 0.384383; every file
+from `MOST_DIAG.00001` onward reports 0.418350. The first orbit of each run used
+`k25v`; every orbit after it used a blackbody.
+
+The mechanism is a namelist that gets rebuilt. `exo.Earthlike(workdir=...)`
+copies the shipped namelists over the run directory on construction, so a driver
+that reconstructs the model on an existing run and calls `configure()` without
+`starspec` reverts `NSTARFILE` to 0. `continue_exoplasim.py` did, and it is the
+script that runs all but the first orbit of every run;
+`run_stellar_cycle.py` did too. `run_exoplasim.py` was the only driver that
+staged the spectrum, and it runs one orbit. Both are fixed, and
+`verify_stellar_spectrum` now refuses to run when the config names a spectrum
+that is not in the namelist.
+
+The four `radmod_namelist` files still on disk carry `STARBBTEMP = 4965.0` and
+`NSTARTEMP = 1` and no `STARFILE` at all, which is the same evidence read from
+the other end.
+
+### What it is worth
+
+The model's own log prices it, because `solarini` prints the albedos it derives
+from the partition:
+
+| | k25v | 4965 K blackbody |
+| --- | ---: | ---: |
+| energy fraction below 0.75 um | 0.384383 | 0.418350 |
+| snow albedo below 0.75 um | 0.752962 | 0.745310 |
+| broadband snow albedo | 0.538198 | 0.562267 |
+
+**+0.0241 on the albedo of every snow-covered cell**, roughly double the 0.013
+estimated before the cause was known, and in the same place as the k2-to-k25v
+error that already cost a baseline re-run. A photospheric model has line
+blanketing in the blue that a Planck curve does not, so the blackbody is bluer
+than the star, which makes snow brighter than it should be. Sea ice, glacier and
+ground albedos are derived from the same partition and move with it.
+
+Sizing it against the surface it acts on is the standing caution, and here it
+cuts the other way from the k2 case: sea ice is a couple of percent of this
+world, but snow is seasonal over a much larger area, so this is not the same
+"negligible because there is almost none of it" argument.
+
+For dust it is negligible, as expected: band-1 and band-2 mass extinction
+efficiencies are 779.4 and 766.9 m2/kg, so the chain value moved from 771.62 to
+771.70 m2/kg, 0.011%. The dust FORCING moved more, but for a different reason --
+`dust_forcing.py` was weighting the bands 0.2566/0.7434, having integrated
+`k25v.dat` with the bin width counted twice. Correcting it moves the global-mean
+net from +0.34 to +0.55 W/m2 and leaves every sign and every threshold in
+`notes/dust.md` where it was.
+
+### And the same subroutine gets the Rayleigh normalisation wrong
+
+Found while pricing the above, because `solarini` prints `rcoeff` on the line
+after the band fractions and the two logs disagreed by more than the star does.
+
+`radmod.f90:311` computes `rcoeff`, which multiplies the Rayleigh optical depth
+at `radmod.f90:1928`, as the star's lambda^-4-weighted cross-section normalised
+to a 5772 K reference. The reference `bbg1`/`bbg2` is tabulated at lines 224-226
+on `solarini`'s OWN logarithmic grid. Lines 230-233 then overwrite `wv1`/`wv2`
+with the spectrum file's wavelengths, and the reference integrals at lines
+287-299 run afterwards -- so they pair the reference's Planck values with the
+FILE's wavelengths. The two grids start in different places, 316.036 nm against
+0.2 um, and lambda^-4 weighting makes the short end decisive.
+
+The blackbody branch is unaffected, because nothing overwrites the grid there.
+The defect exists only when a spectrum file is used, which is the case nothing
+has run in.
+
+| | `rcoeff` |
+| --- | ---: |
+| 5772 K, the identity the normalisation is built on | 1.000000 |
+| 4965 K blackbody, what every run after its first orbit used | 0.862015 |
+| k25v, integrated on one grid | 0.712517 |
+| k25v, as `solarini` codes it | 0.209732 |
+
+`lib/stellar.py:rayleigh_coefficient` reproduces all four; the model prints
+0.862014830 and 0.209731281, and the 5772 K row is exactly 1 by construction and
+comes out exactly 1.
+
+**This inverts the priority of the fix.** Staging the spectrum into the
+continuation runs, which is the obvious repair and is now done, moves `rcoeff`
+from 0.8620 to 0.2097: Rayleigh scattering 3.4x weaker than the runs have had,
+where the honest value is 0.7125 and is 17% weaker. So the script fix must not
+reach a production run before `solarini` is patched. The patch is small -- keep
+the reference wavelengths in their own arrays instead of reusing `wv1`/`wv2` --
+and it belongs in the same rebuild as any other `radmod.f90` change.
+
+### The canonical value
+
+`lib/stellar.py` reproduces `solarini` and is the only place the partition is
+computed. `analysis/dust_optics.json`, `exoplasim/data/dust/vesper_dust_aerosol.provenance.json`,
+`dust_forcing.py` and `world_state.json` all resolve through it, and the model
+computes the same number from the same file. `k25v.dat` is not a source for it:
+it spans 0.340-14.01 um and the 0.3777 it gives is that truncation, not the star.
+The naive 0.3862 differs from the model's 0.384383 for two reasons that are both
+in the Fortran -- flux below `minwavel` = 316.036116751 nm is zeroed rather than
+merely unresolved, and the interval spanning the band edge is added to band 1.
 
 ## 3. The carve verdict transfers Earth's basin density without asking whether density is gravity-dependent [physics]
 
@@ -211,16 +312,12 @@ Earth-like because latent heat release, not gravity, sets it. `dust_forcing.py`
 declares `LAPSE_K_PER_KM = 6.5` and that is correct -- but it was chosen as
 Earth's moist lapse rate rather than derived, and it should read the climatology.
 
-**Rayleigh scattering is correctly handled.** `radmod.f90:311` computes
-`rcoeff` as a spectrum-weighted cross-section normalised to a 5772 K reference,
-and the run prints **0.862** for this star -- correctly reduced, because a red
-star Rayleigh-scatters less at lambda^-4. The same expressions carry an explicit
-`(9.80665/ga)` factor for column mass per unit pressure. Both the spectrum and
-the gravity are right here.
-
-**Snow and sea-ice albedo are spectrally resolved and re-weighted.** The run
-prints snow albedo 0.745 below 0.75 um and 0.431 above, combined at the star's
-own band shares. This was the subject of an earlier fix and it held.
+**The gravity in the Rayleigh column mass is right.** `radmod.f90:1928` carries
+an explicit `(9.80665/ga)` factor for column mass per unit pressure, so the
+optical depth scales correctly at 12.81 m/s2. The spectral half of the same
+expression does NOT hold, and is finding 2's second half rather than a knocked-down
+item: the 0.862 the runs print is a 4965 K blackbody's coefficient, and the
+spectrum branch that should replace it is broken by a grid mismatch.
 
 **Hadley cell width barely moves, and gravity cancels.** The Held-Hou scaling
 goes as `(g H dtheta/theta)^(1/2) / (Omega a)`, and `g H = R T` is independent of
@@ -240,7 +337,7 @@ one that drifts.
 | finding | id |
 | --- | --- |
 | 1. shortwave water vapour weighted for the Sun | `PHYS-1` |
-| 2. three values for the band-1 flux share | `PHYS-2` |
+| 2. the runs are on a blackbody, and solarini's Rayleigh reference is mis-gridded | `PHYS-2`, `SPEC-1` |
 | 3. the incision coefficient has no gravity term | `PHYS-3` |
 | 4. Penman has no stability correction | `PHYS-4` |
 | 5. Penman evaluated at the mean state | `PHYS-5` |

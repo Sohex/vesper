@@ -1,0 +1,303 @@
+"""The star's shortwave band split, computed the way the model computes it.
+
+ExoPlaSim's shortwave scheme is two bands divided at 0.75 um, and `zsolar1` --
+the fraction of stellar flux below the split -- weights the two-band snow, sea
+ice, glacier and ground albedos and divides the ozone transmissivity. It is the
+one number that carries the host star's colour into the surface energy balance,
+and getting it wrong is what previously made snow and ice 0.10 to 0.17 too dark
+and cost this project a baseline re-run.
+
+This module exists because three different values for it were in circulation at
+once, from three different integrations of two different files, and none of them
+was the one the model printed. `radmod.f90:solarini` is the authority on what
+the split means, so this reproduces `solarini` rather than integrating the
+spectrum in whatever way looks reasonable. The differences are not cosmetic:
+
+- **The band edge belongs to band 1.** `solarini` integrates rows 1-1024 of the
+  hi-res file as band 1 and rows 1025-2048 as band 2, then adds the interval
+  BETWEEN them -- the gap from the last band-1 sample to the first band-2 one --
+  to band 1. A naive `lam < 0.75` split drops that interval entirely.
+- **Everything below `minwavel` is discarded.** `radmod.f90:235` zeroes the
+  band-1 flux below 316.036116751 nm, so the ultraviolet the file carries down
+  to 0.2 um is not in the model's normalisation. That is worth -0.0023 here.
+- **The two halves of the file are separate grids**, log-spaced from 0.2 to
+  0.75 um and from 0.75 to 100 um. The row index IS the band assignment, so a
+  spectrum written at any resolution other than 2048 points would be silently
+  mis-split. `assert_model_grid` refuses that case.
+
+`k25v.dat`, the low-resolution companion, is NOT the file to use: it spans only
+0.34 to 14.01 um, and `solarini` reads it only for the albedo integrals, taking
+its energy fractions from the hi-res file. Integrating it gives 0.3777, which is
+a truncation artifact and was carried into the dust optics.
+
+## The check that can fail
+
+`radmod.f90:207` states that its default partitioning of 0.517 is what a 5772 K
+solar spectrum produces through this code. `solar_partition_identity` reproduces
+0.517000 from `blackbody_band_fractions(5772.0)`, which is an identity with a
+right answer rather than two formulations being compared. If the reproduction
+drifts, this module is wrong about `solarini`, not merely different from it.
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+import numpy as np
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+SPECTRA_DIR = PROJECT_ROOT / "exoplasim" / "inputs" / "stellarspectra"
+
+BAND_SPLIT_UM = 0.75
+"""ExoPlaSim's shortwave band edge. `radmod.f90:210`, `hinge = log10(7.5e-7)`."""
+
+MIN_WAVELENGTH_NM = 316.036116751
+"""`radmod.f90:86`, `minwavel`. Flux below this is removed, not just unresolved."""
+
+MAX_WAVELENGTH_UM = 100.0
+"""`radmod.f90:211`, `dl2 = (-4 - hinge)/1024`, i.e. the grid ends at 1e-4 m."""
+
+HALF_ROWS = 1024
+"""Rows per band in the hi-res file. `radmod.f90:229-233` splits by index."""
+
+SOLAR_PARTITION = 0.517
+"""What `radmod.f90:207` says a 5772 K spectrum gives through this code."""
+
+PLANCK_CONST_HC_OVER_K = 0.0143877735383
+"""`radmod.f90`'s `const`, hc/k in metre kelvin."""
+
+
+def spectrum_paths(name: str | None = None) -> tuple[Path, Path]:
+    """The (low-resolution, hi-resolution) pair for a named spectrum.
+
+    `name` defaults to `config/planet.yaml`'s `radiation.stellar_spectrum`.
+    Project spectra shadow the ExoPlaSim package's, because the package lives in
+    an untracked `.venv` that a reinstall resets while ours are tracked.
+    """
+    if name is None:
+        import yaml
+        config = yaml.safe_load(
+            (PROJECT_ROOT / "config" / "planet.yaml").read_text(encoding="utf-8"))
+        name = config.get("radiation", {}).get("stellar_spectrum")
+    if not name:
+        raise SystemExit("no stellar spectrum configured; "
+                         "set radiation.stellar_spectrum in config/planet.yaml")
+    stem = name[:-4] if name.endswith(".dat") else name
+    roots = [SPECTRA_DIR]
+    try:
+        import exoplasim as _exo
+        roots.append(Path(_exo.__file__).resolve().parent / "stellarspectra")
+    except Exception:
+        pass
+    for root in roots:
+        low, high = root / f"{stem}.dat", root / f"{stem}_hr.dat"
+        if low.is_file() and high.is_file():
+            return low, high
+    raise SystemExit(
+        f"stellar spectrum {stem} not found; looked for {stem}.dat and "
+        f"{stem}_hr.dat under " + ", ".join(str(r) for r in roots))
+
+
+def read_hires(path: Path) -> tuple[np.ndarray, np.ndarray]:
+    """Wavelength in metres and spectral flux density, as `readdat` reads it.
+
+    `readdat` skips one header line and then reads exactly `nitems` rows, so a
+    file with more rows than the model asks for is truncated in silence.
+    """
+    data = np.loadtxt(path, skiprows=1)
+    return data[:, 0] * 1.0e-6, data[:, 1]
+
+
+def assert_model_grid(wavelength_m: np.ndarray) -> None:
+    """Refuse a spectrum whose rows do not mean what `solarini` assumes.
+
+    The model does not look at the wavelengths to decide which band a sample is
+    in; it takes the first 1024 rows as band 1 and the rest as band 2. A file
+    written at a different resolution, or with the split at a different row,
+    would produce a partition that is wrong without producing an error.
+    """
+    if wavelength_m.size != 2 * HALF_ROWS:
+        raise SystemExit(
+            f"stellar spectrum has {wavelength_m.size} rows; radmod.f90 reads "
+            f"exactly {2 * HALF_ROWS} and splits at row {HALF_ROWS}. Rebuild it "
+            "with build_stellar_spectrum.py, which passes numwavelengths=2048.")
+    split_um = BAND_SPLIT_UM * 1.0e-6
+    if not (wavelength_m[HALF_ROWS - 1] < split_um <= wavelength_m[HALF_ROWS]):
+        raise SystemExit(
+            "stellar spectrum does not change band at row "
+            f"{HALF_ROWS}: rows {HALF_ROWS} and {HALF_ROWS + 1} are "
+            f"{wavelength_m[HALF_ROWS - 1] * 1e6:.6f} and "
+            f"{wavelength_m[HALF_ROWS] * 1e6:.6f} um, and the model would put "
+            "them on the wrong sides of the 0.75 um split.")
+
+
+def _partition(wv1, bb1, wv2, bb2) -> tuple[float, float]:
+    """`solarini`'s trapezoidal integration, band edge included in band 1."""
+    z1 = float(np.trapezoid(bb1, wv1))
+    z2 = float(np.trapezoid(bb2, wv2))
+    z1 += 0.5 * (bb1[-1] + bb2[0]) * (wv2[0] - wv1[-1])
+    total = z1 + z2
+    return z1 / total, z2 / total
+
+
+def band_fractions(path: Path | None = None,
+                   name: str | None = None) -> tuple[float, float]:
+    """(below, above) 0.75 um for a spectrum file, as the model computes it.
+
+    Pass either an explicit hi-res `path` or a spectrum `name`; with neither,
+    the configured spectrum is used.
+    """
+    if path is None:
+        path = spectrum_paths(name)[1]
+    wavelength, flux = read_hires(Path(path))
+    assert_model_grid(wavelength)
+    wv1, bb1 = wavelength[:HALF_ROWS], flux[:HALF_ROWS].copy()
+    wv2, bb2 = wavelength[HALF_ROWS:], flux[HALF_ROWS:]
+    bb1[wv1 < MIN_WAVELENGTH_NM * 1.0e-9] = 0.0
+    return _partition(wv1, bb1, wv2, bb2)
+
+
+def _blackbody_grids() -> tuple[np.ndarray, np.ndarray]:
+    """`solarini`'s own logarithmic grids, `radmod.f90:210-217`."""
+    lwmin = np.log10(MIN_WAVELENGTH_NM * 1.0e-9)
+    hinge = np.log10(BAND_SPLIT_UM * 1.0e-6)
+    lmax = np.log10(MAX_WAVELENGTH_UM * 1.0e-6)
+    k = np.arange(HALF_ROWS)
+    return (10.0 ** (lwmin + k * (hinge - lwmin) / HALF_ROWS),
+            10.0 ** (hinge + k * (lmax - hinge) / HALF_ROWS))
+
+
+def _planck(wavelength_m: np.ndarray, temperature_k: float) -> np.ndarray:
+    """`solarini`'s Planck function, in its own arbitrary units."""
+    c2 = PLANCK_CONST_HC_OVER_K / float(temperature_k)
+    return 1.0 / (1.0e6 * wavelength_m) ** 5 / (np.exp(c2 / wavelength_m) - 1.0)
+
+
+def blackbody_band_fractions(temperature_k: float) -> tuple[float, float]:
+    """The same partition for `solarini`'s blackbody branch, on its own grid.
+
+    This is what the model falls back to when no spectrum file reaches the
+    namelist, and it is NOT the same answer: a photospheric model has line
+    blanketing that a Planck curve does not, and the blanketing is in the blue.
+    Kept here so the difference can be stated rather than guessed at.
+    """
+    wv1, wv2 = _blackbody_grids()
+    return _partition(wv1, _planck(wv1, temperature_k),
+                      wv2, _planck(wv2, temperature_k))
+
+
+def solar_partition_identity(tolerance: float = 5.0e-4) -> float:
+    """Reproduce `radmod.f90:207`'s stated 0.517 for the Sun, or raise.
+
+    The one statement in the scheme with a right answer rather than a plausible
+    one. Everything else here is checked against it.
+    """
+    band1, band2 = blackbody_band_fractions(5772.0)
+    if abs(band1 + band2 - 1.0) > 1.0e-12:
+        raise SystemExit(f"band fractions do not sum to 1: {band1} + {band2}")
+    if abs(band1 - SOLAR_PARTITION) > tolerance:
+        raise SystemExit(
+            f"5772 K through solarini's grid gives {band1:.6f}, and "
+            f"radmod.f90:207 says {SOLAR_PARTITION}. This module no longer "
+            "reproduces the model's integration.")
+    return band1
+
+
+def _cross_section(wavelength_m: np.ndarray, flux: np.ndarray) -> float:
+    """`solarini`'s `zcross`: the lambda^-4-weighted flux integral."""
+    return float(np.trapezoid(flux / (wavelength_m * 1.0e6) ** 4, wavelength_m))
+
+
+def rayleigh_coefficient(name: str | None = None,
+                         temperature_k: float | None = None,
+                         as_the_model_does: bool = False) -> float:
+    """`radmod.f90:311`'s `rcoeff`, the Rayleigh cross-section scaling.
+
+    `rcoeff` multiplies the Rayleigh optical depth at `radmod.f90:1928`,
+    normalised so a 5772 K spectrum gives exactly 1. A redder star scatters
+    less, so it should fall below 1 and it does.
+
+    ## The defect this reproduces
+
+    `solarini` tabulates the 5772 K reference `bbg1`/`bbg2` on its OWN
+    logarithmic grid at lines 224-226, and then, if a spectrum file was given,
+    overwrites `wv1`/`wv2` with the file's wavelengths at lines 230-233. The
+    reference integrals at lines 287-299 are evaluated afterwards, so they pair
+    the reference's Planck VALUES with the file's WAVELENGTHS. The two grids do
+    not span the same range -- the model's starts at `minwavel` and the file's
+    at 0.2 um -- so the normalisation `zchi` is wrong whenever a spectrum file
+    is used, and only then. The blackbody branch is self-consistent because
+    nothing overwrites the grid.
+
+    For `k25v` this is worth a factor of 3.4: `as_the_model_does=True` returns
+    0.209731, which is what `MOST_DIAG.00000` prints, against 0.712517 for the
+    same star integrated on one grid. Passing the spectrum through to a run
+    without fixing `solarini` would therefore weaken Rayleigh scattering 3.4x
+    relative to the 0.862015 the runs have used, which is the 4965 K blackbody
+    value and is self-consistent for the star it describes but not for this one.
+    """
+    if temperature_k is not None:
+        gw1, gw2 = _blackbody_grids()
+        wv1, wv2 = gw1, gw2
+        bb1, bb2 = _planck(gw1, temperature_k), _planck(gw2, temperature_k)
+    else:
+        wavelength, flux = read_hires(spectrum_paths(name)[1])
+        assert_model_grid(wavelength)
+        wv1, bb1 = wavelength[:HALF_ROWS], flux[:HALF_ROWS].copy()
+        wv2, bb2 = wavelength[HALF_ROWS:], flux[HALF_ROWS:]
+        bb1[wv1 < MIN_WAVELENGTH_NM * 1.0e-9] = 0.0
+        gw1, gw2 = _blackbody_grids()
+    ref1, ref2 = _planck(gw1, 5772.0), _planck(gw2, 5772.0)
+    # The reference grid the model actually integrates the reference over.
+    rw1, rw2 = (wv1, wv2) if as_the_model_does else (gw1, gw2)
+
+    def bridged(lo_w, lo_f, hi_w, hi_f):
+        """The band-edge interval, which `solarini` books against band 1."""
+        edge = 0.5 * (lo_f[-1] / (lo_w[-1] * 1e6) ** 4
+                      + hi_f[0] / (hi_w[0] * 1e6) ** 4)
+        return edge * (hi_w[0] - lo_w[-1])
+
+    z1 = float(np.trapezoid(bb1, wv1)) + 0.5 * (bb1[-1] + bb2[0]) * (wv2[0] - wv1[-1])
+    zcross = (_cross_section(wv1, bb1) + _cross_section(wv2, bb2)
+              + bridged(wv1, bb1, wv2, bb2))
+    zg = (float(np.trapezoid(ref1, rw1)) + float(np.trapezoid(ref2, rw2))
+          + 0.5 * (ref1[-1] + ref2[0]) * (rw2[0] - rw1[-1]))
+    zgcross = (_cross_section(rw1, ref1) + _cross_section(rw2, ref2)
+               + bridged(rw1, ref1, rw2, ref2))
+    return zcross * SOLAR_PARTITION / z1 / (zgcross / zg)
+
+
+def band1_fraction(name: str | None = None) -> float:
+    """The canonical band-1 share for this world's star.
+
+    The single value. Read it; do not integrate a spectrum yourself and do not
+    copy the result into a script, a note or a namelist. `analysis/`,
+    `world_state.json` and the dust optics all resolve through here, and the
+    model computes the same number from the same file at run time.
+    """
+    solar_partition_identity()
+    return band_fractions(name=name)[0]
+
+
+if __name__ == "__main__":
+    low, high = spectrum_paths()
+    b1, b2 = band_fractions(path=high)
+    bb1, bb2 = blackbody_band_fractions(4965.0)
+    print(f"spectrum          : {high.name}")
+    print(f"solar identity    : {solar_partition_identity():.6f} "
+          f"(radmod.f90:207 says {SOLAR_PARTITION})")
+    print(f"band 1 (< 0.75 um): {b1:.6f}")
+    print(f"band 2 (> 0.75 um): {b2:.6f}")
+    print(f"4965 K blackbody  : {bb1:.6f} / {bb2:.6f}  "
+          "(what the model uses when no spectrum reaches the namelist)")
+    print()
+    print("Rayleigh coefficient, radmod.f90:311")
+    print(f"  5772 K, the identity : "
+          f"{rayleigh_coefficient(temperature_k=5772.0):.6f}  (must be 1)")
+    print(f"  4965 K blackbody     : "
+          f"{rayleigh_coefficient(temperature_k=4965.0):.6f}  "
+          "(what every run after its first orbit used)")
+    print(f"  this star, one grid  : {rayleigh_coefficient():.6f}")
+    print(f"  this star, as coded  : "
+          f"{rayleigh_coefficient(as_the_model_does=True):.6f}  "
+          "(the mismatched reference grid; 3.4x too weak)")

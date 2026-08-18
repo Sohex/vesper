@@ -798,8 +798,14 @@ Sized before building anything. For a photosphere at 4965 K and spots at 4000 K,
 (T_spot/T_phot)^4 = 0.4213, so a 6% peak-to-peak bolometric swing needs the spot
 covering fraction to move by 10.4 percentage points. Band-1 fractions (below the
 0.75 um split) are 0.4127 for the photosphere and 0.2690 for the spots, so about
-f = 0.10 the model's `zsolar1` runs from 0.4097 at flux maximum to 0.4026 at
-minimum. The cold phase is redder by **0.0071**.
+f = 0.10 `zsolar1` runs from 0.4097 at flux maximum to 0.4026 at minimum. The
+cold phase is redder by **0.0071**.
+
+Both endmembers are blackbodies, which is the right model for a spot but not for
+a photosphere: the BT-Settl spectrum this world actually declares puts 0.384383
+below the split rather than 0.4127. The argument here is a difference between
+two phases and survives the offset unchanged; the absolute level does not, and
+`lib/stellar.py` is where it comes from.
 
 Carried through to what it does, via the effective ice albedo shift of +0.0025:
 

@@ -28,6 +28,7 @@ import sys as _sys
 if str(ROOT / "lib") not in _sys.path:
     _sys.path.insert(0, str(ROOT / "lib"))
 from paths import rel  # noqa: E402
+import stellar  # noqa: E402
 SCHEMA_VERSION = 1
 
 # No `curated` block here. This file is generated state, and judgement is not
@@ -39,6 +40,36 @@ SCHEMA_VERSION = 1
 # corrected. Findings live in `notes/` and `notes/audits/` with their evidence,
 # what to do about them lives in `TASKS.md`, and both are read by people rather
 # than regenerated over.
+
+
+def stellar_spectrum() -> dict:
+    """The band split every consumer resolves through, and its evidence.
+
+    Derived, not declared: `lib/stellar.py` reproduces `radmod.f90:solarini` on
+    the configured spectrum, and the model computes the same number from the
+    same file. It lives here rather than in `config/planet.yaml` because it is a
+    property of the spectrum file, not a decision.
+
+    `rcoeff_as_solarini_codes_it` is recorded beside the consistent value
+    because they differ by 3.4x and only the second is physical; SPEC-2.
+    """
+    import hashlib
+    low, high = stellar.spectrum_paths()
+    band1, band2 = stellar.band_fractions(path=high)
+    return {
+        "spectrum": high.stem.removesuffix("_hr"),
+        "hires_file": rel(high),
+        "hires_sha256": hashlib.sha256(high.read_bytes()).hexdigest(),
+        "generator": "lib/stellar.py, reproducing radmod.f90:solarini",
+        "band_split_um": stellar.BAND_SPLIT_UM,
+        "min_wavelength_nm": stellar.MIN_WAVELENGTH_NM,
+        "flux_fraction_band1": band1,
+        "flux_fraction_band2": band2,
+        "solar_partition_identity": stellar.solar_partition_identity(),
+        "rayleigh_coefficient": stellar.rayleigh_coefficient(),
+        "rayleigh_coefficient_as_solarini_codes_it":
+            stellar.rayleigh_coefficient(as_the_model_does=True),
+    }
 
 
 def git_commit() -> str | None:
@@ -383,6 +414,7 @@ def main() -> None:
         "star": config["star"],
         "orbit": config["orbit"],
         "atmosphere": config["atmosphere"],
+        "stellar_spectrum": stellar_spectrum(),
         "active_configuration": {
             "source_build": config.get("source_build"),
             "model": config["model"],

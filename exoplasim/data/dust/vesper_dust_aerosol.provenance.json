@@ -1,11 +1,11 @@
 {
  "note": "Provenance for the aerofile ExoPlaSim's radmod.f90 reads. Qext is a dimensionless efficiency against the geometric cross section of one sphere of radius apart, NOT a mass efficiency; see exoplasim/scripts/dust_aerofile.py for the conversion.",
- "generated": "2026-08-18T01:03:17.271964+00:00",
+ "generated": "2026-08-18T04:02:19.939328+00:00",
  "apart_m": 9.805443642153261e-07,
  "rhop_kg_m3": 2600.0,
  "apart_note": "Effective (area-weighted) radius of the optics lognormal, r_mod exp(2.5 ln^2 sigma). Optically right and mass-weighted WRONG: the emitted volume-median diameter is 3.4 um, so a single mode here settles too slowly. DUST-8.",
  "source_optics": "analysis/dust_optics.json",
- "stellar_flux_fraction_band1": 0.3777,
+ "stellar_flux_fraction_band1": 0.3844,
  "bands": [
   {
    "band": "band 1",
@@ -34,7 +34,7 @@
    "g": 0.6844
   }
  ],
- "effective_mass_extinction_efficiency_m2_kg": 771.6212500000001,
+ "effective_mass_extinction_efficiency_m2_kg": 771.7049999999999,
  "upstream_defects_assumed_fixed": [
   "radmod's apart is never populated from the namelist and stays 50e-9, which would make optical depth 0.00260x this file's intent.",
   "aerocore.f90:1156 computes sphere volume with an integer (4/3), so number density is 33% high and optical depth with it."

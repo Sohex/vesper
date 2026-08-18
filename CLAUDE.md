@@ -178,7 +178,8 @@ requirements.txt       Shared Python dependencies for .venv.
 lives under the component directory. New components get a sibling directory and
 read the same `config/planet.yaml` and `source/`. `lib/` holds the shared
 readers: `orogen.py` for the export, `gridding.py` for mesh-to-grid integration,
-`orbit.py` for the orbital period. Reuse them; do not reimplement.
+`orbit.py` for the orbital period, `stellar.py` for the star's shortwave band
+split. Reuse them; do not reimplement.
 
 Git tracks the scripts, notes, configuration, and analysis products. It does
 **not** track `exoplasim/runs/` (model output, 13 GB after triage; but

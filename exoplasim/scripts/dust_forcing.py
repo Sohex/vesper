@@ -59,6 +59,7 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT / "lib") not in sys.path:
     sys.path.insert(0, str(ROOT / "lib"))
 from paths import rel  # noqa: E402
+from stellar import band1_fraction  # noqa: E402
 
 OPAC = ROOT / "exoplasim" / "data" / "dust" / "opac_mineral_refractive_index.dat"
 OUT = ROOT / "analysis" / "dust_forcing.json"
@@ -278,10 +279,15 @@ def main() -> None:
     aod_land = float(central["land_mean_aod"])
     column = aod_land / mee_chain          # kg/m2, the size-independent quantity
 
-    lam_s = None
+    # Shape WITHIN each band, for the Mie integration. The band SPLIT is not
+    # taken from this file: integrating it across 0.75 um gives 0.3777, which is
+    # its own 0.34-14.01 um truncation rather than the star. `lib/stellar.py`
+    # reproduces what `radmod.f90:solarini` does with the hi-res spectrum, which
+    # is the weight the model itself applies.
     d = np.loadtxt(ROOT / "exoplasim" / "inputs" / "stellarspectra" / "k25v.dat",
                    skiprows=1)
     lam_s, f_s = d[:, 0], d[:, 1] * np.gradient(d[:, 0])
+    band1_share = band1_fraction()
 
     print(f"burden: land-mean AOD {aod_land:.4f} at {mee_chain:.1f} m2/kg")
     print(f"     -> column mass {column * 1e3:.3f} g/m2")
@@ -292,11 +298,10 @@ def main() -> None:
     for name, dist in SIZE_ENDS.items():
         sw = {}
         tau_sw_total = 0.0
-        for (lo, hi), weight in zip(SW_BANDS_UM, (None, None)):
+        for (lo, hi), share in zip(SW_BANDS_UM,
+                                   (band1_share, 1.0 - band1_share)):
             ext, ssa, g = band_optics(
                 lo, hi, lambda x: np.interp(x, lam_s, f_s), dist)
-            share = float(np.trapezoid(np.interp(np.linspace(lo, hi, 64), lam_s, f_s),
-                                       np.linspace(lo, hi, 64)))
             sw[f"{lo}-{hi} um"] = {
                 "mass_extinction_efficiency_m2_g": round(ext, 4),
                 "single_scattering_albedo": round(float(ssa), 4),

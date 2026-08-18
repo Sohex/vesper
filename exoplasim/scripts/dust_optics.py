@@ -59,6 +59,7 @@ import sys as _sys
 if str(ROOT / "lib") not in _sys.path:
     _sys.path.insert(0, str(ROOT / "lib"))
 from paths import rel  # noqa: E402
+from stellar import band1_fraction, spectrum_paths  # noqa: E402
 DATA = ROOT / "exoplasim" / "data" / "dust"
 OUT = ROOT / "analysis" / "dust_optics.json"
 SPECTRUM = ROOT / "exoplasim" / "inputs" / "stellarspectra" / "k25v.dat"
@@ -90,12 +91,17 @@ def sha256(path: Path) -> str:
 
 
 def stellar_weights():
-    """Flux per wavelength bin, correctly weighted by bin width.
+    """Flux per wavelength bin, for shape WITHIN a band. Not the band split.
 
     The k25v grid is NOT uniform -- 0.01 um in the visible, 0.04 um in the
     infrared -- so summing flux without multiplying by the bin width overstates
-    band 1 by nine percentage points. Checked against the model's own printed
-    `Energy fraction below 0.75 microns`.
+    the infrared's share of a band.
+
+    This weights the Mie integration across each band and nothing else. The
+    band SPLIT comes from `lib/stellar.py`, which reproduces `solarini`'s own
+    integration of the hi-res file; integrating this low-resolution file across
+    the split instead gave 0.3777, which is the 0.34-14.01 um truncation
+    speaking rather than the star.
     """
     d = np.loadtxt(SPECTRUM, skiprows=1)
     return d[:, 0], d[:, 1] * np.gradient(d[:, 0])
@@ -233,7 +239,7 @@ def main() -> None:
             raise SystemExit(f"missing input {p}")
 
     lam_s, f_s = stellar_weights()
-    b1 = f_s[lam_s < BAND_SPLIT_UM].sum() / f_s.sum()
+    b1 = band1_fraction()
 
     opac = np.loadtxt(OPAC)
     op_l, op_n, op_k = opac[:, 0], opac[:, 1], np.abs(opac[:, 2])
@@ -286,6 +292,9 @@ def main() -> None:
                 "dust_optics.py; do not edit.",
         "generated": datetime.now(timezone.utc).isoformat(),
         "stellar_flux_fraction_band1": round(float(b1), 4),
+        "stellar_flux_fraction_band1_source":
+            "lib/stellar.py, reproducing radmod.f90:solarini on "
+            + spectrum_paths()[1].name,
         "size_distribution": {
             "source": "Balkanski et al. 2007",
             "number_median_radius_um": R_MOD_UM,
