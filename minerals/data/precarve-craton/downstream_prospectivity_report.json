@@ -1,5 +1,5 @@
 {
-  "generated": "2026-08-18T04:22:49+00:00",
+  "generated": "2026-08-18T07:14:41+00:00",
   "generator": "minerals/scripts/build_downstream_prospectivity.py",
   "source_build": "precarve-craton",
   "terrain_hash": "e931b0d9947a232210a3cc11ba82003b5da15765d86e87956bc44c220932760e",
@@ -7,71 +7,71 @@
   "climatology_sha256": "60efe80f6901b14b5317f3177e66b4bb421a5cc913077f2075b259f24c651196",
   "tectonic_field": "minerals/data/precarve-craton/prospectivity.nc",
   "brine_paths": "pedology/analysis/brine_paths.json",
-  "config_sha256": "2ec48b085a3066f6196cad829cb0103efefa2bebdeae41d218cf80d06d2e9d18",
-  "git_commit": "bcbfda4643991f64df27bbf7aa7b1c73361c3ed8",
+  "config_sha256": "9cc39418b7177073e80e2a6353d0915f7346a15218b8e6d9101dfdaa0007fc7f",
+  "git_commit": "f8ee4fec39f9da71eff9d220737e0e17a9e39631",
   "deposits": {
     "bauxite": {
       "name": "Bauxite",
       "grounding": "sourced",
-      "land_fraction_nonzero": 0.0319085922565305,
-      "land_fraction_above_half": 0.003895124537303648,
-      "mean_over_land": 0.007144417015307162
+      "land_fraction_nonzero": 0.03065002518296308,
+      "land_fraction_above_half": 0.0036929871498099925,
+      "mean_over_land": 0.006799365241743685
     },
     "laterite_ni": {
       "name": "Nickel laterite",
       "grounding": "sourced",
-      "land_fraction_nonzero": 0.011968360588174212,
-      "land_fraction_above_half": 0.0025427538549747325,
-      "mean_over_land": 0.0034311803366470187
+      "land_fraction_nonzero": 0.01110925218981922,
+      "land_fraction_above_half": 0.002285675066679716,
+      "mean_over_land": 0.0031189190316819717
     },
     "supergene_cu": {
       "name": "Supergene copper enrichment",
       "grounding": "sourced",
-      "land_fraction_nonzero": 0.018559238999091586,
-      "land_fraction_above_half": 0.013212587394931447,
-      "mean_over_land": 0.013758597963066242
+      "land_fraction_nonzero": 0.07407003143376441,
+      "land_fraction_above_half": 0.04648268727407884,
+      "mean_over_land": 0.049482772915874836
     },
     "placer_au": {
       "name": "Placer gold",
       "grounding": "sourced-negative",
-      "land_fraction_nonzero": 0.034089014660501994,
-      "land_fraction_above_half": 0.005425320479218364,
-      "mean_over_land": 0.009446268812503062
+      "land_fraction_nonzero": 0.03371398029003929,
+      "land_fraction_above_half": 0.005231734619355908,
+      "mean_over_land": 0.009403975934035864
     },
     "brine_soda": {
       "name": "Soda ash (trona, natron)",
       "grounding": "derived",
-      "land_fraction_nonzero": 0.0740002466001278,
-      "land_fraction_above_half": 0.020313601229324192,
-      "mean_over_land": 0.030585298279310297
+      "land_fraction_nonzero": 0.08630913730335257,
+      "land_fraction_above_half": 0.02801029199762333,
+      "mean_over_land": 0.03764636100770627
     },
     "brine_gypsum": {
       "name": "Gypsum and Ca-Cl brine",
       "grounding": "derived",
-      "land_fraction_nonzero": 0.0049283175795834955,
-      "land_fraction_above_half": 0.0011251303341221041,
-      "mean_over_land": 0.0019592214696326584
+      "land_fraction_nonzero": 0.004881854262698854,
+      "land_fraction_above_half": 0.0010423099190723026,
+      "mean_over_land": 0.0019669061688897486
     },
     "brine_potash": {
       "name": "Potash",
       "grounding": "declared",
-      "land_fraction_nonzero": 0.014263578039648162,
-      "land_fraction_above_half": 0.010879823543368711,
-      "mean_over_land": 0.008281187304550998
+      "land_fraction_nonzero": 0.01434965671077531,
+      "land_fraction_above_half": 0.011140483442162855,
+      "mean_over_land": 0.008349662861749933
     },
     "brine_lithium": {
       "name": "Lithium brine",
       "grounding": "declared",
-      "land_fraction_nonzero": 0.08552260669259662,
-      "land_fraction_above_half": 0.001784822948628155,
-      "mean_over_land": 0.01407300589988737
+      "land_fraction_nonzero": 0.09922472717032614,
+      "land_fraction_above_half": 0.002372216364702077,
+      "mean_over_land": 0.015126655690160865
     },
     "brine_borate": {
       "name": "Borate",
       "grounding": "declared",
-      "land_fraction_nonzero": 0.03817530521762392,
-      "land_fraction_above_half": 0.0009141306123029875,
-      "mean_over_land": 0.003362177394771871
+      "land_fraction_nonzero": 0.0396829865686279,
+      "land_fraction_above_half": 0.0010320099122841098,
+      "mean_over_land": 0.0034848546653778512
     }
   },
   "rule_audit": {

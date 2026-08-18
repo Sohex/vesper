@@ -71,11 +71,26 @@ deposits:
     # Aluminous parent. Carbonate and evaporite have no alumina to residuate and
     # quartzite's alumina is negligible.
     #
-    # NOT SOURCED, and flagged rather than quietly omitted: there is no relief or
-    # slope term in this rule. Price p. 2 gives only "high permeability of parent
-    # rock allowing good drainage" as a qualitative prerequisite and nothing read
-    # here puts a number on it. The omission is one-signed: bauxite is placed on
-    # steep ground where erosion would strip it.
+    # THE RELIEF TERM IS NOW SOURCED, and it is an upper bound on regional dip.
+    # Freyssinet, Butt, Morris and Piantone (2005) p. 685: bauxite-bearing plateaus "are commonly remnants of ancient large-scale plantation surfaces with overall dips of 1 deg to 5 deg so that, on a regional scale, the same paleosurface may occur at different altitudes".
+    #
+    # 5 degrees is applied and 1 degree is NOT. The pair is the observed range of
+    # dips of the surfaces bauxite is found on, so the upper end is a limit on
+    # where the deposit survives and the lower end is only where those particular
+    # surfaces happened to sit. Reading 1 degree as a floor would assert that
+    # flatter ground cannot carry bauxite, which the sentence does not say. The
+    # mechanism a floor would stand for -- Freyssinet p. 695, "relief must be
+    # sufficient to allow leaching of chemical weathering products" -- is already
+    # carried by `require_exorheic`, and hydrologically rather than
+    # topographically, which is the better statement of it.
+    #
+    # `lib/orogen.py:local_slope_deg` supplies the field, as the dip of a plane
+    # fitted through each region and its neighbours. That is the same quantity
+    # the source is written about, a regional tilt over roughly 20 km, and NOT a
+    # hillslope. At this mesh scale the criterion is a guard against placing
+    # bauxite on mountains rather than a discriminating term; how little land it
+    # actually removes is measured in `notes/economic-minerals.md`.
+    maximum_slope_degrees: 5.0
     hosts: {shelf_clastic: 1.0, foreland_clastic: 1.0, pelagic: 1.0, melange: 0.8, granite: 0.8, granodiorite: 0.8, gneiss: 0.8, schist: 0.8, arc_andesite: 1.0, arc_basalt: 1.0, flood_basalt: 1.0, oib: 1.0, morb: 0.6, continental_clastic: 0.4, rift_bimodal: 1.0}
 
   laterite_ni:
@@ -119,11 +134,31 @@ deposits:
     # weight.
     require_exorheic: true
     hosts: {melange: 1.0}
-    # NOT APPLIED, and named because it is a real omission: Butt and Cluzel
-    # p. 126 require "sufficient tectonic stability and low relief that the rate
-    # of weathering exceeds that of erosion", plus preservation by burial or
-    # duricrust armouring. Neither a relief threshold nor a preservation test is
-    # in this rule, for the same reason as bauxite's, and with the same sign.
+    # THE RELIEF TERM IS NOW SOURCED, at the same 5 degrees as bauxite and from
+    # the same page, and the shared threshold is an inference that is stated
+    # rather than hidden. Freyssinet et al. (2005) p. 695 introduce their three
+    # constraints as "some common conditions that apply to all deep lateritic
+    # regoliths", and a bauxite is one, so the dip range measured on lateritic
+    # planation surfaces at p. 685 is the relief those conditions describe.
+    # What p. 695 gives for Ni laterite itself is the MECHANISM without a
+    # gradient: the weathering front's downward progress "must exceed the rate of
+    # surface lowering by collapse and erosion and this is favored by low relief.
+    # Conversely, relief must be sufficient to allow leaching of chemical
+    # weathering products."
+    #
+    # THE OMISSION IS TWO-SIDED, not one-signed as this file previously recorded.
+    # Too steep strips the profile; too flat impedes the drainage the leaching
+    # needs. Table 2 p. 695 makes the second end concrete by splitting the ore:
+    # hydrous Mg silicate wants moderate relief and free drainage, clay silicate
+    # moderate-to-low and impeded, oxide moderate-to-low and either. This rule
+    # places one undifferentiated Ni laterite field, so it applies the upper
+    # bound only and does not resolve which ore type a cell would grow.
+    #
+    # STILL NOT APPLIED, and the honest residue: the criterion is a RATE against
+    # a RATE, and this project models neither. The anchors, for whoever closes
+    # it -- 10 to 20 m/m.y. mean ultramafic weathering (Nahon and Tardy, 1992), 8 m/m.y. saprolitization on ultramafic schists in French Guiana (Freyssinet and Farah, 2000), 40 to 50 m/m.y. at Thio, New Caledonia (Trescases, 1973, 1975).
+    # Preservation by burial or duricrust armouring is also still untested.
+    maximum_slope_degrees: 5.0
 
   supergene_cu:
     name: Supergene copper enrichment
@@ -149,21 +184,46 @@ deposits:
     # invented bound allowed, and the invented bound was excluding the single
     # best-documented enrichment province on Earth.
     #
-    # Sillitoe (2010) is held and read, and does NOT contain this: it delegates
-    # the whole subject at its p. 5 to Sillitoe (2005), which is in the Economic
-    # Geology 100th Anniversary Volume and could not be fetched. So the
-    # enrichment-blanket geometry and any water-table-descent criterion remain
-    # unsourced; what is sourced is the climate window's dry end.
+    # Sillitoe (2010) does NOT contain this: it delegates the whole subject at
+    # its p. 5 to Sillitoe (2005), which is now held and read.
     minimum_precipitation_mm_yr: 10.0
-    # STILL DECLARED. Nothing read here bounds enrichment at the WET end. The
-    # mechanism is that copper is flushed rather than concentrated once
-    # percolation runs year round, and 500 mm/yr is a judgment about where that
-    # starts. Reich and Vasconcelos (2015) p. 306 give the profile physics --
-    # oxidation in the vadose zone and the capillary fringe, secondary sulfides
-    # below the water table where pO2 falls to about 1e-40 atm -- but no rainfall
-    # number, and a thick leached cap needs a deep water table rather than a dry
-    # climate as such.
-    maximum_precipitation_mm_yr: 500.0
+    #
+    # THERE IS NO WET BOUND, and the rule previously carried an invented one.
+    # Sillitoe (2005) p. 736: "Water is an essential ingredient for supergene activity so all climatic regimes with the exception of hyperarid deserts and glacial terrains, including associated permafrost development, are able to sustain appreciable oxidative weathering and attendant enrichment."
+    # He goes further and calls a tropical climate "the most favorable for rapid
+    # supergene upgrading" given a deep water table. So the 500 mm/yr cap that
+    # stood here was not merely unsourced, it was contradicted by the canonical
+    # source, and it is removed rather than re-derived. `grounding` stays
+    # `sourced` because both surviving bounds are now quoted rather than judged.
+    #
+    # The exclusions the sentence DOES name are the two applied. Hyperarid is
+    # already the dry bound above, measured by Reich et al. (2009). Glacial and
+    # permafrost ground is this, and the criterion is seasonal melting rather
+    # than a mean, because p. 736 makes melting the operative thing: "Even under
+    # ice-dominated conditions, any seasonal melting results in immediate
+    # short-term resumption of supergene processes." Ground whose warmest bin
+    # never reaches freezing is ground that never melts.
+    minimum_warmest_bin_temperature_c: 0.0
+    #
+    # WHAT THE WET END ACTUALLY IS, and it is not applied: erosion. p. 736,
+    # "the average erosion rate must be in overall balance with the rate of water
+    # table descent", and "Erosional efficiency depends chiefly on rainfall and
+    # slope steepness". Rainfall reaches the wet end only jointly with slope, so
+    # a rainfall cap was the wrong SHAPE of term and not just the wrong number.
+    # No slope cut is applied here either: unlike the laterites this deposit is
+    # not tied to planation surfaces -- the abstract states that pediplains "are
+    # not considered to be a requirement" -- and deep profiles do form in
+    # mountainous tropics on masses isolated from drainage incision, Mount
+    # Fubilan at Ok Tedi being the named case. Borrowing the laterite dip here
+    # would be inventing a threshold the source declines to give.
+    #
+    # The sign of the omission: with no erosion term, wet steep ground is scored
+    # as prospective where the real profile would be stripped before it matured,
+    # so this rule OVER-predicts there. Reich and Vasconcelos (2015) p. 306 give
+    # the profile physics -- oxidation in the vadose zone and the capillary
+    # fringe, secondary sulfides below the water table where pO2 falls to about
+    # 1e-40 atm -- but no rainfall number, and a thick leached cap needs a deep
+    # water table rather than a dry climate as such.
     multiplies: porphyry_cu_mo
 
   placer_au:

@@ -296,13 +296,13 @@ steps:
     script: minerals/scripts/build_prospectivity.py
     cost: minutes
     needs: [hydrography]
-    writes: [minerals/data/prospectivity.nc, minerals/data/prospectivity_report.json]
+    writes: ["minerals/data/{build}/prospectivity.nc", "minerals/data/{build}/prospectivity_report.json"]
 
   - id: downstream_prospectivity
     script: minerals/scripts/build_downstream_prospectivity.py
     cost: minutes
     needs: [prospectivity, brine_paths, surface_classes, soil]
-    writes: [minerals/data/downstream_prospectivity.nc, minerals/data/downstream_prospectivity_report.json]
+    writes: ["minerals/data/{build}/downstream_prospectivity.nc", "minerals/data/{build}/downstream_prospectivity_report.json"]
 
   - id: error_budget
     script: scripts/error_budget.py

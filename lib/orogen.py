@@ -327,6 +327,96 @@ class Export:
         off, lst = self.adjacency
         return lst[off[region]:off[region + 1]]
 
+    @cached_property
+    def local_slope_deg(self) -> np.ndarray:
+        """Dip of the least-squares plane through each region and its
+        neighbours, in degrees.
+
+        This is a REGIONAL dip, not a hillslope, and the distinction is the
+        whole of its correct use. Neighbour spacing on this mesh is about 20 km,
+        so what it measures is the tilt of the landscape across adjacent cells;
+        a talus at its 34 degree repose angle is two orders of magnitude below
+        anything the mesh can carry, and `vendor/orogen/tools/README.md` says so
+        under scarps. Read it for "is this a low-relief surface or is it
+        mountainous", never for "how steep is this slope".
+
+        A PLANE FIT rather than the steepest finite difference to a neighbour.
+        On a smooth analytic ramp the two barely differ -- the max-drop estimator
+        is 1.2% low at the median, 11% at its 5th percentile, because the
+        gradient rarely points exactly at a neighbour -- so this is not chosen
+        for accuracy on smooth ground. It is chosen because on ROUGH ground the
+        two measure different things: a max drop reports local roughness and a
+        fit reports the tilt the roughness sits on, and it is the tilt that
+        Freyssinet et al. (2005) p. 685 write when they give the "overall dips of
+        1 to 5 degrees" of a planation surface. On this world's real terrain the
+        two disagree by a factor of about two in the upper percentiles, so the
+        choice is not free and it is made by what the source means.
+
+        Built from `elevation_km`, so the planet's 1/g relief scaling is already
+        inside it. Displacements are tangent-plane projections of the export's
+        own unit-sphere coordinates times the manifest radius.
+        """
+        off, lst = self.adjacency
+        degree = np.diff(off)
+        if not (degree >= 3).all():
+            raise RuntimeError(
+                "a region has fewer than three neighbours, so the tangent-plane "
+                "fit below is underdetermined for it")
+
+        elev = self.field("elevation_km").astype(np.float64)
+        pos = np.stack([self.field("x"), self.field("y"), self.field("z")],
+                       axis=1).astype(np.float64)
+        radius = float(self.manifest["planet"]["radiusKm"])
+
+        src = np.repeat(np.arange(self.n_regions, dtype=np.int64), degree)
+        dst = lst.astype(np.int64)
+
+        # An ARBITRARY orthonormal tangent basis per region, not east/north.
+        # Only the magnitude of the fitted gradient is returned and that is
+        # invariant to the choice, so the basis is picked for robustness: cross
+        # the normal with whichever axis it is least aligned with, which cannot
+        # degenerate. A true east/north basis does, on the two regions this mesh
+        # puts on the rotation axis.
+        normal = pos
+        ref = np.zeros_like(normal)
+        ref[np.arange(len(normal)), np.argmin(np.abs(normal), axis=1)] = 1.0
+        east = np.cross(normal, ref)
+        east /= np.linalg.norm(east, axis=1)[:, None]
+        north = np.cross(normal, east)
+
+        # Chord to the neighbour, projected into the tangent plane at src.
+        # Accumulated one cartesian component at a time: the stacked form needs
+        # a 15M x 3 float64 temporary and roughly doubles peak memory for no
+        # gain, and this reader is opened inside scripts that are already
+        # holding a climatology.
+        u = np.zeros(src.size)
+        v = np.zeros(src.size)
+        for k in range(3):
+            step = (pos[dst, k] - pos[src, k]) * radius
+            u += step * east[src, k]
+            v += step * north[src, k]
+            del step
+        rise = elev[dst] - elev[src]
+
+        seg = off[:-1].astype(np.int64)
+        suu = np.add.reduceat(u * u, seg)
+        suv = np.add.reduceat(u * v, seg)
+        svv = np.add.reduceat(v * v, seg)
+        sur = np.add.reduceat(u * rise, seg)
+        svr = np.add.reduceat(v * rise, seg)
+        del u, v, rise
+
+        det = suu * svv - suv * suv
+        scale = suu * svv
+        bad = det <= 1e-12 * np.maximum(scale, 1e-30)
+        if bad.any():
+            raise RuntimeError(
+                f"{int(bad.sum())} regions have collinear neighbours, so the "
+                f"plane fit is singular there")
+        gu = (svv * sur - suv * svr) / det
+        gv = (suu * svr - suv * sur) / det
+        return np.degrees(np.arctan(np.hypot(gu, gv))).astype(np.float32)
+
     # -- basins ----------------------------------------------------------
 
     @cached_property

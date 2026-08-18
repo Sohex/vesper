@@ -99,10 +99,11 @@ an order of magnitude when it was sourced.** Supergene copper carried a 100 mm/y
 lower bound described as the conventional semi-arid band and chosen without a
 source; Reich et al. (2009) measured the Atacama and put meteoric enrichment
 above 10 mm/yr with shutdown below 1-4, so the invented bound was excluding the
-best-documented enrichment province on Earth by a factor of ten. Note also that
-Sillitoe (2010), which is held and read, does NOT contain this: it delegates the
-whole subject at p. 5 to Sillitoe (2005), which sits in an Economic Geology
-volume that could not be fetched at all.
+best-documented enrichment province on Earth by a factor of ten.
+
+The two Economic Geology 100th Anniversary Volume chapters that Sillitoe (2010)
+delegates to arrived 2026-08-18, and between them they closed the rest. What they
+settled is below.
 
 SOURCED-NEGATIVE, which is the interesting label. The placer rule has no gradient
 or discharge threshold and no transport-distance decay, and BOTH absences are
@@ -112,12 +113,78 @@ regional criteria a rule like this wants were never established; Knight et al.
 decay length would remove prospectivity the evidence says is still there. A
 number in either place would have been invented and then quoted back as sourced.
 
-DECLARED, what remains: the wet end of the supergene window, any relief term for
-bauxite or nickel laterite, potash, and **lithium and borate entirely -- neither
+DECLARED, what remains: potash, and **lithium and borate entirely -- neither
 element is among Meybeck's eight species**, so unlike soda and gypsum they cannot
 be derived from the divide in any form, and what stands in is a geological
 association with silicic volcanic and arc volcanic catchments. That is an
 association, not a mechanism this pipeline models.
+
+### The relief term, and the supergene wet end that does not exist
+
+Settled 2026-08-18 from Freyssinet, Butt, Morris and Piantone (2005) and Sillitoe
+(2005), read off the page images because the volume's OCR is unreliable. Three
+gaps that had been recorded separately turned out to be one gap.
+
+**There is no wet bound on supergene copper.** Sillitoe p. 736 puts every climate
+inside the window except hyperarid desert and glacial or permafrost ground, and
+calls a tropical climate the most favourable of all for rapid upgrading. The rule
+had carried a 500 mm/yr cap, declared, on the reasoning that copper is flushed
+once percolation runs year round. That cap was not merely unsourced; the canonical
+source contradicts it, so it is removed rather than re-derived.
+
+**The wet-side control is erosion, and that is what unifies the three gaps.**
+p. 736: the average erosion rate "must be in overall balance with the rate of
+water table descent", and "Erosional efficiency depends chiefly on rainfall and
+slope steepness". Rainfall reaches the wet end only jointly with slope, so a
+rainfall cap was the wrong SHAPE of term, not a term with the wrong number. The
+same balance is Freyssinet's criterion 2 for laterite, p. 695: the weathering
+front must descend faster than the surface is lowered.
+
+**The relief term is two-sided**, which is the correction that matters, because
+both rules previously recorded the omission as one-signed. Freyssinet p. 695:
+"this is favored by low relief. Conversely, relief must be sufficient to allow
+leaching of chemical weathering products." Too steep strips the profile; too flat
+impedes the drainage that leaching needs. Table 2 on the same page splits the ore
+by exactly that: hydrous Mg silicate wants moderate relief and free drainage, clay
+silicate moderate-to-low and impeded, oxide moderate-to-low and either.
+
+**What is applied is an upper bound of 5 degrees of regional dip**, from p. 685,
+where bauxite-bearing plateaus are remnants of planation surfaces "with overall
+dips of 1 deg to 5 deg". The lower end of that pair is NOT applied as a floor: it
+describes where those particular surfaces sat, not a limit below which bauxite
+fails, and the mechanism a floor would stand for is already carried
+hydrologically by `require_exorheic`. The same 5 degrees is applied to nickel
+laterite on Freyssinet's own framing at p. 695, that his three constraints are
+"common conditions that apply to all deep lateritic regoliths".
+
+**Measured on `precarve-craton` 2026-08-18**, area-weighted over land, the
+regional dip runs 0.12 deg at the median and 4.78 at the 99th percentile, so the
+5 degree bound removes only 0.86% of land. That reads like a weak criterion and
+it is not, because the deposits are not spread over land uniformly: it removes
+**5.13% of melange**, the forearc province that hosts nickel laterite, six times
+the rate it removes land at.
+
+Measured on the deposits themselves, by running the generator twice at the same
+commit with only the bound changed, it costs **bauxite 3.9% of its footprint and
+nickel laterite 7.5%** -- nearly twice as much, which is the melange result
+showing through. Every other field is bit-identical across that pair, which is
+what makes the attribution good. Do not compare against reports generated before
+2026-08-18: `lib/gridding.py` and `hydrography/scripts/surface_water.py` both
+moved in between, and the placer field shifts across that boundary for reasons
+that have nothing to do with this change.
+
+**Removing the supergene wet cap is the large effect of the two**, and it is not
+close: enrichment goes from 1.86% of land to 7.41%, four times the footprint. An
+invented bound had been suppressing three quarters of the deposit.
+
+**What is still not applied**, and its sign. The criterion is a rate against a
+rate and this project models neither erosion rate nor weathering-front descent.
+The anchors are in the config for whoever closes it. No slope bound is applied to
+supergene copper: unlike the laterites it is not tied to planation surfaces --
+Sillitoe's abstract says pediplains "are not considered to be a requirement" --
+and deep profiles do form in mountainous tropics on masses isolated from drainage
+incision. So on wet steep ground the supergene rule OVER-predicts, scoring
+prospectivity where the real profile would be stripped before it matured.
 
 **Tin and gem placers are not emitted**, alongside the exclusions below and for a
 resolution-adjacent reason: cassiterite needs specialised S-type granite and gem

@@ -45,7 +45,9 @@ and `brine_paths.py` already solves it per basin.
 SOURCED: bauxite on Price et al. (1997), whose thresholds are themselves applied
 to gridded climate fields and validated against observed bauxite; nickel laterite
 on Butt and Cluzel (2013); supergene copper's dry end on Reich et al. (2009),
-measured in the Atacama.
+measured in the Atacama; the relief bound on both laterites, and supergene's
+glacial exclusion, on the two Economic Geology 100th Anniversary Volume chapters,
+Freyssinet et al. (2005) and Sillitoe (2005).
 
 SOURCED-NEGATIVE, and this is the label worth understanding. The placer rule has
 NO gradient or discharge threshold and NO transport-distance decay, and both
@@ -55,10 +57,15 @@ gold is progressively flattened rather than lost with distance, so a decay lengt
 would remove prospectivity the evidence says is still there. A number in either
 place would have been invented and then quoted back as though sourced.
 
-DECLARED, what is left: the wet end of the supergene window, any relief term for
-bauxite or nickel laterite, potash, and lithium and borate entirely -- neither
+DECLARED, what is left: potash, and lithium and borate entirely -- neither
 element is among Meybeck's eight species, so unlike soda and gypsum they cannot
 be derived from the divide in any form.
+
+The supergene wet end is no longer among them and was not replaced by a better
+number, because Sillitoe (2005) p. 736 says there is no wet bound on rainfall at
+all: the wet-side control is erosion outpacing water-table descent, and erosion
+answers to rainfall and slope together. What each rule still cannot test is named
+against it in the config rather than here.
 """
 
 from __future__ import annotations
@@ -195,6 +202,7 @@ def main() -> None:
     area = mesh.field("cell_area").astype(float)
     substrate = mesh.field("substrate_class").astype(int)
     basement = mesh.field("basement_rock").astype(int)
+    slope_deg = mesh.local_slope_deg
     codes = {c["code"]: int(c["id"])
              for c in mesh.manifest["lithology"]["rockClasses"]}
 
@@ -269,8 +277,14 @@ def main() -> None:
     # --- weathering and drainage types ------------------------------------
     for key, spec in rules["deposits"].items():
         if key == "supergene_cu":
+            # Two exclusions and NO wet bound. Sillitoe (2005) p. 736 puts every
+            # climate except hyperarid desert and permanently frozen ground
+            # inside the window, so the pair below is the whole of it; the rule's
+            # comment carries the quotations and the sign of what is missing.
+            # The cold test is seasonal melting rather than an annual mean,
+            # because a bin that thaws restarts supergene activity.
             window = ((precip >= spec["minimum_precipitation_mm_yr"])
-                      & (precip <= spec["maximum_precipitation_mm_yr"]))
+                      & (warmest > spec["minimum_warmest_bin_temperature_c"]))
             score = porphyry * window
         elif key == "placer_au":
             water = load_module("hydrography", "surface_water")
@@ -301,6 +315,14 @@ def main() -> None:
                 score = score * (warmest >= lo) * (warmest <= hi)
                 lo, hi = spec["coldest_bin_temperature_c"]
                 score = score * (coldest >= lo) * (coldest <= hi)
+            if "maximum_slope_degrees" in spec:
+                # Regional dip, not hillslope. `local_slope_deg` fits a plane
+                # through each region and its neighbours, which is the quantity
+                # Freyssinet et al. (2005) p. 685 write their 1 to 5 degrees
+                # about; a max drop to a neighbour would report the roughness on
+                # top of the tilt instead. Upper bound only -- the config says
+                # why the lower end of their range is not a floor.
+                score = score * (slope_deg <= spec["maximum_slope_degrees"])
             if spec.get("require_exorheic"):
                 score = score * exorheic
             # Scale by weathering intensity, which is the Walker-Hays-Kasting

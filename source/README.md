@@ -112,6 +112,19 @@ manifest rather than trusting a figure quoted anywhere.
 
 ## Other gotchas
 
+- **`x`, `y`, `z` are y-up, so the polar axis is `y` and NOT `z`.** The mesh
+  carries unit-sphere cartesian coordinates in the generator's own three.js
+  frame, and they are exact: `lat = degrees(arcsin(y))` and
+  `lon = degrees(atan2(x, z))`, both reproducing the `lat`/`lon` fields to
+  within float32. Assuming the usual z-up convention silently rotates the
+  planet 90 degrees and puts the pole on the equator. It is safe to use `x, y,
+  z` for anything rotation-invariant -- great-circle distances between regions,
+  dot products, tangent-plane fits -- which is what
+  `hydrography/scripts/export_carve_list.py` and `lib/orogen.py:local_slope_deg`
+  both do. Mixing them with `lat`/`lon` in the same expression is where this
+  bites. Found 2026-08-18 while validating a slope field against an analytic
+  ramp: the ramp was built on `z`, the expectation was written in latitude, and
+  the estimator was blamed for a 30% error that was entirely in the frame.
 - **`elevation` is not kilometres.** It is the generator's internal shaping
   parameter (nonlinear hypsometric curve; 0.5 ≈ 1.1 km, 1.0 = 6 km; ocean linear
   at 10 km/unit). Use `elevation_km` for physical orography.

@@ -10,7 +10,7 @@ data directory, five stale binaries, and a config change that left `latitudes`
 behind. Every one of those was reachable by importing a module and looking at
 where its defaults pointed -- none needed a model run.
 
-Four checks, all cheap:
+Eight checks, all cheap:
 
 1. **Imports.** Every module imports. Catches a missing import added while
    editing, which `--help` alone will also catch but this localises better.
@@ -38,6 +38,14 @@ Four checks, all cheap:
    was a script deriving a column of its own. There is nothing to translate and
    therefore nothing to derive, so the check is that the expressions appear in
    exactly one file. Prevention, not translation.
+6. **Every generator is declared in `config/pipeline.yaml`.** An artifact no step
+   writes has no derivable consumers, so nothing can say what it invalidates.
+7. **Every step is named in its component README.** A step that works and is
+   invisible gets reimplemented beside itself.
+8. **`local_slope_deg` reproduces an analytic gradient**, on a synthetic
+   icosphere. The only check here that tests a NUMBER rather than a pattern, and
+   the tolerance is set between two plausible implementations rather than picked:
+   see the docstring on the check itself.
 """
 
 from __future__ import annotations
@@ -263,6 +271,109 @@ def check_documented_in_component(files) -> list[str]:
     return missing
 
 
+
+def check_slope_fit() -> list[str]:
+    """`lib/orogen.py:local_slope_deg` reproduces a gradient it can get wrong.
+
+    Two cases on a synthetic icosphere, because the real mesh costs 1.7 GB and
+    ten seconds and this has to be cheap enough to run every time:
+
+    * a CONSTANT surface must give exactly zero, which catches a sign or an
+      index error that a smooth field would hide;
+    * a linear ramp `f = a*z` must reproduce its analytic surface gradient
+      `a*sqrt(1-z^2)/R` to 2%, which is what catches the estimator being biased.
+
+    THE SECOND CAN FAIL, and it is worth saying what would make it. The first
+    implementation of this field took the steepest drop to a neighbour, and that
+    estimator scores 2.7% at the median and 25.8% at worst on this same sphere,
+    because a gradient rarely points exactly at a neighbour. The plane fit scores
+    0.08% and 1.7%. So the tolerance sits between two implementations that both
+    look reasonable, which is the only kind of threshold worth writing down.
+
+    An icosphere rather than a Fibonacci sphere, and that was not free either: on
+    a Fibonacci sphere with nearest-neighbour adjacency, 5.6% of vertices exceed
+    2% and all of them sit near the spiral's poles, where the point pattern and
+    therefore the neighbour geometry degrade. That is a defect of the test mesh
+    and it would have been read as a defect of the fit.
+
+    The expectation is stated in the mesh's OWN cartesian frame on purpose.
+    Writing it in latitude is how this was first got wrong -- the export is
+    y-up, so `z` is not `sin(lat)`, and a correct estimator was blamed for a 30%
+    error that lived entirely in the frame. See `source/README.md`.
+    """
+    import numpy as np
+    sys.path.insert(0, str(ROOT / "lib"))
+    from orogen import Export
+
+    golden = (1 + 5 ** 0.5) / 2
+    verts = [np.array(v, dtype=float) for v in
+             [(-1, golden, 0), (1, golden, 0), (-1, -golden, 0), (1, -golden, 0),
+              (0, -1, golden), (0, 1, golden), (0, -1, -golden), (0, 1, -golden),
+              (golden, 0, -1), (golden, 0, 1), (-golden, 0, -1), (-golden, 0, 1)]]
+    faces = [(0, 11, 5), (0, 5, 1), (0, 1, 7), (0, 7, 10), (0, 10, 11),
+             (1, 5, 9), (5, 11, 4), (11, 10, 2), (10, 7, 6), (7, 1, 8),
+             (3, 9, 4), (3, 4, 2), (3, 2, 6), (3, 6, 8), (3, 8, 9),
+             (4, 9, 5), (2, 4, 11), (6, 2, 10), (8, 6, 7), (9, 8, 1)]
+    for _ in range(4):
+        cache: dict = {}
+        split = []
+
+        def midpoint(a: int, b: int) -> int:
+            key = (min(a, b), max(a, b))
+            if key not in cache:
+                verts.append((verts[a] + verts[b]) / 2)
+                cache[key] = len(verts) - 1
+            return cache[key]
+
+        for a, b, c in faces:
+            ab, bc, ca = midpoint(a, b), midpoint(b, c), midpoint(c, a)
+            split += [(a, ab, ca), (b, bc, ab), (c, ca, bc), (ab, bc, ca)]
+        faces = split
+
+    pos = np.array(verts)
+    pos /= np.linalg.norm(pos, axis=1, keepdims=True)
+    adjacent = [set() for _ in pos]
+    for a, b, c in faces:
+        for i, j in ((a, b), (b, c), (c, a)):
+            adjacent[i].add(j)
+            adjacent[j].add(i)
+    off = np.concatenate([[0], np.cumsum([len(a) for a in adjacent])]).astype(np.int64)
+    lst = np.concatenate([sorted(a) for a in adjacent]).astype(np.int64)
+
+    n, radius, amplitude = len(pos), 7000.0, 100.0
+
+    class Stub:
+        n_regions = n
+        adjacency = (off, lst)
+        manifest = {"planet": {"radiusKm": radius}}
+
+        def __init__(self, elevation):
+            self._elevation = elevation
+
+        def field(self, name):
+            return {"x": pos[:, 0], "y": pos[:, 1], "z": pos[:, 2],
+                    "elevation_km": self._elevation}[name]
+
+    fit = Export.local_slope_deg.func
+    problems = []
+
+    flat = float(np.abs(fit(Stub(np.full(n, 0.7)))).max())
+    if flat != 0.0:
+        problems.append(f"a constant surface has slope {flat:.3e} deg, "
+                        f"must be exactly 0")
+
+    ramp = fit(Stub(amplitude * pos[:, 2]))
+    expect = np.degrees(np.arctan(
+        amplitude * np.sqrt(np.clip(1 - pos[:, 2] ** 2, 0, 1)) / radius))
+    live = expect > 0.1                       # away from the ramp's own poles
+    worst = float(np.abs(ramp[live] / expect[live] - 1).max())
+    if worst > 0.02:
+        problems.append(f"a linear ramp is reproduced to only {worst:.1%}; a "
+                        f"steepest-drop estimator scores 25.8% here and the "
+                        f"plane fit 1.7%, so this is the difference between them")
+    return problems
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--skip-help", action="store_true",
@@ -282,7 +393,9 @@ def main() -> None:
               ("every generator is declared in config/pipeline.yaml",
                check_registered_in_workflow(files)),
               ("every step is named in its component README",
-               check_documented_in_component(files))]
+               check_documented_in_component(files)),
+              ("local_slope_deg reproduces an analytic gradient",
+               check_slope_fit())]
     if not args.skip_help:
         checks.insert(1, ("entry points answer --help", check_help(files)))
 

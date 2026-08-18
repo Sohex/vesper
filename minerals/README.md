@@ -112,6 +112,26 @@ source. Reich et al. (2009) measured the Atacama and put meteoric enrichment at
 above 10 mm/yr, shutting down below 1-4. The invented bound was excluding the
 best-documented enrichment province on Earth by a factor of ten.
 
+**And then its other bound turned out not to exist.** The rule also carried a
+declared 500 mm/yr wet cap. Sillitoe (2005) p. 736 admits every climate except
+hyperarid desert and glacial or permafrost ground, and calls a tropical climate
+the most favourable of all, so the cap was removed rather than re-derived; what
+stands in its place is the exclusion the source does name, tested on seasonal
+melting rather than an annual mean. The real wet-side control is erosion
+outpacing water-table descent, and because erosion answers to rainfall and slope
+TOGETHER, a rainfall cap was the wrong shape of term and not merely the wrong
+number.
+
+**That same sentence supplied the laterites' missing relief term**, which is why
+one paper closed three gaps. Bauxite and nickel laterite now carry a 5 degree
+upper bound on regional dip, from the planation surfaces Freyssinet et al. (2005)
+p. 685 measure bauxite on; the field is `lib/orogen.py:local_slope_deg`, a plane
+fit through each region and its neighbours rather than a steepest drop to one,
+because it is a regional TILT that the source is written about. The omission it
+closes was recorded here as one-signed and is in fact two-sided -- too flat
+impedes the leaching as surely as too steep strips the profile. See
+`notes/economic-minerals.md` for what is still not applied and which way it errs.
+
 Bauxite is Price et al. (1997), whose criteria are the right shape because they
 are themselves thresholds applied to gridded climate fields and validated against
 observed bauxite: above 1200 mm/yr, mean annual temperature above 22 C, and 6 or
