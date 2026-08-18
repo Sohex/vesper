@@ -748,10 +748,16 @@ LPJ-GUESS computes its own soil carbon internally, so the pedology organic
 feedback may be second-order.
 
 **A2. The stellar cycle, and where it belongs in the order.** The cycle run is
-NOT a final flourish. It has to come after a converged baseline at the chosen
-mean, because a cycle is variance about a mean and centring it on the wrong one
-describes the wrong world -- but it belongs BEFORE the carve verdict, for a
+NOT a final flourish. It has to come after a baseline that is FINAL, not merely
+converged, because a cycle is variance about a mean and centring it on the wrong
+one describes the wrong world -- but it belongs BEFORE the carve verdict, for a
 reason that is easy to miss.
+
+  "Final" is the operative word and it is stricter than "converged". Anything
+  still outstanding that moves the mean -- a radiative correction, a decision to
+  carry dust -- has to land first, or the cycle describes a world that will not
+  exist. A converged run at the wrong mean is exactly as useless as an
+  unconverged one. Run the cycle last of the things that change the climate.
 
 Carving is irreversible. Outlet incision does not undo when the warm phase
 returns, so every cold, wet excursion that pushes a basin to overflow carves it
