@@ -106,6 +106,14 @@ def average_files(paths: list[Path], output: Path, product: str,
         dst.setncattr("climatology_end_year_index", int(paths[-1].name.split(".")[-2]))
         dst.setncattr("climatology_created_utc", datetime.now(timezone.utc).isoformat())
         dst.setncattr("climatology_source_files", ",".join(path.name for path in paths))
+        # Stamped so consumers can check rather than guess. A climatology built
+        # from NLOWIO = 1 orbits carries a corrupt first record per orbit in wind
+        # and humidity, and its binned `spd` is additionally vector-cancelled by
+        # the model's output accumulation -- both artifacts of that path and
+        # neither present when it is off. Consumers that read a wind must refuse
+        # a tainted product rather than correcting it, because the corrections
+        # are themselves wrong once the defect is gone.
+
         # Which world this describes. Without it a climatology is anonymous and
         # every consumer has to be told out of band which build it belongs to.
         for key, value in (identity or {}).items():
@@ -345,6 +353,9 @@ def main() -> None:
     regular_output = output_dir / f"{args.label}_regular_climatology.nc"
     snapshot_output = output_dir / f"{args.label}_snapshot_climatology.nc"
     identity = identity_from_run(run_dir)
+    # int, not bool: netCDF attributes have no boolean type, and the generic
+    # identity loop below writes whatever this dict holds.
+    identity["low_io"] = int(bool(tainted))
     average_files(regular, regular_output,
                   "time-bin means averaged across model orbits", identity)
     average_files(snapshots, snapshot_output,

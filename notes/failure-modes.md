@@ -475,8 +475,13 @@ and I read the polar failure as the approximation breaking down rather than as
 the refutation it was.
 
 **A turbulent flux wants the mean of the speed**, because the aerodynamic term
-is essentially linear in wind speed. That is the snapshot number, and it is what
-the consumers now read.
+is essentially linear in wind speed -- and the lasting lesson is that I then
+mistook where that quantity had gone. The binned field was NOT structurally
+incapable of being a mean of the speed; it was corrupted into something else by
+the same output path as the first-bin defect. With `NLOWIO = 0` the binned wind
+is the mean of the speed to 0.2%, the snapshot workaround is unnecessary, and the
+1.55x correction written against it would be a 55% error. Both were removed
+rather than kept.
 
 The value in use was high, and it was high by an amount that depended on the run,
 because a large positive error from the corrupt bin and a large negative one from
@@ -484,7 +489,8 @@ the interval accumulation partly cancelled. On the bootstrap climatology the
 residual was 3.1% and the cancellation looked almost complete, which is what made
 the whole thing look ignorable; on the baseline it is 14%. **Do not carry a
 cancellation from one run to another.** Neither error is a property of the world,
-so nothing constrains them to keep the same ratio.
+so nothing constrains them to keep the same ratio -- and neither, it turned out,
+was a property of the diagnostic. Both were the output path.
 
 **Two rules, and the second is the one that nearly did damage.**
 

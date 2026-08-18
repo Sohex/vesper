@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated": "2026-08-17T22:35:12.708755+00:00",
-  "git_commit": "e6f36fb4e163364b3c0e518690ef394e2d1416a7",
+  "generated": "2026-08-18T01:40:04.497618+00:00",
+  "git_commit": "1df187272b5d483d2df5e130c1b9656e6c4f67e8",
   "generator": "scripts/world_state.py",
   "note": "Generated from the artifacts. Do not edit; re-run the generator. Only derived values live here. Findings are in `notes/`, with their evidence, and open work is in `TASKS.md`.",
   "planet": {
@@ -155,7 +155,7 @@
     },
     {
       "run_id": "run_8c2e1ff9ab5e",
-      "status": "quasi_equilibrated",
+      "status": "climatology_complete",
       "orbits_complete": 66,
       "flux_earth": 0.945,
       "cycle": null,
@@ -260,32 +260,32 @@
     "carve_verdict": {
       "bounds": {
         "penman": {
-          "basins_carved": 1610,
-          "endorheic_land_km2": 172935540.28324676,
-          "lake_area_km2": 8845770.515239824,
-          "dry_survivors": 1580,
-          "wet_survivors": 498,
-          "basins_without_runoff": 1580,
-          "lake_area_fraction_of_planet": 0.012043372023421414,
+          "basins_carved": 1561,
+          "endorheic_land_km2": 176858311.27670884,
+          "lake_area_km2": 9453278.550790919,
+          "dry_survivors": 1643,
+          "wet_survivors": 488,
+          "basins_without_runoff": 1643,
+          "lake_area_fraction_of_planet": 0.012870484287610806,
           "solver_converged": true,
-          "median_aridity_index": -0.910135014439083
+          "median_aridity_index": -0.9148135237261283
         },
         "wet": {
-          "basins_carved": 2041,
-          "endorheic_land_km2": 160535164.2974465,
-          "lake_area_km2": 6492257.509165766,
-          "dry_survivors": 1580,
-          "wet_survivors": 169,
-          "basins_without_runoff": 1580,
-          "lake_area_fraction_of_planet": 0.008839102520241535,
+          "basins_carved": 1978,
+          "endorheic_land_km2": 157899675.3722589,
+          "lake_area_km2": 7553608.995723448,
+          "dry_survivors": 1643,
+          "wet_survivors": 167,
+          "basins_without_runoff": 1643,
+          "lake_area_fraction_of_planet": 0.010284115227523934,
           "solver_converged": true,
           "median_aridity_index": -1.0
         }
       },
       "agreement": {
-        "carve_under_both": 1610,
-        "survive_under_both": 1580,
-        "disputed": 431
+        "carve_under_both": 1561,
+        "survive_under_both": 1643,
+        "disputed": 417
       },
       "penman_ocean_validation": {
         "penman_mm_per_day": 3.736,
@@ -296,9 +296,9 @@
     },
     "carve_list": {
       "counts": {
-        "carve": 1512,
-        "preserve": 2011,
-        "marginal": 98
+        "carve": 1478,
+        "preserve": 2060,
+        "marginal": 83
       },
       "terrain_hash": "e931b0d9947a232210a3cc11ba82003b5da15765d86e87956bc44c220932760e",
       "climate": {
@@ -306,7 +306,7 @@
         "flux_earth": 0.945,
         "stellar_spectrum": "k25v",
         "land_surface": "vegetated",
-        "mean_surface_temperature_k": 289.79,
+        "mean_surface_temperature_k": 289.71,
         "note": "The land surface is assumed rather than modelled, and the albedo bracket puts that assumption at 3.7 to 7.1 K."
       }
     }

@@ -86,7 +86,7 @@ from _paths import ANALYSIS, CONFIG, DUST_CONFIG, PROJECT_ROOT  # noqa: E402
 from builds import component_data, grid_export, mesh_export, resolution_of, soilmap
 from gridding import land_fraction_of_class, region_cells
 from orogen import LAND, Export
-from paths import climatology_path, rel, snapshot_sibling
+from paths import climatology_path, rel, require_clean_io, snapshot_climatology_path
 from provenance import require_build
 
 VON_KARMAN = 0.4
@@ -186,55 +186,13 @@ def flag_anomalous_bins(spd: np.ndarray, factor: float = 2.5) -> list[int]:
     0 alone was 100.00% of the annual total, because emission goes as roughly
     u* cubed above a threshold and that bin's wind is 7.5x too large.
 
-    Excluding the bin is necessary and is not sufficient: see
-    `speed_bias_correction` for the second defect in the same field, which
-    survives the exclusion and runs the other way.
+    Kept as a guard, but it should no longer fire: runs from 2026-08-17 set
+    `NLOWIO = 0` and `require_clean_io` refuses a climatology that predates
+    that. If it does fire, something upstream is wrong.
     """
     bottom = spd[:, -1, :, :].mean(axis=(1, 2))
     median = np.median(bottom)
     return [int(i) for i in np.where(bottom > factor * median)[0]]
-
-
-def speed_bias_correction(snapshot: Path, spd: np.ndarray,
-                          good: list[int]) -> np.ndarray | None:
-    """Per cell, the factor taking the binned near-surface wind to a mean speed.
-
-    The binned `spd` is not the mean of a wind speed. The model accumulates the
-    components over each output interval before anything averages them, so
-    whatever reverses inside that interval is cancelled -- and with a 30-hour day
-    and a roughly daily interval, that is most of a diurnal cycle. On the
-    baseline climatology the binned field gives 5.03 m/s at the bottom level
-    against 7.36 from instantaneous samples, and 3.92 for the speed of the
-    time-mean vector, so it sits between the two.
-
-    In the snapshot product `spd` is exactly `sqrt(ua^2+va^2)` sample by sample,
-    ratio 1.000 and correlation 1.0000 at every level, so it is the mean of the
-    speed and it is the quantity a threshold-and-cube emission law wants.
-
-    **This is a separate defect from the corrupt first bin and it survives
-    dropping it.** The two run opposite ways, so a component that fixes only one
-    can end up further from the truth than one that fixes neither; see
-    `notes/failure-modes.md` class 15.
-
-    Applied as a ratio per cell rather than a global scalar, because the
-    cancellation is spatial: 1.11 to 1.92 between the fifth and ninety-fifth
-    percentiles on the baseline, larger where the wind direction is more
-    variable. Applied to every bin rather than replacing the field, because the
-    snapshots have no usable seasonal cycle at 32 samples an orbit while the
-    binned field does, and dust emission is seasonal.
-
-    Returns None if there is no snapshot product to correct against, which the
-    caller reports rather than silently proceeding: an uncorrected emission is
-    low by the cube of about 1.55.
-    """
-    if not snapshot.is_file():
-        return None
-    with Dataset(snapshot) as ds:
-        if "spd" not in ds.variables:
-            return None
-        truth = np.asarray(ds["spd"][:, -1, :, :], dtype=float).mean(axis=0)
-    binned = spd[good, -1, :, :].mean(axis=0)
-    return np.where(binned > 0.01, truth / np.maximum(binned, 1e-6), 1.0)
 
 
 def weibull_shape_from_samples(samples: Path, mask) -> tuple[float, int] | None:
@@ -506,6 +464,7 @@ def main() -> None:
 
     # Cross-component reads are checked, not assumed. lib/provenance.py says why.
     require_build(clim_path, "climatology", config)
+    require_clean_io(clim_path)
     lakes = component_data("hydrography", config, strict=True) / "surface_water.nc"
     require_build(lakes, "lake solution", config)
 
@@ -556,13 +515,13 @@ def main() -> None:
     z_ref = (R_DRY * tas / gravity) * np.log(1.0 / min(max(sigma_bottom, 0.5), 0.999))
 
     rho_a = ps / (R_DRY * tas)
-    speed_ratio = speed_bias_correction(snapshot_sibling(clim_path), spd, good)
-    if speed_ratio is None:
-        raise SystemExit(
-            "no snapshot climatology beside " + str(clim_path) + ", so the "
-            "binned wind cannot be corrected to a mean speed. Emission would be "
-            "low by roughly the cube of 1.55; see speed_bias_correction.")
-    u_bottom = spd[:, -1, :, :] * speed_ratio[None, :, :]
+    # No correction. The binned wind was once wrong twice over under PlaSim's
+    # low-I/O path -- a corrupt first record and a partial vector cancellation --
+    # and both vanish together at NLOWIO = 0, measured on this run as a first-bin
+    # ratio of 1.03 and a binned/snapshot ratio of 1.002. `require_clean_io`
+    # refuses a climatology that predates that rather than scaling it, because
+    # the old 1.55x scaling would be a 55% error on clean output.
+    u_bottom = spd[:, -1, :, :]
     # `ua` and `va` are PHYSICAL winds and need no rescaling. Checked against
     # the raw artifact rather than inferred from burn7's source: on
     # MOST_SNAP.00086 the largest pointwise difference between `spd` and
@@ -606,7 +565,7 @@ def main() -> None:
     # The wind-tail shape is measured from the snapshot climatology rather than
     # declared, because the declared value turned out to be wrong by enough to
     # move the answer two orders of magnitude. See the config note.
-    gust_source = args.gust_samples or snapshot_sibling(clim_path)
+    gust_source = args.gust_samples or snapshot_climatology_path()
     fitted = weibull_shape_from_samples(gust_source, erodible > 0.05)
     k_measured, k_samples = fitted if fitted else (None, 0)
     if k_measured is not None:
@@ -730,19 +689,6 @@ def main() -> None:
                     "Snapshots resolve synoptic but not sub-daily variance, so "
                     "a shape fitted to them is an upper bound and the emission "
                     "a lower bound. Quote the sample count with the shape.",
-        },
-        "speed_bias_correction": {
-            "median": round(float(np.median(speed_ratio)), 4),
-            "p5_p95": [round(float(x), 4)
-                       for x in np.percentile(speed_ratio, [5, 95])],
-            "measured_from": rel(snapshot_sibling(clim_path)),
-            "note": "Per cell, the factor taking the binned near-surface wind "
-                    "to a mean of the speed. The binned `spd` is partly "
-                    "vector-cancelled by the model's output accumulation and is "
-                    "NOT the quantity a threshold-and-cube emission law wants. "
-                    "This is a second defect in the same field as the excluded "
-                    "bin and it runs the other way; see speed_bias_correction "
-                    "and `notes/failure-modes.md` class 15.",
         },
         "shelter_bracket": outcomes,
         "reopening_test": {

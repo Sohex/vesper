@@ -21,6 +21,7 @@ as absolute is not portable, and a path that raises is worse than either.
 
 from __future__ import annotations
 
+from netCDF4 import Dataset
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -80,45 +81,51 @@ def climatology_path(name: str | None = None, root: Path | None = None) -> Path:
     return project / declared
 
 
-def snapshot_sibling(regular: Path) -> Path:
-    """The instantaneous-sample product beside a binned climatology.
+def require_clean_io(climatology: Path) -> None:
+    """Refuse a climatology built from PlaSim's low-I/O output path.
 
-    Two fields have to be read from here rather than from the binned product:
-    wind speed and specific humidity.
+    Such a product is wrong in two ways at once, and both are artifacts of that
+    path rather than properties of the binning. The first output record of every
+    orbit carries no boundary layer, so bottom-level wind reads about 7.5x the
+    other bins and humidity 27% low. And the binned `spd` is additionally
+    vector-cancelled, because the model accumulates the components over each
+    output interval before anything averages them.
 
-    Wind wants it on the physics. A turbulent flux is driven by the mean of the
-    SPEED, and the binned `spd` is much closer to the speed of a time-mean
-    vector, which cancels where the wind reverses: 5.14 m/s per orbit against
-    7.50 from instantaneous samples over the same orbits.
+    Measured on this run: under `NLOWIO = 1`, orbit 65 gives a first-bin wind
+    ratio of 9.0 and a binned `spd` 1.14x the mean of instantaneous speeds. Under
+    `NLOWIO = 0`, orbits 70 and 76 give first-bin ratios of 1.03 and 0.99 and
+    binned/snapshot ratios of 1.002 and 0.999. **Both defects vanish together.**
 
-    Humidity wants it because of a defect. PlaSim's low-I/O path wrote a corrupt
-    first output record per model call -- in these same two fields -- and a
-    binned mean carries it. Runs from 2026-08-17 set `NLOWIO = 0` and no longer
-    produce it, but every climatology built before that does; see
-    `exoplasim/notes/first-output-bin.md`. The two errors happened to run
-    opposite ways, so the uncorrected binned wind was within 3.1% of this and
-    dropping the bad record alone would have been 33% low.
+    So this refuses rather than corrects. Correcting was the earlier approach and
+    the corrections are themselves wrong once the defect is gone: reading wind
+    from the snapshot product costs a factor of 32 in samples for nothing, and
+    scaling the binned wind up by 1.55 would be a 55% error on clean output.
 
-    Taken from the given path rather than from config, so a `--climatology`
-    override stays self-consistent.
+    A product with no `low_io` attribute predates the stamp and is assumed
+    tainted, which is the honest default -- every climatology built before
+    2026-08-17 was.
     """
-    regular = Path(regular)
-    stem = regular.name
-    if "_regular_climatology.nc" not in stem:
-        raise ValueError(
-            f"{regular} is not a *_regular_climatology.nc, so its snapshot "
-            "sibling cannot be named; pass the binned product")
-    snapshot = regular.with_name(
-        stem.replace("_regular_climatology.nc", "_snapshot_climatology.nc"))
-    if not snapshot.is_file():
-        raise FileNotFoundError(
-            f"no snapshot climatology at {snapshot}. Wind and humidity are read "
-            "from instantaneous samples, not from the binned mean; rebuild the "
-            "climatology so both products exist.")
-    return snapshot
+    with Dataset(climatology) as ds:
+        low_io = getattr(ds, "low_io", None)
+    if low_io is None or int(low_io) != 0:
+        raise SystemExit(
+            f"{climatology} was built from orbits run with PlaSim's low-I/O "
+            "accumulation (or predates the stamp), so its wind and humidity are "
+            "wrong. Rebuild it from NLOWIO = 0 orbits; see "
+            "exoplasim/notes/first-output-bin.md.")
 
 
 def snapshot_climatology_path(name: str | None = None,
                               root: Path | None = None) -> Path:
-    """`snapshot_sibling` of the configured climatology."""
-    return snapshot_sibling(climatology_path(name, root=root))
+    """The instantaneous-sample product beside the configured climatology.
+
+    Still produced and still useful -- it carries orbital phase, which the binned
+    product does not -- but no longer a workaround for anything. See
+    `require_clean_io`.
+    """
+    regular = climatology_path(name, root=root)
+    snapshot = regular.with_name(
+        regular.name.replace("_regular_climatology.nc", "_snapshot_climatology.nc"))
+    if not snapshot.is_file():
+        raise FileNotFoundError(f"no snapshot climatology at {snapshot}")
+    return snapshot

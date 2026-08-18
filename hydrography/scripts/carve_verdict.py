@@ -56,7 +56,7 @@ import yaml
 from _paths import ANALYSIS, CONFIG, DATA, PROJECT_ROOT  # noqa: F401
 from builds import component_data
 from orbit import orbital_year_days
-from paths import climatology_path, snapshot_sibling
+from paths import climatology_path, require_clean_io
 from lake_balance import BasinSet, carve_verdict, solve
 
 DRHSFULL = 0.4          # landmod.f90: wetness reaches 1 above this fraction
@@ -77,62 +77,29 @@ def saturation_vapour_pressure(temp_k):
     return 610.94 * np.exp(17.625 * (temp_k - 273.15) / (temp_k - 30.11))
 
 
-# A first output record whose global-mean bottom-level wind exceeds this
-# multiple of the other records' median is the low-I/O defect, not weather. The
-# observed factor is 7 to 9 and no seasonal cycle approaches 3, so the gate is
-# wide on purpose: it must not fire on a clean climatology.
-BAD_FIRST_BIN_WIND_RATIO = 3.0
-
-
-def _area_weights(ds, shape):
-    lat = np.asarray(ds["lat"][:])
-    return np.broadcast_to(np.cos(np.deg2rad(lat))[:, None], shape)
-
-
 def turbulent_forcing(climatology):
     """Near-surface wind speed and specific humidity for the Penman calculation.
 
-    Everything else Penman needs is a time mean of a field that means the same
-    thing averaged. These two are not, and they are wrong in different ways, so
-    they are read differently.
+    Both from the binned climatology, both from the bottom level, no correction.
 
-    **Wind comes from the instantaneous product.** A turbulent flux is driven by
-    the mean of the SPEED, and the binned `spd` is not that: on the baseline
-    climatology it is 5.03 m/s at the bottom level against 3.92 for the speed of
-    the time-mean vector and 7.34 for the mean of instantaneous speeds. It sits
-    between the two, so the model's output accumulation cancels part of the
-    reversing component. The snapshot product does not: in it `spd` equals
-    `sqrt(ua^2 + va^2)` sample by sample, ratio 1.000 and correlation 1.0000 at
-    every level, which is what the field is supposed to be and settles what code
-    259 means. 32 samples an orbit is coarse but unbiased.
+    They used to be corrected, and the corrections are gone rather than
+    improved. Under PlaSim's low-I/O output path the binned wind was wrong twice
+    over -- a corrupt first record per orbit, and a partial vector cancellation
+    from accumulating the components before averaging them -- so this read wind
+    from the snapshot product and dropped the bad record from humidity. Runs now
+    set `NLOWIO = 0` and both defects vanish together: measured on this run, the
+    first-bin wind ratio goes from 9.0 to 1.03 and binned `spd` from 1.14x the
+    mean of instantaneous speeds to 1.002x.
 
-    **Humidity comes from the binned product with the first record dropped.**
-    There is no `hus` in the snapshot output to switch to, and the binned mean
-    does not need switching, only repairing: PlaSim's low-I/O path wrote a
-    corrupt first record per orbit -- in the wind and humidity fields only -- and
-    it is 27% low in humidity. Dropping it costs a twelfth of the seasonal cycle,
-    which is worth 0.08% here: reconstructing that record by cyclic interpolation
-    from its neighbours instead gives an annual mean 0.08% away from simply
-    dropping it, against the 2.1% the uncorrected mean is out by. Runs from
-    2026-08-17 set `NLOWIO = 0` and do not produce the record, so the repair is
-    gated on detecting it and a clean climatology passes through untouched. See
-    `exoplasim/notes/first-output-bin.md`.
-
-    Split out so the verdict, the carve list and the surface-water solve cannot
-    drift apart on it, which is how they came to disagree before.
+    So the binned product is now the right thing to read, and it is strictly
+    better than the snapshot one at 182 samples an orbit against 32.
+    `require_clean_io` refuses a climatology that predates the change rather
+    than correcting it, because the corrections are wrong on clean output.
     """
-    with Dataset(snapshot_sibling(climatology)) as ds:
-        spd = np.asarray(ds["spd"][:])[:, -1]
-        wind = spd.mean(axis=0)
-
+    require_clean_io(climatology)
     with Dataset(climatology) as ds:
-        hus = np.asarray(ds["hus"][:])[:, -1]
-        binned = np.asarray(ds["spd"][:])[:, -1]
-        w = _area_weights(ds, binned.shape[1:])
-    per_bin = np.array([np.average(b, weights=w) for b in binned])
-    if per_bin[0] > BAD_FIRST_BIN_WIND_RATIO * np.median(per_bin[1:]):
-        hus = hus[1:]
-    q_air = hus.mean(axis=0)
+        q_air = np.asarray(ds["hus"][:]).mean(axis=0)[-1]
+        wind = np.asarray(ds["spd"][:]).mean(axis=0)[-1]
     return q_air, wind
 
 
