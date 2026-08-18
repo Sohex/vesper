@@ -283,8 +283,9 @@ ExoPlaSim's `k2.dat` is the star K2-18, an M2.5V at about 3450 K, not the
 spectral type K2; the package ships no K dwarf spectrum at all. Snow, ice and
 glacier albedos were consequently 0.10 to 0.17 too dark everywhere, which
 weakened the very feedback the glacier and stellar-cycle machinery exists to
-resolve. The model confirms the fix from its own log: energy fraction below
-0.75 microns is 0.38438 under `k25v` against 0.11588 under `k2`.
+resolve. The model confirms the fix from its own log: the energy fraction below
+0.75 microns is more than three times larger under `k25v` than the 0.11588 that
+`k2` gives, and `lib/stellar.py` is where the current share comes from.
 
 Everything before the re-baseline carries that bias. It is not invalidated in
 kind and the direction is known, but it should be stated wherever it is quoted.

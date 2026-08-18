@@ -1,8 +1,8 @@
 {
-  "generated": "2026-08-18T08:01:19+00:00",
+  "generated": "2026-08-18T09:02:59+00:00",
   "source": "/home/cfutro/git/lpj-guess/guess_4.1/data/ins/global.ins",
   "source_sha256": "4daa4358a1f2de730601ac64ce3a64e54821838de20f9391ac07f649fefb90d8",
-  "config_sha256": "5736dfdf32e15535a671451a1ef6875277cc33b351dce602413dc7dc6f1d2c77",
+  "config_sha256": "6dff33deedc38674ccaf7a933329c16d105246f107b1d3d7df901ae4ef1a8c13",
   "source_config": {
     "schema_version": 1,
     "source_build": "precarve-craton",
@@ -21,7 +21,8 @@
       "surface_uv_relative_to_earth": 0.4,
       "mass_solar": 0.8,
       "luminosity_solar": 0.32359365692962827,
-      "effective_temperature_k": 4965.0
+      "effective_temperature_k": 4965.0,
+      "metallicity": 0.0
     },
     "orbit": {
       "earth_solar_constant_w_m2": 1361.0,
@@ -190,7 +191,7 @@
       "direction": "up, a duration in years"
     }
   ],
-  "output_sha256": "9a144e5198d757e54b58e2eb3ff384b5070f37c5c6635bd3f371b21149b7630e",
-  "git_commit": "44f4dc7b69a49b8b3fd456b657191f4b5bfbe28c",
+  "output_sha256": "ee5a6410522487dc073276cd60d88633be502e3db1334c3be0a54f8b44492bff",
+  "git_commit": "1e8dbc07cd72473845be70cc68bb1a0fe7eeb622",
   "generator": "biosphere/scripts/build_vesper_pfts.py"
 }

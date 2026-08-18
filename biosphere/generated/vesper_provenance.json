@@ -1,6 +1,6 @@
 {
-  "generated": "2026-08-18T08:01:20+00:00",
-  "config_sha256": "5736dfdf32e15535a671451a1ef6875277cc33b351dce602413dc7dc6f1d2c77",
+  "generated": "2026-08-18T09:02:59+00:00",
+  "config_sha256": "6dff33deedc38674ccaf7a933329c16d105246f107b1d3d7df901ae4ef1a8c13",
   "source_config": {
     "schema_version": 1,
     "source_build": "precarve-craton",
@@ -19,7 +19,8 @@
       "surface_uv_relative_to_earth": 0.4,
       "mass_solar": 0.8,
       "luminosity_solar": 0.32359365692962827,
-      "effective_temperature_k": 4965.0
+      "effective_temperature_k": 4965.0,
+      "metallicity": 0.0
     },
     "orbit": {
       "earth_solar_constant_w_m2": 1361.0,
@@ -137,10 +138,10 @@
     "max_abs_residual_deg": 1.894499386439703,
     "note": "day 0 of the simulation year is the first climatology bin"
   },
-  "fradpar": 0.46242839799049584,
+  "fradpar": 0.46591152985360895,
   "fradpar_detail": {
     "spectrum": "exoplasim/inputs/stellarspectra/k25v.dat",
-    "spectrum_sha256": "7196ade540b0496b047b1460a93920bc1099282c9b32324fac3ce1c32579034b",
+    "spectrum_sha256": "2284d52e5c00d47fe946bb091acd800cd4dc01f83d3e435a5505e3da3f14d652",
     "par_window_um": [
       0.4,
       0.75
@@ -149,13 +150,13 @@
       0.4,
       0.7
     ],
-    "star_par_fraction": 0.36093877202426156,
+    "star_par_fraction": 0.3636574574314161,
     "solar_par_fraction_over_earth_window": 0.3902644967228849,
-    "ratio": 0.9248567959809917,
+    "ratio": 0.9318230597072179,
     "earth_fradpar": 0.5
   },
   "source_build": "precarve-craton",
-  "git_commit": "44f4dc7b69a49b8b3fd456b657191f4b5bfbe28c",
-  "header_sha256": "acf9358a70ed77e678665130896b0bcb05f09f496f37f85f6470797adb7054ed",
+  "git_commit": "1e8dbc07cd72473845be70cc68bb1a0fe7eeb622",
+  "header_sha256": "07b0516cd832e4a4f778b85c773e25698b7d858278afc33092b9695c1db3cb18",
   "generator": "biosphere/scripts/build_vesper_header.py"
 }

@@ -26,9 +26,10 @@ or cools over the surfaces that make this world unusual.
 
 ## Band-2 indices are the hard part
 
-ExoPlaSim's shortwave split is at 0.75 um, and 61.6% of this star's flux is above
-it (the model's own figure, not a blackbody estimate). That is the band where
-measured dust indices effectively run out:
+ExoPlaSim's shortwave split is at 0.75 um, and most of this star's flux is above
+it -- `lib/stellar.py` has the share, computed the way `solarini` computes it
+rather than from a blackbody. That is the band where measured dust indices
+effectively run out:
 
   Di Biagio 2019   0.37-0.95 um   measured, 19 samples          -> band 1
   Rocha-Lima 2018  0.95-2.45 um   measured, but FIGURE ONLY     -> band 2

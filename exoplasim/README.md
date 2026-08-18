@@ -87,10 +87,10 @@ status, is skipped by the convergence window, and is refused as climatology
 input. The vocabulary lives in `segments.py`.
 
 A resume also compares the STELLAR SPECTRUM BY CONTENT, not by name. The config
-names `k25v`, `build_stellar_spectrum.py` writes `k25v.dat` from
-`star.spectral_type` and `star.effective_temperature_k`, and it rewrites it in
-place, so the whole radiative input can change while every recorded name stays
-the same. The run manifest carries a sha256 of both spectrum files and a resume
+names `k25v`, `build_stellar_spectrum.py` writes `k25v.dat` from the `star`
+block -- spectral type, effective temperature and metallicity -- and it rewrites
+it in place, so the whole radiative input can change while every recorded name
+stays the same. The run manifest carries a sha256 of both spectrum files and a resume
 refuses across a change to either. A run prepared before that existed is stamped
 on its first resume and says so.
 
@@ -144,7 +144,7 @@ unless told they exist.
 | `build_surface_albedo.py` | background land albedo from lithology, optionally composited with solved lakes |
 | `build_surface_roughness.py` | aerodynamic roughness length per cell, surface code 0173 |
 | `build_surface_soil_water.py` | feeds pedology's soil water capacity back as `dwmax` |
-| `build_stellar_spectrum.py` | this star's spectrum from BT-Settl |
+| `build_stellar_spectrum.py` | this star's spectrum from BT-Settl, checked against the blend at source resolution |
 | `sra.py` | writes ExoPlaSim's `.sra` surface format; imported by the builders above |
 | `run_exoplasim.py` | prepare, validate and run an experiment |
 | `continue_exoplasim.py` | resume a prepared run from its latest restart; `--purpose` says what the segment is for |
@@ -315,7 +315,7 @@ in rather than the state it was first measured on.
 
 **And no run has yet used `k25v` past its first orbit.** `continue_exoplasim.py`
 rebuilt the namelists without `starspec`, so `solarini` fell back to a 4965 K
-blackbody: 0.4184 of the flux below 0.75 um against the spectrum's 0.3844, and
+blackbody: 0.4184 of the flux below 0.75 um against the spectrum's own share, and
 +0.024 on broadband snow albedo. Fixed in the drivers, gated on a `radmod.f90`
 patch, and tracked as `SPEC-1`/`SPEC-2`. Take band shares from `lib/stellar.py`,
 not from a run log.
