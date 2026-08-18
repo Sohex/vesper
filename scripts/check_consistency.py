@@ -38,6 +38,25 @@ since the loop is only monotone if an already-carved basin stays carved.
 
 **Config internal consistency.** Gravity against mass, and the declared orbit
 against the flux it is derived from.
+
+**Generated biosphere inputs against the config values they were derived from.**
+Parsed values, not a hash of `config/planet.yaml`, because a file hash reports an
+edited comment as a stale artifact and the remedy it names -- re-run the
+generators -- both works and teaches the wrong thing.
+
+## Checking the checker
+
+    python scripts/check_consistency.py --self-test
+
+The audit above compares artifacts, so nothing in it says whether the comparison
+itself can still tell a real change from a cosmetic one. `--self-test` asks that
+directly: it edits the live `config/planet.yaml` IN MEMORY and asserts what the
+comparison must say about each edit. A comment must not be drift, an allowlisted
+key must not be drift, a parameter must be, a deleted key must be, and every
+allowlist entry must name a key that exists. The parameter case is the one that
+matters: a comparison that fired at nothing would pass every negative case here
+and no positive one, which is why each negative case is paired with the positive
+that proves the edit landed.
 """
 
 from __future__ import annotations
@@ -55,6 +74,7 @@ import yaml                          # noqa: E402
 
 import builds                        # noqa: E402
 from gridding import coupling_ocean_fraction   # noqa: E402
+from provenance import config_drift, unknown_inert_keys   # noqa: E402
 
 
 def land_sea_mask():
@@ -62,6 +82,44 @@ def land_sea_mask():
     from paths import climatology_path
     with Dataset(climatology_path()) as ds:
         return np.asarray(ds["lsm"][:]).mean(axis=0)
+
+
+# Config keys that cannot reach `biosphere/generated/`. Everything else is
+# assumed to reach it, so this list is short on purpose and each entry was
+# traced rather than assumed: the two generators, `build_vesper_header.py` and
+# `build_vesper_pfts.py`, read the config in five places between them, plus
+# `lib/orbit.py` for the period and `lib/paths.py` for the climatology, and
+# nothing here is read by any of them or by anything they read.
+#
+# What is deliberately NOT here matters more than what is:
+#
+#   `star.spectral_type` looks inert -- it is a label -- but
+#   `build_stellar_spectrum.py` writes the `.dat` file from it, and the header's
+#   FRADPAR is an integral over that file. It reaches the artifact through one
+#   more file, which is exactly the route an allowlist is for missing.
+#
+#   `model.*` is ExoPlaSim's runtime configuration and no biosphere script reads
+#   a key of it, but it reaches the climatology, and the header fits its
+#   solstice offset against the climatology `baseline_climatology` names. A
+#   re-baseline under the same name would move the artifact with nothing left to
+#   say so.
+#
+# A change to either of those SHOULD report the generated inputs as stale.
+BIOSPHERE_INERT_CONFIG_KEYS = {
+    "schema_version",                     # bookkeeping; written into provenance
+                                          # records, never read as an input
+    "star.activity",                      # a design declaration; no script
+                                          # reads it
+    "star.surface_uv_relative_to_earth",  # a design declaration; ExoPlaSim
+                                          # models no ultraviolet and no script
+                                          # reads it
+    # Prose carried inside the YAML rather than in a comment above it, and the
+    # in-band twin of the comment edit this check used to fail on. Only
+    # `period_earth_years` and `amplitude_flux_peak_to_peak` are read out of
+    # `stellar_cycle.components`, by `run_stellar_cycle.py`.
+    "stellar_cycle.components.medium.note",
+    "stellar_cycle.components.long.note",
+}
 
 
 FAIL, WARN, OK = "FAIL", "warn", "ok"
@@ -109,12 +167,109 @@ def sha256_of(path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def self_test() -> int:
+    """Assert what the config comparison must say about known edits.
+
+    Each case is an edit whose correct verdict is known in advance, which is the
+    only kind of case worth writing: see notes/failure-modes.md class 17. They
+    are made against the LIVE config, so they also fail if a key one of them
+    names stops existing, rather than passing on a config nobody has.
+    """
+    import hashlib
+    import re
+    text = (ROOT / "config" / "planet.yaml").read_text(encoding="utf-8")
+    base = yaml.safe_load(text)
+    inert = BIOSPHERE_INERT_CONFIG_KEYS
+
+    def edited(pattern: str, replace) -> tuple[str, dict]:
+        m = re.search(pattern, text, re.M)
+        if m is None:
+            raise AssertionError(f"no line matching {pattern!r} in config/planet.yaml")
+        out = text[:m.start()] + replace(m) + text[m.end():]
+        return out, yaml.safe_load(out)
+
+    failures, cases = [], []
+
+    def case(name: str, got, want, why: str):
+        cases.append((name, got == want, why))
+        if got != want:
+            failures.append(f"{name}: expected {want!r}, got {got!r} ({why})")
+
+    # A comment. The edit the old file-hash comparison could not distinguish
+    # from a parameter change, and the reason this function exists.
+    commented = "# self-test: a comment, which changes no value\n" + text
+    case("a comment is not drift",
+         config_drift(base, yaml.safe_load(commented), inert), [],
+         "parsed values are identical")
+    case("a comment does move the file hash",
+         (hashlib.sha256(commented.encode()).hexdigest()
+          == hashlib.sha256(text.encode()).hexdigest()), False,
+         "the comparison this check replaced would have called it stale")
+
+    # A parameter that reaches the artifact: the header's solstice offset is
+    # fitted at this obliquity. THIS is the case that matters. Bumped by 1
+    # rather than set to a literal, so the test carries no current value.
+    _, cfg = edited(r"^(\s*obliquity_degrees:\s*)([0-9.]+)(.*)$",
+                    lambda m: f"{m.group(1)}{float(m.group(2)) + 1.0}{m.group(3)}")
+    case("an edited parameter is drift",
+         [d.split(":")[0] for d in config_drift(base, cfg, inert)],
+         ["planet.obliquity_degrees"],
+         "it is read by build_vesper_header.py and sizes nothing else")
+
+    # A key that vanishes. A generator reading a config missing a key it needs
+    # raises; one reading a config that has GAINED a key does not, and both are
+    # differences the artifact was not built from.
+    dropped = "\n".join(line for line in text.splitlines()
+                        if not re.match(r"^\s*eccentricity:", line))
+    case("a deleted parameter is drift",
+         [d.split(":")[0] for d in config_drift(base, yaml.safe_load(dropped), inert)],
+         ["planet.eccentricity"],
+         "recorded -> None is a difference like any other")
+
+    # An allowlisted key, both ways round: inert only because it is allowlisted,
+    # not because the edit failed to land.
+    _, activity = edited(r"^(\s*activity:\s*)(\S+)(.*)$",
+                         lambda m: f"{m.group(1)}{m.group(2)}-selftest{m.group(3)}")
+    case("an allowlisted key is not drift",
+         config_drift(base, activity, inert), [],
+         "star.activity is a declaration no script reads")
+    case("the same edit is drift without the allowlist",
+         [d.split(":")[0] for d in config_drift(base, activity, frozenset())],
+         ["star.activity"],
+         "otherwise the case above would pass on an edit that never happened")
+
+    # Every allowlist entry names a live key. `star.surface_uv` sat in the
+    # resume guard's list excusing nothing, because the key is
+    # `star.surface_uv_relative_to_earth`.
+    sys.path.insert(0, str(ROOT / "exoplasim" / "scripts"))
+    from continue_exoplasim import INERT_CONFIG_KEYS
+    case("biosphere allowlist entries all exist",
+         unknown_inert_keys(inert, base), [], "an entry that matches nothing excuses nothing")
+    case("resume allowlist entries all exist",
+         unknown_inert_keys(INERT_CONFIG_KEYS, base), [], "same, for the resume guard")
+
+    width = max(len(n) for n, _, _ in cases) + 2
+    for name, ok, why in cases:
+        print(f"[{'  ok  ' if ok else ' FAIL '}] {name:<{width}} {why}")
+    print(f"\n{len(cases)} cases, {len(failures)} failed")
+    for f in failures:
+        print(f"  {f}")
+    return 1 if failures else 0
+
+
 def main() -> int:
     import argparse
-    argparse.ArgumentParser(
+    parser = argparse.ArgumentParser(
         description="Verify that everything in tree describes the same world. "
                     "Exit 1 on disagreement. Takes no arguments; it audits the "
-                    "artifacts as they are.").parse_args()
+                    "artifacts as they are.")
+    parser.add_argument(
+        "--self-test", action="store_true",
+        help="check the checker instead of the tree: assert what the config "
+             "comparison says about a comment, an allowlisted key, an edited "
+             "parameter and a deleted one. Touches nothing on disk.")
+    if parser.parse_args().self_test:
+        return self_test()
     config = yaml.safe_load((ROOT / "config" / "planet.yaml").read_text(encoding="utf-8"))
     rep = Report()
     build = str(config.get("source_build", ""))
@@ -379,31 +534,51 @@ def main() -> int:
     # -- generated biosphere inputs vs the config they were derived from -----
     #
     # biosphere/generated/ holds a C++ header, a driver and a PFT file, each
-    # DERIVED from config/planet.yaml and each recording the config_sha256 it was
-    # built against. That design is right and it is why the year length is not
-    # written down anywhere by hand. But nothing verified the derivation had
-    # actually been re-run, so all three drifted -- and to three DIFFERENT config
-    # states, which is worse than one stale artifact because they disagree with
-    # each other as well as with the config.
+    # DERIVED from config/planet.yaml and each recording the config it was built
+    # against. That design is right and it is why the year length is not written
+    # down anywhere by hand. But nothing verified the derivation had actually
+    # been re-run, so all three drifted -- and to three DIFFERENT config states,
+    # which is worse than one stale artifact because they disagree with each
+    # other as well as with the config.
     #
     # The year length sizes arrays in a compiled header, so it cannot be checked
     # at runtime. This is the check.
+    #
+    # It compares PARSED VALUES, not a hash of the file. A hash of
+    # config/planet.yaml cannot tell an edited comment from an edited parameter,
+    # so this fired on a two-line comment change and named re-running three
+    # generators as the remedy. That is worse than not firing: the remedy sounds
+    # right, it makes the message go away, and what it teaches is to re-run a
+    # generator to silence a hash rather than because anything moved. The resume
+    # guard had the same defect and the same fix, and `config_drift` is now the
+    # one implementation of it -- see lib/provenance.py.
     try:
         gen = ROOT / "biosphere" / "generated"
         cur = sha256_of(ROOT / "config" / "planet.yaml")
         stale = []
         for prov in sorted(gen.glob("*_provenance.json")):
             rec = json.loads(prov.read_text(encoding="utf-8"))
-            was = rec.get("config_sha256")
-            if was != cur:
-                yl = rec.get("year_length_days")
-                # Each artifact names its own generator, so the remediation is
-                # read off the artifact rather than guessed. It used to name one
-                # script for all three, which was wrong for two of them.
-                who = rec.get("generator") or "(generator not recorded)"
-                stale.append(f"{prov.name}"
-                             + (f" (year_length_days={yl})" if yl else "")
-                             + f" -> rerun {who}")
+            yl = rec.get("year_length_days")
+            # Each artifact names its own generator, so the remediation is read
+            # off the artifact rather than guessed. It used to name one script
+            # for all three, which was wrong for two of them.
+            who = rec.get("generator") or "(generator not recorded)"
+            what = f"{prov.name}" + (f" (year_length_days={yl})" if yl else "")
+            was = rec.get("source_config")
+            if was is None:
+                # A record from before the generators kept the parsed config.
+                # Its bytes are all there is, so the file hash is all that can be
+                # compared -- and it is reported as what it is, a comparison that
+                # cannot separate a comment from a parameter, rather than as a
+                # verdict on the artifact.
+                if rec.get("config_sha256") != cur:
+                    stale.append(f"{what} records no source_config and the "
+                                 f"config file has changed, which may be only a "
+                                 f"comment -> rerun {who} to settle it")
+                continue
+            drift = config_drift(was, config, BIOSPHERE_INERT_CONFIG_KEYS)
+            if drift:
+                stale.append(f"{what}: " + "; ".join(drift) + f" -> rerun {who}")
         if not list(gen.glob("*_provenance.json")):
             rep.add(WARN, "generated biosphere inputs", "none present")
         else:

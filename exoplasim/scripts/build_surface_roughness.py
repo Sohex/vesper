@@ -57,7 +57,8 @@ constant and supply the pattern.
 
 **This changes climate results.** It is off unless `model.roughness_source` is set
 in `config/planet.yaml`, and that key is deliberately absent by default, because
-adding it moves `config_sha256` and blocks resumption of any run in flight.
+adding it is a configuration change `continue_exoplasim.py` compares for and
+refuses to resume across, so it blocks any run in flight.
 """
 
 from __future__ import annotations

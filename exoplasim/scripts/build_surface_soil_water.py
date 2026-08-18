@@ -30,7 +30,8 @@ soil exists. See `pedology/README.md`.
 carve verdict will use, not after it. `model.soil_water_source: pedology` is set
 in `config/planet.yaml`; the code defaults to `uniform` when the key is absent,
 which is what kept runs in flight resumable while the key was held back, since
-adding it moves `config_sha256`.
+adding it is a configuration change `continue_exoplasim.py` refuses to resume
+across.
 """
 
 from __future__ import annotations
@@ -226,7 +227,8 @@ def main() -> None:
             "against Earth's ~35% is the symptom."),
         "not_enabled_by_default": (
             "Requires model.soil_water_source: pedology in config/planet.yaml. "
-            "That key is absent on purpose: adding it moves config_sha256 and "
+            "That key is absent on purpose: adding it is a configuration "
+            "change continue_exoplasim.py refuses to resume across, so it "
             "blocks resumption of runs in flight."),
         "output": rel(output),
         "output_sha256": hashlib.sha256(output.read_bytes()).hexdigest(),
