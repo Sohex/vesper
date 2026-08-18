@@ -120,6 +120,14 @@ PENDING_PATCHES = [
     ("exoplasim-3.4.2-co2-shortwave.patch", "pkg"),
     ("exoplasim-3.4.2-aerocore-defects.patch", "src"),
     ("exoplasim-3.4.2-aerosol-deposition.patch", "src"),
+    # DUST-3 items 1 and 5, and the order below is the order they apply in.
+    # -aerosol-apart edits the same two lines of `aero_ini` that
+    # -aerosol-deposition does, so it is authored on top of it; -aerosol-longwave
+    # edits the `swr` aerosol block and the `radini` broadcasts -aerosol-apart
+    # touches, so it is authored on top of that. Both move the star-cycle base
+    # sha in build_star_cycle_exoplasim.sh, and that patch has been regenerated.
+    ("exoplasim-3.4.2-aerosol-apart.patch", "src"),
+    ("exoplasim-3.4.2-aerosol-longwave.patch", "src"),
 ]
 
 ROOTS = {"src": SRC, "pkg": PKG}

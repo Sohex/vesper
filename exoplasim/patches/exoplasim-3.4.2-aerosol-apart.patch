@@ -1,0 +1,169 @@
+# Give radmod the aerosol radius the namelist asked for. DUST-3 item 1.
+#
+# WHAT WAS WRONG. `apart` is declared TWICE, once in `aeromod` and once in
+# `radmod`, and only one of them is in a namelist. `aero_ini` reads `aero_nl`
+# into aeromod's copy and use-associates `l_aerorad` and `aerofile` from radmod
+# but not `apart`, so the transport settled the particle the run asked for while
+# the radiation kept the 50 nm photochemical-haze default it was born with. At
+# fixed number density the shortwave optical depth goes as `apart` squared --
+# `aod = nrho*PI*apart**2*Qext*dz`, and `nrho` comes from `mmr2n`, which uses
+# AEROMOD's `apart` -- so the aerosol the radiation saw was `(50e-9/apart)**2`
+# of the aerosol the model was carrying. That is the largest single error in the
+# aerosol path and it is the gate on DUST-8's retune.
+#
+# THE FIX IS TWO LINES OF MECHANISM. `aero_ini` copies its namelist value into
+# radmod's `apart` under a rename, and `radini` broadcasts it beside the
+# `l_aerorad` broadcast that is already there. It has to run this way round
+# because radmod cannot `use aeromod`: aeromod already uses radmod, and
+# `make_plasim` compiles radmod first. `aero_ini` runs on NROOT only and before
+# `radini`, which is exactly why the broadcast belongs in `radini`.
+#
+# NO NAMELIST SWITCH, AND THAT IS AN ARGUMENT RATHER THAN AN OMISSION.
+# WORKFLOW.md A3 requires every new TERM to default off so that both arms of an
+# A/B can come from one executable. This adds no term. It changes a value on a
+# path that is reached only when `l_aero > 0 .and. l_aerorad == 1`, and every
+# run this project has made sets `L_AERO = 0`; the prescribed-dust path
+# (`ndustrad = 1`) builds its optical depth from `ddustod` and never touches
+# `apart`, `nrho` or `rhop`. So the switch that turns this on already exists and
+# is `l_aerorad`, one namelist key, off by default, in a binary that also runs
+# the other arm. Adding a second switch would only make the fix optional, and a
+# defect nobody can reach is not something to offer as a choice.
+#
+# PREDICTION, with what would falsify it.
+#
+#  1. On every configuration that exists today -- `L_AERO = 0`, with or without
+#     `NDUSTRAD = 1` -- a binary with this patch produces output BIT-IDENTICAL
+#     to one without it. Falsified by any difference at all, which would mean
+#     the interactive aerosol path is reachable and notes/dust.md is wrong about
+#     that.
+#  2. With `l_aero = 1, l_aerorad = 1` and `apart` set from `aero_nl`, the
+#     band-1 layer optical depth rises by exactly `(apart/50e-9)**2` at fixed
+#     `nrho`: 384.6x at the optical effective radius 0.98054 um, 1948.0x at the
+#     burden-matched 2.20682 um this project uses after DUST-8. Falsified by any
+#     other ratio, and specifically by 1.0, which would mean the copy or the
+#     broadcast is not reaching `swr`.
+#  3. Column optical depth then agrees with the offline chain's own AOD at the
+#     same column mass, because `aod = column_mass * 3 Qext / (4 apart rho_p)`
+#     and `exoplasim/scripts/dust_aerofile.py` builds `Qext` from that identity.
+#     Falsified by a mismatch, which after 2 holds can only be the aerofile.
+#
+# INCIDENTAL, AND DELIBERATE. `radini` declared a SECOND `aero_nl` namelist
+# group that nothing ever read: there is no `read(...,aero_nl)` in `radini`, the
+# live one is in `aero_ini`, and `l_source`, `l_bulk`, `rhop` and `fcoeff` are
+# not declared anywhere radmod can see, so that statement was implicitly
+# declaring four unused locals. It is REMOVED rather than commented, because the
+# two lists have diverged -- the deposition patch adds `ldepvel`, `vdaero`,
+# `lwetdep`, `scava` and `scavb` to the live one -- and a stale duplicate of a
+# namelist group is worse than no copy: a reader looking up what `aero_nl`
+# contains lands on the wrong list and cannot tell. Commenting it out would
+# preserve exactly the thing that misleads.
+#
+# BASE. ExoPlaSim 3.4.2 plus, in order, exoplasim-3.4.2-ozone-band-weights,
+# -energy-diagnostics, -lowio-first-record, -denergy-accumulator,
+# -prescribed-dust, -rayleigh-reference-grid (the resident stack), then the
+# pending -co2-shortwave, -aerocore-defects and -aerosol-deposition. That base is
+#
+#   radmod.f90    11e9fad6a006c5a88f0d9568dae400a350e87730f151ec6976b126dccb44f12a
+#   aeromod.f90   aebf8dedb5dc84fc134cc7836636512be879e6b21a8d893a666bb31fc90f1856
+#
+# It sits after -aerosol-deposition rather than before it because both edit the
+# same two lines of `aero_ini`, and DUST-3's "defects first" is an argument about
+# CALIBRATION, not about patch order: all four land in one rebuild, so the order
+# within the stack is mechanical and the cheaper one is the one that regenerates
+# nothing already written.
+#
+# RESIDENT-DESTINED, NOT YET RESIDENT. It is listed in `PENDING_PATCHES` in
+# `exoplasim/scripts/rebuild_binaries.py` and moves to `RESIDENT_PATCHES` in the
+# commit that applies it and rebuilds every binary.
+#
+# IT MOVES THE STAR-CYCLE PIN. `build_star_cycle_exoplasim.sh` pins the sha of
+# radmod.f90 it applies on top of; this patch changes that file, so the
+# star-cycle patch is REGENERATED against the new base, not merely re-pinned.
+--- a/radmod.f90
++++ b/radmod.f90
+@@ -136,7 +136,10 @@
+       real :: bscat1 = 0. ! Backscattering ratio band 1
+       real :: bscat2 = 0. ! Backscattering ratio band 2
+       real :: aeroqs(8,1) = 0.  ! Array to read in aerosol optical constants
+-      real :: apart = 50e-09 ! Aerosol particle radius - DECLARED IN AEROMOD AS WELL
++      real :: apart = 50e-09 ! Aerosol particle radius. AEROMOD DECLARES ITS
++                             ! OWN; aero_ini copies that one into this and
++                             ! radini broadcasts it. The default is the
++                             ! photochemical haze and is not this world's dust.
+ !
+ !*    2.2b) PRESCRIBED DUST (DUST-11)
+ !
+@@ -145,7 +148,7 @@
+ !     emits or removes anything. That is enough to answer what dust does to
+ !     precipitation and runoff one iteration deep, and it deliberately does NOT
+ !     touch aerocore, so the bottom-level sink, the settling term and the
+-!     un-populated `apart` are all out of the path.
++!     interactive number density are all out of the path.
+ !
+ !     ddustcol is the BAND 1 (0.34-0.75 um) column extinction optical depth.
+ !     Band 2 follows from the aerofile's own ratio of extinction efficiencies
+@@ -694,7 +697,6 @@
+      &               ,acllwr,tswr1,tswr2,tswr3,th2oc,dawn,starbbtemp,nstartemp  &
+      &               ,nsimplealbedo,nstarfile,starfile,starfilehr,minwavel      &
+      &               ,ndustrad,dustsc,dusthsc,dustqlw,aerofile
+-     namelist/aero_nl/l_source,l_bulk,apart,rhop,fcoeff,l_aerorad,aerofile
+ !
+ !     namelist parameter:
+ !
+@@ -883,6 +885,15 @@
+       call mpbcr(minwavel)
+       
+       call mpbci(l_aerorad)
++!
++!     aero_ini has already run, on NROOT only, and has copied aero_nl's
++!     particle radius into radmod's own. This is the broadcast that was
++!     missing: without it every rank kept the 50 nm default and the
++!     shortwave aerosol optical depth was (50e-9/apart)**2 of intent.
++!     Harmless where aero_ini never ran, because both copies are then the
++!     same default.
++!
++      call mpbcr(apart)
+ 
+       call mpbci(ndustrad)
+       call mpbcr(dustsc)
+@@ -2117,8 +2128,7 @@
+       ! ratio of extinction efficiencies -- which for a single mode is the ratio
+       ! of the mass extinction efficiencies, so the band split stays with the
+       ! optics rather than being restated here. Neither aerocore, nrho, apart nor
+-      ! rhop is on this path, which is deliberate: nothing is transported, and
+-      ! radmod's own `apart` is never populated from the namelist.
++      ! rhop is on this path, which is deliberate: nothing is transported.
+         do jlev=1,NLEV
+          aod1(:,jlev) = ddustod(:,jlev)
+          aod2(:,jlev) = ddustod(:,jlev)*qex2/qex1
+--- a/aeromod.f90
++++ b/aeromod.f90
+@@ -94,7 +94,7 @@
+ 
+       subroutine aero_ini
+       use aeromod
+-      use radmod, only: l_aerorad, aerofile
++      use radmod, only: l_aerorad, aerofile, rad_apart => apart
+       
+       namelist/aero_nl/l_source,l_bulk,apart,rhop,fcoeff,l_aerorad,aerofile  &
+      &                ,ldepvel,vdaero,lwetdep,scava,scavb
+@@ -130,6 +130,19 @@
+             write(nud,*) '* bracket on scava.'
+             call mpabort('aero_nl: lwetdep = 1 without scava and scavb')
+          endif
++!
++!        UPSTREAM DEFECT. radmod declares its own `apart` and this namelist
++!        sets aeromod's, so the transport used the radius that was asked for
++!        while the radiation kept the 50 nm photochemical-haze default. At
++!        fixed number density the optical depth goes as apart squared, so the
++!        shortwave aerosol came out (50e-9/apart)**2 of intent -- 1/385 at the
++!        optical effective radius of this world's dust and 1/1948 at the
++!        burden-matched one. Hand the value across; radini broadcasts it,
++!        which is why this can sit inside the NROOT block. The two variables
++!        stay separate because radmod cannot use aeromod: aeromod already uses
++!        radmod, and make_plasim compiles it second.
++!
++         rad_apart = apart
+       endif
+       
+       return

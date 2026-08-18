@@ -1,7 +1,8 @@
 # Putting dust emission in the model: what it actually takes
 
 Design for DUST-3, written 2026-08-17 from source inspection, revised 2026-08-18
-when items 1 to 3 were written as patches. The decision to go in-model is in
+when items 1 to 3 and then item 5 were written as patches. The decision to go
+in-model is in
 `notes/dust.md` and rests on DUST-2: the reopening test crosses by 3.8x, and a
 prescribed field cannot respond to the winds the dust itself changes.
 
@@ -15,39 +16,53 @@ The line is the smallest part.
 
 `exoplasim/data/dust/vesper_dust_aerosol.dat`, from
 `exoplasim/scripts/dust_aerofile.py`. Validated: `radmod` reconstructs the
-single-scattering albedo and backscatter ratio of `analysis/dust_optics.json` to
-four decimals, and the optical depth round-trips against the offline chain's own
-0.5122 exactly. Qext comes out 2.65 and 2.61, which is a plausible Mie efficiency
-for a micron particle and an independent check that the mass-to-efficiency
-conversion is right.
+single-scattering albedo and backscatter ratio of `analysis/dust_optics.json`,
+and the optical depth round-trips against the offline chain's own value exactly.
+The Mie plausibility check is on the UNSCALED Qext at the optical radius, 2.65
+and 2.61 for a micron particle; the file itself carries those times the
+burden-match rescale, which is not an efficiency. The script prints both.
 
-`exoplasim/patches/exoplasim-3.4.2-aerocore-defects.patch`, which is item 1 of
-the ordering below, and
-`exoplasim/patches/exoplasim-3.4.2-aerosol-deposition.patch`, which is items 2
-and 3. Both are AUTHORED and VERIFIED but not applied: they sit in
+Four patches, all AUTHORED and VERIFIED and none of them applied. They sit in
 `PENDING_PATCHES` in `exoplasim/scripts/rebuild_binaries.py` and move to
-`RESIDENT_PATCHES` in the commit that applies them and rebuilds. Neither touches
-`radmod.f90`, and neither file they do touch is touched by any other patch in the
-stack, so they are independent of the resident set.
+`RESIDENT_PATCHES` in the commit that applies them and rebuilds. They apply in
+this order, and the order is real because each is authored on the one before:
+
+| patch | items | touches |
+| --- | --- | --- |
+| `exoplasim-3.4.2-aerocore-defects.patch` | item 1, defects 2 to 7 | `aerocore.f90`, `aeromod.f90` |
+| `exoplasim-3.4.2-aerosol-deposition.patch` | items 2 and 3 | `aerocore.f90`, `aeromod.f90` |
+| `exoplasim-3.4.2-aerosol-apart.patch` | item 1, defect 1 | `radmod.f90`, `aeromod.f90` |
+| `exoplasim-3.4.2-aerosol-longwave.patch` | item 5 | `radmod.f90` |
+
+The last two touch `radmod.f90`, so they MOVE the star-cycle base sha in
+`exoplasim/scripts/build_star_cycle_exoplasim.sh`. That patch has been
+regenerated against the new base rather than re-pinned, and it had to be: the
+apart patch deletes the dead `aero_nl` declaration that was the cycle patch's
+trailing context.
 
 ## Seven upstream defects, and none of them was reachable
 
-All seven are in `aerocore.f90` and `aeromod.f90`. All are LATENT: every run this
-project has made sets `L_AERO = 0` in `plasim_namelist`, `aero_main` runs only
-when `nsela == 1 .and. nkits == 0 .and. l_aero > 0`, and so `aerocore` has never
-executed. That is why they survived, and it is why fixing them needs no namelist
-switch: on every configuration this project runs, a binary with the defect patch
-must produce output BIT-IDENTICAL to one without it. That is the test to run
-first, and it can fail.
+Six of the seven are in `aerocore.f90` and `aeromod.f90`; defect 1 is in
+`radmod.f90`. All are LATENT: every run this project has made sets `L_AERO = 0`
+in `plasim_namelist`, `aero_main` runs only when
+`nsela == 1 .and. nkits == 0 .and. l_aero > 0`, and so `aerocore` has never
+executed. Defect 1's path needs `l_aerorad == 1` on top of that and it defaults
+to 0. That is why they survived, and it is why fixing them needs no namelist
+switch: on every configuration this project runs, a binary with the defect
+patches must produce output BIT-IDENTICAL to one without them. That is the test
+to run first, and it can fail.
 
-Defect 1 is the exception and is still open, because it lives in `radmod.f90`.
-
-1. **OPEN.** `radmod`'s `apart` is never populated from the namelist -- `aero_ini`
-   use-associates only `l_aerorad` and `aerofile` -- so it stays at its 50e-9
-   haze default while `aerocore` uses the namelist value. Optical depth comes out
-   1/385 of intent at our effective radius. Deferred: `radmod.f90` is being
-   edited on another branch for PHYS-6, and two patches to that file cannot be
-   developed in parallel without being tested together.
+1. **`radmod`'s `apart` is never populated from the namelist.** `apart` is
+   declared twice, in `aeromod` and in `radmod`, and `aero_ini` use-associates
+   only `l_aerorad` and `aerofile`, so the transport settled the particle the
+   run asked for while the radiation kept its 50e-9 haze default. Optical depth
+   goes as `apart**2` at fixed number density, so it came out 1/385 of intent at
+   the optical effective radius and 1/1948 at the burden-matched one. **Fixed**
+   in `exoplasim-3.4.2-aerosol-apart.patch`: `aero_ini` copies the value across
+   under a rename and `radini` broadcasts it. It cannot go the other way round
+   because `radmod` cannot `use aeromod` -- `aeromod` already uses `radmod` and
+   `make_plasim` compiles it second. This is the gate DUST-8's retune was
+   waiting on, and the retune is now applied.
 2. `aerocore.f90:1156` and `:1183`, `mmr2n` and `n2mmr`: `(4/3)` is integer
    division and evaluates to 1, so the sphere volume is 4/3 too small and the
    number density exactly 4/3 = 33.3% high. **Fixed.**
@@ -95,7 +110,8 @@ Per `WORKFLOW.md` A3, with what result would mean "wrong".
 
 | change | prediction | falsified by |
 | --- | --- | --- |
-| all seven, on any configuration that exists today | output bit-identical, because `aerocore` is unreachable at `L_AERO = 0` | any difference at all, which would mean the aerosol path is reachable and `notes/dust.md` is wrong about that |
+| all seven, on any configuration that exists today | output bit-identical, because `aerocore` is unreachable at `L_AERO = 0` and the radiation's aerosol block at `l_aerorad = 0` | any difference at all, which would mean the aerosol path is reachable and `notes/dust.md` is wrong about that |
+| defect 1 | with the aerosol on, band-1 layer optical depth rises by exactly `(apart/50e-9)**2`: 384.6x at 0.98054 um, 1948.0x at the burden-matched 2.20682 um | any other ratio, and specifically 1.0, which means the copy or the broadcast is not reaching `swr` |
 | defect 2 | `nrho` falls by exactly 0.75 everywhere, and shortwave aerosol optical depth with it | a ratio that is not 0.75 to round-off |
 | defect 3 | `mu` at 288 K in N2 rises from 1.48e-5 to 1.77e-5 Pa s, within 1% of the measured 1.76e-5; terminal velocity falls 13 to 21% over 200-320 K | a ratio outside (T/95.5)**(-0.16) cell by cell |
 | defect 4 | sedimentation mass flux rises by exactly `deltsec` | anything other than the timestep in seconds |
@@ -209,9 +225,9 @@ bracket is 4 to 15.
 written -- but `apart` and `rhop` are scalars shared by every bin, `mmr2n` takes
 them as scalars, the settling chain (`chamfac`, `vterm`) takes them as scalars,
 and the optics are single-valued in the aerofile and in `radmod`. Promoting them
-threads arrays through `aerocore`'s whole argument list and through `radmod.f90`,
-which is off limits while PHYS-6 is in flight. The design note recommended single
-mode first and nothing since argues otherwise.
+threads arrays through `aerocore`'s whole argument list and through the whole of
+`radmod`'s aerosol block in both solvers. The design note recommended single mode
+first and nothing since argues otherwise.
 
 The LMD Generic PCM is a precedent and it points the same way: dust there is ONE
 aerosol kind with one effective radius (`aerosol_radius.F90`), and it carries no
@@ -252,18 +268,26 @@ requirement and multiply the aerofile's four Q values per band by
 backscatter ratio and the band-2 ratio are all unchanged, because every one of
 them is a ratio the rescale preserves.
 
-**So the configuration this project should end up in is `apart` = 2.21 um with
-the Q values scaled by 2.251**, burden-matched because the in-model chain exists
-for the AOD and the precipitation response (`WORKFLOW.md` A4), not for the
-deposition field. Two things to carry with it:
+**So the configuration this project is now in is `apart` = 2.21 um with the Q
+values scaled by 2.251**, burden-matched because the in-model chain exists for
+the AOD and the precipitation response (`WORKFLOW.md` A4), not for the deposition
+field. APPLIED 2026-08-18, once defect 1 landed and made it bite. Three things
+carried with it:
 
-- `dust_aerofile.py`'s plausibility check survives, but it has to be applied to
-  the unscaled number: `Qext` at the optical radius is 2.65 and 2.61, which is a
-  believable Mie efficiency for a micron particle, while the scaled value of 5.96
-  is not an efficiency at all and must not be read as one.
-- **Not applied yet, on purpose.** It only bites once `apart` reaches `radmod`,
-  which is upstream defect 1, which is deferred. Applying it before then would
-  change a tracked aerofile for no effect and collide with DUST-12.
+- `dust_aerofile.py` derives the radius rather than carrying it: it imports the
+  aeolian component's own `emitted_mass_fractions` and `settling_velocity`, so
+  the in-model mode and the offline bins settle by one formula and the number
+  moves if the size distribution does.
+- The plausibility check survives but is applied to the UNSCALED number: `Qext`
+  at the optical radius is a believable Mie efficiency for a micron particle,
+  while the scaled value is not an efficiency at all and must not be read as
+  one. Both are printed and both are in the provenance sidecar.
+- The invariance is CHECKED rather than asserted. The script recomputes the mass
+  extinction efficiency at both radii and refuses to write the file if they
+  differ, because "the algebra says the rescale is free" is exactly the kind of
+  claim a sign error survives. Against the file actually written, the ratios
+  move only in the seventh significant figure, which is the rounding of the
+  six-decimal format on a larger mantissa and not a change in the optics.
 
 **What the single mode costs deposition, stated rather than implied.** In steady
 state the total deposition equals the total emission whatever the settling
@@ -345,25 +369,43 @@ ExoPlaSim's own Python API and this project has never touched it, so
 drivers today. Writing them from `aeolian/config/dust.yaml` belongs here, with
 the rest of the configuration the emission scheme needs.
 
-## The longwave term is mandatory, and it is the largest single piece
+## The longwave term is mandatory, and it was the largest single piece
 
-DUST-2: `radmod.f90` puts the aerosol in bands 1 and 2 only and the longwave
-solver has no aerosol term at all. Shortwave-only would apply -4.5 to -5.3 W/m2
+DUST-2: `radmod.f90` put the aerosol in bands 1 and 2 only and the longwave
+solver had no aerosol term at all. Shortwave-only would apply -4.5 to -5.3 W/m2
 of global-mean cooling against a true +0.35 to +0.74 -- of order nine kelvin of
 spurious cooling, against 21 W/m2 for the entire stellar sweep that produced a
 33 K range.
 
-What it needs: a longwave absorption optical depth per layer, built the same way
-`aod1`/`aod2` are at `radmod.f90:1844`, and an emissivity term in the longwave
-flux solver. The optics exist -- `dust_forcing.py` already computes a
-Planck-weighted thermal-infrared absorption from the OPAC indices, which run to
-40 um -- so this is plumbing rather than new physics, but it is plumbing inside
-the radiation solver, which is the part of the model it is least comfortable to
-touch. **Budget this as the dominant risk.**
+**AUTHORED as `exoplasim-3.4.2-aerosol-longwave.patch`.** The physics was already
+settled by `exoplasim-3.4.2-prescribed-dust.patch` item 5 -- a grey absorber, no
+longwave scattering, at the same 1.66 diffusivity the cloud term uses, multiplied
+into the total layer transmissivity so the overlap with water vapour and CO2 is
+handled by construction -- and this patch adds one branch to that same term. It
+changes no coefficient and no form.
 
-The prescribed-dust patch already has a longwave dust term for its own path
-(`exoplasim-3.4.2-prescribed-dust.patch`, item 5), so the physics is settled and
-what is left is wiring the interactive `nrho` path into it.
+What it took, and the reason it was priced as the dominant risk is that none of
+it is confined to one statement:
+
+- `aeroprof`, beside `dustprof` and called from the same place in `radstep`,
+  builds `daerod` from `nrho`, `apart`, `qex1` and the layer thickness. That is
+  the arithmetic `swr` used to do inline.
+- `swr` now READS `daerod` instead of rebuilding it, so the shortwave and the
+  longwave cannot drift apart. The LMD Generic PCM has the same structure: one
+  per-layer optical depth at a reference wavelength, and every band including
+  the infrared is that field times a per-band ratio held with the optics
+  (`aerosol_opacity.F90`, `rad_correlatedk_ini_aerosol.F90`).
+- `aeroqlw` in `radmod_nl`, separate from the prescribed path's `dustqlw`
+  because the two paths carry different particles, with no default and a
+  `radini` abort when the aerosol is on without it. And a second abort when both
+  paths are enabled at once, because a prescribed column and a transported one
+  are two aerosols whose optical depths would add.
+
+The whole thing is a no-op at `l_aerorad = 0`, which is the default, so one
+binary runs both arms of the A/B. The test with a right answer is the identity:
+set `aeroqlw = dustqlw` and give the interactive path an `nrho` whose `daerod`
+equals `ddustod` layer for layer, and the two arms' longwave fluxes must agree to
+round-off, because they evaluate the same expression.
 
 ## The structural surprise: `aerocore` is serial
 
@@ -386,8 +428,8 @@ that is read outside `aerocore` will.
 ## Order, and scale
 
 1. **Upstream defects.** Everything downstream is uncalibratable without them.
-   AUTHORED as `exoplasim-3.4.2-aerocore-defects.patch`; defect 1 remains open
-   and is blocked on the `radmod.f90` branch.
+   AUTHORED: defects 2 to 7 in `exoplasim-3.4.2-aerocore-defects.patch`, defect 1
+   in `exoplasim-3.4.2-aerosol-apart.patch`.
 2. **Replace the bottom-level sink** with a deposition velocity. AUTHORED, behind
    `ldepvel`.
 3. **Wet scavenging.** AUTHORED, behind `lwetdep`. Both 2 and 3 are in
@@ -396,11 +438,14 @@ that is read outside `aerocore` will.
    generator on the `aeolian/` side, `surfcode`/`mpsurfgp` registration, the
    gathers, the namelist writing, and Kok 18 in the source case. The largest
    mechanical piece, and the one that has to be done for the switches added in
-   2 and 3 to be reachable at all.
-5. **The longwave aerosol term.** The largest risk, inside the radiation solver.
-   Blocked with defect 1 on the same branch.
+   2 and 3 to be reachable at all. **The only item left**, and the aerofile's
+   provenance sidecar now carries `namelist_values` with `APART` and `RHOP` so
+   that the run gets its radius from the file the optics were built for rather
+   than from a config that can drift.
+5. **The longwave aerosol term.** AUTHORED as
+   `exoplasim-3.4.2-aerosol-longwave.patch`.
 6. **Size bins**, only if the single mode proves insufficient. DUST-8 says it
-   does not, and says what that costs.
+   does not, and says what that costs. CLOSED.
 
 Honest scale: this is not an afternoon. It is five or six separate patches to a
 compiled model, each needing a rebuild and verification per CLAUDE.md rule 4,
@@ -427,4 +472,14 @@ come first because everything downstream is uncalibratable without them. And the
 longwave term sits inside the radiation solver, so it cannot be developed in
 parallel with any other patch to `radmod.f90` without the two being tested
 together rather than independently, which CLAUDE.md's Environment section warns
-about directly.
+about directly. That is why defect 1 and item 5 waited for PHYS-6 and were then
+written together, on one branch, against one base.
+
+**A patch's place in the STACK is not its place in the ordering above**, and
+conflating the two costs regeneration for nothing. Defect 1 is item 1 and its
+patch applies FOURTH, after the deposition patch, because both edit the same two
+lines of `aero_ini` and the deposition patch was written first. "Defects first"
+is an argument about calibration -- nothing downstream can be measured against a
+model that is wrong upstream -- and every one of these patches lands in the same
+rebuild, so within that rebuild the order is mechanical. The cheap order is the
+one that regenerates nothing already written.
