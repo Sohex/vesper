@@ -41,44 +41,43 @@ integration was being stopped at 2% of the way. A declared polar `cos(lat)`
 floor of 0.2 relaxes the step to 6029 s and the iteration cap is now 40000; all
 cases report converged.
 
-### What it says now, with the wind tail measured
+### What it says now, with the wind tail measured and gravity in the threshold
 
 Measured 2026-08-17 on the baseline climatology, at k = 2.012 fitted from 1,463
-three-hourly samples of a high-cadence orbit (DUST-5):
+three-hourly samples (DUST-5) and with the saltation threshold corrected for this
+world's gravity (DUST-6):
 
 | | z0 = 3e-6 m | z0 = 1e-4 m | z0 = 1e-3 m |
 | --- | ---: | ---: | ---: |
-| emission, Tg per Earth year | 255296 | 28507 | 31.9 |
-| land-mean optical depth | 7.098 | 0.740 | 0.0005 |
-| deposition, g/m2 per Earth year | 524.7 | 55.1 | 0.04 |
+| emission, Tg per Earth year | 200318 | 20035 | 12.3 |
+| land-mean optical depth | 5.525 | 0.512 | 0.0002 |
+| deposition, g/m2 per Earth year | 408.8 | 38.1 | 0.013 |
 
 Earth for scale: about 2000 Tg per year and a land-mean dust optical depth near
-0.03. The central roughness is therefore something like fourteen Earths of
-emission at twenty-five times Earth's optical depth. This is a dusty world.
+0.03. The central roughness is therefore about ten Earths of emission at
+seventeen times Earth's optical depth. This is a dusty world.
 
-**The wind tail was the whole uncertainty and it is now measured.** DUST-1 had to
-fit the subgrid distribution to the 32 snapshots of a climatology, 5.7 days
-apart, which gave k = 3.965. This file said at the time that such a fit is an
-upper bound on the shape and therefore a lower bound on emission, because
-snapshots that far apart resolve synoptic and not sub-daily variance. One orbit
-of three-hourly output settles it: **k = 2.012**, inside the 1.5 to 2.5 range
-Earth's near-surface winds occupy, and a factor of two from the snapshot fit.
-Emission is 8.8x higher at the central roughness as a result.
+**Both of the large corrections went in opposite directions and neither cancelled
+the other.** Measuring the wind tail raised emission 8.8x, because a Weibull
+fitted to 32 snapshots 5.7 days apart is too narrow and biases the shape high.
+Putting this world's gravity into the saltation threshold then cut it 30%, a
+6.9% change in the threshold amplified by the same u* nonlinearity working the
+other way. The threshold correction is the fourth root of the gravity ratio and
+not the square root; `aeolian/config/dust.yaml` carries the derivation.
 
-The roughness bracket is now the only large uncertainty left, and it no longer
-spans the answer: the rough end has gone from exactly zero to 31.9 Tg per year.
+The roughness bracket is the only large uncertainty left and it no longer spans
+the answer: the rough end is 12.3 Tg per year rather than the zero it once read.
 
 ### The reopening test, stated without tuning
 
 `notes/dust.md` reopens the in-model question at a land-mean optical depth above
-0.10. **It crosses, at 7.4x, at the central roughness.** It crosses at 71x at the
-smooth end. Only the roughest end of the bracket is below it.
+0.10. **It crosses by 5.1x at the central roughness** and by 55x at the smooth
+end. Only the roughest end of the bracket is below it.
 
 That was a pre-committed threshold, fixed before the answer was known, and what
 it commits to is that a prescribed field is no longer defensible and the emission
-scheme belongs inside the model. That is a bigger change than this component was
-built to imply and it is DUST-3's problem now, not a conclusion this file should
-quietly draw.
+scheme belongs inside the model. That is DUST-3's problem now, not a conclusion
+this file should quietly draw.
 
 ### What would decide it, and what to ask for
 

@@ -296,8 +296,8 @@ Below that, prescribed would have been the answer.
 ## The test fired, and this is what was decided
 
 Measured 2026-08-17, once DUST-5 replaced a wind tail fitted to 32 snapshots with
-one measured from 1,463 three-hourly samples: land-mean optical depth **0.740** at
-the central roughness, against the 0.10 above. It crosses by 7.4x, and by 71x at
+one measured from 1,463 three-hourly samples: land-mean optical depth **0.512** at
+the central roughness, against the 0.10 above. It crosses by 5.1x, and by 55x at
 the smooth end of the roughness bracket.
 
 **The emission scheme goes into the fork, and the source map stays outside it.**
@@ -345,7 +345,7 @@ That is the same error this project already caught itself making once, and the
 reason the dust question was relitigated at all: **the net cooling overestimate
 was the problem.** Mineral dust absorbs and re-emits in the thermal infrared, and
 for a coarse-mode-rich burden that offsets a substantial share of the shortwave
-cooling. At a land-mean optical depth of 0.740, running shortwave-only is not a
+cooling. At a land-mean optical depth of 0.512, running shortwave-only is not a
 small bias, and it is a bias in the direction this project is least able to
 afford, because land albedo already sits inside a narrow flux window.
 
@@ -385,14 +385,14 @@ tools, and the reason stated rather than one quietly standing in for the other.
 ### The longwave is priced, and it changes the sign (DUST-2, 2026-08-17)
 
 `analysis/dust_forcing.json`, from `exoplasim/scripts/dust_forcing.py`, at the
-land-mean optical depth of 0.740 and a column mass of 0.96 g/m2:
+land-mean optical depth of 0.512 and a column mass of 0.66 g/m2:
 
 | surface | shortwave | longwave | net |
 | --- | ---: | ---: | ---: |
-| ocean, a = 0.07 | -17.1 | +12.6 | -4.5 |
-| vegetated land, a = 0.18 | -11.0 | +12.6 | +1.7 |
-| playa fill, a = 0.40 | -0.2 | +12.6 | +12.4 |
-| salt crust, a = 0.50 | +4.0 | +12.6 | +16.7 |
+| ocean, a = 0.07 | -10.1 | +8.3 | -1.8 |
+| vegetated land, a = 0.18 | -6.4 | +8.3 | +1.9 |
+| playa fill, a = 0.40 | -0.0 | +8.3 | +8.2 |
+| salt crust, a = 0.50 | +2.5 | +8.3 | +10.7 |
 
 W/m2, for the fine end of the size bracket; the coarse end differs by under 15%
 and is in the file. The longwave is a clear-sky window estimate and is an UPPER
@@ -403,16 +403,16 @@ world does not simply cool. It cools over ocean, is near neutral over vegetated
 land and warms strongly over the bright closed-basin fill -- which is exactly the
 surface that makes this world unusual, and exactly where the dust is.
 
-The global mean lands at **+0.3 to +0.9 W/m2**, below the 1.5 W/m2 half of the
+The global mean lands at **+0.35 to +0.74 W/m2**, below the 1.5 W/m2 half of the
 reopening threshold. That is not reassurance: it is ocean cooling cancelling land
-warming across a spatial pattern spanning 32 W/m2, and a redistribution that large
+warming across a spatial pattern spanning 21 W/m2, and a redistribution that large
 drives circulation whatever its mean is.
 
 **And it settles what DUST-3 must not do.** Switching ExoPlaSim's aerosol on as
-shipped applies the shortwave alone, which is -6.5 to -7.6 W/m2 in the global
-mean against a true +0.3 to +0.9. An error of about 7.6 W/m2, against 21 W/m2 for
-the entire 0.85-to-0.95 stellar sweep that produced a 33 K range -- of order ten
-kelvin of spurious cooling. **Shortwave-only in-model dust is far worse than no
+shipped applies the shortwave alone, which is -4.5 to -5.3 W/m2 in the global
+mean against a true +0.35 to +0.74. An error of about 5.7 W/m2, against 21 W/m2
+for the entire 0.85-to-0.95 stellar sweep that produced a 33 K range -- of order
+nine kelvin of spurious cooling. **Shortwave-only in-model dust is far worse than no
 dust**, so the fork needs a longwave aerosol term and not only an emission scheme.
 
 One correction to the record while pricing it: the error budget said ExoPlaSim

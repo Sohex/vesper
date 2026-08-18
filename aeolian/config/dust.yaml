@@ -49,6 +49,40 @@ emission:
   u_star_st_typical_m_s: 0.20
   u_star_st_typical_bracket: [0.16, 0.30]
 
+  # GRAVITY. Both thresholds above are Kok's, fitted on Earth, so Earth's
+  # gravity is inside them. Kok's own standardization (equation 6) corrects for
+  # air density and for nothing else, so on a 1.31 g planet they are too low and
+  # the error is one-signed.
+  #
+  # The exponent is derived rather than guessed, and it is NOT sqrt(g).
+  # Shao and Lu (2000) equation 22 gives
+  #
+  #     u*t^2 = f(Re*t) * (sigma_p g d + gamma / (rho d))
+  #
+  # a gravity term rising with grain size and a cohesion term falling with it.
+  # The threshold has a minimum where the two are equal -- Kok et al. (2012)
+  # section 2.1 says exactly that, "the interparticle forces are approximately
+  # equal in magnitude to the gravitational force" at the 75-100 um minimum --
+  # and setting d(u*t^2)/dd = 0 gives
+  #
+  #     d_opt      = sqrt(gamma / (rho_p g))
+  #     u*t,min^2  = 2 f sqrt(rho_p g gamma) / rho      ->   u*t,min ~ g^(1/4)
+  #
+  # So at the optimum the scaling is the FOURTH root, and gamma cancels out of
+  # the ratio entirely. That matters, because gamma is only known to a factor of
+  # three: Shao and Lu give 1.65e-4 to 5.0e-4 N/m and Kok and Renno (2006) fit
+  # 2.9e-4. Checked numerically across that whole range and the ratio is 1.0691
+  # to four figures in every case.
+  #
+  # Using sqrt(g) instead would give 1.1429 and over-correct by 2.1x on the
+  # correction. u*st0 is defined as an OPTIMALLY erodible bed, which is the
+  # minimum, so the fourth root is the right exponent for it; u*st_typical sits
+  # slightly off the optimum, where the true exponent is between 1/4 and 1/2, and
+  # the same factor is applied to both because the K14 relations for Cd and alpha
+  # depend on (u*st - u*st0)/u*st0, which is invariant under a common scaling.
+  gravity_scaling_exponent: 0.25
+  gravity_reference_m_s2: 9.80665
+
 # --- threshold: soil moisture ------------------------------------------------
 #
 # Fecan, Marticorena, Bergametti (1999). Parametrization of the increase of the

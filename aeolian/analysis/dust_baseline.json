@@ -1,6 +1,6 @@
 {
-  "generated": "2026-08-17T23:57:41.650928+00:00",
-  "git_commit": "ceb6fc91a5dd4706ff80cd6e541710da52c08a94",
+  "generated": "2026-08-18T00:53:10.825339+00:00",
+  "git_commit": "538483d256461be7ca1643ed452526756c52cb19",
   "variant": "baseline",
   "note": "Offline dust: emission, transport and deposition from a climatology rather than inside the climate model. notes/dust.md says why; aeolian/README.md says what the numbers mean. The two shelter ends bracket how much the surrounding terrain shields an erodible patch, which this component does not claim to know.",
   "source_build": "precarve-craton",
@@ -8,7 +8,7 @@
   "climatology": "exoplasim/analysis/climatology/baseline_regular_climatology.nc",
   "climatology_sha256": "82d0c46be395ffc807c18d2c6f77467ed48c65d03282c41312eb4fd0080595a0",
   "config_sha256": "2b6dbef507a2207aff33a10c0611c0c314acb4acdd88537cfb715f1fc5b8132c",
-  "dust_config_sha256": "eba141c2210db8981bd20fb8ad72ab4356aa8d1bb5dfea6ba3d7e1eb76fa4278",
+  "dust_config_sha256": "e813845c03b6341521692724263017498929093e6dd8f2592af4deb0c0361277",
   "lake_solution": "hydrography/data/precarve-craton/surface_water.nc",
   "excluded_time_bins": [
     0
@@ -63,6 +63,12 @@
     "land_fraction": 0.4317
   },
   "mass_extinction_efficiency_m2_kg": 771.62,
+  "gravity_threshold_scaling": {
+    "factor": 1.0691,
+    "exponent": 0.25,
+    "gravity_m_s2": 12.81,
+    "note": "Kok's standardized thresholds are Earth-fitted and his standardization corrects for air density alone. The exponent is 1/4 rather than 1/2 because the threshold is evaluated at its minimum, where Shao and Lu's gravity and cohesion terms are equal; the cohesion parameter cancels out of the ratio, which matters because it is known only to a factor of three."
+  },
   "subgrid_wind": {
     "weibull_shape_used": 2.011576917137872,
     "measured_from": "exoplasim/runs/run_8c2e1ff9ab5e/highcadence/MOST_HC.00066_wind.nc",
@@ -81,32 +87,32 @@
   "shelter_bracket": {
     "low": {
       "aeolian_z0_m": 3e-06,
-      "global_emission_Tg_per_earth_year": 255296.41,
-      "land_mean_aod": 7.09778,
-      "global_mean_aod": 4.35968,
-      "max_aod": 65.6528,
-      "land_mean_deposition_g_m2_per_earth_year": 524.6568,
-      "max_deposition_g_m2_per_earth_year": 4856.434,
+      "global_emission_Tg_per_earth_year": 200318.076,
+      "land_mean_aod": 5.52456,
+      "global_mean_aod": 3.40055,
+      "max_aod": 52.0343,
+      "land_mean_deposition_g_m2_per_earth_year": 408.7735,
+      "max_deposition_g_m2_per_earth_year": 4027.865,
       "transport_converged": true
     },
     "central": {
       "aeolian_z0_m": 0.0001,
-      "global_emission_Tg_per_earth_year": 28507.067,
-      "land_mean_aod": 0.74025,
-      "global_mean_aod": 0.46483,
-      "max_aod": 9.9188,
-      "land_mean_deposition_g_m2_per_earth_year": 55.0578,
-      "max_deposition_g_m2_per_earth_year": 866.685,
+      "global_emission_Tg_per_earth_year": 20035.457,
+      "land_mean_aod": 0.5122,
+      "global_mean_aod": 0.32363,
+      "max_aod": 7.653,
+      "land_mean_deposition_g_m2_per_earth_year": 38.1096,
+      "max_deposition_g_m2_per_earth_year": 671.335,
       "transport_converged": true
     },
     "high": {
       "aeolian_z0_m": 0.001,
-      "global_emission_Tg_per_earth_year": 31.936,
-      "land_mean_aod": 0.00048,
-      "global_mean_aod": 0.00034,
-      "max_aod": 0.0415,
-      "land_mean_deposition_g_m2_per_earth_year": 0.0382,
-      "max_deposition_g_m2_per_earth_year": 3.711,
+      "global_emission_Tg_per_earth_year": 12.258,
+      "land_mean_aod": 0.00016,
+      "global_mean_aod": 0.00011,
+      "max_aod": 0.0188,
+      "land_mean_deposition_g_m2_per_earth_year": 0.0127,
+      "max_deposition_g_m2_per_earth_year": 1.677,
       "transport_converged": true
     }
   },
@@ -115,8 +121,8 @@
     "land_mean_aod_threshold": 0.1,
     "forcing_threshold_w_m2": 1.5,
     "land_mean_aod_range": [
-      0.00048,
-      7.09778
+      0.00016,
+      5.52456
     ],
     "crosses": true,
     "forcing_is_DUST_2": "this script does not price the forcing"

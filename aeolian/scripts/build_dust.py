@@ -288,6 +288,32 @@ def moisture_threshold_factor(gravimetric_pct: np.ndarray,
     return np.sqrt(1.0 + mc["a"] * excess ** mc["b"])
 
 
+def gravity_threshold_scaling(emission_cfg: dict, gravity: float) -> float:
+    """How much higher the saltation threshold sits at this world's gravity.
+
+    Kok's standardized thresholds are fitted on Earth and his standardization
+    corrects for air density alone, so Earth's gravity is inside them. The
+    correction is the FOURTH root of the gravity ratio, not the square root, and
+    the reason is that the threshold is evaluated at its minimum.
+
+    Shao and Lu (2000) equation 22 splits it into a gravity term rising with
+    grain size and a cohesion term falling with it; the minimum is where the two
+    are equal, which is what Kok et al. (2012) section 2.1 says of the observed
+    75-100 um minimum. Setting the derivative to zero gives
+    `u*t,min ~ (rho_p g gamma)^(1/4)`, so the cohesion parameter cancels out of a
+    ratio -- which is worth having, because gamma is known only to a factor of
+    three, 1.65e-4 to 5.0e-4 N/m.
+
+    `settling_velocity` has always used this world's gravity. This is the term
+    that was missing, and it ran the other way: too low a threshold means too
+    much emission, and the threshold enters the flux both directly and through
+    the exponent.
+    """
+    exponent = float(emission_cfg["gravity_scaling_exponent"])
+    reference = float(emission_cfg["gravity_reference_m_s2"])
+    return float((gravity / reference) ** exponent)
+
+
 def emission_over_weibull(u_star_mean: np.ndarray, u_star_t: np.ndarray,
                           rho_a: np.ndarray, f_clay: np.ndarray,
                           u_star_st: np.ndarray, cfg: dict) -> np.ndarray:
@@ -310,7 +336,7 @@ def emission_over_weibull(u_star_mean: np.ndarray, u_star_t: np.ndarray,
     # u at each quantile: u = c (-ln(1-q))^(1/k)
     factor = (-np.log(1.0 - q)) ** (1.0 / k)
 
-    st0 = em["u_star_st0_m_s"]
+    st0 = em["u_star_st0_m_s"] * em.get("_gravity_scaling", 1.0)
     cd = em["cd0"] * np.exp(-em["ce"] * (u_star_st - st0) / st0)
     alpha = em["c_alpha"] * (u_star_st - st0) / st0
 
@@ -565,6 +591,8 @@ def main() -> None:
     grav_pct = np.clip(mrso / max(depth_m, 1e-6) * 1000.0 / bulk_density * 100.0,
                        0.0, 100.0)
 
+    cfg["emission"]["_gravity_scaling"] = gravity_threshold_scaling(
+        cfg["emission"], gravity)
     frac_bin, d_bin = emitted_mass_fractions(cfg)
     rho_p = cfg["removal"]["particle_density_kg_m3"]
     em_cfg, src = cfg["emission"], cfg["source"]
@@ -681,6 +709,17 @@ def main() -> None:
             "land_fraction": round(gmean(land_fraction), 4),
         },
         "mass_extinction_efficiency_m2_kg": round(mee, 2),
+        "gravity_threshold_scaling": {
+            "factor": round(gravity_threshold_scaling(cfg["emission"], gravity), 4),
+            "exponent": cfg["emission"]["gravity_scaling_exponent"],
+            "gravity_m_s2": gravity,
+            "note": "Kok's standardized thresholds are Earth-fitted and his "
+                    "standardization corrects for air density alone. The "
+                    "exponent is 1/4 rather than 1/2 because the threshold is "
+                    "evaluated at its minimum, where Shao and Lu's gravity and "
+                    "cohesion terms are equal; the cohesion parameter cancels "
+                    "out of the ratio, which matters because it is known only "
+                    "to a factor of three."},
         "subgrid_wind": {
             "weibull_shape_used": cfg["subgrid_wind"]["weibull_shape"],
             "measured_from": rel(gust_source) if k_measured is not None else None,
@@ -798,7 +837,8 @@ def run_one(good, z0_aeolian, cfg, nbin, nlat, nlon, frac_bin, d_bin, rho_p, u_b
         u_star_soil = u_star_patch * drag_efficiency(
             np.full_like(u_star_patch, z0_aeolian), cfg)
 
-        u_st = em_cfg["u_star_st_typical_m_s"]
+        u_st = em_cfg["u_star_st_typical_m_s"] * gravity_threshold_scaling(
+            em_cfg, gravity)
         u_t_dry = u_st * np.sqrt(em_cfg["rho_a0_kg_m3"] / rho_a[t])
         u_t = u_t_dry * moisture_threshold_factor(grav_pct[t], clay_pct, cfg)
         u_star_st = u_t * np.sqrt(rho_a[t] / em_cfg["rho_a0_kg_m3"])
