@@ -54,6 +54,34 @@ to measure what representing a real basin at mesh scale costs its storage.
 authentication, which is worth checking before starting a multi-gigabyte
 download.
 
+**LMD Generic PCM**, `https://web.lmd.jussieu.fr/~lmdz/planets/generic`. Not a
+dataset but a second exoplanet GCM, fetched 2026-08-18 and living outside this
+repo at `~/git/generic_pcm`. Source is `LMDZ.GENERIC` plus `LMDZ.COMMON`, 32 MB
+and CeCILL licensed, so it is read for DESIGN and cited, and no code moves across.
+The 338 MB `datagcm.tar.gz` unpacks to 1.2 GB and is the part worth having: it
+holds `corrk_data`, `stellar_spectra`, `aerosol_properties`, `continuum` and
+`surface_data`. The dated `datagcm_*.tar.gz` snapshots beside it are historical
+copies of the same thing and were not fetched.
+
+What it is good for here, and this is the point of writing it down:
+
+- **`stellar_spectra/BT-Settl_stellar_spectra_grid/`** is the same grid `k25v` was
+  interpolated from, 5,803 files at R = 100 across Teff, log g and metallicity.
+  Teff 4900 and 5000 both exist and this star's log g is 4.57, so log g 4.5 at
+  solar metallicity is the comparison point. That makes the band-1 flux fraction
+  an independently checkable number rather than one this project computed alone.
+- **`corrk_data/N2-0.000376CO2-H2Ovar_2026`** and its siblings up to 0.95 CO2 are
+  correlated-k tables from modern line lists for an N2 atmosphere with variable
+  water. This planet is N2-dominated at 450 ppm CO2, so these bracket it, and a
+  correlated-k treatment is an independent route to the shortwave CO2 and water
+  vapour absorption that PHYS-1 and PHYS-6 derived from Howard's 1950s band data.
+- **`aerosol_properties/optprop_dustvis_n50.dat`** and `optprop_dustir_n50.dat` for
+  dust optics, against the DUST-12 choice.
+- Its physics tree has NO wet deposition and no deposition velocity, checked by
+  grep 2026-08-18. That is useful negatively: a second independent GCM has the same
+  gap ExoPlaSim does, so DUST-7's scavenging is a common omission rather than a
+  peculiarity, and there is nothing to borrow.
+
 ## Where it goes once fetched
 
 Bulk under `<component>/data/reference/` or `references/`, excluded by
