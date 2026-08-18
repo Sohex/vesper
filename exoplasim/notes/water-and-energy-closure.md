@@ -119,15 +119,22 @@ defect. What the three do still rule out is a strongly state-dependent term: sea
 ice, snow accumulation and fusion all scale with climate far more steeply than
 anything here moves.
 
-### It is not the classic spectral leak either
+### It is not the classic spectral leak, though it is in the spectral core
 
 The usual suspect in a spectral model is kinetic energy removed by hyperdiffusion
-and never returned as heat. That is closed here. `plasim.f90` calls `mkdheat`
+and never returned as heat. That one is closed. `plasim.f90` calls `mkdheat`
 whenever `ndheat > 0`, which is the default, and that routine recomputes the wind
 field before and after *both* Rayleigh friction and biharmonic diffusion,
 converts the kinetic energy difference to a temperature tendency, and adds it.
 Surface-friction dissipation is handled separately in `fluxmod.f90` under the
-same switch.
+same switch. Measured, the dissipation returned as heat matches the adiabatic
+generation of kinetic energy to -0.0073 W/m2 out of 2.21, so nothing is lost on
+that path.
+
+The leak is on the other side of the same step, in the conversion itself rather
+than in the friction that closes it, and it runs the other way: the adiabatic
+dynamics CREATES energy. "The offset is not a diagnostic" below has the
+measurement.
 
 ### It is the residue of a much larger seasonal swing
 
@@ -166,7 +173,8 @@ actually leaving: something that heats the atmosphere is missing from the sum of
 `rst`, `rlut`, `rss`, `rls`, `hfss` and `hfls`, or one of those diagnostics is
 offset from the others by a constant.
 
-Distinguishing those two needs the model to say, not us.
+Distinguishing those two needs the model to say, not us. It did, on 2026-08-18,
+and the first is right: see "The offset is not a diagnostic" below.
 
 ## What to do about it, and one trap on the way
 
@@ -509,19 +517,234 @@ suggestion rather than a demonstration and it is not offered as one.
 Four fifths of it is in the atmospheric column, between the two flux
 diagnostics, rather than at the surface.
 
-So the residual is named: **a constant offset of -0.573 +/- 0.035 W/m2 in the
-reported top-of-atmosphere net radiation, resident in the atmospheric column.**
-It is not storage, it is not the insolation, it is not the 28-term
-decomposition, and it is not a seasonal sampling artifact. What remains is the
-reflected shortwave `rsut`, the outgoing longwave `rlut`, or an atmospheric
-heating that neither flux diagnostic books -- and separating those three needs
-the radiative transfer recomputed offline from the run's own profiles, which is
-the next step and is not arithmetic on existing outputs.
+So the residual is named as a quantity: **-0.573 +/- 0.035 W/m2 that the
+reported top-of-atmosphere net radiation carries and the planet's heat content
+does not experience, four fifths of it in the atmospheric column.** It is not
+storage, it is not the insolation, it is not a seasonal sampling artifact, and
+the next section says what it is.
+
+## The offset is not a diagnostic: it is energy the model makes
+
+Measured 2026-08-18 by `exoplasim/scripts/close_term_energy.py` on
+`run_8c2e1ff9ab5e` orbits 67-76, the only `NLOWIO = 0` block on disk and
+therefore the only window on which the 28 terms and the fluxes are averaged the
+same way.
+
+### Two of the three candidates were never possible
+
+The section above left `rsut`, `rlut`, or an unbooked atmospheric heating. The
+first two are excluded by reading what the accumulators are, before any
+arithmetic.
+
+`outmod.f90:2562-2568` builds `assol`, `asthr`, `atsol`, `atthr` and `atsolu`
+by adding `dswfl(:,NLEP)`, `dlwfl(:,NLEP)`, `dswfl(:,1)`, `dlwfl(:,1)` and
+`dfu(:,1)` every timestep and dividing by `naccuout` at write time. Those are
+the arrays the radiation itself wrote. `radmod.f90:1211` forms
+`dflux = dlwfl + dswfl`, `landmod.f90:704` drives the surface with
+`dflux(:,NLEP)`, and `radmod.f90:1231-1233` builds the atmospheric heating as
+the divergence of the same profile. **The reported top-of-atmosphere net is the
+number that heats the model, not a rendering of it**, so there is no
+reported-against-actual split for a flux diagnostic to be offset in.
+
+That also disposes of the softer version of the candidate. A radiation scheme
+that is physically wrong but internally consistent does not produce this
+signature; it produces a different climate, in balance. A settled state that
+reports a persistent negative net at the top requires an energy SOURCE inside
+the model of the same size, and nothing else.
+
+`rsut` is pinned twice over: it drives nothing, and `<rst - rsut>` matches
+`GSOL0 / (4 sqrt(1 - e^2))` to -0.0119 W/m2, so it cannot carry half a watt on
+its own.
+
+### Three identities, and the one that fails
+
+Each has a right answer and each could have gone the other way.
+
+| identity | right answer | measured, W/m2 |
+| --- | --- | ---: |
+| gridpoint physics: `denergy 6+7+8+9+10+11+12+13+14+21+22` = `denergy04` | 0 | **+0.0264 +/- 0.0002** |
+| adiabatic dynamics: `denergy26 - denergy27` = 0 | 0 | **+0.3446 +/- 0.0129** |
+| kinetic energy in steady state: `-denergy27` = `denergy 21+22+23+25` | 0 | **-0.0073 +/- 0.0067** |
+
+The first says the total gridpoint temperature tendency is accounted for by the
+parameterisations that book their own heating: there is no large unbooked
+heating in the physics half. Term 22 belongs in that sum and is easy to miss,
+because it is written as a kinetic-energy expression while `fluxmod.f90:916`
+adds exactly it to `dtdt` -- it is the vertical-diffusion frictional heating.
+
+The second is the answer. `denergy26` is the column enthalpy change across
+`spectrala`, the adiabatic spectral step, and `denergy27` is minus the kinetic
+energy change across the same step (`plasim.f90:3125-3145`, and the loop order
+at `plasim.f90:622-661` is what makes that step adiabatic: `gridpointa`,
+`spectrala`, `gridpointd`, `spectrald`). Adiabatic dynamics moves energy between
+enthalpy and kinetic energy and creates none, so the two must cancel. They do
+not. **The spectral core is a net energy source of +0.3446 +/- 0.0129 W/m2**,
+which is 15.6% of the conversion it is performing.
+
+The third is what makes the second readable rather than a mis-pairing. In a
+settled run the kinetic energy is flat, so the adiabatic generation must equal
+the frictional dissipation returned as heat. It does, to -0.0073 W/m2 out of
+2.21. Had that failed, `denergy27` would not have been the adiabatic generation
+and the second identity would have meant nothing.
+
+One thing the second identity does NOT separate, and the distinction matters to
+whoever takes this further. Both terms compare the raw new state against the
+Robert-Asselin-filtered old one, because `atm`, `adm` and `azm` are `stm`, `sdm`
+and `szm` as the previous step's filter left them (`plasim.f90:2873-2875` and
+`2979-2984`). So what is measured is the step AS THE MODEL EXECUTES IT --
+semi-implicit leapfrog with the filter's first part folded into the reference
+state -- and not the continuous adiabatic equations on their own. The filter
+enters both terms the same way, so it cannot be read out of their difference
+here. The number is right for the model that produced these runs, which is what
+the residual needed; attributing it between the time scheme and the semi-implicit
+conversion is a separate question and needs a different experiment.
+
+### The atmospheric budget closes once it is counted
+
+| | W/m2 |
+| --- | ---: |
+| radiative convergence, `ntr - (rss + rls)` | -100.6349 +/- 0.1362 |
+| sensible from the surface, `-hfss` | +22.4110 +/- 0.2228 |
+| latent from the surface, `-hfls` | +77.3712 +/- 0.2881 |
+| **flux route total** | **-0.8527 +/- 0.0785** |
+| latent asymmetry, `(11+12+14) - (-hfls)` | +0.4143 +/- 0.0750 |
+| adiabatic non-conservation, `26 - 27` | +0.3446 +/- 0.0129 |
+| spectral diffusion of heat, `denergy24` | -0.0099 |
+| **total** | **-0.1038 +/- 0.1071** |
+
+against a measured atmospheric enthalpy tendency of **-0.0074 W/m2**, taken as
+the trend of `denergy01`, which is the model's own column enthalpy and needs no
+reconstruction. The flux route alone was out by -0.85; with the two transfers
+counted it is out by -0.10, inside its own scatter.
+
+The latent asymmetry is real physics rather than an error, and it pairs with
+the melt term inside `hfns`: convection books the latent heat of sublimation
+below freezing, so the atmosphere receives the heat of fusion that the surface
+pays back when the snow melts. Its partner, `hfns - (rss+rls+hfss+hfls)`, is
+-0.4210 +/- 0.0089 over the same orbits and equals `-ALF * rho * snm` to six
+digits.
+
+### What is left
+
+| | W/m2 |
+| --- | ---: |
+| reported `ntr` | -0.5995 |
+| planetary heat content trend | -0.0547 |
+| residual | -0.5448 |
+| adiabatic source, measured | +0.3446 |
+| **still unattributed** | **-0.2002** |
+
+Of that remainder, the atmospheric column carries -0.10 +/- 0.11, which is
+consistent with zero, and the surface carries -0.12, which is the second
+residual and is treated below.
+
+The result is stable across sub-windows of the block. Trimming the first
+orbits, which follow a restart, gives an adiabatic source of 0.3446, 0.3426,
+0.3419 and 0.3426 on 67-76, 68-76, 69-76 and 70-76, and a planetary residual of
+-0.5448, -0.5475, -0.5614 and -0.5201.
+
+### Why the four runs could not have answered this by themselves
+
+The obvious lever is that the four runs span two flux ratios, so a residual
+that is a fixed fraction of a flux should move between them. It cannot be read
+that way, and the arithmetic says so in advance rather than afterwards. Taking
+the baseline residual as the anchor and rescaling to the 0.910 run:
+
+| if the residual were a fixed fraction of | predicted shift, W/m2 |
+| --- | ---: |
+| absorbed shortwave | +0.0328 |
+| outgoing longwave | +0.0328 |
+| incoming shortwave | +0.0202 |
+| reflected shortwave | -0.0112 |
+
+against a run-to-run scatter of 0.035 on the residual itself. **Every
+hypothesis predicts a shift smaller than the noise**, so the flux-ratio
+leverage is exhausted before it starts and no reading of it is evidence either
+way. The residual as a fraction of absorbed shortwave runs -0.2374%, -0.2484%,
+-0.2606% and -0.2742% across the four; as a fraction of reflected shortwave,
+-0.5914%, -0.6096%, -0.5978% and -0.6731%. Neither ordering separates.
+
+The same three identities computed on the three `NLOWIO = 1` windows give an
+adiabatic residual of 0.354, 0.439 and 0.343. Those are snapshot readings of an
+unaccumulated array and their numbers are not quotable; they are recorded
+because they are the same size, and as a suggestion rather than a
+demonstration. `close_term_energy.py` refuses such a window unless
+`--allow-low-io` is passed.
+
+## The surface residual is in the ocean, and the land is clean
+
+Measured 2026-08-18 on the same block. `hfns` is -0.1678 +/- 0.1571 W/m2 and the
+reconstructed surface heat content falls at -0.0461, leaving **-0.1217**. Split
+by surface type, with each half compared against `hfns` over the same cells:
+
+| | flux, W/m2 of planet | storage | residual |
+| --- | ---: | ---: | ---: |
+| land | -0.0273 +/- 0.0582 | -0.0113 | **-0.0160** |
+| ocean | -0.1406 +/- 0.1413 | -0.0349 | **-0.1057** |
+
+**The land closes.** That is a test of the reconstruction rather than of the
+model, and it could have failed: `landmod` integrates exactly `hfns` into
+exactly the soil column that `close_state_energy.py` rebuilds from `SOILCAP`
+and the five layer thicknesses, with `ts` standing in for the layer the model
+does not write. It did not fail, so the soil capacity, the snow latent term and
+the melt booking are all right, and none of them is carrying the residual. The
+land figure is -0.016 to -0.027 across the four sub-windows.
+
+**The ocean does not, and the failure is on the cells that never see ice.**
+Splitting the ocean by whether a cell carried sea ice or snow at any point in
+the window:
+
+| | area fraction | flux, W/m2 of planet | storage | residual |
+| --- | ---: | ---: | ---: | ---: |
+| never any ice or snow | 0.5201 | -0.1589 | -0.0072 | **-0.1517** |
+| ice or snow at some point | 0.0517 | +0.0183 | -0.0503 | **+0.0687** |
+
+Per unit area of the ice-free cells that is -0.2917 W/m2 delivered and
+-0.0138 stored.
+
+On those cells the slab identity is exact by the model's own construction, and
+this is what makes the failure a finding rather than a mismatch of two
+reconstructions. `oceanmod.f90:15` sets `NLEV_OCE = 1`, the run's namelist sets
+`MLDEPTH = 50`, `nhdiff` defaults to 0 so there is no horizontal ocean
+transport, `nfluko` to 0 so there is no flux correction, `NLSG = 0` so there is
+no deep-ocean flux, and `ncpl_atmos_ice` and `ncpl_ice_ocean` are both 1 so no
+accumulation interval can be mis-divided. `seamod.f90:172` accumulates
+`dshfl + dswfl(:,NLEP) + dlwfl(:,NLEP) + dlhfl` and `oceanmod.f90:810` adds it
+to a single 50 m layer. So `CRHOS * CPS * mld * d(SST)/dt = hfns`, locally, with
+no transport term to hide in.
+
+Two checks say the failure is an offset rather than a scaling. Regressing `hfns`
+on `CRHOS * CPS * mld * d(ts)/dt` bin by bin over those cells, across a seasonal
+swing of -25.7 to +17.0 W/m2, gives a slope of 1.0946 and a correlation of
+0.99435; a centred difference on 12 bins understates the derivative of the
+fundamental by 4.5%, which is most of the slope excess, so the heat capacity and
+the flux pairing are right. And `hfls` equals `-ALV * rho * evap` on those cells
+to 0.000000 W/m2, which is what `fluxmod.f90:687` promises over an ocean
+surface and which would have caught a phase-constant error in the latent flux.
+
+The residual is not uniform. Area-weighted by latitude band over the ice-free
+ocean it runs -0.52 poleward of 60S, -0.04 between 60S and 30S, -0.64 between
+30S and the equator, -0.41 from the equator to 30N, -0.09 between 30N and 60N,
+and +3.26 on the 0.0065 of the planet that is ice-free ocean poleward of 60N.
+Its per-cell correlation with `hfls` is +0.40 and with `ts` is -0.40.
+
+**So the surface residual is narrowed, not resolved.** Excluded: the land
+reconstruction, the soil heat capacity, the snow and melt booking, the
+mixed-layer depth, ocean horizontal transport, a flux correction, a deep-ocean
+flux, a coupling-interval mismatch, the sea-ice reservoir (the residual is
+largest where there is no ice), and a scaling error in either the capacity or
+the latent flux. Not settled: which side of
+`CRHOS * CPS * mld * d(SST)/dt = hfns` carries the -0.29, since both are read
+from the same output stream and nothing in the regular output reports the slab
+temperature independently of `ts`. The ocean stream carries `osst` on code 169
+and `oheat` on code 263 and is not postprocessed by this project, which is the
+obvious next instrument.
 
 ## What this changes for the convergence criterion
 
-`|mean TOA| < 0.5 W/m2` is applied to a diagnostic that is 0.57 too negative, and
-every recent miss on this baseline is smaller than that offset. The full argument,
+`|mean TOA| < 0.5 W/m2` is applied to a diagnostic that sits 0.57 below the
+planet's actual heat tendency, and every recent miss on this baseline is smaller
+than that difference. The full argument,
 including where the "missing it by 0.0014" came from, is
 `exoplasim/notes/baseline-equilibration.md`. Two things from it belong here.
 
@@ -530,21 +753,25 @@ the strength of this measurement: choosing a new quantity for a criterion
 immediately after measuring that the new quantity passes is the move
 `WORKFLOW.md` section 7 forbids, whatever the physics says.
 
-But the baseline's failure to converge is an instrument fault rather than a
-spin-up fault, and more orbits cannot fix it. That is what A2 needed to know.
+But the baseline's failure to converge is not a spin-up fault and more orbits
+cannot fix it: the criterion reads a quantity that a non-conserving model holds
+away from zero at equilibrium. That is what A2 needed to know.
 
 ## Status
 
-Open, and narrowed on 2026-08-17 against the settled baseline.
+Narrowed on 2026-08-17 against the settled baseline, and the top-of-atmosphere
+half named on 2026-08-18.
 
 **Closed.** The large-scale condensation lead, which was the standing candidate:
 it is the missing latent heat of fusion in `mklsp`, predicted and measured to
 0.7%, worth 1.57 W/m2, and structurally incapable of being the gap. The radiation
 diagnostics, which are internally consistent to 0.03 W/m2 on a clean orbit. The
 claim that the gap is a fixed -0.455. **A storage term in the slab ocean or the
-sea ice**, eliminated above against the prognostic state, on eight windows across
-four runs. **The incoming shortwave**, closed against the declared solar constant
-and the orbit to 0.012 W/m2.
+sea ice**, eliminated against the prognostic state, on eight windows across four
+runs. **The incoming shortwave**, closed against the declared solar constant and
+the orbit to 0.012 W/m2. **`rsut` and `rlut` as diagnostic offsets**: the
+accumulators hold the same arrays that heat the model, so there is nothing for
+an offset to be relative to.
 
 **Found.** The instrument was mis-deployed. `denergy` is written unaccumulated
 while everything it would be compared against is a time mean, so under
@@ -553,13 +780,22 @@ snapshots and disagree with the fluxes by several percent. That is why turning
 the decomposition on did not answer the question. Runs now set `NLOWIO = 0` and
 the terms are usable.
 
-**Open, and down to one candidate set.** The reported TOA net carries a
-structural offset of -0.573 +/- 0.035 W/m2 that the planet's heat content does
-not experience, four fifths of it in the atmospheric column. `rsut`, `rlut`, or an
-unbooked atmospheric heating. That is CLIM-1 still, and the next instrument is an
-offline radiative-transfer recomputation from the run's own temperature and
-humidity profiles, not more model time -- the existing clean orbits are already
-enough to see the answer once there is something to compare them against.
+**Found, and it is the third candidate.** The adiabatic spectral step does not
+conserve enthalpy plus kinetic energy: `denergy26 - denergy27` is +0.3446 +/-
+0.0129 W/m2 where it must be zero, and the kinetic-energy identity that would
+have refuted the pairing passes at -0.0073. So the reported top-of-atmosphere
+net is a true measurement of an atmosphere that is genuinely radiating away
+energy the numerics create. With that counted, the atmospheric budget closes to
+-0.10 +/- 0.11 W/m2 against the model's own column enthalpy.
+
+**Still open, and smaller.** -0.20 W/m2 of the planetary residual is
+unattributed, of which -0.12 is the surface. The surface half is entirely in
+the ocean and entirely on cells that never carry sea ice, where the slab
+identity is exact by construction and fails by -0.29 W/m2 per unit area. That
+is what is left of CLIM-1. The next instrument is the ocean output stream,
+which carries `osst` and `oheat` and which this project does not postprocess,
+not more model time and not the offline radiative transfer this note previously
+proposed.
 
 ## What this cost, and what it saved
 
