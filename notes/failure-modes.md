@@ -552,3 +552,43 @@ formulations differ.
 
 Ask what would falsify the implementation, not what would flatter it.
 
+## 17. A check that cannot fail is not a check
+
+The consequence of class 16, and general enough to stand alone. Three things get
+called validation here and only one of them is.
+
+**Cannot fail at all.** `penman_ocean_validation` returned 3.736 against 3.672
+for a ratio of 1.017 as literal constants, whatever the inputs were. It was
+quoted for months, including as the check that a dust perturbation had not broken
+Penman -- a thing it was structurally incapable of detecting. The computed figure
+is 1.0415, so every "validated to within 1.7%" in this repo was also wrong by a
+factor of two and a half.
+
+**Can only differ.** Penman against the model's own bulk evaporation scheme. Two
+legitimate formulations of the same quantity, disagreeing by several percent
+because they are different formulations, with neither being the right answer. A
+change in that disagreement is not evidence about either of them, and treating it
+as evidence is how a correct physical term came to be deleted.
+
+**Can fail.** A comparison with a right answer, where one outcome would mean
+"wrong". All of these are from a single day and every one of them could have gone
+the other way:
+
+| check | why it can fail | what it caught |
+| --- | --- | --- |
+| term 7 against `-dshfl` | algebraically the same expression | out by 1.6 W/m2: the unaccumulated snapshot |
+| snapshot `spd` against `sqrt(ua^2+va^2)` | definitional | agreed to 1.000: settled what code 259 is |
+| `planck()` integrated against sigma T^4 | physical constraint | off by pi: a double-counted 2*pi*h*c^2 |
+| implied surface temperature against the model's SST | the model HAS the answer | +0.24 K: the closure holds |
+| binned `spd` against the snapshot mean at NLOWIO = 0 | same quantity, same regime | 1.002: the vector cancellation was an artifact, not a property |
+| land P - E against the model's global water budget | conservation | 0.03%: the fields are sound and `mrro` was misread |
+
+**Test the implementation against something that can fail, not the outcome
+against something that can only differ.**
+
+To find one, look for an identity, a definition, a conservation law, or a
+quantity the other side already knows. Those are the four that work. If you
+cannot say in advance what result would mean the thing is wrong, you have not
+built a test -- you have built a number that will later be quoted as though you
+had.
+

@@ -97,6 +97,13 @@ none of them is advice.
   agreement worse, that is information about the implementation, the comparison,
   or a second error cancelling the first -- never a reason to remove the term.
   `notes/failure-modes.md` class 16.
+- **Test the implementation against something that can fail, not the outcome
+  against something that can only differ.** A check needs a right answer: an
+  identity, a definition, a conservation law, or a quantity the other side
+  already knows. Two valid formulations disagreeing is not evidence about
+  either. If you cannot say in advance what result would mean "wrong", you
+  have a number that will later be quoted as a validation, not a test.
+  `notes/failure-modes.md` class 17.
 - **Findings and tasks are kept apart.** A document under `notes/audits/` says
   what is true and carries its evidence; `TASKS.md` says what to do about it and
   cites the document. That way a finding can be read without being re-litigated,
