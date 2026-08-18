@@ -1,5 +1,5 @@
 {
-  "generated": "2026-08-18T04:02:29+00:00",
+  "generated": "2026-08-18T04:15:12+00:00",
   "generator": "pedology/scripts/build_surface_classes.py",
   "source_build": "precarve-craton",
   "terrain_hash": "e931b0d9947a232210a3cc11ba82003b5da15765d86e87956bc44c220932760e",
@@ -9,7 +9,7 @@
   "dust_bracket_end": "central",
   "brine_paths": "pedology/analysis/brine_paths.json",
   "rules_sha256": "f6580bad9c23409283f9cb75d1aa5d54decddce542fa54cc71cc4ff772b8f40c",
-  "git_commit": "6f7a38ce7bb162b97a93c310c152cddc66203abf",
+  "git_commit": "fb7672e63b4cbda8bce15f7a4ff7bdd2bebe9eb3",
   "land_area_km2": 317310405.2316623,
   "surface_cover_land_fractions": {
     "water": 0.1258496373180682,
@@ -30,6 +30,12 @@
     "drainage_line": 0.0075333988352349595
   },
   "drainage_line_discharge_cut_m3_s": 2097.5771484375,
+  "chemistry_source": {
+    "note": "A region inside a closed basin inherits its basin's flux-weighted catchment chemistry, because that is the water that arrives and evaporates there. A region draining to the ocean, and a region in a basin whose catchment generates no runoff at all, take the release of the rock beneath them instead: there is no evaporative concentration to inherit. The fallback is counted here rather than left silent.",
+    "land_fraction_from_basin": 0.6677702277008376,
+    "land_fraction_from_local_rock": 0.3322297722991624,
+    "land_fraction_in_a_basin_with_no_runoff": 0.09445877853837795
+  },
   "checks": {
     "partition_cover": {
       "criterion": "class areas sum to the land area within 1e-9 relative",

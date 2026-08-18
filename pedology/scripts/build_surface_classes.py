@@ -182,7 +182,14 @@ def region_chemistry(export: Export, terminal: np.ndarray, brine: dict,
     of the rock beneath it: there is no evaporative concentration to inherit and
     the local supply is what a pedogenic horizon in that profile sees.
 
-    Returns (ca_over_hco3, silica_umol_l, has_basin_chemistry).
+    A cell inside a basin whose catchment generates NO runoff also falls back to
+    the local rock, and that fallback is reported rather than left silent: no
+    water arrives, so `brine_paths.py` reports the divide undetermined there, and
+    what a pedogenic horizon sees is what is beneath it. The count is in the
+    report because a silent fallback across a component boundary is how a
+    plausible number replaces an error.
+
+    Returns (ca_over_hco3, silica_umol_l, local_ca_ueq_l, has_basin_chemistry).
     """
     tables = json.loads(MEYBECK.read_text(encoding="utf-8"))["table_2c"]
     cols = {c: i for i, c in enumerate(tables["columns"])}
@@ -207,7 +214,7 @@ def region_chemistry(export: Export, terminal: np.ndarray, brine: dict,
     ratio = np.where(from_basin, basin_ratio[np.clip(terminal, 0, None)], ratio)
     silica = np.where(from_basin, basin_silica[np.clip(terminal, 0, None)],
                       silica)
-    return ratio, silica, from_basin
+    return ratio, silica, ca, from_basin
 
 
 def audit_rules(masks: dict[str, np.ndarray], area: np.ndarray,
@@ -314,8 +321,8 @@ def main() -> None:
         deposition = {end: np.asarray(ds[f"deposition_{end}"][:], dtype=float)
                       for end in ("low", "central", "high")}
 
-    ca_ratio, silica, from_basin = region_chemistry(export, terminal, brine,
-                                                    n_basins)
+    ca_ratio, silica, local_ca, from_basin = region_chemistry(
+        export, terminal, brine, n_basins)
 
     # --- surface_cover rules --------------------------------------------
     cover_cfg = rules["surface_cover"]
@@ -365,12 +372,6 @@ def main() -> None:
     # --- duricrust rules -------------------------------------------------
     duri_cfg = rules["duricrust"]
     carbonate_poor = np.nan_to_num(ca_ratio, nan=0.0) >= 1.0
-    local_ca = solute_routing.region_release(
-        export, ROCK_TO_MEYBECK,
-        json.loads(MEYBECK.read_text(encoding="utf-8"))["table_2c"]["rows"],
-        {c: i for i, c in enumerate(
-            json.loads(MEYBECK.read_text(encoding="utf-8"))
-            ["table_2c"]["columns"])})[SPECIES.index("ca_ueq_l")]
 
     land_discharge = discharge[land & (discharge > 0)]
     drainage_cut = float(np.percentile(
@@ -621,6 +622,20 @@ def main() -> None:
         "silcrete_settings_land_fractions": {
             k: share(v) for k, v in silcrete_setting.items()},
         "drainage_line_discharge_cut_m3_s": drainage_cut,
+        "chemistry_source": {
+            "note": "A region inside a closed basin inherits its basin's "
+                    "flux-weighted catchment chemistry, because that is the "
+                    "water that arrives and evaporates there. A region draining "
+                    "to the ocean, and a region in a basin whose catchment "
+                    "generates no runoff at all, take the release of the rock "
+                    "beneath them instead: there is no evaporative "
+                    "concentration to inherit. The fallback is counted here "
+                    "rather than left silent.",
+            "land_fraction_from_basin": share(from_basin),
+            "land_fraction_from_local_rock": share(~from_basin),
+            "land_fraction_in_a_basin_with_no_runoff": share(
+                (terminal >= 0) & ~from_basin),
+        },
         "checks": checks,
         "rule_audit": audit,
         "ion_and_supply_gates": gates,
