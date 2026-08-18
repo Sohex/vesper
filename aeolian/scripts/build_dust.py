@@ -727,7 +727,12 @@ def main() -> None:
         ds.createDimension("lon", nlon)
         ds.title = "Offline dust: annual mean optical depth and deposition"
         ds.terrain_hash = terrain
-        ds.source_build = str(config.get("source_build"))
+        # `vesper_source_build` and not a bare `source_build`: that is the name
+        # `lib/provenance.py:require_build` looks for, and stamping the other one
+        # meant every consumer got a warning instead of a check. This artifact
+        # lives at a FIXED path with no build in it, so it is the one input that
+        # would otherwise be silently inherited from a superseded terrain.
+        ds.setncattr("vesper_source_build", str(config.get("source_build")))
         ds.climatology = rel(clim_path)
         ds.variant = args.variant
         for name, data in (("lat", lat), ("lon", lon)):

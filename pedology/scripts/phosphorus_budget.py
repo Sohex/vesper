@@ -56,6 +56,7 @@ from netCDF4 import Dataset
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 from _paths import ANALYSIS, CONFIG, PROJECT_ROOT  # noqa: E402
+from paths import rel  # noqa: E402
 
 sys.path.insert(0, str(PROJECT_ROOT / "lib"))
 import builds  # noqa: E402
@@ -293,7 +294,7 @@ def main() -> None:
     print(f"  strongly concentrating and dry (>= 20): {f['strongly_concentrating_and_dry']}")
     print(f"  share of delivered P in those basins: "
           f"{f['share_of_delivered_p_in_strong_basins']:.1%}")
-    print(f"\nwrote {args.output.relative_to(PROJECT_ROOT)}")
+    print(f"\nwrote {rel(args.output)}")
 
 
 if __name__ == "__main__":

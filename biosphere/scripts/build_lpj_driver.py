@@ -42,6 +42,7 @@ import numpy as np
 import yaml
 
 from _paths import CONFIG, GENERATED, PROJECT_ROOT, climatology_path
+from paths import rel  # noqa: E402
 
 import builds
 import orbit
@@ -100,8 +101,7 @@ def project_relative(path: Path) -> str:
     during a test.
     """
     path = Path(path).resolve()
-    return str(path.relative_to(PROJECT_ROOT)
-               if path.is_relative_to(PROJECT_ROOT) else path)
+    return rel(path)
 
 
 def area_weights(lat: np.ndarray, nlon: int) -> np.ndarray:

@@ -52,6 +52,8 @@ from pathlib import Path
 import numpy as np
 import yaml
 
+from paths import rel
+
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 CONFIG = PROJECT_ROOT / "config" / "planet.yaml"
 RUN_INDEX = PROJECT_ROOT / "exoplasim" / "runs" / "INDEX.json"
@@ -150,7 +152,7 @@ def planetary_albedo(cfg: dict | None = None,
     incident = net_down + upward
     alpha = upward / incident
     return alpha, {
-        "source": str(Path(path).relative_to(PROJECT_ROOT)),
+        "source": rel(path),
         "run_id": run_id,
         "flux_ratio": flux,
         "incident_w_m2": round(incident, 3),

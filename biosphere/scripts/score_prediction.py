@@ -26,6 +26,7 @@ import numpy as np
 import yaml
 
 from _paths import CONFIG, PROJECT_ROOT, climatology_path
+from paths import rel  # noqa: E402
 
 import orbit
 
@@ -215,7 +216,7 @@ def main() -> None:
         "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "run": str(run),
         "run_manifest": manifest,
-        "climatology": str(climatology.relative_to(PROJECT_ROOT)),
+        "climatology": rel(climatology),
         "cells_scored": n_done,
         "land_cells": n_land,
         "partial": partial,
@@ -241,7 +242,7 @@ def main() -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     path = out_dir / "prediction_score.json"
     path.write_text(json.dumps(report, indent=2) + "\n")
-    print(f"\nwrote {path.relative_to(PROJECT_ROOT)}")
+    print(f"\nwrote {rel(path)}")
 
 
 if __name__ == "__main__":

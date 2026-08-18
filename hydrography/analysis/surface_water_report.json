@@ -12,26 +12,26 @@
   },
   "open_water_evaporation": {
     "method": "Penman combination, water albedo and roughness, floored at the model's land rate; shared with carve_verdict.py",
-    "global_mean_mm_per_day": 3.003616391556787,
+    "global_mean_mm_per_day": 3.0267011921657585,
     "ocean_mean_mm_per_day": 3.1572858058148583,
     "model_ocean_mean_mm_per_day": 3.2350281221144512,
     "validation": "ratio over ocean cells, which already are open water; the only place the estimate can be checked"
   },
   "lakes": {
-    "basins_holding_water": 3141,
-    "basins_at_spill": 2116,
-    "solved_area_km2": 37567817.41360563,
-    "painted_area_km2": 37485432.40397239,
-    "planet_fraction": 0.051001073309144475,
-    "total_volume_km3": 4027367.6120559997
+    "basins_holding_water": 3145,
+    "basins_at_spill": 2128,
+    "solved_area_km2": 37772041.438163996,
+    "painted_area_km2": 37692381.18646884,
+    "planet_fraction": 0.05128263895612955,
+    "total_volume_km3": 4035527.671229977
   },
   "rivers": {
-    "max_discharge_m3_s": 72248.07544779716,
-    "basins_whose_outflow_was_routed": 2116,
-    "overflow_routed_m3_s": 3695893.4402715284,
-    "regions_above_1000_m3_s": 12497,
+    "max_discharge_m3_s": 72571.66173072258,
+    "basins_whose_outflow_was_routed": 2128,
+    "overflow_routed_m3_s": 3792498.328823005,
+    "regions_above_1000_m3_s": 12616,
     "land_runoff_km3_per_year": 20783.118029624304,
     "land_runoff_m3_s": 1315883.3281725515
   },
-  "git_commit": "0a382edd8ef3636ae34d2062cb2ccc726fbf0163"
+  "git_commit": "61557243a797eb4ef254bea3f260925d114d7e83"
 }

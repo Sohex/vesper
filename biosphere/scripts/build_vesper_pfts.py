@@ -41,6 +41,7 @@ from pathlib import Path
 import yaml
 
 from _paths import CONFIG, GENERATED, GUESS_SOURCE, PROJECT_ROOT
+from paths import rel  # noqa: E402
 
 import orbit
 
@@ -174,7 +175,7 @@ def main() -> None:
     print(f"changed {len(changes)} parameter values:")
     for change in changes:
         print(f"   {change['parameter']:14s} {change['from']:>8.1f} -> {change['to']:.1f}")
-    print(f"\nwrote {output.relative_to(PROJECT_ROOT)}")
+    print(f"\nwrote {rel(output)}")
     print(f"      {report_path.name}")
 
 

@@ -33,6 +33,7 @@ import numpy as np
 import yaml
 
 from _paths import CONFIG, GENERATED, GUESS_SOURCE, PROJECT_ROOT, climatology_path
+from paths import rel  # noqa: E402
 
 import orbit  # lib/orbit.py, the single source of truth for the year length
 
@@ -116,7 +117,7 @@ def derive_fradpar(config: dict, window: tuple[float, float]) -> tuple[float, di
     sun = par_fraction(wavelength, planck(wavelength, SOLAR_EFFECTIVE_TEMPERATURE_K),
                        EARTH_PAR_WINDOW_UM)
     return EARTH_FRADPAR * star / sun, {
-        "spectrum": str(spectrum.relative_to(PROJECT_ROOT)),
+        "spectrum": rel(spectrum),
         "spectrum_sha256": hashlib.sha256(spectrum.read_bytes()).hexdigest(),
         "par_window_um": list(window),
         "solar_reference_window_um": list(EARTH_PAR_WINDOW_UM),
@@ -162,7 +163,7 @@ def fit_solstice_offset(year_length: int, obliquity_deg: float,
     best = int(np.argmin(residuals))
     fitted = predicted[best]
     return float(offsets[best]), {
-        "climatology": str(climatology.relative_to(PROJECT_ROOT)),
+        "climatology": rel(climatology),
         "bins": bins,
         "rms_residual_deg": float(residuals[best]),
         "max_abs_residual_deg": float(np.max(np.abs(fitted - zdec))),
@@ -326,7 +327,7 @@ def main() -> None:
           f"{solstice_fit['bins']} bins)")
     print(f"FRADPAR        {fradpar:.4f} "
           f"({args.par_window[0]}-{args.par_window[1]} um)")
-    print(f"\nwrote {header.relative_to(PROJECT_ROOT)}{installed}")
+    print(f"\nwrote {rel(header)}{installed}")
     print("REBUILD LPJ-GUESS: the year length sizes arrays at compile time.")
 
 

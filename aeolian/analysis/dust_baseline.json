@@ -1,6 +1,6 @@
 {
-  "generated": "2026-08-18T03:18:16.354352+00:00",
-  "git_commit": "095f767019c65cdf512c586ede44f1d45028a3da",
+  "generated": "2026-08-18T07:21:40.819184+00:00",
+  "git_commit": "61557243a797eb4ef254bea3f260925d114d7e83",
   "variant": "baseline",
   "note": "Offline dust: emission, transport and deposition from a climatology rather than inside the climate model. notes/dust.md says why; aeolian/README.md says what the numbers mean. The two shelter ends bracket how much the surrounding terrain shields an erodible patch, which this component does not claim to know.",
   "source_build": "precarve-craton",
@@ -57,10 +57,10 @@
       "playa_clastic": 1.0,
       "evaporite": 0.1
     },
-    "erodible_fraction_of_land": 0.15482,
+    "erodible_fraction_of_land": 0.16082,
     "land_fraction": 0.4317
   },
-  "mass_extinction_efficiency_m2_kg": 771.62,
+  "mass_extinction_efficiency_m2_kg": 771.7,
   "gravity_threshold_scaling": {
     "factor": 1.0691,
     "exponent": 0.25,
@@ -68,40 +68,40 @@
     "note": "Kok's standardized thresholds are Earth-fitted and his standardization corrects for air density alone. The exponent is 1/4 rather than 1/2 because the threshold is evaluated at its minimum, where Shao and Lu's gravity and cohesion terms are equal; the cohesion parameter cancels out of the ratio, which matters because it is known only to a factor of three."
   },
   "subgrid_wind": {
-    "weibull_shape_used": 2.0116174094804204,
-    "measured_from": "exoplasim/runs/run_8c2e1ff9ab5e/highcadence/MOST_HC.00066_wind.nc",
-    "measured_from_samples": 1463,
+    "weibull_shape_used": 4.600162250898425,
+    "measured_from": "exoplasim/analysis/climatology/baseline_snapshot_climatology.nc",
+    "measured_from_samples": 32,
     "note": "Measured, not declared, and the sampling cadence decides it: 32 snapshots 5.7 days apart give 3.965, while 1463 three-hourly samples from a high-cadence orbit give 2.012. Snapshots resolve synoptic but not sub-daily variance, so a shape fitted to them is an upper bound and the emission a lower bound. Quote the sample count with the shape."
   },
   "shelter_bracket": {
     "low": {
       "aeolian_z0_m": 3e-06,
-      "global_emission_Tg_per_earth_year": 171157.828,
-      "land_mean_aod": 5.23466,
-      "global_mean_aod": 3.30335,
-      "max_aod": 44.3084,
-      "land_mean_deposition_g_m2_per_earth_year": 370.5419,
-      "max_deposition_g_m2_per_earth_year": 3222.492,
+      "global_emission_Tg_per_earth_year": 32335.707,
+      "land_mean_aod": 0.7834,
+      "global_mean_aod": 0.50408,
+      "max_aod": 14.6436,
+      "land_mean_deposition_g_m2_per_earth_year": 59.2927,
+      "max_deposition_g_m2_per_earth_year": 1309.498,
       "transport_converged": true
     },
     "central": {
       "aeolian_z0_m": 0.0001,
-      "global_emission_Tg_per_earth_year": 14028.687,
-      "land_mean_aod": 0.37649,
-      "global_mean_aod": 0.24451,
-      "max_aod": 5.0509,
-      "land_mean_deposition_g_m2_per_earth_year": 27.4247,
-      "max_deposition_g_m2_per_earth_year": 450.044,
+      "global_emission_Tg_per_earth_year": 350.439,
+      "land_mean_aod": 0.00524,
+      "global_mean_aod": 0.00376,
+      "max_aod": 0.6124,
+      "land_mean_deposition_g_m2_per_earth_year": 0.4221,
+      "max_deposition_g_m2_per_earth_year": 55.384,
       "transport_converged": true
     },
     "high": {
       "aeolian_z0_m": 0.001,
-      "global_emission_Tg_per_earth_year": 2.36,
-      "land_mean_aod": 2e-05,
-      "global_mean_aod": 2e-05,
-      "max_aod": 0.0077,
-      "land_mean_deposition_g_m2_per_earth_year": 0.0019,
-      "max_deposition_g_m2_per_earth_year": 0.694,
+      "global_emission_Tg_per_earth_year": 0.0,
+      "land_mean_aod": 0.0,
+      "global_mean_aod": 0.0,
+      "max_aod": 0.0,
+      "land_mean_deposition_g_m2_per_earth_year": 0.0,
+      "max_deposition_g_m2_per_earth_year": 0.0,
       "transport_converged": true
     }
   },
@@ -110,8 +110,8 @@
     "land_mean_aod_threshold": 0.1,
     "forcing_threshold_w_m2": 1.5,
     "land_mean_aod_range": [
-      2e-05,
-      5.23466
+      0.0,
+      0.7834
     ],
     "crosses": true,
     "forcing_is_DUST_2": "this script does not price the forcing"

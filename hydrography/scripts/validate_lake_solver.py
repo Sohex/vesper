@@ -80,6 +80,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _paths import ANALYSIS, PROJECT_ROOT  # noqa: E402
+from paths import rel  # noqa: E402
 
 # Registered in the note before any data was fetched.
 PASS_MEDIAN_ABS_LOG10 = 0.30
@@ -383,7 +384,7 @@ def score(lakes, n_sinks: int, truncated: int, args, extract: Path) -> None:
                                   "scatter on that overlap, against a pass "
                                   "threshold of a factor of 2",
         },
-        "extract": str(extract.relative_to(PROJECT_ROOT)),
+        "extract": rel(extract),
         "counts": {
             "sink_basins": n_sinks,
             "terminal_lakes_selected": int(len(lakes)),

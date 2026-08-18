@@ -35,6 +35,7 @@ from _paths import ANALYSIS, DATA, PROJECT_ROOT  # noqa: E402
 import carve_verdict as cv  # noqa: E402
 import lake_balance as lb  # noqa: E402
 from orogen import LAND, Export  # noqa: E402
+from paths import rel  # noqa: E402
 
 import builds  # noqa: E402
 import gridding  # noqa: E402
@@ -390,7 +391,8 @@ def main():
         ds.createDimension("basin", basins.n)
         ds.title = "Lakes and rivers under the baseline climatology"
         ds.terrain_hash = export.terrain_hash
-        ds.forcing = str(_CLIM_FILE.relative_to(PROJECT_ROOT))
+        ds.setncattr("vesper_source_build", build.name)
+        ds.forcing = rel(_CLIM_FILE)
         ds.caveat = (
             "The forcing is a T42 run on the pre-carve terrain and these lakes "
             "are not fed back into it. Open-water evaporation is the Penman "
@@ -425,7 +427,7 @@ def main():
     report = {
         "source_build": build.name,
         "terrain_hash": export.terrain_hash,
-        "forcing": str(_CLIM_FILE.relative_to(PROJECT_ROOT)),
+        "forcing": rel(_CLIM_FILE),
         "forcing_sha256": sha256(_CLIM_FILE),
         "orbital_year_days": year_days,
         "runoff_source": {

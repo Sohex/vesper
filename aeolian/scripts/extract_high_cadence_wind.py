@@ -83,6 +83,7 @@ from netCDF4 import Dataset
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _paths import CONFIG, PROJECT_ROOT  # noqa: E402
+from paths import rel  # noqa: E402
 
 # 139 is not wanted for itself. pyburn builds its ENTIRE time axis by counting
 # occurrences of code 139 -- `readallvariables` appends to `variables["time"]`
@@ -312,7 +313,7 @@ def main() -> None:
     shutil.rmtree(work, ignore_errors=True)
     with Dataset(out, "a") as ds:
         try:
-            ds.source_raw = str(args.raw.relative_to(PROJECT_ROOT))
+            ds.source_raw = rel(args.raw)
         except ValueError:
             ds.source_raw = str(args.raw)
         ds.samples = len(samples)

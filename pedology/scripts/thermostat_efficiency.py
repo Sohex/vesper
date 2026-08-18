@@ -42,6 +42,7 @@ import yaml
 
 from _paths import (ANALYSIS, CONFIG, PEDOGENESIS, PROJECT_ROOT, SOURCE,
                     climatology_path)
+from paths import rel  # noqa: E402
 
 from build_soil import EARTH_YEAR_DAYS, KELVIN, weathering_intensity
 
@@ -134,7 +135,7 @@ def pending_carve(terrain: dict, build: str, carve_list: Path) -> tuple[np.ndarr
     # closed. See CLAUDE.md on why the naive union is wrong.
     fraction[terrain["endorheic"] & (terrain["basin_index"] < 0)] = 1.0
     provenance = {
-        "carve_list": str((carve_list.relative_to(PROJECT_ROOT) if carve_list.is_relative_to(PROJECT_ROOT) else carve_list)),
+        "carve_list": rel(carve_list),
         "carve_list_sha256": sha256(carve_list),
         "terrain_hash": verdict.get("terrain_hash"),
         "counts": verdict.get("counts"),
@@ -169,7 +170,7 @@ def main() -> None:
     terrain = read_terrain(build)
     current = efficiency(weathering, terrain)
 
-    print(f"climatology  {climatology.relative_to(PROJECT_ROOT)}")
+    print(f"climatology  {rel(climatology)}")
     print(f"build        {build}\n")
     print(f"{'terrain':<32} {'endorheic area':>15s} {'decoupled W':>13s} "
           f"{'efficiency':>11s}")
@@ -183,7 +184,7 @@ def main() -> None:
 
     report = {
         "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        "climatology": str(climatology.relative_to(PROJECT_ROOT)),
+        "climatology": rel(climatology),
         "climatology_sha256": sha256(climatology),
         "source_build": build,
         "weathering": pedo["weathering"],
@@ -236,7 +237,7 @@ def main() -> None:
     ANALYSIS.mkdir(parents=True, exist_ok=True)
     path = args.output or ANALYSIS / "thermostat_efficiency.json"
     path.write_text(json.dumps(report, indent=2) + "\n")
-    print(f"\nwrote {path.relative_to(PROJECT_ROOT)}")
+    print(f"\nwrote {rel(path)}")
 
 
 if __name__ == "__main__":

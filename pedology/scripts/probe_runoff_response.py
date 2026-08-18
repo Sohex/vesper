@@ -43,6 +43,7 @@ import numpy as np
 import yaml
 
 from _paths import ANALYSIS, CONFIG, DATA, PROJECT_ROOT, climatology_path  # noqa: F401
+from paths import rel  # noqa: E402
 from builds import component_data
 
 import orbit
@@ -254,7 +255,7 @@ def main() -> None:
         "purpose": ("offline estimate of ExoPlaSim's runoff response to a "
                     "pedology-supplied soil water capacity, to decide whether the "
                     "loop is worth spinning up"),
-        "climatology": str(climatology.relative_to(PROJECT_ROOT)),
+        "climatology": rel(climatology),
         "config_sha256": hashlib.sha256(CONFIG.read_bytes()).hexdigest(),
         "bucket_scheme": "landmod.f90 beta-method, drhsfull 0.4",
         "spin_up_years": args.years,
@@ -306,7 +307,7 @@ def main() -> None:
     ANALYSIS.mkdir(parents=True, exist_ok=True)
     path = ANALYSIS / "runoff_response_probe.json"
     path.write_text(json.dumps(report, indent=2) + "\n")
-    print(f"\nwrote {path.relative_to(PROJECT_ROOT)}")
+    print(f"\nwrote {rel(path)}")
 
 
 if __name__ == "__main__":

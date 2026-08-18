@@ -60,6 +60,7 @@ import numpy as np
 import yaml
 
 from _paths import CONFIG, DATA, PROJECT_ROOT, PROSPECTIVITY
+from paths import rel  # noqa: E402
 
 import builds
 from orogen import LAND, Export
@@ -188,7 +189,7 @@ def main() -> None:
     for key, s in summary.items():
         print(f"  {s['name'][:26]:26}{100*s['land_fraction_nonzero']:9.2f}"
               f"{100*s['land_fraction_above_half']:9.2f}{s['mean_over_land']:8.3f}")
-    print(f"\nwrote {out.relative_to(PROJECT_ROOT)}")
+    print(f"\nwrote {rel(out)}")
 
 
 if __name__ == "__main__":

@@ -397,11 +397,13 @@ def main() -> None:
 
     config = yaml.safe_load(CONFIG.read_text())
     pedo = yaml.safe_load(PEDOGENESIS.read_text())
-    # Resolve before use, not just before storing. The provenance write takes
-    # relative_to(PROJECT_ROOT), which raises on a path given relative to the
-    # cwd -- and it raises AFTER the soil map has already been written, leaving
-    # an artifact on disk with no provenance beside it. surface_water.py carries
-    # a comment about this exact failure; it was fixed there and not here.
+    # Resolve before use, not just before storing. Scripts here anchor their
+    # paths from the file location rather than the cwd, so a `--climatology`
+    # given relative to wherever the caller stood has to be made absolute before
+    # anything opens it. The provenance write used to raise on such a path, and
+    # to raise AFTER the soil map was already on disk, leaving an artifact with
+    # no provenance beside it; `lib/paths.py:rel` no longer raises (REF-7), so
+    # what is left is the ordinary reason and not that trap.
     climatology = (args.climatology or climatology_path()).resolve()
     if not climatology.is_file():
         raise SystemExit(f"{climatology} does not exist")
@@ -576,8 +578,9 @@ def main() -> None:
                         * (1.0 - np.exp(-bedrock["shape"] * intensity)))
 
     DATA.mkdir(parents=True, exist_ok=True)
-    # Resolved so a relative or out-of-tree --output does not break the
-    # provenance record's relative_to(PROJECT_ROOT).
+    # Resolved so a relative --output is interpreted against this file's anchor
+    # rather than the cwd. `rel` records an out-of-tree path as absolute instead
+    # of raising, so this is about writing the file in the right place.
     # Per build. Soil texture derives from lithology, so a soil map belongs to
     # the terrain it was computed from, and LPJ-GUESS eats this file directly.
     if args.output is None:
@@ -728,7 +731,7 @@ def main() -> None:
     print(f"bedrock water       {means['bedrock_water_fraction']:.3f} of soil "
           f"capacity per unit volume")
     print(f"\nwrote {report['output']}")
-    print(f"      {report_path.relative_to(PROJECT_ROOT)}")
+    print(f"      {rel(report_path)}")
 
 
 if __name__ == "__main__":
