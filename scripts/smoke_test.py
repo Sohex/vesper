@@ -235,6 +235,34 @@ def check_registered_in_workflow(files) -> list[str]:
     return missing
 
 
+def check_documented_in_component(files) -> list[str]:
+    """Every pipeline step is named in its component's README.
+
+    "An undocumented component is not complete" is a rule in CLAUDE.md and this
+    is what makes it hold. A fresh session reads the component README to learn
+    what a directory does; a step that works and is invisible there gets
+    reimplemented beside itself, which is how this project came to have four
+    copies of a path resolver.
+
+    It checks the NAME is present, not that the description is any good, because
+    the second is not mechanisable and the first catches the actual failure:
+    a script that nobody wrote down at all.
+    """
+    import yaml
+    graph = yaml.safe_load(
+        (ROOT / "config" / "pipeline.yaml").read_text(encoding="utf-8"))
+    missing = []
+    for step in graph["steps"]:
+        script = Path(step["script"])
+        readme = ROOT / script.parts[0] / "README.md"
+        if not readme.is_file():
+            continue                     # no component README to be absent from
+        if script.name not in readme.read_text(encoding="utf-8"):
+            missing.append(f"{script} is a pipeline step and is not named in "
+                           f"{script.parts[0]}/README.md")
+    return missing
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--skip-help", action="store_true",
@@ -252,7 +280,9 @@ def main() -> None:
               ("one grid convention, in lib/gridding.py",
                check_one_grid_convention(files)),
               ("every generator is declared in config/pipeline.yaml",
-               check_registered_in_workflow(files))]
+               check_registered_in_workflow(files)),
+              ("every step is named in its component README",
+               check_documented_in_component(files))]
     if not args.skip_help:
         checks.insert(1, ("entry points answer --help", check_help(files)))
 

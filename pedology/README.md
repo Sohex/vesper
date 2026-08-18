@@ -550,6 +550,14 @@ not an earlier point on the same curve. For the same reason there is no useful
 `hydrography` comparison across builds carved under different rules, and the
 three-build reading that preceded this one is withdrawn.
 
+## The phosphorus leg
+
+`phosphorus_budget.py` closes the phosphorus side of the C-N-P fork: apatite
+weathering as the primary supply, aeolian deposition as the secondary one, and
+occlusion into iron oxides as the sink. It reads the soil, the dust deposition
+field and the lake solution, so it sits below all three and is regenerated with
+them. The biosphere reads its output; nothing else does.
+
 ## Known gaps
 - **Derived surface classes are designed but not built.** What the rock IS comes
   from Orogen; what the surface has BECOME under this climate does not exist

@@ -127,6 +127,24 @@ none of them is advice.
   either. If you cannot say in advance what result would mean "wrong", you
   have a number that will later be quoted as a validation, not a test.
   `notes/failure-modes.md` class 17.
+- **An undocumented component is not complete.** Work here is picked up by
+  someone with no memory of it -- assume a brick to the head between any two
+  sessions, because a fresh session IS that. The test for done is not "does it
+  work", it is "can someone who has never seen it find it and use it without
+  reading the diff".
+
+  What this does NOT mean is recording numbers. Anything that can be looked up
+  or re-derived should be, and writing it into prose is the failure the first
+  convention above exists to prevent. What it means is that the THING must be
+  findable: a new module belongs in the `lib/` list, a new step in
+  `config/pipeline.yaml`, a new component in the layout and in `WORKFLOW.md`, a
+  new patch in `RESIDENT_PATCHES`, a new convention here. A component that works
+  and is invisible will be reimplemented beside itself, which is how this project
+  came to have four copies of a path resolver and three of a grid convention.
+
+  The two rules pull in opposite directions and that is the point: **record what
+  a thing IS and where it lives, never what it currently SAYS.**
+
 - **Do not offer a defect as a decision.** A thing is a DECISION only if the
   project's declared truth does not already settle it. `config/planet.yaml`,
   the rules in this file, `WORKFLOW.md`'s ordering and the existing findings are
@@ -230,9 +248,14 @@ requirements.txt       Shared Python dependencies for .venv.
 `config/` and `source/` are project-level and shared. Component-specific work
 lives under the component directory. New components get a sibling directory and
 read the same `config/planet.yaml` and `source/`. `lib/` holds the shared
-readers: `orogen.py` for the export, `gridding.py` for mesh-to-grid integration,
-`orbit.py` for the orbital period, `stellar.py` for the star's shortwave band
-split. Reuse them; do not reimplement.
+readers, and the list is the whole of it because "reuse them, do not reimplement"
+is unusable if it names half: `orogen.py` for the export, `builds.py` for
+resolving a build to a path, `paths.py` for repo-relative paths, `gridding.py`
+for mesh-to-grid integration and the one grid convention, `orbit.py` for the
+orbital period, `stellar.py` for the star's spectrum, band split and Rayleigh
+coefficient, `sensitivity.py` for the one flux-to-kelvin conversion, and
+`provenance.py` for build stamping and config drift. Reuse them; do not
+reimplement. Rules 5 and 7 both cite modules from this list.
 
 Git tracks the scripts, notes, configuration, and analysis products. It does
 **not** track `exoplasim/runs/` (model output, 13 GB after triage; but
@@ -301,9 +324,28 @@ with `UV_CACHE_DIR=/tmp/world-uv-cache uv pip install --python .venv/bin/python 
 Building ExoPlaSim needs `gcc-fortran` and `openmpi` from the host (Arch).
 Matplotlib is forced to `Agg` with its cache at `/tmp/world-matplotlib-cache`.
 
-`exoplasim/patches/exoplasim-3.4.2-star-cycle.patch` adds a sinusoidal stellar-flux
-cycle to `radmod.f90`. `build_star_cycle_exoplasim.sh` applies it, verifies the
-pinned upstream SHA, rebuilds, copies the result to
-`exoplasim/inputs/exoplasim_cycle_t42/`, and reverses the patch on exit; the
-vendored ExoPlaSim tree in `.venv` is left clean.
+**The vendored ExoPlaSim is several patches from upstream, and which ones is not
+written here.** `RESIDENT_PATCHES` in `exoplasim/scripts/rebuild_binaries.py` is
+the list, with a root per entry because they do not all strip to the same depth,
+and every patch file carries its own header explaining what it changes and what
+base it was authored against. `--verify` unwinds the whole stack in a scratch
+mirror to prove they are applied; testing each independently stops working the
+moment two of them touch adjacent lines. A copy of the list here would be a
+fourth place to go stale.
+
+Two things about that stack are worth knowing before you touch it. Several
+patches are NO-OPS until a namelist key turns them on -- `h2osww` defaults to 1.0
+and `ndustrad` to 0 -- so a rebuilt binary reproduces the runs that exist, and
+enabling one is a configuration decision that moves the mean. And the low-I/O
+patch CHANGES THE RESTART LAYOUT, so a run started before it cannot be resumed by
+a binary built after it.
+
+`exoplasim/patches/exoplasim-3.4.2-star-cycle.patch` is the exception to
+residency: it adds a sinusoidal stellar-flux cycle to `radmod.f90`, and
+`build_star_cycle_exoplasim.sh` applies it, verifies a pinned base SHA that names
+the whole resident stack rather than pristine 3.4.2, rebuilds, copies the result
+to `exoplasim/inputs/exoplasim_cycle_t42/`, and reverses it on exit. A cycle
+binary and a steady binary are different things and only one tree can hold it at
+a time. When a patch lands on `radmod.f90` that pin moves and the star-cycle
+patch has to be REGENERATED against the new base, not merely re-checked.
 

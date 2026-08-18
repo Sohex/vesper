@@ -143,6 +143,10 @@ unless told they exist.
 | `compare_albedo_bracket.py` | compare albedo endmembers and decide whether the bracket resolved |
 | `dust_optics.py` | two-band mineral dust optics, and the sign of its forcing |
 | `mie_dust.py` | Bohren and Huffman Mie code with lognormal size integration |
+| `dust_aerofile.py` | writes the model's `aerofile` from the dust optics, and validates the round trip |
+| `dust_forcing.py` | prices the dust radiative forcing per surface, shortwave and longwave |
+| `build_surface_dust.py` | the prescribed dust column as surface code 1811, read only at `ndustrad = 1` |
+| `shortwave_band_weights.py` | integrates the H2O and CO2 band absorptances against this star, for `h2osww` |
 
 ## What the flux sweeps established
 
