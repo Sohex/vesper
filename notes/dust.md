@@ -296,7 +296,7 @@ Below that, prescribed would have been the answer.
 ## The test fired, and this is what was decided
 
 Measured 2026-08-17, once DUST-5 replaced a wind tail fitted to 32 snapshots with
-one measured from 1,463 three-hourly samples: land-mean optical depth **0.512** at
+one measured from 1,463 three-hourly samples: land-mean optical depth **0.376** at
 the central roughness, against the 0.10 above. It crosses by 5.1x, and by 55x at
 the smooth end of the roughness bracket.
 
@@ -389,7 +389,7 @@ tools, and the reason stated rather than one quietly standing in for the other.
 ### The longwave is priced, and it changes the sign (DUST-2, 2026-08-17)
 
 `analysis/dust_forcing.json`, from `exoplasim/scripts/dust_forcing.py`, at the
-land-mean optical depth of 0.512 and a column mass of 0.66 g/m2:
+land-mean optical depth of 0.376:
 
 | surface | shortwave | longwave | net |
 | --- | ---: | ---: | ---: |
@@ -507,10 +507,10 @@ So the answer is split in two, and DUST-10 has now settled the first half.
 
 ### DUST-10, measured: the lake term is small and it UNDER-carves
 
-Computed 2026-08-17. `analysis/dust_surface_forcing.nc` carries the per-cell
-dust perturbation to `rss` and `rls`, and `carve_verdict.py --dust-forcing` adds
-them before Penman. Surface forcing, not top-of-atmosphere, which is the whole
-point:
+Computed 2026-08-17, and re-measured after HYD-13 corrected the grid mapping.
+`analysis/dust_surface_forcing.nc` carries the per-cell dust perturbation to
+`rss` and `rls`, and `carve_verdict.py --dust-forcing` adds them before Penman.
+Surface forcing, not top-of-atmosphere, which is the whole point:
 
 | surface | shortwave | longwave | net |
 | --- | ---: | ---: | ---: |
@@ -520,23 +520,22 @@ point:
 | salt crust, a = 0.50 | -6.6 | +4.5 | -2.1 |
 
 Negative everywhere, including over the bright fill where the TOA term is
-positive. Area-weighted the perturbation is -7.5 W/m2 shortwave and +2.8
-longwave, so -4.7 net.
+positive. Area-weighted the perturbation is -10.4 W/m2 shortwave and +3.8
+longwave.
 
-**Verdict with the dust surface forcing applied: 1,585 carved against 1,561
-without. Twenty-four MORE basins carve.** Dust dims the lake, Penman evaporation
+**Verdict with the dust surface forcing applied: 1,744 carved against 1,721
+without. Twenty-three MORE basins carve.** Dust dims the lake, Penman evaporation
 falls, more basins overflow. The direction is the opposite of the
 top-of-atmosphere reading and the same as this note's corrected one; the earlier
 claim that dust closes basins through the lake is dead.
 
-It is also small: 24 basins, not the 144 a 10% evaporation change would move,
-because -4.7 W/m2 on a surface net radiation of order 100 is a few percent and
-not ten. The disputed band narrows from 417 to 393, and the ocean validation is
-unchanged at 1.017 either way, which is the check that the perturbation did not
-break Penman itself.
+It is small, and it survived every correction of the day almost unchanged: the
+first measurement gave 24 basins on a mapping that turned out to shift every
+basin half a planet, and the corrected mapping gives 23. The lake term does not
+depend on the things that were wrong around it.
 
 **So the lake term is settled, small, and in the recoverable direction.** A
-dust-free verdict under-carves by about 24 basins on this limb, and an
+dust-free verdict under-carves by about 23 basins on this limb, and an
 under-carve can be corrected on a later pass while an over-carve cannot.
 
 ### What is still open is the larger limb

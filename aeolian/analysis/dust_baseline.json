@@ -1,13 +1,13 @@
 {
-  "generated": "2026-08-18T01:38:14.915185+00:00",
-  "git_commit": "1df187272b5d483d2df5e130c1b9656e6c4f67e8",
+  "generated": "2026-08-18T03:18:16.354352+00:00",
+  "git_commit": "095f767019c65cdf512c586ede44f1d45028a3da",
   "variant": "baseline",
   "note": "Offline dust: emission, transport and deposition from a climatology rather than inside the climate model. notes/dust.md says why; aeolian/README.md says what the numbers mean. The two shelter ends bracket how much the surrounding terrain shields an erodible patch, which this component does not claim to know.",
   "source_build": "precarve-craton",
   "terrain_hash": "e931b0d9947a232210a3cc11ba82003b5da15765d86e87956bc44c220932760e",
   "climatology": "exoplasim/analysis/climatology/baseline_regular_climatology.nc",
   "climatology_sha256": "60efe80f6901b14b5317f3177e66b4bb421a5cc913077f2075b259f24c651196",
-  "config_sha256": "2b6dbef507a2207aff33a10c0611c0c314acb4acdd88537cfb715f1fc5b8132c",
+  "config_sha256": "8ee3ec210e51067cf06acba61aeeac1a6fd85f84584a5cc46c383b320818d729",
   "dust_config_sha256": "e813845c03b6341521692724263017498929093e6dd8f2592af4deb0c0361277",
   "lake_solution": "hydrography/data/precarve-craton/surface_water.nc",
   "excluded_time_bins": [],
@@ -57,7 +57,7 @@
       "playa_clastic": 1.0,
       "evaporite": 0.1
     },
-    "erodible_fraction_of_land": 0.16065,
+    "erodible_fraction_of_land": 0.15482,
     "land_fraction": 0.4317
   },
   "mass_extinction_efficiency_m2_kg": 771.62,
@@ -68,7 +68,7 @@
     "note": "Kok's standardized thresholds are Earth-fitted and his standardization corrects for air density alone. The exponent is 1/4 rather than 1/2 because the threshold is evaluated at its minimum, where Shao and Lu's gravity and cohesion terms are equal; the cohesion parameter cancels out of the ratio, which matters because it is known only to a factor of three."
   },
   "subgrid_wind": {
-    "weibull_shape_used": 2.011576917137872,
+    "weibull_shape_used": 2.0116174094804204,
     "measured_from": "exoplasim/runs/run_8c2e1ff9ab5e/highcadence/MOST_HC.00066_wind.nc",
     "measured_from_samples": 1463,
     "note": "Measured, not declared, and the sampling cadence decides it: 32 snapshots 5.7 days apart give 3.965, while 1463 three-hourly samples from a high-cadence orbit give 2.012. Snapshots resolve synoptic but not sub-daily variance, so a shape fitted to them is an upper bound and the emission a lower bound. Quote the sample count with the shape."
@@ -76,32 +76,32 @@
   "shelter_bracket": {
     "low": {
       "aeolian_z0_m": 3e-06,
-      "global_emission_Tg_per_earth_year": 158692.313,
-      "land_mean_aod": 4.64621,
-      "global_mean_aod": 2.89274,
-      "max_aod": 36.4556,
-      "land_mean_deposition_g_m2_per_earth_year": 334.3386,
-      "max_deposition_g_m2_per_earth_year": 3062.825,
+      "global_emission_Tg_per_earth_year": 171157.828,
+      "land_mean_aod": 5.23466,
+      "global_mean_aod": 3.30335,
+      "max_aod": 44.3084,
+      "land_mean_deposition_g_m2_per_earth_year": 370.5419,
+      "max_deposition_g_m2_per_earth_year": 3222.492,
       "transport_converged": true
     },
     "central": {
       "aeolian_z0_m": 0.0001,
-      "global_emission_Tg_per_earth_year": 12968.732,
-      "land_mean_aod": 0.33415,
-      "global_mean_aod": 0.2154,
-      "max_aod": 5.0028,
-      "land_mean_deposition_g_m2_per_earth_year": 24.7084,
-      "max_deposition_g_m2_per_earth_year": 445.728,
+      "global_emission_Tg_per_earth_year": 14028.687,
+      "land_mean_aod": 0.37649,
+      "global_mean_aod": 0.24451,
+      "max_aod": 5.0509,
+      "land_mean_deposition_g_m2_per_earth_year": 27.4247,
+      "max_deposition_g_m2_per_earth_year": 450.044,
       "transport_converged": true
     },
     "high": {
       "aeolian_z0_m": 0.001,
-      "global_emission_Tg_per_earth_year": 2.319,
+      "global_emission_Tg_per_earth_year": 2.36,
       "land_mean_aod": 2e-05,
       "global_mean_aod": 2e-05,
       "max_aod": 0.0077,
-      "land_mean_deposition_g_m2_per_earth_year": 0.0018,
-      "max_deposition_g_m2_per_earth_year": 0.692,
+      "land_mean_deposition_g_m2_per_earth_year": 0.0019,
+      "max_deposition_g_m2_per_earth_year": 0.694,
       "transport_converged": true
     }
   },
@@ -111,7 +111,7 @@
     "forcing_threshold_w_m2": 1.5,
     "land_mean_aod_range": [
       2e-05,
-      4.64621
+      5.23466
     ],
     "crosses": true,
     "forcing_is_DUST_2": "this script does not price the forcing"
