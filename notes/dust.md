@@ -502,11 +502,29 @@ it:
 | 80% | 137 | -18.2% |
 | 50% | 116 | -30.9% |
 
-The criterion divides by runoff, so -10% on runoff is worth about the same as
-+10% on lake evaporation: 144 basins, and 235 at 20%. **This limb closes basins
-whichever way the lake term goes**, and it is the one an offline Penman
-perturbation cannot see, because it is a precipitation response and not a surface
-energy balance.
+**This limb closes basins whichever way the lake term goes**, and it is the one
+an offline Penman perturbation cannot see, because it is a precipitation response
+and not a surface energy balance.
+
+How many basins that is worth was measured on 2026-08-18 by
+`aeolian/scripts/dust_runoff_sensitivity.py`, against 1,721 carved:
+
+| dP | E follows | catchment runoff | basins carved |
+| ---: | ---: | ---: | ---: |
+| -5% | 0.80 | -8.3% | -121 |
+| -10% | 1.00 | -10.0% | -51 |
+| -10% | 0.80 | -16.2% | -201 |
+| -10% | 0.50 | -24.1% | -309 |
+| -15% | 0.80 | -23.9% | -288 |
+
+**Do not translate that through runoff alone.** Scaling the criterion's
+denominator by itself, with precipitation and evaporation left where they are,
+moves 7 basins at -10% and 18 at -30%: twenty times less. The aridity index is a
+ratio whose SIGN varies across the population -- the median basin here has P > E
+-- so scaling the denominator makes a positive index larger and a negative one
+more negative, and the two halves move toward opposite verdicts and cancel.
+Reducing precipitation raises the numerator for every basin as well, so it does
+not cancel. Both curves are in `aeolian/analysis/dust_runoff_sensitivity.json`.
 
 So the answer is split in two, and DUST-10 has now settled the first half.
 
@@ -545,11 +563,21 @@ under-carve can be corrected on a later pass while an over-carve cannot.
 
 ### What is still open is the larger limb
 
-The catchment term is not in that number and is estimated at 144 to 235 basins in
+The catchment term is not in that number and is measured at 50 to 250 basins in
 the OPPOSITE direction, over-carving, because suppressed precipitation cuts the
-runoff the criterion divides by. It is six to ten times the lake term by that
-estimate and it decides the sign of the whole question. DUST-11 measures it and
-needs a prescribed-dust climate run; nothing offline can reach it.
+runoff the criterion divides by. It is two to ten times the lake term and it
+decides the sign of the whole question. DUST-11 measures it and needs a
+prescribed-dust climate run; nothing offline can reach it.
+
+**That run is now specified and its parts are built.**
+`aeolian/notes/prescribed-dust-run.md` carries the specification, the gates and a
+prediction made before the run; `exoplasim/patches/exoplasim-3.4.2-prescribed-dust.patch`
+is the model change, written and deliberately not applied; and surface code 1811
+is the boundary field. The route is two changes and not six: the radiation sees a
+prescribed field, and it gets a longwave term. No emission scheme, no transport,
+no wet scavenging, no size bins, and `aerocore` is not on the path -- which also
+sidesteps its bottom-level sink, because nothing is being advected or
+accumulated.
 
 **The Generic PCM is still out, but not for the reason given above.** That reason
 was that the trade is not worth making "for a term whose sign is settled" -- and

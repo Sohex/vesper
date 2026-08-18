@@ -332,6 +332,17 @@ def main() -> None:
     ap.add_argument("--dust-forcing", type=Path, default=None,
                     help="add per-cell dust perturbations to rss and rls before "
                          "Penman; see analysis/dust_surface_forcing.nc")
+    # DUST-11 and HYD-14 and HYD-11 all move catchment runoff, which is the
+    # DENOMINATOR of the aridity index, and all of them are priced in percent.
+    # This converts a percent into basins so the three can be compared and
+    # ranked against each other in the currency the carve is decided in.
+    #
+    # It is a SENSITIVITY, not a climate: precipitation and evaporation are left
+    # where they are, so nothing here should be read as a verdict. The verdict on
+    # a dust climate is the one taken on that climate's own climatology.
+    ap.add_argument("--runoff-scale", type=float, default=1.0,
+                    help="scale catchment runoff by this factor before the "
+                         "aridity index; a sensitivity, not a climate")
     args = ap.parse_args()
 
     _build_data = component_data("hydrography", strict=True)
@@ -429,7 +440,12 @@ def main() -> None:
     # basins on this planet are in that state, and unclamped they drove the
     # equilibrium lake area A = R*C/(E-P+R) to large negative values, which
     # surfaced as a lake area of -6.7e15 percent of the planet.
-    runoff = np.maximum(means["runoff"], 0.0) * to_km_per_year
+    if args.runoff_scale <= 0.0:
+        raise SystemExit("--runoff-scale must be positive")
+    runoff = np.maximum(means["runoff"], 0.0) * to_km_per_year * args.runoff_scale
+    if args.runoff_scale != 1.0:
+        print(f"  catchment runoff scaled by {args.runoff_scale}: a sensitivity "
+              "on the criterion's denominator, not a climate")
     runoff_mrro = means["mrro"] * to_km_per_year
     precip = means["pr"] * to_km_per_year
 
@@ -509,6 +525,17 @@ def main() -> None:
             },
         },
         "penman_ocean_validation": ocean_validation,
+        # What was done to the climatology before the verdict was taken. Null
+        # under both keys means the run's own numbers, unperturbed. `dust_note`
+        # was assembled and then never written until 2026-08-18, so the DUST-10
+        # verdict carried no record of the forcing that produced it.
+        "perturbations": {
+            "dust_surface_forcing": dust_note,
+            "runoff_scale": args.runoff_scale,
+            "note": "A perturbed verdict is a SENSITIVITY. The verdict on a "
+                    "climate that contains dust is the one taken on that "
+                    "climate's own climatology, and the two must not be added.",
+        },
         "bounds": {
             label: {
                 "basins_carved": int(r["carve"].sum()),

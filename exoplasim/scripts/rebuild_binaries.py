@@ -54,7 +54,15 @@ MANIFEST = PATCHES / "binary_manifest.json"
 # star-cycle patch is deliberately NOT here: it is applied and reversed around
 # its own build by build_star_cycle_exoplasim.sh, because a cycle binary and a
 # steady binary are different things and only one tree can hold it at a time.
-RESIDENT_PATCHES = ["exoplasim-3.4.2-ozone-band-weights.patch"]
+#
+# The prescribed-dust patch IS resident, and deliberately so. It is a no-op with
+# `ndustrad = 0`, which is the default, so every run keeps the physics it had;
+# what residency buys is that the dust run and the run it is compared against
+# come from the same executable, which is the only way the comparison measures
+# dust rather than a rebuild. It also means `--verify` will say the patch is not
+# applied until it is, which is the intended signal and not a fault.
+RESIDENT_PATCHES = ["exoplasim-3.4.2-ozone-band-weights.patch",
+                    "exoplasim-3.4.2-prescribed-dust.patch"]
 
 # The matrix. NLAT must divide by ranks: 32 at T21, 64 at T42, 128 at T85.
 MATRIX = [("T21", 10, 8), ("T21", 10, 16),
@@ -110,7 +118,8 @@ def main() -> None:
     ok, missing = resident_ok()
     if not ok:
         print("RESIDENT PATCHES ARE NOT APPLIED:", ", ".join(missing))
-        print("\nThis is what a .venv reinstall looks like. Apply them first:")
+        print("\nEither a .venv reinstall discarded them or one is new to the "
+              "list. Apply them first:")
         for m in missing:
             print(f"  patch -p1 -d {SRC} < {PATCHES / m}")
         raise SystemExit(1)
