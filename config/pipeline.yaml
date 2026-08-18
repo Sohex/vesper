@@ -345,6 +345,7 @@ one_offs:
   - exoplasim/scripts/compare_flux_sweep.py
   - exoplasim/scripts/compare_albedo_bracket.py
   - exoplasim/scripts/close_term_energy.py
+  - exoplasim/scripts/close_ocean_energy.py
   - exoplasim/scripts/analyze_stellar_cycles.py
   - exoplasim/scripts/analyze_smoke.py
   - exoplasim/scripts/mie_dust.py

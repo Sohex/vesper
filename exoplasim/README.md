@@ -156,6 +156,7 @@ unless told they exist.
 | `assess_convergence.py` | spin-up convergence against the predeclared criteria, over the last `--window` PRODUCTION orbits |
 | `close_state_energy.py` | closes the energy budget against the PROGNOSTIC STATE, which is the check the flux diagnostics cannot fail |
 | `close_term_energy.py` | closes the model's INTERNAL budget against PlaSim's 28 terms; three identities, and it refuses a low-I/O window |
+| `close_ocean_energy.py` | closes the SURFACE budget against the ocean's and the ice module's own output streams, which nothing else here reads; six identities, and it reaches only the run's last orbit because those streams are truncated at every model call |
 | `build_climatology.py` | average an equilibrated segment into climatologies; refuses orbits declared `diagnostic`, and refuses to mix I/O regimes |
 | `analyze_climatology.py` | diagnostics, maps and a rate-normalised Koppen interpretation |
 | `analyze_smoke.py` | audit and plot a one-orbit smoke run |

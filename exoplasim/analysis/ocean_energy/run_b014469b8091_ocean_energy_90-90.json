@@ -1,0 +1,176 @@
+{
+  "schema_version": 1,
+  "generator": "exoplasim/scripts/close_ocean_energy.py",
+  "generator_sha256": "c21af61d12dfed4c288cde4f285dd61fc7b6ddb9a60c6761be9caec7166c9000",
+  "run_dir": "/home/cfutro/docs/world/exoplasim/runs/run_b014469b8091",
+  "run_id": "run_b014469b8091",
+  "source_build": null,
+  "config_sha256": "a9e16778d26fdf2578cdc5e8a8308494af6b51c2db3760a4ddac559a561897ca",
+  "geography": "3a17c498",
+  "window": {
+    "first_orbit": 90,
+    "last_orbit": 90,
+    "orbits": 1,
+    "stream_records": 182,
+    "record_seconds": 86394.76579948867,
+    "bin_seconds": 1295921.48699233,
+    "mixed_layer_depth_m": 50.0
+  },
+  "alignment": {
+    "records_per_bin": 15,
+    "chosen_offset": 0,
+    "score_w_m2": 0.07220052306648081,
+    "scan": [
+      {
+        "offset": 0,
+        "per_bin_w_m2": [
+          0.30740595858210545,
+          0.1481362835004981,
+          -0.06259563224439171,
+          -0.07084525258479714,
+          -0.03813863155656164,
+          0.01191011223291337,
+          0.050869345019051077,
+          0.12358259353211698,
+          -0.07835552527191877,
+          -0.10731048650284146,
+          -0.09088171105282955,
+          0.011580180233368945
+        ],
+        "score_w_m2": 0.07220052306648081
+      },
+      {
+        "offset": 1,
+        "per_bin_w_m2": [
+          -0.6256629611691726,
+          0.18614705366934078,
+          0.7810899838501982,
+          -0.49554185047938293,
+          -0.41433734519825843,
+          -1.1702144026453796,
+          -0.6043193448284263,
+          -0.8259616213886046,
+          0.43993508232864503,
+          0.9703388340827189,
+          1.0483738517209897,
+          0.756237077119444
+        ],
+        "score_w_m2": 0.6993178588464899
+      },
+      {
+        "offset": 2,
+        "per_bin_w_m2": [
+          -1.806945225166961,
+          -0.22998009238446465,
+          1.8359368101536655,
+          -0.6469599759235498,
+          -0.6286369121915268,
+          -2.2639181813394695,
+          -0.9804811584103884,
+          -1.839327747560424,
+          1.0348018999750384,
+          2.0376193418939046,
+          2.13908809385914,
+          1.2104431573356549
+        ],
+        "score_w_m2": 1.3497448519115662
+      }
+    ],
+    "seasonal_scale_w_m2": 27.336045536220833,
+    "established": true
+  },
+  "by_mask": {
+    "strict": {
+      "area_fraction": 0.5216309025224435,
+      "terms_w_m2": {
+        "atmosphere_four_flux": -1.6923851028400527,
+        "atmosphere_hfns": -1.7257877922208589,
+        "atmosphere_snow_fusion": 0.03340270161782667,
+        "ice_stream_xheat": -1.7016622596305422,
+        "ice_stream_xsmelt": 0.03337772278491167,
+        "ice_stream_xcflux": -1.7350399832328673,
+        "ocean_stream_yheat": -1.7350399832328673,
+        "slab_storage": -1.735370948282223
+      },
+      "identities_w_m2": {
+        "D1_handoff": -0.009277156790490146,
+        "D2_ice_to_ocean": 0.0,
+        "D3_snow_into_water": 8.174136123362911e-10,
+        "D4_slab_integration": -0.0003309650493542263,
+        "D5_hfns_definition": -1.2237020854212975e-08,
+        "D6_surface_residual": 0.00958315606136383
+      },
+      "seasonal_swing_w_m2": {
+        "min": -27.336045536220833,
+        "max": 17.070583584024703
+      }
+    },
+    "loose": {
+      "area_fraction": 0.5269397935870636,
+      "terms_w_m2": {
+        "atmosphere_four_flux": -1.6250438502716027,
+        "atmosphere_hfns": -1.6834379570001694,
+        "atmosphere_snow_fusion": 0.05839411863699187,
+        "ice_stream_xheat": -1.6334503576335204,
+        "ice_stream_xsmelt": 0.05834761912447851,
+        "ice_stream_xcflux": -1.6836092235421563,
+        "ocean_stream_yheat": -1.6836092235421563,
+        "slab_storage": -1.6836090409128106
+      },
+      "identities_w_m2": {
+        "D1_handoff": -0.008406507361918907,
+        "D2_ice_to_ocean": 0.0,
+        "D3_snow_into_water": -0.008188753215842894,
+        "D4_slab_integration": 1.8262934723181084e-07,
+        "D5_hfns_definition": -1.190842446338406e-08,
+        "D6_surface_residual": 0.00017108391263988837
+      },
+      "seasonal_swing_w_m2": {
+        "min": -26.981108245287373,
+        "max": 16.668371667800564
+      }
+    },
+    "ocean": {
+      "area_fraction": 0.5718311619907823,
+      "terms_w_m2": {
+        "atmosphere_four_flux": -0.6926355378876647,
+        "atmosphere_hfns": -0.9685791105844922,
+        "atmosphere_snow_fusion": 0.2759435774746447,
+        "ice_stream_xheat": -0.6993471090517539,
+        "ice_stream_xsmelt": 0.27598524699273,
+        "ice_stream_xcflux": -0.9252148872546423,
+        "ocean_stream_yheat": -0.9252148872546423,
+        "slab_storage": -0.9227811577347899
+      },
+      "identities_w_m2": {
+        "D1_handoff": -0.00671157116409043,
+        "D2_ice_to_ocean": 0.0,
+        "D3_snow_into_water": -0.0501174687898422,
+        "D4_slab_integration": 0.0024337295198533105,
+        "D5_hfns_definition": -4.777817586548424e-09,
+        "D6_surface_residual": -0.04579795284970215
+      },
+      "seasonal_swing_w_m2": {
+        "min": -18.845818938501395,
+        "max": 14.818200099089585
+      }
+    }
+  },
+  "first_bin_weight": {
+    "stream_interval_steps": 32,
+    "ordinary_bin_steps": 480,
+    "first_bin_steps": 570,
+    "first_bin_excess": 1.1875,
+    "coefficient": -0.014102564102564108,
+    "bin0_minus_rest_w_m2": 9.407826754052506,
+    "error_in_annual_mean_w_m2": -0.13267447986484307,
+    "statement": "pyburn weights the 12 bins equally; the first covers more model timesteps than the rest, so an annual mean from a binned file carries this error"
+  },
+  "executable_sha256": "238af7e8dddab0b942de371aa6266017e955f2e699d2c0fd7bdb4a6e74e66281",
+  "software": {
+    "python": "3.12.13",
+    "exoplasim": "3.4.2",
+    "numpy": "2.5.2",
+    "gfortran": "GNU Fortran (GCC) 16.1.1 20260728"
+  }
+}
