@@ -1,0 +1,92 @@
+# Code 54 under low I/O: write the accumulated solar right ascension, not the
+# instantaneous one.
+#
+# WHAT IT CHANGES. One line, in the `nlowio > 0` branch of `outsc` in
+# `outmod.f90`. Nothing else.
+#
+# WHAT IS WRONG. That branch writes five orbital scalars, codes 50 to 54, and
+# four of them follow the same two-line shape: divide the accumulator by
+# `naccuout`, then write the accumulator.
+#
+#     aorbnu = aorbnu/real(max(1,naccuout))
+#     call writescalar(40,aorbnu*180./PI,50)
+#     ...
+#     ardist = ardist/real(max(1,naccuout))
+#     call writescalar(40,ardist,53)
+#
+# The fifth divides `arasc` and then writes `rasc`. The averaged value is
+# computed and discarded, and the instantaneous right ascension at the output
+# step goes out under code 54 instead. `arasc` is zeroed in `outreset` and
+# summed in `outaccu` exactly like its four siblings, so the accumulator is
+# correct and only the write is wrong; this is a copy-paste slip in upstream
+# 3.4.2, not a design choice. The three other `writescalar(...,54)` sites
+# (`outsc`'s `nlowio == 0` branch, `snapshotsc`, `hcadencesc`) are instantaneous
+# streams by definition and correctly write `rasc`; they are untouched here.
+#
+# WHAT HAPPENS IF IT IS ABSENT. Code 54 in `MOST.NNNNN.nc` from a run with
+# `NLOWIO = 1` is a sample rather than an interval mean, while codes 50 to 53
+# beside it are interval means. It is mislabelled rather than noisy: `rasc`
+# advances monotonically through the orbit, so the sampled value leads the mean
+# by about half an output interval, and the two agree only in the limit of one
+# accumulation step. Nothing under `NLOWIO = 0` is affected, and no field other
+# than code 54 is affected under either. As of 2026-08-18 the only reader of
+# code 54 in this repository is `exoplasim/scripts/build_climatology.py`, which
+# carries `rasc` through as an orbital-geometry variable without averaging it and
+# requires it to agree across the orbits it merges; a mislabelled code 54 is
+# therefore a wrong number in a climatology attribute-like field rather than a
+# wrong climate. That is why this is worth keeping and not worth hurrying.
+#
+# THE BASE IT APPLIES TO. Authored 2026-08-18 against the vendored source with
+# thirteen resident patches applied and `exoplasim-3.4.2-lowio-first-record.patch`
+# NOT applied:
+#
+#     outmod.f90, this base                       9055e2e905ee3855e83949ffb68b833b060a92cde150c9f6e0b90cebc43eaddf
+#
+# `exoplasim-3.4.2-denergy-accumulator.patch` is the only other resident patch
+# that touches `outmod.f90`, and all three of its hunks sit below this one, so
+# the hunk here is byte-identical to what it would be against pristine 3.4.2 and
+# applies there too:
+#
+#     outmod.f90, pristine 3.4.2                  2f582ee248ca70c7feee759ea723b8de327fdac2cfc0234fd8ce351240d79364
+#
+# Verify before applying, and refuse if it matches neither:
+#
+#     sha256sum .venv/lib/python3.12/site-packages/exoplasim/plasim/src/outmod.f90
+#     patch --forward --strip=1 --directory=.venv/lib/python3.12/site-packages/exoplasim/plasim/src < exoplasim/patches/exoplasim-3.4.2-arasc-output.patch
+#
+# WHY IT IS ITS OWN PATCH. Split out of
+# `exoplasim-3.4.2-lowio-first-record.patch` on 2026-08-18, when that patch was
+# dropped from `RESIDENT_PATCHES`. Under gcc-fortran 16.2.1 the low-I/O patch
+# roughly triples model runtime even though none of its code executes at
+# `NLOWIO = 0`, which is what `run_exoplasim.py` sets: it adds `use restartmod`
+# to `plasim.f90`, the translation unit holding the main time-stepping loop, and
+# the new compiler pessimises the whole unit. This one-line fix was bundled with
+# it and has nothing to do with the restart defect that patch exists for, so it
+# would have been parked for no reason.
+#
+# The independence is the point and it is a constraint on this file, not a
+# description of it. This patch touches `outmod.f90` only. It must not touch
+# `plasim.f90`, must not touch `make_plasim`, and must not introduce a module
+# dependency, because those three are what made the parent patch expensive. It
+# adds no namelist key, changes no restart record, and changes no field a binary
+# built without it would write differently at `NLOWIO = 0`, so a restart written
+# by an unpatched binary is readable by a patched one and vice versa.
+#
+# WHAT MUST LAND WITH IT. It is one line and still obeys CLAUDE.md rule 4:
+#
+#   1. add it to `RESIDENT_PATCHES` in `exoplasim/scripts/rebuild_binaries.py`
+#   2. apply it, then `python exoplasim/scripts/rebuild_binaries.py`, then
+#      `--verify`
+#   3. `outmod.f90` is not `radmod.f90`, so the star-cycle base pin does not move
+#
+--- a/outmod.f90
++++ b/outmod.f90
+@@ -271,7 +271,7 @@
+         
+         !Solar right ascension
+         arasc = arasc/real(max(1,naccuout))
+-        call writescalar(40,rasc*180./PI,54)
++        call writescalar(40,arasc*180./PI,54)
+       endif
+       
+       return
