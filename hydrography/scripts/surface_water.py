@@ -152,32 +152,18 @@ def per_basin_forcing(n_basins, lat, lon, runoff, precip, evaporation, sinks,
     return catchment_runoff, precip[row, col], evaporation[row, col]
 
 
-def region_grid_cells(export, field_lon, field_lat):
+def region_grid_cells(export, field_lat):
     """Per-region climate cell, binned exactly as the coupling matrix bins.
 
-    Sampling per region by nearest cell centre instead put the mesh and the
-    coupling on different cells, so the same basin got a different runoff
-    depending on which route was taken: a 36% spread at the ninetieth
-    percentile. One binning for both, and `lib/gridding.py` is where that
-    binning lives.
-
-    `field_lon` is accepted and deliberately unused. Columns are NOT remapped:
-    the grid export and the climatology are the same columns in the same order
-    and only their labels differ, -180..180 against 0..360. Matching those
-    labels shifts by half the grid and put 50.71% of LAND mesh area onto cells
-    the model calls ocean, against 7.32% index for index. The rows ARE checked
-    rather than joined, because the two axes are the same Gaussian latitudes and
-    a nearest-centre join would succeed just as quietly on axes that are not.
+    Delegates to `gridding.climatology_cells`, which is the one copy of this
+    convention. It used to live here, and the reason it moved is that a second
+    consumer appeared: the derived-surface classifier needs the same join, and a
+    grid convention this project has got wrong twice is the last thing to keep
+    two versions of. `lib/gridding.py` owns the convention and the invariant that
+    proves it held.
     """
-    glat, glon, _ = gridding.grid_geometry(builds.grid_export())
-    gridding.require_same_rows(glat, field_lat,
-                               "the grid export and the climatology")
-    nlon = np.asarray(field_lon).size
-    if nlon != glon.size:
-        raise SystemExit(
-            f"the climatology has {nlon} columns and the grid export has "
-            f"{glon.size}; they are not the same grid")
-    return gridding.cells(export.lat, export.lon, glat, nlon)
+    from gridding import climatology_cells
+    return climatology_cells(export, builds.grid_export(), field_lat)
 
 
 def paint_lakes(terminal, filled_km, area_km2, solved_area_km2):
@@ -383,7 +369,7 @@ def main():
           f"{solution['area_km2'].sum():,.0f} km2")
 
     print("accumulating rivers")
-    row, col = region_grid_cells(export, lon, lat)
+    row, col = region_grid_cells(export, lat)
     runoff_per_region = runoff[row, col] * area * 1e6  # m3/s, area km2 to m2
     discharge = river_discharge(export, receiver, runoff_per_region)
     before = discharge.max()

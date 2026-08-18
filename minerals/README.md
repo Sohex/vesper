@@ -6,11 +6,26 @@ between what belongs here and what belongs downstream are in
 run it.
 
 ```bash
-python minerals/scripts/build_prospectivity.py
+python minerals/scripts/build_prospectivity.py             # tectonic and magmatic
+python minerals/scripts/build_downstream_prospectivity.py  # weathering, drainage, brine
 ```
 
-Writes `data/<source_build>/prospectivity.nc` on the native mesh, and a
-`prospectivity_report.json` beside it.
+Writes `data/<source_build>/prospectivity.nc` and
+`data/<source_build>/downstream_prospectivity.nc` on the native mesh, each with a
+report beside it.
+
+**Two artifacts, because they have different lifetimes.** The tectonic and
+magmatic types are a pure function of the export and survive a re-run of the
+baseline. The weathering, drainage and brine types read a climatology, a lake
+solution and `pedology/scripts/brine_paths.py`, so they carry a CLIMATE in their
+identity as well as a terrain and are regenerated when either moves. Keeping them
+in one file would have given the durable half the disposable half's lifetime.
+
+The downstream script needs `build_prospectivity.py` and `brine_paths.py` to have
+run first, and refuses rather than falling back. Supergene copper MULTIPLIES the
+tectonic porphyry field, so a climate window on its own would place copper
+wherever the weather suited, which is exactly the error the genesis split exists
+to prevent.
 
 ## Two constraints, and they are the point
 
@@ -72,9 +87,83 @@ Kimberlite is the other entry worth noting: it needs a thick cratonic keel, and
 before the craton basin double-count was removed this world had almost none. See
 `../notes/audits/orogen-lithology.md`.
 
+## What the downstream half keys on
+
+The brine entries are the ones worth understanding, because two of them come out
+of a solved chemical divide rather than out of a weighting.
+
+**Soda ash and gypsum are DERIVED.** Hardie and Eugster's chemical divide says
+calcite removes Ca and CO3 in equal equivalents, so whichever is in excess at
+calcite saturation dominates every later step and the deficient one is driven
+toward zero. The first calcite therefore decides irreversibly which way a brine
+goes, `brine_paths.py` solves it per basin from Meybeck's release table, and
+these two fields are the two sides of that answer. They are scaled by the SIZE of
+the excess rather than by its sign, because a basin at Ca/HCO3 of 0.31 is a soda
+lake in a way one at 0.98 is not.
+
+Both are gated on the basin not overflowing. A basin pinned at its spill never
+reaches saturation, so nothing crystallises whatever its chemistry, and the lake
+solver already computed that boolean.
+
+**The weathering and drainage rules are sourced, and one of them moved by an
+order of magnitude when it was.** Supergene copper first carried a 100 mm/yr
+lower bound described as "the conventional semi-arid band", chosen without a
+source. Reich et al. (2009) measured the Atacama and put meteoric enrichment at
+above 10 mm/yr, shutting down below 1-4. The invented bound was excluding the
+best-documented enrichment province on Earth by a factor of ten.
+
+Bauxite is Price et al. (1997), whose criteria are the right shape because they
+are themselves thresholds applied to gridded climate fields and validated against
+observed bauxite: above 1200 mm/yr, mean annual temperature above 22 C, and 6 or
+fewer months below 60 mm. The monthly half carries the mechanism, an oscillating
+water table through a short dry season, so an annual mean would lose it -- and it
+needed the calendar conversion, because a Vesper bin is half an Earth month, so
+the COUNT transfers unchanged and the DEPTH halves.
+
+**The placer rule's missing thresholds are quoted, not confessed.** It has no
+gradient or discharge term because Slingerland and Smith (1986) state at p. 143
+that the regional criteria were never established, and no distance decay because
+Knight et al. (1999) show gold is progressively flattened rather than lost, so a
+decay length would remove prospectivity the evidence says is still there. That is
+`grounding: sourced-negative`, and it is a better outcome than a number.
+
+**Potash is declared, and lithium and borate weaker still, and the config says so
+per rule.** Potassium is Eugster and Jones' behaviour type IV, removed mid-range
+by exchange and sorption and surviving only where concentration runs far, so
+potash needs both a high K supply and extreme evaporation. Lithium and boron are
+NOT among Meybeck's eight species at all, so they cannot be derived from the
+divide in any form; what stands in is the geological association -- silicic
+volcanic and arc volcanic catchments respectively -- and that is an association
+rather than a mechanism this pipeline models.
+
+**Placer gold is the one rule the drainage network earns.** Orogenic gold
+prospectivity is accumulated down the drainage tree exactly as runoff is, so a
+river's score is the gold-bearing share of everything that drains into it. A rock
+map cannot give that. What it lacks is a transport-distance term, because none of
+the read sources gives one, and the consequence is one-signed: prospectivity is
+carried too far downstream and the extent is an upper bound.
+
+**Nickel laterite inherits an inference this repo has already made twice.**
+Orogen's rock table has no peridotite class, and `melange` is the whole forearc
+province including its serpentinite -- which is why `podiform_cr` keys on it as
+obducted ocean crust. So the parent is `melange`, and the field should be read as
+"this province contains the parent" rather than "this cell is peridotite".
+
+Tin and gem placers are deliberately NOT emitted. Cassiterite needs specialised
+S-type granite and gem placers need their own host suites, and the 20-class rock
+table separates neither from ordinary granite. Placing them would be placing
+granite twice under different names.
+
 ## Reading the numbers
 
 Prospectivity is **relative within this world**, normalised by the land maximum
 per deposit type. A 1.0 is the most favourable cell here, not a grade or a
 tonnage, and comparing the number for one deposit type against another says
 nothing. What is comparable is the spatial pattern within a type.
+
+Read `grounding` before quoting any downstream number. Each rule carries one of
+`derived`, `sourced` or `declared`, and they are not equally good: two of the
+brine entries fall out of a solved divide with no free choice, and the rest are
+judgment with the reasoning written out. That distinction is in the config, in
+the report, and as an attribute on every variable in the netCDF, so it travels
+with the number rather than staying in a file someone has to remember to open.

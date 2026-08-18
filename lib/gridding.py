@@ -175,6 +175,47 @@ def region_cells(export: Export, grid_dir: Path):
     return r * nlon + c, nlat, nlon
 
 
+def climatology_cells(export: Export, grid_dir: Path, clim_lat):
+    """Per-region (row, col) into a climatology field, as (row, col) arrays.
+
+    The mesh-to-grid binning is `region_cells`'s, so a region lands on the same
+    cell here as it does in the coupling matrix; only the ROW is then remapped
+    onto the climatology's own latitude axis. That asymmetry is the whole point
+    and it is deliberate on both sides.
+
+    Columns are NOT remapped. The grid export and the climatology are the same
+    columns in the same order and differ only in how they LABEL them, -180..180
+    against 0..360. Matching those labels shifts the field by half the planet:
+    it put 50.71% of land mesh area onto cells the model calls ocean, against
+    7.32% index for index. `CLAUDE.md` rule 3, and `coupling_ocean_fraction`
+    below is the invariant that proves the convention held.
+
+    Latitude is CHECKED, not joined. The two axes were once believed to differ,
+    and they do not: measured 2026-08-17 they agree to 3.6e-06 degrees, which is
+    netCDF float32 rounding of the same Gauss-Legendre rows. So the rows are the
+    identity like the columns, and `require_same_rows` asserts it. A
+    nearest-centre join returns the same answer here and a wrong one silently on
+    axes that are genuinely different, and the bijection guard it carried does
+    not catch that, because two different axes of the same length still join
+    bijectively.
+
+    One copy, because four modules kept their own version of a path resolver and
+    three of them went stale; the same argument applies to a grid convention with
+    more at stake. See `lib/paths.py`.
+    """
+    cell, nlat, nlon = region_cells(export, grid_dir)
+    row, col = np.divmod(cell, nlon)
+    glat, _, _ = grid_geometry(grid_dir)
+    clim_lat = np.asarray(clim_lat, dtype=float)
+    if clim_lat.size != glat.size:
+        raise ValueError(
+            f"climatology has {clim_lat.size} latitude rows and the grid export "
+            f"has {glat.size}; they are not the same resolution and no mapping "
+            "between them is defined here")
+    require_same_rows(glat, clim_lat, "the grid export and the climatology")
+    return row, col
+
+
 def land_weighted(export: Export, grid_dir: Path, values: np.ndarray):
     """Per-cell land fraction and the land-area-weighted mean of `values`.
 

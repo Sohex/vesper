@@ -1,8 +1,10 @@
 # Economic minerals: where each kind belongs
 
-Design, not yet built. Recorded because the decision was taken in discussion and
-then not written down, and because the architectural constraint below is the part
-that will be expensive to retrofit if it is got wrong.
+Design, and both halves are now built: `minerals/scripts/build_prospectivity.py`
+for the tectonic and magmatic types, `build_downstream_prospectivity.py` for the
+weathering, drainage and brine types. Recorded because the decision was taken in
+discussion and then not written down, and because the architectural constraint
+below is the part that would have been expensive to retrofit.
 
 ## The constraint that matters
 
@@ -66,11 +68,62 @@ Cheaper than it looks, because the machinery mostly exists.
 
 `brine_paths.py` already solves the chemical divide per basin and classifies each
 as alkaline or Ca-rich. Which evaporite mineral a basin grows follows from that
-path, so the brine half of the list is close to free.
+path, so the brine half of the list was close to free.
 
 Supergene enrichment is the clearest case for why the split is a split and not a
 handover: it needs an Orogen deposit AND a downstream climate, and neither
-component can produce it alone.
+component can produce it alone. The implementation makes that structural rather
+than remembered -- supergene copper MULTIPLIES the tectonic file's own porphyry
+field and scores zero where there is no protore, so a favourable climate on its
+own can never place copper.
+
+**The two halves are separate artifacts, and the reason is lifetime.** The
+tectonic field is a pure function of the export and survives a re-run of the
+baseline. The downstream field reads a climatology, a lake solution and the brine
+solve, so it carries a climate in its identity as well as a terrain and is
+regenerated when either moves. One file would have given the durable half the
+disposable half's lifetime.
+
+**The rules are not equally grounded and the artifact says so per rule.** Each
+carries `derived`, `sourced`, `sourced-negative` or `declared`, in the config, in
+the report, and as an attribute on the netCDF variable, so the distinction
+travels with the number.
+
+DERIVED: soda ash and gypsum are the two sides of Hardie and Eugster's chemical
+divide, which decides irreversibly which way a brine goes, and there is no free
+choice in them.
+
+SOURCED: bauxite, nickel laterite and supergene copper's dry end, on literature
+read 2026-08-17 and listed in `references/INDEX.md`. **One of the three moved by
+an order of magnitude when it was sourced.** Supergene copper carried a 100 mm/yr
+lower bound described as the conventional semi-arid band and chosen without a
+source; Reich et al. (2009) measured the Atacama and put meteoric enrichment
+above 10 mm/yr with shutdown below 1-4, so the invented bound was excluding the
+best-documented enrichment province on Earth by a factor of ten. Note also that
+Sillitoe (2010), which is held and read, does NOT contain this: it delegates the
+whole subject at p. 5 to Sillitoe (2005), which sits in an Economic Geology
+volume that could not be fetched at all.
+
+SOURCED-NEGATIVE, which is the interesting label. The placer rule has no gradient
+or discharge threshold and no transport-distance decay, and BOTH absences are
+quoted rather than confessed. Slingerland and Smith (1986) say at p. 143 that the
+regional criteria a rule like this wants were never established; Knight et al.
+(1999) show gold is progressively flattened rather than lost with distance, so a
+decay length would remove prospectivity the evidence says is still there. A
+number in either place would have been invented and then quoted back as sourced.
+
+DECLARED, what remains: the wet end of the supergene window, any relief term for
+bauxite or nickel laterite, potash, and **lithium and borate entirely -- neither
+element is among Meybeck's eight species**, so unlike soda and gypsum they cannot
+be derived from the divide in any form, and what stands in is a geological
+association with silicic volcanic and arc volcanic catchments. That is an
+association, not a mechanism this pipeline models.
+
+**Tin and gem placers are not emitted**, alongside the exclusions below and for a
+resolution-adjacent reason: cassiterite needs specialised S-type granite and gem
+placers need their own host suites, and Orogen's 20-class table separates neither
+from ordinary granite. Placing them would be placing granite twice under
+different names.
 
 ## What this world cannot have
 

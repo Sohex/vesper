@@ -1,0 +1,178 @@
+{
+  "generated": "2026-08-18T04:18:42+00:00",
+  "generator": "pedology/scripts/build_surface_classes.py",
+  "source_build": "precarve-craton",
+  "terrain_hash": "e931b0d9947a232210a3cc11ba82003b5da15765d86e87956bc44c220932760e",
+  "climatology": "exoplasim/analysis/climatology/baseline_regular_climatology.nc",
+  "climatology_sha256": "60efe80f6901b14b5317f3177e66b4bb421a5cc913077f2075b259f24c651196",
+  "dust_field": "aeolian/analysis/dust_baseline.nc",
+  "dust_bracket_end": "central",
+  "brine_paths": "pedology/analysis/brine_paths.json",
+  "rules_sha256": "f6580bad9c23409283f9cb75d1aa5d54decddce542fa54cc71cc4ff772b8f40c",
+  "git_commit": "40cbef7a4f204a69cac6bdf0aa73b90329b8f8e0",
+  "land_area_km2": 317310405.2316623,
+  "surface_cover_land_fractions": {
+    "water": 0.1258496373180682,
+    "loess": 0.07575972271413652,
+    "diatomite": 0.04494997353973566,
+    "pavement": 0.05670782706383657,
+    "bare": 0.12808196542877442,
+    "soil": 0.5686508739354487
+  },
+  "duricrust_land_fractions": {
+    "none": 0.590863282866585,
+    "gypcrete": 0.006986843346718739,
+    "calcrete": 0.37597961529446267,
+    "silcrete": 0.026170258492233665
+  },
+  "silcrete_settings_land_fractions": {
+    "pan_margin": 0.04639361630734586,
+    "drainage_line": 0.0075333988352349595
+  },
+  "drainage_line_discharge_cut_m3_s": 2097.5771484375,
+  "chemistry_source": {
+    "note": "A region inside a closed basin inherits its basin's flux-weighted catchment chemistry, because that is the water that arrives and evaporates there. A region draining to the ocean, and a region in a basin whose catchment generates no runoff at all, take the release of the rock beneath them instead: there is no evaporative concentration to inherit. The fallback is counted here rather than left silent.",
+    "land_fraction_from_basin": 0.6677702277008376,
+    "land_fraction_from_local_rock": 0.3322297722991624,
+    "land_fraction_in_a_basin_with_no_runoff": 0.09445877853837795
+  },
+  "checks": {
+    "strandline_matches_the_hypsometry": {
+      "criterion": "the band between the solved lake surface and the spill, summed over mesh regions, against area_at_spill_km2 less the lake area, which comes off hydrography's own hypsometry curve. Ratio within 10%, a tolerance set from the 230 km2 region against a thin annulus and not from the answer",
+      "basins_tested": 871,
+      "band_area_km2": 14721177.190646172,
+      "expected_area_km2": 15016517.057707787,
+      "ratio": 0.9803323323293519,
+      "basins_with_an_empty_band_despite_a_positive_expectation": 4,
+      "passes": true
+    },
+    "partition_cover": {
+      "criterion": "class areas sum to the land area within 1e-9 relative",
+      "residual": 0.0,
+      "passes": true
+    },
+    "partition_duricrust": {
+      "criterion": "class areas sum to the land area within 1e-9 relative",
+      "residual": 0.0,
+      "passes": true
+    },
+    "inland_water_slot_is_empty": {
+      "criterion": "Orogen leaves surface_class == 2 empty, so standing water is this component's to write",
+      "regions": 0,
+      "passes": true
+    },
+    "bare_and_soil_respect_the_albedo_split": {
+      "criterion": "`bare` and `soil` are the two ends of the same split build_surface_albedo.py makes, so no `soil` region may sit on a barren lithology and no `bare` region may sit off one. Stated on the two fallback classes rather than on their areas, because water, diatomite and the rest legitimately take barren cells ahead of `bare` -- the strandline of a closed basin IS playa, and calling it diatomite is the point of the class",
+      "soil_on_barren_regions": 0,
+      "bare_off_barren_regions": 0,
+      "barren_land_fraction": 0.26718020174480006,
+      "barren_taken_by": {
+        "water": 0.10198366526123437,
+        "loess": 0.0,
+        "diatomite": 0.037114571054791295,
+        "pavement": 0.0,
+        "bare": 0.12808196542877442,
+        "soil": 0.0
+      },
+      "passes": true
+    },
+    "gypcrete_is_drier_than_calcrete": {
+      "criterion": "Watson (1983): gypsum crusts occupy the driest zones, calcretes the less arid parts. Area-weighted mean annual precipitation, gypcrete strictly below calcrete",
+      "gypcrete_precip_mm_yr": 137.6600382276872,
+      "calcrete_precip_mm_yr": 343.861607630838,
+      "passes": true
+    },
+    "gypcrete_is_enriched_in_carbonate_poor_catchments": {
+      "criterion": "the alkaline path removes Ca at the first calcite, so gypcrete should concentrate where the catchment is carbonate-poor. Enrichment above 1 means the ion gate binds; 1 means it does nothing",
+      "carbonate_poor_share_of_endorheic_land": 0.05236809646194545,
+      "carbonate_poor_share_of_gypcrete": 1.0,
+      "enrichment": 19.095595745525603,
+      "passes": true
+    }
+  },
+  "rule_audit": {
+    "surface_cover": {
+      "water": {
+        "land_fraction_satisfied": 0.1258496373180682,
+        "never_fires": false,
+        "always_fires": false
+      },
+      "loess": {
+        "land_fraction_satisfied": 0.0770941623610017,
+        "never_fires": false,
+        "always_fires": false
+      },
+      "diatomite": {
+        "land_fraction_satisfied": 0.04639361630734586,
+        "never_fires": false,
+        "always_fires": false
+      },
+      "pavement": {
+        "land_fraction_satisfied": 0.059110310536509676,
+        "never_fires": false,
+        "always_fires": false
+      },
+      "bare": {
+        "land_fraction_satisfied": 0.26718020174480006,
+        "never_fires": false,
+        "always_fires": false
+      }
+    },
+    "duricrust": {
+      "gypcrete": {
+        "land_fraction_satisfied": 0.006986843346718739,
+        "never_fires": false,
+        "always_fires": false
+      },
+      "calcrete": {
+        "land_fraction_satisfied": 0.38255871990650214,
+        "never_fires": false,
+        "always_fires": false
+      },
+      "silcrete": {
+        "land_fraction_satisfied": 0.05368330640173318,
+        "never_fires": false,
+        "always_fires": false
+      }
+    }
+  },
+  "ion_and_supply_gates": {
+    "gypcrete_carbonate_poor": {
+      "land_fraction_before_gate": 0.07302956567572966,
+      "land_fraction_after_gate": 0.006986843346718739,
+      "binds": true
+    },
+    "calcrete_ca_source": {
+      "land_fraction_before_gate": 0.38255871990650214,
+      "land_fraction_after_gate": 0.38255871990650214,
+      "binds": false
+    },
+    "silcrete_silica_supply": {
+      "land_fraction_before_gate": 0.05368330640173318,
+      "land_fraction_after_gate": 0.05368330640173318,
+      "binds": false
+    }
+  },
+  "silcrete_setting_taken_by_a_climate_keyed_crust": {
+    "gypcrete": 0.00017727953663581537,
+    "calcrete": 0.0273357683728637
+  },
+  "aeolian_roughness_bracket": {
+    "low": {
+      "loess_land_fraction": 0.46641381837663715,
+      "pavement_land_fraction": 0.004703204321485769,
+      "land_mean_deposition_g_m2_yr": 363.6262986771809
+    },
+    "central": {
+      "loess_land_fraction": 0.0770941623610017,
+      "pavement_land_fraction": 0.059110310536509676,
+      "land_mean_deposition_g_m2_yr": 26.88249881024087
+    },
+    "high": {
+      "loess_land_fraction": 0.0,
+      "pavement_land_fraction": 0.09564883838121484,
+      "land_mean_deposition_g_m2_yr": 0.0018993121618788675
+    }
+  },
+  "disposable": "Every fraction here is computed from a pre-carve climatology, lake solution and dust field. The carve replaces all three, so these are regenerated rather than migrated. What survives is the classifier."
+}

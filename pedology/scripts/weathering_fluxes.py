@@ -77,6 +77,7 @@ from _paths import ANALYSIS, CONFIG, PEDOGENESIS, PROJECT_ROOT, climatology_path
 
 from brine_paths import ROCK_TO_MEYBECK
 from gridding import land_fraction_of_class
+from paths import rel
 
 from build_soil import EARTH_YEAR_DAYS, KELVIN, lithology_fractions
 
@@ -241,7 +242,7 @@ def main() -> None:
 
     report = {
         "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        "climatology": str(climatology.relative_to(PROJECT_ROOT)),
+        "climatology": rel(climatology),
         "climatology_sha256": sha256(climatology),
         "source_build": config.get("source_build"),
         "terrain_hash": mesh.terrain_hash,
@@ -458,7 +459,7 @@ def main() -> None:
     print(f"\noutgassing required  {required:10.2f} x Earth (450 ppm at this climate)")
     print(f"  mass scaling says  {mass_earth:10.2f} x Earth could be supplied")
     print(f"  margin             {mass_earth/required:10.2f} x")
-    print(f"\nwrote {out.relative_to(PROJECT_ROOT)}")
+    print(f"\nwrote {rel(out)}")
 
 
 if __name__ == "__main__":
