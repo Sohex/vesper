@@ -127,16 +127,12 @@ question instead, and using the same function here means the lakes and the
 terrain they sit in are judged by one rule.
 
 It is also the estimate that can be checked. Applied to ocean cells, which
-already are open water:
-
-| mm/day, area-weighted over ocean | | ratio to the model |
-| --- | ---: | ---: |
-| the model's own evaporation | 3.672 | |
-| Penman | 3.763 | 1.025 |
-| Priestley-Taylor at alpha 1.26 | 3.957 | 1.078 |
-
-(Recomputed here with cos-latitude weights; `carve_verdict.py` quotes 1.017 for
-Penman from its own weighting, so the two agree to under a percent.)
+already are open water and which the model gives water's own roughness, Penman
+reproduces the model's own evaporation to within a few percent, against 7.8% for
+a Priestley-Taylor estimate at alpha 1.26. The run's own ratio is computed by
+`validate_over_ocean` and written into `carve_verdict.json`; it is not repeated
+here, because every prose copy of it in this repository was a copy of a hardcoded
+constant.
 
 A Priestley-Taylor estimate stood here first and was reported as 3.13 mm/day
 "just below" the model, which was wrong twice over: the figure was an unweighted
@@ -146,13 +142,18 @@ only ground truth available, and it was already written. Switching moved basins 
 was the opposite of what the first reading suggested. (Both figures predate the
 longitude fix below and are quoted only to compare the two estimates.)
 
-Penman is floored at the model's land rate, the same floor the verdict uses: it
-linearises around air temperature and can otherwise fall below the model's own
-evaporation where the ground runs hotter, which is impossible for a saturated
-surface under the same forcing. One caveat stands: the ocean validation is where
-air is near-saturated and wind is well resolved, which is the opposite of an
-inland arid basin, so 2.5% is an upper bound on its accuracy in the places that
-decide the verdict.
+**Penman is NOT floored at the model's land rate.** It was, on the reasoning that
+a saturated surface cannot evaporate less than the moisture-limited ground beside
+it. That is false here: land carries a roughness field with a median `z0` of
+0.521 m against open water's 1.5e-4, which is a transfer coefficient 6.4 times
+larger, so a smooth lake in a rough wet landscape genuinely evaporates less than
+the land around it. The floor bound on 60.2% of land cells and decided 73% of the
+overflowing basins by clamp; `notes/audits/carve-criterion-terms.md` finding 1.
+
+One caveat stands about the validation itself: the ocean is where air is
+near-saturated and wind is well resolved, which is the opposite of an inland arid
+basin, so the measured ratio is an upper bound on the estimate's accuracy in the
+places that decide the verdict.
 
 ### The coupling matrix was being read 180 degrees out
 

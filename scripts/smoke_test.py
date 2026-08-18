@@ -31,6 +31,13 @@ Four checks, all cheap:
    friends. Choosing an artifact by whatever sorts last is the pattern behind
    ExoPlaSim's `finalize()` emitting the wrong world's output and behind three
    separate bugs here. Enumerating a known set is fine; picking from one is not.
+5. **One grid convention.** A lint for longitude arithmetic outside
+   `lib/gridding.py`. The export/model column mapping has been got wrong three
+   times -- once as the original defect, once in the shape of its own fix, and
+   once in a sink lookup the fix's sweep did not reach -- and each occurrence
+   was a script deriving a column of its own. There is nothing to translate and
+   therefore nothing to derive, so the check is that the expressions appear in
+   exactly one file. Prevention, not translation.
 """
 
 from __future__ import annotations
@@ -146,6 +153,53 @@ def check_no_order_picks(files: list[Path]) -> list[str]:
     return bad
 
 
+# Longitude arithmetic. `(lon + 180)`, `% 360`, `- lon[0]` and `/ dlon` are the
+# pieces every one of the three occurrences was built out of. `lib/gridding.py`
+# is the one file allowed to contain them.
+GRID_CONVENTION = re.compile(
+    r"(\+\s*180(\.0)?\s*\)\s*/\s*360"          # (lon + 180) / 360
+    r"|\+\s*180(\.0)?\s*\)\s*%\s*360"          # (lon + 180) % 360
+    r"|%\s*360(\.0)?\s*-\s*180"                  # ... % 360 - 180
+    r"|lon\[0\]"                                   # measuring from a label
+    r"|360(\.0)?\s*/\s*n?lon)")                    # reconstructing dlon
+# `lib/gridding.py` owns the convention. The two exemptions below are not the
+# same seam: `maps/projections.py` and `maps/render_projections.py` rasterise
+# World Orogen's own coordinates onto image pixels, where no model grid exists
+# to disagree with. Anything that reads a climatology or a coupling matrix is
+# on the seam and is not exempt -- `maps/build_basemap.py` reads one, which is
+# how it came to draw every climate layer 180 degrees from its own terrain.
+GRID_OWNER = ("lib/gridding.py", "scripts/smoke_test.py",
+              "maps/projections.py", "maps/render_projections.py")
+
+
+def check_one_grid_convention(files: list[Path]) -> list[str]:
+    """Longitude arithmetic lives in exactly one file.
+
+    The mapping between a World Orogen export and the ExoPlaSim grid it was
+    integrated onto IS the identity, index for index, because one expression in
+    `lib/gridding.py` put every mesh region in its column to begin with. So a
+    second copy of that expression anywhere else is not a duplicate to keep in
+    sync: it is a chance to write the mapping down differently, which is what
+    happened three times and cost a build.
+
+    A comment or a docstring naming the expression is documentation about the
+    convention, not an instance of it, so lines carrying a backtick or opening
+    with `#` are skipped exactly as in `check_no_order_picks`.
+    """
+    bad = []
+    for f in files:
+        if str(f.relative_to(ROOT)) in GRID_OWNER:
+            continue
+        for i, line in enumerate(f.read_text(encoding="utf-8").splitlines(), 1):
+            stripped = line.strip()
+            if (stripped.startswith("#") or "grid-ok" in line
+                    or "`" in line or stripped.startswith("*")):
+                continue
+            if GRID_CONVENTION.search(line):
+                bad.append(f"{f.relative_to(ROOT)}:{i}: {stripped[:70]}")
+    return bad
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--skip-help", action="store_true",
@@ -159,7 +213,9 @@ def main() -> None:
     checks = [("imports", check_imports(files)),
               ("no undefined names", check_undefined_names(files)),
               ("defaults scoped to the active build", check_build_scoped_defaults()),
-              ("no artifact selection by sort order", check_no_order_picks(files))]
+              ("no artifact selection by sort order", check_no_order_picks(files)),
+              ("one grid convention, in lib/gridding.py",
+               check_one_grid_convention(files))]
     if not args.skip_help:
         checks.insert(1, ("entry points answer --help", check_help(files)))
 

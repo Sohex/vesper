@@ -22,7 +22,8 @@ from netCDF4 import Dataset
 import numpy as np
 from numpy.polynomial.legendre import leggauss
 
-from _paths import ANALYSIS
+from _paths import ANALYSIS  # noqa: F401  (puts lib/ on the path)
+import gridding
 
 
 EARTH_YEAR_DAYS = 365.2425
@@ -56,21 +57,16 @@ def load(path: Path, names: list[str]) -> tuple[dict[str, np.ndarray], dict]:
 def shifted(lon: np.ndarray, field: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     """Reorder a field for DISPLAY on a -180..180 axis. Presentation only.
 
-    ExoPlaSim labels its longitude axis 0..360 and Orogen labels the same
-    columns -180..180, so a figure drawn on the model's own labels sits half a
-    world away from the same feature in `maps/`. This rotates for the eye, and
-    `maps/` is the convention it rotates to.
+    The rotation itself is `lib/gridding.py:display_longitude`, and it lives
+    there rather than here because that module owns every piece of longitude
+    arithmetic in this project. This is a two-line alias so the plotting code
+    reads the way it always has.
 
     **Nothing computed may go through here, and nothing does.** The index is
-    canonical and the labels are decoration: `lib/gridding.py` owns the column
-    convention and `basin_means` maps by index. This function existing at all
-    was read once as evidence that a coordinate transform was needed between
-    the two, which is the false premise that put half of every catchment
-    integral over open ocean, twice. See `notes/audits/grid-convention-and-runoff.md`.
+    canonical and the labels are decoration. See the note beside
+    `display_longitude` and `notes/audits/grid-convention-and-runoff.md`.
     """
-    display_lon = (lon + 180.0) % 360.0 - 180.0
-    order = np.argsort(display_lon)
-    return display_lon[order], field[..., order]
+    return gridding.display_longitude(lon, field)
 
 
 def decorate(ax: plt.Axes, lat: np.ndarray, lon: np.ndarray, land: np.ndarray) -> None:

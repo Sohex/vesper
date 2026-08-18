@@ -37,6 +37,7 @@ import lake_balance as lb  # noqa: E402
 from orogen import LAND, Export  # noqa: E402
 
 import builds  # noqa: E402
+import gridding  # noqa: E402
 
 # Set by main(), from config.baseline_climatology or --climatology. There is
 # no module-level default on purpose; see the note in main().
@@ -76,9 +77,10 @@ def climate_fields(config):
     carve verdict is decided on, so the lakes and the terrain they sit in are
     judged by one rule. It is the one that can be checked: applied to ocean
     cells, which already are open water, Penman reproduces the model's own
-    evaporation to 4.2%. A Priestley-Taylor estimate stood here first and came
-    out 7.8% high on that same test, which is three times the error for no
-    gain, and it duplicated a validated function in this directory.
+    evaporation to within a few percent, and the run's own figure is written
+    into `carve_verdict.json` rather than quoted here. A Priestley-Taylor
+    estimate stood here first and came out several times worse on that same
+    test for no gain, and it duplicated a validated function in this directory.
     """
     clim = _CLIM_FILE
     if clim is None:
@@ -90,27 +92,26 @@ def climate_fields(config):
         evap = -cv.annual_mean(ds, "evap")     # code 182 is negative upward
         mrro = cv.annual_mean(ds, "mrro")
         rss, rls = cv.annual_mean(ds, "rss"), cv.annual_mean(ds, "rls")
-        ts, tas = cv.annual_mean(ds, "ts"), cv.annual_mean(ds, "tas")
-        ps_pa = cv.annual_mean(ds, "ps") * 100.0
         lat = np.asarray(ds["lat"][:])
         lon = np.asarray(ds["lon"][:])
         lsm = cv.annual_mean(ds, "lsm")
         diurnal = cv.annual_mean(ds, "maxt") - cv.annual_mean(ds, "mint")
-    q_air, wind = cv.turbulent_forcing(clim)
+    t_air, q_air, wind, p_air = cv.reference_level_air(clim)
 
     runoff = np.clip(pr - evap, 0.0, None)
 
     resolution = str(config["model"]["resolution"]).upper()
     land_albedo = cv.read_sra_field(
         PROJECT_ROOT / "exoplasim" / "inputs" / resolution.lower()
-        / f"orogen_{resolution}_surf_0174.sra", *ps_pa.shape)
+        / f"orogen_{resolution}_surf_0174.sra", *p_air.shape)
     evaporation = cv.penman_open_water(
-        ts, tas, q_air, wind, ps_pa, rss, rls, land_albedo,
+        t_air, q_air, wind, p_air, rss, rls, land_albedo,
         float(config["planet"]["gravity_m_s2"]), diurnal_range=diurnal)
-    # Same floor the verdict uses: Penman linearises around air temperature and
-    # can fall below the model's own evaporation where the ground runs hotter,
-    # which is impossible for a saturated surface under the same forcing.
-    evaporation = np.maximum(evaporation, evap)
+    # No floor at the land rate, for the reason `carve_verdict.py` sets out at
+    # length: land here is 6.4x aerodynamically rougher than water, so a lake
+    # evaporating less than the wet ground around it is physical rather than a
+    # failure of the estimate. Flooring it made every lake in a wet catchment
+    # evaporate at the land rate.
     return (lat, lon, runoff, np.clip(pr, 0.0, None), evaporation,
             np.clip(mrro, 0.0, None), lsm)
 
@@ -133,48 +134,50 @@ def per_basin_forcing(n_basins, lat, lon, runoff, precip, evaporation, sinks,
     means, _ = cv.basin_means(coupling, {"runoff": runoff}, n_basins)
     catchment_runoff = np.nan_to_num(means["runoff"])
 
-    nlat, nlon = runoff.shape
-    sink_lat = export.field("lat")[sinks]
-    sink_lon = export.field("lon")[sinks]
-    row = np.abs(lat[None, :] - sink_lat[:, None]).argmin(axis=1)
-    col = np.mod(np.round((sink_lon - lon[0]) / (360.0 / nlon)).astype(int), nlon)
+    # The sink's own cell, through the module that owns the convention.
+    #
+    # This line measured an Orogen longitude from the CLIMATOLOGY's first label,
+    # `col = mod(round((sink_lon - lon[0]) / dlon), nlon)`, which is the same
+    # 0..360-against--180..180 label match that shifted `basin_means` and
+    # `region_grid_cells` by half the grid. It survived the sweep that fixed
+    # those two because it did not look like a remap. Every lake on this planet
+    # was taking its precipitation and its open-water evaporation from its
+    # antipode. The rows are checked rather than joined for the same reason as
+    # in `region_grid_cells`.
+    nlon = runoff.shape[1]
+    gridding.require_same_rows(gridding.grid_geometry(builds.grid_export())[0], lat,
+                               "the grid export and the climatology")
+    row, col = gridding.cells(export.field("lat")[sinks],
+                              export.field("lon")[sinks], lat, nlon)
     return catchment_runoff, precip[row, col], evaporation[row, col]
 
 
 def region_grid_cells(export, field_lon, field_lat):
     """Per-region climate cell, binned exactly as the coupling matrix bins.
 
-    The coupling matrix assigns a region to the cell containing its centre on
-    the Orogen grid, whose columns are offset half a cell from an ExoPlaSim
-    climatology's and run -180 to 180 against its 0 to 360. Sampling per region
-    by nearest centre instead put the mesh and the coupling on different cells,
-    so the same basin got a different runoff depending on which route was taken:
-    a 36% spread at the ninetieth percentile. One binning for both.
+    Sampling per region by nearest cell centre instead put the mesh and the
+    coupling on different cells, so the same basin got a different runoff
+    depending on which route was taken: a 36% spread at the ninetieth
+    percentile. One binning for both, and `lib/gridding.py` is where that
+    binning lives.
+
+    `field_lon` is accepted and deliberately unused. Columns are NOT remapped:
+    the grid export and the climatology are the same columns in the same order
+    and only their labels differ, -180..180 against 0..360. Matching those
+    labels shifts by half the grid and put 50.71% of LAND mesh area onto cells
+    the model calls ocean, against 7.32% index for index. The rows ARE checked
+    rather than joined, because the two axes are the same Gaussian latitudes and
+    a nearest-centre join would succeed just as quietly on axes that are not.
     """
-    grid_dir = builds.grid_export()
-    gm = json.loads((grid_dir / "manifest.json").read_text())["grid"]
-    glat = np.fromfile(grid_dir / gm["coords"]["lat"]["path"], dtype="float64")
-    glon = np.fromfile(grid_dir / gm["coords"]["lon"]["path"], dtype="float64")
-    nlat, nlon = glat.size, glon.size
-
-    edges = np.empty(nlat + 1)
-    edges[1:-1] = 0.5 * (glat[:-1] + glat[1:])
-    edges[0], edges[-1] = 90.0, -90.0
-    row = np.clip(np.searchsorted(-edges, -export.lat, side="right") - 1, 0, nlat - 1)
-    col = np.clip(((export.lon + 180.0) / 360.0 * nlon).astype(np.int64), 0, nlon - 1)
-
-    def wrap(a):
-        return (np.asarray(a) + 180.0) % 360.0 - 180.0
-
-    # Columns are NOT remapped. The grid export and the climatology are the same
-    # columns in the same order; only their labels differ, -180..180 against
-    # 0..360. Matching those labels shifts by half the grid and put 50.71% of
-    # LAND mesh area onto cells the model calls ocean, against 7.32% index for
-    # index -- the same defect as `basin_means`, in the same file, found the same
-    # day. Latitude IS matched, because the two axes are genuinely different
-    # Gaussian grids there and nearest-centre is the right join.
-    rows = np.abs(np.asarray(field_lat)[None, :] - glat[:, None]).argmin(axis=1)
-    return rows[row], col
+    glat, glon, _ = gridding.grid_geometry(builds.grid_export())
+    gridding.require_same_rows(glat, field_lat,
+                               "the grid export and the climatology")
+    nlon = np.asarray(field_lon).size
+    if nlon != glon.size:
+        raise SystemExit(
+            f"the climatology has {nlon} columns and the grid export has "
+            f"{glon.size}; they are not the same grid")
+    return gridding.cells(export.lat, export.lon, glat, nlon)
 
 
 def paint_lakes(terminal, filled_km, area_km2, solved_area_km2):

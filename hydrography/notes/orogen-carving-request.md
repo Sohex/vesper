@@ -377,11 +377,12 @@ using the albedo the run was actually given, then re-absorbing it at water's
 albedo.
 
 **It is validated against the model itself.** Applied to ocean cells, which are
-already open water, Penman gives 3.736 mm/day against the model's own 3.672, a
-ratio of 1.017. Reproducing the model's open-water evaporation to under 2% from
-surface fields alone is what makes the same calculation trustworthy over land,
-where it gives 3.428 mm/day against the moisture-limited 1.983 the ground
-actually manages.
+already open water and which the model gives water's own roughness, Penman
+reproduces the model's own evaporation to within a few percent -- the figure is
+computed on every run and written into `carve_verdict.json` rather than quoted,
+having twice been quoted from a hardcoded constant. Reproducing open-water
+evaporation over open water from surface fields alone is what makes the same
+calculation trustworthy over a lake the model does not have.
 
 A third approach, dividing land evaporation by the reconstructed wetness factor,
 was tried and rejected: it gives a land mean of 20.5 mm/day, because the division
