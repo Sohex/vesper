@@ -633,3 +633,97 @@ give a different constant, and the wind error must be a level-independent
 and the radius with nothing fitted. All four were stated first and then measured.
 Class 17 is what turned a diagnosis into a mechanism.
 
+## 19. A defect offered as a decision
+
+Found 2026-08-17, in this project's own working method rather than in its code,
+and recorded here because it wastes the scarcest thing in the loop: the user's
+attention on the questions that actually need it.
+
+Two items were put up as decisions with options and trade-offs. Neither was a
+decision. `config/planet.yaml` declares a K2.5V star, and the Lacis and Hansen
+shortwave absorptances are stated as fractions of SOLAR flux, so leaving them
+unweighted is running a scheme built for a different star; "physics is not a
+knob" settles that already. The config also NAMES the stellar spectrum, so the
+model failing to read it was a defect against the config rather than a choice
+about the world. In both cases the menu was assembled from what the CODE could
+be made to say, not from what the project had already declared to be true.
+
+**The tell: one of the options was "leave the known-wrong thing as it is".**
+Where that appears, the question has been mis-framed. A defect has a fix, and
+offering it as an alternative launders a bug into a preference.
+
+The damage is not only wasted attention. A menu implies the project has no
+position, so it quietly discards the position the project actually holds -- and
+those positions, in `CLAUDE.md` and `WORKFLOW.md`, are the accumulated result of
+having been wrong before.
+
+The distinction that works, applied in the same conversation and correctly that
+time: a question is a DECISION when the declared truths CONFLICT, or when it
+needs a threshold or preference nothing has fixed. Replacing the convergence
+criterion qualified, because section 7's ban on retrofitting a criterion and
+conservation's verdict that the criterion measured the wrong quantity pointed
+opposite ways, and the new threshold had to be argued from the estimator rather
+than looked up. Everything else that day was work wearing a decision's clothes.
+
+## 20. Reconciling what an upstream change has already made worthless
+
+Found 2026-08-17, alongside class 19 and from the same root: treating derived
+state as though it were an asset.
+
+A radiation change landed, which means every artifact below the climatology
+describes a world that no longer exists -- the verdict, the carve list, the dust
+chain, the soil, the derived surface classes, the prospectivity, the budget's
+basin currency. The instinct was to ask which of them needed updating, which
+pairs were now mismatched, and whether a comparison had been contaminated by a
+rebuild. All of that is wasted: the answer to every one of those questions is
+that the artifact is worthless and will be regenerated.
+
+Three shapes this took, all in one day:
+
+- **Staleness tracked as work.** A task row saying "rebuild these fields before
+  the next run" is state, and state is what `check_consistency.py` reports. It
+  was closed as not-a-task.
+- **Numbers archived as findings.** A basin count and an optical depth were
+  written into the permanent record beside the mechanisms that explain them.
+  Only the mechanisms survive an iteration.
+- **Cost attributed to regeneration.** Deferring a rebuild to avoid pairing a
+  corrected field with an uncorrected climatology, when both were disposable and
+  the correct move was to regenerate both.
+
+`CLAUDE.md` rule 7 is the positive statement. The negative one is here: after
+an upstream change, do not ask what needs updating. Ask what is now worthless,
+and then stop thinking about it.
+
+## 21. A wait condition that matches itself
+
+Found 2026-08-17. Trivial mechanically, and it cost more wall clock than any
+defect in this file, because the failure mode is silence.
+
+Waiting for a build with
+
+    until ! pgrep -f build_star_cycle; do sleep 20; done
+
+never exits. The loop's own command line contains the pattern, so `pgrep` finds
+the waiter and reports the build as running forever. Worse, the command that was
+supposed to START that build opened with `until ! pgrep -f continue_exoplasim`
+and self-matched the same way, so the build never began -- and five successive
+waiters then reported a non-existent process as busy for the best part of an
+hour, each keeping the pattern alive for the others.
+
+This is class 17 in different clothes: **a check that cannot fail.** The
+condition was not testing whether the build was running; it was testing whether
+the test existed. Nothing it could observe would have ended the wait.
+
+Two rules, and the second is the durable one:
+
+- Never `pgrep` for a string the polling command itself contains. If a process
+  test is unavoidable, match on the binary or use `pgrep -f -- "$pat"` with the
+  pattern built so the waiter cannot contain it.
+- **Wait on the ARTIFACT, not the process.** Every long step here writes
+  something: `rebuild_binaries.py` writes `binary_manifest.json`, the cycle build
+  writes `cycle_binary_manifest.json`, a segment writes `MOST.NNNNN.nc`. Waiting
+  for the file to appear or its mtime to move is immune to this by construction,
+  and it tests the thing actually wanted -- the output -- rather than a proxy for
+  it. The binary's mtime was visible throughout and would have settled the
+  question in one command.
+

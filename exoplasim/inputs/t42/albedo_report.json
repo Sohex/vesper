@@ -12,7 +12,7 @@
   ],
   "forest_fraction_value": 0.5,
   "vegetation": null,
-  "forest_fraction_land_mean": 0.35208272588017886,
+  "forest_fraction_land_mean": 0.351420827510307,
   "lithology_albedo_overrides": {
     "playa_clastic": {
       "rock_id": 19,
@@ -27,32 +27,21 @@
   ],
   "forest_note": "dforest blends snow albedo between forested and unforested endpoints, so it has to agree with the background albedo assumption. ExoPlaSim's default is a uniform 0.5.",
   "land_mean_bare_rock": 0.24750575431058977,
-  "land_mean_written": 0.15348252841086105,
+  "land_mean_written": 0.15643610782601156,
   "lakes": {
     "source": "hydrography/data/precarve-craton/surface_water.nc",
     "terrain_hash": "e931b0d9947a232210a3cc11ba82003b5da15765d86e87956bc44c220932760e",
-    "lake_regions": 119205,
-    "lake_fraction_of_land": 0.11282564283331371,
+    "lake_regions": 124743,
+    "lake_fraction_of_land": 0.11813489814998342,
     "water_albedo": 0.06,
-    "land_mean_albedo_before": 0.17143,
-    "land_mean_albedo_after": 0.153407,
-    "delta": -0.018024
-  },
-  "derived_evaporite": {
-    "method": "salt crust = regions whose solved lake depth is at or below the local annual evaporation depth, so they dry within one orbit",
-    "climatology": "exoplasim/analysis/climatology/bootstrap_regular_climatology.nc",
-    "orbital_year_seconds": 15794043.122719022,
-    "geometric_salt_fraction_of_land": 0.02848697775030445,
-    "derived_salt_fraction_of_land": 0.004036314370157691,
-    "salt_albedo": 0.5,
-    "playa_albedo": 0.19,
     "land_mean_albedo_before": 0.179066,
-    "land_mean_albedo_after": 0.17143,
-    "delta": -0.007635
+    "land_mean_albedo_after": 0.156256,
+    "delta": -0.02281
   },
+  "derived_evaporite": null,
   "exoplasim_default_albland": 0.22,
   "land_min": 0.059999999999999956,
-  "land_max": 0.2300000000000001,
+  "land_max": 0.31569501980622633,
   "files": [
     "/home/cfutro/docs/world/exoplasim/inputs/t42/orogen_T42_surf_0174.sra",
     "/home/cfutro/docs/world/exoplasim/inputs/t42/orogen_T42_surf_0175.sra",

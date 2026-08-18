@@ -18,11 +18,11 @@ executable="most_plasim_t42_l10_p16.x"
 #   pristine 3.4.2                eb8e9e1c0127940e607828899ff5dea6653c9835c...
 #   + ozone-band-weights
 #   + prescribed-dust             (DUST-11; radmod and surfmod)
+#   + rayleigh-reference-grid     (SPEC-2; radmod)
 #   + h2o-shortwave-weight        (PHYS-1; radmod)
 #                                 -> the sha below
 #
-# Regenerated 2026-08-17 against that base, which is what the comment this
-# replaces said would be necessary and it was right: hunk 2 FAILED outright,
+# Regenerated twice on 2026-08-17, the first time because hunk 2 FAILED outright,
 # because the prescribed-dust patch had appended its own keys to the same
 # radmod_nl continuation the cycle keys attach to. The other four hunks applied
 # at offsets. A patch that fails one hunk and offsets four is a patch that has to
@@ -33,7 +33,7 @@ executable="most_plasim_t42_l10_p16.x"
 # to be regenerated against the new base. That is not a nuisance to be worked
 # around -- it is the check that stops us building a cycle binary on a source we
 # have not looked at.
-base_sha="5dd9ddfb765d4391e31ba5af89d64bf0dde0db528f9622cb0f6b7faf73e89083"
+base_sha="7a78b0c85c560b4b27aac57593582f69beb54ce5f522df9492229b550f4f8707"
 
 if [[ ! -f "$source_file" || ! -f "$run_dir/$executable" || ! -d "$bin_dir" ]]; then
   echo "ExoPlaSim 3.4.2 source or baseline executable is missing" >&2

@@ -21,7 +21,7 @@
        real    :: solclat = 1.0    ! cos of lat of insolation if ncstsol=1
        real    :: solcdec = 1.0    ! cos of dec of insolation if ncstsol=1
        real    :: clgray  = -1.0   ! cloud grayness (-1 = computed)
-@@ -663,7 +677,9 @@
+@@ -672,7 +686,9 @@
       &               ,nsol,nclouds,nswrcl,nrscat,rcl1,rcl2,acl2,clgray,tpofmt   &
       &               ,acllwr,tswr1,tswr2,tswr3,th2oc,dawn,starbbtemp,nstartemp  &
       &               ,nsimplealbedo,nstarfile,starfile,starfilehr,minwavel      &
@@ -32,7 +32,7 @@
       namelist/aero_nl/l_source,l_bulk,apart,rhop,fcoeff,l_aerorad,aerofile
  !
  !     namelist parameter:
-@@ -820,6 +836,14 @@
+@@ -829,6 +845,14 @@
        call mpbcr(o3scale)
        call mpbcr(co2)
        call mpbcr(gsol0)
@@ -47,7 +47,7 @@
        call mpbcr(solclat)
        call mpbcr(solcdec)
        call mpbcr(clgray)
-@@ -1786,6 +1810,7 @@
+@@ -1795,6 +1819,7 @@
        real zrcsu(NHOR,NLEV)  ! clear sky reflexivity (upward beam)
  !
        real zftop1(NHOR),zftop2(NHOR) ! top solar radiation
@@ -55,7 +55,7 @@
        real zfu1(NHOR),zfu2(NHOR)     ! upward fluxes
        real zfd1(NHOR),zfd2(NHOR)     ! downward fluxes
  !
-@@ -1867,8 +1892,18 @@
+@@ -1876,8 +1901,18 @@
  !
  !     top solar radiation downward
  !

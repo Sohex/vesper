@@ -57,6 +57,23 @@ none of them is advice.
    on it, so the answer to a generator change is to regenerate rather than to
    migrate. After that it is not, because runs and verdicts start depending on
    it. What must survive either way is the recipe, in `source/README.md`.
+
+   That is one case of the general rule, and the general rule is this. **An
+   artifact is worth something only if it is FIXED and something downstream has
+   employed it.** Everything else is freely regenerable, and the only thing
+   worth knowing about it is whether it is current with respect to its inputs.
+   It follows that **an upstream change makes everything below it worthless,
+   not stale**: there is nothing to reconcile, migrate or carry with a caveat,
+   and the question after any such change is "what is now worthless" rather than
+   "what needs updating". In this project exactly one artifact meets the test,
+   and it is the CARVE, because Orogen consumes the list, the terrain is
+   regenerated around it, and incision does not undo. Climatologies, run output,
+   verdicts, soil, dust fields, prospectivity and `world_state.json` are derived
+   state. What is durable is not an artifact at all: it is the code, the
+   configuration, the decisions, and the findings about MECHANISMS. "The floor
+   was binding on 73% of the overflowing set" survives every regeneration;
+   "1,938 basins carve" does not.
+
 8. **Before an expensive run**, and after changing `source_build`:
 
        python scripts/check_consistency.py     # do the artifacts agree?
@@ -104,6 +121,20 @@ none of them is advice.
   either. If you cannot say in advance what result would mean "wrong", you
   have a number that will later be quoted as a validation, not a test.
   `notes/failure-modes.md` class 17.
+- **Do not offer a defect as a decision.** A thing is a DECISION only if the
+  project's declared truth does not already settle it. `config/planet.yaml`,
+  the rules in this file, `WORKFLOW.md`'s ordering and the existing findings are
+  declared truth; where they settle a question it is WORK, so do it and report
+  it. It is a decision only where they conflict, or where it needs a preference
+  or a threshold that nothing has fixed. The tell is unmistakable once you look
+  for it: **if one of the options is "leave the known-wrong thing as it is",
+  the question has been mis-framed.** Recorded 2026-08-17, after enabling a
+  radiation weight derived for the wrong star and declaring the spectrum the
+  config already named were both put to the user as choices. Neither was. By
+  contrast the convergence criterion genuinely was one, because section 7's ban
+  on retrofitting a criterion and conservation's verdict that the criterion read
+  the wrong quantity pointed opposite ways and no document settled it.
+
 - **Findings and tasks are kept apart.** A document under `notes/audits/` says
   what is true and carries its evidence; `TASKS.md` says what to do about it and
   cites the document. That way a finding can be read without being re-litigated,

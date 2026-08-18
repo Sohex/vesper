@@ -1,0 +1,92 @@
+# SPEC-2: solarini integrates its 5772 K Rayleigh reference over the wrong grid.
+#
+# WHAT IS WRONG. `solarini` tabulates the solar reference Planck function
+# `bbg1`/`bbg2` on its own logarithmic wavelength grid, and then, when a stellar
+# spectrum FILE is given, overwrites `wv1`/`wv2` with the file's wavelengths.
+# The reference integrals `zg1`, `zg2`, `zgcross1` and `zgcross2` run afterwards,
+# so they pair the reference's Planck VALUES with the file's ABSCISSAE. The two
+# grids do not span the same range -- the model's starts at `minwavel` and the
+# file's at 0.2 um -- so the normalisation `zchi` is wrong whenever a spectrum
+# file is used, and only then.
+#
+# WHAT IT COSTS. `rcoeff` scales the Rayleigh optical depth at `swr`. For k25v it
+# comes out 0.209732 as coded against 0.712517 integrated on one grid: a factor
+# of 3.4. Every run so far has used the blackbody branch and its 0.862015, which
+# is self-consistent for the 4965 K blackbody it describes. So declaring the
+# spectrum WITHOUT this fix would not merely change the star, it would weaken
+# Rayleigh scattering 3.4x relative to what the runs have used. That is why this
+# gates SPEC-1 rather than following it.
+#
+# THE BLACKBODY BRANCH IS UNCHANGED BY CONSTRUCTION, not by inspection: nothing
+# overwrites `wv1`/`wv2` on that path, so `wvg1`/`wvg2` are equal to them element
+# for element and every integral is bit-identical. That is the test this patch
+# can fail, and it is checked by running one orbit and comparing the printed
+# "Rayleigh scattering coefficient" against the 0.862015 the runs already carry.
+#
+# The correct value is reproduced independently by lib/stellar.py, which
+# implements solarini in Python and carries both numbers.
+#
+# THE RESIDENT STACK, AND WHY THE SHA BELOW IS NOT THE TREE YOU HAVE.
+# The base named here is what this patch was authored and verified against. The
+# stack and its order are in exoplasim/scripts/rebuild_binaries.py:RESIDENT_PATCHES,
+# and the per-file shas of the composed result are in
+# exoplasim/patches/binary_manifest.json.
+#
+--- a/radmod.f90
++++ b/radmod.f90
+@@ -226,6 +226,13 @@
+       
+       real :: wv1(1024) !Wavelengths in meters up to 0.75 microns
+       real :: wv2(1024) !Wavelength in meters starting at 0.75 microns
++!     The 5772 K Rayleigh reference is tabulated on the grid BELOW, and wv1/wv2
++!     are overwritten with the spectrum file's wavelengths further down when one
++!     is given. Keeping the reference's own wavelengths here is what makes the
++!     normalisation integrals self-consistent; before this they paired the
++!     reference's values with the file's abscissae. SPEC-2.
++      real :: wvg1(1024) !Reference wavelengths below 0.75 microns
++      real :: wvg2(1024) !Reference wavelengths above 0.75 microns
+       real :: wvm1(1024) !Wavelengths in microns up to 0.75 microns
+       real :: wvm2(1024) !Wavelength in microns starting at 0.75 microns
+       real :: bb1(1024) !Planck function for x<0.75 microns
+@@ -263,6 +270,8 @@
+         enddo
+         
+         do k=1,1024
++           wvg1(k) = wv1(k)
++           wvg2(k) = wv2(k)
+            bbg1(k) = 1.0/wvm1(k) * 1.0/(exp(constg/wv1(k))-1)
+            bbg2(k) = 1.0/wvm2(k) * 1.0/(exp(constg/wv2(k))-1)
+         enddo
+@@ -329,23 +338,23 @@
+         do k=1,1023    !Do a trapezoidal integration above and below 0.75 microns
+           z1 = z1 + 0.5*(bb1(k)+bb1(k+1))*(wv1(k+1)-wv1(k))
+           z2 = z2 + 0.5*(bb2(k)+bb2(k+1))*(wv2(k+1)-wv2(k))
+-          zg1 = zg1 + 0.5*(bbg1(k)+bbg1(k+1))*(wv1(k+1)-wv1(k))
+-          zg2 = zg2 + 0.5*(bbg2(k)+bbg2(k+1))*(wv2(k+1)-wv2(k))
++          zg1 = zg1 + 0.5*(bbg1(k)+bbg1(k+1))*(wvg1(k+1)-wvg1(k))
++          zg2 = zg2 + 0.5*(bbg2(k)+bbg2(k+1))*(wvg2(k+1)-wvg2(k))
+           zcross1 = zcross1 + 0.5*(bb1(k)/((wv1(k)*1.0e6)**4)+bb1(k+1)/((wv1(k+1)*1.0e6)**4)) &
+      &                         *(wv1(k+1)-wv1(k))
+           zcross2 = zcross2 + 0.5*(bb2(k)/((wv2(k)*1.0e6)**4)+bb2(k+1)/((wv2(k+1)*1.0e6)**4)) &
+      &                         *(wv2(k+1)-wv2(k))
+-          zgcross1 = zgcross1+0.5*(bbg1(k)/((wv1(k)*1.0e6)**4)+bbg1(k+1)/((wv1(k+1)*1.0e6)**4)) &
+-     &                         *(wv1(k+1)-wv1(k))
+-          zgcross2 = zgcross2+0.5*(bbg2(k)/((wv2(k)*1.0e6)**4)+bbg2(k+1)/((wv2(k+1)*1.0e6)**4)) &
+-     &                         *(wv2(k+1)-wv2(k))
++          zgcross1 = zgcross1+0.5*(bbg1(k)/((wvg1(k)*1.0e6)**4)+bbg1(k+1)/((wvg1(k+1)*1.0e6)**4)) &
++     &                         *(wvg1(k+1)-wvg1(k))
++          zgcross2 = zgcross2+0.5*(bbg2(k)/((wvg2(k)*1.0e6)**4)+bbg2(k+1)/((wvg2(k+1)*1.0e6)**4)) &
++     &                         *(wvg2(k+1)-wvg2(k))
+         enddo
+         z1 = z1 + 0.5*(bb1(1024)+bb2(1))*(wv2(1)-wv1(1024))
+         zcross1 = zcross1+0.5*(bb1(1024)/((wv1(1024)*1.0e6)**4)+bb2(1)/((wv2(1)*1.0e6)**4)) &
+      &                         *(wv2(1)-wv1(1024))
+-        zg1 = zg1 + 0.5*(bbg1(1024)+bbg2(1))*(wv2(1)-wv1(1024))
+-        zgcross1 = zgcross1+0.5*(bbg1(1024)/((wv1(1024)*1.0e6)**4)+bbg2(1)/((wv2(1)*1.0e6)**4)) &
+-     &                         *(wv2(1)-wv1(1024))
++        zg1 = zg1 + 0.5*(bbg1(1024)+bbg2(1))*(wvg2(1)-wvg1(1024))
++        zgcross1 = zgcross1+0.5*(bbg1(1024)/((wvg1(1024)*1.0e6)**4)+bbg2(1)/((wvg2(1)*1.0e6)**4)) &
++     &                         *(wvg2(1)-wvg1(1024))
+         
+         zg = zg1+zg2
+         zgcross = zgcross1 + zgcross2

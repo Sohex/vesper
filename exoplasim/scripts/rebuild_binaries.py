@@ -80,6 +80,7 @@ RESIDENT_PATCHES = [
     ("exoplasim-3.4.2-lowio-first-record.patch", "src"),
     ("exoplasim-3.4.2-denergy-accumulator.patch", "src"),
     ("exoplasim-3.4.2-prescribed-dust.patch", "src"),
+    ("exoplasim-3.4.2-rayleigh-reference-grid.patch", "src"),
     ("exoplasim-3.4.2-h2o-shortwave-weight.patch", "pkg"),
     ("exoplasim-3.4.2-makestellarspec.patch", "pkg"),
 ]
