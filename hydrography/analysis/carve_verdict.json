@@ -16,7 +16,7 @@
     }
   },
   "penman_ocean_validation": {
-    "penman_mm_per_day": 3.0274,
+    "penman_mm_per_day": 3.0276,
     "model_mm_per_day": 2.7916,
     "ratio": 1.0845,
     "ocean_cells": 4087,
@@ -24,15 +24,15 @@
   },
   "bounds": {
     "penman": {
-      "basins_carved": 1725,
+      "basins_carved": 1721,
       "endorheic_land_km2": 189245326.23033285,
-      "lake_area_km2": 11104812.424110278,
+      "lake_area_km2": 11052434.902938513,
       "dry_survivors": 1062,
-      "wet_survivors": 920,
+      "wet_survivors": 923,
       "basins_without_runoff": 1062,
-      "lake_area_fraction_of_planet": 0.015119020671341602,
+      "lake_area_fraction_of_planet": 0.01504770953207461,
       "solver_converged": true,
-      "median_aridity_index": -0.9990343719822693
+      "median_aridity_index": -0.9982396756297118
     },
     "wet": {
       "basins_carved": 2559,
@@ -47,9 +47,9 @@
     }
   },
   "agreement": {
-    "carve_under_both": 1725,
+    "carve_under_both": 1721,
     "survive_under_both": 1062,
-    "disputed": 834
+    "disputed": 838
   },
   "carve_list_robust": [
     "orogen-basin-rfxks-1hldy39",
@@ -230,7 +230,6 @@
     "orogen-basin-rqlka-glazx8",
     "orogen-basin-rzw6m-8au5z5",
     "orogen-basin-r15w2q-1g9pgme",
-    "orogen-basin-r18g5f-ljpjxo",
     "orogen-basin-r9e6i-1ftiwuw",
     "orogen-basin-r13ll5-16btk87",
     "orogen-basin-r1ebdr-164shyf",
@@ -622,7 +621,6 @@
     "orogen-basin-r12rj0-1hpvkrw",
     "orogen-basin-rog8p-sfbg1l",
     "orogen-basin-r7fqo-1tpg6rn",
-    "orogen-basin-r189g7-5n8afy",
     "orogen-basin-r13p1a-1rj5gu7",
     "orogen-basin-r1hi1h-lg5v5y",
     "orogen-basin-r95qg-4auryl",
@@ -1274,7 +1272,6 @@
     "orogen-basin-r14m2d-1jhfy4k",
     "orogen-basin-r1dpf7-1rruzqi",
     "orogen-basin-rm9me-1vpxqvl",
-    "orogen-basin-rdqma-11179vx",
     "orogen-basin-r1db33-9ltj01",
     "orogen-basin-rdlbn-phb0ae",
     "orogen-basin-rnvak-1doxler",
@@ -1306,7 +1303,6 @@
     "orogen-basin-r16e7r-sgkqnl",
     "orogen-basin-rkyww-9iyho4",
     "orogen-basin-r1apan-18so0h0",
-    "orogen-basin-r186uj-5pi28u",
     "orogen-basin-r1abmo-nnkm9y",
     "orogen-basin-roz1s-1upsi1i",
     "orogen-basin-ra4sb-y482uq",
@@ -1957,7 +1953,6 @@
     "orogen-basin-rqlka-glazx8",
     "orogen-basin-rzw6m-8au5z5",
     "orogen-basin-r15w2q-1g9pgme",
-    "orogen-basin-r18g5f-ljpjxo",
     "orogen-basin-r9e6i-1ftiwuw",
     "orogen-basin-r13ll5-16btk87",
     "orogen-basin-r1ebdr-164shyf",
@@ -2349,7 +2344,6 @@
     "orogen-basin-r12rj0-1hpvkrw",
     "orogen-basin-rog8p-sfbg1l",
     "orogen-basin-r7fqo-1tpg6rn",
-    "orogen-basin-r189g7-5n8afy",
     "orogen-basin-r13p1a-1rj5gu7",
     "orogen-basin-r1hi1h-lg5v5y",
     "orogen-basin-r95qg-4auryl",
@@ -3001,7 +2995,6 @@
     "orogen-basin-r14m2d-1jhfy4k",
     "orogen-basin-r1dpf7-1rruzqi",
     "orogen-basin-rm9me-1vpxqvl",
-    "orogen-basin-rdqma-11179vx",
     "orogen-basin-r1db33-9ltj01",
     "orogen-basin-rdlbn-phb0ae",
     "orogen-basin-rnvak-1doxler",
@@ -3033,7 +3026,6 @@
     "orogen-basin-r16e7r-sgkqnl",
     "orogen-basin-rkyww-9iyho4",
     "orogen-basin-r1apan-18so0h0",
-    "orogen-basin-r186uj-5pi28u",
     "orogen-basin-r1abmo-nnkm9y",
     "orogen-basin-roz1s-1upsi1i",
     "orogen-basin-ra4sb-y482uq",

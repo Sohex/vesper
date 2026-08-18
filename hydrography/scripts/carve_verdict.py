@@ -69,6 +69,10 @@ WSMAX_EARTH = 0.5       # landmod.f90 default field capacity, metres
 GASCON = 287.017        # J/kg/K, from the model's own PLANET_NL
 CP_AIR = 1005.0         # J/kg/K
 KARMAN = 0.4
+# Quadrature points around one diurnal cycle. 24 is far more than the smoothness
+# of a sinusoid needs; the cost is nothing and it removes the point count as a
+# thing to wonder about.
+DIURNAL_POINTS = 24
 # ExoPlaSim's own stability constants, fluxmod.f90:27-29, ECHAM Report 218.
 VDIFF_B = VDIFF_D = 5.0
 STABILITY_ITERATIONS = 5
@@ -108,7 +112,8 @@ def turbulent_forcing(climatology):
     return q_air, wind
 
 
-def penman_open_water(ts, tas, q_air, wind, ps_pa, rss, rls, land_albedo, gravity):
+def penman_open_water(ts, tas, q_air, wind, ps_pa, rss, rls, land_albedo,
+                      gravity, diurnal_range=None):
     """Penman open-water evaporation, m/s.
 
     Combines the energy budget with an aerodynamic term, which is what makes it
@@ -122,8 +127,32 @@ def penman_open_water(ts, tas, q_air, wind, ps_pa, rss, rls, land_albedo, gravit
     is water's, not land's, which lowers the transfer coefficient.
     """
     lam = 2.501e6 - 2370.0 * (tas - 273.15)          # latent heat, J/kg
-    es_a = saturation_vapour_pressure(tas)
-    delta = es_a * 17.625 * 243.04 / (tas - 30.11) ** 2
+    # DIURNAL INTEGRATION. Saturation vapour pressure is convex in temperature at
+    # about 6.7% per kelvin, so the daily MEAN of e_s exceeds e_s of the daily
+    # mean, and evaluating Penman at a 12-bin mean understates the vapour
+    # pressure deficit that drives it. Jensen's inequality, and it is one-signed.
+    #
+    # The model carries `maxt` and `mint`, so the range is measured rather than
+    # assumed: 8.08 K land-mean and 12.32 K at the ninetieth percentile. A
+    # sinusoid between them is integrated by Gauss-Legendre over one cycle.
+    # `delta` is the derivative of the same curve and takes the same treatment,
+    # because using a diurnal-mean e_s with a point-evaluated slope would be
+    # inconsistent in the direction that flatters the answer.
+    if diurnal_range is None:
+        es_a = saturation_vapour_pressure(tas)
+        delta = es_a * 17.625 * 243.04 / (tas - 30.11) ** 2
+    else:
+        phase = 2.0 * np.pi * (np.arange(DIURNAL_POINTS) + 0.5) / DIURNAL_POINTS
+        amp = np.maximum(diurnal_range, 0.0) / 2.0
+        es_a = np.zeros_like(tas)
+        delta = np.zeros_like(tas)
+        for ph in phase:
+            t = tas + amp * np.sin(ph)
+            e = saturation_vapour_pressure(t)
+            es_a += e
+            delta += e * 17.625 * 243.04 / (t - 30.11) ** 2
+        es_a /= DIURNAL_POINTS
+        delta /= DIURNAL_POINTS
     gamma = CP_AIR * ps_pa / (0.622 * lam)
     e_air = q_air * ps_pa / (0.622 + 0.378 * q_air)
 
@@ -330,6 +359,7 @@ def main() -> None:
         ps_pa = annual_mean(ds, "ps") * 100.0          # hPa -> Pa
         rss = annual_mean(ds, "rss")
         rls = annual_mean(ds, "rls")
+        diurnal = annual_mean(ds, "maxt") - annual_mean(ds, "mint")
     q_air, wind = turbulent_forcing(args.climatology)
 
     dust_note = None
@@ -357,8 +387,9 @@ def main() -> None:
     land_albedo = read_sra_field(
         PROJECT_ROOT / "exoplasim" / "inputs" / resolution.lower()
         / f"orogen_{resolution}_surf_0174.sra", *ps_pa.shape)
-    penman = penman_open_water(ts, tas, q_air, wind, ps_pa, rss, rls,
-                               land_albedo, float(config["planet"]["gravity_m_s2"]))
+    penman = penman_open_water(ts, tas, q_air, wind, ps_pa, rss, rls, land_albedo,
+                               float(config["planet"]["gravity_m_s2"]),
+                               diurnal_range=diurnal)
     ocean_validation = validate_over_ocean(penman, evap, lsm)
     # Floor the open-water estimate at the moisture-limited land rate. Penman
     # linearises around air temperature, so where the ground runs much hotter

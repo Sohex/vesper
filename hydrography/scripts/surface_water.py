@@ -95,6 +95,7 @@ def climate_fields(config):
         lat = np.asarray(ds["lat"][:])
         lon = np.asarray(ds["lon"][:])
         lsm = cv.annual_mean(ds, "lsm")
+        diurnal = cv.annual_mean(ds, "maxt") - cv.annual_mean(ds, "mint")
     q_air, wind = cv.turbulent_forcing(clim)
 
     runoff = np.clip(pr - evap, 0.0, None)
@@ -105,7 +106,7 @@ def climate_fields(config):
         / f"orogen_{resolution}_surf_0174.sra", *ps_pa.shape)
     evaporation = cv.penman_open_water(
         ts, tas, q_air, wind, ps_pa, rss, rls, land_albedo,
-        float(config["planet"]["gravity_m_s2"]))
+        float(config["planet"]["gravity_m_s2"]), diurnal_range=diurnal)
     # Same floor the verdict uses: Penman linearises around air temperature and
     # can fall below the model's own evaporation where the ground runs hotter,
     # which is impossible for a saturated surface under the same forcing.

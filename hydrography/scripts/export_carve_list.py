@@ -285,6 +285,7 @@ def main() -> None:
         pr, evap, mrro = am(ds, "pr"), -am(ds, "evap"), am(ds, "mrro")
         ts, tas = am(ds, "ts"), am(ds, "tas")
         ps_pa, rss, rls = am(ds, "ps") * 100.0, am(ds, "rss"), am(ds, "rls")
+        diurnal = am(ds, "maxt") - am(ds, "mint")
     q_air, wind = cv.turbulent_forcing(args.climatology)
 
     land_albedo = cv.read_sra_field(
@@ -292,7 +293,7 @@ def main() -> None:
         / f"orogen_{resolution}_surf_0174.sra", *ps_pa.shape)
     penman = np.maximum(cv.penman_open_water(
         ts, tas, q_air, wind, ps_pa, rss, rls, land_albedo,
-        float(config["planet"]["gravity_m_s2"])), evap)
+        float(config["planet"]["gravity_m_s2"]), diurnal_range=diurnal), evap)
 
     runoff_field = mrro if args.runoff_source == "mrro" else (pr - evap)
     means, _ = cv.basin_means(args.coupling,
