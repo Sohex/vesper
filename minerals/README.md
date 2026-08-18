@@ -147,14 +147,25 @@ Knight et al. (1999) show gold is progressively flattened rather than lost, so a
 decay length would remove prospectivity the evidence says is still there. That is
 `grounding: sourced-negative`, and it is a better outcome than a number.
 
-**Potash is declared, and lithium and borate weaker still, and the config says so
-per rule.** Potassium is Eugster and Jones' behaviour type IV, removed mid-range
-by exchange and sorption and surviving only where concentration runs far, so
-potash needs both a high K supply and extreme evaporation. Lithium and boron are
-NOT among Meybeck's eight species at all, so they cannot be derived from the
-divide in any form; what stands in is the geological association -- silicic
-volcanic and arc volcanic catchments respectively -- and that is an association
-rather than a mechanism this pipeline models.
+**Potash is declared; lithium and borate are sourced-negative, and the config
+says so per rule.** Potassium is Eugster and Jones' behaviour type IV, removed
+mid-range by exchange and sorption and surviving only where concentration runs
+far, so potash needs both a high K supply and extreme evaporation, and no source
+fixes either threshold.
+
+Lithium and boron are NOT among Meybeck's eight species at all, so neither can be
+derived from the divide in any form, and no per-lithology release table exists
+for either element to derive them from instead. What the literature does settle,
+and settles for both at once, is which rock they come from: Risacher and Fritz
+(2009) find Li and B in Andean salars uncorrelated with water temperature across
+groundwaters that are mostly thermally influenced, and conclude both come from
+ordinary alteration of volcanic rocks and especially ignimbrites. The
+hydrothermal flux this pipeline cannot place therefore is not required for that
+deposit type. Both rules take the same host set as a result, the evolved
+high-silica end, because Floyd et al. (1998) find B and Li enriched together in
+the same fertile ignimbrites. What stays missing is the release coefficient, and
+Munk et al. (2016) say plainly that the Li sources "are yet to be definitively
+identified and quantified", so a number there would be invented.
 
 **Placer gold is the one rule the drainage network earns.** Orogenic gold
 prospectivity is accumulated down the drainage tree exactly as runoff is, so a
@@ -182,8 +193,10 @@ tonnage, and comparing the number for one deposit type against another says
 nothing. What is comparable is the spatial pattern within a type.
 
 Read `grounding` before quoting any downstream number. Each rule carries one of
-`derived`, `sourced` or `declared`, and they are not equally good: two of the
-brine entries fall out of a solved divide with no free choice, and the rest are
-judgment with the reasoning written out. That distinction is in the config, in
+`derived`, `sourced`, `sourced-negative` or `declared`, and they are not equally
+good: two of the brine entries fall out of a solved divide with no free choice,
+`sourced-negative` means the criterion is sourced and the literature states that
+the threshold it would want was never established, and the rest are judgment with
+the reasoning written out. That distinction is in the config, in
 the report, and as an attribute on every variable in the netCDF, so it travels
 with the number rather than staying in a file someone has to remember to open.

@@ -57,9 +57,14 @@ gold is progressively flattened rather than lost with distance, so a decay lengt
 would remove prospectivity the evidence says is still there. A number in either
 place would have been invented and then quoted back as though sourced.
 
-DECLARED, what is left: potash, and lithium and borate entirely -- neither
-element is among Meybeck's eight species, so unlike soda and gypsum they cannot
-be derived from the divide in any form.
+DECLARED, what is left: potash alone. Lithium and borate are sourced-negative as
+of 2026-08-18: neither element is among Meybeck's eight species and no
+per-lithology release table exists for either, but Risacher and Fritz (2009)
+source the CRITERION for both at once, finding Li and B in Andean salars
+independent of water temperature and derived from the alteration of volcanic
+rocks and especially ignimbrites. So the host set is sourced, the release
+coefficient is stated by Munk et al. (2016) to be unquantified, and the borate
+rule lost its `arc_basalt` weight because the fertile rock is the high-silica end.
 
 The supergene wet end is no longer among them and was not replaced by a better
 number, because Sillitoe (2005) p. 736 says there is no wet bound on rainfall at

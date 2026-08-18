@@ -503,8 +503,12 @@ the water capacity.
   threshold has no source**: Muhs (2013) was read for it and carries no
   accumulation rates at all, so 50 g/m2/yr is read off one figure's own
   before-and-after at a single place and bracketed 10 to 200. **The pavement
-  clast-supply criterion has no source either**, and "consolidated bedrock rather
-  than basin fill" is a stand-in for one.
+  clast supply is exhaustible and this rule cannot see that**: McFadden et al.
+  (1987), read 2026-08-18, gives the criterion, that pavement clasts are
+  weathered bedrock from topographic highs, and states that supply stops once
+  the highs are worn down and buried, which a rule keyed on present substrate
+  treats as permanent. So the pavement area is an upper bound on an old surface.
+  No source gives a clast-supply threshold and none is invented.
 
 ## The carbonate-silicate thermostat, and how much of it this world has
 

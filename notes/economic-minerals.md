@@ -113,11 +113,8 @@ regional criteria a rule like this wants were never established; Knight et al.
 decay length would remove prospectivity the evidence says is still there. A
 number in either place would have been invented and then quoted back as sourced.
 
-DECLARED, what remains: potash, and **lithium and borate entirely -- neither
-element is among Meybeck's eight species**, so unlike soda and gypsum they cannot
-be derived from the divide in any form, and what stands in is a geological
-association with silicic volcanic and arc volcanic catchments. That is an
-association, not a mechanism this pipeline models.
+DECLARED, what remains: **potash alone.** Lithium and borate moved to
+`sourced-negative` on 2026-08-18 and the section below is why.
 
 ### The relief term, and the supergene wet end that does not exist
 
@@ -191,6 +188,106 @@ resolution-adjacent reason: cassiterite needs specialised S-type granite and gem
 placers need their own host suites, and Orogen's 20-class table separates neither
 from ordinary granite. Placing them would be placing granite twice under
 different names.
+
+### Lithium and borate: the hydrothermal objection does not survive the test
+
+Settled 2026-08-18 from Risacher and Fritz (2009), Risacher et al. (2003), Munk
+et al. (2016), Helvaci (2019) and Huh et al. (1998), all read. Both rules had
+been carried as bare geological associations on the reasoning that neither
+element is among Meybeck's eight species and that boron in Earth's borate basins
+is substantially hydrothermal, which this pipeline does not model. The first half
+is still true. The second half is wrong for the deposit type this world can
+actually hold, and it was wrong on a point that has been measured.
+
+**The test that could have failed.** Lithium and boron are generally enriched in
+thermal waters (Berthold and Baker 1976; White et al. 1976), so the expected
+result was enrichment. Risacher and Fritz (2009) plot Li and B in Bolivian and
+Chilean dilute springs and groundwaters against water temperature, over a sample
+in which 60% of Bolivian and 78% of Chilean waters carry a thermal influence, and
+find no rise with temperature and no significant difference between meteoric and
+hydrothermal waters. Their section 3.5: *"hydrothermal alteration is not
+specifically responsible for the high content of Li and B in waters and brines of
+Andean salars. Both components originate from the alteration of volcanic rocks,
+especially ignimbrites because of their rapid alteration and weathering."*
+Risacher et al. (2003) section 7.7 reach the same conclusion from the Chilean
+half alone, with the same test.
+
+So the flux this pipeline cannot place is not required for the Andean type, and
+the Andean type is the world's principal lithium brine province and the setting
+of its Quaternary borates. What DOES require it is the Anatolian borate type:
+Helvaci (2019) lists thermal springs near volcanic activity among the essential
+conditions, and attributes the high boron of the Turkish source rocks to
+circulating boron-rich hot water. That type is not placeable here, and naming it
+as unplaceable is the honest form, the same shape as groundwater silcrete being
+listed and left empty in `pedology/config/surface_classes.yaml`.
+
+**One host set now serves both elements, and the borate rule changed.** Floyd et
+al. (1998), quoted by Helvaci (2019), characterise the fertile ignimbrites of the
+Turkish borate basins as *"well-evolved and fractionated ... with a high-silica
+rhyolitic bulk composition, exhibit a combined high content of B, As, F, Li and
+Pb"*. Helvaci puts the boron source at "andesitic to rhyolitic volcanics" and
+reports 25 to 270 ppm B in the calc-alkaline andesite-to-rhyolite suite around
+the deposits. The borate rule had read `{arc_andesite: 1.0, arc_basalt: 1.0}`,
+which sourced boron from island-arc basalt: the wrong end of the differentiation
+series for an element that concentrates in evolved melts. It now takes lithium's
+host set. Plutonic classes stay at half weight because the leachable phase is
+glass rather than crystal, which Hofstra et al. (2013) via Munk et al. (2016)
+show for Li directly and which Wolff-Boenisch et al. (2004), already read for the
+andisol work, quantifies as a dissolution-rate contrast.
+
+**The source gate is necessary, not decorative.** Munk et al. (2016) supply the
+negative case: the closed basins of the Yilgarn craton in arid Australia have the
+climate and the hydrology, have held closed drainage since the Eocene, reach five
+to ten times seawater salinity, and carry almost no lithium, with most brines
+below 0.5 mg/L. *"Significant Li brine accumulations have not been reported from
+intracratonic basins in arid regions."* A cratonic catchment with the right
+climate does not make a lithium brine, which is the statement that makes the
+lithology term load-bearing rather than ornamental.
+
+**What remains sourced-negative is the release coefficient, and the canonical
+review says so rather than merely omitting it.** Munk et al. (2016) on lithium
+sources: *"Despite the observation that multiple potential sources of Li exist
+they are yet to be definitively identified and quantified."* The direct
+measurements straddle orders of magnitude on the same rocks: Price et al. (2000)
+conclude that groundwater leaching of volcanic tuffs alone accounts for all the
+lithium at Clayton Valley, while Jochens and Munk (2011) measured under 10 ug/L
+Li released from those same rocks at ambient conditions, and Godfrey et al.
+(2013) report the same at Salar del Hombre Muerto.
+
+**The search for a release table, so nobody repeats it.** Huh et al. (1998) is
+the nearest thing to a Meybeck Table 2C for lithium and is not one: it samples
+the lower reaches of thirteen major rivers plus tributaries, groups them by
+TERRAIN rather than by rock class, and gives shield rivers 27 to 70 nM,
+tectonically active zones 160 to 580 nM, and rivers draining marine limestone and
+evaporite 450 to 11,700 nM, against a flow-weighted mean of 215 nM. Its high end
+is recycled evaporite lithium rather than release from fresh rock, which is why
+it ranks terrains in the opposite order to the brine literature; the two are
+answering different questions and only the brine question is this project's.
+
+The compilation chapter states the absence outright. Gaillardet, Viers and Dupre
+(2014), *Trace Elements in River Waters*, is where a per-lithology trace-element
+table would live if one existed, and its own conclusion is that "trace-element
+concentrations have been measured in a restricted number of environments, which
+may not be typical", so that "extended investigations on rivers ... of variable
+climatic or lithologic settings are necessary to get a better world-scale
+overview of trace-element levels and controlling parameters". That is the same
+shape as Slingerland and Smith on placers: the canonical review says the quantity
+was never established.
+
+The rest of the search was empty in the same direction. The boron river
+literature is isotopic almost throughout, aimed at weathering regime and
+palaeo-pH rather than at yield per rock type. Bluth and Kump (1994), the one
+monolithologic-catchment compilation this project holds, carries bicarbonate and
+silica only. A number entered in place of the missing table would be invented and
+then quoted back as sourced.
+
+**Considered and rejected: requiring the alkaline brine path for borate.**
+Helvaci gives lake water at pH 8.5 to 11 among the essential conditions, which
+maps onto this project's alkaline path, and the gate would have been cheap.
+It would also delete the Andean borates, which are mined from salars that
+Risacher et al. (2003) classify as sulfate-rich and calcium-rich rather than
+alkaline. Two deposit types share one class here, so the narrower gate is wrong
+for half of what the class covers.
 
 ## What this world cannot have
 
