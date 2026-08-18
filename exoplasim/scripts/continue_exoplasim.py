@@ -179,6 +179,20 @@ def main() -> None:
     # The raw `MOST_HC.NNNNN` is 15 GB for one orbit at T42 whatever is asked
     # for, because the model's own output path does not take a field list. It is
     # deleted once pyburn has run, but the disk has to be there first.
+    # A spin-up orbit and a climatology orbit want different things. The corrupt
+    # first record costs nothing on a spin-up, whose diagnostics are scalars and
+    # clean to 2%, and it poisons any wind or humidity taken from a climatology.
+    # Measured 2026-08-17 on this run: model time is the same either way, 88.4 s
+    # against 90.4 s, but wall time is 104 s against 387 s, because turning the
+    # accumulation off multiplies the raw volume pyburn has to chew. So run the
+    # spin-up cheap and the orbits you will actually read expensive. Segments
+    # record which they were, and `build_climatology.py` refuses to mix them.
+    parser.add_argument(
+        "--low-io", action="store_true",
+        help="run this segment with PlaSim's low-I/O accumulation ON: ~3.7x "
+             "faster in wall clock, and every orbit carries a corrupt first "
+             "output record in wind and humidity. SPIN-UP ONLY -- never for "
+             "orbits a climatology will be built from")
     parser.add_argument(
         "--high-cadence", action="store_true",
         help="write near-surface wind every fourth timestep for this segment, "
@@ -325,12 +339,16 @@ def main() -> None:
         if w is not None and float(w) != 1.0:
             model._edit_namelist("radmod_namelist", name, f"{float(w)}")
 
+    # Every continuation re-runs configure(), which rewrites the namelist, so
+    # this has to be reapplied here and not only at prepare time. It is also
+    # independent of the energy diagnostics, which it used to be nested inside.
+    if not args.low_io:
+        disable_low_io(model)
+    else:
+        print("  NLOWIO = 1 for this segment: faster, and every orbit will carry "
+              "a corrupt first output record in wind and humidity. Spin-up only.")
     regular_codes = list(REGULAR_CODES)
     if energy_diagnostics_enabled(config):
-        # Every continuation re-runs configure(), which rewrites the
-        # namelist, so this has to be reapplied here and not only at
-        # prepare time. See run_exoplasim.disable_low_io.
-        disable_low_io(model)
         enable_energy_diagnostics(model, config)
         register_energy_diagnostic_codes()
         regular_codes = regular_codes + ENERGY_DIAGNOSTIC_CODES
@@ -409,6 +427,7 @@ def main() -> None:
             "start_year_index": start_year,
             "end_year_index": start_year + args.orbits - 1,
             "seasonal_output": args.seasonal_output,
+            "low_io": bool(args.low_io),
             "purpose": (
                 "post_equilibrium_climatology"
                 if is_post_equilibrium_climatology

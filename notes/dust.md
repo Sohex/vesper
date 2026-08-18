@@ -332,14 +332,50 @@ labelled for this:
 
 That one line is what gets replaced.
 
-**What is genuinely missing, and must not be waved through.** `apart = 50e-9` m
-and `rhop = 1000` kg/m3 are photochemical haze, not mineral dust: 50 nm at the
-density of ice, against 0.1 to 20 um at about 2650. Whether the size distribution
-survives depends on what `NAERO` permits; if it carries bins then Kok's
-fragmentation distribution maps onto them, and if it does not then an effective
-radius has to be chosen to reproduce the mass extinction efficiency already in
-`analysis/dust_optics.json`, with the loss declared. `aerofile` also has to be
-written in the format `radmod.f90` reads.
+### What is genuinely missing, read out of the source rather than assumed
+
+Checked 2026-08-17. The hook is one line; what sits around it is not.
+
+**There is no longwave aerosol. At all.** `radmod.f90` puts the aerosol only in
+its two SHORTWAVE bands -- `aod1`, `aod2`, `zaerr1`, `zaerr2` at line 1830
+onward -- and the longwave solver contains no aerosol term of any kind. So this
+model can cool with dust and cannot warm with it.
+
+That is the same error this project already caught itself making once, and the
+reason the dust question was relitigated at all: **the net cooling overestimate
+was the problem.** Mineral dust absorbs and re-emits in the thermal infrared, and
+for a coarse-mode-rich burden that offsets a substantial share of the shortwave
+cooling. At a land-mean optical depth of 0.740, running shortwave-only is not a
+small bias, and it is a bias in the direction this project is least able to
+afford, because land albedo already sits inside a narrow flux window.
+
+**So DUST-2 comes first, and it is a prerequisite rather than a follow-on.**
+Until the longwave term is priced there is no way to say whether an in-model
+shortwave-only dust is closer to the truth than no dust at all. If it is large,
+the fork needs a longwave aerosol term as well as an emission scheme, and that is
+a materially bigger change than replacing `case(2)`.
+
+**One aerosol, one size, one density.** `plasimmod.f90:99` fixes
+`parameter(NAERO = 1)` at compile time. The loops are already written as
+`do jc=1,NAERO`, so raising it is structurally possible -- but `apart` and `rhop`
+are scalars shared by every bin, `mmr2n` takes them as scalars to convert mass to
+number density, and the optics below are single-valued too. Size-resolved dust
+therefore means promoting all of those to arrays, not just changing a parameter.
+The defaults are haze: 50 nm at 1000 kg/m3, against mineral dust at 0.1 to 20 um
+and about 2650.
+
+**The optics collapse to eight numbers.** `aerofile` is read by
+`readdat(aerofile,1,8,aeroqs)`: one header line, then Qextinction, Qscattering,
+Qbackscatter and g for band 1, then the same four for band 2. Optical depth is
+then `nrho * PI * apart**2 * Qext * dz`. Everything spectral and size-resolved in
+`analysis/dust_optics.json` has to be reduced to that, which is doable and has to
+be done knowingly.
+
+**And there is an undocumented sink.** `aerocore.f90:869` applies
+`mmr(:,:,nl,ic) = mmr(:,:,nl,ic)*10e-3` to the bottom level on every step, with
+no comment: a 99% removal of the surface layer per timestep, presumably standing
+in for dry deposition. Whatever emission is injected is scaled by it, so it has
+to be understood before any flux is calibrated against it.
 
 **The offline chain does not go away.** It remains the producer of the deposition
 field, because loess (SURF-3) and the phosphorus return leg want size-resolved

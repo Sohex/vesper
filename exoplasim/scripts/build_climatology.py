@@ -275,6 +275,35 @@ def climate_series(paths: list[Path], years: list[int]) -> dict:
     }
 
 
+def low_io_orbits(run_dir: Path, years) -> list[int]:
+    """Orbits in `years` that were run with PlaSim's low-I/O accumulation on.
+
+    Those carry a corrupt first output record per orbit: bottom-level wind reads
+    about 7.5x the other bins and humidity 27% low, while every scalar is within
+    2%. Averaging them into a climatology puts that into anything downstream that
+    reads a wind or a humidity -- the Penman evaporation the carve verdict turns
+    on, and the gust distribution the dust emission turns on.
+
+    **A segment with no `low_io` key is treated as low-I/O**, because every run
+    made before 2026-08-17 was, and the honest default for an unlabelled orbit is
+    the unsafe one.
+    """
+    manifest = run_dir / "run_manifest.json"
+    if not manifest.is_file():
+        return list(years)
+    segments = json.loads(manifest.read_text(encoding="utf-8")).get("segments", [])
+    tainted = []
+    for year in years:
+        for seg in segments:
+            if seg["start_year_index"] <= year <= seg["end_year_index"]:
+                if seg.get("low_io", True):
+                    tainted.append(year)
+                break
+        else:
+            tainted.append(year)
+    return tainted
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("run_dir", type=Path)
@@ -282,6 +311,11 @@ def main() -> None:
     parser.add_argument("--end-year", type=int, required=True)
     parser.add_argument("--output", type=Path, default=ANALYSIS / "climatology")
     parser.add_argument("--label", default="baseline")
+    parser.add_argument("--allow-low-io", action="store_true",
+                        help="build anyway from orbits that carry the corrupt "
+                             "first output record. The winds and humidities in "
+                             "the result will be wrong; see "
+                             "exoplasim/notes/first-output-bin.md")
     parser.add_argument("--per-year", action="store_true",
                         help="also write one climatology per orbit, which is "
                              "what biosphere/ needs to see a variable star")
@@ -293,6 +327,18 @@ def main() -> None:
 
     run_dir = args.run_dir.resolve()
     years = range(args.start_year, args.end_year + 1)
+    tainted = low_io_orbits(run_dir, years)
+    if tainted:
+        message = (
+            f"orbits {tainted[0]}-{tainted[-1]} of {len(list(years))} were run "
+            "with PlaSim's low-I/O accumulation, so each carries a corrupt first "
+            "output record in wind and humidity. A climatology built from them "
+            "misstates every downstream wind.")
+        if not args.allow_low_io:
+            raise SystemExit(
+                message + "\n  Re-run those orbits without --low-io, or pass "
+                "--allow-low-io to build anyway and accept it.")
+        print("  WARNING: " + message)
     regular = [run_dir / f"MOST.{year:05d}.nc" for year in years]
     snapshots = [run_dir / "snapshots" / f"MOST_SNAP.{year:05d}.nc" for year in years]
     output_dir = args.output.resolve()
