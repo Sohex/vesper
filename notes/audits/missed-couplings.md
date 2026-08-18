@@ -59,12 +59,20 @@ onto basin counts, the existing budget items convert roughly as:
 | lakes composited into albedo | 0.61 K | several percent | tens |
 | playa_clastic albedo 0.25-0.33 | -0.52 K | several percent | tens |
 
-The middle column is **[physics]**, not measured -- converting a kelvin to a
-runoff change needs the model's own hydrological sensitivity, which nobody has
-measured on this world. That measurement does not exist and is the gap. One
-perturbation run reporting dP and dE against dT would supply a conversion factor
-usable for every item in the budget forever, exactly as the flux slope of 150.2 K
-per unit flux ratio already does for temperature.
+The middle column was **[physics]** on the day this was written, and it was too
+big. The measurement was taken on 2026-08-18 as a secant between two converged
+fluxes already on disk rather than from a perturbation run, and it is recorded
+in `notes/audits/hydrological-sensitivity.md`; `error_budget.py` now carries it
+and prices every item in runoff and basins as well as kelvin.
+
+What the estimate got wrong is the shape rather than the size. Runoff amplifies
+a precipitation change by `P/R`, which is over six here, and applying that to a
+kelvin gives tens of percent. A kelvin also raises land evaporation, slightly
+faster than precipitation, and the two amplified terms nearly cancel: runoff
+moves about a percent per kelvin, not fourteen. The amplification is the right
+factor for a perturbation that changes the water cycle without changing the
+temperature and the wrong one for anything priced in kelvin, which is every item
+in the budget.
 
 **Why this is the largest finding here.** The dust coupling that prompted the
 audit is one instance of it. So is the biosphere. So is every albedo item. The

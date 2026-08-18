@@ -44,16 +44,29 @@ as much, and one in land evaporation by `E/R`. Both are measured here from the
 baseline climatology rather than declared.
 
 `basin_response` then measures how many basins change verdict under a uniform
-fractional perturbation of precipitation, land evaporation and lake evaporation,
-reconstructed from the carve list's own fields and its own criterion. That
-reconstruction reproduces the recorded overflow count exactly at zero
-perturbation, which is the check on it.
+fractional perturbation of precipitation, land evaporation and lake evaporation.
+It READS the three water terms the carve list records against each basin and
+re-evaluates the criterion on them. It used to invert the recorded aridity index
+and evaporation margin to recover them instead, which put the verdict's formula
+in a second place and broke the first time the criterion moved; BUDG-5.
 
-**One link in the chain is missing and it is the one that needs a run.** Nothing
-has measured what a kelvin does to precipitation and evaporation on this world.
-`HYDROLOGICAL_RESPONSE_PER_KELVIN` is that link, declared here as a single input
-so that landing it is one edit rather than a rewrite; while it is `None` the
-per-item runoff and basin columns are null and say why.
+**The kelvin reaches those columns through
+`HYDROLOGICAL_RESPONSE_PER_KELVIN`**, which is the one input and is declared
+once, at the top of this file. Two of its three channels are measured and the
+third is bracketed, so the basin column is a RANGE and the runoff column is not:
+runoff is `P - E_land` and does not contain lake evaporation at all.
+
+**The trap this conversion exists to defuse.** Runoff amplifies a precipitation
+change by `P/R`, which is over six on this world, and a naive reading multiplies
+that by the precipitation response and calls the answer the temperature
+sensitivity. It is not. A kelvin moves land evaporation slightly FASTER than
+precipitation, so the two amplified terms nearly cancel and runoff moves by
+about a fifth of a percent of what the precipitation-only amplification
+suggests. The `6.51x` figure below is right for a precipitation-only
+perturbation -- a change in the hydrological cycle that leaves the temperature
+alone, which is what a dust or a circulation item can be -- and an order of
+magnitude wrong for a temperature one. Every item in this budget is priced in
+kelvin, so every item takes the second path.
 
 ## What it is for
 
@@ -90,18 +103,72 @@ import sensitivity  # noqa: E402
 # Measured, not assumed; see the module docstring.
 DEFAULT_ATTENUATION = 0.5
 
-# The one input BUDG-1 has to supply, and the only reason the carve columns are
-# empty. Fractional change in each land-mean quantity per kelvin of global-mean
-# surface temperature, from one perturbation run against the baseline:
+# BUDG-1. Fractional change in each land-mean quantity per kelvin of global-mean
+# surface temperature. This is the whole of the kelvin-to-carve conversion; the
+# derivation and its evidence are in `notes/audits/hydrological-sensitivity.md`.
 #
-#     {"precipitation": 0.0xx, "land_evaporation": 0.0xx, "lake_evaporation": 0.0xx}
+# `precipitation` and `land_evaporation` are MEASURED, as a secant between the
+# two converged fluxes that share a surface on this build, over the last ten
+# orbits of each. No run was bought for them. They are a secant across about
+# seven kelvin rather than a local slope, and design intent forbids reusing a
+# sensitivity measured in one regime in another, so the converged points loop
+# A's flux re-bracket produces are what localises them. That is a step, not a
+# task.
 #
-# Set it and everything below fills in. Nothing else in this file changes.
-HYDROLOGICAL_RESPONSE_PER_KELVIN = None
+# They must be measured with the SAME land mean `land_water_balance` uses, since
+# the two are multiplied together: Gaussian quadrature weights, land from
+# `lsm > 0.5`, annualised to Earth years. A response measured under a different
+# land mean does not compose with an amplification measured under this one.
+#
+# `lake_evaporation` is a BRACKET, because the Penman open-water response has
+# not been measured on this world and the project's convention is to bracket
+# rather than guess. The ends are declared:
+#
+#   low   the land rate. A lake responding no faster than the moisture-limited
+#         ground beside it is the weakest response that is physically arguable.
+#   high  6.7 %/K, the convexity of saturation vapour pressure the project
+#         already measures (PHYS-5, archive/tasks.md). At fixed relative
+#         humidity the deficit driving Penman's aerodynamic term grows at that
+#         rate and the radiative term does not grow at all, so the Penman
+#         response at fixed radiation and wind is strictly below it.
+#
+# Runoff does not contain lake evaporation, so the runoff column is a single
+# number and only the basin column is a range. Closing the bracket needs Penman
+# evaluated on two converged climatologies, which loop A produces anyway.
+HYDROLOGICAL_RESPONSE_PER_KELVIN = {
+    "precipitation": 0.0219,
+    "land_evaporation": 0.0242,
+    "lake_evaporation": (0.0242, 0.067),
+}
 
 # Perturbation sizes the basin response is tabulated at. Both signs, because the
 # criterion is a threshold and the basin population is not symmetric about it.
 PERTURBATIONS = [-0.10, -0.05, -0.02, -0.01, 0.01, 0.02, 0.05, 0.10]
+
+
+# Items already denominated in a fractional change of one of the criterion's own
+# water terms. They reach basins EXACTLY, with no kelvin anywhere in the path,
+# and no temperature can be claimed for them. Keeping them apart is the point:
+# an item that perturbs the water cycle without perturbing the temperature takes
+# the full `P/R` amplification, and an item priced in kelvin never does.
+# (label, channel, (low, high) fractional change, note)
+CARVE_ITEMS = [
+    ("Penman over a dry land column", "lake_evaporation", (-0.18, -0.10),
+     "Validated over ocean, where the air is equilibrated with the surface. Over "
+     "a subgrid lake the column is dry, so the vapour pressure deficit is too "
+     "high, E is overstated and the verdict under-carves. Quantified by "
+     "notes/audits/missed-couplings.md finding 2 by raising the assumed column "
+     "humidity: -10% at 70%, -13% at 80%, -18% at 90%. It is the largest "
+     "carve-side item in this budget and it is opposite in sign to the "
+     "albedo-driven over-carve. It does not touch runoff, because runoff is "
+     "P - E_land."),
+]
+
+# The criterion channel each CARVE_ITEMS entry perturbs, as the argument
+# position `basin_response`'s `overflowing` takes.
+CARVE_CHANNELS = {"land_precipitation": (1, 0, 0),
+                  "land_evaporation": (0, 1, 0),
+                  "lake_evaporation": (0, 0, 1)}
 
 
 # (label, land-mean albedo delta, note). Deltas are the plausible RANGE of the
@@ -162,14 +229,6 @@ OTHER_ITEMS = [
      "run, ever, gives a permanent scaling for every later result."),
     ("no q-flux", "gradients too strong, ice too extensive",
      "STRUCTURAL, and no cheap version exists. Declare the direction and move on."),
-    ("Penman over a dry land column", "10 to 18% of land-mean Penman",
-     "Validated over ocean, where the air is equilibrated with the surface. Over "
-     "a subgrid lake the column is dry, so VPD is too high, E is overstated and "
-     "the verdict under-carves. Quantified by notes/audits/missed-couplings.md "
-     "finding 2 by raising the assumed column humidity: -10% at 70%, -13% at "
-     "80%, -18% at 90%. Read that against the lake-evaporation row of "
-     "basin_response below; it is the largest carve-side item here and it is "
-     "opposite in sign to the albedo-driven over-carve."),
     ("roughness distribution", "land median 0.502 m under a 2.0 m mean",
      "Anchored to ExoPlaSim's tuned land mean, which the distribution says is "
      "carried by a rough tail. Anchoring inflates mid-range cells; direction "
@@ -244,62 +303,107 @@ def land_water_balance(config) -> dict:
 def basin_response(config) -> tuple[dict, int, "callable"]:
     """How many basins change verdict under a uniform fractional perturbation.
 
-    Reconstructed from the carve list, which is enough: the criterion is
+    The criterion is `export_carve_list.py`'s, and its three water terms are
+    READ from the carve list rather than solved for:
 
-        Q = runoff * (catchment - area_at_spill) - (E_lake - P) * area_at_spill
+        runoff = max(P - E_land, 0)
+        Q      = runoff * (catchment - area_at_spill) - (E_lake - P) * area_at_spill
 
-    and the file carries the aridity index (E_lake - P)/runoff, the evaporation
-    margin (E_lake - P - critical*runoff)/E_lake and the critical index, which
-    solve for the catchment-mean precipitation and lake evaporation separately.
-    Land evaporation is then P - runoff.
+    **Read, because the previous version inverted.** It recovered P and E_lake
+    from the recorded aridity index, evaporation margin and critical index,
+    which is exact algebra and still the wrong design: it wrote the verdict's
+    formula down a second time, so it went wrong every time the criterion moved,
+    which is every iteration. It did -- the Penman land-rate floor came out, the
+    evaporation reference level was corrected -- and the reconstruction then
+    missed six basins while continuing to print a table. The generator now
+    records the terms it means, and this reads them.
 
-    **The check that could have failed**: at zero perturbation the reconstruction
-    must reproduce the recorded overflow count exactly, and it does. It is also
-    insensitive to the file's rounding -- perturbing every rounded field over its
-    rounding interval moves at most one basin.
+    **Two checks that can fail**, both enforced rather than described:
 
-    **The blind spot, stated rather than hidden.** Basins whose catchment runoff
-    is zero cannot be reconstructed, because the clamp at zero destroys P - E.
-    None of them currently overflows and none can, since Penman is floored at the
-    land rate and the land rate already exceeds P there. So the closures below
-    are complete and the openings are a lower bound.
+      * the recorded runoff must equal `max(P - E_land, 0)`. That is the
+        verdict's own definition of runoff evaluated against fields it recorded
+        separately, so it fails if the runoff source is not `p_minus_e` or if
+        the catchment aggregation is not the linear one assumed here.
+      * the criterion re-evaluated at zero perturbation must reproduce the
+        recorded `overflow_km3_per_year` per basin, and hence the overflow
+        count exactly.
+
+    Both are identities of the recorded artifact rather than agreements between
+    two formulations, which is the standard `notes/failure-modes.md` class 17
+    asks for.
+
+    Basins carried forward from a previous carve pass have no water balance to
+    read, because they were decided on a terrain that no longer exists. They are
+    excluded and counted, not silently folded in.
     """
     path = builds.component_data("hydrography", config, strict=True) / "carve_list.json"
     data = json.loads(path.read_text(encoding="utf-8"))
-    rows = data["basins"]
+    rows = [r for r in data["basins"] if not r.get("carried_from_previous_pass")]
+    carried = len(data["basins"]) - len(rows)
+
+    required = ("precipitation_km_per_year", "lake_evaporation_km_per_year",
+                "land_evaporation_km_per_year")
+    absent = [k for k in required if k not in rows[0]]
+    if absent:
+        raise SystemExit(
+            f"{path.relative_to(ROOT)} does not record {', '.join(absent)}, so "
+            "the carve criterion cannot be re-evaluated from it. This budget no "
+            "longer inverts the aridity index to recover them; see BUDG-5. "
+            "Re-run hydrography/scripts/export_carve_list.py, which writes them.")
 
     def column(key):
-        return np.array([np.nan if r[key] is None else r[key] for r in rows],
+        return np.array([np.nan if r.get(key) is None else r[key] for r in rows],
                         dtype=float)
 
-    index = column("aridity_index_penman")
-    margin = column("evaporation_margin")
-    critical = column("critical_aridity_index")
     catchment = column("catchment_km2")
     spill = column("area_at_spill_km2")
     runoff = column("runoff_km_per_year")
     overflow = column("overflow_km3_per_year")
+    precip = column("precipitation_km_per_year")
+    lake_e = column("lake_evaporation_km_per_year")
+    land_e = column("land_evaporation_km_per_year")
+    # `max(catchment - area_at_spill, 0)`, the same clamp the generator applies.
+    # Taking the difference raw is a different criterion on any basin whose lake
+    # at spill covers its whole catchment.
+    dry = np.maximum(catchment - spill, 0.0)
 
-    solvable = ((runoff > 0) & np.isfinite(index) & np.isfinite(margin)
-                & (margin != 0))
-    safe = np.where(solvable, margin, 1.0)
-    lake_e = np.where(solvable, runoff * (index - critical) / safe, np.nan)
-    precip = lake_e - index * runoff
-    land_e = precip - runoff
-    dry = catchment - spill
-    base_q = runoff * dry - (lake_e - precip) * spill
+    def discharge(d_precip=0.0, d_land_e=0.0, d_lake_e=0.0):
+        p = (1.0 + d_precip) * precip
+        r = np.maximum(p - (1.0 + d_land_e) * land_e, 0.0)
+        e = (1.0 + d_lake_e) * lake_e
+        return r * dry - (e - p) * spill
 
     def overflowing(d_precip=0.0, d_land_e=0.0, d_lake_e=0.0) -> int:
-        r = np.maximum((1 + d_precip) * precip - (1 + d_land_e) * land_e, 0.0)
-        # The same floor carve_verdict.py applies: Penman below the model's own
-        # land rate is impossible for a saturated surface under the same forcing.
-        e = np.maximum((1 + d_lake_e) * lake_e, (1 + d_land_e) * land_e)
-        q = r * dry - (e - (1 + d_precip) * precip) * spill
-        return int(((overflow + np.where(solvable, q - base_q, 0.0)) > 0).sum())
+        return int((discharge(d_precip, d_land_e, d_lake_e) > 0.0).sum())
 
+    # The two checks, and their tolerances are the carve list's own rounding
+    # rather than a slack fitted until they passed. A depth is written to 8
+    # decimal places of km/year and an area to 2 of km2, so the largest
+    # disagreement the rounding alone can produce is a per-basin quantity and it
+    # is computed as one: a basin with a 2.7e6 km2 dry catchment carries 0.013
+    # km3/year of it, and a small basin carries nothing. A single global epsilon
+    # would have to be set by the largest basin and would then wave through any
+    # real error on every smaller one.
+    # Half the last recorded digit of a depth, an area and a discharge. Each
+    # difference of two recorded values carries twice one of them, and `max` is
+    # 1-Lipschitz so the clamp does not widen the runoff term.
+    #
+    #   |dq| <= 2 h_depth (dry + spill) + 2 h_area runoff + h_area |E - P| + h_q
+    HALF_DEPTH = 0.5e-8      # km
+    HALF_AREA = 0.5e-2       # km2
+    HALF_DISCHARGE = 0.5e-6  # km3/year
+    runoff_residual = float(np.nanmax(np.abs(
+        runoff - np.maximum(precip - land_e, 0.0))))
+    q0 = discharge()
+    q_tolerance = (2.0 * HALF_DEPTH * (dry + spill)
+                   + 2.0 * HALF_AREA * runoff
+                   + HALF_AREA * np.abs(lake_e - precip)
+                   + HALF_DISCHARGE)
+    q_excess = float(np.nanmax(np.abs(q0 - overflow) - q_tolerance))
+    discharge_residual = float(np.nanmax(np.abs(q0 - overflow)))
     baseline = int((overflow > 0).sum())
-    floored = np.isclose(lake_e, land_e, rtol=1e-9)[solvable].sum()
     reconstructed = overflowing()
+
     channels = {}
     for label, keys in (("land_precipitation", (1, 0, 0)),
                         ("land_evaporation", (0, 1, 0)),
@@ -313,51 +417,81 @@ def basin_response(config) -> tuple[dict, int, "callable"]:
         "source": str(path.relative_to(ROOT)),
         "terrain_hash": data["terrain_hash"],
         "overflowing_basins": baseline,
-        "basins_total": len(rows),
-        "basins_reconstructed": int(solvable.sum()),
+        "basins_total": len(data["basins"]),
+        "basins_evaluated": len(rows),
+        "basins_carried_from_a_previous_pass": carried,
+        "basins_without_catchment_runoff": int((runoff <= 0).sum()),
         "reconstruction_check": "reproduces the recorded overflow count"
                                 if reconstructed == baseline else
                                 f"MISMATCH: {reconstructed} against {baseline}",
+        "runoff_identity_check":
+            "runoff == max(P - E_land, 0)" if runoff_residual <= 2e-8 else
+            f"VIOLATED by up to {runoff_residual:.3e} km/year; the carve list "
+            "was not written with runoff_source p_minus_e",
+        "discharge_check":
+            "the criterion re-evaluated from the recorded terms reproduces "
+            "overflow_km3_per_year within the recorded rounding" if q_excess <= 0
+            else f"EXCEEDS the rounding bound by {q_excess:.3e} km3/year, so "
+                 "this file's criterion and export_carve_list.py's have "
+                 "diverged",
+        "max_discharge_residual_km3_per_year": round(discharge_residual, 8),
         "change_in_overflowing_basins": channels,
-        "note": "Uniform fractional perturbations of the catchment-mean fields. "
-                "A real climate change is patterned and these are not a "
-                "substitute for one; they are the criterion's own sensitivity, "
-                "which is what a budget item has to be multiplied through. The "
-                "response is strongly asymmetric because the basin population "
-                "piles up just above the threshold.",
-        "floored_basins": int(floored),
-        "floor_note": "The land-evaporation row is dominated by the floor "
-                      "`penman = max(penman, evap)`, not by the runoff "
-                      "denominator: without it a +1% land evaporation moves a "
-                      "quarter as many basins. The floor binds across the WHOLE "
-                      "catchment on floored_basins of the reconstructed set, "
-                      "where the Penman estimate is inoperative and the aridity "
-                      "index is exactly -1. Read the land-evaporation row with "
-                      "that in mind and prefer both_evaporations, since a "
-                      "kelvin moves land and lake evaporation together.",
+        "note": "Uniform fractional perturbations of the catchment-mean fields "
+                "the carve list records. A real climate change is patterned and "
+                "these are not a substitute for one; they are the criterion's "
+                "own sensitivity, which is what a budget item has to be "
+                "multiplied through. The response is strongly asymmetric "
+                "because the basin population piles up just above the "
+                "threshold.",
+        "reading_note": "Prefer both_evaporations to land_evaporation alone. "
+                        "Land evaporation enters only through the runoff "
+                        "denominator and lake evaporation only through the "
+                        "numerator, and a kelvin moves both; the single-channel "
+                        "rows are the criterion's partial derivatives and not "
+                        "climates.",
     }
     return summary, baseline, overflowing
 
 
 def per_item_carve_currency(kelvin, water, baseline, overflowing):
-    """Kelvin into runoff percent and basins, once BUDG-1 has supplied the link.
+    """A kelvin into a runoff percent and a range of basins.
 
-    All three channels move together, because one kelvin moves all three. The
-    basin count is the criterion re-evaluated at the joint perturbation rather
-    than read off a per-channel table, since the channels partly cancel: a
-    precipitation change appears in the criterion's numerator as well as its
-    denominator.
+    Every channel moves at once, because one kelvin moves all of them, and the
+    basin count is the criterion re-evaluated at the JOINT perturbation rather
+    than read off the per-channel table. The channels partly cancel: a
+    precipitation change is in the criterion's numerator as well as its
+    denominator, and a warmer world evaporates more from both the ground and the
+    lake.
+
+    The runoff figure is a single number and the basin figure is a range. Runoff
+    is `P - E_land` and contains no lake evaporation, so the one bracketed
+    channel cannot reach it; it reaches the basin count through the numerator
+    only. Returning a single basin number would hide exactly the term that is
+    not measured.
     """
     if HYDROLOGICAL_RESPONSE_PER_KELVIN is None or kelvin is None:
         return None, None
     h = HYDROLOGICAL_RESPONSE_PER_KELVIN
     d_precip = h["precipitation"] * kelvin
     d_land_e = h["land_evaporation"] * kelvin
-    d_lake_e = h["lake_evaporation"] * kelvin
     runoff_percent = 100.0 * (water["d_runoff_per_d_precipitation"] * d_precip
                               + water["d_runoff_per_d_land_evaporation"] * d_land_e)
-    basin_count = overflowing(d_precip, d_land_e, d_lake_e) - baseline
-    return round(runoff_percent, 2), int(basin_count)
+    basins = sorted(int(overflowing(d_precip, d_land_e, rate * kelvin) - baseline)
+                    for rate in h["lake_evaporation"])
+    return round(runoff_percent, 2), basins
+
+
+def runoff_per_kelvin(water) -> float:
+    """Percent change in land runoff per kelvin, from the same one input.
+
+    Written out because it is the number the trap turns on. It is NOT
+    `d_runoff_per_d_precipitation` times the precipitation response: land
+    evaporation rises slightly faster than precipitation on this world, and the
+    two amplified terms very nearly cancel.
+    """
+    h = HYDROLOGICAL_RESPONSE_PER_KELVIN
+    return 100.0 * (water["d_runoff_per_d_precipitation"] * h["precipitation"]
+                    + water["d_runoff_per_d_land_evaporation"] * h["land_evaporation"])
 
 
 def main() -> None:
@@ -370,6 +504,17 @@ def main() -> None:
     fraction = land_fraction(config)
     water = land_water_balance(config)
     basins, basin_baseline, overflowing = basin_response(config)
+
+    def carve(kelvin):
+        return per_item_carve_currency(kelvin, water, basin_baseline, overflowing)
+
+    def carve_columns(runoff_pct, basin_range):
+        """Both carve columns as strings, so a null prints as a null."""
+        if runoff_pct is None:
+            return "--", "--"
+        low, high = basin_range
+        return (f"{runoff_pct:+.1f}%",
+                f"{low:+d}" if low == high else f"{low:+d} to {high:+d}")
 
     rows = []
     for label, delta, note in ALBEDO_ITEMS:
@@ -393,16 +538,32 @@ def main() -> None:
     if problems:
         print("SENSITIVITY DISAGREES WITH THE RUN INDEX: " + "; ".join(problems))
     print()
-    print(f"{'item':38} {'d(alb)':>8} {'K naive':>8} {'K':>7}")
-    print("-" * 66)
+    print(f"{'item':38} {'d(alb)':>8} {'K naive':>8} {'K':>7} "
+          f"{'runoff':>8} {'basins':>16}")
+    print("-" * 92)
     for label, delta, naive, atten, _ in rows:
-        print(f"{label:38} {delta:+8.4f} {naive:+8.2f} {atten:+7.2f}")
+        r_col, b_col = carve_columns(*carve(atten))
+        print(f"{label:38} {delta:+8.4f} {naive:+8.2f} {atten:+7.2f} "
+              f"{r_col:>8} {b_col:>16}")
 
-    print(f"\n{'item':46} {'W/m2':>18} {'K':>18}")
-    print("-" * 84)
+    print(f"\n{'item':46} {'W/m2':>18} {'K':>18} {'runoff':>8} {'basins':>16}")
+    print("-" * 110)
     for label, (low, high), (k_low, k_high), _ in forcings:
+        r_col, b_col = carve_columns(*carve(k_high))
         print(f"{label:46} {low:+7.2f} to {high:+6.2f} "
-              f"{k_low:+8.2f} to {k_high:+6.2f}")
+              f"{k_low:+8.2f} to {k_high:+6.2f} {r_col:>8} {b_col:>16}")
+
+    print(f"\n{'item, priced in the criterion\'s own channel':46} "
+          f"{'perturbation':>22} {'basins':>16}")
+    print("-" * 86)
+    carve_rows = []
+    for label, channel, (low, high), note in CARVE_ITEMS:
+        keys = CARVE_CHANNELS[channel]
+        counts = sorted(overflowing(*[x * k for k in keys]) - basin_baseline
+                        for x in (low, high))
+        carve_rows.append((label, channel, (low, high), counts, note))
+        print(f"{label:46} {channel} {low:+.0%} to {high:+.0%} "
+              f"{f'{counts[0]:+d} to {counts[1]:+d}':>16}")
 
     print("\nnot in one currency, no conversion invented:")
     for label, magnitude, _ in OTHER_ITEMS:
@@ -427,6 +588,16 @@ def main() -> None:
               "dP, dE_land and dE_lake per kelvin on this world. Set "
               "HYDROLOGICAL_RESPONSE_PER_KELVIN and every item gets a runoff "
               "and a basin figure.")
+    else:
+        h = HYDROLOGICAL_RESPONSE_PER_KELVIN
+        lo, hi = h["lake_evaporation"]
+        print(f"\nper kelvin: land P {h['precipitation']:+.2%}, land E "
+              f"{h['land_evaporation']:+.2%}, lake E {lo:+.2%} to {hi:+.2%} "
+              f"(bracketed), so runoff {runoff_per_kelvin(water):+.2f}%.")
+        print(f"  NOT {water['d_runoff_per_d_precipitation'] * h['precipitation'] * 100:+.2f}%: "
+              "the amplification applies to the precipitation channel alone, and "
+              "a kelvin also raises land evaporation, slightly faster. The two "
+              "amplified terms nearly cancel.")
 
     print("\nRefine an input when its plausible range exceeds the effect of the")
     print("thing you last refined. Everything under a kelvin here is below the")
@@ -449,12 +620,49 @@ def main() -> None:
         "forcing_items": [],
         "other_items": [{"item": l, "magnitude": m, "note": n}
                         for l, m, n in OTHER_ITEMS],
+        "carve_items": [
+            {"item": l, "channel": c, "fractional_change": [lo, hi],
+             "basins": counts, "runoff_percent": None,
+             "kelvin": None, "note": n}
+            for l, c, (lo, hi), counts, n in carve_rows],
+        "carve_items_note":
+            "Items already denominated in a fractional change of one of the "
+            "criterion's own water terms. They convert to basins exactly, with "
+            "no kelvin in the path, and none should be given one. A "
+            "lake_evaporation item has a null runoff_percent because runoff is "
+            "P - E_land and does not contain it.",
         "carve_currency": {
             "why": "The temperature is a result this project can revise. The "
                    "carve list is not: it leaves the project, changes the "
                    "terrain, and cannot be undone. An item priced only in "
                    "kelvin cannot be ranked against it.",
-            "hydrological_response_per_kelvin": HYDROLOGICAL_RESPONSE_PER_KELVIN,
+            "hydrological_response_per_kelvin": None
+                if HYDROLOGICAL_RESPONSE_PER_KELVIN is None else
+                {k: (list(v) if isinstance(v, tuple) else v)
+                 for k, v in HYDROLOGICAL_RESPONSE_PER_KELVIN.items()},
+            "hydrological_response_note":
+                "Fractional change in each land-mean quantity per kelvin of "
+                "global-mean surface temperature. Precipitation and land "
+                "evaporation are a secant between the two converged fluxes on "
+                "this build; lake evaporation is a bracket, low end the land "
+                "rate and high end the 6.7 %/K convexity of saturation vapour "
+                "pressure, because the Penman response has not been measured "
+                "here. See notes/audits/hydrological-sensitivity.md.",
+            "runoff_percent_per_kelvin": None
+                if HYDROLOGICAL_RESPONSE_PER_KELVIN is None else
+                round(runoff_per_kelvin(water), 2),
+            "runoff_percent_per_kelvin_note":
+                "The number the second currency turns on, and the one most "
+                "easily got wrong. It is NOT d_runoff_per_d_precipitation times "
+                "the precipitation response: a kelvin raises land evaporation "
+                "slightly faster than precipitation, and the two amplified "
+                "terms nearly cancel. The amplification applies to a "
+                "precipitation-only perturbation, which a dust or circulation "
+                "item can be and a temperature item never is.",
+            "basins_is_a_range_because":
+                "lake evaporation per kelvin is bracketed rather than measured. "
+                "Runoff is P - E_land and contains no lake evaporation, so only "
+                "the basin column carries the bracket.",
             "blocked_on": None if HYDROLOGICAL_RESPONSE_PER_KELVIN else {
                 "task": "BUDG-1",
                 "needs": "one perturbation climate run against the baseline, "
@@ -474,19 +682,17 @@ def main() -> None:
                          "effect of the thing you last refined.",
     }
     for label, delta, naive, atten, note in rows:
-        runoff_pct, basin_count = per_item_carve_currency(
-            atten, water, basin_baseline, overflowing)
+        runoff_pct, basin_range = carve(atten)
         payload["albedo_items"].append(
             {"item": label, "delta_land_albedo": delta,
              "kelvin_naive": round(naive, 3), "kelvin": round(atten, 3),
-             "runoff_percent": runoff_pct, "basins": basin_count, "note": note})
+             "runoff_percent": runoff_pct, "basins": basin_range, "note": note})
     for label, (low, high), (k_low, k_high), note in forcings:
-        runoff_pct, basin_count = per_item_carve_currency(
-            k_high, water, basin_baseline, overflowing)
+        runoff_pct, basin_range = carve(k_high)
         payload["forcing_items"].append(
             {"item": label, "w_m2": [low, high],
              "kelvin": [round(k_low, 3), round(k_high, 3)],
-             "runoff_percent": runoff_pct, "basins": basin_count, "note": note})
+             "runoff_percent": runoff_pct, "basins": basin_range, "note": note})
 
     out = ROOT / "analysis" / "error_budget.json"
     out.parent.mkdir(parents=True, exist_ok=True)
