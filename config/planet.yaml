@@ -48,6 +48,16 @@ star:
   mass_solar: 0.80
   luminosity_solar: 0.32359365692962827
   effective_temperature_k: 4965.0
+  # DECIDED. Solar, which is an ordinary choice for a K2.5V star and is not
+  # what makes this a decision. It is here because nothing else determines it
+  # and because it has more leverage on the star's colour than anything else
+  # that is not the temperature: half a dex moves the shortwave band-1 share by
+  # about 0.011, five times what the resampler bias was worth and twenty times
+  # what rounding the surface gravity to the BT-Settl grid costs. Surface
+  # gravity is deliberately NOT here -- it follows from the mass, luminosity
+  # and temperature above, and build_stellar_spectrum.py derives it and refuses
+  # a grid point that disagrees. notes/audits/stellar-spectrum-oracle.md.
+  metallicity: 0.0
 
 # DETERMINED, 2026-08-16, from the habitability-by-latitude derivation rather
 # than from a temperature target. The flux and the biosphere are one choice:

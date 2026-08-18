@@ -64,10 +64,13 @@ matters: a comparison that fired at nothing would pass every negative case here
 and no positive one, which is why each negative case is paired with the positive
 that proves the edit landed.
 **The stellar band split.** `lib/stellar.py` must still reproduce
-`radmod.f90:solarini`, and every consumer that stores the band-1 share must
-agree with it. The identity is `radmod.f90:207`: a 5772 K spectrum through this
-code gives 0.517. Three different values for this world's share were in
-circulation before the reproduction existed, and the model's own was a blackbody.
+`radmod.f90:solarini`, the shipped spectrum file must still represent the
+BT-Settl blend it was resampled from, and every consumer that stores the band-1
+share must agree. The first is the identity at `radmod.f90:207`: a 5772 K
+spectrum through this code gives 0.517. The second is the one with an outside
+answer, and it is why the third is not enough on its own -- every stored copy
+agreed with every other for as long as the resampler was point-sampling the
+source, because they were all copies of the same wrong integral.
 """
 
 from __future__ import annotations
@@ -331,10 +334,105 @@ def main() -> int:
             else:
                 rep.add(OK, "baseline climatology", f"on {build}")
 
+    # -- the stellar band split, and everything carrying a copy of it -------
+    #
+    # `zsolar1` weights the two-band snow, sea-ice, glacier and ground albedos.
+    # It had three values in three artifacts and a fourth in the model, and the
+    # model's was a 4965 K blackbody because no run's namelist carried the
+    # spectrum. The identity below is the only statement in the scheme with a
+    # right answer rather than a plausible one, so it is what the reproduction
+    # is checked against.
+    try:
+        import stellar
+        identity = stellar.solar_partition_identity()
+        rep.add(OK, "solarini reproduction",
+                f"5772 K gives {identity:.6f}; radmod.f90:207 says "
+                f"{stellar.SOLAR_PARTITION}")
+    except Exception as exc:
+        rep.add(FAIL, "solarini reproduction", str(exc))
+    else:
+        band1 = stellar.band_fractions()[0]
+        # -- the file against the blend it was resampled from ---------------
+        #
+        # The comparison below this one asks whether every stored copy of the
+        # band-1 share agrees with every other, which is a question that can
+        # only ever be answered "they differ" or "they do not". This one has a
+        # right answer: `<name>_provenance.json` carries the same two
+        # quantities integrated from the BT-Settl blend at ITS OWN resolution,
+        # written by build_stellar_spectrum.py at build time, and the shipped
+        # 2048-point file is supposed to be a resampling of exactly that. A
+        # resampler that does not conserve flux makes it not, which is what
+        # notes/audits/stellar-spectrum-oracle.md found. The source itself is
+        # 26 MB of BT-Settl outside the repository; only its two integrals are
+        # needed here, so the check costs nothing and needs nothing.
+        try:
+            low, high = stellar.spectrum_paths()
+            prov = low.with_name(low.stem + "_provenance.json")
+            if not prov.is_file():
+                rep.add(WARN, "spectrum against its source",
+                        f"{rel(high)} has no provenance record beside it; "
+                        "rebuild with exoplasim/scripts/build_stellar_spectrum.py")
+            else:
+                record = json.loads(prov.read_text(encoding="utf-8"))
+                products = record.get("products") or {}
+                describes = [
+                    f"{f.name} has changed since {rel(prov)} was written"
+                    for f in (low, high)
+                    if (products.get(f.name) or {}).get("sha256") != sha256_of(f)]
+                source = record.get("source_resolution")
+                if describes:
+                    rep.add(FAIL, "spectrum against its source",
+                            "; ".join(describes) + " -- the record describes a "
+                            "different file, so its integrals prove nothing")
+                elif not source:
+                    rep.add(FAIL, "spectrum against its source",
+                            f"{rel(prov)} carries no source_resolution block, so "
+                            "the file has never been checked against the blend "
+                            "it came from; rebuild it")
+                else:
+                    d_band1 = band1 - float(source["band1_fraction"])
+                    ratio = stellar.cross_section_ratio()
+                    d_ratio = ratio / float(source["cross_section_ratio_um4"]) - 1.0
+                    bad = []
+                    if abs(d_band1) > stellar.SOURCE_BAND1_TOLERANCE:
+                        bad.append(f"band 1 is {d_band1:+.2e} from source "
+                                   f"resolution, over "
+                                   f"{stellar.SOURCE_BAND1_TOLERANCE:.0e}")
+                    if abs(d_ratio) > stellar.SOURCE_CROSS_SECTION_TOLERANCE:
+                        bad.append(f"zcross/z1 is {d_ratio:+.2e} relative, over "
+                                   f"{stellar.SOURCE_CROSS_SECTION_TOLERANCE:.0e}")
+                    rep.add(FAIL if bad else OK, "spectrum against its source",
+                            "; ".join(bad) + "; the resampler is the first thing "
+                            "to look at" if bad else
+                            f"{high.name} reproduces its BT-Settl blend: band 1 "
+                            f"{d_band1:+.2e}, zcross/z1 {d_ratio:+.2e} relative")
+        except Exception as exc:
+            rep.add(WARN, "spectrum against its source", f"not checked: {exc}")
+
+        stale = []
+        for path, key in (
+                (ROOT / "analysis" / "dust_optics.json",
+                 "stellar_flux_fraction_band1"),
+                (ROOT / "exoplasim" / "data" / "dust"
+                 / "vesper_dust_aerosol.provenance.json",
+                 "stellar_flux_fraction_band1")):
+            if not path.is_file():
+                continue
+            stored = json.loads(path.read_text(encoding="utf-8")).get(key)
+            if stored is None or abs(float(stored) - band1) > 5.0e-4:
+                stale.append(f"{rel(path)} carries {stored}")
+        rep.add(FAIL if stale else OK, "band-1 share is one value",
+                "; ".join(stale) + f"; canonical is {band1:.4f}" if stale
+                else f"{band1:.6f} from {stellar.spectrum_paths()[1].name}, "
+                     "and every stored copy agrees")
+
     if want is None:
         # Everything below compares artifacts against the build. With no build
         # there is nothing to compare against, and each of those checks would
-        # report a second, derived failure for the same one cause.
+        # report a second, derived failure for the same one cause. The stellar
+        # checks are ABOVE this line because none of them touches the build,
+        # and a fresh clone with no terrain payload is exactly the state in
+        # which a wrong spectrum file would otherwise go unnoticed.
         rep.add(WARN, "artifact checks",
                 "skipped: they compare against the active build, which is absent")
         rep.show()
@@ -764,41 +862,6 @@ def main() -> int:
                 f"reproduced from the runs lib/sensitivity.py names")
     except Exception as exc:
         rep.add(WARN, "flux-to-kelvin slope", f"not checked: {exc}")
-    # -- the stellar band split, and everything carrying a copy of it -------
-    #
-    # `zsolar1` weights the two-band snow, sea-ice, glacier and ground albedos.
-    # It had three values in three artifacts and a fourth in the model, and the
-    # model's was a 4965 K blackbody because no run's namelist carried the
-    # spectrum. The identity below is the only statement in the scheme with a
-    # right answer rather than a plausible one, so it is what the reproduction
-    # is checked against.
-    try:
-        import stellar
-        identity = stellar.solar_partition_identity()
-        rep.add(OK, "solarini reproduction",
-                f"5772 K gives {identity:.6f}; radmod.f90:207 says "
-                f"{stellar.SOLAR_PARTITION}")
-    except Exception as exc:
-        rep.add(FAIL, "solarini reproduction", str(exc))
-    else:
-        band1 = stellar.band_fractions()[0]
-        stale = []
-        for path, key in (
-                (ROOT / "analysis" / "dust_optics.json",
-                 "stellar_flux_fraction_band1"),
-                (ROOT / "exoplasim" / "data" / "dust"
-                 / "vesper_dust_aerosol.provenance.json",
-                 "stellar_flux_fraction_band1")):
-            if not path.is_file():
-                continue
-            stored = json.loads(path.read_text(encoding="utf-8")).get(key)
-            if stored is None or abs(float(stored) - band1) > 5.0e-4:
-                stale.append(f"{rel(path)} carries {stored}")
-        rep.add(FAIL if stale else OK, "band-1 share is one value",
-                "; ".join(stale) + f"; canonical is {band1:.4f}" if stale
-                else f"{band1:.6f} from {stellar.spectrum_paths()[1].name}, "
-                     "and every stored copy agrees")
-
     rep.show()
     return 1 if rep.failed else 0
 

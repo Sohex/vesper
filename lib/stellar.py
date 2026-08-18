@@ -27,16 +27,29 @@ spectrum in whatever way looks reasonable. The differences are not cosmetic:
 
 `k25v.dat`, the low-resolution companion, is NOT the file to use: it spans only
 0.34 to 14.01 um, and `solarini` reads it only for the albedo integrals, taking
-its energy fractions from the hi-res file. Integrating it gives 0.3777, which is
-a truncation artifact and was carried into the dust optics.
+its energy fractions from the hi-res file. Integrating it gives a visibly
+different share, because the ultraviolet below 0.34 um and everything past
+14 um are simply absent from the denominator. That truncation artifact was once
+carried into the dust optics.
 
-## The check that can fail
+## The two checks that can fail
 
 `radmod.f90:207` states that its default partitioning of 0.517 is what a 5772 K
 solar spectrum produces through this code. `solar_partition_identity` reproduces
 0.517000 from `blackbody_band_fractions(5772.0)`, which is an identity with a
 right answer rather than two formulations being compared. If the reproduction
 drifts, this module is wrong about `solarini`, not merely different from it.
+
+That checks the code. The FILE is checked separately, because a correct
+integration of a wrong file is still wrong: the spectrum is supposed to
+represent the BT-Settl blend it was resampled from, so the blend integrated at
+its own resolution is a right answer for what this module should report.
+`build_stellar_spectrum.py` writes that integral into `<name>_provenance.json`
+and `check_consistency.py` compares it against `band1_fraction` and
+`cross_section_ratio` here, within `SOURCE_BAND1_TOLERANCE` and
+`SOURCE_CROSS_SECTION_TOLERANCE`. It caught a resampler that point-sampled an
+R = 130,000 spectrum onto 2,048 points; `notes/audits/stellar-spectrum-oracle.md`
+is the finding.
 """
 
 from __future__ import annotations
@@ -62,6 +75,31 @@ HALF_ROWS = 1024
 
 SOLAR_PARTITION = 0.517
 """What `radmod.f90:207` says a 5772 K spectrum gives through this code."""
+
+SOURCE_BAND1_TOLERANCE = 5.0e-5
+"""How far `band1_fraction` may sit from the same blend integrated at source resolution.
+
+Set from the resampler's own accuracy, NOT from the size of any error it is
+meant to catch. Two terms, both measured on the same spectrum so neither
+depends on the star: the flux-conserving rebin onto the 2048-point grid
+reproduces the full-resolution integral to about 3e-06, and `solarini`'s
+discretisation -- the trapezoid that straddles `minwavel` and the band-edge
+interval booked to band 1 -- differs from a clean split at 0.75 um by about
+7e-06. Sum 1e-05, rounded up to 5e-05 for the arithmetic of a different blend.
+
+That leaves the check able to fail at 40x below the +0.00196 the point-sampling
+resampler was worth, and 200x below the 0.0114 that 0.5 dex of metallicity is
+worth. A tolerance set from either of those would have passed the defect.
+"""
+
+SOURCE_CROSS_SECTION_TOLERANCE = 5.0e-4
+"""The same, RELATIVE, for `cross_section_ratio`.
+
+The lambda^-4 weight puts more of the integral in the blue, where the source is
+most structured, so the rebin is less accurate here than on the band fraction:
+about 5e-05 relative against the full-resolution integral. Rounded up an order
+of magnitude, and still 20x below the 1.03% the point sample was worth.
+"""
 
 PLANCK_CONST_HC_OVER_K = 0.0143877735383
 """`radmod.f90`'s `const`, hc/k in metre kelvin."""
@@ -131,6 +169,19 @@ def assert_model_grid(wavelength_m: np.ndarray) -> None:
             "them on the wrong sides of the 0.75 um split.")
 
 
+def _bands(wavelength_m: np.ndarray, flux: np.ndarray):
+    """Split a hi-res file into `solarini`'s two bands, `minwavel` removed.
+
+    The one place that knows the row split IS the band assignment and that the
+    ultraviolet below `minwavel` is deleted rather than merely unresolved.
+    """
+    assert_model_grid(wavelength_m)
+    wv1, bb1 = wavelength_m[:HALF_ROWS], flux[:HALF_ROWS].copy()
+    wv2, bb2 = wavelength_m[HALF_ROWS:], flux[HALF_ROWS:]
+    bb1[wv1 < MIN_WAVELENGTH_NM * 1.0e-9] = 0.0
+    return wv1, bb1, wv2, bb2
+
+
 def _partition(wv1, bb1, wv2, bb2) -> tuple[float, float]:
     """`solarini`'s trapezoidal integration, band edge included in band 1."""
     z1 = float(np.trapezoid(bb1, wv1))
@@ -150,11 +201,7 @@ def band_fractions(path: Path | None = None,
     if path is None:
         path = spectrum_paths(name)[1]
     wavelength, flux = read_hires(Path(path))
-    assert_model_grid(wavelength)
-    wv1, bb1 = wavelength[:HALF_ROWS], flux[:HALF_ROWS].copy()
-    wv2, bb2 = wavelength[HALF_ROWS:], flux[HALF_ROWS:]
-    bb1[wv1 < MIN_WAVELENGTH_NM * 1.0e-9] = 0.0
-    return _partition(wv1, bb1, wv2, bb2)
+    return _partition(*_bands(wavelength, flux))
 
 
 def _blackbody_grids() -> tuple[np.ndarray, np.ndarray]:
@@ -208,6 +255,13 @@ def _cross_section(wavelength_m: np.ndarray, flux: np.ndarray) -> float:
     return float(np.trapezoid(flux / (wavelength_m * 1.0e6) ** 4, wavelength_m))
 
 
+def _band_edge_cross_section(lo_w, lo_f, hi_w, hi_f) -> float:
+    """The band-edge interval of `zcross`, which `solarini` books to band 1."""
+    edge = 0.5 * (lo_f[-1] / (lo_w[-1] * 1e6) ** 4
+                  + hi_f[0] / (hi_w[0] * 1e6) ** 4)
+    return edge * (hi_w[0] - lo_w[-1])
+
+
 def rayleigh_coefficient(name: str | None = None,
                          temperature_k: float | None = None,
                          as_the_model_does: bool = False) -> float:
@@ -229,12 +283,15 @@ def rayleigh_coefficient(name: str | None = None,
     is used, and only then. The blackbody branch is self-consistent because
     nothing overwrites the grid.
 
-    For `k25v` this is worth a factor of 3.4: `as_the_model_does=True` returns
-    0.209731, which is what `MOST_DIAG.00000` prints, against 0.712517 for the
-    same star integrated on one grid. Passing the spectrum through to a run
-    without fixing `solarini` would therefore weaken Rayleigh scattering 3.4x
-    relative to the 0.862015 the runs have used, which is the 4965 K blackbody
-    value and is self-consistent for the star it describes but not for this one.
+    For `k25v` this is worth a factor of about 3.4, and `__main__` prints both
+    numbers: `as_the_model_does=True` against the same star integrated on one
+    grid. Passing the spectrum through to a run without fixing `solarini` would
+    therefore weaken Rayleigh scattering 3.4x relative to the 0.862015 the runs
+    have used, which is the 4965 K blackbody value and is self-consistent for
+    the star it describes but not for this one. The FACTOR is a property of the
+    defect and does not move when the spectrum file is rebuilt; the two values
+    it was measured between do, so they are dated in `archive/tasks.md` SPEC-2
+    beside the seven significant figures the patched Fortran agreed to.
     """
     if temperature_k is not None:
         gw1, gw2 = _blackbody_grids()
@@ -242,21 +299,13 @@ def rayleigh_coefficient(name: str | None = None,
         bb1, bb2 = _planck(gw1, temperature_k), _planck(gw2, temperature_k)
     else:
         wavelength, flux = read_hires(spectrum_paths(name)[1])
-        assert_model_grid(wavelength)
-        wv1, bb1 = wavelength[:HALF_ROWS], flux[:HALF_ROWS].copy()
-        wv2, bb2 = wavelength[HALF_ROWS:], flux[HALF_ROWS:]
-        bb1[wv1 < MIN_WAVELENGTH_NM * 1.0e-9] = 0.0
+        wv1, bb1, wv2, bb2 = _bands(wavelength, flux)
         gw1, gw2 = _blackbody_grids()
     ref1, ref2 = _planck(gw1, 5772.0), _planck(gw2, 5772.0)
     # The reference grid the model actually integrates the reference over.
     rw1, rw2 = (wv1, wv2) if as_the_model_does else (gw1, gw2)
 
-    def bridged(lo_w, lo_f, hi_w, hi_f):
-        """The band-edge interval, which `solarini` books against band 1."""
-        edge = 0.5 * (lo_f[-1] / (lo_w[-1] * 1e6) ** 4
-                      + hi_f[0] / (hi_w[0] * 1e6) ** 4)
-        return edge * (hi_w[0] - lo_w[-1])
-
+    bridged = _band_edge_cross_section
     z1 = float(np.trapezoid(bb1, wv1)) + 0.5 * (bb1[-1] + bb2[0]) * (wv2[0] - wv1[-1])
     zcross = (_cross_section(wv1, bb1) + _cross_section(wv2, bb2)
               + bridged(wv1, bb1, wv2, bb2))
@@ -265,6 +314,28 @@ def rayleigh_coefficient(name: str | None = None,
     zgcross = (_cross_section(rw1, ref1) + _cross_section(rw2, ref2)
                + bridged(rw1, ref1, rw2, ref2))
     return zcross * SOLAR_PARTITION / z1 / (zgcross / zg)
+
+
+def cross_section_ratio(name: str | None = None,
+                        path: Path | None = None) -> float:
+    """`solarini`'s `zcross/z1` for a spectrum file, in um^-4.
+
+    The star-dependent half of `rcoeff`: the lambda^-4-weighted flux integral
+    over the band-1 flux integral, both over the whole file. `rcoeff` itself
+    also carries the 5772 K reference normalisation, which the BT-Settl blend
+    the file was built from knows nothing about, so this is the part that a
+    source-resolution integral of that blend can be compared against.
+    `check_consistency.py` does exactly that, against
+    `SOURCE_CROSS_SECTION_TOLERANCE`.
+    """
+    if path is None:
+        path = spectrum_paths(name)[1]
+    wavelength, flux = read_hires(Path(path))
+    wv1, bb1, wv2, bb2 = _bands(wavelength, flux)
+    z1 = float(np.trapezoid(bb1, wv1)) + 0.5 * (bb1[-1] + bb2[0]) * (wv2[0] - wv1[-1])
+    zcross = (_cross_section(wv1, bb1) + _cross_section(wv2, bb2)
+              + _band_edge_cross_section(wv1, bb1, wv2, bb2))
+    return zcross / z1
 
 
 def band1_fraction(name: str | None = None) -> float:
@@ -298,6 +369,8 @@ if __name__ == "__main__":
           f"{rayleigh_coefficient(temperature_k=4965.0):.6f}  "
           "(what every run after its first orbit used)")
     print(f"  this star, one grid  : {rayleigh_coefficient():.6f}")
+    print(f"  zcross/z1, this star : {cross_section_ratio():.6f}  "
+          "(the star-dependent half, what the provenance record checks)")
     print(f"  this star, as coded  : "
           f"{rayleigh_coefficient(as_the_model_does=True):.6f}  "
           "(the mismatched reference grid; 3.4x too weak)")

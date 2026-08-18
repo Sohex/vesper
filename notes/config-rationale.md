@@ -173,6 +173,34 @@ What this does NOT settle is ozone's radiative effect on the climate, which
 is a different quantity from its shielding of the surface. That still wants
 the o3scale sensitivity test.
 
+## `metallicity`
+
+```
+metallicity: 0.0
+```
+
+DECIDED 2026-08-18. Solar, which is unremarkable for a K2.5V star and is not
+what makes this an entry. It is here because it is the star's most powerful
+undeclared parameter and it was declared nowhere the config could see: it lived
+as `METALLICITY = 0.0` inside `exoplasim/scripts/build_stellar_spectrum.py`.
+
+The leverage is what earns it a line. Moving half a dex along the BT-Settl grid
+moves the shortwave band-1 share by +0.0114 at [M/H] -0.5 or -0.0084 at +0.5,
+which is five times what the resampler bias fixed alongside it was worth and
+twenty times what rounding the surface gravity to the grid costs. That share
+weights every two-band snow, sea ice, glacier and ground albedo, so it reaches
+the surface energy balance directly. Measured in `notes/audits/stellar-spectrum-oracle.md`.
+
+Surface gravity is deliberately NOT declared here, and the contrast is the
+point. It is not a free parameter: it follows from `mass_solar`,
+`luminosity_solar` and `effective_temperature_k` through R/Rsun = sqrt(L)
+(Tsun/Teff)^2, and `build_stellar_spectrum.py:derive_log_g` computes it, snaps
+it to the 0.5 dex grid and refuses to build if the snap lands anywhere but the
+grid point its pinned SVO record ids serve. Declaring it would create a fourth
+copy of a quantity the other three already fix, free to drift away from them
+silently. Metallicity has no such derivation, which is exactly why it has to be
+stated.
+
 ## `orbit`
 
 ```
