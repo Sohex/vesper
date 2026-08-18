@@ -282,8 +282,17 @@ left-hand side is the climatology integrated over each catchment.
 
 `E` is evaporation from open water, which the model does not have there. It is
 estimated with the Penman combination equation using water's albedo and roughness,
-and validated by applying the same calculation to ocean cells, which *are* open
-water: 3.736 mm/day against the model's own 3.672, a ratio of 1.017.
+evaluated wholly at the lowest model level, and validated by applying the same
+calculation to ocean cells, which *are* open water and which the model also gives
+water's roughness. That ratio is computed on every run and written into
+`carve_verdict.json`; it is not quoted here, because the two times it was quoted
+in prose it was quoting a hardcoded constant.
+
+**It is not floored at the model's land evaporation, and must not be.** This
+world's land is several times aerodynamically rougher than open water, so a
+smooth lake in a rough wet landscape evaporates less than the ground around it.
+A floor asserting otherwise stood for a day and decided 73% of the overflowing
+basins by clamp rather than by climate.
 
 ### 3.6 Pedology
 

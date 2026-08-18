@@ -101,7 +101,11 @@ supplying it is the wrong thing.
 - `surface_water.py:134` samples lake precipitation and evaporation at each
   basin sink with `col = mod(round((sink_lon - lon[0]) / dlon), nlon)`, which
   measures an Orogen longitude from the climatology's first label and lands in
-  the same place, about 64 columns out.
+  the same place, 65 columns out. This one SURVIVED the fix that closed
+  HYD-13 and was closed under GRID-1 instead: 52.47% of basin sinks landed on
+  cells the model calls ocean against 3.04% index for index. A third site,
+  `maps/build_basemap.py:upsample`, was found by the same invariant at the same
+  time. `notes/audits/carve-criterion-terms.md` finding 8.
 - `exoplasim/inputs/t42/albedo_report.json` records lakes covering 11.28% of
   land and worth **-0.018024** on land-mean albedo, sourced from that
   `surface_water.nc`.
@@ -133,7 +137,7 @@ one. The fraction of coupling area landing on cells the model calls ocean is
 bounded above by coastal rounding, measured at 1.01% here, and 49.77% is not a
 different opinion about a grid, it is a wrong answer.
 
-## 3. Catchment runoff is an annual mean, and the seasonal rectification is a factor of 1.65
+## 3. Catchment runoff is an annual mean, which is the conserved quantity
 
 **[numeric]** `carve_verdict.py` forms runoff as the catchment-area-weighted mean
 of annual-mean `P - E`, clamped at zero after the aggregation. The clamp is
@@ -160,23 +164,29 @@ so the two compose:
 
 The land-mean effect on runoff generation alone is 1.92x.
 
-**Per-bin clamping is an upper bound, not the answer.** A dry-season deficit does
-draw soil moisture down, and re-wetting that store consumes part of the next wet
-season's supply, so some subtraction is right. The truth is inside [161, 266] and
-nothing in the repository brackets it.
+**Per-bin clamping is not an upper bound, and the annual mean is the conserved
+answer.** Settled 2026-08-17 in `notes/audits/carve-criterion-terms.md` finding 4,
+which supersedes the reading this table was given. Over one annual cycle at steady
+state a land cell's storage returns to where it started, so `annual(P - E)` equals
+the runoff that cell generated, exactly -- an identity, not an estimate. The
+negative bins are the store being drawn down, and the water that refills it in the
+wet season is water that did not run off, so adding the negative bins back counts
+the wet season twice. The model's own soil water says so cell by cell: the ratio
+of its seasonal range to the discarded deficit has a median of 0.988, quartiles
+0.95 to 1.07.
 
-**Why the width matters more than the centre.** `notes/audits/missed-couplings.md`
-finding 1 measures runoff at 15.5% of land precipitation, so the criterion's
-denominator amplifies `dP` by 6.5x and `dE` by 5.5x. A 65% span on that
-denominator is larger than every item currently priced against it. It is the same
-convexity argument as PHYS-5, which is worth 1.2% at the land mean, applied to a
-seasonal cycle instead of a diurnal one.
+So the criterion's denominator already uses the right quantity. The remaining
+choice is where to clamp, and after aggregation is where the residual noise on a
+non-negative quantity has averaged down furthest.
 
-**It also disposes of a population.** The 1,062 basins with no runoff are
-auto-preserved by `index = inf` rather than by a water balance. Under per-bin
-treatment that population is 6. Whatever the right treatment turns out to be,
-"basins that receive no water at all" is not a landform class on this world; it
-is an artifact of averaging first.
+**The 1,062 basins with no runoff are dry catchments, not an averaging artifact.**
+Under the same identity, a catchment whose evaporation consumes its precipitation
+delivers nothing. They are auto-preserved by `index = inf` only in the RATIO form
+of the test; `export_carve_list.py` decides them on the discharge form, which asks
+whether the lake surface itself gains, and on the corrected evaporation 243 of
+them do. What is worth chasing about that population is window length rather than
+treatment: they concentrate at high latitude, where a five-orbit climatology is
+least periodic.
 
 ## 4. The climate figures are labelled 180 degrees from the maps
 
@@ -213,7 +223,9 @@ something that could fail.
 Finding 3 belongs in the same pass rather than a later one. It moves the same
 denominator as `HYD-11`, `DUST-10` and `DUST-11`, and the baseline re-run that
 finding 1 forces is the natural place to settle all of them at once rather than
-re-running for each in turn.
+re-running for each in turn. It was settled that way, and the answer was that the
+denominator is already right; `notes/audits/carve-criterion-terms.md` carries it
+along with the three items it was settled beside.
 
 ---
 

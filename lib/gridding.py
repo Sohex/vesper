@@ -22,6 +22,142 @@ import numpy as np
 
 from orogen import Export, LAND
 
+# --- the convention, and the only place it is written down ------------------
+#
+# THIS MODULE OWNS THE COLUMN. Nothing else in the project may derive one, and
+# `scripts/smoke_test.py` lints for it, because the same defect has now been
+# introduced three times: once as the original bug that superseded the
+# `carved-zoned` build, once in the shape of its own fix, and once in a sink
+# lookup that the fix's sweep did not reach.
+#
+# There is nothing to translate. A World Orogen export and the ExoPlaSim grid
+# it was integrated onto are the same columns in the same order by
+# construction, because `column()` below is the expression that put every mesh
+# region in a column in the first place -- for the boundary conditions the
+# model reads, for the coupling matrix the catchments are integrated over, and
+# for anything sampled per region afterwards. The model then labels that axis
+# 0..360 because it has never heard of Orogen, whose own axis reads -180..180.
+# A label is not a coordinate correspondence: `CLAUDE.md` rule 3.
+#
+# A translation layer would be worse than the bug, because it implies there is
+# something to translate. So there is no such function here, and
+# `display_longitude` -- the only longitude arithmetic left in the project
+# outside this block -- is for the eye and says so.
+
+
+def column(lon, nlon: int) -> np.ndarray:
+    """Grid column for a World Orogen longitude. THE column expression.
+
+    Cell `k` spans `[-180 + k*dlon, -180 + (k+1)*dlon)`, which is where the
+    export's own column centres sit and where `build_boundary_conditions.py`
+    puts the land the model reads back. Index for index the mask the model
+    returns is bit-identical to the one it was handed; shifted by half the grid
+    it agrees on 0.5955 of cells. See notes/audits/grid-convention-and-runoff.md.
+    """
+    return np.clip(((np.asarray(lon, dtype=np.float64) + 180.0) / 360.0
+                    * nlon).astype(np.int64), 0, nlon - 1)
+
+
+def column_fraction(lon, nlon: int) -> np.ndarray:
+    """Continuous column position for a World Orogen longitude, for resampling.
+
+    `column()` rounds down to the cell a point falls in; this is the same
+    expression left continuous and measured from the CENTRE of column 0, which
+    is what a bilinear resample onto a finer raster needs. Column `k` runs from
+    `k - 0.5` to `k + 0.5` here and the result lies in `[-0.5, nlon - 0.5)`, so
+    a caller padding a wrap column at each end indexes at `result + 1`.
+
+    It exists so that resampling a model field is not a reason to write the
+    convention out a second time. It was: `maps/build_basemap.py` interpolated
+    against the climatology's own 0..360 LABELS and put every climate-derived
+    layer on the basemap 180 degrees from the terrain under it.
+    """
+    return ((np.asarray(lon, dtype=np.float64) + 180.0) / 360.0 * nlon - 0.5)
+
+
+def row(lat, row_centres) -> np.ndarray:
+    """Grid row for a latitude, binned on the midpoints between row centres.
+
+    Rows run north to south and sit at Gauss-Legendre latitudes on a spectral
+    grid, so the spacing is not uniform and nearest-centre is not the same
+    thing as the cell a point falls in.
+    """
+    centres = np.asarray(row_centres, dtype=np.float64)
+    nlat = centres.size
+    edges = np.empty(nlat + 1)
+    edges[1:-1] = 0.5 * (centres[:-1] + centres[1:])
+    edges[0], edges[-1] = 90.0, -90.0
+    return np.clip(np.searchsorted(-edges, -np.asarray(lat, dtype=np.float64),
+                                   side="right") - 1, 0, nlat - 1)
+
+
+def cells(lat, lon, row_centres, nlon: int):
+    """(row, column) on a model grid for points in World Orogen coordinates.
+
+    The one entry point for "which cell is this mesh region in". Everything
+    that needs a column goes through here or through `coupling_cells`, and
+    nothing derives one of its own.
+    """
+    return row(lat, row_centres), column(lon, nlon)
+
+
+def coupling_cells(coupling: Path):
+    """Decode a coupling matrix into (basin, row, col, area_km2, nlat, nlon).
+
+    The coupling's `cell` is `row * n_lon + col` on the columns `column()`
+    assigned, so this decode is the same convention read back rather than a
+    second opinion about it.
+    """
+    from netCDF4 import Dataset
+    with Dataset(coupling) as ds:
+        basin = np.asarray(ds["basin"][:]).astype(np.int64)
+        cell = np.asarray(ds["cell"][:]).astype(np.int64)
+        area = np.asarray(ds["area_km2"][:]).astype(np.float64)
+        nlat, nlon = int(ds.n_lat), int(ds.n_lon)
+    r, c = np.divmod(cell, nlon)
+    return basin, r, c, area, nlat, nlon
+
+
+def require_same_rows(a, b, what: str = "the two grids") -> None:
+    """Refuse two latitude axes that are not the same Gaussian latitudes.
+
+    An export's grid and the climatology integrated onto it carry the SAME
+    rows, to netCDF's float32 rounding. Asserting that is better than matching
+    them by nearest centre, because nearest-centre quietly succeeds on axes
+    that are genuinely different and there would be nothing to notice.
+    """
+    a = np.asarray(a, dtype=np.float64)
+    b = np.asarray(b, dtype=np.float64)
+    if a.shape != b.shape or not np.allclose(a, b, atol=1e-3):
+        raise SystemExit(
+            f"{what}: latitude axes differ ({a.size} rows against {b.size}"
+            + (f", max |da| = {np.abs(a - b).max():.4g} deg" if a.shape == b.shape else "")
+            + "). They are not the same grid and no mapping between them is defined.")
+
+
+def display_longitude(lon, field=None):
+    """Rotate a model field onto the -180..180 axis `maps/` draws on. FOR THE EYE.
+
+    ExoPlaSim labels its longitude axis 0..360 and Orogen labels the same
+    columns -180..180, so a figure drawn on the model's own labels sits half a
+    world away from the same feature in `maps/`.
+
+    **Nothing computed may go through here, and nothing does.** The index is
+    canonical and the labels are decoration. This function lives in this module
+    rather than beside the plotting code so that the project contains exactly
+    one place where a longitude is arithmetic on, and it returns a permutation
+    of a field rather than a mapping between grids so that it cannot be
+    mistaken for one. Its existence was once read as evidence that a coordinate
+    transform was needed between the export and the model, which is the false
+    premise that put half of every catchment integral over open ocean, twice.
+    """
+    lon = np.asarray(lon, dtype=np.float64)
+    display = (lon + 180.0) % 360.0 - 180.0
+    order = np.argsort(display)
+    if field is None:
+        return display[order], order
+    return display[order], np.asarray(field)[..., order]
+
 
 def grid_geometry(grid_dir: Path):
     """Latitude and longitude cell centres of an export's grid."""
@@ -32,20 +168,11 @@ def grid_geometry(grid_dir: Path):
 
 
 def region_cells(export: Export, grid_dir: Path):
-    """Flat grid-cell index for every mesh region, plus the grid shape.
-
-    Rows run north to south and sit at Gauss-Legendre latitudes on a spectral
-    grid, so bin on the midpoints between row centres rather than assuming
-    uniform spacing.
-    """
+    """Flat grid-cell index for every mesh region, plus the grid shape."""
     lat, lon, _ = grid_geometry(grid_dir)
     nlat, nlon = lat.size, lon.size
-    edges = np.empty(nlat + 1)
-    edges[1:-1] = 0.5 * (lat[:-1] + lat[1:])
-    edges[0], edges[-1] = 90.0, -90.0
-    row = np.clip(np.searchsorted(-edges, -export.lat, side="right") - 1, 0, nlat - 1)
-    col = np.clip(((export.lon + 180.0) / 360.0 * nlon).astype(np.int64), 0, nlon - 1)
-    return row * nlon + col, nlat, nlon
+    r, c = cells(export.lat, export.lon, lat, nlon)
+    return r * nlon + c, nlat, nlon
 
 
 def land_weighted(export: Export, grid_dir: Path, values: np.ndarray):
@@ -138,18 +265,12 @@ def coupling_ocean_fraction(coupling, lsm) -> float:
     existed asserted that a `cell_lon` variable EXISTED, which no wrong mapping
     would ever have failed. See `notes/failure-modes.md` class 17.
     """
-    import numpy as np
-    from netCDF4 import Dataset
-    with Dataset(coupling) as ds:
-        cell = np.asarray(ds["cell"][:]).astype(np.int64)
-        area = np.asarray(ds["area_km2"][:])
-        nlon = int(ds.n_lon)
+    _, r, c, area, _, nlon = coupling_cells(coupling)
     if lsm.shape[1] != nlon:
         raise ValueError(
             f"coupling has {nlon} columns and the mask has {lsm.shape[1]}; "
             "they are not the same grid and no mapping between them is defined")
-    row, col = np.divmod(cell, nlon)
-    return float(area[lsm[row, col] < 0.5].sum() / area.sum())
+    return float(area[lsm[r, c] < 0.5].sum() / area.sum())
 
 
 def require_index_alignment(coupling, lsm) -> float:

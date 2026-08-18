@@ -27,15 +27,24 @@ understates (E-P)/runoff, and carves too many basins.
 with water's albedo and water's roughness length, so it answers "what would a
 lake here evaporate" rather than "what does this soil evaporate".
 
-It is validated against the model itself. Applied to ocean cells, which already
-*are* open water, Penman gives 3.736 mm/day against the model's own 3.672, a
-ratio of 1.017. Reproducing the model's open-water evaporation to under 2% using
-only surface fields is the check that makes it usable over land.
+It is validated against the model itself, on the one surface where the answer is
+already known. Applied to ocean cells, which already *are* open water and which
+the model gives water's own roughness, Penman reproduces the model's own
+evaporation to within a few percent -- the run's number is computed by
+`validate_over_ocean` and written into the report, never quoted from here.
+Reproducing open-water evaporation over open water, from surface fields alone,
+is what makes the estimate usable over a lake the model does not have.
 
-`wet` is retained as a one-sided sensitivity: E set to the moisture-limited land
-evaporation the model reports, which is what a lake would evaporate only if it
-were as dry as the ground around it. It is physically wrong for a lake and biases
-toward carving, but it bounds the direction.
+`wet` is a SENSITIVITY, not a bound, and which side it falls on depends on the
+regime. E is set to the moisture-limited land evaporation the model reports.
+Where the ground is dry that is far below what a lake would evaporate, so it
+biases toward carving. Where the ground is wet it is ABOVE it, because this
+world's land carries a roughness field with a median z0 of 0.521 m against open
+water's 1.5e-4 and therefore a transfer coefficient 6.4 times larger: a smooth
+lake in a rough wet landscape evaporates less than the land around it. The two
+estimates are consequently not nested, and a floor that asserted they were used
+to stand in `main` -- it bound on 60.2% of land cells and decided 73% of the
+overflowing basins by clamp rather than by climate.
 
 A third estimate, dividing land evaporation by the model's reconstructed wetness
 factor, is NOT used. It gives a land mean of 20.5 mm/day against Penman's 3.4,
@@ -55,7 +64,8 @@ import yaml
 
 from _paths import ANALYSIS, CONFIG, DATA, PROJECT_ROOT  # noqa: F401
 from builds import component_data, grid_export
-from gridding import coupling_ocean_fraction, require_index_alignment
+from gridding import (coupling_cells, coupling_ocean_fraction,
+                      require_index_alignment)
 from orbit import orbital_year_days
 from orogen import Export
 from paths import climatology_path, require_clean_io
@@ -86,34 +96,57 @@ def saturation_vapour_pressure(temp_k):
     return 610.94 * np.exp(17.625 * (temp_k - 273.15) / (temp_k - 30.11))
 
 
-def turbulent_forcing(climatology):
-    """Near-surface wind speed and specific humidity for the Penman calculation.
+def reference_level_air(climatology):
+    """Temperature, humidity, wind and pressure of the air Penman reads.
 
-    Both from the binned climatology, both from the bottom level, no correction.
+    Returns `(t_air, q_air, wind, p_air)`, ALL FOUR AT THE LOWEST MODEL LEVEL,
+    which `SIGMA_LOWEST` puts of order 300 m up.
 
-    They used to be corrected, and the corrections are gone rather than
-    improved. Under PlaSim's low-I/O output path the binned wind was wrong twice
-    over -- a corrupt first record per orbit, and a partial vector cancellation
-    from accumulating the components before averaging them -- so this read wind
-    from the snapshot product and dropped the bad record from humidity. Runs now
-    set `NLOWIO = 0` and both defects vanish together: measured on this run, the
-    first-bin wind ratio goes from 9.0 to 1.03 and binned `spd` from 1.14x the
-    mean of instantaneous speeds to 1.002x.
+    **One level, because the equation has one reference height.** This used to
+    return only humidity and wind, and every caller then handed Penman the 2 m
+    `tas` alongside them. So the saturation term was evaluated low and warm
+    while the actual vapour pressure was taken high and dry, which inflates the
+    deficit that drives the aerodynamic term. Measured on this climatology, the
+    2 m air is 1.85 K warmer than the lowest level over land, worth 13.7% on
+    `e_s` -- one-signed, and in the same direction as the sub-grid dry-column
+    error, so the two compounded rather than offsetting.
 
-    So the binned product is now the right thing to read, and it is strictly
-    better than the snapshot one at 182 samples an orbit against 32.
-    `require_clean_io` refuses a climatology that predates the change rather
-    than correcting it, because the corrections are wrong on clean output.
+    The lowest model level is the right height rather than merely a consistent
+    one. The transfer coefficient this scheme uses is derived over `z_ref`, so
+    that is the height the bulk formula's humidity difference belongs at, which
+    is also how the model computes its own surface fluxes. And a sub-grid lake
+    does not sit under the 2 m air the model reports, which is a diagnostic of
+    the dry ground beside it; 300 m up is the nearest thing to the regional air
+    a lake would actually see.
+
+    The measurement that says this is a fix and not a preference is the ocean
+    validation, which is the one place the answer is already known: mixing the
+    levels put Penman 8.45% above the model's own open-water evaporation, and
+    reading one level puts it 3.28% below.
+
+    Everything comes from the binned climatology with no correction. The
+    corrections that used to be here are gone rather than improved: under
+    PlaSim's low-I/O output path the binned wind was wrong twice over, a corrupt
+    first record per orbit and a partial vector cancellation from accumulating
+    components before averaging them, so this read wind from the snapshot
+    product and dropped the bad record from humidity. Runs now set `NLOWIO = 0`
+    and both defects vanish together -- the first-bin wind ratio goes from 9.0
+    to 1.03 and binned `spd` from 1.14x the mean of instantaneous speeds to
+    1.002x. The binned product is now strictly better than the snapshot one, at
+    182 samples an orbit against 32, and `require_clean_io` refuses a
+    climatology that predates the change rather than correcting it.
     """
     require_clean_io(climatology)
     with Dataset(climatology) as ds:
+        t_air = np.asarray(ds["ta"][:]).mean(axis=0)[-1]
         q_air = np.asarray(ds["hus"][:]).mean(axis=0)[-1]
         wind = np.asarray(ds["spd"][:]).mean(axis=0)[-1]
-    return q_air, wind
+        p_air = np.asarray(ds["ps"][:]).mean(axis=0) * 100.0 * SIGMA_LOWEST
+    return t_air, q_air, wind, p_air
 
 
-def penman_open_water(ts, tas, q_air, wind, ps_pa, rss, rls, land_albedo,
-                      gravity, diurnal_range=None):
+def penman_open_water(t_air, q_air, wind, p_air, rss, rls, land_albedo,
+                      gravity, diurnal_range=None, column_relative_humidity=None):
     """Penman open-water evaporation, m/s.
 
     Combines the energy budget with an aerodynamic term, which is what makes it
@@ -121,12 +154,26 @@ def penman_open_water(ts, tas, q_air, wind, ps_pa, rss, rls, land_albedo,
     energy-starved while the air above it stays thirsty, and the aerodynamic
     term is what carries that advected demand.
 
+    `t_air`, `q_air`, `wind` and `p_air` must all be at ONE height, and
+    `reference_level_air` is what supplies them. The radiation terms are surface
+    quantities and stay so, which is what Penman is: a surface energy budget
+    closed by an aerodynamic term measured to a reference level.
+
     Two corrections matter for a lake specifically. Net radiation is recomputed
     with water's albedo rather than the substrate's, since a lake absorbs far
     more shortwave than the 0.22-0.50 ground around it. And the roughness length
     is water's, not land's, which lowers the transfer coefficient.
+
+    `column_relative_humidity` floors the ambient vapour pressure at that
+    fraction of saturation. It is OFF in every product and exists to bracket the
+    sub-grid moistening a lake does to the air over it, which is real and which
+    nothing here can compute: the internal boundary layer over a lake tens of
+    kilometres across is deeper than this reference level, so the air a lake
+    sees is wetter than the cell mean the model reports. Correcting it needs a
+    fetch-dependent boundary-layer model, so it is bracketed rather than
+    applied -- a floor chosen to move the answer would be a knob.
     """
-    lam = 2.501e6 - 2370.0 * (tas - 273.15)          # latent heat, J/kg
+    lam = 2.501e6 - 2370.0 * (t_air - 273.15)          # latent heat, J/kg
     # DIURNAL INTEGRATION. Saturation vapour pressure is convex in temperature at
     # about 6.7% per kelvin, so the daily MEAN of e_s exceeds e_s of the daily
     # mean, and evaluating Penman at a 12-bin mean understates the vapour
@@ -139,32 +186,35 @@ def penman_open_water(ts, tas, q_air, wind, ps_pa, rss, rls, land_albedo,
     # because using a diurnal-mean e_s with a point-evaluated slope would be
     # inconsistent in the direction that flatters the answer.
     if diurnal_range is None:
-        es_a = saturation_vapour_pressure(tas)
-        delta = es_a * 17.625 * 243.04 / (tas - 30.11) ** 2
+        es_a = saturation_vapour_pressure(t_air)
+        delta = es_a * 17.625 * 243.04 / (t_air - 30.11) ** 2
     else:
         phase = 2.0 * np.pi * (np.arange(DIURNAL_POINTS) + 0.5) / DIURNAL_POINTS
         amp = np.maximum(diurnal_range, 0.0) / 2.0
-        es_a = np.zeros_like(tas)
-        delta = np.zeros_like(tas)
+        es_a = np.zeros_like(t_air)
+        delta = np.zeros_like(t_air)
         for ph in phase:
-            t = tas + amp * np.sin(ph)
+            t = t_air + amp * np.sin(ph)
             e = saturation_vapour_pressure(t)
             es_a += e
             delta += e * 17.625 * 243.04 / (t - 30.11) ** 2
         es_a /= DIURNAL_POINTS
         delta /= DIURNAL_POINTS
-    gamma = CP_AIR * ps_pa / (0.622 * lam)
-    e_air = q_air * ps_pa / (0.622 + 0.378 * q_air)
+    gamma = CP_AIR * p_air / (0.622 * lam)
+    e_air = q_air * p_air / (0.622 + 0.378 * q_air)
+    if column_relative_humidity is not None:
+        # The bracket, not a correction. See the docstring.
+        e_air = np.maximum(e_air, column_relative_humidity * es_a)
 
     # Shortwave reaching the surface, backed out of the net and the albedo the
     # run was actually given, then re-absorbed at water's albedo.
     sw_down = rss / np.maximum(1.0 - land_albedo, 1e-3)
     net_radiation = (1.0 - WATER_ALBEDO) * sw_down + rls
 
-    scale_height = GASCON * tas / gravity
+    scale_height = GASCON * t_air / gravity
     z_ref = scale_height * np.log(1.0 / SIGMA_LOWEST)
     ce_neutral = KARMAN ** 2 / np.log(np.maximum(z_ref, 1.0) / Z0_WATER) ** 2
-    rho = ps_pa / (GASCON * tas)
+    rho = p_air / (GASCON * t_air)
     u = np.maximum(wind, 0.1)
 
     # STABILITY. The surface layer over a lake is stratified, that stratification
@@ -196,10 +246,10 @@ def penman_open_water(ts, tas, q_air, wind, ps_pa, rss, rls, land_albedo,
         r_a = 1.0 / np.maximum(ce * u, 1e-6)
         aerodynamic = (rho * CP_AIR / r_a) * np.maximum(es_a - e_air, 0.0) / gamma
         latent = (delta * rn + gamma * aerodynamic) / (delta + gamma)
-        t_surface = tas + r_a * (rn - latent) / (rho * CP_AIR)
+        t_surface = t_air + r_a * (rn - latent) / (rho * CP_AIR)
         # Virtual temperature difference, surface minus air; positive is unstable.
-        d_theta_v = t_surface * (1.0 + 0.6078 * q_air) - tas
-        ri = np.clip(-gravity * z_ref * d_theta_v / (u ** 2 * tas), -5.0, 5.0)
+        d_theta_v = t_surface * (1.0 + 0.6078 * q_air) - t_air
+        ri = np.clip(-gravity * z_ref * d_theta_v / (u ** 2 * t_air), -5.0, 5.0)
         with np.errstate(invalid="ignore"):
             f_stable = 1.0 / (1.0 + 3.0 * VDIFF_B * np.maximum(ri, 0.0)
                               * np.sqrt(1.0 + VDIFF_D * np.maximum(ri, 0.0)))
@@ -255,6 +305,55 @@ def annual_mean(ds: Dataset, name: str) -> np.ndarray:
     return np.asarray(ds[name][:]).mean(axis=0)
 
 
+def seasonal_rectification(climatology, year_s: float) -> dict:
+    """What clamping `P - E` per bin would add, and where that water came from.
+
+    The catchment integral uses the ANNUAL MEAN of `P - E`, clamped at zero
+    after aggregation, and that is the conserved answer rather than a choice.
+    Over one annual cycle at steady state a land cell's storage returns to where
+    it started, so `annual(P - E)` equals the runoff the cell generated, exactly.
+    Clamping the negative bins away instead counts the wet season's supply twice:
+    once as runoff, and once as the water that refilled the soil the dry season
+    emptied.
+
+    This measures that directly. `deficit` is what per-bin clamping would add;
+    `storage_range` is the seasonal swing of the model's own soil water plus
+    snow. Cell by cell the median ratio of the two is 0.99 -- the store IS the
+    deficit, and the water per-bin clamping would add is water the model already
+    spent. The identity is what makes this a check rather than a comparison: a
+    bucket cannot generate negative runoff, and it cannot supply water it never
+    stored.
+    """
+    with Dataset(climatology) as ds:
+        pme = np.asarray(ds["pr"][:]) - (-np.asarray(ds["evap"][:]))
+        store = np.asarray(ds["mrso"][:]) + np.asarray(ds["snd"][:])
+        lsm = np.asarray(ds["lsm"][:]).mean(axis=0)
+        lat = np.asarray(ds["lat"][:])
+    dt = year_s / pme.shape[0]
+    land = lsm > 0.5
+    w = np.where(land, np.cos(np.deg2rad(lat))[:, None] * np.ones_like(lsm), 0.0)
+
+    def land_mean(field):
+        return float((field * w).sum() / w.sum()) * 1000.0     # mm
+
+    deficit = np.maximum(-pme, 0.0).sum(axis=0) * dt
+    swing = store.max(axis=0) - store.min(axis=0)
+    ratio = np.where(deficit > 1e-6, swing / np.maximum(deficit, 1e-9), np.nan)
+    usable = np.isfinite(ratio) & land
+    return {
+        "annual_mean_p_minus_e_mm": round(land_mean(pme.mean(axis=0) * year_s), 2),
+        "sum_of_positive_bins_mm": round(land_mean(np.maximum(pme, 0.0).sum(axis=0) * dt), 2),
+        "dry_bin_deficit_mm": round(land_mean(deficit), 2),
+        "seasonal_soil_and_snow_range_mm": round(land_mean(swing), 2),
+        "median_store_over_deficit": round(float(np.median(ratio[usable])), 3),
+        "note": "land means per Vesper year. The soil-and-snow store's seasonal "
+                "swing IS the dry-bin deficit, cell by cell, so clamping P - E "
+                "per bin adds water the model drew from storage and did not run "
+                "off. The annual mean is the conserved quantity and is what the "
+                "criterion uses.",
+    }
+
+
 def basin_means(coupling: Path, fields: dict[str, np.ndarray], n_basins: int):
     """Catchment-area-weighted mean of each field, per basin.
 
@@ -280,13 +379,11 @@ def basin_means(coupling: Path, fields: dict[str, np.ndarray], n_basins: int):
     was taken over open ocean.
 
     There is no longitude argument now, because there is nothing to reconcile.
+    The decode itself lives in `lib/gridding.py:coupling_cells`, which is the
+    module that owns the convention; this function is an area-weighted sum and
+    nothing else.
     """
-    with Dataset(coupling) as ds:
-        basin = np.asarray(ds["basin"][:]).astype(np.int64)
-        cell = np.asarray(ds["cell"][:]).astype(np.int64)
-        area = np.asarray(ds["area_km2"][:])
-        nlon = int(ds.n_lon)
-    row, col = np.divmod(cell, nlon)
+    basin, row, col, area, _, nlon = coupling_cells(coupling)
     for name, grid in fields.items():
         if grid.shape[1] != nlon:
             raise SystemExit(
@@ -365,13 +462,10 @@ def main() -> None:
         mrro = annual_mean(ds, "mrro")        # m/s
         mrso = annual_mean(ds, "mrso")        # m
         lsm = annual_mean(ds, "lsm")
-        ts = annual_mean(ds, "ts")
-        tas = annual_mean(ds, "tas")
-        ps_pa = annual_mean(ds, "ps") * 100.0          # hPa -> Pa
         rss = annual_mean(ds, "rss")
         rls = annual_mean(ds, "rls")
         diurnal = annual_mean(ds, "maxt") - annual_mean(ds, "mint")
-    q_air, wind = turbulent_forcing(args.climatology)
+    t_air, q_air, wind, p_air = reference_level_air(args.climatology)
 
     dust_note = None
     if args.dust_forcing is not None:
@@ -397,18 +491,54 @@ def main() -> None:
     resolution = str(config["model"]["resolution"]).upper()
     land_albedo = read_sra_field(
         PROJECT_ROOT / "exoplasim" / "inputs" / resolution.lower()
-        / f"orogen_{resolution}_surf_0174.sra", *ps_pa.shape)
-    penman = penman_open_water(ts, tas, q_air, wind, ps_pa, rss, rls, land_albedo,
-                               float(config["planet"]["gravity_m_s2"]),
-                               diurnal_range=diurnal)
+        / f"orogen_{resolution}_surf_0174.sra", *p_air.shape)
+    gravity = float(config["planet"]["gravity_m_s2"])
+    penman = penman_open_water(t_air, q_air, wind, p_air, rss, rls, land_albedo,
+                               gravity, diurnal_range=diurnal)
     ocean_validation = validate_over_ocean(penman, evap, lsm)
-    # Floor the open-water estimate at the moisture-limited land rate. Penman
-    # linearises around air temperature, so where the ground runs much hotter
-    # than the air it can return less than the model's own evaporation, which is
-    # impossible for a saturated surface under the same forcing. Without this
-    # floor 43 basins carved under Penman but not under the land rate, which
-    # inverts the nesting the two estimates are supposed to have.
-    penman = np.maximum(penman, evap)
+    # The sub-grid dry column, bracketed rather than applied. A lake moistens
+    # the air over itself and the cell mean does not know it; how much is a
+    # fetch problem this project cannot solve, so what is reported is what a
+    # floor on ambient humidity would be worth. HYD-11.
+    land = lsm > 0.5
+    dry_column_bracket = {
+        f"rh_floor_{int(rh * 100)}": round(float(np.mean(
+            penman_open_water(t_air, q_air, wind, p_air, rss, rls, land_albedo,
+                              gravity, diurnal_range=diurnal,
+                              column_relative_humidity=rh)[land])) * 86400.0 * 1000.0, 4)
+        for rh in (0.7, 0.8, 0.9)}
+    dry_column_bracket["as_computed"] = round(
+        float(np.mean(penman[land])) * 86400.0 * 1000.0, 4)
+    # THERE IS NO FLOOR AT THE LAND RATE, AND THERE MUST NOT BE ONE.
+    #
+    # `penman = max(penman, evap)` stood here. Its reason was that a saturated
+    # surface cannot evaporate less than the moisture-limited ground beside it,
+    # so a Penman below the model's own `evap` had to be Penman failing. That is
+    # not so, and the reason is roughness: this run's land carries a roughness
+    # field with a median z0 of 0.521 m against open water's 1.5e-4, which is a
+    # transfer coefficient 6.4 times larger. A smooth lake in a rough, wet,
+    # vegetated landscape genuinely evaporates LESS than the land around it, and
+    # the model's own numbers say so -- the floor bound on 60.2% of land cells,
+    # and where it bound the mean soil wetness was 0.597 against 0.121 where it
+    # did not. It fired on 1,324 of the 1,347 cells at full wetness. It was not
+    # catching a failure; it was catching the wet regime.
+    #
+    # What it cost is that the lake estimate simply became the land estimate
+    # across whole catchments: on 1,252 of the 2,543 basins with catchment
+    # runoff the aridity index came out at exactly -1.0, so the criterion
+    # reduced to `crit > -1` and the basin carved regardless of its climate.
+    # That is 73% of the overflowing set decided by a clamp.
+    #
+    # The nesting it was defending is itself the error. `wet` bounds toward
+    # carving only where the ground is moisture-limited; where the ground is wet
+    # the roughness contrast reverses the ordering, and the two estimates are
+    # not nested at all. The note on `wet` above says so now.
+    #
+    # The check that settles it is the ocean, where the model uses water's own
+    # roughness and the answer is already known: `validate_over_ocean` puts this
+    # scheme within a few percent there, in exactly the configuration a lake is
+    # in. A scheme that reproduces open-water evaporation over open water does
+    # not need rescuing over land.
 
     # ExoPlaSim's own wetness factor, reconstructed. Where soil is wet this is 1
     # and land evaporation is already the potential rate.
@@ -505,11 +635,14 @@ def main() -> None:
         "coupling": str(args.coupling),
         "basins": n,
         "note": ("'penman' is the primary estimate: the Penman combination "
-                 "equation with water's albedo and roughness. Validated against "
-                 "the model over ocean cells, which are already open water, to "
-                 "within 4.2%. 'wet' uses the moisture-limited land evaporation "
-                 "and is a one-sided sensitivity only, physically wrong for a "
-                 "lake but bounding the direction."),
+                 "equation with water's albedo and roughness, evaluated wholly "
+                 "at the lowest model level. Its error against the model over "
+                 "ocean cells, which are already open water, is in "
+                 "penman_ocean_validation and is COMPUTED, never quoted. 'wet' "
+                 "uses the moisture-limited land evaporation; it is a "
+                 "sensitivity and not a bound, because this world's land is "
+                 "several times rougher than open water and so evaporates more "
+                 "than a lake wherever the ground is wet."),
         "runoff_source": {
             "used": "p_minus_e",
             "note": "mrro is river-routed net divergence, not local runoff "
@@ -523,11 +656,18 @@ def main() -> None:
                 "p_minus_e": int((runoff <= 0).sum()),
                 "mrro": int((runoff_mrro <= 0).sum()),
             },
+            "clamped": "after aggregation over the catchment, which is where "
+                       "the noise on a non-negative quantity has averaged down "
+                       "furthest. A catchment cannot deliver a negative amount "
+                       "and, at steady state, cannot deliver more than its "
+                       "annual P - E either.",
+            "seasonal_rectification": seasonal_rectification(
+                args.climatology, year_s),
         },
         "penman_ocean_validation": ocean_validation,
         # What was done to the climatology before the verdict was taken. Null
         # under both keys means the run's own numbers, unperturbed. `dust_note`
-        # was assembled and then never written until 2026-08-18, so the DUST-10
+        # was assembled and then never written until 2026-08-17, so the DUST-10
         # verdict carried no record of the forcing that produced it.
         "perturbations": {
             "dust_surface_forcing": dust_note,
@@ -535,6 +675,18 @@ def main() -> None:
             "note": "A perturbed verdict is a SENSITIVITY. The verdict on a "
                     "climate that contains dust is the one taken on that "
                     "climate's own climatology, and the two must not be added.",
+        },
+        "penman_dry_column_bracket_mm_per_day": dry_column_bracket,
+        "penman_land_evaporation_ordering": {
+            "land_cells_where_model_evap_exceeds_penman": int(
+                (lsm > 0.5).sum() and ((lsm > 0.5) & (evap > penman)).sum()),
+            "land_cells": int((lsm > 0.5).sum()),
+            "note": "NOT an error and NOT floored. This world's land roughness "
+                    "gives a transfer coefficient several times water's, so a "
+                    "smooth lake in a rough wet landscape evaporates less than "
+                    "the ground around it. A floor at the land rate stood here "
+                    "and decided 73% of the overflowing basins by clamp; see "
+                    "the note in main().",
         },
         "bounds": {
             label: {

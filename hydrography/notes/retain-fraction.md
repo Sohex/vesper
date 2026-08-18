@@ -32,18 +32,34 @@ decides anything; see below.
 a LENGTH of incision. Whether that length empties the basin depends on the
 distance from the spill point down to the floor:
 
-    cut    = C * erodibility * Q ** 0.5                [metres]
+    cut    = C * erodibility * (S / S_ref) ** n * Q ** 0.5      [metres]
     retain = clip(1 - cut / depth_at_spill, 0, 1)
 
 Retain is then literally the fraction of the impoundment that survives, which is
 what Orogen cuts with and what a reader of the map sees.
 
-`C` absorbs the incision coefficient, the sub-grid slope term and the relaxation
-window into one constant with units of metres per (m3/s)^0.5. **It is calibrated
-against Earth rather than declared**, and the reason is that the relaxation
-window is undefined rather than unmeasured: Orogen has no time axis, and
-`notes/no-time-axis.md` carries the fact and the standing way round it. The
-calibration is below and gives 161, with a bracket of 128 to 218.
+Three of the four terms are measured per basin. `erodibility` is the rock at the
+sill; `S` is the gradient of the outflow channel below it, relative to the
+population's, and the section on it below says why it cannot be folded into `C`;
+`Q` is the overflow. `n = 1` is Orogen's own slope exponent, which GRAV-4 records
+is baked into the Braun-Willett closed form the generator solves rather than
+being a parameter of it.
+
+`C` absorbs the incision coefficient and the relaxation window into one constant
+with units of metres per (m3/s)^0.5 at land-mean rock and at the population's own
+outlet gradient. **It is calibrated against Earth rather than declared**, and the
+reason is that the relaxation window is undefined rather than unmeasured: Orogen
+has no time axis, and `notes/no-time-axis.md` carries the fact and the standing
+way round it.
+
+**It is solved on every run rather than written down.** The calibration matches a
+number of standing basins per unit land, and how many basins overflow at all is a
+property of the climate, so the target moves whenever the verdict does. A literal
+cannot follow it and did not: the 161 derived below was fitted against a verdict
+taken before HYD-13, and against the verdict that replaced it that same 161
+leaves 55 standing basins in the calibration band where Earth's density asks for
+33.6. Recalibrating with no other change gives 235.9, outside the 128-to-218
+bracket the 161 was published with.
 
 A predecessor compared the cut against a declared discharge, `Q_full = 1 m3/s`,
 and never asked about depth. It therefore said the same thing about a 14 m pan
@@ -131,9 +147,66 @@ join is by mesh region index and it resolves for every basin, with the terrain
 hash on `basins.nc` verified against the export's before the lookup runs, since a
 region index does not survive a terrain change.
 
-What is still missing from the stream-power law is the slope term, `S^n`. The
-saddle geometry that would give it is sub-grid, and unlike the rock it is not in
-the export.
+## The slope term is in the export after all, and it is the basin's own depth
+
+Settled 2026-08-17 as HYD-15, and it changed the mapping rather than a
+coefficient. Recorded here because what stood in this place said the slope term
+was unavailable, and that was true only of the place it was looked for.
+
+**A saddle has no slope.** The cross-divide drop between `spill_region` and
+`spill_exit_region` on this build has a median of 0.1 m with half the basins
+negative, which is what a saddle is. But stream power is not written about the
+divide; it is written about the channel the overflow runs DOWN, and that channel
+is in the export. Following the drainage ten receiver steps from
+`spill_exit_region` covers a median of 135 km, a dozen mesh regions. The estimate
+is a property of the outlet rather than of the sampling: the same basins measured
+at 5 steps and at 20 give r = 0.903 in the log with a median ratio of 1.00.
+
+Measured on `precarve-craton` over the 2,937 basins whose outflow path runs at
+least 50 km:
+
+| | |
+| --- | ---: |
+| `r(log S, log depth_at_spill)` | **0.735** |
+| `d log S / d log depth`, ordinary least squares | 1.04 |
+| the same by reduced major axis | 1.41 |
+| `r(log S, log Q)`, the confound check | 0.072 |
+
+**The outlet's gradient and the basin's depth are the same relief counted
+twice.** Under `S ~ depth^p` the effective depth exponent in `retain` is
+`n*p - 1`, which at n = 1 and p = 1.04 is +0.02: the depth cancels. Absorbing
+`S^n` into `C` while dividing by the depth was therefore not an approximation
+with an unknown coefficient, it was a different mapping.
+
+`S` is now carried explicitly and normalised by the population's geometric mean,
+so `C` keeps the meaning its Earth calibration gives it and only the spread about
+the median basin is new. The gradient earns its place on its own account too:
+against discharge it measures r = 0.072, so it is new information rather than a
+proxy for the water, and its spread is wider than depth's.
+
+**The counts barely move and the composition changes completely**, which is the
+same shape the previous revision of this mapping produced. Measured against the
+verdict as it stood before the evaporation corrections of the same day, so that
+the mapping is separated from the climate:
+
+| | C | carve | marginal | preserve | standing < 35 deg |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| as published, no slope term | 161.0 | 1598 | 123 | 1900 | 55 |
+| recalibrated, still no slope term | 235.9 | 1648 | 73 | 1900 | 33 |
+| slope term, n = 0.5 | 94.8 | 1628 | 93 | 1900 | 33 |
+| **slope term, n = 1, adopted** | **102.9** | **1608** | **113** | **1900** | **34** |
+| slope term, n = 2 | 330.2 | 1601 | 120 | 1900 | 33 |
+
+The marginal class had a median depth at spill of 1,354 m against a population
+median of 127; it now has 126, which is the population. The depth selection is
+gone, exactly as the algebra says it should be. What selects a marginal basin now
+is a flat outlet: median gradient 0.00015 against the population's 0.00068, four
+and a half times flatter. 180 basins change side.
+
+It does not collapse back to the 30 of the superseded discharge-only mapping,
+because the outlet gradient has more spread than the depth does. A basin is now
+marginal because its overflow leaves down a gentle channel, which is the right
+reason for a notched valley to survive.
 
 ## The first real verdict, and how it came to be calibrated
 
@@ -142,10 +215,18 @@ basins. The verdict as it stands is **1,512 carved, 98 marginal, 2,011
 preserved**; the paragraphs below are how that number was arrived at, because the
 first pass got it wrong in a way worth keeping.
 
-There are **no lake-fed spillers at all**: every basin that overflows has
-catchment runoff doing it. So the case the discharge test was rewritten to handle
-exists in the algebra and not on this terrain, which is the right way round --
-the old ratio test would have been undefined for it either way.
+On that verdict there were **no lake-fed spillers at all**: every basin that
+overflowed had catchment runoff doing it, so the case the discharge test was
+rewritten to handle existed in the algebra and not on that terrain.
+
+**On the corrected evaporation of 2026-08-17 there are 243 of them**, and they
+are the reason the test was written that way. They sit at a median latitude of
+70.3 degrees, where a lake evaporates 185 mm/yr against 269 mm/yr of
+precipitation: cold basins fill from their own surface. They were invisible while
+lake evaporation was floored at the model's land rate, which put open water at
+the land's own evaporation and made `P > E` impossible almost everywhere. The
+ratio test would have been undefined for every one of them.
+`notes/audits/carve-criterion-terms.md` finding 1 carries the floor.
 
 ### The first pass gave 30, and 30 is not a small residual
 
@@ -203,18 +284,25 @@ Vesper's 177 Mkm2 of land within the same latitude band. Against 529 candidates
 that is 6.4 percent, and it reads as "carve almost everything". Match the size
 class before reading a density.
 
-### What that determines
+### What that determines, and why it is now solved rather than recorded
 
-Solving for the coefficient that leaves 34 of those 529 standing:
-
-    cut    = C * erodibility * Q ** 0.5          [metres]
-    retain = clip(1 - cut / depth_at_spill, 0, 1)
+The density fixes the coefficient by solving for the value that leaves as many
+standing basins in the band as Earth's density implies. On the verdict of
+2026-08-17 that was 34 of 529 candidates and gave
 
     C = 161 m per (m3/s)^0.5,  bracket 128 to 218
 
 The bracket is the Poisson error on Earth's 15, which is the dominant
-uncertainty and is stated rather than hidden. Across it the marginal count runs
+uncertainty and is stated rather than hidden. Across it the marginal count ran
 64 to 121, so quote the bracket with the count.
+
+**Those numbers are the calibration of that day's verdict and are not the
+coefficient in use.** The candidate count and the standing count both move with
+the climate, so `export_carve_list.py` re-solves this on every run from the Earth
+inputs -- 15 basins over 78.9 Mkm2 within 35 degrees -- against this world's own
+land area in the same band. What is durable here is the Earth measurement and the
+argument; the coefficient is a derived value and belongs in the sidecar with the
+rest of them.
 
 | | carve | marginal | preserve |
 | --- | ---: | ---: | ---: |
@@ -265,18 +353,20 @@ same question as GRAV-4 and GRAV-5: **the gravity term and the slope exponent ar
 one question and cannot be settled separately.** Choosing a gravity factor here
 while Orogen scales relief on n = 1 would double-count whatever n turns out to be.
 
-**What is genuinely open, and it is not gravity.** This mapping treats the cut as
-slope-INDEPENDENT: `S^n` is absorbed into `C`, so depth enters only as the amount
-of rock to remove. Physically the sill's local slope is set by that same relief,
-so `S` and `depth` are not independent, and a formulation carrying both would
-have a different depth dependence -- at n = 1 with `S ~ depth`, the depth cancels
-out of `retain` entirely. That is a structural question about the mapping rather
-than a coefficient to scale, and it is worth more than the gravity factor was.
+**What was genuinely open, and it was not gravity.** The mapping treated the cut
+as slope-INDEPENDENT, absorbing `S^n` into `C` so that depth entered only as the
+amount of rock to remove, while physically the sill's local slope is set by that
+same relief. That was a structural question about the mapping rather than a
+coefficient to scale, and it was worth more than the gravity factor. It is
+settled above, under "The slope term is in the export after all": measured, the
+two correlate at r = 0.735 with an exponent near 1, and at n = 1 the depth
+cancels as predicted.
 
 ### What this model still cannot produce
 
-It carves Tanganyika, Malawi and Albert. Under `C = 161` a sill carrying 1,491
-m3/s is cut by far more than 577 m, so the model does not reproduce those
+It carves Tanganyika, Malawi and Albert. At any coefficient this calibration
+gives, a sill carrying 1,491 m3/s is cut by far more than 577 m, so the model
+does not reproduce those
 basins -- and it reproduces the right NUMBER of standing basins by a different
 mechanism, depth and low discharge rather than active subsidence. That is honest
 about what is in the model: there is no subsidence term, so a basin whose floor

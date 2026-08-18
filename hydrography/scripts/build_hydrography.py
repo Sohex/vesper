@@ -30,6 +30,7 @@ import numpy as np
 from _paths import ANALYSIS, DATA
 from builds import build_root, grid_export
 import drainage as dr
+import gridding
 from orogen import Export, LAND, OCEAN
 
 N_LEVELS = 128  # samples per basin hypsometric curve
@@ -98,20 +99,14 @@ def couple_to_grid(export: Export, drn: dr.Drainage, grid_dir, n_basins: int):
     Regions are assigned to the cell containing their centre, matching the
     exporter's own categorical resampling rule.
     """
-    gm = json.loads((grid_dir / "manifest.json").read_text(encoding="utf-8"))["grid"]
-    lat = np.fromfile(grid_dir / gm["coords"]["lat"]["path"], dtype="float64")
-    lon = np.fromfile(grid_dir / gm["coords"]["lon"]["path"], dtype="float64")
+    # The cell index comes from `lib/gridding.py`, which owns the convention.
+    # This function used to derive its own copy of the same two expressions,
+    # which is how the export and the model came to be reconciled by longitude
+    # LABEL twice: with the arithmetic written out in four places there was no
+    # single thing to be right, only four things to agree.
+    lat, lon, gm = gridding.grid_geometry(grid_dir)
     nlat, nlon = lat.size, lon.size
-
-    # Latitude rows run north to south and may be Gaussian, so bin on the
-    # midpoints between row centres rather than assuming uniform spacing.
-    edges = np.empty(nlat + 1)
-    edges[1:-1] = 0.5 * (lat[:-1] + lat[1:])
-    edges[0], edges[-1] = 90.0, -90.0
-    rlat, rlon = export.lat, export.lon
-    row = np.clip(np.searchsorted(-edges, -rlat, side="right") - 1, 0, nlat - 1)
-    col = np.clip(((rlon + 180.0) / 360.0 * nlon).astype(np.int64), 0, nlon - 1)
-    cell = row * nlon + col
+    cell, _, _ = gridding.region_cells(export, grid_dir)
 
     land = export.surface_class == LAND
     sel = land & (drn.terminal >= 0)

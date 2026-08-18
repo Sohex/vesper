@@ -21,6 +21,7 @@ import numpy as np
 from numpy.polynomial.legendre import leggauss
 
 from _paths import ANALYSIS, INPUTS
+import gridding
 
 
 def weighted_mean(field: np.ndarray, weights: np.ndarray) -> np.ndarray:
@@ -29,9 +30,8 @@ def weighted_mean(field: np.ndarray, weights: np.ndarray) -> np.ndarray:
 
 
 def periodic_plot_order(lon: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    shifted = (lon + 180.0) % 360.0 - 180.0
-    order = np.argsort(shifted)
-    return shifted[order], order
+    """Display order only; `lib/gridding.py` owns every longitude expression."""
+    return gridding.display_longitude(lon)
 
 
 def main() -> None:

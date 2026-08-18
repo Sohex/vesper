@@ -27,7 +27,11 @@ import numpy as np
 from scipy.spatial import cKDTree
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+# lib/ itself as well as the package: `gridding` imports `orogen` as a
+# top-level module, the way every other component's `_paths.py` sets it up.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
 from lib import builds  # noqa: E402
+import gridding  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 BUILD_DIR = Path(__file__).resolve().parent / "build"
@@ -179,11 +183,19 @@ def upsample(field, smooth=True):
     lat, lon, _ = pixel_directions()
     # Wrap longitude by padding a column at each end.
     padded = np.concatenate([field[:, -1:], field, field[:, :1]], axis=1)
-    clon_p = np.concatenate([[clon[0] - 360.0 / len(clon)], clon, [clon[-1] + 360.0 / len(clon)]])
-    lon_q = np.where(lon < clon_p[0], lon + 360.0, lon)
 
+    # Columns come from `lib/gridding.py`, which owns the convention, and the
+    # climatology's own `lon` variable is deliberately not consulted for them.
+    # This interpolated against those LABELS, which run 0..360 while the render
+    # grid runs -180..180, and so drew every climate-derived layer on the
+    # basemap 180 degrees from the terrain beneath it: the biome tint, the ice,
+    # the sea ice. The mapping is the identity index for index -- the model's
+    # own land mask reads back 1.0000 against the mesh that way and 0.5955
+    # shifted by half the grid. See notes/audits/grid-convention-and-runoff.md.
+    # Latitude IS interpolated by value, because the render rows are uniform and
+    # the model's are Gaussian, so there is a genuine resample to do there.
     row = np.interp(lat, clat[::-1], np.arange(len(clat))[::-1])
-    col = np.interp(lon_q, clon_p, np.arange(len(clon_p)))
+    col = gridding.column_fraction(lon, len(clon)) + 1.0
     rr, cc = np.meshgrid(row, col, indexing="ij")
     out = map_coordinates(padded, [rr, cc], order=1, mode="nearest")
     if smooth:

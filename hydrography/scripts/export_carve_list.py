@@ -32,28 +32,30 @@ goes as `K Q^m S^n`, so what an overflow achieves over a relaxation window is a
 LENGTH; whether that length empties the basin depends on how far it is from the
 spill point down to the floor.
 
-    cut    = COEFFICIENT * erodibility * Q ** INCISION_EXPONENT     [metres]
+    cut    = coefficient * erodibility * slope**SLOPE_EXPONENT * Q**INCISION_EXPONENT
     retain = clip(1 - cut / depth_at_spill, 0, 1)
 
 Retain is then the fraction of the impoundment that survives, which is what
-Orogen cuts with and what a reader of the map sees. A predecessor compared the
-cut against a declared discharge instead and never asked about depth, so it said
-the same thing about a 14 m pan and a 1,420 m trough, and the marginal class came
-out as a razor-thin band around one discharge: 30 basins of 3,621, all of them
-trickles. Depth spans two orders of magnitude across this build and it decides
-the answer. Tanganyika carries 1,491 m3/s across its sill and is still a basin,
-because its floor is 577 m below that sill.
+Orogen cuts with and what a reader of the map sees.
 
-The erodibility factor is the export's own, a relative stream-power multiplier
-normalised to 1 over land, and it is the contrast a channel network expresses
-rather than the contrast between intact rock samples; see `sill_erodibility`.
+Three of those four terms are measured per basin and only the coefficient is
+free. `erodibility` is the export's own field, a relative stream-power
+multiplier normalised to 1 over land, and it is the contrast a channel network
+expresses rather than the contrast between intact rock samples; see
+`sill_erodibility`. `slope` is the gradient of the outflow channel below the
+saddle, relative to the population's, and it is measured because it cannot be
+absorbed: the outlet's gradient and the basin's depth are the same relief seen
+twice, correlated at r = 0.735 on this build, so folding one into a constant
+while dividing by the other counts it twice. See `outlet_gradient`.
 
-`COEFFICIENT` is calibrated, not declared, and the constant block says why: the
+`coefficient` is SOLVED, not declared, and `calibrate_coefficient` says why: the
 relaxation window is undefined in a generator with no time axis, so it is settled
 the way this project settles every other missing-time question, by an
 expected-value argument over a stationary population. Earth is one randomly
 chosen moment in such a population, and matching the density of its standing
-through-flowing impounded basins fixes the number.
+through-flowing impounded basins fixes the number. It is solved on every run
+rather than written down, because the count it matches depends on the climate,
+so a literal goes stale the moment the verdict moves -- and it had.
 
 **The uncertainty is a third thing, it is kept apart, and it turns out not to
 decide anything.** Retain is the larger of the incision value and the margin
@@ -61,10 +63,9 @@ below, on the reasoning that either is a reason to leave a rim standing. But
 taking the larger lets the margin raise a retain and never lower one, and the
 margin is positive exactly when the basin does not overflow, which is exactly
 when the incision term is already 1. Both read the sign of the same `Q`, so
-`retain` equals `retain_incision` on every basin -- measured, 0 of 3,621 where it
-does not. The margin is still computed and still written to the sidecar, because
-how close a preserved basin sits to its threshold is worth reading; it is not a
-second input to the cut, and a marginal count is a discharge statement.
+`retain` equals `retain_incision` on every basin. The margin is still computed
+and still written to the sidecar, because how close a preserved basin sits to
+its threshold is worth reading; it is not a second input to the cut.
 
 A basin balances exactly at an evaporation of `E* = P + critical * runoff`. Under
 the Penman estimate it evaporates `E_penman`. The fractional margin
@@ -76,10 +77,10 @@ says how much open-water evaporation would have to fall before the basin starts
 overflowing. A basin needing a 3% change is genuinely marginal and keeps little
 of its rim; one needing 40% is comfortably closed and keeps all of it.
 
-TOLERANCE is 0.25, set from the uncertainty that actually dominates: the biosphere
-is assumed rather than modelled, and that assumption is worth 3.7 to 7.1 K, which
-moves evaporation by considerably more than the 4.2% Penman itself was validated
-to.
+TOLERANCE is 0.25, set by the terms that dominate lake evaporation on this world:
+the assumed biosphere at 3.7 to 7.1 K, dust at 10 to 20%, and the sub-grid dry
+column at up to 9%. Penman's own method error is the smallest of them and is
+computed per run rather than quoted, so it is not what sets the scale.
 
 An earlier mapping interpolated the critical index between the two evaporation
 estimates. It is retained in the sidecar as `retain_span` but is not used, because
@@ -106,60 +107,199 @@ from _paths import CONFIG, DATA, PROJECT_ROOT  # noqa: F401
 from builds import component_data
 from orbit import orbital_year_days
 from paths import climatology_path
-from orogen import Export
+from orogen import Export, LAND
 from lake_balance import BasinSet
 
 
-# INCISION_M_PER_SQRT_Q is the depth of sill incision a basin's own overflow
-# achieves, in metres per (m3/s)^0.5 at land-mean rock, over however long this
-# landscape has been relaxing. That last clause is why it is calibrated and not
-# declared: **Orogen has no time axis** -- its lithology module says so directly,
-# "no ages, no stratigraphy and no unconformities, because there are no timesteps
-# to hang them on" -- so the relaxation window is UNDEFINED here rather than
-# unmeasured, and asking the generator for it asks for a concept it does not
-# have. `hydrography/notes/retain-fraction.md` carries the calibration; the short
-# form is that the project's standing move for a missing time axis is an
-# expected-value argument over a stationary population, and Earth is a randomly
-# chosen moment in one. Matching the DENSITY of standing through-flowing
-# impounded basins, at the size Vesper's mesh can resolve, gives 161 with a
-# bracket of 128 to 218 from the Poisson error on Earth's 15.
-#
-# INCISION_EXPONENT is the discharge exponent m in `K Q^m S^n`, 0.5 being the
-# middle of the 0.4 to 0.6 range detachment-limited bedrock studies fit.
-INCISION_M_PER_SQRT_Q = 161.0
-INCISION_M_PER_SQRT_Q_BRACKET = (128.0, 218.0)
+# The stream-power exponents. `K Q^m S^n`: m is the discharge exponent, 0.5
+# being the middle of the 0.4 to 0.6 range detachment-limited bedrock studies
+# fit, and n is the slope exponent, 1 because that is Orogen's own -- GRAV-4
+# records that n = 1 is baked into the Braun-Willett closed form the generator
+# solves rather than being a parameter of it, and the post-hoc 1/g relief
+# scaling this project relies on is only correct at that value. Carrying a
+# different n here than the generator carves with would be two worlds.
 INCISION_EXPONENT = 0.5
+SLOPE_EXPONENT = 1.0
+SLOPE_EXPONENT_BRACKET = (0.5, 2.0)
 KM3_PER_YEAR_TO_M3_PER_S = 1e9
+
+# The Earth calibration, which fixes the coefficient. Measured 2026-08-17 from
+# HydroLAKES v1.0 joined to HydroBASINS level 5: natural lakes deeper than 5 m,
+# above 1,000 km2, whose pour point sits in a basin with `ENDO == 0`, within 35
+# degrees of the equator. Fifteen of them, over 78.9 Mkm2 of Earth land in that
+# band. The size floor is what this mesh can resolve and it decides the answer:
+# counting from 10 km2 instead gives a density 33 times higher and reads as
+# "carve almost nothing". The latitude cut keeps out sills that were under an
+# ice sheet 20,000 years ago and have had no time to be cut at all.
+# `hydrography/notes/retain-fraction.md` carries the derivation.
+EARTH_STANDING_BASINS = 15
+EARTH_BAND_LAND_MKM2 = 78.9
+CALIBRATION_LATITUDE = 35.0
+COEFFICIENT_SEARCH = (1.0, 1.0e5)   # m per (m3/s)^0.5, the bisection bracket
 
 
 def incision_retain(q_km3_per_year, year_s: float, depth_m, erodibility,
-                    coefficient: float = INCISION_M_PER_SQRT_Q):
+                    coefficient: float, slope=None,
+                    slope_exponent: float = SLOPE_EXPONENT):
     """Rim surviving the overflow. 1 keeps it, 0 cuts it.
 
     Takes the overflow at spill level in km3 per Vesper year, the depth from the
-    spill point down to the basin floor, and the sill's own erodibility. A basin
-    that does not overflow gets 1 by construction, since Q is then zero.
+    spill point down to the basin floor, the sill's own erodibility, and the
+    outlet channel's own gradient relative to the population. A basin that does
+    not overflow gets 1 by construction, since Q is then zero.
 
-        cut     = coefficient * erodibility * Q ** INCISION_EXPONENT
+        cut     = coefficient * erodibility * slope**n * Q**m
         retain  = clip(1 - cut / depth_at_spill, 0, 1)
 
-    **Dividing by the depth is the whole point.** What the overflow can cut is a
-    length, and whether that empties the basin depends on how deep the basin is.
-    The previous mapping compared the cut against a declared discharge instead,
-    which said the same thing about a 14 m pan and a 1,420 m trough -- the fifth
-    and ninety-fifth percentiles of this build -- and so made the marginal class
+    **Dividing by the depth is what makes retain a fraction of the impoundment.**
+    What the overflow can cut is a length, and whether that empties the basin
+    depends on how deep the basin is. An older mapping compared the cut against
+    a declared discharge instead and never asked about depth, so it said the
+    same thing about a 14 m pan and a 1,420 m trough and made the marginal class
     a razor-thin band around one discharge rather than a property of the terrain.
-    Tanganyika carries 1,491 m3/s across its sill and is still a basin, because
-    its floor is 577 m below that sill.
 
-    Retain is then literally the fraction of the impoundment that survives, which
-    is what Orogen cuts with and what a reader of the map sees.
+    **`slope` is measured rather than absorbed, and that is HYD-15.** It used to
+    be folded into the coefficient, which asserts that a sill's gradient is
+    independent of the depth behind it. It is not: measured over the outflow
+    channel below each saddle on this build, `log S` against `log depth` gives
+    r = 0.735, with an exponent of 1.04 by ordinary regression and 1.41 by
+    reduced major axis. The two are the same relief counted twice. Under
+    `S ~ depth` the effective depth exponent in `retain` is `n - 1`, so at
+    Orogen's own n = 1 the depth CANCELS -- a different mapping rather than a
+    different coefficient, which is why this had to be settled and not
+    bracketed.
+
+    What replaces the depth is the outlet gradient itself, and it is worth
+    carrying because it is nearly orthogonal to everything else here: against
+    discharge it measures r = 0.072, so it is new information rather than a
+    proxy for the water. Its spread is wider than depth's, so the marginal class
+    stays populated. It is now decided by how steeply a basin's overflow leaves
+    rather than by how deep the basin is.
     """
     q = np.asarray(q_km3_per_year, dtype=float) * KM3_PER_YEAR_TO_M3_PER_S / year_s
     cut = coefficient * np.asarray(erodibility, dtype=float) * np.power(
         np.clip(q, 0.0, None), INCISION_EXPONENT)
+    if slope is not None:
+        cut = cut * np.power(np.asarray(slope, dtype=float), slope_exponent)
     depth = np.maximum(np.asarray(depth_m, dtype=float), 1.0)
     return np.clip(1.0 - cut / depth, 0.0, 1.0)
+
+
+def outlet_gradient(basins_path: Path, regions_path: Path, export: Export,
+                    steps: int = 10, min_path_m: float = 50e3):
+    """Each basin's outflow gradient, relative to the population's own.
+
+    Returns (normalised gradient, geometric mean in m/m, number measured). The
+    normalisation is by the geometric mean over the basins where it resolves, so
+    the coefficient keeps the meaning its Earth calibration gives it and only
+    the spread about the median basin is new. A basin whose outflow path is too
+    short to measure gets 1, the population value, rather than a guess.
+
+    **The saddle itself is the wrong place to measure and yields nothing.** A
+    saddle is a saddle: the regions either side of it sit at the same elevation
+    by construction, and the cross-divide drop on this build has a median of
+    0.1 m with half the basins negative. What stream power wants is the gradient
+    of the channel the overflow runs DOWN, which starts at `spill_exit_region`
+    and is not sub-grid at all: following the drainage ten receiver steps covers
+    a median of 135 km, a dozen mesh regions.
+
+    That corrects `hydrography/notes/retain-fraction.md`, which recorded that
+    the slope term "is not in the export". The saddle's own slope is not; the
+    outflow channel's is, and it is the one the law is written about.
+
+    The estimate is stable in the length it is measured over: the same basins at
+    5 steps and at 20 give r = 0.903 in the log with a median ratio of 1.00, so
+    it is a property of the outlet and not of the sampling.
+    """
+    with Dataset(regions_path) as ds:
+        receiver = np.asarray(ds["receiver"][:]).astype(np.int64)
+    with Dataset(basins_path) as ds:
+        start = np.asarray(ds["spill_exit_region"][:]).astype(np.int64)
+    radius_m = export.radius_km * 1000.0
+    elevation_m = np.asarray(export.field("elevation_km"), dtype=float) * 1000.0
+    xyz = np.stack([np.asarray(export.x, dtype=float),
+                    np.asarray(export.y, dtype=float),
+                    np.asarray(export.z, dtype=float)], axis=1)
+    xyz /= np.linalg.norm(xyz, axis=1, keepdims=True)
+
+    here = np.maximum(start, 0)
+    top = elevation_m[here].copy()
+    at = xyz[here].copy()
+    travelled = np.zeros(start.size)
+    alive = start >= 0
+    for _ in range(steps):
+        nxt = np.where(alive, receiver[np.maximum(here, 0)], -1)
+        moving = alive & (nxt >= 0)
+        if not moving.any():
+            break
+        j = np.maximum(nxt, 0)
+        step_m = radius_m * np.arccos(np.clip((at * xyz[j]).sum(axis=1), -1.0, 1.0))
+        travelled = np.where(moving, travelled + step_m, travelled)
+        at = np.where(moving[:, None], xyz[j], at)
+        here = np.where(moving, nxt, here)
+        alive = moving
+
+    drop = top - elevation_m[np.maximum(here, 0)]
+    measured = (travelled >= min_path_m) & (drop > 0.0)
+    if not measured.any():
+        raise SystemExit("no basin outflow path was long enough to measure a "
+                         "gradient; the drainage products and the basin "
+                         "catalogue are probably from different builds")
+    gradient = np.where(measured, drop / np.maximum(travelled, 1.0), np.nan)
+    reference = float(np.exp(np.mean(np.log(gradient[measured]))))
+    return (np.where(measured, gradient / reference, 1.0), reference,
+            int(measured.sum()))
+
+
+def calibrate_coefficient(q_km3_per_year, year_s: float, depth_m, erodibility,
+                          slope, basin_latitude, land_band_mkm2: float,
+                          slope_exponent: float = SLOPE_EXPONENT):
+    """The incision coefficient, from Earth's standing-basin density.
+
+    **Calibrated here rather than declared, because the target moves.** The
+    coefficient is whatever leaves as many overflowing-but-still-standing basins
+    per unit land as Earth has, and how many basins overflow is a property of
+    the climate. So a literal goes stale the moment the verdict does, silently,
+    and it did: the published 161 was fitted against a verdict taken before
+    HYD-13, and against the verdict that replaced it that same 161 leaves 55
+    standing basins in the band where the Earth density asks for 34.
+
+    Orogen has no time axis, so the relaxation window this coefficient absorbs
+    is UNDEFINED rather than unmeasured, and an expected-value argument over a
+    stationary population is this project's standing answer to that. Earth is
+    one randomly chosen moment in such a population and so is this terrain;
+    `notes/no-time-axis.md` carries the argument.
+
+    Returns (coefficient, bracket, target, achieved). The bracket is the Poisson
+    error on Earth's fifteen, which is the dominant uncertainty and is reported
+    rather than hidden.
+    """
+    band = np.abs(np.asarray(basin_latitude, dtype=float)) < CALIBRATION_LATITUDE
+    overflowing = np.asarray(q_km3_per_year, dtype=float) > 0.0
+
+    def standing(coefficient: float) -> int:
+        retain = incision_retain(q_km3_per_year, year_s, depth_m, erodibility,
+                                 coefficient, slope=slope,
+                                 slope_exponent=slope_exponent)
+        return int((overflowing & band & (retain > 0.0)).sum())
+
+    def solve(target: float) -> float:
+        lo, hi = COEFFICIENT_SEARCH
+        for _ in range(80):
+            mid = float(np.sqrt(lo * hi))
+            if standing(mid) > target:
+                lo = mid            # too many left standing: cut harder
+            else:
+                hi = mid
+        return float(np.sqrt(lo * hi))
+
+    per_mkm2 = land_band_mkm2 / EARTH_BAND_LAND_MKM2
+    target = EARTH_STANDING_BASINS * per_mkm2
+    spread = np.sqrt(EARTH_STANDING_BASINS)
+    bracket = tuple(sorted(solve((EARTH_STANDING_BASINS + s) * per_mkm2)
+                           for s in (-spread, spread)))
+    coefficient = solve(target)
+    return coefficient, bracket, target, standing(coefficient)
 
 
 def sill_erodibility(basins_path: Path, terrain_hash: str) -> np.ndarray:
@@ -283,17 +423,26 @@ def main() -> None:
     with Dataset(args.climatology) as ds:
         am = cv.annual_mean
         pr, evap, mrro = am(ds, "pr"), -am(ds, "evap"), am(ds, "mrro")
-        ts, tas = am(ds, "ts"), am(ds, "tas")
-        ps_pa, rss, rls = am(ds, "ps") * 100.0, am(ds, "rss"), am(ds, "rls")
+        rss, rls = am(ds, "rss"), am(ds, "rls")
         diurnal = am(ds, "maxt") - am(ds, "mint")
-    q_air, wind = cv.turbulent_forcing(args.climatology)
+        lsm = am(ds, "lsm")
+    t_air, q_air, wind, p_air = cv.reference_level_air(args.climatology)
 
     land_albedo = cv.read_sra_field(
         PROJECT_ROOT / "exoplasim" / "inputs" / resolution.lower()
-        / f"orogen_{resolution}_surf_0174.sra", *ps_pa.shape)
-    penman = np.maximum(cv.penman_open_water(
-        ts, tas, q_air, wind, ps_pa, rss, rls, land_albedo,
-        float(config["planet"]["gravity_m_s2"]), diurnal_range=diurnal), evap)
+        / f"orogen_{resolution}_surf_0174.sra", *p_air.shape)
+    penman_raw = cv.penman_open_water(
+        t_air, q_air, wind, p_air, rss, rls, land_albedo,
+        float(config["planet"]["gravity_m_s2"]), diurnal_range=diurnal)
+    # Computed here rather than quoted. The sidecar carried a hardcoded 1.017
+    # for a day after `carve_verdict.py` started computing this, which is the
+    # same defect one file over: a validation that cannot move is not one.
+    ocean_validation = cv.validate_over_ocean(penman_raw, evap, lsm)
+    penman_error_pct = abs(ocean_validation["ratio"] - 1.0) * 100.0
+    # No floor at the land rate: see the long note in `carve_verdict.py`. A
+    # smooth lake in a rough wet landscape evaporates less than the ground
+    # around it, and clamping that away decided 73% of the overflowing set.
+    penman = penman_raw
 
     runoff_field = mrro if args.runoff_source == "mrro" else (pr - evap)
     means, _ = cv.basin_means(args.coupling,
@@ -333,13 +482,38 @@ def main() -> None:
         return runoff * dry_km2 - (e - precip) * basins.area_at_spill_km2
 
     q_wet, q_pen = discharge("wet"), discharge("pen")
-    # E_wet is the model's own land evaporation and E_pen is Penman over open
-    # water, floored at it, so q_wet >= q_pen everywhere and the sets nest.
+    # THE TWO ESTIMATES DO NOT NEST, and this used to assume they did.
+    #
+    # `q_wet >= q_pen everywhere` held only because Penman was floored at the
+    # model's land evaporation. Without that floor the ordering reverses wherever
+    # the ground is wet, because land here is several times aerodynamically
+    # rougher than open water and evaporates more than a lake would; see the
+    # note in `carve_verdict.py`. So a basin can overflow under Penman and not
+    # under the land rate, the three-way partition below is not a partition, and
+    # the assertion that it summed to `basins.n` failed the moment the floor
+    # went.
+    #
+    # What is reported instead is the primary verdict and the disagreement,
+    # which is what the two estimates can honestly say. The verdict itself has
+    # always followed `retain`, not this triple.
     carved = q_pen > 0.0
-    preserved = q_wet <= 0.0
-    marginal = ~carved & ~preserved
-    assert int(carved.sum() + preserved.sum() + marginal.sum()) == basins.n
+    overflows_wet = q_wet > 0.0
+    disputed = carved != overflows_wet
 
+    # The fractional evaporation change that would flip a basin, reported and
+    # never decisive: `retain` is the LARGER of this and the incision value, and
+    # the margin is positive exactly when the basin does not overflow, which is
+    # exactly when the incision value is already 1.
+    #
+    # 0.25 stands, and HYD-12 asked whether it should now that Penman's own
+    # error is measured rather than hardcoded. It should. The tolerance is set
+    # by the uncertainty that dominates, and Penman's method error is not it:
+    # against the model over ocean, in the configuration a lake is actually in,
+    # the estimate now lands within a few percent, and the terms above it are
+    # the assumed biosphere at 3.7 to 7.1 K, dust at 10 to 20% of lake
+    # evaporation, and the sub-grid dry column at up to 9%. A quarter brackets
+    # all three; a tolerance tied to the method's own error would have been the
+    # smallest term setting the scale for the largest.
     TOLERANCE = 0.25
     e_pen = means["pen"] * year_s / 1000.0
     e_balance = precip + crit * runoff              # evaporation that exactly balances
@@ -348,9 +522,36 @@ def main() -> None:
     retain_margin = np.where(carved, 0.0, np.clip(margin / TOLERANCE, 0.0, 1.0))
 
     # What the water can actually cut, which is the half the margin never knew.
-    # The sill's own rock sets how much water that takes.
+    # The sill's own rock and the outlet's own gradient set how much water that
+    # takes, and the coefficient is solved against Earth rather than declared.
     sill_ero = sill_erodibility(args.basins, basins.terrain_hash)
-    retain_incision = incision_retain(q_pen, year_s, basins.depth_at_spill_m, sill_ero)
+    export = Export()
+    if export.terrain_hash != basins.terrain_hash:
+        raise SystemExit(
+            f"basins.nc was built from terrain {basins.terrain_hash[:16]} and "
+            f"the configured export is {export.terrain_hash[:16]}; the outlet "
+            "gradient is looked up by region index, which does not survive a "
+            "terrain change")
+    regions_path = args.basins.parent / "regions.nc"
+    slope, slope_reference, slope_measured = outlet_gradient(
+        args.basins, regions_path, export)
+    with Dataset(args.basins) as ds:
+        sink_region = np.asarray(ds["sink"][:]).astype(np.int64)
+    basin_latitude = np.asarray(export.field("lat"))[sink_region]
+    band_land_mkm2 = float(
+        export.cell_area[(export.surface_class == LAND)
+                         & (np.abs(export.lat) < CALIBRATION_LATITUDE)].sum()) / 1e6
+    coefficient, coefficient_bracket, standing_target, standing_here = (
+        calibrate_coefficient(q_pen, year_s, basins.depth_at_spill_m, sill_ero,
+                              slope, basin_latitude, band_land_mkm2))
+    retain_incision = incision_retain(q_pen, year_s, basins.depth_at_spill_m,
+                                      sill_ero, coefficient, slope=slope)
+    print(f"outlet gradient   {slope_measured:5d} basins measured, "
+          f"population {slope_reference:.5f} m/m")
+    print(f"coefficient       {coefficient:7.1f} m per (m3/s)^0.5, bracket "
+          f"{coefficient_bracket[0]:.1f}-{coefficient_bracket[1]:.1f}; "
+          f"{standing_here} standing within {CALIBRATION_LATITUDE:g} deg "
+          f"against Earth's {standing_target:.1f}")
 
     # Either is a reason to leave a rim standing: that the basin may not overflow
     # at all, or that its overflow cannot cut. Taking the larger keeps both.
@@ -361,7 +562,8 @@ def main() -> None:
     with np.errstate(divide="ignore", invalid="ignore"):
         f = np.where(np.isfinite(span) & (span > 1e-9),
                      (crit - idx_wet) / np.where(span > 1e-9, span, 1.0), 0.5)
-    retain_span = np.where(carved, 0.0, np.where(preserved, 1.0, np.clip(1.0 - f, 0.0, 1.0)))
+    retain_span = np.where(carved, 0.0,
+                           np.where(~overflows_wet, 1.0, np.clip(1.0 - f, 0.0, 1.0)))
 
     # The verdict follows retain rather than the overflow test, because what
     # Orogen does to a basin is set by retain. A basin can overflow and still
@@ -418,11 +620,13 @@ def main() -> None:
 # A basin overflows when more water arrives than its lake surface can evaporate,
 #     Q = runoff * (catchment - area_at_spill) - (E - P) * area_at_spill  >  0
 # and retain is then what that Q can cut against how deep the basin is,
-#     retain = 1 - {INCISION_M_PER_SQRT_Q:g} * erodibility * Q^{INCISION_EXPONENT:g} / depth_at_spill
-# in metres, with the coefficient calibrated against the density of Earth's own
-# standing through-flowing impounded basins. Open-water evaporation is
-# the Penman combination equation with water's albedo and roughness, validated
-# against the model over ocean cells to within 4.2%.
+#     retain = 1 - {coefficient:.1f} * erodibility * slope^{SLOPE_EXPONENT:g} * Q^{INCISION_EXPONENT:g} / depth_at_spill
+# in metres, where slope is the outlet channel's own gradient relative to the
+# population's, and the coefficient is solved against the density of Earth's own
+# standing through-flowing impounded basins rather than declared. Open-water
+# evaporation is the Penman combination equation with water's albedo and
+# roughness, validated against the model over ocean cells to within
+# {penman_error_pct:.1f}%.
 # Catchment runoff is {runoff_source}; see the sidecar.
 #
 #   retain 1.0   {n_preserve:4d} basins  closed: the lake surface evaporates all that arrives
@@ -471,28 +675,54 @@ def main() -> None:
                          "more precipitation than it evaporates",
             "open_water_evaporation": "Penman combination, water albedo and "
                                       "roughness, floored at the model's land rate",
-            "penman_ocean_validation_ratio": 1.017,
+            "penman_ocean_validation_ratio": ocean_validation["ratio"],
             "retain_mapping": "max(incision, margin), the larger of what the "
                               "overflow cannot cut and what the overflow test "
                               "cannot decide",
             "retain_incision_mapping":
-                f"1 - {INCISION_M_PER_SQRT_Q:g} * erodibility * "
-                f"Q**{INCISION_EXPONENT:g} / depth_at_spill_m, clipped to [0, 1]",
-            "retain_incision_coefficient_m_per_sqrt_q": INCISION_M_PER_SQRT_Q,
-            "retain_incision_coefficient_bracket": list(INCISION_M_PER_SQRT_Q_BRACKET),
+                f"1 - {coefficient:.4g} * erodibility * slope**{SLOPE_EXPONENT:g} "
+                f"* Q**{INCISION_EXPONENT:g} / depth_at_spill_m, clipped to [0, 1]",
+            "retain_incision_coefficient_m_per_sqrt_q": round(coefficient, 4),
+            "retain_incision_coefficient_bracket": [round(b, 4) for b in coefficient_bracket],
             "retain_incision_exponent": INCISION_EXPONENT,
+            "retain_slope_exponent": SLOPE_EXPONENT,
+            "retain_slope_exponent_bracket": list(SLOPE_EXPONENT_BRACKET),
+            "outlet_gradient": {
+                "reference_m_per_m": round(slope_reference, 6),
+                "basins_measured": slope_measured,
+                "range": [round(float(slope.min()), 4), round(float(slope.max()), 4)],
+                "note": "gradient of the outflow channel below each saddle, ten "
+                        "receiver steps from spill_exit_region, normalised by the "
+                        "population's geometric mean. The saddle's OWN slope is "
+                        "zero by construction and is not what stream power reads; "
+                        "the channel below it spans a dozen mesh regions and is "
+                        "measurable. It correlates with depth at spill at r = "
+                        "0.735, which is why it can no longer be absorbed into "
+                        "the coefficient: at n = 1 the depth cancels out of "
+                        "retain. HYD-15",
+            },
+            "calibration": {
+                "earth_standing_basins": EARTH_STANDING_BASINS,
+                "earth_band_land_mkm2": EARTH_BAND_LAND_MKM2,
+                "band_latitude_deg": CALIBRATION_LATITUDE,
+                "vesper_band_land_mkm2": round(band_land_mkm2, 2),
+                "target_standing_basins": round(standing_target, 2),
+                "achieved_standing_basins": standing_here,
+            },
             "retain_incision_rationale":
                 "stream power goes as K Q^m S^n, so what the overflow achieves is "
                 "a LENGTH of incision, and whether that empties the basin depends "
-                "on the depth from spill point to floor. Dividing by the depth is "
-                "what makes retain the surviving fraction of the impoundment "
-                "rather than a band around one discharge. The coefficient absorbs "
-                "K, the sub-grid slope term and the relaxation window, and it is "
-                "CALIBRATED rather than declared because Orogen has no time axis: "
-                "matching the density of Earth's standing through-flowing "
-                "impounded basins, at the size this mesh resolves, gives 161 with "
-                "a Poisson bracket of 128 to 218. See "
-                "hydrography/notes/retain-fraction.md",
+                "on the depth from spill point to floor. S is MEASURED per basin "
+                "rather than absorbed into the coefficient, because the outlet's "
+                "gradient and the basin's depth are the same relief and folding "
+                "one into a constant while dividing by the other counts it twice. "
+                "The coefficient absorbs K and the relaxation window, and it is "
+                "SOLVED rather than declared because Orogen has no time axis: it "
+                "is whatever matches the density of Earth's standing "
+                "through-flowing impounded basins, at the size this mesh "
+                "resolves. It is solved on every run because the count it matches "
+                "depends on the climate, so a literal goes stale when the verdict "
+                "does. See hydrography/notes/retain-fraction.md",
             "sill_rock": "K from the export's erodibility field, a relative "
                 "stream-power multiplier mean-normalised to 1 over land, taken "
                 "as the geometric mean of the two regions either side of the "
@@ -504,13 +734,25 @@ def main() -> None:
             "retain_margin_mapping": "min(1, ((E_penman - (P + critical*runoff)) / E_penman) / 0.25)",
             "retain_tolerance": TOLERANCE,
             "retain_tolerance_rationale": "fractional change in open-water "
-                "evaporation that would flip the verdict; 0.25 is set by the "
-                "assumed-biosphere uncertainty, which dominates Penman's own 4.2%",
+                "evaporation that would flip the verdict. 0.25 is set by the "
+                "terms that dominate -- the assumed biosphere at 3.7 to 7.1 K, "
+                "dust at 10 to 20% of lake evaporation, the sub-grid dry column "
+                "at up to 9% -- and not by Penman's own method error, which is "
+                "the smallest of them and is computed per run rather than "
+                "quoted. It is reported and never decisive: retain is the "
+                "larger of this and the incision value, and the margin is "
+                "positive exactly where the incision value is already 1.",
         },
         "counts": {"carve": n_carve, "preserve": n_preserve, "marginal": n_marginal},
-        "counts_by_penman_test_alone": {
-            "carve": int(carved.sum()), "preserve": int(preserved.sum()),
-            "disagreeing_with_land_evaporation": int(marginal.sum())},
+        "counts_by_overflow_test_alone": {
+            "overflows_under_penman": int(carved.sum()),
+            "overflows_under_land_evaporation": int(overflows_wet.sum()),
+            "disputed": int(disputed.sum()),
+            "note": "the two are NOT nested: without the land-rate floor, "
+                    "Penman falls below the model's land evaporation wherever "
+                    "the ground is wet, because land here is several times "
+                    "rougher than open water. So this is agreement and "
+                    "disagreement, not a bracket."},
         "basins": [
             {
                 "id": ids[i],

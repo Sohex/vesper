@@ -72,7 +72,7 @@ budget has one currency and the irreversible decision reads another.
 
 ---
 
-## 2. "Penman over a dry land column" is the budget's only unquantified item, and it is worth 144 to 235 basins
+## 2. "Penman over a dry land column" is the budget's only unquantified item, and it is two errors of very different size
 
 **[numeric]** The budget lists this as *"unquantified, one-signed"*. It is
 quantifiable from artifacts already in the repository.
@@ -91,20 +91,30 @@ would hold:
 | at least 90% | 2.553 | -18% |
 
 Against the parent session's measured basin sensitivity -- 144 basins per 10% of
-lake evaporation, 235 per 20% -- **this item is worth 144 to 235 basins on its
-own**, in the direction of under-carving.
+lake evaporation, 235 per 20% -- this reads as worth 144 to 235 basins, in the
+direction of under-carving. **Both halves of that turned out to be inflated and
+the item is worth 1 to 35 basins**; `notes/audits/carve-criterion-terms.md`
+finding 3 measures it. The level mixing below accounts for most of the humidity
+change once it is fixed properly, and the sensitivity it is multiplied by was
+itself measured with a floor at the land rate in place, which inflates any
+evaporation sensitivity by about a factor of four. That floor is finding 1 of the
+same document and is much the larger item.
 
 **Part of it is a level mixing, which is the archetype this audit was asked to
-hunt.** `es_a` is saturation at `tas`, the **2 m** temperature. `e_air` is the
-actual vapour pressure at `q_air`, which `turbulent_forcing` takes from the
-**lowest model level** -- and `penman_open_water` computes that level's height
-itself as `z_ref = (R T / g) ln(1/sigma)`, of order 300 m. A standard Penman
-takes both at one reference height. Taking the saturation term low and warm and
-the actual term high and dry inflates the deficit systematically, and in the same
-direction as the dry-column error, so the two compound rather than offset.
+hunt, and it is the part that was worth something.** `es_a` was saturation at
+`tas`, the **2 m** temperature. `e_air` came from `q_air` at the **lowest model
+level**, whose height `penman_open_water` computes itself as
+`z_ref = (R T / g) ln(1/sigma)`, of order 300 m. A standard Penman takes both at
+one reference height. Taking the saturation term low and warm and the actual term
+high and dry inflates the deficit systematically.
 
-The wind and the aerodynamic resistance are mutually consistent -- both at the
-lowest model level -- so this is specifically the humidity/temperature pair.
+The wind and the aerodynamic resistance were mutually consistent -- both at the
+lowest model level -- so this was specifically the humidity/temperature pair, and
+the fix is to read all four at the level the transfer coefficient is derived over.
+The 2 m air is 1.85 K warmer than the lowest level over land, worth 13.7% on
+`e_s`. The ocean validation is what says this is a fix rather than a preference:
+the error against the model's own open-water evaporation goes from 8.45% high to
+3.28% low. `notes/audits/carve-criterion-terms.md` finding 2.
 
 ---
 
