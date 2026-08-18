@@ -66,7 +66,7 @@ verifies this across the tree.
 
 `run_id` named resolution, flux, CO2, rotation, obliquity, eccentricity, physics
 switches and a digest of every surface file — but not the stellar spectrum, and
-it rounded flux to hundredths. Two near-misses followed: a `k25v` re-baseline
+it rounded flux to hundredths. Two near-misses followed: a `k25v` baseline re-run
 would have been written into the completed `k2` run's directory, where
 `finalize()` takes `sorted(glob("MOST*"))[-1]` and copies out the last match; and
 `0.945` and `0.94` both resolved to `s094`. Only the geography digest separated
@@ -79,7 +79,7 @@ the identity in the same commit.
 ## 5. Provenance written once and never recomputed
 
 The carve list header reported 749 carved for a file containing 1,838, and
-described "0.96 S-Earth, 292.88 K" two re-baselines after both had moved. A
+described "0.96 S-Earth, 292.88 K" two baseline re-runs after both had moved. A
 year length of `189.6145` sat as a literal while the baseline ran at a different
 flux. `climatology_s096` was described as current long after it was not.
 
@@ -323,7 +323,7 @@ manifest. `continue_exoplasim.py` then took its flux from
 `config/planet.yaml:orbit.baseline_flux_earth`, so continuing that run integrated
 it at the baseline instead, and the manifest went on saying 0.91.
 
-Found 2026-08-17, on the first flux bracket of the re-baseline. Nothing failed:
+Found 2026-08-17, on the first flux bracket of the baseline re-run. Nothing failed:
 the run converged cleanly, passed all seven convergence criteria, and reported a
 temperature. It was caught because two runs whose fluxes differed by 0.035
 converged to the same temperature, which no amount of internal consistency can

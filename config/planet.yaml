@@ -86,7 +86,7 @@ surface:
     min_snow_depth_m: 2.0
     initial_height_m: -1.0
 
-# DETERMINED for the re-baseline. Resolution, layers and ranks together select
+# DETERMINED for the baseline re-run. Resolution, layers and ranks together select
 # which compiled binary runs, so changing any of them needs a rebuild.
 model:
   resolution: T42
@@ -102,7 +102,7 @@ model:
   # a landmap, so anything not supplied here falls back to a namelist default.
   uniform_land_surface: true
   # PlaSim's 28-term energy decomposition, codes 360-387 and 460-487. On for the
-  # re-baseline to name the constant -0.455 W/m2 gap between the top of the
+  # baseline re-run to name the constant -0.455 W/m2 gap between the top of the
   # atmosphere and the surface; see TASKS.md CLIM-1.
   energy_diagnostics: true
   energy_diagnostics_3d: true

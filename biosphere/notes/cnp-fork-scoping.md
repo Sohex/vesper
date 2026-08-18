@@ -3,7 +3,7 @@
 Measured against the fork at tag `LPJ-GUESS-CNP_v1.0`
 (`mateusdp/LPJ-GUESS-NTD`), cloned and diffed rather than reasoned about.
 
-## Ordering: this does not gate the re-baseline
+## Ordering: this does not gate the baseline re-run
 
 The dependency runs through the soil map, not the terrain. `soilinput.cpp`
 matches soilmap columns **by header name and ignores any it does not recognise**
@@ -17,7 +17,7 @@ climatology exists. Missing that costs a soil-map regeneration, which is a grid
 computation and not a model run. Terrain, hydrography, boundary conditions and
 climate are all upstream of this and unaffected.
 
-So: integrate in parallel with the re-baseline, not before it.
+So: integrate in parallel with the baseline re-run, not before it.
 
 ## The port is nearly free
 

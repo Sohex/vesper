@@ -219,4 +219,4 @@ to find more once it runs.
 
 **Sequencing** stands as `WORKFLOW.md` A3: this moves land-surface forcing, so it
 must not land in the same iteration as the carve. The natural slot is its own
-iteration after the re-baseline.
+iteration after the baseline re-run.

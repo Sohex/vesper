@@ -150,7 +150,7 @@ def main() -> None:
                          "each cell gets an area-weighted composite")
     # Resolved from config.baseline_climatology, not hardcoded; the default
     # here named the superseded `climatology_s096` until 2026-08-17. Left
-    # optional because the first albedo of a re-baseline runs before any
+    # optional because the BOOTSTRAP run's albedo is built before any
     # climatology exists. See lib/paths.py:climatology_path.
     ap.add_argument("--climatology", type=Path, default=None,
                     help="coordinate source for --mode modelled, and the "
@@ -257,7 +257,7 @@ def main() -> None:
     lake_report = None
     lake_mask = None
     # Bound here rather than inside the lake block, which is the only place it is
-    # filled in: the first albedo of a re-baseline runs with no lakes, because
+    # filled in: the BOOTSTRAP run's albedo is built with no lakes, because
     # they need a climatology this terrain does not have yet, and the report at
     # the end reads this whether or not that block ran.
     evap_report = None

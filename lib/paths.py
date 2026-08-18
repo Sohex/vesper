@@ -56,7 +56,7 @@ def climatology_path(name: str | None = None, root: Path | None = None) -> Path:
     module constant, and `build_surface_albedo.py` and
     `build_surface_soil_water.py` kept an argparse default, all three still
     naming the superseded directory. Two of those only surfaced when a
-    re-baseline ran them for the first time in months.
+    baseline re-run ran them for the first time in months.
 
     Returns the FILE. Callers must not rebuild the name from a directory: the
     label is chosen per product, so a bootstrap climatology is

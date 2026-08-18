@@ -1037,7 +1037,7 @@ sensitivity of about 167 K per unit flux was right; a later 0.331 K/W/m2 figure,
 measured across an albedo step in a nearly ice-free state, was not, and using it
 predicted 291.9 K for a run that converged at 287.47 K.
 
-**The measured stellar spectrum.** Every run before the k25v re-baseline used
+**The measured stellar spectrum.** Every run before the k25v baseline re-run used
 `k2.dat`, which is the star K2-18, an M2.5V at about 3450 K, not a K dwarf. The
 correction changed absorbed shortwave by 0.04 W/m2 on this world, because it acts
 on snow and ice and there is almost none at 291 K. It is not null on the cold

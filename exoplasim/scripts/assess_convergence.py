@@ -143,7 +143,7 @@ def main() -> None:
     # (tau_expected is needed by the fallback above, so it is computed first.)
     # The year comes from the run's own manifest, not from the current config:
     # this is a property of the run being assessed, which may predate a
-    # re-baseline that moved the orbit.
+    # baseline re-run that moved the orbit.
     manifest_path = run_dir / "run_manifest.json"
     year_days = 182.8
     if manifest_path.is_file():

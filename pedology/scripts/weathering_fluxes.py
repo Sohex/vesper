@@ -383,7 +383,7 @@ def main() -> None:
                     "the net correction is not obvious and is not claimed.",
                     "Computed on whatever climatology and build are named "
                     "above, both of which predate the current terrain. The "
-                    "requirement moves on the re-baseline. The margin is wide "
+                    "requirement moves on the baseline re-run. The margin is wide "
                     "enough that it would take a large error to threaten the "
                     "verdict, but it is not unlimited -- re-check it.",
                     "The requirement is a FLOOR on outgassing. Supplying more "

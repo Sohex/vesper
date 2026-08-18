@@ -250,7 +250,7 @@ derivation -- melt production depends on spreading rate and mantle
 temperature, higher gravity compresses the melting column, and 43% land means
 less ocean basin than Earth, so the sign of the net correction is not claimed.
 And it is computed on a climatology and terrain that both predate the current
-build, so the requirement moves on the re-baseline. The margin is wide, not
+build, so the requirement moves on the baseline re-run. The margin is wide, not
 unlimited. Re-run it after.
 
 ## `pN2_bar`

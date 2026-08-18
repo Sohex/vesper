@@ -266,7 +266,7 @@ was blamed on. Implied weathering shift 0.96x, moving land-mean W from 0.50 to
 **`model.soil_water_source: pedology` is set**, which it was not while runs were
 in flight: adding the key moves `config_sha256`, and `continue_exoplasim.py`
 refuses to resume a run whose config hash has changed, so it was held until the
-re-baseline. The code still defaults to `uniform` when the key is absent.
+baseline re-run. The code still defaults to `uniform` when the key is absent.
 
 ## Catena: physical production and topographic transport
 

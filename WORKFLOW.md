@@ -16,6 +16,68 @@ every iteration. They are in `world_state.json`, which is generated; see section
 
 ---
 
+## 0. Vocabulary, because two of these collide
+
+Written 2026-08-17 after "re-baseline" was used to mean one thing and read as
+another, and the two differ by roughly a day of work and a whole regeneration of
+the terrain. These are the project's words; use them and not synonyms.
+
+**build** -- one World Orogen export, namespaced under `source/`. Identified by
+its terrain hash, never by its name. Superseded means wrong, not merely old.
+
+**iteration** -- one turn of loop A in section 6: carve list to Orogen, terrain
+regenerated, hydrography and boundary conditions rebuilt on it, climate re-run,
+verdict taken again. An iteration produces a NEW BUILD. This is the expensive
+thing, and it is what "starting again from Orogen" means.
+
+**bootstrap run** -- the first climate run on a new terrain, made with only the
+surface fields that are pure functions of terrain. It exists to produce the
+climatology that the remaining fields need. **Its numbers are not the baseline.**
+
+**baseline run** -- the second climate run of an iteration, on the full surface
+fields: lakes, the lake compositing in the albedo, and soil water capacity, all
+built from the bootstrap's climatology. The climatology of a baseline run is what
+downstream components read.
+
+**re-run the baseline** -- a NEW baseline run on the SAME terrain, because
+something changed that is not the terrain: a model patch, a boundary field, a
+configuration value. This is not an iteration and Orogen is not involved.
+
+  Do not say "re-baseline". It reads as an iteration and means this, and that
+  gap has already cost one misunderstanding.
+
+**segment** -- a contiguous block of orbits added to an existing run by
+`continue_exoplasim.py`. Runs are made of segments; each records its own purpose
+and its I/O regime.
+
+**carve verdict** -- the finding: which basins overflow, per basin, with its
+evidence. `hydrography/analysis/carve_verdict.json`.
+
+**carve list** -- the artifact Orogen consumes, `carve_list.txt`, one retain
+fraction per basin. The verdict is a conclusion; the list is an instruction.
+
+### What a re-run of the baseline actually costs
+
+The distinction is worth a table, because most of the pipeline does not move when
+only the climate does:
+
+| | redone? | why |
+| --- | --- | --- |
+| Orogen, `source/` | no | the terrain has not changed |
+| drainage, basins, coupling | no | pure functions of terrain |
+| land mask, topography, roughness | no | pure functions of terrain |
+| model binaries | only if it was a patch | see CLAUDE.md rule 4 |
+| the climate run | yes | that is the point |
+| climatology | yes | follows the run |
+| lakes, albedo 174-176, soil, code 229 | yes | all are built from a climatology |
+| a second run on those rebuilt fields | usually | this is where the loop closes |
+| carve verdict, dust, everything downstream | yes | below the climatology |
+
+At the measured 88 s of model time per orbit, a settling run off an existing
+near-equilibrium plus ten clean orbits is a couple of hours of wall clock, and
+the loop usually wants two of them. An ITERATION is far more, because it
+regenerates the terrain and everything that is a function of it.
+
 ## 1. The components
 
 ```

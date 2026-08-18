@@ -465,7 +465,7 @@ def spectrum_tag(config: dict) -> str:
 
     The spectrum sets the weighting for every snow, ice and glacier albedo, so
     two runs differing only in it are different climates. Until the k2/K2.5V
-    correction there was nothing here, and a re-baseline would have landed in the
+    correction there was nothing here, and a baseline re-run would have landed in the
     completed run's directory: the same silent-overwrite that `geography_tag`
     exists to prevent, reached by a different route.
 

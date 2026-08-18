@@ -95,7 +95,7 @@ network to get rivers. This is the first thing in the project to decide
 
 Current figures -- how many basins hold water, lake area, largest river -- are in
 `world_state.json` and in the run's own report, not here. They change with every
-carve iteration and every climate re-baseline, and this document is about how the
+iteration and every baseline re-run, and this document is about how the
 solver works.
 
 Against Earth, which is the only calibration available, the ratios are the part

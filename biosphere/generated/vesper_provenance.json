@@ -1,6 +1,6 @@
 {
-  "generated": "2026-08-17T23:31:39+00:00",
-  "config_sha256": "2b6dbef507a2207aff33a10c0611c0c314acb4acdd88537cfb715f1fc5b8132c",
+  "generated": "2026-08-18T02:00:40+00:00",
+  "config_sha256": "8ee3ec210e51067cf06acba61aeeac1a6fd85f84584a5cc46c383b320818d729",
   "flux_earth": 0.945,
   "earth_solar_constant": 1361.0,
   "orbital_year_earth_days": 182.80142503147016,
@@ -27,12 +27,12 @@
   "stellar_constant_w_m2": 1286.145,
   "eccentricity": 0.02,
   "obliquity_deg": 32.0,
-  "solstice_offset_days": 150.8,
+  "solstice_offset_days": 152.15,
   "solstice_fit": {
     "climatology": "exoplasim/analysis/climatology/baseline_regular_climatology.nc",
     "bins": 12,
-    "rms_residual_deg": 1.434094000860735,
-    "max_abs_residual_deg": 2.473820208202376,
+    "rms_residual_deg": 0.9675669371199613,
+    "max_abs_residual_deg": 1.894499386439703,
     "note": "day 0 of the simulation year is the first climatology bin"
   },
   "fradpar": 0.46242839799049584,
@@ -53,7 +53,7 @@
     "earth_fradpar": 0.5
   },
   "source_build": "precarve-craton",
-  "git_commit": "decca4605300a13e590977abbb4efd875a80c281",
-  "header_sha256": "2eb9c6fcc565325fe1608a1f0f32d10362c35a82713069952b1c4d6918a1c324",
+  "git_commit": "d9ecc336d030c8677b62f104645a6994324ee17e",
+  "header_sha256": "3b89fa593ebd9e43193c989b4d39519c2b4347db857770820320e975b8401c5c",
   "generator": "biosphere/scripts/build_vesper_header.py"
 }

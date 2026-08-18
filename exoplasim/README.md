@@ -239,7 +239,7 @@ the only thing that knows: its `physical` block records the geography, spectrum
 and surface albedo each run actually used, and that triple is what decides
 whether two runs are comparable. Ask the index; do not infer an era from a name.
 
-What survives a re-baseline is decided by what a result depends on, not by how
+What survives a baseline re-run is decided by what a result depends on, not by how
 old it is. A flux-versus-temperature slope measured on superseded terrain stays
 the best measurement of that slope, because it turns on sea ice and the Planck
 response rather than on which basins are bright. A mean surface temperature from

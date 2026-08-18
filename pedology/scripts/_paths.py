@@ -31,7 +31,7 @@ def climatology_path(name: str | None = None) -> Path:
     kept its own, and so did biosphere, `surface_water.py` and two
     exoplasim builders; they did not stay in step, and three of them
     were still naming the superseded `climatology_s096` when a
-    re-baseline ran them for the first time in months.
+    baseline re-run ran them for the first time in months.
     """
     import sys as _sys
     if str(PROJECT_ROOT / "lib") not in _sys.path:
