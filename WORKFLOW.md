@@ -892,15 +892,71 @@ first verdict taken on one is iteration 1, whatever a previous line of builds ha
 already carved, and the overshoot measurement in section 4 applies only where the
 terrain being re-verdicted is itself the carved one.
 
-**A3. Hold the land-albedo mode fixed across a carve.** `build_surface_albedo.py`
-has a `modelled` mode that takes tree cover from an LPJ-GUESS `fpc.out` instead of
-asserting a uniform vegetated endmember, and it is the mode this project should
-end up in. Do NOT adopt it on the same iteration as a carve. The two land-albedo
-endmembers are 15 to 19 W/m2 apart in absorbed flux, against 21 W/m2 for the
-entire 0.85-to-0.95 stellar sweep that produced a 33 K range, so switching modes
-is a forcing change comparable to the largest this project varies on purpose and
-it requires the flux to be re-derived. Change the terrain or change the surface,
-not both: an iteration that moves both cannot attribute what it measures.
+**A3. A forcing change costs a PREDICTION and an A/B, not an iteration.**
+Rewritten 2026-08-18. What stood here told you to land one forcing change per
+iteration so that each could be attributed. That was wrong, and it was wrong in a
+way worth recording, because the reasoning looked sound.
+
+**Attribution cannot gate anything, so it must not be priced as though it could.**
+A correct term goes in because it exists; section 7's physics-is-not-a-knob rule
+already settles inclusion, and no attribution result can reverse it. The old rule
+therefore spent runs buying information that could never change a decision.
+`CLAUDE.md` rule 7 removes the usual fallback too: a wrong verdict is recoverable,
+because a build is replaced wholesale rather than edited, so "we could not
+attribute it and the carve is permanent" is not an argument either.
+
+**Attribution still pays in exactly one place: diagnosing a surprise.** The
+physics rule depends on it -- if a correct term makes an agreement worse, that is
+information about the implementation, the comparison, or a second error
+cancelling the first -- and telling those apart means knowing which term moved.
+But that cost is CONTINGENT. Serializing iterations pays it in full every time,
+in converged runs of hours, against a risk that materialises occasionally.
+
+**So buy it the cheap way. Testing a change is not the same as needing an
+iteration.** A converged run measures a RESPONSE in kelvin and is expensive. A
+short A/B measures a FORCING in W/m2 and is not: branch two arms off one common
+restart, run a few orbits, and difference the flux diagnostics. Convert to kelvin
+afterwards with the canonical slope in `lib/sensitivity.py` rather than by waiting
+for the model to equilibrate. Every term can be attributed this way while the
+whole bundle still costs ONE converged run.
+
+Four things make that A/B trustworthy, and none of them is optional:
+
+- **Every forcing change lands with a quantitative prediction of its own effect**,
+  stated before it is run, with what result would mean "wrong". That is section
+  7's rule that a check needs a right answer, applied to physics rather than to
+  code. PHYS-6 is the worked example: 2.5 W/m2 here against 1.75 solar-weighted,
+  checked against Earth's measured 1.5-2.5.
+- **Both arms use the SAME BINARY and differ only by a namelist key.** This is
+  what the no-op-until-enabled convention is for: `h2osww` defaults to 1.0 and
+  `ndustrad` to 0 precisely so that one executable can run both arms. Two
+  binaries would confound the term with the rebuild, and the low-I/O patch
+  changes the restart layout, so arms built either side of it cannot share a
+  restart at all.
+- **Both arms branch from ONE restart.** Run-to-run spread on a converged pair is
+  0.23 K, which is larger than several of the terms being tested; a shared
+  initial condition removes most of it and turns the comparison into a paired one.
+- **The segments are labelled as diagnostics**, so a short A/B tail never enters a
+  convergence window or a climatology. That is CLIM-9, and until it lands this
+  practice is unsafe rather than merely untidy.
+
+**Bundle the terms, then check the SUM against the sum of predictions.** If they
+agree, no attribution was needed and none was bought. If they disagree, bisect,
+and only into the subset whose predictions were soft. What bundling genuinely
+risks is `notes/failure-modes.md` class 15, two errors that nearly cancel; the
+mitigation is the per-term prediction above, not serialization, because two
+cancelling errors hide just as well in a serial sequence that nobody predicted
+the size of.
+
+**What survives from the old rule is a budgeting fact, not an ordering one.**
+`build_surface_albedo.py` has a `modelled` mode that takes tree cover from an
+LPJ-GUESS `fpc.out` instead of asserting a uniform vegetated endmember, and it is
+the mode this project should end up in. The two land-albedo endmembers are 15 to
+19 W/m2 apart in absorbed flux, against 21 W/m2 for the entire 0.85-to-0.95
+stellar sweep that produced a 33 K range. So adopting it is a forcing change
+comparable to the largest this project varies on purpose, and **it requires the
+flux to be re-derived**. That is a cost to budget for, and it is the same cost
+whether or not a carve shares the iteration.
 
 The corollary is the answer to "when does the biosphere run". Not before the
 carve, because its driver is built from a climatology and a soil the carve
@@ -923,9 +979,11 @@ because it is a precipitation response and not a surface energy balance.
 Suppressed precipitation cuts the runoff the criterion divides by, which
 OVER-carves, and over-carving is the irreversible direction. It needs one
 prescribed-dust climate run, specified with its gates and a prediction in
-`aeolian/notes/prescribed-dust-run.md`. That run changes land-surface FORCING, so
-by A3 it must not share an iteration with the carve: run it, take the verdict on
-its climatology, then carve.
+`aeolian/notes/prescribed-dust-run.md`. The ORDER here is a dependency and not a
+serialization: the verdict divides by a runoff that dust moves, so it has to be
+taken on a climatology that already has dust in it. Run it, take the verdict on
+its climatology, then carve. A3 no longer asks for a separate iteration and never
+should have; what it asks for is the prediction that run already carries.
 
 **Do not record a carve list as dust-independent.** `notes/dust.md` has the
 numbers and `aeolian/analysis/dust_runoff_sensitivity.json` has the conversion

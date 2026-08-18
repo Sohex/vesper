@@ -217,6 +217,20 @@ against a model whose aerosol path has demonstrably never been exercised -- thre
 defects found by inspection in code that was presumably believed to work. Expect
 to find more once it runs.
 
-**Sequencing** stands as `WORKFLOW.md` A3: this moves land-surface forcing, so it
-must not land in the same iteration as the carve. The natural slot is its own
-iteration after the baseline re-run.
+**Sequencing**, corrected 2026-08-18. This used to read that `WORKFLOW.md` A3
+forbade landing in the same iteration as the carve, and A3 no longer says that.
+The constraint was never real: attribution cannot gate a correct term, so it
+bought nothing that a converged run's cost could be justified against.
+
+What A3 asks for instead applies cleanly here. Each of the six pieces states its
+predicted effect before it runs, and each is tested by a short A/B off a common
+restart against that prediction rather than by an iteration of its own. The
+no-op-until-enabled convention is what makes that possible, so every piece here
+MUST default off, and the whole set can then ride one converged run.
+
+Two constraints on the ORDER are real and are unaffected. The three upstream
+defects come first because everything downstream is uncalibratable without them.
+And the longwave term sits inside the radiation solver, so it cannot be developed
+in parallel with any other patch to `radmod.f90` without the two being tested
+together rather than independently, which CLAUDE.md's Environment section warns
+about directly.
