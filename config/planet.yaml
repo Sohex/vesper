@@ -109,6 +109,23 @@ model:
   ozone_scale: 0.794
   ozone_uv_weight: 0.335
   ozone_visible_weight: 0.914
+  # The Lacis and Hansen shortwave gas absorptances are fractions of SOLAR flux,
+  # so every one of them has to be re-weighted for a K2.5V host. These two are
+  # the water vapour and CO2 halves, beside the ozone weights above.
+  #
+  # h2o_sw_weight scales an absorptance the scheme already has, so 1.0 is the
+  # solar value. co2_sw_weight scales one it does NOT have, so 0.0 is the term
+  # being absent and 1.0 would be the solar-weighted term; the defaults in
+  # radmod.f90 are 1.0 and 0.0 respectively for exactly that reason.
+  #
+  # Both are derived by exoplasim/scripts/shortwave_band_weights.py and both are
+  # quoted for the k25v spectrum: they are about a tenth larger than the values
+  # for the 4965 K blackbody solarini builds when NSTARFILE is 0, so they belong
+  # with stellar_spectrum: k25v and not without it. They have the SAME SIGN and
+  # compound. Arguments in exoplasim/notes/shortwave-water-vapour.md and
+  # exoplasim/notes/shortwave-co2.md.
+  h2o_sw_weight: 1.346
+  co2_sw_weight: 1.510
   roughness_source: lithology
   # Soil water capacity from the pedology soil map as code 229, land-mean
   # 0.151 m against ExoPlaSim's uniform 0.5 m bucket. It was `uniform` for the

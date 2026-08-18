@@ -1025,10 +1025,25 @@ def main() -> None:
     if o3 is not None and float(o3) != 1.0:
         model._edit_namelist("radmod_namelist", "O3SCALE", f"{float(o3)}")
         print(f"ozone column scaled to {float(o3)} of Earth's (Segura et al. 2003)")
-    for key, name in (("ozone_uv_weight", "O3UVW"), ("ozone_visible_weight", "O3VISW")):
+    # The shortwave gas band weights, all four of them. Lacis and Hansen's
+    # absorptances are fractions of SOLAR flux, so a non-solar host needs every
+    # one re-weighted; radmod.f90 carries a key per term and this is where the
+    # config reaches them.
+    #
+    # Each is written only when it differs from the model's OWN default, so a
+    # run's namelist says what departs from the scheme as shipped -- and the
+    # defaults are not all 1.0. co2sww's is 0.0, because upstream has no
+    # shortwave CO2 term at all and zero is what reproduces upstream; comparing
+    # it against 1.0 would silently drop a weight of 1.0 and silently write one
+    # of 0.0, which is the inversion of what is meant.
+    for key, name, default in (("ozone_uv_weight", "O3UVW", 1.0),
+                               ("ozone_visible_weight", "O3VISW", 1.0),
+                               ("h2o_sw_weight", "H2OSWW", 1.0),
+                               ("co2_sw_weight", "CO2SWW", 0.0)):
         w = config["model"].get(key)
-        if w is not None and float(w) != 1.0:
+        if w is not None and float(w) != default:
             model._edit_namelist("radmod_namelist", name, f"{float(w)}")
+            print(f"{name} = {float(w)} (radmod.f90 default {default})")
 
     dust = enable_prescribed_dust(model, run_dir, config)
     if dust is not None:

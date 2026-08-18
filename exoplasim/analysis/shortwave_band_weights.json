@@ -1,5 +1,5 @@
 {
-  "generated": "2026-08-18T07:32:12+00:00",
+  "generated": "2026-08-18T08:00:15+00:00",
   "star": {
     "spectral_type": "K2.5V",
     "effective_temperature_k": 4965.0,
@@ -57,6 +57,17 @@
       "ratio_max": 1.3191204129439538,
       "ratio_median": 1.1342036520915209,
       "source": "Lacis and Hansen (1974) Eq. 21, their fit to Yamamoto (1962)"
+    },
+    "co2_earth_shortwave_absorption_w_m2": {
+      "computed": 2.0452226464795604,
+      "computed_dropping_the_2.7um_band": 1.747911550532915,
+      "expected_range": [
+        1.5,
+        2.5
+      ],
+      "inside": true,
+      "inside_dropping_the_2.7um_band": true,
+      "source": "Earth's measured near-infrared CO2 solar absorption"
     }
   },
   "h2o": {
@@ -188,7 +199,9 @@
   },
   "prediction": {
     "central": {
+      "absorber": "h2o",
       "weight": 1.346,
+      "effective_path_priced_at": 2.78910231590271,
       "baseline": {
         "incident_toa_shortwave": 321.5791015625,
         "toa_net_shortwave_rst": 229.46376037597656,
@@ -236,7 +249,9 @@
       }
     },
     "bracket_low": {
+      "absorber": "h2o",
       "weight": 1.301,
+      "effective_path_priced_at": 2.78910231590271,
       "baseline": {
         "incident_toa_shortwave": 321.5791015625,
         "toa_net_shortwave_rst": 229.46376037597656,
@@ -284,7 +299,9 @@
       }
     },
     "bracket_high": {
+      "absorber": "h2o",
       "weight": 1.363,
+      "effective_path_priced_at": 2.78910231590271,
       "baseline": {
         "incident_toa_shortwave": 321.5791015625,
         "toa_net_shortwave_rst": 229.46376037597656,
@@ -332,7 +349,9 @@
       }
     },
     "blackbody_star": {
+      "absorber": "h2o",
       "weight": 1.202,
+      "effective_path_priced_at": 2.78910231590271,
       "baseline": {
         "incident_toa_shortwave": 321.5791015625,
         "toa_net_shortwave_rst": 229.46376037597656,
@@ -382,76 +401,187 @@
   },
   "co2": {
     "ppmv": 450.0,
-    "column_atmos_cm": 178.90911953455003,
-    "absorptance_solar": 0.005155764826982014,
-    "absorptance_star": 0.007787320554827108,
-    "weight": 1.510410349609663,
+    "column_atmos_cm": 271.8424883267611,
+    "column_atmos_cm_at_earth_gravity": 359.8010309958786,
+    "pressure_reduction": 0.4998522102832794,
+    "pressure_reduction_source": "the model's own sigma grid, from exoplasim/analysis/climatology/baseline_regular_climatology.nc",
+    "effective_path_atmos_cm": 225.56257394080328,
+    "effective_path_atmos_cm_earth": 298.54658540511775,
+    "absorptance_solar": 0.005536110542093188,
+    "absorptance_star": 0.008358637219715812,
+    "absorptance_solar_dropping_the_2.7um_band": 0.00469514345806332,
+    "absorptance_star_dropping_the_2.7um_band": 0.007078612390496525,
+    "weight": 1.5098392917124508,
+    "weight_rounded_for_namelist": 1.51,
+    "weight_dropping_the_2.7um_band": 1.5076456031050331,
+    "weight_against_the_blackbody_the_model_is_actually_using": 1.363958161882875,
+    "keeps_the_2.7um_band": true,
+    "closed_form_fit": {
+      "form": "A(u) = a1 ln(1 + b1 u) + a2 ln(1 + b2 u), u in atmos-cm",
+      "a1": 0.00038265,
+      "b1": 44.539,
+      "a2": 0.0022325,
+      "b2": 0.0058954,
+      "range_atmos_cm": [
+        1.0,
+        10000.0
+      ],
+      "max_relative_error": 0.03989801770230694,
+      "rms_relative_error": 0.01207293799232474,
+      "water_path_cm": 2.789102482795715
+    },
     "per_band": {
       "15": {
-        "mean_absorptance": 0.7651721006021174,
+        "mean_absorptance": 0.7873117045377523,
         "h2o_transmission_in_band": 1.0,
-        "flux_fraction_solar": 0.00021336891128113407,
-        "flux_fraction_star": 0.00033102426994948916,
-        "contribution_solar": 0.00016326393804817218,
-        "contribution_star": 0.000253290535987533
+        "flux_fraction": 0.00021336891128113407,
+        "contribution": 0.0001679878412361141
       },
       "5.2": {
-        "mean_absorptance": 0.0414438633131513,
+        "mean_absorptance": 0.0465347638510458,
         "h2o_transmission_in_band": 0.05400112339482255,
-        "flux_fraction_solar": 0.000687309272221403,
-        "flux_fraction_star": 0.0010342463978326654,
-        "contribution_solar": 1.53820858233988e-06,
-        "contribution_star": 2.3146591348295373e-06
+        "flux_fraction": 0.000687309272221403,
+        "contribution": 1.7271597628815615e-06
       },
       "4.8": {
-        "mean_absorptance": 0.1037829495393475,
+        "mean_absorptance": 0.11653148771596297,
         "h2o_transmission_in_band": 0.6321115479868754,
-        "flux_fraction_solar": 0.001279934665974469,
-        "flux_fraction_star": 0.0019106212124773852,
-        "contribution_solar": 8.396678706765522e-05,
-        "contribution_star": 0.000125341338725983
+        "flux_fraction": 0.001279934665974469,
+        "contribution": 9.428113827130744e-05
       },
       "4.3": {
-        "mean_absorptance": 0.5730445071272601,
+        "mean_absorptance": 0.5831079634616396,
         "h2o_transmission_in_band": 1.0,
-        "flux_fraction_solar": 0.0030602936800548084,
-        "flux_fraction_star": 0.0046521856075268,
-        "contribution_solar": 0.0017536844835516767,
-        "contribution_star": 0.002665909408529728
+        "flux_fraction": 0.0030602936800548084,
+        "contribution": 0.001784481615371286
       },
       "2.7": {
-        "mean_absorptance": 0.7260875784804962,
+        "mean_absorptance": 0.750302770285097,
         "h2o_transmission_in_band": 0.17103179337502405,
-        "flux_fraction_solar": 0.006553383721333382,
-        "flux_fraction_star": 0.00997481832286586,
-        "contribution_solar": 0.0008138258018066922,
-        "contribution_star": 0.001238713444026854
+        "flux_fraction": 0.006553383721333382,
+        "contribution": 0.0008409670840298688
       },
       "2.0": {
-        "mean_absorptance": 0.22950229231678362,
+        "mean_absorptance": 0.26036355840888087,
         "h2o_transmission_in_band": 0.47863845264088933,
-        "flux_fraction_solar": 0.015496956006146216,
-        "flux_fraction_star": 0.023501156311940778,
-        "contribution_solar": 0.001702319263586223,
-        "contribution_star": 0.002581569637966376
+        "flux_fraction": 0.015496956006146216,
+        "contribution": 0.0019312308236272967
       },
       "1.6": {
-        "mean_absorptance": 0.01905475039814435,
+        "mean_absorptance": 0.021395406681039095,
         "h2o_transmission_in_band": 0.9407688031200354,
-        "flux_fraction_solar": 0.026097507460141917,
-        "flux_fraction_star": 0.03841604971190411,
-        "contribution_solar": 0.0004678269127882719,
-        "contribution_star": 0.0006886505144481392
+        "flux_fraction": 0.026097507460141917,
+        "contribution": 0.0005252940524697111
       },
       "1.4": {
-        "mean_absorptance": 0.016238271522794133,
+        "mean_absorptance": 0.018232955864966382,
         "h2o_transmission_in_band": 0.3484568343203891,
-        "flux_fraction_solar": 0.0299274222865175,
-        "flux_fraction_star": 0.04091856471362788,
-        "contribution_solar": 0.00016933943155098281,
-        "contribution_star": 0.00023153101600766548
+        "flux_fraction": 0.0299274222865175,
+        "contribution": 0.00019014082732472294
       }
     },
-    "note": "ExoPlaSim's shortwave has no CO2 absorptance at all: radmod.f90 carries CO2 only in lwr, from Sasamori (1968). These are what a shortwave CO2 term would absorb, not a correction to one."
+    "note": "ExoPlaSim's shortwave has no CO2 absorptance at all: radmod.f90 carries CO2 only in lwr, from Sasamori (1968). The absorptance here is solar-weighted, which is what exoplasim/patches/exoplasim-3.4.2-co2-shortwave.patch codes; `weight` is the namelist key co2sww that re-weights it for this star, and 0.0 leaves the term absent as upstream has it."
+  },
+  "prediction_co2": {
+    "central": {
+      "absorber": "co2",
+      "weight": 1.51,
+      "effective_path_priced_at": 219.86717224121094,
+      "baseline": {
+        "incident_toa_shortwave": 321.5791015625,
+        "toa_net_shortwave_rst": 229.46376037597656,
+        "surface_net_shortwave_rss": 169.6822509765625,
+        "atmospheric_shortwave_absorption": 59.78150939941406,
+        "planetary_albedo": 0.2864469138042557,
+        "surface_albedo": 0.11917336226254255,
+        "effective_water_path_cm": 2.78910231590271,
+        "water_vapour_shortwave_absorption": 43.22953224182129,
+        "ozone_shortwave_absorption": 4.5182291556603005,
+        "cloud_and_scattering_residual": 12.033748001932473,
+        "precipitation_mm_yr": 974.2166869955327,
+        "mean_surface_temperature_k": 289.7068786621094
+      },
+      "predicted_change": {
+        "atmospheric_shortwave_absorption": 2.650904710933925,
+        "of_which_downward_beam": 2.606886075592631,
+        "of_which_reflected_leg": 0.04401863534129395,
+        "surface_net_shortwave": -2.2962146969288524,
+        "toa_net_shortwave": {
+          "below_all_cloud": 0.35469001400507244,
+          "above_all_cloud": 0.7907531063340907,
+          "central": 0.5073120963202289
+        },
+        "kelvin_per_w_m2": {
+          "lower_segment_196": 0.8072938585663325,
+          "upper_segment_209": 0.8608388593896097
+        },
+        "mean_surface_temperature_k": {
+          "below_all_cloud": {
+            "lower_segment_196": 0.2863390700011014,
+            "upper_segment_209": 0.30533094709301123
+          },
+          "above_all_cloud": {
+            "lower_segment_196": 0.6383701263857615,
+            "upper_segment_209": 0.6807110021154293
+          },
+          "central": {
+            "lower_segment_196": 0.4095499397357325,
+            "upper_segment_209": 0.43671396635085763
+          }
+        },
+        "precipitation_mm_yr_full_compensation": -33.451771635384056,
+        "flux_ratio_to_restore_the_design_mean": -0.002228132481381927
+      }
+    },
+    "solar_weighted": {
+      "absorber": "co2",
+      "weight": 1.0,
+      "effective_path_priced_at": 219.86717224121094,
+      "baseline": {
+        "incident_toa_shortwave": 321.5791015625,
+        "toa_net_shortwave_rst": 229.46376037597656,
+        "surface_net_shortwave_rss": 169.6822509765625,
+        "atmospheric_shortwave_absorption": 59.78150939941406,
+        "planetary_albedo": 0.2864469138042557,
+        "surface_albedo": 0.11917336226254255,
+        "effective_water_path_cm": 2.78910231590271,
+        "water_vapour_shortwave_absorption": 43.22953224182129,
+        "ozone_shortwave_absorption": 4.5182291556603005,
+        "cloud_and_scattering_residual": 12.033748001932473,
+        "precipitation_mm_yr": 974.2166869955327,
+        "mean_surface_temperature_k": 289.7068786621094
+      },
+      "predicted_change": {
+        "atmospheric_shortwave_absorption": 1.7554860167347,
+        "of_which_downward_beam": 1.726414619597769,
+        "of_which_reflected_leg": 0.029071397136930896,
+        "surface_net_shortwave": -1.5206719847210943,
+        "toa_net_shortwave": {
+          "below_all_cloud": 0.2348140320136054,
+          "above_all_cloud": 0.5235975368672598,
+          "central": 0.3358882587123845
+        },
+        "kelvin_per_w_m2": {
+          "lower_segment_196": 0.8072938585663325,
+          "upper_segment_209": 0.8608388593896097
+        },
+        "mean_surface_temperature_k": {
+          "below_all_cloud": {
+            "lower_segment_196": 0.18956392594978183,
+            "upper_segment_209": 0.20213704348726735
+          },
+          "above_all_cloud": {
+            "lower_segment_196": 0.4226970758733977,
+            "upper_segment_209": 0.4507331064160211
+          },
+          "central": {
+            "lower_segment_196": 0.27116052842304744,
+            "upper_segment_209": 0.2891456655123312
+          }
+        },
+        "precipitation_mm_yr_full_compensation": -22.152481414630103,
+        "flux_ratio_to_restore_the_design_mean": -0.001475232987307812
+      }
+    }
   }
 }

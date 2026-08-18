@@ -414,9 +414,17 @@ def main() -> None:
     o3 = config["model"].get("ozone_scale")
     if o3 is not None and float(o3) != 1.0:
         model._edit_namelist("radmod_namelist", "O3SCALE", f"{float(o3)}")
-    for key, name in (("ozone_uv_weight", "O3UVW"), ("ozone_visible_weight", "O3VISW")):
+    # The shortwave gas band weights, all four. Same list and same defaults as
+    # run_exoplasim.py: configure() rewrites the namelist on every continuation,
+    # so a weight that is not reapplied here stops applying partway through a
+    # run. co2sww's default is 0.0 and not 1.0, because upstream has no shortwave
+    # CO2 term at all.
+    for key, name, default in (("ozone_uv_weight", "O3UVW", 1.0),
+                               ("ozone_visible_weight", "O3VISW", 1.0),
+                               ("h2o_sw_weight", "H2OSWW", 1.0),
+                               ("co2_sw_weight", "CO2SWW", 0.0)):
         w = config["model"].get(key)
-        if w is not None and float(w) != 1.0:
+        if w is not None and float(w) != default:
             model._edit_namelist("radmod_namelist", name, f"{float(w)}")
 
     # Every continuation re-runs configure(), which rewrites the namelist, so

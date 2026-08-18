@@ -60,6 +60,32 @@ systematic divide out of the ratio. Two further checks that can fail: it must
 give 0.353 above 0.9 um, which is Lacis and Hansen's Section 5a value, and 0.517
 below 0.75 um, which is `radmod.f90`'s own solar reference partitioning.
 
+AND THE SAME MACHINERY FOR CO2, WHICH IS A NEW ABSORBER RATHER THAN A WEIGHT
+----------------------------------------------------------------------------
+`swr` has ozone in band 1 and water vapour in band 2 and nothing else; CO2
+appears only in `lwr`, from Sasamori (1968). Lacis and Hansen did not
+parameterise shortwave CO2 either, so the port is faithful and the absorber is
+simply missing. Howard's Table II covers CO2 as well as H2O, so the same
+integration gives what the missing term is worth, and this script also FITS it,
+in the Lacis and Hansen manner, to the closed form
+`exoplasim/patches/exoplasim-3.4.2-co2-shortwave.patch` codes. The fit is
+solar-weighted, so the patch carries the Sun's CO2 absorptance and `co2sww`
+re-weights it for the host exactly as `h2osww` re-weights Eq. 21.
+
+Two things separate the CO2 half from the H2O half and both are in
+`exoplasim/notes/shortwave-co2.md`. Every CO2 band shares its interval with
+water vapour, so CO2 is charged only with what water vapour leaves it; and the
+CO2 column follows the planet's gravity, which is the term that makes this
+world's column smaller than Earth's at the same mixing ratio.
+
+THE CO2 TEST THAT CAN FAIL
+--------------------------
+Earth's near-infrared CO2 solar absorption is measured at 1.5 to 2.5 W/m2, a
+quantity this derivation did not choose. Running the same integration at EARTH's
+column, EARTH's gravity and EARTH's mean insolation has to land inside it, and
+`--verify` reports where it lands. That check is what licenses the number for
+this star; without it the ratio would be two unvalidated integrals.
+
     python exoplasim/scripts/shortwave_band_weights.py
     python exoplasim/scripts/shortwave_band_weights.py --verify
 
@@ -146,6 +172,35 @@ CO2_BANDS = {
     "1.6": dict(lo=6000.0, hi=6550.0, c=0.063, k=0.38, C=None, D=None, K=None, transition=80.0),
     "1.4": dict(lo=6650.0, hi=7250.0, c=0.048, k=0.41, C=None, D=None, K=None, transition=80.0),
 }
+
+# radmod.f90:2393-2396, `lwr`'s own constants, reused rather than restated so
+# the shortwave CO2 column and the longwave one are the same quantity.
+ZMMAIR = 0.0289644          # molecular weight of air, kg/mol
+ZMMCO2 = 0.0440098          # molecular weight of CO2, kg/mol
+ZRCO2 = 1.9635              # CO2 density at STP, kg/m3
+
+# The 2.7 um CO2 band lies under the strong 2.7 um H2O band, and Yamamoto (1962)
+# drops it outright "because of overlapping by the strong 2.7 um H2O band". It is
+# KEPT here and charged with only the fraction of its interval water vapour has
+# left, which is the same correction every other CO2 band gets and is available
+# because the overlap is computed band by band rather than argued about. Setting
+# this False reproduces Yamamoto's choice, and the difference between the two is
+# reported as the bracket rather than hidden inside one number.
+CO2_KEEP_27UM = True
+
+# The interval the closed-form CO2 fit is quoted over, in atmos-cm. The model
+# never evaluates it below this: the thinnest sigma layer carries a few percent
+# of the column and the smallest magnification is zbetta.
+CO2_FIT_RANGE = (1.0, 1.0e4)
+
+# Earth, for the check that can fail. Present-day gravity and surface pressure;
+# the mixing ratio is deliberately the config's, so the comparison isolates the
+# gravity and pressure terms rather than mixing in a different CO2 abundance.
+EARTH_GRAVITY = 9.80665
+EARTH_SURFACE_PRESSURE_PA = 101325.0
+EARTH_MEAN_INSOLATION = 1361.0 / 4.0
+# Earth's near-infrared CO2 solar absorption, the range the literature measures.
+EARTH_CO2_SHORTWAVE_W_M2 = (1.5, 2.5)
 
 # Standard pressure, in the mm Hg the Howard fits are written in. Lacis and
 # Hansen Eq. 21 is stated for P0 = 1013 mb, T0 = 273 K, and the model reaches it
@@ -323,6 +378,147 @@ def absorptance(spectrum: Spectrum, bands: dict, w: float, scale: dict | None = 
     return total
 
 
+def co2_column_atmos_cm(vmr: float, surface_pressure_pa: float, gravity: float) -> float:
+    """The CO2 column as Howard measures absorber amount: cm of pure gas at STP.
+
+    An atmos-cm is the depth the gas alone would occupy at 273 K and 1 atm, so
+    it is the column MASS divided by the STP density of CO2. The mass column of
+    a trace species is not its partial pressure over g -- that is the mass a
+    PURE atmosphere of that surface pressure would have -- but
+
+        m = vmr * (M_CO2 / M_air) * p_surface / g
+
+    because hydrostatic balance converts total pressure, not partial pressure,
+    into mass. `radmod.f90:2395` carries exactly this factor as `zpv2pm` and
+    `lwr` applies it; dropping it understates the column by 1.52, which survives
+    a star-over-Sun ratio unchanged and destroys every absolute the ratio is
+    quoted beside. At Earth's gravity and 450 ppmv the answer is 360 atmos-cm.
+    """
+    mass_column = vmr * (ZMMCO2 / ZMMAIR) * surface_pressure_pa / gravity
+    return mass_column / ZRCO2 * 100.0
+
+
+def co2_volume_mixing_ratio(config: dict) -> tuple[float, float]:
+    """CO2 volume mixing ratio and total surface pressure, from the partials."""
+    partials = {k: v for k, v in config["atmosphere"].items()
+                if k.startswith("p") and k.endswith("_bar")}
+    total_bar = sum(float(v) for v in partials.values())
+    return float(partials["pCO2_bar"]) / total_bar, total_bar * 1.0e5
+
+
+def pressure_reduction(config: dict) -> tuple[float, str]:
+    """sum(dsigma * sigma) on the model's own grid, the amount's pressure scaling.
+
+    `swr` does not evaluate the absorptance at the true column. It reduces each
+    layer's amount to an equivalent standard-pressure amount by multiplying by
+    sigma * ps / p0, and then evaluates a fit stated at standard pressure --
+    `radmod.f90:1997` for water vapour and `:2532` for `lwr`'s CO2. For a
+    well-mixed gas that reduction is sum(dsigma * sigma) over the column, close
+    to a half, and the CO2 term has to use it or it would be the one absorber in
+    the scheme evaluated on a different kind of amount from the others.
+    """
+    named = config.get("baseline_climatology")
+    if named:
+        path = Path(CONFIG).resolve().parents[1] / named
+        if path.is_file():
+            import netCDF4
+
+            with netCDF4.Dataset(path) as data:
+                sigma = np.asarray(data.variables["lev"][:])
+                sigma_half = np.asarray(data.variables["levp"][:])
+            dsigma = np.diff(sigma_half)
+            if len(dsigma) == len(sigma):
+                return float((dsigma * sigma).sum()), f"the model's own sigma grid, from {named}"
+    return 0.5, "the well-mixed limit, because no baseline climatology is named"
+
+
+def co2_absorptance(
+    spectrum: Spectrum,
+    column_atmos_cm: float,
+    water_cm: float,
+    h2o: dict,
+    h2o_scale: dict,
+    keep_27um: bool = CO2_KEEP_27UM,
+) -> tuple[float, dict]:
+    """Fraction of the star's TOTAL flux absorbed by CO2, net of the H2O overlap.
+
+    Howard's bands for CO2, weighted by the incident flux fraction the same way
+    the water vapour reconstruction is, and then multiplied by the fraction of
+    the interval water vapour has left. Without that factor the two gases would
+    both claim the same photons, because Lacis and Hansen Eq. 21 already carries
+    everything water vapour absorbs across the whole near infrared, the CO2 band
+    intervals included.
+    """
+    rows: dict[str, dict] = {}
+    total = 0.0
+    for name, band in CO2_BANDS.items():
+        if name == "2.7" and not keep_27um:
+            continue
+        width = band["hi"] - band["lo"]
+        mean_absorptance = band_absorption(band, column_atmos_cm) / width
+        overlap = 0.0
+        for h_name, h_band in h2o.items():
+            lo, hi = max(band["lo"], h_band["lo"]), min(band["hi"], h_band["hi"])
+            if hi > lo:
+                overlap += (
+                    (hi - lo) / width
+                    * band_absorption(h_band, water_cm) / (h_band["hi"] - h_band["lo"])
+                    * h2o_scale.get(h_name, 1.0)
+                )
+        clear = max(0.0, 1.0 - overlap)
+        fraction = spectrum.fraction_in_band(band["lo"], band["hi"])
+        contribution = fraction * mean_absorptance * clear
+        total += contribution
+        rows[name] = {
+            "mean_absorptance": mean_absorptance,
+            "h2o_transmission_in_band": clear,
+            "flux_fraction": fraction,
+            "contribution": contribution,
+        }
+    return total, rows
+
+
+def co2_closed_form(u, a1: float, b1: float, a2: float, b2: float):
+    """The form radmod.f90 codes: two logarithms, positive and monotone in u.
+
+    Lacis and Hansen's own Eq. 21 form was tried first and fits worse over the
+    range that matters while wanting a negative coefficient in its denominator,
+    which is a fit that can go singular on a column this scheme has no reason to
+    forbid. Two logarithms are the shape Howard's own strong-band fit has, they
+    stay positive and monotone for every u, and they cost two LOGs per layer.
+    """
+    return a1 * np.log1p(b1 * np.asarray(u, dtype=float)) + a2 * np.log1p(b2 * np.asarray(u, dtype=float))
+
+
+def fit_co2_closed_form(sun: Spectrum, water_cm: float, h2o: dict, h2o_scale: dict) -> dict:
+    """Fit the closed form to the solar-weighted CO2 absorptance.
+
+    Fitted on RELATIVE residuals, because the quantity spans a decade over the
+    range and an absolute fit would spend its accuracy where the absorption is
+    largest and the flux is not.
+    """
+    from scipy.optimize import curve_fit
+
+    lo, hi = CO2_FIT_RANGE
+    u = np.logspace(math.log10(lo), math.log10(hi), 160)
+    y = np.array([co2_absorptance(sun, float(ui), water_cm, h2o, h2o_scale)[0] for ui in u])
+    popt, _ = curve_fit(
+        co2_closed_form, u, y, p0=[1.0e-3, 1.0, 1.0e-3, 1.0e-2], sigma=y,
+        bounds=([0.0, 0.0, 0.0, 0.0], [np.inf] * 4), maxfev=400000,
+    )
+    coefficients = [float(f"{v:.5g}") for v in popt]      # as the patch codes them
+    residual = co2_closed_form(u, *coefficients) / y - 1.0
+    return {
+        "form": "A(u) = a1 ln(1 + b1 u) + a2 ln(1 + b2 u), u in atmos-cm",
+        "a1": coefficients[0], "b1": coefficients[1],
+        "a2": coefficients[2], "b2": coefficients[3],
+        "range_atmos_cm": list(CO2_FIT_RANGE),
+        "max_relative_error": float(np.abs(residual).max()),
+        "rms_relative_error": float(np.sqrt((residual ** 2).mean())),
+        "water_path_cm": water_cm,
+    }
+
+
 def h2o_bands(include_blue: bool) -> tuple[dict, dict]:
     bands = dict(H2O_BANDS)
     scale: dict[str, float] = {}
@@ -380,13 +576,18 @@ def column_water_cm(config: dict) -> tuple[float, str]:
     return 2.5, "Earth's global mean, because no baseline climatology is named"
 
 
-def predict(config: dict, weight: float) -> dict:
-    """What the weight does to the baseline, priced against the baseline itself.
+def predict(config: dict, weight: float, absorber: str = "h2o", co2_fit: dict | None = None) -> dict:
+    """What a weight does to the baseline, priced against the baseline itself.
 
     A correction's size depends on how much of the surface it acts on, so this
-    reimplements `radmod.f90`'s own effective water path against the baseline
-    climatology and asks how much shortwave water vapour is absorbing there,
-    rather than scaling a number measured somewhere else.
+    reimplements `radmod.f90`'s own effective absorber path against the baseline
+    climatology and asks how much shortwave that gas is absorbing there, rather
+    than scaling a number measured somewhere else.
+
+    `absorber` selects which term is being priced. For `h2o` the scheme already
+    carries the absorptance at weight 1.0 and the change is from 1.0 to `weight`.
+    For `co2` there is no term at all upstream, so the change is from ZERO to the
+    whole of it, which is why the two cannot share a default.
 
     Everything here is a PREDICTION about a run that has not happened, which is
     the point: it is falsifiable and the run falsifies it.
@@ -441,8 +642,26 @@ def predict(config: dict, weight: float) -> dict:
         + uvw * 0.0658 * x / (1.0 + (103.6 * x) ** 3)
     )
 
-    a_old, a_new = lacis_hansen_h2o(path), weight * lacis_hansen_h2o(path)
-    a2_old, a2_new = lacis_hansen_h2o(2 * path), weight * lacis_hansen_h2o(2 * path)
+    if absorber == "h2o":
+        gas_path, gas_absorptance, base_weight = path, lacis_hansen_h2o, 1.0
+    elif absorber == "co2":
+        if co2_fit is None:
+            raise ValueError("pricing the CO2 term needs its closed-form fit")
+        vmr, _ = co2_volume_mixing_ratio(config)
+        reduction, _ = pressure_reduction(config)
+        # Well mixed, so the column follows surface pressure and gravity alone
+        # and every cell's path differs only through ps.
+        gas_path = WATER_MAGNIFICATION * reduction * co2_column_atmos_cm(
+            vmr, surface_p, gravity)
+        gas_absorptance = lambda u: co2_closed_form(
+            u, co2_fit["a1"], co2_fit["b1"], co2_fit["a2"], co2_fit["b2"])
+        base_weight = 0.0
+    else:
+        raise ValueError(f"unknown absorber {absorber!r}")
+
+    a_old, a_new = base_weight * gas_absorptance(gas_path), weight * gas_absorptance(gas_path)
+    a2_old = base_weight * gas_absorptance(2 * gas_path)
+    a2_new = weight * gas_absorptance(2 * gas_path)
     down = mean(incident * (a_new - a_old))
     reflected_leg = mean(
         upward
@@ -454,8 +673,11 @@ def predict(config: dict, weight: float) -> dict:
     d_atmosphere = down + reflected_leg
     d_surface = -down * (1.0 - surface_albedo)
 
-    water_vapour_absorption = mean(incident * a_old) + mean(
-        upward * np.clip((a2_old - a_old) / np.clip(1 - a_old, 1e-6, None), 0, 1)
+    # The baseline decomposition is a property of the run, not of the term being
+    # priced, so it is always water vapour's own absorptance at weight 1.0.
+    w_old, w2_old = lacis_hansen_h2o(path), lacis_hansen_h2o(2 * path)
+    water_vapour_absorption = mean(incident * w_old) + mean(
+        upward * np.clip((w2_old - w_old) / np.clip(1 - w_old, 1e-6, None), 0, 1)
     )
     ozone_absorption = mean(incident * a_o3)
 
@@ -491,7 +713,9 @@ def predict(config: dict, weight: float) -> dict:
 
     central_warming = warming["central"]["upper_segment_209"]
     return {
+        "absorber": absorber,
         "weight": weight,
+        "effective_path_priced_at": float(mean(gas_path)),
         "baseline": {
             "incident_toa_shortwave": mean(incident),
             "toa_net_shortwave_rst": mean(rst),
@@ -634,52 +858,55 @@ def main() -> None:
     # is less red than the star it stands for.
     h2o_weight_blackbody = absorptance(blackbody, bands, water, scale) / a_sun
 
-    # CO2, for the record. ExoPlaSim's shortwave has NO CO2 term to re-weight, so
-    # this is what one would be worth rather than a correction to one.
-    # A CO2 column in atmos-cm is the depth the gas would occupy at STP:
-    # (partial pressure / g) is a column mass per unit area, and dividing by the
-    # STP density of CO2 gives a length. Gravity is this planet's, so the column
-    # is 1/1.31 of Earth's at the same mixing ratio, which is the same 1/g that
-    # `radmod.f90` carries explicitly in its Rayleigh term.
+    # CO2. `swr` has no term to re-weight, so this is what the missing absorber
+    # is worth, what its closed form is, and the number the patch's namelist key
+    # carries. Three quantities have to be kept apart and were not on the first
+    # pass: the TRUE column, the pressure-REDUCED amount the scheme evaluates a
+    # standard-pressure fit at, and the MAGNIFIED path it evaluates it on.
     gravity = float(config["planet"]["gravity_m_s2"])
-    pco2_pa = float(config["atmosphere"]["pCO2_bar"]) * 1.0e5
-    co2_column_atmcm = pco2_pa / gravity / 1.9635 * 100.0
-    co2_ppmv = (
-        float(config["atmosphere"]["pCO2_bar"])
-        / sum(v for k, v in config["atmosphere"].items() if k.startswith("p") and k.endswith("_bar"))
-        * 1.0e6
-    )
-    # Every CO2 band shares its interval with water vapour, and Yamamoto drops
-    # the 2.7 um CO2 band outright "because of overlapping by the strong 2.7 um
-    # H2O band". Charging CO2 only with what water vapour has left is the same
-    # correction applied to every band rather than to one, so the two do not
-    # double-count. `overlap` is the H2O transmission across the CO2 band.
-    co2_rows = {}
-    co2_sun = co2_star = 0.0
-    for name, band in CO2_BANDS.items():
-        width = band["hi"] - band["lo"]
-        mean_absorptance = band_absorption(band, co2_column_atmcm) / width
-        h2o_here = 0.0
-        for h_name, h_band in bands.items():
-            lo, hi = max(band["lo"], h_band["lo"]), min(band["hi"], h_band["hi"])
-            if hi > lo:
-                share = (hi - lo) / width
-                h2o_here += share * band_absorption(h_band, water) / (
-                    h_band["hi"] - h_band["lo"]
-                ) * scale.get(h_name, 1.0)
-        clear = max(0.0, 1.0 - h2o_here)
-        f_sun = sun.fraction_in_band(band["lo"], band["hi"])
-        f_star = star.fraction_in_band(band["lo"], band["hi"])
-        co2_sun += f_sun * mean_absorptance * clear
-        co2_star += f_star * mean_absorptance * clear
-        co2_rows[name] = {
-            "mean_absorptance": mean_absorptance,
-            "h2o_transmission_in_band": clear,
-            "flux_fraction_solar": f_sun,
-            "flux_fraction_star": f_star,
-            "contribution_solar": f_sun * mean_absorptance * clear,
-            "contribution_star": f_star * mean_absorptance * clear,
-        }
+    co2_vmr, surface_pressure_pa = co2_volume_mixing_ratio(config)
+    co2_ppmv = co2_vmr * 1.0e6
+    co2_column = co2_column_atmos_cm(co2_vmr, surface_pressure_pa, gravity)
+    co2_column_earth = co2_column_atmos_cm(
+        co2_vmr, EARTH_SURFACE_PRESSURE_PA, EARTH_GRAVITY)
+    reduction, reduction_source = pressure_reduction(config)
+    co2_path = co2_column * reduction * WATER_MAGNIFICATION
+    co2_path_earth = co2_column_earth * reduction * WATER_MAGNIFICATION
+
+    co2_sun, co2_rows = co2_absorptance(sun, co2_path, water, bands, scale)
+    co2_star, _ = co2_absorptance(star, co2_path, water, bands, scale)
+    co2_blackbody, _ = co2_absorptance(blackbody, co2_path, water, bands, scale)
+    co2_weight = co2_star / co2_sun
+    co2_weight_blackbody = co2_blackbody / co2_sun
+
+    # Yamamoto's own choice, carried as the bracket: drop the 2.7 um CO2 band
+    # outright "because of overlapping by the strong 2.7 um H2O band". It is kept
+    # in the central number and charged with what water vapour leaves it instead,
+    # so this says what the decision is worth rather than burying it.
+    co2_sun_no27, _ = co2_absorptance(sun, co2_path, water, bands, scale, keep_27um=False)
+    co2_star_no27, _ = co2_absorptance(star, co2_path, water, bands, scale, keep_27um=False)
+    co2_sun_earth, _ = co2_absorptance(sun, co2_path_earth, water, bands, scale)
+    co2_sun_earth_no27, _ = co2_absorptance(
+        sun, co2_path_earth, water, bands, scale, keep_27um=False)
+
+    # THE CHECK THAT CAN FAIL. Earth's column, Earth's gravity, Earth's mean
+    # insolation, against the 1.5 to 2.5 W/m2 the literature measures for Earth's
+    # near-infrared CO2 solar absorption. Nothing here was tuned to it, and it
+    # has to pass with the 2.7 um band in and with it out, or the bracket would
+    # be deciding the check.
+    lo, hi = EARTH_CO2_SHORTWAVE_W_M2
+    earth_w_m2 = co2_sun_earth * EARTH_MEAN_INSOLATION
+    earth_w_m2_no27 = co2_sun_earth_no27 * EARTH_MEAN_INSOLATION
+    checks["co2_earth_shortwave_absorption_w_m2"] = {
+        "computed": earth_w_m2,
+        "computed_dropping_the_2.7um_band": earth_w_m2_no27,
+        "expected_range": [lo, hi],
+        "inside": bool(lo <= earth_w_m2 <= hi),
+        "inside_dropping_the_2.7um_band": bool(lo <= earth_w_m2_no27 <= hi),
+        "source": "Earth's measured near-infrared CO2 solar absorption",
+    }
+
+    co2_fit = fit_co2_closed_form(sun, water, bands, scale)
 
     report = {
         "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -730,16 +957,35 @@ def main() -> None:
         },
         "co2": {
             "ppmv": co2_ppmv,
-            "column_atmos_cm": co2_column_atmcm,
+            "column_atmos_cm": co2_column,
+            "column_atmos_cm_at_earth_gravity": co2_column_earth,
+            "pressure_reduction": reduction,
+            "pressure_reduction_source": reduction_source,
+            "effective_path_atmos_cm": co2_path,
+            "effective_path_atmos_cm_earth": co2_path_earth,
             "absorptance_solar": co2_sun,
             "absorptance_star": co2_star,
-            "weight": co2_star / co2_sun if co2_sun > 0 else None,
+            "absorptance_solar_dropping_the_2.7um_band": co2_sun_no27,
+            "absorptance_star_dropping_the_2.7um_band": co2_star_no27,
+            "weight": co2_weight,
+            "weight_rounded_for_namelist": round(co2_weight, 3),
+            "weight_dropping_the_2.7um_band": co2_star_no27 / co2_sun_no27,
+            "weight_against_the_blackbody_the_model_is_actually_using": co2_weight_blackbody,
+            "keeps_the_2.7um_band": CO2_KEEP_27UM,
+            "closed_form_fit": co2_fit,
             "per_band": co2_rows,
             "note": (
                 "ExoPlaSim's shortwave has no CO2 absorptance at all: radmod.f90 "
-                "carries CO2 only in lwr, from Sasamori (1968). These are what a "
-                "shortwave CO2 term would absorb, not a correction to one."
+                "carries CO2 only in lwr, from Sasamori (1968). The absorptance "
+                "here is solar-weighted, which is what "
+                "exoplasim/patches/exoplasim-3.4.2-co2-shortwave.patch codes; "
+                "`weight` is the namelist key co2sww that re-weights it for this "
+                "star, and 0.0 leaves the term absent as upstream has it."
             ),
+        },
+        "prediction_co2": {
+            "central": predict(config, round(co2_weight, 3), "co2", co2_fit),
+            "solar_weighted": predict(config, 1.0, "co2", co2_fit),
         },
     }
 
@@ -769,6 +1015,35 @@ def main() -> None:
     print(f"  bracket over which bands are counted: {bracket[0]:.3f} to {bracket[1]:.3f}")
     print(f"  h2o_sw_weight for config/planet.yaml: {round(h2o_weight, 3)}")
     print(f"  against the blackbody the model is running today: {h2o_weight_blackbody:.4f}")
+
+    ck = checks["co2_earth_shortwave_absorption_w_m2"]
+    print(f"\nCO2, the absorber the scheme does not have")
+    print(f"  column {co2_column:.1f} atmos-cm against Earth's {co2_column_earth:.1f} "
+          f"at the same mixing ratio, pressure-reduced by {reduction:.4f}, "
+          f"path {co2_path:.1f}")
+    print(f"  CHECK, Earth's column and Earth's insolation: {ck['computed']:.2f} W/m2 "
+          f"against a measured {ck['expected_range'][0]}-{ck['expected_range'][1]} "
+          f"-- {'inside' if ck['inside'] else 'OUTSIDE'}; "
+          f"dropping the 2.7 um band {ck['computed_dropping_the_2.7um_band']:.2f} "
+          f"-- {'inside' if ck['inside_dropping_the_2.7um_band'] else 'OUTSIDE'}")
+    print(f"  absorptance solar {co2_sun:.6f}  this star {co2_star:.6f}")
+    print(f"  co2_sw_weight for config/planet.yaml: {round(co2_weight, 3)} "
+          f"(2.7 um band dropped: {co2_star_no27 / co2_sun_no27:.3f}; "
+          f"blackbody: {co2_weight_blackbody:.3f})")
+    print(f"  closed form for the patch: a1={co2_fit['a1']:.6g} b1={co2_fit['b1']:.6g} "
+          f"a2={co2_fit['a2']:.6g} b2={co2_fit['b2']:.6g}")
+    print(f"    max relative error {co2_fit['max_relative_error']:.4f}, "
+          f"rms {co2_fit['rms_relative_error']:.4f}, over "
+          f"{co2_fit['range_atmos_cm'][0]:.0f}-{co2_fit['range_atmos_cm'][1]:.0f} atmos-cm")
+    pc = report["prediction_co2"]["central"]["predicted_change"]
+    print(f"  atmospheric shortwave absorption {pc['atmospheric_shortwave_absorption']:+.2f} W/m2, "
+          f"surface {pc['surface_net_shortwave']:+.2f}, "
+          f"top of atmosphere {pc['toa_net_shortwave']['central']:+.2f} "
+          f"({pc['toa_net_shortwave']['below_all_cloud']:+.2f} to "
+          f"{pc['toa_net_shortwave']['above_all_cloud']:+.2f})")
+    print(f"  mean surface temperature "
+          f"{pc['mean_surface_temperature_k']['central']['upper_segment_209']:+.2f} K, "
+          f"SAME SIGN as the water vapour correction and about a sixth of its size")
 
     p = report["prediction"]["central"]
     base, change = p["baseline"], p["predicted_change"]
@@ -813,15 +1088,22 @@ def main() -> None:
                 f"  {name:>5} um  solar {row['solar']:.5f}  star {row['star']:.5f}  "
                 f"ratio {row['ratio']:.3f}"
             )
-        print(f"\nCO2 at {co2_column_atmcm:.1f} atmos-cm, net of the H2O overlap:")
-        print(f"  {'band':>6} {'Abar':>7} {'clear':>7} {'solar':>9} {'star':>9}")
+        print(f"\nCO2 at {co2_path:.1f} atmos-cm of path, net of the H2O overlap:")
+        print(f"  {'band':>6} {'Abar':>7} {'clear':>7} {'f_solar':>9} {'solar':>9}")
         for name, row in co2_rows.items():
             print(
                 f"  {name:>6} {row['mean_absorptance']:7.4f} "
                 f"{row['h2o_transmission_in_band']:7.4f} "
-                f"{row['contribution_solar']:9.6f} {row['contribution_star']:9.6f}"
+                f"{row['flux_fraction']:9.6f} {row['contribution']:9.6f}"
             )
-        print(f"  {'total':>6} {'':>7} {'':>7} {co2_sun:9.6f} {co2_star:9.6f}")
+        print(f"  {'total':>6} {'':>7} {'':>7} {'':>9} {co2_sun:9.6f}")
+        print("\nCO2 closed form against the integration it is fitted to:")
+        print(f"  {'u (atmos-cm)':>13} {'integrated':>11} {'closed form':>12}")
+        for amount in (1.0, 10.0, 100.0, co2_path, 1000.0, 10000.0):
+            exact = co2_absorptance(sun, amount, water, bands, scale)[0]
+            fitted = float(co2_closed_form(
+                amount, co2_fit["a1"], co2_fit["b1"], co2_fit["a2"], co2_fit["b2"]))
+            print(f"  {amount:13.1f} {exact:11.6f} {fitted:12.6f}")
 
     print(f"\nwrote {out}")
 

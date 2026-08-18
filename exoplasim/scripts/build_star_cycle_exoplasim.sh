@@ -12,7 +12,7 @@ patch_file="$component_dir/patches/exoplasim-3.4.2-star-cycle.patch"
 executable="most_plasim_t42_l10_p16.x"
 # The base this patch applies ON TOP OF, not pristine ExoPlaSim 3.4.2.
 #
-# radmod.f90 now carries three resident patches besides this one, and the pin has
+# radmod.f90 now carries five resident patches besides this one, and the pin has
 # to name the stack rather than a version:
 #
 #   pristine 3.4.2                eb8e9e1c0127940e607828899ff5dea6653c9835c...
@@ -20,6 +20,7 @@ executable="most_plasim_t42_l10_p16.x"
 #   + prescribed-dust             (DUST-11; radmod and surfmod)
 #   + rayleigh-reference-grid     (SPEC-2; radmod)
 #   + h2o-shortwave-weight        (PHYS-1; radmod)
+#   + co2-shortwave               (PHYS-6; radmod)
 #                                 -> the sha below
 #
 # Regenerated twice on 2026-08-17, the first time because hunk 2 FAILED outright,
@@ -29,11 +30,16 @@ executable="most_plasim_t42_l10_p16.x"
 # be regenerated rather than re-checked, and the cycle keys now sit after the
 # dust keys instead of after minwavel.
 #
-# If a FOURTH patch lands on radmod.f90 this sha moves again and this patch has
+# Regenerated again on 2026-08-18 for co2-shortwave. That one lands nowhere near
+# the cycle hunks, so all five applied at offsets and none fuzzed; it was
+# regenerated anyway rather than re-pinned alone, because a hunk header that no
+# longer names the line it patches is how a patch starts applying somewhere else.
+#
+# If anything else lands on radmod.f90 this sha moves again and this patch has
 # to be regenerated against the new base. That is not a nuisance to be worked
 # around -- it is the check that stops us building a cycle binary on a source we
 # have not looked at.
-base_sha="7a78b0c85c560b4b27aac57593582f69beb54ce5f522df9492229b550f4f8707"
+base_sha="11e9fad6a006c5a88f0d9568dae400a350e87730f151ec6976b126dccb44f12a"
 
 if [[ ! -f "$source_file" || ! -f "$run_dir/$executable" || ! -d "$bin_dir" ]]; then
   echo "ExoPlaSim 3.4.2 source or baseline executable is missing" >&2
