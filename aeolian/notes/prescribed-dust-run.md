@@ -20,7 +20,7 @@ limb offline and this one needs a climate run.
 
 | piece | where |
 | --- | --- |
-| the model change | `exoplasim/patches/exoplasim-3.4.2-prescribed-dust.patch`, RESIDENT, not applied |
+| the model change | `exoplasim/patches/exoplasim-3.4.2-prescribed-dust.patch`, resident and compiled into all five binaries since 2026-08-18 |
 | the boundary field | `exoplasim/scripts/build_surface_dust.py` -> surface code 1811 |
 | the run wiring | `model.dust_source` in `run_exoplasim.py`, absent by default |
 | the prediction | `aeolian/scripts/dust_runoff_sensitivity.py` -> `aeolian/analysis/dust_runoff_sensitivity.json` |
@@ -85,10 +85,10 @@ one: the band-1 flux share sets how much of the star's output meets the more
 absorbing of the two dust bands, so the atmospheric absorption in the prediction
 below moves with it. It does not change the sign of anything here.
 
-    # once, before either run
+    # once, before either run. The patch is already resident, so this is a check
+    # rather than an application; --verify fails if a .venv reinstall dropped it.
     python exoplasim/scripts/build_surface_dust.py
-    patch -p1 -d .venv/.../exoplasim/plasim/src < exoplasim/patches/exoplasim-3.4.2-prescribed-dust.patch
-    python exoplasim/scripts/rebuild_binaries.py            # then --verify
+    python exoplasim/scripts/rebuild_binaries.py --verify
 
     # then, per run
     python exoplasim/scripts/run_exoplasim.py --restart-from <baseline>/MOST_REST.<n>

@@ -12,7 +12,7 @@ patch_file="$component_dir/patches/exoplasim-3.4.2-star-cycle.patch"
 executable="most_plasim_t42_l10_p16.x"
 # The base this patch applies ON TOP OF, not pristine ExoPlaSim 3.4.2.
 #
-# radmod.f90 now carries five resident patches besides this one, and the pin has
+# radmod.f90 now carries seven resident patches besides this one, and the pin has
 # to name the stack rather than a version:
 #
 #   pristine 3.4.2                eb8e9e1c0127940e607828899ff5dea6653c9835c...
@@ -43,11 +43,11 @@ executable="most_plasim_t42_l10_p16.x"
 # namelist hunk, and aerosol-longwave adds a key to the radmod_nl line that hunk
 # edits. Re-pinning alone would have left a patch that cannot apply.
 #
-# THE LAST THREE ARE STILL IN `PENDING_PATCHES`, so this sha names a radmod.f90
-# the vendored tree does not hold yet and the check below will refuse to run
-# until the next rebuild applies them. That is the check working, not failing: a
-# cycle binary built on a source three patches behind the steady one is a pair of
-# binaries that cannot be compared. Run rebuild_binaries.py first.
+# All of them are resident as of 2026-08-18 and the check below passes. It exists
+# for the state between authoring a radmod patch and the rebuild that lands it: a
+# cycle binary built on a source behind the steady one is a pair of binaries that
+# cannot be compared, so the check refuses rather than building. If it refuses,
+# run rebuild_binaries.py first.
 #
 # If anything else lands on radmod.f90 this sha moves again and this patch has
 # to be regenerated against the new base. That is not a nuisance to be worked
