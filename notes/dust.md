@@ -426,7 +426,7 @@ reads that namelist with `l_aerorad` and `aerofile` use-associated from `radmod`
 and `Model.configure` writes every field of it. The real limitation is narrower
 and worse: the aerosol acts in the two shortwave bands only.
 
-### Does dust change the carve verdict? Globally no, locally yes
+### Does dust change the carve verdict? The size is settled, the SIGN is not
 
 Worth settling, because "dust is a radiation question, the carve is a water
 question" is an easy assumption and it is wrong.
@@ -434,14 +434,8 @@ question" is an easy assumption and it is wrong.
 The global mean is negligible. +0.74 W/m2 against this project's own slope of
 150.2 K per unit flux ratio is **+0.35 K**, which moves nothing.
 
-The local forcing is not negligible, and it lands in exactly the wrong place.
-Dust warms the bright closed-basin fill: **+8.2 W/m2 over playa and +10.8 over
-salt crust**, up to +3.9 and +5.0 K if those acted globally, and less than that in
-practice because circulation exports the heat. Those are the surfaces whose
-open-water evaporation the overflow test is decided on.
-
-And the verdict is sensitive to exactly that. From the current carve list, the
-number of overflowing basins that stop overflowing if lake evaporation rises:
+**The size of the local effect is real.** From the current carve list, the number
+of overflowing basins that stop overflowing if lake evaporation rises:
 
 | lake evaporation | basins that close | of 1,610 overflowing |
 | ---: | ---: | ---: |
@@ -450,21 +444,50 @@ number of overflowing basins that stop overflowing if lake evaporation rises:
 | +15% | 196 | 12% |
 | +20% | 235 | 15% |
 
-A few kelvin over a lake surface is worth more than 10% on Penman through the
-saturation vapour pressure alone, so **dust plausibly closes 100 to 250 basins**
-that the dust-free verdict carves.
+A few percent on open-water evaporation moves a hundred basins. So dust is not
+carve-neutral at any plausible magnitude, and the carve list must not be recorded
+as dust-independent.
 
-**The direction is the interesting part, because it opposes the other correction
-we know about.** `WORKFLOW.md` A2 says the stellar cycle makes a mean-climate
-verdict UNDER-carve, because carving is irreversible and the wet extreme
-ratchets. Dust pushes the other way: it warms the basins, raises their
-evaporation, and makes them less likely to overflow at all. Neither is a reason
-to skip the other, and nothing here says they are the same size.
+**The DIRECTION is open, and a first reading of it here was wrong.** That reading
+took the top-of-atmosphere forcing -- +8.2 W/m2 over playa, +10.8 over salt crust
+-- and treated it as surface warming, concluding that dust raises lake
+evaporation and closes basins. It does not follow. The carve verdict is decided
+by a Penman evaporation at an open water surface, which reads the SURFACE energy
+balance, and for an absorbing layer that is a different quantity from the TOA
+one:
 
-None of this changes the decision to put dust in the model after the carve rather
-than before. It changes the REASON: not that dust is irrelevant to the terrain,
-but that the pipeline is a loop and this is one more thing iteration 3 will
-revise. Do not record the iteration-2 carve list as dust-independent.
+| surface | TOA shortwave | surface shortwave |
+| --- | ---: | ---: |
+| ocean | -11.9 | -23.8 |
+| vegetated land | -7.6 | -19.5 |
+| playa fill | -0.1 | -12.1 |
+| salt crust | +2.8 | -9.1 |
+
+The layer absorbs about 12 W/m2 of shortwave whatever sits beneath it, so the
+surface term is negative everywhere and the TOA sign over bright ground comes
+from energy retained in the ATMOSPHERE, not delivered to the ground. The surface
+also gains downward longwave from the dust, but that is damped by the atmosphere
+already being opaque outside the window and is nothing like the TOA longwave
+number.
+
+So the two terms in Penman pull opposite ways: net radiation at the lake falls,
+which suppresses evaporation, while the air above warms, which raises the vapour
+pressure deficit and promotes it. For an open water surface the radiative term
+usually dominates, which would mean **dust suppresses lake evaporation, keeps
+basins overflowing, and makes a dust-free verdict UNDER-carve** -- the opposite
+of the first reading here.
+
+That is a preliminary indication and not a result. What settles it is computing
+the dust SURFACE forcing per cell and running it through the Penman already in
+`carve_verdict.py`, which is bounded offline work and does not need in-model
+dust. Until that is done, neither direction should be quoted.
+
+**Note the interaction with A2 either way.** `WORKFLOW.md` A2 says the stellar
+cycle makes a mean-climate verdict under-carve, because carving is irreversible
+and the wet extreme ratchets. If dust also under-carves, the two compound rather
+than cancel, and the irreversibility argument stops being a reason to hurry: an
+under-carve is the recoverable error, since a basin left closed can be carved on
+a later pass and one carved in error cannot be restored.
 
 **The Generic PCM is still out, but not for the reason given above.** That reason
 was that the trade is not worth making "for a term whose sign is settled" -- and
