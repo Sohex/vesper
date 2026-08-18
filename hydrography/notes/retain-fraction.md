@@ -233,6 +233,46 @@ their retain is spread across the range, median 0.35 with 53 of the 98 between
 is the landform the marginal class exists to name, and membership is now decided
 by the terrain rather than by an arbitrary discharge.
 
+### Does the coefficient need a gravity term? No, and the reason is already in tree
+
+Asked 2026-08-17 (PHYS-3). `C` was fixed by matching Earth's standing-basin
+density, which is an Earth observable transferred to a 1.31 g world, and stream
+power goes as `rho g Q S` -- so the objection was that this world cuts 31% faster
+and should have FEWER standing basins than Earth, not the same number.
+
+**It does not, because the 1/g relief scaling has already paid for it.**
+`notes/audits/orogen-gravity.md` derives the compensation directly: at steady
+state `K A^m S = U` gives `S ~ 1/K`, and stream power puts `K ~ rho g`, so
+`S ~ 1/g`. Orogen scales every land height by `reliefScale = 0.7655464480874317`,
+which is `1/(g_v/g_e)` to sixteen digits. The erosivity is up by g and the slopes
+are down by g, and at grade the two cancel exactly -- as they must, because at
+steady state the incision rate equals the uplift rate and gravity does not enter.
+
+A basin sill is not at grade; it is a transient knickpoint. For a transient at
+fixed local slope the residual is `g^(1-n)`, and that is where the whole question
+lives:
+
+| n | C factor | carve | marginal | preserve |
+| ---: | ---: | ---: | ---: | ---: |
+| 0.5 | 1.1429 | 1618 | 107 | 1896 |
+| **1.0, Orogen's own assumption** | **1.0000** | **1605** | **120** | **1896** |
+| 2.0 | 0.7655 | 1553 | 172 | 1896 |
+
+**So no correction is applied**, and the bracket is -52 to +13 basins rather than
+the one-signed 30 to 40 the objection implied. `orogen-gravity.md` records that
+"n = 1 is a choice, and nothing in the generator states it", which makes this the
+same question as GRAV-4 and GRAV-5: **the gravity term and the slope exponent are
+one question and cannot be settled separately.** Choosing a gravity factor here
+while Orogen scales relief on n = 1 would double-count whatever n turns out to be.
+
+**What is genuinely open, and it is not gravity.** This mapping treats the cut as
+slope-INDEPENDENT: `S^n` is absorbed into `C`, so depth enters only as the amount
+of rock to remove. Physically the sill's local slope is set by that same relief,
+so `S` and `depth` are not independent, and a formulation carrying both would
+have a different depth dependence -- at n = 1 with `S ~ depth`, the depth cancels
+out of `retain` entirely. That is a structural question about the mapping rather
+than a coefficient to scale, and it is worth more than the gravity factor was.
+
 ### What this model still cannot produce
 
 It carves Tanganyika, Malawi and Albert. Under `C = 161` a sill carrying 1,491
