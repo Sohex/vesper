@@ -18,7 +18,7 @@ from netCDF4 import Dataset
 import numpy as np
 import yaml
 
-from _paths import CONFIG, INPUTS, RUNS
+from _paths import CONFIG, INPUTS, PROJECT_ROOT, RUNS
 
 
 EARTH_STANDARD_GRAVITY = 9.80665
@@ -275,6 +275,11 @@ ALBEDO_SURFACE_CODES = {174, 175, 176, 212}
 # from pedology when asked for; otherwise the uniform namelist default stands.
 SOIL_WATER_SURFACE_CODES = {229}
 ROUGHNESS_SURFACE_CODES = {173}
+# ddustcol, the prescribed band-1 column dust optical depth. DUST-11. Only read
+# by a binary carrying patches/exoplasim-3.4.2-prescribed-dust.patch; an
+# unpatched one cannot parse NDUSTRAD and aborts in radini_, which is the loud
+# failure this arrangement is designed to produce rather than avoid.
+DUST_SURFACE_CODES = {1811}
 
 # PlaSim's own 28-term energy decomposition, denergy(NHOR,28), written to these
 # codes when nenergy > 0. Turned on to name the gap between the top of the
@@ -360,6 +365,8 @@ def intended_surface_codes(config: dict) -> set[int]:
         codes |= SOIL_WATER_SURFACE_CODES
     if str(config["model"].get("roughness_source", "uniform")) != "uniform":
         codes |= ROUGHNESS_SURFACE_CODES
+    if str(config["model"].get("dust_source", "none")) != "none":
+        codes |= DUST_SURFACE_CODES
     return codes
 
 
@@ -419,6 +426,57 @@ def enable_energy_diagnostics(model, config: dict) -> bool:
     return True
 
 
+def enable_prescribed_dust(model, run_dir: Path, config: dict) -> dict | None:
+    """Switch on the prescribed dust the patched radiation reads. DUST-11.
+
+    Every value comes from the provenance file `build_surface_dust.py` wrote
+    beside the field, so the run cannot be given a longwave ratio, a scale height
+    or a burden that disagrees with the field it is applied to. There is no
+    default for `DUSTQLW` here and none in the Fortran either: a shortwave-only
+    dust is a larger error than no dust, so `radini` aborts rather than assume
+    one, and this raises rather than supply one.
+
+    `AEROFILE` goes in `radmod_namelist` rather than `aero_namelist`, because the
+    prescribed path never runs `aero_ini` -- that is only called when the
+    semi-Lagrangian tracer transport is on, and nothing here is transported. The
+    file is staged into the run directory and named bare, for the same
+    `character(len=80)` reason `stage_stellar_spectrum` does it.
+    """
+    if str(config["model"].get("dust_source", "none")) == "none":
+        return None
+    field = surface_sra(config, sorted(DUST_SURFACE_CODES)[0])
+    prov_path = field.with_name(field.stem + "_provenance.json")
+    if not prov_path.is_file():
+        raise RuntimeError(
+            f"{prov_path} is missing. Run exoplasim/scripts/build_surface_dust.py; "
+            "the namelist values live with the field, not in the config.")
+    prov = json.loads(prov_path.read_text(encoding="utf-8"))
+    values = prov["namelist_values"]
+    if float(values.get("DUSTQLW", 0.0)) <= 0.0:
+        raise RuntimeError(
+            f"{prov_path} carries no thermal-infrared absorption ratio. "
+            "Shortwave-only dust is worse than no dust; see notes/dust.md.")
+    aerofile = PROJECT_ROOT / prov["aerofile"]
+    if not aerofile.is_file():
+        raise RuntimeError(
+            f"{aerofile} is missing. Run exoplasim/scripts/dust_aerofile.py.")
+    shutil.copyfile(aerofile, run_dir / aerofile.name)
+    model._edit_namelist("radmod_namelist", "AEROFILE", f"'{aerofile.name}'")
+    scale = float(config["model"].get("dust_scale", values["DUSTSC"]))
+    for key, value in (("NDUSTRAD", "1"),
+                       ("DUSTSC", f"{scale}"),
+                       ("DUSTHSC", f"{float(values['DUSTHSC'])}"),
+                       ("DUSTQLW", f"{float(values['DUSTQLW'])}")):
+        model._edit_namelist("radmod_namelist", key, value)
+    return {"variant": prov["variant"], "dustsc": scale,
+            "dusthsc": float(values["DUSTHSC"]),
+            "dustqlw": float(values["DUSTQLW"]),
+            "aerofile": aerofile.name,
+            "field_sha256": prov["output_sha256"],
+            "land_mean_band1_optical_depth":
+                prov["field_statistics"]["land_mean_band1_optical_depth"]}
+
+
 def stage_surface_extras(run_dir: Path, config: dict) -> list[int]:
     """Copy the surface fields we generate into the run directory.
 
@@ -430,14 +488,17 @@ def stage_surface_extras(run_dir: Path, config: dict) -> list[int]:
     for code in sorted(intended_surface_codes(config) - BASE_SURFACE_CODES):
         src = surface_sra(config, code)
         if not src.is_file():
-            builder = ("build_surface_soil_water.py"
-                       if code in SOIL_WATER_SURFACE_CODES
-                       else "build_surface_albedo.py")
-            setting = ("model.soil_water_source"
-                       if code in SOIL_WATER_SURFACE_CODES
-                       else "model.land_albedo_source")
+            if code in SOIL_WATER_SURFACE_CODES:
+                builder, setting = ("build_surface_soil_water.py",
+                                    "model.soil_water_source")
+            elif code in DUST_SURFACE_CODES:
+                builder, setting = ("build_surface_dust.py", "model.dust_source")
+            else:
+                builder, setting = ("build_surface_albedo.py",
+                                    "model.land_albedo_source")
+            fallback = "none" if code in DUST_SURFACE_CODES else "uniform"
             raise RuntimeError(
-                f"{src} is missing. Run {builder}, or set {setting}: uniform "
+                f"{src} is missing. Run {builder}, or set {setting}: {fallback} "
                 f"to accept ExoPlaSim's namelist default."
             )
         shutil.copyfile(src, run_dir / f"N{int(config['model']['latitudes']):03d}"
@@ -752,7 +813,19 @@ def main() -> None:
             was = set((src.get("surface_fields") or {}).get("from_file") or [])
             now = intended_surface_codes(config)
             reason = None
-            if was != now:
+            # The guard above is about fields landmod reads only on a cold
+            # start. It does not apply to every surface field, and refusing a
+            # restart for one it does not apply to costs a cold start for no
+            # reason. `radini` reads the dust field with `mpsurfgp` outside any
+            # `nrestart` test, where landmod's block is inside `if (nrestart ==
+            # 0)`, so a restarted run picks it up. Adding or removing dust is
+            # therefore a forcing change and an ordinary perturbation
+            # experiment, which is exactly what seeding from an equilibrium is
+            # for. The exemption is stated per code rather than assumed for the
+            # class: anything else added here must be checked the same way,
+            # in the Fortran and not from the name.
+            transparent = DUST_SURFACE_CODES
+            if (was - transparent) != (now - transparent):
                 reason = (f"codes differ: {sorted(was)} then, {sorted(now)} now")
             else:
                 # Same codes, possibly different content.
@@ -877,6 +950,13 @@ def main() -> None:
         if w is not None and float(w) != 1.0:
             model._edit_namelist("radmod_namelist", name, f"{float(w)}")
 
+    dust = enable_prescribed_dust(model, run_dir, config)
+    if dust is not None:
+        print(f"prescribed dust ON: {dust['variant']} burden, land-mean band-1 "
+              f"optical depth {dust['land_mean_band1_optical_depth']:.4f} x "
+              f"{dust['dustsc']}, DUSTQLW {dust['dustqlw']:.5f}. Needs "
+              "patches/exoplasim-3.4.2-prescribed-dust.patch and a rebuild.")
+
     disable_low_io(model)
     if enable_energy_diagnostics(model, config):
         n = register_energy_diagnostic_codes()
@@ -969,6 +1049,11 @@ def main() -> None:
             for c in sorted(intended_surface_codes(config))
             if surface_sra(config, c).is_file()},
         "stellar_spectrum": spectrum,
+        # Null when the run has no prescribed dust, which is most of them. The
+        # values are copied from the field's own provenance rather than the
+        # config, so a run says what burden and what longwave ratio it actually
+        # carried instead of what a setting asked for.
+        "prescribed_dust": dust,
         "postprocessor": {
             "regular_codes": regular_codes,
             "energy_diagnostics": energy_diagnostics_enabled(config),

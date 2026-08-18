@@ -54,6 +54,22 @@ MANIFEST = PATCHES / "binary_manifest.json"
 # star-cycle patch is deliberately NOT here: it is applied and reversed around
 # its own build by build_star_cycle_exoplasim.sh, because a cycle binary and a
 # steady binary are different things and only one tree can hold it at a time.
+#
+# The prescribed-dust patch IS resident, and deliberately so. It is a no-op with
+# `ndustrad = 0`, which is the default, so every run keeps the physics it had;
+# what residency buys is that the dust run and the run it is compared against
+# come from the same executable, which is the only way the comparison measures
+# dust rather than a rebuild. It also means `--verify` will say the patch is not
+# applied until it is, which is the intended signal and not a fault.
+# What is applied to the vendored source RIGHT NOW, not what ought to be. A
+# patch joins this list when it is applied and the binaries are rebuilt, because
+# `resident_ok` reports anything here that is missing as a problem, and a patch
+# that was never applied would report a problem that is not one -- which is how a
+# check stops being read. Patches written but not yet built are tracked in
+# TASKS.md instead: prescribed-dust under DUST-11, denergy under CLIM-6, the
+# low-I/O first record under CLIM-5, and the shortwave water-vapour weight under
+# PHYS-1. CONS-4 is the other half of this: the energy-diagnostics patch IS
+# resident and is missing from here.
 RESIDENT_PATCHES = ["exoplasim-3.4.2-ozone-band-weights.patch"]
 
 # The matrix. NLAT must divide by ranks: 32 at T21, 64 at T42, 128 at T85.
@@ -110,7 +126,8 @@ def main() -> None:
     ok, missing = resident_ok()
     if not ok:
         print("RESIDENT PATCHES ARE NOT APPLIED:", ", ".join(missing))
-        print("\nThis is what a .venv reinstall looks like. Apply them first:")
+        print("\nEither a .venv reinstall discarded them or one is new to the "
+              "list. Apply them first:")
         for m in missing:
             print(f"  patch -p1 -d {SRC} < {PATCHES / m}")
         raise SystemExit(1)

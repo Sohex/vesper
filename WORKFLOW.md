@@ -757,16 +757,29 @@ carve, because its driver is built from a climatology and a soil the carve
 replaces. After the re-baseline, on final terrain, where its output can be
 adopted deliberately in the iteration after that.
 
-**A4. Dust is not carve-neutral, and its direction is open.** Its global-mean
-forcing is +0.35 K and negligible; the local effect is not, because a 10 to 20%
-change in lake evaporation closes 144 to 235 of the 1,610 overflowing basins.
-Which way it goes is NOT settled: top-of-atmosphere forcing is positive over
-bright basin fill, but the Penman evaporation the verdict turns on reads the
-SURFACE balance, and there the shortwave term is negative everywhere because the
-layer absorbs about 12 W/m2 regardless of the ground beneath. Settle it by
-putting the dust surface forcing through `carve_verdict.py`'s Penman -- bounded
-offline work, no in-model dust required -- before quoting either direction. Do
-not record a carve list as dust-independent. `notes/dust.md` has the numbers.
+**A4. Dust is not carve-neutral, and the carve waits on one climate run.** Its
+global-mean forcing is negligible in kelvin; the local effect is not. The
+question splits in two and only one half is settled.
+
+The LAKE half is done. Dust dims the lake, Penman evaporation falls, and more
+basins overflow: a dust-free verdict UNDER-carves by about 23 basins, which is
+small and in the recoverable direction. That was settled offline by putting the
+dust SURFACE forcing through `carve_verdict.py --dust-forcing`, and the surface
+balance is the operative one -- the top-of-atmosphere sign over bright basin fill
+is energy retained in the atmosphere, not delivered to the ground.
+
+The CATCHMENT half is larger, runs the other way, and cannot be reached offline,
+because it is a precipitation response and not a surface energy balance.
+Suppressed precipitation cuts the runoff the criterion divides by, which
+OVER-carves, and over-carving is the irreversible direction. It needs one
+prescribed-dust climate run, specified with its gates and a prediction in
+`aeolian/notes/prescribed-dust-run.md`. That run changes land-surface FORCING, so
+by A3 it must not share an iteration with the carve: run it, take the verdict on
+its climatology, then carve.
+
+**Do not record a carve list as dust-independent.** `notes/dust.md` has the
+numbers and `aeolian/analysis/dust_runoff_sensitivity.json` has the conversion
+from a precipitation change into basins.
 
 **B. The soil and biosphere loop, at T42.** For a given climate:
 
