@@ -440,10 +440,15 @@ def main() -> None:
     ap.add_argument("--output", type=Path, default=None)
     ap.add_argument("--gust-samples", type=Path, default=None,
                     help="instantaneous near-surface winds to fit the subgrid "
-                         "distribution from. Defaults to the snapshot "
-                         "climatology, which is 32 samples an orbit and biases "
-                         "the shape high by a factor of two; prefer a "
-                         "high-cadence extract")
+                         "wind distribution from. REQUIRED unless "
+                         "--gust-from-snapshots is given: this is what DUST-5 "
+                         "measured and it moves the emission by a factor of 40")
+    ap.add_argument("--gust-from-snapshots", action="store_true",
+                    help="fit the wind tail from the snapshot climatology "
+                         "instead. That is 32 samples an orbit and biases the "
+                         "Weibull shape high by about a factor of two, which "
+                         "costs 40x on emission. Deliberate and declared, never "
+                         "a fallback")
     ap.add_argument("--weibull-shape", type=float, default=None,
                     help="override the shape measured from the snapshots. For "
                          "the sensitivity sweep in aeolian/README.md ONLY: the "
@@ -566,6 +571,29 @@ def main() -> None:
     # The wind-tail shape is measured from the snapshot climatology rather than
     # declared, because the declared value turned out to be wrong by enough to
     # move the answer two orders of magnitude. See the config note.
+    # NO SILENT FALLBACK. This defaulted to the snapshot climatology, and on
+    # 2026-08-18 a routine regeneration that simply omitted `--gust-samples`
+    # took the shape from 2.012 to 4.600 and the emission from 14,029 to 350
+    # Tg/earth-year, a factor of 40, with nothing in the output saying the
+    # measurement had been discarded. The help text had warned about the bias
+    # for months and the default went there anyway, which is
+    # `notes/failure-modes.md` class 2 exactly: an optional argument whose
+    # absence means do the wrong thing. The biased fit is still reachable, but
+    # only by saying so.
+    if args.gust_samples is None and not args.gust_from_snapshots:
+        raise SystemExit(
+            "build_dust.py needs a wind sample source.\n"
+            "  --gust-samples <file>     the high-cadence extract DUST-5 "
+            "measured, e.g.\n"
+            "                            exoplasim/runs/<run>/highcadence/"
+            "MOST_HC.<orbit>_wind.nc\n"
+            "  --gust-from-snapshots     fit from the 32-sample snapshot "
+            "climatology instead,\n"
+            "                            accepting a Weibull shape biased high "
+            "by about 2x and\n"
+            "                            an emission 40x low. Deliberate only.\n"
+            "There is no default because the two answers differ by a factor of "
+            "40 and\nthe wrong one looks exactly like the right one.")
     gust_source = args.gust_samples or snapshot_climatology_path()
     fitted = weibull_shape_from_samples(gust_source, erodible > 0.05)
     k_measured, k_samples = fitted if fitted else (None, 0)

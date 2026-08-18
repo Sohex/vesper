@@ -1,5 +1,5 @@
 {
-  "generated": "2026-08-18T07:52:17+00:00",
+  "generated": "2026-08-18T07:58:56+00:00",
   "generator": "minerals/scripts/build_downstream_prospectivity.py",
   "source_build": "precarve-craton",
   "terrain_hash": "e931b0d9947a232210a3cc11ba82003b5da15765d86e87956bc44c220932760e",
@@ -8,7 +8,7 @@
   "tectonic_field": "minerals/data/precarve-craton/prospectivity.nc",
   "brine_paths": "pedology/analysis/brine_paths.json",
   "config_sha256": "71a4e146b676cc6b26d7bb21d78c3012a12c4677db6b1c1cae7b36a86f742ac7",
-  "git_commit": "4ca55dc68272c262626766b582d6ec4f8a7b362a",
+  "git_commit": "a52b627da48cdf19925210580d5b8e341ef9ac03",
   "deposits": {
     "bauxite": {
       "name": "Bauxite",
