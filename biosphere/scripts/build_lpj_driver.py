@@ -325,6 +325,13 @@ def main() -> None:
                        "sequence. One year is a fixed climate; several are how a "
                        "stellar cycle reaches the biosphere."),
         "config_sha256": hashlib.sha256(CONFIG.read_bytes()).hexdigest(),
+        # The parsed config, so that a later "is this artifact still current?"
+        # can be answered per KEY. `config_sha256` alone cannot: it moves for an
+        # edited comment exactly as it does for an edited parameter, and
+        # `check_consistency.py` reported these artifacts stale on a comment
+        # change until it had this to read. Same field, same purpose as
+        # `source_config` in an ExoPlaSim run manifest.
+        "source_config": config,
         "source_build": config.get("source_build"),
         "stellar_spectrum": config.get("radiation", {}).get("stellar_spectrum"),
         "flux_earth": float(config["orbit"]["baseline_flux_earth"]),

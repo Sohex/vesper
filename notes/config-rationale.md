@@ -508,8 +508,9 @@ BOOTSTRAP: uniform, and it goes back to `pedology` before the baseline run.
 Soil water capacity comes from the pedology soil map as code 229, and that
 soil has to be weathered under a climatology, so on a terrain that has none
 yet the field cannot exist and run_exoplasim refuses to start without it.
-The flip cannot happen mid-run either, since it moves config_sha256 and
-continue_exoplasim will not resume across that, so the bootstrap has to be
+The flip cannot happen mid-run either, since continue_exoplasim compares the
+config against the run's manifest key by key and will not resume across a
+changed value, so the bootstrap has to be
 finished before it moves. WORKFLOW section 6A has the order.
 
 It has to be `pedology` BEFORE the run whose climatology the verdict uses,

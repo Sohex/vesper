@@ -129,3 +129,63 @@ def require_build(path: Path, what: str, config: dict | None = None,
             f"would silently mix one terrain's rows with another's. Rebuild it "
             f"for {want!r}, or change source_build deliberately.")
     return got
+
+
+def config_drift(recorded: dict, current: dict,
+                 inert: frozenset[str] | set[str] = frozenset(),
+                 path: str = "") -> list[str]:
+    """Semantic differences between two parsed configurations, deepest first.
+
+    Returns one `key: old -> new` line per differing leaf, and an empty list when
+    the two configurations mean the same thing. Keys in `inert` are skipped; a
+    block name skips the whole block, since the name is tested before recursing.
+
+    Compare PARSED VALUES, never a hash of `config/planet.yaml`. A file hash
+    cannot tell an edited comment from an edited parameter, so every guard built
+    on one reports a stale artifact for a documentation change. That fired on the
+    resume guard first and on `check_consistency.py`'s biosphere check second,
+    which is why the function lives here instead of in either of them: one
+    mechanism, so the answer to "has the config moved under this artifact" cannot
+    differ between the two places that ask it.
+
+    `inert` is per CONSUMER and is deliberately not shared, because reachability
+    is a property of the consumer, not of the key. `baseline_climatology` cannot
+    change a run in flight and is inert for a resume; it names the climatology
+    `build_vesper_header.py` fits the solstice offset against, so it is not inert
+    for the biosphere. A shared list would have to be the intersection, and the
+    intersection is the one nobody checks.
+
+    A key earns a place in an `inert` set only by being traced to nothing, and
+    the trace belongs in a comment beside it. `unknown_inert_keys` is the check
+    that the entry at least names a live key: `star.surface_uv` sat in the resume
+    guard's list for as long as the guard existed, matching
+    `star.surface_uv_relative_to_earth` never.
+    """
+    out = []
+    for key in sorted(set(recorded) | set(current)):
+        full = f"{path}{key}"
+        if full in inert:
+            continue
+        a, b = recorded.get(key), current.get(key)
+        if isinstance(a, dict) and isinstance(b, dict):
+            out += config_drift(a, b, inert, f"{full}.")
+        elif a != b:
+            out.append(f"{full}: {a!r} -> {b!r}")
+    return out
+
+
+def unknown_inert_keys(inert, config: dict) -> list[str]:
+    """Entries of an `inert` set that name nothing in `config`.
+
+    An allowlist entry that matches no key is not harmless: it reads as a
+    decision that was made and it silently does nothing, so the key it was meant
+    to excuse still blocks. Every entry must name a live key.
+    """
+    def present(dotted: str) -> bool:
+        node = config
+        for part in dotted.split("."):
+            if not isinstance(node, dict) or part not in node:
+                return False
+            node = node[part]
+        return True
+    return sorted(k for k in inert if not present(k))

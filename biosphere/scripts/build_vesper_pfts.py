@@ -147,6 +147,13 @@ def main() -> None:
         "source": str(args.source),
         "source_sha256": hashlib.sha256(args.source.read_bytes()).hexdigest(),
         "config_sha256": hashlib.sha256(CONFIG.read_bytes()).hexdigest(),
+        # The parsed config, so that a later "is this artifact still current?"
+        # can be answered per KEY. `config_sha256` alone cannot: it moves for an
+        # edited comment exactly as it does for an edited parameter, and
+        # `check_consistency.py` reported these artifacts stale on a comment
+        # change until it had this to read. Same field, same purpose as
+        # `source_config` in an ExoPlaSim run manifest.
+        "source_config": config,
         "orbital_year_earth_days": orbital_days,
         "earth_year_days": EARTH_YEAR_DAYS,
         "scale_factor": factor,

@@ -652,8 +652,8 @@ written here because discovering it one field at a time costs a run each time.
 for the baseline, and the flip goes between them.** With it set to `pedology`,
 `run_exoplasim.py` requires surface code 229 and refuses to start without it,
 which is the one field the bootstrap exists to make possible. Flipping the key
-moves `config_sha256`, and `continue_exoplasim.py` will not resume a run whose
-config hash has changed, so the bootstrap has to be finished -- converged,
+changes a value `continue_exoplasim.py` compares against the run's manifest, and
+it will not resume across that, so the bootstrap has to be finished -- converged,
 seasonal window run, climatology built -- before the key moves. Every other
 surface field the config asks for is a pure function of the terrain and is built
 before the bootstrap starts.

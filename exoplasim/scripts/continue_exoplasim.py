@@ -18,6 +18,7 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _paths import CONFIG, INPUTS, RUNS  # noqa: E402
+from provenance import config_drift  # noqa: E402
 from run_exoplasim import (  # noqa: E402
     surface_sra,
     stage_surface_extras,
@@ -117,8 +118,13 @@ def year_diagnostics(path: Path) -> dict:
 INERT_CONFIG_KEYS = {
     "star.spectral_type",     # a label; the model gets effective_temperature_k
                               # and the spectrum file, not this
-    "star.surface_uv",        # a design declaration; ExoPlaSim models no
-                              # ultraviolet and nothing reads this
+    "star.surface_uv_relative_to_earth",
+                              # a design declaration; ExoPlaSim models no
+                              # ultraviolet and no script reads this. Spelled in
+                              # full because it was spelled `star.surface_uv`
+                              # here, which is not a key in the config and so
+                              # excused nothing; `provenance.unknown_inert_keys`
+                              # is the check that now says so.
     "schema_version",         # bookkeeping
     # Which climatology DOWNSTREAM components read. Nothing on the run or resume
     # path touches it: only the surface-field builders do, and what they produce
@@ -129,24 +135,6 @@ INERT_CONFIG_KEYS = {
     # bypass.
     "baseline_climatology",
 }
-
-
-def config_drift(recorded: dict, current: dict, path: str = "") -> list[str]:
-    """Semantic differences between two parsed configurations, deepest first.
-
-    Keys in INERT_CONFIG_KEYS are skipped, because they cannot change a run.
-    """
-    out = []
-    for key in sorted(set(recorded) | set(current)):
-        full = f"{path}{key}"
-        if full in INERT_CONFIG_KEYS:
-            continue
-        a, b = recorded.get(key), current.get(key)
-        if isinstance(a, dict) and isinstance(b, dict):
-            out += config_drift(a, b, f"{full}.")
-        elif a != b:
-            out.append(f"{full}: {a!r} -> {b!r}")
-    return out
 
 
 def main() -> None:
@@ -228,7 +216,8 @@ def main() -> None:
     # stores, not the file's bytes. Hashing the raw file makes an edited comment
     # indistinguishable from an edited parameter, which blocks a legitimate
     # resume and says nothing about why. This reports the offending keys.
-    drift = config_drift(manifest["source_config"], config)
+    drift = config_drift(manifest["source_config"], config,
+                         INERT_CONFIG_KEYS)
     if drift:
         raise RuntimeError(
             "Configuration differs from the run manifest; refusing to resume:\n  "
