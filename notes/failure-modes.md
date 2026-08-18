@@ -719,6 +719,15 @@ Two rules, and the second is the durable one:
 - Never `pgrep` for a string the polling command itself contains. If a process
   test is unavoidable, match on the binary or use `pgrep -f -- "$pat"` with the
   pattern built so the waiter cannot contain it.
+- **The disguised variant is the one to watch for**, because it reads as sound:
+
+      until [ ! -e /proc/$(pgrep -f build_star_cycle.sh | head -1) ]; do ...
+
+  Testing whether a PID's `/proc` entry still exists IS a good way to wait on a
+  process. The rot is one level down, in the `pgrep` that supplies the PID: it
+  returns the waiter's own, whose `/proc` entry necessarily exists. Three of
+  these were found running at 24, 35 and 61 minutes, and this was the oldest --
+  the two obvious ones were spotted first precisely because they looked wrong.
 - **Wait on the ARTIFACT, not the process.** Every long step here writes
   something: `rebuild_binaries.py` writes `binary_manifest.json`, the cycle build
   writes `cycle_binary_manifest.json`, a segment writes `MOST.NNNNN.nc`. Waiting
