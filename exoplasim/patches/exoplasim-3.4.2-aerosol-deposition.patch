@@ -1,0 +1,299 @@
+# A deposition velocity in place of the bottom-level sink, and below-cloud wet
+# scavenging. DUST-3 items 2 and 3; DUST-7.
+#
+# WHAT THIS IS FOR. ExoPlaSim's aerosol has exactly one removal path,
+# sedimentation, plus a line at the bottom of the tracer loop that removes 99% of
+# the bottom layer every timestep. `aeolian/notes/in-model-dust.md` measured what
+# that line implies against this world's own bottom layer and it is two orders of
+# magnitude faster than any measured dust deposition velocity, and it does not
+# scale with the timestep, so the implied velocity is inversely proportional to
+# the step. A rate that depends on the integration step is not a rate. It has to
+# go before any emission is calibrated, because it multiplies whatever is
+# injected by 0.01 every step.
+#
+# There is also no wet deposition of any kind: `aerocore`'s argument list
+# contains no precipitation field. That is DUST-7, and `aeolian/README.md` says
+# of this project's own offline chain that without the wet term the fine mode's
+# lifetime is out by an order of magnitude, so it is a first-order sink rather
+# than a refinement. Worth recording that the LMD Generic PCM has no wet
+# deposition for its aerosols either: this is a common omission in exoplanet
+# GCMs, not a peculiarity of ExoPlaSim.
+#
+# BOTH TERMS DEFAULT TO OFF, and that is `WORKFLOW.md` A3 rather than taste. Both
+# arms of an A/B have to come from ONE executable and differ only by a namelist
+# key, because the low-I/O patch changes the restart layout and arms built either
+# side of a rebuild cannot share a restart at all. With `ldepvel = 0` and
+# `lwetdep = 0` this patch reproduces the unpatched model exactly: the legacy
+# sink line is unchanged, no precipitation is gathered, and no extra collective
+# call is made.
+#
+# BASE. ExoPlaSim 3.4.2 plus exoplasim-3.4.2-aerocore-defects.patch, which has to
+# be applied first. That base is
+#
+#   aerocore.f90  b2d12c47a82097515e3e09f55d0994b934a647a05807ffc21e23a5f9a7c54877
+#   aeromod.f90   1b666c49b8e2c3dabdb8074d9d060d939c7506073215afda490086c5af6caf3e
+#
+# It does NOT depend on the defect patch for the code it edits, but it does
+# depend on it for the physics to make sense: until the bottom level stops being
+# updated twice, the sedimentation flux out of the atmosphere cancels itself and
+# no deposition velocity can be measured against anything.
+#
+# RESIDENT-DESTINED, NOT YET RESIDENT. Listed in `PENDING_PATCHES` in
+# `exoplasim/scripts/rebuild_binaries.py`; it moves to `RESIDENT_PATCHES` in the
+# commit that applies it and rebuilds every binary.
+#
+# WHAT IT ADDS.
+#
+#  1. Five `aero_nl` keys: `ldepvel`, `vdaero`, `lwetdep`, `scava`, `scavb`.
+#     `aero_nl` is read in `aero_ini`, which runs on NROOT only and only when
+#     `nsela > 0 .and. l_aero > 0`; `aerocore` also runs on NROOT only, so none
+#     of these needs a broadcast. Note that `radmod.f90` DECLARES a second
+#     `aero_nl` group and never reads it, so the two lists have diverged; that
+#     declaration is dead and is left alone because `radmod.f90` is not this
+#     patch's business.
+#
+#  2. `ldepvel = 1`: the bottom layer keeps `exp(-vdaero*dt/dz)` per step, with
+#     `dz` built from that layer's own pressure thickness and gas density. The
+#     rate is then a property of the atmosphere rather than of the step, which is
+#     a test that can fail: halve `deltsec` and the removal per unit time must not
+#     move. The legacy line fails it by construction.
+#
+#     `vdaero` is the NON-gravitational part of dry deposition, turbulent
+#     transfer and impaction. Sedimentation to the surface is already the
+#     `gz(nl)` term in the final update, so a Stokes velocity here would deposit
+#     the same mass twice. The right long-run form is a resistance model,
+#     `1/(r_a + r_b)`, which needs the friction velocity and the roughness; those
+#     are not gathered today and the emission scheme (item 4 of the design note)
+#     has to gather them anyway. Until then this is a declared constant and it is
+#     declared in `aeolian/config/dust.yaml`, not here.
+#
+#  3. `lwetdep = 1`: below-cloud scavenging at `Lambda = scava * p**scavb` with
+#     `p` the total precipitation rate in mm/h, from `dprl + dprc` in m/s. That
+#     is Sportisse (2007) and it is the same form and the same coefficients the
+#     offline chain uses, so the two chains can be compared rather than merely
+#     contrasted. Applied through the whole column rather than below a diagnosed
+#     cloud base, which is the offline chain's own approximation and is kept
+#     deliberately for the same reason.
+#
+#  4. NO DEFAULTS for `vdaero`, `scava` and `scavb`. `aero_ini` ABORTS when a
+#     switch is on and its coefficient is not set, in the same way `radini`
+#     aborts on `ndustrad = 1` with `dustqlw` at zero. A plausible-looking
+#     default in Fortran would be a fourth place for a number that
+#     `aeolian/config/dust.yaml` already owns, and it would go stale silently.
+#
+# WHAT IT DELIBERATELY IS NOT. No emission scheme and no boundary fields: the
+# source term is still `fcoeff*land`. No size bins. Nothing in `radmod.f90`.
+#
+--- a/aerocore.f90
++++ b/aerocore.f90
+@@ -13,7 +13,7 @@
+                         cose,cosp,acosp,dlat,rcap,        &
+                         cnst,deform,zcross,               &
+                         fill,mfct,debug,nud,angle,land,   &
+-                        aerosw,l_aerorad)
++                        aerosw,l_aerorad,prec)
+ !****6***0*********0*********0*********0*********0*********0**********72
+ !
+ ! The subroutine aerocore is a duplicate of the tracer transport
+@@ -248,6 +248,7 @@
+ ! Alternatively, one can use the MFCT option to enforce monotonicity.
+ !
+       use pumamod, only: NLAT,NLON,NLEV,ga,deltsec ! Planet gravity and timestep from pumamod
++      use aeromod, only: ldepvel,vdaero,lwetdep,scava,scavb ! Removal switches
+       implicit none
+ 
+ ! Input-Output variables
+@@ -297,6 +298,9 @@
+       real ::   angle(im,jm) ! Array for cosine of solar zenith angle
+       real ::   land(im,jm) ! Array for binary land mask
+       real ::   aerosw(im,jm,nl) ! Array for net SW flux
++      real,intent(in) :: prec(im,jm) ! Total precipitation rate (m/s), for lwetdep
++      real ::   zdz(im,jm) ! Geometric thickness of the bottom layer (m)
++      real ::   zlam(im,jm) ! Below-cloud scavenging rate (1/s)
+ 
+ ! scalars
+ 
+@@ -881,8 +885,41 @@
+         mmr(:,:,:,IC) = daero(:,:,:) / delp2dyn(:,:,:)
+       end select
+ 
+-! Finally, put in a sink term at the bottom level to avoid infinite build-up of haze particles	  
+-      mmr(:,:,nl,ic) = mmr(:,:,nl,ic)*10e-3
++! Dry deposition at the bottom level, over and above sedimentation.
++!
++! ldepvel = 0 keeps the legacy sink, which removes 99% of the bottom layer
++! every timestep whatever the timestep is. ldepvel = 1 replaces it with a
++! deposition velocity acting over the layer's own geometric depth, which is
++! the only form whose implied removal rate is independent of the step.
++!
++! vdaero is the NON-gravitational part on purpose. Settling out of the bottom
++! layer is already taken by the gz(nl) term in the final update above, so
++! adding a Stokes velocity here would deposit the same mass twice.
++      select case (ldepvel)
++      case(0)
++        mmr(:,:,nl,ic) = mmr(:,:,nl,ic)*10e-3
++      case(1)
++        zdz(:,:) = delp2dyn(:,:,nl)/max(rhog(:,:,nl)*ga,1.E-6)
++        mmr(:,:,nl,ic) = mmr(:,:,nl,ic)                                    &
++                       * exp(-min(vdaero*deltsec/max(zdz(:,:),1.0),50.))
++      end select
++
++! Below-cloud wet scavenging, Sportisse (2007): Lambda = A p**B with p in
++! mm/h, which is the form and the coefficients aeolian/config/dust.yaml
++! already carries for the offline chain. prec arrives in m/s, hence 3.6E6.
++!
++! Applied to the whole column rather than below a diagnosed cloud base. That
++! is the offline chain's own approximation, kept deliberately so the two agree
++! in form; it overstates the scavenging of aerosol sitting above the
++! precipitating layer and is the first thing to refine if the wet sink turns
++! out to dominate more than the offline chain says it should.
++      if (lwetdep == 1) then
++        zlam(:,:) = scava*(max(prec(:,:),0.)*3.6E6)**scavb
++        do k=1,nl
++          mmr(:,:,k,ic) = mmr(:,:,k,ic)*exp(-min(zlam(:,:)*deltsec,50.))
++        enddo
++      endif
++
+       where(mmr .lt. 0.) mmr = 0.0
+       
+       call mmr2n(mmr(:,:,:,ic),apart,rhop,rhog,im,jm,nl,numrhos(:,:,:,ic))
+--- a/aeromod.f90
++++ b/aeromod.f90
+@@ -44,6 +44,48 @@
+       real :: rhop = 1000 ! Density of aerosol particle in kg/m3
+       real :: fcoeff = 10e-13 ! Haze mass mixing ratio in kg/kg
+ 
++!     Removal. Both terms are OFF by default, so one executable can run both
++!     arms of an A/B and differ only by a namelist key. That is WORKFLOW.md
++!     A3 and it is not a style preference: the low-I/O patch changes the
++!     restart layout, so two arms built either side of a rebuild cannot share
++!     a restart at all, and a term that cannot be switched off cannot be
++!     tested.
++!
++!     ldepvel  0 = the legacy bottom-level sink, mmr = mmr*0.01 every step.
++!                  It is a stability hack rather than a parameterisation: the
++!                  implied deposition velocity is two orders of magnitude
++!                  above any measured one, and because it does not scale with
++!                  the timestep the implied velocity is inversely
++!                  proportional to it. A rate that depends on the integration
++!                  step is not a rate.
++!              1 = a deposition velocity. The bottom layer keeps
++!                  exp(-vdaero*dt/dz) per step, with dz built from the
++!                  layer's own pressure thickness and gas density, so the
++!                  rate is a property of the atmosphere and not of the step.
++!     vdaero   the NON-gravitational dry deposition velocity, m/s: turbulent
++!              transfer and impaction. Sedimentation to the surface is
++!              already carried by the settling flux leaving the bottom layer,
++!              so putting a settling term here as well would count it twice.
++!              There is no default: aero_ini refuses ldepvel = 1 with vdaero
++!              at or below zero rather than invent one, because the value
++!              belongs with the rest of the removal budget in
++!              aeolian/config/dust.yaml.
++!     lwetdep  0 = no wet removal, which is what ExoPlaSim has and what the
++!                  LMD Generic PCM has as well.
++!              1 = below-cloud scavenging at Lambda = scava * p**scavb, with
++!                  p the total precipitation rate in mm/h. That is the
++!                  Sportisse (2007) form the offline chain in aeolian/
++!                  already uses, so the two chains agree in form and not only
++!                  in magnitude.
++!     scava    that A, in s-1 per (mm/h)**B. No default, same reasoning as
++!              vdaero; aeolian/config/dust.yaml carries it and its bracket.
++!     scavb    that B, dimensionless. No default.
++      integer :: ldepvel = 0
++      integer :: lwetdep = 0
++      real :: vdaero = 0.0
++      real :: scava  = 0.0
++      real :: scavb  = 0.0
++
+       end module aeromod
+ 
+ !     ==================
+@@ -54,7 +96,8 @@
+       use aeromod
+       use radmod, only: l_aerorad, aerofile
+       
+-      namelist/aero_nl/l_source,l_bulk,apart,rhop,fcoeff,l_aerorad,aerofile
++      namelist/aero_nl/l_source,l_bulk,apart,rhop,fcoeff,l_aerorad,aerofile  &
++     &                ,ldepvel,vdaero,lwetdep,scava,scavb
+ 
+       if (mypid==NROOT) then
+          open(11,file=aero_namelist)
+@@ -66,6 +109,27 @@
+          write(nud,'(" * Namelist AERO_NL from <aero_namelist> *")')
+          write(nud,'(" *********************************************")')
+          write(nud,aero_nl)
++!
++!        Refuse a switch that is on without the coefficient it needs, rather
++!        than carry a plausible-looking default that nothing in this project
++!        decided. Both values live in aeolian/config/dust.yaml.
++!
++         if (ldepvel == 1 .and. vdaero <= 0.0) then
++            write(nud,*) '* ldepvel = 1 needs a positive vdaero in m/s.'
++            write(nud,*) '* It is the non-gravitational dry deposition'
++            write(nud,*) '* velocity; settling is already carried by the'
++            write(nud,*) '* sedimentation flux. Take it from the removal'
++            write(nud,*) '* block of aeolian/config/dust.yaml.'
++            call mpabort('aero_nl: ldepvel = 1 without vdaero')
++         endif
++         if (lwetdep == 1 .and. (scava <= 0.0 .or. scavb <= 0.0)) then
++            write(nud,*) '* lwetdep = 1 needs positive scava and scavb.'
++            write(nud,*) '* Lambda = scava * p**scavb with p in mm/h.'
++            write(nud,*) '* Take both from the removal block of'
++            write(nud,*) '* aeolian/config/dust.yaml, which also carries the'
++            write(nud,*) '* bracket on scava.'
++            call mpabort('aero_nl: lwetdep = 1 without scava and scavb')
++         endif
+       endif
+       
+       return
+@@ -79,8 +143,8 @@
+       subroutine aero_main
+ 
+       use pumamod, only: du,dv,dp,du0,dv0,dp0,daeros,numrhos, &
+-                         NLON,NLAT,NLEV,NAERO,       &
+-                         mypid,NROOT,sigmah,dt,dls,dswfl
++                         NLON,NLAT,NLEV,NAERO,NHOR,   &
++                         mypid,NROOT,sigmah,dt,dls,dswfl,dprl,dprc
+       use tracermod
+       use aeromod
+       use radmod, only: gmu0, l_aerorad ! Use cosine of solar zenith angle from radmod;
+@@ -106,6 +170,9 @@
+ !     zenith angle drove the aerosol source in the wrong hemisphere.
+       real ::   zgath(NLON,NLAT,NLEV)
+ 
++      real ::   prec(NLON,NLAT) ! Total precipitation rate (m/s), for lwetdep
++      real ::   zprec(NHOR)     ! the same before gathering
++
+       integer :: j,jc
+ 
+       character(len=9) :: aero_name
+@@ -146,6 +213,20 @@
+        end select
+       end if 
+ 
++!     Precipitation for the wet-scavenging term, large scale plus convective,
++!     in m/s. Gathered only when the term is on, so that lwetdep = 0 costs
++!     nothing and reproduces the unpatched model exactly. Flipped in latitude
++!     like every other field gathered here.
++
++      prec(:,:) = 0.0
++      if (lwetdep == 1) then
++         zprec(:) = dprl(:) + dprc(:)
++         call mpgagp(zgath,zprec,1)
++         do j=1,NLAT
++            prec(:,NLAT+1-j) = zgath(:,j,1)
++         end do
++      end if
++
+       if (mypid == NROOT .and. aero_debug) then
+          write(nud,'(a,f11.2)') '* max aero u   =',maxval(abs(zu))
+          write(nud,'(a,f11.2)') '* max v   =',maxval(abs(zv))
+@@ -173,7 +254,7 @@
+                       colae,colad,rcolad,dlat,rcap,       &
+                       aero_cnst,aero_deform,aero_zcross,  &
+                       aero_fill,aero_mfct,aero_debug,nud, &
+-                      angle,land,aerosw,l_aerorad)
++                      angle,land,aerosw,l_aerorad,prec)
+ 
+ !        preparation for the GUI output: 
+ !        invert the meridional direction and add the 360 deg. longitude

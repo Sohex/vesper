@@ -256,6 +256,16 @@ to be correct. The star-cycle patch is not: it is applied and reversed around it
 own build, because a cycle binary and a steady binary are different things and
 only one can be in the tree at a time.
 
+`rebuild_binaries.py` keeps two lists and they mean different things.
+`RESIDENT_PATCHES` is what is applied to the vendored source right now, and
+`--verify` fails when one of them is missing. `PENDING_PATCHES` is what has been
+authored and verified but not applied, which is where a patch waits between being
+written and being merged; it is reported as information and never as a failure. A
+patch moves from the second list to the first in the commit that applies it and
+rebuilds. Verify a pending one without touching `.venv` the way `resident_ok()`
+does: copy the files it touches to a scratch directory, apply with `patch -p1`,
+compile, and reverse.
+
 See `exoplasim/README.md` for the workflow and results,
 `exoplasim/notes/lake-representation.md` for what the model can do with the
 endorheic basins, `exoplasim/notes/baseline-equilibration.md` for why the TOA
