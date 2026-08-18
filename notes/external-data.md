@@ -82,6 +82,112 @@ What it is good for here, and this is the point of writing it down:
   gap ExoPlaSim does, so DUST-7's scavenging is a common omission rather than a
   peculiarity, and there is nothing to borrow.
 
+## A private gcc 16.1.1, from the pacman cache
+
+Not a dataset but a build tool, and it is here because the route into it is the
+same kind of thing: something this project needs, does not generate, and would
+otherwise be re-discovered by search. Built 2026-08-18.
+
+**Why it exists.** A system update on 2026-08-18 took `gcc-fortran` from 16.1.1
+to 16.2.1. Under 16.2.1 the resident patch that adds `use restartmod` to
+`plasim.f90`, which holds the main time-stepping loop, takes an ExoPlaSim orbit
+from 124 s to over 330 s. The new compiler appears to pessimise the whole
+translation unit; 16.1.1 did not. A system downgrade is not the answer, because
+a partial upgrade is unsupported on Arch and on CachyOS. So the old compiler
+lives in a private prefix that only this model's build points at, and pacman's
+database is never touched.
+
+**Where it comes from.** `/var/cache/pacman/pkg/`, which still holds the
+packages pacman replaced. `/var/log/pacman.log` says which version was in place
+when the fast binaries were built: the line to look for is the `upgraded
+gcc-fortran` entry and the version on the left of the arrow. On 2026-08-18 that
+was `16.1.1+r595+g171d15ac6959-1`, and several other 16.1.1 builds are cached
+alongside it, so match the full version string rather than the `16.1.1` prefix.
+
+**Four packages are needed, not three.** `gcc-libs` at this version is an empty
+metapackage carrying only `.PKGINFO`, because this distribution splits the
+runtime libraries into their own packages. The Fortran runtime comes from
+`libgfortran` and the unwinder from `libgcc`, and without those two the prefix
+links against the 16.2.1 copies in `/usr/lib`. Extract with `bsdtar`, never with
+`pacman -U`:
+
+    mkdir -p ~/toolchains/gcc-16.1.1
+    cd /var/cache/pacman/pkg
+    bsdtar -x -f gcc-16.1.1+r595+g171d15ac6959-1-x86_64_v4.pkg.tar.zst -C ~/toolchains/gcc-16.1.1 --strip-components=1 usr
+    bsdtar -x -f gcc-fortran-16.1.1+r595+g171d15ac6959-1-x86_64_v4.pkg.tar.zst -C ~/toolchains/gcc-16.1.1 --strip-components=1 usr
+    bsdtar -x -f libgcc-16.1.1+r595+g171d15ac6959-1-x86_64_v4.pkg.tar.zst -C ~/toolchains/gcc-16.1.1 --strip-components=1 usr
+    bsdtar -x -f libgfortran-16.1.1+r595+g171d15ac6959-1-x86_64_v4.pkg.tar.zst -C ~/toolchains/gcc-16.1.1 --strip-components=1 usr
+
+`--strip-components=1 usr` selects only the `usr/` members and drops that
+component, so the result is a normal prefix with `bin/` and `lib/` at the top
+and no package metadata. It comes to 300 MB.
+
+**Nothing else is required to run it.** No `--sysroot`, no `-B`, no
+`LD_LIBRARY_PATH`. GCC's driver computes its own exec prefix from `argv[0]`, so
+a driver at `PREFIX/bin/gfortran` finds `PREFIX/lib/gcc/x86_64-pc-linux-gnu/16/f951`
+by itself; `gfortran -print-search-dirs` shows every path pointing inside the
+prefix. `as` and `ld` are deliberately NOT in the prefix and come from the
+system binutils on `PATH`, which is correct, because binutils did not change.
+
+**To build with it**, override the compiler OpenMPI's wrappers call. ExoPlaSim's
+`bld/compilerargs` invokes `mpif90`, `mpicc` and `mpicxx`, and the three
+variables are read by the wrappers rather than baked into them:
+
+    export OMPI_FC=$HOME/toolchains/gcc-16.1.1/bin/gfortran
+    export OMPI_CC=$HOME/toolchains/gcc-16.1.1/bin/gcc
+    export OMPI_CXX=$HOME/toolchains/gcc-16.1.1/bin/g++
+
+Confirm the override took, because a wrapper that ignores it fails silently and
+produces a working binary at the wrong speed: `OMPI_FC=... mpif90 --version`
+must report 16.1.1, not 16.2.1.
+
+**To check what actually built a finished binary**, read its `.comment` section
+with `readelf -p .comment <binary>`. A 16.2.1 build of anything on this system
+shows two strings, `16.1.1` and `16.2.1`, because glibc's `crt1.o` was compiled
+by the older gcc and has not been rebuilt since; a genuine 16.1.1 build shows
+only `16.1.1`. The presence of a `16.2.1` string is the tell, not the presence
+of a `16.1.1` one.
+
+**The runtime library needs no special handling, and this was tested rather
+than assumed.** A binary built here records `libgfortran.so.5` as its only
+Fortran `NEEDED` entry, carries no `RPATH` or `RUNPATH`, and therefore resolves
+at run time to the system `/usr/lib/libgfortran.so.5`, which is now 16.2.1. That
+is fine. Checked 2026-08-18: the two copies define the identical set of eleven
+`GFORTRAN_*` version nodes and export 1,760 symbols each, with nothing present
+in the 16.1.1 copy that is missing from the 16.2.1 one, and a test binary needs
+only `GFORTRAN_8`. Link time already prefers the private copy, since the
+prefix's own `lib/` precedes `/usr/lib` in the library search path.
+
+`-static-libgfortran` is NOT available and is not needed. No `libgfortran.a` is
+packaged anywhere on this distribution, in the prefix or in `/usr`, so the flag
+fails at link with "cannot find -lgfortran". If a future change ever does make
+the shared runtime a problem, the working lever is
+`LD_LIBRARY_PATH=$HOME/toolchains/gcc-16.1.1/lib`, which was verified to move
+both `libgfortran.so.5` and `libgcc_s.so.1` onto the private copies; an `-Wl,-rpath`
+at link time would make that permanent. Neither is needed today.
+
+C++ links against the system `libstdc++.so.6`, since the shared C++ runtime is
+in a separate `libstdc++` package that is not extracted here. The same soname
+argument applies and a C++ test program compiles and runs.
+
+**Verified 2026-08-18** on this prefix: `gfortran --version` reports 16.1.1,
+a Fortran hello-world compiles and runs, `mpif90` under `OMPI_FC` reports 16.1.1,
+and an `MPI_Allreduce` program built through `mpif90` with ExoPlaSim's exact flag
+set runs correctly on 4 ranks. Note that OpenMPI's `mpi.mod` is built by the
+system 16.2.1 compiler and is read without complaint, because both compilers
+write GFORTRAN module format version 16; that compatibility is the one thing
+here most likely to break on a future GCC major bump, and it fails loudly at
+compile time if it does.
+
+**This prefix is not managed by pacman.** It receives no security updates, it is
+invisible to `pacman -Qo` and to every dependency check, and nothing will ever
+tell you it is out of date. It is a BUILD TOOL for reproducing a known-fast
+binary, not a general compiler: do not put it on `PATH`, and do not use it for
+anything but this model. When the regression is fixed upstream, delete the
+directory and drop the three variables. Re-creating it needs nothing but the
+package files, so if the pacman cache is ever cleared with `paccache` or
+`pacman -Sc`, copy those four files somewhere durable first.
+
 ## Where it goes once fetched
 
 Bulk under `<component>/data/reference/` or `references/`, excluded by
