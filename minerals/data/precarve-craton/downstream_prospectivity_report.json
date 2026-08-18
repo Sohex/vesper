@@ -1,0 +1,83 @@
+{
+  "generated": "2026-08-18T04:09:45+00:00",
+  "generator": "minerals/scripts/build_downstream_prospectivity.py",
+  "source_build": "precarve-craton",
+  "terrain_hash": "e931b0d9947a232210a3cc11ba82003b5da15765d86e87956bc44c220932760e",
+  "climatology": "exoplasim/analysis/climatology/baseline_regular_climatology.nc",
+  "climatology_sha256": "60efe80f6901b14b5317f3177e66b4bb421a5cc913077f2075b259f24c651196",
+  "tectonic_field": "minerals/data/precarve-craton/prospectivity.nc",
+  "brine_paths": "pedology/analysis/brine_paths.json",
+  "config_sha256": "22c5bdc918a70c5d4b328dd75434eec125d7faff0c7a9e168f06838df720124e",
+  "git_commit": "6f7a38ce7bb162b97a93c310c152cddc66203abf",
+  "deposits": {
+    "bauxite": {
+      "name": "Bauxite",
+      "grounding": "declared",
+      "land_fraction_nonzero": 0.010223830842521563,
+      "land_fraction_above_half": 0.005278187381233387,
+      "mean_over_land": 0.005664529855514358
+    },
+    "laterite_ni": {
+      "name": "Nickel laterite",
+      "grounding": "declared",
+      "land_fraction_nonzero": 0.006233015460765399,
+      "land_fraction_above_half": 0.003330504932611289,
+      "mean_over_land": 0.003534410289894987
+    },
+    "supergene_cu": {
+      "name": "Supergene copper enrichment",
+      "grounding": "declared",
+      "land_fraction_nonzero": 0.016708308554859094,
+      "land_fraction_above_half": 0.012211659141959784,
+      "mean_over_land": 0.01266290853328438
+    },
+    "placer_au": {
+      "name": "Placer gold",
+      "grounding": "declared",
+      "land_fraction_nonzero": 0.034089014660501994,
+      "land_fraction_above_half": 0.005425320479218364,
+      "mean_over_land": 0.009446268812503062
+    },
+    "brine_soda": {
+      "name": "Soda ash (trona, natron)",
+      "grounding": "derived",
+      "land_fraction_nonzero": 0.0740002466001278,
+      "land_fraction_above_half": 0.020313601229324192,
+      "mean_over_land": 0.030585298279310297
+    },
+    "brine_gypsum": {
+      "name": "Gypsum and Ca-Cl brine",
+      "grounding": "derived",
+      "land_fraction_nonzero": 0.0049283175795834955,
+      "land_fraction_above_half": 0.0011251303341221041,
+      "mean_over_land": 0.0019592214696326584
+    },
+    "brine_potash": {
+      "name": "Potash",
+      "grounding": "declared",
+      "land_fraction_nonzero": 0.014263578039648162,
+      "land_fraction_above_half": 0.010879823543368711,
+      "mean_over_land": 0.008281187304550998
+    },
+    "brine_lithium": {
+      "name": "Lithium brine",
+      "grounding": "declared",
+      "land_fraction_nonzero": 0.08552260669259662,
+      "land_fraction_above_half": 0.001784822948628155,
+      "mean_over_land": 0.01407300589988737
+    },
+    "brine_borate": {
+      "name": "Borate",
+      "grounding": "declared",
+      "land_fraction_nonzero": 0.03817530521762392,
+      "land_fraction_above_half": 0.0009141306123029875,
+      "mean_over_land": 0.003362177394771871
+    }
+  },
+  "rule_audit": {
+    "never_fires": [],
+    "always_fires": []
+  },
+  "note": "Relative within this world, normalised by the land maximum per deposit type. A 1.0 is the most favourable cell here, not an absolute grade or tonnage, and cross-type comparison of the numbers is meaningless. Read `grounding` before quoting any of them: two of the brine entries are derived from the chemical divide and the rest are declared judgment.",
+  "disposable": "Driven by a pre-carve climatology, lake solution and brine solve. The carve replaces all three. The tectonic half in prospectivity.nc does not move with a climate and is a separate artifact for that reason."
+}

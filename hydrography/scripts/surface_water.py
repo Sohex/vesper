@@ -141,40 +141,18 @@ def per_basin_forcing(n_basins, lat, lon, runoff, precip, evaporation, sinks,
     return catchment_runoff, precip[row, col], evaporation[row, col]
 
 
-def region_grid_cells(export, field_lon, field_lat):
+def region_grid_cells(export, field_lat):
     """Per-region climate cell, binned exactly as the coupling matrix bins.
 
-    The coupling matrix assigns a region to the cell containing its centre on
-    the Orogen grid, whose columns are offset half a cell from an ExoPlaSim
-    climatology's and run -180 to 180 against its 0 to 360. Sampling per region
-    by nearest centre instead put the mesh and the coupling on different cells,
-    so the same basin got a different runoff depending on which route was taken:
-    a 36% spread at the ninetieth percentile. One binning for both.
+    Delegates to `gridding.climatology_cells`, which is the one copy of this
+    convention. It used to live here, and the reason it moved is that a second
+    consumer appeared: the derived-surface classifier needs the same join, and a
+    grid convention this project has got wrong twice is the last thing to keep
+    two versions of. `lib/gridding.py` owns the convention and the invariant that
+    proves it held.
     """
-    grid_dir = builds.grid_export()
-    gm = json.loads((grid_dir / "manifest.json").read_text())["grid"]
-    glat = np.fromfile(grid_dir / gm["coords"]["lat"]["path"], dtype="float64")
-    glon = np.fromfile(grid_dir / gm["coords"]["lon"]["path"], dtype="float64")
-    nlat, nlon = glat.size, glon.size
-
-    edges = np.empty(nlat + 1)
-    edges[1:-1] = 0.5 * (glat[:-1] + glat[1:])
-    edges[0], edges[-1] = 90.0, -90.0
-    row = np.clip(np.searchsorted(-edges, -export.lat, side="right") - 1, 0, nlat - 1)
-    col = np.clip(((export.lon + 180.0) / 360.0 * nlon).astype(np.int64), 0, nlon - 1)
-
-    def wrap(a):
-        return (np.asarray(a) + 180.0) % 360.0 - 180.0
-
-    # Columns are NOT remapped. The grid export and the climatology are the same
-    # columns in the same order; only their labels differ, -180..180 against
-    # 0..360. Matching those labels shifts by half the grid and put 50.71% of
-    # LAND mesh area onto cells the model calls ocean, against 7.32% index for
-    # index -- the same defect as `basin_means`, in the same file, found the same
-    # day. Latitude IS matched, because the two axes are genuinely different
-    # Gaussian grids there and nearest-centre is the right join.
-    rows = np.abs(np.asarray(field_lat)[None, :] - glat[:, None]).argmin(axis=1)
-    return rows[row], col
+    from gridding import climatology_cells
+    return climatology_cells(export, builds.grid_export(), field_lat)
 
 
 def paint_lakes(terminal, filled_km, area_km2, solved_area_km2):
@@ -380,7 +358,7 @@ def main():
           f"{solution['area_km2'].sum():,.0f} km2")
 
     print("accumulating rivers")
-    row, col = region_grid_cells(export, lon, lat)
+    row, col = region_grid_cells(export, lat)
     runoff_per_region = runoff[row, col] * area * 1e6  # m3/s, area km2 to m2
     discharge = river_discharge(export, receiver, runoff_per_region)
     before = discharge.max()

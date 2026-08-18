@@ -322,9 +322,27 @@ reaching the ocean is diluted into an enormous reservoir, while silica reaching 
 closed basin concentrates until it saturates. CO2 is the carbon cycle, and
 section 4 says why that loop is left open.
 
+**It also derives what the surface has BECOME, which is a different question from
+what the profile is.** `build_surface_classes.py` emits two independent fields on
+the mesh: `surface_cover`, what wind and light see, and `duricrust`, what is
+cementing at or below the surface. Two axes rather than one chain, because a
+duricrust forms inside a profile and loess sits on top of one, so they do not
+compete for the same physical position and resolving them together would answer a
+question that has none by branch order -- which is how `carved-zoned-v2` lost
+basin fill from 203 basins. Precedence exists only within an axis and every
+region records which rules it also satisfied.
+
+Two of its inputs are outside pedology and both are deliberate. The dust
+deposition field decides loess and pavement, and the aeolian roughness bracket is
+worth a factor of 40 there, so the answer is a bracket rather than a value. And
+the per-basin chemical divide decides which duricrust can form at all, because
+gypcrete needs Ca surviving to saturation and the alkaline path removes it early.
+
 Every Earth calibration lives in `pedology/config/pedogenesis.yaml` with its
-source. Nothing in the scripts hardcodes a Vesper number, so porting the
-component to another world is a config change.
+source, and every surface-class threshold in `pedology/config/surface_classes.yaml`
+with its source or an explicit statement that it is declared. Nothing in the
+scripts hardcodes a Vesper number, so porting the component to another world is a
+config change.
 
 ### 3.7 The biosphere
 
@@ -353,8 +371,11 @@ repeating year cannot represent one at all.
 
 ## 3.8 Economic minerals
 
-`minerals/` emits ore prospectivity per deposit type. The tectonic and magmatic
-half is built; the weathering, drainage and brine half waits on a climate.
+`minerals/` emits ore prospectivity per deposit type, in two artifacts split by
+genesis and therefore by lifetime. The tectonic and magmatic half is a pure
+function of the export and survives a re-run of the baseline; the weathering,
+drainage and brine half reads a climatology, a lake solution and the per-basin
+chemical divide, so it carries a climate in its identity as well as a terrain.
 Design in `notes/economic-minerals.md`. Two rules govern where it attaches, and
 both are expensive to retrofit.
 

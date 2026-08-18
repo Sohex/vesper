@@ -1,0 +1,232 @@
+schema_version: 1
+
+# Derived surface classes: what the surface has BECOME, on two independent axes.
+#
+# Design and its literature are in `pedology/notes/derived-surface-classes.md`.
+# This file is the thresholds, each with the source it comes from and, where
+# there is no source, an explicit statement that it is declared. Disagreeing
+# with one is an edit here and not a patch.
+#
+# TWO AXES, NOT ONE CHAIN. `surface_cover` is what wind and light see;
+# `duricrust` is what is cementing at or below the surface. A cell can be loess
+# over calcrete, and that is a landscape rather than a contradiction. Precedence
+# exists only WITHIN an axis and is the ordered list under each. The
+# `carved-zoned-v2` build lost basin fill to a single chain that resolved things
+# which do not compete for the same physical position.
+
+# --- surface_cover -----------------------------------------------------------
+#
+# Ordered by what physically sits on top, most recent deposit first. The one
+# genuine physical claim in the ordering is loess over diatomite: active loess
+# deposition buries an exposed diatomite bed.
+surface_cover:
+  precedence: [water, loess, diatomite, pavement, bare, soil]
+
+  water:
+    # Standing water from the solved lake extent. Nothing else; a region under a
+    # lake is not a subaerial surface whatever is beneath it. This is the field
+    # that fills Orogen's deliberately empty `surface_class == 2`, and the
+    # classifier checks that the export really did leave it empty.
+    source: hydrography surface_water.nc, variable `lake`
+
+  loess:
+    # THE CALIBRATION THE DESIGN ASKED FOR DOES NOT EXIST. The note said to
+    # calibrate against Muhs (2013) rather than Bettis et al. (2003), because
+    # Bettis is last-glacial mid-continent North America and explicitly not a
+    # global typical. Muhs was read for this on 2026-08-17 and carries no table
+    # of loess mass accumulation rates, no global range, and no threshold: it is
+    # a qualitative review. Its only g/m2/yr figures are the legend bins of one
+    # redrawn model figure (his Fig. 44, after Mahowald et al. 2006).
+    #
+    # What Muhs does give is better than a number, and it changes the rule.
+    # LOESS IS TRAPPING-LIMITED, NOT FLUX-LIMITED. The Sahara sits in his
+    # highest modern flux bin, 100-200 g/m2/yr, and produces essentially no
+    # loess, because "arid regions rarely have the necessary conditions for
+    # trapping loess" (Tsoar and Pye 1987, quoted by Muhs p. 14-15). Australia
+    # is a major dust source with little true loess. Canada had the silt supply
+    # and vegetation took the surface before the wind could. So a rule keyed on
+    # deposition alone would paint loess exactly where Earth does not have it --
+    # on the source.
+    #
+    # The threshold below is therefore a NECESSARY condition applied to a
+    # surface that can trap, not a sufficient one applied everywhere.
+    #
+    # Its value is read off the one calibration Fig. 44 does support: the
+    # mid-continental North American loess belt forms Peoria Loess at 100-200
+    # g/m2/yr in the last glacial and forms none at 1-5 today, at the same place.
+    # The transition lies between. 50 is inside that interval and is DECLARED
+    # rather than fitted; the bracket spans it.
+    #
+    # Mind the unit mismatch, which is one-signed. Muhs' figure is a modelled
+    # long-range-transport flux of the sub-10 um fraction only, while this
+    # project's `deposition_central` is total deposition across all bins. Total
+    # exceeds sub-10 um, so applying his number to ours makes the threshold
+    # EASIER to clear and the loess area an upper bound.
+    deposition_g_m2_yr: 50.0
+    deposition_bracket: [10.0, 200.0]
+    # Trapping. Two conditions, both from Muhs' own explanation of why the
+    # dustiest places on Earth carry no loess:
+    #   - the surface must not itself be a source. A barren class is where dust
+    #     comes from, and this project already names those classes in
+    #     `config/planet.yaml:model.barren_rock_classes`, which is where the
+    #     value is read from rather than repeated here.
+    #   - it must be wet enough to hold what lands on it. The bound is the
+    #     conventional desert boundary the aeolian component already uses for
+    #     the same physical question, so the two components draw the arid line in
+    #     the same place.
+    trapping_precipitation_mm_yr: 250.0
+
+  diatomite:
+    # Lacustrine silica from a lake that was persistent and productive and has
+    # since desiccated. Both halves are required and neither is optional: a
+    # basin permanently full never exposes its bed, a basin permanently dry never
+    # accumulates one.
+    #
+    # PLACED IN THE STRANDLINE BAND: ground inside a basin that lies above the
+    # solved lake surface and below the spill level. That band is lacustrine at
+    # a wetter phase and subaerial now, which is the setting exactly. It is
+    # empty for a basin with no lake and empty for a basin pinned at its spill,
+    # so the two disqualifying cases fall out of the geometry rather than being
+    # tested for.
+    #
+    # WHAT THIS IS NOT. The design asks for lake occupancy over the 57-year
+    # stellar component, because that is the forcing slow enough for lake level
+    # to equilibrate. No cycle run exists yet (CYC-1), so this is the static
+    # proxy: the band a single climatology's lake could vacate, not the band it
+    # is measured to vacate over a cycle. Re-run against the cycle when it lands.
+    minimum_silica_umol_l: 100.0
+    # Meybeck's table 2C runs from 60 umol/l for evaporite to 200 for volcanic
+    # rock, so 100 sits below every silicate and above the inert end. It selects
+    # basins whose catchment is not dominated by quartz sand and evaporite. It is
+    # DECLARED: Eugster and Jones' type V says SiO2 is constant once saturated
+    # with a solid phase, which makes saturation the criterion and says nothing
+    # about the supply rate needed to reach it.
+
+  pavement:
+    # Wells et al. (1995): stone pavements are BORN AT THE SURFACE. Dust falls
+    # through the clast mosaic and accumulates beneath it as a cumulic Av
+    # horizon. So this is an accretionary surface under a non-erodible cover, a
+    # dust SINK and a suppressor of emission -- the opposite sign from the
+    # "deflation armour" the class was first proposed as.
+    #
+    # Three conditions. Clast supply, which means a consolidated bedrock
+    # substrate rather than basin fill; aridity, at the same desert boundary the
+    # rest of this file uses; and deposition slow enough not to bury the mosaic,
+    # which is the loess threshold read the other way. The last is what makes
+    # pavement and loess one continuum rather than two classes with a gap, which
+    # is what the design suspected and what Muhs' trapping argument supports.
+    #
+    # The clast-supply criterion has NO source: the read literature does not give
+    # a threshold, so "consolidated bedrock" stands in for it and is declared.
+    maximum_precipitation_mm_yr: 250.0
+
+  bare:
+    # The barren classes, read from `config/planet.yaml:model.barren_rock_classes`
+    # so that this axis and the surface albedo split land the same way by
+    # construction. The classifier checks that they do.
+    source: config/planet.yaml model.barren_rock_classes
+
+  soil:
+    # The fallback. Everything land that is none of the above.
+    source: fallback
+
+# --- duricrust ---------------------------------------------------------------
+#
+# Named for what it is rather than for how it forms, because the three values do
+# not share a mechanism: gypcrete and calcrete are pedogenic and climate-keyed,
+# and the silcretes this world can place are explicitly NON-pedogenic and
+# hydrology-keyed.
+duricrust:
+  # Gypcrete before calcrete because Watson resolves their 100-250 mm/yr overlap
+  # explicitly: gypsum crusts occupy the driest zones, calcretes the less arid
+  # parts. Silcrete last because its settings carry no climatic bound at all --
+  # the non-pedogenic types form from "cold to arid" -- so it would otherwise
+  # swamp two narrow, two-sided, evidence-based windows. Every cell records
+  # which other rules it also satisfied, so co-occurrence stays visible.
+  precedence: [gypcrete, calcrete, silcrete]
+
+  gypcrete:
+    # Watson (1983), read: gypcrete forms below ~250 mm/yr with potential
+    # evaporation exceeding precipitation in EVERY month. About 22% of Earth's
+    # land lies within those bounds, which is the comparator for this world's
+    # share -- not a target.
+    #
+    # The monthly test needs monthly fields and an annual mean would pass cells
+    # whose wet season disqualifies them. This world's year is 183 days in 12
+    # output bins, so a bin is 15.2 days and the twelve-way partition of the year
+    # is the analogue of Earth's twelve months. Potential evaporation is the
+    # project's own open-water Penman, the one that is checked against the
+    # model's evaporation where the surface genuinely is open water.
+    maximum_precipitation_mm_yr: 250.0
+    require_pet_exceeds_p_every_bin: true
+    # Ion source. Gypcrete needs Ca and SO4 surviving to saturation, and the
+    # alkaline path removes Ca early at the first calcite. So it needs a
+    # carbonate-poor supply: a Ca-rich basin under `brine_paths.py` where the
+    # cell drains to a closed basin, or a locally carbonate-poor rock where it
+    # does not. The threshold is the chemical divide itself, Ca/HCO3 >= 1, which
+    # is a definition and not a tuned number.
+    require_carbonate_poor: true
+
+  calcrete:
+    # Alonso-Zarza (2003), read: favoured below 500-600 mm/yr, optimum 100-500,
+    # upper bound arguably 1000 and lower as low as 50. The upper end of the
+    # stated favourable band is used, and the two-sidedness is the point --
+    # Bachman and Machette (1977) give the constraint from both directions, too
+    # dry and solutions never infiltrate to a wetting front, too wet and the
+    # carbonate leaches straight through.
+    minimum_precipitation_mm_yr: 50.0
+    maximum_precipitation_mm_yr: 600.0
+    # Calcrete needs Ca and HCO3, which every silicate and carbonate lithology in
+    # Meybeck's table supplies. The gate is written anyway, and is expected NOT
+    # to bind: a lithology that failed it would have to be visible rather than
+    # silently absent. The rule audit reports whether it bound.
+    minimum_ca_ueq_l: 1.0
+
+  silcrete:
+    # Only the NON-pedogenic types. Fenske et al. (2025) state that climatic
+    # calibration "will not provide duricrust formation boundaries" for silcrete;
+    # Ullyott and Nash (2016) show why that does not disqualify it, since three
+    # of their four types are controlled by water tables, drainage lines and
+    # ephemeral lake margins rather than by climate. Pedogenic silcrete is
+    # dropped, and dropping it costs nothing on the cultural axis: pedogenic
+    # silcrete needs heat treatment before knapping and non-pedogenic does not.
+    #
+    # THREE SETTINGS, ONE VALUE. Groundwater, drainage-line and pan/lacustrine
+    # have different settings and the same output class. Which fired is recorded
+    # per cell in the rule mask, so the distinction survives without asserting
+    # that this resolution can separate the products.
+    #
+    # PATCHY, NOT CONTINUOUS. Silcrete occurrence within a favourable setting is
+    # sparse even on Earth, and at 15.19 km a cell cannot hold an outcrop. So
+    # this value means THE SETTING IS PRESENT, on the same argument the minerals
+    # component uses for prospectivity: if a thing is smaller than a cell, it is
+    # not this pipeline's to place.
+    settings: [pan_margin, drainage_line]
+    # Pan margin is the diatomite strandline band, which is the same ground:
+    # "silicification of sediments at the margins of ephemeral lake basins".
+    #
+    # Drainage line is "silicification of alluvial fills in fluvial systems", so
+    # it needs a fluvial system. The threshold is on river discharge and is
+    # DECLARED as a high percentile of the land distribution rather than an
+    # absolute rate, because what makes a drainage line is that it carries water
+    # relative to its surroundings and this world's absolute discharges are not
+    # Earth's.
+    drainage_line_discharge_percentile: 99.0
+    # Groundwater silcrete is NOT placed. Ullyott and Nash put it "at or near a
+    # water table, or at zones of groundwater outflow", and this project models
+    # no water table. Listing it and leaving it empty is the honest form; a proxy
+    # built out of surface elevation would be inventing the mechanism.
+    minimum_silica_umol_l: 100.0
+
+# --- the rule audit ----------------------------------------------------------
+#
+# "A rule that never fires and a rule that always fires are both bugs, and
+# neither is visible without that record." Fixed before the classifier was first
+# run, and reported as pass or fail rather than as a number to read.
+audit:
+  min_land_fraction: 0.0000
+  max_land_fraction: 0.9900
+  # Zero is the floor because an empty rule is reported as empty rather than
+  # tolerated: `loess` was empty by construction until the dust field existed,
+  # and a rule can legitimately find nothing on one terrain. What the audit
+  # refuses to let happen is for that to go unnoticed.

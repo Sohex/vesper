@@ -58,6 +58,21 @@ exoplasim/analysis/**/*_snapshot_climatology.nc
 # paths against per-build output and matched nothing for several builds.
 minerals/data/*/prospectivity.nc
 
+# The downstream half of the same layer -- weathering, drainage and brine types
+# -- on the same terms, and a separate file because it has a different lifetime:
+# it reads a climatology and a lake solution, so it is regenerated when either
+# moves rather than only when the terrain does. Its report is tracked.
+minerals/data/*/downstream_prospectivity.nc
+
+# Per-region derived surface classes: what the surface has BECOME rather than
+# what the rock is, on two axes plus their rule bitmasks. 1.2 MB, per build, and
+# rebuilt in a minute by pedology/scripts/build_surface_classes.py from a
+# climatology, a lake solution, a dust field and the brine solve -- all four of
+# which the next carve replaces, so this is among the most disposable artifacts
+# in the tree. pedology/analysis/surface_classes_report.json carries the
+# fractions, the checks and the provenance, and IS tracked.
+pedology/data/*/surface_classes.nc
+
 # Per-region drainage raster, 5.6 MB and rebuilt in seconds by
 # hydrography/scripts/build_hydrography.py. The basin table, the coupling
 # matrices and the report are small and are tracked.

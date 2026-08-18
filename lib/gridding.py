@@ -48,6 +48,48 @@ def region_cells(export: Export, grid_dir: Path):
     return row * nlon + col, nlat, nlon
 
 
+def climatology_cells(export: Export, grid_dir: Path, clim_lat):
+    """Per-region (row, col) into a climatology field, as (row, col) arrays.
+
+    The mesh-to-grid binning is `region_cells`'s, so a region lands on the same
+    cell here as it does in the coupling matrix; only the ROW is then remapped
+    onto the climatology's own latitude axis. That asymmetry is the whole point
+    and it is deliberate on both sides.
+
+    Columns are NOT remapped. The grid export and the climatology are the same
+    columns in the same order and differ only in how they LABEL them, -180..180
+    against 0..360. Matching those labels shifts the field by half the planet:
+    it put 50.71% of land mesh area onto cells the model calls ocean, against
+    7.32% index for index. `CLAUDE.md` rule 3, and `coupling_ocean_fraction`
+    below is the invariant that proves the convention held.
+
+    Latitude IS matched by nearest centre, because the export grid and the
+    climatology are genuinely different Gaussian axes there -- both descending
+    Gauss-Legendre rows, but resolved and labelled independently -- so index
+    identity is not available and nearest centre is the right join.
+
+    One copy, because four modules kept their own version of a path resolver and
+    three of them went stale; the same argument applies to a grid convention with
+    more at stake. See `lib/paths.py`.
+    """
+    cell, nlat, nlon = region_cells(export, grid_dir)
+    row, col = np.divmod(cell, nlon)
+    glat, _, _ = grid_geometry(grid_dir)
+    clim_lat = np.asarray(clim_lat, dtype=float)
+    if clim_lat.size != glat.size:
+        raise ValueError(
+            f"climatology has {clim_lat.size} latitude rows and the grid export "
+            f"has {glat.size}; they are not the same resolution and no mapping "
+            "between them is defined here")
+    rows = np.abs(clim_lat[None, :] - glat[:, None]).argmin(axis=1)
+    if np.unique(rows).size != rows.size:
+        raise RuntimeError(
+            "the nearest-centre latitude join is not a bijection: two export "
+            "rows chose the same climatology row, so the two axes are not the "
+            "same Gaussian grid")
+    return rows[row], col
+
+
 def land_weighted(export: Export, grid_dir: Path, values: np.ndarray):
     """Per-cell land fraction and the land-area-weighted mean of `values`.
 

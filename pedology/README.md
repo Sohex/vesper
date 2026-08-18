@@ -15,11 +15,65 @@ is a loop and not a stage.
 ```bash
 python pedology/scripts/build_soil.py                          # iteration 0
 python pedology/scripts/build_soil.py --soil-carbon <cpool.out> --iteration 1
+python pedology/scripts/weathering_fluxes.py                   # CO2 and silica
+python pedology/scripts/brine_paths.py                         # the chemical divide
+python pedology/scripts/build_surface_classes.py               # needs brine_paths
 ```
 
 Writes `data/<source_build>/soilmap.txt`, which is LPJ-GUESS's own `SoilInput`
 format, and `analysis/soil_report.json`. The soil map is per build, because
 texture derives from lithology.
+
+## Derived surface classes
+
+`build_surface_classes.py` answers a different question from `build_soil.py`.
+Soil is what the profile has become; this is what is ON it and what is CEMENTING
+in it, which is what albedo, dust emission and the phosphorus cycle key on.
+
+It emits **two independent fields**, not one:
+
+| field | question | values |
+| --- | --- | --- |
+| `surface_cover` | what wind and light see | `water`, `loess`, `diatomite`, `pavement`, `bare`, `soil` |
+| `duricrust` | what is cementing at or below the surface | `gypcrete`, `calcrete`, `silcrete`, `none` |
+
+Two axes because they do not compete for the same physical position. A duricrust
+is a pedogenic horizon inside a profile; loess and diatomite sit on top of one. A
+cell can be loess over calcrete. The `carved-zoned-v2` build lost basin fill to a
+single chain that resolved exactly this kind of non-question by branch order, and
+203 preserved basins came out with no fill cell anywhere.
+
+Precedence exists only within an axis, is declared in
+`config/surface_classes.yaml`, and every region records which rule FIRED and
+which others it also SATISFIED, in a bitmask. A rule that never fires and a rule
+that always fires are both bugs; neither is visible without that record, and the
+report states it as pass or fail rather than as a number to read.
+
+Writes `data/<source_build>/surface_classes.nc` on the native mesh, plus
+`analysis/surface_classes_report.json`. It needs `brine_paths.py` to have run,
+because the duricrust ion gates and the silcrete and diatomite silica gates read
+the per-basin chemistry, and there is deliberately no fallback: guessing an ion
+source would decide which evaporite a basin grows.
+
+Three things about it are worth knowing before reading its numbers.
+
+**It is driven by a climatology, a lake solution and a dust field, so it is the
+most disposable product in this component.** The carve replaces all three.
+
+**The loess answer is a bracket, not a value.** The aeolian roughness bracket is
+worth a factor of 40 in dust emission, and loess area runs from nothing to nearly
+half the land across it. Quoting the central figure alone would be quoting the
+narrowest part of the widest uncertainty in the chain. Pavement moves the other
+way across the same bracket, because the two are one deposition threshold read
+from two sides.
+
+**Potential evaporation is taken per output bin, not per year.** Watson's
+gypcrete criterion is potential evaporation exceeding precipitation in EVERY
+month, and an annual mean passes cells whose wet season disqualifies them. The
+implementation is hydrography's own Penman, imported rather than rewritten,
+because that one is checked against the model's evaporation where the surface
+genuinely is open water and a second implementation here would have no right
+answer to be checked against.
 
 ## Why this component exists
 
@@ -440,6 +494,16 @@ the water capacity.
   Earth comparison above is a plausibility check, not a validation.
 - The soil-biosphere loop has run one iteration at smoke scale and has never
   been iterated to its convergence criteria.
+- The derived surface classes have three gaps of their own, in order of size.
+  **Diatomite is placed against a static lake proxy**, the strandline band a
+  single climatology's lake could vacate, where the design asks for occupancy
+  measured over the 57-year stellar component; that cannot be faked from one
+  climatology, because the whole class is about alternation. **The loess
+  threshold has no source**: Muhs (2013) was read for it and carries no
+  accumulation rates at all, so 50 g/m2/yr is read off one figure's own
+  before-and-after at a single place and bracketed 10 to 200. **The pavement
+  clast-supply criterion has no source either**, and "consolidated bedrock rather
+  than basin fill" is a stand-in for one.
 
 ## The carbonate-silicate thermostat, and how much of it this world has
 

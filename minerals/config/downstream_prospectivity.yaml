@@ -1,0 +1,195 @@
+schema_version: 1
+
+# Weathering, drainage and brine ore prospectivity, per deposit type, as a 0-1
+# field. The downstream half of the split in `notes/economic-minerals.md`: a
+# deposit belongs where the process that concentrates it is MODELLED, and these
+# are concentrated by climate, runoff and the chemical divide, which World Orogen
+# does not have.
+#
+# Everything the tectonic file says applies here unchanged and is not repeated.
+# NOT deposits, NOT a lithology, NOT an erodibility modifier, read only by what
+# comes after climate. One thing IS different and it is the reason this is a
+# separate file and a separate artifact: these rules read a climatology, so the
+# product carries a climate in its identity as well as a terrain, and it is
+# regenerated when either moves. The tectonic half is a pure function of the
+# export and survives a re-run of the baseline; this half does not.
+#
+# HOW WELL GROUNDED EACH RULE IS, stated per rule as `grounding`, because they
+# are not equally good and a reader should not have to guess:
+#   derived  - falls out of a modelled quantity with no free choice
+#   sourced  - a threshold quoted from a paper that was read
+#   declared - judgment, with the reasoning written out and no source behind it
+
+deposits:
+
+  bauxite:
+    name: Bauxite
+    grounding: declared
+    # Intense tropical weathering on a stable, well-drained surface. The control
+    # this project has is weathering intensity, the Walker-Hays-Kasting form
+    # `build_soil.py` already computes and normalises to Earth's land mean of 1,
+    # so a threshold on it is a statement in units of "times Earth's average",
+    # which is the right currency for a deposit type Earth places in its wettest
+    # tropics.
+    #
+    # DECLARED, and the honest reason is that no bauxite formation paper is held
+    # in `references/`. The threshold below says "several times Earth's mean
+    # intensity" and the drainage and parent conditions are qualitative controls
+    # from general economic geology rather than quoted bounds. Treat the PATTERN
+    # as the product and the level as arbitrary.
+    minimum_weathering_intensity: 3.0
+    minimum_precipitation_mm_yr: 1200.0
+    # Bauxite is residual: it needs the solutes to leave. A closed basin
+    # concentrates them on its own floor instead, which is the opposite process,
+    # so endorheic catchments are excluded rather than discounted.
+    require_exorheic: true
+    # Aluminous parent. Carbonate and evaporite have no alumina to residuate and
+    # quartzite's alumina is negligible.
+    hosts: {shelf_clastic: 1.0, foreland_clastic: 1.0, pelagic: 1.0, melange: 0.8, granite: 0.8, granodiorite: 0.8, gneiss: 0.8, schist: 0.8, arc_andesite: 1.0, arc_basalt: 1.0, flood_basalt: 1.0, oib: 1.0, morb: 0.6, continental_clastic: 0.4, rift_bimodal: 1.0}
+
+  laterite_ni:
+    name: Nickel laterite
+    grounding: declared
+    # The same weathering, over an ultramafic parent, and the parent is the whole
+    # rule: nickel laterite is weathered peridotite and nothing else makes one.
+    #
+    # ON THIS WORLD THE PARENT IS `melange`, and that follows an inference this
+    # repo has already made twice rather than a new one. Orogen's rock table has
+    # NO peridotite class. `elevation.js` assigns `melange` to the whole forearc
+    # province -- prism, forearc basin and serpentinite together, because at
+    # ~15 km cells they cannot be separated -- and `podiform_cr` in the tectonic
+    # file already keys on it as obducted ocean crust reaching into the mantle
+    # section of an ophiolite. That is where the ultramafic rock is.
+    #
+    # The cost of that inference is stated rather than hidden: the serpentinite
+    # fraction of a forearc is volumetrically minor, so this rule paints a
+    # prospectivity over a province whose ultramafic part is a small share of it.
+    # `brine_paths.py` makes the same judgment for solute chemistry and calls it
+    # a known under-representation. The field should be read as "this province
+    # contains the parent", not "this cell is peridotite".
+    minimum_weathering_intensity: 2.0
+    minimum_precipitation_mm_yr: 1000.0
+    require_exorheic: true
+    hosts: {melange: 1.0}
+
+  supergene_cu:
+    name: Supergene copper enrichment
+    grounding: declared
+    # The case that shows why the split in `notes/economic-minerals.md` is a
+    # split and not a handover: it needs an Orogen deposit AND a downstream
+    # climate, and neither component can produce it alone. So this rule MULTIPLIES
+    # the tectonic file's porphyry Cu-Mo field rather than re-deriving it, and a
+    # cell with no porphyry protore scores zero however favourable its climate.
+    #
+    # The climate window is two-sided and that two-sidedness is the physical
+    # content. Enrichment needs oxidation and a descending water table to carry
+    # copper down to a blanket, so it needs SOME water: hyper-arid ground never
+    # oxidises the protore. It also needs the copper not to be flushed away, so
+    # it fails at the wet end. Semi-arid, in short.
+    #
+    # DECLARED. The bounds below are the conventional semi-arid band and are not
+    # quoted from a paper; Sillitoe (2010) is held and read for the depth anchors
+    # the tectonic file uses, not for a rainfall bound on enrichment.
+    minimum_precipitation_mm_yr: 100.0
+    maximum_precipitation_mm_yr: 500.0
+    multiplies: porphyry_cu_mo
+
+  placer_au:
+    name: Placer gold
+    grounding: declared
+    # Fluvial concentration, which needs two things at once and is the product of
+    # them: water to do the sorting, and an upstream source to sort.
+    #
+    # The upstream source is computed rather than assumed. Orogenic gold
+    # prospectivity is accumulated DOWN THE DRAINAGE TREE the same way runoff is,
+    # so a river's score is the gold-bearing share of everything that drains into
+    # it. That is the part a rock map cannot give and the drainage network can.
+    #
+    # Placers are PROXIMAL and this rule does not know how proximal. There is no
+    # transport-distance term, because none of the read sources gives one and
+    # inventing a decay length would be inventing the answer. The consequence is
+    # one-signed: prospectivity is carried too far downstream, so the field is an
+    # upper bound on extent.
+    #
+    # Tin and gem placers are NOT emitted. Cassiterite needs specialised
+    # S-type granite and gem placers need their own host suites, and Orogen's
+    # 20-class table separates neither from ordinary granite. Placing them would
+    # be placing granite twice under different names.
+    source_deposit: orogenic_au
+    discharge_percentile: 90.0
+
+# --- the brine half ----------------------------------------------------------
+#
+# Close to free, because `pedology/scripts/brine_paths.py` already solves the
+# chemical divide per basin and that is what decides the mineral. Hardie and
+# Eugster (1970): calcite removes Ca and CO3 in equal equivalents, so whichever
+# is in excess at calcite saturation dominates everything after, and the first
+# calcite decides irreversibly whether the brine turns carbonate-rich or
+# carbonate-poor. Two of the four entries below fall straight out of that and are
+# marked `derived`; two do not and are marked honestly.
+brines:
+
+  brine_soda:
+    name: Soda ash (trona, natron)
+    grounding: derived
+    # The alkaline side of the divide, which on this world is nearly all of it:
+    # every silicate and carbonate lithology in Meybeck's table sits there and
+    # only the evaporites cross over. So the structural prediction is that this
+    # world's closed basins are mostly soda lakes, the Lake Magadi sort, and that
+    # is a testable claim rather than a tuning knob.
+    path: alkaline
+    # Scaled by how far the brine can concentrate, since a basin that overflows
+    # never reaches saturation. `basin_fills_to_spill` from the lake solution is
+    # the test and it is a boolean the solver already computed.
+    require_no_overflow: true
+
+  brine_gypsum:
+    name: Gypsum and Ca-Cl brine
+    grounding: derived
+    # The carbonate-poor side. Rare here by construction and that is the result:
+    # Orogen's rock table has no gypsum lithology at all -- its evaporite class
+    # is a salt crust -- so a Ca-rich path can only arise where the catchment
+    # already drains halite evaporite or a carbonate-poor silicate mix.
+    path: ca_rich
+    require_no_overflow: true
+
+  brine_potash:
+    name: Potash
+    grounding: declared
+    # K is Eugster and Jones' behaviour type IV: sigmoid, removed only mid-range
+    # by exchange, sorption and biogenic reduction, and therefore surviving to
+    # the end only where concentration runs far. So potash needs a high K supply
+    # AND extreme evaporative concentration, which is why it is rarer than soda
+    # on any world.
+    #
+    # The K threshold is DECLARED, at the top of Meybeck's own range across the
+    # ten lithologies rather than at an absolute concentration, because table 2C
+    # is temperate-stream release on Earth and carries the ordering of rock types
+    # and not this world's chemistry.
+    minimum_k_percentile: 75.0
+    require_no_overflow: true
+
+  brine_lithium:
+    name: Lithium brine
+    grounding: declared
+    # WEAK, and weaker than every other entry in this file. Lithium is NOT one of
+    # Meybeck's eight species, so unlike soda and gypsum it cannot be derived
+    # from the divide at all. What stands in is the geological association:
+    # economic Li brines are fed by catchments draining silicic volcanic rock and
+    # its ash, so the rule is the silicic volcanic share of the catchment.
+    #
+    # That is an association, not a mechanism this pipeline models, and it should
+    # be read as "the setting resembles the Earth ones" and nothing stronger.
+    catchment_hosts: {arc_andesite: 1.0, rift_bimodal: 1.0, granite: 0.5, granodiorite: 0.5}
+    require_no_overflow: true
+
+  brine_borate:
+    name: Borate
+    grounding: declared
+    # WEAK, for the same reason: boron is not in table 2C either. Earth's borate
+    # basins sit downstream of arc volcanism and take much of their boron from
+    # hydrothermal and fumarolic input rather than from ordinary weathering, and
+    # this project models no hydrothermal input at all. The rule is the arc
+    # volcanic share of the catchment and it is an association only.
+    catchment_hosts: {arc_andesite: 1.0, arc_basalt: 1.0}
+    require_no_overflow: true

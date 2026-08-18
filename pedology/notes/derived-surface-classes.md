@@ -1,6 +1,10 @@
 # Derived surface classes
 
-*Design, 2026-08-16. Nothing here is implemented yet.*
+*Design 2026-08-16, implemented and measured 2026-08-17 on the pre-carve build.*
+`pedology/scripts/build_surface_classes.py` is the classifier and
+`pedology/config/surface_classes.yaml` holds every threshold with its source.
+Numbers in this file are measurements, dated, on a climatology, lake solution
+and dust field that the next carve replaces.
 
 World Orogen gives primary lithology: what the rock IS. It does not give what the
 surface has BECOME under this world's climate and drainage. That second thing is
@@ -8,8 +12,10 @@ what albedo, dust emission and the phosphorus cycle actually key on, and it is
 derivable here rather than upstream, because it depends on precipitation,
 evaporation and lake extent that Orogen never sees.
 
-Four candidates were proposed. One survives unchanged, one was dropped, one had
-its mechanism backwards, and one is blocked on machinery that does not exist yet.
+Four candidates were proposed. One survives unchanged, one was dropped, and two
+had their mechanism backwards -- pavement, which is a dust sink rather than
+deflation armour, and loess, which is limited by whether a surface can trap dust
+rather than by how much falls on it.
 
 ## What the literature changed about the proposal
 
@@ -54,10 +60,29 @@ on this world they are placeable unusually well, because a landscape where most
 land drains to a closed basin is mostly ephemeral lake margin and interior
 drainage line. Gypcrete and calcrete stay as before, on their measured bounds.
 
-**Loess is blocked, not undetermined.** It requires knowing where dust is emitted
-and where it lands, which needs an emission scheme and a transport path. Neither
-exists yet. It is listed here so the classifier has a slot for it, and it stays
-empty until there is something to fill it with.
+**Loess turned out to be trapping-limited, not flux-limited**, and that is the
+second mechanism correction in this note. The design said to calibrate against
+Muhs (2013) rather than Bettis et al. (2003), because Bettis is last-glacial
+mid-continent North America and explicitly not a global typical. Muhs was read
+for that on 2026-08-17 and **carries no loess accumulation rates at all**: no
+table, no global range, no threshold. It is a qualitative review whose only
+g/m2/yr figures are the legend bins of one redrawn model figure.
+
+What it gives instead is better than the number it was fetched for. The Sahara
+sits in Muhs' highest modern flux bin, 100-200 g/m2/yr, and produces essentially
+no loess, because "arid regions rarely have the necessary conditions for trapping
+loess" (Tsoar and Pye 1987, quoted at his p. 14-15). Australia is a major dust
+source with little true loess. Canada had the silt supply and vegetation took the
+surface before the wind could. So a rule keyed on deposition alone paints loess
+exactly where Earth does not have it: on the source.
+
+The rule therefore has two halves. A deposition threshold, which is necessary,
+and a trapping surface, which is what makes it sufficient: not a barren class,
+and wet enough to hold what lands on it. The threshold itself is read off the one
+calibration Muhs' Fig. 44 does support, the mid-continental North American loess
+belt forming Peoria Loess at 100-200 g/m2/yr in the last glacial and forming none
+at 1-5 today at the same place. 50 g/m2/yr sits inside that interval and is
+declared, with a 10-200 bracket around it.
 
 ## Two axes, not one chain
 
@@ -94,12 +119,12 @@ Ordered by what physically sits on top, most recent deposit first.
 1. **`water`** -- standing water from `surface_water.nc`. Anything beneath a lake
    is not a subaerial surface class. This is also the field that finally fills
    Orogen's deliberately empty `surface_class == 2`.
-2. **`loess`** -- net aeolian deposition fast enough to bury clasts. BLOCKED.
-   When it is unblocked, do not calibrate to Bettis et al. (2003): their mass
-   accumulation rates reach 17,500 g/m2/yr and many exceed 1,500, but that is
-   last-glacial mid-continent North America, the high end of the global range and
-   explicitly not a global typical. Muhs (2013) is the broad compilation to
-   calibrate against instead.
+2. **`loess`** -- net aeolian deposition above 50 g/m2/yr ON A SURFACE THAT CAN
+   TRAP IT: not a barren class, and above the 250 mm/yr desert boundary. Do not
+   calibrate to Bettis et al. (2003), whose rates reach 17,500 g/m2/yr, because
+   that is last-glacial mid-continent North America and the high end of the
+   global range. Muhs (2013) has no rates to calibrate against either; what it
+   has is the trapping argument above, which is the load-bearing half.
 3. **`diatomite`** -- lacustrine silica from a lake that was persistent and
    productive and has since desiccated. See below; this is the interesting one.
 4. **`pavement`** -- clast supply from a coarse or stony substrate, plus aridity,
@@ -180,13 +205,23 @@ a blanket. And silicification needs a dissolved silica source.
 build.** `pedology/scripts/weathering_fluxes.py` computes it from the same
 Meybeck Table 2C the brine paths use. Three results place it:
 
-- **21.6% of this world's dissolved silica is delivered to closed basins.** That
-  is the silcrete and diatomite supply, and it is large because the drainage is
+- **68.4% of this world's dissolved silica is delivered to closed basins**,
+  measured 2026-08-17 by routing the release down the drainage network. That is
+  the silcrete and diatomite supply, and it is large because the drainage is
   largely interior. Silica reaching the ocean is diluted into an enormous
   reservoir; silica reaching a closed basin has nowhere to go and concentrates
   until it saturates. Eugster and Jones' behaviour type V is exactly that, SiO2
   constant after saturation with a solid, so a closed basin fed by silica-rich
   runoff is a silica-precipitating setting by construction.
+
+  **This number was previously recorded as 21.6% and that was the wrong
+  measurement for the claim.** 21.5% is the share of silica RELEASED ON basin-floor
+  cells, the `is_endorheic` weighting `weathering_fluxes.py` reports. Delivery is a
+  drainage question and the drainage weighting is `terminal >= 0`, which covers
+  76.2% of land against a basin floor of about a fifth of it. The two differ by a
+  factor of 3.2 and only one of them is about where the silica goes. This is the
+  same trap `notes/failure-modes.md` records under "one quantity, two meanings,
+  three times the value", now caught a second time on a second quantity.
 - **Volcanic terrain supplies 13.8% of it from 8% of land**, so it is enriched
   but not dominant. Meybeck puts volcanic rock at 200 umol/l against granite's
   150, the highest of the common classes. This is a floor rather than a central
@@ -202,9 +237,15 @@ volcanic, and the closed basins concentrate it. Diatomaceous basin fill is a
 consumer of that silica rather than its origin, which reverses the guess this
 section previously carried.
 
-What is NOT yet placed is which basins. That needs the per-basin catchment
-routing `brine_paths.py` already does, run on a build whose arc rules fire, and
-that is blocked on hydrography for the current terrain. See TASKS VOLC-3.
+Which basins is now placed. `brine_paths.py` carries `silica_mol_per_year` per
+basin, routed as concentration times local runoff over the catchment, and
+`build_surface_classes.py` gates both silcrete and diatomite on it.
+
+The gate does not bind. Every pan margin and drainage line inside an endorheic
+catchment clears 100 umol/l, so **silica is not what limits silcrete on this
+world; the setting is.** That follows from the 68.4% above rather than
+contradicting it, and it means the interesting question for silcrete is
+hydrological rather than geochemical.
 
 ## Diatomite, and why the stellar cycle matters here
 
@@ -291,12 +332,31 @@ saturation, which the alkaline path removes early. Gypcrete should therefore be
 *rarer* than the climatic window alone implies, and concentrated in
 evaporite-draining catchments.
 
-**Computed per basin.** `pedology/scripts/brine_paths.py` maps every Orogen rock
-class to a Meybeck lithology, weights the released chemistry over each basin's
-catchment, and applies the divide. All 3,629 basins resolve, and the split is
-lopsided: about 90% of them, holding roughly 93% of endorheic catchment area, sit
-on the alkaline side, with Ca/HCO3 running from 0.41 to 1.39 and a median near
-0.82. Current values come from `pedology/scripts/brine_paths.py`; run it.
+**Computed per basin, weighted by discharge.** `pedology/scripts/brine_paths.py`
+maps every Orogen rock class to a Meybeck lithology, weights the released
+chemistry over each basin's catchment, and applies the divide. The weight is
+LOCAL runoff generation, P - E clamped at zero times region area, not the
+accumulated river discharge: accumulating would count every upstream region again
+at every downstream one and let a handful of cells near the sink decide a basin.
+
+Weighting by area instead was the first pass and it is retained under
+`--weighting area`, because the two are not a refinement apart. Runoff on this
+world spans four orders of magnitude inside one large catchment, so a dry interior
+contributes area and almost no solute while a wet rim contributes the chemistry.
+Measured 2026-08-17: 109 basins change side between the two weightings, and 655
+basins have a catchment but generate no runoff at all under this climatology.
+Those are reported UNDETERMINED rather than falling back to the area answer,
+because a basin that receives no water has no brine to evolve.
+
+The split stays lopsided either way. Under discharge weighting 2,757 of the 2,966
+resolved basins are alkaline, holding 94.6% of resolved catchment area, with
+Ca/HCO3 from 0.305 to 1.423 and a median of 0.766.
+
+The check that can fail here is neither of those numbers. It is that a basin
+draining exactly one rock class must return that rock's own table row, because the
+weighted mean of a constant is that constant whatever the weights are. 108 basins
+qualify and the worst relative error is 1.2e-15. Comparing the two weightings
+against each other could only ever have told us they differ.
 
 The 20-to-10 rock class mapping is a judgment and is written out in full rather
 than defaulted, since a silent default would push every unmatched class to one
@@ -317,18 +377,87 @@ are Meybeck's temperate-stream release values, not this world's -- they set the
 ordering of lithologies, which is what matters here, rather than absolute
 concentrations.
 
+## What the classifier produced
+
+Measured 2026-08-17 on the pre-carve build, at the central end of the aeolian
+roughness bracket. Every one of these is regenerated after the next carve; what
+survives is the classifier.
+
+| `surface_cover` | % of land | | `duricrust` | % of land |
+| --- | ---: | --- | --- | ---: |
+| water | 12.59 | | none | 59.09 |
+| loess | 7.58 | | gypcrete | 0.70 |
+| diatomite | 4.50 | | calcrete | 37.60 |
+| pavement | 5.67 | | silcrete | 2.62 |
+| bare | 12.81 | | | |
+| soil | 56.87 | | | |
+
+**Gypcrete is rare for the predicted reason, and the size of the effect is the
+result.** 7.30% of land meets Watson's climatic window -- under 250 mm/yr with
+potential evaporation exceeding precipitation in every one of the year's twelve
+bins -- against about 22% of Earth's land within the same bounds. The
+carbonate-poor ion gate then cuts that to 0.70%, a factor of 10.5, because the
+alkaline path removes Ca at the first calcite and only 5.2% of endorheic land
+drains a carbonate-poor catchment. Gypcrete area is 19.1 times enriched in
+carbonate-poor catchments over their share of the land. That was a prediction
+before it was a measurement.
+
+**Calcrete's ion gate does not bind at all**, which is also what was predicted:
+every silicate and carbonate lithology in Meybeck's table supplies Ca and HCO3,
+so calcrete here is climate-limited and nothing else. The gate is kept because a
+lithology that failed it would have to be visible rather than silently absent.
+
+**The silica gate does not bind either.** Every pan margin and drainage line in an
+endorheic catchment clears 100 umol/l. Silcrete on this world is limited by
+setting, not by supply.
+
+**Loess spans a factor of six across the aeolian roughness bracket and the
+bracket is the answer**, not the central value:
+
+| aeolian z0 | land-mean deposition, g/m2/yr | loess, % of land | pavement, % of land |
+| --- | ---: | ---: | ---: |
+| 3e-6 m, the smooth end | 363.6 | 46.64 | 0.47 |
+| 1e-4 m, central | 26.9 | 7.71 | 5.91 |
+| 1e-3 m, the rough end | 0.002 | 0.00 | 9.57 |
+
+Loess and pavement move in opposite directions across it, which is the continuum
+falling out rather than being imposed: they are one threshold read from two sides.
+The smooth end buries the clast mosaics and the rough end leaves them everywhere.
+
+**Which silcrete setting fired is recorded, and that answers the open question
+about them.** Pan margin covers 4.64% of land and drainage line 0.75%. The two are
+distinguishable as SETTINGS and are kept apart in a bitmask; their products are
+not distinguishable at 15.19 km, so they share one `silcrete` value. Groundwater
+silcrete is left unplaced, because it sits at or near a water table and this
+project models none; a proxy built out of surface elevation would be inventing
+the mechanism rather than approximating it.
+
+Two costs of the declared precedence, recorded because the ordering is a judgment.
+2.73 percentage points of land carry the silcrete setting but are reported as
+calcrete, which takes precedence as the narrower and two-sided window; the
+bitmask recovers them. And `diatomite` takes 3.71 percentage points of barren
+land ahead of `bare`, which is correct rather than a leak -- a closed basin's
+strandline IS playa, and calling it diatomite is what the class is for.
+
 ## What is undetermined
 
-- **Loess**, entirely, pending dust emission and transport.
-- **The silica source for silcrete.** Silicification needs dissolved silica and
-  nothing here yet says where it comes from. Diatomaceous basin fill is the
-  obvious candidate on this world and would tie silcrete to the diatomite class,
-  but that is a hypothesis to test rather than a mechanism to assert.
-- **Which non-pedogenic silcrete types are distinguishable here.** Groundwater,
-  drainage-line and pan/lacustrine have different settings but the same output
-  class, and it is not yet clear that this project's resolution can separate
-  them. If it cannot, they should collapse to one `silcrete` value rather than
-  being split on a distinction the data cannot support.
+- **The silica source for silcrete.** RESOLVED, and by routing rather than by
+  hypothesis: 68.4% of dissolved silica reaches a closed basin, and the gate that
+  tests for it never binds. Diatomaceous basin fill is a consumer of that silica
+  rather than its origin.
+- **Which non-pedogenic silcrete types are distinguishable here.** RESOLVED as
+  above: the settings separate, the products do not, so one value plus a setting
+  bitmask.
+- **Whether pavement and loess can coexist.** RESOLVED as a continuum, which is
+  what the design suspected. They are one deposition threshold read from two
+  sides, and the bracket table above is what that looks like.
+- **Diatomite over the stellar cycle.** Still open, and it is the largest
+  remaining gap in this note. What is implemented is the STATIC proxy: the
+  strandline band a single climatology's lake could vacate, between the solved
+  lake surface and the spill level, for basins that are neither dry nor pinned at
+  their spill. What the design asks for is occupancy measured over the 57-year
+  component, which is the forcing slow enough for lake level to equilibrate. That
+  needs the cycle run, CYC-1, and cannot be faked from one climatology.
 - **Ion sources for the duricrusts.** RESOLVED. Meybeck (1987) Tables 2C and 5
   are extracted and validated in
   `pedology/data/reference/meybeck1987_tables.json`. Gypcrete needs Ca and SO4,
@@ -343,9 +472,7 @@ concentrations.
 
   What a closed basin needs instead is a **fate** model, and that composes with
   Table 2C exactly. See the section below.
-- **Pavement clast-supply criterion.** Coarse substrate is necessary but the
-  threshold is not something the read sources give directly.
-- **Whether pavement and loess can coexist.** Physically they are the same
-  process at different accumulation rates, so the classifier should probably
-  treat them as a continuum rather than two classes with a boundary. Deferred
-  until there is a deposition rate to put on the axis.
+- **Pavement clast-supply criterion.** Still undetermined. Coarse substrate is
+  necessary and the read sources give no threshold, so the classifier stands in
+  "a consolidated bedrock substrate rather than basin fill" and declares it as a
+  stand-in. That is the weakest rule in the file.

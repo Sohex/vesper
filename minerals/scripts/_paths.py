@@ -16,6 +16,7 @@ CONFIG = PROJECT_ROOT / "config" / "planet.yaml"
 SOURCE = PROJECT_ROOT / "source"
 
 PROSPECTIVITY = COMPONENT_ROOT / "config" / "prospectivity.yaml"
+DOWNSTREAM = COMPONENT_ROOT / "config" / "downstream_prospectivity.yaml"
 DATA = COMPONENT_ROOT / "data"
 
 LIB = PROJECT_ROOT / "lib"

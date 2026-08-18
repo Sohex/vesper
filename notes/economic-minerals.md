@@ -1,8 +1,10 @@
 # Economic minerals: where each kind belongs
 
-Design, not yet built. Recorded because the decision was taken in discussion and
-then not written down, and because the architectural constraint below is the part
-that will be expensive to retrofit if it is got wrong.
+Design, and both halves are now built: `minerals/scripts/build_prospectivity.py`
+for the tectonic and magmatic types, `build_downstream_prospectivity.py` for the
+weathering, drainage and brine types. Recorded because the decision was taken in
+discussion and then not written down, and because the architectural constraint
+below is the part that would have been expensive to retrofit.
 
 ## The constraint that matters
 
@@ -66,11 +68,39 @@ Cheaper than it looks, because the machinery mostly exists.
 
 `brine_paths.py` already solves the chemical divide per basin and classifies each
 as alkaline or Ca-rich. Which evaporite mineral a basin grows follows from that
-path, so the brine half of the list is close to free.
+path, so the brine half of the list was close to free.
 
 Supergene enrichment is the clearest case for why the split is a split and not a
 handover: it needs an Orogen deposit AND a downstream climate, and neither
-component can produce it alone.
+component can produce it alone. The implementation makes that structural rather
+than remembered -- supergene copper MULTIPLIES the tectonic file's own porphyry
+field and scores zero where there is no protore, so a favourable climate on its
+own can never place copper.
+
+**The two halves are separate artifacts, and the reason is lifetime.** The
+tectonic field is a pure function of the export and survives a re-run of the
+baseline. The downstream field reads a climatology, a lake solution and the brine
+solve, so it carries a climate in its identity as well as a terrain and is
+regenerated when either moves. One file would have given the durable half the
+disposable half's lifetime.
+
+**The rules are not equally grounded and the artifact says so per rule.** Each
+carries `derived`, `sourced` or `declared`, in the config, in the report, and as
+an attribute on the netCDF variable, so the distinction travels with the number.
+Soda ash and gypsum are DERIVED: they are the two sides of Hardie and Eugster's
+chemical divide, which decides irreversibly which way a brine goes, and there is
+no free choice in them. Everything else is DECLARED. Two of those deserve naming
+because they are weaker than the rest: **lithium and boron are not among
+Meybeck's eight species at all**, so they cannot be derived from the divide in
+any form, and what stands in is a geological association with silicic volcanic
+and arc volcanic catchments. That is an association, not a mechanism this
+pipeline models.
+
+**Tin and gem placers are not emitted**, alongside the exclusions below and for a
+resolution-adjacent reason: cassiterite needs specialised S-type granite and gem
+placers need their own host suites, and Orogen's 20-class table separates neither
+from ordinary granite. Placing them would be placing granite twice under
+different names.
 
 ## What this world cannot have
 
