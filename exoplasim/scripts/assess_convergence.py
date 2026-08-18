@@ -23,6 +23,7 @@ from scipy.optimize import curve_fit
 from numpy.polynomial.legendre import leggauss
 
 from _paths import ANALYSIS
+import close_state_energy
 
 
 def output_files(run_dir: Path) -> list[Path]:
@@ -138,6 +139,38 @@ def main() -> None:
         "sea_ice_mean_fraction": float(arrays["sic"][-w:].mean()),
     }
 
+    # The storage the criterion now passes on, from the same window. Computed by
+    # close_state_energy.state_energy rather than reimplemented, because the
+    # criterion turning on a quantity is the strongest possible reason not to
+    # have two versions of it.
+    #
+    # FAILS CLOSED. If the window cannot be closed against the state -- a run
+    # whose namelist does not declare its own constants, a window too short for a
+    # trend -- `storage` stays None and the criterion is False. A convergence
+    # check that cannot measure the thing it tests must refuse, not abstain.
+    storage = None
+    storage_error = None
+    try:
+        storage = close_state_energy.state_energy(
+            run_dir, len(files) - w, len(files) - 1)
+    except Exception as exc:                      # noqa: BLE001 - reported, not raised
+        storage_error = f"{type(exc).__name__}: {exc}"
+
+    if storage is not None:
+        metrics.update({
+            "state_storage_w_m2": storage["storage_w_m2_least_squares"],
+            "state_storage_endpoint_w_m2": storage["storage_w_m2_endpoint"],
+            "surface_storage_w_m2": storage["surface_storage_w_m2"],
+            # Recorded, not tested. This is the gap CLIM-1 is open on: the
+            # reported TOA net minus what the state actually stores. It is a
+            # structural property of the diagnostic rather than of any run, so it
+            # belongs in every assessment until it is explained.
+            "reported_toa_minus_storage_w_m2":
+                metrics["mean_toa_balance_w_m2"] - storage["storage_w_m2_least_squares"],
+        })
+    else:
+        metrics["state_storage_unavailable"] = storage_error
+
     # The quantity the design band is stated in, and therefore the one that has
     # to be bounded. Everything above is a rate; this is a distance.
     # (tau_expected is needed by the fallback above, so it is computed first.)
@@ -184,13 +217,52 @@ def main() -> None:
     # 0.15 K against a 3 K design band: small enough that the band's edges mean
     # what they say, loose enough to be reachable. Stated before it was applied.
     OFFSET_TOLERANCE_K = 0.15
+
+    # THE ENERGY-BALANCE CRITERION TESTS STORAGE, NOT REPORTED TOA. Changed
+    # 2026-08-17, deliberately and with the reasoning recorded, because the two
+    # are not the same number here and the criterion was thresholding the one
+    # that is wrong. CLIM-7; the evidence is exoplasim/notes/baseline-equilibration.md.
+    #
+    # `ntr` is the model's own statement about whether the planet is gaining or
+    # losing energy, and it carries a structural offset of -0.573 +/- 0.035 W/m2
+    # measured across four runs spanning 7.8 K. Conservation gives the same
+    # quantity from the prognostic state instead -- mixed layer, sea ice and snow
+    # as latent heat, soil, atmospheric enthalpy, column vapour -- and THAT is
+    # what a convergence criterion is trying to bound. Where the energy the
+    # offset represents actually goes is CLIM-1 and is still open, so both are
+    # recorded here and the difference is carried as its own metric.
+    #
+    # THE THRESHOLD IS DERIVED, and the 0.5 W/m2 it replaces was not: that number
+    # was picked early, never revisited, and applied to two different quantities.
+    # Two independent bounds, stated before this was run against any assessment:
+    #
+    #   What matters. A residual imbalance X leaves the world short of its
+    #   asymptote by roughly X * (dT/dt per W/m2) * tau. Measured on this model
+    #   the mixed layer drifts 0.128 K/orbit per W/m2 and tau is 9.9 orbits, so
+    #   holding that inside the 0.15 K offset tolerance already committed to
+    #   above needs X < 0.15 / (0.128 * 9.9) = 0.118 W/m2. Deriving it from the
+    #   temperature tolerance rather than inventing a second number is the point:
+    #   the two criteria now bound the same thing in two units.
+    #
+    #   What is measurable. The storage estimate on a 10-orbit block differs from
+    #   the same run's 20-orbit block by 0.111, 0.115 and 0.116 W/m2 on the three
+    #   runs where both exist. A threshold below about 0.11 is measuring the
+    #   sampling noise of the estimator rather than the planet.
+    #
+    # The two land within 6% of each other, which is the argument for the number
+    # rather than a coincidence to note: below 0.11 is unresolvable, above 0.118
+    # admits more drift than the temperature criterion already forbids. 0.12 is
+    # where they meet, and it is 4x tighter than what it replaces.
+    STORAGE_TOLERANCE_W_M2 = 0.12
+
     criteria = {
         "abs_temperature_slope_lt_0.05_k_per_orbit": abs(metrics["temperature_slope_k_per_orbit"]) < 0.05,
         "abs_toa_slope_lt_0.05_w_m2_per_orbit": abs(metrics["toa_balance_slope_w_m2_per_orbit"]) < 0.05,
         "abs_surface_slope_lt_0.05_w_m2_per_orbit": abs(metrics["surface_balance_slope_w_m2_per_orbit"]) < 0.05,
         "abs_sea_ice_slope_lt_0.001_per_orbit": abs(metrics["sea_ice_slope_fraction_per_orbit"]) < 0.001,
-        "abs_mean_toa_lt_0.5_w_m2": abs(metrics["mean_toa_balance_w_m2"]) < 0.5,
-        "abs_mean_surface_lt_0.5_w_m2": abs(metrics["mean_surface_balance_w_m2"]) < 0.5,
+        f"abs_state_storage_lt_{STORAGE_TOLERANCE_W_M2}_w_m2": bool(
+            storage is not None
+            and abs(storage["storage_w_m2_least_squares"]) < STORAGE_TOLERANCE_W_M2),
         # The one that bounds the answer rather than its rate of change. Fails
         # closed: a fit that will not converge is not evidence of equilibrium.
         f"extrapolated_offset_lt_{OFFSET_TOLERANCE_K}_k": bool(
@@ -203,6 +275,22 @@ def main() -> None:
         "window_orbits": w,
         "metrics": metrics,
         "criteria": criteria,
+        "criteria_provenance": {
+            "energy_balance_tests": "state storage, not reported top-of-atmosphere net",
+            "storage_tolerance_w_m2": STORAGE_TOLERANCE_W_M2,
+            "storage_tolerance_derivation":
+                "0.15 K offset tolerance / (0.128 K per orbit per W/m2 * 9.9 orbits) "
+                "= 0.118 W/m2, against an estimator that resolves 0.11 W/m2 on a "
+                "10-orbit block. The two meet at 0.12.",
+            "supersedes": "abs_mean_toa_lt_0.5_w_m2 and abs_mean_surface_lt_0.5_w_m2",
+            "why": "The reported TOA net carries a structural offset of -0.573 "
+                   "+/- 0.035 W/m2 across four runs, so the criterion was "
+                   "thresholding a diagnostic rather than the planet. The 0.5 "
+                   "W/m2 it replaces was chosen early, never revisited, and "
+                   "applied to two different quantities. CLIM-7, decided "
+                   "2026-08-17; the offset itself is CLIM-1 and is still open, "
+                   "which is why both numbers and their difference are recorded.",
+        },
         "sufficiently_equilibrated_for_worldbuilding": bool(all(criteria.values())),
         "failed_criteria": sorted(name for name, ok in criteria.items() if not ok),
         "annual_records": records,

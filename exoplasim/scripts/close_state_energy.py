@@ -146,17 +146,15 @@ def heat_content(nc: Dataset, gravity: float, acpd: float) -> dict[str, np.ndarr
             "sea_ice": ice, "snow": snow, "soil": soil}
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("run_dir", type=Path)
-    parser.add_argument("--first", type=int, required=True,
-                        help="first orbit index of the window")
-    parser.add_argument("--last", type=int, required=True,
-                        help="last orbit index of the window")
-    parser.add_argument("--output", type=Path, default=ANALYSIS / "energy")
-    args = parser.parse_args()
-    run_dir = args.run_dir.resolve()
+def state_energy(run_dir: Path, first: int, last: int) -> dict:
+    """The state-energy closure for one window of orbits.
 
+    Extracted so `assess_convergence.py` can read the storage term without
+    computing a second version of it. The convergence criterion now PASSES on
+    this quantity, so a second implementation of it would be a second answer to
+    the question the criterion asks, which is how this project has previously
+    ended up with three values for one number.
+    """
     planet = namelist_values(run_dir / "planet_namelist")
     gravity = planet.get("GA")
     gascon = planet.get("GASCON")
@@ -176,7 +174,7 @@ def main() -> None:
     fluxes = ["ntr", "hfns", "rst", "rsut", "rlut", "rss", "rls", "hfss", "hfls",
               "ts", "mld", "lsm"]
     per_orbit: list[dict[str, float]] = []
-    for index, path in annual_files(run_dir, args.first, args.last):
+    for index, path in annual_files(run_dir, first, last):
         with Dataset(path) as nc:
             weights = leggauss(len(nc.dimensions["lat"]))[1][::-1]
             record = {"orbit": index}
@@ -216,6 +214,56 @@ def main() -> None:
     # ellipse's semi-latus-rectum product. Nothing here comes from the radiation.
     expected_insolation = solar_constant / 4.0 / np.sqrt(1.0 - eccentricity ** 2)
     reported_insolation = float((series["rst"] - series["rsut"]).mean())
+
+    return {
+        "manifest": manifest, "per_orbit": per_orbit, "series": series,
+        "orbit_seconds": orbit_seconds,
+        "planet_namelist": {"GA": gravity, "GASCON": gascon,
+                            "GSOL0": solar_constant, "ECCEN": eccentricity},
+        "storage_w_m2_least_squares": storage_fit,
+        "storage_w_m2_endpoint": storage_endpoint,
+        "mean_toa_w_m2": mean_toa,
+        "residual_w_m2": mean_toa - storage_fit,
+        "reservoir_trends_w_m2": trend,
+        "surface_storage_w_m2": surface_storage,
+        "mean_surface_flux_w_m2": mean_surface_flux,
+        "surface_residual_w_m2": mean_surface_flux - surface_storage,
+        "atmosphere_storage_w_m2": atmosphere_storage,
+        "expected_insolation_w_m2": expected_insolation,
+        "reported_insolation_w_m2": reported_insolation,
+    }
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("run_dir", type=Path)
+    parser.add_argument("--first", type=int, required=True,
+                        help="first orbit index of the window")
+    parser.add_argument("--last", type=int, required=True,
+                        help="last orbit index of the window")
+    parser.add_argument("--output", type=Path, default=ANALYSIS / "energy")
+    args = parser.parse_args()
+    run_dir = args.run_dir.resolve()
+
+    c = state_energy(run_dir, args.first, args.last)
+    manifest = c["manifest"]
+    per_orbit = c["per_orbit"]
+    series = c["series"]
+    orbit_seconds = c["orbit_seconds"]
+    gravity = c["planet_namelist"]["GA"]
+    gascon = c["planet_namelist"]["GASCON"]
+    solar_constant = c["planet_namelist"]["GSOL0"]
+    eccentricity = c["planet_namelist"]["ECCEN"]
+    storage_fit = c["storage_w_m2_least_squares"]
+    storage_endpoint = c["storage_w_m2_endpoint"]
+    trend = c["reservoir_trends_w_m2"]
+    surface_storage = c["surface_storage_w_m2"]
+    atmosphere_storage = c["atmosphere_storage_w_m2"]
+    mean_toa = c["mean_toa_w_m2"]
+    mean_surface_flux = c["mean_surface_flux_w_m2"]
+    expected_insolation = c["expected_insolation_w_m2"]
+    reported_insolation = c["reported_insolation_w_m2"]
+    orbits = np.array([r["orbit"] for r in per_orbit], dtype=float)
 
     report = {
         "schema_version": 1,
