@@ -32,10 +32,16 @@ is visible without that record.
 
 ## What can fail here
 
-Six checks, all with a right answer, all fixed before the first run:
+Seven checks, all with a right answer:
 
 - **partition.** Every land region gets exactly one value on each axis and the
   class areas sum to the land area. A conservation law.
+- **the strandline against the hypsometry.** Diatomite and pan-margin silcrete
+  sit in the band between the solved lake surface and the spill level, summed
+  here over mesh regions by `filled_km`. Hydrography reaches the same area from
+  its own per-basin hypsometry curve, by a different field and a different code
+  path, so a datum mismatch between the two elevation conventions or a sign error
+  in the band shows up here and nowhere else.
 - **the empty slot.** `surface_class == 2` is INLAND_WATER and Orogen leaves it
   deliberately empty, which is the reason this component owns standing water.
   If a future build stops leaving it empty, the water rule is no longer the only
@@ -453,7 +459,48 @@ def main() -> None:
                             / max(area[gyp].sum(), 1e-30)) if gyp.any()
                       else float("nan"))
 
+    # The strandline band against the hypsometry it ought to be the complement
+    # of. Two independent routes to the same area: this one sums `cell_area` over
+    # regions whose `filled_km` lies between the solved lake surface and the
+    # spill, and hydrography's `area_at_spill_km2` comes off the per-basin
+    # hypsometry curve rebuilt on the finished terrain. They share a terrain and
+    # nothing else, so a datum mismatch between `filled_km` and `level_km`, or a
+    # sign error in the band, shows up here and nowhere else.
+    #
+    # The tolerance is 10% on the total and is set from mesh granularity rather
+    # than from the answer: a region is about 230 km2 and the band is a thin
+    # annulus, so a region's width around its edge is the resolution of the
+    # comparison. That is an order of magnitude looser than what this build
+    # actually returns.
+    band_area = np.bincount(terminal[strandline], weights=area[strandline],
+                            minlength=n_basins)
+    lake_in_basin = land & lake & (terminal >= 0)
+    lake_area = np.bincount(terminal[lake_in_basin],
+                            weights=area[lake_in_basin], minlength=n_basins)
+    with nc.Dataset(hydro / "basins.nc") as ds:
+        area_at_spill = np.asarray(ds["area_at_spill_km2"][:], dtype=float)
+    expected_band = np.maximum(area_at_spill - lake_area, 0.0)
+    banded = alternating & (expected_band > 0)
+    band_ratio = (float(band_area[banded].sum() / expected_band[banded].sum())
+                  if banded.any() and expected_band[banded].sum() > 0
+                  else float("nan"))
+
     checks = {
+        "strandline_matches_the_hypsometry": {
+            "criterion": "the band between the solved lake surface and the "
+                         "spill, summed over mesh regions, against "
+                         "area_at_spill_km2 less the lake area, which comes off "
+                         "hydrography's own hypsometry curve. Ratio within 10%, "
+                         "a tolerance set from the 230 km2 region against a thin "
+                         "annulus and not from the answer",
+            "basins_tested": int(banded.sum()),
+            "band_area_km2": float(band_area[banded].sum()),
+            "expected_area_km2": float(expected_band[banded].sum()),
+            "ratio": band_ratio,
+            "basins_with_an_empty_band_despite_a_positive_expectation": int(
+                (band_area[banded] == 0).sum()),
+            "passes": bool(abs(band_ratio - 1.0) < 0.10),
+        },
         "partition_cover": {
             "criterion": "class areas sum to the land area within 1e-9 relative",
             "residual": abs(sum(cover_areas.values()) - 1.0),

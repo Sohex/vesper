@@ -1,5 +1,5 @@
 {
-  "generated": "2026-08-18T04:16:43+00:00",
+  "generated": "2026-08-18T04:18:42+00:00",
   "generator": "pedology/scripts/build_surface_classes.py",
   "source_build": "precarve-craton",
   "terrain_hash": "e931b0d9947a232210a3cc11ba82003b5da15765d86e87956bc44c220932760e",
@@ -9,7 +9,7 @@
   "dust_bracket_end": "central",
   "brine_paths": "pedology/analysis/brine_paths.json",
   "rules_sha256": "f6580bad9c23409283f9cb75d1aa5d54decddce542fa54cc71cc4ff772b8f40c",
-  "git_commit": "2fa4865fae067e965b0c1018d3d9fc3b91e4568e",
+  "git_commit": "40cbef7a4f204a69cac6bdf0aa73b90329b8f8e0",
   "land_area_km2": 317310405.2316623,
   "surface_cover_land_fractions": {
     "water": 0.1258496373180682,
@@ -37,6 +37,15 @@
     "land_fraction_in_a_basin_with_no_runoff": 0.09445877853837795
   },
   "checks": {
+    "strandline_matches_the_hypsometry": {
+      "criterion": "the band between the solved lake surface and the spill, summed over mesh regions, against area_at_spill_km2 less the lake area, which comes off hydrography's own hypsometry curve. Ratio within 10%, a tolerance set from the 230 km2 region against a thin annulus and not from the answer",
+      "basins_tested": 871,
+      "band_area_km2": 14721177.190646172,
+      "expected_area_km2": 15016517.057707787,
+      "ratio": 0.9803323323293519,
+      "basins_with_an_empty_band_despite_a_positive_expectation": 4,
+      "passes": true
+    },
     "partition_cover": {
       "criterion": "class areas sum to the land area within 1e-9 relative",
       "residual": 0.0,
