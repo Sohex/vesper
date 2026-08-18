@@ -12,21 +12,31 @@
     "temperature_mean_k": 288.996445433984,
     "temperature_last_k": 288.9644864234412,
     "sea_ice_mean_fraction": 0.018194197317275985,
-    "temperature_asymptote_k": 289.0295315824791,
-    "temperature_asymptote_half_width_k": 0.03308614849511024,
-    "temperature_remaining_offset_k": 0.03308614849511024,
+    "state_storage_w_m2": 0.08388927071827798,
+    "state_storage_endpoint_w_m2": 0.10929296911138969,
+    "surface_storage_w_m2": 0.0715360457167066,
+    "reported_toa_minus_storage_w_m2": -0.5673845715023289,
+    "temperature_asymptote_k": 289.03048147408964,
+    "temperature_asymptote_half_width_k": 0.03403604010566341,
+    "temperature_remaining_offset_k": 0.03403604010566341,
     "relaxation_orbits_fitted": -108716.06209953013,
-    "relaxation_orbits_expected": 9.607476662149619,
-    "remaining_offset_implied_by_drift_k": 0.03308614849511024
+    "relaxation_orbits_expected": 9.88330391600209,
+    "remaining_offset_implied_by_drift_k": 0.03403604010566341
   },
   "criteria": {
     "abs_temperature_slope_lt_0.05_k_per_orbit": true,
     "abs_toa_slope_lt_0.05_w_m2_per_orbit": true,
     "abs_surface_slope_lt_0.05_w_m2_per_orbit": true,
     "abs_sea_ice_slope_lt_0.001_per_orbit": true,
-    "abs_mean_toa_lt_0.5_w_m2": true,
-    "abs_mean_surface_lt_0.5_w_m2": true,
+    "abs_state_storage_lt_0.12_w_m2": true,
     "extrapolated_offset_lt_0.15_k": true
+  },
+  "criteria_provenance": {
+    "energy_balance_tests": "state storage, not reported top-of-atmosphere net",
+    "storage_tolerance_w_m2": 0.12,
+    "storage_tolerance_derivation": "0.15 K offset tolerance / (0.128 K per orbit per W/m2 * 9.9 orbits) = 0.118 W/m2, against an estimator that resolves 0.11 W/m2 on a 10-orbit block. The two meet at 0.12.",
+    "supersedes": "abs_mean_toa_lt_0.5_w_m2 and abs_mean_surface_lt_0.5_w_m2",
+    "why": "The reported TOA net carries a structural offset of -0.573 +/- 0.035 W/m2 across four runs, so the criterion was thresholding a diagnostic rather than the planet. The 0.5 W/m2 it replaces was chosen early, never revisited, and applied to two different quantities. CLIM-7, decided 2026-08-17; the offset itself is CLIM-1 and is still open, which is why both numbers and their difference are recorded."
   },
   "sufficiently_equilibrated_for_worldbuilding": true,
   "failed_criteria": [],

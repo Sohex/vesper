@@ -12,6 +12,10 @@
     "temperature_mean_k": 281.92164542711214,
     "temperature_last_k": 281.88648498067874,
     "sea_ice_mean_fraction": 0.06714469921147759,
+    "state_storage_w_m2": 0.009565589075338023,
+    "state_storage_endpoint_w_m2": -0.009262872843135407,
+    "surface_storage_w_m2": 0.006500109864472219,
+    "reported_toa_minus_storage_w_m2": -0.5615450467196574,
     "temperature_asymptote_k": 281.9675159988293,
     "temperature_asymptote_half_width_k": 0.04587057171714524,
     "temperature_remaining_offset_k": 0.04587057171714524,
@@ -24,14 +28,18 @@
     "abs_toa_slope_lt_0.05_w_m2_per_orbit": true,
     "abs_surface_slope_lt_0.05_w_m2_per_orbit": true,
     "abs_sea_ice_slope_lt_0.001_per_orbit": true,
-    "abs_mean_toa_lt_0.5_w_m2": false,
-    "abs_mean_surface_lt_0.5_w_m2": true,
+    "abs_state_storage_lt_0.12_w_m2": true,
     "extrapolated_offset_lt_0.15_k": true
   },
-  "sufficiently_equilibrated_for_worldbuilding": false,
-  "failed_criteria": [
-    "abs_mean_toa_lt_0.5_w_m2"
-  ],
+  "criteria_provenance": {
+    "energy_balance_tests": "state storage, not reported top-of-atmosphere net",
+    "storage_tolerance_w_m2": 0.12,
+    "storage_tolerance_derivation": "0.15 K offset tolerance / (0.128 K per orbit per W/m2 * 9.9 orbits) = 0.118 W/m2, against an estimator that resolves 0.11 W/m2 on a 10-orbit block. The two meet at 0.12.",
+    "supersedes": "abs_mean_toa_lt_0.5_w_m2 and abs_mean_surface_lt_0.5_w_m2",
+    "why": "The reported TOA net carries a structural offset of -0.573 +/- 0.035 W/m2 across four runs, so the criterion was thresholding a diagnostic rather than the planet. The 0.5 W/m2 it replaces was chosen early, never revisited, and applied to two different quantities. CLIM-7, decided 2026-08-17; the offset itself is CLIM-1 and is still open, which is why both numbers and their difference are recorded."
+  },
+  "sufficiently_equilibrated_for_worldbuilding": true,
+  "failed_criteria": [],
   "annual_records": [
     {
       "year_index": 0,

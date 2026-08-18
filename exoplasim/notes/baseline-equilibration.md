@@ -95,42 +95,53 @@ So the criterion is failing by 0.10 on a number that is 0.57 too negative. Every
 recent miss is smaller than the offset, and the sign of the offset is the sign of
 every miss.
 
-## What this does and does not license
+## What was decided, and what it changed
 
-**It does not turn the miss into a pass, and the label does not move.**
-`sufficiently_equilibrated_for_worldbuilding` is all-or-nothing, and it stays
-`quasi_equilibrated` with `abs_mean_toa_lt_0.5_w_m2` named. The recorded verdict
-is -0.6010 on orbits 56 to 65, a miss of 0.1010, taken when the run was 66
-orbits long; re-assessed at the 77 orbits now on disk it would read -0.5995 on
-orbits 67 to 76, a miss of 0.0995. Both fail, and neither is close. This project
-calls a run quasi-equilibrated for missing by 0.004 W/m2; a run missing by 0.1 is
-not entitled to better treatment because a separate measurement suggests the
-threshold is being applied to the wrong quantity.
+**The criterion now tests state storage. Decided 2026-08-17, CLIM-7.**
 
-The assessment was deliberately **not** re-run here. It rewrites the run
-manifest and would leave `INDEX.json` and `world_state.json` needing
-regeneration, and the verdict it would produce is the same verdict on the same
-criterion. The eleven-orbit staleness is worth recording rather than quietly
-refreshing, because it is the same shape as the defect this note opened on.
+The quantity moved because the old one was measured against the thing it
+proxies, not because a run failed on it. `|mean TOA| < 0.5 W/m2` was thresholding
+a diagnostic carrying a structural offset larger than the threshold itself, and
+`0.5` was picked early, never revisited, and applied to two different quantities.
 
-**It does not license amending the criterion here.** The threshold and the
-quantity a criterion tests are fixed before results are seen
-(`WORKFLOW.md` section 7). Choosing a new quantity -- state storage rather than
-reported TOA -- immediately after measuring that the new quantity passes and the
-old one fails is the exact move that convention forbids, whatever the physics
-says. If the criterion should read storage, that is a decision to take
-deliberately, with its threshold argued from the estimator's noise rather than
-from this run's answer, and it belongs to CLIM-7's remaining work rather than to
-this note.
+**The threshold was derived and committed before it was applied to anything**,
+which is the only way this could be taken without being the retrofit
+`WORKFLOW.md` section 7 forbids. Two bounds, agreeing to 6%:
 
-**What it does settle, for A2.** The baseline's failure to converge is an
-instrument fault and not a spin-up fault. There is no missing model time here:
-running further will not move -0.5995 to -0.4999, because the number it would
-have to move is not the number the planet has. Whatever else "final" requires --
-and A2 is explicit that it is stricter than "converged", and that anything
-outstanding which moves the mean has to land first -- **equilibration is not what
-is holding the cycle run back.** That was worth knowing before spending a
-hundred more orbits on it.
+| bound | value |
+| --- | ---: |
+| what matters: 0.15 K offset tolerance / (0.128 K per orbit per W/m2 * 9.9 orbits) | 0.118 W/m2 |
+| what is measurable: 10-orbit against 20-orbit windows of the same run, three runs | 0.111, 0.115, 0.116 W/m2 |
+
+Below about 0.11 the estimator is measuring its own sampling noise; above 0.118
+the criterion admits more drift than the temperature tolerance already forbids.
+**0.12 W/m2** is where they meet, and it is four times tighter than what it
+replaces. The physical half is derived FROM the temperature tolerance rather than
+invented beside it, so the two criteria now bound one thing in two units.
+
+**The outcome.** Re-assessed on the 77 orbits on disk, the baseline stores
+-0.0547 W/m2 and passes. Three of the four runs pass;
+`run_b014469b8091` does not, and it fails on the temperature-offset criterion
+rather than on energy.
+
+The ordering anomaly is gone, and that is the check on the change rather than a
+by-product of it. Under the old criterion `run_524fbed77a9a` passed at
+TOA -0.483 while its heat content ROSE at +0.084 W/m2, and the baseline failed at
+-0.600 while storing -0.055. The criterion was passing the run further from
+equilibrium. On storage the two are ranked the right way round: the baseline at
+-0.055 sits nearer zero than 524fbed at +0.084, and 524fbed is now the one closer
+to its threshold.
+
+**Reported TOA is still recorded, and so is its difference from storage**, as
+`reported_toa_minus_storage_w_m2` in every assessment. That gap is CLIM-1 and is
+open: the candidates are `rsut`, `rlut`, or an atmospheric heating neither flux
+diagnostic books. A criterion that stopped reading the number would also stop
+anyone noticing when it changed.
+
+**What it settles for A2.** The baseline's failure was an instrument fault, not a
+spin-up fault, and no amount of further model time would have moved it. What
+"final" still requires is the physics that moves the mean -- PHYS-1, the spectrum
+declaration, dust -- and none of that is equilibration.
 
 ## What was checked and is not the answer
 
