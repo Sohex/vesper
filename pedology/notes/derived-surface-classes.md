@@ -424,6 +424,15 @@ Loess and pavement move in opposite directions across it, which is the continuum
 falling out rather than being imposed: they are one threshold read from two sides.
 The smooth end buries the clast mosaics and the rough end leaves them everywhere.
 
+**The trapping condition binds, and the way it binds is the right one.** Loess
+cells carry an area-weighted mean erodible fraction of 0.177 against 0.345 for
+`bare` and 0.151 for land as a whole, at a mean deposition of 85.3 g/m2/yr
+against a land mean of 26.9. So loess sits on the non-source half of dusty cells:
+near the source, which is where Earth's loess belts are, but not on it. Without
+the trapping condition it would have landed at `bare`'s source density, and with
+the condition inverted it would have been indistinguishable from `bare`. That is
+what the Sahara argument predicts and it is measured rather than asserted.
+
 **The strandline band is checked against hydrography's own hypsometry**, because
 it rested on an unstated assumption: that `regions.nc`'s `filled_km` and
 `basins.nc`'s `level_km` and `spill_km` share a datum. Two independent routes to
