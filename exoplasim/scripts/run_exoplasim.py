@@ -277,8 +277,9 @@ SOIL_WATER_SURFACE_CODES = {229}
 ROUGHNESS_SURFACE_CODES = {173}
 
 # PlaSim's own 28-term energy decomposition, denergy(NHOR,28), written to these
-# codes when nenergy > 0. The instrument for the constant -0.455 W/m2 that does
-# not close between the top of the atmosphere and the surface; see
+# codes when nenergy > 0. Turned on to name the gap between the top of the
+# atmosphere and the surface; it closed to 0.02 W/m2 and so ruled itself out, and
+# is kept as the audit on the gridpoint physics. See
 # notes/water-and-energy-closure.md.
 #
 # Term 15 needs patches/exoplasim-3.4.2-energy-diagnostics.patch applied and

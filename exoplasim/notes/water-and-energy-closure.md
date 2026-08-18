@@ -414,49 +414,152 @@ came from the atmosphere's own kinetic energy rather than from below. Summing:
 Closed to 0.02 W/m2. **The 28-term decomposition is self-consistent.** It was
 never going to show a leak, because there is no leak in the decomposition.
 
-## What is left, and it is not an accounting error
+## The residual is in the reported TOA net, and the state says so
 
-The system reports a persistent top-of-atmosphere loss it does not experience.
-Over orbits 55 to 76, mean TOA is **-0.57 W/m2** while the surface temperature is
-flat at 289.71 to 289.73 K. An atmosphere genuinely losing that would cool about
-1.8 K per Earth year and it does not.
+Measured 2026-08-17 by `exoplasim/scripts/close_state_energy.py`, which is the
+first check in this file that could have failed.
 
-Note also that -0.57 fails this project's own `|mean TOA| < 0.5 W/m2`
-convergence criterion, over every recent window, and the earlier assessment that
-missed it by 0.0014 was evaluated somewhere else. That wants checking on its own
-account.
+Every closure above compares one flux diagnostic with another, and the note kept
+running out of road for the same reason each time: `ntr` equals `rst + rlut` by
+construction, terms 9 and 10 are the divergence of the very flux profile that
+`rlut` and `rls` are read off, and `rst` and `rlut` sum to `ntr` and so cannot be
+cross-checked against each other. That family of checks can only ever show the
+diagnostics agreeing with themselves. `notes/failure-modes.md` class 17.
 
-So the search narrows again, and away from the terms: three channels agree to
-better than 0.03 W/m2, the fourth is explained, and the decomposition closes. The
-remaining candidates are the two TOA diagnostics themselves -- `rst` and `rlut`,
-which sum to `ntr` exactly and so cannot be cross-checked against each other --
-or a storage term in the slab ocean or sea ice that neither budget names.
+The model has a quantity the radiation code does not supply: its own prognostic
+state. Conservation gives an identity rather than a tolerance,
+
+    d/dt (planetary heat content)  =  mean net TOA radiation
+
+with the heat content assembled from the ocean mixed layer, the sea-ice and snow
+mass as latent heat, the twelve-metre soil column, the atmosphere's enthalpy and
+its column vapour. If a slab or sea-ice storage term were carrying the reported
+imbalance, this would show it at the full size of the imbalance.
+
+**It does not.** On the ten clean `NLOWIO = 0` orbits of the baseline:
+
+| | W/m2 |
+| --- | ---: |
+| mean TOA net, `ntr` | -0.5995 |
+| d(planetary heat content)/dt | -0.0547 |
+| **residual** | **-0.5448** |
+
+The most sensitive single reservoir settles it on its own. A sustained 0.6 W/m2
+loss would cool the 50 m mixed layer by 0.0769 K per orbit. The measured drift is
+**0.0038 K per orbit**, twenty times smaller.
+
+**The offset is structural, and this time that claim is measured across states
+rather than across three readings of one.** Each run on its own convergence
+window -- the trailing ten orbits, which is what the criterion reads -- plus the
+baseline's longer settled block:
+
+| run | window | storage, W/m2 | mean TOA, W/m2 | residual, W/m2 |
+| --- | --- | ---: | ---: | ---: |
+| `run_8c2e1ff9ab5e` baseline, 289.71 K | 67-76, `NLOWIO = 0` | -0.055 | -0.600 | **-0.545** |
+| `run_8c2e1ff9ab5e` baseline | 45-65, `NLOWIO = 1` | +0.057 | -0.500 | **-0.556** |
+| `run_b014469b8091` bootstrap, 289.15 K | 81-90 | +0.112 | -0.515 | **-0.626** |
+| `run_524fbed77a9a`, 289.00 K | 36-45 | +0.084 | -0.483 | **-0.567** |
+| `run_bfa3f5269660`, 281.92 K | 36-45 | +0.010 | -0.552 | **-0.562** |
+
+Three further twenty-orbit windows on the same runs -- 26-45 on both short runs
+and 71-90 on the bootstrap -- give -0.628, -0.533 and -0.569. Across all eight
+the residual is **-0.573 +/- 0.035 W/m2**, and not one falls outside -0.53 to
+-0.63.
+
+The storage column is what makes this a test and not a tautology: it moves by
+0.17 W/m2 across the five, correctly reporting a run still climbing as still
+climbing, while the residual does not move with it. Widening the two short runs'
+windows from ten orbits to twenty raises their storage to +0.279 and +0.125,
+because those windows reach back into the approach -- and their residuals do not
+follow, staying at -0.628 and -0.533. Each window is reported with two
+estimators, a least-squares slope and an endpoint difference, and they agree
+throughout: -0.055 against -0.063 on the baseline's clean block, +0.084 against
++0.109 on `run_524fbed77a9a`.
+
+**And the criterion's verdicts do not track the physical imbalance at all.**
+`run_524fbed77a9a` is recorded `equilibrated_for_worldbuilding`; it passes
+`|mean TOA| < 0.5` at -0.483, and its heat content is rising at +0.084 W/m2. The
+baseline fails at -0.600, and its heat content is flat to -0.055. The criterion
+passed the run further from equilibrium and failed the one closer to it. Both
+storages are small enough that this is not a claim about which run is better
+spun up; it is a claim that the quantity being thresholded is not the quantity
+the threshold is for.
+
+**And the incoming shortwave is not the offset.** Over a full orbit the time mean
+of the inverse-square distance factor is exactly `1/sqrt(1 - e^2)`, so
+`<rst - rsut>` has to equal `GSOL0 / (4 sqrt(1 - e^2))` -- a number that comes
+from the run's `planet_namelist` and the geometry of an ellipse, and that the
+radiation code never sees. Measured on the clean block: **321.5887 against
+321.6006, a residual of -0.0119 W/m2.** That tests the disc average, the
+eccentricity weighting, the zenith-angle integration and the radiation call
+frequency together, and a 0.2% error in any of them would have been the whole
+gap. The same identity on this run's `NLOWIO = 1` block is out by -0.0633,
+five times worse, which is the size a corrupt first record of twelve would give;
+but the 0.91 run's `NLOWIO = 1` window closes to -0.0100, so that is a
+suggestion rather than a demonstration and it is not offered as one.
+
+**Where in the column it sits.** Splitting the same measurement at the surface:
+
+| layer | flux route says | state stores | residual |
+| --- | ---: | ---: | ---: |
+| surface, `hfns` | -0.168 | -0.046 | -0.122 |
+| atmosphere, `ntr - hfns` | -0.432 | -0.009 | -0.423 |
+| planet, `ntr` | -0.600 | -0.055 | -0.545 |
+
+Four fifths of it is in the atmospheric column, between the two flux
+diagnostics, rather than at the surface.
+
+So the residual is named: **a constant offset of -0.573 +/- 0.035 W/m2 in the
+reported top-of-atmosphere net radiation, resident in the atmospheric column.**
+It is not storage, it is not the insolation, it is not the 28-term
+decomposition, and it is not a seasonal sampling artifact. What remains is the
+reflected shortwave `rsut`, the outgoing longwave `rlut`, or an atmospheric
+heating that neither flux diagnostic books -- and separating those three needs
+the radiative transfer recomputed offline from the run's own profiles, which is
+the next step and is not arithmetic on existing outputs.
+
+## What this changes for the convergence criterion
+
+`|mean TOA| < 0.5 W/m2` is applied to a diagnostic that is 0.57 too negative, and
+every recent miss on this baseline is smaller than that offset. The full argument,
+including where the "missing it by 0.0014" came from, is
+`exoplasim/notes/baseline-equilibration.md`. Two things from it belong here.
+
+The miss is **not** rounded into a pass and the criterion is **not** amended on
+the strength of this measurement: choosing a new quantity for a criterion
+immediately after measuring that the new quantity passes is the move
+`WORKFLOW.md` section 7 forbids, whatever the physics says.
+
+But the baseline's failure to converge is an instrument fault rather than a
+spin-up fault, and more orbits cannot fix it. That is what A2 needed to know.
 
 ## Status
 
-Open, and narrowed twice more on 2026-08-17 against the settled baseline.
+Open, and narrowed on 2026-08-17 against the settled baseline.
 
 **Closed.** The large-scale condensation lead, which was the standing candidate:
 it is the missing latent heat of fusion in `mklsp`, predicted and measured to
 0.7%, worth 1.57 W/m2, and structurally incapable of being the gap. The radiation
-diagnostics, which are internally consistent to 0.03 W/m2 on a clean orbit. And
-the claim that the gap is a fixed -0.455.
+diagnostics, which are internally consistent to 0.03 W/m2 on a clean orbit. The
+claim that the gap is a fixed -0.455. **A storage term in the slab ocean or the
+sea ice**, eliminated above against the prognostic state, on eight windows across
+four runs. **The incoming shortwave**, closed against the declared solar constant
+and the orbit to 0.012 W/m2.
 
 **Found.** The instrument was mis-deployed. `denergy` is written unaccumulated
 while everything it would be compared against is a time mean, so under
 `NLOWIO = 1` -- which is every run made before 2026-08-17 -- the 28 terms are
 snapshots and disagree with the fluxes by several percent. That is why turning
 the decomposition on did not answer the question. Runs now set `NLOWIO = 0` and
-the terms are usable; exactly one clean orbit exists, orbit 66 of the baseline.
+the terms are usable.
 
-**Open.** `ntr - (rss + rls + hfss + hfls) = -0.7761` on the climatology,
--0.7761 against a gridpointd physics sum of +0.4763. The next step is not a new
-instrument but more of the clean one: several `NLOWIO = 0` orbits, so the annual
-residual can be separated from the +/-7 W/m2 seasonal storage swing it hides
-inside. That is CLIM-1 still.
-
-It remains larger than the |mean TOA| < 0.5 W/m2 convergence criterion it sits
-inside, which is why it is worth resolving rather than merely recording.
+**Open, and down to one candidate set.** The reported TOA net carries a
+structural offset of -0.573 +/- 0.035 W/m2 that the planet's heat content does
+not experience, four fifths of it in the atmospheric column. `rsut`, `rlut`, or an
+unbooked atmospheric heating. That is CLIM-1 still, and the next instrument is an
+offline radiative-transfer recomputation from the run's own temperature and
+humidity profiles, not more model time -- the existing clean orbits are already
+enough to see the answer once there is something to compare them against.
 
 ## What this cost, and what it saved
 

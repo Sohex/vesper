@@ -409,8 +409,10 @@ energy_diagnostics: true
 nenergy in plasim_nl, which the Python API does not expose, so
 run_exoplasim.py edits the namelist directly. Adds the 28 energy-budget
 terms on codes 360-387 to the regular output, to locate which one carries
-the constant -0.455 W/m2 residual. Needs the rebuilt binary for the term-15
-latent-heat phase fix; that rebuild is done.
+the residual between the top of the atmosphere and the surface. None does:
+the decomposition closes to 0.02 W/m2 and the residual is an offset in the
+reported top-of-atmosphere net radiation. Needs the rebuilt binary for the
+term-15 latent-heat phase fix; that rebuild is done.
 
 ## `ozone_scale`
 
@@ -471,10 +473,10 @@ energy_diagnostics_3d: true
 ```
 
 The same 28 terms per level, codes 460-487. The column totals established
-that the -0.455 W/m2 residual is not the fixed offset it was recorded as --
-it spans -0.400 to -0.489 across four converged runs, against a claimed
-+/-0.010 -- but no single term carries it. Per-level says where in the
-column the imbalance appears, which is what turns a number into a lead.
+that no single term carries the residual and that the decomposition closes,
+which is what ruled the gridpoint physics out. Per-level is what showed the
+large-scale condensation lead to be a phase-booking difference of a flat
+13.3% at every sub-freezing level rather than a leak.
 
 ## `roughness_source`
 
