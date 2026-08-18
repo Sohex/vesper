@@ -234,8 +234,10 @@ geography digest separated them, which was luck. Anything physical that is not i
 the directory name is a collision waiting for the run that changes it.
 
 Enabling `model.energy_diagnostics` adds PlaSim's 28-term energy decomposition on
-codes 360-387, which is the instrument for the constant -0.455 W/m2 that does not
-close between the top of the atmosphere and the surface. The postprocessor does
+codes 360-387, which was the instrument for the residual between the top of the
+atmosphere and the surface. It closed the decomposition and thereby ruled itself
+out: the residual is an offset in the reported top-of-atmosphere net radiation,
+which the 28 terms do not see. The postprocessor does
 not ship those codes, so `run_exoplasim.py` registers them at run time rather
 than patching the vendored tree, which a reinstall would silently undo. The
 residual needs a settled run: a segment taken one orbit off a restart sits several

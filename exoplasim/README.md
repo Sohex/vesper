@@ -84,6 +84,10 @@ after it passes:
 python exoplasim/scripts/index_runs.py
 
 python exoplasim/scripts/assess_convergence.py exoplasim/runs/<run_id>
+# The TOA criterion above reads a diagnostic that is offset from the planet's
+# actual energy tendency; this says by how much on the run in front of you.
+python exoplasim/scripts/close_state_energy.py exoplasim/runs/<run_id> \
+  --first 67 --last 76
 # --run is required: a continuation cannot recompute a name, and being handed
 # one cannot silently resolve to a different run.
 python exoplasim/scripts/continue_exoplasim.py --run <run_id> --orbits 5
@@ -130,6 +134,7 @@ unless told they exist.
 | `rebuild_binaries.py` | rebuild every executable and record which patches each contains |
 | `index_runs.py` | index every run by what it is, since a UUID says nothing |
 | `assess_convergence.py` | spin-up convergence against the predeclared criteria |
+| `close_state_energy.py` | closes the energy budget against the PROGNOSTIC STATE, which is the check the flux diagnostics cannot fail |
 | `build_climatology.py` | average an equilibrated segment into climatologies |
 | `analyze_climatology.py` | diagnostics, maps and a rate-normalised Koppen interpretation |
 | `analyze_smoke.py` | audit and plot a one-orbit smoke run |
@@ -226,7 +231,9 @@ only one can be in the tree at a time.
 
 See `exoplasim/README.md` for the workflow and results,
 `exoplasim/notes/lake-representation.md` for what the model can do with the
-endorheic basins, and `exoplasim/notes/parameter-decisions.md` for every physical
+endorheic basins, `exoplasim/notes/baseline-equilibration.md` for why the TOA
+convergence criterion is failing on an instrument rather than on a state, and
+`exoplasim/notes/parameter-decisions.md` for every physical
 and format decision
 (ExoPlaSim 3.4.2 calendar bugs, postprocessor code quirks, convergence criteria,
 Köppen rate-normalisation, sign conventions). Read the notes before changing
