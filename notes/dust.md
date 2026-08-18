@@ -503,20 +503,49 @@ whichever way the lake term goes**, and it is the one an offline Penman
 perturbation cannot see, because it is a precipitation response and not a surface
 energy balance.
 
-So the answer is now split in two. DUST-10 settles the lake term offline. The
-catchment term needs a climate run with dust in it -- but a PRESCRIBED field is
-enough for that, because the question is one iteration deep and does not need
-emission to respond. That is a much smaller fork change than DUST-3: the
-radiation has to see a dust field and it has to have a longwave term, and
-nothing else. Transport, emission, wet deposition and size bins are all DUST-3's
-problem and none of them is needed to answer this.
+So the answer is split in two, and DUST-10 has now settled the first half.
 
-**Note the interaction with A2 either way.** `WORKFLOW.md` A2 says the stellar
-cycle makes a mean-climate verdict under-carve, because carving is irreversible
-and the wet extreme ratchets. If dust also under-carves, the two compound rather
-than cancel, and the irreversibility argument stops being a reason to hurry: an
-under-carve is the recoverable error, since a basin left closed can be carved on
-a later pass and one carved in error cannot be restored.
+### DUST-10, measured: the lake term is small and it UNDER-carves
+
+Computed 2026-08-17. `analysis/dust_surface_forcing.nc` carries the per-cell
+dust perturbation to `rss` and `rls`, and `carve_verdict.py --dust-forcing` adds
+them before Penman. Surface forcing, not top-of-atmosphere, which is the whole
+point:
+
+| surface | shortwave | longwave | net |
+| --- | ---: | ---: | ---: |
+| ocean, a = 0.07 | -12.3 | +4.5 | -7.8 |
+| vegetated land, a = 0.18 | -10.8 | +4.5 | -6.3 |
+| playa fill, a = 0.40 | -7.9 | +4.5 | -3.4 |
+| salt crust, a = 0.50 | -6.6 | +4.5 | -2.1 |
+
+Negative everywhere, including over the bright fill where the TOA term is
+positive. Area-weighted the perturbation is -7.5 W/m2 shortwave and +2.8
+longwave, so -4.7 net.
+
+**Verdict with the dust surface forcing applied: 1,585 carved against 1,561
+without. Twenty-four MORE basins carve.** Dust dims the lake, Penman evaporation
+falls, more basins overflow. The direction is the opposite of the
+top-of-atmosphere reading and the same as this note's corrected one; the earlier
+claim that dust closes basins through the lake is dead.
+
+It is also small: 24 basins, not the 144 a 10% evaporation change would move,
+because -4.7 W/m2 on a surface net radiation of order 100 is a few percent and
+not ten. The disputed band narrows from 417 to 393, and the ocean validation is
+unchanged at 1.017 either way, which is the check that the perturbation did not
+break Penman itself.
+
+**So the lake term is settled, small, and in the recoverable direction.** A
+dust-free verdict under-carves by about 24 basins on this limb, and an
+under-carve can be corrected on a later pass while an over-carve cannot.
+
+### What is still open is the larger limb
+
+The catchment term is not in that number and is estimated at 144 to 235 basins in
+the OPPOSITE direction, over-carving, because suppressed precipitation cuts the
+runoff the criterion divides by. It is six to ten times the lake term by that
+estimate and it decides the sign of the whole question. DUST-11 measures it and
+needs a prescribed-dust climate run; nothing offline can reach it.
 
 **The Generic PCM is still out, but not for the reason given above.** That reason
 was that the trade is not worth making "for a term whose sign is settled" -- and

@@ -218,6 +218,14 @@ def main() -> None:
     # counts happened to differ.
     ap.add_argument("--basins", type=Path, default=None)
     ap.add_argument("--output", type=Path, default=ANALYSIS / "carve_verdict.json")
+    # DUST-10. Dust changes the SURFACE energy balance at a lake, which is what
+    # Penman reads, and the sign is not the top-of-atmosphere one: the layer
+    # absorbs, so the ground loses even where the TOA gains over bright fill.
+    # Off by default because the baseline climatology has no dust in it, so
+    # applying this is asking a what-if rather than reporting the run.
+    ap.add_argument("--dust-forcing", type=Path, default=None,
+                    help="add per-cell dust perturbations to rss and rls before "
+                         "Penman; see analysis/dust_surface_forcing.nc")
     args = ap.parse_args()
 
     _build_data = component_data("hydrography", strict=True)
@@ -246,6 +254,23 @@ def main() -> None:
         rss = annual_mean(ds, "rss")
         rls = annual_mean(ds, "rls")
     q_air, wind = turbulent_forcing(args.climatology)
+
+    dust_note = None
+    if args.dust_forcing is not None:
+        with Dataset(args.dust_forcing) as ds:
+            drss = np.asarray(ds["drss"][:])
+            drls = np.asarray(ds["drls"][:])
+        if drss.shape != rss.shape:
+            raise SystemExit(
+                f"dust forcing is {drss.shape} and the climatology is "
+                f"{rss.shape}; they must share a grid")
+        rss = rss + drss
+        rls = rls + drls
+        dust_note = {"file": str(args.dust_forcing),
+                     "mean_drss_w_m2": float(drss.mean()),
+                     "mean_drls_w_m2": float(drls.mean())}
+        print(f"  dust surface forcing applied: rss {drss.mean():+.3f}, "
+              f"rls {drls.mean():+.3f} W/m2 in the unweighted mean")
 
     # Background albedo as supplied to the run, for backing shortwave out of rss.
     # Read directly rather than importing from the ExoPlaSim component: both

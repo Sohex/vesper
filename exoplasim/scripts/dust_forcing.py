@@ -76,6 +76,13 @@ DIFFUSIVITY = 1.66
 LAPSE_K_PER_KM = 6.5
 TRANSMISSION = 0.79
 LW_LO_UM, LW_HI_UM = 4.0, 40.0
+# The atmospheric window, and how much of it survives between a dust layer at the
+# scale height and the ground. Outside 8-12 um the air below the dust is already
+# opaque, so downward emission from the dust adds nothing there; inside it, water
+# vapour still absorbs some. 0.7 is declared, bracketed 0.5 to 0.9, and it scales
+# the surface longwave term linearly.
+WINDOW_LO_UM, WINDOW_HI_UM = 8.0, 12.0
+WINDOW_TRANSMITTANCE = 0.7
 SW_BANDS_UM = ((0.34, 0.75), (0.75, 4.0))
 
 # The two ends of the size bracket. `fine` is what the optical depth in
@@ -198,6 +205,50 @@ def longwave_forcing(column_kg_m2, dist, t_surface, t_layer, n_grid=40):
         tau_abs_mean += tau_abs
     dlam = (LW_HI_UM - LW_LO_UM) / (n_grid - 1) * 1e-6
     return float(total * dlam), float(tau_abs_mean / n_grid)
+
+
+def surface_forcing(column_kg_m2, dist, albedo, t_layer, insolation,
+                    sw_bands, n_grid=24):
+    """Shortwave and longwave forcing AT THE SURFACE, which is what Penman reads.
+
+    Not the top-of-atmosphere numbers, and the difference decides the sign. An
+    absorbing layer removes energy from the beam that never reaches the ground,
+    so the surface shortwave term is negative even where the TOA term is positive
+    over bright ground -- the TOA sign there is energy retained in the ATMOSPHERE.
+
+    Shortwave, per Chylek and Coakley's surface form: the ground loses what the
+    layer scatters back and what it absorbs, scaled by how much of the beam it
+    would have kept.
+
+        dF_sw,surf = -S T^2 (1 - a) (beta tau_sca + tau_abs)
+
+    Longwave: the ground gains downward emission from the layer, but only in the
+    window, because outside it the air between is already opaque and adds nothing.
+    """
+    tau_sca = tau_abs = beta_eff = 0.0
+    for (lo, hi), share in sw_bands:
+        ext, ssa, g = band_optics(lo, hi, lambda x: np.ones_like(x), dist)
+        tau = ext * 1e3 * column_kg_m2
+        tau_sca += tau * ssa * share
+        tau_abs += tau * (1.0 - ssa) * share
+        beta_eff += backscatter_fraction(g) * share
+    sw = -insolation * TRANSMISSION ** 2 * (1.0 - albedo) * (
+        beta_eff * tau_sca + tau_abs)
+
+    lam_t, n_t, k_t = opac_indices()
+    grid = np.linspace(WINDOW_LO_UM, WINDOW_HI_UM, n_grid)
+    b = planck(grid, t_layer)
+    lw = 0.0
+    for i, lam in enumerate(grid):
+        n = float(np.interp(lam, lam_t, n_t))
+        k = float(np.interp(lam, lam_t, k_t))
+        _, ssa, _, mee = lognormal_integrate(
+            lam, n, k, dist["r_mod_um"], dist["sigma_g"], 0.01, 25.0,
+            RHO_G_CM3, n_r=200)
+        emissivity = 1.0 - np.exp(-DIFFUSIVITY * mee * 1e3 * column_kg_m2 * (1.0 - ssa))
+        lw += b[i] * emissivity
+    dlam = (WINDOW_HI_UM - WINDOW_LO_UM) / (n_grid - 1) * 1e-6
+    return float(sw), float(lw * dlam * WINDOW_TRANSMITTANCE)
 
 
 def main() -> None:
@@ -367,3 +418,58 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
+def write_per_cell(dust_nc, albedo, out_path, dist, t_layer, insolation, sw_bands):
+    """Per-cell surface forcing, as perturbations to `rss` and `rls`.
+
+    Written so the carve verdict can read them straight into its own Penman
+    without re-deriving any optics. The optical properties depend only on the
+    size distribution, so they are computed once and applied across the grid;
+    only the longwave emissivity is nonlinear in column mass.
+    """
+    from netCDF4 import Dataset as DS
+    with DS(dust_nc) as ds:
+        aod = np.asarray(ds["aod_central"][:], dtype=float)
+        lat = np.asarray(ds["lat"][:]); lon = np.asarray(ds["lon"][:])
+    mee = None
+    tau_sca_c = tau_abs_c = beta_eff = 0.0
+    for (lo, hi), share in sw_bands:
+        ext, ssa, g = band_optics(lo, hi, lambda x: np.ones_like(x), dist)
+        if mee is None:
+            mee = ext * 1e3                      # m2/kg, for column from AOD
+        tau_sca_c += ext * 1e3 * ssa * share
+        tau_abs_c += ext * 1e3 * (1.0 - ssa) * share
+        beta_eff += backscatter_fraction(g) * share
+    column = aod / mee                            # kg/m2 per cell
+
+    drss = -insolation * TRANSMISSION ** 2 * (1.0 - albedo) * (
+        beta_eff * tau_sca_c + tau_abs_c) * column
+
+    lam_t, n_t, k_t = opac_indices()
+    grid = np.linspace(WINDOW_LO_UM, WINDOW_HI_UM, 24)
+    b = planck(grid, t_layer)
+    drls = np.zeros_like(column)
+    for i, lam in enumerate(grid):
+        n = float(np.interp(lam, lam_t, n_t)); k = float(np.interp(lam, lam_t, k_t))
+        _, ssa, _, m = lognormal_integrate(lam, n, k, dist["r_mod_um"],
+                                           dist["sigma_g"], 0.01, 25.0,
+                                           RHO_G_CM3, n_r=200)
+        drls += b[i] * (1.0 - np.exp(-DIFFUSIVITY * m * 1e3 * column * (1.0 - ssa)))
+    drls *= (WINDOW_HI_UM - WINDOW_LO_UM) / 23 * 1e-6 * WINDOW_TRANSMITTANCE
+
+    with DS(out_path, "w") as ds:
+        ds.createDimension("lat", lat.size); ds.createDimension("lon", lon.size)
+        ds.createVariable("lat", "f8", ("lat",))[:] = lat
+        ds.createVariable("lon", "f8", ("lon",))[:] = lon
+        for name, arr, note in (("drss", drss, "surface net shortwave"),
+                                ("drls", drls, "surface net longwave")):
+            v = ds.createVariable(name, "f8", ("lat", "lon"))
+            v[:] = arr; v.units = "W m-2"; v.long_name = f"dust perturbation to {note}"
+        ds.note = ("DUST-2/DUST-10. Add to rss and rls before Penman. SURFACE "
+                   "forcing, not top-of-atmosphere: the layer absorbs, so the "
+                   "ground loses even where TOA gains. Longwave is restricted to "
+                   "the 8-12 um window at a declared transmittance of "
+                   f"{WINDOW_TRANSMITTANCE}, which scales it linearly.")
+        ds.window_transmittance = WINDOW_TRANSMITTANCE
+    return drss, drls, column
