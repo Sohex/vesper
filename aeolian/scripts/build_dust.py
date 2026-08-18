@@ -238,12 +238,33 @@ def weibull_shape_from_samples(samples: Path, mask) -> tuple[float, int] | None:
     return float(np.median(np.interp(cv[sel], cvs[::-1], ks[::-1]))), int(spd.shape[0])
 
 
+def fecan_residual_moisture(clay_pct: np.ndarray, cfg: dict) -> np.ndarray:
+    """Fecan et al. (1999) equation 15: w', gravimetric percent.
+
+    Below w' the threshold does not move at all, so this is the whole of what
+    the soil contributes to the moisture gate. It is a pure function of clay,
+    which is why it can be a boundary field: `build_dust_source_fields.py`
+    writes it as surface code 1803 and the in-model scheme reads it there
+    rather than re-deriving it from a clay map ExoPlaSim does not have.
+    """
+    mc = cfg["moisture"]
+    return mc["clay_quadratic"] * clay_pct ** 2 + mc["clay_linear"] * clay_pct
+
+
+def gravimetric_moisture_pct(water_m: np.ndarray, cfg: dict) -> np.ndarray:
+    """A depth of soil water in m as gravimetric moisture in percent."""
+    mc = cfg["moisture"]
+    return np.clip(water_m * 1.0e5
+                   / (mc["soil_depth_m"] * mc["bulk_density_kg_m3"]),
+                   0.0, 100.0)
+
+
 def moisture_threshold_factor(gravimetric_pct: np.ndarray,
                               clay_pct: np.ndarray, cfg: dict) -> np.ndarray:
     """Fecan et al. (1999) equations 14 and 15."""
     mc = cfg["moisture"]
-    w_res = mc["clay_quadratic"] * clay_pct ** 2 + mc["clay_linear"] * clay_pct
-    excess = np.maximum(gravimetric_pct - w_res, 0.0)
+    excess = np.maximum(gravimetric_pct - fecan_residual_moisture(clay_pct, cfg),
+                        0.0)
     return np.sqrt(1.0 + mc["a"] * excess ** mc["b"])
 
 
@@ -352,18 +373,6 @@ def advect_to_steady_state(emission, u, v, loss_rate, lat, lon, cfg):
 
 
 # -- inputs -------------------------------------------------------------------
-
-def read_sra_grid(path: Path, nlat: int, nlon: int) -> np.ndarray:
-    """One record of an ExoPlaSim .sra surface field."""
-    values = []
-    for line in path.read_text(encoding="ascii").splitlines():
-        parts = line.split()
-        if len(parts) == 8 and all(p.lstrip("-").isdigit() for p in parts[:2]):
-            continue                                    # header record
-        values.extend(float(p) for p in parts)
-    arr = np.asarray(values, dtype=float)
-    return arr[:nlat * nlon].reshape(nlat, nlon)
-
 
 def soil_clay_grid(path: Path, lat: np.ndarray, lon: np.ndarray) -> np.ndarray:
     """Clay fraction per grid cell from the pedology soil map."""
@@ -505,9 +514,6 @@ def main() -> None:
     if len(good) < 2:
         raise SystemExit("too few usable time bins; refusing to guess a climate")
 
-    z0 = read_sra_grid(
-        PROJECT_ROOT / "exoplasim" / "inputs" / resolution.lower()
-        / f"orogen_{resolution}_surf_0173.sra", nlat, nlon)
     clay = soil_clay_grid(soilmap(config), lat, lon)
     erodible, land_fraction, per_class, class_detail, terrain = source_fractions(
         config, cfg, lakes)
@@ -545,24 +551,21 @@ def main() -> None:
     ua_col = np.average(ua[:, sel, :, :], axis=1)
     va_col = np.average(va[:, sel, :, :], axis=1)
 
-    f_eff = drag_efficiency(z0, cfg)
     clay_pct = np.nan_to_num(clay, nan=0.0) * 100.0
-    f_clay = np.clip(np.nan_to_num(clay, nan=0.0), 0.0, 0.2)   # K14 caps fclay at 0.2
+    # K14 caps fclay; the limit is declared in the config beside its reason.
+    f_clay = np.clip(np.nan_to_num(clay, nan=0.0), 0.0,
+                     cfg["emission"]["f_clay_max"])
 
-    # Gravimetric soil moisture, in percent. mrso is a depth of water; the
-    # pedology bulk density converts it against the regolith it sits in.
-    bulk_density = 1500.0
-    depth_m = 0.5
-    grav_pct = np.clip(mrso / max(depth_m, 1e-6) * 1000.0 / bulk_density * 100.0,
-                       0.0, 100.0)
+    # Gravimetric soil moisture, in percent. mrso is a depth of water; the soil
+    # depth and bulk density that convert it are declared in the config, not
+    # here, because the in-model scheme needs the same conversion and a literal
+    # in this file would be the second copy of it.
+    grav_pct = gravimetric_moisture_pct(mrso, cfg)
 
     cfg["emission"]["_gravity_scaling"] = gravity_threshold_scaling(
         cfg["emission"], gravity)
     frac_bin, d_bin = emitted_mass_fractions(cfg)
     rho_p = cfg["removal"]["particle_density_kg_m3"]
-    em_cfg, src = cfg["emission"], cfg["source"]
-
-    mode = cfg["drag_partition"].get("mode", "bracket")
 
     # The bracket is over the aeolian roughness of the erodible surface, which
     # is the parameter that actually carries the uncertainty. See the long note

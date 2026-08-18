@@ -7,10 +7,19 @@ decision and why it is not in the GCM; this component is the implementation.
 ```bash
 python aeolian/scripts/build_dust.py                          # the baseline source map
 python aeolian/scripts/build_dust.py --variant arid_bare_ground   # the bracket on vegetation
+python aeolian/scripts/build_dust_source_fields.py            # the same map as .sra boundary fields
+python aeolian/scripts/build_dust_source_fields.py --self-test  # the identity, and that it can fail
 ```
 
 Products are `analysis/dust_<variant>.json` and a matching `.nc` carrying annual
 mean optical depth, deposition flux, emission and the erodible fraction.
+
+`build_dust_source_fields.py` is the bridge to the in-model scheme: it writes the
+same per-cell source map as ExoPlaSim surface codes 1801, 1802 and 1803, plus the
+`aero_nl` group that goes with them. It is a separate script rather than a flag
+on `build_dust.py` because it produces a boundary condition rather than an
+answer, and because it must be regenerated whenever the terrain, the lake
+solution or the soil moves, which is a different cadence from the offline run.
 
 ## STATUS: the chain is sound, the answer is undetermined by two parameters
 
@@ -162,9 +171,9 @@ dust because it neither coagulates nor grows appreciably.
 
 `aeolian/notes/in-model-dust.md` is the design for putting emission, deposition
 and scavenging inside ExoPlaSim (DUST-3), with each piece's predicted effect and
-what result would falsify it. Two of its patches are written and verified but not
-yet applied, and they are listed in `PENDING_PATCHES` in
-`exoplasim/scripts/rebuild_binaries.py`:
+what result would falsify it. Three of its patches are written and verified but
+not yet applied, and they are listed in `PENDING_PATCHES` in
+`exoplasim/scripts/rebuild_binaries.py`. They stack in this order:
 
 - `exoplasim/patches/exoplasim-3.4.2-aerocore-defects.patch`, seven latent
   defects in `aerocore.f90` and `aeromod.f90`, unconditional.
@@ -172,6 +181,23 @@ yet applied, and they are listed in `PENDING_PATCHES` in
   velocity behind `ldepvel` and Sportisse below-cloud scavenging behind
   `lwetdep`, both defaulting to off and both reading their coefficients from
   `aeolian/config/dust.yaml` rather than carrying Fortran defaults.
+- `exoplasim/patches/exoplasim-3.4.2-dust-emission.patch`, the three boundary
+  fields, the gathers, the `aero_nl` calibration group and Kok (2014) equation
+  18 in the source term, behind `ldustemit` and defaulting to off.
+
+The run side is `model.dust_emission` in `config/planet.yaml`, which is absent
+and therefore `none` by default. Setting it makes `run_exoplasim.py` stage the
+three fields, write the whole `aero_nl` group from the provenance file beside
+them, and set `L_AERO = 1` and `l_source = 2`. `model.dust_dry_deposition` and
+`model.dust_wet_scavenging` switch on the two removal terms independently, which
+is what lets each be its own A/B arm off one binary.
+
+The emitted dust is RADIATIVELY INERT on that path and the driver sets
+`l_aerorad = 0` to say so. That is not a preference: `radmod`'s own `apart` is
+never populated from the namelist, which is upstream defect 1 and still open
+because it lives in `radmod.f90`, and the longwave aerosol term does not exist
+yet. Turning the radiation on before those land would price this world's dust at
+a small fraction of its true optical depth and cool with it without warming.
 
 **This component does not retire when that lands.** ExoPlaSim's aerosol is one
 tracer with one radius and one density fixed at compile time, so the in-model

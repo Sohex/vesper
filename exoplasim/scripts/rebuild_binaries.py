@@ -120,12 +120,21 @@ PENDING_PATCHES = [
     ("exoplasim-3.4.2-co2-shortwave.patch", "pkg"),
     ("exoplasim-3.4.2-aerocore-defects.patch", "src"),
     ("exoplasim-3.4.2-aerosol-deposition.patch", "src"),
-    # DUST-3 items 1 and 5, and the order below is the order they apply in.
+    # DUST-3 items 1, 4 and 5, and the order below is the order they apply in.
     # -aerosol-apart edits the same two lines of `aero_ini` that
     # -aerosol-deposition does, so it is authored on top of it; -aerosol-longwave
     # edits the `swr` aerosol block and the `radini` broadcasts -aerosol-apart
     # touches, so it is authored on top of that. Both move the star-cycle base
     # sha in build_star_cycle_exoplasim.sh, and that patch has been regenerated.
+    #
+    # -dust-emission was authored on the deposition patch WITHOUT the two above,
+    # by a concurrent branch, and it also appends to `aero_ini`. Neither author
+    # could test the combined stack and it does NOT apply with -dust-emission
+    # last: its aero_ini hunk rejects against the context -aerosol-apart moves.
+    # It applies in the order below, which is each patch's own authoring base, and
+    # the whole stack was verified 2026-08-18 to apply forward and to reverse
+    # newest-first to the pristine vendored shas. This order is load bearing.
+    ("exoplasim-3.4.2-dust-emission.patch", "src"),
     ("exoplasim-3.4.2-aerosol-apart.patch", "src"),
     ("exoplasim-3.4.2-aerosol-longwave.patch", "src"),
 ]

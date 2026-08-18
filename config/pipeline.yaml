@@ -178,6 +178,14 @@ steps:
     writes: [exoplasim/inputs/t42/orogen_T42_surf_1811_provenance.json]
     gate: only when model.dust_source is set; a no-op at ndustrad = 0
 
+  - id: dust_source_fields
+    script: aeolian/scripts/build_dust_source_fields.py
+    loop: A
+    cost: minutes
+    needs: [dust, surface_water, soil]
+    writes: [exoplasim/inputs/t42/orogen_T42_surf_1801_provenance.json]
+    gate: only when model.dust_emission is set; a no-op at ldustemit = 0
+
   - id: dust_forcing
     script: exoplasim/scripts/dust_forcing.py
     cost: minutes
