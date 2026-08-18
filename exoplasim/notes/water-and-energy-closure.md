@@ -587,6 +587,18 @@ the frictional dissipation returned as heat. It does, to -0.0073 W/m2 out of
 2.21. Had that failed, `denergy27` would not have been the adiabatic generation
 and the second identity would have meant nothing.
 
+One thing the second identity does NOT separate, and the distinction matters to
+whoever takes this further. Both terms compare the raw new state against the
+Robert-Asselin-filtered old one, because `atm`, `adm` and `azm` are `stm`, `sdm`
+and `szm` as the previous step's filter left them (`plasim.f90:2873-2875` and
+`2979-2984`). So what is measured is the step AS THE MODEL EXECUTES IT --
+semi-implicit leapfrog with the filter's first part folded into the reference
+state -- and not the continuous adiabatic equations on their own. The filter
+enters both terms the same way, so it cannot be read out of their difference
+here. The number is right for the model that produced these runs, which is what
+the residual needed; attributing it between the time scheme and the semi-implicit
+conversion is a separate question and needs a different experiment.
+
 ### The atmospheric budget closes once it is counted
 
 | | W/m2 |
