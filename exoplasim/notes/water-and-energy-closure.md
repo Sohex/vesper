@@ -356,6 +356,82 @@ snowmelt, which `hfns` correctly includes. That leaves
 `ntr - (rss + rls + hfss + hfls) = -0.7761` as the quantity still unexplained,
 against a gridpointd physics sum of +0.4763.
 
+## The budget on ten clean orbits, and what carries the gap
+
+Measured 2026-08-17 on orbits 67-76 of `run_8c2e1ff9ab5e`, the first block run
+with `NLOWIO = 0` throughout, so the 28 terms and the flux diagnostics are for
+once averaged the same way. Mean over ten orbits, with the spread across them.
+
+| | W/m2 |
+| --- | ---: |
+| TOA net | -0.6039 +/- 0.1576 |
+| surface `hfns` | -0.1678 +/- 0.1490 |
+| **gap** | **-0.4361 +/- 0.0737** |
+
+So the gap is real and it is near the -0.455 this note was opened on -- but its
+spread across orbits is 0.074, not the +/- 0.010 that three earlier runs
+suggested. It was never that constant; the earlier agreement was three samples of
+a noisy quantity, all taken under the same defective output path.
+
+**Three of the four channels close, and the fourth is the answer.**
+
+| channel | from the terms | from the fluxes | difference |
+| --- | ---: | ---: | ---: |
+| radiative, 9 + 10 vs `ntr - (rss+rls)` | -100.657 | -100.634 | -0.023 +/- 0.031 |
+| sensible, term 7 vs `-hfss` | +22.415 | +22.411 | **+0.004 +/- 0.026** |
+| latent, 11 + 12 + 14 vs `-hfls` | +77.781 | +77.366 | **+0.415 +/- 0.071** |
+
+The sensible line is worth pausing on: under `NLOWIO = 1` that same identity was
+out by 1.6 W/m2, and it is now out by 0.004. That is the snapshot artifact
+disappearing, measured, and it is why the earlier 28-term reading could not have
+answered anything.
+
+**The latent channel does not close, and its partner is the melt term.** The
+atmosphere releases 0.415 W/m2 more condensation heating than the surface
+supplies as latent flux. Over the same ten orbits,
+`hfns - (rss + rls + hfss + hfls)` is **-0.4211 +/- 0.0085** -- the snowmelt
+booking. Same magnitude, opposite sign, and far steadier than either the gap or
+the latent residual on its own.
+
+That pairing is the mechanism. Water leaves the surface as vapour, is condensed
+in the atmosphere releasing latent heat, falls as snow, and consumes the heat of
+fusion again when it melts at the surface. Both books are right. What is wrong is
+the habit of writing the surface budget as `rss + rls + hfss + hfls`, which omits
+the melt term that `hfns` correctly includes -- which is why the four-flux route
+gives -0.857 while the gap against `hfns` is -0.436.
+
+**And the whole budget closes once dissipation is counted.** The atmosphere is
+also heated by about 1.105 W/m2 of frictional and diffusive dissipation, terms 6,
+8, 13, 21, 23 and 25, which has no surface-flux counterpart because that energy
+came from the atmosphere's own kinetic energy rather than from below. Summing:
+
+    flux input       -0.857
+    dissipation      +1.105
+    latent asymmetry +0.415
+    -------------------------
+                     +0.663   against a term sum of +0.643
+
+Closed to 0.02 W/m2. **The 28-term decomposition is self-consistent.** It was
+never going to show a leak, because there is no leak in the decomposition.
+
+## What is left, and it is not an accounting error
+
+The system reports a persistent top-of-atmosphere loss it does not experience.
+Over orbits 55 to 76, mean TOA is **-0.57 W/m2** while the surface temperature is
+flat at 289.71 to 289.73 K. An atmosphere genuinely losing that would cool about
+1.8 K per Earth year and it does not.
+
+Note also that -0.57 fails this project's own `|mean TOA| < 0.5 W/m2`
+convergence criterion, over every recent window, and the earlier assessment that
+missed it by 0.0014 was evaluated somewhere else. That wants checking on its own
+account.
+
+So the search narrows again, and away from the terms: three channels agree to
+better than 0.03 W/m2, the fourth is explained, and the decomposition closes. The
+remaining candidates are the two TOA diagnostics themselves -- `rst` and `rlut`,
+which sum to `ntr` exactly and so cannot be cross-checked against each other --
+or a storage term in the slab ocean or sea ice that neither budget names.
+
 ## Status
 
 Open, and narrowed twice more on 2026-08-17 against the settled baseline.
