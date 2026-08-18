@@ -1,0 +1,131 @@
+Re-weight the Lacis and Hansen shortwave water vapour absorptance for a
+non-solar host, adding `h2osww` to `radmod_nl` beside `o3uvw` and `o3visw`.
+
+WHAT IT CHANGES. Lacis and Hansen (1974) Eq. 21 is a fit to Yamamoto (1962), and
+Yamamoto defines his absorptivity as "the ratio to the solar constant of the
+energy absorbed by the entire vertical air column" -- a fraction of TOTAL
+incident flux, built by weighting laboratory band absorptivities with the SOLAR
+flux. `swr` divides it by `zsolar2` and multiplies it back by band-2 flux, so the
+two cancel and the absorbed flux is the solar value whatever the star. A redder
+host puts more of its flux where water vapour absorbs and gets the Sun's
+absorption anyway. This patch multiplies the absorptance by `h2osww` at all three
+sites: the initial upward-beam total, the downward beam per layer, and the upward
+scattered beam per layer. `h2osww = 1.0` is the default and reproduces Lacis and
+Hansen exactly, so a solar-host run is bit-identical.
+
+Derivation of the weight, and the checks that could have failed:
+`exoplasim/scripts/shortwave_band_weights.py` and
+`exoplasim/notes/shortwave-water-vapour.md`.
+
+THE BASE IT APPLIES TO, and it is not pristine 3.4.2. Like the star-cycle patch,
+this one goes on top of the ozone band weights, so its base is
+"3.4.2 + exoplasim-3.4.2-ozone-band-weights.patch":
+
+    pristine 3.4.2                              eb8e9e1c0127940e607828899ff5dea6653c9835c...
+    + exoplasim-3.4.2-ozone-band-weights.patch  7fd39458a87a0bc042d17b0b93c2e45cbfc4fc04a560965c974efa734019c0ba
+    + this patch                                40bc4571b710ccd17d0ce420ceb9b3e5f177757e8548a249389f52f2a4a2062e
+
+Verify before applying, and refuse if it does not match:
+
+    sha256sum .venv/lib/python3.12/site-packages/exoplasim/plasim/src/radmod.f90
+    patch --forward --strip=1 --directory=.venv/lib/python3.12/site-packages/exoplasim < exoplasim/patches/exoplasim-3.4.2-h2o-shortwave-weight.patch
+
+WHAT MUST LAND WITH IT, in this order. This patch alone is inert and applying it
+alone breaks things, so none of these is optional:
+
+  1. add it to `RESIDENT_PATCHES` in `exoplasim/scripts/rebuild_binaries.py`
+  2. apply it, then `python exoplasim/scripts/rebuild_binaries.py`, then
+     `--verify`. It adds a NAMELIST KEY, so every unrebuilt binary aborts in
+     `radini_` with "Cannot match namelist object name h2osww" --
+     `notes/failure-modes.md` class 11, which this failure mode is the archetype
+     of and which is why it is survivable
+  3. `build_star_cycle_exoplasim.sh` pins `base_sha` at the line above and will
+     refuse to run. The star-cycle patch must be REGENERATED against the new
+     base, not merely re-pinned; its own comment says so
+  4. add `model.h2o_sw_weight` to `config/planet.yaml` and set `H2OSWW` from it
+     in `run_exoplasim.py` and `continue_exoplasim.py`, the way `O3UVW` and
+     `O3VISW` are already set. Setting the namelist key BEFORE the rebuild is
+     what breaks every run, so this step follows the rebuild
+  5. CHOOSE THE VALUE TO MATCH THE SPECTRUM THE RUN USES. No run on this build
+     has been reading k25v -- `NSTARFILE` is 0 and `solarini` builds a 4965 K
+     Planck curve instead, which is PHYS-2 -- and the weight is 1.202 for that
+     blackbody against 1.346 for the real spectrum. Setting 1.346 while the model
+     runs a blackbody over-corrects by 12%
+  6. re-run the baseline, and re-derive the flux: the correction is predicted to
+     move the mean off its design value by 1.45 K on the blackbody or 2.5 K with
+     the spectrum declared. If this patch, the spectrum and SPEC-2 all land in
+     one rebuild, run two short attribution segments with `h2osww` off and on
+     before the long one, or nothing in the result can be attributed to anything
+
+--- a/plasim/src/radmod.f90
++++ b/plasim/src/radmod.f90
+@@ -57,6 +57,22 @@
+ !     bit-identical.
+       real    :: o3uvw   = 1.0    ! weight, Hartley-Huggins UV terms
+       real    :: o3visw  = 1.0    ! weight, Chappuis visible term
++!     The same correction in the larger term. Lacis & Hansen's water vapour
++!     absorptance is their Eq. 21, a fit to Yamamoto (1962), and Yamamoto states
++!     the definition outright: the ratio to the SOLAR CONSTANT of the energy
++!     absorbed by the whole air column. It is a fraction of total incident flux
++!     and the Sun's spectrum is inside it, because Yamamoto built it by weighting
++!     laboratory band absorptivities with the solar flux and summing them.
++!
++!     Dividing by zsolar2 below converts it to a fraction of band-2 flux and then
++!     multiplies it back by band-2 flux, so the two cancel and the ABSORBED FLUX
++!     is Lacis & Hansen's solar value for any star at all. A redder host puts
++!     more of its flux in the near infrared where water vapour absorbs, and gets
++!     the Sun's absorption anyway. h2osww is that band re-weighting.
++!
++!     Default 1.0 reproduces Lacis & Hansen exactly, so a solar-host run is
++!     bit-identical.
++      real    :: h2osww  = 1.0    ! weight, near-infrared H2O bands
+       integer :: no3     = 1      ! switch for ozon (0=no,1=yes,2=datafile)
+       integer :: nsol    = 1      ! switch for solang (1/0=yes/no)
+       integer :: nswr    = 1      ! switch for swr (1/0=yes/no)
+@@ -614,7 +630,7 @@
+ !
+       namelist/radmod_nl/ndcycle,ncstsol,solclat,solcdec,no3,co2        &
+      &               ,iyrbp,nswr,nlwr,nfixed,slowdown,nradice,npbroaden,desync    &
+-     &               ,o3uvw,o3visw   &
++     &               ,o3uvw,o3visw,h2osww   &
+      &               ,a0o3,a1o3,aco3,bo3,co3,toffo3,o3scale,newrsc,necham,necham6   &
+      &               ,nsol,nclouds,nswrcl,nrscat,rcl1,rcl2,acl2,clgray,tpofmt   &
+      &               ,acllwr,tswr1,tswr2,tswr3,th2oc,dawn,starbbtemp,nstartemp  &
+@@ -771,6 +787,7 @@
+       call mpbcr(toffo3)
+       call mpbcr(o3uvw)
+       call mpbcr(o3visw)
++      call mpbcr(h2osww)
+       call mpbcr(o3scale)
+       call mpbcr(co2)
+       call mpbcr(gsol0)
+@@ -1915,7 +1932,8 @@
+      &           +o3uvw*0.0658*zo3(:)/(1.+(103.6*zo3(:))**3))/zsolar1
+        ztwvt(:)=1.
+        zwv(:)=zywvt(:)+zbetta*zwvt(:)
+-       ztwvtu(:)=1.-2.9*zwv(:)/((1.+141.5*zwv(:))**0.635+5.925*zwv(:))  &
++       ztwvtu(:)=1.-h2osww*2.9*zwv(:)                                   &
++     &            /((1.+141.5*zwv(:))**0.635+5.925*zwv(:))              &
+      &            /zsolar2
+ !
+ !     clear sky scattering (Rayleigh scatterin lower most level only)
+@@ -2010,7 +2028,8 @@
+ !     downward beam
+ !
+        zwv(:)=zywvl(:,jlev)
+-       ztwv(:)=(1.-2.9*zwv(:)/((1.+141.5*zwv(:))**0.635+5.925*zwv(:))   &
++       ztwv(:)=(1.-h2osww*2.9*zwv(:)                                    &
++     &            /((1.+141.5*zwv(:))**0.635+5.925*zwv(:))              &
+      &            /zsolar2)                                             &
+      &        /ztwvt(:)
+        ztwvt(:)=ztwvt(:)*ztwv(:)
+@@ -2019,7 +2038,8 @@
+ !
+        zwv(:)=zywvt(:)+zbetta*(zwvt(:)-zwvl(:,jlev))
+        ztwvu(:)=ztwvtu(:)                                               &
+-     &         /(1.-2.9*zwv(:)/((1.+141.5*zwv(:))**0.635+5.925*zwv(:))  &
++     &         /(1.-h2osww*2.9*zwv(:)                                   &
++     &            /((1.+141.5*zwv(:))**0.635+5.925*zwv(:))              &
+      &            /zsolar2)
+        ztwvtu(:)=ztwvtu(:)/ztwvu(:)
+ !

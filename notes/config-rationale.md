@@ -464,6 +464,12 @@ chromosphere contributes nothing.
 Both default to 1.0 upstream, which reproduces Lacis & Hansen exactly, so the
 patch leaves any solar-host run bit-identical.
 
+The same argument applies to the water vapour absorptance, which is the larger
+term by a factor of ten, and the weight for it is derived in
+`exoplasim/notes/shortwave-water-vapour.md`. It is not a setting here yet: it
+takes effect only through a patch to `radmod.f90` that has to be applied with a
+full binary rebuild, so the value lives with its derivation until that lands.
+
 ## `energy_diagnostics_3d`
 
 ```

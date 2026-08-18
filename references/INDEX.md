@@ -138,6 +138,24 @@ things, and only the second is a brightness cycle.
 | `borosaikia2018-chromospheric-activity-catalogue.pdf` | Boro Saikia et al., 9 authors (2018). *Chromospheric activity catalogue of 4454 cool stars.* A&A 616, A108. `10.1051/0004-6361/201629518` | S-index and log R'HK only; does **not** convert to bolometric flux without an assumed relation | held |
 | `segura2003-ozone-uv-other-stars.pdf` | Segura, Krelove, Kasting, Sommerlatt, Meadows, Crisp, Cohen, Mlawer (2003). *Ozone Concentrations and Ultraviolet Fluxes on Earth-Like Planets Around Other Stars.* Astrobiology 3(4), 689-708. | read -- source of `model.ozone_scale` | read |
 
+## Radiation: what the Lacis-Hansen absorptances are fractions of
+
+ExoPlaSim's clear-sky shortwave is Lacis and Hansen (1974), and its gas
+absorptances are fractions of TOTAL INCIDENT SOLAR flux rather than of the band
+the gas absorbs in. That is what makes them wrong for a non-solar host, and it is
+not a reading of the code: it is stated in the papers, twice, in different words.
+Every one of these was read for `exoplasim/notes/shortwave-water-vapour.md`, and
+the chain runs backwards through them -- Lacis and Hansen fit Yamamoto, Yamamoto
+weighted Howard's laboratory band data with the solar flux, and Howard's band
+data carry no spectrum at all, which is what makes the re-weighting possible.
+
+| file | citation | status |
+| --- | --- | --- |
+| `lacis1974-solar-absorption-parameterization.pdf` | Lacis, Hansen (1974). *A Parameterization for the Absorption of Solar Radiation in the Earth's Atmosphere.* J. Atmos. Sci. 31(1), 118-133. `10.1175/1520-0469(1974)031<0118:APFTAO>2.0.CO;2` | **read** -- the scheme `radmod.f90` implements. Eq. 21 is the water vapour absorptance, Eqs. 8-10 the ozone ones. Section 5a states the other half of the argument outright: "approximately 35% of the solar flux is contained in the regions of significant water vapor absorption", which is 1 - p(k_1) = 1 - 0.6470 from their own Table 1 and appears as the literal 0.353 in their Eq. 39 |
+| `yamamoto1962-direct-absorption-solar-radiation.pdf` | Yamamoto (1962). *Direct Absorption of Solar Radiation by Atmospheric Water Vapor, Carbon Dioxide and Molecular Oxygen.* J. Atmos. Sci. 19(2), 182-188. `10.1175/1520-0469(1962)019<0182:DAOSRB>2.0.CO;2` | **read** -- what Lacis and Hansen Eq. 21 is a fit TO, and the definition that settles the question: "the definition of absorptivity is given by the ratio to the solar constant of the energy absorbed by the entire vertical air column for normal incidence". Page 183 lists the exact band intervals in cm-1 |
+| `howard1956b-synthetic-atmospheres-iii-water-vapor.pdf` | Howard, Burch, Williams (1956). *Infrared Transmission of Synthetic Atmospheres. III. Absorption by Water Vapor.* J. Opt. Soc. Am. 46(4), 242-245. `10.1364/JOSA.46.000242` | **read** -- Table II, the weak and strong band fits for the seven near-infrared H2O bands. A band absorption in cm-1 is a molecular property and carries no incident spectrum, which is why the solar weighting can be undone and redone |
+| `howard1956a-synthetic-atmospheres-ii-carbon-dioxide.pdf` | Howard, Burch, Williams (1956). *Infrared Transmission of Synthetic Atmospheres. II. Absorption by Carbon Dioxide.* J. Opt. Soc. Am. 46(4), 237-241. `10.1364/JOSA.46.000237` | **read** -- Table II for CO2, and their Eq. 11, which states the reconstruction method used here in one line: "if the spectral distribution of the radiation from a given source is known, the fraction of the total radiation absorbed by CO2 in a given atmospheric path can be computed" |
+
 ## Geochemistry: weathering, phosphorus and the thermostat
 
 | file | citation | status |
