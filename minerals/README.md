@@ -161,11 +161,21 @@ and settles for both at once, is which rock they come from: Risacher and Fritz
 groundwaters that are mostly thermally influenced, and conclude both come from
 ordinary alteration of volcanic rocks and especially ignimbrites. The
 hydrothermal flux this pipeline cannot place therefore is not required for that
-deposit type. Both rules take the same host set as a result, the evolved
-high-silica end, because Floyd et al. (1998) find B and Li enriched together in
-the same fertile ignimbrites. What stays missing is the release coefficient, and
-Munk et al. (2016) say plainly that the Li sources "are yet to be definitively
-identified and quantified", so a number there would be invented.
+deposit type. What stays missing is the release coefficient, and Munk et al.
+(2016) say plainly that the Li sources "are yet to be definitively identified and
+quantified", so a number there would be invented.
+
+**And they are ONE field, `brine_lithium_borate`, not two.** Floyd et al. (1998)
+put B and Li in the same fertile ignimbrites, so the two rules take the same host
+set; closure and aridity were already shared; and neither element is on the
+divide. That leaves nothing this pipeline can apply that separates them, and two
+names off one set of criteria is the tin-and-gem-placer error committed on
+purpose. Nature does separate them and the direction is known -- borate leaves
+solution as a mineral and lithium stays in the residual brine, so borate
+saturates earlier and its set CONTAINS lithium's -- but placing that boundary
+needs a per-basin concentration, which needs the release coefficient that does
+not exist. `notes/economic-minerals.md` carries the argument and what would split
+the field again.
 
 **Placer gold is the one rule the drainage network earns.** Orogenic gold
 prospectivity is accumulated down the drainage tree exactly as runoff is, so a

@@ -64,7 +64,7 @@ Cheaper than it looks, because the machinery mostly exists.
 | Laterite Ni | same, over ultramafic parent | pedology, `W` + parent class |
 | Supergene Cu enrichment | weathering over a porphyry | pedology `W` over an Orogen porphyry |
 | Placer Au, Sn, gem | fluvial concentration | hydrography, drainage and discharge |
-| Potash, lithium, borate, soda | closed-basin brine evolution | `pedology/scripts/brine_paths.py` |
+| Potash, lithium-borate, soda | closed-basin brine evolution | `pedology/scripts/brine_paths.py` |
 
 `brine_paths.py` already solves the chemical divide per basin and classifies each
 as alkaline or Ca-rich. Which evaporite mineral a basin grows follows from that
@@ -114,7 +114,8 @@ decay length would remove prospectivity the evidence says is still there. A
 number in either place would have been invented and then quoted back as sourced.
 
 DECLARED, what remains: **potash alone.** Lithium and borate moved to
-`sourced-negative` on 2026-08-18 and the section below is why.
+`sourced-negative` on 2026-08-18, and became a single field in the process; the
+section below is why.
 
 ### The relief term, and the supergene wet end that does not exist
 
@@ -189,7 +190,7 @@ placers need their own host suites, and Orogen's 20-class table separates neithe
 from ordinary granite. Placing them would be placing granite twice under
 different names.
 
-### Lithium and borate: the hydrothermal objection does not survive the test
+### Lithium and borate: one field, and why the hydrothermal objection failed
 
 Settled 2026-08-18 from Risacher and Fritz (2009), Risacher et al. (2003), Munk
 et al. (2016), Helvaci (2019) and Huh et al. (1998), all read. Both rules had
@@ -288,6 +289,56 @@ It would also delete the Andean borates, which are mined from salars that
 Risacher et al. (2003) classify as sulfate-rich and calcium-rich rather than
 alkaline. Two deposit types share one class here, so the narrower gate is wrong
 for half of what the class covers.
+
+**The correction collapsed the two rules into one, and that is the right
+outcome.** Removing the `arc_basalt` weight left `brine_lithium` and
+`brine_borate` identical in every key but `name`: same host set, same
+`require_no_overflow`, same grounding. **Measured on `precarve-craton`
+2026-08-18**, regenerating produced bit-identical fields, both at 9.62% of land
+nonzero and mean 0.0145, against borate's previous 9.62% -> 3.72% and 0.0033. Two fields that are identical by construction carry no information the
+one carries, and a reader seeing two names infers two predictions. That is the
+error this note already names for tin and gem placers, where the response was to
+not emit them: "Placing them would be placing granite twice under different
+names." So the two are emitted as one, `brine_lithium_borate`.
+
+The precedent inside this project is exact and it is silcrete. Three settings,
+one output value, "so the distinction survives without asserting that this
+resolution can separate the products". Same shape: the geology distinguishes,
+this pipeline does not, and the honest form is one value.
+
+Naming it for both elements is not a compromise, because the association is what
+the sources assert. Risacher and Fritz treat them in one section, "Lithium and
+boron are conspicuous components of waters and brines of Andean salars", and
+Bradley et al. (2013) record that lithium brines are "commonly associated with
+borate mineralization in arid, closed basins". Co-occurrence is the observation.
+
+**Nature does separate them, the direction is known, and the boundary is not
+placeable here.** This is worth stating precisely rather than as a shrug. Bradley
+et al. (2013): lithium "does not readily produce evaporite minerals when
+concentrated by evaporation. Instead it ends up in residual brines in the shallow
+subsurface", whereas borate leaves solution as a mineral. Borate therefore
+saturates EARLIER in the evaporative sequence than lithium reaches an economic
+brine concentration, which means the borate set CONTAINS the lithium set and the
+two differ only in where the boundary between them falls. Placing that boundary
+needs a per-basin Li and B concentration to test against a borate saturation
+point, and a per-basin concentration needs the release coefficient this section
+has just established does not exist. It is the same missing number surfacing a
+second time, which is itself the useful finding: the gap is one gap, not two.
+
+**What would split the field again**, so nobody re-derives this. Two things, and
+the machinery for the second is already built.
+
+1. A per-lithology Li and B release table. That would give inflow concentrations
+   an evaporation model could carry to borate saturation -- Risacher's own
+   EQL/EVP is exactly such a code -- and borate would come out the LARGER field,
+   which is the prediction this argument makes and the way to check it.
+2. A source giving the evaporative concentration factor at which a borate mineral
+   saturates against the factor an economic lithium brine needs. Note what this
+   would NOT need: hydrography already computes a graded `aridity_index` against
+   `critical_aridity_index` per basin, and `require_no_overflow` throws that
+   gradation away by reading only the boolean `basin_fills_to_spill`. The graded
+   quantity exists and only the threshold is missing. Do not conclude from this
+   rule that the pipeline lacks the field; it lacks the number.
 
 ## What this world cannot have
 

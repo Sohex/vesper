@@ -319,7 +319,7 @@ brines:
     minimum_k_percentile: 75.0
     require_no_overflow: true
 
-  # LITHIUM AND BORATE SHARE A HOST SET, AND THAT IS THE SOURCED PART.
+  # LITHIUM AND BORATE ARE ONE FIELD, AND THAT IS THE SOURCED PART.
   # Neither element is among Meybeck's eight species, so neither can be derived
   # from the chemical divide the way soda and gypsum are, and no per-lithology Li
   # or B release table exists to derive them from instead. What the literature
@@ -370,11 +370,56 @@ brines:
   # drainage, which is recycled evaporite Li and not release from fresh rock.
   # A release number entered here would be invented and quoted back as sourced.
   #
-  # Read these rules as "the setting is the one Earth's deposits occupy", which
-  # is what the minerals layer claims everywhere, and not as a modelled yield.
-  brine_lithium:
-    name: Lithium brine
+  # ONE FIELD, NOT TWO, and this is the decision that follows from the above
+  # rather than a convenience. Every criterion this pipeline can apply is shared:
+  # the host rock is shared because Floyd has B and Li enriched in the SAME
+  # fertile ignimbrites, closure is shared, aridity is shared, and neither
+  # element is on the chemical divide. Emitting two names off one set of
+  # criteria would be this file's own tin-and-gem-placer error, "placing granite
+  # twice under different names", and a reader seeing two fields infers two
+  # predictions. The precedent is `duricrust.silcrete` in
+  # `pedology/config/surface_classes.yaml`: three settings, one value, because
+  # the settings separate and the products do not.
+  #
+  # NATURE DOES SEPARATE THEM AND THIS PIPELINE CANNOT, which is worth stating
+  # precisely because the direction is known. Bradley et al. (2013): lithium
+  # "does not readily produce evaporite minerals when concentrated by
+  # evaporation. Instead it ends up in residual brines in the shallow
+  # subsurface", whereas borate leaves solution as a mineral. Borate therefore
+  # saturates EARLIER in the evaporative sequence, so the borate set CONTAINS the
+  # lithium set and the two differ by where the boundary between them falls.
+  # Placing that boundary needs a per-basin Li and B concentration to compare
+  # against a borate saturation point, and a per-basin concentration needs the
+  # release coefficient that the block above has just established does not exist.
+  # The same missing number, surfacing a second time.
+  #
+  # WHAT WOULD SPLIT THE FIELD AGAIN, so the next person does not re-derive it.
+  # Two things, and the machinery for the second already exists. (1) A per
+  # lithology Li and B release table, which would give inflow concentrations that
+  # an evaporation model such as Risacher's EQL/EVP could carry to borate
+  # saturation; borate would come out the LARGER field. (2) A source giving the
+  # evaporative concentration factor at which a borate mineral saturates against
+  # the factor an economic Li brine needs. Note that this file could act on (2)
+  # today: hydrography computes a graded `aridity_index` against
+  # `critical_aridity_index` per basin, and `require_no_overflow` throws that
+  # gradation away by reading only the boolean `basin_fills_to_spill`. The
+  # gradation is present and only the threshold is missing, so do not conclude
+  # from this rule that the pipeline lacks the field. It lacks the number.
+  #
+  # Read this rule as "the setting is the one Earth's deposits occupy", which is
+  # what the minerals layer claims everywhere, and not as a modelled yield.
+  brine_lithium_borate:
+    name: Lithium-borate brine
     grounding: sourced-negative
+    # ONE NAME FOR BOTH ELEMENTS, because the association is what the sources
+    # actually assert rather than a compromise between two claims. Risacher and
+    # Fritz (2009) treat them in a single section: "Lithium and boron are
+    # conspicuous components of waters and brines of Andean salars", both from
+    # ignimbrite alteration. Bradley et al. (2013): lithium brines are "commonly
+    # associated with borate mineralization in arid, closed basins". Co
+    # occurrence is the observation; separating them is the thing no source and
+    # no field here supports. The preamble above says what would change that.
+    #
     # Munk et al. (2016) give six characteristics common to continental Li
     # brines: arid climate, closed basin with a salar or salt lake, associated
     # igneous or hydrothermal activity, tectonically driven subsidence, a
@@ -389,27 +434,14 @@ brines:
     # from intracratonic basins in arid regions". A cratonic catchment with the
     # right climate does not make a Li brine, so excluding shield lithologies
     # here is the sourced part of the rule and not an incidental omission.
-    catchment_hosts: {arc_andesite: 1.0, rift_bimodal: 1.0, granite: 0.5, granodiorite: 0.5}
-    # `require_no_overflow` is sourced too, and this is the one term here that a
-    # source states as a mechanism rather than an association. Bradley et al.
-    # (2013): "The single most important factor determining if a nonmarine basin
-    # can accumulate lithium brine is whether or not the basin is closed", and
-    # if precipitation rises enough "lake water will overtop some point along the
-    # drainage divide and drain away, carrying with it any dissolved lithium".
-    # That is the lake solver's own spill test, so the gate is the same predicate
-    # the hydrography already computes rather than a rule invented for this file.
-    require_no_overflow: true
-
-  brine_borate:
-    name: Borate
-    grounding: sourced-negative
-    # Same host set, on Risacher and Fritz's "Li and B ... especially
-    # ignimbrites" and Floyd's combined B-Li enrichment in the same fertile
-    # rocks. It previously read {arc_andesite: 1.0, arc_basalt: 1.0}, which had
-    # boron coming out of island-arc basalt; Helvaci (2019) puts the source at
-    # "andesitic to rhyolitic volcanics" and the fertile end at high-silica
-    # rhyolitic ignimbrite, so the basalt weight was against the evidence.
     #
+    # The host set previously differed between the two rules, borate reading
+    # {arc_andesite: 1.0, arc_basalt: 1.0}, which had boron coming out of
+    # island-arc basalt. Helvaci (2019) puts the origin at "andesitic to
+    # rhyolitic volcanics" and the fertile end at high-silica rhyolitic
+    # ignimbrite, so that weight was against the evidence and removing it is what
+    # collapsed the two rules into this one.
+    catchment_hosts: {arc_andesite: 1.0, rift_bimodal: 1.0, granite: 0.5, granodiorite: 0.5}
     # NO BRINE PATH IS REQUIRED, and that is deliberate rather than an omission.
     # Helvaci gives lake water at pH 8.5 to 11 among the essential conditions for
     # the Anatolian sodium-borate deposits, which would read as this project's
@@ -417,5 +449,13 @@ brines:
     # mined from salars that Risacher et al. (2003) classify as sulfate-rich and
     # calcium-rich rather than alkaline. Two deposit types, one class here, so
     # the narrower gate would be wrong for half of what the class covers.
-    catchment_hosts: {arc_andesite: 1.0, rift_bimodal: 1.0, granite: 0.5, granodiorite: 0.5}
+    #
+    # `require_no_overflow` is sourced, and it is the one term here that a source
+    # states as a mechanism rather than an association. Bradley et al. (2013):
+    # "The single most important factor determining if a nonmarine basin can
+    # accumulate lithium brine is whether or not the basin is closed", and if
+    # precipitation rises enough "lake water will overtop some point along the
+    # drainage divide and drain away, carrying with it any dissolved lithium".
+    # That is the lake solver's own spill test, so the gate is the same predicate
+    # the hydrography already computes rather than a rule invented for this file.
     require_no_overflow: true

@@ -57,14 +57,19 @@ gold is progressively flattened rather than lost with distance, so a decay lengt
 would remove prospectivity the evidence says is still there. A number in either
 place would have been invented and then quoted back as though sourced.
 
-DECLARED, what is left: potash alone. Lithium and borate are sourced-negative as
-of 2026-08-18: neither element is among Meybeck's eight species and no
-per-lithology release table exists for either, but Risacher and Fritz (2009)
-source the CRITERION for both at once, finding Li and B in Andean salars
-independent of water temperature and derived from the alteration of volcanic
-rocks and especially ignimbrites. So the host set is sourced, the release
-coefficient is stated by Munk et al. (2016) to be unquantified, and the borate
-rule lost its `arc_basalt` weight because the fertile rock is the high-silica end.
+DECLARED, what is left: potash alone. Lithium and borate became ONE RULE on
+2026-08-18, `brine_lithium_borate`, and it is sourced-negative. Neither element
+is among Meybeck's eight species and no per-lithology release table exists for
+either, but Risacher and Fritz (2009) settle the CRITERION for both at once,
+finding Li and B in Andean salars independent of water temperature and derived
+from the alteration of volcanic rocks and especially ignimbrites. Correcting the
+borate rule's `arc_basalt` weight, which had boron coming out of island-arc
+basalt against the evidence, left the two rules identical in every criterion this
+pipeline can apply, so they are emitted as one field rather than as two names for
+one prediction. Nature does separate them -- borate leaves solution as a mineral
+and lithium does not, so the borate set contains the lithium set -- and placing
+that boundary needs the same release coefficient that does not exist. The config
+carries what would split the field again.
 
 The supergene wet end is no longer among them and was not replaced by a better
 number, because Sillitoe (2005) p. 736 says there is no wet bound on rainfall at
