@@ -753,6 +753,13 @@ sea ice and the Planck response, not on which terrain produced it.
 **201 K per unit flux ratio**, or 2.01 K per 0.01 — from the fitted asymptotes.
 Run means give 203 and drift-implied endpoints 206, so call it 201 to 206.
 
+Confirmed 2026-08-17 on the active build, which is what makes it usable rather
+than merely recorded: a 0.910-to-0.945 T42 bracket on `precarve-craton` gives
+201.8 by the same method, on a different terrain. `lib/sensitivity.py` carries
+the canonical value and everything that converts a flux or a forcing into kelvin
+reads it from there. Nothing in this file's older sections should be used as a
+conversion factor; each was measured in a regime that is named beside it.
+
 **Neither run formally converged, and both are one criterion short.** The cold
 run fails `abs_mean_toa_lt_0.5_w_m2` at -0.653 W/m2 and is still cooling at
 -0.028 K/orbit, with a drift-implied remaining offset of -0.269 K. The warm run

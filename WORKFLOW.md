@@ -598,9 +598,12 @@ continents rather than a general rule; the inversion itself is mechanism.
 **The cycle pushes the mean up, very slightly.** This was predicted the other
 way round and measured wrong. The expectation was that the ice-albedo feedback
 would amplify cooling, making T(f) concave and pulling the cycle-mean below the
-static mean. Three converged points say the opposite: the slope is 196 K per unit
-flux across 0.9125-0.945 and 209 across 0.945-0.968, so **T(f) is convex** over
-the range the cycle actually spans.
+static mean. Three quasi-equilibrated T42 points say the opposite: the slope is
+196 K per unit flux across 0.9125-0.945 and 209 across 0.945-0.968, so **T(f) is
+convex** over the range the cycle actually spans. Those three sit on a superseded
+terrain and the curvature is what transfers, not the intercept; the slope itself
+is canonical in `lib/sensitivity.py`, measured on the active build, and nothing
+should quote 196 or 209 as a conversion factor.
 
 The reason is that there is not enough ice for the ice-albedo term to lead. Sea
 ice runs 6.2% to 0.2% across the interval, while the Planck response alone goes

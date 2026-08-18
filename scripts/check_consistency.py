@@ -39,6 +39,12 @@ since the loop is only monotone if an already-carved basin stays carved.
 **Config internal consistency.** Gravity against mass, and the declared orbit
 against the flux it is derived from.
 
+**The flux-to-kelvin slope against the runs it was measured on.** `lib/sensitivity.py`
+declares one sensitivity for the whole project. Its predecessor was called
+FALLBACK_SLOPE, nothing ever fell back to it, and it survived two terrain changes
+and a resolution change while three incompatible values accumulated around it.
+This recomputes the declared slope from the run index every time.
+
 **Generated biosphere inputs against the config values they were derived from.**
 Parsed values, not a hash of `config/planet.yaml`, because a file hash reports an
 edited comment as a stale artifact and the remedy it names -- re-run the
@@ -687,6 +693,18 @@ def main() -> int:
                     f"{len(components)} components, all present in {exe.name}")
     except Exception as exc:
         rep.add(WARN, "cycle executable", f"not checked: {exc}")
+
+    # -- the flux-to-kelvin slope still matches the runs it was measured on ---
+    try:
+        import sensitivity
+        sensitivity.test_identity()
+        stale = sensitivity.verify()
+        rep.add(FAIL if stale else OK, "flux-to-kelvin slope",
+                "; ".join(stale) if stale else
+                f"{sensitivity.SLOPE_K_PER_FLUX_RATIO} K per unit flux ratio, "
+                f"reproduced from the runs lib/sensitivity.py names")
+    except Exception as exc:
+        rep.add(WARN, "flux-to-kelvin slope", f"not checked: {exc}")
 
     rep.show()
     return 1 if rep.failed else 0
