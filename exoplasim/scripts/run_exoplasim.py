@@ -366,6 +366,14 @@ ROUGHNESS_SURFACE_CODES = {173}
 # unpatched one cannot parse NDUSTRAD and aborts in radini_, which is the loud
 # failure this arrangement is designed to produce rather than avoid.
 DUST_SURFACE_CODES = {1811}
+# dsrcw, ddrage and dwpr, the source map for the INTERACTIVE emission scheme.
+# DUST-3. A different thing from 1811 and not an alternative to it: 1811 is a
+# prescribed column optical depth that nothing responds to, while these three
+# are a source map that the model's own winds drive. Only read by a binary
+# carrying patches/exoplasim-3.4.2-dust-emission.patch; an unpatched one cannot
+# parse LDUSTEMIT and aborts in aero_ini, which is the loud failure this
+# arrangement is designed to produce rather than avoid.
+DUST_EMISSION_SURFACE_CODES = {1801, 1802, 1803}
 
 # PlaSim's own 28-term energy decomposition, denergy(NHOR,28), written to these
 # codes when nenergy > 0. Turned on to name the gap between the top of the
@@ -453,6 +461,8 @@ def intended_surface_codes(config: dict) -> set[int]:
         codes |= ROUGHNESS_SURFACE_CODES
     if str(config["model"].get("dust_source", "none")) != "none":
         codes |= DUST_SURFACE_CODES
+    if str(config["model"].get("dust_emission", "none")) != "none":
+        codes |= DUST_EMISSION_SURFACE_CODES
     return codes
 
 
@@ -563,6 +573,108 @@ def enable_prescribed_dust(model, run_dir: Path, config: dict) -> dict | None:
                 prov["field_statistics"]["land_mean_band1_optical_depth"]}
 
 
+def enable_dust_emission(model, run_dir: Path, config: dict) -> dict | None:
+    """Write the `aero_nl` group the in-model emission scheme reads. DUST-3.
+
+    This is the half of the item that is easiest to skip and it is load-bearing:
+    the emission patch and the deposition patch both add namelist keys with NO
+    Fortran defaults, so until something writes this group none of them is
+    reachable and `aero_ini` aborts rather than run. `aero_namelist` is written
+    by ExoPlaSim's own Python API and this project had never touched it.
+
+    Every value comes from the provenance file
+    `aeolian/scripts/build_dust_source_fields.py` wrote beside the fields, so a
+    run cannot be given a threshold, a Weibull shape or a roughness that
+    disagrees with the source map it is applied to. Same arrangement as
+    `enable_prescribed_dust` and for the same reason.
+
+    THE REMOVAL SWITCHES RIDE HERE TOO. `ldepvel` and `lwetdep` come from
+    exoplasim-3.4.2-aerosol-deposition.patch, they default off, and their
+    coefficients live in the same `aeolian/config/dust.yaml`. They are read
+    directly from that config rather than from the field provenance because they
+    describe the atmosphere rather than the surface, and nothing about them
+    depends on which terrain the fields were built on.
+
+    Turning emission on also turns on the aerosol machinery it lives in:
+    `L_AERO` gates `aero_main` and `l_source = 2` selects the dust case. Every
+    run this project has made so far set `L_AERO = 0`, which is why `aerocore`
+    had never executed and why seven defects survived in it.
+    """
+    if str(config["model"].get("dust_emission", "none")) == "none":
+        return None
+    field = surface_sra(config, min(DUST_EMISSION_SURFACE_CODES))
+    prov_path = field.with_name(field.stem + "_provenance.json")
+    if not prov_path.is_file():
+        raise RuntimeError(
+            f"{prov_path} is missing. Run "
+            "aeolian/scripts/build_dust_source_fields.py; the namelist values "
+            "live with the fields, not in the config.")
+    prov = json.loads(prov_path.read_text(encoding="utf-8"))
+    values = dict(prov["namelist_values"])
+
+    dust_cfg_path = PROJECT_ROOT / "aeolian" / "config" / "dust.yaml"
+    dust_cfg = yaml.safe_load(dust_cfg_path.read_text(encoding="utf-8"))
+    removal = dust_cfg["removal"]
+
+    # The removal terms are opt-in per run, because each one is a separate A/B
+    # arm and A3 wants them switchable from the namelist alone.
+    if bool(config["model"].get("dust_dry_deposition", False)):
+        vd = config["model"].get("dust_deposition_velocity_m_s")
+        if vd is None:
+            raise RuntimeError(
+                "model.dust_dry_deposition is on but "
+                "model.dust_deposition_velocity_m_s is unset. vdaero is the "
+                "NON-gravitational part of dry deposition and there is no "
+                "defensible default; see the removal block of "
+                "aeolian/config/dust.yaml and the deposition patch header.")
+        values["LDEPVEL"] = 1
+        values["VDAERO"] = float(vd)
+    if bool(config["model"].get("dust_wet_scavenging", False)):
+        values["LWETDEP"] = 1
+        values["SCAVA"] = float(removal["scavenging_a"])
+        values["SCAVB"] = float(removal["scavenging_b"])
+
+    model._edit_namelist("plasim_namelist", "L_AERO", "1")
+    model._edit_namelist("aero_namelist", "l_source", "2")
+
+    # THE SHIPPED aero_namelist CANNOT BE READ, and nothing has noticed because
+    # `aero_ini` runs only when `L_AERO > 0` and every run this project has made
+    # set it to 0. It carries `aerofile = 0`, an unquoted integer for a
+    # `character(len=80)`, which gfortran rejects with iostat 5010 -- and
+    # `aero_ini` reads without an iostat, so the first run to turn the aerosol
+    # on aborts in the namelist read before any of this is reached. Quoting it
+    # is the fix and it has to happen here, because this is the first thing that
+    # sets L_AERO at all.
+    aerofile = PROJECT_ROOT / "exoplasim" / "data" / "dust" / "vesper_dust_aerosol.dat"
+    if not aerofile.is_file():
+        raise RuntimeError(
+            f"{aerofile} is missing. Run exoplasim/scripts/dust_aerofile.py.")
+    shutil.copyfile(aerofile, run_dir / aerofile.name)
+    model._edit_namelist("aero_namelist", "aerofile", f"'{aerofile.name}'")
+
+    # RADIATIVELY INERT, and that is not a preference. `l_aerorad = 1` would put
+    # the emitted dust into the shortwave through `radmod`'s own `apart`, which
+    # `aero_ini` never populates from the namelist -- upstream defect 1 in
+    # `aeolian/notes/in-model-dust.md`, still open because it lives in
+    # `radmod.f90`. At this world's effective radius that path gives an optical
+    # depth 1/385 of intent, and the longwave term is missing on top of it,
+    # which `notes/dust.md` prices at several kelvin of spurious cooling. So the
+    # only non-wrong setting available on this branch is off. The file is staged
+    # and named anyway, so turning it on once item 5 lands is a namelist change.
+    model._edit_namelist("aero_namelist", "l_aerorad", "0")
+
+    for key, value in values.items():
+        model._edit_namelist("aero_namelist", key, f"{value}")
+    return {
+        "z0_bracket_end": prov["z0_bracket_end"],
+        "aeolian_z0_m": prov["aeolian_z0_m"],
+        "terrain_hash": prov["terrain_hash"],
+        "field_sha256": prov["output_sha256"],
+        "namelist_values": values,
+        "source_cells": prov["field_statistics"]["srcw_cells_nonzero"],
+    }
+
+
 def stage_surface_extras(run_dir: Path, config: dict) -> list[int]:
     """Copy the surface fields we generate into the run directory.
 
@@ -579,10 +691,15 @@ def stage_surface_extras(run_dir: Path, config: dict) -> list[int]:
                                     "model.soil_water_source")
             elif code in DUST_SURFACE_CODES:
                 builder, setting = ("build_surface_dust.py", "model.dust_source")
+            elif code in DUST_EMISSION_SURFACE_CODES:
+                builder, setting = ("build_dust_source_fields.py",
+                                    "model.dust_emission")
             else:
                 builder, setting = ("build_surface_albedo.py",
                                     "model.land_albedo_source")
-            fallback = "none" if code in DUST_SURFACE_CODES else "uniform"
+            fallback = ("none"
+                        if code in DUST_SURFACE_CODES | DUST_EMISSION_SURFACE_CODES
+                        else "uniform")
             raise RuntimeError(
                 f"{src} is missing. Run {builder}, or set {setting}: {fallback} "
                 f"to accept ExoPlaSim's namelist default."
@@ -1058,6 +1175,14 @@ def main() -> None:
               f"{dust['dustsc']}, DUSTQLW {dust['dustqlw']:.5f}. Needs "
               "patches/exoplasim-3.4.2-prescribed-dust.patch and a rebuild.")
 
+    emission = enable_dust_emission(model, run_dir, config)
+    if emission is not None:
+        print(f"in-model dust emission ON: {emission['source_cells']} source "
+              f"cells, aeolian z0 {emission['aeolian_z0_m']:g} m "
+              f"({emission['z0_bracket_end']} end). Needs "
+              "patches/exoplasim-3.4.2-dust-emission.patch, the two aerosol "
+              "patches under it, and a rebuild.")
+
     disable_low_io(model)
     if enable_energy_diagnostics(model, config):
         n = register_energy_diagnostic_codes()
@@ -1160,6 +1285,11 @@ def main() -> None:
         # config, so a run says what burden and what longwave ratio it actually
         # carried instead of what a setting asked for.
         "prescribed_dust": dust,
+        # Null when the run has no interactive emission, which is most of them.
+        # Like prescribed_dust, the values are copied from the fields' own
+        # provenance rather than from the config, so the manifest says what the
+        # run carried and not what a setting asked for.
+        "dust_emission": emission,
         "postprocessor": {
             "regular_codes": regular_codes,
             "energy_diagnostics": energy_diagnostics_enabled(config),

@@ -22,13 +22,25 @@ for a micron particle and an independent check that the mass-to-efficiency
 conversion is right.
 
 `exoplasim/patches/exoplasim-3.4.2-aerocore-defects.patch`, which is item 1 of
-the ordering below, and
+the ordering below;
 `exoplasim/patches/exoplasim-3.4.2-aerosol-deposition.patch`, which is items 2
-and 3. Both are AUTHORED and VERIFIED but not applied: they sit in
+and 3; and `exoplasim/patches/exoplasim-3.4.2-dust-emission.patch`, which is item
+4. All three are AUTHORED and VERIFIED but not applied: they sit in
 `PENDING_PATCHES` in `exoplasim/scripts/rebuild_binaries.py` and move to
-`RESIDENT_PATCHES` in the commit that applies them and rebuilds. Neither touches
-`radmod.f90`, and neither file they do touch is touched by any other patch in the
-stack, so they are independent of the resident set.
+`RESIDENT_PATCHES` in the commit that applies them and rebuilds. They STACK, in
+that order, and each names the composed shas of the one below as its base. None
+touches `radmod.f90`.
+
+The first two touch only `aerocore.f90` and `aeromod.f90`, which no other patch
+in the stack touches. The third also touches `surfmod.f90`, `plasim.f90` and
+`make_plasim`, which the prescribed-dust, denergy-accumulator and
+lowio-first-record patches respectively already touch, so its base shas are the
+composed resident result rather than pristine 3.4.2.
+
+`aeolian/scripts/build_dust_source_fields.py` is the generator for item 4's three
+boundary fields, and `exoplasim/scripts/run_exoplasim.py` gained
+`enable_dust_emission`, which writes the whole `aero_nl` group from the
+provenance file beside them.
 
 ## Seven upstream defects, and none of them was reachable
 
@@ -279,11 +291,19 @@ that stops being acceptable.
 
 ## Boundary fields: three, and no fewer
 
-The mechanism is `surfcode(code,'name')` to register, a module-level array, and
-`mpsurfgp('name',array,NHOR,1)` alongside the existing calls at
-`landmod.f90:312` onward. `code_surf_file` builds the filename as
+The mechanism is `surfcode(code,'name')` to register and
+`mpsurfgp('name',array,NHOR,1)` to read. `code_surf_file` builds the filename as
 `N%03d_surf_%04d.sra` from NLAT and the code, so at T42 that is
-`N064_surf_1801.sra`. Registered codes run to 1741, so **1801-1803 is clear**.
+`N064_surf_1801.sra`. Registered codes run to 1741 and 1811, so **1801-1803 is
+clear**.
+
+**The read cannot live in `aero_ini`, and that is not obvious from anywhere.**
+`plasim.f90` calls `aero_ini` inside an `if (mypid == NROOT)` block, while
+`mpsurfgp` is collective -- it broadcasts the read flag and scatters the field --
+so a rank that never enters it hangs. The three reads therefore go in a new
+`aero_surf`, called from `plasim.f90` by every rank after the `l_aero` broadcast.
+They are gathered ONCE there rather than per step, because `aerocore` runs serial
+on NROOT over the global grid and these fields never change.
 
 The split is decided by where each quantity enters the flux, not by tidiness. Two
 of the offline chain's terms are linear prefactors and can be multiplied together
@@ -306,6 +326,17 @@ be commuted outside.
 
 **Anything gathered here has to be flipped in latitude**, per defect 7. That is
 not optional and it is not visible from the code around it.
+
+**Written, and the generator with it.** `aeolian/scripts/build_dust_source_fields.py`
+produces all three from the same `source_fractions` map `build_dust.py` uses, so
+the in-model and offline chains cannot describe different ground. Its
+`--self-test` is the check that the split above is right: it reconstructs the
+offline flux from the three fields and the namelist alone, using a Python
+transcription of the Fortran, and requires the two to agree to 1e-10. Measured
+2026-08-18 at 4.9e-16, which is round-off. It then re-runs the comparison with
+the drag partition removed, the gravity scaling removed, the Weibull collapsed
+and the Fecan residual zeroed, and requires every one of them to BREAK the
+identity, because a check that cannot be made to fail is not evidence.
 
 ## The emission law
 
@@ -331,8 +362,11 @@ Carry across with it:
   In-model this could instead use the model's own instantaneous `u*`, which is
   the entire point of going in-model -- but the gridbox is still 15 km and still
   needs a subgrid distribution, so the Weibull stays.
-- **Snow and lake suppression**, from the model's own `dsnow` and the lake
-  fraction already in the land mask.
+- **Snow suppression** from the model's own `dsnow`, against a depth threshold
+  in the namelist. **Lake suppression is already inside field 1801**: the
+  offline `source_fractions` zeroes the erodible weight wherever the solved lake
+  extent stands, so the model does not need the lake fraction and could not
+  reconstruct it from its own land mask anyway.
 
 **The source injects a mixing ratio, not a flux.** Converting is
 `d(mmr) = F * g * dt / dp` for the bottom layer, which is arithmetic, but it is a
@@ -340,10 +374,50 @@ change of kind from what `case(2)` does now and it is what made the old sink
 intolerable.
 
 **The namelist is the other half of this item.** `aero_namelist` is written by
-ExoPlaSim's own Python API and this project has never touched it, so
-`ldepvel`, `vdaero`, `lwetdep`, `scava` and `scavb` are unreachable from the
-drivers today. Writing them from `aeolian/config/dust.yaml` belongs here, with
-the rest of the configuration the emission scheme needs.
+ExoPlaSim's own Python API and this project had never touched it, so `ldepvel`,
+`vdaero`, `lwetdep`, `scava` and `scavb` were unreachable from the drivers and
+`aero_ini` would have aborted rather than run. `run_exoplasim.py:enable_dust_emission`
+writes the whole group from `aeolian/config/dust.yaml` through the provenance
+file the field generator leaves beside the `.sra` files, so the run cannot be
+given a threshold that disagrees with the map it is applied to.
+
+**And the shipped `aero_namelist` cannot be read at all.** It carries
+`aerofile = 0`, an unquoted integer for a `character(len=80)`, and gfortran
+rejects it with iostat 5010 while `aero_ini` reads without an iostat. Nothing had
+noticed because `aero_ini` runs only at `L_AERO > 0` and every run this project
+has made set it to zero -- the same reason the seven `aerocore` defects survived.
+The first run to enable the aerosol would have died in the namelist read before
+reaching any of this. `enable_dust_emission` rewrites the key.
+
+**The emitted dust is radiatively INERT on this branch**, `l_aerorad = 0`, and
+that is work rather than a choice. `radmod`'s own `apart` is never populated from
+the namelist -- upstream defect 1, still open because it lives in `radmod.f90` --
+so the shortwave path would price this world's dust at 1/385 of its optical
+depth, and the longwave term does not exist yet. Both known-wrong, so the only
+available setting is off. The aerofile is staged and named anyway, so turning it
+on once item 5 lands is a namelist change.
+
+### Predicted effects, stated before they run
+
+The comparator is `aeolian/analysis/dust_baseline.json`, whose central-roughness
+total emission was computed offline from the SAME climatology, the SAME map and
+the SAME `dust.yaml`. Take the number from the file, not from here.
+
+| change | prediction | falsified by |
+| --- | --- | --- |
+| `ldustemit = 0`, any existing configuration | output bit-identical: the legacy source line is untouched, nothing extra is gathered and no surface field is read | any difference at all |
+| `ldustemit = 1` at the measured Weibull shape | total emission EXCEEDS the offline central figure, by 3x to 10x. The sign is Jensen's inequality on a convex flux and is not a guess: the offline chain's Weibull carries all the sub-daily variance while the model resolves that variance AND applies the same Weibull on top | a total BELOW the offline one, which no correct implementation can produce; check the latitude flip first |
+| `ldustemit = 1` with `dustwk = 50`, the near-delta arm | within a factor of 5 of the offline central figure, either side. Collapsing the quadrature substitutes the model's own resolved variability for the fitted Weibull, which is what that Weibull was standing in for -- it was fitted to this model's own winds | a factor beyond 10, which is structural rather than distributional: units, the mixing-ratio conversion, or the threshold |
+| doubling boundary field 1801 | total emission doubles, to round-off. An exact identity, and the entire argument for packing erodible fraction and clay fraction into one field | any ratio other than 2 |
+| halving `deltsec` | emission per unit time does not move. The Kok flux carries no timestep and the `d(mmr) = F g dt / dp` conversion's `dt` cancels against twice as many steps | a rate that scales with the step, which means `deltsec` applied twice or a flux read as a concentration |
+| the hemisphere | annual-mean bottom-level dust correlates with field 1801 more strongly than with its north-south mirror | the reverse, which is defect 7 reintroduced |
+| the UNSCALED Earth thresholds | emission RISES, by about 30%, which is what the offline chain measured when the gravity term went in | the opposite sign, or more than a factor of two |
+
+Two known small disagreements, recorded so they are not rediscovered as defects:
+the offline chain uses dry-air `R = 287.05` for air density while the model uses
+its declared `gascon`, and the offline reference height is built from surface air
+temperature while the model uses bottom-level temperature. Both are a few percent
+on `u*` and neither approaches the brackets above.
 
 ## The longwave term is mandatory, and it is the largest single piece
 
@@ -370,18 +444,40 @@ what is left is wiring the interactive `nrho` path into it.
 `aero_main` calls it inside `if (mypid == NROOT)`, having gathered the fields it
 needs with `mpgagp`. So transport runs on one rank with the whole global grid.
 
-Nothing the emission scheme needs is currently gathered -- not friction velocity,
-not soil wetness, not snow depth. Three more `mpgagp` calls, and the emission
-computed on NROOT with everything else, or computed distributed and gathered.
-Either way it is more plumbing than the hook suggests, and it serialises a
-per-timestep calculation across a 16-rank run.
+Nothing the emission scheme needs was gathered. This was called the item most
+likely to be underestimated, because it is invisible from the hook. **It came in
+under that estimate, and the reason is worth recording: two of the three fields
+it was budgeted for turned out not to be needed.**
 
-This is the item most likely to be underestimated, because it is invisible from
-the hook.
+- **The wind is already there.** `prepare_uvps` gathers `du` and `dv` and flips
+  them in latitude on the way, so `zu(:,:,NLEV)` and `zv(:,:,NLEV)` inside
+  `aerocore` are the bottom-level physical wind in the right hemisphere with no
+  work at all.
+- **The friction velocity must NOT be gathered.** `dtaux` and `dtauy` are the
+  grid-cell surface stress, over the grid-cell roughness, and
+  `aeolian/config/dust.yaml` argues at length that this scheme must not be fed
+  that: MB95 partitions stress between a bed and centimetre-scale roughness
+  ELEMENTS, and 15 km of orographic variance is not a roughness element. The
+  scheme builds `u*` from the bottom-level wind through the aeolian roughness of
+  the patch instead, which is what the offline chain does.
+- **Air density and temperature** are `rhog` and `temp`, already computed inside
+  `aerocore` for the settling term.
+
+So the per-step cost is two `mpgagp` calls, `dsnow` and `dwatc`, both made only
+when `ldustemit = 1`. The three boundary fields are read and gathered once at
+initialisation.
+
+What did NOT come in under estimate is the serialisation itself: emission is now
+computed on NROOT over the whole global grid every timestep, 96 quadrature points
+per source cell. That is bounded by the source-cell count rather than by the grid
+(`dustsrc` cycles on `gsrcw <= 0`), which is about a sixth of land, but it is
+still a per-timestep serial calculation inside a 16-rank run and it is the first
+thing to look at if the model slows.
 
 One consequence worth having: because `aero_ini` and `aerocore` both run on NROOT
-only, the removal switches need no broadcast. Anything the emission scheme adds
-that is read outside `aerocore` will.
+only, the removal switches and the emission calibration need no broadcast.
+`ldustemit` itself is the exception and does get one, because `aero_surf` runs on
+every rank and they all have to agree about whether the collective read happens.
 
 ## Order, and scale
 
@@ -392,11 +488,15 @@ that is read outside `aerocore` will.
    `ldepvel`.
 3. **Wet scavenging.** AUTHORED, behind `lwetdep`. Both 2 and 3 are in
    `exoplasim-3.4.2-aerosol-deposition.patch`.
-4. **Boundary fields and the emission law.** The three `.sra` codes, the
-   generator on the `aeolian/` side, `surfcode`/`mpsurfgp` registration, the
-   gathers, the namelist writing, and Kok 18 in the source case. The largest
-   mechanical piece, and the one that has to be done for the switches added in
-   2 and 3 to be reachable at all.
+4. **Boundary fields and the emission law.** AUTHORED, behind `ldustemit`, as
+   `exoplasim-3.4.2-dust-emission.patch` with
+   `aeolian/scripts/build_dust_source_fields.py` and
+   `run_exoplasim.py:enable_dust_emission`. The largest mechanical piece, and the
+   one that had to be done for the switches added in 2 and 3 to be reachable at
+   all: `aero_namelist` is written by ExoPlaSim's own Python API and nothing in
+   this project had ever touched it, so `ldepvel`, `vdaero`, `lwetdep`, `scava`
+   and `scavb` were unreachable from the drivers and the model aborted rather
+   than run.
 5. **The longwave aerosol term.** The largest risk, inside the radiation solver.
    Blocked with defect 1 on the same branch.
 6. **Size bins**, only if the single mode proves insufficient. DUST-8 says it

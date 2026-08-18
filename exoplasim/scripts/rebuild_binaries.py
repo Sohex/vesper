@@ -120,6 +120,7 @@ PENDING_PATCHES = [
     ("exoplasim-3.4.2-co2-shortwave.patch", "pkg"),
     ("exoplasim-3.4.2-aerocore-defects.patch", "src"),
     ("exoplasim-3.4.2-aerosol-deposition.patch", "src"),
+    ("exoplasim-3.4.2-dust-emission.patch", "src"),
 ]
 
 ROOTS = {"src": SRC, "pkg": PKG}

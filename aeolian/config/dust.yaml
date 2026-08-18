@@ -48,6 +48,15 @@ emission:
   # the flux depends on u*st both directly and through the exponent.
   u_star_st_typical_m_s: 0.20
   u_star_st_typical_bracket: [0.16, 0.30]
+  # Upper limit on the clay fraction the flux is linear in. K14 equation 3 takes
+  # fclay as the mass fraction of the soil that fragments into dust, and the
+  # sandblasting-efficiency relation it inherits from Marticorena and Bergametti
+  # (1995), eta = 10^(13.4 fclay - 6), is stated for fclay below 0.2 and rises
+  # without bound above it. Capping is the standard treatment and it is the
+  # reason boundary field 1801 is written CLIPPED: applying the cap in the
+  # generator keeps it outside the model, where the rest of the soil description
+  # already lives.
+  f_clay_max: 0.2
 
   # GRAVITY. Both thresholds above are Kok's, fitted on Earth, so Earth's
   # gravity is inside them. Kok's own standardization (equation 6) corrects for
@@ -101,6 +110,19 @@ moisture:
   b: 0.68
   clay_quadratic: 0.0014
   clay_linear: 0.17
+  # w is GRAVIMETRIC and the artifacts carry a DEPTH of water, so these two
+  # convert between them: w[%] = 100000 * water[m] / (soil_depth * bulk_density).
+  # Both are declared rather than measured, and they are here rather than in a
+  # script because the in-model scheme needs the same conversion. It reaches
+  # ExoPlaSim as the single namelist constant `dustwcv`, derived from this pair
+  # by aeolian/scripts/build_dust_source_fields.py, so there is one statement of
+  # it and not three.
+  #
+  # 1500 kg/m3 is an ordinary mineral-soil bulk density; 0.5 m is the layer the
+  # ExoPlaSim bucket is being read as. Emission is not strongly sensitive to
+  # either except near the Fecan residual, where the threshold turns on.
+  soil_depth_m: 0.5
+  bulk_density_kg_m3: 1500.0
 
 # --- threshold: drag partition ------------------------------------------------
 #
