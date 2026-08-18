@@ -417,6 +417,32 @@ classes; a lithology change confined to closed-basin fill therefore moves the
 *vegetated* albedo roughly twice as far as it moves the bare one. Quote the
 vegetated figure when the question is what the climate will do.
 
+**That coupling is radiative and aerodynamic, and it is not hydrological.** Three
+fields carry the vegetation state into ExoPlaSim: albedo, roughness and forest
+fraction. Albedo is the priced channel above. Roughness is a real second one,
+since it sets the turbulent exchange coefficient and so the evaporation rate.
+Forest fraction is narrower than it sounds -- with SIMBA off it only mixes the
+snow albedo, so it too is radiative. **What is absent is transpiration.**
+ExoPlaSim's land surface is a single bucket with no stomatal control, no LAI
+dependence and no rooting depth, so a vegetated cell and a bare cell holding the
+same soil water evaporate identically apart from roughness. Soil water capacity
+does come back from `pedology/`, which carries the biosphere's soil carbon, but
+that is a channel through the soil rather than through the plant, and it has been
+measured near-inert.
+
+That absence is a limitation rather than a footnote, because of what the channel
+would have been worth. `pedology/README.md` records, from Lapides et al. (2024),
+that giving LPJ-GUESS a bedrock vadose zone raises annual transpiration by 100 to
+150 mm, which is the same order as this world's entire land runoff. Runoff is the
+denominator of the carve criterion and is a small residual of two much larger
+fluxes, so an error in land evaporation arrives in it several times magnified.
+The sign is not obvious either way: stomatal closure under stress cuts
+evaporation below what a wet bucket gives, while deep roots reaching water the
+bucket cannot hold raise it above. So the biosphere-climate coupling is priced in
+kelvin and unpriced in millimetres, and the carve is decided in millimetres. The
+evidence, and the reading of the model source that establishes the absence, are
+in `notes/audits/missed-couplings.md`, finding 4.
+
 **Soil depends on the biosphere, and the biosphere on soil.** Texture, pH and
 regolith depth are weathering products of lithology under a climate, but the
 organic fraction is what the vegetation leaves behind, and it changes the bulk
