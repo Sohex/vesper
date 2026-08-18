@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated": "2026-08-18T03:18:58.265007+00:00",
-  "git_commit": "095f767019c65cdf512c586ede44f1d45028a3da",
+  "generated": "2026-08-18T04:11:10.937913+00:00",
+  "git_commit": "6f7a38ce7bb162b97a93c310c152cddc66203abf",
   "generator": "scripts/world_state.py",
   "note": "Generated from the artifacts. Do not edit; re-run the generator. Only derived values live here. Findings are in `notes/`, with their evidence, and open work is in `TASKS.md`.",
   "planet": {
@@ -36,6 +36,19 @@
     "pAr_bar": 0.0093,
     "pCO2_bar": 0.00045,
     "ozone": true
+  },
+  "stellar_spectrum": {
+    "spectrum": "k25v",
+    "hires_file": "exoplasim/inputs/stellarspectra/k25v_hr.dat",
+    "hires_sha256": "9d22867104a67816ca3ac309805a4c287332e96af56245beed7d4f537598ad1f",
+    "generator": "lib/stellar.py, reproducing radmod.f90:solarini",
+    "band_split_um": 0.75,
+    "min_wavelength_nm": 316.036116751,
+    "flux_fraction_band1": 0.3843830706873776,
+    "flux_fraction_band2": 0.6156169293126225,
+    "solar_partition_identity": 0.5169999999733781,
+    "rayleigh_coefficient": 0.712516689965012,
+    "rayleigh_coefficient_as_solarini_codes_it": 0.20973152913291265
   },
   "active_configuration": {
     "source_build": "precarve-craton",

@@ -63,6 +63,11 @@ allowlist entry must name a key that exists. The parameter case is the one that
 matters: a comparison that fired at nothing would pass every negative case here
 and no positive one, which is why each negative case is paired with the positive
 that proves the edit landed.
+**The stellar band split.** `lib/stellar.py` must still reproduce
+`radmod.f90:solarini`, and every consumer that stores the band-1 share must
+agree with it. The identity is `radmod.f90:207`: a 5772 K spectrum through this
+code gives 0.517. Three different values for this world's share were in
+circulation before the reproduction existed, and the model's own was a blackbody.
 """
 
 from __future__ import annotations
@@ -79,6 +84,7 @@ import numpy as np                   # noqa: E402
 import yaml                          # noqa: E402
 
 import builds                        # noqa: E402
+from paths import rel                # noqa: E402
 from gridding import coupling_ocean_fraction   # noqa: E402
 from provenance import config_drift, unknown_inert_keys   # noqa: E402
 
@@ -705,6 +711,40 @@ def main() -> int:
                 f"reproduced from the runs lib/sensitivity.py names")
     except Exception as exc:
         rep.add(WARN, "flux-to-kelvin slope", f"not checked: {exc}")
+    # -- the stellar band split, and everything carrying a copy of it -------
+    #
+    # `zsolar1` weights the two-band snow, sea-ice, glacier and ground albedos.
+    # It had three values in three artifacts and a fourth in the model, and the
+    # model's was a 4965 K blackbody because no run's namelist carried the
+    # spectrum. The identity below is the only statement in the scheme with a
+    # right answer rather than a plausible one, so it is what the reproduction
+    # is checked against.
+    try:
+        import stellar
+        identity = stellar.solar_partition_identity()
+        rep.add(OK, "solarini reproduction",
+                f"5772 K gives {identity:.6f}; radmod.f90:207 says "
+                f"{stellar.SOLAR_PARTITION}")
+    except Exception as exc:
+        rep.add(FAIL, "solarini reproduction", str(exc))
+    else:
+        band1 = stellar.band_fractions()[0]
+        stale = []
+        for path, key in (
+                (ROOT / "analysis" / "dust_optics.json",
+                 "stellar_flux_fraction_band1"),
+                (ROOT / "exoplasim" / "data" / "dust"
+                 / "vesper_dust_aerosol.provenance.json",
+                 "stellar_flux_fraction_band1")):
+            if not path.is_file():
+                continue
+            stored = json.loads(path.read_text(encoding="utf-8")).get(key)
+            if stored is None or abs(float(stored) - band1) > 5.0e-4:
+                stale.append(f"{rel(path)} carries {stored}")
+        rep.add(FAIL if stale else OK, "band-1 share is one value",
+                "; ".join(stale) + f"; canonical is {band1:.4f}" if stale
+                else f"{band1:.6f} from {stellar.spectrum_paths()[1].name}, "
+                     "and every stored copy agrees")
 
     rep.show()
     return 1 if rep.failed else 0

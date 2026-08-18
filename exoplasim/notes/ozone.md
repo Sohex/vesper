@@ -20,8 +20,15 @@ file instead, which is also Earth's.
 
 The shortwave absorption is not blind to the spectrum. Ozone transmissivity
 divides by `zsolar1`, the fraction of stellar flux below 0.75 microns, which
-`k25v` correctly sets to 0.384 against the solar 0.517. So the scheme accounts
-for how much of the flux arrives in the band ozone absorbs in.
+`k25v` sets to 0.384383 against the solar 0.517. So the scheme accounts for how
+much of the flux arrives in the band ozone absorbs in.
+
+**It has not actually been doing that.** No run's `radmod_namelist` carried
+`NSTARFILE`, so `solarini` used a 4965 K blackbody and `zsolar1` was 0.418350
+in every orbit after the first of every run. The divisor is 8.8% too large, and
+`o3uvw` and `o3visw` were derived on the assumption that the divisor is this
+star's. `notes/audits/physics-review.md` finding 2 has the mechanism and
+`SPEC-1` the re-run.
 
 ## What it gets wrong, twice, in the same direction
 

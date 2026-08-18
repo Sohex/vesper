@@ -37,6 +37,9 @@ from run_exoplasim import (  # noqa: E402
     surface_sra,
     stage_surface_extras,
     surface_field_report,
+    stage_stellar_spectrum,
+    stellar_spectrum_path,
+    verify_stellar_spectrum,
     physical_fingerprint,
     run_id,
     REGULAR_CODES,
@@ -168,6 +171,7 @@ def make_model(
     model.configure(
         flux=cycle["mean_flux_w_m2"],
         startemp=float(star["effective_temperature_k"]),
+        starspec=stellar_spectrum_path(config),
         starradius=derived["stellar_radius_solar"],
         pN2=float(atmosphere["pN2_bar"]),
         pO2=float(atmosphere["pO2_bar"]),
@@ -211,6 +215,14 @@ def make_model(
             **cycle["namelist"],
         },
     )
+    # The cycle scales `gsol0` and leaves the band split alone, so the split has
+    # to be the right one to begin with. Building the model on an existing run
+    # directory re-copies the shipped namelists, so the spectrum is staged again
+    # here; without it `solarini` falls back to a blackbody at `STARBBTEMP` and
+    # the cycle would be centred on a differently-coloured star than the
+    # baseline it is a variance about.
+    stage_stellar_spectrum(model, run_dir, stellar_spectrum_path(config))
+    verify_stellar_spectrum(model, config)
     model._add_postcodes("example.nl", REGULAR_CODES)
     model.cfgpostprocessor(
         ftype="regular",

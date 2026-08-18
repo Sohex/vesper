@@ -257,6 +257,13 @@ stellar cycle. That asymmetry is the general lesson: a correction's size depends
 on how much of the surface it acts on, so estimate it against the state you are
 in rather than the state it was first measured on.
 
+**And no run has yet used `k25v` past its first orbit.** `continue_exoplasim.py`
+rebuilt the namelists without `starspec`, so `solarini` fell back to a 4965 K
+blackbody: 0.4184 of the flux below 0.75 um against the spectrum's 0.3844, and
++0.024 on broadband snow albedo. Fixed in the drivers, gated on a `radmod.f90`
+patch, and tracked as `SPEC-1`/`SPEC-2`. Take band shares from `lib/stellar.py`,
+not from a run log.
+
 **Convert a surface albedo change through the atmosphere, or better, measure
 the model's own planetary albedo.** Multiplying a surface-albedo delta by full
 top-of-atmosphere insolation ignores everything above the surface and overstates

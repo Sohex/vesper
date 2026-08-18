@@ -184,6 +184,55 @@ def stage_stellar_spectrum(model, run_dir: Path, spectrum: str | None) -> str | 
     return src.name
 
 
+def verify_stellar_spectrum(model, config: dict) -> None:
+    """Refuse to run if the configured spectrum never reached the namelist.
+
+    `radmod.f90:813` takes the spectrum branch only when `NSTARFILE > 0`;
+    otherwise `solarini` builds a Planck curve at `STARBBTEMP` and says so
+    nowhere except one line of `MOST_DIAG` that nothing reads. Constructing an
+    `exo.Earthlike` on an existing run directory re-copies the shipped
+    namelists over the configured ones, so any driver that rebuilds the model
+    and calls `configure()` without `starspec` reverts the star in silence.
+
+    `continue_exoplasim.py` and `run_stellar_cycle.py` both did. Every run on
+    this build integrated its first orbit against `k25v` and every orbit after
+    it against a 4965 K blackbody: the model's own log reports
+    `Energy fraction below 0.75 microns` as 0.384383 in `MOST_DIAG.00000` and
+    0.418350 from `MOST_DIAG.00001` onward, and that fraction weights the snow
+    and sea-ice albedo, which moved the broadband snow albedo the model uses
+    from 0.5382 to 0.5623.
+    """
+    name = config.get("radiation", {}).get("stellar_spectrum")
+    if not name:
+        return
+    namelist = Path(model.workdir) / "radmod_namelist"
+    entries = {}
+    for line in namelist.read_text(encoding="utf-8").splitlines():
+        if "=" in line:
+            key, _, value = line.partition("=")
+            entries[key.strip().upper()] = value.strip().strip(" ,").strip("'\"")
+    if entries.get("NSTARFILE") != "1" or not entries.get("STARFILEHR"):
+        raise RuntimeError(
+            f"config names stellar spectrum {name!r}, but {namelist} carries "
+            f"NSTARFILE={entries.get('NSTARFILE')!r} and "
+            f"STARFILEHR={entries.get('STARFILEHR')!r}. The model would run on a "
+            "blackbody at STARBBTEMP instead. Pass starspec= to configure() and "
+            "call stage_stellar_spectrum() after it.")
+    staged = Path(model.workdir) / entries["STARFILEHR"]
+    if not staged.is_file():
+        raise RuntimeError(
+            f"radmod_namelist names {entries['STARFILEHR']} but it is not in "
+            f"{model.workdir}; readdat would die at end of file.")
+    print(
+        "  CAUTION: solarini's Rayleigh normalisation is wrong in the spectrum\n"
+        "  branch and only there. It tabulates its 5772 K reference on its own\n"
+        "  grid and then integrates it over the spectrum FILE's wavelengths, so\n"
+        "  `rcoeff` comes out 0.2097 for k25v against 0.7125 on one grid, and\n"
+        "  against the 0.8620 every run so far has used. This run will scatter\n"
+        "  3.4x less than it should until radmod.f90:224-299 is patched. See\n"
+        "  notes/audits/physics-review.md finding 2 and lib/stellar.py.")
+
+
 def surface_input_paths(config: dict) -> list[Path]:
     """Every SRA file that defines this run's surface, in a stable order."""
     return [surface_sra(config, code)
@@ -813,6 +862,7 @@ def main() -> None:
     )
     staged = stage_surface_extras(run_dir, config)
     spectrum = stage_stellar_spectrum(model, run_dir, stellar_spectrum_path(config))
+    verify_stellar_spectrum(model, config)
     # Ozone column scaling, set through the namelist because the Python API does
     # not expose o3scale. The model prescribes an Earth column and derives
     # nothing about it from the host star; Segura et al. (2003) measure 0.794 of
