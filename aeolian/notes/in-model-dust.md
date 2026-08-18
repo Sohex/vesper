@@ -21,7 +21,7 @@ four decimals, and the optical depth round-trips against the offline chain's own
 for a micron particle and an independent check that the mass-to-efficiency
 conversion is right.
 
-`exoplasim/patches/exoplasim-3.4.2-aerocore-defects.patch`, which is items 1 of
+`exoplasim/patches/exoplasim-3.4.2-aerocore-defects.patch`, which is item 1 of
 the ordering below, and
 `exoplasim/patches/exoplasim-3.4.2-aerosol-deposition.patch`, which is items 2
 and 3. Both are AUTHORED and VERIFIED but not applied: they sit in
