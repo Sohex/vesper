@@ -133,13 +133,19 @@ equilibrium. On storage the two are ranked the right way round: the baseline at
 to its threshold.
 
 **Reported TOA is still recorded, and so is its difference from storage**, as
-`reported_toa_minus_storage_w_m2` in every assessment. That gap is CLIM-1 and is
-open: the candidates are `rsut`, `rlut`, or an atmospheric heating neither flux
-diagnostic books. A criterion that stopped reading the number would also stop
-anyone noticing when it changed.
+`reported_toa_minus_storage_w_m2` in every assessment. That gap is CLIM-1.
+Most of it is now named: the adiabatic spectral step creates energy, so the
+model really does radiate away more than it stores, and the reported net is a
+correct measurement of a planet that is not conserving. About -0.20 W/m2 of it
+is still unattributed, over half of that at the ocean surface.
+`exoplasim/notes/water-and-energy-closure.md` carries the measurement. A
+criterion that stopped reading the number would also stop anyone noticing when
+it changed.
 
-**What it settles for A2.** The baseline's failure was an instrument fault, not a
-spin-up fault, and no amount of further model time would have moved it. What
+**What it settles for A2.** The baseline's failure was not a spin-up fault, and
+no amount of further model time would have moved it: the criterion was reading
+a quantity that is not the planet's heat tendency, on a model whose own
+numerics supply the difference. What
 "final" still requires is the physics that moves the mean -- PHYS-1, the spectrum
 declaration, dust -- and none of that is equilibration.
 

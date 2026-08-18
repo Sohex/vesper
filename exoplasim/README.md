@@ -135,6 +135,7 @@ unless told they exist.
 | `index_runs.py` | index every run by what it is, since a UUID says nothing |
 | `assess_convergence.py` | spin-up convergence against the predeclared criteria |
 | `close_state_energy.py` | closes the energy budget against the PROGNOSTIC STATE, which is the check the flux diagnostics cannot fail |
+| `close_term_energy.py` | closes the model's INTERNAL budget against PlaSim's 28 terms; three identities, and it refuses a low-I/O window |
 | `build_climatology.py` | average an equilibrated segment into climatologies |
 | `analyze_climatology.py` | diagnostics, maps and a rate-normalised Koppen interpretation |
 | `analyze_smoke.py` | audit and plot a one-orbit smoke run |
