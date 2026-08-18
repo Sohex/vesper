@@ -691,9 +691,9 @@ Damping below is ANALYTIC and Planck-only, from a slab thermal timescale of
 
 The per-component kelvin figures in the notes below are STALE HIGH-CONFIDENCE
 ESTIMATES and are known to be understated. They were computed against a
-sensitivity of about 149 K per unit flux ratio; the 0.9125-to-0.968 bracket
-measured 201 K per unit flux on this build, 35% larger, because that interval
-crosses the ice transition and the earlier figure did not. Corrected
-magnitudes are in exoplasim/notes/parameter-decisions.md. THE AMPLITUDES
-BELOW ARE STILL THE DECISION; only their predicted consequence moved.
+sensitivity of about 149 K per unit flux ratio, measured where the world is
+nearly ice-free. The canonical local sensitivity is in `lib/sensitivity.py`,
+which is 35% larger; use it and nothing else. Corrected magnitudes are in
+exoplasim/notes/parameter-decisions.md. THE AMPLITUDES BELOW ARE STILL THE
+DECISION; only their predicted consequence moved.
 

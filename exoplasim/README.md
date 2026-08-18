@@ -142,10 +142,13 @@ unless told they exist.
 ## What the flux sweeps established
 
 The measurements are in `notes/parameter-decisions.md` with the terrain and
-spectrum each was made on. The flux calibration is an analysis product rather
-than a stored value: regenerate it with `scripts/error_budget.py` once a current
-climatology exists. Two results from them are methodological and
-outlive any particular terrain.
+spectrum each was made on. The one that everything converts through lives in
+`lib/sensitivity.py`, which is the only flux-to-kelvin sensitivity this project
+has; `scripts/check_consistency.py` recomputes it from the runs it was measured
+on. The rest of the error budget is an analysis product rather than a stored
+value: regenerate it with `scripts/error_budget.py` once a current climatology
+exists. Two results from the sweeps are methodological and outlive any particular
+terrain.
 
 **The response is strongly nonlinear across the ice-albedo transition**, so a
 flux-to-temperature slope measured on one side of it does not transfer to the

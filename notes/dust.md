@@ -417,12 +417,18 @@ mean is.
 **And it settles what DUST-3 must not do.** Switching ExoPlaSim's aerosol on as
 shipped applies the shortwave alone, which is -3.4 to -4.0 W/m2 in the global
 mean against a true +0.34 to +0.61. An error of 4.0 to 4.3 W/m2, against 21 W/m2
-for the entire 0.85-to-0.95 stellar sweep that produced a 33 K range. Converting
-that error into kelvin is where this note stops: the local slope used below gives
-about 2 K and the sweep's own 33-per-21 gives nearly 7, a factor of 3.4 apart
-because the sweep crosses the ice transition and the slope does not. The flux is
-the honest statement. **Shortwave-only in-model dust is far worse than no
-dust**, so the fork needs a longwave aerosol term and not only an emission scheme.
+for the entire 0.85-to-0.95 stellar sweep that produced a 33 K range. In kelvin,
+on the canonical conversion in `lib/sensitivity.py`, that is **3.3 to 3.6 K of
+spurious cooling**: the second largest item in the error budget, behind only the
+bare-rock-versus-vegetated question. **Shortwave-only in-model dust is far worse
+than no dust**, so the fork needs a longwave aerosol term and not only an
+emission scheme.
+
+The sweep's own sensitivity would give 6.3 to 6.8 K for the same error, 1.9x
+more, and it is the wrong one to use here: 33 K over 21 W/m2 is measured across
+the ice transition and this world's baseline is not. Measured 2026-08-18, that
+gap used to read as a factor of 3.4, and over half of it was the local
+conversion being wrong rather than the regime being different. See BUDG-4.
 
 One correction to the record while pricing it: the error budget said ExoPlaSim
 could not switch aerosols on at all, because `radmod.f90` declares `aero_nl` and
@@ -436,22 +442,29 @@ and worse: the aerosol acts in the two shortwave bands only.
 Worth settling, because "dust is a radiation question, the carve is a water
 question" is an easy assumption and it is wrong.
 
-The global mean is negligible. +0.61 W/m2 is **+0.3 to +0.5 K** across the
-sensitivities this project has in use, and it moves nothing on any of them.
+The global mean is negligible. +0.34 to +0.61 W/m2 is **+0.28 to +0.51 K** on the
+canonical conversion, and it moves nothing.
 
-**The size of the local effect is real.** From the current carve list, the number
-of overflowing basins that stop overflowing if lake evaporation rises:
+**The size of the local effect is real.** Measured 2026-08-18 from the current
+carve list, by `scripts/error_budget.py`, the number of the 1,721 overflowing
+basins that stop overflowing:
 
-| lake evaporation | basins that close | of 1,610 overflowing |
-| ---: | ---: | ---: |
-| +5% | 84 | 5% |
-| +10% | 144 | 9% |
-| +15% | 196 | 12% |
-| +20% | 235 | 15% |
+| perturbation | +5% | +10% | +15% | +20% |
+| --- | ---: | ---: | ---: | ---: |
+| lake evaporation rises | 123 | 182 | 228 | 283 |
+| catchment runoff falls | 82 | 143 | 175 | 219 |
 
 A few percent on open-water evaporation moves a hundred basins. So dust is not
 carve-neutral at any plausible magnitude, and the carve list must not be recorded
 as dust-independent.
+
+The two rows are not the same experiment and the earlier reading of this table
+treated them as one. A runoff cut arrives through the criterion's denominator
+alone; a lake evaporation rise arrives through its numerator, where it is worth
+about 1.3x more per percent. The runoff row is also nearly independent of which
+side of the water balance moved -- a 10% cut delivered by precipitation gives 143
+basins and one delivered by land evaporation gives 139 -- which is what makes it
+usable as a currency.
 
 **The DIRECTION is open, and a first reading of it here was wrong.** That reading
 took the top-of-atmosphere forcing -- +8.2 W/m2 over playa, +10.8 over salt crust
@@ -485,28 +498,27 @@ of the first reading here.
 That is a preliminary indication and not a result -- and it is only half the
 question, because it is only the lake.
 
-**The catchment is the other half, and it is probably the larger one.** Runoff is
-the denominator of the carve criterion, and it is the small residual of two large
-numbers: 168 mm/yr against a land precipitation of 892 and an evaporation of 724,
-so 19% of P. Global precipitation is constrained by atmospheric radiative
-cooling, and an absorbing aerosol suppresses it through a fast adjustment that
-does not wait for a temperature response. This dust absorbs about 11.9 W/m2 of
-shortwave where it sits and about 7.5 W/m2 in the global mean, against a global
-latent heating of 77, which is a **precipitation reduction of order 10%**. What
-that does to runoff depends on how much of the reduction evaporation takes with
-it:
+**The catchment is the other half, and it is the larger one.** Runoff is the
+denominator of the carve criterion, and it is the small residual of two large
+numbers: measured 2026-08-18 on the current baseline, 126.5 mm/yr against a land
+precipitation of 824.4 and an evaporation of 697.9, so 15.3% of P. Global
+precipitation is constrained by atmospheric radiative cooling, and an absorbing
+aerosol suppresses it through a fast adjustment that does not wait for a
+temperature response. This dust absorbs about 11.9 W/m2 of shortwave where it
+sits and about 7.5 W/m2 in the global mean, against a global latent heating of
+77, which is a **precipitation reduction of order 10%**. What that does to runoff
+depends on how much of the reduction evaporation takes with it, and the basin
+counts are the criterion re-evaluated at each, from `scripts/error_budget.py`:
 
-| E falls as fast as P | runoff | change |
-| ---: | ---: | ---: |
-| 100% | 151 mm/yr | -9.8% |
-| 80% | 137 | -18.2% |
-| 50% | 116 | -30.9% |
+| E falls as fast as P | runoff | change | basins that close |
+| ---: | ---: | ---: | ---: |
+| 100% | 113.9 mm/yr | -10.0% | 186 |
+| 80% | 99.9 | -21.0% | 261 |
+| 50% | 79.0 | -37.6% | 339 |
 
-The criterion divides by runoff, so -10% on runoff is worth about the same as
-+10% on lake evaporation: 144 basins, and 235 at 20%. **This limb closes basins
-whichever way the lake term goes**, and it is the one an offline Penman
-perturbation cannot see, because it is a precipitation response and not a surface
-energy balance.
+**This limb closes basins whichever way the lake term goes**, and it is the one
+an offline Penman perturbation cannot see, because it is a precipitation response
+and not a surface energy balance.
 
 So the answer is split in two, and DUST-10 has now settled the first half.
 
@@ -545,11 +557,11 @@ under-carve can be corrected on a later pass while an over-carve cannot.
 
 ### What is still open is the larger limb
 
-The catchment term is not in that number and is estimated at 144 to 235 basins in
+The catchment term is not in that number and is estimated at 186 to 339 basins in
 the OPPOSITE direction, over-carving, because suppressed precipitation cuts the
-runoff the criterion divides by. It is six to ten times the lake term by that
-estimate and it decides the sign of the whole question. DUST-11 measures it and
-needs a prescribed-dust climate run; nothing offline can reach it.
+runoff the criterion divides by. It is eight to fifteen times the lake term by
+that estimate and it decides the sign of the whole question. DUST-11 measures it
+and needs a prescribed-dust climate run; nothing offline can reach it.
 
 **The Generic PCM is still out, but not for the reason given above.** That reason
 was that the trade is not worth making "for a term whose sign is settled" -- and
