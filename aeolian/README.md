@@ -138,6 +138,13 @@ Earth analogues suggest. That is in `settling_velocity` rather than in a comment
    assumed to carry a canopy and not emit, following the project's existing
    declared position, which is generous on a world whose median land runoff is a
    few mm per Earth year. `--variant arid_bare_ground` brackets it.
+5. **Which refractive indices this world's dust has**, `optics.indices`, chosen
+   as the measured datasets in the shortwave and OPAC in the thermal infrared,
+   with OPAC kept as the absorbing bracket. This is the one entry in the file
+   that something OUTSIDE this component also reads: the aerofile ExoPlaSim's
+   radiation loads and the offline forcing are both built from it, through
+   `exoplasim/scripts/dust_indices.py`, so that the model and the pricing
+   describe one particle. The config carries the argument; DUST-12.
 
 ## What it does not do
 

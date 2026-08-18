@@ -32,7 +32,11 @@ transported or removed, so the bottom-level sink, the settling term and the
 un-populated `apart` are all off the path.
 
 **Measured on 2026-08-18**, from `aeolian/analysis/dust_baseline.nc` after the
-chain was re-run on HYD-13's lake solution:
+chain was re-run on HYD-13's lake solution. Every row of it was superseded later
+the same day when the chain was regenerated with the snapshot-fitted wind tail
+instead of DUST-5's measured one and the burden fell by a factor of 70; see the
+last section of `notes/dust.md`. Rebuild the field before running anything
+against it:
 
 | quantity | value |
 | --- | ---: |
@@ -271,20 +275,17 @@ did not. Quote the measured table.
   end is a land-mean optical depth of 5.2, which is a different world rather than
   an error bar on this one, and `model.dust_scale` exists for anyone who wants to
   test that claim cheaply.
-- **The offline forcing and the in-model forcing use different refractive
-  indices, and the difference is a factor of about 2.5 in absorption.**
-  `exoplasim/scripts/dust_forcing.py` computes everything from OPAC, which
-  `notes/dust.md` establishes is 1.0 to 2.1x more absorbing than the measured
-  datasets. The aerofile the model reads uses the measured indices that
-  `aeolian/config/dust.yaml` selects: Di Biagio in band 1 and Rocha-Lima Algeria
-  in band 2, giving single-scattering albedos of 0.9666 and 0.9750 against OPAC's
-  0.8942 and 0.9515. Weighted by the stellar band shares, that is an absorption
-  optical depth about 0.40x OPAC's. **So the in-model shortwave absorption should
-  come out roughly two and a half times smaller than `analysis/dust_forcing.json`
-  and `analysis/dust_surface_forcing.nc` say, and that is an input choice rather
-  than a failure of the patch.** It is why gate 6's window is centred near zero
-  rather than on the offline numbers, and it is worth its own task: the two
-  should read the same indices, and `dust.yaml` is the file that decides which.
-  This is separate from the band-share correction that regenerated
-  `dust_forcing.json` on 2026-08-18, which moved the weighting and not the
-  indices.
+- **One effective set of refractive indices, and it is the config's.** DUST-12,
+  2026-08-18. The offline forcing used to compute everything from OPAC while the
+  aerofile the model reads was built from the measured datasets, an absorption
+  optical depth a factor of 2.5 apart for the same burden; both sides now resolve
+  `aeolian/config/dust.yaml`'s `optics.indices` through
+  `exoplasim/scripts/dust_indices.py`. The aerofile did not move, so the patch,
+  the boundary field and the binaries are unaffected -- what moved is
+  `analysis/dust_forcing.json` and `analysis/dust_surface_forcing.nc`, which are
+  now the same dust the run will contain and can be compared against it. Gate 6's
+  window still stands: it was set on the shortwave-only error, which is carried
+  by the thermal term and is unchanged.
+- **The thermal infrared is still OPAC's** on both sides, because no measured
+  dataset in this repository spans 4-40 um. `aeolian/config/dust.yaml` says why
+  and what the alternatives were.

@@ -44,3 +44,24 @@ def write_sra(path: Path, code: int, field: np.ndarray) -> None:
         handle.write("".join(f" {value:11d}" for value in header) + "\n")
         for row in flat.reshape(-1, 8):
             handle.write("".join(f" {value:12.5f}" for value in row) + "\n")
+
+
+def read_sra(path: Path, nlat: int, nlon: int) -> np.ndarray:
+    """Read one field back out of an `.sra`, as (nlat, nlon).
+
+    The inverse of `write_sra` and the reader for surface fields this component
+    generated earlier in the chain -- background albedo, roughness, soil water --
+    when a later step needs the field it actually gave the model rather than a
+    reconstruction of it.
+
+    The header is one line of eight integers; everything after it is the field.
+    The size is asserted rather than inferred, because a wrong resolution reads
+    as a reshape error only when the total happens not to divide.
+    """
+    lines = path.read_text(encoding="ascii").splitlines()
+    values = np.array(" ".join(lines[1:]).split(), dtype=np.float64)
+    if values.size != nlat * nlon:
+        raise ValueError(
+            f"{path}: {values.size} values, expected {nlat * nlon} for "
+            f"{nlat}x{nlon}")
+    return values.reshape(nlat, nlon)

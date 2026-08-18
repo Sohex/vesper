@@ -64,17 +64,20 @@ from paths import climatology_path, rel  # noqa: E402
 from sra import write_sra
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from dust_indices import check_coverage, indices, selection  # noqa: E402
 from mie_dust import lognormal_integrate  # noqa: E402
 
 DUST_CODE = 1811
 
 # The thermal band the absorption ratio is integrated over. The upper limit is
-# where the OPAC indices stop, not where the physics does; above it k is held at
-# its last value, which carries a few percent of a 290 K body's emission.
+# where the longwave indices stop, not where the physics does; above it k is held
+# at its last value, which carries a few percent of a 290 K body's emission.
+# WHICH indices those are is declared in aeolian/config/dust.yaml under
+# optics.indices.longwave and read through dust_indices, exactly as the two
+# shortwave bands are. DUST-12.
 LW_LO_UM, LW_HI_UM = 4.0, 40.0
 LW_GRID = 160
 
-OPAC = PROJECT_ROOT / "exoplasim" / "data" / "dust" / "opac_mineral_refractive_index.dat"
 AEROFILE = PROJECT_ROOT / "exoplasim" / "data" / "dust" / "vesper_dust_aerosol.dat"
 OPTICS = PROJECT_ROOT / "analysis" / "dust_optics.json"
 DUST_CFG = PROJECT_ROOT / "aeolian" / "config" / "dust.yaml"
@@ -105,26 +108,19 @@ def check_planck(temperature_k: float, tol: float = 0.02) -> float:
     return ratio
 
 
-def opac_indices():
-    """OPAC mineral n and k, 0.25 to 40 um. k ships negative; sign is flipped."""
-    d = np.loadtxt(OPAC)
-    lam, n, k = d[:, 0], d[:, 1], np.abs(d[:, 2])
-    order = np.argsort(lam)
-    return lam[order], n[order], k[order]
-
-
-def lw_mass_absorption(r_mod_um: float, sigma_g: float, rho_g_cm3: float,
-                       temperature_k: float, n_grid: int) -> float:
+def lw_mass_absorption(dataset: str, r_mod_um: float, sigma_g: float,
+                       rho_g_cm3: float, temperature_k: float,
+                       n_grid: int) -> float:
     """Planck-weighted thermal-infrared mass absorption efficiency, m2/g."""
-    lam_t, n_t, k_t = opac_indices()
+    check_coverage(dataset, LW_LO_UM, LW_HI_UM)
+    n_of, k_of = indices(dataset)
     grid = np.linspace(LW_LO_UM, LW_HI_UM, n_grid)
     b = planck(grid, temperature_k)
     kabs = np.empty(n_grid)
     for i, lam in enumerate(grid):
-        n = float(np.interp(lam, lam_t, n_t))
-        k = float(np.interp(lam, lam_t, k_t))
         _, ssa, _, mee = lognormal_integrate(
-            lam, n, k, r_mod_um, sigma_g, 0.01, 25.0, rho_g_cm3, n_r=200)
+            lam, n_of(lam), k_of(lam), r_mod_um, sigma_g, 0.01, 25.0,
+            rho_g_cm3, n_r=200)
         kabs[i] = mee * (1.0 - ssa)
     return float(np.trapezoid(b * kabs, grid) / np.trapezoid(b, grid))
 
@@ -162,12 +158,11 @@ def main() -> None:
     report = json.loads(args.dust_report.read_text(encoding="utf-8"))
 
     # -- the two band efficiencies, from the indices the chain actually chose --
+    sel = selection(dust_cfg)
     band1 = next(r for r in optics["results"]
-                 if r["indices"] == dust_cfg["optics"]["band1_indices"]
-                 and r["band"] == "band 1")
+                 if r["indices"] == sel["band1"] and r["band"] == "band 1")
     band2 = next(r for r in optics["results"]
-                 if r["indices"] == dust_cfg["optics"]["band2_indices"]
-                 and r["band"] == "band 2")
+                 if r["indices"] == sel["band2"] and r["band"] == "band 2")
     mee1 = band1["mass_extinction_efficiency_m2_g"] * 1000.0     # m2/g -> m2/kg
     mee2 = band2["mass_extinction_efficiency_m2_g"] * 1000.0
     f1 = float(optics["stellar_flux_fraction_band1"])
@@ -247,11 +242,13 @@ def main() -> None:
     # -- the longwave ratio ---------------------------------------------------
     dist = optics["size_distribution"]
     check_planck(ts_mean)
-    kabs = lw_mass_absorption(float(dist["number_median_radius_um"]),
+    kabs = lw_mass_absorption(sel["longwave"],
+                              float(dist["number_median_radius_um"]),
                               float(dist["sigma_g"]),
                               float(dist["density_g_cm3"]),
                               ts_mean, LW_GRID) * 1000.0          # m2/g -> m2/kg
-    kabs_half = lw_mass_absorption(float(dist["number_median_radius_um"]),
+    kabs_half = lw_mass_absorption(sel["longwave"],
+                                   float(dist["number_median_radius_um"]),
                                    float(dist["sigma_g"]),
                                    float(dist["density_g_cm3"]),
                                    ts_mean, LW_GRID // 2) * 1000.0
@@ -292,6 +289,7 @@ def main() -> None:
         "climatology": rel(args.climatology),
         "optics": rel(args.optics),
         "optics_sha256": sha256_of(args.optics),
+        "optics_indices": sel,
         "aerofile": rel(args.aerofile),
         "aerofile_sha256": sha256_of(args.aerofile),
         "config_sha256": sha256_of(args.config),
@@ -319,6 +317,7 @@ def main() -> None:
             "planck_weighted_mass_absorption_m2_kg": kabs,
             "weighting_temperature_k": ts_mean,
             "band_um": [LW_LO_UM, LW_HI_UM],
+            "indices": sel["longwave"],
             "grid_points": LW_GRID,
             "grid_convergence": convergence,
             "note": "Planck-weighted, so it is NOT the unweighted 4-40 um mean "

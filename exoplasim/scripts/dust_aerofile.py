@@ -77,6 +77,8 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT / "lib") not in sys.path:
     sys.path.insert(0, str(ROOT / "lib"))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from dust_indices import selection  # noqa: E402
 from paths import rel  # noqa: E402
 
 OPTICS = ROOT / "analysis" / "dust_optics.json"
@@ -112,12 +114,14 @@ def main() -> None:
     optics = json.loads(args.optics.read_text(encoding="utf-8"))
     cfg = yaml.safe_load(args.dust_config.read_text(encoding="utf-8"))
 
+    # aeolian/config/dust.yaml is the one file that decides which refractive
+    # indices this world's dust has, and every consumer reads it from there.
+    # DUST-12.
+    sel = selection(cfg)
     band1 = next(r for r in optics["results"]
-                 if r["indices"] == cfg["optics"]["band1_indices"]
-                 and r["band"] == "band 1")
+                 if r["indices"] == sel["band1"] and r["band"] == "band 1")
     band2 = next(r for r in optics["results"]
-                 if r["indices"] == cfg["optics"]["band2_indices"]
-                 and r["band"] == "band 2")
+                 if r["indices"] == sel["band2"] and r["band"] == "band 2")
     f1 = float(optics["stellar_flux_fraction_band1"])
 
     apart = effective_radius_m(R_MOD_UM, SIGMA_G)

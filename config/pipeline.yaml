@@ -181,7 +181,7 @@ steps:
   - id: dust_forcing
     script: exoplasim/scripts/dust_forcing.py
     cost: minutes
-    needs: [dust, dust_optics]
+    needs: [dust, dust_optics, surface_albedo]
     writes: [analysis/dust_forcing.json, analysis/dust_surface_forcing.nc]
 
   - id: shortwave_band_weights

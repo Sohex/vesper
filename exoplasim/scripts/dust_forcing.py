@@ -2,6 +2,7 @@
 """What the dust burden is worth radiatively, shortwave AND longwave.
 
     python exoplasim/scripts/dust_forcing.py
+    python exoplasim/scripts/dust_forcing.py --indices bracket   # the absorbing end
 
 DUST-2. `dust_optics.py` answers whether dust warms or cools over a given
 surface; this answers by how much, at the burden DUST-1 actually produces, and
@@ -32,6 +33,21 @@ are computed here and reported as a bracket rather than one being chosen.
 this world's closed-basin fill is bright. Over salt crust the shortwave term is
 already small or positive, so the longwave decides the sign outright.
 
+**The refractive indices**, which are DECLARED rather than chosen here.
+`aeolian/config/dust.yaml` says which dataset this world's dust is, per spectral
+region, and this file and the aerofile ExoPlaSim reads are built from that one
+declaration. Until DUST-12 they were not: this computed everything from OPAC
+while the aerofile used the measured datasets, so the two priced the same burden
+at absorption optical depths a factor of 2.5 apart. `--indices bracket` prices
+the absorbing end the config also declares.
+
+## What it writes
+
+`analysis/dust_forcing.json`, the per-surface pricing, and
+`analysis/dust_surface_forcing.nc`, the per-cell perturbation to `rss` and `rls`
+that `carve_verdict.py --dust-forcing` reads. Both are declared against the
+`dust_forcing` step in `config/pipeline.yaml`.
+
 ## What it does not do
 
 No spectral overlap with water vapour or CO2: the longwave term here is computed
@@ -53,7 +69,9 @@ import sys
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from dust_indices import check_coverage, indices, load_config, selection  # noqa: E402
 from mie_dust import lognormal_integrate  # noqa: E402
+from sra import read_sra  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT / "lib") not in sys.path:
@@ -61,8 +79,8 @@ if str(ROOT / "lib") not in sys.path:
 from paths import rel  # noqa: E402
 from stellar import band1_fraction  # noqa: E402
 
-OPAC = ROOT / "exoplasim" / "data" / "dust" / "opac_mineral_refractive_index.dat"
 OUT = ROOT / "analysis" / "dust_forcing.json"
+OUT_NC = ROOT / "analysis" / "dust_surface_forcing.nc"
 
 # Declared geometry, all of it stated rather than fitted.
 #
@@ -96,17 +114,18 @@ SIZE_ENDS = {
     "emitted (Kok, volume-median diameter 3.4 um)":
         {"r_mod_um": 0.5 * 3.4 * np.exp(-3.0 * np.log(3.0) ** 2), "sigma_g": 3.0},
 }
+# The per-cell field can only be written at ONE end, and this is which. The
+# emitted end is the smaller perturbation of the two and is the end DUST-10's
+# lake result was computed through, so it is kept rather than quietly swapped.
+# The other end is worth about 1.14x on the surface shortwave. What is NOT a
+# bracket is the column mass: the chain reports a mass and an optical depth
+# formed from it, so `aod / mee_chain` recovers the mass whichever end is then
+# applied to it.
+SIZE_END_KEYS = {"fine": "fine (Balkanski, what the reported AOD assumes)",
+                 "emitted": "emitted (Kok, volume-median diameter 3.4 um)"}
 RHO_G_CM3 = 2.6
 SURFACES = {"ocean": 0.07, "vegetated land": 0.18,
             "playa fill": 0.40, "salt crust (bright)": 0.50}
-
-
-def opac_indices():
-    """OPAC mineral n and k, 0.25 to 40 um. k ships negative; sign is flipped."""
-    d = np.loadtxt(OPAC)
-    lam, n, k = d[:, 0], d[:, 1], np.abs(d[:, 2])
-    order = np.argsort(lam)
-    return lam[order], n[order], k[order]
 
 
 def planck(lam_um, temperature_k):
@@ -140,23 +159,42 @@ def _check_planck(temperature_k=289.8, tol=0.02) -> float:
     return total / sigma_t4
 
 
-def band_optics(lo_um, hi_um, weights_of_lam, dist, n_grid=24, n_r=200):
-    """Weighted band-mean extinction, single-scattering albedo and asymmetry."""
-    lam_t, n_t, k_t = opac_indices()
+def band_optics(lo_um, hi_um, weights_of_lam, dist, n_of, k_of,
+                n_grid=24, n_r=200):
+    """Weighted band-mean extinction, single-scattering albedo and asymmetry.
+
+    `n_of` and `k_of` come from `dust_indices` for the dataset the config
+    declares, so this function has no opinion about which dust it is describing.
+    """
     grid = np.linspace(lo_um, hi_um, n_grid)
     w = weights_of_lam(grid)
     w = w / w.sum()
     ext = sca = gsc = 0.0
     for lam, ww in zip(grid, w):
-        n = float(np.interp(lam, lam_t, n_t))
-        k = float(np.interp(lam, lam_t, k_t))
         _, ssa, g, mee = lognormal_integrate(
-            lam, n, k, dist["r_mod_um"], dist["sigma_g"],
+            lam, n_of(lam), k_of(lam), dist["r_mod_um"], dist["sigma_g"],
             0.01, 25.0, RHO_G_CM3, n_r=n_r)
         ext += mee * ww
         sca += mee * ssa * ww
         gsc += g * mee * ssa * ww
     return ext, sca / ext, gsc / max(sca, 1e-30)
+
+
+def shortwave_bands(sel, band1_share):
+    """[(lo, hi), flux share, dataset name, n_of, k_of] for the two SW bands.
+
+    One place the config's declared choice becomes something the integrations
+    below can use, so a band and the indices it is integrated with cannot drift
+    apart inside this file.
+    """
+    out = []
+    for (lo, hi), share, name in zip(SW_BANDS_UM,
+                                     (band1_share, 1.0 - band1_share),
+                                     (sel["band1"], sel["band2"])):
+        check_coverage(name, lo, hi)
+        n_of, k_of = indices(name)
+        out.append(((lo, hi), share, name, n_of, k_of))
+    return out
 
 
 def backscatter_fraction(g):
@@ -176,7 +214,8 @@ def shortwave_forcing(tau_ext, ssa, beta, albedo, insolation):
         (1.0 - albedo) ** 2 * beta * tau_sca - 2.0 * albedo * tau_abs)
 
 
-def longwave_forcing(column_kg_m2, dist, t_surface, t_layer, n_grid=40):
+def longwave_forcing(column_kg_m2, dist, t_surface, t_layer, lw_indices,
+                     n_grid=40):
     """Greybody TOA longwave warming from an absorbing layer aloft.
 
     Spectrally resolved rather than band-averaged, because the dust absorption
@@ -189,16 +228,14 @@ def longwave_forcing(column_kg_m2, dist, t_surface, t_layer, n_grid=40):
     is already opaque to water vapour and CO2, and dust absorbing where the
     atmosphere already absorbs adds nothing.
     """
-    lam_t, n_t, k_t = opac_indices()
+    n_of, k_of = lw_indices
     grid = np.linspace(LW_LO_UM, LW_HI_UM, n_grid)
     total = 0.0
     tau_abs_mean = 0.0
     b_s, b_d = planck(grid, t_surface), planck(grid, t_layer)
     for i, lam in enumerate(grid):
-        n = float(np.interp(lam, lam_t, n_t))
-        k = float(np.interp(lam, lam_t, k_t))
         _, ssa, _, mee = lognormal_integrate(
-            lam, n, k, dist["r_mod_um"], dist["sigma_g"],
+            lam, n_of(lam), k_of(lam), dist["r_mod_um"], dist["sigma_g"],
             0.01, 25.0, RHO_G_CM3, n_r=200)
         tau_abs = mee * 1e3 * column_kg_m2 * (1.0 - ssa)   # mee is m2/g
         emissivity = 1.0 - np.exp(-DIFFUSIVITY * tau_abs)
@@ -209,7 +246,7 @@ def longwave_forcing(column_kg_m2, dist, t_surface, t_layer, n_grid=40):
 
 
 def surface_forcing(column_kg_m2, dist, albedo, t_layer, insolation,
-                    sw_bands, n_grid=24):
+                    sw_bands, lw_indices, n_grid=24):
     """Shortwave and longwave forcing AT THE SURFACE, which is what Penman reads.
 
     Not the top-of-atmosphere numbers, and the difference decides the sign. An
@@ -227,8 +264,9 @@ def surface_forcing(column_kg_m2, dist, albedo, t_layer, insolation,
     window, because outside it the air between is already opaque and adds nothing.
     """
     tau_sca = tau_abs = beta_eff = 0.0
-    for (lo, hi), share in sw_bands:
-        ext, ssa, g = band_optics(lo, hi, lambda x: np.ones_like(x), dist)
+    for (lo, hi), share, _name, n_of, k_of in sw_bands:
+        ext, ssa, g = band_optics(lo, hi, lambda x: np.ones_like(x), dist,
+                                  n_of, k_of)
         tau = ext * 1e3 * column_kg_m2
         tau_sca += tau * ssa * share
         tau_abs += tau * (1.0 - ssa) * share
@@ -236,16 +274,14 @@ def surface_forcing(column_kg_m2, dist, albedo, t_layer, insolation,
     sw = -insolation * TRANSMISSION ** 2 * (1.0 - albedo) * (
         beta_eff * tau_sca + tau_abs)
 
-    lam_t, n_t, k_t = opac_indices()
+    n_of, k_of = lw_indices
     grid = np.linspace(WINDOW_LO_UM, WINDOW_HI_UM, n_grid)
     b = planck(grid, t_layer)
     lw = 0.0
     for i, lam in enumerate(grid):
-        n = float(np.interp(lam, lam_t, n_t))
-        k = float(np.interp(lam, lam_t, k_t))
         _, ssa, _, mee = lognormal_integrate(
-            lam, n, k, dist["r_mod_um"], dist["sigma_g"], 0.01, 25.0,
-            RHO_G_CM3, n_r=200)
+            lam, n_of(lam), k_of(lam), dist["r_mod_um"], dist["sigma_g"],
+            0.01, 25.0, RHO_G_CM3, n_r=200)
         emissivity = 1.0 - np.exp(-DIFFUSIVITY * mee * 1e3 * column_kg_m2 * (1.0 - ssa))
         lw += b[i] * emissivity
     dlam = (WINDOW_HI_UM - WINDOW_LO_UM) / (n_grid - 1) * 1e-6
@@ -256,8 +292,20 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--dust", type=Path,
                     default=ROOT / "aeolian" / "analysis" / "dust_baseline.json")
+    ap.add_argument("--dust-field", type=Path,
+                    default=ROOT / "aeolian" / "analysis" / "dust_baseline.nc",
+                    help="per-cell optical depth, for the surface forcing field")
     ap.add_argument("--config", type=Path, default=ROOT / "config" / "planet.yaml")
+    ap.add_argument("--indices", default="central", choices=("central", "bracket"),
+                    help="which refractive-index set from aeolian/config/dust.yaml: "
+                         "`central` is the declared choice, `bracket` the absorbing "
+                         "OPAC end. DUST-12")
     ap.add_argument("--output", type=Path, default=OUT)
+    ap.add_argument("--size-end", default="emitted", choices=("fine", "emitted"),
+                    help="which end of the size bracket the per-cell field is "
+                         "written at; the JSON always reports both")
+    ap.add_argument("--output-nc", type=Path, default=OUT_NC,
+                    help="per-cell surface forcing, which carve_verdict.py reads")
     args = ap.parse_args()
 
     ratio = _check_planck()
@@ -265,8 +313,18 @@ def main() -> None:
     import yaml
     config = yaml.safe_load(args.config.read_text(encoding="utf-8"))
     dust = json.loads(args.dust.read_text(encoding="utf-8"))
-    dust_cfg = yaml.safe_load(
-        (ROOT / "aeolian" / "config" / "dust.yaml").read_text(encoding="utf-8"))
+    dust_cfg = load_config()
+
+    # WHICH DUST THIS IS. Declared once in aeolian/config/dust.yaml and read
+    # here, so this file and the aerofile the model reads describe the same
+    # particle. They did not until DUST-12: this computed everything from OPAC
+    # while the aerofile was built from the measured datasets, and the absorption
+    # optical depths differed by a factor of 2.5 for the same burden.
+    sel = selection(dust_cfg, end=args.indices)
+    check_coverage(sel["longwave"], LW_LO_UM, LW_HI_UM)
+    lw_indices = indices(sel["longwave"])
+    print(f"indices ({args.indices}): band 1 {sel['band1']}, "
+          f"band 2 {sel['band2']}, thermal {sel['longwave']}")
 
     flux = float(config["orbit"]["baseline_flux_earth"])
     insolation = 1361.0 * flux / 4.0
@@ -288,6 +346,7 @@ def main() -> None:
                    skiprows=1)
     lam_s, f_s = d[:, 0], d[:, 1] * np.gradient(d[:, 0])
     band1_share = band1_fraction()
+    sw_bands = shortwave_bands(sel, band1_share)
 
     print(f"burden: land-mean AOD {aod_land:.4f} at {mee_chain:.1f} m2/kg")
     print(f"     -> column mass {column * 1e3:.3f} g/m2")
@@ -298,11 +357,11 @@ def main() -> None:
     for name, dist in SIZE_ENDS.items():
         sw = {}
         tau_sw_total = 0.0
-        for (lo, hi), share in zip(SW_BANDS_UM,
-                                   (band1_share, 1.0 - band1_share)):
+        for (lo, hi), share, iname, n_of, k_of in sw_bands:
             ext, ssa, g = band_optics(
-                lo, hi, lambda x: np.interp(x, lam_s, f_s), dist)
+                lo, hi, lambda x: np.interp(x, lam_s, f_s), dist, n_of, k_of)
             sw[f"{lo}-{hi} um"] = {
+                "indices": iname,
                 "mass_extinction_efficiency_m2_g": round(ext, 4),
                 "single_scattering_albedo": round(float(ssa), 4),
                 "asymmetry_parameter": round(float(g), 4),
@@ -320,20 +379,31 @@ def main() -> None:
             v.pop("flux_share_raw")
             v["flux_share"] = round(wgt, 4)
 
-        lw, tau_lw = longwave_forcing(column, dist, t_surface, t_layer)
+        lw, tau_lw = longwave_forcing(column, dist, t_surface, t_layer, lw_indices)
         per_surface = {}
         for surface, albedo in SURFACES.items():
             sw_f = shortwave_forcing(tau_sw, ssa_eff, beta_eff, albedo, insolation)
+            # AT THE SURFACE, which is a different quantity from the two above
+            # and is the one Penman reads. Reported here rather than left to an
+            # ad-hoc call, because notes/dust.md quotes it and the carve verdict
+            # is decided through it.
+            sw_s, lw_s = surface_forcing(column, dist, albedo, t_layer,
+                                         insolation, sw_bands, lw_indices)
             per_surface[surface] = {
                 "shortwave_w_m2": round(float(sw_f), 3),
                 "longwave_w_m2": round(lw, 3),
-                "net_w_m2": round(float(sw_f) + lw, 3)}
+                "net_w_m2": round(float(sw_f) + lw, 3),
+                "surface_shortwave_w_m2": round(float(sw_s), 3),
+                "surface_longwave_w_m2": round(float(lw_s), 3),
+                "surface_net_w_m2": round(float(sw_s + lw_s), 3)}
         results.append({
             "size_distribution": name,
             "r_mod_um": round(dist["r_mod_um"], 4),
             "sigma_g": dist["sigma_g"],
             "shortwave_optical_depth": round(float(tau_sw), 4),
             "shortwave_bands": sw,
+            "shortwave_absorption_optical_depth": round(
+                float(tau_sw * (1.0 - ssa_eff)), 5),
             "longwave_absorption_optical_depth": round(tau_lw, 5),
             "longwave_forcing_w_m2": round(lw, 3),
             "by_surface": per_surface})
@@ -375,6 +445,55 @@ def main() -> None:
     print(f"\nreopening threshold is 1.5 W/m2 in the global mean -> "
           f"{'CROSSES' if max(abs(g) for g in global_mean) > 1.5 else 'below'}")
 
+    # -- the per-cell surface field, which is what the carve verdict reads ----
+    #
+    # Written here rather than by an ad-hoc call, because config/pipeline.yaml
+    # declares this step as its generator and an artifact no step writes is one
+    # nothing can invalidate. See SIZE_END_KEYS for which end of the size
+    # bracket it is written at and why that is a choice rather than a default.
+    surface_field = None
+    if args.dust_field.is_file():
+        model = config["model"]
+        nlat, nlon = int(model["latitudes"]), int(model["longitudes"])
+        resolution = str(model["resolution"]).upper()
+        albedo_path = (ROOT / "exoplasim" / "inputs" / resolution.lower()
+                       / f"orogen_{resolution}_surf_0174.sra")
+        albedo = read_sra(albedo_path, nlat, nlon)
+        end_name = SIZE_END_KEYS[args.size_end]
+        drss, drls, col = write_per_cell(
+            args.dust_field, albedo, args.output_nc, SIZE_ENDS[end_name],
+            t_layer, insolation, sw_bands, lw_indices, mee_chain,
+            meta={"indices_band1": sel["band1"], "indices_band2": sel["band2"],
+                  "indices_longwave": sel["longwave"],
+                  "indices_end": args.indices,
+                  "size_distribution": end_name,
+                  "dust_field": rel(args.dust_field),
+                  "background_albedo": rel(albedo_path),
+                  "generated": datetime.now(timezone.utc).isoformat()})
+        from netCDF4 import Dataset as _DS
+        with _DS(args.dust_field) as _ds:
+            _lat = np.asarray(_ds["lat"][:], dtype=float)
+        wt = np.cos(np.deg2rad(_lat))[:, None] * np.ones((1, drss.shape[1]))
+        surface_field = {
+            "output": rel(args.output_nc),
+            "size_distribution": end_name,
+            "background_albedo_field": rel(albedo_path),
+            "area_weighted_drss_w_m2": round(float(np.average(drss, weights=wt)), 4),
+            "area_weighted_drls_w_m2": round(float(np.average(drls, weights=wt)), 4),
+            "min_drss_w_m2": round(float(drss.min()), 3),
+            "max_drls_w_m2": round(float(drls.max()), 3),
+            "note": "Per-cell perturbations to rss and rls, formed with the "
+                    "per-cell background albedo because carve_verdict.py "
+                    "recovers the downward shortwave as rss / (1 - albedo).",
+        }
+        print(f"\nsurface field: area-weighted drss "
+              f"{surface_field['area_weighted_drss_w_m2']:+.4f}, drls "
+              f"{surface_field['area_weighted_drls_w_m2']:+.4f} W/m2 "
+              f"-> {rel(args.output_nc)}")
+    else:
+        print(f"\n{rel(args.dust_field)} is absent; the per-cell surface "
+              f"forcing field was NOT written.")
+
     payload = {
         "note": "DUST-2. Shortwave and longwave forcing of the DUST-1 burden. "
                 "The longwave is a clear-sky window estimate and is an UPPER "
@@ -394,6 +513,11 @@ def main() -> None:
                      "shortwave_transmission": TRANSMISSION,
                      "mean_insolation_w_m2": round(insolation, 2)},
         "reopening_threshold_w_m2": 1.5,
+        "indices": {"end": args.indices, **sel,
+                    "declared_in": "aeolian/config/dust.yaml, optics.indices",
+                    "note": "The same declaration the aerofile ExoPlaSim reads "
+                            "is built from, so the offline forcing and the "
+                            "in-model forcing describe one particle. DUST-12."},
         "global_mean": {
             "global_mean_aod": aod_global,
             "land_fraction": land_fraction,
@@ -402,6 +526,7 @@ def main() -> None:
                     "depth ratio the transport produced. Crude, and the sign is "
                     "what matters rather than the third digit.",
             "net_w_m2_by_size_end": [round(float(g), 3) for g in global_mean]},
+        "surface_field": surface_field,
         "results": results,
         "caveats": [
             "The longwave term is a clear-sky window estimate. Part of the band "
@@ -410,9 +535,12 @@ def main() -> None:
             "optical depth assumes a fine Balkanski distribution and the emission "
             "scheme produces a much coarser one. The atmospheric burden is "
             "between them and nothing here says where.",
-            "OPAC indices run 1 to 2x more absorbing than the measured datasets "
-            "in the shortwave, so the shortwave absorption here is an upper bound "
-            "too, which cuts the cooling.",
+            "The shortwave and the thermal infrared are not on the same "
+            "dataset and cannot be: the measured indices stop at 2.45 um, so "
+            "the thermal term is OPAC's, which runs 1 to 2x more absorbing than "
+            "the measurements where the two overlap. The mixture biases the net "
+            "warm and the surface dimming small. aeolian/config/dust.yaml says "
+            "why, and --indices bracket prices the all-OPAC end.",
             "Two-stream, optically-thin forcing expressions. At an optical depth "
             "near 1 they are being used past where they are strictly valid.",
         ],
@@ -421,45 +549,58 @@ def main() -> None:
     print(f"wrote {rel(args.output)}")
 
 
-if __name__ == "__main__":
-    main()
-
-
-def write_per_cell(dust_nc, albedo, out_path, dist, t_layer, insolation, sw_bands):
+def write_per_cell(dust_nc, albedo, out_path, dist, t_layer, insolation,
+                   sw_bands, lw_indices, mee_chain_m2_kg, variant="central",
+                   meta=None):
     """Per-cell surface forcing, as perturbations to `rss` and `rls`.
 
     Written so the carve verdict can read them straight into its own Penman
     without re-deriving any optics. The optical properties depend only on the
     size distribution, so they are computed once and applied across the grid;
     only the longwave emissivity is nonlinear in column mass.
+
+    `albedo` is the BACKGROUND SURFACE ALBEDO PER CELL, and it has to be, because
+    of what the consumer does with the result. `carve_verdict.py` recovers the
+    downward shortwave as `rss / (1 - land_albedo)` before re-absorbing it at
+    water's albedo, so a perturbation added to `rss` is only recovered correctly
+    if it was formed with that same per-cell albedo. A scalar here is a per-cell
+    error of `(1 - a_scalar) / (1 - a_cell)`, which is 1.55x over playa fill if
+    the scalar is water's.
+
+    The column mass comes from the chain's own mass extinction efficiency, the
+    same quantity the reported optical depth was formed with, so `column` is the
+    burden the aeolian component actually produced rather than a re-derivation
+    of it at one band's efficiency.
     """
     from netCDF4 import Dataset as DS
     with DS(dust_nc) as ds:
-        aod = np.asarray(ds["aod_central"][:], dtype=float)
+        aod = np.asarray(ds[f"aod_{variant}"][:], dtype=float)
         lat = np.asarray(ds["lat"][:]); lon = np.asarray(ds["lon"][:])
-    mee = None
+    albedo = np.asarray(albedo, dtype=float)
+    if albedo.shape != aod.shape:
+        raise SystemExit(
+            f"albedo is {albedo.shape} and the dust field is {aod.shape}. They "
+            f"are the same grid index for index; do not reconcile them.")
     tau_sca_c = tau_abs_c = beta_eff = 0.0
-    for (lo, hi), share in sw_bands:
-        ext, ssa, g = band_optics(lo, hi, lambda x: np.ones_like(x), dist)
-        if mee is None:
-            mee = ext * 1e3                      # m2/kg, for column from AOD
+    for (lo, hi), share, _name, n_of, k_of in sw_bands:
+        ext, ssa, g = band_optics(lo, hi, lambda x: np.ones_like(x), dist,
+                                  n_of, k_of)
         tau_sca_c += ext * 1e3 * ssa * share
         tau_abs_c += ext * 1e3 * (1.0 - ssa) * share
         beta_eff += backscatter_fraction(g) * share
-    column = aod / mee                            # kg/m2 per cell
+    column = aod / mee_chain_m2_kg                # kg/m2 per cell
 
     drss = -insolation * TRANSMISSION ** 2 * (1.0 - albedo) * (
         beta_eff * tau_sca_c + tau_abs_c) * column
 
-    lam_t, n_t, k_t = opac_indices()
+    n_of, k_of = lw_indices
     grid = np.linspace(WINDOW_LO_UM, WINDOW_HI_UM, 24)
     b = planck(grid, t_layer)
     drls = np.zeros_like(column)
     for i, lam in enumerate(grid):
-        n = float(np.interp(lam, lam_t, n_t)); k = float(np.interp(lam, lam_t, k_t))
-        _, ssa, _, m = lognormal_integrate(lam, n, k, dist["r_mod_um"],
-                                           dist["sigma_g"], 0.01, 25.0,
-                                           RHO_G_CM3, n_r=200)
+        _, ssa, _, m = lognormal_integrate(lam, n_of(lam), k_of(lam),
+                                           dist["r_mod_um"], dist["sigma_g"],
+                                           0.01, 25.0, RHO_G_CM3, n_r=200)
         drls += b[i] * (1.0 - np.exp(-DIFFUSIVITY * m * 1e3 * column * (1.0 - ssa)))
     drls *= (WINDOW_HI_UM - WINDOW_LO_UM) / 23 * 1e-6 * WINDOW_TRANSMITTANCE
 
@@ -475,6 +616,14 @@ def write_per_cell(dust_nc, albedo, out_path, dist, t_layer, insolation, sw_band
                    "forcing, not top-of-atmosphere: the layer absorbs, so the "
                    "ground loses even where TOA gains. Longwave is restricted to "
                    "the 8-12 um window at a declared transmittance of "
-                   f"{WINDOW_TRANSMITTANCE}, which scales it linearly.")
+                   f"{WINDOW_TRANSMITTANCE}, which scales it linearly. Formed "
+                   "with the per-cell background albedo, which is the convention "
+                   "carve_verdict.py inverts.")
         ds.window_transmittance = WINDOW_TRANSMITTANCE
+        for key, value in (meta or {}).items():
+            setattr(ds, key, value)
     return drss, drls, column
+
+
+if __name__ == "__main__":
+    main()
