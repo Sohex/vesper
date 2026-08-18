@@ -231,10 +231,16 @@ worth a task.
 
 ---
 
-## Proposed task rows
+## Tasks
 
-| PHYS-1 | Re-weight the Lacis & Hansen SHORTWAVE water vapour and CO2 absorptances for the K dwarf, as `o3uvw`/`o3visw` already do for ozone. They give absorptance as a fraction of total incident SOLAR flux, and this star puts 1.204x the Sun's share above 0.75 um where water vapour absorbs. Worth +6.5 to +9 W/m2 of atmospheric shortwave absorption and an equal reduction at the surface, against 21 W/m2 for the whole stellar sweep | `notes/audits/physics-review.md` | open, LARGEST physics finding. Same scheme, same argument and same patch as the ozone weights, left in the bigger term. Integrate the H2O band absorptances against k25v; `radmod.f90:311` already knows the solar reference share |
-| PHYS-2 | Make the star's band-1 flux share canonical. Three values are in use: 0.3777 in `analysis/dust_optics.json` from `k25v.dat`, 0.3862 from `k25v_hr.dat`, and 0.4184 printed by the model itself. The model's is unexplained by either file and it weights the two-band snow and ice albedo, which is where a stellar-spectrum error previously cost a baseline re-run | `notes/audits/physics-review.md` | open. Negligible for dust (0.07% on the mass extinction efficiency), 0.013 on broadband snow albedo. Find why the model's integration differs, then have one value and let everything read it |
-| PHYS-3 | Give the carve verdict's incision coefficient a gravity term. C = 161 was fixed by matching Earth's standing-basin DENSITY, which is an Earth observable transferred to a 1.31 g world; stream power goes as rho g Q S, so this world cuts 31% faster and should have fewer standing basins than Earth, not the same number | `hydrography/notes/retain-fraction.md`, `notes/audits/physics-review.md` | open. Worth 30-40 basins of the 98 marginal at g^1, more at g^1.5. Direct analogue of DUST-6, and the calibration currently has no gravity term at any C |
-| PHYS-4 | Add an atmospheric stability correction to the Penman transfer coefficient. It is the neutral bulk formula, applied to a cool lake under hot arid air, which is a stable surface layer where the neutral coefficient overstates exchange by 20-30% on a daily mean and more in strong stability | `hydrography/scripts/carve_verdict.py` | open, one-signed toward under-carving and compounding with the error budget's existing dry-column Penman item. Needs a bulk Richardson number from `ts`, `tas` and wind, all already in the climatology, plus a declared stability function. Would convert the budget's only unquantified item into a number |
-| PHYS-5 | Integrate Penman over the diurnal cycle rather than evaluating it at 12-bin means. Saturation vapour pressure is convex at 6.7%/K, so the daily mean of the deficit exceeds the deficit of the daily mean by +1.2% at the land-mean diurnal range of 8.08 K and +4.4% at the 90th percentile of 12.3 K | `notes/audits/physics-review.md` | open, low priority. Roughly 20-60 basins, same direction as PHYS-3 and PHYS-4. `maxt` and `mint` are already in the climatology, so no new output is needed |
+Tracked in `TASKS.md`, not restated here. A findings document that carries its
+own rows is a second copy of the tracker, and the copy nobody works from is the
+one that drifts.
+
+| finding | id |
+| --- | --- |
+| 1. shortwave water vapour weighted for the Sun | `PHYS-1` |
+| 2. three values for the band-1 flux share | `PHYS-2` |
+| 3. the incision coefficient has no gravity term | `PHYS-3` |
+| 4. Penman has no stability correction | `PHYS-4` |
+| 5. Penman evaluated at the mean state | `PHYS-5` |

@@ -2,7 +2,7 @@
 
 *Audited 2026-08-17, against the baseline climatology
 `baseline_regular_climatology.nc` on `precarve-craton`. Read-only audit; nothing
-here was fixed. Proposed tasks at the end.*
+here was fixed. The tasks these findings became are named at the end.*
 
 Commissioned after an outside reader pointed out that dust suppresses global
 precipitation, which cuts runoff, which is the denominator of the carve
@@ -218,12 +218,17 @@ does not need any new physics in the model.
 
 ---
 
-## Proposed tasks
+## Tasks
 
-| id | task | source | status |
-| --- | --- | --- | --- |
-| BUDG-1 | Measure this world's hydrological sensitivity: one perturbation run reporting dP and dE per kelvin, giving a conversion from the error budget's kelvin into runoff. Runoff is 15.5% of land precipitation, so it amplifies dP by 6.5x and dE by 5.5x, and the carve verdict reads runoff while every budget item is priced in kelvin | `notes/audits/missed-couplings.md` | open. The single measurement that lets the existing budget rank anything against the carve, which is the one irreversible output |
-| BUDG-2 | Re-express `analysis/error_budget.json` with a second currency alongside kelvin: effect on runoff and on basin count. Needs BUDG-1 for the conversion | `notes/audits/missed-couplings.md` | blocked on BUDG-1 |
-| HYD-11 | Quantify and correct the dry-column Penman overstatement, the error budget's only unquantified item. Raising the surrounding column to 70-90% relative humidity lowers land-mean Penman by 10-18%, worth 144 to 235 basins in the direction of under-carving. Part of it is a level mixing: `es_a` is saturation at the 2 m `tas` while `e_air` is at the lowest model level, of order 300 m, so the deficit is inflated systematically | `notes/audits/missed-couplings.md` | open, and it GATES the carve alongside DUST-10 and DUST-11. All three move the same denominator |
-| BUDG-3 | Move the error budget's content into `scripts/error_budget.py` and give `analysis/error_budget.json` the same "generated, never edited" rule `world_state.json` has. Today's DUST-2 and DUST-6 corrections to it were written to the JSON and are absent from the repository; the file still says dust is "cooling everywhere" and that aerosols cannot be enabled, both of which today's work contradicts | `notes/audits/missed-couplings.md` | open, and do this one FIRST of the budget items, because until it is done any correction to the budget may evaporate the same way |
-| BIO-4 | Record in `WORKFLOW.md` section 4 that the biosphere reaches the climate through albedo, roughness and forest fraction only, and not through transpiration: ExoPlaSim's land surface has no stomatal or LAI control and no rooting depth. `pedology/README.md` cites 100-150 mm of transpiration sensitivity from a bedrock vadose zone, against a runoff of 126 mm/yr | `notes/audits/missed-couplings.md` | open, documentation only. Section 4 currently states the coupling in radiative terms alone and reads as though that were all of it |
+Tracked in `TASKS.md`, not restated here. They sat in this document as full rows
+for a day without ever being transferred, which is why they are a pointer now:
+a findings document that carries its own to-do list is a second copy of the
+tracker, and the copy that nobody works from is the one that drifts.
+
+| finding | id |
+| --- | --- |
+| 1. runoff amplifies everything by six | `BUDG-1`, `BUDG-2` |
+| 2. Penman over a dry land column | `HYD-11` |
+| 3. the error budget is a hand-edited generator output | `BUDG-3` |
+| 4. the biosphere reaches the climate only through albedo | `BIO-4` |
+| 5. knocked down; no task |  |
