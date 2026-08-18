@@ -728,17 +728,165 @@ ocean it runs -0.52 poleward of 60S, -0.04 between 60S and 30S, -0.64 between
 and +3.26 on the 0.0065 of the planet that is ice-free ocean poleward of 60N.
 Its per-cell correlation with `hfls` is +0.40 and with `ts` is -0.40.
 
-**So the surface residual is narrowed, not resolved.** Excluded: the land
-reconstruction, the soil heat capacity, the snow and melt booking, the
-mixed-layer depth, ocean horizontal transport, a flux correction, a deep-ocean
-flux, a coupling-interval mismatch, the sea-ice reservoir (the residual is
-largest where there is no ice), and a scaling error in either the capacity or
-the latent flux. Not settled: which side of
-`CRHOS * CPS * mld * d(SST)/dt = hfns` carries the -0.29, since both are read
-from the same output stream and nothing in the regular output reports the slab
-temperature independently of `ts`. The ocean stream carries `osst` on code 169
-and `oheat` on code 263 and is not postprocessed by this project, which is the
-obvious next instrument.
+**So the surface residual is narrowed here, and the section below settles which
+side of it carries the gap.** Excluded at this point: the land reconstruction,
+the soil heat capacity, the snow and melt booking, the mixed-layer depth, ocean
+horizontal transport, a flux correction, a deep-ocean flux, a coupling-interval
+mismatch, the sea-ice reservoir (the residual is largest where there is no ice),
+and a scaling error in either the capacity or the latent flux. What was still
+open was which side of `CRHOS * CPS * mld * d(SST)/dt = hfns` carries the -0.29,
+since both were read from the same output stream and nothing in the regular
+output reports the slab temperature independently of `ts`. The ocean and ice
+streams do, and they are read below.
+
+## The ocean's own books close exactly, and the surface residual is in the annual mean
+
+Measured 2026-08-18 by `exoplasim/scripts/close_ocean_energy.py` on all four
+runs. This is the first reading of the ocean and ice streams in this project.
+
+### The instrument exists, and it reaches one orbit per run
+
+`oceanmod.f90:oceanout` writes `ocean_output` and `icemod.f90:iceout` writes
+`ice_output`: raw service-format files, an 8-integer header record and one
+`NLON*NLAT` float32 record per field, with their own accumulator and their own
+interval of `nout` timesteps. Nothing in this project postprocesses them, and
+the codes are not the ones the atmospheric table uses. `ocean_output` carries
+901 to 906, 910, 939, 972 and 990; `ice_output` carries 701 to 714, 739, 741,
+769, 772 and 790 to 796. `osst` and `oheat` appear on 169 and 263 only in
+`plasim_dummy.f90:673`, and in pyburn's table those two numbers are the
+atmosphere's `tsa` and `hfns`.
+
+**`ice_output` is the better of the two and nothing had named it.** It carries
+the whole decomposition of what the atmosphere delivers: 701 the flux as the
+ice module received it, 703 the part spent changing the surface temperature,
+704 melting snow, 705 melting ice, 706 what is passed on to the ocean, 702 what
+comes back from the ocean.
+
+**Both files are truncated at every model call.** `oceanmod.f90:331` opens with
+a bare `open(unit,file=...,form='unformatted')`, and so does its counterpart in
+`icemod`; the wrapper calls the model once per orbit. So what survives on disk
+is the run's LAST ORBIT and nothing else. Orbits 67-76, which every other
+measurement in this note uses, were overwritten ten times over.
+`close_ocean_energy.py` therefore reads the final orbit, refuses a window whose
+records are not there, and refuses again if the stream does not tile the regular
+output.
+
+### Six identities, each with a right answer of zero, and all six close
+
+On ocean cells carrying neither ice nor snow in any stream record -- a mask
+taken at the stream's own 32-timestep resolution, which is stricter than the
+same mask taken from twelve binned records. Per unit area of that mask, against
+a seasonal swing of -25 to +16 W/m2 on the baseline:
+
+| | right answer | baseline, orbit 80 | 0.945 bootstrap, orbit 90 | 0.945 short, orbit 45 | 0.910, orbit 45 |
+| --- | --- | ---: | ---: | ---: | ---: |
+| D1 `xheat` = `rss+rls+hfss+hfls` | 0 | -0.0024 | -0.0093 | +0.0065 | -0.1276 |
+| D2 `yheat` = `xcflux` | 0 | 0.0 | 0.0 | 0.0 | 0.0 |
+| D3 `xheat - xcflux` = `xsmelt` | 0 | -1.4e-09 | +8.2e-10 | -1.8e-05 | -1.5e-05 |
+| D4 `CRHOS*CPS*mld*d(SST)/dt` = `yheat` | 0 | -7.1e-05 | -3.3e-04 | -1.3e-04 | +2.3e-05 |
+| D5 `hfns - (rss+rls+hfss+hfls)` = `-ALF*rho*snm` | 0 | +8.5e-08 | -1.2e-08 | +1.2e-09 | -4.3e-08 |
+| **D6 `hfns` = `CRHOS*CPS*mld*d(SST)/dt`** | **0** | **+0.0024** | **+0.0096** | **-0.0063** | **+0.1277** |
+
+Stated before the numbers were looked at: any one of these coming out at
+-0.29 W/m2 per unit area would have located the residual, and each could have.
+D6 is the surface residual itself, evaluated over a window the two streams
+share exactly. **It is zero.**
+
+Three things make that a measurement rather than a coincidence of definitions.
+The streams' land mask is the regular stream's array, index for index, and the
+script refuses if it is not -- `CLAUDE.md` rule 3. The four ocean fields that
+must vanish in this configuration do vanish identically: 903 the flux
+correction, 904 the vertical diffusion, 905 the horizontal diffusion, 906 the
+deep-ocean flux. And `ts` really is the slab temperature: `xts` equals `xsst`
+to 0.000 K on these cells, and the snapshot `ts` matches the ocean stream's own
+`ysst` to 0.001 K, which is the interpolation error across a 32-timestep gap.
+
+D3 is worth naming because it is the one term the ice module withholds from the
+ocean: snow falling into open water is melted on the spot and its heat of fusion
+charged against the flux (`icemod.f90:1253`). The atmosphere books the same
+quantity as `snm`, D5 confirms `hfns` includes it, and the two agree to five
+decimals. So the chain is complete: the atmosphere sends, the ice module passes
+on everything but the snow fusion, the ocean receives exactly that, and the slab
+integrates exactly what it receives.
+
+**All three of the shapes the residual could have had are excluded.** A term
+applied to the slab that the atmosphere does not book: D1 and D3 close. An
+ordering or timestep offset between accumulation points: D4 closes, and it is
+the integration itself. A unit or area-weighting difference between the two
+grids: the masks are the same array.
+
+### What carries it: the first output bin is not one twelfth of an orbit
+
+A model call leaves a partial output interval behind and the next call restores
+it -- `first-output-bin.md` for the mechanism and its other consequences. So the
+first record of every file covers more timesteps than the rest, and the same is
+true of the first BIN after pyburn averages three records into each.
+
+The tiling measures the size directly, because the ice stream resolves 32
+timesteps. Bins 1 to 11 of the baseline are each exactly 15 stream records,
+480 timesteps; the orbit is 5850; so the first bin is **570 timesteps, 1.1875
+times an ordinary one**. pyburn averages the twelve with equal weight
+regardless, so an annual mean taken from a 12-bin file is a weighted mean with
+the wrong weights, in error by
+
+    (1/12 - n0/N) * (bin 0 - mean of bins 1 to 11)  =  -0.014103 * (bin 0 - rest)
+
+On orbits 67-76, against the surface residual measured over the same orbits:
+
+| mask | area | weighting error, W/m2 of planet | surface residual, W/m2 of planet |
+| --- | ---: | ---: | ---: |
+| land | 0.4282 | +0.0022 | -0.0160 |
+| never any ice or snow | 0.5201 | -0.0820 | -0.1517 |
+| ice or snow at some point | 0.0517 | +0.0543 | +0.0687 |
+| planet | 1.0000 | -0.0255 | -0.1217 |
+
+The same sign in every ocean row: 54% of the ice-free ocean's residual and 79%
+of the ice-bearing one's, while on land it is +0.0022 against a residual that
+was already zero. Per unit area of the ice-free ocean the weighting error is
+-0.158 against a residual of -0.292.
+
+**The coefficient is a property of the call length, not of the model.** The
+0.910 run's calls are 6018 timesteps rather than 5850, so its first bin is 738
+timesteps and its coefficient is -0.0393, 2.8 times the baseline's -- which is
+the same pair of call lengths that gives `first-output-bin.md` its two values of
+`delta`, arrived at by a different route.
+
+**It is not the low-I/O path and `NLOWIO = 0` does not remove it.** Measured
+across nineteen consecutive orbit-to-orbit intervals of the baseline, comparing
+the phase-matched change in the ice-free ocean's slab temperature with the mean
+`hfns` over the interval: -0.209 W/m2 mean over the ten intervals inside the
+`NLOWIO = 0` block, -0.185 over the seven outside it.
+
+### What is left, and it is not much
+
+The weighting accounts for -0.158 of the -0.292 W/m2 per unit area. The
+remaining -0.13 cannot be pinned on the block it was measured on, because the
+storage there has to come from a ten-orbit trend and that trend is not
+determined to better than the remainder: the same 10-orbit heat content on
+orbits 67-76 gives -0.0138 W/m2 as a least-squares slope of the ten annual
+means, -0.0372 as a least-squares slope of all 120 bins, -0.0548 as the
+difference of the first and last annual means, and -0.1958 as the difference of
+the first and last bins. A spread of 0.18 on a quantity being asked for 0.13.
+
+So the surface half of the residual is **structural bookkeeping, not physics.**
+D6 says the model's ice-free ocean conserves energy exactly wherever the
+question is put to it over a window the model itself defines.
+
+**The same weighting acts on every annual mean this project takes from a 12-bin
+file.** On orbits 67-76 it is worth -0.0255 W/m2 on `hfns` and -0.0653 on
+`ntr`, so the planetary residual of -0.545 keeps -0.48 of it and the
+top-of-atmosphere half of this note is not overturned. Anything else that
+quotes an annual mean of a strongly seasonal field off a binned climatology
+carries an error of the same shape, and it is largest exactly where the seasonal
+cycle is largest.
+
+**The next instrument is to stop destroying the streams.** `ocean_output` and
+`ice_output` should be moved out of the run directory at the end of each model
+call, the way `MOST.NNNNN.nc` already is, so that the next climatology block
+carries them. Then this closure runs on the block the verdicts are read from
+rather than on the one orbit that happened to survive, the ten-orbit storage
+trend is replaced by an exact endpoint difference, and the remaining -0.13
+either is there or is not. That costs 200 MB an orbit and no model time.
 
 ## What this changes for the convergence criterion
 
@@ -759,8 +907,9 @@ away from zero at equilibrium. That is what A2 needed to know.
 
 ## Status
 
-Narrowed on 2026-08-17 against the settled baseline, and the top-of-atmosphere
-half named on 2026-08-18.
+Narrowed on 2026-08-17 against the settled baseline; the top-of-atmosphere half
+named on 2026-08-18, and the surface half on the same day against the ocean's
+and the ice module's own output streams.
 
 **Closed.** The large-scale condensation lead, which was the standing candidate:
 it is the missing latent heat of fusion in `mklsp`, predicted and measured to
@@ -788,14 +937,29 @@ net is a true measurement of an atmosphere that is genuinely radiating away
 energy the numerics create. With that counted, the atmospheric budget closes to
 -0.10 +/- 0.11 W/m2 against the model's own column enthalpy.
 
-**Still open, and smaller.** -0.20 W/m2 of the planetary residual is
-unattributed, of which -0.12 is the surface. The surface half is entirely in
-the ocean and entirely on cells that never carry sea ice, where the slab
-identity is exact by construction and fails by -0.29 W/m2 per unit area. That
-is what is left of CLIM-1. The next instrument is the ocean output stream,
-which carries `osst` and `oheat` and which this project does not postprocess,
-not more model time and not the offline radiative transfer this note previously
-proposed.
+**Found, and it is the surface half.** The slab identity does not fail. Read
+against the ocean's and the ice module's own output streams, on a window the two
+share exactly, `hfns` equals `CRHOS * CPS * mld * d(SST)/dt` to 0.002 W/m2 on
+the ice-free ocean of the baseline and to 0.01 or better on two of the other
+three runs, against a seasonal swing of 41 W/m2; the four intermediate identities
+between the atmosphere's fluxes and the slab's temperature close to five
+decimals or better. What produces the apparent -0.29 W/m2 is that the first bin
+of a 12-bin file covers 570 model timesteps where the others cover 480, because
+a model call restores the previous call's partial output interval, and pyburn
+weights the twelve equally. That is worth -0.158 W/m2 per unit area of the
+ice-free ocean, 54% of the residual there and 79% of the ice-bearing ocean's,
+with the right sign on all three surface masks. It is not the low-I/O path and
+`NLOWIO = 0` does not remove it.
+
+**Still open, and smaller again.** -0.13 W/m2 per unit area of the ice-free
+ocean is unattributed after the weighting is counted, and it cannot be pinned
+on orbits 67-76 because the ocean stream for those orbits was overwritten and
+the storage there has to come from a ten-orbit trend whose four estimators
+already span 0.18 W/m2. The next instrument is to stop truncating
+`ocean_output` and `ice_output` at every model call, so the next climatology
+block carries them and the trend is replaced by an exact endpoint difference.
+That is what is left of CLIM-11: not more model time, and not the offline
+radiative transfer this note once proposed.
 
 ## What this cost, and what it saved
 
