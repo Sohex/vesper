@@ -63,8 +63,12 @@ configuration value. This is not an iteration and Orogen is not involved.
   gap has already cost one misunderstanding.
 
 **segment** -- a contiguous block of orbits added to an existing run by
-`continue_exoplasim.py`. Runs are made of segments; each records its own purpose
-and its I/O regime.
+`continue_exoplasim.py`. Runs are made of segments; each records its I/O regime
+and its purpose, and the purpose is DECLARED by the caller with `--purpose`
+rather than inferred from the flags. `spinup` and `post_equilibrium_climatology`
+are the run's own trajectory; `diagnostic` is orbits run to measure the model
+rather than the planet, and those are kept out of convergence windows and
+climatologies. See `exoplasim/scripts/segments.py`.
 
 **carve verdict** -- the finding: which basins overflow, per basin, with its
 evidence. `hydrography/analysis/carve_verdict.json`.
@@ -308,11 +312,17 @@ does not carry.
 
 Convergence is a fixed six-part test, not a judgement: temperature drift below
 0.05 K per orbit, top-of-atmosphere and surface balance trends below 0.05 W/m2
-per orbit, sea-ice drift below 0.001 of planetary area per orbit, and mean
-absolute imbalances below 0.5 W/m2. Runs that miss are labelled, not rounded.
+per orbit, sea-ice drift below 0.001 of planetary area per orbit, energy storage
+in the prognostic state below 0.12 W/m2, and extrapolated remaining approach
+below 0.15 K. The exact criteria and the derivation of each threshold are in
+`assess_convergence.py`. Runs that miss are labelled, not rounded.
 
-A separate five-orbit window with 32 snapshots per orbit, excluded from the
-pass/fail decision, forms the climatology.
+The test window is the last `--window` PRODUCTION orbits. Segments declare what
+they were for, and orbits run to measure the model rather than the planet are
+dropped from the tail and refused inside the window.
+
+A separate five-orbit window with 32 snapshots per orbit, run after the pass/fail
+decision, forms the climatology.
 
 ### 3.4 Hydrography
 

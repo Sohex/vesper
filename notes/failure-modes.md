@@ -342,6 +342,18 @@ with what is on disk is an error rather than an override. `continue_exoplasim.py
 now takes the flux from `physical.flux_ratio` and refuses a `--flux-ratio` that
 does not match it.
 
+**The same shape one level down: a guard that compares the reference and not the
+referent.** The resume guard's allowlist calls `star.spectral_type` inert, and
+that is CORRECT about the config key -- nothing passes the spectral type to the
+model. It is wrong about the artifact, because `build_stellar_spectrum.py`
+writes `k25v.dat` from it, in place and under a name that never moves, so the
+whole radiative input can be replaced while every recorded value is unchanged.
+Tightening the allowlist would not have helped: the spectrum can be regenerated
+with no config edit at all. The fix is to compare the FILE, which the manifest
+now records by sha256 the way `biosphere/generated/vesper_provenance.json`
+already did. Recorded 2026-08-18, CONS-3. The general form: when a guard
+compares a NAME, ask what the name points at and whether that can move under it.
+
 **What it cost, and what to check.** Forty-five orbits, about two hours, and a
 run whose manifest had to be corrected rather than trusted -- the correction is
 recorded in the manifest itself, against the namelist on disk, which is the only

@@ -42,6 +42,9 @@ from netCDF4 import Dataset
 import numpy as np
 
 from _paths import ANALYSIS
+# One reader of the manifest's segment records, for every question about what
+# an orbit was for: see exoplasim/scripts/segments.py.
+from segments import low_io_orbits, non_production_orbits
 
 from orbit import EARTH_CALENDAR_YEAR_DAYS
 
@@ -283,35 +286,6 @@ def climate_series(paths: list[Path], years: list[int]) -> dict:
     }
 
 
-def low_io_orbits(run_dir: Path, years) -> list[int]:
-    """Orbits in `years` that were run with PlaSim's low-I/O accumulation on.
-
-    Those carry a corrupt first output record per orbit: bottom-level wind reads
-    about 7.5x the other bins and humidity 27% low, while every scalar is within
-    2%. Averaging them into a climatology puts that into anything downstream that
-    reads a wind or a humidity -- the Penman evaporation the carve verdict turns
-    on, and the gust distribution the dust emission turns on.
-
-    **A segment with no `low_io` key is treated as low-I/O**, because every run
-    made before 2026-08-17 was, and the honest default for an unlabelled orbit is
-    the unsafe one.
-    """
-    manifest = run_dir / "run_manifest.json"
-    if not manifest.is_file():
-        return list(years)
-    segments = json.loads(manifest.read_text(encoding="utf-8")).get("segments", [])
-    tainted = []
-    for year in years:
-        for seg in segments:
-            if seg["start_year_index"] <= year <= seg["end_year_index"]:
-                if seg.get("low_io", True):
-                    tainted.append(year)
-                break
-        else:
-            tainted.append(year)
-    return tainted
-
-
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("run_dir", type=Path)
@@ -335,6 +309,18 @@ def main() -> None:
 
     run_dir = args.run_dir.resolve()
     years = range(args.start_year, args.end_year + 1)
+    # A segment the caller declared was for measuring the MODEL is not this
+    # world's climate, whatever it wrote. There is no flag to override this:
+    # unlike the low-I/O case there is no version of the answer worth having.
+    # Spin-up orbits are NOT refused here -- the bootstrap climatology is built
+    # from them by design, and the run's status is what says whether it had
+    # settled.
+    diagnostic = non_production_orbits(run_dir, years)
+    if diagnostic:
+        raise SystemExit(
+            f"orbits {diagnostic} were declared `diagnostic` by the segment that "
+            "produced them, so they measure the model rather than the planet and "
+            "cannot be climatology input. Choose a range that excludes them.")
     tainted = low_io_orbits(run_dir, years)
     if tainted:
         message = (

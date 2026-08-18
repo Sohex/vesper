@@ -19,12 +19,15 @@ import yaml
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _paths import CONFIG, INPUTS, RUNS  # noqa: E402
 from provenance import config_drift  # noqa: E402
+from segments import SEGMENT_PURPOSES  # noqa: E402
 from run_exoplasim import (  # noqa: E402
     surface_sra,
     stage_surface_extras,
     surface_field_report,
     stage_stellar_spectrum,
     stellar_spectrum_path,
+    stellar_spectrum_digest,
+    require_stellar_spectrum,
     verify_stellar_spectrum,
     REGULAR_CODES,
     ENERGY_DIAGNOSTIC_CODES,
@@ -120,7 +123,19 @@ def year_diagnostics(path: Path) -> dict:
 # listed here is assumed to reach the model.
 INERT_CONFIG_KEYS = {
     "star.spectral_type",     # a label; the model gets effective_temperature_k
-                              # and the spectrum file, not this
+                              # and the spectrum file, not this. THE ENTRY IS
+                              # CORRECT ABOUT THE KEY AND WRONG ABOUT THE
+                              # ARTIFACT: nothing passes the spectral type to
+                              # the model, but `build_stellar_spectrum.py`
+                              # writes `k25v.dat` from it, in place and under
+                              # the same name, so the value reaches the
+                              # radiation through a file the key only names.
+                              # A config comparison cannot see that, and
+                              # tightening this list would not help -- the
+                              # spectrum can also be regenerated with no config
+                              # edit at all. `require_stellar_spectrum` below
+                              # compares the FILE, which is the route the value
+                              # actually takes. CONS-3.
     "star.surface_uv_relative_to_earth",
                               # a design declaration; ExoPlaSim models no
                               # ultraviolet and no script reads this. Spelled in
@@ -147,6 +162,24 @@ def main() -> None:
     parser.add_argument("--run", type=str, default=None,
                         help="run id or directory to continue (required)")
     parser.add_argument("--orbits", type=int, default=5)
+    # WHAT THESE ORBITS ARE FOR, declared rather than inferred. It used to be
+    # inferred from `--seasonal-output` plus the run's equilibrium cutoff, which
+    # labelled a three-orbit low-I/O verification segment as climatology input;
+    # it had to be corrected by hand, and by then `build_climatology.py` was the
+    # only thing standing between it and a production climatology. The flags say
+    # what the model was asked to WRITE. Only the caller knows what the orbits
+    # are FOR, and every rule over the flags gets that wrong in a new way as
+    # soon as a flag is added. Required, and there is no default, because a
+    # default is the inference again with fewer places to notice it.
+    parser.add_argument(
+        "--purpose", required=True, choices=SEGMENT_PURPOSES,
+        help="what this segment is for. `spinup` integrates toward equilibrium; "
+             "`post_equilibrium_climatology` is orbits meant to be read as this "
+             "world's climate, and needs a run already assessed; `diagnostic` "
+             "measures the model rather than the planet -- an I/O verification, "
+             "a high-cadence wind sample, a block on a differently patched "
+             "binary -- and is kept out of convergence windows and "
+             "climatologies")
     # Snapshots carry orbital phase, which the regular output does not, and
     # analyze_climatology cannot map output bins onto orbital position without
     # them. Defaulting them OFF meant a 60-orbit baseline finished with no
@@ -196,6 +229,25 @@ def main() -> None:
         raise ValueError("--orbits must be positive")
     if args.high_cadence and args.high_cadence_interval < 1:
         raise ValueError("--high-cadence-interval must be positive")
+    # The declaration is checked against the flags rather than derived from
+    # them. These two combinations are not judgement calls: a low-I/O orbit
+    # carries a corrupt first output record in wind and humidity, and an orbit
+    # with no seasonal snapshots carries no orbital phase, so neither can be a
+    # climatology orbit whatever anyone intended.
+    if args.purpose == "post_equilibrium_climatology":
+        if args.low_io:
+            raise SystemExit(
+                "--purpose post_equilibrium_climatology with --low-io: a low-I/O "
+                "orbit carries a corrupt first output record in wind and "
+                "humidity, so it can never be climatology input. Use --purpose "
+                "diagnostic, or drop --low-io.")
+        if not args.seasonal_output:
+            raise SystemExit(
+                "--purpose post_equilibrium_climatology with --no-seasonal-output: "
+                "analyze_climatology needs the orbital phase only the snapshots "
+                "carry, so such a segment has to be extended before it can "
+                "produce a climatology. Use --purpose spinup, or drop "
+                "--no-seasonal-output.")
 
     config_path = args.config.resolve()
     config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
@@ -227,6 +279,14 @@ def main() -> None:
             + "\n  ".join(drift)
         )
 
+    # The other half of that comparison, and the half a parsed-value diff cannot
+    # do: the spectrum reaches the model as a FILE, and the file is regenerated
+    # in place under a name that never moves. Checked here, before anything
+    # expensive, because a guard that fires after the orbits are integrated has
+    # cost exactly what it exists to save. CONS-3.
+    if require_stellar_spectrum(manifest, config):
+        manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+
     # The flux comes from the RUN, not from the config, and that is the whole
     # point of reading it here rather than above. A run prepared with
     # --flux-ratio carries a flux the config does not: `source_config` still
@@ -253,6 +313,24 @@ def main() -> None:
     restart = run_dir / f"MOST_REST.{years[-1]:05d}"
     if not restart.is_file():
         raise RuntimeError(f"Missing restart file {restart}")
+
+    # The one part of the old inference worth keeping, now as a CHECK on the
+    # declaration rather than a substitute for it. `assess_convergence.py` writes
+    # `equilibrium_cutoff_year_index`, so its absence means the run has never
+    # been assessed, and calling orbits post-equilibrium on a run nothing has
+    # judged is a claim the manifest can refuse.
+    cutoff = manifest.get("equilibrium_cutoff_year_index")
+    if args.purpose == "post_equilibrium_climatology":
+        if cutoff is None:
+            raise SystemExit(
+                f"{identifier} has no equilibrium_cutoff_year_index, so it has "
+                "never been assessed and nothing may treat it as settled. Run "
+                "assess_convergence.py first, or use --purpose spinup.")
+        if start_year <= int(cutoff):
+            raise SystemExit(
+                f"orbit {start_year} is not past this run's assessed "
+                f"equilibrium cutoff at {int(cutoff)}. Assess it again after "
+                "the spin-up you are about to add, or use --purpose spinup.")
 
     atmosphere = config["atmosphere"]
     planet = config["planet"]
@@ -413,16 +491,13 @@ def main() -> None:
         manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
         raise
 
-    is_post_equilibrium_climatology = bool(
-        args.seasonal_output
-        and "equilibrium_cutoff_year_index" in manifest
-        and start_year > int(manifest["equilibrium_cutoff_year_index"])
-    )
-    manifest["status"] = (
-        "climatology_complete"
-        if is_post_equilibrium_climatology
-        else "spinup_in_progress"
-    )
+    # A diagnostic segment says nothing about where the run is settling, so it
+    # must not move the run's status either way: a run that was equilibrated
+    # before a three-orbit I/O check is equilibrated after it.
+    if args.purpose == "post_equilibrium_climatology":
+        manifest["status"] = "climatology_complete"
+    elif args.purpose == "spinup":
+        manifest["status"] = "spinup_in_progress"
     manifest["completed_orbits"] = start_year + args.orbits
     manifest.setdefault("segments", []).append(
         {
@@ -430,11 +505,14 @@ def main() -> None:
             "end_year_index": start_year + args.orbits - 1,
             "seasonal_output": args.seasonal_output,
             "low_io": bool(args.low_io),
-            "purpose": (
-                "post_equilibrium_climatology"
-                if is_post_equilibrium_climatology
-                else "spinup"
-            ),
+            "high_cadence": bool(args.high_cadence),
+            "purpose": args.purpose,
+            # What star these particular orbits were integrated against. The
+            # top-level digest is what the run was PREPARED on and is what the
+            # resume guard compares; this is per segment because the two came
+            # apart once already, when every continuation reverted the namelist
+            # to a blackbody and only the later segments ran on the file.
+            "stellar_spectrum_digest": stellar_spectrum_digest(config),
             "started_utc": started,
             "finished_utc": datetime.now(timezone.utc).isoformat(),
             "input_restart_sha256": file_sha256(restart),

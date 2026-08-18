@@ -31,13 +31,16 @@ chose the window; a number outlived its measurement.
 
 ## The assessment does not shop for a window
 
-`assess_convergence.py` takes the mean over the **last `--window` orbits**,
-default 10, and there is no other window it could take: `output_files` requires
-the annual outputs to be contiguous from year zero, the slopes and the means all
-read `series[-w:]`, and the window is a command-line argument fixed before the
-data is read. There is no search over start points and no selection among
-candidate windows. On that count the suspicion is unfounded and should be
-dropped.
+`assess_convergence.py` takes the mean over the **last `--window` PRODUCTION
+orbits**, default 10, and there is no other window it could take: `output_files`
+requires the annual outputs to be contiguous from year zero, the slopes and the
+means all read `series[-w:]`, and the window is a command-line argument fixed
+before the data is read. The one thing that moves its end is a segment the
+CALLER declared was not production -- a diagnostic tail is dropped and a
+diagnostic hole inside the window is refused outright, which narrows what can be
+selected rather than widening it. There is no search over start points and no
+selection among candidate windows. On that count the suspicion is unfounded and
+should be dropped.
 
 **The free variable is the run length, not the window.** Re-assessing the same
 run at every length it has passed through gives:

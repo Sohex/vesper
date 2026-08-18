@@ -233,6 +233,86 @@ def verify_stellar_spectrum(model, config: dict) -> None:
         "  notes/audits/physics-review.md finding 2 and lib/stellar.py.")
 
 
+def stellar_spectrum_digest(config: dict) -> dict | None:
+    """Content digests of the two spectrum FILES the model will actually read.
+
+    The config names a spectrum; the model reads a file. `build_stellar_spectrum.py`
+    writes `<name>.dat` and `<name>_hr.dat` from `star.spectral_type` and
+    `star.effective_temperature_k`, IN PLACE and under the same name, so the
+    whole radiative input can change while every recorded name stays `k25v`.
+    That difference is worth +0.024 on broadband snow albedo at the size it has
+    already been measured at, and it moves every derived surface albedo with it.
+    A name is a label here; the sha256 is the identity.
+
+    `stellar_spectrum_path` has already proved both files exist, so this does
+    not have to handle a half-present pair. Returns None only when the config
+    names no spectrum, which means a blackbody at `startemp` and nothing to
+    hash.
+
+    This is the run-manifest twin of `spectrum_sha256` in
+    `biosphere/generated/vesper_provenance.json`, deliberately: the biosphere
+    half of this was already safe, and one mechanism recorded in two places
+    beats a second mechanism.
+    """
+    path = stellar_spectrum_path(config)
+    if not path:
+        return None
+    src = Path(path)
+    hires = src.with_name(f"{src.stem}_hr.dat")
+    return {
+        "name": config.get("radiation", {}).get("stellar_spectrum"),
+        "file": src.name,
+        "sha256": file_sha256(src),
+        "hr_file": hires.name,
+        "hr_sha256": file_sha256(hires),
+    }
+
+
+def require_stellar_spectrum(manifest: dict, config: dict) -> bool:
+    """Refuse to continue a run whose spectrum FILE has changed under it.
+
+    The resume guard compares parsed config values, and `star.spectral_type` is
+    on its inert list. That entry is CORRECT about the config key -- no script
+    passes the spectral type to the model -- and WRONG about the artifact,
+    because the value reaches the radiation through `k25v.dat`, which the key
+    only names. Comparing the file is what closes that route; loosening the
+    config comparison would not, since the spectrum can also be regenerated with
+    no config edit at all.
+
+    Returns True when the manifest was BACKFILLED and the caller must write it
+    out. A run prepared before this existed carries no digest, and refusing
+    those outright would make every existing run unresumable for a defect they
+    predate. So an unstamped run is stamped with what it is about to run on,
+    said out loud, and guarded from the next resume onward -- the same direction
+    `lib/provenance.py:require_build` takes with `allow_unstamped`. Segments
+    record their own digest either way, so which orbits are covered stays
+    readable rather than being inferred from the top-level value.
+    """
+    current = stellar_spectrum_digest(config)
+    recorded = manifest.get("stellar_spectrum_digest")
+    if recorded is None:
+        manifest["stellar_spectrum_digest"] = current
+        print("  warning: this run was prepared before its spectrum was recorded "
+              "by content, so the orbits already in it cannot be checked against "
+              f"{(current or {}).get('file', 'a blackbody')}. Stamping it now; "
+              "the next resume is guarded.")
+        return True
+    if recorded == current:
+        return False
+    differing = sorted(
+        key for key in ("name", "file", "sha256", "hr_file", "hr_sha256")
+        if (recorded or {}).get(key) != (current or {}).get(key))
+    raise RuntimeError(
+        "The stellar spectrum this run was prepared on is not the one on disk; "
+        "refusing to resume:\n  "
+        + "\n  ".join(f"{k}: {(recorded or {}).get(k)!r} -> {(current or {}).get(k)!r}"
+                      for k in differing)
+        + "\nThe spectrum weights every snow, ice and glacier albedo, so orbits "
+          "either side of this are different climates. Start a new run rather "
+          "than extending this one."
+    )
+
+
 def surface_input_paths(config: dict) -> list[Path]:
     """Every SRA file that defines this run's surface, in a stable order."""
     return [surface_sra(config, code)
@@ -1049,6 +1129,11 @@ def main() -> None:
             for c in sorted(intended_surface_codes(config))
             if surface_sra(config, c).is_file()},
         "stellar_spectrum": spectrum,
+        # The spectrum by CONTENT, because the line above is a filename and the
+        # file is regenerated in place. `continue_exoplasim.py` compares this on
+        # every resume; without it a regenerated `k25v.dat` changes the star
+        # mid-run and nothing says so. CONS-3.
+        "stellar_spectrum_digest": stellar_spectrum_digest(config),
         # Null when the run has no prescribed dust, which is most of them. The
         # values are copied from the field's own provenance rather than the
         # config, so a run says what burden and what longwave ratio it actually

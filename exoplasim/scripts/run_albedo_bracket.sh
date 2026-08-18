@@ -26,7 +26,11 @@ run_case() {
     echo "=== ${mode} @ ${flux} S-Earth :: $(date +%H:%M:%S) ===" | tee -a "$LOG"
     python exoplasim/scripts/build_surface_albedo.py --mode "$mode" >>"$LOG" 2>&1 || return 1
     python exoplasim/scripts/run_exoplasim.py --flux-ratio "$flux" --run-years 1 >>"$LOG" 2>&1 || return 1
-    python exoplasim/scripts/continue_exoplasim.py --flux-ratio "$flux" --orbits "$ORBITS" >>"$LOG" 2>&1 || return 1
+    # STALE: --run is required since run ids became UUIDs, and this does not
+    # pass one, so the line cannot run as written. Left in place with the rest
+    # of the call correct rather than guessed at; recovering the id means
+    # parsing run_exoplasim.py's JSON rather than the log.
+    python exoplasim/scripts/continue_exoplasim.py --flux-ratio "$flux" --orbits "$ORBITS" --purpose spinup >>"$LOG" 2>&1 || return 1
     echo "    done $(date +%H:%M:%S)" | tee -a "$LOG"
 }
 
