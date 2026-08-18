@@ -285,7 +285,6 @@ def main() -> None:
         pr, evap, mrro = am(ds, "pr"), -am(ds, "evap"), am(ds, "mrro")
         ts, tas = am(ds, "ts"), am(ds, "tas")
         ps_pa, rss, rls = am(ds, "ps") * 100.0, am(ds, "rss"), am(ds, "rls")
-        field_lon = np.asarray(ds["lon"][:])
     q_air, wind = cv.turbulent_forcing(args.climatology)
 
     land_albedo = cv.read_sra_field(
@@ -299,7 +298,7 @@ def main() -> None:
     means, _ = cv.basin_means(args.coupling,
                               {"pr": pr, "wet": evap, "pen": penman,
                                "ro": runoff_field},
-                              basins.n, field_lon=field_lon)
+                              basins.n)
     # Orbital period varies with flux, so take it from the config rather than
     # hardcoding. The literal here was 189.6145 d, the 0.90-flux year, while this
     # baseline runs at 0.96 and 180.655 d. It cancels out of the aridity index

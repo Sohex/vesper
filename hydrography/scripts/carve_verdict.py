@@ -55,6 +55,7 @@ import yaml
 
 from _paths import ANALYSIS, CONFIG, DATA, PROJECT_ROOT  # noqa: F401
 from builds import component_data, grid_export
+from gridding import coupling_ocean_fraction, require_index_alignment
 from orbit import orbital_year_days
 from orogen import Export
 from paths import climatology_path, require_clean_io
@@ -225,40 +226,43 @@ def annual_mean(ds: Dataset, name: str) -> np.ndarray:
     return np.asarray(ds[name][:]).mean(axis=0)
 
 
-def basin_means(coupling: Path, fields: dict[str, np.ndarray], n_basins: int,
-                field_lon: np.ndarray):
+def basin_means(coupling: Path, fields: dict[str, np.ndarray], n_basins: int):
     """Catchment-area-weighted mean of each field, per basin.
 
-    The coupling matrix numbers its columns on the Orogen grid, which runs -180
-    to 180, and an ExoPlaSim climatology numbers its own on 0 to 360. Indexing
-    one with the other is off by half a planet, and silently so: the array
-    shapes match, latitude is unaffected, and every basin simply reads its
-    antipode. `field_lon` is the longitude axis the fields are on, and the
-    columns are remapped onto the coupling's before anything is indexed.
+    **The mapping is the identity, and that is the whole content of this
+    function's history.** The coupling matrix's `cell` index and an ExoPlaSim
+    climatology's grid are the same columns in the same order by construction:
+    `lib/gridding.py:region_cells` places a mesh region with
+    `col = (lon + 180)/360 * nlon`, and `build_hydrography.py` uses that same
+    expression to place it in a coupling column. The land mask the model was
+    handed reads back bit-identical index for index, at 1.0000 against 0.5955
+    shifted by half the grid.
 
-    It is required, and deliberately has no default. It was optional when the
-    fix first landed, defaulting to the unremapped path, and `export_carve_list`
-    was never updated to pass it: the one caller whose output leaves the project
-    and changes the terrain went on reading the antipode. An argument whose
-    absence silently means "do the wrong thing" reproduces the original bug in
-    the shape of its own fix, so omitting it is now a TypeError at the call site.
+    A climatology's `lon` variable reads 0 to 360 because ExoPlaSim labels its
+    own axis and has never heard of Orogen, whose axis reads -180 to 180. **That
+    is a label, not a coordinate correspondence.** `CLAUDE.md` rule 3 exists for
+    exactly this: map by index, never by longitude.
+
+    This function did match by longitude, twice. First as the original defect
+    that superseded the `carved-zoned` build, then again in the shape of its own
+    fix -- a `field_lon` argument that was made mandatory so that nobody could
+    omit it, which guaranteed every caller performed the shift. It moved 1,172 of
+    3,621 basins, 32.4% of the catalogue, and half of every catchment integral
+    was taken over open ocean.
+
+    There is no longitude argument now, because there is nothing to reconcile.
     """
     with Dataset(coupling) as ds:
         basin = np.asarray(ds["basin"][:]).astype(np.int64)
         cell = np.asarray(ds["cell"][:]).astype(np.int64)
         area = np.asarray(ds["area_km2"][:])
         nlon = int(ds.n_lon)
-        coupling_lon = (np.asarray(ds["cell_lon"][:])
-                        if "cell_lon" in ds.variables else None)
     row, col = np.divmod(cell, nlon)
-    if coupling_lon is None:
-        raise RuntimeError(
-            "this coupling file predates cell_lon and its longitude "
-            "convention cannot be checked; rebuild it with "
-            "build_hydrography.py")
-    wrap = lambda a: (np.asarray(a) + 180.0) % 360.0 - 180.0
-    remap = np.abs(wrap(field_lon)[None, :] - wrap(coupling_lon)[:, None]).argmin(axis=1)
-    col = remap[col]
+    for name, grid in fields.items():
+        if grid.shape[1] != nlon:
+            raise SystemExit(
+                f"field {name!r} has {grid.shape[1]} columns and the coupling "
+                f"has {nlon}; they are not the same grid")
     weight = np.zeros(n_basins)
     np.add.at(weight, basin, area)
     out = {}
@@ -378,9 +382,8 @@ def main() -> None:
     # so the two remain comparable in the report.
     fields = {"pr": pr, "evap": evap, "potential": potential,
               "penman": penman, "mrro": mrro, "runoff": pr - evap, "lsm": lsm}
-    with Dataset(args.climatology) as ds:
-        field_lon = np.asarray(ds["lon"][:])
-    means, catch_area = basin_means(args.coupling, fields, n, field_lon=field_lon)
+    require_index_alignment(args.coupling, lsm)
+    means, catch_area = basin_means(args.coupling, fields, n)
 
     # Units cancel in the aridity index, but keep them physical for the solver.
     # Orbital period varies with flux, so take it from the config rather than

@@ -54,6 +54,15 @@ import numpy as np                   # noqa: E402
 import yaml                          # noqa: E402
 
 import builds                        # noqa: E402
+from gridding import coupling_ocean_fraction   # noqa: E402
+
+
+def land_sea_mask():
+    """The climatology's land mask, for the coupling-alignment invariant."""
+    from paths import climatology_path
+    with Dataset(climatology_path()) as ds:
+        return np.asarray(ds["lsm"][:]).mean(axis=0)
+
 
 FAIL, WARN, OK = "FAIL", "warn", "ok"
 
@@ -225,14 +234,32 @@ def main() -> int:
     if not couplings:
         rep.add(FAIL, "coupling matrices", "none found")
     for path in couplings:
+        # An invariant, not an existence assertion. `cell_lon` being PRESENT
+        # says nothing about whether the mapping built from it is right, and
+        # the mapping was wrong twice while this check passed both times.
+        # Endorheic catchments are inland, so almost none of their area may
+        # land on a cell the model calls ocean: 1.01% index for index against
+        # 49.77% when longitude labels are matched. See notes/failure-modes.md
+        # class 17 and notes/audits/grid-convention-and-runoff.md.
+        lsm = land_sea_mask()
+        with Dataset(path) as ds:
+            same_grid = int(ds.n_lon) == lsm.shape[1]
+        if not same_grid:
+            # A coupling for another resolution cannot be checked against this
+            # climatology. Reported rather than skipped silently, and NOT a
+            # pass: nothing has been verified about it.
+            rep.add(WARN, f"convention {path.name}",
+                    "built for another resolution; not checkable against the "
+                    "active climatology")
+            continue
         try:
-            with Dataset(path) as ds:
-                has = "cell_lon" in ds.variables
-        except OSError:
-            has = False
-        rep.add(OK if has else FAIL, f"convention {path.name}",
-                "declares cell_lon" if has else
-                "predates cell_lon; its longitude convention cannot be checked")
+            frac = coupling_ocean_fraction(path, lsm)
+            ok = frac <= 0.10
+            detail = (f"{frac:.2%} of catchment area on model-ocean cells"
+                      + ("" if ok else " -- NOT index-aligned"))
+        except Exception as exc:                                  # noqa: BLE001
+            ok, detail = False, f"not checked: {exc}"
+        rep.add(OK if ok else FAIL, f"convention {path.name}", detail)
 
     # -- surface inputs ------------------------------------------------------
     sys.path.insert(0, str(ROOT / "exoplasim" / "scripts"))

@@ -54,6 +54,20 @@ def load(path: Path, names: list[str]) -> tuple[dict[str, np.ndarray], dict]:
 
 
 def shifted(lon: np.ndarray, field: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """Reorder a field for DISPLAY on a -180..180 axis. Presentation only.
+
+    ExoPlaSim labels its longitude axis 0..360 and Orogen labels the same
+    columns -180..180, so a figure drawn on the model's own labels sits half a
+    world away from the same feature in `maps/`. This rotates for the eye, and
+    `maps/` is the convention it rotates to.
+
+    **Nothing computed may go through here, and nothing does.** The index is
+    canonical and the labels are decoration: `lib/gridding.py` owns the column
+    convention and `basin_means` maps by index. This function existing at all
+    was read once as evidence that a coordinate transform was needed between
+    the two, which is the false premise that put half of every catchment
+    integral over open ocean, twice. See `notes/audits/grid-convention-and-runoff.md`.
+    """
     display_lon = (lon + 180.0) % 360.0 - 180.0
     order = np.argsort(display_lon)
     return display_lon[order], field[..., order]
@@ -66,7 +80,7 @@ def decorate(ax: plt.Axes, lat: np.ndarray, lon: np.ndarray, land: np.ndarray) -
     ax.set_ylim(-90, 90)
     ax.set_xticks(np.arange(-180, 181, 60))
     ax.set_yticks(np.arange(-60, 61, 30))
-    ax.set_xlabel("longitude")
+    ax.set_xlabel("longitude (-180..180, the maps/ convention; the model's own axis is 0..360)")
     ax.set_ylabel("latitude")
 
 

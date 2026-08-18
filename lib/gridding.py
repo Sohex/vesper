@@ -113,3 +113,53 @@ def land_fraction_of_class(export: Export, grid_dir: Path, mask: np.ndarray):
     with np.errstate(invalid="ignore", divide="ignore"):
         out = np.where(land_area > 0, hit_area / np.maximum(land_area, 1e-30), 0.0)
     return out.reshape(nlat, nlon)
+
+# --- the grid convention, and the one check that proves it ------------------
+
+COUPLING_OCEAN_FRACTION_LIMIT = 0.10
+
+
+def coupling_ocean_fraction(coupling, lsm) -> float:
+    """Share of coupling catchment area landing on cells the model calls ocean.
+
+    Lives here because this module owns the index convention: `region_cells`
+    places a mesh region at `col = (lon + 180)/360 * nlon`, and everything
+    downstream inherits that column. So this is the invariant that proves the
+    convention held, and it belongs beside the thing it is about rather than
+    being reimplemented per consumer.
+
+    Endorheic catchments are inland, so almost none of their area may fall on a
+    cell the model calls ocean. Index for index it is 1.01%; matching longitude
+    LABELS instead gives 49.77%, because an ExoPlaSim climatology numbers its
+    axis 0..360 and Orogen numbers the same columns -180..180. A label is not a
+    coordinate correspondence -- `CLAUDE.md` rule 3.
+
+    This is the check that was missing while the mapping was wrong twice. What
+    existed asserted that a `cell_lon` variable EXISTED, which no wrong mapping
+    would ever have failed. See `notes/failure-modes.md` class 17.
+    """
+    import numpy as np
+    from netCDF4 import Dataset
+    with Dataset(coupling) as ds:
+        cell = np.asarray(ds["cell"][:]).astype(np.int64)
+        area = np.asarray(ds["area_km2"][:])
+        nlon = int(ds.n_lon)
+    if lsm.shape[1] != nlon:
+        raise ValueError(
+            f"coupling has {nlon} columns and the mask has {lsm.shape[1]}; "
+            "they are not the same grid and no mapping between them is defined")
+    row, col = np.divmod(cell, nlon)
+    return float(area[lsm[row, col] < 0.5].sum() / area.sum())
+
+
+def require_index_alignment(coupling, lsm) -> float:
+    """Refuse to integrate over a coupling that is not index-aligned."""
+    frac = coupling_ocean_fraction(coupling, lsm)
+    if frac > COUPLING_OCEAN_FRACTION_LIMIT:
+        raise SystemExit(
+            f"{frac:.1%} of coupling catchment area lands on cells the model "
+            f"calls ocean, against a limit of {COUPLING_OCEAN_FRACTION_LIMIT:.0%}. "
+            "The coupling and the climatology are not index-aligned. Do NOT "
+            "'fix' this by matching longitude labels; that is what produced it "
+            "twice. See notes/audits/grid-convention-and-runoff.md.")
+    return frac

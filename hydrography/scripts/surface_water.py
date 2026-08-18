@@ -94,6 +94,7 @@ def climate_fields(config):
         ps_pa = cv.annual_mean(ds, "ps") * 100.0
         lat = np.asarray(ds["lat"][:])
         lon = np.asarray(ds["lon"][:])
+        lsm = cv.annual_mean(ds, "lsm")
     q_air, wind = cv.turbulent_forcing(clim)
 
     runoff = np.clip(pr - evap, 0.0, None)
@@ -109,10 +110,12 @@ def climate_fields(config):
     # can fall below the model's own evaporation where the ground runs hotter,
     # which is impossible for a saturated surface under the same forcing.
     evaporation = np.maximum(evaporation, evap)
-    return lat, lon, runoff, np.clip(pr, 0.0, None), evaporation, np.clip(mrro, 0.0, None)
+    return (lat, lon, runoff, np.clip(pr, 0.0, None), evaporation,
+            np.clip(mrro, 0.0, None), lsm)
 
 
-def per_basin_forcing(n_basins, lat, lon, runoff, precip, evaporation, sinks, export):
+def per_basin_forcing(n_basins, lat, lon, runoff, precip, evaporation, sinks,
+                      export, lsm):
     """Catchment-mean runoff, and lake fluxes taken at each basin's sink.
 
     Runoff has to be integrated over the catchment, which is what the coupling
@@ -120,12 +123,13 @@ def per_basin_forcing(n_basins, lat, lon, runoff, precip, evaporation, sinks, ex
     sits at the sink, so taking them from the catchment mean would charge a lake
     in a desert with the evaporation of the mountains that feed it.
     """
-    # cv.basin_means rather than a second aggregation here: it is the same
-    # sum, and it is where the coupling grid's longitude convention is
-    # reconciled with the climatology's. Doing it twice is how they came to
-    # disagree in the first place.
-    means, _ = cv.basin_means(data_dir() / "coupling_exoplasim-T42.nc",
-                              {"runoff": runoff}, n_basins, field_lon=lon)
+    # cv.basin_means rather than a second aggregation here: it is the same sum,
+    # and it is the one place that owns how a coupling column maps to a
+    # climatology column. Doing it twice is how they came to disagree in the
+    # first place, and the mapping is the identity -- see basin_means.
+    coupling = data_dir() / "coupling_exoplasim-T42.nc"
+    cv.require_index_alignment(coupling, lsm)
+    means, _ = cv.basin_means(coupling, {"runoff": runoff}, n_basins)
     catchment_runoff = np.nan_to_num(means["runoff"])
 
     nlat, nlon = runoff.shape
@@ -161,9 +165,15 @@ def region_grid_cells(export, field_lon, field_lat):
     def wrap(a):
         return (np.asarray(a) + 180.0) % 360.0 - 180.0
 
-    remap = np.abs(wrap(field_lon)[None, :] - wrap(glon)[:, None]).argmin(axis=1)
+    # Columns are NOT remapped. The grid export and the climatology are the same
+    # columns in the same order; only their labels differ, -180..180 against
+    # 0..360. Matching those labels shifts by half the grid and put 50.71% of
+    # LAND mesh area onto cells the model calls ocean, against 7.32% index for
+    # index -- the same defect as `basin_means`, in the same file, found the same
+    # day. Latitude IS matched, because the two axes are genuinely different
+    # Gaussian grids there and nearest-centre is the right join.
     rows = np.abs(np.asarray(field_lat)[None, :] - glat[:, None]).argmin(axis=1)
-    return rows[row], remap[col]
+    return rows[row], col
 
 
 def paint_lakes(terminal, filled_km, area_km2, solved_area_km2):
@@ -334,10 +344,10 @@ def main():
 
     config = yaml.safe_load((PROJECT_ROOT / "config/planet.yaml").read_text())
     print("reading the climatology")
-    lat, lon, runoff, precip, evaporation, model_runoff = climate_fields(config)
+    lat, lon, runoff, precip, evaporation, model_runoff, lsm = climate_fields(config)
     sinks = np.array([b.sink for b in export.basins])
     catchment_runoff, lake_precip, lake_evap = per_basin_forcing(
-        basins.n, lat, lon, runoff, precip, evaporation, sinks, export
+        basins.n, lat, lon, runoff, precip, evaporation, sinks, export, lsm
     )
 
     # The solver works in km/year; the year is this world's, from lib/orbit.

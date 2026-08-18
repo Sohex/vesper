@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated": "2026-08-18T02:32:32.057288+00:00",
-  "git_commit": "df887f00e96142629caeda5148445cff9d7355e3",
+  "generated": "2026-08-18T03:04:35.996597+00:00",
+  "git_commit": "f222b1eb718706ede74ec6ac02dfff967774621f",
   "generator": "scripts/world_state.py",
   "note": "Generated from the artifacts. Do not edit; re-run the generator. Only derived values live here. Findings are in `notes/`, with their evidence, and open work is in `TASKS.md`.",
   "planet": {
@@ -260,32 +260,32 @@
     "carve_verdict": {
       "bounds": {
         "penman": {
-          "basins_carved": 1539,
-          "endorheic_land_km2": 177371087.09154916,
-          "lake_area_km2": 8477072.360116852,
-          "dry_survivors": 1643,
-          "wet_survivors": 514,
-          "basins_without_runoff": 1643,
-          "lake_area_fraction_of_planet": 0.01154139550946539,
+          "basins_carved": 1725,
+          "endorheic_land_km2": 189245326.23033285,
+          "lake_area_km2": 11104812.424110278,
+          "dry_survivors": 1062,
+          "wet_survivors": 920,
+          "basins_without_runoff": 1062,
+          "lake_area_fraction_of_planet": 0.015119020671341602,
           "solver_converged": true,
-          "median_aridity_index": -0.7876745515691326
+          "median_aridity_index": -0.9990343719822693
         },
         "wet": {
-          "basins_carved": 1978,
-          "endorheic_land_km2": 157899675.3722589,
-          "lake_area_km2": 7553608.995723448,
-          "dry_survivors": 1643,
-          "wet_survivors": 167,
-          "basins_without_runoff": 1643,
-          "lake_area_fraction_of_planet": 0.010284115227523934,
+          "basins_carved": 2559,
+          "endorheic_land_km2": 138390862.0124979,
+          "lake_area_km2": 10821899.75391665,
+          "dry_survivors": 1062,
+          "wet_survivors": 208,
+          "basins_without_runoff": 1062,
+          "lake_area_fraction_of_planet": 0.01473383969344817,
           "solver_converged": true,
           "median_aridity_index": -1.0
         }
       },
       "agreement": {
-        "carve_under_both": 1539,
-        "survive_under_both": 1643,
-        "disputed": 439
+        "carve_under_both": 1725,
+        "survive_under_both": 1062,
+        "disputed": 834
       },
       "penman_ocean_validation": {
         "penman_mm_per_day": 3.0274,
@@ -297,9 +297,9 @@
     },
     "carve_list": {
       "counts": {
-        "carve": 1460,
-        "preserve": 2082,
-        "marginal": 79
+        "carve": 1605,
+        "preserve": 1896,
+        "marginal": 120
       },
       "terrain_hash": "e931b0d9947a232210a3cc11ba82003b5da15765d86e87956bc44c220932760e",
       "climate": {
