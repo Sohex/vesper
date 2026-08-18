@@ -45,17 +45,19 @@ cases report converged.
 
 Measured 2026-08-17 on the baseline climatology, at k = 2.012 fitted from 1,463
 three-hourly samples (DUST-5) with the saltation threshold corrected for this world's
-gravity (DUST-6), and on a climatology built from ten clean NLOWIO = 0 orbits:
+gravity (DUST-6), on a climatology built from ten clean NLOWIO = 0 orbits, and
+re-run the same day once HYD-13 corrected the mapping the lake solution is built
+through:
 
 | | z0 = 3e-6 m | z0 = 1e-4 m | z0 = 1e-3 m |
 | --- | ---: | ---: | ---: |
-| emission, Tg per Earth year | 158692 | 12968 | 2.3 |
-| land-mean optical depth | 4.646 | 0.334 | 0.0000 |
-| deposition, g/m2 per Earth year | 334.3 | 24.7 | 0.002 |
+| emission, Tg per Earth year | 171158 | 14029 | 2.4 |
+| land-mean optical depth | 5.235 | 0.376 | 0.00002 |
+| deposition, g/m2 per Earth year | 370.5 | 27.4 | 0.002 |
 
 Earth for scale: about 2000 Tg per year and a land-mean dust optical depth near
-0.03. The central roughness is therefore about six Earths of emission at
-eleven times Earth's optical depth. This is a dusty world.
+0.03. The central roughness is therefore about seven Earths of emission at
+twelve times Earth's optical depth. This is a dusty world.
 
 **Both of the large corrections went in opposite directions and neither cancelled
 the other.** Measuring the wind tail raised emission 8.8x, because a Weibull
@@ -66,12 +68,12 @@ other way. The threshold correction is the fourth root of the gravity ratio and
 not the square root; `aeolian/config/dust.yaml` carries the derivation.
 
 The roughness bracket is the only large uncertainty left and it no longer spans
-the answer: the rough end is 12.3 Tg per year rather than the zero it once read.
+the answer: the rough end is 2.4 Tg per year rather than the zero it once read.
 
 ### The reopening test, stated without tuning
 
 `notes/dust.md` reopens the in-model question at a land-mean optical depth above
-0.10. **It crosses by 3.3x at the central roughness** and by 46x at the smooth
+0.10. **It crosses by 3.8x at the central roughness** and by 52x at the smooth
 end. Only the roughest end of the bracket is below it.
 
 That was a pre-committed threshold, fixed before the answer was known, and what

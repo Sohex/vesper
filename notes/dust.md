@@ -297,7 +297,7 @@ Below that, prescribed would have been the answer.
 
 Measured 2026-08-17, once DUST-5 replaced a wind tail fitted to 32 snapshots with
 one measured from 1,463 three-hourly samples: land-mean optical depth **0.376** at
-the central roughness, against the 0.10 above. It crosses by 5.1x, and by 55x at
+the central roughness, against the 0.10 above. It crosses by 3.8x, and by 52x at
 the smooth end of the roughness bracket.
 
 **The emission scheme goes into the fork, and the source map stays outside it.**
@@ -345,7 +345,7 @@ That is the same error this project already caught itself making once, and the
 reason the dust question was relitigated at all: **the net cooling overestimate
 was the problem.** Mineral dust absorbs and re-emits in the thermal infrared, and
 for a coarse-mode-rich burden that offsets a substantial share of the shortwave
-cooling. At a land-mean optical depth of 0.512, running shortwave-only is not a
+cooling. At a land-mean optical depth of 0.376, running shortwave-only is not a
 small bias, and it is a bias in the direction this project is least able to
 afford, because land albedo already sits inside a narrow flux window.
 
@@ -393,13 +393,14 @@ land-mean optical depth of 0.376:
 
 | surface | shortwave | longwave | net |
 | --- | ---: | ---: | ---: |
-| ocean, a = 0.07 | -10.1 | +8.3 | -1.8 |
-| vegetated land, a = 0.18 | -6.4 | +8.3 | +1.9 |
-| playa fill, a = 0.40 | -0.0 | +8.3 | +8.2 |
-| salt crust, a = 0.50 | +2.5 | +8.3 | +10.7 |
+| ocean, a = 0.07 | -8.7 | +6.7 | -2.0 |
+| vegetated land, a = 0.18 | -5.6 | +6.7 | +1.1 |
+| playa fill, a = 0.40 | -0.1 | +6.7 | +6.6 |
+| salt crust, a = 0.50 | +2.0 | +6.7 | +8.7 |
 
-W/m2, for the fine end of the size bracket; the coarse end differs by under 15%
-and is in the file. The longwave is a clear-sky window estimate and is an UPPER
+W/m2, for the fine end of the size bracket; the coarse end differs by under 16%
+term by term and is in the file, though the net moves further, being a small
+residual of two large ones. The longwave is a clear-sky window estimate and is an UPPER
 bound, because part of the band is already opaque to water vapour and CO2.
 
 **The sign claim in this note's own pricing section is superseded.** Dust on this
@@ -407,16 +408,20 @@ world does not simply cool. It cools over ocean, is near neutral over vegetated
 land and warms strongly over the bright closed-basin fill -- which is exactly the
 surface that makes this world unusual, and exactly where the dust is.
 
-The global mean lands at **+0.35 to +0.74 W/m2**, below the 1.5 W/m2 half of the
+The global mean lands at **+0.34 to +0.61 W/m2**, below the 1.5 W/m2 half of the
 reopening threshold. That is not reassurance: it is ocean cooling cancelling land
-warming across a spatial pattern spanning 21 W/m2, and a redistribution that large
-drives circulation whatever its mean is.
+warming across a net that spans 11 W/m2 by surface, -2.0 over ocean against +8.7
+over salt crust, and a redistribution that large drives circulation whatever its
+mean is.
 
 **And it settles what DUST-3 must not do.** Switching ExoPlaSim's aerosol on as
-shipped applies the shortwave alone, which is -4.5 to -5.3 W/m2 in the global
-mean against a true +0.35 to +0.74. An error of about 5.7 W/m2, against 21 W/m2
-for the entire 0.85-to-0.95 stellar sweep that produced a 33 K range -- of order
-nine kelvin of spurious cooling. **Shortwave-only in-model dust is far worse than no
+shipped applies the shortwave alone, which is -3.4 to -4.0 W/m2 in the global
+mean against a true +0.34 to +0.61. An error of 4.0 to 4.3 W/m2, against 21 W/m2
+for the entire 0.85-to-0.95 stellar sweep that produced a 33 K range. Converting
+that error into kelvin is where this note stops: the local slope used below gives
+about 2 K and the sweep's own 33-per-21 gives nearly 7, a factor of 3.4 apart
+because the sweep crosses the ice transition and the slope does not. The flux is
+the honest statement. **Shortwave-only in-model dust is far worse than no
 dust**, so the fork needs a longwave aerosol term and not only an emission scheme.
 
 One correction to the record while pricing it: the error budget said ExoPlaSim
@@ -431,8 +436,8 @@ and worse: the aerosol acts in the two shortwave bands only.
 Worth settling, because "dust is a radiation question, the carve is a water
 question" is an easy assumption and it is wrong.
 
-The global mean is negligible. +0.74 W/m2 against this project's own slope of
-150.2 K per unit flux ratio is **+0.35 K**, which moves nothing.
+The global mean is negligible. +0.61 W/m2 is **+0.3 to +0.5 K** across the
+sensitivities this project has in use, and it moves nothing on any of them.
 
 **The size of the local effect is real.** From the current carve list, the number
 of overflowing basins that stop overflowing if lake evaporation rises:

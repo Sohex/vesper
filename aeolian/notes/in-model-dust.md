@@ -2,7 +2,7 @@
 
 Design for DUST-3, written 2026-08-17 from source inspection. Nothing here is
 applied. The decision to go in-model is in `notes/dust.md` and rests on DUST-2:
-the reopening test crosses by 5.1x, and a prescribed field cannot respond to the
+the reopening test crosses by 3.8x, and a prescribed field cannot respond to the
 winds the dust itself changes.
 
 **The headline is that "replace one line" was wrong, and by a lot.** The hook at
