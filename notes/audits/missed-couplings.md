@@ -157,10 +157,59 @@ modelled, and it is priced at 4.28 K, the largest single item in the budget.
 What reaches ExoPlaSim from the vegetation state is albedo (174-176), forest
 fraction (212) and roughness (173). Roughness does affect evaporation through the
 transfer coefficient, so the coupling is not zero. **What does not exist is any
-stomatal or LAI control on evaporation, and any rooting depth.** ExoPlaSim's land
-surface is one bucket whose wetness factor saturates at 40% of `dwmax`
-(`landmod.f90:52-53`); a vegetated cell and a bare cell with the same bucket
-state evaporate identically apart from roughness.
+stomatal or LAI control on evaporation, and any rooting depth.**
+
+**Verified in the model source 2026-08-17**, against the vendored ExoPlaSim 3.4.2
+tree in `.venv`. The claim holds, with one channel narrower and one channel wider
+than first stated.
+
+Land evaporation is `mkevap` in `fluxmod.f90`, and its entire dependence on the
+land surface is one coefficient:
+
+    fluxmod.f90:658    zkdiff(:) = drhs(:) * zkonst1 * dtransh(:) / dt(:,NLEP)
+
+`dtransh` is the turbulent transfer coefficient, assembled at `fluxmod.f90:264`
+from wind, stability and `z0` alone, so **roughness is a genuine vegetation
+channel into evaporation**. `drhs` is the bucket wetness factor, and over land at
+`NVEG = 0` it has exactly one source, `landmod.f90:407`:
+
+    drhs = min(1, dwatc / (drhsfull * dwmax))          drhsfull = 0.4
+
+Hydrology is that one bucket: `landmod.f90:1097-1099` adds the water flux, spills
+the excess as `drunoff` and clips. The five `dsoilz` layers hold `dsoilt`,
+temperature, not water. Nothing in `landmod.f90`, `fluxmod.f90` or `surfmod.f90`
+mentions a root, a canopy, an interception store or a transpiration term, and the
+only match for "stomat" in the three files is a surface-code name at
+`surfmod.f90:237`.
+
+**Forest fraction is narrower than "a channel into the climate" suggests.** At
+`NVEG = 0`, `dforest` appears in `landmod.f90` only at lines 383-392 and 541-550,
+mixing the forested and unforested endpoints of the *snow* albedo. It is
+radiative, and reaches evaporation not at all.
+
+**Switching SIMBA on would not supply the missing physics, which is the part
+worth knowing.** SIMBA does couple back when `nveg == 2`: `simba.f90:473-478`
+overwrites `dz0`, `dwmax`, `drhs`, `dalb` and `dforest`, and its wetness factor
+is `zvrhs = dsc * min(1, dwatc/(zwmax * vws_crit))` at `simba.f90:456`. But
+`dsc`, named "stomatal conductance", is a *prescribed* field -- allocated to
+`rinidsc` at `simba.f90:157`, optionally read as surface code 1606, and never
+assigned again anywhere in the source -- and `dlai` is computed at
+`simba.f90:452` and used nowhere but output. So even with the vegetation module
+running, evaporation would carry no stomatal response and no LAI dependence, and
+there would still be no rooting depth. These runs have it off in any case:
+`exoplasim/notes/parameter-decisions.md` sets `vegetation` False, so `NVEG=0`,
+because vegetation is LPJ-GUESS's job here.
+
+**There is a fourth channel, one step removed, and it is measured near-inert.**
+`dwmax` (229) is supplied by `pedology/`, whose water-holding capacity carries
+LPJ-GUESS soil carbon, so the biosphere does reach the bucket -- through the soil
+rather than through the plant. Its worth is already bounded in
+`pedology/README.md`: shrinking the bucket 3.75-fold moves land runoff by 1.06x,
+because the bucket sits at a median 15% of capacity. It is not a substitute for
+the absent channel.
+
+So a vegetated cell and a bare cell holding the same soil water evaporate
+identically apart from roughness.
 
 Meanwhile `pedology/README.md` records, from Lapides et al. (2024), that adding a
 bedrock vadose zone to LPJ-GUESS raises annual transpiration by **100-150 mm** --
