@@ -382,6 +382,46 @@ field, because loess (SURF-3) and the phosphorus return leg want size-resolved
 deposition, which a single-mode in-model aerosol will not give. Two products, two
 tools, and the reason stated rather than one quietly standing in for the other.
 
+### The longwave is priced, and it changes the sign (DUST-2, 2026-08-17)
+
+`analysis/dust_forcing.json`, from `exoplasim/scripts/dust_forcing.py`, at the
+land-mean optical depth of 0.740 and a column mass of 0.96 g/m2:
+
+| surface | shortwave | longwave | net |
+| --- | ---: | ---: | ---: |
+| ocean, a = 0.07 | -17.1 | +12.6 | -4.5 |
+| vegetated land, a = 0.18 | -11.0 | +12.6 | +1.7 |
+| playa fill, a = 0.40 | -0.2 | +12.6 | +12.4 |
+| salt crust, a = 0.50 | +4.0 | +12.6 | +16.7 |
+
+W/m2, for the fine end of the size bracket; the coarse end differs by under 15%
+and is in the file. The longwave is a clear-sky window estimate and is an UPPER
+bound, because part of the band is already opaque to water vapour and CO2.
+
+**The sign claim in this note's own pricing section is superseded.** Dust on this
+world does not simply cool. It cools over ocean, is near neutral over vegetated
+land and warms strongly over the bright closed-basin fill -- which is exactly the
+surface that makes this world unusual, and exactly where the dust is.
+
+The global mean lands at **+0.3 to +0.9 W/m2**, below the 1.5 W/m2 half of the
+reopening threshold. That is not reassurance: it is ocean cooling cancelling land
+warming across a spatial pattern spanning 32 W/m2, and a redistribution that large
+drives circulation whatever its mean is.
+
+**And it settles what DUST-3 must not do.** Switching ExoPlaSim's aerosol on as
+shipped applies the shortwave alone, which is -6.5 to -7.6 W/m2 in the global
+mean against a true +0.3 to +0.9. An error of about 7.6 W/m2, against 21 W/m2 for
+the entire 0.85-to-0.95 stellar sweep that produced a 33 K range -- of order ten
+kelvin of spurious cooling. **Shortwave-only in-model dust is far worse than no
+dust**, so the fork needs a longwave aerosol term and not only an emission scheme.
+
+One correction to the record while pricing it: the error budget said ExoPlaSim
+could not switch aerosols on at all, because `radmod.f90` declares `aero_nl` and
+never reads it. It is readable -- `aero_ini` is called at `plasim.f90:190` and
+reads that namelist with `l_aerorad` and `aerofile` use-associated from `radmod`,
+and `Model.configure` writes every field of it. The real limitation is narrower
+and worse: the aerosol acts in the two shortwave bands only.
+
 **The Generic PCM is still out, but not for the reason given above.** That reason
 was that the trade is not worth making "for a term whose sign is settled" -- and
 the term is no longer small, so it no longer applies. The reason it is out now is
