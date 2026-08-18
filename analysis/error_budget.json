@@ -195,54 +195,54 @@
     "basin_response": {
       "source": "hydrography/data/precarve-craton/carve_list.json",
       "terrain_hash": "e931b0d9947a232210a3cc11ba82003b5da15765d86e87956bc44c220932760e",
-      "overflowing_basins": 1721,
+      "overflowing_basins": 2032,
       "basins_total": 3621,
       "basins_reconstructed": 2543,
-      "reconstruction_check": "reproduces the recorded overflow count",
+      "reconstruction_check": "MISMATCH: 2026 against 2032",
       "change_in_overflowing_basins": {
         "land_precipitation": {
-          "-10%": -468,
-          "-5%": -289,
-          "-2%": -160,
-          "-1%": -101,
-          "+1%": 36,
-          "+2%": 55,
-          "+5%": 124,
-          "+10%": 178
+          "-10%": -522,
+          "-5%": -330,
+          "-2%": -194,
+          "-1%": -113,
+          "+1%": 17,
+          "+2%": 40,
+          "+5%": 86,
+          "+10%": 144
         },
         "land_evaporation": {
-          "-10%": 153,
-          "-5%": 97,
-          "-2%": 43,
-          "-1%": 24,
-          "+1%": -95,
-          "+2%": -151,
-          "+5%": -264,
-          "+10%": -416
+          "-10%": 108,
+          "-5%": 71,
+          "-2%": 29,
+          "-1%": 15,
+          "+1%": -110,
+          "+2%": -180,
+          "+5%": -309,
+          "+10%": -475
         },
         "lake_evaporation": {
-          "-10%": 69,
-          "-5%": 42,
-          "-2%": 17,
-          "-1%": 7,
-          "+1%": -29,
-          "+2%": -61,
-          "+5%": -123,
-          "+10%": -182
+          "-10%": 48,
+          "-5%": 18,
+          "-2%": 1,
+          "-1%": -2,
+          "+1%": -14,
+          "+2%": -18,
+          "+5%": -37,
+          "+10%": -57
         },
         "both_evaporations": {
-          "-10%": 194,
-          "-5%": 128,
-          "-2%": 56,
-          "-1%": 36,
-          "+1%": -100,
-          "+2%": -159,
-          "+5%": -280,
-          "+10%": -430
+          "-10%": 150,
+          "-5%": 87,
+          "-2%": 44,
+          "-1%": 17,
+          "+1%": -113,
+          "+2%": -190,
+          "+5%": -316,
+          "+10%": -484
         }
       },
       "note": "Uniform fractional perturbations of the catchment-mean fields. A real climate change is patterned and these are not a substitute for one; they are the criterion's own sensitivity, which is what a budget item has to be multiplied through. The response is strongly asymmetric because the basin population piles up just above the threshold.",
-      "floored_basins": 1252,
+      "floored_basins": 0,
       "floor_note": "The land-evaporation row is dominated by the floor `penman = max(penman, evap)`, not by the runoff denominator: without it a +1% land evaporation moves a quarter as many basins. The floor binds across the WHOLE catchment on floored_basins of the reconstructed set, where the Penman estimate is inoperative and the aridity index is exactly -1. Read the land-evaporation row with that in mind and prefer both_evaporations, since a kelvin moves land and lake evaporation together."
     }
   },
