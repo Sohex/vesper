@@ -92,6 +92,12 @@ RESIDENT_PATCHES = [
     ("exoplasim-3.4.2-prescribed-dust.patch", "src"),
     ("exoplasim-3.4.2-rayleigh-reference-grid.patch", "src"),
     ("exoplasim-3.4.2-h2o-shortwave-weight.patch", "pkg"),
+    ("exoplasim-3.4.2-co2-shortwave.patch", "pkg"),
+    ("exoplasim-3.4.2-aerocore-defects.patch", "src"),
+    ("exoplasim-3.4.2-aerosol-deposition.patch", "src"),
+    ("exoplasim-3.4.2-dust-emission.patch", "src"),
+    ("exoplasim-3.4.2-aerosol-apart.patch", "src"),
+    ("exoplasim-3.4.2-aerosol-longwave.patch", "src"),
     ("exoplasim-3.4.2-makestellarspec.patch", "pkg"),
 ]
 
@@ -109,34 +115,10 @@ RESIDENT_PATCHES = [
 #
 # Verify one without touching .venv the way resident_ok() does: copy the files it
 # touches to a scratch directory, apply with `patch -p1`, and reverse.
-PENDING_PATCHES = [
-    # AUTHORED AND NOT APPLIED. `RESIDENT_PATCHES` means "in the vendored source
-    # right now", so a patch listed there before it is applied makes --verify
-    # report a problem that is not one, and that is how a check stops being read.
-    # It is not hypothetical: co2-shortwave was listed on landing and --verify
-    # then reported TWO patches unapplied, the second spuriously, because the
-    # unwind runs newest-first and a missing patch cascades. Move an entry across
-    # in the same commit that applies it and rebuilds.
-    ("exoplasim-3.4.2-co2-shortwave.patch", "pkg"),
-    ("exoplasim-3.4.2-aerocore-defects.patch", "src"),
-    ("exoplasim-3.4.2-aerosol-deposition.patch", "src"),
-    # DUST-3 items 1, 4 and 5, and the order below is the order they apply in.
-    # -aerosol-apart edits the same two lines of `aero_ini` that
-    # -aerosol-deposition does, so it is authored on top of it; -aerosol-longwave
-    # edits the `swr` aerosol block and the `radini` broadcasts -aerosol-apart
-    # touches, so it is authored on top of that. Both move the star-cycle base
-    # sha in build_star_cycle_exoplasim.sh, and that patch has been regenerated.
-    #
-    # -dust-emission was authored on the deposition patch WITHOUT the two above,
-    # by a concurrent branch, and it also appends to `aero_ini`. Neither author
-    # could test the combined stack and it does NOT apply with -dust-emission
-    # last: its aero_ini hunk rejects against the context -aerosol-apart moves.
-    # It applies in the order below, which is each patch's own authoring base, and
-    # the whole stack was verified 2026-08-18 to apply forward and to reverse
-    # newest-first to the pristine vendored shas. This order is load bearing.
-    ("exoplasim-3.4.2-dust-emission.patch", "src"),
-    ("exoplasim-3.4.2-aerosol-apart.patch", "src"),
-    ("exoplasim-3.4.2-aerosol-longwave.patch", "src"),
+PENDING_PATCHES: list[tuple[str, str]] = [
+    # Empty: everything authored has been applied and rebuilt. An entry here means
+    # a patch exists in exoplasim/patches/ and is NOT in the vendored source, which
+    # is the state between authoring a patch and the rebuild that lands it.
 ]
 
 ROOTS = {"src": SRC, "pkg": PKG}
