@@ -299,6 +299,19 @@ rim, 0 carves it and anything between cuts a notch and tapers it over the divide
 band. `--carve-basins FILE` is subtractive. Both are documented in the fork's
 `tools/README.md`.
 
+**`carve_list.json` records the criterion's inputs, not only its verdict.**
+Alongside each basin's retain fraction it writes the three catchment means the
+overflow test is built from -- `precipitation_km_per_year`,
+`lake_evaporation_km_per_year` and `land_evaporation_km_per_year` -- in the same
+km/year depth as `runoff_km_per_year`. They are there so a consumer can
+re-evaluate the test under a perturbation without restating the formula.
+`scripts/error_budget.py` is that consumer, and it used to recover P and E by
+inverting the recorded aridity index and evaporation margin instead: exact
+algebra, a second copy of the criterion, and wrong the first time the criterion
+moved. Under `runoff_source p_minus_e` the recorded runoff is
+`max(P - E_land, 0)` by construction, which is the identity to check before
+trusting them.
+
 **An earlier version of this section said that hook did not exist, and that was
 wrong.** It described the state before iteration 1, which used exactly this
 interface: the count of retain-0 entries in `carve_list.json` matches

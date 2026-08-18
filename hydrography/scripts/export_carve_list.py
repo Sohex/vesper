@@ -516,6 +516,17 @@ def main() -> None:
     # smallest term setting the scale for the largest.
     TOLERANCE = 0.25
     e_pen = means["pen"] * year_s / 1000.0
+    # The third of the three catchment-mean water-balance terms, in the same
+    # km/year depth as `runoff_km_per_year`. All three are recorded per basin in
+    # the sidecar, and the reason is that the criterion is RE-EVALUATED
+    # downstream: `scripts/error_budget.py` runs the same test under uniform
+    # perturbations to price a budget item in basins. A consumer that instead
+    # solves for P and E by inverting the recorded aridity index and evaporation
+    # margin is tied to whatever algebra this file used on the day it ran, and
+    # that inversion existed and broke the first time the criterion moved. Three
+    # floats per basin cost nothing and cannot go stale: if the verdict changes
+    # what it means by E, it changes what it writes here.
+    e_wet = means["wet"] * year_s / 1000.0
     e_balance = precip + crit * runoff              # evaporation that exactly balances
     with np.errstate(divide="ignore", invalid="ignore"):
         margin = np.where(e_pen > 0, (e_pen - e_balance) / np.where(e_pen > 0, e_pen, 1.0), 1.0)
@@ -674,7 +685,22 @@ def main() -> None:
                          "catchment still fills if its own lake surface gains "
                          "more precipitation than it evaporates",
             "open_water_evaporation": "Penman combination, water albedo and "
-                                      "roughness, floored at the model's land rate",
+                                      "roughness, evaluated wholly at the "
+                                      "lowest model level and NOT floored at "
+                                      "the model's land rate: this world's land "
+                                      "is several times rougher than open "
+                                      "water, so a smooth lake in a rough wet "
+                                      "landscape evaporates less than the "
+                                      "ground around it",
+            "runoff_source": args.runoff_source,
+            "recorded_terms_note": "precipitation_km_per_year, "
+                                   "lake_evaporation_km_per_year and "
+                                   "land_evaporation_km_per_year are the "
+                                   "catchment means the test above is built "
+                                   "from. Under runoff_source p_minus_e, "
+                                   "runoff_km_per_year is max(P - E_land, 0) by "
+                                   "construction, which is the identity a "
+                                   "consumer should check before trusting them.",
             "penman_ocean_validation_ratio": ocean_validation["ratio"],
             "retain_mapping": "max(incision, margin), the larger of what the "
                               "overflow cannot cut and what the overflow test "
@@ -775,6 +801,9 @@ def main() -> None:
                 "catchment_km2": round(float(basins.catchment_km2[i]), 2),
                 "area_at_spill_km2": round(float(basins.area_at_spill_km2[i]), 2),
                 "runoff_km_per_year": round(float(runoff[i]), 8),
+                "precipitation_km_per_year": round(float(precip[i]), 8),
+                "lake_evaporation_km_per_year": round(float(e_pen[i]), 8),
+                "land_evaporation_km_per_year": round(float(e_wet[i]), 8),
                 "no_catchment_runoff": bool(runoff[i] <= 0),
             } for i in range(basins.n)
         ] + [
