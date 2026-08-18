@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated": "2026-08-18T02:09:45.261478+00:00",
-  "git_commit": "7b851163c31f6072d39d7a85f4b9d6475548c606",
+  "generated": "2026-08-18T02:32:32.057288+00:00",
+  "git_commit": "df887f00e96142629caeda5148445cff9d7355e3",
   "generator": "scripts/world_state.py",
   "note": "Generated from the artifacts. Do not edit; re-run the generator. Only derived values live here. Findings are in `notes/`, with their evidence, and open work is in `TASKS.md`.",
   "planet": {
@@ -260,15 +260,15 @@
     "carve_verdict": {
       "bounds": {
         "penman": {
-          "basins_carved": 1561,
-          "endorheic_land_km2": 176858311.27670884,
-          "lake_area_km2": 9453278.550790919,
+          "basins_carved": 1539,
+          "endorheic_land_km2": 177371087.09154916,
+          "lake_area_km2": 8477072.360116852,
           "dry_survivors": 1643,
-          "wet_survivors": 488,
+          "wet_survivors": 514,
           "basins_without_runoff": 1643,
-          "lake_area_fraction_of_planet": 0.012870484287610806,
+          "lake_area_fraction_of_planet": 0.01154139550946539,
           "solver_converged": true,
-          "median_aridity_index": -0.9148135237261283
+          "median_aridity_index": -0.7876745515691326
         },
         "wet": {
           "basins_carved": 1978,
@@ -283,23 +283,23 @@
         }
       },
       "agreement": {
-        "carve_under_both": 1561,
+        "carve_under_both": 1539,
         "survive_under_both": 1643,
-        "disputed": 417
+        "disputed": 439
       },
       "penman_ocean_validation": {
-        "penman_mm_per_day": 2.9076,
+        "penman_mm_per_day": 3.0274,
         "model_mm_per_day": 2.7916,
-        "ratio": 1.0415,
+        "ratio": 1.0845,
         "ocean_cells": 4087,
         "note": "Ocean cells are already open water, so this is a direct check. COMPUTED; it was hardcoded until 2026-08-17."
       }
     },
     "carve_list": {
       "counts": {
-        "carve": 1478,
-        "preserve": 2060,
-        "marginal": 83
+        "carve": 1460,
+        "preserve": 2082,
+        "marginal": 79
       },
       "terrain_hash": "e931b0d9947a232210a3cc11ba82003b5da15765d86e87956bc44c220932760e",
       "climate": {

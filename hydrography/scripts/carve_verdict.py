@@ -67,6 +67,9 @@ WSMAX_EARTH = 0.5       # landmod.f90 default field capacity, metres
 GASCON = 287.017        # J/kg/K, from the model's own PLANET_NL
 CP_AIR = 1005.0         # J/kg/K
 KARMAN = 0.4
+# ExoPlaSim's own stability constants, fluxmod.f90:27-29, ECHAM Report 218.
+VDIFF_B = VDIFF_D = 5.0
+STABILITY_ITERATIONS = 5
 Z0_WATER = 1.5e-4       # m, open-water roughness length
 WATER_ALBEDO = 0.06     # the export's own value for the water rock class
 SIGMA_LOWEST = 0.9828   # lowest model level
@@ -133,34 +136,52 @@ def penman_open_water(ts, tas, q_air, wind, ps_pa, rss, rls, land_albedo, gravit
     rho = ps_pa / (GASCON * tas)
     u = np.maximum(wind, 0.1)
 
-    # NEUTRAL, deliberately, and PHYS-4 records why the obvious correction was
-    # tried and backed out. An evaporating lake under arid air was argued to be
-    # a stable surface layer, where neutral overstates exchange by 20-30%. Two
-    # things came out of implementing it with ExoPlaSim's own stability function
-    # (fluxmod.f90:241-256, ECHAM Report 218), so that this and the model would
-    # agree about the same air over the same water:
+    # STABILITY. The surface layer over a lake is stratified, that stratification
+    # changes turbulent exchange, and the process exists whether or not including
+    # it improves any comparison -- so it is in.
     #
-    #   The sign is not obviously stable. Closing the surface temperature
-    #   through the energy balance, T_s = T_a + r_a (Rn - LE)/(rho cp), makes a
-    #   dark lake in bright arid surroundings run WARMER than the air over most
-    #   land cells here -- it absorbs far more shortwave than the 0.22-0.50
-    #   ground and cannot evaporate it all away. Median Ri came out -0.21, only
-    #   13% of land cells stable.
+    # The functions are ExoPlaSim's own (`fluxmod.f90:236-256`, ECHAM Report 218)
+    # so that this and the model describe the same air over the same water, and
+    # the WATER branch is used because a lake is water: `fluxmod.f90:248`
+    # switches on `dls < 1` to a Miller et al. (1992) free-convection form when
+    # unstable, which does not reduce to the general one. A first attempt used
+    # the land branch and got both the magnitude and the direction wrong.
     #
-    #   And it fails the one check available. Against the model's own
-    #   evaporation over ocean, neutral gives a ratio of 1.0415 and the
-    #   stability correction 1.0612. It moves the answer away from the model,
-    #   not toward it -- probably because over water the model takes the Miller
-    #   et al. (1992) free-convection branch rather than the general one, and
-    #   because the Penman-implied surface temperature is not the closure the
-    #   model uses.
+    # Which side we are on is not obvious and is worth stating. Closing the
+    # surface temperature through the energy balance, T_s = T_a + r_a (Rn - LE) /
+    # (rho cp), a dark lake in bright arid surroundings absorbs far more
+    # shortwave than the 0.22-0.50 ground and cannot evaporate it all away, so it
+    # runs WARMER than the air over most land cells here. The layer is mostly
+    # UNSTABLE, not stable, and exchange is enhanced rather than suppressed.
     #
-    # So it is not applied. The physics argument stands and the implementation
-    # does not, which is a reason to do it properly rather than to ship this.
-    r_a = 1.0 / np.maximum(ce_neutral * u, 1e-6)
+    # Surface temperature and resistance are coupled -- resistance sets the
+    # sensible flux, which sets the surface temperature, which sets the
+    # stability -- so it iterates. Penman never needs the surface temperature;
+    # the stability correction does.
+    rn = np.maximum(net_radiation, 0.0)
+    z_over_z0 = np.maximum(z_ref, 1.0) / Z0_WATER
+    ce = ce_neutral
+    for _ in range(STABILITY_ITERATIONS):
+        r_a = 1.0 / np.maximum(ce * u, 1e-6)
+        aerodynamic = (rho * CP_AIR / r_a) * np.maximum(es_a - e_air, 0.0) / gamma
+        latent = (delta * rn + gamma * aerodynamic) / (delta + gamma)
+        t_surface = tas + r_a * (rn - latent) / (rho * CP_AIR)
+        # Virtual temperature difference, surface minus air; positive is unstable.
+        d_theta_v = t_surface * (1.0 + 0.6078 * q_air) - tas
+        ri = np.clip(-gravity * z_ref * d_theta_v / (u ** 2 * tas), -5.0, 5.0)
+        with np.errstate(invalid="ignore"):
+            f_stable = 1.0 / (1.0 + 3.0 * VDIFF_B * np.maximum(ri, 0.0)
+                              * np.sqrt(1.0 + VDIFF_D * np.maximum(ri, 0.0)))
+            # Miller et al. (1992), fluxmod.f90:250. Free convection: it does not
+            # go to 1 as the wind drops, it grows.
+            f_water = (1.0 + (0.0016 * np.maximum(d_theta_v, 1e-6) ** (1.0 / 3.0)
+                              / (u * ce_neutral)) ** 1.25) ** 0.8
+        f_h = np.where(ri > 0.0, f_stable, f_water)
+        ce = ce_neutral * np.clip(f_h, 0.05, 20.0)
+
+    r_a = 1.0 / np.maximum(ce * u, 1e-6)
     aerodynamic = (rho * CP_AIR / r_a) * np.maximum(es_a - e_air, 0.0) / gamma
-    latent = (delta * np.maximum(net_radiation, 0.0)
-              + gamma * aerodynamic) / (delta + gamma)
+    latent = (delta * rn + gamma * aerodynamic) / (delta + gamma)
     return np.maximum(latent, 0.0) / (lam * 1000.0)   # W/m2 -> m/s of water
 
 

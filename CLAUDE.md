@@ -92,6 +92,11 @@ none of them is advice.
   standard rather than rounding results into passes.
 - Scripts anchor their paths in a `_paths.py` and resolve from the file location,
   not the working directory, so they run from anywhere.
+- **Physics is not a knob.** A process belongs in the model because it exists, not
+  because including it improves a comparison. If adding a correct term makes an
+  agreement worse, that is information about the implementation, the comparison,
+  or a second error cancelling the first -- never a reason to remove the term.
+  `notes/failure-modes.md` class 16.
 - **Findings and tasks are kept apart.** A document under `notes/audits/` says
   what is true and carries its evidence; `TASKS.md` says what to do about it and
   cites the document. That way a finding can be read without being re-litigated,

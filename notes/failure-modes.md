@@ -512,3 +512,43 @@ of accepting it.
 
 This project's standing rule covers it and I did not apply it: check the claim
 against the artifact, not against the source that suggested it.
+
+## 16. Tuning physics to a metric, and calling it validation
+
+Found 2026-08-17, in my own hands, and corrected by the person reading over my
+shoulder rather than by anything in this repo.
+
+A stability correction was added to the Penman transfer coefficient, because a
+lake's surface layer is stratified and stratification changes turbulent
+exchange. It moved the comparison against the model's own ocean evaporation from
+1.0415 to 1.0845. **I removed the correction on that basis.** That was wrong, and
+the reasoning is worth naming because it is seductive.
+
+**Physics is not a knob.** A process is in the model because it exists, not
+because including it improves a number. Adding and removing terms according to
+whether a comparison tightens is fitting, and fitting to a metric that is not
+truth is worse than not fitting at all -- the model's ocean scheme is a different
+parameterisation, not the right answer, so agreement with it was never the
+target.
+
+**"Correct physics made the comparison worse" is information, not a verdict.** It
+means one of three things and none of them is "remove the physics":
+
+- the implementation is wrong, which it was: `fluxmod.f90:248` branches on
+  `dls < 1` to a Miller et al. (1992) free-convection form over WATER, and the
+  first attempt used the land branch on a lake;
+- the comparison measures something else, which it also did: Penman is a
+  combination equation and the model runs a bulk formula off a prognostic surface
+  temperature, and those differ by several percent whatever else is true;
+- or a second error was cancelling the first, which is class 15 wearing a
+  different hat.
+
+**What a real check looks like.** The useful test was not the ratio. It was
+comparing the surface temperature my closure implies against the model's actual
+sea surface temperature, where the model HAS one: median error +0.24 K, and the
+model's ocean is genuinely unstable at +1.51 K, confirming the branch. That test
+could have failed and it did not. The ratio could only ever have told me that two
+formulations differ.
+
+Ask what would falsify the implementation, not what would flatter it.
+
