@@ -1,0 +1,265 @@
+# Six defects in ExoPlaSim's aerosol transport. DUST-3 item 1, plus what looking
+# for it turned up.
+#
+# WHAT THIS IS FOR. `aerocore.f90` and `aeromod.f90` are the only code in
+# ExoPlaSim that moves an aerosol, and this project is about to put a dust
+# emission scheme into them (`aeolian/notes/in-model-dust.md`). Everything
+# downstream of that is uncalibratable until these are right, which is why the
+# design note puts them first. All six are LATENT rather than harmless: every run
+# this project has made sets `L_AERO = 0` in `plasim_namelist`, `aero_main` is
+# called only when `nsela == 1 .and. nkits == 0 .and. l_aero > 0`, and so
+# `aerocore` has never executed. They bite the moment anything turns it on.
+#
+# NO NAMELIST SWITCH, AND THAT IS DELIBERATE. Every other patch in this stack
+# defaults to a no-op because both arms of an A/B have to come from one binary
+# (`WORKFLOW.md` A3). These are not new terms; they are arithmetic that is wrong,
+# and a switch whose "off" position is the wrong answer is the mis-framing
+# `CLAUDE.md` names under "do not offer a defect as a decision". The A/B that
+# applies here is different and stronger: on every configuration this project
+# currently runs, a binary with this patch must produce output BIT-IDENTICAL to
+# one without it, because the code it changes is unreachable. That is a test that
+# can fail, and it is the one to run before anything else.
+#
+# BASE. Pristine ExoPlaSim 3.4.2. Neither file is touched by any other patch in
+# `exoplasim/patches/`, so this does not interact with the resident stack and in
+# particular does not touch `radmod.f90`.
+#
+#   aerocore.f90  726bdac5a779261f7ad6e38adbc5fafd8d57a4c6ec004010aaf78ce3af770ebc
+#   aeromod.f90   c5784a6cee9f188678b0f2fb551e6990961aa406e093048eb40388c95e52aeac
+#
+# RESIDENT-DESTINED, NOT YET RESIDENT. It is listed in `PENDING_PATCHES` in
+# `exoplasim/scripts/rebuild_binaries.py`, and it moves to `RESIDENT_PATCHES` in
+# the same commit that applies it and rebuilds every binary. That list means
+# "applied to the vendored source right now", so listing it earlier would report
+# a problem that is not one.
+#
+# WHAT IT FIXES, and what each one is worth.
+#
+#  1. `viscos`: `(4/25)` is integer division and evaluates to 0, so the
+#     collision-integral temperature dependence of the Chapman-Enskog viscosity
+#     vanished entirely. The check has a right answer rather than a plausible
+#     one: with the exponent restored, `mu` for N2 at 288 K comes out 1.77e-5
+#     Pa s against the measured 1.76e-5, and without it 1.48e-5. Stokes settling
+#     goes as 1/mu, so it was 13 to 21 per cent fast over 200-320 K.
+#
+#  2. and 3. `mmr2n` and `n2mmr`: `(4/3)` is integer division and evaluates to 1,
+#     so the sphere volume was 4/3 too small and the number density exactly 4/3 =
+#     33.3% too high. `radmod` builds aerosol optical depth from that number
+#     density, so the shortwave optical depth was 33.3% too high with it.
+#
+#  4. The gravitational settling flux never carried the timestep. `gsettle`
+#     returns kg/m2/s; the FFSL fluxes fx, fy and fz carry dt inside their
+#     Courant numbers and gz did not, so one model step applied one SECOND of
+#     settling. At the 2700 s step this project runs, sedimentation was weaker
+#     than intended by that factor. The settling Courant number after the fix is
+#     0.004 for a 2 um particle in the bottom layer and 0.36 for a 20 um one, so
+#     the corrected term is comfortably stable at this step; that is worth
+#     knowing because "it would have gone unstable" is the only defence the
+#     omission could have had.
+#
+#  5. The bottom level was updated TWICE. `do k=2,NL` already covered k=NL, and
+#     the "Now for k=nl" block below it then applied fx, fy and fz to that level
+#     a second time. The two settling terms cancelled exactly (-gz(nl) from the
+#     loop, +gz(nl) from the block), so nothing ever left the atmosphere: dust
+#     settling out of the bottom layer was returned to it. That is the whole
+#     reason the 99%-per-step sink at the bottom exists, and it is why removing
+#     that sink is not safe until this is fixed. The loop now stops at NL-1 and
+#     the bottom block takes gz(nl-1) in and gz(nl) out, which is dry deposition
+#     by sedimentation.
+#
+#  6. The two polar cap rows had the fy and fz terms and no settling term at all,
+#     at every level, so aerosol fell everywhere except at the caps.
+#
+#  7. `aero_main` gathered its boundary fields in the MODEL's latitude order and
+#     handed them to `aerocore`, whose tracer array is flipped south-to-north by
+#     `plasim.f90` on the way in. So `l_source = 2`'s land mask, and `l_source =
+#     1`'s solar zenith angle, drove the aerosol source in the WRONG HEMISPHERE.
+#     This world's land is not hemispherically symmetric, so the test is direct:
+#     one step with `l_source = 2` and a nonzero `fcoeff`, and the bottom-level
+#     mixing ratio must correlate with the land mask and not with its mirror.
+#
+# WHAT IT DELIBERATELY IS NOT. There is no deposition velocity here, no wet
+# scavenging and no emission scheme: those are separate patches with their own
+# namelist switches. And upstream defect 1 of the design note -- `radmod`'s own
+# `apart` never being populated from the namelist -- is NOT fixed here, because
+# it lives in `radmod.f90`, which another branch is editing. It stays open.
+#
+# REPORTED UPSTREAM alongside the two the design note already listed.
+#
+--- a/aerocore.f90
++++ b/aerocore.f90
+@@ -247,7 +247,7 @@
+ ! activated if the user set "fill" to be true.
+ ! Alternatively, one can use the MFCT option to enforce monotonicity.
+ !
+-      use pumamod, only: NLAT,NLON,NLEV,ga ! Use planet's gravity from pumamod
++      use pumamod, only: NLAT,NLON,NLEV,ga,deltsec ! Planet gravity and timestep from pumamod
+       implicit none
+ 
+ ! Input-Output variables
+@@ -713,6 +713,12 @@
+ !****6***0*********0*********0*********0*********0*********0**********72
+ ! Compute vertical flux due to gravitational settling 
+       call gsettle(qz,im,jm,nl,rhog,vels,nud,gz)
++
++! gsettle returns a FLUX in kg/m2/s. The FFSL fluxes fx, fy and fz carry the
++! timestep inside their Courant numbers and gz does not, so every use of gz
++! below was applying one second of settling per model step. Convert it here,
++! once, rather than at each of the five use sites.
++      gz = gz*deltsec
+       
+ !****6***0*********0*********0*********0*********0*********0**********72
+  
+@@ -774,8 +780,11 @@
+         sum2 = sum2 + fy(i,J2+1,1) ! Add fy for last lon at northernmost lat
+       enddo
+  
+-      daero(1, 1,1) = daero(1, 1,1) - sum1*RCAP + fz(1, 1,1) - fz(1, 1,2) ! First lon, southernmost lat
+-      daero(1,JM,1) = daero(1,JM,1) + sum2*RCAP + fz(1,JM,1) - fz(1,JM,2) ! First lon, northernmost lat
++! The gz terms are here because the polar caps settle too. Upstream carried the
++! fy and fz terms at the caps and dropped the settling one, so aerosol fell
++! everywhere except the two cap rows and mass was not conserved between them.
++      daero(1, 1,1) = daero(1, 1,1) - sum1*RCAP + fz(1, 1,1) - fz(1, 1,2) - gz(1, 1,1)*ga ! First lon, southernmost lat
++      daero(1,JM,1) = daero(1,JM,1) + sum2*RCAP + fz(1,JM,1) - fz(1,JM,2) - gz(1,JM,1)*ga ! First lon, northernmost lat
+  
+       do i=2,IM ! All other lons except first
+         daero(i, 1,1) = daero(1, 1,1) ! At southernmost lat, daero is equal to daero at first lon
+@@ -783,7 +792,10 @@
+       enddo							
+ 
+ ! For all levels except the top and bottom, add flux from level above and subtract flux falling out of current level
+-      do k=2,NL
++! NL is EXCLUDED here: the block below updates it. Upstream looped to NL and
++! then ran that block as well, so every flux at the bottom level was applied
++! twice and the two settling terms cancelled.
++      do k=2,NL-1
+ 
+         do j=j1,j2 ! Between the caps
+             do i=1,IM ! For all lons
+@@ -803,8 +815,8 @@
+             sum2 = sum2 + fy(i,J2+1,k) ! Add fy for last lon at northernmost lat
+         enddo
+     
+-        daero(1, 1,k) = daero(1, 1,k) - sum1*RCAP + fz(1, 1,k) - fz(1, 1,k+1) ! First lon, southernmost lat
+-        daero(1,JM,k) = daero(1,JM,k) + sum2*RCAP + fz(1,JM,k) - fz(1,JM,k+1) ! First lon, northernmost lat
++        daero(1, 1,k) = daero(1, 1,k) - sum1*RCAP + fz(1, 1,k) - fz(1, 1,k+1) + (gz(1, 1,k-1) - gz(1, 1,k))*ga ! First lon, southernmost lat
++        daero(1,JM,k) = daero(1,JM,k) + sum2*RCAP + fz(1,JM,k) - fz(1,JM,k+1) + (gz(1,JM,k-1) - gz(1,JM,k))*ga ! First lon, northernmost lat
+     
+         do i=2,IM ! All other lons except first
+             daero(i, 1,k) = daero(1, 1,k) ! At southernmost lat, daero is equal to daero at first lon
+@@ -813,13 +825,17 @@
+ 
+       enddo
+ 
+-! Now for k=nl, only add the flux coming from the level above
++! Now for k=nl. It takes the settling flux arriving from the level above and
++! LOSES the one leaving through the surface, which is dry deposition by
++! sedimentation. Upstream added gz(nl) instead of subtracting it, so nothing
++! ever left the atmosphere and the bottom layer built up without bound -- which
++! is what the 99%-per-step sink further down was put in to hide.
+       do j=j1,j2 
+         do i=1,IM
+             daero(i,j,nl) = daero(i,j,nl) +  fx(i,j,nl) - fx(i+1,j,nl)                   &
+                             + (fy(i,j,nl) - fy(i,j+1,nl))*acosp(j)/dlat(j) &
+                             +  fz(i,j,nl) - fz(i,j,nl+1) &
+-                            + gz(i,j,nl)*ga
++                            + (gz(i,j,nl-1) - gz(i,j,nl))*ga
+         enddo ! Lon loop
+       enddo ! Lat loop
+       
+@@ -832,8 +848,8 @@
+         sum2 = sum2 + fy(i,J2+1,nl) ! Add fy for last lon at northernmost lat
+       enddo
+  
+-      daero(1, 1,nl) = daero(1, 1,nl) - sum1*RCAP + fz(1, 1,nl) - fz(1, 1,nl+1) ! First lon, southernmost lat
+-      daero(1,JM,nl) = daero(1,JM,nl) + sum2*RCAP + fz(1,JM,nl) - fz(1,JM,nl+1) ! First lon, northernmost lat
++      daero(1, 1,nl) = daero(1, 1,nl) - sum1*RCAP + fz(1, 1,nl) - fz(1, 1,nl+1) + (gz(1, 1,nl-1) - gz(1, 1,nl))*ga ! First lon, southernmost lat
++      daero(1,JM,nl) = daero(1,JM,nl) + sum2*RCAP + fz(1,JM,nl) - fz(1,JM,nl+1) + (gz(1,JM,nl-1) - gz(1,JM,nl))*ga ! First lon, northernmost lat
+  
+       do i=2,IM ! All other lons except first
+         daero(i, 1,nl) = daero(1, 1,nl) ! At southernmost lat, daero is equal to daero at first lon
+@@ -946,7 +962,10 @@
+     rt_pi = SQRT(PI)
+     rt_kb = SQRT(kb)
+     sq_dair = dair*dair
+-    temp_eps = (temp/eps)**(4/25)
++! (4/25) is INTEGER division and evaluates to 0, which deleted the collision
++! integral's temperature dependence entirely and left viscosity 11 to 18 per
++! cent low over 200-320 K in N2 -- and Stokes settling correspondingly fast.
++    temp_eps = (temp/eps)**(4./25.)
+     coeff = (5./16.)*(1./1.22)*(1./PI)*rt_pi*rt_mair*rt_kb/sq_dair
+     
+     mu = coeff*rt_temp*temp_eps
+@@ -1153,7 +1172,9 @@
+     REAL :: svol
+     REAL :: mpart
+     
+-    svol = (4/3)*PI*(apart**3) ! Sphere volume
++! (4/3) is INTEGER division and evaluates to 1, so the sphere volume was 4/3
++! too small and the number density 4/3 = 33% too high.
++    svol = (4./3.)*PI*(apart**3) ! Sphere volume
+     mpart = svol*rhop
+     numrho = mmr*(1/mpart)*rhog
+     RETURN
+@@ -1180,7 +1201,8 @@
+     REAL :: svol
+     REAL :: mpart
+     
+-    svol = (4/3)*PI*(apart**3) ! Sphere volume
++! (4/3) is INTEGER division; see mmr2n above.
++    svol = (4./3.)*PI*(apart**3) ! Sphere volume
+     mpart = svol*rhop ! Mass of one particle
+     
+     mmr = numrho*mpart/rhog
+--- a/aeromod.f90
++++ b/aeromod.f90
+@@ -98,6 +98,14 @@
+       real ::   aerosw(NLON,NLAT,NLEV) ! Array for SW flux 
+       real ::   land(NLON,NLAT) ! Array for binary land mask
+ 
++!     Gather buffer. mpgagp returns a field in the MODEL's latitude order,
++!     while daeros and numrhos are handed to aerocore flipped south-to-north
++!     (see plasim.f90, `daeros(:,NLAT+1-jlat,:,1) = zmmr(:,jlat,:)`). Every
++!     field gathered here therefore has to be flipped the same way before it
++!     is used against them. Upstream did not, so the land mask and the solar
++!     zenith angle drove the aerosol source in the wrong hemisphere.
++      real ::   zgath(NLON,NLAT,NLEV)
++
+       integer :: j,jc
+ 
+       character(len=9) :: aero_name
+@@ -111,18 +119,30 @@
+        select case (l_source) ! Choose your aerosol source
+        case(1) ! Case 1: photochemical haze
+          call solang ! Use subroutine from radmod to calculate solar zenith angle
+-         call mpgagp(angle,gmu0,1) ! Gather from nodes
++         call mpgagp(zgath,gmu0,1) ! Gather from nodes
++         do j=1,NLAT
++            angle(:,NLAT+1-j) = zgath(:,j,1)
++         end do
+        case(2) ! Case 2: dust
+-         call mpgagp(land,dls,1) ! Import land-sea mask from landmod and reshape to match grid size
++         call mpgagp(zgath,dls,1) ! Import land-sea mask from landmod and reshape to match grid size
++         do j=1,NLAT
++            land(:,NLAT+1-j) = zgath(:,j,1)
++         end do
+        end select
+       end if
+       
+       if (l_aerorad == 1) then ! Include radiative transfer
+        select case (l_source) ! Choose aerosol source
+        case(1) ! Case 1: photochemical haze     
+-        call mpgagp(aerosw,dswfl,NLEV) ! Gather SW flux from nodes
++        call mpgagp(zgath,dswfl,NLEV) ! Gather SW flux from nodes
++        do j=1,NLAT
++           aerosw(:,NLAT+1-j,:) = zgath(:,j,:)
++        end do
+        case(2) ! Case 2: dust
+-        call mpgagp(land,dls,1) ! Import land-sea mask from landmod and reshape to match grid size
++        call mpgagp(zgath,dls,1) ! Import land-sea mask from landmod and reshape to match grid size
++        do j=1,NLAT
++           land(:,NLAT+1-j) = zgath(:,j,1)
++        end do
+        end select
+       end if 
+ 

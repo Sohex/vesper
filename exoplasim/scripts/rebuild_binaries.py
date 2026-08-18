@@ -17,6 +17,11 @@ which an old binary cannot parse, so it aborts loudly in `radini_`. A patch that
 changed the value or meaning of an existing quantity would have run to
 convergence on unpatched physics and nothing would have said so.
 
+Two lists live here. `RESIDENT_PATCHES` is what is applied to the vendored source
+RIGHT NOW; `PENDING_PATCHES` is what has been authored and verified but not
+applied, which is where a patch waits between being written and being merged.
+A patch moves between them in the commit that applies it and rebuilds.
+
 So: **after any patch, rebuild everything.** This script is that operation, and
 it writes `exoplasim/patches/binary_manifest.json` mapping every executable's
 sha256 to the patch stack it contains and the source files it was built from.
@@ -87,8 +92,34 @@ RESIDENT_PATCHES = [
     ("exoplasim-3.4.2-prescribed-dust.patch", "src"),
     ("exoplasim-3.4.2-rayleigh-reference-grid.patch", "src"),
     ("exoplasim-3.4.2-h2o-shortwave-weight.patch", "pkg"),
-    ("exoplasim-3.4.2-co2-shortwave.patch", "pkg"),
     ("exoplasim-3.4.2-makestellarspec.patch", "pkg"),
+]
+
+# Patches that are AUTHORED and verified but NOT applied to the vendored source
+# yet. They exist because a patch has to be written, reviewed and merged before
+# anyone applies it and rebuilds, and RESIDENT_PATCHES above means "applied right
+# now" -- listing one there early reports a problem that is not one, which is how
+# a check stops being read.
+#
+# A patch moves from here to RESIDENT_PATCHES in the SAME commit that applies it
+# and rebuilds every binary. Nothing here affects any executable, so `--verify`
+# reports this list as information and never as a failure. The point of it is
+# findability: a patch file sitting in exoplasim/patches/ and named by nothing is
+# a patch that gets reimplemented beside itself.
+#
+# Verify one without touching .venv the way resident_ok() does: copy the files it
+# touches to a scratch directory, apply with `patch -p1`, and reverse.
+PENDING_PATCHES = [
+    # AUTHORED AND NOT APPLIED. `RESIDENT_PATCHES` means "in the vendored source
+    # right now", so a patch listed there before it is applied makes --verify
+    # report a problem that is not one, and that is how a check stops being read.
+    # It is not hypothetical: co2-shortwave was listed on landing and --verify
+    # then reported TWO patches unapplied, the second spuriously, because the
+    # unwind runs newest-first and a missing patch cascades. Move an entry across
+    # in the same commit that applies it and rebuilds.
+    ("exoplasim-3.4.2-co2-shortwave.patch", "pkg"),
+    ("exoplasim-3.4.2-aerocore-defects.patch", "src"),
+    ("exoplasim-3.4.2-aerosol-deposition.patch", "src"),
 ]
 
 ROOTS = {"src": SRC, "pkg": PKG}
@@ -191,6 +222,9 @@ def main() -> None:
         raise SystemExit(1)
     print("resident patches applied: "
           + ", ".join(n for n, _ in RESIDENT_PATCHES))
+    if PENDING_PATCHES:
+        print("authored but NOT applied (PENDING_PATCHES): "
+              + ", ".join(n for n, _ in PENDING_PATCHES))
 
     sources = patched_sources()
 

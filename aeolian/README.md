@@ -158,3 +158,23 @@ dust because it neither coagulates nor grows appreciably.
 - `scripts/dust_runoff_sensitivity.py` -- one-off: converts a precipitation change into a basin count, which is what prices the catchment half of the dust question in WORKFLOW A4. Registered under `one_offs` in `config/pipeline.yaml`.
 - `scripts/extract_high_cadence_wind.py` -- one-off: pulls instantaneous near-surface winds out of a high-cadence run segment. This is what DUST-5 measured and what `build_dust.py --gust-samples` must be given; the 32-sample snapshot climatology fits a Weibull shape about twice too high and costs a factor of 40 on emission. Registered under `one_offs` in `config/pipeline.yaml`.
 
+## The in-model port, and why this component survives it
+
+`aeolian/notes/in-model-dust.md` is the design for putting emission, deposition
+and scavenging inside ExoPlaSim (DUST-3), with each piece's predicted effect and
+what result would falsify it. Two of its patches are written and verified but not
+yet applied, and they are listed in `PENDING_PATCHES` in
+`exoplasim/scripts/rebuild_binaries.py`:
+
+- `exoplasim/patches/exoplasim-3.4.2-aerocore-defects.patch`, seven latent
+  defects in `aerocore.f90` and `aeromod.f90`, unconditional.
+- `exoplasim/patches/exoplasim-3.4.2-aerosol-deposition.patch`, a dry deposition
+  velocity behind `ldepvel` and Sportisse below-cloud scavenging behind
+  `lwetdep`, both defaulting to off and both reading their coefficients from
+  `aeolian/config/dust.yaml` rather than carrying Fortran defaults.
+
+**This component does not retire when that lands.** ExoPlaSim's aerosol is one
+tracer with one radius and one density fixed at compile time, so the in-model
+chain gets the burden and the optical depth and cannot get the size-resolved
+DEPOSITION field that pedology and the phosphorus budget read. That is the
+declared cost of DUST-8 and the note carries the numbers.
