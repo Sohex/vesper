@@ -54,8 +54,9 @@ import numpy as np
 import yaml
 
 from _paths import ANALYSIS, CONFIG, DATA, PROJECT_ROOT  # noqa: F401
-from builds import component_data
+from builds import component_data, grid_export
 from orbit import orbital_year_days
+from orogen import Export
 from paths import climatology_path, require_clean_io
 from lake_balance import BasinSet, carve_verdict, solve
 
@@ -425,7 +426,15 @@ def main() -> None:
     both = penman_carve & results["wet"]["carve"]
     neither = ~penman_carve & ~results["wet"]["carve"]
     disputed = ~(both | neither)
-    planet = 734_492_839.55
+    # From the export, not a literal and not recomputed from the config. Every
+    # area this divides -- catchment, area at spill, solved lake -- was measured
+    # by Orogen on Orogen's sphere, so the denominator has to be the same
+    # sphere's. It was `734_492_839.55` here and in `lake_balance._sweep`, which
+    # is `4 pi (1.2 * 6371 km)^2` copied out of `config/planet.yaml` in
+    # violation of CLAUDE.md rule 2: correct today, and silently a percentage of
+    # a different planet the day `radius_earth` moves, exactly as the 189.6145-day
+    # year was.
+    planet = Export(grid_export(config)).surface_area_km2
 
     print(f"{'bound':>10} {'carve':>7} {'survive':>8} {'dry':>6} {'with lake':>10} "
           f"{'lake % planet':>14}")

@@ -42,7 +42,8 @@ from netCDF4 import Dataset
 import numpy as np
 
 from _paths import ANALYSIS, DATA  # noqa: F401
-from builds import component_data
+from builds import component_data, grid_export
+from orogen import Export
 
 TERMINAL_OCEAN = -1
 
@@ -159,7 +160,10 @@ def solve(
 
 def _sweep(basins: BasinSet, out_path) -> dict:
     """Uniform-forcing sensitivity sweep. Machinery check, not a result."""
-    planet_km2 = 734_492_839.55
+    # From the export. See the note at the same denominator in `carve_verdict`:
+    # the areas being divided are Orogen's, so the sphere has to be Orogen's,
+    # and the literal this replaces was a config value copied into a script.
+    planet_km2 = Export(grid_export()).surface_area_km2
     rows = []
     for runoff_mm in (10.0, 50.0, 200.0):
         for evap_mm in (400.0, 800.0, 1600.0):

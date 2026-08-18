@@ -261,7 +261,8 @@ is a hydrology decision and the exporter leaves it downstream.
 mesh, which fills the noise pits while keeping the preserved basins as
 terminals. It then rebuilds each basin's hypsometry on the *finished* terrain,
 because the catalogue's curves are measured on the pre-conditioning surface and
-overstate capacity by about 1.5x. Finally it writes a sparse basin-by-grid-cell
+overstate capacity substantially; the measured ratio is in the hydrography report
+for the build it was computed on. Finally it writes a sparse basin-by-grid-cell
 coupling matrix, which is the interface climate is integrated over.
 
 ### 3.5 The carve verdict
@@ -868,10 +869,12 @@ away almost exactly. Then the regional products, biomes, Koppen and lake maps.
 Three things about the calendar and the resolution that are easy to get wrong,
 each worked through in `biosphere/README.md`:
 
-- **Spin-up is counted in simulation years**, so the shipped 500 is 247 Earth
-  years. Year counts are scaled up by 2.022 while annual sums are scaled down by
-  0.4946; the two directions are opposite and both lists are named in
-  `build_vesper_pfts.py`.
+- **Spin-up is counted in simulation years**, and a simulation year is about
+  half an Earth one, so the shipped 500 buys roughly half the absolute time
+  Earth practice assumes. Year counts are scaled UP and annual sums scaled DOWN
+  by the reciprocal factor; the two directions are opposite, both lists are
+  named in `build_vesper_pfts.py`, and the factor is derived there from the
+  configured orbit rather than written anywhere.
 - **T85 redistributes precipitation, it does not merely resolve it.** Steeper
   relief means stronger orographic ascent and deeper rain shadows, so lee basins
   dry and windward coasts wet. That reaches the carve verdict, which should be

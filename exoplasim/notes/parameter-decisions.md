@@ -137,11 +137,11 @@ is northern spring, 90--180 northern summer, 180--270 northern autumn, and
 than Earth calendar dates.
 
 Köppen--Geiger precipitation thresholds were developed for Earth-year totals.
-Because this planet's orbit is 180.7 Earth days, applying them to precipitation
-per local orbit would make identical physical rain rates appear about twice as
-dry. The diagnostic therefore annualizes modeled precipitation rates to
-365.2425 days while retaining the simulated seasonal temperature and rainfall
-cycle. The resulting classes and biome groupings are heuristic ecological
+Because this planet's orbit is roughly half an Earth year, applying them to
+precipitation per local orbit would make identical physical rain rates appear
+about twice as dry. The diagnostic therefore annualizes modeled precipitation
+rates to 365.2425 days while retaining the simulated seasonal temperature and
+rainfall cycle. The resulting classes and biome groupings are heuristic ecological
 interpretations and do not model soils, nutrient limitation, fire, vegetation
 competition, or ocean heat transport.
 

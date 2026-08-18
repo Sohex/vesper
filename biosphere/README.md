@@ -81,17 +81,19 @@ this star turned up a bug in the climate runs: ExoPlaSim's `k2.dat` is the star
 K2-18, an M2.5V at about 3450 K, not the spectral type K2. Using it would have
 put the PAR fraction at 0.078 instead of 0.309, a factor of four on
 productivity. Resolved: a correct BT-Settl K2.5V spectrum now exists at
-`exoplasim/inputs/stellarspectra/k25v`, and `FRADPAR` is 0.40. See
+`exoplasim/inputs/stellarspectra/k25v`, and `FRADPAR` is derived from it by
+`build_vesper_header.py`, which writes the value and its derivation into
+`generated/vesper.h` and `generated/vesper_provenance.json`. See
 `exoplasim/notes/stellar-spectrum-audit.md` for what it means upstream.
 
 **The PFTs.** The shipped plant functional types are Earth's, and their
 bioclimatic limits are Earth calibrations. Keeping them is defensible as an
 Earth-analogue biosphere and should be declared that way rather than presented as
-a prediction. Their degree-day thresholds must be rescaled by 0.4946, and this is
-not optional: running the patched model on Earth's own demo data collapses boreal
-needleleaf and temperate broadleaf to grass, because Earth `gdd5min` cannot be
-met in a Vesper year. `build_vesper_pfts.py` does it, deriving the factor from the
-configured orbit; `gdd5min_est` 500 becomes 247. It deliberately leaves
+a prediction. Their degree-day thresholds must be rescaled to the length of a
+Vesper year, and this is not optional: running the patched model on Earth's own
+demo data collapses boreal needleleaf and temperate broadleaf to grass, because
+Earth `gdd5min` cannot be met in a Vesper year. `build_vesper_pfts.py` does it,
+deriving the factor from the configured orbit. It deliberately leaves
 `phengdd5ramp` alone, which is a within-season accumulation already in absolute
 time, and scaling that would be a real error.
 
@@ -241,19 +243,21 @@ over.
 ## Spin-up is in simulation years, and that halves it
 
 `nyear_spinup 500` reads like an absolute statement and is not. A simulation year
-is 0.4946 Earth years, so the shipped 500 gives this world **247 Earth years** of
-vegetation and soil development where Earth practice assumes 500.
+is about half an Earth year, so the shipped 500 gives this world roughly half the
+absolute vegetation and soil development that Earth practice assumes.
 
-`build_vesper_pfts.py` therefore scales year *counts* up by 2.022, the reciprocal
-of the factor it scales annual *sums* down by. Confusing those two directions
-would be worse than doing neither, so both lists are named in that script:
+`build_vesper_pfts.py` therefore scales year *counts* UP by the reciprocal of the
+factor it scales annual *sums* DOWN by, deriving both from the configured orbit.
+Confusing those two directions would be worse than doing neither, so both lists
+are named in that script and the rescaled values are written into
+`generated/vesper_pfts.ins` and its provenance:
 
-| parameter | shipped | rescaled | why |
+| parameter | shipped | scaled? | why |
 | --- | --- | --- | --- |
-| `nyear_spinup` | 500 | 1011 | time to reach steady state |
-| `distinterval` | 100 | 202 | disturbance return time |
-| `freenyears` | 100 | 202 | time to build an N pool before N limits |
-| `estinterval` | 5 | 5 | counted in growing seasons, not absolute time |
+| `nyear_spinup` | 500 | up | time to reach steady state |
+| `distinterval` | 100 | up | disturbance return time |
+| `freenyears` | 100 | up | time to build an N pool before N limits |
+| `estinterval` | 5 | no | counted in growing seasons, not absolute time |
 
 Slow soil carbon does not need integrating for all of that: `ifcentury 1` solves
 the equilibrium pool sizes analytically, accumulating running means between 70%
