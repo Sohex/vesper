@@ -424,6 +424,15 @@ Loess and pavement move in opposite directions across it, which is the continuum
 falling out rather than being imposed: they are one threshold read from two sides.
 The smooth end buries the clast mosaics and the rough end leaves them everywhere.
 
+**The strandline band is checked against hydrography's own hypsometry**, because
+it rested on an unstated assumption: that `regions.nc`'s `filled_km` and
+`basins.nc`'s `level_km` and `spill_km` share a datum. Two independent routes to
+the same area settle it. Summing `cell_area` over regions inside the band gives
+1.472e7 km2 against 1.502e7 from `area_at_spill_km2` less the lake area, over 871
+alternating basins: a ratio of 0.980, with a median of 0.980 per basin and four
+basins returning an empty band against a positive expectation, which is mesh
+granularity at 230 km2 per region against a thin annulus.
+
 **Which silcrete setting fired is recorded, and that answers the open question
 about them.** Pan margin covers 4.64% of land and drainage line 0.75%. The two are
 distinguishable as SETTINGS and are kept apart in a bitmask; their products are
