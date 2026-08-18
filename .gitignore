@@ -114,3 +114,7 @@ references/ecospeclib*/
 # climatology exists. The JSON report beside them IS tracked: it carries the
 # numbers, the brackets and the provenance, and it is kilobytes.
 aeolian/analysis/*.nc
+
+# Agent worktrees. Created by the harness under .claude/, one per parallel agent;
+# each is a git worktree of this repo and must never be committed into it.
+.claude/worktrees/
