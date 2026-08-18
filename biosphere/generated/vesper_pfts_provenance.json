@@ -1,8 +1,8 @@
 {
-  "generated": "2026-08-18T02:00:40+00:00",
+  "generated": "2026-08-18T08:01:19+00:00",
   "source": "/home/cfutro/git/lpj-guess/guess_4.1/data/ins/global.ins",
   "source_sha256": "4daa4358a1f2de730601ac64ce3a64e54821838de20f9391ac07f649fefb90d8",
-  "config_sha256": "8ee3ec210e51067cf06acba61aeeac1a6fd85f84584a5cc46c383b320818d729",
+  "config_sha256": "5736dfdf32e15535a671451a1ef6875277cc33b351dce602413dc7dc6f1d2c77",
   "source_config": {
     "schema_version": 1,
     "source_build": "precarve-craton",
@@ -69,6 +69,8 @@
       "ozone_scale": 0.794,
       "ozone_uv_weight": 0.335,
       "ozone_visible_weight": 0.914,
+      "h2o_sw_weight": 1.346,
+      "co2_sw_weight": 1.51,
       "roughness_source": "lithology",
       "soil_water_source": "pedology",
       "land_albedo_source": "vegetated",
@@ -103,7 +105,6 @@
       "alignment_recurrence_earth_years": 314
     }
   },
-  "source_config_added": "recorded after the fact, and only valid because config_sha256 above still matched config/planet.yaml byte for byte: these are the parsed values the generator saw. Later records carry it from the generator.",
   "orbital_year_earth_days": 182.80142503147016,
   "earth_year_days": 365.2568983,
   "scale_factor": 0.5004735732090899,
@@ -189,7 +190,7 @@
       "direction": "up, a duration in years"
     }
   ],
-  "output_sha256": "93d5e656148f273505590ce04f9b763e5664672a62fab2f33ceafaa5c253036a",
-  "git_commit": "d9ecc336d030c8677b62f104645a6994324ee17e",
+  "output_sha256": "9a144e5198d757e54b58e2eb3ff384b5070f37c5c6635bd3f371b21149b7630e",
+  "git_commit": "44f4dc7b69a49b8b3fd456b657191f4b5bfbe28c",
   "generator": "biosphere/scripts/build_vesper_pfts.py"
 }
