@@ -21,6 +21,8 @@ executable="most_plasim_t42_l10_p16.x"
 #   + rayleigh-reference-grid     (SPEC-2; radmod)
 #   + h2o-shortwave-weight        (PHYS-1; radmod)
 #   + co2-shortwave               (PHYS-6; radmod)
+#   + aerosol-apart               (DUST-3 item 1; radmod and aeromod)
+#   + aerosol-longwave            (DUST-3 item 5; radmod)
 #                                 -> the sha below
 #
 # Regenerated twice on 2026-08-17, the first time because hunk 2 FAILED outright,
@@ -35,11 +37,23 @@ executable="most_plasim_t42_l10_p16.x"
 # regenerated anyway rather than re-pinned alone, because a hunk header that no
 # longer names the line it patches is how a patch starts applying somewhere else.
 #
+# Regenerated a third time on 2026-08-18 for the two DUST-3 radiation patches,
+# and this one was NOT cosmetic: aerosol-apart deletes the dead `aero_nl`
+# declaration in radini, which was the trailing CONTEXT of the cycle patch's
+# namelist hunk, and aerosol-longwave adds a key to the radmod_nl line that hunk
+# edits. Re-pinning alone would have left a patch that cannot apply.
+#
+# THE LAST THREE ARE STILL IN `PENDING_PATCHES`, so this sha names a radmod.f90
+# the vendored tree does not hold yet and the check below will refuse to run
+# until the next rebuild applies them. That is the check working, not failing: a
+# cycle binary built on a source three patches behind the steady one is a pair of
+# binaries that cannot be compared. Run rebuild_binaries.py first.
+#
 # If anything else lands on radmod.f90 this sha moves again and this patch has
 # to be regenerated against the new base. That is not a nuisance to be worked
 # around -- it is the check that stops us building a cycle binary on a source we
 # have not looked at.
-base_sha="11e9fad6a006c5a88f0d9568dae400a350e87730f151ec6976b126dccb44f12a"
+base_sha="f1038096a758bbcaaaa5ee4c24f5c1807e8b616997cfb1f0c78a0e3dfd079d78"
 
 if [[ ! -f "$source_file" || ! -f "$run_dir/$executable" || ! -d "$bin_dir" ]]; then
   echo "ExoPlaSim 3.4.2 source or baseline executable is missing" >&2

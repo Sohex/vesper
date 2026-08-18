@@ -1,10 +1,24 @@
 {
  "note": "Provenance for the aerofile ExoPlaSim's radmod.f90 reads. Qext is a dimensionless efficiency against the geometric cross section of one sphere of radius apart, NOT a mass efficiency; see exoplasim/scripts/dust_aerofile.py for the conversion.",
- "generated": "2026-08-18T04:02:19.939328+00:00",
- "apart_m": 9.805443642153261e-07,
+ "generated": "2026-08-18T08:47:07.156958+00:00",
+ "apart_m": 2.2068235634415437e-06,
  "rhop_kg_m3": 2600.0,
- "apart_note": "Effective (area-weighted) radius of the optics lognormal, r_mod exp(2.5 ln^2 sigma). Optically right and mass-weighted WRONG: the emitted volume-median diameter is 3.4 um, so a single mode here settles too slowly. DUST-8.",
+ "apart_note": "BURDEN-MATCHED settling radius: the single mode whose Stokes velocity is the harmonic mass mean of the Kok (2011) emitted bins. Chosen over the optically weighted radius because the optics do not constrain apart at all -- only Qext/apart enters the optical depth -- while settling does. DUST-8.",
+ "optical_radius_m": 9.805443642153261e-07,
+ "q_scale_from_optical_radius": 2.250610624035904,
+ "burden_matched_settling_velocity_m_s": 0.0020920963042126936,
+ "settling_reference_state": {
+  "temperature_k": 288.0,
+  "air_density_kg_m3": 1.15,
+  "gravity_m_s2": 12.81,
+  "note": "The state the two radii are compared at, not a claim about the atmosphere. Gravity cancels exactly and the reference state cancels to first order, because the per-bin velocities and the inversion use the same one."
+ },
+ "namelist_values": {
+  "APART": 2.2068235634415437e-06,
+  "RHOP": 2600.0
+ },
  "source_optics": "analysis/dust_optics.json",
+ "source_dust_config": "aeolian/config/dust.yaml",
  "stellar_flux_fraction_band1": 0.3844,
  "bands": [
   {
@@ -15,10 +29,11 @@
     0.75
    ],
    "mee_m2_kg": 779.4,
-   "qext": 2.649352428560674,
-   "qsca": 2.5608640574467474,
-   "qback": 0.3872026454859482,
-   "g": 0.6975
+   "qext": 5.962660722533975,
+   "qsca": 5.7635078544013405,
+   "qback": 0.8714423875854826,
+   "g": 0.6975,
+   "qext_at_optical_radius": 2.649352428560674
   },
   {
    "band": "band 2",
@@ -28,15 +43,16 @@
     4.0
    ],
    "mee_m2_kg": 766.9,
-   "qext": 2.6068621727780097,
-   "qsca": 2.5416906184585595,
-   "qback": 0.40107877959276067,
-   "g": 0.6844
+   "qext": 5.867031701451508,
+   "qsca": 5.72035590891522,
+   "qback": 0.9026721624268217,
+   "g": 0.6844,
+   "qext_at_optical_radius": 2.6068621727780097
   }
  ],
  "effective_mass_extinction_efficiency_m2_kg": 771.7049999999999,
- "upstream_defects_assumed_fixed": [
-  "radmod's apart is never populated from the namelist and stays 50e-9, which would make optical depth 0.00260x this file's intent.",
-  "aerocore.f90:1156 computes sphere volume with an integer (4/3), so number density is 33% high and optical depth with it."
+ "upstream_patches_assumed_applied": [
+  "exoplasim-3.4.2-aerosol-apart.patch, without which radmod keeps its 50e-9 default and optical depth is 0.000513x this file's intent.",
+  "exoplasim-3.4.2-aerocore-defects.patch, without which the integer (4/3) in mmr2n makes number density 33% high and optical depth with it."
  ]
 }
