@@ -34,6 +34,54 @@ pavement it is a *suppressor* of emission and a store of deposited dust, so it
 enters the dust model with the opposite sign and enters the phosphorus budget as
 a sink rather than a source.
 
+**Where the clasts come from, read 2026-08-18.** McFadden, Wells and Jercinovich
+(1987) is the paper that proposed the model Wells (1995) later tested with
+cosmogenic 3He, and it is the source for the clast-supply half of the rule. It
+gives no threshold and it does give the mechanism, and both facts matter here.
+
+p. 504: *"The source of the clasts in the pavements is mechanically weathered
+basaltic bedrock derived from topographic highs."* Eolian fines wedge into
+fractures in the bedrock, wetting and drying of those fines displaces clasts
+laterally and vertically, and the freed clasts colluviate into the silt-filled
+topographic lows where the pavement itself forms over an accretionary mantle. So
+the substrate condition the classifier applies, consolidated bedrock rather than
+basin fill, is the paper's own statement of the clast source. What the paper does
+not supply is a clast flux, a minimum outcrop fraction, or any other number, and
+that absence is quoted here rather than filled: `grounding` for this criterion is
+sourced-negative, on the same standing as the placer rules in the minerals layer.
+
+Three further things follow from the same paper.
+
+The bedrock high and the depression it feeds are the SAME CELL at 15.19 km, so
+testing the substrate under the pavement is right at this resolution. It would be
+wrong at a resolution that separated them, because the pavement does not sit on
+the bedrock that supplies it.
+
+The supply is EXHAUSTIBLE and this rule cannot see that. p. 505: *"no new clasts
+are added to pavements once the bedrock topographic highs are reduced by erosion
+and buried by eolian sediments"*, with the clast source area at Cima
+significantly reduced on flows older than 0.4 Ma. A rule keyed on present
+substrate treats supply as permanent, so the pavement area is an upper bound on
+any surface old enough to have worn its highs down. This world has no time axis
+to fix that with (`notes/no-time-axis.md`), so it is a stated bound and not a
+gap to close.
+
+The UPPER BOUND ON DEPOSITION is now sourced, where it previously rested on Muhs'
+trapping argument alone. p. 505: *"Moderate eolian depositional rates are
+apparently critical for maintaining clasts at the land surface"*, and on rough
+flow surfaces *"high rates of loess deposition precluded development of a soil,
+and the preexisting pavement was buried"*. The number is still the loess
+threshold and is still declared; what McFadden supplies is that the bound exists
+and which way it points, which is exactly the pavement-loess continuum the design
+suspected.
+
+The same mechanism makes dust NECESSARY rather than merely tolerated: the Av
+horizon is what lifts the clasts and holds them at the surface, so a surface
+receiving no dust maintains no pavement. No source gives a minimum rate, and the
+classifier carries no lower bound, because a strict-positivity guard on a
+continuous deposition field is a rule that can never fire, which this file's own
+audit calls a bug in its own right.
+
 **Silcrete gets no climatic threshold, and that is not a reason to drop it.**
 Fenske et al. (2025) state that climatic calibration "will not provide duricrust
 formation boundaries" for silcrete, because it forms across a broad range of
@@ -127,9 +175,9 @@ Ordered by what physically sits on top, most recent deposit first.
    has is the trapping argument above, which is the load-bearing half.
 3. **`diatomite`** -- lacustrine silica from a lake that was persistent and
    productive and has since desiccated. See below; this is the interesting one.
-4. **`pavement`** -- clast supply from a coarse or stony substrate, plus aridity,
-   plus net dust deposition slow enough not to bury the mosaic. Suppresses
-   emission and stores deposited dust.
+4. **`pavement`** -- clast supply from a consolidated bedrock substrate rather
+   than basin fill, plus aridity, plus net dust deposition slow enough not to
+   bury the mosaic. Suppresses emission and stores deposited dust.
 5. **`bare`** / **`soil`** -- the fallback pair, split on whether the biosphere
    holds the surface. Already effectively present via the albedo work.
 
@@ -490,7 +538,12 @@ strandline IS playa, and calling it diatomite is what the class is for.
 
   What a closed basin needs instead is a **fate** model, and that composes with
   Table 2C exactly. See the section below.
-- **Pavement clast-supply criterion.** Still undetermined. Coarse substrate is
-  necessary and the read sources give no threshold, so the classifier stands in
-  "a consolidated bedrock substrate rather than basin fill" and declares it as a
-  stand-in. That is the weakest rule in the file.
+- **Pavement clast-supply criterion.** RESOLVED as sourced-negative, on McFadden,
+  Wells and Jercinovich (1987), read 2026-08-18. The criterion itself is the
+  paper's: the clasts are mechanically weathered bedrock from topographic highs,
+  so consolidated bedrock rather than basin fill is the source condition and no
+  longer a stand-in for one. The THRESHOLD does not exist in that literature and
+  is not invented; the same paper also sources the upper bound on deposition,
+  which had been carried on Muhs alone, and states that the clast supply runs out
+  once the highs are worn down, which this rule cannot see. See the pavement
+  section above for the quotations.

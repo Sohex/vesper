@@ -319,27 +319,103 @@ brines:
     minimum_k_percentile: 75.0
     require_no_overflow: true
 
+  # LITHIUM AND BORATE SHARE A HOST SET, AND THAT IS THE SOURCED PART.
+  # Neither element is among Meybeck's eight species, so neither can be derived
+  # from the chemical divide the way soda and gypsum are, and no per-lithology Li
+  # or B release table exists to derive them from instead. What the literature
+  # does settle, and settles for both elements at once, is WHICH ROCK the two
+  # come from and that ordinary weathering is enough to move them. Sourced
+  # 2026-08-18; the argument and its evidence are in `notes/economic-minerals.md`
+  # and the papers are in `references/INDEX.md`.
+  #
+  # Risacher and Fritz (2009) section 3.5, on Bolivian and Chilean salars, is the
+  # test that could have failed. Li and B are generally enriched in thermal
+  # waters, 60% of Bolivian and 78% of Chilean groundwaters sampled carry a
+  # thermal influence, and neither element's concentration rises with water
+  # temperature: "hydrothermal alteration is not specifically responsible for the
+  # high content of Li and B in waters and brines of Andean salars. Both
+  # components originate from the alteration of volcanic rocks, especially
+  # ignimbrites because of their rapid alteration and weathering." Risacher et
+  # al. (2003) section 7.7 reaches the same conclusion from the Chilean half.
+  #
+  # So the hydrothermal flux this pipeline cannot place is NOT required for the
+  # Andean type, which is the world's principal Li brine and Quaternary borate
+  # province. It IS required for the Anatolian borate type, where Helvaci (2019)
+  # attributes the boron to thermal springs circulating through the same fertile
+  # rocks; that type is not placeable here and saying so is the honest form.
+  #
+  # The fertile rock is the EVOLVED, GLASSY, HIGH-SILICA end, and it carries both
+  # elements together. Floyd et al. (1998), quoted by Helvaci (2019): fertile
+  # ignimbrites are "well-evolved and fractionated ... with a high-silica
+  # rhyolitic bulk composition, exhibit a combined high content of B, As, F, Li
+  # and Pb". Hence one host set for both rules rather than two, and hence no
+  # `arc_basalt`: an island-arc basalt is the wrong end of the differentiation
+  # series for either element. Plutonic classes sit at half weight because the
+  # readily leachable phase is glass rather than crystal -- Hofstra et al. (2013),
+  # via Munk et al. (2016), find fluid inclusions in quartz phenocrysts of
+  # high-silica volcanics elevated in Li relative to their vitric matrices, and
+  # Wolff-Boenisch et al. (2004), already read here, gives the glass-over-crystal
+  # dissolution contrast that makes the same rock a different material.
+  #
+  # WHAT IS SOURCED-NEGATIVE is the release coefficient, and the canonical review
+  # says so rather than merely omitting it. Munk et al. (2016) on Li sources:
+  # "Despite the observation that multiple potential sources of Li exist they are
+  # yet to be definitively identified and quantified", and the direct
+  # measurements straddle orders of magnitude -- Price et al. (2000) conclude
+  # groundwater leaching of volcanic tuffs alone accounts for all the Li at
+  # Clayton Valley, while Jochens and Munk (2011) measured under 10 ug/L released
+  # from those same rocks at ambient conditions. Huh et al. (1998) is the nearest
+  # thing to a Meybeck table 2C for Li and is not one either: it groups by terrain
+  # rather than rock class and its high end is marine limestone and evaporite
+  # drainage, which is recycled evaporite Li and not release from fresh rock.
+  # A release number entered here would be invented and quoted back as sourced.
+  #
+  # Read these rules as "the setting is the one Earth's deposits occupy", which
+  # is what the minerals layer claims everywhere, and not as a modelled yield.
   brine_lithium:
     name: Lithium brine
-    grounding: declared
-    # WEAK, and weaker than every other entry in this file. Lithium is NOT one of
-    # Meybeck's eight species, so unlike soda and gypsum it cannot be derived
-    # from the divide at all. What stands in is the geological association:
-    # economic Li brines are fed by catchments draining silicic volcanic rock and
-    # its ash, so the rule is the silicic volcanic share of the catchment.
+    grounding: sourced-negative
+    # Munk et al. (2016) give six characteristics common to continental Li
+    # brines: arid climate, closed basin with a salar or salt lake, associated
+    # igneous or hydrothermal activity, tectonically driven subsidence, a
+    # suitable Li source, and time to concentrate. This rule places the first,
+    # the second and the fifth; subsidence and elapsed time are not fields this
+    # pipeline has, and the third is not required per Risacher and Fritz above.
     #
-    # That is an association, not a mechanism this pipeline models, and it should
-    # be read as "the setting resembles the Earth ones" and nothing stronger.
+    # The source gate is NECESSARY rather than decorative, which Munk's own
+    # negative case establishes: the closed basins of the Yilgarn craton have the
+    # arid climate and the hydrology and almost no lithium, most brines under
+    # 0.5 mg/L, and "significant Li brine accumulations have not been reported
+    # from intracratonic basins in arid regions". A cratonic catchment with the
+    # right climate does not make a Li brine, so excluding shield lithologies
+    # here is the sourced part of the rule and not an incidental omission.
     catchment_hosts: {arc_andesite: 1.0, rift_bimodal: 1.0, granite: 0.5, granodiorite: 0.5}
+    # `require_no_overflow` is sourced too, and this is the one term here that a
+    # source states as a mechanism rather than an association. Bradley et al.
+    # (2013): "The single most important factor determining if a nonmarine basin
+    # can accumulate lithium brine is whether or not the basin is closed", and
+    # if precipitation rises enough "lake water will overtop some point along the
+    # drainage divide and drain away, carrying with it any dissolved lithium".
+    # That is the lake solver's own spill test, so the gate is the same predicate
+    # the hydrography already computes rather than a rule invented for this file.
     require_no_overflow: true
 
   brine_borate:
     name: Borate
-    grounding: declared
-    # WEAK, for the same reason: boron is not in table 2C either. Earth's borate
-    # basins sit downstream of arc volcanism and take much of their boron from
-    # hydrothermal and fumarolic input rather than from ordinary weathering, and
-    # this project models no hydrothermal input at all. The rule is the arc
-    # volcanic share of the catchment and it is an association only.
-    catchment_hosts: {arc_andesite: 1.0, arc_basalt: 1.0}
+    grounding: sourced-negative
+    # Same host set, on Risacher and Fritz's "Li and B ... especially
+    # ignimbrites" and Floyd's combined B-Li enrichment in the same fertile
+    # rocks. It previously read {arc_andesite: 1.0, arc_basalt: 1.0}, which had
+    # boron coming out of island-arc basalt; Helvaci (2019) puts the source at
+    # "andesitic to rhyolitic volcanics" and the fertile end at high-silica
+    # rhyolitic ignimbrite, so the basalt weight was against the evidence.
+    #
+    # NO BRINE PATH IS REQUIRED, and that is deliberate rather than an omission.
+    # Helvaci gives lake water at pH 8.5 to 11 among the essential conditions for
+    # the Anatolian sodium-borate deposits, which would read as this project's
+    # alkaline path. Requiring it would delete the Andean borates, which are
+    # mined from salars that Risacher et al. (2003) classify as sulfate-rich and
+    # calcium-rich rather than alkaline. Two deposit types, one class here, so
+    # the narrower gate would be wrong for half of what the class covers.
+    catchment_hosts: {arc_andesite: 1.0, rift_bimodal: 1.0, granite: 0.5, granodiorite: 0.5}
     require_no_overflow: true

@@ -113,11 +113,45 @@ surface_cover:
     # substrate rather than basin fill; aridity, at the same desert boundary the
     # rest of this file uses; and deposition slow enough not to bury the mosaic,
     # which is the loess threshold read the other way. The last is what makes
-    # pavement and loess one continuum rather than two classes with a gap, which
-    # is what the design suspected and what Muhs' trapping argument supports.
+    # pavement and loess one continuum rather than two classes with a gap.
     #
-    # The clast-supply criterion has NO source: the read literature does not give
-    # a threshold, so "consolidated bedrock" stands in for it and is declared.
+    # CLAST SUPPLY IS SOURCED-NEGATIVE, not declared. McFadden, Wells and
+    # Jercinovich (1987), read 2026-08-18, is the paper that proposes the model
+    # Wells (1995) later tested, and it names the source of the clasts and gives
+    # no threshold for it. p. 504: "The source of the clasts in the pavements is
+    # mechanically weathered basaltic bedrock derived from topographic highs."
+    # Clasts are detached from bedrock as eolian fines wedge into its fractures,
+    # then colluviate into the silt-filled lows where the pavement itself forms.
+    # So "consolidated bedrock rather than basin fill" is the paper's own
+    # statement of the source and is no longer a stand-in for one; what does not
+    # exist is a clast flux, a minimum outcrop fraction, or any other number, and
+    # a threshold invented here would be quoted back later as sourced.
+    #
+    # The high and the low are the SAME CELL at 15.19 km, so the co-located test
+    # is right at this resolution. It would not be at a resolution that separated
+    # a bedrock high from the depression it feeds.
+    #
+    # THE SUPPLY IS EXHAUSTIBLE and this rule cannot see that. McFadden p. 505:
+    # "no new clasts are added to pavements once the bedrock topographic highs
+    # are reduced by erosion and buried by eolian sediments", with the source
+    # area for clasts significantly reduced on Cima flows older than 0.4 Ma. A
+    # rule keyed on present substrate treats supply as permanent, so pavement
+    # here is an upper bound on a surface old enough to have worn its highs down.
+    #
+    # THE UPPER BOUND ON DEPOSITION IS NOW SOURCED, and it was previously carried
+    # on Muhs' trapping argument alone. McFadden p. 505: "Moderate eolian
+    # depositional rates are apparently critical for maintaining clasts at the
+    # land surface", and on rough flow surfaces "high rates of loess deposition
+    # precluded development of a soil, and the preexisting pavement was buried".
+    # The NUMBER is still the loess threshold and is still declared; what the
+    # paper supplies is that the bound exists and which way it points.
+    #
+    # DUST IS NECESSARY AND THE RULE CARRIES NO LOWER BOUND, deliberately. The
+    # mechanism is accretion: the Av horizon lifts the clasts and keeps them at
+    # the surface, so a surface receiving no dust maintains no pavement. No
+    # source gives a minimum rate, and a strict-positivity guard would be a rule
+    # that can never fire on a continuous deposition field, which the audit at
+    # the foot of this file calls a bug in its own right.
     maximum_precipitation_mm_yr: 250.0
 
   bare:
