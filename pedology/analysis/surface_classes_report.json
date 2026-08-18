@@ -1,5 +1,5 @@
 {
-  "generated": "2026-08-18T04:15:12+00:00",
+  "generated": "2026-08-18T04:16:43+00:00",
   "generator": "pedology/scripts/build_surface_classes.py",
   "source_build": "precarve-craton",
   "terrain_hash": "e931b0d9947a232210a3cc11ba82003b5da15765d86e87956bc44c220932760e",
@@ -9,7 +9,7 @@
   "dust_bracket_end": "central",
   "brine_paths": "pedology/analysis/brine_paths.json",
   "rules_sha256": "f6580bad9c23409283f9cb75d1aa5d54decddce542fa54cc71cc4ff772b8f40c",
-  "git_commit": "fb7672e63b4cbda8bce15f7a4ff7bdd2bebe9eb3",
+  "git_commit": "2fa4865fae067e965b0c1018d3d9fc3b91e4568e",
   "land_area_km2": 317310405.2316623,
   "surface_cover_land_fractions": {
     "water": 0.1258496373180682,

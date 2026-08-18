@@ -261,6 +261,28 @@ def main() -> None:
     dust = args.dust or (PROJECT_ROOT / "aeolian" / "analysis"
                          / "dust_baseline.nc")
     require_build(dust, "dust field", config)
+    # `require_build` looks for `vesper_source_build` and the dust product stamps
+    # a bare `source_build`, so the call above can only warn. Check the attribute
+    # the file actually carries as well, and REFUSE on a mismatch.
+    #
+    # This is the weakest link in the chain for a re-run after the carve. The
+    # climatology is checked, the lake solution and the drainage are namespaced
+    # per build so the wrong one is not at the path at all, and `brine_paths.json`
+    # states its build. The dust field is the only input that lives at a fixed
+    # path with no build in it, so it is the one that would be silently
+    # inherited from the previous terrain. REF-8 is the proper fix, upstream.
+    with nc.Dataset(dust) as ds:
+        stamped = getattr(ds, "source_build", None)
+    if stamped is not None and stamped != build:
+        raise SystemExit(
+            f"{rel(dust)} was built on {stamped!r} and this is {build!r}. It "
+            "lives at a fixed path with no build in it, so re-running "
+            "aeolian/scripts/build_dust.py is what makes it current; there is "
+            "no per-build copy to fall back to.")
+    if stamped is None:
+        print(f"  warning: {rel(dust)} stamps no build under either "
+              "`vesper_source_build` or `source_build`, so it is being trusted "
+              "on its filename")
 
     brine_path = args.brine or (ANALYSIS / "brine_paths.json")
     if not brine_path.is_file():
