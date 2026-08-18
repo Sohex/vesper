@@ -592,3 +592,44 @@ cannot say in advance what result would mean the thing is wrong, you have not
 built a test -- you have built a number that will later be quoted as though you
 had.
 
+## 18. A transfer that moves the wrong element count, while its counter survives
+
+Found 2026-08-17, and it is the mechanism behind class 14 rather than another
+instance of it. The evidence is in `exoplasim/notes/first-output-bin.md`.
+
+PlaSim saves six SPECTRAL output accumulators through `mpputgp`/`mpgetgp`, which
+declare their dummy argument `pp(NHOR,klev)`. Fortran reinterprets the
+`(NESP,NLEV)` array against that shape and moves `NHOR*NLEV` elements, so at
+T42/L10/p16 5,120 of 19,040 elements cross the restart and everything below model
+level three comes back as zero. The counter that divides them, `naccuout`, is a
+scalar and survives INTACT.
+
+That combination is what makes it a class of its own:
+
+- **The counter being right is what hides it.** Class 13's lesson was that state
+  living in the checkpoint drifts from state living in the inputs, so the counter
+  is where suspicion goes first. Here the counter is correct and the DATA is
+  short, which is the same symptom with the opposite cause. This project flagged
+  `naccuout` as the obvious candidate and was wrong to.
+- **The vertical structure is the tell.** A counter error scales a field
+  uniformly. A truncated transfer damages the elements past the cut and leaves
+  the rest exact, so the error has a boundary in it -- here, clean above model
+  level three and wrong below. Whenever a defect has structure a scalar cannot
+  produce, the scalar is not the cause.
+- **No language error is available to catch it.** The call compiles, runs and
+  reports nothing; only the shapes disagree, and Fortran is content to
+  reinterpret them. Nothing short of reading the routine's declaration finds it.
+
+The general form: **when a quantity is restored across a boundary together with
+the count of what it accumulates, the two can disagree, and the one that looks
+authoritative is the one that survived unharmed.** Check the transferred SIZE
+against the declared shape at every such call, not the value at the far end.
+
+What made it provable rather than plausible was that the deficit is a pure ratio
+and predicts numbers in advance: the surviving coefficients must show no anomaly
+and the truncated ones must all show the same one, a different run length must
+give a different constant, and the wind error must be a level-independent
+`cos(phi)` solid body whose amplitude follows from `plavor`, the rotation rate
+and the radius with nothing fitted. All four were stated first and then measured.
+Class 17 is what turned a diagnosis into a mechanism.
+
