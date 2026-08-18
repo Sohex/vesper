@@ -426,6 +426,46 @@ reads that namelist with `l_aerorad` and `aerofile` use-associated from `radmod`
 and `Model.configure` writes every field of it. The real limitation is narrower
 and worse: the aerosol acts in the two shortwave bands only.
 
+### Does dust change the carve verdict? Globally no, locally yes
+
+Worth settling, because "dust is a radiation question, the carve is a water
+question" is an easy assumption and it is wrong.
+
+The global mean is negligible. +0.74 W/m2 against this project's own slope of
+150.2 K per unit flux ratio is **+0.35 K**, which moves nothing.
+
+The local forcing is not negligible, and it lands in exactly the wrong place.
+Dust warms the bright closed-basin fill: **+8.2 W/m2 over playa and +10.8 over
+salt crust**, up to +3.9 and +5.0 K if those acted globally, and less than that in
+practice because circulation exports the heat. Those are the surfaces whose
+open-water evaporation the overflow test is decided on.
+
+And the verdict is sensitive to exactly that. From the current carve list, the
+number of overflowing basins that stop overflowing if lake evaporation rises:
+
+| lake evaporation | basins that close | of 1,610 overflowing |
+| ---: | ---: | ---: |
+| +5% | 84 | 5% |
+| +10% | 144 | 9% |
+| +15% | 196 | 12% |
+| +20% | 235 | 15% |
+
+A few kelvin over a lake surface is worth more than 10% on Penman through the
+saturation vapour pressure alone, so **dust plausibly closes 100 to 250 basins**
+that the dust-free verdict carves.
+
+**The direction is the interesting part, because it opposes the other correction
+we know about.** `WORKFLOW.md` A2 says the stellar cycle makes a mean-climate
+verdict UNDER-carve, because carving is irreversible and the wet extreme
+ratchets. Dust pushes the other way: it warms the basins, raises their
+evaporation, and makes them less likely to overflow at all. Neither is a reason
+to skip the other, and nothing here says they are the same size.
+
+None of this changes the decision to put dust in the model after the carve rather
+than before. It changes the REASON: not that dust is irrelevant to the terrain,
+but that the pipeline is a loop and this is one more thing iteration 3 will
+revise. Do not record the iteration-2 carve list as dust-independent.
+
 **The Generic PCM is still out, but not for the reason given above.** That reason
 was that the trade is not worth making "for a term whose sign is settled" -- and
 the term is no longer small, so it no longer applies. The reason it is out now is

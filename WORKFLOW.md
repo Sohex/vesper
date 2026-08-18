@@ -663,6 +663,15 @@ carve, because its driver is built from a climatology and a soil the carve
 replaces. After the re-baseline, on final terrain, where its output can be
 adopted deliberately in the iteration after that.
 
+**A4. Dust is not carve-neutral, and the global mean hides it.** Interactive
+dust belongs after the carve, but not because it leaves the terrain alone. Its
+global-mean forcing is +0.35 K and negligible; its LOCAL forcing is +8 to +11
+W/m2 over playa and salt crust, which are the surfaces whose evaporation decides
+the overflow test. A 10 to 20% rise in lake evaporation closes 144 to 235 of the
+1,610 overflowing basins. So dust makes a verdict OVER-carve, in the opposite
+direction to the stellar cycle in A2, and the iteration-2 carve list should not
+be recorded as dust-independent. `notes/dust.md` carries the numbers.
+
 **B. The soil and biosphere loop, at T42.** For a given climate:
 
 1. `pedology/scripts/build_soil.py`, with no biosphere on the first pass.
