@@ -1,5 +1,5 @@
 {
-  "generated": "2026-08-18T07:58:56+00:00",
+  "generated": "2026-08-18T07:59:50+00:00",
   "generator": "minerals/scripts/build_downstream_prospectivity.py",
   "source_build": "precarve-craton",
   "terrain_hash": "e931b0d9947a232210a3cc11ba82003b5da15765d86e87956bc44c220932760e",
@@ -7,8 +7,8 @@
   "climatology_sha256": "60efe80f6901b14b5317f3177e66b4bb421a5cc913077f2075b259f24c651196",
   "tectonic_field": "minerals/data/precarve-craton/prospectivity.nc",
   "brine_paths": "pedology/analysis/brine_paths.json",
-  "config_sha256": "71a4e146b676cc6b26d7bb21d78c3012a12c4677db6b1c1cae7b36a86f742ac7",
-  "git_commit": "a52b627da48cdf19925210580d5b8e341ef9ac03",
+  "config_sha256": "94baec6fe0169384ac625504cf6d33f8bd0d43a437dddb545841c0169ea25e2b",
+  "git_commit": "e107ffb7488a927b37ff26ec0b97843f201ee770",
   "deposits": {
     "bauxite": {
       "name": "Bauxite",
@@ -59,15 +59,8 @@
       "land_fraction_above_half": 0.011119545312086065,
       "mean_over_land": 0.007925353880537903
     },
-    "brine_lithium": {
-      "name": "Lithium brine",
-      "grounding": "sourced-negative",
-      "land_fraction_nonzero": 0.0961750116766164,
-      "land_fraction_above_half": 0.002372216364702077,
-      "mean_over_land": 0.01449049943767585
-    },
-    "brine_borate": {
-      "name": "Borate",
+    "brine_lithium_borate": {
+      "name": "Lithium-borate brine",
       "grounding": "sourced-negative",
       "land_fraction_nonzero": 0.0961750116766164,
       "land_fraction_above_half": 0.002372216364702077,
