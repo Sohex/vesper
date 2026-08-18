@@ -285,36 +285,21 @@ Sequence, and none of it is optional: apply, rebuild every binary, re-run the
 baseline, re-derive the flux, then re-run again at the new flux. The carve list
 taken on the current climatology is downstream of all of it.
 
-## CO2: there is nothing to re-weight, and that is the finding
+## CO2: there is nothing to re-weight, and that is why it is a separate note
 
-`TASKS.md` PHYS-1 asks for the CO2 shortwave absorptance to be re-weighted the
+`TASKS.md` PHYS-1 asked for the CO2 shortwave absorptance to be re-weighted the
 same way. **ExoPlaSim has no shortwave CO2 absorptance at all.** `radmod.f90`
 carries CO2 only in `lwr`, from Sasamori (1968); `swr` has ozone in band 1 and
 water vapour in band 2 and nothing else. Lacis and Hansen did not parameterise it
-either, so this is faithful to the scheme rather than a bug in the port.
+either, so this is faithful to the scheme rather than a bug in the port, and it
+cannot be closed with a weight.
 
-What its absence is worth, from the same Howard band data and charging CO2 only
-with what water vapour leaves it -- Yamamoto drops the 2.7 um CO2 band outright
-"because of overlapping by the strong 2.7 um H2O band", and the same correction
-is applied here to every band rather than to one:
-
-| | absorptance | W/m2 |
-| --- | ---: | ---: |
-| solar-weighted, Earth's incident flux | 0.00516 | 1.75 |
-| this star, this planet's column at 12.81 m/s2 | 0.00779 | 2.50 |
-
-The solar number is the check: 1.75 W/m2 is inside the 1.5 to 2.5 W/m2 that
-Earth's near-infrared CO2 solar absorption is measured at, which is a quantity
-this derivation did not choose. So the machinery is right and the number for this
-star follows: **about 2.5 W/m2 of atmospheric shortwave absorption is missing,
-the same sign as the water vapour correction and about a sixth of its size.**
-
-The 2.0 and 1.6 um bands carry it, because those sit in water vapour windows. The
-gravity term matters: at 12.81 m/s2 the CO2 column is 179 atmos-cm against
-Earth's 234 at the same mixing ratio, so this planet has 24% less CO2 above it
-per unit surface pressure.
-
-Adding a shortwave CO2 term is a new absorber in the radiative transfer rather
-than a re-weighting of an existing one -- a new namelist key, a new column
-integral, a new transmissivity term in band 2, and a decision about the water
-vapour overlap. It is a separate task and it is not in the patch.
+Adding it is a NEW ABSORBER: a namelist key, a column integral, a closed form, a
+transmissivity term in band 2, and a decision about the water vapour overlap.
+That work is PHYS-6, the patch is
+`exoplasim/patches/exoplasim-3.4.2-co2-shortwave.patch`, and the derivation,
+the overlap decision, the check it had to pass and its own prediction are in
+**`exoplasim/notes/shortwave-co2.md`**. The one thing worth carrying here: the
+CO2 correction has the SAME SIGN as this one and is about a sixth of its size,
+so the two compound, and the flux re-derivation above has to be done with both
+of them on.

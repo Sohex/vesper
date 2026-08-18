@@ -466,11 +466,46 @@ chromosphere contributes nothing.
 Both default to 1.0 upstream, which reproduces Lacis & Hansen exactly, so the
 patch leaves any solar-host run bit-identical.
 
-The same argument applies to the water vapour absorptance, which is the larger
-term by a factor of ten, and the weight for it is derived in
-`exoplasim/notes/shortwave-water-vapour.md`. It is not a setting here yet: it
-takes effect only through a patch to `radmod.f90` that has to be applied with a
-full binary rebuild, so the value lives with its derivation until that lands.
+The same argument applies to water vapour and to CO2, and those are
+`h2o_sw_weight` and `co2_sw_weight` below.
+
+## `h2o_sw_weight`
+
+```
+h2o_sw_weight: 1.346
+```
+
+The same spectral re-weighting in the term that is ten times larger than ozone's.
+Lacis & Hansen's water vapour absorptance is their Eq. 21, a fit to Yamamoto
+(1962), and Yamamoto defines it as a fraction of the SOLAR constant; `radmod.f90`
+divides it by `zsolar2` and multiplies it back by band-2 flux, so the two cancel
+and a K dwarf gets the Sun's absorbed fraction of total flux. Sets `H2OSWW`,
+which defaults to 1.0 and reproduces Lacis & Hansen exactly.
+
+Derived in `exoplasim/notes/shortwave-water-vapour.md`, which also carries the
+bracket, the checks that partly failed and what survives them, and the reason
+the value belongs to the k25v spectrum rather than to the blackbody `solarini`
+builds when `NSTARFILE` is 0.
+
+## `co2_sw_weight`
+
+```
+co2_sw_weight: 1.510
+```
+
+The third of the same family, and the one that is a NEW ABSORBER rather than a
+re-weighting: `swr` has no shortwave CO2 at all, because Lacis & Hansen did not
+parameterise it and the port is faithful. Sets `CO2SWW`.
+
+**Its default is 0.0 and not 1.0, and that is not an inconsistency.** The other
+weights scale an absorptance the scheme already has, so 1.0 is the solar value
+and also the no-op. This one scales an absorptance the scheme does not have, so
+0.0 is the no-op and 1.0 is the solar-weighted term. Anything that treats the
+four keys as interchangeable will invert this one.
+
+Derived in `exoplasim/notes/shortwave-co2.md`, which also carries the 2.7 um
+overlap decision, the Earth-column check the derivation had to pass, and the
+statement that this correction and `h2o_sw_weight`'s have the same sign.
 
 ## `energy_diagnostics_3d`
 

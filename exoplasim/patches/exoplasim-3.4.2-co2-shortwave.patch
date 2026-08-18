@@ -1,0 +1,307 @@
+Add a shortwave CO2 absorptance to `swr`, with `co2sww` in `radmod_nl` beside
+`o3uvw`, `o3visw` and `h2osww`.
+
+WHAT IT CHANGES, AND IT IS A NEW ABSORBER RATHER THAN A RE-WEIGHTING.
+`radmod.f90` has NO shortwave CO2 term at all: `swr` carries ozone in band 1 and
+water vapour in band 2 and nothing else, and CO2 appears only in `lwr`, from
+Sasamori (1968). That is faithful to Lacis and Hansen (1974), who did not
+parameterise the near-infrared CO2 bands either, so the absorber is missing
+rather than wrong. A K dwarf puts about 1.5x the Sun's share of its flux into
+those bands, which is what makes the omission worth fixing here and not on Earth.
+
+This patch adds, in `swr` and in band 2 only:
+
+  * a well-mixed CO2 column integral per layer, reduced to standard pressure by
+    sigma*ps/p0 the same way the water vapour amount above it is and `lwr`'s own
+    CO2 amount is, and expressed in atmos-cm through `lwr`'s own constants
+    `zpv2pm`, `zrco2` and `zfco2` so the shortwave column and the longwave one
+    are the same quantity;
+  * a closed-form absorptance A(u) = a1 ln(1 + b1 u) + a2 ln(1 + b2 u), fitted to
+    Howard, Burch and Williams (1956) band absorptions integrated against a
+    5772 K spectrum, each band charged only with the fraction of its interval
+    water vapour has left;
+  * that absorptance applied at the three sites the water vapour term already
+    uses -- the initial upward-beam total, the downward beam per layer, and the
+    upward scattered beam per layer -- divided by `zsolar2` for exactly the
+    reason Eq. 21 is, because it too is a fraction of TOTAL incident flux;
+  * the resulting transmissivity ADDED into `ztb2` and `ztb2u` beside water
+    vapour's, not multiplied into it. The H2O overlap is already removed inside
+    the absorptance, band by band, so multiplying the two transmissions would
+    remove it a second time.
+
+IT IS A NO-OP UNTIL THE NAMELIST TURNS IT ON. `co2sww` defaults to 0.0, which
+means the term is ABSENT and not that it is solar-weighted -- upstream has no
+shortwave CO2, so zero is what reproduces upstream, and a rebuilt binary
+reproduces every run that exists bit for bit. This matches how `h2osww` and
+`ndustrad` already behave and is the property that lets this land in the same
+rebuild as `exoplasim-3.4.2-h2o-shortwave-weight.patch` without confusing the
+two. 1.0 is the solar-weighted term; the value for a given host is the ratio of
+its CO2 absorptance to the Sun's.
+
+THE 2.7 UM OVERLAP, WHICH IS A DECISION AND IS MADE HERE.
+Yamamoto (1962) drops the 2.7 um CO2 band outright "because of overlapping by
+the strong 2.7 um H2O band". It is KEPT here and charged instead with the
+fraction of its interval water vapour leaves, which is the same correction every
+other CO2 band gets and is available because the overlap is computed band by band
+rather than argued about. Keeping a term that exists is what
+`CLAUDE.md`'s physics-is-not-a-knob rule asks for, and dropping it is reported as
+the low end of the bracket rather than hidden. The band is about a sixth of the
+total and the check below passes either way, so the decision does not decide the
+check.
+
+THE CHECK THAT COULD HAVE FAILED. Run at EARTH's column, EARTH's gravity and
+EARTH's mean insolation, the same integration has to land inside the 1.5 to
+2.5 W/m2 that Earth's near-infrared CO2 solar absorption is measured at. It
+does, with the 2.7 um band in and with it out. Nothing in the derivation was
+tuned to that range.
+
+Derivation, the fit and its residuals, and the numbers:
+`exoplasim/scripts/shortwave_band_weights.py --verify` and
+`exoplasim/notes/shortwave-co2.md`.
+
+THE BASE IT APPLIES TO, and it is not pristine 3.4.2. This one goes on top of
+the whole resident stack as it stood when it was authored, whose composed
+`radmod.f90` is:
+
+    resident stack through exoplasim-3.4.2-h2o-shortwave-weight.patch
+                                                7a78b0c85c560b4b27aac57593582f69beb54ce5f522df9492229b550f4f8707
+    + this patch                                11e9fad6a006c5a88f0d9568dae400a350e87730f151ec6976b126dccb44f12a
+
+Verify before applying, and refuse if it does not match:
+
+    sha256sum .venv/lib/python3.12/site-packages/exoplasim/plasim/src/radmod.f90
+    patch --forward --strip=1 --directory=.venv/lib/python3.12/site-packages/exoplasim < exoplasim/patches/exoplasim-3.4.2-co2-shortwave.patch
+
+WHAT MUST LAND WITH IT, in this order. None of these is optional:
+
+  1. it is already in `RESIDENT_PATCHES` in
+     `exoplasim/scripts/rebuild_binaries.py`, so `--verify` reports it as not
+     applied until step 2 happens and prints the command that applies it
+  2. apply it, then `python exoplasim/scripts/rebuild_binaries.py`, then
+     `--verify`. It adds a NAMELIST KEY, so every unrebuilt binary aborts in
+     `radini_` with "Cannot match namelist object name co2sww" --
+     `notes/failure-modes.md` class 11, which is why this failure is survivable
+  3. `build_star_cycle_exoplasim.sh` pins `base_sha` at the composed sha above
+     and has been re-pinned in the same commit. The star-cycle patch was
+     verified to apply to the new base with hunk offsets only and no fuzz, and
+     was regenerated against it rather than merely re-checked
+  4. `config/planet.yaml` carries `model.co2_sw_weight`, and
+     `run_exoplasim.py` and `continue_exoplasim.py` set `CO2SWW` from it the way
+     they set `O3UVW`, `O3VISW` and `H2OSWW`. **The config value landed in the
+     SAME commit as this patch and therefore BEFORE the rebuild**, which is the
+     one ordering worth knowing about: until step 2 happens, any run started off
+     this commit writes `CO2SWW` into a namelist no binary can parse and aborts
+     in `radini_`. That is loud and immediate rather than silent and wrong, which
+     is why it is survivable, but it means `rebuild_binaries.py --verify` is not
+     optional before the next run. Adding the two keys also moves
+     `lib/provenance.py:config_drift`, so no existing run can be resumed across
+     this commit -- which is correct, because the physics is not the same
+  5. CHOOSE THE VALUE TO MATCH THE SPECTRUM THE RUN USES, the same trap
+     `h2osww` has. The weight is about a tenth larger for the real k25v spectrum
+     than for the 4965 K blackbody `solarini` builds when `NSTARFILE` is 0
+  6. this correction and the water vapour one have the SAME SIGN and this one is
+     about a sixth of the size, so they COMPOUND. If both land in one rebuild
+     neither can be attributed from one result; the attribution segments
+     `exoplasim-3.4.2-h2o-shortwave-weight.patch` already asks for should be run
+     with `co2sww` off, then on
+
+# THE RESIDENT STACK, AND WHY THE SHA ABOVE IS NOT THE TREE YOU HAVE.
+# The base named here is what this patch was AUTHORED and verified against, by
+# composing the resident stack in a scratch mirror. It is not a description of
+# the vendored source once anything else lands on radmod.f90. The stack and its
+# order are in exoplasim/scripts/rebuild_binaries.py:RESIDENT_PATCHES, and the
+# per-file shas of the composed result are in
+# exoplasim/patches/binary_manifest.json. Applying this to the base above
+# reproduces the authoring; applying it to the current tree is what
+# rebuild_binaries.py --verify checks.
+--- a/plasim/src/radmod.f90
++++ b/plasim/src/radmod.f90
+@@ -73,6 +73,27 @@
+ !     Default 1.0 reproduces Lacis & Hansen exactly, so a solar-host run is
+ !     bit-identical.
+       real    :: h2osww  = 1.0    ! weight, near-infrared H2O bands
++!     Shortwave CO2, which this scheme does not have at all. swr carries ozone in
++!     band 1 and water vapour in band 2 and nothing else; CO2 appears only in
++!     lwr, from Sasamori (1968). Lacis & Hansen did not parameterise the
++!     near-infrared CO2 bands either, so the port is faithful and the ABSORBER is
++!     simply missing -- and a redder host puts about 1.5x the Sun's share of its
++!     flux into those bands.
++!
++!     The absorptance below is built the way Yamamoto built the water vapour one:
++!     Howard, Burch & Williams (1956) band absorptions weighted by a SOLAR
++!     spectrum and charged only with what water vapour leaves them. So it is a
++!     fraction of TOTAL incident flux and is divided by zsolar2 for the same
++!     reason Eq. 21 is, and co2sww is the band re-weighting for a non-solar host,
++!     exactly as h2osww is.
++!
++!     ZERO IS THE DEFAULT AND MEANS THE TERM IS ABSENT, not that it is
++!     solar-weighted. Upstream has no shortwave CO2, so zero is what reproduces
++!     it and a rebuilt binary is bit-identical until the namelist turns this on.
++!     1.0 is the solar-weighted term; the value for a given host is the ratio of
++!     its CO2 absorptance to the Sun's, which is what
++!     exoplasim/scripts/shortwave_band_weights.py derives.
++      real    :: co2sww  = 0.0    ! weight, near-infrared CO2 bands; 0 = absent
+       integer :: no3     = 1      ! switch for ozon (0=no,1=yes,2=datafile)
+       integer :: nsol    = 1      ! switch for solang (1/0=yes/no)
+       integer :: nswr    = 1      ! switch for swr (1/0=yes/no)
+@@ -667,7 +688,7 @@
+ !
+       namelist/radmod_nl/ndcycle,ncstsol,solclat,solcdec,no3,co2        &
+      &               ,iyrbp,nswr,nlwr,nfixed,slowdown,nradice,npbroaden,desync    &
+-     &               ,o3uvw,o3visw,h2osww   &
++     &               ,o3uvw,o3visw,h2osww,co2sww   &
+      &               ,a0o3,a1o3,aco3,bo3,co3,toffo3,o3scale,newrsc,necham,necham6   &
+      &               ,nsol,nclouds,nswrcl,nrscat,rcl1,rcl2,acl2,clgray,tpofmt   &
+      &               ,acllwr,tswr1,tswr2,tswr3,th2oc,dawn,starbbtemp,nstartemp  &
+@@ -826,6 +847,7 @@
+       call mpbcr(o3uvw)
+       call mpbcr(o3visw)
+       call mpbcr(h2osww)
++      call mpbcr(co2sww)
+       call mpbcr(o3scale)
+       call mpbcr(co2)
+       call mpbcr(gsol0)
+@@ -1773,6 +1795,35 @@
+       parameter(zmbar=1.9)      ! magnification factor ozon
+       parameter(zro3=2.14)      ! ozon density (kg/m**3 STP)
+       parameter(zfo3=100./zro3) ! transfere o3 to cm STP
++!     CO2, the same constants lwr already uses, so the shortwave column and the
++!     longwave one are the same quantity. zpv2pm is the molecular weight ratio
++!     that turns a VOLUME mixing ratio into a mass one: hydrostatic balance
++!     converts total pressure into mass, not partial pressure, and leaving it out
++!     understates the column by a factor of 1.52.
++      parameter(zmmair=0.0289644)  ! molecular weight air (kg/mol)
++      parameter(zmmco2=0.0440098)  ! molecular weight co2 (kg/mol)
++      parameter(zpv2pm=zmmco2/zmmair) ! co2 ppvol to ppmass
++      parameter(zrco2=1.9635)      ! co2 density (kg/m**3 STP)
++      parameter(zfco2=100./zrco2)  ! transfere co2 to cm STP
++!     The solar-weighted CO2 absorptance, as a fraction of TOTAL incident flux
++!     against the absorber amount u in atmos-cm:
++!
++!         A(u) = zca1 ln(1 + zcb1 u) + zca2 ln(1 + zcb2 u)
++!
++!     fitted by exoplasim/scripts/shortwave_band_weights.py to Howard, Burch &
++!     Williams' band absorptions integrated against a 5772 K spectrum, each band
++!     multiplied by the fraction of its interval water vapour has left so the two
++!     gases do not both claim the same photons. Two logarithms rather than Lacis
++!     & Hansen's Eq. 21 form because that form fits this curve worse and wants a
++!     negative coefficient in its denominator, which can go singular on a column
++!     nothing here forbids. Quoted over 1 to 1e4 atmos-cm, which the model never
++!     leaves: the thinnest sigma layer carries a few percent of the column and
++!     the smallest magnification is zbetta. Within that range the fit is 4%
++!     of itself at worst and 1.2% rms.
++      parameter(zca1=3.8265E-4)
++      parameter(zcb1=44.539)
++      parameter(zca2=2.2325E-3)
++      parameter(zcb2=5.8954E-3)
+       parameter(aa=0.2542857142857143)
+       parameter(bb=0.8229693877551021)
+       parameter(c0=0.14997959183673468)
+@@ -1791,6 +1842,8 @@
+       real zxo3l(NHOR,NLEV)  ! effective ozon amount (top-l)
+       real zwvl(NHOR,NLEV)   ! water vapor amount (top-l)
+       real zywvl(NHOR,NLEV)  ! effective water vapor amount (top-l)
++      real zco2l(NHOR,NLEV)  ! co2 amount (top-l)
++      real zyco2l(NHOR,NLEV) ! effective co2 amount (top-l)
+       real zrcs(NHOR,NLEV)   ! clear sky reflexivity (downward beam)
+       real zrcsu(NHOR,NLEV)  ! clear sky reflexivity (upward beam)
+ !
+@@ -1814,6 +1867,12 @@
+       real zywvt(NHOR)             ! total effective water vapor amount (top-sfc)
+       real ztwv(NHOR),ztwvu(NHOR)  ! water vapor trasmissivity (d/u)
+       real ztwvt(NHOR),ztwvtu(NHOR)! total water vapor transmissivities (d/u)
++      real zco2(NHOR)              ! co2 amount
++      real zco2t(NHOR)             ! total co2 amount (top-sfc)
++      real zyco2t(NHOR)            ! total effective co2 amount (top-sfc)
++      real ztco2(NHOR),ztco2u(NHOR)! co2 transmissivity (d/u)
++      real ztco2t(NHOR),ztco2tu(NHOR)! total co2 transmissivities (d/u)
++      real zzco2                   ! co2 mass mixing ratio (kg/kg)
+ !
+       real zra1(NHOR),zra2(NHOR)   ! reflexivities combined layer (direct)
+       real zra1s(NHOR),zra2s(NHOR) ! reflexivities combined layer (scatterd)
+@@ -1984,7 +2043,15 @@
+        zxo3t(:)=0.
+        zwvt(:)=0.
+        zywvt(:)=0.
++       zco2t(:)=0.
++       zyco2t(:)=0.
+       endwhere
++!
++!     CO2 is well mixed, so its mass mixing ratio is one scalar for the column.
++!     co2 is the namelist volume mixing ratio in ppmv, the same quantity lwr
++!     reads through dqco2.
++!
++      zzco2=zpv2pm*1.E-6*co2
+       do jlev=1,NLEV
+        where(losun(:))
+         zo3(:)=zfo3*dsigma(jlev)*dp(:)*dqo3(:,jlev)/ga
+@@ -2000,6 +2067,20 @@
+      &          +(1.-zcs(:))*(zywvt(:)+zbetta*zwv(:))
+         zwvl(:,jlev)=zwvt(:)
+         zywvl(:,jlev)=zywvt(:)
++!
++!     CO2 amount, reduced to standard pressure the same way the water vapour
++!     amount above it is and lwr's own CO2 amount is (radmod.f90 zqco2): the fit
++!     is stated at standard pressure and the scheme reaches it by scaling the
++!     amount by sigma*ps/p0 rather than by scaling the pressure. No temperature
++!     factor, because Howard's CO2 constants carry none and lwr applies none.
++!
++        zco2(:)=zfco2*zzco2*dsigma(jlev)*dp(:)/ga                        &
++     &         *sigma(jlev)*dp(:)/100000.
++        zco2t(:)=zco2t(:)+zco2(:)
++        zyco2t(:)=zcs(:)*(zyco2t(:)+zm(:)*zco2(:))                       &
++     &           +(1.-zcs(:))*(zyco2t(:)+zbetta*zco2(:))
++        zco2l(:,jlev)=zco2t(:)
++        zyco2l(:,jlev)=zyco2t(:)
+         zcs(:)=zcs(:)*(1.-dcc(:,jlev)*nclouds)
+         zrcs(:,jlev) = (aa/(1.+bb*zmu0(:))*zcs+c0*(1.-zcs(:)-dcc(:,NLEV)*nclouds))   &
+      &                  *dsigma(jlev)*(dp(:)/101100.0)*(9.80665/ga)*nrscat*newrsc
+@@ -2130,6 +2211,10 @@
+        ztwvtu(:)=1.-h2osww*2.9*zwv(:)                                   &
+      &            /((1.+141.5*zwv(:))**0.635+5.925*zwv(:))              &
+      &            /zsolar2
++       ztco2t(:)=1.
++       zco2(:)=zyco2t(:)+zbetta*zco2t(:)
++       ztco2tu(:)=1.-co2sww*(zca1*LOG(1.+zcb1*zco2(:))                  &
++     &                      +zca2*LOG(1.+zcb2*zco2(:)))/zsolar2
+ !
+ !     clear sky scattering (Rayleigh scatterin lower most level only)
+ !
+@@ -2245,6 +2330,14 @@
+      &        /ztwvt(:)
+        ztwvt(:)=ztwvt(:)*ztwv(:)
+ !
++!     CO2 absorption, downward beam
++!
++       zco2(:)=zyco2l(:,jlev)
++       ztco2(:)=(1.-co2sww*(zca1*LOG(1.+zcb1*zco2(:))                   &
++     &                     +zca2*LOG(1.+zcb2*zco2(:)))/zsolar2)         &
++     &         /ztco2t(:)
++       ztco2t(:)=ztco2t(:)*ztco2(:)
++!
+ !     upward scattered beam
+ !
+        zwv(:)=zywvt(:)+zbetta*(zwvt(:)-zwvl(:,jlev))
+@@ -2254,12 +2347,22 @@
+      &            /zsolar2)
+        ztwvtu(:)=ztwvtu(:)/ztwvu(:)
+ !
++!     CO2 absorption, upward scattered beam
++!
++       zco2(:)=zyco2t(:)+zbetta*(zco2t(:)-zco2l(:,jlev))
++       ztco2u(:)=ztco2tu(:)                                             &
++     &          /(1.-co2sww*(zca1*LOG(1.+zcb1*zco2(:))                  &
++     &                      +zca2*LOG(1.+zcb2*zco2(:)))/zsolar2)
++       ztco2tu(:)=ztco2tu(:)/ztco2u(:)
++!
+ !     total T = 1-A(water vapor)*(1.-dcc)-(A(cloud)+R(cloud))*dcc
+ !
+         ztb2(:,jlev)=1.-(1.-ztwv(:))*(1.-dcc(:,jlev)*nclouds)                   &
++     &              -(1.-ztco2(:))*(1.-dcc(:,jlev)*nclouds)                     &
+      &              -(1.-ztcl2(:,jlev))*dcc(:,jlev)*nclouds                     &
+                     -(1.-zaert2(:,jlev))*(1.-dcc(:,jlev))*iaeron
+         ztb2u(:,jlev)=1.-(1.-ztwvu(:))*(1.-dcc(:,jlev)*nclouds)                 &
++     &               -(1.-ztco2u(:))*(1.-dcc(:,jlev)*nclouds)                   &
+      &               -(1.-ztcl2s(:,jlev))*dcc(:,jlev)*nclouds                   &
+                      -(1.-zaert2s(:,jlev))*(1.-dcc(:,jlev))*iaeron
+ !

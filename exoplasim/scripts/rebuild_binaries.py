@@ -68,12 +68,17 @@ MANIFEST = PATCHES / "binary_manifest.json"
 # single root silently reported the last two as unapplied, which is why the list
 # carried one entry for so long while three patches were resident.
 #
-# Three of these are no-ops until something turns them on, and that is deliberate
-# rather than incidental. `h2osww` defaults to 1.0 and `ndustrad` to 0, so a
-# rebuilt binary reproduces the physics the current runs already have. What
-# residency buys is that the run which turns one on and the run it is compared
-# against come from the SAME executable, which is the only way the comparison
-# measures the physics rather than a rebuild.
+# Several of these are no-ops until something turns them on, and that is
+# deliberate rather than incidental. `h2osww` defaults to 1.0, `ndustrad` to 0,
+# and `co2sww` to 0.0, so a rebuilt binary reproduces the physics the current
+# runs already have. What residency buys is that the run which turns one on and
+# the run it is compared against come from the SAME executable, which is the only
+# way the comparison measures the physics rather than a rebuild.
+#
+# `co2sww` is the one whose default reads backwards, so it is worth saying here.
+# Zero means the CO2 shortwave term is ABSENT, because upstream has no shortwave
+# CO2 at all and zero is what reproduces upstream; 1.0 is the solar-weighted
+# term, not the off switch.
 RESIDENT_PATCHES = [
     ("exoplasim-3.4.2-ozone-band-weights.patch", "src"),
     ("exoplasim-3.4.2-energy-diagnostics.patch", "src"),
@@ -82,6 +87,7 @@ RESIDENT_PATCHES = [
     ("exoplasim-3.4.2-prescribed-dust.patch", "src"),
     ("exoplasim-3.4.2-rayleigh-reference-grid.patch", "src"),
     ("exoplasim-3.4.2-h2o-shortwave-weight.patch", "pkg"),
+    ("exoplasim-3.4.2-co2-shortwave.patch", "pkg"),
     ("exoplasim-3.4.2-makestellarspec.patch", "pkg"),
 ]
 

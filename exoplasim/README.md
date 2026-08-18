@@ -146,7 +146,7 @@ unless told they exist.
 | `dust_aerofile.py` | writes the model's `aerofile` from the dust optics, and validates the round trip |
 | `dust_forcing.py` | prices the dust radiative forcing per surface, shortwave and longwave |
 | `build_surface_dust.py` | the prescribed dust column as surface code 1811, read only at `ndustrad = 1` |
-| `shortwave_band_weights.py` | integrates the H2O and CO2 band absorptances against this star, for `h2osww` |
+| `shortwave_band_weights.py` | integrates the H2O and CO2 band absorptances against this star, for `h2osww` and `co2sww`, and fits the closed form the CO2 patch codes |
 
 ## What the flux sweeps established
 
@@ -235,6 +235,16 @@ The ozone patch is *resident* in the source -- it must be applied for any build
 to be correct. The star-cycle patch is not: it is applied and reversed around its
 own build, because a cycle binary and a steady binary are different things and
 only one can be in the tree at a time.
+
+**The shortwave gas absorptances are all weighted for the Sun, and all three
+corrections live in namelist keys.** Lacis and Hansen give ozone, water vapour
+and (in this fork) CO2 as fractions of SOLAR flux, so a K dwarf needs each one
+re-weighted: `o3uvw`/`o3visw`, `h2osww`, and `co2sww`. The last is a new absorber
+rather than a weight, because `swr` has no shortwave CO2 at all, so its default
+is 0.0 and not 1.0. Arguments in `exoplasim/notes/ozone.md`,
+`exoplasim/notes/shortwave-water-vapour.md` and
+`exoplasim/notes/shortwave-co2.md`; values in `config/planet.yaml`; derivation in
+`exoplasim/scripts/shortwave_band_weights.py`.
 
 See `exoplasim/README.md` for the workflow and results,
 `exoplasim/notes/lake-representation.md` for what the model can do with the
