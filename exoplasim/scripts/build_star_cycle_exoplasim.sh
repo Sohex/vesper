@@ -12,22 +12,28 @@ patch_file="$component_dir/patches/exoplasim-3.4.2-star-cycle.patch"
 executable="most_plasim_t42_l10_p16.x"
 # The base this patch applies ON TOP OF, not pristine ExoPlaSim 3.4.2.
 #
-# radmod.f90 now carries the ozone band-weight patch as well, so pinning the
-# pristine 3.4.2 sha made this script refuse to run at all. The guard is still
-# worth having -- it is what stops us patching a source we have not checked --
-# but its premise is "3.4.2 + ozone band weights", and it has to say so.
+# radmod.f90 now carries three resident patches besides this one, and the pin has
+# to name the stack rather than a version:
 #
 #   pristine 3.4.2                eb8e9e1c0127940e607828899ff5dea6653c9835c...
-#   + exoplasim-3.4.2-ozone-band-weights.patch   -> the sha below
+#   + ozone-band-weights
+#   + prescribed-dust             (DUST-11; radmod and surfmod)
+#   + h2o-shortwave-weight        (PHYS-1; radmod)
+#                                 -> the sha below
 #
-# Verified 2026-08-16: the star-cycle patch applies to that base with all five
-# hunks clean and at zero offset. It was regenerated against this base when the
-# second cycle component was added, rather than being hand-edited, so the offsets
-# the ozone patch used to introduce are now baked into the line numbers. The two
-# patches coexist. If a THIRD patch lands on radmod.f90, this sha moves again and
-# the comment above needs another line -- and the star-cycle patch has to be
-# regenerated against the new base, not merely re-checked.
-base_sha="7fd39458a87a0bc042d17b0b93c2e45cbfc4fc04a560965c974efa734019c0ba"
+# Regenerated 2026-08-17 against that base, which is what the comment this
+# replaces said would be necessary and it was right: hunk 2 FAILED outright,
+# because the prescribed-dust patch had appended its own keys to the same
+# radmod_nl continuation the cycle keys attach to. The other four hunks applied
+# at offsets. A patch that fails one hunk and offsets four is a patch that has to
+# be regenerated rather than re-checked, and the cycle keys now sit after the
+# dust keys instead of after minwavel.
+#
+# If a FOURTH patch lands on radmod.f90 this sha moves again and this patch has
+# to be regenerated against the new base. That is not a nuisance to be worked
+# around -- it is the check that stops us building a cycle binary on a source we
+# have not looked at.
+base_sha="5dd9ddfb765d4391e31ba5af89d64bf0dde0db528f9622cb0f6b7faf73e89083"
 
 if [[ ! -f "$source_file" || ! -f "$run_dir/$executable" || ! -d "$bin_dir" ]]; then
   echo "ExoPlaSim 3.4.2 source or baseline executable is missing" >&2

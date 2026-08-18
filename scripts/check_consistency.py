@@ -621,8 +621,13 @@ def main() -> int:
         else:
             mf = json.loads(manifest.read_text(encoding="utf-8"))
             known = mf.get("binaries", {})
+            # Source keys are relative to the PACKAGE, not to plasim/src. Two
+            # of the resident patches touch files outside plasim/src -- the
+            # NumPy-2 fix to makestellarspec.py and the make_plasim dependency
+            # the low-I/O patch needs -- and a basename key would also collide
+            # two files of the same name under different roots.
             src = (ROOT / ".venv" / "lib" / "python3.12" / "site-packages"
-                   / "exoplasim" / "plasim" / "src")
+                   / "exoplasim")
             bad = []
             for exe in on_disk:
                 rec = known.get(exe.name)

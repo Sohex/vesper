@@ -55,22 +55,37 @@ MANIFEST = PATCHES / "binary_manifest.json"
 # its own build by build_star_cycle_exoplasim.sh, because a cycle binary and a
 # steady binary are different things and only one tree can hold it at a time.
 #
-# The prescribed-dust patch IS resident, and deliberately so. It is a no-op with
-# `ndustrad = 0`, which is the default, so every run keeps the physics it had;
-# what residency buys is that the dust run and the run it is compared against
-# come from the same executable, which is the only way the comparison measures
-# dust rather than a rebuild. It also means `--verify` will say the patch is not
-# applied until it is, which is the intended signal and not a fault.
-# What is applied to the vendored source RIGHT NOW, not what ought to be. A
-# patch joins this list when it is applied and the binaries are rebuilt, because
-# `resident_ok` reports anything here that is missing as a problem, and a patch
-# that was never applied would report a problem that is not one -- which is how a
-# check stops being read. Patches written but not yet built are tracked in
-# TASKS.md instead: prescribed-dust under DUST-11, denergy under CLIM-6, the
-# low-I/O first record under CLIM-5, and the shortwave water-vapour weight under
-# PHYS-1. CONS-4 is the other half of this: the energy-diagnostics patch IS
-# resident and is missing from here.
-RESIDENT_PATCHES = ["exoplasim-3.4.2-ozone-band-weights.patch"]
+# WHAT IS APPLIED TO THE VENDORED SOURCE RIGHT NOW, not what ought to be. A patch
+# joins this list when it is applied and the binaries are rebuilt: `resident_ok`
+# reports anything here that is missing as a problem, so a patch listed before it
+# is applied reports a problem that is not one, and that is how a check stops
+# being read.
+#
+# Each entry carries its own ROOT, because they do not all strip to the same
+# depth: the patches written against the plasim source use `a/radmod.f90` and
+# apply in `plasim/src`, while the ones written against the package use
+# `a/plasim/src/radmod.f90` or `a/makestellarspec.py` and apply one level up. A
+# single root silently reported the last two as unapplied, which is why the list
+# carried one entry for so long while three patches were resident.
+#
+# Three of these are no-ops until something turns them on, and that is deliberate
+# rather than incidental. `h2osww` defaults to 1.0 and `ndustrad` to 0, so a
+# rebuilt binary reproduces the physics the current runs already have. What
+# residency buys is that the run which turns one on and the run it is compared
+# against come from the SAME executable, which is the only way the comparison
+# measures the physics rather than a rebuild.
+RESIDENT_PATCHES = [
+    ("exoplasim-3.4.2-ozone-band-weights.patch", "src"),
+    ("exoplasim-3.4.2-energy-diagnostics.patch", "src"),
+    ("exoplasim-3.4.2-lowio-first-record.patch", "src"),
+    ("exoplasim-3.4.2-denergy-accumulator.patch", "src"),
+    ("exoplasim-3.4.2-prescribed-dust.patch", "src"),
+    ("exoplasim-3.4.2-h2o-shortwave-weight.patch", "pkg"),
+    ("exoplasim-3.4.2-makestellarspec.patch", "pkg"),
+]
+
+ROOTS = {"src": SRC, "pkg": PKG}
+
 
 # The matrix. NLAT must divide by ranks: 32 at T21, 64 at T42, 128 at T85.
 MATRIX = [("T21", 10, 8), ("T21", 10, 16),
@@ -83,30 +98,65 @@ def sha256(path: Path) -> str:
 
 
 def patched_sources() -> dict[str, str]:
-    """Every source file any resident patch touches, with its current sha."""
-    touched: set[str] = set()
-    for name in RESIDENT_PATCHES:
+    """Every source file any resident patch touches, with its current sha.
+
+    Keyed by the path relative to the package, not by basename: two patches with
+    different roots can name the same file and a basename would collide them.
+    """
+    touched: set[Path] = set()
+    for name, root in RESIDENT_PATCHES:
         for line in (PATCHES / name).read_text(encoding="utf-8").splitlines():
             if line.startswith("+++ "):
-                touched.add(Path(line.split()[1]).name)
-    return {n: sha256(SRC / n) for n in sorted(touched) if (SRC / n).is_file()}
+                rel = Path(line.split()[1])
+                rel = Path(*rel.parts[1:])          # strip the leading b/
+                touched.add((ROOTS[root] / rel).resolve())
+    return {str(f.relative_to(PKG)): sha256(f)
+            for f in sorted(touched) if f.is_file()}
 
 
 def resident_ok() -> tuple[bool, list[str]]:
     """Is every resident patch actually applied to the source right now?
 
-    Tested by asking `patch` to apply it in reverse as a dry run: that succeeds
-    only if the change is already present.
+    The whole STACK is unwound in a scratch mirror, newest first, and each patch
+    must reverse cleanly in turn. Testing each patch against the live source
+    independently does not work once there is more than one: a later patch that
+    touches adjacent lines changes the CONTEXT an earlier patch's reverse needs,
+    so the earlier one reports as missing while being perfectly present. That
+    happened the moment this list went from one entry to five, and taking the
+    report at face value would have meant re-applying a patch already in place.
+
+    Unwinding in order is the exact test, and it is the only one that can fail
+    for the right reason. What it is for is a `.venv` reinstall, which restores
+    pristine sources and discards the lot without a word.
     """
-    missing = []
-    for name in RESIDENT_PATCHES:
-        r = subprocess.run(
-            ["patch", "--dry-run", "--reverse", "--force", "-p1",
-             "--directory", str(SRC)],
-            stdin=(PATCHES / name).open("rb"),
-            capture_output=True)
-        if r.returncode != 0:
-            missing.append(name)
+    import tempfile
+
+    touched: set[Path] = set()
+    for name, root in RESIDENT_PATCHES:
+        for line in (PATCHES / name).read_text(encoding="utf-8").splitlines():
+            if line.startswith("+++ "):
+                rel = Path(*Path(line.split()[1]).parts[1:])
+                touched.add((ROOTS[root] / rel).resolve().relative_to(PKG))
+
+    with tempfile.TemporaryDirectory() as td:
+        mirror = Path(td)
+        for rel in touched:
+            src = PKG / rel
+            if not src.is_file():
+                continue
+            (mirror / rel).parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(src, mirror / rel)
+        roots = {"src": mirror / "plasim" / "src", "pkg": mirror}
+        missing = []
+        for name, root in reversed(RESIDENT_PATCHES):
+            r = subprocess.run(
+                ["patch", "--dry-run" if missing else "--forward",
+                 "--reverse", "--force", "-p1",
+                 "--directory", str(roots[root])],
+                stdin=(PATCHES / name).open("rb"),
+                capture_output=True)
+            if r.returncode != 0:
+                missing.append(name)
     return (not missing), missing
 
 
@@ -129,9 +179,11 @@ def main() -> None:
         print("\nEither a .venv reinstall discarded them or one is new to the "
               "list. Apply them first:")
         for m in missing:
-            print(f"  patch -p1 -d {SRC} < {PATCHES / m}")
+            root = ROOTS[dict(RESIDENT_PATCHES)[m]]
+            print(f"  patch -p1 -d {root} < {PATCHES / m}")
         raise SystemExit(1)
-    print(f"resident patches applied: {', '.join(RESIDENT_PATCHES)}")
+    print("resident patches applied: "
+          + ", ".join(n for n, _ in RESIDENT_PATCHES))
 
     sources = patched_sources()
 
@@ -174,7 +226,7 @@ def main() -> None:
             raise SystemExit(f"build failed for {name}")
         built[name] = {"sha256": sha256(target),
                        "resolution": res, "layers": lev, "ranks": ranks,
-                       "patches": list(RESIDENT_PATCHES),
+                       "patches": [n for n, _ in RESIDENT_PATCHES],
                        "sources": sources}
         print(f"  {built[name]['sha256'][:16]}")
 
@@ -185,7 +237,8 @@ def main() -> None:
                 "trusted -- rebuild rather than reason about it.",
         "generated": datetime.now(timezone.utc).isoformat(),
         "exoplasim_version": "3.4.2",
-        "resident_patches": {n: sha256(PATCHES / n) for n in RESIDENT_PATCHES},
+        "resident_patches": {n: sha256(PATCHES / n)
+                             for n, _ in RESIDENT_PATCHES},
         "binaries": built,
     }
     MANIFEST.parent.mkdir(parents=True, exist_ok=True)

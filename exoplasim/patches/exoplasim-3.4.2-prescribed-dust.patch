@@ -68,6 +68,14 @@
 # rather than from here; this comment says which way the argument runs, and the
 # file says how far.
 #
+# THE RESIDENT STACK, AND WHY THE SHA ABOVE IS NOT THE TREE YOU HAVE.
+# The base named here is what this patch was AUTHORED and verified against. It is
+# not a description of the vendored source once other patches are resident, and
+# several now are. The stack and its order are in exoplasim/scripts/
+# rebuild_binaries.py:RESIDENT_PATCHES, and the per-file shas of the composed
+# result are in exoplasim/patches/binary_manifest.json. Applying this to the base
+# above reproduces the authoring; applying it to the current tree is what
+# rebuild_binaries.py --verify checks.
 --- a/radmod.f90
 +++ b/radmod.f90
 @@ -101,11 +101,37 @@

@@ -57,6 +57,14 @@ alone breaks things, so none of these is optional:
      one rebuild, run two short attribution segments with `h2osww` off and on
      before the long one, or nothing in the result can be attributed to anything
 
+# THE RESIDENT STACK, AND WHY THE SHA ABOVE IS NOT THE TREE YOU HAVE.
+# The base named here is what this patch was AUTHORED and verified against. It is
+# not a description of the vendored source once other patches are resident, and
+# several now are. The stack and its order are in exoplasim/scripts/
+# rebuild_binaries.py:RESIDENT_PATCHES, and the per-file shas of the composed
+# result are in exoplasim/patches/binary_manifest.json. Applying this to the base
+# above reproduces the authoring; applying it to the current tree is what
+# rebuild_binaries.py --verify checks.
 --- a/plasim/src/radmod.f90
 +++ b/plasim/src/radmod.f90
 @@ -57,6 +57,22 @@
