@@ -1,0 +1,830 @@
+"""Re-weight the Lacis and Hansen shortwave gas absorptances for this star.
+
+WHAT THE SCHEME ACTUALLY SAYS
+-----------------------------
+`radmod.f90`'s shortwave clear-sky code is Lacis and Hansen (1974). Their water
+vapour absorptance, their Eq. 21,
+
+    A_wv(y) = 2.9 y / ((1 + 141.5 y)^0.635 + 5.925 y)
+
+is a fit to Yamamoto (1962), and Yamamoto states the definition outright: "the
+definition of absorptivity is given by the ratio to the solar constant of the
+energy absorbed by the entire vertical air column for normal incidence". It is a
+fraction of TOTAL INCIDENT FLUX, and the Sun's spectrum is inside it -- Yamamoto
+built it by weighting laboratory band absorptivities with the solar flux and
+summing. Lacis and Hansen say the same thing a second way in their Section 5a:
+"approximately 35% of the solar flux is contained in the regions of significant
+water vapor absorption", which is 1 - p(k_1) = 1 - 0.6470 = 0.3530 from their own
+Table 1, and appears in their Eq. 39 as the literal constant 0.353.
+
+`radmod.f90` divides A_wv by `zsolar2`, the star's own flux share above 0.75 um,
+and then applies it to band-2 flux. The two cancel exactly: the absorbed flux is
+A_wv times the TOTAL incident flux whatever the star is. So the model currently
+gives a K dwarf the Sun's absorbed fraction, which is the defect. Ozone is
+already corrected this way through `o3uvw` and `o3visw`; this is the same
+correction in the larger term.
+
+HOW THE WEIGHT IS DERIVED
+-------------------------
+Yamamoto's construction is reversible. Howard, Burch and Williams (1956) measured
+the band absorption of each near-infrared H2O and CO2 band as a total absorption
+(an equivalent width) in cm-1, which is a property of the molecule and carries no
+spectrum at all, and fitted it to
+
+    weak band     int A_nu d_nu = c w^(1/2) (P + p)^k
+    strong band   int A_nu d_nu = C + D log10 w + K log10 (P + p)
+
+Howard's own Eq. 11 then defines the band-average fractional absorption
+Abar_i = (int A_nu d_nu) / (nu_2 - nu_1), and says in as many words that "if the
+spectral distribution of the radiation from a given source is known, the fraction
+of the total radiation absorbed ... can be computed". So
+
+    A_total(w) = sum_i f_i Abar_i(w)
+
+with f_i the fraction of the incident flux falling in band i. Put the Sun in and
+this must reproduce Lacis and Hansen Eq. 21; put this star in and it gives the
+absorptance this star should have. The weight is the ratio, and it is the number
+the patch multiplies the 2.9 by.
+
+THE TEST THAT CAN FAIL
+----------------------
+Reconstructing A_total(w) from Howard's bands and a solar spectrum has a right
+answer that this project did not choose: Lacis and Hansen Eq. 21, which they
+state fits Yamamoto within 1% over 0.01 < y < 10 cm. `--verify` reports the
+reconstruction against it. If the reconstruction misses, the weight is not
+trustworthy and the run says so rather than quoting a ratio of two wrong numbers.
+
+The solar reference is a BT-Settl 5772 K model built through the same blend as
+`build_stellar_spectrum.py` uses for the star, so grid, converter and any model
+systematic divide out of the ratio. Two further checks that can fail: it must
+give 0.353 above 0.9 um, which is Lacis and Hansen's Section 5a value, and 0.517
+below 0.75 um, which is `radmod.f90`'s own solar reference partitioning.
+
+    python exoplasim/scripts/shortwave_band_weights.py
+    python exoplasim/scripts/shortwave_band_weights.py --verify
+
+Writes `analysis/shortwave_band_weights.json`. Downloads are cached in the same
+place `build_stellar_spectrum.py` caches its own; pass --refresh to refetch.
+"""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import math
+import tempfile
+import urllib.request
+from datetime import datetime, timezone
+from pathlib import Path
+
+import numpy as np
+import yaml
+
+from _paths import ANALYSIS, CONFIG
+
+SSAP = "http://svo2.cab.inta-csic.es/theory/newov2/ssap.php"
+MODEL = "bt-settl"
+LOGG = 4.5
+METALLICITY = 0.0
+
+# SVO record identifiers for the BT-Settl CIFIST2011 grid points, log g = 4.5,
+# [M/H] = 0. The 4900 and 5000 K entries are the same fids
+# `build_stellar_spectrum.py` pins, so the star built here is the star in
+# `inputs/stellarspectra/k25v.dat` and not a second interpolation of it. Pinned
+# so a server-side renumbering becomes a header mismatch rather than a different
+# star.
+FIDS = {4900: 3697, 5000: 3850, 5700: 4824, 5800: 4965}
+
+# The solar reference. 5772 K is the effective temperature `radmod.f90:207`
+# normalises its own Rayleigh cross-section to, and the temperature at which the
+# scheme's zsolar1 = 0.517 partitioning is stated to hold.
+SOLAR_TEFF = 5772.0
+
+CACHE = Path(tempfile.gettempdir()) / "vesper-btsettl-cache"
+
+# Howard, Burch and Williams (1956), Table II of papers II (CO2) and III (H2O).
+# Band limits in cm-1; w in precipitable cm for H2O and atmos-cm for CO2; P and p
+# in mm Hg; the fits return a total band absorption in cm-1. `transition` is the
+# total absorption at which their weak fit gives way to their strong fit.
+#
+# The 6.3 um H2O band is in the list because Yamamoto's sum includes it and
+# Lacis and Hansen fit Yamamoto; it carries almost no solar flux and rather more
+# of a K dwarf's, which is exactly the kind of term this exercise exists to move.
+H2O_BANDS = {
+    #  um    lo_cm1  hi_cm1     c     k   C      D     K    transition
+    "6.3": dict(lo=1150.0, hi=2050.0, c=356.0, k=0.30, C=302.0, D=218.0, K=157.0, transition=160.0),
+    "3.2": dict(lo=2800.0, hi=3340.0, c=40.2, k=0.30, C=None, D=None, K=None, transition=500.0),
+    "2.7": dict(lo=3340.0, hi=4400.0, c=316.0, k=0.32, C=337.0, D=246.0, K=150.0, transition=200.0),
+    "1.87": dict(lo=4800.0, hi=5900.0, c=152.0, k=0.30, C=127.0, D=232.0, K=144.0, transition=275.0),
+    "1.38": dict(lo=6500.0, hi=8000.0, c=163.0, k=0.30, C=202.0, D=460.0, K=198.0, transition=350.0),
+    "1.1": dict(lo=8300.0, hi=9300.0, c=31.0, k=0.26, C=None, D=None, K=None, transition=200.0),
+    "0.94": dict(lo=10100.0, hi=11500.0, c=38.0, k=0.27, C=None, D=None, K=None, transition=200.0),
+}
+
+# Howard et al. did not measure the 0.72 and 0.81 um bands. Yamamoto estimated
+# them from Fowle's data over 13514-14286 and 11905-12658 cm-1 and says they
+# "cannot be neglected ... because of the large solar energy in this region".
+# They are carried here at the 0.94 um band's shape with a strength scaled down
+# by the factor `WEAK_BLUE_SCALE`, and `--verify` reports what dropping them
+# does. They matter to the weight only in the direction of making it SMALLER,
+# because they sit where a K dwarf's flux boost is least, so leaving them out
+# would flatter the correction.
+H2O_BLUE_BANDS = {
+    "0.81": dict(lo=11905.0, hi=12658.0, c=38.0, k=0.27, C=None, D=None, K=None, transition=200.0),
+    "0.72": dict(lo=13514.0, hi=14286.0, c=38.0, k=0.27, C=None, D=None, K=None, transition=200.0),
+}
+WEAK_BLUE_SCALE = {"0.81": 0.30, "0.72": 0.10}
+
+CO2_BANDS = {
+    "15": dict(lo=550.0, hi=800.0, c=3.16, k=0.44, C=-68.0, D=55.0, K=47.0, transition=50.0),
+    "5.2": dict(lo=1870.0, hi=1980.0, c=0.024, k=0.40, C=None, D=None, K=None, transition=30.0),
+    "4.8": dict(lo=1980.0, hi=2160.0, c=0.12, k=0.37, C=None, D=None, K=None, transition=60.0),
+    "4.3": dict(lo=2160.0, hi=2500.0, c=None, k=None, C=27.5, D=34.0, K=31.5, transition=50.0),
+    "2.7": dict(lo=3480.0, hi=3800.0, c=3.15, k=0.43, C=-137.0, D=77.0, K=68.0, transition=50.0),
+    "2.0": dict(lo=4750.0, hi=5200.0, c=0.492, k=0.39, C=-536.0, D=138.0, K=114.0, transition=80.0),
+    "1.6": dict(lo=6000.0, hi=6550.0, c=0.063, k=0.38, C=None, D=None, K=None, transition=80.0),
+    "1.4": dict(lo=6650.0, hi=7250.0, c=0.048, k=0.41, C=None, D=None, K=None, transition=80.0),
+}
+
+# Standard pressure, in the mm Hg the Howard fits are written in. Lacis and
+# Hansen Eq. 21 is stated for P0 = 1013 mb, T0 = 273 K, and the model reaches it
+# by scaling the water amount rather than the pressure, so the reconstruction is
+# evaluated here at standard pressure throughout.
+P_STANDARD_MMHG = 760.0
+
+# Lacis and Hansen (1974) Section 5a and Table 1: the fraction of the solar flux
+# in the regions of significant water vapour absorption. Reached two ways in the
+# paper, from the k-distribution as 1 - 0.6470 and from Joseph's (1971) cut at
+# 0.9 um, and used as the literal constant in their Eq. 39.
+LH74_SOLAR_ACTIVE_FRACTION = 0.353
+
+# radmod.f90:125-126 and :207. The scheme's own solar partitioning at 5772 K.
+RADMOD_ZSOLAR1 = 0.517
+
+
+def lacis_hansen_h2o(y: np.ndarray | float) -> np.ndarray | float:
+    """Lacis and Hansen (1974) Eq. 21, verbatim, as radmod.f90 codes it."""
+    return 2.9 * y / ((1.0 + 141.5 * y) ** 0.635 + 5.925 * y)
+
+
+def sha256(path: Path) -> str:
+    h = hashlib.sha256()
+    h.update(path.read_bytes())
+    return h.hexdigest()
+
+
+def fetch(teff: int, refresh: bool) -> Path:
+    """Download one BT-Settl grid point, or reuse the cached copy."""
+    CACHE.mkdir(parents=True, exist_ok=True)
+    target = CACHE / f"btsettl_{teff}_logg{LOGG}_m{METALLICITY}.txt"
+    if target.is_file() and not refresh:
+        return target
+    url = f"{SSAP}?model={MODEL}&fid={FIDS[teff]}&format=ascii"
+    print(f"fetching {teff} K from {url}")
+    with urllib.request.urlopen(url, timeout=900) as response:
+        target.write_bytes(response.read())
+    return target
+
+
+def read_btsettl(path: Path) -> tuple[np.ndarray, np.ndarray, dict]:
+    """SVO's ASCII BT-Settl export: Angstrom against erg/cm2/s/A."""
+    header: dict[str, str] = {}
+    for line in path.read_text().splitlines():
+        if not line.startswith("#"):
+            break
+        if "=" in line:
+            key, _, rest = line[1:].partition("=")
+            value = rest.split("(")[0].strip().split()
+            header[key.strip()] = value[0] if value else ""
+    data = np.loadtxt(path, comments="#")
+    return data[:, 0], data[:, 1], header
+
+
+def blend(teff: float, lo_t: int, hi_t: int, refresh: bool) -> tuple[np.ndarray, np.ndarray, dict]:
+    """Log-linear blend of two grid points, the same one build_stellar_spectrum uses."""
+    sources = {}
+    for t in (lo_t, hi_t):
+        path = fetch(t, refresh)
+        wave, flux, header = read_btsettl(path)
+        if int(float(header.get("teff", -1))) != t:
+            raise SystemExit(f"{path} declares teff={header.get('teff')}, expected {t}")
+        sources[t] = (wave, flux, path)
+
+    wave_hi, flux_hi, path_hi = sources[hi_t]
+    wave_lo, flux_lo, path_lo = sources[lo_t]
+    flux_lo_on_hi = np.interp(wave_hi, wave_lo, flux_lo)
+
+    fraction = (teff - lo_t) / (hi_t - lo_t)
+    floor = 1e-300
+    log_blend = (1.0 - fraction) * np.log(np.maximum(flux_lo_on_hi, floor)) + fraction * np.log(
+        np.maximum(flux_hi, floor)
+    )
+    flux = np.exp(log_blend)
+    flux[(flux_lo_on_hi <= floor) | (flux_hi <= floor)] = 0.0
+
+    meta = {
+        "teff_k": teff,
+        "interpolation_fraction": fraction,
+        "endpoints": {
+            str(lo_t): {"fid": FIDS[lo_t], "sha256": sha256(path_lo)},
+            str(hi_t): {"fid": FIDS[hi_t], "sha256": sha256(path_hi)},
+        },
+    }
+    return wave_hi, flux, meta
+
+
+def planck(wave_angstrom: np.ndarray, teff: float) -> np.ndarray:
+    """Planck's law per unit wavelength, on a wavelength grid in Angstrom.
+
+    Needed because no run on this build has actually been using the k25v file.
+    `radmod.f90:813` takes the spectrum branch only when `NSTARFILE > 0`, and
+    every run's `radmod_namelist` carries `STARBBTEMP = 4965.0` with
+    `NSTARTEMP = 1` instead, so `solarini` has been building a Planck curve. The
+    weight for a blackbody and the weight for the real spectrum are different
+    numbers, and which one applies depends on a decision that has not been made
+    yet, so both are computed. See TASKS.md PHYS-2 and SPEC-2.
+    """
+    h = 6.62607015e-34
+    c = 2.99792458e8
+    k = 1.380649e-23
+    lam = np.clip(wave_angstrom, 1e-3, None) * 1e-10
+    x = h * c / (lam * k * teff)
+    # The absolute scale is irrelevant: everything downstream is a flux fraction.
+    return np.where(x < 700.0, 1.0 / lam**5 / np.expm1(np.minimum(x, 700.0)), 0.0)
+
+
+class Spectrum:
+    """A stellar spectrum reduced to what a band weighting needs of it."""
+
+    def __init__(self, wave_angstrom: np.ndarray, flux: np.ndarray, label: str, meta: dict):
+        order = np.argsort(wave_angstrom)
+        self.wave = wave_angstrom[order]
+        self.flux = flux[order]
+        self.label = label
+        self.meta = meta
+        self.cumulative = np.concatenate(
+            [[0.0], np.cumsum(0.5 * (self.flux[1:] + self.flux[:-1]) * np.diff(self.wave))]
+        )
+        self.total = float(self.cumulative[-1])
+
+    def fraction_between_um(self, lo_um: float, hi_um: float) -> float:
+        lo, hi = lo_um * 1e4, hi_um * 1e4
+        return float(
+            (np.interp(hi, self.wave, self.cumulative) - np.interp(lo, self.wave, self.cumulative))
+            / self.total
+        )
+
+    def fraction_in_band(self, lo_cm1: float, hi_cm1: float) -> float:
+        """Flux fraction between two wavenumbers, given in cm-1."""
+        return self.fraction_between_um(1e4 / hi_cm1, 1e4 / lo_cm1)
+
+
+def band_absorption(band: dict, w: float, pressure_mmhg: float = P_STANDARD_MMHG) -> float:
+    """Howard, Burch and Williams total band absorption, in cm-1.
+
+    Their weak fit below the tabulated transition and their strong fit above it,
+    which is how they say to use them. Bands with no strong fit stay on the weak
+    one, as their Table II intends: the 3.2 um band is called out in the text as
+    one where "the weak-band relation was satisfactory for all data obtained".
+    The result is capped at the band width, since a band cannot absorb more than
+    all of itself.
+    """
+    width = band["hi"] - band["lo"]
+    weak = None
+    if band["c"] is not None:
+        weak = band["c"] * math.sqrt(w) * pressure_mmhg ** band["k"]
+    strong = None
+    if band["C"] is not None:
+        strong = band["C"] + band["D"] * math.log10(w) + band["K"] * math.log10(pressure_mmhg)
+    if weak is None:
+        total = strong
+    elif strong is None or weak < band["transition"]:
+        total = weak
+    else:
+        total = strong
+    return float(min(max(total, 0.0), width))
+
+
+def absorptance(spectrum: Spectrum, bands: dict, w: float, scale: dict | None = None) -> float:
+    """Fraction of the star's TOTAL flux absorbed, summed over the bands.
+
+    Howard et al. Eq. 11: the band-average fractional absorption is the total
+    band absorption divided by the band width, and the fraction of the whole
+    incident flux absorbed is that weighted by the flux fraction in the band.
+    """
+    total = 0.0
+    for name, band in bands.items():
+        width = band["hi"] - band["lo"]
+        mean_absorptance = band_absorption(band, w) / width
+        if scale is not None and name in scale:
+            mean_absorptance *= scale[name]
+        total += spectrum.fraction_in_band(band["lo"], band["hi"]) * mean_absorptance
+    return total
+
+
+def h2o_bands(include_blue: bool) -> tuple[dict, dict]:
+    bands = dict(H2O_BANDS)
+    scale: dict[str, float] = {}
+    if include_blue:
+        bands.update(H2O_BLUE_BANDS)
+        scale.update(WEAK_BLUE_SCALE)
+    return bands, scale
+
+
+# radmod.f90:1579. The magnification factor the scheme applies to the water path
+# below cloud and on the reflected beam. The absorptance is evaluated at the
+# magnified path, so the weight is quoted there too.
+WATER_MAGNIFICATION = 1.66
+
+
+def column_water_cm(config: dict) -> tuple[float, str]:
+    """This world's own effective water path, from the baseline climatology.
+
+    A correction's size depends on the state it acts on, so the weight is quoted
+    where this planet actually sits rather than where the number was first
+    measured. The path is built the way `radmod.f90:1802` builds it -- the
+    column integral of specific humidity with a linear pressure scaling and a
+    sqrt(273/T) temperature scaling -- and then magnified, because that is the
+    argument the absorptance is evaluated at. Falls back to Earth's global mean
+    only if no baseline is named, and says which it used.
+    """
+    named = config.get("baseline_climatology")
+    if named:
+        path = Path(CONFIG).resolve().parents[1] / named
+        if path.is_file():
+            import netCDF4
+
+            with netCDF4.Dataset(path) as data:
+                hus = np.asarray(data.variables["hus"][:])
+                air_t = np.asarray(data.variables["ta"][:])
+                surface_p = np.asarray(data.variables["ps"][:]) * 100.0
+                sigma = np.asarray(data.variables["lev"][:])
+                sigma_half = np.asarray(data.variables["levp"][:])
+                lat = np.asarray(data.variables["lat"][:])
+            gravity = float(config["planet"]["gravity_m_s2"])
+            dsigma = np.diff(sigma_half)
+            column = np.zeros_like(surface_p)
+            for k in range(len(sigma)):
+                column += (
+                    0.1 * dsigma[k] * hus[:, k] * surface_p / gravity
+                    * np.sqrt(273.0 / air_t[:, k])
+                    * sigma[k] * surface_p / 1.0e5
+                )
+            weights = np.cos(np.deg2rad(lat))[None, :, None] * np.ones_like(column)
+            mean_cm = float((column * weights).sum() / weights.sum())
+            return (
+                mean_cm * WATER_MAGNIFICATION,
+                f"radmod's own effective path, magnified by {WATER_MAGNIFICATION}, from {named}",
+            )
+    return 2.5, "Earth's global mean, because no baseline climatology is named"
+
+
+def predict(config: dict, weight: float) -> dict:
+    """What the weight does to the baseline, priced against the baseline itself.
+
+    A correction's size depends on how much of the surface it acts on, so this
+    reimplements `radmod.f90`'s own effective water path against the baseline
+    climatology and asks how much shortwave water vapour is absorbing there,
+    rather than scaling a number measured somewhere else.
+
+    Everything here is a PREDICTION about a run that has not happened, which is
+    the point: it is falsifiable and the run falsifies it.
+    """
+    import netCDF4
+
+    root = Path(CONFIG).resolve().parents[1]
+    with netCDF4.Dataset(root / config["baseline_climatology"]) as data:
+        get = lambda name: np.asarray(data.variables[name][:])
+        lat, sigma, sigma_half = get("lat"), get("lev"), get("levp")
+        hus, air_t = get("hus"), get("ta")
+        surface_p = get("ps") * 100.0
+        rst, rss, rsut, ssru = get("rst"), get("rss"), get("rsut"), get("ssru")
+        precip, ts = get("pr"), get("ts")
+
+    gravity = float(config["planet"]["gravity_m_s2"])
+    dsigma = np.diff(sigma_half)
+    area = np.cos(np.deg2rad(lat))[None, :, None] * np.ones_like(rst)
+    mean = lambda x: float((x * area).sum() / area.sum())
+
+    column = np.zeros_like(surface_p)
+    for k in range(len(sigma)):
+        column += (
+            0.1 * dsigma[k] * hus[:, k] * surface_p / gravity
+            * np.sqrt(273.0 / air_t[:, k]) * sigma[k] * surface_p / 1.0e5
+        )
+    path = WATER_MAGNIFICATION * column
+
+    incident = rst - rsut          # rsut is signed upward-negative on this stream
+    upward = np.abs(ssru)
+    planetary_albedo = 1.0 - mean(rst) / mean(incident)
+    surface_albedo = mean(upward) / mean(rss + upward)
+
+    # Ozone, so the decomposition of the atmosphere's shortwave absorption closes
+    # and the water vapour share is a measurement rather than a fraction assumed.
+    # radmod.f90:44-49's synthetic Earth column, scaled by o3scale, magnified by
+    # zmbar, through the already-re-weighted Lacis and Hansen Eqs. 8 and 9.
+    model = config.get("model", {})
+    o3_scale = float(model.get("ozone_scale", 1.0))
+    uvw = float(model.get("ozone_uv_weight", 1.0))
+    visw = float(model.get("ozone_visible_weight", 1.0))
+    phase = np.linspace(0.0, 1.0, rst.shape[0], endpoint=False)
+    sine = np.sin(np.deg2rad(lat))[None, :, None]
+    o3 = o3_scale * (
+        0.25 + 0.11 * np.abs(sine)
+        + 0.08 * sine * np.cos(2 * np.pi * (phase - 0.25))[:, None, None]
+    )
+    x = 1.9 * o3
+    a_o3 = (
+        visw * 0.02118 * x / (1.0 + 0.042 * x + 0.000323 * x**2)
+        + uvw * 1.082 * x / ((1.0 + 138.6 * x) ** 0.805)
+        + uvw * 0.0658 * x / (1.0 + (103.6 * x) ** 3)
+    )
+
+    a_old, a_new = lacis_hansen_h2o(path), weight * lacis_hansen_h2o(path)
+    a2_old, a2_new = lacis_hansen_h2o(2 * path), weight * lacis_hansen_h2o(2 * path)
+    down = mean(incident * (a_new - a_old))
+    reflected_leg = mean(
+        upward
+        * (
+            np.clip((a2_new - a_new) / np.clip(1 - a_new, 1e-6, None), 0, 1)
+            - np.clip((a2_old - a_old) / np.clip(1 - a_old, 1e-6, None), 0, 1)
+        )
+    )
+    d_atmosphere = down + reflected_leg
+    d_surface = -down * (1.0 - surface_albedo)
+
+    water_vapour_absorption = mean(incident * a_old) + mean(
+        upward * np.clip((a2_old - a_old) / np.clip(1 - a_old, 1e-6, None), 0, 1)
+    )
+    ozone_absorption = mean(incident * a_o3)
+
+    # How much of what the extra absorption intercepts would otherwise have been
+    # reflected back to space? If all of it sat above every reflector the answer
+    # is the planetary albedo; if all of it sat below the cloud, the surface
+    # albedo. Water vapour is bottom-heavy and cloud is not, so the truth is
+    # inside, and the bracket is carried rather than collapsed.
+    toa = {
+        "below_all_cloud": down * surface_albedo + reflected_leg,
+        "above_all_cloud": down * planetary_albedo + reflected_leg,
+    }
+    toa["central"] = 0.65 * toa["below_all_cloud"] + 0.35 * toa["above_all_cloud"]
+
+    # WORKFLOW.md section 5b: 196 K per unit flux ratio across 0.9125-0.945 and
+    # 209 across 0.945-0.968, both converged T42 points on this build. The
+    # warming direction is the upper segment and the flux re-derivation is the
+    # lower one. The stellar sweep's 33 K for 21 W/m2 is NOT usable here: it is
+    # 3.4x the local slope because it crosses the ice transition (TASKS BUDG-4).
+    absorbed_per_unit_ratio = 1361.0 / 4.0 * (1.0 - planetary_albedo)
+    k_per_w = {
+        "lower_segment_196": 196.0 / absorbed_per_unit_ratio,
+        "upper_segment_209": 209.0 / absorbed_per_unit_ratio,
+    }
+    warming = {
+        name: {k: v * s for k, s in k_per_w.items()} for name, v in toa.items()
+    }
+
+    latent = 2.5008e6
+    seconds_per_year = 86400.0 * 365.25
+    precip_mm_yr = mean(precip) * 1000.0 * seconds_per_year
+    d_precip_full = -d_atmosphere / latent * seconds_per_year
+
+    central_warming = warming["central"]["upper_segment_209"]
+    return {
+        "weight": weight,
+        "baseline": {
+            "incident_toa_shortwave": mean(incident),
+            "toa_net_shortwave_rst": mean(rst),
+            "surface_net_shortwave_rss": mean(rss),
+            "atmospheric_shortwave_absorption": mean(rst - rss),
+            "planetary_albedo": planetary_albedo,
+            "surface_albedo": surface_albedo,
+            "effective_water_path_cm": mean(path),
+            "water_vapour_shortwave_absorption": water_vapour_absorption,
+            "ozone_shortwave_absorption": ozone_absorption,
+            "cloud_and_scattering_residual": (
+                mean(rst - rss) - water_vapour_absorption - ozone_absorption
+            ),
+            "precipitation_mm_yr": precip_mm_yr,
+            "mean_surface_temperature_k": mean(ts),
+        },
+        "predicted_change": {
+            "atmospheric_shortwave_absorption": d_atmosphere,
+            "of_which_downward_beam": down,
+            "of_which_reflected_leg": reflected_leg,
+            "surface_net_shortwave": d_surface,
+            "toa_net_shortwave": toa,
+            "kelvin_per_w_m2": k_per_w,
+            "mean_surface_temperature_k": warming,
+            "precipitation_mm_yr_full_compensation": d_precip_full,
+            "flux_ratio_to_restore_the_design_mean": -central_warming / 196.0,
+        },
+    }
+
+
+def weight_curve(star: Spectrum, sun: Spectrum, bands: dict, scale: dict, amounts) -> list[dict]:
+    rows = []
+    for w in amounts:
+        a_sun = absorptance(sun, bands, w, scale)
+        a_star = absorptance(star, bands, w, scale)
+        rows.append(
+            {
+                "w": w,
+                "absorptance_solar": a_sun,
+                "absorptance_star": a_star,
+                "weight": a_star / a_sun,
+                "lacis_hansen_eq21": float(lacis_hansen_h2o(w)),
+            }
+        )
+    return rows
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--refresh", action="store_true", help="refetch the grid points")
+    parser.add_argument("--verify", action="store_true", help="print the checks in full")
+    parser.add_argument(
+        "--water",
+        type=float,
+        default=None,
+        help="precipitable water in cm to quote the weight at; default is the config value",
+    )
+    args = parser.parse_args()
+
+    config = yaml.safe_load(CONFIG.read_text())
+    teff = float(config["star"]["effective_temperature_k"])
+
+    star_wave, star_flux, star_meta = blend(teff, 4900, 5000, args.refresh)
+    sun_wave, sun_flux, sun_meta = blend(SOLAR_TEFF, 5700, 5800, args.refresh)
+    star = Spectrum(star_wave, star_flux, config["star"]["spectral_type"], star_meta)
+    sun = Spectrum(sun_wave, sun_flux, "G2V reference", sun_meta)
+    blackbody = Spectrum(
+        star_wave,
+        planck(star_wave, teff),
+        f"{teff:.0f} K blackbody",
+        {"note": "what solarini actually builds while NSTARFILE = 0"},
+    )
+
+    # --- checks that can fail -------------------------------------------------
+    solar_above_09 = sun.fraction_between_um(0.9, 1.0e6)
+    solar_below_075 = sun.fraction_between_um(0.0, 0.75)
+    star_below_075 = star.fraction_between_um(0.0, 0.75)
+    star_above_075 = star.fraction_between_um(0.75, 1.0e6)
+
+    checks = {
+        "solar_fraction_above_0.9um": {
+            "computed": solar_above_09,
+            "expected": LH74_SOLAR_ACTIVE_FRACTION,
+            "source": "Lacis and Hansen (1974) Section 5a and Table 1",
+            "relative_error": solar_above_09 / LH74_SOLAR_ACTIVE_FRACTION - 1.0,
+        },
+        "solar_fraction_below_0.75um": {
+            "computed": solar_below_075,
+            "expected": RADMOD_ZSOLAR1,
+            "source": "radmod.f90:125 zsolar1, stated to hold at 5772 K",
+            "relative_error": solar_below_075 / RADMOD_ZSOLAR1 - 1.0,
+        },
+    }
+
+    bands, scale = h2o_bands(include_blue=True)
+    amounts = [0.01, 0.03, 0.1, 0.3, 1.0, 2.0, 3.0, 5.0, 10.0]
+    curve = weight_curve(star, sun, bands, scale, amounts)
+
+    # The reconstruction against Lacis and Hansen Eq. 21 over the interval they
+    # state their fit holds on.
+    inside = [row for row in curve if 0.01 <= row["w"] <= 10.0]
+    ratios = [row["absorptance_solar"] / row["lacis_hansen_eq21"] for row in inside]
+    checks["reconstruction_vs_lacis_hansen_eq21"] = {
+        "ratio_min": min(ratios),
+        "ratio_max": max(ratios),
+        "ratio_median": float(np.median(ratios)),
+        "source": "Lacis and Hansen (1974) Eq. 21, their fit to Yamamoto (1962)",
+    }
+
+    water = args.water
+    water_source = "given on the command line"
+    if water is None:
+        water, water_source = column_water_cm(config)
+    a_sun = absorptance(sun, bands, water, scale)
+    a_star = absorptance(star, bands, water, scale)
+    h2o_weight = a_star / a_sun
+
+    bands_no_blue, scale_no_blue = h2o_bands(include_blue=False)
+    h2o_weight_no_blue = absorptance(star, bands_no_blue, water, scale_no_blue) / absorptance(
+        sun, bands_no_blue, water, scale_no_blue
+    )
+    # The reconstruction sits above Lacis and Hansen Eq. 21 by a roughly flat
+    # factor, so the level divides out of a ratio. What would NOT divide out is
+    # the excess being concentrated in one part of the spectrum, so the extreme
+    # attribution is tested: charge all of it to the 2.7, 3.2 and 6.3 um complex
+    # and drop that complex entirely. That is Yamamoto's own curve 1, and it is
+    # the low end of the bracket.
+    bands_curve1 = {k: v for k, v in bands.items() if k not in ("6.3", "3.2", "2.7")}
+    h2o_weight_curve1 = absorptance(star, bands_curve1, water, scale) / absorptance(
+        sun, bands_curve1, water, scale
+    )
+    bracket = (
+        min(h2o_weight, h2o_weight_no_blue, h2o_weight_curve1),
+        max(h2o_weight, h2o_weight_no_blue, h2o_weight_curve1),
+    )
+
+    # The weight the model would need TODAY, while solarini is building a Planck
+    # curve instead of reading k25v. Lower, because a blackbody has no line
+    # blanketing pushing flux out of the blue and into the near infrared, so it
+    # is less red than the star it stands for.
+    h2o_weight_blackbody = absorptance(blackbody, bands, water, scale) / a_sun
+
+    # CO2, for the record. ExoPlaSim's shortwave has NO CO2 term to re-weight, so
+    # this is what one would be worth rather than a correction to one.
+    # A CO2 column in atmos-cm is the depth the gas would occupy at STP:
+    # (partial pressure / g) is a column mass per unit area, and dividing by the
+    # STP density of CO2 gives a length. Gravity is this planet's, so the column
+    # is 1/1.31 of Earth's at the same mixing ratio, which is the same 1/g that
+    # `radmod.f90` carries explicitly in its Rayleigh term.
+    gravity = float(config["planet"]["gravity_m_s2"])
+    pco2_pa = float(config["atmosphere"]["pCO2_bar"]) * 1.0e5
+    co2_column_atmcm = pco2_pa / gravity / 1.9635 * 100.0
+    co2_ppmv = (
+        float(config["atmosphere"]["pCO2_bar"])
+        / sum(v for k, v in config["atmosphere"].items() if k.startswith("p") and k.endswith("_bar"))
+        * 1.0e6
+    )
+    # Every CO2 band shares its interval with water vapour, and Yamamoto drops
+    # the 2.7 um CO2 band outright "because of overlapping by the strong 2.7 um
+    # H2O band". Charging CO2 only with what water vapour has left is the same
+    # correction applied to every band rather than to one, so the two do not
+    # double-count. `overlap` is the H2O transmission across the CO2 band.
+    co2_rows = {}
+    co2_sun = co2_star = 0.0
+    for name, band in CO2_BANDS.items():
+        width = band["hi"] - band["lo"]
+        mean_absorptance = band_absorption(band, co2_column_atmcm) / width
+        h2o_here = 0.0
+        for h_name, h_band in bands.items():
+            lo, hi = max(band["lo"], h_band["lo"]), min(band["hi"], h_band["hi"])
+            if hi > lo:
+                share = (hi - lo) / width
+                h2o_here += share * band_absorption(h_band, water) / (
+                    h_band["hi"] - h_band["lo"]
+                ) * scale.get(h_name, 1.0)
+        clear = max(0.0, 1.0 - h2o_here)
+        f_sun = sun.fraction_in_band(band["lo"], band["hi"])
+        f_star = star.fraction_in_band(band["lo"], band["hi"])
+        co2_sun += f_sun * mean_absorptance * clear
+        co2_star += f_star * mean_absorptance * clear
+        co2_rows[name] = {
+            "mean_absorptance": mean_absorptance,
+            "h2o_transmission_in_band": clear,
+            "flux_fraction_solar": f_sun,
+            "flux_fraction_star": f_star,
+            "contribution_solar": f_sun * mean_absorptance * clear,
+            "contribution_star": f_star * mean_absorptance * clear,
+        }
+
+    report = {
+        "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "star": {
+            "spectral_type": config["star"]["spectral_type"],
+            "effective_temperature_k": teff,
+            "flux_fraction_below_0.75um": star_below_075,
+            "flux_fraction_above_0.75um": star_above_075,
+            "provenance": star_meta,
+        },
+        "solar_reference": {
+            "effective_temperature_k": SOLAR_TEFF,
+            "flux_fraction_below_0.75um": solar_below_075,
+            "flux_fraction_above_0.9um": solar_above_09,
+            "provenance": sun_meta,
+        },
+        "checks": checks,
+        "h2o": {
+            "column_water_cm": water,
+            "column_water_source": water_source,
+            "absorptance_solar": a_sun,
+            "absorptance_star": a_star,
+            "weight": h2o_weight,
+            "weight_rounded_for_namelist": round(h2o_weight, 3),
+            "weight_against_the_blackbody_the_model_is_actually_using": h2o_weight_blackbody,
+            "weight_without_0.72_0.81um_bands": h2o_weight_no_blue,
+            "weight_without_2.7_3.2_6.3um_complex": h2o_weight_curve1,
+            "bracket": list(bracket),
+            "weight_vs_water_amount": curve,
+            "band_flux_fractions": {
+                name: {
+                    "solar": sun.fraction_in_band(band["lo"], band["hi"]),
+                    "star": star.fraction_in_band(band["lo"], band["hi"]),
+                    "ratio": star.fraction_in_band(band["lo"], band["hi"])
+                    / sun.fraction_in_band(band["lo"], band["hi"]),
+                }
+                for name, band in bands.items()
+            },
+        },
+        "prediction": {
+            name: predict(config, w)
+            for name, w in (
+                ("central", round(h2o_weight, 3)),
+                ("bracket_low", round(bracket[0], 3)),
+                ("bracket_high", round(bracket[1], 3)),
+                ("blackbody_star", round(h2o_weight_blackbody, 3)),
+            )
+        },
+        "co2": {
+            "ppmv": co2_ppmv,
+            "column_atmos_cm": co2_column_atmcm,
+            "absorptance_solar": co2_sun,
+            "absorptance_star": co2_star,
+            "weight": co2_star / co2_sun if co2_sun > 0 else None,
+            "per_band": co2_rows,
+            "note": (
+                "ExoPlaSim's shortwave has no CO2 absorptance at all: radmod.f90 "
+                "carries CO2 only in lwr, from Sasamori (1968). These are what a "
+                "shortwave CO2 term would absorb, not a correction to one."
+            ),
+        },
+    }
+
+    ANALYSIS.mkdir(parents=True, exist_ok=True)
+    out = ANALYSIS / "shortwave_band_weights.json"
+    out.write_text(json.dumps(report, indent=2) + "\n")
+
+    print(f"star   {config['star']['spectral_type']} at {teff:.0f} K")
+    print(f"  flux below 0.75 um  {star_below_075:.4f}   above  {star_above_075:.4f}")
+    print(
+        f"  the {teff:.0f} K blackbody solarini actually builds: "
+        f"below {blackbody.fraction_between_um(0.0, 0.75):.4f}   "
+        f"above {blackbody.fraction_between_um(0.75, 1.0e6):.4f}"
+    )
+    print(f"solar reference at {SOLAR_TEFF:.0f} K")
+    print(f"  flux below 0.75 um  {solar_below_075:.4f} against radmod's {RADMOD_ZSOLAR1}")
+    print(f"  flux above 0.90 um  {solar_above_09:.4f} against LH74's {LH74_SOLAR_ACTIVE_FRACTION}")
+    rec = checks["reconstruction_vs_lacis_hansen_eq21"]
+    print(
+        "reconstruction / LH74 Eq. 21 over 0.01-10 cm: "
+        f"{rec['ratio_min']:.3f} to {rec['ratio_max']:.3f}, median {rec['ratio_median']:.3f}"
+    )
+    print(f"water path {water:.3f} cm, from {water_source}")
+    print(f"H2O shortwave weight at that path: {h2o_weight:.4f}")
+    print(f"  without the 0.72/0.81 um bands: {h2o_weight_no_blue:.4f}")
+    print(f"  without the 6.3, 3.2 and 2.7 um complex: {h2o_weight_curve1:.4f}")
+    print(f"  bracket over which bands are counted: {bracket[0]:.3f} to {bracket[1]:.3f}")
+    print(f"  h2o_sw_weight for config/planet.yaml: {round(h2o_weight, 3)}")
+    print(f"  against the blackbody the model is running today: {h2o_weight_blackbody:.4f}")
+
+    p = report["prediction"]["central"]
+    base, change = p["baseline"], p["predicted_change"]
+    print(f"\nprediction for a baseline re-run at h2osww = {p['weight']}")
+    print(
+        f"  of the {base['atmospheric_shortwave_absorption']:.1f} W/m2 the atmosphere takes: "
+        f"water vapour {base['water_vapour_shortwave_absorption']:.1f}, "
+        f"ozone {base['ozone_shortwave_absorption']:.1f}, "
+        f"cloud and scattering {base['cloud_and_scattering_residual']:.1f}"
+    )
+    print(f"  atmospheric shortwave absorption {change['atmospheric_shortwave_absorption']:+.1f} W/m2")
+    print(f"  surface net shortwave            {change['surface_net_shortwave']:+.1f} W/m2")
+    print(
+        f"  top-of-atmosphere net shortwave  {change['toa_net_shortwave']['central']:+.1f} W/m2 "
+        f"(bracket {change['toa_net_shortwave']['below_all_cloud']:+.1f} to "
+        f"{change['toa_net_shortwave']['above_all_cloud']:+.1f})"
+    )
+    print(
+        f"  mean surface temperature         "
+        f"{change['mean_surface_temperature_k']['central']['upper_segment_209']:+.2f} K "
+        f"from {base['mean_surface_temperature_k']:.2f} K"
+    )
+    print(
+        f"  precipitation, full compensation "
+        f"{change['precipitation_mm_yr_full_compensation']:+.0f} mm/yr on "
+        f"{base['precipitation_mm_yr']:.0f}"
+    )
+    print(f"  flux ratio must move by          {change['flux_ratio_to_restore_the_design_mean']:+.4f}")
+
+    if args.verify:
+        print("\nweight against column water:")
+        print(f"  {'w (cm)':>8} {'A solar':>10} {'A star':>10} {'weight':>8} {'LH74 Eq21':>10}")
+        for row in curve:
+            print(
+                f"  {row['w']:8.2f} {row['absorptance_solar']:10.4f} "
+                f"{row['absorptance_star']:10.4f} {row['weight']:8.4f} "
+                f"{row['lacis_hansen_eq21']:10.4f}"
+            )
+        print("\nper band, flux fraction and the star/Sun ratio:")
+        for name, row in report["h2o"]["band_flux_fractions"].items():
+            print(
+                f"  {name:>5} um  solar {row['solar']:.5f}  star {row['star']:.5f}  "
+                f"ratio {row['ratio']:.3f}"
+            )
+        print(f"\nCO2 at {co2_column_atmcm:.1f} atmos-cm, net of the H2O overlap:")
+        print(f"  {'band':>6} {'Abar':>7} {'clear':>7} {'solar':>9} {'star':>9}")
+        for name, row in co2_rows.items():
+            print(
+                f"  {name:>6} {row['mean_absorptance']:7.4f} "
+                f"{row['h2o_transmission_in_band']:7.4f} "
+                f"{row['contribution_solar']:9.6f} {row['contribution_star']:9.6f}"
+            )
+        print(f"  {'total':>6} {'':>7} {'':>7} {co2_sun:9.6f} {co2_star:9.6f}")
+
+    print(f"\nwrote {out}")
+
+
+if __name__ == "__main__":
+    main()

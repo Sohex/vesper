@@ -37,42 +37,61 @@ either; `th2oc` is the LONGWAVE continuum coefficient and is a different thing.
 Water vapour absorbs in the near-infrared, which is precisely where a K dwarf
 puts more of its flux:
 
-| | share above 0.75 um |
-| --- | ---: |
-| this star, `lib/stellar.py` on `k25v_hr.dat`, the integration `solarini` does | 0.6156 |
-| the Sun, the scheme's own reference (`zsolar1 = 0.517`, radmod.f90:311) | 0.483 |
-| **ratio** | **1.275** |
+| | share above 0.75 um | flux-share ratio to the Sun |
+| --- | ---: | ---: |
+| the Sun, the scheme's own reference (`zsolar1 = 0.517`, radmod.f90:311) | 0.483 | 1.000 |
+| the 4965 K blackbody every run has actually used, finding 2 | 0.5715 | 1.183 |
+| k25v, the spectrum `config/planet.yaml` names | 0.6154 | 1.274 |
 
-So the H2O shortwave absorptance is being applied with about 27% too little
-weight on the band that does the absorbing.
+So the H2O shortwave absorptance is being applied with too little weight on the
+band that does the absorbing, and those ratios are the flux-share estimate of how
+much. The 0.5816 that `MOST_DIAG.00070` prints is the blackbody's, measured on
+`radmod`'s own truncated wavelength grid rather than bolometrically, which is why
+it is 1.8% above the 0.5715 here.
 
-**This ratio was 1.204 until 2026-08-17 and that figure was wrong.** It came from
-`MOST_DIAG.00070`, and finding 2 below establishes that every orbit after the
-first of every run reports a 4965 K BLACKBODY's partition rather than this star's.
-0.5816 is the blackbody. Take the band shares from `lib/stellar.py` and not from
-a run log until a run exists that was integrated against the spectrum.
+**Settled, and it is bigger than this estimate.** Measured 2026-08-17 by
+integrating Howard, Burch and Williams' laboratory band absorptions -- which are
+the data Yamamoto weighted with the solar flux to make the fit Lacis and Hansen
+then fitted -- against both spectra. Derivation and evidence in
+`exoplasim/notes/shortwave-water-vapour.md`, re-runnable as
+`exoplasim/scripts/shortwave_band_weights.py`.
 
-**Magnitude.** Measured atmospheric shortwave absorption on the baseline is
-`rst - rss = 229.46 - 169.68 = 59.78 W/m2`. Water vapour is the dominant clear-sky
-shortwave absorber; taking it at 55-75% of that total gives 33-45 W/m2, and a
-1.275 scaling adds **+9 to +12 W/m2** of atmospheric absorption with an equal
-reduction at the surface. The scaling is first-order and will be sublinear
-because strong bands saturate, so treat it as an upper bound -- but even half of
-it is comparable to the 5.7 W/m2 that made shortwave-only dust unacceptable, and
-to half of the 21 W/m2 that spans the entire 0.85-to-0.95 stellar sweep.
+The weight is **1.346** against k25v, bracket 1.301 to 1.363, and **1.202**
+against the blackbody the model is running today. Both exceed their flux-share
+ratios above, because a flux-share ratio weights every band by its flux and none
+by its strength, and the strong bands are the long-wavelength ones where the K
+dwarf's boost is largest: 1.50 at 2.7 um against 0.99 at 0.72 um. An
+absorptance-weighted average has to exceed a flux-weighted one, so the flux-share
+numbers are lower bounds.
+
+**Magnitude, measured rather than bracketed.** Water vapour absorbs **43.2 of the
+59.8 W/m2** the atmosphere takes, 72% of it, against the 55-75% assumed here.
+Ozone takes 4.5 and cloud the remaining 12.0. The correction is therefore
+**+8.8 W/m2** of atmospheric shortwave absorption if the blackbody is kept and
+**+15.0** once the spectrum is declared, with **-7.6** and **-13.0 W/m2** at the
+surface. It is not sublinear in the way the estimate expected: the patch
+multiplies the absorptance itself, so the extra absorption is exactly
+proportional to what water vapour already absorbs.
 
 **Sign.** Two effects, both pointing the same way at the top of the atmosphere
 and opposite ways at the surface. Intercepting the beam higher means less reaches
-a bright surface to be reflected, so the planet absorbs MORE and warms -- and
-this world's closed-basin fill is bright, 0.40 to 0.50. At the surface it is
-7-9 W/m2 of shortwave removed, which suppresses evaporation directly. That is
-the same channel DUST-10 exists to measure, at a comparable size.
+a bright surface to be reflected, so the planet absorbs MORE and warms: **+2.9
+W/m2** at the top of the atmosphere with the spectrum declared, bracket +2.0 to
++4.5 depending on how much of the extra absorption sits above cloud rather than
+below it. At the surface it is 13 W/m2 of shortwave removed, which suppresses
+evaporation directly. That is the same channel DUST-10 exists to measure, at more
+than twice the size. In surface temperature it is **+1.45 K** for this correction
+alone against the blackbody, and a further +1.04 K for the spectrum acting
+through this term.
 
-**What settles it.** Integrating the Lacis & Hansen H2O band absorptances against
-the k25v spectrum the way `analysis/playa_albedo.py` and the ozone weights were
-done, and adding `h2o_swweight` beside `o3uvw`/`o3visw` in the same patch. The
-infrastructure exists; `radmod.f90:311` already computes a spectrum-weighted
-Rayleigh cross-section and knows the solar reference share.
+**CO2 cannot be re-weighted, because there is none.** `radmod.f90` carries CO2
+only in `lwr`, from Sasamori (1968); the shortwave has ozone in band 1 and water
+vapour in band 2 and nothing else, which is faithful to Lacis and Hansen rather
+than a defect in the port. What its absence is worth here is **2.5 W/m2**, the
+same sign as the water vapour correction, against 1.75 W/m2 solar-weighted --
+and that 1.75 is inside the 1.5-2.5 W/m2 Earth's near-infrared CO2 solar
+absorption is measured at, which is the check on the calculation. It is a new
+absorber rather than a re-weighting, so it is a separate task.
 
 ---
 
@@ -337,6 +356,7 @@ one that drifts.
 | finding | id |
 | --- | --- |
 | 1. shortwave water vapour weighted for the Sun | `PHYS-1` |
+| 1b. no shortwave CO2 absorptance exists at all | `PHYS-6` |
 | 2. the runs are on a blackbody, and solarini's Rayleigh reference is mis-gridded | `PHYS-2`, `SPEC-1` |
 | 3. the incision coefficient has no gravity term | `PHYS-3` |
 | 4. Penman has no stability correction | `PHYS-4` |
