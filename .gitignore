@@ -133,3 +133,11 @@ aeolian/analysis/*.nc
 # Agent worktrees. Created by the harness under .claude/, one per parallel agent;
 # each is a git worktree of this repo and must never be committed into it.
 .claude/worktrees/
+
+# Pre-rebuild binaries, kept as the A/B reference arm for the aerocore defect
+# patch: rebuild_binaries.py overwrites the executables in place, so once it runs
+# the old behaviour is unreproducible. 12 MB of compiled output, so the bulk is
+# excluded while SHA256SUMS beside them is NOT -- the same exclude-the-bulk,
+# keep-the-record rule as references/INDEX.md. Delete the directory once the
+# bit-identical check has been made and recorded.
+exoplasim/analysis/prerebuild_binaries_*/*.x
