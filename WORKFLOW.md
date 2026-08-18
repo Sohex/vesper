@@ -3,17 +3,21 @@
 How geography, climate, water and life are computed for this planet, in what
 order, and why the order is not a straight line.
 
-**This document is CANONICAL for the pipeline.** The components, the order, the
-loops and the artifact register in section 2b are defined here and nowhere else.
-The rule that follows from that, and it is a rule rather than an aspiration:
-**an artifact that no step in this document generates does not exist.** If a
-script writes something that has no row in the register, either the step is
-missing from this document or the product is one nobody should be reading. Both
-are defects, and the second is the more dangerous, because an unregistered
-artifact has no declared consumers and therefore no way to know what it
-invalidates when it changes. Adding a generator means adding its row in the same
-commit. `CLAUDE.md` rule 7 depends on this: "what is now worthless" is only
-answerable from a graph that is complete.
+**This document is CANONICAL for the pipeline's REASONING**: what each stage is
+for, why the order is what it is, why the loops close, and the traps. The GRAPH
+itself -- every step, what it writes, what must precede it -- is
+`config/pipeline.yaml`, and the two do not overlap. This document references step
+ids and does not restate them, because one graph written in two places is the
+duplication both files exist to prevent.
+
+The rule that follows, and it is a rule rather than an aspiration: **an artifact
+that no step in `config/pipeline.yaml` generates does not exist.** If a script
+writes something that is in no step, either the step is missing or the product is
+one nobody should be reading. Both are defects, and the second is worse, because
+an unregistered artifact has no derivable consumers and so no way to know what it
+invalidates when it changes. `smoke_test.py` fails when a generator is absent
+from the graph. `CLAUDE.md` rule 7 depends on all of this: "what is now
+worthless" is only answerable from a graph that is complete.
 
 Vesper is a super-Earth orbiting a K2.5V dwarf: larger than Earth, higher
 gravity, a longer day, and more obliquity. Every one of those is declared in
@@ -787,6 +791,16 @@ python hydrography/scripts/export_carve_list.py       # the list Orogen consumes
 python scripts/error_budget.py                        # re-rank against the new state
 python scripts/world_state.py                         # LAST: it reads everything above
 ```
+
+`python scripts/pipeline.py --plan carve_list` prints that list against the
+current state, with what is already present marked as skippable, so it does not
+have to be followed from the top every time. `--status` answers the other half:
+**which open tasks touch a step upstream of the carve.** That is the carve gate
+-- not a ceremony about irreversibility, but the ordinary condition that nothing
+outstanding still moves an artifact the verdict is computed from. A task names
+its step as `[step: <id>]`; one that names none is reported as a residual and
+arbitrated rather than counted or ignored, because the graph narrows the
+judgement and does not replace it.
 
 The three at the top and the two at the bottom are the ones most often skipped
 and the ones that cost most when they are. `rebuild_binaries.py --verify` is

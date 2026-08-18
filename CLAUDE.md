@@ -10,7 +10,9 @@ describes, and the pointers below are the map:
 
 | Read this | For |
 | --- | --- |
-| `WORKFLOW.md` | CANONICAL for pipeline flow: what the components are, how they connect, the order they run in, why that order is a loop, and the register of every artifact with the step that generates it. **Read it first.** |
+| `WORKFLOW.md` | CANONICAL for pipeline REASONING: what the components are, how they connect, why the order is what it is, and why it is a loop. **Read it first.** |
+| `config/pipeline.yaml` | CANONICAL for the pipeline GRAPH: every step, what it writes, what must precede it, its cost, and each loop's exit predicate. The two do not overlap; WORKFLOW references step ids from here |
+| `scripts/pipeline.py` | `--status` what exists and what blocks the carve, `--plan <step>` the ordered steps to a target, `--register` the artifact table. Plans; never runs |
 | `source/README.md` | how to read an export: field conventions, the land-mask rule, the traps |
 | `vendor/orogen/tools/README.md` | the authoritative export format |
 | `<component>/README.md` | what that component does and how to run it |
@@ -139,10 +141,11 @@ none of them is advice.
   on retrofitting a criterion and conservation's verdict that the criterion read
   the wrong quantity pointed opposite ways and no document settled it.
 
-- **`WORKFLOW.md` is canonical for the pipeline, and an artifact that no step in
+- **`config/pipeline.yaml` is the pipeline graph, and an artifact that no step in
   it generates does not exist.** Every artifact this project keeps has to appear
-  in the register in section 2b, against the step that produces it and the things
-  that read it. A script that writes something not in the register is either a
+  in `config/pipeline.yaml`, against the step that produces it. What reads it is
+  DERIVED from the `needs` of other steps rather than declared, so there is one
+  statement of each edge and not two. A script that writes something not in the register is either a
   missing step or a product nobody should be reading, and both are defects. This
   is not bookkeeping: it is what makes rule 7 usable, because "what is now
   worthless" can only be answered from a graph that is complete. When you add a
@@ -195,6 +198,9 @@ superseded terrain stay readable and datable.
 
 ```
 config/planet.yaml     Canonical planet/star/orbit/atmosphere parameters. Project-level.
+config/pipeline.yaml   Canonical pipeline GRAPH: steps, what each writes, what must
+                       precede it, cost, and each loop's exit. Read by
+                       scripts/pipeline.py and checked by smoke_test.py.
 source/<build>/        World Orogen exports, one namespaced directory per build.
                        READ-ONLY. Add a build; never overwrite one. Only the
                        ACTIVE build has a payload; superseded ones are stubs in
