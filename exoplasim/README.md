@@ -73,8 +73,26 @@ written by default; `--no-seasonal-output` skips them for a segment, and a run
 without them has to be extended before it can produce a climatology):
 
 ```bash
-python exoplasim/scripts/continue_exoplasim.py --orbits 5
+python exoplasim/scripts/continue_exoplasim.py --run <run_id> --orbits 5 \
+  --purpose spinup
 ```
+
+`--purpose` is required and is not inferred from the other flags. It says what
+the orbits are FOR: `spinup` while the run is approaching equilibrium,
+`post_equilibrium_climatology` for orbits meant to be read as this world's
+climate, and `diagnostic` for orbits run to measure the model rather than the
+planet -- an I/O verification, a high-cadence wind sample for DUST-5, a block on
+a differently patched binary. A diagnostic segment does not move the run's
+status, is skipped by the convergence window, and is refused as climatology
+input. The vocabulary lives in `segments.py`.
+
+A resume also compares the STELLAR SPECTRUM BY CONTENT, not by name. The config
+names `k25v`, `build_stellar_spectrum.py` writes `k25v.dat` from
+`star.spectral_type` and `star.effective_temperature_k`, and it rewrites it in
+place, so the whole radiative input can change while every recorded name stays
+the same. The run manifest carries a sha256 of both spectrum files and a resume
+refuses across a change to either. A run prepared before that existed is stamped
+on its first resume and says so.
 
 Assess a spin-up and create a separate five-orbit seasonal climatology only
 after it passes:
@@ -90,7 +108,8 @@ python exoplasim/scripts/close_state_energy.py exoplasim/runs/<run_id> \
   --first 67 --last 76
 # --run is required: a continuation cannot recompute a name, and being handed
 # one cannot silently resolve to a different run.
-python exoplasim/scripts/continue_exoplasim.py --run <run_id> --orbits 5
+python exoplasim/scripts/continue_exoplasim.py --run <run_id> --orbits 5 \
+  --purpose post_equilibrium_climatology
 python exoplasim/scripts/build_climatology.py exoplasim/runs/<run_id> \
   --start-year 46 --end-year 50
 python exoplasim/scripts/analyze_climatology.py
@@ -128,14 +147,15 @@ unless told they exist.
 | `build_stellar_spectrum.py` | this star's spectrum from BT-Settl |
 | `sra.py` | writes ExoPlaSim's `.sra` surface format; imported by the builders above |
 | `run_exoplasim.py` | prepare, validate and run an experiment |
-| `continue_exoplasim.py` | resume a prepared run from its latest restart |
-| `finalize_existing_segment.py` | record a completed segment after post-run bookkeeping failed |
+| `continue_exoplasim.py` | resume a prepared run from its latest restart; `--purpose` says what the segment is for |
+| `segments.py` | what a run's segments were for and which orbits that makes usable; the one reader of the manifest's `segments` list |
+| `finalize_existing_segment.py` | record a completed segment after post-run bookkeeping failed; takes the same `--purpose` |
 | `run_stellar_cycle.py` | run or resume a superposed-sinusoid stellar-flux experiment |
 | `rebuild_binaries.py` | rebuild every executable and record which patches each contains |
 | `index_runs.py` | index every run by what it is, since a UUID says nothing |
-| `assess_convergence.py` | spin-up convergence against the predeclared criteria |
+| `assess_convergence.py` | spin-up convergence against the predeclared criteria, over the last `--window` PRODUCTION orbits |
 | `close_state_energy.py` | closes the energy budget against the PROGNOSTIC STATE, which is the check the flux diagnostics cannot fail |
-| `build_climatology.py` | average an equilibrated segment into climatologies |
+| `build_climatology.py` | average an equilibrated segment into climatologies; refuses orbits declared `diagnostic`, and refuses to mix I/O regimes |
 | `analyze_climatology.py` | diagnostics, maps and a rate-normalised Koppen interpretation |
 | `analyze_smoke.py` | audit and plot a one-orbit smoke run |
 | `analyze_stellar_cycles.py` | phase-folded response of completed cycle runs |

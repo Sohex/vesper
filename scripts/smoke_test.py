@@ -10,7 +10,7 @@ data directory, five stale binaries, and a config change that left `latitudes`
 behind. Every one of those was reachable by importing a module and looking at
 where its defaults pointed -- none needed a model run.
 
-Eight checks, all cheap:
+Ten checks, all cheap:
 
 1. **Imports.** Every module imports. Catches a missing import added while
    editing, which `--help` alone will also catch but this localises better.
@@ -43,9 +43,15 @@ Eight checks, all cheap:
 7. **Every step is named in its component README.** A step that works and is
    invisible gets reimplemented beside itself.
 8. **`local_slope_deg` reproduces an analytic gradient**, on a synthetic
-   icosphere. The only check here that tests a NUMBER rather than a pattern, and
-   the tolerance is set between two plausible implementations rather than picked:
-   see the docstring on the check itself.
+   icosphere. The tolerance is set between two plausible implementations rather
+   than picked: see the docstring on the check itself.
+9. **The convergence window follows the declared purposes.** Synthetic segment
+   manifests against `segments.py:production_window`, including the live case: a
+   diagnostic tail that the old trailing-window rule would have averaged into a
+   verdict.
+10. **A resume refuses a rewritten spectrum file.** The config names the
+   spectrum and the model reads the file, so a config comparison cannot see
+   `k25v.dat` regenerated in place. CONS-3.
 """
 
 from __future__ import annotations
@@ -272,6 +278,135 @@ def check_documented_in_component(files) -> list[str]:
 
 
 
+def check_production_window() -> list[str]:
+    """`segments.py:production_window` picks the window a declaration implies.
+
+    Class 17: every case has a right answer that is not a matter of taste, and
+    every negative is paired with the positive proving the setup was real. The
+    live failure it reproduces is the third one -- a three-orbit diagnostic tail
+    on a differently patched binary, which the trailing-window rule would have
+    averaged into a convergence verdict.
+
+    Synthetic manifests in a temp directory; it touches no run.
+    """
+    import json as _json
+    import tempfile
+    sys.path.insert(0, str(ROOT / "exoplasim" / "scripts"))
+    from segments import production_window
+
+    bad = []
+
+    def run_dir(tmp: str, segments) -> Path:
+        d = Path(tmp)
+        if segments is not None:
+            (d / "run_manifest.json").write_text(
+                _json.dumps({"segments": segments}), encoding="utf-8")
+        return d
+
+    def seg(a, b, purpose):
+        return {"start_year_index": a, "end_year_index": b, "purpose": purpose}
+
+    def case(name, got, want):
+        if got != want:
+            bad.append(f"{name}: got {got!r}, expected {want!r}")
+
+    def raises(name, fn) -> None:
+        try:
+            fn()
+        except RuntimeError:
+            return
+        bad.append(f"{name}: expected a refusal and got a window")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        # No manifest at all: every orbit is production, so the window is the
+        # plain tail. This is the pre-existing behaviour and every run made
+        # before purposes were declared depends on it.
+        case("no manifest takes the tail",
+             production_window(run_dir(tmp, None), 80, 10), (70, 79))
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = run_dir(tmp, [seg(1, 76, "spinup")])
+        # The positive that proves the setup: with the tail declared spinup the
+        # answer is still the tail, so the next case's shift is caused by the
+        # declaration and not by the manifest merely existing.
+        case("a spinup tail takes the tail",
+             production_window(d, 80, 10), (70, 79))
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = run_dir(tmp, [seg(1, 76, "spinup"), seg(77, 79, "diagnostic")])
+        case("a diagnostic tail is dropped",
+             production_window(d, 80, 10), (67, 76))
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = run_dir(tmp, [seg(1, 71, "spinup"), seg(72, 74, "diagnostic"),
+                          seg(75, 79, "spinup")])
+        raises("a diagnostic hole inside the window is refused",
+               lambda: production_window(d, 80, 10))
+        # Paired positive: the same run assessed over a window that clears the
+        # hole is fine, so the refusal is about the hole and not the manifest.
+        case("a window clearing the hole is accepted",
+             production_window(d, 80, 5), (75, 79))
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = run_dir(tmp, [seg(0, 9, "diagnostic")])
+        raises("a run with no production orbits is refused",
+               lambda: production_window(d, 10, 5))
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = run_dir(tmp, [seg(8, 9, "diagnostic")])
+        raises("too few production orbits for the window is refused",
+               lambda: production_window(d, 10, 10))
+    return bad
+
+
+def check_spectrum_guard() -> list[str]:
+    """A resume refuses a spectrum file rewritten under the same name.
+
+    CONS-3. The config names the spectrum and the model reads the FILE, so a
+    config comparison cannot see `k25v.dat` regenerated in place. Every negative
+    here is paired with the positive proving the manifest was otherwise
+    acceptable, or the refusal would prove nothing.
+    """
+    import copy
+    sys.path.insert(0, str(ROOT / "exoplasim" / "scripts"))
+    import yaml
+    from run_exoplasim import stellar_spectrum_digest, require_stellar_spectrum
+
+    bad = []
+    config = yaml.safe_load(
+        (ROOT / "config" / "planet.yaml").read_text(encoding="utf-8"))
+    digest = stellar_spectrum_digest(config)
+    if not digest or not digest.get("sha256") or not digest.get("hr_sha256"):
+        return ["stellar_spectrum_digest returned no digest for the configured "
+                "spectrum, so nothing below tests anything"]
+
+    manifest = {"stellar_spectrum_digest": copy.deepcopy(digest)}
+    if require_stellar_spectrum(manifest, config):
+        bad.append("an unchanged spectrum was reported as a backfill")
+
+    for key in ("sha256", "hr_sha256"):
+        tampered = {"stellar_spectrum_digest": copy.deepcopy(digest)}
+        tampered["stellar_spectrum_digest"][key] = "0" * 64
+        try:
+            require_stellar_spectrum(tampered, config)
+            bad.append(f"a changed {key} was resumed across")
+        except RuntimeError:
+            pass
+
+    # The backfill path prints its warning; swallow it so the check's own
+    # output is the only thing on stdout.
+    import contextlib
+    import io
+    unstamped: dict = {}
+    with contextlib.redirect_stdout(io.StringIO()):
+        backfilled = require_stellar_spectrum(unstamped, config)
+    if not backfilled:
+        bad.append("an unstamped run did not report that it was backfilled")
+    if unstamped.get("stellar_spectrum_digest") != digest:
+        bad.append("the backfill did not land in the manifest")
+    return bad
+
+
 def check_slope_fit() -> list[str]:
     """`lib/orogen.py:local_slope_deg` reproduces a gradient it can get wrong.
 
@@ -395,7 +530,11 @@ def main() -> None:
               ("every step is named in its component README",
                check_documented_in_component(files)),
               ("local_slope_deg reproduces an analytic gradient",
-               check_slope_fit())]
+               check_slope_fit()),
+              ("the convergence window follows the declared purposes",
+               check_production_window()),
+              ("a resume refuses a rewritten spectrum file",
+               check_spectrum_guard())]
     if not args.skip_help:
         checks.insert(1, ("entry points answer --help", check_help(files)))
 

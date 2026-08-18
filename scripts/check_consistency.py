@@ -600,6 +600,54 @@ def main() -> int:
     except Exception as exc:
         rep.add(WARN, "generated biosphere inputs", f"not checked: {exc}")
 
+    # -- runs vs the spectrum file they were integrated against --------------
+    #
+    # The run manifest records the spectrum by CONTENT as well as by name,
+    # because `build_stellar_spectrum.py` rewrites `<name>.dat` in place from
+    # `star.spectral_type` and `star.effective_temperature_k`. The name is
+    # therefore stable across a change that moves every snow, ice and glacier
+    # albedo, and the resume guard compares parsed config values, which cannot
+    # see a file rewritten under an unchanged name. `continue_exoplasim.py`
+    # refuses to resume across it; this says the same thing before an expensive
+    # run rather than at the moment one is being extended.
+    #
+    # A finished run on another spectrum is a fact rather than a defect -- it is
+    # a different climate and stays readable as one -- so a mismatch is reported
+    # and not failed. What it means is that the run cannot be extended.
+    try:
+        import run_exoplasim as _rx
+        current = _rx.stellar_spectrum_digest(config)
+        runs = ROOT / "exoplasim" / "runs"
+        same, other, unstamped = [], [], []
+        for m in sorted(runs.glob("*/run_manifest.json")):
+            try:
+                rec = json.loads(m.read_text(encoding="utf-8")).get("stellar_spectrum_digest")
+            except (OSError, json.JSONDecodeError):
+                rec = None
+            if rec is None:
+                unstamped.append(m.parent.name)
+            elif rec == current:
+                same.append(m.parent.name)
+            else:
+                other.append(m.parent.name)
+        if not (same or other or unstamped):
+            rep.add(WARN, "runs vs stellar spectrum", "no run manifests present")
+        elif other or unstamped:
+            detail = []
+            if other:
+                detail.append(f"{len(other)} on another spectrum file and not "
+                              f"resumable: {other}")
+            if unstamped:
+                detail.append(f"{len(unstamped)} record no spectrum digest and "
+                              f"predate the check: {unstamped}")
+            rep.add(WARN, "runs vs stellar spectrum", "; ".join(detail))
+        else:
+            name = (current or {}).get("file", "a blackbody")
+            rep.add(OK, "runs vs stellar spectrum",
+                    f"{len(same)} runs all on {name}")
+    except Exception as exc:                                       # noqa: BLE001
+        rep.add(WARN, "runs vs stellar spectrum", f"not checked: {exc}")
+
     # -- binaries vs the patches they should contain -------------------------
     #
     # ExoPlaSim builds one executable per (resolution, layers, ranks) triple, so

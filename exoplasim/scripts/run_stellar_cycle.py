@@ -39,6 +39,8 @@ from run_exoplasim import (  # noqa: E402
     surface_field_report,
     stage_stellar_spectrum,
     stellar_spectrum_path,
+    stellar_spectrum_digest,
+    require_stellar_spectrum,
     verify_stellar_spectrum,
     physical_fingerprint,
     run_id,
@@ -371,6 +373,12 @@ def main() -> None:
         for key, expected in immutable.items():
             if manifest.get(key) != expected:
                 raise RuntimeError(f"Existing manifest has incompatible {key}")
+        # The spectrum reaches the model as a FILE that is regenerated in place
+        # under a name that never moves, so `config_sha256` above cannot see it
+        # change. Same guard as continue_exoplasim.py; CONS-3.
+        if require_stellar_spectrum(manifest, config):
+            manifest_path.write_text(
+                json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
     else:
         manifest = {
             "schema_version": 1,
@@ -391,6 +399,9 @@ def main() -> None:
             "config_path": str(config_path),
             "config_sha256": file_sha256(config_path),
             "source_config": config,
+            # The spectrum by CONTENT; the name is a label and the file is
+            # rewritten in place. CONS-3.
+            "stellar_spectrum_digest": stellar_spectrum_digest(config),
             "fixed_orbit_parameters": derived,
             "cycle": cycle,
             "initial_restart": str(initial_restart),

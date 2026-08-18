@@ -1,5 +1,12 @@
 #!/usr/bin/env python3
-"""Assess ExoPlaSim spin-up convergence from validated annual NetCDF files."""
+"""Assess ExoPlaSim spin-up convergence from validated annual NetCDF files.
+
+The verdict is taken over the last `--window` PRODUCTION orbits. Every segment
+of a run declares what it was for, and orbits run to measure the model rather
+than to advance the planet -- an I/O verification, a high-cadence wind sample, a
+block on a differently patched binary -- are not evidence about where the run is
+settling. `exoplasim/scripts/segments.py` owns that vocabulary.
+"""
 
 from __future__ import annotations
 
@@ -24,6 +31,9 @@ from numpy.polynomial.legendre import leggauss
 
 from _paths import ANALYSIS
 import close_state_energy
+# The one reader of the manifest's segment records; see
+# exoplasim/scripts/segments.py for what a purpose means.
+from segments import orbit_purposes, production_window
 
 
 def output_files(run_dir: Path) -> list[Path]:
@@ -104,13 +114,27 @@ def approach_to_equilibrium(orbits: np.ndarray, series: np.ndarray,
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("run_dir", type=Path)
-    parser.add_argument("--window", type=int, default=10)
+    parser.add_argument("--window", type=int, default=10,
+                        help="orbits in the test window. Counted back from the "
+                             "last PRODUCTION orbit, not the last orbit")
     parser.add_argument("--output", type=Path, default=ANALYSIS / "convergence")
     args = parser.parse_args()
     run_dir = args.run_dir.resolve()
     files = output_files(run_dir)
     if len(files) < args.window:
         raise RuntimeError("Not enough annual outputs for requested window")
+
+    # THE WINDOW IS THE LAST `window` PRODUCTION ORBITS, NOT THE LAST `window`
+    # ORBITS. A segment declares what it was for, and a diagnostic one -- an I/O
+    # verification, a high-cadence wind sample, a block on a differently patched
+    # binary -- is not evidence about where the run is settling. Taking the tail
+    # blindly would have averaged three such orbits into this project's baseline
+    # window on the day CLIM-9 was written. `production_window` drops a
+    # diagnostic tail and REFUSES a window with a diagnostic hole in it, because
+    # a slope across a gap is not a trend.
+    window_start, window_end = production_window(run_dir, len(files), args.window)
+    purposes = orbit_purposes(run_dir, range(len(files)))
+    dropped = sorted(o for o in range(window_end + 1, len(files)))
 
     records = []
     for year, path in enumerate(files):
@@ -125,7 +149,12 @@ def main() -> None:
                 record[name] = value
             records.append(record)
 
-    arrays = {key: np.array([record[key] for record in records]) for key in ["ts", "ntr", "hfns", "sic", "pr"]}
+    # Every array is truncated at the last production orbit, so the trailing
+    # window, the exponential fit and the storage term all describe the same
+    # orbits. `records` keeps all of them, and the plot draws all of them, so
+    # nothing is hidden -- only excluded from the verdict.
+    arrays = {key: np.array([record[key] for record in records[:window_end + 1]])
+              for key in ["ts", "ntr", "hfns", "sic", "pr"]}
     w = args.window
     metrics = {
         "temperature_slope_k_per_orbit": slope(arrays["ts"], w),
@@ -152,8 +181,13 @@ def main() -> None:
     storage_error = None
     try:
         storage = close_state_energy.state_energy(
-            run_dir, len(files) - w, len(files) - 1)
-    except Exception as exc:                      # noqa: BLE001 - reported, not raised
+            run_dir, window_start, window_end)
+    # SystemExit is in the tuple because `close_state_energy` raises it, not
+    # Exception, for the case this comment names first: a run whose namelist
+    # does not declare GA, GASCON, GSOL0 and ECCEN. With only `Exception` here
+    # the assessment died on that run and wrote no report at all, so the
+    # criterion could not be False -- there was nothing to be False in.
+    except (Exception, SystemExit) as exc:        # noqa: BLE001 - reported, not raised
         storage_error = f"{type(exc).__name__}: {exc}"
 
     if storage is not None:
@@ -273,6 +307,13 @@ def main() -> None:
         "run_dir": str(run_dir),
         "completed_orbits": len(files),
         "window_orbits": w,
+        # Which orbits the verdict is actually about. `completed_orbits` above
+        # is what the run contains; these are what was assessed, and the two
+        # differ whenever a diagnostic segment sits at the end.
+        "window_start_year_index": window_start,
+        "window_end_year_index": window_end,
+        "orbits_after_window_excluded_as_non_production": dropped,
+        "segment_purposes": {str(k): v for k, v in sorted(purposes.items())},
         "metrics": metrics,
         "criteria": criteria,
         "criteria_provenance": {
@@ -323,12 +364,20 @@ def main() -> None:
             manifest["status"] = "equilibrated_for_worldbuilding"
         else:
             manifest["status"] = "quasi_equilibrated"
-        manifest["equilibrium_cutoff_year_index"] = len(files) - 1
+        # The last orbit this verdict is ABOUT, which is the end of the
+        # production window and not the end of the run. A diagnostic tail was
+        # not assessed, so it must not be counted as settled.
+        manifest["equilibrium_cutoff_year_index"] = window_end
         manifest_path.write_text(
             json.dumps(manifest, indent=2) + "\n", encoding="utf-8"
         )
 
+    # Draw every orbit, including the ones outside the verdict, and mark them.
+    # A plot that showed only the assessed orbits would make an excluded tail
+    # invisible, which is the failure this whole change is about.
     years = np.arange(len(files))
+    all_series = {key: np.array([record[key] for record in records])
+                  for key in ["ts", "ntr", "hfns", "sic", "pr"]}
     fig, axes = plt.subplots(2, 2, figsize=(12, 7.5), constrained_layout=True)
     panels = [
         ("ts", "Global surface temperature", "K"),
@@ -337,8 +386,12 @@ def main() -> None:
         ("sic", "Planetary sea-ice fraction", "fraction"),
     ]
     for ax, (key, title, units) in zip(axes.ravel(), panels):
-        ax.plot(years, arrays[key], marker="o", markersize=2.5, linewidth=1.1)
-        ax.axvspan(years[-w], years[-1], color="tab:orange", alpha=0.12, label=f"{w}-orbit test window")
+        ax.plot(years, all_series[key], marker="o", markersize=2.5, linewidth=1.1)
+        ax.axvspan(window_start, window_end, color="tab:orange", alpha=0.12,
+                   label=f"{w}-orbit test window")
+        if dropped:
+            ax.axvspan(dropped[0] - 0.5, dropped[-1] + 0.5, color="tab:grey",
+                       alpha=0.18, label="not production; excluded")
         if key in {"ntr", "hfns"}:
             ax.axhline(0, color="black", linewidth=0.7)
         ax.set_title(title)
@@ -348,7 +401,7 @@ def main() -> None:
     axes[0, 0].legend(loc="best", fontsize=8)
     fig.suptitle(
         f"Baseline spin-up convergence: {'PASS' if all(criteria.values()) else 'NOT YET'} "
-        f"({len(files)} orbits, {w}-orbit window)"
+        f"({len(files)} orbits, {w}-orbit window ending at {window_end})"
     )
     plot_path = args.output / f"{run_dir.name}_convergence.png"
     fig.savefig(plot_path, dpi=180)
@@ -358,7 +411,9 @@ def main() -> None:
     payload = {"metrics": metrics, "criteria": criteria,
                "pass": all(criteria.values()), "failed_criteria": failed,
                "report": str(report_path.resolve()), "orbits": len(files),
-               "window_orbits": w}
+               "window_orbits": w, "window_start_year_index": window_start,
+               "window_end_year_index": window_end,
+               "orbits_after_window_excluded_as_non_production": dropped}
 
     # Record the verdict with the run as well as in the analysis directory.
     # Provenance travels with the artifact everywhere else in this project, and a
