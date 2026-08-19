@@ -32,35 +32,72 @@ every iteration. They are in `world_state.json`, which is generated; see section
 
 ---
 
-## 0. Vocabulary, because two of these collide
+## 0. Vocabulary, because these collide
 
 Written 2026-08-17 after "re-baseline" was used to mean one thing and read as
 another, and the two differ by roughly a day of work and a whole regeneration of
-the terrain. These are the project's words; use them and not synonyms.
+the terrain. Rewritten 2026-08-19 after the same section failed a second time,
+in the same shape: **iteration** named both a whole turn of loop A and the part
+of the turn that follows Orogen, so "start the new iteration" was said meaning
+"redo everything below the terrain" and read as "hand a carve list to Orogen".
 
-**build** -- one World Orogen export, namespaced under `source/`. Identified by
-its terrain hash, never by its name. Superseded means wrong, not merely old.
+A loop has no privileged place to cut, so the fix is not a better sentence about
+where a turn begins. It is a NAME FOR EACH HALF, so that which half is meant
+never has to be inferred from context. These are the project's words; use them
+and not synonyms.
 
-**iteration** -- one turn of loop A in section 6: carve list to Orogen, terrain
-regenerated, hydrography and boundary conditions rebuilt on it, climate re-run,
-verdict taken again. An iteration produces a NEW BUILD. This is the expensive
-thing, and it is what "starting again from Orogen" means.
+**build** -- one World Orogen export, namespaced under `source/`. The ARTIFACT,
+not the act that made it. Identified by its terrain hash, never by its name.
+Superseded means wrong, not merely old.
 
-**bootstrap run** -- the first climate run on a new terrain, made with only the
-surface fields that are pure functions of terrain. It exists to produce the
-climatology that the remaining fields need. **Its numbers are not the baseline.**
+**generation** -- the act. One pass of World Orogen, consuming the planet code,
+the seed and a carve list, producing a build. It is the only thing in this
+project that changes the terrain, and it is the only way a build comes to exist.
 
-**baseline run** -- the second climate run of an iteration, on the full surface
+**bootstrap run** -- the first climate run on a build, made with only the surface
+fields that are pure functions of terrain. It exists to produce the climatology
+that the remaining fields need. **Its numbers are not the baseline.**
+
+**baseline run** -- the second climate run on a build, on the full surface
 fields: lakes, the lake compositing in the albedo, and soil water capacity, all
 built from the bootstrap's climatology. The climatology of a baseline run is what
 downstream components read.
 
-**re-run the baseline** -- a NEW baseline run on the SAME terrain, because
-something changed that is not the terrain: a model patch, a boundary field, a
-configuration value. This is not an iteration and Orogen is not involved.
+**commissioning** -- the whole process of taking a build to a settled baseline:
+terrain-only surface fields, bootstrap run, every derived field rebuilt from the
+bootstrap's climatology, baseline run, convergence. A build is UNCOMMISSIONED
+until that finishes, and an uncommissioned build has no climatology that anything
+downstream may read.
 
-  Do not say "re-baseline". It reads as an iteration and means this, and that
-  gap has already cost one misunderstanding.
+  This is the word for "the work that extends from a build", and OROGEN IS NOT
+  PART OF IT. If you are saying it and picturing a terrain being regenerated,
+  you mean `iteration`.
+
+**re-commissioning** -- commissioning the SAME build again, because something
+that is not the terrain has invalidated its climatology: a model patch, a
+configuration value, a physics correction. Same build, no generation, and the
+bootstrap comes with it, because everything below a climatology is worthless
+rather than stale once the climatology is (CLAUDE.md rule 7).
+
+**re-run the baseline** -- the narrow case, and NOT a re-commissioning: a new
+baseline run on derived fields that are still valid, because whatever changed
+does not reach them. The test is mechanical rather than a judgement: if lakes,
+the albedo compositing, the soil or code 229 have to be rebuilt, their input is
+a climatology, so it is a re-commissioning and the bootstrap is not optional.
+
+  Do not say "re-baseline". It reads as an iteration and means one of these two,
+  and that gap has already cost one misunderstanding.
+
+**iteration** -- one turn of loop A in section 6, and the expensive thing: a
+generation on the carve list the previous commissioning produced, then the
+commissioning of the build that comes out of it. An iteration therefore CONTAINS
+a generation and a commissioning, in that order, and it is what "starting again
+from Orogen" means.
+
+  Say `generation` or `commissioning` when you mean one half. Saying `iteration`
+  when you mean the second half is the collision this section was rewritten for,
+  and it is the easy one to make, because most of the work in a turn is the
+  commissioning.
 
 **segment** -- a contiguous block of orbits added to an existing run by
 `continue_exoplasim.py`. Runs are made of segments; each records its I/O regime
@@ -76,10 +113,13 @@ evidence. `hydrography/analysis/carve_verdict.json`.
 **carve list** -- the artifact Orogen consumes, `carve_list.txt`, one retain
 fraction per basin. The verdict is a conclusion; the list is an instruction.
 
-### What a re-run of the baseline actually costs
+### What a re-commissioning actually costs
 
 The distinction is worth a table, because most of the pipeline does not move when
-only the climate does:
+only the climate does. The rows below are a RE-COMMISSIONING: the same build,
+everything below the climatology redone. A bare re-run of the baseline is cheaper
+still and is only honest when nothing in the "yes" rows is reachable from
+whatever changed.
 
 | | redone? | why |
 | --- | --- | --- |
@@ -94,9 +134,10 @@ only the climate does:
 | carve verdict, dust, everything downstream | yes | below the climatology |
 
 At the measured 88 s of model time per orbit, a settling run off an existing
-near-equilibrium plus ten clean orbits is a couple of hours of wall clock, and
-the loop usually wants two of them. An ITERATION is far more, because it
-regenerates the terrain and everything that is a function of it.
+near-equilibrium plus ten clean orbits is a couple of hours of wall clock, and a
+commissioning usually wants two of them. An ITERATION is far more, because the
+generation in front of it regenerates the terrain and every field that is a
+function of it, which is the whole first three rows of the table above.
 
 ## 1. The components
 
@@ -775,14 +816,19 @@ Three nested loops and then a resolution change. The order matters in places
 where it is not obvious, so those places are called out rather than left to be
 rediscovered.
 
-**A. The terrain loop.** Carve list to World Orogen, regenerate the terrain,
-rebuild hydrography and boundary conditions on it, re-run the T42 baseline, take
-the verdict again. Hydrography has to be rebuilt *after* the carve and before the
-climate, because the carve changes the drainage the climate is integrated over.
+**A. The terrain loop, one turn of which is an ITERATION.** A generation on the
+carve list, then the commissioning of the build it produces: hydrography and
+boundary conditions rebuilt on the new terrain, bootstrap, derived fields,
+baseline, verdict. Hydrography has to be rebuilt *after* the carve and before
+the climate, because the carve changes the drainage the climate is integrated
+over.
 
-Concretely, from a build in `source/` with nothing derived from it yet. Each
-step reads the one before, and `check_consistency.py` reports which are still
-missing at any point:
+The block below is the COMMISSIONING, and it is the same block whether the build
+is new or is being re-commissioned because something that is not the terrain
+invalidated its climatology. The only difference is that a re-commissioning
+skips the generation above it and starts from a build already in `source/`.
+Each step reads the one before, and `check_consistency.py` reports which are
+still missing at any point:
 
 ```bash
 python exoplasim/scripts/rebuild_binaries.py --verify # CLAUDE.md rule 4. FIRST, always
