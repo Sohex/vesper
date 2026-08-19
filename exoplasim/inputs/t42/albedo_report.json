@@ -1,0 +1,178 @@
+{
+  "mode": "vegetated",
+  "mesh": "None",
+  "grid": "/home/cfutro/docs/world/source/precarve-craton/exoplasim-T42",
+  "resolution": "T42",
+  "terrain_hash": "e931b0d9947a232210a3cc11ba82003b5da15765d86e87956bc44c220932760e",
+  "codes": [
+    174,
+    175,
+    176,
+    212
+  ],
+  "forest_fraction_value": 0.5,
+  "vegetation": null,
+  "forest_fraction_land_mean": 0.3631939003928733,
+  "lithology_albedo_overrides": {
+    "playa_clastic": {
+      "rock_id": 19,
+      "albedo": 0.23,
+      "exported_albedo": 0.1899999976158142,
+      "regions": 257433
+    }
+  },
+  "vegetation_albedo": {
+    "value": 0.165,
+    "source": "config model.vegetation_albedo unless --vegetation-albedo",
+    "derivation": "analysis/vegetation_albedo.json",
+    "bands_175_176": [
+      0.075,
+      0.225
+    ],
+    "band1_land_mean": 0.12534794940449348,
+    "band2_land_mean": 0.23430611952235547
+  },
+  "barren_rock_classes": [
+    "evaporite",
+    "playa_clastic"
+  ],
+  "forest_note": "dforest blends snow albedo between forested and unforested endpoints, so it has to agree with the background albedo assumption. ExoPlaSim's default is a uniform 0.5.",
+  "land_mean_bare_rock": 0.24750575431058977,
+  "land_mean_written": 0.19072285147521065,
+  "endmembers": {
+    "note": "land-mean albedo of the two surface endmembers, on the overridden rock table and before lakes. Their difference is what the biosphere is worth; pair only these two.",
+    "bare_rock": 0.25705348383945864,
+    "vegetated": 0.19005819710599423
+  },
+  "lakes": null,
+  "derived_evaporite": null,
+  "exoplasim_default_albland": 0.22,
+  "land_min": 0.16499999999999984,
+  "land_max": 0.43094694507988146,
+  "files": [
+    "/home/cfutro/docs/world/exoplasim/inputs/t42/orogen_T42_surf_0174.sra",
+    "/home/cfutro/docs/world/exoplasim/inputs/t42/orogen_T42_surf_0175.sra",
+    "/home/cfutro/docs/world/exoplasim/inputs/t42/orogen_T42_surf_0176.sra",
+    "/home/cfutro/docs/world/exoplasim/inputs/t42/orogen_T42_surf_0212.sra"
+  ],
+  "caveat": "Substrate albedo, not land-surface albedo. Vegetation and snow are applied by the model on top of this.",
+  "generator": "exoplasim/scripts/build_surface_albedo.py",
+  "source_config": {
+    "schema_version": 1,
+    "source_build": "precarve-craton",
+    "baseline_climatology": null,
+    "planet": {
+      "radius_earth": 1.2,
+      "gravity_m_s2": 12.81,
+      "mass_earth": 1.881009,
+      "rotation_hours": 30.0,
+      "obliquity_degrees": 32.0,
+      "eccentricity": 0.02
+    },
+    "star": {
+      "spectral_type": "K2.5V",
+      "activity": "active",
+      "surface_uv_relative_to_earth": 0.4,
+      "mass_solar": 0.8,
+      "luminosity_solar": 0.32359365692962827,
+      "effective_temperature_k": 4965.0,
+      "metallicity": 0.0
+    },
+    "orbit": {
+      "earth_solar_constant_w_m2": 1361.0,
+      "baseline_flux_earth": 0.945,
+      "sweep_flux_earth": [
+        0.9,
+        0.95,
+        1.0
+      ],
+      "longitude_vernal_equinox_degrees": 102.7
+    },
+    "atmosphere": {
+      "pN2_bar": 0.78025,
+      "pO2_bar": 0.21,
+      "pAr_bar": 0.0093,
+      "pCO2_bar": 0.00045,
+      "ozone": true
+    },
+    "radiation": {
+      "two_band_albedo": true,
+      "stellar_spectrum": "k25v"
+    },
+    "ocean": {
+      "salinity_psu": 34.7
+    },
+    "surface": {
+      "mixed_layer_depth_m": 50.0,
+      "sea_ice": true,
+      "glaciers": {
+        "enabled": true,
+        "min_snow_depth_m": 2.0,
+        "initial_height_m": -1.0
+      }
+    },
+    "model": {
+      "resolution": "T42",
+      "latitudes": 64,
+      "longitudes": 128,
+      "layers": 10,
+      "precision_bytes": 8,
+      "ncpus": 16,
+      "timestep_minutes": 45.0,
+      "physics_filter": "gp|exp|sp",
+      "output_type": ".nc",
+      "uniform_land_surface": true,
+      "energy_diagnostics": true,
+      "energy_diagnostics_3d": true,
+      "ozone_scale": 0.794,
+      "ozone_uv_weight": 0.335,
+      "ozone_visible_weight": 0.914,
+      "h2o_sw_weight": 1.346,
+      "h2o_sw_level": 1.127,
+      "co2_sw_weight": 1.51,
+      "roughness_source": "lithology",
+      "soil_water_source": "uniform",
+      "land_albedo_source": "vegetated",
+      "vegetation_albedo": 0.165,
+      "vegetation_albedo_bracket": [
+        0.15,
+        0.171
+      ],
+      "vegetation_albedo_bands": [
+        0.075,
+        0.225
+      ],
+      "lithology_albedo_overrides": {
+        "playa_clastic": {
+          "albedo": 0.23,
+          "replaces": 0.19
+        }
+      },
+      "barren_rock_classes": [
+        "evaporite",
+        "playa_clastic"
+      ],
+      "geography_land_threshold": 0.5,
+      "seasonal_samples_per_orbit": 32,
+      "regular_output_bins_per_orbit": 12
+    },
+    "stellar_cycle": {
+      "components": {
+        "medium": {
+          "period_earth_years": 11.0,
+          "amplitude_flux_peak_to_peak": 0.025,
+          "note": "The lived rhythm. Damped about 0.83, so roughly 3.1 K peak-to-peak, some thirty times Earth's solar-cycle signal and the dominant climatic fact of any individual life. Fast enough to be planned around, too fast for ice to follow.\n"
+        },
+        "long": {
+          "period_earth_years": 57.0,
+          "amplitude_flux_peak_to_peak": 0.035,
+          "note": "The geomorphic driver. Essentially undamped at 0.99, roughly 5.2 K peak-to-peak, slow enough that glaciers equilibrate rather than merely breathing. Each grand minimum is a distinct historical era.\n"
+        }
+      },
+      "total_amplitude_flux_peak_to_peak": 0.06,
+      "alignment_recurrence_earth_years": 314
+    }
+  },
+  "config_sha256": "58482f166f88ca9a7f3330c780d885e256b7377b03cfd4c4331482d1609c9189",
+  "git_commit": "ab00d044ff8569383e75969e3fae94db03a08813"
+}

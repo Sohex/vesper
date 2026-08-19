@@ -484,6 +484,22 @@ def main() -> int:
     couplings = sorted(data.glob("coupling_*.nc"))
     if not couplings:
         rep.add(FAIL, "coupling matrices", "none found")
+    # The invariant needs a climatology, and during a commissioning there is
+    # not one yet: hydrography runs before the bootstrap, so the couplings
+    # exist while the land mask to check them against does not. Fetched ONCE
+    # and outside the loop, because `climatology_path` raises SystemExit with
+    # none named, which took the whole report down between the two steps --
+    # exactly where rule 8 requires this script to run. Unavailable is
+    # reported per coupling below and is NOT a pass.
+    lsm = None
+    if couplings:
+        try:
+            lsm = land_sea_mask()
+        except SystemExit as exc:
+            lsm_unavailable = str(exc)
+        except Exception as exc:                                  # noqa: BLE001
+            lsm_unavailable = f"{type(exc).__name__}: {exc}"
+
     for path in couplings:
         # An invariant, not an existence assertion. `cell_lon` being PRESENT
         # says nothing about whether the mapping built from it is right, and
@@ -492,7 +508,10 @@ def main() -> int:
         # land on a cell the model calls ocean: 1.01% index for index against
         # 49.77% when longitude labels are matched. See notes/failure-modes.md
         # class 17 and notes/audits/grid-convention-and-runoff.md.
-        lsm = land_sea_mask()
+        if lsm is None:
+            rep.add(WARN, f"convention {path.name}",
+                    f"not checkable yet: {lsm_unavailable}")
+            continue
         with Dataset(path) as ds:
             same_grid = int(ds.n_lon) == lsm.shape[1]
         if not same_grid:
