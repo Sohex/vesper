@@ -139,3 +139,62 @@ every other rank through the next collective. Measured 2026-08-19 during a
 production run, migrations ran 19 to 383 per rank over 80 s and were strongly
 skewed toward the low-numbered cores, which is background load rather than
 anything intrinsic.
+
+---
+
+## First attempt, 2026-08-19: one arm clean, four contaminated
+
+Run 16:44 to 17:13, four orbits per arm, all seeded from
+`run_4182235e9781/MOST_REST.00039`. Model time is separated from postprocessing
+by taking `MOST_REST.NNNNN` against the previous orbit's `MOST.NNNNN.nc`, which
+is worth doing for its own sake: **postprocessing was 1.8 to 2.0 s in every arm
+and every orbit**, flat, so it is no longer a variable in any timing question
+here and the 29.4 s figure that predates the second pyburn fix should not be
+quoted again.
+
+| arm | model time per orbit, s | median | self-scatter |
+| --- | --- | ---: | ---: |
+| 1. 8 ranks, V-Cache | 95.2, 95.9, 96.3 | 95.9 | **1.2%** |
+| 2. 8 ranks, frequency | 95.4, 101.8, 100.7 | 100.7 | 6.4% |
+| 3. 16 ranks, spanning | 82.0, 101.2, 113.8 | 101.2 | 31.4% |
+| 4a. 8 ranks V-Cache, concurrent | 119.4, 111.6, 104.2 | 111.6 | 13.6% |
+| 4b. 8 ranks frequency, concurrent | 123.0, 124.0, 102.3 | 123.0 | 17.7% |
+
+**Four of five arms fail the 5% self-scatter floor and are not scored.** That
+floor was declared above before any arm ran, and it is doing exactly the work it
+was put there for.
+
+**The contamination is visible in the data and has a shape.** Arm 3 rises
+monotonically and both halves of arm 4 fall; the peak sits between them, around
+17:00 to 17:08. That is one external load ramping up and finishing, not noise,
+and the operator confirmed other work was running. Arm 1 ran before it and is
+the only clean measurement: **8 ranks on the V-Cache die integrate an orbit in
+95.9 s at 1.2% scatter.**
+
+**What must NOT be concluded from this.** Arm 3's opening orbit of 82.0 s is the
+fastest single orbit in the matrix and suggests 16 ranks beat 8, but it is one
+observation from an arm scattering 31%. Pairing it against arm 4 to score
+throughput -- which this note's author did before looking at the whole profile --
+takes the cleanest number from one arm and the dirtiest from another, and the two
+sit at opposite ends of the same external ramp. The throughput indication favours
+2x8 by 27 to 37% under every pairing available, and every one of those pairings
+is between contaminated quantities. **The adoption rule is not satisfied and 2x8
+is not adopted.**
+
+**What the matrix did establish**, because it does not depend on the contested
+numbers:
+
+- Postprocessing is flat and small, measured five times over.
+- An 8-rank binary resumes a 16-rank restart, so the arms are legitimate.
+- Concurrency has a real cost that is not derivable from the solo arms: arm 4's
+  V-Cache half ran 111.6 s against arm 1's 95.9 s on the same eight cores. Some
+  of that gap is the external load, so it is an upper bound rather than a
+  measurement, but it cannot be zero and it is why arm 4 exists.
+- The `:ordered` pinning holds under real load: every arm bound one rank per
+  core, verified on the live processes rather than on a probe.
+
+**Re-run when the machine is quiet.** Same arms, more orbits so drift shows as a
+slope rather than being inferred from three points, and interleave the arms
+rather than running them in a fixed order, so machine state cannot alias with
+arm identity -- that aliasing is what made arm 1 look fastest, purely for having
+gone first.
