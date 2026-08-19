@@ -748,3 +748,51 @@ Two rules, and the second is the durable one:
   it. The binary's mtime was visible throughout and would have settled the
   question in one command.
 
+
+## 22. Two copies of what a segment must re-apply, and only one of them maintained
+
+`configure()` re-copies the shipped namelists over the configured ones every time
+the model is constructed on an existing run directory. So a continuation has to
+REAPPLY every configured key, and `continue_exoplasim.py` did -- from its own
+copy of the list.
+
+`run_exoplasim.py` staged five shortwave gas keys. `continue_exoplasim.py`
+restated the tuple with four, under a comment reading "all four", which was true
+on the day it was written. PHYS-9 then added `h2o_sw_level` to one copy. The
+result: `config/planet.yaml`'s 1.127 applied to the orbits the prepare script
+ran and reverted to radmod.f90's 1.0 on every segment after.
+
+Found 2026-08-19 on `run_78c22fb1a1bd`. Orbits 0-6 carried the level and 7-59 did
+not, so the physics changed PARTWAY THROUGH A RUN and the convergence window and
+climatology sat entirely in the wrong half. The bundle prices that term at
++1.25 K, its largest. A second instance of the same shape was found in the same
+file within the hour: `configure()`'s `otherargs` was also duplicated, and
+CLIM-17's `TFREEZE` was in the prepare copy only, so the run's `icemod_namelist`
+carried `NICE` and nothing else.
+
+**This is not class 12.** There a continuation RE-DECIDED a value it should have
+read back from the run. Here it correctly re-applies -- from a list that had
+quietly stopped being the list. The two point opposite ways and the fixes differ:
+12 wants the value read from the run, 22 wants there to be only one statement of
+what gets applied.
+
+**Why nothing caught it.** `config_drift` compares the config against the
+manifest's `source_config`, and both were right; the config said 1.127
+throughout. `check_consistency` checks artifacts against the config, and the
+namelist is not one of the artifacts it reads. `assess_convergence` reads the
+trailing window, which was uniformly in the wrong regime and therefore perfectly
+self-consistent. Every guard passed because each compared two things that agreed,
+and the disagreement was between the config and a file neither of them opened.
+
+**The tell, and it is cheap.** Class 12 already recorded that the namelist in the
+run directory is the ground truth for what was integrated and the manifest is a
+claim about it. Read the namelist. `H2OSWL` was absent from the exact slot
+between `CO2SWW` and `H2OSWW` where the insertion order puts it, which is a
+one-command check and was the whole of the evidence.
+
+**The rule.** What a segment must re-apply is ONE definition, imported, never a
+second list that has to agree. Two lists that agree today are a defect with a
+date on it: the second copy is not maintained by whoever extends the first, and
+nothing in the tooling connects them. The same bug had already hit the stellar
+spectrum on this file once, and the fix then was to add the missing call rather
+than to remove the duplication, which is why it recurred twice.
