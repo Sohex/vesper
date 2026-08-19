@@ -61,11 +61,29 @@ whatever changed.
 | a second run on those rebuilt fields | usually | this is where the loop closes |
 | carve verdict, dust, everything downstream | yes | below the climatology |
 
-At the measured 88 s of model time per orbit, a settling run off an existing
-near-equilibrium plus ten clean orbits is a couple of hours of wall clock, and a
-commissioning usually wants two of them. An ITERATION is far more, because the
-generation in front of it regenerates the terrain and every field that is a
-function of it, which is the whole first three rows of the table above.
+**Price an orbit in WALL CLOCK, not in model time.** At T42 on 16 ranks an orbit
+costs about 140 s end to end, of which roughly 105 s is the model and the rest is
+postprocessing and the ocean and ice stream writes. This paragraph used to quote
+the model half alone and convert it, which understated a run by about a third:
+the science is the larger share but it is not the whole wait, and what a run
+waits on is both. Per-orbit figures are recorded per segment as
+`native_runtime_seconds` in each run's manifest, and that field is the model half
+only; the wall figure is the gap between consecutive `MOST_REST.NNNNN`.
+
+So a settling run off an existing near-equilibrium plus ten clean orbits is a
+couple of hours, and a commissioning usually wants two of them. An ITERATION is
+far more, because the generation in front of it regenerates the terrain and every
+field that is a function of it, which is the whole first three rows of the table
+above.
+
+**That 140 s assumes the pyburn fix is resident, and it is the difference between
+this being affordable and not.** Shipped pyburn accumulates every record with
+`np.append`, which is quadratic in record count: 304 s an orbit against 29.4 s
+fixed, for bitwise identical output. Unpatched, postprocessing is not an overhead
+on the science but roughly three quarters of the orbit, and a commissioning goes
+from about four hours to about twelve.
+`notes/audits/pyburn-postprocessing-cost.md` has the measurement and the two ways
+it was nearly misdiagnosed.
 
 ## 1. The components
 
