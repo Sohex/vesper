@@ -91,9 +91,9 @@
      
 +    # Records are collected per code and joined ONCE. This replaced
 +    # `np.append(accumulated, field)` per record, which reallocates and copies
-+    # the whole accumulated array every time and makes the read QUADRATIC in
-+    # record count. One T42 orbit at NLOWIO = 0 is ~81k records, and that one
-+    # line was 246 s of the 363 s this postprocessor took. np.append flattens,
++    # the whole accumulated array every call and makes reading QUADRATIC in
++    # record count. On a T42 orbit of ~81k records it dominated postprocessing:
++    # joining once took the same job from 304 s to 29 s. np.append flattens,
 +    # so a 1-D concatenate gives the identical result.
 +    _chunks = {}
      while n<len(fbuffer):
