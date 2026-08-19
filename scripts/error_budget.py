@@ -86,6 +86,7 @@ to say.
 
 from __future__ import annotations
 
+import argparse
 import json
 from pathlib import Path
 import sys
@@ -99,6 +100,7 @@ import yaml  # noqa: E402
 import builds  # noqa: E402
 import orbit as orbit_lib  # noqa: E402
 import climatology
+import paths  # noqa: E402
 import sensitivity  # noqa: E402
 
 # Measured, not assumed; see the module docstring.
@@ -375,7 +377,9 @@ def land_water_balance(config) -> dict:
     from netCDF4 import Dataset
     from numpy.polynomial.legendre import leggauss
 
-    path = ROOT / str(config["baseline_climatology"])
+    # Through the one resolver, which raises when no baseline is named; the
+    # str() here turned a null into the literal path "None".
+    path = paths.climatology_path(root=ROOT)
     with Dataset(path) as ds:
         nlat, nlon = len(ds.dimensions["lat"]), len(ds.dimensions["lon"])
         w = leggauss(nlat)[1][::-1][:, None] * np.ones((1, nlon))
@@ -602,6 +606,14 @@ def runoff_per_kelvin(water) -> float:
 
 
 def main() -> None:
+    # Parsed first, so `--help` needs no artifacts. See the note in
+    # lib/sensitivity.py:main -- both were answering `--help` by running to
+    # completion, which only worked while a climatology existed.
+    argparse.ArgumentParser(
+        description="The error budget: what each unpriced term is worth in "
+                    "kelvin and in carve currency. Takes no arguments. Writes "
+                    "analysis/error_budget.json; needs the baseline "
+                    "climatology named in config/planet.yaml.").parse_args()
     config = yaml.safe_load((ROOT / "config" / "planet.yaml").read_text(encoding="utf-8"))
     sensitivity.test_identity()
     problems = sensitivity.verify()

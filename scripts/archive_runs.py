@@ -29,6 +29,17 @@ reads it, by which time the original is long gone.
 definition, and the definition is worth more than a hand-kept list: a build being
 superseded is exactly what makes its runs uninteresting.
 
+That rule knows about one of the two ways a run dies. The other is a
+RE-COMMISSIONING: the terrain stands, but something that is not the terrain has
+invalidated the climatology, and by CLAUDE.md rule 7 everything below a
+climatology is worthless rather than stale once the climatology is. Those runs
+are on the ACTIVE build and the live rule protects them, correctly, because it
+cannot see the invalidation -- nothing in a run's manifest records that the model
+or the config moved underneath it. `--include-live` is that judgment made by the
+caller: it says every run in the index is dead, whatever build it names, and
+archives the lot. It is DECLARED rather than inferred for the same reason a
+segment's purpose is.
+
 Nothing is decided by directory name or sort order. The run set comes from
 `exoplasim/runs/INDEX.json`.
 """
@@ -101,6 +112,10 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--execute", action="store_true",
                     help="actually extract and delete; default is a dry run")
+    ap.add_argument("--include-live", action="store_true",
+                    help="treat every run as dead, including runs on the active "
+                         "build. For a re-commissioning, where the terrain "
+                         "stands but the climatology below it does not")
     args = ap.parse_args()
 
     import yaml
@@ -108,10 +123,15 @@ def main() -> None:
     active = cfg.get("source_build")
 
     rows = load_index()
-    live = [r for r in rows if r.get("source_build") == active]
-    dead = [r for r in rows if r.get("source_build") != active]
+    if args.include_live:
+        live, dead = [], list(rows)
+    else:
+        live = [r for r in rows if r.get("source_build") == active]
+        dead = [r for r in rows if r.get("source_build") != active]
 
-    print(f"active build: {active}\n")
+    print(f"active build: {active}")
+    print("every run treated as dead (--include-live)\n" if args.include_live
+          else "")
     print(f"LIVE, untouched ({len(live)} runs, "
           f"{sum(r['size_gb'] for r in live):.1f} GB)")
     for r in live:
@@ -167,10 +187,12 @@ def main() -> None:
 
     (ARCHIVE / "README.md").write_text(
         "# Archived runs\n\n"
-        "Derived products from runs on superseded terrains. The raw NetCDF is\n"
-        "gone: it described a world this project no longer models, and it was\n"
-        "50 GB. What remains is what anything ever cited -- the manifest, the\n"
-        "convergence assessment, the climate series, and the namelists.\n\n"
+        "Derived products from runs this project no longer models: either the\n"
+        "terrain under them was superseded, or the climatology below them was,\n"
+        "which by CLAUDE.md rule 7 makes them worthless rather than stale. The\n"
+        "raw NetCDF is gone -- it was 50 GB. What remains is what anything ever\n"
+        "cited: the manifest, the convergence assessment, the climate series,\n"
+        "and the namelists.\n\n"
         "`INDEX_ENTRY.json` in each directory is that run's row from\n"
         "`exoplasim/runs/INDEX.json` at the time it was archived, so a result\n"
         "computed from one of these stays readable and datable without the\n"

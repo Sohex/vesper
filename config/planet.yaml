@@ -3,12 +3,25 @@ schema_version: 1
 # Canonical parameters for Vesper. Every component reads this file and nothing
 # copies a value out of it into prose or into a script.
 #
-# Each block is marked DETERMINED or PROVISIONAL. A determined value has been
-# decided or measured and downstream work may rely on it; a provisional one is a
-# placeholder or an interim result and it will move. The distinction is not
-# cosmetic: `stellar_cycle` carried an amplitude and a centre before there was a
-# baseline flux to centre on, and both were later read back as though they had
-# been chosen.
+# Every block carries a STATUS. It is about what STANDS BEHIND the value, not
+# about how old it is, and there are four:
+#
+#   DETERMINED   measured, derived by an artifact that exists, or decided in a
+#                way that is now load-bearing. Downstream work may rely on it.
+#   DECLARED     this project cannot compute it, or has not reproducibly. A
+#                stated position, written down so it is not read back as a
+#                result.
+#   PROVISIONAL  a placeholder or an interim value that WILL move. Relying on it
+#                is relying on something already scheduled to change.
+#   DERIVED      computed by the named script from other values in this file.
+#                Regenerate it rather than editing it.
+#
+# The distinction is not cosmetic, and it decays in one direction only:
+# `stellar_cycle` carried an amplitude and a centre before there was a baseline
+# flux to centre on, and both were later read back as though they had been
+# chosen. So a block loses its status the moment the thing behind it does. When
+# an artifact is deleted or superseded, the label above every value that rested
+# on it is part of what is now worthless, and it is demoted in the same pass.
 #
 # Why each value is what it is: notes/config-rationale.md, keyed by setting.
 # Current measured values: world_state.json, which is generated.
@@ -17,13 +30,14 @@ schema_version: 1
 # what superseded what.
 source_build: precarve-craton
 
-# The baseline: the run whose climatology the carve verdict uses, made with
-# lakes, the reconciled playa albedo and soil water all in place. Quasi-
-# equilibrated at 289.72 K, missing only the TOA criterion and by 0.0014 W/m2,
-# inside a structural offset of its own size. The bootstrap it replaces is still
-# on disk and is what the surface fields were built from. Null means no baseline
-# is named and every consumer raises rather than falling back.
-baseline_climatology: exoplasim/analysis/climatology/baseline_regular_climatology.nc
+# DECLARED ABSENT. Null means no baseline is named, and `climatology_path()`
+# raises rather than falling back. That is the designed state and not a gap: a
+# stale default returns a plausible number from the wrong world, which is worse
+# than an error. There is no climatology on this build -- every run was archived
+# to identity and deleted -- so nothing downstream may read one until a
+# commissioning produces one. Repoint this at the REGULAR climatology of the
+# baseline run when it exists, not at the bootstrap's.
+baseline_climatology: null
 
 # DETERMINED. Radius and gravity are Orogen's and canonical; mass follows from
 # gravity as mass_earth = (g/g_earth) * radius_earth^2, and derive() raises if
@@ -48,7 +62,7 @@ star:
   mass_solar: 0.80
   luminosity_solar: 0.32359365692962827
   effective_temperature_k: 4965.0
-  # DECIDED. Solar, which is an ordinary choice for a K2.5V star and is not
+  # DECLARED. Solar, which is an ordinary choice for a K2.5V star and is not
   # what makes this a decision. It is here because nothing else determines it
   # and because it has more leverage on the star's colour than anything else
   # that is not the temperature: half a dex moves the shortwave band-1 share by
@@ -59,11 +73,27 @@ star:
   # a grid point that disagrees. notes/audits/stellar-spectrum-oracle.md.
   metallicity: 0.0
 
-# DETERMINED, 2026-08-16, from the habitability-by-latitude derivation rather
-# than from a temperature target. The flux and the biosphere are one choice:
-# bare rock and a vegetated surface reach a given design mean at non-overlapping
-# fluxes. Move the flux by luminosity once the calendar is locked, not by the
-# orbit; WORKFLOW.md section 6C says why.
+# MIXED, and the mixture is the point. `earth_solar_constant_w_m2` is a physical
+# constant and `sweep_flux_earth` is a sweep specification; both are DETERMINED.
+#
+# `baseline_flux_earth` is PROVISIONAL, and carried DETERMINED until 2026-08-19.
+# What stands behind it is the habitability-by-latitude derivation of WORKFLOW
+# 5b, and notes/audits/inherited-earth-constants.md finding 5 establishes that
+# that derivation has no script, no analysis product, no row in
+# config/pipeline.yaml and no recorded threshold, and does not name the runs it
+# was projected across. Those runs are now deleted, so it is not reproducible
+# even in principle from this tree. TASKS.md CLIM-24. Section 6 requires the
+# flux to be RE-DERIVED on every new terrain in any case, so it is scheduled to
+# move rather than merely unsupported.
+#
+# It keeps its value rather than being cleared, because it is an INPUT and not a
+# result: it fixes the semi-major axis, and that orbit is compiled into
+# LPJ-GUESS. What the flux and the biosphere share is a FINDING rather than an
+# artifact, and findings about mechanisms survive a regeneration -- bare rock and
+# a vegetated surface reach a given design mean at non-overlapping fluxes, so
+# this flux is habitable BECAUSE the world is vegetated. Move the flux by
+# luminosity once the calendar is locked, not by the orbit; WORKFLOW.md section
+# 6C says why.
 orbit:
   earth_solar_constant_w_m2: 1361.0
   baseline_flux_earth: 0.945
@@ -77,9 +107,17 @@ orbit:
   # notes/config-rationale.md says what an alternative would be worth.
   longitude_vernal_equinox_degrees: 102.7
 
-# DETERMINED. 1 bar total at 450 ppm CO2. The carbon cycle is not solved
-# anywhere in this project, so read CO2 as an assumption rather than a result;
-# WORKFLOW.md section 4 says what the assumption costs.
+# DETERMINED for the composition, DECLARED for the CO2, and the block used to
+# claim DETERMINED for both while its own next sentence withdrew it.
+#
+# The partial pressures sum to exactly 1 bar by construction and H2O stays
+# interactive. pCO2 is prescribed: nothing here solves the carbonate-silicate
+# balance that would set it, so read 450 ppm as an assumption rather than a
+# result, and WORKFLOW.md section 4 says what the assumption costs. The
+# outgassing plausibility check that backed it was computed by
+# pedology/scripts/weathering_fluxes.py on a climatology that no longer exists,
+# so the check is currently unbacked too; notes/config-rationale.md keeps the
+# argument and says to re-run it.
 #
 # What this block CAN say is bounded by what the model reads. PlaSim's longwave
 # is Sasamori (1968) over water vapour, CO2 and ozone, and the shortwave adds
@@ -129,7 +167,14 @@ radiation:
 ocean:
   salinity_psu: 34.7
 
-# DETERMINED. Slab ocean, interactive sea ice, glaciers on.
+# PARTLY DETERMINED. Sea ice and the glacier settings are decided, and the
+# argument for the glacier block is in notes/config-rationale.md.
+#
+# `mixed_layer_depth_m` is NOT, and is DECLARED: 50 m is ExoPlaSim's default
+# arriving unnamed, it sets the seasonal amplitude, and this world's year is
+# half Earth's, so it damps the simulation's seasonality about twice as hard as
+# Earth's ocean does. scripts/error_budget.py carries it as a structural item
+# awaiting one perturbation run.
 surface:
   mixed_layer_depth_m: 50.0
   sea_ice: true
@@ -138,8 +183,12 @@ surface:
     min_snow_depth_m: 2.0
     initial_height_m: -1.0
 
-# DETERMINED for the baseline re-run. Resolution, layers and ranks together select
-# which compiled binary runs, so changing any of them needs a rebuild.
+# DETERMINED for the current configuration, and TRANSITIVE rather than a fact
+# about the world: resolution, layers, ranks and timestep are operational
+# choices that change with what is being run. Together they select which
+# compiled binary runs, so changing any of them needs a rebuild. The ozone
+# scale, the band weights and the albedo values further down are determined
+# outright and each says so.
 model:
   resolution: T42
   latitudes: 64
@@ -153,9 +202,11 @@ model:
   # Declares that ExoPlaSim's configure() clears every surface field when handed
   # a landmap, so anything not supplied here falls back to a namelist default.
   uniform_land_surface: true
-  # PlaSim's 28-term energy decomposition, codes 360-387 and 460-487. On for the
-  # baseline re-run to name the constant -0.455 W/m2 gap between the top of the
-  # atmosphere and the surface; see TASKS.md CLIM-1.
+  # PlaSim's 28-term energy decomposition, codes 360-387 and 460-487. On, to
+  # locate the residual between the top of the atmosphere and the surface.
+  # notes/config-rationale.md records what the decomposition found, which is
+  # that no term carries it and it is an offset in the reported top-of-atmosphere
+  # net radiation.
   energy_diagnostics: true
   energy_diagnostics_3d: true
   ozone_scale: 0.794
@@ -194,12 +245,18 @@ model:
   h2o_sw_level: 1.127
   co2_sw_weight: 1.510
   roughness_source: lithology
-  # Soil water capacity from the pedology soil map as code 229, land-mean
-  # 0.151 m against ExoPlaSim's uniform 0.5 m bucket. It was `uniform` for the
-  # bootstrap because 229 needs a soil weathered under a climatology and the
-  # terrain had none; that run produced one, so it is `pedology` from the
-  # baseline run onward. The flip moves config_sha256 and cannot happen mid-run.
-  soil_water_source: pedology
+  # BOOTSTRAP: uniform. Soil water capacity comes from the pedology soil map as
+  # code 229, and that soil has to be weathered under a climatology. There is no
+  # climatology and no soil map on this build, so the field cannot exist and
+  # run_exoplasim refuses to start without it.
+  #
+  # It goes back to `pedology` before the baseline run, and it has to be
+  # `pedology` before the run whose climatology the verdict uses rather than
+  # merely before the verdict: the land-mean capacity is well under ExoPlaSim's
+  # uniform 0.5 m bucket, which changes evaporation, which changes P - E, which
+  # is the numerator of the carve criterion. The flip moves config_sha256 and
+  # cannot happen mid-run. WORKFLOW.md section 6A has the order.
+  soil_water_source: uniform
   land_albedo_source: vegetated
   # DERIVED 2026-08-19 by analysis/vegetation_albedo.py, which reproduces
   # notes/audits/inherited-earth-constants.md finding 1. The Earth-Sun canopy

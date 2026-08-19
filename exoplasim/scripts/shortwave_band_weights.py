@@ -107,7 +107,8 @@ from pathlib import Path
 import numpy as np
 import yaml
 
-from _paths import ANALYSIS, CONFIG
+from _paths import ANALYSIS, CONFIG  # also puts lib/ on sys.path
+from paths import climatology_path
 
 SSAP = "http://svo2.cab.inta-csic.es/theory/newov2/ssap.php"
 MODEL = "bt-settl"
@@ -594,8 +595,10 @@ def predict(config: dict, weight: float, absorber: str = "h2o", co2_fit: dict | 
     """
     import netCDF4
 
-    root = Path(CONFIG).resolve().parents[1]
-    with netCDF4.Dataset(root / config["baseline_climatology"]) as data:
+    # Through the one resolver, which raises when no baseline is named. This
+    # prediction needs a real climatology; there is no Earth fallback for it as
+    # there is for the two absorptance paths above.
+    with netCDF4.Dataset(climatology_path(root=Path(CONFIG).resolve().parents[1])) as data:
         get = lambda name: np.asarray(data.variables[name][:])
         lat, sigma, sigma_half = get("lat"), get("lev"), get("levp")
         hus, air_t = get("hus"), get("ta")

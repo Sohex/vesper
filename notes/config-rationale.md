@@ -11,6 +11,27 @@ argued at length in `exoplasim/notes/parameter-decisions.md` or an audit, that
 is noted rather than deduplicated, because the two were written at different
 times and the difference is sometimes the point.
 
+## The statuses
+
+Every setting carries one, and it records what STANDS BEHIND the value rather
+than how old it is. The same four are defined at the top of
+`config/planet.yaml`, and the two lists have to agree.
+
+DETERMINED, measured or derived by an artifact that exists, or decided in a way
+that is now load-bearing; downstream work may rely on it. DECLARED, a stated
+position on something this project cannot compute or has not computed
+reproducibly, written down so it is not read back as a result. PROVISIONAL, a
+placeholder or an interim value that WILL move. DERIVED, computed by a named
+script from other values in the file, so regenerated rather than edited.
+
+The distinction is not cosmetic and it decays in one direction only:
+`stellar_cycle` has carried an amplitude and a centre since before there was a
+baseline flux to centre on, and both were read back later as though they had
+been chosen. They had not. A value that has never been decided should not be
+indistinguishable from one that has -- and a value whose evidence has since been
+deleted should not be either, which is why a status is demoted in the same pass
+that removes what it rested on.
+
 ## `source_build`
 
 ```
@@ -18,19 +39,7 @@ source_build: precarve-craton
 ```
 
 
-DETERMINED vs PROVISIONAL
-
-Every block below is one or the other, and each says which. A determined value
-has been decided or measured and downstream work may rely on it. A provisional
-one is a placeholder, an interim result, or a parameter for test runs that were
-exploring rather than deciding, and it will move.
-
-The distinction is not cosmetic: `stellar_cycle` has carried an amplitude and a
-centre since before there was a baseline flux to centre on, and both were read
-back later as though they had been chosen. They had not. A value that has never
-been decided should not be indistinguishable from one that has.
-
-Which World Orogen build every component reads. source/ is namespaced by build
+DETERMINED. Which World Orogen build every component reads. source/ is namespaced by build
 because they now multiply faster than they can be swapped in place, and a
 result's provenance should depend on what it was computed from rather than on
 when it was computed.
@@ -42,35 +51,34 @@ and a stale list beside the live setting reads as though it were checked.
 ## `baseline_climatology`
 
 ```
-baseline_climatology: exoplasim/analysis/climatology/bootstrap_regular_climatology.nc
+baseline_climatology: null
 ```
 
 
-Which climatology every downstream component reads by default. Named here
-rather than hardcoded in a _paths helper, because it was hardcoded to
-`climatology_s096` -- computed on pre-carve terrain under the wrong stellar
-spectrum, and the surface the antipodal carve verdict was taken from. Six
-scripts across pedology and biosphere defaulted to it silently.
-
-Which climatology every downstream component reads by default. Named here
-rather than hardcoded in a _paths helper, because it was hardcoded once and
-six scripts across pedology and biosphere took a superseded default silently.
+DECLARED ABSENT, 2026-08-19. Which climatology every downstream component reads
+by default. Named here rather than hardcoded in a _paths helper, because it was
+hardcoded once -- to a climatology computed on pre-carve terrain under the wrong
+stellar spectrum -- and six scripts across pedology and biosphere took that
+superseded default silently.
 
 NULL means no baseline is named, and `climatology_path()` raises rather than
 falling back. That is the point: a stale default returns a plausible number
-from the wrong world, which is worse than an error. Set it to the regular
-climatology of the current baseline.
+from the wrong world, which is worse than an error.
+
+It is null because there is no climatology on this build. Every run was reduced
+to its identity under `archive/runs/` and deleted, so the bootstrap and baseline
+climatologies both went with them, and nothing downstream may read one until a
+commissioning produces one.
+
+Repoint it at the REGULAR climatology of the BASELINE run when that exists, not
+at the bootstrap's. The bootstrap is the first run on a terrain and exists so
+that lakes, the lake compositing in the albedo and the pedology soil water field
+can be built at all; the run whose climatology the carve verdict uses is the one
+made afterwards, with those fields in place.
 
 A named climatology is not automatically the ACTIVE build's climate.
 check_consistency.py compares terrain hashes and reports the mismatch; that is
 where to find out, not a comment here that has to be kept true by hand.
-
-BOOTSTRAP, and it is labelled as one. This is the climatology of the first run
-on a new terrain, which exists so that lakes, the lake compositing in the
-albedo and the pedology soil water field can be built at all. It is not the
-baseline: the run whose climatology the carve verdict uses is the one made
-afterwards, with those fields in place. Repoint this at that one when it
-exists, and expect the name to change with it.
 
 ## `planet`
 
@@ -179,7 +187,7 @@ the o3scale sensitivity test.
 metallicity: 0.0
 ```
 
-DECIDED 2026-08-18. Solar, which is unremarkable for a K2.5V star and is not
+DECLARED 2026-08-18. Solar, which is unremarkable for a K2.5V star and is not
 what makes this an entry. It is here because it is the star's most powerful
 undeclared parameter and it was declared nowhere the config could see: it lived
 as `METALLICITY = 0.0` inside `exoplasim/scripts/build_stellar_spectrum.py`.
@@ -208,8 +216,10 @@ orbit:
 ```
 
 
-DETERMINED, 2026-08-16. `baseline_flux_earth` is 0.945, chosen from the
-habitability-by-latitude derivation rather than from a temperature target.
+MIXED. `earth_solar_constant_w_m2` is a physical constant and
+`sweep_flux_earth` is a sweep specification; both are DETERMINED.
+`baseline_flux_earth` is PROVISIONAL, and `longitude_vernal_equinox_degrees` is
+DECLARED. Each is argued below.
 
 This block previously carried three eras of measured temperatures and
 sensitivities in its comments -- 150.2 and 192.2 K per unit flux, and mean
@@ -225,6 +235,21 @@ decision, a threshold, or an argument that fails without its number.
 ```
 baseline_flux_earth: 0.945
 ```
+
+PROVISIONAL, 2026-08-19, and DETERMINED before that. It was chosen from the
+habitability-by-latitude derivation of WORKFLOW 5b rather than from a
+temperature target, and `notes/audits/inherited-earth-constants.md` finding 5
+establishes that that derivation has no script, no analysis product, no row in
+`config/pipeline.yaml` and no recorded threshold, and does not name the runs it
+was projected across. Those runs have since been deleted, so it is not
+reproducible from this tree even in principle. `TASKS.md` CLIM-24 tracks making
+it a step. Section 6 requires the flux to be RE-DERIVED on every new terrain in
+any case, so the value is scheduled to move rather than merely unsupported.
+
+It keeps its value rather than being cleared, because it is an INPUT and not a
+result: it fixes the semi-major axis below, and that orbit is compiled into
+LPJ-GUESS. What survives the deletion is the FINDING rather than the artifact,
+and that is the part the decision rests on:
 
 The flux and the biosphere are one choice, not two. The vegetated and
 bare-rock windows for the design band DO NOT OVERLAP, so this flux is
@@ -281,7 +306,9 @@ atmosphere:
 ```
 
 
-DETERMINED. 1 bar at 450 ppm CO2, chosen -- and CHECKED, 2026-08-16.
+DETERMINED for the composition, DECLARED for the CO2. The partial pressures sum
+to exactly 1 bar by construction; 450 ppm is chosen -- and was CHECKED,
+2026-08-16, though the check no longer has an artifact. See the last paragraph.
 
 450 ppm is prescribed. Nothing in this project solves the carbonate-silicate
 balance that would set it, and closing that loop is deliberately not on the
@@ -316,6 +343,11 @@ less ocean basin than Earth, so the sign of the net correction is not claimed.
 And it is computed on a climatology and terrain that both predate the current
 build, so the requirement moves on the baseline re-run. The margin is wide, not
 unlimited. Re-run it after.
+
+As of 2026-08-19 that check has no artifact at all: `weathering_fluxes.json` and
+the climatology it was taken on were deleted with everything else downstream of
+the export. The argument above stands as an argument, and the number it produced
+does not. `pedology/scripts/weathering_fluxes.py` is the step that restores it.
 
 ## `pN2_bar`
 
@@ -635,15 +667,49 @@ Background land albedo, from lithology rather than ExoPlaSim's uniform 0.22.
 Rock classes run 0.10 for basalt to 0.50 for evaporite, so a uniform value is
 a planetary-albedo error of a few hundredths.
 
-The world is taken to be vegetated: 0.15 on anything that can carry a canopy,
-with evaporite left at its bare 0.50 because nothing roots in a salt pan. The
-bracket showed this is not a detail: the two endmembers differ by 3.7-7.1 K
-and reach a given design mean at non-overlapping fluxes, so the biosphere and
-the orbit are one choice, not two.
+The world is taken to be vegetated. What a canopy reflects is `vegetation_albedo`
+and no longer a constant here; the classes that cannot carry one are listed in
+`barren_rock_classes` and keep their own albedo. The bracket showed this is not
+a detail: the bare-rock and vegetated endmembers differ by 3.7-7.1 K and reach a
+given design mean at non-overlapping fluxes, so the biosphere and the orbit are
+one choice, not two.
 
 What the land mean comes out at is per build and belongs in the albedo report
 beside the .sra files, not here. It moves with the lithology, which is why
 the flux is re-derived on every new terrain rather than carried.
+
+## `lithology_albedo_overrides`
+
+```
+lithology_albedo_overrides:
+  playa_clastic:
+    albedo: 0.23
+    replaces: 0.19
+```
+
+DETERMINED, and the key exists because one class is worth overriding. Rock
+class albedo is the generator's: `vendor/orogen/js/lithology.js` carries a
+value per class, salt crust among them, and this project reads them rather than
+restating them.
+
+The exception is `playa_clastic`. It is the largest single albedo lever on this
+terrain, because it is the biggest lithological share of the land -- an earlier
+override on `evaporite` was retired when the generator zoned that class into
+crust and clastics separately, and the lever moved with the area. The
+generator's value comes from Post et al. (2000), 52 pyranometer measurements
+over 0.3-2.8 um: the right KIND of measurement on the wrong population, because
+it is a field mean over all soils rather than over saline desert soils.
+
+The override is that field level corrected by how much brighter saline desert
+soils are than the soil population in ECOSTRESS, measured within one library so
+the laboratory-over-field offset cancels, then re-weighted to this star.
+`analysis/playa_albedo.py` is the derivation and
+`notes/audits/orogen-lithology.md` is the argument.
+
+`replaces` is the guard rather than documentation: it names the value the
+override expects to find, and refuses to fire if the generator has redefined the
+class underneath it. That is what retired the previous override rather than
+leaving it to be noticed. If this class moves again, the flux moves with it.
 
 ## `barren_rock_classes`
 
@@ -651,29 +717,12 @@ the flux is re-derived on every new terrain rather than carried.
 barren_rock_classes: [evaporite, playa_clastic]
 ```
 
-No rock-class albedo overrides, and the key is absent rather than empty.
-
-There was one: evaporite forced to 0.40, because Orogen assigned clean-halite
-0.50 to every cell of a preserved basin when most of a basin floor is playa
-mud and fan gravel rather than crust. That override was removed when the
-generator zoned the class, which is what it was written to wait for: the
-export now carries salt crust and playa clastics separately, so the split is
-measured from the terrain instead of averaged into one declared number.
-
-Both values are the generator's now, and both are cited there rather than
-here: crust stays 0.50, and playa clastics moved 0.30 -> 0.19 on Post et al.
-(2000), 52 pyranometer measurements over 0.3-2.8 um with a mean of 0.189.
-See `vendor/orogen/js/lithology.js` and `references/INDEX.md`.
-
-It is still the largest lever on this planet's energy balance, and it is
-larger now than when that was first written, because playa clastics are a
-bigger share of land on this terrain than evaporite was on the old one. If
-this class moves again, the flux moves with it.
-Rock classes that cannot carry vegetation, so they keep their own albedo in
+DETERMINED. Rock classes that cannot carry vegetation, so they keep their own albedo in
 `vegetated` mode rather than being handed the canopy value. Nothing roots in
 salt crust and nothing much roots in playa mud, and between them they are
-about 21% of this planet's land, so treating either as vegetable would be a
-first-order error in the energy balance.
+a large share of this planet's land -- `world_state.json` says how large on the
+active build -- so treating either as vegetated would be a first-order error in
+the energy balance.
 
 This started as a single hardcoded reference to evaporite and became wrong
 the moment Orogen split that class into crust and clastics. Driven from
@@ -686,22 +735,25 @@ geography_land_threshold: 0.5
 ```
 
 
-INHERITED UNCERTAINTY, recorded rather than overridden. After Orogen split
-the evaporite domain, the dominant albedo lever is `playa_clastic` at 0.30,
-not the salt crust: playa is 18.8% of land against the crust's 2.1%, so per
-0.10 of albedo error it is worth 2.48 W/m2 (2.34 K) pre-carve against the
-crust's 0.28. Nine to one.
+DETERMINED. The land fraction at or above which a model gridcell counts as
+land. The export is a mesh and the model is a grid, so every cell arrives with a
+fractional land area and something has to make it binary;
+`build_boundary_conditions.py` and `build_surface_albedo.py` both threshold at
+this value, and they read the same key so that the land mask and the albedo
+field cannot disagree about which cells are land.
 
-And playa_clastic is itself a mixture. Its name is "Playa mud / alluvial fan
-fill"; light clay playa runs 0.30-0.35, desert-varnished fan gravel and
-pavement run 0.15-0.25. A plausible mix spans 0.25-0.33, worth 1.99 W/m2 or
-1.87 K, which is 40% of what the whole crust/fill split was worth.
+0.5 is majority-rule and is a threshold rather than a measurement, which is why
+it is a decision and lives here. What it costs is a coastline effect: it is
+applied to a T42 grid whose cells are several hundred kilometres across, so it
+rounds partial coasts either into the sea or onto the land, and the two
+scripts sharing one key is what keeps that rounding consistent rather than
+correct.
 
-Not overridden. 0.30 is a defensible central value and the range above is
-what it is worth; tuning it to make a temperature land would be the same
-error one level down. Orogen has proposed separating fan from mud by the same
-depth zoning that separated crust from fill, which would resolve it without a
-new mechanism.
+This is separate from the land mask rule that matters most in this project.
+Land for ANALYSIS comes from `surface_class` in the export and never from
+`land_mask`, because the two disagree over dry closed-basin floor below sea
+level; see `source/README.md`. This key is about gridding a fraction, not about
+which of those two definitions is right.
 
 ## `stellar_cycle`
 

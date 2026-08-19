@@ -1,0 +1,60 @@
+{
+  "run_id": "run_b014469b8091",
+  "directory": "run_b014469b8091",
+  "status": "quasi_equilibrated",
+  "legacy_name": false,
+  "orbits_on_disk": 91,
+  "snapshots_on_disk": 6,
+  "size_gb": 11.09,
+  "executable_sha256": "238af7e8dddab0b942de371aa6266017e955f2e699d2c0fd7bdb4a6e74e66281",
+  "config_sha256": "a9e16778d26fdf2578cdc5e8a8308494af6b51c2db3760a4ddac559a561897ca",
+  "physical": {
+    "resolution": "T42",
+    "layers": 10,
+    "ranks": 16,
+    "precision_bytes": 8,
+    "flux_ratio": 0.945,
+    "co2_ppm": 450.0,
+    "rotation_hours": 30.0,
+    "obliquity_degrees": 32.0,
+    "eccentricity": 0.02,
+    "glaciers": true,
+    "stellar_spectrum": "k25v",
+    "geography": "3a17c498"
+  },
+  "source_build": "precarve-craton",
+  "climatologies": {
+    "baseline": {
+      "regular": "baseline_regular_climatology.nc",
+      "snapshots": "baseline_snapshot_climatology.nc",
+      "orbit_count": 5
+    },
+    "bootstrap": {
+      "regular": "bootstrap_regular_climatology.nc",
+      "snapshots": "bootstrap_snapshot_climatology.nc",
+      "orbit_count": 5
+    }
+  },
+  "converged": false,
+  "convergence_metrics": {
+    "temperature_slope_k_per_orbit": 0.0315623415730087,
+    "toa_balance_slope_w_m2_per_orbit": 0.00977002094371261,
+    "surface_balance_slope_w_m2_per_orbit": 0.007405686773893052,
+    "sea_ice_slope_fraction_per_orbit": -0.00016910473443621405,
+    "mean_toa_balance_w_m2": -0.5145006558282716,
+    "mean_surface_balance_w_m2": -0.04883619184904888,
+    "temperature_mean_k": 289.15053958510987,
+    "temperature_last_k": 289.29394166981336,
+    "sea_ice_mean_fraction": 0.017006579725855515,
+    "state_storage_w_m2": 0.11191180871356593,
+    "state_storage_endpoint_w_m2": 0.09811066386153475,
+    "surface_storage_w_m2": 0.10255266877825427,
+    "reported_toa_minus_storage_w_m2": -0.6264124645418376,
+    "temperature_asymptote_k": 289.4624797991766,
+    "temperature_asymptote_half_width_k": 0.3119402140667124,
+    "temperature_remaining_offset_k": 0.3119402140667124,
+    "relaxation_orbits_fitted": -301456.47466301126,
+    "relaxation_orbits_expected": 9.88330391600209,
+    "remaining_offset_implied_by_drift_k": 0.3119402140667124
+  }
+}

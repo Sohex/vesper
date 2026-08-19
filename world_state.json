@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated": "2026-08-19T09:25:33.810725+00:00",
-  "git_commit": "28a633f737574528961be1ecdbdb0b6fe792d668",
+  "generated": "2026-08-19T10:15:52.766291+00:00",
+  "git_commit": "fc44df4ea5404359ad8a29918b3bab0da23fb98e",
   "generator": "scripts/world_state.py",
   "note": "Generated from the artifacts. Do not edit; re-run the generator. Only derived values live here. Findings are in `notes/`, with their evidence, and open work is in `TASKS.md`.",
   "planet": {
@@ -73,7 +73,7 @@
       "h2o_sw_level": 1.127,
       "co2_sw_weight": 1.51,
       "roughness_source": "lithology",
-      "soil_water_source": "pedology",
+      "soil_water_source": "uniform",
       "land_albedo_source": "vegetated",
       "vegetation_albedo": 0.165,
       "vegetation_albedo_bracket": [
@@ -165,177 +165,29 @@
       "superseded": false
     }
   },
-  "climate_runs": [
-    {
-      "run_id": "run_524fbed77a9a",
-      "status": "equilibrated_for_worldbuilding",
-      "orbits_complete": 46,
-      "flux_earth": 0.945,
-      "cycle": null,
-      "resolution": "T42",
-      "land_albedo_source": "vegetated",
-      "source_build": "precarve-craton",
-      "glaciers": true,
-      "converged": true,
-      "mean_surface_temperature_k": 288.996445433984
-    },
-    {
-      "run_id": "run_8c2e1ff9ab5e",
-      "status": "climatology_complete",
-      "orbits_complete": 80,
-      "flux_earth": 0.945,
-      "cycle": null,
-      "resolution": "T42",
-      "land_albedo_source": "vegetated",
-      "source_build": "precarve-craton",
-      "glaciers": true,
-      "converged": true,
-      "mean_surface_temperature_k": 289.7092988936838
-    },
-    {
-      "run_id": "run_b014469b8091",
-      "status": "quasi_equilibrated",
-      "orbits_complete": 91,
-      "flux_earth": 0.945,
-      "cycle": null,
-      "resolution": "T42",
-      "land_albedo_source": "vegetated",
-      "source_build": "precarve-craton",
-      "glaciers": true,
-      "converged": false,
-      "mean_surface_temperature_k": 289.15053958510987
-    },
-    {
-      "run_id": "run_bfa3f5269660",
-      "status": "equilibrated_for_worldbuilding",
-      "orbits_complete": 46,
-      "flux_earth": 0.91,
-      "cycle": null,
-      "resolution": "T42",
-      "land_albedo_source": "vegetated",
-      "source_build": "precarve-craton",
-      "glaciers": true,
-      "converged": true,
-      "mean_surface_temperature_k": 281.92164542711214
-    }
-  ],
+  "climate_runs": [],
   "current_climate": {
-    "source": "exoplasim/analysis/climatology/baseline_climate_report.json",
-    "global_metrics": {
-      "surface_temperature_k": 289.7963877892114,
-      "air_temperature_2m_k": 289.1575154928423,
-      "precipitation_mm_day": 2.6558224761667857,
-      "toa_net_radiation_w_m2": -0.6144773451989156,
-      "surface_downward_heat_flux_w_m2": -0.0958181014277808,
-      "planetary_sea_ice_fraction": 0.014839572515705609,
-      "ocean_mean_sea_ice_concentration": 0.02595096857618406,
-      "land_area_fraction": 0.42816883800921784
-    },
-    "koppen_top": {
-      "BWh": 0.1482255243118319,
-      "BSh": 0.13247905670464846,
-      "Dsa": 0.08842025537024219,
-      "Dfc": 0.08329674889549195,
-      "Dfb": 0.07829082480062027,
-      "Af": 0.0613069050595201
-    },
-    "biome_top": {
-      "Continental temperate/mixed forest": 0.25515303514066606,
-      "Steppe/semidesert": 0.14925728097115507,
-      "Desert": 0.14892892223567017,
-      "Boreal forest/woodland": 0.11022927102169398,
-      "Temperate/subtropical forest": 0.09525746705440918,
-      "Seasonal tropical woodland/savanna": 0.09517601643591769
-    },
-    "source_build": "precarve-craton"
+    "value": null,
+    "invalidated": true,
+    "depends_on": "source_build",
+    "expected": "precarve-craton",
+    "found": "no baseline_climate_report.json exists for any climatology this build produced; run exoplasim/scripts/analyze_climatology.py",
+    "note": "current_climate was computed from a dependency that has since moved; regenerate it. Cleared rather than shown, because a stale derived value is indistinguishable from a current one."
   },
   "hydrography": {
-    "products_from": "hydrography/data/precarve-craton",
+    "products_from": "hydrography/data",
     "endorheic_note": {
       "drainage_share_of_land": "fraction of LAND AREA that drains to a closed basin; the hydrography figure, and the one the carve verdict is about",
       "basin_floor_share_of_land": "fraction of LAND AREA inside a preserved basin, i.e. is_endorheic cells; the lithology and thermostat figure"
     },
-    "terrain_hash": "e931b0d9947a232210a3cc11ba82003b5da15765d86e87956bc44c220932760e",
-    "drainage": {
-      "land_fraction_of_planet": 0.4317189425633888,
-      "endorheic_fraction_of_land": 0.7622290062392155,
-      "ocean_draining_fraction_of_land": 0.23777099376078448,
-      "unresolved_regions": 0,
-      "pits_filled": 97603,
-      "median_fill_depth_m": 6.922302767634392
-    },
-    "basins": {
-      "count": 3621,
-      "total_capacity_km3": 6034393.282278474,
-      "total_area_at_spill_km2": 63174525.82194829,
-      "area_at_spill_fraction_of_planet": 0.0859525531943494,
-      "total_catchment_km2": 241863194.84909272,
-      "catchment_to_spill_area_ratio_median": 3.747916200695083,
-      "merged_basins": 321,
-      "spills_to_ocean": 1042,
-      "spills_into_another_basin": 2579,
-      "critical_aridity_index_percentiles": {
-        "5": 1.1128824779331512,
-        "25": 1.8272390630304498,
-        "50": 2.747916200695083,
-        "75": 4.5184738390028585,
-        "95": 10.614839389907043
-      },
-      "capacity_vs_natural_catalogue": 0.7554447634588477
-    },
+    "terrain_hash": null,
+    "drainage": null,
+    "basins": null,
     "carve_verdict": {
-      "bounds": {
-        "penman": {
-          "basins_carved": 1842,
-          "endorheic_land_km2": 178273607.23890686,
-          "lake_area_km2": 10940974.275928684,
-          "dry_survivors": 1056,
-          "wet_survivors": 908,
-          "basins_without_runoff": 1056,
-          "lake_area_fraction_of_planet": 0.014895957709581551,
-          "solver_converged": true,
-          "median_aridity_index": -1.6610631290646005
-        },
-        "wet": {
-          "basins_carved": 2565,
-          "endorheic_land_km2": 138836358.1071453,
-          "lake_area_km2": 9391674.512885148,
-          "dry_survivors": 1056,
-          "wet_survivors": 211,
-          "basins_without_runoff": 1056,
-          "lake_area_fraction_of_planet": 0.012786611396562977,
-          "solver_converged": true,
-          "median_aridity_index": -1.0
-        }
-      },
-      "agreement": {
-        "carve_under_both": 1842,
-        "survive_under_both": 1056,
-        "disputed": 723
-      },
-      "penman_ocean_validation": {
-        "penman_mm_per_day": 2.7001,
-        "model_mm_per_day": 2.7904,
-        "ratio": 0.9676,
-        "ocean_cells": 4087,
-        "note": "Ocean cells are already open water, so this is a direct check. COMPUTED; it was hardcoded until 2026-08-17."
-      }
+      "bounds": null,
+      "agreement": null,
+      "penman_ocean_validation": null
     },
-    "carve_list": {
-      "counts": {
-        "carve": 1937,
-        "preserve": 1592,
-        "marginal": 92
-      },
-      "terrain_hash": "e931b0d9947a232210a3cc11ba82003b5da15765d86e87956bc44c220932760e",
-      "climate": {
-        "resolution": "T42",
-        "flux_earth": 0.945,
-        "stellar_spectrum": "k25v",
-        "land_surface": "vegetated",
-        "mean_surface_temperature_k": 289.71,
-        "note": "The land surface is assumed rather than modelled, and the albedo bracket puts that assumption at 3.7 to 7.1 K."
-      }
-    }
+    "carve_list": null
   }
 }

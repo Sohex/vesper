@@ -45,6 +45,7 @@ belongs with the budget that owns the assumption, not here.
 
 from __future__ import annotations
 
+import argparse
 import json
 import math
 from pathlib import Path
@@ -52,7 +53,7 @@ from pathlib import Path
 import numpy as np
 import yaml
 
-from paths import rel
+from paths import climatology_path, rel
 import climatology as clim  # `climatology` is a parameter name below
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -137,7 +138,10 @@ def planetary_albedo(cfg: dict | None = None,
     from netCDF4 import Dataset
 
     cfg = config(cfg)
-    path = climatology or (PROJECT_ROOT / str(cfg["baseline_climatology"]))
+    # Through the one resolver, which RAISES when no baseline is named. Doing
+    # it here as PROJECT_ROOT / str(cfg[...]) turned a null into the literal
+    # path "None" and reported it as a missing file.
+    path = climatology or climatology_path(root=PROJECT_ROOT)
     with Dataset(path) as ds:
         w = _gaussian_weights(len(ds.dimensions["lat"]),
                               len(ds.dimensions["lon"]))
@@ -301,6 +305,16 @@ def provenance(cfg: dict | None = None) -> dict:
 
 
 def main() -> None:
+    # Parsed before anything reads an artifact, so `--help` is answerable with
+    # no climatology on disk. It took no arguments at all before, which meant
+    # `--help` ran the whole computation and smoke_test's entry-point check was
+    # passing on the data being present rather than on argparse being built.
+    argparse.ArgumentParser(
+        description="The project's one flux-to-kelvin conversion, with its "
+                    "provenance. Takes no arguments. Prints the slope, the "
+                    "planetary albedo it is evaluated at, and a verification "
+                    "against the run index; needs the baseline climatology "
+                    "named in config/planet.yaml.").parse_args()
     cfg = config()
     test_identity()
     p = provenance(cfg)
