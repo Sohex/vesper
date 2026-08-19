@@ -68,6 +68,13 @@ orbit:
   earth_solar_constant_w_m2: 1361.0
   baseline_flux_earth: 0.945
   sweep_flux_earth: [0.90, 0.95, 1.00]
+  # DECLARED, 2026-08-19, and until then it was ExoPlaSim's Earth default
+  # wearing this block's DETERMINED. Nothing about this world fixes the phase
+  # of perihelion against the solstices, and at e = 0.02 that phase modulates
+  # the seasonal flux by 8.3% peak to peak, more than the whole stellar cycle.
+  # Kept at 102.7 deliberately: it is compiled into LPJ-GUESS through the
+  # solstice offset in vesper.h, so moving it costs a rebuild and a driver.
+  # notes/config-rationale.md says what an alternative would be worth.
   longitude_vernal_equinox_degrees: 102.7
 
 # DETERMINED. 1 bar total at 450 ppm CO2. The carbon cycle is not solved

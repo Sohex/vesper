@@ -467,7 +467,7 @@ it were measured.
 
 ## The endorheic half: what happens to those ions after release
 
-Meybeck's Table 5 is exorheic-only, which looks like a fatal gap on a world where
+Meybeck's Table 5 is exorheic-only, which looks like a disqualifying gap on a world where
 most land drains internally. It is not, and the reason is in his own section 6:
 he **assumes the rock proportions are identical** in the exorheic and endorheic
 areas (99.9 and 15.8 million km2), and restricts to exorheic only because

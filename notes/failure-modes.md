@@ -259,7 +259,7 @@ and fails loudly without a SoilC column rather than silently doing nothing.
 
 Two traps in that code. LPJ-GUESS carries soil water as a *fraction* of layer
 capacity, so a layer scaled to exactly zero divides by zero and the resulting NaN
-kills the gridcell **silently** -- zero LAI, zero AET, no crash. And because
+zeroes the gridcell's vegetation **silently** -- zero LAI, zero AET, no crash. And because
 water is fractional, thinner soil reads as relatively *wetter* for the same
 absolute water, so a single cell can move either way through PFT competition.
 Trust a controlled sweep, never one cell.

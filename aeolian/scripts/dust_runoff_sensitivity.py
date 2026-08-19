@@ -4,7 +4,7 @@
     python aeolian/scripts/dust_runoff_sensitivity.py
 
 This exists to make DUST-11's prediction FALSIFIABLE before the climate run that
-tests it exists. It converts "dust suppresses precipitation by x percent" into
+tests it exists. It converts "dust lowers the simulated rainfall by x percent" into
 the currency the carve is decided in, by perturbing the baseline climatology's
 precipitation and evaporation and re-taking the verdict on the result.
 

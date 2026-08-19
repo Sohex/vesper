@@ -238,6 +238,42 @@ L scales 1:1 with F at fixed a, and Teff as F^(1/4), so past 2 to 3% in
 luminosity the spectrum needs rebuilding at the new temperature; see
 WORKFLOW.md section 6 loop C.
 
+## `longitude_vernal_equinox_degrees`
+
+```
+longitude_vernal_equinox_degrees: 102.7
+```
+
+DECLARED, 2026-08-19, after `notes/audits/inherited-earth-constants.md`
+finding 4. The number is ExoPlaSim's Earth default and had been copied into
+this file, where it read as a decision. It is the `TFREEZE` pattern one level
+up: an Earth value arriving unnamed, except that this one was already visible
+and wearing the block's DETERMINED.
+
+What it sets is the phase of perihelion against the equinoxes and solstices,
+in ExoPlaSim's convention the true longitude of the vernal equinox measured
+from perihelion. Nothing about this world determines that phase: Orogen has no
+time axis, no precession is modelled, and the phase is a snapshot choice of
+exactly the kind pCO2 is. So it cannot be DETERMINED, only declared.
+
+What the choice is worth. At e = 0.02 the perihelion-to-aphelion flux ratio is
+((1+e)/(1-e))^2 = 1.083, 8.3% peak to peak over every orbit -- larger than the
+stellar cycle's total declared amplitude of 6.0%, and unlike the cycle it is
+hemispherically antisymmetric: whichever hemisphere's summer falls near
+perihelion gets brighter summers and darker winters, the other the reverse. At
+102.7 degrees the geometry is Earth-like, perihelion falling near the southern
+summer solstice, so the south is the amplified hemisphere. That lands on the
+season WORKFLOW 5b establishes as the operative one for the ice line, which is
+why the value deserves a name rather than a default.
+
+Why it is KEPT at 102.7 rather than moved: the phase is already compiled into
+LPJ-GUESS through the solstice offset in `vesper.h`, and every existing run and
+climatology carries it, so any alternative costs a biosphere rebuild, a driver
+regeneration and a re-run for a quantity nothing constrains. A symmetric
+alternative exists if one is ever wanted -- perihelion at an equinox (0 or 180)
+makes the two hemispheres' seasons equal in amplitude -- and choosing it would
+be a worldbuilding decision about the simulated seasons, not a correction.
+
 ## `atmosphere`
 
 ```

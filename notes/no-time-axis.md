@@ -49,7 +49,7 @@ long as the plate is subducting -- which is the whole time the terrain exists.
 
 **Deposit types, in `notes/economic-minerals.md`.** Anything whose defining
 control is an absolute age cannot be placed, only its tectonic setting can. The
-concrete casualty is komatiite-hosted nickel, which Naldrett puts at 2.7 to 1.9
+concrete loss is komatiite-hosted nickel, which Naldrett puts at 2.7 to 1.9
 Ga. That is stated as something the world cannot have rather than approximated.
 
 **The carve verdict, in `hydrography/notes/retain-fraction.md`.** How much of a

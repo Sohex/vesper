@@ -370,7 +370,8 @@ size_distribution:
 #
 # The consequence is a mixture and it is stated rather than hidden: the
 # shortwave sits at the measured end and the thermal infrared at the absorbing
-# one, which biases the NET forcing warm and the surface dimming small. Both
+# one, which biases the NET forcing warm and the surface shortwave reduction
+# small. Both
 # push the lake limb of the carve toward fewer basins overflowing.
 optics:
   source: analysis/dust_optics.json

@@ -251,7 +251,7 @@ def regolith_depth(intensity: np.ndarray, relief_m: np.ndarray,
 
     Heimsath's exponential soil production function gives a steady state of
     `h = h_star * ln(P0 / E)`, and that is what this used to compute. It has a
-    fatal property for a whole planet: it diverges as erosion approaches zero and
+    disqualifying property for a whole planet: it diverges as erosion approaches zero and
     goes to minus infinity as erosion grows, so both ends had to be clipped, and
     a quarter of this world's land sat on each clip. That is not a bimodal
     planet, it is a model railing.

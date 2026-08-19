@@ -604,7 +604,7 @@ under-carve can be corrected on a later pass while an over-carve cannot.
 ### What is still open is the larger limb
 
 The catchment term is not in that number and is measured at 50 to 250 basins in
-the OPPOSITE direction, over-carving, because suppressed precipitation cuts the
+the OPPOSITE direction, over-carving, because reduced rainfall cuts the
 runoff the criterion divides by. It is two to ten times the lake term and it
 decides the sign of the whole question. DUST-11 measures it and needs a
 prescribed-dust climate run; nothing offline can reach it.
@@ -673,7 +673,7 @@ thermal term is OPAC's on both sides.
 
 **The mixture is stated rather than hidden.** The shortwave sits at the measured
 end and the thermal infrared at the absorbing one, which biases the net warm and
-the surface dimming small, so both push the lake limb toward fewer basins
+the reduction in surface shortwave small, so both push the lake limb toward fewer basins
 overflowing. The measured longwave alternatives are known and rejected for stated
 reasons rather than unexamined: Di Biagio et al. (2017) pins its k constant below
 6 um by the authors' own statement, and Di Biagio et al. (2014) is a pellet-method

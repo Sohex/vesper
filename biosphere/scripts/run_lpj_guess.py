@@ -57,7 +57,8 @@ ANALYSIS = COMPONENT_ROOT / "analysis"
 #
 # cflux.out carries the Fire column, which is the only fire diagnostic GLOBFIRM
 # produces: firert.out and burned area are written under BLAZE only. Without it
-# the burning is visible in cmass and dens as a mortality no output explains.
+# the fire module's burning is visible in cmass and dens as a plant mortality
+# no output explains.
 OUTPUTS = ("anpp.out", "lai.out", "fpc.out", "cmass.out", "aaet.out",
            "cpool.out", "dens.out", "agpp.out", "nsources.out", "cflux.out")
 

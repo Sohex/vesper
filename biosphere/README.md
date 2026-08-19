@@ -185,8 +185,8 @@ worth knowing.
 `tcmin_surv` is not compared against a cold year. `vegdynam.cpp:153` tests it
 against `climate.mtemp_min20`, which `driver.cpp:617-627` builds as the **mean of
 the last twenty years' coldest monthly means**. That is a deliberate choice in
-LPJ-GUESS: one hard winter does not extirpate a species, so the model smooths
-before it kills. Twenty simulation years is 9.9 Earth years, which spans about
+LPJ-GUESS: one hard winter does not extirpate a simulated species, so the model
+smooths before it removes a cohort. Twenty simulation years is 9.9 Earth years, which spans about
 1.2 periods of an 8-Earth-year stellar cycle, so the window averages the cycle
 almost exactly.
 
@@ -281,13 +281,13 @@ trough.
 
 **LPJ-GUESS has nowhere to put it.** `climate.dtr` is read in exactly one place,
 `bvoc.cpp:276`, for leaf temperature in the biogenic VOC scheme, which is off.
-There is no daily-minimum mortality anywhere in the model; every cold limit runs
+There is no daily-minimum plant mortality anywhere in the model; every cold limit runs
 through `mtemp_min20`, a twenty-year mean of monthly means. So a wider diurnal
 range is physically real here and radiatively present in the climate, and the
 vegetation model is structurally blind to it.
 
 Recorded rather than worked around. Representing it would mean adding a frost
-mortality mechanism that LPJ-GUESS does not have, which is a much larger change
+plant-mortality mechanism that LPJ-GUESS does not have, which is a much larger change
 than this project needs, and the data is already in the driver if it is ever
 wanted.
 
@@ -326,8 +326,8 @@ on BLAZE with a non-GWGEN generator, so a run that starts is a run on GLOBFIRM.
 
 GLOBFIRM writes no `firert.out` and no burned area. Those are BLAZE-only, so the
 `Fire` column of `cflux.out` is the whole diagnostic, and without it in the
-harness's output list the burning is visible only as a mortality in `cmass` and
-`dens` that no output explains.
+harness's output list the fire module's burning is visible only as a plant
+mortality in `cmass` and `dens` that no output explains.
 
 One gate worth knowing when a short run reports no fire at all. With
 `iftwolayersoil 0`, which `iforganicsoilproperties` requires,

@@ -123,6 +123,22 @@ none of them is advice.
 - **Rewrite superseded content; do not mark it.** A reader grepping for a number
   lands on the number, not on the warning above it.
 - Prose in docs and reports uses ASCII punctuation and avoids em dashes; match it.
+- **Write about the simulation in the simulation's terms.** This project's
+  vocabulary brushes against real disciplines whose words carry weight this
+  work does not -- human physiology, climate intervention, and their
+  neighbours -- and a sentence that reads as being about Earth or about people
+  gets misread, by automated review and by humans, at real cost. Three rules.
+  Name the subject: the model's snow albedo, the simulation's rainfall, plant
+  mortality -- never a bare "mortality", never "suppressing precipitation",
+  never a phrase whose most common reading is an act performed on a real
+  atmosphere or a real population. Keep established technical terms whose
+  context already disambiguates them (extinction efficiency, albedo, radiative
+  forcing, flood seeding); a euphemism for a standard term is one quantity with
+  two names, which is its own failure class. And any document that can be read
+  standalone states the worldbuilding frame up front, as TASKS.md does.
+  Recorded 2026-08-19 after three sweeps (f5de28f, 47a68b3, and the repo-wide
+  pass) removed phrasing that had tripped cross-domain review over content
+  that was never anything but a toy model of an invented planet.
 - Keep citations and table cells on one source line, even where that breaks
   column alignment. They get copied out.
 - Every run and analysis product records its provenance (config hash, input

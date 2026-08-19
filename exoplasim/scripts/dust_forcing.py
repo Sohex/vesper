@@ -539,7 +539,8 @@ def main() -> None:
             "dataset and cannot be: the measured indices stop at 2.45 um, so "
             "the thermal term is OPAC's, which runs 1 to 2x more absorbing than "
             "the measurements where the two overlap. The mixture biases the net "
-            "warm and the surface dimming small. aeolian/config/dust.yaml says "
+            "warm and the surface shortwave reduction small. aeolian/config/dust.yaml "
+            "says "
             "why, and --indices bracket prices the all-OPAC end.",
             "Two-stream, optically-thin forcing expressions. At an optical depth "
             "near 1 they are being used past where they are strictly valid.",

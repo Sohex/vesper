@@ -11,8 +11,9 @@ the world being surprising.
 The carve criterion is an aridity index `(E_lake - P) / R` compared against a
 catchment's own geometry. `R` is catchment runoff, and runoff is a small residual
 of two large numbers, so a change in precipitation arrives at the verdict
-amplified. Absorbing aerosol suppresses precipitation through a fast adjustment
-to the atmospheric energy budget, which is a response of the circulation. No
+amplified. Radiatively dark mineral dust lowers the simulation's rainfall
+through a fast adjustment to the modelled atmosphere's energy budget, which is
+a response of the circulation. No
 surface energy balance can reach it, which is why DUST-10 could settle the lake
 limb offline and this one needs a climate run.
 

@@ -215,8 +215,9 @@ the scaling does nothing where it should do nothing.
 Two things that bit, both worth knowing before touching this again. LPJ-GUESS
 carries soil water as a *fraction* of each layer's capacity, computing
 `wcont = Faw_layer / soiltype.awc[layer]`, so a layer scaled to exactly zero
-divides by zero and the NaN propagates through the nitrogen substrate and kills
-the gridcell **silently**: zero LAI and zero evapotranspiration rather than a
+divides by zero and the NaN propagates through the nitrogen substrate and
+zeroes the gridcell's vegetation **silently**: zero LAI and zero
+evapotranspiration rather than a
 crash. And because water is fractional, a thinner soil also reads as *relatively
 wetter* for the same absolute water, so the net effect at any one cell can go
 either way through PFT competition: in the smoke set, one cell at 0.87 m gained

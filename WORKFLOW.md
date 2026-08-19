@@ -1003,7 +1003,7 @@ is energy retained in the atmosphere, not delivered to the ground.
 
 The CATCHMENT half is larger, runs the other way, and cannot be reached offline,
 because it is a precipitation response and not a surface energy balance.
-Suppressed precipitation cuts the runoff the criterion divides by, which
+Reduced rainfall cuts the runoff the criterion divides by, which
 OVER-carves, and over-carving is the irreversible direction. It needs one
 prescribed-dust climate run, specified with its gates and a prediction in
 `aeolian/notes/prescribed-dust-run.md`. The ORDER here is a dependency and not a
@@ -1160,7 +1160,7 @@ each worked through in `biosphere/README.md`:
   re-taken at T85 rather than carried over from T42.
 - **The 30-hour day widens the real diurnal range and LPJ-GUESS cannot see it.**
   `dtr` reaches only the biogenic VOC scheme, and every cold limit runs through a
-  twenty-year mean, so there is no daily-minimum mortality to trigger.
+  twenty-year mean, so there is no daily-minimum plant mortality to trigger.
 
 ## 7. Conventions this project holds to
 

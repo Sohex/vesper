@@ -321,8 +321,8 @@ void VesperInput::apply_regolith_depth(Gridcell& gridcell, double depth_m,
 	// physics. LPJ-GUESS carries soil water as a fraction of each layer's
 	// capacity, computing `wcont = Faw_layer / soiltype.awc[layer]` in
 	// soilwater.cpp and canexch.cpp, so a layer at exactly zero divides by zero
-	// and the NaN propagates through the nitrogen substrate and kills the
-	// gridcell silently, reporting zero LAI rather than failing.
+	// and the NaN propagates through the nitrogen substrate and zeroes the
+	// gridcell's vegetation silently, reporting zero LAI rather than failing.
 	const double NUMERICAL_FLOOR = 1.0e-4;
 
 	if (depth_m <= 0.0) {
