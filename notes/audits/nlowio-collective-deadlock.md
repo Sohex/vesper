@@ -223,3 +223,44 @@ stops the same trap being reset later.
 
 At `NLOWIO = 1` the patch is a no-op by construction: the non-root ranks were
 already holding 1, which is what they now receive.
+
+## End-to-end validation, 2026-08-18
+
+Run through the real pipeline rather than a harness: prepare cold, one orbit at
+`NLOWIO = 0`, three at `NLOWIO = 1` via `--low-io`, three more at `NLOWIO = 0`,
+then `build_climatology` and `analyze_climatology` on the last three. Energy
+diagnostics off, through an override config so `config/planet.yaml` and every
+existing `config_sha256` were untouched. T42, 10 layers, 16 ranks.
+
+| orbit | NLOWIO | Ts K | TOA W/m2 | sea ice | precip mm/day | model s |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | 1 | 271.686 | 29.618 | 0.1087 | 1.0793 | 64 |
+| 2 | 1 | 275.868 | 22.556 | 0.0921 | 1.4033 | 58 |
+| 3 | 1 | 278.547 | 18.560 | 0.0745 | 1.6432 | 63 |
+| 4 | 0 | 280.907 | 15.441 | 0.0602 | 1.8295 | 66 |
+| 5 | 0 | 282.897 | 13.384 | 0.0485 | 1.9638 | 63 |
+| 6 | 0 | 284.521 | 10.656 | 0.0404 | 2.0768 | 63 |
+
+**Nothing happens at the orbit 3 to 4 boundary, which is where the I/O mode
+flips.** Every series is monotone and smoothly decelerating across it: the
+temperature increments run +4.182, +2.679, +2.360, +1.990, +1.624 and the
+top-of-atmosphere imbalance decays toward zero without a step. A cold start
+relaxing toward the ~289 K this configuration is known to reach is exactly the
+shape expected, and the I/O regime leaves no mark on it, which is the property
+that has to hold: how output is written cannot be allowed to change the physics.
+
+Model time is 58 to 66 s an orbit in BOTH regimes, confirming again that
+`NLOWIO` costs postprocessing and disk rather than model time. It is faster than
+the 78 to 90 s measured elsewhere here because the energy diagnostics are off,
+which removes 56 output fields.
+
+The climatology built from orbits 4 to 6 has 67 float variables all finite, `ts`
+within [200.8, 324.6] K, `sic` and `alb` inside [0, 1]. The rank-boundary test
+finds no banding: the row 3 to 4 step in `ts` is BELOW the mean step of all other
+rows (z = -0.52), and in `sic` the two largest steps in the whole field sit at
+rows 2 and 0, INSIDE rank 0's own block, where a rank-boundary artefact cannot
+put them. That is the polar ice edge, not the defect.
+
+These products were deliberately not kept: they come from a non-canonical config
+and a six-orbit cold-start transient, so keeping them would leave something that
+reads like a climatology and is not one.
