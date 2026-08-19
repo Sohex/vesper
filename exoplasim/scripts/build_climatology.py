@@ -46,7 +46,7 @@ from _paths import ANALYSIS
 # an orbit was for: see exoplasim/scripts/segments.py.
 from segments import low_io_orbits, non_production_orbits
 
-from orbit import EARTH_CALENDAR_YEAR_DAYS
+import climatology
 
 
 COORDINATES = {"time", "lat", "lon", "lev", "levp", "fourier", "modes"}
@@ -184,7 +184,7 @@ SERIES_FIELDS = {
 }
 
 
-def climate_series(paths: list[Path], years: list[int]) -> dict:
+def climate_series(paths: list[Path], years: list[int], orbit_seconds: float) -> dict:
     """Per orbit AND per time bin, globally and over land, plus the residuals.
 
     Seasonal rather than annual, because the two questions a stellar cycle raises
@@ -195,8 +195,9 @@ def climate_series(paths: list[Path], years: list[int]) -> dict:
     13.8% of its land within one cycle's swing of such a threshold.
 
     Annual means are derived from the bins here rather than accumulated
-    separately, so the two cannot drift apart. Bins are equal-length time
-    averages, so a plain mean over them is the annual mean.
+    separately, so the two cannot drift apart. The bins hold UNEQUAL numbers of
+    raw records (lib/climatology.py, CLIM-13), so the annual mean weights them
+    by record count rather than plainly averaging.
 
     Deliberately small even so: about 17 fields by two masks by twelve bins per
     orbit, rounded, which is a few hundred KB for a full stellar cycle and
@@ -211,8 +212,17 @@ def climate_series(paths: list[Path], years: list[int]) -> dict:
     def r6(value):
         return float(f"{value:.6g}")
 
+    bin_weights_ = None
     for path in paths:
         with Dataset(path) as data:
+            w = climatology.bin_weights(np.asarray(data["time"][:], dtype=float))
+            if bin_weights_ is None:
+                bin_weights_ = w
+            elif not np.allclose(w, bin_weights_):
+                raise SystemExit(
+                    f"{path} bins its orbit differently from the first file in "
+                    "the window; one weight vector cannot serve the annual "
+                    "means. Mixed I/O regimes in one window would do this.")
             lat = np.asarray(data["lat"][:], dtype=float)
             nlon = len(data["lon"][:])
             land = np.asarray(data["lsm"][0], dtype=float) > 0.5
@@ -251,16 +261,21 @@ def climate_series(paths: list[Path], years: list[int]) -> dict:
             hfns = per_bin("hfns")
             closure["toa_minus_surface_w_m2"].append(
                 [r6(a - b) for a, b in zip(ntr, hfns)])
-            seconds = 86400.0 * EARTH_CALENDAR_YEAR_DAYS
+            # Scaled by the ORBITAL year, so the key's name is true. This used
+            # EARTH_CALENDAR_YEAR_DAYS, whose own docstring in lib/orbit.py says
+            # it is for annualising to per Earth year; the value then carried a
+            # per-orbit name at roughly twice its per-orbit magnitude. Nothing
+            # outside the series files read it, so this is a relabel of the
+            # water-budget closure, not a physics change. CLIM-25.
             p = per_bin("pr", land)
             e = per_bin("evap", land)
             q = per_bin("mrro", land)
             closure["land_p_minus_e_minus_mrro_mm_per_orbit"].append(
-                [r6((pi + ei - qi) * seconds * 1000.0)
+                [r6((pi + ei - qi) * orbit_seconds * 1000.0)
                  for pi, ei, qi in zip(p, e, q)])
 
     def annual(block: dict) -> dict:
-        return {name: [r6(sum(bins) / len(bins)) for bins in per_year]
+        return {name: [r6(float(np.dot(bin_weights_, bins))) for bins in per_year]
                 for name, per_year in block.items()}
 
     return {
@@ -282,7 +297,10 @@ def climate_series(paths: list[Path], years: list[int]) -> dict:
             "run near -0.45 W/m2 across every run measured. "
             "land_p_minus_e_minus_mrro is expected to be large and positive: "
             "mrro is river-routed net water flux, not local runoff, so the "
-            "residual is the water the rivers carried away."),
+            "residual is the water the rivers carried away. It is scaled by the "
+            "ORBITAL year, as the key says; before 2026-08-19 it was scaled by "
+            "the Earth calendar year under the same name, roughly twice the "
+            "per-orbit value (CLIM-25)."),
     }
 
 
@@ -355,7 +373,14 @@ def main() -> None:
             average_files([path], target, f"single model orbit {year}", identity)
             per_year_outputs.append(str(target))
 
-    series = climate_series(regular, list(years))
+    derived = (json.loads((run_dir / "run_manifest.json").read_text(encoding="utf-8"))
+               .get("derived_parameters", {}) if (run_dir / "run_manifest.json").is_file() else {})
+    orbit_seconds = derived.get("orbital_year_seconds")
+    if not orbit_seconds:
+        raise SystemExit("the run manifest does not give orbital_year_seconds, "
+                         "so the per-orbit water closure cannot be scaled; "
+                         "every consumer raises rather than guessing")
+    series = climate_series(regular, list(years), float(orbit_seconds))
     series_path = output_dir / f"{args.label}_climate_series.json"
     series_path.write_text(json.dumps(series, indent=2) + "\n", encoding="utf-8")
 
