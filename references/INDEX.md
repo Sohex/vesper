@@ -156,6 +156,18 @@ data carry no spectrum at all, which is what makes the re-weighting possible.
 | `howard1956b-synthetic-atmospheres-iii-water-vapor.pdf` | Howard, Burch, Williams (1956). *Infrared Transmission of Synthetic Atmospheres. III. Absorption by Water Vapor.* J. Opt. Soc. Am. 46(4), 242-245. `10.1364/JOSA.46.000242` | **read** -- Table II, the weak and strong band fits for the seven near-infrared H2O bands. A band absorption in cm-1 is a molecular property and carries no incident spectrum, which is why the solar weighting can be undone and redone |
 | `howard1956a-synthetic-atmospheres-ii-carbon-dioxide.pdf` | Howard, Burch, Williams (1956). *Infrared Transmission of Synthetic Atmospheres. II. Absorption by Carbon Dioxide.* J. Opt. Soc. Am. 46(4), 237-241. `10.1364/JOSA.46.000237` | **read** -- Table II for CO2, and their Eq. 11, which states the reconstruction method used here in one line: "if the spectral distribution of the radiation from a given source is known, the fraction of the total radiation absorbed by CO2 in a given atmospheric path can be computed" |
 
+### Soil water capacity and the catena constants (LITH-24)
+
+Fetched 2026-08-18 to ground the two blocks in `pedology/config/pedogenesis.yaml`
+that were carrying reasoning and no source. Both are cited for the MECHANISM and
+neither licenses the constants themselves, which are now labelled declared and
+bracketed; the config says so at each block.
+
+| file | citation | status |
+| --- | --- | --- |
+| `saxton_2006_soil-water-characteristic-estimates-by-texture-and-organic-matter-for.pdf` | Saxton, Rawls (2006). *Soil Water Characteristic Estimates by Texture and Organic Matter for Hydrologic Solutions.* Soil Science Society of America Journal 70(5), 1569-1578. `10.2136/sssaj2005.0117` | **read** -- the standard texture-to-water-capacity basis, regressed on 1,722 A-horizon samples from the USDA/NRCS National Soil Characterization database at 33 and 1500 kPa. It establishes the SHAPE the config relies on, plant-available water peaking at intermediate texture. It does NOT license the three endmember values: the regression is over a continuous mixture and the paper explicitly excluded samples above 60% clay, so a pure endmember is outside the data it was built on. Taking numbers off it anyway would be `notes/failure-modes.md` class 9, which is why the values stayed declared and gained brackets instead |
+| `heimsath_1997_the-soil-production-function-and-landscape-equilibrium.pdf` | Heimsath, Dietrich, Nishiizumi, Finkel (1997). *The soil production function and landscape equilibrium.* Nature 388, 358-361. `10.1038/41056` | **read** -- the first empirical soil production function, from cosmogenic 10Be and 26Al in bedrock beneath soils of different depths in northern California: `-(de/dt) = (77 +/- 9) exp(-(0.023 +/- 0.003) h)` um/yr with h in cm, so an e-folding depth near 43 cm. Two things carry into `catena:`. The paper's own reason for the exponential form is "the decrease in effectiveness of such mechanical processes as freeze-thaw", which names the frost term rather than leaving it assumed. And its control variable is hillslope CURVATURE, the divergence of the transport flux, where the config uses tan(beta), the flux itself -- a stated simplification, and the reason the slope constants are declared rather than sourced |
+
 ## Geochemistry: weathering, phosphorus and the thermostat
 
 | file | citation | status |

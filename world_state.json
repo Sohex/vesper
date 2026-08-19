@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated": "2026-08-18T05:18:16.815700+00:00",
-  "git_commit": "b9646ed9b5d7efc79c13e865bd9283eecaedd068",
+  "generated": "2026-08-19T05:50:08.504104+00:00",
+  "git_commit": "f30d6a806df9c34c3d81a3c36494c5421c71d13f",
   "generator": "scripts/world_state.py",
   "note": "Generated from the artifacts. Do not edit; re-run the generator. Only derived values live here. Findings are in `notes/`, with their evidence, and open work is in `TASKS.md`.",
   "planet": {
@@ -18,7 +18,8 @@
     "surface_uv_relative_to_earth": 0.4,
     "mass_solar": 0.8,
     "luminosity_solar": 0.32359365692962827,
-    "effective_temperature_k": 4965.0
+    "effective_temperature_k": 4965.0,
+    "metallicity": 0.0
   },
   "orbit": {
     "earth_solar_constant_w_m2": 1361.0,
@@ -40,15 +41,15 @@
   "stellar_spectrum": {
     "spectrum": "k25v",
     "hires_file": "exoplasim/inputs/stellarspectra/k25v_hr.dat",
-    "hires_sha256": "9d22867104a67816ca3ac309805a4c287332e96af56245beed7d4f537598ad1f",
+    "hires_sha256": "50729d2432316108c45332eac45e6d36e7b6f7fd0c34c854bfc822533119cb51",
     "generator": "lib/stellar.py, reproducing radmod.f90:solarini",
     "band_split_um": 0.75,
     "min_wavelength_nm": 316.036116751,
-    "flux_fraction_band1": 0.3843830706873776,
-    "flux_fraction_band2": 0.6156169293126225,
+    "flux_fraction_band1": 0.3823719935950933,
+    "flux_fraction_band2": 0.6176280064049068,
     "solar_partition_identity": 0.5169999999733781,
-    "rayleigh_coefficient": 0.712516689965012,
-    "rayleigh_coefficient_as_solarini_codes_it": 0.20973152913291265
+    "rayleigh_coefficient": 0.7199753432276026,
+    "rayleigh_coefficient_as_solarini_codes_it": 0.21192700718425783
   },
   "active_configuration": {
     "source_build": "precarve-craton",
@@ -68,6 +69,8 @@
       "ozone_scale": 0.794,
       "ozone_uv_weight": 0.335,
       "ozone_visible_weight": 0.914,
+      "h2o_sw_weight": 1.346,
+      "co2_sw_weight": 1.51,
       "roughness_source": "lithology",
       "soil_water_source": "pedology",
       "land_albedo_source": "vegetated",
@@ -310,9 +313,9 @@
     },
     "carve_list": {
       "counts": {
-        "carve": 1938,
-        "preserve": 1588,
-        "marginal": 95
+        "carve": 1937,
+        "preserve": 1592,
+        "marginal": 92
       },
       "terrain_hash": "e931b0d9947a232210a3cc11ba82003b5da15765d86e87956bc44c220932760e",
       "climate": {

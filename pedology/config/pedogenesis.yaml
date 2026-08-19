@@ -660,7 +660,7 @@ convergence:
 # ---------------------------------------------------------------------------
 # Volumetric plant-available water, field capacity minus wilting point, as a
 # fraction of soil volume. Loam holds the most: sand drains and clay holds water
-# too tightly for roots to take it. These are standard textbook mid-range values.
+# too tightly for roots to take it.
 #
 # Multiplied by regolith depth, this gives the millimetres of water the ground
 # can actually hold, which is two things at once:
@@ -669,13 +669,43 @@ convergence:
 #     regolith is thinner than that
 #   - what ExoPlaSim's dwmax bucket should be, whose overflow *is* its runoff
 #
-# So this is the field that closes the loop back to the climate model.
+# So this is the field that closes the loop back to the climate model, which is
+# why it is the one block in this file that was carrying "standard textbook
+# mid-range values" and no source. LITH-24.
+#
+# SOURCE, and what it does and does not license. Saxton and Rawls (2006), *Soil
+# Water Characteristic Estimates by Texture and Organic Matter for Hydrologic
+# Solutions*, Soil Science Society of America Journal 70:1569-1578,
+# `10.2136/sssaj2005.0117`, regressed 33 kPa and 1500 kPa water contents against
+# sand, clay and organic matter over 1,722 A-horizon samples from the USDA/NRCS
+# National Soil Characterization database. That is the standard basis for
+# texture-to-water-capacity and it establishes the SHAPE used here: plant
+# available water is a maximum at intermediate texture and falls off toward both
+# ends.
+#
+# It does NOT license these three numbers, and saying so is the point of the
+# label below. Saxton and Rawls parameterise a CONTINUOUS mixture and explicitly
+# excluded samples above 60% clay from the fit, so a pure endmember is outside
+# the data the regression was built on. Reading endmember values off it would be
+# taking a number from a citation rather than from the paper --
+# `notes/failure-modes.md` class 9.
+#
+# So the values are DECLARED, with the paper as the check on their ordering and
+# magnitude rather than their origin, and each carries a bracket spanning the
+# conventional range for its class. `build_soil.py` reports the spread in soil
+# water capacity across those brackets, because this field reaches the climate
+# and a single number would hide what it is worth.
 water:
   volumetric_capacity_by_texture:
     sand: 0.07
     silt: 0.20
     clay: 0.13
+  volumetric_capacity_by_texture_bracket:
+    sand: [0.05, 0.10]
+    silt: [0.15, 0.25]
+    clay: [0.10, 0.18]
   volumetric_capacity_organic: 0.30
+  volumetric_capacity_organic_bracket: [0.20, 0.40]
   # ExoPlaSim's uniform namelist default is 500 mm. The bounds keep a degenerate
   # cell from producing a bucket that never fills or never empties.
   minimum_mm: 10.0
@@ -705,18 +735,45 @@ water:
 # The chemical side is untouched: clay fraction still comes from the
 # Walker-Hays-Kasting intensity above. This only moves material around and
 # decides how much of it there is.
+# SOURCE for the mechanism, and the four constants are DECLARED against it
+# rather than taken from it. Heimsath, Dietrich, Nishiizumi and Finkel (1997),
+# *The soil production function and landscape equilibrium*, Nature 388:358-361,
+# `10.1038/41056`, is the first empirical soil production function, measured by
+# cosmogenic 10Be and 26Al in bedrock under soils of different depths in
+# northern California. Two of its results are what this block rests on.
+#
+# Soil production declines EXPONENTIALLY with the depth already there:
+# -(de/dt) = (77 +/- 9) exp(-(0.023 +/- 0.003) h) um/yr, h in cm, so an
+# e-folding depth near 43 cm and a bare-bedrock maximum near 77 um/yr. And the
+# paper's own reason for expecting that form is "the decrease in effectiveness
+# of such mechanical processes as freeze-thaw", which is the frost term below
+# named by the source rather than assumed.
+#
+# What it does NOT give is any of these four numbers. Its control variable is
+# hillslope CURVATURE -- the divergence of the transport flux -- while this
+# block uses tan(beta), the flux itself, which is the cheaper surrogate the
+# export supports. That is a stated simplification, not an equivalence. So each
+# constant is declared with a bracket, in the same way `aeolian/config/dust.yaml`
+# handles the constants no source fixes. LITH-24.
 catena:
   # Extra regolith production per unit frost-cycling fraction, relative to the
   # chemical rate. Frost shattering is commonly an order of magnitude faster
   # than dissolution in periglacial settings; 3.0 is deliberately conservative
-  # against that, since this world's frost season is short.
+  # against that, since this world's frost season is short. DECLARED; the
+  # bracket runs from no bonus at all to the order-of-magnitude literature
+  # figure.
   frost_production_bonus: 3.0
+  frost_production_bonus_bracket: [1.0, 10.0]
   # Slope divisor. tan(beta) = 0.1, a 6 degree hillslope, thins the profile by
   # about a third at k = 4; tan(beta) = 0.5, a 27 degree mountainside, thins it
-  # to a third. Both are the right order for measured catenas.
+  # to a third. Both are the right order for measured catenas. DECLARED; the
+  # bracket spans thinning that is half and twice as aggressive.
   slope_transport: 4.0
+  slope_transport_bracket: [2.0, 8.0]
   # Fines are shed preferentially, so what survives on a slope is coarser. This
   # is the fraction of the clay excess over the sand that migrates per unit
-  # tan(beta), capped so a cliff does not go to pure sand.
+  # tan(beta), capped so a cliff does not go to pure sand. Both DECLARED.
   slope_fines_loss: 0.35
+  slope_fines_loss_bracket: [0.20, 0.50]
   maximum_fines_loss: 0.6
+  maximum_fines_loss_bracket: [0.45, 0.75]

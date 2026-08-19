@@ -568,6 +568,25 @@ def main() -> None:
     water_capacity = np.clip(volumetric * depth * 1000.0,
                              water["minimum_mm"], water["maximum_mm"])
 
+    # The same capacity at both ends of the declared brackets on the volumetric
+    # constants. These are DECLARED values rather than measured ones -- Saxton
+    # and Rawls (2006) fixes the shape but excludes the pure endmembers this
+    # mixes between -- and this field sets ExoPlaSim's dwmax, whose overflow IS
+    # its runoff, so reporting one number for it would hide what the declaration
+    # is worth. LITH-24, and the same treatment aeolian/config/dust.yaml gets.
+    def _capacity_at(end: int) -> np.ndarray:
+        bracket = water["volumetric_capacity_by_texture_bracket"]
+        vol = (bracket["sand"][end] * texture["sand"]
+               + bracket["silt"][end] * texture["silt"]
+               + bracket["clay"][end] * texture["clay"]
+               + water["volumetric_capacity_organic_bracket"][end] * organic_fraction
+               + pedo["andisol"]["volumetric_capacity_allophane"] * andisol["andic"])
+        return np.clip(vol * depth * 1000.0,
+                       water["minimum_mm"], water["maximum_mm"])
+
+    water_capacity_low = _capacity_at(0)
+    water_capacity_high = _capacity_at(1)
+
     # Plant-available water below the bedrock contact, as a fraction of what the
     # soil above holds per unit volume. A function of weathering, because that
     # is what turns impermeable rock into saprock and then saprolite. See the
@@ -684,6 +703,8 @@ def main() -> None:
             "organic_fraction": mean(organic_fraction),
             "bulk_density_kg_m3": mean(bulk_density),
             "water_capacity_mm": mean(water_capacity),
+            "water_capacity_mm_bracket": [mean(water_capacity_low),
+                                          mean(water_capacity_high)],
             "bedrock_water_fraction": mean(bedrock_fraction),
             "soil_carbon_kg_m2": mean(carbon),
             "runoff_mm_per_earth_year": mean(runoff),
@@ -726,7 +747,9 @@ def main() -> None:
     print(f"organic fraction    {means['organic_fraction']:.4f} "
           f"from {means['soil_carbon_kg_m2']:.2f} kgC/m2")
     print(f"bulk density        {means['bulk_density_kg_m3']:.0f} kg/m3")
-    print(f"water capacity      {means['water_capacity_mm']:.1f} mm "
+    lo, hi = means["water_capacity_mm_bracket"]
+    print(f"water capacity      {means['water_capacity_mm']:.1f} mm, "
+          f"{lo:.1f} to {hi:.1f} across the declared bracket "
           f"(ExoPlaSim's uniform default is 500)")
     print(f"bedrock water       {means['bedrock_water_fraction']:.3f} of soil "
           f"capacity per unit volume")
