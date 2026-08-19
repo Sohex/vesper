@@ -373,6 +373,7 @@ checks:
 
 # Present, deliberately outside the graph: depended on by nothing.
 one_offs:
+  - exoplasim/scripts/predict_ocean_terms.py
   - hydrography/scripts/validate_lake_solver.py
   - hydrography/scripts/lake_balance.py
   - pedology/scripts/validate_against_earth.py
