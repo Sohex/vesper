@@ -83,6 +83,21 @@ none of them is advice.
    are all output. "The floor was binding on 73% of the overflowing set"
    survives every regeneration; "1,938 basins carve" does not.
 
+   **This is not licence to go hunting for stale derived artifacts, and doing
+   so is not work.** Derived products drift out of step with their inputs all
+   the time between iterations -- an albedo built before the lakes were re-solved,
+   a soil built on the bootstrap climatology -- and that is the normal resting
+   state of the tree, not a defect list. Running the pipeline fixes all of it as
+   a side effect, because regenerating a derived artifact is a STEP and the step
+   is already in the ordering. Chasing it separately spends real effort to move
+   numbers nothing is currently reading, and it churns artifacts out from under
+   whatever is. So: regenerate when a step you are actually running needs it,
+   and otherwise leave it. If a mismatch would change a conclusion someone is
+   about to draw, say so in a sentence and move on. `TASKS.md` says the same
+   thing from the other side -- a row that says "rebuild X before the next run"
+   is tracking state, and state is what `check_consistency.py` and
+   `world_state.json` are for.
+
 8. **Before an expensive run**, and after changing `source_build`:
 
        python scripts/check_consistency.py     # do the artifacts agree?
