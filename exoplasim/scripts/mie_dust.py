@@ -79,11 +79,30 @@ def lognormal_integrate(lam_um, n, k, r_mod_um, sigma_g,
     r_mod is the NUMBER-median radius, sigma_g the geometric standard deviation.
     Returns MEE in m^2/g. Truncation limits matter: OPAC's components are
     truncated, and reproducing its numbers requires reproducing its limits.
+
+    A thin wrapper on `distribution_integrate`, which takes any dN/dlnr. The two
+    are kept apart because a lognormal is the only shape OPAC uses and this is
+    the signature its published numbers are reproduced through, while sea salt
+    is emitted as a sum of three lognormals and cannot use it.
     """
     r = np.logspace(np.log10(r_min_um), np.log10(r_max_um), n_r)
     lnsig = np.log(sigma_g)
     # dN/dlnr for a lognormal, normalised later so the constant drops out
     dndlnr = np.exp(-0.5 * (np.log(r / r_mod_um) / lnsig) ** 2)
+    return distribution_integrate(lam_um, n, k, r, dndlnr, rho_g_cm3)
+
+
+def distribution_integrate(lam_um, n, k, r_um, dndlnr, rho_g_cm3):
+    """As `lognormal_integrate`, for an arbitrary number distribution.
+
+    `r_um` is a radius grid and `dndlnr` the number per unit ln(radius) on it,
+    to any normalisation: every quantity returned is a ratio of integrals over
+    the same weight, so the constant divides out. The grid must be fine enough
+    to resolve the Mie ripple structure it is averaging over, which for a
+    logarithmic grid means a few hundred points per decade.
+    """
+    r = np.asarray(r_um, dtype=float)
+    w = np.asarray(dndlnr, dtype=float)
 
     m = complex(n, k)
     qext = np.empty_like(r)
@@ -94,7 +113,6 @@ def lognormal_integrate(lam_um, n, k, r_mod_um, sigma_g,
         qext[i], qsca[i], gg[i] = bhmie(x, m)
 
     area = np.pi * r ** 2
-    w = dndlnr
     lnr = np.log(r)
     # cross-sections per particle, integrated over the distribution
     c_ext = np.trapezoid(qext * area * w, lnr)

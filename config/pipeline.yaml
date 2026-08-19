@@ -230,6 +230,19 @@ steps:
     needs: [dust, dust_optics, surface_albedo]
     writes: [analysis/dust_forcing.json, analysis/dust_surface_forcing.nc]
 
+  - id: sea_salt_optics
+    script: aeolian/scripts/sea_salt_optics.py
+    cost: minutes
+    needs: [stellar_spectrum]
+    writes: [analysis/sea_salt_optics.json]
+
+  - id: sea_salt
+    script: aeolian/scripts/build_sea_salt.py
+    loop: A
+    cost: minutes
+    needs: [bootstrap_climatology, sea_salt_optics]
+    writes: [aeolian/analysis/sea_salt_baseline.nc, aeolian/analysis/sea_salt_baseline.json]
+
   - id: vegetation_albedo
     script: analysis/vegetation_albedo.py
     cost: seconds

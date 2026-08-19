@@ -1,0 +1,272 @@
+schema_version: 1
+
+# Calibration for the offline sea-salt component, in the same form as
+# `dust.yaml` beside it: every constant is a published calibration or a declared
+# assumption, each with its source and what it is worth, and anything that could
+# not be taken from a source carries a `bracket` that the model reports rather
+# than collapsing. Nothing in `scripts/` hardcodes a Vesper number.
+#
+# DECLARED BEFORE THE FIRST RUN, 2026-08-19. There is no reopening test here
+# analogous to `notes/dust.md`'s, because sea salt has no equivalent of the
+# carve verdict downstream of it; what it has to answer is whether it is a term
+# in the error budget, and that question is settled by a number rather than by a
+# threshold. Do not tune anything here to land on a comparison with dust.
+
+# --- emission: Grythe et al. (2014) G13T ------------------------------------
+#
+# Grythe, Strom, Krejci, Quinn, Stohl (2014). A review of sea-spray aerosol
+# source functions using a large global set of sea salt aerosol concentration
+# measurements. Atmos. Chem. Phys. 14, 1277-1297. doi 10.5194/acp-14-1277-2014.
+# Read; see references/INDEX.md.
+#
+# Equation 7, the number flux per unit dry diameter:
+#
+#   dF/dDp = TW(T) [ 235 U10^3.5 exp(-0.55 [ln(Dp/0.1)]^2)
+#                  +  0.2 U10^3.5 exp(-1.5  [ln(Dp/3)]^2)
+#                  +  6.8 U10^3   exp(-1.0  [ln(Dp/30)]^2) ]
+#
+# in particles m-2 s-1 um-1, with Dp the DRY diameter in um and U10 the 10 m
+# wind speed in m/s.
+#
+# Chosen over Monahan (1986) and Gong (2003) because it is the function that
+# review fits to the observations rather than one of the 21 it reviews, and
+# because it is the only one here whose global mass production the authors
+# state, which is what makes the Earth check below possible.
+emission:
+  # Grythe eq. 7, three lognormal modes: amplitude, wind exponent, centre
+  # diameter in um, and the coefficient inside the squared logarithm.
+  modes:
+    - {amplitude: 235.0, wind_exponent: 3.5, centre_dp_um: 0.1, log_width: 0.55}
+    - {amplitude: 0.2,   wind_exponent: 3.5, centre_dp_um: 3.0, log_width: 1.5}
+    - {amplitude: 6.8,   wind_exponent: 3.0, centre_dp_um: 30.0, log_width: 1.0}
+  # Temperature weight, Grythe eq. A7 (from Jaegle et al. 2011), with T the sea
+  # surface temperature in DEGREES CELSIUS. Grythe tested four temperature
+  # treatments and found this one fits the observations best.
+  #
+  # It is a cubic fitted over roughly 0 to 30 C and it MUST NOT be extrapolated:
+  # outside that range it turns over and goes negative. The script clamps the
+  # temperature to the fitted range and reports how much ocean area was clamped,
+  # rather than evaluating a fitted polynomial where it was never fitted.
+  temperature_weight: [0.3, 0.1, -0.0076, 0.00021]
+  temperature_fit_range_c: [0.0, 30.0]
+  # Dry diameter limits of the integration, um. The upper limit is Grythe's own
+  # reporting cut and is why the Earth check below has a number to hit: their
+  # stated global production is for Dp < 10 um. It is also physical -- the
+  # 30 um spume mode is mostly outside it, and spume drops of that size fall out
+  # within minutes and never become aerosol.
+  dp_min_um: 0.01
+  dp_max_um: 10.0
+  # Dry sea-salt density, OPAC's value for both sea-salt components, and the
+  # same number the size-distribution table beside the refractive indices in
+  # exoplasim/data/sea_salt/ carries at 0% relative humidity.
+  dry_density_kg_m3: 2200.0
+  # Emission is suppressed under sea ice, linearly in the ice fraction. There is
+  # no whitecap under ice, and this is the one term that makes this world's cold
+  # branch differ from its warm one in sea salt.
+  sea_ice_suppression: true
+
+# --- the Earth check ---------------------------------------------------------
+#
+# The only numbers in this file that are not inputs. Grythe et al.'s Table 2
+# reports the global annual production their model computes for every source
+# function it reviews, on 25 years of ECMWF winds, over the same Dp < 10 um
+# range. That is a right answer supplied by the source, so the test can fail.
+#
+# THE TEST IS A RATIO BETWEEN TWO FUNCTIONS, and that is the point. Our wind
+# distribution is a Weibull at an assumed ocean-mean speed and theirs is a
+# reanalysis at 1 degree and 3 hours, so an absolute comparison measures our
+# wind treatment rather than our source function. Running two published
+# functions through the same machinery and requiring the SAME ratio to Grythe's
+# values divides the wind treatment out. Monahan et al. (1986) is the second
+# function, in the harmonised form of Grythe's equations A1 and A2, chosen
+# because it is the most widely used and the one whose spread across published
+# implementations Grythe discusses.
+#
+# THE SPUME MODE IS EXCLUDED FROM THE COMPARISON AND NOT FROM THE MODEL, and
+# the reason is recorded because it is a real property of equation 7. Grythe's
+# third mode is centred at Dp = 30 um, and its lower tail dominates the mass
+# integral below 10 um: modes 1 and 2 give 6.1 Pg/yr at the check's wind and
+# the third adds 26.9. Grythe's own transport discretised the emitted spectrum
+# into four lognormal classes with modal radii at 80% relative humidity of
+# 0.65, 4.7, 6.8 and 8.9 um, so their reported 8.9 Pg/yr is not the analytic
+# integral of equation 7 to 10 um, and comparing against it with the spume tail
+# included would be comparing two different quantities. The tail stays in the
+# emission because those drops are really emitted; what removes them is
+# settling, which is a physical answer rather than a truncation.
+earth_check:
+  ocean_mean_u10_m_s: 7.0                   # Grythe Fig. 3: ocean annual means
+                                            # run to about 10 m/s in the
+                                            # westerlies, near 7 in the mean
+  ocean_area_m2: 3.61e+14
+  sst_mean_c: 18.0
+  # Grythe et al. (2014) Table 2, global annual production, Dp < 10 um.
+  grythe_table2_pg_per_year:
+    G13T: 8.9
+    M86: 4.5
+  # The two ratios of ours to theirs must agree this closely. They are ratios of
+  # the same wind treatment, so what is left is the source functions.
+  ratio_agreement: 0.20
+  # Monahan et al. (1986) via Grythe equations A1 and A2, the harmonised form:
+  #   W  = 3.84e-6 U10^3.41
+  #   dF/dDp = W * 3.6e5 * Dp^-3 (1 + 0.057 Dp^1.05) * 10^(1.19 exp(-B^2))
+  #   B  = (0.38 - log10 Dp) / 0.65
+  monahan:
+    whitecap_coefficient: 3.84e-6
+    wind_exponent: 3.41
+    amplitude: 3.6e+5
+    size_power: -3.0
+    tail_coefficient: 0.057
+    tail_power: 1.05
+    log_amplitude: 1.19
+    b_offset: 0.38
+    b_scale: 0.65
+
+# --- the wind, and its subgrid distribution ----------------------------------
+#
+# THE SAME ARITHMETIC AS DUST, AND FOR THE SAME REASON. Production goes as
+# U10^3.5, so a T42 gridbox mean produces far less than the same mean with
+# realistic variance. Here it is exact rather than quadrature: for a Weibull of
+# shape k, the moment ratio is
+#
+#   <U^p> / <U>^p = Gamma(1 + p/k) / Gamma(1 + 1/k)^p
+#
+# which the script evaluates analytically. At k = 2 that is 2.455 for p = 3.5
+# and 1.910 for p = 3. Jensen guarantees it exceeds 1, which is the cheap check.
+subgrid_wind:
+  # Fitted from instantaneous samples over OCEAN cells, the way dust.yaml's is
+  # fitted over erodible land, because the shape differs between the two
+  # surfaces and neither should borrow the other's. Fitted at build time from
+  # the high-cadence extract; this is the fallback and the bracket.
+  weibull_shape: 2.0
+  weibull_shape_bracket: [1.6, 2.6]
+
+# --- the surface layer -------------------------------------------------------
+#
+# The source function wants U10 and the climatology carries the lowest model
+# level, near 109 m here. The conversion is a logarithmic profile over the
+# roughness of open water, and the roughness of open water is where THIS
+# WORLD'S GRAVITY ENTERS THE EMISSION.
+#
+# Charnock (1955) as calibrated by Smith (1988): z0 = 0.11 nu / u* + a u*^2 / g.
+# Smith, S. D. (1988), Coefficients for sea surface wind stress, heat flux, and
+# wind profiles as a function of wind speed and temperature, J. Geophys. Res.
+# 93(C12), 15467-15472, doi 10.1029/JC093iC12p15467. The Charnock coefficient
+# 0.011 is Smith's open-ocean value; 0.018 is the shallow-water and
+# fetch-limited value and is the upper bracket.
+#
+# At 12.81 m/s2 the same friction velocity gives a roughness 0.766 times
+# Earth's, so the wind profile is slightly steeper and U10 slightly lower for
+# the same level wind. It is a small term and it is carried because it is free,
+# not because it is decisive.
+surface_layer:
+  charnock: 0.011
+  charnock_bracket: [0.011, 0.018]
+  smooth_flow_coefficient: 0.11
+  kinematic_viscosity_m2_s: 1.5e-5
+  von_karman: 0.4
+  reference_height_m: 10.0
+  iterations: 4
+
+# --- hygroscopic growth ------------------------------------------------------
+#
+# Sea salt is not mineral dust and this is the difference that matters. A sea
+# salt particle at ambient humidity is a solution droplet: bigger, less dense,
+# and optically nearer water than salt. Every one of those changes its settling
+# velocity and its extinction, so the wet state is carried through the whole
+# chain rather than applied at the end.
+#
+# Growth factor and wet density are OPAC's own, tabulated at eight relative
+# humidities in exoplasim/data/sea_salt/opac_sea_salt_size_distribution.dat and
+# interpolated in relative humidity. They are not independent: the wet density
+# and the growth in mode radius are two statements of the same salt volume
+# fraction and they agree to 2%, which the optics script checks.
+#
+# OPAC's growth factor at 80% relative humidity is 1.99, which is the r80 = 2
+# r_dry convention Grythe equation 2 states, arrived at from a different
+# direction. That agreement is what licenses using Grythe's DRY diameters and
+# OPAC's WET optics in the same calculation.
+growth:
+  source: exoplasim/data/sea_salt/opac_sea_salt_size_distribution.dat
+  # Relative humidity is taken from the model's own lowest level over ocean and
+  # clamped into OPAC's tabulated range. Below the deliquescence point a real
+  # sea salt particle on the drying branch stays a droplet, which is the branch
+  # OPAC's single-valued curve assumes and states it assumes; the clamp is at
+  # the bottom of the table rather than at deliquescence for that reason.
+  rh_min_percent: 50.0
+  rh_max_percent: 99.0
+
+# --- transport and removal ---------------------------------------------------
+transport:
+  # Sea salt is a marine boundary layer aerosol and does not reach dust's free
+  # troposphere: the source is at the surface, the particles are large, and the
+  # removal is fast. The scale height is correspondingly lower than dust's
+  # 3000 m and is declared rather than derived.
+  scale_height_m: 1000.0
+  scale_height_bracket_m: [700.0, 1500.0]
+  steering_sigma: 0.85
+  diffusion_m2_s: 1.0e+5
+  max_iterations: 40000
+  convergence_fraction: 1.0e-6
+  polar_coslat_floor: 0.2
+
+removal:
+  # Settling is Stokes with the Cunningham slip correction at this world's
+  # gravity, evaluated on the WET particle: the grown diameter and the reduced
+  # wet density. Growing a particle raises its settling velocity despite the
+  # lower density, because the diameter enters squared and the density linearly.
+  #
+  # WET REMOVAL IS NOT DUST'S, AND THE DIFFERENCE IS THE WHOLE MASS BUDGET.
+  # `dust.yaml` carries Sportisse's BELOW-CLOUD scavenging, which is the right
+  # process for a weakly hygroscopic mineral. Sea salt is the most cloud-
+  # condensation-active aerosol there is: it is removed IN cloud, by being the
+  # nucleus of the drop that falls. Using dust's below-cloud coefficient here
+  # gives the accumulation mode a lifetime of three weeks against a measured
+  # one of about a day, and the optical depth that follows is an order of
+  # magnitude out.
+  #
+  # So the LEVEL is calibrated to Jaegle et al. (2011), who report an
+  # accumulation-mode lifetime of 25 h dominated by wet deposition, 12 h for
+  # 0.5 < r_dry < 4 um, and shorter for larger; and the SHAPE in precipitation
+  # is kept from Sportisse (2007), which is the same exponent dust uses.
+  #
+  # Jaegle, Quinn, Bates, Alexander, Lin (2011). Global distribution of sea salt
+  # aerosols: new constraints from in situ and remote sensing observations.
+  # Atmos. Chem. Phys. 11, 3137-3157. doi 10.5194/acp-11-3137-2011. Read.
+  #
+  # The calibration is at EARTH's ocean-mean precipitation and is applied here
+  # through this world's own precipitation field, so the transfer is of a
+  # process rate and not of a result.
+  wet_lifetime_hours: 25.0
+  wet_lifetime_hours_bracket: [12.0, 40.0]
+  reference_precipitation_mm_per_hour: 0.1256   # 1100 mm per Earth year, the
+                                                # ocean-mean, DECLARED
+  scavenging_b: 0.61                            # Sportisse (2007) Table 12
+  # Kept for the record and NOT used: this is what dust.yaml carries, and
+  # substituting it here is the order-of-magnitude error described above.
+  below_cloud_scavenging_a_dust: 1.72e-6
+
+# --- size bins ---------------------------------------------------------------
+#
+# Dry diameter edges in um. Four bins, chosen so that the two Grythe modes that
+# carry the mass inside the 10 um cut are resolved separately from each other:
+# the film and jet mode near 0.1 um, and the mode near 3 um that carries most of
+# the mass. Each bin settles and scavenges independently and there is no
+# inter-bin microphysics, which unlike mineral dust is an APPROXIMATION here --
+# a real sea salt population coagulates and its droplets exchange water with the
+# air. Both are slow against a lifetime of days.
+size:
+  bin_edges_um: [0.01, 0.5, 2.0, 5.0, 10.0]
+
+# --- optics ------------------------------------------------------------------
+#
+# NOT recomputed here. `analysis/sea_salt_optics.json` carries the two-band mass
+# extinction efficiency, single-scattering albedo and asymmetry parameter per
+# dry size bin and per relative humidity, integrated against this star's
+# spectrum by a Mie code validated against Bohren-Huffman and OPAC.
+#
+# The mass extinction efficiency there is PER GRAM OF DRY SEA SALT, not per gram
+# of wet particle, because the emission and transport budget is in dry salt
+# mass. Getting that wrong is a factor of four at 80% relative humidity.
+optics:
+  source: analysis/sea_salt_optics.json
+  indices: OPAC ssam and sscm, at ambient relative humidity

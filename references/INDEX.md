@@ -219,6 +219,20 @@ closed-basin surfaces. Resolved: cooling everywhere. See `notes/dust.md`.
 | `volz1973-ir-optical-constants.pdf` | Volz (1973). *Infrared Optical Constants of Ammonium Sulfate, Sahara Dust, Volcanic Pumice, and Flyash.* Appl. Opt. 12(3), 564-568. `10.1364/AO.12.000564` | held -- the longwave basis of OPAC "mineral transported" |
 | `kong2024-dust-refractive-index-uncertainty.pdf` | Kong, Wang, Bi (2024). *Uncertainties in laboratory-measured shortwave refractive indices of mineral dust aerosols and derived optical properties: a theoretical assessment.* Atmos. Chem. Phys. 24, 6911-6935. `10.5194/acp-24-6911-2024` | held -- quantifies the error the sphere assumption injects, which is what `mie_dust.py` assumes |
 
+## Sea salt: the second aerosol (CLIM-27)
+
+Assembled 2026-08-19 to answer what a scattering aerosol over this world's ocean
+is worth, which nothing had asked. See `notes/audits/unpriced-terms.md` finding 2
+and `aeolian/README.md`.
+
+| file | citation | status |
+| --- | --- | --- |
+| `grythe2014-sea-spray-source-function-review.pdf` | Grythe, Strom, Krejci, Quinn, Stohl (2014). *A review of sea-spray aerosol source functions using a large global set of sea salt aerosol concentration measurements.* Atmos. Chem. Phys. 14, 1277-1297. `10.5194/acp-14-1277-2014` | **read** -- equation 7 is the source function used, equation A2 the Monahan form the Earth check runs beside it, and Table 2 the per-function global production the check is against |
+| `jaegle2011-sea-salt-global-distribution.pdf` | Jaegle, Quinn, Bates, Alexander, Lin (2011). *Global distribution of sea salt aerosols: new constraints from in situ and remote sensing observations.* Atmos. Chem. Phys. 11, 3137-3157. `10.5194/acp-11-3137-2011` | **read** -- the wet-removal anchor: accumulation-mode lifetime 25 h dominated by wet deposition, 12 h for 0.5 to 4 um dry radius, and a global burden of 8.5 to 9.1 mg/m2 for scale |
+| `gong2003-sea-salt-source-function.pdf` | Gong (2003). *A parameterization of sea-salt aerosol source function for sub- and super-micron particles.* Global Biogeochem. Cycles 17(4), 1097. `10.1029/2003GB002079` | held -- the alternative source function, kept because Grythe's Table 2 prices it and it would be the first substitution to try |
+| `irshad2009-sea-salt-refractive-index.pdf` | Irshad, Grainger, Peters, McPheat, Smith, Thomas (2009). *Laboratory measurements of the optical properties of sea salt aerosol.* Atmos. Chem. Phys. 9, 221-230. `10.5194/acp-9-221-2009` | **read** -- and NOT used for the shortwave: it measures 1 to 20 um, which misses band 1 entirely. Its finding that OPAC's volume mixing rule is inadequate is recorded as a caveat on the infrared, where sea salt absorbs; in the shortwave it is a near-pure scatterer and n carries the answer |
+| `petters2007-kappa-hygroscopicity.pdf` | Petters, Kreidenweis (2007). *A single parameter representation of hygroscopic growth and cloud condensation nucleus activity.* Atmos. Chem. Phys. 7, 1961-1971. `10.5194/acp-7-1961-2007` | held -- the alternative to OPAC's tabulated growth. Not used: OPAC's own table is what its refractive indices were mixed against, and pairing a different growth curve with those indices would break the consistency the optics script checks |
+
 ## Hydrology: the Earth comparator
 
 | file | citation | status |

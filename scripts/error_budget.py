@@ -249,6 +249,20 @@ FORCING_ITEMS = [
      "11 W/m2 by surface, and that spread is what drives circulation. The "
      "global-mean kelvin here is therefore the least informative thing about "
      "this item."),
+    ("sea salt, radiative", (-0.89, -0.16),
+     "PRICED 2026-08-19, CLIM-27, from aeolian/analysis/sea_salt_baseline.json. "
+     "The counterpart the budget had carried dust without: the same magnitude "
+     "and the OPPOSITE sign. Sea salt's single-scattering albedo is 1 to within "
+     "1e-5 in both bands, so the two-stream expression has no absorbing term "
+     "and the sign cannot come out positive over any surface. The range spans "
+     "two things that are not the same kind of uncertainty and are deliberately "
+     "not separated here: whether Grythe's 30 um spume mode counts inside the "
+     "10 um cut, worth a factor of 2.3, and the wet-removal lifetime bracket, "
+     "worth a factor of 2.6. Central estimates are -0.30 excluding the spume "
+     "mode and -0.68 including it. Longwave NOT computed: the layer sits in a "
+     "boundary layer near the surface temperature, so the term is expected "
+     "small, and expected is not measured. notes/audits/unpriced-terms.md "
+     "finding 2."),
     ("dust, shortwave-only if switched on as shipped", (-4.3, -4.0),
      "DUST-3's constraint, not an uncertainty in the world. Aerosols ARE "
      "switchable: aero_ini is called at plasim.f90:190 and reads aero_nl with "

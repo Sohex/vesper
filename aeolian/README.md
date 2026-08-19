@@ -204,3 +204,44 @@ tracer with one radius and one density fixed at compile time, so the in-model
 chain gets the burden and the optical depth and cannot get the size-resolved
 DEPOSITION field that pedology and the phosphorus budget read. That is the
 declared cost of DUST-8 and the note carries the numbers.
+
+## Sea salt
+
+The second aerosol, added 2026-08-19 for CLIM-27. `notes/audits/unpriced-terms.md`
+finding 2 says why: this project priced mineral dust carefully and had never
+asked what any other aerosol was worth, on a world whose ocean is more than half
+the surface.
+
+```bash
+python aeolian/scripts/sea_salt_source.py     # the Earth check, and nothing else
+python aeolian/scripts/sea_salt_optics.py     # step sea_salt_optics
+python aeolian/scripts/build_sea_salt.py      # step sea_salt
+python aeolian/scripts/build_sea_salt.py --bracket   # every declared end
+```
+
+`sea_salt_source.py` is the source function, Grythe et al. (2014) equation 7,
+shared by the other two because one needs its mass and the other its shape.
+`sea_salt_optics.py` writes `analysis/sea_salt_optics.json`, band-averaged
+optics per dry size bin and per relative humidity. `build_sea_salt.py` writes
+`aeolian/analysis/sea_salt_baseline.{nc,json}`: emission, burden, optical depth
+and the top-of-atmosphere shortwave forcing, at both ends of every declared
+bracket. Constants are in `aeolian/config/sea_salt.yaml`.
+
+**Three things about it are not obvious from the dust component beside it.**
+
+The particle is WET and the mass budget is DRY. A sea-salt particle at ambient
+humidity is a solution droplet, twice the dry diameter at 80% relative humidity
+and a quarter of the dry mass fraction, so its extinction is computed on the wet
+particle and divided by the dry mass. The growth curve is OPAC's, in
+`exoplasim/data/sea_salt/`, and the optics script checks that OPAC's growth
+factor and its wet density say the same thing.
+
+Wet removal is NOT dust's. Sea salt is the most cloud-condensation-active
+aerosol there is and is removed in cloud rather than below it; using dust's
+below-cloud coefficient gives the accumulation mode a three-week lifetime
+against a measured day. The level is anchored to Jaegle et al. (2011).
+
+The spume mode is reported apart. Grythe's third lognormal is centred at 30 um
+and its lower tail dominates the emitted mass below the 10 um cut, so the
+product carries an `all_modes` and a `no_spume` variant and any comparison with
+an Earth number is against the second. Neither is a correction to the other.

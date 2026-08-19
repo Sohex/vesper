@@ -1,0 +1,36 @@
+# OPAC sea-salt size distribution and wet density, at eight relative humidities.
+#
+# columns: mode  rh_percent  r_min_um  r_max_um  r_mod_um  rho_g_cm3  sigma
+#
+# `r_mod` is the NUMBER-mode radius of a lognormal, `sigma` the geometric
+# standard deviation, and `r_min`/`r_max` the truncation limits. Reproducing an
+# OPAC number requires reproducing its truncation, which is why the limits are
+# carried rather than assumed infinite.
+#
+# `rho` is the density of the WET particle, falling from dry sea salt's 2.2
+# g/cm3 toward water's 1.0 as the particle takes up water. It and the growth in
+# r_mod are two statements of the same salt volume fraction and they agree:
+# at 80% RH, (rho-1.0)/(2.2-1.0) = 0.125 against (r_mod(0)/r_mod(80))^3 = 0.127.
+#
+# Source and route as for opac_sea_salt_refractive_index.dat beside this file;
+# these rows are components 4 (ssam) and 5 (sscm) of libRadtran 2.0.6's
+# data/aerosol/OPAC/size_distr.cfg. The growth factor at 80% RH is 1.99 for both
+# modes, which is the r80 = 2 r_dry convention Grythe et al. (2014) equation 2
+# states, arrived at independently.
+mode rh_percent r_min_um r_max_um r_mod_um rho_g_cm3 sigma
+ssam   0    0.0050    20.000    0.2090   2.200  2.030
+ssam  50    0.0077    32.200    0.3360   1.290  2.030
+ssam  70    0.0085    36.300    0.3780   1.200  2.030
+ssam  80    0.0090    39.900    0.4160   1.150  2.030
+ssam  90    0.0099    47.800    0.4970   1.090  2.030
+ssam  95    0.0108    58.500    0.6050   1.050  2.030
+ssam  98    0.0115    78.300    0.8010   1.020  2.030
+ssam  99    0.0118    98.500    0.9950   1.010  2.030
+sscm   0    0.0050    60.000    1.7500   2.200  2.030
+sscm  50    0.0077    90.500    2.8200   1.290  2.030
+sscm  70    0.0085   100.000    3.1700   1.210  2.030
+sscm  80    0.0090   100.000    3.4900   1.150  2.030
+sscm  90    0.0099   100.000    4.1800   1.090  2.030
+sscm  95    0.0108   100.000    5.1100   1.050  2.030
+sscm  98    0.0115   100.000    6.8400   1.020  2.030
+sscm  99    0.0118   100.000    8.5900   1.010  2.030
