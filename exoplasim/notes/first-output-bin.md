@@ -241,9 +241,25 @@ and not a measurement.
 
 ## What to do about it
 
-**Run with `NLOWIO = 0` and read the binned climatology normally.** Both this
-defect and the interval-accumulation defect of class 15 are artifacts of the
-low-I/O path and they vanish together. Measured on `run_8c2e1ff9ab5e`:
+**Read every existing run in `exoplasim/runs/` with the corrections above.**
+All of them were written by binaries without the patch, so their `NLOWIO = 1`
+orbits carry the bin-0 defect in full and their `NLOWIO = 0` orbits carry the
+CLIM-20 rank-divergence corruption; see
+`notes/audits/nlowio-collective-deadlock.md`.
+
+**For new runs, use `NLOWIO = 1` for spin-up and `NLOWIO = 0` for any orbit a
+climatology will be built from.** The bin-0 defect is fixed, so low-I/O spin-up
+output is now trustworthy beyond the scalars. What is NOT fixed is the
+accumulation itself: `NLOWIO = 0` writes instantaneous samples and `NLOWIO = 1`
+writes interval accumulations, and a sample set is strictly more information,
+since a mean can be recovered from it and an accumulation cannot be undone.
+Anything reading variance, extremes or single records -- DUST-5's gust
+distribution above all -- needs the samples. The cost of the clean regime is now
+small: measured 2026-08-18 with the postprocessor fixed, an orbit is 86.8 s at
+`NLOWIO = 1` against 110.4 s at `NLOWIO = 0`, a ratio of 1.27 where it used to be
+3.7 (`notes/audits/pyburn-postprocessing-cost.md`).
+
+The measurements below are of UNPATCHED behaviour, on `run_8c2e1ff9ab5e`:
 
 | | first-bin wind ratio | binned `spd` / snapshot mean-of-speed |
 | --- | ---: | ---: |
@@ -293,9 +309,53 @@ dropping a bin discards a twelfth of the year for nothing.
 - (the code 54 `arasc`/`rasc` fix was SPLIT OUT of this patch on 2026-08-18 and now lives in `exoplasim/patches/exoplasim-3.4.2-arasc-output.patch`, which is resident alongside it; the parent carried a duplicate copy until then and the two could not both apply).
 
 It is in `RESIDENT_PATCHES` and `rebuild_binaries.py --verify` unwinds it with
-the rest of the stack. **No run has used it**, because every run in
-`exoplasim/runs/` predates the rebuild that landed it, so the corrections above
-are still the operative guidance for reading existing output.
+the rest of the stack.
+
+### It is verified, as of 2026-08-18
+
+Until this date the patch had never been run: it was authored, reviewed, applied
+and rebuilt, and every run in `exoplasim/runs/` predated it. "It fixes bin 0" was
+a design claim, not a measurement. It has now been measured.
+
+The test uses this note's own probe. `sg` is surface geopotential and is CONSTANT
+in time, so any bin-to-bin spread in it is pure artifact and the right answer is
+zero. Two orbits per arm at `NLOWIO = 1`, because the defect needs a RESTART and
+a first call has nothing to restore; two arms, one binary with the patch and one
+with it reversed and recompiled, so the test can fail.
+
+| arm | orbit | max bin-to-bin spread in `sg` | bottom-level `ua`, bin 0 |
+| --- | --- | ---: | ---: |
+| patch reversed | 0, cold start | 0.000e+00 | +0.018 m/s |
+| patch reversed | 1, restarted | **9.209e-02** | **-34.68 m/s** |
+| patch resident | 0, cold start | 0.000e+00 | +0.020 m/s |
+| patch resident | 1, restarted | **8.651e-06** | **-0.58 m/s** |
+
+The artifact falls by a factor of about 10,600, and the spurious solid-body
+rotation predicted above -- which shows here as bin 0 carrying -34.68 m/s of zonal
+wind against +0.13 m/s in the other eleven bins -- is gone.
+
+Two things make this a test rather than a demonstration. Orbit 0 is EXACTLY
+identical in both arms, which is what this note predicts for a first call and
+what shows the probe is measuring the defect rather than inventing one. And the
+reversed arm reproduces the defect, so a clean result from the patched arm cannot
+be an insensitive metric.
+
+The residual 8.651e-06 is not a defect. `sg` is accumulated over about 480
+timesteps in single precision and then divided, so the rounding floor is between
+2.6e-06 and 5.7e-05. The reversed arm's 9.2e-02 is four orders of magnitude above
+any such floor.
+
+### What the patch does NOT fix
+
+It repairs the RESTART RESTORATION of the accumulators. It does not change WHAT
+is accumulated, and the second defect on this page is about exactly that: under
+`NLOWIO = 1` the model accumulates in a way that puts binned `spd` at 1.141 of
+the snapshot mean-of-speed, between the speed of the time-mean vector and the
+mean of instantaneous speeds. That number is a property of accumulating inside
+the model and it survives this patch untouched.
+
+That is why the two I/O regimes are still used for different things, and why the
+guidance below is scoped by regime rather than withdrawn.
 
 It changes the restart file layout: a restart written by a patched binary cannot
 be read by an unpatched one, and the reverse, so a run started before 2026-08-18
