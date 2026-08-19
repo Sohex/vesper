@@ -1,4 +1,4 @@
-# Two terms nothing prices: the interior moisture source, and the aerosols that are not dust
+# The interior moisture source, measured, and the aerosols that are not dust
 
 *Worldbuilding. Vesper is an invented planet and everything below is about the
 simulation of it: a toy climate model, a terrain generator and their coupling.
@@ -6,10 +6,11 @@ Every quantity named here is a modelled field of a fictional world.*
 
 *Audited 2026-08-19, against the baseline climatology
 `baseline_regular_climatology.nc` on `precarve-craton` and against the vendored
-ExoPlaSim fork. Read-only; nothing here was fixed. Commissioned by the question
-"is anything else missing on the scale of the dust coupling", and the honest
-answer is that neither finding here is a new component. Both are terms that
-already exist somewhere in the project and that nothing has ever priced.*
+ExoPlaSim fork. Commissioned by the question "is anything else missing on the
+scale of the dust coupling". Finding 1 was measured the same day and came back
+about a percent, with the sign opposite to the one assumed; finding 2 is
+unmeasured and remains open. One thing that looked like a first-order defect is
+knocked down at the end.*
 
 Findings are tagged **[numeric]** where computed here, **[inspection]** where
 read out of code or artifacts, and **[physics]** where reasoning without
@@ -17,75 +18,91 @@ checking.
 
 ---
 
-## 1. Lake evaporation never reaches the atmosphere, and it is a share of land precipitation rather than of planet area
+## 1. The lake moisture source the climate model lacks is about a percent of land precipitation, and it is negative
 
-**[inspection]** The mechanism is already recorded, in
+**[inspection]** The mechanism is recorded in
 `exoplasim/notes/lake-representation.md`. PlaSim has no lake. A land cell's
 evaporation is capped by its own precipitation plus storage, because runoff
 leaves `dwatc` and enters `driver` (`landmod.f90:1390`), a separate store that is
 advected downhill and discharged at the coast, and nothing returns `driver` to
-the evaporating bucket. No setting of `dwmax` fixes it. That note prices the
-consequence as a latent-versus-sensible partition error over the fraction of the
-planet the lakes cover.
+the evaporating bucket. No setting of `dwmax` fixes it.
 
-**That is the wrong denominator, and it is why the item has stayed small.** What
-a catchment delivers to a closed basin evaporates, in the world the hydrography
-component describes, from the middle of a continent. In the model the same water
-is exported to the ocean and evaporates there. Water is conserved either way and
-the global budget closes either way; what moves is **where the moisture source
-sits**, and the quantity that reaches the carve is that source measured against
-land precipitation.
+The question this audit asked is what that is worth in the currency the carve is
+decided in. The water a catchment delivers to a closed basin evaporates from the
+middle of a continent in the world `hydrography/` describes and over the ocean in
+the model, so what moves is where the moisture source sits, and `world_state.json`
+puts the endorheic share of land at 76.2%.
 
-**[numeric]** Equilibrium lake area from `hydrography/analysis/carve_verdict.json`,
-`bounds.penman.lake_area_km2`, is 13.7 million km2, which is 1.87% of the planet
-and **4.36% of land**. The Penman rate over land implied by
-`surface_water_report.json` -- global mean 3.027 mm/day, ocean mean 3.157, land
-fraction 0.42817 -- is 2.85 mm/day; the same estimator's land mean is quoted at
-3.4 mm/day in `carve_verdict.py`'s docstring. Across that pair:
+### The integral
 
-| | km3 per Earth year | share of land P | share of land runoff |
+**[numeric]** Computed by `carve_verdict.py` and recorded per run in
+`runoff_source.endorheic_inflow`, so these are dated readings of a generated
+artifact rather than constants. Measured 2026-08-19, per Earth year:
+
+| | km3/Earth-yr | of land P | of land runoff |
 | --- | ---: | ---: | ---: |
-| lake evaporation at 2.85 mm/day | 14,289 | 5.6% | 35.2% |
-| lake evaporation at 3.40 mm/day | 17,033 | 6.6% | 41.9% |
-| land precipitation, 816.4 mm/Earth-yr | 256,748 | | |
-| land runoff, 129.2 mm/Earth-yr | 40,635 | | |
+| catchment inflow, area-weighted, unclamped | 27,459 | 10.7% | 69.1% |
+| catchment inflow, clamped per basin | 28,624 | 11.2% | 72.0% |
+| spill reaching the ocean | 30,960 | 12.1% | 77.9% |
+| runoff generated over the lake footprint | 7,005 | 2.7% | 17.6% |
+| lake net evaporation, area x (E - P) | -9,341 | -3.6% | -23.5% |
+| **lake evaporation minus the model's own, over the same ground** | **-2,374** | **-0.9%** | **-6.0%** |
 
-So the absent moisture source is **5.6 to 6.6% of land precipitation**, sited in
-the arid interiors rather than spread over the land. `world_state.json` puts the
-endorheic share of land at 76.2%, which is why this lands here and would be a
-detail on Earth.
+against land precipitation of 816.4 mm/Earth-yr and land runoff of 126.4, both
+measured 2026-08-17 in `missed-couplings.md` on this climatology.
 
-**What it is worth is NOT computable from that alone, and the sign is not
-clean.** [physics] Two steps stand between the source and the criterion. The
-first is a recycling ratio -- what fraction of moisture evaporated over a
-continental interior precipitates back onto the catchments -- and nothing in this
-project has measured one. The second is that adding evaporation to a dry surface
-converts sensible heat to latent, shallows the boundary layer and can suppress
-convective precipitation while adding moisture, so the two effects oppose. An
-argument that goes "more land moisture, therefore more land P, therefore more
-runoff, therefore more carving" is a guess with a mechanism attached. Once past
-those two steps, `missed-couplings.md` finding 1 applies as usual: runoff is a
-small residual of two much larger fluxes, so `d(runoff)/runoff = 6.5 x dP/P`.
+The first four lines close an identity to **0.00%**: inflow equals lake net
+evaporation plus the runoff generated over the lake bed plus what spills to the
+ocean, because those are the only doors out of the endorheic system at steady
+state. The middle term is there because a basin's catchment includes its own
+bed, so the solver's demand carries it. That identity has a right answer of zero
+and is the check that makes the integral usable.
 
-**Two cautions on the number itself.**
+Endorheic catchments deliver 69% of the land's runoff off 76% of the land, the
+endorheic share being the drier share. That is credible where the earlier figure
+was not.
 
-The equilibrium lake area inherits the criterion's per-basin runoff clamp
-(`carve_verdict.py:591`, `max(runoff, 0)`, which fires on 57% of basins), and the
-clamp is one-signed toward larger lakes. The table above is therefore high in
-that respect.
+### Two errors, both worth recording
 
-And the obvious independent check does not work yet. Catchment inflow ought to
-equal lake evaporation plus what the overflowing basins spill, and
-`carve_verdict.json` reports `catchment_mean_mm_per_year.p_minus_e` of 80.682
-over 241.9 million km2 of catchment. That figure is per Vesper year -- `year_s`
-at `carve_verdict.py:582` is the orbital period, 180.655 days for this baseline
--- so it is 163.1 mm per Earth year, or 39,454 km3, which is 97% of the whole
-land runoff over 76% of the land, and the endorheic share is the arid share. It
-is not credible, and it is the same clamp reappearing. The check becomes a check
-when the integral is redone unclamped and area-weighted over endorheic
-catchments, which is cheap and is the first thing to do here.
+**The reported catchment mean is not an integral.**
+`runoff_source.catchment_mean_mm_per_year` is `np.nanmean` over basins, so it
+weights a 400 km2 basin the same as a 4,000,000 km2 one, and it is per Vesper
+year rather than per Earth year. Multiplying it by the total catchment area gave
+39,454 km3/Earth-yr, which is 97% of all land runoff arriving off 76% of the
+land. The area-weighted integral is 27,459. The per-basin runoff clamp, which was
+blamed for the discrepancy when this document first said so, is worth 4.2% of the
+integral and is not the cause. The key now names its year and says it is
+unweighted.
 
-**Why this is not the routing.** See the knocked-down section below.
+**Gross lake evaporation is not the moisture source.** What the atmosphere gains
+by a lake existing is the lake's evaporation measured against what the model
+already evaporates on that same ground, not the lake's net water demand. Those
+differ in size and, here, in sign. `carve_verdict.json`'s
+`penman_land_evaporation_ordering` had already measured the reason: this world's
+land carries a median roughness of 0.521 m against open water's 1.5e-4, a
+transfer coefficient several times larger, so the model's own evaporation exceeds
+Penman on 2,484 of 4,105 land cells. The same fact retired the floor at the land
+rate from the criterion. Replacing rough land with a smooth lake therefore takes
+moisture out of the land atmosphere over most of this planet, and the integral
+agrees: **-2,374 km3/Earth-yr, or -0.9% of land precipitation**.
+
+### What that leaves
+
+[physics] Through `missed-couplings.md` finding 1's amplification, `d(runoff)/
+runoff = 6.5 x dP/P`, and with a recycling ratio below one, a 0.9% moisture
+change is a low single-digit percentage on runoff. It is a real term and it is
+not a dust-scale one, and it does not point the way the intuitive argument said
+it did.
+
+**One limitation, stated so the number is not overread.** The comparison uses
+catchment-mean Penman and catchment-mean model evaporation, not values over the
+lake footprint itself. Lakes sit in the low, warm, dry floor of a catchment,
+where Penman is higher and the model's moisture-limited evaporation lower than
+the catchment mean, so this estimator is biased against the lake and the true
+term is somewhere above -0.9%. Sharpening it means the sub-grid lake fraction on
+the T42 grid, which `build_surface_albedo.py --lakes` already computes for
+albedo. It would have to be wrong by a factor of six to reach the size this
+document first claimed.
 
 ## 2. Mineral dust is the only aerosol this project has ever considered
 
@@ -181,5 +198,5 @@ Tracked in `TASKS.md` and not restated here.
 
 | finding | id |
 | --- | --- |
-| 1. the interior moisture source | `CLIM-26` |
+| 1. the interior moisture source | `CLIM-26`, closed by the measurement above |
 | 2. no aerosol but mineral dust | `CLIM-27` |

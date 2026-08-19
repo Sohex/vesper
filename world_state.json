@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated": "2026-08-19T07:31:24.997330+00:00",
-  "git_commit": "857778885ad6434c696ed893f733138ccdce74cc",
+  "generated": "2026-08-19T07:55:26.694611+00:00",
+  "git_commit": "8ea06bf3f9710e07049ac2df7c0c709c6e59ebce",
   "generator": "scripts/world_state.py",
   "note": "Generated from the artifacts. Do not edit; re-run the generator. Only derived values live here. Findings are in `notes/`, with their evidence, and open work is in `TASKS.md`.",
   "planet": {
@@ -286,37 +286,37 @@
     "carve_verdict": {
       "bounds": {
         "penman": {
-          "basins_carved": 1790,
-          "endorheic_land_km2": 185253196.1847787,
-          "lake_area_km2": 13715424.820616782,
-          "dry_survivors": 1062,
-          "wet_survivors": 1055,
-          "basins_without_runoff": 1062,
-          "lake_area_fraction_of_planet": 0.018673326793788764,
+          "basins_carved": 1842,
+          "endorheic_land_km2": 178273607.23890686,
+          "lake_area_km2": 10940974.275928684,
+          "dry_survivors": 1056,
+          "wet_survivors": 908,
+          "basins_without_runoff": 1056,
+          "lake_area_fraction_of_planet": 0.014895957709581551,
           "solver_converged": true,
-          "median_aridity_index": -1.5211142109905966
+          "median_aridity_index": -1.6610631290646005
         },
         "wet": {
-          "basins_carved": 2559,
-          "endorheic_land_km2": 138390862.0124979,
-          "lake_area_km2": 10821899.75391665,
-          "dry_survivors": 1062,
-          "wet_survivors": 208,
-          "basins_without_runoff": 1062,
-          "lake_area_fraction_of_planet": 0.01473383969344817,
+          "basins_carved": 2565,
+          "endorheic_land_km2": 138836358.1071453,
+          "lake_area_km2": 9391674.512885148,
+          "dry_survivors": 1056,
+          "wet_survivors": 211,
+          "basins_without_runoff": 1056,
+          "lake_area_fraction_of_planet": 0.012786611396562977,
           "solver_converged": true,
           "median_aridity_index": -1.0
         }
       },
       "agreement": {
-        "carve_under_both": 1790,
-        "survive_under_both": 1062,
-        "disputed": 769
+        "carve_under_both": 1842,
+        "survive_under_both": 1056,
+        "disputed": 723
       },
       "penman_ocean_validation": {
-        "penman_mm_per_day": 2.6999,
-        "model_mm_per_day": 2.7916,
-        "ratio": 0.9672,
+        "penman_mm_per_day": 2.7001,
+        "model_mm_per_day": 2.7904,
+        "ratio": 0.9676,
         "ocean_cells": 4087,
         "note": "Ocean cells are already open water, so this is a direct check. COMPUTED; it was hardcoded until 2026-08-17."
       }

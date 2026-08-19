@@ -595,6 +595,25 @@ def main() -> None:
     runoff_mrro = means["mrro"] * to_km_per_year
     precip = means["pr"] * to_km_per_year
 
+    # THE INTEGRAL, which is not the mean reported below, and the distinction
+    # has already cost one wrong number. `catchment_mean_mm_per_year` is an
+    # UNWEIGHTED mean over basins, so multiplying it by the total catchment area
+    # weights a 400 km2 basin the same as a 4,000,000 km2 one. Doing that gave
+    # 97% of all land runoff arriving off 76% of the land, which is not credible
+    # on the arid share of a planet; `notes/audits/unpriced-terms.md` records it.
+    #
+    # The area-weighted integral is the water the endorheic system receives, and
+    # it is the quantity the absent lake moisture source has to be checked
+    # against: at steady state a basin's inflow leaves as evaporation or as
+    # spill, and the model provides neither over land.
+    earth_years_per_orbit = year_s / (365.25 * 86400.0)
+    signed = means["runoff"] * to_km_per_year
+    inflow_unclamped = float(np.nansum(catch_area * signed)) / earth_years_per_orbit
+    inflow_per_basin = (catch_area * np.maximum(np.nan_to_num(signed), 0.0)
+                        / earth_years_per_orbit)
+    inflow_clamped = float(inflow_per_basin.sum())
+    catchment_total_km2 = float(np.nansum(np.where(np.isnan(signed), 0.0, catch_area)))
+
     results = {}
     for label, e_field in (("penman", "penman"), ("wet", "evap")):
         evapo = means[e_field] * to_km_per_year
@@ -612,10 +631,42 @@ def main() -> None:
             "carve": carve,
             "endorheic_land_km2": endorheic_km2,
             "lake_area_km2": area,
+            # PRE-CARVE, and deliberately not the `area` above. `area` zeroes
+            # the basins the verdict carves, which describes the world AFTER
+            # the carve; the moisture source that is missing from the climate
+            # that produced this verdict is the one over the lakes standing
+            # today, and an overflowing basin stands at its spill area.
+            "lake_net_evaporation_km3": float(np.nansum(
+                lakes["area_km2"] * (evapo - precip))),
+            "spill_to_ocean_km3": float(np.nansum(
+                lakes["overflow_km3_per_year"][basins.spill_target < 0])),
+            # The moisture-source difference, which is NOT the line above.
+            # What the atmosphere gains or loses by the lake existing is the
+            # lake's evaporation against what the model already evaporates on
+            # the same ground, not the lake's net water demand. On this world
+            # the sign is not obvious and is measured rather than argued: land
+            # here is several times rougher than open water, so the model's
+            # own evaporation exceeds Penman on most land cells.
+            "lake_minus_model_evaporation_km3": float(np.nansum(
+                lakes["area_km2"] * (means["penman"] - means["evap"])
+                * to_km_per_year)),
+            "runoff_over_lake_footprint_km3": float(np.nansum(
+                lakes["area_km2"] * runoff)),
             "dry_survivors": int((survives & (runoff <= 0)).sum()),
             "wet_survivors": int((survives & (area > 1.0)).sum()),
             "converged": lakes["converged"],
         }
+
+    # The split that turns the integral above into a CHECK. A basin that does
+    # not overflow retains everything its catchment delivers, and at steady
+    # state retention leaves as evaporation over and above the precipitation
+    # falling on the lake itself -- which the model already has, because the
+    # bucket on the lake fraction evaporates local rainfall at the potential
+    # rate. So retention, not gross lake evaporation, is the moisture source
+    # ExoPlaSim is missing over land, and an independent estimate of it from
+    # lake area times a Penman rate has to land inside this.
+    retained = float(inflow_per_basin[~results["penman"]["carve"]].sum())
+    spilling = float(inflow_per_basin[results["penman"]["carve"]].sum())
 
     crit = basins.catchment_km2 / np.maximum(basins.area_at_spill_km2, 1e-9) - 1.0
     penman_carve = results["penman"]["carve"]
@@ -665,8 +716,73 @@ def main() -> None:
                     "generation; integrating it over a catchment measures "
                     "ExoPlaSim's routing rather than inflow to our sink.",
             "catchment_mean_mm_per_year": {
+                "per": "VESPER year, the orbital period, and an UNWEIGHTED mean "
+                       "over basins. It is a per-basin typical depth and NOT an "
+                       "integral: see endorheic_inflow below for the water the "
+                       "endorheic system actually receives.",
                 "p_minus_e": round(float(np.nanmean(runoff)) * 1e6, 3),
                 "mrro": round(float(np.nanmean(runoff_mrro)) * 1e6, 3),
+            },
+            "endorheic_inflow": {
+                "what": "area-weighted integral of catchment P - E over every "
+                        "basin's catchment, in EARTH years. This is the water "
+                        "the endorheic system receives, and at steady state it "
+                        "leaves as lake evaporation or as spill.",
+                "catchment_km2": round(catchment_total_km2, 1),
+                "km3_per_earth_year": {
+                    "unclamped": round(inflow_unclamped, 1),
+                    "clamped": round(inflow_clamped, 1),
+                    "retained_by_surviving_basins": round(retained, 1),
+                    "delivered_to_overflowing_basins": round(spilling, 1),
+                },
+                "lake_net_evaporation_km3_per_earth_year": round(
+                    results["penman"]["lake_net_evaporation_km3"]
+                    / earth_years_per_orbit, 1),
+                "spill_to_ocean_km3_per_earth_year": round(
+                    results["penman"]["spill_to_ocean_km3"]
+                    / earth_years_per_orbit, 1),
+                "runoff_over_lake_footprint_km3_per_earth_year": round(
+                    results["penman"]["runoff_over_lake_footprint_km3"]
+                    / earth_years_per_orbit, 1),
+                "identity": "inflow(clamped) = lake net evaporation + runoff "
+                            "generated over the lake footprint + spill to "
+                            "ocean, at steady state. The middle term is there "
+                            "because a basin's catchment includes its own bed, "
+                            "so the solver's demand carries it; the three "
+                            "close the budget and that is what makes the "
+                            "integral usable.",
+                "moisture_source": "THE TERM THE CLIMATE MODEL LACKS is "
+                                   "lake_minus_model_evaporation, not the net "
+                                   "evaporation above: what the atmosphere "
+                                   "gains from a lake is its evaporation "
+                                   "against what the model already evaporates "
+                                   "on that ground. It is signed, and on this "
+                                   "world the sign is not obvious, because "
+                                   "land roughness puts the model's own "
+                                   "evaporation above Penman on most land "
+                                   "cells. notes/audits/unpriced-terms.md.",
+                "lake_minus_model_evaporation_km3_per_earth_year": round(
+                    results["penman"]["lake_minus_model_evaporation_km3"]
+                    / earth_years_per_orbit, 1),
+                "retention": "the split is under the PENMAN bound and moves "
+                             "with the verdict. Retention is the moisture "
+                             "source the model has no way to return to the "
+                             "atmosphere over land: a surviving basin's inflow "
+                             "leaves as evaporation, and in ExoPlaSim it leaves "
+                             "as runoff to the sea instead. "
+                             "notes/audits/unpriced-terms.md finding 1.",
+                "mm_per_earth_year_over_catchment": {
+                    "unclamped": round(
+                        inflow_unclamped / max(catchment_total_km2, 1e-9) * 1e6, 3),
+                    "clamped": round(
+                        inflow_clamped / max(catchment_total_km2, 1e-9) * 1e6, 3),
+                },
+                "clamp": "clamped is the delivery the criterion uses: a "
+                         "catchment whose evaporation exceeds its precipitation "
+                         "delivers nothing to its sink, not a negative amount. "
+                         "The gap between the two is what the drying catchments "
+                         "would have subtracted, and it is not a correction to "
+                         "the delivery.",
             },
             "basins_with_no_runoff": {
                 "p_minus_e": int((runoff <= 0).sum()),
