@@ -166,8 +166,12 @@ def main() -> None:
                     help="albedo of full grass cover, lighter than forest")
     ap.add_argument("--target-mean", type=float, default=0.20,
                     help="land-mean albedo for --mode scaled")
-    ap.add_argument("--vegetation-albedo", type=float, default=0.15,
-                    help="albedo of vegetated ground for --mode vegetated")
+    ap.add_argument("--vegetation-albedo", type=float, default=None,
+                    help="albedo of vegetated ground for --mode vegetated. "
+                         "Defaults to model.vegetation_albedo in the config, "
+                         "derived for THIS star by analysis/vegetation_albedo.py; "
+                         "0.15 is the Earth-Sun endmember it replaced (SPEC-5), "
+                         "pass it explicitly to reproduce the old surface")
     ap.add_argument("--forest-fraction", type=float, default=None,
                     help="override the forest fraction implied by --mode")
     args = ap.parse_args()
@@ -175,6 +179,20 @@ def main() -> None:
     config = yaml.safe_load(args.config.read_text(encoding="utf-8"))
     model = config["model"]
     mode = args.mode or model.get("land_albedo_source", "lithology")
+    veg_from_config = False
+    if mode == "vegetated" and args.vegetation_albedo is None:
+        # No silent 0.15: that default was an Earth-Sun value nothing had
+        # re-weighted for this star, and reviving it by omission would be the
+        # defect SPEC-5 closed. The config value is the derived one.
+        try:
+            args.vegetation_albedo = float(model["vegetation_albedo"])
+            veg_from_config = True
+        except KeyError:
+            raise SystemExit(
+                "--mode vegetated needs model.vegetation_albedo in the config "
+                "or an explicit --vegetation-albedo; the derivation is "
+                "analysis/vegetation_albedo.py, and 0.15 is the un-reweighted "
+                "Earth-Sun endmember if that is really what is meant")
     nlat, nlon = int(model["latitudes"]), int(model["longitudes"])
 
     # Deliberately from the grid, not from config: see builds.resolution_of.
@@ -263,8 +281,10 @@ def main() -> None:
                 "what the biosphere is worth; pair only these two.",
         "bare_rock": _land_mean(region_albedo),
     }
+    veg_painted = None
     if mode == "vegetated":
-        region_albedo[is_land & ~barren] = args.vegetation_albedo
+        veg_painted = is_land & ~barren
+        region_albedo[veg_painted] = args.vegetation_albedo
         endmembers["vegetated"] = _land_mean(region_albedo)
 
     # Lakes, last, because a lake covers whatever lithology is under it and no
@@ -396,6 +416,29 @@ def main() -> None:
     fraction, alb_grid, _empty = land_weighted(mesh, grid_dir, region_albedo)
     land_cells = fraction >= float(model["geography_land_threshold"])
 
+    # The vegetated band pair for codes 175/176. One identical field in all
+    # three codes was a fair statement about a rock table with no spectral
+    # split; over a canopy it asserts equal reflectance either side of
+    # 0.75 um, which is the one thing a canopy certainly does not do, and the
+    # model reads the pair separately at NSIMPLEALBEDO = 0. Minerals and
+    # water keep their broadband value in both bands -- the derivation only
+    # exists for the vegetated paint. analysis/vegetation_albedo.py; SPEC-5.
+    # An explicit --vegetation-albedo skips the split: the config band pair is
+    # anchored to the config broadband, and pairing it with a different level
+    # would mix two derivations. This is also what makes the pre-SPEC-5
+    # surface exactly reproducible: --vegetation-albedo 0.15 gives the old
+    # identical field in all three codes.
+    band_grids = None
+    veg_bands = model.get("vegetation_albedo_bands") if veg_from_config else None
+    if mode == "vegetated" and veg_bands and veg_painted is not None:
+        veg_final = (veg_painted if lake_mask is None
+                     else veg_painted & ~lake_mask)
+        band_grids = []
+        for value in (float(veg_bands[0]), float(veg_bands[1])):
+            banded = region_albedo.copy()
+            banded[veg_final] = value
+            band_grids.append(land_weighted(mesh, grid_dir, banded)[1])
+
     raw_fraction, raw_alb, _ = land_weighted(mesh, grid_dir,
                                              mesh.rock_albedo.astype(np.float64))
     area = mesh.cell_area.astype(np.float64)
@@ -518,9 +561,16 @@ def main() -> None:
 
     output.mkdir(parents=True, exist_ok=True)
     written = []
+    band_fields = {code: field for code in ALBEDO_CODES}
+    band_means = None
+    if band_grids is not None:
+        band_fields[175] = np.where(land_cells, band_grids[0], water_albedo)
+        band_fields[176] = np.where(land_cells, band_grids[1], water_albedo)
+        band_means = {"band1_land_mean": gmean(band_fields[175]),
+                      "band2_land_mean": gmean(band_fields[176])}
     for code in ALBEDO_CODES:
         path = output / f"orogen_{resolution}_surf_{code:04d}.sra"
-        write_sra(path, code, field)
+        write_sra(path, code, band_fields[code])
         written.append(str(path))
     forest_path = output / f"orogen_{resolution}_surf_{FOREST_CODE:04d}.sra"
     write_sra(forest_path, FOREST_CODE, forest)
@@ -537,6 +587,13 @@ def main() -> None:
         "vegetation": vegetation_summary,
         "forest_fraction_land_mean": gmean(forest),
         "lithology_albedo_overrides": applied,
+        "vegetation_albedo": (None if mode != "vegetated" else {
+            "value": args.vegetation_albedo,
+            "source": "config model.vegetation_albedo unless --vegetation-albedo",
+            "derivation": "analysis/vegetation_albedo.json",
+            "bands_175_176": (list(map(float, veg_bands)) if veg_bands else None),
+            **(band_means or {}),
+        }),
         "barren_rock_classes": barren_applied,
         "forest_note": ("dforest blends snow albedo between forested and "
                         "unforested endpoints, so it has to agree with the "

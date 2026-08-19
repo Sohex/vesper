@@ -220,6 +220,12 @@ steps:
     needs: [dust, dust_optics, surface_albedo]
     writes: [analysis/dust_forcing.json, analysis/dust_surface_forcing.nc]
 
+  - id: vegetation_albedo
+    script: analysis/vegetation_albedo.py
+    cost: seconds
+    needs: [stellar_spectrum]
+    writes: [analysis/vegetation_albedo.json]
+
   - id: shortwave_band_weights
     script: exoplasim/scripts/shortwave_band_weights.py
     cost: minutes

@@ -1,0 +1,52 @@
+{
+  "generated": "2026-08-19",
+  "generator": "analysis/vegetation_albedo.py",
+  "spectrum": "exoplasim/inputs/stellarspectra/k25v_hr.dat",
+  "spectrum_sha256": "50729d2432316108c45332eac45e6d36e7b6f7fd0c34c854bfc822533119cb51",
+  "library": "references/ecospeclib-all",
+  "spectra_used": 553,
+  "per_class": {
+    "grass": {
+      "n": 4,
+      "sun": 0.303,
+      "k25v": 0.333
+    },
+    "shrub": {
+      "n": 199,
+      "sun": 0.2549,
+      "k25v": 0.2785
+    },
+    "tree": {
+      "n": 350,
+      "sun": 0.2456,
+      "k25v": 0.2713
+    }
+  },
+  "leaf_means": {
+    "sun_truncated": 0.2493,
+    "k25v_truncated": 0.2743,
+    "sun_tails": 0.2305,
+    "k25v_tails": 0.2629,
+    "k25v_band1": 0.1244,
+    "k25v_band2": 0.3738
+  },
+  "ratio_truncated_035_25um": 1.1002,
+  "ratio_tails_02_40um": 1.1407,
+  "earth_sun_endmember": 0.15,
+  "vegetation_albedo": 0.165,
+  "vegetation_albedo_bracket": [
+    0.15,
+    0.171
+  ],
+  "vegetation_albedo_bands": [
+    0.075,
+    0.225
+  ],
+  "band_shape_from_leaf": [
+    0.4535,
+    1.3628
+  ],
+  "band1_flux_fraction_full_spectrum": 0.3846,
+  "band_recombination_residual": 0.0023,
+  "note": "The ratio, not the level, transfers from leaf to canopy; the leaf ratio upper-bounds the correction, so the bracket runs from the uncorrected Earth-Sun endmember to the tails-carried leaf ratio. The band pair is the same integrals split at 0.75 um, anchored to the broadband value."
+}

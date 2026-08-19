@@ -201,6 +201,20 @@ model:
   # baseline run onward. The flip moves config_sha256 and cannot happen mid-run.
   soil_water_source: pedology
   land_albedo_source: vegetated
+  # DERIVED 2026-08-19 by analysis/vegetation_albedo.py, which reproduces
+  # notes/audits/inherited-earth-constants.md finding 1. The Earth-Sun canopy
+  # endmember 0.15 re-weighted to this star on 553 ECOSTRESS leaf spectra by
+  # the same method every rock class went through: a leaf is dark in the
+  # visible and bright in the near infrared, so this star raises the value
+  # where it lowers a mineral's. The leaf ratio upper-bounds the canopy
+  # correction, so the bracket runs from the uncorrected endmember to the
+  # tails-carried ratio. The band pair is the same integrals split at 0.75 um,
+  # anchored so their flux-weighted combination is the broadband value; codes
+  # 175/176 carry it over vegetated ground, where one identical field used to
+  # assert that a canopy reflects equally either side of the split.
+  vegetation_albedo: 0.165
+  vegetation_albedo_bracket: [0.150, 0.171]
+  vegetation_albedo_bands: [0.075, 0.225]
   # Playa clastics are about a quarter of this terrain's land and the largest
   # lever on its energy balance. The export's 0.19 comes from Post et al.'s
   # all-soils field mean, which is the right kind of measurement on the wrong

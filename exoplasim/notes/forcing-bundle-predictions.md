@@ -132,6 +132,41 @@ high end of the range is not a hard ceiling.
   about -1 K, is outside anything the static estimate plus a generous edge
   feedback allows, and points at the implementation or the comparison.
 
+## PHYS-11: the cloud shortwave constants, bracketed for arms
+
+Seven `radmod_nl` keys tune the cloud optics and none has ever been re-weighted
+for this star: `tswr1` (cloud albedo, range 1), `tswr2` (backscatter, range 2),
+`tswr3` (single-scattering albedo, range 2 -- the absorption-like one),
+`acllwr` (thermal-band mass absorption), and the `rcl1`/`rcl2`/`acl2` triplets
+by cloud level. The band PARTITION is star-aware through `zsolar1`/`zsolar2`;
+what is Earth's is the physics inside each range.
+
+**The sign is not derivable by inspection, which is the argument for arms
+rather than arithmetic.** Two effects oppose. This star puts 0.618 of its flux
+in range 2 against the Sun's 0.483, a naive 1.28 on range-2 cloud absorption;
+but it concentrates that energy nearer 0.8-1.5 um, where liquid water absorbs
+less than in the 2-3 um bands the Sun's range-2 tail reaches. So the honest
+bracket on the absorption-like keys (`tswr3`, `acl2`) is 0.78 to 1.28, spanning
+both signs of the correction.
+
+**Predicted magnitude bound: 0 +/- 0.6 K.** Clouds are booked at 12.0 W/m2 of
+Earth's shortwave absorption beside the water vapour term; +/-28% of that is
++/-3.4 W/m2 atmospheric, and at the same atmospheric-to-TOA ratio the water
+vapour calibration row exhibits (0.19), +/-0.65 W/m2 TOA, +/-0.54 K. After
+PHYS-9 this is the softest entry in the bundle and the second place to bisect.
+
+`acllwr` is in the task's list because it is untraced Earth tuning, not because
+the star moves it: it is a thermal-band constant and has no stellar dependence,
+so it gets no arm on this argument. The scattering-side keys are expected near
+unity and are held unless the absorption arms surprise.
+
+**What would mean wrong, in the A/B:** an arm at scale 1.0 must be bit-identical
+to the control (the keys default to the values the binary already carries); a
+response beyond +/-1 K global-mean equivalent is outside what the 12 W/m2
+booking allows and points at the implementation or the conversion; and any
+response attributed to `acllwr` on stellar grounds is a category error by
+construction.
+
 ## The bundle, summed
 
 A3's rule: check the bundle's total against the sum of the per-term
@@ -145,9 +180,13 @@ predictions were soft.
 | CLIM-16 | `nhdiff = 1`, `hdiffk = 1000` | 0.00 W/m2 global by construction; +0.03 to +0.12 K via the ice edge | this note |
 | CLIM-17 | `TFREEZE` from declared salinity | 0.000 K | this note |
 | SPEC-1 | model reads `k25v` | 0.00 to +0.03 K | `analysis/error_budget.json`, measured on the warm state; the A/B re-measures it |
+| SPEC-5 | `vegetation_albedo` 0.165, bands [0.075, 0.225] | -0.64 K, bracket 0 to -0.90 | `analysis/vegetation_albedo.json`; +0.0105 on composited land mean at 0.61 K per 0.01. One-signed toward a cooler simulated mean |
+| PHYS-11 | cloud absorption arms, bracket [0.78, 1.28] | 0 +/- 0.6 K, sign unassigned | this note; arms only, nothing enabled in the baseline config |
 | DUST-11 | prescribed dust arm | separate note | `aeolian/notes/prescribed-dust-run.md` |
 
-**Sum, excluding dust: +1.3 K, give or take a quarter, dominated by one term.**
+**Sum, excluding dust and the unassigned cloud term: +0.6 K, spread roughly
+-0.3 to +1.3, still dominated by the water vapour level but no longer
+one-sided: SPEC-5 is the one term of comparable size and opposite sign.**
 
 The PHYS-9 arithmetic, shown because a units slip here is exactly the kind of
 error this project documents: the term is linear in the PRODUCT
@@ -160,9 +199,11 @@ which prices a shift of 0.0185 at 0.80 W/m2 atmospheric, 0.15 W/m2 TOA and
 so this is the softest prediction in the table and the first place to bisect
 if the sum misses.
 
-**Consequence to plan for:** +1.3 K leaves the design mean, so the flux
-re-derivation that WORKFLOW 6C already requires should expect to move
-luminosity DOWN by about 0.6% (1.25 K over the canonical 202 K per unit flux).
+**Consequence to plan for:** the central sum leaves the design mean by about
++0.6 K, so the flux re-derivation that WORKFLOW 6C already requires should
+expect to move luminosity DOWN by roughly 0.3% (0.6 K over the canonical 202 K
+per unit flux) -- half what this note said before SPEC-5 joined the bundle,
+and soft in both directions.
 That is inside the 2-3% window where the `k25v` spectrum remains valid, so no
 spectrum rebuild follows. And per WORKFLOW A3, hold the flux for the A/B
 itself: measure the surface first, move the flux after, on a slope measured
