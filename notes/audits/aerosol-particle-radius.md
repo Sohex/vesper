@@ -57,6 +57,55 @@ reached the release. Nothing here is a claim about the paper's results; it is a
 claim about what stock ExoPlaSim computes, and a question about which code the
 runs used. That question is answerable in one line of their namelist.
 
+## What the cited settling papers do and do not supply
+
+Cohen et al. describe the settling as "based on Steinrueck et al. (2021) and
+Parmentier et al. (2013)", and both are now in `references/`. Read against the
+source they narrow the question rather than widening it.
+
+**They supply the settling velocity and nothing else.** Parmentier's Appendix A
+equates gravity and drag, `Vf^2 CD = (8a/3)(rho_p - rho)/rho`, with tabulated
+drag coefficients running from the Stokes limit `CD = 24` to the asymptotic
+`CD = 0.45`. Neither paper carries a surface-deposition treatment, because both
+model gas giants that have no surface.
+
+**Steinrueck's sink is a rate; ExoPlaSim's is not.** Its lower boundary
+condition is a deep sink, `L = -chi/tau_loss` for `p > p_deep`, with
+`tau_loss = 1e3 s` and `p_deep = 100 mbar`, standing in for cloud nucleation and
+thermal ablation. The timescale is explicit and independent of the timestep, and
+it acts over a deep region. ExoPlaSim's `mmr = mmr*0.01` acts in ONE layer, per
+STEP, so its implied timescale is `dt/ln(100)`. At the 15-minute timestep of
+Cohen et al. that is about 195 s.
+
+So the bottom-layer sink is ExoPlaSim's own and is not inherited from either
+citation. That matters for how the fix is offered: it is not contradicting a
+published design, it is replacing an undocumented implementation detail with the
+treatment a rocky planet's lower boundary actually calls for.
+
+## The settling is separately affected, by defects already in PR #58
+
+Stokes settling goes as `1/mu`. `aerocore`'s viscosity used `(4/25)` as INTEGER
+division, which evaluates to 0 and deleted the collision integral's temperature
+dependence, leaving `mu` 11 to 18 per cent low over 200-320 K in N2 -- so the
+settling velocity is 12 to 22 per cent too fast. `mmr2n` used `(4/3)` the same
+way, evaluating to 1, so the sphere volume was 4/3 too small and the number
+density 33 per cent too high, which propagates straight into optical depth.
+
+Both are in the aerocore-defects branch already offered as PR #58. Combined with
+the particle radius above, a configuration using 500 nm particles carries an
+optical depth of roughly `(50/500)^2 * 1.33`, about 1.3 per cent of intent, and
+PR #58 alone corrects only the 1.33.
+
+## The cheap diagnostic
+
+Whether the bottom sink matters for a given result depends on whether it is
+rate-limiting for the column burden, which is not something this repository can
+determine. It is cheaply testable by whoever owns the runs: **re-run at a
+different timestep.** The sink's implied timescale scales with `dt` and nothing
+else physical does, so if the haze burden moves when only the timestep changes,
+the sink is both rate-limiting and timestep-dependent. If it does not move, this
+defect does not reach that result.
+
 ## Why it matters now
 
 ExoPlaSim's maintainer has said that the aerocore defects reported in upstream
