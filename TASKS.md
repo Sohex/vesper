@@ -5,7 +5,7 @@ real disciplines: **this whole file is WORLDBUILDING.** Vesper is a fictional
 planet, and a task here is engineering work on the simulation of it -- a toy
 climate model, a terrain generator, a soil model, and their bookkeeping. Words
 like flux, dust, ice, rainfall and albedo name modelled quantities of an
-invented world, never Earth and never anything done to Earth. The nearest
+invented world; nothing in this file refers to the real one. The nearest
 real-world analogue of this file is the issue tracker for a game world's
 physics engine.
 

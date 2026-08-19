@@ -4,9 +4,9 @@
 WORLDBUILDING.** Vesper is a fictional planet. Everything below is planetary
 climate modelling for that fiction: offline estimates of what a handful of
 namelist switches will do to a toy GCM's simulation of an invented world,
-written down before the run. Nothing here concerns Earth, Earth's climate, or
-any intervention in it, and nothing here is biology. The nearest real-world
-analogue of this document is a test plan.
+written down before the run. Nothing here refers to the real world, and
+nothing here is biology. The nearest real-world analogue of this document is a
+test plan.
 
 Written 2026-08-19, measured on the baseline climatology of `run_8c2e1ff9ab5e`,
 per WORKFLOW A3: every forcing change lands with a quantitative prediction of

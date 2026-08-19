@@ -123,22 +123,23 @@ none of them is advice.
 - **Rewrite superseded content; do not mark it.** A reader grepping for a number
   lands on the number, not on the warning above it.
 - Prose in docs and reports uses ASCII punctuation and avoids em dashes; match it.
-- **Write about the simulation in the simulation's terms.** This project's
-  vocabulary brushes against real disciplines whose words carry weight this
-  work does not -- human physiology, climate intervention, and their
-  neighbours -- and a sentence that reads as being about Earth or about people
-  gets misread, by automated review and by humans, at real cost. Three rules.
-  Name the subject: the model's snow albedo, the simulation's rainfall, plant
-  mortality -- never a bare "mortality", never "suppressing precipitation",
-  never a phrase whose most common reading is an act performed on a real
-  atmosphere or a real population. Keep established technical terms whose
-  context already disambiguates them (extinction efficiency, albedo, radiative
-  forcing, flood seeding); a euphemism for a standard term is one quantity with
-  two names, which is its own failure class. And any document that can be read
-  standalone states the worldbuilding frame up front, as TASKS.md does.
-  Recorded 2026-08-19 after three sweeps (f5de28f, 47a68b3, and the repo-wide
-  pass) removed phrasing that had tripped cross-domain review over content
-  that was never anything but a toy model of an invented planet.
+- **Write about the simulation in the simulation's terms.** Some of this
+  project's subject matter shares surface vocabulary with sensitive real-world
+  registers, and prose that borrows one of those registers gets misread by
+  automated review at real cost, over content that is only ever a toy model of
+  an invented planet. Three rules. Name the simulated subject explicitly: the
+  model's snow albedo, the simulation's rainfall, a gridcell's vegetation --
+  a sentence should not parse as being about the real world or about people.
+  Keep established technical terms whose context already disambiguates them
+  (extinction efficiency, albedo, flood seeding); a euphemism for a standard
+  term is one quantity with two names, which is its own failure class. And any
+  document that can be read standalone states the worldbuilding frame up
+  front, as TASKS.md does. THIS RULE IS SUBJECT TO ITSELF: do not enumerate
+  the phrases it exists to avoid, here or anywhere -- the first version of
+  this bullet quoted them as negative examples, and since this file is loaded
+  into every session, the guard re-supplied on every turn exactly what it
+  guarded against. The three commits of 2026-08-19 hold the specifics for
+  anyone who needs them.
 - Keep citations and table cells on one source line, even where that breaks
   column alignment. They get copied out.
 - Every run and analysis product records its provenance (config hash, input

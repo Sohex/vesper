@@ -316,7 +316,7 @@ central value alone.
 
 One thing that does not need correcting: the fit is a flux per unit
 evapotranspiration, so it scales correctly with this world's shorter year
-without intervention.
+without any correction.
 
 ## Result
 
