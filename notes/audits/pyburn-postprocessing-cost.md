@@ -94,3 +94,104 @@ The measurement that two 8-rank runs beat one 16-rank run by 1.09x was taken
 when postprocessing dominated and was single-threaded, so overlapping it was
 worth something. With postprocessing at 46 s against a 77 s model, **run at 16
 ranks**; the concurrency trick was a workaround for this defect.
+
+# And then every value in the file was boxed into a Python float
+
+Measured 2026-08-19, on a SYNTHETIC raw file, because no raw file survives
+postprocessing and there was none left to re-measure the real one against. The
+synthetic matches the geometry above: T42, 10 levels, 77 single-level codes and
+36 ten-level codes over 185 output steps, 80,845 records of 128x64 float32,
+2.65 GB. It reads correctly through unmodified pyburn and refactors to the
+expected shapes, which is what makes it usable as a bench.
+
+`exoplasim/scripts/bench_pyburn_read.py` is that bench: `--make` writes the file,
+`--bench` times the reader on it, and `--verify --against <old pyburn.py>`
+requires every variable and every `readfile()` key to match in value, shape and
+dtype. Everything below was produced with it and is reproducible from it.
+
+## Result
+
+| | wall |
+| --- | --- |
+| `readallvariables`, quadratic accumulation fixed | 30.53 s |
+| `readallvariables`, payload read with `np.frombuffer` | 0.96 s |
+
+32x. Each timing is its own process, so neither carries the other's resident
+memory; run head to head in one process both inflate, to 36.6 s against 0.64 s,
+and that is the pair the `--verify` output shows.
+
+**All 116 variables and all 118 refactored `readfile()` keys are identical in
+VALUE, SHAPE AND DTYPE**, at full scale. Dtype is part of the check on purpose:
+the shipped reader produced float64 by handing `np.asarray` a tuple of Python
+floats, and a `np.frombuffer` reader that returned the file's native float32
+instead would be silently cheaper and silently different downstream, where
+`wap`, the streamfunction and the pressure gradients are derived in whatever
+precision they are handed.
+
+**The read was essentially the whole of what remained.** The section above
+measured 29.4 s for the entire postprocess of a 2.4 GB orbit; this measures
+30.5 s for the read alone of a 2.65 GB one, which is the same number scaled.
+Postprocessing an orbit is now a second or two against 77 to 93 s of model,
+rather than the third of it that the fix above left.
+
+## The defect
+
+With the quadratic accumulation gone, what was left in `readrecord` was
+
+    data = struct.unpack(en+datalength*fmt,fbuffer[n:n+datalength*wl])
+
+which builds a tuple of Python float OBJECTS -- 8192 of them for one T42 grid
+record, of order 6.6e8 per orbit -- and hands it straight to `np.asarray`, which
+immediately unboxes them again. It also slices a fresh 32 KB bytes object per
+record and builds an 8193-character format string to do it.
+
+The payload is now decoded with `np.frombuffer` in a new `_decoderecord`, which
+creates no Python objects at all. The views it returns are promoted to float64
+once per code at the concatenate, and float64 is exactly what `np.asarray` gave
+the old tuple, so both values and dtype are unchanged. Word length is still
+derived from the ratio of the record's length in bytes to its length in words,
+as `_getknownwordlength` derived it, but without re-reading the header to do so
+-- the shipped `readrecord` unpacked every header twice.
+
+## Numba was the wrong tool, and this is why
+
+The question that prompted this was whether the remaining cost could be taken
+off with numba decorators. It could not, for two reasons that are worth keeping
+because they generalise.
+
+**The hot call is not compilable.** `struct.unpack` over a `bytes` object is not
+supported in numba's nopython mode. Reaching it would mean first rewriting the
+loop to work on a numpy view of the buffer -- and that rewrite IS the fix, so
+the JIT would then have nothing left to compile.
+
+**Nothing downstream is a numba shape either.** In `mode='grid'`, which is what
+the pipeline uses, a grid variable passes through `_transformvar` untouched
+(`gridvar = variable`, no arithmetic), and a spectral one goes to
+`pyfft.sp2gp`, which is already f2py'd Fortran. The per-cell triple loops that
+would have been a genuine numba candidate were vectorised in the fix above. The
+writer is I/O and compression bound.
+
+The general form: **before reaching for a JIT, check whether the interpreter is
+doing arithmetic or just manufacturing objects.** Here it was manufacturing
+objects, and the cure for that is to stop, not to compile it faster. No
+dependency was added.
+
+## Two functions that could never have run
+
+`readvariablecode` and `_gettimevar` both carried the same reader pattern and
+both call `readrecord(fbuffer,n,en,ml)` without its `mf` argument, so both raise
+TypeError on their first line of work; `readvariablecode` additionally tested
+`if not variable:` on an ndarray. Nothing in this project calls either, and the
+section above noted the second defect without noticing that the first made it
+moot. Both are fixed and now agree with `readallvariables` record for record.
+
+## What this changes elsewhere
+
+The conclusion above to **run at 16 ranks** rather than overlapping two 8-rank
+runs is strengthened, not moved: the postprocessing that concurrency trick was
+hiding is now a rounding error against the model.
+
+The per-orbit wall clock quoted in `WORKFLOW.md` section 0 should fall by
+roughly the postprocessing share. That has NOT been measured end to end, because
+it needs a run made after this change and none has been; the figure there is
+marked accordingly.

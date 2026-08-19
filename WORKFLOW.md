@@ -76,14 +76,22 @@ far more, because the generation in front of it regenerates the terrain and ever
 field that is a function of it, which is the whole first three rows of the table
 above.
 
-**That 140 s assumes the pyburn fix is resident, and it is the difference between
-this being affordable and not.** Shipped pyburn accumulates every record with
-`np.append`, which is quadratic in record count: 304 s an orbit against 29.4 s
-fixed, for bitwise identical output. Unpatched, postprocessing is not an overhead
-on the science but roughly three quarters of the orbit, and a commissioning goes
-from about four hours to about twelve.
-`notes/audits/pyburn-postprocessing-cost.md` has the measurement and the two ways
-it was nearly misdiagnosed.
+**That 140 s assumes the pyburn fixes are resident, and they are the difference
+between this being affordable and not.** Shipped pyburn accumulates every record
+with `np.append`, which is quadratic in record count, and then decodes every
+value in the file into a Python float object: 304 s an orbit as shipped, 29.4 s
+with the accumulation fixed, and a second or two with the payload read as bytes,
+for output that is bitwise identical at every stage. Unpatched, postprocessing is
+not an overhead on the science but roughly three quarters of the orbit, and a
+commissioning goes from about four hours to about twelve.
+`notes/audits/pyburn-postprocessing-cost.md` has the measurements, the two ways
+the first was nearly misdiagnosed, and why a JIT was the wrong tool for the
+second.
+
+**The 140 s above predates the second fix and should now be nearer 110 s**, since
+postprocessing was about 30 s of it. That has not been measured end to end,
+because it needs a run made after the change and none has been made yet; treat
+140 s as the ceiling until one is.
 
 ## 1. The components
 

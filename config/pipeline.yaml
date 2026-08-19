@@ -453,6 +453,7 @@ one_offs:
   - exoplasim/scripts/close_ocean_energy.py
   - exoplasim/scripts/analyze_stellar_cycles.py
   - exoplasim/scripts/analyze_smoke.py
+  - exoplasim/scripts/bench_pyburn_read.py
   - exoplasim/scripts/mie_dust.py
   - exoplasim/scripts/run_albedo_bracket.sh
   - exoplasim/scripts/finalize_existing_segment.py

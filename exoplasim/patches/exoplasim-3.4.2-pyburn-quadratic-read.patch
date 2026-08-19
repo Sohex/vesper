@@ -1,21 +1,35 @@
-# pyburn: two accidentally-quadratic / per-element hot paths, both O(n) now.
+# pyburn: three hot paths in the raw reader -- quadratic, per-element, per-value.
 #
 # MEASURED, one T42 orbit at NLOWIO = 0 (2.4 GB raw), driven with the EXACT
 # kwargs Model.run() -> Model.postprocess() forwards for a configured
 # postprocessor -- namelist None, the project's 120-code `variables` list --
 # unprofiled, same input file both ways:
 #
-#     before   304.0 s     3,062,749 np.append calls
-#     after     29.4 s             1 np.append call
+#     as shipped        304.0 s     3,062,749 np.append calls
+#     stage 1 (2026-08-18)  29.4 s          1 np.append call
 #
 #     10.3x, and 123 of 123 output variables BITWISE IDENTICAL.
 #
 # That reproduces the pipeline's own history. `continue_exoplasim.py` records
 # 387 s of wall clock an orbit for NLOWIO = 0, measured 2026-08-17; this bench
-# gives 81 s of model plus 304 s of pyburn = 385 s. After the fix the same orbit
+# gives 81 s of model plus 304 s of pyburn = 385 s. After stage 1 the same orbit
 # is 81 + 29 = 110 s.
 #
-# WHAT WAS WRONG. Two separate defects, found by profiling and confirmed by
+# Stage 2 (2026-08-19) took the read the rest of the way, on a SYNTHETIC raw
+# file of the same geometry -- T42, 10 levels, 77 single-level and 36 ten-level
+# codes over 185 steps, 80,845 records of 128x64 float32, 2.65 GB -- because no
+# raw file survives postprocessing to re-measure the real one against:
+#
+#     readallvariables, stage 1     30.53 s
+#     readallvariables, stage 2      0.96 s
+#
+#     32x, and every variable identical in VALUE, SHAPE AND DTYPE, as is the
+#     whole of readfile()'s output.
+#
+# The read was essentially the entire remaining cost, so postprocessing an
+# orbit is now a second or two against 77 to 93 s of model.
+#
+# WHAT WAS WRONG. Three separate defects, found by profiling and confirmed by
 # call counts rather than by reading:
 #
 # 1. THE READER WAS QUADRATIC. `readallvariables` accumulated each variable
@@ -25,9 +39,6 @@
 #    records and that single line was 246 s of the 363 s. Records are now
 #    collected in a list per code and joined once with np.concatenate, which is
 #    the identical result because np.append flattens anyway.
-#    `readvariablecode` had the same pattern and is fixed the same way; it also
-#    could not have worked as written, since `if not variable:` on an ndarray
-#    of more than one element raises. It is not on this project's path.
 #
 # 2. DERIVED VERTICAL FIELDS LOOPED PER GRID CELL. The omega/wap, wa and
 #    streamfunction branches ran a triple loop over (time, lat, lon), calling
@@ -36,6 +47,30 @@
 #    array at once. Worth ~81 s of the total; the arithmetic per column is
 #    unchanged.
 #
+# 3. EVERY VALUE IN THE FILE WAS BOXED INTO A PYTHON FLOAT. With (1) gone, what
+#    was left was `struct.unpack(en+datalength*fmt, ...)`, which builds a tuple
+#    of Python float objects -- 8192 of them for one T42 grid record, and there
+#    are ~81k such records in an orbit, so of order 6.6e8 objects created and
+#    destroyed per orbit only to be handed straight to np.asarray. The payload
+#    is now decoded with np.frombuffer, which touches no Python objects at all,
+#    in `_decoderecord`. The views it returns are promoted to float64 once per
+#    code at the concatenate, and float64 is exactly what np.asarray gave the
+#    old tuple, so values AND dtype are unchanged.
+#
+#    NUMBA WOULD NOT HAVE HELPED HERE and is not used: the hot call is
+#    struct.unpack over a bytes object, which nopython mode cannot compile, and
+#    once the loop is rewritten to hand numpy the bytes there is nothing left
+#    for a JIT to do. The remaining stages are already compiled or free --
+#    grid-mode variables pass through _transformvar untouched, and spectral ones
+#    go to the f2py'd pyfft.sp2gp.
+#
+#    Two functions carrying the same reader pattern, `readvariablecode` and
+#    `_gettimevar`, are fixed alongside it. NEITHER COULD EVER HAVE RUN: both
+#    call `readrecord(fbuffer,n,en,ml)` without its `mf` argument and raise
+#    TypeError immediately, and `readvariablecode` additionally did `if not
+#    variable:` on an ndarray. Nothing in this project calls either. They now
+#    run and agree with `readallvariables` record for record.
+#
 # A NOTE ON HOW THIS WAS NEARLY MISDIAGNOSED. Under cProfile the 6.0e6 tiny
 # np.append calls in (2) appeared to cost 246 s, which is what the profiler
 # charges for 6 million call events, not what numpy spends. Fixing (2) alone
@@ -43,52 +78,189 @@
 # ~81k LARGE appends in (1), which the same profile also attributed to
 # np.append. Call counts separated them; the profile alone did not.
 #
-# VERIFICATION. Two full-orbit comparisons, both zero differing fields: the
-# production invocation above at 123 of 123 bitwise identical, and a heavier
-# 216-code run driven through a burn7-style namelist at 281 of 281. That second
-# path is NOT what the pipeline uses -- pyburn ignores `variables` when a
+# VERIFICATION. Stage 1: two full-orbit comparisons, both zero differing fields
+# -- the production invocation above at 123 of 123 bitwise identical, and a
+# heavier 216-code run driven through a burn7-style namelist at 281 of 281. That
+# second path is NOT what the pipeline uses -- pyburn ignores `variables` when a
 # namelist is given (pyburn.py, "Scrape namelist"), and only a hand-written
 # harness passes one -- but it exercises `wa` and the streamfunction, which
 # production never requests, so it is the wider correctness net of the two.
+# Stage 2: 116 of 116 variables and all 118 refactored readfile() keys equal in
+# value, shape and dtype against the stage-1 reader on the synthetic file, which
+# is the same test with a right answer of zero difference.
 #
-# THE BASE IT APPLIES TO. Authored 2026-08-18 against pyburn.py as shipped in
-# the pinned ExoPlaSim 3.4.2 wheel. It touches pyburn.py and nothing else, adds
-# no dependency, and changes no model source, so no binary is affected by its
-# CONTENT -- it is in RESIDENT_PATCHES so that a .venv reinstall, which would
-# silently restore the slow version, is caught by --verify.
+# THE BASE IT APPLIES TO. Authored 2026-08-18 and extended 2026-08-19, against
+# pyburn.py as shipped in the pinned ExoPlaSim 3.4.2 wheel. It touches pyburn.py
+# and nothing else, adds no dependency, and changes no model source, so no
+# binary is affected by its CONTENT -- rebuild_binaries.py hashes plasim/src
+# only, and --verify reports all binaries current across this change.
 --- a/pyburn.py
 +++ b/pyburn.py
-@@ -396,6 +396,7 @@
-     mainheader,zsig,n = readrecord(fbuffer,n,en,ml)
+@@ -352,19 +352,62 @@
+         position in the buffer in bytes.
+     '''
+     if n<len(fbuffer):
+-        wl,fmt = _getknownwordlength(fbuffer,n,en,ml,mf)
+-                
+-        headerlength = int(struct.unpack(en+mf,fbuffer[n:n+ml])[0]//4)
+-        n+=ml
+-        header = struct.unpack(en+headerlength*'i',fbuffer[n:n+headerlength*4])
+-        n+=headerlength*4+ml #Add one word for restatement of header length (for backwards seeking)
+-        datalength = int(struct.unpack(en+mf,fbuffer[n:n+ml])[0]//wl)
+-        n+=ml
+-        data = struct.unpack(en+datalength*fmt,fbuffer[n:n+datalength*wl])
+-        n+=datalength*wl+ml #additional 4 for restatement of datalength
+-        return header,data,n
++        header,view,n = _decoderecord(fbuffer,n,en,ml,mf)
++        return header,view.astype(np.float64),n
+     else:
+         raise Exception("Reached end of buffer!!!")
++
++def _decoderecord(fbuffer,n,en,ml,mf):
++    '''Decode one Fortran record, returning its payload as a numpy VIEW on the buffer.
++
++    This is :py:func:`readrecord <exoplasim.pyburn.readrecord>` without the bounds
++    check and without the copy, so that a caller reading the whole file can defer
++    the copy to one concatenation per variable.
++
++    The payload is decoded with ``np.frombuffer`` rather than ``struct.unpack``.
++    ``struct.unpack`` builds one Python float object per value -- 8192 of them for
++    a T42 grid record, and there are of order 81,000 such records in an orbit --
++    and that boxing was the whole of the read cost once the quadratic
++    accumulation was gone. ``np.frombuffer`` touches no Python objects at all.
++    Callers promote to float64, which is the dtype ``np.asarray`` produced from
++    the old tuple of Python floats, so both values and dtype are unchanged.
++
++    Word length is derived exactly as :py:func:`_getknownwordlength
++    <exoplasim.pyburn._getknownwordlength>` derives it, from the ratio of the
++    record's length in bytes to its length in words, but without re-reading the
++    header to do so.
++
++    Parameters
++    ----------
++    fbuffer : bytes
++        Binary bytes read from a file opened with ``mode='rb'`` and read with ``file.read()``.
++    n : int
++        The index of the byte at which to start.
++    en : str
++        Endianness, denoted by ">" or "<"
++    ml : int
++        Length of a record marker
++    mf : str
++        Format of the record marker ('i' or 'l')
++
++    Returns
++    -------
++    tuple, numpy.ndarray, int
++        The header, a read-only view of the record data in the file's own word
++        length, and the new position in the buffer in bytes.
++    '''
++    markerfmt = en+mf
++    headerbytes = struct.unpack_from(markerfmt,fbuffer,n)[0]
++    n+=ml
++    header = struct.unpack_from(en+(headerbytes//4)*'i',fbuffer,n)
++    n+=headerbytes+ml #Add one word for restatement of header length (for backwards seeking)
++    databytes = struct.unpack_from(markerfmt,fbuffer,n)[0]
++    n+=ml
++    wl = databytes//(header[4]*header[5]) #bytes per word: record bytes over record words
++    view = np.frombuffer(fbuffer,dtype=np.dtype(en+('f4' if wl==4 else 'f8')),
++                         count=databytes//wl,offset=n)
++    n+=databytes+ml #additional marker for restatement of datalength
++    return header,view,n
      
+ def readvariablecode(fbuffer,kcode,en,ml,mf):
+     '''Seek through a binary output buffer and extract all records associated with a variable code.
+@@ -393,31 +436,34 @@
+         A tuple containing first the header, then the variable data, as one concatenated 1D variable.
+     '''
+     n = 0
+-    mainheader,zsig,n = readrecord(fbuffer,n,en,ml)
++    mainheader,zsig,n = readrecord(fbuffer,n,en,ml,mf)
+     
++    dataheader = None
      variable = None
 +    _parts = []   # joined once at the end; see readallvariables
      
-     while n<len(fbuffer):
+-    while n<len(fbuffer):
+-        
+-        recordn0 = n
++    markerfmt = en+mf
++    nbuffer = len(fbuffer)
++    while n<nbuffer:
          
-@@ -411,14 +412,14 @@
+-        headerlength = int(struct.unpack(en+mf,fbuffer[n:n+ml])[0]//4)
++        headerbytes = struct.unpack_from(markerfmt,fbuffer,n)[0]
+         n+=ml
+-        header = struct.unpack(en+headerlength*'i',fbuffer[n:n+headerlength*4])
+-        n+=headerlength*4+ml
+-        datalength = struct.unpack(en+mf,fbuffer[n:n+ml])[0]
++        header = struct.unpack_from(en+(headerbytes//4)*'i',fbuffer,n)
++        n+=headerbytes+ml
++        databytes = struct.unpack_from(markerfmt,fbuffer,n)[0]
+         n+=ml
+         if header[0]==kcode:
              dataheader = header
-             wl, fmt = _getknownwordlength(fbuffer,recordn0,en,ml,mf)
-             datalength = int(datalength//wl)
+-            wl, fmt = _getknownwordlength(fbuffer,recordn0,en,ml,mf)
+-            datalength = int(datalength//wl)
 -            if not variable:
 -                variable = np.array(struct.unpack(en+datalength*fmt,fbuffer[n:n+datalength*wl]))
 -            else:
 -                variable = np.append(variable,struct.unpack(en+datalength*fmt,fbuffer[n:n+datalength*wl]))
-+            _parts.append(np.asarray(struct.unpack(en+datalength*fmt,fbuffer[n:n+datalength*wl])))
-             n+=datalength*wl+ml
-         else: #Fast-forward past this variable without reading it.
-             n+=datalength+ml
-     
-+    if _parts:
-+        variable = _parts[0] if len(_parts)==1 else np.concatenate(_parts)
+-            n+=datalength*wl+ml
+-        else: #Fast-forward past this variable without reading it.
+-            n+=datalength+ml
++            wl = databytes//(header[4]*header[5])
++            _parts.append(np.frombuffer(fbuffer,
++                                        dtype=np.dtype(en+('f4' if wl==4 else 'f8')),
++                                        count=databytes//wl,offset=n))
++        #Either way, fast-forward past the data we have or have not just read.
++        n+=databytes+ml
 +    
++    if _parts:
++        variable = (_parts[0].astype(np.float64) if len(_parts)==1
++                    else np.concatenate(_parts,dtype=np.float64))
+     
      return dataheader, variable
  
- def _gettimevar(fbuffer):
-@@ -480,16 +481,26 @@
+@@ -430,23 +476,21 @@
+     kcode = 139 #Use surface temperature to do this
+     time = []
+     n = 0
+-    mainheader,zsig,n = readrecord(fbuffer,n,en,ml)
+-    
+-    variable = None
++    mainheader,zsig,n = readrecord(fbuffer,n,en,ml,mf)
+     
+-    while n<len(fbuffer):
+-        
+-        recordn0 = n
++    markerfmt = en+mf
++    nbuffer = len(fbuffer)
++    while n<nbuffer:
+         
+-        headerlength = int(struct.unpack(en+mf,fbuffer[n:n+ml])[0]//4)
++        headerbytes = struct.unpack_from(markerfmt,fbuffer,n)[0]
+         n+=ml
+-        header = struct.unpack(en+headerlength*'i',fbuffer[n:n+headerlength*4])
+-        n+=headerlength*4+ml
+-        datalength = struct.unpack(en+mf,fbuffer[n:n+ml])[0]
++        header = struct.unpack_from(en+(headerbytes//4)*'i',fbuffer,n)
++        n+=headerbytes+ml
++        databytes = struct.unpack_from(markerfmt,fbuffer,n)[0]
+         n+=ml
+         if header[0]==kcode:
+             time.append(header[6]) #nstep-nstep1 (timesteps since start of run)
+-        n+=datalength+ml
++        n+=databytes+ml #This never decodes a payload; it only walks the records.
+     
+     return time
+     
+@@ -480,16 +524,31 @@
      variables["sigmah"] = zsig[:nlev]
      variables["time"] = []
      
+-    while n<len(fbuffer):
+-        header,field,n = readrecord(fbuffer,n,en,ml,mf)
 +    # Records are collected per code and joined ONCE. This replaced
 +    # `np.append(accumulated, field)` per record, which reallocates and copies
 +    # the whole accumulated array every call and makes reading QUADRATIC in
@@ -96,26 +268,32 @@
 +    # joining once took the same job from 304 s to 29 s. np.append flattens,
 +    # so a 1-D concatenate gives the identical result.
 +    _chunks = {}
-     while n<len(fbuffer):
-         header,field,n = readrecord(fbuffer,n,en,ml,mf)
++    nbuffer = len(fbuffer)
++    while n<nbuffer:
++        header,field,n = _decoderecord(fbuffer,n,en,ml,mf)
          kcode = str(header[0])
-         if int(kcode)==139:
+-        if int(kcode)==139:
++        if header[0]==139:
              variables["time"].append(header[6]) #nstep-nstep1 (timesteps since start of run)
 -        if kcode not in variables:
 -            variables[kcode] = np.array(field)
 +        if kcode not in _chunks:
-+            _chunks[kcode] = [np.asarray(field)]
++            _chunks[kcode] = [field]
              headers[kcode] = header
          else:
 -            variables[kcode] = np.append(variables[kcode],field)
-+            _chunks[kcode].append(np.asarray(field))
++            _chunks[kcode].append(field)
 +    
++    # The records are views on fbuffer in the file's own word length; the copy
++    # and the promotion to float64 happen once per code, here, rather than once
++    # per record.
 +    for _kcode,_parts in _chunks.items():
-+        variables[_kcode] = _parts[0] if len(_parts)==1 else np.concatenate(_parts)
++        variables[_kcode] = (_parts[0].astype(np.float64) if len(_parts)==1
++                             else np.concatenate(_parts,dtype=np.float64))
      
      return headers, variables
      
-@@ -1717,17 +1728,17 @@
+@@ -1717,17 +1776,17 @@
                                               mode='grid',substellarlon=substellarlon,
                                               physfilter=physfilter,zonal=False)
                      
@@ -144,7 +322,7 @@
                  meta = ilibrary[key][:]
                  meta.append(key)
                  variable,meta = _transformvar(lon[:],lat[:],wap,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
-@@ -1774,17 +1785,17 @@
+@@ -1774,17 +1833,17 @@
                          dv,dmeta = _transformvar(lon[:],lat[:],div,ilibrary[str(divcode)][:],nlat,nlon,nlev,ntru,ntime,
                                                    mode='grid',substellarlon=substellarlon,
                                                    physfilter=physfilter,zonal=False)
@@ -173,7 +351,7 @@
                  omega,wmeta = _transformvar(lon[:],lat[:],omega,vmeta,nlat,nlon,nlev,ntru,ntime,mode='grid',
                                              substellarlon=substellarlon,physfilter=physfilter)
                  if "ta" in rdataset:
-@@ -1878,13 +1889,9 @@
+@@ -1878,13 +1937,9 @@
                  #modes = np.resize(specmodes,svort.shape)
                  #stf[...,2:] = svort[...,2:] * plarad**2/(modes**2+modes)[...,2:]
                  
@@ -190,7 +368,7 @@
                      
                  prefactor = 2*np.pi*plarad*colat/gravity
                  sign = 1 - 2*(tempmode=="synchronous") #-1 for synchronous, 1 for equatorial
-@@ -2552,17 +2559,17 @@
+@@ -2552,17 +2607,17 @@
                                               mode='grid',substellarlon=substellarlon,
                                               physfilter=physfilter,zonal=False)
                      
@@ -219,7 +397,7 @@
                  meta = ilibrary[key][:]
                  meta.append(key)
                  variable,meta = _transformvar(lon[:],lat[:],wap,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
-@@ -2609,17 +2616,17 @@
+@@ -2609,17 +2664,17 @@
                          dv,dmeta = _transformvar(lon[:],lat[:],div,ilibrary[str(divcode)][:],nlat,nlon,nlev,ntru,ntime,
                                                    mode='grid',substellarlon=substellarlon,
                                                    physfilter=physfilter,zonal=False)
@@ -248,7 +426,7 @@
                  omega,wmeta = _transformvar(lon[:],lat[:],omega,vmeta,nlat,nlon,nlev,ntru,ntime,mode='grid',
                                              substellarlon=substellarlon,physfilter=physfilter)
                  if "ta" in rdataset:
-@@ -2713,13 +2720,9 @@
+@@ -2713,13 +2768,9 @@
                  #modes = np.resize(specmodes,svort.shape)
                  #stf[...,2:] = svort[...,2:] * plarad**2/(modes**2+modes)[...,2:]
                  

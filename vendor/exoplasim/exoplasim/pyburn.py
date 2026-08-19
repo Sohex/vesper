@@ -352,19 +352,62 @@ def readrecord(fbuffer,n,en,ml,mf):
         position in the buffer in bytes.
     '''
     if n<len(fbuffer):
-        wl,fmt = _getknownwordlength(fbuffer,n,en,ml,mf)
-                
-        headerlength = int(struct.unpack(en+mf,fbuffer[n:n+ml])[0]//4)
-        n+=ml
-        header = struct.unpack(en+headerlength*'i',fbuffer[n:n+headerlength*4])
-        n+=headerlength*4+ml #Add one word for restatement of header length (for backwards seeking)
-        datalength = int(struct.unpack(en+mf,fbuffer[n:n+ml])[0]//wl)
-        n+=ml
-        data = struct.unpack(en+datalength*fmt,fbuffer[n:n+datalength*wl])
-        n+=datalength*wl+ml #additional 4 for restatement of datalength
-        return header,data,n
+        header,view,n = _decoderecord(fbuffer,n,en,ml,mf)
+        return header,view.astype(np.float64),n
     else:
         raise Exception("Reached end of buffer!!!")
+
+def _decoderecord(fbuffer,n,en,ml,mf):
+    '''Decode one Fortran record, returning its payload as a numpy VIEW on the buffer.
+
+    This is :py:func:`readrecord <exoplasim.pyburn.readrecord>` without the bounds
+    check and without the copy, so that a caller reading the whole file can defer
+    the copy to one concatenation per variable.
+
+    The payload is decoded with ``np.frombuffer`` rather than ``struct.unpack``.
+    ``struct.unpack`` builds one Python float object per value -- 8192 of them for
+    a T42 grid record, and there are of order 81,000 such records in an orbit --
+    and that boxing was the whole of the read cost once the quadratic
+    accumulation was gone. ``np.frombuffer`` touches no Python objects at all.
+    Callers promote to float64, which is the dtype ``np.asarray`` produced from
+    the old tuple of Python floats, so both values and dtype are unchanged.
+
+    Word length is derived exactly as :py:func:`_getknownwordlength
+    <exoplasim.pyburn._getknownwordlength>` derives it, from the ratio of the
+    record's length in bytes to its length in words, but without re-reading the
+    header to do so.
+
+    Parameters
+    ----------
+    fbuffer : bytes
+        Binary bytes read from a file opened with ``mode='rb'`` and read with ``file.read()``.
+    n : int
+        The index of the byte at which to start.
+    en : str
+        Endianness, denoted by ">" or "<"
+    ml : int
+        Length of a record marker
+    mf : str
+        Format of the record marker ('i' or 'l')
+
+    Returns
+    -------
+    tuple, numpy.ndarray, int
+        The header, a read-only view of the record data in the file's own word
+        length, and the new position in the buffer in bytes.
+    '''
+    markerfmt = en+mf
+    headerbytes = struct.unpack_from(markerfmt,fbuffer,n)[0]
+    n+=ml
+    header = struct.unpack_from(en+(headerbytes//4)*'i',fbuffer,n)
+    n+=headerbytes+ml #Add one word for restatement of header length (for backwards seeking)
+    databytes = struct.unpack_from(markerfmt,fbuffer,n)[0]
+    n+=ml
+    wl = databytes//(header[4]*header[5]) #bytes per word: record bytes over record words
+    view = np.frombuffer(fbuffer,dtype=np.dtype(en+('f4' if wl==4 else 'f8')),
+                         count=databytes//wl,offset=n)
+    n+=databytes+ml #additional marker for restatement of datalength
+    return header,view,n
     
 def readvariablecode(fbuffer,kcode,en,ml,mf):
     '''Seek through a binary output buffer and extract all records associated with a variable code.
@@ -393,32 +436,34 @@ def readvariablecode(fbuffer,kcode,en,ml,mf):
         A tuple containing first the header, then the variable data, as one concatenated 1D variable.
     '''
     n = 0
-    mainheader,zsig,n = readrecord(fbuffer,n,en,ml)
+    mainheader,zsig,n = readrecord(fbuffer,n,en,ml,mf)
     
+    dataheader = None
     variable = None
     _parts = []   # joined once at the end; see readallvariables
     
-    while n<len(fbuffer):
+    markerfmt = en+mf
+    nbuffer = len(fbuffer)
+    while n<nbuffer:
         
-        recordn0 = n
-        
-        headerlength = int(struct.unpack(en+mf,fbuffer[n:n+ml])[0]//4)
+        headerbytes = struct.unpack_from(markerfmt,fbuffer,n)[0]
         n+=ml
-        header = struct.unpack(en+headerlength*'i',fbuffer[n:n+headerlength*4])
-        n+=headerlength*4+ml
-        datalength = struct.unpack(en+mf,fbuffer[n:n+ml])[0]
+        header = struct.unpack_from(en+(headerbytes//4)*'i',fbuffer,n)
+        n+=headerbytes+ml
+        databytes = struct.unpack_from(markerfmt,fbuffer,n)[0]
         n+=ml
         if header[0]==kcode:
             dataheader = header
-            wl, fmt = _getknownwordlength(fbuffer,recordn0,en,ml,mf)
-            datalength = int(datalength//wl)
-            _parts.append(np.asarray(struct.unpack(en+datalength*fmt,fbuffer[n:n+datalength*wl])))
-            n+=datalength*wl+ml
-        else: #Fast-forward past this variable without reading it.
-            n+=datalength+ml
+            wl = databytes//(header[4]*header[5])
+            _parts.append(np.frombuffer(fbuffer,
+                                        dtype=np.dtype(en+('f4' if wl==4 else 'f8')),
+                                        count=databytes//wl,offset=n))
+        #Either way, fast-forward past the data we have or have not just read.
+        n+=databytes+ml
     
     if _parts:
-        variable = _parts[0] if len(_parts)==1 else np.concatenate(_parts)
+        variable = (_parts[0].astype(np.float64) if len(_parts)==1
+                    else np.concatenate(_parts,dtype=np.float64))
     
     return dataheader, variable
 
@@ -431,23 +476,21 @@ def _gettimevar(fbuffer):
     kcode = 139 #Use surface temperature to do this
     time = []
     n = 0
-    mainheader,zsig,n = readrecord(fbuffer,n,en,ml)
+    mainheader,zsig,n = readrecord(fbuffer,n,en,ml,mf)
     
-    variable = None
-    
-    while n<len(fbuffer):
+    markerfmt = en+mf
+    nbuffer = len(fbuffer)
+    while n<nbuffer:
         
-        recordn0 = n
-        
-        headerlength = int(struct.unpack(en+mf,fbuffer[n:n+ml])[0]//4)
+        headerbytes = struct.unpack_from(markerfmt,fbuffer,n)[0]
         n+=ml
-        header = struct.unpack(en+headerlength*'i',fbuffer[n:n+headerlength*4])
-        n+=headerlength*4+ml
-        datalength = struct.unpack(en+mf,fbuffer[n:n+ml])[0]
+        header = struct.unpack_from(en+(headerbytes//4)*'i',fbuffer,n)
+        n+=headerbytes+ml
+        databytes = struct.unpack_from(markerfmt,fbuffer,n)[0]
         n+=ml
         if header[0]==kcode:
             time.append(header[6]) #nstep-nstep1 (timesteps since start of run)
-        n+=datalength+ml
+        n+=databytes+ml #This never decodes a payload; it only walks the records.
     
     return time
     
@@ -488,19 +531,24 @@ def readallvariables(fbuffer):
     # joining once took the same job from 304 s to 29 s. np.append flattens,
     # so a 1-D concatenate gives the identical result.
     _chunks = {}
-    while n<len(fbuffer):
-        header,field,n = readrecord(fbuffer,n,en,ml,mf)
+    nbuffer = len(fbuffer)
+    while n<nbuffer:
+        header,field,n = _decoderecord(fbuffer,n,en,ml,mf)
         kcode = str(header[0])
-        if int(kcode)==139:
+        if header[0]==139:
             variables["time"].append(header[6]) #nstep-nstep1 (timesteps since start of run)
         if kcode not in _chunks:
-            _chunks[kcode] = [np.asarray(field)]
+            _chunks[kcode] = [field]
             headers[kcode] = header
         else:
-            _chunks[kcode].append(np.asarray(field))
+            _chunks[kcode].append(field)
     
+    # The records are views on fbuffer in the file's own word length; the copy
+    # and the promotion to float64 happen once per code, here, rather than once
+    # per record.
     for _kcode,_parts in _chunks.items():
-        variables[_kcode] = _parts[0] if len(_parts)==1 else np.concatenate(_parts)
+        variables[_kcode] = (_parts[0].astype(np.float64) if len(_parts)==1
+                             else np.concatenate(_parts,dtype=np.float64))
     
     return headers, variables
     
