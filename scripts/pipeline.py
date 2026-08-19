@@ -4,6 +4,8 @@
     python scripts/pipeline.py --status            # what is present, what is not
     python scripts/pipeline.py --plan carve_list   # ordered steps to reach a target
     python scripts/pipeline.py --register          # the artifact register
+    python scripts/pipeline.py --purge orogen      # what a change to X makes worthless
+    python scripts/pipeline.py --purge orogen --execute      # ... and delete it
 
 The graph is `config/pipeline.yaml` and that file is its only source. This script
 reads it; `WORKFLOW.md` explains it and references its step ids. Nothing restates
@@ -15,6 +17,36 @@ exist to prevent.
 It does not run anything. Planning and executing are separated deliberately:
 five steps in the graph cost hours, and a script that could start one by accident
 is worse than no script. `--plan` prints; you run.
+
+`--purge` is the one thing here that touches the filesystem, and it only ever
+deletes. It is the same separation seen from the other side: running a step is
+expensive and is yours to start, but working out WHAT a change makes worthless
+is a graph question, and doing it by hand is how a keep-list goes wrong. It is a
+dry run until `--execute`, exactly like `scripts/archive_runs.py`.
+
+## Why purge is a graph question
+
+CLAUDE.md rule 7: an upstream change makes everything below it WORTHLESS rather
+than stale, so the question after any change is "what is now worthless". That is
+answerable only from a complete graph, which is what `config/pipeline.yaml` is
+for -- and it is the reason `writes` has to be the complete artifact set rather
+than a marker file. A row naming only its report purges its report and leaves
+the .sra beside it, then says it succeeded.
+
+Two edges are not `needs` and purge uses both:
+
+`reads_export` is the step consuming `source/{build}/`. Four steps do it and all
+four declared `needs: []`, which read as "depends on nothing" when it meant
+"depends on the terrain and nothing else in this pass". `--purge orogen` seeds
+from those four rather than from `orogen`'s own `needs`.
+
+And the traversal STOPS AT `orogen` rather than passing through it. Loop A is a
+cycle -- carve_list feeds orogen, orogen's export feeds hydrography -- so
+unrestricted reachability from any climate step reaches the generation step and
+then everything, including `source/{build}/` itself. That answer is wrong, not
+merely alarming: a new climatology does not invalidate the terrain it was
+computed on. The cycle closes across an ITERATION boundary and "what is worthless
+now" is a within-pass question, so the generation step is where it is cut.
 
 It also does not check whether artifacts AGREE with each other. That is
 `check_consistency.py`, which compares terrain hashes, provenance stamps and
@@ -37,6 +69,7 @@ from __future__ import annotations
 
 import argparse
 import re
+import shutil
 from pathlib import Path
 
 import yaml
@@ -66,6 +99,31 @@ def resolve(path: str, build: str) -> Path:
     return ROOT / path.replace("{build}", build).replace("{name}", "k25v")
 
 
+def expand(path: str, build: str) -> list[Path]:
+    """Every file a `writes` entry currently stands for.
+
+    ONE resolver for presence and for purge, deliberately. Two would drift, and
+    the direction they would drift in is the dangerous one: a purge that expands
+    a pattern the presence check does not would delete something `--status` had
+    just called absent.
+
+    Three forms, matching what `config/pipeline.yaml` documents. A glob returns
+    its matches, so an unmatched glob is legitimately empty. A directory (written
+    with a trailing slash) returns the files under it, because a step that owns a
+    directory owns what accumulates in it -- per-run convergence products are
+    named by a UUID and cannot be listed any other way. Anything else is a single
+    path, returned whether or not it exists; the caller decides what absence
+    means.
+    """
+    if "*" in path:
+        pattern = path.replace("{build}", build).replace("{name}", "k25v")
+        return sorted(ROOT.glob(pattern))
+    target = resolve(path, build)
+    if path.endswith("/"):
+        return sorted(q for q in target.rglob("*") if q.is_file())
+    return [target]
+
+
 def present(step: dict, build: str) -> tuple[bool | None, list[str]]:
     """Does every artifact this step declares exist? Presence only, by design.
 
@@ -77,7 +135,11 @@ def present(step: dict, build: str) -> tuple[bool | None, list[str]]:
     """
     if step.get("presence") == "by_index":
         return None, []
-    missing = [w for w in step.get("writes", []) if not resolve(w, build).exists()]
+    # Through expand(), so a glob is present when it matches anything and a
+    # directory when it holds anything. Testing resolve().exists() called an
+    # empty directory present, which is what a purged step looks like.
+    missing = [w for w in step.get("writes", [])
+               if not any(q.exists() for q in expand(w, build))]
     return (not missing), missing
 
 
@@ -117,6 +179,42 @@ def upstream(target: str, by_id: dict, seen: set | None = None) -> set:
             seen.add(need)
             upstream(need, by_id, seen)
     return seen
+
+
+def downstream(seed: str, by_id: dict) -> set:
+    """Every step whose output a change to `seed` makes worthless.
+
+    Reverse reachability over `needs`, plus the export edge: `orogen` reaches
+    every step marked `reads_export`, because those consume `source/{build}/`
+    without declaring a `needs` on the step that writes it, and must not declare
+    one (`config/pipeline.yaml` says why against the key).
+
+    CUT AT `orogen`, which is what makes the answer finite and correct rather
+    than merely finite. Loop A is a cycle, so from any climate step the walk
+    reaches carve_list, then orogen, then -- through the export -- everything,
+    and it would offer to delete the terrain because a climatology moved. The
+    generation step is the iteration boundary: things computed ON a build are
+    downstream of it, and the build is not downstream of them.
+
+    The seed is never in its own result, so `--purge X` deletes what X invalidates
+    and never X itself. For `orogen` that is the difference between clearing the
+    tree and deleting the export.
+    """
+    out: set[str] = set()
+    frontier = ({s for s, v in by_id.items() if v.get("reads_export")}
+                if seed == "orogen" else {seed})
+    if seed == "orogen":
+        out |= frontier
+    while frontier:
+        nxt = set()
+        for sid, step in by_id.items():
+            if sid in out or sid == seed or sid == "orogen":
+                continue          # the cut, and the seed-excludes-itself rule
+            if frontier & set(step.get("needs", [])):
+                nxt.add(sid)
+        out |= nxt
+        frontier = nxt
+    return out
 
 
 def order(target: str, by_id: dict) -> list[str]:
@@ -159,6 +257,11 @@ def cmd_register(graph: dict) -> int:
     for s in graph["steps"]:
         for need in s.get("needs", []):
             consumers.setdefault(need, []).append(s["id"])
+        # The export edge is not a `needs` edge and would otherwise be invisible
+        # here, which showed `source/{build}/` as read by nobody -- the exact
+        # misreading `reads_export` was added to correct.
+        if s.get("reads_export"):
+            consumers.setdefault("orogen", []).append(s["id"])
     print("| artifact | step | read by |")
     print("| --- | --- | --- |")
     for s in graph["steps"]:
@@ -270,6 +373,84 @@ def cmd_plan(graph: dict, target: str, force: bool) -> int:
     return 0
 
 
+def cmd_purge(graph: dict, target: str, execute: bool) -> int:
+    by_id = steps_by_id(graph)
+    if target not in by_id:
+        raise SystemExit(f"no step '{target}'. Known: {', '.join(sorted(by_id))}")
+    build = active_build()
+    doomed = downstream(target, by_id)
+
+    print(f"active build: {build}")
+    print(f"worthless if `{target}` changes: {len(doomed)} of "
+          f"{len(graph['steps'])} steps\n")
+
+    # Runs are named by a UUID and have no path in the graph, so purge cannot
+    # find them and must not pretend the tree is clear without them. They also
+    # have their own extract-then-delete path, which verifies the archive before
+    # removing anything -- reimplementing that here would be a second copy of the
+    # one thing in this repository that must not have two.
+    runs = sorted(s for s in doomed if by_id[s].get("presence") == "by_index")
+
+    total, plan = 0, []
+    for step in graph["steps"]:            # graph order, so the tree reads top-down
+        sid = step["id"]
+        if sid not in doomed:
+            continue
+        files = []
+        for w in step.get("writes", []):
+            files += [q for q in expand(w, build) if q.is_file()]
+        if not files:
+            continue
+        size = sum(q.stat().st_size for q in files)
+        total += size
+        plan.append((sid, files))
+        print(f"  {sid:26s} {len(files):>4} files  {size/1e6:>9.1f} MB")
+
+    print(f"\n{'deleting' if execute else 'would delete'} "
+          f"{sum(len(f) for _, f in plan)} files, {total/1e9:.2f} GB")
+
+    def note_runs() -> None:
+        if runs:
+            print(f"\nNOT COVERED, and not a gap this can close: {', '.join(runs)}")
+            print("  Runs are UUID-named, so the graph has no path for them, and\n"
+                  "  they are deleted by extracting their identity first:\n"
+                  "      python scripts/archive_runs.py --include-live --execute")
+
+    if not execute:
+        note_runs()
+        print("\ndry run; pass --execute to delete")
+        return 0
+
+    for sid, files in plan:
+        for q in files:
+            # missing_ok: expand() listed the tree a moment ago, and two steps
+            # can legitimately name the same file. Racing a concurrent session
+            # is not worth aborting a half-done purge over.
+            q.unlink(missing_ok=True)
+        # A directory a step OWNS goes whole, subdirectories included. Unlinking
+        # its files and then rmdir()ing left the empty per-run subdirectories
+        # behind, and an empty directory reads as a present artifact to anything
+        # checking existence rather than contents. A directory a step merely
+        # writes INTO is shared and is never named this way.
+        for d in step_writes_dirs(by_id[sid], build):
+            if d.is_dir():
+                shutil.rmtree(d)
+        print(f"  purged {sid}")
+
+    print(f"\nfreed {total/1e9:.2f} GB")
+    print("`world_state.json` and `exoplasim/runs/INDEX.json` are generated from\n"
+          "what is on disk and now describe a tree that has moved. Regenerate:\n"
+          "    python exoplasim/scripts/index_runs.py\n"
+          "    python scripts/world_state.py")
+    note_runs()
+    return 0
+
+
+def step_writes_dirs(step: dict, build: str) -> list[Path]:
+    """The directories a step declares outright, which it therefore owns."""
+    return [resolve(w, build) for w in step.get("writes", []) if w.endswith("/")]
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--status", action="store_true")
@@ -277,10 +458,17 @@ def main() -> None:
     ap.add_argument("--register", action="store_true")
     ap.add_argument("--force", action="store_true",
                     help="with --plan, list steps whose artifacts already exist")
+    ap.add_argument("--purge", metavar="STEP",
+                    help="delete every artifact a change to STEP makes worthless. "
+                         "Excludes STEP's own output, and never crosses `orogen`")
+    ap.add_argument("--execute", action="store_true",
+                    help="with --purge, actually delete; default is a dry run")
     args = ap.parse_args()
     graph = load()
     if args.register:
         raise SystemExit(cmd_register(graph))
+    if args.purge:
+        raise SystemExit(cmd_purge(graph, args.purge, args.execute))
     if args.plan:
         raise SystemExit(cmd_plan(graph, args.plan, args.force))
     raise SystemExit(cmd_status(graph))

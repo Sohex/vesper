@@ -12,7 +12,7 @@ describes, and the pointers below are the map:
 | --- | --- |
 | `WORKFLOW.md` | CANONICAL for pipeline REASONING: what the components are, how they connect, why the order is what it is, and why it is a loop. **Read it first.** |
 | `config/pipeline.yaml` | CANONICAL for the pipeline GRAPH: every step, what it writes, what must precede it, its cost, and each loop's exit predicate. The two do not overlap; WORKFLOW references step ids from here |
-| `scripts/pipeline.py` | `--status` what exists and what blocks the carve, `--plan <step>` the ordered steps to a target, `--register` the artifact table. Plans; never runs |
+| `scripts/pipeline.py` | `--status` what exists and what blocks the carve, `--plan <step>` the ordered steps to a target, `--register` the artifact table, `--purge <step>` everything a change to that step makes worthless. Plans and never RUNS a step; `--purge` deletes, and is a dry run until `--execute` |
 | `source/README.md` | how to read an export: field conventions, the land-mask rule, the traps |
 | `vendor/orogen/tools/README.md` | the authoritative export format |
 | `<component>/README.md` | what that component does and how to run it |
@@ -360,17 +360,6 @@ are upstream pull requests and which are ours to keep.
 ## Vocabulary
 
 These are the project's words. Use them and not synonyms.
-
-They live here rather than in `WORKFLOW.md` for one reason: the two failures they
-exist to prevent both happened in conversation rather than in a document, and
-this file is the one that is loaded before the conversation starts. The first
-was "re-baseline", used to mean one thing and read as another, and the two differ
-by a whole regeneration of the terrain. The second was "iteration", which named
-both a whole turn of the terrain loop and the part of the turn below Orogen, so
-"start the new iteration" was said meaning "redo everything under the terrain"
-and read as "hand a carve list to Orogen". A loop has no privileged place to cut,
-so the fix was not a better sentence about where a turn begins. It is a NAME FOR
-EACH HALF, so which half is meant never has to be inferred.
 
 **build** -- one World Orogen export, namespaced under `source/`. The ARTIFACT,
 not the act that made it. Identified by its terrain hash, never by its name.

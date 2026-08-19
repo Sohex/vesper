@@ -104,6 +104,38 @@ def check_help(files: list[Path]) -> list[str]:
     return bad
 
 
+def check_purge_never_reaches_the_terrain() -> list[str]:
+    """`--purge` must never offer to delete the export, from any seed.
+
+    This has a right answer rather than merely a different one, which is what
+    makes it a test: loop A is a cycle, so reachability from a climate step comes
+    back round through `carve_list` to `orogen` and then, via the export, to
+    everything. The cut at the generation step is the only thing stopping a purge
+    seeded anywhere in the loop from proposing `source/{build}/`. Assert it from
+    EVERY seed rather than the one that motivated it, because the next step added
+    inside loop A gets the guarantee for free or not at all.
+    """
+    sys.path.insert(0, str(ROOT / "scripts"))
+    import pipeline
+    graph = pipeline.load()
+    by_id = pipeline.steps_by_id(graph)
+    bad = []
+    for seed in by_id:
+        doomed = pipeline.downstream(seed, by_id)
+        if "orogen" in doomed:
+            bad.append(f"--purge {seed} reaches orogen, so it would offer to "
+                       f"delete the export")
+        if seed in doomed:
+            bad.append(f"--purge {seed} includes {seed} itself")
+    # The export edge is what seeds `--purge orogen`; a typo in it silently
+    # empties that seed rather than erroring, and the purge would report success
+    # having deleted nothing.
+    readers = [s["id"] for s in graph["steps"] if s.get("reads_export")]
+    if not readers:
+        bad.append("no step declares reads_export, so --purge orogen is a no-op")
+    return bad
+
+
 def check_build_scoped_defaults() -> list[str]:
     """Every per-build default must resolve under the active build."""
     sys.path.insert(0, str(ROOT / "lib"))
@@ -560,6 +592,8 @@ def main() -> None:
                check_registered_paths_exist()),
               ("every step is named in its component README",
                check_documented_in_component(files)),
+              ("purge never reaches the terrain, from any seed",
+               check_purge_never_reaches_the_terrain()),
               ("local_slope_deg reproduces an analytic gradient",
                check_slope_fit()),
               ("the convergence window follows the declared purposes",

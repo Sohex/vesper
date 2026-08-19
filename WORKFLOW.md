@@ -169,15 +169,32 @@ section used to be exactly that table.
     python scripts/pipeline.py --register     # artifact, step, and what reads it
     python scripts/pipeline.py --status       # what is present, and the carve gate
     python scripts/pipeline.py --plan <step>  # the ordered steps to reach a target
+    python scripts/pipeline.py --purge <step> # what a change to that step makes worthless
 
 Consumers are derived rather than declared: what reads an artifact is the set of
-steps that `need` the step which writes it. Declaring both would be the same
-duplication one level down.
+steps that `need` the step which writes it, plus the steps marked `reads_export`
+for the export itself. Declaring both directions would be the same duplication
+one level down.
 
-`pipeline.py` plans and never runs. Five steps in the graph cost hours, and a
-script that could start one by accident is worse than no script. It also does not
-check whether artifacts AGREE -- that is `check_consistency.py`, and asking
-either to do the other's job would give two answers to one question.
+`pipeline.py` plans and never RUNS A STEP. Five steps in the graph cost hours,
+and a script that could start one by accident is worse than no script. It also
+does not check whether artifacts AGREE -- that is `check_consistency.py`, and
+asking either to do the other's job would give two answers to one question.
+
+`--purge` is the exception that proves the rule, and it only ever deletes. Rule 7
+says an upstream change makes everything below it worthless rather than stale, so
+the question after any change is "what is now worthless" -- and that is a graph
+question, which is why doing it by hand produces a keep-list rather than an
+answer. It is a dry run until `--execute`.
+
+Two things about it are worth knowing before you use it. It never crosses
+`orogen`: loop A is a cycle, so unrestricted reachability from any climate step
+would come back round through the generation step and offer to delete the
+terrain, which is wrong rather than merely alarming -- a new climatology does not
+invalidate the build it was computed on. And it does not touch climate RUNS,
+which are UUID-named and have no path in the graph; it names them and points at
+`scripts/archive_runs.py`, which extracts a run's identity and verifies the
+archive before deleting anything.
 
 ## 3. The pipeline, step by step
 
