@@ -113,7 +113,7 @@ supplying it is the wrong thing.
 That last item is what makes this expensive. The baseline run's albedo fields
 174 to 176 were built from lake extents computed on antipodal climate, so the
 baseline climatology the verdict reads is itself contaminated. The remedy is
-therefore a **re-run of the baseline** in the sense `WORKFLOW.md` section 0
+therefore a **re-run of the baseline** in the sense `CLAUDE.md`'s vocabulary
 defines: rebuild `surface_water.nc`, rebuild 174 to 176, run, rebuild the
 climatology, re-take the verdict. `WORKFLOW.md` A2 requires the cycle run to be
 centred on a *final* baseline, so this lands before CYC-1 and not after.
