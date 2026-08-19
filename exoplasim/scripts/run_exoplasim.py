@@ -1057,6 +1057,22 @@ def main() -> None:
     # accumulations where the clean regime writes instantaneous samples, and an
     # accumulation cannot be undone. Anything reading variance, extremes or
     # single records needs --clean-io.
+    # BENCHMARK OVERRIDES. Both change the machine's layout and neither changes
+    # the physics, so they belong on the command line rather than in
+    # config/planet.yaml -- a config edit would move config_sha256 and make
+    # every existing run unresumable, for a question about core placement.
+    # `exoplasim/notes/rank-layout-benchmark.md` is what they are for.
+    parser.add_argument(
+        "--ncpus", type=int, default=None,
+        help="override model.ncpus for this run. Selects a different compiled "
+             "binary, since ExoPlaSim builds one per (resolution, layers, "
+             "ranks); NLAT must divide by it")
+    parser.add_argument(
+        "--mpi-opts", type=str, default=None,
+        help="extra flags for mpiexec, e.g. "
+             "'--map-by pe-list=0,1,2,3,4,5,6,7:ordered --bind-to core'. The "
+             ":ordered qualifier is load-bearing -- without it the ranks share "
+             "one pool instead of getting a core each")
     parser.add_argument(
         "--clean-io", dest="low_io", action="store_false", default=True,
         help="run this block at NLOWIO = 0, writing instantaneous samples "
@@ -1080,6 +1096,16 @@ def main() -> None:
 
     config_path = args.config.resolve()
     config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    # Applied to the loaded config rather than threaded through, so the binary
+    # name, the physical fingerprint and the model construction cannot disagree
+    # about how many ranks this run has. `config_sha256` hashes the FILE, so
+    # provenance still records the config as written, and the fingerprint
+    # records the ranks that actually ran.
+    if args.ncpus is not None:
+        if args.ncpus < 1:
+            raise ValueError("--ncpus must be positive")
+        config["model"]["ncpus"] = int(args.ncpus)
+    mpi_opts = args.mpi_opts
     flux_ratio = float(
         config["orbit"]["baseline_flux_earth"]
         if args.flux_ratio is None else args.flux_ratio
@@ -1205,6 +1231,7 @@ def main() -> None:
         modelname=identifier,
         outputtype=model_cfg["output_type"],
         hyperthreading=False,
+        mpi_opts=mpi_opts,
     )
     model.configure(
         restartfile=None if restart_seed is None else str(restart_seed),
