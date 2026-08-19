@@ -132,6 +132,56 @@ judgement for the maintainer rather than something to decide here -- keeping it
 preserves existing results bit for bit, dropping it makes the model match what
 the paper describes.
 
+## The paper's own appendix confirms two of the fixes
+
+Cohen et al. lay their scheme out in Appendix A, and it can be read against the
+source line for line. Two of the defects are contradictions between that
+appendix and the code that implements it.
+
+**Eq. A10, the optical depth.** `tau_N = N * Qext * pi * r^2 * dz`, "r is the
+particle radius in meters". That is `aeroprof` exactly, except that the code's
+`r` is radmod's `apart`, which the namelist never reaches. Covered above.
+
+**Eq. A5, the viscosity.** The Rosner (1986) parameterisation, with the exponent
+written explicitly:
+
+    eta = 5*sqrt(pi*m*kb*T) * (kb*T/eps)**0.16 / (16 * 1.22 * pi * d^2)
+
+for N2 with m = 4.652e-26 kg, d = 3.64e-10 m, eps/kb = 95.5 K. The code writes
+that exponent as `(4/25)`, which in Fortran is INTEGER division and evaluates to
+0, so `(temp/eps)**0 = 1` and the temperature dependence vanishes. Every other
+factor matches A5 -- the 5/16, the 1/1.22, the 1/(pi d^2), the sqrt(pi m kb T)
+-- so it is only the exponent that is lost, which is why it survives a reading.
+
+Using their own eps, and settling going as 1/eta:
+
+| T (K) | (T/95.5)^0.16 | viscosity low by | settling fast by |
+| ---: | ---: | ---: | ---: |
+| 200 | 1.126 | 11.2% | 12.6% |
+| 250 | 1.167 | 14.3% | 16.6% |
+| 300 | 1.201 | 16.7% | 20.1% |
+
+So for temperate rocky planets the particles fall about 17% too fast. It is a
+one-signed bias rather than scatter, so it shifts the equilibrium burden
+coherently. The fix is in PR #58.
+
+## The paper names the limitation the shortwave weights remove
+
+On its own model limitations, Cohen et al. write that "the absorptivity of water
+vapour in shortwave band 2 (lambda > 0.75 um) relies on a parameterisation that
+is tuned to the solar spectrum and is likely less accurate for M-class stellar
+spectra".
+
+That is precisely what `h2osww` exists for, and it means the shortwave weights
+offered as PR #62 are not a speculative capability: a published user has already
+identified the defect and carried it as a known inaccuracy. The band-2
+absorptance is a fit expressed as a fraction of total incident SOLAR flux, so it
+carries the Sun's share of flux in that band; an M dwarf puts far more of its
+output beyond 0.75 um and the share is different.
+
+The same construction underlies the Lacis & Hansen ozone terms, which is why
+`o3visw` and `o3uvw` exist alongside it.
+
 ## Does any of this port to an aquaplanet
 
 Cohen et al. model aquaplanets; this project models a world with land, deserts
