@@ -76,7 +76,9 @@ from sra import read_sra  # noqa: E402
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT / "lib") not in sys.path:
     sys.path.insert(0, str(ROOT / "lib"))
-from paths import rel  # noqa: E402
+from lapse import environmental_lapse_k_per_km  # noqa: E402
+import climatology  # noqa: E402  from lib/, via _paths
+from paths import climatology_path, rel  # noqa: E402
 from stellar import band1_fraction  # noqa: E402
 
 OUT = ROOT / "analysis" / "dust_forcing.json"
@@ -85,14 +87,16 @@ OUT_NC = ROOT / "analysis" / "dust_surface_forcing.nc"
 # Declared geometry, all of it stated rather than fitted.
 #
 # DIFFUSIVITY is the standard two-stream factor for a diffuse longwave field.
-# LAPSE_K_PER_KM and the dust scale height together set the temperature the layer
-# radiates at, which is what the longwave term is proportional to; the scale
-# height is `aeolian/config/dust.yaml`'s own, and for an exponential profile the
-# mass-weighted mean height IS the scale height.
+# The lapse rate and the dust scale height together set the temperature the
+# layer radiates at, which is what the longwave term is proportional to; the
+# scale height is `aeolian/config/dust.yaml`'s own, and for an exponential
+# profile the mass-weighted mean height IS the scale height. The rate itself is
+# NOT declared here: it was Earth's 6.5 K/km until PHYS-12, and it is now
+# measured from the baseline climatology at run time by `lib/lapse.py`
+# (season="annual", because t_surface below is an annual mean).
 # TRANSMISSION is the clear-sky shortwave transmission of the atmosphere above
 # the layer, which the two-stream forcing expression squares.
 DIFFUSIVITY = 1.66
-LAPSE_K_PER_KM = 6.5
 TRANSMISSION = 0.79
 LW_LO_UM, LW_HI_UM = 4.0, 40.0
 # The atmospheric window, and how much of it survives between a dust layer at the
@@ -327,10 +331,22 @@ def main() -> None:
           f"band 2 {sel['band2']}, thermal {sel['longwave']}")
 
     flux = float(config["orbit"]["baseline_flux_earth"])
-    insolation = 1361.0 * flux / 4.0
-    t_surface = 289.80
+    insolation = float(config["orbit"]["earth_solar_constant_w_m2"]) * flux / 4.0
+    # Global-mean surface temperature from the climatology the config names,
+    # bin-weighted. Was a hardcoded 289.80, a current value living in code --
+    # the same defect family as the 6.5 K/km this file just shed, flagged in
+    # the PHYS-12 pass. Planck emission goes as T^4, so drift here reaches the
+    # longwave term directly.
+    from netCDF4 import Dataset as _Dataset
+    from numpy.polynomial.legendre import leggauss as _leggauss
+    with _Dataset(climatology_path()) as _ds:
+        _ts = climatology.annual_mean_of(_ds, "ts")
+        _gw = _leggauss(_ts.shape[0])[1][::-1]
+        t_surface = float((_ts * _gw[:, None]).sum() / (_gw.sum() * _ts.shape[1]))
     scale_h_m = float(dust_cfg["transport"]["dust_scale_height_m"])
-    t_layer = t_surface - LAPSE_K_PER_KM * scale_h_m / 1000.0
+    lapse_k_per_km = environmental_lapse_k_per_km(config)
+    print(f"lapse rate {lapse_k_per_km:.2f} K/km, measured (lib/lapse.py, annual)")
+    t_layer = t_surface - lapse_k_per_km * scale_h_m / 1000.0
 
     mee_chain = float(dust["mass_extinction_efficiency_m2_kg"])
     central = dust["shelter_bracket"]["central"]
@@ -508,7 +524,9 @@ def main() -> None:
         "geometry": {"surface_temperature_k": t_surface,
                      "layer_temperature_k": round(t_layer, 2),
                      "dust_scale_height_m": scale_h_m,
-                     "lapse_k_per_km": LAPSE_K_PER_KM,
+                     "lapse_k_per_km": round(lapse_k_per_km, 3),
+                     "lapse_source": "lib/lapse.py, measured from the baseline "
+                                     "climatology, season=annual",
                      "diffusivity": DIFFUSIVITY,
                      "shortwave_transmission": TRANSMISSION,
                      "mean_insolation_w_m2": round(insolation, 2)},

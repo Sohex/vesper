@@ -296,7 +296,9 @@ resolving a build to a path, `paths.py` for repo-relative paths, `gridding.py`
 for mesh-to-grid integration and the one grid convention, `orbit.py` for the
 orbital period, `stellar.py` for the star's spectrum, band split and Rayleigh
 coefficient, `sensitivity.py` for the one flux-to-kelvin conversion,
-`climatology.py` for the time-bin weights an annual mean needs, and
+`climatology.py` for the time-bin weights an annual mean needs, `lapse.py`
+for the measured environmental lapse rate and the composition-derived dry
+adiabat, and
 `provenance.py` for build stamping and config drift. Reuse them; do not
 reimplement. Rules 5 and 7 both cite modules from this list.
 

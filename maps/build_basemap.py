@@ -32,6 +32,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
 from lib import builds  # noqa: E402
 import gridding  # noqa: E402
+import lapse  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 BUILD_DIR = Path(__file__).resolve().parent / "build"
@@ -378,8 +379,11 @@ def main():
     lrgb = lrgb * (1 - dry) + PLAYA_RGB * dry
 
     # Permanent snow and ice: warmest month below freezing after a lapse-rate
-    # correction from the T42 orography to this one.
-    t_surface = warmest_hi - 6.5 * (elev - clim_elev_hi)
+    # correction from the T42 orography to this one. The rate is measured, not
+    # Earth's 6.5 (PHYS-12), and it is the warm-season one because the field
+    # being extrapolated is the warmest month.
+    lapse_k_per_km = lapse.environmental_lapse_k_per_km(season="warmest")
+    t_surface = warmest_hi - lapse_k_per_km * (elev - clim_elev_hi)
     ice = np.clip((273.15 - t_surface) / 4.0, 0, 1)[..., None]
     lrgb = lrgb * (1 - ice) + ICE_RGB * ice
 

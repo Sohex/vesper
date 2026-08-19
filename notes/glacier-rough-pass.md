@@ -87,11 +87,51 @@ repeating. See `exoplasim/notes/parameter-decisions.md`.
 
 - **The -4.7 K offset is a proxy**, not a measurement. Redo against the real
   0.945 climatology.
-- **The lapse rate is assumed**, 5.5 to 6.5 K/km, not taken from the model's own
-  temperature profile, which is available on 10 levels.
+- **The lapse rate is no longer assumed.** It is measured from the model's own
+  10-level profile by `lib/lapse.py`, and the measurement says the bracket this
+  note explored sat entirely on the shallow side; the correction section below
+  has the numbers and the direction. The TABLE above still shows what 6.5 K/km
+  produced, as the dated record of what was computed.
 - **No mass balance.** Warmest-month-below-freezing is a temperature criterion.
   A real glacier also needs accumulation, and a cold dry peak does not glaciate.
   This is the single largest reason to treat these numbers as an upper bound.
 - **No lapse-rate feedback on precipitation phase, no ice albedo, no flow.**
 - **Sub-grid hypsometry is not persisted.** It was computed inline. The reusable
   version belongs with the downscaling machinery rather than as a one-off here.
+
+## Correction, 2026-08-19: the rate is measured, and the old bracket was one-sided
+
+Measured on the baseline climatology of `run_8c2e1ff9ab5e` by `lib/lapse.py`:
+temperature against hypsometric height over sigma 0.45 to 0.90 (about 1.1 to
+3.5 km above the surface, the band `z*` lives in), per land column, land-area
+weighted, output bins weighted by their record counts.
+
+| rate | K/km |
+| --- | --- |
+| annual mean | 6.78 |
+| warmest bin per cell, the one this note's criterion extrapolates | 7.82 |
+| dry adiabat g/cp, from the configured composition | 12.75 |
+
+Two things follow, one about the audit's expectation and one about this note.
+
+The audit that opened PHYS-12 expected "nearer 8.5" by scaling Earth's 6.5 with
+the gravity ratio. The measurement lands below that: this atmosphere is more
+stably stratified relative to its own adiabats than a pure `g/cp` scaling
+assumes, which is exactly why the rate had to be measured rather than derived.
+The warm-season rate, the operative one here, is 7.8.
+
+For this note's table: `z* = cell_mean + (T_warmest - 273.15) / lapse`, so at
+7.8 K/km the height term shrinks to 0.83 of its 6.5 value, the freezing surface
+drops, and every area in the table grows. By the note's own measured
+sensitivity -- 5.5 K/km roughly halves the areas relative to 6.5 -- 7.8 roughly
+DOUBLES them, putting the 0.945 cycle-mean nearer 3.5 than 1.85 Mkm2. The exact
+factor is not computed here, because this note already owes a redo against the
+real 0.945 climatology and the two corrections belong in one pass.
+
+The direction is the finding. Every other caveat in the section above pushes
+the same way, making the areas an upper bound; the lapse assumption pushed the
+OPPOSITE way, an undercount, and the bracket 5.5 to 6.5 could never have said
+so because both ends sat below the measurement. The note's areas are therefore
+no longer a clean upper bound: the missing mass balance still argues they are
+too large, the corrected lapse argues they are too small, and only the redo
+settles which wins.
