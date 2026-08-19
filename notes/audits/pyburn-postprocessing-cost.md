@@ -5,16 +5,33 @@ model output, 120 requested codes, 281 variables written.
 
 ## Result
 
-| | wall |
-| --- | --- |
-| pyburn as shipped | 363.5 s |
-| pyburn fixed | 46.1 s |
+Driven with the exact kwargs `Model.run()` forwards for a configured
+postprocessor -- `namelist` None and the project's 120-code `variables` list:
 
-7.9x, with all 281 output variables **bitwise identical**. Both timings are
-unprofiled, on the same raw file, same code list.
+| | wall | np.append calls |
+| --- | --- | --- |
+| pyburn as shipped | 304.0 s | 3,062,749 |
+| pyburn fixed | 29.4 s | 1 |
 
-For context the model itself takes 77 to 93 s an orbit, so postprocessing went
-from roughly four times the cost of the science to about half of it.
+10.3x, with all 123 output variables **bitwise identical**. Both timings are
+unprofiled, on the same raw file.
+
+**It reproduces the pipeline's own recorded history.** `continue_exoplasim.py`
+records 387 s of wall clock an orbit at `NLOWIO = 0`, measured 2026-08-17. This
+bench gives 81 s of model plus 304 s of pyburn, 385 s. After the fix the same
+orbit is 81 + 29 = 110 s, so an orbit costs about a third of what it did.
+
+The model takes 77 to 93 s, so postprocessing went from roughly four times the
+cost of the science to about a third of it.
+
+**A caution about which invocation is measured.** pyburn ignores `variables`
+whenever a `namelist` is also given (`pyburn.py`, "Scrape namelist"). The
+pipeline never passes one -- `run()` calls `postprocess(dataname, None, ...)`
+and `cfgpostprocessor` stores `namelist=None` -- so production processes exactly
+the 120 codes it asks for and never reads `example.nl`. A hand-written harness
+that passes `example.nl` instead processes its 216 codes, including `wa` and the
+streamfunction that production never requests, and measures 363.5 s against
+46.1 s. Same defect, heavier workload; quote the 304 to 29.4 figures.
 
 ## The defect that mattered
 

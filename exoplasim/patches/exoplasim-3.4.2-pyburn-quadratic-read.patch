@@ -1,11 +1,19 @@
 # pyburn: two accidentally-quadratic / per-element hot paths, both O(n) now.
 #
-# MEASURED, one T42 orbit at NLOWIO = 0 (2.4 GB raw, 120 requested codes,
-# unprofiled, same input file both ways):
+# MEASURED, one T42 orbit at NLOWIO = 0 (2.4 GB raw), driven with the EXACT
+# kwargs Model.run() -> Model.postprocess() forwards for a configured
+# postprocessor -- namelist None, the project's 120-code `variables` list --
+# unprofiled, same input file both ways:
 #
-#     before   363.5 s
-#     after     46.1 s          7.9x, and 281 of 281 output variables
-#                               BITWISE IDENTICAL.
+#     before   304.0 s     3,062,749 np.append calls
+#     after     29.4 s             1 np.append call
+#
+#     10.3x, and 123 of 123 output variables BITWISE IDENTICAL.
+#
+# That reproduces the pipeline's own history. `continue_exoplasim.py` records
+# 387 s of wall clock an orbit for NLOWIO = 0, measured 2026-08-17; this bench
+# gives 81 s of model plus 304 s of pyburn = 385 s. After the fix the same orbit
+# is 81 + 29 = 110 s.
 #
 # WHAT WAS WRONG. Two separate defects, found by profiling and confirmed by
 # call counts rather than by reading:
@@ -35,11 +43,13 @@
 # ~81k LARGE appends in (1), which the same profile also attributed to
 # np.append. Call counts separated them; the profile alone did not.
 #
-# VERIFICATION. `full_origclean.nc` against `full_fixed.nc` for one full orbit:
-# 281 variables each, 281 bitwise identical, zero differing. On a 20-record
-# fixture the only non-identical field was `wa_std` at max_abs 6.8e-21 and
-# max_rel 3.4e-7, i.e. float32 epsilon on a standard deviation whose underlying
-# `wa` was itself bitwise identical; at full length even that agrees exactly.
+# VERIFICATION. Two full-orbit comparisons, both zero differing fields: the
+# production invocation above at 123 of 123 bitwise identical, and a heavier
+# 216-code run driven through a burn7-style namelist at 281 of 281. That second
+# path is NOT what the pipeline uses -- pyburn ignores `variables` when a
+# namelist is given (pyburn.py, "Scrape namelist"), and only a hand-written
+# harness passes one -- but it exercises `wa` and the streamfunction, which
+# production never requests, so it is the wider correctness net of the two.
 #
 # THE BASE IT APPLIES TO. Authored 2026-08-18 against pyburn.py as shipped in
 # the pinned ExoPlaSim 3.4.2 wheel. It touches pyburn.py and nothing else, adds
