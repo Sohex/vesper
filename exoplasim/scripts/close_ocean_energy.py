@@ -30,14 +30,22 @@ atmospheric diagnostics. The codes used here:
                   939 ysst     the slab temperature itself, INSTANTANEOUS
                   972 yls      land mask
 
-THE INSTRUMENT ONLY EXISTS FOR THE LAST SEGMENT OF A RUN. `oceanmod.f90:331`
-and its counterpart in `icemod.f90` open these files with a bare
-`open(unit,file=...,form='unformatted')`, which truncates. Every model call
-therefore discards the previous call's stream and writes only its own. This
-script REFUSES a window that is not the run's final segment rather than
-returning numbers for orbits whose records were overwritten, in the same spirit
-as `close_term_energy.py` refusing a low-I/O window: a measurement that cannot
-be made should fail loudly, not quietly return the wrong orbit.
+WHICH ORBITS THE INSTRUMENT COVERS depends on when the run was made, and this
+script reads what is there rather than assuming either. `oceanmod.f90:331` and
+`icemod.f90:429` open these files with a bare
+`open(unit,file=...,form='unformatted')`, which truncates, so every model call
+discarded the previous call's stream and wrote only its own. CLIM-12 moved each
+call's stream aside to `MOST_OCEAN.NNNNN` and `MOST_ICE.NNNNN` before the next
+call starts, the way `MOST.NNNNN` was always handled -- 200 MB an orbit and no
+model time -- so a run made after it carries the whole block and the closure is
+an exact endpoint difference rather than a trend fitted through one orbit.
+
+A run made BEFORE it has the single in-place file holding its final orbit alone.
+That is read, not refused, because one orbit is what that run has and the
+identities still close on it; the coverage is printed and recorded in the report
+so no result is quoted as a block when it is a single orbit. What must never
+happen is the third case -- reading a single file as though it were the block --
+and it cannot, because the orbit list comes from the filenames.
 
 WHAT IS TESTED. Six identities, each with a right answer of zero, on ocean cells
 that carry neither ice nor snow at any point in the window -- a mask taken from
@@ -93,6 +101,7 @@ import hashlib
 import json
 import os
 import struct
+from collections.abc import Sequence
 from pathlib import Path
 
 import numpy as np
@@ -124,49 +133,86 @@ MUST_BE_ZERO = {"yfsst": "flux correction, nfluko = 0",
                 "yfldo": "deep-ocean flux, NLSG = 0"}
 
 
-def read_service(path: Path, keep: dict[int, str]) -> dict[str, np.ndarray]:
-    """Every record of a PlaSim service-format stream, as (time, lat, lon).
+def read_service(paths: Sequence[Path], keep: dict[int, str]) -> dict[str, np.ndarray]:
+    """Every record of one or more PlaSim service-format streams, (time, lat, lon).
 
     Each field is two Fortran unformatted records: an 8-integer header whose
     first entry is the field code, then NLON*NLAT float32 values. Read one
     record at a time and keep only the requested codes, so the working set is
     the fields asked for rather than the whole file.
+
+    `paths` is a sequence because a run's stream is now one file per orbit and
+    they concatenate in orbit order. Pass them already sorted; this does not
+    re-sort, because the caller knows the orbit numbering and this does not.
     """
-    size = os.path.getsize(path)
     out: dict[int, list[np.ndarray]] = {}
     shape = None
-    with open(path, "rb") as handle:
-        while handle.tell() < size:
-            length = struct.unpack("i", handle.read(4))[0]
-            head = np.frombuffer(handle.read(length), dtype=np.int32)
-            handle.read(4)
-            length = struct.unpack("i", handle.read(4))[0]
-            raw = handle.read(length)
-            handle.read(4)
-            nlon, nlat = int(head[4]), int(head[5])
-            if shape is None:
-                shape = (nlat, nlon)
-            elif shape != (nlat, nlon):
-                raise SystemExit(f"{path} changes grid mid-file")
-            code = int(head[0])
-            if code in keep:
-                out.setdefault(code, []).append(
-                    np.frombuffer(raw, dtype=np.float32).reshape(shape))
+    for path in paths:
+        size = os.path.getsize(path)
+        with open(path, "rb") as handle:
+            while handle.tell() < size:
+                length = struct.unpack("i", handle.read(4))[0]
+                head = np.frombuffer(handle.read(length), dtype=np.int32)
+                handle.read(4)
+                length = struct.unpack("i", handle.read(4))[0]
+                raw = handle.read(length)
+                handle.read(4)
+                nlon, nlat = int(head[4]), int(head[5])
+                if shape is None:
+                    shape = (nlat, nlon)
+                elif shape != (nlat, nlon):
+                    raise SystemExit(f"{path} changes grid mid-file")
+                code = int(head[0])
+                if code in keep:
+                    out.setdefault(code, []).append(
+                        np.frombuffer(raw, dtype=np.float32).reshape(shape))
     missing = [name for code, name in keep.items() if code not in out]
     if missing:
-        raise SystemExit(f"{path} does not carry {missing}")
+        raise SystemExit(f"{[str(p) for p in paths]} does not carry {missing}")
     counts = {len(v) for v in out.values()}
     if len(counts) != 1:
-        raise SystemExit(f"{path} has unequal record counts per field: {counts}")
+        raise SystemExit(f"unequal record counts per field across "
+                         f"{[str(p) for p in paths]}: {counts}")
     return {keep[code]: np.stack(v).astype(float) for code, v in out.items()}
 
 
-def final_orbit(manifest: dict) -> int:
-    """The last orbit of the run, which is the only one the streams still hold.
+# The per-call names the wrapper moves the streams to, and the in-place names
+# the model writes them under while a call is running.
+STREAM_NAMES = {"ocean": ("MOST_OCEAN", "ocean_output"),
+                "ice": ("MOST_ICE", "ice_output")}
 
-    The truncating `open` discards the stream at every model call, and the
-    wrapper calls the model once per orbit, so what survives on disk is the
-    final orbit and nothing else -- not the final segment, which may be several.
+
+def stream_files(run_dir: Path, which: str) -> tuple[list[Path], list[int]]:
+    """The stream's files in orbit order, and the orbits they cover.
+
+    Two layouts exist and the difference is CLIM-12. `oceanmod.f90:331` and
+    `icemod.f90:429` open these files without `position='append'`, so the model
+    truncates them at every call; the wrapper now moves each call's stream to
+    `MOST_OCEAN.NNNNN` / `MOST_ICE.NNNNN` before the next call starts, exactly
+    as it already did for `MOST.NNNNN`. A run made before that patch has only
+    the single in-place file, holding its FINAL ORBIT ALONE, and is read that
+    way rather than refused -- but the orbit list says so, and the caller states
+    the coverage rather than assuming a block.
+    """
+    prefix, legacy = STREAM_NAMES[which]
+    per_call = sorted(run_dir.glob(f"{prefix}.[0-9][0-9][0-9][0-9][0-9]"))
+    if per_call:
+        return per_call, [int(p.suffix[1:]) for p in per_call]
+    single = run_dir / legacy
+    if single.is_file():
+        return [single], []
+    raise SystemExit(
+        f"{run_dir} carries neither {prefix}.NNNNN nor {legacy}. The ocean and "
+        "ice streams are written whenever NOCEAN and NICE are on and "
+        "noutput > 0; a run without them cannot be closed this way.")
+
+
+def final_orbit(manifest: dict) -> int:
+    """The run's last orbit, from the manifest.
+
+    Before CLIM-12 this was the only orbit the streams held, because the
+    truncating `open` discarded the previous call's at every call. It is now
+    just the end of the range; `stream_files` reports what is actually present.
     """
     segments = manifest.get("segments", [])
     if not segments:
@@ -211,10 +257,23 @@ def close_ocean(run_dir: Path) -> dict:
     manifest_path = run_dir / "run_manifest.json"
     manifest = (json.loads(manifest_path.read_text(encoding="utf-8"))
                 if manifest_path.is_file() else {})
-    first = last = final_orbit(manifest)
+    ocean_paths, ocean_orbits = stream_files(run_dir, "ocean")
+    ice_paths, ice_orbits = stream_files(run_dir, "ice")
+    if ocean_orbits != ice_orbits:
+        raise SystemExit(f"the ocean stream covers orbits {ocean_orbits} and the "
+                         f"ice stream {ice_orbits}; they are written by the same "
+                         "model call and must cover the same block")
+    if ocean_orbits:
+        first, last = ocean_orbits[0], ocean_orbits[-1]
+        if ocean_orbits != list(range(first, last + 1)):
+            raise SystemExit(f"the stream orbits {ocean_orbits} have a gap; this "
+                             "closure integrates a contiguous block")
+    else:
+        # Pre-CLIM-12 run: one in-place file holding the final orbit alone.
+        first = last = final_orbit(manifest)
 
-    ocean = read_service(run_dir / "ocean_output", OCEAN_CODES)
-    ice = read_service(run_dir / "ice_output", ICE_CODES)
+    ocean = read_service(ocean_paths, OCEAN_CODES)
+    ice = read_service(ice_paths, ICE_CODES)
     nrec = ocean["ysst"].shape[0]
     if ice["xheat"].shape[0] != nrec:
         raise SystemExit("the ocean and ice streams hold different record counts; "
@@ -379,7 +438,11 @@ def close_ocean(run_dir: Path) -> dict:
         "window": {"first_orbit": first, "last_orbit": last,
                    "orbits": len(orbits), "stream_records": nrec,
                    "record_seconds": record_seconds, "bin_seconds": bin_seconds,
-                   "mixed_layer_depth_m": mld},
+                   "mixed_layer_depth_m": mld,
+                   # Which layout this was read from, so a single-orbit result
+                   # can never be quoted as a block. CLIM-12.
+                   "stream_layout": "per_call" if ocean_orbits else "final_orbit_only",
+                   "stream_orbits": ocean_orbits or [last]},
         "alignment": alignment,
         "by_mask": result,
         "first_bin_weight": first_bin,
@@ -396,15 +459,15 @@ def main() -> None:
     manifest_path = run_dir / "run_manifest.json"
     manifest = (json.loads(manifest_path.read_text(encoding="utf-8"))
                 if manifest_path.is_file() else {})
-    for name in ("ocean_output", "ice_output"):
-        if not (run_dir / name).is_file():
-            raise SystemExit(
-                f"{run_dir/name} does not exist. The ocean and ice streams are "
-                "written whenever NOCEAN and NICE are on and noutput > 0; a run "
-                "without them cannot be closed this way.")
-    print(f"# ocean and ice streams cover only orbit {final_orbit(manifest)}, "
-          "the run's last; every earlier call's stream was truncated by the "
-          "next call's open()")
+    _, orbits = stream_files(run_dir, "ocean")     # raises if neither layout is present
+    stream_files(run_dir, "ice")
+    if orbits:
+        print(f"# ocean and ice streams cover orbits {orbits[0]}-{orbits[-1]}, "
+              f"{len(orbits)} of them, one file per model call")
+    else:
+        print(f"# ocean and ice streams cover only orbit {final_orbit(manifest)}, "
+              "the run's last: this run predates CLIM-12 and every earlier "
+              "call's stream was truncated by the next call's open()")
 
     result = close_ocean(run_dir)
     report = {

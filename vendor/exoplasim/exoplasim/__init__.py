@@ -736,6 +736,12 @@ class Model(object):
             restname="MOST_REST.%05d"%self.currentyear
             snowname="MOST_SNOW.%05d"%self.currentyear
             stormname="MOST.%05d.STORM"%self.currentyear
+            # The ocean and ice streams are opened WITHOUT position='append'
+            # (oceanmod.f90:331, icemod.f90:429), so the next model call
+            # truncates them. Move them aside per call the way every other
+            # output already is, or a multi-call run keeps only its last orbit.
+            oceanname="MOST_OCEAN.%05d"%self.currentyear
+            icename  ="MOST_ICE.%05d"%self.currentyear
             
             runerror = True
             failed_postprocess = False
@@ -774,6 +780,10 @@ class Model(object):
                 print("[ -e plasim_status ] && mv plasim_status "+restname)
                 os.system("[ -e restart_snow ] && mv restart_snow "+snowname)
                 print("[ -e restart_snow ] && mv restart_snow "+snowname)
+                os.system("[ -e ocean_output ] && mv ocean_output "+oceanname)
+                print("[ -e ocean_output ] && mv ocean_output "+oceanname)
+                os.system("[ -e ice_output ] && mv ice_output "+icename)
+                print("[ -e ice_output ] && mv ice_output "+icename)
                 os.system("[ -e hurricane_indicators ] && mv hurricane_indicators "+stormname)
                 print("[ -e hurricane_indicators ] && mv hurricane_indicators "+stormname)
                 
@@ -1040,6 +1050,12 @@ class Model(object):
             restname="MOST_REST.%05d"%self.currentyear
             snowname="MOST_SNOW.%05d"%self.currentyear
             stormname="MOST.%05d.STORM"%self.currentyear
+            # The ocean and ice streams are opened WITHOUT position='append'
+            # (oceanmod.f90:331, icemod.f90:429), so the next model call
+            # truncates them. Move them aside per call the way every other
+            # output already is, or a multi-call run keeps only its last orbit.
+            oceanname="MOST_OCEAN.%05d"%self.currentyear
+            icename  ="MOST_ICE.%05d"%self.currentyear
             
             failed_postprocess = False
             
@@ -1067,6 +1083,8 @@ class Model(object):
                 os.system("[ -e plasim_status ] && cp plasim_status plasim_restart")
                 os.system("[ -e plasim_status ] && mv plasim_status "+restname)
                 os.system("[ -e restart_snow ] && mv restart_snow "+snowname)
+                os.system("[ -e ocean_output ] && mv ocean_output "+oceanname)
+                os.system("[ -e ice_output ] && mv ice_output "+icename)
                 os.system("[ -e hurricane_indicators ] && mv hurricane_indicators "+stormname)
                 
                 #Do any additional work
