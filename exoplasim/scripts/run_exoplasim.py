@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+from datetime import datetime, timezone
 import hashlib
 import json
 import math
@@ -574,7 +575,7 @@ def energy_diagnostics_enabled(config: dict) -> bool:
     return bool(config["model"].get("energy_diagnostics", False))
 
 
-def disable_low_io(model) -> None:
+def set_low_io(model, low_io: bool) -> None:
     """Turn off PlaSim's low-I/O accumulation, so output is instantaneous.
 
     `NLOWIO = 1` is PlaSim's default (`plasimmod.f90:151`) and accumulates fields
@@ -612,8 +613,15 @@ def disable_low_io(model) -> None:
 
     It has to be reapplied on every continuation, because `configure()` rewrites
     the namelist each time.
+
+    WRITTEN EXPLICITLY IN BOTH DIRECTIONS, never left to the compiled default.
+    `nlowio` defaults to 1 in `plasimmod.f90` and is read on NROOT only; the
+    broadcast that makes it agree across ranks is ours, and a namelist that
+    states the regime is the artifact that says which one ran. Leaving it unsaid
+    is what made the deadlock in `notes/audits/nlowio-collective-deadlock.md`
+    invisible for a day.
     """
-    model._edit_namelist("plasim_namelist", "NLOWIO", "0")
+    model._edit_namelist("plasim_namelist", "NLOWIO", "1" if low_io else "0")
 
 
 def enable_energy_diagnostics(model, config: dict) -> bool:
@@ -1031,6 +1039,30 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=Path, default=CONFIG)
     parser.add_argument("--flux-ratio", type=float, default=None)
+    # THE DEFAULT IS THE CHEAP REGIME, because the orbits this script writes are
+    # a spin-up: a run is prepared cold or off a seed and integrates toward
+    # equilibrium, and nothing should be building a climatology from the first
+    # block. The clean regime is bought per segment, at the end, for the orbits
+    # an analysis actually reads -- `continue_exoplasim.py --purpose
+    # post_equilibrium_climatology`, which refuses low I/O outright.
+    #
+    # This was `disable_low_io()` with no way to say otherwise, so every orbit
+    # of every run paid for instantaneous samples and the spin-up ones threw
+    # them away. Safe to flip because the bin-0 defect is fixed and verified
+    # (`exoplasim/notes/first-output-bin.md`) and because `nlowio` is now
+    # broadcast, without which NLOWIO = 0 deadlocks a patched model
+    # (`notes/audits/nlowio-collective-deadlock.md`).
+    #
+    # What low I/O costs is not accuracy but INFORMATION: it writes interval
+    # accumulations where the clean regime writes instantaneous samples, and an
+    # accumulation cannot be undone. Anything reading variance, extremes or
+    # single records needs --clean-io.
+    parser.add_argument(
+        "--clean-io", dest="low_io", action="store_false", default=True,
+        help="run this block at NLOWIO = 0, writing instantaneous samples "
+             "rather than interval accumulations. The default is the cheap "
+             "regime, because a prepared run is a spin-up; pass this when the "
+             "block itself has to be read as data")
     parser.add_argument(
         "--run-years", type=int, default=0,
         help="Run this many model orbits after preparation",
@@ -1275,7 +1307,7 @@ def main() -> None:
               "patches/exoplasim-3.4.2-dust-emission.patch, the two aerosol "
               "patches under it, and a rebuild.")
 
-    disable_low_io(model)
+    set_low_io(model, args.low_io)
     if enable_energy_diagnostics(model, config):
         n = register_energy_diagnostic_codes()
         print(f"energy diagnostics on: nenergy=1, {n} codes 360-387 registered "
@@ -1405,6 +1437,30 @@ def main() -> None:
                 "smoke_complete" if args.run_years == 1 else "run_complete"
             )
             manifest["completed_orbits"] = args.run_years
+            # REGISTER THE BLOCK AS A SEGMENT, like a continuation does.
+            # Without this the orbits this script writes carry no purpose and
+            # no `low_io`, and CLIM-9's two defaults then disagree about them:
+            # unlabelled counts as production for convergence and as TAINTED
+            # for I/O regime. That was harmless while the block was always
+            # NLOWIO = 0 and merely conservative; with the cheap regime as the
+            # default it would be a run whose first block really is
+            # accumulations and says so nowhere.
+            #
+            # The purpose is `spinup` and is not a parameter: this script
+            # prepares a run and integrates it from a cold start or a seed,
+            # which is the definition of one. Orbits meant to be read as data
+            # come from `continue_exoplasim.py --purpose
+            # post_equilibrium_climatology`, on a run something has assessed.
+            manifest.setdefault("segments", []).append({
+                "start_year_index": 0,
+                "end_year_index": args.run_years - 1,
+                "seasonal_output": True,
+                "low_io": bool(args.low_io),
+                "high_cadence": False,
+                "purpose": "spinup",
+                "stellar_spectrum_digest": stellar_spectrum_digest(config),
+                "finished_utc": datetime.now(timezone.utc).isoformat(),
+            })
         except Exception:
             manifest["status"] = "failed"
             manifest_path.write_text(

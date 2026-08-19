@@ -34,7 +34,7 @@ from run_exoplasim import (  # noqa: E402
     REGULAR_CODES,
     ENERGY_DIAGNOSTIC_CODES,
     ENERGY_3D_CODES,
-    disable_low_io,
+    set_low_io,
     enable_energy_diagnostics,
     energy_diagnostics_enabled,
     register_energy_diagnostic_codes,
@@ -226,13 +226,16 @@ def main() -> None:
     # clean regime costs about 1.27x. See
     # notes/audits/pyburn-postprocessing-cost.md. Segments record which regime
     # they ran, and `build_climatology.py` refuses to mix them.
-    parser.add_argument(
-        "--low-io", action="store_true",
-        help="run this segment with PlaSim's low-I/O accumulation ON: about "
-             "1.27x cheaper per orbit, and every orbit carries interval "
-             "ACCUMULATIONS rather than instantaneous samples, which cannot be "
-             "undone afterwards. SPIN-UP ONLY -- never for orbits a climatology "
-             "will be built from")
+    io_mode = parser.add_mutually_exclusive_group()
+    io_mode.add_argument(
+        "--low-io", dest="low_io", action="store_true", default=None,
+        help="force PlaSim's low-I/O accumulation ON for this segment: cheaper "
+             "per orbit, and every orbit carries interval ACCUMULATIONS rather "
+             "than instantaneous samples, which cannot be undone afterwards")
+    io_mode.add_argument(
+        "--clean-io", dest="low_io", action="store_false", default=None,
+        help="force it OFF, writing instantaneous samples. Needed by anything "
+             "reading variance, extremes or single records")
     parser.add_argument(
         "--high-cadence", action="store_true",
         help="write near-surface wind every fourth timestep for this segment, "
@@ -245,18 +248,29 @@ def main() -> None:
         raise ValueError("--orbits must be positive")
     if args.high_cadence and args.high_cadence_interval < 1:
         raise ValueError("--high-cadence-interval must be positive")
-    # The declaration is checked against the flags rather than derived from
-    # them. These two combinations are not judgement calls: a low-I/O orbit
-    # carries a corrupt first output record in wind and humidity, and an orbit
-    # with no seasonal snapshots carries no orbital phase, so neither can be a
-    # climatology orbit whatever anyone intended.
+    # THE I/O REGIME FOLLOWS THE PURPOSE, which is the whole reason the purpose
+    # is declared rather than inferred. A spin-up integrates toward equilibrium
+    # and nothing reads its output, so it gets the cheap regime; the other two
+    # exist to be READ, so they get instantaneous samples. Either flag overrides.
+    if args.low_io is None:
+        args.low_io = args.purpose == "spinup"
+    # These two combinations are not judgement calls. The reason for the first
+    # has CHANGED and the refusal has not: it used to be that a low-I/O orbit
+    # carried a corrupt first output record, and that defect is fixed and
+    # verified. What remains is not a bug but an inequality -- low I/O writes
+    # interval ACCUMULATIONS where the clean regime writes instantaneous
+    # samples, a mean can be recovered from samples and an accumulation cannot
+    # be undone -- so a climatology built on it is permanently poorer than one
+    # that was not. An orbit with no seasonal snapshots carries no orbital
+    # phase, which is the second.
     if args.purpose == "post_equilibrium_climatology":
         if args.low_io:
             raise SystemExit(
-                "--purpose post_equilibrium_climatology with --low-io: a low-I/O "
-                "orbit carries a corrupt first output record in wind and "
-                "humidity, so it can never be climatology input. Use --purpose "
-                "diagnostic, or drop --low-io.")
+                "--purpose post_equilibrium_climatology with --low-io: low I/O "
+                "writes interval accumulations, not instantaneous samples, and "
+                "that cannot be undone afterwards -- variance, extremes and "
+                "single records are gone from those orbits for good. Drop "
+                "--low-io, or declare the segment --purpose diagnostic.")
         if not args.seasonal_output:
             raise SystemExit(
                 "--purpose post_equilibrium_climatology with --no-seasonal-output: "
@@ -443,11 +457,15 @@ def main() -> None:
     # Every continuation re-runs configure(), which rewrites the namelist, so
     # this has to be reapplied here and not only at prepare time. It is also
     # independent of the energy diagnostics, which it used to be nested inside.
-    if not args.low_io:
-        disable_low_io(model)
+    set_low_io(model, args.low_io)
+    if args.low_io:
+        print("  NLOWIO = 1 for this segment: cheaper, and every orbit carries "
+              "interval accumulations rather than instantaneous samples. "
+              "build_climatology.py refuses these orbits without "
+              "--allow-low-io, which is the guard rather than a nuisance.")
     else:
-        print("  NLOWIO = 1 for this segment: faster, and every orbit will carry "
-              "a corrupt first output record in wind and humidity. Spin-up only.")
+        print("  NLOWIO = 0 for this segment: instantaneous samples, for orbits "
+              "something will read as data.")
     regular_codes = list(REGULAR_CODES)
     if energy_diagnostics_enabled(config):
         enable_energy_diagnostics(model, config)

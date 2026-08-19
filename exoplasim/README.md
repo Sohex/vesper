@@ -69,12 +69,34 @@ the accumulation semantics above, so it does not merge the two regimes. Every ru
 currently in `exoplasim/runs/` was written before it and still needs the
 corrections in `exoplasim/notes/first-output-bin.md`.
 
-**What it costs.** Measured 2026-08-18 with the postprocessor fixed: about 1.27x
-per orbit for the clean regime, where it used to be 3.7x. Nearly all of that
-former gap was a quadratic reader in `pyburn`, not the I/O mode; see
-`notes/audits/pyburn-postprocessing-cost.md`. Model time is identical either way.
-Raw output is several times larger under `NLOWIO = 0`, so delete run directories
-once their climatologies are extracted.
+**What it costs, and the honest state of that number.** The often-quoted 1.27x
+for the clean regime was measured 2026-08-18 with only the postprocessor's
+quadratic reader fixed. A second fix the next day took the read from about 30 s
+an orbit to about 1 s, and since the 1.27x was mostly that reader, **the ratio is
+now unknown and is probably much nearer 1.0**. Do not quote 1.27x as a current
+cost; re-measure it, which needs one segment in each regime on a run made after
+both fixes. `notes/audits/pyburn-postprocessing-cost.md`.
+
+What is NOT in doubt is the raw volume: about 2.4 GB an orbit at `NLOWIO = 0`
+against about 96 MB at `NLOWIO = 1`, so the clean regime writes roughly 25x the
+bytes even though they are deleted after postprocessing. Model time differs by a
+few percent at most. Delete run directories once their climatologies are
+extracted.
+
+**So the regime is chosen on INFORMATION, not on speed.** Low I/O writes interval
+accumulations and the clean regime writes instantaneous samples; a mean can be
+recovered from samples and an accumulation cannot be undone. Buy samples for the
+orbits something will read and not for the orbits nothing will.
+
+**What CHOOSES it, as of 2026-08-19.** The regime follows the declared purpose
+rather than a flag anyone has to remember. `run_exoplasim.py` prepares a run and
+integrates it toward equilibrium, so its block is low I/O by default and
+`--clean-io` overrides; it now also registers that block as a `spinup` segment,
+so the orbits it writes carry a purpose and a `low_io` like any other.
+`continue_exoplasim.py` derives the default from `--purpose`: `spinup` gets the
+cheap regime, `post_equilibrium_climatology` and `diagnostic` get samples, and
+`--low-io`/`--clean-io` force either. Before this, every orbit of every run paid
+for instantaneous samples and the spin-up ones threw them away.
 
 **What enforces it.** `--purpose post_equilibrium_climatology` with `--low-io` is
 refused outright. Every segment records `low_io`, `build_climatology.py` refuses a
@@ -195,6 +217,7 @@ unless told they exist.
 | `analyze_climatology.py` | diagnostics, maps and a rate-normalised Koppen interpretation |
 | `derive_design_flux.py` | codifies WORKFLOW 5b's flux choice: declared comfort-band thresholds scored per candidate flux from two converged points, with the humidity-coupled variant beside the dry score; writes `analysis/design_flux.json` |
 | `analyze_smoke.py` | audit and plot a one-orbit smoke run |
+| `bench_pyburn_read.py` | times and VERIFIES pyburn's raw reader on a synthetic output file of one orbit's geometry, because no real raw file survives postprocessing to re-measure against. `--verify` requires every variable to match a reference reader in value, shape and dtype; `notes/audits/pyburn-postprocessing-cost.md` has what it measured |
 | `analyze_stellar_cycles.py` | phase-folded response of completed cycle runs |
 | `compare_flux_sweep.py` | compare equilibrated reports across a flux sweep |
 | `run_albedo_bracket.sh` | drives the four bracket cases end to end, threading each run's announced id into its own continuation; `--self-test` checks that threading without a model |
