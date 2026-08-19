@@ -145,6 +145,16 @@ steps:
       baseline_climatology is repointed here once it exists, so that nothing
       downstream keeps reading the bootstrap.
 
+  - id: design_flux
+    script: exoplasim/scripts/derive_design_flux.py
+    cost: minutes
+    needs: [baseline_climatology]
+    writes: [exoplasim/analysis/design_flux.json]
+    gate: >
+      needs a second converged flux point beside the baseline; the flux is
+      re-derived on every new terrain (WORKFLOW 5b and 6), and the thresholds
+      are declared in the script before it runs, never fitted to the answer
+
   - id: analyze_climatology
     script: exoplasim/scripts/analyze_climatology.py
     loop: A

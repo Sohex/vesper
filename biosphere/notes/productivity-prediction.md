@@ -243,10 +243,14 @@ production. Kiang et al.'s more dramatic result, that M-star planets could excee
 Earth's productivity if useful photons extend to 1.1 um, is explicitly for
 *anoxygenic* photosynthesis, which produces no oxygen and cannot sustain that
 atmosphere. Oxygenic photosynthesis is capped near 800 nm on known biochemistry:
-chlorophylls d and f, via far-red light photoacclimation, let some cyanobacteria
-work at 700-800 nm and contribute over 20% of gross photosynthesis in natural
-biofilms, but nothing oxygenic reaches 1.1 um without a three- or four-photon
-scheme nobody has observed. So the bottom two rows of that table are unavailable
+chlorophyll f absorbs at 706 nm in vitro and was isolated from stromatolite
+cyanobacteria cultured under 720 nm light (Chen, Schliep, Willows, Cai, Neilan, Scheer (2010). *A Red-Shifted Chlorophyll.* Science 329(5997), 1318-1319. `10.1126/science.1191127`),
+and with chlorophyll d it lets some cyanobacteria work at 700-800 nm via
+far-red photoacclimation. The further claim that such pigments contribute over
+20% of gross photosynthesis in natural biofilms is DECLARED here pending its
+own source -- it is real literature this project has not yet fetched, and none
+of the four window references contains it (REF-9). Nothing oxygenic reaches
+1.1 um without a three- or four-photon scheme nobody has observed. So the bottom two rows of that table are unavailable
 to a world with a 21% oxygen atmosphere, and the honest range is 0.81x to 1.16x,
 not 0.81x to 2.06x.
 

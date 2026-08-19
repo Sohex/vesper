@@ -1,0 +1,1282 @@
+{
+  "generated": "2026-08-19T07:28:30.555741+00:00",
+  "generator": "exoplasim/scripts/derive_design_flux.py",
+  "generator_sha256": "19196aac14a63d4ea6f25fbd8dfc5c42fa4bc30e045187f0af77067861793b9d",
+  "declared": {
+    "warm_ceiling_c": 33.0,
+    "cold_floor_c": -25.0,
+    "warm_extreme_c": 38.0,
+    "cold_extreme_c": -40.0,
+    "band_degrees": 10.0,
+    "candidates": [
+      0.85,
+      0.8525,
+      0.855,
+      0.8575,
+      0.86,
+      0.8625,
+      0.865,
+      0.8675,
+      0.87,
+      0.8725,
+      0.875,
+      0.8775,
+      0.88,
+      0.8825,
+      0.885,
+      0.8875,
+      0.89,
+      0.8925,
+      0.895,
+      0.8975,
+      0.9,
+      0.9025,
+      0.905,
+      0.9075,
+      0.91,
+      0.9125,
+      0.915,
+      0.9175,
+      0.92,
+      0.9225,
+      0.925,
+      0.9275,
+      0.93,
+      0.9325,
+      0.935,
+      0.9375,
+      0.94,
+      0.9425,
+      0.945,
+      0.9475,
+      0.95,
+      0.9525,
+      0.955,
+      0.9575,
+      0.96,
+      0.9625,
+      0.965,
+      0.9675,
+      0.97,
+      0.9725,
+      0.975,
+      0.9775,
+      0.98,
+      0.9825,
+      0.985,
+      0.9875,
+      0.99,
+      0.9925,
+      0.995,
+      0.9975,
+      1.0
+    ],
+    "anchor_flux": 0.945
+  },
+  "sources": {
+    "baseline": {
+      "path": "/home/cfutro/docs/world/exoplasim/analysis/climatology/baseline_regular_climatology.nc",
+      "flux": 0.945
+    },
+    "bracket": {
+      "run": "run_bfa3f5269660",
+      "flux": 0.91,
+      "tail_orbits": [
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45
+      ],
+      "note": "tas only; its spin-up I/O regime historically corrupted wind and humidity, so humidity comes from the clean climatology alone"
+    },
+    "global_mean_span_k": 7.819,
+    "slope_k_per_unit_flux": 202.0
+  },
+  "bands": [
+    {
+      "band": "-90 to -80",
+      "warm_c_at_0.945": 46.41,
+      "amp_warm": 0.639,
+      "cold_c_at_0.945": -51.28,
+      "amp_cold": 2.136
+    },
+    {
+      "band": "-80 to -70",
+      "warm_c_at_0.945": 39.5,
+      "amp_warm": 0.511,
+      "cold_c_at_0.945": -41.52,
+      "amp_cold": 2.224
+    },
+    {
+      "band": "-70 to -60",
+      "warm_c_at_0.945": 24.84,
+      "amp_warm": 0.37,
+      "cold_c_at_0.945": -30.11,
+      "amp_cold": 2.175
+    },
+    {
+      "band": "-60 to -50",
+      "warm_c_at_0.945": 14.67,
+      "amp_warm": 0.609,
+      "cold_c_at_0.945": -15.23,
+      "amp_cold": 1.761
+    },
+    {
+      "band": "-50 to -40",
+      "warm_c_at_0.945": 25.54,
+      "amp_warm": 1.042,
+      "cold_c_at_0.945": 0.49,
+      "amp_cold": 1.117
+    },
+    {
+      "band": "-40 to -30",
+      "warm_c_at_0.945": 34.89,
+      "amp_warm": 0.929,
+      "cold_c_at_0.945": 4.22,
+      "amp_cold": 0.952
+    },
+    {
+      "band": "-30 to -20",
+      "warm_c_at_0.945": 33.24,
+      "amp_warm": 0.834,
+      "cold_c_at_0.945": 12.73,
+      "amp_cold": 0.87
+    },
+    {
+      "band": "-20 to -10",
+      "warm_c_at_0.945": 28.91,
+      "amp_warm": 0.876,
+      "cold_c_at_0.945": 18.86,
+      "amp_cold": 0.88
+    },
+    {
+      "band": "-10 to +0",
+      "warm_c_at_0.945": 27.92,
+      "amp_warm": 0.825,
+      "cold_c_at_0.945": 22.76,
+      "amp_cold": 0.801
+    },
+    {
+      "band": "+0 to +10",
+      "warm_c_at_0.945": 29.12,
+      "amp_warm": 0.835,
+      "cold_c_at_0.945": 23.94,
+      "amp_cold": 0.784
+    },
+    {
+      "band": "+10 to +20",
+      "warm_c_at_0.945": 35.77,
+      "amp_warm": 0.984,
+      "cold_c_at_0.945": 22.97,
+      "amp_cold": 1.007
+    },
+    {
+      "band": "+20 to +30",
+      "warm_c_at_0.945": 36.98,
+      "amp_warm": 0.992,
+      "cold_c_at_0.945": 14.77,
+      "amp_cold": 0.986
+    },
+    {
+      "band": "+30 to +40",
+      "warm_c_at_0.945": 29.89,
+      "amp_warm": 0.915,
+      "cold_c_at_0.945": 2.96,
+      "amp_cold": 0.998
+    },
+    {
+      "band": "+40 to +50",
+      "warm_c_at_0.945": 22.6,
+      "amp_warm": 0.839,
+      "cold_c_at_0.945": -9.23,
+      "amp_cold": 1.549
+    },
+    {
+      "band": "+50 to +60",
+      "warm_c_at_0.945": 14.61,
+      "amp_warm": 0.55,
+      "cold_c_at_0.945": -20.03,
+      "amp_cold": 2.454
+    },
+    {
+      "band": "+60 to +70",
+      "warm_c_at_0.945": 19.11,
+      "amp_warm": 0.241,
+      "cold_c_at_0.945": -29.69,
+      "amp_cold": 2.727
+    },
+    {
+      "band": "+70 to +80",
+      "warm_c_at_0.945": 23.89,
+      "amp_warm": 0.449,
+      "cold_c_at_0.945": -35.02,
+      "amp_cold": 2.957
+    },
+    {
+      "band": "+80 to +90",
+      "warm_c_at_0.945": 22.52,
+      "amp_warm": 0.231,
+      "cold_c_at_0.945": -36.35,
+      "amp_cold": 3.283
+    }
+  ],
+  "equivalent_ceiling_c": -208.87,
+  "equivalent_ceiling_note": "pinned so the anchor-flux comfort fraction matches the dry score's; the divergence between columns is then distribution, not level",
+  "candidates": [
+    {
+      "flux": 0.85,
+      "dry": {
+        "comfort": 0.63764,
+        "harsh_warm": 0.03213,
+        "extreme_warm": 0.00853,
+        "harsh_cold": 0.049,
+        "extreme_cold": 0.31337
+      },
+      "equivalent": {
+        "comfort": 0.63147,
+        "harsh_warm": 0.0,
+        "extreme_warm": 0.66266,
+        "harsh_cold": 0.049,
+        "extreme_cold": 0.31337
+      }
+    },
+    {
+      "flux": 0.8525,
+      "dry": {
+        "comfort": 0.64099,
+        "harsh_warm": 0.03125,
+        "extreme_warm": 0.01012,
+        "harsh_cold": 0.04885,
+        "extreme_cold": 0.31016
+      },
+      "equivalent": {
+        "comfort": 0.63482,
+        "harsh_warm": 0.0,
+        "extreme_warm": 0.67113,
+        "harsh_cold": 0.04885,
+        "extreme_cold": 0.31016
+      }
+    },
+    {
+      "flux": 0.855,
+      "dry": {
+        "comfort": 0.64226,
+        "harsh_warm": 0.03061,
+        "extreme_warm": 0.01126,
+        "harsh_cold": 0.05319,
+        "extreme_cold": 0.30455
+      },
+      "equivalent": {
+        "comfort": 0.63568,
+        "harsh_warm": 0.0,
+        "extreme_warm": 0.6802,
+        "harsh_cold": 0.05319,
+        "extreme_cold": 0.30455
+      }
+    },
+    {
+      "flux": 0.8575,
+      "dry": {
+        "comfort": 0.64426,
+        "harsh_warm": 0.03059,
+        "extreme_warm": 0.01202,
+        "harsh_cold": 0.05572,
+        "extreme_cold": 0.30001
+      },
+      "equivalent": {
+        "comfort": 0.6368,
+        "harsh_warm": 0.0,
+        "extreme_warm": 0.69101,
+        "harsh_cold": 0.05572,
+        "extreme_cold": 0.30001
+      }
+    },
+    {
+      "flux": 0.86,
+      "dry": {
+        "comfort": 0.64784,
+        "harsh_warm": 0.02996,
+        "extreme_warm": 0.01354,
+        "harsh_cold": 0.0555,
+        "extreme_cold": 0.29666
+      },
+      "equivalent": {
+        "comfort": 0.63999,
+        "harsh_warm": 0.0,
+        "extreme_warm": 0.70524,
+        "harsh_cold": 0.0555,
+        "extreme_cold": 0.29666
+      }
+    },
+    {
+      "flux": 0.8625,
+      "dry": {
+        "comfort": 0.64966,
+        "harsh_warm": 0.02877,
+        "extreme_warm": 0.01597,
+        "harsh_cold": 0.05558,
+        "extreme_cold": 0.29437
+      },
+      "equivalent": {
+        "comfort": 0.64053,
+        "harsh_warm": 0.0,
+        "extreme_warm": 0.71454,
+        "harsh_cold": 0.05558,
+        "extreme_cold": 0.29437
+      }
+    },
+    {
+      "flux": 0.865,
+      "dry": {
+        "comfort": 0.65098,
+        "harsh_warm": 0.02659,
+        "extreme_warm": 0.01917,
+        "harsh_cold": 0.05668,
+        "extreme_cold": 0.29195
+      },
+      "equivalent": {
+        "comfort": 0.63971,
+        "harsh_warm": 0.0,
+        "extreme_warm": 0.72691,
+        "harsh_cold": 0.05668,
+        "extreme_cold": 0.29195
+      }
+    },
+    {
+      "flux": 0.8675,
+      "dry": {
+        "comfort": 0.65233,
+        "harsh_warm": 0.02589,
+        "extreme_warm": 0.02132,
+        "harsh_cold": 0.05727,
+        "extreme_cold": 0.28886
+      },
+      "equivalent": {
+        "comfort": 0.64178,
+        "harsh_warm": 0.0,
+        "extreme_warm": 0.73628,
+        "harsh_cold": 0.05727,
+        "extreme_cold": 0.28886
+      }
+    },
+    {
+      "flux": 0.87,
+      "dry": {
+        "comfort": 0.65333,
+        "harsh_warm": 0.02499,
+        "extreme_warm": 0.02321,
+        "harsh_cold": 0.05911,
+        "extreme_cold": 0.28561
+      },
+      "equivalent": {
+        "comfort": 0.64105,
+        "harsh_warm": 0.0,
+        "extreme_warm": 0.74552,
+        "harsh_cold": 0.05911,
+        "extreme_cold": 0.28561
+      }
+    },
+    {
+      "flux": 0.8725,
+      "dry": {
+        "comfort": 0.65433,
+        "harsh_warm": 0.02487,
+        "extreme_warm": 0.02561,
+        "harsh_cold": 0.05978,
+        "extreme_cold": 0.28314
+      },
+      "equivalent": {
+        "comfort": 0.642,
+        "harsh_warm": 0.0,
+        "extreme_warm": 0.75445,
+        "harsh_cold": 0.05978,
+        "extreme_cold": 0.28314
+      }
+    },
+    {
+      "flux": 0.875,
+      "dry": {
+        "comfort": 0.65357,
+        "harsh_warm": 0.02715,
+        "extreme_warm": 0.02717,
+        "harsh_cold": 0.06114,
+        "extreme_cold": 0.27933
+      },
+      "equivalent": {
+        "comfort": 0.6432,
+        "harsh_warm": 0.0,
+        "extreme_warm": 0.7617,
+        "harsh_cold": 0.06114,
+        "extreme_cold": 0.27933
+      }
+    },
+    {
+      "flux": 0.8775,
+      "dry": {
+        "comfort": 0.65348,
+        "harsh_warm": 0.03049,
+        "extreme_warm": 0.02791,
+        "harsh_cold": 0.06227,
+        "extreme_cold": 0.27507
+      },
+      "equivalent": {
+        "comfort": 0.64293,
+        "harsh_warm": 0.0,
+        "extreme_warm": 0.77102,
+        "harsh_cold": 0.06227,
+        "extreme_cold": 0.27507
+      }
+    },
+    {
+      "flux": 0.88,
+      "dry": {
+        "comfort": 0.65252,
+        "harsh_warm": 0.03317,
+        "extreme_warm": 0.02928,
+        "harsh_cold": 0.06307,
+        "extreme_cold": 0.2717
+      },
+      "equivalent": {
+        "comfort": 0.64207,
+        "harsh_warm": 0.0,
+        "extreme_warm": 0.77986,
+        "harsh_cold": 0.06307,
+        "extreme_cold": 0.2717
+      }
+    },
+    {
+      "flux": 0.8825,
+      "dry": {
+        "comfort": 0.65107,
+        "harsh_warm": 0.03474,
+        "extreme_warm": 0.03144,
+        "harsh_cold": 0.06506,
+        "extreme_cold": 0.26799
+      },
+      "equivalent": {
+        "comfort": 0.63647,
+        "harsh_warm": 0.0,
+        "extreme_warm": 0.78646,
+        "harsh_cold": 0.06506,
+        "extreme_cold": 0.26799
+      }
+    },
+    {
+      "flux": 0.885,
+      "dry": {
+        "comfort": 0.64948,
+        "harsh_warm": 0.03811,
+        "extreme_warm": 0.03323,
+        "harsh_cold": 0.0658,
+        "extreme_cold": 0.26398
+      },
+      "equivalent": {
+        "comfort": 0.63684,
+        "harsh_warm": 0.0,
+        "extreme_warm": 0.79129,
+        "harsh_cold": 0.0658,
+        "extreme_cold": 0.26398
+      }
+    },
+    {
+      "flux": 0.8875,
+      "dry": {
+        "comfort": 0.64633,
+        "harsh_warm": 0.04278,
+        "extreme_warm": 0.0352,
+        "harsh_cold": 0.06764,
+        "extreme_cold": 0.25965
+      },
+      "equivalent": {
+        "comfort": 0.63354,
+        "harsh_warm": 0.0,
+        "extreme_warm": 0.79647,
+        "harsh_cold": 0.06764,
+        "extreme_cold": 0.25965
+      }
+    },
+    {
+      "flux": 0.89,
+      "dry": {
+        "comfort": 0.6409,
+        "harsh_warm": 0.05092,
+        "extreme_warm": 0.03611,
+        "harsh_cold": 0.06761,
+        "extreme_cold": 0.2568
+      },
+      "equivalent": {
+        "comfort": 0.62996,
+        "harsh_warm": 0.0,
+        "extreme_warm": 0.80396,
+        "harsh_cold": 0.06761,
+        "extreme_cold": 0.2568
+      }
+    },
+    {
+      "flux": 0.8925,
+      "dry": {
+        "comfort": 0.63904,
+        "harsh_warm": 0.05745,
+        "extreme_warm": 0.03804,
+        "harsh_cold": 0.0683,
+        "extreme_cold": 0.25031
+      },
+      "equivalent": {
+        "comfort": 0.62845,
+        "harsh_warm": 0.0,
+        "extreme_warm": 0.81069,
+        "harsh_cold": 0.0683,
+        "extreme_cold": 0.25031
+      }
+    },
+    {
+      "flux": 0.895,
+      "dry": {
+        "comfort": 0.63244,
+        "harsh_warm": 0.06949,
+        "extreme_warm": 0.04005,
+        "harsh_cold": 0.06956,
+        "extreme_cold": 0.2441
+      },
+      "equivalent": {
+        "comfort": 0.62791,
+        "harsh_warm": 0.0,
+        "extreme_warm": 0.81536,
+        "harsh_cold": 0.06956,
+        "extreme_cold": 0.2441
+      }
+    },
+    {
+      "flux": 0.8975,
+      "dry": {
+        "comfort": 0.63297,
+        "harsh_warm": 0.07331,
+        "extreme_warm": 0.04233,
+        "harsh_cold": 0.07006,
+        "extreme_cold": 0.23829
+      },
+      "equivalent": {
+        "comfort": 0.62384,
+        "harsh_warm": 0.0,
+        "extreme_warm": 0.82185,
+        "harsh_cold": 0.07006,
+        "extreme_cold": 0.23829
+      }
+    },
+    {
+      "flux": 0.9,
+      "dry": {
+        "comfort": 0.62828,
+        "harsh_warm": 0.07958,
+        "extreme_warm": 0.04537,
+        "harsh_cold": 0.07365,
+        "extreme_cold": 0.23158
+      },
+      "equivalent": {
+        "comfort": 0.61541,
+        "harsh_warm": 0.0,
+        "extreme_warm": 0.82811,
+        "harsh_cold": 0.07365,
+        "extreme_cold": 0.23158
+      }
+    },
+    {
+      "flux": 0.9025,
+      "dry": {
+        "comfort": 0.62043,
+        "harsh_warm": 0.08869,
+        "extreme_warm": 0.04967,
+        "harsh_cold": 0.07575,
+        "extreme_cold": 0.22483
+      },
+      "equivalent": {
+        "comfort": 0.60908,
+        "harsh_warm": 0.0,
+        "extreme_warm": 0.83275,
+        "harsh_cold": 0.07575,
+        "extreme_cold": 0.22483
+      }
+    },
+    {
+      "flux": 0.905,
+      "dry": {
+        "comfort": 0.61461,
+        "harsh_warm": 0.09829,
+        "extreme_warm": 0.05184,
+        "harsh_cold": 0.07897,
+        "extreme_cold": 0.21728
+      },
+      "equivalent": {
+        "comfort": 0.60465,
+        "harsh_warm": 0.0,
+        "extreme_warm": 0.83768,
+        "harsh_cold": 0.07897,
+        "extreme_cold": 0.21728
+      }
+    },
+    {
+      "flux": 0.9075,
+      "dry": {
+        "comfort": 0.60959,
+        "harsh_warm": 0.10419,
+        "extreme_warm": 0.05741,
+        "harsh_cold": 0.07981,
+        "extreme_cold": 0.21108
+      },
+      "equivalent": {
+        "comfort": 0.59919,
+        "harsh_warm": 0.0,
+        "extreme_warm": 0.84282,
+        "harsh_cold": 0.07981,
+        "extreme_cold": 0.21108
+      }
+    },
+    {
+      "flux": 0.91,
+      "dry": {
+        "comfort": 0.60178,
+        "harsh_warm": 0.11221,
+        "extreme_warm": 0.062,
+        "harsh_cold": 0.08427,
+        "extreme_cold": 0.20305
+      },
+      "equivalent": {
+        "comfort": 0.5894,
+        "harsh_warm": 0.0,
+        "extreme_warm": 0.84752,
+        "harsh_cold": 0.08427,
+        "extreme_cold": 0.20305
+      }
+    },
+    {
+      "flux": 0.9125,
+      "dry": {
+        "comfort": 0.59105,
+        "harsh_warm": 0.12067,
+        "extreme_warm": 0.06892,
+        "harsh_cold": 0.08806,
+        "extreme_cold": 0.19552
+      },
+      "equivalent": {
+        "comfort": 0.58376,
+        "harsh_warm": 0.0,
+        "extreme_warm": 0.85317,
+        "harsh_cold": 0.08806,
+        "extreme_cold": 0.19552
+      }
+    },
+    {
+      "flux": 0.915,
+      "dry": {
+        "comfort": 0.58396,
+        "harsh_warm": 0.12521,
+        "extreme_warm": 0.07714,
+        "harsh_cold": 0.09287,
+        "extreme_cold": 0.18625
+      },
+      "equivalent": {
+        "comfort": 0.57695,
+        "harsh_warm": 0.0,
+        "extreme_warm": 0.85791,
+        "harsh_cold": 0.09287,
+        "extreme_cold": 0.18625
+      }
+    },
+    {
+      "flux": 0.9175,
+      "dry": {
+        "comfort": 0.57544,
+        "harsh_warm": 0.13128,
+        "extreme_warm": 0.0848,
+        "harsh_cold": 0.09622,
+        "extreme_cold": 0.17779
+      },
+      "equivalent": {
+        "comfort": 0.56955,
+        "harsh_warm": 0.0,
+        "extreme_warm": 0.86189,
+        "harsh_cold": 0.09622,
+        "extreme_cold": 0.17779
+      }
+    },
+    {
+      "flux": 0.92,
+      "dry": {
+        "comfort": 0.57144,
+        "harsh_warm": 0.13191,
+        "extreme_warm": 0.09518,
+        "harsh_cold": 0.10083,
+        "extreme_cold": 0.16725
+      },
+      "equivalent": {
+        "comfort": 0.56266,
+        "harsh_warm": 0.0,
+        "extreme_warm": 0.86738,
+        "harsh_cold": 0.10083,
+        "extreme_cold": 0.16725
+      }
+    },
+    {
+      "flux": 0.9225,
+      "dry": {
+        "comfort": 0.56246,
+        "harsh_warm": 0.14117,
+        "extreme_warm": 0.10251,
+        "harsh_cold": 0.10614,
+        "extreme_cold": 0.15543
+      },
+      "equivalent": {
+        "comfort": 0.55865,
+        "harsh_warm": 0.0,
+        "extreme_warm": 0.87203,
+        "harsh_cold": 0.10614,
+        "extreme_cold": 0.15543
+      }
+    },
+    {
+      "flux": 0.925,
+      "dry": {
+        "comfort": 0.5565,
+        "harsh_warm": 0.14623,
+        "extreme_warm": 0.11013,
+        "harsh_cold": 0.11131,
+        "extreme_cold": 0.14386
+      },
+      "equivalent": {
+        "comfort": 0.55205,
+        "harsh_warm": 0.0,
+        "extreme_warm": 0.87536,
+        "harsh_cold": 0.11131,
+        "extreme_cold": 0.14386
+      }
+    },
+    {
+      "flux": 0.9275,
+      "dry": {
+        "comfort": 0.54788,
+        "harsh_warm": 0.15213,
+        "extreme_warm": 0.12037,
+        "harsh_cold": 0.1169,
+        "extreme_cold": 0.13186
+      },
+      "equivalent": {
+        "comfort": 0.54506,
+        "harsh_warm": 0.0,
+        "extreme_warm": 0.87816,
+        "harsh_cold": 0.1169,
+        "extreme_cold": 0.13186
+      }
+    },
+    {
+      "flux": 0.93,
+      "dry": {
+        "comfort": 0.54052,
+        "harsh_warm": 0.15949,
+        "extreme_warm": 0.12828,
+        "harsh_cold": 0.1196,
+        "extreme_cold": 0.1221
+      },
+      "equivalent": {
+        "comfort": 0.54137,
+        "harsh_warm": 0.0,
+        "extreme_warm": 0.88273,
+        "harsh_cold": 0.1196,
+        "extreme_cold": 0.1221
+      }
+    },
+    {
+      "flux": 0.9325,
+      "dry": {
+        "comfort": 0.53299,
+        "harsh_warm": 0.16125,
+        "extreme_warm": 0.14036,
+        "harsh_cold": 0.125,
+        "extreme_cold": 0.11116
+      },
+      "equivalent": {
+        "comfort": 0.53312,
+        "harsh_warm": 0.0,
+        "extreme_warm": 0.88534,
+        "harsh_cold": 0.125,
+        "extreme_cold": 0.11116
+      }
+    },
+    {
+      "flux": 0.935,
+      "dry": {
+        "comfort": 0.5268,
+        "harsh_warm": 0.16598,
+        "extreme_warm": 0.15136,
+        "harsh_cold": 0.12814,
+        "extreme_cold": 0.09942
+      },
+      "equivalent": {
+        "comfort": 0.52872,
+        "harsh_warm": 0.0,
+        "extreme_warm": 0.88904,
+        "harsh_cold": 0.12814,
+        "extreme_cold": 0.09942
+      }
+    },
+    {
+      "flux": 0.9375,
+      "dry": {
+        "comfort": 0.51982,
+        "harsh_warm": 0.16646,
+        "extreme_warm": 0.16699,
+        "harsh_cold": 0.13073,
+        "extreme_cold": 0.08895
+      },
+      "equivalent": {
+        "comfort": 0.51894,
+        "harsh_warm": 0.0,
+        "extreme_warm": 0.89149,
+        "harsh_cold": 0.13073,
+        "extreme_cold": 0.08895
+      }
+    },
+    {
+      "flux": 0.94,
+      "dry": {
+        "comfort": 0.51432,
+        "harsh_warm": 0.17019,
+        "extreme_warm": 0.17899,
+        "harsh_cold": 0.13027,
+        "extreme_cold": 0.08027
+      },
+      "equivalent": {
+        "comfort": 0.51546,
+        "harsh_warm": 0.0,
+        "extreme_warm": 0.89448,
+        "harsh_cold": 0.13027,
+        "extreme_cold": 0.08027
+      }
+    },
+    {
+      "flux": 0.9425,
+      "dry": {
+        "comfort": 0.50765,
+        "harsh_warm": 0.17398,
+        "extreme_warm": 0.19098,
+        "harsh_cold": 0.12988,
+        "extreme_cold": 0.07241
+      },
+      "equivalent": {
+        "comfort": 0.5049,
+        "harsh_warm": 0.0,
+        "extreme_warm": 0.89721,
+        "harsh_cold": 0.12988,
+        "extreme_cold": 0.07241
+      }
+    },
+    {
+      "flux": 0.945,
+      "dry": {
+        "comfort": 0.50371,
+        "harsh_warm": 0.17673,
+        "extreme_warm": 0.20223,
+        "harsh_cold": 0.12876,
+        "extreme_cold": 0.0642
+      },
+      "equivalent": {
+        "comfort": 0.50342,
+        "harsh_warm": 0.0,
+        "extreme_warm": 0.89906,
+        "harsh_cold": 0.12876,
+        "extreme_cold": 0.0642
+      }
+    },
+    {
+      "flux": 0.9475,
+      "dry": {
+        "comfort": 0.49832,
+        "harsh_warm": 0.18258,
+        "extreme_warm": 0.21444,
+        "harsh_cold": 0.12417,
+        "extreme_cold": 0.05707
+      },
+      "equivalent": {
+        "comfort": 0.5014,
+        "harsh_warm": 0.0,
+        "extreme_warm": 0.90098,
+        "harsh_cold": 0.12417,
+        "extreme_cold": 0.05707
+      }
+    },
+    {
+      "flux": 0.95,
+      "dry": {
+        "comfort": 0.49582,
+        "harsh_warm": 0.1819,
+        "extreme_warm": 0.22844,
+        "harsh_cold": 0.12161,
+        "extreme_cold": 0.0493
+      },
+      "equivalent": {
+        "comfort": 0.49569,
+        "harsh_warm": 0.0,
+        "extreme_warm": 0.90486,
+        "harsh_cold": 0.12161,
+        "extreme_cold": 0.0493
+      }
+    },
+    {
+      "flux": 0.9525,
+      "dry": {
+        "comfort": 0.49879,
+        "harsh_warm": 0.17743,
+        "extreme_warm": 0.24515,
+        "harsh_cold": 0.11136,
+        "extreme_cold": 0.04532
+      },
+      "equivalent": {
+        "comfort": 0.49402,
+        "harsh_warm": 0.0,
+        "extreme_warm": 0.90774,
+        "harsh_cold": 0.11136,
+        "extreme_cold": 0.04532
+      }
+    },
+    {
+      "flux": 0.955,
+      "dry": {
+        "comfort": 0.49783,
+        "harsh_warm": 0.17348,
+        "extreme_warm": 0.26256,
+        "harsh_cold": 0.10561,
+        "extreme_cold": 0.03934
+      },
+      "equivalent": {
+        "comfort": 0.49577,
+        "harsh_warm": 0.0,
+        "extreme_warm": 0.90955,
+        "harsh_cold": 0.10561,
+        "extreme_cold": 0.03934
+      }
+    },
+    {
+      "flux": 0.9575,
+      "dry": {
+        "comfort": 0.49515,
+        "harsh_warm": 0.17649,
+        "extreme_warm": 0.2749,
+        "harsh_cold": 0.09888,
+        "extreme_cold": 0.03446
+      },
+      "equivalent": {
+        "comfort": 0.49615,
+        "harsh_warm": 0.0,
+        "extreme_warm": 0.91098,
+        "harsh_cold": 0.09888,
+        "extreme_cold": 0.03446
+      }
+    },
+    {
+      "flux": 0.96,
+      "dry": {
+        "comfort": 0.49851,
+        "harsh_warm": 0.1739,
+        "extreme_warm": 0.2902,
+        "harsh_cold": 0.08483,
+        "extreme_cold": 0.03025
+      },
+      "equivalent": {
+        "comfort": 0.49774,
+        "harsh_warm": 0.0,
+        "extreme_warm": 0.91378,
+        "harsh_cold": 0.08483,
+        "extreme_cold": 0.03025
+      }
+    },
+    {
+      "flux": 0.9625,
+      "dry": {
+        "comfort": 0.49533,
+        "harsh_warm": 0.17018,
+        "extreme_warm": 0.30534,
+        "harsh_cold": 0.08017,
+        "extreme_cold": 0.02531
+      },
+      "equivalent": {
+        "comfort": 0.48914,
+        "harsh_warm": 0.0,
+        "extreme_warm": 0.91739,
+        "harsh_cold": 0.08017,
+        "extreme_cold": 0.02531
+      }
+    },
+    {
+      "flux": 0.965,
+      "dry": {
+        "comfort": 0.48937,
+        "harsh_warm": 0.16851,
+        "extreme_warm": 0.31922,
+        "harsh_cold": 0.07744,
+        "extreme_cold": 0.02039
+      },
+      "equivalent": {
+        "comfort": 0.48509,
+        "harsh_warm": 0.0,
+        "extreme_warm": 0.92157,
+        "harsh_cold": 0.07744,
+        "extreme_cold": 0.02039
+      }
+    },
+    {
+      "flux": 0.9675,
+      "dry": {
+        "comfort": 0.48416,
+        "harsh_warm": 0.1672,
+        "extreme_warm": 0.33419,
+        "harsh_cold": 0.07218,
+        "extreme_cold": 0.01581
+      },
+      "equivalent": {
+        "comfort": 0.4814,
+        "harsh_warm": 0.0,
+        "extreme_warm": 0.92475,
+        "harsh_cold": 0.07218,
+        "extreme_cold": 0.01581
+      }
+    },
+    {
+      "flux": 0.97,
+      "dry": {
+        "comfort": 0.47481,
+        "harsh_warm": 0.16793,
+        "extreme_warm": 0.3472,
+        "harsh_cold": 0.06592,
+        "extreme_cold": 0.01246
+      },
+      "equivalent": {
+        "comfort": 0.47313,
+        "harsh_warm": 0.0,
+        "extreme_warm": 0.9265,
+        "harsh_cold": 0.06592,
+        "extreme_cold": 0.01246
+      }
+    },
+    {
+      "flux": 0.9725,
+      "dry": {
+        "comfort": 0.46555,
+        "harsh_warm": 0.16026,
+        "extreme_warm": 0.36808,
+        "harsh_cold": 0.06076,
+        "extreme_cold": 0.00918
+      },
+      "equivalent": {
+        "comfort": 0.46907,
+        "harsh_warm": 0.0,
+        "extreme_warm": 0.92794,
+        "harsh_cold": 0.06076,
+        "extreme_cold": 0.00918
+      }
+    },
+    {
+      "flux": 0.975,
+      "dry": {
+        "comfort": 0.45845,
+        "harsh_warm": 0.15432,
+        "extreme_warm": 0.38424,
+        "harsh_cold": 0.05614,
+        "extreme_cold": 0.00606
+      },
+      "equivalent": {
+        "comfort": 0.4633,
+        "harsh_warm": 0.0,
+        "extreme_warm": 0.93024,
+        "harsh_cold": 0.05614,
+        "extreme_cold": 0.00606
+      }
+    },
+    {
+      "flux": 0.9775,
+      "dry": {
+        "comfort": 0.45047,
+        "harsh_warm": 0.15183,
+        "extreme_warm": 0.39704,
+        "harsh_cold": 0.05314,
+        "extreme_cold": 0.00303
+      },
+      "equivalent": {
+        "comfort": 0.45534,
+        "harsh_warm": 0.0,
+        "extreme_warm": 0.93211,
+        "harsh_cold": 0.05314,
+        "extreme_cold": 0.00303
+      }
+    },
+    {
+      "flux": 0.98,
+      "dry": {
+        "comfort": 0.43546,
+        "harsh_warm": 0.15376,
+        "extreme_warm": 0.41078,
+        "harsh_cold": 0.0509,
+        "extreme_cold": 0.00062
+      },
+      "equivalent": {
+        "comfort": 0.44679,
+        "harsh_warm": 0.0,
+        "extreme_warm": 0.9344,
+        "harsh_cold": 0.0509,
+        "extreme_cold": 0.00062
+      }
+    },
+    {
+      "flux": 0.9825,
+      "dry": {
+        "comfort": 0.42004,
+        "harsh_warm": 0.15624,
+        "extreme_warm": 0.42372,
+        "harsh_cold": 0.04657,
+        "extreme_cold": 0.0
+      },
+      "equivalent": {
+        "comfort": 0.44356,
+        "harsh_warm": 0.0,
+        "extreme_warm": 0.9368,
+        "harsh_cold": 0.04657,
+        "extreme_cold": 0.0
+      }
+    },
+    {
+      "flux": 0.985,
+      "dry": {
+        "comfort": 0.40975,
+        "harsh_warm": 0.1536,
+        "extreme_warm": 0.43665,
+        "harsh_cold": 0.04237,
+        "extreme_cold": 0.0
+      },
+      "equivalent": {
+        "comfort": 0.43795,
+        "harsh_warm": 0.0,
+        "extreme_warm": 0.93944,
+        "harsh_cold": 0.04237,
+        "extreme_cold": 0.0
+      }
+    },
+    {
+      "flux": 0.9875,
+      "dry": {
+        "comfort": 0.39503,
+        "harsh_warm": 0.15548,
+        "extreme_warm": 0.44949,
+        "harsh_cold": 0.03816,
+        "extreme_cold": 0.0
+      },
+      "equivalent": {
+        "comfort": 0.43105,
+        "harsh_warm": 0.0,
+        "extreme_warm": 0.94138,
+        "harsh_cold": 0.03816,
+        "extreme_cold": 0.0
+      }
+    },
+    {
+      "flux": 0.99,
+      "dry": {
+        "comfort": 0.37923,
+        "harsh_warm": 0.15917,
+        "extreme_warm": 0.4616,
+        "harsh_cold": 0.03454,
+        "extreme_cold": 0.0
+      },
+      "equivalent": {
+        "comfort": 0.42333,
+        "harsh_warm": 0.0,
+        "extreme_warm": 0.94237,
+        "harsh_cold": 0.03454,
+        "extreme_cold": 0.0
+      }
+    },
+    {
+      "flux": 0.9925,
+      "dry": {
+        "comfort": 0.36444,
+        "harsh_warm": 0.1603,
+        "extreme_warm": 0.47526,
+        "harsh_cold": 0.0312,
+        "extreme_cold": 0.0
+      },
+      "equivalent": {
+        "comfort": 0.41308,
+        "harsh_warm": 0.0,
+        "extreme_warm": 0.94464,
+        "harsh_cold": 0.0312,
+        "extreme_cold": 0.0
+      }
+    },
+    {
+      "flux": 0.995,
+      "dry": {
+        "comfort": 0.35155,
+        "harsh_warm": 0.1592,
+        "extreme_warm": 0.48926,
+        "harsh_cold": 0.02699,
+        "extreme_cold": 0.0
+      },
+      "equivalent": {
+        "comfort": 0.40585,
+        "harsh_warm": 0.0,
+        "extreme_warm": 0.94829,
+        "harsh_cold": 0.02699,
+        "extreme_cold": 0.0
+      }
+    },
+    {
+      "flux": 0.9975,
+      "dry": {
+        "comfort": 0.3395,
+        "harsh_warm": 0.16127,
+        "extreme_warm": 0.49923,
+        "harsh_cold": 0.02213,
+        "extreme_cold": 0.0
+      },
+      "equivalent": {
+        "comfort": 0.39717,
+        "harsh_warm": 0.0,
+        "extreme_warm": 0.95059,
+        "harsh_cold": 0.02213,
+        "extreme_cold": 0.0
+      }
+    },
+    {
+      "flux": 1.0,
+      "dry": {
+        "comfort": 0.32914,
+        "harsh_warm": 0.15954,
+        "extreme_warm": 0.51132,
+        "harsh_cold": 0.01826,
+        "extreme_cold": 0.0
+      },
+      "equivalent": {
+        "comfort": 0.38851,
+        "harsh_warm": 0.0,
+        "extreme_warm": 0.95297,
+        "harsh_cold": 0.01826,
+        "extreme_cold": 0.0
+      }
+    }
+  ],
+  "winner_dry": 0.8725,
+  "winner_equivalent": 0.875,
+  "interior_optimum": true,
+  "reproduces_anchor": {
+    "anchor": 0.945,
+    "dry_within_one_step": false,
+    "unconstrained_winner": 0.8725,
+    "inferred_extreme_cold_cap": 0.0642,
+    "winner_under_inferred_cap": 0.945,
+    "equivalent_winner_under_inferred_cap": 0.945,
+    "note": "the comfort-maximizing rule alone does NOT reproduce the anchor; it does under a cap on the cold-extreme land fraction at the anchor's own value, which quantifies the 'severe but small' clause the prose never did. A miss is a finding about the prose derivation, not a failure of this script."
+  }
+}

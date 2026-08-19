@@ -4,8 +4,8 @@
 // from config/planet.yaml, because the year length is a function of the stellar
 // flux and moves whenever the flux does.
 //
-// generated 2026-08-19T06:10:31+00:00
-// config   sha256 70527c24782e2311
+// generated 2026-08-19T07:31:23+00:00
+// config   sha256 ed44d4abf936ca56
 // flux     0.945 S-Earth
 // orbit    182.8014 Earth days
 

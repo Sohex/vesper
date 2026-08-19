@@ -193,6 +193,7 @@ unless told they exist.
 | `predict_ocean_terms.py` | predictions for the two ocean namelist terms of the next baseline bundle, BEFORE the run: the `nhdiff` redistribution and the salinity-derived `TFREEZE` bracket. Validates its diffusion operator against a Laplacian eigenfunction and writes nothing; the write-up is `notes/forcing-bundle-predictions.md` |
 | `build_climatology.py` | average an equilibrated segment into climatologies; refuses orbits declared `diagnostic`, and refuses to mix I/O regimes |
 | `analyze_climatology.py` | diagnostics, maps and a rate-normalised Koppen interpretation |
+| `derive_design_flux.py` | codifies WORKFLOW 5b's flux choice: declared comfort-band thresholds scored per candidate flux from two converged points, with the humidity-coupled variant beside the dry score; writes `analysis/design_flux.json` |
 | `analyze_smoke.py` | audit and plot a one-orbit smoke run |
 | `analyze_stellar_cycles.py` | phase-folded response of completed cycle runs |
 | `compare_flux_sweep.py` | compare equilibrated reports across a flux sweep |

@@ -699,6 +699,15 @@ Flux 0.945 puts the tropics near +33 C in their warmest month rather than +36,
 keeps most land in Earth-like conditions, and leaves the polar margins severe
 but small.
 
+The derivation is CODIFIED as of 2026-08-19: `derive_design_flux.py`, step
+`design_flux`, writes `exoplasim/analysis/design_flux.json` with its thresholds
+declared in the script before it runs. Re-run it on a new terrain rather than
+reinventing it, and know its first finding: the comfort-maximizing rule alone
+prefers a much lower flux, and the recorded choice is optimal only under a cap
+on the cold-extreme land fraction -- the quantity "severe but small" gestured
+at and never fixed. The cap is inferred in the artifact and must be DECLARED in
+advance by the next re-derivation.
+
 **Glaciers are decoupled from the mean, and that is the load-bearing finding.**
 Cooling is close to useless for making them. Summer amplification is nearly flat
 with latitude, 0.67 to 1.11 K per K of global mean, while winter amplification

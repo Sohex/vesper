@@ -1,8 +1,8 @@
 {
-  "generated": "2026-08-19T06:10:31+00:00",
+  "generated": "2026-08-19T07:31:23+00:00",
   "source": "/home/cfutro/git/lpj-guess/guess_4.1/data/ins/global.ins",
   "source_sha256": "4daa4358a1f2de730601ac64ce3a64e54821838de20f9391ac07f649fefb90d8",
-  "config_sha256": "70527c24782e2311fb35d9494f71b8ce929912d92fb1a217c20c72cb78d5f9a8",
+  "config_sha256": "ed44d4abf936ca56b2fe3ebec8d2f06cbc7945b85f1932d2fc4a98436c2b1709",
   "source_config": {
     "schema_version": 1,
     "source_build": "precarve-craton",
@@ -79,6 +79,15 @@
       "roughness_source": "lithology",
       "soil_water_source": "pedology",
       "land_albedo_source": "vegetated",
+      "vegetation_albedo": 0.165,
+      "vegetation_albedo_bracket": [
+        0.15,
+        0.171
+      ],
+      "vegetation_albedo_bands": [
+        0.075,
+        0.225
+      ],
       "lithology_albedo_overrides": {
         "playa_clastic": {
           "albedo": 0.23,
@@ -195,7 +204,7 @@
       "direction": "up, a duration in years"
     }
   ],
-  "output_sha256": "928a0e5af90201bdca53937ccf0c79c32a1f23694df9d61bc0557d90e7742fc5",
-  "git_commit": "ceb06883d8c8c479ab94ea4bc345a7d83b599386",
+  "output_sha256": "e5b56d3759fdbe8aa70c9aa99fbda3a3349768636a80c429d079dc6ffb2b6d0f",
+  "git_commit": "857778885ad6434c696ed893f733138ccdce74cc",
   "generator": "biosphere/scripts/build_vesper_pfts.py"
 }

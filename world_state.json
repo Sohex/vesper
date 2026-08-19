@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated": "2026-08-19T06:12:49.361487+00:00",
-  "git_commit": "ceb06883d8c8c479ab94ea4bc345a7d83b599386",
+  "generated": "2026-08-19T07:31:24.997330+00:00",
+  "git_commit": "857778885ad6434c696ed893f733138ccdce74cc",
   "generator": "scripts/world_state.py",
   "note": "Generated from the artifacts. Do not edit; re-run the generator. Only derived values live here. Findings are in `notes/`, with their evidence, and open work is in `TASKS.md`.",
   "planet": {
@@ -75,6 +75,15 @@
       "roughness_source": "lithology",
       "soil_water_source": "pedology",
       "land_albedo_source": "vegetated",
+      "vegetation_albedo": 0.165,
+      "vegetation_albedo_bracket": [
+        0.15,
+        0.171
+      ],
+      "vegetation_albedo_bands": [
+        0.075,
+        0.225
+      ],
       "lithology_albedo_overrides": {
         "playa_clastic": {
           "albedo": 0.23,

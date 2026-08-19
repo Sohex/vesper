@@ -1,6 +1,6 @@
 {
-  "generated": "2026-08-19T06:10:31+00:00",
-  "config_sha256": "70527c24782e2311fb35d9494f71b8ce929912d92fb1a217c20c72cb78d5f9a8",
+  "generated": "2026-08-19T07:31:23+00:00",
+  "config_sha256": "ed44d4abf936ca56b2fe3ebec8d2f06cbc7945b85f1932d2fc4a98436c2b1709",
   "source_config": {
     "schema_version": 1,
     "source_build": "precarve-craton",
@@ -77,6 +77,15 @@
       "roughness_source": "lithology",
       "soil_water_source": "pedology",
       "land_albedo_source": "vegetated",
+      "vegetation_albedo": 0.165,
+      "vegetation_albedo_bracket": [
+        0.15,
+        0.171
+      ],
+      "vegetation_albedo_bands": [
+        0.075,
+        0.225
+      ],
       "lithology_albedo_overrides": {
         "playa_clastic": {
           "albedo": 0.23,
@@ -160,7 +169,7 @@
     "earth_fradpar": 0.5
   },
   "source_build": "precarve-craton",
-  "git_commit": "ceb06883d8c8c479ab94ea4bc345a7d83b599386",
-  "header_sha256": "a1b5657ddfb992bf735ebde0e609c8460e203f4d2060e22ecc12e85a686765b5",
+  "git_commit": "857778885ad6434c696ed893f733138ccdce74cc",
+  "header_sha256": "05ae844918ec2fdf5153a76f9ddb84300c0dd14aa4dadad33b545a8cadfd44ce",
   "generator": "biosphere/scripts/build_vesper_header.py"
 }
