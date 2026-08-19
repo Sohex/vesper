@@ -131,31 +131,48 @@ first. Done here.
 
 `carve_verdict.py:annual_mean` is `ds[name][:].mean(axis=0)`, an unweighted mean
 over the twelve bins, and so are the Penman reference-level air state and the
-seasonal rectification check. Recomputing the same land-area-weighted means from
-`baseline_regular_climatology.nc` with the true bin weights, 570 timesteps for
-the first bin against 480 for the other eleven out of 5850:
+seasonal rectification check.
 
-| quantity | equal weights | true weights | relative |
-| --- | ---: | ---: | ---: |
-| land precipitation, mm per Earth year | 824.336 | 824.722 | +0.047% |
-| land evaporation, mm per Earth year | 697.798 | 697.823 | +0.004% |
-| land P - E, positive part, mm per Earth year | 129.210 | 129.735 | +0.41% |
-| land wind speed | | | +0.017% |
-| global surface temperature, K | 289.7069 | 289.7016 | -0.0018% |
-| land `mrro`, mm per Earth year | 18.724 | 19.709 | +5.26% |
+**The bin weights this section first used were wrong, and are corrected here**,
+measured 2026-08-18. They came from CLIM-13's original mechanism, 570 timesteps
+for the first bin against 480 for the other eleven. That figure was a residual
+derived by assuming eleven equal bins, so it forced every discrepancy onto the
+twelfth; `TASKS.md` CLIM-13 carries the refutation. The real weights come from
+pyburn's own binning, `np.linspace(0, ntimes, 13).astype(int)`, which at the
+182 records per orbit of an `NLOWIO = 0` run gives
+
+    [15, 15, 15, 15, 15, 16, 15, 15, 15, 15, 15, 16]
+
+so two bins in twelve are under-weighted by 5.5% and the other ten
+over-weighted by 1.1%. Bin 0 holds fifteen, the fewest. `lib/climatology.py`
+derives this and checks it against the bin centres.
+
+Recomputing the land-area-weighted means from `baseline_regular_climatology.nc`
+with those weights:
+
+| quantity | true vs equal weights |
+| --- | ---: |
+| land precipitation | +0.028% |
+| land evaporation | -0.076% |
+| land P - E, positive part | +0.162% |
+| land wind speed | -0.025% |
+| land `mrro` | +0.004% |
+| global surface temperature | -0.001% |
 
 Against the error budget's own basin response, where land precipitation +1% is
-+39 basins, +0.047% is about +2 basins. That is inside every other term in the
++39 basins, +0.028% is under +2 basins. That is inside every other term in the
 budget and well inside the 769 basins the penman-to-wet bracket already disputes.
 
 So **the verdict does not need re-taking for CLIM-13**, which removes it as a
-reason to hold a carve. The one field it moves materially is `mrro`, at +5.3%,
-and nothing reads that by policy: pedology takes runoff as `P - E` for the
-separate reason recorded in `exoplasim/notes/water-and-energy-closure.md`. A
-policy adopted for one reason turns out to cover this one too.
+reason to hold a carve. That conclusion is unchanged by the correction and is
+now stronger, since P - E moves +0.162% rather than the +0.41% first reported.
 
-The energy-closure figures CLIM-13 was opened from are unaffected; they are per
-unit area of ice-free ocean and are measured, not re-derived here.
+**What the correction does overturn is this section's other claim.** The
+original table put land `mrro` at +5.26% and called it the one field the
+weighting moves materially. With the right weights `mrro` moves +0.004%, and
+the +5.26% was an artefact of the wrong first-bin weight rather than a property
+of the field. The policy argument that followed it -- that nothing reads `mrro`
+anyway -- still holds and is now carrying no weight it needs to.
 
 ## 6. Records that had gone false
 

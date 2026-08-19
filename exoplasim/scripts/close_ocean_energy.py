@@ -72,19 +72,23 @@ two streams describe the same orbit at all is that ONE offset makes eleven
 independent bins of two separately accumulated arrays agree to a fraction of a
 percent of the signal while the others do not. The scan is reported in full.
 
-THE FIRST BIN IS NOT LIKE THE OTHERS. A model call leaves a partial output
-interval behind, the next call restores it, and the first record of the next
-file therefore covers more timesteps than the rest -- `first-output-bin.md` for
-the mechanism and its other consequences. pyburn averages the twelve bins with
-EQUAL weight regardless, so an annual mean taken from a 12-bin file is a
-weighted mean with the wrong weights. This script measures the size of that:
-the tiling gives the span of bins 1 to 11 exactly, so the first bin's excess
-span follows, and the error it puts into the annual mean is
+THE BINS DO NOT ALL HOLD THE SAME NUMBER OF RECORDS, and this reports what that
+costs an annual mean. pyburn reduces the raw stream with
+`np.linspace(0, ntimes, nbin+1).astype(int)`, which spreads the remainder of
+`ntimes / nbin` across the bins by truncation, and then averages the bins with
+equal weight. At `NLOWIO = 0` there are 182 records per orbit, so two bins in
+twelve hold sixteen and the other ten hold fifteen. `lib/climatology.py` derives
+the weights and this reports them as `bin_weights`. It is a diagnostic, not a
+correction applied to anything here.
 
-    (1/12 - n0/(n0 + 11*n)) * (bin 0 - mean of bins 1 to 11)
-
-which is reported as `first_bin_weight`. It is not a correction applied to
-anything here.
+An earlier version of this block claimed the FIRST bin was long -- 570 timesteps
+against 480 -- and explained it by a model call restoring the previous call's
+partial output interval. Both were wrong, and the error was in this file: the
+span was derived as `total_steps - 11 * ordinary_bin_steps`, which assumes
+eleven equal bins and therefore forces every discrepancy onto the twelfth. The
+bin centres say bin 0 holds the FEWEST records, and the restore mechanism it
+invoked belongs to `NLOWIO = 1`, which is the regime whose 36 records per orbit
+bin exactly. `TASKS.md` CLIM-13 has the measurement.
 
 Usage:
 
@@ -108,7 +112,9 @@ import numpy as np
 from netCDF4 import Dataset
 from numpy.polynomial.legendre import leggauss
 
-from _paths import ANALYSIS
+from _paths import ANALYSIS  # noqa: F401  (also puts lib/ on sys.path)
+
+import climatology  # noqa: E402  from lib/, via _paths
 
 # PlaSim's own constants, from plasim/src. Properties of the compiled model, not
 # of this planet, so they come from the model rather than from planet.yaml.
@@ -296,6 +302,8 @@ def close_ocean(run_dir: Path) -> dict:
             with Dataset(path) as nc:
                 stack.append(np.asarray(nc[name][:], dtype=float))
         binned[name] = np.concatenate(stack)
+    with Dataset(run_dir / f"MOST.{orbits[0]:05d}.nc") as nc:
+        binned_time = np.asarray(nc["time"][:], dtype=float)
     lsm = binned["lsm"][0]
 
     # The grid is shared, not reconstructed: the streams carry the land mask and
@@ -344,9 +352,10 @@ def close_ocean(run_dir: Path) -> dict:
             "streams are truncated at every model call, so this usually means "
             "the surviving stream is not the orbit whose MOST file was read.")
 
-    # The window is bins 1 to nbin-1: bin 0 covers a different number of model
-    # timesteps from the rest (see the module docstring), so it is the one bin
-    # for which the two streams cannot describe the same span.
+    # The window is bins 1 to nbin-1. Bin 0 is dropped as conservatism rather
+    # than because it is anomalous -- the measured spans put it at the SHORTEST,
+    # not the longest -- but it is the bin whose leading edge the uniform tiling
+    # is least able to place, so the cross-stream identities skip it.
     span = slice(offset + per, offset + per * nbin)
     nspan = per * (nbin - 1)
     mld = float(np.median(binned["mld"][:, is_ocean]))
@@ -366,12 +375,9 @@ def close_ocean(run_dir: Path) -> dict:
     # for the first bin, which is longer.
     nout = int(round(total_steps / nrec))
     ordinary_bin_steps = per * nout
-    first_bin_steps = total_steps - (nbin - 1) * ordinary_bin_steps
-    if not 0 < ordinary_bin_steps <= first_bin_steps:
-        raise SystemExit(
-            f"the tiling implies {ordinary_bin_steps} timesteps per bin and "
-            f"{first_bin_steps} in the first, which is not a configuration this "
-            "closure understands")
+    if ordinary_bin_steps <= 0:
+        raise SystemExit(f"the tiling implies {ordinary_bin_steps} timesteps per "
+                         "bin, which is not a configuration this closure understands")
     record_seconds = nout * step_seconds
     bin_seconds = ordinary_bin_steps * step_seconds
 
@@ -417,20 +423,41 @@ def close_ocean(run_dir: Path) -> dict:
             },
         }
 
-    # The first bin's span, from the tiling, and what its equal weight costs.
+    # What pyburn's equal weighting of the bins costs, MEASURED from the bin
+    # centres the binned file carries rather than inferred from the tiling.
+    #
+    # This block used to derive the first bin's span as the residual
+    # `total_steps - 11 * ordinary_bin_steps` and report a 1.19x excess on bin 0.
+    # That was an artefact of its own construction: assuming eleven equal bins
+    # forces every mismatch onto the twelfth. The centres say otherwise -- the
+    # spans run 480 to 496 steps with bin 0 at the MINIMUM -- and pyburn's
+    # binning cannot produce a long first bin anyway, because it splits the raw
+    # records with `np.linspace(0, ntimes, nbin+1).astype(int)` and divides each
+    # bin by its own count. See TASKS.md CLIM-13 for the correction.
     b = np.array([_mean(binned["hfns"][k], weights, strict) for k in range(nbin)])
-    coefficient = 1.0 / nbin - first_bin_steps / total_steps
-    first_bin = {
-        "stream_interval_steps": nout,
-        "ordinary_bin_steps": ordinary_bin_steps,
-        "first_bin_steps": first_bin_steps,
-        "first_bin_excess": first_bin_steps / ordinary_bin_steps,
-        "coefficient": coefficient,
-        "bin0_minus_rest_w_m2": float(b[0] - b[1:].mean()),
-        "error_in_annual_mean_w_m2": float(coefficient * (b[0] - b[1:].mean())),
-        "statement": "pyburn weights the 12 bins equally; the first covers more "
-                     "model timesteps than the rest, so an annual mean from a "
-                     "binned file carries this error",
+    ntimes = climatology.infer_ntimes(binned_time)
+    counts = climatology.counts_for(ntimes, nbin)
+    w = climatology.bin_weights(binned_time)
+    equal = 1.0 / nbin
+    bin_weights = {
+        "method": "records per bin from pyburn's own binning arithmetic, with "
+                  "the record count recovered from the bin centres and checked "
+                  "against them. lib/climatology.py.",
+        "raw_records_per_orbit": int(ntimes),
+        "records_per_bin": [int(x) for x in counts],
+        "weights": [float(x) for x in w],
+        "equal_weight": equal,
+        "max_deviation_fraction": float(np.abs(w - equal).max() / equal),
+        "longest_bin": int(np.argmax(counts)),
+        "shortest_bin": int(np.argmin(counts)),
+        "hfns_equal_weight_w_m2": float(b.mean()),
+        "hfns_true_weight_w_m2": float((b * w).sum()),
+        "error_in_annual_mean_w_m2": float((b * w).sum() - b.mean()),
+        "statement": "pyburn weights the bins equally and they hold different "
+                     "numbers of raw records, because linspace().astype(int) "
+                     "spreads the remainder by truncation. The error is the "
+                     "difference above. It is NOT in the first bin, which holds "
+                     "the fewest records.",
     }
 
     return {
@@ -445,7 +472,7 @@ def close_ocean(run_dir: Path) -> dict:
                    "stream_orbits": ocean_orbits or [last]},
         "alignment": alignment,
         "by_mask": result,
-        "first_bin_weight": first_bin,
+        "bin_weights": bin_weights,
     }
 
 
@@ -482,7 +509,7 @@ def main() -> None:
         "window": result["window"],
         "alignment": result["alignment"],
         "by_mask": result["by_mask"],
-        "first_bin_weight": result["first_bin_weight"],
+        "bin_weights": result["bin_weights"],
         "executable_sha256": manifest.get("executable", {}).get("sha256"),
         "software": manifest.get("software"),
     }
@@ -497,7 +524,7 @@ def main() -> None:
     print(json.dumps({"alignment": {k: v for k, v in report["alignment"].items()
                                     if k != "scan"},
                       "strict": report["by_mask"]["strict"],
-                      "first_bin_weight": report["first_bin_weight"],
+                      "bin_weights": report["bin_weights"],
                       "report": str(path)}, indent=2))
 
 

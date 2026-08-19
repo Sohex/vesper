@@ -815,47 +815,72 @@ ordering or timestep offset between accumulation points: D4 closes, and it is
 the integration itself. A unit or area-weighting difference between the two
 grids: the masks are the same array.
 
-### What carries it: the first output bin is not one twelfth of an orbit
+### What does NOT carry it: the bin weighting, re-measured
 
-A model call leaves a partial output interval behind and the next call restores
-it -- `first-output-bin.md` for the mechanism and its other consequences. So the
-first record of every file covers more timesteps than the rest, and the same is
-true of the first BIN after pyburn averages three records into each.
+This section previously identified the culprit as the first output bin, held to
+cover 570 timesteps against 480 for the other eleven, and attributed 54% of the
+ice-free ocean's residual to it. **Both the mechanism and the attribution were
+wrong, and the error was in this project's own instrument.** Re-measured
+2026-08-18; the correction is recorded rather than the original claim, because
+a reader grepping for the number should land on the right one.
 
-The tiling measures the size directly, because the ice stream resolves 32
-timesteps. Bins 1 to 11 of the baseline are each exactly 15 stream records,
-480 timesteps; the orbit is 5850; so the first bin is **570 timesteps, 1.1875
-times an ordinary one**. pyburn averages the twelve with equal weight
-regardless, so an annual mean taken from a 12-bin file is a weighted mean with
-the wrong weights, in error by
+**Where the 570 came from.** `close_ocean_energy.py` derived the first bin's
+span as `total_steps - 11 * ordinary_bin_steps`, having assumed every bin is
+tiled by the same 15 stream records. That assumption is what was under test, so
+the derivation could only ever return the whole discrepancy as bin 0's excess.
 
-    (1/12 - n0/N) * (bin 0 - mean of bins 1 to 11)  =  -0.014103 * (bin 0 - rest)
+**What pyburn actually does.** It reduces the raw stream to twelve bins with
+`np.linspace(0, ntimes, 13).astype(int)` and divides each bin by its own count,
+so every bin mean is correct and the remainder of `ntimes / 12` is spread across
+the bins by truncation. The run's `burnout` log gives the record counts
+directly, and they differ by regime:
 
-On orbits 67-76, against the surface residual measured over the same orbits:
+| regime | raw records per orbit | records per bin |
+| --- | ---: | --- |
+| `NLOWIO = 1` | 36 | 3 in every bin, exactly equal |
+| `NLOWIO = 0` | 182 | `[15, 15, 15, 15, 15, 16, 15, 15, 15, 15, 15, 16]` |
+
+So the CHEAP spin-up regime bins exactly, and the CLEAN regime a climatology is
+required to use is the one whose bins are uneven -- the opposite of what the
+original mechanism asserted. Bin 0 holds fifteen records, the FEWEST.
+
+**The bin centres confirm it to the timestep.** At `NLOWIO = 0` the write
+interval is 32 steps, so the predicted gaps between centres are
+`(c_i + c_i+1)/2 * 32` = `[480, 480, 480, 480, 496, 496, 480, 480, 480, 480,
+496]`, and that is exactly what orbits 66 to 76 carry. Orbits 60 to 65 and 77 to
+80, all `NLOWIO = 1`, carry a flat 480. `lib/climatology.py` recovers the record
+count from the centres this way and raises if no count reproduces them.
+
+**What the correct weights are worth**, on orbits 67-76, against the surface
+residual measured over the same orbits. Masks here are taken from the binned
+file rather than from the ice stream at its own resolution, so they are the
+weaker version of the same masks:
 
 | mask | area | weighting error, W/m2 of planet | surface residual, W/m2 of planet |
 | --- | ---: | ---: | ---: |
-| land | 0.4282 | +0.0022 | -0.0160 |
-| never any ice or snow | 0.5201 | -0.0820 | -0.1517 |
-| ice or snow at some point | 0.0517 | +0.0543 | +0.0687 |
-| planet | 1.0000 | -0.0255 | -0.1217 |
+| land | 0.4282 | -0.0089 | -0.0160 |
+| never any ice or snow | 0.5201 | +0.0734 | -0.1517 |
+| ice or snow at some point | 0.0517 | -0.0192 | +0.0687 |
+| planet | 1.0000 | +0.0452 | -0.1217 |
 
-The same sign in every ocean row: 54% of the ice-free ocean's residual and 79%
-of the ice-bearing one's, while on land it is +0.0022 against a residual that
-was already zero. Per unit area of the ice-free ocean the weighting error is
--0.158 against a residual of -0.292.
+**The sign is the finding.** On the ice-free ocean the weighting error is
+POSITIVE where the residual is negative, so correcting the weights makes the
+residual slightly worse rather than explaining half of it. The old table had
+this the other way round on every ocean row, and that agreement was the main
+evidence for the attribution. It does not survive.
 
-**The coefficient is a property of the call length, not of the model.** The
-0.910 run's calls are 6018 timesteps rather than 5850, so its first bin is 738
-timesteps and its coefficient is -0.0393, 2.8 times the baseline's -- which is
-the same pair of call lengths that gives `first-output-bin.md` its two values of
-`delta`, arrived at by a different route.
+Two smaller things follow from the same arithmetic. The claim that the
+coefficient is a property of the call length, with the 0.910 run at 2.8 times
+the baseline's, was derived from the same residual and goes with it: what
+differs between runs is the record count, and the coefficient follows from
+`ntimes mod 12`. And the observation that `NLOWIO = 0` does not remove the
+residual is still true and is now unsurprising, since the weighting was never
+what caused it.
 
-**It is not the low-I/O path and `NLOWIO = 0` does not remove it.** Measured
-across nineteen consecutive orbit-to-orbit intervals of the baseline, comparing
-the phase-matched change in the ice-free ocean's slab temperature with the mean
-`hfns` over the interval: -0.209 W/m2 mean over the ten intervals inside the
-`NLOWIO = 0` block, -0.185 over the seven outside it.
+**A separate truncation that no weighting fixes.** At `NLOWIO = 0` the 182
+records cover `182 * 32 = 5824` of the orbit's 5850 timesteps, so the last 26 --
+0.44% of every orbit -- are never written at all. An annual mean from a binned
+file is a mean over 99.56% of the orbit however it is weighted.
 
 ### What is left, and it is not much
 
@@ -943,21 +968,22 @@ share exactly, `hfns` equals `CRHOS * CPS * mld * d(SST)/dt` to 0.002 W/m2 on
 the ice-free ocean of the baseline and to 0.01 or better on two of the other
 three runs, against a seasonal swing of 41 W/m2; the four intermediate identities
 between the atmosphere's fluxes and the slab's temperature close to five
-decimals or better. What produces the apparent -0.29 W/m2 is that the first bin
-of a 12-bin file covers 570 model timesteps where the others cover 480, because
-a model call restores the previous call's partial output interval, and pyburn
-weights the twelve equally. That is worth -0.158 W/m2 per unit area of the
-ice-free ocean, 54% of the residual there and 79% of the ice-bearing ocean's,
-with the right sign on all three surface masks. It is not the low-I/O path and
-`NLOWIO = 0` does not remove it.
+decimals or better. So the apparent -0.29 W/m2 is not the slab.
 
-**Still open, and smaller again.** -0.13 W/m2 per unit area of the ice-free
-ocean is unattributed after the weighting is counted, and it cannot be pinned
-on orbits 67-76 because the ocean stream for those orbits was overwritten and
-the storage there has to come from a ten-orbit trend whose four estimators
-already span 0.18 W/m2. The next instrument is to stop truncating
-`ocean_output` and `ice_output` at every model call, so the next climatology
-block carries them and the trend is replaced by an exact endpoint difference.
+**What it is NOT is the bin weighting**, which this note attributed it to until
+2026-08-18 and which the section above now refutes with the measurement. The
+weighting error is +0.0452 W/m2 of planet and POSITIVE on the ice-free ocean
+where the residual is negative, so counting it correctly makes the residual
+slightly larger rather than removing half of it.
+
+**Still open, and now the whole of it.** The residual on the ice-free ocean is
+unattributed, and it cannot be pinned on orbits 67-76 because the ocean stream
+for those orbits was overwritten and the storage there has to come from a
+ten-orbit trend whose four estimators already span 0.18 W/m2. That truncation is
+fixed as of CLIM-12 -- each model call's streams are moved aside rather than
+overwritten -- so the next climatology block carries the whole series and the
+trend is replaced by an exact endpoint difference. No run on this build predates
+that fix, so the measurement waits on the next one.
 That is what is left of CLIM-11: not more model time, and not the offline
 radiative transfer this note once proposed.
 
