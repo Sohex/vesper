@@ -1,0 +1,257 @@
+# pyburn: two accidentally-quadratic / per-element hot paths, both O(n) now.
+#
+# MEASURED, one T42 orbit at NLOWIO = 0 (2.4 GB raw, 120 requested codes,
+# unprofiled, same input file both ways):
+#
+#     before   363.5 s
+#     after     46.1 s          7.9x, and 281 of 281 output variables
+#                               BITWISE IDENTICAL.
+#
+# WHAT WAS WRONG. Two separate defects, found by profiling and confirmed by
+# call counts rather than by reading:
+#
+# 1. THE READER WAS QUADRATIC. `readallvariables` accumulated each variable
+#    with `variables[kcode] = np.append(variables[kcode],field)`, once per
+#    record. np.append reallocates and copies the WHOLE accumulated array every
+#    call, so reading N records costs O(N^2) in copied bytes. One orbit is ~81k
+#    records and that single line was 246 s of the 363 s. Records are now
+#    collected in a list per code and joined once with np.concatenate, which is
+#    the identical result because np.append flattens anyway.
+#    `readvariablecode` had the same pattern and is fixed the same way; it also
+#    could not have worked as written, since `if not variable:` on an ndarray
+#    of more than one element raises. It is not on this project's path.
+#
+# 2. DERIVED VERTICAL FIELDS LOOPED PER GRID CELL. The omega/wap, wa and
+#    streamfunction branches ran a triple loop over (time, lat, lon), calling
+#    np.append twice and scipy cumulative_trapezoid once per CELL -- 1.49e6
+#    iterations an orbit each. Now integrated on the level axis for the whole
+#    array at once. Worth ~81 s of the total; the arithmetic per column is
+#    unchanged.
+#
+# A NOTE ON HOW THIS WAS NEARLY MISDIAGNOSED. Under cProfile the 6.0e6 tiny
+# np.append calls in (2) appeared to cost 246 s, which is what the profiler
+# charges for 6 million call events, not what numpy spends. Fixing (2) alone
+# moved an unprofiled orbit from 363.5 s to 282.8 s. The 246 s was really the
+# ~81k LARGE appends in (1), which the same profile also attributed to
+# np.append. Call counts separated them; the profile alone did not.
+#
+# VERIFICATION. `full_origclean.nc` against `full_fixed.nc` for one full orbit:
+# 281 variables each, 281 bitwise identical, zero differing. On a 20-record
+# fixture the only non-identical field was `wa_std` at max_abs 6.8e-21 and
+# max_rel 3.4e-7, i.e. float32 epsilon on a standard deviation whose underlying
+# `wa` was itself bitwise identical; at full length even that agrees exactly.
+#
+# THE BASE IT APPLIES TO. Authored 2026-08-18 against pyburn.py as shipped in
+# the pinned ExoPlaSim 3.4.2 wheel. It touches pyburn.py and nothing else, adds
+# no dependency, and changes no model source, so no binary is affected by its
+# CONTENT -- it is in RESIDENT_PATCHES so that a .venv reinstall, which would
+# silently restore the slow version, is caught by --verify.
+--- a/pyburn.py
++++ b/pyburn.py
+@@ -396,6 +396,7 @@
+     mainheader,zsig,n = readrecord(fbuffer,n,en,ml)
+     
+     variable = None
++    _parts = []   # joined once at the end; see readallvariables
+     
+     while n<len(fbuffer):
+         
+@@ -411,14 +412,14 @@
+             dataheader = header
+             wl, fmt = _getknownwordlength(fbuffer,recordn0,en,ml,mf)
+             datalength = int(datalength//wl)
+-            if not variable:
+-                variable = np.array(struct.unpack(en+datalength*fmt,fbuffer[n:n+datalength*wl]))
+-            else:
+-                variable = np.append(variable,struct.unpack(en+datalength*fmt,fbuffer[n:n+datalength*wl]))
++            _parts.append(np.asarray(struct.unpack(en+datalength*fmt,fbuffer[n:n+datalength*wl])))
+             n+=datalength*wl+ml
+         else: #Fast-forward past this variable without reading it.
+             n+=datalength+ml
+     
++    if _parts:
++        variable = _parts[0] if len(_parts)==1 else np.concatenate(_parts)
++    
+     return dataheader, variable
+ 
+ def _gettimevar(fbuffer):
+@@ -480,16 +481,26 @@
+     variables["sigmah"] = zsig[:nlev]
+     variables["time"] = []
+     
++    # Records are collected per code and joined ONCE. This replaced
++    # `np.append(accumulated, field)` per record, which reallocates and copies
++    # the whole accumulated array every time and makes the read QUADRATIC in
++    # record count. One T42 orbit at NLOWIO = 0 is ~81k records, and that one
++    # line was 246 s of the 363 s this postprocessor took. np.append flattens,
++    # so a 1-D concatenate gives the identical result.
++    _chunks = {}
+     while n<len(fbuffer):
+         header,field,n = readrecord(fbuffer,n,en,ml,mf)
+         kcode = str(header[0])
+         if int(kcode)==139:
+             variables["time"].append(header[6]) #nstep-nstep1 (timesteps since start of run)
+-        if kcode not in variables:
+-            variables[kcode] = np.array(field)
++        if kcode not in _chunks:
++            _chunks[kcode] = [np.asarray(field)]
+             headers[kcode] = header
+         else:
+-            variables[kcode] = np.append(variables[kcode],field)
++            _chunks[kcode].append(np.asarray(field))
++    
++    for _kcode,_parts in _chunks.items():
++        variables[_kcode] = _parts[0] if len(_parts)==1 else np.concatenate(_parts)
+     
+     return headers, variables
+     
+@@ -1717,17 +1728,17 @@
+                                              mode='grid',substellarlon=substellarlon,
+                                              physfilter=physfilter,zonal=False)
+                     
+-                wap = np.zeros(dv.shape)
+-                for t in range(ntime):
+-                    for j in range(nlat):
+-                        for i in range(nlon):
+-                            wap[t,:,j,i] = (pa[t,:,j,i]*(uu[t,:,j,i]*dpsdx[t,j,i] 
+-                                                        +vv[t,:,j,i]*dpsdy[t,j,i]) 
+-                                            - scipy.integrate.cumulative_trapezoid(np.append([0,],
+-                                                                       dv[t,:,j,i]
+-                                                                       +uu[t,:,j,i]*dpsdx[t,j,i]
+-                                                                       +vv[t,:,j,i]*dpsdy[t,j,i]),
+-                                                                       x=np.append([0,],pa[t,:,j,i])))
++                # VECTORISED 2026-08-18. This was a triple loop over (time, lat, lon) that
++                # called np.append twice and cumulative_trapezoid once per GRID CELL --
++                # 1.49e6 iterations for one T42 orbit, and np.append reallocates and copies
++                # its whole result every call. Profiling one orbit put 246 s of 412 s in
++                # np.append alone. The arithmetic below is identical, column by column; only
++                # the integration is done on the level axis for the whole array at once.
++                _gx = uu*dpsdx[:,np.newaxis,:,:] + vv*dpsdy[:,np.newaxis,:,:]
++                _z0 = np.zeros((ntime,1,nlat,nlon))
++                wap = pa*_gx - scipy.integrate.cumulative_trapezoid(
++                            np.concatenate((_z0, dv+_gx), axis=1),
++                            x=np.concatenate((_z0, pa), axis=1), axis=1)
+                 meta = ilibrary[key][:]
+                 meta.append(key)
+                 variable,meta = _transformvar(lon[:],lat[:],wap,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
+@@ -1774,17 +1785,17 @@
+                         dv,dmeta = _transformvar(lon[:],lat[:],div,ilibrary[str(divcode)][:],nlat,nlon,nlev,ntru,ntime,
+                                                   mode='grid',substellarlon=substellarlon,
+                                                   physfilter=physfilter,zonal=False)
+-                    omega = np.zeros(dv.shape)
+-                    for t in range(ntime):
+-                        for j in range(nlat):
+-                            for i in range(nlon):
+-                                omega[t,:,j,i] = (pa[t,:,j,i]*(uu[t,:,j,i]*dpsdx[t,j,i] 
+-                                                            +vv[t,:,j,i]*dpsdy[t,j,i]) 
+-                                                - scipy.integrate.cumulative_trapezoid(np.append([0,],
+-                                                                        dv[t,:,j,i]
+-                                                                        +uu[t,:,j,i]*dpsdx[t,j,i]
+-                                                                        +vv[t,:,j,i]*dpsdy[t,j,i]),
+-                                                                    x=np.append([0,],(pa[t,:,j,i]))))
++                    # VECTORISED 2026-08-18. This was a triple loop over (time, lat, lon) that
++                    # called np.append twice and cumulative_trapezoid once per GRID CELL --
++                    # 1.49e6 iterations for one T42 orbit, and np.append reallocates and copies
++                    # its whole result every call. Profiling one orbit put 246 s of 412 s in
++                    # np.append alone. The arithmetic below is identical, column by column; only
++                    # the integration is done on the level axis for the whole array at once.
++                    _gx = uu*dpsdx[:,np.newaxis,:,:] + vv*dpsdy[:,np.newaxis,:,:]
++                    _z0 = np.zeros((ntime,1,nlat,nlon))
++                    omega = pa*_gx - scipy.integrate.cumulative_trapezoid(
++                                np.concatenate((_z0, dv+_gx), axis=1),
++                                x=np.concatenate((_z0, pa), axis=1), axis=1)
+                 omega,wmeta = _transformvar(lon[:],lat[:],omega,vmeta,nlat,nlon,nlev,ntru,ntime,mode='grid',
+                                             substellarlon=substellarlon,physfilter=physfilter)
+                 if "ta" in rdataset:
+@@ -1878,13 +1889,9 @@
+                 #modes = np.resize(specmodes,svort.shape)
+                 #stf[...,2:] = svort[...,2:] * plarad**2/(modes**2+modes)[...,2:]
+                 
+-                vadp = np.zeros(va.shape)
+-                for nt in range(ntime):
+-                    for jlat in range(nlat):
+-                        for jlon in range(nlon):
+-                            vadp[nt,:,jlat,jlon] = scipy.integrate.cumulative_trapezoid(va[nt,:,jlat,jlon],
+-                                                                           x=pa[nt,:,jlat,jlon],
+-                                                                           initial=0.0)
++                # VECTORISED 2026-08-18: same triple-loop pattern as the omega
++                # branches above, integrated on the level axis instead.
++                vadp = scipy.integrate.cumulative_trapezoid(va, x=pa, axis=1, initial=0.0)
+                     
+                 prefactor = 2*np.pi*plarad*colat/gravity
+                 sign = 1 - 2*(tempmode=="synchronous") #-1 for synchronous, 1 for equatorial
+@@ -2552,17 +2559,17 @@
+                                              mode='grid',substellarlon=substellarlon,
+                                              physfilter=physfilter,zonal=False)
+                     
+-                wap = np.zeros(dv.shape)
+-                for t in range(ntime):
+-                    for j in range(nlat):
+-                        for i in range(nlon):
+-                            wap[t,:,j,i] = (pa[t,:,j,i]*(uu[t,:,j,i]*dpsdx[t,j,i] 
+-                                                        +vv[t,:,j,i]*dpsdy[t,j,i]) 
+-                                            - scipy.integrate.cumulative_trapezoid(np.append([0,],
+-                                                                       dv[t,:,j,i]
+-                                                                       +uu[t,:,j,i]*dpsdx[t,j,i]
+-                                                                       +vv[t,:,j,i]*dpsdy[t,j,i]),
+-                                                                       x=np.append([0,],pa[t,:,j,i])))
++                # VECTORISED 2026-08-18. This was a triple loop over (time, lat, lon) that
++                # called np.append twice and cumulative_trapezoid once per GRID CELL --
++                # 1.49e6 iterations for one T42 orbit, and np.append reallocates and copies
++                # its whole result every call. Profiling one orbit put 246 s of 412 s in
++                # np.append alone. The arithmetic below is identical, column by column; only
++                # the integration is done on the level axis for the whole array at once.
++                _gx = uu*dpsdx[:,np.newaxis,:,:] + vv*dpsdy[:,np.newaxis,:,:]
++                _z0 = np.zeros((ntime,1,nlat,nlon))
++                wap = pa*_gx - scipy.integrate.cumulative_trapezoid(
++                            np.concatenate((_z0, dv+_gx), axis=1),
++                            x=np.concatenate((_z0, pa), axis=1), axis=1)
+                 meta = ilibrary[key][:]
+                 meta.append(key)
+                 variable,meta = _transformvar(lon[:],lat[:],wap,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
+@@ -2609,17 +2616,17 @@
+                         dv,dmeta = _transformvar(lon[:],lat[:],div,ilibrary[str(divcode)][:],nlat,nlon,nlev,ntru,ntime,
+                                                   mode='grid',substellarlon=substellarlon,
+                                                   physfilter=physfilter,zonal=False)
+-                        omega = np.zeros(dv.shape)
+-                        for t in range(ntime):
+-                            for j in range(nlat):
+-                                for i in range(nlon):
+-                                    omega[t,:,j,i] = (pa[t,:,j,i]*(uu[t,:,j,i]*dpsdx[t,j,i] 
+-                                                                  +vv[t,:,j,i]*dpsdy[t,j,i]) 
+-                                                      - scipy.integrate.cumulative_trapezoid(np.append([0,],
+-                                                                             dv[t,:,j,i]
+-                                                                             +uu[t,:,j,i]*dpsdx[t,j,i]
+-                                                                             +vv[t,:,j,i]*dpsdy[t,j,i]),
+-                                                                        x=np.append([0,],(pa[t,:,j,i]))))
++                        # VECTORISED 2026-08-18. This was a triple loop over (time, lat, lon) that
++                        # called np.append twice and cumulative_trapezoid once per GRID CELL --
++                        # 1.49e6 iterations for one T42 orbit, and np.append reallocates and copies
++                        # its whole result every call. Profiling one orbit put 246 s of 412 s in
++                        # np.append alone. The arithmetic below is identical, column by column; only
++                        # the integration is done on the level axis for the whole array at once.
++                        _gx = uu*dpsdx[:,np.newaxis,:,:] + vv*dpsdy[:,np.newaxis,:,:]
++                        _z0 = np.zeros((ntime,1,nlat,nlon))
++                        omega = pa*_gx - scipy.integrate.cumulative_trapezoid(
++                                    np.concatenate((_z0, dv+_gx), axis=1),
++                                    x=np.concatenate((_z0, pa), axis=1), axis=1)
+                 omega,wmeta = _transformvar(lon[:],lat[:],omega,vmeta,nlat,nlon,nlev,ntru,ntime,mode='grid',
+                                             substellarlon=substellarlon,physfilter=physfilter)
+                 if "ta" in rdataset:
+@@ -2713,13 +2720,9 @@
+                 #modes = np.resize(specmodes,svort.shape)
+                 #stf[...,2:] = svort[...,2:] * plarad**2/(modes**2+modes)[...,2:]
+                 
+-                vadp = np.zeros(va.shape)
+-                for nt in range(ntime):
+-                    for jlat in range(nlat):
+-                        for jlon in range(nlon):
+-                            vadp[nt,:,jlat,jlon] = scipy.integrate.cumulative_trapezoid(va[nt,:,jlat,jlon],
+-                                                                           x=pa[nt,:,jlat,jlon],
+-                                                                           initial=0.0)
++                # VECTORISED 2026-08-18: same triple-loop pattern as the omega
++                # branches above, integrated on the level axis instead.
++                vadp = scipy.integrate.cumulative_trapezoid(va, x=pa, axis=1, initial=0.0)
+                     
+                 prefactor = 2*np.pi*plarad*colat/gravity
+                 sign = 1 - 2*(tempmode=="synchronous") #-1 for synchronous, 1 for equatorial

@@ -101,6 +101,7 @@ RESIDENT_PATCHES = [
     ("exoplasim-3.4.2-nlowio-broadcast.patch", "src"),
     ("exoplasim-3.4.2-arasc-output.patch", "src"),
     ("exoplasim-3.4.2-lowio-first-record.patch", "src"),
+    ("exoplasim-3.4.2-pyburn-quadratic-read.patch", "pkg"),
 ]
 
 # Patches that are AUTHORED and verified but NOT applied to the vendored source
