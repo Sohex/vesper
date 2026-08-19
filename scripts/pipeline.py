@@ -42,6 +42,9 @@ from pathlib import Path
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
+import sys
+sys.path.insert(0, str(ROOT / "lib"))
+from provenance import INERT_CONFIG_KEYS, artifact_drift  # noqa: E402
 GRAPH = ROOT / "config" / "pipeline.yaml"
 TASKS = ROOT / "TASKS.md"
 
@@ -76,6 +79,34 @@ def present(step: dict, build: str) -> tuple[bool | None, list[str]]:
         return None, []
     missing = [w for w in step.get("writes", []) if not resolve(w, build).exists()]
     return (not missing), missing
+
+
+def stale(step: dict, build: str, config: dict) -> list[str]:
+    """Config drift under a step's own outputs. Empty when nothing moved.
+
+    PRESENCE IS NOT CURRENCY, and `present` above says so in its own name. A
+    staged surface field is regenerated from the seed, the config and the code,
+    so a config change makes it worthless rather than merely old -- but it stays
+    on disk, and a planner that reads the filesystem calls that done. That is
+    how the star-reweighted canopy of SPEC-5 sat unstaged through two commits
+    while every document described it: `CLAUDE.md` rule 7 promises the ordering
+    regenerates derived artifacts as a side effect, and the promise held only
+    for steps whose output is judged by something other than existing.
+
+    Checked only for steps with a TRACED inert set in
+    `lib/provenance.py:INERT_CONFIG_KEYS`. A step absent from there is not
+    checked, because guessing an inert set would flag every step on any
+    parameter change, which teaches re-running generators to silence a message.
+    """
+    inert = INERT_CONFIG_KEYS.get(step["id"])
+    if inert is None:
+        return []
+    out = []
+    for w in step.get("writes", []):
+        drift = artifact_drift(resolve(w, build), config, inert)
+        if drift:
+            out += [f"{Path(w).name}: {d}" for d in drift]
+    return out
 
 
 def upstream(target: str, by_id: dict, seen: set | None = None) -> set:
@@ -139,6 +170,9 @@ def cmd_register(graph: dict) -> int:
 
 def cmd_status(graph: dict) -> int:
     build = active_build()
+    config = yaml.safe_load(
+        (ROOT / "config" / "planet.yaml").read_text(encoding="utf-8"))
+    stale_total = 0
     by_id = steps_by_id(graph)
     print(f"active build: {build}\n")
     miss_total = 0
@@ -149,7 +183,13 @@ def cmd_status(graph: dict) -> int:
         if ok is None:
             print(f"[ ask idx ] {s['id']}  (UUID-named; INDEX.json is the record)")
         elif ok:
-            print(f"[ present ] {s['id']}")
+            drift = stale(s, build, config)
+            if drift:
+                stale_total += 1
+                print(f"[  STALE  ] {s['id']}  (config moved under it: "
+                      f"{drift[0]}{'; ...' if len(drift) > 1 else ''})")
+            else:
+                print(f"[ present ] {s['id']}")
         else:
             miss_total += 1
             print(f"[ MISSING ] {s['id']}  ({len(missing)} of "
@@ -158,7 +198,8 @@ def cmd_status(graph: dict) -> int:
     unknown = {s: t for s, t in attached.items() if s not in by_id}
     gate = upstream("carve_list", by_id) | {"carve_list"}
     blocking = {s: t for s, t in attached.items() if s in gate}
-    print(f"\n{len(graph['steps'])} steps, {miss_total} with a missing artifact")
+    print(f"\n{len(graph['steps'])} steps, {miss_total} with a missing "
+          f"artifact, {stale_total} present but built from an older config")
     if unknown:
         # A task naming a step the graph does not have is INVISIBLE to the gate:
         # it is neither blocking nor residual, so it is silently uncounted. That
@@ -184,6 +225,8 @@ def cmd_status(graph: dict) -> int:
 
 
 def cmd_plan(graph: dict, target: str, force: bool) -> int:
+    config = yaml.safe_load(
+        (ROOT / "config" / "planet.yaml").read_text(encoding="utf-8"))
     by_id = steps_by_id(graph)
     if target not in by_id:
         raise SystemExit(f"no step '{target}'. Known: {', '.join(sorted(by_id))}")
@@ -194,6 +237,11 @@ def cmd_plan(graph: dict, target: str, force: bool) -> int:
     for sid in seq:
         s = by_id[sid]
         ok, _ = present(s, build)
+        if ok and stale(s, build, config):
+            print(f"  [ run     ] {sid:26s} {s.get('cost', ''):8s} "
+                  f"{s.get('script', '')}   <- present but the config moved "
+                  f"under it")
+            continue
         if ok is True and not force and sid != target:
             print(f"  [ skip    ] {sid:26s} artifact present")
             continue

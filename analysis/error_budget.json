@@ -44,24 +44,24 @@
   "albedo_items": [
     {
       "item": "biosphere: bare rock vs vegetated",
-      "delta_land_albedo": -0.07798758370729242,
-      "kelvin_naive": 9.532,
-      "kelvin": 4.766,
-      "runoff_percent": 4.43,
+      "delta_land_albedo": -0.06699528673346442,
+      "kelvin_naive": 8.189,
+      "kelvin": 4.094,
+      "runoff_percent": 3.81,
       "basins": [
-        -159,
-        -13
+        -143,
+        -12
       ],
-      "note": "the assumption LPJ-GUESS exists to replace. Measured: 0.25705 bare against 0.17907 vegetated, both pre-lake and on the overridden rock table."
+      "note": "the assumption LPJ-GUESS exists to replace. Measured: 0.25705 bare against 0.19006 vegetated, both pre-lake and on the overridden rock table."
     },
     {
       "item": "lakes composited into albedo",
-      "delta_land_albedo": -0.022891,
-      "kelvin_naive": 2.798,
-      "kelvin": 1.399,
-      "runoff_percent": 1.3,
+      "delta_land_albedo": -0.023239,
+      "kelvin_naive": 2.84,
+      "kelvin": 1.42,
+      "runoff_percent": 1.32,
       "basins": [
-        -43,
+        -45,
         -5
       ],
       "note": "solved lakes reaching the climate at all. Measured, from the same report: the cells carrying water are the bright playa and salt crust."

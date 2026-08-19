@@ -69,6 +69,7 @@ import climatology  # noqa: E402  from lib/, put on sys.path by _paths
 from sra import write_sra
 from builds import resolution_of, grid_export, mesh_export
 from gridding import land_fraction_of_class, land_weighted, region_cells
+from provenance import config_stamp
 from orogen import Export, LAND
 
 # 174 broadband, 175 below 0.75 um, 176 above. With NSIMPLEALBEDO=0 the
@@ -611,6 +612,12 @@ def main() -> None:
         "caveat": ("Substrate albedo, not land-surface albedo. Vegetation and "
                    "snow are applied by the model on top of this."),
     }
+    # CLAUDE.md's provenance convention, which this file did not keep. Without
+    # it the config can move under a staged field and nothing can see that it
+    # has: `check_consistency.py` tested the terrain hash, which never moved,
+    # and `pipeline.py` tested whether the file existed. `lib/provenance.py`
+    # owns the shape and the inert set that goes with it.
+    report.update(config_stamp(config, "exoplasim/scripts/build_surface_albedo.py"))
     (output / "albedo_report.json").write_text(
         json.dumps(report, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(report, indent=2))

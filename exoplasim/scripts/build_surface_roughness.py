@@ -75,6 +75,7 @@ from _paths import CONFIG, INPUTS, PROJECT_ROOT
 from sra import write_sra
 from builds import resolution_of, grid_export, mesh_export
 from gridding import land_weighted, region_cells
+from provenance import config_stamp
 from orogen import Export, LAND
 
 ROUGHNESS_CODE = 173
@@ -225,6 +226,12 @@ def main() -> None:
         "file": str(output),
     }
     report_path = output.parent / f"roughness_{resolution.lower()}_report.json"
+    # CLAUDE.md's provenance convention, which this file did not keep. Without
+    # it the config can move under a staged field and nothing can see that it
+    # has: `check_consistency.py` tested the terrain hash, which never moved,
+    # and `pipeline.py` tested whether the file existed. `lib/provenance.py`
+    # owns the shape and the inert set that goes with it.
+    report.update(config_stamp(config, "exoplasim/scripts/build_surface_roughness.py"))
     report_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
 
     print(f"land-mean z0 {land_mean(z0):.4f} m against the uniform "

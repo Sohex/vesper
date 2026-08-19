@@ -89,7 +89,7 @@ import yaml                          # noqa: E402
 import builds                        # noqa: E402
 from paths import rel                # noqa: E402
 from gridding import coupling_ocean_fraction   # noqa: E402
-from provenance import config_drift, unknown_inert_keys   # noqa: E402
+from provenance import artifact_drift, BIOSPHERE_INERT_CONFIG_KEYS, INERT_CONFIG_KEYS, config_drift, unknown_inert_keys   # noqa: E402
 
 
 def land_sea_mask():
@@ -121,21 +121,6 @@ def land_sea_mask():
 #   say so.
 #
 # A change to either of those SHOULD report the generated inputs as stale.
-BIOSPHERE_INERT_CONFIG_KEYS = {
-    "schema_version",                     # bookkeeping; written into provenance
-                                          # records, never read as an input
-    "star.activity",                      # a design declaration; no script
-                                          # reads it
-    "star.surface_uv_relative_to_earth",  # a design declaration; ExoPlaSim
-                                          # models no ultraviolet and no script
-                                          # reads it
-    # Prose carried inside the YAML rather than in a comment above it, and the
-    # in-band twin of the comment edit this check used to fail on. Only
-    # `period_earth_years` and `amplitude_flux_peak_to_peak` are read out of
-    # `stellar_cycle.components`, by `run_stellar_cycle.py`.
-    "stellar_cycle.components.medium.note",
-    "stellar_cycle.components.long.note",
-}
 
 
 FAIL, WARN, OK = "FAIL", "warn", "ok"
@@ -698,6 +683,68 @@ def main() -> int:
                     if stale else "all derived from the current config")
     except Exception as exc:
         rep.add(WARN, "generated biosphere inputs", f"not checked: {exc}")
+
+    # -- staged surface fields vs the config they were built from ------------
+    #
+    # The same question the biosphere check above asks, of the fields the model
+    # reads at run start. It went unasked until 2026-08-19, when SPEC-5's
+    # star-reweighted canopy sat unstaged through two commits: `surface inputs
+    # current` above tests the TERRAIN hash, and the terrain had not moved.
+    #
+    # Two failures, not one, because they are different. An artifact whose
+    # config has drifted is WORTHLESS and its generator has to re-run. An
+    # artifact with no `source_config` at all is UNOBSERVABLE, which is not the
+    # same as current, and the remedy is the same re-run either way.
+    try:
+        import pipeline as _pipeline
+        graph = _pipeline.load()
+        build = _pipeline.active_build()
+        drifted, unstamped = [], []
+        for step in graph["steps"]:
+            inert = INERT_CONFIG_KEYS.get(step["id"])
+            if inert is None:
+                continue
+            for w in step.get("writes", []):
+                path = _pipeline.resolve(w, build)
+                if not path.is_file() or path.suffix != ".json":
+                    continue
+                drift = artifact_drift(path, config, inert)
+                if drift is None:
+                    unstamped.append(f"{path.name} -> rerun {step.get('script')}")
+                elif drift:
+                    drifted.append(f"{path.name}: {'; '.join(drift)} -> rerun "
+                                   f"{step.get('script')}")
+        rep.add(FAIL if drifted else OK, "generated inputs vs their config",
+                "built from an older config: " + "; ".join(drifted) if drifted
+                else "every stamped artifact matches the current config")
+        if unstamped:
+            rep.add(WARN, "generated inputs without a config stamp",
+                    "; ".join(unstamped))
+        # The inert sets are claims about what a generator reads, and a claim
+        # that has gone stale is worse than none. Re-run the trace: a key listed
+        # inert whose NAME appears in the generator's source is a claim the
+        # source contradicts.
+        contradicted = []
+        for step in graph["steps"]:
+            inert = INERT_CONFIG_KEYS.get(step["id"])
+            script = step.get("script")
+            if inert is None or not script:
+                continue
+            src_path = ROOT / script
+            if not src_path.is_file():
+                continue
+            src = src_path.read_text(encoding="utf-8")
+            for key in sorted(inert):
+                if not key.startswith("model."):
+                    continue
+                if key.split(".", 1)[1] in src:
+                    contradicted.append(f"{step['id']} lists {key} inert and "
+                                        f"{script} names it")
+        rep.add(FAIL if contradicted else OK, "inert config sets vs their generators",
+                "; ".join(contradicted) if contradicted
+                else "no generator names a key its own inert set calls unread")
+    except Exception as exc:
+        rep.add(WARN, "generated inputs vs their config", f"not checked: {exc}")
 
     # -- runs vs the spectrum file they were integrated against --------------
     #

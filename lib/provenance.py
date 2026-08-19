@@ -43,6 +43,7 @@ per build and strictly.
 
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 
@@ -174,6 +175,158 @@ def config_drift(recorded: dict, current: dict,
     return out
 
 
+# Moved here from `scripts/check_consistency.py` so that ONE registry answers
+# "has the config moved under this artifact" for every consumer that asks.
+# `scripts/pipeline.py` is the second asker and appeared after this set did.
+BIOSPHERE_INERT_CONFIG_KEYS = {
+    "schema_version",                     # bookkeeping; written into provenance
+                                          # records, never read as an input
+    "star.activity",                      # a design declaration; no script
+                                          # reads it
+    "star.surface_uv_relative_to_earth",  # a design declaration; ExoPlaSim
+                                          # models no ultraviolet and no script
+                                          # reads it
+    # Prose carried inside the YAML rather than in a comment above it, and the
+    # in-band twin of the comment edit this check used to fail on. Only
+    # `period_earth_years` and `amplitude_flux_peak_to_peak` are read out of
+    # `stellar_cycle.components`, by `run_stellar_cycle.py`.
+    "stellar_cycle.components.medium.note",
+    "stellar_cycle.components.long.note",
+}
+
+
+# Per-CONSUMER inert config keys for the STAGED SURFACE FIELDS, keyed by the
+# `config/pipeline.yaml` step id that writes them. Read by both
+# `scripts/check_consistency.py` and `scripts/pipeline.py`, so the answer to
+# "has the config moved under this field" cannot differ between the two places
+# that ask it -- the same requirement `config_drift`'s docstring states.
+#
+# Every entry below is TRACED, not assumed: the block or key does not appear in
+# the builder at all, and the trace is the grep in the comment beside it. A key
+# that is merely believed harmless does not belong here; over-flagging costs a
+# generator that runs in seconds, and under-flagging costs a climate run.
+#
+# `model` is deliberately NOT blanket-inert for any of them. All three read
+# `config["model"]` wholesale and then pull keys out of it, so marking the block
+# inert would hide a real change; only the keys traced to the run scripts alone
+# are listed.
+
+SURFACE_UNREAD_MODEL_KEYS = {
+    # DERIVED, not asserted: each key below is one whose NAME does not appear
+    # anywhere in the generator's source, so the generator cannot be reading it.
+    # `check_consistency.py` re-runs that grep and FAILS if any of these names
+    # turns up in the file, which is what keeps the list from going quietly
+    # wrong when a builder learns to read a new key.
+    #
+    # The limitation, stated because it is the way this can be wrong: the trace
+    # is TEXTUAL and per file. A key reached indirectly through a helper in
+    # `lib/` that takes the whole config would not appear here and would be
+    # wrongly inert. Re-derive against the helper too if one starts doing that.
+    "surface_albedo": frozenset({
+        "model.co2_sw_weight", "model.energy_diagnostics",
+        "model.energy_diagnostics_3d", "model.h2o_sw_level",
+        "model.h2o_sw_weight", "model.layers", "model.ncpus",
+        "model.output_type", "model.ozone_scale",
+        "model.ozone_uv_weight", "model.ozone_visible_weight",
+        "model.physics_filter", "model.precision_bytes",
+        "model.regular_output_bins_per_orbit", "model.roughness_source",
+        "model.seasonal_samples_per_orbit", "model.soil_water_source",
+        "model.timestep_minutes", "model.uniform_land_surface",
+        "model.vegetation_albedo_bracket",
+    }),
+    "surface_roughness": frozenset({
+        "model.co2_sw_weight", "model.energy_diagnostics",
+        "model.energy_diagnostics_3d", "model.geography_land_threshold",
+        "model.h2o_sw_level", "model.h2o_sw_weight",
+        "model.land_albedo_source", "model.latitudes", "model.layers",
+        "model.lithology_albedo_overrides", "model.longitudes",
+        "model.ncpus", "model.output_type", "model.ozone_scale",
+        "model.ozone_uv_weight", "model.ozone_visible_weight",
+        "model.physics_filter", "model.precision_bytes",
+        "model.regular_output_bins_per_orbit",
+        "model.seasonal_samples_per_orbit", "model.soil_water_source",
+        "model.timestep_minutes", "model.uniform_land_surface",
+        "model.vegetation_albedo", "model.vegetation_albedo_bands",
+        "model.vegetation_albedo_bracket",
+    }),
+    "boundary_conditions": frozenset({
+        "model.barren_rock_classes", "model.co2_sw_weight",
+        "model.energy_diagnostics", "model.energy_diagnostics_3d",
+        "model.h2o_sw_level", "model.h2o_sw_weight",
+        "model.land_albedo_source", "model.layers",
+        "model.lithology_albedo_overrides", "model.ncpus",
+        "model.output_type", "model.ozone_scale",
+        "model.ozone_uv_weight", "model.ozone_visible_weight",
+        "model.physics_filter", "model.precision_bytes",
+        "model.regular_output_bins_per_orbit", "model.roughness_source",
+        "model.seasonal_samples_per_orbit", "model.soil_water_source",
+        "model.timestep_minutes", "model.uniform_land_surface",
+        "model.vegetation_albedo", "model.vegetation_albedo_bands",
+        "model.vegetation_albedo_bracket",
+    }),
+}
+
+# Top-level config BLOCKS a staged-field builder never touches, traced by the
+# same grep as the model keys above and listed by hand because a block name
+# skips a whole subtree and deserves to be read rather than computed.
+_SURFACE_BLOCKS = {
+    # build_surface_albedo.py mentions `orbit` (baseline_flux_earth) and
+    # `baseline_climatology`, so neither is inert for it.
+    "surface_albedo": frozenset({
+        "star", "atmosphere", "radiation", "surface", "ocean", "stellar_cycle",
+    }),
+    # build_surface_roughness.py mentions no block but `model`.
+    "surface_roughness": frozenset({
+        "planet", "star", "orbit", "atmosphere", "radiation", "surface",
+        "ocean", "stellar_cycle", "baseline_climatology",
+    }),
+    # build_boundary_conditions.py mentions `planet`, so it is not inert there.
+    "boundary_conditions": frozenset({
+        "star", "orbit", "atmosphere", "radiation", "surface", "ocean",
+        "stellar_cycle", "baseline_climatology",
+    }),
+}
+
+
+SURFACE_INERT_CONFIG_KEYS = {
+    step: blocks | SURFACE_UNREAD_MODEL_KEYS[step]
+    for step, blocks in _SURFACE_BLOCKS.items()
+}
+
+
+def config_stamp(config: dict, generator: str) -> dict:
+    """The provenance every generated input carries, in one place.
+
+    `CLAUDE.md` requires every generated product to record its provenance, and
+    three staged surface fields did not, which is why config drift under them
+    was unobservable rather than merely present. This is the shape the biosphere
+    generators already write and the shape `config_drift` consumes.
+
+    `source_config` is the PARSED configuration and is what a drift check reads.
+    `config_sha256` is the file hash and is kept only so a record written before
+    a generator learned to keep the parsed config can still be compared at all;
+    it cannot separate an edited comment from an edited parameter, which is why
+    nothing prefers it. `generator` is here so the remedy is read off the
+    artifact rather than guessed -- one message naming one script for three
+    artifacts was wrong for two of them.
+    """
+    import subprocess
+    root = PROJECT_ROOT
+    cfg_path = root / "config" / "planet.yaml"
+    try:
+        commit = subprocess.run(["git", "rev-parse", "HEAD"], cwd=root,
+                                capture_output=True, text=True,
+                                check=True).stdout.strip()
+    except Exception:
+        commit = None
+    return {
+        "generator": generator,
+        "source_config": config,
+        "config_sha256": hashlib.sha256(cfg_path.read_bytes()).hexdigest(),
+        "git_commit": commit,
+    }
+
+
 def unknown_inert_keys(inert, config: dict) -> list[str]:
     """Entries of an `inert` set that name nothing in `config`.
 
@@ -189,3 +342,42 @@ def unknown_inert_keys(inert, config: dict) -> list[str]:
             node = node[part]
         return True
     return sorted(k for k in inert if not present(k))
+
+
+# The one registry, keyed by the `config/pipeline.yaml` step id that writes the
+# artifact. A step ABSENT from here is not checked for drift, and that is the
+# safe default rather than an oversight: an inert set is a claim about what a
+# consumer reads, `config_drift`'s docstring requires each entry to be traced,
+# and an untraced empty set would flag every step on any parameter change and
+# teach people to re-run generators to silence a message.
+INERT_CONFIG_KEYS = dict(SURFACE_INERT_CONFIG_KEYS)
+INERT_CONFIG_KEYS.update({
+    "vesper_header": BIOSPHERE_INERT_CONFIG_KEYS,
+    "vesper_pfts": BIOSPHERE_INERT_CONFIG_KEYS,
+    "lpj_driver": BIOSPHERE_INERT_CONFIG_KEYS,
+})
+
+
+def artifact_drift(path, config: dict, inert) -> list[str] | None:
+    """Config drift under one generated artifact, or None if it carries no stamp.
+
+    Returns the `config_drift` lines, an empty list when nothing moved, and None
+    when the artifact records no `source_config` at all -- which is a different
+    answer and must not be collapsed into "fine". An artifact with no stamp is
+    unobservable rather than current, and the caller decides whether that is a
+    warning or a failure.
+    """
+    from pathlib import Path as _P
+    path = _P(path)
+    if path.suffix != ".json" or not path.is_file():
+        return None
+    try:
+        rec = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+    if not isinstance(rec, dict):
+        return None
+    was = rec.get("source_config")
+    if was is None:
+        return None
+    return config_drift(was, config, inert)
