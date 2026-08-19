@@ -1,8 +1,8 @@
 {
-  "generated": "2026-08-18T09:02:59+00:00",
+  "generated": "2026-08-19T05:42:50+00:00",
   "source": "/home/cfutro/git/lpj-guess/guess_4.1/data/ins/global.ins",
   "source_sha256": "4daa4358a1f2de730601ac64ce3a64e54821838de20f9391ac07f649fefb90d8",
-  "config_sha256": "6dff33deedc38674ccaf7a933329c16d105246f107b1d3d7df901ae4ef1a8c13",
+  "config_sha256": "be6445a5a0cc7c1df81cbc362ddcce86593148e97c4104b2b9e96cf7602c4491",
   "source_config": {
     "schema_version": 1,
     "source_build": "precarve-craton",
@@ -44,6 +44,9 @@
     "radiation": {
       "two_band_albedo": true,
       "stellar_spectrum": "k25v"
+    },
+    "ocean": {
+      "salinity_psu": 34.7
     },
     "surface": {
       "mixed_layer_depth_m": 50.0,
@@ -191,7 +194,7 @@
       "direction": "up, a duration in years"
     }
   ],
-  "output_sha256": "ee5a6410522487dc073276cd60d88633be502e3db1334c3be0a54f8b44492bff",
-  "git_commit": "1e8dbc07cd72473845be70cc68bb1a0fe7eeb622",
+  "output_sha256": "c7d92ad5c3976e1fd71afaa1277346513cf6a54f16ae72b603df8828b31ddefa",
+  "git_commit": "5c47dd7cc8555d1f9ae030a68547c3a0729aea97",
   "generator": "biosphere/scripts/build_vesper_pfts.py"
 }

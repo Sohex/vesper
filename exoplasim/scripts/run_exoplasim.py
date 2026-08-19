@@ -71,6 +71,41 @@ def command_version(command: list[str]) -> str | None:
     return (result.stdout or result.stderr).splitlines()[0]
 
 
+def freezing_point_k(salinity_psu: float) -> float:
+    """Freezing point of sea water at the surface, from its salinity.
+
+    UNESCO (1983) / Millero's polynomial, the standard one, at zero gauge
+    pressure. It exists because `icemod.f90` hardcodes `TFREEZE = 271.25` with
+    the comment "at S=34.7", so the model carries Earth's ocean unless something
+    tells it otherwise, and nothing in this project did until CLIM-17.
+
+    The formula is checked against that constant rather than trusted: at
+    S = 34.7 it must reproduce 271.25 K, which is a right answer the model
+    already knows and therefore a test that can fail.
+    """
+    s = float(salinity_psu)
+    if not 0.0 <= s <= 42.0:
+        raise ValueError(f"salinity {s} psu is outside the range the UNESCO "
+                         "polynomial is fitted over (0 to 42)")
+    celsius = -0.0575 * s + 1.710523e-3 * s**1.5 - 2.154996e-4 * s**2
+    return 273.15 + celsius
+
+
+_REFERENCE_SALINITY = 34.7
+_REFERENCE_TFREEZE = 271.25
+# Tolerance is the precision the model states the constant to, two decimals, and
+# not tighter: the polynomial gives 271.2449 and 271.25 is that rounded. A
+# tighter bound fails on the rounding rather than on a disagreement, which it
+# did when this was first written at 0.005.
+if abs(freezing_point_k(_REFERENCE_SALINITY) - _REFERENCE_TFREEZE) > 0.01:
+    raise RuntimeError(
+        f"the freezing-point polynomial gives "
+        f"{freezing_point_k(_REFERENCE_SALINITY):.4f} K at S = "
+        f"{_REFERENCE_SALINITY}, where icemod.f90's TFREEZE says "
+        f"{_REFERENCE_TFREEZE}. One of the two is wrong and this is not a "
+        "difference to average over.")
+
+
 def derive(config: dict, flux_ratio: float) -> dict:
     planet = config["planet"]
     star = config["star"]
@@ -116,6 +151,9 @@ def derive(config: dict, flux_ratio: float) -> dict:
         "snapshot_interval_steps": max(
             1, runsteps // int(model["seasonal_samples_per_orbit"])
         ),
+        "ocean_salinity_psu": float(config["ocean"]["salinity_psu"]),
+        "sea_water_freezing_point_k": freezing_point_k(
+            config["ocean"]["salinity_psu"]),
     }
 
 
@@ -1115,7 +1153,12 @@ def main() -> None:
         otherargs={
             "N_DAYS_PER_YEAR@plasim_namelist": str(
                 derived["rotations_per_orbit_namelist"]
-            )
+            ),
+            # Sea water's freezing point, from the declared salinity rather than
+            # from icemod.f90's compiled-in Earth value. `configure()` has no
+            # parameter for it and it is an ordinary `icemod_nl` key, so it goes
+            # the same route N_DAYS_PER_YEAR does. CLIM-17.
+            "TFREEZE@icemod_namelist": f"{derived['sea_water_freezing_point_k']:.4f}",
         },
     )
     # Shipped output lists omit orbital phase and several hydrology fields.

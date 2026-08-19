@@ -1,6 +1,6 @@
 {
-  "generated": "2026-08-18T09:02:59+00:00",
-  "config_sha256": "6dff33deedc38674ccaf7a933329c16d105246f107b1d3d7df901ae4ef1a8c13",
+  "generated": "2026-08-19T05:42:50+00:00",
+  "config_sha256": "be6445a5a0cc7c1df81cbc362ddcce86593148e97c4104b2b9e96cf7602c4491",
   "source_config": {
     "schema_version": 1,
     "source_build": "precarve-craton",
@@ -42,6 +42,9 @@
     "radiation": {
       "two_band_albedo": true,
       "stellar_spectrum": "k25v"
+    },
+    "ocean": {
+      "salinity_psu": 34.7
     },
     "surface": {
       "mixed_layer_depth_m": 50.0,
@@ -156,7 +159,7 @@
     "earth_fradpar": 0.5
   },
   "source_build": "precarve-craton",
-  "git_commit": "1e8dbc07cd72473845be70cc68bb1a0fe7eeb622",
-  "header_sha256": "07b0516cd832e4a4f778b85c773e25698b7d858278afc33092b9695c1db3cb18",
+  "git_commit": "5c47dd7cc8555d1f9ae030a68547c3a0729aea97",
+  "header_sha256": "7365755934561fffe727b16b7613c28260532253b51c02690326346191fec917",
   "generator": "biosphere/scripts/build_vesper_header.py"
 }

@@ -185,6 +185,11 @@
       "note": "STRUCTURAL in the sense that no ocean circulation is solved, but the claim that no cheap version exists was FALSE and is corrected here: oceanmod.f90 declares `nhdiff` and `hdiffk` in oceanmod_namelist, broadcasts both, and acts on `nhdiff > 0` at line 844, so horizontal heat diffusion is one namelist key on the binary already built. That satisfies every one of WORKFLOW A3's four A/B conditions with no further work, which makes this the CHEAPEST structural item to price rather than the impossible one. Read it as physics-is-not-a-knob: ocean heat transport exists, and the argument for switching it on is not that it improves an agreement. Bracket `hdiffk` and report the spread rather than tuning it -- a constant diffusivity is a BOUND on the missing transport, not the transport. TASKS.md CLIM-16."
     },
     {
+      "item": "ocean salinity, 20 to 34.7 psu",
+      "magnitude": "freezing point 272.07 to 271.24 K",
+      "note": "DECLARED, not derived: config/planet.yaml carries Earth's 34.7 because no salt budget exists here, and the model's TFREEZE is now set from it rather than compiled in. The direction is one-signed and this world pushes it: most land is endorheic, so the solutes that on Earth reach the sea stay on closed-basin floors instead, and the exorheic share per unit ocean area is under half Earth's. A fresher ocean freezes WARMER, so more sea ice than these runs show, landing on the ice-albedo feedback the stellar-cycle damping turns on. The span is about 1.1 K on one threshold; what it is worth in global mean is unmeasured, and needs one A/B on a key that is now settable. TASKS.md CLIM-17."
+    },
+    {
       "item": "roughness distribution",
       "magnitude": "land median 0.502 m under a 2.0 m mean",
       "note": "Anchored to ExoPlaSim's tuned land mean, which the distribution says is carried by a rough tail. Anchoring inflates mid-range cells; direction declared, magnitude not measured."

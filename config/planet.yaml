@@ -95,6 +95,33 @@ radiation:
   two_band_albedo: true
   stellar_spectrum: k25v
 
+# DECLARED, 2026-08-18. Earth's value, and the point of the block is that it is
+# now VISIBLE rather than that it has moved. Salinity reaches the model through
+# one number, the freezing point of sea water, which `icemod.f90` hardcodes as
+# `TFREEZE = 271.25` with the comment "at S=34.7". So Earth's ocean was being
+# assumed by every run on this world without any file saying so, which is the
+# DUST-6 pattern.
+#
+# It is DECLARED and not DETERMINED because this project cannot compute it. A
+# real salinity is the steady state of riverine delivery against hydrothermal
+# uptake, evaporite burial and reverse weathering, integrated over an ocean age
+# and an outgassing history that nothing here supplies.
+#
+# The DIRECTION is knowable without the budget, and it is the interesting part.
+# Most of this world's land is endorheic, so the solutes that on Earth reach the
+# sea accumulate on closed-basin floors instead -- the exorheic share of the
+# planet's surface is under half Earth's per unit ocean area. Less salt
+# delivered means a FRESHER ocean, and fresher water freezes WARMER, so sea ice
+# forms more readily than these runs show. That lands on the ice-albedo feedback
+# the stellar-cycle damping turns on, which is why it is worth declaring rather
+# than shrugging at.
+#
+# What it is worth: the freezing point runs 272.07 K at S = 20 and 270.94 K at
+# S = 40, so the plausible span is about 1.1 K on one threshold. Carried in
+# analysis/error_budget.json rather than guessed at here. TASKS.md CLIM-17.
+ocean:
+  salinity_psu: 34.7
+
 # DETERMINED. Slab ocean, interactive sea ice, glaciers on.
 surface:
   mixed_layer_depth_m: 50.0
