@@ -1,0 +1,3 @@
+Note that Burn7 is deprecated as of ExoPlaSim 3.0.0, and is no longer 
+supported. Burn7 source files are included as a courtesy. To continue 
+using Burn7 as a native component of ExoPlaSim, please use exoplasim-legacy.
