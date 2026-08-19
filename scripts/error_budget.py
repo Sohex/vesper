@@ -262,7 +262,18 @@ FORCING_ITEMS = [
      "mode and -0.68 including it. Longwave NOT computed: the layer sits in a "
      "boundary layer near the surface temperature, so the term is expected "
      "small, and expected is not measured. notes/audits/unpriced-terms.md "
-     "finding 2."),
+     "finding 2. "
+     "PAIRED WITH THE DUST ROW, AND NOT AN ALTERNATIVE TO IT. Both aerosols "
+     "are off in every run on this build, so the two are simultaneous "
+     "OMISSIONS rather than competing estimates of one thing, and the honest "
+     "combination is their sum. Centrally that sum is about -0.07 W/m2, which "
+     "is to say they very nearly cancel; the spread of the sum is -0.58 to "
+     "+0.44. Do not read the cancellation as licence to drop either. It is a "
+     "GLOBAL-MEAN cancellation between an aerosol that acts over land and one "
+     "that acts over ocean, so it does not hold by surface, it does not hold "
+     "in runoff -- where dust is several times sea salt because sea salt "
+     "reaches land only through temperature -- and it is exactly the reading "
+     "the dust row already warns against for dust alone."),
     ("volcanic sulfate, radiative", (-0.032, -0.013),
      "PRICED 2026-08-19, CLIM-28, from aeolian/analysis/volcanic_sulfate.json. "
      "Carried because it is MEASURED SMALL rather than assumed so, and because "
