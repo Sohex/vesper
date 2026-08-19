@@ -155,9 +155,19 @@ def cmd_status(graph: dict) -> int:
             print(f"[ MISSING ] {s['id']}  ({len(missing)} of "
                   f"{len(s['writes'])}: {missing[0]})")
     attached, residual = task_steps()
+    unknown = {s: t for s, t in attached.items() if s not in by_id}
     gate = upstream("carve_list", by_id) | {"carve_list"}
     blocking = {s: t for s, t in attached.items() if s in gate}
     print(f"\n{len(graph['steps'])} steps, {miss_total} with a missing artifact")
+    if unknown:
+        # A task naming a step the graph does not have is INVISIBLE to the gate:
+        # it is neither blocking nor residual, so it is silently uncounted. That
+        # is how a step rename disarms the gate, so say it loudly rather than
+        # dropping the row.
+        print("\nNAMES A STEP THIS GRAPH DOES NOT HAVE, so the gate cannot see it:")
+        for s, ids in sorted(unknown.items()):
+            print(f"  {s:24s} {', '.join(ids)}")
+        print("  Repoint the [step: ...] marker in TASKS.md, or add the row here.")
     print("\nTHE CARVE GATE: open tasks touching a step upstream of carve_list")
     if blocking:
         for s, t in sorted(blocking.items()):
@@ -180,22 +190,34 @@ def cmd_plan(graph: dict, target: str, force: bool) -> int:
     build = active_build()
     seq = order(target, by_id)
     print(f"to make `{target}` current, in order:\n")
-    hours = 0
+    hours, undecidable = 0, 0
     for sid in seq:
         s = by_id[sid]
         ok, _ = present(s, build)
-        if ok is None:
-            print(f"  [ check   ] {sid:26s} UUID-named: does INDEX.json have one?")
-            continue
-        if ok and not force and sid != target:
+        if ok is True and not force and sid != target:
             print(f"  [ skip    ] {sid:26s} artifact present")
             continue
+        # Everything below here is a step the plan may have to run, and an
+        # undecidable one is NOT an exception to that: it is the case where the
+        # filesystem cannot say, which is a reason to cost it and print its gate
+        # rather than a reason to pass over it. Every hours-costing step in the
+        # graph is `by_index`, so treating undecidable as skippable made the
+        # hour count structurally zero and silenced every gate attached to a run.
         mark = "HOURS" if s["cost"] == "hours" else s["cost"]
         hours += s["cost"] == "hours"
-        print(f"  [ run     ] {sid:26s} {mark:8s} {s['script']}")
+        if ok is None:
+            undecidable += 1
+            print(f"  [ check   ] {sid:26s} {mark:8s} UUID-named: has INDEX.json "
+                  f"one on this build?")
+        else:
+            print(f"  [ run     ] {sid:26s} {mark:8s} {s['script']}")
         if s.get("gate"):
             print(f"              GATE: {' '.join(s['gate'].split())}")
     print(f"\n{len(seq)} steps in the closure, {hours} of them cost hours.")
+    if undecidable:
+        print(f"{undecidable} of the steps listed are UUID-named, so whether they "
+              f"still need to run is\nINDEX.json's answer and not the "
+              f"filesystem's. The hour count assumes they do.")
     print("This prints a plan. It does not run anything.")
     return 0
 

@@ -36,6 +36,9 @@ loops:
     exit: only after A, B and C have settled
 
 # cost: seconds | minutes | hours. `hours` is what must never run by accident.
+# loop: which loop the step belongs to, or a LIST where it belongs to more than
+#       one. A step in two loops is one that is re-run on a different input by
+#       the later one, not two steps: one artifact, one row.
 # gate: a condition that must hold before the step is meaningful. Absent means
 #       none. A gate is NOT a request for a preference -- it is a statement that
 #       the recorded procedure does not yet cover this case.
@@ -70,10 +73,18 @@ steps:
 
   - id: surface_albedo
     script: exoplasim/scripts/build_surface_albedo.py
-    loop: A
+    loop: [A, C]
     cost: minutes
-    needs: []
+    needs: [lpj_run]
     writes: [exoplasim/inputs/t42/albedo_report.json]
+    gate: >
+      the `lpj_run` edge is loop C and is a BACK edge: the first pass of an
+      iteration runs --mode vegetated on terrain alone, before any biosphere
+      exists, and the mode this project should end up in is --mode modelled
+      --vegetation <run>/fpc.out, which raises without it. One artifact, one
+      row, so the mode is the state of albedo_report.json rather than a second
+      step. Adopting modelled requires the flux to be re-derived: the two land
+      endmembers are 15-19 W/m2 apart in absorbed flux (WORKFLOW A3).
 
   - id: surface_roughness
     script: exoplasim/scripts/build_surface_roughness.py
@@ -90,12 +101,13 @@ steps:
     writes: []
     presence: by_index   # UUID-named; ask exoplasim/runs/INDEX.json, not the path
 
-  - id: assess_convergence
+  - id: bootstrap_convergence
     script: exoplasim/scripts/assess_convergence.py
     loop: A
     cost: minutes
     needs: [bootstrap_run, state_energy]
     writes: [exoplasim/analysis/convergence/]
+    presence: by_index   # per-RUN, and the run is UUID-named; it writes the status
 
   - id: state_energy
     script: exoplasim/scripts/close_state_energy.py
@@ -104,21 +116,40 @@ steps:
     needs: [bootstrap_run]
     writes: [exoplasim/analysis/energy/]
 
-  - id: climatology
+  - id: bootstrap_climatology
     script: exoplasim/scripts/build_climatology.py
     loop: A
     cost: minutes
-    needs: [assess_convergence]
-    writes: [exoplasim/analysis/climatology/baseline_regular_climatology.nc, exoplasim/analysis/climatology/baseline_snapshot_climatology.nc, exoplasim/analysis/climatology/baseline_climate_series.json]
+    needs: [bootstrap_convergence]
+    writes: [exoplasim/analysis/climatology/bootstrap_regular_climatology.nc, exoplasim/analysis/climatology/bootstrap_snapshot_climatology.nc, exoplasim/analysis/climatology/bootstrap_climate_series.json]
     gate: >
       every orbit in the window ran NLOWIO = 0. A segment with low_io set, or
       with no low_io key at all, is refused without --allow-low-io.
+
+  - id: baseline_convergence
+    script: exoplasim/scripts/assess_convergence.py
+    loop: A
+    cost: minutes
+    needs: [baseline_run, state_energy]
+    writes: [exoplasim/analysis/convergence/]
+    presence: by_index   # as bootstrap_convergence: the artifact is named by run
+
+  - id: baseline_climatology
+    script: exoplasim/scripts/build_climatology.py
+    loop: A
+    cost: minutes
+    needs: [baseline_convergence]
+    writes: [exoplasim/analysis/climatology/baseline_regular_climatology.nc, exoplasim/analysis/climatology/baseline_snapshot_climatology.nc, exoplasim/analysis/climatology/baseline_climate_series.json]
+    gate: >
+      every orbit in the window ran NLOWIO = 0, and config/planet.yaml's
+      baseline_climatology is repointed here once it exists, so that nothing
+      downstream keeps reading the bootstrap.
 
   - id: analyze_climatology
     script: exoplasim/scripts/analyze_climatology.py
     loop: A
     cost: minutes
-    needs: [climatology]
+    needs: [baseline_climatology]
     writes: [exoplasim/analysis/climatology/baseline_climate_report.json, exoplasim/analysis/climatology/baseline_classification.nc]
 
   - id: index_runs
@@ -131,14 +162,14 @@ steps:
     script: hydrography/scripts/surface_water.py
     loop: A
     cost: minutes
-    needs: [hydrography, climatology]
+    needs: [hydrography, bootstrap_climatology]
     writes: ["hydrography/data/{build}/surface_water.nc", hydrography/analysis/surface_water_report.json]
 
   - id: soil
     script: pedology/scripts/build_soil.py
     loop: A
     cost: minutes
-    needs: [climatology, hydrography]
+    needs: [bootstrap_climatology, hydrography, lpj_run]
     writes: [pedology/analysis/soil_report.json]
 
   - id: surface_soil_water
@@ -152,7 +183,7 @@ steps:
     script: aeolian/scripts/build_dust.py
     loop: A
     cost: minutes
-    needs: [climatology, surface_water]
+    needs: [bootstrap_climatology, surface_water]
     writes: [aeolian/analysis/dust_baseline.nc, aeolian/analysis/dust_baseline.json]
 
   - id: dust_optics
@@ -218,7 +249,7 @@ steps:
     script: hydrography/scripts/carve_verdict.py
     loop: A
     cost: minutes
-    needs: [climatology, hydrography, surface_water, stellar_cycle_run, dust_forcing]
+    needs: [baseline_climatology, hydrography, surface_water, stellar_cycle_run, dust_forcing]
     writes: [hydrography/analysis/carve_verdict.json]
 
   - id: carve_list
@@ -254,7 +285,7 @@ steps:
   - id: brine_paths
     script: pedology/scripts/brine_paths.py
     cost: minutes
-    needs: [hydrography, climatology]
+    needs: [hydrography, baseline_climatology]
     writes: [pedology/analysis/brine_paths.json]
 
   - id: surface_classes
@@ -287,7 +318,7 @@ steps:
     script: biosphere/scripts/build_lpj_driver.py
     loop: B
     cost: minutes
-    needs: [climatology, soil, vesper_pfts]
+    needs: [baseline_climatology, soil, vesper_pfts]
     writes: [biosphere/generated/vesper_driver_provenance.json]
 
   - id: lpj_run
@@ -312,7 +343,7 @@ steps:
   - id: error_budget
     script: scripts/error_budget.py
     cost: seconds
-    needs: [carve_list, climatology]
+    needs: [carve_list, baseline_climatology]
     writes: [analysis/error_budget.json]
 
   - id: basemap
