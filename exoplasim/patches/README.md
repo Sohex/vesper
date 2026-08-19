@@ -21,24 +21,32 @@ subtree is right and the file here is a historical document that should say so.
 
 ## What went upstream
 
-Nine of these are defects in stock ExoPlaSim rather than choices for this world,
-and are open as pull requests against `alphaparrot/ExoPlaSim`:
+Most of these are open as pull requests against `alphaparrot/ExoPlaSim`:
 
-| patch | PR |
-| --- | --- |
-| `pyburn-quadratic-read` | #52 |
-| `nlowio-broadcast` | #53 |
-| `lowio-first-record` | #54, stacked on #53 |
-| `arasc-output` | #55 |
-| `rayleigh-reference-grid`, `makestellarspec` | #56 |
-| `energy-diagnostics`, `denergy-accumulator` | #57 |
-| `aerocore-defects` | #58 |
+| patch | PR | kind |
+| --- | --- | --- |
+| `pyburn-quadratic-read` | #52 | repair |
+| `nlowio-broadcast` | #53 | repair |
+| `lowio-first-record` | #54, stacked on #53 | repair |
+| `arasc-output` | #55 | repair |
+| `rayleigh-reference-grid`, `makestellarspec` | #56 | repair |
+| `energy-diagnostics`, `denergy-accumulator` | #57 | repair |
+| `aerocore-defects` | #58 | repair |
+| `aerosol-apart` | #60 | repair |
+| `aerosol-deposition` | #61 | capability, replacing a timestep-dependent sink |
+| `h2o-shortwave-weight`, `ozone-band-weights`, `co2-shortwave` | #62 | capability |
 
 Plus #59, which is not a patch here: `compile.sh` runs `rm -rf *` after an
 unguarded `cd` into a build directory that does not exist in a fresh checkout,
 so it deletes the source tree. That was found by vendoring, and it deleted 1437
 files before it was found.
 
-The rest are capability rather than repair -- the shortwave weights, the dust
-and aerosol stack, the stellar cycle -- and each defaults to reproducing stock
-behaviour, so they are offerable upstream but have not been offered.
+#58 and #61 are coupled and the coupling is stated on both: #58 fixes the
+sedimentation sign while the 99%-per-step bottom-layer scrub is still in place,
+so merging it alone gives two sinks where the paper describes one.
+`notes/audits/aerosol-particle-radius.md` carries the table.
+
+What has NOT been offered is `aerosol-longwave`, `dust-emission`,
+`prescribed-dust` and `star-cycle`. Each defaults to reproducing stock behaviour,
+so each is offerable; the dust pair is a land-surface parameterisation and is
+being held while this project is its only user.
