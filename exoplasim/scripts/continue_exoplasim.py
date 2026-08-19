@@ -203,20 +203,34 @@ def main() -> None:
     # The raw `MOST_HC.NNNNN` is 15 GB for one orbit at T42 whatever is asked
     # for, because the model's own output path does not take a field list. It is
     # deleted once pyburn has run, but the disk has to be there first.
-    # A spin-up orbit and a climatology orbit want different things. The corrupt
-    # first record costs nothing on a spin-up, whose diagnostics are scalars and
-    # clean to 2%, and it poisons any wind or humidity taken from a climatology.
-    # Measured 2026-08-17 on this run: model time is the same either way, 88.4 s
-    # against 90.4 s, but wall time is 104 s against 387 s, because turning the
-    # accumulation off multiplies the raw volume pyburn has to chew. So run the
-    # spin-up cheap and the orbits you will actually read expensive. Segments
-    # record which they were, and `build_climatology.py` refuses to mix them.
+    # A spin-up orbit and a climatology orbit want different things, and the
+    # reason is what the two regimes MEAN rather than what they cost. Low I/O
+    # writes the model's own accumulation over each output interval; clean I/O
+    # writes instantaneous records that pyburn averages into the same twelve
+    # bins. An accumulation cannot be undone and a sample set can always be
+    # averaged, so anything reading variance, extremes or single records needs
+    # the clean regime, while a spin-up reading scalars does not. The
+    # accumulation is also not the mean you would compute: binned `spd` under
+    # low I/O sits between the speed of the time-mean vector and the mean of
+    # instantaneous speeds.
+    #
+    # The corrupt first record that used to ride along with low I/O is FIXED and
+    # verified, see exoplasim/notes/first-output-bin.md, so it is no longer a
+    # reason to avoid the cheap regime for spin-up.
+    #
+    # Model time is identical either way. The wall-clock gap was 104 s against
+    # 387 s an orbit when measured 2026-08-17; almost all of that was a
+    # quadratic reader in pyburn rather than the I/O mode, and with it fixed the
+    # clean regime costs about 1.27x. See
+    # notes/audits/pyburn-postprocessing-cost.md. Segments record which regime
+    # they ran, and `build_climatology.py` refuses to mix them.
     parser.add_argument(
         "--low-io", action="store_true",
-        help="run this segment with PlaSim's low-I/O accumulation ON: ~3.7x "
-             "faster in wall clock, and every orbit carries a corrupt first "
-             "output record in wind and humidity. SPIN-UP ONLY -- never for "
-             "orbits a climatology will be built from")
+        help="run this segment with PlaSim's low-I/O accumulation ON: about "
+             "1.27x cheaper per orbit, and every orbit carries interval "
+             "ACCUMULATIONS rather than instantaneous samples, which cannot be "
+             "undone afterwards. SPIN-UP ONLY -- never for orbits a climatology "
+             "will be built from")
     parser.add_argument(
         "--high-cadence", action="store_true",
         help="write near-surface wind every fourth timestep for this segment, "

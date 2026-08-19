@@ -30,25 +30,58 @@ experiment, records a complete manifest, and runs one smoke orbit. It refuses
 to overwrite an existing run with climate output. See
 `exoplasim/notes/parameter-decisions.md` for physical and format assumptions.
 
-### Output mode: NLOWIO is forced to 0
+### Output mode: low-I/O to spin up, clean to finish
 
-`disable_low_io()` sets `NLOWIO = 0` on every prepare and every continuation.
-PlaSim's default is 1, and under it the FIRST output record of every model call
-is corrupt: the free troposphere is right to 5% and the boundary layer is
-missing, so bottom-level wind reads 7.5x the other bins and humidity 27% low.
-Scalars stay within 2%. It is the model's low-I/O accumulation, not the
-postprocessor -- proven by running one orbit at `NLOWIO = 0` through the same
-`pyburn` averaging, which takes the humidity ratio from 0.714 to 0.930.
+**Spin-up orbits run `NLOWIO = 1`; any orbit a climatology will be built from
+runs `NLOWIO = 0`.** The two regimes write different things and the difference is
+not a quality setting, it is what the output MEANS.
 
-The cost is about 2.4 GB per orbit against 96 MB, because output becomes 182
-instantaneous records per orbit, roughly daily, instead of 12 accumulated bins.
-`pyburn` still averages to 12 for the `.nc`, so nothing downstream changes shape,
-and samples are strictly more information than an accumulation: a mean can be
-recomputed from them, and an accumulation cannot be undone. Delete run
-directories once their climatologies are extracted.
+    # spin up cheap
+    python exoplasim/scripts/continue_exoplasim.py --run <id> --orbits 40 \
+        --purpose spinup --low-io
 
-It has to be reapplied on every continuation because `configure()` rewrites the
-namelist each time. See `exoplasim/notes/first-output-bin.md` and CLIM-5.
+    # then the orbits you will actually read
+    python exoplasim/scripts/continue_exoplasim.py --run <id> --orbits 10 \
+        --purpose post_equilibrium_climatology
+
+`NLOWIO = 0` is the DEFAULT everywhere. `run_exoplasim.py` has no `--low-io` at
+all, and `continue_exoplasim.py` applies `disable_low_io()` unless you ask for the
+fast path, which has to be reapplied every time because `configure()` rewrites the
+namelist on each continuation. The cheap regime is opt-in so that forgetting a
+flag costs time rather than data.
+
+**Why the split.** Under `NLOWIO = 1` the model accumulates over the output
+interval and writes 12 bins; under `NLOWIO = 0` it writes instantaneous records
+which `pyburn` then averages to the same 12. Nothing downstream changes shape.
+But an accumulation cannot be undone, and a sample set is strictly more
+information, since the mean can be recovered from it. The accumulation is also
+not the average you would compute yourself: binned `spd` under `NLOWIO = 1` sits
+between the speed of the time-mean vector and the mean of instantaneous speeds.
+So anything reading variance, extremes or single records -- DUST-5's gust
+distribution above all -- needs `NLOWIO = 0`. Scalars and slowly-varying fields
+do not care, which is why spin-up does not.
+
+**A separate defect, now fixed.** `NLOWIO = 1` used to corrupt the first output
+record of every model call, because `naccuout` survived a restart while the
+accumulators did not. `exoplasim-3.4.2-lowio-first-record.patch` repairs that and
+was VERIFIED on 2026-08-18 against a binary with it reversed. It does not touch
+the accumulation semantics above, so it does not merge the two regimes. Every run
+currently in `exoplasim/runs/` was written before it and still needs the
+corrections in `exoplasim/notes/first-output-bin.md`.
+
+**What it costs.** Measured 2026-08-18 with the postprocessor fixed: about 1.27x
+per orbit for the clean regime, where it used to be 3.7x. Nearly all of that
+former gap was a quadratic reader in `pyburn`, not the I/O mode; see
+`notes/audits/pyburn-postprocessing-cost.md`. Model time is identical either way.
+Raw output is several times larger under `NLOWIO = 0`, so delete run directories
+once their climatologies are extracted.
+
+**What enforces it.** `--purpose post_equilibrium_climatology` with `--low-io` is
+refused outright. Every segment records `low_io`, `build_climatology.py` refuses a
+tainted window unless given `--allow-low-io`, and a segment with no `low_io` key
+counts as tainted, because the honest default for a segment nobody labelled is to
+assume the cheap regime. `close_term_energy.py` and `close_state_energy.py`
+require clean windows for the same reason. See `segments.py` and CLIM-9.
 
 ### Which resume path is valid
 

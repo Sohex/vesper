@@ -478,32 +478,43 @@ def energy_diagnostics_enabled(config: dict) -> bool:
 
 
 def disable_low_io(model) -> None:
-    """Turn off PlaSim's low-I/O output path, which writes a corrupt first bin.
+    """Turn off PlaSim's low-I/O accumulation, so output is instantaneous.
 
     `NLOWIO = 1` is PlaSim's default (`plasimmod.f90:151`) and accumulates fields
-    over each output interval, dividing in place at write time. The first record
-    of every model call comes out wrong under it: the free troposphere is right
-    to 5% and the boundary layer is missing entirely, so bottom-level wind reads
-    7.5x the other bins and humidity 27% low. Scalars are within 2%.
+    over each output interval, dividing in place at write time. `NLOWIO = 0`
+    writes instantaneous records instead, 182 an orbit rather than 12 bins, and
+    `pyburn` averages them to the same 12 for the .nc, so nothing downstream
+    changes shape.
 
-    Proven to be this path rather than the postprocessor by running one orbit at
-    `NLOWIO = 0` through the same `pyburn` averaging: the humidity ratio goes
-    from 0.714 to 0.930, which is inside the ordinary seasonal spread. See
+    WHY THIS IS THE DEFAULT. An accumulation cannot be undone and a sample set
+    can always be averaged, so samples are strictly more information. The
+    accumulation is also not the mean you would compute yourself: binned `spd`
+    under `NLOWIO = 1` sits between the speed of the time-mean vector and the
+    mean of instantaneous speeds. Anything reading variance, extremes or single
+    records -- DUST-5's gust distribution above all -- needs the samples, and a
+    spin-up reading scalars does not, which is what `--low-io` in
+    `continue_exoplasim.py` is for. See `exoplasim/README.md`.
+
+    A SEPARATE DEFECT, NOW FIXED. `NLOWIO = 1` used to corrupt the first output
+    record of every model call, because `naccuout` survived a restart while the
+    accumulators did not: bottom-level wind read 7.5x the other bins and
+    humidity 27% low, while scalars stayed within 2%.
+    `exoplasim-3.4.2-lowio-first-record.patch` repairs that and was verified on
+    2026-08-18 against a binary with it reversed, which cut the artifact by about
+    four orders of magnitude. It does NOT change what is accumulated, so it does
+    not make the two regimes interchangeable and it is not why this function
+    exists. Runs written before it still carry the defect; see
     `exoplasim/notes/first-output-bin.md`.
 
-    The exact line is NOT pinned, and a patch is deliberately not written on the
-    obvious candidate: `naccuout` persists across runs through the restart while
-    the accumulators do not (`plasim.f90:767`), but a counter error scales a
-    field uniformly and this one changes its vertical structure. So the setting
-    is turned off rather than the bug fixed; CLIM-5 carries the patch.
+    WHAT IT COSTS. Raw output is several times larger, and with the postprocessor
+    fixed the clean regime is about 1.27x an orbit rather than the 3.7x once on
+    record -- almost all of that gap was a quadratic reader in `pyburn` and not
+    the I/O mode. Model time is identical either way. See
+    `notes/audits/pyburn-postprocessing-cost.md`. Delete run directories once
+    their climatologies are extracted.
 
-    What it costs: about 2.4 GB per orbit against 96 MB, because output becomes
-    182 instantaneous records per orbit, one roughly every 24 hours, instead of
-    12 accumulated bins. `pyburn` still averages them to 12 for the .nc, so
-    nothing downstream changes shape. Samples are also strictly more information
-    than an accumulation, since an average can be recomputed from them and an
-    accumulation cannot be undone -- which is what makes a proper mean wind
-    speed recoverable at all.
+    It has to be reapplied on every continuation, because `configure()` rewrites
+    the namelist each time.
     """
     model._edit_namelist("plasim_namelist", "NLOWIO", "0")
 

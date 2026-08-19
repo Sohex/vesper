@@ -291,6 +291,16 @@ Everything before the re-baseline carries that bias. It is not invalidated in
 kind and the direction is known, but it should be stated wherever it is quoted.
 See `exoplasim/notes/stellar-spectrum-audit.md`.
 
+A run is spun up cheap and finished clean. Spin-up segments carry PlaSim's
+low-I/O accumulation and the orbits a climatology is built from do not, because
+the two write different things: an accumulation cannot be undone, while
+instantaneous records can be averaged into the same twelve bins and still answer
+questions about variance, extremes and single records. Nothing downstream changes
+shape either way. The clean regime is the default and the cheap one is opt-in, so
+a forgotten flag costs time rather than data, and asking for a climatology from
+low-I/O orbits is refused rather than warned about. `exoplasim/README.md` has the
+invocation and `exoplasim/notes/first-output-bin.md` the evidence.
+
 A run directory names everything that changes the answer: resolution, flux, CO2,
 rotation, obliquity, eccentricity, the physics switches, the spectrum, and a
 digest of every surface input. Two of those were added after they had already

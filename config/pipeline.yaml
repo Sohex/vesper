@@ -116,6 +116,9 @@ steps:
     cost: minutes
     needs: [assess_convergence]
     writes: [exoplasim/analysis/climatology/baseline_regular_climatology.nc, exoplasim/analysis/climatology/baseline_snapshot_climatology.nc, exoplasim/analysis/climatology/baseline_climate_series.json]
+    gate: >
+      every orbit in the window ran NLOWIO = 0. A segment with low_io set, or
+      with no low_io key at all, is refused without --allow-low-io.
 
   - id: analyze_climatology
     script: exoplasim/scripts/analyze_climatology.py
