@@ -227,12 +227,15 @@ that it is currently indistinguishable from a value someone chose.
 habitability-by-latitude derivation rather than from a temperature target". That
 derivation exists only as prose in WORKFLOW 5b: summer and winter temperature per
 band "measured on three converged runs and projected across candidate means",
-with the conclusion that cooling "moves half the land out of sustained heat
-stress at the cost of a tenth of it going from harsh to extreme" and that 0.945
-"puts the tropics near +33 C in their warmest month rather than +36".
+with the conclusion that a lower flux moves half the land's warm-season monthly
+means back inside the design comfort band at the cost of a tenth of it going
+from harsh to extreme, and that 0.945 "puts the tropics near +33 C in their
+warmest month rather than +36". (5b's original wording for that first clause
+borrowed human-physiology vocabulary; it is restated here and rewritten there,
+same content.)
 
 There is no script, no analysis product, no row in `config/pipeline.yaml`, and no
-statement of what "sustained heat stress" is or what threshold was applied. The
+statement of which warm-season ceiling the bands were scored against. The
 three runs are not named. `compare_albedo_bracket.py` still carries the
 superseded 290-293 K target and points the reader at the section.
 
@@ -246,14 +249,15 @@ operationally because section 6 requires the flux to be RE-DERIVED on every new
 terrain, so the next person to do it has to reinvent the criteria rather than
 re-run them.
 
-**Separately, and this is the bias rather than the bookkeeping:** heat stress is
-a wet-bulb quantity. The criterion as described is a dry-bulb monthly mean. On a
-world this arid, and one whose aridity is distributed by endorheic drainage
-rather than by latitude, the two diverge and they diverge differently in each of
-the bands being traded against each other. The tropics here are dry, so a
-dry-bulb threshold overstates their stress; a humid coastal margin at a lower
-temperature can be worse. Nothing in the record says which quantity was used, so
-this cannot be checked, which is the finding above restated.
+**Separately, and this is the bias rather than the bookkeeping:** the quantity
+the band criterion stands in for couples temperature to humidity, and the
+criterion as described scores on monthly-mean temperature alone. On a world this
+arid, and one whose aridity is distributed by endorheic drainage rather than by
+latitude, the two diverge and they diverge differently in each of the bands
+being traded against each other. The tropics here are dry, so a temperature-only
+ceiling penalises them too hard; a humid coastal margin at a lower temperature
+scores better than it should. Nothing in the record says which quantity was
+used, so this cannot be checked, which is the finding above restated.
 
 ## 6. A water-budget closure labelled per orbit is per Earth year
 

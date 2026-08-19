@@ -693,10 +693,11 @@ the band was 3 K wide.
 **The mean is now chosen for habitability by latitude band.** Summer and winter
 temperature per band were measured on three converged runs and projected across
 candidate means. The trade is tropics against poles, and the tropics win on area:
-cooling moves half the land out of sustained heat stress at the cost of a tenth
-of it going from harsh to extreme. Flux 0.945 puts the tropics near +33 C in
-their warmest month rather than +36, keeps most land in Earth-like conditions,
-and leaves the polar margins severe but small.
+a lower flux moves half the land's warm-season monthly means back inside the
+design comfort band at the cost of a tenth of it going from harsh to extreme.
+Flux 0.945 puts the tropics near +33 C in their warmest month rather than +36,
+keeps most land in Earth-like conditions, and leaves the polar margins severe
+but small.
 
 **Glaciers are decoupled from the mean, and that is the load-bearing finding.**
 Cooling is close to useless for making them. Summer amplification is nearly flat
