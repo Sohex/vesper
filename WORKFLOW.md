@@ -263,8 +263,10 @@ meaningless here.
 Lakes enter through those same fields rather than through the mask. The solved
 lake extent is applied per mesh region and then integrated, so each cell receives
 an area-weighted composite -- almost every lake on this planet is far below the
-grid. It is worth -0.0139 on land-mean albedo, since the cells carrying water are
-the bright playa and salt crust. Roughness (173) *is* supplied, but from land
+grid. It is one of the larger single terms in the land-mean albedo, since the
+cells carrying water are the bright playa and salt crust; the measured value is
+`lakes.delta` in `exoplasim/inputs/t42/albedo_report.json`, which the error
+budget reads rather than transcribes. Roughness (173) *is* supplied, but from land
 cover and subgrid relief rather than from lake extent: giving a lake cell water's
 roughness without a water column's heat capacity would cut turbulent exchange 10x
 and leave it decoupled and hot. And no setting of 229 can
@@ -864,10 +866,13 @@ before the bootstrap starts.
 verdict uses, not merely before the verdict.** Both change evaporation, which is
 the numerator of the carve criterion, so a verdict taken on a climate that lacked
 them is a verdict on the wrong evaporation. Their weights are not equal and the
-ordering is worth its cost for one of them: lakes are worth -0.0139 on land-mean
-albedo, because the cells carrying water are the bright playa and salt crust,
-while the soil bucket has been measured at 1.06x on runoff for a 3.75-fold change
-in capacity. Build both, and expect the lakes to be what moves the answer.
+ordering is worth its cost for one of them, and the two are not close: the lakes
+rank above every rock-class lever in the albedo half of the error budget, because
+the cells carrying water are the bright playa and salt crust, while the soil
+bucket has been measured at 1.06x on runoff for a 3.75-fold change in capacity.
+Both magnitudes are generated -- `analysis/error_budget.json` ranks them -- and
+neither belongs in this sentence. Build both, and expect the lakes to be what
+moves the answer.
 
 Set `baseline_climatology` in `config/planet.yaml` once a climatology exists --
 until then every consumer raises rather than guessing -- and repoint it at the

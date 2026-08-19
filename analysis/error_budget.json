@@ -44,27 +44,27 @@
   "albedo_items": [
     {
       "item": "biosphere: bare rock vs vegetated",
-      "delta_land_albedo": -0.09700000000000003,
-      "kelvin_naive": 11.855,
-      "kelvin": 5.927,
-      "runoff_percent": 5.47,
+      "delta_land_albedo": -0.07798758370729242,
+      "kelvin_naive": 9.531,
+      "kelvin": 4.766,
+      "runoff_percent": 4.4,
       "basins": [
-        -198,
-        -21
+        -159,
+        -13
       ],
-      "note": "the assumption LPJ-GUESS exists to replace"
+      "note": "the assumption LPJ-GUESS exists to replace. Measured: 0.25705 bare against 0.17907 vegetated, both pre-lake and on the overridden rock table."
     },
     {
       "item": "lakes composited into albedo",
-      "delta_land_albedo": -0.0139,
-      "kelvin_naive": 1.699,
-      "kelvin": 0.849,
-      "runoff_percent": 0.78,
+      "delta_land_albedo": -0.022891,
+      "kelvin_naive": 2.798,
+      "kelvin": 1.399,
+      "runoff_percent": 1.29,
       "basins": [
-        -23,
-        -2
+        -43,
+        -5
       ],
-      "note": "solved lakes reaching the climate at all"
+      "note": "solved lakes reaching the climate at all. Measured, from the same report: the cells carrying water are the bright playa and salt crust."
     },
     {
       "item": "playa_clastic albedo, 0.25 to 0.33",
@@ -182,7 +182,7 @@
     {
       "item": "no q-flux",
       "magnitude": "gradients too strong, ice too extensive",
-      "note": "STRUCTURAL, and no cheap version exists. Declare the direction and move on."
+      "note": "STRUCTURAL in the sense that no ocean circulation is solved, but the claim that no cheap version exists was FALSE and is corrected here: oceanmod.f90 declares `nhdiff` and `hdiffk` in oceanmod_namelist, broadcasts both, and acts on `nhdiff > 0` at line 844, so horizontal heat diffusion is one namelist key on the binary already built. That satisfies every one of WORKFLOW A3's four A/B conditions with no further work, which makes this the CHEAPEST structural item to price rather than the impossible one. Read it as physics-is-not-a-knob: ocean heat transport exists, and the argument for switching it on is not that it improves an agreement. Bracket `hdiffk` and report the spread rather than tuning it -- a constant diffusivity is a BOUND on the missing transport, not the transport. TASKS.md CLIM-16."
     },
     {
       "item": "roughness distribution",

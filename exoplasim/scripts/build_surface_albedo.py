@@ -238,8 +238,32 @@ def main() -> None:
         applied[code] = {"rock_id": rid, "albedo": value,
                          "exported_albedo": exported, "regions": int(sel.sum())}
         region_albedo[sel] = value
+
+    # The two endmembers the error budget's biosphere item is the difference of,
+    # captured here because this is the only place both are unambiguous.
+    #
+    # They are taken on the SAME rock table -- overrides applied -- and both
+    # PRE-LAKE. Neither is optional. `land_mean_bare_rock` in the report below
+    # is a DIFFERENT quantity: the raw export mean that `scaled` mode divides
+    # by, still carrying the exported playa albedo the override exists to
+    # replace, so pairing it with a vegetated mean compares two rock tables and
+    # understates the bare end by the override times playa's share of land. And
+    # pairing a lake-composited vegetated mean with an uncomposited bare one
+    # double-counts the lakes, which are their own line in the same budget.
+    area_land = mesh.cell_area.astype(np.float64)[is_land]
+
+    def _land_mean(field: np.ndarray) -> float:
+        return float(np.average(field[is_land], weights=area_land))
+
+    endmembers = {
+        "note": "land-mean albedo of the two surface endmembers, on the "
+                "overridden rock table and before lakes. Their difference is "
+                "what the biosphere is worth; pair only these two.",
+        "bare_rock": _land_mean(region_albedo),
+    }
     if mode == "vegetated":
         region_albedo[is_land & ~barren] = args.vegetation_albedo
+        endmembers["vegetated"] = _land_mean(region_albedo)
 
     # Lakes, last, because a lake covers whatever lithology is under it and no
     # vegetation grows on open water.
@@ -515,6 +539,7 @@ def main() -> None:
                         "uniform 0.5."),
         "land_mean_bare_rock": raw_mean,
         "land_mean_written": final_mean,
+        "endmembers": endmembers,
         "lakes": lake_report,
         "derived_evaporite": evap_report,
         "exoplasim_default_albland": 0.22,

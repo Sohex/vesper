@@ -73,6 +73,14 @@ orbit:
 # DETERMINED. 1 bar total at 450 ppm CO2. The carbon cycle is not solved
 # anywhere in this project, so read CO2 as an assumption rather than a result;
 # WORKFLOW.md section 4 says what the assumption costs.
+#
+# What this block CAN say is bounded by what the model reads. PlaSim's longwave
+# is Sasamori (1968) over water vapour, CO2 and ozone, and the shortwave adds
+# Rayleigh and the same three; radmod.f90 has no CH4 and no N2O term, so there
+# is nothing here to set them to. Their absence is a property of the radiation
+# scheme rather than a composition choice, and the direction is one-signed: a
+# world with them is warmer than this one at the same CO2, by whatever they
+# would have been worth. Adding either means adding a band, not a key.
 atmosphere:
   pN2_bar: 0.78025
   pO2_bar: 0.21000

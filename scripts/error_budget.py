@@ -171,20 +171,66 @@ CARVE_CHANNELS = {"land_precipitation": (1, 0, 0),
                   "lake_evaporation": (0, 0, 1)}
 
 
-# (label, land-mean albedo delta, note). Deltas are the plausible RANGE of the
-# item, not its current value: the budget ranks what refining each would buy.
-ALBEDO_ITEMS = [
-    ("biosphere: bare rock vs vegetated", -(0.276 - 0.179),
-     "the assumption LPJ-GUESS exists to replace"),
-    ("playa_clastic albedo, 0.25 to 0.33", 0.08 * 0.147,
-     "largest single rock-class lever; a mixture of clay playa and varnished fan"),
-    ("lakes composited into albedo", -0.0139,
-     "solved lakes reaching the climate at all"),
-    ("carve iteration, fill 16.5% to 12.35%", 0.0077,
-     "one carve pass, measured across v4 to v5"),
-    ("salt crust albedo, 0.40 to 0.50", 0.10 * 0.019,
-     "degenerate with crust extent from the climate's side"),
-]
+ALBEDO_REPORT = ROOT / "exoplasim" / "inputs" / "t42" / "albedo_report.json"
+
+
+def albedo_items() -> list[tuple[str, float, str]]:
+    """(label, land-mean albedo delta, note) for the albedo half of the budget.
+
+    Two of these are MEASURED by `build_surface_albedo.py` and are read from the
+    report it writes rather than transcribed. They were literals until 2026-08-18
+    and both had gone stale against the generator: the lakes item was -0.0139
+    against a measured -0.0229, understated by 64%, and the biosphere item paired
+    a bare-rock mean of 0.276 that no longer existed with a vegetated one that
+    did. A number the pipeline computes has no business being typed in here.
+
+    The biosphere pair is the subtle one and the report now settles it rather
+    than leaving it to be inferred. Both endmembers are taken on the SAME rock
+    table, overrides applied, and both PRE-LAKE. `land_mean_bare_rock` in the
+    same report is a different quantity -- the raw export mean, still carrying
+    the exported playa albedo the override replaces -- and pairing that with a
+    vegetated mean compares two rock tables. Pairing a lake-composited vegetated
+    mean with an uncomposited bare one double-counts the lakes, which are the
+    line below.
+
+    Deltas are the plausible RANGE of the item, not its current value: the budget
+    ranks what refining each would buy.
+    """
+    if not ALBEDO_REPORT.exists():
+        raise SystemExit(f"{ALBEDO_REPORT} is missing; run the surface_albedo step")
+    report = json.loads(ALBEDO_REPORT.read_text(encoding="utf-8"))
+    ends = report.get("endmembers") or {}
+    missing = [k for k in ("bare_rock", "vegetated") if k not in ends]
+    if missing:
+        # No fallback. A guessed comparand here is a wrong number that reads as
+        # a measured one, which is the whole reason this stopped being a literal.
+        raise SystemExit(
+            f"{ALBEDO_REPORT} carries no endmembers{tuple(missing)}: it predates "
+            "the key, or was written in a mode that does not define them. "
+            "Rebuild it with `build_surface_albedo.py --lakes <surface_water.nc>` "
+            "under model.land_albedo_source: vegetated."
+        )
+    if "lakes" not in report:
+        raise SystemExit(
+            f"{ALBEDO_REPORT} has no lakes block, so it was built without "
+            "--lakes and the lake item cannot be read from it."
+        )
+    return [
+        ("biosphere: bare rock vs vegetated",
+         -(float(ends["bare_rock"]) - float(ends["vegetated"])),
+         "the assumption LPJ-GUESS exists to replace. Measured: "
+         f"{ends['bare_rock']:.5f} bare against {ends['vegetated']:.5f} "
+         "vegetated, both pre-lake and on the overridden rock table."),
+        ("playa_clastic albedo, 0.25 to 0.33", 0.08 * 0.147,
+         "largest single rock-class lever; a mixture of clay playa and varnished fan"),
+        ("lakes composited into albedo", float(report["lakes"]["delta"]),
+         "solved lakes reaching the climate at all. Measured, from the same "
+         "report: the cells carrying water are the bright playa and salt crust."),
+        ("carve iteration, fill 16.5% to 12.35%", 0.0077,
+         "one carve pass, measured across v4 to v5"),
+        ("salt crust albedo, 0.40 to 0.50", 0.10 * 0.019,
+         "degenerate with crust extent from the climate's side"),
+    ]
 
 # Items already in global-mean top-of-atmosphere W/m2. These convert exactly,
 # because that is the quantity `lib/sensitivity.py` is denominated in.
@@ -228,7 +274,18 @@ OTHER_ITEMS = [
      "does. Coldest-month mean is what PFT survival gates on. One perturbation "
      "run, ever, gives a permanent scaling for every later result."),
     ("no q-flux", "gradients too strong, ice too extensive",
-     "STRUCTURAL, and no cheap version exists. Declare the direction and move on."),
+     "STRUCTURAL in the sense that no ocean circulation is solved, but the "
+     "claim that no cheap version exists was FALSE and is corrected here: "
+     "oceanmod.f90 declares `nhdiff` and `hdiffk` in oceanmod_namelist, "
+     "broadcasts both, and acts on `nhdiff > 0` at line 844, so horizontal "
+     "heat diffusion is one namelist key on the binary already built. That "
+     "satisfies every one of WORKFLOW A3's four A/B conditions with no further "
+     "work, which makes this the CHEAPEST structural item to price rather than "
+     "the impossible one. Read it as physics-is-not-a-knob: ocean heat "
+     "transport exists, and the argument for switching it on is not that it "
+     "improves an agreement. Bracket `hdiffk` and report the spread rather "
+     "than tuning it -- a constant diffusivity is a BOUND on the missing "
+     "transport, not the transport. TASKS.md CLIM-16."),
     ("roughness distribution", "land median 0.502 m under a 2.0 m mean",
      "Anchored to ExoPlaSim's tuned land mean, which the distribution says is "
      "carried by a rough tail. Anchoring inflates mid-range cells; direction "
@@ -517,7 +574,7 @@ def main() -> None:
                 f"{low:+d}" if low == high else f"{low:+d} to {high:+d}")
 
     rows = []
-    for label, delta, note in ALBEDO_ITEMS:
+    for label, delta, note in albedo_items():
         naive = albedo_to_kelvin(delta, fraction, planetary_albedo, 1.0)
         atten = albedo_to_kelvin(delta, fraction, planetary_albedo,
                                  DEFAULT_ATTENUATION)
