@@ -1,6 +1,9 @@
 # Project-level direct dependencies. Install with:
 #   UV_CACHE_DIR=/tmp/world-uv-cache uv pip install --python .venv/bin/python -r requirements.txt
-exoplasim==3.4.2
+# exoplasim is NOT installed from PyPI. It is the vendor/exoplasim subtree,
+# installed editable so a build compiles in place:
+#     uv pip install --python .venv/bin/python -e vendor/exoplasim
+# See CLAUDE.md. Pinning a version here would reinstall upstream over it.
 matplotlib==3.11.1
 netCDF4==1.7.4
 numpy==2.5.2

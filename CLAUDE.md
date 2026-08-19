@@ -41,11 +41,14 @@ none of them is advice.
    label the same grid differently. Map by index, share one coordinate source,
    and never reconstruct one. This has silently matched zero cells on three
    separate scripts.
-4. **After any patch, and after any `.venv` reinstall, rebuild every binary.**
+4. **After any change under `vendor/exoplasim`, rebuild every binary.**
    ExoPlaSim compiles one executable per (resolution, layers, ranks) triple, so
-   a rebuild only refreshes the configuration you ran. `.venv` is untracked, and
-   reinstalling it silently discards every applied patch.
-   `python exoplasim/scripts/rebuild_binaries.py`, then `--verify`.
+   a rebuild only refreshes the configuration you ran, and the rest go stale
+   silently. `python exoplasim/scripts/rebuild_binaries.py`, then `--verify`,
+   which compares every executable against the sha of the source it was built
+   from. This used to also warn that a `.venv` reinstall discarded the patch
+   stack; it cannot any more, because the model is a subtree and a reinstall
+   restores it rather than losing it.
 5. **Pointing one component at another's output is deliberate, never
    defaulted.** Namespace per build and resolve with
    `builds.component_data(..., strict=True)`, or stamp `source_build` on the
@@ -138,7 +141,8 @@ none of them is advice.
   convention above exists to prevent. What it means is that the THING must be
   findable: a new module belongs in the `lib/` list, a new step in
   `config/pipeline.yaml`, a new component in the layout and in `WORKFLOW.md`, a
-  new patch in `RESIDENT_PATCHES`, a new convention here. A component that works
+  model change as a commit under `vendor/exoplasim`, a new convention here. A
+  component that works
   and is invisible will be reimplemented beside itself, which is how this project
   came to have four copies of a path resolver and three of a grid convention.
 
@@ -239,10 +243,16 @@ archive/               Identity of things whose payload has been deleted:
                        archive/runs/ for runs on superseded terrains,
                        archive/builds/ for the exports themselves. Tracked.
 analysis/              Project-level analysis products (error budget, dust optics).
-requirements.txt       Shared Python dependencies for .venv.
+vendor/orogen/         World Orogen, a git subtree from the cf-fork branch of the
+                       personal fork. Generates the geography.
+vendor/exoplasim/      ExoPlaSim, a git subtree from the cf-fork branch of the
+                       personal fork. THE model source: edited here, compiled
+                       here, installed editable from here.
+requirements.txt       Shared Python dependencies for .venv. ExoPlaSim is NOT here;
+                       it is installed editable from vendor/exoplasim.
 .venv/                 Python 3.12, already activated in this shell. Untracked,
-                       and a reinstall silently discards every applied patch --
-                       see the ExoPlaSim section.
+                       and safe to reinstall: ExoPlaSim is installed editable
+                       from vendor/exoplasim, so nothing is lost by rebuilding it.
 ```
 
 `config/` and `source/` are project-level and shared. Component-specific work
@@ -265,7 +275,14 @@ payloads, or `.venv/`. Those have no history to fall
 back on, so be careful with destructive operations there; `.gitignore` says why
 each is excluded.
 
-## The upstream generator
+## The vendored upstreams
+
+Two of this project's components are other people's code, vendored as git
+subtrees from personal forks so that a change to the component and the change to
+whatever consumes it land in ONE commit, and so provenance is a commit in this
+repository rather than the state of a directory outside it.
+
+### World Orogen
 
 The geography comes from a personal fork of World Orogen, vendored into this
 repo at `vendor/orogen/` as a git subtree from the `cf-fork` branch of
@@ -281,6 +298,22 @@ before writing anything that consumes `source/`. The fork adds, over upstream:
 lithology (rock class, erodibility, scarp potential), preserved endorheic basins,
 a richer export manifest, non-Earth planet parameters, and direct emission onto
 Gaussian (spectral) grids.
+
+### ExoPlaSim
+
+The climate model is a personal fork vendored at `vendor/exoplasim/`, a git
+subtree from the `cf-fork` branch of `Sohex/ExoPlaSim`. Pull upstream with
+`git subtree pull --prefix vendor/exoplasim exoplasim-fork cf-fork --squash`.
+
+It is installed EDITABLE, so the source you read is the source that compiles and
+the source that runs. Its build artifacts stay untracked: the subtree's own
+`.gitignore` excludes everything `configure.sh` and `compile.sh` generate, which
+is what keeps a five-binary rebuild from leaving the working tree dirty.
+
+The fork carries, over upstream: the low-I/O restart and broadcast repairs, the
+pyburn reader fix, the shortwave weights for a non-solar host, the dust and
+aerosol stack, and the stellar cycle. `exoplasim/patches/README.md` says which
+are upstream pull requests and which are ours to keep.
 
 ## Builds
 
@@ -324,28 +357,23 @@ with `UV_CACHE_DIR=/tmp/world-uv-cache uv pip install --python .venv/bin/python 
 Building ExoPlaSim needs `gcc-fortran` and `openmpi` from the host (Arch).
 Matplotlib is forced to `Agg` with its cache at `/tmp/world-matplotlib-cache`.
 
-**The vendored ExoPlaSim is several patches from upstream, and which ones is not
-written here.** `RESIDENT_PATCHES` in `exoplasim/scripts/rebuild_binaries.py` is
-the list, with a root per entry because they do not all strip to the same depth,
-and every patch file carries its own header explaining what it changes and what
-base it was authored against. `--verify` unwinds the whole stack in a scratch
-mirror to prove they are applied; testing each independently stops working the
-moment two of them touch adjacent lines. A copy of the list here would be a
-fourth place to go stale.
+**ExoPlaSim is installed EDITABLE from its subtree, not from PyPI**, so a build
+compiles in place and `requirements.txt` deliberately does not name it:
 
-Two things about that stack are worth knowing before you touch it. Several
-patches are NO-OPS until a namelist key turns them on -- `h2osww` defaults to 1.0
-and `ndustrad` to 0 -- so a rebuilt binary reproduces the runs that exist, and
-enabling one is a configuration decision that moves the mean. And the low-I/O
-patch CHANGES THE RESTART LAYOUT, so a run started before it cannot be resumed by
-a binary built after it.
+    uv pip install --python .venv/bin/python -e vendor/exoplasim
 
-`exoplasim/patches/exoplasim-3.4.2-star-cycle.patch` is the exception to
-residency: it adds a sinusoidal stellar-flux cycle to `radmod.f90`, and
-`build_star_cycle_exoplasim.sh` applies it, verifies a pinned base SHA that names
-the whole resident stack rather than pristine 3.4.2, rebuilds, copies the result
-to `exoplasim/inputs/exoplasim_cycle_t42/`, and reverses it on exit. A cycle
-binary and a steady binary are different things and only one tree can hold it at
-a time. When a patch lands on `radmod.f90` that pin moves and the star-cycle
-patch has to be REGENERATED against the new base, not merely re-checked.
+What the fork contains and where it came from is under "The vendored upstreams".
+
+Two things about the model are worth knowing before you touch it. Several
+changes are NO-OPS until a namelist key turns them on -- `h2osww` defaults to
+1.0, `ndustrad` to 0, `nsolcycle` to 0 -- so a rebuilt binary reproduces the runs
+that exist, and enabling one is a configuration decision that moves the mean.
+And the low-I/O change ALTERS THE RESTART LAYOUT, so a run started before it
+cannot be resumed by a binary built after it.
+
+The stellar cycle is one of those switches rather than a separate build. There
+is no cycle executable and no cycle tree: `nsolcycle` defaults to 0 and both
+amplitudes to 0.0, which reduces the guard to `gsolinst = gsol0`, so the
+ordinary binaries are bit-exact identical to an unpatched model until a cycle is
+configured on.
 

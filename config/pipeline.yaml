@@ -52,13 +52,7 @@ steps:
     script: exoplasim/scripts/rebuild_binaries.py
     cost: minutes
     needs: []
-    writes: [exoplasim/patches/binary_manifest.json]
-
-  - id: cycle_binary
-    script: exoplasim/scripts/build_star_cycle_exoplasim.sh
-    cost: minutes
-    needs: [rebuild_binaries]
-    writes: [exoplasim/patches/cycle_binary_manifest.json]
+    writes: [exoplasim/binary_manifest.json]
 
   - id: hydrography
     script: hydrography/scripts/build_hydrography.py
@@ -213,7 +207,7 @@ steps:
     script: exoplasim/scripts/run_stellar_cycle.py
     loop: A
     cost: hours
-    needs: [baseline_run, cycle_binary]
+    needs: [baseline_run, rebuild_binaries]
     writes: []
     presence: by_index
     gate: >

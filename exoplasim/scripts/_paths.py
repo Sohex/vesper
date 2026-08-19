@@ -21,6 +21,9 @@ INPUTS = COMPONENT_ROOT / "inputs"
 RUNS = COMPONENT_ROOT / "runs"
 ANALYSIS = COMPONENT_ROOT / "analysis"
 PATCHES = COMPONENT_ROOT / "patches"
+# The vendored model, and where its compiled executables land.
+MODEL_SRC = PROJECT_ROOT / "vendor" / "exoplasim" / "exoplasim"
+MODEL_RUN = MODEL_SRC / "plasim" / "run"
 
 # Project-level shared modules, notably the World Orogen export reader.
 LIB = PROJECT_ROOT / "lib"

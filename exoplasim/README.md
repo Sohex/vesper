@@ -278,16 +278,16 @@ fired three times in a single day.
 
 So, two rules:
 
-- **After any patch, rebuild everything**: `python
+- **After any change under `vendor/exoplasim`, rebuild everything**: `python
   exoplasim/scripts/rebuild_binaries.py`. It deletes every executable, rebuilds
-  the matrix, and writes `exoplasim/patches/binary_manifest.json` recording which
-  patches are compiled into which sha256. The star-cycle tree is separate and
-  needs `build_star_cycle_exoplasim.sh` afterwards.
-- **After any `.venv` reinstall, do the same.** `.venv` is untracked and
-  reinstallable, and a reinstall restores pristine ExoPlaSim and discards every
-  applied patch with no warning at all. `rebuild_binaries.py --verify` is the
-  cheap check that tells you whether that has happened; `check_consistency.py`
-  runs the same check.
+  the matrix, and writes `exoplasim/binary_manifest.json` recording the sha of
+  every source file each executable was built from. There is no separate
+  star-cycle build: the cycle is a namelist switch on these same binaries.
+- **`rebuild_binaries.py --verify` is the cheap check** that no executable is
+  stale against the source on disk, which is failure class 11 and has fired
+  repeatedly. `check_consistency.py` runs the same check. It hashes the files
+  rather than reading the subtree commit, so an uncommitted edit under
+  `vendor/` is caught rather than waved through.
 
 The ozone patch is *resident* in the source -- it must be applied for any build
 to be correct. The star-cycle patch is not: it is applied and reversed around its
@@ -305,15 +305,13 @@ is 0.0 and not 1.0. Arguments in `exoplasim/notes/ozone.md`,
 `exoplasim/scripts/shortwave_band_weights.py`. Both were derived from Howard's
 1950s band data and both have been checked against correlated-k tables built from
 a modern line list, in `exoplasim/notes/corrk-cross-check.md`.
-`rebuild_binaries.py` keeps two lists and they mean different things.
-`RESIDENT_PATCHES` is what is applied to the vendored source right now, and
-`--verify` fails when one of them is missing. `PENDING_PATCHES` is what has been
-authored and verified but not applied, which is where a patch waits between being
-written and being merged; it is reported as information and never as a failure. A
-patch moves from the second list to the first in the commit that applies it and
-rebuilds. Verify a pending one without touching `.venv` the way `resident_ok()`
-does: copy the files it touches to a scratch directory, apply with `patch -p1`,
-compile, and reverse.
+The model source is `vendor/exoplasim`, a git subtree from the `cf-fork` branch
+of the personal fork, installed editable so the source you read is the source
+that compiles. There is no patch stack to keep applied: a model change is a
+commit in that directory, and `rebuild_binaries.py` builds whatever is there.
+`exoplasim/patches/` holds the changes as they were AUTHORED, with the argument
+and evidence for each in its header; its README says which are open as upstream
+pull requests.
 
 See `exoplasim/README.md` for the workflow and results,
 `exoplasim/notes/lake-representation.md` for what the model can do with the

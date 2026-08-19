@@ -749,15 +749,14 @@ def main() -> int:
     # -- binaries vs the patches they should contain -------------------------
     #
     # ExoPlaSim builds one executable per (resolution, layers, ranks) triple, so
-    # patching the source and running rebuilds only the configuration in use and
-    # leaves the rest silently stale. That is failure class 11, and it fired
-    # three times in one day. .venv is untracked and reinstallable, and a
-    # reinstall discards every patch without warning, so this is also the check
-    # that says a reinstall has happened.
+    # changing the source and rebuilding touches only the configuration in use
+    # and leaves the rest silently stale. That is failure class 11, and it fired
+    # three times in one day. Vendoring the model as a subtree does not fix it:
+    # a stale binary is still a stale binary, so this check outlived the patch
+    # stack it was originally written to police.
     try:
-        manifest = ROOT / "exoplasim" / "patches" / "binary_manifest.json"
-        run_dir = (ROOT / ".venv" / "lib" / "python3.12" / "site-packages"
-                   / "exoplasim" / "plasim" / "run")
+        manifest = ROOT / "exoplasim" / "binary_manifest.json"
+        run_dir = ROOT / "vendor" / "exoplasim" / "exoplasim" / "plasim" / "run"
         on_disk = sorted(run_dir.glob("most_plasim_*.x")) if run_dir.is_dir() else []
         if not manifest.is_file():
             rep.add(FAIL, "binary manifest",
@@ -768,12 +767,10 @@ def main() -> int:
             mf = json.loads(manifest.read_text(encoding="utf-8"))
             known = mf.get("binaries", {})
             # Source keys are relative to the PACKAGE, not to plasim/src. Two
-            # of the resident patches touch files outside plasim/src -- the
-            # NumPy-2 fix to makestellarspec.py and the make_plasim dependency
-            # the low-I/O patch needs -- and a basename key would also collide
-            # two files of the same name under different roots.
-            src = (ROOT / ".venv" / "lib" / "python3.12" / "site-packages"
-                   / "exoplasim")
+            # the manifest keys them relative to the package root rather than
+            # by basename, because two files of the same name can live under
+            # different directories.
+            src = ROOT / "vendor" / "exoplasim" / "exoplasim"
             bad = []
             for exe in on_disk:
                 rec = known.get(exe.name)
@@ -808,44 +805,36 @@ def main() -> int:
     try:
         cyc = ROOT / "exoplasim" / "inputs" / "exoplasim_cycle_t42"
         m = config["model"]
-        exe = cyc / (f"most_plasim_t{int(str(m['resolution']).lstrip('Tt'))}"
-                     f"_l{int(m['layers'])}_p{int(m['ncpus'])}.x")
+        run_dir = ROOT / "vendor" / "exoplasim" / "exoplasim" / "plasim" / "run"
+        exe = run_dir / (f"most_plasim_t{int(str(m['resolution']).lstrip('Tt'))}"
+                         f"_l{int(m['layers'])}_p{int(m['ncpus'])}.x")
         components = (config.get("stellar_cycle") or {}).get("components") or {}
         slots = {"medium": "", "long": "2"}
+        # There is no separate cycle executable any more. The star-cycle change
+        # is resident in the subtree and gated by the namelist: nsolcycle
+        # defaults to 0 and both amplitudes to 0.0, which reduces the guard to
+        # `gsolinst = gsol0`, so the ordinary binaries are bit-exact identical
+        # to an unpatched model until the cycle is configured on. What is worth
+        # checking is therefore only that the binary the run will use actually
+        # carries a namelist slot for every component the config declares.
         if not components:
-            rep.add(WARN, "cycle executable", "no stellar_cycle.components")
+            rep.add(WARN, "cycle capability", "no stellar_cycle.components")
         elif not exe.is_file():
-            rep.add(FAIL, "cycle executable",
-                    f"{exe.name} absent; run "
-                    "exoplasim/scripts/build_star_cycle_exoplasim.sh")
+            rep.add(FAIL, "cycle capability",
+                    f"{exe.name} absent; run exoplasim/scripts/rebuild_binaries.py")
         else:
             blob = exe.read_bytes()
             missing = [f"gsolamp{slots[n]}" for n in components
                        if n in slots
                        and f"gsolamp{slots[n]}".encode() not in blob]
             unslotted = sorted(set(components) - set(slots))
-            patch = (ROOT / "exoplasim" / "patches"
-                     / "exoplasim-3.4.2-star-cycle.patch")
             problems = []
             if unslotted:
                 problems.append(f"no namelist slot for {unslotted}")
             if missing:
                 problems.append(f"binary lacks {missing}")
-            # Compare by CONTENT, not mtime. An mtime test called a correct
-            # binary stale as soon as a git stash/pop rewrote the patch file
-            # without changing a byte of it, and it would equally have missed a
-            # patch edited in place with a preserved timestamp.
-            mf = (ROOT / "exoplasim" / "patches" / "cycle_binary_manifest.json")
-            if not mf.is_file():
-                problems.append("no cycle_binary_manifest.json; rebuild to record one")
-            else:
-                rec = json.loads(mf.read_text(encoding="utf-8"))
-                if rec.get("executable_sha256") != sha256_of(exe):
-                    problems.append("executable differs from its build manifest")
-                elif patch.is_file() and rec.get("patch_sha256") != sha256_of(patch):
-                    problems.append("built from an older star-cycle patch")
             rep.add(FAIL if problems else OK,
-                    "cycle executable matches the configured cycle",
+                    "cycle capability is compiled into the run binary",
                     "; ".join(problems) if problems else
                     f"{len(components)} components, all present in {exe.name}")
     except Exception as exc:

@@ -32,7 +32,7 @@ import exoplasim as exo
 import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _paths import CONFIG, INPUTS, PATCHES, RUNS  # noqa: E402
+from _paths import CONFIG, INPUTS, MODEL_RUN, RUNS  # noqa: E402
 from run_exoplasim import (  # noqa: E402
     surface_sra,
     stage_surface_extras,
@@ -81,8 +81,8 @@ def load_components(config: dict) -> dict:
         raise RuntimeError(
             f"stellar_cycle.components has {sorted(unknown)}, but the patched "
             f"radmod carries only {sorted(COMPONENT_SLOTS)}. Adding a component "
-            "needs a namelist slot in "
-            "exoplasim/patches/exoplasim-3.4.2-star-cycle.patch first.")
+            "needs a namelist slot in radmod.f90 under vendor/exoplasim "
+            "first.")
     for name, spec in components.items():
         for key in ("period_earth_years", "amplitude_flux_peak_to_peak"):
             if spec.get(key) is None:
@@ -280,19 +280,23 @@ def main() -> None:
     # once the run finishes is no use to a run that died in the middle.
     print(f"RUN_ID={identifier}", flush=True)
     run_dir.mkdir(parents=True, exist_ok=True)
-    source_dir = (INPUTS / "exoplasim_cycle_t42").resolve()
+    # The cycle is a namelist switch on the ordinary binaries, so this is the
+    # same build directory every other run uses. There is no cycle tree.
+    source_dir = MODEL_RUN.resolve()
     model_cfg = config["model"]
-    # Named from the config, not hardcoded. This said p8 while
-    # build_star_cycle_exoplasim.sh had moved to p16, so the cycle run would have
-    # died on a missing executable -- or worse, found a stale p8 left over.
+    # Named from the config, not hardcoded. This once said p8 while the cycle
+    # build had moved to p16, so the run would have died on a missing
+    # executable -- or worse, found a stale p8 left over. There is no separate
+    # cycle build any more: the cycle is a namelist switch on the ordinary
+    # binaries, so this resolves against the same executables every other run
+    # uses.
     executable = source_dir / (
         f"most_plasim_t{int(str(model_cfg['resolution']).lstrip('Tt'))}"
         f"_l{int(model_cfg['layers'])}_p{int(model_cfg['ncpus'])}.x")
-    patch_file = (PATCHES / "exoplasim-3.4.2-star-cycle.patch").resolve()
     if not executable.is_file():
         raise RuntimeError(
             f"{executable} is not built. Run "
-            "exoplasim/scripts/build_star_cycle_exoplasim.sh first.")
+            "exoplasim/scripts/rebuild_binaries.py first.")
 
     # The baseline a cycle varies about must be named, not hardcoded and not
     # chosen by sort order. A cycle is variance around a mean, so starting it
@@ -414,8 +418,7 @@ def main() -> None:
             "cycle": cycle,
             "initial_restart": str(initial_restart),
             "initial_restart_sha256": file_sha256(initial_restart),
-            "patch_path": str(patch_file),
-            "patch_sha256": file_sha256(patch_file),
+            "executable_sha256": file_sha256(executable),
             "patched_executable": str(executable),
             "patched_executable_sha256": file_sha256(executable),
             "target_orbits": target_orbits,
