@@ -96,6 +96,61 @@ the particle radius above, a configuration using 500 nm particles carries an
 optical depth of roughly `(50/500)^2 * 1.33`, about 1.3 per cent of intent, and
 PR #58 alone corrects only the 1.33.
 
+## The paper's declared limitation cuts both ways
+
+Cohen et al. state their haze scheme "does not account for sinks (chemical
+sinks, wet deposition) aside from gravitational settling onto the surface".
+
+That REMOVES wet deposition from the erratum question. Its absence is declared,
+acknowledged and scoped, so the wet-scavenging half of the deposition work is a
+capability offer and not a defect report against that paper.
+
+It SHARPENS the other half. The sentence asserts that gravitational settling
+onto the surface is operative, and in stock ExoPlaSim it is not: the bottom
+layer's update ADDS the settling flux `gz(nl)` where it must subtract it, so
+nothing ever leaves the atmosphere by sedimentation and the bottom layer builds
+up without bound. The 99%-per-step line is what holds it down. So the only sink
+the paper names did not run, and the sink that did run is not mentioned, because
+it is an implementation detail rather than a modelling choice.
+
+## The two fixes are coupled and must not be split
+
+The sign fix is in `aerocore-defects`, offered as PR #58. The 99%-per-step line
+is in the deposition branch, not yet offered. Their interaction is the thing to
+say out loud:
+
+| state | what removes haze at the surface |
+| --- | --- |
+| stock | the 99%-per-step scrub only; sedimentation is sign-inverted and removes nothing |
+| PR #58 alone | sedimentation AND the scrub -- two sinks, more removal than before |
+| #58 plus deposition | sedimentation, with the scrub replaceable by a timestep-independent velocity |
+
+Merging #58 on its own therefore does not simply restore the intended scheme; it
+leaves a band-aid in place over a wound that has been closed. Whether the
+`ldepvel = 0` default should keep that line at all, once the sign is fixed, is a
+judgement for the maintainer rather than something to decide here -- keeping it
+preserves existing results bit for bit, dropping it makes the model match what
+the paper describes.
+
+## Does any of this port to an aquaplanet
+
+Cohen et al. model aquaplanets; this project models a world with land, deserts
+and lithology-dependent dust. The split is clean.
+
+**Ports unchanged**, because it is mechanism rather than surface physics: the
+particle radius handover, the settling sign, the viscosity and number-density
+integer divisions, and the longwave term.
+
+**Ports as a capability, not as a number**: the deposition velocity and the wet
+scavenging coefficients. A deposition velocity to open ocean is not the one to
+vegetated land or to desert pavement, and the scavenging coefficients are
+aerosol- and rain-specific. This is exactly why the patch refuses to run without
+explicit values rather than carrying a default, and that refusal is what makes
+it safe to offer across the boundary.
+
+**Does not port at all**: the dust emission scheme, which is a land-surface
+parameterisation and is meaningless over ocean. It is being held anyway.
+
 ## The cheap diagnostic
 
 Whether the bottom sink matters for a given result depends on whether it is
