@@ -54,6 +54,37 @@ SNAPSHOT_CODES = [
 # pyburn runs, but the disk has to be free first.
 HIGH_CADENCE_CODES = [131, 132, 259]
 
+# The shortwave gas band weights, and the ONE list of them. Lacis and Hansen's
+# absorptances are fractions of SOLAR flux, so a non-solar host needs every one
+# re-weighted; radmod.f90 carries a key per term and this is where the config
+# reaches them.
+#
+# Each is written only when it differs from the model's OWN default, so a run's
+# namelist says what departs from the scheme as shipped -- and the defaults are
+# not all 1.0. co2sww's is 0.0, because upstream has no shortwave CO2 term at
+# all and zero is what reproduces upstream; comparing it against 1.0 would
+# silently drop a weight of 1.0 and silently write one of 0.0, which is the
+# inversion of what is meant.
+#
+# IT LIVES HERE BECAUSE continue_exoplasim.py IMPORTS IT. configure() rewrites
+# the namelist on every continuation, so each key has to be reapplied per
+# segment, and for a while that was a second copy of this tuple. PHYS-9 then
+# added h2o_sw_level to this copy and not to that one, so H2OSWL applied for the
+# orbits run_exoplasim.py prepared and silently reverted to the model default on
+# every continuation after -- a physics change partway through a run, which is
+# the failure mode both copies' comments called the hardest to notice in a long
+# spin-up. One list cannot drift from itself.
+SHORTWAVE_GAS_KEYS = (
+    ("ozone_uv_weight", "O3UVW", 1.0),
+    ("ozone_visible_weight", "O3VISW", 1.0),
+    ("h2o_sw_weight", "H2OSWW", 1.0),
+    # A LEVEL, not a weight, and separate from H2OSWW on purpose: that one is a
+    # star-over-Sun ratio and an error in Eq. 21's absolute level divides out of
+    # it. PHYS-9.
+    ("h2o_sw_level", "H2OSWL", 1.0),
+    ("co2_sw_weight", "CO2SWW", 0.0),
+)
+
 
 def file_sha256(path: Path) -> str:
     digest = hashlib.sha256()
@@ -69,6 +100,34 @@ def command_version(command: list[str]) -> str | None:
     except (OSError, subprocess.CalledProcessError):
         return None
     return (result.stdout or result.stderr).splitlines()[0]
+
+
+def configure_otherargs(derived: dict) -> dict:
+    """Namelist keys passed through `configure()`, for a prepare OR a resume.
+
+    ONE definition, because constructing the model over an existing run
+    directory re-copies the shipped namelists over the configured ones, so
+    every one of these has to be reapplied per segment. That was a second copy
+    in `continue_exoplasim.py` carrying only N_DAYS_PER_YEAR, so CLIM-17's
+    TFREEZE applied to the orbits this script prepared and reverted to
+    icemod.f90's compiled Earth value on every continuation after.
+
+    At the declared salinity that particular revert is worth 5 mK and nothing
+    else, but the salinity BRACKET arms are worth -0.04 to -0.36 K and are run
+    as continuation segments: the key would have silently not applied, and an
+    A/B designed to have a right answer would have measured zero and looked
+    like it had confirmed one.
+    """
+    return {
+        "N_DAYS_PER_YEAR@plasim_namelist": str(
+            derived["rotations_per_orbit_namelist"]
+        ),
+        # Sea water's freezing point, from the declared salinity rather than
+        # from icemod.f90's compiled-in Earth value. `configure()` has no
+        # parameter for it and it is an ordinary `icemod_nl` key, so it goes
+        # the same route N_DAYS_PER_YEAR does. CLIM-17.
+        "TFREEZE@icemod_namelist": f"{derived['sea_water_freezing_point_k']:.4f}",
+    }
 
 
 def freezing_point_k(salinity_psu: float) -> float:
@@ -1150,16 +1209,7 @@ def main() -> None:
         topomap=str(topomap),
         runsteps=int(derived["runsteps_per_orbit"]),
         snapshots=int(derived["snapshot_interval_steps"]),
-        otherargs={
-            "N_DAYS_PER_YEAR@plasim_namelist": str(
-                derived["rotations_per_orbit_namelist"]
-            ),
-            # Sea water's freezing point, from the declared salinity rather than
-            # from icemod.f90's compiled-in Earth value. `configure()` has no
-            # parameter for it and it is an ordinary `icemod_nl` key, so it goes
-            # the same route N_DAYS_PER_YEAR does. CLIM-17.
-            "TFREEZE@icemod_namelist": f"{derived['sea_water_freezing_point_k']:.4f}",
-        },
+        otherargs=configure_otherargs(derived),
     )
     # Shipped output lists omit orbital phase and several hydrology fields.
     # This private helper is stable in the pinned release and edits those
@@ -1202,26 +1252,9 @@ def main() -> None:
     if o3 is not None and float(o3) != 1.0:
         model._edit_namelist("radmod_namelist", "O3SCALE", f"{float(o3)}")
         print(f"ozone column scaled to {float(o3)} of Earth's (Segura et al. 2003)")
-    # The shortwave gas band weights, all four of them. Lacis and Hansen's
-    # absorptances are fractions of SOLAR flux, so a non-solar host needs every
-    # one re-weighted; radmod.f90 carries a key per term and this is where the
-    # config reaches them.
-    #
-    # Each is written only when it differs from the model's OWN default, so a
-    # run's namelist says what departs from the scheme as shipped -- and the
-    # defaults are not all 1.0. co2sww's is 0.0, because upstream has no
-    # shortwave CO2 term at all and zero is what reproduces upstream; comparing
-    # it against 1.0 would silently drop a weight of 1.0 and silently write one
-    # of 0.0, which is the inversion of what is meant.
-    for key, name, default in (("ozone_uv_weight", "O3UVW", 1.0),
-                               ("ozone_visible_weight", "O3VISW", 1.0),
-                               ("h2o_sw_weight", "H2OSWW", 1.0),
-                               # A LEVEL, not a weight, and separate from
-                               # H2OSWW on purpose: that one is a star-over-Sun
-                               # ratio and an error in Eq. 21's absolute level
-                               # divides out of it. PHYS-9.
-                               ("h2o_sw_level", "H2OSWL", 1.0),
-                               ("co2_sw_weight", "CO2SWW", 0.0)):
+    # SHORTWAVE_GAS_KEYS is the one list; see its definition for why it is not
+    # written out here.
+    for key, name, default in SHORTWAVE_GAS_KEYS:
         w = config["model"].get(key)
         if w is not None and float(w) != default:
             model._edit_namelist("radmod_namelist", name, f"{float(w)}")

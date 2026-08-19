@@ -21,6 +21,8 @@ from _paths import CONFIG, INPUTS, RUNS  # noqa: E402
 from provenance import config_drift  # noqa: E402
 from segments import SEGMENT_PURPOSES  # noqa: E402
 from run_exoplasim import (  # noqa: E402
+    SHORTWAVE_GAS_KEYS,
+    configure_otherargs,
     surface_sra,
     stage_surface_extras,
     surface_field_report,
@@ -405,11 +407,10 @@ def main() -> None:
              "interval": int(args.high_cadence_interval)}
             if args.high_cadence else
             {"toggle": 0, "start": 0, "end": 0, "interval": 4}),
-        otherargs={
-            "N_DAYS_PER_YEAR@plasim_namelist": str(
-                derived["rotations_per_orbit_namelist"]
-            )
-        },
+        # IMPORTED, not restated. See configure_otherargs' docstring: this was
+        # a second copy carrying only N_DAYS_PER_YEAR, and CLIM-17's TFREEZE
+        # reverted to the compiled Earth value on every segment because of it.
+        otherargs=configure_otherargs(derived),
     )
     # Constructing the model on an existing run directory re-copies the shipped
     # namelists over the configured ones, so the spectrum has to be staged again
@@ -428,15 +429,13 @@ def main() -> None:
     o3 = config["model"].get("ozone_scale")
     if o3 is not None and float(o3) != 1.0:
         model._edit_namelist("radmod_namelist", "O3SCALE", f"{float(o3)}")
-    # The shortwave gas band weights, all four. Same list and same defaults as
-    # run_exoplasim.py: configure() rewrites the namelist on every continuation,
-    # so a weight that is not reapplied here stops applying partway through a
-    # run. co2sww's default is 0.0 and not 1.0, because upstream has no shortwave
-    # CO2 term at all.
-    for key, name, default in (("ozone_uv_weight", "O3UVW", 1.0),
-                               ("ozone_visible_weight", "O3VISW", 1.0),
-                               ("h2o_sw_weight", "H2OSWW", 1.0),
-                               ("co2_sw_weight", "CO2SWW", 0.0)):
+    # The shortwave gas band weights, IMPORTED rather than restated.
+    # configure() rewrites the namelist on every continuation, so a weight not
+    # reapplied here stops applying partway through a run -- and that is not
+    # hypothetical: this was a second copy of the tuple, PHYS-9 added
+    # h2o_sw_level to the other one, and H2OSWL silently reverted to the model
+    # default on every segment of run_78c22fb1a1bd after the first.
+    for key, name, default in SHORTWAVE_GAS_KEYS:
         w = config["model"].get(key)
         if w is not None and float(w) != default:
             model._edit_namelist("radmod_namelist", name, f"{float(w)}")
