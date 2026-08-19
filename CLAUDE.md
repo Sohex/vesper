@@ -245,7 +245,7 @@ archive/               Identity of things whose payload has been deleted:
 analysis/              Project-level analysis products (error budget, dust optics).
 vendor/orogen/         World Orogen, a git subtree from the cf-fork branch of the
                        personal fork. Generates the geography.
-vendor/exoplasim/      ExoPlaSim, a git subtree from the cf-fork branch of the
+vendor/exoplasim/      ExoPlaSim, a git subtree from the master branch of the
                        personal fork. THE model source: edited here, compiled
                        here, installed editable from here.
 requirements.txt       Shared Python dependencies for .venv. ExoPlaSim is NOT here;
@@ -302,8 +302,15 @@ Gaussian (spectral) grids.
 ### ExoPlaSim
 
 The climate model is a personal fork vendored at `vendor/exoplasim/`, a git
-subtree from the `cf-fork` branch of `Sohex/ExoPlaSim`. Pull upstream with
-`git subtree pull --prefix vendor/exoplasim exoplasim-fork cf-fork --squash`.
+subtree from the `master` branch of `Sohex/ExoPlaSim`. Pull upstream with
+`git subtree pull --prefix vendor/exoplasim exoplasim-fork master --squash`.
+
+The branch name differs from Orogen's deliberately. There, the fork's master
+tracks upstream and `cf-fork` is a separate line of work; here the fork's master
+IS the integrated line, so a second branch would be a copy with no owner. The
+consequence to know: GitHub defaults the head of a new pull request from a fork
+to that fork's default branch, so a PR against upstream must name its head
+branch explicitly or it will offer the whole stack.
 
 It is installed EDITABLE, so the source you read is the source that compiles and
 the source that runs. Its build artifacts stay untracked: the subtree's own

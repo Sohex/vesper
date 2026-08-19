@@ -305,7 +305,7 @@ is 0.0 and not 1.0. Arguments in `exoplasim/notes/ozone.md`,
 `exoplasim/scripts/shortwave_band_weights.py`. Both were derived from Howard's
 1950s band data and both have been checked against correlated-k tables built from
 a modern line list, in `exoplasim/notes/corrk-cross-check.md`.
-The model source is `vendor/exoplasim`, a git subtree from the `cf-fork` branch
+The model source is `vendor/exoplasim`, a git subtree from the `master` branch
 of the personal fork, installed editable so the source you read is the source
 that compiles. There is no patch stack to keep applied: a model change is a
 commit in that directory, and `rebuild_binaries.py` builds whatever is there.
