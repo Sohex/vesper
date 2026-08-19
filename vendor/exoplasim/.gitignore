@@ -1,0 +1,40 @@
+# Build and install artifacts.
+#
+# configure.sh and compile.sh generate all of this INTO the source tree, so
+# without this file every build leaves the working tree dirty. That matters
+# here because this branch is consumed as a git subtree by another repository,
+# where a permanently dirty vendor directory would mask real changes.
+#
+# Nothing listed here is tracked upstream. burn7.x and most_plasim_run ARE
+# tracked, so they are re-included explicitly rather than being caught by the
+# executable and run-directory rules around them.
+
+# written by configure.sh at install time
+/exoplasim/most_compiler
+/exoplasim/most_compiler_mpi
+/exoplasim/most_debug_options
+
+# compile.sh stages sources, objects and modules here; none of it is tracked
+/exoplasim/plasim/bld/
+/exoplasim/plasim/bin/
+
+# compiled model executables land beside the tracked run inputs
+/exoplasim/plasim/run/*.x
+!/exoplasim/plasim/run/burn7.x
+
+# raw model output, written in place by a run started from the source tree
+/exoplasim/plasim/run/MOST*
+/exoplasim/plasim/run/plasim_output
+/exoplasim/plasim/run/plasim_snapshot
+/exoplasim/plasim/run/plasim_status
+/exoplasim/plasim/run/plasim_restart
+/exoplasim/plasim/run/plasim_diag
+/exoplasim/plasim/run/*_output
+
+__pycache__/
+*.pyc
+*.pyo
+
+# leftovers from applying patches by hand
+*.orig
+*.rej
