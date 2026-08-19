@@ -21,17 +21,28 @@
       "regions": 257433
     }
   },
+  "vegetation_albedo": {
+    "value": 0.165,
+    "source": "config model.vegetation_albedo unless --vegetation-albedo",
+    "derivation": "analysis/vegetation_albedo.json",
+    "bands_175_176": [
+      0.075,
+      0.225
+    ],
+    "band1_land_mean": 0.10365709788028209,
+    "band2_land_mean": 0.20905319764589933
+  },
   "barren_rock_classes": [
     "evaporite",
     "playa_clastic"
   ],
   "forest_note": "dforest blends snow albedo between forested and unforested endpoints, so it has to agree with the background albedo assumption. ExoPlaSim's default is a uniform 0.5.",
   "land_mean_bare_rock": 0.24750575431058977,
-  "land_mean_written": 0.1563551477630907,
+  "land_mean_written": 0.16689475773965243,
   "endmembers": {
     "note": "land-mean albedo of the two surface endmembers, on the overridden rock table and before lakes. Their difference is what the biosphere is worth; pair only these two.",
     "bare_rock": 0.25705348383945864,
-    "vegetated": 0.17906590013216622
+    "vegetated": 0.19005819710599423
   },
   "lakes": {
     "source": "hydrography/data/precarve-craton/surface_water.nc",
@@ -39,14 +50,14 @@
     "lake_regions": 125429,
     "lake_fraction_of_land": 0.11878709479744401,
     "water_albedo": 0.06,
-    "land_mean_albedo_before": 0.179066,
-    "land_mean_albedo_after": 0.156175,
-    "delta": -0.022891
+    "land_mean_albedo_before": 0.190058,
+    "land_mean_albedo_after": 0.166819,
+    "delta": -0.023239
   },
   "derived_evaporite": null,
   "exoplasim_default_albland": 0.22,
   "land_min": 0.059999999999999956,
-  "land_max": 0.31569501980622633,
+  "land_max": 0.3187274817886659,
   "files": [
     "/home/cfutro/docs/world/exoplasim/inputs/t42/orogen_T42_surf_0174.sra",
     "/home/cfutro/docs/world/exoplasim/inputs/t42/orogen_T42_surf_0175.sra",
