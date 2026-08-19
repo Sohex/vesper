@@ -1,0 +1,25 @@
+# OPAC sulfate-droplet size distribution and wet density, at eight relative
+# humidities.
+#
+# columns: mode  rh_percent  r_min_um  r_max_um  r_mod_um  rho_g_cm3  sigma
+#
+# Component 10 of libRadtran 2.0.6's data/aerosol/OPAC/size_distr.cfg. `r_mod`
+# is the NUMBER-mode radius of a lognormal and `rho` the density of the WET
+# particle, falling from 1.7 g/cm3 for the 75% sulphuric acid solution toward
+# water's 1.0 as it takes up more water.
+#
+# The 0% row is the reference the mass budget is carried in: "dry" here means
+# the 75% acid solution and not anhydrous sulphate, which is why converting a
+# sulphur flux into this mass needs the acid fraction as well as the molar
+# masses. Growth is a factor of 1.70 at 80% relative humidity, appreciably less
+# than sea salt's 1.99, because a sulphuric acid droplet is already mostly
+# solution at its reference state.
+mode rh_percent r_min_um r_max_um r_mod_um rho_g_cm3 sigma
+suso   0    0.0050    20.000    0.0695   1.700  2.030
+suso  50    0.0073    30.200    0.0983   1.250  2.030
+suso  70    0.0079    33.600    0.1090   1.180  2.030
+suso  80    0.0084    36.400    0.1180   1.140  2.030
+suso  90    0.0090    42.300    0.1350   1.100  2.030
+suso  95    0.0096    50.200    0.1580   1.060  2.030
+suso  98    0.0101    65.500    0.1950   1.030  2.030
+suso  99    0.0103    81.800    0.2310   1.020  2.030

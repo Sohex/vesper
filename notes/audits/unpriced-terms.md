@@ -10,8 +10,10 @@ ExoPlaSim fork. Commissioned by the question "is anything else missing on the
 scale of the dust coupling". Both findings were measured the same day and both
 came back with the sign opposite to the one assumed: the moisture source is
 about a percent of land precipitation and negative, and sea salt is the same
-size as mineral dust and cools where dust warms. One thing that looked like a
-first-order defect is knocked down at the end.*
+size as mineral dust and cools where dust warms. Finding 2 was extended the same
+day to volcanic sulfate, which is small and bounds two sulfur sources this
+project cannot compute. One thing that looked like a first-order defect is
+knocked down at the end.*
 
 Findings are tagged **[numeric]** where computed here, **[inspection]** where
 read out of code or artifacts, and **[physics]** where reasoning without
@@ -105,12 +107,11 @@ the T42 grid, which `build_surface_albedo.py --lakes` already computes for
 albedo. It would have to be wrong by a factor of six to reach the size this
 document first claimed.
 
-## 2. Sea salt is the same size as mineral dust and the opposite sign
+## 2. The aerosol inventory: sea salt is dust's size and cools, and everything else is small
 
-**[inspection]** As of 2026-08-19 no sea salt, sulfate or volcanic aerosol
-appeared anywhere in this repository as a radiative species. Mineral dust had
-been priced at +0.35 to +0.74 W/m2 and was second in the whole error budget, and
-the ocean is 57% of this planet's surface.
+**[inspection]** As of 2026-08-19 mineral dust was the only aerosol this project
+had ever considered. It was priced at +0.35 to +0.74 W/m2 and stood second in
+the whole error budget, and the ocean is 57% of this planet's surface.
 
 The argument for asking was the dust episode itself. `missed-couplings.md` opens
 by recording that dust's forcing had been priced carefully and its effect on the
@@ -119,58 +120,105 @@ two correct components went unexamined. "It lands on flux and not on the carve"
 is the pre-dust reasoning, and a scattering aerosol reaches the carve by exactly
 the path dust reaches it.
 
-**Measured 2026-08-19.** The component is `aeolian/scripts/build_sea_salt.py`
-with its optics in `sea_salt_optics.py` and its source function in
-`sea_salt_source.py`; constants and their sources are in
-`aeolian/config/sea_salt.yaml`, and the numbers below are dated readings of
-`aeolian/analysis/sea_salt_baseline.json`, which regenerates.
+**[numeric]** Measured 2026-08-19. Global-mean top-of-atmosphere shortwave
+forcing, each across every declared bracket end:
+
+| species | W/m2 | source |
+| --- | ---: | --- |
+| mineral dust | +0.34 to +0.61 | wind on 43% of the planet |
+| **sea salt** | **-0.16 to -0.89** | wind on 57% of the planet |
+| volcanic sulfate, passive | -0.013 to -0.032 | this world's own outgassing requirement |
+
+The components are `aeolian/scripts/build_sea_salt.py` and
+`build_volcanic_sulfate.py`, with optics in `sea_salt_optics.py` and the source
+function in `sea_salt_source.py`; constants and sources are in
+`aeolian/config/sea_salt.yaml` and `volcanic_sulfate.yaml`, and every number
+above is a dated reading of a generated artifact.
+
+### Sea salt is the finding
+
+**The same magnitude as mineral dust, and the opposite sign.** Its
+single-scattering albedo is 1 to within 1e-5 in both bands, so the two-stream
+expression has no absorbing term at all and the sign cannot come out positive
+over any surface: it can only cool. Dust's warming and sea salt's cooling are of
+one size, and the budget carried one of them.
 
 | | all modes | spume excluded |
 | --- | ---: | ---: |
 | emission, Tg per Earth year | 38,684 | 7,228 |
-| burden, mg/m2 ocean mean | 145.9 | 32.5 |
-| optical depth, ocean mean | 0.153 | 0.068 |
+| burden, mg/m2 global mean | 88.7 | 20.0 |
 | optical depth, global mean | 0.093 | 0.042 |
-| **TOA shortwave forcing, W/m2 global** | **-0.675** | **-0.298** |
+| TOA shortwave forcing, W/m2 | -0.675 | -0.298 |
 
-and across every declared bracket end the forcing runs **-0.16 to -0.89 W/m2**,
-with the wet-removal lifetime carrying almost all of that spread and the scale
-height and the Charnock coefficient almost none.
+The wet-removal lifetime carries almost all of the bracket; the scale height and
+the Charnock coefficient almost none.
 
-**Against mineral dust's +0.35 to +0.74 W/m2, this is the same magnitude with
-the opposite sign.** The single-scattering albedo is 1 to within 1e-5 in both
-bands, so the two-stream expression has no absorbing term at all and the sign
-cannot come out positive over any surface: sea salt can only cool. Dust's
-warming and sea salt's cooling are of one size, and the error budget has carried
-one of them and not the other.
+**Two columns, and neither corrects the other.** Grythe et al.'s equation 7 has
+three lognormal modes and the third is centred at a dry diameter of 30 um. Its
+lower tail dominates the mass below the 10 um cut: modes 1 and 2 give 6.1 Pg/yr
+at the check's wind and the third adds 26.9. Grythe's own transport discretised
+the emitted spectrum into four lognormal classes with modal radii at 80%
+humidity up to 8.9 um, so their reported 8.9 Pg/yr is not the analytic integral
+of their own equation to 10 um. Those drops live about five hours here.
 
-### Why there are two columns, and which one an Earth number is comparable with
+### Volcanic sulfate is a coupling, and it is small
 
-Grythe et al.'s equation 7 has three lognormal modes and the third is centred at
-a dry diameter of 30 um. Its lower tail dominates the emitted mass below the
-10 um cut: modes 1 and 2 give 6.1 Pg/yr at the check's wind and the third adds
-26.9. Grythe's own transport discretised the emitted spectrum into four
-lognormal classes with modal radii at 80% humidity up to 8.9 um, so their
-reported 8.9 Pg/yr is not the analytic integral of their own equation to 10 um.
-Those drops live about five hours here and are not what a measurement network
-sees. The component reports both and corrects neither.
+**The source is not a scaling.** `weathering_fluxes.py` computes the CO2
+outgassing this world needs at steady state to balance its own silicate
+weathering, and that is a statement about magma. Carn et al.'s satellite-measured
+passive volcanic SO2 flux, 23.0 +/- 2.3 Tg/yr, scaled by that requirement -- 1.10
+times Earth's -- and distributed over the arc classes the fork places about the
+volcanic front, gives 12.7 Tg of sulfur per Earth year. The step refuses to run
+without the weathering artifact rather than falling back to a literal.
+
+It produces a global-mean optical depth of 0.0035 and a forcing of **-0.021
+W/m2**, one to two orders of magnitude below the other two. The scale height
+bracket moves it not at all, which is the confirmation that settling is
+irrelevant at this size and the answer is set by wet removal.
+
+**What that measurement is worth is mostly what it bounds.** The sulfate pathway
+on this world is weak: a four-day aerosol from a source far below the wind-driven
+ones. Reaching sea salt's forcing would take a sulfur flux more than ten times
+Earth's. That bound covers the two sulfur sources this project cannot compute at
+all:
+
+- **Explosive eruptions.** Stratospheric sulfate is where volcanic aerosol does
+  its climatic work on Earth, and it is episodic. An episodic source needs a
+  frequency-magnitude distribution, which needs an eruption history;
+  `notes/no-time-axis.md` says why there is none. The arc classes carry a place,
+  not a rate in time.
+- **Marine biogenic sulfur.** On Earth this is the LARGEST natural sulfur
+  source, above volcanic, and this project has no marine biosphere at all --
+  LPJ-GUESS is terrestrial. Nothing here constrains it, and the pathway bound is
+  what keeps that from being an open-ended hole.
+
+**The bound does not reach carbonaceous aerosol**, and that is the one still
+open. Smoke and secondary organics ABSORB, so their forcing per unit optical
+depth is larger and of the opposite sign to both scatterers, and the pathway
+argument above says nothing about them. Fire is enabled in LPJ-GUESS
+(`firemodel "GLOBFIRM"`) and biogenic emissions are already in the driver, so
+both are estimable once a biosphere run exists on this build. `CLIM-29`.
 
 ### The checks, and that they can fail
 
-**The Earth check is a ratio between two published source functions**, because
-an absolute comparison would measure our wind treatment rather than our source
-function. Monahan et al. (1986) and G13T run through the same machinery give
-0.705 and 0.680 of the global production Grythe's Table 2 reports for each, and
-those two ratios agree to **3.5%**. The wind treatment divides out, and what is
-left is that both source functions and the mass integration are right.
+**The sea-salt Earth check is a ratio between two published source functions**,
+because an absolute comparison would measure our wind treatment rather than our
+source function. Monahan et al. (1986) and G13T run through the same machinery
+give 0.705 and 0.680 of the global production Grythe's Table 2 reports for each,
+and those two ratios agree to **3.5%**.
 
 **The optics carry three more.** OPAC's tabulated wet density and its growth
 factor are two statements of one salt volume fraction and agree to 0.008 g/cm3,
 inside the table's rounding. Inverting OPAC's volume mixing at 80% humidity
-returns a refractive index of **1.3328** for the diluting medium, against water's
-1.333, which appears nowhere in the calculation. And the coarse dry bin's
-effective extinction efficiency in band 1 is 1.81 against the geometric-optics
-limit of 2.
+returns **1.3328** for the diluting medium against water's 1.333, a number that
+appears nowhere in the calculation. And the coarse dry bin's extinction
+efficiency in band 1 is 1.81 against the geometric-optics limit of 2.
+
+**And one after the fact.** Textor et al.'s AeroCom intercomparison puts Earth's
+sea-salt burden at 7.5 Tg across 16 models, or 14.7 mg/m2, with 54% diversity,
+and its residence time at about half a day. This world's spume-excluded burden
+is 20.0 mg/m2 with per-bin lifetimes of 0.2 to 1.2 days. Inside the model spread
+on a world with warmer ocean and stronger gravity, which is where it should be.
 
 ### Two defects found on the way, both recorded rather than worked around
 
@@ -178,28 +226,27 @@ limit of 2.
 table gives code 157 the units string "1" while PlaSim writes a percentage. No
 consumer in this project had ever read `hur`, so nothing had been wrong; the
 first reader of it treated the attribute as true, got 100% humidity everywhere,
-and through the growth curve that is a factor of five on the optical depth.
-`build_sea_salt.py` now range-checks the field instead of trusting the label.
+and through the growth curve that is a factor of five on the optical depth. Both
+aerosol scripts now range-check the field instead of trusting the label.
 
 **The shared transport solver is in advective form, not flux form.**
 `build_dust.py:advect_to_steady_state` steps `u dm/dx` rather than `d(um)/dx`,
 so it conserves mass only where the steering wind is non-divergent, which a
 horizontal wind on a sigma surface is not. The steady-state mass residual runs
-1.7 to 2.3% here for that reason and is reported as a diagnostic rather than
-dressed as an identity. It still catches what it is for: an unrelaxed bin or a
-sign error in the loss term shows up as tens of percent.
+1.7 to 2.3% for that reason and is reported as a diagnostic rather than dressed
+as an identity. It still catches what it is for: an unrelaxed bin or a sign
+error in the loss term shows up as tens of percent.
 
-### What is not done
+### What is still not done
 
-The longwave is not computed. Sea salt sits in a boundary layer whose
-temperature contrast with the surface is small, and a layer at the surface
-temperature has no thermal forcing to give, so the term is expected to be far
-inside the shortwave bracket; expected is not measured, and this says so rather
-than implying otherwise. Sulfate and volcanic aerosol are still untouched. And
-the model carries ONE aerosol at a time by design -- `radmod.f90` declares
-`aeroqs(8,1)`, and the fork's comment at lines 216-228 refuses the prescribed
-and interactive paths at once on purpose -- so putting sea salt IN the climate
-beside dust is a model change and not a second file.
+The longwave is not computed for either new species. Both are fine scatterers in
+a troposphere whose temperature contrast with the surface is modest, so the term
+is expected far inside the shortwave bracket; expected is not measured, and this
+says so rather than implying otherwise. And the model carries ONE aerosol at a
+time by design -- `radmod.f90` declares `aeroqs(8,1)`, and the fork's comment at
+lines 216-228 refuses the prescribed and interactive paths at once on purpose --
+so putting any of this IN the climate beside dust is a model change and not a
+second file.
 
 ---
 
@@ -257,4 +304,5 @@ Tracked in `TASKS.md` and not restated here.
 | --- | --- |
 | 1. the interior moisture source | `CLIM-26`, closed by the measurement above |
 | 2. sea salt, measured | `CLIM-27`, closed by the component above |
-| 2b. sulfate and volcanic aerosol, still untouched | `CLIM-28` |
+| 2b. volcanic sulfate, measured and bounding | `CLIM-28`, closed by the component above |
+| 2c. carbonaceous aerosol, which absorbs and is not bounded | `CLIM-29` |

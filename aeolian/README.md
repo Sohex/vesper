@@ -245,3 +245,42 @@ The spume mode is reported apart. Grythe's third lognormal is centred at 30 um
 and its lower tail dominates the emitted mass below the 10 um cut, so the
 product carries an `all_modes` and a `no_spume` variant and any comparison with
 an Earth number is against the second. Neither is a correction to the other.
+
+## Volcanic sulfate
+
+The third aerosol, added 2026-08-19 for CLIM-28.
+
+```bash
+python aeolian/scripts/build_volcanic_sulfate.py             # step volcanic_sulfate
+python aeolian/scripts/build_volcanic_sulfate.py --bracket   # every declared end
+```
+
+Writes `aeolian/analysis/volcanic_sulfate.{nc,json}`. Constants are in
+`aeolian/config/volcanic_sulfate.yaml`, the OPAC sulfate tables in
+`exoplasim/data/sulfate/`.
+
+**The source is a coupling, not a scaling, and that is the reason it exists.**
+Dust and sea salt are both a wind acting on a vast surface. Volcanic sulfur is
+set by how much magma this world degasses, and `pedology/analysis/weathering_fluxes.json`
+already carries that: at steady state the atmosphere's CO2 is set by outgassing
+balancing silicate weathering, so `implied_outgassing_over_earth` is a statement
+about magma. Carn et al.'s satellite-measured passive volcanic SO2 flux, scaled
+by it and distributed over the arc classes the fork places about the volcanic
+front, is the emission. The step therefore NEEDS `weathering_fluxes` and refuses
+to run without it rather than falling back to a literal.
+
+**It comes out one to two orders of magnitude below the other two**, and the
+answer is worth having for what it bounds rather than for what it adds. The
+sulfate pathway on this world is weak: a four-day aerosol from a source far
+below the wind-driven ones. Reaching sea salt's forcing would need a sulfur flux
+more than ten times Earth's, which is the bound that also covers the two sulfur
+sources this project cannot compute -- explosive eruptions, which need an
+eruption history `notes/no-time-axis.md` says does not exist, and marine
+biogenic sulfur, which needs a marine biosphere this project does not have at
+all.
+
+**That bound does not reach carbonaceous aerosol**, which absorbs rather than
+scatters and whose forcing per unit optical depth is larger and of the opposite
+sign. Fire is enabled in LPJ-GUESS and biogenic emissions are in the driver, so
+smoke and secondary organics are estimable once a biosphere run exists on this
+build. That is CLIM-29.

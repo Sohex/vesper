@@ -188,6 +188,23 @@
         0
       ],
       "note": "Measured null on a warm nearly ice-free state, NOT on the cold branch, where it is the whole point. Re-measure before the cycle work."
+    },
+    {
+      "item": "volcanic sulfate, radiative",
+      "w_m2": [
+        -0.032,
+        -0.013
+      ],
+      "kelvin": [
+        -0.027,
+        -0.011
+      ],
+      "runoff_percent": -0.01,
+      "basins": [
+        0,
+        1
+      ],
+      "note": "PRICED 2026-08-19, CLIM-28, from aeolian/analysis/volcanic_sulfate.json. Carried because it is MEASURED SMALL rather than assumed so, and because the same measurement bounds two sulfur sources this project cannot compute at all. The source is a coupling rather than a scaling: it is Carn et al.'s satellite-measured passive volcanic SO2 flux scaled by weathering_fluxes.py's own implied outgassing requirement, distributed over the arc classes. The sulfate PATHWAY is weak here -- a four-day aerosol from a source two orders of magnitude below the wind-driven ones -- so reaching sea salt's forcing would need a sulfur flux more than ten times Earth's, which is the bound that also covers explosive eruptions and the marine biogenic sulfur this project has no biosphere for. notes/audits/unpriced-terms.md finding 2."
     }
   ],
   "other_items": [

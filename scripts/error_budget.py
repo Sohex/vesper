@@ -263,6 +263,19 @@ FORCING_ITEMS = [
      "boundary layer near the surface temperature, so the term is expected "
      "small, and expected is not measured. notes/audits/unpriced-terms.md "
      "finding 2."),
+    ("volcanic sulfate, radiative", (-0.032, -0.013),
+     "PRICED 2026-08-19, CLIM-28, from aeolian/analysis/volcanic_sulfate.json. "
+     "Carried because it is MEASURED SMALL rather than assumed so, and because "
+     "the same measurement bounds two sulfur sources this project cannot "
+     "compute at all. The source is a coupling rather than a scaling: it is "
+     "Carn et al.'s satellite-measured passive volcanic SO2 flux scaled by "
+     "weathering_fluxes.py's own implied outgassing requirement, distributed "
+     "over the arc classes. The sulfate PATHWAY is weak here -- a four-day "
+     "aerosol from a source two orders of magnitude below the wind-driven "
+     "ones -- so reaching sea salt's forcing would need a sulfur flux more "
+     "than ten times Earth's, which is the bound that also covers explosive "
+     "eruptions and the marine biogenic sulfur this project has no biosphere "
+     "for. notes/audits/unpriced-terms.md finding 2."),
     ("dust, shortwave-only if switched on as shipped", (-4.3, -4.0),
      "DUST-3's constraint, not an uncertainty in the world. Aerosols ARE "
      "switchable: aero_ini is called at plasim.f90:190 and reads aero_nl with "

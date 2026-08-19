@@ -233,6 +233,14 @@ and `aeolian/README.md`.
 | `irshad2009-sea-salt-refractive-index.pdf` | Irshad, Grainger, Peters, McPheat, Smith, Thomas (2009). *Laboratory measurements of the optical properties of sea salt aerosol.* Atmos. Chem. Phys. 9, 221-230. `10.5194/acp-9-221-2009` | **read** -- and NOT used for the shortwave: it measures 1 to 20 um, which misses band 1 entirely. Its finding that OPAC's volume mixing rule is inadequate is recorded as a caveat on the infrared, where sea salt absorbs; in the shortwave it is a near-pure scatterer and n carries the answer |
 | `petters2007-kappa-hygroscopicity.pdf` | Petters, Kreidenweis (2007). *A single parameter representation of hygroscopic growth and cloud condensation nucleus activity.* Atmos. Chem. Phys. 7, 1961-1971. `10.5194/acp-7-1961-2007` | held -- the alternative to OPAC's tabulated growth. Not used: OPAC's own table is what its refractive indices were mixed against, and pairing a different growth curve with those indices would break the consistency the optics script checks |
 
+## Volcanic sulfur, and aerosol lifetimes across models (CLIM-28)
+
+| file | citation | status |
+| --- | --- | --- |
+| `carn2017-volcanic-so2-from-space.pdf` | Carn, Fioletov, McLinden, Li, Krotkov (2017). *A decade of global volcanic SO2 emissions measured from space.* Sci. Rep. 7, 44095. `10.1038/srep44095` | **read** -- the source term: a global PASSIVE volcanic SO2 flux of 23.0 +/- 2.3 Tg/yr from ten years of OMI retrievals, which is what `aeolian/config/volcanic_sulfate.yaml` scales by this world's own outgassing requirement |
+| `andreskasgnoc1998-volcanic-sulfur-inventory.pdf` | Andres, Kasgnoc (1998). *A time-averaged inventory of subaerial volcanic sulfur emissions.* J. Geophys. Res. 103(D19), 25251-25261. `10.1029/98JD02091` | held -- the pre-satellite inventory at about 12 Tg SO2/yr non-eruptive, and the source of the sporadic-to-passive ratio the upper bracket carries |
+| `textor2006-aerocom-aerosol-lifecycles.pdf` | Textor, Schulz, Guibert and 32 others (2006). *Analysis and quantification of the diversities of aerosol life cycles within AeroCom.* Atmos. Chem. Phys. 6, 1777-1813. `10.5194/acp-6-1777-2006` | **read** -- sulfate's four-day residence time, and the Earth burdens 16 models agree and disagree on: sea salt 7.5 Tg at 54% diversity, dust 19.2, sulfate 2.0. The sea-salt figure is what the sea-salt component's global burden is checked against after the fact |
+
 ## Hydrology: the Earth comparator
 
 | file | citation | status |

@@ -98,10 +98,14 @@ def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def read_size_table() -> dict:
-    """{mode: {rh: (r_min, r_max, r_mod, rho, sigma)}} from the OPAC table."""
+def read_size_table(path: Path = None) -> dict:
+    """{mode: {rh: (r_min, r_max, r_mod, rho, sigma)}} from an OPAC table.
+
+    Takes a path because `volcanic_sulfate.py` reads the same format for OPAC's
+    sulfate component, and two copies of a parser is how a format drifts.
+    """
     out: dict[str, dict[int, tuple]] = {}
-    for line in SIZE_PATH.read_text().splitlines():
+    for line in (path or SIZE_PATH).read_text().splitlines():
         if line.startswith("#") or line.startswith("mode") or not line.strip():
             continue
         p = line.split()
@@ -109,10 +113,10 @@ def read_size_table() -> dict:
     return out
 
 
-def read_index_table() -> dict:
-    """{mode: {rh: (lambda, n, k)}} from the OPAC table."""
+def read_index_table(path: Path = None) -> dict:
+    """{mode: {rh: (lambda, n, k)}} from an OPAC table. See `read_size_table`."""
     out: dict[str, dict[int, list]] = {}
-    for line in INDEX_PATH.read_text().splitlines():
+    for line in (path or INDEX_PATH).read_text().splitlines():
         if line.startswith("#") or not line.strip():
             continue
         p = line.split()

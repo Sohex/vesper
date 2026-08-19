@@ -1,0 +1,127 @@
+schema_version: 1
+
+# Calibration for the offline volcanic-sulfate component, in the same form as
+# `dust.yaml` and `sea_salt.yaml` beside it. DECLARED BEFORE THE FIRST RUN,
+# 2026-08-19.
+#
+# THIS IS THE THIRD AEROSOL AND THE FIRST WHOSE SOURCE IS NOT THE WIND. Dust and
+# sea salt are both set by a wind field acting on a vast surface, so both are
+# large. Volcanic sulfur is set by how much magma this world degasses, and this
+# project already has a number for that, which is why this can be computed at
+# all rather than declared.
+
+# --- the source: this world's own outgassing requirement --------------------
+#
+# The anchor is `pedology/analysis/weathering_fluxes.json`'s
+# `carbon_balance.implied_outgassing_over_earth`, which is what
+# `weathering_fluxes.py` computes: at steady state the atmosphere's CO2 is set
+# by outgassing balancing silicate weathering, so a weathering rate IS a
+# statement about the outgassing this world needs. That number is read at run
+# time and never copied here.
+#
+# The step from carbon to sulphur assumes an EARTH-LIKE MAGMATIC S/C RATIO and
+# an Earth-like subaerial share of total degassing. Both are declared: nothing
+# in this project constrains the sulphur content of Vesper's mantle, and the
+# submarine share of degassing does not reach the atmosphere at all. The bracket
+# below is what carries them.
+#
+# WHY THIS SCALING RATHER THAN ARC AREA. Arc extent is a property of the terrain
+# and could be measured, but Earth's arc area is not a number this project has,
+# so scaling by it would replace a measured ratio with an unsourced one. The
+# carbon route uses a quantity this repository computes.
+source:
+  # Carn et al. (2017), "A decade of global volcanic SO2 emissions measured from
+  # space", Sci. Rep. 7, 44095, doi 10.1038/srep44095. Ten years of OMI
+  # retrievals give a global PASSIVE (non-eruptive) flux of 23.0 +/- 2.3 Tg SO2
+  # per year. Read; see references/INDEX.md.
+  #
+  # PASSIVE ONLY, and that is a choice with a reason rather than an oversight.
+  # The eruptive part is episodic, and an episodic source needs a frequency-
+  # magnitude distribution, which needs an eruption history. `notes/no-time-axis.md`
+  # says why this project has none. What is left out is recorded rather than
+  # folded in: Andres and Kasgnoc (1998) put the sporadic contribution at
+  # roughly a third of the passive one on Earth, and the upper bracket carries
+  # that much.
+  earth_so2_tg_per_year: 23.0
+  earth_so2_tg_per_year_bracket: [20.7, 30.7]
+  # Fraction of emitted sulphur that becomes aerosol sulphate rather than being
+  # removed as SO2. DECLARED with a wide bracket: this project has no sulphur
+  # chemistry and no oxidant field, and the conversion depends on both. Volcanic
+  # plumes convert more efficiently than surface sources because they are
+  # emitted above the boundary layer.
+  aerosol_yield: 0.5
+  aerosol_yield_bracket: [0.3, 0.7]
+  # The emitted aerosol is 75% sulphuric acid solution, which is the composition
+  # OPAC's `suso` component describes and therefore the mass the optics table is
+  # denominated in. Mass of aerosol per unit mass of sulphur is
+  # (M_H2SO4 / M_S) / acid_fraction = (98.08/32.06)/0.75 = 4.079.
+  h2so4_molar_mass: 98.079
+  sulfur_molar_mass: 32.06
+  acid_mass_fraction: 0.75
+  # SO2 to S by mass: 32.06/64.06.
+  so2_molar_mass: 64.064
+
+# --- where it is emitted -----------------------------------------------------
+#
+# On the arc, which this world's lithology carries directly:
+# `pedology/config/pedogenesis.yaml` records that the fork places the arc
+# classes as a band about the volcanic front, so ARC TERRAIN IS THE ACTIVE FRONT
+# BY CONSTRUCTION. That is the same fact `WORKFLOW.md` section 3.6 uses to say
+# the arc classes are the only place this pipeline treats volcanism as
+# continuing, and it is why flood basalt and ocean-island provinces are reported
+# undetermined rather than counted.
+#
+# The flux is distributed over cells in proportion to their arc-class land
+# fraction. That is a proxy for vent density and it is declared as one: real
+# degassing is concentrated at a few dozen persistent vents, not spread evenly
+# along a front, and this cannot represent that.
+emission:
+  arc_classes: [arc_basalt, arc_andesite]
+
+# --- transport and removal ---------------------------------------------------
+transport:
+  # Sulfate is a fine accumulation-mode aerosol that reaches the free
+  # troposphere, unlike sea salt and like dust. The scale height is dust's,
+  # declared, and it matters far less here than for either: settling is
+  # negligible at this size, so the scale height reaches the answer only through
+  # the settling loss it divides.
+  scale_height_m: 3000.0
+  scale_height_bracket_m: [2000.0, 5000.0]
+  steering_sigma: 0.5
+  diffusion_m2_s: 1.0e+5
+  max_iterations: 40000
+  convergence_fraction: 1.0e-6
+  polar_coslat_floor: 0.2
+
+removal:
+  # Textor et al. (2006), AeroCom, 16 models: sulfate's tropospheric residence
+  # time is about four days, against sea salt's half day and black carbon's
+  # seven. The diversity across those models is what the bracket carries.
+  #
+  # Textor, Schulz, Guibert, and 32 others (2006). Analysis and quantification
+  # of the diversities of aerosol life cycles within AeroCom. Atmos. Chem. Phys.
+  # 6, 1777-1813, doi 10.5194/acp-6-1777-2006. Read; see references/INDEX.md.
+  #
+  # Applied the way sea salt's is: as a wet lifetime at a reference
+  # precipitation, carried to this world through its own precipitation field
+  # with Sportisse's exponent, so what transfers is a process rate.
+  wet_lifetime_hours: 96.0
+  wet_lifetime_hours_bracket: [60.0, 150.0]
+  reference_precipitation_mm_per_hour: 0.1256   # 1100 mm per Earth year, the
+                                                # ocean-mean, DECLARED
+  scavenging_b: 0.61                            # Sportisse (2007) Table 12
+
+# --- hygroscopic growth and optics -------------------------------------------
+#
+# OPAC's `suso`, tabulated at eight humidities in exoplasim/data/sulfate/. The
+# growth factor is 1.70 at 80% relative humidity against sea salt's 1.99,
+# because a 75% acid solution is already mostly liquid at its reference state.
+#
+# Unlike sea salt this is a SINGLE LOGNORMAL, which is what OPAC publishes and
+# what a source with no size theory behind it can honestly claim.
+growth:
+  size_table: exoplasim/data/sulfate/opac_sulfate_size_distribution.dat
+  index_table: exoplasim/data/sulfate/opac_sulfate_refractive_index.dat
+  mode: suso
+  rh_min_percent: 50.0
+  rh_max_percent: 99.0
