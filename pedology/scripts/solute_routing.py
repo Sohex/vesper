@@ -36,6 +36,7 @@ import numpy as np
 
 from _paths import PROJECT_ROOT  # noqa: F401  (adds lib/ to sys.path)
 
+from climatology import annual_mean
 from gridding import climatology_cells
 from orogen import LAND, Export
 
@@ -64,8 +65,10 @@ def region_runoff_m3_yr(export: Export, grid_dir: Path, climatology: Path):
     """
     with nc.Dataset(climatology) as ds:
         clim_lat = np.asarray(ds["lat"][:], dtype=float)
-        pr = np.asarray(ds["pr"][:], dtype=float).mean(axis=0)
-        evap = -np.asarray(ds["evap"][:], dtype=float).mean(axis=0)
+        # Records per bin are unequal; lib/climatology.py weights by them.
+        centres = np.asarray(ds["time"][:], dtype=float)
+        pr = annual_mean(np.asarray(ds["pr"][:], dtype=float), centres)
+        evap = -annual_mean(np.asarray(ds["evap"][:], dtype=float), centres)
     # m/s -> mm per Earth year.
     to_mm_yr = 1000.0 * 86400.0 * EARTH_YEAR_DAYS
     runoff_mm = np.maximum((pr - evap) * to_mm_yr, 0.0)

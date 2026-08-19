@@ -223,12 +223,15 @@ def _mean_ts(run: Path, last: int = 5) -> float | None:
         return None
     try:
         from netCDF4 import Dataset
+        import climatology as clim
         from numpy.polynomial.legendre import leggauss
         vals = []
         for f in files[-last:]:
             with Dataset(f) as ds:
                 w = leggauss(ds.dimensions["lat"].size)[1][::-1]
                 a = np.asarray(ds["ts"][:])
+                if a.ndim > 2:      # leading axis is time, and its bins differ
+                    a = clim.annual_mean(a, np.asarray(ds["time"][:]))
                 while a.ndim > 2:
                     a = a.mean(axis=0)
                 vals.append(float((a.mean(axis=1) * w).sum() / w.sum()))

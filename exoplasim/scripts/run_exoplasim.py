@@ -1216,6 +1216,11 @@ def main() -> None:
     for key, name, default in (("ozone_uv_weight", "O3UVW", 1.0),
                                ("ozone_visible_weight", "O3VISW", 1.0),
                                ("h2o_sw_weight", "H2OSWW", 1.0),
+                               # A LEVEL, not a weight, and separate from
+                               # H2OSWW on purpose: that one is a star-over-Sun
+                               # ratio and an error in Eq. 21's absolute level
+                               # divides out of it. PHYS-9.
+                               ("h2o_sw_level", "H2OSWL", 1.0),
                                ("co2_sw_weight", "CO2SWW", 0.0)):
         w = config["model"].get(key)
         if w is not None and float(w) != default:

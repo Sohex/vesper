@@ -42,6 +42,8 @@ import yaml
 
 from _paths import (ANALYSIS, CONFIG, PEDOGENESIS, PROJECT_ROOT, SOURCE,
                     climatology_path)
+
+import climatology  # noqa: E402  from lib/, put on sys.path by _paths
 from paths import rel  # noqa: E402
 
 from build_soil import EARTH_YEAR_DAYS, KELVIN, weathering_intensity
@@ -58,11 +60,11 @@ def sha256(path: Path) -> str:
 def read_weathering(climatology: Path, params: dict) -> np.ndarray:
     """The same WHAK intensity `build_soil.py` computes, from the same fields."""
     with nc.Dataset(climatology) as data:
-        temperature = np.asarray(data["tas"][:], dtype=float).mean(axis=0) - KELVIN
+        temperature = climatology.annual_mean_of(data, "tas") - KELVIN
         scale = 1000.0 * 86400.0 * EARTH_YEAR_DAYS
-        evaporation = -np.asarray(data["evap"][:], dtype=float).mean(axis=0)
+        evaporation = -climatology.annual_mean_of(data, "evap")
         runoff = np.maximum(
-            (np.asarray(data["pr"][:], dtype=float).mean(axis=0) - evaporation)
+            (climatology.annual_mean_of(data, "pr") - evaporation)
             * scale, 0.0)
     return weathering_intensity(runoff, temperature, params)
 

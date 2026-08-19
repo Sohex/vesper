@@ -143,17 +143,23 @@ def main() -> None:
     if not climatology.is_file():
         raise SystemExit(f"{climatology} does not exist")
     from provenance import require_build
+    from climatology import annual_mean
     require_build(climatology, "climatology", config)
 
     with nc.Dataset(climatology) as data:
         lat = np.asarray(data["lat"][:], dtype=float)
         lon = np.asarray(data["lon"][:], dtype=float)
         land = np.asarray(data["lsm"][0], dtype=float) > 0.5
-        temperature = np.asarray(data["tas"][:], dtype=float).mean(axis=0) - KELVIN
+        # Weighted by records per bin, which are not equal: pyburn's
+        # linspace().astype(int) split puts sixteen records in two bins of
+        # twelve and fifteen in the rest. TASKS.md CLIM-13.
+        centres = np.asarray(data["time"][:], dtype=float)
+        temperature = annual_mean(np.asarray(data["tas"][:], dtype=float),
+                                  centres) - KELVIN
         scale = 1000.0 * 86400.0 * EARTH_YEAR_DAYS
-        evaporation = -np.asarray(data["evap"][:], dtype=float).mean(axis=0)
+        evaporation = -annual_mean(np.asarray(data["evap"][:], dtype=float), centres)
         runoff = np.maximum(
-            (np.asarray(data["pr"][:], dtype=float).mean(axis=0) - evaporation)
+            (annual_mean(np.asarray(data["pr"][:], dtype=float), centres) - evaporation)
             * scale, 0.0)
 
     mass_earth = float(config["planet"]["mass_earth"])

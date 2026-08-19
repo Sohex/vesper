@@ -21,6 +21,8 @@ import numpy as np
 from numpy.polynomial.legendre import leggauss
 
 from _paths import ANALYSIS, INPUTS
+
+import climatology  # noqa: E402  from lib/, put on sys.path by _paths
 import gridding
 
 
@@ -132,12 +134,19 @@ def main() -> None:
     fig.savefig(topo_plot, dpi=180)
     plt.close(fig)
 
-    annual_ts = ts.mean(axis=0)
+    # Annual means are weighted by records per bin, which are unequal because
+    # pyburn's linspace().astype(int) split spreads the remainder. CLIM-13.
+    centres = np.asarray(data["time"][:], dtype=float)
+
+    def yearly(field):
+        return climatology.annual_mean(np.asarray(field), centres)
+
+    annual_ts = yearly(ts)
     seasonal_range = ts.max(axis=0) - ts.min(axis=0)
-    annual_pr = pr.mean(axis=0)
-    annual_sic = sic.mean(axis=0)
-    u_low = data["ua"].mean(axis=0)[-1]
-    v_low = data["va"].mean(axis=0)[-1]
+    annual_pr = yearly(pr)
+    annual_sic = yearly(sic)
+    u_low = yearly(data["ua"])[-1]
+    v_low = yearly(data["va"])[-1]
     fig, axes = plt.subplots(2, 2, figsize=(15, 8.5), constrained_layout=True)
     panels = [
         (annual_ts, "First-orbit mean surface temperature", "coolwarm", 220, 310, "K"),

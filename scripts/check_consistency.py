@@ -94,9 +94,10 @@ from provenance import config_drift, unknown_inert_keys   # noqa: E402
 
 def land_sea_mask():
     """The climatology's land mask, for the coupling-alignment invariant."""
+    import climatology as clim
     from paths import climatology_path
     with Dataset(climatology_path()) as ds:
-        return np.asarray(ds["lsm"][:]).mean(axis=0)
+        return clim.annual_mean_of(ds, "lsm")
 
 
 # Config keys that cannot reach `biosphere/generated/`. Everything else is

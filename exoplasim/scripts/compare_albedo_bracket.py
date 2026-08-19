@@ -49,6 +49,8 @@ from numpy.polynomial.legendre import leggauss
 
 from _paths import ANALYSIS, RUNS
 
+import climatology  # noqa: E402  from lib/, put on sys.path by _paths
+
 CONVERGED_K = 2.0
 TARGET_K = (290.0, 293.0)
 MM_PER_DAY = 86400.0 * 1000.0
@@ -72,6 +74,11 @@ def orbit_means(run_dir: Path, last: int = 5) -> dict:
                 if name not in ds.variables:
                     continue
                 a = np.asarray(ds[name][:])
+                # The LEADING axis is time and its bins hold unequal numbers of
+                # raw records, so it is weighted; any axis under it is a level
+                # and averages plainly. CLIM-13.
+                if a.ndim > 2:
+                    a = climatology.annual_mean(a, np.asarray(ds["time"][:]))
                 while a.ndim > 2:
                     a = a.mean(axis=0)
                 acc.setdefault(name, []).append(

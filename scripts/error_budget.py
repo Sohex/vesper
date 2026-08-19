@@ -98,6 +98,7 @@ import yaml  # noqa: E402
 
 import builds  # noqa: E402
 import orbit as orbit_lib  # noqa: E402
+import climatology
 import sensitivity  # noqa: E402
 
 # Measured, not assumed; see the module docstring.
@@ -340,10 +341,10 @@ def land_water_balance(config) -> dict:
     with Dataset(path) as ds:
         nlat, nlon = len(ds.dimensions["lat"]), len(ds.dimensions["lon"])
         w = leggauss(nlat)[1][::-1][:, None] * np.ones((1, nlon))
-        land = np.asarray(ds.variables["lsm"][:], dtype=float).mean(axis=0) > 0.5
+        land = climatology.annual_mean_of(ds, "lsm") > 0.5
         wl = w * land
         def land_mean(name):
-            v = np.asarray(ds.variables[name][:], dtype=float).mean(axis=0)
+            v = climatology.annual_mean_of(ds, name)
             return float((v * wl).sum() / wl.sum())
         # m/s to mm per Earth year. Annualised to Earth years, not orbits,
         # because every other rate in this budget is.

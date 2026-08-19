@@ -87,6 +87,27 @@
 !     Default 1.0 reproduces Lacis & Hansen exactly, so a solar-host run is
 !     bit-identical.
       real    :: h2osww  = 1.0    ! weight, near-infrared H2O bands
+!
+!     h2oswl is a SECOND and independent correction to the same term, and the
+!     two must not be folded into one key. h2osww re-weights Eq. 21 for a
+!     non-solar host and is a star-over-Sun RATIO, so any error in Eq. 21's
+!     absolute level divides straight out of it. h2oswl is that level.
+!
+!     Eq. 21 is a fit to Yamamoto (1962), and a modern line list absorbs 12 to
+!     13% more at the same absorber amount: correlated-k over Eq. 21 runs 1.10
+!     to 1.15 across the range, median 1.134, and 1.127 at this planet's
+!     operating path. The cause is a pressure treatment, Yamamoto's bands being
+!     measured at a Curtis-Godson effective pressure while Eq. 21 is refitted as
+!     though they held at standard pressure. The deficit is also measured BEFORE
+!     the MT_CKD continuum, which the correlated-k side lacks too, so the true
+!     gap is larger than this and one-signed.
+!
+!     Default 1.0 reproduces Lacis & Hansen exactly, so a solar-host run is
+!     bit-identical and a rebuilt binary reproduces every run that exists until
+!     the namelist turns this on. exoplasim/notes/corrk-cross-check.md is the
+!     measurement; TASKS.md PHYS-9 is the decision to carry it as a key rather
+!     than as a line in the error budget.
+      real    :: h2oswl  = 1.0    ! level, near-infrared H2O absorptance
 !     Shortwave CO2, which this scheme does not have at all. swr carries ozone in
 !     band 1 and water vapour in band 2 and nothing else; CO2 appears only in
 !     lwr, from Sasamori (1968). Lacis & Hansen did not parameterise the
@@ -741,7 +762,7 @@
 !
       namelist/radmod_nl/ndcycle,ncstsol,solclat,solcdec,no3,co2        &
      &               ,iyrbp,nswr,nlwr,nfixed,slowdown,nradice,npbroaden,desync    &
-     &               ,o3uvw,o3visw,h2osww,co2sww   &
+     &               ,o3uvw,o3visw,h2osww,h2oswl,co2sww   &
      &               ,a0o3,a1o3,aco3,bo3,co3,toffo3,o3scale,newrsc,necham,necham6   &
      &               ,nsol,nclouds,nswrcl,nrscat,rcl1,rcl2,acl2,clgray,tpofmt   &
      &               ,acllwr,tswr1,tswr2,tswr3,th2oc,dawn,starbbtemp,nstartemp  &
@@ -901,6 +922,7 @@
       call mpbcr(o3uvw)
       call mpbcr(o3visw)
       call mpbcr(h2osww)
+      call mpbcr(h2oswl)
       call mpbcr(co2sww)
       call mpbcr(o3scale)
       call mpbcr(co2)
@@ -1958,20 +1980,42 @@
 !
 !         A(u) = zca1 ln(1 + zcb1 u) + zca2 ln(1 + zcb2 u)
 !
-!     fitted by exoplasim/scripts/shortwave_band_weights.py to Howard, Burch &
-!     Williams' band absorptions integrated against a 5772 K spectrum, each band
-!     multiplied by the fraction of its interval water vapour has left so the two
-!     gases do not both claim the same photons. Two logarithms rather than Lacis
-!     & Hansen's Eq. 21 form because that form fits this curve worse and wants a
-!     negative coefficient in its denominator, which can go singular on a column
-!     nothing here forbids. Quoted over 1 to 1e4 atmos-cm, which the model never
-!     leaves: the thinnest sigma layer carries a few percent of the column and
-!     the smallest magnification is zbetta. Within that range the fit is 4%
-!     of itself at worst and 1.2% rms.
-      parameter(zca1=3.8265E-4)
-      parameter(zcb1=44.539)
-      parameter(zca2=2.2325E-3)
-      parameter(zcb2=5.8954E-3)
+!     Two logarithms rather than Lacis & Hansen's Eq. 21 form because that form
+!     fits this curve worse and wants a negative coefficient in its denominator,
+!     which can go singular on a column nothing here forbids. Quoted over 1 to
+!     1e4 atmos-cm, which the model never leaves: the thinnest sigma layer
+!     carries a few percent of the column and the smallest magnification is
+!     zbetta.
+!
+!     FITTED TO A LINE LIST, not to Howard's 1956 band set. The level comes from
+!     HITRAN2020 through the Generic PCM correlated-k tables, integrated against
+!     a 5772 K spectrum and multiplied per band by the water vapour transmission
+!     so the two gases do not both claim the same photons, by
+!     exoplasim/scripts/corrk_cross_check.py --fit. It replaces a fit to
+!     Howard's bands that was 7.2% high at this planet's path.
+!
+!     WHY THE WHOLE CURVE AND NOT THE TWO BANDS THAT WERE WRONG. The defect
+!     found was in the per-band water overlap: Howard's band-mean absorptance,
+!     spread uniformly across a 1000 cm-1 interval, smears saturation out of the
+!     band cores, putting the 2.7 um clear fraction at 0.171 where the line list
+!     says 0.003 and the 2.0 um one at 0.479 where it says 0.718. Correcting
+!     only those makes the TOTAL worse: summed over Howard's eight intervals the
+!     line list gives 0.004494 against the derivation's 0.005536, 18.8% low,
+!     while over all bands it gives 0.005098, 7.9% low. About an eighth of the
+!     CO2 shortwave absorption falls outside every interval Howard measured, and
+!     the overlap error was partly standing in for it. Taking the level from the
+!     line list across the range needs no band bookkeeping and cannot cancel two
+!     errors by accident.
+!
+!     The form is a worse fit to this curve than to Howard's, and the cost sits
+!     where the model does not go: 8.9% of itself at u = 1e4, but 4.6% over
+!     100 to 1000 atmos-cm where a T42 column sits, against 4.0% for the fit it
+!     replaces. co2sww is unaffected -- it is a star-over-Sun RATIO and the two
+!     derivations agree on it to 0.03%.
+      parameter(zca1=3.0658E-4)
+      parameter(zcb1=20.376)
+      parameter(zca2=3.8193E-3)
+      parameter(zcb2=3.9672E-3)
       parameter(aa=0.2542857142857143)
       parameter(bb=0.8229693877551021)
       parameter(c0=0.14997959183673468)
@@ -2363,7 +2407,7 @@
      &           +o3uvw*0.0658*zo3(:)/(1.+(103.6*zo3(:))**3))/zsolar1
        ztwvt(:)=1.
        zwv(:)=zywvt(:)+zbetta*zwvt(:)
-       ztwvtu(:)=1.-h2osww*2.9*zwv(:)                                   &
+       ztwvtu(:)=1.-h2osww*h2oswl*2.9*zwv(:)                            &
      &            /((1.+141.5*zwv(:))**0.635+5.925*zwv(:))              &
      &            /zsolar2
        ztco2t(:)=1.
@@ -2479,7 +2523,7 @@
 !     downward beam
 !
        zwv(:)=zywvl(:,jlev)
-       ztwv(:)=(1.-h2osww*2.9*zwv(:)                                    &
+       ztwv(:)=(1.-h2osww*h2oswl*2.9*zwv(:)                             &
      &            /((1.+141.5*zwv(:))**0.635+5.925*zwv(:))              &
      &            /zsolar2)                                             &
      &        /ztwvt(:)
@@ -2497,7 +2541,7 @@
 !
        zwv(:)=zywvt(:)+zbetta*(zwvt(:)-zwvl(:,jlev))
        ztwvu(:)=ztwvtu(:)                                               &
-     &         /(1.-h2osww*2.9*zwv(:)                                   &
+     &         /(1.-h2osww*h2oswl*2.9*zwv(:)                            &
      &            /((1.+141.5*zwv(:))**0.635+5.925*zwv(:))              &
      &            /zsolar2)
        ztwvtu(:)=ztwvtu(:)/ztwvu(:)

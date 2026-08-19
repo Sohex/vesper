@@ -117,3 +117,32 @@ def annual_mean(field: np.ndarray, centres: np.ndarray) -> np.ndarray:
         raise ValueError(f"field has {field.shape[0]} bins, the time axis "
                          f"{len(w)}")
     return np.tensordot(w, np.asarray(field, dtype=float), axes=(0, 0))
+
+
+def annual_mean_of(ds, name: str) -> np.ndarray:
+    """`annual_mean` for a field read straight off an open climatology Dataset.
+
+    The common case, and worth a name because it keeps the time axis and the
+    field from being taken from different places. Raises through `bin_weights`
+    if the file's bin centres are not something pyburn's integer binning could
+    have produced, so a misapplied weighting fails rather than quietly scaling
+    the wrong axis.
+    """
+    return annual_mean(np.asarray(ds[name][:], dtype=float),
+                       np.asarray(ds["time"][:], dtype=float))
+
+
+def masked_mean(field: np.ndarray, centres: np.ndarray,
+                mask: np.ndarray) -> np.ndarray:
+    """Mean over a SUBSET of the bins, weighted by records per bin.
+
+    Seasonal composites take a few bins out of the twelve, and the weights have
+    to be renormalised over the subset rather than reused whole. Separate from
+    `annual_mean` because taking a subset of a normalised weight vector and not
+    renormalising is the kind of thing that looks right.
+    """
+    w = bin_weights(centres)[mask]
+    if w.sum() <= 0:
+        raise ValueError("the mask selects no bins")
+    w = w / w.sum()
+    return np.tensordot(w, np.asarray(field, dtype=float)[mask], axes=(0, 0))

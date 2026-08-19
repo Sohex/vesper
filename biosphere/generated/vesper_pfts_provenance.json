@@ -1,8 +1,8 @@
 {
-  "generated": "2026-08-19T05:42:50+00:00",
+  "generated": "2026-08-19T06:10:31+00:00",
   "source": "/home/cfutro/git/lpj-guess/guess_4.1/data/ins/global.ins",
   "source_sha256": "4daa4358a1f2de730601ac64ce3a64e54821838de20f9391ac07f649fefb90d8",
-  "config_sha256": "be6445a5a0cc7c1df81cbc362ddcce86593148e97c4104b2b9e96cf7602c4491",
+  "config_sha256": "70527c24782e2311fb35d9494f71b8ce929912d92fb1a217c20c72cb78d5f9a8",
   "source_config": {
     "schema_version": 1,
     "source_build": "precarve-craton",
@@ -74,6 +74,7 @@
       "ozone_uv_weight": 0.335,
       "ozone_visible_weight": 0.914,
       "h2o_sw_weight": 1.346,
+      "h2o_sw_level": 1.127,
       "co2_sw_weight": 1.51,
       "roughness_source": "lithology",
       "soil_water_source": "pedology",
@@ -194,7 +195,7 @@
       "direction": "up, a duration in years"
     }
   ],
-  "output_sha256": "c7d92ad5c3976e1fd71afaa1277346513cf6a54f16ae72b603df8828b31ddefa",
-  "git_commit": "5c47dd7cc8555d1f9ae030a68547c3a0729aea97",
+  "output_sha256": "928a0e5af90201bdca53937ccf0c79c32a1f23694df9d61bc0557d90e7742fc5",
+  "git_commit": "ceb06883d8c8c479ab94ea4bc345a7d83b599386",
   "generator": "biosphere/scripts/build_vesper_pfts.py"
 }

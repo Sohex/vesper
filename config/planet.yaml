@@ -170,6 +170,21 @@ model:
   # compound. Arguments in exoplasim/notes/shortwave-water-vapour.md and
   # exoplasim/notes/shortwave-co2.md.
   h2o_sw_weight: 1.346
+  # A LEVEL correction to the same water vapour term, and a SEPARATE decision
+  # from the weight above. `h2o_sw_weight` is a star-over-Sun ratio, so an error
+  # in the absolute level of Lacis and Hansen Eq. 21 divides straight out of it
+  # and is not corrected by anything. Correlated-k against Eq. 21 at the same
+  # absorber amount runs 1.10 to 1.15 across the range and 1.127 at this
+  # planet's operating path, the cause being that Yamamoto's bands were measured
+  # at a Curtis-Godson effective pressure while Eq. 21 is refitted as though
+  # they held at standard pressure.
+  #
+  # One-signed and a LOWER BOUND: the correlated-k side lacks the MT_CKD
+  # continuum too, so the real deficit is larger than 12.7%. Carried as a key
+  # rather than as a line in the error budget, per TASKS.md PHYS-9;
+  # `exoplasim/notes/corrk-cross-check.md` is the measurement. radmod.f90's
+  # default is 1.0, which is Eq. 21 unmodified.
+  h2o_sw_level: 1.127
   co2_sw_weight: 1.510
   roughness_source: lithology
   # Soil water capacity from the pedology soil map as code 229, land-mean

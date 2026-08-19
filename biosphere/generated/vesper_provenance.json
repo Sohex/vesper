@@ -1,6 +1,6 @@
 {
-  "generated": "2026-08-19T05:42:50+00:00",
-  "config_sha256": "be6445a5a0cc7c1df81cbc362ddcce86593148e97c4104b2b9e96cf7602c4491",
+  "generated": "2026-08-19T06:10:31+00:00",
+  "config_sha256": "70527c24782e2311fb35d9494f71b8ce929912d92fb1a217c20c72cb78d5f9a8",
   "source_config": {
     "schema_version": 1,
     "source_build": "precarve-craton",
@@ -72,6 +72,7 @@
       "ozone_uv_weight": 0.335,
       "ozone_visible_weight": 0.914,
       "h2o_sw_weight": 1.346,
+      "h2o_sw_level": 1.127,
       "co2_sw_weight": 1.51,
       "roughness_source": "lithology",
       "soil_water_source": "pedology",
@@ -159,7 +160,7 @@
     "earth_fradpar": 0.5
   },
   "source_build": "precarve-craton",
-  "git_commit": "5c47dd7cc8555d1f9ae030a68547c3a0729aea97",
-  "header_sha256": "7365755934561fffe727b16b7613c28260532253b51c02690326346191fec917",
+  "git_commit": "ceb06883d8c8c479ab94ea4bc345a7d83b599386",
+  "header_sha256": "a1b5657ddfb992bf735ebde0e609c8460e203f4d2060e22ecc12e85a686765b5",
   "generator": "biosphere/scripts/build_vesper_header.py"
 }

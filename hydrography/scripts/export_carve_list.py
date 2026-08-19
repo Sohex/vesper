@@ -104,6 +104,7 @@ import yaml
 
 import carve_verdict as cv
 from _paths import CONFIG, DATA, PROJECT_ROOT  # noqa: F401
+import climatology  # noqa: E402  from lib/, put on sys.path by _paths
 from builds import component_data
 from orbit import orbital_year_days
 from paths import climatology_path
@@ -611,7 +612,7 @@ def main() -> None:
     clim_name = args.climatology.name
     flux_earth = float(config["orbit"]["baseline_flux_earth"])
     with Dataset(args.climatology) as ds:
-        _ts = np.asarray(ds["ts"][:]).mean(axis=0)
+        _ts = climatology.annual_mean_of(ds, "ts")
         _lat = np.asarray(ds["lat"][:])
         _w = np.cos(np.deg2rad(_lat))[:, None] * np.ones_like(_ts)
         mean_ts = float((_w * _ts).sum() / _w.sum())

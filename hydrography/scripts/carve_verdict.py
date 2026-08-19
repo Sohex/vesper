@@ -64,6 +64,7 @@ import yaml
 
 from _paths import ANALYSIS, CONFIG, DATA, PROJECT_ROOT  # noqa: F401
 from builds import component_data, grid_export
+from climatology import annual_mean as weighted_annual_mean, bin_weights
 from gridding import (coupling_cells, coupling_ocean_fraction,
                       require_index_alignment)
 from orbit import orbital_year_days
@@ -138,10 +139,11 @@ def reference_level_air(climatology):
     """
     require_clean_io(climatology)
     with Dataset(climatology) as ds:
-        t_air = np.asarray(ds["ta"][:]).mean(axis=0)[-1]
-        q_air = np.asarray(ds["hus"][:]).mean(axis=0)[-1]
-        wind = np.asarray(ds["spd"][:]).mean(axis=0)[-1]
-        p_air = np.asarray(ds["ps"][:]).mean(axis=0) * 100.0 * SIGMA_LOWEST
+        centres = np.asarray(ds["time"][:])
+        t_air = weighted_annual_mean(np.asarray(ds["ta"][:]), centres)[-1]
+        q_air = weighted_annual_mean(np.asarray(ds["hus"][:]), centres)[-1]
+        wind = weighted_annual_mean(np.asarray(ds["spd"][:]), centres)[-1]
+        p_air = weighted_annual_mean(np.asarray(ds["ps"][:]), centres) * 100.0 * SIGMA_LOWEST
     return t_air, q_air, wind, p_air
 
 
@@ -301,8 +303,17 @@ def read_sra_field(path: Path, nlat: int, nlon: int) -> np.ndarray:
 
 
 def annual_mean(ds: Dataset, name: str) -> np.ndarray:
-    """Annual mean of a (time, lat, lon) field over equal-length bins."""
-    return np.asarray(ds[name][:]).mean(axis=0)
+    """Annual mean of a (time, lat, lon) field, weighted by records per bin.
+
+    The bins are NOT equal length, which this used to assume. pyburn splits the
+    raw stream with `np.linspace(0, ntimes, nbin+1).astype(int)`, so at the 182
+    records per orbit of a clean-I/O run two bins in twelve hold sixteen and the
+    other ten hold fifteen. `lib/climatology.py` recovers the counts from the
+    bin centres. Worth +0.16% on land P - E, which is under a basin against the
+    error budget's own response -- small, and no reason for the criterion to be
+    computed on a mean nobody can defend. TASKS.md CLIM-13.
+    """
+    return weighted_annual_mean(np.asarray(ds[name][:]), np.asarray(ds["time"][:]))
 
 
 def seasonal_rectification(climatology, year_s: float) -> dict:
@@ -327,22 +338,27 @@ def seasonal_rectification(climatology, year_s: float) -> dict:
     with Dataset(climatology) as ds:
         pme = np.asarray(ds["pr"][:]) - (-np.asarray(ds["evap"][:]))
         store = np.asarray(ds["mrso"][:]) + np.asarray(ds["snd"][:])
-        lsm = np.asarray(ds["lsm"][:]).mean(axis=0)
+        centres = np.asarray(ds["time"][:])
+        lsm = weighted_annual_mean(np.asarray(ds["lsm"][:]), centres)
         lat = np.asarray(ds["lat"][:])
-    dt = year_s / pme.shape[0]
+    # Per-bin duration, from the same weights: the bins are not equal length, so
+    # a single `year_s / nbin` mis-times the dry-bin deficit below.
+    dt = year_s * bin_weights(centres)
     land = lsm > 0.5
     w = np.where(land, np.cos(np.deg2rad(lat))[:, None] * np.ones_like(lsm), 0.0)
 
     def land_mean(field):
         return float((field * w).sum() / w.sum()) * 1000.0     # mm
 
-    deficit = np.maximum(-pme, 0.0).sum(axis=0) * dt
+    deficit = (np.maximum(-pme, 0.0) * dt[:, None, None]).sum(axis=0)
     swing = store.max(axis=0) - store.min(axis=0)
     ratio = np.where(deficit > 1e-6, swing / np.maximum(deficit, 1e-9), np.nan)
     usable = np.isfinite(ratio) & land
     return {
-        "annual_mean_p_minus_e_mm": round(land_mean(pme.mean(axis=0) * year_s), 2),
-        "sum_of_positive_bins_mm": round(land_mean(np.maximum(pme, 0.0).sum(axis=0) * dt), 2),
+        "annual_mean_p_minus_e_mm": round(land_mean(
+            weighted_annual_mean(pme, centres) * year_s), 2),
+        "sum_of_positive_bins_mm": round(land_mean(
+            (np.maximum(pme, 0.0) * dt[:, None, None]).sum(axis=0)), 2),
         "dry_bin_deficit_mm": round(land_mean(deficit), 2),
         "seasonal_soil_and_snow_range_mm": round(land_mean(swing), 2),
         "median_store_over_deficit": round(float(np.median(ratio[usable])), 3),

@@ -60,6 +60,7 @@ import numpy as np
 import yaml
 
 from _paths import CONFIG, INPUTS, PROJECT_ROOT  # noqa: E402  (puts lib/ on sys.path)
+import climatology  # noqa: E402  from lib/, put on sys.path by _paths
 from paths import climatology_path, rel  # noqa: E402
 from sra import write_sra
 
@@ -208,7 +209,7 @@ def main() -> None:
         lon = np.asarray(ds["lon"][:], dtype=float)
         lsm = np.asarray(ds["lsm"][0], dtype=float) > 0.5
         ts_mean = float(np.average(
-            np.asarray(ds["ts"][:], dtype=float).mean(axis=0),
+            climatology.annual_mean_of(ds, "ts"),
             weights=np.broadcast_to(np.cos(np.deg2rad(lat))[:, None],
                                     (len(lat), len(lon)))))
     if (len(lat), len(lon)) != (nlat, nlon):

@@ -64,6 +64,8 @@ import numpy as np
 import yaml
 
 from _paths import CONFIG, INPUTS
+
+import climatology  # noqa: E402  from lib/, put on sys.path by _paths
 from sra import write_sra
 from builds import resolution_of, grid_export, mesh_export
 from gridding import land_fraction_of_class, land_weighted, region_cells
@@ -328,8 +330,11 @@ def main() -> None:
                 config, float(config["orbit"]["baseline_flux_earth"])
             )["orbital_year_seconds"])
             with Dataset(args.climatology) as cds:
-                ev_grid = ((-np.asarray(cds["evap"][:]).mean(axis=0) * year_s).ravel()
-                           if "evap" in cds.variables else None)
+                # Weighted by records per bin, which are unequal. CLIM-13.
+                ev_grid = ((-climatology.annual_mean(
+                    np.asarray(cds["evap"][:]),
+                    np.asarray(cds["time"][:])) * year_s).ravel()
+                    if "evap" in cds.variables else None)
             if ev_grid is not None:
                 cellidx, _nla, _nlo = region_cells(mesh, grid_dir)
                 evaporite_id = next(r["id"] for r in

@@ -84,6 +84,8 @@ import yaml
 from netCDF4 import Dataset
 
 from _paths import ANALYSIS, CONFIG, DUST_CONFIG, PROJECT_ROOT  # noqa: E402
+
+import climatology  # noqa: E402  from lib/, via _paths
 from builds import component_data, grid_export, mesh_export, resolution_of, soilmap
 from gridding import land_fraction_of_class, region_cells
 from orogen import LAND, Export
@@ -227,6 +229,11 @@ def weibull_shape_from_samples(samples: Path, mask) -> tuple[float, int] | None:
         spd = np.asarray(ds["spd"][:], dtype=float)
         if spd.ndim == 4:                       # a climatology carries levels
             spd = spd[:, -1, :, :]
+    # Deliberately UNWEIGHTED, and the pair is why: the Weibull shape is
+    # fitted from std/mean, so weighting the mean without weighting the
+    # variance the same way would bias the ratio rather than correct it.
+    # The bins differ by one record in twelve (CLIM-13), which is far
+    # inside the spread this fit is characterising.
     mean, std = spd.mean(axis=0), spd.std(axis=0)
     with np.errstate(invalid="ignore", divide="ignore"):
         cv = np.where(mean > 0.1, std / np.maximum(mean, 1e-6), np.nan)
@@ -487,6 +494,7 @@ def main() -> None:
     resolution = resolution_of(grid_export(config))
 
     with Dataset(clim_path) as ds:
+        bin_centres = np.asarray(ds["time"][:], dtype=float)
         lat = np.asarray(ds["lat"][:], dtype=float)
         lon = np.asarray(ds["lon"][:], dtype=float)
         lev = np.asarray(ds["lev"][:], dtype=float)
@@ -642,7 +650,9 @@ def main() -> None:
             args.variant)
 
         column = load.sum(axis=0)
-        aod_annual = (column * mee)[good].mean(axis=0)
+        # `good` drops corrupted bins, so the weights renormalise over what
+        # is left rather than being reused whole. CLIM-13.
+        aod_annual = climatology.masked_mean(column * mee, bin_centres, good)
         deposition = np.zeros((nlat, nlon))
         for t in good:
             precip_mm_hr = (prc[t] + prl[t]) * 1000.0 * 3600.0
@@ -653,7 +663,8 @@ def main() -> None:
                 deposition += load[b, t] * (
                     vs / cfg["transport"]["dust_scale_height_m"] + wet) / len(good)
         dep = deposition * EARTH_YEAR_S * 1000.0            # g/m2 per Earth year
-        emit_mean = gmean(emission[good].mean(axis=0))
+        emit_annual = climatology.masked_mean(emission, bin_centres, good)
+        emit_mean = gmean(emit_annual)
         outcomes[shelter] = {
             "aeolian_z0_m": z0a,
             "global_emission_Tg_per_earth_year":
@@ -666,7 +677,7 @@ def main() -> None:
             "transport_converged": bool(converged),
         }
         fields[shelter] = {"aod": aod_annual, "deposition": dep,
-                           "emission": emission[good].mean(axis=0)}
+                           "emission": emit_annual}
 
     lo = min(o["land_mean_aod"] for o in outcomes.values())
     hi = max(o["land_mean_aod"] for o in outcomes.values())

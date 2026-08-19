@@ -65,7 +65,8 @@ from pathlib import Path
 import numpy as np
 
 from _paths import ANALYSIS
-from shortwave_band_weights import CO2_BANDS, Spectrum, blend, SOLAR_TEFF
+from shortwave_band_weights import (CO2_BANDS, CO2_FIT_RANGE, Spectrum, blend,
+                                    co2_closed_form, SOLAR_TEFF)
 
 # The Generic PCM bundle, outside this repo and read-only.
 CORRK = Path.home() / "git" / "generic_pcm" / "LMDZ.GENERIC" / "datagcm" / "corrk_data"
@@ -217,6 +218,54 @@ def run_checks(t376: CorrK, t1000: CorrK, sun: Spectrum, water_cm: float, t_k: f
         print(f"    q={q:.0e}  {vals[0]:.6f} vs {vals[1]:.6f}  ({100*(vals[1]/vals[0]-1):+.2f}%)")
 
 
+def fit_against_line_list(table: CorrK, sun: Spectrum, clear: np.ndarray,
+                          vmr: float, t_k: float) -> dict:
+    """Refit radmod's two-log CO2 closed form to the correlated-k absorptance.
+
+    The form, the path range and the fit protocol are `shortwave_band_weights`'s
+    own, imported rather than restated, so the only thing that changes between
+    the two fits is where the absorptance comes from: Howard's 1956 band set
+    there, HITRAN2020 through the correlated-k tables here.
+
+    WHY THE WHOLE CURVE AND NOT TWO CONSTANTS. PHYS-10 was opened to correct the
+    per-band H2O overlap at 2.7 and 2.0 um, and correcting only those makes the
+    total WORSE. Summed over Howard's eight intervals the correlated-k
+    absorptance is 0.004494 against the derivation's 0.005536, 18.8% low, while
+    the correlated-k answer over ALL bands is 0.005098, only 7.9% low: about an
+    eighth of the CO2 shortwave absorption falls outside every interval Howard
+    measured, and the band-mean overlap error was partly standing in for it. So
+    the honest fix is to take the level from the line list across the range,
+    which needs no band bookkeeping at all.
+    """
+    from scipy.optimize import curve_fit
+
+    lo, hi = CO2_FIT_RANGE
+    u = np.logspace(math.log10(lo), math.log10(hi), 160)
+    fs = flux_fractions(table, sun)
+    y = np.array([
+        broadband(fs, (1.0 - table.transmission(P_STANDARD_MBAR, t_k, DRY,
+                                                air_column_for_co2(float(ui), vmr))) * clear)
+        for ui in u
+    ])
+    popt, _ = curve_fit(
+        co2_closed_form, u, y, p0=[1.0e-3, 1.0, 1.0e-3, 1.0e-2], sigma=y,
+        bounds=([0.0, 0.0, 0.0, 0.0], [np.inf] * 4), maxfev=400000,
+    )
+    coefficients = [float(f"{v:.5g}") for v in popt]
+    residual = co2_closed_form(u, *coefficients) / y - 1.0
+    # The two-log form was chosen against Howard's SHAPE, so it is worth knowing
+    # whether it fits the line list worse everywhere or only at the ends of a
+    # range the model never visits. A T42 column sits near 200-300 atmos-cm.
+    near = (u >= 100.0) & (u <= 1000.0)
+    return {"a1": coefficients[0], "b1": coefficients[1],
+            "a2": coefficients[2], "b2": coefficients[3],
+            "max_relative_error": float(np.abs(residual).max()),
+            "rms_relative_error": float(np.sqrt((residual ** 2).mean())),
+            "max_relative_error_100_to_1000": float(np.abs(residual[near]).max()),
+            "worst_at_atmos_cm": float(u[np.abs(residual).argmax()]),
+            "u": u, "y": y}
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--temperature", type=float, default=DEFAULT_TEMPERATURE)
@@ -228,6 +277,8 @@ def main() -> None:
     ap.add_argument("--bands", action="store_true",
                     help="per-band CO2 against the derivation's own Howard intervals")
     ap.add_argument("--scan", action="store_true", help="report the sensitivity to every choice")
+    ap.add_argument("--fit", action="store_true",
+                    help="refit radmod's CO2 closed form to the line list (PHYS-10)")
     ap.add_argument("--refresh", action="store_true", help="re-fetch the BT-Settl grid points")
     args = ap.parse_args()
 
@@ -262,6 +313,33 @@ def main() -> None:
         print(f"CO2 {label} absorptance solar {net_s:.6f}  star {net_r:.6f}  "
               f"co2sww {net_r/net_s:.4f}   before the H2O overlap {bare:.6f} "
               f"(suppression {net_s/bare:.3f})   {net_s * EARTH_MEAN_INSOLATION:.2f} W/m2")
+
+    if args.fit:
+        report = json.loads((ANALYSIS / "shortwave_band_weights.json").read_text())
+        old = report["co2"]["closed_form_fit"]
+        fit = fit_against_line_list(t376, sun, clear, vmr, t_k)
+        print("\nradmod.f90 CO2 shortwave closed form, A(u) = a1 ln(1+b1 u) + a2 ln(1+b2 u)")
+        print(f"  fitted over {CO2_FIT_RANGE[0]:g} to {CO2_FIT_RANGE[1]:g} atmos-cm "
+              f"at {args.water_cm:.4f} precipitable cm of water\n")
+        print(f"  {'':>4} {'Howard 1956':>14} {'line list':>14} {'change':>10}")
+        for k in ("a1", "b1", "a2", "b2"):
+            print(f"  {k:>4} {old[k]:14.5g} {fit[k]:14.5g} "
+                  f"{100*(fit[k]/old[k]-1):+9.1f}%")
+        print(f"\n  fit quality: max {100*fit['max_relative_error']:.2f}% at "
+              f"u = {fit['worst_at_atmos_cm']:.3g} atmos-cm, "
+              f"rms {100*fit['rms_relative_error']:.2f}% relative "
+              f"(Howard fit: max {100*old['max_relative_error']:.2f}%, "
+              f"rms {100*old['rms_relative_error']:.2f}%)")
+        print(f"  over 100-1000 atmos-cm, where a T42 column sits: max "
+              f"{100*fit['max_relative_error_100_to_1000']:.2f}%")
+        for u_at in (args.co2_planet, args.co2_earth):
+            a_old = co2_closed_form(u_at, old["a1"], old["b1"], old["a2"], old["b2"])
+            a_new = co2_closed_form(u_at, fit["a1"], fit["b1"], fit["a2"], fit["b2"])
+            print(f"  at u = {u_at:8.2f} atmos-cm: {a_old:.6f} -> {a_new:.6f} "
+                  f"({100*(a_new/a_old-1):+.1f}%), "
+                  f"{(a_new-a_old)*EARTH_MEAN_INSOLATION:+.2f} W/m2 of insolation")
+        print("\nThis prints. Put the four numbers in radmod.f90 and rebuild; TASKS.md PHYS-10.")
+        return
 
     if args.bands:
         # Where the two disagree, band by band, on the intervals the derivation

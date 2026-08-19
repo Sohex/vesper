@@ -53,6 +53,7 @@ import numpy as np
 import yaml
 
 from paths import rel
+import climatology as clim  # `climatology` is a parameter name below
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 CONFIG = PROJECT_ROOT / "config" / "planet.yaml"
@@ -140,10 +141,14 @@ def planetary_albedo(cfg: dict | None = None,
     with Dataset(path) as ds:
         w = _gaussian_weights(len(ds.dimensions["lat"]),
                               len(ds.dimensions["lon"]))
+        centres = np.asarray(ds.variables["time"][:], dtype=float)
+
         def mean(name: str) -> float:
             v = np.asarray(ds.variables[name][:], dtype=float)
             if v.ndim == 3:
-                v = v.mean(axis=0)
+                # Bins hold unequal numbers of raw records; weight by them
+                # rather than equally. climatology.py, TASKS.md CLIM-13.
+                v = clim.annual_mean(v, centres)
             return float((v * w).sum() / w.sum())
         net_down = mean("rst")
         upward = abs(mean("rsut"))

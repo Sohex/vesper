@@ -23,6 +23,7 @@ import numpy as np
 from numpy.polynomial.legendre import leggauss
 
 from _paths import ANALYSIS  # noqa: F401  (puts lib/ on the path)
+import climatology
 import gridding
 
 
@@ -123,12 +124,17 @@ def koppen(
     phase_deg: np.ndarray,
     lat: np.ndarray,
     land: np.ndarray,
+    bin_centres: np.ndarray,
 ) -> np.ndarray:
     """Koppen-Geiger classes using Earth-year-normalized precipitation rates."""
     temp = temperature_k - 273.15
-    pmonth = np.maximum(precipitation_m_s, 0.0) * 86400.0 * (EARTH_YEAR_DAYS / 12.0) * 1000.0
+    # Each bin is charged with the share of the year its own record count
+    # covers, not a flat twelfth: the bins are not equal. CLIM-13.
+    share = climatology.bin_weights(bin_centres)
+    pmonth = (np.maximum(precipitation_m_s, 0.0) * 86400.0
+              * (EARTH_YEAR_DAYS * share[:, None, None]) * 1000.0)
     pann = pmonth.sum(axis=0)
-    tmean = temp.mean(axis=0)
+    tmean = climatology.annual_mean(temp, bin_centres)
     tmin = temp.min(axis=0)
     tmax = temp.max(axis=0)
     result = np.full(land.shape, "Ocean", dtype="U8")
@@ -277,9 +283,15 @@ def main() -> None:
     land = regular["lsm"][0]
     gravity = 10.215260416666666
     elevation = regular["sg"][0] / gravity
-    annual_ts = regular["ts"].mean(axis=0)
-    annual_tas = regular["tas"].mean(axis=0)
-    annual_pr = np.maximum(regular["pr"], 0.0).mean(axis=0) * 86400.0 * 1000.0
+    # Bins hold unequal numbers of raw records; weight by them. CLIM-13.
+    rtime = regular["time"]
+
+    def rmean(field):
+        return climatology.annual_mean(field, rtime)
+
+    annual_ts = rmean(regular["ts"])
+    annual_tas = rmean(regular["tas"])
+    annual_pr = rmean(np.maximum(regular["pr"], 0.0)) * 86400.0 * 1000.0
     display_label = args.label.replace("_", " ").replace("-", " ").title()
     phase_regular = reconstruct_regular_phase(regular["time"], snap["time"], snap["lambda"])
 
@@ -291,6 +303,8 @@ def main() -> None:
     save_map(fig, output / f"{args.label}_annual_surface_temperature.png")
 
     masks = season_masks(snap["lambda"])
+    # snap is the 32-sample snapshot stream on its OWN evenly spaced axis,
+    # not the 12 regular bins, so no bin weighting applies here.
     seasonal_ts = [snap["ts"][mask].mean(axis=0) - 273.15 for mask in masks]
     fig, axes = plt.subplots(2, 2, figsize=(15, 8), constrained_layout=True)
     for ax, (name, _, _), field in zip(axes.ravel(), SEASONS, seasonal_ts):
@@ -303,7 +317,7 @@ def main() -> None:
     mesh = panel(axes[0], lon, lat, annual_pr, land, "Annual mean precipitation rate", "YlGnBu", 0, 8)
     fig.colorbar(mesh, ax=axes[0], label="mm day⁻¹")
     # PlaSim code 182 is negative for upward evaporation, so P-E is pr+evap.
-    p_minus_e = (np.maximum(regular["pr"], 0.0) + regular["evap"]).mean(axis=0) * 86400.0 * 1000.0
+    p_minus_e = rmean(np.maximum(regular["pr"], 0.0) + regular["evap"]) * 86400.0 * 1000.0
     mesh = panel(axes[1], lon, lat, p_minus_e, land, "Annual mean precipitation minus evaporation", "BrBG", -4, 4)
     fig.colorbar(mesh, ax=axes[1], label="mm day⁻¹")
     save_map(fig, output / f"{args.label}_precipitation_and_water_balance.png")
@@ -311,14 +325,15 @@ def main() -> None:
     regular_season_masks = season_masks(phase_regular)
     fig, axes = plt.subplots(2, 2, figsize=(15, 8), constrained_layout=True)
     for ax, (name, _, _), mask in zip(axes.ravel(), SEASONS, regular_season_masks):
-        field = np.maximum(regular["pr"][mask], 0.0).mean(axis=0) * 86400.0 * 1000.0
+        field = climatology.masked_mean(np.maximum(regular["pr"], 0.0), rtime, mask) \
+            * 86400.0 * 1000.0
         mesh = panel(ax, lon, lat, field, land, name, "YlGnBu", 0, 10)
     fig.colorbar(mesh, ax=axes.ravel().tolist(), label="precipitation rate (mm day⁻¹)", shrink=0.75)
     fig.suptitle("Seasonal precipitation by simulated solar longitude")
     save_map(fig, output / f"{args.label}_seasonal_precipitation.png")
 
-    u = regular["ua"][:, -1].mean(axis=0)
-    v = regular["va"][:, -1].mean(axis=0)
+    u = rmean(regular["ua"][:, -1])
+    v = rmean(regular["va"][:, -1])
     speed = np.hypot(u, v)
     fig, ax = plt.subplots(figsize=(14, 6), constrained_layout=True)
     mesh = panel(ax, lon, lat, speed, land,
@@ -333,9 +348,9 @@ def main() -> None:
 
     fig, axes = plt.subplots(2, 2, figsize=(15, 8), constrained_layout=True)
     fields = [
-        (np.where(land >= 0.5, regular["snd"].mean(axis=0) * 100.0, np.nan), "Mean land snow thickness", "Blues", 0, 100, "cm"),
+        (np.where(land >= 0.5, rmean(regular["snd"]) * 100.0, np.nan), "Mean land snow thickness", "Blues", 0, 100, "cm"),
         (np.where(land >= 0.5, snap["snd"].max(axis=0) * 100.0, np.nan), "Seasonal maximum snow thickness", "Blues", 0, 200, "cm"),
-        (np.where(land < 0.5, regular["sic"].mean(axis=0), np.nan), "Mean sea-ice concentration", "PuBu", 0, 1, "fraction"),
+        (np.where(land < 0.5, rmean(regular["sic"]), np.nan), "Mean sea-ice concentration", "PuBu", 0, 1, "fraction"),
         (np.where(land < 0.5, snap["sic"].max(axis=0), np.nan), "Seasonal maximum sea-ice concentration", "PuBu", 0, 1, "fraction"),
     ]
     for ax, (field, title, cmap, low, high, units) in zip(axes.ravel(), fields):
@@ -346,16 +361,16 @@ def main() -> None:
 
     fig, axes = plt.subplots(3, 1, figsize=(14, 14), constrained_layout=True)
     hydro = [
-        (np.where(land >= 0.5, regular["mrso"].mean(axis=0), np.nan), "Mean soil-water equivalent", "YlGnBu", 0, 0.4, "m"),
-        (np.where(land >= 0.5, np.maximum(regular["mrro"].mean(axis=0), 0.0) * 86400.0 * 1000.0, np.nan), "Mean river-routed net water flux", "Blues", 0, 5, "mm day⁻¹"),
-        (np.where(land >= 0.5, -regular["evap"].mean(axis=0) * 86400.0 * 1000.0, np.nan), "Mean upward land evaporation", "YlGn", 0, 5, "mm day⁻¹"),
+        (np.where(land >= 0.5, rmean(regular["mrso"]), np.nan), "Mean soil-water equivalent", "YlGnBu", 0, 0.4, "m"),
+        (np.where(land >= 0.5, np.maximum(rmean(regular["mrro"]), 0.0) * 86400.0 * 1000.0, np.nan), "Mean river-routed net water flux", "Blues", 0, 5, "mm day⁻¹"),
+        (np.where(land >= 0.5, -rmean(regular["evap"]) * 86400.0 * 1000.0, np.nan), "Mean upward land evaporation", "YlGn", 0, 5, "mm day⁻¹"),
     ]
     for ax, (field, title, cmap, low, high, units) in zip(axes, hydro):
         mesh = panel(ax, lon, lat, field, land, title, cmap, low, high)
         fig.colorbar(mesh, ax=ax, label=units)
     save_map(fig, output / f"{args.label}_hydrology.png")
 
-    classes = koppen(regular["tas"], regular["pr"], phase_regular, lat, land)
+    classes = koppen(regular["tas"], regular["pr"], phase_regular, lat, land, rtime)
     class_indices, class_names = categorical_map(
         classes, KOPPEN_COLORS, lon, lat, land,
         "Rate-normalized Köppen–Geiger climate interpretation", output / f"{args.label}_koppen_geiger.png",
@@ -417,10 +432,10 @@ def main() -> None:
             "surface_temperature_k": global_mean(annual_ts),
             "air_temperature_2m_k": global_mean(annual_tas),
             "precipitation_mm_day": global_mean(annual_pr),
-            "toa_net_radiation_w_m2": global_mean(regular["ntr"].mean(axis=0)),
-            "surface_downward_heat_flux_w_m2": global_mean(regular["hfns"].mean(axis=0)),
-            "planetary_sea_ice_fraction": global_mean(regular["sic"].mean(axis=0)),
-            "ocean_mean_sea_ice_concentration": float(np.sum(regular["sic"].mean(axis=0)[ocean] * weights[ocean]) / np.sum(weights[ocean])),
+            "toa_net_radiation_w_m2": global_mean(rmean(regular["ntr"])),
+            "surface_downward_heat_flux_w_m2": global_mean(rmean(regular["hfns"])),
+            "planetary_sea_ice_fraction": global_mean(rmean(regular["sic"])),
+            "ocean_mean_sea_ice_concentration": float(np.sum(rmean(regular["sic"])[ocean] * weights[ocean]) / np.sum(weights[ocean])),
             "land_area_fraction": float(np.sum(weights[land >= 0.5]) / np.sum(weights)),
         },
         "koppen_land_area_fractions": area_fractions(classes, lat, land),

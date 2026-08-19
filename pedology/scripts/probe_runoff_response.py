@@ -43,6 +43,8 @@ import numpy as np
 import yaml
 
 from _paths import ANALYSIS, CONFIG, DATA, PROJECT_ROOT, climatology_path  # noqa: F401
+
+import climatology  # noqa: E402  from lib/, via _paths
 from paths import rel  # noqa: E402
 from builds import component_data
 
@@ -129,6 +131,7 @@ def main() -> None:
         land = np.asarray(data["lsm"][0], dtype=float) > 0.5
         # m/s -> m/day. evap is negative upward; prsn is the frozen part of pr,
         # which reaches the bucket later as snowmelt rather than immediately.
+        bin_centres = np.asarray(data["time"][:], dtype=float)
         precip = np.asarray(data["pr"][:], dtype=float) * SECONDS_PER_DAY
         snowfall = np.asarray(data["prsn"][:], dtype=float) * SECONDS_PER_DAY
         snowmelt = np.asarray(data["snm"][:], dtype=float) * SECONDS_PER_DAY
@@ -159,10 +162,10 @@ def main() -> None:
     offline_runoff, offline_water = run_bucket(
         liquid_daily, potential_daily, default_capacity, args.years)
 
-    routed_mm = land_mean(model_runoff.mean(axis=0)) * 1000.0 * EARTH_YEAR_DAYS
+    routed_mm = land_mean(climatology.annual_mean(model_runoff, bin_centres)) * 1000.0 * EARTH_YEAR_DAYS
     offline_runoff_mm = land_mean(offline_runoff) * 1000.0 * orbits_per_earth_year
-    precip_mm = land_mean(precip.mean(axis=0)) * 1000.0 * EARTH_YEAR_DAYS
-    evap_mm = land_mean(evaporation.mean(axis=0)) * 1000.0 * EARTH_YEAR_DAYS
+    precip_mm = land_mean(climatology.annual_mean(precip, bin_centres)) * 1000.0 * EARTH_YEAR_DAYS
+    evap_mm = land_mean(climatology.annual_mean(evaporation, bin_centres)) * 1000.0 * EARTH_YEAR_DAYS
 
     # Validate against the land water budget, not against mrro.
     #
@@ -183,7 +186,7 @@ def main() -> None:
     print(f"  offline runoff      {offline_runoff_mm:8.2f} mm per Earth year")
     print(f"  ratio               {ratio:8.2f}  (pass band "
           f"{1/VALIDATION_TOLERANCE:.2f}-{VALIDATION_TOLERANCE:.2f})")
-    print(f"  model soil water    {land_mean(soil_water.mean(axis=0)):8.4f} m")
+    print(f"  model soil water    {land_mean(climatology.annual_mean(soil_water, bin_centres)):8.4f} m")
     print(f"  offline soil water  {land_mean(offline_water):8.4f} m")
     print(f"  -> {'PASS' if valid else 'FAIL'}")
     print()
@@ -267,7 +270,7 @@ def main() -> None:
             "ratio": ratio,
             "tolerance": VALIDATION_TOLERANCE,
             "passed": bool(valid),
-            "model_soil_water_m": land_mean(soil_water.mean(axis=0)),
+            "model_soil_water_m": land_mean(climatology.annual_mean(soil_water, bin_centres)),
             "offline_soil_water_m": land_mean(offline_water),
             "caveat": ("Monthly-mean forcing cannot generate event-driven runoff, "
                        "so the offline bucket is expected to under-produce. The "

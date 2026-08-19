@@ -23,18 +23,18 @@
     },
     "slope_geography": "3a17c498",
     "slope_regime": "local to the baseline flux, on the low-ice branch. The 0.85-to-0.95 stellar sweep gives 330 K per unit flux ratio because it crosses the ice transition; that value is not interchangeable with this one.",
-    "planetary_albedo": 0.28644,
+    "planetary_albedo": 0.28651,
     "planetary_albedo_source": {
       "source": "exoplasim/analysis/climatology/baseline_regular_climatology.nc",
       "run_id": "run_8c2e1ff9ab5e",
       "flux_ratio": 0.945,
-      "incident_w_m2": 321.589,
-      "reflected_w_m2": 92.117,
-      "absorbed_w_m2": 229.472
+      "incident_w_m2": 321.584,
+      "reflected_w_m2": 92.137,
+      "absorbed_w_m2": 229.448
     },
     "incident_w_m2_per_flux_ratio": 340.25,
-    "absorbed_w_m2_per_flux_ratio": 242.787,
-    "kelvin_per_w_m2_absorbed": 0.832,
+    "absorbed_w_m2_per_flux_ratio": 242.765,
+    "kelvin_per_w_m2_absorbed": 0.8321,
     "denominator_note": "A top-of-atmosphere forcing is an absorbed-flux change, so it divides by absorbed flux per unit flux ratio. Dividing by incident insolation understates by 1/(1 - planetary_albedo).",
     "land_fraction": 0.4317189425633888,
     "attenuation": 0.5,
@@ -45,9 +45,9 @@
     {
       "item": "biosphere: bare rock vs vegetated",
       "delta_land_albedo": -0.07798758370729242,
-      "kelvin_naive": 9.531,
+      "kelvin_naive": 9.532,
       "kelvin": 4.766,
-      "runoff_percent": 4.4,
+      "runoff_percent": 4.43,
       "basins": [
         -159,
         -13
@@ -59,7 +59,7 @@
       "delta_land_albedo": -0.022891,
       "kelvin_naive": 2.798,
       "kelvin": 1.399,
-      "runoff_percent": 1.29,
+      "runoff_percent": 1.3,
       "basins": [
         -43,
         -5
@@ -71,7 +71,7 @@
       "delta_land_albedo": 0.01176,
       "kelvin_naive": -1.437,
       "kelvin": -0.719,
-      "runoff_percent": -0.66,
+      "runoff_percent": -0.67,
       "basins": [
         6,
         49
@@ -83,7 +83,7 @@
       "delta_land_albedo": 0.0077,
       "kelvin_naive": -0.941,
       "kelvin": -0.471,
-      "runoff_percent": -0.43,
+      "runoff_percent": -0.44,
       "basins": [
         5,
         32
@@ -114,7 +114,7 @@
         -3.578,
         -3.328
       ],
-      "runoff_percent": -3.07,
+      "runoff_percent": -3.09,
       "basins": [
         36,
         167
@@ -229,19 +229,19 @@
       ]
     },
     "hydrological_response_note": "Fractional change in each land-mean quantity per kelvin of global-mean surface temperature. Precipitation and land evaporation are a secant between the two converged fluxes on this build; lake evaporation is a bracket, low end the land rate and high end the 6.7 %/K convexity of saturation vapour pressure, because the Penman response has not been measured here. See notes/audits/hydrological-sensitivity.md.",
-    "runoff_percent_per_kelvin": 0.92,
+    "runoff_percent_per_kelvin": 0.93,
     "runoff_percent_per_kelvin_note": "The number the second currency turns on, and the one most easily got wrong. It is NOT d_runoff_per_d_precipitation times the precipitation response: a kelvin raises land evaporation slightly faster than precipitation, and the two amplified terms nearly cancel. The amplification applies to a precipitation-only perturbation, which a dust or circulation item can be and a temperature item never is.",
     "basins_is_a_range_because": "lake evaporation per kelvin is bracketed rather than measured. Runoff is P - E_land and contains no lake evaporation, so only the basin column carries the bracket.",
     "blocked_on": null,
     "land_water_balance": {
       "source": "exoplasim/analysis/climatology/baseline_regular_climatology.nc",
       "run_id": "run_8c2e1ff9ab5e",
-      "land_precipitation_mm_per_earth_year": 824.4,
-      "land_evaporation_mm_per_earth_year": 697.9,
-      "runoff_residual_mm_per_earth_year": 126.6,
-      "runoff_fraction_of_precipitation": 0.1535,
-      "d_runoff_per_d_precipitation": 6.51,
-      "d_runoff_per_d_land_evaporation": -5.51,
+      "land_precipitation_mm_per_earth_year": 824.6,
+      "land_evaporation_mm_per_earth_year": 697.3,
+      "runoff_residual_mm_per_earth_year": 127.3,
+      "runoff_fraction_of_precipitation": 0.1544,
+      "d_runoff_per_d_precipitation": 6.48,
+      "d_runoff_per_d_land_evaporation": -5.48,
       "note": "Fractional. A 1% change in land precipitation moves runoff by d_runoff_per_d_precipitation percent, and one in land evaporation by d_runoff_per_d_land_evaporation percent. The carve criterion divides by this runoff."
     },
     "basin_response": {

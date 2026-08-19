@@ -87,6 +87,8 @@ import yaml
 from _paths import (ANALYSIS, COMPONENT_ROOT, CONFIG, PROJECT_ROOT,
                     climatology_path)
 
+import climatology as climatology_lib  # noqa: E402  from lib/, via _paths
+
 import builds
 from gridding import climatology_cells
 from orogen import INLAND_WATER, LAND, Export
@@ -153,6 +155,7 @@ def monthly_climate(climatology: Path, gravity: float, resolution: str):
     """
     penman = load_penman()
     with nc.Dataset(climatology) as ds:
+        centres = np.asarray(ds["time"][:], dtype=float)
         lat = np.asarray(ds["lat"][:], dtype=float)
         scale = 1000.0 * 86400.0 * solute_routing.EARTH_YEAR_DAYS
         pr = np.asarray(ds["pr"][:], dtype=float) * scale
@@ -175,7 +178,7 @@ def monthly_climate(climatology: Path, gravity: float, resolution: str):
         pet[t] = penman.penman_open_water(
             ts[t], tas[t], q_air[t], wind[t], ps[t], rss[t], rls[t],
             land_albedo, gravity, diurnal_range=diurnal[t]) * scale
-    return lat, pr, pet
+    return lat, pr, pet, centres
 
 
 def region_chemistry(export: Export, terminal: np.ndarray, brine: dict,
@@ -321,10 +324,11 @@ def main() -> None:
     brine["_basin_order"] = basin_ids
 
     # --- climate, per region --------------------------------------------
-    clim_lat, pr_bins, pet_bins = monthly_climate(climatology, gravity,
+    clim_lat, pr_bins, pet_bins, bin_centres = monthly_climate(climatology, gravity,
                                                   resolution)
     row, col = climatology_cells(export, grid_dir, clim_lat)
-    precip = pr_bins.mean(axis=0)[row, col]
+    # Weighted: the bins are not equal in length. CLIM-13.
+    precip = climatology_lib.annual_mean(pr_bins, bin_centres)[row, col]
     pet_exceeds_p = (pet_bins > pr_bins).all(axis=0)[row, col]
 
     with nc.Dataset(dust) as ds:

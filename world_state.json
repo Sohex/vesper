@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated": "2026-08-19T05:50:08.504104+00:00",
-  "git_commit": "f30d6a806df9c34c3d81a3c36494c5421c71d13f",
+  "generated": "2026-08-19T06:12:49.361487+00:00",
+  "git_commit": "ceb06883d8c8c479ab94ea4bc345a7d83b599386",
   "generator": "scripts/world_state.py",
   "note": "Generated from the artifacts. Do not edit; re-run the generator. Only derived values live here. Findings are in `notes/`, with their evidence, and open work is in `TASKS.md`.",
   "planet": {
@@ -70,6 +70,7 @@
       "ozone_uv_weight": 0.335,
       "ozone_visible_weight": 0.914,
       "h2o_sw_weight": 1.346,
+      "h2o_sw_level": 1.127,
       "co2_sw_weight": 1.51,
       "roughness_source": "lithology",
       "soil_water_source": "pedology",
