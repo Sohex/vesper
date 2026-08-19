@@ -202,13 +202,25 @@ model:
   # Declares that ExoPlaSim's configure() clears every surface field when handed
   # a landmap, so anything not supplied here falls back to a namelist default.
   uniform_land_surface: true
-  # PlaSim's 28-term energy decomposition, codes 360-387 and 460-487. On, to
-  # locate the residual between the top of the atmosphere and the surface.
-  # notes/config-rationale.md records what the decomposition found, which is
-  # that no term carries it and it is an offset in the reported top-of-atmosphere
-  # net radiation.
-  energy_diagnostics: true
-  energy_diagnostics_3d: true
+  # PlaSim's 28-term energy decomposition, codes 360-387 and 460-487. OFF as of
+  # 2026-08-19, having answered what it was turned on for: no single term carries
+  # the residual, the column decomposition closes to 0.02 W/m2, and the source is
+  # the adiabatic spectral step. That is CLIM-1, and it is DONE at this
+  # resolution. The surface half that continues as CLIM-11 reads the ocean and
+  # ice output streams instead, which is a different instrument entirely and is
+  # not affected by this being off.
+  #
+  # Turning them off is worth doing rather than merely harmless: the two sets are
+  # about seven tenths of an orbit's output bytes, the per-level half being much
+  # the larger, and postprocessing cost scales with what is written.
+  #
+  # TURN BOTH BACK ON for the first low-I/O-off block of any T85 run, before any
+  # T42 number is carried into loop D. The term CLIM-1 measured is resolution-
+  # and timestep-dependent by nature, so it has to be re-measured there rather
+  # than carried; `close_term_energy.py` is what re-measures it. archive/tasks.md
+  # CLIM-1 states the condition and notes/config-rationale.md keeps the argument.
+  energy_diagnostics: false
+  energy_diagnostics_3d: false
   ozone_scale: 0.794
   ozone_uv_weight: 0.335
   ozone_visible_weight: 0.914

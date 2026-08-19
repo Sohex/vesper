@@ -499,7 +499,7 @@ Declared here so the fallback is a decision, not an accident.
 ## `energy_diagnostics`
 
 ```
-energy_diagnostics: true
+energy_diagnostics: false
 ```
 
 nenergy in plasim_nl, which the Python API does not expose, so
@@ -507,8 +507,16 @@ run_exoplasim.py edits the namelist directly. Adds the 28 energy-budget
 terms on codes 360-387 to the regular output, to locate which one carries
 the residual between the top of the atmosphere and the surface. None does:
 the decomposition closes to 0.02 W/m2 and the residual is an offset in the
-reported top-of-atmosphere net radiation. Needs the rebuilt binary for the
-term-15 latent-heat phase fix; that rebuild is done.
+reported top-of-atmosphere net radiation, and the source is the adiabatic
+spectral step. Needs the rebuilt binary for the term-15 latent-heat phase
+fix; that rebuild is done.
+
+OFF as of 2026-08-19, because that is the whole of what it was turned on to
+answer and the answer is recorded. The surface half continuing as CLIM-11
+reads the ocean and ice output streams, not these terms. Back on for the
+first low-I/O-off block of any T85 run, where CLIM-1 requires
+`close_term_energy.py` to re-measure a quantity that is resolution- and
+timestep-dependent rather than carried from T42.
 
 ## `ozone_scale`
 
@@ -606,7 +614,7 @@ statement that this correction and `h2o_sw_weight`'s have the same sign.
 ## `energy_diagnostics_3d`
 
 ```
-energy_diagnostics_3d: true
+energy_diagnostics_3d: false
 ```
 
 The same 28 terms per level, codes 460-487. The column totals established
@@ -614,6 +622,12 @@ that no single term carries the residual and that the decomposition closes,
 which is what ruled the gridpoint physics out. Per-level is what showed the
 large-scale condensation lead to be a phase-booking difference of a flat
 13.3% at every sub-freezing level rather than a leak.
+
+OFF as of 2026-08-19 with the column set, and this is the half that cost
+something: carrying a level axis, it was about two thirds of an orbit's
+output bytes on its own. Both findings above are recorded, which is what
+makes the field disposable rather than the diagnostic being unwanted. Back
+on for T85 on the same condition as `energy_diagnostics`.
 
 ## `roughness_source`
 
