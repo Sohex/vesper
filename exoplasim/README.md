@@ -301,6 +301,21 @@ and running rebuilds *only the configuration you are running*. Every other binar
 keeps the old code until something asks for it. This is failure class 11 and it
 fired three times in a single day.
 
+**The `p` in `most_plasim_t42_l10_p16.x` is RANKS, and the `-p` flag to
+`compile.sh` is PRECISION IN BYTES.** One letter, two meanings, and they sit one
+call apart: `__init__.py` builds the name as
+`"most_plasim_t%d_l%d_p%d.x" % (nsp, layers, ncpus)`, while `compile.sh` matches
+`-p` against `4`, `8`, `single` and `double` with a default of `prec=4`.
+
+Read the name as ranks. `_p16` is the sixteen-rank build, `_p8` the eight-rank
+one, and neither says anything about precision -- `config/planet.yaml`'s
+`precision_bytes` does, and `rebuild_binaries.py` is what carries it to the
+flag. The one case where the two readings agree is `_p8`, because `-p 8` happens
+to be a precision `compile.sh` recognises; that coincidence is why the bug in
+`notes/audits/compiled-precision.md` hid in the 16-rank builds only, where
+`-p 16` matched no case and silently fell back to single precision while the
+config declared double.
+
 So, two rules:
 
 - **After any change under `vendor/exoplasim`, rebuild everything**: `python
