@@ -588,3 +588,4 @@ The Hunt and Salisbury series is the primary source Carli 2014 cites for igneous
 No pyranometer broadband albedo for a **gypsum crust** appears to exist, and none
 for an **alkaline trona/natron pan**. Both will have to be constructed by
 spectral integration.
+| `2307.10931v2.pdf` | Cohen, Palmer, Paradise, Bollasina, Tiranti (2024). *Haze optical depth in exoplanet atmospheres varies with rotation rate: Implications for observations.* arXiv:2307.10931v2 | **read** -- the ExoPlaSim aerosol module's only published science, per its maintainer. Radiatively active haze, one particle size for all 64 simulations at 500 nm, and its Appendix eq. A10 gives haze optical depth as `N*Qext*pi*r^2*dz` with r the particle radius. That is exactly `radmod.f90`'s `aeroprof`, which uses RADMOD's `apart` rather than the one `aero_nl` sets -- see `notes/audits/aerosol-particle-radius.md` |
