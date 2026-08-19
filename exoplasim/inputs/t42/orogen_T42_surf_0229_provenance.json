@@ -1,12 +1,12 @@
 {
   "climatology": "exoplasim/analysis/climatology/baseline_regular_climatology.nc",
-  "generated": "2026-08-19T05:49:00+00:00",
+  "generated": "2026-08-19T09:25:12+00:00",
   "code": 229,
   "field": "dwmax, maximum soil water capacity, metres",
   "lakes": null,
   "soil_map": "pedology/data/precarve-craton/soilmap.txt",
   "soil_map_sha256": "4282a93424d0f2ca2a2f8fd1fccc367fa5488735b51a38ee2f4cb663562ba103",
-  "config_sha256": "be6445a5a0cc7c1df81cbc362ddcce86593148e97c4104b2b9e96cf7602c4491",
+  "config_sha256": "ed44d4abf936ca56b2fe3ebec8d2f06cbc7945b85f1932d2fc4a98436c2b1709",
   "resolution": "T42",
   "land_cells": 4105,
   "land_cells_matched": 4105,
@@ -17,5 +17,122 @@
   "not_enabled_by_default": "Requires model.soil_water_source: pedology in config/planet.yaml. That key is absent on purpose: adding it is a configuration change continue_exoplasim.py refuses to resume across, so it blocks resumption of runs in flight.",
   "output": "exoplasim/inputs/t42/orogen_T42_surf_0229.sra",
   "output_sha256": "7cc53097d508bcbd9b84ca6a7f7ee4b566c7b137693632c88bd3723697cc4451",
-  "git_commit": "f30d6a806df9c34c3d81a3c36494c5421c71d13f"
+  "git_commit": "28a633f737574528961be1ecdbdb0b6fe792d668",
+  "generator": "exoplasim/scripts/build_surface_soil_water.py",
+  "source_config": {
+    "schema_version": 1,
+    "source_build": "precarve-craton",
+    "baseline_climatology": "exoplasim/analysis/climatology/baseline_regular_climatology.nc",
+    "planet": {
+      "radius_earth": 1.2,
+      "gravity_m_s2": 12.81,
+      "mass_earth": 1.881009,
+      "rotation_hours": 30.0,
+      "obliquity_degrees": 32.0,
+      "eccentricity": 0.02
+    },
+    "star": {
+      "spectral_type": "K2.5V",
+      "activity": "active",
+      "surface_uv_relative_to_earth": 0.4,
+      "mass_solar": 0.8,
+      "luminosity_solar": 0.32359365692962827,
+      "effective_temperature_k": 4965.0,
+      "metallicity": 0.0
+    },
+    "orbit": {
+      "earth_solar_constant_w_m2": 1361.0,
+      "baseline_flux_earth": 0.945,
+      "sweep_flux_earth": [
+        0.9,
+        0.95,
+        1.0
+      ],
+      "longitude_vernal_equinox_degrees": 102.7
+    },
+    "atmosphere": {
+      "pN2_bar": 0.78025,
+      "pO2_bar": 0.21,
+      "pAr_bar": 0.0093,
+      "pCO2_bar": 0.00045,
+      "ozone": true
+    },
+    "radiation": {
+      "two_band_albedo": true,
+      "stellar_spectrum": "k25v"
+    },
+    "ocean": {
+      "salinity_psu": 34.7
+    },
+    "surface": {
+      "mixed_layer_depth_m": 50.0,
+      "sea_ice": true,
+      "glaciers": {
+        "enabled": true,
+        "min_snow_depth_m": 2.0,
+        "initial_height_m": -1.0
+      }
+    },
+    "model": {
+      "resolution": "T42",
+      "latitudes": 64,
+      "longitudes": 128,
+      "layers": 10,
+      "precision_bytes": 8,
+      "ncpus": 16,
+      "timestep_minutes": 45.0,
+      "physics_filter": "gp|exp|sp",
+      "output_type": ".nc",
+      "uniform_land_surface": true,
+      "energy_diagnostics": true,
+      "energy_diagnostics_3d": true,
+      "ozone_scale": 0.794,
+      "ozone_uv_weight": 0.335,
+      "ozone_visible_weight": 0.914,
+      "h2o_sw_weight": 1.346,
+      "h2o_sw_level": 1.127,
+      "co2_sw_weight": 1.51,
+      "roughness_source": "lithology",
+      "soil_water_source": "pedology",
+      "land_albedo_source": "vegetated",
+      "vegetation_albedo": 0.165,
+      "vegetation_albedo_bracket": [
+        0.15,
+        0.171
+      ],
+      "vegetation_albedo_bands": [
+        0.075,
+        0.225
+      ],
+      "lithology_albedo_overrides": {
+        "playa_clastic": {
+          "albedo": 0.23,
+          "replaces": 0.19
+        }
+      },
+      "barren_rock_classes": [
+        "evaporite",
+        "playa_clastic"
+      ],
+      "geography_land_threshold": 0.5,
+      "seasonal_samples_per_orbit": 32,
+      "regular_output_bins_per_orbit": 12
+    },
+    "stellar_cycle": {
+      "components": {
+        "medium": {
+          "period_earth_years": 11.0,
+          "amplitude_flux_peak_to_peak": 0.025,
+          "note": "The lived rhythm. Damped about 0.83, so roughly 3.1 K peak-to-peak, some thirty times Earth's solar-cycle signal and the dominant climatic fact of any individual life. Fast enough to be planned around, too fast for ice to follow.\n"
+        },
+        "long": {
+          "period_earth_years": 57.0,
+          "amplitude_flux_peak_to_peak": 0.035,
+          "note": "The geomorphic driver. Essentially undamped at 0.99, roughly 5.2 K peak-to-peak, slow enough that glaciers equilibrate rather than merely breathing. Each grand minimum is a distinct historical era.\n"
+        }
+      },
+      "total_amplitude_flux_peak_to_peak": 0.06,
+      "alignment_recurrence_earth_years": 314
+    }
+  }
 }

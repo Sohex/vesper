@@ -249,6 +249,20 @@ SURFACE_UNREAD_MODEL_KEYS = {
         "model.vegetation_albedo", "model.vegetation_albedo_bands",
         "model.vegetation_albedo_bracket",
     }),
+    "surface_soil_water": frozenset({
+        "model.barren_rock_classes", "model.co2_sw_weight",
+        "model.energy_diagnostics", "model.energy_diagnostics_3d",
+        "model.geography_land_threshold", "model.h2o_sw_level",
+        "model.h2o_sw_weight", "model.land_albedo_source",
+        "model.layers", "model.lithology_albedo_overrides",
+        "model.ncpus", "model.output_type", "model.ozone_scale",
+        "model.ozone_uv_weight", "model.ozone_visible_weight",
+        "model.physics_filter", "model.precision_bytes",
+        "model.regular_output_bins_per_orbit", "model.roughness_source",
+        "model.seasonal_samples_per_orbit", "model.timestep_minutes",
+        "model.vegetation_albedo", "model.vegetation_albedo_bands",
+        "model.vegetation_albedo_bracket",
+    }),
     "boundary_conditions": frozenset({
         "model.barren_rock_classes", "model.co2_sw_weight",
         "model.energy_diagnostics", "model.energy_diagnostics_3d",
@@ -279,6 +293,14 @@ _SURFACE_BLOCKS = {
     "surface_roughness": frozenset({
         "planet", "star", "orbit", "atmosphere", "radiation", "surface",
         "ocean", "stellar_cycle", "baseline_climatology",
+    }),
+    # build_surface_soil_water.py mentions planet, surface, ocean and
+    # baseline_climatology. `surface` and `ocean` are almost certainly substring
+    # hits in prose rather than reads, and they are left OUT of the inert set
+    # anyway: the textual trace over-detects a read, which costs a regeneration
+    # that runs in seconds, and under-detecting one costs a climate run.
+    "surface_soil_water": frozenset({
+        "star", "orbit", "atmosphere", "radiation", "stellar_cycle",
     }),
     # build_boundary_conditions.py mentions `planet`, so it is not inert there.
     "boundary_conditions": frozenset({

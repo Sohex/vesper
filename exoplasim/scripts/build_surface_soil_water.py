@@ -48,6 +48,7 @@ import yaml
 
 from _paths import CONFIG, INPUTS, PROJECT_ROOT  # noqa: E402  (puts lib/ on sys.path)
 from paths import climatology_path, rel  # noqa: E402
+from provenance import config_stamp  # noqa: E402
 from sra import write_sra
 
 SOIL_WATER_CODE = 229
@@ -236,6 +237,12 @@ def main() -> None:
             ["git", "rev-parse", "HEAD"], capture_output=True, text=True,
             cwd=PROJECT_ROOT).stdout.strip() or None,
     }
+    # The fourth staged field, and it had the WEAK half of the stamp: a hash of
+    # config/planet.yaml, which cannot separate an edited comment from an edited
+    # parameter, and which nothing was checking. `config_stamp` keeps the parsed
+    # config beside it so `config_drift` has something to compare.
+    report.update(config_stamp(config, "exoplasim/scripts/build_surface_soil_water.py"))
+
     report_path = output.with_name(output.stem + "_provenance.json")
     report_path.write_text(json.dumps(report, indent=2) + "\n")
 
