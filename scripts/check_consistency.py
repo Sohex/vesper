@@ -738,7 +738,12 @@ def main() -> int:
                 continue
             src = src_path.read_text(encoding="utf-8")
             for key in sorted(inert):
-                if not key.startswith("model."):
+                # Any block, not just `model.`. The sets were model-only when
+                # this was written, so skipping other prefixes cost nothing;
+                # once `ocean.horizontal_diffusion` joined one, skipping meant
+                # the honesty guard silently stopped covering the entries most
+                # likely to be wrong. Trace every key or the claim is unchecked.
+                if "." not in key:
                     continue
                 if key.split(".", 1)[1] in src:
                     contradicted.append(f"{step['id']} lists {key} inert and "

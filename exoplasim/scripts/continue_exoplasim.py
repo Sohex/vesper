@@ -165,6 +165,13 @@ def main() -> None:
     parser.add_argument("--run", type=str, default=None,
                         help="run id or directory to continue (required)")
     parser.add_argument("--orbits", type=int, default=5)
+    parser.add_argument(
+        "--mpi-opts", type=str, default=None,
+        help="extra flags for mpiexec, threaded to the model exactly as "
+             "run_exoplasim.py threads them. The ':ordered' qualifier is "
+             "load-bearing on a pe-list: without it the ranks share one pool "
+             "instead of getting a core each, and the flag that looks like "
+             "the fix, --bind-to core, does not fix it")
     # WHAT THESE ORBITS ARE FOR, declared rather than inferred. It used to be
     # inferred from `--seasonal-output` plus the run's equilibrium cutoff, which
     # labelled a three-orbit low-I/O verification segment as climatology input;
@@ -380,6 +387,13 @@ def main() -> None:
         modelname=identifier,
         outputtype=model_cfg["output_type"],
         hyperthreading=False,
+        # A continuation has to pin exactly as the prepare did. Without this the
+        # SETTLING orbit is placed and the MEASURED segment is not, so a 2x8
+        # concurrent pair -- the layout rank-layout-benchmark.md adopts for any
+        # bracket -- silently stacks two ranks per core for the half that gets
+        # read. Observed directly: every rank of both jobs on cores 0-7, two to
+        # a core, while cores 8-15 sat idle.
+        mpi_opts=args.mpi_opts,
     )
     model.configure(
         flux=derived["stellar_flux_w_m2"],
@@ -547,6 +561,23 @@ def main() -> None:
     elif args.purpose == "spinup":
         manifest["status"] = "spinup_in_progress"
     manifest["completed_orbits"] = start_year + args.orbits
+
+    # The binary that ran is the one sitting in the run directory: ExoPlaSim
+    # copies it there and runs it in place, so this is what integrated the
+    # orbits above rather than what some index says should have.
+    segment_exe = run_dir / (
+        f"most_plasim_t{int(str(model_cfg['resolution']).lstrip('Tt'))}"
+        f"_l{int(model_cfg['layers'])}_p{int(model_cfg['ncpus'])}.x"
+    )
+    segment_exe_sha = file_sha256(segment_exe) if segment_exe.is_file() else None
+    prepared_exe_sha = (manifest.get("executable") or {}).get("sha256")
+    if segment_exe_sha and prepared_exe_sha and segment_exe_sha != prepared_exe_sha:
+        print(f"NOTE: this segment was integrated by {segment_exe_sha[:16]}, and the run "
+              f"was prepared with {prepared_exe_sha[:16]}. The binary was rebuilt at some "
+              "point in this run's life. That is recorded per segment and is legitimate; "
+              "it is NOT legitimate across the low-I/O restart-layout change, which an "
+              "older restart cannot survive.")
+
     manifest.setdefault("segments", []).append(
         {
             "start_year_index": start_year,
@@ -564,6 +595,16 @@ def main() -> None:
             "started_utc": started,
             "finished_utc": datetime.now(timezone.utc).isoformat(),
             "input_restart_sha256": file_sha256(restart),
+            # WHICH BINARY integrated these particular orbits. The top-level
+            # `executable` block is what the run was PREPARED with, and a
+            # continuation is where the two come apart: CLAUDE.md rule 4 says
+            # rebuild every binary after any change under vendor/exoplasim, so
+            # a run that spans a rebuild has segments no single executable
+            # produced. Recorded per segment for the same reason the stellar
+            # spectrum digest above is, and it matters more here, because the
+            # low-I/O change alters the restart layout and a resume across it
+            # is not merely unattributed but wrong.
+            "executable_sha256": segment_exe_sha,
             "diagnostics": new_diagnostics,
         }
     )

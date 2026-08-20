@@ -167,6 +167,121 @@ booking allows and points at the implementation or the conversion; and any
 response attributed to `acllwr` on stellar grounds is a category error by
 construction.
 
+## CLIM-32: ozone's radiative stake, `O3SCALE` arms
+
+Added 2026-08-20. An ARM, not a bundle member: `model.ozone_scale` stays 0.794
+in the baseline config and nothing here is enabled. Run at the production
+resolution, T42 L10 p16, on the same binary and the same restart as the rest of
+the bundle; there is no T21 leg.
+
+`o3scale` multiplies the ozone mixing ratio directly (`radmod.f90:1802`), so it
+scales the ozone PATH linearly. The absorptance is Lacis and Hansen, spelled at
+`radmod.f90:2409-2411`, and is strongly saturating in path, so halving the
+column removes much less than half the absorption:
+
+    A(x) = O3VISW * 0.02118 x / (1 + 0.042 x + 0.000323 x^2)
+         + O3UVW  * 1.082   x / (1 + 138.6 x)^0.805
+         + O3UVW  * 0.0658  x / (1 + (103.6 x)^3)
+
+with `O3UVW` 0.335 and `O3VISW` 0.914 from the config. The model builds its own
+column at `radmod.f90:1782`, `za = a0o3 + a1o3 |sin lat| + aco3 sin lat cos(season)`;
+at the compiled 0.25 and 0.11, and area-weighted `<|sin lat|> = 0.5`, the
+global-mean vertical column is **0.305 cm-STP** before `o3scale`.
+
+| slant magnification | A at 0.794 | A at 0.500 | flux moved out of the top layer |
+| ---: | ---: | ---: | ---: |
+| 1.5 | 0.01245 | 0.00939 | 0.99 W/m2 |
+| 2.0 | 0.01506 | 0.01116 | 1.26 W/m2 |
+| 2.5 | 0.01757 | 0.01285 | 1.52 W/m2 |
+
+So **1.0 to 1.5 W/m2 of shortwave stops being absorbed aloft and continues into
+the column below.** Two terms then oppose each other:
+
+- **The top-of-atmosphere loss.** The newly penetrating beam meets the
+  reflectance of everything under it, so absorbed shortwave falls by roughly
+  that flux times the planetary albedo, 0.30 to 0.46 W/m2, which is **-0.25 to
+  -0.39 K** on `lib/sensitivity.py`'s conversion at albedo 0.30.
+- **The redistribution gain, which is why this is worth running.** `PTOP` is
+  5000 Pa and the profile's `bo3` is 20 km, so the ozone maximum sits AT the
+  model top and `dqo3(:,1)` carries everything above it. The absorption removed
+  is therefore heating of the topmost layer, which radiates efficiently to space
+  and is weakly coupled to the surface. Moving it into the troposphere and the
+  surface makes it count for surface temperature where it largely did not. The
+  ceiling, if all of it landed and were retained, is **+0.84 to +1.29 K**.
+
+**Prediction: warming, +0.2 to +0.9 K in the global mean.** The sign is assigned
+because the ceiling exceeds the loss across the whole magnification bracket; the
+magnitude is soft, because how much of the redistributed flux is retained rather
+than reflected is exactly what the ten-layer column decides and is not
+calculable here.
+
+**What would mean wrong, in the A/B:**
+
+- Order of checks: HEATING first, temperature second. The top layer's shortwave
+  heating must fall by roughly 1.0 to 1.5 W/m2. If it does not move, `O3SCALE`
+  did not reach the binary and everything below is void rather than confirmed.
+- Cooling beyond -0.4 K is outside the pure top-of-atmosphere loss even at the
+  longest slant path, and points at the comparison rather than the physics.
+- Warming beyond +1.3 K exceeds the all-absorbed ceiling and means the arm moved
+  something besides ozone.
+- Two assumptions carried as ranges rather than resolved: the insolation-weighted
+  slant magnification, bracketed 1.5 to 2.5, and the planetary albedo used for
+  the loss term, taken at 0.30.
+
+## CLIM-33: the mixed layer depth, `mldepth` arms
+
+Added 2026-08-20. Also an ARM: `surface.mixed_layer_depth_m` stays 50.0 and the
+baseline config does not move. `oceanmod.f90:208` sets `dlayer(NLEV_OCE) =
+mldepth`, so the key is a slab HEAT CAPACITY and nothing else.
+
+That makes the leading prediction exact rather than estimated. At 50 m, with
+seawater at 1025 kg/m3 and 3990 J/kg/K, the slab holds 2.045e8 J/m2/K. The
+orbital year is 1.579e7 s, so the annual forcing frequency is 3.978e-7 s-1 and
+`omega C` is **81.3 W/m2/K**, against a radiative damping of **1.18 W/m2/K**
+taken from `lib/sensitivity.py`'s canonical slope. The ratio is 69: this slab is
+deep in the inertia-dominated regime, which the config's own note reaches
+qualitatively when it says this world's half-length year damps seasonality about
+twice as hard as Earth's ocean does.
+
+Two consequences follow with no free parameters:
+
+| depth | seasonal amplitude, relative to 50 m |
+| ---: | ---: |
+| 25 m | 2.00x |
+| 50 m | 1.00x |
+| 100 m | 0.50x |
+
+- **Amplitude goes as 1/depth to within 1.5%**, because the damping term is 69
+  times smaller than the inertia term and enters only in quadrature.
+- **The phase lag is 89.2 degrees**, essentially a quarter of the orbit, and it
+  barely moves with depth for the same reason.
+
+**Prediction for the annual global mean: 0.000 K, by construction.** A heat
+capacity cannot move an equilibrium. This is the term's contribution to any sum,
+and it is the same statement CLIM-17 makes for its own key.
+
+**The one path to the annual mean is SEA ICE**, and that is the part with
+content. A shallower slab swings further in winter, so more ocean crosses
+`TFREEZE` seasonally and the planetary albedo rises. CLIM-17's own conversion
+applies unchanged: 80 to 129 W/m2 per unit planet fraction of new seasonal ice,
+being S/4 times an albedo gain of 0.25 to 0.40. The area itself is not
+predicted here, because the climatology it would be counted on does not exist
+on this build; the A/B measures it.
+
+**What would mean wrong, in the A/B:**
+
+- Order of checks: AMPLITUDE first. The 25 m arm must roughly double the ocean's
+  seasonal range and the 100 m arm roughly halve it. If they do not, `mldepth`
+  did not take and the rest is void.
+- The annual global mean moving beyond the 0.23 K run-to-run spread WITHOUT a
+  matching change in ice area means something other than heat capacity moved.
+  That is the falsifying result for the exact prediction above.
+- A phase lag that shifts materially between the arms would contradict the
+  inertia-dominated regime, and would mean the radiative damping is far larger
+  than the canonical slope implies.
+- Arms are 25 m and 100 m, a bracket around the declared 50 m rather than a
+  search for a better value. Physics is not a knob.
+
 ## The bundle, summed
 
 A3's rule: check the bundle's total against the sum of the per-term
@@ -183,6 +298,8 @@ predictions were soft.
 | SPEC-5 | `vegetation_albedo` 0.165, bands [0.075, 0.225] | -0.64 K, bracket 0 to -0.90 | `analysis/vegetation_albedo.json`; +0.0105 on composited land mean at 0.61 K per 0.01. One-signed toward a cooler simulated mean |
 | PHYS-11 | cloud absorption arms, bracket [0.78, 1.28] | 0 +/- 0.6 K, sign unassigned | this note; arms only, nothing enabled in the baseline config |
 | DUST-11 | prescribed dust arm | separate note | `aeolian/notes/prescribed-dust-run.md` |
+| CLIM-32 | ozone arms, `O3SCALE` 0.794 -> 0.500 | +0.2 to +0.9 K, warming | this note; arms only, `ozone_scale` unchanged in the baseline config |
+| CLIM-33 | mixed layer arms, 25 m and 100 m | 0.000 K annual mean by construction | this note; arms only, `mixed_layer_depth_m` unchanged in the baseline config |
 
 **Sum, excluding dust and the unassigned cloud term: +0.6 K, spread roughly
 -0.3 to +1.3, still dominated by the water vapour level but no longer
@@ -205,17 +322,126 @@ which prices a shift of 0.0185 at 0.80 W/m2 atmospheric, 0.15 W/m2 TOA and
 so this is the softest prediction in the table and the first place to bisect
 if the sum misses.
 
-**Consequence to plan for:** the central sum leaves the design mean by about
-+0.6 K, so the flux re-derivation that `docs/src/pipeline/sequencing.md` loop C already requires should
-expect to move luminosity DOWN by roughly 0.3% (0.6 K over the canonical 202 K
-per unit flux) -- half what this note said before SPEC-5 joined the bundle,
-and soft in both directions.
+**Consequence to plan for, corrected 2026-08-20:** the central sum shifts the
+simulated temperature at every candidate flux by about +0.6 K, which is 0.3% of
+a flux ratio on the canonical 202 K per unit flux. Read that as a shift in the
+T(f) the re-derivation is SCORED AGAINST, not as a correction to a standing
+luminosity. There is no standing value to correct: `design_flux` has not been
+re-derived on this terrain, and CLIM-30 records that the 0.945 on the books is
+unsupported because its cold-extreme cap was inferred from its own answer. The
+derivation lands where the declared thresholds put it once the bundle is in.
 That is inside the 2-3% window where the `k25v` spectrum remains valid, so no
 spectrum rebuild follows. And per `docs/src/pipeline/sequencing.md` A3, hold the flux for the A/B
 itself: measure the surface first, move the flux after, on a slope measured
 with the new terms in place.
 
 ---
+
+## Measured: the arm bundle, 2026-08-20
+
+Nine arms, all seeded from `run_4182235e9781/MOST_REST.00039` on one binary
+(`t42_l10_p8`, sha 44d895de), each one namelist key off the control, run 2x8
+concurrent one job per die. One settling orbit labelled `spinup`, then two
+orbits labelled `diagnostic`; only the diagnostic pair is read.
+
+**Carried on every result below: the arms inherit a SUPERSEDED SURFACE.** The
+donor predates the current staged fields -- code 229 did not exist when it was
+prepared -- so `--superseded-surface-ok` was used deliberately and every run
+manifest records `superseded_surface_override` with its reason. Valid for
+differences between arms, which is all that is claimed; not valid for any
+absolute climate. A recommissioning is expected regardless.
+
+**What this A/B can resolve.** Within-run orbit-to-orbit spread on global ASR
+runs 0.03 to 0.65 W/m2, median 0.19, so a two-orbit arm-minus-control
+difference resolves at roughly **0.5 W/m2** taking the worst spread. Four of
+the seven terms sit at or under that and are reported as unresolved rather than
+as small. Kelvin uses `lib/sensitivity.py` at the measured planetary albedo
+0.2534, giving 0.795 K per W/m2 of TOA forcing.
+
+| arm | d ASR W/m2 | as K | d sea ice | verdict |
+| --- | ---: | ---: | ---: | --- |
+| `o3_050` CLIM-32 | -1.312 | -1.04 | -0.0001 | resolved, **prediction falsified** |
+| `cld_078` PHYS-11 | -3.304 | -2.63 | +0.0004 | resolved, **prediction falsified** |
+| `cld_128` PHYS-11 | +3.178 | +2.53 | -0.0015 | resolved, **prediction falsified** |
+| `mld_025` CLIM-33 | -0.428 | -0.34 | +0.0053 | ice path confirmed |
+| `sal_30` CLIM-35 | -0.474 | -0.38 | +0.0000 | UNRESOLVED, no ice change to carry it |
+| `sal_20` CLIM-35 | -0.105 | -0.08 | +0.0016 | area confirmed, flux unresolved |
+| `mld_100` CLIM-33 | -0.177 | -0.14 | -0.0040 | unresolved |
+| `hdiff_on` CLIM-16 | -0.024 | -0.02 | -0.0001 | confirmed at zero |
+
+### CLIM-16 confirmed
+
+Predicted 0.00 W/m2 global by construction; measured -0.024, well inside the
+floor. The +0.03 to +0.12 K ice-edge term the prediction also carried is below
+what two orbits resolve and is neither confirmed nor refuted.
+
+### CLIM-33 confirmed, including its exact half
+
+The annual mean was predicted at 0.000 K by construction, with sea ice as the
+only route to it. That is what happened: `mld_100` moved the ocean mean by less
+than a millikelvin, and `mld_025` moved it only by growing ice, +0.53% of the
+planet. CLIM-17's independently derived conversion, 80 to 129 W/m2 per unit
+planet fraction of new ice, puts that at -0.42 to -0.68 W/m2; measured -0.428,
+at the low end of a bracket computed for a different task. The mechanism is
+confirmed by a number this prediction did not fit.
+
+The amplitude check moved the right way and has not reached its asymptote:
+ocean seasonal amplitude 1.51x at 25 m and 0.66x at 100 m, against 2.00x and
+0.50x predicted. Two orbits from a state equilibrated to 50 m is a transient,
+so the ratios are compressed toward 1. The falsifier was whether `mldepth` took
+at all; it plainly did.
+
+### CLIM-35 area confirmed, flux unresolved
+
+The declared order was area first. `sal_20` grew seasonal ice by +0.164% of the
+planet against +0.19% predicted, which is the check passing. Its flux, -0.105
+W/m2 against -0.15 to -0.24 predicted, is under the resolution floor and is not
+a measurement. `sal_30` is the useful negative: -0.474 W/m2 with NO ice change
+to carry it, which is how the floor was recognised rather than assumed.
+
+### CLIM-32 falsified, and the mechanism was in the code all along
+
+Predicted +0.2 to +0.9 K of WARMING, with cooling beyond -0.4 K declared as
+the falsifying result. Measured **-1.04 K**: wrong sign, and outside the bound.
+
+The error was mine and it is instructive. The prediction argued that absorption
+removed from the top layer would be redistributed downward and largely
+retained, so the surface would gain more than the top of atmosphere lost. It
+ignored the UPWARD path. `radmod.f90:2407` forms the ozone path as
+`zxo3t + zmbar*zo3t`: the accumulated downward slant path PLUS a diffuse
+upward traverse of the whole column. Ozone sitting above everything absorbs the
+reflected beam as well as the incoming one, and that half was never going to
+warm the surface -- it is planetary absorption of radiation already on its way
+out. Remove the ozone and it simply escapes. The measured ASR loss, -1.31 W/m2,
+is close to the whole 1.0 to 1.5 W/m2 the column stops absorbing, which is what
+"almost none of it is retained" looks like.
+
+So the arithmetic in the prediction was right about the SIZE of the absorption
+and wrong about its FATE. The saturating Lacis-Hansen form and the 0.305 cm-STP
+column stand; the redistribution argument does not.
+
+### PHYS-11 falsified on magnitude, and it is much the largest term found
+
+Predicted 0 +/- 0.6 K with +/-1 K declared as falsifying. Measured **-2.63 K at
+scale 0.78 and +2.53 K at 1.28**, two and a half times outside the bound. The
+two arms are near-antisymmetric about the control, which is the internal check
+that the response is linear in the scale rather than an artefact.
+
+The prediction derived its bound from the error budget's booking of clouds at
+12.0 W/m2 of Earth's shortwave absorption, taking +/-28% of it through the
+water-vapour row's atmospheric-to-TOA ratio of 0.19. Measured, the TOA response
+is +/-3.2 W/m2 rather than +/-0.65: a factor of five. Either the 12 W/m2
+booking understates cloud shortwave absorption in this model, or that 0.19
+ratio does not transfer from water vapour to clouds. The note already called
+this the softest entry after PHYS-9 and the second place to bisect; it is now
+the first place to look, and it makes the cloud constants the largest unpriced
+lever in the radiation, not a correction.
+
+**Consequence.** Two of the bundle's registered predictions are refuted and
+neither refutation is a small correction. The summed prediction above is not
+re-scored here: these two are ARMS, not bundle members, so the sum they do not
+enter is unchanged, but the confidence the sum was quoted with should not
+survive a five-fold miss on a term of this size.
 
 ## Measured: PHYS-9, 2026-08-19
 

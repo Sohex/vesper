@@ -222,13 +222,21 @@ SURFACE_UNREAD_MODEL_KEYS = {
     # is TEXTUAL and per file. A key reached indirectly through a helper in
     # `lib/` that takes the whole config would not appear here and would be
     # wrongly inert. Re-derive against the helper too if one starts doing that.
+    #
+    # `model.optimization_flag` sits beside `model.precision_bytes` in all four
+    # sets and for the same reason: both describe how the MODEL BINARY is
+    # compiled, and these four builders make staged surface fields out of the
+    # export without compiling anything. Traced the same way, `grep -c
+    # optimization_flag` returning 0 in each of the four generators.
     "surface_albedo": frozenset({
         "model.co2_sw_weight", "model.energy_diagnostics",
         "model.energy_diagnostics_3d", "model.h2o_sw_level",
         "model.h2o_sw_weight", "model.layers", "model.ncpus",
         "model.output_type", "model.ozone_scale",
         "model.ozone_uv_weight", "model.ozone_visible_weight",
-        "model.physics_filter", "model.precision_bytes",
+        "model.physics_filter", "model.cloud_absorption_scale",
+        "model.optimization_flag",
+        "model.precision_bytes",
         "model.regular_output_bins_per_orbit", "model.roughness_source",
         "model.seasonal_samples_per_orbit", "model.soil_water_source",
         "model.timestep_minutes", "model.uniform_land_surface",
@@ -238,11 +246,13 @@ SURFACE_UNREAD_MODEL_KEYS = {
         "model.co2_sw_weight", "model.energy_diagnostics",
         "model.energy_diagnostics_3d", "model.geography_land_threshold",
         "model.h2o_sw_level", "model.h2o_sw_weight",
-        "model.land_albedo_source", "model.latitudes", "model.layers",
+        "model.latitudes", "model.layers",
         "model.lithology_albedo_overrides", "model.longitudes",
         "model.ncpus", "model.output_type", "model.ozone_scale",
         "model.ozone_uv_weight", "model.ozone_visible_weight",
-        "model.physics_filter", "model.precision_bytes",
+        "model.physics_filter", "model.cloud_absorption_scale",
+        "model.optimization_flag",
+        "model.precision_bytes",
         "model.regular_output_bins_per_orbit",
         "model.seasonal_samples_per_orbit", "model.soil_water_source",
         "model.timestep_minutes", "model.uniform_land_surface",
@@ -250,6 +260,14 @@ SURFACE_UNREAD_MODEL_KEYS = {
         "model.vegetation_albedo_bracket",
     }),
     "surface_soil_water": frozenset({
+        # Not `model.` keys, and the first non-model entries here. Both
+        # describe OCEAN HEAT TRANSPORT in the climate model (CLIM-16);
+        # this builder makes a soil water field out of the export and
+        # compiles nothing. Traced the same way, and the re-grep in
+        # check_consistency.py now covers non-model prefixes so the
+        # claim is checked rather than merely asserted.
+        "ocean.horizontal_diffusion",
+        "ocean.horizontal_diffusivity_m2_s",
         "model.barren_rock_classes", "model.co2_sw_weight",
         "model.energy_diagnostics", "model.energy_diagnostics_3d",
         "model.geography_land_threshold", "model.h2o_sw_level",
@@ -257,7 +275,9 @@ SURFACE_UNREAD_MODEL_KEYS = {
         "model.layers", "model.lithology_albedo_overrides",
         "model.ncpus", "model.output_type", "model.ozone_scale",
         "model.ozone_uv_weight", "model.ozone_visible_weight",
-        "model.physics_filter", "model.precision_bytes",
+        "model.physics_filter", "model.cloud_absorption_scale",
+        "model.optimization_flag",
+        "model.precision_bytes",
         "model.regular_output_bins_per_orbit", "model.roughness_source",
         "model.seasonal_samples_per_orbit", "model.timestep_minutes",
         "model.vegetation_albedo", "model.vegetation_albedo_bands",
@@ -271,7 +291,9 @@ SURFACE_UNREAD_MODEL_KEYS = {
         "model.lithology_albedo_overrides", "model.ncpus",
         "model.output_type", "model.ozone_scale",
         "model.ozone_uv_weight", "model.ozone_visible_weight",
-        "model.physics_filter", "model.precision_bytes",
+        "model.physics_filter", "model.cloud_absorption_scale",
+        "model.optimization_flag",
+        "model.precision_bytes",
         "model.regular_output_bins_per_orbit", "model.roughness_source",
         "model.seasonal_samples_per_orbit", "model.soil_water_source",
         "model.timestep_minutes", "model.uniform_land_surface",

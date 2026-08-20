@@ -171,6 +171,15 @@ radiation:
 # S = 40, so the plausible span is about 1.1 K on one threshold. Carried in
 # analysis/error_budget.json rather than guessed at here. TASKS.md CLIM-17.
 ocean:
+  # CLIM-16. Ocean horizontal heat diffusion, `nhdiff` and `hdiffk` in
+  # oceanmod_nl. OFF here: the error budget carries no-q-flux as a STRUCTURAL
+  # term and this is the cheapest bound on it, so the keys exist to be
+  # BRACKETED in an A/B, not tuned into the baseline. Physics is not a knob;
+  # a constant diffusivity is a bound on the missing transport rather than the
+  # transport. `notes/audits/absent-and-inherited-physics.md` finding 1 and
+  # the prediction in `exoplasim/notes/forcing-bundle-predictions.md`.
+  horizontal_diffusion: false
+  horizontal_diffusivity_m2_s: 1000.0
   salinity_psu: 34.7
 
 # PARTLY DETERMINED. Sea ice and the glacier settings are decided, and the
@@ -201,6 +210,15 @@ model:
   longitudes: 128
   layers: 10
   precision_bytes: 8
+  # Passed to compile.sh's -O hook and appended to MOST_F90_OPTS, so the flag is
+  # DECLARED here rather than edited into the generated most_compiler_mpi, which
+  # configure.sh would overwrite. znver4 rather than native: the two produce a
+  # byte-identical executable on this host, and the explicit name records what
+  # was targeted instead of what the build machine happened to be. Worth 2 to 3%
+  # and it changes the integration; binary_manifest.json records the flag line,
+  # so a binary built before it is distinguishable from one built after.
+  # notes/audits/aocl-and-model-build-flags.md has the measurement.
+  optimization_flag: "-march=znver4"
   ncpus: 16
   timestep_minutes: 45.0
   physics_filter: "gp|exp|sp"
@@ -227,6 +245,13 @@ model:
   # CLIM-1 states the condition and docs/src/reference/config-rationale.md keeps the argument.
   energy_diagnostics: false
   energy_diagnostics_3d: false
+  # PHYS-11. Multiplies the two ABSORPTION-like cloud keys, `tswr3` and the
+  # `acl2` triplet, in radmod_nl. 1.0 is the compiled Earth tuning and must
+  # reproduce it bit for bit; the arms bracket 0.78 to 1.28, which spans both
+  # signs of the star correction because this host puts more flux in range 2
+  # but concentrates it where liquid water absorbs less. Scattering keys are
+  # held and `acllwr` is thermal-band, so neither takes an arm.
+  cloud_absorption_scale: 1.0
   ozone_scale: 0.794
   ozone_uv_weight: 0.335
   ozone_visible_weight: 0.914

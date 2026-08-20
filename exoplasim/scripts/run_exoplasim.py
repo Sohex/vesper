@@ -129,6 +129,19 @@ def configure_otherargs(derived: dict) -> dict:
         # parameter for it and it is an ordinary `icemod_nl` key, so it goes
         # the same route N_DAYS_PER_YEAR does. CLIM-17.
         "TFREEZE@icemod_namelist": f"{derived['sea_water_freezing_point_k']:.4f}",
+        # CLIM-16, oceanmod_nl. Written unconditionally, defaults included, so
+        # the namelist in the run directory records what the arm actually ran
+        # with instead of leaving it to the binary's compiled value.
+        "NHDIFF@oceanmod_namelist": str(derived["ocean_horizontal_diffusion"]),
+        "HDIFFK@oceanmod_namelist":
+            f"{derived['ocean_horizontal_diffusivity_m2_s']:.6g}",
+        # PHYS-11, radmod_nl. The compiled values are tswr3 0.0055 and
+        # acl2 (0.05, 0.10, 0.20); at scale 1.0 these reproduce them exactly.
+        "TSWR3@radmod_namelist":
+            f"{0.0055 * derived['cloud_absorption_scale']:.6g}",
+        "ACL2@radmod_namelist": ", ".join(
+            f"{v * derived['cloud_absorption_scale']:.6g}"
+            for v in (0.05, 0.10, 0.20)),
     }
 
 
@@ -215,6 +228,22 @@ def derive(config: dict, flux_ratio: float) -> dict:
         "ocean_salinity_psu": float(config["ocean"]["salinity_psu"]),
         "sea_water_freezing_point_k": freezing_point_k(
             config["ocean"]["salinity_psu"]),
+        # CLIM-16. Ocean horizontal heat transport EXISTS; a constant
+        # diffusivity is a BOUND on the missing transport rather than the
+        # transport, and it is bracketed rather than tuned. NLEV_OCE is 1
+        # (oceanmod.f90:15) so hdiffk is a one-element array and a scalar
+        # assignment fills it.
+        "ocean_horizontal_diffusion": int(bool(
+            config["ocean"].get("horizontal_diffusion", False))),
+        "ocean_horizontal_diffusivity_m2_s": float(
+            config["ocean"].get("horizontal_diffusivity_m2_s", 1.0e3)),
+        # PHYS-11. Scales the two ABSORPTION-like cloud keys only, tswr3 and
+        # the acl2 triplet. The scattering keys are held and acllwr is a
+        # thermal-band constant with no stellar dependence, so neither gets an
+        # arm on this argument. 1.0 must reproduce the compiled values exactly,
+        # which is the arm the prediction says has to come out bit-identical.
+        "cloud_absorption_scale": float(
+            config["model"].get("cloud_absorption_scale", 1.0)),
     }
 
 
@@ -1127,6 +1156,14 @@ def main() -> None:
         help="Allow re-preparing an existing run with no climate outputs",
     )
     parser.add_argument(
+        "--superseded-surface-ok", action="store_true",
+        help="allow --restart-from when the staged surface fields have moved "
+             "since the donor run. The new fields are DISCARDED: a restart "
+             "reads albedo, roughness and soil water from itself. Only valid "
+             "for a paired A/B, where every arm inherits the same superseded "
+             "surface and the difference is what is measured. Stamped on the "
+             "run manifest so the run is self-labelling.")
+    parser.add_argument(
         "--restart-from", type=Path, default=None,
         help="Seed the initial state from an existing MOST_REST file instead of "
              "cold-starting. Only the spin-up path changes, not the equilibrium.",
@@ -1197,6 +1234,7 @@ def main() -> None:
     # source is recorded in the manifest because the path is no longer a function
     # of the configuration alone.
     restart_seed = None
+    superseded_surface = None
     if args.restart_from is not None:
         restart_seed = args.restart_from.resolve()
         if not restart_seed.is_file():
@@ -1268,6 +1306,22 @@ def main() -> None:
                 elif not old_h:
                     reason = ("the source run recorded no surface field hashes, "
                               "so content changes cannot be ruled out")
+            if reason and args.superseded_surface_ok:
+                # Deliberately overridden. The guard protects the CANONICAL
+                # chain: a spin-up seeded this way would silently discard the
+                # newer surface and reproduce its parent. An A3 forcing A/B is
+                # the one case where that does not matter, because every arm
+                # inherits the SAME superseded surface and what is being
+                # measured is the DIFFERENCE between arms, not the absolute
+                # climate. The override is a flag rather than a deletion so it
+                # cannot be taken by accident, and it is stamped on the manifest
+                # below so the resulting run says what it is.
+                print(f"  OVERRIDDEN (--superseded-surface-ok): {reason}. "
+                      "The staged surface is DISCARDED and this run inherits "
+                      "its parent's. Valid for a paired A/B, invalid for "
+                      "anything whose absolute climate is read.")
+                superseded_surface = reason
+                reason = None
             if reason:
                 raise RuntimeError(
                     "--restart-from refused: " + reason + ". A restart reads soil "
@@ -1465,6 +1519,7 @@ def main() -> None:
         # provenance field is for.
         "initial_state": ({"cold_start": True} if restart_seed is None else {
             "cold_start": False,
+            "superseded_surface_override": superseded_surface,
             "restart_from": str(seeded_from),
             "restart_from_sha256": file_sha256(seeded_from),
             "restart_from_run": seeded_from.parent.name,
