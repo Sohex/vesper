@@ -122,20 +122,72 @@ def recharge_field(export: Export, config: dict, clim_path: Path):
     return runoff[row, col], (lat, lon, runoff, precip, evaporation, lsm)
 
 
-def basin_exchange(terminal, seepage_m3_s, supply_m3_s, n_basins):
+def basin_exchange(terminal, seepage_m3_s, supply_m3_s, n_basins,
+                   et_m3_s=None):
     """Net groundwater import per basin, m3/s. Fan (2019)'s `Qg`, signed.
 
     A basin's catchment receives its own recharge and returns some of it as
     seepage. The difference is what crossed the catchment boundary underground:
     positive where the basin gains water the surface balance never sees,
     negative where it loses water the surface balance credits it with.
+
+    **THE EVAPOTRANSPIRATION HAS TO BE ADDED BACK, and this is not a
+    correction, it is the identity.** Per cell the solver enforces
+
+        seepage = supply - et + (net lateral inflow)
+
+    so summed over a catchment, `sum(seepage) - sum(supply) + sum(et)` is the
+    net lateral inflow across its boundary, which is what `Qg` means. Drop the
+    ET term and every drop the sink evaporated is charged to the basin as
+    groundwater EXPORT, which is a different physical claim about a different
+    destination: exported water arrives somewhere else and evaporated water does
+    not.
+
+    Leaving it out inverted the answer rather than shading it. It put 2,853
+    basins in deficit against 546 in surplus and a median absolute shift of 90%
+    of a basin's own recharge, where the exchange is a redistribution that sums
+    to nearly nothing. `et_m3_s` is None only when the sink is off, where the
+    term is zero and this is the arithmetic it always was.
     """
     gain = np.zeros(n_basins)
     give = np.zeros(n_basins)
+    evap = np.zeros(n_basins)
     sel = terminal >= 0
     np.add.at(gain, terminal[sel], seepage_m3_s[sel])
     np.add.at(give, terminal[sel], supply_m3_s[sel])
-    return gain - give, gain, give
+    if et_m3_s is not None:
+        np.add.at(evap, terminal[sel], np.asarray(et_m3_s)[sel])
+    return gain - give + evap, gain, give
+
+
+def report_path(args, out: Path) -> Path:
+    """Where this run's report goes. One artifact, one report, no collisions.
+
+    The artifact refuses to overwrite an existing file; the report used to have
+    no such protection and a fixed name, so every variant run -- a sigma arm, an
+    operator-noise member, a groundwater-ET arm -- wrote over the central
+    `groundwater_report.json` on its way past. The unconverged branch was worse:
+    it wrote the fixed name whatever the run was, so a variant that failed to
+    converge replaced the record of the run that had.
+
+    So the name follows the ARTIFACT when one is named, and otherwise carries
+    the variant in it. The names below are unchanged for the default run and for
+    the sigma and noise arms, because `notes/` and `archive/tasks.md` cite them.
+    """
+    if args.output is not None:
+        return ANALYSIS / f"{out.stem}_report.json"
+    if args.reduction_test:
+        return ANALYSIS / "groundwater_reduction_test.json"
+    if args.divide_test:
+        return ANALYSIS / "groundwater_divide_test.json"
+    if args.operator_noise:
+        return ANALYSIS / (f"groundwater_report_noise{args.operator_noise:g}"
+                           f"_seed{args.noise_seed}.json")
+    if args.sigma:
+        return ANALYSIS / f"groundwater_report_sigma{args.sigma:+g}.json"
+    if args.et_lambda is not None:
+        return ANALYSIS / f"groundwater_report_et{args.et_lambda:g}.json"
+    return ANALYSIS / "groundwater_report.json"
 
 
 def main() -> int:
@@ -154,6 +206,12 @@ def main() -> int:
     ap.add_argument("--divide-test", action="store_true",
                     help="run at uniform permeability with a terrain-following "
                          "table and check the catchments against the surface ones")
+    ap.add_argument("--et-lambda", type=float, default=None,
+                    help="enable GW-15's groundwater ET sink with this "
+                         "e-folding depth in metres. ET_max is the Penman "
+                         "field, the same one the lakes and the carve "
+                         "verdict take. Absent means the sink is off and "
+                         "the result is bit-identical to a run without it")
     ap.add_argument("--max-outer", type=int, default=60)
     ap.add_argument("--operator-noise", type=float, default=0.0,
                     help="multiply every face's w/l by lognormal noise of this "
@@ -271,10 +329,23 @@ def main() -> int:
                                    thickness_m=thickness_m,
                                    surface_m=filled_m, conductive=conductive)
     else:
+        # GW-15's sink, off unless asked for. ET_max is the Penman field already
+        # read above for the lakes, so one evaporation rule governs the lakes,
+        # the carve verdict and the water table. `region_grid_cells` is the
+        # export/ExoPlaSim join CLAUDE.md rule 3 governs, and it is reused here
+        # rather than repeated.
+        et_max = None
+        if args.et_lambda is not None:
+            row, col = sw.region_grid_cells(export, lat)
+            et_max = np.where(land, np.clip(evap_grid[row, col], 0.0, None), 0.0)
+            print(f"groundwater ET on, lambda {args.et_lambda} m, ET_max from "
+                  f"Penman: land median "
+                  f"{np.median(et_max[land]) * 365.25 * 86400 * 1000:.0f} mm/yr")
         print("solving the water table")
         res = gw.solve(export, geom, k0_m_s=k0, thickness_m=thickness_m,
                        recharge_m_s=recharge, surface_m=surface_m,
-                       conductive=conductive, max_outer=args.max_outer)
+                       conductive=conductive, max_outer=args.max_outer,
+                       et_max_m_s=et_max, et_lambda_m=args.et_lambda)
 
     area_m2 = geom.volume_area_m2
     supply = recharge * area_m2
@@ -299,7 +370,8 @@ def main() -> int:
     with Dataset(data / "regions.nc") as ds:
         terminal = np.asarray(ds["terminal"][:])
     basins = lb.BasinSet(data / "basins.nc")
-    qg, gain, give = basin_exchange(terminal, res["seepage_m3_s"], supply, basins.n)
+    qg, gain, give = basin_exchange(terminal, res["seepage_m3_s"], supply,
+                                    basins.n, res.get("et_m3_s"))
 
     report = {
         "source_build": build.name,
@@ -478,9 +550,9 @@ def main() -> int:
         # field written to `data/` would be read downstream as a result, and
         # nothing about the file would say it was not one.
         ANALYSIS.mkdir(parents=True, exist_ok=True)
-        (ANALYSIS / "groundwater_report.json").write_text(
-            json.dumps(report, indent=2) + "\n")
-        print(f"\nwrote {ANALYSIS / 'groundwater_report.json'}")
+        rp = report_path(args, args.output or (data / "water_table.nc"))
+        rp.write_text(json.dumps(report, indent=2) + "\n")
+        print(f"\nwrote {rp}")
         print("NOT writing water_table.nc: the solve did not converge, and an "
               "unconverged head field is not a result.")
         return 1
@@ -531,18 +603,9 @@ def main() -> int:
             v[:] = dat
 
     ANALYSIS.mkdir(parents=True, exist_ok=True)
-    name = "groundwater_report.json"
-    if args.reduction_test:
-        name = "groundwater_reduction_test.json"
-    elif args.divide_test:
-        name = "groundwater_divide_test.json"
-    elif args.operator_noise:
-        name = (f"groundwater_report_noise{args.operator_noise:g}"
-                f"_seed{args.noise_seed}.json")
-    elif args.sigma:
-        name = f"groundwater_report_sigma{args.sigma:+g}.json"
-    (ANALYSIS / name).write_text(json.dumps(report, indent=2) + "\n")
-    print(f"\nwrote {out}\nwrote {ANALYSIS / name}")
+    rp = report_path(args, out)
+    rp.write_text(json.dumps(report, indent=2) + "\n")
+    print(f"\nwrote {out}\nwrote {rp}")
     return 0
 
 
@@ -582,10 +645,23 @@ def measure_carve_effect(export, data, basins, terminal, qg, give, gain,
     np.add.at(catch_m2, terminal[sel], area_m2[sel])
     ok = catch_m2 > 0
 
-    # Depths, m/s, over the catchment. The surface number is the coupling
-    # matrix's catchment mean; the groundwater number is what seeped there.
+    # Depths, m/s, over the catchment. The baseline is the catchment's own
+    # recharge; the groundwater number adds the EXCHANGE and nothing else.
+    #
+    # It used to be `gain`, the seepage. Without a sink that is the same number,
+    # exactly: `qg = gain - give`, so `give + qg == gain` identically, and this
+    # change is inert on every run made before GW-15. WITH a sink they part
+    # company, because seepage is recharge minus what evaporated plus what was
+    # exchanged, and attributing that difference to groundwater EXCHANGE credits
+    # the sink's evaporation to a mechanism that did not do it. The question
+    # this function asks is what the exchange does to the verdict, so the
+    # exchange is what varies and everything else is held.
+    #
+    # It also matches `carve_verdict.py`'s own supply term under GW-14,
+    # `r_eff = (surface_runoff * C + Qg) / C`, which is the point: one quantity
+    # measured here and applied there rather than two that drift.
     surface_depth = np.where(ok, give / np.maximum(catch_m2, 1e-30), 0.0)
-    seeped_depth = np.where(ok, gain / np.maximum(catch_m2, 1e-30), 0.0)
+    seeped_depth = np.where(ok, (give + qg) / np.maximum(catch_m2, 1e-30), 0.0)
 
     with Dataset(data / "basins.nc") as ds:
         crit = np.asarray(ds["critical_aridity_index"][:])

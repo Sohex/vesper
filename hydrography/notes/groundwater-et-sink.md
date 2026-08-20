@@ -182,3 +182,60 @@ this. Using the Penman field would give ET_max the spatial variation of
 evaporative demand, which on this continent is smooth and broad, while the
 observed variation is at the scale of valleys. It would move the mean and leave
 the standard deviation where it is.
+
+---
+
+# GW-16: what the sink does to the carve result
+
+Run 2026-08-20 once the solver converged. The sink-off case reproduces
+1798 / 1881 / 83 / 83 / 0 exactly, so everything below is the sink and nothing
+else.
+
+| lambda | median shift | carving | flipped | to carve | to hold |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| 0.5 m | 0.00105 | 1,916 | 118 | 118 | 0 |
+| 1.0 m | 0.00117 | 1,925 | 127 | 127 | 0 |
+| 2.0 m | 0.00140 | 1,930 | 132 | 132 | 0 |
+| none, GW-4 | 0.00073 | 1,881 | 83 | 83 | 0 |
+
+against a surface-only baseline of 1,798.
+
+**The count goes UP, and I expected it to go down.** The reasoning was that
+seepage is what handed a zero-runoff basin its supply, so a sink that removes
+water before it reaches the surface should hand over less. That is true of
+seepage and false of the answer, because it ignores what pinning was doing to
+the flow.
+
+A water table pinned at the surface has its head fixed at the terrain. It cannot
+develop a gradient of its own, so there is almost nothing for lateral exchange to
+respond to and seepage does all the work locally. Freeing it is what lets
+groundwater actually flow: the free set goes from 399,882 cells to 624,228, and
+the median absolute exchange rises from 0.00073 of a basin's recharge to 0.0014.
+**The sink increases exchange by letting the water table detach and move**, and
+that outweighs the water it removes.
+
+So GW-4's 83 was an UNDERESTIMATE rather than the upper bound GW-16 was opened
+to test. The direction is unchanged and now holds across the whole bracket:
+every flip is toward carving and none toward holding, at every lambda.
+
+## What the earlier 69 flips to hold were
+
+An intermediate run reported 162 to 164 flips with 69 of them toward holding.
+Those were entirely an artefact of `measure_carve_effect` comparing recharge
+against SEEPAGE, which with a sink differ by the evaporation. Attributing that
+difference to exchange made basins look like they were losing water underground
+when they were losing it to the air. Once the comparison isolates the exchange,
+`give + qg` against `give`, the holds vanish and the count settles.
+
+That is worth keeping because closure never saw it: the global books balanced at
+9.2e-13 throughout. The water was accounted for and attributed to the wrong door,
+and only a derived quantity being physically absurd -- a redistribution moving
+90% of every basin's water -- gave it away.
+
+## Still bounded by the same thing
+
+GW-3 says this water table has no skill against real observations, and nothing
+here changes that. What the bracket shows is that the carve direction survives
+both the sink and the lambda range, not that the count is right. It remains a
+count of basins crossing a threshold in a model whose depth field is known not
+to reproduce the one quantity it can be tested against.

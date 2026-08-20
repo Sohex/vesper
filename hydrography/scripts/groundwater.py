@@ -380,6 +380,23 @@ def et_rate(et_max_m_s, et_lambda_m, surface_m, head, conductive):
     return np.where(conductive, et_max_m_s * np.exp(-depth / et_lambda_m), 0.0)
 
 
+def et_balance_depth(et_max_m_s, et_lambda_m, supply_m3_s, area_m2, conductive):
+    """Depth at which the sink alone consumes a cell's own recharge.
+
+        R A = ET_max A exp(-d / lambda)   =>   d = lambda ln(ET_max A / R A)
+
+    One equation in one unknown, so it needs no solver, and it is where a cell
+    with no lateral exchange comes to rest. Zero where the sink cannot match the
+    supply even at the surface, which is the case that seeps instead.
+    """
+    cap = et_max_m_s * area_m2
+    with np.errstate(divide="ignore", invalid="ignore"):
+        d = np.where((cap > supply_m3_s) & conductive,
+                     et_lambda_m * np.log(cap / np.maximum(supply_m3_s, 1e-300)),
+                     0.0)
+    return np.clip(np.nan_to_num(d, nan=0.0, posinf=0.0), 0.0, None)
+
+
 def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
           surface_m, conductive, sea_level_m=0.0, max_outer=200,
           start_all_free=False, verbose=True,
@@ -493,6 +510,22 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
     # to factor the whole 2.5 million cells before a single cell is pinned.
     head = surface_m.copy()
     head[is_ocean] = sea_level_m
+    if et_max_m_s is not None:
+        # START AT THE LOCAL SINK BALANCE, not at the surface. Every land cell
+        # used to begin where the sink runs at its maximum, so each had to walk
+        # down lambda*ln(ET_max/R) -- five to seven lambda for this world's
+        # recharge -- with the active set churning the whole way. On Vesper that
+        # did not converge in 400 passes.
+        #
+        # The local balance is a closed form and is where an isolated cell comes
+        # to rest, so lateral exchange is left as the only thing to solve for
+        # and is a perturbation rather than the whole answer. GW-12 proved this
+        # solution unique, and that uniqueness is what licenses moving where the
+        # iteration starts: it must land in the same place, and the identity
+        # says so rather than my say-so.
+        head -= et_balance_depth(et_max_m_s, et_lambda_m, supply,
+                                 area_m2, conductive)
+        head[is_ocean] = sea_level_m
     # `start_all_free` walks the opposite trajectory, for the uniqueness check.
     # The solution of this complementarity problem is unique, so where it lands
     # cannot depend on where it started.
@@ -500,13 +533,37 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
     anchor = np.zeros(n, bool)
     anchor_failed = np.zeros(n, bool)
     result, trace = {}, []
+    # Defined before the loop because the anchoring branch `continue`s past the
+    # residual computation. A run that anchors on every pass used to fall out of
+    # the loop and raise UnboundLocalError on these, which reports a Python
+    # problem where the real one is that the solve never converged.
+    residual = float("inf")
+    leak = leak_frac = float("inf")
+    infeasible = -1
 
     for outer in range(max_outer):
-        # A cell with no conducting face has no equation: nothing can carry its
-        # recharge away, so it stands at the surface and seeps.
+        # A cell with no conducting face has no LATERAL equation: nothing can
+        # carry its recharge away sideways, so without a sink it stands at the
+        # surface and seeps.
         stranded = free & ~is_ocean & (rowsum <= 0)
         free[stranded] = False
         head[stranded] = surface_m[stranded]
+        if et_max_m_s is not None and stranded.any():
+            # WITH a sink it has a LOCAL one, and pinning it at the surface
+            # instead makes it permanently infeasible: at the surface the sink
+            # runs at full rate, and where that exceeds the cell's own recharge
+            # the balance is negative and no later pass can fix it, because the
+            # cell has no face to release across. That is a closure failure of
+            # 1.7e-4 rather than a wrong number in a corner.
+            #
+            # Its balance is one equation in one unknown, so solve it:
+            #     R_i A_i = ET_max_i A_i exp(-(z_i - h_i) / lambda)
+            # which the water table reaches by falling until the sink matches
+            # the supply. Where the sink cannot match it even at the surface,
+            # the surface is right and the excess seeps.
+            drop = et_balance_depth(et_max_m_s, et_lambda_m, supply,
+                                    area_m2, conductive)[stranded]
+            head[stranded] = surface_m[stranded] - drop
 
         # RELEASE before solving. A pinned cell whose neighbours already draw
         # more water out of it than its recharge supplies cannot stand at the
@@ -557,6 +614,17 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
         if edge_one.any():
             anchored[np.where(unknown[src[edge_one]],
                               src[edge_one], dst[edge_one])] = True
+        if et_max_m_s is not None:
+            # A CELL WITH AN ET SINK ANCHORS ITSELF. The anchoring below exists
+            # because a block touching no pinned cell is a pure Neumann problem
+            # and singular. GW-15's sink puts a positive term on the diagonal,
+            # so such a block is no longer Neumann and no longer singular: it
+            # disposes of its own recharge by evaporating it, which is what the
+            # water does. Anchoring it anyway pins a cell the release test then
+            # frees, and the two cycle until max_outer with no residual ever
+            # computed.
+            anchored |= unknown & (et_rate(et_max_m_s, et_lambda_m,
+                                           surface_m, head, conductive) > 0.0)
         if not np.all(anchored[unknown]):
             sub = sp.coo_matrix((np.ones(int(both.sum())),
                                  (idx[src[both]], idx[dst[both]])), shape=(m, m))
@@ -574,8 +642,19 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
                 # first, picked a cell that immediately wanted releasing and
                 # could not be, so four of them sat infeasible for three
                 # hundred passes and the solve never converged.
+                #
+                # AND THAT PREMISE IS FALSE WHEN THE SINK IS ON. A block can
+                # dispose of its recharge by evaporating it, so its balances
+                # need not sum positive and none of its cells need seep. It is
+                # also no longer singular, which is why a cell with a live sink
+                # anchors itself above and never reaches here. The ET term is
+                # subtracted anyway, because the ranking below is meaningless
+                # against a balance that ignores a door the water leaves by.
                 where = np.flatnonzero(unknown)[orphan]
-                bal_now = (supply + geom_divergence(
+                et_now = (et_rate(et_max_m_s, et_lambda_m, surface_m, head,
+                                  conductive) * area_m2
+                          if et_max_m_s is not None else 0.0)
+                bal_now = (supply - et_now + geom_divergence(
                     n, src, dst, trans * (head[dst] - head[src])))[where]
                 # Candidates that already failed as anchors are pushed to the
                 # back rather than removed, so a block whose every cell has
@@ -629,6 +708,30 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
         # spans the 3.4 orders of magnitude between Gleeson's classes, which
         # diagonally preconditioned CG handles badly, and the free set is small
         # enough that a direct solve is comfortable.
+        #
+        # MEASURED 2026-08-20 against three alternatives, on a planar-graph
+        # Laplacian of this problem's size and coefficient span -- 399,424
+        # unknowns, 1,994,592 nonzeros, conductivity drawn across Gleeson's
+        # -15.2 to -11.8. SuperLU is the fastest of the four:
+        #
+        #     SuperLU spsolve, this line      1.39 s
+        #     UMFPACK via scikit-umfpack      1.93 s   0.72x
+        #     pyamg smoothed aggregation + CG 7.05 s   0.20x
+        #     CG, diagonal preconditioner      20 s    DID NOT CONVERGE
+        #
+        # So the comment above survives testing rather than merely sounding
+        # right, and neither library is worth a dependency. A sphere mesh is a
+        # planar graph, where nested dissection gives a direct solve near-optimal
+        # fill; algebraic multigrid earns its setup cost in 3D or at far larger
+        # sizes, and neither applies here.
+        #
+        # AND THE LINEAR SOLVE IS NOT THE COST. At 1.39 s against the ~20 passes
+        # a linear run takes, this is about 30 s inside a multi-minute run. What
+        # is expensive is the NUMBER of passes, which GW-15's nonlinearity
+        # multiplies. The one lever left is reuse: `splu` re-solves in 0.049 s
+        # against 1.3 s to refactorise, 27x, on any pass where the matrix repeats
+        # -- which needs the ET iteration restructured to hold the diagonal fixed
+        # across inner steps, not a faster library.
         x = spsolve(A.tocsc(), rhs, use_umfpack=False)
         if not np.all(np.isfinite(x)):
             raise SystemExit(
@@ -689,7 +792,12 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
                   f"infeasible")
             bad = np.flatnonzero(pinned_now & (bal < 0))
             for i in bad[:8]:
+                # The ET is printed because the balance contains it: a report
+                # showing only supply against a balance that subtracts the sink
+                # reads as arithmetic that does not add up.
+                e_i = (et_m3_s[i] if et_max_m_s is not None else 0.0)
                 print(f"    region {i}: supply {supply[i]:.6e} m3/s  "
+                      f"et {e_i:.6e}  "
                       f"balance {bal[i]:.6e}  anchor {bool(anchor[i])}  "
                       f"failed_anchor {bool(anchor_failed[i])}  "
                       f"rowsum {rowsum[i]:.3e}  depth {surface_m[i]-head[i]:.2f} m")

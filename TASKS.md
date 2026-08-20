@@ -221,7 +221,7 @@ Status: `open` | `doing` | `blocked` | `done` | `wontfix` (with a reason).
 
 ## GW -- groundwater
 
-4 open of 16 issued.
+3 open of 16 issued.
 
 | id | task | source | status |
 | --- | --- | --- | --- |
@@ -240,7 +240,7 @@ Status: `open` | `doing` | `blocked` | `done` | `wontfix` (with a reason).
 | GW-13 | -- | -- | done, see `archive/tasks.md` |
 | GW-14 | -- | -- | done, see `archive/tasks.md` |
 | GW-15 | -- | -- | done, see `archive/tasks.md` |
-| GW-16 | Re-read GW-4's carve result once GW-15 lands: 83 flips rest on seepage from a surface-pinned water table, and the Earth calibration says that table is wrong | `hydrography/notes/earth-calibration-criterion.md` | open. The DIRECTION survives and never depended on depth -- a basin with no surface runoff acquiring water from outside its surface catchment, as a zero-crossing rather than a magnitude. The COUNT does not: overstating seepage overstates the supply that lifts a basin over the threshold, so 83 is an upper bound. Do not quote it as a measurement until the sink exists [step: carve_verdict] |
+| GW-16 | -- | -- | done, see `archive/tasks.md` |
 
 ## HYD -- hydrography
 
