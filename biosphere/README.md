@@ -139,8 +139,8 @@ the biosphere, and it changes the bulk density and water-holding capacity the
 biosphere then grows in. Iteration 0 runs on mineral soil; every iteration after
 feeds `cpool.out` back into `build_soil.py`. See `pedology/README.md` for the
 convergence criteria, which are fixed in advance, and for the finding that
-weathering intensity is currently bracketed by a factor of 14.6 on the climate
-model's runoff.
+the runoff-versus-precipitation choice is a 3.41x sensitivity on weathering
+intensity rather than a bracket.
 
 ## Interannual forcing, and the stellar cycle
 

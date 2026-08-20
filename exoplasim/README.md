@@ -44,12 +44,6 @@ not a quality setting, it is what the output MEANS.
     python exoplasim/scripts/continue_exoplasim.py --run <id> --orbits 10 \
         --purpose post_equilibrium_climatology
 
-`NLOWIO = 0` is the DEFAULT everywhere. `run_exoplasim.py` has no `--low-io` at
-all, and `continue_exoplasim.py` applies `disable_low_io()` unless you ask for the
-fast path, which has to be reapplied every time because `configure()` rewrites the
-namelist on each continuation. The cheap regime is opt-in so that forgetting a
-flag costs time rather than data.
-
 **Why the split.** Under `NLOWIO = 1` the model accumulates over the output
 interval and writes 12 bins; under `NLOWIO = 0` it writes instantaneous records
 which `pyburn` then averages to the same 12. Nothing downstream changes shape.

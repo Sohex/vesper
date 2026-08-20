@@ -1,6 +1,9 @@
 # 4. Why this is not a straight line
 
-Three quantities each depend on the other two.
+Four quantities are pairwise coupled: drainage with climate, climate with
+the biosphere, and soil with the biosphere. The biosphere does not reach
+drainage directly -- the channel that would couple them, transpiration, is
+absent from the model, and the absence is priced below.
 
 **Drainage depends on climate.** Which basins survive is a water balance.
 

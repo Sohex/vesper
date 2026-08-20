@@ -439,8 +439,8 @@ brines:
     # {arc_andesite: 1.0, arc_basalt: 1.0}, which had boron coming out of
     # island-arc basalt. Helvaci (2019) puts the origin at "andesitic to
     # rhyolitic volcanics" and the fertile end at high-silica rhyolitic
-    # ignimbrite, so that weight was against the evidence and removing it is what
-    # collapsed the two rules into this one.
+    # ignimbrite, so that weight was against the evidence; replacing borate's host
+    # set with lithium's is what collapsed the two rules into this one.
     catchment_hosts: {arc_andesite: 1.0, rift_bimodal: 1.0, granite: 0.5, granodiorite: 0.5}
     # NO BRINE PATH IS REQUIRED, and that is deliberate rather than an omission.
     # Helvaci gives lake water at pH 8.5 to 11 among the essential conditions for

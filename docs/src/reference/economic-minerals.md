@@ -292,9 +292,10 @@ alkaline. Two deposit types share one class here, so the narrower gate is wrong
 for half of what the class covers.
 
 **The correction collapsed the two rules into one, and that is the right
-outcome.** Removing the `arc_basalt` weight left `brine_lithium` and
-`brine_borate` identical in every key but `name`: same host set, same
-`require_no_overflow`, same grounding. **Measured on `precarve-craton`
+outcome.** Replacing borate's arc host set with lithium's -- dropping
+`arc_basalt`, adding `rift_bimodal` and the half-weight plutonics -- left
+`brine_lithium` and `brine_borate` identical in every key but `name`: same
+host set, same `require_no_overflow`, same grounding. **Measured on `precarve-craton`
 2026-08-18**, regenerating produced bit-identical fields, both at 9.62% of land
 nonzero and mean 0.0145, against borate's previous 9.62% -> 3.72% and 0.0033. Two fields that are identical by construction carry no information the
 one carries, and a reader seeing two names infers two predictions. That is the

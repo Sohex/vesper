@@ -73,8 +73,9 @@ carve list -> back to World Orogen -> new terrain
 Three loops close in that diagram and a fourth is cut across iterations;
 [section 4](loops.md) says why each has to be what it is.
 
-**Two branches hang off it that the diagram does not draw**, because they would
-turn one picture into four. Both are in the register.
+**Several branches hang off it that the diagram does not draw** -- the offline
+aerosols (dust, sea salt, volcanic sulfate) and the minerals overlay. All are
+in the register; the two largest are sketched below.
 
 ```
 climatology + surface_water.nc -> aeolian/scripts/build_dust.py -> dust_baseline.{nc,json}

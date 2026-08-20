@@ -85,8 +85,9 @@ because it reads every artifact above it, and running it earlier records a
 state that no longer holds.
 
 Everything below the climatology in the register -- the derived surface
-classes, brine paths, the phosphorus budget, weathering fluxes, both
-prospectivity fields -- is regenerated after the baseline and before anything
+classes, brine paths, the phosphorus budget, weathering fluxes, the
+downstream prospectivity field (its tectonic half is terrain-only and
+survives) -- is regenerated after the baseline and before anything
 quotes it. They are not in the list above because they gate nothing in the
 loop; they are consumers, and rule 7 governs them: when the climatology moves
 they are worthless, and regenerating them is a step rather than a task.
@@ -97,10 +98,12 @@ taken on the mean climate before anyone noticed. The graph now enforces it:
 `carve_verdict` needs `stellar_cycle_run`.
 
 **The first climate run on a new terrain is a bootstrap, and its numbers are
-not the baseline.** Three of the surface fields a run consumes cannot be built
-without a climatology: the lakes, the lake compositing inside the albedo (174
-to 176), and soil water capacity (229), which comes from a soil weathered
-under a climate. Everything else is a pure function of the terrain. So the
+not the baseline.** The surface fields that cannot be built without a
+climatology are the lake compositing inside the albedo (174 to 176), soil
+water capacity (229), which comes from a soil weathered under a climate, and
+the dust fields (1811, 1801) when their model keys are set; the mask,
+topography, roughness and the base albedo are pure functions of the terrain.
+So the
 loop is entered by running the model on the fields that do not need it, and
 the run exists to produce the climatology the rest need. Written here because
 discovering it one field at a time costs a run each time.

@@ -4,7 +4,7 @@ schema_version: 1
 # copies a value out of it into prose or into a script.
 #
 # Every block carries a STATUS. It is about what STANDS BEHIND the value, not
-# about how old it is, and there are four:
+# about how old it is. There are four atomic statuses:
 #
 #   DETERMINED   measured, derived by an artifact that exists, or decided in a
 #                way that is now load-bearing. Downstream work may rely on it.
@@ -15,6 +15,12 @@ schema_version: 1
 #                is relying on something already scheduled to change.
 #   DERIVED      computed by the named script from other values in this file.
 #                Regenerate it rather than editing it.
+#
+# Compound labels build on those where a block is not one thing: MIXED and
+# PARTLY DETERMINED mark blocks whose sub-keys carry different atomic
+# statuses, TRANSITIVE marks operational values that are facts about the run
+# rather than the world, and DECLARED ABSENT is DECLARED applied to a
+# deliberate null.
 #
 # The distinction is not cosmetic, and it decays in one direction only:
 # `stellar_cycle` carried an amplitude and a centre before there was a baseline

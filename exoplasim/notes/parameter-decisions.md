@@ -280,7 +280,7 @@ refinement.
 The spread is not incidental to this world. Evaporite covered 20.8% of the land
 on the pre-carve terrain this was computed on; closed-basin fill is 16.5% on the
 current `carved-zoned-v4`, split 1.9% salt crust and 14.5% playa clastics,
-second behind schist at 22.4% and ahead of intracratonic clastics at 18.9%, and
+third behind schist at 22.4% and intracratonic clastics at 18.9%, and
 evaporite is the brightest class in the table at 0.50. (The manifest's
 `compositionLand` says 18.6%, because it measures against `land_mask` and so
 drops the dry sub-sea-level basin floors where playa fill concentrates. The
@@ -791,9 +791,10 @@ The consequence for the cycle is that its predicted response was understated:
 
 against the 8.3 K written down when the components were chosen. The amplitudes
 are still the decision; only their consequence moved. Note also that the aligned
-envelope is an extreme reached only near the 314-year recurrence: the root-sum-
-square of the two damped semi-amplitudes is about 2.9 K, so a typical excursion
-is roughly +/-2.9 K rather than +/-5.6 K.
+envelope is an extreme reached only near the 314-year recurrence: the RMS of
+the two superposed damped sinusoids is about 2.9 K (semi-amplitudes 2.09 and
+3.49 K, root-sum-square 4.07 K, divided by sqrt(2) for the time average), so a
+typical excursion is roughly +/-2.9 K rather than the aligned +/-5.6 K.
 
 ### The cycle is grey, and that is measured rather than assumed
 

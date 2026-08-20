@@ -36,7 +36,8 @@ description, plus semantic blocks for lithology, basins, hydrology, plates),
 `README.txt`, `grid/<field>.bin`, and `planet.nc`. The manifest is ~66 MB, mostly
 the basin hypsometry catalogue; index into it rather than dumping it.
 
-`planet.nc` is the easy path (105 fields, CF-1.8). Use the `.bin` files when you
+`planet.nc` is the easy path (CF-1.8; `manifest.json` is the field catalogue
+and carries the count). Use the `.bin` files when you
 need `raw/` or `gauss_weights.bin`.
 
 ## Choosing a land mask -- use `surface_class`, and only `surface_class`

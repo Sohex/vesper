@@ -29,11 +29,15 @@ than it is.
 
 ## What to do instead: an expected-value argument over a stationary population
 
-The move that works, and that this project has now used three times, is to stop
-asking "when" and ask **"what does a randomly chosen moment look like?"** A
-landscape, a volcanic province and a lake population are all stationary
-populations with a turnover; the terrain is one sample from such a population;
-so the question has an answer even though the duration does not.
+The move that works is to stop asking "when" and ask **"what does a randomly
+chosen moment look like?"** A landscape, a volcanic province and a lake
+population are all stationary populations with a turnover; the terrain is one
+sample from such a population; so the question has an answer even though the
+duration does not. This project has used the move twice -- the volcanic
+provinces and the carve verdict below -- and identified its limit once: a
+control keyed on an absolute age in a non-stationary history has no
+stationary population, which is why the deposit-types case below is an
+exclusion rather than an estimate.
 
 Earth is the calibration, because Earth is also one randomly chosen moment.
 

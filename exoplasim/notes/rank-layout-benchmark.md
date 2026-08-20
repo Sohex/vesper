@@ -28,9 +28,11 @@ a configuration can lose on latency and still win on throughput.
 ## What is already known, which is less than it looks
 
 `docs/src/reference/config-rationale.md` under `ncpus` records one orbit at T42 on 16 ranks,
-and at T21 on 8 and on 16. **There is no T42 8-rank point**: sixteen was chosen
-at T42 by argument from where T21 turned over, not by measurement here. Nothing
-in the repository mentions the dies at all.
+and at T21 on 8 and on 16. **There is no T42 8-rank point on this build**: the
+only 8-rank T42 timings are the superseded old-world sweep (1.86 to 2.70
+minutes per orbit, `parameter-decisions.md`), so sixteen at T42 rests on that
+sweep and on where T21 turned over, and a clean same-build comparison is
+still wanted. Nothing in the repository mentions the dies at all.
 
 ## The arms
 

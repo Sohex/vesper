@@ -22,38 +22,30 @@ The Mie plausibility check is on the UNSCALED Qext at the optical radius, 2.65
 and 2.61 for a micron particle; the file itself carries those times the
 burden-match rescale, which is not an efficiency. The script prints both.
 
-Four patches, all AUTHORED and VERIFIED and none of them applied. They sit in
-`PENDING_PATCHES` in `exoplasim/scripts/rebuild_binaries.py` and move to
-`RESIDENT_PATCHES` in the commit that applies them and rebuilds. They apply in
-this order, and the order is real because each is authored on the one before:
+Five aerosol-path patches, all RESIDENT in the `vendor/exoplasim` subtree
+(DUST-3, closed 2026-08-18). The files under `exoplasim/patches/` are the
+record of what each changed and why; applied state lives in the subtree's
+history now -- the `PENDING_PATCHES` registry `rebuild_binaries.py` once
+policed no longer exists. Each patch names its base shas, which is where the
+stacking order is recorded:
 
 | patch | items | touches |
 | --- | --- | --- |
 | `exoplasim-3.4.2-aerocore-defects.patch` | item 1, defects 2 to 7 | `aerocore.f90`, `aeromod.f90` |
 | `exoplasim-3.4.2-aerosol-deposition.patch` | items 2 and 3 | `aerocore.f90`, `aeromod.f90` |
+| `exoplasim-3.4.2-dust-emission.patch` | item 4 | `aerocore.f90`, `aeromod.f90`, `surfmod.f90`, `plasim.f90`, `make_plasim` |
 | `exoplasim-3.4.2-aerosol-apart.patch` | item 1, defect 1 | `radmod.f90`, `aeromod.f90` |
 | `exoplasim-3.4.2-aerosol-longwave.patch` | item 5 | `radmod.f90` |
 
-The last two touch `radmod.f90`, so they MOVE the star-cycle base sha in
-`exoplasim/scripts/build_star_cycle_exoplasim.sh`. That patch has been
-regenerated against the new base rather than re-pinned, and it had to be: the
-apart patch deletes the dead `aero_nl` declaration that was the cycle patch's
-trailing context.
-`exoplasim/patches/exoplasim-3.4.2-aerocore-defects.patch`, which is item 1 of
-the ordering below;
-`exoplasim/patches/exoplasim-3.4.2-aerosol-deposition.patch`, which is items 2
-and 3; and `exoplasim/patches/exoplasim-3.4.2-dust-emission.patch`, which is item
-4. All three are AUTHORED and VERIFIED but not applied: they sit in
-`PENDING_PATCHES` in `exoplasim/scripts/rebuild_binaries.py` and move to
-`RESIDENT_PATCHES` in the commit that applies them and rebuilds. They STACK, in
-that order, and each names the composed shas of the one below as its base. None
-touches `radmod.f90`.
-
-The first two touch only `aerocore.f90` and `aeromod.f90`, which no other patch
-in the stack touches. The third also touches `surfmod.f90`, `plasim.f90` and
-`make_plasim`, which the prescribed-dust, denergy-accumulator and
-lowio-first-record patches respectively already touch, so its base shas are the
-composed resident result rather than pristine 3.4.2.
+`aerosol-apart` and `aerosol-longwave` touch `radmod.f90`, so they MOVED the
+star-cycle base sha in `exoplasim/scripts/build_star_cycle_exoplasim.sh`; that
+patch was regenerated against the new base rather than re-pinned, and it had
+to be: the apart patch deletes the dead `aero_nl` declaration that was the
+cycle patch's trailing context. `dust-emission` also touches `surfmod.f90`,
+`plasim.f90` and `make_plasim`, which the prescribed-dust,
+denergy-accumulator and lowio-first-record patches respectively already
+touch, so its base shas are the composed resident result rather than pristine
+3.4.2.
 
 `aeolian/scripts/build_dust_source_fields.py` is the generator for item 4's three
 boundary fields, and `exoplasim/scripts/run_exoplasim.py` gained
@@ -455,9 +447,9 @@ on `u*` and neither approaches the brackets above.
 
 DUST-2: `radmod.f90` put the aerosol in bands 1 and 2 only and the longwave
 solver had no aerosol term at all. Shortwave-only would apply -4.5 to -5.3 W/m2
-of global-mean cooling against a true +0.35 to +0.74 -- of order nine kelvin of
-spurious cooling, against 21 W/m2 for the entire stellar sweep that produced a
-33 K range.
+of global-mean cooling against a true +0.35 to +0.74 -- about 4 to 5 K of
+spurious cooling on the canonical flux-to-kelvin conversion in
+`lib/sensitivity.py`.
 
 **AUTHORED as `exoplasim-3.4.2-aerosol-longwave.patch`.** The physics was already
 settled by `exoplasim-3.4.2-prescribed-dust.patch` item 5 -- a grey absorber, no
@@ -531,34 +523,28 @@ every rank and they all have to agree about whether the collective read happens.
 
 ## Order, and scale
 
-1. **Upstream defects.** Everything downstream is uncalibratable without them.
-   AUTHORED: defects 2 to 7 in `exoplasim-3.4.2-aerocore-defects.patch`, defect 1
-   in `exoplasim-3.4.2-aerosol-apart.patch`.
-2. **Replace the bottom-level sink** with a deposition velocity. AUTHORED, behind
-   `ldepvel`.
-3. **Wet scavenging.** AUTHORED, behind `lwetdep`. Both 2 and 3 are in
+1. **Upstream defects.** Everything downstream is uncalibratable without
+   them. RESIDENT: defects 2 to 7 in `exoplasim-3.4.2-aerocore-defects.patch`,
+   defect 1 in `exoplasim-3.4.2-aerosol-apart.patch`.
+2. **Replace the bottom-level sink** with a deposition velocity. RESIDENT,
+   behind `ldepvel`.
+3. **Wet scavenging.** RESIDENT, behind `lwetdep`. Both 2 and 3 are in
    `exoplasim-3.4.2-aerosol-deposition.patch`.
-4. **Boundary fields and the emission law.** The three `.sra` codes, the
-   generator on the `aeolian/` side, `surfcode`/`mpsurfgp` registration, the
-   gathers, the namelist writing, and Kok 18 in the source case. The largest
-   mechanical piece, and the one that has to be done for the switches added in
-   2 and 3 to be reachable at all. **The only item left**, and the aerofile's
-   provenance sidecar now carries `namelist_values` with `APART` and `RHOP` so
-   that the run gets its radius from the file the optics were built for rather
-   than from a config that can drift.
-5. **The longwave aerosol term.** AUTHORED as
-   `exoplasim-3.4.2-aerosol-longwave.patch`.
-4. **Boundary fields and the emission law.** AUTHORED, behind `ldustemit`, as
+4. **Boundary fields and the emission law.** RESIDENT, behind `ldustemit`, as
    `exoplasim-3.4.2-dust-emission.patch` with
    `aeolian/scripts/build_dust_source_fields.py` and
-   `run_exoplasim.py:enable_dust_emission`. The largest mechanical piece, and the
-   one that had to be done for the switches added in 2 and 3 to be reachable at
-   all: `aero_namelist` is written by ExoPlaSim's own Python API and nothing in
-   this project had ever touched it, so `ldepvel`, `vdaero`, `lwetdep`, `scava`
-   and `scavb` were unreachable from the drivers and the model aborted rather
-   than run.
-5. **The longwave aerosol term.** The largest risk, inside the radiation solver.
-   Blocked with defect 1 on the same branch.
+   `run_exoplasim.py:enable_dust_emission`. The largest mechanical piece, and
+   the one that had to be done for the switches added in 2 and 3 to be
+   reachable at all: `aero_namelist` is written by ExoPlaSim's own Python API
+   and nothing in this project had ever touched it, so `ldepvel`, `vdaero`,
+   `lwetdep`, `scava` and `scavb` were unreachable from the drivers and the
+   model aborted rather than run. The aerofile's provenance sidecar carries
+   `namelist_values` with `APART` and `RHOP` so that the run gets its radius
+   from the file the optics were built for rather than from a config that can
+   drift.
+5. **The longwave aerosol term.** The largest risk, inside the radiation
+   solver. RESIDENT as `exoplasim-3.4.2-aerosol-longwave.patch`, written
+   together with defect 1 on one branch because both live in `radmod.f90`.
 6. **Size bins**, only if the single mode proves insufficient. DUST-8 says it
    does not, and says what that costs. CLOSED.
 

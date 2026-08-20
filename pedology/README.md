@@ -308,7 +308,7 @@ prediction is usable rather than indicative:
 **Shrinking the bucket 3.75-fold moves runoff by 1.06x.** That is a validated
 result now rather than a hint, and it settles the question the feedback was built
 to answer: the soil will not on its own explain why this world's land runoff
-ratio is 18.8% against Earth's 35%.
+ratio is 17.8% against Earth's 35%.
 
 The soil water distribution shows why. The bucket sits at a median 15% of
 capacity, so overflow comes from the wettest cells and seasons, which saturate at
@@ -564,9 +564,9 @@ field and the lake solution, so it sits below all three and is regenerated with
 them. The biosphere reads its output; nothing else does.
 
 ## Known gaps
-- **Derived surface classes are designed but not built.** What the rock IS comes
-  from Orogen; what the surface has BECOME under this climate does not exist
-  yet, and albedo, dust emission and the phosphorus return leg all key on it.
+- **The derived surface classes carry the three gaps argued above** -- the
+  static lake proxy under diatomite, the unsourced loess threshold, and the
+  exhaustible pavement supply the rule cannot see.
   `notes/derived-surface-classes.md` has the design: two independent axes rather
   than one cover chain, gypcrete and calcrete windows, and the reason desert
   pavement enters the dust budget with the opposite sign to the one first

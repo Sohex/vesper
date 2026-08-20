@@ -12,10 +12,11 @@ what albedo, dust emission and the phosphorus cycle actually key on, and it is
 derivable here rather than upstream, because it depends on precipitation,
 evaporation and lake extent that Orogen never sees.
 
-Four candidates were proposed. One survives unchanged, one was dropped, and two
-had their mechanism backwards -- pavement, which is a dust sink rather than
-deflation armour, and loess, which is limited by whether a surface can trap dust
-rather than by how much falls on it.
+Four candidates were proposed and all four survive as classes. Two had their
+mechanism backwards -- pavement, which is a dust sink rather than deflation
+armour, and loess, which is limited by whether a surface can trap dust rather
+than by how much falls on it. Silcrete lost only its pedogenic subtype and
+moved from a climate key to a setting key; diatomite survived unchanged.
 
 ## What the literature changed about the proposal
 

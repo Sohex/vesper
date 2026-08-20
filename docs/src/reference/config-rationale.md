@@ -14,8 +14,12 @@ times and the difference is sometimes the point.
 ## The statuses
 
 Every setting carries one, and it records what STANDS BEHIND the value rather
-than how old it is. The same four are defined at the top of
-`config/planet.yaml`, and the two lists have to agree.
+than how old it is. Four atomic statuses are defined at the top of
+`config/planet.yaml`, and the two lists have to agree. Compound labels build
+on them where a block is not one thing: MIXED and PARTLY DETERMINED mark
+blocks whose sub-keys carry different atomic statuses, TRANSITIVE marks
+operational values that are facts about the run rather than the world, and
+DECLARED ABSENT is DECLARED applied to a deliberate null.
 
 DETERMINED, measured or derived by an artifact that exists, or decided in a way
 that is now load-bearing; downstream work may rely on it. DECLARED, a stated

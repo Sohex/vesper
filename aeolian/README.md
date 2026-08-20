@@ -69,8 +69,9 @@ Earth for scale: about 2000 Tg per year and a land-mean dust optical depth near
 twelve times Earth's optical depth. This is a dusty world.
 
 **Both of the large corrections went in opposite directions and neither cancelled
-the other.** Measuring the wind tail raised emission 8.8x, because a Weibull
-fitted to 32 snapshots 5.7 days apart is too narrow and biases the shape high.
+the other.** Measuring the wind tail raised emission by a factor of 40, because a Weibull
+fitted to 32 snapshots 5.7 days apart is too narrow and biases the shape high
+(4.600 fitted against 2.012 measured).
 Putting this world's gravity into the saltation threshold then cut it 30%, a
 6.9% change in the threshold amplified by the same u* nonlinearity working the
 other way. The threshold correction is the fourth root of the gravity ratio and

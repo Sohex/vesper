@@ -207,8 +207,8 @@ The residual caveat is that `FRADPAR` in LPJ-GUESS is a surface quantity, not a
 top-of-atmosphere one, and Earth's 0.5 is higher than the Sun's 0.367 at the top
 of the atmosphere precisely because atmospheric near-infrared absorption strips
 NIR on the way down. Scaling by the top-of-atmosphere ratio assumes that
-enrichment is the same under a redder star, which it is not exactly. Treat 0.427
-as good to about 10%, not better.
+enrichment is the same under a redder star, which it is not exactly. Treat the
+adopted 0.396 as good to about 10%, not better.
 
 ## What the input module has to supply, and where it comes from
 

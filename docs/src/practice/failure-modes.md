@@ -1,8 +1,9 @@
 # How this project goes wrong
 
-Every bug in this list was found late, by comparing two things that were supposed
-to agree. None announced itself: array shapes matched, fields looked plausible,
-runs converged, and the answer was wrong. They are recorded by *class* rather
+Almost every bug in this list was found late, by comparing two things that
+were supposed to agree: array shapes matched, fields looked plausible, runs
+converged, and the answer was wrong. The few that did announce themselves
+(classes 3, 11, 21) did so by luck, not by design. They are recorded by *class* rather
 than as a changelog, because the classes recur and the instances do not.
 
 Run `python scripts/check_consistency.py` before an expensive run and after
@@ -90,8 +91,9 @@ states a number, compute that number in the same function that writes it.
 
 - The energy residual was recorded as "a fixed offset, -0.455 +/- 0.010, which
   rules out every state-dependent candidate". Measured the same way across four
-  converged runs it spans -0.400 to -0.489, nine times wider, putting the
-  ruled-out candidates back in play.
+  converged runs it spans -0.400 to -0.489, a band some four and a half times
+  wider than the recorded +/-0.010, putting the ruled-out candidates back in
+  play.
 - `exoplasim/notes/lake-representation.md` prescribed a large `dwmax` because "a large full
   bucket evaporates at open water's rate". Wetness reaches 1 above 40% *of*
   `dwmax`, so a deeper bucket needs proportionally more water; and routed river
@@ -122,8 +124,9 @@ where it is used. A catchment delivers zero or more, never less.
 Almost every entry here was found by comparing two artifacts that should have
 agreed, and almost none by reading code. The productive habit is to look for
 quantities computed two ways and check them against each other: mesh against
-grid, our routing against the exporter's, Penman against the model over ocean
-cells, one build's composition against another's. Where a cross-check exists,
+grid, our routing against the exporter's, the Penman closure's implied
+surface temperature against the model's own SST (the evaporation ratio itself
+can only differ; class 17), one build's composition against another's. Where a cross-check exists,
 these bugs surface in minutes. Where none exists, they survive until something
 downstream looks strange.
 
@@ -133,9 +136,10 @@ that would have caught the last bug.
 ## 8. Reading an intermediate configuration as the world
 
 Three conclusions in this project have been right in mechanism and wrong in
-magnitude, and the last two were wrong the same way: a figure was taken from the
-build sitting in front of me rather than from the configuration the pipeline is
-converging on.
+magnitude. The dust figure was taken from the build sitting in front of me
+rather than from the configuration the pipeline is converging on; the
+phosphorus conclusion came from following one transport pathway where two run
+in opposite directions.
 
 - **The carbonate-silicate thermostat** was described as structurally weak
   because endorheic drainage withholds alkalinity from the ocean. The mechanism
@@ -264,17 +268,18 @@ water is fractional, thinner soil reads as relatively *wetter* for the same
 absolute water, so a single cell can move either way through PFT competition.
 Trust a controlled sweep, never one cell.
 
-## One quantity, two meanings, three times the value
+## One quantity, two meanings, several times the value
 
-"The endorheic share of land" names two different measurements that differ by a
-factor of about 3.5:
+"The endorheic share of land" names two different measurements that differ by
+a large factor:
 
-- **12.4% of land** is inside a preserved basin (`is_endorheic` cell area). This
-  is the lithology and thermostat figure.
-- **43.0% of land** *drains* to a closed basin. This is the hydrography figure
+- the share of land *inside* a preserved basin (`is_endorheic` cell area) --
+  the lithology and thermostat figure;
+- the share of land that *drains* to a closed basin -- the hydrography figure
   and the one the carve verdict is about.
 
-Both are correct. A basin's catchment is far larger than its floor, which is the
+Both are correct, both move with the carve, and their current values live in
+`world_state.json` under separate names. A basin's catchment is far larger than its floor, which is the
 whole reason a small area of fill can decouple a large share of weathering. They
 are named apart in `world_state.json`; quote the name, never "the endorheic
 share".
@@ -710,8 +715,9 @@ and then stop thinking about it.
 
 ## 21. A wait condition that matches itself
 
-Found 2026-08-17. Trivial mechanically, and it cost more wall clock than any
-defect in this file, because the failure mode is silence.
+Found 2026-08-17. Trivial mechanically, and expensive out of all proportion
+to its content, because the failure mode is silence: nothing errors, nothing
+progresses, and nothing prompts a look.
 
 Waiting for a build with
 

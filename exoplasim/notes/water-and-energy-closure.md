@@ -381,7 +381,8 @@ spread across orbits is 0.074, not the +/- 0.010 that three earlier runs
 suggested. It was never that constant; the earlier agreement was three samples of
 a noisy quantity, all taken under the same defective output path.
 
-**Three of the four channels close, and the fourth is the answer.**
+**Of the four channels -- radiative, sensible, latent, and the melt booking
+-- three close; the latent one does not, and its failure is the answer.**
 
 | channel | from the terms | from the fluxes | difference |
 | --- | ---: | ---: | ---: |

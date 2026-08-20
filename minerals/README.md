@@ -122,8 +122,8 @@ outpacing water-table descent, and because erosion answers to rainfall and slope
 TOGETHER, a rainfall cap was the wrong shape of term and not merely the wrong
 number.
 
-**That same sentence supplied the laterites' missing relief term**, which is why
-one paper closed three gaps. Bauxite and nickel laterite now carry a 5 degree
+**A second paper in the same anniversary volume supplied the laterites'
+missing relief term**, so the two papers between them closed all three gaps. Bauxite and nickel laterite now carry a 5 degree
 upper bound on regional dip, from the planation surfaces Freyssinet et al. (2005)
 p. 685 measure bauxite on; the field is `lib/orogen.py:local_slope_deg`, a plane
 fit through each region and its neighbours rather than a steepest drop to one,

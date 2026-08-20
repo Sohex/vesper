@@ -56,8 +56,8 @@ a climate run has consumed it -- is one case of the general rule, and the
 general rule is this. **What
 is durable is what the world is RECONSTRUCTED FROM; everything else is
 output.** The durable set is small and complete: the planet code and seed,
-the carve list, `config/planet.yaml`, the code, and the decisions and
-findings about MECHANISMS. Given those, every other artifact in this
+the carve list, `config/planet.yaml`, the code, the build recipe in
+`source/README.md`, and the decisions and findings about MECHANISMS. Given those, every other artifact in this
 repository can be regenerated, which is why **an upstream change makes
 everything below it worthless rather than stale** -- there is nothing to
 reconcile, migrate or carry with a caveat, and the question after any change

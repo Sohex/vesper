@@ -70,10 +70,9 @@ do not renumber.
    upstream change therefore makes everything below it worthless rather than
    stale, and the question after any change is "what is now worthless", never
    "what needs updating". The durable set is small and complete: the planet
-   code and seed, the carve list, `config/planet.yaml`, the code, and the
-   decisions and findings about MECHANISMS. A build is DISPOSABLE until a
-   climate run has consumed it, and what must survive either way is the recipe,
-   in `source/README.md`. `docs/src/reference/builds.md` has the argument.
+   code and seed, the carve list, `config/planet.yaml`, the code, the build
+   recipe in `source/README.md`, and the decisions and findings about
+   MECHANISMS. A build is DISPOSABLE until a climate run has consumed it. `docs/src/reference/builds.md` has the argument.
 8. **Before an expensive run**, and after changing `source_build`:
 
        python scripts/check_consistency.py     # do the artifacts agree?
@@ -229,7 +228,7 @@ convention), `orbit.py` (orbital period), `stellar.py` (spectrum, band split,
 Rayleigh coefficient), `sensitivity.py` (the one flux-to-kelvin conversion),
 `climatology.py` (time-bin weights), `lapse.py` (lapse rates),
 `surface_classes.py` (derived surface classes BY NAME), `provenance.py` (build
-stamping and config drift). Rules 5 and 7 both cite modules from this list.
+stamping and config drift). Rule 5 cites `builds.py` and `provenance.py` from this list.
 
 Git does not track `exoplasim/runs/` (model output; but `runs/INDEX.json` IS
 tracked, and since run ids are UUIDs it is the only record of what each run

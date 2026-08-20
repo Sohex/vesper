@@ -45,7 +45,7 @@ on the 2.5M-region mesh where they are properly resolved. The GCM question is
 narrower, namely whether the largest hundred or so perturb the climate enough to
 matter.
 
-## Three levers, in increasing cost
+## Four levers, in increasing cost
 
 ### 1. Surface-property perturbation, no patch required
 

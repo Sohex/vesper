@@ -5,10 +5,11 @@
 reads this directory at build time; `rebuild_binaries.py` compiles whatever is
 in the subtree.
 
-What they are is the AUTHORED RECORD: the header of each file argues the defect,
-gives the evidence, and names the base it was written against. Nine of them
-carry between thirty and two hundred lines of that, and it exists nowhere else
-in this repository -- the subtree is imported with `--squash`, so the fork's
+What they are is the AUTHORED RECORD: a patch's header argues the defect,
+gives the evidence, and names the base it was written against. Twelve of the
+eighteen carry between thirty and two hundred lines of that; the other six
+open directly with the diff, and their argument lives only in the notes that
+cite them. Either way it exists nowhere else in this repository -- the subtree is imported with `--squash`, so the fork's
 per-change commit messages are not visible from here.
 
 So this directory answers "why is the model like that", and the subtree answers

@@ -61,24 +61,24 @@ So of the four things this note predicted:
 The relief prediction was right and the mechanism behind it was wrong, which is
 the least useful way to be right.
 
-## What it does invalidate
+## What it requires
 
-Orogen scales maximum terrain relief as 1/g. The geography in `source/` therefore
-cannot be separated from the gravity it was generated with -- `CLAUDE.md` already
-says this, in the context of gravity being canonical rather than derived. The
-change requires:
+Orogen applies the 1/g relief scaling only at export (the correction above),
+so the gravity change itself moves no hash and no basin id. What it requires:
 
-1. **A fresh base terrain generation** at the new gravity. Every build in
-   `source/` is superseded, including `carved-zoned-v5`.
-2. **A new basin catalogue.** Basin ids are stable across carve iterations
-   because detection runs on the pre-conditioning surface, but that surface moves
-   when relief scales, so `basinCatalogue` will not be `2d1f8e57` any more. No
-   existing carve verdict transfers.
-3. **The full geography loop again**: hydrography, boundary conditions, climate,
-   carve verdict. The methods and the tooling all survive; the numbers do not.
-4. **A re-derived flux.** Relief affects land albedo through lithology exposure
-   and affects circulation through orography, so the baseline flux has to be
-   re-measured rather than carried over.
+1. **A re-export at the new gravity** -- delivered here as a fresh base
+   generation, because the request bundles the crust/fill zoning and the
+   cover-chain fix, and those changes, not gravity, are what can move the
+   terrain hash and the basin catalogue.
+2. **Recomputed carve verdicts**, as an accuracy choice rather than a forced
+   restart: relief compresses by about 20% and the water balance follows the
+   climate.
+3. **The full geography loop again** on the new base: hydrography, boundary
+   conditions, climate, carve verdict. The methods and the tooling all
+   survive.
+4. **A re-derived flux.** Relief affects land albedo through lithology
+   exposure and affects circulation through orography, so the baseline flux
+   has to be re-measured rather than carried over.
 
 The pedology and biosphere chains survive as method. Their calibrations should be
 revisited against a mantle that is not Earth's, per the differentiation point
@@ -104,8 +104,10 @@ the terrain is the thing that takes time.
 
 When the build lands, in order:
 
-1. Register the hash in `lib/orogen.py`; expect `basinCatalogue` to have moved,
-   which invalidates every carve verdict rather than merely ageing it.
+1. Register the hash in `lib/orogen.py`. If the zoning or the cover-chain fix
+   moved `basinCatalogue`, every carve verdict is invalidated rather than
+   merely aged; a pure gravity change would have moved neither (the
+   correction above).
 2. Edit `planet.yaml`: `gravity_m_s2` 12.81, `mass_earth` 1.881009,
    `source_build` to the new build.
 3. `python scripts/check_consistency.py`, which will list everything stale.

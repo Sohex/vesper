@@ -477,10 +477,12 @@ as dust-independent.
 The two rows are not the same experiment and the earlier reading of this table
 treated them as one. A runoff cut arrives through the criterion's denominator
 alone; a lake evaporation rise arrives through its numerator, where it is worth
-about 1.3x more per percent. The runoff row is also nearly independent of which
-side of the water balance moved -- a 10% cut delivered by precipitation gives 143
-basins and one delivered by land evaporation gives 139 -- which is what makes it
-usable as a currency.
+about 1.3x more per percent. A 10% runoff cut delivered by precipitation gives 143
+basins and one delivered by land evaporation gives 139 -- nearly independent of
+which side of the water balance moved, which is what makes the DELIVERED form
+usable as a currency. It is not a denominator effect: the delivery path moves
+the numerator too, and the denominator alone is worth about 7 basins per 10%,
+as measured below.
 
 **The DIRECTION is open, and a first reading of it here was wrong.** That reading
 took the top-of-atmosphere forcing -- +8.2 W/m2 over playa, +10.8 over salt crust

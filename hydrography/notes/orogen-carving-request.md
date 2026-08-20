@@ -391,15 +391,16 @@ Recorded so it is not attempted again.
 
 ## The dry basins are the interesting result
 
-1,248 basins have **zero catchment runoff**. They cannot overflow, so they survive
-as dry pans rather than lakes. That is 34% of all basins and it agrees
+1,248 basins have **zero catchment runoff**. That is 34% of all basins and it agrees
 independently with the lithology: evaporite is 20.8% of this planet's land, and
 evaporite forms in closed basins. Two separate models, terrain chemistry and
 climate, arriving at the same picture.
 
-Surviving endorheic terrain therefore splits in two: roughly 1,250 salt pans that
-never hold standing water, and roughly 940 basins with real lakes totalling about
-1% of the planet's surface.
+The two classes of surviving endorheic terrain overlap rather than split:
+1,248 basins with zero catchment runoff, 962 holding a real lake above 1 km2
+(together about 1% of the planet's surface), and about a hundred basins in
+both -- zero-runoff floors whose lake is fed by rain on its own surface. So
+zero catchment runoff does not by itself rule out standing water or overflow.
 
 ## What we are not sending yet
 
@@ -408,7 +409,7 @@ this verdict inherits an assumed biosphere: the vegetated land surface was chose
 not modelled, and the albedo bracket showed that choice is worth 3.7 to 7.1 K,
 which flows straight into precipitation, evaporation and runoff here.
 
-The 1,549 basins that carve under both estimates are robust to the evaporation
+The 1,522 basins that carve under both estimates are robust to the evaporation
 question, though not to the vegetation one. They are a defensible first list if
 the terrain iteration should start now, with the remainder settled on the second
 pass once LPJ-GUESS has replaced the assumption.

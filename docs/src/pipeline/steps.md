@@ -30,10 +30,12 @@ Land comes from `surface_class`, never from `land_mask`. The two disagree over
 dry closed-basin floor below sea level -- `manifest.landSeaMask` has the size
 of the disagreement -- and `land_mask` would flood it (CLAUDE.md rule 1).
 
-Seven surface fields are supplied. Topography (129), land mask (172),
+Seven surface fields are always supplied: topography (129), land mask (172),
 roughness (173), broadband and two-band albedo (174, 175, 176) and forest
-fraction (212), with soil water capacity (229) when `model.soil_water_source`
-is set.
+fraction (212). Three more are conditional on model keys: soil water capacity
+(229, `model.soil_water_source`), the dust radiative source (1811,
+`model.dust_source`), and the dust emission fields (1801,
+`model.dust_emission`).
 
 Roughness is measured from land cover and subgrid relief rather than
 asserted uniform, with its land mean anchored to the model's tuned default so

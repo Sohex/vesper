@@ -264,9 +264,10 @@ climate keeps overflowing:
 The dependence is steep and monotone: as the aridity threshold rises from humid
 to hyper-arid, the number of basins that carve falls by more than two orders of
 magnitude while the endorheic share of land rises from under a tenth to roughly
-three quarters. `probe_runoff_response.py` emits the table for the build in
-hand; it is not reproduced here, because the counts belong to whichever terrain
-produced them and the SHAPE is the point being made.
+three quarters. The counts are not reproduced here, because they belong to
+whichever terrain produced them and the SHAPE is the point being made; no
+registered step emits the sweep today, so re-derive it from `carve_verdict.py`
+at varied aridity when a build needs it.
 
 Regenerating it means running
 `carve_verdict.py` against the carved terrain, and that is an iteration-2 carve
@@ -283,7 +284,7 @@ Median here is 3.03 on the carved terrain, meaning the typical basin overflows
 unless evaporative demand over open water exceeds about three times the runoff
 depth. Earth's
 surviving endorheic basins sit well above that, which is why Earth keeps only
-13%. `carve_verdict()` in `lake_balance.py` applies it.
+about one-fifth. `carve_verdict()` in `lake_balance.py` applies it.
 
 ## What this component cannot fix
 
