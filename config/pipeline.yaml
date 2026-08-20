@@ -556,6 +556,7 @@ one_offs:
   - exoplasim/scripts/corrk_cross_check.py
   - exoplasim/scripts/predict_ocean_terms.py
   - exoplasim/scripts/score_rank_bench.py
+  - exoplasim/scripts/reproducibility_matrix.py
   - exoplasim/scripts/reset_restart_accumulators.py
   - hydrography/scripts/validate_lake_solver.py
   - hydrography/scripts/lake_balance.py

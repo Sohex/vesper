@@ -1,0 +1,287 @@
+#!/usr/bin/env python3
+"""Is the climate model run-to-run reproducible, and what decides it?
+
+    python exoplasim/scripts/reproducibility_matrix.py <bed_dir> [--repeats 3]
+    python exoplasim/scripts/reproducibility_matrix.py --plan
+
+Worldbuilding. Vesper is an invented planet and this script is about the
+simulation of it: whether the climate model gives the same bytes twice from the
+same inputs. Nothing here is a claim about the world.
+
+CLIM-44. This exists because two measurements of this project's own model
+disagree, and every A/B this project runs depends on which of them is general:
+
+- CLIM-39, at T42 L10 on **8 ranks** with output ON, found gridpoint output
+  bit-identical at 1 timestep and DIFFERENT by 16, and found `plasim_status`
+  different between two runs of one binary even at 1 timestep.
+- The build-flag benchmark (`notes/audits/aocl-and-model-build-flags.md`), at
+  T42 L10 on **16 ranks** with `NOUTPUT = 0`, found `plasim_status`
+  BIT-IDENTICAL across about 48 repeats spanning four distinct binaries.
+
+So the model is not non-reproducible in general, and the question is what makes
+the difference. Two candidates were already named in the task row -- rank count
+and whether the segment writes output -- and reading the source before running
+anything added a third that outranks both.
+
+## The third candidate, and why it is first
+
+**The CLIM-39 measurement was taken on a tree that does not contain the
+`zsolars` fix.** `git merge-base --is-ancestor 80f11e9 b43f17e` is false: the
+worktree branched before the toolchain commit that fixed it.
+
+Before that fix, `radstop` wrote the two solar constants through `mpputgp`,
+which gathers `NHOR` elements per rank from an array holding 2 and writes a
+record of `NUGP` doubles -- 8190 of them memory past the end of `zsolars(2)`.
+`notes/audits/zsolars-restart-overread.md` has the measurement, including the
+part that matters here: those bytes are stable only because `-finit-real=zero`
+holds them, and the `-flto` arm returned a different restart sha on every one
+of five runs from one binary on one input.
+
+That is a complete and sufficient explanation for the `plasim_status` half of
+CLIM-39's observation, and it is ALREADY FIXED. It does not explain the
+gridpoint-output half, because nothing reads the record back and the audit
+establishes the integration is untouched by it.
+
+## What this measures
+
+A full factorial, because the three candidates are not nested and a one-factor
+sweep would confound whichever two it holds fixed:
+
+| factor | levels |
+| --- | --- |
+| ranks | 8, 16 |
+| output | `NOUTPUT`/`NSNAPSHOT` 0, or the production 1 |
+| steps | 1, 16 |
+
+Every cell is run `--repeats` times from the SAME restart, and the comparison
+is between repeats of one cell -- one binary, one input, one configuration. A
+cell is REPRODUCIBLE if every repeat agrees bit for bit on every artifact it
+produced, and NOT otherwise. There is no tolerance and no threshold to choose:
+bytes are equal or they are not.
+
+## Declared before running, so the reading cannot be fitted
+
+Each hypothesis owns a pattern, and the matrix can refute all three:
+
+- **H1, writing output is what does it.** Cells at `NOUTPUT = 0` reproduce and
+  cells at `NOUTPUT = 1` do not, at BOTH rank counts.
+- **H2, MPI reduction ordering at 8 ranks.** Cells at 8 ranks do not
+  reproduce and cells at 16 ranks do, at both output settings.
+- **H3, it was the `zsolars` overread and it is already fixed.** Every cell
+  reproduces, including 8 ranks with output on at 16 steps, which is CLIM-39's
+  own configuration.
+
+H3 is the one to try hardest to refute, because it is the comfortable answer
+and because it is the only one that would let this project go back to
+expecting bit-identity. If H3 holds, the standing instruction that every A/B
+must establish its own reproducibility horizon is still right -- it just costs
+one control run rather than a bound on every claim.
+
+A cell that reproduces at 1 step and not at 16 refutes none of the three on its
+own: it separates the model's INTEGRATION from its initialisation, and it is
+reported as its own column rather than folded into the verdict.
+
+## What it does not measure
+
+Whether a run that diverges diverges CHAOTICALLY. CLIM-39 established that
+separately -- 2.4e-6 relative in the first differing record growing to order 1 --
+and a byte comparison cannot see it. If a cell fails here, that is the next
+measurement and not this one.
+"""
+
+from __future__ import annotations
+
+import argparse
+import datetime
+import hashlib
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+from itertools import product
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _paths import ANALYSIS, PROJECT_ROOT  # noqa: E402
+
+OUTPUT = ANALYSIS / "reproducibility_matrix.json"
+
+RANKS = (8, 16)
+OUTPUT_LEVELS = (0, 1)
+STEPS = (1, 16)
+
+# Artifacts compared between repeats. Missing ones are recorded as missing
+# rather than skipped, so a cell that silently stopped producing output cannot
+# pass by having nothing to disagree about.
+ARTIFACTS = ("plasim_status", "plasim_output", "plasim_snapshot", "plasim_diag")
+
+HYPOTHESES = {
+    "H1_output_writing": "NOUTPUT = 0 reproduces, NOUTPUT = 1 does not, at both rank counts",
+    "H2_rank_reduction_order": "8 ranks does not reproduce, 16 ranks does, at both output settings",
+    "H3_zsolars_already_fixed": "every cell reproduces, CLIM-39's own configuration included",
+}
+
+
+def sha256(path: Path) -> str | None:
+    if not path.exists():
+        return None
+    h = hashlib.sha256()
+    with path.open("rb") as fh:
+        for chunk in iter(lambda: fh.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def set_namelist(path: Path, **keys: int) -> None:
+    """Rewrite `plasim_namelist` keys in place, preserving everything else."""
+    text = path.read_text(encoding="utf-8")
+    for key, value in keys.items():
+        pattern = re.compile(rf"^(\s*{key}\s*=\s*)\S+\s*$", re.M | re.I)
+        if not pattern.search(text):
+            raise SystemExit(f"{key} is not in {path.name}; refusing to add it, "
+                             "because a key this script invents is a key the bed "
+                             "was not measured with")
+        text = pattern.sub(rf"\g<1>{value} ", text)
+    path.write_text(text, encoding="utf-8")
+
+
+def run_cell(bed: Path, work: Path, ranks: int, noutput: int, steps: int) -> dict:
+    if work.exists():
+        shutil.rmtree(work)
+    shutil.copytree(bed, work, symlinks=True)
+
+    set_namelist(work / "plasim_namelist",
+                 N_RUN_STEPS=steps, NOUTPUT=noutput, NSNAPSHOT=noutput)
+
+    binary = f"most_plasim_t42_l10_p{ranks}.x"
+    if not (work / binary).exists():
+        raise SystemExit(f"{binary} is not in the bed. ExoPlaSim compiles one "
+                         "executable per (resolution, layers, ranks) triple; "
+                         "CLAUDE.md rule 4.")
+
+    started = datetime.datetime.now(datetime.timezone.utc)
+    proc = subprocess.run(["mpiexec", "-np", str(ranks), f"./{binary}"],
+                          cwd=work, capture_output=True, text=True)
+    elapsed = (datetime.datetime.now(datetime.timezone.utc) - started).total_seconds()
+
+    if (work / "Abort_Message").exists() or proc.returncode != 0:
+        raise SystemExit(f"the model aborted at ranks={ranks} noutput={noutput} "
+                         f"steps={steps} (rc {proc.returncode})\n"
+                         f"{proc.stdout[-2000:]}\n{proc.stderr[-2000:]}")
+
+    return {"seconds": round(elapsed, 2),
+            "sha256": {name: sha256(work / name) for name in ARTIFACTS}}
+
+
+def score(cells: dict) -> dict:
+    """Which hypothesis survives. Patterns are the ones declared above."""
+    repro = {key: cell["reproducible"] for key, cell in cells.items()}
+
+    def all_of(pred, want):
+        return all(v is want for k, v in repro.items() if pred(k))
+
+    def part(key, i):
+        return int(key.split("_")[i])
+
+    verdict = {
+        "H1_output_writing": (all_of(lambda k: part(k, 1) == 0, True)
+                              and all_of(lambda k: part(k, 1) == 1, False)),
+        "H2_rank_reduction_order": (all_of(lambda k: part(k, 0) == 8, False)
+                                    and all_of(lambda k: part(k, 0) == 16, True)),
+        "H3_zsolars_already_fixed": all(repro.values()),
+    }
+    survivors = [k for k, v in verdict.items() if v]
+    return {"per_hypothesis": verdict,
+            "survivors": survivors,
+            "reading": (survivors[0] if len(survivors) == 1 else
+                        "NONE of the declared hypotheses matches the pattern; "
+                        "the cause is something the matrix did not vary")}
+
+
+def main() -> None:
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap.add_argument("bed", nargs="?", type=Path,
+                    help="a run directory holding the namelists, the .sra "
+                         "inputs, plasim_restart and the T42 executables")
+    ap.add_argument("--repeats", type=int, default=3,
+                    help="repeats per cell; two is the minimum that can "
+                         "disagree and three separates one odd run from a "
+                         "cell that never repeats")
+    ap.add_argument("--work", type=Path, default=None,
+                    help="scratch directory for the run copies")
+    ap.add_argument("--plan", action="store_true",
+                    help="print the matrix and the declared readings, run nothing")
+    args = ap.parse_args()
+
+    cells = list(product(RANKS, OUTPUT_LEVELS, STEPS))
+    if args.plan:
+        print(f"{len(cells)} cells x {args.repeats} repeats "
+              f"= {len(cells) * args.repeats} model runs\n")
+        for ranks, noutput, steps in cells:
+            print(f"  ranks={ranks:2d}  NOUTPUT={noutput}  steps={steps:2d}")
+        print("\ndeclared readings:")
+        for name, pattern in HYPOTHESES.items():
+            print(f"  {name}: {pattern}")
+        return
+
+    if args.bed is None:
+        ap.error("a bed directory is required unless --plan is given")
+    bed = args.bed.resolve()
+    if not (bed / "plasim_restart").exists():
+        raise SystemExit(f"{bed} has no plasim_restart; this measures a RESUME, "
+                         "because a cold start seeds its RNG from the clock "
+                         "(plasim.f90 initrandom) and would be non-reproducible "
+                         "by construction rather than by defect")
+
+    work_root = (args.work or bed.parent / "work").resolve()
+    work_root.mkdir(parents=True, exist_ok=True)
+
+    results = {}
+    for ranks, noutput, steps in cells:
+        key = f"{ranks}_{noutput}_{steps}"
+        repeats = []
+        for i in range(args.repeats):
+            print(f"  ranks={ranks:2d} NOUTPUT={noutput} steps={steps:2d} "
+                  f"repeat {i + 1}/{args.repeats}", flush=True)
+            repeats.append(run_cell(bed, work_root / f"{key}_{i}", ranks, noutput, steps))
+
+        first = repeats[0]["sha256"]
+        disagreeing = sorted(name for name in ARTIFACTS
+                             if any(r["sha256"][name] != first[name] for r in repeats))
+        produced = sorted(name for name in ARTIFACTS if first[name] is not None)
+        results[key] = {
+            "ranks": ranks, "noutput": noutput, "steps": steps,
+            "repeats": repeats,
+            "artifacts_produced": produced,
+            "artifacts_disagreeing": disagreeing,
+            "reproducible": not disagreeing,
+        }
+        print(f"    -> {'reproducible' if not disagreeing else 'DIFFERS on ' + ', '.join(disagreeing)}"
+              f"  (produced {', '.join(produced) or 'nothing'})", flush=True)
+
+    report = {
+        "generated": datetime.datetime.now(datetime.timezone.utc)
+                             .replace(microsecond=0).isoformat(),
+        "generator": "exoplasim/scripts/reproducibility_matrix.py",
+        "task": "CLIM-44",
+        "bed": str(bed),
+        "repeats": args.repeats,
+        "host_cpu_count": os.cpu_count(),
+        "model_source": subprocess.run(
+            ["git", "log", "-1", "--format=%H %s", "--", "vendor/exoplasim"],
+            cwd=PROJECT_ROOT, capture_output=True, text=True).stdout.strip(),
+        "hypotheses": HYPOTHESES,
+        "cells": results,
+        "verdict": score(results),
+    }
+    OUTPUT.parent.mkdir(parents=True, exist_ok=True)
+    OUTPUT.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+
+    print(f"\nverdict: {report['verdict']['reading']}")
+    print(f"wrote {OUTPUT.relative_to(PROJECT_ROOT)}")
+
+
+if __name__ == "__main__":
+    main()
