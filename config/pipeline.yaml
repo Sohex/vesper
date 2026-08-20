@@ -393,11 +393,12 @@ steps:
     writes: ["source/{build}/"]
     gate: >
       the carve gate: nothing outstanding may still move an artifact the verdict
-      is computed from. READ TASKS.md AND DECIDE. This is deliberately not
-      computed: 58% of the graph is upstream of carve_list, so "touches an
-      upstream step" selected 10 of 11 open rows and decided nothing. The one
-      row it excluded said "blocked on the downscaling pass" in its own status,
-      which is the tell -- the discrimination was always in the prose.
+      is computed from. READ TASKS.md AND DECIDE. Deliberately not computed, and
+      not because a filter over `[step: <id>]` markers performed badly -- because
+      it answers a different question. Whether a row still moves the verdict is a
+      fact about what closing it would CHANGE, which is its prose; a marker
+      records where the work is filed. A task can name an upstream step and move
+      nothing, being deferred, a bound, or blocked on something after the carve.
 
   - id: weathering_fluxes
     script: pedology/scripts/weathering_fluxes.py

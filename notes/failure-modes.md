@@ -796,3 +796,47 @@ date on it: the second copy is not maintained by whoever extends the first, and
 nothing in the tooling connects them. The same bug had already hit the stellar
 spectrum on this file once, and the fix then was to add the missing call rather
 than to remove the duplication, which is why it recurred twice.
+
+## 23. Settling a conceptual question by measuring it
+
+A thing that should not exist is not refuted by measuring how badly it performs,
+and measuring it is worse than saying nothing, because the measurement records
+the wrong reason and the wrong reason expires.
+
+**What happened, 2026-08-19.** `pipeline.py` read `TASKS.md` to print a "carve
+gate": the open tasks whose `[step: <id>]` marker named a step upstream of
+`carve_list`. Two fixes were attempted, in order, and both were answers to
+questions nobody had asked.
+
+The first moved the parsing into a new `scripts/carve_gate.py`, so that the
+graph tool read no tracker. That fixed the coupling and left the machinery
+standing.
+
+The second deleted the script, and justified it by counting: 58% of the graph
+was upstream of the carve, so the filter selected 10 of 11 open rows. The
+deletion was right. **The justification was not, and it was the more damaging
+half**, because it framed a category error as a performance problem. A
+justification by ratio says the thing would be fine at a better ratio, so it
+licenses the return of exactly what it removed, and the count that supports it
+goes stale within an iteration -- see the first convention in `CLAUDE.md`, which
+this violated in five files at once while being quoted elsewhere in the same
+session.
+
+**The actual argument, which does not contain a number.** The gate asks whether
+any outstanding work still moves an artifact the verdict is computed from. That
+is a fact about what closing a row would CHANGE, and it lives in the row's
+prose. A `[step: <id>]` marker records where the work is FILED. A task can name
+an upstream step and move nothing -- it is deferred, or it is a bound, or it is
+blocked on something that happens after the carve. So the marker does not
+determine the answer, at any count, and a traversal over markers cannot compute
+the gate however well it appears to score.
+
+**The tell.** You reach for a measurement to decide whether something should
+exist. Before running it, ask what the number would have to be to change the
+conclusion. If no value would -- if you would delete it at 10 of 11 and also at
+3 of 11 -- then the question was never empirical, and the measurement is
+decoration that will later be quoted as the reason.
+
+**Related but distinct.** Class 16 is tuning physics to a metric. Class 17 is a
+check that cannot fail. This is the inverse of 17: a check that CAN fail,
+performed on a question where failure and success were both irrelevant.

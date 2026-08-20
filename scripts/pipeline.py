@@ -63,11 +63,13 @@ tracker, so nothing written in `TASKS.md` can change what it reports.
 It used to, to print a carve gate -- "open tasks touching a step upstream of
 `carve_list`" -- and that was wrong twice over. A regex over human-written
 markdown sat inside the pipeline planner, so editing a status cell changed what
-the planner said about the pipeline. And the gate did not discriminate: 58% of
-the graph is upstream of the carve, so it selected 10 of 11 open rows and
-decided nothing, while making the judgement look computed. The gate is a
-judgement made by READING `TASKS.md` before carving; `config/pipeline.yaml`
-states it against the `orogen` step.
+the planner said about the pipeline. And the gate answered a different question
+from the one it named: whether a row still moves the verdict depends on what
+closing it would CHANGE, which is the row's prose, while a `[step: <id>]` marker
+records where the work is filed. No traversal turns the second into the first,
+so the output looked decided while deciding nothing. The gate is a judgement
+made by READING `TASKS.md` before carving; `config/pipeline.yaml` states it
+against the `orogen` step.
 """
 
 from __future__ import annotations

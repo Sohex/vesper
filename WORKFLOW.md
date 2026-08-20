@@ -716,13 +716,15 @@ wholesale -- and it is not a computation. **Read `TASKS.md` and decide.** The
 open set is around a dozen rows and each says what it is waiting on.
 
 It was briefly computed, as "open tasks touching a step upstream of
-`carve_list`", and the arithmetic is why that was abandoned: 58% of the graph
-is upstream of the carve, so the filter selected 10 of 11 open rows. The single
-row it dropped was already marked blocked on the downscaling pass. A filter
-that reproduces its input is not a gate, and dressing the judgement as a script
-made it look decided when nothing had been decided. A task's `[step: <id>]`
-marker stays, as the annotation it always was: where the work lands, not a
-verdict on whether it blocks.
+`carve_list`", and that was a category error rather than a filter that needed
+tuning. Whether a row still moves the verdict is a fact about what closing it
+would CHANGE, and that lives in the row's prose. The `[step: <id>]` marker
+records where the work is FILED. A task can name an upstream step and move
+nothing -- deferred, a bound, blocked on something that happens after the carve
+-- so no traversal converts the second fact into the first. The filter would
+have been wrong however few rows it returned, and worse than wrong for looking
+decided. The marker stays, as the annotation it always was: where the work
+lands, not a verdict on whether it blocks.
 
 The three at the top and the two at the bottom are the ones most often skipped
 and the ones that cost most when they are: `rebuild_binaries.py --verify`

@@ -37,12 +37,13 @@ Status: `open` | `doing` | `blocked` | `done` | `wontfix` (with a reason).
   deleted. The reasoning is the point, and it goes to the archive.
 - **A task names the step it touches**, as `[step: <id>]` in its status column,
   where the id is from `config/pipeline.yaml`. It says WHERE the work lands and
-  is annotation, not a verdict: the carve gate is a judgement made by reading
-  this file, not a computation over these markers. Computing it was tried and
-  removed -- 58% of the graph is upstream of `carve_list`, so the filter
-  returned 10 of 11 open rows and decided nothing. `pipeline.py` reads no
-  tracker, so nothing written here can change what the pipeline planner
-  reports. A task that names none is not ignored -- it is
+  is annotation, not a verdict. The carve gate -- does anything outstanding
+  still move what the verdict is computed from -- is a judgement made by reading
+  this file, because the answer is what closing a row would CHANGE and that is
+  in the row's own prose. Computing it from these markers was tried and removed:
+  a marker names a location, not an effect, so the two are not interchangeable
+  at any count. `pipeline.py` reads no tracker, so nothing written here can
+  change what the pipeline planner reports. A task that names none is not ignored -- it is
   reported as a RESIDUAL to be arbitrated, because the graph narrows the
   judgement and does not replace it. Name more than one where it applies.
   A row whose status begins `done` or `wontfix` is spent, wherever it sits;
