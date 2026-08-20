@@ -147,6 +147,10 @@ The arguments and the incidents behind these are in
 - **Findings and tasks are kept apart.** A document under `notes/audits/` says
   what is true and carries its evidence; `TASKS.md` says what to do about it
   and cites the document.
+- **No poison seeds.** Do not print what a rule forbids, announce tensions
+  between rules, or leave untracked "worth checking" loops: state the
+  positive form, the decision procedure, and a task row.
+  `docs/src/practice/failure-modes.md` class 26.
 
 ## Working agreements
 

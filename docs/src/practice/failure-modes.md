@@ -881,3 +881,23 @@ none, it goes, however true it is. Git already records the how; keeping it in
 the document as well is the failure. The one-line cost history that
 calibrates a rule, the measured-on date, the pre-registered threshold and the
 status label are not this class: each changes how a reader acts.
+
+## 26. A poison seed
+
+A line that is true, brief, and harmless on its face, but that reliably
+steers a reader who has it in context toward a documented antipattern -- the
+attractor is the problem, not the content. The proven mechanisms: a
+prohibition that prints the thing it forbids, which re-supplies the material
+on every load (the vocabulary rule's first version did exactly this); a rule
+system that announces its own tensions, which converts work into adjudication
+of the rules instead of use of them; an exception stated more vividly than
+its rule, which teaches the exception; a prediction that the reader will
+fail, which reads as permission to; an untracked "worth checking someday",
+which recruits sessions into work nothing asked for; and tool output whose
+form outruns its content -- a formatted summary that reads as a verdict. The
+test is not the sentence's truth but its expected effect over many loads.
+The defusals are mechanical: state the positive form and put specifics behind
+a pointer; replace announced tension with the decision procedure that
+resolves it; fence an exception with the condition that licenses it; convert
+an open loop to a task row or delete it; make tool output state what it is
+and is not.
