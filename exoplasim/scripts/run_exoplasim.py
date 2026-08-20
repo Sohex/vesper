@@ -1138,6 +1138,25 @@ def main() -> None:
              "'--map-by pe-list=0,1,2,3,4,5,6,7:ordered --bind-to core'. The "
              ":ordered qualifier is load-bearing -- without it the ranks share "
              "one pool instead of getting a core each")
+    # DIAGNOSTIC. The model writes an output record every `nafter` timesteps and
+    # defaults to one per EARTH day, 32 steps of 45 minutes. This planet's day is
+    # 30 hours, which is exactly 40 steps, so the default samples the diurnal
+    # cycle at a 32/40 = 4/5 ratio: consecutive records advance the phase by
+    # four fifths of a day and land on FIVE PHASES, forever. The regular output's
+    # annual mean therefore carries a fixed aliasing bias, while the ocean and
+    # ice streams accumulate every step and do not. CLIM-11.
+    #
+    # Choose a value coprime with the 40-step day to spread the sampling over
+    # all forty phases -- 37 or 39 -- and the bias should collapse if that is
+    # what it is. Diagnostic only: it changes what is written, not what is
+    # integrated, but it moves the record count and so the climatology.
+    parser.add_argument(
+        "--writes-per-day", type=int, default=None,
+        help="NWPD, output records per day. The model derives its write "
+             "interval as nafter = mtspd / nwpd, so this is the control and "
+             "NAFTER is not a namelist key -- setting that one aborts the run "
+             "with `Cannot match namelist object name nafter`. Raising it "
+             "samples more diurnal phases")
     parser.add_argument(
         "--clean-io", dest="low_io", action="store_false", default=True,
         help="run this block at NLOWIO = 0, writing instantaneous samples "
@@ -1420,6 +1439,13 @@ def main() -> None:
               "patches/exoplasim-3.4.2-dust-emission.patch, the two aerosol "
               "patches under it, and a rebuild.")
 
+    if args.writes_per_day is not None:
+        if args.writes_per_day < 1:
+            raise ValueError("--writes-per-day must be positive")
+        model._edit_namelist("plasim_namelist", "NWPD",
+                             str(int(args.writes_per_day)))
+        print(f"NWPD = {args.writes_per_day} writes/day "
+              f"(default 1 samples 5 diurnal phases; see CLIM-11)")
     set_low_io(model, args.low_io)
     if enable_energy_diagnostics(model, config):
         n = register_energy_diagnostic_codes()

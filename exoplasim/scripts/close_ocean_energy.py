@@ -407,6 +407,27 @@ def close_ocean(run_dir: Path, first_orbit=None, last_orbit=None) -> dict:
     # pyburn's counts describe the orbit it binned.
     per_orbit = climatology.counts_for(
         climatology.infer_ntimes(binned_time), len(binned_time))
+    # THE TWO ARE WRITTEN ON DIFFERENT CADENCES AND ONLY COINCIDE AT NWPD = 1.
+    # The regular output writes every `nafter = mtspd / nwpd` steps; the ocean
+    # and ice streams follow their own counters and ignore nwpd entirely. At
+    # nwpd = 8 the regular output holds 1462 raw records an orbit and the
+    # streams still hold 182, so the tiling below stops describing anything.
+    # Reported rather than silently rescaled: a closure whose two sides sample
+    # at different rates is measuring the rates.
+    raw_per_orbit = int(per_orbit.sum())
+    stream_per_orbit = ice["xheat"].shape[0] / max(len(orbits), 1)
+    # A RATIO, not a difference. The two legitimately disagree by up to one
+    # record an orbit -- the year is not a whole number of write intervals, so
+    # the stream holds 183 in most orbits and 182 in about every fifth, and a
+    # mean over several orbits lands between them. What this is for is the
+    # eightfold gap a changed NWPD opens, so 10% separates the two cleanly.
+    if not 0.9 < stream_per_orbit / max(raw_per_orbit, 1) < 1.1:
+        raise SystemExit(
+            f"the regular output holds {raw_per_orbit} raw records an orbit and "
+            f"the streams hold {stream_per_orbit:.1f}; they are written on "
+            "different cadences, which happens whenever NWPD is not 1, and the "
+            "stream cannot tile bins it does not share a clock with. Re-run at "
+            "NWPD = 1, or compare the annual means directly instead.")
     # Records per bin across the WHOLE window, which the identity means below
     # weight by. One orbit's counts repeated per orbit.
     bin_records = np.tile(per_orbit, len(orbits)).astype(float)
