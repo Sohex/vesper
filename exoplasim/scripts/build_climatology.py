@@ -341,11 +341,25 @@ def main() -> None:
             "cannot be climatology input. Choose a range that excludes them.")
     tainted = low_io_orbits(run_dir, years)
     if tainted:
+        # The REASON here was superseded and the refusal was not. It used to say
+        # every low-I/O orbit carries a corrupt first output record in wind and
+        # humidity; that defect is fixed and verified per model call. What
+        # survives is an inequality rather than a bug -- low I/O writes interval
+        # ACCUMULATIONS where the clean regime writes instantaneous samples, and
+        # an accumulation cannot be undone, so variance, extremes and single
+        # records are gone from those orbits for good.
+        #
+        # One corrupt-record case does remain and is narrower: a run SEEDED with
+        # --restart-from opens on the donor's accumulator state, so its first
+        # output record is normalised against a count that includes another
+        # run's partial window. CLIM-31, and the segment records it as
+        # `first_record_tainted`.
         message = (
             f"orbits {tainted[0]}-{tainted[-1]} of {len(list(years))} were run "
-            "with PlaSim's low-I/O accumulation, so each carries a corrupt first "
-            "output record in wind and humidity. A climatology built from them "
-            "misstates every downstream wind.")
+            "with PlaSim's low-I/O accumulation, so each orbit holds interval "
+            "accumulations rather than instantaneous samples. A climatology "
+            "built from them has no variance, no extremes and no single "
+            "records, and that cannot be recovered afterwards.")
         if not args.allow_low_io:
             raise SystemExit(
                 message + "\n  Re-run those orbits without --low-io, or pass "

@@ -1557,6 +1557,14 @@ def main() -> None:
                 "low_io": bool(args.low_io),
                 "high_cadence": False,
                 "purpose": "spinup",
+                # CLIM-31. A seeded run opens with the donor's accumulator state,
+                # so under low I/O its FIRST output record is normalised against
+                # a count that includes another run's partial window -- the land
+                # mask, which cannot vary, reads 0.95341 there. Needs both
+                # conditions: a cold start is clean and clean I/O accumulates
+                # nothing. Recorded rather than inferred, so a consumer can
+                # refuse the orbit instead of rediscovering the constant.
+                "first_record_tainted": bool(args.low_io and restart_seed is not None),
                 "stellar_spectrum_digest": stellar_spectrum_digest(config),
                 "finished_utc": datetime.now(timezone.utc).isoformat(),
             })
