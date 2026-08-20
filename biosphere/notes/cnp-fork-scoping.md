@@ -73,13 +73,12 @@ Two consequences specific to Vesper:
   P-limited on Earth, not N-limited. Our texture model over-predicts clay by
   about a factor of two, but the *pattern* validated against Earth, so the
   wet-and-old parts of this planet are real.
-- **Endorheic drainage retains phosphorus.** P leached from an exorheic catchment
-  reaches the sea; in a closed basin it stays. This is the mirror image of the
-  carbonate-silicate thermostat result, where interior drainage *withholds*
-  alkalinity from the ocean and weakens the thermostat. The same geography that
-  degrades the thermostat should concentrate phosphorus, which predicts P-poor
-  uplands against P-rich basin floors -- a biome-scale pattern this pipeline can
-  derive rather than assert.
+- **Endorheic drainage retains phosphorus -- but that is the hydrological leg
+  only.** P leached from an exorheic catchment reaches the sea; in a closed
+  basin it stays. Aeolian transport from dry lake beds runs the other way and
+  partly refills the uplands (failure-modes class 8, `notes/dust.md`), so
+  expect a real but shallower upland-to-basin gradient -- a biome-scale
+  pattern this pipeline can derive rather than assert.
 
 ## Estimated work
 

@@ -1,8 +1,7 @@
 # Orogen has no time axis, and what to do about it
 
-Written 2026-08-17 because this keeps being rediscovered and re-litigated, once
-per component that needs a duration. It is settled. Read this instead of working
-it out again.
+This is rediscovered and re-litigated once per component that needs a
+duration. It is settled; read this instead of working it out again.
 
 ## The fact
 

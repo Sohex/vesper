@@ -38,10 +38,7 @@ ran with `10.1989 m s-2` and scaled the terrain's maximum relief as 1/g, so that
 value is a property of the geography rather than a free parameter, and mass
 follows from it: `1.4976 = (10.1989 / 9.80665) * 1.20^2` Earth masses.
 
-The earlier revision of this file declared 1.50 Earth masses and calculated
-`10.2152604 m s-2`, which is 0.16% away from the gravity the terrain was
-actually built under. Every run predating this change used the calculated value.
-`derive()` now reads `planet.gravity_m_s2` and refuses to run if
+`derive()` reads `planet.gravity_m_s2` and refuses to run if
 `planet.mass_earth` disagrees with it.
 
 The provisional star is an empirical K2V/K3V midpoint based on the Pecaut--
@@ -439,11 +436,10 @@ which does not help a compute-bound spectral model. `NLAT` must divide by the
 rank count, so at T42 the choices are 1, 2, 4, 8, 16, 32 and 64, and 16 leaves
 four latitudes per rank.
 
-Measured, not assumed. At 8 ranks the completed sweep averaged 1.86 to 2.70
-minutes per orbit across the three flux cases. The first 16-rank run took 1 minute
-44 seconds wall clock for the whole prepare, compile check, staging, one orbit and
-postprocessing, at 1411% CPU. So a 50-orbit spin-up is about two hours, not the
-days this note previously implied.
+At 8 ranks the completed sweep averaged 1.86 to 2.70 minutes per orbit across
+the three flux cases. The first 16-rank run took 1 minute 44 seconds wall
+clock for the whole prepare, compile check, staging, one orbit and
+postprocessing, at 1411% CPU, so a 50-orbit spin-up is about two hours.
 
 Changing the rank count changes the executable name, so ExoPlaSim rebuilds
 automatically; the T42 build takes about 15 seconds.
@@ -477,18 +473,10 @@ Note that `pr` and `evap` are in m s-1, not mm/day. The conversion is 86400 x 10
 `NGLACIER` was 0, ExoPlaSim's default, through the first prepare. It is now 1,
 with `GLACELIM` 2.0 m water equivalent and `ICESHEETH` -1.
 
-The reason is not the albedo, which snow already supplies: `dalb` is blended
-toward the snow value continuously with depth whether or not the glacier module
-runs. It is the orography. `glaciermod` keeps a lithographic and a glacier
-orography and sets the surface geopotential to their sum, so an ice sheet raises
-the ground it sits on and grows into its own cold. That is the feedback that
-decides whether a cold branch runs away, and the experiment in progress is
-specifically about whether this world has more than one stable state. Running it
-with the ice-sheet feedback switched off would answer a different question.
-
-Snow does not accumulate without limit in the absence of the module. `newsnow.f90`
-caps `dsnowz` at 3000 m water equivalent, which is ice-sheet scale, so the
-difference is not runaway mass but the missing elevation response.
+The rationale recorded at enablement, the glacier orography feedback, was
+wrong: see "Corrected reasoning on glaciers" below. Snow is clipped at
+`dsmax` 5 m, the orography contribution is inert, and what the module buys is
+albedo persistence.
 
 The module is conservative. `ICESHEETH` -1 places no initial ice, so a glacier
 appears only where snow survives a full model year, and orbit 0 is bit-comparable
@@ -849,19 +837,13 @@ eventually biomes, and those want regional detail: the completed sweep was T42,
 the coupling matrices in `hydrography/data/` are built for T42 and T85, and none
 exists for T21. Recommend T42 for the baseline unless there is a reason not to.
 
-### A stale albedo label, corrected
+### The vegetated endmember is 0.223, not 0.197
 
-The vegetated endmember was described as 0.197 land-mean albedo in several
-places. The correct figure is **0.223**. The 0.197 came from an early grid-based
-calculation in which an "evaporite" grid cell carried an area-averaged albedo
-rather than the class value of 0.50, so the bright fraction was understated.
-
-This is a labelling error, not a modelling one. The mesh-based path was already
-in place before the T21 bracket ran, so every measured temperature in that
-bracket used 0.223 and all six results stand unchanged. Only the number quoted
-alongside them was wrong, which also means the endmember separation is 0.091
-rather than 0.117 in land albedo, and the forcing gap is nearer 12 to 16 W/m2
-than 15 to 19.
+0.197 was quoted in several places and understated the bright evaporite
+fraction. The mesh-based path was in place before the T21 bracket ran, so
+every measured temperature above used 0.223 and all six results stand; the
+endmember separation is 0.091 in land albedo and the forcing gap nearer 12 to
+16 W/m2 than 15 to 19.
 
 ## The 0.96 baseline climate
 

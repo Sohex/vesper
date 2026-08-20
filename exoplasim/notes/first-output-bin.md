@@ -313,10 +313,6 @@ the rest of the stack.
 
 ### It is verified, as of 2026-08-18
 
-Until this date the patch had never been run: it was authored, reviewed, applied
-and rebuilt, and every run in `exoplasim/runs/` predated it. "It fixes bin 0" was
-a design claim, not a measurement. It has now been measured.
-
 The test uses this note's own probe. `sg` is surface geopotential and is CONSTANT
 in time, so any bin-to-bin spread in it is pure artifact and the right answer is
 zero. Two orbits per arm at `NLOWIO = 1`, because the defect needs a RESTART and

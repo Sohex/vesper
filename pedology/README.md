@@ -270,13 +270,9 @@ A span of 6% in AET and 9% in NPP, not monotone, with PFT composition stable
 across all four. At three cells and `npatch 5` that is comparable to patch
 stochasticity, so treat under 10% as an upper bound rather than a measurement.
 
-This parameter entered as a hardcoded 0.02 in `vesperinput.cpp`, introduced as a
-guard against the division by zero above. A first attempt to measure it, varying
-that guard 40-fold, suggested it was worth 20-41% of AET. **That figure was
-wrong** and should not be quoted: it changed the interpolation formula at the
-same time as the value. The controlled sweep above is the number. The numerical
-guard survives at 1e-4, but as a guard only, with the physics now declared,
-literature-anchored and varying per cell.
+The numerical guard survives at 1e-4, as a guard only, with the physics
+declared, literature-anchored and varying per cell; the controlled sweep above
+is the measurement.
 
 **To the climate.** `exoplasim/scripts/build_surface_soil_water.py` writes
 surface code 0229, `dwmax`, from the `awc` column. Land-mean capacity is 0.133 m
@@ -284,13 +280,11 @@ against ExoPlaSim's uniform 0.5 m default, and since
 `drunoff = max(0, dwatc - dwmax)/deltsec`, a smaller bucket overflows sooner and
 produces more runoff, which is the direction needed to fix the 2.8% ratio.
 
-### The offline probe now validates, and says the feedback is weak
+### The offline probe validates, and says the feedback is weak
 
 `scripts/probe_runoff_response.py` reimplements ExoPlaSim's land bucket and
-checks itself before predicting anything. It used to fail that check by 5.91x,
-which is what prompted looking at `mrro` and finding it river-routed rather than
-local. **The probe was right and the target was wrong.** Validated against the
-land water budget instead, it passes:
+checks itself against the land water budget before predicting anything. It
+passes:
 
 | | mm per Earth year |
 | --- | --- |
@@ -459,21 +453,16 @@ capacity varies 4.5-fold. **Depth sets the water capacity almost entirely.**
 Texture matters to LPJ-GUESS's own soil physics, and to anyone reading a soil
 map, but not to the number that feeds the bucket.
 
-### A unit error was inflating the headline uncertainty
+### The runoff-versus-precipitation spread
 
-The runoff-versus-precipitation bracket was reported as 5.6x. It was comparing
-this world's 892 mm of *precipitation* against Earth's 300 mm of *runoff*: not a
-bracket, a mismatch of references. Each branch now normalises against its own
-Earth land mean, 300 mm for runoff and 750 mm for precipitation, and the bracket
-is **3.41x** on weathering intensity and 2.83x on water capacity.
+Each branch normalises against its own Earth land mean, 300 mm for runoff and
+750 mm for precipitation; the spread is **3.41x** on weathering intensity and
+2.83x on water capacity.
 
-**And the bracket is now a sensitivity rather than a genuine uncertainty.**
-Walker, Hays and Kasting define the law on river runoff, and the 0.65 exponent
-traces through Berner (1994) to Dunne (1978) and Peters (1984), both fitted
-against runoff, so precipitation was never a co-equal alternative. (The chain was
-recorded here as WHAK -> Dunne, which is wrong in both halves: WHAK does not cite
-Dunne and its runoff exponent is 1, not 0.65. The conclusion is unaffected, since
-what matters is that the underlying fits are against runoff, and they are.) It was a hedge against `mrro`, which looked untrustworthy
+**And it is a sensitivity rather than a genuine uncertainty.** Walker, Hays
+and Kasting define the law on river runoff, and the 0.65 exponent traces to
+Dunne (1978) and Peters (1984), both fitted against runoff, so precipitation
+was never a co-equal alternative. It was a hedge against `mrro`, which looked untrustworthy
 at 25 mm per Earth year, and that hedge is spent: `mrro` turned out to be
 river-routed rather than local, P - E gives 168 mm, the global water budget
 closes to one part in ten thousand, and an offline bucket built from ExoPlaSim's

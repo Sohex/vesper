@@ -76,15 +76,13 @@ forcing, where annual evapotranspiration falls to 0.492 of its former value
 against an expected 0.496.
 
 **The PAR fraction.** LPJ-GUESS assumes half of shortwave is photosynthetically
-active, which multiplies straight into productivity. Deriving the right value for
-this star turned up a bug in the climate runs: ExoPlaSim's `k2.dat` is the star
-K2-18, an M2.5V at about 3450 K, not the spectral type K2. Using it would have
-put the PAR fraction at 0.078 instead of 0.309, a factor of four on
-productivity. Resolved: a correct BT-Settl K2.5V spectrum now exists at
-`exoplasim/inputs/stellarspectra/k25v`, and `FRADPAR` is derived from it by
-`build_vesper_header.py`, which writes the value and its derivation into
-`generated/vesper.h` and `generated/vesper_provenance.json`. See
-`exoplasim/notes/stellar-spectrum-audit.md` for what it means upstream.
+active, which multiplies straight into productivity; the wrong spectrum is a
+factor of four on it (0.078 from the mislabelled `k2.dat`, the M2.5V star
+K2-18, against 0.309). `FRADPAR` is derived from the BT-Settl K2.5V spectrum
+at `exoplasim/inputs/stellarspectra/k25v` by `build_vesper_header.py`, which
+writes the value and its derivation into `generated/vesper.h` and
+`generated/vesper_provenance.json`. See
+`exoplasim/notes/stellar-spectrum-audit.md`.
 
 **The PFTs.** The shipped plant functional types are Earth's, and their
 bioclimatic limits are Earth calibrations. Keeping them is defensible as an

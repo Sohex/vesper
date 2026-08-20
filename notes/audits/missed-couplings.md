@@ -271,26 +271,12 @@ find it again.
 
 ---
 
-## What I would chase first
-
-**Finding 1**, and specifically the one measurement inside it: a perturbation run
-reporting dP and dE against dT on this world. It is the conversion factor that
-turns the existing error budget -- which is already careful, already ordered, and
-already in one currency -- into a budget that speaks about the carve. Without it,
-findings 2 and 4 and the dust coupling can each be argued about separately and
-none of them can be ranked against the others.
-
-It is also cheap relative to what it settles, and unlike most of this list it
-does not need any new physics in the model.
 
 ---
 
 ## Tasks
 
-Tracked in `TASKS.md`, not restated here. They sat in this document as full rows
-for a day without ever being transferred, which is why they are a pointer now:
-a findings document that carries its own to-do list is a second copy of the
-tracker, and the copy that nobody works from is the one that drifts.
+Tracked in `TASKS.md`, not restated here.
 
 | finding | id |
 | --- | --- |

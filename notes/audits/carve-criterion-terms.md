@@ -351,15 +351,11 @@ latitude of 70.3 degrees, where a lake evaporates 185 mm/yr against 269 mm/yr of
 precipitation: cold basins fill. That is the case the discharge form of the test
 was rewritten to handle, and this is the first climate in which it fires.
 
-## What I would chase next
+## The no-runoff population
 
-The 1,062 basins whose catchments deliver no runoff are concentrated at high
-latitude, and that is where the five-orbit climatology is least periodic. The
-identity in finding 4 says a land cell cannot have a negative annual `P - E`; the
-measured land-mean drift of 8.6 mm per bin says how much of the observed negative
-is window length rather than climate. A longer seasonal window would settle
-whether that population is 1,062 or several hundred fewer, and it costs orbits
-rather than physics.
+HYD-17 (archive/tasks.md) refuted the window hypothesis: the count is noise
+about a constant across one- to ten-orbit windows. What is not periodic is the
+soil store; the measured land-mean drift is 8.6 mm per bin.
 
 ---
 

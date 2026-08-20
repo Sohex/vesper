@@ -36,17 +36,6 @@ stacking order is recorded:
 | `exoplasim-3.4.2-dust-emission.patch` | item 4 | `aerocore.f90`, `aeromod.f90`, `surfmod.f90`, `plasim.f90`, `make_plasim` |
 | `exoplasim-3.4.2-aerosol-apart.patch` | item 1, defect 1 | `radmod.f90`, `aeromod.f90` |
 | `exoplasim-3.4.2-aerosol-longwave.patch` | item 5 | `radmod.f90` |
-
-`aerosol-apart` and `aerosol-longwave` touch `radmod.f90`, so they MOVED the
-star-cycle base sha in `exoplasim/scripts/build_star_cycle_exoplasim.sh`; that
-patch was regenerated against the new base rather than re-pinned, and it had
-to be: the apart patch deletes the dead `aero_nl` declaration that was the
-cycle patch's trailing context. `dust-emission` also touches `surfmod.f90`,
-`plasim.f90` and `make_plasim`, which the prescribed-dust,
-denergy-accumulator and lowio-first-record patches respectively already
-touch, so its base shas are the composed resident result rather than pristine
-3.4.2.
-
 `aeolian/scripts/build_dust_source_fields.py` is the generator for item 4's three
 boundary fields, and `exoplasim/scripts/run_exoplasim.py` gained
 `enable_dust_emission`, which writes the whole `aero_nl` group from the
@@ -554,12 +543,8 @@ against a model whose aerosol path has demonstrably never been exercised -- thre
 defects found by inspection before touching it, and four more found while fixing
 those three.
 
-**Sequencing**, corrected 2026-08-18. This used to read that `docs/src/pipeline/sequencing.md` A3
-forbade landing in the same iteration as the carve, and A3 no longer says that.
-The constraint was never real: attribution cannot gate a correct term, so it
-bought nothing that a converged run's cost could be justified against.
-
-What A3 asks for instead applies cleanly here. Each of the six pieces states its
+**Sequencing.** What `docs/src/pipeline/sequencing.md` A3 asks for applies
+cleanly here. Each of the six pieces states its
 predicted effect before it runs, and each is tested by a short A/B off a common
 restart against that prediction rather than by an iteration of its own. The
 no-op-until-enabled convention is what makes that possible, so every piece here

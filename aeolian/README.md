@@ -21,25 +21,14 @@ on `build_dust.py` because it produces a boundary condition rather than an
 answer, and because it must be regenerated whenever the terrain, the lake
 solution or the soil moves, which is a different cadence from the offline run.
 
-## STATUS: the chain is sound, the answer is undetermined by two parameters
+## Wind input health
 
-The 1700x emission excess is found, and it was not in this component.
-
-**Every orbit of the source run carries a corrupted first output bin.** In
-`spd`, `ua` and `va` the lower troposphere is inflated, worsening downward from
-1.02x at the model top to **7.5x at the bottom level**. It is systematic rather
-than a restart shock: orbits 86, 87, 88 and 90 of `run_b014469b8091` give 7.50,
-7.57, 7.54 and 7.58. The snapshot climatology built from the same run is clean,
-so it is the regular 12-bin output's first interval specifically.
-
-Emission goes as roughly u* cubed above a threshold, so that one bin was
-**100.00% of the annual total**. Excluding it, and with the transport fixed
-below, emission falls from 3.4e6 Tg per Earth year to a range that brackets
-Earth's ~2000. Nothing in the physics or the unit conversions was wrong; the
-driver was.
-
-`flag_anomalous_bins` now detects it and the run excludes it loudly rather than
-consuming it. That is a guard against a known defect, not defensive habit.
+Runs predating the low-I/O patch carry a corrupted first output bin in `spd`,
+`ua` and `va`, inflated up to 7.5x at the bottom level (failure-modes class
+14; `exoplasim/notes/first-output-bin.md`). Emission goes as roughly u* cubed
+above a threshold, so one bad bin can be the whole annual total.
+`flag_anomalous_bins` detects it and the run excludes it loudly rather than
+consuming it.
 
 **Transport now converges, and the reason it did not is worth recording.** It
 was neither a CFL violation nor a cycle nor a missing sink. The explicit step is
@@ -91,23 +80,6 @@ it commits to is that a prescribed field is no longer defensible and the emissio
 scheme belongs inside the model. That is DUST-3's problem now, not a conclusion
 this file should quietly draw.
 
-### What would decide it, and what to ask for
-
-The wind tail can be measured rather than fitted. ExoPlaSim writes high-cadence
-output and every run directory already contains a `highcadence.nl`. A short
-high-cadence segment off the settled baseline would give a real gust
-distribution instead of a Weibull fitted to 32 samples.
-
-**Specification: one orbit, sampled every four timesteps.** At the 45-minute
-timestep that is 3-hourly, 1464 samples per cell over 183 days, which resolves
-the diurnal cycle on a 30-hour day and gives enough independent samples to fit
-the tail rather than the body. Bottom-level wind alone is sufficient. That is
-roughly 190 MB per variable at T42, and about 25 minutes of model time at the
-rate the baseline is running.
-
-The baseline has settled, so this is runnable now. It is DUST-5, and it is the
-one measurement that would turn the reopening test from crossed-with-unknown-
-magnitude into a number.
 
 ## What the component does get right
 

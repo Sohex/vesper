@@ -90,8 +90,7 @@ source/ + soil + drainage -> minerals/scripts/build_prospectivity.py            
 
 ## 2b. The artifact register
 
-**The register is `config/pipeline.yaml`, and it is not reproduced here** --
-one graph in one place, referenced from the other.
+**The register is `config/pipeline.yaml`.**
 
     python scripts/pipeline.py --register     # artifact, step, and what reads it
     python scripts/pipeline.py --status       # what is present, and what is not

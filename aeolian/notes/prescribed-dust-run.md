@@ -32,21 +32,11 @@ computed and never used. It does not touch `aerocore`: nothing is emitted,
 transported or removed, so the bottom-level sink, the settling term and the
 un-populated `apart` are all off the path.
 
-**Measured on 2026-08-18**, from `aeolian/analysis/dust_baseline.nc` after the
-chain was re-run on HYD-13's lake solution. Every row of it was superseded later
-the same day when the chain was regenerated with the snapshot-fitted wind tail
-instead of DUST-5's measured one and the burden fell by a factor of 70; see the
-last section of `notes/dust.md`. Rebuild the field before running anything
-against it:
-
-| quantity | value |
-| --- | ---: |
-| land-mean band-1 column optical depth | 0.38028 |
-| global-mean band-1 column optical depth | 0.24698 |
-| maximum | 5.1019 |
-| `DUSTQLW`, thermal-IR absorption per unit band-1 extinction | 0.113334 |
-| Planck-weighted thermal-IR mass absorption, at 289.71 K | 88.33 m2/kg |
-| `DUSTHSC`, dust scale height | 3000 m |
+The boundary-field numbers are not quoted here: `aeolian/analysis/dust_baseline.nc`
+was superseded 2026-08-18 when the chain was regenerated with the corrected
+wind tail and the burden fell by a factor of 70 (last section of
+`notes/dust.md`). Rebuild the chain before running anything, and take every
+value from the rebuilt file's provenance.
 
 ## The run
 

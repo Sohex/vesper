@@ -5,11 +5,6 @@ answer can be scored rather than rationalised. Every coefficient below is fixed
 as of this document. If a prediction misses, the miss is the result; nothing here
 gets retuned to fit.
 
-This follows the same discipline as the albedo bracket, whose convergence and
-marginality criteria were written into the script's docstring before any run
-finished and were then applied against a result that cleared one of them by
-0.05 K.
-
 ## Rules
 
 1. The **method and its coefficients** are what is registered, not only the

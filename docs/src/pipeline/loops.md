@@ -53,8 +53,8 @@ offline chain in `aeolian/` runs that path exactly once per iteration and
 stops, which is what makes it PRESCRIBED rather than interactive: the dust the
 model sees is the dust the previous climate produced. That is defensible one
 iteration deep and not for a converged answer -- the reopening test in
-`notes/dust.md` fired. The emission port landed under DUST-3; the loop stays
-cut until a run enables it (DUST-13). Until then, `build_dust.py` sits BELOW
+`notes/dust.md` fired. The loop stays cut until a run enables emission
+(DUST-13). Until then, `build_dust.py` sits BELOW
 the climatology in the register and
 surface code 1811 sits ABOVE the next run, which reads as a contradiction in
 the diagram and is really one loop drawn across two iterations.
@@ -94,11 +94,10 @@ construction* rather than by a tolerance chosen after the fact, and the width
 of the bracket is the honest uncertainty on the carve.
 
 **`bracketed`, not `marginal`.** `marginal` names a per-basin landform in the
-carve list; `bracketed` names our uncertainty. The two were briefly one word
-and it leaked into an exporter; the definitions and the third neighbour,
-`disputed`, are in [the vocabulary](../reference/vocabulary.md).
+carve list; `bracketed` names our uncertainty. The definitions and the third
+neighbour, `disputed`, are in [the vocabulary](../reference/vocabulary.md).
 
-**Both arms run at ONE flux, and it is the design flux.** Decided 2026-08-19.
+**Both arms run at ONE flux, and it is the design flux.** Decided.
 The alternative -- each endmember at whatever flux keeps IT in the design
 range -- collapses the bracket: those two worlds sit at the same global mean
 by construction, so the intersection lands close to either verdict alone and

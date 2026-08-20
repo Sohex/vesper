@@ -123,77 +123,11 @@ decision is auditable rather than a bare list.
 
 # Follow-up on the 2026-08 regenerated export (`27b7479a...`)
 
-## Verified working
-
-- **Routing coverage.** `drainage_terminal == -2` is 0 on land, from 63%.
-- **Catalogue stability.** `hashes.basinCatalogue` is present, counts are
-  unchanged (81,904 detected, 3,629 preserved, 922/6,880 below sea level), and
-  `selectionSource`, `drainageHypothesis` and `incision` are all populated.
-  This export carries an empty hypothesis, so it is the all-preserved endmember.
-- **`finalCatchment.areaKm2` is fixed.** It now totals 2.412e8 km2 against an
-  independent priority flood's 2.409e8, with a per-basin ratio of median 1.0000,
-  p5 0.999, p95 1.000. Median catchment/floor is 7.46x against our 7.46x. Two
-  independent implementations agreeing to 0.1% per basin is about as good a
-  cross-check as this gets.
-
-## One new bug: `drainage_terminal` contradicts `finalCatchment`
-
-The two products in the same manifest no longer agree.
-
-| Measure | Endorheic land |
-| --- | ---: |
-| implied by summing `drainage_terminal` per sink | 1.846e8 km2, 58.19% |
-| declared by `finalCatchment.areaKm2` | 2.412e8 km2, 76.01% |
-
-878 of 3,629 basins differ by more than 1%. For **every one of those 878**,
-`drainage_terminal` routes *nothing* to the basin at all: implied catchment under
-1 km2, while `finalCatchment` declares a full one. Together they account for
-5.656e7 km2, 17.82% of the planet's land.
-
-### The cause is single and clean
-
-For exactly those 878 basins, the sink's own `drainage_terminal` is not itself.
-
-- 2,751 of 3,629 sinks are self-rooted.
-- The 878 that are not are precisely the disagreeing set, no overlap either way.
-- Of the 878, 874 point at ocean-draining land and 4 at another basin sink.
-
-So those sinks were never roots of the spanning tree. The traversal reached them
-from outside and gave them a parent, after which nothing can accumulate in them.
-
-The affected set has a systematic signature: median sink elevation 0.026 km
-against 0.001 km for all basins, median spill 0.114 km against 0.062 km. These
-are the shallower, higher-sitting basins, the ones an outward-growing front from
-the ocean reaches most easily.
-
-### Suggested fix
-
-Either make basin sinks roots unconditionally, seeded before traversal and never
-eligible to receive a parent, or make the traversal a priority flood keyed by
-level rather than a plain spanning tree.
-
-The level-keyed version is what keeps the two fronts apart without special
-casing. Seed ocean-margin land and basin sinks each at their own elevation and
-pop lowest-first: a basin sink sits below its rim, so the basin front claims the
-interior long before the ocean front can cross the rim from outside, and the
-meeting point falls out as the spill. Our `hydrography/scripts/drainage.py` does
-this in about 4 seconds over the 2.5M-region mesh if the implementation is
-useful as a reference.
-
-`finalCatchment` is the one that is right. It matches an independent
-implementation to 0.1%; `drainage_terminal` does not.
-
-## Please confirm: the terrain changed with no carve applied
-
-`finalElevation` went `821aa71b` to `27b7479a` while `drainageHypothesis` is
-empty, and mean land elevation fell from 548 m to 521 m. We assume that is the
-routing fix feeding hydraulic erosion, which would be a genuine improvement since
-erosion was previously routing over unfilled pits. Worth confirming it is
-intended, because with an empty hypothesis nothing else on the artifact signals
-that the terrain moved, and every number computed against the previous build is
-now stale.
-
----
+That export fixed `finalCatchment.areaKm2` (verified to 0.1% per basin against
+an independent priority flood) but carried a `drainage_terminal` regression --
+878 basin sinks were given parents by the ocean front and accumulated
+nothing -- and its terrain had moved under an empty drainage hypothesis. It
+was reverted; the sections below verify the revert and the fixes.
 
 # Follow-up on the re-regenerated export (back to `821aa71b`)
 
@@ -245,14 +179,10 @@ quoted downstream.
 
 ## And a correction against us
 
-Our guess that the previous build's terrain move came from the routing fix
-feeding hydraulic erosion was wrong, and wrong in a way we could have checked:
-the ordering in `pipeline.js` settles it, with post-processing ending at 462 and
-all basin and river work at 504 and beyond, so routing cannot feed erosion. We
-offered a plausible mechanism without checking whether it was reachable, and
-labelled it a probable improvement. The actual cause, a pre-erosion absolute
-protection floor that also served as its own assertion baseline, was a
-regression. Noted so the reasoning error is on the record alongside the fix.
+The terrain move in that export was not the routing fix feeding hydraulic
+erosion -- `pipeline.js` ordering rules it out (post-processing ends at 462,
+basin work starts at 504) -- but an upstream regression in a pre-erosion
+protection floor.
 
 ## A published fraction with the same denominator problem
 

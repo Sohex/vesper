@@ -203,14 +203,7 @@ on, not after it.
 
 ## What has to happen next
 
-1. `rebuild_binaries.py --verify`, which reports this patch as not yet applied
-   and prints the command that applies it. Then apply, rebuild everything,
-   `--verify` again. It adds a namelist key, so an unrebuilt binary aborts in
-   `radini_` rather than running wrong physics.
-2. `build_star_cycle_exoplasim.sh`, because the resident stack moved. Its pin
-   has already been moved and the star-cycle patch regenerated against the new
-   base in the same commit.
-3. The attribution segments `exoplasim/notes/shortwave-water-vapour.md` asks for,
+1. The attribution segments `exoplasim/notes/shortwave-water-vapour.md` asks for,
    with `co2sww` off and then on, before the long converged run. Three physics
    changes in one rebuild and no result can be attributed to any of them.
-4. Re-derive the flux with both corrections on.
+2. Re-derive the flux with both corrections on.

@@ -2,9 +2,7 @@
 
 Design, and both halves are now built: `minerals/scripts/build_prospectivity.py`
 for the tectonic and magmatic types, `build_downstream_prospectivity.py` for the
-weathering, drainage and brine types. Recorded because the decision was taken in
-discussion and then not written down, and because the architectural constraint
-below is the part that would have been expensive to retrofit.
+weathering, drainage and brine types.
 
 ## The constraint that matters
 
@@ -101,10 +99,6 @@ lower bound described as the conventional semi-arid band and chosen without a
 source; Reich et al. (2009) measured the Atacama and put meteoric enrichment
 above 10 mm/yr with shutdown below 1-4, so the invented bound was excluding the
 best-documented enrichment province on Earth by a factor of ten.
-
-The two Economic Geology 100th Anniversary Volume chapters that Sillitoe (2010)
-delegates to arrived 2026-08-18, and between them they closed the rest. What they
-settled is below.
 
 SOURCED-NEGATIVE, which is the interesting label. The placer rule has no gradient
 or discharge threshold and no transport-distance decay, and BOTH absences are
@@ -291,8 +285,7 @@ Risacher et al. (2003) classify as sulfate-rich and calcium-rich rather than
 alkaline. Two deposit types share one class here, so the narrower gate is wrong
 for half of what the class covers.
 
-**The correction collapsed the two rules into one, and that is the right
-outcome.** Replacing borate's arc host set with lithium's -- dropping
+**The correction collapsed the two rules into one.** Replacing borate's arc host set with lithium's -- dropping
 `arc_basalt`, adding `rift_bimodal` and the half-weight plutonics -- left
 `brine_lithium` and `brine_borate` identical in every key but `name`: same
 host set, same `require_no_overflow`, same grounding. **Measured on `precarve-craton`

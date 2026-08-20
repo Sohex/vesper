@@ -164,15 +164,7 @@ Against the error budget's own basin response, where land precipitation +1% is
 budget and well inside the 769 basins the penman-to-wet bracket already disputes.
 
 So **the verdict does not need re-taking for CLIM-13**, which removes it as a
-reason to hold a carve. That conclusion is unchanged by the correction and is
-now stronger, since P - E moves +0.162% rather than the +0.41% first reported.
-
-**What the correction does overturn is this section's other claim.** The
-original table put land `mrro` at +5.26% and called it the one field the
-weighting moves materially. With the right weights `mrro` moves +0.004%, and
-the +5.26% was an artefact of the wrong first-bin weight rather than a property
-of the field. The policy argument that followed it -- that nothing reads `mrro`
-anyway -- still holds and is now carrying no weight it needs to.
+reason to hold a carve.
 
 ## 6. Records that had gone false
 

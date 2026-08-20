@@ -89,14 +89,11 @@ documents, numbers and results are kept; this file says how work proceeds.
   Relocating a defect is not removing it, and a tidier copy of the wrong thing
   is worse than the original, being harder to argue with.
 
-  Recorded 2026-08-19, three times in one session, always the same shape. A
-  multi-hour run was launched off a tool's formatted output that had been read
-  as a verdict. `pipeline.py` was found parsing `TASKS.md`, a real defect, and
-  the fix EXTRACTED the parsing into a new registered script with a full
-  docstring -- when nothing should have computed it at all, and the extraction
-  made the wrong thing permanent by making it tidy. Then the deletion that
-  followed was justified by counting what the filter selected, which framed a
-  category error as a performance problem and licensed its own return.
+  Recorded 2026-08-19, three times in one session, always the same shape: a
+  multi-hour run launched off a tool's formatted output that had been read as
+  a verdict; the `pipeline.py` extraction above; and a deletion justified by
+  counting what the filter selected, which framed a category error as a
+  performance problem and licensed its own return.
 
   The tell is that the output LOOKS like rigor: a new module with a careful
   docstring, a measurement with percentages, a tool's output in capitals. Each

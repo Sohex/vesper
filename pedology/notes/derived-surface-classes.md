@@ -508,16 +508,6 @@ strandline IS playa, and calling it diatomite is what the class is for.
 
 ## What is undetermined
 
-- **The silica source for silcrete.** RESOLVED, and by routing rather than by
-  hypothesis: 68.4% of dissolved silica reaches a closed basin, and the gate that
-  tests for it never binds. Diatomaceous basin fill is a consumer of that silica
-  rather than its origin.
-- **Which non-pedogenic silcrete types are distinguishable here.** RESOLVED as
-  above: the settings separate, the products do not, so one value plus a setting
-  bitmask.
-- **Whether pavement and loess can coexist.** RESOLVED as a continuum, which is
-  what the design suspected. They are one deposition threshold read from two
-  sides, and the bracket table above is what that looks like.
 - **Diatomite over the stellar cycle.** Still open, and it is the largest
   remaining gap in this note. What is implemented is the STATIC proxy: the
   strandline band a single climatology's lake could vacate, between the solved
@@ -539,12 +529,3 @@ strandline IS playa, and calling it diatomite is what the class is for.
 
   What a closed basin needs instead is a **fate** model, and that composes with
   Table 2C exactly. See the section below.
-- **Pavement clast-supply criterion.** RESOLVED as sourced-negative, on McFadden,
-  Wells and Jercinovich (1987), read 2026-08-18. The criterion itself is the
-  paper's: the clasts are mechanically weathered bedrock from topographic highs,
-  so consolidated bedrock rather than basin fill is the source condition and no
-  longer a stand-in for one. The THRESHOLD does not exist in that literature and
-  is not invented; the same paper also sources the upper bound on deposition,
-  which had been carried on Muhs alone, and states that the clast supply runs out
-  once the highs are worn down, which this rule cannot see. See the pavement
-  section above for the quotations.

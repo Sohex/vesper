@@ -85,17 +85,13 @@ water levels are assigned downstream. `orogen-landmask-*.png` keeps its old
 `elevation > 0` meaning rather than being silently redefined, so it is the
 *wrong* mask and floods the dry closed basins.
 
-## Elevation conventions, and a bug that is now fixed
+## Elevation conventions below sea level
 
-`elevToHeightKm` used to branch on `elevation > 0`, the same test `land_mask`
-uses, so dry closed-basin floors took the bathymetric branch and read ten times
-too deep. Fixed upstream on 2026-08-14: the branch now takes its land flag from
-`surface_class`, and below-sea-level land converts at 1.0 km per unit against
-the ocean's 10. Verified here: dry floors are now exactly `elevation * 1.0` and agree with the
-catalogue, and ocean depths are untouched.
-An export that predates this fix should not be trusted below sea level.
-`lib/orogen.py` is where to check: every registered build carries the fix, and
-the registry is what knows that rather than this file.
+`elevToHeightKm` takes its land flag from `surface_class`, so below-sea-level
+land converts at 1.0 km per unit against the ocean's 10, and dry basin floors
+agree with the catalogue. Every build registered in `lib/orogen.py` carries
+this convention; an export the registry does not know may predate it, and its
+dry floors read ten times too deep.
 
 **The basin catalogue renamed keys in the same pass, and it is a breaking
 change.** Unsuffixed keys (`sinkElevation`, `depth`, `spillElevation`) are the

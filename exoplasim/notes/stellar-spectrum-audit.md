@@ -127,10 +127,9 @@ the latter until a real spectrum exists. See
 
 ## The fix, applied
 
-A correct spectrum now exists as `inputs/stellarspectra/k25v.dat` and
-`k25v_hr.dat`, built by `scripts/build_stellar_spectrum.py`. It is **not yet
-selected**: `config/planet.yaml` still says `stellar_spectrum: k2` so that runs
-in flight stay comparable. Switching is a one-line change.
+A correct spectrum exists as `inputs/stellarspectra/k25v.dat` and
+`k25v_hr.dat`, built by `scripts/build_stellar_spectrum.py`, and is now
+selected (see "Confirmed in the model" below).
 
 Source is the BT-Settl (CIFIST2011) grid, Allard and Homeier 2012, served by the
 SVO Theoretical Spectra Server because phoenix.ens-lyon.fr did not respond. The
@@ -182,10 +181,6 @@ expected sign: line blanketing removes blue flux that a blackbody keeps. So the
 blackbody estimates used in the audit above were close but a little optimistic,
 and the corrections are 5 to 15% smaller than they implied. The direction and
 the magnitude both stand.
-
-A model run is the last check and has not been done, to avoid contending for
-cores with work in flight. When one happens, `MOST_DIAG.00000` should report an
-energy fraction below 0.75 microns of about 0.382 rather than 0.116.
 
 One further inconsistency worth knowing before regenerating anything:
 `radmod.f90:224-227` zeroes all flux below 316 nm, but only on the star-file

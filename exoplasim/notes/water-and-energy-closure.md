@@ -1,9 +1,7 @@
 # What closes, what does not, and what was misread
 
-Written after a claim in this project's own state file that ExoPlaSim's runoff
-field was defective. It is not. The field is doing exactly what the code says;
-it was being read as something it is not. This note records the check, the
-correction, and what the same method found about the energy budget.
+ExoPlaSim's runoff field is not defective; it was being read as something it
+is not.
 
 ## The method
 
@@ -138,105 +136,21 @@ measurement.
 
 ### It is the residue of a much larger seasonal swing
 
-Adding seasonal resolution to the climate series changed the picture again. The
-gap is not a flat offset within an orbit; per time bin it oscillates hard:
+Per time bin the gap oscillates about 14 W/m2 peak to peak, repeating closely
+from orbit to orbit, against annual means of -0.55 to -0.26: heat enters the
+slab and the atmosphere through one half of the orbit and returns through the
+other while TOA lags, so the two disagree strongly within a year and nearly
+cancel across it. The residual is the small part that fails to cancel.
 
-```
-orbit 70  +2.23 +6.66 +6.98 +0.95 -7.52 -6.85 -0.79 +0.23 +1.99 -1.39 -5.14 -3.89
-orbit 71  +4.70 +7.53 +5.88 -0.30 -7.04 -4.97 -1.82 -0.23 +0.56 -0.50 -4.87 -4.22
-orbit 72  +4.30 +6.71 +6.06 +0.34 -6.70 -4.64 -1.46 +1.07 +0.71 -1.55 -6.42 -1.52
-```
+## The instrument, and one trap on the way
 
-A swing of about 14 W/m2 peak to peak, repeating closely from orbit to orbit,
-against an annual mean of -0.55, -0.44, -0.26. **The seasonal signal is 34 times
-the annual residual.**
-
-That is what it should look like. Heat goes into the slab ocean and the
-atmosphere through one half of the orbit and comes back out through the other,
-while the top of the atmosphere lags, so TOA and surface disagree strongly within
-a year and should cancel across it. The interesting quantity is therefore not a
-constant leak but **the part that fails to cancel**, which is a very small
-difference between two large numbers.
-
-That reframes the search. A 3% asymmetry in a 14 W/m2 seasonal storage term
-produces the whole residual, so the candidates are things that would bias one
-half of the orbit against the other, rather than things that lose energy
-uniformly. Note the bins are equal-length time averages, so their plain mean is
-the true annual mean and the residual is not a sampling artifact of the 12-bin
-output.
-
-### What it most likely is
-
-An atmosphere genuinely losing 0.45 W/m2 would cool about 1.4 K per Earth year,
-given a column mass near 1e4 kg/m2. These runs do not cool. So the energy is not
-actually leaving: something that heats the atmosphere is missing from the sum of
-`rst`, `rlut`, `rss`, `rls`, `hfss` and `hfls`, or one of those diagnostics is
-offset from the others by a constant.
-
-Distinguishing those two needs the model to say, not us. It did, on 2026-08-18,
-and the first is right: see "The offset is not a diagnostic" below.
-
-## What to do about it, and one trap on the way
-
-**PlaSim already has the instrument.** `denergy(NHOR,28)` is a 28-term energy
-decomposition, written to output codes 360-387 when `nenergy > 0`, with a 3D
-version on 460-487 under `nener3d`. Turning it on for a short segment would name
-the term carrying the 0.455 directly. It is not a spin-up; it is a diagnostic
-run.
-
-`nenergy` is not exposed by ExoPlaSim's Python API, so `run_exoplasim.py` now
-edits `plasim_namelist` directly, exactly as it already does for `STARFILE`. Set
-`model.energy_diagnostics: true` in `config/planet.yaml`, optionally with
-`model.energy_diagnostics_3d`, and the 28 codes are added to the regular output
-and recorded in the run manifest.
-
-Both keys default to false when absent, so nothing changed for the runs that were
-in flight when this was written. Both are now set in `planet.yaml`, which means
-every run made under it carries the decomposition rather than only a diagnostic
-segment.
-
-**The package needs rebuilding for the term-15 fix to take effect**, since the
-`.x` binaries are compiled. That is safe to do at any time: each run directory
-holds its own copy of the executable, so a rebuild cannot disturb a job already
-running, and with `nenergy` at its default of 0 the rebuilt binary is
-behaviourally identical to the current one.
-
-**The trap, now fixed.** `rainmod.f90:524-527` assigned the latent heat
-constants the wrong way round:
-
-```
-if(zt(jhor) > TMELT) then
-  zzal=als      ! sublimation, above the melting point
-else
-  zzal=alv      ! vaporisation, below it
-endif
-```
-
-`zt` is the updated layer temperature and `als` is sublimation, so that was
-inverted. Confirmed on three independent counts before changing anything:
-
-1. **Physics.** Sublimation is the vapour-to-ice transition and applies below the
-   melting point; vaporisation applies above it.
-2. **The same file disagrees with itself.** The prognostic code at
-   `rainmod.f90:731`, `850`, `944` and `1047` all read
-   `if(ztnew < TMELT) then zlcp=ALS else zlcp=ALV`, under the comment "update
-   constants (ice/water phase)". That is the correct convention, roughly 200
-   lines below the diagnostic that inverts it.
-3. **So does the surface scheme.** `fluxmod.f90:687` uses
-   `where(dt(:,NLEP) > TMELT .or. dls(:) < 0.5)` to select `ALV`, and `ALS`
-   otherwise: vaporisation over warm or ocean surfaces, sublimation over frozen
-   ones.
-
-`zzal` has exactly four references in the file and all of them are the
-diagnostic, so nothing else could have depended on the inverted sense. The fix
-is `patches/exoplasim-3.4.2-energy-diagnostics.patch`, a single comparison
-operator plus the reasoning as a comment. It compiles clean under the project's
-`-fdefault-real-8` promotion.
-
-It sits inside `if(nenergy > 0)`, which defaults to 0, so **no completed run is
-affected and the prognostic physics never was.** It would only ever have been
-wrong for someone enabling these diagnostics to chase this residual, which is
-precisely what is now recommended.
+`denergy(NHOR,28)` is PlaSim's 28-term energy decomposition, written to codes
+360-387 when `nenergy > 0`, with a 3D version on 460-487 under `nener3d`.
+`nenergy` is not exposed by ExoPlaSim's Python API; `model.energy_diagnostics`
+(and `model.energy_diagnostics_3d`) in `config/planet.yaml` set it through the
+direct namelist edit `run_exoplasim.py` already performs for `STARFILE`, and
+the codes are added to the regular output and recorded in the run manifest.
+`docs/src/reference/config-rationale.md` carries the keys.
 
 ## The instrument was reading a snapshot, and that is why it had not answered
 
@@ -828,8 +742,7 @@ This section previously identified the culprit as the first output bin, held to
 cover 570 timesteps against 480 for the other eleven, and attributed 54% of the
 ice-free ocean's residual to it. **Both the mechanism and the attribution were
 wrong, and the error was in this project's own instrument.** Re-measured
-2026-08-18; the correction is recorded rather than the original claim, because
-a reader grepping for the number should land on the right one.
+2026-08-18.
 
 **Where the 570 came from.** `close_ocean_energy.py` derived the first bin's
 span as `total_steps - 11 * ordinary_bin_steps`, having assumed every bin is
@@ -998,27 +911,8 @@ that fix, so the measurement waits on the next one.
 That is what is left of CLIM-11: not more model time, and not the offline
 radiative transfer this note once proposed.
 
-## What this cost, and what it saved
 
-An afternoon of arithmetic on existing outputs. It removed a phantom
-postprocessing defect from the project's state file, corrected a land runoff
-ratio by a factor of 6.6, moved land-mean weathering intensity from 0.19 to 0.50
-and narrowed a bracket from 14.6x to 5.6x, and showed that a third of the
-recorded energy closure gap was never real.
-
-None of it needed a model run. The general lesson is the cheap one: before
-calling a surprising number a defect, close the budget it belongs to.
-
-## The 28 terms, first look, and why its numbers are not quotable
-
-Measured 2026-08-17 on `run_b014469b8091`, the 0.945 bootstrap on
-`precarve-craton`, at orbits 65, 75 and 85. This was the first run made with
-`nenergy` on, and it was made under `NLOWIO = 1`, so every term in it is an
-instantaneous snapshot at the output step rather than a mean over it. The
-sensible-heat identity above puts that error at 7% of the term. **Individual
-values from this reading are superseded and should not be quoted**; what
-survives is the structural observation it produced, that 11 and 15 fail to
-cancel while 12 and 16 cancel exactly, and that is now closed above.
+## Two of the 28 terms are not fluxes
 
 Two of the 28 are not fluxes and must never be summed with the rest:
 `denergy01` is an absolute column enthalpy, of order 1.9e9, and `denergy28` is

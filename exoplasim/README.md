@@ -63,13 +63,10 @@ the accumulation semantics above, so it does not merge the two regimes. Every ru
 currently in `exoplasim/runs/` was written before it and still needs the
 corrections in `exoplasim/notes/first-output-bin.md`.
 
-**What it costs, and the honest state of that number.** The often-quoted 1.27x
-for the clean regime was measured 2026-08-18 with only the postprocessor's
-quadratic reader fixed. A second fix the next day took the read from about 30 s
-an orbit to about 1 s, and since the 1.27x was mostly that reader, **the ratio is
-now unknown and is probably much nearer 1.0**. Do not quote 1.27x as a current
-cost; re-measure it, which needs one segment in each regime on a run made after
-both fixes. `notes/audits/pyburn-postprocessing-cost.md`.
+**Cost.** The clean regime's postprocessing overhead has not been measured
+since the reader fixes and is probably near 1.0x; re-measure with one segment
+in each regime on a run made after both fixes before quoting a ratio.
+`notes/audits/pyburn-postprocessing-cost.md`.
 
 What is NOT in doubt is the raw volume: about 2.4 GB an orbit at `NLOWIO = 0`
 against about 96 MB at `NLOWIO = 1`, so the clean regime writes roughly 25x the
@@ -82,15 +79,14 @@ accumulations and the clean regime writes instantaneous samples; a mean can be
 recovered from samples and an accumulation cannot be undone. Buy samples for the
 orbits something will read and not for the orbits nothing will.
 
-**What CHOOSES it, as of 2026-08-19.** The regime follows the declared purpose
+**What CHOOSES it.** The regime follows the declared purpose
 rather than a flag anyone has to remember. `run_exoplasim.py` prepares a run and
 integrates it toward equilibrium, so its block is low I/O by default and
 `--clean-io` overrides; it now also registers that block as a `spinup` segment,
 so the orbits it writes carry a purpose and a `low_io` like any other.
 `continue_exoplasim.py` derives the default from `--purpose`: `spinup` gets the
 cheap regime, `post_equilibrium_climatology` and `diagnostic` get samples, and
-`--low-io`/`--clean-io` force either. Before this, every orbit of every run paid
-for instantaneous samples and the spin-up ones threw them away.
+`--low-io`/`--clean-io` force either.
 
 **What enforces it.** `--purpose post_equilibrium_climatology` with `--low-io` is
 refused outright. Every segment records `low_io`, `build_climatology.py` refuses a
@@ -268,17 +264,10 @@ substrate albedo -- real vegetation arrives from LPJ-GUESS in loop C of
 `docs/src/pipeline/sequencing.md`. Current values are in `world_state.json`.
 
 Its `finalize()` picks output as the last glob match, so a run directory shared
-between worlds can silently emit the wrong world's result. `run_id` used to name
-everything physical to prevent that -- geography digest, spectrum, flux at
-thousandths -- and each of those was added after a near-miss.
-
-**`run_id` is now a UUID, and that is the fix rather than a retreat from one.** A
-derived identifier separates runs only along the dimensions it encodes, and the
-encoded set is just a list of everything someone has thought of so far. The ozone
-band-weight patch changed the physics and moved nothing in it, so the pre-patch
-and post-patch runs at the same flux computed the same name and shared a
-directory. A UUID collides with nothing, including along dimensions nothing here
-models.
+between worlds can silently emit the wrong world's result. **`run_id` is a
+UUID** (CLAUDE.md rule 6): a derived identifier separates runs only along the
+dimensions it encodes, and a UUID collides with nothing, including along
+dimensions nothing here models.
 
 What a run *was* lives in `run_manifest.json`, which gains a `physical` block, and
 in `exoplasim/runs/INDEX.json`, generated from those manifests by
@@ -349,8 +338,7 @@ commit in that directory, and `rebuild_binaries.py` builds whatever is there.
 and evidence for each in its header; its README says which are open as upstream
 pull requests.
 
-See `exoplasim/README.md` for the workflow and results,
-`exoplasim/notes/lake-representation.md` for what the model can do with the
+See `exoplasim/notes/lake-representation.md` for what the model can do with the
 endorheic basins, `exoplasim/notes/baseline-equilibration.md` for why the TOA
 convergence criterion is failing on an instrument rather than on a state, and
 `exoplasim/notes/parameter-decisions.md` for every physical
@@ -373,13 +361,10 @@ response rather than on which basins are bright. A mean surface temperature from
 the same run does not survive at all. Judge each quoted number by which of those
 it is.
 
-The stellar spectrum was wrong for three eras -- `k2.dat` is the star K2-18, an
-M2.5V, not a K dwarf -- but fixing it changed absorbed shortwave by 0.04 W/m2 on
-this nearly ice-free world, because it acts on snow and ice and there is almost
-none of either. It is not null on the cold branch, so it still matters for the
-stellar cycle. That asymmetry is the general lesson: a correction's size depends
-on how much of the surface it acts on, so estimate it against the state you are
-in rather than the state it was first measured on.
+`k2.dat` is the star K2-18, an M2.5V, not spectral type K2. On this nearly
+ice-free world the corrected spectrum moves absorbed shortwave by only
+0.04 W/m2, because it acts on snow and ice; it is not null on the cold branch,
+so it matters for the stellar cycle.
 
 **And no run has yet used `k25v` past its first orbit.** `continue_exoplasim.py`
 rebuilt the namelists without `starspec`, so `solarini` fell back to a 4965 K

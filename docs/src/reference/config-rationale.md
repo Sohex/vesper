@@ -1,15 +1,9 @@
 # Why config/planet.yaml says what it says
 
-Moved out of `config/planet.yaml` on 2026-08-17. That file had 457 lines of
-comment against 80 settings, which made it a place to argue about the
-configuration rather than a configuration. The arguments are here, verbatim,
-keyed by the setting they belong to; the file itself now says what each value is
-and points here.
-
-Nothing is summarised in the move. Where a block restates something already
-argued at length in `exoplasim/notes/parameter-decisions.md` or an audit, that
-is noted rather than deduplicated, because the two were written at different
-times and the difference is sometimes the point.
+The arguments behind `config/planet.yaml`, keyed by the setting each belongs
+to; the file says what each value is and points here. Where a block restates
+`exoplasim/notes/parameter-decisions.md` or an audit, the two were written at
+different times and the difference is sometimes the point.
 
 ## The statuses
 
@@ -105,9 +99,7 @@ was run with, and it already scaled the terrain's maximum relief as 1/g, so
 the geography in source/ cannot be separated from it. Mass follows from it:
 mass_earth = (g/g_earth) * radius_earth^2, and `derive()` raises if the two
 keys below disagree, so they cannot drift apart. The formula is written here
-and the value is NOT: this comment used to carry a copy of the mass, and it
-was still asserting the pre-correction figure long after the value beneath
-it had changed.
+and the value is not.
 
 ## `star`
 
@@ -161,11 +153,7 @@ So this world is substantially BETTER protected from ultraviolet than Earth,
 not comparably. The star's lower ultraviolet output wins against the thinner
 ozone column it produces; the two do not cancel.
 
-This replaces a declared choice of `earth_like`, which was reached from an
-order-of-magnitude cancellation argument that gave 1.05x and was wrong by a
-factor of 2.6. The lesson is recorded in docs/src/practice/failure-modes.md: the
-cancellation was two rough estimates multiplying to about one, which is not
-evidence of anything.
+
 
 This closes a dimension instead of opening one. Surface UV is the product of
 how much the star emits and how much the ozone column absorbs, and neither is
@@ -191,10 +179,8 @@ the o3scale sensitivity test.
 metallicity: 0.0
 ```
 
-DECLARED 2026-08-18. Solar, which is unremarkable for a K2.5V star and is not
-what makes this an entry. It is here because it is the star's most powerful
-undeclared parameter and it was declared nowhere the config could see: it lived
-as `METALLICITY = 0.0` inside `exoplasim/scripts/build_stellar_spectrum.py`.
+DECLARED 2026-08-18. Solar, which is unremarkable for a K2.5V star; it earns
+an entry as the star's most powerful otherwise-undeclared parameter.
 
 The leverage is what earns it a line. Moving half a dex along the BT-Settl grid
 moves the shortwave band-1 share by +0.0114 at [M/H] -0.5 or -0.0084 at +0.5,
@@ -225,22 +211,13 @@ MIXED. `earth_solar_constant_w_m2` is a physical constant and
 `baseline_flux_earth` is PROVISIONAL, and `longitude_vernal_equinox_degrees` is
 DECLARED. Each is argued below.
 
-This block previously carried three eras of measured temperatures and
-sensitivities in its comments -- 150.2 and 192.2 K per unit flux, and mean
-temperatures of 291.4, 292.47 and 292.64 K. Every one of them was measured on a
-superseded terrain or in a superseded regime, and they disagreed with each
-other. They are gone rather than updated: per CONVENTIONS in CLAUDE.md, current
-values live in `world_state.json`, and the dated measurements live in
-`exoplasim/notes/parameter-decisions.md`. What stays here is what is a
-decision, a threshold, or an argument that fails without its number.
-
 ## `baseline_flux_earth`
 
 ```
 baseline_flux_earth: 0.945
 ```
 
-PROVISIONAL, 2026-08-19, and DETERMINED before that. It was chosen from the
+PROVISIONAL, 2026-08-19. It was chosen from the
 habitability-by-latitude derivation of `docs/src/pipeline/state.md` section 5b rather than from a
 temperature target, and `notes/audits/inherited-earth-constants.md` finding 5
 establishes that that derivation has no script, no analysis product, no row in
@@ -274,10 +251,8 @@ longitude_vernal_equinox_degrees: 102.7
 ```
 
 DECLARED, 2026-08-19, after `notes/audits/inherited-earth-constants.md`
-finding 4. The number is ExoPlaSim's Earth default and had been copied into
-this file, where it read as a decision. It is the `TFREEZE` pattern one level
-up: an Earth value arriving unnamed, except that this one was already visible
-and wearing the block's DETERMINED.
+finding 4: the number is ExoPlaSim's Earth default, and nothing about this
+world determines it.
 
 What it sets is the phase of perihelion against the equinoxes and solstices,
 in ExoPlaSim's convention the true longitude of the vernal equinox measured
@@ -474,7 +449,6 @@ not help a compute-bound spectral model. NLAT must divide by ncpus, so at
 T42 the valid choices are 1, 2, 4, 8, 16, 32, 64; 16 leaves 4 latitudes per
 rank. Spectral transforms need global transposes, so scaling is sublinear
 and may turn over before 16 -- measured against the 8-core baseline below.
-64 latitudes at T42, so 16 ranks leaves 4 per rank, one per physical core.
 RESOLUTION-DEPENDENT, and not simply "all the physical cores". Measured on
 this machine, one orbit:
 
@@ -512,8 +486,7 @@ terms on codes 360-387 to the regular output, to locate which one carries
 the residual between the top of the atmosphere and the surface. None does:
 the decomposition closes to 0.02 W/m2 and the residual is an offset in the
 reported top-of-atmosphere net radiation, and the source is the adiabatic
-spectral step. Needs the rebuilt binary for the term-15 latent-heat phase
-fix; that rebuild is done.
+spectral step.
 
 OFF as of 2026-08-19, because that is the whole of what it was turned on to
 answer and the answer is recorded. The surface half continuing as CLIM-11
@@ -529,8 +502,8 @@ ozone_scale: 0.794
 ```
 
 Scales ExoPlaSim's prescribed Earth ozone column, which no part of the model
-derives from the host star. 0.794 is measured, not assumed: Segura et al.
-(2003) Table 1 gives 6.64e18 cm-2 for a K2V host at 1 PAL O2 against the
+derives from the host star. 0.794 is Segura et al.
+(2003) Table 1:  6.64e18 cm-2 for a K2V host at 1 PAL O2 against the
 Sun's 8.36e18. Set through radmod_nl directly, like NENERGY and STARFILE,
 since the Python API does not expose it.
 
@@ -560,12 +533,10 @@ That table is epsilon Eridani, observed by IUE: a young, chromospherically
 ACTIVE K2V, which is the star this world has been declared to have. So this
 is the right weight rather than a bound.
 
-It also corrects an error recorded here earlier. A 4965 K blackbody gives
-0.469, and that was described as a FLOOR on the grounds that a real star adds
-chromospheric ultraviolet a photospheric model lacks. The observed value is
-0.335, which is LOWER, because ultraviolet line blanketing in a real stellar
-atmosphere removes more flux than the chromosphere puts back. A blackbody
-overestimates a cool star's ultraviolet; it does not bound it from below.
+A 4965 K blackbody gives 0.469, HIGHER than the observed 0.335: ultraviolet
+line blanketing in a real stellar atmosphere removes more flux than the
+chromosphere puts back, so a blackbody overestimates a cool star's
+ultraviolet rather than bounding it from below.
 
 The visible weight stays computed, 0.3358 / 0.3673 = 0.914, measured from the
 k25v spectrum itself, where line blanketing is already represented and the
@@ -780,10 +751,7 @@ stellar_cycle:
 ```
 
 
-PARTLY DETERMINED. The star's activity level IS now chosen -- see
-star.activity: active -- which was the decision the ozone column, the surface
-ultraviolet and the ozone ultraviolet weight were all waiting on, and all three
-now carry their active-star values.
+PARTLY DETERMINED. The activity level is chosen; see `star.activity`.
 
 PROVISIONAL, 2026-08-16. Periods and amplitudes are CHOSEN -- two components
 at 11 and 57 Earth years, 2.5% and 3.5% peak-to-peak -- and centred on the

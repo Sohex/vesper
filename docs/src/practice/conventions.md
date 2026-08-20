@@ -13,9 +13,8 @@ Estimates that cannot be verified are bracketed rather than guessed, and the
 bracket is reported. This is how albedo, evaporation and the carve verdict are
 all handled.
 
-Claims are checked against the artifact rather than the documentation. Several
-findings in this project's history came from comparing two products that were
-supposed to agree and finding they did not.
+Claims are checked against the artifact rather than the documentation.
+Almost every class in [failure modes](failure-modes.md) was found that way.
 
 ## Documents and numbers
 
@@ -84,8 +83,7 @@ supposed to agree and finding they did not.
   term is one quantity with two names, which is its own failure class. And any
   document that can be read standalone states the worldbuilding frame up
   front, as `TASKS.md` does. THE RULE IS SUBJECT TO ITSELF: do not enumerate
-  the phrases it exists to avoid, here or anywhere -- the first version of the
-  rule quoted them as negative examples in `CLAUDE.md`, which is loaded into
-  every session, so the guard re-supplied on every turn exactly what it
-  guarded against. Commits f5de28f, 47a68b3 and 9957a0b hold the specifics for
+  the phrases it exists to avoid, here or anywhere -- an enumeration in a
+  file loaded into every session re-supplies, on every turn, exactly what it
+  guards against. Commits f5de28f, 47a68b3 and 9957a0b hold the specifics for
   anyone who needs them.

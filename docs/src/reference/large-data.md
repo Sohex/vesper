@@ -1,8 +1,7 @@
 # Working on a large blob: batch, chunk, checkpoint, report
 
-A standing rule, written 2026-08-17 after a 15.3 GB postprocess ran for 73
-minutes, reached 27.6 GB resident, wrote nothing, and had to be killed. Nothing
-about that was surprising in hindsight and all of it was avoidable.
+A standing rule, from a 15.3 GB postprocess that ran for 73 minutes, reached
+27.6 GB resident, wrote nothing, and had to be killed.
 
 **Any step whose input is larger than a few GB gets all four of these**, and a
 step that has none of them is not finished, however correct its arithmetic.

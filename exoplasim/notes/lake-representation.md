@@ -214,17 +214,8 @@ the atmosphere and run hot, which is a larger and less physical error than the
 one it replaces. Revisit only alongside a mask flip, where the water column
 arrives with it.
 
-### Separately: `dz0land = 2.0` m, now fixed
+### Separately: `dz0land = 2.0` m
 
 Superseded by `build_surface_roughness.py`, which supplies code 173 from land
-cover and subgrid relief. Kept because the reasoning is what motivated it.
-
-### The original finding: `dz0land = 2.0` m deserves its own look
-
-Not a lake question, but found while measuring one. The uniform land default
-asserts forest-scale roughness over every land cell, including the 16.5% of land
-that is salt crust and playa. Real values there are nearer 0.001 m, which is an
-exchange coefficient of 0.00114 against the default's 0.00882 -- **7.7x too much
-turbulent exchange** over the most barren surfaces on the planet. That biases
-evaporation and sensible heat everywhere the ground is bare, independently of
-anything to do with lakes.
+cover and subgrid relief; the 7.7x-excess-exchange argument that motivated it
+is in that script's header and `docs/src/reference/config-rationale.md`.

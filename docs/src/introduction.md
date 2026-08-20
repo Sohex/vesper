@@ -38,8 +38,8 @@ This book holds what crosses component boundaries and does not change with the
 current iteration:
 
 - **The pipeline**: the reasoning behind the graph in `config/pipeline.yaml`,
-  chapter numbers 0 through 6 preserved from the document this book was split
-  from, so citations of the form "section 4" keep resolving.
+  chapter numbers 0 through 6 stable, so citations of the form "section 4"
+  keep resolving.
 - **Reference**: builds and identity, the vendored upstreams, the environment,
   the vocabulary, and the standing topic notes.
 - **Working practice**: the project's conventions, its working agreements, and

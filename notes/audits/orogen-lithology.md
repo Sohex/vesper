@@ -602,8 +602,7 @@ shields are therefore not reachable by any parameter here**; cratonic basement i
 
 ### A granitoid-gneiss-granulite continuum: possible, cheap, and not worth it
 
-Assessed and declined, with the working kept because the cost estimate was
-wrong the first time and the correction is the useful part.
+Assessed and declined.
 
 **It needs no new rock class.** `gneiss` already exists and is fully grounded --
 erodibility 0.35, density 2.75, albedo 0.28, phosphorus 790 ppm, Meybeck gneiss.
@@ -614,9 +613,7 @@ is an exhumation proxy the export already carries.
 **Granulite is better covered than assumed.** Daly (1966) has "Granulite,
 Lapland" at 2.93 g/cm3 hypersthene-bearing and 2.73 hypersthene-free; Moosdorf
 bins it metamorphic at 1.0, Hartmann as MT at 790 ppm, Meybeck as gneiss, and
-the pH parent class is metamorphic. Only albedo is genuinely absent. The first
-reading of this section called the grounding expensive without checking, and it
-is not.
+the pH parent class is metamorphic. Only albedo is genuinely absent.
 
 **It fails on usefulness instead.** Relabelling trades one divergence for
 another rather than reducing them:
@@ -647,24 +644,6 @@ under 1% of land. Removed. Cratonic basement roughly doubles to 3.46%, about a
 third of Earth's cratonic share, which is the intent for a planet whose mass
 implies keel-delaminating convection.
 
-The earlier sweeps are kept below because the record of what was measured, and
-of measuring the wrong field for three rounds, is worth more than the conclusion.
-
-| lever | tried | gneiss |
-| --- | --- | --- |
-| `CRATON_TECTONIC_MULT` | 2.5, 1.8, 1.4, 1.1, 0.9 | 0.49% at every value |
-| basin factor `(1 - basin)` | halved, then removed | 0.49% either way |
-| plate count | 24 and 100 | 0.44% and 0.49% |
-
-The gates were measured directly and both are tight -- of the land where the
-tectonic gate opens at all, the implied basin factor averages 0.625, and only
-0.17% of land is both quiet and non-basin. But opening either gate produces no
-gneiss, so neither is what actually binds. Something further along the craton
-path is inert, and it is not any of the three obvious parameters.
-
-That makes this a code investigation rather than a configuration change, and a
-bounded one: the craton branch reads a weight that is computed, thresholded and
-then apparently ignored. It should be traced before any more parameters are
 swept.
 
 Whether cratons SHOULD exist here is a separate and easier question. This world

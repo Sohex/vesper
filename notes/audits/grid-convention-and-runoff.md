@@ -184,9 +184,9 @@ Under the same identity, a catchment whose evaporation consumes its precipitatio
 delivers nothing. They are auto-preserved by `index = inf` only in the RATIO form
 of the test; `export_carve_list.py` decides them on the discharge form, which asks
 whether the lake surface itself gains, and on the corrected evaporation 243 of
-them do. What is worth chasing about that population is window length rather than
-treatment: they concentrate at high latitude, where a five-orbit climatology is
-least periodic.
+them do. Whether that population was a window artifact was settled under
+HYD-17 (archive/tasks.md): it was not; the count is noise about a constant
+across one- to ten-orbit windows.
 
 ## 4. The climate figures are labelled 180 degrees from the maps
 
@@ -209,23 +209,6 @@ recorded here because it is the visible evidence for the false premise in findin
 reconciling their labels is the wrong repair.
 
 ---
-
-## What I would chase first
-
-Finding 1, and specifically the invariant in finding 2 alongside it. The verdict
-recomputation is cheap and the answer is already in this document; what is not
-cheap is that the baseline itself has to be re-run, and what is not recoverable
-is a carve list shipped to Orogen before that happens. Land finding 2 in the same
-change, because this defect has now occurred twice with a fix in between, and the
-distinguishing feature both times was that nothing tested the mapping against
-something that could fail.
-
-Finding 3 belongs in the same pass rather than a later one. It moves the same
-denominator as `HYD-11`, `DUST-10` and `DUST-11`, and the baseline re-run that
-finding 1 forces is the natural place to settle all of them at once rather than
-re-running for each in turn. It was settled that way, and the answer was that the
-denominator is already right; `notes/audits/carve-criterion-terms.md` carries it
-along with the three items it was settled beside.
 
 ---
 

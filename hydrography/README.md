@@ -134,13 +134,6 @@ a Priestley-Taylor estimate at alpha 1.26. The run's own ratio is computed by
 here, because every prose copy of it in this repository was a copy of a hardcoded
 constant.
 
-A Priestley-Taylor estimate stood here first and was reported as 3.13 mm/day
-"just below" the model, which was wrong twice over: the figure was an unweighted
-cell mean compared against an area-weighted one, and correcting that puts PT
-7.8% *above* the model rather than below it. Penman is three times closer on the
-only ground truth available, and it was already written. Switching moved basins at spill from 683 to 770, so the direction of that error
-was the opposite of what the first reading suggested. (Both figures predate the
-longitude fix below and are quoted only to compare the two estimates.)
 
 **Penman is NOT floored at the model's land rate.** It was, on the reasoning that
 a saturated surface cannot evaporate less than the moisture-limited ground beside
@@ -155,40 +148,17 @@ near-saturated and wind is well resolved, which is the opposite of an inland ari
 basin, so the measured ratio is an upper bound on the estimate's accuracy in the
 places that decide the verdict.
 
-### The coupling matrix was being read 180 degrees out
+### Basin coupling and longitude conventions
 
-Worth stating plainly because it invalidated a result that had already been
-applied. `basin_means` indexed a climatology field with the coupling matrix's
-own cell numbering, and the two number their columns differently: the coupling
-inherits the Orogen grid, which runs -180 to 180, while an ExoPlaSim
-climatology runs 0 to 360. Every basin was therefore reading the runoff and
-evaporation of its antipode. Nothing about it was visible from the outside: the
-array shapes match, latitude is unaffected, and the resulting fields are
-plausible everywhere.
-
-It was caught by asking the coupling to average a field of known longitude and
-comparing the answer to where the basins actually are. 99.2% of basins came back
-within 20 degrees of the antipode; the same test on latitude was correct. That
-test is cheap and should be rerun whenever either grid changes.
-
-The fix makes the convention explicit rather than assumed. `coupling_*.nc` now
-carries the `cell_lat` and `cell_lon` it was built on, `basin_means` takes the
-longitude axis of the fields it is given and remaps columns before indexing
-anything, and it refuses to run against a coupling file too old to state its own
-convention.
-
-**This reaches further than the lakes.** `carve_verdict.py` shares
-`basin_means`, so the iteration-1 verdict that produced `carved-zoned` was
-decided on climate read from the wrong side of the planet. It was regenerated
-afterwards, and barely half of the per-basin outcomes were unchanged -- a
-majority of the original carves were unjustified, and others were missed
-entirely. The counts for each verdict are in the hydrography report of the build
-that produced it. The corrected carve set is visibly more
-physical -- carved basins carry 5.7x the median catchment runoff of preserved
-ones, where under the old verdict the two were nearly indistinguishable.
-The carve pattern in the current terrain does not correspond to the climate that
-was supposed to justify it. Regenerating that verdict is no longer optional
-tidying before iteration 2; it is a correction.
+The coupling matrix inherits the Orogen grid, columns -180 to 180; an
+ExoPlaSim climatology numbers its own from 0 to 360, so indexing one with the
+other's numbering reads each basin's climate from near its antipode while
+shapes, latitudes and plausibility all survive. `coupling_*.nc` carries the
+`cell_lat` and `cell_lon` it was built on, `basin_means` takes the longitude
+axis of the fields it is given and remaps columns before indexing, and it
+refuses a coupling file too old to state its own convention. The check: ask
+the coupling to average a field of known longitude and compare the answer to
+where the basins are. It is cheap; rerun it whenever either grid changes.
 
 Lakes are painted by filling each basin to its solved *area*, in ascending order
 of the flooded surface, rather than by thresholding on the solved level. A mesh
@@ -216,42 +186,21 @@ cascade: a basin's overflow is its final equilibrium value with everything
 upstream included, and the paths are disjoint segments, one basin's saddle to
 the next one's sink.
 
-The fix's own first version left `export_carve_list.py` on the unremapped path,
-because `field_lon` was optional and defaulted to it -- and that was the one
-caller whose output leaves the project and changes the terrain. An argument
-whose absence silently means "do the wrong thing" is the original bug wearing
-the shape of its fix. It is now required.
 
-## The Earth comparator, and a correction
+## The Earth comparator
 
-Earth's endorheic fraction is **about one-fifth of its land surface**, not the
-13% this document and others here previously claimed. Wang et al. (2018),
-"Recent global decline in endorheic basin water storages", Nature Geoscience 11,
-926-932, states it in its opening sentence and measures 31.8 million km2 across
-48,813 landlocked watersheds delineated from 15-arcsecond HydroSHEDS.
-
-The units match ours, which is the part worth checking. Wang's figure is the
-**catchment area that drains internally**, which is the same measure as this
-component's endorheic share of land -- not the basin-floor area, which is a
-different quantity about three and a half times smaller and which this project
-has already confused once.
-
-So this world is more endorheic than Earth by roughly a factor of two after
-carving, and closer to four before it. Still a large difference and still the
-fact this component exists to handle, but a smaller multiple than the 13%
-comparator implied.
-
-## Headline finding, and its limit
-
-A far larger share of this planet's land drains to a closed basin than Earth's
-about one-fifth, by roughly a factor of two once carved. That follows from
-the fork preserving closed basins instead of carving drainage to them, and it is
-the fact this component exists to handle.
-
-The endorheic share falls with each carve iteration, which is the verdict doing
-what it exists to do. It is also the number most likely to be quoted from a stale
-product: these files are per-build, and a figure computed against one terrain
-says nothing about another.
+Earth's endorheic fraction is **about one-fifth of its land surface**: Wang et
+al. (2018), "Recent global decline in endorheic basin water storages", Nature
+Geoscience 11, 926-932, measures 31.8 million km2 across 48,813 landlocked
+watersheds from 15-arcsecond HydroSHEDS. The units match ours: Wang's figure
+is catchment area that drains internally, the same measure as this component's
+endorheic share of land -- not the basin-floor area, a quantity several times
+smaller and easy to confuse. This world is more endorheic by roughly a factor
+of two after carving, and closer to four before it; that follows from the fork
+preserving closed basins, and it is the fact this component exists to handle.
+The share falls with each carve, and it is the number most likely to be quoted
+from a stale per-build product: these files are per-build, and a figure
+computed against one terrain says nothing about another.
 
 
 **That figure is the hyper-arid limit, not a property of the world.** It assumes
@@ -313,12 +262,10 @@ moved. Under `runoff_source p_minus_e` the recorded runoff is
 `max(P - E_land, 0)` by construction, which is the identity to check before
 trusting them.
 
-**An earlier version of this section said that hook did not exist, and that was
-wrong.** It described the state before iteration 1, which used exactly this
-interface: the count of retain-0 entries in `carve_list.json` matches
-`carvedByRetainZero` in the resulting build's manifest, which is the check that
-the list was consumed as written. Iteration 2 is a run, not a
-generator change.
+The count of retain-0 entries in `carve_list.json` matches
+`carvedByRetainZero` in the resulting build's manifest, which is the check
+that the list was consumed as written. Iteration 2 is a run, not a generator
+change.
 
 The terrain still is not in equilibrium: many basins fill to their spill under
 this climate, which is the water balance saying their outlets should have been

@@ -1,9 +1,9 @@
 # Where external data comes from
 
-A record of routes into data this project does not generate, so the next person
-needing a dataset starts from a list rather than from a search engine. Written
-2026-08-17 after a validation stalled on an API quota that a bulk mirror would
-have made irrelevant.
+A record of routes into data this project does not generate, so the next
+person needing a dataset starts from a list rather than from a search engine
+-- kept because a validation once stalled on an API quota that a bulk mirror
+would have made irrelevant.
 
 **Check the AWS Registry of Open Data first**, at `registry.opendata.aws`. It
 indexes hundreds of public datasets held in S3 with no credentials and no quota:
@@ -101,11 +101,8 @@ carries the evidence. One full T42 orbit takes 77.7 s built with 16.1.1 and
 post-update one. Nothing in this project needs this prefix, and the model is
 built with the system compiler.
 
-It stays written down because the ROUTE is worth keeping. Recovering a
-superseded toolchain from the pacman cache and running it from a private prefix
-without touching pacman's database is not obvious, it took a while to get right,
-and a real toolchain regression will want it one day. What follows is that
-recipe, verified on 2026-08-18. The version in the heading is the one that
+The recipe is kept because a real toolchain regression will want it one day.
+What follows is that recipe, verified on 2026-08-18. The version in the heading is the one that
 happened to be cached then; check `/var/log/pacman.log` for what is actually
 available rather than assuming.
 

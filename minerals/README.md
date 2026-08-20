@@ -105,22 +105,15 @@ Both are gated on the basin not overflowing. A basin pinned at its spill never
 reaches saturation, so nothing crystallises whatever its chemistry, and the lake
 solver already computed that boolean.
 
-**The weathering and drainage rules are sourced, and one of them moved by an
-order of magnitude when it was.** Supergene copper first carried a 100 mm/yr
-lower bound described as "the conventional semi-arid band", chosen without a
-source. Reich et al. (2009) measured the Atacama and put meteoric enrichment at
-above 10 mm/yr, shutting down below 1-4. The invented bound was excluding the
-best-documented enrichment province on Earth by a factor of ten.
-
-**And then its other bound turned out not to exist.** The rule also carried a
-declared 500 mm/yr wet cap. Sillitoe (2005) p. 736 admits every climate except
-hyperarid desert and glacial or permafrost ground, and calls a tropical climate
-the most favourable of all, so the cap was removed rather than re-derived; what
-stands in its place is the exclusion the source does name, tested on seasonal
-melting rather than an annual mean. The real wet-side control is erosion
-outpacing water-table descent, and because erosion answers to rainfall and slope
-TOGETHER, a rainfall cap was the wrong shape of term and not merely the wrong
-number.
+**The weathering and drainage rules are sourced, and sourcing moved an
+invented bound by an order of magnitude.** Supergene copper's lower bound is
+Reich et al. (2009): Atacama meteoric enrichment runs above 10 mm/yr and shuts
+down below 1-4. There is no wet cap: Sillitoe (2005) p. 736 admits every
+climate except hyperarid desert and glacial or permafrost ground, so the
+exclusion that stands is the one the source names, tested on seasonal melting
+rather than an annual mean. The real wet-side control is erosion outpacing
+water-table descent, and because erosion answers to rainfall and slope
+TOGETHER, a rainfall cap is the wrong shape of term.
 
 **A second paper in the same anniversary volume supplied the laterites'
 missing relief term**, so the two papers between them closed all three gaps. Bauxite and nickel laterite now carry a 5 degree

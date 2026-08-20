@@ -50,18 +50,10 @@ Both errors overstate stratospheric heating. They do not cancel.
 
 ## What to do about it
 
-`o3scale` is a direct multiplier on the ozone field, in `radmod_nl`. Like
-`nenergy`, it is not exposed by ExoPlaSim's Python API, so setting it needs the
-same direct namelist edit `run_exoplasim.py` already performs for `STARFILE` and
-`NENERGY`.
-
-Not yet changed, because the magnitude is unknown to this project: the direction
-is established but no number here is defensible without a photochemical model or
-a literature value for a K2V host specifically. What is cheap is a sensitivity
-test -- one T21 run at `o3scale` 0.5 against the baseline -- which would say
-whether this is worth caring about for surface climate at all. In a ten-layer
-model there is not much stratosphere to heat, so the surface effect may well be
-small even though the bias is real.
+A one-run sensitivity test, T21 at `o3scale` 0.5 against the baseline, would
+price the surface-climate stake; in a ten-layer model there is little
+stratosphere to heat, so the surface effect may be small even though the bias
+is real.
 
 ## Surface ultraviolet: measured, not chosen
 
@@ -81,20 +73,8 @@ column it produces.
 `star.surface_uv_relative_to_earth: 0.4`, and `run_exoplasim.py` sets `O3SCALE`
 through the namelist directly, as it already does for `NENERGY` and `STARFILE`.
 
-### What this replaced, and why it was wrong
-
-An earlier version of this file closed the question by *choosing*: declaring
-surface UV Earth-like so that neither the stellar emission nor the ozone column
-had to be pinned. The arithmetic behind it took photospheric UV-B at 0.45x
-Earth's and a halved ozone column transmitting 2.3x, multiplying to 1.05x.
-
-Both inputs were wrong and the answer was wrong by a factor of 2.6. The column is
-0.794x rather than 0.5x, and the surface flux is 0.4x rather than 1.05x. The
-cancellation that motivated the choice was two rough estimates landing near one,
-which was flagged at the time as not being evidence -- correctly, and the flag
-should have been treated as a work item rather than a disclaimer.
-
-What survives is the mechanism: ozone is UV-produced, so the column does track
+What survives of the earlier Earth-like-surface-UV assumption is the
+mechanism: ozone is UV-produced, so the column does track
 incident ultraviolet and does buffer the surface. It simply does not buffer it
 all the way to parity.
 

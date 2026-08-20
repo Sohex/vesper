@@ -349,9 +349,7 @@ worth a task.
 
 ## Tasks
 
-Tracked in `TASKS.md`, not restated here. A findings document that carries its
-own rows is a second copy of the tracker, and the copy nobody works from is the
-one that drifts.
+Tracked in `TASKS.md`, not restated here.
 
 | finding | id |
 | --- | --- |

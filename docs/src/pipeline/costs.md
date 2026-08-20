@@ -1,8 +1,7 @@
 # 0. What a re-commissioning costs
 
-**The words are in [the vocabulary](../reference/vocabulary.md) and are not repeated here.**
-What belongs here is the cost, because the cost is what makes the distinctions
-worth drawing. The rows below are a RE-COMMISSIONING: the same build,
+**The words are in [the vocabulary](../reference/vocabulary.md).** The rows
+below are a RE-COMMISSIONING: the same build,
 everything below the climatology redone. A bare re-run of the baseline is
 cheaper still, and is only honest when nothing in the "yes" rows is reachable
 from whatever changed.

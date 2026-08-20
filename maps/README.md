@@ -63,13 +63,10 @@ discharge rather than the line getting fatter, and anything drawn at all is
 drawn solidly, because a line one region wide at 20% opacity is a smudge rather
 than a river.
 
-Lakes that overflow do have rivers leaving them, which they did not in the first
-version of this: `basins.nc` now carries the saddle each basin spills at, so the
-outflow of every overflowing basin is routed onto the mesh. Those are the
-largest rivers on the planet, and adding them multiplied the biggest discharge
-several times over -- a spilling basin drains a catchment far larger than any
-single hillslope network, so leaving them out understated the top of the
-distribution rather than trimming its tail.
+Overflowing lakes have rivers leaving them: `basins.nc` carries the saddle
+each basin spills at, so every overflowing basin's outflow is routed onto the
+mesh. Those are the largest rivers on the planet, since a spilling basin
+drains a catchment far larger than any single hillslope network.
 
 One caveat carries through from the hydrography: most of the lake area drawn is
 in basins pinned at their spill, which the same water balance says should have

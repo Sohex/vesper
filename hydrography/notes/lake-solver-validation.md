@@ -1,9 +1,6 @@
 # Validating the lake solver against Earth
 
-HYD-4. Registered 2026-08-17, **before any data was fetched**, in the same way
-`pedology/scripts/validate_against_earth.py` and the albedo bracket's criteria
-were. What follows above the line is the test; what follows below is what it
-found.
+HYD-4. Registered 2026-08-17, **before any data was fetched**.
 
 ## Why this test and not another
 
@@ -154,11 +151,9 @@ water-holding basins there, 1,737 sit at their spill: geometry-limited, where th
 cap does the work and the equilibrium relation is not what sets the area. Only
 728 are evaporation-limited, which is the population this test speaks to.
 
-So HYD-4 closes with the solver still uncertified, and with something better than
-the unqualified "never validated against anything" it started with: a measured
-bound on the relation it iterates, a measured direction of failure at each
-extreme, and the knowledge that most of this world's lakes are set by a cap
-rather than by that relation.
+The solver is uncertified. What stands: a measured bound on the relation it
+iterates, a measured direction of failure at each extreme, and that most of
+this world's lakes are set by the cap rather than by the relation.
 
 ### What would test the cap
 

@@ -37,29 +37,17 @@ a mass and gravity that disagree, so the pair cannot drift apart.
 Earth-like life remains reasonable at that gravity, which is the constraint that
 matters for this world.
 
-## Correction: it invalidates far less than this note first claimed
+## What a gravity change does not move
 
-Written before the generator was tested, and wrong in the direction that mattered.
-Orogen runs its pipeline in model units and applies the 1/g relief scaling only
-at the model-unit-to-km conversion on export. Two builds differing only in
-gravity are bit-identical in every hash. Verified upstream on two 30k-region
-planets: all nine hashes equal, peak elevation 5.769 km against 4.593 km.
-
-So of the four things this note predicted:
-
-- **The terrain hash does not move.** Which makes it insufficient identity: a
-  build from another gravity would pass the allowlist while every vertical
-  quantity was off by the ratio. `lib/orogen.py` now reads `gravityMS2` and the
-  preflight checks it against config.
-- **The basin catalogue does not move.** All 3,629 ids stay valid.
-- **Existing carve verdicts transfer and replay.** They *should* still be
-  recomputed, because relief compresses by 20% and the water balance follows the
-  climate -- but that is a choice about accuracy, not a forced restart.
-- **Erosion did not respond to gravity either**, having also run in model units.
-  The landscape's shape is identical; only the vertical scale changes.
-
-The relief prediction was right and the mechanism behind it was wrong, which is
-the least useful way to be right.
+Orogen runs in model units and applies the 1/g relief scaling only at export,
+verified upstream on two 30k-region planets: all nine hashes equal, peak
+5.769 km against 4.593 km. So the terrain hash does not move -- which makes it
+insufficient identity, and `lib/orogen.py` now reads `gravityMS2` and the
+preflight checks it against config -- the basin catalogue keeps all 3,629 ids,
+and existing carve verdicts replay; recomputing them is an accuracy choice
+(relief compresses 20% and the water balance follows the climate), not a
+forced restart. Erosion also ran in model units, so the landscape's shape is
+identical and only the vertical scale changes.
 
 ## What it requires
 
@@ -84,38 +72,9 @@ The pedology and biosphere chains survive as method. Their calibrations should b
 revisited against a mantle that is not Earth's, per the differentiation point
 above.
 
-## Sequencing
-
-Best done at a clean point rather than mid-iteration, because it restarts the
-geography loop from the beginning. The work in flight when this was decided --
-the iteration-2 climate on `carved-zoned-v5` -- is worth finishing only for what
-it teaches about method, not for its numbers.
-
-`derive()` in `run_exoplasim.py` already refuses a mass and gravity that
-disagree, so the two cannot be changed independently by accident.
-
-
 ## Status
 
-Base regeneration requested from World Orogen on 2026-08-16 at g = 12.81, no
-carve list, with the crust/fill zoning and the cover-chain fix. `planet.yaml` is
-deliberately NOT yet edited: the config and the artifacts must move together, and
-the terrain is the thing that takes time.
-
-When the build lands, in order:
-
-1. Register the hash in `lib/orogen.py`. If the zoning or the cover-chain fix
-   moved `basinCatalogue`, every carve verdict is invalidated rather than
-   merely aged; a pure gravity change would have moved neither (the
-   correction above).
-2. Edit `planet.yaml`: `gravity_m_s2` 12.81, `mass_earth` 1.881009,
-   `source_build` to the new build.
-3. `python scripts/check_consistency.py`, which will list everything stale.
-4. Rebuild hydrography, boundary conditions, albedo, roughness.
-5. Re-derive the baseline flux from scratch. Do not carry 0.945 across: relief
-   compresses by about 20%, which moves lithology exposure and orography, and the
-   flux was measured against neither.
-6. Carve loop again from the pre-carve base.
-
-Prediction made before the build exists, so it can be scored: relief scales as
-1/g, so the highest point should fall from 5.769 km to about 4.6 km.
+Applied. `planet.yaml` carries 12.81 and 1.881009, the build is registered,
+and the geography loop restarted from the new base. The pre-build
+prediction -- relief scales as 1/g, so the peak should fall from 5.769 km to
+about 4.6 km -- was confirmed at 4.593 km.

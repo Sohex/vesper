@@ -1,8 +1,6 @@
 # 6. What happens next
 
-Three nested loops and then a resolution change. The order matters in places
-where it is not obvious, so those places are called out rather than left to be
-rediscovered.
+Three nested loops and then a resolution change.
 
 **A. The terrain loop, one turn of which is an ITERATION.** A generation on
 the carve list, then the commissioning of the build it produces: hydrography
@@ -67,16 +65,13 @@ irreversibility -- a wrong verdict is recoverable, because a build is replaced
 wholesale -- and it is not a computation. **Read `TASKS.md` and decide.** Each
 row in the open set says what it is waiting on.
 
-It was briefly computed, as "open tasks touching a step upstream of
-`carve_list`", and that was a category error rather than a filter that needed
-tuning. Whether a row still moves the verdict is a fact about what closing it
-would CHANGE, and that lives in the row's prose. The `[step: <id>]` marker
-records where the work is FILED. A task can name an upstream step and move
-nothing -- deferred, a bound, blocked on something that happens after the carve
--- so no traversal converts the second fact into the first. The filter would
-have been wrong however few rows it returned, and worse than wrong for looking
-decided. The marker stays, as the annotation it always was: where the work
-lands, not a verdict on whether it blocks.
+Do not compute it as "open tasks touching a step upstream of `carve_list`":
+whether a row still moves the verdict is a fact about what closing it would
+CHANGE, and that lives in the row's prose. A task can name an upstream step
+and move nothing -- deferred, a bound, blocked on something that happens
+after the carve -- so no traversal converts the second fact into the first.
+The `[step: <id>]` marker records where the work is FILED, not whether it
+blocks.
 
 The three at the top and the two at the bottom are the ones most often skipped
 and the ones that cost most when they are: `rebuild_binaries.py --verify`
@@ -92,10 +87,8 @@ quotes it. They are not in the list above because they gate nothing in the
 loop; they are consumers, and rule 7 governs them: when the climatology moves
 they are worthless, and regenerating them is a step rather than a task.
 
-**The cycle run is in that list because leaving it to prose lost it once.** A2
-said it belongs before the verdict, nothing tracked it, and a full verdict was
-taken on the mean climate before anyone noticed. The graph now enforces it:
-`carve_verdict` needs `stellar_cycle_run`.
+**The graph enforces A2's ordering: `carve_verdict` needs
+`stellar_cycle_run`.**
 
 **The first climate run on a new terrain is a bootstrap, and its numbers are
 not the baseline.** The surface fields that cannot be built without a
@@ -105,8 +98,7 @@ the dust fields (1811, 1801) when their model keys are set; the mask,
 topography, roughness and the base albedo are pure functions of the terrain.
 So the
 loop is entered by running the model on the fields that do not need it, and
-the run exists to produce the climatology the rest need. Written here because
-discovering it one field at a time costs a run each time.
+the run exists to produce the climatology the rest need.
 
 **`model.soil_water_source` has to say `uniform` for the bootstrap and
 `pedology` for the baseline, and the flip goes between them.** With it set to
@@ -233,7 +225,7 @@ cancel; the mitigation is the per-term prediction above, not serialization,
 because two cancelling errors hide just as well in a serial sequence nobody
 predicted the size of.
 
-**What survives from the old rule is a budgeting fact.** `build_surface_albedo.py`
+**A budgeting fact.** `build_surface_albedo.py`
 has a `modelled` mode that takes tree cover from an LPJ-GUESS `fpc.out`
 instead of asserting a uniform vegetated endmember, and it is the mode this
 project should end up in. The two land-albedo endmembers are as far apart in

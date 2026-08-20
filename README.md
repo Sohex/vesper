@@ -53,9 +53,7 @@ fork; `manifest.landSeaMask` states the size of the disagreement.
 
 Land elevation, land fraction and every other measured figure are in
 `world_state.json` and not here. Elevation is scaled by 1/g at export, so it
-moves when gravity does without any hash changing -- which is exactly how the
-figures that used to sit in this section came to be a quarter too high while
-still reading as current.
+moves when gravity does without any hash changing.
 
 ## `exoplasim/`
 

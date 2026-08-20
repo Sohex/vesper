@@ -336,21 +336,7 @@ Done:
 Remaining, in the order they block each other:
 
 6. ~~A run harness.~~ `run_lpj_guess.py`.
-
-   Superseded text kept for the reasoning:
-
-   **A run harness.** Every run so far has been hand-assembled in a scratch
-   directory with a hand-written instruction file. There is no `biosphere/runs/`,
-   no run manifest, no provenance record. That is against this project's own
-   convention and it is the next thing to build. It should generate the `.ins`
-   too: the settings are retyped each time, and parallel mode needs absolute
-   import paths because each rank chdirs into its own `runN/`.
 7. ~~The feedback products.~~ `build_surface_albedo.py --mode modelled`.
-
-   **The feedback products.** Turning `lai.out` and `fpc.out` into surface albedo
-   (codes 174, 175, 176) and forest fraction (212) for ExoPlaSim. This is the
-   entire point of the component and it does not exist yet: the climate is still
-   forced with `land_albedo_source: vegetated`, a constant.
 8. ~~Scoring.~~ `score_prediction.py`, with the ten registered bands
    transcribed from the note and the simulation-year conversion taken from the
    run manifest.
