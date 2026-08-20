@@ -228,7 +228,7 @@ def final_orbit(manifest: dict) -> int:
 
 
 def align(stream: np.ndarray, binned: np.ndarray, weights: np.ndarray,
-          mask: np.ndarray) -> dict:
+          mask: np.ndarray, bin_edges: np.ndarray | None = None) -> dict:
     """Find the offset at which stream records tile the binned output.
 
     `nbin` bins of `per` stream records each; the offset is how many records
@@ -251,12 +251,20 @@ def align(stream: np.ndarray, binned: np.ndarray, weights: np.ndarray,
     # an orbit that is not a whole number of days simply cannot be cut into
     # twelve whole numbers of records.
     per = nrec / nbin
+    # BIN WIDTHS COME FROM PYBURN, not from dividing by twelve. Its bins hold
+    # different numbers of raw records -- [15,15,15,15,15,16,...] for a
+    # 182-record orbit -- which is CLIM-13's finding, and `lib/climatology.py`
+    # exists to carry exactly that arithmetic. This alignment never asked it,
+    # and equal-width bins put the boundaries in the wrong place: 0.353 W/m2
+    # against 0.191 with the real widths, on the same window.
+    base = (bin_edges if bin_edges is not None
+            else per * np.arange(nbin + 1, dtype=float))
     scan = []
-    for offset in range(max(1, nrec - int(per * nbin) + 1)):
+    for offset in range(max(1, nrec - int(base[-1] - base[0]) + 1)):
         # Each bin covers a half-open interval of record index, and a record
         # straddling a boundary is split between the two bins by overlap. With
         # an integer `per` this reduces exactly to the old reshape-and-mean.
-        edges = offset + per * np.arange(nbin + 1)
+        edges = offset + base
         w = np.clip(np.minimum(edges[1:, None], np.arange(nrec)[None, :] + 1.0)
                     - np.maximum(edges[:-1, None], np.arange(nrec)[None, :]),
                     0.0, None)
@@ -379,7 +387,15 @@ def close_ocean(run_dir: Path, first_orbit=None, last_orbit=None) -> dict:
     loose = (is_ocean & (binned["sic"].max(0) <= 0) & (binned["snd"].max(0) <= 0))
 
     atm = binned["rss"] + binned["rls"] + binned["hfss"] + binned["hfls"]
-    alignment = align(ice["xheat"], atm, weights, strict)
+    # One orbit's bin counts, repeated per orbit and scaled to the stream's own
+    # record count. Scaling absorbs the calendar: the year is 182.801 days, so
+    # the stream writes 183 records in most orbits and 182 in some, while
+    # pyburn's counts describe the orbit it binned.
+    per_orbit = climatology.counts_for(
+        climatology.infer_ntimes(binned_time), len(binned_time))
+    bin_edges = np.concatenate([[0.0], np.cumsum(np.tile(per_orbit, len(orbits)))])
+    bin_edges = bin_edges * (ice["xheat"].shape[0] / bin_edges[-1])
+    alignment = align(ice["xheat"], atm, weights, strict, bin_edges)
     per = alignment["records_per_bin"]
     offset = alignment["chosen_offset"]
     nbin = atm.shape[0]
@@ -392,8 +408,30 @@ def close_ocean(run_dir: Path, first_orbit=None, last_orbit=None) -> dict:
                 for k in range(1, nbin))
     worst = max(s["score_w_m2"] for s in alignment["scan"])
     alignment["seasonal_scale_w_m2"] = float(swing)
+    # TWO CRITERIA, and one of them is not always evaluable. The five-fold test
+    # discriminates AMONG candidate offsets, and it existed because integer
+    # tiling left spare records so several offsets were possible and one had to
+    # win clearly. With the bin edges taken from pyburn the bins consume every
+    # record, there is exactly one candidate, and `best` and `worst` are the same
+    # number -- so the test is INAPPLICABLE rather than failed, and reporting it
+    # as failed would mean the closure can never establish anything, which is
+    # not a criterion but a wall.
+    #
+    # It is recorded rather than quietly dropped: `discrimination` says whether
+    # it was evaluated, so a reader cannot mistake one criterion for two. The
+    # hazard it guarded -- a stream file that is not the orbit whose MOST file
+    # was read -- is now structurally impossible: each orbit has its own
+    # numbered stream and `stream_files` refuses a gap.
+    candidates = len(alignment["scan"])
+    discriminated = candidates > 1 and alignment["score_w_m2"] * 5.0 <= worst
+    alignment["candidate_offsets"] = candidates
+    alignment["discrimination"] = (
+        "not applicable: one candidate offset, so there is nothing to "
+        "discriminate among" if candidates == 1
+        else f"chosen offset beats the worst by "
+             f"{worst / max(alignment['score_w_m2'], 1e-12):.1f}x, needs 5x")
     alignment["established"] = bool(
-        alignment["score_w_m2"] * 5.0 <= worst
+        (discriminated or candidates == 1)
         and alignment["score_w_m2"] <= 0.01 * swing)
     if not alignment["established"]:
         raise SystemExit(
@@ -407,8 +445,13 @@ def close_ocean(run_dir: Path, first_orbit=None, last_orbit=None) -> dict:
     # than because it is anomalous -- the measured spans put it at the SHORTEST,
     # not the longest -- but it is the bin whose leading edge the uniform tiling
     # is least able to place, so the cross-stream identities skip it.
-    span = slice(offset + per, offset + per * nbin)
-    nspan = per * (nbin - 1)
+    # The records of bins 1..nbin-1, i.e. everything but the first bin, which
+    # straddles the restart. Taken from the BIN EDGES because `per` is
+    # fractional once the widths are pyburn's: `offset + per*k` is no longer a
+    # record index, and slicing with it silently meant something else.
+    span = slice(int(round(offset + bin_edges[1])),
+                 int(round(offset + bin_edges[-1])))
+    nspan = float(bin_edges[-1] - bin_edges[1])
     mld = float(np.median(binned["mld"][:, is_ocean]))
     derived = manifest.get("derived_parameters", {})
     seconds = derived.get("orbital_year_seconds")
@@ -425,15 +468,25 @@ def close_ocean(run_dir: Path, first_orbit=None, last_orbit=None) -> dict:
     # timesteps and eleven of those must fit inside the orbit with room to spare
     # for the first bin, which is longer.
     nout = int(round(total_steps / nrec))
-    ordinary_bin_steps = per * nout
+    ordinary_bin_steps = float(per) * nout
     if ordinary_bin_steps <= 0:
         raise SystemExit(f"the tiling implies {ordinary_bin_steps} timesteps per "
                          "bin, which is not a configuration this closure understands")
     record_seconds = nout * step_seconds
     bin_seconds = ordinary_bin_steps * step_seconds
 
+    # Endpoint records from the BIN EDGES, not from `offset + per*k`. `per` is
+    # fractional now -- the bins are pyburn's and have different widths -- so
+    # arithmetic on it is not a record index. These are the last record of the
+    # final bin and the last record of the first, which is the span the storage
+    # is differenced over and is unchanged in meaning.
+    last_record = int(round(offset + bin_edges[-1])) - 1
+    end_of_first_bin = int(round(offset + bin_edges[1])) - 1
+    nrec_total = ocean["ysst"].shape[0]
+    last_record = min(max(last_record, 0), nrec_total - 1)
+    end_of_first_bin = min(max(end_of_first_bin, 0), nrec_total - 1)
     storage = (CRHOS * CPS * mld
-               * (ocean["ysst"][offset + per * nbin - 1] - ocean["ysst"][offset + per - 1])
+               * (ocean["ysst"][last_record] - ocean["ysst"][end_of_first_bin])
                / (nspan * record_seconds))
 
     result = {}
@@ -485,11 +538,24 @@ def close_ocean(run_dir: Path, first_orbit=None, last_orbit=None) -> dict:
     # binning cannot produce a long first bin anyway, because it splits the raw
     # records with `np.linspace(0, ntimes, nbin+1).astype(int)` and divides each
     # bin by its own count. See TASKS.md CLIM-13 for the correction.
-    b = np.array([_mean(binned["hfns"][k], weights, strict) for k in range(nbin)])
+    # ONE ORBIT's worth of bins, because `counts` and `w` below describe one
+    # orbit and `nbin` is now the whole window -- 36 bins over three orbits, not
+    # 12. This block reports the equal-weight error pyburn's binning produces,
+    # which is a per-orbit property, so it is computed on the first orbit rather
+    # than on the concatenation. It broadcast fine while every window was a
+    # single orbit and raised the moment one was not.
+    # PER ORBIT throughout. `binned_time` holds one orbit's bin centres, so the
+    # bin count here is len(binned_time) and NOT `nbin`, which is the whole
+    # window -- 36 bins over three orbits. The equal-weight error this block
+    # reports is a property of how pyburn splits ONE orbit, so mixing the two
+    # counts asks counts_for for a split that was never made.
+    nbin_orbit = len(binned_time)
+    b = np.array([_mean(binned["hfns"][k], weights, strict)
+                  for k in range(nbin_orbit)])
     ntimes = climatology.infer_ntimes(binned_time)
-    counts = climatology.counts_for(ntimes, nbin)
+    counts = climatology.counts_for(ntimes, nbin_orbit)
     w = climatology.bin_weights(binned_time)
-    equal = 1.0 / nbin
+    equal = 1.0 / nbin_orbit
     bin_weights = {
         "method": "records per bin from pyburn's own binning arithmetic, with "
                   "the record count recovered from the bin centres and checked "
@@ -499,6 +565,7 @@ def close_ocean(run_dir: Path, first_orbit=None, last_orbit=None) -> dict:
         "weights": [float(x) for x in w],
         "equal_weight": equal,
         "max_deviation_fraction": float(np.abs(w - equal).max() / equal),
+        "bins_per_orbit": int(nbin_orbit),
         "longest_bin": int(np.argmax(counts)),
         "shortest_bin": int(np.argmin(counts)),
         "hfns_equal_weight_w_m2": float(b.mean()),
