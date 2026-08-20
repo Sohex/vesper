@@ -212,6 +212,7 @@ unless told they exist.
 | `close_state_energy.py` | closes the energy budget against the PROGNOSTIC STATE, which is the check the flux diagnostics cannot fail |
 | `close_term_energy.py` | closes the model's INTERNAL budget against PlaSim's 28 terms; three identities, and it refuses a low-I/O window |
 | `score_rank_bench.py` | scores the rank-layout arms from restart mtimes, against the thresholds `notes/rank-layout-benchmark.md` declared before they ran |
+| `reset_restart_accumulators.py` | zeroes the ACCUMULATOR records in a copy of a restart, leaving prognostic state byte-identical. `run_exoplasim.py --restart-from` calls it, so a seeded run does not inherit the donor's partial accumulation window; CLIM-31 |
 | `close_ocean_energy.py` | closes the SURFACE budget against the ocean's and the ice module's own output streams, which nothing else here reads; six identities. Reads the per-orbit `MOST_OCEAN.NNNNN`/`MOST_ICE.NNNNN` files the wrapper now preserves; on a run from before that fix it reaches only the final orbit, and the report records which layout it read |
 | `predict_ocean_terms.py` | predictions for the two ocean namelist terms of the next baseline bundle, BEFORE the run: the `nhdiff` redistribution and the salinity-derived `TFREEZE` bracket. Validates its diffusion operator against a Laplacian eigenfunction and writes nothing; the write-up is `notes/forcing-bundle-predictions.md` |
 | `build_climatology.py` | average an equilibrated segment into climatologies; refuses orbits declared `diagnostic`, and refuses to mix I/O regimes |

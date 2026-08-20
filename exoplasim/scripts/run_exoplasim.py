@@ -20,6 +20,7 @@ import numpy as np
 import yaml
 
 from _paths import CONFIG, INPUTS, PROJECT_ROOT, RUNS
+import reset_restart_accumulators
 
 
 EARTH_STANDARD_GRAVITY = 9.80665
@@ -1240,7 +1241,28 @@ def main() -> None:
         # nothing. It only surfaced because it also happened to trap a SIGFPE in
         # landini. A silent null result is the failure mode this guard exists to
         # prevent.
-        src_manifest = restart_seed.parent / "run_manifest.json"
+        # CLIM-31. A restart carries the donor's PARTIAL ACCUMULATION and the
+        # counters that normalise it, so a seeded run opens mid-window: it adds
+        # its own steps to somebody else's sum and divides by its own count. The
+        # damage is one output record and it is visible on a field that cannot
+        # vary -- under low I/O the land mask reads 0.95341 in orbit 0 bin 0,
+        # exactly 1.0 everywhere else, and a cold-started low-I/O run reads 1.0
+        # throughout.
+        #
+        # Zeroed in a COPY, so the donor run is never modified: a restart is the
+        # only record of where a run was, and editing one in place would make a
+        # completed run unreproducible to fix a defect in the run seeded from
+        # it. Every record zeroed is one the model itself sets to zero at an
+        # interval boundary, so the copy describes a run sitting exactly at the
+        # start of an accumulation window.
+        seeded_from = restart_seed
+        restart_seed = run_dir / "MOST_REST.seed"
+        run_dir.mkdir(parents=True, exist_ok=True)
+        reset_info = reset_restart_accumulators.reset(seeded_from, restart_seed)
+        print(f"seed {seeded_from.name} from {seeded_from.parent.name}: zeroed "
+              f"{len(reset_info['zeroed'])} accumulator records (CLIM-31)")
+
+        src_manifest = seeded_from.parent / "run_manifest.json"
         if src_manifest.is_file():
             src = json.loads(src_manifest.read_text(encoding="utf-8"))
             was = set((src.get("surface_fields") or {}).get("from_file") or [])
@@ -1456,12 +1478,22 @@ def main() -> None:
         "config_sha256": file_sha256(config_path),
         "source_config": config,
         "derived_parameters": derived,
+        # The DONOR is the provenance, not the copy this run reads. Recording
+        # the copy would name a file that exists only inside this run directory
+        # and whose sha nothing else can match, which is the opposite of what a
+        # provenance field is for.
         "initial_state": ({"cold_start": True} if restart_seed is None else {
             "cold_start": False,
-            "restart_from": str(restart_seed),
-            "restart_from_sha256": file_sha256(restart_seed),
-            "restart_from_run": restart_seed.parent.name,
-            "note": "Initial condition only; equilibrium is set by the forcing.",
+            "restart_from": str(seeded_from),
+            "restart_from_sha256": file_sha256(seeded_from),
+            "restart_from_run": seeded_from.parent.name,
+            "accumulators_reset": [n for n, _ in reset_info["zeroed"]],
+            "seed_copy_sha256": file_sha256(restart_seed),
+            "note": "Initial condition only; equilibrium is set by the forcing. "
+                    "The accumulator records listed were zeroed in a copy before "
+                    "the run read it, so this run does not inherit the donor's "
+                    "partial accumulation window (CLIM-31); every other record "
+                    "is byte-identical to the donor.",
         }),
         "geography": {
             "landmap": str(landmap),

@@ -400,4 +400,14 @@ begins at 268.8 K with no ice-free ocean at all, so there is nothing to compare.
 **It matters more now than it would have yesterday**, because low I/O became the
 default for a prepared run the same day, and every seeded spin-up in
 `WORKFLOW.md` section 6 -- the bracket points, the endmember arm -- is
-`--restart-from`. CLIM-31 is the fix.
+`--restart-from`. CLIM-31 is the fix, and it is DONE as of the same day.
+`exoplasim/scripts/reset_restart_accumulators.py` zeroes the accumulator records
+in a copy of the restart before the seeded run reads it, and a seeded low-I/O run
+now reads 1.0 in orbit 0 bin 0, matching the cold-start control.
+
+**So all three instances of this class are now closed**, and they were three
+different mechanisms wearing one symptom: `naccuout` surviving a restart while
+the accumulators did not, fixed by the patch; the collective placed behind an
+unbroadcast `nlowio`, fixed by the broadcast; and a seeded run inheriting a
+donor's partial window, fixed by zeroing the copy. The symptom each time was a
+first output record that did not mean what the records after it meant.
