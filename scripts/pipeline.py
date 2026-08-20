@@ -8,7 +8,7 @@
     python scripts/pipeline.py --purge orogen --execute      # ... and delete it
 
 The graph is `config/pipeline.yaml` and that file is its only source. This script
-reads it; `WORKFLOW.md` explains it and references its step ids. Nothing restates
+reads it; the pipeline chapters under `docs/src/pipeline/` explain it and reference its step ids. Nothing restates
 it, because two representations of one graph is the duplication both documents
 exist to prevent.
 

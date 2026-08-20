@@ -6,7 +6,7 @@ That can only ever show the diagnostics agreeing with themselves: `ntr` equals
 `rst + rlut` by construction, the radiative heating terms are the divergence of
 the same flux profile the top-of-atmosphere fluxes are read off, and the pair
 `rst`/`rlut` sum to `ntr` and therefore cannot be cross-checked against each
-other. `notes/failure-modes.md` class 17 is the name for that: a check with no
+other. `docs/src/practice/failure-modes.md` class 17 is the name for that: a check with no
 possible failure is not a check.
 
 This script uses a quantity the radiation code does not supply. Energy

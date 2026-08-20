@@ -10,7 +10,7 @@ as a git subtree); climate is simulated with ExoPlaSim, vendored the same way at
 `vendor/exoplasim/`. Hydrography, pedology, the biosphere, dust and minerals are
 consumers of those two, each in its own component directory.
 
-See `WORKFLOW.md` for the pipeline end to end, and `world_state.json` for the
+See the docs book (`docs/src/SUMMARY.md`) for the pipeline end to end, and `world_state.json` for the
 current values: builds, runs and verdicts, generated from the artifacts by
 `scripts/world_state.py`. Findings are in `notes/`, with their evidence, and
 what is still to be done is in `TASKS.md`.

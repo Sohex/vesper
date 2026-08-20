@@ -9,7 +9,7 @@ nothing here is biology. The nearest real-world analogue of this document is a
 test plan.
 
 Written 2026-08-19, measured on the baseline climatology of `run_8c2e1ff9ab5e`,
-per WORKFLOW A3: every forcing change lands with a quantitative prediction of
+per `docs/src/pipeline/sequencing.md` A3: every forcing change lands with a quantitative prediction of
 its own effect, stated before it is run, with what result would mean "wrong".
 The bundle is then checked as a SUM against the sum of these predictions, and
 bisected only if the two disagree. Numbers here are recomputable:
@@ -200,12 +200,12 @@ so this is the softest prediction in the table and the first place to bisect
 if the sum misses.
 
 **Consequence to plan for:** the central sum leaves the design mean by about
-+0.6 K, so the flux re-derivation that WORKFLOW 6C already requires should
++0.6 K, so the flux re-derivation that `docs/src/pipeline/sequencing.md` loop C already requires should
 expect to move luminosity DOWN by roughly 0.3% (0.6 K over the canonical 202 K
 per unit flux) -- half what this note said before SPEC-5 joined the bundle,
 and soft in both directions.
 That is inside the 2-3% window where the `k25v` spectrum remains valid, so no
-spectrum rebuild follows. And per WORKFLOW A3, hold the flux for the A/B
+spectrum rebuild follows. And per `docs/src/pipeline/sequencing.md` A3, hold the flux for the A/B
 itself: measure the surface first, move the flux after, on a slope measured
 with the new terms in place.
 

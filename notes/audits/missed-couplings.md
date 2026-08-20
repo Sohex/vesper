@@ -167,7 +167,7 @@ carries no such rule and is otherwise identical in kind.
 
 ## 4. The biosphere reaches the climate through albedo, and not through water
 
-**[inspection]** `WORKFLOW.md` section 4 states the biosphere-climate coupling
+**[inspection]** `docs/src/pipeline/loops.md` states the biosphere-climate coupling
 entirely in radiative terms: *"Bare rock and a vegetated surface differ in land
 albedo by enough to be worth several kelvin."* That is the channel that is
 modelled, and it is priced at 4.28 K, the largest single item in the budget.
@@ -241,7 +241,7 @@ roots accessing water the bucket cannot hold increase it. The magnitude is what
 matters, and by finding 1 it is amplified 5.5x into the carve.
 
 This is a structural one-way coupling rather than an error. It deserves recording
-in WORKFLOW section 4 beside the albedo channel, because the section currently
+in `docs/src/pipeline/loops.md` beside the albedo channel, because the section currently
 reads as though albedo were the whole of it.
 
 ---

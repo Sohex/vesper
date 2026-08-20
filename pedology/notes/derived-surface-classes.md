@@ -63,7 +63,7 @@ and buried by eolian sediments"*, with the clast source area at Cima
 significantly reduced on flows older than 0.4 Ma. A rule keyed on present
 substrate treats supply as permanent, so the pavement area is an upper bound on
 any surface old enough to have worn its highs down. This world has no time axis
-to fix that with (`notes/no-time-axis.md`), so it is a stated bound and not a
+to fix that with (`docs/src/reference/no-time-axis.md`), so it is a stated bound and not a
 gap to close.
 
 The UPPER BOUND ON DEPOSITION is now sourced, where it previously rested on Muhs'
@@ -268,7 +268,7 @@ Meybeck Table 2C the brine paths use. Three results place it:
   drainage question and the drainage weighting is `terminal >= 0`, which covers
   76.2% of land against a basin floor of about a fifth of it. The two differ by a
   factor of 3.2 and only one of them is about where the silica goes. This is the
-  same trap `notes/failure-modes.md` records under "one quantity, two meanings,
+  same trap `docs/src/practice/failure-modes.md` records under "one quantity, two meanings,
   three times the value", now caught a second time on a second quantity.
 - **Volcanic terrain supplies 13.8% of it from 8% of land**, so it is enriched
   but not dominant. Meybeck puts volcanic rock at 200 umol/l against granite's

@@ -185,7 +185,7 @@ all:
 - **Explosive eruptions.** Stratospheric sulfate is where volcanic aerosol does
   its climatic work on Earth, and it is episodic. An episodic source needs a
   frequency-magnitude distribution, which needs an eruption history;
-  `notes/no-time-axis.md` says why there is none. The arc classes carry a place,
+  `docs/src/reference/no-time-axis.md` says why there is none. The arc classes carry a place,
   not a rate in time.
 - **Marine biogenic sulfur.** On Earth this is the LARGEST natural sulfur
   source, above volcanic, and this project has no marine biosphere at all --
@@ -282,10 +282,10 @@ Recorded so the coverage is not overread, and so these are not re-derived. Each
 is a real gap that is already a finding with a task against it: ocean heat
 transport (`CLIM-16`), the cloud shortwave constants (`PHYS-11`), dust deposition
 on snow and ice (`DUST-14`), the absent transpiration channel (`BIO-4`, closed,
-and `WORKFLOW.md` section 4), the mixed layer depth (`notes/config-rationale.md`
+and `docs/src/pipeline/loops.md`), the mixed layer depth (`docs/src/reference/config-rationale.md`
 and the error budget's structural items), ocean salinity through `TFREEZE`
 (declared in `config/planet.yaml` 2026-08-18), T85 redistributing precipitation
-into the carve verdict (`WORKFLOW.md` section 6), and the carbon cycle, which
+into the carve verdict (`docs/src/pipeline/sequencing.md`), and the carbon cycle, which
 section 4 leaves open deliberately and bounds rather than solves.
 
 ## What this audit did not cover

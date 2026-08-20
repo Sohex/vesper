@@ -39,7 +39,7 @@ Mesh-derived land fraction against the `N064_surf_0172.sra` land mask ExoPlaSim
 actually ran with: **100.00% binary agreement** at the 0.5 threshold, by index and
 with no roll. Rolling 180 degrees drops cell agreement to 58%. This is checked
 rather than assumed because keying on lon/lat across that boundary has silently
-matched zero cells three times; see `notes/failure-modes.md`.
+matched zero cells three times; see `docs/src/practice/failure-modes.md`.
 
 ## Method
 

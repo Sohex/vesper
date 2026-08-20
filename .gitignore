@@ -141,3 +141,4 @@ aeolian/analysis/*.nc
 # keep-the-record rule as references/INDEX.md. Delete the directory once the
 # bit-identical check has been made and recorded.
 exoplasim/analysis/prerebuild_binaries_*/*.x
+docs/book/

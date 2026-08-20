@@ -1,8 +1,8 @@
 # THE PIPELINE GRAPH. Single source of truth for what steps exist, what each
 # generates, and what must precede it.
 #
-# WORKFLOW.md owns the REASONING -- why the order is what it is, what each stage
-# is for, why the loops close, and the traps. It references step ids from here
+# The pipeline chapters (docs/src/pipeline/) own the REASONING -- why the order is what it is, what each stage
+# is for, why the loops close, and the traps. They reference step ids from here
 # and does not restate them. This file owns the graph and nothing else: no
 # rationale, no narrative, no current values. Two representations of one thing in
 # two files is the duplication both documents exist to prevent.
@@ -107,7 +107,7 @@ steps:
       --vegetation <run>/fpc.out, which raises without it. One artifact, one
       row, so the mode is the state of albedo_report.json rather than a second
       step. Adopting modelled requires the flux to be re-derived: the two land
-      endmembers are 15-19 W/m2 apart in absorbed flux (WORKFLOW A3).
+      endmembers are 15-19 W/m2 apart in absorbed flux (`docs/src/pipeline/sequencing.md` A3).
 
   - id: surface_roughness
     reads_export: true
@@ -191,7 +191,7 @@ steps:
     needs: [baseline_climatology, bracket_run]
     writes: [exoplasim/analysis/design_flux.json]
     gate: >
-      the flux is re-derived on every new terrain (WORKFLOW 5b and 6), and the
+      the flux is re-derived on every new terrain (`docs/src/pipeline/state.md` section 5b and 6), and the
       thresholds are declared in the script before it runs, never fitted to the
       answer. The cap on extreme-cold land fraction must be DECLARED in advance
       by this re-derivation: the purged artifact inferred it at 0.0642, which
@@ -322,7 +322,7 @@ steps:
     presence: by_index
     gate: >
       requires a FINAL baseline, not merely a converged one: anything still
-      outstanding that moves the mean has to land first (WORKFLOW A2)
+      outstanding that moves the mean has to land first (`docs/src/pipeline/sequencing.md` A2)
 
   - id: carve_verdict
     script: hydrography/scripts/carve_verdict.py
@@ -377,7 +377,7 @@ steps:
     needs: [carve_verdict, carve_verdict_endmember]
     writes: ["hydrography/data/{build}/carve_list.txt", "hydrography/data/{build}/carve_list.json"]
     gate: >
-      carves the INTERSECTION, per WORKFLOW section 4: retain is the larger of
+      carves the INTERSECTION, per `docs/src/pipeline/loops.md`: retain is the larger of
       the two arms', so a rim survives wherever either climate would have kept
       it, and the disagreement is the BRACKETED set by construction rather than
       by a tolerance chosen afterwards. Pass the cold arm's climatology as

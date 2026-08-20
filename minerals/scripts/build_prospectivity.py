@@ -13,7 +13,7 @@ It is a FIELD, not deposits. A porphyry system is one to two kilometres against 
 is invisible at every resolution this pipeline runs at. Placing one would invent
 detail the grid cannot hold. Discrete deposits belong with the downscaling pass,
 which is also where glacial overdeepening goes, for the same reason and at almost
-the same scale ratio. See `notes/economic-minerals.md`.
+the same scale ratio. See `docs/src/reference/economic-minerals.md`.
 
 It is NOT a lithology and NOT an erodibility modifier. `substrate_class` sets
 erodibility and therefore terrain, albedo and therefore climate, texture and
@@ -24,7 +24,7 @@ percent of it.
 
 ## Why this is downstream rather than inside Orogen
 
-`notes/economic-minerals.md` assigns tectonic and magmatic genesis to Orogen,
+`docs/src/reference/economic-minerals.md` assigns tectonic and magmatic genesis to Orogen,
 meaning the PROCESSES that concentrate these deposits are the ones Orogen models.
 It does not require the arithmetic to happen there, and every input but one is
 already exported: craton weight, fold-belt weight, stress, back-arc distance,

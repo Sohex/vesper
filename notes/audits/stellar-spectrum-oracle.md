@@ -172,7 +172,7 @@ Also biased, by the same mechanism and not separately measured here: the 965-poi
 
 ## What else the grid constrains
 
-**The 100 K step.** `WORKFLOW.md` loop C and `exoplasim/notes/stellar-spectrum-audit.md`
+**The 100 K step.** `docs/src/pipeline/sequencing.md` loop C and `exoplasim/notes/stellar-spectrum-audit.md`
 both state 4.7% as the band-1 difference between the two endpoints, which is the
 argument for interpolating rather than rounding. Independently: 4.77% from the LMD
 files, 4.75% from the SVO endpoints at full resolution.

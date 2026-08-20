@@ -5,7 +5,7 @@ Primary sources this project leans on. Filenames are
 
 **Read** means someone here has opened the paper and taken the number from it.
 **Held** means the project already cites it but has only ever used it secondhand.
-That distinction is the point of this file: `notes/failure-modes.md` class 9 is
+That distinction is the point of this file: `docs/src/practice/failure-modes.md` class 9 is
 "a number taken from a citation rather than from the paper", and it has cost us
 twice -- once on Hartmann's phosphorus rows, once on the ozone UV weight, where
 the correction was itself half wrong. Everything marked *held* is an open
@@ -169,7 +169,7 @@ bracketed; the config says so at each block.
 
 | file | citation | status |
 | --- | --- | --- |
-| `saxton_2006_soil-water-characteristic-estimates-by-texture-and-organic-matter-for.pdf` | Saxton, Rawls (2006). *Soil Water Characteristic Estimates by Texture and Organic Matter for Hydrologic Solutions.* Soil Science Society of America Journal 70(5), 1569-1578. `10.2136/sssaj2005.0117` | **read** -- the standard texture-to-water-capacity basis, regressed on 1,722 A-horizon samples from the USDA/NRCS National Soil Characterization database at 33 and 1500 kPa. It establishes the SHAPE the config relies on, plant-available water peaking at intermediate texture. It does NOT license the three endmember values: the regression is over a continuous mixture and the paper explicitly excluded samples above 60% clay, so a pure endmember is outside the data it was built on. Taking numbers off it anyway would be `notes/failure-modes.md` class 9, which is why the values stayed declared and gained brackets instead |
+| `saxton_2006_soil-water-characteristic-estimates-by-texture-and-organic-matter-for.pdf` | Saxton, Rawls (2006). *Soil Water Characteristic Estimates by Texture and Organic Matter for Hydrologic Solutions.* Soil Science Society of America Journal 70(5), 1569-1578. `10.2136/sssaj2005.0117` | **read** -- the standard texture-to-water-capacity basis, regressed on 1,722 A-horizon samples from the USDA/NRCS National Soil Characterization database at 33 and 1500 kPa. It establishes the SHAPE the config relies on, plant-available water peaking at intermediate texture. It does NOT license the three endmember values: the regression is over a continuous mixture and the paper explicitly excluded samples above 60% clay, so a pure endmember is outside the data it was built on. Taking numbers off it anyway would be `docs/src/practice/failure-modes.md` class 9, which is why the values stayed declared and gained brackets instead |
 | `heimsath_1997_the-soil-production-function-and-landscape-equilibrium.pdf` | Heimsath, Dietrich, Nishiizumi, Finkel (1997). *The soil production function and landscape equilibrium.* Nature 388, 358-361. `10.1038/41056` | **read** -- the first empirical soil production function, from cosmogenic 10Be and 26Al in bedrock beneath soils of different depths in northern California: `-(de/dt) = (77 +/- 9) exp(-(0.023 +/- 0.003) h)` um/yr with h in cm, so an e-folding depth near 43 cm. Two things carry into `catena:`. The paper's own reason for the exponential form is "the decrease in effectiveness of such mechanical processes as freeze-thaw", which names the frost term rather than leaving it assumed. And its control variable is hillslope CURVATURE, the divergence of the transport flux, where the config uses tan(beta), the flux itself -- a stated simplification, and the reason the slope constants are declared rather than sourced |
 
 ## Geochemistry: weathering, phosphorus and the thermostat
@@ -466,7 +466,7 @@ nickel laterite, and potash. Lithium and borate left that list on 2026-08-18 for
 Fetched and read 2026-08-18 to close MIN-5, grounding what had been the two
 weakest entries in `minerals/config/downstream_prospectivity.yaml` and are now
 one, `brine_lithium_borate`. The argument they support is in
-`notes/economic-minerals.md`. The short form: the CRITERION is settled for both
+`docs/src/reference/economic-minerals.md`. The short form: the CRITERION is settled for both
 elements at once, which is also why they collapse into a single field, and the
 RELEASE COEFFICIENT does not exist, which is why the rule reads
 `grounding: sourced-negative` rather than `declared`.

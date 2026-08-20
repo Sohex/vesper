@@ -126,7 +126,7 @@ work and has never been exercised.
 
 ### Predicted effects, stated before they run
 
-Per `WORKFLOW.md` A3, with what result would mean "wrong".
+Per `docs/src/pipeline/sequencing.md` A3, with what result would mean "wrong".
 
 | change | prediction | falsified by |
 | --- | --- | --- |
@@ -290,7 +290,7 @@ them is a ratio the rescale preserves.
 
 **So the configuration this project is now in is `apart` = 2.21 um with the Q
 values scaled by 2.251**, burden-matched because the in-model chain exists for
-the AOD and the precipitation response (`WORKFLOW.md` A4), not for the deposition
+the AOD and the precipitation response (`docs/src/pipeline/sequencing.md` A4), not for the deposition
 field. APPLIED 2026-08-18, once defect 1 landed and made it bite. Three things
 carried with it:
 
@@ -568,7 +568,7 @@ against a model whose aerosol path has demonstrably never been exercised -- thre
 defects found by inspection before touching it, and four more found while fixing
 those three.
 
-**Sequencing**, corrected 2026-08-18. This used to read that `WORKFLOW.md` A3
+**Sequencing**, corrected 2026-08-18. This used to read that `docs/src/pipeline/sequencing.md` A3
 forbade landing in the same iteration as the carve, and A3 no longer says that.
 The constraint was never real: attribution cannot gate a correct term, so it
 bought nothing that a converged run's cost could be justified against.

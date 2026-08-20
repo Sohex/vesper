@@ -22,7 +22,7 @@ terms, in the same scheme, left in the larger term.**
 `radmod.f90:1548` says of its shortwave code: "from Lacis & Hansen (1974) for
 clear sky (H2O, O3, Rayleigh)". Those absorptances are expressed as a fraction of
 TOTAL INCIDENT SOLAR FLUX, so each carries the Sun's share of flux in the band it
-represents. `notes/config-rationale.md` states this exactly, for ozone:
+represents. `docs/src/reference/config-rationale.md` states this exactly, for ozone:
 
 > Each of their three terms therefore carries the Sun's share of flux in the band
 > it represents, and applying them unchanged to a K dwarf puts solar band weights

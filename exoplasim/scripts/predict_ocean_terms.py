@@ -8,7 +8,7 @@ horizontal heat diffusion, and the freezing point implied by a declared ocean
 salinity -- offline, against the current baseline climatology. Nothing here is
 Earth science and nothing here is biology.
 
-WHY IT EXISTS. WORKFLOW A3: every forcing change lands with a quantitative
+WHY IT EXISTS. `docs/src/pipeline/sequencing.md` A3: every forcing change lands with a quantitative
 prediction of its own effect, stated before it is run, with what result would
 mean "wrong". The predictions and their wrongness bounds are written up in
 `exoplasim/notes/forcing-bundle-predictions.md`; this script is how the numbers

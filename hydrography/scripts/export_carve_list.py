@@ -269,7 +269,7 @@ def calibrate_coefficient(q_km3_per_year, year_s: float, depth_m, erodibility,
     is UNDEFINED rather than unmeasured, and an expected-value argument over a
     stationary population is this project's standing answer to that. Earth is
     one randomly chosen moment in such a population and so is this terrain;
-    `notes/no-time-axis.md` carries the argument.
+    `docs/src/reference/no-time-axis.md` carries the argument.
 
     Returns (coefficient, bracket, target, achieved). The bracket is the Poisson
     error on Earth's fifteen, which is the dominant uncertainty and is reported
@@ -364,12 +364,12 @@ TOLERANCE = 0.25
 def climate_terms(clim_path, args, config, basins, resolution):
     """Everything the carve criterion reads from ONE climate.
 
-    Factored out of `main` because WORKFLOW.md section 4 evaluates this same
+    Factored out of `main` because `docs/src/pipeline/loops.md` evaluates this same
     criterion at TWO bounding climates -- the warm vegetated end and the cold
     bare-rock end -- and carves only the intersection. Running one function
     twice is the point rather than an implementation detail: two hand-written
     evaluations of a criterion are two formulations that can disagree, and
-    `notes/failure-modes.md` class 17 is about exactly that. The arms differ in
+    `docs/src/practice/failure-modes.md` class 17 is about exactly that. The arms differ in
     their climatology and in nothing else.
 
     Everything here is climate-dependent. What is NOT here, deliberately, is
@@ -502,7 +502,7 @@ def main() -> None:
     ap.add_argument("--climatology", type=Path, default=None,
                     help="regular climatology; defaults to config's "
                          "baseline_climatology")
-    # WORKFLOW.md section 4: the verdict map is ANTITONE -- carving removes the
+    # `docs/src/pipeline/loops.md`: the verdict map is ANTITONE -- carving removes the
     # bright closed-basin fill, the world warms, lake evaporation rises, and
     # basins that were marginal stay closed, so a larger carve set produces a
     # SMALLER next verdict. An antitone map oscillates rather than approaching a
@@ -859,7 +859,7 @@ def main() -> None:
                 "positive exactly where the incision value is already 1.",
         },
         "counts": {"carve": n_carve, "preserve": n_preserve, "marginal": n_marginal},
-        # WORKFLOW section 4's bracket. Recorded rather than printed, because
+        # `docs/src/pipeline/loops.md`'s bracket. Recorded rather than printed, because
         # the WIDTH is the honest uncertainty on the carve and something
         # downstream will want to quote it -- error_budget.py above all, which
         # prices items in basins. `single_climate` says plainly when no bracket
@@ -868,8 +868,8 @@ def main() -> None:
             "single_climate": True,
             "note": "no --endmember-climatology given, so this is ONE arm of "
                     "section 4's bracket and carries no width. The verdict is "
-                    "not robust to the vegetation question; see WORKFLOW "
-                    "section 4 and TASKS.md HYD-17.",
+                    "not robust to the vegetation question; see "
+                    "docs/src/pipeline/loops.md and TASKS.md HYD-17.",
         } if endmember is None else {
             "single_climate": False,
             "endmember_climatology": rel(args.endmember_climatology),

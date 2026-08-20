@@ -320,7 +320,7 @@ OTHER_ITEMS = [
      "oceanmod.f90 declares `nhdiff` and `hdiffk` in oceanmod_namelist, "
      "broadcasts both, and acts on `nhdiff > 0` at line 844, so horizontal "
      "heat diffusion is one namelist key on the binary already built. That "
-     "satisfies every one of WORKFLOW A3's four A/B conditions with no further "
+     "satisfies every one of `docs/src/pipeline/sequencing.md` A3's four A/B conditions with no further "
      "work, which makes this the CHEAPEST structural item to price rather than "
      "the impossible one. Read it as physics-is-not-a-knob: ocean heat "
      "transport exists, and the argument for switching it on is not that it "
@@ -440,7 +440,7 @@ def basin_response(config) -> tuple[dict, int, "callable"]:
         count exactly.
 
     Both are identities of the recorded artifact rather than agreements between
-    two formulations, which is the standard `notes/failure-modes.md` class 17
+    two formulations, which is the standard `docs/src/practice/failure-modes.md` class 17
     asks for.
 
     Basins carried forward from a previous carve pass have no water balance to

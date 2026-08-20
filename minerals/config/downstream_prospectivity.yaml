@@ -1,7 +1,7 @@
 schema_version: 1
 
 # Weathering, drainage and brine ore prospectivity, per deposit type, as a 0-1
-# field. The downstream half of the split in `notes/economic-minerals.md`: a
+# field. The downstream half of the split in `docs/src/reference/economic-minerals.md`: a
 # deposit belongs where the process that concentrates it is MODELLED, and these
 # are concentrated by climate, runoff and the chemical divide, which World Orogen
 # does not have.
@@ -89,7 +89,7 @@ deposits:
     # the source is written about, a regional tilt over roughly 20 km, and NOT a
     # hillslope. At this mesh scale the criterion is a guard against placing
     # bauxite on mountains rather than a discriminating term; how little land it
-    # actually removes is measured in `notes/economic-minerals.md`.
+    # actually removes is measured in `docs/src/reference/economic-minerals.md`.
     maximum_slope_degrees: 5.0
     hosts: {shelf_clastic: 1.0, foreland_clastic: 1.0, pelagic: 1.0, melange: 0.8, granite: 0.8, granodiorite: 0.8, gneiss: 0.8, schist: 0.8, arc_andesite: 1.0, arc_basalt: 1.0, flood_basalt: 1.0, oib: 1.0, morb: 0.6, continental_clastic: 0.4, rift_bimodal: 1.0}
 
@@ -163,7 +163,7 @@ deposits:
   supergene_cu:
     name: Supergene copper enrichment
     grounding: sourced
-    # The case that shows why the split in `notes/economic-minerals.md` is a
+    # The case that shows why the split in `docs/src/reference/economic-minerals.md` is a
     # split and not a handover: it needs an Orogen deposit AND a downstream
     # climate, and neither component can produce it alone. So this rule MULTIPLIES
     # the tectonic file's porphyry Cu-Mo field rather than re-deriving it, and a
@@ -325,7 +325,7 @@ brines:
   # or B release table exists to derive them from instead. What the literature
   # does settle, and settles for both elements at once, is WHICH ROCK the two
   # come from and that ordinary weathering is enough to move them. Sourced
-  # 2026-08-18; the argument and its evidence are in `notes/economic-minerals.md`
+  # 2026-08-18; the argument and its evidence are in `docs/src/reference/economic-minerals.md`
   # and the papers are in `references/INDEX.md`.
   #
   # Risacher and Fritz (2009) section 3.5, on Bolivian and Chilean salars, is the

@@ -46,7 +46,7 @@ WHAT CANNOT BE MADE COMPARABLE, AND IS THEREFORE REPORTED RATHER THAN HIDDEN
 THE DATA
 --------
 Read-only from `~/git/generic_pcm`, which is CeCILL licensed: it is a DESIGN
-REFERENCE and no code crosses. `notes/external-data.md` records the route.
+REFERENCE and no code crosses. `docs/src/reference/external-data.md` records the route.
 The reading of the file layout is checked rather than assumed: `--checks`
 verifies that k scales exactly with the CO2 mixing ratio between the 376 ppm and
 1000 ppm tables in the bands where CO2 dominates, which it must, because CO2 is
@@ -102,7 +102,7 @@ class CorrK:
         if not d.is_dir():
             raise SystemExit(
                 f"{d} not found. This check needs the LMD Generic PCM datagcm bundle; "
-                "notes/external-data.md has the route."
+                "docs/src/reference/external-data.md has the route."
             )
         self.name = name
         self.p = np.loadtxt(d / "p.dat", skiprows=1)          # log10 mbar

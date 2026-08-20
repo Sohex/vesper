@@ -164,7 +164,7 @@ dust because it neither coagulates nor grows appreciably.
 
 ## One-off tools
 
-- `scripts/dust_runoff_sensitivity.py` -- one-off: converts a precipitation change into a basin count, which is what prices the catchment half of the dust question in WORKFLOW A4. Registered under `one_offs` in `config/pipeline.yaml`.
+- `scripts/dust_runoff_sensitivity.py` -- one-off: converts a precipitation change into a basin count, which is what prices the catchment half of the dust question in `docs/src/pipeline/sequencing.md` A4. Registered under `one_offs` in `config/pipeline.yaml`.
 - `scripts/extract_high_cadence_wind.py` -- one-off: pulls instantaneous near-surface winds out of a high-cadence run segment. This is what DUST-5 measured and what `build_dust.py --gust-samples` must be given; the 32-sample snapshot climatology fits a Weibull shape about twice too high and costs a factor of 40 on emission. Registered under `one_offs` in `config/pipeline.yaml`.
 
 ## The in-model port, and why this component survives it
@@ -275,7 +275,7 @@ sulfate pathway on this world is weak: a four-day aerosol from a source far
 below the wind-driven ones. Reaching sea salt's forcing would need a sulfur flux
 more than ten times Earth's, which is the bound that also covers the two sulfur
 sources this project cannot compute -- explosive eruptions, which need an
-eruption history `notes/no-time-axis.md` says does not exist, and marine
+eruption history `docs/src/reference/no-time-axis.md` says does not exist, and marine
 biogenic sulfur, which needs a marine biosphere this project does not have at
 all.
 

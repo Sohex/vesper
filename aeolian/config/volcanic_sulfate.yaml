@@ -37,7 +37,7 @@ source:
   #
   # PASSIVE ONLY, and that is a choice with a reason rather than an oversight.
   # The eruptive part is episodic, and an episodic source needs a frequency-
-  # magnitude distribution, which needs an eruption history. `notes/no-time-axis.md`
+  # magnitude distribution, which needs an eruption history. `docs/src/reference/no-time-axis.md`
   # says why this project has none. What is left out is recorded rather than
   # folded in: Andres and Kasgnoc (1998) put the sporadic contribution at
   # roughly a third of the passive one on Earth, and the upper bracket carries
@@ -66,7 +66,7 @@ source:
 # On the arc, which this world's lithology carries directly:
 # `pedology/config/pedogenesis.yaml` records that the fork places the arc
 # classes as a band about the volcanic front, so ARC TERRAIN IS THE ACTIVE FRONT
-# BY CONSTRUCTION. That is the same fact `WORKFLOW.md` section 3.6 uses to say
+# BY CONSTRUCTION. That is the same fact `docs/src/pipeline/steps.md` section 3.6 uses to say
 # the arc classes are the only place this pipeline treats volcanism as
 # continuing, and it is why flood basalt and ocean-island provinces are reported
 # undetermined rather than counted.

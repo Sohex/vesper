@@ -620,7 +620,7 @@ def main() -> None:
     # Tg/earth-year, a factor of 40, with nothing in the output saying the
     # measurement had been discarded. The help text had warned about the bias
     # for months and the default went there anyway, which is
-    # `notes/failure-modes.md` class 2 exactly: an optional argument whose
+    # `docs/src/practice/failure-modes.md` class 2 exactly: an optional argument whose
     # absence means do the wrong thing. The biased fit is still reachable, but
     # only by saying so.
     if args.gust_samples is None and not args.gust_from_snapshots:

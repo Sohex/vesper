@@ -666,7 +666,7 @@ offering it as an alternative launders a bug into a preference.
 
 The damage is not only wasted attention. A menu implies the project has no
 position, so it quietly discards the position the project actually holds -- and
-those positions, in `CLAUDE.md` and `WORKFLOW.md`, are the accumulated result of
+those positions, in `CLAUDE.md` and the pipeline chapters, are the accumulated result of
 having been wrong before.
 
 The distinction that works, applied in the same conversation and correctly that

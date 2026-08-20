@@ -13,7 +13,7 @@ and a traceback on the terminal that looks like the run failed.
 record. It was then fixed at one of its two call sites and not the other, which
 is the more instructive half of the story: the fix has to be applied everywhere
 the pattern appears, not just where it was first observed. See
-`notes/failure-modes.md`.
+`docs/src/practice/failure-modes.md`.
 
 Provenance records have the same problem for a different reason: a path recorded
 as absolute is not portable, and a path that raises is worse than either.

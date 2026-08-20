@@ -159,7 +159,7 @@ ozone column it produces; the two do not cancel.
 
 This replaces a declared choice of `earth_like`, which was reached from an
 order-of-magnitude cancellation argument that gave 1.05x and was wrong by a
-factor of 2.6. The lesson is recorded in notes/failure-modes.md: the
+factor of 2.6. The lesson is recorded in docs/src/practice/failure-modes.md: the
 cancellation was two rough estimates multiplying to about one, which is not
 evidence of anything.
 
@@ -237,7 +237,7 @@ baseline_flux_earth: 0.945
 ```
 
 PROVISIONAL, 2026-08-19, and DETERMINED before that. It was chosen from the
-habitability-by-latitude derivation of WORKFLOW 5b rather than from a
+habitability-by-latitude derivation of `docs/src/pipeline/state.md` section 5b rather than from a
 temperature target, and `notes/audits/inherited-earth-constants.md` finding 5
 establishes that that derivation has no script, no analysis product, no row in
 `config/pipeline.yaml` and no recorded threshold, and does not name the runs it
@@ -261,7 +261,7 @@ days, and that year is compiled into LPJ-GUESS. Subsequent flux changes
 should therefore move the star's luminosity and leave the orbit alone.
 L scales 1:1 with F at fixed a, and Teff as F^(1/4), so past 2 to 3% in
 luminosity the spectrum needs rebuilding at the new temperature; see
-WORKFLOW.md section 6 loop C.
+`docs/src/pipeline/sequencing.md` loop C.
 
 ## `longitude_vernal_equinox_degrees`
 
@@ -288,7 +288,7 @@ hemispherically antisymmetric: whichever hemisphere's summer falls near
 perihelion gets brighter summers and darker winters, the other the reverse. At
 102.7 degrees the geometry is Earth-like, perihelion falling near the southern
 summer solstice, so the south is the amplified hemisphere. That lands on the
-season WORKFLOW 5b establishes as the operative one for the ice line, which is
+season `docs/src/pipeline/state.md` section 5b establishes as the operative one for the ice line, which is
 why the value deserves a name rather than a default.
 
 Why it is KEPT at 102.7 rather than moved: the phase is already compiled into
@@ -664,7 +664,7 @@ yet the field cannot exist and run_exoplasim refuses to start without it.
 The flip cannot happen mid-run either, since continue_exoplasim compares the
 config against the run's manifest key by key and will not resume across a
 changed value, so the bootstrap has to be
-finished before it moves. WORKFLOW section 6A has the order.
+finished before it moves. `docs/src/pipeline/sequencing.md` loop A has the order.
 
 It has to be `pedology` BEFORE the run whose climatology the verdict uses,
 not merely before the verdict: land-mean dwmax is 0.151 m against the uniform

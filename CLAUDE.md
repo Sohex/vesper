@@ -10,16 +10,16 @@ describes, and the pointers below are the map:
 
 | Read this | For |
 | --- | --- |
-| `WORKFLOW.md` | CANONICAL for pipeline REASONING: what the components are, how they connect, why the order is what it is, and why it is a loop. **Read it first.** |
-| `config/pipeline.yaml` | CANONICAL for the pipeline GRAPH: every step, what it writes, what must precede it, its cost, and each loop's exit predicate. The two do not overlap; WORKFLOW references step ids from here |
+| `docs/src/SUMMARY.md` | the docs book. Its pipeline chapters are CANONICAL for pipeline REASONING: what the components are, how they connect, why the order is what it is, and why it is a loop. **Read them first.** |
+| `config/pipeline.yaml` | CANONICAL for the pipeline GRAPH: every step, what it writes, what must precede it, its cost, and each loop's exit predicate. The two do not overlap; the pipeline chapters reference step ids from here |
 | `scripts/pipeline.py` | `--status` what exists, `--plan <step>` the ordered steps to a target, `--register` the artifact table, `--purge <step>` everything a change to that step makes worthless. Plans and never RUNS a step; `--purge` deletes, and is a dry run until `--execute` |
 | `source/README.md` | how to read an export: field conventions, the land-mask rule, the traps |
 | `vendor/orogen/tools/README.md` | the authoritative export format |
 | `<component>/README.md` | what that component does and how to run it |
-| `notes/failure-modes.md` | how this project goes wrong, by class |
-| `notes/no-time-axis.md` | Orogen has no time axis. Read before asking any component for a duration, an age, or a rate |
-| `notes/large-data.md` | batch, chunk, checkpoint, report. Required for any step whose input runs to GB |
-| `notes/external-data.md` | routes into data this project does not generate; check the AWS Registry of Open Data before an API |
+| `docs/src/practice/failure-modes.md` | how this project goes wrong, by class |
+| `docs/src/reference/no-time-axis.md` | Orogen has no time axis. Read before asking any component for a duration, an age, or a rate |
+| `docs/src/reference/large-data.md` | batch, chunk, checkpoint, report. Required for any step whose input runs to GB |
+| `docs/src/reference/external-data.md` | routes into data this project does not generate; check the AWS Registry of Open Data before an API |
 | `notes/audits/` | findings: what is true, with its evidence |
 | `TASKS.md` | what to do about a finding, tracked atomically; closed ones move to `archive/tasks.md` |
 | `world_state.json` | every current value |
@@ -103,7 +103,7 @@ none of them is advice.
        python scripts/check_consistency.py     # do the artifacts agree?
        python scripts/smoke_test.py            # does the code that makes them?
 
-9. **Read `notes/failure-modes.md`** before quoting a geography number, adding a
+9. **Read `docs/src/practice/failure-modes.md`** before quoting a geography number, adding a
    component, changing a quantity that more than one script consumes, or
    reaching for a measurement to justify a design decision. The one
    most likely to catch you first: a pre-carve build is a *limit*, not a state,
@@ -155,14 +155,14 @@ none of them is advice.
   because including it improves a comparison. If adding a correct term makes an
   agreement worse, that is information about the implementation, the comparison,
   or a second error cancelling the first -- never a reason to remove the term.
-  `notes/failure-modes.md` class 16.
+  `docs/src/practice/failure-modes.md` class 16.
 - **Test the implementation against something that can fail, not the outcome
   against something that can only differ.** A check needs a right answer: an
   identity, a definition, a conservation law, or a quantity the other side
   already knows. Two valid formulations disagreeing is not evidence about
   either. If you cannot say in advance what result would mean "wrong", you
   have a number that will later be quoted as a validation, not a test.
-  `notes/failure-modes.md` class 17.
+  `docs/src/practice/failure-modes.md` class 17.
 - **An undocumented component is not complete.** Work here is picked up by
   someone with no memory of it -- assume a brick to the head between any two
   sessions, because a fresh session IS that. The test for done is not "does it
@@ -173,7 +173,8 @@ none of them is advice.
   or re-derived should be, and writing it into prose is the failure the first
   convention above exists to prevent. What it means is that the THING must be
   findable: a new module belongs in the `lib/` list, a new step in
-  `config/pipeline.yaml`, a new component in the layout and in `WORKFLOW.md`, a
+  `config/pipeline.yaml`, a new component in the layout and in
+  `docs/src/pipeline/components.md`, a
   model change as a commit under `vendor/exoplasim`, a new convention here. A
   component that works
   and is invisible will be reimplemented beside itself, which is how this project
@@ -280,11 +281,12 @@ none of them is advice.
   is a shape that judgement leaves behind, and each can be produced without any.
   So before adding one, say what question it answers and what result would
   change your conclusion; if no result would, you are decorating a decision you
-  have already made. `notes/failure-modes.md` class 23.
+  have already made. `docs/src/practice/failure-modes.md` class 23.
 
 - **Do not offer a defect as a decision.** A thing is a DECISION only if the
   project's declared truth does not already settle it. `config/planet.yaml`,
-  the rules in this file, `WORKFLOW.md`'s ordering and the existing findings are
+  the rules in this file, the pipeline chapters' ordering and the existing
+  findings are
   declared truth; where they settle a question it is WORK, so do it and report
   it. It is a decision only where they conflict, or where it needs a preference
   or a threshold that nothing has fixed. The tell is unmistakable once you look
@@ -336,7 +338,7 @@ superseded terrain stay readable and datable.
   question. Chosen: vegetated. The band is narrow, so re-derive after anything
   that moves land albedo.
 - **The pipeline is a loop, not a line.** Drainage depends on climate, climate on
-  drainage, and both on the biosphere. `WORKFLOW.md` section 4 says why, and
+  drainage, and both on the biosphere. `docs/src/pipeline/loops.md` says why, and
   which loop is deliberately left open.
 - **Do not reuse a sensitivity measured in one regime in another.** Bracket
   between two converged points that span the target rather than extrapolating
@@ -506,7 +508,7 @@ a climatology, so it is a re-commissioning and the bootstrap is not optional.
   Do not say "re-baseline". It reads as an iteration and means one of these two,
   and that gap has already cost one misunderstanding.
 
-**iteration** -- one turn of loop A in `WORKFLOW.md` section 6, and the expensive
+**iteration** -- one turn of loop A in `docs/src/pipeline/sequencing.md`, and the expensive
 thing: a generation on the carve list the previous commissioning produced, then
 the commissioning of the build that comes out of it. An iteration therefore
 CONTAINS a generation and a commissioning, in that order, and it is what
@@ -534,7 +536,7 @@ Orogen produces a through-flowing valley with a residual lake in it. It is a
 statement about what the terrain looks like.
 
 **bracketed** -- a basin the two bounding climates DISAGREE about, from the
-intersection carve in `WORKFLOW.md` section 4. It is a statement about our
+intersection carve in `docs/src/pipeline/loops.md`. It is a statement about our
 uncertainty, not about a landform.
 
   **These two are not synonyms and were briefly the same word.** A basin can be
@@ -552,7 +554,7 @@ uncertainty, not about a landform.
 **carve list** -- the artifact Orogen consumes, `carve_list.txt`, one retain
 fraction per basin. The verdict is a conclusion; the list is an instruction.
 
-`WORKFLOW.md` section 0 prices what a re-commissioning costs, row by row, and is
+`docs/src/pipeline/costs.md` prices what a re-commissioning costs, row by row, and is
 where to look before assuming which of these you are in.
 
 ## Builds

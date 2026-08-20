@@ -40,7 +40,7 @@ temperature gradient, which is the sign of the error the budget already declares
 So the entry is wrong in its second sentence, and the direction it tells you to
 declare and move on from is testable instead.
 
-It also happens to satisfy every one of WORKFLOW A3's four conditions for a
+It also happens to satisfy every one of `docs/src/pipeline/sequencing.md` A3's four conditions for a
 trustworthy A/B without any further work: same binary, differing by one namelist
 key, both arms branchable off one restart, both labellable `diagnostic`. That is
 the cheapest structural term in the budget to price and it is currently the only
@@ -88,7 +88,7 @@ The model has room to absorb it and no term to do so. From
 parameterisation already carries an aging range of roughly a quarter in band 1,
 driven by time since snowfall, with no dependence on what has landed on it.
 
-**Why it matters more here than the global mean suggests.** WORKFLOW 5b's glacier
+**Why it matters more here than the global mean suggests.** `docs/src/pipeline/state.md` section 5b's glacier
 result turns entirely on summer ablation -- "cooling buys brutal winters and
 barely touches the summers that control ablation" -- and darkening snow acts on
 exactly that term. `notes/glacier-rough-pass.md` already labels itself a
@@ -151,7 +151,7 @@ and then gives its numbers as:
 > These are standard textbook mid-range values.
 
 `sand: 0.07`, `silt: 0.20`, `clay: 0.13`, `volumetric_capacity_organic: 0.30`.
-No source. WORKFLOW section 3.6 states the convention this breaks: "Every Earth
+No source. `docs/src/pipeline/steps.md` section 3.6 states the convention this breaks: "Every Earth
 calibration lives in `pedology/config/pedogenesis.yaml` with its source."
 
 The values are not wrong. Volumetric available water capacity, field capacity
@@ -173,7 +173,7 @@ spread across the bracket rather than the central value alone.
 ## 5. CH4 and N2O are absent, and the absence is not declared
 
 `config/planet.yaml`'s `atmosphere` block is N2, O2, Ar, CO2 and ozone. There is
-no methane and no nitrous oxide, and `notes/config-rationale.md`'s `atmosphere`
+no methane and no nitrous oxide, and `docs/src/reference/config-rationale.md`'s `atmosphere`
 section does not mention them.
 
 This is a model limitation rather than a configuration omission: PlaSim's
@@ -189,7 +189,7 @@ the longwave carries three absorbers and what that leaves out belongs beside it.
 ## Checked and clean
 
 Recorded so they are not re-derived, in the spirit of
-`notes/failure-modes.md`'s "things already checked and disproved".
+`docs/src/practice/failure-modes.md`'s "things already checked and disproved".
 
 **Gravity propagates correctly through the whole radiation scheme.** This was the
 obvious place for the DUST-6 pattern to have struck the largest term in the
@@ -233,5 +233,5 @@ hydrography solver internals beyond what `carve-criterion-terms.md` already
 covers, the LPJ-GUESS PFT parameter set, the Mie code behind
 `analysis/dust_optics.json`, or the pedology weathering law's own constants
 beyond their citation state. The first and last of those are the ones I would
-take next, because `weathering_fluxes.py` feeds a CO2 budget that section 4 of
-WORKFLOW already treats as load-bearing.
+take next, because `weathering_fluxes.py` feeds a CO2 budget that
+the pipeline chapters (docs/src/pipeline/loops.md) already treat as load-bearing.

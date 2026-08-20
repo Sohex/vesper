@@ -2,7 +2,7 @@
 
 Ore prospectivity, as a 0-1 field per deposit type. The design and the split
 between what belongs here and what belongs downstream are in
-`../notes/economic-minerals.md`; this file is what the component does and how to
+`../docs/src/reference/economic-minerals.md`; this file is what the component does and how to
 run it.
 
 ```bash
@@ -130,7 +130,7 @@ fit through each region and its neighbours rather than a steepest drop to one,
 because it is a regional TILT that the source is written about. The omission it
 closes was recorded here as one-signed and is in fact two-sided -- too flat
 impedes the leaching as surely as too steep strips the profile. See
-`notes/economic-minerals.md` for what is still not applied and which way it errs.
+`docs/src/reference/economic-minerals.md` for what is still not applied and which way it errs.
 
 Bauxite is Price et al. (1997), whose criteria are the right shape because they
 are themselves thresholds applied to gridded climate fields and validated against
@@ -174,7 +174,7 @@ purpose. Nature does separate them and the direction is known -- borate leaves
 solution as a mineral and lithium stays in the residual brine, so borate
 saturates earlier and its set CONTAINS lithium's -- but placing that boundary
 needs a per-basin concentration, which needs the release coefficient that does
-not exist. `notes/economic-minerals.md` carries the argument and what would split
+not exist. `docs/src/reference/economic-minerals.md` carries the argument and what would split
 the field again.
 
 **Placer gold is the one rule the drainage network earns.** Orogenic gold

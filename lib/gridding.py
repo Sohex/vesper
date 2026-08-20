@@ -304,7 +304,7 @@ def coupling_ocean_fraction(coupling, lsm) -> float:
 
     This is the check that was missing while the mapping was wrong twice. What
     existed asserted that a `cell_lon` variable EXISTED, which no wrong mapping
-    would ever have failed. See `notes/failure-modes.md` class 17.
+    would ever have failed. See `docs/src/practice/failure-modes.md` class 17.
     """
     _, r, c, area, _, nlon = coupling_cells(coupling)
     if lsm.shape[1] != nlon:

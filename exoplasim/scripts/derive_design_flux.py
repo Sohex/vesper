@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Derive the design flux from the comfort-band scoring WORKFLOW 5b describes.
+"""Derive the design flux from the comfort-band scoring `docs/src/pipeline/state.md` section 5b describes.
 
 WORLDBUILDING CONTEXT: Vesper is a fictional planet and this script scores a
 toy GCM's simulated seasons to pick a stellar flux for it. Nothing here refers

@@ -5,7 +5,7 @@
 
 Reads per-orbit wall time as the gap between consecutive `MOST_REST.NNNNN`,
 which excludes preparation and is the same instrument
-`notes/audits/nlowio-collective-deadlock.md` and WORKFLOW section 0 use.
+`notes/audits/nlowio-collective-deadlock.md` and `docs/src/pipeline/costs.md` use.
 
 The thresholds are `exoplasim/notes/rank-layout-benchmark.md`'s and are NOT
 arguments: under 5% is no difference, and arm 4 has to beat arm 3 by 10% on

@@ -4,7 +4,7 @@ schema_version: 1
 #
 # NOT deposits. A porphyry system is one to two kilometres against a 15.19 km
 # mesh cell and a vein is under a hundredth of one, so placing individual bodies
-# here would invent detail the grid cannot hold. See notes/economic-minerals.md.
+# here would invent detail the grid cannot hold. See docs/src/reference/economic-minerals.md.
 #
 # NOT a lithology and NOT an erodibility modifier. This field is read only by
 # what comes after climate. Nothing upstream may consume it, which is why it is

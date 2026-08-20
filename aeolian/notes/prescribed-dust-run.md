@@ -72,7 +72,7 @@ throughout. The spectrum fix is in flight, and a second defect in the same
 subroutine means declaring the spectrum without patching the Rayleigh reference
 would weaken Rayleigh scattering by 3.4x.
 
-So there are now two things moving in the radiation, and WORKFLOW.md section 6
+So there are now two things moving in the radiation, and `docs/src/pipeline/sequencing.md`
 says to change one at a time. Concretely:
 
 - If the spectrum lands BEFORE this pair, run both members after it. Fine.

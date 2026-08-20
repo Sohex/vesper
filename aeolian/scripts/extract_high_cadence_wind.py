@@ -10,7 +10,7 @@ histogram, sampled fast enough to resolve a 30-hour day. `continue_exoplasim.py
 turns it into a small netCDF holding the bottom model level alone.
 
 Chunked, checkpointed and reporting progress throughout, because this is a
-15 GB input and `notes/large-data.md` says that is not optional.
+15 GB input and `docs/src/reference/large-data.md` says that is not optional.
 
 ## Why this exists: pyburn cannot read a high-cadence file at all
 

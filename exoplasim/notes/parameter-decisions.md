@@ -828,7 +828,7 @@ warranted**, and neither is regenerating the spectrum per phase.
 This is the k2-to-k25v correction repeating exactly: fixing a genuinely wrong
 stellar spectrum moved absorbed shortwave by 0.04 W/m2 here, because the spectral
 partition acts on snow and ice and there is almost none of either. The general
-form is in `notes/failure-modes.md` -- a correction's size depends on how much of
+form is in `docs/src/practice/failure-modes.md` -- a correction's size depends on how much of
 the surface it acts on.
 
 **The condition under which this stops holding is stated so it can be checked**:

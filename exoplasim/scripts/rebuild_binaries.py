@@ -7,7 +7,7 @@
 ExoPlaSim compiles a separate executable per (resolution, layers, ranks) triple.
 Patching the model source and running rebuilds **only the configuration you are
 running**; every other binary keeps the old code, silently, until something asks
-for it. That is `notes/failure-modes.md` class 11 and it fired three times in one
+for it. That is `docs/src/practice/failure-modes.md` class 11 and it fired three times in one
 day: the T42 16-rank binary was three days stale, the star-cycle tree was four
 days stale and had no 16-rank binary at all, and of six executables on disk
 exactly one was newer than the patched source.
@@ -74,7 +74,7 @@ def sha256(path: Path) -> str:
 def model_sources() -> dict[str, str]:
     """Every file a binary is compiled FROM, with its current sha.
 
-    This is what makes a stale executable detectable. `notes/failure-modes.md`
+    This is what makes a stale executable detectable. `docs/src/practice/failure-modes.md`
     class 11 is a binary built from source that has since moved, and it has
     fired repeatedly: a T42 binary three days stale, a cycle tree four days
     stale, and of six executables on disk exactly one newer than its source.

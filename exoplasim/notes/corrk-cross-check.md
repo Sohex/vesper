@@ -165,7 +165,7 @@ keeping the band is indeed not what makes the answer look right. But "the overla
 is COMPUTED band by band rather than argued about" claims a precision the band-
 mean construction does not have. It is computed, and at 2.7 um it is computed
 wrong by two orders of magnitude, and only the offsetting error at 2.0 um keeps
-the total honest. This is `notes/failure-modes.md` class 15 in a new place, and
+the total honest. This is `docs/src/practice/failure-modes.md` class 15 in a new place, and
 the standing rule from it applies: do not correct one band without measuring the
 chain.
 
@@ -284,6 +284,6 @@ only on the number.
 `LMDZ.GENERIC/libf/phygeneric/rad_correlatedk_read_opacity_tables.F90` and
 `rad_correlatedk_opacities_stellar.F90` rather than guessed. That tree is CeCILL
 licensed and this project is not: it is a design reference, no code crossed, and
-`notes/external-data.md` records the route.
+`docs/src/reference/external-data.md` records the route.
 
 Chaverot et al. (2025), A&A, https://doi.org/10.1051/0004-6361/202555762 for the tables and the SpeCT line-by-line code behind them.

@@ -1,0 +1,6 @@
+[book]
+title = "Vesper"
+authors = ["Conor Futro"]
+description = "The worldbuilding pipeline for Vesper: reasoning, reference, and working practice."
+src = "src"
+language = "en"

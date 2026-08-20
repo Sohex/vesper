@@ -23,7 +23,7 @@ document is about how.
 `notes/audits/orogen-gravity.md` reaches the same conclusion from the other
 direction: putting real physical units on the erosion law would give "real K over
 heuristic everything else", because there is no sediment budget, no timescale and
-no real uplift rate for the K to act through. That is `notes/failure-modes.md`
+no real uplift rate for the K to act through. That is `docs/src/practice/failure-modes.md`
 class 9 -- a rigorous factor multiplying a heuristic reads as more trustworthy
 than it is.
 
@@ -47,7 +47,7 @@ excluded from andic soils as the correct default rather than a hedge. The arc is
 the exception because it is not a province but a boundary process, active for as
 long as the plate is subducting -- which is the whole time the terrain exists.
 
-**Deposit types, in `notes/economic-minerals.md`.** Anything whose defining
+**Deposit types, in `docs/src/reference/economic-minerals.md`.** Anything whose defining
 control is an absolute age cannot be placed, only its tectonic setting can. The
 concrete loss is komatiite-hosted nickel, which Naldrett puts at 2.7 to 1.9
 Ga. That is stated as something the world cannot have rather than approximated.

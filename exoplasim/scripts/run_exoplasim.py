@@ -548,7 +548,7 @@ def intended_surface_codes(config: dict) -> set[int]:
 
     Setting it to `pedology` makes 229 mandatory here, and 229 comes from a soil
     weathered under a climatology. On a terrain that has none yet, the bootstrap
-    run has to go out with the key at `uniform`; see WORKFLOW section 6A, which
+    run has to go out with the key at `uniform`; see `docs/src/pipeline/sequencing.md` loop A, which
     also says why the flip cannot happen mid-run.
     """
     codes = set(BASE_SURFACE_CODES)
@@ -1058,7 +1058,7 @@ def verify_staged_namelists(run_dir: Path, config: dict) -> dict:
     """Every config key that departs from the model default reached the namelist.
 
     CONS-9. Reads the RUN, which is the only artifact that records what was
-    actually integrated -- `notes/failure-modes.md` class 12 said so and class 22
+    actually integrated -- `docs/src/practice/failure-modes.md` class 12 said so and class 22
     is what happens when nobody checks: `h2o_sw_level` was declared at 1.127,
     staged by the prepare script, dropped by every continuation, and no guard
     noticed for a whole run. `config_drift` compared the config against the
@@ -1087,7 +1087,7 @@ def verify_staged_namelists(run_dir: Path, config: dict) -> dict:
             "the staged namelists do not match config/planet.yaml:\n  "
             + "\n  ".join(wrong)
             + "\nThe namelist in the run directory is what the model integrates. "
-              "Fix the staging rather than the check; see notes/failure-modes.md "
+              "Fix the staging rather than the check; see docs/src/practice/failure-modes.md "
               "class 22.")
     return checked
 

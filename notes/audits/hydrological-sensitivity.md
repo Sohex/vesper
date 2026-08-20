@@ -126,7 +126,7 @@ evaporates more, and the overflowing population shrinks. Every budget item that
 warms the world therefore carries a negative basin count and every item that
 cools it a positive one.
 
-That is the same sign as the antitone verdict map in `WORKFLOW.md` section 4:
+That is the same sign as the antitone verdict map in `docs/src/pipeline/loops.md`:
 carving darkens the land, the world warms, and basins that were marginal stay
 closed. The two arguments are independent and agree, which is the only thing
 about this measurement that does not depend on the window it was taken over.

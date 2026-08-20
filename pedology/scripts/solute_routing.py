@@ -59,7 +59,7 @@ def region_runoff_m3_yr(export: Export, grid_dir: Path, climatology: Path):
     Clamped at zero because a catchment delivers zero or more, never less. A cell
     whose evaporation exceeds its precipitation contributes no water; it does not
     contribute negative water and it certainly does not contribute negative
-    solute. `notes/failure-modes.md` class 7.
+    solute. `docs/src/practice/failure-modes.md` class 7.
 
     Returns (runoff_m3_yr, runoff_mm_yr_per_region, row, col).
     """

@@ -23,7 +23,7 @@ schema_version: 1
 # an artifact is deleted or superseded, the label above every value that rested
 # on it is part of what is now worthless, and it is demoted in the same pass.
 #
-# Why each value is what it is: notes/config-rationale.md, keyed by setting.
+# Why each value is what it is: docs/src/reference/config-rationale.md, keyed by setting.
 # Current measured values: world_state.json, which is generated.
 
 # DETERMINED. lib/orogen.py is the registry: it holds the hash, the note, and
@@ -77,8 +77,8 @@ star:
 # constant and `sweep_flux_earth` is a sweep specification; both are DETERMINED.
 #
 # `baseline_flux_earth` is PROVISIONAL, and carried DETERMINED until 2026-08-19.
-# What stands behind it is the habitability-by-latitude derivation of WORKFLOW
-# 5b, and notes/audits/inherited-earth-constants.md finding 5 establishes that
+# What stands behind it is the habitability-by-latitude derivation of
+# docs/src/pipeline/state.md section 5b, and notes/audits/inherited-earth-constants.md finding 5 establishes that
 # that derivation has no script, no analysis product, no row in
 # config/pipeline.yaml and no recorded threshold, and does not name the runs it
 # was projected across. Those runs are now deleted, so it is not reproducible
@@ -92,8 +92,8 @@ star:
 # artifact, and findings about mechanisms survive a regeneration -- bare rock and
 # a vegetated surface reach a given design mean at non-overlapping fluxes, so
 # this flux is habitable BECAUSE the world is vegetated. Move the flux by
-# luminosity once the calendar is locked, not by the orbit; WORKFLOW.md section
-# 6C says why.
+# luminosity once the calendar is locked, not by the orbit;
+# docs/src/pipeline/sequencing.md loop C says why.
 orbit:
   earth_solar_constant_w_m2: 1361.0
   baseline_flux_earth: 0.945
@@ -104,7 +104,7 @@ orbit:
   # the seasonal flux by 8.3% peak to peak, more than the whole stellar cycle.
   # Kept at 102.7 deliberately: it is compiled into LPJ-GUESS through the
   # solstice offset in vesper.h, so moving it costs a rebuild and a driver.
-  # notes/config-rationale.md says what an alternative would be worth.
+  # docs/src/reference/config-rationale.md says what an alternative would be worth.
   longitude_vernal_equinox_degrees: 102.7
 
 # DETERMINED for the composition, DECLARED for the CO2, and the block used to
@@ -113,10 +113,10 @@ orbit:
 # The partial pressures sum to exactly 1 bar by construction and H2O stays
 # interactive. pCO2 is prescribed: nothing here solves the carbonate-silicate
 # balance that would set it, so read 450 ppm as an assumption rather than a
-# result, and WORKFLOW.md section 4 says what the assumption costs. The
+# result, and `docs/src/pipeline/loops.md` says what the assumption costs. The
 # outgassing plausibility check that backed it was computed by
 # pedology/scripts/weathering_fluxes.py on a climatology that no longer exists,
-# so the check is currently unbacked too; notes/config-rationale.md keeps the
+# so the check is currently unbacked too; docs/src/reference/config-rationale.md keeps the
 # argument and says to re-run it.
 #
 # What this block CAN say is bounded by what the model reads. PlaSim's longwave
@@ -168,7 +168,7 @@ ocean:
   salinity_psu: 34.7
 
 # PARTLY DETERMINED. Sea ice and the glacier settings are decided, and the
-# argument for the glacier block is in notes/config-rationale.md.
+# argument for the glacier block is in docs/src/reference/config-rationale.md.
 #
 # `mixed_layer_depth_m` is NOT, and is DECLARED: 50 m is ExoPlaSim's default
 # arriving unnamed, it sets the seasonal amplitude, and this world's year is
@@ -218,7 +218,7 @@ model:
   # T42 number is carried into loop D. The term CLIM-1 measured is resolution-
   # and timestep-dependent by nature, so it has to be re-measured there rather
   # than carried; `close_term_energy.py` is what re-measures it. archive/tasks.md
-  # CLIM-1 states the condition and notes/config-rationale.md keeps the argument.
+  # CLIM-1 states the condition and docs/src/reference/config-rationale.md keeps the argument.
   energy_diagnostics: false
   energy_diagnostics_3d: false
   ozone_scale: 0.794
@@ -267,7 +267,7 @@ model:
   # merely before the verdict: the land-mean capacity is well under ExoPlaSim's
   # uniform 0.5 m bucket, which changes evaporation, which changes P - E, which
   # is the numerator of the carve criterion. The flip moves config_sha256 and
-  # cannot happen mid-run. WORKFLOW.md section 6A has the order.
+  # cannot happen mid-run. `docs/src/pipeline/sequencing.md` loop A has the order.
   soil_water_source: pedology
   land_albedo_source: vegetated
   # DERIVED 2026-08-19 by analysis/vegetation_albedo.py, which reproduces

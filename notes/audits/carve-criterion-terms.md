@@ -173,7 +173,7 @@ basins, for an operation whose own bias is three times the change it makes.
 **The seasonal rectification that does exist is in the lake, not the catchment,
 and it is small here.** A lake near its spill can be pushed over it by a wet
 season even when its annual balance sits below -- and carving is irreversible, so
-that ratchets, by exactly the argument `WORKFLOW.md` A2 makes for the stellar
+that ratchets, by exactly the argument `docs/src/pipeline/sequencing.md` A2 makes for the stellar
 cycle. Measured: of the 1,752 basins below their spill at annual equilibrium, the
 seasonal storage swing exceeds the volume gap to the spill on **8**, 0.5%. Median
 swing-to-gap ratio 0.004, ninetieth percentile 0.046.

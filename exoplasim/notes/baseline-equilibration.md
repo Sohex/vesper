@@ -6,7 +6,7 @@ CLIM-7: the run fails `|mean TOA| < 0.5 W/m2` while an earlier assessment had
 recorded it as missing by 0.0014 W/m2, and those two statements cannot both
 describe the same window.*
 
-The question matters beyond bookkeeping. `WORKFLOW.md` section 6 A2 requires the
+The question matters beyond bookkeeping. `docs/src/pipeline/sequencing.md` A2 requires the
 stellar cycle run to come after a baseline that is FINAL rather than merely
 converged, so whether this run can honestly be called quasi-equilibrated is on
 the project's critical path.
@@ -109,7 +109,7 @@ a diagnostic carrying a structural offset larger than the threshold itself, and
 
 **The threshold was derived and committed before it was applied to anything**,
 which is the only way this could be taken without being the retrofit
-`WORKFLOW.md` section 7 forbids. Two bounds, agreeing to 6%:
+`docs/src/practice/conventions.md` forbids. Two bounds, agreeing to 6%:
 
 | bound | value |
 | --- | ---: |

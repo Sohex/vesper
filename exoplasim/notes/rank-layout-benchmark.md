@@ -27,7 +27,7 @@ a configuration can lose on latency and still win on throughput.
 
 ## What is already known, which is less than it looks
 
-`notes/config-rationale.md` under `ncpus` records one orbit at T42 on 16 ranks,
+`docs/src/reference/config-rationale.md` under `ncpus` records one orbit at T42 on 16 ranks,
 and at T21 on 8 and on 16. **There is no T42 8-rank point**: sixteen was chosen
 at T42 by argument from where T21 turned over, not by measurement here. Nothing
 in the repository mentions the dies at all.
@@ -250,5 +250,5 @@ Concurrency costs 8.4% per orbit against running the same eight ranks alone
 measure and which no combination of the solo arms would have predicted. That cost
 is real and is still overwhelmed by doing two things at once.
 
-`WORKFLOW.md` section 6 lists three independent pairs on the way to a carve list,
+`docs/src/pipeline/sequencing.md` lists three independent pairs on the way to a carve list,
 so this is worth roughly a third of the wall clock of the runs that pair.

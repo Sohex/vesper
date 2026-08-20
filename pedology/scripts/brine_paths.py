@@ -153,7 +153,7 @@ def single_lithology_check(export, terminal, mapping, release_table, cols,
     breaks it; a wrong-but-plausible weighting does not survive it.
 
     Comparing the two weightings against each other could only ever tell us they
-    differ. `notes/failure-modes.md` class 17.
+    differ. `docs/src/practice/failure-modes.md` class 17.
     """
     rock = export.substrate_class.astype(np.int32)
     classes = {c["id"]: c["code"]
@@ -279,7 +279,7 @@ def main() -> None:
     # solute, so the divide is UNDETERMINED there rather than defaulting to the
     # area answer. Reporting it as alkaline because the rocks would have been
     # alkaline had it rained is exactly the silent fallback that
-    # `notes/failure-modes.md` class 2 is about.
+    # `docs/src/practice/failure-modes.md` class 2 is about.
     dry = (~resolved_disch) & resolved_area
     flipped = resolved_disch & resolved_area & (
         (ratio_disch >= 1.0) != (ratio_area >= 1.0))

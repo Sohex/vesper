@@ -191,7 +191,7 @@ The conclusion above to **run at 16 ranks** rather than overlapping two 8-rank
 runs is strengthened, not moved: the postprocessing that concurrency trick was
 hiding is now a rounding error against the model.
 
-The per-orbit wall clock quoted in `WORKFLOW.md` section 0 should fall by
+The per-orbit wall clock quoted in `docs/src/pipeline/costs.md` should fall by
 roughly the postprocessing share. That has NOT been measured end to end, because
 it needs a run made after this change and none has been; the figure there is
 marked accordingly.

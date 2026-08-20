@@ -115,7 +115,7 @@ That last item is what makes this expensive. The baseline run's albedo fields
 baseline climatology the verdict reads is itself contaminated. The remedy is
 therefore a **re-run of the baseline** in the sense `CLAUDE.md`'s vocabulary
 defines: rebuild `surface_water.nc`, rebuild 174 to 176, run, rebuild the
-climatology, re-take the verdict. `WORKFLOW.md` A2 requires the cycle run to be
+climatology, re-take the verdict. `docs/src/pipeline/sequencing.md` A2 requires the cycle run to be
 centred on a *final* baseline, so this lands before CYC-1 and not after.
 
 ## 2. Nothing checks the coupling against the mask, only that `cell_lon` exists

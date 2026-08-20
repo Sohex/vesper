@@ -49,7 +49,7 @@ being a parameter of it.
 with units of metres per (m3/s)^0.5 at land-mean rock and at the population's own
 outlet gradient. **It is calibrated against Earth rather than declared**, and the
 reason is that the relaxation window is undefined rather than unmeasured: Orogen
-has no time axis, and `notes/no-time-axis.md` carries the fact and the standing
+has no time axis, and `docs/src/reference/no-time-axis.md` carries the fact and the standing
 way round it.
 
 **It is solved on every run rather than written down.** The calibration matches a
@@ -269,7 +269,7 @@ Survivors are not a random sample of anything.
 
 **The density, which does.** How many such basins stand per unit land is a
 property of the population rather than of any member, and it is exactly the
-expected-value argument `notes/no-time-axis.md` describes: Earth is one randomly
+expected-value argument `docs/src/reference/no-time-axis.md` describes: Earth is one randomly
 chosen moment, and so is this terrain.
 
 **The size class decides the answer and nearly inverted it.** Earth has many

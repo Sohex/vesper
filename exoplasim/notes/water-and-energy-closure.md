@@ -432,7 +432,7 @@ running out of road for the same reason each time: `ntr` equals `rst + rlut` by
 construction, terms 9 and 10 are the divergence of the very flux profile that
 `rlut` and `rls` are read off, and `rst` and `rlut` sum to `ntr` and so cannot be
 cross-checked against each other. That family of checks can only ever show the
-diagnostics agreeing with themselves. `notes/failure-modes.md` class 17.
+diagnostics agreeing with themselves. `docs/src/practice/failure-modes.md` class 17.
 
 The model has a quantity the radiation code does not supply: its own prognostic
 state. Conservation gives an identity rather than a tolerance,
@@ -924,7 +924,7 @@ including where the "missing it by 0.0014" came from, is
 The miss is **not** rounded into a pass and the criterion is **not** amended on
 the strength of this measurement: choosing a new quantity for a criterion
 immediately after measuring that the new quantity passes is the move
-`WORKFLOW.md` section 7 forbids, whatever the physics says.
+`docs/src/practice/conventions.md` forbids, whatever the physics says.
 
 But the baseline's failure to converge is not a spin-up fault and more orbits
 cannot fix it: the criterion reads a quantity that a non-conserving model holds

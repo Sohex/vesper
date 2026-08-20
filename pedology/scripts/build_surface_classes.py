@@ -66,7 +66,7 @@ Seven checks, all with a right answer:
   without being reported as such.
 
 Comparing this classifier against another classifier would only ever tell us they
-differ. `notes/failure-modes.md` class 17.
+differ. `docs/src/practice/failure-modes.md` class 17.
 """
 
 from __future__ import annotations

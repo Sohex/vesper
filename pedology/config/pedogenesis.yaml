@@ -688,7 +688,7 @@ convergence:
 # excluded samples above 60% clay from the fit, so a pure endmember is outside
 # the data the regression was built on. Reading endmember values off it would be
 # taking a number from a citation rather than from the paper --
-# `notes/failure-modes.md` class 9.
+# `docs/src/practice/failure-modes.md` class 9.
 #
 # So the values are DECLARED, with the paper as the check on their ordering and
 # magnitude rather than their origin, and each carries a bracket spanning the

@@ -8,7 +8,7 @@ mesh, plus a report beside it.
 
 ## Why this is a second script and a second artifact
 
-`notes/economic-minerals.md` splits deposit types by genesis: a deposit belongs
+`docs/src/reference/economic-minerals.md` splits deposit types by genesis: a deposit belongs
 where the process that concentrates it is MODELLED. The tectonic and magmatic
 half needs arcs, fold belts, LIPs and cratons, which Orogen has, and
 `build_prospectivity.py` computes it from the export alone. This half needs
@@ -29,7 +29,7 @@ re-deriving a porphyry from the rock map.
 
 It is a FIELD, not deposits. It is NOT a lithology and NOT an erodibility
 modifier. Nothing upstream of climate may consume it. `build_prospectivity.py`
-and `notes/economic-minerals.md` argue both at length and the argument is the
+and `docs/src/reference/economic-minerals.md` argue both at length and the argument is the
 same here.
 
 ## How well grounded each rule is

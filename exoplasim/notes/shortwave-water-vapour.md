@@ -3,7 +3,7 @@
 Measured 2026-08-17, on the `precarve-craton` baseline climatology.
 
 This is the ozone band-weight correction repeated in the term that is ten times
-larger. `notes/ozone.md` and `notes/config-rationale.md` record the ozone half.
+larger. `notes/ozone.md` and `docs/src/reference/config-rationale.md` record the ozone half.
 This is the water vapour half, and it is settled by reading the papers rather
 than the code.
 
@@ -255,7 +255,7 @@ applies and it is +2.0. Water vapour is bottom-heavy and cloud is not, so the
 truth is inside, and +2.9 is a 65/35 split rather than a measurement.
 
 **The temperature follows from the top-of-atmosphere term alone**, at 209 K per
-unit flux ratio -- `WORKFLOW.md` section 5b, the converged T42 segment across
+unit flux ratio -- `docs/src/pipeline/state.md` section 5b, the converged T42 segment across
 0.945-0.968, which is the direction this correction moves. That is 0.861 K per
 W/m2 once the incident-to-absorbed conversion is made. The stellar sweep's 33 K
 for 21 W/m2 is deliberately NOT used: it is 3.4x the local slope because it

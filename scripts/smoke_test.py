@@ -255,7 +255,7 @@ def check_one_grid_convention(files: list[Path]) -> list[str]:
 
 
 def check_registered_in_workflow(files) -> list[str]:
-    """Every generator that writes an artifact is named in `WORKFLOW.md`.
+    """Every generator that writes an artifact is named in `config/pipeline.yaml`.
 
     `config/pipeline.yaml` is the graph and the list of what exists. A script that writes a product nobody declared has
     no recorded consumers, so nothing can say what it invalidates when it moves,

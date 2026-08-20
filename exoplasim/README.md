@@ -121,7 +121,7 @@ and all three `dalbcl` bands from the restart when `restart > 0`, so the `.sra`
 files are read only on a cold start. A seeded run with a new albedo or a new soil
 water field would discard it and reproduce its parent while every manifest
 recorded the new values. Every step of loop A adds a surface field, so every step
-of loop A needs a cold start. See `notes/failure-modes.md` class 13.
+of loop A needs a cold start. See `docs/src/practice/failure-modes.md` class 13.
 
 Continue a validated experiment from its latest restart (seasonal snapshots are
 written by default; `--no-seasonal-output` skips them for a segment, and a run
@@ -217,7 +217,7 @@ unless told they exist.
 | `predict_ocean_terms.py` | predictions for the two ocean namelist terms of the next baseline bundle, BEFORE the run: the `nhdiff` redistribution and the salinity-derived `TFREEZE` bracket. Validates its diffusion operator against a Laplacian eigenfunction and writes nothing; the write-up is `notes/forcing-bundle-predictions.md` |
 | `build_climatology.py` | average an equilibrated segment into climatologies; refuses orbits declared `diagnostic`, and refuses to mix I/O regimes |
 | `analyze_climatology.py` | diagnostics, maps and a rate-normalised Koppen interpretation |
-| `derive_design_flux.py` | codifies WORKFLOW 5b's flux choice: declared comfort-band thresholds scored per candidate flux from two converged points, with the humidity-coupled variant beside the dry score; writes `analysis/design_flux.json` |
+| `derive_design_flux.py` | codifies `docs/src/pipeline/state.md` section 5b's flux choice: declared comfort-band thresholds scored per candidate flux from two converged points, with the humidity-coupled variant beside the dry score; writes `analysis/design_flux.json` |
 | `analyze_smoke.py` | audit and plot a one-orbit smoke run |
 | `bench_pyburn_read.py` | times and VERIFIES pyburn's raw reader on a synthetic output file of one orbit's geometry, because no real raw file survives postprocessing to re-measure against. `--verify` requires every variable to match a reference reader in value, shape and dtype; `notes/audits/pyburn-postprocessing-cost.md` has what it measured |
 | `analyze_stellar_cycles.py` | phase-folded response of completed cycle runs |
@@ -271,7 +271,7 @@ sees, not from the rock table**: a lithology change confined to basin fill moves
 the VEGETATED land albedo roughly twice as far as the bare one, because
 vegetation masks bare-rock variation but not the barren classes. Note this is
 substrate albedo -- real vegetation arrives from LPJ-GUESS in loop C of
-`WORKFLOW.md`. Current values are in `world_state.json`.
+`docs/src/pipeline/sequencing.md`. Current values are in `world_state.json`.
 
 Its `finalize()` picks output as the last glob match, so a run directory shared
 between worlds can silently emit the wrong world's result. `run_id` used to name

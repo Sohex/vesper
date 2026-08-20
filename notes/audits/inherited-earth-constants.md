@@ -146,7 +146,7 @@ it. For scale, `exoplasim/notes/shortwave-water-vapour.md` books cloud droplets
 and the multiple-scattering enhancement at 12.0 W/m2 of Earth's shortwave
 absorption, beside the water vapour term that earned a 1.346 correction.
 
-The measurement is cheap and satisfies every one of WORKFLOW A3's four
+The measurement is cheap and satisfies every one of `docs/src/pipeline/sequencing.md` A3's four
 conditions with no work: these are namelist keys on the binary already built, so
 two arms differing by one key can branch off one restart and be labelled
 diagnostic. Read it as physics-is-not-a-knob, the way `CLIM-16` reads `nhdiff`:
@@ -174,7 +174,7 @@ temperature profile, which is available on 10 levels", and it lists the
 assumption among the reasons its areas are an upper bound. The direction is what
 was missed: 5.5 halves the glacier area, and the physically expected direction
 roughly doubles it, so this term runs opposite to every other caveat on the same
-result. It is load-bearing because WORKFLOW 5b's central geographic claim --
+result. It is load-bearing because `docs/src/pipeline/state.md` section 5b's central geographic claim --
 glaciers come from relief rather than latitude, a summit needing about 1.37 km
 above its grid cell -- is `z* = cell_mean + (T_warmest - 273.15) / lapse` and
 scales inversely with the rate.
@@ -194,7 +194,7 @@ The first reaches the carve verdict through `carve_verdict.py --dust-forcing`.
 > Longitude of periapse, measured from vernal equinox, in degrees. If not set,
 > defaults to Earth's (102.7 deg).
 
-`notes/config-rationale.md` has a section for every other key in that block and
+`docs/src/reference/config-rationale.md` has a section for every other key in that block and
 none for this one. Nothing anywhere states it as a choice. This is the
 `TFREEZE` pattern one level up: with salinity the Earth value was compiled into
 the model and invisible, and here it has been copied into the config, which is
@@ -207,7 +207,7 @@ LARGER than
 `stellar_cycle.total_amplitude_flux_peak_to_peak`, which is 0.060, and the
 stellar cycle is the forcing this world is built around. Perihelion phase decides
 which hemisphere gets the short hot summer and which the long mild one, and
-WORKFLOW 5b establishes that summer is the term the glaciers turn on, since
+`docs/src/pipeline/state.md` section 5b establishes that summer is the term the glaciers turn on, since
 summer amplification is nearly flat with latitude while winter amplification runs
 three times as far. At 32 degrees obliquity the seasonal cycle it modulates is
 stronger than Earth's, not weaker.
@@ -225,7 +225,7 @@ that it is currently indistinguishable from a value someone chose.
 
 `baseline_flux_earth: 0.945` is marked DETERMINED "from the
 habitability-by-latitude derivation rather than from a temperature target". That
-derivation exists only as prose in WORKFLOW 5b: summer and winter temperature per
+derivation exists only as prose in `docs/src/pipeline/state.md` section 5b: summer and winter temperature per
 band "measured on three converged runs and projected across candidate means",
 with the conclusion that a lower flux moves half the land's warm-season monthly
 means back inside the design comfort band at the cost of a tenth of it going
@@ -241,7 +241,7 @@ superseded 290-293 K target and points the reader at the section.
 
 Three of this project's own rules apply and all three fail: an artifact that no
 step generates does not exist; thresholds are fixed before results are seen and
-written down; record what a thing IS and where it lives. WORKFLOW 5b was written
+written down; record what a thing IS and where it lives. `docs/src/pipeline/state.md` section 5b was written
 to replace a target whose only justification was its own persistence, and it
 records that lesson in its own text -- but the replacement is not reproducible
 either, and reproducibility is what the complaint was about. It matters
@@ -273,7 +273,7 @@ what its name says. Nothing outside `bootstrap_climate_series.json` and
 `baseline_climate_series.json` reads it today, so this is a mislabel rather than
 a physics error -- but it is a water-budget closure, the closure note beside it
 invites the reader to interpret its magnitude, and a quantity with two meanings
-is `notes/failure-modes.md`'s own recurring shape.
+is `docs/src/practice/failure-modes.md`'s own recurring shape.
 
 ## 7. The photosynthetic window rests on four references, all of them held
 
@@ -288,7 +288,7 @@ itself a secondhand use of Marosvolgyi and van Gorkom (2010).
 `FRADPAR` is computed from the spectrum rather than taken from a paper, so the
 arithmetic is sound; what is secondhand is the 400-750 nm WINDOW that the
 arithmetic integrates over, and the window is the whole content of the result.
-That is `notes/failure-modes.md` class 9 on a load-bearing quantity, the file
+That is `docs/src/practice/failure-modes.md` class 9 on a load-bearing quantity, the file
 flags it as an open exposure in its own header, and no task tracks it.
 
 ---

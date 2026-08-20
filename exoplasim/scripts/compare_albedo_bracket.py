@@ -24,7 +24,7 @@ The thresholds below are fixed here rather than chosen after seeing the numbers.
   TARGET_K         290 to 293 K, the design range in force when this experiment
                    was registered and run. It was retired on 2026-08-16 for
                    having no derivation beyond its own persistence, and the mean
-                   is now chosen by habitability per latitude band; see WORKFLOW
+                   is now chosen by habitability per latitude band; see docs/src/pipeline/state.md,
                    section 5b. The constant stays as it was, because a threshold
                    is not rewritten after the results it judged have been seen.
                    Read the verdicts this script produced against that band, not

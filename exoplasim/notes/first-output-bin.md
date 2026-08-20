@@ -216,7 +216,7 @@ and 2.
 - **`nkits`, the kick-start.** It is forced to 0 on any restart
   (`plasim.f90:179`), and every affected call is a restart.
 - **Any `cos(phi)` factor in `ua` and `va` on sigma levels.** Refuted earlier by
-  pointwise measurement, see `notes/failure-modes.md` class 15. The `cos(phi)`
+  pointwise measurement, see `docs/src/practice/failure-modes.md` class 15. The `cos(phi)`
   in this note is a different thing: an additive solid-body wind in one record,
   not a multiplicative factor on the field.
 
@@ -399,7 +399,7 @@ begins at 268.8 K with no ice-free ocean at all, so there is nothing to compare.
 
 **It matters more now than it would have yesterday**, because low I/O became the
 default for a prepared run the same day, and every seeded spin-up in
-`WORKFLOW.md` section 6 -- the bracket points, the endmember arm -- is
+`docs/src/pipeline/sequencing.md` -- the bracket points, the endmember arm -- is
 `--restart-from`. CLIM-31 is the fix, and it is DONE as of the same day.
 `exoplasim/scripts/reset_restart_accumulators.py` zeroes the accumulator records
 in a copy of the restart before the seeded run reads it, and a seeded low-I/O run

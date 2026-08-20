@@ -172,7 +172,7 @@ def self_test() -> int:
     """Assert what the config comparison must say about known edits.
 
     Each case is an edit whose correct verdict is known in advance, which is the
-    only kind of case worth writing: see notes/failure-modes.md class 17. They
+    only kind of case worth writing: see docs/src/practice/failure-modes.md class 17. They
     are made against the LIVE config, so they also fail if a key one of them
     names stops existing, rather than passing on a config nobody has.
     """
@@ -506,7 +506,7 @@ def main() -> int:
         # the mapping was wrong twice while this check passed both times.
         # Endorheic catchments are inland, so almost none of their area may
         # land on a cell the model calls ocean: 1.01% index for index against
-        # 49.77% when longitude labels are matched. See notes/failure-modes.md
+        # 49.77% when longitude labels are matched. See docs/src/practice/failure-modes.md
         # class 17 and notes/audits/grid-convention-and-runoff.md.
         if lsm is None:
             rep.add(WARN, f"convention {path.name}",

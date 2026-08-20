@@ -144,7 +144,7 @@ at Earth gravity too. It would also let the project state a defensible n, which
 nothing currently does.
 
 **Threats.** High risk of precision theatre -- a rigorous factor multiplying a
-heuristic reads as more trustworthy than it is, which is `notes/failure-modes.md`
+heuristic reads as more trustworthy than it is, which is `docs/src/practice/failure-modes.md`
 class 9 wearing different clothes. Recalibrating the sliders against a changed
 erosion law is open-ended, and prior worlds would no longer reproduce, breaking
 the planet code `01eshm059lt0b9mpgro2y83t` as an identity.
