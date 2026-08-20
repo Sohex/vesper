@@ -57,17 +57,17 @@ to one question.
 
 ## What this does NOT read: TASKS.md
 
-The carve gate -- which open tasks touch a step upstream of `carve_list` -- is
-`scripts/carve_gate.py`, and it reads this module rather than the reverse. This
-one answers graph questions and nothing else.
+This module answers graph questions and nothing else. It does not read the
+tracker, so nothing written in `TASKS.md` can change what it reports.
 
-That separation is the same rule as the one above, applied one file further out.
-This module used to parse `TASKS.md` itself, which made a prose tracker an input
-to the pipeline planner: a regex over human-written markdown, where editing a
-status cell changed what the planner reported. It also meant `--status` printed
-every task filed against a step as though it blocked that step, so the gate
-could not tell "a finding still moves this artifact" from "this step has not run
-yet" -- and the pipeline not having run is not a blocker on running it.
+It used to, to print a carve gate -- "open tasks touching a step upstream of
+`carve_list`" -- and that was wrong twice over. A regex over human-written
+markdown sat inside the pipeline planner, so editing a status cell changed what
+the planner said about the pipeline. And the gate did not discriminate: 58% of
+the graph is upstream of the carve, so it selected 10 of 11 open rows and
+decided nothing, while making the judgement look computed. The gate is a
+judgement made by READING `TASKS.md` before carving; `config/pipeline.yaml`
+states it against the `orogen` step.
 """
 
 from __future__ import annotations
@@ -285,7 +285,6 @@ def cmd_status(graph: dict) -> int:
                   f"{len(s['writes'])}: {missing[0]})")
     print(f"\n{len(graph['steps'])} steps, {miss_total} with a missing "
           f"artifact, {stale_total} present but built from an older config")
-    print("\nThe carve gate is scripts/carve_gate.py, which reads TASKS.md.")
     return 0
 
 

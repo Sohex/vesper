@@ -158,7 +158,6 @@ one graph in one place, referenced from the other.
 
     python scripts/pipeline.py --register     # artifact, step, and what reads it
     python scripts/pipeline.py --status       # what is present, and what is not
-    python scripts/carve_gate.py             # what open work touches the carve
     python scripts/pipeline.py --plan <step>  # the ordered steps to reach a target
     python scripts/pipeline.py --purge <step> # what a change to that step makes worthless
 
@@ -708,13 +707,22 @@ python scripts/world_state.py                         # LAST: it reads everythin
 ```
 
 `python scripts/pipeline.py --plan carve_list` prints that list against the
-current state, with what is already present marked skippable. `scripts/carve_gate.py`
-answers the other half: **which open tasks touch a step upstream of the
-carve.** That is the carve gate -- not a ceremony about irreversibility, but
-the ordinary condition that nothing outstanding still moves an artifact the
-verdict is computed from. A task names its step as `[step: <id>]`; one that
-names none is reported as a residual and arbitrated rather than counted or
-ignored, because the graph narrows the judgement and does not replace it.
+current state, with what is already present marked skippable.
+
+The other half is **the carve gate: nothing outstanding may still move an
+artifact the verdict is computed from.** It is not a ceremony about
+irreversibility -- a wrong verdict is recoverable, because a build is replaced
+wholesale -- and it is not a computation. **Read `TASKS.md` and decide.** The
+open set is around a dozen rows and each says what it is waiting on.
+
+It was briefly computed, as "open tasks touching a step upstream of
+`carve_list`", and the arithmetic is why that was abandoned: 58% of the graph
+is upstream of the carve, so the filter selected 10 of 11 open rows. The single
+row it dropped was already marked blocked on the downscaling pass. A filter
+that reproduces its input is not a gate, and dressing the judgement as a script
+made it look decided when nothing had been decided. A task's `[step: <id>]`
+marker stays, as the annotation it always was: where the work lands, not a
+verdict on whether it blocks.
 
 The three at the top and the two at the bottom are the ones most often skipped
 and the ones that cost most when they are: `rebuild_binaries.py --verify`

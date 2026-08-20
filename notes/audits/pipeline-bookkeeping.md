@@ -188,10 +188,11 @@ this audit.
 
 The `TASKS.md` row was the costly one, because the carve gate is computed from
 that file and was reporting `rebuild_binaries` as blocked on work that had
-landed. (The gate was computed by `pipeline.py --status` when this was written;
-it moved to `scripts/carve_gate.py` on 2026-08-19, so that the graph tool reads
-no tracker. The finding is unaffected -- a stale status cell still moves the
-gate, which is the point.)
+landed. (The gate was computed by `pipeline.py --status` when this was
+written. Computing it was removed entirely on 2026-08-19: 58% of the graph is
+upstream of `carve_list`, so the filter selected 10 of 11 open rows. The
+finding stands and gets sharper -- a stale status cell misleads a READER, and
+no traversal was ever screening that out.)
 
 ## 7. Loose state worth settling before an expensive run
 

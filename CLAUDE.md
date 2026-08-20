@@ -16,7 +16,6 @@ describes, and the pointers below are the map:
 | `source/README.md` | how to read an export: field conventions, the land-mask rule, the traps |
 | `vendor/orogen/tools/README.md` | the authoritative export format |
 | `<component>/README.md` | what that component does and how to run it |
-| `scripts/carve_gate.py` | which open tasks touch a step upstream of the carve. Reads `TASKS.md` AND the graph; `pipeline.py` reads no tracker |
 | `notes/failure-modes.md` | how this project goes wrong, by class |
 | `notes/no-time-axis.md` | Orogen has no time axis. Read before asking any component for a duration, an age, or a rate |
 | `notes/large-data.md` | batch, chunk, checkpoint, report. Required for any step whose input runs to GB |
