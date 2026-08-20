@@ -186,9 +186,12 @@ this audit.
 | `exoplasim/notes/first-output-bin.md` | the low-I/O patch is "written and not applied ... has not been compiled into a binary and no run has used it" | resident and in all five binaries. The "no run has used it" half is still true and is kept |
 | `aeolian/notes/prescribed-dust-run.md` | "RESIDENT, not applied", and a `patch -p1` step in the run recipe | resident AND applied; running that line now would fail or double-apply |
 
-The `TASKS.md` row was the costly one, because `pipeline.py --status` computes
-the carve gate from that file and was reporting `rebuild_binaries` as blocked on
-work that had landed.
+The `TASKS.md` row was the costly one, because the carve gate is computed from
+that file and was reporting `rebuild_binaries` as blocked on work that had
+landed. (The gate was computed by `pipeline.py --status` when this was written;
+it moved to `scripts/carve_gate.py` on 2026-08-19, so that the graph tool reads
+no tracker. The finding is unaffected -- a stale status cell still moves the
+gate, which is the point.)
 
 ## 7. Loose state worth settling before an expensive run
 

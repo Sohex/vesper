@@ -55,14 +55,19 @@ answers "do these describe the same world", this answers "what exists and what
 must run to reach X". Asking either to do the other's job would give two answers
 to one question.
 
-## The carve gate, and the margin in it
+## What this does NOT read: TASKS.md
 
-`orogen` is gated on nothing outstanding touching a step upstream of
-`carve_list`. That is computable from the graph plus the step each open task
-names, and `--status` computes it. What it CANNOT do is decide about a task that
-names no step, or one whose relevance is a matter of degree. Those are reported
-as a residual to be arbitrated rather than silently counted or silently ignored,
-because a gate that hides its own uncertainty is a gate nobody should trust.
+The carve gate -- which open tasks touch a step upstream of `carve_list` -- is
+`scripts/carve_gate.py`, and it reads this module rather than the reverse. This
+one answers graph questions and nothing else.
+
+That separation is the same rule as the one above, applied one file further out.
+This module used to parse `TASKS.md` itself, which made a prose tracker an input
+to the pipeline planner: a regex over human-written markdown, where editing a
+status cell changed what the planner reported. It also meant `--status` printed
+every task filed against a step as though it blocked that step, so the gate
+could not tell "a finding still moves this artifact" from "this step has not run
+yet" -- and the pipeline not having run is not a blocker on running it.
 """
 
 from __future__ import annotations
@@ -79,7 +84,6 @@ import sys
 sys.path.insert(0, str(ROOT / "lib"))
 from provenance import INERT_CONFIG_KEYS, artifact_drift  # noqa: E402
 GRAPH = ROOT / "config" / "pipeline.yaml"
-TASKS = ROOT / "TASKS.md"
 
 
 def load() -> dict:
@@ -233,35 +237,6 @@ def order(target: str, by_id: dict) -> list[str]:
     return out
 
 
-def task_steps() -> tuple[dict, list]:
-    """Open tasks that name a step, and the residual that names none.
-
-    OPENNESS IS READ FROM THE STATUS COLUMN, not from where a row sits. This
-    used to slice between the `## Open` and `## Closed` headings, which stopped
-    working when TASKS.md went to one table per prefix with closed ids left in
-    place as stubs -- every stub would have counted as a residual, and the carve
-    gate would have reported 142 tasks to arbitrate. Reading the status is also
-    simply more robust: it does not care about headings, ordering, or which
-    table a row is in.
-    """
-    text = TASKS.read_text(encoding="utf-8")
-    attached, residual = {}, []
-    for line in text.splitlines():
-        if not line.startswith("| ") or line.startswith(("| id", "| ---")):
-            continue
-        cells = [c.strip() for c in line.strip().strip("|").split("|")]
-        if len(cells) < 4 or cells[3].lower().startswith(("done", "wontfix")):
-            continue
-        tid = line.strip("|").split("|")[0].strip()
-        m = re.search(r"\[step:\s*([a-z_0-9, ]+)\]", line)
-        if m:
-            for s in (x.strip() for x in m.group(1).split(",")):
-                attached.setdefault(s, []).append(tid)
-        else:
-            residual.append(tid)
-    return attached, residual
-
-
 def cmd_register(graph: dict) -> int:
     by_id = steps_by_id(graph)
     consumers: dict[str, list[str]] = {}
@@ -308,33 +283,9 @@ def cmd_status(graph: dict) -> int:
             miss_total += 1
             print(f"[ MISSING ] {s['id']}  ({len(missing)} of "
                   f"{len(s['writes'])}: {missing[0]})")
-    attached, residual = task_steps()
-    unknown = {s: t for s, t in attached.items() if s not in by_id}
-    gate = upstream("carve_list", by_id) | {"carve_list"}
-    blocking = {s: t for s, t in attached.items() if s in gate}
     print(f"\n{len(graph['steps'])} steps, {miss_total} with a missing "
           f"artifact, {stale_total} present but built from an older config")
-    if unknown:
-        # A task naming a step the graph does not have is INVISIBLE to the gate:
-        # it is neither blocking nor residual, so it is silently uncounted. That
-        # is how a step rename disarms the gate, so say it loudly rather than
-        # dropping the row.
-        print("\nNAMES A STEP THIS GRAPH DOES NOT HAVE, so the gate cannot see it:")
-        for s, ids in sorted(unknown.items()):
-            print(f"  {s:24s} {', '.join(ids)}")
-        print("  Repoint the [step: ...] marker in TASKS.md, or add the row here.")
-    print("\nTHE CARVE GATE: open tasks touching a step upstream of carve_list")
-    if blocking:
-        for s, t in sorted(blocking.items()):
-            print(f"  {s:24s} {', '.join(t)}")
-    else:
-        print("  none attached")
-    print(f"\nRESIDUAL, naming no step and therefore not counted either way: "
-          f"{len(residual)}")
-    if residual:
-        print("  " + " ".join(residual))
-        print("  These are for a person or the assistant to arbitrate. The gate is\n"
-              "  narrowed by the graph, not decided by it.")
+    print("\nThe carve gate is scripts/carve_gate.py, which reads TASKS.md.")
     return 0
 
 

@@ -157,7 +157,8 @@ source/ + soil + drainage -> minerals/build_prospectivity.py            (terrain
 one graph in one place, referenced from the other.
 
     python scripts/pipeline.py --register     # artifact, step, and what reads it
-    python scripts/pipeline.py --status       # what is present, and the carve gate
+    python scripts/pipeline.py --status       # what is present, and what is not
+    python scripts/carve_gate.py             # what open work touches the carve
     python scripts/pipeline.py --plan <step>  # the ordered steps to reach a target
     python scripts/pipeline.py --purge <step> # what a change to that step makes worthless
 
@@ -707,7 +708,7 @@ python scripts/world_state.py                         # LAST: it reads everythin
 ```
 
 `python scripts/pipeline.py --plan carve_list` prints that list against the
-current state, with what is already present marked skippable. `--status`
+current state, with what is already present marked skippable. `scripts/carve_gate.py`
 answers the other half: **which open tasks touch a step upstream of the
 carve.** That is the carve gate -- not a ceremony about irreversibility, but
 the ordinary condition that nothing outstanding still moves an artifact the

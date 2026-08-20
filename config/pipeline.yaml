@@ -393,7 +393,8 @@ steps:
     writes: ["source/{build}/"]
     gate: >
       the carve gate: nothing outstanding may touch a step upstream of
-      carve_list. Computed by `pipeline.py --status`; the residual is arbitrated,
+      carve_list. Computed by `scripts/carve_gate.py`, which reads this graph
+      and TASKS.md -- never pipeline.py, which reads no tracker; the residual is arbitrated,
       not ignored.
 
   - id: weathering_fluxes
@@ -504,6 +505,8 @@ checks:
     script: scripts/check_consistency.py
   - id: smoke_test
     script: scripts/smoke_test.py
+  - id: carve_gate
+    script: scripts/carve_gate.py
 
 # Present, deliberately outside the graph: depended on by nothing.
 one_offs:

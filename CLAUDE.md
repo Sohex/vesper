@@ -12,10 +12,11 @@ describes, and the pointers below are the map:
 | --- | --- |
 | `WORKFLOW.md` | CANONICAL for pipeline REASONING: what the components are, how they connect, why the order is what it is, and why it is a loop. **Read it first.** |
 | `config/pipeline.yaml` | CANONICAL for the pipeline GRAPH: every step, what it writes, what must precede it, its cost, and each loop's exit predicate. The two do not overlap; WORKFLOW references step ids from here |
-| `scripts/pipeline.py` | `--status` what exists and what blocks the carve, `--plan <step>` the ordered steps to a target, `--register` the artifact table, `--purge <step>` everything a change to that step makes worthless. Plans and never RUNS a step; `--purge` deletes, and is a dry run until `--execute` |
+| `scripts/pipeline.py` | `--status` what exists, `--plan <step>` the ordered steps to a target, `--register` the artifact table, `--purge <step>` everything a change to that step makes worthless. Plans and never RUNS a step; `--purge` deletes, and is a dry run until `--execute` |
 | `source/README.md` | how to read an export: field conventions, the land-mask rule, the traps |
 | `vendor/orogen/tools/README.md` | the authoritative export format |
 | `<component>/README.md` | what that component does and how to run it |
+| `scripts/carve_gate.py` | which open tasks touch a step upstream of the carve. Reads `TASKS.md` AND the graph; `pipeline.py` reads no tracker |
 | `notes/failure-modes.md` | how this project goes wrong, by class |
 | `notes/no-time-axis.md` | Orogen has no time axis. Read before asking any component for a duration, an age, or a rate |
 | `notes/large-data.md` | batch, chunk, checkpoint, report. Required for any step whose input runs to GB |

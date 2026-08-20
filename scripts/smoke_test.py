@@ -587,7 +587,7 @@ def check_task_counts() -> list[str]:
     It has drifted once already: CLIM read `4 open of 30 issued` against a table
     of 31 rows with 3 open, both halves stale from the same commit, which is
     what a hand-maintained count does. Openness is read from the status column
-    the way `pipeline.py:task_steps` reads it, not from where a row sits.
+    the way `carve_gate.py:open_tasks` reads it, not from where a row sits.
     """
     text = (ROOT / "TASKS.md").read_text(encoding="utf-8")
     problems, prefix, header = [], None, None

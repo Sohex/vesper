@@ -37,11 +37,13 @@ Status: `open` | `doing` | `blocked` | `done` | `wontfix` (with a reason).
   deleted. The reasoning is the point, and it goes to the archive.
 - **A task names the step it touches**, as `[step: <id>]` in its status column,
   where the id is from `config/pipeline.yaml`. That is what makes the carve gate
-  computable: `pipeline.py --status` reports which open tasks touch a step
-  upstream of `carve_list`. A task that names none is not ignored -- it is
+  computable: `scripts/carve_gate.py` reports which open tasks touch a step
+  upstream of `carve_list`. That script reads this file and the graph;
+  `pipeline.py` reads neither this file nor any tracker, so a status cell here
+  can never change what the pipeline planner reports. A task that names none is not ignored -- it is
   reported as a RESIDUAL to be arbitrated, because the graph narrows the
   judgement and does not replace it. Name more than one where it applies.
-  `pipeline.py` reads STATUS to decide what is open, so a row whose status
+  `carve_gate.py` reads STATUS to decide what is open, so a row whose status
   begins `done` or `wontfix` is skipped wherever it sits.
 
 - **Regenerating a derived artifact is a STEP, not a task.** It belongs in the
