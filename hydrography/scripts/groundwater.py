@@ -44,6 +44,10 @@ import scipy.sparse as sp
 from scipy.sparse.linalg import spsolve
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+# Imported for its side effect: `_paths` is what puts `lib/` on the path, so
+# `orogen` below is unimportable without it. It reads as an unused import and
+# is not one -- removing it on that basis broke this module's entry point.
+import _paths  # noqa: E402,F401
 from orogen import LAND, Export  # noqa: E402
 
 # Declared BEFORE the first run, per the standing convention. A criterion chosen
@@ -79,6 +83,19 @@ FLIP_TOLERANCE = 0.002
 FLIP_HYSTERESIS = 0.01
 # Trust region on the Picard step, in e-folding lengths. See solve().
 STEP_CAP_EFOLDINGS = 1.0
+# CROSS-SCHEME AGREEMENT, declared before either scheme was run against the
+# other. Picard and Kirchhoff discretise the same PDE on the same mesh, so where
+# both converge they must agree to discretisation error, and the operator's own
+# noise floor is about 12% relative RMS. The depth bar is set at the median
+# rather than the maximum because the interface error Kirchhoff carries at a
+# lithology jump is concentrated at those faces by construction; a maximum would
+# report the worst face rather than whether the two agree.
+# The share of faces whose elevation difference may exceed float64's exp
+# range before the Kirchhoff transform is refused outright. Zero: there is
+# no tolerable amount of silently underflowing to a false residual.
+KIRCHHOFF_MAX_OVERFLOW_FRACTION = 0.0
+SCHEME_DEPTH_MEDIAN_M = 5.0
+SCHEME_SEEPAGE_RELATIVE = 0.01
 # Passes over which the relaxation factor halves. See solve().
 DAMPING_SCALE = 60.0
 
@@ -661,7 +678,12 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, f_m, recharge_m_s,
         "pinned": pinned,
         "excluded": excluded,
         "transmissivity_m2_s": t_cell,
-        "ocean_outflow_m3_s": float(-divergence[is_ocean].sum()),
+        # What the ocean GAINS. `geom_divergence` returns net INFLOW per cell,
+        # so this is a plus. It was a minus, which made the closure check
+        # subtract the coastal discharge instead of adding it -- invisible in
+        # the zero-permeability case, where it is zero either way, and the
+        # reason the real solve's closure read 2.3e-4 instead of closing.
+        "ocean_outflow_m3_s": float(divergence[is_ocean].sum()),
         "at_transmissivity_floor": at_floor,
     })
     return result
@@ -686,6 +708,262 @@ def closure(result, recharge_m_s, area_m2, export: Export) -> dict:
         "relative_residual": abs(out - supply) / max(abs(supply), 1e-30),
         "tolerance": CLOSURE_TOLERANCE,
         "passes": abs(out - supply) / max(abs(supply), 1e-30) < CLOSURE_TOLERANCE,
+    }
+
+
+def kirchhoff_flux(gfac, phi, phi_sea, src, dst, coast, land_of, is_ocean):
+    """Face flux in the Kirchhoff potential, oriented as the rest of the module.
+
+    The convention throughout is that a positive face flux is flow from `dst`
+    INTO `src`, which is what makes `geom_divergence` a net inflow.
+
+    A coastal face is not `phi[dst] - phi[src]`, because the ocean has no
+    Kirchhoff potential of its own: the boundary value is sea level expressed in
+    the LAND cell's coefficients, which keeps the face inside one material. That
+    makes the physical flow land-to-sea, `gfac (phi_L - phi_sea_L)`, and it has
+    to be signed by which end of the face the land is -- which the first version
+    did not do, so half the coast carried its discharge backwards.
+    """
+    flux = gfac * (phi[dst] - phi[src])
+    if coast.any():
+        L = land_of[coast]
+        out = gfac[coast] * (phi[L] - phi_sea[L])      # land to sea, positive
+        flux[coast] = np.where(is_ocean[src[coast]], out, -out)
+    return flux
+
+
+def solve_kirchhoff(export: Export, geom: Geometry, *, k0_m_s, f_m,
+                    recharge_m_s, surface_m, conductive, sea_level_m=0.0,
+                    max_outer=200, verbose=True):
+    """The same problem in the Kirchhoff potential, where it is not stiff.
+
+    THE TRANSFORM. The Kirchhoff potential of a nonlinear diffusion is the
+    integral of its own coefficient, `Phi = int T dh`. With Fan's exponential
+    transmissivity `T = K0 f exp(-d/f)` that integral is closed:
+
+        Phi(h) = K0 f^2 exp(-d/f) = T f,   so   T grad h = grad Phi
+
+    and `div(T grad h) + R = 0` becomes `div(grad Phi) + R = 0`. The whole
+    eight orders of magnitude of transmissivity, and the entire nonlinearity,
+    move into the change of variable. What is left is a graph Laplacian whose
+    weights are `w/l` and NOTHING else -- no coefficient, no dependence on the
+    unknown, one factorisation per active set.
+
+    WHY IT IS WORTH THE TROUBLE. `solve()` iterates a fixed point: it evaluates
+    `T` at a head, solves, and hopes the head it gets back implies the same `T`.
+    It does not converge here. `T` moves by a factor of e per e-folding length,
+    which on steep bedrock is a metre, so the map is not a contraction and the
+    iterate limit-cycles. Damping stops the cycle by freezing the iterate short
+    of the fixed point rather than by finding it, which is exactly what the
+    water balance residual caught: 1.9e-4 of total recharge, flat over four
+    hundred passes, while the head step fell to a third of a metre.
+
+    Here there is no fixed point to chase. The cap `h <= z` maps monotonically
+    to `Phi <= K0 f^2`, so the problem is a box-constrained linear
+    complementarity problem, and an active-set method on one of those terminates.
+
+    WHERE IT IS EXACT, AND WHERE IT IS NOT. `Phi` is defined per cell from that
+    cell's own `K0` and `f`, so `grad Phi = T grad h` holds within a material and
+    not across a jump between two. The coast is handled exactly -- a coastal
+    face's sea-level potential is computed from the LAND cell's own
+    coefficients, which keeps it inside one material -- but a face between two
+    lithologies carries an interface error this does not model. That error is
+    what the cross-scheme check measures, and it is why the check exists.
+    """
+    n = export.n_regions
+    src, dst, gfac = geom.src, geom.dst, geom.geom
+    area_m2 = geom.volume_area_m2
+    is_ocean = export.surface_class != LAND
+    in_domain = conductive | is_ocean
+    live = in_domain[src] & in_domain[dst]
+    src, dst, gfac = src[live], dst[live], gfac[live]
+    supply = recharge_m_s * area_m2
+
+    with np.errstate(over="ignore", invalid="ignore"):
+        phi_max = k0_m_s * f_m ** 2                    # the cap, at d = 0
+        phi_min = phi_max * TRANSMISSIVITY_FLOOR_RATIO  # the floor, at max depth
+        # Sea level expressed in each coastal cell's OWN potential, which is
+        # what keeps the boundary condition inside one material.
+        phi_sea = phi_max * np.exp(
+            np.clip((sea_level_m - surface_m) / f_m, -700.0, 0.0))
+
+    # REFUSE RATHER THAN UNDERFLOW. The transform's variable is an exponential
+    # of elevation over the e-folding length, so it is usable only where the
+    # relief spans a modest number of e-folding lengths. Here it does not: `f`
+    # falls to about a metre on steep bedrock while adjacent cells differ by
+    # hundreds of metres, and `exp` of that overflows float64 outright on a
+    # measurable share of the mesh. Left to run, the potential underflows to
+    # zero over most of the domain and the solve reports a residual near 1e-19
+    # -- a balance satisfied at zero, which reads as convergence and is not.
+    # `notes/water-table-convergence.md` carries the measurement.
+    span = np.abs(surface_m[src] - surface_m[dst]) / np.minimum(f_m[src], f_m[dst])
+    over = float((span > 709.0).mean())
+    if over > KIRCHHOFF_MAX_OVERFLOW_FRACTION:
+        raise SystemExit(
+            f"the Kirchhoff transform is not usable on this terrain: "
+            f"{over * 100:.3f}% of faces have an elevation difference of more "
+            f"than 709 e-folding lengths, so exp() of it overflows float64 "
+            f"(bar {KIRCHHOFF_MAX_OVERFLOW_FRACTION * 100:.3f}%). The relief is "
+            f"kilometres and f is tens of metres. See "
+            f"hydrography/notes/water-table-convergence.md; --scheme picard is "
+            f"stable but does not converge either.")
+
+    phi = phi_max.copy()
+    at_cap = conductive.copy()      # start every cell at the surface, as solve()
+    at_floor = np.zeros(n, bool)
+    result = {}
+
+    coast = is_ocean[src] ^ is_ocean[dst]
+    land_of = np.where(is_ocean[src], dst, src)
+
+    for outer in range(max_outer):
+        # RELEASE FIRST. The iteration starts with every cell at the cap, which
+        # is the zero-permeability solution and always feasible, so if the
+        # release test does not run before the free set is counted there is
+        # nothing to solve on the first pass and the loop exits reporting
+        # success on a water table that is at the surface everywhere.
+        flux = kirchhoff_flux(gfac, phi, phi_sea, src, dst, coast,
+                              land_of, is_ocean)
+        seep = supply + geom_divergence(n, src, dst, flux)
+        release = at_cap & (seep < 0)
+        at_cap[release] = False
+
+        unknown = conductive & ~at_cap & ~at_floor
+        m = int(unknown.sum())
+        if m == 0:
+            if verbose:
+                print("  every cell is at a bound; nothing to solve")
+            result["outer_iterations"] = outer + 1
+            result["final_residual"] = 0.0
+            break
+        idx = np.full(n, -1, dtype=np.int64)
+        idx[unknown] = np.arange(m)
+
+        both = unknown[src] & unknown[dst]
+        rows = np.concatenate([idx[src[both]], idx[dst[both]],
+                               idx[src[both]], idx[dst[both]]])
+        cols = np.concatenate([idx[dst[both]], idx[src[both]],
+                               idx[src[both]], idx[dst[both]]])
+        vals = np.concatenate([-gfac[both], -gfac[both],
+                               gfac[both], gfac[both]])
+        rhs = np.zeros(m)
+        np.add.at(rhs, idx[unknown], supply[unknown])
+
+        # A face with one unknown end. The known end is either a land cell held
+        # at a bound, whose own potential goes to the right-hand side, or the
+        # ocean, which contributes the land cell's own sea-level potential.
+        one = unknown[src] ^ unknown[dst]
+        if one.any():
+            u_side = np.where(unknown[src[one]], src[one], dst[one])
+            p_side = np.where(unknown[src[one]], dst[one], src[one])
+            known = np.where(is_ocean[p_side], phi_sea[u_side], phi[p_side])
+            rows = np.concatenate([rows, idx[u_side]])
+            cols = np.concatenate([cols, idx[u_side]])
+            vals = np.concatenate([vals, gfac[one]])
+            np.add.at(rhs, idx[u_side], gfac[one] * known)
+
+        A = sp.coo_matrix((vals, (rows, cols)), shape=(m, m)).tocsr()
+        diag = A.diagonal()
+        if not np.all(diag > 0):
+            raise SystemExit(
+                f"{int((diag <= 0).sum())} free cells are isolated from the "
+                "network; the Kirchhoff operator is singular")
+        x = spsolve(A.tocsc(), rhs, use_umfpack=False)
+        if not np.all(np.isfinite(x)):
+            raise SystemExit(
+                f"the Kirchhoff solve returned non-finite potentials at outer "
+                f"iteration {outer} with {m:,} unknowns")
+        phi[unknown] = x
+
+        # Project onto the box and move the active set. No relaxation and no
+        # step limit: the operator does not depend on the answer, so there is
+        # nothing for a large step to invalidate.
+        hit_cap = unknown & (phi > phi_max)
+        hit_floor = unknown & (phi < phi_min)
+        phi[hit_cap] = phi_max[hit_cap]
+        phi[hit_floor] = phi_min[hit_floor]
+        at_cap[hit_cap] = True
+        at_floor[hit_floor] = True
+
+        flux = kirchhoff_flux(gfac, phi, phi_sea, src, dst, coast,
+                              land_of, is_ocean)
+        bal = supply + geom_divergence(n, src, dst, flux)
+        moved = int(hit_cap.sum()) + int(hit_floor.sum())
+        resid = float(np.abs(bal)[conductive & ~at_cap & ~at_floor].sum()
+                      / max(float(supply[conductive].sum()), 1e-30))
+        if verbose:
+            print(f"  kirchhoff {outer:3d}  free {m:>9,}  capped "
+                  f"{int(hit_cap.sum()):>7,}  floored {int(hit_floor.sum()):>6,}"
+                  f"  released {int(release.sum()):>7,}  residual {resid:9.3e}")
+        if moved == 0 and int(release.sum()) == 0 and resid < RESIDUAL_TOLERANCE:
+            result["outer_iterations"] = outer + 1
+            result["final_residual"] = resid
+            result["converged"] = True
+            break
+    else:
+        result["converged"] = False
+        result["outer_iterations"] = max_outer
+        result["final_residual"] = resid
+        if verbose:
+            print(f"  KIRCHHOFF DID NOT CONVERGE in {max_outer} passes: "
+                  f"residual {resid:.3e} against {RESIDUAL_TOLERANCE:.0e}")
+    result.setdefault("converged", True)
+
+    # Back out of the transform. Phi = K0 f^2 exp(-d/f), so d = f ln(phi_max/phi).
+    with np.errstate(divide="ignore", invalid="ignore"):
+        depth = np.where(conductive,
+                         f_m * np.log(np.maximum(phi_max, 1e-300)
+                                      / np.maximum(phi, 1e-300)), 0.0)
+    depth = np.clip(np.nan_to_num(depth, nan=0.0, posinf=0.0), 0.0, None)
+    head = surface_m - depth
+    head[is_ocean] = sea_level_m
+
+    t_cell = np.where(conductive, phi / np.maximum(f_m, 1e-30), 0.0)
+    flux = kirchhoff_flux(gfac, phi, phi_sea, src, dst, coast, land_of, is_ocean)
+    divergence = geom_divergence(n, src, dst, flux)
+    seepage = np.zeros(n)
+    seepage[at_cap] = supply[at_cap] + divergence[at_cap]
+    excluded = (export.surface_class == LAND) & ~conductive
+    seepage[excluded] = supply[excluded]
+    seepage = np.clip(seepage, 0.0, None)
+
+    result.update({
+        "head_m": head, "depth_m": depth, "seepage_m3_s": seepage,
+        "face_flux_m3_s": flux, "src": src, "dst": dst,
+        "pinned": at_cap, "excluded": excluded,
+        "transmissivity_m2_s": t_cell,
+        "at_transmissivity_floor": at_floor,
+        "kirchhoff_potential": phi,
+        "ocean_outflow_m3_s": float(divergence[is_ocean].sum()),
+    })
+    return result
+
+
+def compare_schemes(a: dict, b: dict, conductive, area_m2) -> dict:
+    """Two solvers of the SAME discretised problem, against each other.
+
+    Picard and Kirchhoff are the same PDE, the same mesh and the same physics
+    reached by different algebra, so where both converge they must agree to
+    discretisation error. That makes this an identity rather than a plausibility
+    check, and it is the only catchment-scale check this component has, the
+    divide test having turned out mis-specified.
+
+    Criteria are declared in the constants above, before either was run.
+    """
+    free = conductive & (a["depth_m"] > 0) & (b["depth_m"] > 0)
+    dd = np.abs(a["depth_m"] - b["depth_m"])[free]
+    sa, sb = a["seepage_m3_s"].sum(), b["seepage_m3_s"].sum()
+    seep_rel = abs(sa - sb) / max(abs(sa), 1e-30)
+    return {
+        "criterion_median_depth_difference_m": SCHEME_DEPTH_MEDIAN_M,
+        "criterion_total_seepage_relative": SCHEME_SEEPAGE_RELATIVE,
+        "cells_free_in_both": int(free.sum()),
+        "median_depth_difference_m": float(np.median(dd)) if dd.size else None,
+        "p90_depth_difference_m": float(np.percentile(dd, 90)) if dd.size else None,
+        "total_seepage_relative_difference": float(seep_rel),
+        "passes": bool(dd.size
+                       and np.median(dd) < SCHEME_DEPTH_MEDIAN_M
+                       and seep_rel < SCHEME_SEEPAGE_RELATIVE),
     }
 
 

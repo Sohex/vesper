@@ -155,6 +155,15 @@ def main() -> int:
                     help="run at uniform permeability with a terrain-following "
                          "table and check the catchments against the surface ones")
     ap.add_argument("--max-outer", type=int, default=60)
+    ap.add_argument("--scheme", choices=["kirchhoff", "picard", "both"],
+                    default="kirchhoff",
+                    help="NEITHER CONVERGES ON THIS TERRAIN. kirchhoff solves "
+                         "a linear complementarity problem in the Kirchhoff "
+                         "potential and refuses outright here, because the "
+                         "relief spans more e-folding lengths than float64 can "
+                         "exponentiate; picard iterates the transmissivity and "
+                         "is stable but limit-cycles. See "
+                         "hydrography/notes/water-table-convergence.md")
     args = ap.parse_args()
 
     config = yaml.safe_load((PROJECT_ROOT / "config/planet.yaml").read_text())
@@ -239,10 +248,16 @@ def main() -> int:
         res = gw.terrain_following(export, geom, k0_m_s=k0, f_m=f_m,
                                    surface_m=surface_m, conductive=conductive)
     else:
-        print("solving the water table")
-        res = gw.solve(export, geom, k0_m_s=k0, f_m=f_m, recharge_m_s=recharge,
-                       surface_m=surface_m, conductive=conductive,
-                       max_outer=args.max_outer)
+        kw = dict(k0_m_s=k0, f_m=f_m, recharge_m_s=recharge,
+                  surface_m=surface_m, conductive=conductive)
+        picard = kirchhoff = None
+        if args.scheme in ("kirchhoff", "both"):
+            print("solving the water table (Kirchhoff)")
+            kirchhoff = gw.solve_kirchhoff(export, geom, max_outer=200, **kw)
+        if args.scheme in ("picard", "both"):
+            print("solving the water table (Picard)")
+            picard = gw.solve(export, geom, max_outer=args.max_outer, **kw)
+        res = kirchhoff if kirchhoff is not None else picard
 
     area_m2 = geom.volume_area_m2
     supply = recharge * area_m2
@@ -305,6 +320,7 @@ def main() -> int:
                               "p999_head_step_m", "cells_flipped"],
             "trace": res.get("head_step_trace_m", []),
         },
+        "scheme": args.scheme,
         "outer_iterations": res.get("outer_iterations"),
         "water_table": {
             "median_depth_m_land": float(np.median(depth[land])),
@@ -373,6 +389,27 @@ def main() -> int:
             fields, area_m2)
 
     # -- products ----------------------------------------------------------
+    # THE CROSS-SCHEME IDENTITY. Same PDE, same mesh, same physics, different
+    # algebra, so where both converge they must agree to discretisation error.
+    if args.scheme == "both" and picard is not None and kirchhoff is not None:
+        cmp_ = gw.compare_schemes(kirchhoff, picard, conductive, area_m2)
+        cmp_["kirchhoff_converged"] = bool(kirchhoff.get("converged"))
+        cmp_["picard_converged"] = bool(picard.get("converged"))
+        report["cross_scheme"] = cmp_
+        print(f"\nCROSS-SCHEME  median |d_kirchhoff - d_picard| "
+              f"{cmp_['median_depth_difference_m']:.3f} m against "
+              f"{gw.SCHEME_DEPTH_MEDIAN_M} m")
+        print(f"              p90 {cmp_['p90_depth_difference_m']:.3f} m, "
+              f"total seepage differs by "
+              f"{cmp_['total_seepage_relative_difference']:.3e} against "
+              f"{gw.SCHEME_SEEPAGE_RELATIVE:.0e}")
+        if not (cmp_["kirchhoff_converged"] and cmp_["picard_converged"]):
+            print("              NEITHER VERDICT IS AN IDENTITY: the check "
+                  "compares two solutions and at least one has not converged, "
+                  "so it bounds their difference, not either one's error.")
+        else:
+            print("              " + ("PASS" if cmp_["passes"] else "MISS"))
+
     if not res.get("converged", True):
         # The report goes out; the water table does not. An unconverged head
         # field written to `data/` would be read downstream as a result, and

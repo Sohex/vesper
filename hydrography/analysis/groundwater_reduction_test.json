@@ -27,7 +27,7 @@
     "recharge_m3_s": 1332781.1760872037,
     "discharge_m3_s": 1332781.1760872034,
     "seepage_m3_s": 1332781.1760872034,
-    "to_ocean_m3_s": -0.0,
+    "to_ocean_m3_s": 0.0,
     "relative_residual": 1.746953272084896e-16,
     "tolerance": 1e-10,
     "passes": true
@@ -48,6 +48,7 @@
     ],
     "trace": []
   },
+  "scheme": "kirchhoff",
   "outer_iterations": 1,
   "water_table": {
     "median_depth_m_land": 0.0,
@@ -57,7 +58,7 @@
     "at_transmissivity_floor": 0,
     "at_transmissivity_floor_note": "a numerical bound, not a physical one: T = K0 f exp(-d/f) underflows on steep bedrock where f is a metre. These cells' depths are a lower bound rather than a value"
   },
-  "git_commit": "870d9b9db1e0c6418a3831d6e1779d89f3b3af55",
+  "git_commit": "e426ff5afda462c70bdbf6371c2b0d01064c869f",
   "reduction_identity": {
     "criterion": "exact: seepage == recharge per cell, Qg == 0 per basin",
     "seepage_equals_recharge_exactly": true,

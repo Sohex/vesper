@@ -3,6 +3,13 @@
 This is worldbuilding. Vesper is a fictional super-Earth and this document is
 about the geometry of the mesh its terrain is exported on.
 
+Every figure below is mesh geometry and carries no climate, so the forcing does
+not enter it. Where a number elsewhere in this component comes from a solved
+water table, it was forced by the BOOTSTRAP climatology, not a baseline: this
+build has no `baseline_climatology` and `surface_water.nc` was forced the same
+way. By this project's own vocabulary a bootstrap run's numbers are not the
+baseline, so those are provisional in a way these are not.
+
 Measured 2026-08-20 on `precarve-craton`, while building the water table solver,
 which is the first thing in this project to need face widths rather than only
 cell areas. `hydrography/scripts/groundwater.py:Geometry` is the code.
@@ -39,7 +46,34 @@ about twenty kilometres, and the face-width-over-separation ratio runs from
 product returns exactly zero on 4,014 of those faces and takes any operator
 built on it to NaN; the half-chord form through `arcsin` does not.
 
-## `cell_area` is a different quantity from the area those faces bound
+## `cell_area` is the CENTROIDAL dual, and the cause is one line of Orogen
+
+The two areas differ because they are duals of different point sets, and the
+mechanism is in the generator:
+
+`vendor/orogen/js/sphere-mesh.js:206`, `generateTriangleCenters`, returns the
+arithmetic mean of each triangle's three vertices. That is the CENTROID, not the
+circumcentre. The Voronoi vertex of a Delaunay triangle is its circumcentre, so
+the dual Orogen builds is the centroidal dual and not the Voronoi dual, and
+`regionCellArea` sums spherical excess over that. The comment immediately above
+the function reads "Triangle centres (= Voronoi vertices on the sphere)", so the
+code contradicts its own docstring; the centres are also not renormalised onto
+the sphere, so they sit slightly inside it.
+
+Two consequences follow directly, and both are observed:
+
+**A centroidal dual does not exactly tile the sphere.** Hence `sum(cell_area)`
+at 1.00068 of `4 pi R^2` rather than 1.
+
+**Centroid and circumcentre diverge most on elongated triangles.** Hence the
+per-cell tail: the ratio reaches 31.7 exactly where the local triangulation is
+most sliver-like.
+
+This is the actionable form of the finding. "The two areas disagree" is a
+symptom; "`cell_area` is the centroidal dual because triangle centres are
+centroids" is something a reader can go and change, or decide not to.
+
+## `cell_area` against the area those faces bound
 
 | | sum, as a fraction of `4 pi R^2` |
 | --- | --- |

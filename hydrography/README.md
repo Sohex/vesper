@@ -240,6 +240,38 @@ conductive network and their recharge leaves as local seepage, which is what the
 surface-only balance already does with it. The alternative policies are in the
 config with what each would be claiming.
 
+### Two schemes, because one of them does not converge
+
+`--scheme` picks how the same problem is solved, and the two are the same
+discretised PDE reached by different algebra.
+
+**Picard** evaluates the transmissivity at a head, solves, and hopes the head it
+gets back implies the same transmissivity. It does not converge here.
+Transmissivity moves by a factor of e per e-folding length, which on steep
+bedrock is a metre, so the map is not a contraction and the iterate limit-cycles.
+
+**Kirchhoff** removes the stiffness rather than out-running it, and **refuses to
+run on this terrain**. The Kirchhoff potential of a nonlinear diffusion is the integral of its own
+coefficient, and for Fan's exponential transmissivity that integral is closed:
+
+    Phi = int T dh = K0 f^2 exp(-d/f) = T f,   so   T grad h = grad Phi
+
+which turns `div(T grad h) + R = 0` into `div(grad Phi) + R = 0`. The whole
+range of transmissivity and the entire nonlinearity move into the change of
+variable, leaving a graph Laplacian whose weights are `w/l` and nothing else.
+The cap `h <= z` maps monotonically to `Phi <= K0 f^2`, so what remains is a
+box-constrained linear complementarity problem, and an active-set method on one
+of those terminates instead of cycling.
+
+It is exact only where `K0`, `f` AND the surface elevation are all constant,
+because the topography sits inside the potential too. That is what defeats it
+here: the transform's variable is an exponential of elevation over `f`, and `f`
+is a regolith depth of tens of metres while the relief is kilometres, so the
+exponent reaches thousands and overflows float64 on a measurable share of the
+mesh. The solver measures that and refuses rather than underflowing to a
+potential of zero and reporting the resulting balance as convergence.
+`notes/water-table-convergence.md` carries both schemes and their numbers.
+
 ### What is checked, and what missed
 
 `groundwater.py` run directly applies the discrete operator to Legendre
