@@ -809,8 +809,16 @@ gate": the open tasks whose `[step: <id>]` marker named a step upstream of
 questions nobody had asked.
 
 The first moved the parsing into a new `scripts/carve_gate.py`, so that the
-graph tool read no tracker. That fixed the coupling and left the machinery
-standing.
+graph tool read no tracker. That relocated the coupling and left the machinery
+standing, and the coupling was never the defect: the gate was DEFINED over
+tracker prose, so any correct implementation of it must read `TASKS.md`. A
+defect that cannot be removed without removing the feature it serves is a fact
+about the feature, and this one was pointing at the gate the whole time. The
+commit recorded "output is byte-identical" as though that were a virtue, which
+is the second tell -- preserving behaviour settles nothing until the behaviour
+is known to be wanted, and here it was the evidence that nothing had been
+examined. The question of whether the gate should exist was never asked,
+because the gate already existed.
 
 The second deleted the script, and justified it by counting: 58% of the graph
 was upstream of the carve, so the filter selected 10 of 11 open rows. The

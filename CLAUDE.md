@@ -252,6 +252,20 @@ none of them is advice.
   replace and REMOVE. Ask what breaks if it simply goes, and ask it before
   building any mechanism, most of all one built to fix another mechanism.
 
+  **A thing existing is not an argument that it should.** The question gets
+  asked about what you are about to create and never about what is already
+  there, so the cheapest moment to ask it -- when you have the thing open and
+  are already changing it -- is the moment you are least likely to. Two tells
+  that you have skipped it. **A defect that cannot be removed without removing
+  the feature it serves is a fact about the FEATURE**: `pipeline.py` had to read
+  `TASKS.md` because the gate was DEFINED over tracker prose, so the coupling
+  was not relocatable and "fix the coupling" had exactly one answer. And
+  **preserving behaviour is a virtue only after the behaviour is known to be
+  wanted** -- "output is byte-identical" went into that commit as though it
+  settled something, when it was the evidence that nothing had been examined.
+  Relocating a defect is not removing it, and a tidier copy of the wrong thing
+  is worse than the original, being harder to argue with.
+
   Recorded 2026-08-19, three times in one session, always the same shape. A
   multi-hour run was launched off a tool's formatted output that had been read
   as a verdict. `pipeline.py` was found parsing `TASKS.md`, a real defect, and
