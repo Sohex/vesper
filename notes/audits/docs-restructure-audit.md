@@ -63,6 +63,15 @@ The split did not create these; reading everything surfaced them.
 - Supersession markers that re-supplied the superseded value ("not 2:1 as an
   earlier revision said"; "Corrected 2026-08-19; it used to say three") were
   rewritten to state only the current claim.
+- The run-count paragraph claimed "three of the six pair naturally and one
+  cannot" while listing pairings that shared a member and an arithmetic that
+  partitioned nothing. The design intent was never ambiguous -- the
+  dependency edges are all documented -- so the paragraph now states the
+  edges (bracket points need only the build; each arm's baseline needs its
+  own bootstrap climatology; the cycle follows the final vegetated baseline,
+  the bare arm gating nothing as a bound) and lets the schedule fall out.
+  The seeding sentence now permits any converged vegetated restart, which
+  the same paragraph's own --restart-from argument already licensed.
 - Current values in prose, removed or repointed: the per-orbit wall-clock
   figures (the pyburn audit note keeps them), the model configuration
   transcribed from `config/planet.yaml`, the obliquity figure, the playa land
@@ -113,9 +122,5 @@ The split did not create these; reading everything surfaced them.
 - The ExoPlaSim fork carries a remote branch `cf-fork` identical to master --
   exactly the ownerless copy `vendored-upstreams.md` argues against. Deleting
   a remote branch is the repo owner's call, not a docs fix.
-- The sequencing chapter's run-pairing paragraph ("three of the six pair
-  naturally") lists pairings whose members overlap; one reviewer could not
-  make the partition arithmetic close. Not settled here: it needs the author
-  of the plan, not a copy-editor.
 - `check_registered_in_workflow` in `smoke_test.py` keeps its pre-split name;
   rename whenever the function is next touched.

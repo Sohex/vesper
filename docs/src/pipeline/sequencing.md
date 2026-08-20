@@ -165,18 +165,21 @@ climatology; it cannot inherit the vegetated ones.
 
 Six. The bootstrap is one of the bracket points rather than a seventh, since
 any converged climatology will do for fields that are themselves about to be
-rebuilt. Three of the six pair naturally and one cannot: the two bracket
-points are independent, the vegetated baseline and the bare-rock bootstrap are
-independent, and so is each arm's baseline given its own derived fields. The
-cycle run is the exception and A2 says why: it has to follow a baseline that
-is FINAL, not merely converged. Everything between the runs is functionally
-free -- nearly every other step in the graph costs minutes or seconds -- so
-plan in runs and ignore the rest.
+rebuilt. What gates what: the bracket points depend on nothing but the build;
+each arm's baseline needs only its own arm's bootstrap climatology and the
+fields derived from it; and the cycle run follows the vegetated baseline once
+that baseline is FINAL by A2's test -- the bare arm gates nothing, being a
+bound that moves nothing in the vegetated world. Runs not ordered by those
+edges can go concurrently. Everything between the runs is functionally free --
+nearly every other step in the graph costs minutes or seconds -- so plan in
+runs and ignore the rest.
 
 **Seed the arms rather than cold-starting them.** `run_exoplasim.py
 --restart-from` changes only the spin-up path and not the equilibrium, so the
-bare-rock arm starts from the vegetated baseline's restart and relaxes across
-the endmember gap instead of from nothing. Expect that relaxation to be slow:
+bare-rock arm starts from a converged vegetated restart -- the baseline's, or
+a bracket point's if it launches before the baseline finishes -- and relaxes
+across the endmember gap instead of from nothing. Expect that relaxation to be
+slow:
 a step change in forcing relaxes on a longer timescale than a settled run
 drifts, measured at several times the drift fit on the one run that has done
 it.
