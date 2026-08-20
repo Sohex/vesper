@@ -364,6 +364,18 @@ and quartzite hold up ridges; shale, molasse and evaporite strip away. Cover is
 stripped as material is removed, and a cell swaps to its basement erodibility
 once the cover is gone.
 
+**The normalisation is a property of the field when it is computed, not of the
+field as shipped, so do not rescale the delivered field against an assumed mean
+of 1.** `buildErodibility` normalises over land at the point it runs, which is
+before cover stripping; every cell that later strips takes its basement value
+and the land mean moves off 1. It moves by a few percent, in either direction,
+and by an amount that depends on the planet, so it cannot be corrected for
+either. It is also sensitive to which definition of land you use, since
+`surface_class` and `elevation > 0` disagree over dry closed-basin floor below
+sea level. The field ships on the relative scale the contract describes and is
+meant to be consumed as it stands; a consumer that renormalises it introduces a
+few percent of error for no gain.
+
 ```bash
 node tools/export-planet.mjs --list-rocks            # the rock table
 node tools/export-planet.mjs --seed 1 --lithology-strength 0.5   # half contrast

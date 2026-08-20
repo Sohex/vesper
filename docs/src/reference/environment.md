@@ -25,3 +25,32 @@ amplitudes to 0.0, which reduces the guard to `gsolinst = gsol0`, so the
 ordinary binaries are bit-exact identical to an unpatched model until a cycle is
 configured on.
 
+## The toolchain: what is declared, and what optimised libraries do not buy
+
+The model links glibc's `libm` and `libmvec`, `libgfortran` and Open MPI, and
+nothing else. PlaSim carries its own FFT and Legendre transform, so there is no
+BLAS, LAPACK or FFTW seam anywhere in the build, and an optimised replacement
+for one of those has nothing to attach to. Installing such a library is not a
+reason to rebuild.
+
+`config/planet.yaml` declares `model.optimization_flag`, which
+`rebuild_binaries.py` passes to `compile.sh`'s `-O` hook and which lands on
+`MOST_F90_OPTS`. **Declare it there and nowhere else.** Editing the generated
+`most_compiler_mpi` looks equivalent and is not: `configure.sh` rewrites that
+file, and `compile.sh` appends `-O` to a COPY of it under `plasim/bld`, so an
+edit there is both temporary and invisible to anything reading the original.
+
+The two seams that do exist, `libm` and `memcpy`, were measured against AMD's
+implementations of both, and the optimisation flags were measured against each
+other. What that settled, with the numbers, is in
+`notes/audits/aocl-and-model-build-flags.md`: AMD's libraries are refused,
+`-march=znver4` is adopted and is worth 2 to 3%, `-ffpe-trap` costs under 1% and
+is kept for what it catches, and `-flto` is refused. The model is compute-bound
+inside its own Fortran, and 2 to 3% is what the whole distance from scalar code
+to AVX-512 is worth here, which is also the bound on what any further codegen
+work can return.
+
+Benchmarking it again needs one rule beyond a quiet machine: **interleave the
+arms**. Run as blocks, whichever arm goes first after an idle stretch gets the
+boost clock and the comparison measures the CPU's thermal state instead of the
+flag. That was worth 6% on a stock baseline against itself.

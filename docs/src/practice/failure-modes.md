@@ -318,8 +318,13 @@ staleness after a converged run is not.
 
 The general form is the one this file keeps returning to: a build product whose
 identity does not record what went into it. The same reasoning put the geography
-digest, the spectrum and the flux into `run_id`; whether the producing binary
-joins them is `TASKS.md` CONS-9.
+digest, the spectrum and the flux into `run_id`. The producing binary does NOT
+join them, because rule 6 says an id encodes nothing: it is recorded in
+`run_manifest.json`, once for what the run was prepared with and again on every
+segment, since a run long enough to span a rebuild has segments no single
+executable produced. `binary_manifest.json` records the compiler and the flags
+beside the source shas for the same reason, so an executable whose sha has moved
+is attributed rather than merely noticed.
 
 ## 12. A continuation that re-derives the physics from config
 

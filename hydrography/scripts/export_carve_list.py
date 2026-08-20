@@ -307,9 +307,13 @@ def sill_erodibility(basins_path: Path, terrain_hash: str) -> np.ndarray:
     """The rock at each basin's outlet, as a relative stream-power multiplier.
 
     The export's `erodibility` is exactly this quantity and says so: a relative
-    stream-power multiplier from the exposed rock, mean-normalised to 1 over
-    land. So it enters as `K` does, and Q_full divides by it: a soft sill is cut
-    through by less water than a hard one.
+    stream-power multiplier from the exposed rock. So it enters as `K` does, and
+    Q_full divides by it: a soft sill is cut through by less water than a hard
+    one. Taken AS SHIPPED and never renormalised: Orogen normalises the land mean
+    to 1 when it builds the field, which is before cover stripping, so the
+    delivered mean is off 1 by a few percent in a direction that varies by
+    planet. Nothing here needs it to be 1, because `calibrate_coefficient` fits
+    the leading coefficient against Earth and absorbs any constant factor.
 
     **It is the expressed contrast, not the intact-rock one, and that is the
     number a landscape model wants.** Stock and Montgomery (1999) measure K

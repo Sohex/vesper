@@ -74,6 +74,13 @@ import yaml
 from _paths import CONFIG, INPUTS, PROJECT_ROOT
 from sra import write_sra
 from builds import resolution_of, grid_export, mesh_export
+# ONE SOURCE for how much forest the land carries. `model.land_albedo_source`
+# already decides it, and code 212 is derived from that decision, so importing
+# the mapping is what keeps this field and the albedo field describing one land
+# cover. Re-deriving it here would be two formulations of one quantity, which
+# is failure class 17. The same idiom continue_exoplasim.py uses on
+# run_exoplasim.py, and for the same reason.
+from build_surface_albedo import MODE_FOREST_FRACTION
 from gridding import land_weighted, region_cells
 from provenance import config_stamp
 from orogen import Export, LAND
@@ -107,6 +114,11 @@ def main() -> None:
     ap.add_argument("--bare-z0", type=float, default=DEFAULT_BARE_Z0_M)
     ap.add_argument("--canopy-z0", type=float, default=DEFAULT_CANOPY_Z0_M)
     ap.add_argument("--forest-z0", type=float, default=DEFAULT_FOREST_Z0_M)
+    ap.add_argument("--forest-fraction", type=float, default=None,
+                    help="override the fraction implied by "
+                         "model.land_albedo_source, the same override "
+                         "build_surface_albedo.py takes, for a pair that "
+                         "moves both fields together")
     ap.add_argument("--lakes", type=Path, default=None,
                     help="surface_water.nc; open water is smooth, so lake "
                          "regions take the ocean value before integration")
@@ -132,12 +144,19 @@ def main() -> None:
         if code in codes:
             barren |= rock == codes.index(code)
 
-    # Surface term. NOTE: 212 is written by build_surface_albedo.py from its
-    # mode (0.5 in `vegetated`) or per-cell LPJ cover, while this reads
-    # `model.forest_fraction_assumed`, which the config does not carry -- so
-    # roughness currently uses zero forest where 212 asserts 0.5. The two
-    # fields do not yet describe one land cover.
-    forest_fraction = float(model.get("forest_fraction_assumed", 0.0)) or None
+    # Surface term. The forest fraction comes from `model.land_albedo_source`,
+    # the same key build_surface_albedo.py resolves its mode from, so roughness
+    # and code 212 describe ONE land cover. It used to read
+    # `model.forest_fraction_assumed`, a key the config does not carry, so it
+    # silently used zero forest while 212 asserted half a canopy; that is
+    # CLIM-36. An explicit --forest-fraction still overrides, for a sensitivity
+    # pair. `modelled` is absent from the mapping because it does not imply a
+    # fraction, it reads tree cover per cell, so it falls back to no blend here
+    # until this reads that field too.
+    mode = str(model.get("land_albedo_source", "lithology"))
+    forest_fraction = (args.forest_fraction if args.forest_fraction is not None
+                       else MODE_FOREST_FRACTION.get(mode))
+    forest_fraction = float(forest_fraction) if forest_fraction else None
     canopy_z0 = args.canopy_z0
     if forest_fraction is not None:
         canopy_z0 = ((1.0 - forest_fraction) * args.canopy_z0

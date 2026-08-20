@@ -693,15 +693,14 @@
         if (nsimplealbedo>0.5) doceanalb(:) = z1*a1 + z2*a2
         
         
-        call put_restart_array("zsolars",zsolars,2,2,1)
-        call put_restart_array('dsnowalb',dsnowalb,2,2,1)
-        call put_restart_array('dsnowalbmn',dsnowalbmn,2,2,1)
-        call put_restart_array('dsnowalbmx',dsnowalbmx,2,2,1)
-        call put_restart_array('dicealbmn',dicealbmn,2,2,1)
-        call put_restart_array('dicealbmx',dicealbmx,2,2,1)
-        call put_restart_array('dglacalbmn',dglacalbmn,2,2,1)
-        call put_restart_array('dgroundalb',dgroundalb,2,2,1)
-        call put_restart_array('doceanalb',doceanalb,2,2,1)
+!     The nine put_restart_array calls that stood here wrote to nwriunit (34)
+!     from solarini, which runs at INITIALISATION when no restart file is open
+!     on that unit, so Fortran connected fort.34 and put them there. Nothing
+!     ever read that file. They were the orphaned write half of a round trip
+!     whose read half is commented out above (the get_restart_array block at
+!     nstarfile > 0), where solarini was made unconditional: these arrays are
+!     recomputed from the namelist at every start and are not checkpointed.
+!     CLIM-38, notes/audits/zsolars-restart-overread.md.
                                
         
       endif
@@ -1591,7 +1590,12 @@
 !     no PUMA variables are used
 !
       if (mypid==NROOT) call put_restart_real('fixedlon',fixedlon)
-      call mpputgp('zsolars',zsolars,2,1)
+!     zsolars is a GLOBAL PAIR, not a distributed gridpoint field. mpputgp
+!     gathers NHOR per rank into a local z(NUGP,klev) and writes all of it, so
+!     this read 510 elements past the end of zsolars(2) on every rank and wrote
+!     8190 elements of buffer into the restart. solarini already uses the right
+!     idiom for this array. failure-modes.md class 18, CLIM-37.
+      if (mypid == NROOT) call put_restart_array('zsolars',zsolars,2,2,1)
       
 
       if(mypid == NROOT .and. ntime == 1) then
