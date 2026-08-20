@@ -3112,11 +3112,12 @@
 !     broadband gaseous absorptivity is a random-overlap assumption. It is the
 !     same assumption already made for cloud one line above.
 !
-!     The INTERACTIVE aerosol enters the same term with its own absorption
-!     ratio and its own per-layer optical depth, and nothing else about the
-!     scheme changes. radini has already refused to run both paths at once, so
-!     these two branches cannot both contribute; the aerosol is one aerosol
-!     whichever way its column was obtained.
+!     Every species enters the same term with its OWN absorption ratio and its
+!     own per-layer optical depth, and the absorption adds in the exponent. N
+!     species therefore cost a sum over aqlw(jaer)*aodsp(:,jlev,jaer) and
+!     nothing about the scheme restructures. The prescribed columns and the
+!     transported tracer are species alike here: neither replaces the other,
+!     and both contribute whenever both are active. CLIM-39.
 !
        if (naerosp > 0) then
         zqsum(:) = 0.
