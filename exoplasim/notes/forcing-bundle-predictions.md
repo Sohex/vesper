@@ -124,16 +124,19 @@ the DEFAULT, so at three times the diffusivity the term lands at the low end of
 a linear expectation. At the default itself the ice change is +0.00001, which
 is nothing: the predicted kelvin term is not resolved there and is not claimed.
 
-**One declared falsifier FIRED: linearity.** Against a line through the origin
-fitted on the two upper points, the 40-60 response is linear to 0.3% between
-1000 and 3000 and the 300 point sits **3.86x above it**, giving more warming
-per unit diffusivity at 300 than at 1000 and slightly more warming outright.
-Both points are resolved 15 of 15, so this is not noise. It is left as a
-finding rather than explained: CLIM-19 carries it.
+**Linearity holds, and the apparent failure was a measurement.** In this
+realisation the 300 point sat 3.86x above the line through the two upper
+points, which looked one-signed at 15 of 15 orbits. A replicate from a
+different restart put it at -0.0359, below 1000 rather than above it and
+indistinguishable from zero. The excess was an ice-state draw, not a response;
+the section above has the numbers. Between 1000 and 3000, where the response
+exceeds the variability, 3000 over 1000 is 2.99 here and 2.89 in the replicate
+against a diffusivity ratio of 3.00.
 
-**The spread the row asked for**, then: across the declared bracket the 40-60
-ocean warming runs +0.19 to +0.57 K and the sea-ice response 0 to -0.00124 of
-the planet. A constant diffusivity is a bound on the missing transport rather
+**The spread the row asked for**, then, widened by the replicate: the 40-60
+ocean warming runs +0.13 to +0.19 K at the default and +0.36 to +0.57 K at
+3000, the two ends of each being two realisations of the SAME key, and the
+sea-ice response 0 to -0.00124 of the planet. A constant diffusivity is a bound on the missing transport rather
 than the transport, and this is the width of that bound.
 
 ## CLIM-19: the 300 anomaly, and the rule that settles it
@@ -170,6 +173,47 @@ pattern. In the first realisation 300 and 3000 lost ice and 1000 lost none. If
 the ice-albedo amplifier is the mechanism, that pattern repeats with the SST
 pattern; if the SST pattern repeats while the ice pattern does not, the
 mechanism is something else and this note names none.
+
+## Measured: the CLIM-19 replicate, 2026-08-20
+
+The declared test ran: the same four arms, fifteen diagnostic orbits, seeded
+from `MOST_REST.00035` instead of `00039`.
+
+| hdiffk | realisation 1, REST.00039 | realisation 2, REST.00035 |
+| ---: | ---: | ---: |
+| 300 | +0.2213 +/- 0.0451, 15/15 | **-0.0359 +/- 0.0763, 7/15** |
+| 1000 | +0.1913 +/- 0.0479, 15/15 | +0.1252 +/- 0.0474, 14/15 |
+| 3000 | +0.5720 +/- 0.0654, 15/15 | +0.3620 +/- 0.0562, 15/15 |
+| ratio of 300 to the line through the upper two | 3.86x | -0.96x |
+
+**Verdict, by the rule declared before the run: INTERNAL VARIABILITY, and
+linearity holds.** The 300 point does not merely fail to reproduce its excess,
+it changes sign -- one-signed positive on all fifteen orbits in the first
+realisation, indistinguishable from zero and slightly negative in the second,
+and clearly below 1000 rather than above it. That is the second verdict
+verbatim.
+
+**Linearity between the upper two points reproduces, which is the positive
+half.** 3000 over 1000 is 2.99 in the first realisation and 2.89 in the second,
+against a diffusivity ratio of 3.00. The operator is linear in `hdiffk` by
+construction and the response follows it wherever the response is bigger than
+the variability.
+
+**The secondary ice check behaves as declared.** At 300 the ice went -0.00052
+in the first realisation and +0.00016 in the second, flipping WITH the SST
+sign; at 1000 it went +0.00001 then -0.00053. The ice and the temperature move
+together and neither repeats, which is the ice-albedo amplifier working on a
+variability draw rather than on the diffusivity. The 300 point is unresolvable
+at this segment length for a simple reason: the response the line predicts
+there is +0.04 to +0.06 K, and the ice draw is worth several times that.
+
+**What this costs CLIM-16, and it is not nothing.** The same key gives +0.191
+and +0.125 K at 1000, and +0.572 and +0.362 K at 3000: a 35 to 37% span
+between realisations of one configuration. CLIM-16's reported spread was
+computed inside a single realisation and is therefore too tight. The honest
+bound across both is **+0.13 to +0.19 K at the default and +0.36 to +0.57 K at
+3000**, and any future arm quoting a single realisation's error bar as the
+uncertainty on a mean is understating it by about a third.
 
 ## CLIM-17: the freezing point from the declared salinity
 
