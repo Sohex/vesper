@@ -8,6 +8,8 @@ solver's forcing is climate-independent and can be built before ExoPlaSim runs.
 python hydrography/scripts/build_hydrography.py   # ~13 s, climate-independent
 python hydrography/scripts/lake_balance.py        # solver smoke test and sweep
 python hydrography/scripts/surface_water.py       # ~3 s, needs a climatology
+python hydrography/scripts/groundwater.py         # the discretisation checks
+python hydrography/scripts/build_groundwater.py   # the water table, needs a climatology
 ```
 
 ## Why this component exists
@@ -187,6 +189,99 @@ upstream included, and the paths are disjoint segments, one basin's saddle to
 the next one's sink.
 
 
+## The water table
+
+`build_groundwater.py` solves a steady-state, vertically integrated, unconfined
+water table on the region mesh and reports the term every other balance in this
+component drops. `groundwater.py` is the machinery: the Voronoi discretisation,
+the transmissivity, and the complementarity solve.
+
+Fan (2019) writes the catchment budget as `dS/dt = P - ET - Qr - Qg` and notes
+that dropping the net groundwater term `Qg` is the common assumption. It is the
+one made everywhere here, and Fan's own Figure 2 puts its failure in this
+world's regime: at high recharge the water table intercepts the stream beds,
+local flow systems close and the groundwater divides sit near the topographic
+ones; at low recharge the table drops below the beds and the groundwater divides
+stop existing. Dry, high-relief and closed-basin is where the assumption is
+weakest and where the carve verdict is decided.
+
+`hydrography/notes/groundwater-scoping.md` is the argument: what a water table
+changes, what it does not reach, and the four channels through which the term is
+non-zero at all. Two of them pull in opposite directions at a given basin, so
+this model does not predict the sign of its own effect on lake area, and it must
+not be tuned against one.
+
+**The steady state is not a simplification chosen for cost.** An equilibrium
+water table is the form `docs/src/reference/no-time-axis.md` leaves reachable.
+An aquifer with a residence time is not, and neither is Fenske et al. (2025)'s
+duricrust model, which hardens a layer over the RANGE of water table
+fluctuation across 10^5 years or more.
+
+**What it reads.** Terrain and lithology from the export, recharge as P-E
+through the same coupling convention `surface_water.py` uses, and
+`config/groundwater.yaml` for the subsurface: Gleeson et al. (2011) permeability
+per hydrolithology, on the same Duerr class mapping pedology already uses for
+Hartmann phosphorus, and Fan et al. (2007) equation (7) for the e-folding decay
+of conductivity with depth.
+
+**Gravity enters once, and correctly.** Permeability is pore geometry and
+carries over from Earth unchanged; hydraulic conductivity is `k rho g / mu` and
+is this world's. The config tabulates permeability and never conductivity, and
+the solver takes gravity from `config/planet.yaml`.
+
+**The depth field is a bracket, not a value.** Gleeson's within-class spread is
+1.5 to 2.5 orders of magnitude. `--sigma -1` and `--sigma +1` shift every class
+by its own standard deviation and are the arms; the central run alone
+overstates what is known.
+
+**Evaporite has no permeability and is not given one.** Gleeson puts it in the
+"not assigned" row with water and ice. Those regions are removed from the
+conductive network and their recharge leaves as local seepage, which is what the
+surface-only balance already does with it. The alternative policies are in the
+config with what each would be claiming.
+
+### What is checked, and what missed
+
+`groundwater.py` run directly applies the discrete operator to Legendre
+polynomials, which are eigenfunctions of the Laplace-Beltrami operator on the
+sphere with an eigenvalue fixed by geometry. It is the only check here that a
+wrong face width cannot survive: closure holds for any symmetric weights at all,
+and the first face-width estimate was 178x off while passing everything else.
+The criterion was declared at 10% relative RMS; `l = 1` passes and `l = 2` to
+`4` MISS at about 12%. The error is distributed truncation rather than a few bad
+faces, so it is the first-order scheme's own error on an irregular mesh and it
+is the water table's mesh-scale noise floor. It is reported rather than tuned
+away, and the numbers are in the report.
+
+`--reduction-test` drives permeability to zero, which must reproduce the
+surface-only balance exactly rather than closely: every cell returns its own
+recharge as seepage and every basin's `Qg` is zero. It passes bitwise.
+
+`--divide-test` imposes uniform permeability and a terrain-following table and
+asks whether the groundwater catchments reproduce the surface ones. **It missed,
+and the test is the thing at fault.** The groundwater trace is a face-width-
+weighted steepest descent on the raw surface while `terminal` is a priority
+flood on the filled one, so the two differ for reasons that are not groundwater
+and no solver would pass it. `notes/mesh-geometry.md` has the numbers and what a
+correct version compares against; GW-10 tracks it. Until then the solver has no
+passing catchment check, and the reduction identity and closure are what stand.
+
+### Two cell areas, and they are not the same
+
+The mesh is a spherical Voronoi tessellation, so its dual is the convex hull of
+the region centroids and every face width follows from the circumcentres. The
+exact spherical areas that construction implies sum to `4 pi R^2` to eight
+figures. The export's own `cell_area` is a different quantity: it sums to 0.068%
+more than the sphere, and per region the two disagree by more than 1% over most
+of the mesh.
+
+So the solver uses both, deliberately. Fluxes divide by the Voronoi area their
+own faces bound, because a finite-volume divergence taken over any other area is
+not consistent and the operator check fails by a factor. Water VOLUMES use the
+export's `cell_area`, because every other component computes them that way and
+the reduction identity has to be exact. Whether `cell_area` should be what it is
+belongs upstream in the exporter and is not decided here.
+
 ## The Earth comparator
 
 Earth's endorheic fraction is **about one-fifth of its land surface**: Wang et
@@ -276,6 +371,14 @@ for another carve iteration, and the counts are in `world_state.json` and
 
 ## Known approximations
 
+- **The surface balances take net groundwater flow as zero.** Runoff is P-E
+  over land, accumulated down the drainage network, and a basin's catchment is
+  its surface catchment. Fan (2019) writes the budget as
+  `dS/dt = P - ET - Qr - Qg` and notes that dropping the last term is the
+  common assumption; it is the one `surface_water.py` and `carve_verdict.py`
+  make, and it is weakest in the dry closed-basin regime this world is mostly
+  made of. `build_groundwater.py` measures the term rather than removing it,
+  and nothing downstream consumes it yet.
 - **A few overflow paths disagree with the cascade.** Most overflowing basins
   have a saddle opening into exactly the basin the solver routes them to. A
   handful are cycle-collapsed: their target was reassigned to the cycle's

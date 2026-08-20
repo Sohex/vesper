@@ -1,0 +1,266 @@
+schema_version: 1
+
+# Subsurface properties for the steady-state water table solver,
+# `hydrography/scripts/build_groundwater.py`. Every number here is an Earth
+# measurement transplanted to another world, so each carries its source and what
+# it is worth. Nothing in hydrography/scripts/ hardcodes any of it.
+#
+# Two quantities are kept apart on purpose and must not be conflated:
+#
+#   permeability k  [m2]    a property of the pore geometry. Transfers to this
+#                           world unchanged.
+#   conductivity K  [m/s]   K = k rho g / mu. Carries this world's gravity, and
+#                           is therefore NOT tabulated here. The solver derives
+#                           it from k and config/planet.yaml.
+#
+# See hydrography/notes/groundwater-scoping.md section 4 for why that split is
+# the one this project gets wrong by default, and notes/audits/orogen-gravity.md
+# for the pattern.
+
+# ---------------------------------------------------------------------------
+# Permeability by lithology
+# ---------------------------------------------------------------------------
+# SOURCE, read directly: Gleeson, Smith, Moosdorf, Hartmann, Duerr, Manning,
+# van Beek & Jellinek (2011), "Mapping permeability over the surface of the
+# Earth", Geophys. Res. Lett. 38, L02401, doi 10.1029/2010GL045565, Table 1,
+# "Combined Hydrolithology (Global Map)" rows. `log10_k_m2` is their
+# `logk mu_geo`, the geometric mean of the logarithmic permeability;
+# `log10_k_sigma` is their sigma; `n` is their count of hydrogeologic units.
+#
+# These are REGIONAL-scale permeabilities, quantified by calibrating numerical
+# models against hydraulic, streamflow, chemical or thermal observations at
+# scales above 5 km (Gleeson section 2.1). They are not lab or slug-test values,
+# and that is what makes them the right ones here: the quantity the solver needs
+# is an effective lateral permeability over a whole region, which is what these
+# already are.
+#
+# TWO PROPERTIES OF THE TABLE ARE LOAD-BEARING.
+#
+# It is SCALE-INDEPENDENT over the range this mesh uses. Gleeson section 3
+# paragraph 8 regresses permeability against hydrolithologic unit length and
+# finds no dependence for crystalline or for coarse-grained unconsolidated
+# units, concluding that the geometric mean "can represent large areas (5-100 km
+# in length)". A region here has a median area of a few hundred km2, so its
+# width is inside that range and the geometric mean applies without rescaling.
+#
+# CARBONATE IS THE ONE EXCEPTION, and it is one-signed. Gleeson finds carbonate
+# permeability DOES increase with scale, through karst development, so the
+# tabulated value understates the regional permeability of carbonate terrain
+# here. Carbonate is also already the most permeable class, so the error runs
+# towards too little groundwater flow in the terrain most likely to have a lot
+# of it. Not corrected, because Gleeson gives no scaling to correct it with.
+#
+# Class mapping is to the Duerr et al. (2005) lithologic classes, which is why
+# these are grounded rather than interpolated -- and it is the SAME mapping
+# `pedology/config/pedogenesis.yaml` already established for Hartmann et al.
+# (2014) phosphorus: PA acid plutonic, PB basic plutonic, PI intermediate
+# plutonic, VA acid volcanic, VB basic volcanic, VI intermediate volcanic,
+# MT metamorphic, SS siliciclastic, SM mixed sedimentary, SC carbonate
+# sedimentary, SU unconsolidated, EV evaporite. Moosdorf and Hartmann are
+# authors on both compilations. Gleeson's own Table 1 gives the lithology column
+# for each hydrolithology, and the two amalgamations used here are his: the
+# `sil. sedimentary` row covers SS, SM and CL; `crystalline` covers MT, PA, PB
+# and PR; `volcanic` covers VA and VB.
+#
+# The spread across classes is 3.4 orders of magnitude and the within-class
+# sigma is 1.5 to 2.5 orders. A water table depth from this table is therefore a
+# BRACKET, not a value. The solver carries `log10_k_sigma` through and reports
+# the bracket; see `--sigma` in the script.
+hydrolithology:
+  carbonate:
+    log10_k_m2: -11.8
+    log10_k_sigma: 1.5
+    n: 47
+    durr_classes: [SC]
+  volcanic:
+    log10_k_m2: -12.5
+    log10_k_sigma: 1.8
+    n: 33
+    durr_classes: [VA, VB]
+  unconsolidated:
+    log10_k_m2: -13.0
+    log10_k_sigma: 2.0
+    n: 113
+    durr_classes: [AD, DS, LO, SU]
+  crystalline:
+    log10_k_m2: -14.1
+    log10_k_sigma: 1.5
+    n: 17
+    durr_classes: [MT, PA, PB, PR]
+  siliciclastic_sedimentary:
+    log10_k_m2: -15.2
+    log10_k_sigma: 2.5
+    n: 20
+    durr_classes: [SS, SM, CL]
+
+# ---------------------------------------------------------------------------
+# Orogen rock class to hydrolithology
+# ---------------------------------------------------------------------------
+# Keyed on `substrate_class`, the top of the cover/basement stack, which is the
+# same field pedology weathers and the same field the erodibility and phosphorus
+# tables key on. Read by NAME through the export's own `rockClasses` legend, so
+# a class inserted upstream cannot silently shift the mapping.
+#
+# `null` means UNASSIGNED, and it is not a gap left by inattention. See the
+# `unassigned` block below for what the solver does with one.
+rock_class_hydrolithology:
+  # Igneous. VB for the basalts, VI for the intermediate volcanics, which
+  # Gleeson's volcanic row covers either way since it amalgamates VA and VB.
+  morb:                volcanic                   # VB
+  oib:                 volcanic                   # VB
+  flood_basalt:        volcanic                   # VB
+  arc_basalt:          volcanic                   # VB
+  arc_andesite:        volcanic                   # VI
+  rift_bimodal:        volcanic                   # VI
+  # Plutonic and metamorphic, all inside Gleeson's crystalline amalgamation.
+  granite:             crystalline                # PA
+  granodiorite:        crystalline                # PI
+  gneiss:              crystalline                # MT
+  schist:              crystalline                # MT
+  quartzite:           crystalline                # MT
+  # Sedimentary. Melange is SM, which Gleeson's sil. sedimentary row covers
+  # explicitly alongside SS.
+  melange:             siliciclastic_sedimentary  # SM
+  shelf_clastic:       siliciclastic_sedimentary  # SS
+  foreland_clastic:    siliciclastic_sedimentary  # SS
+  continental_clastic: siliciclastic_sedimentary  # SS
+  carbonate:           carbonate                  # SC
+  playa_clastic:       unconsolidated             # SU
+  # Seafloor classes. Present for completeness and reached by no land region;
+  # the solver holds the sea floor at sea level as a boundary rather than
+  # solving in it, so these values are never used for flow.
+  pelagic:             unconsolidated             # fine-grained unconsolidated
+  # UNASSIGNED. Gleeson puts Duerr's EV in the "not assigned" row of Table 1,
+  # alongside water bodies (WB) and ice and glaciers (IG). There is no
+  # geometric mean for it to inherit and no sigma to bracket it with. This world
+  # carries a great deal of salt crust, and it sits exactly over the surfaces
+  # the brine and duricrust rules care about most, so filling this from the
+  # nearest class would put an invented number under the most consequential
+  # ground on the map. It is a missing NUMBER, not missing machinery.
+  evaporite:           null                       # EV, Gleeson "not assigned"
+  # Open water carries no rock and is not solved in.
+  water:               null
+
+# ---------------------------------------------------------------------------
+# What the solver does with an unassigned cell
+# ---------------------------------------------------------------------------
+# A decision, stated, rather than a hole left silent.
+#
+# An unassigned region is removed from the CONDUCTIVE NETWORK: no lateral
+# groundwater flux crosses any of its faces, and it holds no water table. Its
+# recharge does not vanish -- it stays where it fell and leaves as local
+# seepage, which is exactly what the surface-only balance already does with it.
+#
+# The reason this is the right default rather than an evasion: it is the only
+# choice that puts no number on a class Gleeson declined to put a number on, and
+# it degrades the affected cells to the model this project already has rather
+# than to a fabricated one. An unassigned cell under `impermeable` would be a
+# claim that salt crust is an aquitard, which is plausible for bedded halite and
+# is still a claim; under `nearest_class` it would be a claim that salt crust
+# flows like playa mud. Both are inventions, and the second is the one that
+# would quietly move the endorheic basins.
+#
+# `exclude` is the default. The alternatives exist so the cost of the choice can
+# be measured rather than argued about, and the solver records which was used.
+# `nearest_class` is deliberately NOT offered: there is no metric on
+# hydrolithology that makes one class the nearest to an evaporite.
+unassigned:
+  policy: exclude          # exclude | impermeable
+  # `exclude`     no lateral flux, no water table, recharge leaves as seepage
+  # `impermeable` in the network at k = 0, so it blocks flow between neighbours
+  #               rather than merely not conducting it. Use to bound the cost of
+  #               the choice; it is a physical claim and the report says so.
+
+# ---------------------------------------------------------------------------
+# Decay of permeability with depth
+# ---------------------------------------------------------------------------
+# SOURCE, read directly: Fan, Miguez-Macho, Weaver, Walko & Robock (2007),
+# "Incorporating water table dynamics in climate modeling: 1. Water table
+# observations and equilibrium water table simulations", J. Geophys. Res. 112,
+# D10125, doi 10.1029/2006JD008111, section 3.2 and equations (5) and (7).
+# This is the parameterisation Fan et al. (2013) refer to when they state that
+# "the permeability of continental crust drops exponentially with depth and the
+# rate depends on land slope"; the 2013 paper puts it in its supplement, and
+# this is the primary it points at.
+#
+#   K(z) = K0 exp(-z / f)
+#
+# so the transmissivity of the saturated column below a water table at depth d
+# integrates in closed form to
+#
+#   T(d) = K0 f exp(-d / f)
+#
+# `f` is the e-folding length, and Fan makes it a function of terrain slope
+# alone: deeper regolith on gentle ground, thin regolith on steep ground.
+#
+#   f = a / (1 + b * slope)   for slope <= slope_cap
+#   f = f_min                 above it
+#
+# THESE CONSTANTS ARE EARTH-FITTED AND ARE NOT DERIVED. Fan says so in as many
+# words: "The functional relationship between f and terrain slope is determined
+# by trial and error", and the values are "the best fit estimates" over North
+# America. They are a calibration of Earth's regolith to Earth's terrain, and
+# nothing in them knows about this world's gravity, star or erosion history.
+# That makes them the same kind of inheritance `TASKS.md`'s PHYS prefix tracks,
+# and the solver's report states it rather than burying it.
+#
+# The slope this keys on is `lib/orogen.py:local_slope_deg`, a plane fit through
+# each region and its neighbours, converted to a tangent. That is a REGIONAL
+# dip measured across cells of a few hundred km2, whereas Fan fitted these
+# constants against slope over 1.25 km cells. A regional dip is systematically
+# gentler than a hillslope over the same ground, so this reads `f` off the flat
+# end of Fan's curve more often than Fan would have, giving a deeper regolith
+# and a flatter water table. One-signed, declared, and not corrected, because
+# correcting it means a sub-grid slope distribution this mesh does not carry.
+depth_decay:
+  regolith:
+    a_m: 120.0
+    b: 150.0
+    f_min_m: 5.0
+    slope_cap: 0.16
+  bedrock:
+    a_m: 20.0
+    b: 125.0
+    f_min_m: 1.0
+    slope_cap: 0.16
+  # Which curve a region takes. Fan separates unconsolidated regolith from
+  # bedrock because the two weather and thicken differently. Here the export
+  # already carries that split: `cover_thickness` is the depth of unconsolidated
+  # cover over basement, so a region takes the regolith curve where its cover is
+  # at least this thick and the bedrock curve otherwise.
+  regolith_cover_min_m: 1.5
+  # Fan starts the exponential at 1.5 m because that is the depth her soil
+  # database is reliable to. There is no such database here and no soil-column
+  # conductivity to start from, so the exponential starts at the surface and
+  # `K0` is the Gleeson value for the region's own lithology. Stated because it
+  # makes T(0) = K0 f here against Fan's T = sum(Km dzm) + K0 f, so shallow
+  # transmissivity is this model's, not hers.
+
+# ---------------------------------------------------------------------------
+# Anisotropy: deliberately absent
+# ---------------------------------------------------------------------------
+# Fan (2007) section 3.3 applies an anisotropy ratio a = KL/KV of 1 to 1000 by
+# clay content, because the LDAS soil database gives her a VERTICAL conductivity
+# and she needs a lateral one.
+#
+# That step is not repeated here and must not be added, because it would be
+# counted twice. Gleeson's permeabilities are regional-scale values recovered by
+# calibrating groundwater models against observed heads and flows, so the
+# lateral anisotropy of the real strata is already inside them. Multiplying by a
+# second anisotropy ratio would credit the same structure twice.
+
+# ---------------------------------------------------------------------------
+# Fluid properties
+# ---------------------------------------------------------------------------
+# Fresh water near the surface. These convert permeability to conductivity and
+# are the only place gravity enters; the solver reads gravity from
+# config/planet.yaml and never from here, per CLAUDE.md rule 2.
+fluid:
+  density_kg_m3: 1000.0
+  # Dynamic viscosity at 10 C. The temperature dependence is real and large
+  # -- viscosity roughly halves between 10 C and 40 C, so K doubles -- and it is
+  # NOT applied per cell here. Doing so would make conductivity a function of
+  # the climatology's ground temperature, which is defensible and is a separate
+  # decision with its own bracket; this file fixes one value and says which.
+  dynamic_viscosity_pa_s: 1.307e-3
+  viscosity_reference_c: 10.0

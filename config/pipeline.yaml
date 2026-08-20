@@ -219,6 +219,20 @@ steps:
     needs: [hydrography, bootstrap_climatology]
     writes: ["hydrography/data/{build}/surface_water.nc", hydrography/analysis/surface_water_report.json]
 
+  - id: groundwater
+    script: hydrography/scripts/build_groundwater.py
+    loop: A
+    cost: minutes
+    needs: [hydrography, bootstrap_climatology]
+    writes: ["hydrography/data/{build}/water_table.nc", hydrography/analysis/groundwater_report.json, hydrography/analysis/groundwater_reduction_test.json, hydrography/analysis/groundwater_divide_test.json]
+    gate: >
+      the steady-state water table, and a MEASUREMENT of the net groundwater
+      exchange per basin. It does not feed `carve_verdict`: whether that term
+      enters the criterion is a loop A decision, tracked as GW-4, and taking it
+      would add the edge. Permeability carries 1.5 to 2.5 orders of magnitude
+      of Gleeson spread, so the depth field is a bracket and `--sigma -1` and
+      `+1` are the arms of it.
+
   - id: soil
     script: pedology/scripts/build_soil.py
     loop: A

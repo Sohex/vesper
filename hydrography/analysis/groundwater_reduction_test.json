@@ -1,0 +1,68 @@
+{
+  "source_build": "precarve-craton",
+  "terrain_hash": "e931b0d9947a232210a3cc11ba82003b5da15765d86e87956bc44c220932760e",
+  "forcing": "/home/cfutro/docs/world/exoplasim/analysis/climatology/bootstrap_regular_climatology.nc",
+  "forcing_sha256": "227909c0a19e204b88dd081b42bf7671447a5dc781e8ebeacd8e942144df5715",
+  "config_sha256": "741cfbff0b5096d5d0cc0aa88e1773c5cee70aeda563ee3b083bbcc60db03dc3",
+  "sigma": 0.0,
+  "unassigned_policy": "exclude",
+  "gravity_m_s2": 12.81,
+  "conductivity_vs_earth": 1.3062564688247262,
+  "geometry": {
+    "faces": 7499997,
+    "voronoi_area_over_sphere": 1.0,
+    "export_cell_area_over_sphere": 1.000680974409125,
+    "note": "flux uses the Voronoi area its own faces bound; water volumes use the export's cell_area so the reduction identity against surface_water.py is exact"
+  },
+  "laplace_beltrami": {
+    "criterion": 0.1,
+    "relative_rms": {
+      "1": 0.02165422451858263,
+      "2": 0.1081881734670909,
+      "3": 0.12015462041162055,
+      "4": 0.12426941987830004
+    }
+  },
+  "closure": {
+    "recharge_m3_s": 1332781.1760872037,
+    "discharge_m3_s": 1332781.1760872034,
+    "seepage_m3_s": 1332781.1760872034,
+    "to_ocean_m3_s": -0.0,
+    "relative_residual": 1.746953272084896e-16,
+    "tolerance": 1e-10,
+    "passes": true
+  },
+  "converged": true,
+  "convergence": {
+    "criterion_max_head_step_m": 0.05,
+    "criterion_flip_fraction": 0.002,
+    "final_max_head_step_m": null,
+    "final_p999_head_step_m": null,
+    "final_flip_fraction": null,
+    "trace_columns": [
+      "pass",
+      "free_cells",
+      "max_head_step_m",
+      "p999_head_step_m",
+      "cells_flipped"
+    ],
+    "trace": []
+  },
+  "outer_iterations": 1,
+  "water_table": {
+    "median_depth_m_land": 0.0,
+    "at_surface_fraction_land": 1.0,
+    "unassigned_land_fraction": 0.012453195018721993,
+    "efolding_median_m_land": 62.27900819034683,
+    "at_transmissivity_floor": 0,
+    "at_transmissivity_floor_note": "a numerical bound, not a physical one: T = K0 f exp(-d/f) underflows on steep bedrock where f is a metre. These cells' depths are a lower bound rather than a value"
+  },
+  "git_commit": "870d9b9db1e0c6418a3831d6e1779d89f3b3af55",
+  "reduction_identity": {
+    "criterion": "exact: seepage == recharge per cell, Qg == 0 per basin",
+    "seepage_equals_recharge_exactly": true,
+    "worst_absolute_difference_m3_s": 0.0,
+    "largest_abs_basin_qg_m3_s": 0.0,
+    "passes": true
+  }
+}
