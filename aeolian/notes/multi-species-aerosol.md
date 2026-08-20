@@ -156,3 +156,81 @@ scattering albedo the two components report separately. That is an identity
 between the model and `analysis/` rather than an agreement between two estimates.
 
 Rule 4 applies whichever form is built: every binary rebuilt, then `--verify`.
+
+## 8. What the tests returned
+
+Built and measured 2026-08-20 at T42 L10 on 8 ranks, 8-byte precision.
+`exoplasim/patches/exoplasim-3.4.2-multi-species-aerosol.patch` carries the
+full record; what belongs here is the one result that changes how any future
+test in this project is written.
+
+**The reduction identity passes at one timestep.** The same configuration
+through a binary built from the base and through the changed one gives
+bit-identical gridpoint output.
+
+**And one timestep is the horizon at which that claim can be made, because the
+model is not run-to-run reproducible beyond a few steps.** The control is the
+same binary run twice on the same inputs:
+
+| horizon | same binary, twice |
+| --- | --- |
+| 1 timestep | output bit-identical |
+| 16 timesteps | output differs, at byte 40485 |
+
+Old-versus-new at 16 timesteps differs at that same byte, growing from 2.4e-6
+relative in the first differing record to order 1 by the end. That is a chaotic
+amplification of a rounding-level seed the model produces on its own, not an
+effect of any code change. The restart file `plasim_status` is worse: it differs
+between two runs of one binary even at ONE timestep, so it is not a valid
+comparison target at all, and a bitwise diff of it will report a difference that
+means nothing.
+
+The consequence is general. Any A/B in this project that expects bit-identity
+has to establish its own reproducibility horizon first, with the same-binary
+control, or it will read the model's own non-determinism as a result. Where the
+non-determinism comes from is not established here; 8 ranks and MPI reduction
+ordering is the obvious first place to look, and a run at one rank would
+separate it from anything serial. That is unowned work and needs a task row.
+
+**Column conservation holds per species**, against a column maximum of 0.4896:
+1.30e-18 for one species, and 8.67e-19 and exactly 0.0 for two, with the second
+species deliberately given a different scale height so a shared one would have
+shown.
+
+**The conservative branch runs clean.** A species with `Qsca = Qext` exactly,
+so `ssa` is 1 to the bit, produced no NaN anywhere and `T + R - 1 = 0` exactly.
+
+**The single-precision case is worse than section 4 predicted**, and this is the
+correction to it. At 4-byte precision `1.0 - ssa` rounds to exactly zero at
+`1-ssa = 1e-8` and the exact expression returns **NaN**, not the plausible wrong
+number the section anticipated. At 8-byte it is benign to `1-ssa = 1e-14`. The
+threshold `SQRT(EPSILON(1.0))` puts sea salt on the exact branch in a double
+build and the limit in a single one.
+
+**The fast path is load-bearing, not cosmetic.** `(ssa*tau)/tau` returns
+something other than `ssa` in 12,026 of 100,000 sampled cases at 8-byte
+precision, so without it every single-species cell would move by an ulp and the
+existing dust-only answer would not reproduce.
+
+## 9. A prescribed species' aerofile column carries only RATIOS
+
+Read out of the implemented path, and it changes what CLIM-40 has to derive.
+
+For a PRESCRIBED species the absolute extinction efficiency never enters the
+radiation. The optical depth comes from the column field through
+`dustsc*ddustcol*zw/zsum`, which has no `Qext` in it, and every place the
+optics are used afterwards is a ratio: `ssa` is `Qsca/Qext`, the backscatter
+ratio is `Qback/Qsca`, the band split is `qex2/qex1`, and the longwave is
+`dustqlw` per unit band-1 optical depth. Scale a prescribed species' whole
+column of the aerofile by any constant and the answer does not move.
+
+That is why `dust_aerofile.py`'s careful work is specific to the INTERACTIVE
+path rather than general. There `aeroprof` builds the optical depth as
+`nrho*PI*apart**2*qex1`, so the absolute `Qext` and the particle radius it is
+declared against are both load-bearing, and the burden-matched rescale that
+file documents exists for exactly that reason.
+
+So a second PRESCRIBED species does not need a burden-matched radius, an
+`apart`, or an absolute cross-section. It needs four ratios per band. That is a
+much smaller derivation than the dust one, and it can be taken straight from
+`analysis/sea_salt_optics.json` without touching the settling machinery.

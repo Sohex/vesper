@@ -256,8 +256,13 @@
 !     radmod arrays
 
       call surfcode( 237,'dqo3cl'  )   ! climatological ozone
-!     Prescribed dust column optical depth, band 1. DUST-11.
-      call surfcode(1811,'ddustcol')   ! prescribed dust, band-1 column AOD
+!     Prescribed aerosol column optical depth, band 1. DUST-11, extended to N
+!     species by CLIM-39. Species s is code 1810+s. 1811 keeps the name it has
+!     so that .sra files already on disk stay readable; the rest are numbered.
+      call surfcode(1811,'ddustcol')   ! prescribed species 1, band-1 column AOD
+      call surfcode(1812,'ddustcol2')  ! prescribed species 2
+      call surfcode(1813,'ddustcol3')  ! prescribed species 3
+      call surfcode(1814,'ddustcol4')  ! prescribed species 4
 
 !     aeromod arrays: the in-model dust emission's source map. DUST-3.
 !
