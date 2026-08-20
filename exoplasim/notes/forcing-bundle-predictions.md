@@ -486,6 +486,41 @@ W/m2 at the top of atmosphere, +/-2.6 K. That is what was measured. The
 prediction was recoverable from its own inputs the moment the ratio was
 questioned.
 
+#### The aerosols were checked and are NOT affected
+
+The lesson above puts dust and sea salt on notice, so both were traced rather
+than assumed. They are clean, for a better reason than luck.
+
+**Neither ever used a ratio.** The 0.19 appears nowhere under `aeolian/`,
+`analysis/` or `scripts/`; both aerosols price their top-of-atmosphere forcing
+with `dust_forcing.py:shortwave_forcing`, Chylek and Coakley (1974) two-stream,
+and `build_sea_salt.py` calls that same function deliberately so the two are
+compared through one formula. It carries the competition EXPLICITLY:
+
+    -insolation * T^2 * ((1 - albedo)^2 * beta * tau_sca - 2 * albedo * tau_abs)
+
+The scattering term and the absorbing term are separate, opposite in sign, and
+weighted by the albedo underneath. That is the same physics the cloud arms
+measured, written down properly, which is why borrowing a ratio was never
+needed here.
+
+**Sea salt is immune outright.** Its single-scattering albedo is 1 to within
+1e-5 in both bands, so `tau_abs` is identically zero and the absorbing term
+cannot contribute whatever albedo it is given.
+
+**Dust absorbs, and the albedo it competes against is already bracketed.**
+`dust_forcing.py` reports the forcing over ocean 0.07, vegetated land, playa
+fill and salt crust 0.50 rather than one value, which is the same axis the
+cloud result turns on. A dust layer over a cloud deck sees an effective
+underlying albedo near or below that 0.50 bright end, so the existing bracket
+already spans the cloudy case even though its top row is labelled for salt.
+
+What is left is smaller than the error it was checked for, and is stated rather
+than pursued: the clear-sky `TRANSMISSION = 0.79` above the layer is a constant
+in that expression, so cloud is represented in the albedo argument and not in
+the transmission. That approximation is worth what it is worth; it is not a
+factor of five.
+
 **Consequence.** Two of the bundle's registered predictions are refuted and
 neither refutation is a small correction. The summed prediction above is not
 re-scored here: these two are ARMS, not bundle members, so the sum they do not
