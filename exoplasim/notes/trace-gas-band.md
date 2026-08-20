@@ -99,34 +99,54 @@ adjacent column. It is read as a typesetting slip in the 1980 table and is
 excluded, WITH the fit reported both ways: including it gives S = 194.3 and an
 rms of 0.83, so the choice moves S by 3.5% and nothing else.
 
-**For N2O the two intensities are NOT recovered, and both routes have been
-tried.** The paper's evidence for the 1285 cm-1 band is Fig. 2 rather than a
-table, and the 589 cm-1 band has neither.
+**For N2O both intensities come from McClatchey et al. (1973), which is the
+source the paper names.** Its Table 13 gives band SYSTEM intensities, and a
+system is the right quantity: Donner and Ramanathan's 1285 cm-1 analysis
+"includes the fundamental and the first hot band and, furthermore, accounts for
+contribution from four isotopes", which is what a system sums. Converted by
+Loschmidt's number, since McClatchey quotes per molecule cm-2 and `W` is cm atm
+at STP:
 
-*The figure route was tried and its own check refuted it.* Fig. 2 plots Eq. (1)
-at two pressures, which is two independent constraints on one unknown, so it
-self-checks. It fails: tracing curve A by continuity off a 600 dpi render and
-fitting over the SAME absorber range gives S = 302 from the 0.5 atm panel and
-S = 348 from the 0.1 atm panel, while each fits its own trace to an rms of 0.2
-cm-1. A 15% systematic disagreement between panels that individually fit that
-tightly is a calibration error in the extraction, not noise, and a number taken
-from either panel alone would carry it invisibly. The extraction is discarded.
-This is what the two-panel design was for; it did its job by failing.
+| band | McClatchey Table 13 | `S`, cm-1 (cm atm)-1 |
+| --- | --- | ---: |
+| N2O 1285 cm-1 | 996 +- 40, times 1e-20 | 267.6 |
+| N2O 589 cm-1 | 118 +- 9, times 1e-20 | 31.7 |
 
-*The primary source is not obtainable.* Donner and Ramanathan never state the
-N2O intensities and cite McClatchey et al. (1973), *AFCRL Atmospheric Absorption
-Line Parameters Compilation*, AFCRL-TR-73-0096 -- a 1973 technical report with
-no DOI, which `paperfetch` cannot identify. Ramanathan (1976) was fetched on the
-chance it tabulated them and does not: it carries no N2O at all, being H2O, CO2
-and O3, and what it contributes is the band model itself.
+**The three parameters are a MATCHED TRIPLE, and that is what decides the
+sourcing.** `A0` and `beta0` are not independent measurements: Donner and
+Ramanathan obtained them by fitting Eq. (1), at a particular `S`, to laboratory
+absorptance. Substituting a different compilation's `S` into their `A0` and
+`beta0` breaks the fit rather than modernising it. So CH4's comes from their own
+Table 2 and N2O's from the compilation they cite, and neither is swapped for the
+other's.
 
-**So this note cannot support an N2O implementation**, and a value guessed to
-fill the gap would be the failure this project calls precision theatre. CH4
-alone is the larger half of the term and is fully specified, so the sensible
-shape is CH4 first with the N2O slot left explicitly empty. The open routes,
-neither taken: obtain AFCRL-TR-73-0096 from DTIC, or sum HITRAN line intensities
-over the two bands, which is a different source from the one the band model was
-fitted against and would need saying so.
+That is visible in the one band both sources carry. McClatchey's Table 18 puts
+CH4's 1306 cm-1 intensity at 5.87e-18 per molecule cm-2, which converts to 158
+against the 188 that Donner's Table 2 requires -- a 19% gap between two
+published compilations of one band. **It is used as a check on the conversion
+and not as a value.** Any unit error in that arithmetic would be a factor of
+1e19, 100 or 10; landing at 1.19 rules one out, and it does not validate the
+number, which is why the CH4 intensity still comes from Table 2.
+
+### The route that failed, recorded so it is not retried
+
+Fig. 2 plots Eq. (1) for the 1285 cm-1 band at two pressures, which is two
+independent constraints on one unknown, so an extraction from it self-checks.
+It failed: tracing curve A by continuity off a 600 dpi render and fitting over
+the same absorber range gives S = 302 from the 0.5 atm panel against 348 from
+the 0.1 atm panel, each fitting its own trace to an rms of 0.2 cm-1. A 15%
+systematic gap between panels that individually fit that tightly is a
+calibration error in the extraction, and a number from either panel alone would
+have carried it invisibly.
+
+McClatchey's 267.6 sits 8% below the 0.5 atm trace and 15% below the 0.1 atm
+one, so it is bracketed by the two panels' own disagreement rather than
+contradicted by it. That is corroboration at the level the trace can support,
+which is weak, and it is reported as such.
+
+Ramanathan (1976) was also fetched, on the chance it tabulated the N2O
+parameters, and does not: it carries no N2O at all. Its row in
+`references/INDEX.md` says so, so that is not re-checked.
 
 ## 4. What lands in the code
 
