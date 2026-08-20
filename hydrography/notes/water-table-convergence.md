@@ -203,27 +203,83 @@ hydrolithology by its OWN standard deviation, not by a shared one.
 | verdicts flipped | 86 | 83 | 85 |
 | of those, flipped towards HOLDING | 0 | 0 | 3 |
 
-**The depth field is genuinely bracketed and the carve answer is not.** The
-share of land with the water table at the surface runs from 0.47 to 0.67 across
-the bracket, and the exchange spans a factor of five hundred. The number of
-carve verdicts that flip barely moves: 83 to 86, out of 3,621 basins.
+**The depth field is genuinely bracketed and the flip count is not.** The share
+of land with the water table at the surface runs from 0.47 to 0.67 across the
+bracket, and the exchange spans a factor of five hundred, while the number of
+carve verdicts that flip moves only from 86 to 83 to 85.
 
-That is worth more than either number alone. It says the flips are set by how
-many basins sit near the threshold rather than by how much water crosses the
-divides, which is why a five-hundredfold change in the exchange moves the count
-by three.
+**And the same basins flip.** Counts alone could hide three different
+populations, so the sets were intersected:
 
-**The direction is overwhelming but not exclusive.** At the central and dry arms
-every flip runs towards carving. At the wet arm 3 of 85 run the other way. The
-honest statement is 82 to 86 flips towards carving against 0 to 3 towards
-holding, not "all one way".
+| | value |
+| --- | ---: |
+| flip at all three arms | 74 |
+| flip at exactly two | 10 |
+| flip at exactly one | 12 |
+| union over the three arms | 96 |
+| pairwise Jaccard | 0.78 to 0.90 |
 
-The mechanism is the expected one: groundwater import raises what a basin
-actually receives above what its surface catchment delivers, and a basin that
-receives more overflows more readily.
+Against the operator-noise members the agreement is near-total: symmetric
+difference from the central set of 1, 0 and 0 basins.
 
-**Nothing here is wired into `carve_verdict.py`.** Whether the term enters the
-criterion is a loop A decision.
+## Why a five-hundredfold change in exchange moves the count by three
+
+Not because those basins sit near their thresholds. That was the first reading
+and it is wrong.
+
+**Every flip is a basin whose surface recharge is EXACTLY zero.** 86 of 86 at
+sigma -1, 83 of 83 at the centre, 81 of 85 at sigma +1. Runoff is
+`max(P - E, 0)` per cell, so a catchment where evaporative demand meets or
+exceeds precipitation everywhere delivers nothing at all, and
+
+    aridity index = (E_lake - P_lake) / runoff  ->  infinite
+
+An infinite index never satisfies `index <= critical_aridity_index`, so such a
+basin never carves under the surface balance, whatever its geometry. Switch
+groundwater on and lateral seepage gives it a finite runoff depth and therefore
+a finite index, which may fall below its threshold.
+
+**So the flip is a switch at zero, not a response to a magnitude.** It turns on
+whether any groundwater arrives, not how much, which is exactly why five hundred
+times more of it changes the count by three. There are **605** such fully-arid
+basins in the catalogue and 83 of them cross.
+
+The global exchange fraction is also not the per-basin perturbation, and it was
+wrong to read it that way: at sigma -1 the exchange is 0.002% of total land
+recharge while **423 basins still shift by more than 10% of their own**. The
+global figure is dominated by large wet basins in its denominator.
+
+**What this means for how the number may be quoted.** "Groundwater changes 83
+carve verdicts" overstates it. The defensible statement is that **83 of the 605
+basins with no net surface runoff at all acquire a finite aridity index below
+their threshold once groundwater is included**, and that this count is stable to
+the permeability bracket and to the operator's truncation error because it is a
+zero-crossing rather than a magnitude.
+
+Whether "no surface runoff, therefore never carves" is the criterion semantics
+intended by `carve_verdict.py` is a question for that criterion and not for this
+component. It is raised, not answered, here.
+
+## The flips that run the other way
+
+Three basins flip towards HOLDING, all at sigma +1, and the mechanism is the
+expected one: **all three EXPORT groundwater**, so the water reaching them falls
+rather than rises.
+
+| basin | Qg, m3/s | recharge, m3/s | Qg / recharge | catchment, km2 |
+| ---: | ---: | ---: | ---: | ---: |
+| 906 | -2.46 | 13.88 | -0.18 | 8,958 |
+| 2277 | -0.01 | 0.01 | **-1.00** | 20,629 |
+| 2784 | -32.49 | 52.08 | -0.62 | 39,209 |
+
+Basin 2277 is the mirror image of the flips above: it loses its entire recharge
+to groundwater export, its runoff depth goes to zero, its aridity index goes to
+infinity, and it stops carving. The other two keep a finite index both ways and
+cross the threshold downwards on the strength of losing a fifth and two thirds
+of their water.
+
+They appear only at the wet arm because that is where the exchange is large
+enough, in fraction of a basin's own recharge, to take that much away.
 
 ## What GW-8's noise floor does to that answer
 
