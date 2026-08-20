@@ -189,6 +189,34 @@ none of them is advice.
   to be authorised. Everything else is work you have not done yet, however
   neatly you have described it.
 
+  **EVERY OPEN THREAD GETS ITS OWN VERDICT, NAMED SEPARATELY.** One item being
+  genuinely blocked does not cover another item in the same message. This is the
+  form the failure takes once the rule above is known, so it is the one to watch
+  for: a session ended with CLIM-11 correctly blocked -- its control run could
+  not exist -- and CLIM-31 sitting beside it in the same paragraph with two named
+  fix options and nothing stopping either. The legitimate verdict bled onto the
+  illegitimate one and the pair read as resolved. If you are closing on more than
+  one thread, say completed or blocked about each by name, and if you cannot,
+  that thread is the one still to work.
+
+  Two mechanical tests, because the rule above asks you to classify your own
+  state and the bias operates ON the classification, so wording it better does
+  not help:
+
+  - **If you filed a task this turn, you have not finished.** A task row records
+    that work is outstanding; writing a good one is the opposite of doing it. A
+    well-formed row with a measurement, a cause and two fix options reads as an
+    accomplishment and is not one.
+  - **If you can write the fix in one sentence, that sentence is the commit, not
+    the report.** "Zero the accumulator records in the copied restart, or do not
+    count the first seeded orbit" is a specification. Publishing a specification
+    instead of executing it is the same failure as naming the next step, wearing
+    the better clothes of a tracker entry.
+
+  Judge the TASK, never the turn. "Is this a reasonable place to stop talking?"
+  always has a yes available, because a summary can always be written and a good
+  result is pleasant to report. That question is not this rule.
+
 - **Naming the next step is not doing it, and a report is not a stopping
   point.** The failure looks like progress: diagnose, write down what would
   resolve it, hand it back. Three times in one session that produced "needs a
