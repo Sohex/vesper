@@ -1027,6 +1027,70 @@ def read_sra(path: Path, expected_code: int, nlat: int, nlon: int) -> np.ndarray
     return values.reshape(nlat, nlon)
 
 
+def expected_namelist_keys(config: dict) -> dict:
+    """What the CONFIG says the run's namelists must contain, {file: {KEY: value}}.
+
+    Derived from `config/planet.yaml` and from nothing else -- deliberately not
+    from the staging code, because a check built out of the staging lists tests
+    only that they agree with themselves. CONS-9.
+    """
+    m = config["model"]
+    want: dict = {"radmod_namelist": {}, "icemod_namelist": {}, "plasim_namelist": {}}
+    for key, name, default in SHORTWAVE_GAS_KEYS:
+        v = m.get(key)
+        if v is not None and float(v) != default:
+            want["radmod_namelist"][name] = float(v)
+    o3 = m.get("ozone_scale")
+    if o3 is not None and float(o3) != 1.0:
+        want["radmod_namelist"]["O3SCALE"] = float(o3)
+    salinity = config.get("ocean", {}).get("salinity_psu")
+    if salinity is not None:
+        want["icemod_namelist"]["TFREEZE"] = round(freezing_point_k(salinity), 4)
+    if energy_diagnostics_enabled(config):
+        want["plasim_namelist"]["NENERGY"] = 1.0
+        if m.get("energy_diagnostics_3d", False):
+            want["plasim_namelist"]["NENER3D"] = 1.0
+    return {f: keys for f, keys in want.items() if keys}
+
+
+def verify_staged_namelists(run_dir: Path, config: dict) -> dict:
+    """Every config key that departs from the model default reached the namelist.
+
+    CONS-9. Reads the RUN, which is the only artifact that records what was
+    actually integrated -- `notes/failure-modes.md` class 12 said so and class 22
+    is what happens when nobody checks: `h2o_sw_level` was declared at 1.127,
+    staged by the prepare script, dropped by every continuation, and no guard
+    noticed for a whole run. `config_drift` compared the config against the
+    manifest and both said 1.127; this compares the config against the FILE.
+
+    Raises rather than warns. A run whose radiation does not match its own
+    configuration is not a cheaper run, it is a different world.
+    """
+    checked, wrong = {}, []
+    for fname, keys in expected_namelist_keys(config).items():
+        path = run_dir / fname
+        for key, want in keys.items():
+            try:
+                got = float(namelist_value(path, key))
+            except (KeyError, FileNotFoundError):
+                wrong.append(f"{key} absent from {fname}, config wants {want:g}")
+                continue
+            except ValueError:
+                wrong.append(f"{key} in {fname} is not a number")
+                continue
+            if abs(got - want) > 1e-9:
+                wrong.append(f"{key} in {fname} is {got:g}, config wants {want:g}")
+            checked[f"{key}@{fname}"] = got
+    if wrong:
+        raise SystemExit(
+            "the staged namelists do not match config/planet.yaml:\n  "
+            + "\n  ".join(wrong)
+            + "\nThe namelist in the run directory is what the model integrates. "
+              "Fix the staging rather than the check; see notes/failure-modes.md "
+              "class 22.")
+    return checked
+
+
 def namelist_value(path: Path, key: str) -> str:
     for line in path.read_text(encoding="ascii").splitlines():
         stripped = line.strip().upper()
@@ -1343,6 +1407,14 @@ def main() -> None:
     model.exportcfg(str(run_dir / f"{identifier}.cfg"))
     surface_report = surface_field_report(run_dir, config)
 
+    # CONS-9. AFTER every staging call and BEFORE the run, because the namelist
+    # on disk is the only artifact that records what will actually be
+    # integrated. Raises, so a run whose radiation does not match its own
+    # configuration never starts.
+    staged_namelists = verify_staged_namelists(run_dir, config)
+    print(f"namelists verified {len(staged_namelists)} config-set keys present "
+          f"with the declared values: {', '.join(sorted(staged_namelists))}")
+
     checks = {
         "N_RUN_STEPS": namelist_value(run_dir / "plasim_namelist", "N_RUN_STEPS"),
         "N_DAYS_PER_YEAR": namelist_value(run_dir / "plasim_namelist", "N_DAYS_PER_YEAR"),
@@ -1414,7 +1486,7 @@ def main() -> None:
             "numpy": np.__version__,
             "gfortran": command_version(["gfortran", "--version"]),
         },
-        "namelist_checks": checks,
+        "namelist_checks": {**checks, **staged_namelists},
         "surface_fields": surface_report,
         "surface_fields_staged": staged,
         # Per-code hashes, so a surface field that CHANGED CONTENT under the same

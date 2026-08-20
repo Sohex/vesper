@@ -22,6 +22,7 @@ from provenance import config_drift  # noqa: E402
 from segments import SEGMENT_PURPOSES  # noqa: E402
 from run_exoplasim import (  # noqa: E402
     SHORTWAVE_GAS_KEYS,
+    verify_staged_namelists,
     configure_otherargs,
     surface_sra,
     stage_surface_extras,
@@ -466,6 +467,14 @@ def main() -> None:
     else:
         print("  NLOWIO = 0 for this segment: instantaneous samples, for orbits "
               "something will read as data.")
+
+    # CONS-9, and this is the path the defect was actually on: configure()
+    # rewrites the namelists on every continuation, so a key that is not
+    # reapplied here silently reverts partway through a run. Checked against the
+    # config after re-staging and before the segment starts.
+    staged_namelists = verify_staged_namelists(run_dir, config)
+    print(f"  namelists verified: {len(staged_namelists)} config-set keys "
+          f"present with the declared values")
     regular_codes = list(REGULAR_CODES)
     if energy_diagnostics_enabled(config):
         enable_energy_diagnostics(model, config)
