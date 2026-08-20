@@ -16,3 +16,42 @@ all handled.
 Claims are checked against the artifact rather than the documentation. Several
 findings in this project's history came from comparing two products that were
 supposed to agree and finding they did not.
+
+## Documents and numbers
+
+- **Do not write current values into prose.** `world_state.json` is generated
+  from the artifacts and is the only place they belong. A number earns a place in
+  a document only if it is a decision, a threshold, an identity, or if the
+  magnitude carries an argument that fails without it: a convergence criterion, a
+  terrain hash, "the two windows do not overlap", "exactly 180 degrees". Mean
+  temperature, basin counts, land composition and the active build are none of
+  those, and every one of them was wrong in these documents within a day of being
+  written. `notes/` is the exception and the opposite: those are dated records of
+  what was measured, so they keep their numbers and gain a "measured on".
+- **Rewrite superseded content; do not mark it.** A reader grepping for a number
+  lands on the number, not on the warning above it.
+- Keep citations and table cells on one source line, even where that breaks
+  column alignment. They get copied out.
+- Claims about convergence and equilibration are stated with their exact criteria
+  and are labelled honestly when they miss. One cold case is called
+  "quasi-equilibrated" for missing its threshold by 0.004 W/m2. Preserve that
+  standard rather than rounding results into passes.
+- **An undocumented component is not complete.** Work here is picked up by
+  someone with no memory of it -- assume a brick to the head between any two
+  sessions, because a fresh session IS that. The test for done is not "does it
+  work", it is "can someone who has never seen it find it and use it without
+  reading the diff".
+
+  What this does NOT mean is recording numbers. Anything that can be looked up
+  or re-derived should be, and writing it into prose is the failure the first
+  convention above exists to prevent. What it means is that the THING must be
+  findable: a new module belongs in the `lib/` list, a new step in
+  `config/pipeline.yaml`, a new component in the layout and in
+  `docs/src/pipeline/components.md`, a
+  model change as a commit under `vendor/exoplasim`, a new convention here. A
+  component that works
+  and is invisible will be reimplemented beside itself, which is how this project
+  came to have four copies of a path resolver and three of a grid convention.
+
+  The two rules pull in opposite directions and that is the point: **record what
+  a thing IS and where it lives, never what it currently SAYS.**

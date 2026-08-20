@@ -92,7 +92,7 @@ of the bracket is the honest uncertainty on the carve.
 **`bracketed`, not `marginal`.** `marginal` names a per-basin landform in the
 carve list; `bracketed` names our uncertainty. The two were briefly one word
 and it leaked into an exporter; the definitions and the third neighbour,
-`disputed`, are in CLAUDE.md's vocabulary.
+`disputed`, are in [the vocabulary](../reference/vocabulary.md).
 
 **Both arms run at ONE flux, and it is the design flux.** Decided 2026-08-19.
 The alternative -- each endmember at whatever flux keeps IT in the design
