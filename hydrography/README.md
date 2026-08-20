@@ -457,5 +457,6 @@ for another carve iteration, and the counts are in `world_state.json` and
 
 ## One-off tools
 
+- `scripts/build_earth_wtd_sites.py` -- one-off: assembles Australian bore water table depths into one site table for GW-3, the solver's only external check. Reads the Australian Groundwater Explorer's per-state download, whose `level_<state>.csv` sits BESIDE the geodatabase rather than inside it. Reconciles three datums against an identity that can fail, and reports the quality flag rather than filtering on it, because the codes are per-agency and filtering would select which state survives. Registered under `one_offs` in `config/pipeline.yaml`.
 - `scripts/validate_lake_solver.py` -- one-off: checks the lake solver against real endorheic basins on Copernicus DEM tiles, which is where HYD-7's mesh-scale storage deficit was measured. Registered under `one_offs` in `config/pipeline.yaml`; it generates nothing the pipeline reads.
 

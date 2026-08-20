@@ -126,6 +126,136 @@ What it is good for here, and this is the point of writing it down:
   gap ExoPlaSim does, so DUST-7's scavenging is a common omission rather than a
   peculiarity, and there is nothing to borrow.
 
+## The GW-3 Earth calibration: four inputs, all live
+
+Checked 2026-08-20. The water table solver has passed only identities,
+conservation laws and reductions, none of which can say it is right about a real
+water table. Fan et al. (2013)'s well compilation is the external test, and its
+own host is gone: `glowasis.deltares.nl` is NXDOMAIN while `deltares.nl`
+resolves, so the subdomain is decommissioned rather than moved, and the Science
+supplement 403s on every URL form. The exact Database S1 filenames are in
+`references/INDEX.md` and return nothing anywhere indexed.
+
+**What recovered the trail was the JRC AquaKnow mirror**, `aquaknow.jrc.ec.europa.eu/node/18916`,
+which carries Fan's supplementary. That gives the schema to reproduce -- latitude,
+longitude, land elevation in m above sea level, water table depth in m below land
+surface -- and links a live THREDDS at `thredds-gfnl.usc.es/thredds/catalog/GLOBALWTDFTP`,
+Miguez-Macho's own institution, holding continental annual and monthly means of
+the SIMULATED field. Model output only; the observations are not under that tree.
+
+So the compilation is rebuilt from the national archives it was made from.
+
+**Recharge: Berghuijs et al. (2022), Zenodo, CC-BY 4.0, 6.2 GB in mm/yr.**
+`10.1029/2022GL099010`. This was the gate, on the worry that it might exclude
+arid regions, and the worry was backwards: 99% of its observation-based recharge
+values come from regions with climate aridity above 0.75, and the vast majority
+originate from Australia. What it excludes is PERMAFROST, "regions that can have
+permafrost (i.e., mean temperature below -2C)", and what it is thin on is the
+very wet -- Congo, Amazonia, southeastern Asia fall outside its observational
+range. That is the opposite weighting from the one feared and the right one for
+this world.
+
+**United States wells: `api.waterdata.usgs.gov`, no key.** The old
+`waterservices.usgs.gov/nwis/gwlevels` API was frozen in November 2025 and
+decommissioned in February 2026; it 301s to a decommissioning notice. The
+replacement is an OGC API collection:
+
+    https://api.waterdata.usgs.gov/ogcapi/v0/collections/field-measurements/items?parameter_code=72019
+
+**Parameter code 72019 is depth to water level in feet below land surface**,
+which is Fan's quantity directly rather than a head needing conversion. Records
+carry a monitoring location id, value and unit, time, vertical datum and approval
+status.
+
+**Australia: obtained, 75,321 sites.** The route is the Australian Groundwater
+Explorer's per-state download, not an API, and the path to it took two wrong
+turns worth recording.
+
+    https://hosting.wsapi.cloud.bom.gov.au/arcgis/rest/services/groundwater/Bore_Water_Levels/FeatureServer/0/query
+
+That FeatureServer holds **251,681 bores**, no key, and carries per bore exactly
+what the schema needs plus two things Fan's four columns do not: `landelev` with
+its datum and survey method, and `ftypeclass`, the bore's PURPOSE -- "Monitoring"
+against production -- which is the anthropogenic-drawdown filter this whole
+rebuild exists to make possible. It also carries `water_cnt`, `water_dmin` and
+`water_dmax`, so the sampling of every bore is known.
+
+**No public API serves the level VALUES.** The FeatureServer has one layer and
+no related table; the siblings are Aquifer_Boundaries, Bore_Purpose,
+Bore_Hydrochemistry and Bore_Salinity. `data.gov.au`'s NGIS package offers only
+portal links. BOM's SOS2 endpoint returns an empty body to a GetCapabilities.
+NGIS is documented as excluding time series.
+
+**The levels ship BESIDE the geodatabase, not inside it.** Each state's zip
+contains `gdb_<STATE>/ngis_<STATE>.gdb` AND, as siblings, `level_<state>.csv`,
+`salinity_<state>.csv`, `hydrochem_*.csv` and `gw_state_README.txt`. The
+geodatabase's nine layers are bores, logs, aquifers and management zones, and
+`NGIS_Bore`'s `WaterLevel`, `WaterCount`, `WaterDateMin` and `WaterDateMax` are
+flags and counts rather than values. Looking only inside the `.gdb` reads as the
+data being absent when it is one directory level away, and that costs a download.
+60,020,336 level readings across the eight states.
+
+**Three datums, and they are not interchangeable.** `obs_point_datum` labels
+every reading: `DTW` is depth below the ground surface and is Fan's quantity
+exactly; `RSWL (mAHD)` is water level elevation on the Australian Height Datum;
+`SWL` is depth below the bore's own reference point. DTW needs no elevation at
+all, which matters because `LandElev` is populated for 10.8% of Western
+Australian bores and none of Tasmania's.
+
+**The casing stickup is `TsRefElev - LandElev`, and NOT `RefElev - LandElev`.**
+`RefElev` is a copy of `LandElev` in this data, so using it applies no correction
+at all and SWL reads 0.570 m too deep in the median on 91.8% of paired readings.
+`TsRefElev` is the time-series reference and gives a median stickup of 0.633 m,
+5th to 95th percentile 0.13 to 1.08 m. It is populated for about 4% of bores, so
+SWL is dropped where it is absent rather than assumed zero.
+
+**Both conversions are checked against an identity that can fail**, which is what
+licenses them: where one bore reports two datums on one date, `DTW + RSWL` must
+equal `LandElev` and `SWL - stickup` must equal `DTW`. Median residuals +0.000 m
+over 238,185 pairs and -0.004 m over 156,037.
+
+**The quality flag is reported, not filtered on.** Codes run A to F, are defined
+neither in the shipped README nor on the Explorer metadata page, and are
+per-agency: every Western Australian reading is `quality-A` and no Australian
+Capital Territory or Tasmanian reading is. Filtering on A selects which STATE
+survives, which is a selection bias wearing a quality label. Keeping everything
+and reporting the flag turns it into a measurement: restricting to `quality-A`
+moves a site's depth by a median of 0.0000 m with a 90th percentile of 0.075 m,
+so it does not matter, and that is now known rather than assumed.
+
+`hydrography/scripts/build_earth_wtd_sites.py` does the assembly and writes its
+provenance. **BOM overwrites the Explorer extract about twice a year**, so the
+result is tracked rather than ignored: it is a snapshot of a moving source and a
+future download will not reproduce it.
+
+One incidental finding worth keeping: `www.bom.gov.au` 403s a bare `curl` and
+returns 200 to an ordinary browser User-Agent. It is a bot filter on the header,
+not a restriction on the data, which BOM publishes for download under CC-BY.
+
+**Take Australia first even though it is small by well count.** Fan's set is 88% United States and Canada, which are
+humid-to-semiarid mid-latitudes, and this world is dominated by arid endorheic
+basins: a calibration covering most of the wells and none of the regime is
+testing the wrong thing. Australia is the arid analogue, and at 251,681 records
+it is three times the 83,617 Australian sites Fan had.
+
+**Canada is fragmented and is the lowest priority.** There is no single national
+well database as there is for the United States; the holdings are provincial. It
+is also the same humid-temperate regime the United States already covers, so it
+adds well count rather than regime coverage.
+
+Topography is Copernicus DEM 90 m from the AWS registry, the route HYD-7 already
+used, and permeability is GLHYMPS at Borealis `10.5683/SP2/DLGXYO` under CC-BY.
+
+**Two things decide whether the comparison is valid, and both are recorded
+before it runs.** Compare the model AT OBSERVATION LOCATIONS, never
+model-everywhere against observations-everywhere: Fan states the bias herself,
+her model reading deeper than observations in arid regions because wells sit
+where people live, which is valleys and oases. And filter production wells if the
+metadata allows, because Fan's model neglects pumping, irrigation and drainage
+while her observations do not -- this world has none of them, and rebuilding from
+primary sources is what makes that filter possible at all, since NWIS carries
+well-use metadata and Fan's four columns do not.
+
 ## A private gcc 16.1.1, from the pacman cache
 
 Not a dataset but a build tool, and it is here because the route into it is the
