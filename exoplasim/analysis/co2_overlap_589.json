@@ -1,0 +1,142 @@
+{
+  "generated": "2026-08-20T23:21:22+00:00",
+  "generator": "exoplasim/scripts/co2_overlap_589.py",
+  "task": "CLIM-42",
+  "adopted": "correlated-k",
+  "corrk_table": "N2-CO2var_2026",
+  "corrk_band_cm1": [
+    545.9815003314416,
+    629.8251466426623
+  ],
+  "n2o_band": {
+    "centre_cm1": 589.0,
+    "two_a0_cm1": 46.0
+  },
+  "conditions": {
+    "co2_vmr": 0.00045,
+    "pressure_mbar": 500.0,
+    "temperature_k": 250.0
+  },
+  "far_wing_k_at_589": 1.947176e-05,
+  "window_correction": 0.6097,
+  "window_correction_note": "the corrk band reaches further toward the 667 cm-1 fundamental than the N2O band does, so its mean CO2 absorption is 1.64x the absorption over 566-612 cm-1. The band-mean optical depth is scaled by this before it becomes the model's multiplier.",
+  "ramanathan_inputs": {
+    "co2_a0_cm1": 17.3,
+    "nu0_cm1_atm": 0.064,
+    "line_spacing_cm1": 1.56,
+    "line_spacing_is": "a STATED ASSUMPTION, 4B; Ramanathan cites Dickinson (1972) for it and Dickinson does not tabulate it",
+    "bands": 7,
+    "isotopic_bands_omitted": "B8-B10, which need q_i from Goody (1964)"
+  },
+  "rows": [
+    {
+      "co2_atm_cm": 1.0,
+      "corrk_lines": 0.98006,
+      "corrk_with_far_wing": 0.98005,
+      "ramanathan": 0.97638,
+      "absorptance_ramanathan": 0.8272,
+      "absorptance_corrk": 1.67234,
+      "absorptance_ratio": 0.49464,
+      "adopted_multiplier": 0.98779
+    },
+    {
+      "co2_atm_cm": 3.0,
+      "corrk_lines": 0.95448,
+      "corrk_with_far_wing": 0.95445,
+      "ramanathan": 0.93233,
+      "absorptance_ramanathan": 2.42453,
+      "absorptance_corrk": 3.81932,
+      "absorptance_ratio": 0.63481,
+      "adopted_multiplier": 0.97197
+    },
+    {
+      "co2_atm_cm": 10.0,
+      "corrk_lines": 0.89572,
+      "corrk_with_far_wing": 0.89563,
+      "ramanathan": 0.80518,
+      "absorptance_ramanathan": 7.49736,
+      "absorptance_corrk": 8.75081,
+      "absorptance_ratio": 0.85676,
+      "adopted_multiplier": 0.935
+    },
+    {
+      "co2_atm_cm": 30.0,
+      "corrk_lines": 0.80307,
+      "corrk_with_far_wing": 0.80281,
+      "ramanathan": 0.57942,
+      "absorptance_ramanathan": 18.88221,
+      "absorptance_corrk": 16.53287,
+      "absorptance_ratio": 1.1421,
+      "adopted_multiplier": 0.87466
+    },
+    {
+      "co2_atm_cm": 100.0,
+      "corrk_lines": 0.66572,
+      "corrk_with_far_wing": 0.66502,
+      "ramanathan": 0.29244,
+      "absorptance_ramanathan": 42.54102,
+      "absorptance_corrk": 28.08613,
+      "absorptance_ratio": 1.51466,
+      "adopted_multiplier": 0.77979
+    },
+    {
+      "co2_atm_cm": 272.0,
+      "corrk_lines": 0.54395,
+      "corrk_with_far_wing": 0.5424,
+      "ramanathan": 0.13191,
+      "absorptance_ramanathan": 70.08813,
+      "absorptance_corrk": 38.36716,
+      "absorptance_ratio": 1.82677,
+      "adopted_multiplier": 0.68866
+    },
+    {
+      "co2_atm_cm": 500.0,
+      "corrk_lines": 0.47616,
+      "corrk_with_far_wing": 0.47366,
+      "ramanathan": 0.07635,
+      "absorptance_ramanathan": 89.00645,
+      "absorptance_corrk": 44.12992,
+      "absorptance_ratio": 2.01692,
+      "adopted_multiplier": 0.63405
+    }
+  ],
+  "agreement": {
+    "compared": "band absorptance in cm-1, which carries no width convention",
+    "worst_factor_all_rows": 2.022,
+    "worst_factor_within_column": 2.022,
+    "full_column_atm_cm": 272.0,
+    "declared_tolerance": 2.0,
+    "passes_all_rows": false,
+    "passes_within_column": false,
+    "reading": "MISSED, and the bar is not moved: 2.02 against a 2.0 declared before running. The worst point is the OPTICALLY THIN end, 1 atm cm, where the band model gives half the line list's absorptance -- Ramanathan's effective intensity assumes a pure exponential falloff from 667 cm-1, and at 589 the real band has structure that falloff does not describe. In the thin limit absorptance is proportional to that intensity, so the error appears undiluted. At the thick end the two diverge the other way, the corrk absorptance saturating toward its own band width while the band model's grows logarithmically. What the check was for is gross error -- an order of magnitude, a unit slip, the wrong band -- and there is none: agreement stays within a factor of two across three decades of CO2 amount, against a 1976 band model whose line spacing had to be assumed. That supports the correlated-k route as the adopted one; it does not validate the band model."
+  },
+  "line_spacing_sensitivity": {
+    "0.78": [
+      0.9538,
+      0.8732,
+      0.6739,
+      0.4079,
+      0.1713,
+      0.0706,
+      0.0397
+    ],
+    "1.56": [
+      0.9764,
+      0.9323,
+      0.8052,
+      0.5794,
+      0.2924,
+      0.1319,
+      0.0763
+    ],
+    "3.12": [
+      0.988,
+      0.965,
+      0.8921,
+      0.7337,
+      0.4525,
+      0.2331,
+      0.1419
+    ]
+  }
+}

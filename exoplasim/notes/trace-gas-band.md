@@ -272,6 +272,71 @@ during the fit that produced `A0` and `beta0`, so it is separable in a way the
 matched triple is not. The reason to do both anyway is that neither costs
 anything now that the papers are on disk.
 
+## 4c. What the cross-validation returned
+
+Run 2026-08-20, `exoplasim/scripts/co2_overlap_589.py`, writing
+`exoplasim/analysis/co2_overlap_589.json`. Adopted route: the correlated-k band
+mean, corrected onto the window N2O occupies. Cross-check: Ramanathan (1976)
+Appendix A over Dickinson's seven bands.
+
+**The comparison that means something is ABSORPTANCE, not transmissivity, and
+that is the finding worth keeping.** The two conventions average over different
+spectral widths -- the corrk band is 83.8 cm-1, Ramanathan's `2 A0` is 34.6 --
+so their transmissivities are not the same quantity. Compared that way they
+disagree by up to **6.2x** and the disagreement is pure bookkeeping. Compared as
+absorptance in cm-1, which carries no width convention, they agree to a factor
+of 2.02 across three decades of CO2 amount.
+
+That trap is worth stating plainly because both quantities are numbers between
+zero and one that fall with CO2 amount, so taking one where the other belongs
+would have put a factor of several into the model with nothing to catch it.
+
+| CO2, atm cm | T corrk | T Ramanathan | A corrk | A Ramanathan | adopted multiplier |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | 0.980 | 0.976 | 1.67 | 0.83 | 0.988 |
+| 10 | 0.896 | 0.805 | 8.75 | 7.50 | 0.935 |
+| 100 | 0.665 | 0.292 | 28.1 | 42.5 | 0.780 |
+| 272, the whole column | 0.542 | 0.132 | 38.4 | 70.1 | **0.689** |
+
+**The declared bar was 2.0 and the result is 2.02. It is recorded as a MISS and
+the bar is not moved.** The worst point is the optically THIN end rather than
+the thick one: at 1 atm cm the band model gives half the line list's
+absorptance, because Ramanathan's effective intensity assumes a pure
+exponential falloff from 667 cm-1 and at 589 the real band has structure that
+falloff does not describe. In the thin limit absorptance is proportional to that
+intensity, so the error arrives undiluted. At the thick end they diverge the
+other way, the corrk absorptance saturating toward its own band width while the
+band model's grows logarithmically without bound.
+
+What the check was for is gross error -- an order of magnitude, a unit slip, the
+wrong band -- and there is none. Agreement inside a factor of two across three
+decades, against a 1976 band model whose line spacing had to be ASSUMED rather
+than cited, supports the correlated-k route as the adopted one. It does not
+validate the band model, and it is not evidence about the corrk route's own
+accuracy, which rests on HITRAN 2020.
+
+**The window correction is 0.6097 and is derived, not fitted.** The corrk band
+spans 546-630 cm-1 while the N2O band occupies 566-612, and the corrk band
+reaches further toward the 667 cm-1 fundamental where CO2 absorbs far harder.
+Weighting both windows by the same exponential falloff the band model uses, the
+corrk band's mean CO2 absorption is 1.64x the absorption over the window N2O
+actually occupies, so the band-mean optical depth is scaled by 0.6097 before it
+becomes the multiplier. Uncorrected it would understate the transmissivity N2O
+sees and so understate the 589 band.
+
+**The far wings are applied and are negligible here.** `k` at 589 cm-1 and 250 K
+is 1.95e-05, which moves the whole-column transmissivity from 0.5439 to 0.5424.
+Carried anyway, because the corrk tables are built with a 25 cm-1 line cutoff
+and leaving their companion out would be an omission rather than a
+simplification.
+
+**Sensitivity to the assumed line spacing**, which is the cross-check's one free
+parameter: halving `D` to 0.78 cm-1 takes the band model's whole-column
+transmissivity to 0.040 and doubling it to 3.12 takes it to 0.142, against
+0.076 at the assumed 1.56. So the cross-check is good to about a factor of two
+on that alone, which is the same size as the disagreement being measured. It
+cannot be sharpened without a line spacing someone can cite.
+
 ## 5. The tests, declared before the work
 
 **Band model against its own source.** Eq. (1) with `A0` = 52 (T/300)^1/2,
