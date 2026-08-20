@@ -57,11 +57,11 @@ Status: `open` | `doing` | `blocked` | `done` | `wontfix` (with a reason).
 
 ## BIO -- biosphere
 
-2 open of 4 issued.
+1 open of 4 issued.
 
 | id | task | source | status |
 | --- | --- | --- | --- |
-| BIO-1 | Regenerate the LPJ-GUESS driver: `vesper_driver_provenance.json` is pinned to a superseded config and `check_consistency.py` has been failing on it | `scripts/check_consistency.py`, `WORKFLOW.md` A3 | deliberately DEFERRED until after iteration 2's baseline run. The driver is built from a climatology and a soil that the carve replaces, so doing it now is make-work whose only effect is silencing a warning that is currently telling the truth: no biosphere inputs exist for this build. The orbit-dependent half was durable and is done (BIO-3) [step: lpj_driver] |
+| BIO-1 | -- | -- | done, see `archive/tasks.md` |
 | BIO-2 | Quote productivity with the `nfix_a` bracket 0.102-0.367 carried through rather than the central value alone; the span is 18.2% of NPP and it is the largest nitrogen lever | `biosphere/notes/productivity-prediction.md` | blocked on iteration 2's baseline run -- no LPJ-GUESS run exists on this build [step: lpj_run] |
 | BIO-3 | -- | -- | done, see `archive/tasks.md` |
 | BIO-4 | -- | -- | done, see `archive/tasks.md` |
@@ -114,7 +114,7 @@ Status: `open` | `doing` | `blocked` | `done` | `wontfix` (with a reason).
 | CLIM-27 | -- | -- | done, see `archive/tasks.md` |
 | CLIM-28 | -- | -- | done, see `archive/tasks.md` |
 | CLIM-29 | Carbonaceous aerosol is the one the sulfate bound does not reach: smoke and secondary organics ABSORB, so their forcing per unit optical depth is larger than either scatterer's and of the opposite sign. Fire is enabled in LPJ-GUESS as GLOBFIRM and biogenic emissions are already in the driver, so both are estimable from a biosphere run | `notes/audits/unpriced-terms.md` finding 2, `aeolian/README.md` | blocked on a biosphere run existing on this build, which is BIO-1 and BIO-2, and deliberately not worked around: the burned area and the biogenic emission are LPJ-GUESS output and inventing either would be inventing the vegetation the whole component exists to compute. The chain to reuse is complete -- OPAC carries a soot component beside the sulfate one, `sea_salt_optics.band_average` takes any distribution, and the transport and the two-stream are shared -- so this is a source term and an optics table and nothing else. Note the sign: an absorbing aerosol over this world's bright closed-basin fill warms, which is the same asymmetry `dust_forcing.py` already prices for mineral dust [step: lpj_run, sea_salt_optics] |
-| CLIM-30 | Re-derive the design flux on this build's corrected physics, and DECLARE the extreme-cold land cap in advance rather than inferring it | `WORKFLOW.md` section 5b, `exoplasim/scripts/derive_design_flux.py` | blocked, and on data rather than effort: the script needs two converged sources spanning more than 5 K and only one flux exists on disk, both run payloads being 0.945. The 0.91 bracket, `run_bfa3f5269660`, is an identity stub with no data files. Recovering the purged artifact from `33949a3^` is what makes this urgent rather than routine: the unconstrained winner was 0.8725 dry and 0.875 equivalent, and 0.945 was reproduced ONLY under an extreme-cold cap of 0.0642 that the artifact itself labels `inferred` -- a threshold fitted to the answer it was meant to test, which is the thing section 7 forbids. So the recorded flux is unsupported until the cap is declared ahead of the run, and the declaration is a DECISION nothing in the project settles. Needs a second converged point at roughly 0.91 after the baseline [step: design_flux, baseline_run] |
+| CLIM-30 | DECLARE the extreme-cold land-fraction cap BEFORE the design flux is re-derived, instead of inferring it from the answer. The purged artifact inferred 0.0642, which reproduced 0.945 from an unconstrained winner of 0.8725 dry -- a threshold fitted to the answer it was meant to test, which is what section 7 forbids | `WORKFLOW.md` section 5b, `exoplasim/scripts/derive_design_flux.py` | open, and a DECISION nothing in the project settles: it needs a preference no document fixes, which is why it is a task and the re-derivation is not. Re-deriving is the `design_flux` step, and the second converged point it needs is `bracket_run`; neither is tracked here. Until the cap is declared ahead of the run, the recorded flux is unsupported [step: design_flux] |
 | CLIM-31 | -- | -- | done, see `archive/tasks.md` |
 
 ## CONS -- consistency checking
@@ -149,7 +149,7 @@ Status: `open` | `doing` | `blocked` | `done` | `wontfix` (with a reason).
 
 | id | task | source | status |
 | --- | --- | --- | --- |
-| CYC-1 | Run the stellar cycle off the settled baseline. `WORKFLOW.md` section A2 requires it AFTER a converged baseline and BEFORE the carve verdict, and nothing was tracking it: carving is irreversible, so the terrain ratchets toward the cycle's wet extreme and a verdict taken on the mean climate systematically under-carves. The run also measures the damping factor, known only as 0.24 to 0.6, which converts any future flux amplitude into a climate without another run | `WORKFLOW.md` section A2, `config/planet.yaml` stellar_cycle | open, and ON THE CRITICAL PATH. The cycle binary is built and verified. Length is set in periods of the LONG component, 57 Earth years, not the medium one. The carve list of 2026-08-17 was taken on the mean climate and should be re-taken after this [step: stellar_cycle_run] |
+| CYC-1 | Measure the cycle's DAMPING FACTOR, known only as the range 0.24 to 0.6. That one number converts any future flux amplitude into a climate without another run, so it is worth more than the run that measures it, and it survives every regeneration | `WORKFLOW.md` section A2, `config/planet.yaml` stellar_cycle | open. RUNNING the cycle is not this row and never should have been: `stellar_cycle_run` is a step and `carve_verdict` NEEDS it, so the graph enforces the ordering A2 argues for -- which is what this row was created to track when nothing did. What is left here is the measurement. Length is set in periods of the LONG component, 57 Earth years, not the medium one [step: stellar_cycle_run] |
 
 ## DUST -- the aeolian component
 
@@ -296,11 +296,11 @@ Status: `open` | `doing` | `blocked` | `done` | `wontfix` (with a reason).
 
 ## SPEC -- the stellar spectrum and how the radiation scheme integrates it
 
-1 open of 5 issued.
+0 open of 5 issued.
 
 | id | task | source | status |
 | --- | --- | --- | --- |
-| SPEC-1 | Re-run the baseline on the spectrum the config declares. Every orbit after the first of every run on this build was integrated against a 4965 K blackbody, worth +0.024 on broadband snow albedo and moving every derived surface albedo with it | `notes/audits/physics-review.md` finding 2 | DECIDED 2026-08-17: declare it. Also never a decision -- the config NAMES `k25v` and the model not reading it was a defect against the config, not an option. Half of it has already happened by itself: the driver fix means `continue_exoplasim` stages the spectrum, so orbits 77-80 ran on it. SPEC-2 has landed, so it is now safe to. What remains is the baseline re-run, which loop A does anyway [step: baseline_run] |
+| SPEC-1 | -- | -- | done, see `archive/tasks.md` |
 | SPEC-2 | -- | -- | done, see `archive/tasks.md` |
 | SPEC-3 | -- | -- | done, see `archive/tasks.md` |
 | SPEC-4 | -- | -- | done, see `archive/tasks.md` |
