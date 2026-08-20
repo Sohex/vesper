@@ -104,7 +104,8 @@ none of them is advice.
        python scripts/smoke_test.py            # does the code that makes them?
 
 9. **Read `notes/failure-modes.md`** before quoting a geography number, adding a
-   component, or changing a quantity that more than one script consumes. The one
+   component, changing a quantity that more than one script consumes, or
+   reaching for a measurement to justify a design decision. The one
    most likely to catch you first: a pre-carve build is a *limit*, not a state,
    and pre-carve numbers are what is physically sitting in `source/` at the start
    of every cycle.
@@ -238,6 +239,34 @@ none of them is advice.
   override the rule below. The difference is whether the project's declared
   truth settles it: if it does, that is WORK, and stopping to report it is the
   failure this bullet describes.
+
+- **Every rule above pushes you to build. None of them asks whether the thing
+  should exist, and that question comes FIRST.** Finish the task, do not stop at
+  naming the next step, do not offer a defect as a decision, an undocumented
+  component is not complete: all correct, all pulling one way, and all of them
+  assume the work in front of you is the right work. Nothing here opposes them,
+  so the failure they leave open is building the wrong thing carefully.
+
+  **Deleting is a fix, and it is the one that will not occur to you**, because
+  it leaves nothing to show. When something is wrong the options are repair,
+  replace and REMOVE. Ask what breaks if it simply goes, and ask it before
+  building any mechanism, most of all one built to fix another mechanism.
+
+  Recorded 2026-08-19, three times in one session, always the same shape. A
+  multi-hour run was launched off a tool's formatted output that had been read
+  as a verdict. `pipeline.py` was found parsing `TASKS.md`, a real defect, and
+  the fix EXTRACTED the parsing into a new registered script with a full
+  docstring -- when nothing should have computed it at all, and the extraction
+  made the wrong thing permanent by making it tidy. Then the deletion that
+  followed was justified by counting what the filter selected, which framed a
+  category error as a performance problem and licensed its own return.
+
+  The tell is that the output LOOKS like rigor: a new module with a careful
+  docstring, a measurement with percentages, a tool's output in capitals. Each
+  is a shape that judgement leaves behind, and each can be produced without any.
+  So before adding one, say what question it answers and what result would
+  change your conclusion; if no result would, you are decorating a decision you
+  have already made. `notes/failure-modes.md` class 23.
 
 - **Do not offer a defect as a decision.** A thing is a DECISION only if the
   project's declared truth does not already settle it. `config/planet.yaml`,
