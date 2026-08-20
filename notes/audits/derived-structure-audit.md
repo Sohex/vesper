@@ -29,8 +29,10 @@ code, the configs, the patch files, git history, and in one case the netCDF
 itself. `TASKS.md` and `notes/audits/` were out of scope as tracker rows and
 dated records. Fifty-one findings; the fixes landed with this file. Fixes were
 applied only where the correct statement is derivable from the same document's
-own primitives or from verified code; where the truth would need re-deriving a
-measurement, the finding is recorded under Open instead.
+own primitives or from verified code; where the truth needed re-deriving a
+measurement, the finding was first recorded open and then settled from
+surviving artifacts, git history, or by dated amendment -- the section below
+says how, item by item.
 
 ## Fixed
 
@@ -103,41 +105,50 @@ Counts and partitions that did not hold:
   close" over a table that lists three channels and never enumerates the
   four.
 
-## Open
+## Open, then settled the same day
 
-Recorded, not fixed, because settling each needs a measurement, a regeneration,
-or a re-derivation rather than copy-editing:
+All eight items below were initially recorded open; each was then taken to a
+conclusion on 2026-08-19, by recomputation from surviving artifacts, by git
+archaeology, or by amendment where numbers are pre-registered.
 
-- biosphere/README.md carries two self-consistent, mutually contradictory
-  LPJ-GUESS cost figures (24 s/cell, 1.7 h wall vs the table's 6.2 CPU-h,
-  23 min wall -- 4.4x apart). Needs one dated measurement.
-- parameter-decisions.md says three of six runs fail convergence "on mean TOA
-  alone"; its own table shows one of six over the threshold. Needs the
-  trailing-window means the criterion actually read.
-- water-and-energy-closure.md: the melt-booking subtraction lines cannot be
-  reproduced from the table above them on any single window; the
-  ice/no-ice ocean split's storage column does not sum to its total row; and
-  the "What is left" section still attributes -0.158 to the snapshot
-  weighting after the sign measurement above it refutes the attribution --
-  repairing that changes the downstream 0.18-vs-0.13 spread argument, so it
-  needs re-deriving on one stated window and mask, not editing.
-- forcing-bundle-predictions.md's spread "-0.3 to +1.3" is not the sum of its
-  rows' brackets (+0.35 to +1.37); untouched deliberately, because the note
-  is a pre-registered prediction and its numbers must not move after the
-  fact. The reconciliation (an explicit PHYS-9 downside bracket) belongs in
-  the note's next dated amendment.
-- economic-minerals' "9.62% -> 3.72% and 0.0033" transcribes columns of a
-  deleted report and cannot be re-identified; the post-change row is
-  recoverable by regenerating the report, the pre-change row only from git.
-- lake-solver-validation's quartile table says n = 37 per quartile over 145
-  scored lakes; regenerate the table from
-  `hydrography/analysis/lake_solver_validation.json`.
-- The `surface_classes` step is registered as writing
-  `pedology/analysis/surface_classes.nc` while the script's default writes
-  `pedology/data/<build>/surface_classes.nc` (no file currently exists on
-  disk to arbitrate); a code-or-register fix, not prose.
-- notes/dust.md's fill-share chain (26.6 -> 12.4 vs 16.5 - 4.4 = 12.0) mixes
-  builds without naming them; needs per-build attribution.
+- The two biosphere cost figures were BOTH real measurements in
+  `notes/lpj-guess-porting-audit.md`: 24 s/cell is the shipped demo
+  configuration, 5.46 s/cell the measured `npatch 5` Vesper configuration
+  (times 4,106 cells = the table's 6.2 CPU-h). The README's Cost section had
+  quoted the demo rate for the pipeline's own runs; it now cites the measured
+  one and names the difference.
+- The "three of six pass" convergence tally: the six T21 bracket runs predate
+  UUID naming and their assessments were never committed, so the tally is
+  unreconstructable. The prose now says so, and states what the tabulated
+  climatology means support (one of six over the |mean TOA| < 0.5 criterion
+  then in force).
+- water-and-energy-closure: the melt-booking lines were computed on clean
+  orbit 66 while the table beside them is the climatology -- confirmed by
+  arithmetic (-0.3539 - 0.4222 = -0.7761) -- and are now labelled, with the
+  climatology's own identities (-0.4097, -0.9327) stated from its table. The
+  ice/no-ice storage column is now stated as indicative (its estimator spread
+  exceeds its disagreement with the total; the run is archived, so it cannot
+  be recomputed). "What is left" now matches the re-measured weighting and
+  the Status section: nothing of the -0.292 is attributed, and the spread
+  argument is restated against 0.29 rather than the refuted remainder.
+- forcing-bundle-predictions: amended in place with a dated note -- the rows'
+  brackets sum to +0.35 to +1.37, and the headline's -0.3 endpoint carries an
+  implicit -0.65 K PHYS-9 downside no row states. The registered numbers
+  stand; the A/B scores against them.
+- The economic-minerals "9.62% -> 3.72%" sentence transcribed the three
+  columns of one report row (% land, % above 0.5, mean -- the format
+  `build_downstream_prospectivity.py` prints); it now names them.
+- The lake-solver quartile table was recomputed from the registered JSON:
+  equal-count quartiles are 37/36/36/36 of 145, first row identical to the
+  published one, three rows' statistics shifted slightly.
+- The `surface_classes` path: the artifact is provenance-stamped
+  (`vesper_source_build`), so the register's `pedology/analysis/` location
+  needs no per-build namespacing; the script's default output now matches the
+  register, and the pedology README follows.
+- The dust fill-share chain resolves by naming builds: 26.6% on the uncarved
+  base, 16.5% on `carved-zoned-v4` (where the lake solution exists;
+  `parameter-decisions.md` dates that figure), 12.4% on `carved-zoned-v5`;
+  the note now attributes each number.
 
 ## Accepted
 

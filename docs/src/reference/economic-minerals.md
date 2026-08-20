@@ -296,8 +296,11 @@ outcome.** Replacing borate's arc host set with lithium's -- dropping
 `arc_basalt`, adding `rift_bimodal` and the half-weight plutonics -- left
 `brine_lithium` and `brine_borate` identical in every key but `name`: same
 host set, same `require_no_overflow`, same grounding. **Measured on `precarve-craton`
-2026-08-18**, regenerating produced bit-identical fields, both at 9.62% of land
-nonzero and mean 0.0145, against borate's previous 9.62% -> 3.72% and 0.0033. Two fields that are identical by construction carry no information the
+2026-08-18**, regenerating produced bit-identical fields, both at 9.62% of
+land nonzero and mean 0.0145. Borate's previous report row, on its old hosts,
+read 9.62% of land nonzero, 3.72% above 0.5, mean 0.0033 -- the report's
+three columns: the same nonzero support, with the weights and therefore the
+mean moving. Two fields that are identical by construction carry no information the
 one carries, and a reader seeing two names infers two predictions. That is the
 error this note already names for tin and gem placers, where the response was to
 not emit them: "Placing them would be placing granite twice under different

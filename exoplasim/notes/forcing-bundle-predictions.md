@@ -188,6 +188,12 @@ predictions were soft.
 -0.3 to +1.3, still dominated by the water vapour level but no longer
 one-sided: SPEC-5 is the one term of comparable size and opposite sign.**
 
+*Amended 2026-08-19, so the spread is reconstructable: the rows' stated
+brackets sum to +0.35 to +1.37, not -0.3 to +1.3. The difference is a
+downside of about -0.65 K carried implicitly by PHYS-9 -- the one row with no
+stated bracket, and the prediction the table itself calls softest. The
+headline numbers stand as registered; the A/B scores against them.*
+
 The PHYS-9 arithmetic, shown because a units slip here is exactly the kind of
 error this project documents: the term is linear in the PRODUCT
 `h2osww * h2oswl`. The product moves from 1.3456 to 1.3456 x 1.127 = 1.5165,

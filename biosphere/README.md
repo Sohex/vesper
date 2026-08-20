@@ -293,9 +293,12 @@ wanted.
 
 ## Cost
 
-4106 land gridcells at T42, about 24 s each for 550 years, so roughly 1.7 hours
-across 16 cores. The vegetation loop is not the expensive half of this
-iteration; ExoPlaSim is.
+5.46 s of CPU per gridcell for 530 years at `npatch 5`, measured
+(`notes/lpj-guess-porting-audit.md`), so 4,106 land cells at T42 are about
+6.2 CPU-hours and 23 minutes of wall on 16 ranks -- the resolution table
+above. The shipped demo configuration runs nearer 24 s per cell; the
+difference is the patch count. The vegetation loop is not the expensive half
+of this iteration; ExoPlaSim is.
 
 ## Running it
 

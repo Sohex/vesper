@@ -73,12 +73,13 @@ this world's expected configuration.
 
 Two corrections, both reducing it:
 
-- **Carving removes fill.** Two carve passes took it from 26.6% to 12.4% of land.
-  The uncarved figure describes a planet the drainage verdict says does not
-  survive.
-- **Wet fill is not a dust source.** On the build where a lake solution exists,
-  4.4 points of the 16.5% sit under water, leaving **12.0% of land as dry
-  closed-basin fill**. A flooded playa emits nothing.
+- **Carving removes fill.** Two carve passes took the fill share of land from
+  26.6% on the uncarved base to 16.5% on `carved-zoned-v4` and 12.4% on
+  `carved-zoned-v5`. The uncarved figure describes a planet the drainage
+  verdict says does not survive.
+- **Wet fill is not a dust source.** On `carved-zoned-v4`, the build where a
+  lake solution exists, 4.4 points of its 16.5% sit under water, leaving
+  **12.0% of land as dry closed-basin fill**. A flooded playa emits nothing.
 
 So the realistic dry-source area is around 10 to 12% of land. Earth's
 *preferential* dust sources -- topographic lows holding fine sediment, not

@@ -49,7 +49,8 @@ which others it also SATISFIED, in a bitmask. A rule that never fires and a rule
 that always fires are both bugs; neither is visible without that record, and the
 report states it as pass or fail rather than as a number to read.
 
-Writes `data/<source_build>/surface_classes.nc` on the native mesh, plus
+Writes `analysis/surface_classes.nc` on the native mesh, stamped with its
+source build, plus
 `analysis/surface_classes_report.json`. It needs `brine_paths.py` to have run,
 because the duricrust ion gates and the silcrete and diatomite silica gates read
 the per-basin chemistry, and there is deliberately no fallback: guessing an ion

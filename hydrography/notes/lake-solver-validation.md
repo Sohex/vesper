@@ -107,14 +107,15 @@ and it does.
 
 ### The failure is two-sided, and each side names its own missing term
 
-By runoff quartile, which is a post-hoc split and labelled as one:
+By runoff quartile (equal-count, 37/36/36/36 of the 145 scored), a post-hoc
+split and labelled as one; recomputed from the registered JSON:
 
 | catchment runoff | n | median abs log10 | bias |
 | --- | ---: | ---: | ---: |
 | 0.0 - 5.7 mm/yr | 37 | 0.888 | **-0.888** |
-| 5.7 - 21.6 | 37 | 0.374 | +0.052 |
-| 21.6 - 67.5 | 37 | 0.443 | +0.428 |
-| 67.5 - 467.6 | 37 | 0.734 | **+0.734** |
+| 5.8 - 21.6 | 36 | 0.337 | +0.077 |
+| 22.5 - 67.5 | 36 | 0.522 | +0.436 |
+| 67.9 - 467.6 | 36 | 0.746 | **+0.746** |
 
 **The wet tail over-predicts by about fivefold, and the term it is missing is the
 spill cap.** The relation lets a lake grow until evaporation consumes its supply.

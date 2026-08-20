@@ -611,7 +611,7 @@ def main() -> None:
         }
 
     # --- write ------------------------------------------------------------
-    out = args.output or (COMPONENT_ROOT / "data" / build / "surface_classes.nc")
+    out = args.output or (COMPONENT_ROOT / "analysis" / "surface_classes.nc")
     out.parent.mkdir(parents=True, exist_ok=True)
     with nc.Dataset(out, "w", format="NETCDF4") as ds:
         ds.createDimension("region", substrate.size)

@@ -358,11 +358,14 @@ climatology and -0.3539 on orbit 66. Some of that spread is the corrupt first
 output record, which contaminates `hfss` and `hfls` and therefore `hfns` on every
 `NLOWIO = 1` run, and the earlier three were all of that kind.
 
-**What survives.** The melt booking accounts for -0.4221 of it:
-`hfns - (rss + rls + hfss + hfls)` is the latent heat of fusion consumed by
-snowmelt, which `hfns` correctly includes. That leaves
-`ntr - (rss + rls + hfss + hfls) = -0.7761` as the quantity still unexplained,
-against a gridpointd physics sum of +0.4763.
+**What survives.** The melt booking accounts for most of it. On the clean
+orbit 66, `hfns - (rss + rls + hfss + hfls)` -- the latent heat of fusion
+consumed by snowmelt, which `hfns` correctly includes -- is -0.4222, leaving
+`ntr - (rss + rls + hfss + hfls) = -0.7761` unexplained on that orbit; a
+gridpoint physics sum of +0.4763 was recorded against it. On the climatology
+in the table above the same identities give -0.4097 and -0.9327, but that
+climatology's `hfss` and `hfls` carry the corrupt first record, so the clean
+ten-orbit block below is the measurement to quote.
 
 ## The budget on ten clean orbits, and what carries the gap
 
@@ -701,7 +704,10 @@ the window:
 | ice or snow at some point | 0.0517 | +0.0183 | -0.0503 | **+0.0687** |
 
 Per unit area of the ice-free cells that is -0.2917 W/m2 delivered and
--0.0138 stored.
+-0.0138 stored. The flux column is exact and sums to the ocean row; the
+storage column does not (-0.0575 summed against -0.0349), because storage
+here comes from the ten-orbit trend whose four estimators span 0.18 W/m2 (the
+next section) -- read it as indicative, not as a partition.
 
 On those cells the slab identity is exact by the model's own construction, and
 this is what makes the failure a finding rather than a mismatch of two
@@ -883,20 +889,24 @@ records cover `182 * 32 = 5824` of the orbit's 5850 timesteps, so the last 26 --
 0.44% of every orbit -- are never written at all. An annual mean from a binned
 file is a mean over 99.56% of the orbit however it is weighted.
 
-### What is left, and it is not much
+### What is left, and it is the whole of it
 
-The weighting accounts for -0.158 of the -0.292 W/m2 per unit area. The
-remaining -0.13 cannot be pinned on the block it was measured on, because the
-storage there has to come from a ten-orbit trend and that trend is not
-determined to better than the remainder: the same 10-orbit heat content on
-orbits 67-76 gives -0.0138 W/m2 as a least-squares slope of the ten annual
-means, -0.0372 as a least-squares slope of all 120 bins, -0.0548 as the
-difference of the first and last annual means, and -0.1958 as the difference of
-the first and last bins. A spread of 0.18 on a quantity being asked for 0.13.
+Nothing of the -0.292 W/m2 per unit area is attributed: the weighting error
+on the ice-free ocean is +0.141 per unit area, the wrong sign to explain any
+of it (the table above). Nor can the residual be pinned on the block it was
+measured on, because the storage there has to come from a ten-orbit trend and
+that trend's estimators disagree by more than half the quantity: the same
+10-orbit heat content on orbits 67-76 gives -0.0138 W/m2 as a least-squares
+slope of the ten annual means, -0.0372 as a least-squares slope of all 120
+bins, -0.0548 as the difference of the first and last annual means, and
+-0.1958 as the difference of the first and last bins. A spread of 0.18 on a
+quantity being asked for 0.29.
 
-So the surface half of the residual is **structural bookkeeping, not physics.**
-D6 says the model's ice-free ocean conserves energy exactly wherever the
-question is put to it over a window the model itself defines.
+What DOES close is the slab identity itself: D6 says the model's ice-free
+ocean conserves energy exactly wherever the question is put to it over a
+window the model itself defines. So the residual is unattributed rather than
+explained -- a fact about annual-mean bookkeeping against a trend estimator,
+not about the slab -- and the Status section says what it waits on.
 
 **The same weighting acts on every annual mean this project takes from a 12-bin
 file.** On orbits 67-76 it is worth -0.0255 W/m2 on `hfns` and -0.0653 on
@@ -911,7 +921,7 @@ cycle is largest.
 call, the way `MOST.NNNNN.nc` already is, so that the next climatology block
 carries them. Then this closure runs on the block the verdicts are read from
 rather than on the one orbit that happened to survive, the ten-orbit storage
-trend is replaced by an exact endpoint difference, and the remaining -0.13
+trend is replaced by an exact endpoint difference, and the remaining residual
 either is there or is not. That costs 200 MB an orbit and no model time.
 
 ## What this changes for the convergence criterion

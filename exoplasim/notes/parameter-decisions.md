@@ -649,8 +649,11 @@ vegetation feedback actually closed, or at minimum a run with `vegetation=2`.
 Every case still carries a negative TOA balance, from -0.63 to -0.12 W/m2, so
 each reported temperature is an upper bound on its own equilibrium. The
 equilibrium estimates above apply the measured 0.94 K per W/m2 to that residual.
-Only three of the six pass the full convergence test unaided; the rest miss on
-mean TOA alone. They should be extended before any of this feeds a carve verdict.
+Not all six passed the convergence test of the time unaided. The test read
+trailing-window means that were not preserved when these runs were archived,
+so the exact tally is not reconstructable; against the tabulated climatology
+means, one of the six exceeds the |mean TOA| < 0.5 W/m2 criterion then in
+force. They should be extended before any of this feeds a carve verdict.
 
 Glaciers formed in none of the six. Mean snow never exceeded 7 mm, so the module
 stayed inert throughout and this bracket measures snow and sea-ice albedo
