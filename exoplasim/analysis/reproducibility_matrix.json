@@ -1,0 +1,529 @@
+{
+  "generated": "2026-08-20T22:32:34+00:00",
+  "generator": "exoplasim/scripts/reproducibility_matrix.py",
+  "task": "CLIM-44",
+  "bed": "/tmp/claude-1000/-home-cfutro-docs-world/4cc780ee-4424-414e-8637-028da5166a94/scratchpad/clim44/base_current",
+  "repeats": 3,
+  "host_cpu_count": 32,
+  "binaries": {
+    "most_plasim_t42_l10_p8.x": "a5da30c8555df49fe7dadb120c8566efb85dca848a80bea600d0cdf3ed87e2c6",
+    "most_plasim_t42_l10_p16.x": "02a11371f5d9fac33314d2397dc3cfb4a90030a7f3f337a6faed742f19aad240"
+  },
+  "model_source": "aeafe3cdb04e31d02ca3c5e64cf31b7761188f32 The radiation carries N aerosols: merge the multi-species work",
+  "hypotheses": {
+    "H1_output_writing": "NOUTPUT = 0 reproduces, NOUTPUT = 1 does not, at both rank counts",
+    "H2_rank_reduction_order": "8 ranks does not reproduce, 16 ranks does, at both output settings",
+    "H3_reproducible_now": "every cell reproduces, CLIM-39's own configuration included"
+  },
+  "cells": {
+    "8_0_23": {
+      "ranks": 8,
+      "noutput": 0,
+      "steps": 23,
+      "repeats": [
+        {
+          "seconds": 2.07,
+          "sha256": {
+            "plasim_status": "babd0c7e4d482483d7eac02ff9e73a5a4dd5c758cf86c901859b46f4f8067659",
+            "plasim_output": null,
+            "plasim_snapshot": null,
+            "plasim_diag": "151c87fdb8b6b034bbce6a0cff838234fb2a7f96a29b7bf0be192c7b868e7074"
+          },
+          "bytes": {
+            "plasim_status": 26692764,
+            "plasim_output": null,
+            "plasim_snapshot": null,
+            "plasim_diag": 31501
+          }
+        },
+        {
+          "seconds": 2.02,
+          "sha256": {
+            "plasim_status": "babd0c7e4d482483d7eac02ff9e73a5a4dd5c758cf86c901859b46f4f8067659",
+            "plasim_output": null,
+            "plasim_snapshot": null,
+            "plasim_diag": "151c87fdb8b6b034bbce6a0cff838234fb2a7f96a29b7bf0be192c7b868e7074"
+          },
+          "bytes": {
+            "plasim_status": 26692764,
+            "plasim_output": null,
+            "plasim_snapshot": null,
+            "plasim_diag": 31501
+          }
+        },
+        {
+          "seconds": 2.0,
+          "sha256": {
+            "plasim_status": "babd0c7e4d482483d7eac02ff9e73a5a4dd5c758cf86c901859b46f4f8067659",
+            "plasim_output": null,
+            "plasim_snapshot": null,
+            "plasim_diag": "151c87fdb8b6b034bbce6a0cff838234fb2a7f96a29b7bf0be192c7b868e7074"
+          },
+          "bytes": {
+            "plasim_status": 26692764,
+            "plasim_output": null,
+            "plasim_snapshot": null,
+            "plasim_diag": 31501
+          }
+        }
+      ],
+      "artifacts_produced": [
+        "plasim_diag",
+        "plasim_status"
+      ],
+      "artifacts_disagreeing": [],
+      "output_bytes": 0,
+      "reproducible": true,
+      "vacuous": false
+    },
+    "8_0_56": {
+      "ranks": 8,
+      "noutput": 0,
+      "steps": 56,
+      "repeats": [
+        {
+          "seconds": 2.77,
+          "sha256": {
+            "plasim_status": "b0a0932c8366a06a322a89973f9d89ca1d851ff3cfa425d921e6cbd909872b00",
+            "plasim_output": null,
+            "plasim_snapshot": null,
+            "plasim_diag": "120c33150e22f7e018d63377f953fa916b3b8ca6deea26569b260e0408ca645d"
+          },
+          "bytes": {
+            "plasim_status": 26692764,
+            "plasim_output": null,
+            "plasim_snapshot": null,
+            "plasim_diag": 31501
+          }
+        },
+        {
+          "seconds": 2.65,
+          "sha256": {
+            "plasim_status": "b0a0932c8366a06a322a89973f9d89ca1d851ff3cfa425d921e6cbd909872b00",
+            "plasim_output": null,
+            "plasim_snapshot": null,
+            "plasim_diag": "120c33150e22f7e018d63377f953fa916b3b8ca6deea26569b260e0408ca645d"
+          },
+          "bytes": {
+            "plasim_status": 26692764,
+            "plasim_output": null,
+            "plasim_snapshot": null,
+            "plasim_diag": 31501
+          }
+        },
+        {
+          "seconds": 2.64,
+          "sha256": {
+            "plasim_status": "b0a0932c8366a06a322a89973f9d89ca1d851ff3cfa425d921e6cbd909872b00",
+            "plasim_output": null,
+            "plasim_snapshot": null,
+            "plasim_diag": "120c33150e22f7e018d63377f953fa916b3b8ca6deea26569b260e0408ca645d"
+          },
+          "bytes": {
+            "plasim_status": 26692764,
+            "plasim_output": null,
+            "plasim_snapshot": null,
+            "plasim_diag": 31542
+          }
+        }
+      ],
+      "artifacts_produced": [
+        "plasim_diag",
+        "plasim_status"
+      ],
+      "artifacts_disagreeing": [],
+      "output_bytes": 0,
+      "reproducible": true,
+      "vacuous": false
+    },
+    "8_1_23": {
+      "ranks": 8,
+      "noutput": 1,
+      "steps": 23,
+      "repeats": [
+        {
+          "seconds": 1.97,
+          "sha256": {
+            "plasim_status": "babd0c7e4d482483d7eac02ff9e73a5a4dd5c758cf86c901859b46f4f8067659",
+            "plasim_output": "88d97980faef9b60e637c88e829e4c191dbd0336f1bc127e19f79fcdce8b9240",
+            "plasim_snapshot": "88d97980faef9b60e637c88e829e4c191dbd0336f1bc127e19f79fcdce8b9240",
+            "plasim_diag": "fbafbba4a3d60310f2ac4d881feb5f43d57360751504e48e6c7aa15bb79aa237"
+          },
+          "bytes": {
+            "plasim_status": 26692764,
+            "plasim_output": 32816,
+            "plasim_snapshot": 32816,
+            "plasim_diag": 31501
+          }
+        },
+        {
+          "seconds": 2.0,
+          "sha256": {
+            "plasim_status": "babd0c7e4d482483d7eac02ff9e73a5a4dd5c758cf86c901859b46f4f8067659",
+            "plasim_output": "88d97980faef9b60e637c88e829e4c191dbd0336f1bc127e19f79fcdce8b9240",
+            "plasim_snapshot": "88d97980faef9b60e637c88e829e4c191dbd0336f1bc127e19f79fcdce8b9240",
+            "plasim_diag": "fbafbba4a3d60310f2ac4d881feb5f43d57360751504e48e6c7aa15bb79aa237"
+          },
+          "bytes": {
+            "plasim_status": 26692764,
+            "plasim_output": 32816,
+            "plasim_snapshot": 32816,
+            "plasim_diag": 31501
+          }
+        },
+        {
+          "seconds": 2.1,
+          "sha256": {
+            "plasim_status": "babd0c7e4d482483d7eac02ff9e73a5a4dd5c758cf86c901859b46f4f8067659",
+            "plasim_output": "88d97980faef9b60e637c88e829e4c191dbd0336f1bc127e19f79fcdce8b9240",
+            "plasim_snapshot": "88d97980faef9b60e637c88e829e4c191dbd0336f1bc127e19f79fcdce8b9240",
+            "plasim_diag": "fbafbba4a3d60310f2ac4d881feb5f43d57360751504e48e6c7aa15bb79aa237"
+          },
+          "bytes": {
+            "plasim_status": 26692764,
+            "plasim_output": 32816,
+            "plasim_snapshot": 32816,
+            "plasim_diag": 31501
+          }
+        }
+      ],
+      "artifacts_produced": [
+        "plasim_diag",
+        "plasim_output",
+        "plasim_snapshot",
+        "plasim_status"
+      ],
+      "artifacts_disagreeing": [],
+      "output_bytes": 32816,
+      "reproducible": null,
+      "vacuous": true
+    },
+    "8_1_56": {
+      "ranks": 8,
+      "noutput": 1,
+      "steps": 56,
+      "repeats": [
+        {
+          "seconds": 2.72,
+          "sha256": {
+            "plasim_status": "b0a0932c8366a06a322a89973f9d89ca1d851ff3cfa425d921e6cbd909872b00",
+            "plasim_output": "845e125233e0604045e73482dc45bf7279011750027ca24f5d04ef0ae55efce6",
+            "plasim_snapshot": "88d97980faef9b60e637c88e829e4c191dbd0336f1bc127e19f79fcdce8b9240",
+            "plasim_diag": "02286c599f64389dc4cbaa92a56851ba9fc6d319cc7fc049a295fbb1357ebfdb"
+          },
+          "bytes": {
+            "plasim_status": 26692764,
+            "plasim_output": 13413736,
+            "plasim_snapshot": 32816,
+            "plasim_diag": 31542
+          }
+        },
+        {
+          "seconds": 2.66,
+          "sha256": {
+            "plasim_status": "b0a0932c8366a06a322a89973f9d89ca1d851ff3cfa425d921e6cbd909872b00",
+            "plasim_output": "845e125233e0604045e73482dc45bf7279011750027ca24f5d04ef0ae55efce6",
+            "plasim_snapshot": "88d97980faef9b60e637c88e829e4c191dbd0336f1bc127e19f79fcdce8b9240",
+            "plasim_diag": "02286c599f64389dc4cbaa92a56851ba9fc6d319cc7fc049a295fbb1357ebfdb"
+          },
+          "bytes": {
+            "plasim_status": 26692764,
+            "plasim_output": 13413736,
+            "plasim_snapshot": 32816,
+            "plasim_diag": 31501
+          }
+        },
+        {
+          "seconds": 2.65,
+          "sha256": {
+            "plasim_status": "b0a0932c8366a06a322a89973f9d89ca1d851ff3cfa425d921e6cbd909872b00",
+            "plasim_output": "845e125233e0604045e73482dc45bf7279011750027ca24f5d04ef0ae55efce6",
+            "plasim_snapshot": "88d97980faef9b60e637c88e829e4c191dbd0336f1bc127e19f79fcdce8b9240",
+            "plasim_diag": "02286c599f64389dc4cbaa92a56851ba9fc6d319cc7fc049a295fbb1357ebfdb"
+          },
+          "bytes": {
+            "plasim_status": 26692764,
+            "plasim_output": 13413736,
+            "plasim_snapshot": 32816,
+            "plasim_diag": 31501
+          }
+        }
+      ],
+      "artifacts_produced": [
+        "plasim_diag",
+        "plasim_output",
+        "plasim_snapshot",
+        "plasim_status"
+      ],
+      "artifacts_disagreeing": [],
+      "output_bytes": 13413736,
+      "reproducible": true,
+      "vacuous": false
+    },
+    "16_0_23": {
+      "ranks": 16,
+      "noutput": 0,
+      "steps": 23,
+      "repeats": [
+        {
+          "seconds": 2.17,
+          "sha256": {
+            "plasim_status": "7da85845f27dd105268ac8a03404329396d353f707873af3a033beeb887f7113",
+            "plasim_output": null,
+            "plasim_snapshot": null,
+            "plasim_diag": "543d684b5684c7a9a7864316e1e4aaa659f86d8296d740cd42836df665eb438b"
+          },
+          "bytes": {
+            "plasim_status": 26695452,
+            "plasim_output": null,
+            "plasim_snapshot": null,
+            "plasim_diag": 31982
+          }
+        },
+        {
+          "seconds": 2.08,
+          "sha256": {
+            "plasim_status": "7da85845f27dd105268ac8a03404329396d353f707873af3a033beeb887f7113",
+            "plasim_output": null,
+            "plasim_snapshot": null,
+            "plasim_diag": "543d684b5684c7a9a7864316e1e4aaa659f86d8296d740cd42836df665eb438b"
+          },
+          "bytes": {
+            "plasim_status": 26695452,
+            "plasim_output": null,
+            "plasim_snapshot": null,
+            "plasim_diag": 31941
+          }
+        },
+        {
+          "seconds": 2.17,
+          "sha256": {
+            "plasim_status": "7da85845f27dd105268ac8a03404329396d353f707873af3a033beeb887f7113",
+            "plasim_output": null,
+            "plasim_snapshot": null,
+            "plasim_diag": "543d684b5684c7a9a7864316e1e4aaa659f86d8296d740cd42836df665eb438b"
+          },
+          "bytes": {
+            "plasim_status": 26695452,
+            "plasim_output": null,
+            "plasim_snapshot": null,
+            "plasim_diag": 31941
+          }
+        }
+      ],
+      "artifacts_produced": [
+        "plasim_diag",
+        "plasim_status"
+      ],
+      "artifacts_disagreeing": [],
+      "output_bytes": 0,
+      "reproducible": true,
+      "vacuous": false
+    },
+    "16_0_56": {
+      "ranks": 16,
+      "noutput": 0,
+      "steps": 56,
+      "repeats": [
+        {
+          "seconds": 2.86,
+          "sha256": {
+            "plasim_status": "d123a017544b68a25f4879cd994a56be9eb8721be1ae8a310f3cf0f2b423c94e",
+            "plasim_output": null,
+            "plasim_snapshot": null,
+            "plasim_diag": "90f5a21ea55a685910b308e1cd079a017a930b91f1b2905d7c8e69e1f9eccbb5"
+          },
+          "bytes": {
+            "plasim_status": 26695452,
+            "plasim_output": null,
+            "plasim_snapshot": null,
+            "plasim_diag": 31941
+          }
+        },
+        {
+          "seconds": 2.88,
+          "sha256": {
+            "plasim_status": "d123a017544b68a25f4879cd994a56be9eb8721be1ae8a310f3cf0f2b423c94e",
+            "plasim_output": null,
+            "plasim_snapshot": null,
+            "plasim_diag": "90f5a21ea55a685910b308e1cd079a017a930b91f1b2905d7c8e69e1f9eccbb5"
+          },
+          "bytes": {
+            "plasim_status": 26695452,
+            "plasim_output": null,
+            "plasim_snapshot": null,
+            "plasim_diag": 31982
+          }
+        },
+        {
+          "seconds": 2.87,
+          "sha256": {
+            "plasim_status": "d123a017544b68a25f4879cd994a56be9eb8721be1ae8a310f3cf0f2b423c94e",
+            "plasim_output": null,
+            "plasim_snapshot": null,
+            "plasim_diag": "90f5a21ea55a685910b308e1cd079a017a930b91f1b2905d7c8e69e1f9eccbb5"
+          },
+          "bytes": {
+            "plasim_status": 26695452,
+            "plasim_output": null,
+            "plasim_snapshot": null,
+            "plasim_diag": 31941
+          }
+        }
+      ],
+      "artifacts_produced": [
+        "plasim_diag",
+        "plasim_status"
+      ],
+      "artifacts_disagreeing": [],
+      "output_bytes": 0,
+      "reproducible": true,
+      "vacuous": false
+    },
+    "16_1_23": {
+      "ranks": 16,
+      "noutput": 1,
+      "steps": 23,
+      "repeats": [
+        {
+          "seconds": 2.2,
+          "sha256": {
+            "plasim_status": "7da85845f27dd105268ac8a03404329396d353f707873af3a033beeb887f7113",
+            "plasim_output": "88d97980faef9b60e637c88e829e4c191dbd0336f1bc127e19f79fcdce8b9240",
+            "plasim_snapshot": "88d97980faef9b60e637c88e829e4c191dbd0336f1bc127e19f79fcdce8b9240",
+            "plasim_diag": "b91f8124f77c919aa5ddc6ef930841e394dc11955f05105be4597d82aa0e8726"
+          },
+          "bytes": {
+            "plasim_status": 26695452,
+            "plasim_output": 32816,
+            "plasim_snapshot": 32816,
+            "plasim_diag": 31941
+          }
+        },
+        {
+          "seconds": 2.09,
+          "sha256": {
+            "plasim_status": "7da85845f27dd105268ac8a03404329396d353f707873af3a033beeb887f7113",
+            "plasim_output": "88d97980faef9b60e637c88e829e4c191dbd0336f1bc127e19f79fcdce8b9240",
+            "plasim_snapshot": "88d97980faef9b60e637c88e829e4c191dbd0336f1bc127e19f79fcdce8b9240",
+            "plasim_diag": "b91f8124f77c919aa5ddc6ef930841e394dc11955f05105be4597d82aa0e8726"
+          },
+          "bytes": {
+            "plasim_status": 26695452,
+            "plasim_output": 32816,
+            "plasim_snapshot": 32816,
+            "plasim_diag": 31982
+          }
+        },
+        {
+          "seconds": 2.1,
+          "sha256": {
+            "plasim_status": "7da85845f27dd105268ac8a03404329396d353f707873af3a033beeb887f7113",
+            "plasim_output": "88d97980faef9b60e637c88e829e4c191dbd0336f1bc127e19f79fcdce8b9240",
+            "plasim_snapshot": "88d97980faef9b60e637c88e829e4c191dbd0336f1bc127e19f79fcdce8b9240",
+            "plasim_diag": "b91f8124f77c919aa5ddc6ef930841e394dc11955f05105be4597d82aa0e8726"
+          },
+          "bytes": {
+            "plasim_status": 26695452,
+            "plasim_output": 32816,
+            "plasim_snapshot": 32816,
+            "plasim_diag": 31982
+          }
+        }
+      ],
+      "artifacts_produced": [
+        "plasim_diag",
+        "plasim_output",
+        "plasim_snapshot",
+        "plasim_status"
+      ],
+      "artifacts_disagreeing": [],
+      "output_bytes": 32816,
+      "reproducible": null,
+      "vacuous": true
+    },
+    "16_1_56": {
+      "ranks": 16,
+      "noutput": 1,
+      "steps": 56,
+      "repeats": [
+        {
+          "seconds": 2.82,
+          "sha256": {
+            "plasim_status": "d123a017544b68a25f4879cd994a56be9eb8721be1ae8a310f3cf0f2b423c94e",
+            "plasim_output": "554d78d6eae97b2826d6c24252014fbc4e8547535b9c77349069fac26282a913",
+            "plasim_snapshot": "88d97980faef9b60e637c88e829e4c191dbd0336f1bc127e19f79fcdce8b9240",
+            "plasim_diag": "125b217930ea8e8541d18a4e1ed5d301d88f1925faa023ecdeb4fcf5fde1fb0b"
+          },
+          "bytes": {
+            "plasim_status": 26695452,
+            "plasim_output": 13413736,
+            "plasim_snapshot": 32816,
+            "plasim_diag": 31982
+          }
+        },
+        {
+          "seconds": 2.95,
+          "sha256": {
+            "plasim_status": "d123a017544b68a25f4879cd994a56be9eb8721be1ae8a310f3cf0f2b423c94e",
+            "plasim_output": "554d78d6eae97b2826d6c24252014fbc4e8547535b9c77349069fac26282a913",
+            "plasim_snapshot": "88d97980faef9b60e637c88e829e4c191dbd0336f1bc127e19f79fcdce8b9240",
+            "plasim_diag": "125b217930ea8e8541d18a4e1ed5d301d88f1925faa023ecdeb4fcf5fde1fb0b"
+          },
+          "bytes": {
+            "plasim_status": 26695452,
+            "plasim_output": 13413736,
+            "plasim_snapshot": 32816,
+            "plasim_diag": 31982
+          }
+        },
+        {
+          "seconds": 2.86,
+          "sha256": {
+            "plasim_status": "d123a017544b68a25f4879cd994a56be9eb8721be1ae8a310f3cf0f2b423c94e",
+            "plasim_output": "554d78d6eae97b2826d6c24252014fbc4e8547535b9c77349069fac26282a913",
+            "plasim_snapshot": "88d97980faef9b60e637c88e829e4c191dbd0336f1bc127e19f79fcdce8b9240",
+            "plasim_diag": "125b217930ea8e8541d18a4e1ed5d301d88f1925faa023ecdeb4fcf5fde1fb0b"
+          },
+          "bytes": {
+            "plasim_status": 26695452,
+            "plasim_output": 13413736,
+            "plasim_snapshot": 32816,
+            "plasim_diag": 31941
+          }
+        }
+      ],
+      "artifacts_produced": [
+        "plasim_diag",
+        "plasim_output",
+        "plasim_snapshot",
+        "plasim_status"
+      ],
+      "artifacts_disagreeing": [],
+      "output_bytes": 13413736,
+      "reproducible": true,
+      "vacuous": false
+    }
+  },
+  "verdict": {
+    "per_hypothesis": {
+      "H1_output_writing": false,
+      "H2_rank_reduction_order": false,
+      "H3_reproducible_now": true
+    },
+    "survivors": [
+      "H3_reproducible_now"
+    ],
+    "vacuous_cells": [
+      "16_1_23",
+      "8_1_23"
+    ],
+    "across_rank_counts": {
+      "noutput=0,steps=56": "DIFFERS across rank counts",
+      "noutput=0,steps=23": "DIFFERS across rank counts",
+      "noutput=1,steps=56": "DIFFERS across rank counts",
+      "noutput=1,steps=23": "DIFFERS across rank counts"
+    },
+    "reading": "H3_reproducible_now"
+  }
+}

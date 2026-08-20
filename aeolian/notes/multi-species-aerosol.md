@@ -164,33 +164,30 @@ Built and measured 2026-08-20 at T42 L10 on 8 ranks, 8-byte precision.
 full record; what belongs here is the one result that changes how any future
 test in this project is written.
 
-**The reduction identity passes at one timestep.** The same configuration
-through a binary built from the base and through the changed one gives
-bit-identical gridpoint output.
+**The reduction identity was recorded as passing at one timestep**, the same
+configuration through a binary built from the base and through the changed one
+giving bit-identical gridpoint output.
 
-**And one timestep is the horizon at which that claim can be made, because the
-model is not run-to-run reproducible beyond a few steps.** The control is the
-same binary run twice on the same inputs:
+**That claim was made at one timestep because a same-binary control appeared to
+show the model diverging by sixteen. IT DOES NOT.** CLIM-44 re-took the control
+as a declared factorial -- 8 and 16 ranks, output off and on, segments crossing
+no write and two, three repeats each -- and every measurable cell is
+bit-identical in `plasim_status`, `plasim_output`, `plasim_snapshot` and the
+model half of `plasim_diag`. The same result holds on the pre-fix binaries this
+worktree was built against, so it is not something the intervening fixes bought.
 
-| horizon | same binary, twice |
-| --- | --- |
-| 1 timestep | output bit-identical |
-| 16 timesteps | output differs, at byte 40485 |
+Two things were wrong with the control here. The rank count was not held fixed
+across everything it was compared with, and 8 against 16 ranks really does
+change the answer, at round-off and growing. And a gridpoint record is written
+on `mod(nstep, nafter) == 0` over the ABSOLUTE step count, so on this project's
+production restart neither a 1-step nor a 16-step segment writes one at all: the
+comparison that reported agreement at one timestep could not have failed.
 
-Old-versus-new at 16 timesteps differs at that same byte, growing from 2.4e-6
-relative in the first differing record to order 1 by the end. That is a chaotic
-amplification of a rounding-level seed the model produces on its own, not an
-effect of any code change. The restart file `plasim_status` is worse: it differs
-between two runs of one binary even at ONE timestep, so it is not a valid
-comparison target at all, and a bitwise diff of it will report a difference that
-means nothing.
-
-The consequence is general. Any A/B in this project that expects bit-identity
-has to establish its own reproducibility horizon first, with the same-binary
-control, or it will read the model's own non-determinism as a result. Where the
-non-determinism comes from is not established here; 8 ranks and MPI reduction
-ordering is the obvious first place to look, and a run at one rank would
-separate it from anything serial. That is unowned work and needs a task row.
+**The reduction identity is therefore UNVERIFIED rather than refuted.** It was
+stated at the one horizon that turns out to carry no output, so it needs
+re-running at a segment length chosen against the write cadence, at a fixed rank
+count. `notes/audits/model-reproducibility.md` is the measurement and CLIM-45
+is the re-test.
 
 **Column conservation holds per species**, against a column maximum of 0.4896:
 1.30e-18 for one species, and 8.67e-19 and exactly 0.0 for two, with the second

@@ -326,6 +326,25 @@ executable produced. `binary_manifest.json` records the compiler and the flags
 beside the source shas for the same reason, so an executable whose sha has moved
 is attributed rather than merely noticed.
 
+**A bed carries the binaries it was STARTED with, and `--verify` cannot see it.**
+Two questions look alike and are not: "are the installed binaries current", which
+`rebuild_binaries.py --verify` answers, and "is this run using them", which it
+cannot. A working directory copied out of `exoplasim/runs/` holds executables
+frozen at the moment that run began, so a bed built from a recent run measures a
+model source nobody named -- it runs, it is self-consistent, and it is about the
+wrong code. Hash the executables a bed actually contains against
+`binary_manifest.json` before measuring anything with it;
+`reproducibility_matrix.py:check_binaries` is the guard, written after this cost
+a full measurement pass.
+
+**Changing the rank count changes the answer.** Reproducibility at a fixed rank
+count does not survive changing it: 8 ranks and 16 ranks integrate one restart to
+restarts differing in 83 of 199 records, at round-off and growing, because the
+decomposition changes which partial sums are formed in which order. So an A/B
+must hold the rank count fixed, and a bracket run at one rank count is not
+comparable to a control at another. `notes/audits/model-reproducibility.md` has
+the measurement.
+
 ## 12. A continuation that re-derives the physics from config
 
 `run_exoplasim.py --flux-ratio 0.91` prepares a run at 0.91 and stamps it in the

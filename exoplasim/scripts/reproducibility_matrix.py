@@ -85,9 +85,14 @@ Each hypothesis owns a pattern, and the matrix can refute all three:
   cells at `NOUTPUT = 1` do not, at BOTH rank counts.
 - **H2, MPI reduction ordering at 8 ranks.** Cells at 8 ranks do not
   reproduce and cells at 16 ranks do, at both output settings.
-- **H3, it was the `zsolars` overread and it is already fixed.** Every cell
-  reproduces, including 8 ranks with output on at 16 steps, which is CLIM-39's
-  own configuration.
+- **H3, the model reproduces now.** Every cell reproduces, CLIM-39's own
+  configuration included. Note what this does NOT establish: H3 is a pattern,
+  not a mechanism. Running the same matrix on the pre-fix binaries a run
+  directory keeps -- which still write `zsolars` as a 65536-byte record --
+  gives the SAME pattern, so "it was the overread" is refuted as the cause of
+  run-to-run variation even though the overread is real. It is deterministic
+  per rank count under `-finit-real=zero`, which makes it a source of
+  RANK-dependence rather than of run-to-run difference.
 
 H3 is the one to try hardest to refute, because it is the comfortable answer
 and because it is the only one that would let this project go back to
@@ -139,10 +144,28 @@ OUTPUT_LEVELS = (0, 1)
 # pass by having nothing to disagree about.
 ARTIFACTS = ("plasim_status", "plasim_output", "plasim_snapshot", "plasim_diag")
 
+# `plasim_diag` is an ASCII log that ends with the run's own resource
+# accounting, so two identical integrations differ in it by construction. These
+# lines are removed before it is hashed. The file is NOT dropped: everything
+# above them is model diagnostics -- the initial step number, the mean surface
+# pressure, the spin-up trace -- and that is worth comparing.
+#
+# The list is taken from the block that writes it, `plasim.f90:1011-1042`,
+# rather than from what one pair of runs happened to differ on. EVERY line
+# there is conditional on its counter being non-zero, so a filter built by
+# reading a diff is complete only for the runs that produced it: "Page faults"
+# appears in some repeats and not others, which is exactly how a
+# read-the-diff filter passes three cells and fails three more.
+WALL_CLOCK = re.compile(
+    r"^\* (User   time|System time|Total CPU time|Memory usage"
+    r"|Page reclaims|Page faults|Page swaps|Disk read|Disk write"
+    r"|Seconds per sim year|Minutes per sim year|Days per sim year"
+    r"|Sim years per day)")
+
 HYPOTHESES = {
     "H1_output_writing": "NOUTPUT = 0 reproduces, NOUTPUT = 1 does not, at both rank counts",
     "H2_rank_reduction_order": "8 ranks does not reproduce, 16 ranks does, at both output settings",
-    "H3_zsolars_already_fixed": "every cell reproduces, CLIM-39's own configuration included",
+    "H3_reproducible_now": "every cell reproduces, CLIM-39's own configuration included",
 }
 
 
@@ -202,6 +225,11 @@ def sha256(path: Path) -> str | None:
     if not path.exists():
         return None
     h = hashlib.sha256()
+    if path.name == "plasim_diag":
+        for line in path.read_text(encoding="latin-1").splitlines(keepends=True):
+            if not WALL_CLOCK.search(line):
+                h.update(line.encode("latin-1"))
+        return h.hexdigest()
     with path.open("rb") as fh:
         for chunk in iter(lambda: fh.read(1 << 20), b""):
             h.update(chunk)
@@ -219,6 +247,44 @@ def set_namelist(path: Path, **keys: int) -> None:
                              "was not measured with")
         text = pattern.sub(rf"\g<1>{value} ", text)
     path.write_text(text, encoding="utf-8")
+
+
+def check_binaries(bed: Path) -> dict:
+    """Refuse a bed whose executables are not the ones the manifest describes.
+
+    A run directory keeps the binaries it was STARTED with, so copying a bed out
+    of `exoplasim/runs/` silently pins the model source to whenever that run
+    began. That is how the first pass of this matrix came to measure a tree
+    three commits behind the one `rebuild_binaries.py --verify` calls current,
+    and nothing about the result said so: it ran, it was self-consistent, and it
+    was about the wrong code.
+
+    `--verify` answers "are the INSTALLED binaries current". It cannot answer
+    "is the bed running them", and that is the question here.
+    """
+    manifest = json.loads((PROJECT_ROOT / "exoplasim" / "binary_manifest.json")
+                          .read_text(encoding="utf-8"))["binaries"]
+    seen, stale = {}, []
+    for ranks in RANKS:
+        name = f"most_plasim_t42_l10_p{ranks}.x"
+        path = bed / name
+        if not path.exists():
+            raise SystemExit(f"{name} is not in the bed")
+        got = hashlib.sha256(path.read_bytes()).hexdigest()
+        seen[name] = got
+        if name not in manifest:
+            stale.append(f"{name} is in no manifest entry")
+        elif got != manifest[name]["sha256"]:
+            stale.append(f"{name} is {got[:12]}, manifest says "
+                         f"{manifest[name]['sha256'][:12]}")
+    if stale:
+        raise SystemExit(
+            "the bed's executables are not the ones binary_manifest.json "
+            "describes, so this would measure a model source nobody named:\n  "
+            + "\n  ".join(stale)
+            + "\nCopy them from vendor/exoplasim/exoplasim/plasim/run/, or "
+              "rebuild. CLAUDE.md rule 4.")
+    return seen
 
 
 def run_cell(bed: Path, work: Path, ranks: int, noutput: int, steps: int) -> dict:
@@ -246,7 +312,10 @@ def run_cell(bed: Path, work: Path, ranks: int, noutput: int, steps: int) -> dic
                          f"{proc.stdout[-2000:]}\n{proc.stderr[-2000:]}")
 
     return {"seconds": round(elapsed, 2),
-            "sha256": {name: sha256(work / name) for name in ARTIFACTS}}
+            "sha256": {name: sha256(work / name) for name in ARTIFACTS},
+            "bytes": {name: ((work / name).stat().st_size
+                             if (work / name).exists() else None)
+                      for name in ARTIFACTS}}
 
 
 def score(cells: dict) -> dict:
@@ -269,12 +338,27 @@ def score(cells: dict) -> dict:
                               and all_of(lambda k: part(k, 1) == 1, False)),
         "H2_rank_reduction_order": (all_of(lambda k: part(k, 0) == 8, False)
                                     and all_of(lambda k: part(k, 0) == 16, True)),
-        "H3_zsolars_already_fixed": all(repro.values()),
+        "H3_reproducible_now": all(repro.values()),
     }
     survivors = [k for k, v in verdict.items() if v]
+    # Reproducible WITHIN a rank count is not the same as rank-independent, and
+    # the matrix already holds the evidence for both. This is reported rather
+    # than scored: no hypothesis above is about it, and it was not predicted.
+    across = {}
+    for noutput in OUTPUT_LEVELS:
+        for steps in {c["steps"] for c in cells.values()}:
+            keys = [k for k, c in cells.items()
+                    if c["noutput"] == noutput and c["steps"] == steps]
+            shas = {cells[k]["repeats"][0]["sha256"]["plasim_status"] for k in keys}
+            if len(keys) > 1:
+                across[f"noutput={noutput},steps={steps}"] = (
+                    "same across rank counts" if len(shas) == 1
+                    else "DIFFERS across rank counts")
+
     return {"per_hypothesis": verdict,
             "survivors": survivors,
             "vacuous_cells": vacuous,
+            "across_rank_counts": across,
             "reading": (survivors[0] if len(survivors) == 1 else
                         "NONE of the declared hypotheses matches the pattern; "
                         "the cause is something the matrix did not vary")}
@@ -332,6 +416,7 @@ def main() -> None:
                          "(plasim.f90 initrandom) and would be non-reproducible "
                          "by construction rather than by defect")
 
+    binaries = check_binaries(bed)
     work_root = (args.work or bed.parent / "work").resolve()
     work_root.mkdir(parents=True, exist_ok=True)
 
@@ -353,18 +438,25 @@ def main() -> None:
         # cell that cannot fail is not evidence. CLIM-39's control was run at 1
         # and 16 steps against nafter = 32 with nstep leaving 24 steps to the
         # next write, so this is the trap that reading recorded as a result.
-        wrote_output = "plasim_output" in produced
+        # One gridpoint record at T42 is 8192 four-byte values plus its name
+        # record, about 32 kB. A file at that size holds a single constant
+        # field and no timestep write, which is the near-vacuous case the
+        # segment lengths exist to straddle: it is reported, not hidden.
+        out_bytes = repeats[0]["bytes"]["plasim_output"] or 0
+        wrote_output = out_bytes > 2 * 32816
         vacuous = noutput == 1 and not wrote_output
         results[key] = {
             "ranks": ranks, "noutput": noutput, "steps": steps,
             "repeats": repeats,
             "artifacts_produced": produced,
             "artifacts_disagreeing": disagreeing,
+            "output_bytes": out_bytes,
             "reproducible": None if vacuous else not disagreeing,
             "vacuous": vacuous,
         }
         if vacuous:
-            verdict = "INCONCLUSIVE: output on, but no gridpoint record was written"
+            verdict = (f"INCONCLUSIVE: output on, but plasim_output is "
+                       f"{out_bytes} bytes -- under two gridpoint records")
         elif disagreeing:
             verdict = "DIFFERS on " + ", ".join(disagreeing)
         else:
@@ -380,6 +472,7 @@ def main() -> None:
         "bed": str(bed),
         "repeats": args.repeats,
         "host_cpu_count": os.cpu_count(),
+        "binaries": binaries,
         "model_source": subprocess.run(
             ["git", "log", "-1", "--format=%H %s", "--", "vendor/exoplasim"],
             cwd=PROJECT_ROOT, capture_output=True, text=True).stdout.strip(),
