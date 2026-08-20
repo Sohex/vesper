@@ -10,14 +10,17 @@ module legmod
 use pumamod, only:NTRU,NTP1,NCSP,NESP,NLON,NLPP,NLAT,NHOR,NLEV,gwd,sid,plavor,nfilter
 use pumamod, only:ngptfilter, nspvfilter,landhoskn0,filterkappa,nfilterexp,nud,mypid,NROOT
 
-real :: qi(NCSP,NLPP) ! P(m,n) = Associated Legendre Polynomials
-real :: qj(NCSP,NLPP) ! Q(m,n) = Used for d/d(mu)
-real :: qc(NCSP,NLPP) ! P(m,n) * gwd              used in fc2sp
-real :: qe(NCSP,NLPP) ! Q(mn,) * gwd / cos2       used in mktend
-real :: qm(NCSP,NLPP) ! P(m,n) * gwd / cos2 * m   used in mktend
-real :: qq(NCSP,NLPP) ! P(m,n) * gwd / cos2 * n * (n+1) / 2  "
-real :: qu(NCSP,NLPP) ! P(m,n) / (n*(n+1)) * m    used in dv2uv
-real :: qv(NCSP,NLPP) ! Q(m,n) / (n*(n+1))        used in dv2uv
+real :: qi(NCSP,NLPP) ! P(m,n) * skspgp                     used in sp2fc
+real :: qj(NCSP,NLPP) ! Q(m,n) * skspgp                     used in sp2fcdmu
+real :: qc(NCSP,NLPP) ! P(m,n) * gwd * skgpsp               used in fc2sp, qtend, mktend
+real :: qe(NCSP,NLPP) ! Q(m,n) * gwd / cos2 * skgpsp        used in mktend, qtend, uv2dv
+real :: qm(NCSP,NLPP) ! P(m,n) * gwd / cos2 * m * skgpsp    used in mktend, qtend, uv2dv
+real :: qq(NCSP,NLPP) ! P(m,n) * gwd / cos2 * n*(n+1)/2 * skgpsp   used in mktend
+real :: qu(NCSP,NLPP) ! P(m,n) / (n*(n+1)) * m * skspgp     used in dv2uv
+real :: qv(NCSP,NLPP) ! Q(m,n) / (n*(n+1)) * skspgp         used in dv2uv
+! Filter folded in by legini: skgpsp into qc/qe/qm/qq, skspgp into
+! qi/qj/qu/qv. Kept for reference and for the diagnostic print below; the
+! transform loops no longer read them.
 real :: skgpsp(NTP1) ! Physics filter for GP -> SP
 real :: skspgp(NTP1) ! Physics filter for SP -> GP
 
@@ -154,6 +157,40 @@ do n=1,NTP1
    
 enddo
 
+! ---------------------------------------------------------------------------
+! Fold the physics filter into the weight matrices.
+!
+! Every use of qi, qj, qu and qv carries skspgp(n), and every use of qc, qe, qm
+! and qq carries skgpsp(n); no weight matrix is ever used unfiltered. Both
+! filters are functions of the total wavenumber alone, so they are constant for
+! a spectral mode and belong here rather than in the innermost loop of every
+! transform, where they cost one multiply in three.
+!
+! gfortran cannot do this itself. The filter is invariant in the LATITUDE loop,
+! but hoisting it needs a temporary array, which the compiler will not invent.
+!
+! This file counts m and n from 0 while the transform routines count from 1, so
+! mode (m,n) here is skgpsp(n+1) there. The inner loop runs over lm because that
+! is the fast index of q(NCSP,NLPP).
+! ---------------------------------------------------------------------------
+
+do jlat = 1 , NLPP
+   lm = 0
+   do m = 0 , NTRU
+      do n = m , NTRU
+         lm = lm + 1
+         qi(lm,jlat) = qi(lm,jlat) * skspgp(n+1)
+         qj(lm,jlat) = qj(lm,jlat) * skspgp(n+1)
+         qu(lm,jlat) = qu(lm,jlat) * skspgp(n+1)
+         qv(lm,jlat) = qv(lm,jlat) * skspgp(n+1)
+         qc(lm,jlat) = qc(lm,jlat) * skgpsp(n+1)
+         qe(lm,jlat) = qe(lm,jlat) * skgpsp(n+1)
+         qm(lm,jlat) = qm(lm,jlat) * skgpsp(n+1)
+         qq(lm,jlat) = qq(lm,jlat) * skgpsp(n+1)
+      enddo ! n
+   enddo ! m
+enddo ! jlat
+
 if (mypid==NROOT) then
    write(nud,*)"*************************************************"
    write(nud,*)"* GP->SP Physics Filter Coefficients:           *"
@@ -194,8 +231,8 @@ if (NLPP < NLAT) then  ! Universal (parallel executable) version
     w = 1
     do m = 1 , NTP1
       do n = m , NTP1
-        sp(1,w) = sp(1,w) + qc(w,l) * fc(1,m,l)*skgpsp(n)
-        sp(2,w) = sp(2,w) + qc(w,l) * fc(2,m,l)*skgpsp(n)
+        sp(1,w) = sp(1,w) + qc(w,l) * fc(1,m,l)
+        sp(2,w) = sp(2,w) + qc(w,l) * fc(2,m,l)
         w = w + 1
       enddo ! n
     enddo ! m
@@ -207,11 +244,11 @@ else                   ! Single CPU version (symmetry conserving)
     do m = 1 , NTP1
       do n = m , NTP1
         if (mod(m+n,2) == 0) then ! Symmetric modes
-          sp(1,w) = sp(1,w) + qc(w,l) * (fc(1,m,l) + fc(1,m,NLAT+1-l))*skgpsp(n)
-          sp(2,w) = sp(2,w) + qc(w,l) * (fc(2,m,l) + fc(2,m,NLAT+1-l))*skgpsp(n)
+          sp(1,w) = sp(1,w) + qc(w,l) * (fc(1,m,l) + fc(1,m,NLAT+1-l))
+          sp(2,w) = sp(2,w) + qc(w,l) * (fc(2,m,l) + fc(2,m,NLAT+1-l))
         else                      ! Antisymmetric modes
-          sp(1,w) = sp(1,w) + qc(w,l) * (fc(1,m,l) - fc(1,m,NLAT+1-l))*skgpsp(n)
-          sp(2,w) = sp(2,w) + qc(w,l) * (fc(2,m,l) - fc(2,m,NLAT+1-l))*skgpsp(n)
+          sp(1,w) = sp(1,w) + qc(w,l) * (fc(1,m,l) - fc(1,m,NLAT+1-l))
+          sp(2,w) = sp(2,w) + qc(w,l) * (fc(2,m,l) - fc(2,m,NLAT+1-l))
         endif
         w = w + 1
       enddo ! n
@@ -245,8 +282,8 @@ do l = 1 , NLPP
    w = 1  
    do m = 1 , NTP1
       do n = m , NTP1
-         fc(1,m,l) = fc(1,m,l) + qi(w,l) * sp(1,w)*skspgp(n)
-         fc(2,m,l) = fc(2,m,l) + qi(w,l) * sp(2,w)*skspgp(n)
+         fc(1,m,l) = fc(1,m,l) + qi(w,l) * sp(1,w)
+         fc(2,m,l) = fc(2,m,l) + qi(w,l) * sp(2,w)
          w = w + 1
       enddo ! n
    enddo ! m
@@ -277,8 +314,8 @@ do l = 1 , NLPP
    w = 1  
    do m = 1 , NTP1
       do n = m , NTP1
-         fc(1,m,l) = fc(1,m,l) + qj(w,l) * sp(1,w)*skspgp(n)
-         fc(2,m,l) = fc(2,m,l) + qj(w,l) * sp(2,w)*skspgp(n)
+         fc(1,m,l) = fc(1,m,l) + qj(w,l) * sp(1,w)
+         fc(2,m,l) = fc(2,m,l) + qj(w,l) * sp(2,w)
          w = w + 1
       enddo ! n
    enddo ! m
@@ -335,10 +372,10 @@ do v = 1 , NLEV
     w = 1
     do m = 1 , NTP1
       do n = m , NTP1
-        pu(1,m,l,v)=pu(1,m,l,v)+qv(w,l)*pz(1,w,v)*skspgp(n)+qu(w,l)*pd(2,w,v)*skspgp(n)
-        pu(2,m,l,v)=pu(2,m,l,v)+qv(w,l)*pz(2,w,v)*skspgp(n)-qu(w,l)*pd(1,w,v)*skspgp(n)
-        pv(1,m,l,v)=pv(1,m,l,v)+qu(w,l)*pz(2,w,v)*skspgp(n)-qv(w,l)*pd(1,w,v)*skspgp(n)
-        pv(2,m,l,v)=pv(2,m,l,v)-qu(w,l)*pz(1,w,v)*skspgp(n)-qv(w,l)*pd(2,w,v)*skspgp(n)
+        pu(1,m,l,v)=pu(1,m,l,v)+qv(w,l)*pz(1,w,v)+qu(w,l)*pd(2,w,v)
+        pu(2,m,l,v)=pu(2,m,l,v)+qv(w,l)*pz(2,w,v)-qu(w,l)*pd(1,w,v)
+        pv(1,m,l,v)=pv(1,m,l,v)+qu(w,l)*pz(2,w,v)-qv(w,l)*pd(1,w,v)
+        pv(2,m,l,v)=pv(2,m,l,v)-qu(w,l)*pz(1,w,v)-qv(w,l)*pd(2,w,v)
         w = w + 1
       enddo ! n
     enddo ! m
@@ -379,10 +416,10 @@ do v = 1 , NLEV
     w = 1
     do m = 1 , NTP1
       do n = m , NTP1
-        pz(1,w,v) = pz(1,w,v)+qe(w,l)*pu(1,m,l,v)*skgpsp(n)-qm(w,l)*pv(2,m,l,v)*skgpsp(n)
-        pz(2,w,v) = pz(2,w,v)+qe(w,l)*pu(2,m,l,v)*skgpsp(n)+qm(w,l)*pv(1,m,l,v)*skgpsp(n)
-        pd(1,w,v) = pd(1,w,v)-qe(w,l)*pv(1,m,l,v)*skgpsp(n)-qm(w,l)*pu(2,m,l,v)*skgpsp(n)
-        pd(2,w,v) = pd(2,w,v)-qe(w,l)*pv(2,m,l,v)*skgpsp(n)+qm(w,l)*pu(1,m,l,v)*skgpsp(n)
+        pz(1,w,v) = pz(1,w,v)+qe(w,l)*pu(1,m,l,v)-qm(w,l)*pv(2,m,l,v)
+        pz(2,w,v) = pz(2,w,v)+qe(w,l)*pu(2,m,l,v)+qm(w,l)*pv(1,m,l,v)
+        pd(1,w,v) = pd(1,w,v)-qe(w,l)*pv(1,m,l,v)-qm(w,l)*pu(2,m,l,v)
+        pd(2,w,v) = pd(2,w,v)-qe(w,l)*pv(2,m,l,v)+qm(w,l)*pu(1,m,l,v)
         w = w + 1
       enddo ! n
     enddo ! m
@@ -397,23 +434,23 @@ do v = 1 , NLEV
     do m = 1 , NTP1
       do n = m , NTP1
         if (mod(m+n,2) == 0) then ! symmetric -----------------
-          pz(1,w,v) = pz(1,w,v) + qe(w,l) * (pu(1,m,l,v)-pu(1,m,k,v))*skgpsp(n) &
-                                - qm(w,l) * (pv(2,m,l,v)+pv(2,m,k,v))*skgpsp(n)
-          pz(2,w,v) = pz(2,w,v) + qe(w,l) * (pu(2,m,l,v)-pu(2,m,k,v))*skgpsp(n) &
-                                + qm(w,l) * (pv(1,m,l,v)+pv(1,m,k,v))*skgpsp(n)
-          pd(1,w,v) = pd(1,w,v) - qe(w,l) * (pv(1,m,l,v)-pv(1,m,k,v))*skgpsp(n) &
-                                - qm(w,l) * (pu(2,m,l,v)+pu(2,m,k,v))*skgpsp(n)
-          pd(2,w,v) = pd(2,w,v) - qe(w,l) * (pv(2,m,l,v)-pv(2,m,k,v))*skgpsp(n) &
-                                + qm(w,l) * (pu(1,m,l,v)+pu(1,m,k,v))*skgpsp(n)
+          pz(1,w,v) = pz(1,w,v) + qe(w,l) * (pu(1,m,l,v)-pu(1,m,k,v)) &
+                                - qm(w,l) * (pv(2,m,l,v)+pv(2,m,k,v))
+          pz(2,w,v) = pz(2,w,v) + qe(w,l) * (pu(2,m,l,v)-pu(2,m,k,v)) &
+                                + qm(w,l) * (pv(1,m,l,v)+pv(1,m,k,v))
+          pd(1,w,v) = pd(1,w,v) - qe(w,l) * (pv(1,m,l,v)-pv(1,m,k,v)) &
+                                - qm(w,l) * (pu(2,m,l,v)+pu(2,m,k,v))
+          pd(2,w,v) = pd(2,w,v) - qe(w,l) * (pv(2,m,l,v)-pv(2,m,k,v)) &
+                                + qm(w,l) * (pu(1,m,l,v)+pu(1,m,k,v))
         else ! ---------------- antisymmetric -----------------
-          pz(1,w,v) = pz(1,w,v) + qe(w,l) * (pu(1,m,l,v)+pu(1,m,k,v))*skgpsp(n) &
-                                - qm(w,l) * (pv(2,m,l,v)-pv(2,m,k,v))*skgpsp(n)
-          pz(2,w,v) = pz(2,w,v) + qe(w,l) * (pu(2,m,l,v)+pu(2,m,k,v))*skgpsp(n) &
-                                + qm(w,l) * (pv(1,m,l,v)-pv(1,m,k,v))*skgpsp(n)
-          pd(1,w,v) = pd(1,w,v) - qe(w,l) * (pv(1,m,l,v)+pv(1,m,k,v))*skgpsp(n) &
-                                - qm(w,l) * (pu(2,m,l,v)-pu(2,m,k,v))*skgpsp(n)
-          pd(2,w,v) = pd(2,w,v) - qe(w,l) * (pv(2,m,l,v)+pv(2,m,k,v))*skgpsp(n) &
-                                + qm(w,l) * (pu(1,m,l,v)-pu(1,m,k,v))*skgpsp(n)
+          pz(1,w,v) = pz(1,w,v) + qe(w,l) * (pu(1,m,l,v)+pu(1,m,k,v)) &
+                                - qm(w,l) * (pv(2,m,l,v)-pv(2,m,k,v))
+          pz(2,w,v) = pz(2,w,v) + qe(w,l) * (pu(2,m,l,v)+pu(2,m,k,v)) &
+                                + qm(w,l) * (pv(1,m,l,v)-pv(1,m,k,v))
+          pd(1,w,v) = pd(1,w,v) - qe(w,l) * (pv(1,m,l,v)+pv(1,m,k,v)) &
+                                - qm(w,l) * (pu(2,m,l,v)-pu(2,m,k,v))
+          pd(2,w,v) = pd(2,w,v) - qe(w,l) * (pv(2,m,l,v)+pv(2,m,k,v)) &
+                                + qm(w,l) * (pu(1,m,l,v)-pu(1,m,k,v))
         endif
         w = w + 1
       enddo ! n
@@ -456,10 +493,10 @@ do v = 1 , NLEV
   w = 1
   do m = 1 , NTP1
    do n = m , NTP1
-    q(1,w,v)=q(1,w,v)+qe(w,l)*vq(1,m,l,v)*skgpsp(n)+&
-&            qc(w,l)*qn(1,m,l,v)*skgpsp(n)+qm(w,l)*uq(2,m,l,v)*skgpsp(n)
-    q(2,w,v)=q(2,w,v)+qe(w,l)*vq(2,m,l,v)*skgpsp(n)+&
-&            qc(w,l)*qn(2,m,l,v)*skgpsp(n)-qm(w,l)*uq(1,m,l,v)*skgpsp(n)
+    q(1,w,v)=q(1,w,v)+qe(w,l)*vq(1,m,l,v)+&
+&            qc(w,l)*qn(1,m,l,v)+qm(w,l)*uq(2,m,l,v)
+    q(2,w,v)=q(2,w,v)+qe(w,l)*vq(2,m,l,v)+&
+&            qc(w,l)*qn(2,m,l,v)-qm(w,l)*uq(1,m,l,v)
     w = w + 1
    enddo ! n
   enddo ! m
@@ -474,19 +511,19 @@ do v = 1 , NLEV
   do m = 1 , NTP1
    do n = m , NTP1
     if (mod(m+n,2) == 0) then ! symmetric -----------------
-      q(1,w,v)=q(1,w,v)+qe(w,l)*(vq(1,m,l,v)-vq(1,m,k,v))*skgpsp(n) &
-                       +qc(w,l)*(qn(1,m,l,v)+qn(1,m,k,v))*skgpsp(n) &
-                       +qm(w,l)*(uq(2,m,l,v)+uq(2,m,k,v))*skgpsp(n)
-      q(2,w,v)=q(2,w,v)+qe(w,l)*(vq(2,m,l,v)-vq(2,m,k,v))*skgpsp(n) &
-                       +qc(w,l)*(qn(2,m,l,v)+qn(2,m,k,v))*skgpsp(n) &
-                       -qm(w,l)*(uq(1,m,l,v)+uq(1,m,k,v))*skgpsp(n)
+      q(1,w,v)=q(1,w,v)+qe(w,l)*(vq(1,m,l,v)-vq(1,m,k,v)) &
+                       +qc(w,l)*(qn(1,m,l,v)+qn(1,m,k,v)) &
+                       +qm(w,l)*(uq(2,m,l,v)+uq(2,m,k,v))
+      q(2,w,v)=q(2,w,v)+qe(w,l)*(vq(2,m,l,v)-vq(2,m,k,v)) &
+                       +qc(w,l)*(qn(2,m,l,v)+qn(2,m,k,v)) &
+                       -qm(w,l)*(uq(1,m,l,v)+uq(1,m,k,v))
     else ! ---------------- antisymmetric -----------------
-      q(1,w,v)=q(1,w,v)+qe(w,l)*(vq(1,m,l,v)+vq(1,m,k,v))*skgpsp(n) &
-                       +qc(w,l)*(qn(1,m,l,v)-qn(1,m,k,v))*skgpsp(n) &
-                       +qm(w,l)*(uq(2,m,l,v)-uq(2,m,k,v))*skgpsp(n)
-      q(2,w,v)=q(2,w,v)+qe(w,l)*(vq(2,m,l,v)+vq(2,m,k,v))*skgpsp(n) &
-                       +qc(w,l)*(qn(2,m,l,v)-qn(2,m,k,v))*skgpsp(n) &
-                       -qm(w,l)*(uq(1,m,l,v)-uq(1,m,k,v))*skgpsp(n)
+      q(1,w,v)=q(1,w,v)+qe(w,l)*(vq(1,m,l,v)+vq(1,m,k,v)) &
+                       +qc(w,l)*(qn(1,m,l,v)-qn(1,m,k,v)) &
+                       +qm(w,l)*(uq(2,m,l,v)-uq(2,m,k,v))
+      q(2,w,v)=q(2,w,v)+qe(w,l)*(vq(2,m,l,v)+vq(2,m,k,v)) &
+                       +qc(w,l)*(qn(2,m,l,v)-qn(2,m,k,v)) &
+                       -qm(w,l)*(uq(1,m,l,v)-uq(1,m,k,v))
     endif
     w = w + 1
    enddo ! n
@@ -535,18 +572,18 @@ do v = 1 , NLEV
   w = 1
   do m = 1 , NTP1
    do n = m , NTP1
-    d(1,w,v)=d(1,w,v)+qq(w,l)*ke(1,m,l,v)*skgpsp(n) &
-&                    -qe(w,l)*fv(1,m,l,v)*skgpsp(n)-qm(w,l)*fu(2,m,l,v)*skgpsp(n)
-    d(2,w,v)=d(2,w,v)+qq(w,l)*ke(2,m,l,v)*skgpsp(n) &
-&                    -qe(w,l)*fv(2,m,l,v)*skgpsp(n)+qm(w,l)*fu(1,m,l,v)*skgpsp(n)
-    t(1,w,v)=t(1,w,v)+qe(w,l)*vt(1,m,l,v)*skgpsp(n) &
-&                    +qc(w,l)*tn(1,m,l,v)*skgpsp(n)+qm(w,l)*ut(2,m,l,v)*skgpsp(n)
-    t(2,w,v)=t(2,w,v)+qe(w,l)*vt(2,m,l,v)*skgpsp(n) &
-&                    +qc(w,l)*tn(2,m,l,v)*skgpsp(n)-qm(w,l)*ut(1,m,l,v)*skgpsp(n)
-    z(1,w,v)=z(1,w,v)+qe(w,l)*fu(1,m,l,v)*skgpsp(n) &
-&                    -qm(w,l)*fv(2,m,l,v)*skgpsp(n)
-    z(2,w,v)=z(2,w,v)+qe(w,l)*fu(2,m,l,v)*skgpsp(n) &
-&                    +qm(w,l)*fv(1,m,l,v)*skgpsp(n)
+    d(1,w,v)=d(1,w,v)+qq(w,l)*ke(1,m,l,v) &
+&                    -qe(w,l)*fv(1,m,l,v)-qm(w,l)*fu(2,m,l,v)
+    d(2,w,v)=d(2,w,v)+qq(w,l)*ke(2,m,l,v) &
+&                    -qe(w,l)*fv(2,m,l,v)+qm(w,l)*fu(1,m,l,v)
+    t(1,w,v)=t(1,w,v)+qe(w,l)*vt(1,m,l,v) &
+&                    +qc(w,l)*tn(1,m,l,v)+qm(w,l)*ut(2,m,l,v)
+    t(2,w,v)=t(2,w,v)+qe(w,l)*vt(2,m,l,v) &
+&                    +qc(w,l)*tn(2,m,l,v)-qm(w,l)*ut(1,m,l,v)
+    z(1,w,v)=z(1,w,v)+qe(w,l)*fu(1,m,l,v) &
+&                    -qm(w,l)*fv(2,m,l,v)
+    z(2,w,v)=z(2,w,v)+qe(w,l)*fu(2,m,l,v) &
+&                    +qm(w,l)*fv(1,m,l,v)
     w = w + 1
    enddo ! n
   enddo ! m
@@ -561,39 +598,39 @@ do v = 1 , NLEV
   do m = 1 , NTP1
    do n = m , NTP1
     if (mod(m+n,2) == 0) then ! symmetric -----------------
-      d(1,w,v)=d(1,w,v)+qq(w,l)*(ke(1,m,l,v)+ke(1,m,k,v))*skgpsp(n) &
-                       -qe(w,l)*(fv(1,m,l,v)-fv(1,m,k,v))*skgpsp(n) &
-                       -qm(w,l)*(fu(2,m,l,v)+fu(2,m,k,v))*skgpsp(n)
-      d(2,w,v)=d(2,w,v)+qq(w,l)*(ke(2,m,l,v)+ke(2,m,k,v))*skgpsp(n) &
-                       -qe(w,l)*(fv(2,m,l,v)-fv(2,m,k,v))*skgpsp(n) &
-                       +qm(w,l)*(fu(1,m,l,v)+fu(1,m,k,v))*skgpsp(n)
-      t(1,w,v)=t(1,w,v)+qe(w,l)*(vt(1,m,l,v)-vt(1,m,k,v))*skgpsp(n) &
-                       +qc(w,l)*(tn(1,m,l,v)+tn(1,m,k,v))*skgpsp(n) &
-                       +qm(w,l)*(ut(2,m,l,v)+ut(2,m,k,v))*skgpsp(n)
-      t(2,w,v)=t(2,w,v)+qe(w,l)*(vt(2,m,l,v)-vt(2,m,k,v))*skgpsp(n) &
-                       +qc(w,l)*(tn(2,m,l,v)+tn(2,m,k,v))*skgpsp(n) &
-                       -qm(w,l)*(ut(1,m,l,v)+ut(1,m,k,v))*skgpsp(n)
-      z(1,w,v)=z(1,w,v)+qe(w,l)*(fu(1,m,l,v)-fu(1,m,k,v))*skgpsp(n) &
-                       -qm(w,l)*(fv(2,m,l,v)+fv(2,m,k,v))*skgpsp(n)
-      z(2,w,v)=z(2,w,v)+qe(w,l)*(fu(2,m,l,v)-fu(2,m,k,v))*skgpsp(n) &
-                       +qm(w,l)*(fv(1,m,l,v)+fv(1,m,k,v))*skgpsp(n)
+      d(1,w,v)=d(1,w,v)+qq(w,l)*(ke(1,m,l,v)+ke(1,m,k,v)) &
+                       -qe(w,l)*(fv(1,m,l,v)-fv(1,m,k,v)) &
+                       -qm(w,l)*(fu(2,m,l,v)+fu(2,m,k,v))
+      d(2,w,v)=d(2,w,v)+qq(w,l)*(ke(2,m,l,v)+ke(2,m,k,v)) &
+                       -qe(w,l)*(fv(2,m,l,v)-fv(2,m,k,v)) &
+                       +qm(w,l)*(fu(1,m,l,v)+fu(1,m,k,v))
+      t(1,w,v)=t(1,w,v)+qe(w,l)*(vt(1,m,l,v)-vt(1,m,k,v)) &
+                       +qc(w,l)*(tn(1,m,l,v)+tn(1,m,k,v)) &
+                       +qm(w,l)*(ut(2,m,l,v)+ut(2,m,k,v))
+      t(2,w,v)=t(2,w,v)+qe(w,l)*(vt(2,m,l,v)-vt(2,m,k,v)) &
+                       +qc(w,l)*(tn(2,m,l,v)+tn(2,m,k,v)) &
+                       -qm(w,l)*(ut(1,m,l,v)+ut(1,m,k,v))
+      z(1,w,v)=z(1,w,v)+qe(w,l)*(fu(1,m,l,v)-fu(1,m,k,v)) &
+                       -qm(w,l)*(fv(2,m,l,v)+fv(2,m,k,v))
+      z(2,w,v)=z(2,w,v)+qe(w,l)*(fu(2,m,l,v)-fu(2,m,k,v)) &
+                       +qm(w,l)*(fv(1,m,l,v)+fv(1,m,k,v))
     else ! ---------------- antisymmetric -----------------
-      d(1,w,v)=d(1,w,v)+qq(w,l)*(ke(1,m,l,v)-ke(1,m,k,v))*skgpsp(n) &
-                       -qe(w,l)*(fv(1,m,l,v)+fv(1,m,k,v))*skgpsp(n) &
-                       -qm(w,l)*(fu(2,m,l,v)-fu(2,m,k,v))*skgpsp(n)
-      d(2,w,v)=d(2,w,v)+qq(w,l)*(ke(2,m,l,v)-ke(2,m,k,v))*skgpsp(n) &
-                       -qe(w,l)*(fv(2,m,l,v)+fv(2,m,k,v))*skgpsp(n) &
-                       +qm(w,l)*(fu(1,m,l,v)-fu(1,m,k,v))*skgpsp(n)
-      t(1,w,v)=t(1,w,v)+qe(w,l)*(vt(1,m,l,v)+vt(1,m,k,v))*skgpsp(n) &
-                       +qc(w,l)*(tn(1,m,l,v)-tn(1,m,k,v))*skgpsp(n) &
-                       +qm(w,l)*(ut(2,m,l,v)-ut(2,m,k,v))*skgpsp(n)
-      t(2,w,v)=t(2,w,v)+qe(w,l)*(vt(2,m,l,v)+vt(2,m,k,v))*skgpsp(n) &
-                       +qc(w,l)*(tn(2,m,l,v)-tn(2,m,k,v))*skgpsp(n) &
-                       -qm(w,l)*(ut(1,m,l,v)-ut(1,m,k,v))*skgpsp(n)
-      z(1,w,v)=z(1,w,v)+qe(w,l)*(fu(1,m,l,v)+fu(1,m,k,v))*skgpsp(n) &
-                       -qm(w,l)*(fv(2,m,l,v)-fv(2,m,k,v))*skgpsp(n)
-      z(2,w,v)=z(2,w,v)+qe(w,l)*(fu(2,m,l,v)+fu(2,m,k,v))*skgpsp(n) &
-                       +qm(w,l)*(fv(1,m,l,v)-fv(1,m,k,v))*skgpsp(n)
+      d(1,w,v)=d(1,w,v)+qq(w,l)*(ke(1,m,l,v)-ke(1,m,k,v)) &
+                       -qe(w,l)*(fv(1,m,l,v)+fv(1,m,k,v)) &
+                       -qm(w,l)*(fu(2,m,l,v)-fu(2,m,k,v))
+      d(2,w,v)=d(2,w,v)+qq(w,l)*(ke(2,m,l,v)-ke(2,m,k,v)) &
+                       -qe(w,l)*(fv(2,m,l,v)+fv(2,m,k,v)) &
+                       +qm(w,l)*(fu(1,m,l,v)-fu(1,m,k,v))
+      t(1,w,v)=t(1,w,v)+qe(w,l)*(vt(1,m,l,v)+vt(1,m,k,v)) &
+                       +qc(w,l)*(tn(1,m,l,v)-tn(1,m,k,v)) &
+                       +qm(w,l)*(ut(2,m,l,v)-ut(2,m,k,v))
+      t(2,w,v)=t(2,w,v)+qe(w,l)*(vt(2,m,l,v)+vt(2,m,k,v)) &
+                       +qc(w,l)*(tn(2,m,l,v)-tn(2,m,k,v)) &
+                       -qm(w,l)*(ut(1,m,l,v)-ut(1,m,k,v))
+      z(1,w,v)=z(1,w,v)+qe(w,l)*(fu(1,m,l,v)+fu(1,m,k,v)) &
+                       -qm(w,l)*(fv(2,m,l,v)-fv(2,m,k,v))
+      z(2,w,v)=z(2,w,v)+qe(w,l)*(fu(2,m,l,v)+fu(2,m,k,v)) &
+                       +qm(w,l)*(fv(1,m,l,v)-fv(1,m,k,v))
     endif
     w = w + 1
    enddo ! n
