@@ -1,82 +1,31 @@
 {
-  "mode": "vegetated",
-  "mesh": "None",
-  "grid": "/home/cfutro/docs/world/source/precarve-craton/exoplasim-T42",
-  "resolution": "T42",
-  "terrain_hash": "e931b0d9947a232210a3cc11ba82003b5da15765d86e87956bc44c220932760e",
-  "codes": [
-    174,
-    175,
-    176,
-    212
-  ],
-  "forest_fraction_value": 0.5,
-  "vegetation": null,
-  "forest_fraction_land_mean": 0.3519747482195737,
-  "lithology_albedo_overrides": {
-    "playa_clastic": {
-      "rock_id": 19,
-      "albedo": 0.23,
-      "exported_albedo": 0.1899999976158142,
-      "regions": 257433
-    }
-  },
-  "vegetation_albedo": {
-    "value": 0.165,
-    "source": "config model.vegetation_albedo unless --vegetation-albedo",
-    "derivation": "analysis/vegetation_albedo.json",
-    "bands_175_176": [
-      0.075,
-      0.225
-    ],
-    "band1_land_mean": 0.10108830579339817,
-    "band2_land_mean": 0.20668073025927025
-  },
-  "barren_rock_classes": [
-    "evaporite",
-    "playa_clastic"
-  ],
-  "forest_note": "dforest blends snow albedo between forested and unforested endpoints, so it has to agree with the background albedo assumption. ExoPlaSim's default is a uniform 0.5.",
-  "land_mean_bare_rock": 0.24750575431058977,
-  "land_mean_written": 0.16444376047292142,
-  "endmembers": {
-    "note": "land-mean albedo of the two surface endmembers, on the overridden rock table and before lakes. Their difference is what the biosphere is worth; pair only these two.",
-    "bare_rock": 0.25705348383945864,
-    "vegetated": 0.19005819710599423
-  },
+  "climatology": "exoplasim/analysis/climatology/bootstrap_regular_climatology.nc",
+  "generated": "2026-08-20T03:02:46+00:00",
+  "code": 229,
+  "field": "dwmax, maximum soil water capacity, metres",
   "lakes": {
     "source": "hydrography/data/precarve-craton/surface_water.nc",
-    "terrain_hash": "e931b0d9947a232210a3cc11ba82003b5da15765d86e87956bc44c220932760e",
-    "lake_regions": 116721,
-    "lake_fraction_of_land": 0.11055003352942622,
-    "water_albedo": 0.06,
-    "land_mean_albedo_before": 0.182223,
-    "land_mean_albedo_after": 0.164488,
-    "delta": -0.017735
+    "lake_dwmax_m": 0.2,
+    "mean_lake_fraction_of_land_cells": 0.14079363835975814,
+    "land_mean_dwmax_before_m": 0.12677,
+    "land_mean_dwmax_after_m": 0.1388,
+    "ceiling": "annual lake evaporation is still capped by local precipitation; river water never re-enters dwatc"
   },
-  "derived_evaporite": {
-    "method": "salt crust = regions whose solved lake depth is at or below the local annual evaporation depth, so they dry within one orbit",
-    "climatology": "exoplasim/analysis/climatology/bootstrap_regular_climatology.nc",
-    "orbital_year_seconds": 15794043.122719022,
-    "geometric_salt_fraction_of_land": 0.02848697775030445,
-    "derived_salt_fraction_of_land": 0.003402726687921927,
-    "salt_albedo": 0.5,
-    "playa_albedo": 0.19,
-    "land_mean_albedo_before": 0.190058,
-    "land_mean_albedo_after": 0.182223,
-    "delta": -0.007835
-  },
-  "exoplasim_default_albland": 0.22,
-  "land_min": 0.059999999999999956,
-  "land_max": 0.2300000000000001,
-  "files": [
-    "/home/cfutro/docs/world/exoplasim/inputs/t42/orogen_T42_surf_0174.sra",
-    "/home/cfutro/docs/world/exoplasim/inputs/t42/orogen_T42_surf_0175.sra",
-    "/home/cfutro/docs/world/exoplasim/inputs/t42/orogen_T42_surf_0176.sra",
-    "/home/cfutro/docs/world/exoplasim/inputs/t42/orogen_T42_surf_0212.sra"
-  ],
-  "caveat": "Substrate albedo, not land-surface albedo. Vegetation and snow are applied by the model on top of this.",
-  "generator": "exoplasim/scripts/build_surface_albedo.py",
+  "soil_map": "pedology/data/precarve-craton/soilmap.txt",
+  "soil_map_sha256": "4142294ee9ce8fc68baccb2f247030d665ac32422314bfc7ea225386bc4f946c",
+  "config_sha256": "fece5d4397a9d622a89a6c195ec7a325d6995d1e715142d9447167ba3c49577c",
+  "resolution": "T42",
+  "land_cells": 4105,
+  "land_cells_matched": 4105,
+  "land_cells_without_soil_left_at_default": 0,
+  "land_mean_capacity_m": 0.1493653362763883,
+  "exoplasim_uniform_default_m": 0.5,
+  "why_this_matters": "landmod.f90 computes runoff as the overflow of this bucket, so a uniform default makes runoff a namelist property rather than a soil property. The 0.96 climatology's 2.8% land runoff ratio against Earth's ~35% is the symptom.",
+  "not_enabled_by_default": "Requires model.soil_water_source: pedology in config/planet.yaml. That key is absent on purpose: adding it is a configuration change continue_exoplasim.py refuses to resume across, so it blocks resumption of runs in flight.",
+  "output": "exoplasim/inputs/t42/orogen_T42_surf_0229.sra",
+  "output_sha256": "a25e2562728f8183541801bc8a543dc604fe8993811c96a0b132eb3d208613f5",
+  "git_commit": "f55848721bd096bdbd798c7f19ee52d0d429c0aa",
+  "generator": "exoplasim/scripts/build_surface_soil_water.py",
   "source_config": {
     "schema_version": 1,
     "source_build": "precarve-craton",
@@ -151,7 +100,7 @@
       "h2o_sw_level": 1.127,
       "co2_sw_weight": 1.51,
       "roughness_source": "lithology",
-      "soil_water_source": "uniform",
+      "soil_water_source": "pedology",
       "land_albedo_source": "vegetated",
       "vegetation_albedo": 0.165,
       "vegetation_albedo_bracket": [
@@ -192,7 +141,5 @@
       "total_amplitude_flux_peak_to_peak": 0.06,
       "alignment_recurrence_earth_years": 314
     }
-  },
-  "config_sha256": "1b4a059ee90218a868ff0ad8b0dd70f9a5460599b4c06b9c30cd623a7d55e6cd",
-  "git_commit": "f55848721bd096bdbd798c7f19ee52d0d429c0aa"
+  }
 }

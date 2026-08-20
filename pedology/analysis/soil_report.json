@@ -1,0 +1,62 @@
+{
+  "generated": "2026-08-20T03:00:03+00:00",
+  "iteration": null,
+  "closes_loop_with": "nothing; iteration 0 has no biosphere",
+  "climatology": "exoplasim/analysis/climatology/bootstrap_regular_climatology.nc",
+  "climatology_sha256": "227909c0a19e204b88dd081b42bf7671447a5dc781e8ebeacd8e942144df5715",
+  "config_sha256": "1b4a059ee90218a868ff0ad8b0dd70f9a5460599b4c06b9c30cd623a7d55e6cd",
+  "pedogenesis_sha256": "aac0af0f8b73f967b89cdb02e3a21c5dd494b7a56ee1945e9ce3ecf38f7dc86a",
+  "source_build": "precarve-craton",
+  "terrain_hash": "e931b0d9947a232210a3cc11ba82003b5da15765d86e87956bc44c220932760e",
+  "orbital_year_earth_days": 182.80142503147016,
+  "land_cells": 4105,
+  "moisture_variable": "runoff",
+  "runoff_source": "p_minus_e",
+  "andisols": {
+    "note": "Andic properties need ONGOING ejecta supply and enough leaching to weather glass to allophane rather than halloysite. The arc is resupplied because subduction is ongoing; flood_basalt and oib are excluded on a duration argument -- a province erupts for order 1% of its life -- not for want of an age field. Fractions are of total land area.",
+    "resupplied_land_fraction": 0.05239651551196411,
+    "andic_land_fraction": 0.004345674820098578,
+    "vitric_land_fraction": 0.005468483898585125,
+    "halloysitic_land_fraction": 0.0425823567932804,
+    "unresupplied_land_fraction": 0.02053828825326526,
+    "land_mean_andic_p_fixation": 0.0050609445717300725,
+    "andic_p_fixation_note": "Areal fraction of released P that andic material fixes, over and above ordinary soil retention. Zero off andic ground by construction; that is not a claim those soils retain no P.",
+    "allophane_precipitation_mm": 1500.0
+  },
+  "weathering_bracket": {
+    "note": "Weathering intensity under each moisture driver, land means. The spread is the honest uncertainty in how weathered this world's soils are, and it is wide because the climate model's land hydrology is a uniform bucket.",
+    "by_runoff": 0.42624239177114553,
+    "by_precipitation": 1.671968737525799,
+    "runoff_ratio": 0.16852654020920663,
+    "earth_land_runoff_ratio_for_reference": 0.35
+  },
+  "land_means": {
+    "weathering_intensity": 0.42624239177114553,
+    "sand": 0.39863447901795984,
+    "silt": 0.31897464183811164,
+    "clay": 0.28224115503319475,
+    "quartz_inert": 0.22119728155169674,
+    "ph": 7.261802035502888,
+    "regolith_depth_m": 1.0919076215195107,
+    "organic_fraction": 0.0,
+    "bulk_density_kg_m3": 1493.4845297422262,
+    "water_capacity_mm": 142.10538459594576,
+    "water_capacity_mm_bracket": [
+      107.15816127216749,
+      187.43783518702134
+    ],
+    "bedrock_water_fraction": 0.2524641575919167,
+    "soil_carbon_kg_m2": 0.0,
+    "runoff_mm_per_earth_year": 130.87028183732727,
+    "precipitation_mm_per_earth_year": 776.5559162068279,
+    "temperature_c": 16.893686028304757,
+    "endorheic_fraction": 0.27408992538422705,
+    "tan_slope": 0.024299144303984957,
+    "frost_cycling_fraction_of_orbit": 0.04119510593595288,
+    "slope_fines_lost": 0.008504700506394736
+  },
+  "regolith_note": "LPJ-GUESS 4.1.1 has a fixed 1.5 m profile and does not consume regolith depth. It is computed and reported so the gap is visible; see notes/model.md.",
+  "output": "pedology/data/precarve-craton/soilmap.txt",
+  "output_sha256": "4142294ee9ce8fc68baccb2f247030d665ac32422314bfc7ea225386bc4f946c",
+  "git_commit": "f55848721bd096bdbd798c7f19ee52d0d429c0aa"
+}

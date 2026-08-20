@@ -49,11 +49,15 @@ The checks, all cheap:
    manifests against `segments.py:production_window`, including the live case: a
    diagnostic tail that the old trailing-window rule would have averaged into a
    verdict.
-10. **`TASKS.md` header counts match their tables.** The count is what the
+10. **No imported module name is rebound.** `import climatology` at the top
+   and `climatology = <a Path>` in `main()` leaves every `climatology.foo()`
+   after it calling a Path method. The name is defined and the import is live,
+   so neither the import check nor pyflakes sees it.
+11. **`TASKS.md` header counts match their tables.** The count is what the
    one-table-per-prefix layout exists to make readable in one place, and a
    hand-maintained number goes stale the way every other one in this project
    has.
-11. **A resume refuses a rewritten spectrum file.** The config names the
+12. **A resume refuses a rewritten spectrum file.** The config names the
    spectrum and the model reads the file, so a config comparison cannot see
    `k25v.dat` regenerated in place. CONS-3.
 """
@@ -623,6 +627,62 @@ def check_task_counts() -> list[str]:
     return problems
 
 
+def check_no_shadowed_imports(files: list[Path]) -> list[str]:
+    """A name bound by `import X` is never rebound to something else.
+
+    `build_soil.py` did `import climatology` at module level and then
+    `climatology = args.climatology or climatology_path()` inside main(), so
+    every `climatology.annual_mean_of(...)` after it called a method on a
+    PosixPath. The module was still imported and the name was still defined,
+    which is why the import check and pyflakes F821 both pass on it -- the
+    failure is a type, not a name, and it surfaces only when the function is
+    actually run. Two scripts carried it, and two others had already dodged it
+    with an alias (`import climatology as clim`, `as climatology_lib`), which
+    is the fix and is why the rule is stated as "never rebound" rather than
+    "beware": the alias makes the collision impossible instead of remembered.
+
+    The rebinding is function-LOCAL, so it does not corrupt other functions --
+    only uses inside the shadowing scope break. The check ignores scope anyway
+    and reports any rebinding at all, because a name that means a module in one
+    function and a path in the next is worth an alias regardless.
+    """
+    problems = []
+    for path in files:
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+        except SyntaxError:
+            continue
+        imported = set()
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for a in node.names:
+                    if a.asname is None and "." not in a.name:
+                        imported.add(a.name)
+        if not imported:
+            continue
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store) \
+                    and node.id in imported:
+                problems.append(
+                    f"{path.relative_to(ROOT)}:{node.lineno} rebinds `{node.id}`, "
+                    f"which is an imported module; import it under an alias")
+            # Parameters shadow too, and that is the worse case: the whole
+            # function body sees the wrong object, not just the lines after an
+            # assignment. `thermostat_efficiency.read_weathering(climatology:
+            # Path)` called `climatology.annual_mean_of` on its own argument.
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                a = node.args
+                for arg in (a.posonlyargs + a.args + a.kwonlyargs
+                            + ([a.vararg] if a.vararg else [])
+                            + ([a.kwarg] if a.kwarg else [])):
+                    if arg.arg in imported:
+                        problems.append(
+                            f"{path.relative_to(ROOT)}:{arg.lineno} parameter "
+                            f"`{arg.arg}` of {node.name}() shadows an imported "
+                            f"module; import it under an alias")
+    return problems
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--skip-help", action="store_true",
@@ -652,6 +712,8 @@ def main() -> None:
               ("the convergence window follows the declared purposes",
                check_production_window()),
               ("TASKS.md counts match their tables", check_task_counts()),
+              ("no imported module name is rebound",
+               check_no_shadowed_imports(files)),
               ("a resume refuses a rewritten spectrum file",
                check_spectrum_guard())]
     if not args.skip_help:

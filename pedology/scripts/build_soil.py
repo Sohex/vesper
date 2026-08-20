@@ -39,7 +39,8 @@ import yaml
 from _paths import (ANALYSIS, CONFIG, DATA, PEDOGENESIS, PROJECT_ROOT,
                     climatology_path)
 
-import climatology  # noqa: E402  from lib/, put on sys.path by _paths
+import climatology as climatology_lib  # noqa: E402  from lib/, via _paths.
+# Aliased because `climatology` is a local Path in main(); see build_surface_classes.py.
 
 import builds
 from paths import rel  # noqa: E402
@@ -418,7 +419,7 @@ def main() -> None:
         lat = np.asarray(data["lat"][:], dtype=float)
         lon = np.asarray(data["lon"][:], dtype=float)
         land = np.asarray(data["lsm"][0], dtype=float) > 0.5
-        temperature = climatology.annual_mean_of(data, "tas") - KELVIN
+        temperature = climatology_lib.annual_mean_of(data, "tas") - KELVIN
         # Runoff and precipitation are rates; annualise on Earth years so the
         # Earth-calibrated weathering law is fed the units it was fitted in.
         # Runoff, from whichever source the config trusts. See pedogenesis.yaml:
@@ -427,10 +428,10 @@ def main() -> None:
         scale = 1000.0 * 86400.0 * EARTH_YEAR_DAYS
         source = pedo["weathering"].get("runoff_source", "p_minus_e")
         if source == "mrro":
-            runoff = climatology.annual_mean_of(data, "mrro") * scale
+            runoff = climatology_lib.annual_mean_of(data, "mrro") * scale
         elif source == "p_minus_e":
-            evaporation = -climatology.annual_mean_of(data, "evap")
-            runoff = (climatology.annual_mean_of(data, "pr")
+            evaporation = -climatology_lib.annual_mean_of(data, "evap")
+            runoff = (climatology_lib.annual_mean_of(data, "pr")
                       - evaporation) * scale
             # Clipped at zero. Per cell the residual can go negative where the
             # postprocessing is noisy or a river routes water through; at the
@@ -440,9 +441,9 @@ def main() -> None:
             raise SystemExit(
                 f"weathering.runoff_source is {source!r}; expected 'p_minus_e' "
                 f"or 'mrro'")
-        precip = climatology.annual_mean_of(data, "pr") \
+        precip = climatology_lib.annual_mean_of(data, "pr") \
             * 1000.0 * 86400.0 * EARTH_YEAR_DAYS
-        elevation = climatology.annual_mean_of(data, "sg") \
+        elevation = climatology_lib.annual_mean_of(data, "sg") \
             / float(config["planet"]["gravity_m_s2"])
         # Timestep extrema, so these carry the full 30-hour diurnal swing and a
         # bin can straddle freezing even where the bin mean never does.

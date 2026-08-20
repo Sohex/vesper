@@ -44,7 +44,8 @@ import yaml
 
 from _paths import ANALYSIS, CONFIG, DATA, PROJECT_ROOT, climatology_path  # noqa: F401
 
-import climatology  # noqa: E402  from lib/, via _paths
+import climatology as climatology_lib  # noqa: E402  from lib/, via _paths.
+# Aliased because `climatology` is a local Path in main().
 from paths import rel  # noqa: E402
 from builds import component_data
 
@@ -162,10 +163,10 @@ def main() -> None:
     offline_runoff, offline_water = run_bucket(
         liquid_daily, potential_daily, default_capacity, args.years)
 
-    routed_mm = land_mean(climatology.annual_mean(model_runoff, bin_centres)) * 1000.0 * EARTH_YEAR_DAYS
+    routed_mm = land_mean(climatology_lib.annual_mean(model_runoff, bin_centres)) * 1000.0 * EARTH_YEAR_DAYS
     offline_runoff_mm = land_mean(offline_runoff) * 1000.0 * orbits_per_earth_year
-    precip_mm = land_mean(climatology.annual_mean(precip, bin_centres)) * 1000.0 * EARTH_YEAR_DAYS
-    evap_mm = land_mean(climatology.annual_mean(evaporation, bin_centres)) * 1000.0 * EARTH_YEAR_DAYS
+    precip_mm = land_mean(climatology_lib.annual_mean(precip, bin_centres)) * 1000.0 * EARTH_YEAR_DAYS
+    evap_mm = land_mean(climatology_lib.annual_mean(evaporation, bin_centres)) * 1000.0 * EARTH_YEAR_DAYS
 
     # Validate against the land water budget, not against mrro.
     #
@@ -186,7 +187,7 @@ def main() -> None:
     print(f"  offline runoff      {offline_runoff_mm:8.2f} mm per Earth year")
     print(f"  ratio               {ratio:8.2f}  (pass band "
           f"{1/VALIDATION_TOLERANCE:.2f}-{VALIDATION_TOLERANCE:.2f})")
-    print(f"  model soil water    {land_mean(climatology.annual_mean(soil_water, bin_centres)):8.4f} m")
+    print(f"  model soil water    {land_mean(climatology_lib.annual_mean(soil_water, bin_centres)):8.4f} m")
     print(f"  offline soil water  {land_mean(offline_water):8.4f} m")
     print(f"  -> {'PASS' if valid else 'FAIL'}")
     print()
@@ -270,7 +271,7 @@ def main() -> None:
             "ratio": ratio,
             "tolerance": VALIDATION_TOLERANCE,
             "passed": bool(valid),
-            "model_soil_water_m": land_mean(climatology.annual_mean(soil_water, bin_centres)),
+            "model_soil_water_m": land_mean(climatology_lib.annual_mean(soil_water, bin_centres)),
             "offline_soil_water_m": land_mean(offline_water),
             "caveat": ("Monthly-mean forcing cannot generate event-driven runoff, "
                        "so the offline bucket is expected to under-produce. The "

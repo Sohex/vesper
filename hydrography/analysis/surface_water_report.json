@@ -1,0 +1,37 @@
+{
+  "source_build": "precarve-craton",
+  "terrain_hash": "e931b0d9947a232210a3cc11ba82003b5da15765d86e87956bc44c220932760e",
+  "forcing": "exoplasim/analysis/climatology/bootstrap_regular_climatology.nc",
+  "forcing_sha256": "227909c0a19e204b88dd081b42bf7671447a5dc781e8ebeacd8e942144df5715",
+  "orbital_year_days": 182.80142503147016,
+  "runoff_source": {
+    "field": "P-E from the baseline climatology, not mrro",
+    "why": "the run's global water budget closes to 0.03% of the mean and the land surplus matches the sea deficit, but mrro accounts for only 15% of that surplus",
+    "land_mean_p_minus_e_mm_per_day": 0.35831065898525005,
+    "land_mean_mrro_mm_per_day": 0.0511731196898346
+  },
+  "open_water_evaporation": {
+    "method": "Penman combination, water albedo and roughness, floored at the model's land rate; shared with carve_verdict.py",
+    "global_mean_mm_per_day": 3.0159154455512733,
+    "ocean_mean_mm_per_day": 3.1492288123718226,
+    "model_ocean_mean_mm_per_day": 3.2147588634450925,
+    "validation": "ratio over ocean cells, which already are open water; the only place the estimate can be checked"
+  },
+  "lakes": {
+    "basins_holding_water": 3169,
+    "basins_at_spill": 1974,
+    "solved_area_km2": 35178101.72287342,
+    "painted_area_km2": 35078675.93759608,
+    "planet_fraction": 0.047726543575671056,
+    "total_volume_km3": 3712804.055644664
+  },
+  "rivers": {
+    "max_discharge_m3_s": 72111.48108476281,
+    "basins_whose_outflow_was_routed": 1974,
+    "overflow_routed_m3_s": 3431071.8197081247,
+    "regions_above_1000_m3_s": 12311,
+    "land_runoff_km3_per_year": 21050.00336826947,
+    "land_runoff_m3_s": 1332781.1760872037
+  },
+  "git_commit": "f55848721bd096bdbd798c7f19ee52d0d429c0aa"
+}

@@ -268,7 +268,7 @@ model:
   # uniform 0.5 m bucket, which changes evaporation, which changes P - E, which
   # is the numerator of the carve criterion. The flip moves config_sha256 and
   # cannot happen mid-run. WORKFLOW.md section 6A has the order.
-  soil_water_source: uniform
+  soil_water_source: pedology
   land_albedo_source: vegetated
   # DERIVED 2026-08-19 by analysis/vegetation_albedo.py, which reproduces
   # notes/audits/inherited-earth-constants.md finding 1. The Earth-Sun canopy

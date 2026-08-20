@@ -757,10 +757,14 @@ lacked them is a verdict on the wrong evaporation. Their weights are not
 equal -- `analysis/error_budget.json` ranks them -- so build both, and expect
 the lakes to be what moves the answer.
 
-Set `baseline_climatology` in `config/planet.yaml` once a climatology exists
--- until then every consumer raises rather than guessing -- and repoint it at
-the baseline once that run finishes, so nothing downstream reads the
-bootstrap.
+**Leave `baseline_climatology` null until the BASELINE exists, and pass the
+bootstrap's climatology explicitly with `--climatology` to each field builder
+that needs it.** Every consumer raises rather than guessing while it is null,
+which is the designed state and not a gap. Naming the bootstrap there instead
+would hand it to every defaulting consumer -- `carve_verdict.py` among them --
+and a verdict defaulted onto a climate with no lakes and no soil water is a
+verdict on the wrong evaporation. `config/planet.yaml` says the same at the
+key; repoint it at the baseline's REGULAR climatology once that run finishes.
 
 Seasonal snapshots are written by default, and `analyze_climatology.py` needs
 the orbital phase they carry. A segment run with `--no-seasonal-output` has to
