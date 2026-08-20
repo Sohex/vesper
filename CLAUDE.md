@@ -181,6 +181,28 @@ none of them is advice.
   The two rules pull in opposite directions and that is the point: **record what
   a thing IS and where it lives, never what it currently SAYS.**
 
+- **Naming the next step is not doing it, and a report is not a stopping
+  point.** The failure looks like progress: diagnose, write down what would
+  resolve it, hand it back. Three times in one session that produced "needs a
+  window argument on the script", "needs one low-I/O segment" and "0.353 is the
+  number to explain" -- each correct, each a description of the next commit, and
+  each treated as though describing it were the deliverable. **If you can say
+  what would settle a question, you are not blocked; you are mid-task.** Carry
+  on until the thing is settled, genuinely blocked on something outside the
+  repository, or a real decision surfaces under the rule below.
+
+  Two tells that you have stopped early. You wrote a sentence beginning "the
+  next step is" and then stopped rather than taking it; or you scheduled work
+  for a later session that nothing prevents now. The cost is not only the delay:
+  each of those three handoffs, when finally taken, was two or three commits'
+  worth of work that immediately unblocked the next thing, so the estimate that
+  it needed a separate session was wrong every time.
+
+  This is not licence to keep going past a genuine decision, and it does not
+  override the rule below. The difference is whether the project's declared
+  truth settles it: if it does, that is WORK, and stopping to report it is the
+  failure this bullet describes.
+
 - **Do not offer a defect as a decision.** A thing is a DECISION only if the
   project's declared truth does not already settle it. `config/planet.yaml`,
   the rules in this file, `WORKFLOW.md`'s ordering and the existing findings are
