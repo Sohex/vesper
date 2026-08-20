@@ -97,6 +97,11 @@ The arguments and the incidents behind these are in
   "measured on".
 - **Rewrite superseded content; do not mark it.** A reader grepping for a number
   lands on the number, not on the warning above it.
+- **A sentence earns its place by the future work it can inform.** Process
+  narration, correction stories, dates that carry no identity, and commentary
+  about the document itself are byproduct: delete them. Git carries how a
+  document came to be right; the document carries what is right.
+  `docs/src/practice/failure-modes.md` class 25.
 - Prose in docs and reports uses ASCII punctuation and avoids em dashes; match it.
 - **Write about the simulation in the simulation's terms.** Name the
   simulated subject explicitly -- the model's snow albedo, a gridcell's

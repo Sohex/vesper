@@ -856,3 +856,30 @@ decoration that will later be quoted as the reason.
 **Related but distinct.** Class 16 is tuning physics to a metric. Class 17 is a
 check that cannot fail. This is the inverse of 17: a check that CAN fail,
 performed on a question where failure and success were both irrelevant.
+
+## 24. A derived summary standing in for its primitives
+
+A count, a partition, a pairing, or an exception claim asserted where the
+primitive facts it summarizes are absent, wrong, or contradicted: "three of
+the six pair naturally and one cannot" over pairings that shared a member;
+"seven surface fields" over an enumeration that omitted the conditional ones;
+"none of them announced itself" at the head of this very catalog, against
+three of its own loud classes. The summary reads as rigor and cannot be
+checked without the primitives, so it survives every review that does not
+recompute it. The fix is mechanical: state what gates what, or what defines
+what, and keep the derived claim only if it still checks out and changes a
+decision. A corpus-wide sweep found this class throughout; the instances are
+in git.
+
+## 25. Byproduct kept as content
+
+The documentation accumulates what writing it produced rather than what
+reading it needs: the story of how a section came to be right, dates on
+arguments that cannot go stale, notes about the note, ceremony standing where
+a status label already carries the weight. Each reads as diligence, and each
+is noise a future reader pays for on every load -- the cost is not the disk,
+it is the context. The test is the future decision a passage could change; if
+none, it goes, however true it is. Git already records the how; keeping it in
+the document as well is the failure. The one-line cost history that
+calibrates a rule, the measured-on date, the pre-registered threshold and the
+status label are not this class: each changes how a reader acts.

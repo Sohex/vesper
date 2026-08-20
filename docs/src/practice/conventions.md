@@ -56,6 +56,20 @@ supposed to agree and finding they did not.
   The two rules pull in opposite directions and that is the point: **record what
   a thing IS and where it lives, never what it currently SAYS.**
 
+- **A sentence earns its place by the future work it can inform.** The test
+  for any passage is the decision or action a future reader could take
+  differently because of it; a passage that changes nothing is byproduct,
+  however true. The recurring genres: narration of how the document came to
+  say what it says (git carries that); dates on durable arguments and
+  definitions (a date belongs on a measurement that will drift, on a
+  pre-registered threshold where the ordering is the point, or where a reader
+  must judge staleness -- nowhere else); commentary about the document
+  itself; and ceremony ("verified rather than asserted") where the evidence
+  or the status label already carries the epistemic weight. What is NOT
+  byproduct: the one-line cost history that calibrates a rule, the trap
+  warning, the status label, and the argument behind a live decision.
+  Failure-modes class 25.
+
 ## Prose registers
 
 - **Write about the simulation in the simulation's terms.** Some of this
