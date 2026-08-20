@@ -435,7 +435,56 @@ booking understates cloud shortwave absorption in this model, or that 0.19
 ratio does not transfer from water vapour to clouds. The note already called
 this the softest entry after PHYS-9 and the second place to bisect; it is now
 the first place to look, and it makes the cloud constants the largest unpriced
-lever in the radiation, not a correction.
+lever in the radiation, not a correction: +/-2.6 K from a bracket that spans
+both signs of the star correction is larger than the entire bundle sum of
++0.6 K, and larger than any single term in it.
+
+#### Which half of the prediction was wrong, measured
+
+The bound was built from two factors: clouds booked at 12.0 W/m2 of shortwave
+absorption, and water vapour's atmospheric-to-TOA ratio of 0.19. Splitting the
+measurement across those same two factors says which one failed, and it is not
+the one that looks soft.
+
+| | control | scale 0.78 | scale 1.28 |
+| --- | ---: | ---: | ---: |
+| top of atmosphere, `rst` | 240.049 | 236.745 | 243.227 |
+| surface, `rss` | 156.624 | 156.681 | 156.194 |
+| atmospheric absorption | 83.425 | 80.063 | 87.033 |
+| d atmospheric | -- | -3.361 | +3.608 |
+| d top of atmosphere | -- | -3.304 | +3.178 |
+| **d TOA / d atmospheric** | -- | **0.98** | **0.88** |
+
+**The 12.0 W/m2 booking is right, and the arms measure it independently.** A
+22% cut moves atmospheric absorption 3.361 W/m2 and a 28% rise moves it 3.608,
+implying the scaled keys carry 15.3 and 12.9 W/m2 of absorption. The budget's
+12.0 sits just under that, and the prediction's own +/-3.4 W/m2 atmospheric
+estimate was accurate to a few percent.
+
+**The 0.19 ratio is what fails, and it fails by a factor of five.** Measured,
+the ratio is 0.88 to 0.98: nearly ALL of the atmospheric change appears at the
+top of atmosphere.
+
+The surface says why. It barely moves, +0.057 W/m2 on the low arm and -0.430 on
+the high one, against atmospheric changes of 3.4 and 3.6. So the absorption
+these keys add is not coming out of the surface's share. It is coming out of
+what would otherwise have been SCATTERED BACK TO SPACE.
+
+That is the general lesson and it is not about clouds. **The
+atmospheric-to-TOA ratio is not a property of the atmosphere; it is a property
+of what the absorber competes with.** Water vapour absorbs low in the column
+and mostly takes flux the surface would have absorbed anyway, so the planet's
+total absorption barely changes and 0.19 is a real number for that term. Cloud
+shortwave absorption sits in a scattering medium and competes with reflection,
+so a photon absorbed is a photon that does not leave, and the ratio goes to
+nearly 1. Borrowing one term's ratio for the other was the whole error, and it
+would repeat on any absorber placed where scattering dominates: dust and sea
+salt both qualify.
+
+**Corrected bound.** +/-3.4 W/m2 atmospheric at a ratio near 0.95 gives +/-3.2
+W/m2 at the top of atmosphere, +/-2.6 K. That is what was measured. The
+prediction was recoverable from its own inputs the moment the ratio was
+questioned.
 
 **Consequence.** Two of the bundle's registered predictions are refuted and
 neither refutation is a small correction. The summed prediction above is not
