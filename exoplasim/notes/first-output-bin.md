@@ -362,3 +362,42 @@ be read by an unpatched one, and the reverse, so a run started before 2026-08-18
 cannot be resumed by a current binary. It buys back the 25x output volume that
 `NLOWIO = 0` costs; it does not change any result, because no current result
 comes from the low-I/O path.
+
+
+## A third instance, 2026-08-19: `--restart-from` imports the donor's accumulators
+
+Found while trying to use a low-I/O run as a control for CLIM-11. Under
+`NLOWIO = 1` the land mask -- a field that CANNOT VARY -- reads **0.95341** in
+orbit 0, bin 0, and exactly 1.0 in every other bin of every orbit. A constant
+field is the cleanest possible probe for a normalisation error, and that is a
+4.7% one.
+
+**It needs BOTH seeding and low I/O**, which is what identifies the cause:
+
+| run | seeded | NLOWIO | orbit 0 bin 0 |
+| --- | --- | ---: | ---: |
+| `run_b572b2e503b5` | no, cold start | 1 | **1.0** |
+| `run_277e52971ec5` | `--restart-from` | 1 | **0.95341** |
+| `run_ef3e195a7bdd` | `--restart-from` | 0 | 1.0 (nothing accumulates) |
+
+`run_exoplasim.py --restart-from` hands the donor file to
+`model.configure(restartfile=...)` whole, and PlaSim reads it whole -- including
+`naccua`, `naccuout` and the accumulator arrays, which `seamod.f90:121-126`
+restores by name. So a seeded run opens with another run's partial accumulation
+already in the bucket and divides the sum by its own count.
+
+**This is not the defect the patch above fixed.** That one was per model call and
+is gone: orbits 1 and 2 are exactly 1.0 here. This is the first record of a RUN,
+and only of a seeded one.
+
+**Scope, which is small but not nothing.** One bin of one orbit. `align` and
+`_bin_mean` in `close_ocean_energy.py` both drop bin 0 already, and a climatology
+window is taken from the end of a run rather than its first orbit. What it did
+cost is a measurement: the low-I/O arm of the CLIM-11 control pair is
+contaminated, and a cold-started replacement is useless because a cold start
+begins at 268.8 K with no ice-free ocean at all, so there is nothing to compare.
+
+**It matters more now than it would have yesterday**, because low I/O became the
+default for a prepared run the same day, and every seeded spin-up in
+`WORKFLOW.md` section 6 -- the bracket points, the endmember arm -- is
+`--restart-from`. CLIM-31 is the fix.
