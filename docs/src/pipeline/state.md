@@ -36,10 +36,10 @@ to extreme, keeping most land in Earth-like conditions and leaving the polar
 margins severe but small. The derivation is CODIFIED: `derive_design_flux.py`,
 step `design_flux`, writes `exoplasim/analysis/design_flux.json` with its
 thresholds declared in the script before it runs. Re-run it on a new terrain
-rather than reinventing it, and know its first finding: the
-comfort-maximizing rule alone prefers a much lower flux, and the recorded
-choice is optimal only under a cap on the cold-extreme land fraction -- the
-quantity "severe but small" gestured at and never fixed. The cap must be
+rather than reinventing it, and know its standing: the recorded flux is
+unsupported until the cold-extreme land-fraction cap is DECLARED ahead of the
+next re-derivation (CLIM-30); the finding and the purged artifact's history
+are in the script and the task row. The cap must be
 DECLARED in advance by the next re-derivation; the purged artifact inferred it
 from the answer, which is what CLIM-30 exists to undo.
 

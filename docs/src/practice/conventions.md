@@ -52,8 +52,8 @@ Almost every class in [failure modes](failure-modes.md) was found that way.
   and is invisible will be reimplemented beside itself, which is how this project
   came to have four copies of a path resolver and three of a grid convention.
 
-  The two rules pull in opposite directions and that is the point: **record what
-  a thing IS and where it lives, never what it currently SAYS.**
+  One test resolves both: **record what a thing IS and where it lives, never
+  what it currently SAYS.**
 
 - **A sentence earns its place by the future work it can inform.** The test
   for any passage is the decision or action a future reader could take

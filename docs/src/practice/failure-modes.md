@@ -8,7 +8,7 @@ than as a changelog, because the classes recur and the instances do not.
 
 Run `python scripts/check_consistency.py` before an expensive run and after
 changing `source_build`. It mechanises the checks that come out of the classes
-below, and it exists because prose in a document does not stop anything.
+below.
 
 ---
 
@@ -161,7 +161,7 @@ before the lakes are solved, before a verdict is applied, or before the loop thi
 project is built around has run. Before quoting a geography number, ask which
 iteration it belongs to and whether the pipeline expects to move it. The
 uncarved numbers are the ones physically present in `source/` at the start of
-every cycle, which is exactly why they keep getting picked up.
+every cycle; presence there is availability, not currency.
 
 Corollary: this world is unusual enough in its drainage that reasoning from one
 transport pathway is reliably insufficient. Where water does something
@@ -318,8 +318,8 @@ staleness after a converged run is not.
 
 The general form is the one this file keeps returning to: a build product whose
 identity does not record what went into it. The same reasoning put the geography
-digest, the spectrum and the flux into `run_id`, and the binary is the input that
-is still missing from it.
+digest, the spectrum and the flux into `run_id`; whether the producing binary
+joins them is `TASKS.md` CONS-9.
 
 ## 12. A continuation that re-derives the physics from config
 
@@ -833,9 +833,7 @@ deletion was right. **The justification was not, and it was the more damaging
 half**, because it framed a category error as a performance problem. A
 justification by ratio says the thing would be fine at a better ratio, so it
 licenses the return of exactly what it removed, and the count that supports it
-goes stale within an iteration -- see the first convention in `CLAUDE.md`, which
-this violated in five files at once while being quoted elsewhere in the same
-session.
+goes stale within an iteration -- see the first convention in `CLAUDE.md`.
 
 **The actual argument, which does not contain a number.** The gate asks whether
 any outstanding work still moves an artifact the verdict is computed from. That

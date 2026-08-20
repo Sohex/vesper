@@ -205,7 +205,8 @@ in Eq. 21's pressure treatment rather than an error in the reconstruction, and
 this could have failed: a ratio near 1.0 would have meant the reconstruction was
 13% too absorbing and the whole H2O derivation suspect.
 
-**That deficit is not corrected by anything and is not what `h2osww` is for.**
+**That deficit is now corrected by `h2oswl` (PHYS-9), whose value 1.127 is
+this table's operating-path ratio; it is not what `h2osww` is for.**
 `h2osww` is a ratio and a level offset divides out of it. What the ratio says is
 that the model's absolute clear-sky water vapour shortwave absorption is low by
 about 12% relative to a modern line list, before the missing continuum, and that

@@ -62,7 +62,7 @@ Status: `open` | `doing` | `blocked` | `done` | `wontfix` (with a reason).
 
 ## BIO -- biosphere
 
-1 open of 4 issued.
+2 open of 5 issued.
 
 | id | task | source | status |
 | --- | --- | --- | --- |
@@ -70,6 +70,7 @@ Status: `open` | `doing` | `blocked` | `done` | `wontfix` (with a reason).
 | BIO-2 | Quote productivity with the `nfix_a` bracket 0.102-0.367 carried through rather than the central value alone; the span is 18.2% of NPP and it is the largest nitrogen lever | `biosphere/notes/productivity-prediction.md` | blocked on iteration 2's baseline run -- no LPJ-GUESS run exists on this build [step: lpj_run] |
 | BIO-3 | -- | -- | done, see `archive/tasks.md` |
 | BIO-4 | -- | -- | done, see `archive/tasks.md` |
+| BIO-5 | Extend `vesperinput.cpp` for the CNP fork's `SoilProperties` fields (`kplab`, `spmax`, `pwtr`): the subclass must carry them even if it does nothing with them | `biosphere/notes/cnp-fork-scoping.md` | open, blocked on the CNP fork build itself [step: lpj_run] |
 
 ## BUDG -- the error budget and what it is denominated in
 
@@ -86,7 +87,7 @@ Status: `open` | `doing` | `blocked` | `done` | `wontfix` (with a reason).
 
 ## CLIM -- climate
 
-3 open of 31 issued.
+7 open of 35 issued.
 
 | id | task | source | status |
 | --- | --- | --- | --- |
@@ -121,10 +122,14 @@ Status: `open` | `doing` | `blocked` | `done` | `wontfix` (with a reason).
 | CLIM-29 | Carbonaceous aerosol is the one the sulfate bound does not reach: smoke and secondary organics ABSORB, so their forcing per unit optical depth is larger than either scatterer's and of the opposite sign. Fire is enabled in LPJ-GUESS as GLOBFIRM and biogenic emissions are already in the driver, so both are estimable from a biosphere run | `notes/audits/unpriced-terms.md` finding 2, `aeolian/README.md` | blocked on a biosphere run existing on this build, which is BIO-1 and BIO-2, and deliberately not worked around: the burned area and the biogenic emission are LPJ-GUESS output and inventing either would be inventing the vegetation the whole component exists to compute. The chain to reuse is complete -- OPAC carries a soot component beside the sulfate one, `sea_salt_optics.band_average` takes any distribution, and the transport and the two-stream are shared -- so this is a source term and an optics table and nothing else. Note the sign: an absorbing aerosol over this world's bright closed-basin fill warms, which is the same asymmetry `dust_forcing.py` already prices for mineral dust [step: lpj_run, sea_salt_optics] |
 | CLIM-30 | DECLARE the extreme-cold land-fraction cap BEFORE the design flux is re-derived, instead of inferring it from the answer. The purged artifact inferred 0.0642, which reproduced 0.945 from an unconstrained winner of 0.8725 dry -- a threshold fitted to the answer it was meant to test, which is what the threshold convention (`docs/src/practice/conventions.md`) forbids | `docs/src/pipeline/state.md` section 5b, `exoplasim/scripts/derive_design_flux.py` | open, and a DECISION nothing in the project settles: it needs a preference no document fixes, which is why it is a task and the re-derivation is not. Re-deriving is the `design_flux` step, and the second converged point it needs is `bracket_run`; neither is tracked here. Until the cap is declared ahead of the run, the recorded flux is unsupported [step: design_flux] |
 | CLIM-31 | -- | -- | done, see `archive/tasks.md` |
+| CLIM-34 | Redo the glacier bound against the real 0.945 climatology with the measured 7.8 K/km lapse; the recorded -4.7 K offset is a proxy | `notes/glacier-rough-pass.md`, archive PHYS-12 | open [step: baseline_climatology] |
+| CLIM-35 | Measure the salinity A/B: `TFREEZE` from declared salinity is settable (archive CLIM-17) and its global-mean worth is unmeasured | `scripts/error_budget.py` salinity row, `archive/tasks.md` CLIM-17 | open, one namelist key on the built binary, so it satisfies A3's A/B conditions [step: baseline_run] |
+| CLIM-32 | Price ozone's radiative effect on the simulated climate: one T21 sensitivity pair at `o3scale` 0.5 against the baseline | `exoplasim/notes/ozone.md`, `docs/src/reference/config-rationale.md` activity entry | open. Shielding of the surface is settled (0.794, measured); the radiative stake is not, and in a ten-layer model it may be small. A diagnostic pair, not a commissioning [step: baseline_run] |
+| CLIM-33 | Price `mixed_layer_depth_m`: one perturbation run against the 50 m default, which sets seasonal amplitude on a half-Earth year | `docs/src/reference/config-rationale.md` ocean entry, `analysis/error_budget.json` structural items | open. The budget books it structural with no kelvin figure; a single perturbation run converts it [step: baseline_run] |
 
 ## CONS -- consistency checking
 
-0 open of 8 issued.
+1 open of 9 issued.
 
 | id | task | source | status |
 | --- | --- | --- | --- |
@@ -135,6 +140,7 @@ Status: `open` | `doing` | `blocked` | `done` | `wontfix` (with a reason).
 | CONS-6 | -- | -- | done, see `archive/tasks.md` |
 | CONS-7 | -- | -- | done, see `archive/tasks.md` |
 | CONS-8 | -- | -- | done, see `archive/tasks.md` |
+| CONS-9 | Decide whether the producing binary joins `run_id`'s identity: `binary_manifest.json` guards the build, but a run's identity does not record which binary made it | `docs/src/practice/failure-modes.md` class 11 | open, and a DECISION: the UUID rule (CLAUDE.md rule 6) says identity encodes nothing, so the binary would join the manifest rather than the name [step: baseline_run] |
 | CONS-9 | -- | -- | done, see `archive/tasks.md` |
 
 ## CONV -- cross-component conventions and provenance plumbing
@@ -158,7 +164,7 @@ Status: `open` | `doing` | `blocked` | `done` | `wontfix` (with a reason).
 
 ## DUST -- the aeolian component
 
-2 open of 13 issued.
+4 open of 15 issued.
 
 | id | task | source | status |
 | --- | --- | --- | --- |
@@ -174,6 +180,8 @@ Status: `open` | `doing` | `blocked` | `done` | `wontfix` (with a reason).
 | DUST-10 | -- | -- | done, see `archive/tasks.md` |
 | DUST-11 | Settle the CATCHMENT half: run one prescribed-dust climate segment and measure what it does to precipitation and runoff. Runoff is the carve criterion's denominator and only 19% of land precipitation, so it amplifies; radiatively dark mineral dust lowers the simulation's rainfall through a fast circulation adjustment that no offline calculation can reach, because it is a response of the modelled winds and not of a surface energy balance | `notes/dust.md`, `aeolian/notes/prescribed-dust-run.md` | DECIDED 2026-08-17: measure first, then decide whether to carry it. The matched pair rides inside the flux re-bracket rather than beside it, so the control is a point loop A needs anyway. The patch is resident with `ndustrad = 0` [step: surface_dust, baseline_run] |
 | DUST-12 | -- | -- | done, see `archive/tasks.md` |
+| DUST-13 | Decide whether the final climate carries interactive emission (`L_AERO = 1`): the reopening test in `notes/dust.md` fired, so a prescribed field is not defensible for a converged answer | `notes/dust.md`, `aeolian/notes/in-model-dust.md` | open, blocked on DUST-11's measurement -- the prescribed-dust run prices what the interactive scheme must reproduce [step: baseline_run] |
+| DUST-15 | Make the measured gust samples the dust step's default input and regenerate the chain: every dust artifact on disk is 70x too thin, built from the snapshot-fitted wind tail | `notes/dust.md` last section, `config/pipeline.yaml` dust step | open, and DUST-11's run rides the wrong field until it lands [step: dust] |
 | DUST-14 | Dust deposition reaches the soil and never reaches the cryosphere: nothing consumes the deposition field as a term in the model's snow and ice albedo, and `build_dust.py` reads snow only as an emission suppressor | `notes/audits/absent-and-inherited-physics.md` finding 2 | open, one-signed, and it lands on the term the glacier result turns on. Deposition over snow-covered land at 50-60 degrees is 8.75 g/m2/yr at the central aeolian roughness against a terrestrial dust-on-snow literature working at 1-5 g/m2 snowpack loads for albedo reductions of 0.03-0.08, and the smooth end of the roughness bracket is 111 g/m2/yr. The model's snow albedo carries a time-since-snowfall aging range of about a quarter in band 1 and no dependence on what has landed on it. It belongs in the glacier mass balance when `notes/glacier-rough-pass.md` stops being a temperature criterion, and the field it needs already exists. It also puts a cryosphere term under the aeolian roughness bracket, which was understood as controlling emission and the direct forcing only [step: dust, surface_albedo] |
 
 ## GRAV -- gravity
@@ -200,7 +208,7 @@ Status: `open` | `doing` | `blocked` | `done` | `wontfix` (with a reason).
 
 ## HYD -- hydrography
 
-1 open of 17 issued.
+2 open of 18 issued.
 
 | id | task | source | status |
 | --- | --- | --- | --- |
@@ -221,6 +229,7 @@ Status: `open` | `doing` | `blocked` | `done` | `wontfix` (with a reason).
 | HYD-16 | -- | -- | done, see `archive/tasks.md` |
 | HYD-17 | -- | -- | done, see `archive/tasks.md` |
 | HYD-18 | -- | -- | done, see `archive/tasks.md` |
+| HYD-19 | Add a clause to `vendor/orogen/tools/README.md`: erodibility is mean-normalised at generation time, not as shipped, so a consumer must not rescale against an assumed mean of 1 | `hydrography/notes/orogen-carving-request.md` | open [step: orogen] |
 
 ## LITH -- lithology
 

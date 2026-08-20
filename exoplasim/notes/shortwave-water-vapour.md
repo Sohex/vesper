@@ -111,9 +111,10 @@ held.** `exoplasim/notes/corrk-cross-check.md` reruns this quantity from
 correlated-k tables on HITRAN2020, with these same two spectra: the weight comes
 out at 1.3271, inside the bracket, and the excess over Eq. 21 comes out at 1.127,
 which confirms the level offset is a deficit in Eq. 21's pressure treatment rather
-than an error here. The corollary is a separate defect that nothing fixes: the
-model's absolute clear-sky water vapour shortwave absorption is low by about 12%,
-and `h2osww` is a ratio and does not touch it.
+than an error here. The corollary is a separate defect: the model's absolute clear-sky water
+vapour shortwave absorption was low by about 12%, and `h2osww`, a ratio, does
+not touch it; `h2oswl` (PHYS-9, `config/planet.yaml` `h2o_sw_level: 1.127`)
+now carries that level correction.
 
 The 0.72 and 0.81 um bands are the one assumed input here and it is worth saying
 so plainly. Howard never measured them; Yamamoto estimated them from Fowle's data
@@ -237,10 +238,9 @@ none of those is in this number.
 **The prediction is conditional on the baseline it starts from.** These are the
 h2osww term alone, evaluated on a climatology produced with the blackbody, so if
 the spectrum and SPEC-2 land in the same rebuild the run contains three changes
-and none of them can be attributed from one result. That is worth two short
-attribution segments at the new spectrum, `h2osww` off and on, before the long
-converged run: cheap, and the only thing that turns this prediction into a test
-rather than a story told afterwards.
+and none of them can be attributed from one result. Attribution is handled by the A3 bundle protocol in
+`exoplasim/notes/forcing-bundle-predictions.md`: per-term predictions
+registered in advance, bisection only if the sum misses.
 
 **The atmospheric and surface terms are the robust ones.** They follow from the
 absorptance being multiplied by a known factor and are close to arithmetic. The

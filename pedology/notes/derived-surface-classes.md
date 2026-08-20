@@ -212,7 +212,8 @@ Gypcrete and calcrete overlap between 100 and 250 mm/yr, and Watson resolves it
 explicitly: gypsum crusts occupy the driest zones, calcretes the less arid parts. So gypcrete
 takes precedence where its monthly condition is met, and calcrete otherwise. Both
 additionally require an ion source, which is lithological and is the point where
-this meets the major-ion work that is still waiting on Meybeck's Table 5.
+this meets the major-ion work (Meybeck Tables 2C and 5, extracted and
+validated; see "What is undetermined").
 
 Note that the monthly PET-exceeds-P test needs monthly fields, not annual means.
 Vesper's year is 183 days in 12 bins, and an annual mean would pass cells whose

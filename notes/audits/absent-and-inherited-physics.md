@@ -233,6 +233,4 @@ Stated so the coverage is not overread. I did not audit `minerals/`, the
 hydrography solver internals beyond what `carve-criterion-terms.md` already
 covers, the LPJ-GUESS PFT parameter set, the Mie code behind
 `analysis/dust_optics.json`, or the pedology weathering law's own constants
-beyond their citation state. The first and last of those are the ones I would
-take next, because `weathering_fluxes.py` feeds a CO2 budget that
-the pipeline chapters (docs/src/pipeline/loops.md) already treat as load-bearing.
+beyond their citation state.

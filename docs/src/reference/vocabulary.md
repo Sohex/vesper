@@ -50,10 +50,10 @@ the commissioning of the build that comes out of it. An iteration therefore
 CONTAINS a generation and a commissioning, in that order, and it is what
 "starting again from Orogen" means.
 
-  Say `generation` or `commissioning` when you mean one half. Saying `iteration`
-  when you mean the second half is the collision this section exists for, and it
-  is the easy one to make, because most of the work in a turn is the
-  commissioning.
+  Before writing `iteration`, check that you mean a generation plus its
+  commissioning; if you mean only the second half, write `commissioning`. Most
+  of a turn's work is the commissioning, which is why the check is worth
+  making.
 
 **segment** -- a contiguous block of orbits added to an existing run by
 `continue_exoplasim.py`. Runs are made of segments; each records its I/O regime
@@ -75,13 +75,11 @@ statement about what the terrain looks like.
 intersection carve in `docs/src/pipeline/loops.md`. It is a statement about our
 uncertainty, not about a landform.
 
-  **These two are not synonyms and were briefly the same word.** A basin can be
-  marginal in both arms, bracketed while marginal in neither, both, or neither.
-  "The marginal set" was used for the bracketed one in section 4 and leaked into
-  the carve exporter, where `marginal` was already a verdict value written into
-  the carve list Orogen reads -- so one word named a landform and an error bar in
-  the same file. Say `bracketed` for the disagreement and reserve `marginal` for
-  the notch.
+  These two are not synonyms and were briefly the same word: a basin can be
+  marginal in both arms, bracketed while marginal in neither, both, or
+  neither, and the conflation once put a landform and an error bar under one
+  name in the same file. **Say `bracketed` for the disagreement and reserve
+  `marginal` for the notch.**
 
   A third neighbour, kept distinct: `disputed` in `export_carve_list.py` is where
   the two EVAPORATION ESTIMATORS disagree about one climate. Three concepts,

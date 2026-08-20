@@ -525,6 +525,7 @@ is still the defensible one, and `aeolian/README.md` still describes the world
 the measurement produced. **Every dust number now on disk is the snapshot-fitted
 one**, including `analysis/dust_forcing.json`, `analysis/dust_surface_forcing.nc`
 and the prescribed-dust field DUST-11 would run with, which is 70x too thin. The
-fix is one re-run of the chain with `--gust-samples` pointed at the high-cadence
-wind file, and then everything below it again; it is not DUST-12's to make,
+fix is DUST-15: make the measured gust samples the dust step's default input
+and regenerate the chain, then everything below it; it is not DUST-12's to
+make,
 because DUST-12 is which dust, not how much.

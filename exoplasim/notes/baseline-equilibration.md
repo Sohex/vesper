@@ -140,7 +140,8 @@ to its threshold.
 Most of it is now named: the adiabatic spectral step creates energy, so the
 model really does radiate away more than it stores, and the reported net is a
 correct measurement of a planet that is not conserving. About -0.20 W/m2 of it
-is still unattributed, over half of that at the ocean surface.
+remained unattributed until CLIM-11 closed the surface half as measurement
+(aliasing and instrument; `archive/tasks.md`).
 `exoplasim/notes/water-and-energy-closure.md` carries the measurement. A
 criterion that stopped reading the number would also stop anyone noticing when
 it changed.

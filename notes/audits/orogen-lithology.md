@@ -654,8 +654,7 @@ cratonic area than Earth is well supported by the mass alone, without appealing
 to the planet being young. Some, but not much.
 
 `LITH-20`, closed. The residual granite excess -- 11.12% of land against GLiM's
-5.7% acid plutonic, and cratonic rather than arc -- is untouched by any of this
-and is the part that would still repay an explanation.
+5.7% acid plutonic, and cratonic rather than arc -- is untouched by any of this.
 
 ### The evaporite 9.5x is a category error, not an excess
 

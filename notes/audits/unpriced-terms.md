@@ -293,8 +293,8 @@ section 4 leaves open deliberately and bounds rather than solves.
 `minerals/`, the LPJ-GUESS PFT parameter set, the pedology weathering law's own
 constants, the hydrography solver internals beyond what
 `carve-criterion-terms.md` covers, and the Mie code behind
-`analysis/dust_optics.json`. The last two of those were also named as uncovered
-by `absent-and-inherited-physics.md`, which is now twice.
+`analysis/dust_optics.json`. The last two are not covered by any audit; no task
+tracks them.
 
 ## Tasks
 

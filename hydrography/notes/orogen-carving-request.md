@@ -173,9 +173,8 @@ by `land_mask`, not by `surface_class`.
 which is the trap the manifest itself now documents and which `surface_class`
 exists to avoid. Using it here inflates the endorheic share by about 3.5 points.
 
-The routing is right and the areas are right; only the normalisation is wrong.
-Worth fixing because a headline percentage is exactly the number that gets
-quoted downstream.
+The routing is right and the areas are right; only the normalisation was
+wrong. Fixed in the regenerated export and verified below.
 
 ## And a correction against us
 
@@ -258,8 +257,9 @@ has the property the docs claim for it. `tools/README.md` describes erodibility 
 Neither is 1, which is expected once cover stripping swaps cells to their basement
 erodibility after the normalisation was applied. So the normalisation is a
 property of the field at the time it was computed, not of the field as shipped.
-Worth a clause in the docs, since a downstream model that assumes mean 1 and
-rescales against it would introduce a few percent of error for no reason.
+A clause in the fork's `tools/README.md` saying so is `TASKS.md` HYD-19: a
+downstream model that assumes mean 1 and rescales against it would introduce a
+few percent of error for no reason.
 
 ## On the two implementations
 

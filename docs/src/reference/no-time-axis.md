@@ -1,7 +1,7 @@
 # Orogen has no time axis, and what to do about it
 
-This is rediscovered and re-litigated once per component that needs a
-duration. It is settled; read this instead of working it out again.
+Any component that needs a duration reads this first; the question is
+settled here.
 
 ## The fact
 

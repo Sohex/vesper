@@ -163,8 +163,8 @@ One line each; the argument and the recorded incidents are in
   does not cover the one beside it.
 - Naming the next step is not taking it: if you can say what would settle a
   question, you are not blocked.
-- Ask whether the thing should exist BEFORE building or fixing it. Deleting is
-  a fix, and it is the one that will not occur to you.
+- Ask whether the thing should exist BEFORE building or fixing it: deleting
+  is a fix, so ask what breaks if the thing simply goes.
 - Do not offer a defect as a decision: if one option is "leave the known-wrong
   thing as it is", the question is mis-framed.
 - Stale derived artifacts are the resting state of the tree, not a work list;

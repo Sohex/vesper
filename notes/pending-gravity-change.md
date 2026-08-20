@@ -1,6 +1,7 @@
 # Pending: surface gravity to ~12.81 m/s2
 
-**Decided, not yet applied.** Recorded here because applying it is a larger job
+**Applied** (see Status below); kept as the record of the decision, because
+applying it was a larger job
 than editing a config line, and because a decision that lives only in a
 conversation is a decision that gets silently passed over.
 
@@ -68,9 +69,8 @@ so the gravity change itself moves no hash and no basin id. What it requires:
    exposure and affects circulation through orography, so the baseline flux
    has to be re-measured rather than carried over.
 
-The pedology and biosphere chains survive as method. Their calibrations should be
-revisited against a mantle that is not Earth's, per the differentiation point
-above.
+The pedology and biosphere chains survive as method; their calibrations carry
+their own sourced/declared labels.
 
 ## Status
 

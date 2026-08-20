@@ -203,6 +203,11 @@ on, not after it.
 
 ## What has to happen next
 
+Superseded by the A3 bundle: predictions and arms are in
+`exoplasim/notes/forcing-bundle-predictions.md`; the bundle total is checked
+against the summed predictions and bisected only on disagreement. What
+remains:
+
 1. The attribution segments `exoplasim/notes/shortwave-water-vapour.md` asks for,
    with `co2sww` off and then on, before the long converged run. Three physics
    changes in one rebuild and no result can be attributed to any of them.

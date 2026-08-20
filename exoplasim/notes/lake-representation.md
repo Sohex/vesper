@@ -151,9 +151,9 @@ perturbations: area-weighted albedo in 174/175/176, roughness in 173, and
 size, needs no patch, and keeps the run comparable to a no-lake control by
 changing only three input fields.
 
-Revisit mask flipping and per-cell `ymld` afterwards, for the few dozen basins
-that a cell can actually hold, and only if the first pass shows the lakes are
-large enough to matter.
+Mask flipping and per-cell `ymld` were held pending the first pass; CLIM-26
+measured the lake moisture term at -0.9% of land precipitation, so neither is
+planned. Reopen only with a measurement that moves that.
 
 ---
 

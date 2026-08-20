@@ -928,8 +928,7 @@ Each split replaces one guessed number with two better-founded ones, but it does
 not recurse usefully forever. At some depth the dominant uncertainty stops being
 "which facies is this" and becomes "what does bare rock of this type reflect
 under a 4965 K spectrum", and neither the terrain model nor the climate model has
-anything to say about that. One more level is probably worth it. The level after
-that is not.
+anything to say about that.
 
 ## The carved-zoned baseline, and a calibration error worth more than the result
 

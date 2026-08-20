@@ -242,12 +242,11 @@ both directions of that guard.
 Not by depending on the external bundle. It is 1.2 GB, it is not in this
 repository, and `check_consistency.py` cannot require it.
 
-The check that can fail without it is already available at build time.
-`build_stellar_spectrum.py` holds both full-resolution endpoints in hand before it
-calls `convert`, so it can integrate the blend at source resolution and write the
-band-1 fraction and `zcross/z1` into `k25v_provenance.json`. `check_consistency.py`
-then compares `lib/stellar.py`'s value against that stored number instead of only
-against other copies of itself. That is a comparison with a right answer: the
+The check that can fail is implemented (SPEC-3): `build_stellar_spectrum.py`
+integrates the blend at source resolution and writes the band-1 fraction and
+`zcross/z1` into `k25v_provenance.json`, and `check_consistency.py` compares
+`lib/stellar.py`'s value against that stored number instead of only against
+other copies of itself. That is a comparison with a right answer: the
 spectrum file is supposed to represent the source, and a resampler that does not
 conserve flux makes it not. It would have fired on the day the file was built, it
 needs nothing outside the repository at check time, and its tolerance is set by

@@ -172,7 +172,7 @@ invented bound had been suppressing three quarters of the deposit.
 
 **What is still not applied**, and its sign. The criterion is a rate against a
 rate and this project models neither erosion rate nor weathering-front descent.
-The anchors are in the config for whoever closes it. No slope bound is applied to
+The anchors are recorded in the config beside the rule. No slope bound is applied to
 supergene copper: unlike the laterites it is not tied to planation surfaces --
 Sillitoe's abstract says pediplains "are not considered to be a requirement" --
 and deep profiles do form in mountainous tropics on masses isolated from drainage

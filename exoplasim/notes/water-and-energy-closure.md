@@ -829,13 +829,10 @@ quotes an annual mean of a strongly seasonal field off a binned climatology
 carries an error of the same shape, and it is largest exactly where the seasonal
 cycle is largest.
 
-**The next instrument is to stop destroying the streams.** `ocean_output` and
-`ice_output` should be moved out of the run directory at the end of each model
-call, the way `MOST.NNNNN.nc` already is, so that the next climatology block
-carries them. Then this closure runs on the block the verdicts are read from
-rather than on the one orbit that happened to survive, the ten-orbit storage
-trend is replaced by an exact endpoint difference, and the remaining residual
-either is there or is not. That costs 200 MB an orbit and no model time.
+**The streams now survive every call (CLIM-12):** each call's `ocean_output`
+and `ice_output` are moved aside the way `MOST.NNNNN.nc` already is, so this
+closure runs on the climatology block and the storage trend is an exact
+endpoint difference.
 
 ## What this changes for the convergence criterion
 
@@ -900,15 +897,14 @@ weighting error is +0.0452 W/m2 of planet and POSITIVE on the ice-free ocean
 where the residual is negative, so counting it correctly makes the residual
 slightly larger rather than removing half of it.
 
-**Still open, and now the whole of it.** The residual on the ice-free ocean is
-unattributed, and it cannot be pinned on orbits 67-76 because the ocean stream
-for those orbits was overwritten and the storage there has to come from a
-ten-orbit trend whose four estimators already span 0.18 W/m2. That truncation is
-fixed as of CLIM-12 -- each model call's streams are moved aside rather than
-overwritten -- so the next climatology block carries the whole series and the
-trend is replaced by an exact endpoint difference. No run on this build predates
-that fix, so the measurement waits on the next one.
-That is what is left of CLIM-11: not more model time, and not the offline
+**Closed as CLIM-11, 2026-08-19: the residual was measurement, all of it.**
+Three layers were the instrument (bin alignment flooring, equal-width bins
+over unequal record counts, a `.mean(0)` against a record mean -- CLIM-13)
+and the fourth was sampling: one record per 24.00 h against a 30.00 h day
+samples the diurnal cycle at five phases forever, while the streams integrate
+every step. At `NWPD = 8` the atmosphere and the streams agree to 0.008 W/m2
+and the surface budget closes; `archive/tasks.md` CLIM-11 has the four
+layers. What was never the answer: more model time, or the offline
 radiative transfer this note once proposed.
 
 

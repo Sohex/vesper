@@ -33,7 +33,8 @@ different parts of the same files.
     modules/spinupdata.h      clean
     modules/CMakeLists.txt    clean
 
-What still needs checking is `vesperinput.cpp`, which subclasses `SoilInput`.
+Extending `vesperinput.cpp`, which subclasses `SoilInput`, is `TASKS.md`
+BIO-5.
 The fork adds `kplab`, `spmax` and `pwtr` to `SoilProperties`, so the subclass
 will need to carry them even if it does nothing with them.
 

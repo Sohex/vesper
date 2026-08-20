@@ -50,10 +50,9 @@ Both errors overstate stratospheric heating. They do not cancel.
 
 ## What to do about it
 
-A one-run sensitivity test, T21 at `o3scale` 0.5 against the baseline, would
-price the surface-climate stake; in a ten-layer model there is little
-stratosphere to heat, so the surface effect may be small even though the bias
-is real.
+Pricing the surface-climate stake is `TASKS.md` CLIM-32; in a ten-layer
+model there is little stratosphere to heat, so the surface effect may be
+small even though the bias is real.
 
 ## Surface ultraviolet: measured, not chosen
 

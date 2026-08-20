@@ -187,25 +187,6 @@ change, and only the second bears on the gate. The finding stands and gets
 sharper -- a stale status cell misleads a READER, and no traversal was ever
 screening that out.)
 
-## 7. Loose state worth settling before an expensive run
-
-- **`exoplasim/patches/cycle_binary_manifest.json` is uncommitted.** It is the
-  only record of which executable the cycle binary is, `check_consistency.py`
-  reads it, and it was rewritten by the rebuild at 09:20:23Z.
-- **`exoplasim/runs/run_67febcf213aa` is `status: prepared` and absent from
-  `INDEX.json`.** Its `config_path` points into a scratchpad belonging to a
-  different session, so the config it was built from is gone; its geography
-  digest is ed88c1e3, matching the current inputs rather than the baseline's.
-  Runs are untracked and `INDEX.json` is the only record of what each one was, so
-  an unindexed prepared run is the state rule 6 exists to prevent. It looks like
-  an abandoned attribution arm and should be started again rather than resumed.
-- **Fourteen agent worktrees and their branches are still attached.** Gitignored
-  and harmless to the pipeline, but `find . -name "*.md"` returns fourteen stale
-  copies of every document in the repo, which is how an audit reads a superseded
-  file believing it is current.
-
----
-
 ## What this audit did not find
 
 Stated because the question asked was about the climate inputs and the answer is

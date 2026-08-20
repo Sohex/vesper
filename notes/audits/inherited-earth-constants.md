@@ -323,11 +323,7 @@ been closed under `LITH-24` as DECLARED with brackets and a reported spread.
 Stated so the coverage is not overread. I did not audit `maps/` beyond the lapse
 rate it shares with finding 3, the LPJ-GUESS PFT parameter values themselves, the
 Mie code behind `analysis/dust_optics.json`, the hydrography solver internals, or
-Orogen's own generation constants. The first of those is the one I would take
-next: the bioclimatic limits are Earth calibrations that
-`biosphere/notes/lpj-guess-porting-audit.md` calls "the least mechanical part of
-the port", and the port resolved the degree-day half while the temperature half
-was carried over as physiology.
+Orogen's own generation constants.
 
 ## Tasks
 

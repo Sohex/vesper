@@ -230,15 +230,6 @@ and 2.
   instantaneous value. Code 54 under low I/O is not the accumulated quantity it
   claims to be.
 
-## Untested prediction
-
-The level at which the profile breaks is `NHOR*NLEV/NESP` counting from the model
-top, and `NHOR` is `NLON*NLAT/NPRO`. At T42 with 8 ranks rather than 16,
-`NHOR = 1024` and `NESP = 1896`, so about 5.4 levels would be restored and the
-break would sit between levels 5 and 6 instead of between 2 and 3. Nothing in
-this project has run that configuration with `NLOWIO = 1`, so it is a prediction
-and not a measurement.
-
 ## What to do about it
 
 **Read every existing run in `exoplasim/runs/` with the corrections above.**

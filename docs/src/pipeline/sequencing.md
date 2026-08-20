@@ -46,7 +46,8 @@ python exoplasim/scripts/run_exoplasim.py             # the BASELINE; hours
 python exoplasim/scripts/assess_convergence.py <run>
 python exoplasim/scripts/build_climatology.py <run>   # repoint baseline_climatology
 python exoplasim/scripts/analyze_climatology.py <...> # Koppen, biomes, the report
-python exoplasim/scripts/run_stellar_cycle.py         # A2 below; hours. NOT optional
+python exoplasim/scripts/run_stellar_cycle.py         # A2 below; hours. The register
+                                                      # orders it: carve_verdict needs it
 
 python exoplasim/scripts/dust_forcing.py              # the surface forcing the verdict reads
 python hydrography/scripts/carve_verdict.py           # the verdict, weighted per A2
@@ -65,19 +66,19 @@ irreversibility -- a wrong verdict is recoverable, because a build is replaced
 wholesale -- and it is not a computation. **Read `TASKS.md` and decide.** Each
 row in the open set says what it is waiting on.
 
-Do not compute it as "open tasks touching a step upstream of `carve_list`":
-whether a row still moves the verdict is a fact about what closing it would
-CHANGE, and that lives in the row's prose. A task can name an upstream step
+Whether a row still moves the verdict is a fact about what closing it would
+CHANGE, and that lives in the row's prose; a task can name an upstream step
 and move nothing -- deferred, a bound, blocked on something that happens
-after the carve -- so no traversal converts the second fact into the first.
-The `[step: <id>]` marker records where the work is FILED, not whether it
-blocks.
+after the carve. The `[step: <id>]` marker records only where the work is
+FILED. `TASKS.md`'s conventions record why no marker traversal substitutes
+for reading the rows.
 
-The three at the top and the two at the bottom are the ones most often skipped
-and the ones that cost most when they are: `rebuild_binaries.py --verify`
-because nothing else in the list notices a stale binary, `world_state.py` last
-because it reads every artifact above it, and running it earlier records a
-state that no longer holds.
+Two imperatives in the block have no mechanical backstop, which is what earns
+them their emphasis: `rebuild_binaries.py --verify` first, because nothing
+else in the list notices a stale binary, and `world_state.py` last, because it
+reads every artifact above it and an early run records a state that no longer
+holds. The rest of the ordering is enforced by the register and by the
+scripts' own refusals.
 
 Everything below the climatology in the register -- the derived surface
 classes, brine paths, the phosphorus budget, weathering fluxes, the
@@ -137,11 +138,11 @@ clears the remaining-offset test in `assess_convergence.py` rather than the
 drift criteria alone. Which knob moves the flux is in loop C, and depends on
 whether the calendar is locked.
 
-**Change one thing at a time between runs, and prefer that to hitting a
-temperature.** The bootstrap and the baseline differ in their surface fields,
-and if they also differ in flux then nothing measures what those fields are
-worth: hold the flux, measure the surface, and move the flux afterwards on a
-slope measured with the surface in place. The temperature target is a weaker
+**Between the bootstrap and the baseline, hold the flux while the surface
+fields change.** If the two runs differ in flux as well, nothing measures
+what the fields are worth: measure the surface first, then move the flux on a
+slope measured with the surface in place. This separates SURFACE from FLUX;
+it does not serialize forcing terms, which travel as one bundle per A3. The temperature target is a weaker
 constraint than it looks -- it is itself a property of the terrain it was
 derived on, and it cannot be held to better than the terms already
 outstanding.

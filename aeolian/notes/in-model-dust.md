@@ -402,12 +402,9 @@ has made set it to zero -- the same reason the seven `aerocore` defects survived
 The first run to enable the aerosol would have died in the namelist read before
 reaching any of this. `enable_dust_emission` rewrites the key.
 
-**The emitted dust is radiatively INERT on this branch**, `l_aerorad = 0`, and
-that is work rather than a choice. `radmod`'s own `apart` is never populated from
-the namelist -- upstream defect 1, still open because it lives in `radmod.f90` --
-so the shortwave path would price this world's dust at 1/385 of its optical
-depth, and the longwave term does not exist yet. Both known-wrong, so the only
-available setting is off. The aerofile is staged and named anyway, so turning it
+**The emitted dust defaults to `l_aerorad = 0`.** The apart fix (defect 1)
+and the longwave term are RESIDENT, so enabling radiation is a namelist
+change, taken deliberately rather than defaulted. The aerofile is staged and named anyway, so turning it
 on once item 5 lands is a namelist change.
 
 ### Predicted effects, stated before they run

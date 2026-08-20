@@ -1,9 +1,10 @@
 # Why config/planet.yaml says what it says
 
 The arguments behind `config/planet.yaml`, keyed by the setting each belongs
-to; the file says what each value is and points here. Where a block restates
-`exoplasim/notes/parameter-decisions.md` or an audit, the two were written at
-different times and the difference is sometimes the point.
+to; the file says what each value is and points here. Where a block disagrees
+with `exoplasim/notes/parameter-decisions.md` or an audit, this file is the
+current rationale and governs; the note is the dated derivation and stays as
+written.
 
 ## The statuses
 
@@ -170,8 +171,8 @@ at the same time -- the two would otherwise pull against each other, since
 the cycle wants an active star and the biosphere wants a quiet one.
 
 What this does NOT settle is ozone's radiative effect on the climate, which
-is a different quantity from its shielding of the surface. That still wants
-the o3scale sensitivity test.
+is a different quantity from its shielding of the surface; pricing it is
+`TASKS.md` CLIM-32.
 
 ## `metallicity`
 
@@ -217,15 +218,12 @@ DECLARED. Each is argued below.
 baseline_flux_earth: 0.945
 ```
 
-PROVISIONAL, 2026-08-19. It was chosen from the
-habitability-by-latitude derivation of `docs/src/pipeline/state.md` section 5b rather than from a
-temperature target, and `notes/audits/inherited-earth-constants.md` finding 5
-establishes that that derivation has no script, no analysis product, no row in
-`config/pipeline.yaml` and no recorded threshold, and does not name the runs it
-was projected across. Those runs have since been deleted, so it is not
-reproducible from this tree even in principle. `TASKS.md` CLIM-24 tracks making
-it a step. `docs/src/pipeline/sequencing.md` loop C requires the flux to be
-RE-DERIVED on every new terrain in any case, so the value is scheduled to move rather than merely unsupported.
+PROVISIONAL, 2026-08-19. Chosen from the habitability-by-latitude derivation
+of `docs/src/pipeline/state.md` section 5b, codified as
+`derive_design_flux.py` (step `design_flux`), which declares its thresholds in
+advance. The extreme-cold cap it needs is not yet declared ahead of the run
+(`TASKS.md` CLIM-30), and `docs/src/pipeline/sequencing.md` loop C re-derives
+the flux on every new terrain.
 
 It keeps its value rather than being cleared, because it is an INPUT and not a
 result: it fixes the semi-major axis below, and that orbit is compiled into
@@ -392,8 +390,8 @@ surface:
 PARTLY DETERMINED. Sea ice and glaciers are decided. `mixed_layer_depth_m` is
 NOT: 50 m is a default, it sets seasonal amplitude, and this world's year is
 half Earth's so it damps seasonality about twice as hard as Earth's ocean does.
-`scripts/error_budget.py` emits it as a structural item awaiting one
-perturbation run.
+`scripts/error_budget.py` books it as a structural item; pricing it is
+`TASKS.md` CLIM-33.
 
 ## `glaciers`
 
@@ -812,11 +810,8 @@ landscape records which past minima were severe. An exact ratio erases that.
 Damping below is ANALYTIC and Planck-only, from a slab thermal timescale of
 1.17 Earth years. Measuring the real value is what the first cycle run is for.
 
-The per-component kelvin figures in the notes below are STALE HIGH-CONFIDENCE
-ESTIMATES and are known to be understated. They were computed against a
-sensitivity of about 149 K per unit flux ratio, measured where the world is
-nearly ice-free. The canonical local sensitivity is in `lib/sensitivity.py`,
-which is 35% larger; use it and nothing else. Corrected magnitudes are in
-exoplasim/notes/parameter-decisions.md. THE AMPLITUDES BELOW ARE STILL THE
-DECISION; only their predicted consequence moved.
+Per-component kelvin consequences are not recorded here. The canonical local
+sensitivity is `lib/sensitivity.py`; corrected magnitudes are in
+`exoplasim/notes/parameter-decisions.md`. THE AMPLITUDES BELOW ARE THE
+DECISION.
 

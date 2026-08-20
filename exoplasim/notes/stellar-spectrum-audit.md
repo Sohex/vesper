@@ -112,17 +112,17 @@ bistability or cycle result computed this way understates the cold branch.
 
 **Rayleigh scattering moves too, and in the same direction.** `radmod` derives
 its Rayleigh coefficient from the spectrum, weighted as lambda^-4, so a redder
-star scatters far less. I could not reproduce the model's logged 0.21080
-absolutely (my transcription gives 0.42802, a factor of 2.03 out, cause not
-found), so only the ratio is quoted here, computed identically across spectra:
+star scatters far less. The model's logged 0.21080 was `solarini` integrating its reference over the
+file's wavelengths, found and fixed as SPEC-2 (correct value 0.712517); the
+ratio quoted here is computed identically across spectra and is unaffected:
 the declared 4965 K star gives **1.20x** the k2 file's Rayleigh coefficient, and
 the Sun 1.40x. More scattering means a higher planetary albedo than the 0.152
 currently reported, again a small cooling.
 
 **For the biosphere**, this settles the question it came from. The 400-700 nm
 fraction of shortwave is 0.085 under the k2 file against 0.313 under a 4965 K
-blackbody, a factor of 3.7 on gross primary productivity. LPJ-GUESS should use
-the latter until a real spectrum exists. See
+blackbody, a factor of 3.7 on gross primary productivity. LPJ-GUESS uses the k25v
+value, 0.3093 (table below). See
 `biosphere/notes/lpj-guess-porting-audit.md`.
 
 ## The fix, applied

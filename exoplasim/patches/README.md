@@ -47,7 +47,7 @@ sedimentation sign while the 99%-per-step bottom-layer scrub is still in place,
 so merging it alone gives two sinks where the paper describes one.
 `notes/audits/aerosol-particle-radius.md` carries the table.
 
-What has NOT been offered is `aerosol-longwave`, `dust-emission`,
-`prescribed-dust` and `star-cycle`. Each defaults to reproducing stock behaviour,
-so each is offerable; the dust pair is a land-surface parameterisation and is
-being held while this project is its only user.
+`aerosol-longwave`, `dust-emission`, `prescribed-dust` and `star-cycle` stay
+local by decision: the dust pair while this project is its only user, the
+other two until someone opens a task to offer them. Each defaults to
+reproducing stock behaviour.
