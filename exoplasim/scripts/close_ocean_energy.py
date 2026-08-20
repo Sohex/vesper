@@ -346,7 +346,16 @@ def close_ocean(run_dir: Path, first_orbit=None, last_orbit=None) -> dict:
         binned[name] = np.concatenate(stack)
     with Dataset(run_dir / f"MOST.{orbits[0]:05d}.nc") as nc:
         binned_time = np.asarray(nc["time"][:], dtype=float)
-    lsm = binned["lsm"][0]
+    # NOT bin 0. `align` below already excludes it because it straddles the
+    # restart, and the mask is where that bites hardest: under NLOWIO = 1 the
+    # first record of a RUN carries a partial accumulation window, so a field
+    # that cannot vary comes back scaled -- the land mask reads 0.953 instead of
+    # 1 in orbit 0 bin 0 and exactly 1 everywhere else. Taking the maximum over
+    # bins is exact for a binarised mask (oceanmod.f90 hard-binarises yls, so
+    # the only values are 0 and 1) and does not care which bin is the partial
+    # one. Reading bin 0 here while distrusting it eight lines down was the
+    # script disagreeing with itself, and it made low-I/O output unreadable.
+    lsm = binned["lsm"].max(0)
 
     # The grid is shared, not reconstructed: the streams carry the land mask and
     # it must be the same array the regular output carries, index for index.
