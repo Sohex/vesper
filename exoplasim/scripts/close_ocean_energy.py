@@ -235,11 +235,36 @@ def align(stream: np.ndarray, binned: np.ndarray, weights: np.ndarray,
     precede the first bin. Returns the scan so the discrimination is visible.
     """
     nbin = binned.shape[0]
-    per = stream.shape[0] // nbin
+    nrec = stream.shape[0]
+    # FRACTIONAL, and that is the whole correction. This was
+    # `per = nrec // nbin` with a reshape, which requires a whole number of
+    # stream records per output bin. Vesper's year is 182.801 days, so a daily
+    # stream writes 183 records in most orbits and 182 about every fifth, and
+    # 183/12 is 15.25. Flooring to 15 leaves each bin a quarter-record short of
+    # where the next one starts, the deficit accumulates across the orbit, and
+    # the residual grows LINEARLY with the window -- measured at about
+    # 0.42 W/m2 per orbit, which is how a ten-orbit window scored 4.2 against a
+    # criterion of 0.26. It went unseen because the closure was validated on a
+    # single pre-CLIM-12 orbit, where one orbit's worth of drift is small.
+    #
+    # Nothing about the model is wrong here and nothing about the streams is:
+    # an orbit that is not a whole number of days simply cannot be cut into
+    # twelve whole numbers of records.
+    per = nrec / nbin
     scan = []
-    for offset in range(stream.shape[0] - per * nbin + 1):
-        tiled = stream[offset:offset + per * nbin]
-        tiled = tiled.reshape(nbin, per, *stream.shape[1:]).mean(1)
+    for offset in range(max(1, nrec - int(per * nbin) + 1)):
+        # Each bin covers a half-open interval of record index, and a record
+        # straddling a boundary is split between the two bins by overlap. With
+        # an integer `per` this reduces exactly to the old reshape-and-mean.
+        edges = offset + per * np.arange(nbin + 1)
+        w = np.clip(np.minimum(edges[1:, None], np.arange(nrec)[None, :] + 1.0)
+                    - np.maximum(edges[:-1, None], np.arange(nrec)[None, :]),
+                    0.0, None)
+        rowsum = w.sum(1, keepdims=True)
+        if np.any(rowsum <= 0):
+            continue
+        w = w / rowsum
+        tiled = np.tensordot(w, stream, axes=(1, 0))
         diff = np.array([_mean(tiled[k] - binned[k], weights, mask)
                          for k in range(nbin)])
         scan.append({"offset": offset,
@@ -247,7 +272,7 @@ def align(stream: np.ndarray, binned: np.ndarray, weights: np.ndarray,
                      # bin 0 straddles the restart and is excluded from the score
                      "score_w_m2": float(np.abs(diff[1:]).mean())})
     best = min(scan, key=lambda s: s["score_w_m2"])
-    return {"records_per_bin": per, "chosen_offset": best["offset"],
+    return {"records_per_bin": float(per), "chosen_offset": best["offset"],
             "score_w_m2": best["score_w_m2"], "scan": scan}
 
 
@@ -259,7 +284,7 @@ def _mean(field: np.ndarray, weights: np.ndarray, mask: np.ndarray) -> float:
     return float((field * weights * mask).sum()) / area
 
 
-def close_ocean(run_dir: Path) -> dict:
+def close_ocean(run_dir: Path, first_orbit=None, last_orbit=None) -> dict:
     manifest_path = run_dir / "run_manifest.json"
     manifest = (json.loads(manifest_path.read_text(encoding="utf-8"))
                 if manifest_path.is_file() else {})
@@ -270,6 +295,23 @@ def close_ocean(run_dir: Path) -> dict:
                          f"ice stream {ice_orbits}; they are written by the same "
                          "model call and must cover the same block")
     if ocean_orbits:
+        # A WINDOW, because "all the orbits there are" is not always the block
+        # worth closing. A run seeded with --restart-from opens on a state taken
+        # under different physics, and a run still relaxing is not in the steady
+        # state these identities assume. Both put records into the scan that
+        # describe a different world from the rest, and the alignment is the
+        # first thing to fail when they do. Defaults to everything, so the
+        # unwindowed call is unchanged.
+        if first_orbit is not None or last_orbit is not None:
+            lo = ocean_orbits[0] if first_orbit is None else int(first_orbit)
+            hi = ocean_orbits[-1] if last_orbit is None else int(last_orbit)
+            keep = [o for o in ocean_orbits if lo <= o <= hi]
+            if not keep:
+                raise SystemExit(f"no stream orbits in [{lo}, {hi}]; the run has "
+                                 f"{ocean_orbits[0]}-{ocean_orbits[-1]}")
+            ocean_paths = [p for p, o in zip(ocean_paths, ocean_orbits) if lo <= o <= hi]
+            ice_paths = [p for p, o in zip(ice_paths, ice_orbits) if lo <= o <= hi]
+            ocean_orbits = keep
         first, last = ocean_orbits[0], ocean_orbits[-1]
         if ocean_orbits != list(range(first, last + 1)):
             raise SystemExit(f"the stream orbits {ocean_orbits} have a gap; this "
@@ -480,6 +522,13 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("run_dir", type=Path)
     parser.add_argument("--output", type=Path, default=ANALYSIS / "ocean_energy")
+    parser.add_argument("--first", type=int, default=None,
+                        help="first orbit of the window. Default: the earliest "
+                             "the streams cover. Use it to drop the opening "
+                             "orbits of a seeded run, which follow a restart "
+                             "taken under different physics")
+    parser.add_argument("--last", type=int, default=None,
+                        help="last orbit of the window; default the latest")
     args = parser.parse_args()
     run_dir = args.run_dir.resolve()
 
@@ -496,7 +545,7 @@ def main() -> None:
               "the run's last: this run predates CLIM-12 and every earlier "
               "call's stream was truncated by the next call's open()")
 
-    result = close_ocean(run_dir)
+    result = close_ocean(run_dir, args.first, args.last)
     report = {
         "schema_version": 1,
         "generator": "exoplasim/scripts/close_ocean_energy.py",
