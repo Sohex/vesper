@@ -197,6 +197,15 @@ unless told they exist.
 | `finalize_existing_segment.py` | record a completed segment after post-run bookkeeping failed; takes the same `--purpose` |
 | `run_stellar_cycle.py` | run or resume a superposed-sinusoid stellar-flux experiment |
 | `rebuild_binaries.py` | rebuild every executable and record which patches each contains |
+| `make_profile_bed.py` | short, output-free copy of a run directory to measure the model on |
+| `profile_transforms.sh` | sample every rank with `perf` over a bed; `perf_rank.sh` is its per-rank wrapper |
+| `score_transform_profile.py` | fold per-rank `perf` samples into the transform's share of compute |
+| `split_legendre.py` | split that share by routine: what maps to a library call and what does not |
+| `sweep_compiler_flags.py` | interleaved A/B of compiler flag sets, timed on a bed |
+| `bench_ab.py` | interleaved A/B of two executables on one bed, paired per round |
+| `verify_filter_fold.sh` | bit-identity check on the Legendre filter fold, filters off |
+| `verify_fold_exactness.sh` | the same with FMA contraction disabled, which is what makes it exact |
+| `verify_fold_indexing.sh` | proves each spectral mode gets its OWN filter value, with a negative control |
 | `index_runs.py` | index every run by what it is, since a UUID says nothing |
 | `assess_convergence.py` | spin-up convergence against the predeclared criteria, over the last `--window` PRODUCTION orbits |
 | `close_state_energy.py` | closes the energy budget against the PROGNOSTIC STATE, which is the check the flux diagnostics cannot fail |

@@ -210,15 +210,43 @@ model:
   longitudes: 128
   layers: 10
   precision_bytes: 8
-  # Passed to compile.sh's -O hook and appended to MOST_F90_OPTS, so the flag is
-  # DECLARED here rather than edited into the generated most_compiler_mpi, which
-  # configure.sh would overwrite. znver4 rather than native: the two produce a
-  # byte-identical executable on this host, and the explicit name records what
-  # was targeted instead of what the build machine happened to be. Worth 2 to 3%
-  # and it changes the integration; binary_manifest.json records the flag line,
-  # so a binary built before it is distinguishable from one built after.
+  # How the model binary is compiled. The flag line is stated in FULL here
+  # rather than as a delta against whatever configure.sh generated, because a
+  # delta cannot express a REMOVAL and removal is what this needs: -fcheck=all
+  # is in configure.sh's default line and is the thing being taken out of
+  # production builds. rebuild_binaries.py writes line 3 of most_compiler_mpi
+  # from this list before every build, so a reconfigure cannot quietly restore
+  # a flag, and binary_manifest.json records the line the makefile actually
+  # used.
+  #
+  # -march=znver4 rather than native: the two produce a byte-identical
+  # executable on this host, and the explicit name records what was targeted
+  # instead of what the build machine happened to be. Worth 2 to 3%, and it
+  # changes the integration.
   # notes/audits/aocl-and-model-build-flags.md has the measurement.
-  optimization_flag: "-march=znver4"
+  compile_flags:
+    f90_opts:
+      - "-O3"
+      - "-cpp"
+      - "-ffixed-line-length-132"
+      - "-ffpe-trap=invalid,zero,overflow"
+      - "-ffpe-summary=none"
+      - "-finit-real=zero"
+      - "-march=znver4"
+    # Flags added to f90_opts, by profile. The profile is part of a binary's
+    # identity and is recorded in binary_manifest.json beside its sha.
+    profiles:
+      # What production orbits are integrated with.
+      production: []
+      # Everything else: verification arms, new physics, anything whose answer
+      # is not yet trusted. -fcheck=all costs 5% at T42 and 17% at T127
+      # (exoplasim/notes/spectral-transform-profile.md), which is why it is not
+      # in production -- but it earns its place here. It caught a real
+      # out-of-bounds during the CLIM-40 fold work: an off-by-one in a spectral
+      # mode index that aborted in legini instead of returning a plausible
+      # wrong climate.
+      checked: ["-fcheck=all"]
+    profile: production
   ncpus: 16
   timestep_minutes: 45.0
   physics_filter: "gp|exp|sp"

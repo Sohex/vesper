@@ -223,11 +223,13 @@ SURFACE_UNREAD_MODEL_KEYS = {
     # `lib/` that takes the whole config would not appear here and would be
     # wrongly inert. Re-derive against the helper too if one starts doing that.
     #
-    # `model.optimization_flag` sits beside `model.precision_bytes` in all four
-    # sets and for the same reason: both describe how the MODEL BINARY is
-    # compiled, and these four builders make staged surface fields out of the
-    # export without compiling anything. Traced the same way, `grep -c
-    # optimization_flag` returning 0 in each of the four generators.
+    # `model.compile_flags` sits beside `model.precision_bytes` in all four sets and for
+    # the same reason: both describe how the MODEL BINARY is compiled, and
+    # these four builders make staged surface fields out of the export without
+    # compiling anything. Traced the same way, `grep -c compile_flags`
+    # returning 0 in each of the four generators. It is the whole block rather
+    # than its leaves because config_drift tests a block name before recursing,
+    # so naming the block skips everything under it.
     "surface_albedo": frozenset({
         "model.co2_sw_weight", "model.energy_diagnostics",
         "model.energy_diagnostics_3d", "model.h2o_sw_level",
@@ -235,7 +237,7 @@ SURFACE_UNREAD_MODEL_KEYS = {
         "model.output_type", "model.ozone_scale",
         "model.ozone_uv_weight", "model.ozone_visible_weight",
         "model.physics_filter", "model.cloud_absorption_scale",
-        "model.optimization_flag",
+        "model.compile_flags",
         "model.precision_bytes",
         "model.regular_output_bins_per_orbit", "model.roughness_source",
         "model.seasonal_samples_per_orbit", "model.soil_water_source",
@@ -251,7 +253,7 @@ SURFACE_UNREAD_MODEL_KEYS = {
         "model.ncpus", "model.output_type", "model.ozone_scale",
         "model.ozone_uv_weight", "model.ozone_visible_weight",
         "model.physics_filter", "model.cloud_absorption_scale",
-        "model.optimization_flag",
+        "model.compile_flags",
         "model.precision_bytes",
         "model.regular_output_bins_per_orbit",
         "model.seasonal_samples_per_orbit", "model.soil_water_source",
@@ -276,7 +278,7 @@ SURFACE_UNREAD_MODEL_KEYS = {
         "model.ncpus", "model.output_type", "model.ozone_scale",
         "model.ozone_uv_weight", "model.ozone_visible_weight",
         "model.physics_filter", "model.cloud_absorption_scale",
-        "model.optimization_flag",
+        "model.compile_flags",
         "model.precision_bytes",
         "model.regular_output_bins_per_orbit", "model.roughness_source",
         "model.seasonal_samples_per_orbit", "model.timestep_minutes",
@@ -292,7 +294,7 @@ SURFACE_UNREAD_MODEL_KEYS = {
         "model.output_type", "model.ozone_scale",
         "model.ozone_uv_weight", "model.ozone_visible_weight",
         "model.physics_filter", "model.cloud_absorption_scale",
-        "model.optimization_flag",
+        "model.compile_flags",
         "model.precision_bytes",
         "model.regular_output_bins_per_orbit", "model.roughness_source",
         "model.seasonal_samples_per_orbit", "model.soil_water_source",

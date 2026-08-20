@@ -64,24 +64,63 @@ _MODEL = yaml.safe_load(
 )["model"]
 PRECISION = int(_MODEL["precision_bytes"])
 
-# compile.sh's -O hook appends this to MOST_F90_OPTS. Declared in the config
-# rather than edited into the generated `most_compiler_mpi`, which configure.sh
-# rewrites; `toolchain()` records the resulting flag line either way, but only a
-# declared flag survives a reconfigure. compile.sh strips no dash and quotes
-# nothing (`sed '3s/$/ '$optimization'/'`), so it takes exactly one flag and a
-# value with whitespace would corrupt the sed expression rather than fail.
-OPTIMIZATION = str(_MODEL.get("optimization_flag") or "").strip()
-if OPTIMIZATION.split() != ([OPTIMIZATION] if OPTIMIZATION else []):
+# The flag line is DECLARED IN FULL by `model.compile_flags.f90_opts`, and this script
+# writes it into `most_compiler_mpi` before every build.
+#
+# Not compile.sh's `-O` hook, which is what this used to use. That hook appends
+# (`sed '3s/$/ '$optimization'/'`), so it can add a flag and can never remove
+# one -- and removal is the operation that matters here, because `-fcheck=all`
+# arrives in configure.sh's generated default line and has to come OUT of
+# production builds. It also took exactly one flag, since the sed quotes nothing
+# and a value with whitespace would corrupt the expression rather than fail.
+#
+# Writing the whole line also makes a reconfigure harmless: configure.sh may
+# regenerate most_compiler_mpi with whatever defaults it likes, and the next
+# build overwrites line 3 from the config regardless.
+_BUILD = _MODEL["compile_flags"]
+BASE_F90_OPTS = [str(f) for f in _BUILD["f90_opts"]]
+PROFILES = {k: [str(f) for f in v] for k, v in _BUILD["profiles"].items()}
+DEFAULT_PROFILE = str(_BUILD["profile"])
+if DEFAULT_PROFILE not in PROFILES:
     raise SystemExit(
-        f"model.optimization_flag must be a single flag, got {OPTIMIZATION!r}")
-if OPTIMIZATION and not OPTIMIZATION.startswith("-"):
-    raise SystemExit(
-        f"model.optimization_flag must start with '-', got {OPTIMIZATION!r}")
+        f"model.compile_flags.profile is {DEFAULT_PROFILE!r}, which is not one of "
+        f"{sorted(PROFILES)}")
+for _flag in BASE_F90_OPTS + [f for v in PROFILES.values() for f in v]:
+    if not _flag.startswith("-") or _flag.split() != [_flag]:
+        raise SystemExit(
+            f"model.compile_flags entries must each be a single token starting with '-', "
+            f"got {_flag!r}")
+
+# MOST_F90_OPTS is line 3 of most_compiler_mpi, which compile.sh's own sed also
+# assumes. Asserted rather than searched, so a reshaped file fails loudly here
+# instead of producing a build with the wrong flags.
+F90_OPTS_LINE = 3
+
+
+def f90_opts(profile: str) -> list[str]:
+    return BASE_F90_OPTS + PROFILES[profile]
+
+
+def write_flag_line(profile: str) -> str:
+    """Put the declared flag line into most_compiler_mpi; return what was written."""
+    f = PKG / "most_compiler_mpi"
+    lines = f.read_text(encoding="utf-8").splitlines()
+    if not lines[F90_OPTS_LINE - 1].startswith("MOST_F90_OPTS="):
+        raise SystemExit(
+            f"{f} line {F90_OPTS_LINE} is not MOST_F90_OPTS=; compile.sh's own "
+            f"sed assumes it is, so refusing to guess")
+    line = "MOST_F90_OPTS=" + " ".join(f90_opts(profile))
+    lines[F90_OPTS_LINE - 1] = line
+    # The trailing newline is load-bearing: compile.sh cats this file into the
+    # makefile, and without it the next file's first line joins this one and the
+    # build fails on a target named after two concatenated variables.
+    f.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return line
 
 # The matrix. NLAT must divide by ranks: 32 at T21, 64 at T42, 128 at T85.
 MATRIX = [("T21", 10, 8), ("T21", 10, 16),
           ("T42", 10, 8), ("T42", 10, 16),
-          ("T85", 10, 16)]
+          ("T85", 10, 16), ("T127", 10, 16)]
 
 
 def sha256(path: Path) -> str:
@@ -108,7 +147,7 @@ def model_sources() -> dict[str, str]:
     return {str(f.relative_to(PKG)): sha256(f) for f in files if f.is_file()}
 
 
-def toolchain() -> dict:
+def toolchain(profile: str) -> dict:
     """The compiler and the flags a build is about to use.
 
     `model_sources()` answers "what source went in". It cannot answer "what
@@ -164,9 +203,16 @@ def toolchain() -> dict:
                 effective = line
                 break
 
+    # The DECLARED line is what the config says this profile should compile
+    # with; the EFFECTIVE line is what the makefile actually used. Recording
+    # both is what makes `--verify` able to say whether a moved sha is the
+    # config, the toolchain, or neither -- and verifying under a different
+    # profile than the binaries were built with is a real drift, reported as
+    # one rather than waved through.
     return {"compiler_args": args, "compiler_versions": versions,
             "precision_bytes": PRECISION,
-            "optimization_flag": OPTIMIZATION or None,
+            "build_profile": profile,
+            "declared_f90_opts": "MOST_F90_OPTS=" + " ".join(f90_opts(profile)),
             "effective_f90_opts": effective}
 
 
@@ -186,7 +232,8 @@ def describe_toolchain_drift(prior: dict, current: dict) -> list[str]:
     if prior.get("precision_bytes") != current.get("precision_bytes"):
         out.append(f"precision_bytes: built at {prior.get('precision_bytes')}, "
                    f"config now declares {current.get('precision_bytes')}")
-    for key, label in (("optimization_flag", "model.optimization_flag"),
+    for key, label in (("declared_f90_opts", "model.compile_flags.f90_opts, as written"),
+                       ("build_profile", "model.compile_flags profile"),
                        ("effective_f90_opts", "the flag line the makefile used")):
         if prior.get(key) != current.get(key):
             out.append(f"{label}: built with {prior.get(key)!r}, "
@@ -200,6 +247,13 @@ def expected(res: str, lev: int, ranks: int) -> str:
 
 def main() -> None:
     ap = argparse.ArgumentParser()
+    ap.add_argument("--profile", default=DEFAULT_PROFILE, choices=sorted(PROFILES),
+                    help=f"build profile from model.compile_flags.profiles "
+                         f"(default {DEFAULT_PROFILE}). 'production' is what "
+                         f"orbits are integrated with; 'checked' adds runtime "
+                         f"bounds checking and is for anything whose answer is "
+                         f"not yet trusted. The profile is part of a binary's "
+                         f"identity and is recorded beside its sha.")
     ap.add_argument("--verify", action="store_true",
                     help="report staleness and exit without building")
     args = ap.parse_args()
@@ -228,7 +282,7 @@ def main() -> None:
               "The build will use them; the manifest records their shas.")
 
     sources = model_sources()
-    tools = toolchain()
+    tools = toolchain(args.profile)
 
     if args.verify:
         stale, absent = [], []
@@ -263,6 +317,9 @@ def main() -> None:
             removed += 1
     print(f"removed {removed} existing executables\n")
 
+    flag_line = write_flag_line(args.profile)
+    print(f"profile {args.profile}: {flag_line}\n")
+
     built = {}
     for res, lev, ranks in MATRIX:
         name = expected(res, lev, ranks)
@@ -276,9 +333,8 @@ def main() -> None:
         # manifest described binaries that never ran a single orbit.
         cmd = ["./compile.sh", "-n", str(ranks), "-p", str(PRECISION),
                "-r", res, "-v", str(lev)]
-        if OPTIMIZATION:
-            # -O takes the flag WITHOUT its leading dash and prepends one.
-            cmd += ["-O", OPTIMIZATION[1:]]
+        # No -O. The whole flag line is written into most_compiler_mpi above,
+        # because -O can only append and this has to be able to REMOVE.
         r = subprocess.run(cmd, cwd=PKG, capture_output=True, text=True)
         target = RUN / name
         if r.returncode != 0 or not target.is_file():
@@ -287,6 +343,7 @@ def main() -> None:
             raise SystemExit(f"build failed for {name}")
         built[name] = {"sha256": sha256(target),
                        "resolution": res, "layers": lev, "ranks": ranks,
+                       "profile": args.profile,
                        "sources": sources}
         print(f"  {built[name]['sha256'][:16]}")
 
@@ -300,7 +357,8 @@ def main() -> None:
         # Recomputed AFTER the build loop: `effective_f90_opts` is read from
         # plasim/bld/compilerargs, which compile.sh writes, so before the
         # loop it describes the previous build.
-        "toolchain": toolchain(),
+        "build_profile": args.profile,
+        "toolchain": toolchain(args.profile),
         "model_source": subprocess.run(
             ["git", "-C", str(ROOT), "rev-parse", "HEAD:vendor/exoplasim"],
             capture_output=True, text=True).stdout.strip() or None,
