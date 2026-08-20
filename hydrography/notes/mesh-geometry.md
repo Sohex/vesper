@@ -20,11 +20,16 @@ The export gives a CSR neighbour list and a `cell_area` per region. A
 finite-volume scheme needs two things neither of those supplies: the width of
 the face shared by two neighbours, and the distance between their generators.
 
-Both follow from the geometry, because the regions are the cells of a spherical
-Voronoi tessellation. The convex hull of the region centroids is therefore the
-Delaunay triangulation, each Voronoi vertex is a triangle's circumcentre, and
-the face between two neighbours is the arc joining the circumcentres of the two
-triangles sharing that Delaunay edge.
+Both follow from the generator positions. The region adjacency is a Delaunay
+triangulation, so the convex hull of the generators recovers it, each Voronoi
+vertex is a triangle's circumcentre, and the face between two neighbours is the
+arc joining the circumcentres of the two triangles sharing that Delaunay edge.
+
+Note what this does and does not say about the export. The ADJACENCY is
+Delaunay and is shared. The CELLS Orogen itself draws are not Voronoi cells:
+`cell_area` is the centroidal dual, for the reason the next section gives. The
+Voronoi dual is reconstructed here, in the solver, and nothing upstream is
+changed by doing so.
 
 The reconstruction is checkable and checks out:
 
@@ -46,62 +51,82 @@ about twenty kilometres, and the face-width-over-separation ratio runs from
 product returns exactly zero on 4,014 of those faces and takes any operator
 built on it to NaN; the half-chord form through `arcsin` does not.
 
-## `cell_area` is the CENTROIDAL dual, and the cause is one line of Orogen
+## `cell_area` is the CENTROIDAL dual, and one line of Orogen says so
 
-The two areas differ because they are duals of different point sets, and the
-mechanism is in the generator:
+The two areas differ because they are duals of different point sets.
 
 `vendor/orogen/js/sphere-mesh.js:206`, `generateTriangleCenters`, returns the
 arithmetic mean of each triangle's three vertices. That is the CENTROID, not the
-circumcentre. The Voronoi vertex of a Delaunay triangle is its circumcentre, so
-the dual Orogen builds is the centroidal dual and not the Voronoi dual, and
-`regionCellArea` sums spherical excess over that. The comment immediately above
-the function reads "Triangle centres (= Voronoi vertices on the sphere)", so the
-code contradicts its own docstring; the centres are also not renormalised onto
-the sphere, so they sit slightly inside it.
+circumcentre, and the Voronoi vertex of a Delaunay triangle is its circumcentre.
+The comment immediately above the function reads "Triangle centres (= Voronoi
+vertices on the sphere)", so the code contradicts its own docstring; the centres
+are also not renormalised onto the sphere.
 
-Two consequences follow directly, and both are observed:
+Reconstructing the centroidal dual here reproduces `cell_area` essentially
+exactly -- median ratio 1.000000, and 99.992% of regions within 0.1% -- which
+settles what `cell_area` is. It is Orogen's centroidal dual, faithfully.
 
-**A centroidal dual does not exactly tile the sphere.** Hence `sum(cell_area)`
-at 1.00068 of `4 pi R^2` rather than 1.
+**The centroidal dual does not tile the sphere and the Voronoi dual does.**
+Measured on this export, summing spherical excess over the per-face triangles
+`(generator, corner_1, corner_2)`:
 
-**Centroid and circumcentre diverge most on elongated triangles.** Hence the
-per-cell tail: the ratio reaches 31.7 exactly where the local triangulation is
-most sliver-like.
+| corners | sum / `4 pi R^2` |
+| --- | ---: |
+| centroid | 1.00068086 |
+| circumcentre | 1.00000000 |
 
-This is the actionable form of the finding. "The two areas disagree" is a
-symptom; "`cell_area` is the centroidal dual because triangle centres are
-centroids" is something a reader can go and change, or decide not to.
+So the 0.068% by which `cell_area` exceeds the sphere is not a mystery and not a
+radius discrepancy: it is the centroidal dual's own tiling error, and the
+centroid reconstruction reproduces both the per-cell values and that total.
 
-## `cell_area` against the area those faces bound
+The intuition that any one point per triangle tiles is close to a true statement
+but not this one. Splitting each triangle from an interior point into three
+sub-triangles does tile it, for any interior point. The dual used here is a
+different decomposition -- the region of generator `i` is the union over its
+faces of `(p_i, corner_1, corner_2)`, which spans BOTH triangles either side of
+each face. That union tiles only when the corners are circumcentres, because
+only then is it the Voronoi cell. Circumcentres lying outside their own triangle
+does not break it: 36.5% of them do here, and the sum is still 1.00000000,
+because a Voronoi cell is convex and contains its generator, so it is star-shaped
+from `p_i` and the per-face triangles cannot fold.
 
-| | sum, as a fraction of `4 pi R^2` |
-| --- | --- |
-| exact spherical Voronoi area | 1.00000000 |
-| the export's `cell_area` | 1.00068 |
+## Only the Voronoi face is perpendicular, and that is why it must be used
 
-Per region the two disagree by much more than that total suggests. The ratio has
-a median of 1.011, a first percentile of 0.66 and a ninety-ninth of 2.71, runs
-from 0.26 to 31.7, and lies within 1% on only 3.5% of the mesh.
+This is the part that decides the question, and it is not about area at all.
 
-**What this does and does not mean.** Global area-weighted means are safe: the
-totals agree to 0.068%, so any quantity integrated over the whole sphere or over
-a large region is unaffected. What is not safe is a per-cell area, and what is
-least safe is a finite-volume divergence, which is only consistent when taken
-over the area its own faces bound. Using `cell_area` there rather than the
-Voronoi area put the discrete Laplace-Beltrami operator 0.57 relative RMS off
-its analytic eigenvalue instead of 0.11.
+A two-point flux approximation estimates the flux through a face as
+`width * T * (h_j - h_i) / length`. That is the true flux only when the face is
+PERPENDICULAR to the line joining the two generators, which is the
+K-orthogonality condition. Measured over all 7,499,997 faces:
 
-So the water table solver uses both on purpose: fluxes divide by the Voronoi
-area, and water volumes multiply by `cell_area`, because every other component
-computes volumes that way and the solver's reduction identity against
-`surface_water.py` has to be exact rather than close.
+| corners | median face-to-generator angle | faces within 1 degree of perpendicular |
+| --- | ---: | ---: |
+| centroid | 75.746 deg | 3.8% |
+| circumcentre | 90.000 deg | 100.00% |
 
-**What has not been established** is which of the two the exporter intends, or
-whether any existing consumer is affected. `cell_area` is read for area
-weighting across several components, and none of those uses is a divergence, so
-none is wrong in the way this one would have been. Auditing them is GW-7 and it
-was not done here.
+The Voronoi face lies on the perpendicular bisector by construction. The
+centroidal face does not, and the operator built on it is not a discretisation
+of the Laplacian at all. Against the analytic eigenvalue:
+
+| faces | area | l = 1 | 2 | 3 | 4 |
+| --- | --- | ---: | ---: | ---: | ---: |
+| centroid | centroid | 164.91 | 95.26 | 67.45 | 52.20 |
+| centroid | `cell_area` | 164.91 | 95.26 | 67.45 | 52.21 |
+| circumcentre | circumcentre | **0.0217** | **0.1082** | **0.1202** | **0.1243** |
+| circumcentre | `cell_area` | 0.5686 | 0.5916 | 0.5954 | 0.6000 |
+
+Centroidal faces are off by two orders of magnitude, in the same range as the
+hand-estimated face width recorded below. So the choice is forced: face widths
+come from the Voronoi dual because the scheme requires K-orthogonal faces, and
+fluxes divide by the Voronoi area because that is the area those faces bound.
+
+**Nothing about Orogen changes.** The Voronoi dual is reconstructed in the solver
+from the export's own generator positions; `cell_area` is read and not rewritten.
+It stays the denomination of water volumes, which keeps the reduction identity
+against `surface_water.py` exact and leaves Orogen's own basin accounting --
+`cell_area` grouped by `drainage_terminal` reproducing `finalCatchment.areaKm2`,
+and `cellArea` feeding `detectBasins`, `selectBasins` and `attachHypsometry` --
+untouched. No new build, so rule 7 does not bite.
 
 ## The operator's own error, which is not a geometry problem
 

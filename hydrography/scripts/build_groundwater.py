@@ -155,15 +155,12 @@ def main() -> int:
                     help="run at uniform permeability with a terrain-following "
                          "table and check the catchments against the surface ones")
     ap.add_argument("--max-outer", type=int, default=60)
-    ap.add_argument("--scheme", choices=["kirchhoff", "picard", "both"],
-                    default="kirchhoff",
-                    help="NEITHER CONVERGES ON THIS TERRAIN. kirchhoff solves "
-                         "a linear complementarity problem in the Kirchhoff "
-                         "potential and refuses outright here, because the "
-                         "relief spans more e-folding lengths than float64 can "
-                         "exponentiate; picard iterates the transmissivity and "
-                         "is stable but limit-cycles. See "
-                         "hydrography/notes/water-table-convergence.md")
+    ap.add_argument("--uniqueness-check", action="store_true",
+                    help="re-solve from the opposite initial active set and "
+                         "require the identical head field. The problem is a "
+                         "linear complementarity problem with a symmetric "
+                         "positive definite matrix, so its solution is unique "
+                         "and this is an identity rather than a comparison")
     args = ap.parse_args()
 
     config = yaml.safe_load((PROJECT_ROOT / "config/planet.yaml").read_text())
@@ -204,9 +201,7 @@ def main() -> int:
     gravity = float(config["planet"]["gravity_m_s2"])
     k0 = gw.conductivity(k_m2, float(fluid["density_kg_m3"]), gravity,
                          float(fluid["dynamic_viscosity_pa_s"]))
-    slope_tan = np.tan(np.deg2rad(export.local_slope_deg.astype(np.float64)))
-    cover_m = export.cover_thickness.astype(np.float64) * 1000.0   # export is km
-    f_m = gw.efolding_length(slope_tan, cover_m, cfg)
+    thickness_m = float(cfg["aquifer"]["thickness_m"])
 
     policy = str(cfg["unassigned"]["policy"])
     if policy not in ("exclude", "impermeable"):
@@ -220,9 +215,10 @@ def main() -> int:
     print(f"  unassigned lithology on {int((unassigned & land).sum()):,} land "
           f"regions ({(unassigned & land).sum() / land.sum() * 100:.2f}%), "
           f"policy {policy!r}")
-    print(f"  e-folding length f: median {np.median(f_m[land]):.1f} m, "
-          f"{(cover_m[land] >= float(cfg['depth_decay']['regolith_cover_min_m'])).mean() * 100:.1f}% "
-          f"on the regolith curve")
+    live = k0[land][k0[land] > 0]
+    print(f"  aquifer thickness {thickness_m:.0f} m, constant; conductivity "
+          f"spans {np.log10(live.max() / live.min()):.1f} orders of magnitude "
+          f"across lithologies")
 
     # -- forcing -----------------------------------------------------------
     print(f"reading the climatology {rel(clim)}")
@@ -245,19 +241,14 @@ def main() -> int:
         # topographic ones.
         print("\nDIVIDE TEST: uniform permeability, terrain-following table")
         k0 = np.where(land, 1e-4, 0.0)
-        res = gw.terrain_following(export, geom, k0_m_s=k0, f_m=f_m,
+        res = gw.terrain_following(export, geom, k0_m_s=k0,
+                                   thickness_m=thickness_m,
                                    surface_m=surface_m, conductive=conductive)
     else:
-        kw = dict(k0_m_s=k0, f_m=f_m, recharge_m_s=recharge,
-                  surface_m=surface_m, conductive=conductive)
-        picard = kirchhoff = None
-        if args.scheme in ("kirchhoff", "both"):
-            print("solving the water table (Kirchhoff)")
-            kirchhoff = gw.solve_kirchhoff(export, geom, max_outer=200, **kw)
-        if args.scheme in ("picard", "both"):
-            print("solving the water table (Picard)")
-            picard = gw.solve(export, geom, max_outer=args.max_outer, **kw)
-        res = kirchhoff if kirchhoff is not None else picard
+        print("solving the water table")
+        res = gw.solve(export, geom, k0_m_s=k0, thickness_m=thickness_m,
+                       recharge_m_s=recharge, surface_m=surface_m,
+                       conductive=conductive, max_outer=args.max_outer)
 
     area_m2 = geom.volume_area_m2
     supply = recharge * area_m2
@@ -311,27 +302,29 @@ def main() -> int:
         "closure": clos,
         "converged": bool(res.get("converged", True)),
         "convergence": {
-            "criterion_max_head_step_m": gw.HEAD_TOLERANCE_M,
+            "criterion_residual": gw.RESIDUAL_TOLERANCE,
             "criterion_flip_fraction": gw.FLIP_TOLERANCE,
-            "final_max_head_step_m": res.get("final_head_step_m"),
-            "final_p999_head_step_m": res.get("final_head_step_p999_m"),
-            "final_flip_fraction": res.get("final_flip_fraction"),
-            "trace_columns": ["pass", "free_cells", "max_head_step_m",
-                              "p999_head_step_m", "cells_flipped"],
-            "trace": res.get("head_step_trace_m", []),
+            "final_residual": res.get("final_residual"),
+            "criterion_note": ("the water balance residual on free cells over "
+                               "total land recharge, and a still active set. "
+                               "Not the head step: a bar on the step can be "
+                               "met by a shrinking step rather than by "
+                               "convergence"),
+            "trace_columns": ["pass", "free_cells", "cells_flipped",
+                              "residual", "infeasible_pinned_cells"],
+            "seepage_clipped_m3_s": res.get("seepage_clipped_m3_s"),
+            "trace": res.get("residual_trace", []),
         },
-        "scheme": args.scheme,
         "outer_iterations": res.get("outer_iterations"),
         "water_table": {
             "median_depth_m_land": float(np.median(depth[land])),
             "at_surface_fraction_land": float((depth[land] <= 0.01).mean()),
-            "unassigned_land_fraction": float((unassigned & land).mean()),
-            "efolding_median_m_land": float(np.median(f_m[land])),
-            "at_transmissivity_floor": int(res["at_transmissivity_floor"].sum()),
-            "at_transmissivity_floor_note": (
-                "a numerical bound, not a physical one: T = K0 f exp(-d/f) "
-                "underflows on steep bedrock where f is a metre. These cells' "
-                "depths are a lower bound rather than a value"),
+            "unassigned_land_fraction": float(
+                (unassigned & land).sum() / max(int(land.sum()), 1)),
+            "aquifer_thickness_m": thickness_m,
+            "transmissivity_note": (
+                "T = K D with a constant aquifer thickness, so there is no "
+                "depth floor and no cell has a transmissivity that underflows"),
         },
         "git_commit": subprocess.run(
             ["git", "-C", str(PROJECT_ROOT), "rev-parse", "HEAD"],
@@ -389,26 +382,38 @@ def main() -> int:
             fields, area_m2)
 
     # -- products ----------------------------------------------------------
-    # THE CROSS-SCHEME IDENTITY. Same PDE, same mesh, same physics, different
-    # algebra, so where both converge they must agree to discretisation error.
-    if args.scheme == "both" and picard is not None and kirchhoff is not None:
-        cmp_ = gw.compare_schemes(kirchhoff, picard, conductive, area_m2)
-        cmp_["kirchhoff_converged"] = bool(kirchhoff.get("converged"))
-        cmp_["picard_converged"] = bool(picard.get("converged"))
-        report["cross_scheme"] = cmp_
-        print(f"\nCROSS-SCHEME  median |d_kirchhoff - d_picard| "
-              f"{cmp_['median_depth_difference_m']:.3f} m against "
-              f"{gw.SCHEME_DEPTH_MEDIAN_M} m")
-        print(f"              p90 {cmp_['p90_depth_difference_m']:.3f} m, "
-              f"total seepage differs by "
-              f"{cmp_['total_seepage_relative_difference']:.3e} against "
-              f"{gw.SCHEME_SEEPAGE_RELATIVE:.0e}")
-        if not (cmp_["kirchhoff_converged"] and cmp_["picard_converged"]):
-            print("              NEITHER VERDICT IS AN IDENTITY: the check "
-                  "compares two solutions and at least one has not converged, "
-                  "so it bounds their difference, not either one's error.")
-        else:
-            print("              " + ("PASS" if cmp_["passes"] else "MISS"))
+    # UNIQUENESS, which replaces the cross-scheme check the nonlinear model
+    # needed. With transmissivity independent of the head there is no second
+    # algebra to compare against -- Picard and Kirchhoff both collapse onto this
+    # same linear system. What linearity buys instead is stronger: the matrix is
+    # symmetric positive definite, so the complementarity problem has exactly
+    # ONE solution, and any two active-set trajectories must land on the
+    # identical head field. Starting from every cell free rather than every cell
+    # pinned walks a completely different path to it. That is an identity, it
+    # can genuinely fail, and it is what would catch a bug in the release and
+    # pin logic that a single run cannot see.
+    if args.uniqueness_check and not res.get("converged", True) is False:
+        print("\nUNIQUENESS: re-solving from the opposite initial active set")
+        alt = gw.solve(export, geom, k0_m_s=k0, thickness_m=thickness_m,
+                       recharge_m_s=recharge, surface_m=surface_m,
+                       conductive=conductive, max_outer=args.max_outer,
+                       start_all_free=True)
+        d = np.abs(alt["head_m"] - res["head_m"])[conductive]
+        scale = max(float(np.abs(res["head_m"][conductive]).max()), 1.0)
+        rel_head = float(d.max() / scale)
+        ok = bool(alt.get("converged")
+                  and rel_head < gw.SCHEME_HEAD_RELATIVE)
+        report["uniqueness"] = {
+            "criterion_relative_head": gw.SCHEME_HEAD_RELATIVE,
+            "max_absolute_head_difference_m": float(d.max()),
+            "relative_head_difference": rel_head,
+            "alternate_converged": bool(alt.get("converged")),
+            "alternate_passes": alt.get("outer_iterations"),
+            "passes": ok,
+        }
+        print(f"  max |h_altstart - h| {d.max():.3e} m, relative {rel_head:.3e} "
+              f"against {gw.SCHEME_HEAD_RELATIVE:.0e}")
+        print("  " + ("PASS" if ok else "MISS"))
 
     if not res.get("converged", True):
         # The report goes out; the water table does not. An unconverged head

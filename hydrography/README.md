@@ -240,37 +240,32 @@ conductive network and their recharge leaves as local seepage, which is what the
 surface-only balance already does with it. The alternative policies are in the
 config with what each would be claiming.
 
-### Two schemes, because one of them does not converge
+### Transmissivity is `K D`, and the depth decay it replaced
 
-`--scheme` picks how the same problem is solved, and the two are the same
-discretised PDE reached by different algebra.
+`T = K D`: Gleeson conductivity over a constant aquifer thickness. `K` and `D`
+come from one source at one scale -- Gleeson et al. (2011) put the
+permeabilities at 5-100 km and the lithology maps carrying them at "the shallow
+subsurface (on the order of 100 m)", against a region about 15 km across.
 
-**Picard** evaluates the transmissivity at a head, solves, and hopes the head it
-gets back implies the same transmissivity. It does not converge here.
-Transmissivity moves by a factor of e per e-folding length, which on steep
-bedrock is a metre, so the map is not a contraction and the iterate limit-cycles.
+Transmissivity therefore does not depend on the head, the matrix is fixed, and
+the problem is a box-constrained linear complementarity problem that converges
+in tens of passes with no relaxation and no damping.
 
-**Kirchhoff** removes the stiffness rather than out-running it, and **refuses to
-run on this terrain**. The Kirchhoff potential of a nonlinear diffusion is the integral of its own
-coefficient, and for Fan's exponential transmissivity that integral is closed:
+**What this costs, and it is real.** Aquifer thickness no longer depends on
+terrain slope, so regolith does not thin on steep ground. Transmissivity no
+longer falls as the water table drops, which is the confined approximation and
+overstates flow in dry ground. This is the coarser model, taken because it is
+the one the sources support at this resolution.
 
-    Phi = int T dh = K0 f^2 exp(-d/f) = T f,   so   T grad h = grad Phi
-
-which turns `div(T grad h) + R = 0` into `div(grad Phi) + R = 0`. The whole
-range of transmissivity and the entire nonlinearity move into the change of
-variable, leaving a graph Laplacian whose weights are `w/l` and nothing else.
-The cap `h <= z` maps monotonically to `Phi <= K0 f^2`, so what remains is a
-box-constrained linear complementarity problem, and an active-set method on one
-of those terminates instead of cycling.
-
-It is exact only where `K0`, `f` AND the surface elevation are all constant,
-because the topography sits inside the potential too. That is what defeats it
-here: the transform's variable is an exponential of elevation over `f`, and `f`
-is a regolith depth of tens of metres while the relief is kilometres, so the
-exponent reaches thousands and overflows float64 on a measurable share of the
-mesh. The solver measures that and refuses rather than underflowing to a
-potential of zero and reporting the resulting balance as convergence.
-`notes/water-table-convergence.md` carries both schemes and their numbers.
+**What it replaced.** Fan et al. (2007)'s exponential decay at a slope-dependent
+e-folding length has no cell-mean value here: `exp(h/f)` is convex, so the mean
+over a cell whose water table varies by `sigma` carries `exp(sigma^2/2f^2)`, and
+100 m of sub-grid relief against the 0.95 m `f` Fan's curve reaches on steep
+bedrock makes that `exp(5000)`. Fan's `f` is a hillslope closure fitted over
+1.25 km cells; mixing it into a 15 km regional permeability was the original
+error. Two solvers were built on it and neither converged.
+`notes/water-table-convergence.md` carries both, and they are kept because they
+are what a future attempt would otherwise repeat.
 
 ### What is checked, and what missed
 
@@ -295,8 +290,16 @@ and the test is the thing at fault.** The groundwater trace is a face-width-
 weighted steepest descent on the raw surface while `terminal` is a priority
 flood on the filled one, so the two differ for reasons that are not groundwater
 and no solver would pass it. `notes/mesh-geometry.md` has the numbers and what a
-correct version compares against; GW-10 tracks it. Until then the solver has no
-passing catchment check, and the reduction identity and closure are what stand.
+correct version compares against; GW-10 tracks it.
+
+`--uniqueness-check` re-solves from the opposite initial active set. The matrix
+is symmetric positive definite, so the complementarity problem has exactly one
+solution and any two trajectories must reach it: this is an identity, not a
+comparison. **It misses**, at 12.76 m maximum head difference against a declared
+1e-9 relative, because the rule that marks a recharge-free block dry depends on
+the active set it is discovered from and so is path-dependent. The head field
+therefore converges and conserves mass and is NOT certified as the unique
+solution. GW-12 tracks the fix.
 
 ### Two cell areas, and they are not the same
 

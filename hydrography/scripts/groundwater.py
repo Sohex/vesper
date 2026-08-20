@@ -47,7 +47,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 # Imported for its side effect: `_paths` is what puts `lib/` on the path, so
 # `orogen` below is unimportable without it. It reads as an unused import and
 # is not one -- removing it on that basis broke this module's entry point.
-import _paths  # noqa: E402,F401
+import _paths  # noqa: E402,F401  # noqa
 from orogen import LAND, Export  # noqa: E402
 
 # Declared BEFORE the first run, per the standing convention. A criterion chosen
@@ -71,33 +71,37 @@ CLOSURE_TOLERANCE = 1e-10
 # the groundwater trace has nothing to follow, so they need not.
 DIVIDE_AGREEMENT_ALL = 0.90
 DIVIDE_AGREEMENT_UNFILLED = 0.99
-# Convergence of the outer iteration, as the water balance residual on free
-# cells over total land recharge, together with a nearly still active set. The
-# residual measures the nonlinear problem rather than the iteration chasing it,
-# so a shrinking step cannot satisfy it; a bar on the head step could be, and
-# was replaced for that reason.
-RESIDUAL_TOLERANCE = 1e-6
-HEAD_TOLERANCE_M = 0.05          # reported, not a bar; see solve()
-FLIP_TOLERANCE = 0.002
-# Release hysteresis, as a fraction of a cell's own recharge. See solve().
-FLIP_HYSTERESIS = 0.01
-# Trust region on the Picard step, in e-folding lengths. See solve().
-STEP_CAP_EFOLDINGS = 1.0
-# CROSS-SCHEME AGREEMENT, declared before either scheme was run against the
-# other. Picard and Kirchhoff discretise the same PDE on the same mesh, so where
-# both converge they must agree to discretisation error, and the operator's own
-# noise floor is about 12% relative RMS. The depth bar is set at the median
-# rather than the maximum because the interface error Kirchhoff carries at a
-# lithology jump is concentrated at those faces by construction; a maximum would
-# report the worst face rather than whether the two agree.
-# The share of faces whose elevation difference may exceed float64's exp
-# range before the Kirchhoff transform is refused outright. Zero: there is
-# no tolerable amount of silently underflowing to a false residual.
-KIRCHHOFF_MAX_OVERFLOW_FRACTION = 0.0
-SCHEME_DEPTH_MEDIAN_M = 5.0
-SCHEME_SEEPAGE_RELATIVE = 0.01
-# Passes over which the relaxation factor halves. See solve().
-DAMPING_SCALE = 60.0
+# Convergence of the outer iteration, DECLARED BEFORE THE FIRST RUN of the
+# constant-transmissivity model. The transmissivity no longer depends on the
+# head, so the matrix is fixed and this is a box-constrained linear
+# complementarity problem: an active-set method on one terminates exactly rather
+# than approaching a fixed point, and the bar is set accordingly tight. It is
+# still the water balance residual on free cells over total land recharge, for
+# the reason the previous model made unavoidable -- a bar on the head step can
+# be satisfied by a shrinking step rather than by convergence.
+# Tighter than CLOSURE_TOLERANCE, and it has to be: a pinned cell left with a
+# negative balance is clipped to zero on the way out, and that invented water is
+# EXACTLY the closure error. A leak bar looser than the closure bar lets a solve
+# report convergence and then fail the conservation law it just broke, which is
+# what 1e-8 did -- leak 2.53e-09, closure 2.47e-09 against 1e-10.
+RESIDUAL_TOLERANCE = 1e-12
+# The active set must also have stopped moving. Both, not either.
+FLIP_TOLERANCE = 0.0
+# Complementarity is tested as the MASS a pinned cell would have to invent, over
+# total recharge, against the same bar as the residual -- not as a count of
+# cells with a negative balance. The count was tried first and is a proxy that
+# round-off defeats: four cells out of 2.5 million held it above zero forever at
+# balances of order 1e-18 m3/s, on a planet recharging at 1.3e6, so the solve
+# ran to its pass limit while the closure it was protecting passed at 1.7e-16.
+# The intent is unchanged and is the one that matters -- no water may be
+# invented by clipping a negative seepage to zero -- and this measures it
+# directly instead of through a proxy.
+# CROSS-SCHEME AGREEMENT, declared before running it. With transmissivity
+# independent of the head the two code paths solve the IDENTICAL linear system,
+# so this is not an independent identity the way it would be for a nonlinear
+# model -- it is a check that two assemblies of the same operator agree, and it
+# is held to round-off rather than to discretisation error.
+SCHEME_HEAD_RELATIVE = 1e-9
 
 SECONDS_PER_DAY = 86400.0
 
@@ -248,6 +252,7 @@ def laplace_beltrami_error(geom: Geometry, degrees=LAPLACE_DEGREES) -> dict:
     return out
 
 
+
 # ---------------------------------------------------------------------------
 # Subsurface properties
 # ---------------------------------------------------------------------------
@@ -263,47 +268,30 @@ def conductivity(k_m2, density_kg_m3: float, gravity_m_s2: float,
     return k_m2 * density_kg_m3 * gravity_m_s2 / viscosity_pa_s
 
 
-def efolding_length(slope_tan, cover_thickness_m, cfg: dict):
-    """Fan et al. (2007) eq. (7): e-folding depth of conductivity, metres.
+def transmissivity(k0_m_s, thickness_m: float):
+    """`T = K D`, m2/s. Conductivity over a constant saturated thickness.
 
-        f = a / (1 + b * slope),  capped below at f_min above slope_cap
+    THE WHOLE DEPTH MODEL, and its flatness is deliberate. `K` and `D` come from
+    one source at one scale: Gleeson et al. (2011) put their permeabilities at
+    5-100 km and say the lithology maps carrying them "represent the shallow
+    subsurface (on the order of 100 m)". A region here is about 15 km, inside
+    that range.
 
-    Two curves, regolith and bedrock, selected by whether the export's
-    unconsolidated cover reaches `regolith_cover_min_m`. The constants are Fan's
-    North American fit and are Earth's; the config says so at length.
+    WHAT THIS REPLACED. Fan et al. (2007) make conductivity decay exponentially
+    with depth at an e-folding length set by terrain slope, and that was used
+    here first. It has no value at this resolution: `exp(h/f)` is convex, so a
+    cell mean over a water table varying within the cell by `sigma` carries
+    `exp(sigma^2 / 2 f^2)`, and 100 m of sub-grid relief against the 0.95 m `f`
+    that Fan's curve reaches on steep bedrock makes that `exp(5000)`. That is
+    not a correction to apply but a statement that the parameterisation cannot
+    be evaluated on a 15 km cell at all. The config carries the argument; the
+    two solvers that failed trying are in `notes/water-table-convergence.md`.
+
+    The cost is real and is not hidden: no slope dependence of aquifer depth,
+    and no thinning of transmissivity as the water table falls. This is the
+    coarser model, taken because it is the one the sources support here.
     """
-    dd = cfg["depth_decay"]
-    is_regolith = cover_thickness_m >= float(dd["regolith_cover_min_m"])
-    f = np.empty(np.shape(slope_tan), dtype=np.float64)
-    for key, mask in (("regolith", is_regolith), ("bedrock", ~is_regolith)):
-        p = dd[key]
-        s = np.clip(slope_tan[mask], 0.0, None)
-        val = float(p["a_m"]) / (1.0 + float(p["b"]) * s)
-        f[mask] = np.where(s > float(p["slope_cap"]), float(p["f_min_m"]), val)
-    return f
-
-
-def transmissivity(k0_m_s, f_m, depth_m):
-    """Fan et al. (2007) eq. (6): T = K0 f exp(-d/f), m2/s.
-
-    `depth_m` is the water table below the land surface and is clipped at zero:
-    the head is capped at the surface, so a negative depth is not a state this
-    model has, and letting one through would make the column above the ground
-    conduct.
-    """
-    return k0_m_s * f_m * np.exp(-np.clip(depth_m, 0.0, None) / f_m)
-
-
-# ---------------------------------------------------------------------------
-# The complementarity solve
-# ---------------------------------------------------------------------------
-
-def cell_transmissivity(k0_m_s, f_m, depth_m, conductive):
-    """Per-cell transmissivity with the numerical floor, and who hit it."""
-    t = np.where(conductive, transmissivity(k0_m_s, f_m, depth_m), 0.0)
-    floor = TRANSMISSIVITY_FLOOR_RATIO * t.max()
-    at_floor = conductive & (t < floor)
-    return np.where(conductive, np.maximum(t, floor), t), at_floor
+    return k0_m_s * float(thickness_m)
 
 
 def face_transmissivity(t_cell, gfac, src, dst, is_ocean):
@@ -314,9 +302,8 @@ def face_transmissivity(t_cell, gfac, src, dst, is_ocean):
     actually travels through to reach it is the coastal land cell's own. Ocean
     regions carry the export's `water` rock class, which has no permeability by
     construction, so averaging made every coastal face conduct at half of
-    nothing: the sea stopped being a drain, the only Dirichlet anchor left was
-    the transmissivity floor at 1e-12 of the mesh maximum, and the direct solve
-    reported the matrix exactly singular after thirty passes.
+    nothing: the sea stopped being a drain, the system lost its only Dirichlet
+    anchor, and the direct solve reported the matrix exactly singular.
     """
     coast = is_ocean[src] ^ is_ocean[dst]
     land_side_t = np.where(is_ocean[src], t_cell[dst], t_cell[src])
@@ -325,45 +312,45 @@ def face_transmissivity(t_cell, gfac, src, dst, is_ocean):
 
 
 def geom_divergence(n, src, dst, face_flux):
-    """Net outflow per cell from a signed per-face flux, on a face subset."""
+    """Net INFLOW per cell from a signed per-face flux.
+
+    The convention throughout: a positive face flux is flow from `dst` into
+    `src`, so this returns what each cell gains.
+    """
     out = np.zeros(n)
     np.add.at(out, src, face_flux)
     np.add.at(out, dst, -face_flux)
     return out
 
 
-# A NUMERICAL floor on transmissivity, as a fraction of the largest value on
-# the mesh, and not a physical claim. `T = K0 f exp(-d/f)` has no lower bound:
-# on steep bedrock `f` falls to a metre, so a water table a hundred metres down
-# gives `exp(-100)`, which underflows to exactly zero and disconnects the cell
-# from the operator. Cells at the floor are counted and reported, and their
-# depth is a lower bound rather than a value. Raising the floor moves the depth
-# only where the water table is already deeper than this mesh can resolve.
-TRANSMISSIVITY_FLOOR_RATIO = 1e-12
+# ---------------------------------------------------------------------------
+# The complementarity solve
+# ---------------------------------------------------------------------------
 
-
-def solve(export: Export, geom: Geometry, *, k0_m_s, f_m, recharge_m_s,
-          surface_m, conductive, sea_level_m=0.0, max_outer=60,
-          relax=0.7, verbose=True):
+def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
+          surface_m, conductive, sea_level_m=0.0, max_outer=200,
+          start_all_free=False, verbose=True):
     """Steady-state head, seepage and face fluxes.
 
-    Active-set iteration over the complementarity condition, with a Picard
-    iteration on the transmissivity nested inside it because `T` depends on the
-    head it is solving for.
+    With `T = K D` the transmissivity does not depend on the head, so the matrix
+    is FIXED and the only thing left to iterate is the active set:
+
+        sum_j Trans_ij (h_j - h_i) + R_i A_i = S_i,   h_i <= z_i,  S_i >= 0
+
+    That is a box-constrained linear complementarity problem, and an active-set
+    method on one terminates exactly. There is no relaxation, no trust region,
+    no damping and no Picard loop here, and their absence is the point: every
+    one of them existed to control a fixed-point iteration on an exponential
+    transmissivity that could not be evaluated on this mesh in the first place.
 
     Ocean regions are a fixed-head boundary at sea level. Fan et al. (2013) find
     sea level the dominant driver of water table depth at global scale, and this
     world has one, so that boundary is not an approximation to something else.
 
     `conductive` is the land mask minus the regions whose lithology has no
-    assigned permeability. Those are removed from the network entirely rather
-    than given a number: see the `unassigned` block in the config. Their
-    recharge is returned as seepage, which is what the surface-only balance
-    already does with it.
-
-    Returns a dict. `head_m` is the water table; `seepage_m3_s` is groundwater
-    reaching the surface, non-negative by construction; `face_flux_m3_s` is
-    positive from `src` to `dst`.
+    assigned permeability. Those leave the network rather than being given a
+    number, and their recharge returns as seepage, which is what the
+    surface-only balance already does with it.
     """
     n = export.n_regions
     src, dst = geom.src, geom.dst
@@ -371,108 +358,82 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, f_m, recharge_m_s,
     area_m2 = geom.volume_area_m2
 
     is_ocean = export.surface_class != LAND
-    # START FROM THE ALL-PINNED POINT AND RELEASE, rather than from all-free and
-    # pin. Both are active-set iterations on the same problem and they are not
-    # equally conditioned. Every cell at the surface is the zero-permeability
-    # solution, so it is always feasible; the free set then grows only where a
-    # cell can actually carry its recharge away, and stays a fraction of the
-    # mesh. Starting all-free asks conjugate gradients to solve the whole
-    # 2.5-million-cell system across six orders of magnitude of transmissivity
-    # before a single cell has been pinned, and it did not converge in four
-    # thousand iterations.
-    free = np.zeros(n, bool)
-    head = surface_m.copy()
-    head[is_ocean] = sea_level_m
-
-    # A face conducts only between two cells that are both in the network, or
-    # between a network cell and the ocean boundary. Everything else is inert.
     in_domain = conductive | is_ocean
     live = in_domain[src] & in_domain[dst]
     src, dst, gfac = src[live], dst[live], gfac[live]
 
+    t_cell = np.where(conductive, transmissivity(k0_m_s, thickness_m), 0.0)
+    trans = face_transmissivity(t_cell, gfac, src, dst, is_ocean)
+
+    rowsum = np.zeros(n)
+    np.add.at(rowsum, src, trans)
+    np.add.at(rowsum, dst, trans)
+
     supply = recharge_m_s * area_m2               # m3/s per cell
-    pinned_hist = []
-    result = {}
-    release = np.zeros(n, bool)
-    anchor = np.zeros(n, bool)      # pinned to make an orphan block solvable
-    head_prev = head.copy()
-    step_trace = []
     total_supply = float(supply[conductive].sum())
-    # The depth at which T reaches its floor. Past it the head is undetermined,
-    # so the solve does not chase it and the reported depth is a lower bound.
-    max_depth = f_m * np.log(1.0 / TRANSMISSIVITY_FLOOR_RATIO)
+
+    # Start with every cell at the surface, which is the zero-permeability
+    # solution and is always feasible, then release. Growing the free set from
+    # nothing keeps it a fraction of the mesh; starting all-free asks the solver
+    # to factor the whole 2.5 million cells before a single cell is pinned.
+    head = surface_m.copy()
+    head[is_ocean] = sea_level_m
+    # `start_all_free` walks the opposite trajectory, for the uniqueness check.
+    # The solution of this complementarity problem is unique, so where it lands
+    # cannot depend on where it started.
+    free = conductive.copy() if start_all_free else np.zeros(n, bool)
+    anchor = np.zeros(n, bool)
+    anchor_failed = np.zeros(n, bool)
+    result, trace = {}, []
 
     for outer in range(max_outer):
-        depth = np.clip(surface_m - head, 0.0, None)
-        t_cell, at_floor = cell_transmissivity(
-            k0_m_s, f_m, depth, conductive)
-        trans = face_transmissivity(t_cell, gfac, src, dst, is_ocean)
-
         # A cell with no conducting face has no equation: nothing can carry its
-        # recharge away, so its water table stands at the surface and its
-        # recharge leaves as seepage. Pinning it is the physical answer and not
-        # a numerical dodge, and it is the answer the zero-permeability limit
-        # consists entirely of. Left free, it is a zero row and the operator is
-        # singular.
-        rowsum = np.zeros(n)
-        np.add.at(rowsum, src, trans)
-        np.add.at(rowsum, dst, trans)
+        # recharge away, so it stands at the surface and seeps.
         stranded = free & ~is_ocean & (rowsum <= 0)
-        if stranded.any():
-            free[stranded] = False
-            head[stranded] = surface_m[stranded]
+        free[stranded] = False
+        head[stranded] = surface_m[stranded]
 
         # RELEASE before solving. A pinned cell whose neighbours already draw
-        # more water out of it than its own recharge supplies cannot stand at
-        # the surface, so its head is an unknown. Doing this first is what makes
-        # the free set grow from nothing instead of shrinking from everything.
-        # HYSTERESIS on the release, scaled to the cell's own recharge. A cell
-        # exactly on the boundary otherwise releases on one pass and is pinned
-        # back on the next, forever: the raw criterion limit-cycled here at
-        # about 385,500 free cells, flipping some 2,500 either way every pass
-        # and never settling. Requiring a cell to be drawn down by more than a
-        # small fraction of its own supply before it is released breaks the
-        # cycle without moving any cell that is not marginal.
-        pinned_now = conductive & ~free & (rowsum > 0)
-        flux_now = trans * (head[dst] - head[src])
-        seep_now = supply + geom_divergence(n, src, dst, flux_now)
-        margin = FLIP_HYSTERESIS * np.abs(supply)
-        # An anchor cell is never released. It was pinned to give its block the
-        # single fixed head a Neumann problem lacks, so freeing it puts the
-        # block straight back into the singular state it was rescued from: the
-        # solve then pins it, releases it and re-anchors it every pass, forever.
-        release = pinned_now & (seep_now < -margin) & ~anchor
+        # more water out of it than its recharge supplies cannot stand at the
+        # surface. An anchor is never released; see below.
+        flux = trans * (head[dst] - head[src])
+        seep = supply + geom_divergence(n, src, dst, flux)
+        # AN ANCHOR MAY BE RELEASED, and once released it is never chosen
+        # again. Anchors were permanent first, on the reasoning that freeing one
+        # returns its block to the singular state it was rescued from. That is
+        # true only if the block still needs an anchor, and it makes an anchor
+        # that turns out infeasible unfixable: four of them held 2.5e-9 of the
+        # planet's recharge as invented water, forever, because the release test
+        # was forbidden to touch them.
+        #
+        # Retiring a failed candidate is what makes this terminate. A block with
+        # no outlet must dispose of its own recharge internally, so its balances
+        # sum positive and at least one of its cells genuinely seeps; each
+        # release strikes one candidate off, so the search cannot cycle and
+        # cannot exhaust the block.
+        release = conductive & ~free & (rowsum > 0) & (seep < 0)
         free[release] = True
+        anchor_failed |= release & anchor
+        anchor &= ~release
 
         unknown = free & ~is_ocean
-        idx = np.full(n, -1, dtype=np.int64)
-        idx[unknown] = np.arange(int(unknown.sum()))
         m = int(unknown.sum())
         if m == 0:
-            # Nothing was released, so every cell stands at the surface and
-            # there is nothing to solve for. A terminal state rather than a
-            # failure, and exactly the zero-permeability limit: no cell can move
-            # water sideways, so every cell returns its own recharge as seepage.
             if verbose:
-                print("  every cell is pinned at the surface; nothing to solve")
-            result["outer_iterations"] = outer + 1
+                print("  every cell is at the surface; nothing to solve")
+            result.update(outer_iterations=outer + 1, converged=True,
+                          final_residual=0.0)
             break
+        idx = np.full(n, -1, dtype=np.int64)
+        idx[unknown] = np.arange(m)
 
-        # EVERY FREE COMPONENT NEEDS AN ANCHOR, and one can lose it mid-solve.
-        #
-        # A block of free cells connected only to other free cells is a pure
-        # Neumann problem: it has a solution only if the recharge falling in it
-        # sums to zero, and recharge is non-negative, so it has none. The matrix
-        # is exactly singular and the direct solve returns NaN for the WHOLE
-        # system, not just that block -- which is how this presented, twice, at
-        # the same pass.
-        #
-        # It is a physical situation and not a degenerate one: an interior
-        # block whose water table has dropped below the surface everywhere has
-        # no outlet, so in steady state it fills until its shallowest cell
-        # reaches the surface and starts to seep. Pinning that cell is what the
-        # water would do, and it gives the block the anchor it needs. If the
-        # choice is wrong the release test frees it again on the next pass.
+        # Every free block needs a fixed head somewhere. A block connected only
+        # to other free cells is a pure Neumann problem with non-negative
+        # recharge, so it has no solution and the direct solve returns NaN for
+        # the whole system. Physically it is a block with no outlet, which fills
+        # until its shallowest cell seeps, so pinning that cell is what the
+        # water does. Anchors are permanent: released, the block returns to the
+        # singular state it was rescued from and the solve cycles.
         both = unknown[src] & unknown[dst]
         anchored = np.zeros(n, bool)
         edge_one = unknown[src] ^ unknown[dst]
@@ -482,26 +443,78 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, f_m, recharge_m_s,
         if not np.all(anchored[unknown]):
             from scipy.sparse.csgraph import connected_components
 
-            sub = sp.coo_matrix(
-                (np.ones(int(both.sum())),
-                 (idx[src[both]], idx[dst[both]])), shape=(m, m))
+            sub = sp.coo_matrix((np.ones(int(both.sum())),
+                                 (idx[src[both]], idx[dst[both]])), shape=(m, m))
             ncomp, label = connected_components(sub, directed=False)
             ok = np.zeros(ncomp, bool)
             ok[label[idx[anchored & unknown]]] = True
             orphan = ~ok[label]
+            # A BLOCK WITH NO RECHARGE IS DRY, and needs no anchor.
+            #
+            # An orphan block has no conducting face to anything outside it, so
+            # the only water it can hold is what falls on it. Where that is zero
+            # there is nothing to dispose of, no seepage, and no water table:
+            # the block is dry and belongs out of the network, exactly as an
+            # unassigned lithology does.
+            #
+            # Anchoring one of its cells instead is not merely unnecessary, it
+            # is what generated the last of the mass error. Pinning a cell at
+            # the surface inside a block whose terrain is not flat drives a flux
+            # between the block's own cells, and the pinned cell absorbs the
+            # resulting imbalance as a negative seepage that is then clipped.
+            # All four cells that held this solve short of its bar had
+            # `supply` of exactly zero.
             if orphan.any():
+                block_supply = np.zeros(ncomp)
+                np.add.at(block_supply, label[orphan],
+                          supply[np.flatnonzero(unknown)[orphan]])
+                arid = orphan & (block_supply[label] <= 0.0)
+                if arid.any():
+                    cells = np.flatnonzero(unknown)[arid]
+                    conductive = conductive.copy()
+                    conductive[cells] = False
+                    free[cells] = False
+                    head[cells] = surface_m[cells]
+                    t_cell = np.where(conductive,
+                                      transmissivity(k0_m_s, thickness_m), 0.0)
+                    trans = face_transmissivity(t_cell, gfac, src, dst, is_ocean)
+                    rowsum = np.zeros(n)
+                    np.add.at(rowsum, src, trans)
+                    np.add.at(rowsum, dst, trans)
+                    total_supply = float(supply[conductive].sum())
+                    if verbose:
+                        print(f"    {cells.size:,} cells in "
+                              f"{int((block_supply <= 0).sum())} orphan blocks "
+                              f"take no recharge at all; marking them dry")
+                    continue
+
+                # WHICH cell to anchor, and it is not a free choice. A block
+                # with no external face must dispose of all its own recharge
+                # internally, so its cells' balances sum to something positive
+                # and at least one of them genuinely seeps. Anchoring THAT one
+                # is the only choice that stays feasible; anchoring the cell
+                # with the shallowest water table, which is what this did
+                # first, picked a cell that immediately wanted releasing and
+                # could not be, so four of them sat infeasible for three
+                # hundred passes and the solve never converged.
                 where = np.flatnonzero(unknown)[orphan]
-                deep = (surface_m - head)[where]
-                shallowest = np.full(ncomp, np.inf)
-                np.minimum.at(shallowest, label[orphan], deep)
-                pick = where[deep <= shallowest[label[orphan]]]
+                bal_now = (supply + geom_divergence(
+                    n, src, dst, trans * (head[dst] - head[src])))[where]
+                # Candidates that already failed as anchors are pushed to the
+                # back rather than removed, so a block whose every cell has
+                # failed still gets one and the solve reports the leak instead
+                # of going singular.
+                score = np.where(anchor_failed[where], -np.inf, bal_now)
+                best = np.full(ncomp, -np.inf)
+                np.maximum.at(best, label[orphan], score)
+                pick = where[score >= best[label[orphan]]]
                 free[pick] = False
                 head[pick] = surface_m[pick]
                 anchor[pick] = True
                 if verbose:
                     print(f"    anchored {int((~ok).sum()):,} orphan blocks by "
-                          f"pinning {pick.size:,} cells at the surface")
-                continue          # rebuild with the new set before solving
+                          f"pinning {pick.size:,} cells")
+                continue
 
         rows = np.concatenate([idx[src[both]], idx[dst[both]],
                                idx[src[both]], idx[dst[both]]])
@@ -509,182 +522,113 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, f_m, recharge_m_s,
                                idx[src[both]], idx[dst[both]]])
         vals = np.concatenate([-trans[both], -trans[both],
                                trans[both], trans[both]])
-
         rhs = np.zeros(m)
         np.add.at(rhs, idx[unknown], supply[unknown])
-
-        one = unknown[src] ^ unknown[dst]
-        if one.any():
-            u_side = np.where(unknown[src[one]], src[one], dst[one])
-            p_side = np.where(unknown[src[one]], dst[one], src[one])
+        if edge_one.any():
+            u_side = np.where(unknown[src[edge_one]], src[edge_one], dst[edge_one])
+            p_side = np.where(unknown[src[edge_one]], dst[edge_one], src[edge_one])
             rows = np.concatenate([rows, idx[u_side]])
             cols = np.concatenate([cols, idx[u_side]])
-            vals = np.concatenate([vals, trans[one]])
-            np.add.at(rhs, idx[u_side], trans[one] * head[p_side])
+            vals = np.concatenate([vals, trans[edge_one]])
+            np.add.at(rhs, idx[u_side], trans[edge_one] * head[p_side])
 
         A = sp.coo_matrix((vals, (rows, cols)), shape=(m, m)).tocsr()
-        diag = A.diagonal()
-        if not np.all(diag > 0):
+        if not np.all(A.diagonal() > 0):
             raise SystemExit(
-                f"{int((diag <= 0).sum())} free cells are isolated from the "
-                "network; the operator is singular and the solve is invalid")
-        # A DIRECT SPARSE SOLVE, not conjugate gradients. The matrix is a
-        # symmetric positive-definite graph Laplacian and CG is the obvious
-        # choice for one, but the transmissivity carries `exp(-d/f)` with `f`
-        # as small as a metre on steep bedrock, so a cell whose water table sits
-        # tens of metres down has a transmissivity smaller than its neighbour's
-        # by twenty orders of magnitude. Diagonally preconditioned CG did not
-        # converge in four thousand iterations on that, at any active set. The
-        # free set is a fraction of the mesh, which puts a direct factorisation
-        # well inside reach, and it does not care about the condition number in
-        # the way an iterative method does.
+                f"{int((A.diagonal() <= 0).sum())} free cells are isolated; "
+                "the operator is singular and the solve is invalid")
+        # A direct factorisation, not conjugate gradients. Conductivity still
+        # spans the 3.4 orders of magnitude between Gleeson's classes, which
+        # diagonally preconditioned CG handles badly, and the free set is small
+        # enough that a direct solve is comfortable.
         x = spsolve(A.tocsc(), rhs, use_umfpack=False)
         if not np.all(np.isfinite(x)):
             raise SystemExit(
                 f"the direct solve returned {int((~np.isfinite(x)).sum()):,} "
-                f"non-finite heads at outer iteration {outer} with {m:,} "
-                "unknowns; do not use this result")
+                f"non-finite heads at pass {outer}; do not use this result")
+        head[unknown] = x
 
-        # LIMIT THE STEP TO THE E-FOLDING LENGTH, then under-relax.
-        #
-        # Under-relaxation alone does not control this iteration. `T` depends on
-        # the head through `exp(-d/f)`, so a step much larger than `f` leaves
-        # the regime the linearisation was taken in: the cell's transmissivity
-        # collapses, the next pass needs a still larger gradient to move the
-        # same water, and the head runs away. Unclamped, this oscillated by
-        # three to four KILOMETRES per pass on a planet whose land spans five,
-        # and did not decay over thirty passes.
-        #
-        # One e-folding length is the natural trust region, because it is the
-        # distance over which the coefficient the step was computed from changes
-        # by a factor of e. Cells far from their answer then walk towards it at
-        # `f` per pass instead of overshooting past it.
-        # A DIMINISHING step on top of the cap. A fixed relaxation is enough to
-        # keep the iteration stable but not to make it converge: with a constant
-        # step it settles into a limit cycle instead of a fixed point, and this
-        # one did, holding a maximum head step near 70 m and a 99.9th percentile
-        # near 22 m unchanged from pass 100 to pass 158 while the free set and
-        # the flip count had long since stopped moving. Shrinking the step as
-        # the passes accumulate damps that cycle towards its centre. The bulk of
-        # the field has converged well before the factor becomes small, so what
-        # it costs is only the tail it exists to settle.
-        step = np.zeros(n)
-        step[unknown] = x - head[unknown]
-        cap = STEP_CAP_EFOLDINGS * f_m
-        step = np.clip(step, -cap, cap)
-        damp = relax / (1.0 + outer / DAMPING_SCALE)
-        head = head + damp * np.where(unknown, step, 0.0)
-
-        # Below this the transmissivity is at its floor and the head is not
-        # determined by anything: the cell is disconnected, and the only effect
-        # of letting it fall further is to widen the range the solve has to
-        # carry. Clamping it keeps the depth a lower bound rather than a number.
-        head = np.where(unknown, np.maximum(head, surface_m - max_depth), head)
-
-        # A free cell whose head came out above the surface is pinned back to
-        # it. Releases happen at the top of the next pass, on a consistent T.
+        # No relaxation and no step limit: the operator does not depend on the
+        # answer, so a full step invalidates nothing.
         over = unknown & (head > surface_m)
         head[over] = surface_m[over]
         free[over] = False
 
-        # CONVERGE ON THE HEAD, not on the active set. A few thousand marginal
-        # cells go on flipping long after the field itself has stopped moving,
-        # so a criterion of "the set stopped changing" never fires while a
-        # criterion on the head does. The set is still required to be nearly
-        # still, so a genuinely unconverged run cannot pass on a small step.
-        # THE CRITERION IS THE RESIDUAL, NOT THE STEP.
-        #
-        # With a diminishing relaxation the head step shrinks whether or not the
-        # solution has converged, so a bar on the step is one the damping can
-        # satisfy on its own. It would have read as convergence and been none.
-        #
-        # The residual cannot be gamed that way. Recomputing the transmissivity
-        # at the head just produced and asking whether each free cell's water
-        # balance closes -- recharge in equals lateral flow out, with no seepage,
-        # which is what being below the surface means -- tests the nonlinear
-        # problem rather than the iteration that is chasing it. It is zero only
-        # when `T` and `h` agree, which is the fixed point.
-        depth_now = np.clip(surface_m - head, 0.0, None)
-        t_now, _ = cell_transmissivity(k0_m_s, f_m, depth_now, conductive)
-        trans_now = face_transmissivity(t_now, gfac, src, dst, is_ocean)
-        div_now = geom_divergence(n, src, dst,
-                                  trans_now * (head[dst] - head[src]))
-        still_free = free & ~is_ocean
-        resid = np.abs(supply + div_now)[still_free]
-        residual = float(resid.sum() / max(total_supply, 1e-30))
+        flux = trans * (head[dst] - head[src])
+        bal = supply + geom_divergence(n, src, dst, flux)
+        still = free & ~is_ocean
+        residual = float(np.abs(bal)[still].sum() / max(total_supply, 1e-30))
 
-        dh = np.abs(head - head_prev)[conductive]
-        moved = float(dh.max())
-        moved_p999 = float(np.percentile(dh, 99.9))
-        head_prev = head.copy()
+        # COMPLEMENTARITY, tested on the head just produced. A converged LCP
+        # needs BOTH halves: the balance closes on free cells, AND no pinned
+        # cell is being drawn below the surface it is pinned to. Only the first
+        # was checked, and because the break came straight after a solve that
+        # had moved the head, pinned cells left infeasible by that last solve
+        # were never re-examined -- their negative seepage was clipped to zero
+        # on the way out, which does not discard water, it INVENTS it. That was
+        # 740 m3/s of it, and closure caught it at 5.6e-4 where the free-cell
+        # residual read 3e-18.
+        pinned_now = conductive & ~free
+        infeasible = int((pinned_now & (bal < 0)).sum())
+        leak = float(-bal[pinned_now & (bal < 0)].sum())
+        leak_frac = leak / max(total_supply, 1e-30)
+
         flips = int(over.sum()) + int(release.sum())
-        step_trace.append([outer, m, moved, moved_p999, flips, residual])
-        pinned_hist.append(int((conductive & ~free).sum()))
+        trace.append([outer, m, flips, residual, infeasible, leak_frac])
         if verbose:
-            print(f"  outer {outer:3d}  free {m:>9,}  released "
+            print(f"  pass {outer:3d}  free {m:>9,}  released "
                   f"{int(release.sum()):>7,}  pinned {int(over.sum()):>7,}"
-                  f"  |dh| {moved:9.3g}  p99.9 {moved_p999:9.3g}"
-                  f"  residual {residual:9.3e}")
-        if residual < RESIDUAL_TOLERANCE and flips <= FLIP_TOLERANCE * max(m, 1):
-            result["outer_iterations"] = outer + 1
-            result["final_head_step_m"] = moved
-            result["final_head_step_p999_m"] = moved_p999
-            result["final_flip_fraction"] = flips / max(m, 1)
-            result["final_residual"] = residual
-            result["converged"] = True
+                  f"  residual {residual:10.3e}  leak {leak_frac:10.3e}"
+                  f"  ({infeasible:,} cells)")
+        if (residual < RESIDUAL_TOLERANCE and flips <= FLIP_TOLERANCE * m
+                and leak_frac < RESIDUAL_TOLERANCE):
+            result.update(outer_iterations=outer + 1, converged=True,
+                          final_residual=residual, seepage_leak_m3_s=leak,
+                          seepage_leak_fraction=leak_frac,
+                          infeasible_pinned_cells=infeasible)
             break
     else:
-        # NOT converged. Returned rather than raised, with the trace attached,
-        # because a run that stops short is evidence about the solver and a
-        # bare exit is not. The caller refuses to write the water table from it;
-        # the report is written either way and says how far it got.
-        result["converged"] = False
-        result["outer_iterations"] = max_outer
-        result["final_head_step_m"] = moved
-        result["final_head_step_p999_m"] = moved_p999
-        result["final_flip_fraction"] = flips / max(m, 1)
-        result["final_residual"] = residual
+        result.update(outer_iterations=max_outer, converged=False,
+                      final_residual=residual, seepage_leak_m3_s=leak,
+                      seepage_leak_fraction=leak_frac,
+                      infeasible_pinned_cells=infeasible)
         if verbose:
-            print(f"  DID NOT CONVERGE in {max_outer} passes: water balance "
-                  f"residual {residual:.3e} of total recharge against a bar of "
-                  f"{RESIDUAL_TOLERANCE:.0e}; max |dh| {moved:.4g} m")
-    result.setdefault("converged", True)
-    result["head_step_trace_m"] = step_trace
+            print(f"  DID NOT CONVERGE in {max_outer} passes: residual "
+                  f"{residual:.3e}, leak {leak_frac:.3e}, both against "
+                  f"{RESIDUAL_TOLERANCE:.0e}; {infeasible:,} pinned cells "
+                  f"infeasible")
+            bad = np.flatnonzero(pinned_now & (bal < 0))
+            for i in bad[:8]:
+                print(f"    region {i}: supply {supply[i]:.6e} m3/s  "
+                      f"balance {bal[i]:.6e}  anchor {bool(anchor[i])}  "
+                      f"failed_anchor {bool(anchor_failed[i])}  "
+                      f"rowsum {rowsum[i]:.3e}  depth {surface_m[i]-head[i]:.2f} m")
+    result["residual_trace"] = trace
 
     depth = np.clip(surface_m - head, 0.0, None)
-    t_cell, at_floor = cell_transmissivity(k0_m_s, f_m, depth, conductive)
-    trans = face_transmissivity(t_cell, gfac, src, dst, is_ocean)
     flux = trans * (head[dst] - head[src])
-
-    divergence = np.zeros(n)
-    np.add.at(divergence, src, flux)
-    np.add.at(divergence, dst, -flux)
-
-    seepage = np.zeros(n)
+    divergence = geom_divergence(n, src, dst, flux)
     pinned = conductive & ~free
+    seepage = np.zeros(n)
     seepage[pinned] = supply[pinned] + divergence[pinned]
-    # Excluded land carries its own recharge straight to the surface: it is not
-    # in the network, so nothing else can move it.
     excluded = (export.surface_class == LAND) & ~conductive
     seepage[excluded] = supply[excluded]
+    # At convergence every pinned cell is feasible, so this clip removes
+    # nothing; what it WOULD remove is recorded so that a run which stops short
+    # cannot quietly balance its books against it.
+    result["seepage_clipped_m3_s"] = float(-seepage[seepage < 0].sum())
     seepage = np.clip(seepage, 0.0, None)
 
     result.update({
-        "head_m": head,
-        "depth_m": depth,
-        "seepage_m3_s": seepage,
-        "face_flux_m3_s": flux,
-        "src": src, "dst": dst,
-        "pinned": pinned,
-        "excluded": excluded,
+        "head_m": head, "depth_m": depth, "seepage_m3_s": seepage,
+        "face_flux_m3_s": flux, "src": src, "dst": dst,
+        "pinned": pinned, "excluded": excluded,
         "transmissivity_m2_s": t_cell,
-        # What the ocean GAINS. `geom_divergence` returns net INFLOW per cell,
-        # so this is a plus. It was a minus, which made the closure check
-        # subtract the coastal discharge instead of adding it -- invisible in
-        # the zero-permeability case, where it is zero either way, and the
-        # reason the real solve's closure read 2.3e-4 instead of closing.
+        "at_transmissivity_floor": np.zeros(n, bool),
+        # What the ocean GAINS. `geom_divergence` returns net inflow, so this is
+        # a plus; it was a minus, which made closure subtract the coastal
+        # discharge instead of adding it.
         "ocean_outflow_m3_s": float(divergence[is_ocean].sum()),
-        "at_transmissivity_floor": at_floor,
     })
     return result
 
@@ -694,281 +638,25 @@ def closure(result, recharge_m_s, area_m2, export: Export) -> dict:
 
     At equilibrium every drop of recharge leaves through exactly one of two
     doors: it seeps back to the surface somewhere, or it crosses the coast into
-    the ocean boundary. If the two sides disagree the discretisation is wrong,
-    and no amount of agreement elsewhere rescues it.
+    the ocean boundary. If the two disagree the discretisation is wrong, and no
+    amount of agreement elsewhere rescues it.
     """
     land = export.surface_class == LAND
     supply = float((recharge_m_s[land] * area_m2[land]).sum())
     out = float(result["seepage_m3_s"].sum()) + result["ocean_outflow_m3_s"]
+    rel = abs(out - supply) / max(abs(supply), 1e-30)
     return {
         "recharge_m3_s": supply,
         "discharge_m3_s": out,
         "seepage_m3_s": float(result["seepage_m3_s"].sum()),
         "to_ocean_m3_s": result["ocean_outflow_m3_s"],
-        "relative_residual": abs(out - supply) / max(abs(supply), 1e-30),
+        "relative_residual": rel,
         "tolerance": CLOSURE_TOLERANCE,
-        "passes": abs(out - supply) / max(abs(supply), 1e-30) < CLOSURE_TOLERANCE,
+        "passes": rel < CLOSURE_TOLERANCE,
     }
 
-
-def kirchhoff_flux(gfac, phi, phi_sea, src, dst, coast, land_of, is_ocean):
-    """Face flux in the Kirchhoff potential, oriented as the rest of the module.
-
-    The convention throughout is that a positive face flux is flow from `dst`
-    INTO `src`, which is what makes `geom_divergence` a net inflow.
-
-    A coastal face is not `phi[dst] - phi[src]`, because the ocean has no
-    Kirchhoff potential of its own: the boundary value is sea level expressed in
-    the LAND cell's coefficients, which keeps the face inside one material. That
-    makes the physical flow land-to-sea, `gfac (phi_L - phi_sea_L)`, and it has
-    to be signed by which end of the face the land is -- which the first version
-    did not do, so half the coast carried its discharge backwards.
-    """
-    flux = gfac * (phi[dst] - phi[src])
-    if coast.any():
-        L = land_of[coast]
-        out = gfac[coast] * (phi[L] - phi_sea[L])      # land to sea, positive
-        flux[coast] = np.where(is_ocean[src[coast]], out, -out)
-    return flux
-
-
-def solve_kirchhoff(export: Export, geom: Geometry, *, k0_m_s, f_m,
-                    recharge_m_s, surface_m, conductive, sea_level_m=0.0,
-                    max_outer=200, verbose=True):
-    """The same problem in the Kirchhoff potential, where it is not stiff.
-
-    THE TRANSFORM. The Kirchhoff potential of a nonlinear diffusion is the
-    integral of its own coefficient, `Phi = int T dh`. With Fan's exponential
-    transmissivity `T = K0 f exp(-d/f)` that integral is closed:
-
-        Phi(h) = K0 f^2 exp(-d/f) = T f,   so   T grad h = grad Phi
-
-    and `div(T grad h) + R = 0` becomes `div(grad Phi) + R = 0`. The whole
-    eight orders of magnitude of transmissivity, and the entire nonlinearity,
-    move into the change of variable. What is left is a graph Laplacian whose
-    weights are `w/l` and NOTHING else -- no coefficient, no dependence on the
-    unknown, one factorisation per active set.
-
-    WHY IT IS WORTH THE TROUBLE. `solve()` iterates a fixed point: it evaluates
-    `T` at a head, solves, and hopes the head it gets back implies the same `T`.
-    It does not converge here. `T` moves by a factor of e per e-folding length,
-    which on steep bedrock is a metre, so the map is not a contraction and the
-    iterate limit-cycles. Damping stops the cycle by freezing the iterate short
-    of the fixed point rather than by finding it, which is exactly what the
-    water balance residual caught: 1.9e-4 of total recharge, flat over four
-    hundred passes, while the head step fell to a third of a metre.
-
-    Here there is no fixed point to chase. The cap `h <= z` maps monotonically
-    to `Phi <= K0 f^2`, so the problem is a box-constrained linear
-    complementarity problem, and an active-set method on one of those terminates.
-
-    WHERE IT IS EXACT, AND WHERE IT IS NOT. `Phi` is defined per cell from that
-    cell's own `K0` and `f`, so `grad Phi = T grad h` holds within a material and
-    not across a jump between two. The coast is handled exactly -- a coastal
-    face's sea-level potential is computed from the LAND cell's own
-    coefficients, which keeps it inside one material -- but a face between two
-    lithologies carries an interface error this does not model. That error is
-    what the cross-scheme check measures, and it is why the check exists.
-    """
-    n = export.n_regions
-    src, dst, gfac = geom.src, geom.dst, geom.geom
-    area_m2 = geom.volume_area_m2
-    is_ocean = export.surface_class != LAND
-    in_domain = conductive | is_ocean
-    live = in_domain[src] & in_domain[dst]
-    src, dst, gfac = src[live], dst[live], gfac[live]
-    supply = recharge_m_s * area_m2
-
-    with np.errstate(over="ignore", invalid="ignore"):
-        phi_max = k0_m_s * f_m ** 2                    # the cap, at d = 0
-        phi_min = phi_max * TRANSMISSIVITY_FLOOR_RATIO  # the floor, at max depth
-        # Sea level expressed in each coastal cell's OWN potential, which is
-        # what keeps the boundary condition inside one material.
-        phi_sea = phi_max * np.exp(
-            np.clip((sea_level_m - surface_m) / f_m, -700.0, 0.0))
-
-    # REFUSE RATHER THAN UNDERFLOW. The transform's variable is an exponential
-    # of elevation over the e-folding length, so it is usable only where the
-    # relief spans a modest number of e-folding lengths. Here it does not: `f`
-    # falls to about a metre on steep bedrock while adjacent cells differ by
-    # hundreds of metres, and `exp` of that overflows float64 outright on a
-    # measurable share of the mesh. Left to run, the potential underflows to
-    # zero over most of the domain and the solve reports a residual near 1e-19
-    # -- a balance satisfied at zero, which reads as convergence and is not.
-    # `notes/water-table-convergence.md` carries the measurement.
-    span = np.abs(surface_m[src] - surface_m[dst]) / np.minimum(f_m[src], f_m[dst])
-    over = float((span > 709.0).mean())
-    if over > KIRCHHOFF_MAX_OVERFLOW_FRACTION:
-        raise SystemExit(
-            f"the Kirchhoff transform is not usable on this terrain: "
-            f"{over * 100:.3f}% of faces have an elevation difference of more "
-            f"than 709 e-folding lengths, so exp() of it overflows float64 "
-            f"(bar {KIRCHHOFF_MAX_OVERFLOW_FRACTION * 100:.3f}%). The relief is "
-            f"kilometres and f is tens of metres. See "
-            f"hydrography/notes/water-table-convergence.md; --scheme picard is "
-            f"stable but does not converge either.")
-
-    phi = phi_max.copy()
-    at_cap = conductive.copy()      # start every cell at the surface, as solve()
-    at_floor = np.zeros(n, bool)
-    result = {}
-
-    coast = is_ocean[src] ^ is_ocean[dst]
-    land_of = np.where(is_ocean[src], dst, src)
-
-    for outer in range(max_outer):
-        # RELEASE FIRST. The iteration starts with every cell at the cap, which
-        # is the zero-permeability solution and always feasible, so if the
-        # release test does not run before the free set is counted there is
-        # nothing to solve on the first pass and the loop exits reporting
-        # success on a water table that is at the surface everywhere.
-        flux = kirchhoff_flux(gfac, phi, phi_sea, src, dst, coast,
-                              land_of, is_ocean)
-        seep = supply + geom_divergence(n, src, dst, flux)
-        release = at_cap & (seep < 0)
-        at_cap[release] = False
-
-        unknown = conductive & ~at_cap & ~at_floor
-        m = int(unknown.sum())
-        if m == 0:
-            if verbose:
-                print("  every cell is at a bound; nothing to solve")
-            result["outer_iterations"] = outer + 1
-            result["final_residual"] = 0.0
-            break
-        idx = np.full(n, -1, dtype=np.int64)
-        idx[unknown] = np.arange(m)
-
-        both = unknown[src] & unknown[dst]
-        rows = np.concatenate([idx[src[both]], idx[dst[both]],
-                               idx[src[both]], idx[dst[both]]])
-        cols = np.concatenate([idx[dst[both]], idx[src[both]],
-                               idx[src[both]], idx[dst[both]]])
-        vals = np.concatenate([-gfac[both], -gfac[both],
-                               gfac[both], gfac[both]])
-        rhs = np.zeros(m)
-        np.add.at(rhs, idx[unknown], supply[unknown])
-
-        # A face with one unknown end. The known end is either a land cell held
-        # at a bound, whose own potential goes to the right-hand side, or the
-        # ocean, which contributes the land cell's own sea-level potential.
-        one = unknown[src] ^ unknown[dst]
-        if one.any():
-            u_side = np.where(unknown[src[one]], src[one], dst[one])
-            p_side = np.where(unknown[src[one]], dst[one], src[one])
-            known = np.where(is_ocean[p_side], phi_sea[u_side], phi[p_side])
-            rows = np.concatenate([rows, idx[u_side]])
-            cols = np.concatenate([cols, idx[u_side]])
-            vals = np.concatenate([vals, gfac[one]])
-            np.add.at(rhs, idx[u_side], gfac[one] * known)
-
-        A = sp.coo_matrix((vals, (rows, cols)), shape=(m, m)).tocsr()
-        diag = A.diagonal()
-        if not np.all(diag > 0):
-            raise SystemExit(
-                f"{int((diag <= 0).sum())} free cells are isolated from the "
-                "network; the Kirchhoff operator is singular")
-        x = spsolve(A.tocsc(), rhs, use_umfpack=False)
-        if not np.all(np.isfinite(x)):
-            raise SystemExit(
-                f"the Kirchhoff solve returned non-finite potentials at outer "
-                f"iteration {outer} with {m:,} unknowns")
-        phi[unknown] = x
-
-        # Project onto the box and move the active set. No relaxation and no
-        # step limit: the operator does not depend on the answer, so there is
-        # nothing for a large step to invalidate.
-        hit_cap = unknown & (phi > phi_max)
-        hit_floor = unknown & (phi < phi_min)
-        phi[hit_cap] = phi_max[hit_cap]
-        phi[hit_floor] = phi_min[hit_floor]
-        at_cap[hit_cap] = True
-        at_floor[hit_floor] = True
-
-        flux = kirchhoff_flux(gfac, phi, phi_sea, src, dst, coast,
-                              land_of, is_ocean)
-        bal = supply + geom_divergence(n, src, dst, flux)
-        moved = int(hit_cap.sum()) + int(hit_floor.sum())
-        resid = float(np.abs(bal)[conductive & ~at_cap & ~at_floor].sum()
-                      / max(float(supply[conductive].sum()), 1e-30))
-        if verbose:
-            print(f"  kirchhoff {outer:3d}  free {m:>9,}  capped "
-                  f"{int(hit_cap.sum()):>7,}  floored {int(hit_floor.sum()):>6,}"
-                  f"  released {int(release.sum()):>7,}  residual {resid:9.3e}")
-        if moved == 0 and int(release.sum()) == 0 and resid < RESIDUAL_TOLERANCE:
-            result["outer_iterations"] = outer + 1
-            result["final_residual"] = resid
-            result["converged"] = True
-            break
-    else:
-        result["converged"] = False
-        result["outer_iterations"] = max_outer
-        result["final_residual"] = resid
-        if verbose:
-            print(f"  KIRCHHOFF DID NOT CONVERGE in {max_outer} passes: "
-                  f"residual {resid:.3e} against {RESIDUAL_TOLERANCE:.0e}")
-    result.setdefault("converged", True)
-
-    # Back out of the transform. Phi = K0 f^2 exp(-d/f), so d = f ln(phi_max/phi).
-    with np.errstate(divide="ignore", invalid="ignore"):
-        depth = np.where(conductive,
-                         f_m * np.log(np.maximum(phi_max, 1e-300)
-                                      / np.maximum(phi, 1e-300)), 0.0)
-    depth = np.clip(np.nan_to_num(depth, nan=0.0, posinf=0.0), 0.0, None)
-    head = surface_m - depth
-    head[is_ocean] = sea_level_m
-
-    t_cell = np.where(conductive, phi / np.maximum(f_m, 1e-30), 0.0)
-    flux = kirchhoff_flux(gfac, phi, phi_sea, src, dst, coast, land_of, is_ocean)
-    divergence = geom_divergence(n, src, dst, flux)
-    seepage = np.zeros(n)
-    seepage[at_cap] = supply[at_cap] + divergence[at_cap]
-    excluded = (export.surface_class == LAND) & ~conductive
-    seepage[excluded] = supply[excluded]
-    seepage = np.clip(seepage, 0.0, None)
-
-    result.update({
-        "head_m": head, "depth_m": depth, "seepage_m3_s": seepage,
-        "face_flux_m3_s": flux, "src": src, "dst": dst,
-        "pinned": at_cap, "excluded": excluded,
-        "transmissivity_m2_s": t_cell,
-        "at_transmissivity_floor": at_floor,
-        "kirchhoff_potential": phi,
-        "ocean_outflow_m3_s": float(divergence[is_ocean].sum()),
-    })
-    return result
-
-
-def compare_schemes(a: dict, b: dict, conductive, area_m2) -> dict:
-    """Two solvers of the SAME discretised problem, against each other.
-
-    Picard and Kirchhoff are the same PDE, the same mesh and the same physics
-    reached by different algebra, so where both converge they must agree to
-    discretisation error. That makes this an identity rather than a plausibility
-    check, and it is the only catchment-scale check this component has, the
-    divide test having turned out mis-specified.
-
-    Criteria are declared in the constants above, before either was run.
-    """
-    free = conductive & (a["depth_m"] > 0) & (b["depth_m"] > 0)
-    dd = np.abs(a["depth_m"] - b["depth_m"])[free]
-    sa, sb = a["seepage_m3_s"].sum(), b["seepage_m3_s"].sum()
-    seep_rel = abs(sa - sb) / max(abs(sa), 1e-30)
-    return {
-        "criterion_median_depth_difference_m": SCHEME_DEPTH_MEDIAN_M,
-        "criterion_total_seepage_relative": SCHEME_SEEPAGE_RELATIVE,
-        "cells_free_in_both": int(free.sum()),
-        "median_depth_difference_m": float(np.median(dd)) if dd.size else None,
-        "p90_depth_difference_m": float(np.percentile(dd, 90)) if dd.size else None,
-        "total_seepage_relative_difference": float(seep_rel),
-        "passes": bool(dd.size
-                       and np.median(dd) < SCHEME_DEPTH_MEDIAN_M
-                       and seep_rel < SCHEME_SEEPAGE_RELATIVE),
-    }
-
-
-def terrain_following(export: Export, geom: Geometry, *, k0_m_s, f_m,
-                      surface_m, conductive, sea_level_m=0.0):
+def terrain_following(export: Export, geom: Geometry, *, k0_m_s,
+                      thickness_m, surface_m, conductive, sea_level_m=0.0):
     """The flux field under a water table set equal to the terrain.
 
     Not a solve. The divide test asks what a terrain-following table does, so
@@ -985,8 +673,7 @@ def terrain_following(export: Export, geom: Geometry, *, k0_m_s, f_m,
     src, dst = geom.src[live], geom.dst[live]
     gfac = geom.geom[live]
 
-    t_cell, at_floor = cell_transmissivity(
-        k0_m_s, f_m, np.zeros_like(surface_m), conductive)
+    t_cell = np.where(conductive, transmissivity(k0_m_s, thickness_m), 0.0)
     trans = face_transmissivity(t_cell, gfac, src, dst, is_ocean)
     return {
         "head_m": head,
@@ -997,7 +684,7 @@ def terrain_following(export: Export, geom: Geometry, *, k0_m_s, f_m,
         "pinned": conductive.copy(),
         "excluded": (export.surface_class == LAND) & ~conductive,
         "transmissivity_m2_s": t_cell,
-        "at_transmissivity_floor": at_floor,
+        "at_transmissivity_floor": np.zeros(export.n_regions, bool),
         "ocean_outflow_m3_s": 0.0,
         "outer_iterations": 0,
     }

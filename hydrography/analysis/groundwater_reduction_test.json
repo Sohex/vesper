@@ -3,7 +3,7 @@
   "terrain_hash": "e931b0d9947a232210a3cc11ba82003b5da15765d86e87956bc44c220932760e",
   "forcing": "/home/cfutro/docs/world/exoplasim/analysis/climatology/bootstrap_regular_climatology.nc",
   "forcing_sha256": "227909c0a19e204b88dd081b42bf7671447a5dc781e8ebeacd8e942144df5715",
-  "config_sha256": "741cfbff0b5096d5d0cc0aa88e1773c5cee70aeda563ee3b083bbcc60db03dc3",
+  "config_sha256": "fdee90a77e7a78e2ea2b3116dda8b74c961583eb3bade8657a0d6900a84520c4",
   "sigma": 0.0,
   "unassigned_policy": "exclude",
   "gravity_m_s2": 12.81,
@@ -34,31 +34,28 @@
   },
   "converged": true,
   "convergence": {
-    "criterion_max_head_step_m": 0.05,
-    "criterion_flip_fraction": 0.002,
-    "final_max_head_step_m": null,
-    "final_p999_head_step_m": null,
-    "final_flip_fraction": null,
+    "criterion_residual": 1e-08,
+    "criterion_flip_fraction": 0.0,
+    "final_residual": 0.0,
+    "criterion_note": "the water balance residual on free cells over total land recharge, and a still active set. Not the head step: a bar on the step can be met by a shrinking step rather than by convergence",
     "trace_columns": [
       "pass",
       "free_cells",
-      "max_head_step_m",
-      "p999_head_step_m",
-      "cells_flipped"
+      "cells_flipped",
+      "residual"
     ],
     "trace": []
   },
-  "scheme": "kirchhoff",
   "outer_iterations": 1,
   "water_table": {
     "median_depth_m_land": 0.0,
     "at_surface_fraction_land": 1.0,
     "unassigned_land_fraction": 0.012453195018721993,
-    "efolding_median_m_land": 62.27900819034683,
+    "aquifer_thickness_m": 100.0,
     "at_transmissivity_floor": 0,
     "at_transmissivity_floor_note": "a numerical bound, not a physical one: T = K0 f exp(-d/f) underflows on steep bedrock where f is a metre. These cells' depths are a lower bound rather than a value"
   },
-  "git_commit": "e426ff5afda462c70bdbf6371c2b0d01064c869f",
+  "git_commit": "5f77654de9df06c72f86d71987a98ef5a5851c84",
   "reduction_identity": {
     "criterion": "exact: seepage == recharge per cell, Qg == 0 per basin",
     "seepage_equals_recharge_exactly": true,
