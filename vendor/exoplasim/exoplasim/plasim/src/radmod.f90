@@ -16,6 +16,26 @@
 !
 
       parameter(SBK = 5.67E-8)  ! Stefan-Bolzman Const.
+!
+!     Number of aerosol SPECIES the radiation can carry at once. CLIM-39.
+!
+!     The scheme used to carry exactly one, because ssa, the backscatter ratio
+!     and the band-2 extinction ratio were scalars: one set of optical
+!     properties for the whole planet. That is not a resolution question but a
+!     species question, so this is a plain parameter and not a resolution one.
+!     Four covers what aeolian/ produces and can price -- mineral dust, sea
+!     salt, volcanic sulfate -- with one slot spare for the carbonaceous
+!     aerosol that CLIM-29 is waiting on a biosphere run for. Raising it costs
+!     memory in aodsp and nothing else.
+!
+!     NOT pumamod's NAERO, and the two must not be conflated. NAERO is how many
+!     TRANSPORTED tracers aerocore carries and sizes daeros and numrhos; NAERSP
+!     is how many RADIATIVE species radmod mixes, and most of those are
+!     prescribed columns that aerocore never sees. One transported tracer can
+!     occupy one radiative species, which is what makes the prescribed and
+!     interactive paths coexist, but the counts are independent.
+!
+      parameter(NAERSP = 4)      ! max # of aerosol species carried at once
 !       parameter(zsolar1=0.517)  
 !       parameter(zsolar2=0.483)  
 
@@ -164,13 +184,33 @@
       real :: rcl2(3)=(/0.15,0.30,0.60/) ! cloud albedos spectral range 2
       real :: acl2(3)=(/0.05,0.10,0.20/) ! cloud absorptivities spectral range 2
       
-      real :: ssa1 = 0. ! Single scattering albedo band 1
-      real :: ssa2 = 0. ! Single scattering albedo band 2
-      real :: qex1 = 0. ! Extinction efficiency band 1
-      real :: qex2 = 0. ! Extinction efficiency band 2
-      real :: bscat1 = 0. ! Backscattering ratio band 1
-      real :: bscat2 = 0. ! Backscattering ratio band 2
-      real :: aeroqs(8,1) = 0.  ! Array to read in aerosol optical constants
+!
+!     PER-SPECIES optical constants. These were scalars, which is what limited
+!     the scheme to one aerosol: dust ABSORBS and sea salt's single-scattering
+!     albedo is 1 to within 1e-5, so no one value describes both, and the two
+!     are co-located over the ocean wherever dust has been transported off the
+!     land. aeolian/notes/multi-species-aerosol.md section 2.
+!
+      real :: ssa1(NAERSP) = 0. ! Single scattering albedo band 1
+      real :: ssa2(NAERSP) = 0. ! Single scattering albedo band 2
+      real :: qex1(NAERSP) = 0. ! Extinction efficiency band 1
+      real :: qex2(NAERSP) = 0. ! Extinction efficiency band 2
+      real :: bscat1(NAERSP) = 0. ! Backscattering ratio band 1
+      real :: bscat2(NAERSP) = 0. ! Backscattering ratio band 2
+!
+!     The aerofile's own species axis, which already existed set to 1:
+!     readdat(filename,ndim,nitems,kdata) fills kdata(nitems,ndim), so ndim IS
+!     the species count and the file gains a COLUMN per species rather than
+!     changing shape. Eight rows: Qext, Qsca, Qback, g for band 1, then the
+!     same four for band 2.
+!
+      real :: aeroqs(8,NAERSP) = 0.  ! Array to read in aerosol optical constants
+!
+      integer :: naerosp = 0    ! number of active species; prescribed first,
+                                ! then the transported one if it is on
+      real :: aqlw(NAERSP) = 0.  ! thermal-IR absorption ratio per active
+                                ! species, gathered from dustqlw and aeroqlw so
+                                ! the longwave loop does not branch on path
       real :: apart = 50e-09 ! Aerosol particle radius. AEROMOD DECLARES ITS
                              ! OWN; aero_ini copies that one into this and
                              ! radini broadcasts it. The default is the
@@ -190,14 +230,22 @@
 !     and the thermal infrared from dustqlw, so one field carries all three and
 !     the spectral ratios stay where the optics are.
 !
-      integer :: ndustrad = 0     ! prescribed dust radiation off (0) or on (1)
-      real    :: dustsc  = 1.0    ! multiplier on the prescribed column optical depth
-      real    :: dusthsc = 3000.0 ! dust scale height (m), concentration e-folding
-      real    :: dustqlw = 0.0    ! thermal-IR ABSORPTION optical depth per unit
+!     ndustrad is now a COUNT of prescribed species rather than a switch, and
+!     0 and 1 mean exactly what they meant before. Species s reads surface code
+!     1810+s: 1811 is the dust field that already exists, 1812 onward are the
+!     species added since. Each carries its own scale height, because a sea
+!     salt layer sits in the boundary layer and dust does not, and a shared one
+!     would put the second species at the first one's height while the column
+!     total still looked right.
+!
+      integer :: ndustrad = 0     ! number of PRESCRIBED aerosol species (0 = off)
+      real    :: dustsc(NAERSP)  = 1.0    ! multiplier on the prescribed column optical depth
+      real    :: dusthsc(NAERSP) = 3000.0 ! aerosol scale height (m), concentration e-folding
+      real    :: dustqlw(NAERSP) = 0.0    ! thermal-IR ABSORPTION optical depth per unit
                                   ! band-1 extinction optical depth. There is no
                                   ! defensible default: a shortwave-only dust is
                                   ! worse than no dust, so radini ABORTS if this
-                                  ! is left at zero with ndustrad = 1.
+                                  ! is left at zero for any active species.
       logical :: ldustchk = .true.  ! report the column normalisation once
 !
 !*    2.2c) INTERACTIVE AEROSOL, AND ITS LONGWAVE (DUST-3 item 5)
@@ -222,9 +270,16 @@
 !     default for either, so radini ABORTS on an interactive aerosol with
 !     aeroqlw left at zero, exactly as it does for ndustrad with dustqlw.
 !
-!     The two paths are mutually exclusive and radini refuses both at once: a
-!     prescribed column and a transported one are two aerosols, and adding
-!     their optical depths would count one of them twice.
+!     The two paths were mutually exclusive and radini refused both at once,
+!     because a prescribed column and a transported one are two aerosols and
+!     they wrote into ONE slot, so adding their optical depths counted one of
+!     them twice. With a species array they no longer share a slot: the
+!     transported tracer is one species of it, at index ndustrad+1, and the
+!     refusal is gone rather than preserved. CLIM-39.
+!
+!     That is what keeps DUST-13 open. While the exclusion stood, choosing
+!     interactive dust put sea salt out of the radiation permanently, because
+!     ndustrad and iaerint could not both be on.
 !
       real    :: aeroqlw = 0.0    ! thermal-IR ABSORPTION optical depth per unit
                                   ! band-1 extinction optical depth, INTERACTIVE
@@ -240,9 +295,17 @@
 
       real :: gmu0(NHOR)                   ! cosine of solar zenit angle
       real :: gmu1(NHOR)                   ! cosine of solar zenit angle
-      real :: ddustcol(NHOR)     = 0.      ! prescribed band-1 column optical depth
-      real :: ddustod(NHOR,NLEV) = 0.      ! band-1 optical depth per layer
+      real :: ddustcol(NHOR,NAERSP)     = 0. ! prescribed band-1 column optical depth
+      real :: ddustod(NHOR,NLEV,NAERSP) = 0. ! band-1 optical depth per layer
       real :: daerod(NHOR,NLEV)  = 0.      ! interactive band-1 optical depth per layer
+!
+!     The per-species band-1 extinction optical depth per layer, gathered from
+!     the prescribed columns and the transported tracer once per radiation
+!     step. swr and lwr both read THIS, for the reason aeroprof already gives
+!     for daerod: a second copy of the arithmetic in either is a copy that can
+!     drift, and the layer thicknesses depend on the temperature profile.
+!
+      real :: aodsp(NHOR,NLEV,NAERSP) = 0.  ! band-1 optical depth per layer per species
 !       real :: dtdtlwr(NHOR,NLEV)           ! lwr temperature tendencies (now in pumamod)
 !       real :: dtdtswr(NHOR,NLEV)           ! swr temperature tendencies (now in pumamod)
 
@@ -741,6 +804,8 @@
       use radmod
 !
       logical :: lexaero        ! does the aerosol optics file exist
+      integer :: jaer           ! aerosol species index
+      character (len=16) :: ysurf  ! surface field name for a species
 !
 !     initialize radiation
 !     this *sub* is called by PUMA (PUMA-interface)
@@ -978,9 +1043,9 @@
       call mpbcr(apart)
 
       call mpbci(ndustrad)
-      call mpbcr(dustsc)
-      call mpbcr(dusthsc)
-      call mpbcr(dustqlw)
+      call mpbcrn(dustsc,NAERSP)
+      call mpbcrn(dusthsc,NAERSP)
+      call mpbcrn(dustqlw,NAERSP)
       call mpbcr(aeroqlw)
 
 !      
@@ -1085,7 +1150,26 @@
        dqco2(:,:)=co2
       endif
       
-      if ((l_aero > 0 .and. l_aerorad == 1) .or. ndustrad == 1) then
+!
+!     How many aerosol species this run carries, asked ONCE and before the
+!     optics are read, because the aerofile's column count is this number.
+!     Prescribed species occupy 1..ndustrad and the transported tracer, if it
+!     is on, is ndustrad+1.
+!
+      iaerint = 0
+      if (l_aero > 0 .and. l_aerorad == 1) iaerint = 1
+      if (ndustrad < 0) call mpabort('ndustrad must not be negative')
+      naerosp = ndustrad + iaerint
+      if (naerosp > NAERSP) then
+       if (mypid == NROOT) then
+        write(nud,*) 'aerosol species requested: ',naerosp
+        write(nud,*) 'NAERSP in radmod is        : ',NAERSP
+        write(nud,*) 'Raise NAERSP and rebuild every binary (CLAUDE.md rule 4).'
+       endif
+       call mpabort('more aerosol species than NAERSP')
+      endif
+!
+      if (naerosp > 0) then
        if (mypid == NROOT) then
 !
 !     readdat opens with the default status, so a missing aerofile is CREATED
@@ -1102,72 +1186,79 @@
          write(nud,*) 'aerosol optics file not found: ',trim(aerofile)
          call mpabort('aerofile is missing')
         endif
-        call readdat(aerofile,1,8,aeroqs) ! Get Qextinction, Qscattering, Qbackscatter, g for band 1 & 2
-        
-        ssa1 = aeroqs(2,1)/aeroqs(1,1) ! Single scattering albedo band 1 (qscat/qext)
-        ssa2 = aeroqs(6,1)/aeroqs(5,1) ! Single scattering albedo band 2
-        bscat1 = aeroqs(3,1)/aeroqs(2,1) ! Backscatter ratio band 1
-        bscat2 = aeroqs(7,1)/aeroqs(6,1) ! Backscatter ratio band 2
-        qex1 = aeroqs(1,1) ! Extinction efficiency band 1
-        qex2 = aeroqs(5,1) ! Extinction efficiency band 2
+!
+!     One COLUMN per species. With naerosp = 1 this reads exactly the file the
+!     single-species path always read, so an existing aerofile stays valid.
+!
+        call readdat(aerofile,naerosp,8,aeroqs) ! Get Qextinction, Qscattering, Qbackscatter, g for band 1 & 2
+
+        do jaer = 1,naerosp
+         if (aeroqs(1,jaer) <= 0. .or. aeroqs(5,jaer) <= 0.) then
+          write(nud,*) 'aerofile species ',jaer,' has non-positive Qext'
+          write(nud,*) 'band 1: ',aeroqs(1,jaer),' band 2: ',aeroqs(5,jaer)
+          write(nud,*) 'Expected ',naerosp,' column(s) in ',trim(aerofile)
+          call mpabort('aerofile has too few columns or a zero Qext')
+         endif
+         ssa1(jaer) = aeroqs(2,jaer)/aeroqs(1,jaer) ! Single scattering albedo band 1 (qscat/qext)
+         ssa2(jaer) = aeroqs(6,jaer)/aeroqs(5,jaer) ! Single scattering albedo band 2
+         bscat1(jaer) = aeroqs(3,jaer)/aeroqs(2,jaer) ! Backscatter ratio band 1
+         bscat2(jaer) = aeroqs(7,jaer)/aeroqs(6,jaer) ! Backscatter ratio band 2
+         qex1(jaer) = aeroqs(1,jaer) ! Extinction efficiency band 1
+         qex2(jaer) = aeroqs(5,jaer) ! Extinction efficiency band 2
+        enddo
        endif
-        
-        call mpbcr(ssa1) ! Broadcast optical constants
-        call mpbcr(ssa2)
-        call mpbcr(bscat1)
-        call mpbcr(bscat2)
-        call mpbcr(qex1)
-        call mpbcr(qex2)
+
+        call mpbcrn(ssa1,NAERSP) ! Broadcast optical constants
+        call mpbcrn(ssa2,NAERSP)
+        call mpbcrn(bscat1,NAERSP)
+        call mpbcrn(bscat2,NAERSP)
+        call mpbcrn(qex1,NAERSP)
+        call mpbcrn(qex2,NAERSP)
       endif
 !
 !     prescribed dust: the column optical depth field, and the two things that
 !     make enabling it without them a silent wrong answer rather than a loud one
 !
-      if (ndustrad == 1) then
-       if (dustqlw <= 0.) then
+      ddustcol(:,:) = 0.
+      do jaer = 1,ndustrad
+       if (dustqlw(jaer) <= 0.) then
         if (mypid == NROOT) then
-         write(nud,*) 'PRESCRIBED DUST: dustqlw is ',dustqlw
+         write(nud,*) 'PRESCRIBED AEROSOL species ',jaer,': dustqlw is ',dustqlw(jaer)
          write(nud,*) 'The aerosol acts in the two SHORTWAVE bands only unless'
          write(nud,*) 'a thermal-infrared absorption ratio is supplied, and a'
-         write(nud,*) 'shortwave-only dust is a larger error than no dust.'
+         write(nud,*) 'shortwave-only aerosol is a larger error than none.'
         endif
-        call mpabort('ndustrad=1 requires dustqlw > 0')
+        call mpabort('every prescribed aerosol species requires dustqlw > 0')
        endif
-       ddustcol(:) = 0.
-       call mpsurfgp('ddustcol',ddustcol,NHOR,1)
-       call mpmaxval(ddustcol,NHOR,1,zdustmx)
+       write(ysurf,'("ddustcol",i0)') jaer
+       if (jaer == 1) ysurf = 'ddustcol'   ! code 1811 keeps the name it has
+       call mpsurfgp(trim(ysurf),ddustcol(1,jaer),NHOR,1)
+       call mpmaxval(ddustcol(1,jaer),NHOR,1,zdustmx)
        if (zdustmx <= 0.) then
         if (mypid == NROOT) then
-         write(nud,*) 'PRESCRIBED DUST: no dust field was read.'
-         write(nud,*) 'Expected surface code 1811 in the run directory.'
+         write(nud,*) 'PRESCRIBED AEROSOL: no field was read for species ',jaer
+         write(nud,*) 'Expected surface code ',1810+jaer,' in the run directory.'
         endif
-        call mpabort('ndustrad=1 but surface code 1811 is absent or zero')
+        call mpabort('a prescribed aerosol species has no surface field')
        endif
        if (mypid == NROOT) then
         write(nud,'(/," *********************************************")')
-        write(nud,'(" * PRESCRIBED DUST (code 1811) is ON         *")')
+        write(nud,'(" * PRESCRIBED AEROSOL species ",i1," is ON         *")') jaer
         write(nud,'(" *********************************************")')
+        write(nud,*) 'surface code                    ',1810+jaer
         write(nud,*) 'max band-1 column optical depth ',zdustmx
-        write(nud,*) 'scale factor                    ',dustsc
-        write(nud,*) 'scale height (m)                ',dusthsc
-        write(nud,*) 'thermal-IR absorption ratio     ',dustqlw
-        write(nud,*) 'band 2 / band 1 extinction      ',qex2/qex1
+        write(nud,*) 'scale factor                    ',dustsc(jaer)
+        write(nud,*) 'scale height (m)                ',dusthsc(jaer)
+        write(nud,*) 'thermal-IR absorption ratio     ',dustqlw(jaer)
+        write(nud,*) 'single scattering albedo band 1 ',ssa1(jaer)
+        write(nud,*) 'band 2 / band 1 extinction      ',qex2(jaer)/qex1(jaer)
        endif
-      endif
+      enddo
 !
-!     interactive aerosol: one switch, asked once, and the two ways of
-!     enabling it that are silently wrong rather than loudly wrong
+!     interactive aerosol: the one way of enabling it that is silently wrong
+!     rather than loudly wrong. It is no longer exclusive with a prescribed
+!     column: it is species ndustrad+1 of the same array.
 !
-      iaerint = 0
-      if (l_aero > 0 .and. l_aerorad == 1) iaerint = 1
-      if (iaerint == 1 .and. ndustrad == 1) then
-       if (mypid == NROOT) then
-        write(nud,*) 'A transported aerosol and a prescribed dust column are'
-        write(nud,*) 'two aerosols, and their optical depths would add. Run'
-        write(nud,*) 'one of them: l_aerorad = 1 or ndustrad = 1, not both.'
-       endif
-       call mpabort('l_aerorad=1 and ndustrad=1 are mutually exclusive')
-      endif
       if (iaerint == 1 .and. aeroqlw <= 0.) then
        if (mypid == NROOT) then
         write(nud,*) 'INTERACTIVE AEROSOL: aeroqlw is ',aeroqlw
@@ -1181,9 +1272,27 @@
        write(nud,'(/," *********************************************")')
        write(nud,'(" * INTERACTIVE AEROSOL RADIATION is ON       *")')
        write(nud,'(" *********************************************")')
+       write(nud,*) 'species index                   ',ndustrad+1
        write(nud,*) 'particle radius (m)             ',apart
        write(nud,*) 'thermal-IR absorption ratio     ',aeroqlw
-       write(nud,*) 'band 2 / band 1 extinction      ',qex2/qex1
+       write(nud,*) 'band 2 / band 1 extinction      ',qex2(ndustrad+1)/qex1(ndustrad+1)
+      endif
+!
+!     Gather the thermal-IR absorption ratios into one per-species array, so
+!     the longwave sums over species instead of branching on which path each
+!     came from. dustqlw and aeroqlw stay separate in the namelist because the
+!     two paths genuinely carry different particles: the prescribed field is
+!     this world's aerosol at the offline chain's size distribution, and the
+!     transported tracer is whatever aero_nl's apart and rhop describe.
+!
+      aqlw(:) = 0.
+      do jaer = 1,ndustrad
+       aqlw(jaer) = dustqlw(jaer)
+      enddo
+      if (iaerint == 1) aqlw(ndustrad+1) = aeroqlw
+!
+      if (naerosp > 0 .and. mypid == NROOT) then
+       write(nud,*) 'AEROSOL SPECIES CARRIED: ',naerosp,' of NAERSP ',NAERSP
       endif
 !
       return
@@ -1284,11 +1393,15 @@
 !
 !**   3b) distribute the prescribed dust column over the layers
 !
-      if(ndustrad == 1) call dustprof
+      if(ndustrad >= 1) call dustprof
 !
 !**   3c) build the interactive aerosol's optical depth per layer
 !
       if(iaerint == 1) call aeroprof
+!
+!**   3d) gather every species into one per-layer array for swr and lwr
+!
+      if(naerosp > 0) call aerogather
 !
 !**   4) short wave radiation
 !
@@ -1826,9 +1939,10 @@
       real :: zsum(NHOR)       ! column normalisation
       real :: zcol(NHOR)       ! column optical depth, for the check
       real :: zres             ! worst column residual, for the check
+      integer :: jaer          ! aerosol species index
 !
-      ddustod(:,:) = 0.
-      if (ndustrad /= 1) return
+      ddustod(:,:,:) = 0.
+      if (ndustrad < 1) return
 !
 !     layer thickness in m, built exactly as the shortwave aerosol block builds
 !     it, so the two cannot drift apart
@@ -1845,36 +1959,45 @@
        zzc(:,jlev) = zzc(:,jlev+1)+0.5*(zdz(:,jlev+1)+zdz(:,jlev))
       enddo
 !
-!     burden per layer, then normalise onto the prescribed column
+!     burden per layer, then normalise onto the prescribed column. Per species,
+!     because each carries its own scale height: a sea salt layer sits in the
+!     boundary layer and dust does not, and one shared height would put the
+!     second species at the first one's while the column total still looked
+!     right.
 !
-      zsum(:) = 0.
-      do jlev = 1,NLEV
-       zw(:,jlev) = EXP(-zzc(:,jlev)/dusthsc)*zdz(:,jlev)
-       zsum(:) = zsum(:)+zw(:,jlev)
-      enddo
-      do jlev = 1,NLEV
-       ddustod(:,jlev) = dustsc*ddustcol(:)*zw(:,jlev)/MAX(zsum(:),1.E-30)
-      enddo
-!
-!     the identity, reported once. A nonzero residual means the vertical
-!     distribution is not conserving the column and every optical depth below
-!     is wrong by that much.
-!
-      if (ldustchk) then
-       ldustchk = .false.
-       zcol(:) = 0.
+      do jaer = 1,ndustrad
+       zsum(:) = 0.
        do jlev = 1,NLEV
-        zcol(:) = zcol(:)+ddustod(:,jlev)
+        zw(:,jlev) = EXP(-zzc(:,jlev)/dusthsc(jaer))*zdz(:,jlev)
+        zsum(:) = zsum(:)+zw(:,jlev)
        enddo
-       zres = MAXVAL(ABS(zcol(:)-dustsc*ddustcol(:)))
-       if (mypid == NROOT) then
-        write(nud,*) 'PRESCRIBED DUST: max |column - prescribed| = ',zres
-        write(nud,*) 'PRESCRIBED DUST: layer 1 (top) mass share  = ',        &
-     &               MAXVAL(zw(:,1)/MAX(zsum(:),1.E-30))
-        write(nud,*) 'PRESCRIBED DUST: layer NLEV mass share     = ',        &
-     &               MAXVAL(zw(:,NLEV)/MAX(zsum(:),1.E-30))
+       do jlev = 1,NLEV
+        ddustod(:,jlev,jaer) = dustsc(jaer)*ddustcol(:,jaer)*zw(:,jlev)/MAX(zsum(:),1.E-30)
+       enddo
+!
+!     the identity, reported once PER SPECIES. A nonzero residual means the
+!     vertical distribution is not conserving the column and every optical
+!     depth below is wrong by that much. Per species and not over the sum, or
+!     a species given the wrong scale height hides inside a correct total.
+!
+       if (ldustchk) then
+        zcol(:) = 0.
+        do jlev = 1,NLEV
+         zcol(:) = zcol(:)+ddustod(:,jlev,jaer)
+        enddo
+        zres = MAXVAL(ABS(zcol(:)-dustsc(jaer)*ddustcol(:,jaer)))
+        if (mypid == NROOT) then
+         write(nud,*) 'PRESCRIBED AEROSOL species ',jaer
+         write(nud,*) '  max |column - prescribed| = ',zres
+         write(nud,*) '  scale height (m)          = ',dusthsc(jaer)
+         write(nud,*) '  layer 1 (top) mass share  = ',                     &
+     &                MAXVAL(zw(:,1)/MAX(zsum(:),1.E-30))
+         write(nud,*) '  layer NLEV mass share     = ',                     &
+     &                MAXVAL(zw(:,NLEV)/MAX(zsum(:),1.E-30))
+        endif
        endif
-      endif
+      enddo
+      ldustchk = .false.
 !
       return
       end subroutine dustprof
@@ -1914,11 +2037,43 @@
       zdz(:,1) = -dt(:,1)*gascon/ga*ALOG(sigma(1)/sigmah(1))*0.5
 !
       do jlev = 1,NLEV
-       daerod(:,jlev) = nrho(:,jlev)*PI*(apart**2)*qex1*zdz(:,jlev)
+       daerod(:,jlev) = nrho(:,jlev)*PI*(apart**2)*qex1(ndustrad+1)*zdz(:,jlev)
       enddo
 !
       return
       end subroutine aeroprof
+
+!     ==================
+!     SUBROUTINE AEROGATHER
+!     ==================
+
+      subroutine aerogather
+      use radmod
+!
+!     Gather every active species' band-1 optical depth per layer into one
+!     array, so swr and lwr read ONE field. Prescribed species occupy
+!     1..ndustrad and the transported tracer, if it is on, is ndustrad+1.
+!
+!     This is where the exclusion between the two paths used to live. They no
+!     longer share a slot, so there is nothing to refuse: their optical depths
+!     sit in different species and are mixed rather than added into one.
+!
+      integer :: jaer, jlev
+!
+      aodsp(:,:,:) = 0.
+      do jaer = 1,ndustrad
+       do jlev = 1,NLEV
+        aodsp(:,jlev,jaer) = ddustod(:,jlev,jaer)
+       enddo
+      enddo
+      if (iaerint == 1) then
+       do jlev = 1,NLEV
+        aodsp(:,jlev,ndustrad+1) = daerod(:,jlev)
+       enddo
+      endif
+!
+      return
+      end subroutine aerogather
 
 !     ==============
 !     SUBROUTINE SWR
@@ -2083,8 +2238,26 @@
       real zaerr1s(NHOR,NLEV),zaerr2s(NHOR,NLEV) ! aerosol reflectivities (scattered)
 
     ! Local intermediate arrays for aerosol calculations
-      real :: zaeru1,zaeru2 ! U-factors (float)
-      real :: ztemp1,ztemp2 ! (float)
+!
+!     The u-factors were scalars because the mixture's optical properties were.
+!     They are now per cell, computed inside the level loop, because an
+!     external mixture's single-scattering albedo and backscatter ratio depend
+!     on which species are present in THAT layer and in what proportion.
+!     CLIM-39, aeolian/notes/multi-species-aerosol.md section 2.
+!
+      real :: zaeru1(NHOR),zaeru2(NHOR) ! U-factors, per cell
+      real :: ztemp1(NHOR),ztemp2(NHOR) ! per cell
+      real :: zssa1(NHOR),zssa2(NHOR)   ! mixture single-scattering albedo
+      real :: zbs1(NHOR),zbs2(NHOR)     ! mixture backscatter ratio
+      real :: zext1(NHOR),zext2(NHOR)   ! sum of extinction optical depth
+      real :: zsca1(NHOR),zsca2(NHOR)   ! sum of scattering optical depth
+      real :: zbsc1(NHOR),zbsc2(NHOR)   ! sum of backscattered optical depth
+      logical :: lcons1(NHOR),lcons2(NHOR) ! conservative-scattering cells
+      real :: ztcon(NHOR)               ! b*tau/mu in the conservative limit
+      real :: zepsc                     ! conservative-scattering threshold
+      integer :: knz(NHOR)              ! species contributing in this cell
+      integer :: klast(NHOR)            ! index of the last one that did
+      integer :: jaer                   ! aerosol species index
       real :: zaertf1(NHOR,NLEV),zaertf2(NHOR,NLEV) ! Effective optical depth (direct light)
       real :: zaertf1s(NHOR,NLEV),zaertf2s(NHOR,NLEV) ! (scattered light)
       real :: zaerd1(NHOR,NLEV),zaerd2(NHOR,NLEV) ! Denominator (direct light)
@@ -2305,73 +2478,144 @@
       zaerr2s(:,:) = 0.0
 
       iaeron = 0
-      if ((l_aero > 0 .and. l_aerorad == 1) .or. ndustrad == 1) iaeron = 1
+      if (naerosp > 0) iaeron = 1
 
       if (iaeron == 1) then
 
       ! Aerosol two-stream multiscattering radiative transfer approximation from
       ! Stephens (1978), with data read from outside the model instead of a parameterization
       ! for the effective optical depht and single scattering albedo
+      !
+      ! The species live in aodsp, gathered by aerogather from the prescribed
+      ! columns dustprof built and the transported tracer aeroprof built. Band
+      ! 2 follows from each species' OWN ratio of extinction efficiencies, so
+      ! the band split stays with the optics rather than being restated here.
+      !
+      ! The threshold below is where the exact expression stops being the more
+      ! accurate one. Its error goes as machine epsilon over (1-ssa), because
+      ! that difference is formed by subtraction; the conservative limit's
+      ! error goes as (1-ssa) itself. The two cross at SQRT(epsilon), which in
+      ! 8-byte arithmetic is about 1.5e-8 and in 4-byte about 3.4e-4. Sea salt
+      ! at 1-1e-5 therefore takes the exact branch in a double build and the
+      ! conservative one in a single build, which is the right answer in both.
 
-       if (ndustrad == 1) then
-      ! PRESCRIBED dust. The per-layer band-1 optical depth is built by dustprof
-      ! from a supplied column field, and band 2 follows from the aerofile's own
-      ! ratio of extinction efficiencies -- which for a single mode is the ratio
-      ! of the mass extinction efficiencies, so the band split stays with the
-      ! optics rather than being restated here. Neither aerocore, nrho, apart nor
-      ! rhop is on this path, which is deliberate: nothing is transported.
-        do jlev=1,NLEV
-         aod1(:,jlev) = ddustod(:,jlev)
-         aod2(:,jlev) = ddustod(:,jlev)*qex2/qex1
-        enddo
-       else
-      ! INTERACTIVE aerosol. aeroprof has already built the band-1 extinction
-      ! optical depth per layer from the transported number density, once per
-      ! radiation step, so the shortwave here and the longwave in lwr read one
-      ! field and cannot drift apart. Band 2 follows from the aerofile's own
-      ! ratio of extinction efficiencies, which is how the prescribed path does
-      ! it too, so the band split stays with the optics either way.
-        do jlev=1,NLEV
-         aod1(:,jlev) = daerod(:,jlev)
-         aod2(:,jlev) = daerod(:,jlev)*qex2/qex1
-        enddo
-       endif
-        
-       zaeru1 = SQRT((1.0-ssa1+2*bscat1*ssa1)/(1.0-ssa1)) ! u-factor band 1
-       zaeru2 = SQRT((1.0-ssa2+2*bscat2*ssa2)/(1.0-ssa2)) ! u-factor band 2
-       ztemp1 = SQRT((1.0-ssa1)*(1.0-ssa1+2*bscat1*ssa1))
-       ztemp2 = SQRT((1.0-ssa2)*(1.0-ssa2+2*bscat2*ssa2))
-       
-!       if (mypid == NROOT) then
-!        write(nud,*) "Aerosol number density:",nrho
-!        write(nud,*) "Aerosol optical depth 1:",aod1
-!        write(nud,*) "Aerosol u-factor 1:",zaeru1
-!        write(nud,*) "Aerosol temp factor 1:",ztemp1
-!        write(nud,*) "Aerosol diffusivity factor:",zmu00
-!        write(nud,*) "Aerosol cos of solar zenith angle:",zmu0
-!       endif
+       zepsc = SQRT(EPSILON(1.0))
 
        do jlev=1,NLEV
-        where(losun(:) .and. aod1(:,jlev) > 0.)
-         zaertf1(:,jlev) = MIN(25.,(ztemp1*aod1(:,jlev))/(zmu0+zero))  ! effective t band 1
-         zaertf2(:,jlev) = MIN(25.,(ztemp2*aod2(:,jlev))/(zmu0+zero)) ! effective t band 2
-         zaerd1(:,jlev) = (((zaeru1+1.0)**2.0)*EXP(zaertf1(:,jlev)) - ((zaeru1-1.0)**2.0)/EXP(zaertf1(:,jlev))) ! denominator band 1
-         zaerd2(:,jlev) = (((zaeru2+1.0)**2.0)*EXP(zaertf2(:,jlev)) - ((zaeru2-1.0)**2.0)/EXP(zaertf2(:,jlev))) ! denominator band 2
-         zaert1(:,jlev) = (4.0*zaeru1)/zaerd1(:,jlev) ! transmission band 1
-         zaert2(:,jlev) = (4.0*zaeru2)/zaerd2(:,jlev) ! transmission band 2
-         zaerr1(:,jlev) = (zaeru1 + 1.0)*(zaeru1 - 1.0)*(EXP(zaertf1(:,jlev))-EXP(-zaertf1(:,jlev)))/zaerd1(:,jlev) ! reflection band 1
-         zaerr2(:,jlev) = (zaeru2 + 1.0)*(zaeru2 - 1.0)*(EXP(zaertf2(:,jlev))-EXP(-zaertf2(:,jlev)))/zaerd2(:,jlev) ! reflection band 1      
+
+      ! Mix the species present in this layer. tau adds; the single-scattering
+      ! albedo is the extinction-weighted mean and the backscatter ratio the
+      ! scattering-weighted mean, per band, because band 2's optical depth is a
+      ! different split of the same species.
+
+        zext1(:) = 0.
+        zsca1(:) = 0.
+        zbsc1(:) = 0.
+        zext2(:) = 0.
+        zsca2(:) = 0.
+        zbsc2(:) = 0.
+        knz(:)   = 0
+        klast(:) = 1
+        do jaer = 1,naerosp
+         where (aodsp(:,jlev,jaer) > 0.)
+          zext1(:) = zext1(:) + aodsp(:,jlev,jaer)
+          zsca1(:) = zsca1(:) + ssa1(jaer)*aodsp(:,jlev,jaer)
+          zbsc1(:) = zbsc1(:) + bscat1(jaer)*ssa1(jaer)*aodsp(:,jlev,jaer)
+          zext2(:) = zext2(:) + aodsp(:,jlev,jaer)*qex2(jaer)/qex1(jaer)
+          zsca2(:) = zsca2(:) + ssa2(jaer)*aodsp(:,jlev,jaer)*qex2(jaer)/qex1(jaer)
+          zbsc2(:) = zbsc2(:) + bscat2(jaer)*ssa2(jaer)*aodsp(:,jlev,jaer)*qex2(jaer)/qex1(jaer)
+          knz(:)   = knz(:) + 1
+          klast(:) = jaer
+         endwhere
+        enddo
+
+        aod1(:,jlev) = zext1(:)
+        aod2(:,jlev) = zext2(:)
+
+      ! Where exactly one species is present the mixture IS that species, and
+      ! taking its constants directly rather than forming (s*tau)/tau keeps the
+      ! single-species answer bit-for-bit. The division is not exact in IEEE
+      ! arithmetic and would otherwise move the existing dust-only answer by an
+      ! ulp for no physical reason.
+
+        zssa1(:) = 0.
+        zbs1(:)  = 0.
+        zssa2(:) = 0.
+        zbs2(:)  = 0.
+        where (knz(:) == 1)
+         zssa1(:) = ssa1(klast(:))
+         zbs1(:)  = bscat1(klast(:))
+         zssa2(:) = ssa2(klast(:))
+         zbs2(:)  = bscat2(klast(:))
+        elsewhere (knz(:) > 1)
+         zssa1(:) = zsca1(:)/zext1(:)
+         zbs1(:)  = zbsc1(:)/MAX(zsca1(:),TINY(1.0))
+         zssa2(:) = zsca2(:)/MAX(zext2(:),TINY(1.0))
+         zbs2(:)  = zbsc2(:)/MAX(zsca2(:),TINY(1.0))
+        endwhere
+
+        lcons1(:) = (1.0-zssa1(:)) <= zepsc
+        lcons2(:) = (1.0-zssa2(:)) <= zepsc
+
+        where(losun(:) .and. aod1(:,jlev) > 0. .and. .not. lcons1(:))
+         zaeru1(:) = SQRT((1.0-zssa1(:)+2*zbs1(:)*zssa1(:))/(1.0-zssa1(:))) ! u-factor band 1
+         ztemp1(:) = SQRT((1.0-zssa1(:))*(1.0-zssa1(:)+2*zbs1(:)*zssa1(:)))
+         zaertf1(:,jlev) = MIN(25.,(ztemp1(:)*aod1(:,jlev))/(zmu0+zero))  ! effective t band 1
+         zaerd1(:,jlev) = (((zaeru1(:)+1.0)**2.0)*EXP(zaertf1(:,jlev)) - ((zaeru1(:)-1.0)**2.0)/EXP(zaertf1(:,jlev))) ! denominator band 1
+         zaert1(:,jlev) = (4.0*zaeru1(:))/zaerd1(:,jlev) ! transmission band 1
+         zaerr1(:,jlev) = (zaeru1(:) + 1.0)*(zaeru1(:) - 1.0)*(EXP(zaertf1(:,jlev))-EXP(-zaertf1(:,jlev)))/zaerd1(:,jlev) ! reflection band 1
 
          ! Next do scattered light
-         zaertf1s(:,jlev) = MIN(25.,(ztemp1*aod1(:,jlev))/zmu00)  ! effective t band 1 using zmu00 not zmu0!
-         zaertf2s(:,jlev) = MIN(25.,(ztemp2*aod2(:,jlev))/zmu00) ! effective t band 2
-         zaerd1s(:,jlev) = (((zaeru1+1.0)**2.0)*EXP(zaertf1(:,jlev)) - ((zaeru1-1.0)**2.0)*EXP(-zaertf1(:,jlev))) ! denominator band 1
-         zaerd2s(:,jlev) = (((zaeru2+1.0)**2.0)*EXP(zaertf2(:,jlev)) - ((zaeru2-1.0)**2.0)*EXP(-zaertf2(:,jlev))) ! denominator band 2
-         zaert1s(:,jlev) = (4.0*zaeru1)/zaerd1(:,jlev) ! transmission band 1
-         zaert2s(:,jlev) = (4.0*zaeru2)/zaerd2(:,jlev) ! transmission band 2
-         zaerr1s(:,jlev) = (zaeru1 + 1.0)*(zaeru1 - 1.0)*(EXP(zaertf1(:,jlev))-EXP(-zaertf1(:,jlev)))/zaerd1(:,jlev) ! reflection band 1
-         zaerr2s(:,jlev) = (zaeru2 + 1.0)*(zaeru2 - 1.0)*(EXP(zaertf2(:,jlev))-EXP(-zaertf2(:,jlev)))/zaerd2(:,jlev) ! reflection band 1      
+         zaertf1s(:,jlev) = MIN(25.,(ztemp1(:)*aod1(:,jlev))/zmu00)  ! effective t band 1 using zmu00 not zmu0!
+         zaerd1s(:,jlev) = (((zaeru1(:)+1.0)**2.0)*EXP(zaertf1(:,jlev)) - ((zaeru1(:)-1.0)**2.0)*EXP(-zaertf1(:,jlev))) ! denominator band 1
+         zaert1s(:,jlev) = (4.0*zaeru1(:))/zaerd1(:,jlev) ! transmission band 1
+         zaerr1s(:,jlev) = (zaeru1(:) + 1.0)*(zaeru1(:) - 1.0)*(EXP(zaertf1(:,jlev))-EXP(-zaertf1(:,jlev)))/zaerd1(:,jlev) ! reflection band 1
         endwhere
+
+      ! CONSERVATIVE SCATTERING, band 1. As ssa goes to 1 the u-factor diverges
+      ! and ztemp goes to zero while their product stays finite: u*t tends to
+      ! 2*b*tau/mu, so the two-stream collapses to T = 1/(1+b*tau/mu) and
+      ! R = (b*tau/mu)/(1+b*tau/mu). That is the limit of the expressions
+      ! above, not a different scheme.
+
+        where(losun(:) .and. aod1(:,jlev) > 0. .and. lcons1(:))
+         ztcon(:) = zbs1(:)*aod1(:,jlev)/(zmu0+zero)
+         zaertf1(:,jlev) = 0.
+         zaerd1(:,jlev) = 1.0
+         zaert1(:,jlev) = 1.0/(1.0+ztcon(:))
+         zaerr1(:,jlev) = ztcon(:)/(1.0+ztcon(:))
+         zaertf1s(:,jlev) = 0.
+         zaerd1s(:,jlev) = 1.0
+         zaert1s(:,jlev) = zaert1(:,jlev)
+         zaerr1s(:,jlev) = zaerr1(:,jlev)
+        endwhere
+
+        where(losun(:) .and. aod1(:,jlev) > 0. .and. .not. lcons2(:))
+         zaeru2(:) = SQRT((1.0-zssa2(:)+2*zbs2(:)*zssa2(:))/(1.0-zssa2(:))) ! u-factor band 2
+         ztemp2(:) = SQRT((1.0-zssa2(:))*(1.0-zssa2(:)+2*zbs2(:)*zssa2(:)))
+         zaertf2(:,jlev) = MIN(25.,(ztemp2(:)*aod2(:,jlev))/(zmu0+zero)) ! effective t band 2
+         zaerd2(:,jlev) = (((zaeru2(:)+1.0)**2.0)*EXP(zaertf2(:,jlev)) - ((zaeru2(:)-1.0)**2.0)/EXP(zaertf2(:,jlev))) ! denominator band 2
+         zaert2(:,jlev) = (4.0*zaeru2(:))/zaerd2(:,jlev) ! transmission band 2
+         zaerr2(:,jlev) = (zaeru2(:) + 1.0)*(zaeru2(:) - 1.0)*(EXP(zaertf2(:,jlev))-EXP(-zaertf2(:,jlev)))/zaerd2(:,jlev) ! reflection band 2
+
+         zaertf2s(:,jlev) = MIN(25.,(ztemp2(:)*aod2(:,jlev))/zmu00) ! effective t band 2
+         zaerd2s(:,jlev) = (((zaeru2(:)+1.0)**2.0)*EXP(zaertf2(:,jlev)) - ((zaeru2(:)-1.0)**2.0)*EXP(-zaertf2(:,jlev))) ! denominator band 2
+         zaert2s(:,jlev) = (4.0*zaeru2(:))/zaerd2(:,jlev) ! transmission band 2
+         zaerr2s(:,jlev) = (zaeru2(:) + 1.0)*(zaeru2(:) - 1.0)*(EXP(zaertf2(:,jlev))-EXP(-zaertf2(:,jlev)))/zaerd2(:,jlev) ! reflection band 2
+        endwhere
+
+        where(losun(:) .and. aod1(:,jlev) > 0. .and. lcons2(:))
+         ztcon(:) = zbs2(:)*aod2(:,jlev)/(zmu0+zero)
+         zaertf2(:,jlev) = 0.
+         zaerd2(:,jlev) = 1.0
+         zaert2(:,jlev) = 1.0/(1.0+ztcon(:))
+         zaerr2(:,jlev) = ztcon(:)/(1.0+ztcon(:))
+         zaertf2s(:,jlev) = 0.
+         zaerd2s(:,jlev) = 1.0
+         zaert2s(:,jlev) = zaert2(:,jlev)
+         zaerr2s(:,jlev) = zaerr2(:,jlev)
+        endwhere
+
        enddo ! levels loop
        ! if (mypid == NROOT) then
         ! write(nud,*) "Aerosol effective optical depth 1:",zaertf1
@@ -2726,6 +2970,13 @@
       real ztaucc(NHOR)         ! cloud transmissivity
       real ztaudu0(NHOR,NLEV)   ! layer transmissivity dust
       real ztaudu(NHOR)         ! dust transmissivity
+!
+!     The aerosol's thermal-IR absorption is additive IN THE EXPONENT, so N
+!     species cost a sum and no restructuring: the grey absorbers overlap by
+!     the same random-overlap assumption the cloud term already makes.
+!
+      real zqsum(NHOR)          ! sum of qlw*od over species
+      integer :: jaer           ! aerosol species index
       real ztau0(NHOR)          ! approx. layer transmissivity
       real zsumwv(NHOR)         ! effective water vapor amount
       real zsumo3(NHOR)         ! effective o3 amount
@@ -2867,10 +3118,12 @@
 !     these two branches cannot both contribute; the aerosol is one aerosol
 !     whichever way its column was obtained.
 !
-       if (ndustrad == 1) then
-        ztaudu0(:,jlev)=exp(-1.66*dustqlw*ddustod(:,jlev))
-       elseif (iaerint == 1) then
-        ztaudu0(:,jlev)=exp(-1.66*aeroqlw*daerod(:,jlev))
+       if (naerosp > 0) then
+        zqsum(:) = 0.
+        do jaer = 1,naerosp
+         zqsum(:) = zqsum(:) + aqlw(jaer)*aodsp(:,jlev,jaer)
+        enddo
+        ztaudu0(:,jlev)=exp(-1.66*zqsum(:))
        else
         ztaudu0(:,jlev)=1.
        endif

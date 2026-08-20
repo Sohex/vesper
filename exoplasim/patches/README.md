@@ -47,7 +47,13 @@ sedimentation sign while the 99%-per-step bottom-layer scrub is still in place,
 so merging it alone gives two sinks where the paper describes one.
 `notes/audits/aerosol-particle-radius.md` carries the table.
 
-`aerosol-longwave`, `dust-emission`, `prescribed-dust` and `star-cycle` stay
-local by decision: the dust pair while this project is its only user, the
-other two until someone opens a task to offer them. Each defaults to
-reproducing stock behaviour.
+`aerosol-longwave`, `dust-emission`, `prescribed-dust`, `multi-species-aerosol`
+and `star-cycle` stay local by decision: the dust set while this project is its
+only user, the other two until someone opens a task to offer them. Each defaults
+to reproducing stock behaviour.
+
+`multi-species-aerosol` is the one most likely to be wanted upstream, because
+the limit it removes is not specific to this world: stock ExoPlaSim carries one
+aerosol with one global set of optical properties, so no two species with
+different single-scattering albedos can be in the radiation at once. It is
+offered when someone opens the task.

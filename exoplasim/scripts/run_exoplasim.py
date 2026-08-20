@@ -455,6 +455,13 @@ ROUGHNESS_SURFACE_CODES = {173}
 # unpatched one cannot parse NDUSTRAD and aborts in radini_, which is the loud
 # failure this arrangement is designed to produce rather than avoid.
 DUST_SURFACE_CODES = {1811}
+# CLIM-39 made ndustrad a COUNT of prescribed species rather than a switch, and
+# the model now reads one surface field per species: species s is code 1810+s,
+# up to NAERSP in radmod. Only 1811 is listed here because only 1811 has a
+# generator -- `build_surface_dust.py`. Routing a second species in is CLIM-40,
+# and it adds the code here in the same commit as the generator that writes it,
+# per the rule that an artifact no step produces does not exist.
+PRESCRIBED_AEROSOL_CODE_BASE = 1810
 # dsrcw, ddrage and dwpr, the source map for the INTERACTIVE emission scheme.
 # DUST-3. A different thing from 1811 and not an alternative to it: 1811 is a
 # prescribed column optical depth that nothing responds to, while these three
