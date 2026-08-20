@@ -99,14 +99,34 @@ adjacent column. It is read as a typesetting slip in the 1980 table and is
 excluded, WITH the fit reported both ways: including it gives S = 194.3 and an
 rms of 0.83, so the choice moves S by 3.5% and nothing else.
 
-**For N2O the two intensities are not yet recovered.** The paper's evidence for
-the 1285 cm-1 band is Fig. 2 rather than a table, and the 589 cm-1 band has
-neither. Two routes, in order of preference: read Fig. 2's curve A at both of
-its pressure panels, which gives two independent constraints on one unknown and
-so checks itself; or obtain McClatchey et al. (1973) and take both intensities
-directly. Until one of them lands **this note cannot support an N2O
-implementation**, and a value guessed to fill the gap would be the failure this
-project calls precision theatre. CH4 alone is the larger half of the term.
+**For N2O the two intensities are NOT recovered, and both routes have been
+tried.** The paper's evidence for the 1285 cm-1 band is Fig. 2 rather than a
+table, and the 589 cm-1 band has neither.
+
+*The figure route was tried and its own check refuted it.* Fig. 2 plots Eq. (1)
+at two pressures, which is two independent constraints on one unknown, so it
+self-checks. It fails: tracing curve A by continuity off a 600 dpi render and
+fitting over the SAME absorber range gives S = 302 from the 0.5 atm panel and
+S = 348 from the 0.1 atm panel, while each fits its own trace to an rms of 0.2
+cm-1. A 15% systematic disagreement between panels that individually fit that
+tightly is a calibration error in the extraction, not noise, and a number taken
+from either panel alone would carry it invisibly. The extraction is discarded.
+This is what the two-panel design was for; it did its job by failing.
+
+*The primary source is not obtainable.* Donner and Ramanathan never state the
+N2O intensities and cite McClatchey et al. (1973), *AFCRL Atmospheric Absorption
+Line Parameters Compilation*, AFCRL-TR-73-0096 -- a 1973 technical report with
+no DOI, which `paperfetch` cannot identify. Ramanathan (1976) was fetched on the
+chance it tabulated them and does not: it carries no N2O at all, being H2O, CO2
+and O3, and what it contributes is the band model itself.
+
+**So this note cannot support an N2O implementation**, and a value guessed to
+fill the gap would be the failure this project calls precision theatre. CH4
+alone is the larger half of the term and is fully specified, so the sensible
+shape is CH4 first with the N2O slot left explicitly empty. The open routes,
+neither taken: obtain AFCRL-TR-73-0096 from DTIC, or sum HITRAN line intensities
+over the two bands, which is a different source from the one the band model was
+fitted against and would need saying so.
 
 ## 4. What lands in the code
 
