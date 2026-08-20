@@ -85,6 +85,57 @@ constant diffusivity is a bound on the missing transport, not the transport,
 and the argument for the term is that the transport exists, not that any value
 of it improves an agreement.
 
+## Measured: the CLIM-16 hdiffk bracket, 2026-08-20
+
+Four arms on the declared 300/1000/3000 bracket plus a length-matched control,
+all seeded from one restart on `t42_l10_p8`, one settling orbit then fifteen
+labelled `diagnostic`. All four carry `cloud_absorption_scale` 1.192, so the set
+is internally paired and is NOT comparable with the earlier bundle arms, which
+ran at 1.0.
+
+**Read PAIRED, per orbit.** Arm minus control on the same orbit index cancels
+the internal variability the two share, which is what A3's one-restart rule
+buys; computing each run's spread separately and combining in quadrature
+double-counts it and inflates the error bars about sixfold. At five orbits and
+unpaired, only the top bracket point resolved at all. Paired at fifteen, every
+point does.
+
+| arm | d net TOA, W/m2 | 0-20 deg SST | 20-40 deg | 40-60 deg | 60-90 deg | d sea ice |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 300 | +0.041 +/- 0.159 | -0.070 +/- 0.021 | -0.015 +/- 0.040 | +0.221 +/- 0.045 | +0.283 +/- 0.225 | -0.00052 +/- 0.00030 |
+| 1000 | +0.009 +/- 0.166 | -0.037 +/- 0.028 | -0.020 +/- 0.044 | +0.191 +/- 0.048 | -0.104 +/- 0.196 | +0.00001 +/- 0.00025 |
+| 3000 | +0.113 +/- 0.121 | -0.128 +/- 0.035 | +0.013 +/- 0.066 | +0.572 +/- 0.065 | +0.519 +/- 0.164 | -0.00124 +/- 0.00026 |
+
+**Conservation holds, which was the primary claim.** Every arm's global net TOA
+difference is consistent with zero and inside the declared 0.3 W/m2, so the
+operator redistributes and does not force. The term cannot be argued for or
+against on a global-mean flux, exactly as predicted.
+
+**The poleward redistribution is confirmed at all three points.** 0-20 degrees
+loses and 40-60 gains at every bracket point, each 15 of 15 orbits one-signed.
+The 20-40 band sits at zero rather than the loss the offline operator's applied
+heating suggested; that is the crossover latitude and the SST response is not
+the applied heating, so it is a mild mismatch and not a sign failure.
+
+**The ice-edge term is now measured, through AREA rather than flux.** At 3000
+the arm loses 0.00124 of the planet in sea ice, resolved, and on CLIM-17's
+conversion that is +0.079 to +0.127 K -- the prediction was +0.03 to +0.12 K at
+the DEFAULT, so at three times the diffusivity the term lands at the low end of
+a linear expectation. At the default itself the ice change is +0.00001, which
+is nothing: the predicted kelvin term is not resolved there and is not claimed.
+
+**One declared falsifier FIRED: linearity.** Against a line through the origin
+fitted on the two upper points, the 40-60 response is linear to 0.3% between
+1000 and 3000 and the 300 point sits **3.86x above it**, giving more warming
+per unit diffusivity at 300 than at 1000 and slightly more warming outright.
+Both points are resolved 15 of 15, so this is not noise. It is left as a
+finding rather than explained: CLIM-19 carries it.
+
+**The spread the row asked for**, then: across the declared bracket the 40-60
+ocean warming runs +0.19 to +0.57 K and the sea-ice response 0 to -0.00124 of
+the planet. A constant diffusivity is a bound on the missing transport rather
+than the transport, and this is the width of that bound.
+
 ## CLIM-17: the freezing point from the declared salinity
 
 The key landed with CLIM-17's closure: `config/planet.yaml` declares

@@ -230,6 +230,62 @@ first pass. Raising `dwmax` in convergence zones through the existing
 a deeper bucket changes storage and timing, not the availability floor a water
 table sets, so it would move the answer without representing the mechanism.
 
+## 7b. GW-9 settled: the e-folding length does not survive a 15 km cell
+
+Measured and argued 2026-08-20, after both solver schemes failed to converge.
+
+The transmissivity is `T = A(x) exp(h/f)` for an e-folding length `f` set by
+Fan's slope curve, `f = a / (1 + b * slope)`, with the fork's constants giving a
+bedrock floor of `20 / (1 + 125 * 0.16) = 0.95 m` at the slope cap. **Two
+separate things are wrong with that here, and they are not the same defect.**
+
+**The slope is the wrong slope.** Fan fits that curve against a hillslope
+gradient resolved at about 1 km. What this project has is `local_slope_deg`, a
+plane fit through each region and its neighbours at 15.19 km, and
+`minerals/README.md` documents it as an upper bound on REGIONAL DIP, which is the
+quantity it was built for. Terrain gradient falls with the scale it is measured
+over, so a regional dip understates the hillslope gradient at the same place, and
+feeding it to Fan's curve returns an `f` that is too large. One-signed, toward a
+deeper and flatter water table.
+
+**And the floor is incoherent at any slope.** This is the one that broke the
+solver, and it is a modelling failure rather than a numerical one. Take the cell
+mean of the transmissivity when the water table varies within the cell with
+spread `sigma`:
+
+    E[exp(h/f)] = exp(hbar/f) * exp(sigma^2 / 2 f^2)
+
+With sub-grid relief of order 100 m and `f` of 1 m, that factor is `exp(5000)`.
+It is not a correction to be applied; it is the statement that **the
+parameterisation cannot be evaluated at a cell mean head at all** when `f` is far
+below the sub-grid relief. The solver's measured `|z|/f` reaching 4588, against
+an `exp` argument limit near 709 in double precision, is the same fact arriving
+as an overflow.
+
+Setting `f` of order `sigma` makes that factor `exp(0.5)`, which is an ordinary
+order-one term. So the requirement is not a tuned value but a scale:
+
+**The effective e-folding length for a cell cannot be smaller than the relief
+that cell contains.** `f` is a soil and weathering profile depth, a genuine
+1 km-scale quantity; a 15.19 km control volume averaging over hundreds of metres
+of relief has no business carrying it. Fan's own numbers are not wrong, they are
+being asked a question at three orders of magnitude from where they were fitted.
+
+### What this means for GW-1
+
+The blocker is not the iteration scheme. Picard limit-cycled and Kirchhoff
+overflowed, and both are symptoms of a stiffness that a coherent `f` would not
+produce. Newton on the full residual might well converge -- **and it would be
+converging a formulation that applies a metre-scale parameter at 15 km, which is
+worse than not converging, because the answer would look like a result.**
+
+The sub-grid relief per cell is exactly what GRAV-6 already parks glacial erosion
+behind: its recommendation is that the process "belongs with the downscaling
+machinery, which has to persist sub-grid hypsometry anyway". The same quantity
+settles this. That is not a coincidence, and it is not a reason to defer this one
+alongside it: a water table reaches the carve verdict, the surface classes and
+the mineral rules, all of which sit in loops that run before any downscaling.
+
 ## 8. Where it belongs
 
 In `hydrography/`, as a peer of `surface_water.py`, not a sibling component. It
