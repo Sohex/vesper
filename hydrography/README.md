@@ -221,13 +221,62 @@ fluctuation across 10^5 years or more.
 through the same coupling convention `surface_water.py` uses, and
 `config/groundwater.yaml` for the subsurface: Gleeson et al. (2011) permeability
 per hydrolithology, on the same Duerr class mapping pedology already uses for
-Hartmann phosphorus, and Fan et al. (2007) equation (7) for the e-folding decay
-of conductivity with depth.
+Hartmann phosphorus, over a constant saturated thickness.
+
+**Transmissivity is `T = K D`, and Fan's exponential decay with depth is NOT
+used.** It was, and it could not be evaluated on this mesh: the cell mean of
+`T = A exp(h/f)` carries a factor `exp(sigma^2/2f^2)`, which at 100 m of
+sub-grid relief against a metre-scale e-folding length is `exp(5000)`. That is
+not a large correction, it is a statement that the parameterisation has no
+cell-mean value at 15.19 km. `D` of order 100 m is the depth Gleeson's own maps
+represent, so conductivity and the thickness it multiplies are one paper's
+statement about one rock at one scale. GW-9.
+
+**Two terms exist and are OFF unless asked for**, each bit-identical to a run
+without it:
+
+- `--et-lambda` gives the water table a sink, groundwater evapotranspiration
+  exponential in depth on Shah et al. (2007), whose finding is that the decline
+  with depth is exponential rather than the linear form MODFLOW's EVT uses.
+  `ET_max` is the Penman field the lakes and the carve verdict already take.
+  Without it the table pins at the surface over most of the land, because the
+  only exits are the coast and seepage and recharge in a continental interior
+  reaches neither.
+- `fixed_head_m` imposes a head on river and lake cells, so a water surface IS
+  the water table there. Without local baselevels the sea is the only fixed head
+  and no defensible transmissivity reaches it.
 
 **Gravity enters once, and correctly.** Permeability is pore geometry and
 carries over from Earth unchanged; hydraulic conductivity is `k rho g / mu` and
 is this world's. The config tabulates permeability and never conductivity, and
 the solver takes gravity from `config/planet.yaml`.
+
+## What this field may be used for, and what it may not
+
+**It was scored against 70,119 Australian bores and it has no skill.** GW-3, in
+`notes/earth-calibration-criterion.md`: R^2 = 0.017 against a declared bar of
+0.07, a resolvable ceiling of 0.857, and 0.28 for a statistical fit over the
+same inputs. The residual standard deviation equals the observed standard
+deviation, which is the signature of a near-constant field.
+
+**The range is right and the pattern is not.** With the sink and local
+baselevels the 95th percentile depth is 52 m against an observed 42 m, where
+before it was 6.9 m. So the field spans the right values and puts them in the
+wrong places.
+
+Three mechanisms were added and none moved skill: the sink, local baselevels and
+a basin-scale thickness. Each fixed something real. The information is not
+missing -- a regression on the model's own inputs reaches 0.28 -- so the
+formulation maps it badly rather than lacking it, and adding a fourth bulk term
+is not the fix. What is, on the evidence, is sub-grid hypsometry: at 15.19 km an
+interfluve is one or two cells wide and there is nowhere to put a water table
+that follows terrain.
+
+**So: do not read a per-cell depth from this and expect it to mean anything.**
+MIN-6's supergene rules need the depth itself and cannot use it. SURF-7 needs a
+discharge mask and gets AUC 0.52 to 0.57 from this one, which is barely above
+chance. What survives is the per-basin exchange DIRECTION, which is a
+zero-crossing that never depended on the depth being right.
 
 **The depth field is a bracket, not a value.** Gleeson's within-class spread is
 1.5 to 2.5 orders of magnitude. `--sigma -1` and `--sigma +1` shift every class

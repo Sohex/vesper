@@ -224,16 +224,24 @@ steps:
     loop: A
     cost: minutes
     needs: [hydrography, bootstrap_climatology]
-    writes: ["hydrography/data/{build}/water_table.nc", hydrography/analysis/groundwater_report.json, hydrography/analysis/groundwater_reduction_test.json, hydrography/analysis/groundwater_divide_test.json, "hydrography/analysis/groundwater_report_sigma*.json", "hydrography/analysis/groundwater_report_noise*.json"]
+    writes: ["hydrography/data/{build}/water_table.nc", hydrography/analysis/groundwater_report.json, hydrography/analysis/groundwater_reduction_test.json, hydrography/analysis/groundwater_divide_test.json, "hydrography/analysis/groundwater_report_sigma*.json", "hydrography/analysis/groundwater_report_noise*.json", "hydrography/analysis/groundwater_report_et*.json"]
     gate: >
       the steady-state water table, and a MEASUREMENT of the net groundwater
-      exchange per basin. It does not feed `carve_verdict`: whether that term
-      enters the criterion is a loop A decision, tracked as GW-4, and taking it
-      would add the edge. Permeability carries 1.5 to 2.5 orders of magnitude
-      of Gleeson spread, so the DEPTH field is a bracket and `--sigma -1` and
-      `+1` are the arms of it; the carve count is not, moving by three across
-      the whole bracket. `--operator-noise` is a sensitivity harness for GW-8
-      and not a model parameter.
+      exchange per basin. `carve_verdict` TAKES the term when handed one, under
+      GW-14, and is bit-identical to the surface-only criterion when it is not;
+      supplying it is a loop A decision and no carve list has been regenerated
+      from it. Permeability carries 1.5 to 2.5 orders of Gleeson spread, so the
+      DEPTH field is a bracket and `--sigma -1` and `+1` are its arms; the carve
+      count is not, moving by three across the whole bracket.
+      `--operator-noise` is a sensitivity harness for GW-8, not a model
+      parameter, and `--et-lambda` turns on GW-15's sink, which is off by
+      default and bit-identical when absent.
+      READ `hydrography/README.md` BEFORE CONSUMING THE DEPTH FIELD. GW-3 scored
+      it against 70,119 Australian bores at R^2 = 0.017 against a bar of 0.07
+      and a ceiling of 0.857: the range is right, the pattern is not, and a
+      per-cell depth from it does not mean anything. What survives is the
+      per-basin exchange direction. MIN-6 cannot use this field and SURF-7's
+      mask gets AUC 0.52 to 0.57 from it.
 
   - id: soil
     script: pedology/scripts/build_soil.py
