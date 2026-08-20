@@ -227,6 +227,20 @@ def final_orbit(manifest: dict) -> int:
     return int(segments[-1]["end_year_index"])
 
 
+def _bin_mean(field: np.ndarray, records_per_bin: np.ndarray) -> np.ndarray:
+    """Time mean over bins 1..n-1, weighted by how many records each bin holds.
+
+    Bin 0 is dropped because it straddles the restart, which is the same
+    exclusion `align` makes. The remaining bins are weighted by their record
+    counts rather than equally: pyburn splits an orbit with
+    `linspace(...).astype(int)`, so the bins are not the same length, and
+    treating them as if they were is CLIM-13.
+    """
+    w = np.asarray(records_per_bin, dtype=float)[1:]
+    w = w / w.sum()
+    return np.tensordot(w, field[1:], axes=(1 if field.ndim == 1 else 0, 0))
+
+
 def align(stream: np.ndarray, binned: np.ndarray, weights: np.ndarray,
           mask: np.ndarray, bin_edges: np.ndarray | None = None) -> dict:
     """Find the offset at which stream records tile the binned output.
@@ -393,6 +407,9 @@ def close_ocean(run_dir: Path, first_orbit=None, last_orbit=None) -> dict:
     # pyburn's counts describe the orbit it binned.
     per_orbit = climatology.counts_for(
         climatology.infer_ntimes(binned_time), len(binned_time))
+    # Records per bin across the WHOLE window, which the identity means below
+    # weight by. One orbit's counts repeated per orbit.
+    bin_records = np.tile(per_orbit, len(orbits)).astype(float)
     bin_edges = np.concatenate([[0.0], np.cumsum(np.tile(per_orbit, len(orbits)))])
     bin_edges = bin_edges * (ice["xheat"].shape[0] / bin_edges[-1])
     alignment = align(ice["xheat"], atm, weights, strict, bin_edges)
@@ -492,9 +509,17 @@ def close_ocean(run_dir: Path, first_orbit=None, last_orbit=None) -> dict:
     result = {}
     for name, mask in (("strict", strict), ("loose", loose),
                        ("ocean", is_ocean)):
-        atm_m = atm[1:].mean(0)
-        hfns_m = binned["hfns"][1:].mean(0)
-        snm_m = ALF * RHO_WATER * binned["snm"][1:].mean(0)
+        # WEIGHTED BY RECORDS PER BIN, not `.mean(0)`. The stream terms below
+        # are record means and are correctly weighted by construction; the
+        # atmosphere terms are BIN means, and pyburn's bins hold different
+        # numbers of records, so equal-weighting them is the CLIM-13 error.
+        # This file diagnoses that error two hundred lines down -- it reports
+        # hfns at -0.4195 equal-weighted against -0.2819 true-weighted, a
+        # difference of +0.1376 W/m2 -- and then computed these identities with
+        # the equal-weighted mean anyway. Most of D1 was that.
+        atm_m = _bin_mean(atm, bin_records)
+        hfns_m = _bin_mean(binned["hfns"], bin_records)
+        snm_m = ALF * RHO_WATER * _bin_mean(binned["snm"], bin_records)
         xheat = ice["xheat"][span].mean(0)
         xcflux = ice["xcflux"][span].mean(0)
         yheat = ocean["yheat"][span].mean(0)

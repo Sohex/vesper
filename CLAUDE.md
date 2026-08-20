@@ -181,6 +181,14 @@ none of them is advice.
   The two rules pull in opposite directions and that is the point: **record what
   a thing IS and where it lives, never what it currently SAYS.**
 
+- **A task has TWO end states: completed, or blocked. If you are at neither,
+  keep going.** Not "reported", not "diagnosed", not "handed over with a clear
+  recommendation" -- those are mid-task. Blocked means something outside your
+  reach stops you: a decision only the user can make under the rule below, a
+  measurement that needs hardware or data nobody has, an expensive run that has
+  to be authorised. Everything else is work you have not done yet, however
+  neatly you have described it.
+
 - **Naming the next step is not doing it, and a report is not a stopping
   point.** The failure looks like progress: diagnose, write down what would
   resolve it, hand it back. Three times in one session that produced "needs a
