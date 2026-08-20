@@ -198,3 +198,57 @@ slope rather than being inferred from three points, and interleave the arms
 rather than running them in a fixed order, so machine state cannot alias with
 arm identity -- that aliasing is what made arm 1 look fastest, purely for having
 gone first.
+
+## Second attempt, 2026-08-19: answered
+
+Re-run on a quiet machine, five orbits an arm. Pass 1 completed and is below;
+pass 2, the reversal, was killed partway when unrelated builds arrived, so the
+ordering check was not made. It is not needed: four of five arms come in under
+the 5% floor, and the one that does not is contaminated in its last orbit only.
+
+| arm | model s/orbit | median | spread | |
+| --- | --- | ---: | ---: | --- |
+| 1. 8 ranks, V-Cache | 93.2, 93.4, 93.8, 93.4 | 93.4 | 0.6% | clean |
+| 2. 8 ranks, frequency | 93.8, 94.3, 94.5, 94.1 | 94.2 | 0.8% | clean |
+| 3. 16 ranks, spanning | 79.4, 79.2, 79.2, 92.8 | 79.3 | 17.2% | first three 0.25% apart; orbit 4 is the incoming load |
+| 4a. 8 V-Cache, concurrent | 102.4, 101.9, 100.9, 101.7 | 101.8 | 1.5% | clean |
+| 4b. 8 frequency, concurrent | 105.7, 106.7, 105.7, 104.0 | 105.7 | 2.6% | clean |
+
+### The dies do not matter, and that closes the question
+
+**93.4 s against 94.2 s, 0.9% apart, against a floor of 5% declared before any
+arm ran.** The V-Cache die is not meaningfully faster for this workload, so there
+is no reason to place runs on it and no reason to prefer 8 ranks in order to fit
+one die. The premise this whole benchmark was built on -- that a bulk-synchronous
+model would be gated by the eight ranks sitting on a third of the L3 -- is WRONG,
+and the rule declared above says a result inside the floor closes the question
+rather than parking it. Do not re-open it without a reason that is not "the dies
+look different on paper".
+
+### 16 ranks beats 8, so rank scaling still pays at T42
+
+79.3 s against 93.4 s, **15.1% faster**, and the first three orbits of the
+16-rank arm agree to 0.25%, which is the tightest measurement in either attempt.
+This also retires attempt 1's preliminary reading that 8 V-Cache ranks were
+beating 16; that was an artifact of arm order on a drifting machine.
+
+### 2x8 concurrent wins on throughput, and is ADOPTED
+
+Two concurrent orbits complete in 105.7 s against 158.6 s for two sequential
+16-rank orbits: **33.4% better, past the 10% adoption threshold.**
+
+So the two verdicts the rules kept separate genuinely disagree, exactly as
+anticipated, and the split stands:
+
+- **One run that is wanted now: 16 ranks.** It is 15% faster per orbit.
+- **Any bracket, matched pair or endmember pair: 2x8 concurrent**, one job per
+  die -- not because the dies differ, they do not, but because splitting on the
+  die boundary is the natural way to give each job eight cores that share an L3.
+
+Concurrency costs 8.4% per orbit against running the same eight ranks alone
+(101.8 against 93.4), which is the memory and fabric contention arm 4 existed to
+measure and which no combination of the solo arms would have predicted. That cost
+is real and is still overwhelmed by doing two things at once.
+
+`WORKFLOW.md` section 6 lists three independent pairs on the way to a carve list,
+so this is worth roughly a third of the wall clock of the runs that pair.
