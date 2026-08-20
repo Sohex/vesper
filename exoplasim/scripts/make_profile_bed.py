@@ -40,7 +40,9 @@ import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
-from _paths import COMPONENT_ROOT, INPUTS, MODEL_RUN, RUNS  # noqa: F401
+import yaml
+
+from _paths import CONFIG, COMPONENT_ROOT, INPUTS, MODEL_RUN, RUNS  # noqa: F401
 
 BINARY_MANIFEST = COMPONENT_ROOT / "binary_manifest.json"
 
@@ -52,6 +54,22 @@ BED_NAMELIST = {
     "NOUTPUT": "0",
     "NSNAPSHOT": "0",
     "NDIAG": "0",
+}
+
+# Keys the CONFIG declares, forced to what it says rather than to whatever the
+# source run happened to use.
+#
+# A bed copies a run directory, so it inherits that run's namelist -- which is
+# right for reproducing that run and wrong for the question a bed is asked,
+# "what does a FUTURE run cost". run_4182235e9781 was made with the energy
+# diagnostics ON; config/planet.yaml turned them off on 2026-08-19 once they had
+# answered CLIM-1. Left inherited, every bed accumulated adener3d, a
+# (NHOR, NLEV, 28) array, every timestep -- work no current run does. That
+# inflates the diagnostics bucket of a profile and understates the transform's
+# share against it.
+CONFIG_FORCED = {
+    "NENERGY": ("energy_diagnostics", lambda v: "1" if v else "0"),
+    "NENER3D": ("energy_diagnostics_3d", lambda v: "1" if v else "0"),
 }
 
 # Everything a plasim run directory needs that is not output. Globs, because the
@@ -73,6 +91,16 @@ def sha256(path: Path) -> str:
     return h.hexdigest()
 
 
+def config_forced() -> dict[str, str]:
+    """The CONFIG_FORCED keys resolved against config/planet.yaml."""
+    model = yaml.safe_load(CONFIG.read_text(encoding="utf-8"))["model"]
+    out = {}
+    for key, (cfg_key, render) in CONFIG_FORCED.items():
+        if cfg_key in model:
+            out[key] = render(model[cfg_key])
+    return out
+
+
 def edit_namelist(text: str, steps: int, mpstep: float | None,
                   seed: int | None) -> tuple[str, dict]:
     """Rewrite the bed keys in place; report what moved.
@@ -83,6 +111,7 @@ def edit_namelist(text: str, steps: int, mpstep: float | None,
     changed = {}
     lines = text.splitlines()
     keys = dict(BED_NAMELIST)
+    keys.update(config_forced())
     if mpstep is not None:
         keys["MPSTEP"] = f"{mpstep}"
     if seed is not None:

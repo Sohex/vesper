@@ -246,6 +246,12 @@ model:
       # mode index that aborted in legini instead of returning a plausible
       # wrong climate.
       checked: ["-fcheck=all"]
+      # Candidates under measurement, kept declared rather than hand-edited so
+      # a binary built from one is identifiable. Delete a candidate once it is
+      # adopted into production or refused.
+      cand_unroll: ["-funroll-loops"]
+      cand_prefetch: ["-fprefetch-loop-arrays"]
+      cand_both: ["-funroll-loops", "-fprefetch-loop-arrays"]
     profile: production
   ncpus: 16
   timestep_minutes: 45.0
