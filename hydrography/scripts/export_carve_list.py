@@ -107,7 +107,7 @@ from _paths import CONFIG, DATA, PROJECT_ROOT  # noqa: F401
 import climatology  # noqa: E402  from lib/, put on sys.path by _paths
 from builds import component_data
 from orbit import orbital_year_days
-from paths import climatology_path
+from paths import climatology_path, rel
 from orogen import Export, LAND
 from lake_balance import BasinSet
 
@@ -355,72 +355,29 @@ def sill_erodibility(basins_path: Path, terrain_hash: str) -> np.ndarray:
     return np.clip(out, 1e-3, None)
 
 
-def main() -> None:
-    ap = argparse.ArgumentParser()
-    # Every per-build path below defaults to None and is resolved AFTER
-    # parse_args. Resolving them while building the parser meant --help did
-    # real work and died on a missing build, which is also why nothing caught
-    # that the climatology default pointed at a superseded directory.
-    #
-    # The paths are per-build and strict. This script's output leaves the
-    # project and changes the terrain, so a default that quietly reads or writes
-    # the wrong build is the most expensive one here.
-    ap.add_argument("--climatology", type=Path, default=None,
-                    help="regular climatology; defaults to config's "
-                         "baseline_climatology")
-    ap.add_argument("--coupling", type=Path, default=None)
-    # Hydrography is per-build now, so the basin set has to be selectable
-    # alongside the coupling it was built with. Mixing a coupling matrix from one
-    # terrain with a basin catalogue from another would misalign the rows in the
-    # same silent way the longitude convention misaligned the columns.
-    ap.add_argument("--basins", type=Path, default=None)
-    # Which field stands for runoff generated over the catchment. This was
-    # `mrro` and should not have been: `mrro` is not local runoff generation but
-    # river-routed net divergence, because landmod.f90's roffstep calls mkradv,
-    # which advects runoff downhill and modifies its argument in place. So it is
-    # local generation minus river outflow plus river inflow, on ExoPlaSim's own
-    # grid and its own downhill directions, which know nothing about our basins.
-    #
-    # P - E is the water balance the derivation actually wants: whatever falls on
-    # the catchment and does not evaporate is what reaches the sink. Both of this
-    # project's other consumers of catchment runoff already made this call --
-    # pedology's `runoff_source: p_minus_e`, with the reasoning in
-    # pedogenesis.yaml, and surface_water.py's lake solver. The carve verdict was
-    # the only one left on `mrro`, and it is the one whose output changes the
-    # terrain.
-    ap.add_argument("--runoff-source", choices=("p_minus_e", "mrro"),
-                    default="p_minus_e")
-    # Iteration 2 onward. A verdict is taken on the basins a build still has,
-    # but Orogen regenerates from the planet code and needs the whole catalogue,
-    # including the basins an earlier pass already carved. Merging keeps the loop
-    # monotone: a basin carved in a previous iteration stays carved, because the
-    # terrain that justified re-examining it no longer exists. Without this the
-    # list would silently re-preserve every basin the current build has already
-    # lost, and the next build would undo the last one.
-    ap.add_argument("--previous", type=Path, default=None,
-                    help="carve_list.json from the pass that produced the "
-                         "current build; its retain-0 basins are carried forward")
-    ap.add_argument("--config", type=Path, default=CONFIG)
-    ap.add_argument("--out-list", type=Path, default=None)
-    ap.add_argument("--out-json", type=Path, default=None)
-    args = ap.parse_args()
 
-    _bd = component_data("hydrography", strict=True)
-    if args.coupling is None:
-        args.coupling = _bd / "coupling_exoplasim-T42.nc"
-    if args.basins is None:
-        args.basins = _bd / "basins.nc"
-    if args.out_list is None:
-        args.out_list = _bd / "carve_list.txt"
-    if args.out_json is None:
-        args.out_json = _bd / "carve_list.json"
-    if args.climatology is None:
-        args.climatology = climatology_path()
+# The fractional evaporation change that would flip a basin, and the width of the
+# `marginal` band the margin term produces. Module scope because `climate_terms`
+# applies it and `main` records it in the sidecar, and those must be one number.
+TOLERANCE = 0.25
 
-    config = yaml.safe_load(args.config.read_text(encoding="utf-8"))
-    basins = BasinSet(args.basins)
-    resolution = str(config["model"]["resolution"]).upper()
+def climate_terms(clim_path, args, config, basins, resolution):
+    """Everything the carve criterion reads from ONE climate.
 
+    Factored out of `main` because WORKFLOW.md section 4 evaluates this same
+    criterion at TWO bounding climates -- the warm vegetated end and the cold
+    bare-rock end -- and carves only the intersection. Running one function
+    twice is the point rather than an implementation detail: two hand-written
+    evaluations of a criterion are two formulations that can disagree, and
+    `notes/failure-modes.md` class 17 is about exactly that. The arms differ in
+    their climatology and in nothing else.
+
+    Everything here is climate-dependent. What is NOT here, deliberately, is
+    the incision coefficient: it is calibrated against Earth from the discharge
+    field, so calibrating it per arm would let each arm move its own yardstick
+    and the two verdicts would no longer be comparable. `main` calibrates once
+    on the primary arm and applies that coefficient to both.
+    """
     with Dataset(args.climatology) as ds:
         am = cv.annual_mean
         pr, evap, mrro = am(ds, "pr"), -am(ds, "evap"), am(ds, "mrro")
@@ -515,7 +472,6 @@ def main() -> None:
     # evaporation, and the sub-grid dry column at up to 9%. A quarter brackets
     # all three; a tolerance tied to the method's own error would have been the
     # smallest term setting the scale for the largest.
-    TOLERANCE = 0.25
     e_pen = means["pen"] * year_s / 1000.0
     # The third of the three catchment-mean water-balance terms, in the same
     # km/year depth as `runoff_km_per_year`. All three are recorded per basin in
@@ -532,6 +488,97 @@ def main() -> None:
     with np.errstate(divide="ignore", invalid="ignore"):
         margin = np.where(e_pen > 0, (e_pen - e_balance) / np.where(e_pen > 0, e_pen, 1.0), 1.0)
     retain_margin = np.where(carved, 0.0, np.clip(margin / TOLERANCE, 0.0, 1.0))
+    return {"mrro": mrro, "means": means, "year_s": year_s, "crit": crit, "runoff": runoff, "precip": precip, "idx_pen": idx_pen, "idx_wet": idx_wet, "q_pen": q_pen, "q_wet": q_wet, "carved": carved, "overflows_wet": overflows_wet, "disputed": disputed, "e_pen": e_pen, "e_wet": e_wet, "margin": margin, "retain_margin": retain_margin, "ocean_validation": ocean_validation, "penman_error_pct": penman_error_pct}
+def main() -> None:
+    ap = argparse.ArgumentParser()
+    # Every per-build path below defaults to None and is resolved AFTER
+    # parse_args. Resolving them while building the parser meant --help did
+    # real work and died on a missing build, which is also why nothing caught
+    # that the climatology default pointed at a superseded directory.
+    #
+    # The paths are per-build and strict. This script's output leaves the
+    # project and changes the terrain, so a default that quietly reads or writes
+    # the wrong build is the most expensive one here.
+    ap.add_argument("--climatology", type=Path, default=None,
+                    help="regular climatology; defaults to config's "
+                         "baseline_climatology")
+    # WORKFLOW.md section 4: the verdict map is ANTITONE -- carving removes the
+    # bright closed-basin fill, the world warms, lake evaporation rises, and
+    # basins that were marginal stay closed, so a larger carve set produces a
+    # SMALLER next verdict. An antitone map oscillates rather than approaching a
+    # fixed point from one side, so successive verdicts bracket the answer and
+    # the honest procedure is to bracket it deliberately: take the verdict at
+    # both bounding climates and carve only the intersection.
+    #
+    # Both arms are at the SAME flux, the design flux, differing only in
+    # model.land_albedo_source. Section 4 says why: placing each endmember at
+    # its own habitable flux puts both worlds at the same global mean by
+    # construction, which collapses the bracket to the residual difference in
+    # albedo PATTERN and reports a width narrower than the real uncertainty.
+    ap.add_argument("--endmember-climatology", type=Path, default=None,
+                    help="the cold bare-rock arm's regular climatology. Given, "
+                         "the carve set becomes the INTERSECTION: a basin is "
+                         "cut only where both climates cut it, and the "
+                         "disagreement is reported as the marginal set and the "
+                         "bracket width. Absent, this is a single-climate "
+                         "verdict and the sidecar says so")
+    ap.add_argument("--coupling", type=Path, default=None)
+    # Hydrography is per-build now, so the basin set has to be selectable
+    # alongside the coupling it was built with. Mixing a coupling matrix from one
+    # terrain with a basin catalogue from another would misalign the rows in the
+    # same silent way the longitude convention misaligned the columns.
+    ap.add_argument("--basins", type=Path, default=None)
+    # Which field stands for runoff generated over the catchment. This was
+    # `mrro` and should not have been: `mrro` is not local runoff generation but
+    # river-routed net divergence, because landmod.f90's roffstep calls mkradv,
+    # which advects runoff downhill and modifies its argument in place. So it is
+    # local generation minus river outflow plus river inflow, on ExoPlaSim's own
+    # grid and its own downhill directions, which know nothing about our basins.
+    #
+    # P - E is the water balance the derivation actually wants: whatever falls on
+    # the catchment and does not evaporate is what reaches the sink. Both of this
+    # project's other consumers of catchment runoff already made this call --
+    # pedology's `runoff_source: p_minus_e`, with the reasoning in
+    # pedogenesis.yaml, and surface_water.py's lake solver. The carve verdict was
+    # the only one left on `mrro`, and it is the one whose output changes the
+    # terrain.
+    ap.add_argument("--runoff-source", choices=("p_minus_e", "mrro"),
+                    default="p_minus_e")
+    # Iteration 2 onward. A verdict is taken on the basins a build still has,
+    # but Orogen regenerates from the planet code and needs the whole catalogue,
+    # including the basins an earlier pass already carved. Merging keeps the loop
+    # monotone: a basin carved in a previous iteration stays carved, because the
+    # terrain that justified re-examining it no longer exists. Without this the
+    # list would silently re-preserve every basin the current build has already
+    # lost, and the next build would undo the last one.
+    ap.add_argument("--previous", type=Path, default=None,
+                    help="carve_list.json from the pass that produced the "
+                         "current build; its retain-0 basins are carried forward")
+    ap.add_argument("--config", type=Path, default=CONFIG)
+    ap.add_argument("--out-list", type=Path, default=None)
+    ap.add_argument("--out-json", type=Path, default=None)
+    args = ap.parse_args()
+
+    _bd = component_data("hydrography", strict=True)
+    if args.coupling is None:
+        args.coupling = _bd / "coupling_exoplasim-T42.nc"
+    if args.basins is None:
+        args.basins = _bd / "basins.nc"
+    if args.out_list is None:
+        args.out_list = _bd / "carve_list.txt"
+    if args.out_json is None:
+        args.out_json = _bd / "carve_list.json"
+    if args.climatology is None:
+        args.climatology = climatology_path()
+
+    config = yaml.safe_load(args.config.read_text(encoding="utf-8"))
+    basins = BasinSet(args.basins)
+    resolution = str(config["model"]["resolution"]).upper()
+
+    # The primary arm: the warm, vegetated end of section 4's bracket.
+    primary = climate_terms(args.climatology, args, config, basins, resolution)
+    (year_s, crit, runoff, precip, idx_pen, idx_wet, q_pen, carved, overflows_wet, disputed, e_pen, e_wet, margin, retain_margin, ocean_validation, penman_error_pct) = (
+        primary["year_s"], primary["crit"], primary["runoff"], primary["precip"], primary["idx_pen"], primary["idx_wet"], primary["q_pen"], primary["carved"], primary["overflows_wet"], primary["disputed"], primary["e_pen"], primary["e_wet"], primary["margin"], primary["retain_margin"], primary["ocean_validation"], primary["penman_error_pct"])
 
     # What the water can actually cut, which is the half the margin never knew.
     # The sill's own rock and the outlet's own gradient set how much water that
@@ -568,6 +615,45 @@ def main() -> None:
     # Either is a reason to leave a rim standing: that the basin may not overflow
     # at all, or that its overflow cannot cut. Taking the larger keeps both.
     retain = np.maximum(retain_incision, retain_margin)
+
+    # THE INTERSECTION, and it is the same idiom one line up: taking the larger
+    # retain keeps the rim wherever EITHER climate would have kept it, which is
+    # exactly "carve only what both carve" generalised to a fractional rim. A
+    # basin cut to bare rock under the warm arm and left standing under the cold
+    # one comes out standing.
+    #
+    # The coefficient is the primary arm's, deliberately. It is calibrated
+    # against Earth from the discharge field, so letting the cold arm calibrate
+    # its own would move the yardstick with the climate and the two verdicts
+    # would no longer be measuring against the same thing.
+    endmember = None
+    retain_primary = retain
+    if args.endmember_climatology is not None:
+        endmember = climate_terms(args.endmember_climatology, args, config,
+                                  basins, resolution)
+        retain_endmember = np.maximum(
+            incision_retain(endmember["q_pen"], year_s,
+                            basins.depth_at_spill_m, sill_ero, coefficient,
+                            slope=slope),
+            endmember["retain_margin"])
+        retain = np.maximum(retain_primary, retain_endmember)
+        cut_primary = retain_primary <= 0.0
+        cut_endmember = retain_endmember <= 0.0
+        n_both = int((cut_primary & cut_endmember).sum())
+        n_either = int((cut_primary | cut_endmember).sum())
+        n_split = n_either - n_both
+        # The width IS the uncertainty, per section 4, and is reported as a
+        # share of the union rather than of the basin count: a bracket that
+        # disagrees on 200 of 220 candidates is not the same result as one that
+        # disagrees on 200 of 3,600, and the denominator that carries that is
+        # how many basins either arm would cut.
+        width = 100.0 * n_split / max(n_either, 1)
+        print(f"intersection      warm arm cuts {int(cut_primary.sum())}, "
+              f"cold arm cuts {int(cut_endmember.sum())}")
+        print(f"                  BOTH {n_both}, either {n_either}, "
+              f"disagreement {n_split} ({width:.1f}% of the union)")
+        print(f"                  the {n_split} are the marginal set BY "
+              f"CONSTRUCTION, not by a tolerance chosen afterwards")
 
     # The superseded mapping, kept for comparison in the sidecar only.
     span = idx_pen - idx_wet
@@ -771,6 +857,37 @@ def main() -> None:
                 "positive exactly where the incision value is already 1.",
         },
         "counts": {"carve": n_carve, "preserve": n_preserve, "marginal": n_marginal},
+        # WORKFLOW section 4's bracket. Recorded rather than printed, because
+        # the WIDTH is the honest uncertainty on the carve and something
+        # downstream will want to quote it -- error_budget.py above all, which
+        # prices items in basins. `single_climate` says plainly when no bracket
+        # was taken, so a reader cannot mistake one arm for two.
+        "intersection": ({
+            "single_climate": True,
+            "note": "no --endmember-climatology given, so this is ONE arm of "
+                    "section 4's bracket and carries no width. The verdict is "
+                    "not robust to the vegetation question; see WORKFLOW "
+                    "section 4 and TASKS.md HYD-17.",
+        } if endmember is None else {
+            "single_climate": False,
+            "endmember_climatology": rel(args.endmember_climatology),
+            "cut_by_warm_vegetated_arm": int(cut_primary.sum()),
+            "cut_by_cold_bare_rock_arm": int(cut_endmember.sum()),
+            "cut_by_both": n_both,
+            "cut_by_either": n_either,
+            "disagreement": n_split,
+            "width_pct_of_union": round(width, 3),
+            "note": "carved is the INTERSECTION: retain is the larger of the "
+                    "two arms', so a rim survives wherever either climate "
+                    "would have kept it. The disagreement is the marginal set "
+                    "by construction rather than by a tolerance chosen after "
+                    "the fact, and width_pct_of_union is the bracket's own "
+                    "width -- the honest uncertainty on this carve. Both arms "
+                    "sit at the SAME flux and differ only in "
+                    "model.land_albedo_source; the cold arm is a BOUND, NOT A "
+                    "WORLD, and its climate must never be quoted as a "
+                    "description of the planet.",
+        }),
         "counts_by_overflow_test_alone": {
             "overflows_under_penman": int(carved.sum()),
             "overflows_under_land_evaporation": int(overflows_wet.sum()),

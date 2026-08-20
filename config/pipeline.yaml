@@ -377,12 +377,13 @@ steps:
     needs: [carve_verdict, carve_verdict_endmember]
     writes: ["hydrography/data/{build}/carve_list.txt", "hydrography/data/{build}/carve_list.json"]
     gate: >
-      carves the INTERSECTION of the two verdicts, per WORKFLOW section 4: a
-      basin is cut only if it overflows at both bounding climates, and the set
-      between them is the marginal set by construction rather than by a
-      tolerance chosen afterwards. NOT YET IMPLEMENTED -- the script reads one
-      verdict and the second edge above states the process rather than the code.
-      TASKS.md HYD-17
+      carves the INTERSECTION, per WORKFLOW section 4: retain is the larger of
+      the two arms', so a rim survives wherever either climate would have kept
+      it, and the disagreement is the marginal set by construction rather than
+      by a tolerance chosen afterwards. Pass the cold arm's climatology as
+      --endmember-climatology; without it this is ONE arm of the bracket and the
+      sidecar's `intersection.single_climate` says so rather than letting a
+      reader mistake it for two
 
   - id: orogen
     script: vendor/orogen
