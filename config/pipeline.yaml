@@ -169,15 +169,34 @@ steps:
       baseline_climatology is repointed here once it exists, so that nothing
       downstream keeps reading the bootstrap.
 
+  - id: bracket_run
+    script: exoplasim/scripts/run_exoplasim.py
+    loop: A
+    cost: hours
+    needs: [boundary_conditions, surface_albedo, surface_roughness, rebuild_binaries]
+    writes: []
+    presence: by_index
+    gate: >
+      the SECOND flux point, on the vegetated branch, which is the only branch
+      the design flux is defined against. It has to span more than 5 K of global
+      mean against the other point or derive_design_flux refuses it, which at
+      about 202 K per unit flux means the two fluxes differ by roughly 0.025 or
+      more -- a point chosen close to the first satisfies "two converged runs"
+      and fails the span check. Independent of the other point, so the two can
+      run concurrently
+
   - id: design_flux
     script: exoplasim/scripts/derive_design_flux.py
     cost: minutes
-    needs: [baseline_climatology]
+    needs: [baseline_climatology, bracket_run]
     writes: [exoplasim/analysis/design_flux.json]
     gate: >
-      needs a second converged flux point beside the baseline; the flux is
-      re-derived on every new terrain (WORKFLOW 5b and 6), and the thresholds
-      are declared in the script before it runs, never fitted to the answer
+      the flux is re-derived on every new terrain (WORKFLOW 5b and 6), and the
+      thresholds are declared in the script before it runs, never fitted to the
+      answer. The cap on extreme-cold land fraction must be DECLARED in advance
+      by this re-derivation: the purged artifact inferred it at 0.0642, which
+      reproduced 0.945 from an unconstrained winner of 0.8725, and a threshold
+      fitted to its own answer is what TASKS.md CLIM-30 exists to undo
 
   - id: analyze_climatology
     script: exoplasim/scripts/analyze_climatology.py
@@ -312,12 +331,58 @@ steps:
     needs: [baseline_climatology, hydrography, surface_water, stellar_cycle_run, dust_forcing]
     writes: [hydrography/analysis/carve_verdict.json]
 
+  - id: endmember_bootstrap_run
+    script: exoplasim/scripts/run_exoplasim.py
+    loop: A
+    cost: hours
+    needs: [design_flux, boundary_conditions, surface_roughness, rebuild_binaries]
+    writes: []
+    presence: by_index
+    gate: >
+      the COLD END of section 4's intersection bracket: same design flux, same
+      terrain, model.land_albedo_source lithology instead of vegetated. It needs
+      its own bootstrap because its lakes, albedo compositing and soil water must
+      be built from a bare-rock climatology and cannot inherit the vegetated
+      ones. Seed it with --restart-from off the vegetated baseline rather than
+      cold-starting. This arm is a BOUND, NOT A WORLD; nobody claims Vesper is at
+      this flux without a biosphere, and its numbers should never be quoted as a
+      description of the planet
+
+  - id: endmember_baseline_run
+    script: exoplasim/scripts/run_exoplasim.py
+    loop: A
+    cost: hours
+    needs: [endmember_bootstrap_run, rebuild_binaries]
+    writes: []
+    presence: by_index
+    gate: >
+      run on the surface fields rebuilt from the bare-rock bootstrap's own
+      climatology. Everything between the two runs is minutes, so the cost of
+      this arm is exactly two climate runs and nothing else
+
+  - id: carve_verdict_endmember
+    script: hydrography/scripts/carve_verdict.py
+    loop: A
+    cost: minutes
+    needs: [endmember_baseline_run, hydrography]
+    writes: [hydrography/analysis/carve_verdict_endmember.json]
+    gate: >
+      the cold-end verdict. Its own lakes and its own climatology, from the
+      bare-rock arm, never the vegetated ones
+
   - id: carve_list
     script: hydrography/scripts/export_carve_list.py
     loop: A
     cost: seconds
-    needs: [carve_verdict]
+    needs: [carve_verdict, carve_verdict_endmember]
     writes: ["hydrography/data/{build}/carve_list.txt", "hydrography/data/{build}/carve_list.json"]
+    gate: >
+      carves the INTERSECTION of the two verdicts, per WORKFLOW section 4: a
+      basin is cut only if it overflows at both bounding climates, and the set
+      between them is the marginal set by construction rather than by a
+      tolerance chosen afterwards. NOT YET IMPLEMENTED -- the script reads one
+      verdict and the second edge above states the process rather than the code.
+      TASKS.md HYD-17
 
   - id: orogen
     script: vendor/orogen

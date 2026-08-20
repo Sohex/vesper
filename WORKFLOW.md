@@ -641,6 +641,45 @@ intersection. Everything between the two is the marginal set *by construction*
 rather than by a tolerance chosen after the fact, and the width of the bracket is
 the honest uncertainty on the carve.
 
+**Both arms run at ONE flux, and it is the design flux.** Decided 2026-08-19;
+the paragraph above had left it open and it is not a detail. The two arms differ
+only in `model.land_albedo_source`, `vegetated` against `lithology`, on the same
+orbit, the same terrain and the same everything else.
+
+The alternative reading -- each endmember at whatever flux keeps IT in the design
+range -- collapses the bracket, which is the argument that settles it. Those two
+worlds sit at the same global mean temperature by construction, so the warm/cold
+span disappears and what is left is the residual difference in the spatial
+PATTERN of albedo. The intersection would then be close to either verdict alone
+and the reported width would understate the real uncertainty. A bracket that
+narrows its own width is worse than no bracket, because section 4 treats that
+width as the honest uncertainty and something downstream will quote it.
+
+It is also the reading that matches what is actually unknown. **The orbit is
+chosen, not uncertain**: it is fixed once, by the flux bracket, and does not vary
+afterwards. What is genuinely unknown when the verdict is taken is the vegetation
+state, because the carve happens before LPJ-GUESS has ever run and the verdict
+therefore inherits an assumed biosphere -- `hydrography/notes/orogen-carving-request.md`
+says so in those words. Bracket the thing you do not know.
+
+**The flux bracket itself runs on the VEGETATED branch only.** That is the
+functional world, the one this project has chosen and the one the design flux is
+defined against. Running it on both branches would be deriving two orbits for a
+world that has one.
+
+**The bare-rock arm is a BOUND, not a world.** Nobody claims Vesper sits at the
+design flux without a biosphere; that run exists to produce the cold-end verdict
+and nothing else. Say so wherever its numbers appear, because a reader meeting a
+286 K climatology in this repository will otherwise take it for a description.
+
+**Expect the bracket to come out wide, and do not read width as failure.** The
+endmember spread is not constant: the T21 work measured it widening from 3.71 K
+at flux 1.00 to 7.14 K at 0.90 as sea ice grew back and amplified it. The
+bare-rock arm sits at the cold end of exactly that behaviour, so a large marginal
+set is the correct answer to a genuinely uncertain question. If the bare arm
+grows glaciers where the vegetated one does not, that is a finding about the
+bound rather than a reason to move the arm.
+
 Over-carving is a budget item, not a lost landscape. A build is regenerated from
 the planet code plus a verdict rather than edited, so an over-carve costs a
 terrain, hydrography and boundary-condition rebuild and nothing else. That is how
@@ -935,10 +974,38 @@ terrain it was derived on. And it cannot be held to better than the terms alread
 outstanding: run-to-run spread on a converged pair is 0.23 K, and dust is priced
 at 0.5 to 2 K of cooling that nothing has computed yet.
 
-That is three converged runs before the first verdict: two for the flux bracket
-and one for the baseline. The bootstrap is one of the bracket runs rather than a
-fourth, since any converged climatology will do for fields that are themselves
-about to be rebuilt.
+**The run count to a carve list, corrected 2026-08-19.** It used to say three --
+two for the flux bracket and one for the baseline -- and that was written before
+section 4's intersection carve was costed. The bracket needs BOTH bounding
+climates, and the cold one is a commissioning of its own because its lakes,
+albedo compositing and soil water have to be built from a bare-rock climatology;
+it cannot inherit the vegetated ones, since a colder brighter world has different
+lakes and the whole point of the arm is to bound from the cold end.
+
+| | converged runs |
+| --- | ---: |
+| flux bracket, two points spanning more than 5 K, vegetated branch | 2 |
+| vegetated baseline at the design flux | 1 |
+| bare-rock arm: its own bootstrap, then its baseline | 2 |
+| stellar cycle, per A2 | 1 |
+
+Six. The bootstrap is one of the bracket points rather than a seventh, since any
+converged climatology will do for fields that are themselves about to be rebuilt.
+
+**Three of the six pair naturally and one cannot.** The two bracket points are
+independent; the vegetated baseline and the bare-rock bootstrap are independent;
+so is each arm's baseline given its own derived fields. The cycle run is the
+exception and A2 says why: it has to follow a baseline that is FINAL, not merely
+converged. Everything between the runs is functionally free -- 44 of the 49 steps
+in `config/pipeline.yaml` cost minutes or seconds -- so plan in runs and ignore
+the rest.
+
+**Seed the arms rather than cold-starting them.** `run_exoplasim.py
+--restart-from` changes only the spin-up path and not the equilibrium, so the
+bare-rock arm starts from the vegetated baseline's restart and relaxes across the
+endmember gap instead of from nothing. Expect that relaxation to be slow: a step
+change in forcing relaxes on a longer timescale than a settled run drifts, which
+is measured -- `run_4182235e9781` fitted 34.8 orbits against an expected 9.9.
 
 **Know which base you are on, because a pre-carve build restarts the count.** The
 first verdict taken on one is iteration 1, whatever a previous line of builds had
