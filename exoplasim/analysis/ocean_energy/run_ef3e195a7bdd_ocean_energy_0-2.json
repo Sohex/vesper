@@ -1,0 +1,203 @@
+{
+  "schema_version": 1,
+  "generator": "exoplasim/scripts/close_ocean_energy.py",
+  "generator_sha256": "7bd55e530e193afeddbb92fc52458e83f542b26ec0aa22287671bd04d568e030",
+  "run_dir": "/home/cfutro/docs/world/exoplasim/runs/run_ef3e195a7bdd",
+  "run_id": "run_ef3e195a7bdd",
+  "source_build": "precarve-craton",
+  "config_sha256": "1b4a059ee90218a868ff0ad8b0dd70f9a5460599b4c06b9c30cd623a7d55e6cd",
+  "geography": "aa9b9c81",
+  "window": {
+    "first_orbit": 0,
+    "last_orbit": 2,
+    "orbits": 3,
+    "stream_records": 548,
+    "record_seconds": 86394.76579948867,
+    "bin_seconds": 1315120.3238366607,
+    "mixed_layer_depth_m": 50.0,
+    "stream_layout": "per_call",
+    "stream_orbits": [
+      0,
+      1,
+      2
+    ]
+  },
+  "alignment": {
+    "records_per_bin": 15.222222222222221,
+    "chosen_offset": 0,
+    "score_w_m2": 0.1909990643004428,
+    "scan": [
+      {
+        "offset": 0,
+        "per_bin_w_m2": [
+          -0.22303663228946136,
+          0.03297257605808022,
+          -0.1285407027888878,
+          -0.031367941558703025,
+          0.23450995855308573,
+          0.2072966708356833,
+          -0.3671037342704163,
+          -0.3139749349527779,
+          -0.25871372480907506,
+          0.2818470289781134,
+          0.6855613327442689,
+          0.1502641123203749,
+          0.23073166598588082,
+          0.15016405087111728,
+          -0.09408865032476654,
+          -0.06383357617453914,
+          -0.08217754470816577,
+          0.058693903092997476,
+          0.05588611132361154,
+          0.03253783108310063,
+          0.017025636492881854,
+          0.17905942744736117,
+          0.0018765508289410456,
+          0.327871040244765,
+          0.7360556516758918,
+          -0.2992379875538163,
+          -0.06867729519415991,
+          -0.4789041294894128,
+          0.01463684807811184,
+          0.48992322157570156,
+          0.18130398491390967,
+          0.1756690040009413,
+          -0.00040081037460186063,
+          -0.010219490840101311,
+          -0.06158270531153636,
+          -0.18225741505971854
+        ],
+        "score_w_m2": 0.1909990643004428
+      }
+    ],
+    "seasonal_scale_w_m2": 23.663659186017128,
+    "candidate_offsets": 1,
+    "discrimination": "not applicable: one candidate offset, so there is nothing to discriminate among",
+    "established": true
+  },
+  "by_mask": {
+    "strict": {
+      "area_fraction": 0.5398435346756256,
+      "terms_w_m2": {
+        "atmosphere_four_flux": -0.030911160259944385,
+        "atmosphere_hfns": -0.04631218695167993,
+        "atmosphere_snow_fusion": 0.015400992813444656,
+        "ice_stream_xheat": 0.022537720325525583,
+        "ice_stream_xsmelt": 0.015425125434423308,
+        "ice_stream_xcflux": 0.007117892482136629,
+        "ocean_stream_yheat": 0.007117892482136629,
+        "slab_storage": 0.007120940166074094
+      },
+      "identities_w_m2": {
+        "D1_handoff": 0.05344888058546974,
+        "D2_ice_to_ocean": 0.0,
+        "D3_snow_into_water": -5.297591034571874e-06,
+        "D4_slab_integration": 3.0476839372764823e-06,
+        "D5_hfns_definition": 3.387829101364401e-08,
+        "D6_surface_residual": -0.05343312711775397
+      },
+      "seasonal_swing_w_m2": {
+        "min": -23.663659186017128,
+        "max": 18.064861188298245
+      }
+    },
+    "loose": {
+      "area_fraction": 0.5448409466956075,
+      "terms_w_m2": {
+        "atmosphere_four_flux": 0.0074576946996703355,
+        "atmosphere_hfns": -0.02803867683917574,
+        "atmosphere_snow_fusion": 0.03549633774070608,
+        "ice_stream_xheat": 0.05998667102848565,
+        "ice_stream_xsmelt": 0.035505121321340746,
+        "ice_stream_xcflux": 0.025634788566861702,
+        "ocean_stream_yheat": 0.025634788566861702,
+        "slab_storage": 0.02578120667640438
+      },
+      "identities_w_m2": {
+        "D1_handoff": 0.05252897632881519,
+        "D2_ice_to_ocean": 0.0,
+        "D3_snow_into_water": -0.001153238859716694,
+        "D4_slab_integration": 0.00014641810954275133,
+        "D5_hfns_definition": 3.379814007276021e-08,
+        "D6_surface_residual": -0.05381988351558005
+      },
+      "seasonal_swing_w_m2": {
+        "min": -22.78835875131386,
+        "max": 17.458235195159038
+      }
+    },
+    "ocean": {
+      "area_fraction": 0.5718311619907823,
+      "terms_w_m2": {
+        "atmosphere_four_flux": 0.24140028726323617,
+        "atmosphere_hfns": 0.09485615954272236,
+        "atmosphere_snow_fusion": 0.14654409883999053,
+        "ice_stream_xheat": 0.28283039349290645,
+        "ice_stream_xsmelt": 0.14685466733862335,
+        "ice_stream_xcflux": 0.16061918709543954,
+        "ocean_stream_yheat": 0.16061918709543954,
+        "slab_storage": 0.1620081550438356
+      },
+      "identities_w_m2": {
+        "D1_handoff": 0.04143010622966999,
+        "D2_ice_to_ocean": 0.0,
+        "D3_snow_into_water": -0.024643460941156714,
+        "D4_slab_integration": 0.0013889679483958868,
+        "D5_hfns_definition": 2.888052330975744e-08,
+        "D6_surface_residual": -0.06715199550111312
+      },
+      "seasonal_swing_w_m2": {
+        "min": -18.29832743255446,
+        "max": 15.794901517436738
+      }
+    }
+  },
+  "bin_weights": {
+    "method": "records per bin from pyburn's own binning arithmetic, with the record count recovered from the bin centres and checked against them. lib/climatology.py.",
+    "raw_records_per_orbit": 182,
+    "records_per_bin": [
+      15,
+      15,
+      15,
+      15,
+      15,
+      16,
+      15,
+      15,
+      15,
+      15,
+      15,
+      16
+    ],
+    "weights": [
+      0.08241758241758242,
+      0.08241758241758242,
+      0.08241758241758242,
+      0.08241758241758242,
+      0.08241758241758242,
+      0.08791208791208792,
+      0.08241758241758242,
+      0.08241758241758242,
+      0.08241758241758242,
+      0.08241758241758242,
+      0.08241758241758242,
+      0.08791208791208792
+    ],
+    "equal_weight": 0.08333333333333333,
+    "max_deviation_fraction": 0.05494505494505508,
+    "bins_per_orbit": 12,
+    "longest_bin": 5,
+    "shortest_bin": 0,
+    "hfns_equal_weight_w_m2": -0.41954625770512227,
+    "hfns_true_weight_w_m2": -0.2819409581769089,
+    "error_in_annual_mean_w_m2": 0.13760529952821338,
+    "statement": "pyburn weights the bins equally and they hold different numbers of raw records, because linspace().astype(int) spreads the remainder by truncation. The error is the difference above. It is NOT in the first bin, which holds the fewest records."
+  },
+  "executable_sha256": "215896ee9ab268796442821d5983df457b33c0aa88d64a61696e3ec4e63fc32b",
+  "software": {
+    "python": "3.12.13",
+    "exoplasim": "3.4.2",
+    "numpy": "2.5.2",
+    "gfortran": "GNU Fortran (GCC) 16.2.1 20260810"
+  }
+}
