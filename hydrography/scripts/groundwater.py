@@ -241,7 +241,18 @@ class Geometry:
         return 2.0 * np.arctan2(num, den)
 
     def divergence(self, face_flux):
-        """Net outflow per cell from a signed per-face flux, src to dst."""
+        """Net INFLOW per cell from a signed per-face flux. Same as
+        `geom_divergence`, and the same convention: a positive face flux is flow
+        from `dst` into `src`, so this returns what each cell GAINS.
+
+        This docstring said "net outflow" and the arithmetic below has always
+        said inflow. Nothing was wrong -- its one consumer is
+        `laplace_beltrami_error`, which wants the Laplacian and so wants inflow,
+        and that check passes at 0.0006 relative at l=1 -- but the name most
+        suggests the other sign, and reading a convention off a docstring rather
+        than off the code is exactly what put `groundwater_receiver` backwards
+        for the whole of its life. GW-13.
+        """
         out = np.zeros(self.export.n_regions)
         np.add.at(out, self.src, face_flux)
         np.add.at(out, self.dst, -face_flux)
