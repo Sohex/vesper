@@ -363,7 +363,7 @@ their own flag legend rather than by integer code, and
 reimplement. Rules 5 and 7 both cite modules from this list.
 
 Git tracks the scripts, notes, configuration, and analysis products. It does
-**not** track `exoplasim/runs/` (model output, 13 GB after triage; but
+**not** track `exoplasim/runs/` (model output, far too large to track; but
 `exoplasim/runs/INDEX.json` **is** tracked, and since run ids are UUIDs it is the
 only record of what each run was), the `source/` export
 payloads, or `.venv/`. Those have no history to fall
@@ -386,7 +386,7 @@ the generator and the change to whatever consumes it land in ONE commit, and so
 a build's provenance is a commit in this repository rather than the state of a
 directory outside it. Pull upstream with `git subtree pull --prefix vendor/orogen
 orogen-fork cf-fork --squash`. Its generated output stays untracked: the
-subtree's own `.gitignore` excludes `out/`, which runs to 13 GB.
+subtree's own `.gitignore` excludes `out/`, which runs to GB.
 
 Its `tools/README.md` is the authoritative reference for the export format -- read it
 before writing anything that consumes `source/`. The fork adds, over upstream:
