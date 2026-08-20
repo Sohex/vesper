@@ -208,3 +208,43 @@ That is inside the 2-3% window where the `k25v` spectrum remains valid, so no
 spectrum rebuild follows. And per WORKFLOW A3, hold the flux for the A/B
 itself: measure the surface first, move the flux after, on a slope measured
 with the new terms in place.
+
+---
+
+## Measured: PHYS-9, 2026-08-19
+
+The first bundle term to be run, and the largest. Predicted **+1.25 K** above.
+
+Two bootstraps on `precarve-craton`, the second seeded from the first's final
+restart so the pair is a perturbation off one state rather than two independent
+spin-ups:
+
+| run | `h2oswl` | window mean `tas` | note |
+| --- | ---: | ---: | --- |
+| `run_78c22fb1a1bd` | absent, so 1.0 | 292.013 K | orbits 50-59, converged on all six criteria |
+| `run_4182235e9781` | 1.127 | 292.955 K | orbits 30-39, five of six |
+
+**+0.94 K on the window means, +1.20 K on the fitted asymptote** of 293.211 K
+against a prediction of +1.25 K.
+
+Three things have to be said with that number rather than after it. The second
+run is NOT converged: it misses `extrapolated_offset_lt_0.15_k` at 0.256 K and is
+still warming at +0.0138 K/orbit, so +0.94 K is a lower bound and +1.20 K is a
+fit rather than a measurement. The pair also carries CLIM-17's `TFREEZE` as well
+as `h2oswl`, since both landed together; that term is predicted at 0.000 K by
+construction at the declared salinity, so it is not a confound worth
+disentangling, but the arm is a pair of keys and not one. And the relaxation was
+much slower than a settled run's drift -- 34.8 fitted orbits against 9.9 expected
+-- which is what a step change in forcing does and is why the asymptote is doing
+work here.
+
+**What it means for the rest of the bundle.** PHYS-9 was called the softest
+prediction in the table, its sensitivities stretched ninefold from
+`shortwave-water-vapour.md`, and the first place to bisect if the sum missed. It
+did not miss. That does not validate the other rows, but it does remove the
+term most likely to have carried the error, and the bundle sum of +0.6 K stands
+on a firmer largest component than it did when it was written.
+
+It also confirms, separately from any temperature, that the key REACHES the
+radiation: `H2OSWL` was absent from every namelist before CLIM-31's neighbour
+fix and is present in this run's, and the run responded.
