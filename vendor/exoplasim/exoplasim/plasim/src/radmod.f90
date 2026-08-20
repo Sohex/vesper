@@ -149,6 +149,27 @@
 !     its CO2 absorptance to the Sun's, which is what
 !     exoplasim/scripts/shortwave_band_weights.py derives.
       real    :: co2sww  = 0.0    ! weight, near-infrared CO2 bands; 0 = absent
+
+!     CH4 AND N2O IN THE LONGWAVE. CLIM-42.
+!
+!     Sasamori (1968) fits water vapour, CO2 and ozone and nothing else, so
+!     these gases had no coefficient to set and no key to turn: adding either
+!     means adding a band. The band model is Donner and Ramanathan (1980),
+!     which is the paper that did exactly this job -- a band ABSORPTANCE, the
+!     currency this scheme is already written in, rather than a
+!     top-of-atmosphere forcing fit.
+!
+!     ZERO IS ABSENT and is the default, so a rebuilt binary reproduces the
+!     old answer bit for bit until the namelist turns these on. That is the
+!     reduction identity the change is tested against.
+!
+!     Both are scalars rather than fields because the photochemistry these
+!     values come from puts both gases well mixed through this world's
+!     troposphere -- CH4 falls 1.601 to 1.583 ppmv over the lowest 20 km and
+!     N2O is flat to 15 km. A field would assert a structure that is not there.
+!     exoplasim/notes/trace-gas-band.md has the argument and the sourcing.
+      real    :: ch4     = 0.0    ! CH4 volume mixing ratio (ppmv); 0 = absent
+      real    :: n2o     = 0.0    ! N2O volume mixing ratio (ppmv); 0 = absent
       integer :: no3     = 1      ! switch for ozon (0=no,1=yes,2=datafile)
       integer :: nsol    = 1      ! switch for solang (1/0=yes/no)
       integer :: nswr    = 1      ! switch for swr (1/0=yes/no)
@@ -824,7 +845,7 @@
 !
 !**   0) define namelist
 !
-      namelist/radmod_nl/ndcycle,ncstsol,solclat,solcdec,no3,co2        &
+      namelist/radmod_nl/ndcycle,ncstsol,solclat,solcdec,no3,co2,ch4,n2o &
      &               ,iyrbp,nswr,nlwr,nfixed,slowdown,nradice,npbroaden,desync    &
      &               ,o3uvw,o3visw,h2osww,h2oswl,co2sww   &
      &               ,a0o3,a1o3,aco3,bo3,co3,toffo3,o3scale,newrsc,necham,necham6   &
@@ -2981,6 +3002,84 @@
 !
       real zqsum(NHOR)          ! sum of qlw*od over species
       integer :: jaer           ! aerosol species index
+!
+!     CH4 AND N2O. CLIM-42; exoplasim/notes/trace-gas-band.md is the argument
+!     and exoplasim/analysis/trace_gas_band_model.json carries these constants
+!     with the checks that produced them. Do not retype them: the generator is
+!     `exoplasim/scripts/trace_gas_band_model.py --fortran`.
+!
+!     Donner and Ramanathan (1980), the Cess and Ramanathan (1972) band model
+!     as modified by Ramanathan (1976):
+!
+!         A(U,beta) = 2 A0 ln[ 1 + U / sqrt(4 + U (1 + 1/beta)) ]
+!         U = S W / A0            beta = beta0 (P / P0)
+!
+!     A0, beta0 and S are a MATCHED TRIPLE -- A0 and beta0 were fitted through
+!     that equation at a particular S -- so no one of them is swapped for a
+!     newer value on its own. CH4's S is recovered from the paper's own Table
+!     2, which pins it; N2O's two come from McClatchey et al. (1973), which is
+!     the compilation the paper names.
+      parameter(zch4a0 =  52.000)   ! CH4 1306 cm-1 bandwidth at 300 K, cm-1
+      parameter(zch4be =   0.170)   ! CH4 1306 cm-1 line shape at 300 K, 1 atm
+      parameter(zch4si = 187.690)   ! CH4 1306 cm-1 intensity, cm-1 (cm atm)-1
+      parameter(zch4wn =1306.000)   ! band centre, cm-1
+      parameter(zn2aa0 =  20.400)   ! N2O 1285 cm-1 bandwidth at 300 K
+      parameter(zn2abe =   1.120)   ! N2O 1285 cm-1 line shape at 300 K
+      parameter(zn2asi = 267.605)   ! N2O 1285 cm-1 intensity
+      parameter(zn2awn =1285.000)
+      parameter(zn2ba0 =  23.000)   ! N2O 589 cm-1 bandwidth at 300 K
+      parameter(zn2bbe =   1.080)   ! N2O 589 cm-1 line shape at 300 K
+      parameter(zn2bsi =  31.704)   ! N2O 589 cm-1 intensity
+      parameter(zn2bwn = 589.000)
+!
+!     Volume mixing ratio in ppmv to absorber amount in cm at STP, per kg/m2 of
+!     AIR. The gas's molecular weight CANCELS -- it appears once converting a
+!     volume ratio to a mass ratio and once again in the STP density -- so this
+!     one factor serves every gas, and the CO2 path above computes the same
+!     number the long way round as zfco2*zzf2.
+      parameter(zvol2cm = 7.7384E-5)
+!
+!     THE CO2 OVERLAP AT 589 cm-1, which is not optional. That band sits 78
+!     cm-1 from CO2's 667 cm-1 fundamental, well inside the 15 um band, so
+!     carrying it without the overlap credits N2O with absorption CO2 already
+!     provides -- an OVERSTATEMENT, and not the conservative error that
+!     dropping the band would be.
+!
+!     ln(tau) is a fit to a correlated-k band mean over 546-630 cm-1 from the
+!     LMD Generic PCM's HITRAN 2020 tables, corrected onto the 566-612 cm-1
+!     window this band occupies, in ln(u), ln(P/atm) and 1/T. Worst error on
+!     the resulting multiplier is 0.061 and that is beyond this world's whole
+!     column; over the column it costs at most 0.05 W/m2 on a term whose own
+!     bracket is 0.42. exoplasim/analysis/co2_overlap_589.json has the fit,
+!     the cross-check against Ramanathan (1976) Appendix A, and the reason the
+!     two are compared as absorptances rather than as transmissivities.
+      real, parameter :: zovl(7) = (/ -1.2876101, 0.61550971, -0.033606505,   &
+     &                    0.18164327, 0.016230565, -740.96407, 46.117656 /)
+!
+      real zqch4(NHOR,NLEV)     ! CH4 amount per layer, cm STP
+      real zqn2o(NHOR,NLEV)     ! N2O amount per layer, cm STP
+      real zqair(NHOR,NLEV)     ! layer air mass, kg/m2
+      real zplay(NHOR,NLEV)     ! layer pressure, atm
+      real zsch4(NHOR)          ! accumulated CH4 amount
+      real zsn2o(NHOR)          ! accumulated N2O amount
+      real zsup(NHOR)           ! accumulated amount * pressure, for the mean
+      real zsut(NHOR)           ! accumulated amount * temperature
+      real zsco2c(NHOR)         ! accumulated CO2 amount, cm STP, UNWEIGHTED
+      real zpeff(NHOR)          ! path mean pressure, atm
+      real zteff(NHOR)          ! path mean temperature, K
+      real zach4(NHOR)          ! CH4 absorptivity
+      real zan2oa(NHOR)         ! N2O 1285 absorptivity
+      real zan2ob(NHOR)         ! N2O 589 absorptivity
+      real ztco2b(NHOR)         ! CO2 transmissivity in the 589 region
+      real zsair(NHOR)          ! accumulated air mass along the path
+      real zta0(NHOR)           ! bandwidth parameter at the path temperature
+      real ztbe(NHOR)           ! line shape parameter at the path pressure
+      real zuu(NHOR)            ! dimensionless optical pathlength
+      real zaa(NHOR)            ! band absorptance, cm-1
+      real zbb(NHOR)            ! Planck radiance at the band centre
+      real zlu(NHOR)            ! ln of the CO2 amount, for the overlap fit
+      real zlp(NHOR)            ! ln of the path pressure
+      real ztauov(NHOR)         ! CO2 optical depth in the 589 region
       real ztau0(NHOR)          ! approx. layer transmissivity
       real zsumwv(NHOR)         ! effective water vapor amount
       real zsumo3(NHOR)         ! effective o3 amount
@@ -3087,6 +3186,17 @@
        zq(:,jlev)=zfh2o*zsfac(:)*dq(:,jlev)
        zqo3(:,jlev)=zfo3*zsfac(:)*dqo3(:,jlev)
        zqco2(:,jlev)=zfco2*zzf2*zsfac(:)*dqco2(:,jlev) 
+!
+!     The three amounts above are PRESSURE-WEIGHTED: zsfac carries zps2, so
+!     what Sasamori's fits receive is an amount times a pressure. The band
+!     model below wants the two SEPARATELY, because its beta = beta0 P/P0 is
+!     where pressure enters, so these are the plain amounts and the plain
+!     layer pressure beside them. CLIM-42.
+!
+       zqair(:,jlev)=dsigma(jlev)*dp(:)/ga
+       zplay(:,jlev)=sigma(jlev)*dp(:)/101325.
+       zqch4(:,jlev)=zvol2cm*ch4*zqair(:,jlev)
+       zqn2o(:,jlev)=zvol2cm*n2o*zqair(:,jlev)
        if(clgray > 0) then
         ztaucc0(:,jlev)=1.-dcc(:,jlev)*clgray
        else
@@ -3143,6 +3253,12 @@
        zsumwv(:)=0.
        zsumo3(:)=0.
        zsumco2(:)=0.
+       zsch4(:)=0.
+       zsn2o(:)=0.
+       zsco2c(:)=0.
+       zsair(:)=0.
+       zsup(:)=0.
+       zsut(:)=0.
 !
 !     transmissivities
 !
@@ -3194,9 +3310,83 @@
          zao3(:)= 0.0212*log10(zsumo3(:))+zao3c
         endwhere
 !
+!     CH4 and N2O. CLIM-42.
+!
+!     Each band's absorptance comes out of Donner and Ramanathan's Eq. (1) in
+!     cm-1 and has to reach Sasamori's currency, which is a FRACTION of the
+!     broadband flux. The conversion is the share of the Planck function the
+!     band sits on, pi B(v,T) / (sigma T**4), exact for a narrow band, and it
+!     is where this term's temperature dependence enters.
+!
+!     The path's pressure and temperature are amount-weighted means, which is
+!     the Curtis-Godson choice. The existing three absorbers fold pressure in
+!     through zps2 instead; the two conventions are kept apart rather than
+!     mixed, which is why the amounts above are carried unweighted.
+!
+!     Water vapour overlaps CH4 1306 and N2O 1285 and is handled by
+!     multiplying through zth2o, which is what Donner and Ramanathan do and
+!     line for line what this routine already does to CO2. N2O 589 is
+!     overlapped by CO2 instead, and that is the fit below.
+!
+        if (ch4 > 0. .or. n2o > 0.) then
+         zsch4(:)=zsch4(:)+zqch4(:,jlev2)
+         zsn2o(:)=zsn2o(:)+zqn2o(:,jlev2)
+         zsco2c(:)=zsco2c(:)+zvol2cm*dqco2(:,jlev2)*zqair(:,jlev2)
+         zsair(:)=zsair(:)+zqair(:,jlev2)
+         zsup(:)=zsup(:)+zqair(:,jlev2)*zplay(:,jlev2)
+         zsut(:)=zsut(:)+zqair(:,jlev2)*dt(:,jlev2)
+         zpeff(:)=zsup(:)/MAX(zsair(:),1.E-30)
+         zteff(:)=MAX(zsut(:)/MAX(zsair(:),1.E-30),100.)
+!
+         if (ch4 > 0.) then
+          zta0(:)=zch4a0*SQRT(zteff(:)/300.)
+          ztbe(:)=MAX(zch4be*SQRT(300./zteff(:))*zpeff(:),1.E-12)
+          zuu(:)=zch4si*zsch4(:)/zta0(:)
+          zaa(:)=2.*zta0(:)                                                    &
+     &          *LOG(1.+zuu(:)/SQRT(4.+zuu(:)*(1.+1./ztbe(:))))
+          zbb(:)=1.191042E-8*zch4wn**3/(EXP(1.4387769*zch4wn/zteff(:))-1.)
+          zach4(:)=zaa(:)*PI*zbb(:)/(SBK*zteff(:)**4)*zth2o(:)
+         else
+          zach4(:)=0.
+         endif
+!
+         if (n2o > 0.) then
+          zta0(:)=zn2aa0*SQRT(zteff(:)/300.)
+          ztbe(:)=MAX(zn2abe*SQRT(300./zteff(:))*zpeff(:),1.E-12)
+          zuu(:)=zn2asi*zsn2o(:)/zta0(:)
+          zaa(:)=2.*zta0(:)                                                    &
+     &          *LOG(1.+zuu(:)/SQRT(4.+zuu(:)*(1.+1./ztbe(:))))
+          zbb(:)=1.191042E-8*zn2awn**3/(EXP(1.4387769*zn2awn/zteff(:))-1.)
+          zan2oa(:)=zaa(:)*PI*zbb(:)/(SBK*zteff(:)**4)*zth2o(:)
+!
+          zlu(:)=LOG(MAX(zsco2c(:),1.E-10))
+          zlp(:)=LOG(MAX(zpeff(:),1.E-10))
+          ztauov(:)=EXP(zovl(1)+zovl(2)*zlu(:)+zovl(3)*zlu(:)*zlu(:)             &
+     &           +zovl(4)*zlp(:)+zovl(5)*zlu(:)*zlp(:)                         &
+     &           +zovl(6)/zteff(:)+zovl(7)*zlu(:)/zteff(:))
+          ztco2b(:)=EXP(-MIN(ztauov(:),50.))
+!
+          zta0(:)=zn2ba0*SQRT(zteff(:)/300.)
+          ztbe(:)=MAX(zn2bbe*SQRT(300./zteff(:))*zpeff(:),1.E-12)
+          zuu(:)=zn2bsi*zsn2o(:)/zta0(:)
+          zaa(:)=2.*zta0(:)                                                    &
+     &          *LOG(1.+zuu(:)/SQRT(4.+zuu(:)*(1.+1./ztbe(:))))
+          zbb(:)=1.191042E-8*zn2bwn**3/(EXP(1.4387769*zn2bwn/zteff(:))-1.)
+          zan2ob(:)=zaa(:)*PI*zbb(:)/(SBK*zteff(:)**4)*ztco2b(:)
+         else
+          zan2oa(:)=0.
+          zan2ob(:)=0.
+         endif
+        else
+         zach4(:)=0.
+         zan2oa(:)=0.
+         zan2ob(:)=0.
+        endif
+!
 !     total clear sky transmissivity
 !
-        ztaucs(:,jlev2)=1.-zah2o(:)-zao3(:)-zaco2(:)*zth2o(:)
+        ztaucs(:,jlev2)=1.-zah2o(:)-zao3(:)-zaco2(:)*zth2o(:)                 &
+     &                   -zach4(:)-zan2oa(:)-zan2ob(:)
 !
 !     bound transmissivity:
 !

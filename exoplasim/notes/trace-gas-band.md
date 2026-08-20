@@ -337,6 +337,68 @@ transmissivity to 0.040 and doubling it to 3.12 takes it to 0.142, against
 on that alone, which is the same size as the disagreement being measured. It
 cannot be sharpened without a line spacing someone can cite.
 
+## 4d. What the implementation returned, including the test it misses
+
+Built and measured 2026-08-20 at T42 L10 on 8 ranks, 56 timesteps -- a segment
+that crosses two writes, so the comparison can fail. CLIM-44 settled that the
+model is bit-reproducible at a fixed rank count, so a bit-identity claim is
+valid here in a way it was not for CLIM-39.
+
+**The reduction identity PASSES.** With both mixing ratios at zero, a binary
+carrying this change is BIT-IDENTICAL to one built without it, on
+`plasim_status`, `plasim_output` and `plasim_snapshot` alike. Zero is the
+model's default, so the change is inert until a namelist turns it on.
+
+**Sign and saturation PASS.** Adding the gases lowers outgoing longwave:
+238.759 W/m2 with them off, 238.742 at this world's abundances, 238.551 at 100
+ppmv of each. The 100 ppmv run -- the top of Byrne's range -- produced no NaN
+and no abort, which is the bounded-transmissivity test.
+
+**THE MAGNITUDE TEST MISSES, BY A FACTOR OF ABOUT NINETY, AND IT IS NOT A
+CODING ERROR.** The offline estimate is 1.56 to 1.98 W/m2 and the model returns
+0.0175. What rules out a coding error is that the same model, on the same bed,
+gives 1.576 W/m2 for a CO2 doubling, and that the per-layer absorptivities are
+individually right: at the full column CH4 contributes 0.00475, N2O 1285
+contributes 0.00269 and N2O 589 contributes 0.00445, a total of 0.0119 against
+0.0115 for the CO2 doubling. Two changes of the same size in the same variable,
+and the fluxes respond ninety times differently.
+
+**The difference is where in the column they act.** Instrumented per path from
+the top:
+
+| path | CO2 amount | my added absorptivity | a CO2 doubling's |
+| --- | ---: | ---: | ---: |
+| top layer only | 13.7 | 0.00076 | 0.0164 |
+| top three | 65.3 | 0.0032 | 0.0164 |
+| whole column | 273.7 | 0.0119 | 0.0115 |
+
+CO2's absorptivity is logarithmic, so a doubling adds the same 0.0164 whatever
+the path. This band model is linear in amount where the path is thin, so aloft
+it adds almost nothing -- and top-of-atmosphere forcing is made in the upper
+troposphere and above, where the emitting temperature differs most from the
+surface.
+
+**The suspected cause is that the band model is Lorentz-only.** At the top
+layer the path pressure is 0.025 atm, and there Eq. (1) returns 2.66 cm-1 of
+absorptance where the weak-line limit `S W` would give 9.1 -- the line shape
+parameter `beta = beta0 P/P0` is suppressing it by 3.4x. At that pressure
+Doppler broadening is not negligible and a pressure-broadened formulation
+understates the absorptance. Donner and Ramanathan applied their model to the
+troposphere, where that assumption holds.
+
+The candidate fix is named in Ramanathan's own bibliography and is now on disk:
+Cess (1973), *A band absorptance formulation for Doppler broadening*, which
+extends this band model to exactly this regime. It has not been read or
+implemented, and until it is **the term must not be switched on**: it would
+put a known ninety-fold understatement into a run while the config declares
+mixing ratios that say otherwise.
+
+So the state is: the machinery is in, inert, and its three structural tests
+pass. What it computes in the troposphere matches an independent band-model
+calculation. What it does not yet do is produce the forcing the pricing note
+says these gases are worth, and the reason is a documented limitation of the
+formulation aloft rather than of the code.
+
 ## 5. The tests, declared before the work
 
 **Band model against its own source.** Eq. (1) with `A0` = 52 (T/300)^1/2,
