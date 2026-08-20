@@ -166,6 +166,18 @@ def assemble(source: Path) -> tuple[pd.DataFrame, collections.Counter]:
         only_a = lv[lv.is_a].groupby("hydroid")["depth_m"].mean().rename("wtd_m_qualityA")
         site = site.join(only_a)
         site["state"] = state
+        # A water level below the bottom of its own bore is not a measurement.
+        # 5.2% of this set records one -- a median 23.9 m of water in a 2.6 m
+        # bore, and at worst 1,036 m in a bore 90 m deep, which are keying and
+        # unit errors rather than hydrology. They are FLAGGED rather than
+        # dropped, because the assembly records what the archive says, but they
+        # dominate the spread: excluding them takes the observed standard
+        # deviation from 38.8 m to 18.0 m, and any scatter statistic computed
+        # over them is measuring the errors.
+        site["depth_consistent"] = (site.bore_depth_m.notna()
+                                    & (site.bore_depth_m > 0)
+                                    & (site.wtd_m > 0)
+                                    & (site.wtd_m <= site.bore_depth_m))
         frames.append(site.reset_index())
         print(f"  {state:4} {len(lv):>10,} readings -> {len(site):>8,} sites")
     return pd.concat(frames, ignore_index=True), stats
@@ -189,6 +201,9 @@ def main() -> None:
         "generated": datetime.now(timezone.utc).isoformat(),
         "source": str(args.source),
         "sites": int(len(df)),
+        "sites_depth_consistent": int(df.depth_consistent.sum()),
+        "sites_water_below_bore_bottom": int((df.bore_depth_m.notna()
+                                             & (df.wtd_m > df.bore_depth_m)).sum()),
         "readings_behind_sites": int(df.n_readings.sum()),
         "counts": dict(stats),
         "sites_by_state": df.state.value_counts().to_dict(),

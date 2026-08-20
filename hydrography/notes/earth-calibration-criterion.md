@@ -258,3 +258,65 @@ Both are reported for that reason. The unfiltered score is the one comparable to
 Fan; the filtered score is the better test of the model. Quoting the filtered
 number against her threshold and calling it a pass would be scoring an easier
 exam.
+
+---
+
+# The rescore, and why its PASS is not a pass
+
+Run 2026-08-20 against the declared filters. **The verdict does not change: the
+model has no skill.** What changed is that the thresholds stopped being able to
+say so, and the reason is worth more than the numbers.
+
+## A data defect the first score ran straight past
+
+**3,917 sites, 5.2%, record a water level below the bottom of their own bore.**
+A median of 23.9 m of water in a 2.6 m bore; at worst 1,036 m in a bore 90 m
+deep. Those are keying and unit errors, not hydrology, and they dominated the
+spread: excluding them takes the observed standard deviation from 38.8 m to
+18.0 m and the 95th percentile from 49.4 m to 40.5 m.
+
+The declared filter did not catch them, and the sensitivity cuts selected FOR
+them. `bore_depth <= wtd + 20` is satisfied whenever the bore is far SHALLOWER
+than the water level, so the impossible records passed it; and "bore depth under
+10 m" is exactly the set where a spurious deep water level is most likely, which
+is why the observed standard deviation ROSE to 60 m under the strictest cut. A
+filter bounded on one side only is not a filter.
+
+`aus_wtd_sites.csv` now carries `depth_consistent`. 57,093 of 75,321 sites pass
+it.
+
+## The scores
+
+| set | n | observed sd | residual mean | residual sd | r^2 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| unfiltered, no sink | 70,119 | 40.05 m | -14.74 m | 40.06 m | 0.0007 |
+| unfiltered, with sink | 70,119 | 40.05 m | -10.49 m | 40.05 m | 0.0010 |
+| consistent, with sink | 53,410 | 18.36 m | -7.14 m | 18.26 m | 0.0114 |
+| consistent + shallow, with sink | 37,501 | 11.20 m | -3.79 m | **11.07 m** | 0.0315 |
+
+The last two rows meet both of Fan's thresholds. **They are not passes.**
+
+**The residual standard deviation equals the observed standard deviation at
+every level.** 40.06 against 40.05, 18.26 against 18.36, 11.07 against 11.20.
+That is the signature of a constant, and it is invariant to how the set is
+filtered. A model that predicts the mean everywhere scores 11.20 m on the last
+row and clears a 24.56 m bar comfortably.
+
+**Fan's thresholds only mean something against a set as noisy as hers.** She did
+not filter and could not, her four columns carrying no construction data at all,
+so 24.56 m is the scatter of a real model against observations that include this
+same 5% of impossible records. Transplanting that number onto a set whose own
+spread is 11 m turns it from a test into a formality. The declaration written
+before this run said quoting a filtered number against her threshold would be
+scoring an easier exam; that is exactly what the last two rows are.
+
+**So the criterion for a filtered set has to be a SKILL criterion, not an
+absolute scatter.** Against the cleaned set the ceiling is R^2 near 0.86 and the
+model reaches 0.03.
+
+## What did improve, and it is real
+
+Cleaning the observations and adding the sink together take r^2 from 0.0007 to
+0.0315, a factor of 45. That is a real gain and it is still three percent of the
+variance. It says the earlier "no skill whatsoever" was partly the observations'
+fault and mostly the model's, which is a more useful statement than either alone.
