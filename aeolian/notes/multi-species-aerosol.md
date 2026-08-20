@@ -211,3 +211,26 @@ build and the limit in a single one.
 something other than `ssa` in 12,026 of 100,000 sampled cases at 8-byte
 precision, so without it every single-species cell would move by an ulp and the
 existing dust-only answer would not reproduce.
+
+## 9. A prescribed species' aerofile column carries only RATIOS
+
+Read out of the implemented path, and it changes what CLIM-40 has to derive.
+
+For a PRESCRIBED species the absolute extinction efficiency never enters the
+radiation. The optical depth comes from the column field through
+`dustsc*ddustcol*zw/zsum`, which has no `Qext` in it, and every place the
+optics are used afterwards is a ratio: `ssa` is `Qsca/Qext`, the backscatter
+ratio is `Qback/Qsca`, the band split is `qex2/qex1`, and the longwave is
+`dustqlw` per unit band-1 optical depth. Scale a prescribed species' whole
+column of the aerofile by any constant and the answer does not move.
+
+That is why `dust_aerofile.py`'s careful work is specific to the INTERACTIVE
+path rather than general. There `aeroprof` builds the optical depth as
+`nrho*PI*apart**2*qex1`, so the absolute `Qext` and the particle radius it is
+declared against are both load-bearing, and the burden-matched rescale that
+file documents exists for exactly that reason.
+
+So a second PRESCRIBED species does not need a burden-matched radius, an
+`apart`, or an absolute cross-section. It needs four ratios per band. That is a
+much smaller derivation than the dust one, and it can be taken straight from
+`analysis/sea_salt_optics.json` without touching the settling machinery.
