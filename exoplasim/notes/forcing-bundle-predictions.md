@@ -136,6 +136,41 @@ ocean warming runs +0.19 to +0.57 K and the sea-ice response 0 to -0.00124 of
 the planet. A constant diffusivity is a bound on the missing transport rather
 than the transport, and this is the width of that bound.
 
+## CLIM-19: the 300 anomaly, and the rule that settles it
+
+Declared 2026-08-20, BEFORE the replicate ran.
+
+The bracket's 40-60 degree ocean warming is linear between 1000 and 3000 to
+0.3% and the 300 point sits 3.86x above that line, warming slightly MORE than
+1000 on 3.3x less diffusivity. Both are resolved 15 of 15 orbits. The arms were
+checked first for the cheap explanation and it is not there: the namelists carry
+HDIFFK 300/1000/3000 with NHDIFF 1, the control NHDIFF 0, and every other key
+including TSWR3 identical across the four.
+
+**The test is a replicate from a DIFFERENT restart.** Internal variability in
+the ice state is a property of the initial condition and repeats differently;
+a response to `hdiffk` is a property of the term and repeats the same. Same
+four arms, same fifteen diagnostic orbits, seeded from `MOST_REST.00035`
+instead of `00039`.
+
+**The statistic, fixed here:** paired per-orbit d(40-60 degree ocean SST)
+against the arm's own control, and the ratio of the 300 point to the line
+through 1000 and 3000.
+
+- **Ratio again near 3.9, and 300 again at or above 1000:** the departure is a
+  property of the response. Linearity is refuted across the bracket and the
+  bound CLIM-16 reports has structure in it.
+- **Ratio near 1, or 300 clearly below 1000:** the original was internal
+  variability, linearity holds, and CLIM-16's spread stands as a clean bound.
+- **Anything between:** report as unresolved. Do not average the two
+  realisations into a verdict; two draws do not make a distribution.
+
+**Secondary, and declared so it cannot be fitted afterwards:** the sea-ice
+pattern. In the first realisation 300 and 3000 lost ice and 1000 lost none. If
+the ice-albedo amplifier is the mechanism, that pattern repeats with the SST
+pattern; if the SST pattern repeats while the ice pattern does not, the
+mechanism is something else and this note names none.
+
 ## CLIM-17: the freezing point from the declared salinity
 
 The key landed with CLIM-17's closure: `config/planet.yaml` declares
