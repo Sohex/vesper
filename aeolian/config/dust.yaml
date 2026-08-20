@@ -189,8 +189,8 @@ subgrid_wind:
   weibull_shape: 2.0
   weibull_shape_bracket: [1.5, 3.0]
   # Integration is over this many quadrature points in the Weibull tail. Above
-  # the threshold the integrand is steep, so the count matters; checked for
-  # convergence at build time rather than assumed.
+  # the threshold the integrand is steep, so the count matters; declared, not
+  # convergence-checked at build time.
   quadrature_points: 96
 
 # --- what can emit at all ----------------------------------------------------

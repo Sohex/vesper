@@ -294,13 +294,11 @@ def blend(teff: float, lo_t: int, hi_t: int, refresh: bool) -> tuple[np.ndarray,
 def planck(wave_angstrom: np.ndarray, teff: float) -> np.ndarray:
     """Planck's law per unit wavelength, on a wavelength grid in Angstrom.
 
-    Needed because no run on this build has actually been using the k25v file.
-    `radmod.f90:813` takes the spectrum branch only when `NSTARFILE > 0`, and
-    every run's `radmod_namelist` carries `STARBBTEMP = 4965.0` with
-    `NSTARTEMP = 1` instead, so `solarini` has been building a Planck curve. The
-    weight for a blackbody and the weight for the real spectrum are different
-    numbers, and which one applies depends on a decision that has not been made
-    yet, so both are computed. See TASKS.md PHYS-2 and SPEC-2.
+    Kept as a reference: `solarini` builds a Planck curve only when no
+    spectrum is staged, and `run_exoplasim.py` refuses that configuration
+    (`radiation.stellar_spectrum: k25v` is the configured state; PHYS-2 and
+    SPEC-2 are archived). The blackbody weight and the spectrum weight are
+    different numbers, so both are computed.
     """
     h = 6.62607015e-34
     c = 2.99792458e8

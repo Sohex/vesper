@@ -322,16 +322,6 @@ def verify_stellar_spectrum(model, config: dict) -> None:
         raise RuntimeError(
             f"radmod_namelist names {entries['STARFILEHR']} but it is not in "
             f"{model.workdir}; readdat would die at end of file.")
-    print(
-        "  CAUTION: solarini's Rayleigh normalisation is wrong in the spectrum\n"
-        "  branch and only there. It tabulates its 5772 K reference on its own\n"
-        "  grid and then integrates it over the spectrum FILE's wavelengths, so\n"
-        "  `rcoeff` comes out 0.2097 for k25v against 0.7125 on one grid, and\n"
-        "  against the 0.8620 every run so far has used. This run will scatter\n"
-        "  3.4x less than it should until radmod.f90:224-299 is patched. See\n"
-        "  notes/audits/physics-review.md finding 2 and lib/stellar.py.")
-
-
 def stellar_spectrum_digest(config: dict) -> dict | None:
     """Content digests of the two spectrum FILES the model will actually read.
 
@@ -891,40 +881,6 @@ def surface_field_report(run_dir: Path, config: dict) -> dict:
     }
 
 
-def spectrum_tag(config: dict) -> str:
-    """Marker naming the stellar spectrum in a run directory.
-
-    The spectrum sets the weighting for every snow, ice and glacier albedo, so
-    two runs differing only in it are different climates. Until the k2/K2.5V
-    correction there was nothing here, and a baseline re-run would have landed in the
-    completed run's directory: the same silent-overwrite that `geography_tag`
-    exists to prevent, reached by a different route.
-
-    Directories written before this was added carry no marker and are all `k2`.
-    Recomputing an id for one now yields a name that does not exist on disk, so a
-    continuation of a pre-fix run fails loudly rather than resuming the wrong
-    world. That is the intended direction to fail in.
-    """
-    name = config.get("radiation", {}).get("stellar_spectrum")
-    return f"_{name}" if name else "_bb"
-
-
-def flux_tag(flux_ratio: float) -> str:
-    """Flux in the run id, at whatever precision the value actually needs.
-
-    This was round(100 * flux), so 0.945 and 0.94 both produced `s094` and two
-    different climates would have shared a directory. The geography digest
-    happened to separate them the first time only because the terrain changed in
-    the same step, which is luck rather than a guard.
-
-    Thousandths, with a single trailing zero dropped, so every id written under
-    the old rule is reproduced exactly: 0.90 -> 090, 0.96 -> 096, 1.00 -> 100,
-    and 0.945 -> 0945. Existing run directories stay findable.
-    """
-    tag = f"{round(flux_ratio * 1000):04d}"
-    return tag[:-1] if tag.endswith("0") else tag
-
-
 def physical_fingerprint(config: dict, flux_ratio: float) -> dict:
     """Everything about a run that makes it a different climate.
 
@@ -953,8 +909,7 @@ def physical_fingerprint(config: dict, flux_ratio: float) -> dict:
 def run_id(config: dict, flux_ratio: float) -> str:
     """A UUID. Not derived from anything.
 
-    This used to spell out the physical parameters --
-    `t42l10p16r8_s0968_co20450ppm_rot30h_obl32_e020_glac_k25v_g83d1b976` -- so
+    This used to spell out the physical parameters in the directory name, so
     that two different climates could not share a directory, which matters
     because ExoPlaSim's `finalize()` picks output as the last glob match.
 
@@ -1532,8 +1487,8 @@ def main() -> None:
         # than recompiling. So the compiled precision is invisible shared state.
         # Recording the binary's digest is what makes a silent swap auditable.
         "executable": {
-            "path": str(exe_path) if exe_path else None,
-            "sha256": file_sha256(exe_path) if exe_path and exe_path.is_file() else None,
+            "path": str(exe_path),
+            "sha256": file_sha256(exe_path),
             "note": ("Built precision is not encoded in the filename. If "
                      "model.precision_bytes changes, pass recompile=True or "
                      "remove the binary, or the old one is silently reused."),

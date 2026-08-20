@@ -208,10 +208,13 @@ def run_report(label: str, data: dict) -> dict:
         coefficient_index += 2
     harmonic_peak_phase = float(phase_grid[np.argmax(star_component)])
     lag_phase = float((harmonic_peak_phase - 0.25 + 0.5) % 1.0 - 0.5)
-    period_years = float(data["manifest"]["cycle"]["period_earth_years"])
+    _comps = data["manifest"]["cycle"]["components"]
+    period_years = float(_comps[data["fold_on"]]["period_earth_years"])
     result = {
         "label": label,
-        "cycles_completed": float(data["manifest"]["completed_cycles"]),
+        "fold_on": data["fold_on"],
+        "cycles_completed": float(
+            data["manifest"]["completed_cycles"][data["fold_on"]]),
         "periodic_comparison_cycles_3_and_4": comparisons,
         "final_two_cycles_binned": {},
         "warmest_raw_bin_phase": warm_phase,
@@ -264,10 +267,10 @@ def plot_timeseries(all_data: dict[str, dict]) -> None:
     colors = ["#9b2226", "#005f73"]
     for (label, data), color in zip(all_data.items(), colors, strict=True):
         x = data["series_age"]
-        forcing = data["manifest"]["cycle"]["mean_flux_earth"] + (
-            data["manifest"]["cycle"]["semi_amplitude_w_m2"] / 1361.0
-        ) * np.sin(2.0 * np.pi * x)
-        axes[0].plot(x, forcing, color=color, label=label)
+        # The multi-component forcing load_run already reconstructed, on orbit
+        # centres.
+        axes[0].plot(data["cycle_age"], data["forcing"], color=color,
+                     label=label)
         axes[1].plot(x, data["series"]["ts"], color=color, lw=0.8)
         axes[2].plot(x, data["series"]["sic"], color=color, lw=0.8)
         axes[3].plot(x, data["series"]["pr"], color=color, lw=0.8)
@@ -275,7 +278,7 @@ def plot_timeseries(all_data: dict[str, dict]) -> None:
     axes[1].set_ylabel("Surface T\n(K)")
     axes[2].set_ylabel("Sea-ice\nfraction")
     axes[3].set_ylabel("Precipitation\n(mm day$^{-1}$)")
-    axes[3].set_xlabel("Elapsed stellar cycles (8 Earth years each)")
+    axes[3].set_xlabel("Elapsed cycles of the folded component")
     axes[0].legend(loc="best")
     for ax in axes:
         ax.grid(alpha=0.25)

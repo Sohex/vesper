@@ -214,8 +214,7 @@ def weibull_shape_from_samples(samples: Path, mask) -> tuple[float, int] | None:
     three-hourly samples from a high-cadence orbit give **k = 2.012**. The
     snapshots resolve synoptic variance and not the diurnal and sub-daily
     variance that produces real dust events, so a shape fitted to them is an
-    upper bound and the emission it implies is a lower bound. That was stated
-    here before it was measured, and the measurement is a factor of two.
+    upper bound and the emission it implies is a lower bound.
 
     Prefer a high-cadence extract; `aeolian/scripts/extract_high_cadence_wind.py`
     produces one. Returns the shape and the number of samples it came from,
@@ -351,7 +350,7 @@ def advect_to_steady_state(emission, u, v, loss_rate, lat, lon, cfg):
     """
     tr = cfg["transport"]
     nlat, nlon = emission.shape
-    radius = 6.371e6 * 1.2                       # Vesper, 1.2 Earth radii
+    radius = 6.371e6 * float(cfg["_planet_radius_earth"])  # from config/planet.yaml
     dlon = np.deg2rad(360.0 / nlon)
     dphi = np.abs(np.gradient(np.deg2rad(lat)))
     coslat = np.maximum(np.cos(np.deg2rad(lat)),
@@ -513,6 +512,7 @@ def main() -> None:
 
     config = yaml.safe_load(args.config.read_text(encoding="utf-8"))
     cfg = yaml.safe_load(args.dust_config.read_text(encoding="utf-8"))
+    cfg["_planet_radius_earth"] = config["planet"]["radius_earth"]
     clim_path = args.climatology or climatology_path()
     output = args.output or (ANALYSIS / f"dust_{args.variant}.json")
 
@@ -671,7 +671,7 @@ def main() -> None:
     mee = 1000.0 * (f1 * band1["mass_extinction_efficiency_m2_g"]
                     + (1 - f1) * band2["mass_extinction_efficiency_m2_g"])
 
-    radius = 6.371e6 * 1.2
+    radius = 6.371e6 * float(config["planet"]["radius_earth"])
     planet_area = 4 * np.pi * radius ** 2
     outcomes, fields = {}, {}
     for shelter, z0a in ends:

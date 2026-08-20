@@ -68,7 +68,7 @@ import numpy as np
 import yaml
 
 from _paths import ANALYSIS, CONFIG, DUST_CONFIG, PROJECT_ROOT  # noqa: E402
-from builds import resolution_of, soilmap  # noqa: E402
+from builds import component_data, grid_export, resolution_of, soilmap  # noqa: E402
 from paths import climatology_path, rel  # noqa: E402
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -214,7 +214,7 @@ def emission_from_fields(srcw, drage, wpr, spd, temp, rho, wsoil, snow,
 
 def build_fields(config: dict, cfg: dict, lat, lon, z0_aeolian: float):
     """The three boundary fields, from the map `build_dust.py` already computes."""
-    lakes = bd.component_data(config, "hydrography", "surface_water.nc", strict=True)
+    lakes = component_data("hydrography", config, strict=True) / "surface_water.nc"
     erodible, land_fraction, per_class, class_detail, terrain = bd.source_fractions(
         config, cfg, lakes)
     clay = bd.soil_clay_grid(soilmap(config), lat, lon)
@@ -364,7 +364,7 @@ def main() -> None:
         args.climatology = climatology_path()
     model = config["model"]
     nlat, nlon = int(model["latitudes"]), int(model["longitudes"])
-    resolution = resolution_of(config)
+    resolution = resolution_of(grid_export(config))
 
     with Dataset(args.climatology) as ds:
         lat = np.asarray(ds["lat"][:], dtype=float)
@@ -452,7 +452,8 @@ def main() -> None:
     report_path.write_text(json.dumps(provenance, indent=2) + "\n", encoding="utf-8")
 
     print(f"aeolian z0         {z0:g} m ({args.z0} end of the bracket)")
-    print(f"Weibull shape      {shape:.5f}  (measured, {values['DUSTNQ']} points)")
+    print(f"Weibull shape      {shape:.5f}  (measured)")
+    print(f"quadrature points  {values['DUSTNQ']}")
     print(f"thresholds         u*st0 {values['DUSTUST0']:.5f}  "
           f"u*st {values['DUSTUSTT']:.5f} m/s, gravity-scaled")
     print(f"drag partition     {drage.min():.5f} to {drage.max():.5f}")

@@ -281,7 +281,11 @@ def main() -> None:
     ])
     lat, lon = regular["lat"], regular["lon"]
     land = regular["lsm"][0]
-    gravity = 10.215260416666666
+    import yaml
+    _cfg = yaml.safe_load(
+        (Path(__file__).resolve().parents[2] / "config" / "planet.yaml")
+        .read_text(encoding="utf-8"))
+    gravity = float(_cfg["planet"]["gravity_m_s2"])
     elevation = regular["sg"][0] / gravity
     # Bins hold unequal numbers of raw records; weight by them. CLIM-13.
     rtime = regular["time"]
@@ -297,7 +301,7 @@ def main() -> None:
 
     fig, ax = plt.subplots(figsize=(14, 6), constrained_layout=True)
     mesh = panel(ax, lon, lat, annual_ts - 273.15, land,
-                 f"{display_label} annual mean surface temperature (5-orbit climatology)",
+                 f"{display_label} annual mean surface temperature",
                  "coolwarm", -35, 35)
     fig.colorbar(mesh, ax=ax, label="°C", orientation="horizontal", pad=0.09)
     save_map(fig, output / f"{args.label}_annual_surface_temperature.png")

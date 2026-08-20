@@ -312,9 +312,9 @@ def main() -> None:
     parser.add_argument("--output", type=Path, default=ANALYSIS / "climatology")
     parser.add_argument("--label", default="baseline")
     parser.add_argument("--allow-low-io", action="store_true",
-                        help="build anyway from orbits that carry the corrupt "
-                             "first output record. The winds and humidities in "
-                             "the result will be wrong; see "
+                        help="build anyway from low-I/O orbits; the result has "
+                             "no variance, extremes or single records, which "
+                             "cannot be recovered. See "
                              "exoplasim/notes/first-output-bin.md")
     parser.add_argument("--per-year", action="store_true",
                         help="also write one climatology per orbit, which is "

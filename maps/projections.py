@@ -112,7 +112,7 @@ class EqualEarth:
     def __init__(self, lon0=0.0):
         self.lon0 = lon0
         ymax = _ee_y(np.arcsin(EE_M))
-        xmax = np.pi * np.cos(np.arcsin(EE_M) * 0) / (EE_M * _ee_dy(0.0))
+        xmax = np.pi / (EE_M * _ee_dy(0.0))
         self.extent = (-xmax, xmax, -ymax, ymax)
 
     def inverse(self, x, y):

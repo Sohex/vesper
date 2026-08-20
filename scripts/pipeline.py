@@ -15,7 +15,7 @@ exist to prevent.
 ## What this does NOT do
 
 It does not run anything. Planning and executing are separated deliberately:
-five steps in the graph cost hours, and a script that could start one by accident
+several steps in the graph cost hours, and a script that could start one by accident
 is worse than no script. `--plan` prints; you run.
 
 `--purge` is the one thing here that touches the filesystem, and it only ever
@@ -35,9 +35,9 @@ the .sra beside it, then says it succeeded.
 
 Two edges are not `needs` and purge uses both:
 
-`reads_export` is the step consuming `source/{build}/`. Four steps do it and all
-four declared `needs: []`, which read as "depends on nothing" when it meant
-"depends on the terrain and nothing else in this pass". `--purge orogen` seeds
+`reads_export` is the step consuming `source/{build}/`. Four steps do it,
+each declaring only the `needs` of its own pass -- which read as "depends on
+nothing" when it meant "depends on the terrain". `--purge orogen` seeds
 from those four rather than from `orogen`'s own `needs`.
 
 And the traversal STOPS AT `orogen` rather than passing through it. Loop A is a
@@ -101,8 +101,14 @@ def steps_by_id(graph: dict) -> dict:
     return {s["id"]: s for s in graph["steps"]}
 
 
+def spectrum_name() -> str:
+    import yaml
+    cfg = yaml.safe_load((ROOT / "config" / "planet.yaml").read_text(encoding="utf-8"))
+    return str(cfg.get("radiation", {}).get("stellar_spectrum", "k25v"))
+
+
 def resolve(path: str, build: str) -> Path:
-    return ROOT / path.replace("{build}", build).replace("{name}", "k25v")
+    return ROOT / path.replace("{build}", build).replace("{name}", spectrum_name())
 
 
 def expand(path: str, build: str) -> list[Path]:
@@ -122,7 +128,7 @@ def expand(path: str, build: str) -> list[Path]:
     means.
     """
     if "*" in path:
-        pattern = path.replace("{build}", build).replace("{name}", "k25v")
+        pattern = path.replace("{build}", build).replace("{name}", spectrum_name())
         return sorted(ROOT.glob(pattern))
     target = resolve(path, build)
     if path.endswith("/"):
@@ -314,9 +320,9 @@ def cmd_plan(graph: dict, target: str, force: bool) -> int:
         # Everything below here is a step the plan may have to run, and an
         # undecidable one is NOT an exception to that: it is the case where the
         # filesystem cannot say, which is a reason to cost it and print its gate
-        # rather than a reason to pass over it. Every hours-costing step in the
-        # graph is `by_index`, so treating undecidable as skippable made the
-        # hour count structurally zero and silenced every gate attached to a run.
+        # rather than a reason to pass over it. Most hours-costing steps in the
+        # graph are `by_index`, so treating undecidable as skippable silenced
+        # most of the hour count and every gate attached to a run.
         mark = "HOURS" if s["cost"] == "hours" else s["cost"]
         hours += s["cost"] == "hours"
         if ok is None:
@@ -377,7 +383,10 @@ def cmd_purge(graph: dict, target: str, execute: bool) -> int:
             print(f"\nNOT COVERED, and not a gap this can close: {', '.join(runs)}")
             print("  Runs are UUID-named, so the graph has no path for them, and\n"
                   "  they are deleted by extracting their identity first:\n"
-                  "      python scripts/archive_runs.py --include-live --execute")
+                  "      python scripts/archive_runs.py --include-live\n"
+                  "  (that flag treats EVERY run on disk as dead, not only these;\n"
+                  "  it is a dry run until --execute -- review its plan and spare\n"
+                  "  survivors with --keep first)")
 
     if not execute:
         note_runs()
@@ -396,8 +405,17 @@ def cmd_purge(graph: dict, target: str, execute: bool) -> int:
         # checking existence rather than contents. A directory a step merely
         # writes INTO is shared and is never named this way.
         for d in step_writes_dirs(by_id[sid], build):
-            if d.is_dir():
-                shutil.rmtree(d)
+            if not d.is_dir():
+                continue
+            owners = [s["id"] for s in graph["steps"]
+                      for w in s.get("writes", []) if w.endswith("/")
+                      and resolve(w, build) == d]
+            outside = [o for o in owners if o not in doomed]
+            if outside:
+                print(f"  kept {d} (also owned by {', '.join(outside)}, "
+                      "which this purge does not reach)")
+                continue
+            shutil.rmtree(d)
         print(f"  purged {sid}")
 
     print(f"\nfreed {total/1e9:.2f} GB")

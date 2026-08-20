@@ -8,7 +8,9 @@ organic fraction, which is what makes this a loop rather than a stage.
 
 Emits the soil map LPJ-GUESS's `SoilInput` reads, one row per land cell:
 
-    Lon Lat sand clay silt orgc ph bulkdensity cn soilc
+    Lon Lat sand clay silt orgc ph bulkdensity cn soilc depth awc bedrockfrac andic pfixation
+
+(`SoilInput` skips the last five by name.)
 
 Nothing here is specific to Vesper. Every Earth calibration lives in
 `../config/pedogenesis.yaml`; this reads the shared `config/planet.yaml`, the
@@ -403,10 +405,7 @@ def main() -> None:
     # Resolve before use, not just before storing. Scripts here anchor their
     # paths from the file location rather than the cwd, so a `--climatology`
     # given relative to wherever the caller stood has to be made absolute before
-    # anything opens it. The provenance write used to raise on such a path, and
-    # to raise AFTER the soil map was already on disk, leaving an artifact with
-    # no provenance beside it; `lib/paths.py:rel` no longer raises (REF-7), so
-    # what is left is the ordinary reason and not that trap.
+    # anything opens it.
     climatology = (args.climatology or climatology_path()).resolve()
     if not climatology.is_file():
         raise SystemExit(f"{climatology} does not exist")
@@ -600,9 +599,9 @@ def main() -> None:
                         * (1.0 - np.exp(-bedrock["shape"] * intensity)))
 
     DATA.mkdir(parents=True, exist_ok=True)
-    # Resolved so a relative --output is interpreted against this file's anchor
-    # rather than the cwd. `rel` records an out-of-tree path as absolute instead
-    # of raising, so this is about writing the file in the right place.
+    # NOTE: a relative --output resolves against the caller's cwd, not this
+    # file's anchor; `rel` records an out-of-tree path as absolute rather than
+    # raising.
     # Per build. Soil texture derives from lithology, so a soil map belongs to
     # the terrain it was computed from, and LPJ-GUESS eats this file directly.
     if args.output is None:

@@ -166,9 +166,6 @@ def main() -> None:
     # Prediction 7 is a property of the forcing, not of LPJ-GUESS: the
     # registration defined it through the Miami model, so it is recomputed the
     # same way rather than invented from model output.
-    def miami(t, p):
-        return np.minimum(3000 / (1 + np.exp(1.315 - 0.119 * t)),
-                          3000 * (1 - np.exp(-0.000664 * p))) * 0.45
     temp_limit = 3000 / (1 + np.exp(1.315 - 0.119 * temperature))
     prec_limit = 3000 * (1 - np.exp(-0.000664 * precip))
     water_limited = wfrac(prec_limit < temp_limit)

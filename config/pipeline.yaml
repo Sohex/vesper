@@ -265,7 +265,7 @@ steps:
     loop: A
     cost: minutes
     needs: [dust, surface_water, soil]
-    writes: [exoplasim/inputs/t42/orogen_T42_surf_1801_provenance.json, exoplasim/inputs/t42/orogen_T42_surf_1801.sra]
+    writes: [exoplasim/inputs/t42/orogen_T42_surf_1801_provenance.json, exoplasim/inputs/t42/orogen_T42_surf_1801.sra, exoplasim/inputs/t42/orogen_T42_surf_1802.sra, exoplasim/inputs/t42/orogen_T42_surf_1803.sra]
     gate: only when model.dust_emission is set; a no-op at ldustemit = 0
 
   - id: dust_forcing
@@ -423,7 +423,7 @@ steps:
     script: pedology/scripts/build_surface_classes.py
     cost: minutes
     needs: [soil, brine_paths, dust, surface_water]
-    writes: [pedology/analysis/surface_classes.nc]
+    writes: [pedology/analysis/surface_classes.nc, pedology/analysis/surface_classes_report.json]
 
   - id: phosphorus_budget
     script: pedology/scripts/phosphorus_budget.py
@@ -436,7 +436,7 @@ steps:
     loop: B
     cost: minutes
     needs: [bootstrap_climatology]
-    writes: [biosphere/generated/vesper_provenance.json]
+    writes: [biosphere/generated/vesper_provenance.json, biosphere/generated/vesper.h]
     gate: >
       declared `needs: []` until 2026-08-19, which read as "compiles from
       config/planet.yaml alone". It does not: it fits the LPJ-GUESS solstice
@@ -451,14 +451,14 @@ steps:
     loop: B
     cost: minutes
     needs: [vesper_header]
-    writes: [biosphere/generated/vesper_pfts_provenance.json]
+    writes: [biosphere/generated/vesper_pfts_provenance.json, biosphere/generated/vesper_pfts.ins]
 
   - id: lpj_driver
     script: biosphere/scripts/build_lpj_driver.py
     loop: B
     cost: minutes
     needs: [baseline_climatology, soil, vesper_pfts]
-    writes: [biosphere/generated/vesper_driver_provenance.json]
+    writes: [biosphere/generated/vesper_driver_provenance.json, biosphere/generated/vesper_driver.bin]
 
   - id: lpj_run
     script: biosphere/scripts/run_lpj_guess.py
@@ -482,7 +482,8 @@ steps:
   - id: error_budget
     script: scripts/error_budget.py
     cost: seconds
-    needs: [carve_list, baseline_climatology]
+    needs: [carve_list, baseline_climatology, surface_albedo]
+    reads_export: true
     writes: [analysis/error_budget.json]
 
   - id: basemap
@@ -500,7 +501,8 @@ steps:
   - id: world_state
     script: scripts/world_state.py
     cost: seconds
-    needs: [index_runs, analyze_climatology, carve_list, hydrography]
+    needs: [index_runs, analyze_climatology, carve_list, hydrography, stellar_spectrum]
+    reads_export: true
     writes: [world_state.json]
 
 # Run, never generate an artifact, and gate the expensive steps.
@@ -510,8 +512,10 @@ checks:
   - id: smoke_test
     script: scripts/smoke_test.py
 
-# Present, deliberately outside the graph: depended on by nothing.
+# Present, deliberately outside the graph: no step row runs them (some are
+# imported as modules by step scripts).
 one_offs:
+  - exoplasim/scripts/corrk_cross_check.py
   - exoplasim/scripts/predict_ocean_terms.py
   - exoplasim/scripts/score_rank_bench.py
   - exoplasim/scripts/reset_restart_accumulators.py

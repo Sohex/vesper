@@ -1,10 +1,4 @@
 """Write an ExoPlaSim surface field in its `.sra` text format.
-
-This lived in `convert_orogen.py`, which is superseded and now deleted. Four
-current scripts imported it from there, so a live utility sat inside a module
-whose docstring said "do not use" -- which reads, correctly, as current code
-depending on dead code.
-
 ## The format
 
 Eight integers of header, then the field as rows of eight values, latitude-major

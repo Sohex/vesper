@@ -13,9 +13,10 @@ say what the model was asked to write; only the person running it knows what the
 orbits are for, and a rule over the flags will keep getting that wrong in a new
 way each time a flag is added.
 
-This module is the one reader of the `segments` list. There were two, and a
-third was about to be written for the convergence window, which is how this
-project came to have four copies of a path resolver.
+This module owns the purpose vocabulary; route new questions about what an
+orbit was for through it rather than reading `segments` raw. A third ad-hoc
+reader was once nearly written, which is how this project came to have four
+copies of a path resolver.
 """
 
 from __future__ import annotations
@@ -118,9 +119,10 @@ def production_window(run_dir: Path, n_orbits: int, window: int) -> tuple[int, i
 def low_io_orbits(run_dir: Path, orbits) -> list[int]:
     """Orbits in `orbits` that were run with PlaSim's low-I/O accumulation on.
 
-    Those carry a corrupt first output record per orbit: bottom-level wind reads
-    about 7.5x the other bins and humidity 27% low, while every scalar is within
-    2%. Averaging them into a climatology puts that into anything downstream that
+    Those hold interval accumulations rather than instantaneous samples, which
+    cannot be undone; runs written before the first-record patch additionally
+    carry a corrupt first record per orbit (wind 7.5x, humidity 27% low).
+    Averaging them into a climatology puts that into anything downstream that
     reads a wind or a humidity -- the Penman evaporation the carve criterion
     turns on, and the gust distribution the dust emission turns on.
 

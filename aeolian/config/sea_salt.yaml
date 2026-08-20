@@ -136,7 +136,8 @@ subgrid_wind:
   # Fitted from instantaneous samples over OCEAN cells, the way dust.yaml's is
   # fitted over erodible land, because the shape differs between the two
   # surfaces and neither should borrow the other's. Fitted at build time from
-  # the high-cadence extract; this is the fallback and the bracket.
+  # the high-cadence extract, which --gust-samples must name explicitly; this
+  # value is reached only if that fit is unavailable, and the bracket bounds it.
   weibull_shape: 2.0
   weibull_shape_bracket: [1.6, 2.6]
 
@@ -179,7 +180,7 @@ surface_layer:
 # humidities in exoplasim/data/sea_salt/opac_sea_salt_size_distribution.dat and
 # interpolated in relative humidity. They are not independent: the wet density
 # and the growth in mode radius are two statements of the same salt volume
-# fraction and they agree to 2%, which the optics script checks.
+# fraction and they agree inside the optics script's enforced 0.01 g/cm3 check.
 #
 # OPAC's growth factor at 80% relative humidity is 1.99, which is the r80 = 2
 # r_dry convention Grythe equation 2 states, arrived at from a different

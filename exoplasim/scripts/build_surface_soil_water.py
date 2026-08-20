@@ -224,13 +224,13 @@ def main() -> None:
         "why_this_matters": (
             "landmod.f90 computes runoff as the overflow of this bucket, so a "
             "uniform default makes runoff a namelist property rather than a "
-            "soil property. The 0.96 climatology's 2.8% land runoff ratio "
-            "against Earth's ~35% is the symptom."),
-        "not_enabled_by_default": (
-            "Requires model.soil_water_source: pedology in config/planet.yaml. "
-            "That key is absent on purpose: adding it is a configuration "
-            "change continue_exoplasim.py refuses to resume across, so it "
-            "blocks resumption of runs in flight."),
+            "soil property; the model's low land runoff ratio is the "
+            "symptom."),
+        "enabled_by": (
+            "model.soil_water_source in config/planet.yaml (currently set to "
+            "pedology). Changing the key is a configuration change "
+            "continue_exoplasim.py refuses to resume across, so moving it "
+            "blocks runs in flight."),
         "output": rel(output),
         "output_sha256": hashlib.sha256(output.read_bytes()).hexdigest(),
         "git_commit": subprocess.run(

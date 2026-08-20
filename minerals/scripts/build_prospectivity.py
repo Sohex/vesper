@@ -27,7 +27,7 @@ percent of it.
 `docs/src/reference/economic-minerals.md` assigns tectonic and magmatic genesis to Orogen,
 meaning the PROCESSES that concentrate these deposits are the ones Orogen models.
 It does not require the arithmetic to happen there, and every input but one is
-already exported: craton weight, fold-belt weight, stress, back-arc distance,
+already exported: craton weight, fold-belt weight, stress,
 substrate and basement class, cover thickness and erosion delta. The missing one,
 `lipV`, has its expression in the `flood_basalt` class.
 

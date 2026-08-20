@@ -77,11 +77,23 @@ PDF = ROOT / "references" / "rochalima2018-fennec-saharan-dust.pdf"
 R_MOD_UM, SIGMA_G, RHO_G_CM3 = 0.295, 2.0, 2.6
 
 # Surfaces on this world, for the sign test. Salt crust is the decisive one.
-SURFACES = {"ocean": 0.07, "vegetated land": 0.18,
-            "playa fill": 0.40, "salt crust (bright)": 0.50}
+# Vegetated and playa come from config/planet.yaml (rule 2); ocean is the
+# model's open-water value and salt crust the export rock table's evaporite.
+import yaml as _yaml
+_planet = _yaml.safe_load(
+    (Path(__file__).resolve().parents[2] / "config" / "planet.yaml")
+    .read_text(encoding="utf-8"))
+SURFACES = {
+    "ocean": 0.07,
+    "vegetated land": float(_planet["model"]["vegetation_albedo"]),
+    "playa fill": float(_planet["model"]["lithology_albedo_overrides"]
+                        ["playa_clastic"]["albedo"]),
+    "salt crust (bright)": 0.50,
+}
 
 BAND_SPLIT_UM = 0.75
-BAND_LO_UM, BAND_HI_UM = 0.34, 4.00   # the stellar spectrum file's own range
+BAND_LO_UM, BAND_HI_UM = 0.34, 4.00   # 0.34 um is the spectrum file's floor;
+                                      # 4.0 um is ExoPlaSim's shortwave ceiling
 
 
 def sha256(path: Path) -> str:

@@ -87,8 +87,7 @@ def main() -> None:
     ped = yaml.safe_load(PEDOGENESIS.read_text(encoding="utf-8"))
     p_ppm = ped["phosphorus_ppm"]
     p_rel = ped.get("phosphorus_release_relative") or {}
-    barren = set(ped.get("barren_rock_classes")
-                 or cfg["model"].get("barren_rock_classes") or [])
+    barren = set(cfg["model"]["barren_rock_classes"])
 
     ex = Export(builds.build_root(cfg) / "exoplasim-T42")
     land = ex.surface_class == LAND
@@ -117,11 +116,10 @@ def main() -> None:
     mean_content = float((content[land] * area[land]).sum() / land_area)
 
     # Endorheic land: anything whose drainage chain does not reach the ocean.
-    # terminal >= 0 is a preserved basin sink; -1 is the ocean; -2 is an
-    # unpreserved pit, which build_hydrography resolves into a basin or the sea.
+    # terminal >= 0 is a preserved basin sink; -1 is the ocean; -2 is not
+    # land (build_hydrography raises if any land region keeps it).
     endorheic = land & (terminal >= 0)
     exorheic = land & (terminal == -1)
-    unresolved = land & (terminal < -1)
 
     def wmean(field, mask):
         a = area[mask]
@@ -156,11 +154,6 @@ def main() -> None:
                 "fraction_of_land": round(float(area[exorheic].sum() / land_area), 4),
                 "mean_content_ppm": round(wmean(content, exorheic), 1),
                 "mean_release_flux_relative": round(wmean(flux, exorheic), 3),
-            },
-            "unresolved_pits": {
-                "fraction_of_land": round(float(area[unresolved].sum() / land_area), 4),
-                "note": "raw steepest-descent noise pits; build_hydrography "
-                        "resolves these, so they are neither fate yet",
             },
         },
         "aeolian_source": {

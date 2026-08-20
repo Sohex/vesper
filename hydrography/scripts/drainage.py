@@ -97,7 +97,8 @@ def resolve(export: Export, *, progress=None) -> Drainage:
     for b in export.basins:
         s = b.sink
         if terminal[s] != TERMINAL_NONE:
-            # A sink on the ocean margin would leak; keep the basin, note it.
+            # A sink already claimed by the ocean front drains there; the
+            # basin stays ocean-draining rather than terminal.
             continue
         terminal[s] = b.index
         filled[s] = elev[s]

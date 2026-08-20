@@ -49,6 +49,7 @@ def main() -> None:
         lat = np.asarray(nc["lat"][:], dtype=float)
         lon = np.asarray(nc["lon"][:], dtype=float)
         lev = np.asarray(nc["lev"][:], dtype=float)
+        centres = np.asarray(nc["time"][:], dtype=float)
         data = {
             name: np.asarray(nc[name][:], dtype=float)
             for name in [
@@ -89,11 +90,13 @@ def main() -> None:
         },
     }
 
-    geography_path = INPUTS / "t42" / "orogen_T42_geography.nc"
-    with Dataset(geography_path) as nc:
-        supplied_elevation = np.asarray(nc["surface_elevation"][:], dtype=float)
     manifest = json.loads((run_dir / "run_manifest.json").read_text(encoding="utf-8"))
     gravity = float(manifest["derived_parameters"]["gravity_m_s2"])
+    # The supplied topography is surf code 0129 (geopotential); divide by g.
+    import sra as _sra
+    supplied_elevation = _sra.read_sra(
+        INPUTS / "t42" / "orogen_T42_surf_0129.sra",
+        lat.size, lon.size) / gravity
     model_elevation = data["sg"][0] / gravity
     difference = model_elevation - supplied_elevation
     land_bool = lsm > 0.5
@@ -136,7 +139,6 @@ def main() -> None:
 
     # Annual means are weighted by records per bin, which are unequal because
     # pyburn's linspace().astype(int) split spreads the remainder. CLIM-13.
-    centres = np.asarray(data["time"][:], dtype=float)
 
     def yearly(field):
         return climatology.annual_mean(np.asarray(field), centres)

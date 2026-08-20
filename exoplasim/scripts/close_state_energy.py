@@ -167,8 +167,11 @@ def state_energy(run_dir: Path, first: int, last: int) -> dict:
 
     manifest_path = run_dir / "run_manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.is_file() else {}
-    orbit_seconds = float(manifest.get("derived_parameters", {})
-                          .get("orbital_year_earth_days", 182.8)) * 86400.0
+    _days = manifest.get("derived_parameters", {}).get("orbital_year_earth_days")
+    if _days is None:
+        raise SystemExit(f"{manifest_path} lacks derived_parameters."
+                         "orbital_year_earth_days; refusing a hardcoded year")
+    orbit_seconds = float(_days) * 86400.0
 
     reservoirs = ["atmosphere", "vapour", "mixed_layer", "sea_ice", "snow", "soil"]
     fluxes = ["ntr", "hfns", "rst", "rsut", "rlut", "rss", "rls", "hfss", "hfls",

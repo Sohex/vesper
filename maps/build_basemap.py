@@ -37,9 +37,7 @@ import lapse  # noqa: E402
 ROOT = Path(__file__).resolve().parents[1]
 BUILD_DIR = Path(__file__).resolve().parent / "build"
 # Resolved at call time, not import time, and from the config rather than a
-# hardcoded directory. It pointed at `climatology_s096`, which was superseded
-# long before anything noticed -- nothing noticed because the script has no
-# argparse, so --help ran main() and the only signal was a stack trace.
+# hardcoded directory.
 def _climatology() -> Path:
     """The climatology FILE. It used to return the directory and callers
     appended `baseline_regular_climatology.nc`, which finds nothing once a

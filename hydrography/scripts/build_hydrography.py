@@ -6,7 +6,7 @@ exists. What it deliberately does not do is decide lake levels: that is a water
 balance, it needs precipitation and evaporation, and it belongs to
 `lake_balance.py` once ExoPlaSim has run.
 
-Products, all under `hydrography/data/`:
+Products, all under `hydrography/data/<build>/`:
 
   regions.nc      per mesh region: terminal, receiver and filled surface
   basins.nc       per preserved basin: final-terrain hypsometry, spill, catchment
@@ -324,11 +324,10 @@ def main() -> None:
             ds.title = f"Basin catchment area per {g} grid cell (sparse COO)"
             ds.terrain_hash = ex.terrain_hash
             ds.n_lat, ds.n_lon = c["n_lat"], c["n_lon"]
-            ds.note = ("cell index is row * n_lon + col, rows north to south. "
-                       "The columns are this file's own cell_lon, which comes "
-                       "from the Orogen grid and runs -180 to 180; a climate "
-                       "field on 0 to 360 must be remapped onto it before being "
-                       "indexed, which is what basin_means does.")
+            ds.note = ("cell index is row * n_lon + col, rows north to south, "
+                       "on the columns lib/gridding.py:column() assigns. Read "
+                       "climate fields by index, never by longitude label; "
+                       "gridding.require_index_alignment is the check.")
             ds.createDimension("cell_lat", c["n_lat"])
             ds.createDimension("cell_lon", c["n_lon"])
             for nm, dat in [("cell_lat", c["cell_lat"]), ("cell_lon", c["cell_lon"])]:

@@ -283,14 +283,14 @@ def validate_over_ocean(penman, evap, lsm) -> dict:
     """
     ocean = lsm < 0.5
     day = 86400.0 * 1000.0
-    p_mm = float(np.average(penman[ocean], weights=np.ones(ocean.sum()))) * day
-    m_mm = float(np.average(evap[ocean], weights=np.ones(ocean.sum()))) * day
+    p_mm = float(penman[ocean].mean()) * day
+    m_mm = float(evap[ocean].mean()) * day
     return {"penman_mm_per_day": round(p_mm, 4),
             "model_mm_per_day": round(m_mm, 4),
             "ratio": round(p_mm / m_mm, 4) if m_mm else None,
             "ocean_cells": int(ocean.sum()),
             "note": "Ocean cells are already open water, so this is a direct "
-                    "check. COMPUTED; it was hardcoded until 2026-08-17."}
+                    "check."}
 
 
 def read_sra_field(path: Path, nlat: int, nlon: int) -> np.ndarray:
@@ -556,19 +556,13 @@ def main() -> None:
     # in. A scheme that reproduces open-water evaporation over open water does
     # not need rescuing over land.
 
-    # ExoPlaSim's own wetness factor, reconstructed. Where soil is wet this is 1
-    # and land evaporation is already the potential rate.
-    wetness = np.clip(mrso / (DRHSFULL * WSMAX_EARTH), 0.0, 1.0)
-    potential = np.where(wetness > 1e-3, evap / np.maximum(wetness, 1e-3), evap)
-    potential = np.maximum(potential, evap)
-
     # Catchment runoff is P - E, not `mrro`. `mrro` is river-routed net
     # divergence rather than local generation -- landmod.f90's roffstep calls
     # mkradv, which advects runoff downhill and modifies its argument in place --
     # so integrating it over one of our catchments measures ExoPlaSim's routing
     # rather than the water arriving at our sink. `mrro` is kept in the field set
     # so the two remain comparable in the report.
-    fields = {"pr": pr, "evap": evap, "potential": potential,
+    fields = {"pr": pr, "evap": evap,
               "penman": penman, "mrro": mrro, "runoff": pr - evap, "lsm": lsm}
     require_index_alignment(args.coupling, lsm)
     means, catch_area = basin_means(args.coupling, fields, n)
@@ -798,9 +792,7 @@ def main() -> None:
         },
         "penman_ocean_validation": ocean_validation,
         # What was done to the climatology before the verdict was taken. Null
-        # under both keys means the run's own numbers, unperturbed. `dust_note`
-        # was assembled and then never written until 2026-08-17, so the DUST-10
-        # verdict carried no record of the forcing that produced it.
+        # under both keys means the run's own numbers, unperturbed.
         "perturbations": {
             "dust_surface_forcing": dust_note,
             "runoff_scale": args.runoff_scale,

@@ -10,7 +10,8 @@ data directory, five stale binaries, and a config change that left `latitudes`
 behind. Every one of those was reachable by importing a module and looking at
 where its defaults pointed -- none needed a model run.
 
-The checks, all cheap:
+The checks, all cheap (plus registered-script existence and the
+purge-never-reaches-the-terrain property, run from `main()` with the rest):
 
 1. **Imports.** Every module imports. Catches a missing import added while
    editing, which `--help` alone will also catch but this localises better.
@@ -255,7 +256,7 @@ def check_one_grid_convention(files: list[Path]) -> list[str]:
 
 
 def check_registered_in_workflow(files) -> list[str]:
-    """Every generator that writes an artifact is named in `config/pipeline.yaml`.
+    """Every generator that writes an artifact is registered in `config/pipeline.yaml`.
 
     `config/pipeline.yaml` is the graph and the list of what exists. A script that writes a product nobody declared has
     no recorded consumers, so nothing can say what it invalidates when it moves,
@@ -586,8 +587,8 @@ def check_task_counts() -> list[str]:
     the two disagreeing means one of the two questions is being answered wrong.
     It has drifted once already: CLIM read `4 open of 30 issued` against a table
     of 31 rows with 3 open, both halves stale from the same commit, which is
-    what a hand-maintained count does. Openness is read from the status column
-    from the status column, not from where a row sits.
+    what a hand-maintained count does. Openness is read from the status
+    column, not from where a row sits.
     """
     text = (ROOT / "TASKS.md").read_text(encoding="utf-8")
     problems, prefix, header = [], None, None

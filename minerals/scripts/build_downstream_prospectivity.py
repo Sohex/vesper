@@ -49,9 +49,10 @@ measured in the Atacama; the relief bound on both laterites, and supergene's
 glacial exclusion, on the two Economic Geology 100th Anniversary Volume chapters,
 Freyssinet et al. (2005) and Sillitoe (2005).
 
-SOURCED-NEGATIVE, and this is the label worth understanding. The placer rule has
-NO gradient or discharge threshold and NO transport-distance decay, and both
-absences are quoted rather than confessed. Slingerland and Smith (1986) p. 143
+SOURCED-NEGATIVE, and this is the label worth understanding. The placer rule
+has NO transport-distance decay; its only water gate is a declared
+90th-percentile discharge cut (`discharge_percentile` in the config, declared
+rather than sourced). Slingerland and Smith (1986) p. 143
 say the regional criteria were never established; Knight et al. (1999) find that
 gold is progressively flattened rather than lost with distance, so a decay length
 would remove prospectivity the evidence says is still there. A number in either

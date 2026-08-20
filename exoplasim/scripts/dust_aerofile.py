@@ -74,10 +74,10 @@ the in-model chain is not asked for it. DUST-8.
 
 ## The upstream defects this file depends on
 
-Both are patched and neither is resident yet; they are in `PENDING_PATCHES` in
-`exoplasim/scripts/rebuild_binaries.py` and land at the next rebuild.
+Both fixes are resident in `vendor/exoplasim` (`rebuild_binaries.py --verify`
+confirms the binaries carry them).
 `exoplasim-3.4.2-aerosol-apart.patch` gives `radmod` the namelist's `apart`,
-which it never received, and without which the optical depth is
+which it never used to receive, and without which the optical depth is
 `(50e-9/apart)**2` of intent. `exoplasim-3.4.2-aerocore-defects.patch` fixes the
 integer `(4/3)` in `mmr2n` that made `nrho` 33% high. This file assumes both,
 and the run refuses to start without the first because `apart` is what the

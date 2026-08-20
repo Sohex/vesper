@@ -344,7 +344,7 @@ def main() -> None:
 
     # --- surface_cover rules --------------------------------------------
     cover_cfg = rules["surface_cover"]
-    barren_codes = config["model"].get("barren_rock_classes") or ["evaporite"]
+    barren_codes = config["model"]["barren_rock_classes"]
     barren = np.zeros(substrate.shape, dtype=bool)
     for code in barren_codes:
         if code in codes:

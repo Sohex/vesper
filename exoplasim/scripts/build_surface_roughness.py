@@ -55,10 +55,10 @@ This is deliberately the same move `build_surface_albedo.py --mode scaled` makes
 where a global constant is calibrated and its spatial pattern is not, keep the
 constant and supply the pattern.
 
-**This changes climate results.** It is off unless `model.roughness_source` is set
-in `config/planet.yaml`, and that key is deliberately absent by default, because
-adding it is a configuration change `continue_exoplasim.py` compares for and
-refuses to resume across, so it blocks any run in flight.
+**This changes climate results.** It is off unless `model.roughness_source`
+is set in `config/planet.yaml` (currently `lithology`); changing the key is a
+configuration change `continue_exoplasim.py` compares for and refuses to
+resume across, so moving it blocks any run in flight.
 """
 
 from __future__ import annotations
@@ -132,8 +132,11 @@ def main() -> None:
         if code in codes:
             barren |= rock == codes.index(code)
 
-    # Surface term. Forest fraction is the same number 212 is written from, so
-    # the two fields describe one land cover rather than two.
+    # Surface term. NOTE: 212 is written by build_surface_albedo.py from its
+    # mode (0.5 in `vegetated`) or per-cell LPJ cover, while this reads
+    # `model.forest_fraction_assumed`, which the config does not carry -- so
+    # roughness currently uses zero forest where 212 asserts 0.5. The two
+    # fields do not yet describe one land cover.
     forest_fraction = float(model.get("forest_fraction_assumed", 0.0)) or None
     canopy_z0 = args.canopy_z0
     if forest_fraction is not None:
@@ -226,11 +229,7 @@ def main() -> None:
         "file": str(output),
     }
     report_path = output.parent / f"roughness_{resolution.lower()}_report.json"
-    # CLAUDE.md's provenance convention, which this file did not keep. Without
-    # it the config can move under a staged field and nothing can see that it
-    # has: `check_consistency.py` tested the terrain hash, which never moved,
-    # and `pipeline.py` tested whether the file existed. `lib/provenance.py`
-    # owns the shape and the inert set that goes with it.
+    # Provenance stamp; lib/provenance.py owns the shape and the inert set.
     report.update(config_stamp(config, "exoplasim/scripts/build_surface_roughness.py"))
     report_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
 

@@ -227,7 +227,6 @@ def main() -> None:
             barren_applied.append(code)
         except KeyError:
             pass    # class absent from this export; older builds lack playa_clastic
-    evaporite = _rock_id(mesh.root, "evaporite")
     is_land = mesh.surface_class == LAND
 
     # Per-region substrate albedo, then integrated over land only. Taking this
@@ -399,9 +398,16 @@ def main() -> None:
                     "delta": round(after_e - before_e, 6),
                 }
 
+        # Ephemeral regions dry within an orbit and keep their salt crust;
+        # only persistent lakes are painted as water. lake_mask stays the full
+        # lake set because crust is as unvegetable as water downstream.
         lake_mask = lake
+        try:
+            paint_water = lake & ~ephemeral
+        except NameError:
+            paint_water = lake
         before = float(np.average(region_albedo[is_land], weights=area_r[is_land]))
-        region_albedo[lake] = water_albedo_value
+        region_albedo[paint_water] = water_albedo_value
         after = float(np.average(region_albedo[is_land], weights=area_r[is_land]))
         lake_report = {
             "source": str(args.lakes),
@@ -579,7 +585,7 @@ def main() -> None:
 
     report = {
         "mode": mode,
-        "mesh": str(args.mesh),
+        "mesh": str(mesh.root),
         "grid": str(grid_dir),
         "resolution": resolution,
         "terrain_hash": mesh.terrain_hash,
@@ -612,11 +618,7 @@ def main() -> None:
         "caveat": ("Substrate albedo, not land-surface albedo. Vegetation and "
                    "snow are applied by the model on top of this."),
     }
-    # CLAUDE.md's provenance convention, which this file did not keep. Without
-    # it the config can move under a staged field and nothing can see that it
-    # has: `check_consistency.py` tested the terrain hash, which never moved,
-    # and `pipeline.py` tested whether the file existed. `lib/provenance.py`
-    # owns the shape and the inert set that goes with it.
+    # Provenance stamp; lib/provenance.py owns the shape and the inert set.
     report.update(config_stamp(config, "exoplasim/scripts/build_surface_albedo.py"))
     (output / "albedo_report.json").write_text(
         json.dumps(report, indent=2) + "\n", encoding="utf-8")

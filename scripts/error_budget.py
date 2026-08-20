@@ -62,7 +62,7 @@ that by the precipitation response and calls the answer the temperature
 sensitivity. It is not. A kelvin moves land evaporation slightly FASTER than
 precipitation, so the two amplified terms nearly cancel and runoff moves by
 about a fifth of a percent of what the precipitation-only amplification
-suggests. The `6.51x` figure below is right for a precipitation-only
+suggests. The P/R amplification below is right for a precipitation-only
 perturbation -- a change in the hydrological cycle that leaves the temperature
 alone, which is what a dust or a circulation item can be -- and an order of
 magnitude wrong for a temperature one. Every item in this budget is priced in
@@ -289,7 +289,7 @@ FORCING_ITEMS = [
      "than ten times Earth's, which is the bound that also covers explosive "
      "eruptions and the marine biogenic sulfur this project has no biosphere "
      "for. notes/audits/unpriced-terms.md finding 2."),
-    ("dust, shortwave-only if switched on as shipped", (-4.3, -4.0),
+    ("dust, shortwave-only if switched on as shipped", (-4.0, -3.4),
      "DUST-3's constraint, not an uncertainty in the world. Aerosols ARE "
      "switchable: aero_ini is called at plasim.f90:190 and reads aero_nl with "
      "l_aerorad and aerofile use-associated from radmod, and Model.configure "
@@ -337,7 +337,8 @@ OTHER_ITEMS = [
      "sea ice than these runs show, landing on the ice-albedo feedback the "
      "stellar-cycle damping turns on. The span is about 1.1 K on one threshold; "
      "what it is worth in global mean is unmeasured, and needs one A/B on a key "
-     "that is now settable. TASKS.md CLIM-17."),
+     "that is now settable: the A/B is TASKS.md CLIM-35 (setting the key "
+     "was archive CLIM-17)."),
     ("roughness distribution", "land median 0.502 m under a 2.0 m mean",
      "Anchored to ExoPlaSim's tuned land mean, which the distribution says is "
      "carried by a rough tail. Anchoring inflates mid-range cells; direction "
@@ -580,7 +581,7 @@ def per_item_carve_currency(kelvin, water, baseline, overflowing):
     only. Returning a single basin number would hide exactly the term that is
     not measured.
     """
-    if HYDROLOGICAL_RESPONSE_PER_KELVIN is None or kelvin is None:
+    if kelvin is None:
         return None, None
     h = HYDROLOGICAL_RESPONSE_PER_KELVIN
     d_precip = h["precipitation"] * kelvin
@@ -702,21 +703,15 @@ def main() -> None:
     print(header)
     for label, table in basins["change_in_overflowing_basins"].items():
         print("  " + f"{label:20}" + "".join(f"{v:+8d}" for v in table.values()))
-    if HYDROLOGICAL_RESPONSE_PER_KELVIN is None:
-        print("\nkelvin does not reach those columns yet: BUDG-1 has to measure "
-              "dP, dE_land and dE_lake per kelvin on this world. Set "
-              "HYDROLOGICAL_RESPONSE_PER_KELVIN and every item gets a runoff "
-              "and a basin figure.")
-    else:
-        h = HYDROLOGICAL_RESPONSE_PER_KELVIN
-        lo, hi = h["lake_evaporation"]
-        print(f"\nper kelvin: land P {h['precipitation']:+.2%}, land E "
-              f"{h['land_evaporation']:+.2%}, lake E {lo:+.2%} to {hi:+.2%} "
-              f"(bracketed), so runoff {runoff_per_kelvin(water):+.2f}%.")
-        print(f"  NOT {water['d_runoff_per_d_precipitation'] * h['precipitation'] * 100:+.2f}%: "
-              "the amplification applies to the precipitation channel alone, and "
-              "a kelvin also raises land evaporation, slightly faster. The two "
-              "amplified terms nearly cancel.")
+    h = HYDROLOGICAL_RESPONSE_PER_KELVIN
+    lo, hi = h["lake_evaporation"]
+    print(f"\nper kelvin: land P {h['precipitation']:+.2%}, land E "
+          f"{h['land_evaporation']:+.2%}, lake E {lo:+.2%} to {hi:+.2%} "
+          f"(bracketed), so runoff {runoff_per_kelvin(water):+.2f}%.")
+    print(f"  NOT {water['d_runoff_per_d_precipitation'] * h['precipitation'] * 100:+.2f}%: "
+          "the amplification applies to the precipitation channel alone, and "
+          "a kelvin also raises land evaporation, slightly faster. The two "
+          "amplified terms nearly cancel.")
 
     print("\nRefine an input when its plausible range exceeds the effect of the")
     print("thing you last refined. Everything under a kelvin here is below the")
@@ -755,8 +750,7 @@ def main() -> None:
                    "carve list is not: it leaves the project, changes the "
                    "terrain, and cannot be undone. An item priced only in "
                    "kelvin cannot be ranked against it.",
-            "hydrological_response_per_kelvin": None
-                if HYDROLOGICAL_RESPONSE_PER_KELVIN is None else
+            "hydrological_response_per_kelvin":
                 {k: (list(v) if isinstance(v, tuple) else v)
                  for k, v in HYDROLOGICAL_RESPONSE_PER_KELVIN.items()},
             "hydrological_response_note":
@@ -767,9 +761,7 @@ def main() -> None:
                 "rate and high end the 6.7 %/K convexity of saturation vapour "
                 "pressure, because the Penman response has not been measured "
                 "here. See notes/audits/hydrological-sensitivity.md.",
-            "runoff_percent_per_kelvin": None
-                if HYDROLOGICAL_RESPONSE_PER_KELVIN is None else
-                round(runoff_per_kelvin(water), 2),
+            "runoff_percent_per_kelvin": round(runoff_per_kelvin(water), 2),
             "runoff_percent_per_kelvin_note":
                 "The number the second currency turns on, and the one most "
                 "easily got wrong. It is NOT d_runoff_per_d_precipitation times "
@@ -782,18 +774,6 @@ def main() -> None:
                 "lake evaporation per kelvin is bracketed rather than measured. "
                 "Runoff is P - E_land and contains no lake evaporation, so only "
                 "the basin column carries the bracket.",
-            "blocked_on": None if HYDROLOGICAL_RESPONSE_PER_KELVIN else {
-                "task": "BUDG-1",
-                "needs": "one perturbation climate run against the baseline, "
-                         "reporting the fractional change per kelvin of "
-                         "global-mean surface temperature in land-mean "
-                         "precipitation, land-mean evaporation and the Penman "
-                         "open-water evaporation the carve verdict reads.",
-                "precision": "The basin response passes 100 basins per percent "
-                             "of precipitation near the baseline, so a "
-                             "conversion good to 20% relative is enough to rank "
-                             "items and one good to a factor of two is not.",
-            },
             "land_water_balance": water,
             "basin_response": basins,
         },

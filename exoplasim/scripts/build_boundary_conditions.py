@@ -153,11 +153,7 @@ def main() -> None:
         },
         "codes": [LAND_MASK_CODE, TOPOGRAPHY_CODE],
     }
-    # CLAUDE.md's provenance convention, which this file did not keep. Without
-    # it the config can move under a staged field and nothing can see that it
-    # has: `check_consistency.py` tested the terrain hash, which never moved,
-    # and `pipeline.py` tested whether the file existed. `lib/provenance.py`
-    # owns the shape and the inert set that goes with it.
+    # Provenance stamp; lib/provenance.py owns the shape and the inert set.
     report.update(config_stamp(config, "exoplasim/scripts/build_boundary_conditions.py"))
     (output / "boundary_conditions_report.json").write_text(
         json.dumps(report, indent=2) + "\n", encoding="utf-8")

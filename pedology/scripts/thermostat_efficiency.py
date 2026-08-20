@@ -20,9 +20,9 @@ fraction of its weathering that its rim no longer holds back.
         --carve-list hydrography/data/carved-zoned-v4/carve_list.json
 
 Two things to keep straight. The efficiency is *weathering*-weighted, not
-area-weighted, and the two differ: endorheic land here is drier than exorheic
-land and weathers about 20% less per unit area, so it decouples less alkalinity
-than its area share implies. And a carve list is a request, not a terrain. Until
+area-weighted, and the two differ: where endorheic land is drier than
+exorheic land it weathers less per unit area, so it decouples less alkalinity
+than its area share implies (the report carries the measured means). And a carve list is a request, not a terrain. Until
 Orogen returns the carved export, the post-carve number is a projection onto the
 current terrain's weathering field, not a measurement of a world that exists.
 """
@@ -234,8 +234,12 @@ def main() -> None:
     endo = current["mean_weathering_endorheic"]
     exo = current["mean_weathering_exorheic"]
     print(f"\nmean weathering intensity   endorheic {endo:.3f}   exorheic {exo:.3f}")
-    print("Endorheic land is drier, so it decouples less alkalinity than its "
-          "area share implies.")
+    if endo < exo:
+        print("Endorheic land weathers less per unit area, so it decouples "
+              "less alkalinity than its area share implies.")
+    else:
+        print("Endorheic land weathers at or above the exorheic rate here, so "
+              "its area share understates the decoupled alkalinity.")
 
     ANALYSIS.mkdir(parents=True, exist_ok=True)
     path = args.output or ANALYSIS / "thermostat_efficiency.json"

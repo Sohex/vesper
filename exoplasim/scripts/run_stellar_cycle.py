@@ -209,9 +209,12 @@ def make_model(
             "N_DAYS_PER_YEAR@plasim_namelist": str(
                 derived["rotations_per_orbit_namelist"]
             ),
-            # 6068 is divisible by 164, preventing an unflushed partial output
-            # accumulator at the end of each modeled orbit.
-            "NSTPW@plasim_namelist": "164",
+            # NSTPW must divide the orbit's runsteps or the final partial
+            # write window is lost; take the largest divisor at or under the
+            # historical 164 for whatever flux set this orbit's length.
+            "NSTPW@plasim_namelist": str(next(
+                d for d in range(164, 0, -1)
+                if int(derived["runsteps_per_orbit"]) % d == 0)),
             "NSOLCYCLE@radmod_namelist": "1",
             "GSOLSTART@radmod_namelist": str(cycle["start_model_step"]),
             **cycle["namelist"],
@@ -379,7 +382,7 @@ def main() -> None:
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         immutable = {
             "config_sha256": file_sha256(config_path),
-            "patched_executable_sha256": file_sha256(executable),
+            "executable_sha256": file_sha256(executable),
             "cycle": cycle,
         }
         for key, expected in immutable.items():
@@ -419,8 +422,7 @@ def main() -> None:
             "initial_restart": str(initial_restart),
             "initial_restart_sha256": file_sha256(initial_restart),
             "executable_sha256": file_sha256(executable),
-            "patched_executable": str(executable),
-            "patched_executable_sha256": file_sha256(executable),
+            "executable_path": str(executable),
             "target_orbits": target_orbits,
             "diagnostics": [],
         }

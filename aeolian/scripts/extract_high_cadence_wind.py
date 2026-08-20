@@ -319,7 +319,9 @@ def main() -> None:
         ds.samples = len(samples)
     print(f"\nwrote {out}  ({out.stat().st_size / 1e6:.0f} MB, {len(samples)} samples)",
           flush=True)
-    print("the raw file is NOT deleted; remove it once the fit is done", flush=True)
+    print("the raw file is NOT deleted; it remains the source of record for "
+          "re-extraction. If reclaiming its space matters, add a TASKS.md row "
+          "naming what must finish first", flush=True)
 
 
 if __name__ == "__main__":

@@ -583,18 +583,11 @@ def close_ocean(run_dir: Path, first_orbit=None, last_orbit=None) -> dict:
     # spans run 480 to 496 steps with bin 0 at the MINIMUM -- and pyburn's
     # binning cannot produce a long first bin anyway, because it splits the raw
     # records with `np.linspace(0, ntimes, nbin+1).astype(int)` and divides each
-    # bin by its own count. See TASKS.md CLIM-13 for the correction.
-    # ONE ORBIT's worth of bins, because `counts` and `w` below describe one
-    # orbit and `nbin` is now the whole window -- 36 bins over three orbits, not
-    # 12. This block reports the equal-weight error pyburn's binning produces,
-    # which is a per-orbit property, so it is computed on the first orbit rather
-    # than on the concatenation. It broadcast fine while every window was a
-    # single orbit and raised the moment one was not.
-    # PER ORBIT throughout. `binned_time` holds one orbit's bin centres, so the
-    # bin count here is len(binned_time) and NOT `nbin`, which is the whole
-    # window -- 36 bins over three orbits. The equal-weight error this block
-    # reports is a property of how pyburn splits ONE orbit, so mixing the two
-    # counts asks counts_for for a split that was never made.
+    # bin by its own count. See archive/tasks.md CLIM-13 for the correction.
+    # PER ORBIT throughout: `counts`, `w` and `binned_time` describe one
+    # orbit, while `nbin` spans the whole window. The equal-weight error this
+    # block reports is a property of how pyburn splits ONE orbit, so it is
+    # computed on the first orbit, never on the concatenation.
     nbin_orbit = len(binned_time)
     b = np.array([_mean(binned["hfns"][k], weights, strict)
                   for k in range(nbin_orbit)])

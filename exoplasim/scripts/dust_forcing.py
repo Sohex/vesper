@@ -128,8 +128,19 @@ SIZE_ENDS = {
 SIZE_END_KEYS = {"fine": "fine (Balkanski, what the reported AOD assumes)",
                  "emitted": "emitted (Kok, volume-median diameter 3.4 um)"}
 RHO_G_CM3 = 2.6
-SURFACES = {"ocean": 0.07, "vegetated land": 0.18,
-            "playa fill": 0.40, "salt crust (bright)": 0.50}
+# Vegetated and playa come from config/planet.yaml (rule 2); ocean is the
+# model's open-water value and salt crust the export rock table's evaporite.
+import yaml as _yaml
+_planet = _yaml.safe_load(
+    (Path(__file__).resolve().parents[2] / "config" / "planet.yaml")
+    .read_text(encoding="utf-8"))
+SURFACES = {
+    "ocean": 0.07,
+    "vegetated land": float(_planet["model"]["vegetation_albedo"]),
+    "playa fill": float(_planet["model"]["lithology_albedo_overrides"]
+                        ["playa_clastic"]["albedo"]),
+    "salt crust (bright)": 0.50,
+}
 
 
 def planck(lam_um, temperature_k):

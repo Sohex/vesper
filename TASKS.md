@@ -87,7 +87,7 @@ Status: `open` | `doing` | `blocked` | `done` | `wontfix` (with a reason).
 
 ## CLIM -- climate
 
-7 open of 35 issued.
+8 open of 36 issued.
 
 | id | task | source | status |
 | --- | --- | --- | --- |
@@ -124,6 +124,7 @@ Status: `open` | `doing` | `blocked` | `done` | `wontfix` (with a reason).
 | CLIM-31 | -- | -- | done, see `archive/tasks.md` |
 | CLIM-34 | Redo the glacier bound against the real 0.945 climatology with the measured 7.8 K/km lapse; the recorded -4.7 K offset is a proxy | `notes/glacier-rough-pass.md`, archive PHYS-12 | open [step: baseline_climatology] |
 | CLIM-35 | Measure the salinity A/B: `TFREEZE` from declared salinity is settable (archive CLIM-17) and its global-mean worth is unmeasured | `scripts/error_budget.py` salinity row, `archive/tasks.md` CLIM-17 | open, one namelist key on the built binary, so it satisfies A3's A/B conditions [step: baseline_run] |
+| CLIM-36 | Reconcile forest fraction between codes 173 and 212: `build_surface_roughness.py` reads `model.forest_fraction_assumed` (absent, so zero forest) while `build_surface_albedo.py` writes 212 at 0.5 in `vegetated` mode, so the two fields do not describe one land cover | `exoplasim/scripts/build_surface_roughness.py` note at the surface term | open, a DECISION on which source both read [step: surface_roughness, surface_albedo] |
 | CLIM-32 | Price ozone's radiative effect on the simulated climate: one T21 sensitivity pair at `o3scale` 0.5 against the baseline | `exoplasim/notes/ozone.md`, `docs/src/reference/config-rationale.md` activity entry | open. Shielding of the surface is settled (0.794, measured); the radiative stake is not, and in a ten-layer model it may be small. A diagnostic pair, not a commissioning [step: baseline_run] |
 | CLIM-33 | Price `mixed_layer_depth_m`: one perturbation run against the 50 m default, which sets seasonal amplitude on a half-Earth year | `docs/src/reference/config-rationale.md` ocean entry, `analysis/error_budget.json` structural items | open. The budget books it structural with no kelvin figure; a single perturbation run converts it [step: baseline_run] |
 

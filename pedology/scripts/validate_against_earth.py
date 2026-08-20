@@ -24,9 +24,10 @@ can ever become clay:
     weatherable = 1 - quartz - clay_primary
     clay        = clay_primary + weatherable * (1 - exp(-k * W))
 
-Granite is declared 45% inert quartz and basalt 2%, so the same climate produces
-very different ceilings. **Registered before any data was fetched**, at Earth's
-mean weathering intensity W = 1:
+The registration was made against the then-declared inert-quartz fractions
+(granite 45%, basalt 2%; granite has since been corrected to 28%, LITH-23),
+so the same climate produces very different ceilings. **Registered before any
+data was fetched**, at Earth's mean weathering intensity W = 1:
 
     granite      clay 0.290
     flood basalt clay 0.547
@@ -39,7 +40,7 @@ reaches -- so the test should catch a ceiling problem as well as a slope problem
 
 Sites are type localities where the parent material is not in doubt: named flood
 basalt provinces and named granite batholiths and cratons. Climate comes from
-1991-2020 daily normals per site rather than being assumed to match, so W is
+2011-2020 daily means per site rather than being assumed to match, so W is
 computed for each site from the same law `build_soil.py` uses. Observed texture
 is SoilGrids 250m, which is an interpolation of real profiles rather than ground
 truth, and carries its own uncertainty.
@@ -254,7 +255,7 @@ def main() -> None:
 
     result = {
         "verdict": {
-            "claim_survives": True,
+            "claim_survives": bool(obs_div > 0 and mod_div > 0),
             "claim": "mafic parent material weathers to more clay than felsic "
                      "under the same climate",
             "climate_controlled_observed_divergence": round(obs_div, 4),
@@ -262,13 +263,11 @@ def main() -> None:
             "model_overstatement_factor": round(mod_div / obs_div, 2) if obs_div else None,
             "regression_slope_observed_on_predicted": round(float(fit[0]), 4),
             "regression_intercept": round(float(fit[1]), 4),
-            "reading": "The mechanism is real and the magnitude is not. Every "
-                       "climate-controlled pair has the predicted sign, and the "
-                       "regression slope near 0.54 says the model moves about "
-                       "twice as far as Earth does across its whole range, not "
-                       "just between families. The likely cause is that nothing "
-                       "caps clay: at high intensity the model takes basalt to "
-                       "0.95, and the wettest observed site here is 0.60.",
+            "reading": ("The mechanism is real and the magnitude is not: the "
+                        f"regression slope {round(float(fit[0]), 2)} says the "
+                        "model moves further than Earth does across its range. "
+                        "The likely cause is that nothing caps clay at high "
+                        "intensity."),
         },
         "climate_controlled_pairs": pairs,
         "note": "Registered prediction: the model puts basalt 0.257 clay above "

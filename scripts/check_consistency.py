@@ -24,8 +24,8 @@ of another and produced a number.
 `world_state.py` was reading when it reported 2,107 basins for a build with
 2,540.
 
-**Coupling convention.** `coupling_*.nc` must carry `cell_lon`. Without it the
-longitude convention cannot be checked, and the matrix numbers its columns
+**Coupling convention.** The share of coupling catchment area landing on
+model-ocean cells must stay under 10%, index for index, and the matrix numbers its columns
 -180..180 while an ExoPlaSim climatology numbers its own 0..360. Every basin read
 its antipode for an entire iteration.
 
@@ -98,29 +98,6 @@ def land_sea_mask():
     from paths import climatology_path
     with Dataset(climatology_path()) as ds:
         return clim.annual_mean_of(ds, "lsm")
-
-
-# Config keys that cannot reach `biosphere/generated/`. Everything else is
-# assumed to reach it, so this list is short on purpose and each entry was
-# traced rather than assumed: the two generators, `build_vesper_header.py` and
-# `build_vesper_pfts.py`, read the config in five places between them, plus
-# `lib/orbit.py` for the period and `lib/paths.py` for the climatology, and
-# nothing here is read by any of them or by anything they read.
-#
-# What is deliberately NOT here matters more than what is:
-#
-#   `star.spectral_type` looks inert -- it is a label -- but
-#   `build_stellar_spectrum.py` writes the `.dat` file from it, and the header's
-#   FRADPAR is an integral over that file. It reaches the artifact through one
-#   more file, which is exactly the route an allowlist is for missing.
-#
-#   `model.*` is ExoPlaSim's runtime configuration and no biosphere script reads
-#   a key of it, but it reaches the climatology, and the header fits its
-#   solstice offset against the climatology `baseline_climatology` names. A
-#   re-baseline under the same name would move the artifact with nothing left to
-#   say so.
-#
-# A change to either of those SHOULD report the generated inputs as stale.
 
 
 FAIL, WARN, OK = "FAIL", "warn", "ok"
@@ -356,8 +333,12 @@ def main() -> int:
             prov = low.with_name(low.stem + "_provenance.json")
             if not prov.is_file():
                 rep.add(WARN, "spectrum against its source",
-                        f"{rel(high)} has no provenance record beside it; "
-                        "rebuild with exoplasim/scripts/build_stellar_spectrum.py")
+                        f"{rel(high)} has no provenance record beside it, so it "
+                        "cannot be checked against its blend. Rebuilding with "
+                        "build_stellar_spectrum.py writes the record but "
+                        "REWRITES the spectrum in place, and existing runs "
+                        "refuse to resume across that (CONS-3); rebuild only "
+                        "alongside a re-baseline, not to clear this warning")
             else:
                 record = json.loads(prov.read_text(encoding="utf-8"))
                 products = record.get("products") or {}
@@ -374,7 +355,10 @@ def main() -> int:
                     rep.add(FAIL, "spectrum against its source",
                             f"{rel(prov)} carries no source_resolution block, so "
                             "the file has never been checked against the blend "
-                            "it came from; rebuild it")
+                            "it came from. Rebuilding REWRITES the spectrum in "
+                            "place and existing runs refuse to resume across "
+                            "that (CONS-3); rebuild only alongside a "
+                            "re-baseline")
                 else:
                     d_band1 = band1 - float(source["band1_fraction"])
                     ratio = stellar.cross_section_ratio()
@@ -637,8 +621,8 @@ def main() -> int:
                 j -= 1
             window = "\n".join(lines[j + 1:i])
             if not any(k in window for k in
-                       ("DETERMINED", "PROVISIONAL", "UNDETERMINED", "TRANSITIVE",
-                        "CANDIDATE")):
+                       ("DETERMINED", "DECLARED", "PROVISIONAL", "DERIVED",
+                        "MIXED", "TRANSITIVE")):
                 unmarked.append(line.split(":")[0])
         rep.add(FAIL if unmarked else OK, "config blocks declare their status",
                 f"unmarked: {', '.join(unmarked)}" if unmarked else
@@ -833,9 +817,8 @@ def main() -> int:
         else:
             mf = json.loads(manifest.read_text(encoding="utf-8"))
             known = mf.get("binaries", {})
-            # Source keys are relative to the PACKAGE, not to plasim/src. Two
-            # the manifest keys them relative to the package root rather than
-            # by basename, because two files of the same name can live under
+            # Source keys are relative to the package root, not by basename,
+            # because two files of the same name can live under
             # different directories.
             src = ROOT / "vendor" / "exoplasim" / "exoplasim"
             bad = []

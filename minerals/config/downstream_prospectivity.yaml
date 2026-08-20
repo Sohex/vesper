@@ -154,9 +154,9 @@ deposits:
     # places one undifferentiated Ni laterite field, so it applies the upper
     # bound only and does not resolve which ore type a cell would grow.
     #
-    # STILL NOT APPLIED, and the honest residue: the criterion is a RATE against
-    # a RATE, and this project models neither. The anchors, for whoever closes
-    # it -- 10 to 20 m/m.y. mean ultramafic weathering (Nahon and Tardy, 1992), 8 m/m.y. saprolitization on ultramafic schists in French Guiana (Freyssinet and Farah, 2000), 40 to 50 m/m.y. at Thio, New Caledonia (Trescases, 1973, 1975).
+    # STILL NOT APPLIED: the criterion is a RATE against a RATE, and this
+    # project models neither. The anchor rates are recorded beside the rule:
+    # 10 to 20 m/m.y. mean ultramafic weathering (Nahon and Tardy, 1992), 8 m/m.y. saprolitization on ultramafic schists in French Guiana (Freyssinet and Farah, 2000), 40 to 50 m/m.y. at Thio, New Caledonia (Trescases, 1973, 1975).
     # Preservation by burial or duricrust armouring is also still untested.
     maximum_slope_degrees: 5.0
 
@@ -224,7 +224,7 @@ deposits:
     # fringe, secondary sulfides below the water table where pO2 falls to about
     # 1e-40 atm -- but no rainfall number, and a thick leached cap needs a deep
     # water table rather than a dry climate as such.
-    multiplies: porphyry_cu_mo
+    multiplies: porphyry_cu_mo  # documentation only: the script hardcodes the pairing
 
   placer_au:
     name: Placer gold
@@ -265,7 +265,7 @@ deposits:
     # S-type granite and gem placers need their own host suites, and Orogen's
     # 20-class table separates neither from ordinary granite. Placing them would
     # be placing granite twice under different names.
-    source_deposit: orogenic_au
+    source_deposit: orogenic_au  # documentation only: the script hardcodes the pairing
     discharge_percentile: 90.0
 
 # --- the brine half ----------------------------------------------------------

@@ -114,7 +114,8 @@ def albedo_mode(run_dir: Path, nlat: int, nlon: int) -> tuple[str, float]:
             else np.ones_like(field, bool))
     w = gauss_weights(nlat)[:, None] * np.ones_like(field)
     mean = float((field[land] * w[land]).sum() / w[land].sum())
-    # The two endmembers are 0.12 apart, so a midpoint split is unambiguous.
+    # The two endmembers are about 0.09 apart (0.315 vs 0.223); 0.256 sits
+    # between them, nearer the vegetated mean.
     name = "lithology" if mean > 0.256 else "vegetated"
     return name, mean
 

@@ -230,8 +230,8 @@ const double VESPER_SOLSTICE_OFFSET_DAYS = {constants['solstice_offset_days']};
  *  Sun's over Earth's own {constants['fradpar_detail']['solar_reference_window_um'][0]}-{constants['fradpar_detail']['solar_reference_window_um'][1]} um window, which is what the 0.5 is
  *  anchored to: {constants['fradpar_detail']['star_par_fraction']:.4f} / {constants['fradpar_detail']['solar_par_fraction_over_earth_window']:.4f} = {constants['fradpar_detail']['ratio']:.4f}.
  *
- *  The window is Earth's photosystem transplanted unchanged, which is a
- *  deliberate conservative choice rather than a physical claim. See
+ *  The window is {"Earth's photosystem transplanted unchanged" if tuple(constants['fradpar_detail']['par_window_um']) == (0.40, 0.70) else "this world's declared photosystem window, " + str(constants['fradpar_detail']['par_window_um'][0]) + "-" + str(constants['fradpar_detail']['par_window_um'][1]) + " um"} --
+ *  a deliberate worldbuilding declaration rather than a physical claim. See
  *  biosphere/notes/productivity-prediction.md.
  */
 const double VESPER_FRADPAR = {constants['fradpar']:.6f};
@@ -246,7 +246,7 @@ def main() -> None:
                         help="climatology NetCDF to fit the declination phase against")
     parser.add_argument("--par-window", type=float, nargs=2, default=PAR_WINDOW_UM,
                         metavar=("LO_UM", "HI_UM"),
-                        help="photosystem window in microns (default Earth's 0.40 0.70)")
+                        help="photosystem window in microns (default 0.40 0.75; see PAR_WINDOW_UM)")
     parser.add_argument("--no-install", action="store_true",
                         help="write the header but do not copy it into the LPJ-GUESS tree")
     args = parser.parse_args()

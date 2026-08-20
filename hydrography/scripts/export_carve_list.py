@@ -403,6 +403,7 @@ def climate_terms(clim_path, args, config, basins, resolution):
     penman = penman_raw
 
     runoff_field = mrro if args.runoff_source == "mrro" else (pr - evap)
+    cv.require_index_alignment(args.coupling, lsm)
     means, _ = cv.basin_means(args.coupling,
                               {"pr": pr, "wet": evap, "pen": penman,
                                "ro": runoff_field},
@@ -685,14 +686,16 @@ def main() -> None:
             if entry["id"] not in here:
                 # Absent from this build because it was carved away. Its verdict
                 # is not re-decidable and is carried at 0.
+                if float(entry["retain"]) > 0.0:
+                    raise RuntimeError(
+                        f"basin {entry['id']} is absent from this build but "
+                        f"carries retain {entry['retain']}; carried-forward "
+                        "entries must all be retain 0")
                 carried[entry["id"]] = 0.0
-            elif float(entry["retain"]) <= 0.0:
-                carried[entry["id"]] = 0.0
-        if carried and any(float(v) > 0 for v in carried.values()):
-            raise RuntimeError("carried-forward entries must all be retain 0")
 
-    pass_label = ("first pass" if not carried
-                  else f"pass {len(carried) and 2}, {len(carried)} basins carried forward")
+    pass_number = 1 if args.previous is None else prev.get("pass_number", 1) + 1
+    pass_label = ("first pass" if args.previous is None
+                  else f"pass {pass_number}, {len(carried)} basins carried forward")
     n_carried = len(carried)
     n_zero = n_carve + n_carried
     n_total = basins.n + n_carried
@@ -738,9 +741,8 @@ def main() -> None:
 # only decide the {n_here:d} basins the current build still has; the rest were
 # carved by an earlier pass and are held at 0 to keep the loop monotone.
 #
-# Carved basins are listed explicitly at retain 0 rather than omitted, so this
-# file is the complete verdict rather than a subset of it. If your parser would
-# rather they were absent, say so and we will drop them.
+# Carved basins are listed explicitly at retain 0, so this file is the
+# complete verdict.
 #
 # id                                    retain
 """
@@ -754,6 +756,7 @@ def main() -> None:
 
     sidecar = {
         "generated": datetime.now(timezone.utc).isoformat(),
+        "pass_number": pass_number,
         "terrain_hash": basins.terrain_hash,
         "climatology": str(args.climatology),
         "climate": {
@@ -869,7 +872,7 @@ def main() -> None:
             "note": "no --endmember-climatology given, so this is ONE arm of "
                     "section 4's bracket and carries no width. The verdict is "
                     "not robust to the vegetation question; see "
-                    "docs/src/pipeline/loops.md and TASKS.md HYD-17.",
+                    "docs/src/pipeline/loops.md.",
         } if endmember is None else {
             "single_climate": False,
             "endmember_climatology": rel(args.endmember_climatology),

@@ -86,7 +86,8 @@ def model_sources() -> dict[str, str]:
     A commit says what was COMMITTED; these shas say what is on disk right now,
     so an uncommitted edit under vendor/ is caught rather than waved through.
     """
-    files = sorted(SRC.glob("*.f90")) + sorted(SRC.glob("make_*"))
+    files = (sorted(SRC.glob("*.f90")) + sorted(SRC.glob("*.c"))
+             + sorted(SRC.glob("make_*")))
     return {str(f.relative_to(PKG)): sha256(f) for f in files if f.is_file()}
 
 

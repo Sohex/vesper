@@ -252,8 +252,7 @@ def hydrography_dir() -> Path:
     import yaml
     cfg = yaml.safe_load((ROOT / "config" / "planet.yaml").read_text(encoding="utf-8"))
     named = ROOT / "hydrography" / "data" / str(cfg.get("source_build", ""))
-    return named if (named / "hydrography_report.json").is_file() else (
-        ROOT / "hydrography" / "data")
+    return named
 
 
 def hydrography() -> dict:

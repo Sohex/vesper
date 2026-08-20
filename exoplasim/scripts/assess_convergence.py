@@ -61,7 +61,11 @@ def slope(series: np.ndarray, window: int) -> float:
 # The mixed layer's heat capacity, and the feedback strength measured from
 # converged points spanning the design band. Together they set how long an
 # approach takes, which is what turns a drift rate into a remaining offset.
-SLAB_HEAT_CAPACITY = 50.0 * 1025.0 * 3990.0      # J/m2/K, 50 m of seawater
+import yaml as _yaml
+_MLD = float(_yaml.safe_load(
+    (Path(__file__).resolve().parents[2] / "config" / "planet.yaml")
+    .read_text(encoding="utf-8"))["surface"]["mixed_layer_depth_m"])
+SLAB_HEAT_CAPACITY = _MLD * 1025.0 * 3990.0      # J/m2/K, from the config's depth
 FEEDBACK_W_M2_K = 1.31                            # measured, not assumed
 
 
@@ -207,7 +211,7 @@ def main() -> None:
 
     # The quantity the design band is stated in, and therefore the one that has
     # to be bounded. Everything above is a rate; this is a distance.
-    # (tau_expected is needed by the fallback above, so it is computed first.)
+    # (tau_expected is needed by the fallback below, so it is computed first.)
     # The year comes from the run's own manifest, not from the current config:
     # this is a property of the run being assessed, which may predate a
     # baseline re-run that moved the orbit.

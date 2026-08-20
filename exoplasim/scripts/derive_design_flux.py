@@ -40,7 +40,7 @@ number is declared here, sourced to nothing, and that label is the point:
     extreme:  above 38 C, or below -40 C
 
     score = land-area fraction in the comfort band; the winner maximizes it.
-    candidates: flux 0.900 to 1.000 in steps of 0.0025.
+    candidates: flux 0.850 to 1.000 in steps of 0.0025.
 
 THE HUMIDITY-COUPLED VARIANT, because the audit showed the dry score stands in
 for a quantity that couples temperature to humidity, and this world's aridity

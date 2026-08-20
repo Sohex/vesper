@@ -5,7 +5,7 @@ was forcing. This runs it against the ExoPlaSim baseline climatology through
 `coupling_*.nc`, and accumulates the same runoff down the drainage network to
 get river discharge. Two products, one water balance:
 
-    data/surface_water.nc   per region: lake, lake depth, river discharge
+    data/<build>/surface_water.nc   per region: lake, lake depth, river discharge
                             per basin: area, level, volume, overflow
 
 This is the first thing in the project to decide `surface_class == 2`, which
@@ -441,8 +441,8 @@ def main():
                 np.average(model_runoff, weights=cell_weight) * SECONDS_PER_DAY * 1000),
         },
         "open_water_evaporation": {
-            "method": ("Penman combination, water albedo and roughness, floored at "
-                       "the model's land rate; shared with carve_verdict.py"),
+            "method": ("Penman combination, water albedo and roughness, NOT floored "
+                       "at the model's land rate; shared with carve_verdict.py"),
             "global_mean_mm_per_day": float(
                 np.average(evaporation, weights=area_weight_all) * SECONDS_PER_DAY * 1000),
             "ocean_mean_mm_per_day": float(

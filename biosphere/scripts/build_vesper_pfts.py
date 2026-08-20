@@ -1,11 +1,12 @@
-"""Rescale the PFT bioclimatic limits that are annual sums, and nothing else.
+"""Rescale the PFT limits that are annual sums, and the durations counted in
+years -- in opposite directions -- and nothing else.
 
 LPJ-GUESS's plant functional types are Earth's, and keeping them is a declared
 choice: this is an Earth-analogue biosphere, not a prediction of alien
 physiology. But some of their bioclimatic limits are calibrated per *year*, and
 Vesper's year is half of Earth's, so those limits mean something different here.
 
-Two kinds of parameter, and only one of them scales.
+Two kinds of parameter, scaling in opposite directions.
 
 **Annual sums scale.** `gdd5min_est` is the minimum growing degree-days above
 5 C a PFT needs *in a year* to establish. Degree-days accumulate per day at the

@@ -158,12 +158,12 @@ def main() -> None:
                         default=None)
     parser.add_argument("--pfts", type=Path, default=GENERATED / "vesper_pfts.ins")
     parser.add_argument("--label", default=None,
-                        help="human tag for the run directory name")
+                        help="human tag recorded in the run manifest")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
+    import sys as _sys
+    _sys.path.insert(0, str(PROJECT_ROOT / "lib"))
     if args.soilmap is None:
-        import sys as _sys
-        _sys.path.insert(0, str(PROJECT_ROOT / 'lib'))
         import builds as _b
         args.soilmap = _b.soilmap()
 
@@ -177,7 +177,6 @@ def main() -> None:
     # nothing about its path says which build it belongs to. The soil map is
     # per build and resolves strictly; pairing the two without checking is how
     # one terrain's forcing gets run against another's soil.
-    _sys.path.insert(0, str(PROJECT_ROOT / "lib"))
     from provenance import require_build
     require_build(Path(args.driver), "LPJ-GUESS driver", config,
                   allow_unstamped=False)
@@ -197,7 +196,7 @@ def main() -> None:
 
     run_dir = RUNS / run_id
     if run_dir.exists():
-        raise SystemExit(f"{run_dir} exists; delete it or pass a different --label")
+        raise SystemExit(f"{run_dir} exists; remove it before re-preparing")
 
     paths = {
         "driver": Path(args.driver).resolve(),

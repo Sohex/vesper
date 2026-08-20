@@ -88,7 +88,8 @@ def read(run_dir: Path) -> dict | None:
                              if (run_dir / "snapshots").is_dir() else 0,
         "size_gb": round(sum(f.stat().st_size for f in run_dir.rglob("*")
                              if f.is_file()) / 1e9, 2),
-        "executable_sha256": (m.get("executable") or {}).get("sha256"),
+        "executable_sha256": ((m.get("executable") or {}).get("sha256")
+                              or m.get("executable_sha256")),
         "config_sha256": m.get("config_sha256"),
         "physical": phys,
         "source_build": (m.get("source_config") or {}).get("source_build"),

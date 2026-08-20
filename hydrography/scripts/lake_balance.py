@@ -28,9 +28,9 @@ so the lake is set by the ratio of catchment supply to the net evaporative
 demand over water. If ``e - p + r <= 0`` the lake can never evaporate what it
 receives and the basin fills to its spill and overflows regardless of size.
 
-Overflow cascades. On this terrain 2,640 of 3,629 basins spill into another
-basin rather than to the ocean, so a full basin passes its surplus downstream
-and the system has to be iterated to a fixed point.
+Overflow cascades. Most basins spill into another basin rather than to the
+ocean (hydrography_report.json carries the count), so a full basin passes its
+surplus downstream and the system has to be iterated to a fixed point.
 """
 
 from __future__ import annotations
@@ -183,8 +183,8 @@ def _sweep(basins: BasinSet, out_path) -> dict:
     result = {
         "note": ("Uniform placeholder forcing. This exercises the solver and shows "
                  "how lake extent scales; it is not a claim about this world's "
-                 "climate. Replace with ExoPlaSim runoff and evaporation "
-                 "integrated over each basin's catchment via coupling_*.nc."),
+                 "climate. surface_water.py runs this solver under the real "
+                 "climatology; this sweep only exercises the machinery."),
         "terrain_hash": basins.terrain_hash,
         "basins": basins.n,
         "capacity_km3": float(basins.capacity_km3.sum()),
@@ -232,7 +232,8 @@ def carve_verdict(basins: BasinSet, aridity_index: np.ndarray, land_area_km2: np
 
         (E - P) / runoff  <=  catchment / area_at_spill - 1
 
-    and the right-hand side is `basins.critical_aridity_index`, pure geometry.
+    and the right-hand side is pure geometry (the `critical_aridity_index`
+    variable in basins.nc), recomputed here from catchment and area at spill.
     Pass the left-hand side per basin, from climate, and get back the basins
     whose outlets the terrain should have carved.
 

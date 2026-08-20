@@ -1,8 +1,8 @@
 """Predict how ExoPlaSim's runoff responds to a real soil water capacity.
 
 Enabling `model.soil_water_source: pedology` replaces ExoPlaSim's uniform 0.5 m
-bucket with one computed from texture and regolith depth, land mean 0.342 m.
-Whether that fixes the 2.8% land runoff ratio, overshoots it, or oscillates can
+bucket with one computed from texture and regolith depth.
+Whether that fixes the model's low land runoff ratio, overshoots it, or oscillates can
 only really be answered by running the model. Each answer costs a full T42
 spin-up, so this is the cheap check to run first.
 
@@ -252,7 +252,7 @@ def main() -> None:
               f"{land_mean(pedology_capacity):.3f} m changes")
         print(f"  offline runoff by only {pedology_runoff_mm / max(offline_runoff_mm, 1e-9):.2f}x. "
               "If that weak sensitivity is real, the")
-        print("  soil-water feedback will not on its own fix the 2.8% runoff ratio.")
+        print("  soil-water feedback will not on its own fix the low runoff ratio.")
 
     report = {
         "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -277,24 +277,19 @@ def main() -> None:
                        "so the offline bucket is expected to under-produce. The "
                        "validation is what decides whether it under-produces "
                        "enough to invalidate the comparison."),
-            "diagnosis": (
-                "Failed, and the way it failed is the useful part: the offline "
-                "bucket reproduces the model's mean soil water almost exactly, "
-                "0.204 against 0.202 m, while over-producing runoff nearly "
-                "sixfold. So the storage is right and the overflow accounting is "
-                "not. The likely cause is that E = drhs * E_potential is not "
-                "ExoPlaSim's scheme: its surface flux is bulk aerodynamic, "
-                "E = C * (drhs * q_sat(Ts) - q), where drhs scales the surface "
-                "humidity rather than the flux, so evaporation stops entirely "
-                "once drhs falls to the ambient relative humidity instead of "
-                "declining linearly to zero. Reproducing that offline needs "
-                "surface temperature, humidity and wind at the model's timestep, "
-                "which is most of a land surface scheme and no longer cheap."),
+            "scheme_note": (
+                "E = drhs * E_potential is not ExoPlaSim's scheme: its surface "
+                "flux is bulk aerodynamic, E = C * (drhs * q_sat(Ts) - q), "
+                "where drhs scales the surface humidity rather than the flux, "
+                "so evaporation stops once drhs falls to the ambient relative "
+                "humidity instead of declining linearly to zero. Reproducing "
+                "that offline needs surface temperature, humidity and wind at "
+                "the model's timestep."),
         },
-        "verdict": ("Offline shortcut rejected. Only a real ExoPlaSim run can "
-                    "answer this. The relative response suggests the feedback is "
-                    "weak, which lowers the expected payoff of that run but does "
-                    "not remove the need for it."),
+        "verdict": ("offline validation passed against the land water budget"
+                    if valid else
+                    "offline validation failed; only a real ExoPlaSim run can "
+                    "answer this"),
         "prediction": {
             "pedology_capacity_m": land_mean(pedology_capacity),
             "runoff_mm_per_earth_year": pedology_runoff_mm,

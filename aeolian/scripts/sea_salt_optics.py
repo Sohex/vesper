@@ -36,7 +36,7 @@ Three things, each with a right answer that does not come from this file.
 1. **OPAC's own columns must agree with each other.** The wet density and the
    growth in mode radius are two statements of the same salt volume fraction, so
    the density the growth factor implies must reproduce the density OPAC prints.
-   Compared as densities they agree to 0.008 g/cm3, inside the table's own
+   Compared as densities they agree inside the enforced 0.01 g/cm3, within the table's own
    rounding; compared as volume fractions the same rows look 11% apart, because
    at 99% humidity the printed 1.01 keeps one significant figure once water is
    subtracted. The sharper test is on the quantity as printed.
@@ -101,7 +101,7 @@ def sha256(path: Path) -> str:
 def read_size_table(path: Path = None) -> dict:
     """{mode: {rh: (r_min, r_max, r_mod, rho, sigma)}} from an OPAC table.
 
-    Takes a path because `volcanic_sulfate.py` reads the same format for OPAC's
+    Takes a path because `build_volcanic_sulfate.py` reads the same format for OPAC's
     sulfate component, and two copies of a parser is how a format drifts.
     """
     out: dict[str, dict[int, tuple]] = {}
@@ -142,7 +142,7 @@ def growth(size: dict, mode: str, rh: int) -> tuple[float, float, float]:
     # density OPAC tabulates. Comparing the VOLUME FRACTIONS instead looks like
     # an 11% disagreement at 99% humidity, and all of that is the table
     # rounding rho to two decimals: (1.01 - 1.00) keeps one significant figure.
-    # Compared as densities the same rows agree to 0.002, which is inside the
+    # Compared as densities the same rows agree inside the enforced 0.01, within the
     # rounding, so the sharper test is the one on the quantity as printed.
     rho_implied = (RHO_WATER_G_CM3
                    + f_from_growth * (rho_dry - RHO_WATER_G_CM3))

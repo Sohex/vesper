@@ -43,7 +43,6 @@ from run_exoplasim import (  # noqa: E402
     SNAPSHOT_CODES,
     derive,
     file_sha256,
-    run_id,
 )
 
 
@@ -149,8 +148,9 @@ INERT_CONFIG_KEYS = {
     "schema_version",         # bookkeeping
     # Which climatology DOWNSTREAM components read. Nothing on the run or resume
     # path touches it: only the surface-field builders do, and what they produce
-    # is guarded where it belongs, by the staged `.sra` files' own hashes through
-    # `surface_field_report` on every resume. Leaving it here blocked a resume
+    # is guarded by `surface_field_report`'s presence check on every resume;
+    # content is not compared (the per-code sha comparison runs only on the
+    # --restart-from prepare path). Leaving it here blocked a resume
     # for the entirely expected act of naming the baseline the run itself
     # produced, which is a false positive that trains people to reach for a
     # bypass.

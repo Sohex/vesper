@@ -124,9 +124,9 @@ def distribution_integrate(lam_um, n, k, r_um, dndlnr, rho_g_cm3):
     ssa = c_sca / c_ext
     g_eff = c_g / c_sca
     # Mass extinction efficiency. c_ext is um^2, vol is um^3, and a density in
-    # g/cm^3 is 1e-12 g/um^3, so c_ext/(vol*rho*1e-12) is um^2/g; the trailing
-    # 1e-12 converts um^2 to m^2. The two factors cancel numerically, which is
-    # exactly why this is written out rather than simplified.
+    # g/cm^3 is 1e-12 g/um^3 and the um^2 -> m^2 conversion is another 1e-12;
+    # the two cancel exactly, so the simplified quotient below is m^2/kg-ready
+    # m^2/g as-is.
     mee = c_ext / (vol * rho_g_cm3)
     return qext_eff, ssa, g_eff, mee
 
