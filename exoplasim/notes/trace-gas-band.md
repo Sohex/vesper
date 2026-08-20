@@ -210,11 +210,50 @@ reason it is acceptable.
 | effective-intensity shift | Edwards and Menard (1964) |
 | hot and isotopic band summation | Edwards (1965), via Ramanathan Eq. (12) |
 
-Two gaps remain and are named rather than filled: the mean line spacings `D_i`,
-which Ramanathan attributes to Dickinson (1972) but which are not in its Table
-3; and the isotopic abundance ratios `q_i` for B8 to B10, which are Goody
-(1964), a book. Neither is exotic and both are bounded, but until they are in
-hand the ten-band sum is a seven-band one.
+### Two attributions that do not hold up, checked against the page
+
+Ramanathan (1976) p. 1333 says, verbatim: "The parameter `q_i` is the ratio of
+the abundance of the individual isotopes to the total abundance of CO2. The
+`q_i`'s are obtained from Goody (1964). The values of `D_i` and `S_i` are taken
+from Dickinson (1972), `A_0` is taken from Cess and Ramanathan (1972), and
+`v_0` = 0.064 cm-1 atm-1." Read off the page image, because the scan's OCR
+cannot be trusted on subscripts.
+
+**`S_i` is there; `D_i` is not.** Dickinson (1972) Table 3 tabulates band
+STRENGTHS and nothing else. Dickinson's own treatment is statistical -- "mean
+line strength of group" against "number of lines in group" -- so a mean spacing
+is DERIVABLE from it but is not tabulated, and lifting `D_i` from the cited
+source is not possible as the sentence implies.
+
+**The internal cross-reference in the same sentence is also wrong.** It sends
+the reader to Table 2 for the band list; Ramanathan's Table 2 is the
+sensitivity of global surface temperature. The band list is Table 3, in
+Appendix A, and it carries centres only.
+
+Two loose references in one sentence is a reason to prefer the route that does
+not depend on either.
+
+### Which is why the correlated-k route becomes the primary
+
+**It needs neither `D_i` nor `q_i`.** The LMD tables are HITRAN 2020 line by
+line at natural isotopic abundance, so the line spacing and the isotopes are
+already integrated into the k-distribution rather than being parameters someone
+has to supply. The two quantities that cannot be cleanly sourced are exactly
+the two it does not ask for.
+
+So the CO2 transmissivity in the N2O 589 cm-1 region is taken from
+`N2-CO2var_2026` at this world's CO2 amount, with the far-wing and CIA
+companions applied, and Ramanathan's band sum becomes the CROSS-CHECK. Run over
+B1 to B7 -- the fundamental and all six hot bands, which is the bulk of the 15
+um absorption -- it needs only Dickinson's strengths, `A_0` from Cess and
+Ramanathan, and a line spacing that has to be stated as an assumption rather
+than cited. B8 to B10, the minor isotopic bands, need `q_i` and are left out of
+the cross-check with their omission declared.
+
+For `q_i`, if it is ever wanted: McClatchey (1973) is already on disk and is a
+line parameters compilation, so its own isotopic abundances are the internally
+consistent choice beside the N2O intensities taken from it -- better than a 1964
+textbook for a number that has been remeasured since.
 
 **A second, independent route is available and is a CHECK rather than a
 substitute.** The LMD Generic PCM bundle on this host carries
