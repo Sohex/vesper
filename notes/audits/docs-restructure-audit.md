@@ -119,8 +119,9 @@ The split did not create these; reading everything surfaced them.
 
 ## Open
 
-- The ExoPlaSim fork carries a remote branch `cf-fork` identical to master --
-  exactly the ownerless copy `vendored-upstreams.md` argues against. Deleting
-  a remote branch is the repo owner's call, not a docs fix.
+- The `cf-fork` branch the review saw on the ExoPlaSim fork turned out to be
+  a stale local remote-tracking ref only; the branch does not exist on the
+  fork itself. Pruned 2026-08-19 (`git remote prune exoplasim-fork`). The
+  vendored-upstreams rationale stands uncontradicted.
 - `check_registered_in_workflow` in `smoke_test.py` keeps its pre-split name;
   rename whenever the function is next touched.
