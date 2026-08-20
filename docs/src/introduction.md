@@ -3,7 +3,7 @@
 How geography, climate, water and life are computed for this planet, in what
 order, and why the order is not a straight line.
 
-Vesper is a super-Earth orbiting a K2.5V dwarf: larger than Earth, higher
+Vesper is a super-Earth orbiting a mid-K dwarf: larger than Earth, higher
 gravity, a longer day, and more obliquity. Every one of those is declared in
 `config/planet.yaml`, which is the only place they are written down. The flux,
 the year, the active build and the mean surface temperature move every

@@ -64,8 +64,8 @@ current state, with what is already present marked skippable.
 The other half is **the carve gate: nothing outstanding may still move an
 artifact the verdict is computed from.** It is not a ceremony about
 irreversibility -- a wrong verdict is recoverable, because a build is replaced
-wholesale -- and it is not a computation. **Read `TASKS.md` and decide.** The
-open set is around a dozen rows and each says what it is waiting on.
+wholesale -- and it is not a computation. **Read `TASKS.md` and decide.** Each
+row in the open set says what it is waiting on.
 
 It was briefly computed, as "open tasks touching a step upstream of
 `carve_list`", and that was a category error rather than a filter that needed
@@ -93,7 +93,8 @@ they are worthless, and regenerating them is a step rather than a task.
 
 **The cycle run is in that list because leaving it to prose lost it once.** A2
 said it belongs before the verdict, nothing tracked it, and a full verdict was
-taken on the mean climate before anyone noticed. It is now CYC-1 as well.
+taken on the mean climate before anyone noticed. The graph now enforces it:
+`carve_verdict` needs `stellar_cycle_run`.
 
 **The first climate run on a new terrain is a bootstrap, and its numbers are
 not the baseline.** Three of the surface fields a run consumes cannot be built
@@ -150,9 +151,8 @@ constraint than it looks -- it is itself a property of the terrain it was
 derived on, and it cannot be held to better than the terms already
 outstanding.
 
-**The run count to a carve list.** Corrected 2026-08-19; it used to say three,
-written before section 4's intersection carve was costed. The bracket needs
-BOTH bounding climates, and the cold one is a commissioning of its own because
+**The run count to a carve list.** The intersection carve in
+[section 4](loops.md) needs BOTH bounding climates, and the cold one is a commissioning of its own because
 its lakes, albedo compositing and soil water have to be built from a bare-rock
 climatology; it cannot inherit the vegetated ones.
 
@@ -187,12 +187,12 @@ builds had already carved, and the overshoot measurement in section 4 applies
 only where the terrain being re-verdicted is itself the carved one.
 
 **A3. A forcing change costs a PREDICTION and an A/B, not an iteration.**
-Rewritten 2026-08-18; what stood here said to land one forcing change per
-iteration so each could be attributed. But attribution cannot gate anything --
-a correct term goes in because it exists, per section 7's physics-is-not-a-knob
-rule, and a wrong verdict is recoverable because a build is replaced wholesale
--- so the old rule spent converged runs buying information that could never
-change a decision. Attribution pays in exactly one place, diagnosing a
+Landing one forcing change per iteration so each could be attributed sounds
+careful and spends converged runs buying information that could never change
+a decision: attribution cannot gate anything -- a correct term goes in
+because it exists, per the physics-is-not-a-knob convention, and a wrong
+verdict is recoverable because a build is replaced wholesale
+([section 4](loops.md)). Attribution pays in exactly one place, diagnosing a
 surprise, and that cost is CONTINGENT; serializing iterations pays it in full
 every time against a risk that materialises occasionally.
 
@@ -207,7 +207,8 @@ Four things make that A/B trustworthy, and none is optional:
 
 - **Every forcing change lands with a quantitative prediction of its own
   effect**, stated before it is run, with what result would mean "wrong". That
-  is section 7's rule that a check needs a right answer, applied to physics.
+  is the check-needs-a-right-answer convention (CLAUDE.md), applied to
+  physics.
 - **Both arms use the SAME BINARY and differ only by a namelist key.** This is
   what the no-op-until-enabled convention is for. Two binaries would confound
   the term with the rebuild, and the low-I/O patch changes the restart layout,
@@ -253,15 +254,16 @@ energy retained in the atmosphere, not delivered to the ground.
 The CATCHMENT half is larger, runs the other way, and cannot be reached
 offline, because it is a precipitation response and not a surface energy
 balance: reduced rainfall cuts the runoff the criterion divides by, which
-OVER-carves, and over-carving is the irreversible direction. It needs one
+OVER-carves, and over-carving is the expensive direction, a full terrain,
+hydrography and boundary-condition rebuild to recover. It needs one
 prescribed-dust climate run, specified with its gates and a prediction in
 `aeolian/notes/prescribed-dust-run.md`. The ORDER here is a dependency and not
 a serialization: the verdict divides by a runoff that dust moves, so it has to
 be taken on a climatology that already has dust in it. Run it, take the
 verdict on its climatology, then carve. **Do not record a carve list as
 dust-independent.** `notes/dust.md` has the numbers and
-`aeolian/analysis/dust_runoff_sensitivity.json` the conversion from a
-precipitation change into basins.
+`aeolian/scripts/dust_runoff_sensitivity.py` (a registered one-off) the
+conversion from a precipitation change into basins.
 
 **B. The soil and biosphere loop, at T42.** For a given climate:
 
@@ -332,7 +334,7 @@ a small seasonality effect through the calendar; that is second order for an
 annual mean, and it is stated rather than implied.
 
 Mind the scaling, and mind the spectrum. L scales **1:1** with F at fixed
-orbit, not 2:1 as an earlier revision of this document said, and at fixed
+orbit, and at fixed
 radius L ~ T^4, so the effective temperature moves as F^(1/4):
 
 | flux change | luminosity | effective temperature | band-1 fraction |

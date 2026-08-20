@@ -9,10 +9,7 @@ repository rather than the state of a directory outside it.
 
 The geography comes from a personal fork of World Orogen, vendored into this
 repo at `vendor/orogen/` as a git subtree from the `cf-fork` branch of
-`raguilar011095/planet_heightmap_generation`. It lives here so that a change to
-the generator and the change to whatever consumes it land in ONE commit, and so
-a build's provenance is a commit in this repository rather than the state of a
-directory outside it. Pull upstream with `git subtree pull --prefix vendor/orogen
+`raguilar011095/planet_heightmap_generation`. Pull upstream with `git subtree pull --prefix vendor/orogen
 orogen-fork cf-fork --squash`. Its generated output stays untracked: the
 subtree's own `.gitignore` excludes `out/`, which runs to GB.
 

@@ -122,7 +122,7 @@ spectral_type: K2.5V
 ```
 
 Provisional empirical midpoint between K2V and K3V in the
-Pecaut--Mamajek dwarf sequence (see notes/parameter-decisions.md).
+Pecaut--Mamajek dwarf sequence (see exoplasim/notes/parameter-decisions.md).
 
 ## `activity`
 
@@ -243,8 +243,8 @@ establishes that that derivation has no script, no analysis product, no row in
 `config/pipeline.yaml` and no recorded threshold, and does not name the runs it
 was projected across. Those runs have since been deleted, so it is not
 reproducible from this tree even in principle. `TASKS.md` CLIM-24 tracks making
-it a step. Section 6 requires the flux to be RE-DERIVED on every new terrain in
-any case, so the value is scheduled to move rather than merely unsupported.
+it a step. `docs/src/pipeline/sequencing.md` loop C requires the flux to be
+RE-DERIVED on every new terrain in any case, so the value is scheduled to move rather than merely unsupported.
 
 It keeps its value rather than being cleared, because it is an INPUT and not a
 result: it fixes the semi-major axis below, and that orbit is compiled into
@@ -399,7 +399,7 @@ all. The model's own log settles it, reporting 0.1159 of shortwave below
 It matters because nstarfile takes precedence over nstartemp and the spectrum
 sets the weighting for every snow, ice and glacier albedo. Those ran 0.10 to
 0.17 too dark throughout, weakening the very feedback the glacier and
-stellar-cycle machinery exists to resolve. See notes/stellar-spectrum-audit.md
+stellar-cycle machinery exists to resolve. See exoplasim/notes/stellar-spectrum-audit.md
 for what that biases and by how much; results predating this remain valid in
 kind, with the direction of the error known.
 
@@ -533,7 +533,7 @@ since the Python API does not expose it.
 This corrects only the column. The absorption coefficients remain fitted to a
 solar-shaped band 1, and a 4965 K star puts proportionally less of its band-1
 flux in the 200-350 nm Hartley and Huggins bands, so absorption per unit
-ozone is still overestimated. See notes/ozone.md.
+ozone is still overestimated. See exoplasim/notes/ozone.md.
 
 ## `ozone_uv_weight`
 
@@ -637,8 +637,8 @@ roughness_source: lithology
 
 Aerodynamic roughness from land cover and subgrid relief, code 173, by
 build_surface_roughness.py. Replaces the uniform dz0land = 2.0 m, which
-asserts forest-scale roughness over the 16.5% of land that is salt crust and
-playa. Those are closed-basin floors, flat by construction, and they are the
+asserts forest-scale roughness over the salt-crust and playa share of land
+(`world_state.json` has the current figure). Those are closed-basin floors, flat by construction, and they are the
 cells the carve verdict integrates evaporation over: the default gives them
 7.7x the turbulent exchange a real playa surface has.
 
@@ -654,11 +654,11 @@ against the uniform 0.0088.
 ## `soil_water_source`
 
 ```
-soil_water_source: uniform
+soil_water_source: pedology
 ```
 
-BOOTSTRAP: uniform, and it goes back to `pedology` before the baseline run.
-Soil water capacity comes from the pedology soil map as code 229, and that
+`uniform` for a BOOTSTRAP, `pedology` for the baseline, and the flip goes
+between them. Soil water capacity comes from the pedology soil map as code 229, and that
 soil has to be weathered under a climatology, so on a terrain that has none
 yet the field cannot exist and run_exoplasim refuses to start without it.
 The flip cannot happen mid-run either, since continue_exoplasim compares the
@@ -781,49 +781,37 @@ star.activity: active -- which was the decision the ozone column, the surface
 ultraviolet and the ozone ultraviolet weight were all waiting on, and all three
 now carry their active-star values.
 
-What remains undetermined is this block's own numbers. The amplitude and period
-are what some early exploratory runs used, and the range was written around a
-baseline flux that has since moved twice; it is not centred on the current one
-and should not be read as a decision that it is.
+PROVISIONAL, 2026-08-16. Periods and amplitudes are CHOSEN -- two components
+at 11 and 57 Earth years, 2.5% and 3.5% peak-to-peak -- and centred on the
+baseline flux. The block stays PROVISIONAL rather than DETERMINED because
+nothing has been run with it yet: what the first cycle run has to return
+before it settles is the real damping factor, which is analytic and
+Planck-only here; whether the cycle-mean temperature sits where the convexity
+argument says it does; and whether the aligned excursion is tolerable.
+Amplitudes may want revising afterwards, and revising them is expected rather
+than a failure.
 
-Three things have to be settled before this becomes determined, and they
-interact:
+The amplitude is a stipulated property of the star -- a worldbuilding choice,
+defensible for a young active K dwarf, not an estimate -- and the period is
+stated in absolute time rather than local years, since a stellar dynamo does
+not know about this planet's orbit.
 
-1. The amplitude, as a stipulated property of the star. The current range is
-roughly 100x the Sun's total irradiance cycle, which is defensible for a
-young active K dwarf but is a worldbuilding choice rather than an estimate.
-2. The mechanism. A secular luminosity change moves effective temperature as
-F^(1/4) and needs the spectrum rebuilt past a couple of percent. A spot
-and facular activity cycle moves bolometric flux with almost no change in
-effective temperature, but with a strongly non-grey signature concentrated
-in the blue -- which is the band snow and ice albedo respond to, and the
-whole reason a measured spectrum is used at all. The two give different
-cryosphere responses at the same flux. Which one this is has not been
-decided.
-3. The period, in absolute time rather than local years, since a stellar
-dynamo does not know about this planet's orbit.
+The mechanism -- a secular luminosity change against a spot and facular cycle
+-- is decided for modelling purposes: the cycle is applied as a grey
+multiplier, because a spot-driven swing of this size moves the band-1 fraction
+by 0.007 and is worth under 0.02 K at this world's ice cover. That
+measurement, and the ice fraction at which it would stop holding, are in
+exoplasim/notes/parameter-decisions.md. The physics that made it a real
+question: a secular change moves effective temperature as F^(1/4) and needs
+the spectrum rebuilt past a couple of percent, while a spot cycle is strongly
+non-grey and concentrated in the blue -- the band snow and ice albedo respond
+to, and the whole reason a measured spectrum is used at all -- so the two give
+different cryosphere responses at the same flux.
 
-Convergence for a cycle run is also undefined: drift-based criteria assume an
-approach to a steady state, and a forced cycle has none. Validate against
-periodicity instead, comparing a year against the same phase one cycle later.
-CANDIDATE, 2026-08-16. Periods and amplitudes are now CHOSEN -- two components
-at 11 and 57 Earth years, 2.5% and 3.5% peak-to-peak -- and centred on a
-baseline flux that is itself DETERMINED, so this block is no longer the
-free-floating placeholder the header used to describe.
-
-It is CANDIDATE rather than DETERMINED because nothing has been run with it
-yet. What the first cycle run has to return before this is settled: the real
-damping factor, which is analytic and Planck-only here; whether the cycle-mean
-temperature sits where the concavity argument says it does; and whether the
-aligned excursion is tolerable. Amplitudes may want revising afterwards, and
-revising them is expected rather than a failure.
-
-Item 2 below -- whether the variation is bolometric or spot-driven -- IS now
-decided for modelling purposes: the cycle is applied as a grey multiplier,
-because a spot-driven swing of this size moves the band-1 fraction by 0.007 and
-is worth under 0.02 K at this world's ice cover. That measurement, and the ice
-fraction at which it would stop holding, are in
-exoplasim/notes/parameter-decisions.md.
+Convergence for a cycle run is undefined in drift terms: drift-based criteria
+assume an approach to a steady state, and a forced cycle has none. Validate
+against periodicity instead, comparing a year against the same phase one cycle
+later.
 
 ## `components`
 
@@ -831,23 +819,12 @@ exoplasim/notes/parameter-decisions.md.
 components:
 ```
 
-Sinusoidal bolometric variation about the baseline flux, applied at every
-radiation timestep by patches/exoplasim-3.4.2-star-cycle.patch.
-
-0.91 to 1.01 is 10.4% peak-to-peak, essentially the same amplitude as the
-earlier 0.85-0.95 experiment's 11.1%, and still implies unusually extensive
-and variable spot coverage for a quiet 6-8 Gyr K dwarf. Treat it as an
-intentionally active star rather than a typical one.
-
-Static endpoints on the vegetated branch are about 282.2 and 299.7 K, a
-17.5 K span. The 50 m slab damped the earlier experiment to 0.239 of its
-static span, which predicts roughly 4.2 K peak-to-peak here, about 289.3 to
-293.5 K. If that holds the world stays inside the habitable band across the
-whole cycle, which is the point of centring it at 0.96.
-CANDIDATE, 2026-08-16. Two superposed components rather than one sinusoid,
-because epsilon Eridani genuinely has both a short and a long cycle, and
-because the two do different jobs here: the medium one is climatic and the
-long one is geomorphic.
+Two superposed sinusoidal components of bolometric variation about the
+baseline flux, applied at every radiation timestep by
+patches/exoplasim-3.4.2-star-cycle.patch. Two rather than one, because
+epsilon Eridani genuinely has both a short and a long cycle, and because the
+two do different jobs here: the medium one is climatic and the long one is
+geomorphic.
 
 The periods are NOT epsilon Eri's values. That star is a reference for what a
 K2.5V of this activity can do, not a template to copy. What was taken from it

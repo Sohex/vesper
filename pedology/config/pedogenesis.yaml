@@ -6,7 +6,7 @@ schema_version: 1
 # meant to run on a world with a different star, gravity and year without editing
 # code, and this file is where a different world's soils get argued about.
 #
-# See ../notes/model.md for the derivations and the limits.
+# See pedology/README.md for the derivations and the limits.
 
 # ---------------------------------------------------------------------------
 # Chemical weathering

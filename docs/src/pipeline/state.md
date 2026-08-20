@@ -17,11 +17,10 @@ the generated state:
   than a little, in every iteration so far. That is the fact the hydrography
   component exists to handle, and it is why lakes and evaporite matter to the
   climate here when they would be a detail on Earth.
-- **Each carve iteration darkens the world and warms it**, and **vegetated
-  albedo moves roughly twice as far as bare-rock albedo** under a lithology
-  change confined to closed-basin fill -- both are section 4's couplings, and
-  the second means bare-rock figures systematically understate what the
-  climate will see.
+- **Each carve iteration darkens the world and warms it**, and vegetated
+  albedo moves further than bare-rock albedo under a fill-confined lithology
+  change -- both are [section 4](loops.md)'s couplings, and the second means
+  bare-rock figures systematically understate what the climate will see.
 - **The basin catalogue is stable across builds.** Basin ids are computed on
   the pre-conditioning surface, so a verdict computed against one build still
   refers to the same basins in the next. `manifest.hashes.basinCatalogue` is
@@ -29,10 +28,8 @@ the generated state:
 
 ## 5b. Where the planet sits, and why
 
-The flux was set by a derivation rather than inherited, on 2026-08-16.
-Recorded because the previous target had propagated through six files with no
-statement of where it came from -- a number justified by its own persistence
--- and had reached the convergence criterion before anyone asked.
+The flux was set by a derivation rather than inherited, after its predecessor
+turned out to be justified by nothing but its own persistence.
 
 **The mean is chosen for habitability by latitude band.** Summer and winter
 temperature per band were measured on converged runs and projected across
@@ -64,8 +61,8 @@ elevation over the stellar cycle, so they advance and retreat visibly on a
 generational rhythm.
 
 **The poles are the worst place for glaciers on this world**, which inverts
-the terrestrial intuition and does so from first principles. At 32 degrees
-obliquity the summer-solstice pole receives nearly double the equator's daily
+the terrestrial intuition and does so from first principles. At this world's
+high obliquity (declared in `config/planet.yaml`) the summer-solstice pole receives nearly double the equator's daily
 mean insolation, both polar caps are land, so there is no ocean buffer and no
 inherited ice to reflect it away, and polar summers come out hotter than the
 tropics while polar winters are severe: a seasonal range beyond anything

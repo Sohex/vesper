@@ -50,8 +50,9 @@ offline chain in `aeolian/` runs that path exactly once per iteration and
 stops, which is what makes it PRESCRIBED rather than interactive: the dust the
 model sees is the dust the previous climate produced. That is defensible one
 iteration deep and not for a converged answer -- the reopening test in
-`notes/dust.md` fired. DUST-3 closes it by putting emission in the model.
-Until then, `build_dust.py` sits BELOW the climatology in the register and
+`notes/dust.md` fired. The emission port landed under DUST-3; the loop stays
+cut until a run enables it (DUST-13). Until then, `build_dust.py` sits BELOW
+the climatology in the register and
 surface code 1811 sits ABOVE the next run, which reads as a contradiction in
 the diagram and is really one loop drawn across two iterations.
 

@@ -586,8 +586,8 @@ Two constraints on the ORDER are real and are unaffected. The upstream defects
 come first because everything downstream is uncalibratable without them. And the
 longwave term sits inside the radiation solver, so it cannot be developed in
 parallel with any other patch to `radmod.f90` without the two being tested
-together rather than independently, which CLAUDE.md's Environment section warns
-about directly. That is why defect 1 and item 5 waited for PHYS-6 and were then
+together rather than independently, which `docs/src/reference/environment.md`
+warns about. That is why defect 1 and item 5 waited for PHYS-6 and were then
 written together, on one branch, against one base.
 
 **A patch's place in the STACK is not its place in the ordering above**, and

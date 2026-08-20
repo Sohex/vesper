@@ -38,15 +38,16 @@ chemistry.
 ### Orogen: tectonic and magmatic genesis
 
 These need only what the generator already computes, and several are the first
-consumer of fields nothing currently reads -- `hotspot`, `r_tectonicActivity`
-and `r_t_craton` are all diagnostics with no downstream reader today.
+consumer of fields nothing else reads -- `r_t_craton` is now consumed by
+`build_prospectivity.py`, while `hotspot` and `r_tectonicActivity` remain
+diagnostics with no downstream reader.
 
 | deposit type | control | field it keys on |
 | --- | --- | --- |
 | Porphyry Cu-Mo-Au | continental arc, upper crust | arc belt, `granodiorite` root |
 | Orogenic gold | fold belt, greenschist grade, shear zones | `r_t_foldBelt`, `r_stress` |
-| VMS | submarine volcanic, ridge and back-arc | `morb`, `backArcDist` |
-| Magmatic Ni-Cu-PGE | LIP feeder systems | `flood_basalt`, `lipV` |
+| VMS | submarine volcanic, ridge and back-arc | `melange`, `arc_basalt`, `morb` |
+| Magmatic Ni-Cu-PGE | LIP feeder systems | `flood_basalt` (`lipV` expressed through it) |
 | Podiform chromite | obducted ocean crust | `melange`, forearc |
 | Kimberlite / diamond | thick cold cratonic keel | `r_t_craton` |
 
@@ -353,7 +354,8 @@ control is "Archean" or "Proterozoic" cannot be placed, only their tectonic
 setting can. The concrete loss is komatiite-hosted Ni: Naldrett (2010) splits
 magmatic sulphide deposits into a komatiite-related class and a flood-basalt
 class, and puts the komatiite one at 2.7 to 1.9 Ga. Only the flood-basalt class
-is available here, and `magmatic_nicu` keys on it alone.
+is available here, and `magmatic_nicu` keys on `flood_basalt` with a small
+`oib` weight beside it.
 
 **Rift-hosted deposits, on the current geography.** `rift_bimodal` is 0% of land
 here, because continental rifting needs two adjacent continental super-plates and
@@ -366,7 +368,7 @@ carbonatite-hosted rare earths along with it.
 individual deposits.**
 
 The reason is resolution, and it is the same reason glacial erosion is deferred
-in `notes/audits/orogen-gravity.md`. A mesh cell is 15.19 km across. A porphyry
+in `notes/audits/orogen-gravity.md`. A mesh cell is about 15 km across. A porphyry
 system is one to two kilometres, 0.07 to 0.13 of a cell; a vein or lode is tens
 to hundreds of metres, under a hundredth of one. A discrete deposit is invisible
 at every resolution this pipeline currently runs at, so placing one here would be

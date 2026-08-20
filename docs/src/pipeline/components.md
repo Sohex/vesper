@@ -5,7 +5,8 @@
 ```
 config/planet.yaml   Canonical planet, star, orbit, atmosphere. Every component reads it.
 source/              World Orogen exports. Canonical, read-only.
-lib/                 Shared readers: orogen.py (the export), gridding.py (mesh to grid).
+lib/                 Shared readers: orogen.py, gridding.py, and the rest of the
+                     list CLAUDE.md's Layout carries in full.
 hydrography/         Drainage, catchments, basin capacity, lake balance, carve verdict.
 exoplasim/           Boundary conditions, climate integrations, climatology.
 pedology/            Weathers lithology into soil, and into solute fluxes: CO2, silica, phosphorus.
@@ -28,15 +29,15 @@ maps/                Rendering. Terminal: nothing reads its output. Its generato
 World Orogen (fork)
    |  seed + planet code -> terrain, lithology, closed basins, hydrology
    v
-source/<build>/exoplasim-T21|T42|T85 + grid-512x256 + maps
+source/<build>/exoplasim-T21|T42|T63|T85 + grid-512x256
    |  raw/ mesh lives in the T42 export and is identical for all of them
    v
 lib/gridding.py            integrate mesh fields onto any model grid
    |                        |
    |                        v
-   |                  exoplasim/build_boundary_conditions.py -> land mask, topography
-   |                  exoplasim/build_surface_albedo.py      -> albedo, forest fraction
-   |                  exoplasim/build_surface_soil_water.py  -> dwmax  (off by default)
+   |                  exoplasim/scripts/build_boundary_conditions.py -> land mask, topography
+   |                  exoplasim/scripts/build_surface_albedo.py      -> albedo, forest fraction
+   |                  exoplasim/scripts/build_surface_soil_water.py  -> dwmax  (off for the bootstrap)
    |                        |
    |                        v
    |                  ExoPlaSim spin-up
@@ -48,15 +49,15 @@ lib/gridding.py            integrate mesh fields onto any model grid
    |          +-------------+-------------+
    |          |                           |
    v          v                           v
-hydrography/            pedology/build_soil.py        hydrography/carve_verdict.py
+hydrography/            pedology/scripts/build_soil.py        hydrography/scripts/carve_verdict.py
   drainage,               weathers lithology            which basins overflow
   catchments,             under the climate         <-- integrates climate over
   hypsometry,               |                           catchments
   coupling matrix           v
-   |                  biosphere/build_lpj_driver.py -> one binary, N years
+   |                  biosphere/scripts/build_lpj_driver.py -> one binary, N years
    |                        |
    |                        v
-   |                  biosphere/run_lpj_guess.py  (LPJ-GUESS, MPI)
+   |                  biosphere/scripts/run_lpj_guess.py  (LPJ-GUESS, MPI)
    |                        |
    |                        +--> cpool.out ---> back to build_soil.py
    |                        |                   (soil and biosphere iterate)
@@ -70,20 +71,20 @@ carve list -> back to World Orogen -> new terrain
 ```
 
 Three loops close in that diagram and a fourth is cut across iterations;
-section 4 says why each has to be what it is.
+[section 4](loops.md) says why each has to be what it is.
 
 **Two branches hang off it that the diagram does not draw**, because they would
 turn one picture into four. Both are in the register.
 
 ```
-climatology + surface_water.nc -> aeolian/build_dust.py -> dust_baseline.{nc,json}
+climatology + surface_water.nc -> aeolian/scripts/build_dust.py -> dust_baseline.{nc,json}
    |                                        |
    |   deposition -> pedology (loess, phosphorus)
-   |   optical depth -> exoplasim/dust_optics.py -> dust_aerofile.py -> the model
-   |                 -> exoplasim/dust_forcing.py -> carve_verdict.py --dust
+   |   optical depth -> exoplasim/scripts/dust_optics.py -> dust_aerofile.py -> build_surface_dust.py (1811) -> the model
+   |                 -> exoplasim/scripts/dust_forcing.py -> carve_verdict.py --dust-forcing
    v
-source/ + soil + drainage -> minerals/build_prospectivity.py            (terrain only)
-                          -> minerals/build_downstream_prospectivity.py (carries a climate)
+source/ + soil + drainage -> minerals/scripts/build_prospectivity.py            (terrain only)
+                          -> minerals/scripts/build_downstream_prospectivity.py (carries a climate)
 ```
 
 ## 2b. The artifact register

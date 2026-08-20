@@ -152,7 +152,8 @@ and then gives its numbers as:
 
 `sand: 0.07`, `silt: 0.20`, `clay: 0.13`, `volumetric_capacity_organic: 0.30`.
 No source. `docs/src/pipeline/steps.md` section 3.6 states the convention this breaks: "Every Earth
-calibration lives in `pedology/config/pedogenesis.yaml` with its source."
+calibration lives in `pedology/config/` with its source or an explicit
+statement that it is declared."
 
 The values are not wrong. Volumetric available water capacity, field capacity
 minus wilting point, is conventionally around 0.05 to 0.10 for sand, 0.18 to 0.22

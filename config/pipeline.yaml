@@ -191,7 +191,8 @@ steps:
     needs: [baseline_climatology, bracket_run]
     writes: [exoplasim/analysis/design_flux.json]
     gate: >
-      the flux is re-derived on every new terrain (`docs/src/pipeline/state.md` section 5b and 6), and the
+      the flux is re-derived on every new terrain (`docs/src/pipeline/state.md`
+      section 5b and `docs/src/pipeline/sequencing.md` loop C), and the
       thresholds are declared in the script before it runs, never fitted to the
       answer. The cap on extreme-cold land fraction must be DECLARED in advance
       by this re-derivation: the purged artifact inferred it at 0.0642, which

@@ -48,10 +48,30 @@ supposed to agree and finding they did not.
   findable: a new module belongs in the `lib/` list, a new step in
   `config/pipeline.yaml`, a new component in the layout and in
   `docs/src/pipeline/components.md`, a
-  model change as a commit under `vendor/exoplasim`, a new convention here. A
+  model change as a commit under `vendor/exoplasim`, a new convention as a one-line directive in `CLAUDE.md`, argued here. A
   component that works
   and is invisible will be reimplemented beside itself, which is how this project
   came to have four copies of a path resolver and three of a grid convention.
 
   The two rules pull in opposite directions and that is the point: **record what
   a thing IS and where it lives, never what it currently SAYS.**
+
+## Prose registers
+
+- **Write about the simulation in the simulation's terms.** Some of this
+  project's subject matter shares surface vocabulary with sensitive real-world
+  registers, and prose that borrows one of those registers gets misread by
+  automated review at real cost, over content that is only ever a toy model of
+  an invented planet. Three rules. Name the simulated subject explicitly: the
+  model's snow albedo, the simulation's rainfall, a gridcell's vegetation --
+  a sentence should not parse as being about the real world or about people.
+  Keep established technical terms whose context already disambiguates them
+  (extinction efficiency, albedo, flood seeding); a euphemism for a standard
+  term is one quantity with two names, which is its own failure class. And any
+  document that can be read standalone states the worldbuilding frame up
+  front, as `TASKS.md` does. THE RULE IS SUBJECT TO ITSELF: do not enumerate
+  the phrases it exists to avoid, here or anywhere -- the first version of the
+  rule quoted them as negative examples in `CLAUDE.md`, which is loaded into
+  every session, so the guard re-supplied on every turn exactly what it
+  guarded against. Commits f5de28f, 47a68b3 and 9957a0b hold the specifics for
+  anyone who needs them.

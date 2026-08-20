@@ -33,7 +33,7 @@ downstream may read.
 that is not the terrain has invalidated its climatology: a model patch, a
 configuration value, a physics correction. Same build, no generation, and the
 bootstrap comes with it, because everything below a climatology is worthless
-rather than stale once the climatology is, by rule 7 above.
+rather than stale once the climatology is, by `CLAUDE.md` rule 7.
 
 **re-run the baseline** -- the narrow case, and NOT a re-commissioning: a new
 baseline run on derived fields that are still valid, because whatever changed

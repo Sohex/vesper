@@ -8,7 +8,7 @@ documents, numbers and results are kept; this file says how work proceeds.
 - **A task has TWO end states: completed, or blocked. If you are at neither,
   keep going.** Not "reported", not "diagnosed", not "handed over with a clear
   recommendation" -- those are mid-task. Blocked means something outside your
-  reach stops you: a decision only the user can make under the rule below, a
+  reach stops you: a decision only the user can make under the defect-as-decision rule, a
   measurement that needs hardware or data nobody has, an expensive run that has
   to be authorised. Everything else is work you have not done yet, however
   neatly you have described it.
@@ -49,7 +49,7 @@ documents, numbers and results are kept; this file says how work proceeds.
   each treated as though describing it were the deliverable. **If you can say
   what would settle a question, you are not blocked; you are mid-task.** Carry
   on until the thing is settled, genuinely blocked on something outside the
-  repository, or a real decision surfaces under the rule below.
+  repository, or a real decision surfaces under the defect-as-decision rule.
 
   Two tells that you have stopped early. You wrote a sentence beginning "the
   next step is" and then stopped rather than taking it; or you scheduled work
@@ -59,7 +59,7 @@ documents, numbers and results are kept; this file says how work proceeds.
   it needed a separate session was wrong every time.
 
   This is not licence to keep going past a genuine decision, and it does not
-  override the rule below. The difference is whether the project's declared
+  override the defect-as-decision rule. The difference is whether the project's declared
   truth settles it: if it does, that is WORK, and stopping to report it is the
   failure this bullet describes.
 

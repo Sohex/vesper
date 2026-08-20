@@ -28,7 +28,7 @@ cell's albedo toward open water's 0.06.
 
 Land comes from `surface_class`, never from `land_mask`. The two disagree over
 dry closed-basin floor below sea level -- `manifest.landSeaMask` has the size
-of the disagreement -- and `land_mask` would flood it.
+of the disagreement -- and `land_mask` would flood it (CLAUDE.md rule 1).
 
 Seven surface fields are supplied. Topography (129), land mask (172),
 roughness (173), broadband and two-band albedo (174, 175, 176) and forest
@@ -54,8 +54,9 @@ river water never re-enters the evaporating bucket).
 
 ### 3.3 Climate
 
-ExoPlaSim 3.4.2, T42, 16 MPI ranks, 45-minute timestep, 10 layers, 50 m slab
-ocean, interactive sea ice, glaciers enabled, and a measured stellar spectrum
+ExoPlaSim 3.4.2, on the resolution, rank count, timestep, layer count and
+slab-ocean depth that `config/planet.yaml`'s `model:` block declares, with
+interactive sea ice, glaciers enabled, and a measured stellar spectrum
 rather than a blackbody.
 
 That spectrum is `k25v`, built from BT-Settl, replacing a shipped file that
@@ -162,7 +163,7 @@ silica per lithology from concentrations times runoff. Silica is the supply
 side of silcrete and diatomite, and the endorheic share is what matters there:
 silica reaching the ocean is diluted into an enormous reservoir, while silica
 reaching a closed basin concentrates until it saturates. CO2 is the carbon
-cycle, and section 4 says why that loop is left open.
+cycle, and [section 4](loops.md) says why that loop is left open.
 
 **It also derives what the surface has BECOME, which is a different question
 from what the profile is.** `build_surface_classes.py` emits two independent
@@ -195,7 +196,7 @@ climate it was built with, and the model cycles through them. One year is a
 fixed climate; several are how a variable star reaches the biosphere, and a
 single repeating year cannot represent one at all.
 
-## 3.8 Economic minerals
+### 3.8 Economic minerals
 
 `minerals/` emits ore prospectivity per deposit type, in two artifacts split
 by genesis and therefore by lifetime: the tectonic and magmatic half is a pure

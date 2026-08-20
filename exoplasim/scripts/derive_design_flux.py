@@ -7,7 +7,7 @@ to the real world.
 
 WHY IT EXISTS. The 2026-08-16 derivation that set `baseline_flux_earth` lived
 only as prose: no script, no artifact, no named runs, no stated thresholds
-(CLIM-24, inherited-earth-constants.md finding 5). Section 6 requires the flux
+(CLIM-24, inherited-earth-constants.md finding 5). docs/src/pipeline/sequencing.md loop C requires the flux
 to be RE-DERIVED on every new terrain, so the criteria have to be re-runnable,
 not reinvented. This codifies them. The thresholds below were fixed in this
 docstring before the script was first run against the data, per the project's

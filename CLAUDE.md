@@ -99,24 +99,23 @@ The arguments and the incidents behind these are in
 - **Rewrite superseded content; do not mark it.** A reader grepping for a number
   lands on the number, not on the warning above it.
 - Prose in docs and reports uses ASCII punctuation and avoids em dashes; match it.
-- **Write about the simulation in the simulation's terms.** Some of this
-  project's subject matter shares surface vocabulary with sensitive real-world
-  registers, and prose that borrows one of those registers gets misread by
-  automated review at real cost, over content that is only ever a toy model of
-  an invented planet. Three rules. Name the simulated subject explicitly -- the
-  model's snow albedo, a gridcell's vegetation -- so no sentence parses as
-  being about the real world or about people. Keep established technical terms
-  whose context already disambiguates them; a euphemism for a standard term is
-  one quantity with two names. And any document that can be read standalone
-  states the worldbuilding frame up front, as `TASKS.md` does. THIS RULE IS
-  SUBJECT TO ITSELF: do not enumerate the phrases it exists to avoid, here or
-  anywhere -- this file is loaded into every session, and a guard that quotes
-  its negative examples re-supplies on every turn exactly what it guards
-  against. The three commits of 2026-08-19 hold the specifics.
+- **Write about the simulation in the simulation's terms.** Name the
+  simulated subject explicitly -- the model's snow albedo, a gridcell's
+  vegetation -- so no sentence parses as being about the real world or about
+  people; keep established technical terms whose context already
+  disambiguates them; and any document that can be read standalone states the
+  worldbuilding frame up front, as `TASKS.md` does. THIS RULE IS SUBJECT TO
+  ITSELF: do not enumerate the phrases it exists to avoid, here or anywhere.
+  The argument and the history are in `docs/src/practice/conventions.md`.
 - Keep citations and table cells on one source line, even where that breaks
   column alignment. They get copied out.
 - Every run and analysis product records its provenance (config hash, input
   hashes, software versions) in JSON. Keep that up when adding steps.
+- Thresholds are fixed before results are seen; a criterion chosen after the
+  run it judges is not a criterion.
+- Estimates that cannot be verified are bracketed rather than guessed, and the
+  bracket is reported.
+- Claims are checked against the artifact rather than the documentation.
 - Convergence claims state their exact criteria and are labelled honestly when
   they miss. Preserve that standard rather than rounding results into passes.
 - Scripts anchor their paths in a `_paths.py` and resolve from the file
@@ -181,7 +180,7 @@ the definitions, the collisions and their cost history are in
 - **re-commissioning** -- commissioning the SAME build again, bootstrap
   included.
 - **re-run the baseline** -- a new baseline on still-valid derived fields.
-  Do not say "re-baseline"; it means neither of the two above.
+  Do not say "re-baseline"; it is ambiguous between the two above.
 - **iteration** -- one turn of loop A: a generation, then the commissioning of
   the build it produced.
 - **segment** -- a contiguous block of orbits added to a run; its purpose is
@@ -218,7 +217,7 @@ notes/                 Dated findings with their evidence; notes/audits/ for aud
 vendor/orogen/         World Orogen fork, git subtree. Generates the geography.
 vendor/exoplasim/      ExoPlaSim fork, git subtree. THE model source: edited here,
                        compiled here, installed editable from here.
-.venv/                 Python 3.12, already activated in this shell. Untracked.
+.venv/                 Python 3.12. Untracked; see Environment below.
 ```
 
 New components get a sibling directory and read the same `config/planet.yaml`

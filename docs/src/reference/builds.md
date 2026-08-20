@@ -46,9 +46,8 @@ dependency has moved is *cleared*, not carried with a caveat: a stale derived
 value is indistinguishable from a current one, so it emits an invalidation
 record naming the dependency and what to run.
 
-**Identity lives in the registry, state lives in world_state.** `lib/orogen.py`
-keeps every build it has been checked against, so results already computed from a
-superseded terrain stay readable and datable.
+**Identity lives in the registry, state lives in world_state** -- the
+registry's half of that split is described above.
 
 ## The durable set
 
@@ -66,10 +65,15 @@ is "what is now worthless" rather than "what needs updating".
 
 The carve list is in the durable set because Orogen CONSUMES it, in the same
 way it consumes the seed, and not because incision is irreversible. Incision
-being irreversible is a fact about the world, not about the pipeline: a wrong
-verdict is recoverable, because a build is replaced wholesale rather than
-edited. Carving is an ordinary step that happens to be a convenient
+being irreversible is a fact about the world, not about the pipeline, since a
+wrong verdict is recoverable, as above. Carving is an ordinary step that happens to be a convenient
 bottleneck, and treating it as sacred obscures the actual rule. Climatologies,
 run output, verdicts, soil, dust fields, prospectivity and `world_state.json`
 are all output. "The floor was binding on 73% of the overflowing set"
 survives every regeneration; "1,938 basins carve" does not.
+
+A build joins the durable question from the other side: it is DISPOSABLE until
+a climate run has consumed it. Before that, nothing depends on it, so the
+answer to a generator change is to regenerate rather than to migrate; after
+that, runs and verdicts start depending on it, and it is not. What must
+survive either way is the recipe, in `source/README.md`.

@@ -23,15 +23,15 @@ from whatever changed.
 model plus postprocessing plus the ocean and ice stream writes, and quoting the
 model half alone understates a run by about a third. Per-segment model-only
 figures are `native_runtime_seconds` in each run's manifest; the wall figure is
-the gap between consecutive `MOST_REST.NNNNN`. At T42 on 16 ranks an orbit
-costs about 140 s end to end -- a ceiling, measured before the second pyburn
-fix landed, which should bring it nearer 110 s once a run made after the change
-measures it. So a settling run off a near-equilibrium restart plus ten clean
-orbits is a couple of hours, and a commissioning usually wants two of them. An
+the gap between consecutive `MOST_REST.NNNNN`. The current per-orbit cost, and what the
+pyburn fixes did to it, are measured in
+`notes/audits/pyburn-postprocessing-cost.md`. A settling run off a
+near-equilibrium restart plus ten clean orbits is hours, not minutes, and a
+commissioning usually wants two of them. An
 ITERATION is far more, because the generation in front of it regenerates the
 terrain and every field that is a pure function of it.
 
 **That affordability assumes the pyburn fixes are resident.** Unpatched,
 postprocessing is roughly three quarters of the orbit rather than an overhead
-on it, and a commissioning goes from about four hours to about twelve.
-`notes/audits/pyburn-postprocessing-cost.md` has the measurements.
+on it, which triples a commissioning. The same audit note has the
+measurements.

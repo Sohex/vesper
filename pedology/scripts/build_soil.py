@@ -721,7 +721,7 @@ def main() -> None:
         "regolith_note": (
             "LPJ-GUESS 4.1.1 has a fixed 1.5 m profile and does not consume "
             "regolith depth. It is computed and reported so the gap is visible; "
-            "see notes/model.md."),
+            "see pedology/README.md."),
         "output": rel(output),
         "output_sha256": hashlib.sha256(output.read_bytes()).hexdigest(),
         "git_commit": subprocess.run(

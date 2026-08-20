@@ -55,9 +55,10 @@ Ga. That is stated as something the world cannot have rather than approximated.
 **The carve verdict, in `hydrography/notes/retain-fraction.md`.** How much of a
 basin's rim survives its overflow depends on the relaxation window. Rather than
 declare one: match the DENSITY of standing through-flowing impounded basins
-against Earth's, at the size this mesh can resolve. That fixes the incision
-coefficient at 161 m per (m3/s)^0.5, with a bracket from the Poisson error on
-Earth's small sample.
+against Earth's, at the size this mesh can resolve. The incision coefficient
+is solved by that calibration on every run rather than written down, with a
+bracket from the Poisson error on Earth's small sample
+(`hydrography/notes/retain-fraction.md`).
 
 ## The two ways this goes wrong
 
