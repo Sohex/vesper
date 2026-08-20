@@ -109,6 +109,7 @@ import yaml
 
 from _paths import ANALYSIS, CONFIG  # also puts lib/ on sys.path
 from paths import climatology_path
+import sensitivity  # noqa: E402  from lib/
 
 SSAP = "http://svo2.cab.inta-csic.es/theory/newov2/ssap.php"
 MODEL = "bt-settl"
@@ -695,15 +696,19 @@ def predict(config: dict, weight: float, absorber: str = "h2o", co2_fit: dict | 
     }
     toa["central"] = 0.65 * toa["below_all_cloud"] + 0.35 * toa["above_all_cloud"]
 
-    # WORKFLOW.md section 5b: 196 K per unit flux ratio across 0.9125-0.945 and
-    # 209 across 0.945-0.968, both converged T42 points on this build. The
-    # warming direction is the upper segment and the flux re-derivation is the
-    # lower one. The stellar sweep's 33 K for 21 W/m2 is NOT usable here: it is
-    # 3.4x the local slope because it crosses the ice transition (TASKS BUDG-4).
-    absorbed_per_unit_ratio = 1361.0 / 4.0 * (1.0 - planetary_albedo)
+    # The flux-to-kelvin conversion is lib/sensitivity.py and nowhere else.
+    # This block used to hardcode a 196/209 segment pair measured on the
+    # superseded precarve-zoned-g1281 terrain -- a fourth simultaneous
+    # sensitivity, which is the thing that module exists to prevent. The
+    # stellar sweep's slope is still NOT usable here: it crosses the ice
+    # transition (TASKS BUDG-4, and the module docstring).
+    slope_lo, slope_hi = sensitivity.SLOPE_SPREAD_K_PER_FLUX_RATIO
     k_per_w = {
-        "lower_segment_196": 196.0 / absorbed_per_unit_ratio,
-        "upper_segment_209": 209.0 / absorbed_per_unit_ratio,
+        "slope_spread_low": sensitivity.kelvin_per_w_m2(
+            planetary_albedo, slope=slope_lo),
+        "slope_central": sensitivity.kelvin_per_w_m2(planetary_albedo),
+        "slope_spread_high": sensitivity.kelvin_per_w_m2(
+            planetary_albedo, slope=slope_hi),
     }
     warming = {
         name: {k: v * s for k, s in k_per_w.items()} for name, v in toa.items()
@@ -714,7 +719,7 @@ def predict(config: dict, weight: float, absorber: str = "h2o", co2_fit: dict | 
     precip_mm_yr = mean(precip) * 1000.0 * seconds_per_year
     d_precip_full = -d_atmosphere / latent * seconds_per_year
 
-    central_warming = warming["central"]["upper_segment_209"]
+    central_warming = warming["central"]["slope_central"]
     return {
         "absorber": absorber,
         "weight": weight,
@@ -744,7 +749,7 @@ def predict(config: dict, weight: float, absorber: str = "h2o", co2_fit: dict | 
             "kelvin_per_w_m2": k_per_w,
             "mean_surface_temperature_k": warming,
             "precipitation_mm_yr_full_compensation": d_precip_full,
-            "flux_ratio_to_restore_the_design_mean": -central_warming / 196.0,
+            "flux_ratio_to_restore_the_design_mean": -central_warming / sensitivity.SLOPE_K_PER_FLUX_RATIO,
         },
     }
 
@@ -1045,7 +1050,7 @@ def main() -> None:
           f"({pc['toa_net_shortwave']['below_all_cloud']:+.2f} to "
           f"{pc['toa_net_shortwave']['above_all_cloud']:+.2f})")
     print(f"  mean surface temperature "
-          f"{pc['mean_surface_temperature_k']['central']['upper_segment_209']:+.2f} K, "
+          f"{pc['mean_surface_temperature_k']['central']['slope_central']:+.2f} K, "
           f"SAME SIGN as the water vapour correction and about a sixth of its size")
 
     p = report["prediction"]["central"]
@@ -1066,7 +1071,7 @@ def main() -> None:
     )
     print(
         f"  mean surface temperature         "
-        f"{change['mean_surface_temperature_k']['central']['upper_segment_209']:+.2f} K "
+        f"{change['mean_surface_temperature_k']['central']['slope_central']:+.2f} K "
         f"from {base['mean_surface_temperature_k']:.2f} K"
     )
     print(
