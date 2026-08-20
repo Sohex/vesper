@@ -69,7 +69,7 @@ from gridding import (coupling_cells, coupling_ocean_fraction,
                       require_index_alignment)
 from orbit import orbital_year_days
 from orogen import Export
-from paths import climatology_path, require_clean_io
+from paths import climatology_path, rel, require_clean_io
 from lake_balance import BasinSet, carve_verdict, solve
 
 DRHSFULL = 0.4          # landmod.f90: wetness reaches 1 above this fraction
@@ -456,6 +456,29 @@ def main() -> None:
     ap.add_argument("--runoff-scale", type=float, default=1.0,
                     help="scale catchment runoff by this factor before the "
                          "aridity index; a sensitivity, not a climate")
+    # GW-14. The criterion's supply term was SURFACE runoff, because that was
+    # the only supply a surface-only model had. It is not the only one now.
+    #
+    # 605 basins here have `max(P - E, 0)` of exactly zero over their whole
+    # catchment, which sends the aridity index to infinity and makes them
+    # incapable of carving whatever their geometry -- and that was never a
+    # statement about geometry, it was a division by a supply term missing a
+    # term. Handed a water table, the supply becomes
+    #
+    #     r_eff = (surface_runoff * C + Qg) / C
+    #
+    # and the infinite branch disappears for any basin that receives water by
+    # some route. It is KEPT for `r_eff <= 0`, because a basin that genuinely
+    # receives nothing -- including one exporting its entire recharge
+    # underground -- still never overflows and still never incises, which is
+    # correct physics rather than an artifact.
+    #
+    # OFF unless a field is given, and the reduction identity is the test:
+    # without one, every verdict is bit-identical to the surface-only answer.
+    ap.add_argument("--groundwater", type=Path, default=None,
+                    help="water_table.nc, to add its per-basin net groundwater "
+                         "exchange to the criterion's supply term. Omitted, the "
+                         "criterion is exactly the surface-only one")
     args = ap.parse_args()
 
     _build_data = component_data("hydrography", strict=True)
@@ -586,6 +609,44 @@ def main() -> None:
     if args.runoff_scale != 1.0:
         print(f"  catchment runoff scaled by {args.runoff_scale}: a sensitivity "
               "on the criterion's denominator, not a climate")
+
+    # GW-14: the groundwater half of the supply, as a depth over the catchment
+    # so it adds to a runoff depth. This is the SUPPLY the basin receives, so it
+    # feeds the lake solver as well as the index -- they take the same quantity
+    # and separating them would be two answers to one question.
+    groundwater_depth = np.zeros_like(runoff)
+    groundwater_info = None
+    if args.groundwater is not None:
+        with Dataset(args.groundwater) as ds:
+            if getattr(ds, "terrain_hash", None) != basins.terrain_hash:
+                raise SystemExit(
+                    f"{args.groundwater} was built from a different terrain "
+                    "than basins.nc; the basin indices do not correspond")
+            qg = np.asarray(ds["basin_groundwater_m3_s"][:]).astype(np.float64)
+        if qg.size != n:
+            raise SystemExit(
+                f"{args.groundwater} has {qg.size} basins and basins.nc has {n}")
+        with np.errstate(divide="ignore", invalid="ignore"):
+            groundwater_depth = np.where(
+                catch_area > 0, qg / (catch_area * 1e6), 0.0) * to_km_per_year
+        import hashlib
+        _h = hashlib.sha256()
+        with open(args.groundwater, "rb") as _fh:
+            while _chunk := _fh.read(1 << 20):
+                _h.update(_chunk)
+        groundwater_info = {
+            "file": rel(args.groundwater),
+            "sha256": _h.hexdigest(),
+            "basins_gaining": int((qg > 0).sum()),
+            "basins_losing": int((qg < 0).sum()),
+            "note": ("added to the criterion's supply term as a catchment "
+                     "depth; the lake solver takes the same supply"),
+        }
+        print(f"  groundwater supply from {rel(args.groundwater)}: "
+              f"{int((qg > 0).sum())} basins gain, {int((qg < 0).sum())} lose")
+    # Clamped for the same reason the surface half is: a basin cannot deliver a
+    # negative amount of water to its own sink.
+    runoff = np.maximum(runoff + groundwater_depth, 0.0)
     runoff_mrro = means["mrro"] * to_km_per_year
     precip = means["pr"] * to_km_per_year
 
@@ -694,6 +755,7 @@ def main() -> None:
     payload = {
         "climatology": str(args.climatology),
         "coupling": str(args.coupling),
+        "groundwater": groundwater_info,
         "basins": n,
         "note": ("'penman' is the primary estimate: the Penman combination "
                  "equation with water's albedo and roughness, evaluated wholly "

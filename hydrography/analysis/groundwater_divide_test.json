@@ -1,0 +1,67 @@
+{
+  "source_build": "precarve-craton",
+  "terrain_hash": "e931b0d9947a232210a3cc11ba82003b5da15765d86e87956bc44c220932760e",
+  "forcing": "/home/cfutro/docs/world/exoplasim/analysis/climatology/bootstrap_regular_climatology.nc",
+  "forcing_sha256": "227909c0a19e204b88dd081b42bf7671447a5dc781e8ebeacd8e942144df5715",
+  "config_sha256": "fdee90a77e7a78e2ea2b3116dda8b74c961583eb3bade8657a0d6900a84520c4",
+  "sigma": 0.0,
+  "unassigned_policy": "exclude",
+  "gravity_m_s2": 12.81,
+  "conductivity_vs_earth": 1.3062564688247262,
+  "geometry": {
+    "faces": 7499997,
+    "voronoi_area_over_sphere": 1.0,
+    "export_cell_area_over_sphere": 1.000680974409125,
+    "note": "flux uses the Voronoi area its own faces bound; water volumes use the export's cell_area so the reduction identity against surface_water.py is exact"
+  },
+  "laplace_beltrami": {
+    "criterion": 0.1,
+    "relative_rms": {
+      "1": 0.02165422451858263,
+      "2": 0.1081881734670909,
+      "3": 0.12015462041162055,
+      "4": 0.12426941987830004
+    }
+  },
+  "closure": null,
+  "converged": true,
+  "convergence": {
+    "criterion_residual": 1e-12,
+    "criterion_flip_fraction": 0.0,
+    "final_residual": null,
+    "criterion_note": "the water balance residual on free cells over total land recharge, and a still active set. Not the head step: a bar on the step can be met by a shrinking step rather than by convergence",
+    "trace_columns": [
+      "pass",
+      "free_cells",
+      "cells_flipped",
+      "residual",
+      "infeasible_pinned_cells"
+    ],
+    "seepage_clipped_m3_s": null,
+    "trace": []
+  },
+  "outer_iterations": 0,
+  "water_table": {
+    "median_depth_m_land": 0.0,
+    "at_surface_fraction_land": 1.0,
+    "unassigned_land_fraction": 0.028842982556911458,
+    "aquifer_thickness_m": 100.0,
+    "transmissivity_note": "T = K D with a constant aquifer thickness, so there is no depth floor and no cell has a transmissivity that underflows"
+  },
+  "git_commit": "9a18f918f2019458433cf405dd57ba2f7e0f94b5",
+  "divide_test": {
+    "criterion_unfilled": 0.95,
+    "surface": "filled_km, the same surface regions.nc:terminal uses",
+    "agreement_outside_filled_pits": 0.7934889983927723,
+    "agreement_all_land_area": 0.8123936470036992,
+    "filled_pit_share_of_land": 0.09154305806371724,
+    "passes": false
+  },
+  "trace_identity": {
+    "criterion": 1.0,
+    "what": "the trace machinery handed the surface network's own receiver as a flux field; nothing about groundwater enters, so it must reproduce terminal exactly",
+    "receiver_recovered_fraction": 0.9248978132214684,
+    "terminal_agreement_land_area": 1.0,
+    "passes": true
+  }
+}
