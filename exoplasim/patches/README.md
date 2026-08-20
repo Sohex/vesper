@@ -56,6 +56,20 @@ here. Offered as ONE pull request with an offer to split, because the second is
 the other half of the same incomplete edit and the commented-out read block is
 what makes both self-evident.
 
+Plus #64, also not a patch here: `legmod.f90` applies the wavenumber-dependent
+physics filter inside the innermost loop of every spectral transform, where it
+is invariant in the enclosing latitude loop. Every use of `qi`, `qj`, `qu` and
+`qv` carries `skspgp` and every use of `qc`, `qe`, `qm` and `qq` carries
+`skgpsp`, 94 call sites without exception, so the filter folds into the weight
+matrices in `legini` and comes out of the loops. Offered as a SIMPLIFICATION
+that is slightly faster rather than as an optimisation: it is worth 1.6% at
+T127, 0.9% at T42 and nothing at T21, because those loops are bound by
+streaming the weight matrices rather than by the multiplier. Bit-identical to
+stock with the filter off and contraction disabled, which is what proves the
+mode indexing; a reassociation under default flags, because deleting a multiply
+changes what the compiler contracts to an FMA. The argument, the measurements
+and the test are in `exoplasim/notes/legendre-filter-fold.md`.
+
 Also not a patch here, and not yet offered: `plasim/src/make_plasim` declared
 three of its own dependencies short. `glaciermod.o` did not depend on
 `landmod.o`, `plasim.o` did not depend on `radmod.o`, and `carbonmod.o` did not
