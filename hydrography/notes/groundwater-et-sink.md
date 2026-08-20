@@ -97,3 +97,88 @@ computes and already shares with the lake solver and the carve criterion, so
 that one evaporation rule governs lakes, carving and the water table rather than
 three. Using a constant here is a deliberate simplification for the test in
 section 4, whose whole purpose is to isolate recharge as the source of variation.
+
+---
+
+# The result: one prediction held, one failed, and the failure is the finding
+
+Run 2026-08-20 on the GW-3 Earth harness, everything else held.
+
+**The inert path is bit-identical.** With `et_max_m_s` unset, `depth_m` is
+`np.array_equal` to the pre-change result and closure's ET door reads exactly
+0.0. The term cannot affect a run that does not ask for it.
+
+`ET_max` is a spatially constant 1,500 mm/yr, deliberately, so that the ONLY
+source of spatial variation is recharge. Closure holds throughout, 1e-15 to
+1e-13, with the third door carrying real water.
+
+| lambda | at surface | median depth | 95th pct | residual mean | residual sd |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| 0.5 m | 0.0% | 2.59 m | 3.5 m | -12.61 m | 40.05 m |
+| 1.0 m | 0.0% | 5.18 m | 6.9 m | -10.49 m | 40.05 m |
+| 2.0 m | 0.0% | 10.36 m | 13.5 m | **-6.23 m** | 40.06 m |
+
+against observed median 5.89 m, 95th percentile 50.9 m, standard deviation
+40.05 m, and thresholds of |mean| <= 8.92 and sd <= 24.56.
+
+## Against the prediction
+
+**1. Pinning goes: HELD, and by more than predicted.** 95.5% to 0.0%, against a
+predicted "under 20%". The sink does exactly the job it was added for.
+
+**2. The model acquires skill: FAILED.** The residual standard deviation is
+40.05 m, which is the observed standard deviation, unchanged from the 40.06 m
+the surface-pinned model scored. Pearson correlation between model and
+observation is **+0.031**, so the model explains **0.1% of the variance**.
+
+**3. The thresholds: the mean one PASSES at lambda = 2 m**, at -6.23 m against
+8.92. The standard deviation misses at every lambda, and it is the one that
+matters.
+
+**So the headline is not the one predicted.** The prediction expected the miss to
+come from a missing deep tail. It does not. The whole distribution is compressed:
+
+| | 5th pct | median | 95th pct | ratio |
+| --- | ---: | ---: | ---: | ---: |
+| model | 2.91 m | 4.31 m | 5.56 m | **1.9** |
+| observed | 0.90 m | 5.89 m | 50.88 m | **56.5** |
+
+## Why, and it is not a bug
+
+The mechanism works exactly as designed, and the correlations prove it:
+
+- model against recharge: Spearman **-0.977**
+- observed against recharge: Spearman **-0.156**
+
+`d = lambda ln(ET_max / R)` makes the model a near-deterministic function of
+recharge, which is what the equation says it should be. **The real water table
+is not a function of recharge.** Australian recharge spans 1 to 869 mm/yr, but a
+logarithm turns a factor of 900 into a factor of 13, and the recharge actually
+present is concentrated enough that the model spans less than a factor of 2.
+
+Observed depth tracks cell elevation slightly better than recharge, at Spearman
++0.222, and Fan et al. (2013)'s own finding is that terrain dominates water
+table depth at local scales -- "the well-articulated gradient is the topography
+from valley to ridge, spanning decameters to kilometers". **At 15.19 km a cell
+holds no valley and no ridge, so the model has no mechanism for the variation
+the observations are made of.** That is GW-6, and this is the second and sharper
+measurement of it: the first said the model was constant at zero, this says it
+is still nearly constant when the physics that removes the pinning is correct.
+
+## What stands
+
+**The sink stays.** It is right physics from a real source, it removes a state
+the Earth data says is wrong, it costs nothing when off, and closure now has
+three doors and still balances. Calling it necessary was correct.
+
+**Calling it sufficient would have been wrong, and the prediction said so** --
+though for the wrong reason, and that is worth more than a prediction that
+happened to land. The failure is not a missing tail. It is that a 15 km cell
+cannot carry the terrain signal that sets a water table, so no sink, no
+thickness and no conductivity recovers the variance.
+
+`ET_max` as a constant is the obvious next refinement and it will not change
+this. Using the Penman field would give ET_max the spatial variation of
+evaporative demand, which on this continent is smooth and broad, while the
+observed variation is at the scale of valleys. It would move the mean and leave
+the standard deviation where it is.

@@ -368,15 +368,44 @@ def geom_divergence(n, src, dst, face_flux):
 # The complementarity solve
 # ---------------------------------------------------------------------------
 
+def et_rate(et_max_m_s, et_lambda_m, surface_m, head, conductive):
+    """Groundwater ET as a rate, exponential in depth below the surface.
+
+    Shah, Nachabe and Ross (2007): "The decline of ET with DTWT is better
+    simulated by an exponential decay function than the commonly used linear
+    decay." Depth is clamped at zero so a cell at the surface takes the full
+    rate rather than an extrapolated one.
+    """
+    depth = np.maximum(surface_m - head, 0.0)
+    return np.where(conductive, et_max_m_s * np.exp(-depth / et_lambda_m), 0.0)
+
+
 def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
           surface_m, conductive, sea_level_m=0.0, max_outer=200,
-          start_all_free=False, verbose=True):
+          start_all_free=False, verbose=True,
+          et_max_m_s=None, et_lambda_m=None):
     """Steady-state head, seepage and face fluxes.
 
     With `T = K D` the transmissivity does not depend on the head, so the matrix
     is FIXED and the only thing left to iterate is the active set:
 
-        sum_j Trans_ij (h_j - h_i) + R_i A_i = S_i,   h_i <= z_i,  S_i >= 0
+        sum_j Trans_ij (h_j - h_i) + R_i A_i - E_i(h_i) A_i = S_i,
+                                                     h_i <= z_i,  S_i >= 0
+
+    `E` is groundwater evapotranspiration and is OFF unless `et_max_m_s` is
+    given, in which case the result is bit-identical to a run without it because
+    no ET code path executes at all. GW-15. Shah et al. (2007) find the decline
+    with water table depth is better described by an exponential than by the
+    linear form MODFLOW's EVT uses, so
+
+        E(h) = et_max * exp(-(z - h) / et_lambda)
+
+    It is head-dependent, so the matrix is no longer fixed and this becomes a
+    Newton iteration folded into the active-set loop already here. That is
+    benign in a way GW-9's exponential transmissivity was not: dE/dh is POSITIVE,
+    so it lands on the diagonal with the sign that strengthens diagonal
+    dominance, and the sink weakens as the table falls rather than the
+    conductance collapsing as it did before.
 
     That is a box-constrained linear complementarity problem, and an active-set
     method on one terminates exactly. There is no relaxation, no trust region,
@@ -483,7 +512,9 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
         # more water out of it than its recharge supplies cannot stand at the
         # surface. An anchor is never released; see below.
         flux = trans * (head[dst] - head[src])
-        seep = supply + geom_divergence(n, src, dst, flux)
+        et_m3_s = (et_rate(et_max_m_s, et_lambda_m, surface_m, head, conductive)
+                   * area_m2) if et_max_m_s is not None else 0.0
+        seep = supply - et_m3_s + geom_divergence(n, src, dst, flux)
         # AN ANCHOR MAY BE RELEASED, and once released it is never chosen
         # again. Anchors were permanent first, on the reasoning that freeing one
         # returns its block to the singular state it was rescued from. That is
@@ -570,6 +601,17 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
                                trans[both], trans[both]])
         rhs = np.zeros(m)
         np.add.at(rhs, idx[unknown], supply[unknown])
+        if et_max_m_s is not None:
+            # Newton on E(h) about the current head: E(h) ~ E* + (E*/lambda)(h - h*).
+            # The slope goes on the diagonal, where it is POSITIVE and so only
+            # improves the M-matrix; the rest moves to the right-hand side.
+            e_star = et_rate(et_max_m_s, et_lambda_m, surface_m, head, conductive)
+            slope = e_star[unknown] * area_m2[unknown] / et_lambda_m
+            rows = np.concatenate([rows, idx[unknown]])
+            cols = np.concatenate([cols, idx[unknown]])
+            vals = np.concatenate([vals, slope])
+            rhs += (slope * head[unknown]
+                    - e_star[unknown] * area_m2[unknown])
         if edge_one.any():
             u_side = np.where(unknown[src[edge_one]], src[edge_one], dst[edge_one])
             p_side = np.where(unknown[src[edge_one]], dst[edge_one], src[edge_one])
@@ -601,7 +643,9 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
         free[over] = False
 
         flux = trans * (head[dst] - head[src])
-        bal = supply + geom_divergence(n, src, dst, flux)
+        et_m3_s = (et_rate(et_max_m_s, et_lambda_m, surface_m, head, conductive)
+                   * area_m2) if et_max_m_s is not None else 0.0
+        bal = supply - et_m3_s + geom_divergence(n, src, dst, flux)
         still = free & ~is_ocean
         residual = float(np.abs(bal)[still].sum() / max(total_supply, 1e-30))
 
@@ -655,8 +699,10 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
     flux = trans * (head[dst] - head[src])
     divergence = geom_divergence(n, src, dst, flux)
     pinned = conductive & ~free
+    et_final = (et_rate(et_max_m_s, et_lambda_m, surface_m, head, conductive)
+                * area_m2) if et_max_m_s is not None else np.zeros(n)
     seepage = np.zeros(n)
-    seepage[pinned] = supply[pinned] + divergence[pinned]
+    seepage[pinned] = supply[pinned] - et_final[pinned] + divergence[pinned]
     excluded = (export.surface_class == LAND) & ~conductive
     seepage[excluded] = supply[excluded]
     # At convergence every pinned cell is feasible, so this clip removes
@@ -675,6 +721,11 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
         # a plus; it was a minus, which made closure subtract the coastal
         # discharge instead of adding it.
         "ocean_outflow_m3_s": float(divergence[is_ocean].sum()),
+        # GW-15. Zero, and an array of zeros rather than a None, when the sink
+        # is off, so closure can add it unconditionally and a reader cannot get
+        # a different answer by forgetting it.
+        "et_m3_s": et_final,
+        "et_total_m3_s": float(et_final.sum()),
     })
     return result
 
@@ -682,20 +733,26 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
 def closure(result, recharge_m_s, area_m2, export: Export) -> dict:
     """Recharge in against discharge out. A conservation law, not a comparison.
 
-    At equilibrium every drop of recharge leaves through exactly one of two
-    doors: it seeps back to the surface somewhere, or it crosses the coast into
-    the ocean boundary. If the two disagree the discretisation is wrong, and no
+    At equilibrium every drop of recharge leaves through exactly one of three
+    doors: it seeps back to the surface somewhere, it crosses the coast into the
+    ocean boundary, or -- with GW-15's sink on -- it evaporates from a shallow
+    water table on the way. If they disagree the discretisation is wrong, and no
     amount of agreement elsewhere rescues it.
+
+    The third door is zero when the sink is off, so this arithmetic is the same
+    conservation law either way rather than two laws behind a flag.
     """
     land = export.surface_class == LAND
     supply = float((recharge_m_s[land] * area_m2[land]).sum())
-    out = float(result["seepage_m3_s"].sum()) + result["ocean_outflow_m3_s"]
+    out = (float(result["seepage_m3_s"].sum()) + result["ocean_outflow_m3_s"]
+           + result.get("et_total_m3_s", 0.0))
     rel = abs(out - supply) / max(abs(supply), 1e-30)
     return {
         "recharge_m3_s": supply,
         "discharge_m3_s": out,
         "seepage_m3_s": float(result["seepage_m3_s"].sum()),
         "to_ocean_m3_s": result["ocean_outflow_m3_s"],
+        "to_groundwater_et_m3_s": result.get("et_total_m3_s", 0.0),
         "relative_residual": rel,
         "tolerance": CLOSURE_TOLERANCE,
         "passes": rel < CLOSURE_TOLERANCE,
