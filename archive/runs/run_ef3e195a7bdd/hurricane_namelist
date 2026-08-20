@@ -1,0 +1,6 @@
+ &hurricane_nl
+ NSTORMS = 4 
+  HC_CAPTURE = 0
+  NKTRIGGER = 0
+  NSTORMDIAG = 0
+ /END

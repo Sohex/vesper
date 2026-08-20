@@ -1,0 +1,29 @@
+{
+  "run_id": "run_9e18d3f4d401",
+  "directory": "run_9e18d3f4d401",
+  "status": "run_complete",
+  "legacy_name": false,
+  "orbits_on_disk": 4,
+  "snapshots_on_disk": 4,
+  "size_gb": 1.28,
+  "executable_sha256": "215896ee9ab268796442821d5983df457b33c0aa88d64a61696e3ec4e63fc32b",
+  "config_sha256": "1b4a059ee90218a868ff0ad8b0dd70f9a5460599b4c06b9c30cd623a7d55e6cd",
+  "physical": {
+    "resolution": "T42",
+    "layers": 10,
+    "ranks": 8,
+    "precision_bytes": 8,
+    "flux_ratio": 0.945,
+    "co2_ppm": 450.0,
+    "rotation_hours": 30.0,
+    "obliquity_degrees": 32.0,
+    "eccentricity": 0.02,
+    "glaciers": true,
+    "stellar_spectrum": "k25v",
+    "geography": "aa9b9c81"
+  },
+  "source_build": "precarve-craton",
+  "climatologies": {},
+  "converged": null,
+  "convergence_metrics": {}
+}

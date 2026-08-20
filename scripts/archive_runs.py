@@ -112,6 +112,16 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--execute", action="store_true",
                     help="actually extract and delete; default is a dry run")
+    # `--include-live --keep <id>` is the triage case: a re-commissioning where
+    # every run on the active build is spent EXCEPT the one still being worked.
+    # Without it the caller either archives the live run too or moves
+    # directories out of the way by hand, and moving a run directory to protect
+    # it from a tool that deletes run directories is not a safe manoeuvre.
+    ap.add_argument("--keep", action="append", default=[], metavar="RUN_ID",
+                    help="spare this run whatever the build rule says. Repeat "
+                         "for several. An id that matches nothing is an error, "
+                         "not a no-op: a typo would otherwise delete the run it "
+                         "was meant to protect")
     ap.add_argument("--include-live", action="store_true",
                     help="treat every run as dead, including runs on the active "
                          "build. For a re-commissioning, where the terrain "
@@ -128,6 +138,17 @@ def main() -> None:
     else:
         live = [r for r in rows if r.get("source_build") == active]
         dead = [r for r in rows if r.get("source_build") != active]
+    if args.keep:
+        names = {r["directory"] for r in rows}
+        missing = [k for k in args.keep if k not in names]
+        if missing:
+            raise SystemExit(
+                f"--keep names {missing} which the index does not have. "
+                "Refusing, because a typo here spares nothing and deletes the "
+                f"run it was meant to spare. Known: {sorted(names)}")
+        spared = [r for r in dead if r["directory"] in set(args.keep)]
+        dead = [r for r in dead if r["directory"] not in set(args.keep)]
+        live = live + spared
 
     print(f"active build: {active}")
     print("every run treated as dead (--include-live)\n" if args.include_live
