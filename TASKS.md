@@ -221,7 +221,7 @@ Status: `open` | `doing` | `blocked` | `done` | `wontfix` (with a reason).
 
 ## GW -- groundwater
 
-3 open of 16 issued.
+4 open of 19 issued.
 
 | id | task | source | status |
 | --- | --- | --- | --- |
@@ -241,6 +241,9 @@ Status: `open` | `doing` | `blocked` | `done` | `wontfix` (with a reason).
 | GW-14 | -- | -- | done, see `archive/tasks.md` |
 | GW-15 | -- | -- | done, see `archive/tasks.md` |
 | GW-16 | -- | -- | done, see `archive/tasks.md` |
+| GW-17 | -- | -- | done, see `archive/tasks.md` |
+| GW-18 | Make aquifer thickness spatially varying, from a sediment-thickness source rather than the constant 100 m that is Gleeson's map depth | `hydrography/notes/groundwater-et-sink.md` | open, and NARROWED by GW-17: a uniform 2 km with local baselevels already fixes the RANGE, taking the 95th percentile depth from 6.9 m to 52 m against an observed 42 m, so what a spatially varying thickness has left to buy is PATTERN. On the evidence it will not buy much: no resolvable field predicts observed depth above Spearman 0.27, and height above the nearest river -- the mechanism thickness would strengthen -- is the weakest at 0.064. Do it for the range being physically sourced rather than assumed, not expecting skill [step: hydrography] |
+| GW-19 | -- | -- | done, see `archive/tasks.md` |
 
 ## HYD -- hydrography
 

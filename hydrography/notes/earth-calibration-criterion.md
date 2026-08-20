@@ -320,3 +320,53 @@ Cleaning the observations and adding the sink together take r^2 from 0.0007 to
 0.0315, a factor of 45. That is a real gain and it is still three percent of the
 variance. It says the earlier "no skill whatsoever" was partly the observations'
 fault and mostly the model's, which is a more useful statement than either alone.
+
+---
+
+# GW-19: the criterion is replaced, and this one cannot be passed by a constant
+
+The scatter bars above are withdrawn as a PASS test. They stay recorded as what
+Fan achieved, which is still the useful comparison, but they cannot decide
+anything here for a reason the rescore demonstrated: **residual standard
+deviation equalled observed standard deviation at every filter level** -- 40.06
+against 40.05, 18.26 against 18.36, 11.07 against 11.20 -- so a model predicting
+the mean everywhere scores the observations' own spread and clears a 24.56 m bar
+on any set quiet enough. The bar moves with the data; the failure does not.
+
+## The replacement
+
+Scored on depth-consistent bores, `0 < wtd_m <= bore_depth_m`, at observation
+locations.
+
+    R^2 = 1 - sum (model - observed)^2 / sum (observed - mean observed)^2
+
+**PASS requires R^2 > 0.07.**
+
+That is not a round number chosen for comfort. It is what the single best
+resolvable predictor achieves on its own: mesh distance to the sea correlates
+with observed cell-mean depth at Spearman +0.268, and a naive monotone
+regression on it explains about 7% of the variance. **A physical model that
+cannot beat "how far is it to the coast" has not earned its machinery**, and the
+bar is therefore set by what the geography gives away for free rather than by
+what seems achievable.
+
+Two reference points recorded beside it, neither of them the bar:
+
+- **0.857** is the ceiling. Between-cell variance is 85.7% of the total on
+  depth-consistent bores, so no model at 15.19 km can exceed it however good.
+- **0.28** is what a flexible statistical fit over every resolvable field --
+  elevation, local relief, distance to the sea, recharge, permeability --
+  reaches on held-out cells. That is the practical target: a physical model
+  should approach what a regression on its own inputs can do.
+
+## Where the model stands against it
+
+| configuration | R^2 | verdict |
+| --- | ---: | --- |
+| no sink, D = 100 m, no rivers | 0.0042 | MISS |
+| sink, D = 100 m, no rivers | 0.0114 | MISS |
+| sink, rivers, D = 2000 m | 0.0173 | MISS |
+
+The best configuration reaches a quarter of the bar and 6% of the practical
+target. **The verdict is unchanged and is now stated in a measure that filtering
+cannot flatter.**

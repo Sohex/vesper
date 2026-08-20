@@ -239,3 +239,131 @@ here changes that. What the bracket shows is that the carve direction survives
 both the sink and the lambda range, not that the count is right. It remains a
 count of basins crossing a threshold in a model whose depth field is known not
 to reproduce the one quantity it can be tested against.
+
+---
+
+# Why the depth range collapses, and what each downstream consumer needs
+
+## The model has no local baselevel
+
+`solve()` has exactly one fixed-head boundary: `is_ocean`, at sea level. That is
+the whole of it, and it is the range problem.
+
+With the sink dominant the equilibrium depth is `d = lambda ln(ET_max / R)`. A
+logarithm turns Australia's factor of 900 in recharge into a factor of 13 in
+depth, so at lambda of order a metre the entire field lives between 2.7 and
+6.9 m. Reaching 100 m from this mechanism would need `ET_max/R = e^100`. **The
+sink structurally cannot produce a deep water table.**
+
+Real water tables are deep for a different reason: the land stands high above a
+NEARBY drainage baselevel and the water drains away sideways. That needs a
+baselevel within reach, and ours is the sea, up to 1,000 km off, which no
+plausible transmissivity reaches. So the lateral term never competes and the
+local balance wins everywhere.
+
+It is also why mesh distance to the sea is the best single predictor of observed
+depth at +0.268: it is a crude proxy for height above baselevel, and the only
+part of that mechanism this geometry still carries.
+
+**The baselevels exist already.** `surface_water.nc` carries `lake` and
+`discharge_m3_s` per region and `regions.nc` carries the `receiver` network.
+A river or lake IS a fixed head at the water surface. Using them collapses the
+drainage length from 1,000 km to something like 15 to 50 km, where the arithmetic
+that condemned the coastal boundary becomes survivable: holding 20 m of head over
+15 km at 8 mm/yr needs `T` near 1.4e-3, which at Gleeson's conductivity is about
+2 km of aquifer -- thick, but a real sedimentary basin rather than the 600 km the
+coastal version demanded.
+
+## MIN-6 and SURF-7 fail differently, and only one is closed
+
+Measured on the depth-consistent Australian bores.
+
+**MIN-6 fails on RANGE, and no amount of skill fixes it.** Supergene enrichment
+keys on the water table being deep -- Reich and Vasconcelos put leached caps at
+several hundred metres "particularly when the water table was deep enough". The
+model's 95th percentile over land is 6.86 m, and it puts 1.1% of land past 30 m
+where the observations put 8.5%. A perfectly skilful model confined to 2-7 m
+still could not drive that rule.
+
+**SURF-7 fails on CLASSIFICATION, and is not closed.** It wants a mask, "at or
+near a water table, or at zones of groundwater outflow", so the test is
+discrimination rather than a value:
+
+| threshold | observed base rate | AUC |
+| --- | ---: | ---: |
+| <= 1 m | 4.3% | 0.573 |
+| <= 2 m | 17.2% | 0.546 |
+| <= 5 m | 45.9% | 0.520 |
+| <= 10 m | 68.0% | 0.540 |
+
+Barely above the 0.5 of no discrimination, and too weak to place a surface class
+on -- but strongest at the tightest threshold, which is where SURF-7 operates.
+
+**And the route for it is a saturated-area FRACTION, not a cell flag.** Given a
+cell-mean water table depth and the distribution of elevations WITHIN the cell,
+the fraction lying below the table is the discharge area. That is the standard
+topographic-index construction, and the sub-grid hypsometry it needs is the same
+quantity GRAV-6 says the downscaling machinery has to persist anyway. It would
+also replace a genuinely unstable approximation: "at surface" is currently
+all-or-nothing per 294 km2 cell, which is why that fraction swings between 63%
+and 14.5% on a formulation change.
+
+The fraction inherits the cell-mean depth's error, so it is necessary and not
+sufficient, the same shape as the sink. It turns skill in the mean into a usable
+mask; it does not manufacture skill.
+
+---
+
+# GW-17 and GW-18: the range is fixed, the pattern is not
+
+Run 2026-08-20. River cells are derived rather than assumed: a priority flood on
+the mesh, steepest descent on the filled surface, and flow accumulation, which is
+the same construction `build_hydrography.py` uses for Vesper. A cell above the
+accumulation threshold takes a fixed head at its own surface.
+
+| configuration | 95th pct depth | r^2 | share of the 0.857 ceiling |
+| --- | ---: | ---: | ---: |
+| no rivers, D = 100 m | 6.9 m | 0.0114 | 1.3% |
+| rivers >= 5e3 km2, D = 100 m | 6.8 m | 0.0190 | 2.2% |
+| rivers >= 5e3 km2, D = 2000 m | **52.4 m** | 0.0173 | 2.0% |
+| rivers >= 1e4 km2, D = 2000 m | **59.6 m** | 0.0166 | 1.9% |
+
+against an observed 95th percentile of 42 m on depth-consistent bores.
+
+**The range problem is solved.** With local baselevels and a basin-scale
+thickness the model reaches 52 to 60 m at the 95th percentile where it reached
+6.9 m before. That was MIN-6's blocker, and it was a blocker about what values
+the field can take rather than about skill.
+
+**The skill problem is untouched**, at about 2% of the ceiling. The model now
+produces deep water tables and puts them in the wrong places.
+
+## And the mechanism I blamed is not the one the observations follow
+
+The subdued-replica argument says depth should track height above the nearest
+drainage baselevel. That is now computable, by following the drainage path to
+the first river cell. It does not:
+
+| predictor of observed cell-mean depth | Spearman |
+| --- | ---: |
+| height above the nearest river | **+0.064** |
+| cell elevation | +0.218 |
+| log flow accumulation | -0.095 |
+| mesh distance to the sea | +0.268 |
+
+Height above the nearest river is the WEAKEST of them, on a mesh where that
+height has a median of 56.9 m and a 95th percentile of 320 m, so it is not for
+want of range in the predictor.
+
+**So the diagnosis in the section above was half right and the half it got wrong
+is the important half.** Missing local baselevels did explain the range
+collapse, and adding them does fix it. They do not explain the missing skill,
+because at 15.19 km the valley-to-divide structure that mechanism lives on is at
+or below the cell size: real drainage spacing is 5 to 20 km, so an interfluve is
+one or two cells wide and the model has nowhere to put a subdued replica.
+
+What predicts observed depth at this scale is weak and diffuse -- no single field
+exceeds 0.27, and a flexible fit over all of them reaches R^2 = 0.28 on
+depth-consistent bores. There is resolvable signal, it is a quarter of the
+variance rather than the 0.86 the cell decomposition allows, and it is not
+carried by one mechanism that a physical model could be given.

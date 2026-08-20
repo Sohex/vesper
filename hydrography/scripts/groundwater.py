@@ -400,7 +400,7 @@ def et_balance_depth(et_max_m_s, et_lambda_m, supply_m3_s, area_m2, conductive):
 def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
           surface_m, conductive, sea_level_m=0.0, max_outer=200,
           start_all_free=False, verbose=True,
-          et_max_m_s=None, et_lambda_m=None):
+          et_max_m_s=None, et_lambda_m=None, fixed_head_m=None):
     """Steady-state head, seepage and face fluxes.
 
     With `T = K D` the transmissivity does not depend on the head, so the matrix
@@ -445,12 +445,29 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
     area_m2 = geom.volume_area_m2
 
     is_ocean = export.surface_class != LAND
-    in_domain = conductive | is_ocean
+    # LOCAL BASELEVELS. GW-17. `fixed_head_m` is finite on cells whose head is
+    # imposed rather than solved -- a river or a lake, whose surface IS the water
+    # table there. Without them the ocean is the only fixed head in the problem,
+    # so recharge in a continental interior has to reach a coast a thousand
+    # kilometres off, no defensible transmissivity carries it, and the local sink
+    # balance sets the depth everywhere at a few times lambda whatever the
+    # terrain does. That is the range collapse GW-3 measured, and a baselevel
+    # 15 km away rather than 1,000 km is the difference between needing 2 km of
+    # aquifer and needing 600.
+    #
+    # They behave exactly as ocean cells do: a fixed head, not a conducting cell,
+    # and outside the set being solved for. `is_ocean` stays a separate name
+    # because the report attributes coastal discharge with it.
+    imposed = (np.isfinite(fixed_head_m) & ~is_ocean
+               if fixed_head_m is not None else np.zeros(n, bool))
+    is_boundary = is_ocean | imposed
+    conductive = conductive & ~imposed
+    in_domain = conductive | is_boundary
     live = in_domain[src] & in_domain[dst]
     src, dst, gfac = src[live], dst[live], gfac[live]
 
     t_cell = np.where(conductive, transmissivity(k0_m_s, thickness_m), 0.0)
-    trans = face_transmissivity(t_cell, gfac, src, dst, is_ocean)
+    trans = face_transmissivity(t_cell, gfac, src, dst, is_boundary)
 
     rowsum = np.zeros(n)
     np.add.at(rowsum, src, trans)
@@ -485,16 +502,16 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
     has_recharge = conductive & (supply > 0)
     fed[comp[has_recharge]] = True
     touches_sea = np.zeros(n, bool)
-    coastal = is_ocean[src] ^ is_ocean[dst]
+    coastal = is_boundary[src] ^ is_boundary[dst]
     if coastal.any():
-        touches_sea[np.where(is_ocean[src[coastal]],
+        touches_sea[np.where(is_boundary[src[coastal]],
                              dst[coastal], src[coastal])] = True
     fed[comp[conductive & touches_sea]] = True
     dry = conductive & ~fed[comp]
     if dry.any():
         conductive = conductive & ~dry
         t_cell = np.where(conductive, transmissivity(k0_m_s, thickness_m), 0.0)
-        trans = face_transmissivity(t_cell, gfac, src, dst, is_ocean)
+        trans = face_transmissivity(t_cell, gfac, src, dst, is_boundary)
         rowsum = np.zeros(n)
         np.add.at(rowsum, src, trans)
         np.add.at(rowsum, dst, trans)
@@ -510,6 +527,8 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
     # to factor the whole 2.5 million cells before a single cell is pinned.
     head = surface_m.copy()
     head[is_ocean] = sea_level_m
+    if fixed_head_m is not None:
+        head[imposed] = fixed_head_m[imposed]
     if et_max_m_s is not None:
         # START AT THE LOCAL SINK BALANCE, not at the surface. Every land cell
         # used to begin where the sink runs at its maximum, so each had to walk
@@ -526,6 +545,8 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
         head -= et_balance_depth(et_max_m_s, et_lambda_m, supply,
                                  area_m2, conductive)
         head[is_ocean] = sea_level_m
+        if fixed_head_m is not None:
+            head[imposed] = fixed_head_m[imposed]
     # `start_all_free` walks the opposite trajectory, for the uniqueness check.
     # The solution of this complementarity problem is unique, so where it lands
     # cannot depend on where it started.
@@ -552,7 +573,7 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
         # A cell with no conducting face has no LATERAL equation: nothing can
         # carry its recharge away sideways, so without a sink it stands at the
         # surface and seeps.
-        stranded = free & ~is_ocean & (rowsum <= 0)
+        stranded = free & ~is_boundary & (rowsum <= 0)
         free[stranded] = False
         head[stranded] = surface_m[stranded]
         if et_max_m_s is not None and stranded.any():
@@ -597,7 +618,7 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
         anchor_failed |= release & anchor
         anchor &= ~release
 
-        unknown = free & ~is_ocean
+        unknown = free & ~is_boundary
         m = int(unknown.sum())
         if m == 0:
             if verbose:
@@ -756,7 +777,7 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
         et_m3_s = (et_rate(et_max_m_s, et_lambda_m, surface_m, head, conductive)
                    * area_m2) if et_max_m_s is not None else 0.0
         bal = supply - et_m3_s + geom_divergence(n, src, dst, flux)
-        still = free & ~is_ocean
+        still = free & ~is_boundary
         residual = float(np.abs(bal)[still].sum() / max(total_supply, 1e-30))
 
         # COMPLEMENTARITY, tested on the head just produced. A converged LCP
@@ -892,6 +913,8 @@ def terrain_following(export: Export, geom: Geometry, *, k0_m_s,
     gfac = geom.geom[live]
 
     t_cell = np.where(conductive, transmissivity(k0_m_s, thickness_m), 0.0)
+    # `is_ocean`, not GW-17's wider boundary set: this imposes a table rather
+    # than solving one, and it has no fixed-head argument to widen it with.
     trans = face_transmissivity(t_cell, gfac, src, dst, is_ocean)
     return {
         "head_m": head,
