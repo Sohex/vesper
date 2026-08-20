@@ -207,11 +207,19 @@ def main() -> int:
                     help="run at uniform permeability with a terrain-following "
                          "table and check the catchments against the surface ones")
     ap.add_argument("--et-lambda", type=float, default=None,
-                    help="enable GW-15's groundwater ET sink with this "
-                         "e-folding depth in metres. ET_max is the Penman "
-                         "field, the same one the lakes and the carve "
-                         "verdict take. Absent means the sink is off and "
-                         "the result is bit-identical to a run without it")
+                    help="override the e-folding depth of GW-15's ET sink, "
+                         "metres. Default is config `evapotranspiration.lambda_m`. "
+                         "ET_max is the Penman field the lakes and the carve "
+                         "verdict take")
+    ap.add_argument("--no-groundwater-et", action="store_true",
+                    help="turn GW-15's sink OFF. It is on by default because it "
+                         "is not optional physics: without it the table pins at "
+                         "the surface over most of the land. This exists for the "
+                         "reduction identity and for reproducing pre-GW-15 runs")
+    ap.add_argument("--no-baselevels", action="store_true",
+                    help="turn GW-17's river and lake fixed heads OFF, leaving "
+                         "the ocean as the only boundary. On by default for the "
+                         "same reason: a river IS the water table where it sits")
     ap.add_argument("--max-outer", type=int, default=60)
     ap.add_argument("--operator-noise", type=float, default=0.0,
                     help="multiply every face's w/l by lognormal noise of this "
@@ -334,18 +342,51 @@ def main() -> int:
         # the carve verdict and the water table. `region_grid_cells` is the
         # export/ExoPlaSim join CLAUDE.md rule 3 governs, and it is reused here
         # rather than repeated.
+        et_cfg = cfg.get("evapotranspiration", {})
+        bl_cfg = cfg.get("baselevels", {})
+        et_on = et_cfg.get("enabled", False) and not args.no_groundwater_et
+        et_lambda = (args.et_lambda if args.et_lambda is not None
+                     else float(et_cfg.get("lambda_m", 1.0)))
         et_max = None
-        if args.et_lambda is not None:
+        if et_on:
             row, col = sw.region_grid_cells(export, lat)
             et_max = np.where(land, np.clip(evap_grid[row, col], 0.0, None), 0.0)
-            print(f"groundwater ET on, lambda {args.et_lambda} m, ET_max from "
-                  f"Penman: land median "
+            print(f"groundwater ET on, lambda {et_lambda} m, ET_max from Penman: "
+                  f"land median "
                   f"{np.median(et_max[land]) * 365.25 * 86400 * 1000:.0f} mm/yr")
+        else:
+            et_lambda = None
+            print("groundwater ET OFF: the table will pin at the surface")
+
+        # GW-17. A river or lake surface IS the water table there, so it is a
+        # fixed head. `surface_water.nc` is the only thing that knows where they
+        # are, which is why `groundwater` needs `surface_water` in the graph.
+        fixed_head = None
+        if bl_cfg.get("enabled", False) and not args.no_baselevels:
+            sw_path = data / "surface_water.nc"
+            if not sw_path.exists():
+                raise SystemExit(
+                    f"{rel(sw_path)} is missing and local baselevels are on. "
+                    "Run `surface_water` first, or pass --no-baselevels and "
+                    "accept the ocean as the only boundary.")
+            with Dataset(sw_path) as ds:
+                lake = np.asarray(ds["lake"][:]) > 0
+                disch = np.asarray(ds["discharge_m3_s"][:])
+            wet = land & ((disch >= float(bl_cfg.get("discharge_min_m3_s", 10.0)))
+                          | (lake if bl_cfg.get("include_lakes", True) else False))
+            fixed_head = np.full(export.n_regions, np.nan)
+            fixed_head[wet] = surface_m[wet]
+            print(f"local baselevels: {int(wet.sum()):,} river and lake cells "
+                  f"({wet.sum() / max(int(land.sum()), 1):.1%} of land) at fixed head")
+        else:
+            print("local baselevels OFF: the ocean is the only fixed head")
+
         print("solving the water table")
         res = gw.solve(export, geom, k0_m_s=k0, thickness_m=thickness_m,
                        recharge_m_s=recharge, surface_m=surface_m,
                        conductive=conductive, max_outer=args.max_outer,
-                       et_max_m_s=et_max, et_lambda_m=args.et_lambda)
+                       et_max_m_s=et_max, et_lambda_m=et_lambda,
+                       fixed_head_m=fixed_head)
 
     area_m2 = geom.volume_area_m2
     supply = recharge * area_m2

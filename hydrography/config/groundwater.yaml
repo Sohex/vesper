@@ -292,6 +292,34 @@ fluid:
 # physical constant to the comparison it is being judged by, which is
 # failure-modes class 16. All three are carried.
 evapotranspiration:
+  # ON. The sink is not optional physics: without it the only exits are the
+  # coast and seepage, and the table pins at the surface over 63% of this
+  # world's land and 95.5% of Australia's, which the Earth data contradicts
+  # directly. It was built off-by-default so the change could be landed against
+  # a bit-identical baseline; that is a reason to build it that way and not a
+  # reason to leave it. `--no-groundwater-et` still turns it off, for the
+  # reduction identity and for reproducing pre-GW-15 runs.
+  enabled: true
   lambda_m: 1.0
   lambda_bracket_m: [0.5, 2.0]
   et_max: penman_open_water
+
+# ---------------------------------------------------------------------------
+# Local baselevels (GW-17)
+# ---------------------------------------------------------------------------
+# ON, and for the same reason. A river or a lake IS the water table where it
+# sits, so its surface is a fixed head. With only the ocean as a boundary,
+# recharge in a continental interior has to reach a coast a thousand kilometres
+# off, no defensible transmissivity carries it, and the depth range collapses to
+# a few times `lambda`. Turning these on takes the 95th percentile depth from
+# 6.9 m to 52 m against an observed 42.
+#
+# `discharge_min_m3_s` is what counts as a river. It is a threshold on a
+# continuum and it is declared rather than derived: below it the network frays
+# into every wet cell, above it the baselevels thin out and the drainage length
+# grows back. Lakes are included whatever their discharge.
+baselevels:
+  enabled: true
+  discharge_min_m3_s: 10.0
+  include_lakes: true
+

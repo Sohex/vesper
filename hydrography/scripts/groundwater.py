@@ -839,8 +839,15 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
                 * area_m2) if et_max_m_s is not None else np.zeros(n)
     seepage = np.zeros(n)
     seepage[pinned] = supply[pinned] - et_final[pinned] + divergence[pinned]
-    excluded = (export.surface_class == LAND) & ~conductive
+    # `imposed` cells are a BOUNDARY, not excluded ground: they take their own
+    # recharge and whatever flows in from their neighbours, and that is baseflow
+    # leaving the groundwater system into the river or lake whose head they
+    # carry. It is a fourth door and closure needs it by name -- without it the
+    # inflow to every river cell simply vanishes, which is 1.8e-3 of the budget.
+    excluded = (export.surface_class == LAND) & ~conductive & ~imposed
     seepage[excluded] = supply[excluded]
+    baseflow = np.zeros(n)
+    baseflow[imposed] = supply[imposed] + divergence[imposed]
     # At convergence every pinned cell is feasible, so this clip removes
     # nothing; what it WOULD remove is recorded so that a run which stops short
     # cannot quietly balance its books against it.
@@ -862,6 +869,9 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
         # a different answer by forgetting it.
         "et_m3_s": et_final,
         "et_total_m3_s": float(et_final.sum()),
+        # GW-17. Zero, and an array of zeros, when no head is imposed.
+        "baseflow_m3_s": baseflow,
+        "baseflow_total_m3_s": float(baseflow.sum()),
     })
     return result
 
@@ -869,19 +879,24 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
 def closure(result, recharge_m_s, area_m2, export: Export) -> dict:
     """Recharge in against discharge out. A conservation law, not a comparison.
 
-    At equilibrium every drop of recharge leaves through exactly one of three
-    doors: it seeps back to the surface somewhere, it crosses the coast into the
-    ocean boundary, or -- with GW-15's sink on -- it evaporates from a shallow
-    water table on the way. If they disagree the discretisation is wrong, and no
-    amount of agreement elsewhere rescues it.
+    At equilibrium every drop of recharge leaves through exactly one of four
+    doors: it seeps back to the surface, it crosses the coast into the ocean
+    boundary, it evaporates from a shallow water table under GW-15's sink, or it
+    discharges as baseflow into a river or lake holding a fixed head under
+    GW-17. If they disagree the discretisation is wrong, and no amount of
+    agreement elsewhere rescues it.
 
-    The third door is zero when the sink is off, so this arithmetic is the same
-    conservation law either way rather than two laws behind a flag.
+    **Every door added so far was added late and cost a closure failure first.**
+    The sink was one, at 5.6e-4; the baseflow was another, at 1.8e-3, because
+    the water flowing into a river cell had nowhere to be counted. Each is zero
+    when its term is off, so this stays one conservation law rather than four
+    behind flags -- and the next boundary added will need its own door.
     """
     land = export.surface_class == LAND
     supply = float((recharge_m_s[land] * area_m2[land]).sum())
     out = (float(result["seepage_m3_s"].sum()) + result["ocean_outflow_m3_s"]
-           + result.get("et_total_m3_s", 0.0))
+           + result.get("et_total_m3_s", 0.0)
+           + result.get("baseflow_total_m3_s", 0.0))
     rel = abs(out - supply) / max(abs(supply), 1e-30)
     return {
         "recharge_m3_s": supply,
@@ -889,6 +904,7 @@ def closure(result, recharge_m_s, area_m2, export: Export) -> dict:
         "seepage_m3_s": float(result["seepage_m3_s"].sum()),
         "to_ocean_m3_s": result["ocean_outflow_m3_s"],
         "to_groundwater_et_m3_s": result.get("et_total_m3_s", 0.0),
+        "to_baseflow_m3_s": result.get("baseflow_total_m3_s", 0.0),
         "relative_residual": rel,
         "tolerance": CLOSURE_TOLERANCE,
         "passes": rel < CLOSURE_TOLERANCE,
