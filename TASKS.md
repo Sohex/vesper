@@ -87,7 +87,7 @@ Status: `open` | `doing` | `blocked` | `done` | `wontfix` (with a reason).
 
 ## CLIM -- climate
 
-8 open of 36 issued.
+7 open of 38 issued.
 
 | id | task | source | status |
 | --- | --- | --- | --- |
@@ -124,13 +124,15 @@ Status: `open` | `doing` | `blocked` | `done` | `wontfix` (with a reason).
 | CLIM-31 | -- | -- | done, see `archive/tasks.md` |
 | CLIM-34 | Redo the glacier bound against the real 0.945 climatology with the measured 7.8 K/km lapse; the recorded -4.7 K offset is a proxy | `notes/glacier-rough-pass.md`, archive PHYS-12 | open [step: baseline_climatology] |
 | CLIM-35 | Measure the salinity A/B: `TFREEZE` from declared salinity is settable (archive CLIM-17) and its global-mean worth is unmeasured | `scripts/error_budget.py` salinity row, `archive/tasks.md` CLIM-17 | open, one namelist key on the built binary, so it satisfies A3's A/B conditions [step: baseline_run] |
-| CLIM-36 | Reconcile forest fraction between codes 173 and 212: `build_surface_roughness.py` reads `model.forest_fraction_assumed` (absent, so zero forest) while `build_surface_albedo.py` writes 212 at 0.5 in `vegetated` mode, so the two fields do not describe one land cover | `exoplasim/scripts/build_surface_roughness.py` note at the surface term | open, a DECISION on which source both read [step: surface_roughness, surface_albedo] |
-| CLIM-32 | Price ozone's radiative effect on the simulated climate: one T21 sensitivity pair at `o3scale` 0.5 against the baseline | `exoplasim/notes/ozone.md`, `docs/src/reference/config-rationale.md` activity entry | open. Shielding of the surface is settled (0.794, measured); the radiative stake is not, and in a ten-layer model it may be small. A diagnostic pair, not a commissioning [step: baseline_run] |
-| CLIM-33 | Price `mixed_layer_depth_m`: one perturbation run against the 50 m default, which sets seasonal amplitude on a half-Earth year | `docs/src/reference/config-rationale.md` ocean entry, `analysis/error_budget.json` structural items | open. The budget books it structural with no kelvin figure; a single perturbation run converts it [step: baseline_run] |
+| CLIM-36 | -- | -- | done, see `archive/tasks.md` |
+| CLIM-32 | Price ozone's radiative effect on the simulated climate: one sensitivity pair at `o3scale` 0.5 against the baseline, at the production resolution | `exoplasim/notes/ozone.md`, `docs/src/reference/config-rationale.md` activity entry | open. Shielding of the surface is settled (0.794, measured); the radiative stake is not. NOT small: the prediction registered 2026-08-20 in `exoplasim/notes/forcing-bundle-predictions.md` puts 1.0 to 1.5 W/m2 of shortwave through the top layer, warming +0.2 to +0.9 K, because `PTOP` sits at the ozone maximum so the absorption removed is heating of the topmost layer. A diagnostic pair, not a commissioning; rides the A3 bundle on one restart and one binary [step: baseline_run] |
+| CLIM-33 | Price `mixed_layer_depth_m`: arms at 25 m and 100 m against the 50 m default, which sets seasonal amplitude on a half-Earth year | `docs/src/reference/config-rationale.md` ocean entry, `analysis/error_budget.json` structural items | open. The budget books it structural with no kelvin figure. The prediction registered 2026-08-20 in `exoplasim/notes/forcing-bundle-predictions.md` makes the annual mean EXACT at 0.000 K, a heat capacity cannot move an equilibrium, and puts the content in the amplitude (`omega C`/lambda = 69, so amplitude goes as 1/depth) and in whatever sea ice the deeper winter swing makes. Rides the A3 bundle [step: baseline_run] |
+| CLIM-37 | -- | -- | done, see `archive/tasks.md` |
+| CLIM-38 | -- | -- | done, see `archive/tasks.md` |
 
 ## CONS -- consistency checking
 
-1 open of 9 issued.
+0 open of 11 issued.
 
 | id | task | source | status |
 | --- | --- | --- | --- |
@@ -138,11 +140,13 @@ Status: `open` | `doing` | `blocked` | `done` | `wontfix` (with a reason).
 | CONS-2 | -- | -- | done, see `archive/tasks.md` |
 | CONS-3 | -- | -- | done, see `archive/tasks.md` |
 | CONS-4 | -- | -- | done, see `archive/tasks.md` |
+| CONS-5 | -- | -- | done, see `archive/tasks.md` |
 | CONS-6 | -- | -- | done, see `archive/tasks.md` |
 | CONS-7 | -- | -- | done, see `archive/tasks.md` |
 | CONS-8 | -- | -- | done, see `archive/tasks.md` |
-| CONS-9 | Decide whether the producing binary joins `run_id`'s identity: `binary_manifest.json` guards the build, but a run's identity does not record which binary made it | `docs/src/practice/failure-modes.md` class 11 | open, and a DECISION: the UUID rule (CLAUDE.md rule 6) says identity encodes nothing, so the binary would join the manifest rather than the name [step: baseline_run] |
 | CONS-9 | -- | -- | done, see `archive/tasks.md` |
+| CONS-10 | -- | -- | done, see `archive/tasks.md` |
+| CONS-11 | -- | -- | done, see `archive/tasks.md` |
 
 ## CONV -- cross-component conventions and provenance plumbing
 
@@ -207,9 +211,22 @@ Status: `open` | `doing` | `blocked` | `done` | `wontfix` (with a reason).
 | --- | --- | --- | --- |
 | GRID-1 | -- | -- | done, see `archive/tasks.md` |
 
+## GW -- groundwater
+
+6 open of 6 issued.
+
+| id | task | source | status |
+| --- | --- | --- | --- |
+| GW-1 | Build the steady-state water table: Dupuit-Forchheimer over the region mesh, recharge from the baseline climatology through the coupling matrix, permeability from lithology, water table capped at the surface so the excess becomes seepage. It belongs in `hydrography/` as a peer of `surface_water.py`, not a sibling component, and its `config/pipeline.yaml` row lands in the same commit | `hydrography/notes/groundwater-scoping.md` sections 3 and 8 | open, and it names no step because it CREATES one, between `surface_water` and `carve_verdict` in loop A. Hydraulic conductivity is `k rho g / mu`, so Gleeson's permeability transfers unchanged and conductivity carries the 1.31x from this world's gravity; get that in before any calibration absorbs it, per `notes/audits/orogen-gravity.md` |
+| GW-2 | Map Orogen's lithology onto Gleeson's five combined hydrolithologies and carry the per-class sigma as a bracket rather than collapsing it. The classes are the SAME Duerr set `pedology/config/pedogenesis.yaml` already maps for Hartmann phosphorus, so this is an existing mapping reused, not a new one | `hydrography/notes/groundwater-scoping.md` section 3, `references/INDEX.md` Gleeson (2011) | open. **Evaporite has no assigned permeability** -- Duerr's EV sits in Gleeson's "not assigned" row with water and ice -- and it must stay unassigned rather than take the nearest class, over a world with this much playa and salt crust. Class spread is 3.4 orders of magnitude and within-class sigma 1.5 to 2.5, so the output is a bracket [step: soil] |
+| GW-3 | Calibrate against Earth: the same code on Earth topography, Earth recharge and GLHYMPS permeability, scored against Fan et al. (2013)'s 1,603,781 well sites, with the threshold declared before the data is scored | `hydrography/notes/groundwater-scoping.md` section 9 | open, blocked on GW-1. The scoring must honour the sampling bias Fan states herself: wells favour valleys and oases, and her own model reads deeper than the wells in arid regions for that reason, so a naive comparison fails the model for being right. This is the only external test the solver has |
+| GW-4 | Measure the net groundwater term `Qg` per basin and report how many carve verdicts it moves, as a measurement, BEFORE deciding whether it enters the criterion | `hydrography/notes/groundwater-scoping.md` sections 2 and 6 | open, blocked on GW-1. Fan (2019) Hypothesis 2 puts the leak where this world lives: at 25 mm/yr recharge the groundwater divides stop existing, so the surface catchment stops being the water catchment in exactly the dry closed-basin regime the verdict decides. Do NOT tune it against HYD-4's dry-tail bias -- the two channels pull in opposite signs and a term chosen after seeing that comparison is failure-modes class 16 [step: carve_verdict] |
+| GW-5 | Evaporation from a shallow water table in discharge zones is a sink ExoPlaSim structurally cannot represent: `landmod.f90` throttles evaporation on `dwatc/dwmax` and the cell dries out, so groundwater-fed playa and oasis cells under-evaporate | `hydrography/notes/groundwater-scoping.md` sections 2 and 7, `notes/audits/absent-and-inherited-physics.md` | open, one-signed, and NOT fixable by raising `dwmax` through `surface_soil_water`: a deeper bucket changes storage and timing, not the availability floor a water table sets, so it would move the answer without representing the mechanism. The real routes are a lower boundary in `landmod.f90`, which drags CLAUDE.md rule 4 and a full rebuild, or a fork of the LPJ-GUESS soil column [step: surface_soil_water] |
+| GW-6 | Valley-to-ridge water table texture is sub-grid and stays sub-grid: Fan et al. (2013) put the well-articulated gradient at decameters to kilometres and find terrain signals dominate at local scales, against a 15.19 km region | `hydrography/notes/groundwater-scoping.md` section 5 | open as a DECLARED gap, on GRAV-6's precedent and for its reason: the process is real, it is not resolvable at this mesh, and a sub-grid parameterisation of it would be precision theatre. What IS resolvable is the regional recharge control and Fan's own basin-scale convergence, which is the channel GW-4 turns on. Revisit under loop D [step: hydrography] |
+
 ## HYD -- hydrography
 
-2 open of 18 issued.
+1 open of 18 issued.
 
 | id | task | source | status |
 | --- | --- | --- | --- |
@@ -230,7 +247,7 @@ Status: `open` | `doing` | `blocked` | `done` | `wontfix` (with a reason).
 | HYD-16 | -- | -- | done, see `archive/tasks.md` |
 | HYD-17 | -- | -- | done, see `archive/tasks.md` |
 | HYD-18 | -- | -- | done, see `archive/tasks.md` |
-| HYD-19 | Add a clause to `vendor/orogen/tools/README.md`: erodibility is mean-normalised at generation time, not as shipped, so a consumer must not rescale against an assumed mean of 1 | `hydrography/notes/orogen-carving-request.md` | open [step: orogen] |
+| HYD-19 | -- | -- | done, see `archive/tasks.md` |
 
 ## LITH -- lithology
 
@@ -266,7 +283,7 @@ Status: `open` | `doing` | `blocked` | `done` | `wontfix` (with a reason).
 
 ## MIN -- economic minerals
 
-0 open of 5 issued.
+1 open of 6 issued.
 
 | id | task | source | status |
 | --- | --- | --- | --- |
@@ -275,6 +292,7 @@ Status: `open` | `doing` | `blocked` | `done` | `wontfix` (with a reason).
 | MIN-3 | -- | -- | done, see `archive/tasks.md` |
 | MIN-4 | -- | -- | done, see `archive/tasks.md` |
 | MIN-5 | -- | -- | done, see `archive/tasks.md` |
+| MIN-6 | Replace the rainfall proxy for water table depth in the supergene rules with a modelled depth field. `minerals/config/downstream_prospectivity.yaml` says in its own comments that it substitutes rainfall because nothing better exists, while the mechanism it cites is depth: Reich and Vasconcelos (2015) put oxidation in the vadose zone and secondary sulfides below the water table | `hydrography/notes/groundwater-scoping.md` section 6, `docs/src/reference/economic-minerals.md` | open, blocked on GW-1. It supplies the DEPTH and not the descent RATE, so Sillitoe (2005)'s wet-end control -- erosion in balance with the rate of water table descent -- stays unreachable and stays declared [step: downstream_prospectivity]
 
 ## PHYS -- physics calibrated for the wrong world
 
@@ -323,7 +341,7 @@ Status: `open` | `doing` | `blocked` | `done` | `wontfix` (with a reason).
 
 ## SURF -- derived surface classes
 
-1 open of 6 issued.
+2 open of 7 issued.
 
 | id | task | source | status |
 | --- | --- | --- | --- |
@@ -333,6 +351,7 @@ Status: `open` | `doing` | `blocked` | `done` | `wontfix` (with a reason).
 | SURF-4 | Diatomite is placed against a STATIC lake proxy, not lake occupancy over the stellar cycle. The strandline band between the solved lake surface and the spill level is the ground a single climatology's lake COULD vacate; the design asks for the band it is measured to vacate over the 57-year component, which is the forcing slow enough for lake level to equilibrate | `pedology/notes/derived-surface-classes.md` | open, and blocked on CYC-1 rather than on effort. It cannot be faked from one climatology: a basin permanently full never exposes its bed and a basin permanently dry never accumulates one, so the whole class is about alternation. Re-run `build_surface_classes.py` against the cycle climatologies when they exist [step: surface_classes, stellar_cycle_run] |
 | SURF-5 | -- | -- | done, see `archive/tasks.md` |
 | SURF-6 | -- | -- | done, see `archive/tasks.md` |
+| SURF-7 | Place groundwater silcrete and calcrete's groundwater-calcite pathway once a water table exists. `pedology/config/surface_classes.yaml` currently refuses groundwater silcrete by name, with the reason in the config: it sits at or near a water table and this project models none | `hydrography/notes/groundwater-scoping.md` section 6, `pedology/notes/derived-surface-classes.md` | open, blocked on GW-1. What becomes placeable is the MEAN depth field and a discharge mask, not Fenske et al. (2025)'s model: that hardens a layer over the RANGE of water table fluctuation at 10^5 years or longer, and both are durations `docs/src/reference/no-time-axis.md` refuses. Gypcrete is untouched, being surface and air processes rather than this mechanism [step: surface_classes]
 
 ## VOLC -- volcanism and weathering fluxes
 

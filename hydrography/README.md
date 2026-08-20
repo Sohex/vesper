@@ -276,6 +276,16 @@ for another carve iteration, and the counts are in `world_state.json` and
 
 ## Known approximations
 
+- **Every balance here is a SURFACE balance, and net groundwater flow is taken
+  as zero.** Runoff is P-E over land, accumulated down the drainage network, and
+  a basin's catchment is its surface catchment. Fan (2019) writes the budget as
+  `dS/dt = P - ET - Qr - Qg` and notes that dropping the last term is the
+  common assumption; it is the one made here, and it is weakest in the dry
+  closed-basin regime this world is mostly made of, because that is where the
+  groundwater divides stop following the topographic ones.
+  `notes/groundwater-scoping.md` scopes what a water table would change, what it
+  would not, and why the term must be measured before it enters the carve
+  criterion.
 - **A few overflow paths disagree with the cascade.** Most overflowing basins
   have a saddle opening into exactly the basin the solver routes them to. A
   handful are cycle-collapsed: their target was reassigned to the cycle's

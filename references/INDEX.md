@@ -247,6 +247,19 @@ and `aeolian/README.md`.
 | --- | --- | --- |
 | `wang2018-endorheic-water-storage.pdf` | Wang et al. (2018). *Recent global decline in endorheic basin water storages.* Nature Geoscience 11, 926-932. `10.1038/s41561-018-0265-7` | read -- source of "Earth is one-fifth endorheic", which corrected the 13% this project had been using. 31.8 million km2 across 48,813 landlocked watersheds in 15 arcsec HydroSHEDS. Measures catchment area draining internally, the same quantity as our own endorheic share. |
 
+## Groundwater: the water table, and permeability by lithology
+
+Fetched for `hydrography/notes/groundwater-scoping.md`. The pipeline's water
+balances are all surface balances, and these are the sources that say what that
+leaves out and what a steady-state water table would need as input.
+
+| file | citation | status |
+| --- | --- | --- |
+| `fan_2013_global-patterns-of-groundwater-table-depth.pdf` | Fan, Li, Miguez-Macho (2013). *Global Patterns of Groundwater Table Depth.* Science 339(6122), 940-943. `10.1126/science.1229881` | **read** -- the method and the calibration target both. An equilibrium water table forced by modern climate, terrain and sea level, solved for vertically integrated lateral flow at 30 arc-seconds, against **1,603,781 well sites**; that compilation is the only external test a groundwater solve here could be scored on. Three scales of control, and they do not survive a 15.19 km mesh equally: regional recharge control resolvable ("regions of deep WTD correspond to regions of low recharge, the great deserts of the world stand out"), basin-scale convergence resolvable and the channel that matters here ("arid basins where groundwater convergence from surrounding mountains maintains valley ecosystems (oases) otherwise absent"), and valley-to-ridge texture NOT, at "decameters to kilometers". Carries its own sampling bias explicitly, which any scoring has to honour: observations favour valleys and oases, and their model reads deeper than the wells in arid regions for that reason. Shallow groundwater influences 22 to 32% of Earth's land area |
+| `gleeson_2011_mapping-permeability-over-the-surface-of-the-earth.pdf` | Gleeson, Smith, Moosdorf, Hartmann, Duerr, Manning, van Beek, Jellinek (2011). *Mapping permeability over the surface of the Earth.* Geophys. Res. Lett. 38, L02401. `10.1029/2010GL045565` | **read** -- Table 1 is the input this project would otherwise have had to invent: geometric-mean log k per combined hydrolithology, carbonate -11.8, volcanic -12.5, unconsolidated -13.0, crystalline -14.1, siliciclastic sedimentary -15.2 m2, with sigma 1.5 to 2.5 and n beside each. Keyed on the Duerr et al. (2005) classes, which are the SAME classes `pedology/config/pedogenesis.yaml` already maps Orogen's lithology onto for Hartmann's phosphorus, with shared authors. Two load-bearing details: permeability is scale-INDEPENDENT over 5-100 km, so the geometric mean is valid at a 15 km region, with carbonate the one exception where karst makes it rise with scale; and **evaporite is in the "not assigned" row** with water and ice, which is a real hole over this world's playa and salt crust. Global mean -13.2 +/- 2.7 m2 |
+| `gleeson_2014_a-glimpse-beneath-earth-s-surface-global-hydrogeology-maps-glhymps-of.pdf` | Gleeson, Moosdorf, Hartmann, van Beek (2014). *A glimpse beneath earth's surface: GLobal HYdrogeology MaPS (GLHYMPS) of permeability and porosity.* Geophys. Res. Lett. 41(11), 3891-3898. `10.1002/2014GL059856` | held -- the dataset behind the 2011 table, and the porosity half the 2011 paper does not carry. Fetched as the route to an Earth-side calibration input; nothing has been taken from it yet |
+| `fan_2019_are-catchments-leaky.pdf` | Fan (2019). *Are catchments leaky?* WIREs Water 6(6), e1386. `10.1002/wat2.1386` | **read** -- the paper that makes the case for the work. Writes the catchment budget as `dS/dt = P - ET - Qr - Qg` and states that "a common assumption is that the Qg term is negligible", which is the assumption every water balance in this pipeline makes silently. Section 3.1's Hypothesis 2 with Figure 2 is the mechanism and the reason it bites HERE: at 381 mm/yr recharge the water table intercepts stream beds, local systems close and groundwater divides sit near topographic divides, but at 25 mm/yr the table drops below the stream beds, recharge joins the regional system, and **the groundwater divides no longer exist**. So the surface catchment stops being the water catchment in exactly the dry closed-basin regime the carve verdict decides. Hypothesis 1 is the bound against overclaiming: aggregate the catchments and export cancels import, so at steady state the term redistributes between basins and creates nothing |
+
 ---
 
 # Derived surface classes
@@ -308,7 +321,7 @@ result, not a concentration result, and the 15x contrast is against aeolian sand
 | `nash2011-desert-crusts-rock-coatings.pdf` | Nash (2011). *Desert Crusts and Rock Coatings*, ch. 8, 131-180, in Thomas (ed.), Arid Zone Geomorphology, 3rd edn. `10.1002/9780470710777.ch8` | held -- the only chapter treating calcrete, gypcrete and silcrete together |
 | `ullyott2016-pedogenic-nonpedogenic-silcretes.pdf` | Ullyott, Nash (2016). *Distinguishing pedogenic and non-pedogenic silcretes in the landscape and geological record.* Proc. Geol. Assoc. 127(3), 311-319. `10.1016/j.pgeola.2016.03.001` | held |
 | `webb2020-southern-african-silcrete-geochemistry.pdf` | Webb, Nash (2020). *Reassessing southern African silcrete geochemistry: implications for silcrete origin and sourcing of silcrete artefacts.* Earth Surf. Proc. Landforms 45(15), 3396-3413. `10.1002/esp.4976` | held -- the source Fenske cites for silcrete forming across a broad range of environments, and therefore the root of "climatic calibration will not provide formation boundaries". Also covers artefact sourcing |
-| `fenske2025-duricrust-water-table.html` | Fenske, Braun, Guillocheau, Robin (2025). *A numerical model for duricrust formation by water table fluctuations.* Earth Surf. Dynam. 13(1), 119-146. `10.5194/esurf-13-119-2025` | held -- HTML, the publisher's TLS chain was broken. States the ordering compactly and, usefully, that silcrete cannot be climatically calibrated |
+| `fenske_2025_a-numerical-model-for-duricrust-formation-by-water-table-fluctuations.pdf` | Fenske, Braun, Guillocheau, Robin (2025). *A numerical model for duricrust formation by water table fluctuations.* Earth Surf. Dynam. 13(1), 119-146. `10.5194/esurf-13-119-2025` | **read** -- the publisher's copy, which earlier resolved only as HTML behind a broken TLS chain. States the ordering compactly, and that silcrete cannot be climatically calibrated. What the reading adds is the shape of the mechanism and therefore its reach: the hardened layer forms at a depth set by the RANGE of water table fluctuation over a characteristic timescale, not by the mean depth, and duricrust formation takes "10^5 years or longer" for crusts Tardy calls "mostly monogenic, at least millions if not tens of millions of years old". Both are durations, so `docs/src/reference/no-time-axis.md` refuses them and a steady-state water table cannot supply the range. Calcrete IS reachable from a depth field, forming "by the precipitation of dissolved groundwater calcite under dry conditions" at P 200-600 mm/yr; gypcrete is explicitly NOT this mechanism, being an evaporitic blanket formed by surface and air processes in hyper-arid settings, so its existing placement is untouched |
 
 **Silcrete has no climatic window** and must not be given a fabricated
 threshold. Fenske et al. say climatic calibration "will not provide duricrust
@@ -328,9 +341,11 @@ Ullyott and Nash recognise four types, and only the first is the problem case:
 
 The three non-pedogenic types form under climates "ranging from cold to arid",
 so climate genuinely carries no information about them -- and does not need to,
-because their controls are hydrogeomorphic and this project resolves drainage,
-water tables and ephemeral lake margins already. Fenske's own model is a
-water-table fluctuation model, which is the mechanism for the second row.
+because their controls are hydrogeomorphic. This project resolves drainage and
+ephemeral lake margins already; the water table the second row turns on is the
+one thing it does not have, and `hydrography/notes/groundwater-scoping.md`
+scopes what it would take. Fenske's own model is a water-table fluctuation
+model, which is the mechanism for that row.
 
 ## Silcrete as a knappable resource
 
