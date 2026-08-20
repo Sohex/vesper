@@ -158,6 +158,11 @@ Each of these has a right answer and can fail.
 On the two climatologies, differenced:
 
 - land-mean precipitation, evaporation and `P - E`;
+- the vertical shortwave heating profile over arid basins, against the
+  clear-column one: the fast adjustment works through an elevated heating
+  layer stabilising the column, and on a NIR-shifted star that layer sits
+  where water vapour also absorbs, so the profile is the mechanism made
+  visible rather than a second number for the same effect;
 - catchment-mean runoff, from `carve_verdict.py`'s own aggregation, which is the
   quantity the criterion divides by and not `mrro`;
 - the carve list, taken on the dust climatology with

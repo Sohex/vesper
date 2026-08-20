@@ -346,6 +346,17 @@ def main() -> None:
                 "is about half Earth's. It has 2.1x Earth's land area, and "
                 "area wins. A big-land planet is a high-outgassing planet or "
                 "it is a cold one."),
+            "not_recycled_either": (
+                "Earth's outgassing is partly RESUPPLIED: exorheic carbonate "
+                "reaches ocean crust and returns through arc volcanism. This "
+                "world's endorheic share precipitates in closed basins on "
+                "craton and never subducts, so the outgassing above draws "
+                "one-way on the interior. At this snapshot that changes "
+                "nothing, since steady state balances fluxes wherever burial "
+                "happens; it is recorded because any future long-term carbon "
+                "balance inherits the asymmetry as its first trap, and "
+                "docs/src/reference/no-time-axis.md refuses the secular "
+                "question this raises."),
             "not_solved_here": (
                 "Meybeck's concentrations carry no CO2 dependence, so this "
                 "cannot be iterated to a self-consistent CO2. Doing that needs "
