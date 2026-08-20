@@ -144,9 +144,10 @@ dust because it neither coagulates nor grows appreciably.
 
 `aeolian/notes/in-model-dust.md` is the design for putting emission, deposition
 and scavenging inside ExoPlaSim (DUST-3), with each piece's predicted effect and
-what result would falsify it. Three of its patches are written and verified but
-not yet applied, and they are listed in `PENDING_PATCHES` in
-`exoplasim/scripts/rebuild_binaries.py`. They stack in this order:
+what result would falsify it. Its patches are RESIDENT in the `vendor/exoplasim`
+subtree; the files under `exoplasim/patches/` are the record of what each
+changed and why, and each names its base shas, which is where the stacking order
+is kept. Three of them carry the emission chain:
 
 - `exoplasim/patches/exoplasim-3.4.2-aerocore-defects.patch`, seven latent
   defects in `aerocore.f90` and `aeromod.f90`, unconditional.
@@ -166,11 +167,20 @@ them, and set `L_AERO = 1` and `l_source = 2`. `model.dust_dry_deposition` and
 is what lets each be its own A/B arm off one binary.
 
 The emitted dust is RADIATIVELY INERT on that path and the driver sets
-`l_aerorad = 0` to say so. That is not a preference: `radmod`'s own `apart` is
-never populated from the namelist, which is upstream defect 1 and still open
-because it lives in `radmod.f90`, and the longwave aerosol term does not exist
-yet. Turning the radiation on before those land would price this world's dust at
-a small fraction of its true optical depth and cool with it without warming.
+`l_aerorad = 0` to say so. The two reasons that setting was chosen for have both
+since closed: `aerosol-apart.patch` populates `radmod`'s `apart` from the one
+`aeromod` declares, and `aerosol-longwave.patch` gives the transported aerosol
+its thermal-IR absorption through `aeroqlw`, which `radini` now aborts without.
+So turning the radiation on is a decision about which aerosols the climate
+carries rather than a wait on missing physics, and it is taken in DUST-13
+against `CLIM-39`: `ndustrad` and `iaerint` cannot both be on, so interactive
+dust on today's code puts sea salt out of the radiation permanently.
+
+`aeolian/notes/multi-species-aerosol.md` is the companion design, for the other
+end of the same interface: the radiation carries ONE aerosol with one global set
+of optical properties, so dust, sea salt and volcanic sulfate cannot be in it at
+once. It sizes what carrying N species takes and why the two-species form is not
+the cheap version. `CLIM-39` and `CLIM-40`.
 
 **This component does not retire when that lands.** ExoPlaSim's aerosol is one
 tracer with one radius and one density fixed at compile time, so the in-model

@@ -521,6 +521,47 @@ in that expression, so cloud is represented in the albedo argument and not in
 the transmission. That approximation is worth what it is worth; it is not a
 factor of five.
 
+#### Derived: the weight is 1.192, and the qualitative argument was backwards
+
+`exoplasim/scripts/cloud_band_weight.py`, step `cloud_band_weight`, 2026-08-20.
+Derived the way the gas weights were: from a quantity carrying no spectrum,
+liquid water's k(lambda) out of Hale and Querry (1973) Table I, through Mie to
+a single-scattering co-albedo, flux-weighted over range 2 against a 5772 K Sun.
+
+| droplet effective radius | weight, linear in co-albedo | weight, square-root |
+| ---: | ---: | ---: |
+| 5 um | 1.1991 | 1.1854 |
+| 10 um | 1.2027 | 1.1854 |
+| 15 um | 1.2053 | 1.1844 |
+
+**1.184 to 1.205, median 1.192.** The answer barely depends on droplet size or
+on which absorptance scaling is assumed, which is what a well-conditioned
+derivation looks like; the bracket is reported anyway because neither was
+resolved. Four checks pass before any weight is printed: the solar partition
+identity against `radmod.f90:207`'s 0.517, the star's range-2 share at 0.6176
+against the 0.618 recorded above, water's index endpoint against the paper, and
+the Sun weighted against itself giving exactly 1.
+
+**Two things in the prediction above are now known to be wrong, and they
+cancelled partly.** First, the direction: the note argued this star
+"concentrates that energy nearer 0.8-1.5 um, where liquid water absorbs less".
+It is the other way round. A cooler star's range-2 flux is shifted to LONGER
+wavelengths within the band, and water's k climbs steeply there -- 1e-7 near
+0.8 um, 1e-3 by 2 um, 0.3 by 3 um -- so the co-albedo goes UP, not down. The
+weight is above 1 for the reason the note gave for it being below 1.
+
+Second, the naive 1.28: that was the range-2 flux SHARE ratio, 0.618 over
+0.483, and the share is not the model's error. `radmod.f90` already computes
+band-2 flux from this star's own `zsolar2`. What is Earth's is the FRACTION of
+that flux a cloud absorbs, which depends on the composition WITHIN the band and
+on nothing else. Using the share as the weight would have double-counted a
+correction the model already makes.
+
+**Adopted at 1.192** in `config/planet.yaml`. On the arms' own measured slope,
+12.96 W/m2 per unit scale, that is **+2.49 W/m2 and about +2.0 K** -- larger
+than the whole bundle sum, and one-signed. The flux re-derivation must follow
+it rather than precede it.
+
 **Consequence.** Two of the bundle's registered predictions are refuted and
 neither refutation is a small correction. The summed prediction above is not
 re-scored here: these two are ARMS, not bundle members, so the sum they do not

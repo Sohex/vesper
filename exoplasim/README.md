@@ -221,6 +221,7 @@ unless told they exist.
 | `dust_forcing.py` | prices the dust radiative forcing per surface, shortwave and longwave |
 | `build_surface_dust.py` | the prescribed dust column as surface code 1811, read only at `ndustrad = 1` |
 | `shortwave_band_weights.py` | integrates the H2O and CO2 band absorptances against this star, for `h2osww` and `co2sww`, and fits the closed form the CO2 patch codes |
+| `cloud_band_weight.py` | the CLOUD half of the same correction: Mie over liquid water's k(lambda) to a co-albedo, flux-weighted over range 2 against a 5772 K Sun, for `model.cloud_absorption_scale` which scales `tswr3` and `acl2`. PHYS-11 |
 | `corrk_cross_check.py` | checks those two absorptances against correlated-k tables from a modern line list; `--checks` runs the falsifiable checks, `--bands` the per-band CO2 comparison. Needs the LMD Generic PCM bundle, and writes nothing |
 
 ## What the flux sweeps established

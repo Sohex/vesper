@@ -87,7 +87,7 @@ Status: `open` | `doing` | `blocked` | `done` | `wontfix` (with a reason).
 
 ## CLIM -- climate
 
-7 open of 38 issued.
+9 open of 40 issued.
 
 | id | task | source | status |
 | --- | --- | --- | --- |
@@ -129,6 +129,8 @@ Status: `open` | `doing` | `blocked` | `done` | `wontfix` (with a reason).
 | CLIM-33 | Price `mixed_layer_depth_m`: arms at 25 m and 100 m against the 50 m default, which sets seasonal amplitude on a half-Earth year | `docs/src/reference/config-rationale.md` ocean entry, `analysis/error_budget.json` structural items | open. The budget books it structural with no kelvin figure. The prediction registered 2026-08-20 in `exoplasim/notes/forcing-bundle-predictions.md` makes the annual mean EXACT at 0.000 K, a heat capacity cannot move an equilibrium, and puts the content in the amplitude (`omega C`/lambda = 69, so amplitude goes as 1/depth) and in whatever sea ice the deeper winter swing makes. Rides the A3 bundle [step: baseline_run] |
 | CLIM-37 | -- | -- | done, see `archive/tasks.md` |
 | CLIM-38 | -- | -- | done, see `archive/tasks.md` |
+| CLIM-39 | Carry N aerosol species in the radiation instead of one: per-cell per-layer external mixing of optical depth, single-scattering albedo and backscatter, with the two-stream u-factors moved inside the layer loop, and the transported tracer becoming one species of the array so the prescribed/interactive exclusion at `radini:1162` goes rather than being preserved | `aeolian/notes/multi-species-aerosol.md` | open. Sized at 400-700 lines against `prescribed-dust.patch`'s 530, and the two-species form is NOT the cheap version: the mixing restructure is required for a second species and a third then costs a loop bound. The conservative-scattering branch needs its own check -- `zaeru1` divides by `(1 - ssa1)` and sea salt sits at `1 - 1e-5`, so it runs near-singular over 57% of the planet in code dust has never exercised, and at 8-byte precision it fails by returning a plausible number. Rule 4: every binary rebuilt, then `--verify` [step: rebuild_binaries]
+| CLIM-40 | Route sea salt into the radiation: the `.sra` column writer on a new surface code, its aerofile column, the `run_exoplasim.py` code set and the `config/planet.yaml` key, on the pattern `build_surface_dust.py` and `dust_aerofile.py` already set for dust | `aeolian/notes/multi-species-aerosol.md` section 6 | open, blocked on CLIM-39. It is the species that changes an answer -- the same magnitude as dust and the opposite sign -- and the cheaper half of the pair to prescribe, being a pure scatterer over a dark surface that does not change. Volcanic sulfate rides the same machinery at one to two orders down and decides nothing, so it goes in with this or not at all [step: sea_salt]
 
 ## CONS -- consistency checking
 
@@ -185,7 +187,7 @@ Status: `open` | `doing` | `blocked` | `done` | `wontfix` (with a reason).
 | DUST-10 | -- | -- | done, see `archive/tasks.md` |
 | DUST-11 | Settle the CATCHMENT half: run one prescribed-dust climate segment and measure what it does to precipitation and runoff. Runoff is the carve criterion's denominator and only 19% of land precipitation, so it amplifies; radiatively dark mineral dust lowers the simulation's rainfall through a fast circulation adjustment that no offline calculation can reach, because it is a response of the modelled winds and not of a surface energy balance | `notes/dust.md`, `aeolian/notes/prescribed-dust-run.md` | DECIDED 2026-08-17: measure first, then decide whether to carry it. The matched pair rides inside the flux re-bracket rather than beside it, so the control is a point loop A needs anyway. The patch is resident with `ndustrad = 0` [step: surface_dust, baseline_run] |
 | DUST-12 | -- | -- | done, see `archive/tasks.md` |
-| DUST-13 | Decide whether the final climate carries interactive emission (`L_AERO = 1`): the reopening test in `notes/dust.md` fired, so a prescribed field is not defensible for a converged answer | `notes/dust.md`, `aeolian/notes/in-model-dust.md` | open, blocked on DUST-11's measurement -- the prescribed-dust run prices what the interactive scheme must reproduce [step: baseline_run] |
+| DUST-13 | Decide whether the final climate carries interactive emission (`L_AERO = 1`): the reopening test in `notes/dust.md` fired, so a prescribed field is not defensible for a converged answer | `notes/dust.md`, `aeolian/notes/in-model-dust.md` | open, blocked on DUST-11's measurement -- the prescribed-dust run prices what the interactive scheme must reproduce. Take it AFTER CLIM-39 or the choice forecloses sea salt: `ndustrad` and `iaerint` cannot both be on, so interactive dust on today's code puts the one species of comparable magnitude permanently out of the radiation [step: baseline_run] |
 | DUST-15 | Make the measured gust samples the dust step's default input and regenerate the chain: every dust artifact on disk is 70x too thin, built from the snapshot-fitted wind tail | `notes/dust.md` last section, `config/pipeline.yaml` dust step | open, and DUST-11's run rides the wrong field until it lands [step: dust] |
 | DUST-14 | Dust deposition reaches the soil and never reaches the cryosphere: nothing consumes the deposition field as a term in the model's snow and ice albedo, and `build_dust.py` reads snow only as an emission suppressor | `notes/audits/absent-and-inherited-physics.md` finding 2 | open, one-signed, and it lands on the term the glacier result turns on. Deposition over snow-covered land at 50-60 degrees is 8.75 g/m2/yr at the central aeolian roughness against a terrestrial dust-on-snow literature working at 1-5 g/m2 snowpack loads for albedo reductions of 0.03-0.08, and the smooth end of the roughness bracket is 111 g/m2/yr. The model's snow albedo carries a time-since-snowfall aging range of about a quarter in band 1 and no dependence on what has landed on it. It belongs in the glacier mass balance when `notes/glacier-rough-pass.md` stops being a temperature criterion, and the field it needs already exists. It also puts a cryosphere term under the aeolian roughness bracket, which was understood as controlling emission and the direct forcing only [step: dust, surface_albedo] |
 
@@ -296,7 +298,7 @@ Status: `open` | `doing` | `blocked` | `done` | `wontfix` (with a reason).
 
 ## PHYS -- physics calibrated for the wrong world
 
-1 open of 10 issued.
+0 open of 10 issued.
 
 | id | task | source | status |
 | --- | --- | --- | --- |
@@ -308,7 +310,7 @@ Status: `open` | `doing` | `blocked` | `done` | `wontfix` (with a reason).
 | PHYS-6 | -- | -- | done, see `archive/tasks.md` |
 | PHYS-9 | -- | -- | done, see `archive/tasks.md` |
 | PHYS-10 | -- | -- | done, see `archive/tasks.md` |
-| PHYS-11 | The cloud shortwave and longwave constants are Earth tunings and are the only major radiation term never re-weighted for this star. `tswr1`, `tswr2`, `tswr3`, `acllwr`, `rcl1`, `rcl2` and `acl2` appear in no note, config, audit or decision | `notes/audits/inherited-earth-constants.md` finding 2 | open, and NOT a decision. `config/planet.yaml` says the Lacis-Hansen absorptances are fractions of SOLAR flux so EVERY ONE has to be re-weighted for a K2.5V host, and four smaller ones already were; physics-is-not-a-knob settles the rest, since a term is re-weighted because the star differs and not because the correction is large. What is open is the VALUE. Measured 2026-08-20 at +/-2.6 K over the declared 0.78 to 1.28 bracket, larger than the whole bundle sum, and the arms confirm the 12.0 W/m2 booking to within 25%. Derive it as `shortwave_band_weights.py` derived the gas weights: a quantity that carries no spectrum, flux-weighted per star, checked by putting the Sun in and reproducing the Earth value. For clouds that quantity is liquid water's k(lambda), now read from Hale and Querry (1973) Table I into `exoplasim/data/water/hale_querry_1973_liquid_water.dat`. `model.cloud_absorption_scale` is the key it lands on [step: rebuild_binaries, baseline_run] |
+| PHYS-11 | -- | -- | done, see `archive/tasks.md` |
 | PHYS-12 | -- | -- | done, see `archive/tasks.md` |
 
 ## REF -- references and provenance

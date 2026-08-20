@@ -245,13 +245,19 @@ model:
   # CLIM-1 states the condition and docs/src/reference/config-rationale.md keeps the argument.
   energy_diagnostics: false
   energy_diagnostics_3d: false
-  # PHYS-11. Multiplies the two ABSORPTION-like cloud keys, `tswr3` and the
-  # `acl2` triplet, in radmod_nl. 1.0 is the compiled Earth tuning and must
-  # reproduce it bit for bit; the arms bracket 0.78 to 1.28, which spans both
-  # signs of the star correction because this host puts more flux in range 2
-  # but concentrates it where liquid water absorbs less. Scattering keys are
-  # held and `acllwr` is thermal-band, so neither takes an arm.
-  cloud_absorption_scale: 1.0
+  # PHYS-11, DERIVED 2026-08-20 and no longer 1.0. Multiplies the two
+  # ABSORPTION-like cloud keys, `tswr3` and the `acl2` triplet, in radmod_nl.
+  # Lacis and Hansen's absorptances are fractions of SOLAR flux, so every one of
+  # them has to be re-weighted for this host; these are the ones that never
+  # were. `cloud_band_weight.py` derives it the way the gas weights were
+  # derived: from a quantity carrying no spectrum, liquid water's k(lambda) out
+  # of Hale and Querry (1973) Table I, through Mie to a co-albedo, flux-weighted
+  # over range 2 against a 5772 K Sun. 1.184 to 1.205 across droplet effective
+  # radii 5 to 15 um and across both the weak-absorption and thick-layer
+  # scalings, so the answer barely depends on either; 1.192 is the median.
+  # Worth about +2.0 K on the arms' own measured slope, which is why the flux
+  # re-derivation must follow it and not precede it.
+  cloud_absorption_scale: 1.192
   ozone_scale: 0.794
   ozone_uv_weight: 0.335
   ozone_visible_weight: 0.914

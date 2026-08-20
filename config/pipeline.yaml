@@ -306,6 +306,19 @@ steps:
     needs: [stellar_spectrum]
     writes: [exoplasim/analysis/shortwave_band_weights.json]
 
+  - id: cloud_band_weight
+    script: exoplasim/scripts/cloud_band_weight.py
+    cost: minutes
+    needs: [stellar_spectrum]
+    writes: [exoplasim/analysis/cloud_band_weight.json]
+    gate: >
+      the CLOUD half of what shortwave_band_weights does for the gases. Lacis
+      and Hansen's absorptances are fractions of solar flux and every one has to
+      be re-weighted for this host (`config/planet.yaml`); `acl2` and `tswr3`
+      are the ones that never were. Derived from liquid water's k(lambda), which
+      carries no spectrum, flux-weighted over range 2 per star. Lands on
+      `model.cloud_absorption_scale`. TASKS.md PHYS-11
+
   - id: baseline_run
     script: exoplasim/scripts/run_exoplasim.py
     loop: A

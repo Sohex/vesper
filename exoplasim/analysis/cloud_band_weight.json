@@ -1,0 +1,62 @@
+{
+  "checks": {
+    "solar_partition": {
+      "computed": 0.517,
+      "radmod_states": 0.517,
+      "pass": true
+    },
+    "water_index_endpoint": {
+      "n_at_0.75um": 1.33,
+      "pass": true
+    },
+    "star_band2_share": {
+      "computed": 0.6176,
+      "recorded": 0.618,
+      "pass": true
+    },
+    "self_weight_is_one": {
+      "pass": true
+    }
+  },
+  "per_effective_radius": {
+    "r_eff_5um": {
+      "coalbedo_sun": 0.017453022280545762,
+      "coalbedo_star": 0.020927591173896226,
+      "weight_linear": 1.1990812157057427,
+      "weight_sqrt": 1.1853924193530303
+    },
+    "r_eff_10um": {
+      "coalbedo_sun": 0.022371356782224662,
+      "coalbedo_star": 0.026905772098915984,
+      "weight_linear": 1.2026884359688983,
+      "weight_sqrt": 1.1853599603449556
+    },
+    "r_eff_15um": {
+      "coalbedo_sun": 0.025681099240807387,
+      "coalbedo_star": 0.030954359077025845,
+      "weight_linear": 1.2053362197144282,
+      "weight_sqrt": 1.184405071207695
+    }
+  },
+  "weight": {
+    "low": 1.184405071207695,
+    "high": 1.2053362197144282,
+    "central": 1.1922368175293865,
+    "declared_bracket_before_measurement": [
+      0.78,
+      1.28
+    ]
+  },
+  "generated": "2026-08-20T10:20:37.804863+00:00",
+  "sources": {
+    "water_indices": "Hale and Querry (1973) Table I, 10.1364/AO.12.000555",
+    "star": "k25v_hr.dat",
+    "sun": "5772.0 K blackbody",
+    "sigma_g": 1.35,
+    "r_eff_um": [
+      5.0,
+      10.0,
+      15.0
+    ]
+  }
+}
