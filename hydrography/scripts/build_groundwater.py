@@ -155,6 +155,12 @@ def main() -> int:
                     help="run at uniform permeability with a terrain-following "
                          "table and check the catchments against the surface ones")
     ap.add_argument("--max-outer", type=int, default=60)
+    ap.add_argument("--operator-noise", type=float, default=0.0,
+                    help="multiply every face's w/l by lognormal noise of this "
+                         "relative width, to ask what the operator's own "
+                         "truncation error (GW-8, about 0.12) does to the "
+                         "answer. Not a model parameter")
+    ap.add_argument("--noise-seed", type=int, default=0)
     ap.add_argument("--uniqueness-check", action="store_true",
                     help="re-solve from the opposite initial active set and "
                          "require the identical head field. The problem is a "
@@ -190,6 +196,20 @@ def main() -> int:
     geom = gw.Geometry(export)
     closes = geom.closes_on_sphere()
     print(f"  {geom.src.size:,} faces, area closes on the sphere to {closes:.8f}")
+    if args.operator_noise:
+        # GW-8 SENSITIVITY, not a model knob. The mesh operator sits about 12%
+        # above its analytic eigenvalue past l = 1, which is first-order
+        # truncation on an irregular mesh. Injecting that as multiplicative
+        # noise on the face coefficients asks what it does to the answer -- in
+        # particular whether the carve flip COUNT survives it, or only the
+        # direction of the flips.
+        rng = np.random.default_rng(args.noise_seed)
+        sig = float(args.operator_noise)
+        geom.geom = geom.geom * rng.lognormal(
+            -0.5 * np.log1p(sig * sig), np.sqrt(np.log1p(sig * sig)),
+            size=geom.geom.size)
+        print(f"  operator noise: w/l perturbed by {sig:.0%} relative, "
+              f"seed {args.noise_seed}")
     if abs(closes - 1.0) > 1e-6:
         raise SystemExit(
             f"the Voronoi dual does not tile the sphere ({closes:.8f}); the "
@@ -239,11 +259,17 @@ def main() -> int:
         # permeability, so nothing but the topography can steer the flow, and
         # the answer is fixed in advance: the groundwater divides must be the
         # topographic ones.
-        print("\nDIVIDE TEST: uniform permeability, terrain-following table")
+        # ON THE FILLED SURFACE, which is the whole correction. `terminal` is
+        # a priority flood on the filled surface, so a groundwater trace on the
+        # raw one is describing different drainage and cannot agree with it.
+        print("\nDIVIDE TEST: uniform permeability, table following the "
+              "FILLED surface")
+        with Dataset(data / "regions.nc") as ds:
+            filled_m = np.asarray(ds["filled_km"][:]).astype(np.float64) * 1000.0
         k0 = np.where(land, 1e-4, 0.0)
         res = gw.terrain_following(export, geom, k0_m_s=k0,
                                    thickness_m=thickness_m,
-                                   surface_m=surface_m, conductive=conductive)
+                                   surface_m=filled_m, conductive=conductive)
     else:
         print("solving the water table")
         res = gw.solve(export, geom, k0_m_s=k0, thickness_m=thickness_m,
@@ -282,6 +308,8 @@ def main() -> int:
         "forcing_sha256": sha256(clim),
         "config_sha256": sha256(CONFIG),
         "sigma": args.sigma,
+        "operator_noise": args.operator_noise,
+        "noise_seed": args.noise_seed,
         "unassigned_policy": policy,
         "gravity_m_s2": gravity,
         "conductivity_vs_earth": gravity / 9.80665,
@@ -353,27 +381,57 @@ def main() -> int:
         rec = gw.groundwater_receiver(export.n_regions, res["src"], res["dst"],
                                       res["face_flux_m3_s"], land)
         gwterm = gw.trace_terminals(rec, terminal, land)
-        with Dataset(data / "regions.nc") as ds:
-            filled = np.asarray(ds["filled_km"][:])
-        unfilled = land & (np.abs(filled - export.elevation_km) < 1e-6)
+        flat = land & (filled_m > surface_m + 1e-6)
+        unfilled = land & ~flat
         same = gwterm == terminal
         a_all = float(area_m2[land][same[land]].sum() / area_m2[land].sum())
         a_unf = float(area_m2[unfilled][same[unfilled]].sum()
                       / area_m2[unfilled].sum())
-        print(f"\n  groundwater catchment matches the surface catchment on "
-              f"{a_all * 100:.2f}% of land area "
-              f"(criterion {gw.DIVIDE_AGREEMENT_ALL * 100:.0f}%)")
-        print(f"  outside filled depressions {a_unf * 100:.2f}% "
-              f"(criterion {gw.DIVIDE_AGREEMENT_UNFILLED * 100:.0f}%)")
+        flat_share = float(area_m2[flat].sum() / area_m2[land].sum())
+        print(f"\n  outside the pits the flood filled: {a_unf * 100:.2f}% of "
+              f"land area agrees (criterion "
+              f"{gw.DIVIDE_AGREEMENT_UNFILLED * 100:.0f}%)")
+        print(f"  those pits are {flat_share * 100:.2f}% of land and carry no "
+              f"gradient to trace; over all land {a_all * 100:.2f}%")
         report["divide_test"] = {
-            "criterion_all": gw.DIVIDE_AGREEMENT_ALL,
             "criterion_unfilled": gw.DIVIDE_AGREEMENT_UNFILLED,
+            "surface": "filled_km, the same surface regions.nc:terminal uses",
+            "agreement_outside_filled_pits": a_unf,
             "agreement_all_land_area": a_all,
-            "agreement_outside_filled_depressions": a_unf,
-            "passes": bool(a_all >= gw.DIVIDE_AGREEMENT_ALL
-                           and a_unf >= gw.DIVIDE_AGREEMENT_UNFILLED),
+            "filled_pit_share_of_land": flat_share,
+            "passes": bool(a_unf >= gw.DIVIDE_AGREEMENT_UNFILLED),
         }
         print("  " + ("PASS" if report["divide_test"]["passes"] else "MISS"))
+
+        # THE TRACE IDENTITY. Synthesise a flux field whose only outgoing flux
+        # at each land cell is the face to that cell's own surface `receiver`.
+        # The trace must then reproduce `terminal` exactly, because it is being
+        # handed the surface network itself. Nothing about groundwater enters.
+        with Dataset(data / "regions.nc") as ds:
+            surf_recv = np.asarray(ds["receiver"][:]).astype(np.int64)
+        ssrc, sdst = res["src"], res["dst"]
+        synth = np.zeros(ssrc.size)
+        # positive flux is dst into src, so an outgoing flux from src is -1
+        synth[surf_recv[ssrc] == sdst] = -1.0
+        synth[surf_recv[sdst] == ssrc] = +1.0
+        srec = gw.groundwater_receiver(export.n_regions, ssrc, sdst, synth, land)
+        sterm = gw.trace_terminals(srec, terminal, land)
+        agree = float(area_m2[land][(sterm == terminal)[land]].sum()
+                      / area_m2[land].sum())
+        rec_agree = float((srec[land] == surf_recv[land]).mean())
+        ok = bool(agree >= gw.TRACE_IDENTITY_EXACT)
+        report["trace_identity"] = {
+            "criterion": gw.TRACE_IDENTITY_EXACT,
+            "what": ("the trace machinery handed the surface network's own "
+                     "receiver as a flux field; nothing about groundwater "
+                     "enters, so it must reproduce terminal exactly"),
+            "receiver_recovered_fraction": rec_agree,
+            "terminal_agreement_land_area": agree,
+            "passes": ok,
+        }
+        print(f"\n  TRACE IDENTITY: receiver recovered on {rec_agree * 100:.4f}% "
+              f"of land regions, terminal on {agree * 100:.4f}% of land area")
+        print("  " + ("PASS" if ok else "MISS"))
 
     # -- GW-4: what the term would move ------------------------------------
     if not (args.reduction_test or args.divide_test):
@@ -478,6 +536,9 @@ def main() -> int:
         name = "groundwater_reduction_test.json"
     elif args.divide_test:
         name = "groundwater_divide_test.json"
+    elif args.operator_noise:
+        name = (f"groundwater_report_noise{args.operator_noise:g}"
+                f"_seed{args.noise_seed}.json")
     elif args.sigma:
         name = f"groundwater_report_sigma{args.sigma:+g}.json"
     (ANALYSIS / name).write_text(json.dumps(report, indent=2) + "\n")

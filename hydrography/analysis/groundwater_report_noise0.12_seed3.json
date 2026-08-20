@@ -5,6 +5,8 @@
   "forcing_sha256": "227909c0a19e204b88dd081b42bf7671447a5dc781e8ebeacd8e942144df5715",
   "config_sha256": "fdee90a77e7a78e2ea2b3116dda8b74c961583eb3bade8657a0d6900a84520c4",
   "sigma": 0.0,
+  "operator_noise": 0.12,
+  "noise_seed": 3,
   "unassigned_policy": "exclude",
   "gravity_m_s2": 12.81,
   "conductivity_vs_earth": 1.3062564688247262,
@@ -17,17 +19,17 @@
   "laplace_beltrami": {
     "criterion": 0.1,
     "relative_rms": {
-      "1": 0.02165422451858263,
-      "2": 0.1081881734670909,
-      "3": 0.12015462041162055,
-      "4": 0.12426941987830004
+      "1": 54.90070994236619,
+      "2": 31.718536485072992,
+      "3": 22.406223180085078,
+      "4": 17.371477394141145
     }
   },
   "closure": {
     "recharge_m3_s": 1332781.1760872037,
     "discharge_m3_s": 1332781.1760872034,
-    "seepage_m3_s": 1330704.7694187243,
-    "to_ocean_m3_s": 2076.4066684791205,
+    "seepage_m3_s": 1330706.5588046983,
+    "to_ocean_m3_s": 2074.6172825050658,
     "relative_residual": 1.746953272084896e-16,
     "tolerance": 1e-10,
     "passes": true
@@ -36,7 +38,7 @@
   "convergence": {
     "criterion_residual": 1e-12,
     "criterion_flip_fraction": 0.0,
-    "final_residual": 2.543118751954883e-18,
+    "final_residual": 2.5567389946552315e-18,
     "criterion_note": "the water balance residual on free cells over total land recharge, and a still active set. Not the head step: a bar on the step can be met by a shrinking step rather than by convergence",
     "trace_columns": [
       "pass",
@@ -49,146 +51,138 @@
     "trace": [
       [
         0,
-        215115,
-        215115,
-        3.040341973545527e-18,
-        93150,
-        0.0021695894452226604
+        215231,
+        215231,
+        3.0305180426201177e-18,
+        93088,
+        0.002169950572966662
       ],
       [
         1,
-        308265,
-        93150,
-        3.3530254512957674e-18,
-        46471,
-        0.0005690353878155378
+        308319,
+        93088,
+        3.3711506148280953e-18,
+        46454,
+        0.0005737891624816926
       ],
       [
         2,
-        354736,
-        46471,
-        3.1176726291291773e-18,
-        23318,
-        0.00015679828257693753
+        354773,
+        46454,
+        3.162310085075852e-18,
+        23184,
+        0.00015861047295231856
       ],
       [
         3,
-        378054,
-        23318,
-        2.763393138674681e-18,
-        11650,
-        4.0259393074381673e-05
+        377957,
+        23184,
+        2.8412919946303237e-18,
+        11668,
+        4.158452873797339e-05
       ],
       [
         4,
-        389704,
-        11650,
-        2.625176846524051e-18,
-        5678,
-        9.305212621135386e-06
+        389625,
+        11668,
+        2.650400595852399e-18,
+        5728,
+        9.692139761416795e-06
       ],
       [
         5,
-        395382,
-        5678,
-        2.575019934681973e-18,
-        2616,
-        2.2316439156702217e-06
+        395353,
+        5728,
+        2.593725074795757e-18,
+        2648,
+        2.3548374520339082e-06
       ],
       [
         6,
-        397998,
-        2616,
-        2.5352592385293563e-18,
-        1145,
-        4.823384123015265e-07
+        398001,
+        2648,
+        2.5545568398574407e-18,
+        1132,
+        5.25683861295266e-07
       ],
       [
         7,
-        399143,
-        1145,
-        2.5492213442488865e-18,
-        480,
-        9.340147872520893e-08
+        399133,
+        1132,
+        2.5542904848404003e-18,
+        502,
+        1.1417035630902571e-07
       ],
       [
         8,
-        399623,
-        480,
-        2.5625001121195082e-18,
-        153,
-        1.441162343355699e-08
+        399635,
+        502,
+        2.558464911052921e-18,
+        174,
+        1.6847662434356088e-08
       ],
       [
         9,
-        399776,
-        153,
-        2.5414063076462378e-18,
-        64,
-        3.511294659313188e-09
+        399809,
+        174,
+        2.5622143457868554e-18,
+        65,
+        3.817342178314355e-09
       ],
       [
         10,
-        399840,
-        64,
-        2.5491921525067675e-18,
-        24,
-        1.666412337944523e-10
+        399874,
+        65,
+        2.5603514888136054e-18,
+        25,
+        1.620242136259385e-10
       ],
       [
         11,
-        399864,
-        24,
-        2.543900370603909e-18,
-        10,
-        3.865671819448524e-11
+        399899,
+        25,
+        2.5535687207628672e-18,
+        7,
+        3.380285418146318e-11
       ],
       [
         12,
-        399874,
-        10,
-        2.543311386539909e-18,
+        399906,
+        7,
+        2.5562487946948282e-18,
         6,
-        1.7309646291460742e-11
+        1.617755083411339e-11
       ],
       [
         13,
-        399880,
+        399912,
         6,
-        2.5430457650103277e-18,
-        1,
-        6.028889739054204e-12
+        2.556671479786507e-18,
+        2,
+        5.795433888799215e-12
       ],
       [
         14,
-        399881,
-        1,
-        2.54310235681028e-18,
-        1,
-        1.0441031964670354e-13
-      ],
-      [
-        15,
-        399882,
-        1,
-        2.543118751954883e-18,
+        399914,
+        2,
+        2.5567389946552315e-18,
         0,
         -0.0
       ],
       [
-        16,
-        399882,
+        15,
+        399914,
         0,
-        2.543118751954883e-18,
+        2.5567389946552315e-18,
         0,
         -0.0
       ]
     ]
   },
-  "outer_iterations": 17,
+  "outer_iterations": 16,
   "water_table": {
     "median_depth_m_land": 0.0,
-    "at_surface_fraction_land": 0.6298031491686091,
+    "at_surface_fraction_land": 0.6297651649626272,
     "unassigned_land_fraction": 0.028842982556911458,
     "aquifer_thickness_m": 100.0,
     "transmissivity_note": "T = K D with a constant aquifer thickness, so there is no depth floor and no cell has a transmissivity that underflows"
@@ -199,13 +193,13 @@
     "both_arms_use_mesh_resolved_catchment_depth": true,
     "why": "the surface arm is recomputed on the mesh rather than taken from the coupling matrix, so the only difference between the two arms is the groundwater term",
     "basins_scored": 3621,
-    "total_abs_exchange_m3_s": 474.23462661436463,
+    "total_abs_exchange_m3_s": 475.4746781588256,
     "total_recharge_m3_s": 916768.4443922429,
-    "exchange_over_recharge": 0.0005172894306247101,
-    "basins_gaining": 1836,
-    "basins_losing": 1496,
-    "basins_shifted_over_10_percent": 587,
-    "median_abs_fractional_shift": 0.000731840704224366,
+    "exchange_over_recharge": 0.0005186420639445482,
+    "basins_gaining": 1833,
+    "basins_losing": 1499,
+    "basins_shifted_over_10_percent": 584,
+    "median_abs_fractional_shift": 0.000732942122434435,
     "carve_verdicts": {
       "criterion": "carve_verdict.py's own: overflow when the aridity index is at or below basins.nc's critical_aridity_index",
       "would_carve_surface_only": 1798,
@@ -214,13 +208,5 @@
       "flipped_to_carve": 83,
       "flipped_to_hold": 0
     }
-  },
-  "uniqueness": {
-    "criterion_relative_head": 1e-09,
-    "max_absolute_head_difference_m": 0.0,
-    "relative_head_difference": 0.0,
-    "alternate_converged": true,
-    "alternate_passes": 19,
-    "passes": true
   }
 }

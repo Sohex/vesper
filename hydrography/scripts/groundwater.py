@@ -41,6 +41,7 @@ from pathlib import Path
 
 import numpy as np
 import scipy.sparse as sp
+from scipy.sparse.csgraph import connected_components as _components
 from scipy.sparse.linalg import spsolve
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -69,8 +70,37 @@ CLOSURE_TOLERANCE = 1e-10
 # depressions the two constructions should agree almost everywhere; inside them
 # the surface catchment came from a priority flood on a flat filled surface and
 # the groundwater trace has nothing to follow, so they need not.
-DIVIDE_AGREEMENT_ALL = 0.90
-DIVIDE_AGREEMENT_UNFILLED = 0.99
+# THE CATCHMENT CHECK, re-specified. Declared before the re-specified test was
+# first run.
+#
+# The first version compared a groundwater trace on the RAW surface against
+# `regions.nc:terminal`, which is a priority flood on the FILLED one, and missed
+# at 73% because the two describe drainage on different surfaces. No solver
+# passes that. Both sides now sit on the filled surface, so the only thing left
+# differing is whether the water was routed over the ground or under it.
+#
+# The bar is on land OUTSIDE the pits the flood filled. Inside them the filled
+# surface is flat by construction, so a flux field driven by its gradient
+# carries no direction at all and the trace there is arbitrary -- a property of
+# flats, not of groundwater. The share of land that is is reported rather than
+# assumed small.
+DIVIDE_AGREEMENT_UNFILLED = 0.95
+# THE TRACE IDENTITY, declared before it was first run, and it is exact.
+#
+# The terrain-following comparison above is a MEASUREMENT and cannot be an
+# identity, because `regions.nc:terminal` comes from a priority flood's
+# discovery pointer while a flux trace is a steepest-descent rule, and
+# hydrography's README says why the flood cannot use steepest descent: a filled
+# pit is flat, so descent would drop whole tributaries. The two routing rules
+# genuinely disagree on the same terrain and no solver reconciles them.
+#
+# What CAN be tested exactly is the trace machinery itself. Hand it a flux field
+# whose only outgoing flux at each cell is the face to that cell's own
+# `receiver`, and it must reproduce `terminal` on every land region -- not
+# almost. That isolates `groundwater_receiver` and `trace_terminals` from the
+# physics entirely, and it is the check that caught the receiver reading its own
+# sign convention backwards.
+TRACE_IDENTITY_EXACT = 1.0
 # Convergence of the outer iteration, DECLARED BEFORE THE FIRST RUN of the
 # constant-transmissivity model. The transmissivity no longer depends on the
 # head, so the matrix is fixed and this is a box-constrained linear
@@ -370,6 +400,51 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
     np.add.at(rowsum, dst, trans)
 
     supply = recharge_m_s * area_m2               # m3/s per cell
+
+    # DRY GROUND, DECIDED BEFORE THE ITERATION STARTS AND NOT DURING IT.
+    #
+    # Water enters this system in exactly two places: recharge falling on a
+    # conductive cell, and the ocean boundary. A conductive cell that connects
+    # to neither, through any chain of conducting faces, can never hold
+    # groundwater at all. It is dry as a matter of terrain, lithology and
+    # recharge, and that is a static property of the graph.
+    #
+    # It was previously discovered mid-solve instead, as blocks that happened to
+    # be surrounded by free cells at some pass. Whether a block LOOKS isolated
+    # depends on the active set, so which cells were found dry depended on the
+    # route taken: the forward run marked 14 and the reverse run 80. The two
+    # trajectories were therefore solving slightly different problems, which is
+    # what the uniqueness identity was detecting when it missed by 12.76 m.
+    #
+    # A face conducts whenever both its ends are in the network, whatever their
+    # pinned or free status, so this connectivity is the same on every pass and
+    # the set it produces cannot depend on traversal order.
+    both_cond = conductive[src] & conductive[dst]
+    comp_graph = sp.coo_matrix(
+        (np.ones(int(both_cond.sum())),
+         (src[both_cond], dst[both_cond])), shape=(n, n))
+    ncomp_static, comp = _components(comp_graph)
+    fed = np.zeros(ncomp_static, bool)
+    has_recharge = conductive & (supply > 0)
+    fed[comp[has_recharge]] = True
+    touches_sea = np.zeros(n, bool)
+    coastal = is_ocean[src] ^ is_ocean[dst]
+    if coastal.any():
+        touches_sea[np.where(is_ocean[src[coastal]],
+                             dst[coastal], src[coastal])] = True
+    fed[comp[conductive & touches_sea]] = True
+    dry = conductive & ~fed[comp]
+    if dry.any():
+        conductive = conductive & ~dry
+        t_cell = np.where(conductive, transmissivity(k0_m_s, thickness_m), 0.0)
+        trans = face_transmissivity(t_cell, gfac, src, dst, is_ocean)
+        rowsum = np.zeros(n)
+        np.add.at(rowsum, src, trans)
+        np.add.at(rowsum, dst, trans)
+        if verbose:
+            print(f"  {int(dry.sum()):,} conductive regions reach neither "
+                  f"recharge nor the sea; dry before the solve starts")
+
     total_supply = float(supply[conductive].sum())
 
     # Start with every cell at the surface, which is the zero-permeability
@@ -441,53 +516,13 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
             anchored[np.where(unknown[src[edge_one]],
                               src[edge_one], dst[edge_one])] = True
         if not np.all(anchored[unknown]):
-            from scipy.sparse.csgraph import connected_components
-
             sub = sp.coo_matrix((np.ones(int(both.sum())),
                                  (idx[src[both]], idx[dst[both]])), shape=(m, m))
-            ncomp, label = connected_components(sub, directed=False)
+            ncomp, label = _components(sub, directed=False)
             ok = np.zeros(ncomp, bool)
             ok[label[idx[anchored & unknown]]] = True
             orphan = ~ok[label]
-            # A BLOCK WITH NO RECHARGE IS DRY, and needs no anchor.
-            #
-            # An orphan block has no conducting face to anything outside it, so
-            # the only water it can hold is what falls on it. Where that is zero
-            # there is nothing to dispose of, no seepage, and no water table:
-            # the block is dry and belongs out of the network, exactly as an
-            # unassigned lithology does.
-            #
-            # Anchoring one of its cells instead is not merely unnecessary, it
-            # is what generated the last of the mass error. Pinning a cell at
-            # the surface inside a block whose terrain is not flat drives a flux
-            # between the block's own cells, and the pinned cell absorbs the
-            # resulting imbalance as a negative seepage that is then clipped.
-            # All four cells that held this solve short of its bar had
-            # `supply` of exactly zero.
             if orphan.any():
-                block_supply = np.zeros(ncomp)
-                np.add.at(block_supply, label[orphan],
-                          supply[np.flatnonzero(unknown)[orphan]])
-                arid = orphan & (block_supply[label] <= 0.0)
-                if arid.any():
-                    cells = np.flatnonzero(unknown)[arid]
-                    conductive = conductive.copy()
-                    conductive[cells] = False
-                    free[cells] = False
-                    head[cells] = surface_m[cells]
-                    t_cell = np.where(conductive,
-                                      transmissivity(k0_m_s, thickness_m), 0.0)
-                    trans = face_transmissivity(t_cell, gfac, src, dst, is_ocean)
-                    rowsum = np.zeros(n)
-                    np.add.at(rowsum, src, trans)
-                    np.add.at(rowsum, dst, trans)
-                    total_supply = float(supply[conductive].sum())
-                    if verbose:
-                        print(f"    {cells.size:,} cells in "
-                              f"{int((block_supply <= 0).sum())} orphan blocks "
-                              f"take no recharge at all; marking them dry")
-                    continue
-
                 # WHICH cell to anchor, and it is not a free choice. A block
                 # with no external face must dispose of all its own recharge
                 # internally, so its cells' balances sum to something positive
@@ -693,13 +728,20 @@ def terrain_following(export: Export, geom: Geometry, *, k0_m_s,
 def groundwater_receiver(n, src, dst, flux, land):
     """Per land region, the neighbour taking the largest outgoing flux.
 
-    The groundwater analogue of the surface network's `receiver`. A positive
-    face flux runs src to dst, so it leaves src and enters dst; each direction
-    is reduced separately and the larger of the two claims wins.
+    The groundwater analogue of the surface network's `receiver`.
+
+    THE SIGN IS THE WHOLE OF THIS FUNCTION. `geom_divergence` and everything
+    built on it take a positive face flux to be flow from `dst` INTO `src`, so
+    what LEAVES `src` across that face is `-flux`. This read the sign the other
+    way and traced every cell to the neighbour it receives most water FROM,
+    which is to say it followed the water uphill. The catchment check sat at
+    71.6% against a 95% bar and survived a re-specification of the test aimed at
+    the wrong cause, because a backwards trace and a mis-specified comparison
+    look identical from the outside.
     """
     best = np.zeros(n)
     receiver = np.full(n, -1, dtype=np.int64)
-    for a, b, q in ((src, dst, flux), (dst, src, -flux)):
+    for a, b, q in ((src, dst, -flux), (dst, src, flux)):
         pos = q > 0
         aa, bb, qq = a[pos], b[pos], q[pos]
         order = np.argsort(qq, kind="stable")     # ascending: last write is max

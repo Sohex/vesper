@@ -102,44 +102,158 @@ unnecessary -- pinning it at the surface inside a block whose terrain is not
 flat drives a flux between the block's own cells, and the pinned cell absorbs
 the imbalance as exactly the negative seepage that was being clipped.
 
-## What still misses: the uniqueness identity
+## The uniqueness identity, and what it took to pass
 
 The matrix is symmetric positive definite, so the complementarity problem has
 exactly ONE solution and any two active-set trajectories must reach it. Solving
 again from every cell free rather than every cell pinned is therefore an
 identity, not a comparison, and it can fail.
 
-**It fails.** Criterion declared before the run at 1e-9 relative; measured
-**2.78e-03, a maximum head difference of 12.76 m**. Both trajectories converge,
-both close to 1.7e-16, and they do not agree.
+**It failed first, at a maximum head difference of 12.76 m against a declared
+1e-9 relative.** Both trajectories converged and both closed to 1.7e-16, and
+they did not agree.
 
-The cause is diagnosed and it is the dry-block rule above. Whether a block is
-ORPHANED depends on the current active set, so which cells are found to be dry
-depends on the path taken to get there: the forward run marked 14, the reverse
-run 80. The two trajectories therefore solve slightly different problems, and
-the identity is measuring exactly that.
+The cause was that a block of cells could be found DRY during the iteration --
+recharge-free and cut off from everything -- and whether a block looks cut off
+depends on which cells happen to be free at that moment. The forward run marked
+14 cells dry and the reverse run 80, so the two were solving slightly different
+problems and the identity was measuring exactly that.
 
-**So the head field is not certified.** It converges, it conserves mass to
-round-off, and it is not demonstrably the unique solution of the problem it
-claims to solve. The fix is to make the dry set path-independent -- determined
-from the terrain and the recharge alone, before the active-set iteration starts,
-rather than discovered during it -- and that is GW-12.
+**The dry set is a static property and is now computed as one.** Water enters
+this system in exactly two places: recharge falling on a conductive cell, and
+the ocean boundary. A conductive cell that connects to neither, through any
+chain of conducting faces, can never hold groundwater. A face conducts whenever
+both its ends are in the network, whatever their pinned or free status, so that
+connectivity is the same on every pass. It is one connected-components query on
+the static graph, before the iteration starts. **112 regions** on this build.
 
-## The GW-4 measurement, and its standing
+With that, the identity passes and does not merely come inside its bar:
 
-Reported because it is what the term was built to find, and labelled because it
-rests on the two provisos above: a bootstrap forcing, and a head field that
-fails its own uniqueness check.
+    max |h_from_all_free - h_from_all_pinned| = 0.000e+00 m
 
-Net groundwater exchange redistributes **0.05% of total land recharge** between
-basins, with 1,836 basins gaining and 1,496 losing. The median basin shifts by
-0.07% of its own recharge, but **587 basins shift by more than 10%**, which is
-the distribution Fan (2019) predicts: the term is negligible in the aggregate
-and concentrated in a minority of catchments.
+Bit-identical, with the same 112 dry regions found from either direction.
 
-Against `carve_verdict.py`'s own criterion, the count that would carve rises
-from 1,798 to 1,881. **All 83 flips run one way, to carve, and none the other.**
-That direction is worth more than the count: groundwater import raises the water
-a basin actually receives above what its surface catchment delivers, and a basin
-that receives more overflows more readily. Nothing here is wired into
-`carve_verdict.py`; whether the term enters the criterion is a loop A decision.
+## The catchment check: a real bug, and a bar that could not be met
+
+Three attempts, and they are recorded together because two of them missed and
+the reason matters more than the fact.
+
+**Attempt 1 compared a flux trace on the RAW surface against
+`regions.nc:terminal`, a priority flood on the FILLED one.** 73.0% of land area
+against a declared 90%. MISS.
+
+**Attempt 2 moved both sides onto the filled surface**, on the theory that the
+surfaces were the disagreement. 71.6% against a declared 95%. MISS, and barely
+moved, which killed the theory.
+
+**That failure exposed a real defect.** `groundwater_receiver` read the module's
+own sign convention backwards. A positive face flux is flow from `dst` INTO
+`src`, so what leaves `src` is `-flux`; the function took the positive direction
+as outgoing and therefore traced every cell to the neighbour it receives most
+water FROM. It was following the water uphill. Fixing it moved the same
+comparison from 71.6% to **79.3%**, which is how a genuine bug shows up in a
+mis-specified test: real improvement, still a miss.
+
+**And the bar could not have been met.** `terminal` comes from the priority
+flood's discovery pointer, and hydrography's README says why the flood cannot
+use steepest descent: a filled pit is flat, so descent would drop whole
+tributaries. A flux trace IS a steepest-descent rule. The two routing rules
+disagree on identical terrain by construction, so no solver reconciles them and
+95% was declared for a comparison that cannot be an identity. **It stands as a
+miss at 79.3%**, and it is reported as a measurement rather than promoted to a
+pass.
+
+**What CAN be exact is the trace machinery, and that is now the check.** Hand
+`groundwater_receiver` and `trace_terminals` a flux field whose only outgoing
+flux at each land cell is the face to that cell's own surface `receiver`, and
+they must reproduce `terminal` on every land region. Nothing about groundwater
+enters it. Declared exact before running, and measured:
+
+| what | result |
+| --- | --- |
+| `terminal` reproduced, by land area | **100.0000%** |
+| `receiver` itself recovered, by region count | 92.49% |
+
+The second number is lower and is not a defect: where several faces carry equal
+outgoing flux the tie is broken arbitrarily, and those cells still reach the
+same terminal, which is what the catchment is. This is the check that caught the
+sign bug above.
+
+## GW-4: what the groundwater term moves
+
+Forced by the BOOTSTRAP climatology. This build has no `baseline_climatology`
+and `surface_water.nc` was forced the same way; this project's vocabulary is
+explicit that a bootstrap run's numbers are not the baseline, so these are
+provisional against a baseline that does not yet exist. They are not provisional
+against the solver: the head field passes the uniqueness identity exactly,
+closes to round-off, and the trace machinery reproduces the surface catchments
+exactly.
+
+Gleeson's within-class permeability spread is 1.5 to 2.5 orders of magnitude, so
+the depth field is a bracket and every arm is reported. `--sigma` shifts each
+hydrolithology by its OWN standard deviation, not by a shared one.
+
+| | sigma -1 | sigma 0 | sigma +1 |
+| --- | ---: | ---: | ---: |
+| water table at the surface, share of land | 0.672 | 0.630 | 0.468 |
+| exchange as a share of land recharge | 0.002% | 0.052% | 0.989% |
+| basins shifted by over 10% of their own recharge | 423 | 587 | 1115 |
+| basins that would carve, surface balance only | 1798 | 1798 | 1798 |
+| basins that would carve, with groundwater | 1884 | 1881 | 1877 |
+| verdicts flipped | 86 | 83 | 85 |
+| of those, flipped towards HOLDING | 0 | 0 | 3 |
+
+**The depth field is genuinely bracketed and the carve answer is not.** The
+share of land with the water table at the surface runs from 0.47 to 0.67 across
+the bracket, and the exchange spans a factor of five hundred. The number of
+carve verdicts that flip barely moves: 83 to 86, out of 3,621 basins.
+
+That is worth more than either number alone. It says the flips are set by how
+many basins sit near the threshold rather than by how much water crosses the
+divides, which is why a five-hundredfold change in the exchange moves the count
+by three.
+
+**The direction is overwhelming but not exclusive.** At the central and dry arms
+every flip runs towards carving. At the wet arm 3 of 85 run the other way. The
+honest statement is 82 to 86 flips towards carving against 0 to 3 towards
+holding, not "all one way".
+
+The mechanism is the expected one: groundwater import raises what a basin
+actually receives above what its surface catchment delivers, and a basin that
+receives more overflows more readily.
+
+**Nothing here is wired into `carve_verdict.py`.** Whether the term enters the
+criterion is a loop A decision.
+
+## What GW-8's noise floor does to that answer
+
+The mesh operator sits about 12% above its analytic eigenvalue past `l = 1`,
+which is first-order truncation on an irregular mesh and is characterised in
+`notes/mesh-geometry.md`. Asking what it does to the carve result means
+perturbing every face coefficient by that much and re-solving.
+
+Three members at 12% relative lognormal noise on `w/l`, against the
+unperturbed 83:
+
+| member | flips | of those, towards holding |
+| --- | ---: | ---: |
+| unperturbed | 83 | 0 |
+| seed 1 | 84 | 0 |
+| seed 2 | 83 | 0 |
+| seed 3 | 83 | 0 |
+
+**Both the count and the direction survive.** The spread is one flip in
+eighty-three, an order of magnitude smaller than the spread across the
+permeability bracket, which is itself small. So the operator's truncation error
+is not what limits this result, and the count may be quoted rather than only the
+sign.
+
+## What remains
+
+**The external test.** GW-3, the same code on Earth topography, Earth recharge
+and GLHYMPS permeability, scored against Fan et al. (2013)'s 1,603,781 well
+sites. Every check that has run so far is internal -- an identity, a
+conservation law, or a reduction -- and none of them can say the model is right
+about a real water table. That one can, and it needs external datasets.
+
+**A baseline climatology.** Everything above is forced by a bootstrap run.

@@ -284,24 +284,36 @@ away, and the numbers are in the report.
 surface-only balance exactly rather than closely: every cell returns its own
 recharge as seepage and every basin's `Qg` is zero. It passes bitwise.
 
-`--divide-test` imposes uniform permeability and a terrain-following table and
-asks whether the groundwater catchments reproduce the surface ones. **It missed,
-and the test is the thing at fault.** The groundwater trace is a face-width-
-weighted steepest descent on the raw surface while `terminal` is a priority
-flood on the filled one, so the two differ for reasons that are not groundwater
-and no solver would pass it. `notes/mesh-geometry.md` has the numbers and what a
-correct version compares against; GW-10 tracks it.
+`--divide-test` does two things. It reports how far the groundwater catchments
+agree with the surface ones under a table following the FILLED surface, which is
+a measurement at **79.3%** and not a bar: `terminal` comes from a priority
+flood's discovery pointer and a flux trace is a steepest-descent rule, and
+hydrography's own README says why the flood cannot use descent. The two
+disagree on identical terrain by construction. A 95% bar was declared for it
+before that was understood and it MISSED; it is left standing as a miss.
+
+It then runs the check that CAN be exact. Handed a flux field whose only
+outgoing flux at each cell is the face to that cell's own surface `receiver`,
+the trace machinery must reproduce `terminal` on every land region, with no
+groundwater involved at all. **It does, at 100.0000% of land area.** That check
+earned its place immediately: it caught `groundwater_receiver` reading the
+module's sign convention backwards and tracing every cell to the neighbour it
+receives most water from, which is to say following the water uphill.
 
 `--uniqueness-check` re-solves from the opposite initial active set. The matrix
 is symmetric positive definite, so the complementarity problem has exactly one
-solution and any two trajectories must reach it: this is an identity, not a
-comparison. **It misses**, at 12.76 m maximum head difference against a declared
-1e-9 relative, because the rule that marks a recharge-free block dry depends on
-the active set it is discovered from and so is path-dependent. The head field
-therefore converges and conserves mass and is NOT certified as the unique
-solution. GW-12 tracks the fix.
+solution and any two trajectories must reach it: an identity, not a comparison.
+**It passes at 0.000e+00** -- bit-identical head fields from either direction.
+Getting there required the dry set to become a static property of the graph
+rather than something discovered mid-iteration; before that it missed by 12.76 m
+because the two trajectories were marking different cells dry and so solving
+slightly different problems.
 
-### Two cell areas, and they are not the same
+`--operator-noise` perturbs every face coefficient to ask what GW-8's own
+truncation error does to the answer. It is a sensitivity harness, not a model
+parameter.
+
+### Two cell areas, and they are not the same### Two cell areas, and they are not the same
 
 The mesh is a spherical Voronoi tessellation, so its dual is the convex hull of
 the region centroids and every face width follows from the circumcentres. The
