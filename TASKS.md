@@ -81,7 +81,7 @@ Status: `open` | `doing` | `blocked` | `done` | `wontfix` (with a reason).
 
 ## CLIM -- climate
 
-4 open of 30 issued.
+3 open of 31 issued.
 
 | id | task | source | status |
 | --- | --- | --- | --- |
@@ -119,7 +119,7 @@ Status: `open` | `doing` | `blocked` | `done` | `wontfix` (with a reason).
 
 ## CONS -- consistency checking
 
-1 open of 8 issued.
+0 open of 8 issued.
 
 | id | task | source | status |
 | --- | --- | --- | --- |
@@ -308,7 +308,7 @@ Status: `open` | `doing` | `blocked` | `done` | `wontfix` (with a reason).
 
 ## SURF -- derived surface classes
 
-2 open of 6 issued.
+1 open of 6 issued.
 
 | id | task | source | status |
 | --- | --- | --- | --- |

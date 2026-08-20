@@ -10,7 +10,7 @@ data directory, five stale binaries, and a config change that left `latitudes`
 behind. Every one of those was reachable by importing a module and looking at
 where its defaults pointed -- none needed a model run.
 
-Ten checks, all cheap:
+The checks, all cheap:
 
 1. **Imports.** Every module imports. Catches a missing import added while
    editing, which `--help` alone will also catch but this localises better.
@@ -49,7 +49,11 @@ Ten checks, all cheap:
    manifests against `segments.py:production_window`, including the live case: a
    diagnostic tail that the old trailing-window rule would have averaged into a
    verdict.
-10. **A resume refuses a rewritten spectrum file.** The config names the
+10. **`TASKS.md` header counts match their tables.** The count is what the
+   one-table-per-prefix layout exists to make readable in one place, and a
+   hand-maintained number goes stale the way every other one in this project
+   has.
+11. **A resume refuses a rewritten spectrum file.** The config names the
    spectrum and the model reads the file, so a config comparison cannot see
    `k25v.dat` regenerated in place. CONS-3.
 """
@@ -570,6 +574,55 @@ def check_slope_fit() -> list[str]:
     return problems
 
 
+def check_task_counts() -> list[str]:
+    """Each TASKS.md prefix's header count matches the table under it.
+
+    The header line is the answer to "what is left here" and "what may I number
+    next", and its convention says the table is what it is computed FROM -- so
+    the two disagreeing means one of the two questions is being answered wrong.
+    It has drifted once already: CLIM read `4 open of 30 issued` against a table
+    of 31 rows with 3 open, both halves stale from the same commit, which is
+    what a hand-maintained count does. Openness is read from the status column
+    the way `pipeline.py:task_steps` reads it, not from where a row sits.
+    """
+    text = (ROOT / "TASKS.md").read_text(encoding="utf-8")
+    problems, prefix, header = [], None, None
+    issued = open_now = 0
+
+    def settle() -> None:
+        if not prefix:
+            return
+        if header is None:
+            problems.append(f"{prefix} has no `N open of M issued.` line")
+        elif header != (open_now, issued):
+            problems.append(
+                f"{prefix} says {header[0]} open of {header[1]} issued; "
+                f"its table has {open_now} open of {issued}")
+
+    for line in text.splitlines():
+        m = re.match(r"^## ([A-Z]+) --", line)
+        if m:
+            settle()
+            prefix, header, issued, open_now = m.group(1), None, 0, 0
+            continue
+        m = re.match(r"^(\d+) open of (\d+) issued\.", line)
+        if m and prefix:
+            header = (int(m.group(1)), int(m.group(2)))
+            continue
+        if not line.startswith("| ") or line.startswith(("| id", "| ---")):
+            continue
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        if len(cells) < 4 or not re.fullmatch(r"[A-Z]+-[0-9a-z]+", cells[0]):
+            continue
+        issued += 1
+        if not cells[3].lower().startswith(("done", "wontfix")):
+            open_now += 1
+    settle()
+    if prefix is None:
+        problems.append("no prefix sections found; has TASKS.md changed shape?")
+    return problems
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--skip-help", action="store_true",
@@ -598,6 +651,7 @@ def main() -> None:
                check_slope_fit()),
               ("the convergence window follows the declared purposes",
                check_production_window()),
+              ("TASKS.md counts match their tables", check_task_counts()),
               ("a resume refuses a rewritten spectrum file",
                check_spectrum_guard())]
     if not args.skip_help:
