@@ -51,7 +51,25 @@ sweep would confound whichever two it holds fixed:
 | --- | --- |
 | ranks | 8, 16 |
 | output | `NOUTPUT`/`NSNAPSHOT` 0, or the production 1 |
-| steps | 1, 16 |
+| steps | derived from the write cadence, see below |
+
+**The segment lengths are derived rather than chosen, and that is a correction
+to CLIM-39's control.** A gridpoint record is written when
+`mod(nstep, nafter) == 0` on the ABSOLUTE step count, so whether a short segment
+writes anything is a property of the restart. On this project's own production
+restart `nstep` is 589672 and the model logs `nafter` as 32, leaving 24 steps to
+the next write -- so NEITHER of CLIM-39's 1-step and 16-step segments writes a
+gridpoint record at all. An output comparison over files that hold no model
+records cannot fail, and a cell that cannot fail is not evidence.
+
+So one length is set to stop one step short of the first write and the other to
+cross two. The second also straddles the FIRST record after a resume, which is
+the record `exoplasim/notes/first-output-bin.md`'s class corrupts: `naccuout`
+survives the restart holding a partial window -- 26 here -- so that record is
+divided by 50 rather than by 32. That defect is DETERMINISTIC and cannot produce
+a run-to-run difference, but it is the one thing that makes the first record
+after a resume unlike the records after it, so the matrix covers it explicitly
+rather than by accident.
 
 Every cell is run `--repeats` times from the SAME restart, and the comparison
 is between repeats of one cell -- one binary, one input, one configuration. A
@@ -77,9 +95,14 @@ expecting bit-identity. If H3 holds, the standing instruction that every A/B
 must establish its own reproducibility horizon is still right -- it just costs
 one control run rather than a bound on every claim.
 
-A cell that reproduces at 1 step and not at 16 refutes none of the three on its
-own: it separates the model's INTEGRATION from its initialisation, and it is
-reported as its own column rather than folded into the verdict.
+A cell that reproduces at the short length and not at the long one refutes none
+of the three on its own: it separates the model's INTEGRATION from its
+initialisation, and it is reported as its own column rather than folded into the
+verdict.
+
+A cell in the output arm that writes no gridpoint record is reported
+INCONCLUSIVE and is excluded from the scoring, rather than counted as
+reproducible. That is the failure mode this design exists to avoid.
 
 ## What it does not measure
 
@@ -110,7 +133,6 @@ OUTPUT = ANALYSIS / "reproducibility_matrix.json"
 
 RANKS = (8, 16)
 OUTPUT_LEVELS = (0, 1)
-STEPS = (1, 16)
 
 # Artifacts compared between repeats. Missing ones are recorded as missing
 # rather than skipped, so a cell that silently stopped producing output cannot
@@ -122,6 +144,58 @@ HYPOTHESES = {
     "H2_rank_reduction_order": "8 ranks does not reproduce, 16 ranks does, at both output settings",
     "H3_zsolars_already_fixed": "every cell reproduces, CLIM-39's own configuration included",
 }
+
+
+def restart_scalars(path: Path) -> dict:
+    """`nstep` and `naccuout` out of a restart, by walking its record pairs.
+
+    The write cadence is `mod(nstep, nafter) == 0` on the ABSOLUTE step count,
+    so where a short segment falls against it is a property of the restart and
+    not of the segment length. That is why this is read rather than assumed.
+    """
+    import struct
+    data = path.read_bytes()
+    out, i = {}, 0
+    while i < len(data) - 8:
+        (n,) = struct.unpack_from("<i", data, i)
+        if n <= 0 or i + 8 + n > len(data):
+            break
+        payload = data[i + 4:i + 4 + n]
+        if struct.unpack_from("<i", data, i + 4 + n)[0] != n:
+            break
+        i += 8 + n
+        if n != 16:
+            continue
+        name = payload.decode("latin-1").strip()
+        (m,) = struct.unpack_from("<i", data, i)
+        if name in ("nstep", "naccuout") and m == 4:
+            out[name] = struct.unpack_from("<i", data, i + 4)[0]
+        i += 8 + m
+    for key in ("nstep", "naccuout"):
+        if key not in out:
+            raise SystemExit(f"{path.name} carries no {key} record")
+    return out
+
+
+def segment_lengths(nstep: int, nafter: int) -> dict:
+    """Two segment lengths chosen against the write cadence, not round numbers.
+
+    CLIM-39's control was run at 1 and 16 timesteps. On this project's own
+    production restart `nstep` is 589672 and `nafter` is 32, so the next write
+    is 24 steps away and NEITHER of those segments writes a gridpoint record at
+    all. A comparison of output files that contain no model records cannot fail,
+    and a cell that cannot fail is not evidence.
+
+    So the lengths are derived: one segment that deliberately crosses no write,
+    and one that crosses two. The second also straddles the FIRST record after a
+    resume, which is the record the accumulator class corrupts -- `naccuout`
+    survives the restart holding a partial window, so that record is divided by
+    a count that is neither `nafter` nor the number of samples in it.
+    `exoplasim/notes/first-output-bin.md` is the argument.
+    """
+    to_first = nafter - (nstep % nafter)
+    return {"no_write": max(1, to_first - 1), "two_writes": to_first + nafter,
+            "steps_to_first_write": to_first}
 
 
 def sha256(path: Path) -> str | None:
@@ -177,7 +251,12 @@ def run_cell(bed: Path, work: Path, ranks: int, noutput: int, steps: int) -> dic
 
 def score(cells: dict) -> dict:
     """Which hypothesis survives. Patterns are the ones declared above."""
-    repro = {key: cell["reproducible"] for key, cell in cells.items()}
+    vacuous = sorted(k for k, c in cells.items() if c["vacuous"])
+    repro = {key: cell["reproducible"] for key, cell in cells.items()
+             if not cell["vacuous"]}
+    if not repro:
+        return {"per_hypothesis": {}, "survivors": [], "vacuous_cells": vacuous,
+                "reading": "every cell was vacuous; nothing was measured"}
 
     def all_of(pred, want):
         return all(v is want for k, v in repro.items() if pred(k))
@@ -195,6 +274,7 @@ def score(cells: dict) -> dict:
     survivors = [k for k, v in verdict.items() if v]
     return {"per_hypothesis": verdict,
             "survivors": survivors,
+            "vacuous_cells": vacuous,
             "reading": (survivors[0] if len(survivors) == 1 else
                         "NONE of the declared hypotheses matches the pattern; "
                         "the cause is something the matrix did not vary")}
@@ -211,14 +291,31 @@ def main() -> None:
                          "cell that never repeats")
     ap.add_argument("--work", type=Path, default=None,
                     help="scratch directory for the run copies")
+    ap.add_argument("--nafter", type=int, default=32,
+                    help="timesteps between writes. The model prints it as "
+                         "\"Timesteps / write\" in MOST_DIAG; do not guess it, "
+                         "because the whole point of the segment lengths is "
+                         "where they fall against it")
     ap.add_argument("--plan", action="store_true",
                     help="print the matrix and the declared readings, run nothing")
     args = ap.parse_args()
 
-    cells = list(product(RANKS, OUTPUT_LEVELS, STEPS))
+    if args.bed is not None:
+        scalars = restart_scalars(args.bed.resolve() / "plasim_restart")
+        lengths = segment_lengths(scalars["nstep"], args.nafter)
+    else:
+        scalars = {"nstep": 589672, "naccuout": 26}
+        lengths = segment_lengths(scalars["nstep"], args.nafter)
+    steps = (lengths["no_write"], lengths["two_writes"])
+
+    cells = list(product(RANKS, OUTPUT_LEVELS, steps))
     if args.plan:
         print(f"{len(cells)} cells x {args.repeats} repeats "
               f"= {len(cells) * args.repeats} model runs\n")
+        print(f"  nstep {scalars['nstep']}, naccuout {scalars['naccuout']}, "
+              f"nafter {args.nafter}")
+        print(f"  first write {lengths['steps_to_first_write']} steps in, so "
+              f"{steps[0]} crosses none and {steps[1]} crosses two\n")
         for ranks, noutput, steps in cells:
             print(f"  ranks={ranks:2d}  NOUTPUT={noutput}  steps={steps:2d}")
         print("\ndeclared readings:")
@@ -251,15 +348,29 @@ def main() -> None:
         disagreeing = sorted(name for name in ARTIFACTS
                              if any(r["sha256"][name] != first[name] for r in repeats))
         produced = sorted(name for name in ARTIFACTS if first[name] is not None)
+
+        # An output arm that wrote no gridpoint record cannot disagree, and a
+        # cell that cannot fail is not evidence. CLIM-39's control was run at 1
+        # and 16 steps against nafter = 32 with nstep leaving 24 steps to the
+        # next write, so this is the trap that reading recorded as a result.
+        wrote_output = "plasim_output" in produced
+        vacuous = noutput == 1 and not wrote_output
         results[key] = {
             "ranks": ranks, "noutput": noutput, "steps": steps,
             "repeats": repeats,
             "artifacts_produced": produced,
             "artifacts_disagreeing": disagreeing,
-            "reproducible": not disagreeing,
+            "reproducible": None if vacuous else not disagreeing,
+            "vacuous": vacuous,
         }
-        print(f"    -> {'reproducible' if not disagreeing else 'DIFFERS on ' + ', '.join(disagreeing)}"
-              f"  (produced {', '.join(produced) or 'nothing'})", flush=True)
+        if vacuous:
+            verdict = "INCONCLUSIVE: output on, but no gridpoint record was written"
+        elif disagreeing:
+            verdict = "DIFFERS on " + ", ".join(disagreeing)
+        else:
+            verdict = "reproducible"
+        print(f"    -> {verdict}  (produced {', '.join(produced) or 'nothing'})",
+              flush=True)
 
     report = {
         "generated": datetime.datetime.now(datetime.timezone.utc)
