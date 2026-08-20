@@ -91,6 +91,7 @@ from gridding import land_fraction_of_class, region_cells
 from orogen import LAND, Export
 from paths import climatology_path, rel, require_clean_io, snapshot_climatology_path
 from provenance import require_build
+from surface_classes import cover_mask
 
 VON_KARMAN = 0.4
 R_DRY = 287.05          # J/kg/K
@@ -396,7 +397,8 @@ def soil_clay_grid(path: Path, lat: np.ndarray, lon: np.ndarray) -> np.ndarray:
     return out
 
 
-def source_fractions(config: dict, cfg: dict, lakes: Path):
+def source_fractions(config: dict, cfg: dict, lakes: Path,
+                     surface_classes: Path | None = None):
     """Erodible land fraction per cell, and the pieces it is built from.
 
     This is the function the GCM cannot have. `substrate_class` is consolidated
@@ -424,6 +426,29 @@ def source_fractions(config: dict, cfg: dict, lakes: Path):
         wet = np.asarray(ds["lake"][:]).astype(bool)
     erodible[wet] = 0.0
 
+    # DESERT PAVEMENT SUPPRESSES EMISSION, and the sign is the whole point of
+    # the class. Wells et al. (1995) dated pavement clasts with cosmogenic 3He
+    # and found them at the surface the whole time -- "stone pavements are born
+    # at the surface" -- so a pavement is an accretionary surface UNDER A
+    # NON-ERODIBLE COVER, with dust falling through the clast mosaic and
+    # accumulating beneath it as a cumulic Av horizon. Read as deflation
+    # armour it would have been a PRODUCT of emission and would have grown with
+    # it; read correctly it is a suppressor, and it enters here with the
+    # opposite sign. SURF-6.
+    pavement_fraction = 0.0
+    if surface_classes is not None:
+        residual = float(cfg["source"]["pavement_residual_erodibility"])
+        # By NAME, from the file's own flag legend -- see lib/surface_classes.py
+        # for why a hardcoded code is failure class 1 waiting to happen.
+        paved = cover_mask(surface_classes, "pavement")
+        if paved.shape != erodible.shape:
+            raise SystemExit(
+                f"surface_cover has {paved.shape[0]} regions and the export has "
+                f"{erodible.shape[0]}; they are indexed by region and a mismatch "
+                "means they were built from different terrain")
+        pavement_fraction = float(paved.mean())
+        erodible[paved] *= residual
+
     is_land = export.surface_class == LAND
     cell, nlat, nlon = region_cells(export, grid_dir)
     area = export.cell_area.astype(np.float64)
@@ -442,6 +467,7 @@ def source_fractions(config: dict, cfg: dict, lakes: Path):
     for code in weights:
         detail[code] = land_fraction_of_class(
             export, grid_dir, substrate == ids[code]).tolist()
+    detail["pavement_region_fraction"] = pavement_fraction
     return (erodible_of_cell.reshape(nlat, nlon),
             land_fraction.reshape(nlat, nlon), per_class, detail,
             export.terrain_hash)
@@ -454,6 +480,12 @@ def main() -> None:
     ap.add_argument("--climatology", type=Path, default=None,
                     help="defaults to the configured baseline_climatology")
     ap.add_argument("--output", type=Path, default=None)
+    ap.add_argument("--surface-classes", type=Path, default=None,
+                    help="pedology/analysis/surface_classes.nc. Given, desert "
+                         "pavement suppresses emission on the regions it covers "
+                         "(Wells et al. 1995: pavement is a non-erodible cover "
+                         "and a dust SINK, not deflation armour). Absent, no "
+                         "suppression is applied and the report says so")
     ap.add_argument("--gust-samples", type=Path, default=None,
                     help="instantaneous near-surface winds to fit the subgrid "
                          "wind distribution from. REQUIRED unless "
@@ -524,7 +556,7 @@ def main() -> None:
 
     clay = soil_clay_grid(soilmap(config), lat, lon)
     erodible, land_fraction, per_class, class_detail, terrain = source_fractions(
-        config, cfg, lakes)
+        config, cfg, lakes, args.surface_classes)
 
     # The lowest model level's height, from the model's own sigma coordinate
     # through the hypsometric relation. Assuming 10 m would misstate u* by the

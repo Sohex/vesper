@@ -61,6 +61,7 @@ from paths import rel  # noqa: E402
 sys.path.insert(0, str(PROJECT_ROOT / "lib"))
 import builds  # noqa: E402
 from orogen import Export, LAND  # noqa: E402
+from surface_classes import cover_mask  # noqa: E402
 
 import yaml  # noqa: E402
 
@@ -75,6 +76,11 @@ def sha256(path: Path) -> str:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--output", type=Path, default=OUT)
+    ap.add_argument("--surface-classes", type=Path, default=None,
+                    help="pedology/analysis/surface_classes.nc. Given, the "
+                         "budget reports the two derived classes that carry "
+                         "phosphorus with opposite signs: `diatomite` as the "
+                         "deflatable source and `pavement` as a sink. SURF-6")
     args = ap.parse_args()
 
     cfg = yaml.safe_load(CONFIG.read_text(encoding="utf-8"))
@@ -177,6 +183,58 @@ def main() -> None:
         },
         "by_rock_class": {},
     }
+
+    # ---- the two derived classes that move phosphorus, with opposite signs ---
+    #
+    # SURF-6. Lithology says what the rock IS; these say what the surface has
+    # BECOME under this climate, and phosphorus is the budget where the
+    # difference has a sign attached.
+    #
+    # `diatomite` is the deflatable source. The aeolian_source block above reads
+    # BARREN LITHOLOGY and concludes the return leg dilutes rather than
+    # fertilises -- explicitly noting that Sahara-to-Amazon works because its
+    # source is biogenic diatomite rather than evaporite. This world grows
+    # diatomite in its strandlines, so the comparison stops being rhetorical:
+    # the class is exactly the material the analogy names.
+    #
+    # `pavement` is a sink, and the sign is the correction Wells et al. (1995)
+    # forced. Dust falls through the clast mosaic and accumulates beneath it as
+    # a cumulic Av horizon, so phosphorus arriving on a pavement is retained
+    # rather than returned. Read as deflation armour it would have been a
+    # source; it is the opposite.
+    if args.surface_classes is not None:
+        derived = {}
+        for name, role in (("diatomite", "source"), ("pavement", "sink")):
+            # By NAME, from the file's own flag legend. lib/surface_classes.py
+            # says why, and raises on a class this build does not carry rather
+            # than quietly selecting nothing.
+            sel = cover_mask(args.surface_classes, name)
+            if sel.shape != rock.shape:
+                raise SystemExit(
+                    f"surface_cover has {sel.shape[0]} regions and the export "
+                    f"has {rock.shape[0]}; they are indexed by region, so a "
+                    "mismatch means they were built from different terrain")
+            m = land & sel
+            derived[name] = {
+                "role": role,
+                "fraction_of_land": round(float(area[m].sum() / land_area), 4),
+                "mean_content_ppm": round(wmean(content, m), 1) if m.any() else None,
+                "enrichment_vs_land_mean": (
+                    round(wmean(content, m) / mean_content, 3) if m.any() else None),
+            }
+        derived["note"] = (
+            "The two enter the aeolian leg with OPPOSITE signs and neither is a "
+            "lithology: diatomite is deflatable biogenic silica, the material "
+            "the Sahara-to-Amazon analogue actually runs on, and pavement is a "
+            "non-erodible cover over an accretionary horizon that stores what "
+            "falls on it. `aeolian_source` above is the lithological source and "
+            "does not include either.")
+        result["derived_surface_classes"] = derived
+    else:
+        result["derived_surface_classes"] = {
+            "absent": "no --surface-classes given, so the aeolian leg here is "
+                      "lithological only: the deflatable diatomite source and "
+                      "the pavement sink are both unread. SURF-6."}
 
     for code, name in sorted(names.items()):
         m = land & (rock == code)

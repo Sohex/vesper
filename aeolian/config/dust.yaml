@@ -222,6 +222,22 @@ source:
     evaporite: 0.10
   erodible_weight_bracket:
     evaporite: [0.0, 0.30]
+  # DESERT PAVEMENT, and it enters with the opposite sign to the one first
+  # assumed. Wells, Taylor, Dohrenwend et al. (1995) dated pavement clasts with
+  # cosmogenic 3He and found they have been at the surface throughout -- "stone
+  # pavements are born at the surface" -- rejecting deflation lag outright. A
+  # pavement is a clast mosaic over an accretionary Av horizon: dust falls
+  # THROUGH it and is stored beneath, so the surface is a sink and its cover is
+  # non-erodible.
+  #
+  # DECLARED, not measured. The paper establishes the mechanism and gives no
+  # areal clast cover, so what a real mosaic leaves exposed between clasts is
+  # not a number this project has. 0.0 is the paper's mechanism taken at its
+  # word; the bracket runs to 0.25 because a mosaic is not a lid and an
+  # interstice is erodible if the wind reaches it. Report the spread rather than
+  # tuning inside it, as the evaporite weight above does.
+  pavement_residual_erodibility: 0.0
+  pavement_residual_erodibility_bracket: [0.0, 0.25]
   # Fraction of a cell's land that is bare erodible soil is further reduced by
   # standing water, snow cover, and vegetation. Lakes and snow are taken from
   # artifacts; vegetation is the assumption below.

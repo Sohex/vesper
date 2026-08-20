@@ -299,6 +299,8 @@ coefficient, `sensitivity.py` for the one flux-to-kelvin conversion,
 `climatology.py` for the time-bin weights an annual mean needs, `lapse.py`
 for the measured environmental lapse rate and the composition-derived dry
 adiabat, and
+`surface_classes.py` for reading the derived surface classes BY NAME out of
+their own flag legend rather than by integer code, and
 `provenance.py` for build stamping and config drift. Reuse them; do not
 reimplement. Rules 5 and 7 both cite modules from this list.
 
