@@ -160,13 +160,78 @@ Per layer, alongside `zqco2` and by the same construction:
   to give a fractional absorptivity, which is the conversion that puts a cm-1
   band absorptance into Sasamori's currency;
 - multiplied by the water vapour overlap transmissivity `zth2o` the CO2 term
-  already computes, and for the 589 cm-1 N2O band by the CO2 overlap as well;
+  already computes, and for the 589 cm-1 N2O band by a CO2 overlap as well;
 - subtracted from `ztaucs` alongside the existing three.
 
 Mixing ratios come from `config/planet.yaml` through a namelist key, on the
 pattern `dqco2` already sets, with the values CLIM-43 measured. They are an
 ASSUMPTION of this world in the same sense 450 ppm of CO2 is, and the config
 should say so where it declares them.
+
+## 4b. The CO2 overlap at 589 cm-1, which is not optional
+
+**The 589 cm-1 band is worth carrying and cannot be carried bare.** Weighted by
+the Planck function at 255 K against the band absorptance at this world's
+column, the three bands split about 45 / 26 / 29 percent, CH4 1306 / N2O 1285 /
+N2O 589. The 589 band is the weakest of the three -- 5.0 cm-1 of absorptance
+against 22.4 -- and it lands at 17 um where the Planck function is five times
+larger, which is what makes it comparable.
+
+It also sits inside CO2's 15 um band, 78 cm-1 from the 667 cm-1 fundamental. So
+including it WITHOUT the CO2 overlap credits N2O with absorption CO2 already
+provides: the error is an overstatement, not the conservative understatement
+that omitting the whole band would be. Once the band is in, the overlap is part
+of it.
+
+**The procedure is Ramanathan (1976) Appendix A**, which Donner and Ramanathan
+name. Its shape is the Goody (1964) relation `T = exp(-A_bar)` with
+`A_bar = A / (2 A0)`, evaluated for CO2 in the 589 cm-1 region using an
+EFFECTIVE intensity: Edwards and Menard's line intensity distribution shifts a
+band centred at `w1` into the region of a band centred at `w2` as
+`S_eff = S exp(-|w2 - w1| / A0)`. The absorptance itself is the same Eq. (1)
+already being implemented, so the overlap reuses the band function rather than
+adding a scheme.
+
+**What that costs is a CO2 band model the host scheme does not have.** PlaSim's
+`lwr` carries Sasamori's broadband CO2 absorptivity, not a band model, so
+Ramanathan's ten-band 15 um treatment has to come in. It is contained: it
+computes a transmissivity MULTIPLIER for one N2O band and never touches CO2's
+own contribution to the flux, which stays Sasamori's. Two CO2 representations
+in one routine is still worth saying out loud, and the containment is the
+reason it is acceptable.
+
+**The parameters are now assembled**, and where each comes from:
+
+| quantity | source |
+| --- | --- |
+| CO2 15 um band strengths, B1 to B7 | Dickinson (1972) Table 3, already in cm-1 (cm atm STP)-1 |
+| CO2 band centres, B1 to B10 | Ramanathan (1976) Table 3, after Goody (1964) |
+| bandwidth parameter A0 | Cess and Ramanathan (1972) |
+| effective-intensity shift | Edwards and Menard (1964) |
+| hot and isotopic band summation | Edwards (1965), via Ramanathan Eq. (12) |
+
+Two gaps remain and are named rather than filled: the mean line spacings `D_i`,
+which Ramanathan attributes to Dickinson (1972) but which are not in its Table
+3; and the isotopic abundance ratios `q_i` for B8 to B10, which are Goody
+(1964), a book. Neither is exotic and both are bounded, but until they are in
+hand the ten-band sum is a seven-band one.
+
+**A second, independent route is available and is a CHECK rather than a
+substitute.** The LMD Generic PCM bundle on this host carries
+`N2-CO2var_2026`, a HITRAN 2020 correlated-k table with CO2 as the variable
+gas, whose IR band 28 spans 546 to 630 cm-1 against this band's `2 A0` of 46.
+Its far-wing and CIA companions are present too --
+`CO2-N2_line-far-wings_50-1000K_2026.dat` and the CO2-CO2 CIA -- which closes
+the 25 cm-1 line cutoff those tables are built with. A band-mean CO2
+transmissivity computed from it is a modern line-list answer to the same
+question Appendix A asks, and the two disagreeing would be information about
+a 1972 band model rather than a defect.
+
+Note why substituting here would have been legitimate where substituting `S`
+was not: the overlap is applied when the band is USED in an atmosphere, not
+during the fit that produced `A0` and `beta0`, so it is separable in a way the
+matched triple is not. The reason to do both anyway is that neither costs
+anything now that the papers are on disk.
 
 ## 5. The tests, declared before the work
 
