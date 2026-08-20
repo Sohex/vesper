@@ -194,3 +194,67 @@ acquire water from outside its surface catchment, and the mechanism is a
 zero-crossing rather than a magnitude. What does not survive is the count. It
 should be read as an upper bound until an internal sink exists, because
 overstating seepage overstates the supply that lifts a basin over the threshold.
+
+---
+
+# Amendment: the observation filter, declared before the rescore
+
+Written 2026-08-20, before the model was scored against a filtered set.
+
+## The set was measuring two different things
+
+`aus_wtd_sites.csv` now carries `bore_depth_m`, and it should have from the
+start. A bore screened well below the water table measures a POTENTIOMETRIC HEAD
+in a confined aquifer, which is a different surface. This set runs to 129 m at
+the 95th percentile, and Australia contains the Great Artesian Basin.
+
+Decomposing the observed variance within and between 15.19 km cells:
+
+| kept | within-cell | ceiling on R^2 at this cell size |
+| --- | ---: | ---: |
+| all bores | 32.1% | 0.679 |
+| depth <= 30 m | 21.7% | 0.783 |
+| depth <= 10 m | **14.3%** | **0.857** |
+
+And what resolvable geography can predict rises with it. Held-out R^2 on
+cell-mean depth from elevation, local relief, mesh distance to the sea, recharge
+and permeability:
+
+| kept | linear | 12x12 binned on distance x elevation |
+| --- | ---: | ---: |
+| all bores | +0.071 | +0.122 |
+| depth <= 30 m | +0.153 | +0.130 |
+| depth <= 10 m | **+0.280** | +0.190 |
+
+**So the original GW-3 verdict understated the ceiling and partly scored the
+model against the wrong quantity.** It does not overturn it -- the model scored
+r^2 = 0.001 against a ceiling of 0.679, and 0.001 against 0.857 is no better --
+but the target was wrong and the ceiling was wrong, and both matter for what
+comes next.
+
+## The filter
+
+**Primary: `bore_depth_m <= wtd_m + 20`.** A bore whose bottom is within 20 m of
+the water level it reports cannot be open to a deeper aquifer, so it is
+measuring the water table. This is a statement about construction against
+measurement, not about the model, and it is chosen on that ground rather than on
+which cut flatters the score.
+
+Reported alongside, as sensitivities: absolute cuts at 30 m and 10 m, and the
+unfiltered set.
+
+## The thresholds do not move, and the comparison changes meaning
+
+PASS stays at residual standard deviation <= 24.56 m and |mean| <= 8.92 m, from
+Fan's own Australia-and-Asia figures.
+
+**But Fan did not filter, and could not: her four columns are latitude,
+longitude, elevation and depth, with no construction data at all.** Her scatter
+therefore contains the same mixed-surface noise this filter removes. So a
+filtered score is NOT like-for-like against her numbers -- some of any
+improvement is removed observation noise rather than a better model.
+
+Both are reported for that reason. The unfiltered score is the one comparable to
+Fan; the filtered score is the better test of the model. Quoting the filtered
+number against her threshold and calling it a pass would be scoring an easier
+exam.

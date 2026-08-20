@@ -46,6 +46,27 @@ bore reports two datums on one date, `DTW + RSWL` must equal `LandElev`, and
 median residuals are +0.000 m and -0.004 m. That is what licenses the
 conversions; without it they are assertions about somebody else's datum.
 
+## Bore depth is CARRIED, and it decides what the measurement even is
+
+`bore_depth_m` and `aquifer` come out with every site, and they are not
+decoration. **A bore screened well below the water table measures a
+potentiometric head in a confined aquifer, not a water table**, and this set
+runs to 129 m at the 95th percentile. Mixing the two inflates the scatter with
+a quantity that is not the one being predicted.
+
+Measured on this set, decomposing the observed variance within and between
+15.19 km cells:
+
+| kept | within-cell | ceiling on R^2 at this cell size |
+| --- | ---: | ---: |
+| all bores | 32.1% | 0.679 |
+| depth <= 30 m | 21.7% | 0.783 |
+| depth <= 10 m | 14.3% | 0.857 |
+
+Monotone, and it more than halves. The filter is applied at SCORING time rather
+than here, so the assembly records what the archive says and the choice of
+criterion is declared where it is used.
+
 ## What is NOT filtered, and why
 
 **The quality flag.** Codes run A to F and are defined neither in the download's
@@ -92,7 +113,8 @@ PRODUCTION = {"water supply", "irrigation", "stock and domestic",
 # A depth outside this is a datum error or a typo, not a water table.
 DEPTH_MIN_M, DEPTH_MAX_M = -50.0, 1500.0
 
-BORE_COLS = ["HydroID", "Latitude", "Longitude", "LandElev", "TsRefElev", "FTypeClass"]
+BORE_COLS = ["HydroID", "Latitude", "Longitude", "LandElev", "TsRefElev",
+             "FTypeClass", "BoreDepth", "HGUName"]
 
 
 def assemble(source: Path) -> tuple[pd.DataFrame, collections.Counter]:
@@ -139,6 +161,7 @@ def assemble(source: Path) -> tuple[pd.DataFrame, collections.Counter]:
             wtd_m=("depth_m", "mean"), wtd_sd_m=("depth_m", "std"),
             n_readings=("depth_m", "size"), frac_qualityA=("is_a", "mean"),
             purpose=("FTypeClass", "first"),
+            bore_depth_m=("BoreDepth", "first"), aquifer=("HGUName", "first"),
             first_reading=("bore_date", "min"), last_reading=("bore_date", "max"))
         only_a = lv[lv.is_a].groupby("hydroid")["depth_m"].mean().rename("wtd_m_qualityA")
         site = site.join(only_a)

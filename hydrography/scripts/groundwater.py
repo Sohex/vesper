@@ -529,7 +529,14 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
     # `start_all_free` walks the opposite trajectory, for the uniqueness check.
     # The solution of this complementarity problem is unique, so where it lands
     # cannot depend on where it started.
-    free = conductive.copy() if start_all_free else np.zeros(n, bool)
+    # PINNED MEANS AT THE SURFACE, and the initial free set has to say so.
+    # Seeding the head below the surface while leaving every cell pinned breaks
+    # that invariant: `pinned` is read as "at the surface" by the seepage
+    # accounting and by the report, and a cell sitting below it is neither
+    # seeping nor free. The two trajectories then converge, both pass closure,
+    # and land 2.8 m apart -- which the uniqueness identity caught at a bar of
+    # 1e-9, and which is the whole reason that identity exists.
+    free = conductive.copy() if start_all_free else (conductive & (head < surface_m))
     anchor = np.zeros(n, bool)
     anchor_failed = np.zeros(n, bool)
     result, trace = {}, []
