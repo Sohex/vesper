@@ -110,6 +110,38 @@ and against that it costs 5% at T42 and 17% at T127
 (`exoplasim/notes/spectral-transform-profile.md`). That is a cost/benefit call
 with no defect on the scale to break the tie.
 
+### Round three: the flags that survived round two, measured against the
+### production line, 2026-08-20
+
+Round two priced `-funroll-loops` and `-fprefetch-loop-arrays` at roughly 1.8%
+and 1% -- but those arms ALSO dropped `-fcheck=all`, so the marginal
+contribution of each flag was confounded with the removal. Measured directly
+against the current production line, which already has the bounds checking out,
+both are refused:
+
+| arm | paired gain vs production | rounds won | numerics |
+| --- | ---: | ---: | --- |
+| `-funroll-loops` | -0.15% | 3/6 | CHANGED |
+| `-fprefetch-loop-arrays` | -4.75% | 1/6 | unchanged |
+
+Both arms carry self-scatter above the 5% floor, because a concurrent job
+arrived partway through, so neither number is quotable AS A NUMBER. They are
+quotable as a REFUSAL: the decision threshold is a gain above 5%, both medians
+are at or below zero, and noise that is symmetric between interleaved,
+order-flipped arms does not turn a real gain into a negative median. A screening
+test tolerates noise the way an estimate does not.
+
+`-fprefetch-loop-arrays` being the worse of the two is consistent with the
+cache-miss profile: the Legendre routines miss least of anything in the model,
+so the hardware prefetcher is already doing this job and a software hint only
+adds instructions. It also comes back numerics-unchanged, which confirms round
+two's "CHANGED" verdicts on these arms belonged to `-fcheck=all` and not to the
+flags themselves.
+
+So the production flag line is closed for now. What is left in codegen is
+bounded by round two's other finding: the entire distance from scalar code to
+AVX-512 is worth 2 to 3% here.
+
 The model is compute-bound inside its own Fortran, which is where a spectral
 GCM should be bound. There is no library seam to widen.
 
