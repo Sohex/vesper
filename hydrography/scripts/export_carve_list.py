@@ -519,7 +519,7 @@ def main() -> None:
                     help="the cold bare-rock arm's regular climatology. Given, "
                          "the carve set becomes the INTERSECTION: a basin is "
                          "cut only where both climates cut it, and the "
-                         "disagreement is reported as the marginal set and the "
+                         "disagreement is reported as the BRACKETED set and the "
                          "bracket width. Absent, this is a single-climate "
                          "verdict and the sidecar says so")
     ap.add_argument("--coupling", type=Path, default=None)
@@ -652,8 +652,10 @@ def main() -> None:
               f"cold arm cuts {int(cut_endmember.sum())}")
         print(f"                  BOTH {n_both}, either {n_either}, "
               f"disagreement {n_split} ({width:.1f}% of the union)")
-        print(f"                  the {n_split} are the marginal set BY "
-              f"CONSTRUCTION, not by a tolerance chosen afterwards")
+        print(f"                  the {n_split} are the BRACKETED set BY "
+              f"CONSTRUCTION, not by a tolerance chosen afterwards. "
+              f"`bracketed` is our uncertainty; `marginal` below is a "
+              f"landform and the two are unrelated")
 
     # The superseded mapping, kept for comparison in the sidecar only.
     span = idx_pen - idx_wet
@@ -875,11 +877,19 @@ def main() -> None:
             "cut_by_cold_bare_rock_arm": int(cut_endmember.sum()),
             "cut_by_both": n_both,
             "cut_by_either": n_either,
-            "disagreement": n_split,
+            "bracketed": n_split,
             "width_pct_of_union": round(width, 3),
+            "bracketed_is_not_marginal": "`bracketed` counts basins the two "
+                    "bounding climates DISAGREE about, which is a statement "
+                    "about our uncertainty. `marginal` in counts above is a "
+                    "landform: retain strictly between 0 and 1, an outlet "
+                    "notched but not cut to the basin floor, which Orogen "
+                    "turns into a through-flowing valley with a residual lake. "
+                    "A basin can be either, both or neither. They were briefly "
+                    "the same word and that was a defect.",
             "note": "carved is the INTERSECTION: retain is the larger of the "
                     "two arms', so a rim survives wherever either climate "
-                    "would have kept it. The disagreement is the marginal set "
+                    "would have kept it. The disagreement is the BRACKETED set "
                     "by construction rather than by a tolerance chosen after "
                     "the fact, and width_pct_of_union is the bracket's own "
                     "width -- the honest uncertainty on this carve. Both arms "

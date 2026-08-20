@@ -637,9 +637,18 @@ onto it.
 That is a better procedure than a one-sided approach, because a bracket is
 measurable. Take the verdict at both bounding climates -- the cold, bright,
 bare-rock end and the warm, dark, vegetated end -- and carve only the
-intersection. Everything between the two is the marginal set *by construction*
+intersection. Everything between the two is the BRACKETED set *by construction*
 rather than by a tolerance chosen after the fact, and the width of the bracket is
 the honest uncertainty on the carve.
+
+**`bracketed`, not `marginal`, and the distinction is not pedantry.** `marginal`
+already names a per-basin GEOMORPHIC outcome in the carve list -- retain strictly
+between 0 and 1, an outlet notched but not cut to the floor, which Orogen turns
+into a through-flowing valley with a residual lake. That is a statement about a
+landform. `bracketed` is a statement about our UNCERTAINTY: the two bounding
+climates disagree about the basin. A basin can be either, both or neither, and
+the two answer different questions -- what the terrain looks like, against how
+much we trust it. See CLAUDE.md's vocabulary.
 
 **Both arms run at ONE flux, and it is the design flux.** Decided 2026-08-19;
 the paragraph above had left it open and it is not a detail. The two arms differ
@@ -675,8 +684,8 @@ and nothing else. Say so wherever its numbers appear, because a reader meeting a
 **Expect the bracket to come out wide, and do not read width as failure.** The
 endmember spread is not constant: the T21 work measured it widening from 3.71 K
 at flux 1.00 to 7.14 K at 0.90 as sea ice grew back and amplified it. The
-bare-rock arm sits at the cold end of exactly that behaviour, so a large marginal
-set is the correct answer to a genuinely uncertain question. If the bare arm
+bare-rock arm sits at the cold end of exactly that behaviour, so a large
+bracketed set is the correct answer to a genuinely uncertain question. If the bare arm
 grows glaciers where the vegetated one does not, that is a finding about the
 bound rather than a reason to move the arm.
 

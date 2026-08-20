@@ -234,12 +234,23 @@ def order(target: str, by_id: dict) -> list[str]:
 
 
 def task_steps() -> tuple[dict, list]:
-    """Open tasks that name a step, and the residual that names none."""
+    """Open tasks that name a step, and the residual that names none.
+
+    OPENNESS IS READ FROM THE STATUS COLUMN, not from where a row sits. This
+    used to slice between the `## Open` and `## Closed` headings, which stopped
+    working when TASKS.md went to one table per prefix with closed ids left in
+    place as stubs -- every stub would have counted as a residual, and the carve
+    gate would have reported 142 tasks to arbitrate. Reading the status is also
+    simply more robust: it does not care about headings, ordering, or which
+    table a row is in.
+    """
     text = TASKS.read_text(encoding="utf-8")
-    body = text[text.index("## Open"):text.index("## Closed")]
     attached, residual = {}, []
-    for line in body.splitlines():
+    for line in text.splitlines():
         if not line.startswith("| ") or line.startswith(("| id", "| ---")):
+            continue
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        if len(cells) < 4 or cells[3].lower().startswith(("done", "wontfix")):
             continue
         tid = line.strip("|").split("|")[0].strip()
         m = re.search(r"\[step:\s*([a-z_0-9, ]+)\]", line)

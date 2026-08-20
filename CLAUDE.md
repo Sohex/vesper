@@ -425,6 +425,27 @@ climatologies. See `exoplasim/scripts/segments.py`.
 **carve verdict** -- the finding: which basins overflow, per basin, with its
 evidence. `hydrography/analysis/carve_verdict.json`.
 
+**marginal** -- a LANDFORM, and only that. A basin whose retain lands strictly
+between 0 and 1: the outlet is notched but not cut through to the basin floor, so
+Orogen produces a through-flowing valley with a residual lake in it. It is a
+statement about what the terrain looks like.
+
+**bracketed** -- a basin the two bounding climates DISAGREE about, from the
+intersection carve in `WORKFLOW.md` section 4. It is a statement about our
+uncertainty, not about a landform.
+
+  **These two are not synonyms and were briefly the same word.** A basin can be
+  marginal in both arms, bracketed while marginal in neither, both, or neither.
+  "The marginal set" was used for the bracketed one in section 4 and leaked into
+  the carve exporter, where `marginal` was already a verdict value written into
+  the carve list Orogen reads -- so one word named a landform and an error bar in
+  the same file. Say `bracketed` for the disagreement and reserve `marginal` for
+  the notch.
+
+  A third neighbour, kept distinct: `disputed` in `export_carve_list.py` is where
+  the two EVAPORATION ESTIMATORS disagree about one climate. Three concepts,
+  three words: estimator disagreement, climate disagreement, landform.
+
 **carve list** -- the artifact Orogen consumes, `carve_list.txt`, one retain
 fraction per basin. The verdict is a conclusion; the list is an instruction.
 

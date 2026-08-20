@@ -23,7 +23,7 @@ loops:
       Successive verdicts bracket rather than converge, because the map is
       antitone: a larger carve set produces a smaller next verdict. Exit by
       carving the INTERSECTION of the verdicts taken at the two bounding
-      climates, which makes the marginal set a construction rather than a
+      climates, which makes the BRACKETED set a construction rather than a
       tolerance.
   B:
     name: the soil and biosphere loop
@@ -379,7 +379,7 @@ steps:
     gate: >
       carves the INTERSECTION, per WORKFLOW section 4: retain is the larger of
       the two arms', so a rim survives wherever either climate would have kept
-      it, and the disagreement is the marginal set by construction rather than
+      it, and the disagreement is the BRACKETED set by construction rather than
       by a tolerance chosen afterwards. Pass the cold arm's climatology as
       --endmember-climatology; without it this is ONE arm of the bracket and the
       sidecar's `intersection.single_climate` says so rather than letting a
