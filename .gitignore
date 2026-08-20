@@ -142,3 +142,20 @@ aeolian/analysis/*.nc
 # bit-identical check has been made and recorded.
 exoplasim/analysis/prerebuild_binaries_*/*.x
 docs/book/
+
+# Profiling beds and perf output for the spectral-transform optimisation work.
+# Working copies of a run directory plus per-rank perf.data; GB-scale, and
+# rebuilt in a minute by exoplasim/scripts/make_profile_bed.py. The instrument
+# and the method note are tracked; what it chews on is not.
+exoplasim/bench/
+
+# A worktree cannot see the ignored payloads (source/ exports, compiled model
+# binaries), so working in one means symlinking them in from the main checkout.
+# The rules above end in "/" and so match directories, not the symlinks that
+# stand in for them; without these an accidental `git add -A` would commit
+# absolute paths that mean nothing on any other machine.
+source/*/*/raw
+source/*/*/grid
+source/*/*/planet.nc
+source/*/*/manifest.json
+vendor/orogen/node_modules
