@@ -49,6 +49,48 @@ credentials. One-degree COG tiles, 4.2 MB each at 90 m, named
 `fsspec` and `rasterio.io.MemoryFile` rather than downloading it. Used for HYD-7
 to measure what representing a real basin at mesh scale costs its storage.
 
+**GLHYMPS**, Gleeson et al. (2014), on Borealis (a Dataverse instance) at
+`doi:10.5683/SP2/DLGXYO`. `GLHYMPS.zip` is 1.15 GB, CC-BY 4.0, and the file list
+and sizes come from the Dataverse API without credentials:
+`https://borealisdata.ca/api/datasets/:persistentId/?persistentId=<doi>`. The
+2011 companion compilation is `doi:10.5683/SP2/TTJNIU`. This is the permeability
+GW-3 would run an Earth calibration on.
+
+**Berghuijs et al. (2022) global recharge**, Zenodo `10.5281/zenodo.7611675`,
+CC-BY 4.0, `RechargeTotal.nc` at 6.2 GB in mm/yr with a companion recharge
+fraction. RECHARGE rather than precipitation, which is the quantity a water
+table model needs and the one that is hard to find. Its record states exclusions
+by temperature and by aridity class, and WHICH side of the aridity threshold is
+excluded has not been read off the paper; if it drops arid regions it is not
+usable for this project, whose interesting basins are all arid. Check that
+before downloading 6.2 GB. Moeck et al. (2020) at
+`opendata.eawag.ch/dataset/globalscale_groundwater_moeck` is a point compilation
+of measured recharge rates as CSV, which is small and is the cross-check rather
+than the field.
+
+**Fan et al. (2013) water table depth: THE HOST IS GONE.** Checked 2026-08-20.
+`glowasis.deltares.nl` does not resolve at all -- DNS NXDOMAIN, while
+`deltares.nl` itself resolves, so the GLOWASIS subdomain has been decommissioned
+rather than moved within the site. That URL is what the paper names, and it is
+also what every independent trail still points at: the HESS 2019 Amazon paper's
+own data-availability section and Zeng et al. (2018) both cite the same dead
+catalogue. The other routes were checked and are closed too: the Science
+supplement carrying Databases S1 to S3 returns HTTP 403 on all three URL forms,
+Fan's Rutgers page is 404, HydroShare returns no matching resource, Zenodo
+carries nothing under the title, and the Borealis "Groundwaterscapes" dataset
+Fan co-authors holds analysis code and a classification GeoTIFF but no water
+table compilation.
+
+This blocks GW-3, and it is worth being exact about why a substitute will not
+do. The 1,603,781 well observations are the only EXTERNAL check available on
+this project's water table; every other check it passes is an identity, a
+conservation law or a reduction. Fan's SIMULATED equilibrium water table would
+not serve even if a mirror turned up, because her model is the exponential
+depth-decay formulation this project abandoned, so agreement or disagreement
+would confound the formulation with the implementation. What would unblock it is
+the compilation itself, from the authors -- Miguez-Macho is at Santiago de
+Compostela -- or from wherever Deltares moved GLOWASIS.
+
 **Zenodo**, for datasets published with a paper. The record API,
 `https://zenodo.org/api/records/<id>`, lists files and sizes without
 authentication, which is worth checking before starting a multi-gigabyte
