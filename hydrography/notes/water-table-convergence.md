@@ -304,6 +304,44 @@ permeability bracket, which is itself small. So the operator's truncation error
 is not what limits this result, and the count may be quoted rather than only the
 sign.
 
+## GW-14: the criterion's supply term, corrected
+
+The infinite-index branch was never a statement about geometry. It was a
+division by a supply term that meant SURFACE runoff, because that was the only
+supply a surface-only model had. `carve_verdict.py` now takes
+
+    r_eff = (surface_runoff * C + Qg) / C
+
+when it is handed a water table, and is exactly the surface-only criterion when
+it is not. The branch is KEPT for `r_eff <= 0`: a basin that genuinely receives
+nothing, including one exporting its entire recharge underground, still never
+overflows and still never incises.
+
+`r_eff` is the SUPPLY, so it feeds the lake solver as well as the index. They
+take the same quantity and giving them two would be two answers to one question.
+
+**The reduction identity holds exactly.** Run without a groundwater field, the
+report is bit-identical to the one the unmodified script produces, key for key.
+
+Supplied with the central arm, on the bootstrap forcing:
+
+| | surface only | with groundwater |
+| --- | ---: | ---: |
+| basins with no runoff at all | 1016 | **490** |
+| carve list, Penman | 1742 | **1852** |
+| carve list, robust (carve under BOTH evaporation estimates) | 1742 | **1742** |
+| survive under both | 1016 | 897 |
+| disputed between the two estimates | 863 | 982 |
+
+110 basins are added to the Penman list and none removed. **The robust list does
+not move at all.** The basins groundwater brings above the threshold are ones
+that carve under Penman and not under the wet estimate, so they land in the
+disputed set rather than in the bracketed one, and the carve set loop A actually
+consumes is unchanged on this build.
+
+Nothing regenerates a carve list from this. The head field is uncertified until
+GW-3, and a carve list is loop A's input.
+
 ## What remains
 
 **The external test.** GW-3, the same code on Earth topography, Earth recharge
