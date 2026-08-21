@@ -347,7 +347,11 @@ echoes the value because that too is printed on NROOT, and the symptom is a term
 that comes out weak rather than absent, which reads as a physics problem and was
 chased as one through two wrong hypotheses and a fetched paper.
 
-**What finds it is a PER-RANK diagnostic, and the tell is an exact zero.** A
+**What finds it is a PER-RANK diagnostic, and getting one is harder than it
+looks: only NROOT's writes to `nud` reach `plasim_diag`, so the obvious
+`if (mypid == NROOT)` samples rank 0's latitude rows and nothing else -- all
+polar at T42 on 8 ranks. Write to `70+mypid` instead. The tell is an exact
+zero.** A
 global mean cannot distinguish a term that is weak from a term that is off over
 most of the domain; `+0.0000` on seven ranks of eight and a real number on the
 eighth is not something physics produces. The same class is

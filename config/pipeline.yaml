@@ -571,11 +571,13 @@ one_offs:
   - exoplasim/scripts/predict_ocean_terms.py
   - exoplasim/scripts/score_rank_bench.py
   - exoplasim/scripts/reproducibility_matrix.py
+  - exoplasim/scripts/diff_restarts.py
   - exoplasim/scripts/trace_gas_band_model.py
   - exoplasim/scripts/co2_overlap_589.py
   - exoplasim/scripts/reset_restart_accumulators.py
   - hydrography/scripts/validate_lake_solver.py
   - hydrography/scripts/build_earth_wtd_sites.py
+  - hydrography/scripts/earth_calibration.py
   - hydrography/scripts/lake_balance.py
   - pedology/scripts/validate_against_earth.py
   - pedology/scripts/probe_runoff_response.py
@@ -588,6 +590,7 @@ one_offs:
   - exoplasim/scripts/analyze_smoke.py
   - exoplasim/scripts/bench_pyburn_read.py
   - exoplasim/scripts/mie_dust.py
+  - analysis/orogen_resolution.py
   - exoplasim/scripts/run_albedo_bracket.sh
   - exoplasim/scripts/finalize_existing_segment.py
   - exoplasim/scripts/continue_exoplasim.py

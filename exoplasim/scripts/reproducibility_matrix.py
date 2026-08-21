@@ -109,6 +109,40 @@ A cell in the output arm that writes no gridpoint record is reported
 INCONCLUSIVE and is excluded from the scoring, rather than counted as
 reproducible. That is the failure mode this design exists to avoid.
 
+## Building a bed
+
+There is no step that makes one. Copy a run directory, drop its outputs, and
+REPLACE ITS EXECUTABLES:
+
+    cp -a exoplasim/runs/<run> bed && rm -f bed/MOST* bed/plasim_output \
+        bed/plasim_snapshot bed/plasim_status && rm -rf bed/snapshots/*
+    cp -f vendor/exoplasim/exoplasim/plasim/run/most_plasim_t42_l10_p*.x bed/
+
+The second line is not optional and `check_binaries` refuses without it: a run
+directory keeps the executables it was STARTED with, so a bed copied from a
+recent run silently pins the model source to whenever that run began. The
+outputs are dropped because `snapshots/` alone can be gigabytes and none of it
+is read.
+
+## Instrumenting the model, if a cell needs opening up
+
+Two things cost a cycle each here and are not obvious.
+
+**Only NROOT's writes to `nud` survive.** `nud` is unit 6 and every rank writes
+to it, but the diagnostics that reach `plasim_diag` are the root's; the others
+go nowhere. So `if (mypid == NROOT)` is not a filter, it is the only thing that
+works -- and at T42 on 8 ranks NROOT holds the first eight latitude rows, which
+are all polar. A diagnostic written that way is sampling one climate zone. To
+see any other cell, write to a per-rank unit: `write(70+mypid,...)` gives one
+`fort.7N` per rank.
+
+**A temporary namelist key can break the run for reasons that are not about
+the key.** Adding one to `radmod_nl` and setting it in `radmod_namelist` failed
+with "Cannot match namelist object name" even with the key compiled in and
+present. Rather than chase it, read the switch from the ENVIRONMENT --
+`get_environment_variable` -- which touches no namelist group and no shared
+file. That is what CLIM-42's per-rank probe ended up doing.
+
 ## What it does not measure
 
 Whether a run that diverges diverges CHAOTICALLY. CLIM-39 established that
