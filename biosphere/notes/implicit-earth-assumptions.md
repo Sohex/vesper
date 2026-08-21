@@ -3,7 +3,8 @@
 **Scope:** the Vesper adapter and the vendored LPJ-GUESS-CNP source. This was a
 read-only source audit; no model build or simulation was run. BLAZE and GLOBFIRM
 are deliberately excluded here so that fire can be reviewed as one mechanism
-rather than scattered across the general port.
+rather than scattered across the general port, except for the cross-cutting
+latitude-use inventory in finding 8.
 
 The existing porting note records the deliberate use of Earth PFTs, the
 181-day/24-hour-step calendar, orbital geometry, PAR energy fraction, degree-day
@@ -151,12 +152,57 @@ latent Earth assumptions rather than safe generic code:
   budget; WET-1 through WET-11 own those prerequisites before `run_peatland` or
   `ifmethane` can be enabled.
 
+## 8. Latitude is geometry, not environmental state
+
+A follow-up inventory found several places where geographic latitude selects an
+Earth ecological regime rather than contributing to geometry:
+
+- `framework/guess.cpp` and `modules/soil.h` split detailed peat from simplified
+  wetland physics at exactly 40 N. WET-2 and WET-6 own the replacement.
+- `framework/externalinput.cpp` assigns missing or fixed-default crop stands to
+  tropical versus temperate crop PFTs at absolute latitude 30 degrees. BIO-27
+  owns this along with the crop-calendar paths.
+- `modules/simfire.cpp` uses absolute latitude 50 degrees to distinguish barren,
+  shrub and tundra states. `modules/blaze.cpp` uses 30- and 50-degree bands to
+  choose mortality and litter-tuning functions. FIRE-6 owns these effects-layer
+  substitutions; vegetation, fuel and weather state must select the mechanisms.
+- Natural phenology, litter release and the snow-depth establishment check use
+  the sign of latitude to choose fixed northern or southern calendar days or
+  months in `driver.cpp`, `growth.cpp`, `somdynam.cpp` and `vegdynam.cpp`.
+  BIO-21 already owns their replacement with forcing-derived seasonal phase.
+  Crop sowing has further sign-based Earth-calendar branches under BIO-27.
+
+The defect is not the numerical value of any one boundary. No static latitude,
+absolute latitude or hemisphere flag can stand in for temperature, season,
+wetness, permafrost, vegetation, productivity, fuel or disturbance regime on
+Vesper. Moving the lines would preserve the hidden Earth geography.
+
+Direct latitude remains appropriate in a small, documented allowlist: spherical
+cell area and orbital/daylength geometry; coordinate lookup, indexing and
+serialization; and explicitly labelled spatial aggregation or diagnostics.
+Those uses describe location or geometry and do not choose ecological physics.
+Where seasonal orientation is required, it must be derived from the registered
+orbit and forcing rather than assumed from the sign of latitude.
+
+BIO-29 establishes this latitude-use contract across the vendored source and
+the Vesper biosphere adapters. It inventories every direct latitude branch,
+requires each use to be either allowlisted geometry/coordinates/diagnostics or
+replaced with forcing, process state or traits, and adds a source-level check so
+new ecological latitude classifiers fail without running LPJ-GUESS. Outside the
+biosphere, PHYS-13 already owns Orogen's Earth-calibrated glaciation latitude
+threshold; labelled latitude-band analyses such as regional summaries are
+diagnostics, not model classifiers.
+
 ## Ordering
 
 BIO-21 and BIO-22 are correctness blockers before a natural-vegetation result is
 called meaningful. BIO-23 through BIO-25 close known forcing and unit mismatches
 before final interpretation. BIO-26 is an uncertainty measurement. BIO-27 and
 BIO-28 are fail-closed activation guards and do not block the current baseline.
+BIO-29 is the cross-cutting guard: its inventory and lint are immediate
+no-simulation work, while each replacement remains with BIO-21, BIO-27, FIRE-6,
+WET-2 or WET-6 as appropriate.
 
-Fire calendar, forcing and calibration assumptions are intentionally unresolved
-here and will be assessed together in the dedicated fire-model review.
+Fire calendar, forcing and calibration assumptions remain in the dedicated
+fire-model review; finding 8 only records their latitude branches in the shared
+contract.

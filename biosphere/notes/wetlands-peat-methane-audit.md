@@ -73,6 +73,10 @@ mineral-wetland path converts a fixed fraction of heterotrophic respiration
 directly to atmospheric CH4. The original papers imposed northern geographical
 domains because their detailed formulation was developed and evaluated there;
 that limitation is evidence for a model-form bound, not a planetary classifier.
+This discovery prompted the biosphere-wide inventory in
+`implicit-earth-assumptions.md` finding 8 and BIO-29. The same rule applies here
+as elsewhere: latitude may locate the cell for geometry and diagnostics, but it
+may not determine wetland type or any other ecological process regime.
 
 ### Peat and gas state
 

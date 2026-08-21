@@ -144,9 +144,14 @@ fluxes during conversion.
 
 BLAZE supplies useful fuel combustion, fire-line-intensity and mortality
 machinery, but it is not already portable.  Its fire-weather and mortality
-logic contains latitude/biome tuning, fixed Earth empirical coefficients and
-365-day assumptions.  Those need a named parameter registry and Vesper calendar
-conversion rather than a wholesale activation.
+logic contains fixed Earth empirical coefficients and 365-day assumptions. In
+particular, SIMFIRE uses absolute latitude 50 degrees when labelling barren,
+shrub and tundra states, while BLAZE uses 30- and 50-degree bands to select
+tropical/temperate/boreal mortality and litter tuning. Those latitude branches
+must instead consume vegetation, fuel, weather and thermal state under the
+BIO-29 latitude-use contract. The remaining effects coefficients need a named
+parameter registry and Vesper calendar conversion rather than a wholesale
+activation.
 
 More seriously, `blaze.cpp` transfers and reports carbon and nitrogen during
 combustion but contains no phosphorus transfers.  The older `fire()` path in
