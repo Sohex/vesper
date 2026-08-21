@@ -13,8 +13,10 @@ composition per gridcell, which becomes the surface albedo and forest fraction
 that the next climate run is forced with.
 
 The port is complete and runs end to end on real Vesper cells at smoke scale.
-What remains before a full run is a current climatology. The audit behind the
-porting choices is in `notes/lpj-guess-porting-audit.md`, and
+An interpretable full run still needs the surface-area, forcing, aggregation and
+acceptance contracts tracked as BIO-11 through BIO-15.  The audit behind the
+porting choices is in `notes/lpj-guess-porting-audit.md`, the remaining modelling
+gaps are evidenced in `notes/modelling-gap-audit.md`, and
 `notes/productivity-prediction.md` registers what the answer should be before the
 model can contradict it.
 
@@ -46,8 +48,9 @@ a result.
 | input module | `vesperinput`, runs end to end, splits across MPI ranks |
 | soil | from `pedology/`, loop closing at smoke scale |
 | run harness | written; records inputs, binary and model identity in its manifest |
-| albedo and forest feedback | not written, and it is the component's purpose |
-| full run | blocked on a current climatology; ~25 min on 16 ranks |
+| albedo and forest feedback | modelled mode exists; rootable/lake and spectral corrections are BIO-17 and BIO-18 |
+| aerodynamic feedback | modelled roughness is open as BIO-16 |
+| full run | harness exists, but BIO-11 through BIO-15 must close before its output is interpreted; prior estimate ~25 min on 16 ranks |
 
 The model is vendored at `vendor/lpj-guess/` as a git subtree from the CNP fork.
 The Vesper calendar, astronomy and input-module changes live directly in that
