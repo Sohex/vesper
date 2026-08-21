@@ -399,6 +399,77 @@ calculation. What it does not yet do is produce the forcing the pricing note
 says these gases are worth, and the reason is a documented limitation of the
 formulation aloft rather than of the code.
 
+## 4e. Cess (1973) was read, and it does not apply
+
+Recorded so it is not tried again. Section 4d suspected the Lorentz-only band
+model of understating absorptance aloft, and named Cess (1973) as the fix. That
+was WRONG, and reading the paper is what shows it.
+
+Cess gives the Doppler analogue in the same variables:
+
+    A_D = A0 u (1 - 0.18 u/delta)                    for u/delta <= 1.5
+    A_D = 0.753 A0 delta {[ln(u/delta)]^1.5 + 1.21}  for u/delta >= 1.5
+
+with `u = S P H / A0` as before and `delta = sqrt(pi) gamma_D / d`, `gamma_D`
+the Doppler half-width and `d` the mean line spacing. The prescription for
+combining the two is Goody and Belton's, which Cess adopts: take whichever
+mechanism gives the LARGER absorptance.
+
+`d` does not need a new source. The model's own definition of the line-structure
+parameter is `beta = 4 gamma_L P / d`, so `d = 4 gamma_L / beta0` recovers it
+from the `beta0` already in Donner and Ramanathan's Table 1, with `gamma_L` the
+mean Lorentz half-width from McClatchey -- 0.055 cm-1 atm-1 for CH4, which it
+adopts explicitly for all CH4 lines, and 0.082 for N2O from Toth's J-resolved
+table. That gives 1.29 cm-1 for CH4 and 0.293 for N2O.
+
+**Doppler absorptance is BELOW Lorentz at every level this model has:**
+
+| band | 0.025 atm | 0.119 atm | 0.497 atm |
+| --- | ---: | ---: | ---: |
+| CH4 1306 | 0.31 | 0.10 | 0.04 |
+| N2O 1285 | 0.32 | 0.13 | 0.07 |
+| N2O 589 | 0.50 | 0.22 | 0.10 |
+
+So Goody and Belton's rule keeps the Lorentz value everywhere, and adding the
+Doppler branch would be dead code. Extrapolating the top row, the two would
+cross near 2 mbar; this model's lid is `PTOP` = 50 mbar, so the Doppler regime
+lies entirely ABOVE the atmosphere being simulated.
+
+The paper also explains why, in its own words: the volumetric absorption
+coefficient at the centre of a Lorentz line is independent of pressure, so "if
+a Lorentz line is strong at low altitudes, it will remain strong as altitude is
+increased". Checked here at the top layer, the line-centre optical depth is
+about 53. The lines are saturated, which is the regime Eq. (1) is for.
+
+## 4f. Where the shortfall is not, and what would find it
+
+The scheme was calibrated against its own CO2 to see whether it is uniformly
+weak. Turning CO2 off entirely takes OLR from 238.759 to 251.043, so **this
+model's whole CO2 greenhouse effect is 12.28 W/m2**, against roughly 25 to 30
+for Earth's. The same ratio shows in the doubling, 1.576 against about 3.7. So
+the scheme runs at 40 to 45 percent of reality for CO2 -- weak by a factor of
+two, and that is a property of a broadband scheme rather than a defect.
+
+Against that calibration the trace-gas term is still about a HUNDRED times too
+weak, and Doppler broadening is no longer a candidate. What is established:
+
+- the absorber amounts are right, checked against an independent calculation;
+- the band absorptances are what Donner and Ramanathan's Eq. (1) gives, and
+  Eq. (1) is the correct branch at these pressures per Cess;
+- the conversion to Sasamori's currency is consistent with Sasamori's own
+  normalisation to within about 1.6x, checked by running CO2's band absorptance
+  through the same conversion and comparing with `zaco2`;
+- the flux machinery responds correctly to a change of the same size in the
+  same variable, which is what the CO2 doubling shows.
+
+**The next test is the one that worked for the CO2 overlap: put the band model
+against a line list.** The LMD bundle on this host carries CH4 correlated-k
+tables -- the `early_earth_CO2_*_CH4_*` sets -- so the band absorptance can be
+compared with a HITRAN 2020 band mean at the same amount, pressure and
+temperature, exactly as section 4c did for CO2. That separates a band model
+that is wrong from a scheme that cannot carry the term, and it needs no new
+data. It has not been done.
+
 ## 5. The tests, declared before the work
 
 **Band model against its own source.** Eq. (1) with `A0` = 52 (T/300)^1/2,
