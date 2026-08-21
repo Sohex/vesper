@@ -66,7 +66,8 @@ the value level with a tolerance, `-d` absolute and `-p` relative. That is the
 tool for asking whether one run reproduces another.
 
 Beside them: `yq` for `config/pipeline.yaml` and `config/planet.yaml`, the GDAL
-command-line tools for the reference shapefiles and the Copernicus DEM COGs,
+command-line tools `gdalinfo` and `ogrinfo` for the reference shapefiles and the
+Copernicus DEM COGs,
 `dot` for rendering a graph, `valgrind` for the Fortran, and `ncdu` for the run
 tree. In the venv, `dask`, `flox` and `bottleneck` back xarray over anything
 run-sized; see [large data](large-data.md), which they assist and do not

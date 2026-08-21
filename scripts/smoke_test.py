@@ -61,14 +61,20 @@ purge-never-reaches-the-terrain property, run from `main()` with the rest):
 12. **A resume refuses a rewritten spectrum file.** The config names the
    spectrum and the model reads the file, so a config comparison cannot see
    `k25v.dat` regenerated in place. CONS-3.
+13. **The tools `environment.md` names are actually on this host.** That
+   document sends a reader to `ncdump`, NCO, `h5diff` and `yq` rather than a
+   Python session, and nothing else checks the claim is true. Both
+   directions, so the document and the check cannot drift apart.
 """
 
 from __future__ import annotations
 
 import argparse
 import ast
+import importlib.util
 from pathlib import Path
 import re
+import shutil
 import subprocess
 import sys
 
@@ -628,6 +634,76 @@ def check_task_counts() -> list[str]:
     return problems
 
 
+# Command-line tools `docs/src/reference/environment.md` sends a reader to, mapped
+# to the Arch package shipping each. The package belongs in the failure message
+# because the tool name is usually not the package name: looking for a binary
+# called `graphviz`, or supposing `h5diff` needs a package of its own, are both
+# mistakes made while writing that section.
+DOCUMENTED_TOOLS = {
+    "ncdump": "netcdf",
+    "ncks": "nco", "ncra": "nco", "ncdiff": "nco", "ncwa": "nco",
+    "ncatted": "nco",
+    "h5diff": "hdf5",
+    "yq": "go-yq",
+    "gdalinfo": "gdal", "ogrinfo": "gdal",
+    "dot": "graphviz",
+    "valgrind": "valgrind",
+    "ncdu": "ncdu",
+}
+
+# Packages the same document names, which live in the venv rather than on the host.
+DOCUMENTED_MODULES = ("dask", "flox", "bottleneck")
+
+
+def check_documented_tools() -> list[str]:
+    """Every tool `environment.md` names resolves, and every tool named here is in it.
+
+    `environment.md` directs a reader to `ncdump`, NCO, `h5diff` and `yq`
+    instead of a Python session, and carries the traps that come with them: that
+    `ncwa` cannot area-weight this grid, and that the time axis is not a
+    calendar. A document naming a tool the host lacks sends that reader to write
+    the Python session anyway, having first wasted the lookup.
+
+    Checked in BOTH directions. Forward catches a host that has changed under
+    the document. Backward catches the document dropping a tool this list still
+    asserts, which would leave the check guarding a claim nobody makes. Neither
+    direction catches a tool ADDED to the document and not to this list; that is
+    the seam, and the list is here rather than parsed out of the prose because
+    deciding by regex over English what counts as a named tool is a worse
+    failure than the one it would prevent.
+
+    These read artifacts rather than produce them, so no pipeline step imports
+    one and a failure here does not mean a run would be wrong. It means the
+    documentation is.
+    """
+    doc = ROOT / "docs" / "src" / "reference" / "environment.md"
+    if not doc.is_file():
+        return [f"{doc.relative_to(ROOT)} is missing"]
+    text = doc.read_text(encoding="utf-8")
+    # First token of every inline code span: `ncdump -h` names ncdump.
+    named = {span.split()[0] for span in re.findall(r"`([^`]+)`", text)
+             if span.split()}
+
+    problems = []
+    for tool, package in sorted(DOCUMENTED_TOOLS.items()):
+        if shutil.which(tool) is None:
+            problems.append(
+                f"environment.md names `{tool}` but it is not on PATH; "
+                f"install the {package} package, or drop it from the document")
+        if tool not in named:
+            problems.append(
+                f"`{tool}` is asserted here but environment.md no longer names it")
+    for module in DOCUMENTED_MODULES:
+        if importlib.util.find_spec(module) is None:
+            problems.append(
+                f"environment.md names {module} but it does not import; "
+                f"it is a venv package, so check requirements.txt too")
+        if module not in named:
+            problems.append(
+                f"{module} is asserted here but environment.md no longer names it")
+    return problems
+
+
 def check_no_shadowed_imports(files: list[Path]) -> list[str]:
     """A name bound by `import X` is never rebound to something else.
 
@@ -716,7 +792,9 @@ def main() -> None:
               ("no imported module name is rebound",
                check_no_shadowed_imports(files)),
               ("a resume refuses a rewritten spectrum file",
-               check_spectrum_guard())]
+               check_spectrum_guard()),
+              ("the tools environment.md names are on this host",
+               check_documented_tools())]
     if not args.skip_help:
         checks.insert(1, ("entry points answer --help", check_help(files)))
 
