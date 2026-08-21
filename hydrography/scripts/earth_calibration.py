@@ -99,6 +99,9 @@ SITES = ROOT / "hydrography" / "data" / "earth_validation" / "aus_wtd_sites.csv"
 EARTH_R_KM = 6371.0
 VESPER_CELL_KM2 = 4 * np.pi * 7645.2 ** 2 / 2_500_001     # the 15.19 km baseline
 OROGEN_SEED = 16236323
+# The split seed for the benchmark, fixed so its number is a number and not a
+# draw. Its predecessor was quoted in four documents and reproduced by nothing.
+BENCH_SEED = 20260820
 OROGEN_JITTER = 0.75
 # Penman open-water potential ET, the arm groundwater.yaml names as et_max.
 ET_MAX_MM_YR = 1500.0
@@ -542,9 +545,161 @@ def stage_score(tag: Path, edge_km: float, quiet: bool, region: str,
     print(f"  score: {out['sites_scored']:,} bores in {out['cells_with_bores']:,} cells")
     print(f"    ceiling at this cell size   {out['ceiling_r2_at_this_cell_size']:.4f}")
     print(f"    R2 on cell means            {out['r2_cell_mean']:+.4f}   "
-          f"(bar 0.07, statistical fit 0.1435)")
+          f"(bar 0.07, statistical fit 0.2098)")
     print(f"    Pearson on cell means       {out['pearson_cell_mean']:+.4f}")
     print(f"    observed sd {out['observed_sd_m']:.2f} m   model sd {out['model_sd_m']:.2f} m")
+    return out
+
+
+def stage_benchmark(tag: Path, region: str, confinement: str | None) -> dict:
+    """What the RESOLVABLE FIELDS support, which is the model's real target.
+
+    This exists because the number it replaces did not. Four documents and this
+    script's own score line quoted 0.28 as what a flexible fit reaches on
+    held-out cells; nothing ever computed it. Reproducing the original gives
+    +0.0703 linear and +0.1215 binned, and a gradient boosting fit reaches
+    +0.1435 with the physical model EXCLUDED. A criterion nothing can reproduce
+    is worse than none, so the criterion now ships with its computation.
+
+    Target is `log(1 + cell-mean depth)` on cells with at least two bores, which
+    is the original's choice and is kept so the numbers stay comparable: depth is
+    heavily right-skewed and a raw-depth R2 is dominated by a few deep cells.
+    """
+    import collections
+    import pandas as pd
+    from sklearn.ensemble import HistGradientBoostingRegressor
+    R = REGIONS[region]
+    rd = region_dir(tag, region)
+    sol = np.load(rd / "earth_solution.npz")
+    fld = np.load(rd / "earth_fields.npz")
+    perm = np.load(rd / "earth_perm.npz")
+    dr = np.load(rd / "earth_drainage.npz")
+    xyz = np.load(tag / "earth_xyz.npy")
+    n = xyz.shape[1]
+    elev = np.nan_to_num(sol["elev"], nan=0.0)
+    logk = np.full(n, np.nan)
+    logk[perm["cell"]] = perm["logk"]
+
+    obs = pd.read_csv(ROOT / "hydrography" / "data" / "earth_validation" / R["sites"],
+                      low_memory=False)
+    if "depth_consistent" in obs.columns:
+        obs = obs[obs.depth_consistent.astype(bool)]
+    if confinement and "confinement" in obs.columns:
+        obs = obs[obs.confinement == confinement]
+    if R["score_bbox"]:
+        x0, y0, x1, y1 = R["score_bbox"]
+        obs = obs[obs.lon.between(x0, x1) & obs.lat.between(y0, y1)]
+    la = np.radians(obs.lat.to_numpy())
+    lo = np.radians(obs.lon.to_numpy())
+    _, cid = cKDTree(xyz.T).query(
+        np.stack([np.cos(la) * np.cos(lo), np.cos(la) * np.sin(lo), np.sin(la)], axis=1),
+        workers=-1)
+    df = pd.DataFrame({"cell": cid, "wtd": obs.wtd_m.to_numpy()})
+    nn = df.groupby("cell").size()
+    cm = df[df.cell.isin(nn[nn >= 2].index)].groupby("cell")["wtd"].mean()
+    c = cm.index.to_numpy()
+    y = np.log1p(np.clip(cm.to_numpy(), 0, None))
+    X = np.column_stack([
+        elev[c], np.nan_to_num(fld["elev_sd"][c], nan=0.0),
+        np.log10(np.maximum(dr["acc_km2"][c], 1e-3)),
+        np.log1p(np.clip(sol["rech"][c], 0, None)),
+        np.nan_to_num(logk[c], nan=-13.0),
+        (elev - np.nan_to_num(fld["elev_min"], nan=0.0))[c],
+        sol["depth"][c]])
+    ok = np.all(np.isfinite(X), axis=1)
+    X, y = X[ok], y[ok]
+    m = len(y)
+    rng = np.random.default_rng(BENCH_SEED)
+    o = rng.permutation(m)
+    tr, te = o[:m // 2], o[m // 2:]
+
+    def r2(pred, truth):
+        return float(1 - ((truth - pred) ** 2).sum() / ((truth - truth.mean()) ** 2).sum())
+
+    Xs = (X - X[tr].mean(0)) / np.maximum(X[tr].std(0), 1e-12)
+    A = np.column_stack([np.ones(m), Xs])
+    beta, *_ = np.linalg.lstsq(A[tr], y[tr], rcond=None)
+    lin = r2(A[te] @ beta, y[te])
+    g = HistGradientBoostingRegressor(max_iter=400, random_state=0).fit(X[tr], y[tr])
+    boost_all = r2(g.predict(X[te]), y[te])
+    g5 = HistGradientBoostingRegressor(max_iter=400, random_state=0).fit(
+        np.delete(X[tr], 6, 1), y[tr])
+    boost_fields = r2(g5.predict(np.delete(X[te], 6, 1)), y[te])
+    gm = HistGradientBoostingRegressor(max_iter=400, random_state=0).fit(
+        X[tr][:, [6]], y[tr])
+    model_only = r2(gm.predict(X[te][:, [6]]), y[te])
+    out = {"cells": int(m), "linear_six": lin, "boosting_all": boost_all,
+           "boosting_fields_only": boost_fields, "boosting_model_only": model_only}
+    print(f"  benchmark on {m:,} multi-bore cells, target log(1+depth), 50/50 held out")
+    print(f"    linear, all predictors            R2 = {lin:+.4f}")
+    print(f"    boosting, all predictors          R2 = {boost_all:+.4f}")
+    print(f"    boosting, MODEL EXCLUDED          R2 = {boost_fields:+.4f}  <- the target")
+    print(f"    boosting, MODEL ALONE             R2 = {model_only:+.4f}")
+    if boost_all < boost_fields:
+        print("    the model is INFORMATION-NEGATIVE: the fit does better without it")
+    return out
+
+
+def stage_calibrate(tag: Path, region: str, confinement: str | None,
+                    drain: str, et_lambda: float | None, splits: int = 20) -> dict:
+    """Held-out skill after a two-parameter bias correction, over many splits.
+
+    Direct R2 is negative because the model runs shallow, so the question worth
+    asking is whether the PATTERN survives once bias and scale are removed. One
+    split is not an answer: the first one tried here read +0.0748 and the mean
+    over twenty is +0.068, so a single favourable draw would have reported a
+    pass on the declared 0.07 bar that twenty splits do not support.
+    """
+    import collections
+    import pandas as pd
+    from scipy.stats import pearsonr
+    R = REGIONS[region]
+    sol = np.load(region_dir(tag, region) / solution_name(drain, et_lambda))
+    xyz = np.load(tag / "earth_xyz.npy")
+    obs = pd.read_csv(ROOT / "hydrography" / "data" / "earth_validation" / R["sites"],
+                      low_memory=False)
+    if "depth_consistent" in obs.columns:
+        obs = obs[obs.depth_consistent.astype(bool)]
+    if confinement and "confinement" in obs.columns:
+        obs = obs[obs.confinement == confinement]
+    if R["score_bbox"]:
+        x0, y0, x1, y1 = R["score_bbox"]
+        obs = obs[obs.lon.between(x0, x1) & obs.lat.between(y0, y1)]
+    la = np.radians(obs.lat.to_numpy())
+    lo = np.radians(obs.lon.to_numpy())
+    _, cid = cKDTree(xyz.T).query(
+        np.stack([np.cos(la) * np.cos(lo), np.cos(la) * np.sin(lo), np.sin(la)], axis=1),
+        workers=-1)
+    keep = sol["cond"][cid]
+    agg = collections.defaultdict(list)
+    for cc, oo in zip(cid[keep], obs.wtd_m.to_numpy()[keep]):
+        agg[cc].append(oo)
+    cs = np.array(sorted(agg))
+    y = np.array([np.mean(agg[c]) for c in cs])
+    x = sol["depth"][cs]
+
+    def r2(p, t):
+        return float(1 - ((p - t) ** 2).sum() / ((t - t.mean()) ** 2).sum())
+
+    tes = []
+    for seed in range(splits):
+        rng = np.random.default_rng(seed)
+        o = rng.permutation(len(y))
+        tr, te = o[:len(y) // 2], o[len(y) // 2:]
+        A = np.column_stack([x[tr], np.ones(tr.size)])
+        b, *_ = np.linalg.lstsq(A, y[tr], rcond=None)
+        tes.append(r2(np.column_stack([x[te], np.ones(te.size)]) @ b, y[te]))
+    tes = np.array(tes)
+    rho = float(pearsonr(x, y).statistic)
+    out = {"cells": int(len(y)), "splits": splits, "pearson": rho,
+           "held_out_r2_mean": float(tes.mean()), "held_out_r2_sd": float(tes.std()),
+           "held_out_r2_min": float(tes.min()), "held_out_r2_max": float(tes.max()),
+           "splits_clearing_bar": int((tes >= 0.07).sum()), "bar": 0.07}
+    print(f"  calibrate on {len(y):,} cells, {splits} random 50/50 splits")
+    print(f"    Pearson over all cells   {rho:+.4f}  (rho^2 = {rho**2:.4f})")
+    print(f"    held-out R2  mean {tes.mean():+.4f}  sd {tes.std():.4f}  "
+          f"range {tes.min():+.4f} to {tes.max():+.4f}")
+    print(f"    splits clearing the {0.07} bar: {(tes >= 0.07).sum()} of {splits}")
     return out
 
 
@@ -587,7 +742,8 @@ def main() -> None:
                     help="restrict scoring to bores of this aquifer confinement, "
                          "which only the US table labels")
     ap.add_argument("--stage", default="all",
-                    choices=["mesh", "fields", "perm", "drainage", "solve", "score", "all"])
+                    choices=["mesh", "fields", "perm", "drainage", "solve", "score",
+                             "benchmark", "calibrate", "all"])
     ap.add_argument("--river-km2", type=float, default=1e4,
                     help="upstream area above which a cell is a river and becomes a "
                          "fixed head at its own elevation (GW-17). 0 disables baselevels")
@@ -622,6 +778,11 @@ def main() -> None:
         elif st == "solve":
             stage_solve(tag, args.quiet, args.river_km2, args.region,
                         args.drain, args.drain_min_relief_m, args.et_lambda)
+        elif st == "benchmark":
+            result = stage_benchmark(tag, args.region, args.confinement)
+        elif st == "calibrate":
+            result = stage_calibrate(tag, args.region, args.confinement,
+                                     args.drain, args.et_lambda)
         elif st == "score":
             result = stage_score(tag, edge_km, args.quiet, args.region,
                                  args.confinement, args.drain, args.surface,

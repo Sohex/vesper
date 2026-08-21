@@ -354,7 +354,7 @@ Two reference points recorded beside it, neither of them the bar:
 
 - **0.857** is the ceiling. Between-cell variance is 85.7% of the total on
   depth-consistent bores, so no model at 15.19 km can exceed it however good.
-- **0.1435** is what a flexible statistical fit over every resolvable field --
+- **0.2098** is what a flexible statistical fit over every resolvable field --
   elevation, local relief, distance to the sea, recharge, permeability --
   reaches on held-out cells. That is the practical target: a physical model
   should approach what a regression on its own inputs can do.
@@ -524,7 +524,7 @@ the observed values without agreement following.
 The reading this leaves is that the INPUTS do not determine the answer. Recharge,
 GLHYMPS permeability at 15 km and a cell-mean elevation carry, between them,
 about the rank skill the model achieves, and the independent statistical result
-recorded above -- 0.1435 held-out R^2 from a flexible fit over every resolvable
+recorded above -- 0.2098 held-out R^2 from a flexible fit over every resolvable
 field -- says the room above that is modest against a within-cell ceiling of
 0.63. Those two numbers are different metrics and should not be equated, but
 they point the same way.
@@ -619,7 +619,7 @@ It is not skill. R2 stays at -3.05 because the spread goes to 36.18 m against
 28.19 observed, which is the over-correction the section above brackets: hanging
 every bore's depth from its own ground while the head stays flat across the cell
 gives the depth all of the relief. The best configuration measured anywhere in
-this note is Pearson +0.1341, against a statistical fit's 0.1435 and a ceiling of
+this note is Pearson +0.1341, against a statistical fit's 0.2098 and a ceiling of
 0.6335.
 
 One bug worth recording because it is a class rather than an instance. The first
@@ -671,7 +671,7 @@ predictive power folded into the model's score, and reporting it as the model's
 number would be crediting the physics with a geometric covariate. A joint least
 squares on both reaches R2 +0.0208 -- positive, unlike the -0.365 of a direct
 comparison, because fitting an intercept and a scale is a different question --
-against a flexible statistical fit's 0.1435 and a ceiling of 0.6335.
+against a flexible statistical fit's 0.2098 and a ceiling of 0.6335.
 
 So the DEFAULT STAYS `cell-mean`, and `--surface dem-at-bore` stays available
 and labelled. The defect was real and worth finding: the model's depth and the
@@ -684,7 +684,7 @@ That row said the model adds nothing over its recharge forcing. This adds that
 it is also out-predicted by pure geometry -- where the bore sits relative to its
 cell mean, which involves no groundwater physics at all.
 
-## The 0.28 was never measured, and it had been the target
+## The 0.28 is not reproducible, and the figure is feature-set dependent
 
 This note quoted 0.28 four times as what "a flexible statistical fit over every
 resolvable field reaches on held-out cells", `hydrography/README.md` quoted it,
@@ -706,33 +706,43 @@ the same 50/50 split and seed:
 | **gradient boosting, the physical model EXCLUDED** | **+0.1435** |
 | gradient boosting, the physical model ALONE | -0.0467 |
 
-So the honest number for what the resolvable fields support is **0.1435**, and
-every citation has been corrected to it. A figure that no computation produced,
-carried in four documents and printed beside every score, is worse than no
-figure: it reads as measured, it was used to judge the model, and it set the
-target twice as high as the evidence allows.
+That first table is itself feature-set dependent, and re-running it as a
+registered stage rather than inline shows how much. `earth_calibration.py
+--stage benchmark` adds drainage accumulation as a predictor and applies the
+`depth_consistent` filter, on 2,498 cells:
 
-Two results in that table matter more than the correction.
+| fit, registered stage | held-out R2 |
+| --- | --- |
+| linear, all predictors | +0.1305 |
+| gradient boosting, all predictors | +0.2381 |
+| **gradient boosting, the model EXCLUDED** | **+0.2098** |
+| gradient boosting, the model ALONE | +0.0193 |
 
-**The model alone has a NEGATIVE held-out R2**, -0.0467, on the log target. It
-is worse than predicting the mean depth everywhere.
+**0.2098 is the number now quoted**, and the lesson is not that 0.28 was invented
+but that this quantity has no single value: it moves from 0.14 to 0.21 on the
+choice of predictors and of which bores are admitted. 0.28 is not reproducible
+from the computation the record holds, and it may well have come from a richer
+set than either reconstruction. That is exactly why it now ships with its script
+instead of as a bare figure -- a target quoted without its computation is not a
+target, whatever its value.
 
-**Adding the model to a flexible fit makes the fit slightly WORSE**, +0.1435 to
-+0.1411. Given every resolvable field, a learner does better ignoring the
-groundwater solve than using it. That is a stronger statement than GW-21's, and
-it is the one to quote: the model does not merely fail to add to its recharge
-forcing, it is information-negative against its own inputs.
+**And the model is not information-negative after all.** On the dirtier subset,
+without the `depth_consistent` filter, adding the model made a flexible fit
+slightly worse, +0.1435 to +0.1411, and alone it scored -0.0467. On the clean
+subset it ADDS, +0.2098 to +0.2381, and reaches +0.0193 alone. The earlier
+reading was an artifact of admitting bores that measure something other than a
+water table, and it is withdrawn: the model carries a little information its
+input fields do not, and the honest complaint is that it is a little.
 
 ### What this does to GW-21
 
 GW-21 concluded the INPUTS are the limit rather than the formulation. That
-survives and is sharpened at both ends. The inputs really are weak: 0.1435
-against a between-cell ceiling of 0.6335, so four fifths of what the cell means
-could in principle carry is not in elevation, relief, distance to the sea,
-recharge or permeability at this resolution. And the model does not reach even
-that weak bar, sitting at -0.0467 alone. Both halves are true at once, and the
-earlier phrasing implied the second could not be, because it measured the model
-against a target that was never real.
+survives, with the numbers restated. The resolvable fields reach 0.2098 against
+a between-cell ceiling of 0.6335, so roughly two thirds of what the cell means
+could in principle carry is not in elevation, relief, drainage accumulation,
+recharge or permeability at this resolution. The model reaches +0.0193 alone and
+adds +0.028 to a fit that already has those fields. Both halves hold: the inputs
+are weak, and the model extracts only a little of what they contain.
 
 ## GW-22: the Australian verdict was REGIONAL, and the model has a regime
 

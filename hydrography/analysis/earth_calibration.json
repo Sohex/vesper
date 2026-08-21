@@ -161,23 +161,11 @@
       "within_cell_variance_fraction": 0.36648875285175225
     },
     "aus/all/drain-none/cell-mean/15.19km": {
-      "region": "aus",
-      "drain": "none",
-      "surface": "cell-mean",
-      "confinement": "all",
-      "edge_km": 15.190378953196356,
-      "n_regions": 1736112,
-      "sites_scored": 53410,
-      "cells_with_bores": 3276,
-      "observed_sd_m": 18.360539340946392,
-      "model_sd_m": 1.9133057463204375,
-      "residual_mean_m": -7.2733332953139955,
-      "residual_sd_m": 18.252791283497967,
-      "r2_per_bore": -0.14522395775084673,
-      "r2_cell_mean": -0.365404666491431,
-      "pearson_cell_mean": 0.07033482371910588,
-      "ceiling_r2_at_this_cell_size": 0.6335112471482478,
-      "within_cell_variance_fraction": 0.36648875285175225
+      "cells": 2498,
+      "linear_six": 0.13052438228235552,
+      "boosting_all": 0.2380618677098284,
+      "boosting_fields_only": 0.20982800859605344,
+      "boosting_model_only": 0.019279617189160603
     },
     "us-narrow/all/drain-none/cell-mean/15.19km": {
       "region": "us-narrow",
@@ -199,23 +187,15 @@
       "within_cell_variance_fraction": 0.46897394539139076
     },
     "us-narrow/unconfined/drain-none/cell-mean/15.19km": {
-      "region": "us-narrow",
-      "drain": "none",
-      "surface": "cell-mean",
-      "confinement": "unconfined",
-      "edge_km": 15.190378953196356,
-      "n_regions": 1736112,
-      "sites_scored": 71265,
-      "cells_with_bores": 6574,
-      "observed_sd_m": 29.21818293397638,
-      "model_sd_m": 21.27999477921714,
-      "residual_mean_m": -10.207385755148248,
-      "residual_sd_m": 32.24485997975121,
-      "r2_per_bore": -0.33995402654224516,
-      "r2_cell_mean": -0.4934943342341169,
-      "pearson_cell_mean": 0.2709191078501902,
-      "ceiling_r2_at_this_cell_size": 0.8079184232794874,
-      "within_cell_variance_fraction": 0.19208157672051263
+      "cells": 6574,
+      "splits": 20,
+      "pearson": 0.2709191078501903,
+      "held_out_r2_mean": 0.06828355597530317,
+      "held_out_r2_sd": 0.013790411143629692,
+      "held_out_r2_min": 0.04432053492161081,
+      "held_out_r2_max": 0.09541561231388918,
+      "splits_clearing_bar": 10,
+      "bar": 0.07
     },
     "us-narrow/confined/drain-none/cell-mean/15.19km": {
       "region": "us-narrow",

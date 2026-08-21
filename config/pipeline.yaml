@@ -592,6 +592,9 @@ one_offs:
   - exoplasim/scripts/bench_pyburn_read.py
   - exoplasim/scripts/mie_dust.py
   - analysis/orogen_resolution.py
+  - analysis/orogen_resolution_controls.py
+  - analysis/ice_mask_freezing_height.py
+  - hydrography/scripts/fetch_recharge.py
   - exoplasim/scripts/run_albedo_bracket.sh
   - exoplasim/scripts/finalize_existing_segment.py
   - exoplasim/scripts/continue_exoplasim.py

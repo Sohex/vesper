@@ -1,0 +1,22 @@
+{
+  "climatology": "exoplasim/analysis/climatology/bootstrap_regular_climatology.nc",
+  "lapse_k_per_km_warmest": 7.3722360249927945,
+  "grid_cells_with_glac": 0,
+  "uncorrected_land_below_freezing": 2.419294763830789e-05,
+  "corrected_land_below_freezing": 0.016570006372010913,
+  "by_margin_k": {
+    "0": 0.016570006372010913,
+    "-5": 0.006133519334512376,
+    "-10": 0.0018090182295346486
+  },
+  "subgrid_peak_excess_km": {
+    "mean": 1.0646430899710941,
+    "median": 0.4992346689105034,
+    "p90": 2.969270622730255,
+    "max": 5.270243883132935
+  },
+  "temperature_the_grid_never_sees_k": {
+    "mean": 7.848800141644545,
+    "p90": 21.890163852844776
+  }
+}

@@ -1,0 +1,167 @@
+{
+  "runs": [
+    {
+      "label": "2.500M",
+      "n_regions": 2500001,
+      "channel_pct_of_land_area": 33.31996115188594,
+      "preserved_basins": 3621,
+      "smallest_preserved_km2": 2645.9789962768555,
+      "scarp_nonzero_pct": 12.456195017521992,
+      "scarp_mean_where_nonzero": 0.13158723531638755,
+      "land_slope_p99_deg": 5.014560937881472,
+      "upland_concavity_theta": 0.39198684293049885,
+      "land_area_above": {
+        "0.5": 0.19384687241088502,
+        "1": 0.1242803293943969,
+        "2": 0.06188394079942636
+      },
+      "mean_land_elevation_km": 0.3957484326305529
+    },
+    {
+      "label": "2.600M",
+      "n_regions": 2600001,
+      "channel_pct_of_land_area": 32.564665279047006,
+      "preserved_basins": 3782,
+      "smallest_preserved_km2": 2618.277168273926,
+      "scarp_nonzero_pct": 12.973264241052215,
+      "scarp_mean_where_nonzero": 0.13677087435443627,
+      "land_slope_p99_deg": 5.363329229354849,
+      "upland_concavity_theta": 0.27302268551392506,
+      "land_area_above": {
+        "0.5": 0.208566537064051,
+        "1": 0.136660812764416,
+        "2": 0.07216834527936247
+      },
+      "mean_land_elevation_km": 0.4401240618491573
+    },
+    {
+      "label": "2.700M",
+      "n_regions": 2700001,
+      "channel_pct_of_land_area": 31.791041718587604,
+      "preserved_basins": 3838,
+      "smallest_preserved_km2": 2452.751106262207,
+      "scarp_nonzero_pct": 12.570365714679365,
+      "scarp_mean_where_nonzero": 0.13602212362306448,
+      "land_slope_p99_deg": 5.145479321479793,
+      "upland_concavity_theta": 0.35392394698793406,
+      "land_area_above": {
+        "0.5": 0.19226790792506773,
+        "1": 0.1226148631998866,
+        "2": 0.059228418799609786
+      },
+      "mean_land_elevation_km": 0.3878713689604579
+    },
+    {
+      "label": "10.00M",
+      "n_regions": 10000005,
+      "channel_pct_of_land_area": 15.538793749860922,
+      "preserved_basins": 9419,
+      "smallest_preserved_km2": 1000.1905364990234,
+      "scarp_nonzero_pct": 14.998642500678748,
+      "scarp_mean_where_nonzero": 0.1985980340435901,
+      "land_slope_p99_deg": 8.427365350723273,
+      "upland_concavity_theta": 0.4440335018764034,
+      "land_area_above": {
+        "0.5": 0.17693738739276113,
+        "1": 0.11153419172677889,
+        "2": 0.055798708920542464
+      },
+      "mean_land_elevation_km": 0.36025243381413036
+    }
+  ],
+  "controls": [
+    "2.500M",
+    "2.600M",
+    "2.700M"
+  ],
+  "verdicts": {
+    "channel_pct_of_land_area": {
+      "values": [
+        33.31996115188594,
+        32.564665279047006,
+        31.791041718587604,
+        15.538793749860922
+      ],
+      "noise": 1.5289194332983378,
+      "delta": 17.78116740202502,
+      "clears_noise": "yes"
+    },
+    "preserved_basins": {
+      "values": [
+        3621,
+        3782,
+        3838,
+        9419
+      ],
+      "noise": 217,
+      "delta": 5798,
+      "clears_noise": "yes"
+    },
+    "smallest_preserved_km2": {
+      "values": [
+        2645.9789962768555,
+        2618.277168273926,
+        2452.751106262207,
+        1000.1905364990234
+      ],
+      "noise": 193.22789001464844,
+      "delta": 1645.788459777832,
+      "clears_noise": "yes"
+    },
+    "scarp_nonzero_pct": {
+      "values": [
+        12.456195017521992,
+        12.973264241052215,
+        12.570365714679365,
+        14.998642500678748
+      ],
+      "noise": 0.517069223530223,
+      "delta": 2.5424474831567565,
+      "clears_noise": "yes"
+    },
+    "scarp_mean_where_nonzero": {
+      "values": [
+        0.13158723531638755,
+        0.13677087435443627,
+        0.13602212362306448,
+        0.1985980340435901
+      ],
+      "noise": 0.005183639038048721,
+      "delta": 0.06701079872720256,
+      "clears_noise": "yes"
+    },
+    "land_slope_p99_deg": {
+      "values": [
+        5.014560937881472,
+        5.363329229354849,
+        5.145479321479793,
+        8.427365350723273
+      ],
+      "noise": 0.34876829147337673,
+      "delta": 3.4128044128418003,
+      "clears_noise": "yes"
+    },
+    "upland_concavity_theta": {
+      "values": [
+        0.39198684293049885,
+        0.27302268551392506,
+        0.35392394698793406,
+        0.4440335018764034
+      ],
+      "noise": 0.11896415741657379,
+      "delta": 0.052046658945904545,
+      "clears_noise": "NO"
+    },
+    "mean_land_elevation_km": {
+      "values": [
+        0.3957484326305529,
+        0.4401240618491573,
+        0.3878713689604579,
+        0.36025243381413036
+      ],
+      "noise": 0.05225269288869944,
+      "delta": 0.03549599881642257,
+      "clears_noise": "NO"
+    }
+  }
+}

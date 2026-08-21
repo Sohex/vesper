@@ -31,3 +31,10 @@ rasterio==1.5.1
 omfiles==1.2.0
 fsspec==2026.7.0
 s3fs==2026.7.0
+
+# The Earth calibration's benchmark stage, which measures what the RESOLVABLE
+# FIELDS support and so sets the bar the physical model is judged against.
+# `hydrography/scripts/earth_calibration.py --stage benchmark`. A linear fit
+# understates that bar badly, 0.13 against 0.21 held out, so the flexible
+# arm is not a convenience: the number it produces is the criterion.
+scikit-learn==1.9.0

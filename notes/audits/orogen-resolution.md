@@ -453,16 +453,23 @@ it. Against the mesh, the sub-grid peak excess `orog_max - orog_mean` on land is
 
 | | km |
 | --- | --- |
-| area-weighted mean | 1.355 |
+| mean | 1.065 |
 | median | 0.499 |
 | 90th percentile | 2.969 |
 | maximum | 5.270 |
 
-and the warm-season environmental lapse rate measured from this run's own
-profile is 7.271 K/km. So the surface energy balance is evaluated about 9.9 K
-too warm for the highest ground in an average land cell, and about 21.6 K too
-warm in the top tenth. Ice does not survive that, and the model is right to
-report none on the orography it was given.
+and the warm-season environmental lapse rate is 7.372 K/km, measured from the
+climatology this project actually consumes rather than from a raw run file. So
+the surface energy balance is evaluated about 7.8 K too warm for the high ground
+in an average land cell and about 21.9 K too warm in the top tenth. Ice does not
+survive that, and the model is right to report none on the orography it was
+given.
+
+These figures and the ones below are `analysis/ice_mask_freezing_height.py`,
+which is registered and re-runnable. Earlier drafts of this section quoted
+slightly different numbers, 7.271 K/km and 9.9 K, taken from the raw run rather
+than the climatology product; where they disagree the script is what to believe,
+because it is the one that can be checked.
 
 Correcting the warmest-month surface temperature to each region's own elevation,
 which is what `maps/build_basemap.py` already does for the basemap's ice
@@ -472,8 +479,14 @@ answer by nearly three orders of magnitude:
 | | fraction of land area below freezing in the warmest month |
 | --- | --- |
 | on the model's own orography | 0.002% |
-| corrected to the 15.19 km mesh | 1.395% |
-| corrected to the 7.59 km mesh | 1.574% |
+| corrected to the 15.19 km mesh | 1.657% |
+
+and it is a thermal criterion, so a margin is the honest sensitivity: 5 K colder
+than freezing leaves 0.613% and 10 K leaves 0.181%. Repeating it on the 7.59 km
+build with `--build` gives the finer-mesh figure, which an earlier draft put at
+1.574% against 1.395% and which sits inside the realisation noise this audit
+measures elsewhere, so it is not evidence that a finer mesh finds more glaciable
+ground.
 
 The consequence for PHYS-13 is a change of field, not of plan. `glac` is the
 wrong input and would hand Orogen an ice-free world. The right input is the
@@ -487,12 +500,11 @@ against a mesh at 7.59, so nearly all of the peak excess above stays sub-grid,
 and the correction is needed at any truncation the model can afford. This is the
 same argument the downscaling machinery exists for.
 
-Two honest limits on the 1.4 to 1.6%. The criterion is thermal and says where
+Two honest limits on the 1.7%. The criterion is thermal and says where
 ice can PERSIST, not where a glacier forms, which additionally needs
 accumulation; `prsn` is absent from this run's output so accumulation cannot be
-checked here. And the difference between the two meshes, 1.395 against 1.574,
-is 13% and therefore inside the realisation noise floor above, so it is not
-evidence that the finer mesh finds more glaciable ground.
+checked here. And the difference between the two meshes is inside the realisation noise floor
+above, so it is not evidence that the finer mesh finds more glaciable ground.
 
 ## Orogen's information floor is about 20 km, and no region count buys past it
 
