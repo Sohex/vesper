@@ -117,18 +117,24 @@ def write_flag_line(profile: str) -> str:
     f.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return line
 
-# The matrix. NLAT must divide by ranks: 32 at T21, 64 at T42, 128 at T85,
-# 192 at T127, 256 at T170. The ladder is T21/T42/T85/T127/T170 and every rung
-# has an export under `source/<build>/exoplasim-<T>`; a rung without a binary is
-# terrain nothing can run. T127 and T170 take p16 for the same reason T85 does,
-# 16 dividing 192 and 256 at 12 and 16 rows a rank; p32 also divides both, at 6
-# and 8, and is the option if throughput at the top of the ladder matters more
-# than the compile.
+# The matrix. NLAT must divide the rank count, and 8, 16 and 32 all divide every
+# NLAT on the T21/T42/T85/T127/T170 ladder: 32, 64, 128, 192, 256. Every rung has
+# an export under `source/<build>/exoplasim-<T>`, and a rung without a binary is
+# terrain nothing can run.
+#
+# The 32-rank rows exist for the SMT arms of
+# `exoplasim/notes/smt-rank-layout.md`, and the 8-rank rows at the high
+# resolutions exist because several of those arms are concurrent 8-rank jobs. A
+# rank-layout matrix needs every rank count it compares, at every resolution it
+# compares them at, built from ONE source through ONE flag line -- so they are
+# registered here rather than built off to one side. A binary absent from the
+# manifest has unknown provenance, and that note's whole argument is a
+# comparison between binaries.
 MATRIX = [("T21", 10, 8), ("T21", 10, 16),
-          ("T42", 10, 8), ("T42", 10, 16),
+          ("T42", 10, 8), ("T42", 10, 16), ("T42", 10, 32),
           ("T85", 10, 16),
-          ("T127", 10, 16),
-          ("T170", 10, 16)]
+          ("T127", 10, 8), ("T127", 10, 16), ("T127", 10, 32),
+          ("T170", 10, 8), ("T170", 10, 16), ("T170", 10, 32)]
 
 
 def sha256(path: Path) -> str:

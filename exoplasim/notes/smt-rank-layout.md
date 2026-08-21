@@ -1,0 +1,209 @@
+# Does SMT help a spectral GCM? The arms, declared before any of them ran
+
+*This is a COMPUTE benchmark for the Vesper worldbuilding project: it measures
+how fast a toy climate model integrates on this particular desktop, and nothing
+in it is about the simulated planet. Written 2026-08-21, before any arm was
+run.*
+
+## Why reopen this
+
+`docs/src/reference/config-rationale.md` rules out 32 ranks with an argument
+rather than a measurement: *"those are SMT threads and MPI ranks on sibling
+threads contend for the same FPU and cache, which does not help a compute-bound
+spectral model."* Nobody has ever run it.
+
+Two things now undercut the premise.
+
+**The model is not purely compute-bound.** `spectral-transform-profile.md` puts
+MPI at 11 to 27 percent of samples across ranks at T127, and most of it is
+`opal_progress` -- ranks SPINNING at collectives, not moving bytes. At T42 it is
+worse: 39% of samples against 14.5% on the busiest rank, which is roughly a
+quarter of the machine idling on load imbalance. SMT is the mechanism that fills
+stalls, and the argument against it is weakest exactly where the workload has
+slack. This one has a lot.
+
+**Concurrency already pays.** `rank-layout-benchmark.md` measured two concurrent
+8-rank jobs beating two sequential 16-rank jobs by 33% on throughput, and
+adopted it. Oversubscription is the untested continuation of a direction that
+already won.
+
+**What stays closed, and what is a genuinely different question.** That note
+measured the two dies as indistinguishable, 93.4 s against 94.2 s, and said not
+to reopen it without a reason that is not "the dies look different on paper".
+A footprint argument looked like one -- 6 MB of Legendre weights per rank at
+T127 against 4 MB of L3 per core on the frequency die -- and the cache-miss
+profile refuted it: the Legendre routines miss LESS than anything else in the
+model. **At one job per die, the question stays closed.**
+
+It measured one job per die. Two jobs SHARING one die's L3 is a different cache
+regime, not the same question asked again: CCD0 carries 96 MB and CCD1 32 MB,
+and doubling the jobs on a die doubles the footprint competing for it. So the
+matrix carries a 2x2 that attributes any contention penalty to a die rather than
+confounding the two:
+
+|  | one job | two jobs |
+| --- | --- | --- |
+| CCD0, 96 MB L3 | `T0_1x8` | `T2b_2x8_core` |
+| CCD1, 32 MB L3 | `T0b_1x8_ccd1` | `T2c_2x8_ccd1` |
+
+If `T2c/T0b` is worse than `T2b/T0`, the smaller L3 is paying for the contention
+and the die matters once a die is shared. Expect it to be resolution-dependent
+and to show at T127 if anywhere: the weights are 0.23 MB per rank at T42, where
+sixteen ranks fit either die, and 6 MB per rank at T127, where eight want 48 MB
+against CCD1's 32.
+
+## The host
+
+Physical core `i` owns hardware threads `i` and `i+16` (`lscpu -e=CPU,CORE`).
+Cores 0-7 are the V-Cache die, 8-15 the frequency die.
+
+## The arms
+
+Each arm is N concurrent jobs with declared pinning. `core` binding gives a rank
+both siblings of one core, which is what an unpinned launch does and therefore
+what production runs; `hwthread` gives it one thread, which is the only way to
+put two ranks on one core deliberately.
+
+| arm | jobs x ranks | cpus | what it answers |
+| --- | --- | --- | --- |
+| `L1_1x16` | 1 x 16 | cores 0-15 | the incumbent. LATENCY control |
+| `L2_1x32` | 1 x 32 | threads 0-31 | does SMT help LATENCY |
+| `T0_1x8` | 1 x 8 | cores 0-7 | control for T2: one job on eight cores |
+| `T1_2x8_dies` | 2 x 8 | cores 0-7 / 8-15 | the incumbent for THROUGHPUT |
+| `T2_2x8_smt` | 2 x 8 | threads 0-7 / 16-23 | SMT isolated: two jobs on the SAME eight cores |
+| `T3_2x16` | 2 x 16 | threads 0-15 / 16-31 | SMT for throughput, whole machine |
+| `T4_4x8` | 4 x 8 | four thread groups | throughput at finer granularity |
+
+T2 against T0 is the clean SMT question with the die held constant: same eight
+physical cores, one job or two. T3 and T4 use the whole machine and are the
+throughput candidates.
+
+Resolutions: T42 first because it is cheap and validates the harness, then T127
+because that is where the work is heading. T21 is excluded -- 32 ranks would give
+it one latitude per rank.
+
+## The gotcha that would have refused SMT for the wrong reason
+
+`rank-layout-benchmark.md:135` is explicit, and the first cut of this matrix
+ignored it:
+
+> `--bind-to core` on this machine gives each rank the two SMT siblings of one
+> core [...] That is deliberate and should be left alone: a rank that can move to
+> its sibling can step around a daemon landing on its thread, where a rank
+> pinned to one hardware thread simply waits -- and in a bulk-synchronous code
+> that wait propagates to every other rank through the next collective.
+
+It measured 19 to 383 migrations per rank over 80 s during a production run, so
+stepping around background load is routine rather than hypothetical.
+
+Every SMT arm above binds to `hwthread`, which is exactly the pinned-to-one-
+thread case that describes. That handicaps all four of them against the
+core-bound controls for a reason that has nothing to do with SMT, and the matrix
+would have refused oversubscription on a confound.
+
+So each oversubscribed arm gets a MIGRATION-TOLERANT twin: the same two ranks
+per core, each still free to use either of that core's threads.
+
+| arm | how | what it isolates |
+| --- | --- | --- |
+| `L2b_1x32_core` | one 32-rank job, `--map-by core --bind-to core:overload-allowed` | SMT latency, ranks can migrate |
+| `T2b_2x8_core` | two 8-rank jobs, BOTH on cores 0-7, `--bind-to core` | SMT throughput on one die, ranks can migrate |
+| `T3b_2x16_core` | two 16-rank jobs, BOTH on cores 0-15 | SMT throughput, whole machine |
+| `T4b_4x8_core` | four 8-rank jobs, two per die | same, finer granularity |
+
+The `a` and `b` pairs differ in ONE thing, so the gap between them prices the
+migration freedom directly -- which is worth knowing on its own account, since
+it is the first time that claim has been measured rather than argued.
+
+Open MPI refuses to put two ranks on a core unless asked: the binding needs the
+`overload-allowed` qualifier, which is one of the three that version accepts.
+
+## The second dimension: does a waiting rank spin or step aside
+
+`mpi_yield_when_idle` decides whether a rank blocked in a collective spins or
+calls `sched_yield`. It defaults to FALSE, and Open MPI enables it by itself
+only "when oversubscribing nodes" -- when ONE mpiexec has asked for more ranks
+than slots.
+
+**That auto-detection does not fire for the arms that need it most.** T2, T3 and
+T4 are several INDEPENDENT mpiexec invocations of 8 or 16 ranks each, and every
+one believes it has the machine to itself. So yield stays off and two aggressive
+spinners share every physical core. Measuring SMT that way measures it at close
+to its worst case, and would refuse it for the wrong reason.
+
+It is therefore a declared dimension rather than a default, and the profile is
+why it could decide the answer: MPI is 11 to 27 percent of samples at T127 and
+most of it is `opal_progress` -- spinning, not moving bytes. A spinning rank on a
+shared core is stealing issue slots from a sibling doing real work; a yielding
+one is not.
+
+Every arm runs twice, with `OMPI_MCA_mpi_yield_when_idle` at 0 and at 1. The
+cheap resolution decides whether the setting matters at all; only the better of
+the two is carried to the expensive one.
+
+## Two Open MPI traps, both found by the pinning check before any arm was timed
+
+Recorded because both fail SILENTLY in the direction of a plausible wrong
+number, which is the same shape as the `:ordered` finding that motivated the
+check in the first place.
+
+**`pe-list` refuses ranges.** `pe-list=0-7` does not mean cpus 0 to 7; it fails
+with "not enough CPUs in the specified PE-LIST". It has to be spelled
+`0,1,2,3,4,5,6,7`.
+
+**The PE index space changes meaning with the binding unit.** Under
+`--bind-to core`, PE `p` is physical core `p` and the rank gets both its
+threads. Under `--bind-to hwthread`, PE `p` is `(core p//2, thread p%2)`, so
+cpu `p//2 + 16*(p%2)`. Verified directly: `pe-list=0,1 --bind-to hwthread` puts
+two ranks on cpus 0 and 16, the two threads of ONE core, while `pe-list=0,16`
+puts them on cpus 0 and 8, two different cores. An arm written in cpu numbers
+lands somewhere else entirely and looks fine doing it -- which is exactly what
+happened here, and what the check caught.
+
+**A single job with more ranks than cores will not launch at all** without
+`--oversubscribe`, because Open MPI counts one slot per physical core. It raises
+the slot count and nothing else; 32 ranks still bind to 32 distinct cpus.
+
+## The rules, declared before any arm ran
+
+**Under 5% is no difference.** `rank-layout-benchmark.md`'s floor and
+`aocl-and-model-build-flags.md`'s, not renegotiated here.
+
+**Latency and throughput get SEPARATE verdicts and may disagree.** That is the
+whole reason both are measured. Latency is seconds for one job; throughput is
+jobs finished per wall hour across everything in flight.
+
+- **`L2_1x32` is adopted for latency** if it beats `L1_1x16` by more than 5%.
+- **A throughput arm is adopted** if it beats the incumbent `T1_2x8_dies` by
+  more than 10%. Ten rather than five because adopting one means running several
+  run directories at once, and that is operational complexity a marginal gain
+  does not buy. This is the existing note's threshold and its reasoning.
+
+**Pinning is verified before any arm is timed.** Every rank is asked for its own
+`Cpus_allowed_list` and checked: the right number of CPUs for the binding unit,
+inside the declared pe-list, and no two ranks sharing. A mismatch ABORTS. This
+is not ceremony -- the existing note's central finding is that every spelling
+without `:ordered` confines the job correctly and silently drops the per-rank
+binding, so ranks stack and an arm reports a slow layout when the launch line
+was at fault.
+
+## What would mean the measurement is wrong rather than surprising
+
+- Any arm whose wall time varies by more than the 5% floor across rounds.
+  Something else was running.
+- Concurrent jobs within one arm disagreeing with each other by more than 5%.
+  They have identical work and identical core counts; a gap means the pinning
+  did not take the way the check thought it did.
+- A restart sha differing between arms **of the same rank count**. Across
+  different rank counts the shas are EXPECTED to differ -- `NLPP` changes, so the
+  latitude sum is grouped differently and the rounding with it. That is not a
+  defect and must not be reported as one.
+
+## What this decides beyond itself
+
+The rank count sets `NLPP`, and `NLPP` is an input to the symmetry work: the
+paired-latitude decomposition needs `NPRO` to divide `NLAT/2`. At 32 ranks that
+holds for T42, T85, T127 and T170 and FAILS for T21, which would fall back to
+the unpaired path. So a 32-rank production decision narrows where the Phase 2
+and 3 work applies, and that is a reason to settle the layout before building
+against it rather than after.
