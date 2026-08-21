@@ -4,6 +4,15 @@ What LPJ-GUESS assumes about Earth, where those assumptions live in the source,
 and what has to change before the model says anything about this planet. Written
 after obtaining and building the model, before any Vesper-specific code exists.
 
+> **Follow-up correction, 2026-08-21:** this first audit found the mechanical
+> calendar and astronomy seams but did not exhaust the ecological uses of an
+> Earth year. Natural phenology still contains an unreachable day 195, and PFT,
+> SOM and nutrient processes retain mixed annual time bases. The evidenced
+> non-fire follow-up is `implicit-earth-assumptions.md`, tracked as BIO-21
+> through BIO-28. Where this note says the port is complete or that all remaining
+> code follows `year_length()`, read that as mechanical integration rather than
+> ecological correctness.
+
 ## The model as originally obtained
 
 LPJ-GUESS 4.1.1, released 2021-10-13, Mozilla Public Licence 2.0, from Zenodo

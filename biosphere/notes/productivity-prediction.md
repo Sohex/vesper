@@ -317,6 +317,14 @@ One thing that does not need correcting: the fit is a flux per unit
 evapotranspiration, so it scales correctly with this world's shorter year
 without any correction.
 
+**Time-base correction, 2026-08-21:** that statement holds only for the
+AET-proportional term. The Cleveland fit has a non-zero intercept applied once
+per model orbit, and its five-year mean is five 181-day orbits rather than five
+Earth years. The deposition input labelled per year is likewise delivered once
+per orbit. BIO-24 corrects those semantics and BIO-2 must recompute this bracket;
+the smoke-run values above remain provenance for the earlier experiment, not a
+valid final nitrogen bracket.
+
 ## Result
 
 Not yet run. To be filled in with actual values, hit or miss per line, and the

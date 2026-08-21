@@ -45,6 +45,12 @@ defaults with per-cell Vesper fields is the BIO-5 through BIO-7 chain in
 
 Three routes supply the P weathering rate `pwtr`:
 
+> **Unit correction, 2026-08-21:** the fork calls the texture-path value
+> kgP/m2/year and divides it across one model orbit. On Vesper, “year” is
+> ambiguous by a factor of about 2.02. BIO-24 must define the absolute-time
+> contract before BIO-5 derives this field; the runoff-driven daily route and
+> BIO-8's daily deposition input do not share that ambiguity.
+
 1. **Soil-code table**, `data[soilcode][14]`, a constant per soil class.
 2. **Texture path**, `soiltype.pwtr = soilprop.pwtr` -- which is the path we take,
    since our soil map has thirteen columns. But no soilmap column populates it,

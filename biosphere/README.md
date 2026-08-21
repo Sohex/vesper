@@ -12,11 +12,17 @@ ExoPlaSim climatology and returns leaf area, carbon and plant functional type
 composition per gridcell, which becomes the surface albedo and forest fraction
 that the next climate run is forced with.
 
-The port is complete and runs end to end on real Vesper cells at smoke scale.
+The model is mechanically integrated and has run end to end on real Vesper
+cells at smoke scale. A follow-up source audit exposed ecological-calendar and
+time-base correctness work below that interface; the smoke result is therefore
+an integration result, not yet a meaningful biosphere result.
 An interpretable full run still needs the surface-area, forcing, aggregation and
-acceptance contracts tracked as BIO-11 through BIO-15.  The audit behind the
-porting choices is in `notes/lpj-guess-porting-audit.md`, the remaining modelling
-gaps are evidenced in `notes/modelling-gap-audit.md`, and
+acceptance contracts tracked as BIO-11 through BIO-15 and the newly exposed
+calendar, time-base and forcing corrections in BIO-21 through BIO-25.  The audit
+behind the original porting choices is in `notes/lpj-guess-porting-audit.md`, the
+remaining modelling gaps are evidenced in `notes/modelling-gap-audit.md`, the
+implicit Earth assumptions below the port are in
+`notes/implicit-earth-assumptions.md`, and
 `notes/productivity-prediction.md` registers what the answer should be before the
 model can contradict it.
 
@@ -41,16 +47,16 @@ a result.
 | model obtained | `mateusdp/LPJ-GUESS-NTD`, tag `LPJ-GUESS-CNP_v1.0`, commit `b368b893`; MPL-2.0 notices restored from verified 4.1.1 |
 | build | vendored CNP tree plus Vesper port; build verification awaits an available compute window |
 | smoke test | stock 4.1.1 port: bundled 3-cell demo, 550 years, 73 s, expected PFTs |
-| Earth-assumption audit | complete, see the note |
+| Earth-assumption audit | follow-up complete; BIO-21 through BIO-28 track the newly exposed non-fire assumptions |
 | productivity prediction | registered, unscored |
-| calendar and astronomy port | applied directly in `vendor/lpj-guess/`, previously verified against stock 4.1.1 |
-| PFT degree-day rescale | generated from the orbit, 500 -> 247 gdd5min_est |
+| calendar and astronomy port | mechanical calendar and orbital geometry applied; natural phenology still has unreachable Earth dates under BIO-21 |
+| PFT degree-day rescale | generated from the orbit, 500 -> 247 gdd5min_est; the remaining annual-rate semantics are BIO-22 |
 | input module | `vesperinput`, runs end to end, splits across MPI ranks |
 | soil | from `pedology/`, loop closing at smoke scale |
 | run harness | written; records inputs, binary and model identity in its manifest |
 | albedo and forest feedback | modelled mode exists; rootable/lake and spectral corrections are BIO-17 and BIO-18 |
 | aerodynamic feedback | modelled roughness is open as BIO-16 |
-| full run | harness exists, but BIO-11 through BIO-15 must close before its output is interpreted; prior estimate ~25 min on 16 ranks |
+| full run | harness exists, but BIO-11 through BIO-15 and BIO-21 through BIO-25 must close before its output is interpreted; prior estimate ~25 min on 16 ranks |
 
 The model is vendored at `vendor/lpj-guess/` as a git subtree from the CNP fork.
 The Vesper calendar, astronomy and input-module changes live directly in that
