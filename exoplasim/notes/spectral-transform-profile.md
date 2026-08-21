@@ -300,6 +300,93 @@ flat, because it costs N^2 log N against the Legendre transform's N^3.
 Replacing the FFT is worth a fixed few percent at any resolution and is not
 where the return is.
 
+### The share falls to 33.6% once the model stops doing work it no longer does
+
+Every arm above was taken on a bed carrying `-fcheck=all` and the energy
+diagnostics, because a bed inherits its source run's namelist and
+`run_4182235e9781` predates both decisions. Production has since dropped
+`-fcheck=all` and turned `NENERGY`/`NENER3D` off. Re-profiled at T127 on a bed
+that matches what production now does:
+
+| | as measured above | current production |
+| --- | ---: | ---: |
+| transform share of compute | 52.1% | **33.6%** [30.9, 36.9] |
+| wall ceiling | 43.9% | **27.4%** |
+| `legendre` bucket | 39.6% | 22.6% |
+| `diagnostics` bucket | 5.07% | **0.73%** |
+| same 600-step bed | 120 s | **73 s** |
+
+Rank spread 17.9%, inside the floor, so the new number is quotable.
+
+**The series above is not wrong; it measured a configuration the model no longer
+runs.** Two changes moved it, and the larger one is instructive.
+`-fcheck=all` inserts a check per array reference, and the Legendre loops are
+almost nothing but array references -- so the bounds checking was concentrated
+in exactly the code being measured, and removing it shrank the transform's
+apparent share by more than a third. A profile of an instrumented build
+overstates whatever the instrumentation is densest in.
+
+The resolution TREND is unaffected, because every point in the series carries
+the same instrumentation. What changes is the absolute share, and the ceiling
+that follows from it.
+
+### The diagnostics bucket was the energy accumulators, not outaccu
+
+0.73% against 5.07%. The bucket was `adener3d`, a `(NHOR, NLEV, 28)` array read
+and written every timestep -- about 10 MB at T127 -- and production turned it off
+on 2026-08-19. What remains in `outaccu` is around a percent and is not worth
+fusing; fusion would not help it anyway, since its statements touch distinct
+arrays and there is no reuse between them to exploit.
+
+### Which half of the transform, re-measured
+
+`split_legendre.py` on the corrected bed, as a percentage of all samples:
+
+| | on the old bed | current production |
+| --- | ---: | ---: |
+| `dv2uv` | 13.95% | **9.97%** |
+| `sp2fc` | 19.72% | **5.08%** |
+| `fc2sp` | 1.85% | 2.49% |
+| `mktend` | 1.86% | 2.45% |
+| `uv2dv` | 1.02% | 1.32% |
+| `qtend` | 0.77% | 0.96% |
+| inverse : forward | ~6 : 1 | **~2.1 : 1** |
+
+`sp2fc` fell four-fold. It is the simplest and most reference-dense loop in the
+set -- two array reads and a write per iteration, almost no arithmetic -- so it
+was paying the most bounds-check tax and had the most to give up when the checks
+went. **`dv2uv` is now the largest single transform routine**, which matters
+because it is the hard case: `exoplasim/notes/symmetric-transforms.md` derives
+its parity split and it needs sixteen live accumulators, with a spill risk that
+has to be measured rather than predicted.
+
+So symmetry is worth about **13.7% of wall at T127** rather than the 19% the
+earlier split implied, and most of it sits in the routine least likely to give
+it up easily.
+
+### The forward-direction symmetry saving, measured
+
+`legmod` carries a symmetry-conserving path for the forward transforms and
+production never reaches it, because `mpimod.f90:130` scatters contiguous
+latitude blocks and a mirror pair lands on different ranks.
+
+Measured directly, at one rank where both paths are reachable and nothing else
+differs -- the same binary built twice, once stock and once with the branch
+condition forced to the parallel path:
+
+| arm | median | spread |
+| --- | ---: | ---: |
+| forced-parallel | 9.27 s | 1.7% |
+| symmetric | 9.04 s | 1.5% |
+
+**+2.31%, faster in 12 of 12 rounds, range [+1.25, +3.62].** T42, L10.
+
+Two things follow. The forward half of the symmetry work is worth roughly what
+the flop count says and no more, so enabling it alone does not pay for the
+decomposition change it requires. And the harness can resolve an effect of that
+size, which is what this arm was for: it is the calibration that makes a larger
+result on the inverse transforms believable.
+
 ### What is still not settled
 
 The share bounds the prize; it does not say what a library would deliver against

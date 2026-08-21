@@ -35,13 +35,13 @@ FFT = {"gp2fc_", "fc2gp_", "dfft2_", "dfft3_", "dfft4_", "dfft8_",
 
 BEDS = sys.argv[1:] or sorted(
     d.name for d in Path("exoplasim/bench").iterdir()
-    if d.is_dir() and d.name.startswith("bed_") and any(d.glob("perf_0*"))
+    if d.is_dir() and d.name.startswith("bed_") and any(d.glob("perf_*"))
 )
 
 for bed in BEDS:
     tot: dict[str, float] = {}
     n = 0
-    for f in sorted(Path("exoplasim/bench", bed).glob("perf_0*/perf.rank??.data")):
+    for f in sorted(Path("exoplasim/bench", bed).glob("perf_*/perf.rank??.data")):
         out = subprocess.run(
             ["perf", "report", "--stdio", "--quiet", "--no-children",
              "--percent-limit", "0", "-F", "overhead,symbol", "-i", str(f)],
