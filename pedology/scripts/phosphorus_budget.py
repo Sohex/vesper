@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Where phosphorus is released, where the water takes it, and what dust returns.
+"""Relative phosphorus geography and basin-concentration hypotheses.
 
     python pedology/scripts/phosphorus_budget.py
 
@@ -12,33 +12,39 @@ Hartmann et al. (2014) -- how much P a rock CONTAINS, and how much it RELEASES p
 unit weathering flux -- and until now **nothing read either of them**. The claim
 that this world has P-starved uplands against P-rich basin floors, and that wind
 returns some of it, was prose with grounded data sitting beside it and no
-computation in between.
+computation in between. The result remains a relative diagnostic; ANUT-1
+through ANUT-3 in `TASKS.md` own the missing mass-carrying implementation.
 
 ## What it computes
 
-Per mesh region, the weathering release of P, then the same quantity routed down
-the drainage network to wherever the water actually delivers it. Contrasting
-those two gives the outbound leg of the loop: how much P leaves the uplands, and
-how much of it is trapped rather than reaching the sea.
+Per mesh region, a relative weathering-release score, then the drainage terminal
+and geometric basin-floor concentration associated with that score. This ranks
+where the outbound leg may be important; it does not carry an absolute P mass,
+water flux, dissolution, retention or root-zone delivery.
 
-The aeolian return leg is bounded rather than modelled. Bounding it turns out to
-be enough to settle its sign, which is the thing worth knowing:
+The aeolian return leg is a source-composition hypothesis rather than a
+deposition model. This script does not read `dust_baseline.nc`; it compares the
+P content of deflatable source lithologies with the land mean and therefore
+cannot settle the sign or magnitude of P delivery at a destination:
 
-**The dust source on this world is its lowest-phosphorus material.** Earth's
+**The mapped dust source on this world is its lowest-phosphorus material.** Earth's
 Sahara-to-Amazon transport works because the Bodele Depression is a former lake
 bed rich in biogenic, P-bearing diatomite. Here the equivalent surface is
 evaporite and playa clastic, which Hartmann's own classes put at the bottom of
-the P range. So dust arriving on an upland is poorer in P than the upland it
-lands on, and the return leg dilutes rather than fertilises.
+the P range. That makes a low-P source-composition case, not a dilution result:
+deposition can still add P, and its importance depends on deposited mass and
+the fraction that dissolves.
 
-**That conclusion carries one caveat large enough to invert it**, and this script
-reports both sides rather than choosing. Basin fill is assigned P by lithology
+**The source-composition hypothesis carries one caveat large enough to invert
+its ranking**, and this script reports both sides rather than choosing. Basin
+fill is assigned P by lithology
 class, at the value Hartmann gives unconsolidated sediment. But basin fill is not
 primary rock -- it is whatever the catchment delivered, concentrated by having
 nowhere else to go. If closed-basin fill inherits its catchment's P instead of
 its class default, the fill is *enriched* rather than depleted and the sign
-flips. Which is right is a question about this world's sediment, not about
-Hartmann, so both are computed and neither is presented as the answer.
+of the source-composition comparison flips. Which is right is a question about
+this world's sediment, not about Hartmann, so both are computed and neither is
+presented as a nutrient-delivery answer.
 """
 
 from __future__ import annotations
@@ -163,16 +169,19 @@ def main() -> None:
             "enrichment_vs_land_mean": round(
                 wmean(content, dust_mask) / mean_content, 3),
             "interpretation":
-                "Below 1.0 means dust is POORER in phosphorus than the land it "
-                "falls on, so the aeolian return leg dilutes the uplands rather "
-                "than fertilising them -- the opposite of Sahara-to-Amazon, "
-                "where the source is biogenic diatomite rather than evaporite.",
+                "Below 1.0 means the mapped source lithology is POORER in "
+                "phosphorus than mean land. It does not determine whether a "
+                "destination gains or loses P: that also requires emitted and "
+                "deposited mass, source provenance, mineral phase and "
+                "dissolution. ANUT-3.",
             "caveat_that_could_invert_this":
                 "Basin fill is assigned P by lithology class, at Hartmann's "
                 "value for unconsolidated sediment. But fill is not primary "
                 "rock: it is whatever the catchment delivered, with nowhere "
-                "else to go. If it inherits catchment P instead, the fill is "
-                "ENRICHED and the sign flips. See catchment_inheritance below.",
+                "else to go. If it inherits catchment P instead, its source "
+                "composition is ENRICHED. Neither case supplies the deposition "
+                "or bioavailability needed to settle the return flux. See "
+                "catchment_inheritance below.",
         },
         "by_rock_class": {},
     }
@@ -261,7 +270,7 @@ def main() -> None:
     # cell_area is in km2, verified against 4*pi*R^2 for this radius, so the
     # basin floor stays in km2 too. Mixing them was worth a factor of a million
     # and silently produced a catchment-to-floor ratio of zero for every basin.
-    delivered = np.zeros(len(catchment_km2))     # relative P units per year
+    delivered = np.zeros(len(catchment_km2))     # relative P score x area
     catch_area = np.zeros(len(catchment_km2))
     order = np.argsort(terminal[land], kind="stable")
     t_sorted = terminal[land][order]
@@ -298,8 +307,9 @@ def main() -> None:
     bodele = have & (ratio >= 100.0) & ~wet
     strong = have & (ratio >= 20.0) & ~wet
     result["basin_fill_as_flux"] = {
-        "note": "Fill phosphorus as delivered flux per unit floor area, relative "
-                "to the same flux spread over its own catchment. Enrichment "
+        "note": "Fill phosphorus concentration score per unit floor area, "
+                "relative to the same release score spread over its own "
+                "catchment; no absolute mass or time unit is implied. Enrichment "
                 "equals the catchment-to-floor area ratio when release is "
                 "uniform, so it is geometry, not an assumption.",
         "basins_with_catchment": int(have.sum()),

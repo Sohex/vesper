@@ -564,11 +564,21 @@ three-build reading that preceded this one is withdrawn.
 
 ## The phosphorus leg
 
-`phosphorus_budget.py` closes the phosphorus side of the C-N-P fork: apatite
-weathering as the primary supply, aeolian deposition as the secondary one, and
-occlusion into iron oxides as the sink. It reads the soil, the dust deposition
-field and the lake solution, so it sits below all three and is regenerated with
-them. The biosphere reads its output; nothing else does.
+`phosphorus_budget.py` is presently a relative geography diagnostic, not a
+closed phosphorus budget. It multiplies lithological P content by a relative
+release factor, groups that rank by drainage fate, and tests whether dry basin
+floors geometrically concentrate delivered material. It reads the lake solution
+only to exclude wet dust sources. Despite the pipeline dependency, it does
+**not** read the dust-deposition field, and neither weathering nor aeolian
+delivery has absolute kgP/area/time units. Nothing in the biosphere currently
+consumes its output.
+
+`biosphere/notes/abiotic-nutrient-delivery-audit.md` records the source trace.
+ANUT-1 through ANUT-3 define the missing mass ledger, absolute weathering and
+composition/solubility-resolved dust input; ANUT-10 owns the initial pedogenic
+mineral-P state. BIO-5 through BIO-8 own the eventual flux mapping into
+LPJ-GUESS-CNP. SDEC-2/SDEC-4 retain the downstream sorption and occlusion
+topology.
 
 ## Known gaps
 - **The derived surface classes carry the three gaps argued above** -- the

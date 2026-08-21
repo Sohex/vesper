@@ -37,7 +37,11 @@ land-surface hydraulic consistency across ExoPlaSim, pedology, hydrography,
 groundwater and LPJ-GUESS is audited in
 `notes/soil-land-surface-hydraulic-consistency-audit.md`; LSHY-1 through LSHY-7
 define one property contract, fast-state owner and water/energy ledger rather
-than two independent land columns. Finally,
+than two independent land columns. Abiotic nutrient sources and their delivery
+from rock, dust and lightning through that water ledger are audited in
+`notes/abiotic-nutrient-delivery-audit.md`; ANUT-1 through ANUT-10 distinguish
+total material from root-zone-available N and P and close their destinations.
+Finally,
 `notes/productivity-prediction.md` registers what the answer should be before the
 model can contradict it.
 
@@ -62,12 +66,13 @@ a result.
 | model obtained | `mateusdp/LPJ-GUESS-NTD`, tag `LPJ-GUESS-CNP_v1.0`, commit `b368b893`; MPL-2.0 notices restored from verified 4.1.1 |
 | build | vendored CNP tree plus Vesper port; build verification awaits an available compute window |
 | smoke test | stock 4.1.1 port: bundled 3-cell demo, 550 years, 73 s, expected PFTs |
-| Earth-assumption audit | follow-up complete; BIO-21 through BIO-29 track cross-cutting assumptions including the latitude-use contract, PCAR-1 through PCAR-10 track plant physiology/allocation, SDEC-1 through SDEC-9 track soil decomposition/biogeochemistry, BVOC-1 through BVOC-10 track volatile carbon through chemistry/aerosol/climate, WET-1 through WET-11 track wetlands, peat and methane, and LSHY-1 through LSHY-7 track the shared land-water and soil-property contract |
+| Earth-assumption audit | follow-up complete; BIO-21 through BIO-29 track cross-cutting assumptions including the latitude-use contract, PCAR-1 through PCAR-10 track plant physiology/allocation, SDEC-1 through SDEC-9 track soil decomposition/biogeochemistry, BVOC-1 through BVOC-10 track volatile carbon through chemistry/aerosol/climate, WET-1 through WET-11 track wetlands, peat and methane, LSHY-1 through LSHY-7 track the shared land-water and soil-property contract, and ANUT-1 through ANUT-10 track abiotic nutrient delivery |
 | productivity prediction | registered, unscored |
 | calendar and astronomy port | mechanical calendar and orbital geometry applied; natural phenology still has unreachable Earth dates under BIO-21 |
 | PFT degree-day rescale | generated from the orbit, 500 -> 247 gdd5min_est; the remaining annual-rate semantics are BIO-22 |
 | input module | `vesperinput`, runs end to end and splits across MPI ranks; its 12-bin `VESPDRV4` transport is integration scaffolding to be replaced under EFOR-1 through EFOR-8 |
 | soil and water | pedology depth scales LPJ capacity and pedology AWC sets ExoPlaSim's scalar bucket at smoke scale, but the models independently derive hydraulic properties and run separate snow/soil water balances; LSHY-1 through LSHY-7 own the consistency work |
+| abiotic nutrients | rock P and dust mass have useful relative/source artifacts, but no absolute source-to-root-zone ledger exists; `phosphorus_budget.py` does not consume dust deposition, and ANUT-1 through ANUT-10 own weathering, initial stocks, atmospheric N/P, transport, other-nutrient screening and closure |
 | run harness | written; records inputs, binary and model identity in its manifest |
 | albedo and forest feedback | modelled mode exists; rootable/lake and spectral corrections are BIO-17 and BIO-18 |
 | aerodynamic feedback | modelled roughness is open as BIO-16 |

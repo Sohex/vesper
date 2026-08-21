@@ -184,9 +184,12 @@ the cheap version. `CLIM-39` and `CLIM-40`.
 
 **This component does not retire when that lands.** ExoPlaSim's aerosol is one
 tracer with one radius and one density fixed at compile time, so the in-model
-chain gets the burden and the optical depth and cannot get the size-resolved
-DEPOSITION field that pedology and the phosphorus budget read. That is the
-declared cost of DUST-8 and the note carries the numbers.
+chain gets the burden and the optical depth and cannot provide a
+composition- and size-resolved soil nutrient input. The offline artifact emits
+total mineral deposition, but `phosphorus_budget.py` does not currently read it
+and it contains no elemental composition or bioavailable fraction. ANUT-3 owns
+that missing soil-facing transformation. This is the declared cost of DUST-8
+and the note carries the radiation-side numbers.
 
 ## Sea salt
 
