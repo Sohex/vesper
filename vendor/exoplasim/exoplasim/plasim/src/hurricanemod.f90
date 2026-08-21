@@ -236,12 +236,24 @@
       
       real xhi, MSL, windmax, stormsize, alltrigger, k20trigger, windtrigger, trigger
       real :: pp(NLEV) = 0.0
+!     Implicitly SAVE, so one copy shared by the whole team.
+!$omp threadprivate(pp)
       real :: hwind(NLEV) = 0.0
+!     Implicitly SAVE, so one copy shared by the whole team.
+!$omp threadprivate(hwind)
       real :: swind(NHOR) = 0.0
+!     Implicitly SAVE, so one copy shared by the whole team.
+!$omp threadprivate(swind)
       
       real :: zzf1(NUGP) = 0.0
+!     Implicitly SAVE, so one copy shared by the whole team.
+!$omp threadprivate(zzf1)
       real :: zzf2(NUGP) = 0.0
+!     Implicitly SAVE, so one copy shared by the whole team.
+!$omp threadprivate(zzf2)
       real :: zzf3(NUGP) = 0.0
+!     Implicitly SAVE, so one copy shared by the whole team.
+!$omp threadprivate(zzf3)
       
       
       gpimask(:) = 0.0
@@ -528,6 +540,8 @@
       real, intent(out) :: xhi
       
       integer :: i600 = 0
+!     Implicitly SAVE, so one copy shared by the whole team.
+!$omp threadprivate(i600)
       
       integer jlev
       real sigma(NLEV)
@@ -587,6 +601,8 @@
       real, intent(out) :: avorticity
       
       integer :: i850 = 0
+!     Implicitly SAVE, so one copy shared by the whole team.
+!$omp threadprivate(i850)
       
       integer jlev
       real smin
@@ -613,7 +629,11 @@
       real, intent(out) :: ushear
       
       integer :: i850 = 0
+!     Implicitly SAVE, so one copy shared by the whole team.
+!$omp threadprivate(i850)
       integer :: i200 = 0
+!     Implicitly SAVE, so one copy shared by the whole team.
+!$omp threadprivate(i200)
       
       integer jlev
       real smin1, smin2
@@ -662,6 +682,8 @@
       ! Internal variables
       
       real :: TVRDIF(NLEV) = 0.0
+!     Implicitly SAVE, so one copy shared by the whole team.
+!$omp threadprivate(TVRDIF)
       
       real pdiff, pdiffnu, TPC, ESP, EVP, RH, S, PLCL, SL, SG
       real TG, RG, TLVR, TVENV, TGNEW, TJC, ES, ENEW, ALV, EM
@@ -1302,7 +1324,11 @@
       real, intent(out) :: gpi
       
       integer :: i850 = 0
+!     Implicitly SAVE, so one copy shared by the whole team.
+!$omp threadprivate(i850)
       integer :: i600 = 0
+!     Implicitly SAVE, so one copy shared by the whole team.
+!$omp threadprivate(i600)
       
       integer jlev
       real sigma(NLEV)

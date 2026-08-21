@@ -341,10 +341,23 @@ echo "   RESTNAME=\`printf '%s_REST.%05d' \$EXP \$YEAR\`         ">>plasim/run/m
 echo "   SNOWNAME=\`printf '%s_SNOW.%05d' \$EXP \$YEAR\`         ">>plasim/run/most_plasim_run
 if [ "$parmode" = "omp" ]
 then
-   # One process. The thread count is compiled in, so the launcher only has
-   # to give the team a stack: the model's large local arrays become
-   # stack-allocated under -fopenmp, and 8 MB is not enough for them.
-   echo "   OMP_STACKSIZE=\${OMP_STACKSIZE:-512M} ./$executable        ">>plasim/run/most_plasim_run
+   # One process. The thread count is compiled in, so the launcher supplies
+   # only the two settings the team cannot run correctly without.
+   #
+   # OMP_STACKSIZE, because -fopenmp implies -frecursive and the model's large
+   # local arrays become stack-allocated; 8 MB is not enough for them.
+   #
+   # OMP_PROC_BIND and OMP_PLACES, because libgomp's DEFAULT IS UNBOUND. Left
+   # alone, threads land on arbitrary CPUs, the placement changes run to run,
+   # and some threads share a physical core while whole cores sit idle -- which
+   # on this processor also randomises which die a thread lands on, and the two
+   # dies are not interchangeable at T127 and above. Bound this way a thread
+   # takes core t, which is what Open MPI gives rank t, so the two layers are
+   # measured on the same placement rather than on their defaults.
+   echo "   export OMP_STACKSIZE=\${OMP_STACKSIZE:-512M}                ">>plasim/run/most_plasim_run
+   echo "   export OMP_PROC_BIND=\${OMP_PROC_BIND:-close}               ">>plasim/run/most_plasim_run
+   echo "   export OMP_PLACES=\${OMP_PLACES:-cores}                     ">>plasim/run/most_plasim_run
+   echo "   ./$executable                                        ">>plasim/run/most_plasim_run
 elif [ "$ncpus" -gt 1 ]
 then
    MPI_RUN=$(head -n 1 most_compiler_mpi | tr "=" "\n" | tail -1)

@@ -95,8 +95,14 @@
       
       logical :: ldsnow
       real :: zoro(NUGP) = 0.0
+!     Implicitly SAVE, so one copy shared by the whole team.
+!$omp threadprivate(zoro)
       real :: foro(NHOR) = 0.0
+!     Implicitly SAVE, so one copy shared by the whole team.
+!$omp threadprivate(foro)
       real :: zsnow(NUGP) = 0.0
+!     Implicitly SAVE, so one copy shared by the whole team.
+!$omp threadprivate(zsnow)
       
       integer noromax
       
@@ -596,6 +602,8 @@
       use glaciermod
 
       real :: rpersist(NHOR) = 0.0
+!     Implicitly SAVE, so one copy shared by the whole team.
+!$omp threadprivate(rpersist)
       
       if (nglacier .eq. 1) then
       

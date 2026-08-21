@@ -1510,9 +1510,17 @@
       use landmod
       
       real :: aa = 5.2
+!     Implicitly SAVE, so one copy shared by the whole team.
+!$omp threadprivate(aa)
       real :: yy = 4.0
+!     Implicitly SAVE, so one copy shared by the whole team.
+!$omp threadprivate(yy)
       real :: bf = 0.0
+!     Implicitly SAVE, so one copy shared by the whole team.
+!$omp threadprivate(bf)
       real :: al = 0.0
+!     Implicitly SAVE, so one copy shared by the whole team.
+!$omp threadprivate(al)
 !
 !     get surface background albedo from  annual cycle
 !

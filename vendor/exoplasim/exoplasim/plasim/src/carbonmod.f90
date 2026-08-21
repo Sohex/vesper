@@ -149,9 +149,17 @@
 #if outputrain==1      
       character srainstep*5   
       real :: fullprecip(NUGP) = 0.0
+!     Implicitly SAVE, so one copy shared by the whole team.
+!$omp threadprivate(fullprecip)
       real :: fullweather(NUGP) = 0.0
+!     Implicitly SAVE, so one copy shared by the whole team.
+!$omp threadprivate(fullweather)
       real :: fullevap(NUGP) = 0.0
+!     Implicitly SAVE, so one copy shared by the whole team.
+!$omp threadprivate(fullevap)
       real :: fullqvi(NUGP) = 0.0
+!     Implicitly SAVE, so one copy shared by the whole team.
+!$omp threadprivate(fullqvi)
 #endif   
       
       integer i
@@ -267,6 +275,8 @@
       real newpco2
       real globalavgt
       real :: globalweath(NUGP) = 0.0
+!     Implicitly SAVE, so one copy shared by the whole team.
+!$omp threadprivate(globalweath)
       
       
       call mpgagp(globalweath,localavgweather,1)

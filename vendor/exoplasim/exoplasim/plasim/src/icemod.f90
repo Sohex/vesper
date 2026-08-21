@@ -1150,6 +1150,8 @@
       subroutine mkicec(picedo,picedn,picec)
       use icemod
       real :: zh0 = 0.5
+!     Implicitly SAVE, so one copy shared by the whole team.
+!$omp threadprivate(zh0)
       real :: picedo(NHOR)  ! old thickness (input)
       real :: picedn(NHOR)  ! new thickness (input)
       real :: picec(NHOR)   ! old and new compactness (input & output)
@@ -1201,6 +1203,8 @@
       subroutine mkicecf(picedc,piced,picec)
       use icemod
       real :: zh0 = 0.5
+!     Implicitly SAVE, so one copy shared by the whole team.
+!$omp threadprivate(zh0)
       real :: picedc(NHOR)  ! clim. thickness (input)
       real :: piced(NHOR)   ! actual thickness (input)
       real :: picec(NHOR)   ! new compactness (input & output)
@@ -1252,9 +1256,17 @@
       use icemod
 !
       real :: zhice(NHOR) = 0. ! new ice thickness
+!     Implicitly SAVE, so one copy shared by the whole team.
+!$omp threadprivate(zhice)
       real :: zdice(NHOR) = 0. ! ice thickness change due to snow conversion
+!     Implicitly SAVE, so one copy shared by the whole team.
+!$omp threadprivate(zdice)
       real :: zdsnow(NHOR)= 0. ! snow depth change due to snow conversion
+!     Implicitly SAVE, so one copy shared by the whole team.
+!$omp threadprivate(zdsnow)
       real :: zqmelt(NHOR)= 0. ! residual qmelt going into ice
+!     Implicitly SAVE, so one copy shared by the whole team.
+!$omp threadprivate(zqmelt)
 !
 !     dbug arrays
 !
@@ -1390,7 +1402,11 @@
       use icemod
 !
       real :: zckap(NHOR) = 0.
+!     Implicitly SAVE, so one copy shared by the whole team.
+!$omp threadprivate(zckap)
       real :: zhsnow(NHOR)= 0.
+!     Implicitly SAVE, so one copy shared by the whole team.
+!$omp threadprivate(zhsnow)
 !
 !     debug arrays
 !
@@ -1463,6 +1479,8 @@
       integer :: ih(8)
 !
       real :: zsnow(NHOR) = 0.
+!     Implicitly SAVE, so one copy shared by the whole team.
+!$omp threadprivate(zsnow)
 !
       real,allocatable :: zprf1(:),zprf2(:)
 !
@@ -1587,8 +1605,14 @@
       use icemod
 !
       real :: zmelt(NHOR) = 0.
+!     Implicitly SAVE, so one copy shared by the whole team.
+!$omp threadprivate(zmelt)
       real :: zflr(NHOR) = 0.
+!     Implicitly SAVE, so one copy shared by the whole team.
+!$omp threadprivate(zflr)
       real :: zsum(2) = 0.
+!     Implicitly SAVE, so one copy shared by the whole team.
+!$omp threadprivate(zsum)
 !
 !     debug arrays
 !
@@ -1914,6 +1938,8 @@
 
       real :: zhfac(0:13)=(/0.912,0.942,1.,1.058,1.124,1.161,1.175,1.058,0.931 &
                         ,0.883,0.88,0.876,0.912,0.942/)
+!     Implicitly SAVE, so one copy shared by the whole team.
+!$omp threadprivate(zhfac)
 
 !     convert ice compactness to thickness (see CCM3 report pp 127-129)
 
@@ -1963,6 +1989,8 @@
 !
       real :: zsum(2)
       real :: zflx(NHOR) = 0.
+!     Implicitly SAVE, so one copy shared by the whole team.
+!$omp threadprivate(zflx)
 !
       zrhoilfdt=CRHOI*CLFI/xdt
 !

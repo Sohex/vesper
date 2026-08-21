@@ -1253,8 +1253,14 @@
       real(kind=8) psst(NHOR,NLEV_OCE)
 !
       real(kind=8) :: zk(NHOR,0:NLEV_OCE)  = 0. ! modfied diffusion coefficient
+!     Implicitly SAVE, so one copy shared by the whole team.
+!$omp threadprivate(zk)
       real(kind=8) :: ztn(NHOR,0:NLEV_OCE) = 0. ! new temperature
+!     Implicitly SAVE, so one copy shared by the whole team.
+!$omp threadprivate(ztn)
       real(kind=8) :: zebs(NHOR,0:NLEV_OCE)= 0. ! array for back substitution
+!     Implicitly SAVE, so one copy shared by the whole team.
+!$omp threadprivate(zebs)
 !
 !     modified diffusion coeffizient
 !

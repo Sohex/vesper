@@ -107,14 +107,24 @@ mode index, which is the only way the check can catch the mistake this code
 actually invites. That flaw shipped once before in this project, in the filter
 fold's indexing test, and it went in again here.
 
-**It does not yet reproduce the MPI model, and that is where Stage 1 stands.**
-At T21 on 2 threads and on 16, against the MPI build on the same bed and one
-timestep: 155 of 199 restart records identical, 41 beyond rounding scale. The
-grid round trip is exact and the collectives are right, so the divergence is
-above `mpimod_omp` rather than inside it. Ruled out so far: the collectives
-themselves, uninitialised stack locals (rebuilt with `-finit-integer=0
--finit-logical=false`, no change), and the spectral orography path (the branch
-that computes it does not execute in this configuration, in either build).
+**It reproduces the MPI model.** T21, against the MPI build on the same bed:
+
+| | records | worst |
+| --- | --- | ---: |
+| 2 threads, 1 step | **199 of 199 BIT IDENTICAL** | -- |
+| 16 threads, 1 step | 156 identical, 43 at rounding scale, 0 beyond | 1.0e-13 |
+| 16 threads, 20 steps | 143 identical, 56 at rounding scale, 0 beyond | 3.5e-11 |
+
+Bit identity at 2 threads was not expected and is worth understanding rather
+than celebrating: `mpsumsc` sums the partials in thread order 0..NPRO-1, and
+Open MPI's reduce_scatter happens to sum in rank order too, so at that size
+nothing is regrouped. At 16 the groupings differ and the last bits move, which
+is the expected result and the one the tolerance was declared for.
+
+**And the MPI build is unchanged, proved behaviourally rather than by
+inspection.** The committed source and the working source each built a 16-rank
+T21 binary; the two produced a BIT IDENTICAL restart. That is the guarantee
+that matters, and it is stronger than the object-level comparison it replaces.
 
 ## Two defects found on the way, one of them upstream's
 
@@ -138,4 +148,106 @@ semantics, and a spectral record holds `NRSP` values, not `NESP`. At 2 threads
 not read back. The lesson is narrow and worth keeping: the stub is a guide to
 the INTERFACE and not to the behaviour, because at one process most of the
 behaviour is absent.
+
+## The third defect, and the one that took the longest
+
+`glacierini` computes the spectral orography, and the two threads were sharing
+the array it transforms: thread 1's input was thread 0's OUTPUT. The array is
+
+    real :: foro(NHOR) = 0.0
+
+declared inside the subroutine. **A local variable with an initialiser has
+implicit SAVE**, so it lives in static storage -- one copy for the process, and
+therefore one copy shared by every thread. `-frecursive` does not move it to
+the stack, because the standard says it is SAVEd.
+
+That is a whole class, not one variable: **47 initialised locals across 9
+files**, every one of them shared where a rank had its own. `icemod` has 14,
+`hurricanemod` 13. Each is now `!$omp threadprivate` in its own routine.
+
+**Why it was missed.** Stage 0 split the binary's static data into module
+variables and "locals gfortran spilled out of the stack", and concluded the
+second group needed nothing because `-fopenmp` implies `-frecursive`. That is
+true for spilled AUTOMATICS and false for implicitly SAVEd locals, and both
+land in the same `.bss` with the same `name.N` symbol shape. The distinction is
+invisible in the symbol table and lives only in the declaration: an initialiser
+makes it SAVE.
+
+## What the debugging cost, and what would have found it sooner
+
+Four hypotheses were tested and refuted before the right one -- the collectives,
+uninitialised stack locals, the surfmod orography branch, and other modules with
+an undeclared root guard. Three things would have shortened it:
+
+- **The bisect that worked was N_RUN_STEPS = 0.** Comparing after zero
+  timesteps separated initialisation from the timestep in one run, and the
+  diagnostic output then named the exact line where the two builds first
+  disagree. That should have been the first move, not the fifth.
+- **A probe must not use a hard-coded unit.** The first instrumented run had
+  both threads opening unit 77, which is process-global, and they clobbered
+  each other -- so the probe reported that the threads held each other's
+  latitudes, which was false. One unit per thread fixed it. The tool being
+  debugged with was subject to the same hazard as the code under test.
+- **`paste` of two files with different line counts.** A misread of that output
+  produced a confident and wrong statement that the latitude chunks were
+  swapped. They were identical.
+
+## libgomp does not bind, and that has to be fixed before anything is measured
+
+Open MPI gives rank *r* core *r*, deterministically; this project verified that
+rather than assuming it. **libgomp's default is UNBOUND**, and it is worse than
+merely different: the placement changes run to run, and with sixteen threads
+some land on SMT siblings of the same physical core while whole cores sit idle.
+On this processor it also randomises which DIE a thread gets, and
+`rank-imbalance-and-weight-traffic.md` measured that the two dies are not
+interchangeable at T127 and above.
+
+Measured, three runs each:
+
+    default                        cpus 0,1,2,13,3,10,6,14,21,7,15,16,11,12,23,29
+                                   and a different set every run
+    OMP_PROC_BIND=close
+    OMP_PLACES=cores               cores 0..15, one thread each, every run
+    Open MPI, for comparison       cores 0..15, one rank each
+
+So the generated run script exports both, and a threaded measurement without
+them is not a measurement of the threading.
+
+## What Stage 1's measurement has to carry
+
+The rank matrix's verdicts do NOT transfer wholesale, and one of them
+specifically does not.
+
+**SMT was refused on a mechanism that is gone.** 32 ranks lost 49% to 113%
+because Open MPI busy-waits in `opal_progress`: two ranks sharing a physical
+core each burn the other's cycles. That is a property of the runtime, not of
+the model, and OpenMP's barrier wait is configurable -- `OMP_WAIT_POLICY` and
+`GOMP_SPINCOUNT` make a waiting thread sleep instead of spin. The verdict has
+to be re-measured rather than inherited.
+
+The same fact bears on where a gain could come from at all. CCD0's ranks spend
+23% of samples waiting while CCD1 paces them; under MPI that time is burned
+spinning and is unrecoverable. Under OpenMP with passive waiting those cores
+are idle instead. On a dedicated machine that buys nothing for LATENCY, because
+there is nothing else to run -- but it is exactly the difference that should
+show in the two cases where something else can use the cycles.
+
+| arm | what it settles |
+| --- | --- |
+| 16 threads against 16 ranks, bound | what Stage 1 is worth |
+| `OMP_WAIT_POLICY` active against passive at 16 | governs the arms below; likely null for latency, and two runs to know |
+| 32 threads | whether the SMT refusal survives without the spin |
+| two concurrent 8-thread jobs | the throughput incumbent, where passive waiting should matter most |
+
+Two things to carry INTO the 32-thread arm rather than discover after it:
+
+- **The restart incompatibility is unchanged.** A 16-way restart is unreadable
+  at 32 because `NESP = NSPP * NPRO` gives 1904 against 1920. That is
+  arithmetic, not an MPI property, so a favourable SMT result does not make 32
+  adoptable on its own.
+- **At 32 the paired layout drops out at low resolution.** `LPAIRLAT` needs
+  `NPRO` to divide `NLAT/2`, and at T21 `mod(32,64)` is not zero, so 32 threads
+  falls back to contiguous latitudes and silently gives up the symmetry work.
+  T127 and T170 divide cleanly. A T21 arm at 32 would compare two different
+  algorithms and must be stated as such or dropped.
 

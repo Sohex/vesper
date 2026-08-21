@@ -695,7 +695,11 @@
       use pumamod
       character (len=* ) :: ym
       character (len=64) :: ystar = ' '
+!     Implicitly SAVE, so one copy shared by the whole team.
+!$omp threadprivate(ystar)
       character (len=64) :: ymess = ' '
+!     Implicitly SAVE, so one copy shared by the whole team.
+!$omp threadprivate(ymess)
       integer :: j, ilen
 
       ilen = 60

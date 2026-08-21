@@ -76,6 +76,15 @@ def main() -> int:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("left", type=Path)
     ap.add_argument("right", type=Path)
+    ap.add_argument("--abs-floor", type=float, default=1e-12,
+                    help="a difference smaller than this in ABSOLUTE terms is not a "
+                         "difference, whatever it is relative to. Restarts carry "
+                         "accumulators that are still identically zero early in a run, "
+                         "and dividing one denormal-scale number by another reports a "
+                         "relative difference of order one for two fields that agree to "
+                         "1e-18. The floor is far below any quantity this model carries "
+                         "-- temperatures, pressures and fluxes are O(1) to O(1e5) -- so "
+                         "it cannot hide a real disagreement.")
     ap.add_argument("--tol", type=float, required=True,
                     help="largest relative difference, against the record's own RMS, "
                          "that still counts as a regrouped sum rather than a "
@@ -112,6 +121,9 @@ def main() -> int:
             n_diff += 1
             continue
         r = relative(va, vb)
+        worst_abs = max(abs(x - y) for x, y in zip(va, vb))
+        if worst_abs <= args.abs_floor:
+            r = 0.0                      # identical to the precision that means anything
         if r > worst_val:
             worst_name, worst_val = name, r
         if name in args.exact:

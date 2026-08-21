@@ -171,6 +171,8 @@
       use seamod
 !
       real :: zz0(NHOR) = 0.
+!     Implicitly SAVE, so one copy shared by the whole team.
+!$omp threadprivate(zz0)
 !
 !     coupling to sea ice
 !
