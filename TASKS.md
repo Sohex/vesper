@@ -74,7 +74,7 @@ Status: `open` | `doing` | `blocked` | `done` | `wontfix` (with a reason).
 
 ## BUDG -- the error budget and what it is denominated in
 
-0 open of 6 issued.
+1 open of 7 issued.
 
 | id | task | source | status |
 | --- | --- | --- | --- |
@@ -84,10 +84,11 @@ Status: `open` | `doing` | `blocked` | `done` | `wontfix` (with a reason).
 | BUDG-4 | -- | -- | done, see `archive/tasks.md` |
 | BUDG-5 | -- | -- | done, see `archive/tasks.md` |
 | BUDG-6 | -- | -- | done, see `archive/tasks.md` |
+| BUDG-7 | Retire the "CH4 and N2O, absent from every run on disk" row from `scripts/error_budget.py` once a baseline carries the band, leaving only the shortfall row beside it | `scripts/error_budget.py`, `exoplasim/notes/trace-gas-band.md` | open, and it is a DOUBLE COUNT until it happens: the two rows price the same gas twice, one for what the scheme fails to apply and one for what the existing runs never had at all. They are both correct today, because the band is resident and no run has it. The moment a run does, the second is wrong and the budget over-counts by 1.56 to 1.98 W/m2, which would make the largest item in it larger still and misrank everything below. It is a task rather than a step because nothing regenerates it: `error_budget.py` reads no run manifest and cannot notice [step: baseline_run] |
 
 ## CLIM -- climate
 
-6 open of 46 issued.
+5 open of 46 issued.
 
 | id | task | source | status |
 | --- | --- | --- | --- |
@@ -136,7 +137,7 @@ Status: `open` | `doing` | `blocked` | `done` | `wontfix` (with a reason).
 | CLIM-43 | -- | -- | done, see `archive/tasks.md` |
 | CLIM-44 | -- | -- | done, see `archive/tasks.md` |
 | CLIM-45 | Re-take CLIM-39's REDUCTION IDENTITY, which CLIM-44 showed was stated at a horizon that writes no gridpoint output: same configuration through a base-built binary and the multi-species one, at a segment length chosen against the write cadence and at a fixed rank count | `notes/audits/model-reproducibility.md`, `aeolian/notes/multi-species-aerosol.md` section 8 | open, and cheap -- seconds per run on the bed `exoplasim/scripts/reproducibility_matrix.py` uses, whose `check_binaries` guard also stops it running against a run directory's frozen executables. It needs a binary built from the pre-CLIM-39 base, which is the only part that is not free. UNVERIFIED rather than refuted: nothing suggests the identity fails, and the multi-species change is already resident and rebuilt, so this is closing a proof and not reopening a result [step: rebuild_binaries] |
-| CLIM-46 | The build's land hypsometry is biased high and does not converge over the range tested. At four times the region count the land AREA above every level falls by about a tenth, uniformly, ratio 0.913 at 0.5 km through 0.902 at 2 km, and area-weighted mean land elevation goes 0.3957 km to 0.3603 km while total land area barely moves. A coarse cell gives one averaged value to a large area, so ground high in only part of it is recorded as high throughout. Measured against the build as a common baseline the shift above 2 km DOUBLES as the region count doubles, -0.313 km then -0.607 km, and gridded correlation against the build does not improve, +0.9684 at twice and +0.9685 at four times | `notes/audits/orogen-resolution.md` | open. Distinct from relief, which IS converged to within 12% at every separation from 5 to 200 km: texture between neighbours has settled and the area distribution has not. The T42 orography ExoPlaSim runs on is drawn from this mesh, so the bias reaches the climate and every elevation threshold downstream of it, signed so the build runs high. Size it before acting: the open question is whether a tenth of the elevated area moves any downstream result, and the cheap test is re-gridding the existing four-times export to T42 and re-running a segment against it, which needs no new generation [step: orogen] |
+| CLIM-46 | WITHDRAWN, and kept as a row because the id was issued and the mistake is the useful part. The claim was that land hypsometry is biased high by resolution and does not converge, from a two-point comparison at 2,500,001 and 10,000,005 regions. A control at 2,600,001 and 2,700,001, where the resolution is to all intents identical, spreads mean land elevation by 0.0523 km and land area above 1 km by 11.0%, against the 4x differences of 0.0355 km and 10.3%. The effect is smaller than the noise. Its cause is that `randInt(numRegions)` picks the first plate seed by INDEX, so changing the region count also changes the realisation | `notes/audits/orogen-resolution.md` | wontfix, no defect demonstrated. The standing rule it leaves: on this generator a resolution claim needs a same-resolution control before it is a claim, and two runs a few percent apart is the cheap version. The same control also withdrew a concavity result and an RMS-from-converged-terrain figure from the same note [step: orogen] |
 
 ## CONS -- consistency checking
 

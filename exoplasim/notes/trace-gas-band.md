@@ -360,15 +360,40 @@ range -- produced no NaN and no abort.
 **Magnitude.** At 1.600 ppmv of CH4 and 0.300 of N2O against zero, the global
 mean outgoing longwave falls by **0.799 W/m2**, and no cell is unaffected.
 
-That last one wants reading against the right yardstick, which is not the
-offline pricing directly. This scheme's WHOLE CO2 greenhouse effect is 12.28
-W/m2, measured by turning CO2 off entirely, against roughly 25 to 30 for
-Earth's; and its CO2 doubling gives 1.576 against about 3.7. **A broadband
-scheme running at 40 to 45 percent of a line-by-line answer is the scheme being
-what it is.** The offline pricing for these gases is 1.56 to 1.98 W/m2 above a
-100 ppbv floor, so a 0-to-1.6 ppmv change should price a little above 2, and 40
-percent of that is 0.8. The term delivers what this scheme delivers for any
-greenhouse gas.
+### Reading the magnitude, and how far that reading goes
+
+The offline pricing is 1.56 to 1.98 W/m2 above a 100 ppbv floor, so a
+0-to-1.6 ppmv change should price a little above 2. The model applies 0.799,
+about 40 percent of it.
+
+**The scheme under-delivers on CO2 by a similar factor**, which is why 0.799 is
+not read as a defect in this term. Measured on the same bed: the whole CO2
+greenhouse is 12.28 W/m2, from turning CO2 off entirely, and a doubling gives
+1.576. **The Earth figures those are held against -- roughly 25 to 30 W/m2 and
+3.7 -- are quoted from general knowledge and have NOT been sourced or checked
+here**, so "40 to 45 percent of a line-by-line answer" is an impression and not
+a measurement. It is enough to say the two shortfalls are the same size and not
+enough to say either is right.
+
+**What the shortfall is NOT is this world's thinner column.** 1 bar over 12.81
+m/s2 gives 0.756 of Earth's column for the same mixing ratio, and the obvious
+reading is that a thinner column is a weaker greenhouse. That is directionally
+true and quantitatively small. Measured by running the model at 595 ppm, which
+is the CO2 amount that gives Earth's column at this gravity:
+
+| CO2 | greenhouse |
+| --- | ---: |
+| 450 ppm, this world's column | 12.284 W/m2 |
+| 595 ppm, Earth's column | 12.926 W/m2 |
+
+**0.642 W/m2**, against a gap of order fifteen. The column reduction accounts
+for about four percent of it. Note also that gravity is what does this, not
+radius: the column over a square metre is `P/g` and carries no radius at all. A
+larger planet holds more atmosphere in total and the same amount above each
+point.
+
+So the remaining shortfall is unattributed. It is consistent with a broadband
+scheme against line-by-line, and this note does not establish that.
 
 ## 4e. The bug that hid all of this, and it was not physics
 
