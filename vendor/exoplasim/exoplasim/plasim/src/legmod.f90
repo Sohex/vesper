@@ -25,6 +25,11 @@ real :: qv(NCSP,NLPP) ! Q(m,n) / (n*(n+1)) * skspgp         used in dv2uv
 real :: skgpsp(NTP1) ! Physics filter for GP -> SP
 real :: skspgp(NTP1) ! Physics filter for SP -> GP
 
+
+!     Threads instead of ranks: a thread owns what a rank owned.
+!     Inert without -fopenmp, so the MPI and serial builds are unchanged.
+!$omp threadprivate(qc,qe,qi,qj,qm,qq,qu,qv,skgpsp,skspgp)
+
 end module legmod
 
 ! =================

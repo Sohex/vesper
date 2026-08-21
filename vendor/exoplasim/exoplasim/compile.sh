@@ -65,13 +65,14 @@ longitudes=64
 fftopt="fftmod"
 levels=10
 ncpus=4
+parmode=""
 debug=0
 optimization=""
 nopt=0
 years=1
 nmars=0
 
-while getopts "p:r:v:n:O:t:dhm" opt; do
+while getopts "p:r:v:n:O:t:jdhm" opt; do
     case $opt in
         p)
             case $OPTARG in
@@ -180,6 +181,13 @@ while getopts "p:r:v:n:O:t:dhm" opt; do
         n)
             ncpus=$OPTARG
             ;;
+        j)
+            # Threads instead of ranks: one process, NPRO OpenMP threads,
+            # mpimod_omp in place of mpimod. The executable is named apart
+            # from the MPI one because it is a different binary identity at
+            # the same resolution and rank count, not a variant of it.
+            parmode="omp"
+            ;;
         d)
             debug=1
             ;;
@@ -205,8 +213,10 @@ while getopts "p:r:v:n:O:t:dhm" opt; do
     esac
 done
 
-echo "PRODUCING: "$optimization" -r"$prec" -o most_plasim_"$resolution"_l"$levels"_p"$ncpus".x"
-executable="most_plasim_"$resolution"_l"$levels"_p"$ncpus".x"
+suffix=""
+[ "$parmode" = "omp" ] && suffix="_omp"
+echo "PRODUCING: "$optimization" -r"$prec" -o most_plasim_"$resolution"_l"$levels"_p"$ncpus$suffix".x"
+executable="most_plasim_"$resolution"_l"$levels"_p"$ncpus$suffix".x"
 
 echo "Writing resmod.f90....."
 
@@ -255,13 +265,21 @@ rm ../bin/$executable
 rm ../run/$executable
 cp -p ../src/* .
 
-if [ "$ncpus" -gt 1 ]
+# The build directory carries a marker for which parallel layer it was last
+# built with, because the three share object and .mod names and a stale one
+# links silently. Switching layers empties it.
+if [ "$parmode" = "omp" ]
 then
-    [ ! -e MPI ] && rm -f *.o *.mod *.x
+    [ ! -e OMP ] && rm -f *.o *.mod *.x MPI OMP
+    touch OMP
+    cp ../../most_compiler_omp compilerargs
+elif [ "$ncpus" -gt 1 ]
+then
+    [ ! -e MPI ] && rm -f *.o *.mod *.x MPI OMP
     touch MPI
     cp ../../most_compiler_mpi compilerargs
 else
-    [ ! -e MPI ] && rm -f *.o *.mod *.x MPI
+    [ ! -e MPI ] && rm -f *.o *.mod *.x MPI OMP
     cp ../../most_compiler compilerargs
 fi
 
@@ -321,7 +339,13 @@ echo "   SNAPNAME=\`printf '%s_SNAP.%05d' \$EXP \$YEAR\`         ">>plasim/run/m
 echo "   DIAGNAME=\`printf '%s_DIAG.%05d' \$EXP \$YEAR\`         ">>plasim/run/most_plasim_run
 echo "   RESTNAME=\`printf '%s_REST.%05d' \$EXP \$YEAR\`         ">>plasim/run/most_plasim_run
 echo "   SNOWNAME=\`printf '%s_SNOW.%05d' \$EXP \$YEAR\`         ">>plasim/run/most_plasim_run
-if [ "$ncpus" -gt 1 ]
+if [ "$parmode" = "omp" ]
+then
+   # One process. The thread count is compiled in, so the launcher only has
+   # to give the team a stack: the model's large local arrays become
+   # stack-allocated under -fopenmp, and 8 MB is not enough for them.
+   echo "   OMP_STACKSIZE=\${OMP_STACKSIZE:-512M} ./$executable        ">>plasim/run/most_plasim_run
+elif [ "$ncpus" -gt 1 ]
 then
    MPI_RUN=$(head -n 1 most_compiler_mpi | tr "=" "\n" | tail -1)
    echo "   $MPI_RUN -np $ncpus $executable                      ">>plasim/run/most_plasim_run

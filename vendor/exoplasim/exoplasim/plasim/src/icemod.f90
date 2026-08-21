@@ -173,6 +173,19 @@
       integer :: myworld = 0
       integer :: nproc   = NPRO
 !
+
+!     Threads instead of ranks: a thread owns what a rank owned.
+!     Inert without -fopenmp, so the MPI and serial builds are unchanged.
+!$omp threadprivate(cheat,cicemin,cpme,croff,csnow,ctaux,ctauy,cust3,deglat,mpinfo,mypid,myworld,&
+!$omp&  naccuo,naccuout,naout,ncpl_ice_ocean,nentropy,newsurf,nfluko,ngui,nice,nicec2d,nout,noutput,&
+!$omp&  nperpetual_ice,nprhor,nprint,nproc,nrestart,nseaice,nsnow,nstep,ntskin,ntspd,nud,solar_day,&
+!$omp&  taunc,tfreeze,thicec,version,xaheat,xaout,xcflux,xcfluxa,xcfluxf,xcfluxn,xcfluxna,xcfluxr,&
+!$omp&  xcfluxra,xclicec,xclicec2,xcliced,xcliced2,xclsst,xclsst2,xclssto,xcpmea,xcroffa,xdt,xentro,&
+!$omp&  xfluxc,xfluxca,xflxice,xflxice2,xflxicea,xgw,xheat,xheata,xicec,xicecc,xiced,ximelt,ximelta,&
+!$omp&  xlhdt,xlhfl,xls,xlwfl,xmaxd,xmind,xmld,xoflux,xofluxa,xoheat,xpme,xprs,xqmelt,xqmelta,xroff,&
+!$omp&  xscflx,xscflxa,xshdt,xshfl,xsmelt,xsmelta,xsmflx,xsndch,xsnow,xsst,xstoi,xstoia,xswfl,xtaux,&
+!$omp&  xtauy,xts,xtsflux,xtsfluxa,xust3)
+
       end module icemod
 
 

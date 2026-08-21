@@ -623,4 +623,5 @@ one_offs:
   - exoplasim/scripts/compare_restarts.py
   - exoplasim/scripts/verify_symmetric_transform.py
   - exoplasim/scripts/verify_weight_factorisation.py
+  - exoplasim/scripts/verify_omp_collectives.sh
   - exoplasim/scripts/bench_rank_layout.py

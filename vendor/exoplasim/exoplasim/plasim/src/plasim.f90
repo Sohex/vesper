@@ -43,6 +43,20 @@
 
 plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 
+!     THE WHOLE RUN IS ONE PARALLEL REGION, and it has to be: the model's
+!     state is module data declared !$omp threadprivate, so a thread's copy
+!     lives exactly as long as the region does. Opening a region per phase
+!     would hand each phase a fresh, empty model.
+!
+!     Inert without -fopenmp, so the MPI build and the serial build read
+!     this as five comment lines and are unchanged. Under -fopenmp the team
+!     is fixed at NPRO -- the binary is compiled for a thread count the way
+!     the MPI binary is compiled for a rank count -- and mpstart checks it.
+!
+!     No copyin clause. gfortran's TLS initialisation image carries a
+!     module variable's declaration initialiser to every thread, which
+!     mpstart verifies on entry rather than trusting.
+!$omp parallel num_threads(NPRO) default(shared)
       call mpstart(-1)       ! -1: Start MPI   >=0 arg = MPI_COMM_WORLD
       call setfilenames
       call opendiag
@@ -54,6 +68,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       call master
       call epilog
       call mpstop
+!$omp end parallel
 
       stop
       end

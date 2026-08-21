@@ -81,3 +81,61 @@ Measured: **97.7 MB of TLS a thread** for `pumamod` alone, 1.6 GB peak resident
 across the team, on a machine with 61 GB. Not a constraint.
 
 **So Stage 0 is a pass and the approach is memory-feasible.**
+
+## Stage 1: `mpimod_omp.f90`, and where it stands
+
+Written, and the build carries it: `compile.sh -j` selects
+`MPIMOD=mpimod_omp`, `UTILMOD=utilities_omp` and `most_compiler_omp`, and names
+the executable `..._p16_omp.x` because a threaded binary is a different
+identity from an MPI one at the same resolution, not a variant of it. The build
+directory carries a marker for which parallel layer it last built, because the
+three share object names and a stale one links silently.
+
+**The MPI and serial builds are provably unchanged.** `plasimmod.f90` compiled
+with and without the 476 `!$omp threadprivate` lines, same filename, same
+flags, gives a BYTE IDENTICAL object: the directives are comments to a compiler
+not given `-fopenmp`.
+
+**The collectives are verified.** `verify_omp_collectives.sh` checks each of the
+39 routines against the answer written down in advance -- not against another
+run of the model. It passes at 2 and at 16 threads.
+
+Its first version could not have failed. Every thread contributed a CONSTANT,
+so the sums came out right no matter which slice a thread read: a uniform
+contribution makes any index confusion cancel. The values now depend on the
+mode index, which is the only way the check can catch the mistake this code
+actually invites. That flaw shipped once before in this project, in the filter
+fold's indexing test, and it went in again here.
+
+**It does not yet reproduce the MPI model, and that is where Stage 1 stands.**
+At T21 on 2 threads and on 16, against the MPI build on the same bed and one
+timestep: 155 of 199 restart records identical, 41 beyond rounding scale. The
+grid round trip is exact and the collectives are right, so the divergence is
+above `mpimod_omp` rather than inside it. Ruled out so far: the collectives
+themselves, uninitialised stack locals (rebuilt with `-finit-integer=0
+-finit-logical=false`, no change), and the spectral orography path (the branch
+that computes it does not execute in this configuration, in either build).
+
+## Two defects found on the way, one of them upstream's
+
+**`hurricanemod` has never had a working root guard.** It has no
+`implicit none` and imported only `NHOR, NLEV, NLEP, NUGP` from `pumamod`, so
+in `hurricaneini` both `mypid` and `NROOT` were UNDEFINED implicit locals and
+`if (mypid==NROOT)` compared two of them. Without `-frecursive` gfortran gives
+such locals static storage, so both read 0, the test was true on every rank,
+and every rank has been reading the namelist and writing the hurricane
+diagnostics. It survived because all 21 variables in the group are broadcast
+immediately after, so the duplicated read was overwritten with the root's
+values. Under `-fopenmp` they become stack locals holding whatever was there,
+several threads open unit 51 at once, and the read fails. Fixed by importing
+the two names; behaviour-neutral for the MPI build, which is why the fix is
+safe to make here.
+
+**Five of this file's own restart routines had the wrong record length.** They
+were written from `mpimod_stub.f90`'s shape rather than from `mpimod.f90`'s
+semantics, and a spectral record holds `NRSP` values, not `NESP`. At 2 threads
+`NESP == NRSP` and it did not show; at 16 it wrote a restart the model could
+not read back. The lesson is narrow and worth keeping: the stub is a guide to
+the INTERFACE and not to the behaviour, because at one process most of the
+behaviour is absent.
+

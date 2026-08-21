@@ -212,6 +212,7 @@ unless told they exist.
 | `compare_restarts.py` | compares two restarts record by record and separates a regrouped sum from a different computation |
 | `verify_symmetric_transform.py` | runs `legmod.f90`'s own `sp2fc` and `sp2fcdmu` against an associated Legendre table computed by scipy, one spectral mode at a time, with a negative control for each |
 | `verify_weight_factorisation.py` | checks that `legini`'s eight weight matrices are all P or Q times a per-mode and a per-latitude factor, which is what CLIM-48 rests on, with a negative control |
+| `verify_omp_collectives.sh` | checks each of `mpimod_omp.f90`'s 39 routines against the answer written down in advance, with mode-dependent data so an index error cannot cancel |
 | `bench_rank_layout.py` | rank layouts incl. oversubscribed, on latency AND throughput, with pinning verified |
 | `index_runs.py` | index every run by what it is, since a UUID says nothing |
 | `assess_convergence.py` | spin-up convergence against the predeclared criteria, over the last `--window` PRODUCTION orbits |

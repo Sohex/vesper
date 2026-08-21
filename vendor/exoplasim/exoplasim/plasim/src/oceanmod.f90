@@ -123,6 +123,16 @@
       integer :: myworld = 0
       integer :: nproc   = NPRO
 
+
+!     Threads instead of ranks: a thread owns what a rank owned.
+!     Inert without -fopenmp, so the MPI and serial builds are unchanged.
+!$omp threadprivate(cphi,cphih,dlam,dlayer,dmue,dphi,dtmix,gw,hdiffk,mldepth,mpinfo,mypid,myworld,&
+!$omp&  naccuout,naomod,ndatim,ndiag,nentropy,newsurf,nfluko,ngui,nhdiff,nlsg,nocean,nout,noutput,&
+!$omp&  nperpetual_ocean,nprhor,nprint,nproc,nrestart,nstep,ntspd,nud,solar_day,taunc,tfreeze,&
+!$omp&  vdiffk,vdiffkl,version,ycliced,yclsst,yclsst2,ydsst,ydssta,yentro,yfldo,yfldoa,yfsst,yfsst2,&
+!$omp&  yfssta,yheat,yheata,yicec,yiced,yicesnow,yiflux,yifluxa,yifluxr,yls,ymld,ypme,yqhd,yqhda,&
+!$omp&  yroff,ysst,ytaux,ytauy,yust3)
+
       end module oceanmod
 
 

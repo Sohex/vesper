@@ -1746,4 +1746,10 @@
       &              5.485209358288769,5.542009358288771,5.509849358288771,      &
       &              5.485729358288771,5.46160935828877/)
       
+
+!     Threads instead of ranks: a thread owns what a rank owned.
+!     Inert without -fopenmp, so the MPI and serial builds are unchanged.
+!$omp threadprivate(csnowalb,earthveg,fsnowalb,glacalbmin,groundblend,iceblend,iceblendmax,&
+!$omp&  iceblendmin,msnowalb,oceanblend,seaicemax,seaicemin,snowalbedos,wavelengths)
+
       end module specblock

@@ -59,6 +59,14 @@
       real :: dprscl(NHOR,NLEV)     ! convective snow for each level
       real :: dprsll(NHOR,NLEV)     ! large scale snow for each level
 !
+
+!     Threads instead of ranks: a thread owns what a rank owned.
+!     Inert without -fopenmp, so the MPI and serial builds are unchanged.
+!$omp threadprivate(clwcrit1,clwcrit2,clwfac,dprcl,dprll,dprscl,dprsll,gamma,icclev,icctot,kbeta,&
+!$omp&  nbeta,nclouds,ncsurf,ndca,nevapprec,nmoment,nprc,nprl,nshallow,nstorain,pdeep,pdeepth,rbeta,&
+!$omp&  rcrit,rcritmod,rcritslope,rhbeta,rkshallow,time4cl,time4dca,time4prc,time4prl,time4rain,&
+!$omp&  version)
+
       end module rainmod
 
 !     ==================

@@ -78,6 +78,14 @@
       real :: tune1 = 5.41 ! Tuning adjustment to make global average match for non-precip model.
       real :: tune2 = 2.20 ! Tuning adjustment to make precip model match non-precip model.
 !
+
+!     Threads instead of ranks: a thread owns what a rank owned.
+!     Inert without -fopenmp, so the MPI and serial builds are unchanged.
+!$omp threadprivate(avgweathering,aweathering,beta,carbon_namelist,cstep,dglobe,dpco2dt,frequency,&
+!$omp&  interval,istep,kact,krun,localavgprecip,localavgtemps,localavgweather,localprecip,&
+!$omp&  localweathering,ncarbon,nco2evolve,nsupply,pearth,psurf0,timeweight,tune1,tune2,vearth,&
+!$omp&  version,volcanco2,wmax,zeta)
+
       end module carbonmod
       
 !      

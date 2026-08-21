@@ -27,6 +27,13 @@
       real    :: mpstep           =  45.0 ! Minutes per timestep
       real    :: tcalday          = 86400.0 ! seconds per 'calendar' (1/360th year) day
 
+
+!     Threads instead of ranks: a thread owns what a rank owned.
+!     Inert without -fopenmp, so the MPI and serial builds are unchanged.
+!$omp threadprivate(day_24hr,m_days_per_month,m_days_per_year,mona365,monaccu,mondays,mpstep,mtspd,&
+!$omp&  n_days_per_month,n_days_per_year,n_start_step,ntspd,nud,ny001d,ny004d,ny100d,ny400d,&
+!$omp&  solar_day,tcalday)
+
       end module calmod
 
 

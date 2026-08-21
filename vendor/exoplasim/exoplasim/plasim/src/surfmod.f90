@@ -20,6 +20,11 @@
 
       real :: doro(NHOR) = 0.0     ! orography
 
+
+!     Threads instead of ranks: a thread owns what a rank owned.
+!     Inert without -fopenmp, so the MPI and serial builds are unchanged.
+!$omp threadprivate(doro,nfreefo,noromax,nsurcod,nsurf,nsurnum,version,ysfile,ysurnam)
+
       end module surfmod
 
 

@@ -56,6 +56,13 @@
       real :: cswfla(NHOR)   = 0.  ! net solar radiation (w/m2) (puma -> ice)
       real :: clwfla(NHOR)   = 0.  ! surface thermal radiation (w/m2) (puma -> ice)
 !
+
+!     Threads instead of ranks: a thread owns what a rank owned.
+!     Inert without -fopenmp, so the MPI and serial builds are unchanged.
+!$omp threadprivate(albice,albsea,charnock,cheata,cicec,ciced,clhdta,clhfla,clwfla,cmld,cpmea,cprsa,&
+!$omp&  croffa,cshdta,cshfla,csmelt,csndch,csnow,csst,cswfla,ctauxa,ctauya,cts,cust3a,dqs,drhsice,&
+!$omp&  drhssea,dsst,dts,dz0ice,dz0sea,naccua,ncpl_atmos_ice,version)
+
       end module seamod
 
 !     =================

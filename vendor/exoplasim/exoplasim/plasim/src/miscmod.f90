@@ -22,6 +22,11 @@
       real :: dtnudge(NHOR,0:13) ! climatological temperature (annual cycle)
       real :: dfnudge(NHOR,0:13) ! climatological fluxes correction (annual cycle)
 !
+
+!     Threads instead of ranks: a thread owns what a rank owned.
+!     Inert without -fopenmp, so the MPI and serial builds are unchanged.
+!$omp threadprivate(dfnudge,dtnudge,nfixer,nudge,time4fix,time4mis,tnudget,version,zgw)
+
       end module miscmod
 
 !     ==================

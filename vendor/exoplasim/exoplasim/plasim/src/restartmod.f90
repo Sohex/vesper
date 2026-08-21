@@ -8,6 +8,11 @@
       integer            :: nlastrec =   0     ! Last read record
       character (len=16) :: yresnam(nresdim)   ! Array of record names
       logical            :: ldebrm   = .false. ! Print debug info
+
+!     Threads instead of ranks: a thread owns what a rank owned.
+!     Inert without -fopenmp, so the MPI and serial builds are unchanged.
+!$omp threadprivate(ldebrm,nexcheck,nlastrec,nresnum,yresnam)
+
       end module restartmod
 
 !     ======================

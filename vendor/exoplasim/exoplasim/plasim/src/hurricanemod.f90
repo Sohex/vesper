@@ -2,6 +2,16 @@
       module hurricanemod
       use resmod
       use pumamod, only: NHOR, NLEV, NLEP, NUGP
+!     mypid and NROOT were NOT imported, and this module has no
+!     `implicit none`, so every `if (mypid==NROOT)` below compared two
+!     UNDEFINED implicit locals. Without -frecursive gfortran gives them
+!     static storage, so both read 0 and the test was true on every rank:
+!     the guard has never guarded anything, and each rank has been
+!     reading the namelist and writing the diagnostics. It survived only
+!     because all 21 namelist variables are broadcast immediately after,
+!     so the duplicated read was overwritten with the root's values.
+!     Under -fopenmp they become stack locals holding whatever was there.
+      use pumamod, only: mypid, NROOT
       
 !       parameter(NLEV = 10)
 !       parameter(NHOR = 64)
@@ -72,6 +82,15 @@
       real :: top=0.05      ! Pressure below which sounding is ignored (hPa)
       
       
+
+!     Threads instead of ranks: a thread owns what a rank owned.
+!     Inert without -fopenmp, so the MPI and serial builds are unchanged.
+!$omp threadprivate(aa,allflag,alv0,baz,bb,ckcd,cl,cpd,cpv,cpvmcl,endthresh,eps,gpimask,gpithresh,&
+!$omp&  hc_capture,hc_indlog,hc_namelist,hc_output,k20flag,kstorms,laavmask,lavthresh,maxstormlen,&
+!$omp&  maxsurftemp,minstormlen,minsurftemp,mpotimask,ngpitrigger,nktrigger,nstormdiag,nstormlen,&
+!$omp&  nstorms,nuh,rd,rvp,shear,sizethresh,swindmask,swindthresh,top,tsmask,ventimask,vithresh,&
+!$omp&  vmxthresh,vrmpimask,vrmthresh,wind,windflag,windmask,windthresh)
+
       end module hurricanemod
 !       
 !       

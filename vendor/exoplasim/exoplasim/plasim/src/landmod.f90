@@ -118,6 +118,17 @@
       real :: dalbclim1(NHOR)   =  2.0  ! climatological background albedo (<.75 um)
       real :: dalbclim2(NHOR)   =  2.0  ! climatological background albedo (>.75 um)
 !
+
+!     Threads instead of ranks: a thread owns what a rank owned.
+!     Inert without -fopenmp, so the MPI and serial builds are unchanged.
+!$omp threadprivate(albgmax,albgmax1,albgmax2,albgmin,albgmin1,albgmin2,albland,alblandmax,&
+!$omp&  alblandnl,albsmax,albsmax1,albsmax2,albsmaxf,albsmaxf1,albsmaxf2,albsmin,albsmin1,albsmin2,&
+!$omp&  albsminf,albsminf1,albsminf2,co2conv,dalbcl,dalbcl1,dalbcl2,dalbclim,dalbclim1,dalbclim2,&
+!$omp&  darea,dgroundalbnl,doro,dqs,drhsfull,drhsland,driver,dsmax,dsnowt,dsnowz,dsoilt,dsoilz,dtcl,&
+!$omp&  dtclim,dtclsoil,dts,dtsm,duroff,dvroff,dwatcini,dwater,dwcl,dwclim,dz0clim,dz0climo,dz0land,&
+!$omp&  dzglac,dztop,lversion,newsurf,nlandt,nlandw,nwatcini,nwetsoil,rhosnow,rinifor,rlue,&
+!$omp&  rnbiocats,sicecap,sicediff,snowcap,snowdiff,soilcap,soildiff,tau_soil,tau_veg,wsmax)
+
       end module landmod
 
 !     ==================

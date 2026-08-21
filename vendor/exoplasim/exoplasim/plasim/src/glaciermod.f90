@@ -47,6 +47,12 @@
       real :: rhoglac  = 850.    ! glacial ice density (kg/m**3)
 
 !
+
+!     Threads instead of ranks: a thread owns what a rank owned.
+!     Inert without -fopenmp, so the MPI and serial builds are unchanged.
+!$omp threadprivate(glacelim,glacier_namelist,glacieroro,groundoro,gversion,icesheeth,netoro,&
+!$omp&  nglacier,persistflag,rhoglac)
+
       end module glaciermod
           
 !      

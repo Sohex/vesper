@@ -47,6 +47,12 @@
       real :: time4st = 0.        ! CPU time needed for wind stress
       real :: time4vd = 0.        ! CPU time needed for vertical diffusion
 
+
+!     Threads instead of ranks: a thread owns what a rank owned.
+!     Inert without -fopenmp, so the MPI and serial builds are unchanged.
+!$omp threadprivate(dtransh,dtransm,nevap,nshfl,nstress,ntsa,nvdiff,time4ev,time4fl,time4sf,time4sh,&
+!$omp&  time4st,time4tr,time4vd,vdiff_b,vdiff_c,vdiff_d,vdiff_lamm,version,zumin)
+
       end module fluxmod
 
 !     ==================

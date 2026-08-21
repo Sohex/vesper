@@ -118,6 +118,15 @@ real    :: zvpd                  ! vapor pressure deficit
 real    :: zbeta
 real    :: zglacfree             ! glacier free fraction
 
+
+!     Threads instead of ranks: a thread owns what a rank owned.
+!     Inert without -fopenmp, so the MPI and serial builds are unchanged.
+!$omp threadprivate(adcsoil,adcveg,adlai,agpp,agppl,agppw,alitter,anogrow,anpp,aresh,cveg_e,cveg_g,&
+!$omp&  dagg,dcsoil,dcveg,dgpp,dgppl,dgppw,dgrow,dlai,dlitter,dmr,dnogrow,dnpp,dresh,dsc,dvsoil,&
+!$omp&  forgrow,ibiomass,jhor,ncveg,rinidagg,rinidmr,rinidsc,rinisoil,riniveg,veg_version,zalbsn,&
+!$omp&  zbeta,zforest,zft,zglacfree,zgpp,zgppl,zgppw,zlaim,zlitter,znogrow,znpp,zres,zsvp,zvalb,&
+!$omp&  zveg,zvegm,zvpd,zvrhs,zvz0,zwmax)
+
 end module vegmod
 
 

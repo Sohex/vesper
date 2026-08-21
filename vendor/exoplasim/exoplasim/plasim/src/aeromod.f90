@@ -174,6 +174,13 @@
       real :: gdrage(NLON,NLAT) = 0.0
       real :: gwpr(NLON,NLAT)   = 0.0
 
+
+!     Threads instead of ranks: a thread owns what a rank owned.
+!     Inert without -fopenmp, so the MPI and serial builds are unchanged.
+!$omp threadprivate(apart,ddrage,dsrcw,dustca,dustcd0,dustce,dustfa,dustfb,dustnq,dustra0,dustsnd,&
+!$omp&  dustust0,dustustt,dustwcv,dustwk,dustz0,dwpr,fcoeff,gdrage,gsrcw,gwpr,l_bulk,l_source,&
+!$omp&  ldepvel,ldustemit,lwetdep,rhop,scava,scavb,vdaero)
+
       end module aeromod
 
 !     ==================

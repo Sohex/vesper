@@ -50,6 +50,11 @@
       real ::  dtoa             ! delta_t/plarad
       real ::  dtdx  (NLAT)     ! delta_t/delta_x
 
+
+!     Threads instead of ranks: a thread owns what a rank owned.
+!     Inert without -fopenmp, so the MPI and serial builds are unchanged.
+!$omp threadprivate(colad,colae,dap,dbk,dlat,dtdx,dtoa,gaulat,iml,jn0,js0,rcap,rcolad)
+
       end module tracermod
 
 !     ======================

@@ -20,6 +20,11 @@
 
       integer :: lastn = 0
       real,allocatable :: trigs(:)
+
+!     Threads instead of ranks: a thread owns what a rank owned.
+!     Inert without -fopenmp, so the MPI and serial builds are unchanged.
+!$omp threadprivate(lastn,nallowed,trigs)
+
       end module fftmod
 
 !     ================

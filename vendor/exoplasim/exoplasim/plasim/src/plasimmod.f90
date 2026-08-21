@@ -737,6 +737,48 @@
       logical :: ldtns   = .FALSE.    ! DTNS changed by GUI
       logical :: lrotspd = .FALSE.    ! rotspd changed by GUI
 
+
+!     Threads instead of ranks: a thread owns what a rank owned.
+!     Inert without -fopenmp, so the MPI and serial builds are unchanged.
+!$omp threadprivate(aadalb,aadcc,aadforest,aadglac,aadicec,aadiced,aadls,aadmld,aadq,aadql,aadqo3,&
+!$omp&  aadsalb1,aadsalb2,aadsnow,aadt,aadtd2,aadtd3,aadtd4,aadtd5,aadtsoil,aadust3,aadwatc,aadwmax,&
+!$omp&  aadz0,aaglacieroro,aagroundoro,aammr,aanrho,aasd,aaso,aasp,aasqout,aast,aasz,acapen,acc,&
+!$omp&  achim,acpd,adener3d,adenergy,adv,aero_namelist,aevap,agpi,akap,alaav,alambm,alhfl,alnb,alr,&
+!$omp&  als,alv,ampoti,aorbnu,aprc,aprl,aprs,aqvi,arasc,ardist,aroff,ashfl,asigrain,asmelt,asndch,&
+!$omp&  assol,assolu,asthr,asthru,ataux,atauy,ats0,atsa,atsama,atsami,atsol,atsolu,atthr,aventi,&
+!$omp&  avrmpi,azdecl,azmuz,bm1,c,capen,ccc,chim,chlat,co2,cola,crap,csm,csq,cst,csu,csv,ct,cv,&
+!$omp&  daeros,dalb,damp,dampsp,dawn,day_24hr,dcc,dclforc,dconv,deglat,delt,delt2,deltsec,deltsec2,&
+!$omp&  dener3d,denergy,dentro,dentro3d,dentrop,dentropy,dentroq,dentrot,devap,dfd,dflux,dforest,&
+!$omp&  dftd,dftu,dfu,dglac,dglacalbmn,dgp2d,dgp3d,dgroundalb,dicealbmn,dicealbmx,dicec,diced,dlhdt,&
+!$omp&  dlhfl,dls,dlwfl,dmld,doceanalb,dp,dp0,dprc,dprl,dprs,dq,dqco2,dqdt,dql,dqo3,dqsat,dqt,dqvi,&
+!$omp&  drhs,drunoff,dsalb,dshdt,dshfl,dsigma,dsmelt,dsndch,dsnow,dsnowalb,dsnowalbmn,dsnowalbmx,&
+!$omp&  dsp2d,dsp3d,dswfl,dt,dtaux,dtauy,dtd2,dtd3,dtd4,dtd5,dtdt,dtdtlwr,dtdtswr,dtep,dtns,dtrace,&
+!$omp&  dtrop,dtsa,dtsoil,dttl,dttrp,du,du0,dudt,dust3,dv,dv0,dvdt,dw,dwatc,dwmax,dz0,eccen,&
+!$omp&  efficiency_dat,evap,filterkappa,fixedlon,fluxmod_namelist,frcmod,g,ga,gascon,gd,gp,gpi,&
+!$omp&  gpimax,gpj,gq,gqdt,gt,gtdt,gu,gudt,guiinc,guimax,guimin,gv,gvdt,gwd,gz,hcendstep,hcinterval,&
+!$omp&  hcstartstep,ice_output,icemod_namelist,ilatperm,kick,l_aero,laav,laavmax,landhoskn0,&
+!$omp&  landmod_namelist,ldisp,ldtep,ldtns,lnb,lrotspd,m_days_per_month,m_days_per_year,mars,&
+!$omp&  mcal_days_per_year,meananom0,meed,mint,mintru,miscmod_namelist,mmr,mmrt,mocd,model,mpinfo,&
+!$omp&  mpoti,mpotimax,mpstep,mrdim,mrinfo,mrnum,mrpid,mrtru,mrworld,mstep,mtspd,mvelp,mypid,&
+!$omp&  myworld,n_days_per_month,n_days_per_year,n_run_days,n_run_months,n_run_steps,n_run_years,&
+!$omp&  n_sea_points,n_start_month,n_start_step,n_start_year,n_steps_per_year,naccuout,nadv,nafter,&
+!$omp&  naqua,ncoeff,ndatim,ndel,ndesert,ndheat,ndiag,ndiagcf,ndiaggp,ndiaggp2d,ndiaggp3d,ndiagsp,&
+!$omp&  ndiagsp2d,ndiagsp3d,ndivdamp,ndl,nener3d,nenergy,nentro3d,nentropy,neqsig,nfilter,&
+!$omp&  nfilterexp,nfixorb,nflux,ngenkeplerian,nglspec,ngptfilter,ngui,nguidbg,nhcadence,nhcstp,&
+!$omp&  nhdiff,nhordif,nhurricane,nindex,nkits,nlowio,noutput,npackgp,npacksp,nperpetual,nprhor,&
+!$omp&  nprint,nproc,nqspec,nrad,nrdrag,nrestart,nrho,nscatsp,nseedlen,nsela,nshutdown,nsnapshot,&
+!$omp&  nspinit,nsponge,nspvfilter,nstep,nstep1,nstps,nstpw,nstratosponge,nsync,ntime,ntpal,ntspd,&
+!$omp&  nud,numrhos,nut,nveg,nwpd,nwritehurricane,obliq,ocean_output,oceanmod_namelist,olr,oroscale,&
+!$omp&  parc,pfac,planet_namelist,plarad,plasim_diag,plasim_hcadence,plasim_namelist,plasim_output,&
+!$omp&  plasim_restart,plasim_snapshot,plasim_status,plasimversion,plavor,pnu,pnu21,precip,psurf,&
+!$omp&  ptop,ptop2,ra1,ra2,ra4,radmod_namelist,rainmod_namelist,rcs,rcsq,rdbrv,rdsig,restim,rotspd,&
+!$omp&  sak,sakpp,sd,sdd,sdipole,sdipolep,sdm,sdp,sdt,seamod_namelist,seed,sellon,sid,sidereal_day,&
+!$omp&  sidereal_year,sigh,sigma,sigmah,sigrain,so,solar_day,sop,sp,span,spd,spm,spnorm,spp,spt,sq,&
+!$omp&  sqm,sqout,sqp,sqt,sr,sr1,sr2,srm,srp,st,std,stm,stp,stt,surfmod_namelist,syncstr,synctime,&
+!$omp&  sz,szd,szm,szp,szt,t0,t01s2,t2mean,tau,taucool,tdipole,tdipolep,tdissd,tdissq,tdisst,tdissz,&
+!$omp&  tempmax,tempmin,tfrc,tgr,time0,tkp,tmelt,tmstart,tropical_year,umax,vegmod_namelist,venti,&
+!$omp&  ventimin,vrmpi,vrmpimax,ww,yguinam,ympname,yplanet)
+
       contains
 
 !     ==================

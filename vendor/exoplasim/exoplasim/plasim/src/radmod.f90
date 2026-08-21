@@ -383,6 +383,20 @@
       real :: solslatsdec      ! sin(lat)*sin(decl) 
       real :: zmuz             ! temporary zenit angle   
 !
+
+!     Threads instead of ranks: a thread owns what a rank owned.
+!     Inert without -fopenmp, so the MPI and serial builds are unchanged.
+!$omp threadprivate(a0o3,a1o3,acl2,acllwr,aco3,aerofile,aeroqlw,aeroqs,aodsp,apart,aqlw,bo3,bscat1,&
+!$omp&  bscat2,ch4,clgray,co2sww,co3,daerod,ddustcol,ddustod,desync,dftd0,dftde1,dftde2,dftu0,&
+!$omp&  dftue1,dftue2,dqo3cl,dusthsc,dustqlw,dustsc,eccf,gdist2,gmu0,gmu1,gsol0,gsolamp,gsolamp2,&
+!$omp&  gsolperiod,gsolperiod2,gsolphase,gsolphase2,gsolstart,h2oswl,h2osww,iaerint,iyrad,iyrbp,&
+!$omp&  l_aerorad,lambm,lambm0,ldustchk,lstarfile,meananom0r,minwavel,mvelpp,n2o,naerosp,nclouds,&
+!$omp&  ncstsol,ndcycle,ndustrad,necham,necham6,newrsc,nfixed,nlwr,no3,npbroaden,nradice,nrscat,&
+!$omp&  nsimplealbedo,nsol,nsolcycle,nstarfile,nstartemp,nswr,nswrcl,o3scale,o3uvw,o3visw,obliqr,&
+!$omp&  orbnu,qex1,qex2,rasc,rcl1,rcl2,rcoeff,rversion,slowdown,solcdec,solclat,solclatcdec,solsdec,&
+!$omp&  solslat,solslatsdec,ssa1,ssa2,starbbtemp,starfile,starfilehr,th2oc,time4lwr,time4rad,&
+!$omp&  time4swr,toffo3,tpofmt,tswr1,tswr2,tswr3,zcdayf,zdeclf,zmuz,zsolar1,zsolar2,zsolars)
+
       end module radmod
 
 !
