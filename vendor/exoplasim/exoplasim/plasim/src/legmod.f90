@@ -440,15 +440,25 @@ real :: pu(2,NLON/2,NLPP,NLEV)
 real :: pv(2,NLON/2,NLPP,NLEV)
 real :: zsave
 
+integer :: j ! Loop index for spectral mode within one m
+integer :: k ! Index for the mirror latitude
 integer :: l ! Loop index for latitude
 integer :: m ! Loop index for zonal wavenumber m
 integer :: n ! Loop index for total wavenumber n
 integer :: v ! Loop index for level
-integer :: w ! Loop index for spectral mode
+integer :: w ! Index of the first spectral mode of one m
+
+! Eight products, each needing a symmetric and an antisymmetric partial sum.
+! Named for what they carry: zv/zu the weight matrix, z/d the field, 1/2 the
+! Fourier component, e/o the parity.
+real :: zvz1e, zvz1o, zvz2e, zvz2o, zvd1e, zvd1o, zvd2e, zvd2o
+real :: zuz1e, zuz1o, zuz2e, zuz2o, zud1e, zud1o, zud2e, zud2o
 
 pu(:,:,:,:) = 0.0
 pv(:,:,:,:) = 0.0
 
+if (.not. LPAIRLAT) then ! Contiguous latitudes: no mirror is local
+!----------------------------------------------------------------------
 do v = 1 , NLEV
   zsave = pz(1,2,v)
   pz(1,2,v) = zsave - plavor
@@ -465,7 +475,82 @@ do v = 1 , NLEV
     enddo ! m
   enddo ! l
   pz(1,2,v) = zsave
-enddo ! jv
+enddo ! v
+else                     ! Paired latitudes: symmetry conserving
+!----------------------------------------------------------------------
+!  This one does NOT reduce to a single parity split, and pattern-matching
+!  sp2fc onto it gives a wrong answer that looks right. dv2uv mixes qu, from
+!  P, with qv, from dP/dmu, and the two have OPPOSITE parity:
+!
+!      qu(w,k) =  s(w) * qu(w,l)        s = (-1)**(m+n)
+!      qv(w,k) = -s(w) * qv(w,l)
+!
+!  so u and v do not share a split and each of the eight products needs its
+!  own pair of accumulators. Substituting the two relations into the four
+!  outputs above gives the mirror as the same sixteen sums recombined, with
+!  the qv terms and the odd terms each contributing a sign flip.
+!
+!  Sixteen live accumulators is the cost, and the risk: if they spill, the
+!  saving goes to stack traffic instead. That is measured on the built code
+!  rather than predicted.
+do v = 1 , NLEV
+  zsave = pz(1,2,v)
+  pz(1,2,v) = zsave - plavor
+  do l = 1 , NLHP
+    k = NLPP + 1 - l
+    w = 1
+    do m = 1 , NTP1
+      zvz1e = 0.0
+      zvz1o = 0.0
+      zvz2e = 0.0
+      zvz2o = 0.0
+      zvd1e = 0.0
+      zvd1o = 0.0
+      zvd2e = 0.0
+      zvd2o = 0.0
+      zuz1e = 0.0
+      zuz1o = 0.0
+      zuz2e = 0.0
+      zuz2o = 0.0
+      zud1e = 0.0
+      zud1o = 0.0
+      zud2e = 0.0
+      zud2o = 0.0
+      do j = w , w + NTP1 - m , 2       ! n = m, m+2, ...   symmetric
+        zvz1e = zvz1e + qv(j,l)*pz(1,j,v)
+        zvz2e = zvz2e + qv(j,l)*pz(2,j,v)
+        zvd1e = zvd1e + qv(j,l)*pd(1,j,v)
+        zvd2e = zvd2e + qv(j,l)*pd(2,j,v)
+        zuz1e = zuz1e + qu(j,l)*pz(1,j,v)
+        zuz2e = zuz2e + qu(j,l)*pz(2,j,v)
+        zud1e = zud1e + qu(j,l)*pd(1,j,v)
+        zud2e = zud2e + qu(j,l)*pd(2,j,v)
+      enddo ! j
+      do j = w + 1 , w + NTP1 - m , 2   ! n = m+1, m+3, ... antisymmetric
+        zvz1o = zvz1o + qv(j,l)*pz(1,j,v)
+        zvz2o = zvz2o + qv(j,l)*pz(2,j,v)
+        zvd1o = zvd1o + qv(j,l)*pd(1,j,v)
+        zvd2o = zvd2o + qv(j,l)*pd(2,j,v)
+        zuz1o = zuz1o + qu(j,l)*pz(1,j,v)
+        zuz2o = zuz2o + qu(j,l)*pz(2,j,v)
+        zud1o = zud1o + qu(j,l)*pd(1,j,v)
+        zud2o = zud2o + qu(j,l)*pd(2,j,v)
+      enddo ! j
+      pu(1,m,l,v) =  (zvz1e + zvz1o) + (zud2e + zud2o)
+      pu(2,m,l,v) =  (zvz2e + zvz2o) - (zud1e + zud1o)
+      pv(1,m,l,v) =  (zuz2e + zuz2o) - (zvd1e + zvd1o)
+      pv(2,m,l,v) = -(zuz1e + zuz1o) - (zvd2e + zvd2o)
+      pu(1,m,k,v) =  (zvz1o - zvz1e) + (zud2e - zud2o)
+      pu(2,m,k,v) =  (zvz2o - zvz2e) + (zud1o - zud1e)
+      pv(1,m,k,v) =  (zuz2e - zuz2o) + (zvd1e - zvd1o)
+      pv(2,m,k,v) =  (zuz1o - zuz1e) + (zvd2e - zvd2o)
+      w = w + NTP1 - m + 1
+    enddo ! m
+  enddo ! l
+  pz(1,2,v) = zsave
+enddo ! v
+!----------------------------------------------------------------------
+endif ! symmetric?
 return
 end
 
