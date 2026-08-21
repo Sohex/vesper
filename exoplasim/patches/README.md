@@ -101,6 +101,22 @@ sedimentation sign while the 99%-per-step bottom-layer scrub is still in place,
 so merging it alone gives two sinks where the paper describes one.
 `notes/audits/aerosol-particle-radius.md` carries the table.
 
+Also not a patch here, and not yet offered: north-south symmetry for the
+spectral transforms, in `mpimod.f90`, `plasimmod.f90` and `legmod.f90`. Stock
+ExoPlaSim scatters CONTIGUOUS latitude blocks, so a latitude and its mirror
+land on different processes and the symmetric branches `legmod` already carries
+are unreachable on anything but one process; the inverse transforms have no
+symmetric path at all. Permuting the scatter so a mirror pair is local makes
+the first reachable and lets the second be written. Worth **+1.75% at T42,
++4.34% at T85, +6.92% at T127 and +11.65% at T170**, and approximately nothing
+at T21. It falls back to the stock contiguous layout wherever `NPRO` does not
+divide `NLAT/2`, and at one process it compiles to the code that was already
+there. `exoplasim/notes/paired-latitude-decomposition.md` and
+`exoplasim/notes/symmetric-transforms.md` carry the derivation, the tests and
+the measurements; the pitch has to lead with the trade rather than the headline,
+because the people it helps are the ones pushing resolution and everyone else
+gets a decomposition change that has to be right.
+
 `aerosol-longwave`, `dust-emission`, `prescribed-dust`, `multi-species-aerosol`
 and `star-cycle` stay local by decision: the dust set while this project is its
 only user, the other two until someone opens a task to offer them. Each defaults

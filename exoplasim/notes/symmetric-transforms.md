@@ -1,8 +1,13 @@
-# Symmetric spectral transforms: the derivation, before any of it is written
+# Symmetric spectral transforms: the derivation, and what it turned out to be worth
 
 *This is a COMPUTE change to the Vesper worldbuilding project's climate model.
-Nothing in it is about the simulated planet. Written 2026-08-20, before the
-implementation.*
+Nothing in it is about the simulated planet. Derived 2026-08-20, built and
+measured 2026-08-21.*
+
+The decomposition that makes any of this reachable in production is a separate
+change with its own note, `paired-latitude-decomposition.md`. Read that one
+first: without it a mirror pair sits on two different processes and none of the
+algebra below can be used.
 
 ## What is on the table
 
@@ -97,13 +102,106 @@ branch in the hottest code in the model and it blocks vectorisation. Split the
 `n = m+1, m+3, ...` -- which needs no test at all. Worth applying to the
 existing forward branches at the same time.
 
-## What would falsify this
+## Built, and checked against something that can fail
 
-- `verify_legendre_parity.py` failing on a future compiler or a changed
-  recurrence. It is cheap; run it before trusting any of the above.
-- A single-mode synthesis disagreeing with an independently computed
-  `P_{m,n}(mu)`. That is the test with a right answer and it is what catches a
-  parity split that looks correct and is not.
-- `dv2uv` showing no gain once built, which would mean the accumulators spilled
-  rather than that the derivation is wrong. Distinguish the two before
-  concluding.
+All three inverse transforms carry a symmetric path now, selected by `LPAIRLAT`
+and running over `NLHP` mirror pairs. The `mod(m+n,2)` test is gone from all of
+them: the `n` loop is split into two strided loops instead, which needs no test
+and leaves the innermost loop branchless.
+
+`verify_symmetric_transform.py` is the test with a right answer. It lifts the
+three loops VERBATIM out of `legmod.f90`, compiles them against a stub module
+whose `qi`, `qj`, `qu` and `qv` it supplies -- an associated Legendre table
+computed by scipy, an implementation the model shares nothing with -- and runs
+one spectral mode at a time. The transform is by definition the matrix-vector
+product with that table, so the answer at every latitude is known in advance,
+INCLUDING the mirrors the symmetric path never reads. Supplying the table also
+makes the check free of any normalisation or phase convention: the model is
+asked to reproduce what it was given.
+
+66 modes at NTRU=10, 16 latitudes, both Fourier components, all four of
+`dv2uv`'s outputs. Three negative controls, one per routine, each flipping
+exactly the sign the derivation above warns about:
+
+| control | rejected on |
+| --- | ---: |
+| `sp2fc`, parity sums swapped at the mirror | 528 values |
+| `sp2fcdmu`, same | 520 values |
+| `dv2uv`, the sign joining its two opposite parities | 520 values |
+
+End to end, `verify_paired_decomposition.sh` at 8 processes: 143 of 199 restart
+records bit identical, 56 at rounding scale, worst 1.9e-11 against a 1e-10
+tolerance declared before the arms ran, and the wrong-permutation control out
+by 6.3e15.
+
+## What it is worth
+
+Against stock behaviour -- `LPAIRLAT` forced false gives contiguous blocks, the
+forward symmetric branches unreachable and no symmetric inverse path at all --
+at 16 processes, 4 interleaved rounds, order flipped each round, one driver
+owning the machine:
+
+| | contiguous | symmetric | gain | spreads | rounds |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| T21 | 48.75 s | 48.18 s | +0.88% [-0.23, +1.27] | 2.1 / 2.7% | 7/8 |
+| T42 | 38.03 s | 37.34 s | **+1.75%** [+1.46, +2.95] | 1.6 / 1.2% | 8/8 |
+| T85 | 40.95 s | 39.14 s | **+4.34%** [+3.63, +5.06] | 1.4 / 0.7% | 4/4 |
+| T127 | 39.94 s | 37.17 s | **+6.92%** [+6.35, +7.21] | 0.7 / 0.2% | 4/4 |
+| T170 | 85.46 s | 75.55 s | **+11.65%** [+11.50, +12.21] | 1.0 / 0.3% | 4/4 |
+
+T21 and T42 ran eight rounds rather than four because at four they were inside
+the noise floor. **T21's interval still includes zero and it is reported as
+what it is**: a point estimate under one percent, positive in seven rounds of
+eight, on a bed where the whole transform is 6% of compute. It is not a claim
+that the change is worth 0.88% at T21; it is a claim that it is worth
+approximately nothing there, which is the useful thing to know for anyone
+running the model at the bottom of the ladder. T42 at 8 of 8 rounds and an
+interval clear of zero is a result.
+
+Two earlier attempts at the low end are not in the table and should not be
+quoted from the JSON: the first used six and nine second beds and scattered 7
+to 12 percent, and the second was wrecked by gfortran runs launched alongside
+round 1 -- the same contention mistake that had already destroyed one A/B in
+this project, made a second time. The beds here run about forty seconds and
+nothing else was on the machine.
+
+## The accumulators did not spill
+
+That was the one thing this note said had to be measured rather than predicted,
+and the shape of the column answers it. The gain rises monotonically and
+ACCELERATES with resolution: +0.9, +1.8, +4.3, +6.9, +11.7, every step a larger
+increment than the last. Longer mode loops mean more work
+avoided, and that is what a working `dv2uv` looks like. A spill would bend the
+curve down exactly where it bends up, because the accumulators are live across
+the whole `n` loop and it is the long loops that would pay the stack traffic.
+
+The arm spreads tighten as the gain grows, which is the same fact from the other
+side: at T170 the symmetric arm scatters 0.3% across four rounds.
+
+## What is left of the estimate, and what was wrong with it
+
+`spectral-transform-profile.md` put the whole symmetry prize at about 13.7% of
+wall at T127 and this returns 6.9%, half of it. The gap is not mysterious and is
+worth stating rather than rounding away: the profile priced the transform
+routines' SAMPLES, and halving the arithmetic inside a routine does not halve
+its wall time when part of it is streaming weight matrices and completing
+collectives. The same thing was got wrong in the other direction on the filter
+fold, where 8-11% was predicted and 1.6% measured.
+
+**What the profile did get right is the ordering**, which is what it was for:
+the inverse transforms were the place to work, `dv2uv` was the largest single
+routine, and the payoff grows with resolution.
+
+## Offering it upstream
+
+Unlike the filter fold, this is a capability rather than a cleanup: it removes a
+restriction -- the symmetric path being unreachable on more than one process --
+rather than reassociating an existing computation for a fraction of a percent.
+It defaults to stock behaviour wherever `NPRO` does not divide `NLAT/2`, and at
+one process it generates the code that was already there.
+
+The honest pitch to a maintainer is the ladder, not the headline: **it is worth
+approximately nothing at T21, which is where most users are**, and it grows to
+a tenth of wall clock at T170. So it is for people pushing the resolution, and
+it costs everyone else a decomposition change that has to be right. That is a
+real trade and it should be stated as one rather than led with the 11.65%.

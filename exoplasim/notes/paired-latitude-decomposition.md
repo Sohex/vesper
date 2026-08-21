@@ -161,7 +161,34 @@ on their own from there, and a longer arm would legitimately exceed it.
 
 ## What it is worth
 
-TO BE FILLED
+Measured on its own, before any of Phase 3 was written, so that a later result
+is attributable. T127, 16 processes, 4 interleaved rounds, the same bed and
+binary pair throughout:
+
+| | contiguous | paired | gain |
+| --- | ---: | ---: | ---: |
+| T127, 300 steps | 39.61 s | 39.11 s | **+1.43%** [+0.87, +2.07] |
+
+Faster in 4 of 4 rounds, self-scatter 1.0% and 0.7%. That is the forward
+symmetric branches becoming reachable in production, net of the permutation
+copies, and it lands where the 2% ceiling implied by
+`spectral-transform-profile.md`'s forward-direction share put it.
+
+At T21 and T42 this half was never resolved on its own and is not quoted: six
+and nine second beds gave 7 to 12 percent self-scatter, over the 5% floor. What
+IS resolved at the low end is the two halves together, in
+`symmetric-transforms.md`, which is the number that matters for the decision
+anyway.
+
+## What this half is FOR
+
++1.43% would not justify a decomposition change on its own, and the plan said
+as much before any of it was written. Its value is that it is the precondition:
+with mirror pairs on one process the inverse transforms can use the same
+symmetry, and those are 15% of samples at T127 against the forward direction's
+7%. Together the two halves are worth **+6.92% at T127 and +11.65% at T170** --
+see `symmetric-transforms.md` for that table and for what the sixteen
+accumulators in `dv2uv` turned out to cost.
 
 ## What this unblocks
 
