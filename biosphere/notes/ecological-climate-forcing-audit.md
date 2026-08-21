@@ -218,13 +218,15 @@ remain subject to explicit permission.
 
 ## Task boundary
 
-EFOR-1 through EFOR-7 record the new producer-to-consumer path. They do not
+EFOR-1 through EFOR-8 record the new producer-to-consumer path. They do not
 duplicate the process work already assigned elsewhere:
 
 - BIO-13 owns rainfall-event effects in LPJ hydrology;
 - BIO-23 owns pressure, radiation, humidity and wind in EET and gas physics;
 - FIRE-1 and FIRE-2 own lightning and fire-weather semantics;
 - PCAR-1 owns subdaily photosynthesis on the 30-hour rotation;
+- LSHY-4 and LSHY-5 own the shared land column, vegetation exchange and phase
+  semantics carried by EFOR-8;
 - BIO-22 owns absolute-time conversion of ecological rates; and
 - BIO-20 owns the cheap adapter/consumer regression boundary.
 

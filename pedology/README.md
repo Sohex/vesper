@@ -196,7 +196,24 @@ the mafic-felsic divergence the model exists to reproduce comes out 0.231 agains
 an observed 0.179. The direction is right and the magnitude is 29% high. Read a
 land-mean clay of 0.29 as nearer 0.23 in Earth-comparable terms.
 
-## Both loops now close
+## Both property-feedback paths are wired; the hydraulic loop is not closed
+
+The integrations below show that pedology affects both the biosphere and the
+next climate iteration. They do not yet establish one shared soil hydraulic
+state. ExoPlaSim consumes the generated scalar `awc` as `dwmax`, while
+LPJ-GUESS independently derives retention and available water from texture and
+organic carbon before applying the generated regolith/bedrock scaling. The two
+models then evolve separate snow, soil water, ice, evaporation and runoff
+histories. The source audit and the work required to replace this integration
+scaffolding are in
+`../biosphere/notes/soil-land-surface-hydraulic-consistency-audit.md` and
+LSHY-1 through LSHY-7 in `../TASKS.md`.
+
+The checked-in `analysis/soil_report.json` predates that source correction and
+still says LPJ-GUESS does not consume regolith depth. The report generator now
+states the narrower truth above. The derived report was not hand-edited or
+regenerated during the no-execution audit; the next authorized `soil` step
+will refresh it.
 
 **To the biosphere.** `soilmap.txt` carries a `depth` column, LPJ-GUESS's own
 `SoilInput` ignores it, and `vesperinput` scales each soil layer's water capacity

@@ -30,9 +30,14 @@ BVOC emissions, secondary organic aerosol and atmospheric coupling are audited
 in `notes/bvoc-soa-atmospheric-coupling-audit.md`, wetlands, peat and methane
 are audited in `notes/wetlands-peat-methane-audit.md`, and
 the ExoPlaSim-to-LPJ weather path is audited in
-`notes/ecological-climate-forcing-audit.md`; EFOR-1 through EFOR-7 replace the
+`notes/ecological-climate-forcing-audit.md`; EFOR-1 through EFOR-8 replace the
 project's artificial 12-bin forcing scaffold with a chronological,
-interval-explicit contract. Finally,
+interval-explicit contract and carry authoritative land state. Soil and
+land-surface hydraulic consistency across ExoPlaSim, pedology, hydrography,
+groundwater and LPJ-GUESS is audited in
+`notes/soil-land-surface-hydraulic-consistency-audit.md`; LSHY-1 through LSHY-7
+define one property contract, fast-state owner and water/energy ledger rather
+than two independent land columns. Finally,
 `notes/productivity-prediction.md` registers what the answer should be before the
 model can contradict it.
 
@@ -57,12 +62,12 @@ a result.
 | model obtained | `mateusdp/LPJ-GUESS-NTD`, tag `LPJ-GUESS-CNP_v1.0`, commit `b368b893`; MPL-2.0 notices restored from verified 4.1.1 |
 | build | vendored CNP tree plus Vesper port; build verification awaits an available compute window |
 | smoke test | stock 4.1.1 port: bundled 3-cell demo, 550 years, 73 s, expected PFTs |
-| Earth-assumption audit | follow-up complete; BIO-21 through BIO-29 track cross-cutting assumptions including the latitude-use contract, PCAR-1 through PCAR-10 track plant physiology/allocation, SDEC-1 through SDEC-9 track soil decomposition/biogeochemistry, BVOC-1 through BVOC-10 track volatile carbon through chemistry/aerosol/climate, and WET-1 through WET-11 track wetlands, peat and the methane source-to-atmosphere loop |
+| Earth-assumption audit | follow-up complete; BIO-21 through BIO-29 track cross-cutting assumptions including the latitude-use contract, PCAR-1 through PCAR-10 track plant physiology/allocation, SDEC-1 through SDEC-9 track soil decomposition/biogeochemistry, BVOC-1 through BVOC-10 track volatile carbon through chemistry/aerosol/climate, WET-1 through WET-11 track wetlands, peat and methane, and LSHY-1 through LSHY-7 track the shared land-water and soil-property contract |
 | productivity prediction | registered, unscored |
 | calendar and astronomy port | mechanical calendar and orbital geometry applied; natural phenology still has unreachable Earth dates under BIO-21 |
 | PFT degree-day rescale | generated from the orbit, 500 -> 247 gdd5min_est; the remaining annual-rate semantics are BIO-22 |
-| input module | `vesperinput`, runs end to end and splits across MPI ranks; its 12-bin `VESPDRV4` transport is integration scaffolding to be replaced under EFOR-1 through EFOR-7 |
-| soil | from `pedology/`, loop closing at smoke scale |
+| input module | `vesperinput`, runs end to end and splits across MPI ranks; its 12-bin `VESPDRV4` transport is integration scaffolding to be replaced under EFOR-1 through EFOR-8 |
+| soil and water | pedology depth scales LPJ capacity and pedology AWC sets ExoPlaSim's scalar bucket at smoke scale, but the models independently derive hydraulic properties and run separate snow/soil water balances; LSHY-1 through LSHY-7 own the consistency work |
 | run harness | written; records inputs, binary and model identity in its manifest |
 | albedo and forest feedback | modelled mode exists; rootable/lake and spectral corrections are BIO-17 and BIO-18 |
 | aerodynamic feedback | modelled roughness is open as BIO-16 |
@@ -181,7 +186,7 @@ differences among model orbits while discarding event order within each orbit.
 It is therefore a seasonal/inter-orbit adapter, not an accepted daily weather
 sequence.
 
-EFOR-1 through EFOR-7 replace this path with consecutive, interval-explicit
+EFOR-1 through EFOR-8 replace this path with consecutive, interval-explicit
 ExoPlaSim forcing produced before climatological averaging. The averaged
 climatology remains the right artifact for maps and equilibrium summaries. It
 is not the right artifact for daily interception, snow, drought, phenology,
