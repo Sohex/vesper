@@ -202,7 +202,23 @@ export function computeNeighborDist(mesh, r_xyz) {
     return neighborDist;
 }
 
-// Triangle centres (= Voronoi vertices on the sphere).
+// Triangle CENTROIDS: the mean of the three corners, not renormalised onto the
+// sphere. These are what the renderer draws the dual with, and a centroid is
+// always inside its triangle where a circumcentre need not be, so they are the
+// right choice for drawing.
+//
+// They are NOT the Voronoi vertices, and this comment used to say they were.
+// The Voronoi vertex is the CIRCUMCENTRE. The two duals both tile a sphere
+// built from a near-regular point set, which is why the error hides, but on a
+// jittered 2.5M-region mesh the centroidal dual sums to 1.00068 of 4 pi R^2
+// while the circumcentre dual sums to 1.0000000000, and per cell they differ by
+// more than 10% on 69% of regions.
+//
+// `regionCellArea` in geometry.js is fed these deliberately: `cell_area` is the
+// area Orogen's own basin catalogue, hypsometry and drainageConsistency identity
+// are denominated in, and changing it would be a new build. Anything INTEGRATING
+// over a cell, or taking a two-point flux across a face, needs the circumcentre
+// dual and should build it rather than reusing this.
 export function generateTriangleCenters(mesh, r_xyz) {
     const { numTriangles } = mesh;
     const t_xyz = new Float32Array(3 * numTriangles);

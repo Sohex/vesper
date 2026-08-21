@@ -219,6 +219,36 @@ steps:
     needs: [hydrography, bootstrap_climatology]
     writes: ["hydrography/data/{build}/surface_water.nc", hydrography/analysis/surface_water_report.json]
 
+  - id: groundwater
+    script: hydrography/scripts/build_groundwater.py
+    loop: A
+    cost: minutes
+    needs: [hydrography, bootstrap_climatology, surface_water]
+    writes: ["hydrography/data/{build}/water_table.nc", hydrography/analysis/groundwater_report.json, hydrography/analysis/groundwater_reduction_test.json, hydrography/analysis/groundwater_divide_test.json, "hydrography/analysis/groundwater_report_sigma*.json", "hydrography/analysis/groundwater_report_noise*.json", "hydrography/analysis/groundwater_report_et*.json"]
+    gate: >
+      the steady-state water table, and a MEASUREMENT of the net groundwater
+      exchange per basin. `carve_verdict` TAKES the term when handed one, under
+      GW-14, and is bit-identical to the surface-only criterion when it is not;
+      supplying it is a loop A decision and no carve list has been regenerated
+      from it. Permeability carries 1.5 to 2.5 orders of Gleeson spread, so the
+      DEPTH field is a bracket and `--sigma -1` and `+1` are its arms; the carve
+      count is not, moving by three across the whole bracket.
+      `--operator-noise` is a sensitivity harness for GW-8, not a model
+      parameter. GW-15's sink and GW-17's river and lake fixed heads are BOTH
+      ON, from `config/groundwater.yaml`, because neither is optional physics:
+      without the sink the table pins at the surface over most of the land, and
+      without local baselevels the sea is the only boundary and the depth range
+      collapses. `--no-groundwater-et` and `--no-baselevels` turn them off, for
+      the reduction identity and for reproducing pre-GW-15 runs. The baselevels
+      are why this step needs `surface_water`: that artifact is the only thing
+      that knows where the rivers and lakes are.
+      READ `hydrography/README.md` BEFORE CONSUMING THE DEPTH FIELD. GW-3 scored
+      it against 70,119 Australian bores at R^2 = 0.017 against a bar of 0.07
+      and a ceiling of 0.857: the range is right, the pattern is not, and a
+      per-cell depth from it does not mean anything. What survives is the
+      per-basin exchange direction. MIN-6 cannot use this field and SURF-7's
+      mask gets AUC 0.52 to 0.57 from it.
+
   - id: soil
     script: pedology/scripts/build_soil.py
     loop: A
@@ -492,6 +522,15 @@ steps:
     needs: [prospectivity, brine_paths, surface_classes, soil]
     writes: ["minerals/data/{build}/downstream_prospectivity.nc", "minerals/data/{build}/downstream_prospectivity_report.json"]
 
+  - id: trace_gas_forcing
+    script: analysis/trace_gas_forcing.py
+    cost: seconds
+    needs: []
+    writes: [analysis/trace_gas_forcing.json]
+    gate: >
+      needs references/rugheimer_2013_spectral-fingerprints-of-earth-like-planets-around-fgk-stars.pdf,
+      which is untracked; references/INDEX.md carries the DOI
+
   - id: error_budget
     script: scripts/error_budget.py
     cost: seconds
@@ -531,8 +570,14 @@ one_offs:
   - exoplasim/scripts/corrk_cross_check.py
   - exoplasim/scripts/predict_ocean_terms.py
   - exoplasim/scripts/score_rank_bench.py
+  - exoplasim/scripts/reproducibility_matrix.py
+  - exoplasim/scripts/diff_restarts.py
+  - exoplasim/scripts/trace_gas_band_model.py
+  - exoplasim/scripts/co2_overlap_589.py
   - exoplasim/scripts/reset_restart_accumulators.py
   - hydrography/scripts/validate_lake_solver.py
+  - hydrography/scripts/build_earth_wtd_sites.py
+  - hydrography/scripts/earth_calibration.py
   - hydrography/scripts/lake_balance.py
   - pedology/scripts/validate_against_earth.py
   - pedology/scripts/probe_runoff_response.py
@@ -545,6 +590,7 @@ one_offs:
   - exoplasim/scripts/analyze_smoke.py
   - exoplasim/scripts/bench_pyburn_read.py
   - exoplasim/scripts/mie_dust.py
+  - analysis/orogen_resolution.py
   - exoplasim/scripts/run_albedo_bracket.sh
   - exoplasim/scripts/finalize_existing_segment.py
   - exoplasim/scripts/continue_exoplasim.py

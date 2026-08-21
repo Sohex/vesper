@@ -1,0 +1,236 @@
+{
+  "source_build": "precarve-craton",
+  "terrain_hash": "e931b0d9947a232210a3cc11ba82003b5da15765d86e87956bc44c220932760e",
+  "forcing": "/home/cfutro/docs/world/exoplasim/analysis/climatology/bootstrap_regular_climatology.nc",
+  "forcing_sha256": "227909c0a19e204b88dd081b42bf7671447a5dc781e8ebeacd8e942144df5715",
+  "config_sha256": "fdee90a77e7a78e2ea2b3116dda8b74c961583eb3bade8657a0d6900a84520c4",
+  "sigma": 1.0,
+  "operator_noise": 0.0,
+  "noise_seed": 0,
+  "unassigned_policy": "exclude",
+  "gravity_m_s2": 12.81,
+  "conductivity_vs_earth": 1.3062564688247262,
+  "geometry": {
+    "faces": 7499997,
+    "voronoi_area_over_sphere": 1.0,
+    "export_cell_area_over_sphere": 1.000680974409125,
+    "note": "flux uses the Voronoi area its own faces bound; water volumes use the export's cell_area so the reduction identity against surface_water.py is exact"
+  },
+  "laplace_beltrami": {
+    "criterion": 0.1,
+    "relative_rms": {
+      "1": 0.02165422451858263,
+      "2": 0.1081881734670909,
+      "3": 0.12015462041162055,
+      "4": 0.12426941987830004
+    }
+  },
+  "closure": {
+    "recharge_m3_s": 1332781.1760872037,
+    "discharge_m3_s": 1332781.1760872037,
+    "seepage_m3_s": 1313533.1904943772,
+    "to_ocean_m3_s": 19247.985592826466,
+    "relative_residual": 0.0,
+    "tolerance": 1e-10,
+    "passes": true
+  },
+  "converged": true,
+  "convergence": {
+    "criterion_residual": 1e-12,
+    "criterion_flip_fraction": 0.0,
+    "final_residual": 2.2313959813117154e-16,
+    "criterion_note": "the water balance residual on free cells over total land recharge, and a still active set. Not the head step: a bar on the step can be met by a shrinking step rather than by convergence",
+    "trace_columns": [
+      "pass",
+      "free_cells",
+      "cells_flipped",
+      "residual",
+      "infeasible_pinned_cells"
+    ],
+    "seepage_clipped_m3_s": -0.0,
+    "trace": [
+      [
+        0,
+        318050,
+        318050,
+        2.338333446160169e-16,
+        132987,
+        0.14779033859324048
+      ],
+      [
+        1,
+        451037,
+        132987,
+        2.8013419521595714e-16,
+        63741,
+        0.03886915718838753
+      ],
+      [
+        2,
+        514778,
+        63741,
+        2.6697363415652785e-16,
+        30937,
+        0.010955807746698944
+      ],
+      [
+        3,
+        545715,
+        30937,
+        2.494451449130076e-16,
+        15271,
+        0.003132744971573344
+      ],
+      [
+        4,
+        560986,
+        15271,
+        2.328332659756847e-16,
+        7491,
+        0.0008922991546809067
+      ],
+      [
+        5,
+        568477,
+        7491,
+        2.252862474573994e-16,
+        3629,
+        0.00025414527762629587
+      ],
+      [
+        6,
+        572106,
+        3629,
+        2.231192747200331e-16,
+        1662,
+        6.70777467001793e-05
+      ],
+      [
+        7,
+        573768,
+        1662,
+        2.227228571518421e-16,
+        775,
+        1.6200403436597013e-05
+      ],
+      [
+        8,
+        574543,
+        775,
+        2.230382858866122e-16,
+        353,
+        3.757207781173517e-06
+      ],
+      [
+        9,
+        574896,
+        353,
+        2.2332601464699027e-16,
+        130,
+        7.468342708585981e-07
+      ],
+      [
+        10,
+        575026,
+        130,
+        2.23189218074971e-16,
+        62,
+        2.8489351625820174e-07
+      ],
+      [
+        11,
+        575088,
+        62,
+        2.2336605910233165e-16,
+        27,
+        1.3259605712400427e-07
+      ],
+      [
+        12,
+        575115,
+        27,
+        2.231577174022111e-16,
+        10,
+        7.09901100703615e-08
+      ],
+      [
+        13,
+        575125,
+        10,
+        2.231829381707967e-16,
+        8,
+        4.0638775648416144e-08
+      ],
+      [
+        14,
+        575133,
+        8,
+        2.232292422424771e-16,
+        4,
+        2.0564556275541988e-08
+      ],
+      [
+        15,
+        575137,
+        4,
+        2.231407993202073e-16,
+        3,
+        7.53036700339941e-09
+      ],
+      [
+        16,
+        575140,
+        3,
+        2.2318312902582866e-16,
+        2,
+        2.11735466659142e-09
+      ],
+      [
+        17,
+        575142,
+        2,
+        2.2313959813117154e-16,
+        0,
+        -0.0
+      ],
+      [
+        18,
+        575142,
+        0,
+        2.2313959813117154e-16,
+        0,
+        -0.0
+      ]
+    ]
+  },
+  "outer_iterations": 19,
+  "water_table": {
+    "median_depth_m_land": 2.9132419917639147,
+    "at_surface_fraction_land": 0.4675031221164429,
+    "unassigned_land_fraction": 0.028842982556911458,
+    "aquifer_thickness_m": 100.0,
+    "transmissivity_note": "T = K D with a constant aquifer thickness, so there is no depth floor and no cell has a transmissivity that underflows"
+  },
+  "git_commit": "9a18f918f2019458433cf405dd57ba2f7e0f94b5",
+  "basin_exchange": {
+    "what_this_is": "a measurement, not a change: Qg is reported per basin and is NOT wired into carve_verdict.py",
+    "both_arms_use_mesh_resolved_catchment_depth": true,
+    "why": "the surface arm is recomputed on the mesh rather than taken from the coupling matrix, so the only difference between the two arms is the groundwater term",
+    "basins_scored": 3621,
+    "total_abs_exchange_m3_s": 9067.03817730061,
+    "total_recharge_m3_s": 916768.4443922429,
+    "exchange_over_recharge": 0.009890216262091633,
+    "basins_gaining": 1672,
+    "basins_losing": 1589,
+    "basins_shifted_over_10_percent": 1115,
+    "median_abs_fractional_shift": 0.019011744662789754,
+    "carve_verdicts": {
+      "criterion": "carve_verdict.py's own: overflow when the aridity index is at or below basins.nc's critical_aridity_index",
+      "would_carve_surface_only": 1798,
+      "would_carve_with_groundwater": 1877,
+      "flipped": 85,
+      "flipped_to_carve": 82,
+      "flipped_to_hold": 3
+    }
+  }
+}

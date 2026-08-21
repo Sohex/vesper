@@ -326,6 +326,46 @@ executable produced. `binary_manifest.json` records the compiler and the flags
 beside the source shas for the same reason, so an executable whose sha has moved
 is attributed rather than merely noticed.
 
+**A bed carries the binaries it was STARTED with, and `--verify` cannot see it.**
+Two questions look alike and are not: "are the installed binaries current", which
+`rebuild_binaries.py --verify` answers, and "is this run using them", which it
+cannot. A working directory copied out of `exoplasim/runs/` holds executables
+frozen at the moment that run began, so a bed built from a recent run measures a
+model source nobody named -- it runs, it is self-consistent, and it is about the
+wrong code. Hash the executables a bed actually contains against
+`binary_manifest.json` before measuring anything with it;
+`reproducibility_matrix.py:check_binaries` is the guard, written after this cost
+a full measurement pass.
+
+**A namelist variable that is not broadcast is absent everywhere but the root,
+and nothing says so.** `radmod_nl` and its siblings are read on NROOT only and
+every variable is then broadcast by hand. Add one to the namelist, forget the
+`mpbcr`, and it keeps its default on every other rank -- so a term whose default
+means "off" runs on one rank's latitude rows and nowhere else. CLIM-42 lost most
+of a day to this: the model does not warn, the run completes, `plasim_diag`
+echoes the value because that too is printed on NROOT, and the symptom is a term
+that comes out weak rather than absent, which reads as a physics problem and was
+chased as one through two wrong hypotheses and a fetched paper.
+
+**What finds it is a PER-RANK diagnostic, and getting one is harder than it
+looks: only NROOT's writes to `nud` reach `plasim_diag`, so the obvious
+`if (mypid == NROOT)` samples rank 0's latitude rows and nothing else -- all
+polar at T42 on 8 ranks. Write to `70+mypid` instead. The tell is an exact
+zero.** A
+global mean cannot distinguish a term that is weak from a term that is off over
+most of the domain; `+0.0000` on seven ranks of eight and a real number on the
+eighth is not something physics produces. The same class is
+`notes/audits/nlowio-collective-deadlock.md`, a collective placed behind an
+unbroadcast `nlowio`, and PHYS-9, a key applied at prepare and not per segment.
+
+**Changing the rank count changes the answer.** Reproducibility at a fixed rank
+count does not survive changing it: 8 ranks and 16 ranks integrate one restart to
+restarts differing in 83 of 199 records, at round-off and growing, because the
+decomposition changes which partial sums are formed in which order. So an A/B
+must hold the rank count fixed, and a bracket run at one rank count is not
+comparable to a control at another. `notes/audits/model-reproducibility.md` has
+the measurement.
+
 ## 12. A continuation that re-derives the physics from config
 
 `run_exoplasim.py --flux-ratio 0.91` prepares a run at 0.91 and stamps it in the

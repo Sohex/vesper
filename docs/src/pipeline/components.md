@@ -7,7 +7,9 @@ config/planet.yaml   Canonical planet, star, orbit, atmosphere. Every component 
 source/              World Orogen exports. Canonical, read-only.
 lib/                 Shared readers: orogen.py, gridding.py, and the rest of the
                      list CLAUDE.md's Layout carries in full.
-hydrography/         Drainage, catchments, basin capacity, lake balance, carve verdict.
+hydrography/         Drainage, catchments, basin capacity, lake balance, carve verdict,
+                     and the steady-state water table, whose depth field is
+                     UNVALIDATED: see hydrography/README.md before using it.
 exoplasim/           Boundary conditions, climate integrations, climatology.
 pedology/            Weathers lithology into soil, and into solute fluxes: CO2, silica, phosphorus.
 biosphere/           LPJ-GUESS: vegetation, leaf area, carbon, PFT composition.

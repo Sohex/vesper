@@ -164,33 +164,73 @@ Built and measured 2026-08-20 at T42 L10 on 8 ranks, 8-byte precision.
 full record; what belongs here is the one result that changes how any future
 test in this project is written.
 
-**The reduction identity passes at one timestep.** The same configuration
-through a binary built from the base and through the changed one gives
-bit-identical gridpoint output.
+**The reduction identity was recorded as passing at one timestep**, the same
+configuration through a binary built from the base and through the changed one
+giving bit-identical gridpoint output.
 
-**And one timestep is the horizon at which that claim can be made, because the
-model is not run-to-run reproducible beyond a few steps.** The control is the
-same binary run twice on the same inputs:
+**That claim was made at one timestep because a same-binary control appeared to
+show the model diverging by sixteen. IT DOES NOT.** CLIM-44 re-took the control
+as a declared factorial -- 8 and 16 ranks, output off and on, segments crossing
+no write and two, three repeats each -- and every measurable cell is
+bit-identical in `plasim_status`, `plasim_output`, `plasim_snapshot` and the
+model half of `plasim_diag`. The same result holds on the pre-fix binaries this
+worktree was built against, so it is not something the intervening fixes bought.
 
-| horizon | same binary, twice |
+Two things were wrong with the control here. The rank count was not held fixed
+across everything it was compared with, and 8 against 16 ranks really does
+change the answer, at round-off and growing. And a gridpoint record is written
+on `mod(nstep, nafter) == 0` over the ABSOLUTE step count, so on this project's
+production restart neither a 1-step nor a 16-step segment writes one at all: the
+comparison that reported agreement at one timestep could not have failed.
+
+**RE-TAKEN 2026-08-20 AS CLIM-45, AND IT FAILS.** Not badly, and not in a way
+that invalidates the change, but the recorded claim of bit-identity is wrong.
+
+The re-take fixes what CLIM-44 found wrong with the original: a segment of 56
+timesteps, chosen against the write cadence so `plasim_output` holds 13.4 MB
+rather than nothing; a fixed rank count; and the aerosol actually ACTIVE, which
+matters because with `ndustrad = 0` both code paths skip the aerosol entirely
+and would agree for no reason. One prescribed species, `ndustrad = 1`, against a
+binary built from `66dbcf0`, the commit before the multi-species change. The
+current binary also carries CLIM-42's trace-gas band, which is separately
+verified bit-identical at zero abundance, so the comparison isolates this
+change.
+
+| | result |
 | --- | --- |
-| 1 timestep | output bit-identical |
-| 16 timesteps | output differs, at byte 40485 |
+| `plasim_snapshot` | identical |
+| `plasim_status` after 56 steps | differs, 4.4e-10 relative at worst (`dcc`) |
+| `plasim_output` after 56 steps | differs, 76 of 446 records |
+| `plasim_status` after ONE step | differs, 76 of 199 records, 6.2e-12 at worst |
 
-Old-versus-new at 16 timesteps differs at that same byte, growing from 2.4e-6
-relative in the first differing record to order 1 by the end. That is a chaotic
-amplification of a rounding-level seed the model produces on its own, not an
-effect of any code change. The restart file `plasim_status` is worse: it differs
-between two runs of one binary even at ONE timestep, so it is not a valid
-comparison target at all, and a bitwise diff of it will report a difference that
-means nothing.
+**It differs from the first timestep, at a few ulps.** 1.3e-14 on `dust3`,
+2.4e-14 on the albedos, 6.2e-12 on cloud cover; by 56 steps chaos has taken
+that to 4.4e-10, which is the same magnitude CLIM-44 measured between 8 and 16
+ranks. The large differences in `plasim_output` are all in the 460-485
+diagnostic codes and include one, 482, that is identically zero in the old
+build -- a per-species diagnostic the old code does not populate, not a physics
+difference.
 
-The consequence is general. Any A/B in this project that expects bit-identity
-has to establish its own reproducibility horizon first, with the same-binary
-control, or it will read the model's own non-determinism as a result. Where the
-non-determinism comes from is not established here; 8 ranks and MPI reduction
-ordering is the obvious first place to look, and a run at one rank would
-separate it from anything serial. That is unowned work and needs a task row.
+**So the change is answer-preserving to ROUND-OFF, not to the bit**, and that
+is the claim this note should have carried. The consequence is practical: an
+A/B that crosses this commit cannot expect bit-identity and has to be read at
+the round-off bound, the same way a rank-count change is.
+
+**Where the ulp comes from is NOT the places section 8 predicted.** The
+`knz == 1` fast path is present and correct -- it takes `ssa1(klast)` and
+`bscat1(klast)` directly rather than forming `(s*tau)/tau`. The per-layer
+optical depth line is arithmetically identical to the old one, operand for
+operand, and so is the band-2 ratio. The remaining candidate is the two-stream
+restructure itself, the u-factors having moved inside the layer loop, and it is
+not pinned. It is not worth pinning at 1e-14 unless something else motivates
+it.
+
+Two things about the test bed, stated so the result is not over-read. The
+prescribed field is SYNTHETIC -- a smooth cosine in latitude times a sine in
+longitude, 0.05 to 0.20 band-1 optical depth -- because the real one needs a
+climatology this build does not have; the identity does not care what the field
+is, only that both binaries receive the same one. `DUSTQLW` is 0.3, a test
+input rather than a measured ratio, for the same reason.
 
 **Column conservation holds per species**, against a column maximum of 0.4896:
 1.30e-18 for one species, and 8.67e-19 and exactly 0.0 for two, with the second

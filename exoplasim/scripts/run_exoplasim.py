@@ -87,6 +87,37 @@ SHORTWAVE_GAS_KEYS = (
     ("co2_sw_weight", "CO2SWW", 0.0),
 )
 
+# The LONGWAVE trace gases, CLIM-42. Same one-list rule and the same reason:
+# `continue_exoplasim.py` imports this, because a key applied at prepare and not
+# reapplied per segment is a physics change partway through a run.
+#
+# These come from the `atmosphere` block rather than `model`, because they are
+# composition and not a scheme weight -- pCO2_bar's neighbours. radmod_nl wants
+# a VOLUME MIXING RATIO in ppmv, so the conversion is the partial pressure over
+# the total, and the model's own default is 0.0, meaning absent.
+TRACE_GAS_KEYS = (
+    ("pCH4_bar", "CH4", 0.0),
+    ("pN2O_bar", "N2O", 0.0),
+)
+
+
+def trace_gas_ppmv(config: dict) -> dict:
+    """{namelist key: ppmv} for the longwave trace gases the config declares."""
+    atmosphere = config.get("atmosphere", {})
+    total = sum(float(v) for k, v in atmosphere.items()
+                if k.startswith("p") and k.endswith("_bar"))
+    if total <= 0.0:
+        raise SystemExit("atmosphere block declares no partial pressures")
+    out = {}
+    for key, name, default in TRACE_GAS_KEYS:
+        bar = atmosphere.get(key)
+        if bar is None:
+            continue
+        ppmv = 1e6 * float(bar) / total
+        if ppmv != default:
+            out[name] = ppmv
+    return out
+
 
 def file_sha256(path: Path) -> str:
     digest = hashlib.sha256()
@@ -932,6 +963,8 @@ def physical_fingerprint(config: dict, flux_ratio: float) -> dict:
         "precision_bytes": int(m["precision_bytes"]),
         "flux_ratio": round(float(flux_ratio), 6),
         "co2_ppm": round(1e6 * float(a["pCO2_bar"]), 3),
+        "ch4_ppmv": round(1e6 * float(a.get("pCH4_bar", 0.0)), 4),
+        "n2o_ppmv": round(1e6 * float(a.get("pN2O_bar", 0.0)), 4),
         "rotation_hours": float(p["rotation_hours"]),
         "obliquity_degrees": float(p["obliquity_degrees"]),
         "eccentricity": float(p["eccentricity"]),
@@ -1438,6 +1471,10 @@ def main() -> None:
         if w is not None and float(w) != default:
             model._edit_namelist("radmod_namelist", name, f"{float(w)}")
             print(f"{name} = {float(w)} (radmod.f90 default {default})")
+
+    for name, ppmv in trace_gas_ppmv(config).items():
+        model._edit_namelist("radmod_namelist", name, f"{ppmv:.6g}")
+        print(f"{name} = {ppmv:.6g} ppmv (radmod.f90 default 0.0, meaning absent)")
 
     dust = enable_prescribed_dust(model, run_dir, config)
     if dust is not None:

@@ -137,16 +137,32 @@ class CorrK:
     def kvec(self, p_mbar: float, t_k: float, q: float) -> np.ndarray:
         """k per air molecule, (band, g), trilinear in log10 p, T and log10 q."""
         def bracket(grid, value):
+            # A ONE-POINT axis is not an error and must not interpolate. Several
+            # tables in the bundle fix their variable gas -- every PCM Studio
+            # set does -- so `Q` has a single entry, and the general form below
+            # would divide by `grid[1] - grid[0]` with no `grid[1]` to read.
+            # numpy clips the index to -1, the subtraction gives zero, and the
+            # whole k-vector comes back NaN with only a RuntimeWarning. Found by
+            # using those tables for CLIM-42; the transmissions were silently
+            # NaN until the warning was read.
+            if len(grid) == 1:
+                return 0, 0.0
             i = int(np.clip(np.searchsorted(grid, value) - 1, 0, len(grid) - 2))
             return i, (value - grid[i]) / (grid[i + 1] - grid[i])
 
         it, wt = bracket(self.T, t_k)
         ip, wp = bracket(self.p, math.log10(p_mbar))
         iq, wq = bracket(np.log10(self.Q), math.log10(q))
+        def pair(index, weight, axis):
+            """The one or two nodes this axis contributes, with their weights."""
+            if len(axis) == 1:
+                return ((index, 1.0),)
+            return ((index, 1 - weight), (index + 1, weight))
+
         out = np.zeros(self.k.shape[3:])
-        for a, wa in ((it, 1 - wt), (it + 1, wt)):
-            for b, wb in ((ip, 1 - wp), (ip + 1, wp)):
-                for c, wc in ((iq, 1 - wq), (iq + 1, wq)):
+        for a, wa in pair(it, wt, self.T):
+            for b, wb in pair(ip, wp, self.p):
+                for c, wc in pair(iq, wq, self.Q):
                     out += wa * wb * wc * self.logk[a, b, c]
         return 10.0 ** out
 

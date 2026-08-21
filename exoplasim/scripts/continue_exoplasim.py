@@ -22,6 +22,7 @@ from provenance import config_drift  # noqa: E402
 from segments import SEGMENT_PURPOSES  # noqa: E402
 from run_exoplasim import (  # noqa: E402
     SHORTWAVE_GAS_KEYS,
+    trace_gas_ppmv,
     verify_staged_namelists,
     configure_otherargs,
     surface_sra,
@@ -468,6 +469,13 @@ def main() -> None:
         w = config["model"].get(key)
         if w is not None and float(w) != default:
             model._edit_namelist("radmod_namelist", name, f"{float(w)}")
+
+    # The longwave trace gases go the same way and for the same reason. Missing
+    # this is exactly the failure the comment above records: CH4 and N2O default
+    # to 0.0, meaning ABSENT, so a segment that does not reapply them integrates
+    # a world with no methane in it while the manifest says otherwise. CLIM-42.
+    for name, ppmv in trace_gas_ppmv(config).items():
+        model._edit_namelist("radmod_namelist", name, f"{ppmv:.6g}")
 
     # Every continuation re-runs configure(), which rewrites the namelist, so
     # this has to be reapplied here and not only at prepare time. It is also

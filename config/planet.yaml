@@ -137,6 +137,33 @@ atmosphere:
   pO2_bar: 0.21000
   pAr_bar: 0.00930
   pCO2_bar: 0.00045
+  # MEASURED, 2026-08-20, CLIM-43. Not chosen: these are photochemical products
+  # of biogenic surface fluxes, so their steady state is set by this star's
+  # ultraviolet. Rugheimer et al. (2013) runs that calculation over the FGK main
+  # sequence at 250 K spacing with epsilon Eridani as its 5000 K grid star --
+  # this host to within 35 K, and the star the activity above is modelled on --
+  # and that grid point reads 1.600 ppmv of CH4 and 0.300 ppmv of N2O. Both are
+  # the Sun case's values: NEITHER GAS IS ENHANCED AT THIS STAR. The enhancement
+  # is real and turns on below 4750 K, which is why Segura's 4620 K K2V reads
+  # several ppmv and this world does not.
+  #
+  # They are an ASSUMPTION in the same sense pCO2_bar is: the biogenic fluxes
+  # behind them are modern Earth's, held fixed, and this world has no biosphere
+  # model that could produce its own. exoplasim/notes/trace-gas-absorbers.md is
+  # the pricing and analysis/trace_gas_forcing.json the derivation.
+  #
+  # These are trace enough that the partial pressures above still sum to 1 bar
+  # to six figures; they are stated in bar for consistency with pCO2_bar, and
+  # run_exoplasim.py converts them to the ppmv radmod_nl wants.
+  #
+  # The longwave band that carries these is CLIM-42, resident in `radmod.f90`
+  # and passing all four of its declared tests. At these abundances against
+  # zero it lowers global mean outgoing longwave by 0.799 W/m2, which is 40
+  # percent of what the offline pricing says the gases are worth -- and 40
+  # percent is what this broadband scheme returns for CO2 as well, measured
+  # against a line-by-line answer. exoplasim/notes/trace-gas-band.md.
+  pCH4_bar: 0.0000016
+  pN2O_bar: 0.0000003
   ozone: true
 
 # DETERMINED. The spectrum is a measured K dwarf interpolated to this star's

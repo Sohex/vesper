@@ -1,0 +1,52 @@
+{
+  "generated": "2026-08-20T23:18:22.047901+00:00",
+  "source": "/home/cfutro/.claude/jobs/0a3e157f/tmp/gw",
+  "sites": 75321,
+  "sites_depth_consistent": 57093,
+  "sites_water_below_bore_bottom": 3917,
+  "readings_behind_sites": 53146016,
+  "counts": {
+    "raw_readings": 60020336,
+    "from_dtw": 18733504,
+    "from_rswl": 18758800,
+    "from_swl_corrected": 18879608,
+    "swl_dropped_no_stickup": 3256077,
+    "usable_readings": 53420447,
+    "production_dropped": 274431
+  },
+  "sites_by_state": {
+    "SA": 27593,
+    "VIC": 19014,
+    "WA": 11018,
+    "QLD": 8775,
+    "NSW": 7467,
+    "NT": 1349,
+    "TAS": 90,
+    "ACT": 15
+  },
+  "purpose": {
+    "Monitoring": 47231,
+    "Unknown": 25962,
+    "Exploration": 2015,
+    "Other": 113
+  },
+  "wtd_m": {
+    "median": 5.630000000000001,
+    "p05": 0.8849999999999958,
+    "p95": 49.38,
+    "artesian_fraction": 0.016635466868469617
+  },
+  "quality_flag_sensitivity": {
+    "note": "codes undefined in the download README and on the Explorer metadata page, and per-agency, so reported rather than filtered",
+    "sites_with_any_quality_a": 56232,
+    "median_shift_m": 0.0,
+    "p90_abs_shift_m": 0.07482906588824038,
+    "fraction_of_sites_all_quality_a": 0.6434460509021388
+  },
+  "sha256": "373214ee329e3d5dbece1d231b6a1807d113d1ab3f003c0785f387aab9903d38",
+  "software": {
+    "pandas": "3.0.5",
+    "pyogrio": "0.13.0",
+    "gdal": "3.12.4"
+  }
+}
