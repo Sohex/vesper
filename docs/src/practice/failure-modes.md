@@ -944,3 +944,35 @@ a pointer; replace announced tension with the decision procedure that
 resolves it; fence an exception with the condition that licenses it; convert
 an open loop to a task row or delete it; make tool output state what it is
 and is not.
+
+## 27. A comparison whose baseline was never established
+
+Two builds were compared on a bed that starts cold with `KICK` non-zero and no
+`SEED`. `plasim.f90` seeds that white noise from the CLOCK when `seed(1)` is
+zero, so one binary run twice on that bed does not agree with itself, and every
+comparison built on it is a comparison of two clock readings. It reported 94 of
+199 records wrong at ONE step against a correct transform rewrite, in the loud
+unambiguous form that invites belief, and the rewrite was most of the way to
+being reverted before the bed was suspected.
+
+The tell was in the output and was read past: the worst record was `seed`
+itself, at 4.3e+170 relative. When the RNG state or another metadata record is
+among the differences, the runs are not comparable at all and no finding about
+the physics can be read out of them.
+
+**Before comparing A with B, compare A with A.** If one binary run twice does
+not give one answer, the comparison has no resolution and its verdict is noise,
+whichever way it comes out. The self arm is cheap, it runs first, and its
+failure is diagnostic rather than confusing. `verify_shared_determinism.sh`
+runs it as its first arm for this reason, and `_bed_guard.sh` refuses the
+specific bed that caused this, which is the mechanical half of the same lesson.
+
+The general form is wider than beds and wider than this model. A check has
+inputs it does not control -- an unfixed seed, a wall-clock, a directory it
+shares, an environment variable set outside it -- and any of them can supply
+the whole of the difference it reports. The distinguishing question is not "is
+the difference large" but "does the null case come out null".
+
+Related: class 17 is a check that CANNOT fail. This is its mirror, a check that
+fails for a reason outside what it checks, and it is the more expensive of the
+two because it produces work rather than merely permitting it.

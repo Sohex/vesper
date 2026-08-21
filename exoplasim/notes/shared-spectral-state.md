@@ -61,34 +61,48 @@ enumeration is every routine taking a shared array as an output dummy, in both
 the bare-name and the `ARR(1,j)` base-address form. Done properly, every
 remaining call site is a read.
 
-## Where the race is, and where it is not
+That enumeration missed one anyway, and the miss is the interesting part.
+`dv2uv` takes the shared vorticity array as an INPUT and writes one element of
+it, temporarily, to remove planetary vorticity before the transform. No
+classification by what a routine is FOR would catch that. `shared-spectral-
+state-trace.md` has both races, how they were found, and the detector that
+found them.
 
-It still races, and the determinism check is what catches it -- a check that was
-never run against Stage 1, which turns out to BE deterministic, so the races are
-new rather than inherited.
+## Status
 
-| | |
-| --- | --- |
-| one thread | **deterministic**, and agrees with the one-process build to 1.9e-13 |
-| the pointers | correctly associated: thread 1 gets lo 254, hi 506, shape 253 x 10 |
-| the publish | **sound** -- after `mpsyncsp` both threads read identical sums of sd, st, sz, sp |
-| those sums | **differ run to run** |
+Stage A is implemented and deterministic. At T21 on two threads over 200 steps,
+three runs give one restart hash, and a different random seed gives a different
+hash, so the agreement is about the model rather than about the harness.
+`verify_shared_determinism.sh` is that check.
 
-So the shared-state logic is right, the barrier publishes what it should, and
-the race is UPSTREAM of the publish: in what produces a thread's slice, not in
-the publishing of it. The path to check is the one that feeds it -- the inverse
-transform reads the shared arrays in `gridpointa`, the physics runs, `mktend`
-produces a partial, `mpsumsc` reduces it, and `spectrala` writes the slice. A
-barrier already separates `gridpointa`'s reads from `spectrala`'s writes, so
-what remains is to find another reader of the shared arrays running
-unsynchronised against those writes.
+The plavor rewrite `dv2uv` needed is common to both builds, so the threaded
+build's agreement with the MPI build is unaffected by it and the paired and
+contiguous layouts still agree at rounding scale -- 0 records beyond it at 1 and
+at 20 steps, worst 7.8e-11 against a 1e-10 tolerance.
 
-## Two tool facts that cost cycles
+**What has NOT been done is the measurement.** The whole case for Stage A is
+that removing 105 GB of `mpgallsp` staging closes most of a 19 to 26 point
+deficit, and that is a prediction until T127 and T170 are run against the
+registered MPI binaries. The plan's stopping condition stands: if Stage A does
+not move the memcpy share, the diagnosis is wrong and Stage B is not worth
+building.
 
-**ThreadSanitizer is unusable here.** It reported 94 races, but libgomp is not
-instrumented, so it does not model `!$omp barrier` and flags every
-barrier-synchronised access. The proof is that the deterministic Stage 1 build
-produces the same flood.
+## Tool facts
+
+**ThreadSanitizer works here, against LLVM's `libomp` rather than libgomp.**
+libgomp publishes no OMPT, so TSan cannot see `!$omp barrier` and flags every
+barrier-separated access -- 94 of them, proved noise by a deterministic build
+reproducing the flood exactly. Archer supplies the annotations as an OMPT tool.
+Build gfortran objects with `-fsanitize=thread` and link them against
+`/usr/lib/libomp.so`, which carries the GNU compatibility layer, then run under
+`OMP_TOOL_LIBRARIES=/usr/lib/libarcher.so`. flang cannot stand in: flang 22
+accepts no sanitizers at all.
+
+**`compile.sh`'s `-j` is a flag and takes no argument.** The thread count is
+`-n`. `-j 2` leaves ncpus at the default of 4 and builds a `p4` binary, leaving
+any stale `p2` in `plasim/run` in place for a careless check to pick up. Check
+that a binary is NEWER than the build that was supposed to make it, never that
+it exists.
 
 **`compile.sh` copies sources with `cp -p`,** preserving mtimes, so an edited
 file can leave a stale object and the build silently links the old one.

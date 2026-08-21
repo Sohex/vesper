@@ -42,6 +42,9 @@ ranks="${3:?}"
 steps="${4:-20}"
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# shellcheck source=_bed_guard.sh
+. "$(dirname "${BASH_SOURCE[0]}")/_bed_guard.sh"
+require_settled_bed "$bed"
 PKG="$ROOT/vendor/exoplasim/exoplasim"
 SRC="$PKG/plasim/src"
 low=$(echo "$res" | tr 'A-Z' 'a-z')
