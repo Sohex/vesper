@@ -118,10 +118,19 @@ quarter of the traffic should win, and by more.
 
 ## What would have to be established before believing that
 
-- The factorisation is exact as written above, but the ORDER of operations
-  changes, so it is a reassociation like everything else in this series and the
-  restart shas will move. Same treatment: `compare_restarts.py` at a declared
-  tolerance, against a control.
+- **The factorisation itself is checked and holds.**
+  `verify_weight_factorisation.py` reproduces `legini`'s recurrence, builds the
+  eight matrices the way `legini` builds them, and rebuilds each from the raw P
+  and Q plus its factors: `qi` and `qj` exact, the other six within one ulp,
+  which is the same products taken in a different order. It runs with a filter
+  carrying an EXACT ZERO -- Cesaro at the top mode -- because that is the case
+  that forbids recovering P from `qi` by division, and it is why the
+  factorisation must keep P and Q raw rather than dividing the fold back out.
+  Its negative control drops the zonal wavenumber from `qm`'s per-mode factor
+  and is caught at 1.7.
+- The order of operations changes, so the model's restart shas will move, as
+  with everything else in this series. Same treatment: `compare_restarts.py` at
+  a declared tolerance, against a control.
 - Whether the extra per-mode vector read costs the inner loops their
   vectorisation. It is `NCSP` and shared across latitudes, so it should stay
   resident, but that is a prediction and the filter fold is the standing
