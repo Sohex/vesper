@@ -255,7 +255,7 @@ the solver takes gravity from `config/planet.yaml`.
 
 **It was scored against 70,119 Australian bores and it has no skill.** GW-3, in
 `notes/earth-calibration-criterion.md`: R^2 = 0.017 against a declared bar of
-0.07, a resolvable ceiling of 0.857, and 0.28 for a statistical fit over the
+0.07, a resolvable ceiling of 0.857, and 0.1435 for a statistical fit over the
 same inputs. The residual standard deviation equals the observed standard
 deviation, which is the signature of a near-constant field.
 
@@ -362,7 +362,7 @@ slightly different problems.
 truncation error does to the answer. It is a sensitivity harness, not a model
 parameter.
 
-### Two cell areas, and they are not the same### Two cell areas, and they are not the same
+### Two cell areas, and they are not the same
 
 The mesh is a spherical Voronoi tessellation, so its dual is the convex hull of
 the region centroids and every face width follows from the circumcentres. The
@@ -507,5 +507,7 @@ for another carve iteration, and the counts are in `world_state.json` and
 ## One-off tools
 
 - `scripts/build_earth_wtd_sites.py` -- one-off: assembles Australian bore water table depths into one site table for GW-3, the solver's only external check. Reads the Australian Groundwater Explorer's per-state download, whose `level_<state>.csv` sits BESIDE the geodatabase rather than inside it. Reconciles three datums against an identity that can fail, and reports the quality flag rather than filtering on it, because the codes are per-agency and filtering would select which state survives. Registered under `one_offs` in `config/pipeline.yaml`.
+- `scripts/earth_calibration.py` -- one-off: the GW-3 Earth comparator end to end, mesh, ETOPO, GLHYMPS permeability, recharge, drainage, solve and score, with `--edge-km` or `--regions` setting the mesh so the same case can be run at more than one cell size. The original was written inline and lost, which is GW-20 and is why this exists as a script: the one number that judges this component was recorded and not reproducible. Stages cache under `data/earth_validation_cache/edge<E>km/` and are skipped when present; the cache is gitignored and regenerable, the result is `analysis/earth_calibration.json`. Runs with the sink and the river baselevels ON, as the pipeline gate requires. Registered under `one_offs` in `config/pipeline.yaml`.
+- `scripts/build_us_wtd_sites.py` -- one-off: the United States half of the Earth comparator's observations, GW-22, companion to `build_earth_wtd_sites.py`. `external-data.md` says take Australia FIRST and the US second; this is the second leg, and it exists because GW-21 concluded the limit on the Australian score is the input fields rather than the formulation or the mesh, which is a claim resting on one region. Fetches USGS `monitoring-locations` and `field-measurements` at parameter code 72019, depth to water in feet below land surface, paging blind on the `next` link because `numberMatched` is absent from every response. The US set can be BETTER than the Australian one rather than merely bigger: `aquifer_type_code` separates confined from unconfined directly, where Australia can only infer it from bore depth, and a `Static` qualifier marks readings not taken while pumping, which `external-data.md` notes Fan's four columns cannot support. Writes `data/earth_validation/us_wtd_sites.csv`. Registered under `one_offs` in `config/pipeline.yaml`.
 - `scripts/validate_lake_solver.py` -- one-off: checks the lake solver against real endorheic basins on Copernicus DEM tiles, which is where HYD-7's mesh-scale storage deficit was measured. Registered under `one_offs` in `config/pipeline.yaml`; it generates nothing the pipeline reads.
 

@@ -155,7 +155,21 @@ very wet -- Congo, Amazonia, southeastern Asia fall outside its observational
 range. That is the opposite weighting from the one feared and the right one for
 this world.
 
-**United States wells: `api.waterdata.usgs.gov`, no key.** The old
+**United States wells: `api.waterdata.usgs.gov`. A key is optional and the
+anonymous budget is exhaustible**, which the first bulk fetch found the hard
+way. A 429 carries `x-ratelimit-limit`, `x-ratelimit-remaining: 0` and a
+`retry-after` in seconds -- 1977, thirty-three minutes, on the occasion measured
+2026-08-20 -- and the body says to provide a key from
+`https://api.waterdata.usgs.gov/signup/`. The two buckets are NOT what the
+naming suggests and both were measured on the same day: keyless reported a limit
+of 4000 and keyed reports 1000, so they are different windows rather than one
+budget a key enlarges. What the key buys is a bucket of your own rather than a
+shared one, which is what actually ran out. Keyless is fine for probing and for a
+single collection; a job that pages a whole collection should carry a key in
+`USGS_API_KEY`, which `hydrography/scripts/build_us_wtd_sites.py` sends when it
+is set. A record count for any query comes from `resulttype=hits`, lower case t, since `resultType` 400s; an ordinary response carries no `numberMatched` at all, so without it paging is blind. Measured 2026-08-20: 1,090,129 latest water-level readings and 1,408,546 groundwater monitoring locations over the conterminous states. Treat 429 as pacing rather than failure: honour `retry-after`, and
+checkpoint, because losing an hour of paging to one throttled request is the
+avoidable half of the problem. The old
 `waterservices.usgs.gov/nwis/gwlevels` API was frozen in November 2025 and
 decommissioned in February 2026; it 301s to a decommissioning notice. The
 replacement is an OGC API collection:

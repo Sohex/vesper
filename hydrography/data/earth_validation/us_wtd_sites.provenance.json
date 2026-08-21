@@ -1,0 +1,8 @@
+{
+  "generated": "2026-08-21T02:46:39+00:00",
+  "source": "https://api.waterdata.usgs.gov/ogcapi/v0/collections/field-measurements + monitoring-locations",
+  "parameter_code": "72019",
+  "bbox": "-125,24,-66,50",
+  "sites": 874501,
+  "readings": 1066776
+}

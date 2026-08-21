@@ -577,6 +577,7 @@ one_offs:
   - exoplasim/scripts/reset_restart_accumulators.py
   - hydrography/scripts/validate_lake_solver.py
   - hydrography/scripts/build_earth_wtd_sites.py
+  - hydrography/scripts/build_us_wtd_sites.py
   - hydrography/scripts/earth_calibration.py
   - hydrography/scripts/lake_balance.py
   - pedology/scripts/validate_against_earth.py

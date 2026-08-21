@@ -363,7 +363,7 @@ or below the cell size: real drainage spacing is 5 to 20 km, so an interfluve is
 one or two cells wide and the model has nowhere to put a subdued replica.
 
 What predicts observed depth at this scale is weak and diffuse -- no single field
-exceeds 0.27, and a flexible fit over all of them reaches R^2 = 0.28 on
+exceeds 0.27, and a flexible fit over all of them reaches R^2 = 0.1435 on
 depth-consistent bores. There is resolvable signal, it is a quarter of the
 variance rather than the 0.86 the cell decomposition allows, and it is not
 carried by one mechanism that a physical model could be given.
