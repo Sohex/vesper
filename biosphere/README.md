@@ -25,7 +25,9 @@ implicit Earth assumptions below the port are in
 `notes/implicit-earth-assumptions.md`, the soil decomposition, C-N-P and
 pedology/groundwater seams are audited in
 `notes/soil-decomposition-biogeochemistry-audit.md`, plant physiology and carbon
-allocation are audited in `notes/plant-physiology-carbon-allocation-audit.md`, and
+allocation are audited in `notes/plant-physiology-carbon-allocation-audit.md`,
+BVOC emissions, secondary organic aerosol and atmospheric coupling are audited
+in `notes/bvoc-soa-atmospheric-coupling-audit.md`, and
 `notes/productivity-prediction.md` registers what the answer should be before the
 model can contradict it.
 
@@ -50,7 +52,7 @@ a result.
 | model obtained | `mateusdp/LPJ-GUESS-NTD`, tag `LPJ-GUESS-CNP_v1.0`, commit `b368b893`; MPL-2.0 notices restored from verified 4.1.1 |
 | build | vendored CNP tree plus Vesper port; build verification awaits an available compute window |
 | smoke test | stock 4.1.1 port: bundled 3-cell demo, 550 years, 73 s, expected PFTs |
-| Earth-assumption audit | follow-up complete; BIO-21 through BIO-28 track cross-cutting non-fire assumptions, PCAR-1 through PCAR-10 track plant physiology/allocation, and SDEC-1 through SDEC-9 track soil decomposition/biogeochemistry |
+| Earth-assumption audit | follow-up complete; BIO-21 through BIO-28 track cross-cutting non-fire assumptions, PCAR-1 through PCAR-10 track plant physiology/allocation, SDEC-1 through SDEC-9 track soil decomposition/biogeochemistry, and BVOC-1 through BVOC-10 track volatile carbon through chemistry, aerosol and climate |
 | productivity prediction | registered, unscored |
 | calendar and astronomy port | mechanical calendar and orbital geometry applied; natural phenology still has unreachable Earth dates under BIO-21 |
 | PFT degree-day rescale | generated from the orbit, 500 -> 247 gdd5min_est; the remaining annual-rate semantics are BIO-22 |
@@ -59,6 +61,7 @@ a result.
 | run harness | written; records inputs, binary and model identity in its manifest |
 | albedo and forest feedback | modelled mode exists; rootable/lake and spectral corrections are BIO-17 and BIO-18 |
 | aerodynamic feedback | modelled roughness is open as BIO-16 |
+| BVOC/SOA feedback | LPJ source is present but off; carbon closure, PFT traits, reduced atmospheric chemistry/transport, direct optics and cloud effects are separated under BVOC-1 through BVOC-10 |
 | full run | harness exists, but BIO-11 through BIO-15 and BIO-21 through BIO-25 must close before its output is interpreted; prior estimate ~25 min on 16 ranks |
 
 The model is vendored at `vendor/lpj-guess/` as a git subtree from the CNP fork.

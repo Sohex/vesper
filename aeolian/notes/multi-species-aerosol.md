@@ -117,7 +117,7 @@ both be on.
 | mineral dust | +0.34 to +0.61 | the field and the aerofile both exist |
 | sea salt | -0.16 to -0.89 | the offline field exists; needs an `.sra` writer and an aerofile column |
 | volcanic sulfate | -0.013 to -0.032 | one to two orders down; nearly free once the array exists, and it decides nothing |
-| carbonaceous | not yet priced | CLIM-29, blocked on a biosphere run |
+| primary fire carbonaceous / biogenic SOA | not yet priced | CLIM-29 owns primary smoke; BVOC-1 through BVOC-10 own the separate SOA source--chemistry--cloud chain |
 
 Sea salt is the one that changes an answer. It is also the cheaper half of the
 pair to prescribe, because it is a pure scatterer over a dark surface that does
