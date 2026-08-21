@@ -87,7 +87,7 @@ Status: `open` | `doing` | `blocked` | `done` | `wontfix` (with a reason).
 
 ## CLIM -- climate
 
-7 open of 46 issued.
+6 open of 46 issued.
 
 | id | task | source | status |
 | --- | --- | --- | --- |
