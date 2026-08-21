@@ -313,6 +313,11 @@ SoilInput::SoilProperties SoilInput::get_lpj_organic_soil() {
 	soiltype.soil_OC = 0.05;
 	soiltype.soilC = 0.0; // default value (kgC/m2)
 	soiltype.porosity = data[soilcode][11];
+	// The CNP fork initializes phosphorus pools even when limitation is disabled.
+	// Use its site defaults until Vesper's gridded soil P path exists.
+	soiltype.kplab = 0.010;
+	soiltype.spmax = 0.145;
+	soiltype.pwtr = 0.000003;
 	return soiltype;
 }
 
@@ -372,6 +377,12 @@ SoilInput::SoilProperties SoilInput::get_mineral(coord c) {
 	else {
 		soiltype.porosity = Theta_s;
 	}
+
+	// The fork's mineral-texture path otherwise returns these uninitialized.
+	// They are inert with ifplim=0, but still participate in pool setup.
+	soiltype.kplab = 0.010;
+	soiltype.spmax = 0.145;
+	soiltype.pwtr = 0.000003;
 
 	return soiltype;
 }

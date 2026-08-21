@@ -4,7 +4,7 @@ What LPJ-GUESS assumes about Earth, where those assumptions live in the source,
 and what has to change before the model says anything about this planet. Written
 after obtaining and building the model, before any Vesper-specific code exists.
 
-## The model as obtained
+## The model as originally obtained
 
 LPJ-GUESS 4.1.1, released 2021-10-13, Mozilla Public Licence 2.0, from Zenodo
 record 8065737. No registration is required; the licence permits modification and
@@ -18,9 +18,9 @@ build     /home/cfutro/git/lpj-guess/build
 binary    /home/cfutro/git/lpj-guess/build/guess
 ```
 
-It lives beside `ExoPlaSim` and `planet_heightmap_generation` in `~/git` for the
-same reason those do: it is third-party source that this project modifies but
-does not own, and it is not this repository's history to keep.
+These paths record the checkout used for the original audit. The active source
+is now the CNP fork vendored at `vendor/lpj-guess/`; see
+`docs/src/reference/vendored-upstreams.md` for its pinned identity.
 
 Build state: configures and compiles clean with CMake 4.4.2 and GCC 16.1.1, zero
 errors, for a codebase last touched in 2021. MPI is found and enabled. netCDF is
@@ -256,16 +256,12 @@ So the first LPJ-GUESS run is a shakedown on the pre-carve climatology, to prove
 the input module, the patch and the calendar, and it must be labelled as such.
 The first run that means anything waits on a `carved-zoned` climatology.
 
-## The patch, written
+## The port, originally written as a patch
 
-`patches/lpj-guess-4.1.1-vesper.patch`, against the pinned 4.1.1 tarball, in the
-same style as `exoplasim/patches/exoplasim-3.4.2-star-cycle.patch`.
-
-```bash
-cd /home/cfutro/git/lpj-guess/guess_4.1
-patch --forward --strip=1 --directory=. < <world>/biosphere/patches/lpj-guess-4.1.1-vesper.patch
-cd ../build && make -j16
-```
+The port was first verified as `patches/lpj-guess-4.1.1-vesper.patch` against
+the pinned 4.1.1 tarball. It now lives directly in `vendor/lpj-guess/`, together
+with `modules/vesperinput.*`; the obsolete patch and duplicate source copy were
+removed when the CNP fork became a subtree.
 
 Every planetary constant is collected in one block in `framework/guessmath.h`,
 which `guess.h` and `spinupdata.h` both already include, so the assumptions are

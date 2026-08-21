@@ -951,7 +951,7 @@ void daylengthinsoleet(Climate& climate) {
 	// INPUT AND OUTPUT PARAMETER
 	// climate = gridcell climate
 
-	const double QOO = 1360.0;
+	const double QOO = VESPER_STELLAR_CONSTANT;
 	const double BETA = 0.17;
 
 	const double A = 107.0;
@@ -959,7 +959,7 @@ void daylengthinsoleet(Climate& climate) {
 	const double C = 0.25;
 	const double D = 0.5;
 	const double K = 13750.98708;
-	const double FRADPAR = 0.5;
+	const double FRADPAR = VESPER_FRADPAR;
 		// fraction of net incident shortwave radiation that is photosynthetically
 		// active (PAR)
 
@@ -1030,9 +1030,10 @@ void daylengthinsoleet(Climate& climate) {
 	if (!climate.doneday[date.day]) {
 
 		// Calculate values of saved parameters for this day
-		climate.qo[date.day] = QOO * (1.0 + 2.0 * 0.01675 *
+		climate.qo[date.day] = QOO * (1.0 + 2.0 * VESPER_ECCENTRICITY *
 							cos(2.0 * PI * ((double)date.day + 0.5) / date.year_length())); // Eqn 2
-		double delta = -23.4 * DEGTORAD * cos(2.0 * PI * ((double)date.day + 10.5) / date.year_length());
+		double delta = -VESPER_OBLIQUITY_DEG * DEGTORAD *
+			cos(2.0 * PI * ((double)date.day + VESPER_SOLSTICE_OFFSET_DAYS) / date.year_length());
 				// Eqn 4, solar declination angle (radians)
 		climate.u[date.day] = climate.sinelat * sin(delta); // Eqn 9
 		climate.v[date.day] = climate.cosinelat * cos(delta); // Eqn 10

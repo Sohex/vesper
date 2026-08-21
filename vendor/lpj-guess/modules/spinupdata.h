@@ -226,7 +226,7 @@ public:
  */
 class GenericSpinupData {
 public:
-	static const int DAYS_PER_YEAR = 365;
+	static const int DAYS_PER_YEAR = VESPER_YEAR_LENGTH_DAYS;
 
 	/// Datatype for the data, a 2D matrix of doubles
 	typedef std::vector<std::vector<double> > RawData;

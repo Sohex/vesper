@@ -36,33 +36,36 @@ a result.
 
 | item | state |
 | --- | --- |
-| model obtained | LPJ-GUESS 4.1.1, MPL-2.0, Zenodo 8065737, md5 verified |
-| build | clean on GCC 16.1.1, MPI on, netCDF off (not installed, not needed) |
-| smoke test | bundled 3-cell demo, 550 years, 73 s, expected PFTs |
+| model obtained | `mateusdp/LPJ-GUESS-NTD`, tag `LPJ-GUESS-CNP_v1.0`, commit `b368b893`; MPL-2.0 notices restored from verified 4.1.1 |
+| build | vendored CNP tree plus Vesper port; build verification awaits an available compute window |
+| smoke test | stock 4.1.1 port: bundled 3-cell demo, 550 years, 73 s, expected PFTs |
 | Earth-assumption audit | complete, see the note |
 | productivity prediction | registered, unscored |
-| calendar and astronomy patch | written, applied, verified |
+| calendar and astronomy port | applied directly in `vendor/lpj-guess/`, previously verified against stock 4.1.1 |
 | PFT degree-day rescale | generated from the orbit, 500 -> 247 gdd5min_est |
 | input module | `vesperinput`, runs end to end, splits across MPI ranks |
 | soil | from `pedology/`, loop closing at smoke scale |
-| run harness | not written; runs so far are hand-assembled in scratch |
+| run harness | written; records inputs, binary and model identity in its manifest |
 | albedo and forest feedback | not written, and it is the component's purpose |
 | full run | blocked on a current climatology; ~25 min on 16 ranks |
 
-The model is not in this repository. It lives at
-`/home/cfutro/git/lpj-guess/guess_4.1` beside `ExoPlaSim` and
-`planet_heightmap_generation`, for the same reason those do.
+The model is vendored at `vendor/lpj-guess/` as a git subtree from the CNP fork.
+The Vesper calendar, astronomy and input-module changes live directly in that
+tree, so the source being reviewed is the source being compiled and run.
+Phosphorus limitation remains off until Vesper's soil-P fields and a replacement
+productivity prediction land together; this is a source normalization, not a
+silent change from the established C-N experiment.
 
 ```bash
-cd /home/cfutro/git/lpj-guess/guess_4.1
-patch --forward --strip=1 --directory=. < <world>/biosphere/patches/lpj-guess-4.1.1-vesper.patch
-cd ../build && cmake ../guess_4.1 -DCMAKE_BUILD_TYPE=Release && make -j16
+cmake -S vendor/lpj-guess -B vendor/lpj-guess/build \
+  -DCMAKE_BUILD_TYPE=Release -DUNIT_TESTS=OFF
+cmake --build vendor/lpj-guess/build --parallel 16
 ```
 
-`--reverse` restores the pristine 4.1.1 tree. The patch itself contains no
-planetary numbers: it points `framework/guessmath.h` at a generated `vesper.h`
-and wires `vesperinput` into the build. Copy `src/vesperinput.*` into `modules/`
-alongside it. See "Running it" below for the generators.
+`framework/vesper.h` is still generated and ignored; it contains the planetary
+numbers. The committed port only includes it and wires the in-tree
+`modules/vesperinput.*` into the build. See "Running it" below for the
+generators.
 
 ## The three things that decide whether this is credible
 
@@ -311,7 +314,7 @@ failing. The driver file records the year length it was built for and
 python biosphere/scripts/build_vesper_header.py   # vesper.h, installed into the tree
 python biosphere/scripts/build_vesper_pfts.py     # degree-day limits rescaled
 python biosphere/scripts/build_lpj_driver.py      # climate + soil codes + gridlist
-cd /home/cfutro/git/lpj-guess/build && make -j16
+cmake --build vendor/lpj-guess/build --parallel 16
 ```
 
 ### Fire is GLOBFIRM, and `cflux.out` is the only place it shows
@@ -340,4 +343,3 @@ reported year, but it does mean fire is off for the first tenth of it.
 ## One-off tools
 
 - `scripts/score_prediction.py` -- one-off: scores a productivity prediction against an LPJ-GUESS run, the machinery behind BIO-2's nitrogen bracket. Registered under `one_offs` in `config/pipeline.yaml`; it generates nothing the pipeline reads.
-

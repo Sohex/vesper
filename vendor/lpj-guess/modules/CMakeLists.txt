@@ -16,6 +16,7 @@ set(headers
   miscoutput.h
   spinupdata.h
   demoinput.h
+  vesperinput.h
   cfinput.h
   management.h
   cropallocation.h
@@ -33,6 +34,7 @@ set(source
   driver.cpp 
   growth.cpp 
   demoinput.cpp 
+  vesperinput.cpp
   soilwater.cpp 
   somdynam.cpp 
   landcover.cpp 

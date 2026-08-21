@@ -70,7 +70,7 @@ Status: `open` | `doing` | `blocked` | `done` | `wontfix` (with a reason).
 | BIO-2 | Quote productivity with the `nfix_a` bracket 0.102-0.367 carried through rather than the central value alone; the span is 18.2% of NPP and it is the largest nitrogen lever | `biosphere/notes/productivity-prediction.md` | blocked on iteration 2's baseline run -- no LPJ-GUESS run exists on this build [step: lpj_run] |
 | BIO-3 | -- | -- | done, see `archive/tasks.md` |
 | BIO-4 | -- | -- | done, see `archive/tasks.md` |
-| BIO-5 | Extend `vesperinput.cpp` for the CNP fork's `SoilProperties` fields (`kplab`, `spmax`, `pwtr`): the subclass must carry them even if it does nothing with them | `biosphere/notes/cnp-fork-scoping.md` | open, blocked on the CNP fork build itself [step: lpj_run] |
+| BIO-5 | Replace the CNP fork's temporary site defaults for `kplab`, `spmax` and `pwtr` with per-cell Vesper soil inputs; the defect is in `SoilInput::get_mineral`, not `vesperinput.cpp` | `biosphere/notes/cnp-fork-scoping.md` | open; the CNP source is vendored with `ifplim 0`, and activation waits on these inputs [step: lpj_run] |
 
 ## BUDG -- the error budget and what it is denominated in
 
@@ -402,4 +402,3 @@ Status: `open` | `doing` | `blocked` | `done` | `wontfix` (with a reason).
 | VOLC-5 | -- | -- | wontfix, see `archive/tasks.md` |
 | VOLC-6 | -- | -- | done, see `archive/tasks.md` |
 | VOLC-7 | -- | -- | done, see `archive/tasks.md` |
-

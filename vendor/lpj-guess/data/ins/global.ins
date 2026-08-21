@@ -128,10 +128,13 @@ acclimated_respiration 1		! Activation of acclimated respiration, function subst
 
 ifcentury 1			! Whether to use CENTURY SOM dynamics (mandatory for N cycling)
 ifnlim 1			! Whether plant growth limited by available N
+ifplim 0			! CNP source is vendored, but P limitation waits for Vesper soil P inputs
+ifwalkernplim 0		! Walker et al. 2014 joint N/P Vcmax limitation
 freenyears 100			! Number of years to spin up without N limitation (needed to build up a N pool)
 nfix_a 0.234			! First term in N fixation eqn (Conservative 0.102, Central 0.234, Upper 0.367)
 nfix_b -0.172			! Second term in N fixation eqn (Conservative 0.524, Central -0.172, Upper -0.754)
 nrelocfrac 0.5			! Fraction of N retranslocated prior to leaf and root shedding
+prelocfrac 0.5			! Parsed by the CNP fork; inactive while ifplim is 0
 
 
 !///////////////////////////////////////////////////////////////////////////////
@@ -246,7 +249,9 @@ group "tree" (
 	cton_root 29
 	cton_sap 330
 	nuptoroot 0.0028
+	puptoroot 0.00148
 	km_volume 0.000001477
+	kmp_volume 0.000000215
 	pathway "c3"
 	respcoeff 1.0
 	kest_repr 200
@@ -279,8 +284,11 @@ group "shrub" (
 	cton_root 29
 	cton_sap 330
 	nuptoroot 0.0028
+	puptoroot 0.00148
 	km_volume 0.000001477
+	kmp_volume 0.000000215
 	fnstorage 0.3
+	fpstorage 0.3
 	pathway "c3"
 	kest_repr 200
 	kest_bg 0.1
@@ -314,8 +322,11 @@ group "grass" (
 	!cton_leaf_min 16
 	cton_root 29
 	nuptoroot 0.00551
+	puptoroot 0.00148
 	km_volume 0.000001876
+	kmp_volume 0.000000215
 	fnstorage 0.3
+	fpstorage 0.3
 	litterme 0.2
 	parff_min 1000000
 	fireresist 0.5
@@ -359,6 +370,7 @@ group "evergreen" (
 
 	phenology "evergreen"
 	fnstorage 0.05
+	fpstorage 0.05
 	phengdd5ramp 0
 )
 
@@ -368,6 +380,7 @@ group "summergreen" (
 
 	phenology "summergreen"
 	fnstorage 0.15
+	fpstorage 0.15
 	phengdd5ramp 200
 	leaflong 0.5
 	turnover_leaf 1
@@ -672,6 +685,7 @@ pft "TrBR" (
 	tropical
 	phenology "raingreen"
 	fnstorage 0.15
+	fpstorage 0.15
 	leaflong 0.5
 	turnover_leaf 1
 	longevity 400    	! from Thomas h 2010-03-30

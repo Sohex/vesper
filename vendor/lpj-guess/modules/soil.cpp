@@ -169,7 +169,7 @@ void Soil::init_states() {
 	snow_active = false;
 	snow_active_layers = 0;
 	snow_days = 0;
-	snow_days_prev = 365;
+	snow_days_prev = Date::MAX_YEAR_LENGTH;
 	dec_snowdepth = 0.0;
 
 	// Peatland hydrology variables
@@ -217,7 +217,7 @@ void Soil::init_states() {
 	for (int sly = 0; sly<NSUBLAYERS_ACRO; sly++)
 		sub_water[sly] = 0.0;
 
-	for (int d = 0; d<365; d++) {
+	for (int d = 0; d<Date::MAX_YEAR_LENGTH; d++) {
 
 		wtp[d] = 0.0;
 
@@ -392,11 +392,13 @@ void Soil::soil_temp_analytic(const Climate& climate, double depth) {
 	// conversion factor for soil thermal diffusivity from mm2/s to m2/day
 	const double DIFFUS_CONV = 0.0864;
 		
-	const double HALF_OMEGA = 8.607E-3; // corresponds to omega/2 = pi/365 (Eqn 1)
+	// omega/2 = pi / year length. The annual thermal wave is real physics tied to
+	// the orbital period, not a calendar convention, so it moves with the year.
+	const double HALF_OMEGA = PI / (double)Date::MAX_YEAR_LENGTH;
 	// soil depth at which to estimate temperature (m)
 	// const double DEPTH = SOILDEPTH_UPPER * 0.0005;
-	// conversion factor for oscillation lag from angular units to days (=365/(2*PI))		
-	const double LAG_CONV = 58.09;
+	// conversion factor for oscillation lag from angular units to days
+	const double LAG_CONV = (double)Date::MAX_YEAR_LENGTH / (2.0 * PI);
 		
 	double a, b; // regression parameters
 	double k; // soil thermal diffusivity (m2/day)
@@ -1803,8 +1805,8 @@ void Soil::hydrology_peat(const Climate& climate, double fevap) {
 
 		// Calculate annual average WTP. Needed in update_acrotelm_co2
 		awtp = 0.0;
-		for (int d = 0; d < 365; d++)
-			awtp += wtp[d]/365.0; 
+		for (int d = 0; d < Date::MAX_YEAR_LENGTH; d++)
+			awtp += wtp[d]/(double)Date::MAX_YEAR_LENGTH;
 	}
 
 	return; // ...if no problems
@@ -2881,7 +2883,7 @@ void Soil::update_snow_properties(const int& daynum, const double& dailyairtemp,
 
 	// Update snowdens using the Wania et al. simple snow compaction scheme
 
-	// We assume fresh snow unless snow_days > 0.75 * 365;
+	// We assume fresh snow unless snow_days > 0.75 * snow_days_prev;
 	if (date.year >= 1 && snow_days >= 0.75 * snow_days_prev) {
 		snowdens = snowdens_start + (snowdens_end - snowdens_start) / (snow_days_prev * 0.25) * (snow_days - 0.75 * snow_days_prev);
 		 
@@ -3602,7 +3604,7 @@ bool Soil::soil_temp_multilayer(const double &dailyairtemp) {
 
 	if (firstTempCalc && patch.stand.first_year == date.year) {
 		SIDX_old = SIDX;
-		snow_days_prev = 365;
+		snow_days_prev = Date::MAX_YEAR_LENGTH;
 		snow_days = 0;
 		snow_active = false;
 		snow_active_layers = 0;

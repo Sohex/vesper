@@ -27,6 +27,14 @@ double const PI = M_PI;
 #endif
 const double DEGTORAD = PI / 180.;
 
+// Vesper's planetary constants: year length, orbit, star and PAR fraction.
+// GENERATED, by biosphere/scripts/build_vesper_header.py from config/planet.yaml.
+// Not written by hand and not edited here, because the year length is a function
+// of orbit.baseline_flux_earth and moves whenever the flux does. Regenerate and
+// rebuild after any orbit change; VESPER_YEAR_LENGTH_DAYS sizes arrays, so it is
+// a compile-time constant and a stale binary is a silently wrong one.
+#include "vesper.h"
+
 const double SECS_PER_DAY	= 24.0*60.0*60.0;
 const double M3_PER_MM3		= 1E-9;
 const double MM3_PER_M3		= 1E9;

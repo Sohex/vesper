@@ -84,6 +84,12 @@ def build_instruction(paths: dict, settings: dict) -> str:
 
 import "{paths['pfts']}"
 
+! The vendored source is the CNP fork, but Vesper's gridded soil phosphorus
+! inputs and replacement productivity prediction are not ready. Keep the
+! established C-N model until those land together; the later declaration wins.
+ifplim 0
+ifwalkernplim 0
+
 title "{settings['title']}"
 nyear {settings['nyear']}
 
@@ -282,7 +288,10 @@ def main() -> None:
             "notes/productivity-prediction.md."),
         "software": {
             "platform": platform.platform(),
-            "lpj_guess": "4.1.1 + biosphere/patches/lpj-guess-4.1.1-vesper.patch",
+            "lpj_guess": (
+                "LPJ-GUESS-CNP v1.0 (b368b893c4324840b43c56866e901c6916858afb) "
+                "+ in-tree Vesper port; phosphorus limitation disabled"
+            ),
         },
         "git_commit": subprocess.run(
             ["git", "rev-parse", "HEAD"], capture_output=True, text=True,

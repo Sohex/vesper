@@ -295,8 +295,11 @@ class Date {
 public:
 
 	/// Maximum number of days in an LPJ-GUESS simulation year
-	/** The standard version doesn't yet support leap years. */
-	static const int MAX_YEAR_LENGTH = 365;
+	/** Vesper's year, not Earth's. See VESPER_YEAR_LENGTH_DAYS in vesper.h.
+	 *  year_length() returns this and every per-day array is sized by it, so the
+	 *  whole model agrees by construction.
+	 */
+	static const int MAX_YEAR_LENGTH = VESPER_YEAR_LENGTH_DAYS;
 
 	/// number of days in each month (0=January - 11=December)
 	int ndaymonth[12];
@@ -345,7 +348,9 @@ public:
 	/// Constructor function called automatically when Date object is created
 	/** Do not call explicitly. Initialises some member variables. */
 	Date() {
-		const int data[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+		// Twelve months as even as the year divides, the last carrying the
+		// remainder. Generated alongside the year length; see vesper.h.
+		const int data[] = VESPER_MONTH_LENGTHS;
 		int month;
 		int dayct = 0;
 		for (month=0; month<12; month++) {
@@ -1383,10 +1388,10 @@ private:
 	double monthly_fluxes_pft[12][NPERPFTFLUXTYPES];
 
 	/// Stores one flux value per day and flux type
-	double daily_fluxes_patch[365][NPERPATCHFLUXTYPES];
+	double daily_fluxes_patch[Date::MAX_YEAR_LENGTH][NPERPATCHFLUXTYPES];
 
 	/// Stores one flux value per day and flux type
-	double daily_fluxes_pft[365][NPERPFTFLUXTYPES];
+	double daily_fluxes_pft[Date::MAX_YEAR_LENGTH][NPERPFTFLUXTYPES];
 };
 
 /// Storage class of crop management information for one rotation period for a stand type, read from the instruction file.

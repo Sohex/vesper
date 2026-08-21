@@ -33,10 +33,12 @@ different parts of the same files.
     modules/spinupdata.h      clean
     modules/CMakeLists.txt    clean
 
-Extending `vesperinput.cpp`, which subclasses `SoilInput`, is `TASKS.md`
-BIO-5.
-The fork adds `kplab`, `spmax` and `pwtr` to `SoilProperties`, so the subclass
-will need to carry them even if it does nothing with them.
+`VesperInput` contains a `SoilInput`; it does not subclass it. The build therefore
+needs no new members in `vesperinput.cpp`. The actual defect is in the fork's
+`SoilInput::get_mineral`: it copies `kplab`, `spmax` and `pwtr` from fields that
+the texture reader never initializes. The vendored C-N configuration supplies
+the fork's documented site defaults while `ifplim` is off. Replacing those
+defaults with per-cell Vesper fields is `TASKS.md` BIO-5.
 
 ## The input side is where the work is, and the fork is incomplete there
 
@@ -83,8 +85,8 @@ Two consequences specific to Vesper:
 
 ## Estimated work
 
-    apply the patch to the fork, build, confirm parity      small, measured clean
-    extend vesperinput.cpp for the new SoilProperties        small
+    vendor the fork and fold in the Vesper port              done
+    replace temporary SoilInput P defaults per gridcell      moderate
     add rock-class phosphorus to pedogenesis.yaml            small, same shape as quartz
     emit pwtr/kplab/spmax per gridcell from build_soil.py    moderate
     read them in the texture path                            moderate, upstream gap
