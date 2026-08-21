@@ -567,3 +567,4 @@ one_offs:
   - exoplasim/scripts/verify_filter_fold.sh
   - exoplasim/scripts/verify_fold_exactness.sh
   - exoplasim/scripts/verify_fold_indexing.sh
+  - exoplasim/scripts/verify_legendre_parity.py
