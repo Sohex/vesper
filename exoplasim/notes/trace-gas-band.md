@@ -360,40 +360,51 @@ range -- produced no NaN and no abort.
 **Magnitude.** At 1.600 ppmv of CH4 and 0.300 of N2O against zero, the global
 mean outgoing longwave falls by **0.799 W/m2**, and no cell is unaffected.
 
-### Reading the magnitude, and how far that reading goes
+### Reading the magnitude, and what is verified
 
 The offline pricing is 1.56 to 1.98 W/m2 above a 100 ppbv floor, so a
-0-to-1.6 ppmv change should price a little above 2. The model applies 0.799,
-about 40 percent of it.
+0-to-1.6 ppmv change should price a little above 2. The model applies 0.799.
 
-**The scheme under-delivers on CO2 by a similar factor**, which is why 0.799 is
-not read as a defect in this term. Measured on the same bed: the whole CO2
-greenhouse is 12.28 W/m2, from turning CO2 off entirely, and a doubling gives
-1.576. **The Earth figures those are held against -- roughly 25 to 30 W/m2 and
-3.7 -- are quoted from general knowledge and have NOT been sourced or checked
-here**, so "40 to 45 percent of a line-by-line answer" is an impression and not
-a measurement. It is enough to say the two shortfalls are the same size and not
-enough to say either is right.
+**Every step between the two has now been checked against a line list, and
+none of them is where the difference lives.**
 
-**What the shortfall is NOT is this world's thinner column.** 1 bar over 12.81
-m/s2 gives 0.756 of Earth's column for the same mixing ratio, and the obvious
-reading is that a thinner column is a weaker greenhouse. That is directionally
-true and quantitatively small. Measured by running the model at 595 ppm, which
-is the CO2 amount that gives Earth's column at this gravity:
+| step | check | result |
+| --- | --- | --- |
+| CH4 band absorptance | HITRAN 2020, matched corrk pair | within 7% at every level |
+| narrow-band to fractional absorptivity | corrk CO2, band absorptance times `pi B(667)/sigma T^4` against the true Planck-weighted value | 1.004 |
+| Sasamori's own CO2 absorptivity | corrk CO2 at the same path | 0.175 against 0.165, 6% |
 
-| CO2 | greenhouse |
-| --- | ---: |
-| 450 ppm, this world's column | 12.284 W/m2 |
-| 595 ppm, Earth's column | 12.926 W/m2 |
+The conversion test is the one that had never been made. It takes CO2's 15 um
+band absorptance from the line list, 150.2 cm-1, applies exactly the conversion
+this implementation uses, and compares against the Planck-weighted absorptivity
+over the whole thermal spectrum: 0.1653 against 0.1646. The narrow-band
+approximation is good to half a percent for a band 300 cm-1 wide, which is
+wider than any of the three added here.
 
-**0.642 W/m2**, against a gap of order fifteen. The column reduction accounts
-for about four percent of it. Note also that gravity is what does this, not
-radius: the column over a square metre is `P/g` and carries no radius at all. A
-larger planet holds more atmosphere in total and the same amount above each
-point.
+**So there is no identified defect anywhere in the chain**, and the earlier
+claim that this scheme "runs at 40 to 45 percent of a line-by-line answer" does
+not survive. That rested on Earth figures of 25 to 30 W/m2 for the CO2
+greenhouse, quoted from general knowledge, never sourced, and probably not even
+the same quantity: the published number is an ATTRIBUTION with band overlap
+shared out, and what was measured here is a REMOVAL with water vapour left in
+place, which is a smaller thing. Against a correct absorptivity, 12.28 W/m2 is
+simply what this atmosphere gives.
 
-So the remaining shortfall is unattributed. It is consistent with a broadband
-scheme against line-by-line, and this note does not establish that.
+**What remains is two estimates of one quantity that differ by two and a half,
+with neither refuted.** They are not the same calculation: Byrne and Goldblatt
+is a line-by-line forcing for an EARTH atmosphere -- its temperature profile,
+its water vapour, its clouds -- and 0.799 is this world's atmosphere in this
+scheme. Nothing here says which is right for Vesper, and the budget carries the
+difference rather than a preference.
+
+**And it is not this world's thinner column.** 1 bar over 12.81 m/s2 gives
+0.756 of Earth's column for the same mixing ratio, and the obvious reading is
+that a thinner column is a weaker greenhouse. Directionally true, and small:
+running the model at 595 ppm, the CO2 amount that restores Earth's column at
+this gravity, moves the CO2 greenhouse from 12.284 to 12.926 W/m2. **0.642**.
+Note that gravity does this and radius does not -- the column over a square
+metre is `P/g` and carries no radius, so a larger planet holds more atmosphere
+in total and the same amount above each point.
 
 ## 4e. The bug that hid all of this, and it was not physics
 
