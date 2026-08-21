@@ -24,7 +24,9 @@ recorded in `references/INDEX.md`:
 - Meyer et al. (2025), the current LPJ-GUESS-HYD formulation, sensitivity and
   evaluation;
 - Verbruggen et al. (2025), LPJ-GUESS-RE soil hydrology and aquifer boundary;
-  and
+- McMahon (1973), elastic similarity and self-weight buckling;
+- King (2005), the carbon-allocation consequences of mechanically constrained
+  tree allometry; and
 - Jia et al. (2026), a two-way ParFlow--LPJ-GUESS coupling.
 
 These studies establish model forms and failure modes. Their Earth species,
@@ -218,6 +220,53 @@ errors. The comparison is not executable until its forcing, water balance,
 soil/root and demographic prerequisites are closed, and it still requires
 explicit permission to run LPJ-GUESS.
 
+### 8. Gravity also changes tree form and the carbon price of height
+
+The `rho * g * h` term reaches only the hydraulic cost of lifting water. The
+active growth code has a separate omission. It derives height from pipe-model
+sapwood and leaf area, then imposes the Earth height--diameter relation
+
+`height = k_allom2 * diameter^k_allom3`.
+
+The common tree PFT uses `k_allom2 = 60` and `k_allom3 = 0.67`; the exponent is
+effectively McMahon's elastic-similarity value of two-thirds. Allocation then
+spends assimilated carbon on the sapwood and heartwood needed to satisfy that
+allometry, so LPJ already represents a steep support cost with height. What it
+does not represent is gravity changing the coefficient, stem taper, crown and
+branch loads, anchorage or safety margin. Its only absolute height constraint
+is a hard-coded 150 m validity cutoff, independent of gravity, material
+properties and hydraulic state.
+
+For a self-weight-limited column, McMahon gives the Greenhill scaling
+`H proportional to (E / (rho * g))^(1/3) * D^(2/3)`. As an analytical check,
+changing only Earth standard gravity to Vesper's 12.81 m/s2 would multiply the
+height coefficient by about 0.915. Equivalently, holding height and material
+properties fixed requires about 1.143 times the diameter and 1.306 times the
+stem cross-sectional area and support volume. Thus the first-order mechanical
+penalty is not just a lower ceiling: the same canopy height costs roughly 31%
+more stem structure before crown, branch, root anchorage or safety-factor
+responses. This is a scaling check, not a parameterization; Earth tree
+allometries also integrate wind, competition, taper and adaptation, and the
+LPJ `wooddens` parameter is carbon per wood volume rather than the elastic
+modulus and wet mass density the buckling equation requires.
+
+King shows the allocation consequence explicitly. Once diameter scales as
+height to the 1.5 power to resist buckling, structural biomass scales about as
+height to the fourth power; the increasing support cost reduces height growth
+and the fraction of production available to foliage. LPJ's allocation solver
+has the same mathematical shape, so changing only a maximum-height constant
+would miss the main carbon effect. Extra sapwood and heartwood also change
+maintenance respiration, C-N-P immobilization and turnover, litter and fire
+fuel, while thicker stems and shorter canopies feed back on light competition
+and demography.
+
+GRAV-7 therefore owns a gravity-aware mechanical-allometry bracket and its
+carbon/nutrient consequences. PLHY-6 must combine that bracket with the
+hydraulic `rho * g * h` cost: structural and hydraulic height limits are not
+independent, because added conductive/support wood changes both resistance and
+allocation. Height, diameter, structural pools and allocation fractions must be
+retained in PLHY-7's diagnostics.
+
 ## Interpretation boundary and order
 
 Until PLHY-4 closes, the active LPJ result is rainfall-fed equilibrium potential
@@ -226,8 +275,9 @@ oases, riparian belts or drought mortality. The safe order is to finish the
 daily forcing and acceptance contracts, isolate the standard bucket and root
 defects, define the conserved native-mesh groundwater flux exchange, and only
 then compare standard versus RE and HYD model forms on pre-registered cases.
-No raw water-table-depth feed and no additive groundwater ET route is physically
-closed.
+The HYD comparison must include GRAV-7's mechanical-allometry arm rather than
+changing water lift while leaving the carbon cost of height Earth-fixed. No raw
+water-table-depth feed and no additive groundwater ET route is physically closed.
 
 PLHY-1 through PLHY-7 record that work in `TASKS.md`. Source/fixture and
 diagnostic plumbing can proceed without a model run; every measured sensitivity
