@@ -370,6 +370,26 @@
       return
       end subroutine mpsumsc
 
+
+      subroutine mpsumscp(ppart,psp,klev) ! sum & scatter, partials in place
+      use mpimod
+
+      real :: ppart(NESP,klev)
+      real :: psp(NSPP,klev)
+
+!     Under MPI a rank's address space already separates its partial from
+!     every other rank's, so NPART is one, the single slot IS this rank's
+!     partial, and there is nothing here that mpsumsc did not already do.
+!     The routine exists so that the caller does not have to know which build
+!     it is compiled for. The threaded one is where the work went.
+      do jlev = 1 , klev
+         call mpi_reduce_scatter(ppart(:,jlev),psp(:,jlev),nscatsp      &
+     &                          ,mpi_rtype,MPI_SUM,myworld,mpinfo)
+      enddo
+
+      return
+      end subroutine mpsumscp
+
 !     ====================
 !     SUBROUTINE MPSUMR
 !     ====================

@@ -96,6 +96,16 @@
       return
       end
 
+      subroutine mpsumscp(ppart,psp,klev) ! sum & scatter, partials in place
+      use pumamod
+      real ppart(NESP,klev)
+      real psp(NSPP,klev)
+!     One process, so NPART is one and there is no sum: the single slot is the
+!     whole of it, exactly as in mpsumsc above.
+      psp(1:NSPP,1:klev) = ppart(1:NSPP,1:klev)
+      return
+      end
+
       subroutine mpsumr(pr,kdim) ! sum kdim reals
       return
       end subroutine mpsumr

@@ -2532,11 +2532,10 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       real gphi(NHOR,NLEV)
       real gvpp(NHOR)
       real gpmt(NLON,NLPP)
-      real sdf(NESP,NLEV)
-      real stf(NESP,NLEV)
-      real sqf(NESP,NLEV)
-      real szf(NESP,NLEV)
-      real spf(NESP)
+!     The tendency partials are zpsd, zpst, zpsz, zpsq and zpsp in pumamod,
+!     one slot per process, written in place and reduced where they lie. They
+!     were locals here and were copied into the reduction's buffer on the way
+!     past; that copy was 68 GB over a 300-step T127 run.
 
       real zgp(NLON,NLAT)
 
@@ -2624,15 +2623,16 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !
 !     direct Legendre transformation (fourier domain to spectral domain)
 !
-      call fc2sp(gvpp,spf)
-      call mktend(sdf,stf,szf,gtn,gvz,guz,gke,gut,gvt)
-      call mpsumsc(spf,spt,1)
-      call mpsumsc(stf,stt,NLEV)
-      call mpsumsc(sdf,sdt,NLEV)
-      call mpsumsc(szf,szt,NLEV)
+      call fc2sp(gvpp,zpsp(1,mypart))
+      call mktend(zpsd(1,1,mypart),zpst(1,1,mypart),zpsz(1,1,mypart),   &
+     &            gtn,gvz,guz,gke,gut,gvt)
+      call mpsumscp(zpsp,spt,1)
+      call mpsumscp(zpst,stt,NLEV)
+      call mpsumscp(zpsd,sdt,NLEV)
+      call mpsumscp(zpsz,szt,NLEV)
       if (nqspec == 1) then
-         call qtend(sqf,gqn,guq,gvq)
-         call mpsumsc(sqf,sqt,NLEV)
+         call qtend(zpsq(1,1,mypart),gqn,guq,gvq)
+         call mpsumscp(zpsq,sqt,NLEV)
       endif
 !
 !     compute entropy
@@ -3268,10 +3268,9 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       subroutine gridpointd
       use pumamod
 !
-      real sdf(NESP,NLEV)
-      real stf(NESP,NLEV)
-      real sqf(NESP,NLEV)
-      real szf(NESP,NLEV)
+!     The same tendency partials gridpointa uses, from pumamod. The two
+!     routines do not overlap -- master runs one and then the other -- so one
+!     set of slots serves both.
 
       real zqout(NHOR,NLEV)
       real zgq(NLON,NLAT,NLEV)
@@ -3582,16 +3581,16 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !     direct Legendre transformation (fourier domain to spectral domain)
 !
       do jlev = 1 , NLEV
-         call fc2sp(gtdt(1,jlev),stf(1,jlev))
-         if (nqspec == 1) call fc2sp(gqdt(1,jlev),sqf(1,jlev))
+         call fc2sp(gtdt(1,jlev),zpst(1,jlev,mypart))
+         if (nqspec == 1) call fc2sp(gqdt(1,jlev),zpsq(1,jlev,mypart))
       enddo
 
-      call uv2dv(gudt,gvdt,sdf,szf)
+      call uv2dv(gudt,gvdt,zpsd(1,1,mypart),zpsz(1,1,mypart))
 
-      call mpsumsc(stf,stt,NLEV)
-      call mpsumsc(sdf,sdt,NLEV)
-      call mpsumsc(szf,szt,NLEV)
-      if (nqspec == 1) call mpsumsc(sqf,sqt,NLEV)
+      call mpsumscp(zpst,stt,NLEV)
+      call mpsumscp(zpsd,sdt,NLEV)
+      call mpsumscp(zpsz,szt,NLEV)
+      if (nqspec == 1) call mpsumscp(zpsq,sqt,NLEV)
       if (nqspec == 0) dq(:,:) = dq(:,:) + dqdt(:,:) * deltsec
       if (nsela == 1 .and. l_aero > 0) mmr(:,:) = mmr(:,:) + mmrt(:,:) * deltsec
 

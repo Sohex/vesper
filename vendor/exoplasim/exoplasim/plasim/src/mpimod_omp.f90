@@ -356,6 +356,38 @@
       end subroutine mpsumsc
 
 
+      subroutine mpsumscp(ppart,psp,klev) ! sum & scatter, partials in place
+      use pumamod
+      use mpiomp
+      integer :: klev
+      real :: ppart(NESP,klev,0:NPRO-1)
+      real :: psp(NSPP,klev)
+      integer :: jlev, j, w, it
+      real :: z
+
+!     The same reduction as mpsumsc and without its staging copy: the callers
+!     wrote their partials into ppart already, so there is nothing to move
+!     before summing. That copy was 68 GB over a 300-step T127 run and it is
+!     the whole reason this routine exists beside the other one.
+!
+!     The barrier is still required. A thread reads every other thread's slot,
+!     so it may not start until all of them are written.
+!$omp barrier
+      do jlev = 1 , klev
+         do j = 1 , NSPP
+            w = mypid*NSPP + j
+            z = ppart(w,jlev,0)
+            do it = 1 , NPRO-1
+               z = z + ppart(w,jlev,it)
+            enddo
+            psp(j,jlev) = z
+         enddo
+      enddo
+!$omp barrier
+      return
+      end subroutine mpsumscp
+
+
       subroutine mpsum(psp,klev) ! sum spectral fields onto the root
       use pumamod
       use mpiomp
@@ -502,6 +534,9 @@
 !$    iteam = omp_get_num_threads()
 !$    mypid = omp_get_thread_num()
       nproc = iteam
+!     The threads share an address space, so each needs its own slot in the
+!     tendency partials. Under MPI mypart stays 0 and there is one slot.
+      mypart = mypid
 
       if (nproc /= NPRO) then
          if (mypid == 0) then

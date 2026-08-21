@@ -332,6 +332,33 @@
       real :: szt(NSPP,NLEV) = 0.0 ! Spectral Vorticity   Tendency
       real :: sqt(NSPP,NLEV) = 0.0 ! Spectral S.Humidity  Tendency
       real :: spt(NSPP)      = 0.0 ! Spectral Pressure    Tendency
+
+!     THE TENDENCY PARTIALS, one slot per process, and NOT storage private to
+!     the routine that fills them. mktend, qtend and fc2sp write a process's
+!     contribution straight into the array the reduction reads, so mpsumscp
+!     sums where the numbers already are instead of staging every partial
+!     through a buffer first. That staging was 68 GB over a 300-step T127 run.
+!
+!     ONE SLOT UNDER MPI, where a rank's address space already separates it
+!     from every other rank's, so the slot IS the rank's own partial and
+!     mpsumscp is the reduce-scatter it always was. NPRO slots under threads,
+!     which share an address space and would otherwise overwrite each other.
+!     Sequence association makes the two cases the same actual argument.
+!
+!     Four are live at once in gridpointa -- mktend fills three and fc2sp the
+!     fourth -- so they cannot share one buffer between them the way the
+!     collectives' scratch does. gridpointa and gridpointd do not overlap, so
+!     they do share these.
+#ifdef OMPSHARED
+      integer, parameter :: NPART = NPRO
+#else
+      integer, parameter :: NPART = 1
+#endif
+      real :: zpsd(NESP,NLEV,0:NPART-1) = 0.0 ! Divergence  partial, by process
+      real :: zpst(NESP,NLEV,0:NPART-1) = 0.0 ! Temperature partial, by process
+      real :: zpsz(NESP,NLEV,0:NPART-1) = 0.0 ! Vorticity   partial, by process
+      real :: zpsq(NESP,NLEV,0:NPART-1) = 0.0 ! S.Humidity  partial, by process
+      real :: zpsp(NESP,     0:NPART-1) = 0.0 ! Pressure    partial, by process
       
       real :: sdm(NSPP,NLEV) = 0.0 ! Spectral Divergence  Minus
       real :: stm(NSPP,NLEV) = 0.0 ! Spectral Temperature Minus
@@ -656,6 +683,12 @@
 
       integer :: mpinfo  = 0
       integer :: mypid   = 0
+!     Which slot of the tendency partials above is this process's own. It is
+!     mypid where the processes share an address space and 0 where they do not,
+!     so the arrays are indexed the same way in both builds and neither the
+!     routines that fill them nor the reduction has to know which build it is.
+!     Set by mpstart, whichever mpimod supplies it.
+      integer :: mypart  = 0
       integer :: myworld = 0
       integer :: nproc   = NPRO
       character (80),allocatable :: ympname(:)
@@ -776,7 +809,7 @@
 !$omp&  hcstartstep,ice_output,icemod_namelist,kick,l_aero,laav,laavmax,landhoskn0,landmod_namelist,&
 !$omp&  ldisp,ldtep,ldtns,lnb,lrotspd,m_days_per_month,m_days_per_year,mars,mcal_days_per_year,&
 !$omp&  meananom0,meed,mint,mintru,miscmod_namelist,mmr,mmrt,mocd,model,mpinfo,mpoti,mpotimax,&
-!$omp&  mpstep,mrdim,mrinfo,mrnum,mrpid,mrtru,mrworld,mstep,mtspd,mvelp,mypid,myworld,&
+!$omp&  mpstep,mrdim,mrinfo,mrnum,mrpid,mrtru,mrworld,mstep,mtspd,mvelp,mypart,mypid,myworld,&
 !$omp&  n_days_per_month,n_days_per_year,n_run_days,n_run_months,n_run_steps,n_run_years,&
 !$omp&  n_sea_points,n_start_month,n_start_step,n_start_year,n_steps_per_year,naccuout,nadv,nafter,&
 !$omp&  naqua,ncoeff,ndatim,ndel,ndesert,ndheat,ndiag,ndiagcf,ndiaggp,ndiaggp2d,ndiaggp3d,ndiagsp,&
