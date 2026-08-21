@@ -62,7 +62,7 @@ Status: `open` | `doing` | `blocked` | `done` | `wontfix` (with a reason).
 
 ## BIO -- biosphere
 
-2 open of 5 issued.
+7 open of 10 issued.
 
 | id | task | source | status |
 | --- | --- | --- | --- |
@@ -70,7 +70,12 @@ Status: `open` | `doing` | `blocked` | `done` | `wontfix` (with a reason).
 | BIO-2 | Quote productivity with the `nfix_a` bracket 0.102-0.367 carried through rather than the central value alone; the span is 18.2% of NPP and it is the largest nitrogen lever | `biosphere/notes/productivity-prediction.md` | blocked on iteration 2's baseline run -- no LPJ-GUESS run exists on this build [step: lpj_run] |
 | BIO-3 | -- | -- | done, see `archive/tasks.md` |
 | BIO-4 | -- | -- | done, see `archive/tasks.md` |
-| BIO-5 | Replace the CNP fork's temporary site defaults for `kplab`, `spmax` and `pwtr` with per-cell Vesper soil inputs; the defect is in `SoilInput::get_mineral`, not `vesperinput.cpp` | `biosphere/notes/cnp-fork-scoping.md` | open; the CNP source is vendored with `ifplim 0`, and activation waits on these inputs [step: lpj_run] |
+| BIO-5 | Derive the Vesper parameterisation for LPJ-GUESS-CNP's three soil-P inputs: convert the existing rock-class P release and per-cell weathering into `pwtr` in kgP/m2/yr, and ground `kplab` and `spmax` in the pedology fields that control sorption | `biosphere/notes/cnp-fork-scoping.md` | open; this is the scientific mapping the current site defaults stand in for [step: soil] |
+| BIO-6 | Emit `pwtr`, `kplab` and `spmax` as named, provenance-stamped columns in the per-cell soil map, with validation that every land cell receives finite non-negative values | `biosphere/notes/cnp-fork-scoping.md` | open, blocked on BIO-5 settling what the columns mean [step: soil] |
+| BIO-7 | Extend the vendored `SoilInput` mineral-texture path to read the three soil-P columns, remove the temporary site defaults, and fail if phosphorus limitation is enabled without complete inputs | `biosphere/notes/cnp-fork-scoping.md` | open, blocked on BIO-6 defining the file contract [step: lpj_run] |
+| BIO-8 | Declare a Vesper phosphorus-deposition rate and carry it through the LPJ driver and `vesperinput` in kgP/m2/day; do not substitute the fork's Earth observation file | `biosphere/notes/cnp-fork-scoping.md` | open; independent of BIO-5 through BIO-7 but required before activation [step: lpj_driver, lpj_run] |
+| BIO-9 | Register a dated C-N-P productivity prediction, uncertainty bracket and scoring rule before the first phosphorus-limited run; the existing C-N prediction must remain unchanged | `biosphere/notes/cnp-fork-scoping.md` | open, blocked on BIO-5 and BIO-8 settling the model inputs [step: lpj_run] |
+| BIO-10 | Enable `ifplim`, retain the P-pool/source/flux diagnostics needed to close the budget, verify that `ifplim 0` preserves the C-N baseline, and require P mass-balance checks before a full run is interpreted | `biosphere/notes/cnp-fork-scoping.md` | open, blocked on BIO-6 through BIO-9 [step: lpj_run] |
 
 ## BUDG -- the error budget and what it is denominated in
 

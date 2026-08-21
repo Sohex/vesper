@@ -38,7 +38,8 @@ needs no new members in `vesperinput.cpp`. The actual defect is in the fork's
 `SoilInput::get_mineral`: it copies `kplab`, `spmax` and `pwtr` from fields that
 the texture reader never initializes. The vendored C-N configuration supplies
 the fork's documented site defaults while `ifplim` is off. Replacing those
-defaults with per-cell Vesper fields is `TASKS.md` BIO-5.
+defaults with per-cell Vesper fields is the BIO-5 through BIO-7 chain in
+`TASKS.md`.
 
 ## The input side is where the work is, and the fork is incomplete there
 
@@ -83,17 +84,21 @@ Two consequences specific to Vesper:
   expect a real but shallower upland-to-basin gradient -- a biome-scale
   pattern this pipeline can derive rather than assert.
 
-## Estimated work
+## Integration seams tracked in TASKS.md
 
-    vendor the fork and fold in the Vesper port              done
-    replace temporary SoilInput P defaults per gridcell      moderate
-    add rock-class phosphorus to pedogenesis.yaml            small, same shape as quartz
-    emit pwtr/kplab/spmax per gridcell from build_soil.py    moderate
-    read them in the texture path                            moderate, upstream gap
-    P deposition, a declared constant as nitrogen's is       small
-    re-register the productivity predictions                 required, not optional
+The source and the rock-side information are already present: the CNP fork and
+Vesper port are vendored, while `pedogenesis.yaml` carries both per-class
+phosphorus content and release factors and `phosphorus_budget.py` reads them.
+What remains is split by contract rather than hidden inside one BIO-5 row:
 
-The last one is not negotiable: the pre-registered predictions in
+    BIO-5   derive pwtr/kplab/spmax from the existing pedology fields
+    BIO-6   emit the three per-cell soil-map columns
+    BIO-7   consume them in the fork and remove the temporary defaults
+    BIO-8   declare and propagate phosphorus deposition
+    BIO-9   register the C-N-P prediction before seeing a result
+    BIO-10  enable P limitation and validate parity and mass balance
+
+BIO-9 is not negotiable: the pre-registered predictions in
 `notes/productivity-prediction.md` were registered against a C-N model. A C-N-P
 model is a different model and needs its own registration with its own date, not
 a widened band on the old one.
