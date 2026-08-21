@@ -207,3 +207,86 @@ holds for T42, T85, T127 and T170 and FAILS for T21, which would fall back to
 the unpaired path. So a 32-rank production decision narrows where the Phase 2
 and 3 work applies, and that is a reason to settle the layout before building
 against it rather than after.
+
+---
+
+## T42, measured 2026-08-21
+
+Cold bed, 600 steps, four rounds an arm, arm order rotated each round, quiet
+machine, registered binaries. Every arm's self-scatter is inside the 5% floor
+(0.2 to 3.6%), so all of it is a result.
+
+| arm | jobs x ranks | latency s | beds/hour | vs incumbent |
+| --- | --- | ---: | ---: | ---: |
+| `L1_1x16` | 1 x 16 | **8.95** | 402 | -- |
+| `L2_1x32` | 1 x 32 | 19.07 | 189 | |
+| `L2b_1x32_core` | 1 x 32 | 19.23 | 187 | |
+| `T0_1x8` | 1 x 8 | 9.33 | 386 | -40.9% |
+| `T0b_1x8_ccd1` | 1 x 8 | 9.61 | 375 | -42.7% |
+| `T1_2x8_dies` | 2 x 8 | 10.67 | **653** | incumbent |
+| `T2_2x8_smt` | 2 x 8 | 15.34 | 468 | -28.3% |
+| `T2b_2x8_core` | 2 x 8 | 15.18 | 473 | -27.6% |
+| `T2c_2x8_ccd1` | 2 x 8 | 15.28 | 470 | -28.0% |
+| `T3_2x16` | 2 x 16 | 16.15 | 439 | -32.8% |
+| `T3b_2x16_core` | 2 x 16 | 16.12 | 438 | -33.0% |
+| `T4_4x8` | 4 x 8 | 20.06 | 695 | **+6.4%** |
+| `T4b_4x8_core` | 4 x 8 | 20.03 | 695 | +6.4% |
+
+### SMT is refused for latency, and the number is confounded
+
+32 ranks takes 19.07 s against 16 ranks' 8.95 s: **113% slower**, far outside any
+floor. But it is NOT a clean SMT result and must not be quoted as one. At T42,
+32 ranks is `NLPP = 2` latitudes a rank, which is over-decomposed whether or not
+threads are shared -- the same effect that made 8 ranks beat 16 at T21 in
+`rank-layout-benchmark.md`. The arm conflates SMT with too many ranks for the
+resolution.
+
+That confound weakens with resolution: 32 ranks is 6 latitudes a rank at T127 and
+8 at T170. **The latency question is therefore reopened at the higher
+resolutions rather than settled here.**
+
+### Throughput: the incumbent holds
+
+`T4_4x8` at +6.4% is the only arm to beat two-jobs-per-die, and the adoption
+threshold is 10%. Keep the incumbent. Everything that puts two jobs on ONE die's
+cores loses 28 to 33%, which is the plainest reading in the table: sharing cores
+costs far more than sharing a machine.
+
+### Both added dimensions are null, which is what the cheap resolution was for
+
+**Migration freedom buys nothing here.** The `a`/`b` pairs differ only in whether
+a rank is pinned to one thread or free to use both of its core's: 15.34 against
+15.18, 16.15 against 16.12, 20.06 against 20.03. All inside the floor.
+
+That does not refute `rank-layout-benchmark.md:135`, whose concern was
+explicitly a daemon landing on a rank's thread under BACKGROUND LOAD. It says
+the handicap does not appear on a quiet machine, which is the condition every
+arm here runs under. The dimension is dropped from the expensive resolutions,
+and the original note's advice stands for production.
+
+**`mpi_yield_when_idle` buys nothing either.** Every arm is within about 2% of
+its spin-pass twin, inside the floor: `L1` 8.95 against 9.07, `T4` 695 against
+689, `T2b` 473 against 465. So the spinning that the profile shows -- 11 to 27
+percent of samples in `opal_progress` -- is not recoverable by yielding, at
+least at this resolution. Dropped from the expensive resolutions too.
+
+### The dies are indistinguishable, as the footprint predicts
+
+One job: 9.33 s on CCD0 against 9.61 s on CCD1, 3% and inside the floor. Two
+jobs sharing one die: 473 against 470 beds/hour, half a percent. So the
+contention penalty is the SAME on both dies and none of it is attributable to
+L3.
+
+That is the expected answer HERE and is not the test: T42's weights are 0.23 MB
+a rank, so eight ranks want 1.8 MB and both dies hold it with room to spare. The
+discriminating resolution is T127, where eight ranks want 50.7 MB -- inside
+CCD0's 96 MB and outside CCD1's 32 MB. That arm is what decides the question.
+
+### What runs at the expensive resolutions
+
+With yield and migration both null, the cross-product collapses to one setting
+and the arms that still ask something:
+
+- **T127**, the die discriminator: `L1`, `L2`, `T0`, `T0b`, `T1`, `T2b`, `T2c`,
+  `T4`. The 2x2 on the dies is the reason this resolution is run at all.
+- **T170**, where the layout decision applies: `L1`, `L2`, `T1`, `T4`.
