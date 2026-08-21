@@ -55,12 +55,12 @@ ANALYSIS = COMPONENT_ROOT / "analysis"
 
 # Output files worth keeping. LPJ-GUESS writes one per quantity, per rank.
 #
-# cflux.out carries the Fire column, which is the only fire diagnostic GLOBFIRM
-# produces: firert.out and burned area are written under BLAZE only. Without it
-# the fire module's burning is visible in cmass and dens as a plant mortality
-# no output explains.
+# cflux.out carries the fire carbon flux. GLOBFIRM also exposes its inferred
+# return time and burned fraction through firert.out; retain both so fire-driven
+# mortality in cmass and dens has an occurrence diagnostic as well as a flux.
 OUTPUTS = ("anpp.out", "lai.out", "fpc.out", "cmass.out", "aaet.out",
-           "cpool.out", "dens.out", "agpp.out", "nsources.out", "cflux.out")
+           "cpool.out", "dens.out", "agpp.out", "nsources.out", "cflux.out",
+           "firert.out")
 
 
 def sha256(path: Path) -> str:

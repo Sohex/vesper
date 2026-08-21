@@ -326,7 +326,7 @@ python biosphere/scripts/build_lpj_driver.py      # climate + soil codes + gridl
 cmake --build vendor/lpj-guess/build --parallel 16
 ```
 
-### Fire is GLOBFIRM, and `cflux.out` is the only place it shows
+### Fire is GLOBFIRM, with flux and occurrence diagnostics
 
 `run_lpj_guess.py` writes `firemodel "GLOBFIRM"` after its `import` of
 `vesper_pfts.ins`, which still carries the shipped `firemodel "BLAZE"`. The later
@@ -337,10 +337,10 @@ statistics this world does not have; the shipped demo makes the same two
 substitutions for the same reason. The mismatch is not silent: LPJ-GUESS aborts
 on BLAZE with a non-GWGEN generator, so a run that starts is a run on GLOBFIRM.
 
-GLOBFIRM writes no `firert.out` and no burned area. Those are BLAZE-only, so the
-`Fire` column of `cflux.out` is the whole diagnostic, and without it in the
-harness's output list the fire module's burning is visible only as a plant
-mortality in `cmass` and `dens` that no output explains.
+GLOBFIRM writes its carbon loss in the `Fire` column of `cflux.out` and its
+inferred return time plus burned fraction in `firert.out`. The harness retains
+both. BLAZE has the richer daily/monthly burned-area and SIMFIRE analysis
+outputs, but those are separate from GLOBFIRM's annual occurrence diagnostic.
 
 One gate worth knowing when a short run reports no fire at all. With
 `iftwolayersoil 0`, which `iforganicsoilproperties` requires,
