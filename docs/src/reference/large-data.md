@@ -22,6 +22,12 @@ Chunk on a boundary the format actually has. Sequential Fortran output is
 delimited by record headers and by timestep; a byte offset chosen without
 reference to those is a corrupt chunk.
 
+`dask`, `flox` and `bottleneck` are in the venv, so xarray can chunk rather than
+load, and `open_mfdataset` will span a run's files. That is a tool for the first
+rule and not a discharge of it: dask picks a chunk size when nothing declares
+one, and an undeclared chunk is the failure above wearing a scheduler. Declare
+the number, and measure MB per unit of input the same way.
+
 ## Checkpoint
 
 Write results as they are produced, record what is done, and make re-running the

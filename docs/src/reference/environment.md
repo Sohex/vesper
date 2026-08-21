@@ -54,3 +54,50 @@ Benchmarking it again needs one rule beyond a quiet machine: **interleave the
 arms**. Run as blocks, whichever arm goes first after an idle stretch gets the
 boost clock and the comparison measures the CPU's thermal state instead of the
 flag. That was worth 6% on a stock baseline against itself.
+
+## Reading the artifacts from the command line
+
+The host carries the netCDF and NCO command-line tools, and they are the first
+reach for inspecting a run or a climatology: `ncdump -h` for structure and
+global attributes, `ncks` to subset, `ncdiff` to difference two files, `ncwa` to
+collapse dimensions, `ncatted` for metadata. Model output and analysis products
+are all `NETCDF4`, which is HDF5 underneath, so `h5diff` compares two files at
+the value level with a tolerance, `-d` absolute and `-p` relative. That is the
+tool for asking whether one run reproduces another.
+
+Beside them: `yq` for `config/pipeline.yaml` and `config/planet.yaml`, the GDAL
+command-line tools for the reference shapefiles and the Copernicus DEM COGs,
+`dot` for rendering a graph, `valgrind` for the Fortran, and `ncdu` for the run
+tree. In the venv, `dask`, `flox` and `bottleneck` back xarray over anything
+run-sized; see [large data](large-data.md), which they assist and do not
+replace.
+
+### Three traps, because these tools assume Earth
+
+**NCO does not know this planet's grid, and `ncwa -a lat,lon` is an UNWEIGHTED
+mean.** The files carry no Gaussian weight variable, so there is nothing for
+`-w` to find and nothing warns. Over a Gaussian latitude grid that produces a
+global mean which is wrong and entirely plausible, which is the worst shape a
+number can have. Area weights come from the project's own grid convention in
+`lib/gridding.py`.
+
+**The time axis is not a calendar.** It is `units = timesteps` with no
+`calendar` attribute and raw counts for values. Any operator that assumes an
+Earth calendar either refuses or silently imposes 365 days on a planet whose
+orbital period is not that. Time-bin weights come from `lib/climatology.py`, and
+the orbital period from `lib/orbit.py`.
+
+**`ncra` needs a record dimension and these files have none.** `time` is a fixed
+dimension, so a time mean wants `ncks --mk_rec_dmn time` first.
+
+### What was refused, so the search is not run twice
+
+**CDO**, whose distinguishing operators are calendar climatologies and Earth
+remapping. On a `units = timesteps` axis the first family is unusable and the
+second is a trap, and NCO covers the reductions that remain. **nccmp**, because
+every file here is `NETCDF4` and `h5diff` already compares values with a
+tolerance. **cartopy**, because `maps/projections.py` is the projection layer
+and cartopy's value is Earth coastlines and features. **ccache**, because its
+handling of Fortran `.mod` outputs is not reliable enough to trust against
+rule 4; the build-time lever that was measured instead is `make -j`, in
+`notes/audits/aocl-and-model-build-flags.md`.

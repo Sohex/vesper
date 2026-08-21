@@ -25,7 +25,7 @@ invariant is misfiled by its shape alone, wherever it came from.
 | `docs/src/reference/builds.md` | builds, identity, the registry, and the durable set |
 | `docs/src/reference/vendored-upstreams.md` | the two subtrees: what each fork carries, how to pull upstream, the branch conventions |
 | `docs/src/reference/design-intent.md` | the standing decisions that shape the world |
-| `docs/src/reference/environment.md` | install commands, host packages, and the model facts to know before touching it |
+| `docs/src/reference/environment.md` | install commands, host packages, the model facts to know before touching it, and the command-line tools for reading an artifact, with the three traps that come of their assuming Earth |
 | `docs/src/reference/no-time-axis.md` | Orogen has no time axis. Read before asking any component for a duration, an age, or a rate |
 | `docs/src/reference/large-data.md` | batch, chunk, checkpoint, report. Required for any step whose input runs to GB |
 | `docs/src/reference/external-data.md` | routes into data this project does not generate; check the AWS Registry of Open Data before an API |
