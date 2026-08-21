@@ -773,11 +773,11 @@
 !$omp&  dtrop,dtsa,dtsoil,dttl,dttrp,du,du0,dudt,dust3,dv,dv0,dvdt,dw,dwatc,dwmax,dz0,eccen,&
 !$omp&  efficiency_dat,evap,filterkappa,fixedlon,fluxmod_namelist,frcmod,g,ga,gascon,gd,gp,gpi,&
 !$omp&  gpimax,gpj,gq,gqdt,gt,gtdt,gu,gudt,guiinc,guimax,guimin,gv,gvdt,gwd,gz,hcendstep,hcinterval,&
-!$omp&  hcstartstep,ice_output,icemod_namelist,ilatperm,kick,l_aero,laav,laavmax,landhoskn0,&
-!$omp&  landmod_namelist,ldisp,ldtep,ldtns,lnb,lrotspd,m_days_per_month,m_days_per_year,mars,&
-!$omp&  mcal_days_per_year,meananom0,meed,mint,mintru,miscmod_namelist,mmr,mmrt,mocd,model,mpinfo,&
-!$omp&  mpoti,mpotimax,mpstep,mrdim,mrinfo,mrnum,mrpid,mrtru,mrworld,mstep,mtspd,mvelp,mypid,&
-!$omp&  myworld,n_days_per_month,n_days_per_year,n_run_days,n_run_months,n_run_steps,n_run_years,&
+!$omp&  hcstartstep,ice_output,icemod_namelist,kick,l_aero,laav,laavmax,landhoskn0,landmod_namelist,&
+!$omp&  ldisp,ldtep,ldtns,lnb,lrotspd,m_days_per_month,m_days_per_year,mars,mcal_days_per_year,&
+!$omp&  meananom0,meed,mint,mintru,miscmod_namelist,mmr,mmrt,mocd,model,mpinfo,mpoti,mpotimax,&
+!$omp&  mpstep,mrdim,mrinfo,mrnum,mrpid,mrtru,mrworld,mstep,mtspd,mvelp,mypid,myworld,&
+!$omp&  n_days_per_month,n_days_per_year,n_run_days,n_run_months,n_run_steps,n_run_years,&
 !$omp&  n_sea_points,n_start_month,n_start_step,n_start_year,n_steps_per_year,naccuout,nadv,nafter,&
 !$omp&  naqua,ncoeff,ndatim,ndel,ndesert,ndheat,ndiag,ndiagcf,ndiaggp,ndiaggp2d,ndiaggp3d,ndiagsp,&
 !$omp&  ndiagsp2d,ndiagsp3d,ndivdamp,ndl,nener3d,nenergy,nentro3d,nentropy,neqsig,nfilter,&

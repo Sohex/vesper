@@ -472,7 +472,14 @@
       subroutine mpstart(kworld) ! initialization
       use pumamod
       use mpiomp
-!$    use omp_lib
+!     The two runtime queries are declared EXTERNAL rather than taken from
+!     omp_lib, because flang does not ship omp_lib.mod -- it carries seventeen
+!     modules and not that one -- and this build has to compile under both
+!     compilers so that an OpenMP-aware race detector can be pointed at it.
+!     Both libgomp and LLVM's libomp export these under the Fortran name.
+      integer :: omp_get_thread_num
+      integer :: omp_get_num_threads
+      external :: omp_get_thread_num, omp_get_num_threads
       integer :: kworld
       integer :: iteam
 
