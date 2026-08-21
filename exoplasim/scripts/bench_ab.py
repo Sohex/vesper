@@ -30,14 +30,47 @@ import time
 from pathlib import Path
 
 
-def run_once(bed: Path, exe: Path, ranks: int) -> tuple[float, str]:
+def launcher(spec: str, ranks: int) -> tuple[list[str], dict]:
+    """How to start one arm, and the environment it needs.
+
+    `mpi`             mpiexec -np <ranks>, which binds rank r to core r.
+    `omp[:policy]`    one process; the thread count is compiled in. The two
+                      exports are not optional and not tuning: libgomp does NOT
+                      bind by default, its placement changes run to run, and
+                      with sixteen threads some land on SMT siblings while whole
+                      cores sit idle -- which on this processor also randomises
+                      which die a thread gets. Bound this way a thread takes
+                      core t, exactly as Open MPI gives rank t core t, so the
+                      two arms are compared on the same placement rather than on
+                      their defaults. `policy` sets OMP_WAIT_POLICY.
+    """
+    import os
+    if spec == "mpi":
+        return ["mpiexec", "-np", str(ranks), "./probe_ab.x"], dict(os.environ)
+    if spec.split(":")[0] != "omp":
+        raise SystemExit(f"unknown launcher {spec!r}; use mpi or omp[:active|passive]")
+    env = dict(os.environ)
+    env["OMP_STACKSIZE"] = env.get("OMP_STACKSIZE", "512M")
+    env["OMP_PROC_BIND"] = "close"
+    env["OMP_PLACES"] = "cores"
+    if ":" in spec:
+        env["OMP_WAIT_POLICY"] = spec.split(":", 1)[1]
+    # OMP_STACKSIZE sizes the NON-MASTER threads only; the master runs on the
+    # process stack, which is ulimit -s. The model's large locals become
+    # stack-allocated under -frecursive, and at T127 the master overruns a
+    # 16 MB limit and segfaults. The MPI build never needed this, because
+    # without -frecursive those same arrays are static.
+    return ["bash", "-c", "ulimit -s unlimited; exec ./probe_ab.x"], env
+
+
+def run_once(bed: Path, exe: Path, ranks: int, spec: str = "mpi") -> tuple[float, str]:
     local = bed / "probe_ab.x"
     shutil.copy2(exe, local)
     for stale in ("plasim_status", "Abort_Message"):
         (bed / stale).unlink(missing_ok=True)
+    cmd, env = launcher(spec, ranks)
     t0 = time.perf_counter()
-    r = subprocess.run(["mpiexec", "-np", str(ranks), "./probe_ab.x"],
-                       cwd=bed, capture_output=True, text=True)
+    r = subprocess.run(cmd, cwd=bed, capture_output=True, text=True, env=env)
     dt = time.perf_counter() - t0
     local.unlink(missing_ok=True)
     if r.returncode != 0 or (bed / "Abort_Message").exists():
@@ -59,6 +92,10 @@ def main() -> None:
     ap.add_argument("--label-a", default="A")
     ap.add_argument("--label-b", default="B")
     ap.add_argument("--ranks", type=int, default=16)
+    ap.add_argument("--a-launch", default="mpi",
+                    help="mpi, or omp[:active|passive]")
+    ap.add_argument("--b-launch", default="mpi",
+                    help="mpi, or omp[:active|passive]")
     ap.add_argument("--rounds", type=int, default=6)
     ap.add_argument("--out", type=Path, default=None)
     args = ap.parse_args()
@@ -74,8 +111,8 @@ def main() -> None:
     # `notes/audits/aocl-and-model-build-flags.md` found between blocked
     # sessions, one level down.
     print("warm-up (both arms) ...", flush=True)
-    run_once(bed, a, args.ranks)
-    run_once(bed, b, args.ranks)
+    run_once(bed, a, args.ranks, args.a_launch)
+    run_once(bed, b, args.ranks, args.b_launch)
 
     ta: list[float] = []
     tb: list[float] = []
@@ -86,7 +123,8 @@ def main() -> None:
         first_is_a = rnd % 2 == 1
         pair = [(a, ta, sa), (b, tb, sb)] if first_is_a else [(b, tb, sb), (a, ta, sa)]
         for exe, times, shas in pair:
-            dt, sha = run_once(bed, exe, args.ranks)
+            spec = args.a_launch if exe == a else args.b_launch
+            dt, sha = run_once(bed, exe, args.ranks, spec)
             times.append(dt)
             shas.add(sha)
         print(f"  round {rnd:2d}: {args.label_a}={ta[-1]:7.2f}  "
@@ -101,6 +139,7 @@ def main() -> None:
     med_tail = st.median(tail)
     result = {
         "bed": bed.name, "ranks": args.ranks, "rounds": args.rounds,
+        "a_launch": args.a_launch, "b_launch": args.b_launch,
         "label_a": args.label_a, "label_b": args.label_b,
         "a_median_s": st.median(ta), "b_median_s": st.median(tb),
         "a_times": ta, "b_times": tb,

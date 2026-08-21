@@ -354,6 +354,9 @@ then
    # dies are not interchangeable at T127 and above. Bound this way a thread
    # takes core t, which is what Open MPI gives rank t, so the two layers are
    # measured on the same placement rather than on their defaults.
+   # ulimit sizes the MASTER thread; OMP_STACKSIZE sizes the others. Both are
+   # needed: at T127 the master alone overruns a 16 MB limit and segfaults.
+   echo "   ulimit -s unlimited 2>/dev/null || ulimit -s 1048576         ">>plasim/run/most_plasim_run
    echo "   export OMP_STACKSIZE=\${OMP_STACKSIZE:-512M}                ">>plasim/run/most_plasim_run
    echo "   export OMP_PROC_BIND=\${OMP_PROC_BIND:-close}               ">>plasim/run/most_plasim_run
    echo "   export OMP_PLACES=\${OMP_PLACES:-cores}                     ">>plasim/run/most_plasim_run

@@ -251,3 +251,108 @@ Two things to carry INTO the 32-thread arm rather than discover after it:
   T127 and T170 divide cleanly. A T21 arm at 32 would compare two different
   algorithms and must be stated as such or dropped.
 
+## What Stage 1 measured: it LOSES, by 19% and 26%
+
+Bound both sides, four interleaved rounds, order flipped, one driver owning the
+machine.
+
+| | ranks | threads | gain | rounds |
+| --- | ---: | ---: | ---: | ---: |
+| T127, 16 against 16 | 37.02 s | 44.01 s | **-18.9%** [-19.2, -17.9] | 0/4 |
+| T170, 16 against 16 | 75.22 s | 94.71 s | **-25.7%** [-27.4, -24.5] | 0/4 |
+| T127, wait policy | active | passive | -1.7% [-2.3, +0.1] | null |
+| T127, 16 against 32 threads | 44.26 s | 68.74 s | **-55.2%** | 0/4 |
+
+**The SMT refusal survives the change of runtime.** 32 ranks lost 65.1% and 32
+threads lose 55.2%, so taking away Open MPI's busy-wait recovered about ten
+points and left the verdict intact. Oversubscription was never mainly
+`opal_progress` spinning; it is the decomposition. That question was worth
+re-asking because the old answer rested on a mechanism this change removes, and
+now it is measured rather than inherited.
+
+**The wait policy is null for latency**, as it has to be on a dedicated machine:
+there is nothing else to run, so a thread that sleeps at a barrier only adds
+wake-up latency. It would matter for throughput, which is not measured here
+because the latency result already decides the question.
+
+Two arms were cut before they ran -- T170's wait policy and SMT. Neither could
+change a decision: the policy was null at T127 and only ever fed the SMT arm,
+and SMT was refused at T127 by 55 points. The T170 headline arm was allowed to
+finish its fourth round rather than being stopped at three, because round four
+is the second B-first round and stopping early would leave exactly the order
+bias the interleaving exists to cancel.
+
+## Where it goes, and it is not the barriers
+
+perf on the threaded build against an MPI rank of the same bed:
+
+| | MPI rank | threaded |
+| --- | ---: | ---: |
+| model code | 58.2% | 43.6% |
+| **libc, all of it memcpy** | **22.6%** | **41.0%** |
+| parallel runtime | 12.5% (libopen-pal + libmpi) | 10.7% (libgomp) |
+| libm | 5.8% | 4.4% |
+
+**The barriers are not the problem.** libgomp costs 10.7% against Open MPI's
+12.5% -- if anything slightly cheaper. The whole deficit is memcpy, +18.5
+points, which is very nearly the 18.9% measured at T127.
+
+Every hot libc address resolves to `memcpy`, and neither dwarf nor frame-pointer
+unwinding will attribute them: libc is stripped and the unwind stops there. So
+the attribution was COUNTED rather than sampled, by instrumenting each routine
+with the bytes it copies. Over 300 steps at T127:
+
+| routine | staged | share |
+| --- | ---: | ---: |
+| `mpgallsp` | 105 GB | 56.1% |
+| `mpsumsc` | 68 GB | 36.2% |
+| `mpgagp` | 8.4 GB | 4.5% |
+| `mpscgp` | 5.5 GB | 2.9% |
+
+**183 GB over 300 steps: 624 MB a timestep, 4.2 GB/s of pure staging copy**, and
+two routines are 92% of it.
+
+## Why that is a verdict on the design and not a tuning problem
+
+`mpgallsp` gathers every thread's `NSPP` slice so that every thread holds the
+full `NESP` array. `mpsumsc` stages every thread's full partial so the slices
+can be summed. **In one address space both are unnecessary.** The threads could
+read each other's slices out of a single shared spectral array and reduce into
+it in place, with no copy at all.
+
+The copies exist because this variant keeps the MPI CONTRACT: each thread owns
+a private `pp` and a private `pf`, exactly as a rank owns them. That decision is
+what let the physics stay untouched -- 169 whole-array `where` statements
+address a thread's chunk as written -- and it is the same decision that costs
+19% at T127 and 26% at T170. **The deficit is the price of emulating private
+memory inside shared memory.**
+
+So there is no cheap fix. A threaded build that WINS has to make the spectral
+state genuinely shared rather than threadprivate, which reopens the boundary the
+design closed and puts the physics back in scope. That is a different and much
+larger change than this one, and it should be decided on its own terms rather
+than entered by momentum from here.
+
+**And it is the plan's declared stopping condition.** SHTns needs threads, its
+own ceiling is 10 to 15%, and it cannot pay off a 26% hole. Stage 2 is not
+reachable from this footing.
+
+## What is left behind, and what it is worth
+
+The threading is CORRECT and stays: bit identical to MPI at two threads, at
+rounding scale at sixteen, verified by a collectives unit test and a
+model-level comparison, with the MPI build proved unchanged. It costs nothing
+to keep -- `${MPIMOD}` selects it and nothing else compiles it -- and it is the
+starting point for anyone who takes up the shared-state version.
+
+Three defects it found are worth more than the performance result, and they are
+all in code that predates this work:
+
+- `hurricanemod`'s root guard has never been one, on any build.
+- 47 initialised locals across 9 files are implicitly SAVE. Under MPI that is
+  per-process and harmless; it is the reason a threaded build cannot simply
+  reuse them, and it is a portability hazard for anyone else who threads this
+  model.
+- libgomp does not bind by default, and on this processor an unbound team
+  randomises which die a thread lands on.
+
