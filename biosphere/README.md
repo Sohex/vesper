@@ -237,47 +237,47 @@ plants freeze.
 The 13.8% figure is still the right measure of how much land is climatically
 marginal. It is not a measure of what this model will do with it.
 
-## Resolution: T42 first, T85 only behind the climate
+## Resolution: a convergence ladder, not a T42/T85 choice
 
-LPJ-GUESS gridcells are independent columns. There is no lateral flow between
-them and no communication after the initial split, so cost is exactly linear in
-cell count and resolution buys no dynamics, only a finer view of the forcing.
+T42 is the current operating point because it has been a useful balance of
+execution time and resolved climate, not because the biosphere or pipeline is
+intrinsically limited to it. The supported climate ladder is
+T21/T42/T85/T127/T170, and ongoing ExoPlaSim optimization changes the cost side
+of that choice. Historical T42/T85 timings are therefore measurements of old
+runs, not a permanent selection rule.
 
-| | land cells | CPU | wall on 16 ranks |
-| --- | --- | --- | --- |
-| T42 | 4,106 | 6.2 h | 23 min |
-| T85 | 16,489 | 25.0 h | 94 min |
+LPJ-GUESS grid cells are laterally independent, so its direct cost grows roughly
+with simulated land-cell count. That does **not** make finer support cosmetic.
+Each cell receives a different climate, soil and surface environment, while the
+higher-resolution atmosphere changes orography, coastlines, precipitation,
+extremes and feedbacks rather than merely interpolating a T42 answer. Running a
+fine LPJ grid on interpolated coarse forcing would add no information, but
+running it on an accepted fine climate can change both spatial pattern and
+extensive totals.
 
-**The biosphere is never the reason to choose a resolution.** Ninety-four
-minutes is nothing beside a T85 ExoPlaSim equilibrium, and the pipeline already
-follows `config.model.resolution`, with T85 exports present for every build. So
-the biosphere should simply match whatever the climate ran at.
+The reference under every climate grid is the ~10M-region Orogen export: 7.60 km
+mean edge and full sampling of the generator's ~20 km terrain-information floor.
+For scale, an average global climate cell contains about 4,883/1,221/305/136/76
+native regions at T21/T42/T85/T127/T170. Even T170 therefore aggregates terrain,
+soil and hydrologic variation; increasing truncation does not remove the need
+for conservative partial areas and ecological response units.
 
-Running LPJ-GUESS at T85 on T42 forcing would be worse than pointless: the extra
-cells would carry interpolated climate, so the model would resolve a detail that
-is not in its input, and the output would look sharper than the information
-behind it.
+No universal sign can be assigned to the NPP change. A concave response to one
+forcing can make `response(mean forcing)` exceed the mean local response, but
+real refinement changes variance, covariance, thresholds, coastline and the
+coupled atmospheric solution simultaneously. The Miami land-mean versus
+per-grid-cell calculation in `productivity-prediction.md` demonstrates an
+aggregation effect over that particular support; it does not predict the sign
+of T42-to-T170 coupled change.
 
-**Expect T85 to lower total NPP, and treat that as a resolution bias rather than
-a result.** Productivity saturates with water, so it is concave, and averaging
-the forcing before the model sees it inflates the answer. The same effect is
-already measured on the Miami side of `productivity-prediction.md`: applied at
-land means it gives 603 gC/m2/yr and applied per gridcell 443, a factor of 0.73
-purely from resolving heterogeneity. T42 to T85 is a much smaller step than that,
-but it points the same way, and it means a T42 and a T85 answer are not directly
-comparable without saying so.
-
-**The concavity is not the only thing that moves, and the other one is not a
-bias.** T85 resolves higher, steeper relief: `CLAUDE.md` records it recovering
-the full 5,769 m of mesh relief against T42's 5,101. Sharper orography means
-stronger forced ascent on windward slopes and deeper rain shadows behind them, so
-precipitation redistributes rather than merely smoothing differently. Expect
-windward coasts wetter and lee basins drier, and expect that to run past the
-biosphere into the carve verdict, since a drier rain-shadow basin is less likely
-to overflow and more likely to survive as a basin. A T85 pass is therefore not
-only a finer picture of the same world; parts of it are a different water
-balance, and the carve verdict should be re-taken rather than assumed to carry
-over.
+Choose the production support by the pre-registered convergence protocol in
+`spatial-support-ecological-aggregation-audit.md`. Each candidate inherits a
+mapped initial state through CLIM-49's restart converter where useful, then
+re-equilibrates terrain/climate, hydrology, soil, vegetation and feedback loops
+on its own support. Compare accepted equilibria after conservative remapping to
+one common area basis. Stop at the first rung sufficient for the declared
+decisions; if material results do not converge by T170, retain a resolution
+bracket rather than treating the highest answer as truth.
 
 ## Spin-up is in simulation years, and that halves it
 

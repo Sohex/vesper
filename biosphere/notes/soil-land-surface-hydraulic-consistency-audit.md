@@ -312,7 +312,8 @@ Before a coupled result is interpreted, the implementation must demonstrate:
   across freeze/thaw;
 - restart equivalence through active precipitation, melt, drainage and
   vegetation-demand intervals;
-- conservative native-mesh to T42 area and flux aggregation; and
+- conservative native-mesh to the accepted climate support area and flux
+  aggregation under SPAT-1 through SPAT-4; and
 - analytical reductions in which the multilayer column reproduces the
   registered single-bucket case, impermeable and free-drainage limits behave
   correctly, and zero groundwater exchange gives the no-groundwater case.
