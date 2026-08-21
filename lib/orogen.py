@@ -163,6 +163,20 @@ _KNOWN_TERRAIN_HASHES = {
         {"name": "precarve-substrate", "note":
          "2026-08 pre-carve base at g = 12.81; arc/forearc rules reachable, arc "
          "erodibility and albedo grounded, surface_rock renamed substrate_class"},
+    # NOT ACTIVATABLE AS IT STANDS, and registered anyway so the resolution audit
+    # that measured it resolves. Same planet code, radius, gravity and lithology
+    # strength as precarve-craton, differing ONLY in --regions: 10,000,005 against
+    # 2,500,001, a mean edge of 7.59 km against 15.19. Two reasons not to point
+    # source_build at it. It carries exoplasim-T42 alone, so grid_export will
+    # raise for any other resolution rather than mislead. And it was generated at
+    # glacialErosion 0.8, whose ice mask PHYS-13 finds is placed by an
+    # Earth-calibrated latitude threshold blind to this planet's obliquity,
+    # spectrum and rotation, so a generation meant to be commissioned should
+    # settle that first. `notes/audits/orogen-resolution.md` is what it was for.
+    "ab0d679bd81360cd30fb67a3ce13e726b4aa1bb9ba7e4afb601c10aa13f9a526":
+        {"name": "precarve-craton-10m", "note":
+         "2026-08 resolution reference at 4x the region count: measurement "
+         "artifact for the resolution audit, T42 only, ice mask not yet fixed"},
 }
 
 # Basin ids are computed on the pre-conditioning surface, so they survive a

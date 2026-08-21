@@ -354,7 +354,7 @@ Two reference points recorded beside it, neither of them the bar:
 
 - **0.857** is the ceiling. Between-cell variance is 85.7% of the total on
   depth-consistent bores, so no model at 15.19 km can exceed it however good.
-- **0.28** is what a flexible statistical fit over every resolvable field --
+- **0.1435** is what a flexible statistical fit over every resolvable field --
   elevation, local relief, distance to the sea, recharge, permeability --
   reaches on held-out cells. That is the practical target: a physical model
   should approach what a regression on its own inputs can do.
@@ -370,3 +370,366 @@ Two reference points recorded beside it, neither of them the bar:
 The best configuration reaches a quarter of the bar and 6% of the practical
 target. **The verdict is unchanged and is now stated in a measure that filtering
 cannot flatter.**
+
+---
+
+## The resolution confound, separated: it is the formulation
+
+This note declared, before any scoring, that "a miss confounds formulation with
+implementation, and saying which is part of the result rather than an excuse for
+it", and that running at 15.19 km against Fan's roughly 1 km was "15 times
+coarser in the direction that matters". That was a promissory note. It is now
+paid, by running the same case at three cell sizes with
+`hydrography/scripts/earth_calibration.py`. Measured 2026-08-20, on
+depth-consistent bores, with GW-15's sink and GW-17's baselevels ON.
+
+| mean edge | regions | bores | cells | ceiling | model sd | Pearson | R2 on cell means |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 15.19 km | 1,736,112 | 53,410 | 3,276 | 0.6335 | 1.91 m | +0.0703 | -0.365 |
+| 10.74 km | 3,473,013 | 54,921 | 4,682 | 0.6894 | 3.35 m | +0.0665 | -0.357 |
+| 7.60 km | 6,935,660 | 55,009 | 6,548 | 0.7408 | 4.33 m | +0.0711 | -0.344 |
+
+Halving the cell edge does two things and fails to do the third. The CEILING
+rises from 0.6335 to 0.7408, so more of the observed variance genuinely becomes
+resolvable. The model's own spread more than doubles, 1.91 m to 4.33 m, so it is
+producing more structure. And the correlation does not move at all: +0.0703,
++0.0665, +0.0711, which is a Pearson r2 near 0.005 at every resolution. The
+model gains variance without gaining agreement. The extra structure is in the
+wrong places.
+
+The dependence structure says why, and it is the clearest result here:
+
+| mean edge | rho(model, recharge) | rho(obs, recharge) | rho(model, elevation) | rho(obs, elevation) |
+| --- | --- | --- | --- | --- |
+| 15.19 km | -0.902 | -0.272 | -0.047 | +0.125 |
+| 10.74 km | -0.931 | -0.279 | -0.020 | +0.161 |
+| 7.60 km | -0.923 | -0.268 | -0.003 | +0.199 |
+
+The model is very nearly a monotone function of recharge at every cell size,
+Spearman -0.90 to -0.93, and the real water table is not, at -0.27. Against
+elevation the two move in opposite directions as the mesh refines: the
+observations' terrain signal STRENGTHENS, +0.125 to +0.161 to +0.199, exactly as
+Fan's finding that terrain dominates locally predicts once cells are small
+enough to show it, while the model's decays to nothing, -0.047 to -0.003.
+
+So the resolvable terrain signal is real, it is increasingly available, and the
+model is increasingly not using it. Refining the mesh under this formulation
+produces a finer recharge map.
+
+**The verdict is formulation, not resolution.** With `T = K D` at constant
+thickness and a strong evapotranspiration sink, the steady state is set locally,
+by the balance between recharge and what the sink removes at that depth, and the
+lateral term is too weak for terrain to organise the water table across a
+catchment. Fan's exponential decay is not a refinement of that, it is the
+mechanism that couples the two: transmissivity falls with depth, so a deeper
+table conducts less, which is what makes the surface follow topography with a
+damped amplitude rather than following recharge.
+
+GW-9 abandoned the exponential decay on the argument that a metre-scale
+e-folding length has no cell-mean value at 15.19 km. That argument was never
+measured, and this result puts it back on the table: whatever the e-folding
+length means at a cell mean, the formulation replacing it does not reproduce the
+dependence structure of the thing it models, at any of the three cell sizes
+tried. The next experiment is the cheap one, the same mesh with a depth-decaying
+transmissivity, and it needs no new data.
+
+Two things this does NOT show. It does not show the implementation is wrong: the
+reduction, closure, uniqueness and trace identities pass, the operator matches
+Vesper's to 2%, and the solve converges with nothing pinned. And it does not
+show the depth range is wrong: the model's median depth is 5.12, 5.16 and 5.18 m
+across the three, stable and physically ordinary. What is wrong is WHERE the
+water is, not how much of it there is or how the equations are solved.
+
+### A stale result, caught by rebuilding
+
+The harness that produced the original figures was written inline and lost
+(GW-20). Recovering it from the session transcript showed it predates GW-15's
+sink and GW-17's baselevels, and run as recovered it pins 93.8% of cells at the
+surface with a median depth of 0.00 m, which is the pathology
+`config/pipeline.yaml`'s gate names in as many words. The archived score was
+therefore measured on a configuration this component no longer uses. Restoring
+the current physics moves the baseline from R2 -0.579 to -0.365 and Pearson
++0.026 to +0.070, which changes no verdict but is the honest number. A result
+whose harness is not kept is a result that quietly ages out of agreement with
+the model it judged.
+
+## What GW-21 found, including two corrections to the section above
+
+The section above blamed the formulation and named Fan's depth-decaying
+transmissivity as the fix. Checking the record first was the right move and it
+withdrew that: `groundwater.py:transmissivity` already carries a quantitative
+argument against it, `exp(h/f)` being convex so a cell mean carries
+`exp(sigma^2/2f^2)`, which at 100 m of sub-grid relief against Fan's 0.95 m `f`
+is `exp(5000)`, and `notes/water-table-convergence.md` records that Picard on it
+LIMIT-CYCLES because `T` moves by a factor of e per e-folding length. Two
+solvers died there. The experiment proposed was the one that had already failed.
+
+What was run instead, on the cached 15.19 km Earth mesh:
+
+**The sink does set the depth locally, exactly as its closed form says.** With
+`E(h) = et_max exp(-(z-h)/lambda)` the balance is
+`d = lambda ln(et_max A / supply)`, which names no neighbour. Median depth is
+linear in `lambda`: 5.12, 10.23, 25.51, 50.86, 126.35 m at 1, 2, 5, 10 and 25 m.
+`rho(model, recharge)` is pinned at -0.90 for every one of them, and `et_max`
+barely registers because it enters logarithmically.
+
+**Transmissivity magnitude, not its depth dependence, controls whether terrain
+appears.** Raising `D` from 100 m to 20 km moves `rho(model, elevation)` from
+-0.047 to +0.466 and `rho(model, recharge)` from -0.902 to -0.245, which brackets
+the observed -0.272 and +0.125. The dependence structure is therefore reachable
+with the formulation already in hand. Without any sink the model is not
+recharge-dominated at all, -0.106, and carries +0.082 of terrain signal; it is
+simply pinned at the surface on 91.4% of cells, because at `T = K * 100 m` the
+aquifer cannot carry its recharge to a baselevel.
+
+**And none of it improves agreement.** Across `D` over a 200-fold range, `lambda`
+over 25-fold, and the sink on or off, Pearson on cell means stays between +0.058
+and +0.101. Matching the dependence structure does not produce a match.
+
+### The correction that matters: rank against magnitude
+
+This note has been quoting Pearson. On rank the model is not skill-free:
+Spearman is +0.276 at the current setting and +0.291 at its best. Reporting
+"no skill" was too strong and is withdrawn.
+
+What that rank skill IS, though, settles the question:
+
+| field or model | Pearson | Spearman |
+| --- | --- | --- |
+| recharge alone | -0.118 | -0.272 |
+| elevation alone | +0.072 | +0.125 |
+| log10 K alone | +0.042 | +0.052 |
+| the model, current settings | +0.070 | +0.276 |
+| the model, best of everything tried | +0.101 | +0.291 |
+
+The model's rank agreement is its recharge field's rank agreement. Solving a
+groundwater equation on top of that input recovers what the input already had
+and adds no more than 0.02. Meanwhile R^2 on cell means is negative everywhere
+and grows worse as `D` rises, -0.365 to -0.749 to -2.318 to -7.025, because the
+model's spread overshoots: 45 m and 75 m of standard deviation against the
+observations' 28.5.
+
+So the model orders cells about as well as its recharge forcing does, and places
+the magnitudes badly, and the extremes worst of all, which is why Pearson sits
+so far below Spearman.
+
+### What this means, and what it does not
+
+It is not a resolution gap: the sweep above shows the correlation flat from
+15.19 to 7.60 km. It is not the exponential transmissivity: that is ruled out
+twice over and was never run. And it is not obviously a defect in the flow
+solver, whose identities pass and whose dependence structure can be tuned onto
+the observed values without agreement following.
+
+The reading this leaves is that the INPUTS do not determine the answer. Recharge,
+GLHYMPS permeability at 15 km and a cell-mean elevation carry, between them,
+about the rank skill the model achieves, and the independent statistical result
+recorded above -- 0.1435 held-out R^2 from a flexible fit over every resolvable
+field -- says the room above that is modest against a within-cell ceiling of
+0.63. Those two numbers are different metrics and should not be equated, but
+they point the same way.
+
+That is a harder finding than a formulation bug, because no reformulation of a
+flow equation adds information its forcing does not contain. It also means the
+honest use of this field is unchanged and is what `hydrography/README.md`
+already says: the per-basin exchange direction survives, and a per-cell depth
+does not mean anything.
+
+## Which surface is the depth measured from, and why both answers are wrong
+
+A model depth and an observed depth are only comparable if they hang from the
+same surface, and they do not. The model's is below the DEM's CELL MEAN. The
+bore's is below the ground at the bore, and bores sit in valleys -- the bias Fan
+states herself and `docs/src/reference/external-data.md` records, that wells are
+where people are, which is valleys and oases. Measured on the 48,552 Australian
+bores that fall on conductive cells, the siting is real: the DEM at a bore sits
+a mean of 8.38 m and a median of 1.91 m BELOW its cell mean.
+
+Correcting it is not as simple as using the bore's own elevation, and the first
+attempt is worth recording because the failure is instructive. Scoring
+`bore_elevation - head` gives R2 -18.0 and a model spread of 107 m against the
+observations' 28. The reason is a datum and resolution mismatch, not physics:
+the surveyed bore elevation and the ETOPO value AT THE SAME POINT differ with a
+standard deviation of 51.97 m, median -0.28 m, so there is no systematic offset
+to remove and only scatter, which lands whole on the residual. **Do not mix an
+observation's own elevation with a head anchored to a different DEM.**
+
+Taking both from the DEM removes that, and the result is the interesting one:
+
+| depth measured below | Pearson | Spearman | R2 | model sd |
+| --- | --- | --- | --- | --- |
+| the cell mean | +0.0689 | +0.2734 | -0.354 | 3.96 m |
+| the DEM at the bore | +0.1278 | +0.2004 | -3.122 | 44.36 m |
+| the observations | | | | 28.19 m |
+
+Pearson nearly doubles and everything else gets worse, because the model's
+spread goes to 44 m against an observed 28. The two rows are two assumptions
+about what happens INSIDE a cell and neither is true. Scoring below the cell
+mean assumes the depth is constant across the cell, so the water table copies
+the terrain exactly. Scoring below the DEM at the bore adds the full within-cell
+surface variation, standard deviation 36.24 m, to a single flat head, which
+assumes the water table is level across the cell and the depth carries all the
+relief. A real water table is a subdued replica of the topography and sits
+between the two.
+
+That is the sub-grid drainage term of GW-23 seen from the scoring side rather
+than the physics side, and it is now BRACKETED rather than argued: the correct
+within-cell behaviour lies between a model spread of 3.96 m and one of 44.36 m,
+and the observations say 28.19 m. Any parameterisation of sub-grid venting has
+those three numbers to hit, which is a sharper target than "add a sink".
+
+### GW-23 tested at its bounding limit, and a defect found on the way
+
+The sub-grid drain has a free end: a Robin condition `Q = C max(0, h - z_valley)`
+needs a solver term, but `C -> infinity` is just a fixed head at the cell's own
+valley floor, which the existing `fixed_head_m` supplies. That BOUNDS what the
+whole family can do, and it can be run on the cached mesh in a second.
+
+22,284 of 26,372 Australian land cells have 10 m or more of within-cell relief
+to vent into, at a median of 30 m. Draining them:
+
+| configuration | Pearson | R2 | model sd |
+| --- | --- | --- | --- |
+| cell-mean surface, no drain | +0.0703 | -0.365 | 1.91 m |
+| cell-mean surface, drain to DEM minimum | -0.0575 | -5.069 | 45.85 m |
+| cell-mean surface, drain to mean - 2 sd | -0.0885 | -8.975 | 65.03 m |
+| DEM-at-bore surface, no drain | **+0.1341** | -3.053 | 36.18 m |
+| DEM-at-bore surface, drain to DEM minimum | +0.0492 | -3.025 | 43.32 m |
+| the observations | | | 28.19 m |
+
+Two things fall out and they point in opposite directions.
+
+**The drain does not help, at either end of the scoring convention.** Below the
+cell mean it inverts the correlation, +0.0703 to -0.0575, because it makes the
+model deepest exactly where relief is greatest and the observations do not do
+that. Below the DEM at the bore it still costs, +0.1341 to +0.0492. Median depth
+goes to 25.5 m against an observed 12.9. `C -> infinity` over-drains, and since
+the other end of the family is the undrained baseline, the family is bracketed
+by two configurations without skill. A finite `C` would have to beat both ends,
+which nothing here suggests.
+
+**The scoring surface was a defect, and fixing it is the largest single
+improvement in this whole investigation.** Simply hanging the depth from the DEM
+at the bore rather than from the cell mean takes Pearson from +0.0703 to
++0.1341, nearly double, with no change to the model at all. That is a
+measurement correction, not a modelling one, and it had been suppressing the
+score from the start.
+
+It is not skill. R2 stays at -3.05 because the spread goes to 36.18 m against
+28.19 observed, which is the over-correction the section above brackets: hanging
+every bore's depth from its own ground while the head stays flat across the cell
+gives the depth all of the relief. The best configuration measured anywhere in
+this note is Pearson +0.1341, against a statistical fit's 0.1435 and a ceiling of
+0.6335.
+
+One bug worth recording because it is a class rather than an instance. The first
+version of the surface option changed the per-bore array and left the per-cell
+aggregation reading `sol["depth"]`, so `--surface` ran, reported, and changed
+nothing: identical R2 and Pearson to four decimal places while the model spread
+moved from 3.96 m to 36.18. An option that appears to work and silently does
+nothing is worse than one that fails. The aggregation now averages the model
+over the same bores as the observations, which is what it should have done.
+
+### GW-25: the surface correction is real, and it should not be the default
+
+The two scorings are the ends of one family. Within a cell a water table is a
+subdued replica of the terrain, `h(x) = h_cell + alpha (z(x) - z_cell)`, so the
+predicted depth at a bore is `cell_depth + (1 - alpha) delta` with
+`delta = z_bore - z_cell` taken from the DEM at both ends. `alpha = 1` is the
+cell-mean scoring, depth constant across the cell; `alpha = 0` is the
+bore-surface scoring, head flat across the cell. Sweeping it, on 3,276 cells:
+
+| alpha | model sd | Pearson | Spearman | R2 |
+| --- | --- | --- | --- | --- |
+| 1.00, cell mean | 3.87 m | +0.0703 | +0.2760 | -0.365 |
+| 0.90 | 5.99 m | +0.1399 | +0.2627 | -0.404 |
+| 0.80 | 9.77 m | +0.1439 | +0.2441 | -0.494 |
+| 0.36 | 28.56 m | +0.1365 | +0.2127 | -1.497 |
+| 0.00, bore surface | 44.28 m | +0.1341 | +0.2036 | -3.053 |
+| the observations | 28.49 m | | | |
+
+The three measures disagree about where to stand, which is the first sign that
+`alpha` is not being chosen by the physics. Pearson peaks near 0.8, Spearman and
+R2 are both best at 1.0, and the one rule declared BEFORE looking at any
+correlation -- match the observed spread of 28.49 m -- picks 0.36, which is
+worse than either end on two measures out of three.
+
+The attribution settles it. Pearson jumps at the first step off `alpha = 1` and
+then flatlines, which is what happens when a term is being added that carries
+its own signal rather than revealing the model's:
+
+| predictor of observed cell-mean depth | Pearson | Spearman |
+| --- | --- | --- |
+| the model alone | +0.0703 | +0.2760 |
+| `delta` alone, where the bore sits within its cell | +0.1290 | +0.1849 |
+| model plus `delta` | +0.1341 | +0.2036 |
+
+**`delta` out-predicts the model.** Where a bore sits inside its own cell
+explains more of the observed depth, on Pearson, than the groundwater solve
+does. So the near-doubling from the surface correction is mostly `delta`'s
+predictive power folded into the model's score, and reporting it as the model's
+number would be crediting the physics with a geometric covariate. A joint least
+squares on both reaches R2 +0.0208 -- positive, unlike the -0.365 of a direct
+comparison, because fitting an intercept and a scale is a different question --
+against a flexible statistical fit's 0.1435 and a ceiling of 0.6335.
+
+So the DEFAULT STAYS `cell-mean`, and `--surface dem-at-bore` stays available
+and labelled. The defect was real and worth finding: the model's depth and the
+bore's hang from surfaces a mean 8.4 m apart. But correcting it does not recover
+model skill, it imports a covariate, and the honest report of the model is the
+one that does not.
+
+What the correction DOES establish is a sharper statement of GW-21's finding.
+That row said the model adds nothing over its recharge forcing. This adds that
+it is also out-predicted by pure geometry -- where the bore sits relative to its
+cell mean, which involves no groundwater physics at all.
+
+## The 0.28 was never measured, and it had been the target
+
+This note quoted 0.28 four times as what "a flexible statistical fit over every
+resolvable field reaches on held-out cells", `hydrography/README.md` quoted it,
+`earth_calibration.py` PRINTED it beside every score, and GW-21 reasoned from
+it. Reproducing the computation it came from, recovered from the session
+transcript and re-run on the current artifacts, it does not exist. The original
+run reported a linear held-out R2 of +0.0703 over six predictors and +0.1215 for
+a nonparametric 12 by 12 binning on hops-to-sea against elevation. Nothing in it
+produced 0.28.
+
+Re-measured now on 2,939 multi-bore cells, target `log(1 + cell-mean depth)`,
+the same 50/50 split and seed:
+
+| fit | held-out R2 |
+| --- | --- |
+| linear, six predictors | +0.0711 |
+| nonparametric 12 by 12 bins, hops by elevation | +0.0955 |
+| gradient boosting, all seven predictors | +0.1411 |
+| **gradient boosting, the physical model EXCLUDED** | **+0.1435** |
+| gradient boosting, the physical model ALONE | -0.0467 |
+
+So the honest number for what the resolvable fields support is **0.1435**, and
+every citation has been corrected to it. A figure that no computation produced,
+carried in four documents and printed beside every score, is worse than no
+figure: it reads as measured, it was used to judge the model, and it set the
+target twice as high as the evidence allows.
+
+Two results in that table matter more than the correction.
+
+**The model alone has a NEGATIVE held-out R2**, -0.0467, on the log target. It
+is worse than predicting the mean depth everywhere.
+
+**Adding the model to a flexible fit makes the fit slightly WORSE**, +0.1435 to
++0.1411. Given every resolvable field, a learner does better ignoring the
+groundwater solve than using it. That is a stronger statement than GW-21's, and
+it is the one to quote: the model does not merely fail to add to its recharge
+forcing, it is information-negative against its own inputs.
+
+### What this does to GW-21
+
+GW-21 concluded the INPUTS are the limit rather than the formulation. That
+survives and is sharpened at both ends. The inputs really are weak: 0.1435
+against a between-cell ceiling of 0.6335, so four fifths of what the cell means
+could in principle carry is not in elevation, relief, distance to the sea,
+recharge or permeability at this resolution. And the model does not reach even
+that weak bar, sitting at -0.0467 alone. Both halves are true at once, and the
+earlier phrasing implied the second could not be, because it measured the model
+against a target that was never real.

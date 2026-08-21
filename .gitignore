@@ -94,6 +94,23 @@ hydrography/data/*/surface_water.nc
 biosphere/runs/
 pedology/data/earth_validation_cache/
 
+# The GW-3 Earth calibration's mesh, sampled fields, permeability, solve and
+# score. Derived and large (about 105 MB), and regenerable by the scripts in
+# hydrography/scripts/earth_*.py from data whose sources
+# docs/src/reference/external-data.md records. Cached so a re-run does not
+# re-fetch ETOPO and GLHYMPS or redo the mesh; the RESULT is tracked in
+# hydrography/analysis/earth_calibration.json and argued in
+# hydrography/notes/earth-calibration-criterion.md.
+hydrography/data/earth_validation_cache/
+
+# The United States site table is 193 MB against the Australian one's 11.6, so
+# it is regenerated rather than carried: `hydrography/scripts/build_us_wtd_sites.py`
+# rebuilds it from the USGS API, whose route and rate limits
+# docs/src/reference/external-data.md records, and the paging checkpoints so a
+# re-run resumes. The PROVENANCE json beside it is tracked and is what says
+# which fetch a result came from. Australia stays tracked because it is small.
+hydrography/data/earth_validation/us_wtd_sites.csv
+
 # ERA5 precipitation at each Earth lake's pour point, cached by
 # hydrography/scripts/validate_lake_solver.py so a re-run does not re-fetch 146
 # thirty-year series. Delete the directory to refresh it. The result it feeds is

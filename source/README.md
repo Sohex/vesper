@@ -14,9 +14,12 @@ trust and why.
 against. Prefer it to reading the files directly.
 
 
-Five exports of the same planet per build, all from seed 16236323 with 2,500,001
-mesh regions, and all carrying the same `manifest.hashes.finalElevation` within a
-build. Check that hash against `lib/orogen.py` before trusting any number quoted
+Five exports of the same planet per build, all from seed 16236323, and all
+carrying the same `manifest.hashes.finalElevation` within a build. The REGION
+COUNT is a property of the build rather than of the project and is in
+`manifest.numRegions`: `precarve-craton` is 2,500,001 at a 15.19 km mean edge,
+and 10,000,004 is the default for anything generated from now on, for the reason
+under the recipe below. Check that hash against `lib/orogen.py` before trusting any number quoted
 about the terrain: the seed and parameters alone do not identify a build, because
 fixes to the generator change the terrain under a fixed seed, and one such fix
 (over-erosion) moved mean land elevation by a factor of four. Anything derived
@@ -183,26 +186,55 @@ So what has to survive is the recipe, not the export. This is it:
 cd vendor/orogen
 COMMON="--code 01eshm059lt0b9mpgro2y83t \
         --radius 7645.2 --gravity 12.81 \
-        --lithology-strength 0.682 --netcdf --quiet"
+        --lithology-strength 0.682 --regions 10000004 \
+        --netcdf --quiet"
 
-node --max-old-space-size=14336 tools/export-planet.mjs $COMMON \
+node --max-old-space-size=32000 tools/export-planet.mjs $COMMON \
      --grid T42 --out ../../source/<build>/exoplasim-T42          # only this one keeps raw/
-for G in T21 T63 T85; do
-  node --max-old-space-size=14336 tools/export-planet.mjs $COMMON \
+for G in T21 T85 T127 T170; do
+  node --max-old-space-size=32000 tools/export-planet.mjs $COMMON \
        --grid $G --no-raw --out ../../source/<build>/exoplasim-$G
 done
-node --max-old-space-size=14336 tools/export-planet.mjs $COMMON \
+node --max-old-space-size=32000 tools/export-planet.mjs $COMMON \
      --grid 512x256 --no-raw --out ../../source/<build>/grid-512x256
 ```
 
-About five minutes per grid. Then register the terrain hash in `lib/orogen.py`
-and point `source_build` at it.
+**The ladder is T21/T42/T85/T127/T170**, and it is the same list as
+`exoplasim/scripts/rebuild_binaries.py`'s `MATRIX` on purpose: a truncation with
+an export and no binary is terrain nothing can run, and a binary with no export
+has no geography to run on. T63 is no longer emitted; `precarve-craton` carries
+one because it predates the ladder.
+
+`T170` and `grid-512x256` are both 512 by 256 and are NOT interchangeable: the
+truncation emits Gauss-Legendre latitudes, which is what a spectral model wants,
+and the other is uniform in latitude. Keep both; the shape they share is a
+coincidence of the truncation table.
+
+**`--regions 10000004` is the default, and it is a measured choice rather than a
+preference.** `notes/audits/orogen-resolution.md` has the argument; the three
+numbers that decide it are these. Orogen's terrain noise sits at fixed physical
+wavelengths and the finest it DESIGNS is about 20 km, so `elevation_pre_erosion`
+gains only 8% of semivariance per lag doubling below 10 km against 26% at 50 km;
+a 7.60 km mesh oversamples that floor by 2.6x and a finer one manufactures
+erosion texture at the mesh scale rather than resolving terrain. The endorheic
+basin catalogue CONVERGES there: preserved basins go 3,621, 6,345, 9,419, 9,649
+across 2.5M, 5M, 10M and 25M regions, so the step past 10M adds 2.4% where the
+one before it added 48%, because `minCells` has stopped binding and the declared
+1000 km2 floor governs. And the cost is superlinear: 1,093 s and 9.0 GB at 10M
+against 3,875 s and 21.1 GB at 25M.
+
+At 10,000,004 the T42 export with `raw/` takes about eighteen minutes and 9 GB,
+and the four `--no-raw` grids are quicker. The heap has to be raised from the
+14336 the 2.5M build used. Then register the terrain hash in `lib/orogen.py` and
+point `source_build` at it.
 
 Add `--preserve-basins FILE` to apply a carve list; without it the build is
 pre-carve, which is what a first pass on new geography wants.
 
 The code decodes to seed 16236323, 2,500,001 regions, 100 plates, 10 continents
-and the erosion and shaping sliders. Verify against `manifest.params` after
+and the erosion and shaping sliders. An explicit flag beats the decoded value,
+which is why `--regions` above overrides the count and the rest of the code still
+applies. Verify against `manifest.params` after
 generating: `lithologyStrength` in particular must read 0.682 and not the 1 the
 code decodes to, because it is a fork addition the code predates.
 

@@ -78,10 +78,18 @@ if OPTIMIZATION and not OPTIMIZATION.startswith("-"):
     raise SystemExit(
         f"model.optimization_flag must start with '-', got {OPTIMIZATION!r}")
 
-# The matrix. NLAT must divide by ranks: 32 at T21, 64 at T42, 128 at T85.
+# The matrix. NLAT must divide by ranks: 32 at T21, 64 at T42, 128 at T85,
+# 192 at T127, 256 at T170. The ladder is T21/T42/T85/T127/T170 and every rung
+# has an export under `source/<build>/exoplasim-<T>`; a rung without a binary is
+# terrain nothing can run. T127 and T170 take p16 for the same reason T85 does,
+# 16 dividing 192 and 256 at 12 and 16 rows a rank; p32 also divides both, at 6
+# and 8, and is the option if throughput at the top of the ladder matters more
+# than the compile.
 MATRIX = [("T21", 10, 8), ("T21", 10, 16),
           ("T42", 10, 8), ("T42", 10, 16),
-          ("T85", 10, 16)]
+          ("T85", 10, 16),
+          ("T127", 10, 16),
+          ("T170", 10, 16)]
 
 
 def sha256(path: Path) -> str:
@@ -241,6 +249,15 @@ def main() -> None:
                 absent.append(exe.name)
             elif rec.get("sources") != sources:
                 stale.append(exe.name)
+        # A binary on disk built from moved source is one failure; a MATRIX
+        # entry with NO binary at all is the mirror of it, and globbing the
+        # directory cannot see that one. It is the same class 11 shape: silent
+        # until something asks for the configuration. The ladder in `MATRIX` is
+        # the declaration of what must exist, so check against it.
+        missing = [expected(r, l, k) for r, l, k in MATRIX
+                   if not (RUN / expected(r, l, k)).is_file()]
+        if missing:
+            print("IN THE MATRIX AND NOT BUILT:", ", ".join(missing))
         if absent:
             print("NOT IN MANIFEST (provenance unknown):", ", ".join(absent))
         if stale:
@@ -252,7 +269,7 @@ def main() -> None:
             print("TOOLCHAIN HAS MOVED SINCE THE BUILD:")
             for line in drift:
                 print(f"  {line}")
-        if not absent and not stale and not drift:
+        if not absent and not stale and not drift and not missing:
             print(f"all {len(list(RUN.glob('most_plasim_*.x')))} binaries current")
         raise SystemExit(1 if (absent or stale or drift) else 0)
 

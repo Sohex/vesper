@@ -1,0 +1,442 @@
+{
+  "provenance": {
+    "generated": "2026-08-21T01:00:53+00:00",
+    "git_rev": "9e7268d3cc78300c02e6e30eaa75b202bade90fb",
+    "python": "3.12.13",
+    "numpy": "2.5.2",
+    "script_sha256": "6377e88b1a491de7814f1dc355e066558f1bc8f501a8970242cb4f7051f560b4",
+    "inputs": {
+      "2.500M": {
+        "path": "/home/cfutro/docs/world/source/precarve-craton/exoplasim-T42",
+        "manifest_sha256": "1ee67778ffef7dc20d593c88725ee6fe1e01cc4178cb831788a62f45b3c6ff94"
+      },
+      "2.600M": {
+        "path": "/home/cfutro/.claude/jobs/0a3e157f/tmp/noise_2600000",
+        "manifest_sha256": "c526c089621c54e3d0ef92b125da809f67edfe0629824d8f0c91b6fa8e9f362c"
+      },
+      "2.700M": {
+        "path": "/home/cfutro/.claude/jobs/0a3e157f/tmp/noise_2700000",
+        "manifest_sha256": "d38d804d5d624cf8f11fe7105623391ee9716f6edea7fbeb20e5300f01435e39"
+      },
+      "10.00M": {
+        "path": "/home/cfutro/docs/world/source/precarve-craton-10m/exoplasim-T42",
+        "manifest_sha256": "6192c3c9d3113914218ac0cbe27fbf23daced930b5d17bd56f7555ee1c8fe09e"
+      }
+    },
+    "settings": {
+      "lags_km": [
+        5.0,
+        10.0,
+        15.19,
+        25.0,
+        50.0,
+        100.0,
+        200.0
+      ],
+      "levels_km": [
+        0.5,
+        1.0,
+        1.5,
+        2.0,
+        3.0,
+        4.0
+      ],
+      "n_centres": 6000,
+      "seed": 20260820
+    }
+  },
+  "results": {
+    "2.500M": {
+      "sanity": {
+        "n_regions": 2500001,
+        "mean_edge_km": 15.190379803857212,
+        "cell_area_sum_km2": 734993010.3775142,
+        "cell_area_over_sphere": 1.000680974409125,
+        "non_finite_elevations": 0,
+        "elevation_min_km": -8.894490242004395,
+        "elevation_max_km": 4.593278884887695,
+        "land_fraction_by_count": 0.4317582272967091,
+        "land_fraction_by_area": 0.4317189425633888,
+        "unit_sphere_deviation": 3.3306690738754696e-16
+      },
+      "hypsometry": {
+        "land_area_km2": 317310405.2316623,
+        "area_weighted_mean_land_elevation_km": 0.3957484326305529,
+        "area_fraction_above": {
+          "0.5": 0.19384687241088502,
+          "1": 0.1242803293943969,
+          "1.5": 0.08670275500553361,
+          "2": 0.06188394079942636,
+          "3": 0.03094642293170686,
+          "4": 0.012009751205220152
+        }
+      },
+      "variogram": {
+        "5": {
+          "elevation_km": {
+            "sqrt_semivariance": 0.15713386838386514,
+            "pairs": 508
+          },
+          "elevation_pre_erosion": {
+            "sqrt_semivariance": 0.10543027538089045,
+            "pairs": 508
+          }
+        },
+        "10": {
+          "elevation_km": {
+            "sqrt_semivariance": 0.18199027921132216,
+            "pairs": 2913
+          },
+          "elevation_pre_erosion": {
+            "sqrt_semivariance": 0.10886352550925533,
+            "pairs": 2913
+          }
+        },
+        "15.19": {
+          "elevation_km": {
+            "sqrt_semivariance": 0.22701533656096975,
+            "pairs": 9239
+          },
+          "elevation_pre_erosion": {
+            "sqrt_semivariance": 0.11291120446165305,
+            "pairs": 9239
+          }
+        },
+        "25": {
+          "elevation_km": {
+            "sqrt_semivariance": 0.2770624006835695,
+            "pairs": 34359
+          },
+          "elevation_pre_erosion": {
+            "sqrt_semivariance": 0.12883067177506788,
+            "pairs": 34359
+          }
+        },
+        "50": {
+          "elevation_km": {
+            "sqrt_semivariance": 0.3806568900374932,
+            "pairs": 154108
+          },
+          "elevation_pre_erosion": {
+            "sqrt_semivariance": 0.15878757929901005,
+            "pairs": 154108
+          }
+        },
+        "100": {
+          "elevation_km": {
+            "sqrt_semivariance": 0.5074766094164246,
+            "pairs": 635527
+          },
+          "elevation_pre_erosion": {
+            "sqrt_semivariance": 0.1957242762205725,
+            "pairs": 635527
+          }
+        },
+        "200": {
+          "elevation_km": {
+            "sqrt_semivariance": 0.6291833367815007,
+            "pairs": 2560328
+          },
+          "elevation_pre_erosion": {
+            "sqrt_semivariance": 0.231197800588218,
+            "pairs": 2560328
+          }
+        }
+      }
+    },
+    "2.600M": {
+      "sanity": {
+        "n_regions": 2600001,
+        "mean_edge_km": 14.895393006647913,
+        "cell_area_sum_km2": 734991083.6286383,
+        "cell_area_over_sphere": 1.0006783511720119,
+        "non_finite_elevations": 0,
+        "elevation_min_km": -9.525276184082031,
+        "elevation_max_km": 4.593278884887695,
+        "land_fraction_by_count": 0.43568752473556743,
+        "land_fraction_by_area": 0.43564867892035375,
+        "unit_sphere_deviation": 3.3306690738754696e-16
+      },
+      "hypsometry": {
+        "land_area_km2": 320197894.6010555,
+        "area_weighted_mean_land_elevation_km": 0.4401240618491573,
+        "area_fraction_above": {
+          "0.5": 0.208566537064051,
+          "1": 0.136660812764416,
+          "1.5": 0.09813997829190273,
+          "2": 0.07216834527936247,
+          "3": 0.038535264325018186,
+          "4": 0.017360562570939795
+        }
+      },
+      "variogram": {
+        "5": {
+          "elevation_km": {
+            "sqrt_semivariance": 0.23054089056026594,
+            "pairs": 543
+          },
+          "elevation_pre_erosion": {
+            "sqrt_semivariance": 0.10642561302674891,
+            "pairs": 543
+          }
+        },
+        "10": {
+          "elevation_km": {
+            "sqrt_semivariance": 0.21563635785348015,
+            "pairs": 3021
+          },
+          "elevation_pre_erosion": {
+            "sqrt_semivariance": 0.11732328681069715,
+            "pairs": 3021
+          }
+        },
+        "15.19": {
+          "elevation_km": {
+            "sqrt_semivariance": 0.23029170623897516,
+            "pairs": 9837
+          },
+          "elevation_pre_erosion": {
+            "sqrt_semivariance": 0.12367269823430954,
+            "pairs": 9837
+          }
+        },
+        "25": {
+          "elevation_km": {
+            "sqrt_semivariance": 0.28250856593950485,
+            "pairs": 35672
+          },
+          "elevation_pre_erosion": {
+            "sqrt_semivariance": 0.1355782246743928,
+            "pairs": 35672
+          }
+        },
+        "50": {
+          "elevation_km": {
+            "sqrt_semivariance": 0.40266017640498736,
+            "pairs": 160470
+          },
+          "elevation_pre_erosion": {
+            "sqrt_semivariance": 0.16887485960431325,
+            "pairs": 160470
+          }
+        },
+        "100": {
+          "elevation_km": {
+            "sqrt_semivariance": 0.5346161127763074,
+            "pairs": 661202
+          },
+          "elevation_pre_erosion": {
+            "sqrt_semivariance": 0.20579082929343576,
+            "pairs": 661202
+          }
+        },
+        "200": {
+          "elevation_km": {
+            "sqrt_semivariance": 0.666903969170707,
+            "pairs": 2663221
+          },
+          "elevation_pre_erosion": {
+            "sqrt_semivariance": 0.2415042890113703,
+            "pairs": 2663221
+          }
+        }
+      }
+    },
+    "2.700M": {
+      "sanity": {
+        "n_regions": 2700001,
+        "mean_edge_km": 14.61694999796335,
+        "cell_area_sum_km2": 734993855.998847,
+        "cell_area_over_sphere": 1.0006821257087528,
+        "non_finite_elevations": 0,
+        "elevation_min_km": -9.527647018432617,
+        "elevation_max_km": 4.593278884887695,
+        "land_fraction_by_count": 0.43374280231748064,
+        "land_fraction_by_area": 0.43367766643444067,
+        "unit_sphere_deviation": 3.3306690738754696e-16
+      },
+      "hypsometry": {
+        "land_area_km2": 318750420.3132313,
+        "area_weighted_mean_land_elevation_km": 0.3878713689604579,
+        "area_fraction_above": {
+          "0.5": 0.19226790792506773,
+          "1": 0.1226148631998866,
+          "1.5": 0.08453226195210754,
+          "2": 0.059228418799609786,
+          "3": 0.02895923255102065,
+          "4": 0.010893864244431785
+        }
+      },
+      "variogram": {
+        "5": {
+          "elevation_km": {
+            "sqrt_semivariance": 0.14727561414396179,
+            "pairs": 591
+          },
+          "elevation_pre_erosion": {
+            "sqrt_semivariance": 0.08732822996120093,
+            "pairs": 591
+          }
+        },
+        "10": {
+          "elevation_km": {
+            "sqrt_semivariance": 0.17369064393276812,
+            "pairs": 3248
+          },
+          "elevation_pre_erosion": {
+            "sqrt_semivariance": 0.09784992889276603,
+            "pairs": 3248
+          }
+        },
+        "15.19": {
+          "elevation_km": {
+            "sqrt_semivariance": 0.20662702371975208,
+            "pairs": 10420
+          },
+          "elevation_pre_erosion": {
+            "sqrt_semivariance": 0.10795205467738235,
+            "pairs": 10420
+          }
+        },
+        "25": {
+          "elevation_km": {
+            "sqrt_semivariance": 0.2631776862534223,
+            "pairs": 37380
+          },
+          "elevation_pre_erosion": {
+            "sqrt_semivariance": 0.1255192978087997,
+            "pairs": 37380
+          }
+        },
+        "50": {
+          "elevation_km": {
+            "sqrt_semivariance": 0.3776494141413486,
+            "pairs": 166884
+          },
+          "elevation_pre_erosion": {
+            "sqrt_semivariance": 0.15645780650834207,
+            "pairs": 166884
+          }
+        },
+        "100": {
+          "elevation_km": {
+            "sqrt_semivariance": 0.5069110094425736,
+            "pairs": 686754
+          },
+          "elevation_pre_erosion": {
+            "sqrt_semivariance": 0.1948882681223644,
+            "pairs": 686754
+          }
+        },
+        "200": {
+          "elevation_km": {
+            "sqrt_semivariance": 0.6313932522371885,
+            "pairs": 2765246
+          },
+          "elevation_pre_erosion": {
+            "sqrt_semivariance": 0.229611974527852,
+            "pairs": 2765246
+          }
+        }
+      }
+    },
+    "10.00M": {
+      "sanity": {
+        "n_regions": 10000005,
+        "mean_edge_km": 7.595189522169292,
+        "cell_area_sum_km2": 734996288.1974249,
+        "cell_area_over_sphere": 1.0006854371073763,
+        "non_finite_elevations": 0,
+        "elevation_min_km": -8.697300910949707,
+        "elevation_max_km": 4.593278884887695,
+        "land_fraction_by_count": 0.43287338356330823,
+        "land_fraction_by_area": 0.43284161517603503,
+        "unit_sphere_deviation": 3.3306690738754696e-16
+      },
+      "hypsometry": {
+        "land_area_km2": 318136980.5317639,
+        "area_weighted_mean_land_elevation_km": 0.36025243381413036,
+        "area_fraction_above": {
+          "0.5": 0.17693738739276113,
+          "1": 0.11153419172677889,
+          "1.5": 0.07797426216533199,
+          "2": 0.055798708920542464,
+          "3": 0.028104534740654434,
+          "4": 0.011492143121539596
+        }
+      },
+      "variogram": {
+        "5": {
+          "elevation_km": {
+            "sqrt_semivariance": 0.14265488373109242,
+            "pairs": 2979
+          },
+          "elevation_pre_erosion": {
+            "sqrt_semivariance": 0.09087370132699948,
+            "pairs": 2979
+          }
+        },
+        "10": {
+          "elevation_km": {
+            "sqrt_semivariance": 0.19815807445925826,
+            "pairs": 19668
+          },
+          "elevation_pre_erosion": {
+            "sqrt_semivariance": 0.09823065492584937,
+            "pairs": 19668
+          }
+        },
+        "15.19": {
+          "elevation_km": {
+            "sqrt_semivariance": 0.2382023797062265,
+            "pairs": 53078
+          },
+          "elevation_pre_erosion": {
+            "sqrt_semivariance": 0.10729147027791702,
+            "pairs": 53078
+          }
+        },
+        "25": {
+          "elevation_km": {
+            "sqrt_semivariance": 0.30974513471395204,
+            "pairs": 154095
+          },
+          "elevation_pre_erosion": {
+            "sqrt_semivariance": 0.12644572261315848,
+            "pairs": 154095
+          }
+        },
+        "50": {
+          "elevation_km": {
+            "sqrt_semivariance": 0.42405893221037533,
+            "pairs": 635342
+          },
+          "elevation_pre_erosion": {
+            "sqrt_semivariance": 0.15898911962595128,
+            "pairs": 635342
+          }
+        },
+        "100": {
+          "elevation_km": {
+            "sqrt_semivariance": 0.5352061051503982,
+            "pairs": 2560793
+          },
+          "elevation_pre_erosion": {
+            "sqrt_semivariance": 0.19426125529767482,
+            "pairs": 2560793
+          }
+        },
+        "200": {
+          "elevation_km": {
+            "sqrt_semivariance": 0.6384424729580419,
+            "pairs": 10259106
+          },
+          "elevation_pre_erosion": {
+            "sqrt_semivariance": 0.22753366410836673,
+            "pairs": 10259106
+          }
+        }
+      }
+    }
+  }
+}

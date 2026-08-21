@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated": "2026-08-20T02:29:13.011270+00:00",
-  "git_commit": "eb228364a03fa9e9cb8ca3fe24311452db7a7820",
+  "generated": "2026-08-21T01:59:20.200166+00:00",
+  "git_commit": "93eb23f8bbf1fc40b463e52cdb47053119df4924",
   "generator": "scripts/world_state.py",
   "note": "Generated from the artifacts. Do not edit; re-run the generator. Only derived values live here. Findings are in `notes/`, with their evidence, and open work is in `TASKS.md`.",
   "planet": {
@@ -36,6 +36,8 @@
     "pO2_bar": 0.21,
     "pAr_bar": 0.0093,
     "pCO2_bar": 0.00045,
+    "pCH4_bar": 1.6e-06,
+    "pN2O_bar": 3e-07,
     "ozone": true
   },
   "stellar_spectrum": {
@@ -59,6 +61,7 @@
       "longitudes": 128,
       "layers": 10,
       "precision_bytes": 8,
+      "optimization_flag": "-march=znver4",
       "ncpus": 16,
       "timestep_minutes": 45.0,
       "physics_filter": "gp|exp|sp",
@@ -66,6 +69,7 @@
       "uniform_land_surface": true,
       "energy_diagnostics": false,
       "energy_diagnostics_3d": false,
+      "cloud_absorption_scale": 1.192,
       "ozone_scale": 0.794,
       "ozone_uv_weight": 0.335,
       "ozone_visible_weight": 0.914,
@@ -73,7 +77,7 @@
       "h2o_sw_level": 1.127,
       "co2_sw_weight": 1.51,
       "roughness_source": "lithology",
-      "soil_water_source": "uniform",
+      "soil_water_source": "pedology",
       "land_albedo_source": "vegetated",
       "vegetation_albedo": 0.165,
       "vegetation_albedo_bracket": [
