@@ -68,25 +68,95 @@ classification by what a routine is FOR would catch that. `shared-spectral-
 state-trace.md` has both races, how they were found, and the detector that
 found them.
 
-## Status
+## Status: correct, and it recovers about half the deficit
 
-Stage A is implemented and deterministic. At T21 on two threads over 200 steps,
-three runs give one restart hash, and a different random seed gives a different
-hash, so the agreement is about the model rather than about the harness.
-`verify_shared_determinism.sh` is that check.
+Stage A is implemented, deterministic, and measured.
 
-The plavor rewrite `dv2uv` needed is common to both builds, so the threaded
-build's agreement with the MPI build is unaffected by it and the paired and
-contiguous layouts still agree at rounding scale -- 0 records beyond it at 1 and
-at 20 steps, worst 7.8e-11 against a 1e-10 tolerance.
+**Determinism.** At T21 on two threads over 200 steps, three runs give one
+restart hash, and a different random seed gives a different hash, so the
+agreement is about the model rather than about the harness.
+`verify_shared_determinism.sh` is that check; `shared-spectral-state-trace.md`
+has the two races it took to get there.
 
-**What has NOT been done is the measurement.** The whole case for Stage A is
-that removing 105 GB of `mpgallsp` staging closes most of a 19 to 26 point
-deficit, and that is a prediction until T127 and T170 are run against the
-registered MPI binaries. The plan's stopping condition stands: if Stage A does
-not move the memcpy share, the diagnosis is wrong and Stage B is not worth
-building.
+**Numerics.** Against the MPI build at T127 on sixteen, the threaded build
+agrees at the scale of a regrouped sum, which is the standard for a change that
+reassociates: worst 1.5e-13 at one step, 1.5e-11 at five, 1.4e-11 at twenty.
+The two builds do NOT agree bit for bit at sixteen and are not expected to --
+Open MPI's reduce-scatter orders the partials differently from `mpsumsc`'s fixed
+loop. That seed amplifies, to 4.0e-10 by sixty steps and 3.3e-06 by three
+hundred, which is why `bench_ab.py` reports "numerics: CHANGED" on a 300-step
+bed and why that report is a statement about Lyapunov growth rather than about
+correctness.
 
+**Speed**, sixteen threads against sixteen ranks, four interleaved rounds, order
+flipped, one driver owning the machine:
+
+| | Stage 1 | Stage A | recovered |
+| --- | ---: | ---: | ---: |
+| T127 | -18.9% | **-11.22%** [-11.64, -8.69] | 7.7 points |
+| T170 | -25.7% | **-20.66%** [-20.84, -20.17] | 5.0 points |
+
+Self-scatter 1.6% and 0.7% on the threaded arm, against a 5% floor. Threads are
+slower in 0 of 4 rounds at both resolutions, so the remaining gap is real.
+
+**The prediction written down before the run was wrong.** It said the threaded
+build would land level with MPI plus or minus a few percent. It did not; it
+halved a deficit it was supposed to close. What was missing from the prediction
+was that `mpgallsp` is a little over half of the staging and Stage B has the
+rest, which the plan said plainly and the prediction did not use.
+
+## Where the remaining time goes
+
+A flat profile by shared object, which is attributable where a symbol-level one
+is not, because libc is stripped. Shares converted to seconds against the
+measured medians:
+
+| T127 | ranks 36.28 s | threads 40.29 s | delta |
+| --- | ---: | ---: | ---: |
+| model code | 18.22 | 18.26 | +0.04 |
+| libc, which is the staging copy | 7.01 | 15.29 | **+8.28** |
+| MPI stack against libgomp | 8.51 | 4.48 | -4.03 |
+| libm | 2.16 | 2.06 | -0.10 |
+| | | | +4.19 against +4.01 measured |
+
+| T170 | ranks 73.78 s | threads 88.90 s | delta |
+| --- | ---: | ---: | ---: |
+| model code | 37.56 | 44.13 | **+6.57** |
+| libc | 11.25 | 32.83 | **+21.58** |
+| MPI stack against libgomp | 20.74 | 7.77 | -12.97 |
+| libm | 3.72 | 3.82 | +0.10 |
+| | | | +15.28 against +15.12 measured |
+
+Both close to within 5% of the measured difference, which is what makes the
+decomposition worth reading rather than merely suggestive.
+
+Three things follow.
+
+**The diagnosis holds.** libc is still the largest term on both sides and it is
+the staging copy. `mpsumsc` is 68 GB of the 82 GB left after Stage A, so Stage B
+attacks 83% of what remains.
+
+**Dropping MPI is worth real time**, 4.03 s at T127 and 12.97 s at T170, and
+that is the term that pays if the staging goes. It is why the arithmetic can end
+up FAVOURING threads rather than merely reaching parity.
+
+**T170 has a fourth term that Stage B will not touch.** The model's own code is
+6.57 s slower under threads there, 17%, while at T127 it is identical to within
+0.04 s. Sixteen threads share one address space where sixteen ranks do not, and
+at T170 the weight matrices are 114.9 MB a die against CCD1's 32 MB of L3 --
+which is CLIM-48's finding, arrived at from the other direction. That term is a
+reason to expect T170 to trail T127 after Stage B, and a reason CLIM-48 and this
+work are the same problem seen twice.
+
+**What Stage B is projected to be worth, stated before it is built:** if the
+libc excess falls with the staged bytes, 83% of it goes, which is -6.9 s at T127
+and -17.9 s at T170. That would put threads at roughly 33.4 s against 36.28 s
+and 71.0 s against 73.78 s -- ahead at both, by about 8% and 4%. The projection
+assumes the copy cost is proportional to bytes staged and that the partials
+really can be written in place, and the honest form of it is that Stage B should
+move the deficit by more than Stage A did and may cross zero. Given this note
+already records one confident prediction that was wrong by 11 points, treat the
+sign as the claim and the magnitude as a guess.
 ## Tool facts
 
 **ThreadSanitizer works here, against LLVM's `libomp` rather than libgomp.**
