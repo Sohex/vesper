@@ -1011,6 +1011,22 @@
       call mpbcr(co2sww)
       call mpbcr(o3scale)
       call mpbcr(co2)
+!
+!     CH4 AND N2O MUST BE BROADCAST, and forgetting it is invisible.
+!
+!     radmod_nl is read on NROOT only, so a namelist variable that is not
+!     broadcast keeps its default on every other rank. For these two the
+!     default is 0.0, meaning absent -- so the band simply does not run on
+!     ranks 1 and up, and at T42 on 8 ranks that left the term acting on the
+!     eight polar latitude rows and nowhere else. It cost a day of looking for
+!     a physics explanation for a term that came out ninety times too weak.
+!
+!     The same class is already recorded twice in this project:
+!     notes/audits/nlowio-collective-deadlock.md is a collective placed behind
+!     an unbroadcast nlowio, and PHYS-9 is a namelist key applied at prepare
+!     and not per segment. CLIM-42.
+      call mpbcr(ch4)
+      call mpbcr(n2o)
       call mpbcr(gsol0)
       call mpbci(nsolcycle)
       call mpbci(gsolstart)

@@ -156,17 +156,14 @@ atmosphere:
   # to six figures; they are stated in bar for consistency with pCO2_bar, and
   # run_exoplasim.py converts them to the ppmv radmod_nl wants.
   #
-  # COMMENTED OUT UNTIL CLIM-42's MAGNITUDE MISS IS CLOSED. The longwave band
-  # is implemented, inert at zero and passing its reduction, sign and
-  # saturation tests, but it returns 0.0175 W/m2 against the 1.56 to 1.98 the
-  # pricing note says these gases are worth -- a Lorentz-only band model
-  # understating absorptance in the thin paths aloft where the forcing is made.
-  # Declaring these values while the term underdelivers by ninety would make
-  # the config say the world carries a greenhouse effect the model does not
-  # apply. exoplasim/notes/trace-gas-band.md section 4d; the candidate fix is
-  # Cess (1973), on disk and unread.
-  # pCH4_bar: 0.0000016
-  # pN2O_bar: 0.0000003
+  # The longwave band that carries these is CLIM-42, resident in `radmod.f90`
+  # and passing all four of its declared tests. At these abundances against
+  # zero it lowers global mean outgoing longwave by 0.799 W/m2, which is 40
+  # percent of what the offline pricing says the gases are worth -- and 40
+  # percent is what this broadband scheme returns for CO2 as well, measured
+  # against a line-by-line answer. exoplasim/notes/trace-gas-band.md.
+  pCH4_bar: 0.0000016
+  pN2O_bar: 0.0000003
   ozone: true
 
 # DETERMINED. The spectrum is a measured K dwarf interpolated to this star's

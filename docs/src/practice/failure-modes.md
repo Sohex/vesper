@@ -337,6 +337,23 @@ wrong code. Hash the executables a bed actually contains against
 `reproducibility_matrix.py:check_binaries` is the guard, written after this cost
 a full measurement pass.
 
+**A namelist variable that is not broadcast is absent everywhere but the root,
+and nothing says so.** `radmod_nl` and its siblings are read on NROOT only and
+every variable is then broadcast by hand. Add one to the namelist, forget the
+`mpbcr`, and it keeps its default on every other rank -- so a term whose default
+means "off" runs on one rank's latitude rows and nowhere else. CLIM-42 lost most
+of a day to this: the model does not warn, the run completes, `plasim_diag`
+echoes the value because that too is printed on NROOT, and the symptom is a term
+that comes out weak rather than absent, which reads as a physics problem and was
+chased as one through two wrong hypotheses and a fetched paper.
+
+**What finds it is a PER-RANK diagnostic, and the tell is an exact zero.** A
+global mean cannot distinguish a term that is weak from a term that is off over
+most of the domain; `+0.0000` on seven ranks of eight and a real number on the
+eighth is not something physics produces. The same class is
+`notes/audits/nlowio-collective-deadlock.md`, a collective placed behind an
+unbroadcast `nlowio`, and PHYS-9, a key applied at prepare and not per segment.
+
 **Changing the rank count changes the answer.** Reproducibility at a fixed rank
 count does not survive changing it: 8 ranks and 16 ranks integrate one restart to
 restarts differing in 83 of 199 records, at round-off and growing, because the

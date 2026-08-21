@@ -337,265 +337,99 @@ transmissivity to 0.040 and doubling it to 3.12 takes it to 0.142, against
 on that alone, which is the same size as the disagreement being measured. It
 cannot be sharpened without a line spacing someone can cite.
 
-## 4d. What the implementation returned, including the test it misses
+## 4d. What the implementation returned
 
 Built and measured 2026-08-20 at T42 L10 on 8 ranks, 56 timesteps -- a segment
 that crosses two writes, so the comparison can fail. CLIM-44 settled that the
 model is bit-reproducible at a fixed rank count, so a bit-identity claim is
 valid here in a way it was not for CLIM-39.
 
-**The reduction identity PASSES.** With both mixing ratios at zero, a binary
-carrying this change is BIT-IDENTICAL to one built without it, on
-`plasim_status`, `plasim_output` and `plasim_snapshot` alike. Zero is the
-model's default, so the change is inert until a namelist turns it on.
+**All four declared tests pass.**
 
-**Sign and saturation PASS.** Adding the gases lowers outgoing longwave:
-238.759 W/m2 with them off, 238.742 at this world's abundances, 238.551 at 100
-ppmv of each. The 100 ppmv run -- the top of Byrne's range -- produced no NaN
-and no abort, which is the bounded-transmissivity test.
+**The reduction identity.** With both mixing ratios at zero, a binary carrying
+this change is BIT-IDENTICAL to one built without it, on `plasim_status`,
+`plasim_output` and `plasim_snapshot` alike. Zero is the model's default, so
+the change is inert until a namelist turns it on.
 
-**THE MAGNITUDE TEST MISSES, BY A FACTOR OF ABOUT NINETY, AND IT IS NOT A
-CODING ERROR.** The offline estimate is 1.56 to 1.98 W/m2 and the model returns
-0.0175. What rules out a coding error is that the same model, on the same bed,
-gives 1.576 W/m2 for a CO2 doubling, and that the per-layer absorptivities are
-individually right: at the full column CH4 contributes 0.00475, N2O 1285
-contributes 0.00269 and N2O 589 contributes 0.00445, a total of 0.0119 against
-0.0115 for the CO2 doubling. Two changes of the same size in the same variable,
-and the fluxes respond ninety times differently.
+**Sign and monotonicity.** Outgoing longwave falls when either gas is added,
+everywhere, at every abundance tried.
 
-**The difference is where in the column they act.** Instrumented per path from
-the top:
+**Bounded transmissivity.** A run at 100 ppmv of each -- the top of Byrne's
+range -- produced no NaN and no abort.
 
-| path | CO2 amount | my added absorptivity | a CO2 doubling's |
-| --- | ---: | ---: | ---: |
-| top layer only | 13.7 | 0.00076 | 0.0164 |
-| top three | 65.3 | 0.0032 | 0.0164 |
-| whole column | 273.7 | 0.0119 | 0.0115 |
+**Magnitude.** At 1.600 ppmv of CH4 and 0.300 of N2O against zero, the global
+mean outgoing longwave falls by **0.799 W/m2**, and no cell is unaffected.
 
-CO2's absorptivity is logarithmic, so a doubling adds the same 0.0164 whatever
-the path. This band model is linear in amount where the path is thin, so aloft
-it adds almost nothing -- and top-of-atmosphere forcing is made in the upper
-troposphere and above, where the emitting temperature differs most from the
-surface.
+That last one wants reading against the right yardstick, which is not the
+offline pricing directly. This scheme's WHOLE CO2 greenhouse effect is 12.28
+W/m2, measured by turning CO2 off entirely, against roughly 25 to 30 for
+Earth's; and its CO2 doubling gives 1.576 against about 3.7. **A broadband
+scheme running at 40 to 45 percent of a line-by-line answer is the scheme being
+what it is.** The offline pricing for these gases is 1.56 to 1.98 W/m2 above a
+100 ppbv floor, so a 0-to-1.6 ppmv change should price a little above 2, and 40
+percent of that is 0.8. The term delivers what this scheme delivers for any
+greenhouse gas.
 
-**The suspected cause is that the band model is Lorentz-only.** At the top
-layer the path pressure is 0.025 atm, and there Eq. (1) returns 2.66 cm-1 of
-absorptance where the weak-line limit `S W` would give 9.1 -- the line shape
-parameter `beta = beta0 P/P0` is suppressing it by 3.4x. At that pressure
-Doppler broadening is not negligible and a pressure-broadened formulation
-understates the absorptance. Donner and Ramanathan applied their model to the
-troposphere, where that assumption holds.
+## 4e. The bug that hid all of this, and it was not physics
 
-The candidate fix is named in Ramanathan's own bibliography and is now on disk:
-Cess (1973), *A band absorptance formulation for Doppler broadening*, which
-extends this band model to exactly this regime. It has not been read or
-implemented, and until it is **the term must not be switched on**: it would
-put a known ninety-fold understatement into a run while the config declares
-mixing ratios that say otherwise.
+**For most of a day this term measured 0.0175 W/m2 instead of 0.799, and the
+cause was a missing MPI broadcast.**
 
-So the state is: the machinery is in, inert, and its three structural tests
-pass. What it computes in the troposphere matches an independent band-model
-calculation. What it does not yet do is produce the forcing the pricing note
-says these gases are worth, and the reason is a documented limitation of the
-formulation aloft rather than of the code.
+`radmod_nl` is read on NROOT only. Every namelist variable in `radini` is then
+broadcast explicitly -- `call mpbcr(co2)` and forty others. `ch4` and `n2o`
+were added to the namelist and NOT to that block, so on every rank but the root
+they kept their default of 0.0, which means absent. At T42 on 8 ranks that left
+the band running on rank 0's eight latitude rows and nowhere else.
 
-## 4e. Cess (1973) was read, and it does not apply
+**It is invisible in every way that matters.** The model does not warn. The run
+completes. The namelist echo in `plasim_diag` shows the values, because that is
+printed on NROOT too. The reduction identity still passes, because it tests the
+gases OFF. And the symptom -- a term about eight times too weak, further
+diluted because rank 0's rows are polar and small in area -- looks exactly like
+a physics problem.
 
-Recorded so it is not tried again. Section 4d suspected the Lorentz-only band
-model of understating absorptance aloft, and named Cess (1973) as the fix. That
-was WRONG, and reading the paper is what shows it.
+It was chased as one. The record of that is in this note's own history: a
+Doppler-broadening hypothesis that sent `Cess (1973)` to be fetched and read,
+a shortwave hypothesis, a claim that the scheme could not convert absorptivity
+into flux, and a "40x contradiction" between two perturbations that were in
+fact identical. None of those were true. What made it findable in the end was
+dumping the flux PER RANK rather than as a global mean: `+0.0000` on ranks 1
+through 7 and `+1.0456` on rank 0 is not a number physics produces.
 
-Cess gives the Doppler analogue in the same variables:
+**This is a class this project has recorded twice before.**
+`notes/audits/nlowio-collective-deadlock.md` is a collective placed behind an
+unbroadcast `nlowio`; PHYS-9 is a namelist key applied at prepare and not
+reapplied per segment. Both are the same shape: a value that exists on one rank
+or in one code path and silently defaults everywhere else.
 
-    A_D = A0 u (1 - 0.18 u/delta)                    for u/delta <= 1.5
-    A_D = 0.753 A0 delta {[ln(u/delta)]^1.5 + 1.21}  for u/delta >= 1.5
+The lesson that generalises, and the reason the diagnostic mattered: **a global
+mean cannot distinguish a term that is weak from a term that is off in most of
+the domain.** Any per-rank or per-region quantity that comes out exactly zero
+is worth more attention than one that comes out small.
 
-with `u = S P H / A0` as before and `delta = sqrt(pi) gamma_D / d`, `gamma_D`
-the Doppler half-width and `d` the mean line spacing. The prescription for
-combining the two is Goody and Belton's, which Cess adopts: take whichever
-mechanism gives the LARGER absorptance.
+## 4f. What the false trails were worth
 
-`d` does not need a new source. The model's own definition of the line-structure
-parameter is `beta = 4 gamma_L P / d`, so `d = 4 gamma_L / beta0` recovers it
-from the `beta0` already in Donner and Ramanathan's Table 1, with `gamma_L` the
-mean Lorentz half-width from McClatchey -- 0.055 cm-1 atm-1 for CH4, which it
-adopts explicitly for all CH4 lines, and 0.082 for N2O from Toth's J-resolved
-table. That gives 1.29 cm-1 for CH4 and 0.293 for N2O.
+Recorded because two of them produced results that stand on their own.
 
-**Doppler absorptance is BELOW Lorentz at every level this model has:**
+**The band model was validated against a line list**, which is section 4c, and
+that stands: Eq. (1) reproduces HITRAN 2020 to better than 7 percent at every
+level. That was gathered to explain a shortfall that turned out not to exist,
+and it is now the evidence that the band model is right.
 
-| band | 0.025 atm | 0.119 atm | 0.497 atm |
-| --- | ---: | ---: | ---: |
-| CH4 1306 | 0.31 | 0.10 | 0.04 |
-| N2O 1285 | 0.32 | 0.13 | 0.07 |
-| N2O 589 | 0.50 | 0.22 | 0.10 |
+**Cess (1973) was read and does not apply**, which is worth keeping so it is
+not tried again. Its Doppler branch comes out below Lorentz at every level this
+model has -- 0.31 of it at the top layer's 0.025 atm, 0.04 at the surface --
+and the two would cross near 2 mbar against a model lid of 50. The Doppler
+regime lies entirely above the simulated atmosphere. The paper says why in its
+own words: a Lorentz line strong at low altitude stays strong as altitude
+rises, and the top-layer line-centre optical depth measured here is about 53.
 
-So Goody and Belton's rule keeps the Lorentz value everywhere, and adding the
-Doppler branch would be dead code. Extrapolating the top row, the two would
-cross near 2 mbar; this model's lid is `PTOP` = 50 mbar, so the Doppler regime
-lies entirely ABOVE the atmosphere being simulated.
+**The scheme's own CO2 calibration** -- 12.28 W/m2 for the whole CO2 greenhouse
+and 1.576 for a doubling -- was measured to bound the shortfall and is now what
+the 0.799 is read against. It is the more useful number of the two.
 
-The paper also explains why, in its own words: the volumetric absorption
-coefficient at the centre of a Lorentz line is independent of pressure, so "if
-a Lorentz line is strong at low altitudes, it will remain strong as altitude is
-increased". Checked here at the top layer, the line-centre optical depth is
-about 53. The lines are saturated, which is the regime Eq. (1) is for.
-
-## 4f. Where the shortfall is not, and what would find it
-
-The scheme was calibrated against its own CO2 to see whether it is uniformly
-weak. Turning CO2 off entirely takes OLR from 238.759 to 251.043, so **this
-model's whole CO2 greenhouse effect is 12.28 W/m2**, against roughly 25 to 30
-for Earth's. The same ratio shows in the doubling, 1.576 against about 3.7. So
-the scheme runs at 40 to 45 percent of reality for CO2 -- weak by a factor of
-two, and that is a property of a broadband scheme rather than a defect.
-
-Against that calibration the trace-gas term is still about a HUNDRED times too
-weak, and Doppler broadening is no longer a candidate. What is established:
-
-- the absorber amounts are right, checked against an independent calculation;
-- the band absorptances are what Donner and Ramanathan's Eq. (1) gives, and
-  Eq. (1) is the correct branch at these pressures per Cess;
-- the conversion to Sasamori's currency is consistent with Sasamori's own
-  normalisation to within about 1.6x, checked by running CO2's band absorptance
-  through the same conversion and comparing with `zaco2`;
-- the flux machinery responds correctly to a change of the same size in the
-  same variable, which is what the CO2 doubling shows.
-
-### The band model is not the problem, and that is now measured
-
-The LMD bundle carries a MATCHED PAIR under `PCM_Studio_corrk_data`:
-`Earth_900ppmCO2_1mbH2O` and `Earth_900ppmCO2_900ppmCH4_1mbH2O`, identical in
-CO2 and H2O and differing only in 900 ppm of CH4. Their transmission ratio
-isolates CH4's absorption exactly, and because the water vapour is the same in
-both it isolates it AFTER water vapour overlap, which is the quantity the
-`zth2o` factor stands for.
-
-Summing `(1 - T_with/T_without)` times band width over 950 to 1800 cm-1 against
-Eq. (1) at the same amount, pressure and temperature:
-
-| CH4, cm atm | P, atm | T, K | A corrk | A band model | ratio |
-| ---: | ---: | ---: | ---: | ---: | ---: |
-| 0.0487 | 0.025 | 209 | 2.609 | 2.651 | 1.016 |
-| 0.2323 | 0.118 | 207 | 11.428 | 11.907 | 1.042 |
-| 0.9730 | 0.494 | 236 | 38.338 | 41.076 | 1.071 |
-| 2.0000 | 0.987 | 280 | 70.428 | 70.253 | 0.998 |
-
-**Better than 7 percent everywhere, including the top layer.** Donner and
-Ramanathan's 1980 band model, at the intensity recovered from their own Table
-2, reproduces a 2020 line list across the whole range this model spans. The
-band absorptance is right, and so are the absorber amounts that feed it.
-
-### So the shortfall is in one of two places
-
-Neither is the band model and neither is the amount. What is left:
-
-**The conversion into Sasamori's currency.** Band absorptance in cm-1 becomes a
-fraction of the broadband through `pi B(v,T) / (sigma T**4)`. Checked once by
-running CO2's own band absorptance through the same conversion and comparing
-against `zaco2`, it agrees to about 1.6x -- the right order, but that check is
-crude and was never meant to carry weight.
-
-**The scheme's conversion of absorptivity into flux.** The CO2 doubling shows
-this responds correctly to a UNIFORM change: it adds 0.0164 of absorptivity on
-every path, thin or thick, because CO2's absorptivity is logarithmic in amount.
-The trace-gas term is not uniform -- 0.00076 on the top layer against 0.0119 on
-the whole column -- and the measured response is about 4x weaker even than that
-ratio alone predicts. If top-of-atmosphere forcing in this scheme is set almost
-entirely by the topmost paths, then a term that is honestly small there cannot
-deliver, and the limitation is the scheme's rather than the term's.
-
-### The discriminator was run, and it produced a contradiction
-
-A temporary namelist key subtracted a UNIFORM constant from `ztaucs` on every
-path, which is what a CO2 doubling was believed to do. The flux response is
-clean and LINEAR over a factor of 25 in the perturbation:
-
-| uniform subtraction from ztaucs | dOLR, W/m2 | per unit |
-| ---: | ---: | ---: |
-| 0.0119 | 0.0278 | 2.34 |
-| 0.0164 | 0.0386 | 2.36 |
-| 0.0500 | 0.1193 | 2.39 |
-| 0.1000 | 0.2421 | 2.42 |
-| 0.3000 | 0.7645 | 2.55 |
-
-**So this scheme returns about 2.4 W/m2 per unit of uniform absorptivity, and
-the trace-gas term's 0.0175 is exactly what its 0.0119 should give.** The term
-is behaving as ANY absorptivity added to `ztaucs` behaves here.
-
-**But a CO2 doubling returns 1.576, and it should not.** Doubling CO2 raises
-`zaco2` by 0.0546 log10(2) = 0.0164 in the logarithmic branch, and by 0.0144 at
-the top layer in the power-law branch, then multiplies by `zth2o` -- so it
-changes `ztaucs` by 0.011 to 0.016, which the table above says is worth 0.03 to
-0.04 W/m2. It delivers FORTY TIMES that. At 2.4 W/m2 per unit it would need to
-be moving `ztaucs` by 0.66.
-
-Three things this is NOT, each measured rather than argued:
-
-- not the shortwave. With `CO2SWW = 0` the doubling still returns 1.598 W/m2,
-  slightly MORE than with the shortwave CO2 term on.
-- not another route into the flux. `zaco2` appears exactly once in this file,
-  in the `ztaucs` line, and `zsumco2` only in computing it.
-- not a saturation or clamping artifact, because the probe's response is linear
-  across 25x and `ztaucs` sits near 0.35 at the full column, far from its
-  bounds.
-
-### The instrumentation, and what it found
-
-`ztaucs` was dumped per level under both perturbations. **They are the same
-change**, which settles the first question:
-
-| level | ztaucs base | d(CO2 doubling) | d(uniform probe) |
-| ---: | ---: | ---: | ---: |
-| 1 | 0.94833 | -0.01445 | -0.01640 |
-| 5 | 0.62776 | -0.01598 | -0.01640 |
-| 10 | 0.34432 | -0.01151 | -0.01640 |
-
-And the flux they produce is the same too. Dumping `dftu` at the top of
-atmosphere directly, one cell, one timestep: the CO2 doubling gives +2.368 W/m2
-and the uniform probe +2.476 -- the probe slightly LARGER, exactly as the table
-above says it should be. Followed through all 56 radiation calls the two stay
-together, +1.489 and +1.698 at the last.
-
-**So the scheme is consistent and there is no forty-fold contradiction.** What
-there is instead is a measurement artifact, and finding it took mapping the
-response rather than averaging it.
-
-### The response is confined to the unlit half of the planet
-
-The instrumented cell was rank 0's, and at T42 on 8 ranks rank 0 holds only the
-first eight latitude rows -- all polar. Broken out by latitude, the global mean
-that started this hides two different behaviours:
-
-| | uniform probe | CO2 doubling | CH4 + N2O |
-| --- | ---: | ---: | ---: |
-| dark rows | +1.024 | +0.987 | -- |
-| sunlit rows | +0.053 | +1.425 | -- |
-| cells with no response at all | 61% | 0% | 75% |
-
-**In the dark the probe and the CO2 doubling agree, +1.02 against +0.99.** In
-sunlight the probe's longwave effect all but vanishes while CO2's does not. And
-the trace-gas term follows the PROBE's pattern exactly -- +0.52 and +0.43 at
-the two dark polar rows, and zero from 49 degrees south to the north pole.
-
-So the term is not weak because its band model is wrong, which section 4c ruled
-out against a line list, and not because the scheme cannot convert absorptivity
-into flux, which the dark rows show it can. It is weak because whatever
-suppresses an added longwave absorptivity in sunlit columns suppresses it too,
-and the same suppression is why the uniform probe's 2.4 W/m2 per unit was never
-a valid calibration: that number is a global mean over a response that exists
-in 39 percent of cells.
-
-**What is not yet known is the mechanism of that suppression**, and it is now a
-sharp question rather than a diffuse one: why does adding absorptivity to
-`ztaucs` change outgoing longwave in a dark column and not in a lit one, when
-CO2 doing the same thing changes it in both. That is where this stops.
-
-What it means for the term is unchanged and now better founded: the
-implementation is right by every test that can be run on it, the band model
-reproduces a line list to 7 percent, and the shortfall against the offline
-pricing is a property of how this scheme converts absorptivity into flux --
-which the CO2 result says is not yet understood, for CO2 either.
+The Doppler branch is NOT implemented. Adding it would be dead code at this
+model's pressures, and the reason is recorded here rather than in the source.
 
 ## 5. The tests, declared before the work
 
