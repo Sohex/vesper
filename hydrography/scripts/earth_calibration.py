@@ -703,6 +703,174 @@ def stage_calibrate(tag: Path, region: str, confinement: str | None,
     return out
 
 
+def stage_diagnostics(tag: Path, region: str, confinement: str | None) -> dict:
+    """Which term set the depth, and what out-predicts the model.
+
+    Four tables the notes cite and nothing could reproduce. Each is cheap, and
+    each answered a question that looked like it needed a solver change.
+
+    The SINK sweep shows the steady state is the local balance
+    `d = lambda ln(et_max A / supply)`: median depth is linear in lambda while
+    the correlation barely moves. The TRANSMISSIVITY sweep shows the dependence
+    structure IS reachable by raising `D` -- terrain correlation goes from about
+    zero to +0.47 -- and that agreement does not follow. The ATTRIBUTION shows
+    `delta`, where a bore sits inside its own cell, out-predicting the model on
+    Pearson, which is why GW-25 did not make the bore surface the default. And
+    the DRAIN scan shows every terrain-derived drain elevation anti-correlating
+    with observed depth, which is why GW-23 closed.
+    """
+    import collections
+    import pandas as pd
+    import netCDF4 as nc
+    from scipy.stats import pearsonr, spearmanr
+    import groundwater as gw
+    from orogen import LAND
+    R = REGIONS[region]
+    rd = region_dir(tag, region)
+    xyz = np.load(tag / "earth_xyz.npy")
+    n = xyz.shape[1]
+    sol = np.load(rd / "earth_solution.npz")
+    dr = np.load(rd / "earth_drainage.npz")
+    elev = np.nan_to_num(sol["elev"], nan=0.0)
+    land, cond, K, rech = sol["land"], sol["cond"], sol["K"], sol["rech"]
+
+    obs = pd.read_csv(ROOT / "hydrography" / "data" / "earth_validation" / R["sites"],
+                      low_memory=False)
+    if "depth_consistent" in obs.columns:
+        obs = obs[obs.depth_consistent.astype(bool)]
+    if confinement and "confinement" in obs.columns:
+        obs = obs[obs.confinement == confinement]
+    if R["score_bbox"]:
+        x0, y0, x1, y1 = R["score_bbox"]
+        obs = obs[obs.lon.between(x0, x1) & obs.lat.between(y0, y1)]
+    la = np.radians(obs.lat.to_numpy())
+    lo = np.radians(obs.lon.to_numpy())
+    _, cid = cKDTree(xyz.T).query(
+        np.stack([np.cos(la) * np.cos(lo), np.cos(la) * np.sin(lo), np.sin(la)], axis=1),
+        workers=-1)
+    keep = cond[cid]
+    agg = collections.defaultdict(list)
+    for c, o in zip(cid[keep], obs.wtd_m.to_numpy()[keep]):
+        agg[c].append(o)
+    cs = np.array(sorted(agg))
+    oc = np.array([np.mean(agg[c]) for c in cs])
+
+    ex = EarthExport(EARTH_R_KM, xyz[0], xyz[1], xyz[2],
+                     np.full(n, 4 * np.pi * EARTH_R_KM ** 2 / n),
+                     np.where(land, LAND, 0).astype(np.int16))
+    geom = gw.Geometry(ex)
+    ex.cell_area = geom.voronoi_area_m2 / 1e6
+    geom.volume_area_m2 = geom.voronoi_area_m2
+    YR = 365.25 * 86400.0
+    fh = np.full(n, np.nan)
+    wet = land & (dr["acc_km2"] >= 1e4)
+    fh[wet] = elev[wet]
+    base = dict(k0_m_s=K, recharge_m_s=rech / 1000.0 / YR, surface_m=elev,
+                conductive=cond, sea_level_m=0.0, fixed_head_m=fh, verbose=False)
+    out = {"sink_sweep": [], "transmissivity_sweep": [], "attribution": {},
+           "drain_scan": []}
+
+    def run(**kw):
+        r = gw.solve(ex, geom, **base, **kw)
+        d = r["depth_m"]
+        md = d[cs]
+        return (float(np.median(d[cond])), float(d[cond].std()),
+                float(pearsonr(md, oc).statistic) if md.std() > 1e-9 else float("nan"),
+                float(spearmanr(md, rech[cs]).statistic),
+                float(spearmanr(md, elev[cs]).statistic))
+
+    print(f"  {len(cs):,} cells with bores\n")
+    print(f"  SINK: does lambda set the depth locally?")
+    print(f"    {'lambda':>8s}{'median d':>10s}{'sd':>8s}{'r(mod,obs)':>12s}{'rho rech':>10s}{'rho elev':>10s}")
+    for lam in (1.0, 2.0, 5.0, 10.0):
+        v = run(thickness_m=100.0, et_max_m_s=1500.0 / 1000.0 / YR, et_lambda_m=lam)
+        out["sink_sweep"].append({"lambda_m": lam, "median_depth_m": v[0],
+                                  "sd_m": v[1], "pearson": v[2],
+                                  "rho_recharge": v[3], "rho_elevation": v[4]})
+        print(f"    {lam:8.1f}{v[0]:10.2f}{v[1]:8.2f}{v[2]:+12.4f}{v[3]:+10.3f}{v[4]:+10.3f}")
+
+    print(f"\n  TRANSMISSIVITY: does raising D restore the dependence structure?")
+    print(f"    {'D (m)':>8s}{'median d':>10s}{'sd':>8s}{'r(mod,obs)':>12s}{'rho rech':>10s}{'rho elev':>10s}")
+    for D in (100.0, 1000.0, 5000.0, 20000.0):
+        v = run(thickness_m=D, et_max_m_s=1500.0 / 1000.0 / YR, et_lambda_m=1.0)
+        out["transmissivity_sweep"].append({"thickness_m": D, "median_depth_m": v[0],
+                                            "sd_m": v[1], "pearson": v[2],
+                                            "rho_recharge": v[3], "rho_elevation": v[4]})
+        print(f"    {D:8.0f}{v[0]:10.2f}{v[1]:8.2f}{v[2]:+12.4f}{v[3]:+10.3f}{v[4]:+10.3f}")
+    print(f"    observed: rho vs recharge {spearmanr(oc, rech[cs]).statistic:+.3f}, "
+          f"vs elevation {spearmanr(oc, elev[cs]).statistic:+.3f}")
+
+    # attribution and the drain scan both need the DEM inside each cell
+    d_ = nc.Dataset(str(CACHE / R["dem"]))
+    z = np.asarray(d_["z"][:], np.float32)
+    dla = np.asarray(d_["latitude"][:])
+    dlo = np.asarray(d_["longitude"][:])
+    if R["dem_lat_max"] is not None:
+        k = dla <= R["dem_lat_max"]
+        z, dla = z[k], dla[k]
+    blon = obs.lon.to_numpy() % 360.0 if dlo.max() > 180 else obs.lon.to_numpy()
+    ri = (np.clip(dla.size - 1 - np.searchsorted(dla[::-1], obs.lat.to_numpy()), 0, dla.size - 1)
+          if dla[0] > dla[-1] else
+          np.clip(np.searchsorted(dla, obs.lat.to_numpy()), 0, dla.size - 1))
+    ci = np.clip(np.searchsorted(dlo, blon), 0, dlo.size - 1)
+    zb = z[ri, ci].astype(float)[keep]
+    dg = collections.defaultdict(list)
+    for c, v in zip(cid[keep], zb - elev[cid[keep]]):
+        dg[c].append(v)
+    dc = np.array([np.mean(dg[c]) for c in cs])
+    md = (elev - sol["head"])[cs]
+    print(f"\n  ATTRIBUTION: what predicts observed cell-mean depth?")
+    for nm, v in (("the model alone", md), ("delta alone (bore within cell)", dc),
+                  ("model + delta", md + dc), ("model + 0.2 delta", md + 0.2 * dc)):
+        pr, sp = pearsonr(v, oc).statistic, spearmanr(v, oc).statistic
+        out["attribution"][nm] = {"pearson": float(pr), "spearman": float(sp)}
+        print(f"    {nm:34s} pearson {pr:+.4f}   spearman {sp:+.4f}")
+
+    # GW-25: the two scoring surfaces are the ends of one family, a water table
+    # as a subdued replica of terrain, h(x) = h_cell + alpha (z(x) - z_cell).
+    # alpha = 1 is the cell mean, depth constant; alpha = 0 is the bore surface,
+    # head flat. The three measures disagree about where to stand, which is the
+    # sign that alpha is not being chosen by the physics.
+    print(f"\n  SUBDUED REPLICA: depth = cell_depth + (1 - alpha) delta")
+    print(f"    {'alpha':>7s}{'model sd':>10s}{'pearson':>10s}{'spearman':>10s}{'R2':>9s}")
+    out["subdued_replica"] = []
+    dmap = collections.defaultdict(list)
+    for c, v in zip(cid[keep], zb - elev[cid[keep]]):
+        dmap[c].append(v)
+    for alpha in (1.0, 0.9, 0.8, 0.4, 0.0):
+        pred = md + (1 - alpha) * np.array([np.mean(dmap[c]) for c in cs])
+        r2v = float(1 - ((pred - oc) ** 2).sum() / ((oc - oc.mean()) ** 2).sum())
+        pr, sp = pearsonr(pred, oc).statistic, spearmanr(pred, oc).statistic
+        out["subdued_replica"].append({"alpha": alpha, "sd_m": float(pred.std()),
+                                       "pearson": float(pr), "spearman": float(sp),
+                                       "r2": r2v})
+        print(f"    {alpha:7.2f}{pred.std():10.2f}{pr:+10.4f}{sp:+10.4f}{r2v:+9.3f}")
+    print(f"    observed sd {oc.std():.2f} m")
+
+    print(f"\n  DRAIN SCAN: does any terrain drain elevation track observed depth?")
+    LO, LA = np.meshgrid(np.radians(dlo), np.radians(dla))
+    _, idx = cKDTree(xyz.T).query(
+        np.stack([(np.cos(LA) * np.cos(LO)).ravel(), (np.cos(LA) * np.sin(LO)).ravel(),
+                  np.sin(LA).ravel()], axis=1), workers=-1)
+    zf = z.ravel().astype(np.float64)
+    o = np.argsort(idx, kind="stable")
+    idxs, zs = idx[o], zf[o]
+    bnd = np.searchsorted(idxs, np.arange(n + 1))
+    for q in (0, 5, 10, 25, 50):
+        zd = np.array([zs[bnd[c]:bnd[c + 1]].min() if q == 0
+                       else np.percentile(zs[bnd[c]:bnd[c + 1]], q) for c in cs])
+        depth = elev[cs] - zd
+        pr, sp = pearsonr(depth, oc).statistic, spearmanr(depth, oc).statistic
+        lab = "minimum" if q == 0 else f"p{q}"
+        out["drain_scan"].append({"percentile": lab, "median_depth_m": float(np.median(depth)),
+                                  "pearson": float(pr), "spearman": float(sp)})
+        print(f"    {lab:>10s}  median {np.median(depth):7.2f} m   "
+              f"pearson {pr:+.4f}   spearman {sp:+.4f}")
+    print(f"    observed median {np.median(oc):.2f} m -- a drain elevation can match the "
+          f"SCALE and still\n    anti-correlate with the pattern, which is why GW-23 closed")
+    return out
+
+
 def provenance() -> dict:
     try:
         rev = subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT,
@@ -743,7 +911,7 @@ def main() -> None:
                          "which only the US table labels")
     ap.add_argument("--stage", default="all",
                     choices=["mesh", "fields", "perm", "drainage", "solve", "score",
-                             "benchmark", "calibrate", "all"])
+                             "benchmark", "calibrate", "diagnostics", "all"])
     ap.add_argument("--river-km2", type=float, default=1e4,
                     help="upstream area above which a cell is a river and becomes a "
                          "fixed head at its own elevation (GW-17). 0 disables baselevels")
@@ -780,6 +948,8 @@ def main() -> None:
                         args.drain, args.drain_min_relief_m, args.et_lambda)
         elif st == "benchmark":
             result = stage_benchmark(tag, args.region, args.confinement)
+        elif st == "diagnostics":
+            result = stage_diagnostics(tag, args.region, args.confinement)
         elif st == "calibrate":
             result = stage_calibrate(tag, args.region, args.confinement,
                                      args.drain, args.et_lambda)

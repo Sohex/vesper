@@ -110,6 +110,28 @@ FIELDS = [("channel_pct_of_land_area", "land area as channel, A>1e3 (%)"),
           ("mean_land_elevation_km", "mean land elevation (km)")]
 
 
+def gridded_agreement(runs_paths, labels):
+    """Cellwise agreement on the shared T42 grid, which is where the withdrawn
+    RMS-from-converged-terrain figure came from. It is in this script rather
+    than the audit's other one because it only means anything beside the
+    control group: 2,600,001 regions agrees with the build no better than
+    10,000,005 does, which is what makes the figure scatter and not distance."""
+    from netCDF4 import Dataset
+    a = Dataset(str(Path(runs_paths[0]) / "planet.nc"))
+    ea = np.asarray(a["elevation_km"][:], float)
+    sa = np.asarray(a["surface_class"][:], int)
+    rows = []
+    for path, label in zip(runs_paths[1:], labels[1:]):
+        b = Dataset(str(Path(path) / "planet.nc"))
+        eb = np.asarray(b["elevation_km"][:], float)
+        sb = np.asarray(b["surface_class"][:], int)
+        rows.append({"label": label,
+                     "r": float(np.corrcoef(ea.ravel(), eb.ravel())[0, 1]),
+                     "rms_km": float(np.sqrt(((ea - eb) ** 2).mean())),
+                     "land_mask_agreement": float(((sa > 0) == (sb > 0)).mean())})
+    return rows
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--export", action="append", required=True, metavar="LABEL=PATH",
@@ -148,9 +170,24 @@ def main() -> None:
           "region\n  count by a few percent and so holds resolution fixed. A "
           "statistic whose\n  change across the full range does not clear it is "
           "not a resolution result.")
+    paths = [(Path(spec.split("=", 1)[1]) if Path(spec.split("=", 1)[1]).is_absolute()
+              else PROJECT_ROOT / spec.split("=", 1)[1]) for spec in args.export]
+    labels = [spec.split("=", 1)[0] for spec in args.export]
+    try:
+        ga = gridded_agreement(paths, labels)
+        print(f"\n  gridded agreement against {labels[0]} on the shared T42 grid:")
+        for g in ga:
+            print(f"    {g['label']:>8s}  r {g['r']:+.4f}  RMS {g['rms_km']:.4f} km  "
+                  f"land mask {g['land_mask_agreement']:.2%}")
+        print("    a control a few percent away agrees no better than the far one: "
+              "that\n    is why the RMS reads as scatter rather than as distance "
+              "from a limit.")
+    except Exception as e:
+        ga = None
+        print(f"\n  (gridded agreement unavailable: {e})")
     args.out.write_text(json.dumps(
         {"runs": runs, "controls": [r["label"] for r in ctl],
-         "verdicts": verdicts}, indent=2) + "\n")
+         "verdicts": verdicts, "gridded_agreement": ga}, indent=2) + "\n")
     print(f"\nwrote {args.out}")
 
 
