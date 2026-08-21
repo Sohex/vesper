@@ -365,6 +365,36 @@
       "pearson_cell_mean": 0.3176266882781029,
       "ceiling_r2_at_this_cell_size": 0.8070782266448193,
       "within_cell_variance_fraction": 0.19292177335518074
+    },
+    "us/all/drain-none/cell-mean/15.19km": {
+      "region": "us",
+      "drain": "none",
+      "surface": "cell-mean",
+      "confinement": "all",
+      "edge_km": 15.190378953196356,
+      "n_regions": 1736112,
+      "sites_scored": 749338,
+      "cells_with_bores": 19350,
+      "observed_sd_m": 33.27557731551246,
+      "model_sd_m": 32.454515980951875,
+      "residual_mean_m": -13.36982364175076,
+      "residual_sd_m": 42.507058605686325,
+      "r2_per_bore": -0.7932508720611424,
+      "r2_cell_mean": -1.4038078724490508,
+      "pearson_cell_mean": 0.16299251974717263,
+      "ceiling_r2_at_this_cell_size": 0.5247559277928033,
+      "within_cell_variance_fraction": 0.4752440722071966
+    },
+    "us/unconfined/drain-none/cell-mean/15.19km": {
+      "cells": 6870,
+      "splits": 20,
+      "pearson": 0.25992525260704535,
+      "held_out_r2_mean": 0.06457537848631742,
+      "held_out_r2_sd": 0.021644989617806178,
+      "held_out_r2_min": -0.016748645999508094,
+      "held_out_r2_max": 0.08828051520495972,
+      "splits_clearing_bar": 9,
+      "bar": 0.07
     }
   }
 }

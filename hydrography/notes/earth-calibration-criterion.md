@@ -756,6 +756,7 @@ States, at the same 15.19 km mesh, the same solver and the same settings:
 | Australia, all | 53,410 | 3,276 | 0.6335 | +0.0703 | 1.91 m | 18.36 m |
 | United States, all | 679,924 | 17,763 | 0.5310 | +0.1614 | 34.02 m | 34.26 m |
 | United States, CONFIRMED UNCONFINED | 71,265 | 6,574 | 0.8079 | **+0.2596** | 21.03 m | 29.22 m |
+| United States, unconfined, FULL DOMAIN | 73,451 | 6,870 | 0.8079 | +0.2599 | 20.72 m | 28.94 m |
 | United States, confirmed confined | 47,613 | 4,675 | 0.8071 | +0.3176 | 13.43 m | 32.54 m |
 
 On bores the USGS labels unconfined -- a water table, which is what the solver
@@ -788,6 +789,17 @@ declared physical bracket, over 20 random splits:
 | range over splits | +0.0443 to +0.0954 |
 | splits clearing 0.07 | 10 of 20 |
 | Pearson over all cells | +0.2709, so rho^2 = 0.0734 |
+
+Repeated on the WIDE domain, modelled from 15 to 60 degrees north and 130 to 60
+west so that neither the Canadian nor the Mexican border is a fake coast, the
+answer does not move: Pearson +0.2599 against +0.2596, and held-out R2 +0.0646
+with a standard deviation of 0.0216, clearing the bar on 9 splits of 20. That is
+worth stating because it retires a worry rather than confirming a hope. A cell
+with no DEM coverage is not land, so it is ocean, so it is a fixed head at sea
+level, and a window cut through continental interior would have put sea along
+two land borders. Widening the modelled domain while scoring the same interior
+bores changes the third decimal place, which says `score_bbox` was already
+keeping the scored cells outside that influence.
 
 **It straddles the bar rather than clearing it.** A single favourable split gave
 +0.0748 and reporting that alone would have been a pass on a coin toss; twenty
