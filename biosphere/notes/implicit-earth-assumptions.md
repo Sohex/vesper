@@ -144,8 +144,12 @@ latent Earth assumptions rather than safe generic code:
 - The methane module fixes gravity at 9.81 m/s2, atmospheric pressure at
   101325 Pa, atmospheric O2 at 209000 micro-atm and CH4 at 1.7 micro-atm; one
   production ratio is explicitly tuned to reproduce global Earth emissions.
-  BIO-28 wires planetary constants and local pressure and requires an explicit
-  methane calibration decision before `ifmethane` can be enabled.
+  BIO-28 is the planetary activation guard. The subsequent dedicated audit in
+  `wetlands-peat-methane-audit.md` also found a literal 40 N peat/wetland
+  classifier, non-conserving wetland saturation, fixed peat structure,
+  incomplete restart state and an incomplete surface/atmospheric methane
+  budget; WET-1 through WET-11 own those prerequisites before `run_peatland` or
+  `ifmethane` can be enabled.
 
 ## Ordering
 
