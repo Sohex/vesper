@@ -598,6 +598,25 @@ def main() -> int:
               "unconverged head field is not a result.")
         return 1
 
+    # WHICH TERM SET THE DEPTH, per cell. GW-22 scored this model on two
+    # continents and found it has a regime: where the sink takes the recharge
+    # locally the depth is a recharge map (Australia, model spread 1.91 m
+    # against an observed 18.36), and where lateral flow carries it the solve is
+    # doing physics (United States, 34.02 m against 34.26, and Pearson +0.26 on
+    # bores the USGS labels unconfined). The two are separable here.
+    et_cell = res.get("et_m3_s")
+    with np.errstate(divide="ignore", invalid="ignore"):
+        sink_fraction = np.where(
+            supply > 0,
+            (et_cell if et_cell is not None else np.zeros_like(supply)) / supply,
+            np.nan).astype(np.float32)
+    sink_fraction = np.clip(np.nan_to_num(sink_fraction, nan=np.nan), 0.0, 1.0)
+    lp = np.isfinite(sink_fraction) & land
+    if lp.any():
+        print(f"\n  sink fraction on land: median {np.nanmedian(sink_fraction[lp]):.3f}, "
+              f"above 0.9 on {np.nansum(sink_fraction[lp] > 0.9) / lp.sum():.1%} of land")
+        print("  (near 1 the depth is a recharge map; GW-22 measured that regime)")
+
     out = args.output or (data / "water_table.nc")
     if out.exists():
         raise SystemExit(
@@ -615,7 +634,11 @@ def main() -> int:
             "An equilibrium water table, not an aquifer with a history. "
             "Permeability carries 1.5 to 2.5 orders of magnitude of Gleeson "
             "spread, so depth is a bracket; run --sigma -1 and +1 for it. "
-            "Valley-to-ridge convergence is sub-grid at this mesh and absent."
+            "Valley-to-ridge convergence is sub-grid at this mesh and absent. "
+            "READ sink_fraction BEFORE USING depth_m: where it approaches 1 the "
+            "evapotranspiration sink took the recharge locally and the depth is "
+            "a function of recharge rather than a flow solution. GW-22 scored "
+            "both regimes against real bores."
         )
         for name, dat, dtype, dim, units, note in [
             ("head_m", res["head_m"], "f4", "region", "m",
@@ -625,9 +648,19 @@ def main() -> int:
             ("seepage_m3_s", res["seepage_m3_s"], "f4", "region", "m3 s-1",
              "groundwater returning to the surface"),
             ("transmissivity_m2_s", res["transmissivity_m2_s"], "f4", "region",
-             "m2 s-1", "K0 f exp(-d/f), Fan et al. (2007) eq. 6"),
+             "m2 s-1", "T = K D at constant thickness. NOT Fan's exponential "
+             "decay, which GW-9 removed: exp(h/f) is convex, so a cell mean "
+             "carries exp(sigma^2/2f^2) and has no value at this spacing"),
             ("at_surface", res["pinned"].astype(np.int8), "i1", "region", "1",
              "water table pinned at the land surface"),
+            ("sink_fraction", sink_fraction, "f4", "region", "1",
+             "share of a cell's recharge removed by groundwater ET rather than "
+             "carried laterally. Near 1 the depth is the local balance "
+             "lambda ln(et_max A / supply), a recharge map in a water table's "
+             "units. Below 1 the sink did NOT set the depth, which is weaker "
+             "than the flow solve setting it: a cell pinned at the surface sheds "
+             "its recharge as seepage and also scores low, so read at_surface "
+             "alongside. GW-22 measured the regimes against real bores"),
             ("excluded", res["excluded"].astype(np.int8), "i1", "region", "1",
              "lithology has no assigned permeability"),
             ("basin_groundwater_m3_s", qg, "f8", "basin", "m3 s-1",

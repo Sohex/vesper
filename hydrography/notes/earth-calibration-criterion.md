@@ -733,3 +733,111 @@ recharge or permeability at this resolution. And the model does not reach even
 that weak bar, sitting at -0.0467 alone. Both halves are true at once, and the
 earlier phrasing implied the second could not be, because it measured the model
 against a target that was never real.
+
+## GW-22: the Australian verdict was REGIONAL, and the model has a regime
+
+Australia was chosen first because it is the arid analogue for a world of
+endorheic basins. That was the right call for relevance and the wrong one for
+diagnosis: it is the regime where this model degenerates. Scored on the United
+States, at the same 15.19 km mesh, the same solver and the same settings:
+
+| set | bores | cells | ceiling | Pearson on cell means | model sd | observed sd |
+| --- | --- | --- | --- | --- | --- | --- |
+| Australia, all | 53,410 | 3,276 | 0.6335 | +0.0703 | 1.91 m | 18.36 m |
+| United States, all | 679,924 | 17,763 | 0.5310 | +0.1614 | 34.02 m | 34.26 m |
+| United States, CONFIRMED UNCONFINED | 71,265 | 6,574 | 0.8079 | **+0.2596** | 21.03 m | 29.22 m |
+| United States, confirmed confined | 47,613 | 4,675 | 0.8071 | +0.3176 | 13.43 m | 32.54 m |
+
+On bores the USGS labels unconfined -- a water table, which is what the solver
+computes, rather than the potentiometric head a confined bore reads -- the
+correlation is nearly four times Australia's. Australia can only guess at
+confinement from bore depth; `aquifer_type_code` states it.
+
+**The model has a regime, and that is the finding.** In Australia its spread is
+1.91 m against an observed 18.36: the evapotranspiration sink wins over the
+lateral term everywhere, the steady state collapses to the local balance
+`d = lambda ln(et_max A / supply)`, and the flow solution contributes almost no
+variance. In the United States the spread is 34.02 m against an observed 34.26,
+because there the recharge is large enough and the aquifers transmissive enough
+that lateral flow sets the head and the solve is doing real work. Sweeping
+`lambda` across its whole declared bracket moves the United States spread from
+20.94 m to 21.28 m while moving the median from 1.92 m to 7.66 m, which is the
+same statement from the other side: there the variance is not the sink's.
+
+### Does it meet the bar?
+
+The declared bar is R2 = 0.07. Direct R2 is negative because the model runs
+shallow, a median 5.96 m against 9.50, so the honest test is whether the PATTERN
+carries once that bias is removed. Fitting a two-parameter affine correction on
+half the cells and scoring the other half, at `lambda` = 2.0, the top of its
+declared physical bracket, over 20 random splits:
+
+| | |
+| --- | --- |
+| held-out R2 | +0.0683, standard deviation 0.0138 |
+| range over splits | +0.0443 to +0.0954 |
+| splits clearing 0.07 | 10 of 20 |
+| Pearson over all cells | +0.2709, so rho^2 = 0.0734 |
+
+**It straddles the bar rather than clearing it.** A single favourable split gave
++0.0748 and reporting that alone would have been a pass on a coin toss; twenty
+say the answer is 0.068 give or take 0.014. Against Australia's rho^2 of 0.005
+this is a real and reproducible signal, and it is not skill in any strong sense:
+the fitted slope is +0.155 on an intercept of 18.96 m, so the calibration shrinks
+the model's own variation nearly sixfold and most of the prediction is a
+constant.
+
+### What this means for Vesper, PROVISIONALLY, and why it cannot be more
+
+`docs/src/reference/external-data.md` chose Australia because this world is
+dominated by arid endorheic basins, and the temptation is to conclude that
+Vesper therefore sits in the regime where this model degenerates. That
+conclusion is not available yet, and the reason is loop A.
+
+Measured on the CURRENT state: the sink takes a median 97.0% of a land cell's
+recharge, and more than 90% of it over 54.1% of land area. On its face that is
+the unfavourable regime almost everywhere. But every input to that number comes
+from an uncommissioned state.
+
+- The forcing is the BOOTSTRAP climatology. `config/planet.yaml` carries
+  `baseline_climatology: null`, and this project's own vocabulary says a
+  bootstrap run's numbers are not the baseline. Recharge is what sets the sink
+  fraction, and recharge is exactly what a baseline would move.
+- The terrain is PRE-CARVE. `lib/orogen.py` records what a carve verdict did on
+  the build where one was applied: endorheic land fell from 60.10% to 43.06%.
+  So "dominated by arid endorheic basins" is itself a property of the open loop,
+  and closing it cut that dominance by more than a quarter on the one occasion
+  it has been closed.
+
+So the honest statement is conditional. On the current bootstrap forcing and
+pre-carve terrain, most of Vesper's land is sink-dominated and its depth field
+is a recharge map there. Whether that survives commissioning is unknown, and
+`sink_fraction` is the instrument for asking again rather than the answer. It
+should be re-read after every baseline, which costs nothing because the solve
+already computes it.
+
+That also cuts at the Australia-first decision, which rested on the same
+uncommissioned premise. The reasoning was sound when written and it is still the
+right first choice for relevance; it is simply not yet established that the
+regime it was chosen to represent is the regime this planet ends in.
+
+### What `sink_fraction` does and does not separate
+
+It is the share of a cell's recharge that groundwater evapotranspiration removes.
+Near 1 the depth is the local balance and the flow solve contributed nothing.
+Below 1 something else took the water, and there are TWO somethings, which the
+Vesper run makes obvious: 37.1% of land has a sink fraction under 0.5 and a
+median depth of 0.00 m. Those cells are pinned at the surface and shedding their
+recharge as SEEPAGE, not carrying it laterally. A low sink fraction therefore
+means "the sink did not set this depth", which is weaker than "the flow solution
+did". Reading it as a flow-dominated fraction overstates what it says, and the
+pinned flag is what separates the two.
+
+The usable rule it does give is a three-way one, and it needs both fields.
+`sink_fraction` near 1 says the depth is the local balance, a recharge map in a
+water table's units. Low with `at_surface` set says the cell is pinned and
+seeping, where the depth is 0 by construction and carries no information either.
+Low with `at_surface` clear is the only case where the lateral term did the work,
+and it is the case GW-22 showed correlates against real bores. Anything reading
+`depth_m` should ask which of the three it is holding, per cell, which is what
+shipping the two fields together is for.

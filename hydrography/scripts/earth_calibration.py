@@ -75,6 +75,17 @@ REGIONS = {
         "dem_lat_max": -10.0,          # clip New Guinea
         "score_bbox": None,            # the window is already the region
     },
+    # First pass on the narrow window, kept because the wide fetch is slow and
+    # this needs no new data. Its edges cut Canada and Mexico, so those become
+    # fake coast at sea level; `score_bbox` is pulled 3 degrees inside every
+    # edge, about 330 km, so the scored bores sit outside that influence.
+    "us-narrow": {
+        "dem": "etopo_us.nc", "recharge": "recharge_us.npz",
+        "sites": "us_wtd_sites.csv",
+        "glhymps_bbox_deg": (-126.0, 23.0, -65.0, 51.0),
+        "dem_lat_max": None,
+        "score_bbox": (-122.0, 27.0, -69.0, 47.0),
+    },
     "us": {
         "dem": "etopo_us_wide.nc", "recharge": "recharge_us_wide.npz",
         "sites": "us_wtd_sites.csv",
@@ -171,9 +182,10 @@ def stage_mesh(tag: Path, n: int, quiet: bool) -> None:
     np.save(out, np.stack([x, y, z]))
 
 
-def solution_name(drain: str) -> str:
-    """Drain variants are separate artifacts, never an overwrite of the baseline."""
-    return "earth_solution.npz" if drain == "none" else f"earth_solution_drain-{drain}.npz"
+def solution_name(drain: str, et_lambda: float | None = None) -> str:
+    """Every variant is its own artifact, never an overwrite of the baseline."""
+    base = "earth_solution" if drain == "none" else f"earth_solution_drain-{drain}"
+    return f"{base}.npz" if et_lambda is None else f"{base}_lam{et_lambda:g}.npz"
 
 
 def region_dir(tag: Path, region: str) -> Path:
@@ -344,9 +356,10 @@ def stage_drainage(tag: Path, quiet: bool, region: str) -> None:
 
 
 def stage_solve(tag: Path, quiet: bool, river_km2: float | None, region: str,
-                drain: str = "none", drain_min_relief_m: float = 10.0) -> None:
+                drain: str = "none", drain_min_relief_m: float = 10.0,
+                et_lambda: float | None = None) -> None:
     rd = region_dir(tag, region)
-    out = rd / solution_name(drain)
+    out = rd / solution_name(drain, et_lambda)
     if out.exists():
         print("  solve: cached")
         return
@@ -398,7 +411,7 @@ def stage_solve(tag: Path, quiet: bool, river_km2: float | None, region: str,
     et = cfg.get("evapotranspiration", {})
     YR = 365.25 * 86400.0
     et_max = ET_MAX_MM_YR / 1000.0 / YR
-    et_lambda = float(et.get("lambda_m", 1.0))
+    et_lambda = float(et_lambda if et_lambda is not None else et.get("lambda_m", 1.0))
     # GW-23's sub-grid drain at its C -> infinity limit. A true Robin condition
     # needs a solver term; pinning the head at the cell's own valley floor is the
     # infinitely-conductive END of that family and BOUNDS what it can do. Only
@@ -437,11 +450,11 @@ def stage_solve(tag: Path, quiet: bool, river_km2: float | None, region: str,
 
 def stage_score(tag: Path, edge_km: float, quiet: bool, region: str,
                 confinement: str | None, drain: str = "none",
-                surface: str = "cell-mean") -> dict:
+                surface: str = "cell-mean", et_lambda: float | None = None) -> dict:
     """Skill, not just residual moments. The bar and the ceiling are the note's."""
     import pandas as pd
     R = REGIONS[region]
-    sol = np.load(region_dir(tag, region) / solution_name(drain))
+    sol = np.load(region_dir(tag, region) / solution_name(drain, et_lambda))
     xyz = np.load(tag / "earth_xyz.npy")
     obs = pd.read_csv(ROOT / "hydrography" / "data" / "earth_validation" / R["sites"],
                       low_memory=False)
@@ -555,6 +568,10 @@ def main() -> None:
                     help="region count directly, overriding --edge-km. The original "
                          "baseline is 1736112, which is Vesper's cell area at Earth's "
                          "radius and is what the cached 15.19 km mesh holds")
+    ap.add_argument("--et-lambda", type=float, default=None,
+                    help="groundwater ET e-folding depth in m, overriding groundwater.yaml. "
+                         "Its DECLARED physical bracket is 0.5 to 2.0; going outside that is "
+                         "fitting rather than calibrating")
     ap.add_argument("--surface", default="cell-mean",
                     choices=["cell-mean", "dem-at-bore"],
                     help="ground level the depth hangs from; both come from the DEM")
@@ -604,10 +621,11 @@ def main() -> None:
             stage_drainage(tag, args.quiet, args.region)
         elif st == "solve":
             stage_solve(tag, args.quiet, args.river_km2, args.region,
-                        args.drain, args.drain_min_relief_m)
+                        args.drain, args.drain_min_relief_m, args.et_lambda)
         elif st == "score":
             result = stage_score(tag, edge_km, args.quiet, args.region,
-                                 args.confinement, args.drain, args.surface)
+                                 args.confinement, args.drain, args.surface,
+                                 args.et_lambda)
 
     if result is not None:
         payload = {}
