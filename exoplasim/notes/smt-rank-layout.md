@@ -398,4 +398,7 @@ cache to run them in. An uneven decomposition -- fewer latitudes on the CCD1
 ranks -- would balance against the cache rather than against the core count. It
 is a real option and it is not free: `mpimod` scatters equal `NHOR` blocks, so
 uneven latitudes per rank is a deeper change than the paired-latitude work.
-Worth a task rather than a paragraph.
+Deeper still than that: `NLPP` and `NHOR` are compile-time parameters, so an
+unequal block size makes both of them variables. Tracked as CLIM-47, and
+sequenced after the paired-latitude decomposition, which needs `NPRO` to divide
+`NLAT/2` and would be broken by unequal blocks.

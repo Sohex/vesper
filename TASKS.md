@@ -88,7 +88,7 @@ Status: `open` | `doing` | `blocked` | `done` | `wontfix` (with a reason).
 
 ## CLIM -- climate
 
-4 open of 46 issued.
+5 open of 47 issued.
 
 | id | task | source | status |
 | --- | --- | --- | --- |
@@ -138,6 +138,7 @@ Status: `open` | `doing` | `blocked` | `done` | `wontfix` (with a reason).
 | CLIM-44 | -- | -- | done, see `archive/tasks.md` |
 | CLIM-45 | -- | -- | done, see `archive/tasks.md` |
 | CLIM-46 | WITHDRAWN, and kept as a row because the id was issued and the mistake is the useful part. The claim was that land hypsometry is biased high by resolution and does not converge, from a two-point comparison at 2,500,001 and 10,000,005 regions. A control at 2,600,001 and 2,700,001, where the resolution is to all intents identical, spreads mean land elevation by 0.0523 km and land area above 1 km by 11.0%, against the 4x differences of 0.0355 km and 10.3%. The effect is smaller than the noise. Its cause is that `randInt(numRegions)` picks the first plate seed by INDEX, so changing the region count also changes the realisation | `notes/audits/orogen-resolution.md` | wontfix, no defect demonstrated. The standing rule it leaves: on this generator a resolution claim needs a same-resolution control before it is a claim, and two runs a few percent apart is the cheap version. The same control also withdrew a concavity result and an RMS-from-converged-terrain figure from the same note [step: orogen] |
+| CLIM-47 | Give each rank the number of latitudes its die's cache can hold, instead of the same number to all of them. A 16-rank T127 run spans both CCDs and hands every rank an equal `NLPP`, but CCD0 has 96 MB of L3 and CCD1 has 32 MB against a working set of 50.7 MB per eight ranks, and the model is bulk-synchronous, so the eight ranks over budget pace the eight that are not. The measured swing is 13 points and attributable to L3 alone: one job is 10.5% faster on CCD0 than on CCD1, and a second job SHARING CCD0 gains 10.8% throughput where sharing CCD1 loses 2.6%. The cost is that `NLPP = NLAT/NPRO` and `NHOR = NLON*NLPP` are compile-time parameters in `plasimmod.f90`, so uneven blocks make the per-rank count a variable, every `(NHOR,...)` array a maximum rather than an exact size, and every loop bound over it runtime -- which is a far wider blast radius than the five grid-transfer primitives `mpimod.f90` would need to scatter unequal counts | `exoplasim/notes/smt-rank-layout.md` | open, and deliberately sequenced AFTER the paired-latitude decomposition rather than beside it: that work requires `NPRO` to divide `NLAT/2` and uneven blocks would break the pairing, so the two cannot be held at once and the cheaper one with the larger measured prize goes first. It is also HOST-SPECIFIC in a way nothing else in this file is -- the asymmetry is a property of one processor's dies, not of the model -- so whatever it becomes must be conditional and declared, never a default [step: rebuild_binaries, baseline_run] |
 
 ## CONS -- consistency checking
 
