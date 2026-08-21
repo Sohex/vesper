@@ -49,7 +49,7 @@ per 181-day orbit:
 | leaf and tree longevity | `leaflong`, `longevity`, individual age | model orbits |
 | establishment and growth-efficiency mortality | `est_max`, `greff_min`, `NYEARGREFF` | per orbit / five orbits |
 | litter and SOM turnover | `TAU_LITTER`, `TAU_SOILFAST`, `TAU_SOILSLOW` in `somdynam.cpp` | same decay fraction per orbit |
-| CNP P-pool kinetics | `USORB`, `USSORB`, `UOCC` in `somdynam.cpp` | divided by model-year length despite comments giving day rates |
+| CNP P-pool kinetics | `USORB`, `USSORB`, `UOCC` in `somdynam.cpp` | published annual rates are divided by the model-year length, while the source comments incorrectly label them per day |
 
 For an absolute-time calibration, retaining the Earth annual fraction on every
 Vesper orbit makes the process about 2.02 times as fast per Earth year. But not
