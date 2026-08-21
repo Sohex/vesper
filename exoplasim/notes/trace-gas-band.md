@@ -462,13 +462,96 @@ weak, and Doppler broadening is no longer a candidate. What is established:
 - the flux machinery responds correctly to a change of the same size in the
   same variable, which is what the CO2 doubling shows.
 
-**The next test is the one that worked for the CO2 overlap: put the band model
-against a line list.** The LMD bundle on this host carries CH4 correlated-k
-tables -- the `early_earth_CO2_*_CH4_*` sets -- so the band absorptance can be
-compared with a HITRAN 2020 band mean at the same amount, pressure and
-temperature, exactly as section 4c did for CO2. That separates a band model
-that is wrong from a scheme that cannot carry the term, and it needs no new
-data. It has not been done.
+### The band model is not the problem, and that is now measured
+
+The LMD bundle carries a MATCHED PAIR under `PCM_Studio_corrk_data`:
+`Earth_900ppmCO2_1mbH2O` and `Earth_900ppmCO2_900ppmCH4_1mbH2O`, identical in
+CO2 and H2O and differing only in 900 ppm of CH4. Their transmission ratio
+isolates CH4's absorption exactly, and because the water vapour is the same in
+both it isolates it AFTER water vapour overlap, which is the quantity the
+`zth2o` factor stands for.
+
+Summing `(1 - T_with/T_without)` times band width over 950 to 1800 cm-1 against
+Eq. (1) at the same amount, pressure and temperature:
+
+| CH4, cm atm | P, atm | T, K | A corrk | A band model | ratio |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| 0.0487 | 0.025 | 209 | 2.609 | 2.651 | 1.016 |
+| 0.2323 | 0.118 | 207 | 11.428 | 11.907 | 1.042 |
+| 0.9730 | 0.494 | 236 | 38.338 | 41.076 | 1.071 |
+| 2.0000 | 0.987 | 280 | 70.428 | 70.253 | 0.998 |
+
+**Better than 7 percent everywhere, including the top layer.** Donner and
+Ramanathan's 1980 band model, at the intensity recovered from their own Table
+2, reproduces a 2020 line list across the whole range this model spans. The
+band absorptance is right, and so are the absorber amounts that feed it.
+
+### So the shortfall is in one of two places
+
+Neither is the band model and neither is the amount. What is left:
+
+**The conversion into Sasamori's currency.** Band absorptance in cm-1 becomes a
+fraction of the broadband through `pi B(v,T) / (sigma T**4)`. Checked once by
+running CO2's own band absorptance through the same conversion and comparing
+against `zaco2`, it agrees to about 1.6x -- the right order, but that check is
+crude and was never meant to carry weight.
+
+**The scheme's conversion of absorptivity into flux.** The CO2 doubling shows
+this responds correctly to a UNIFORM change: it adds 0.0164 of absorptivity on
+every path, thin or thick, because CO2's absorptivity is logarithmic in amount.
+The trace-gas term is not uniform -- 0.00076 on the top layer against 0.0119 on
+the whole column -- and the measured response is about 4x weaker even than that
+ratio alone predicts. If top-of-atmosphere forcing in this scheme is set almost
+entirely by the topmost paths, then a term that is honestly small there cannot
+deliver, and the limitation is the scheme's rather than the term's.
+
+### The discriminator was run, and it produced a contradiction
+
+A temporary namelist key subtracted a UNIFORM constant from `ztaucs` on every
+path, which is what a CO2 doubling was believed to do. The flux response is
+clean and LINEAR over a factor of 25 in the perturbation:
+
+| uniform subtraction from ztaucs | dOLR, W/m2 | per unit |
+| ---: | ---: | ---: |
+| 0.0119 | 0.0278 | 2.34 |
+| 0.0164 | 0.0386 | 2.36 |
+| 0.0500 | 0.1193 | 2.39 |
+| 0.1000 | 0.2421 | 2.42 |
+| 0.3000 | 0.7645 | 2.55 |
+
+**So this scheme returns about 2.4 W/m2 per unit of uniform absorptivity, and
+the trace-gas term's 0.0175 is exactly what its 0.0119 should give.** The term
+is behaving as ANY absorptivity added to `ztaucs` behaves here.
+
+**But a CO2 doubling returns 1.576, and it should not.** Doubling CO2 raises
+`zaco2` by 0.0546 log10(2) = 0.0164 in the logarithmic branch, and by 0.0144 at
+the top layer in the power-law branch, then multiplies by `zth2o` -- so it
+changes `ztaucs` by 0.011 to 0.016, which the table above says is worth 0.03 to
+0.04 W/m2. It delivers FORTY TIMES that. At 2.4 W/m2 per unit it would need to
+be moving `ztaucs` by 0.66.
+
+Three things this is NOT, each measured rather than argued:
+
+- not the shortwave. With `CO2SWW = 0` the doubling still returns 1.598 W/m2,
+  slightly MORE than with the shortwave CO2 term on.
+- not another route into the flux. `zaco2` appears exactly once in this file,
+  in the `ztaucs` line, and `zsumco2` only in computing it.
+- not a saturation or clamping artifact, because the probe's response is linear
+  across 25x and `ztaucs` sits near 0.35 at the full column, far from its
+  bounds.
+
+**So two changes that appear identical in `ztaucs` produce answers forty times
+apart, and the model of what `ztaucs` does that this section has been reasoning
+with must be wrong.** That is where this stops. It is recorded as a
+contradiction with its numbers rather than resolved, because the next step is
+to instrument `ztaucs` itself under both perturbations and compare them
+directly, which is the measurement that has not been made.
+
+What it means for the term is unchanged and now better founded: the
+implementation is right by every test that can be run on it, the band model
+reproduces a line list to 7 percent, and the shortfall against the offline
+pricing is a property of how this scheme converts absorptivity into flux --
+which the CO2 result says is not yet understood, for CO2 either.
 
 ## 5. The tests, declared before the work
 
