@@ -540,12 +540,56 @@ Three things this is NOT, each measured rather than argued:
   across 25x and `ztaucs` sits near 0.35 at the full column, far from its
   bounds.
 
-**So two changes that appear identical in `ztaucs` produce answers forty times
-apart, and the model of what `ztaucs` does that this section has been reasoning
-with must be wrong.** That is where this stops. It is recorded as a
-contradiction with its numbers rather than resolved, because the next step is
-to instrument `ztaucs` itself under both perturbations and compare them
-directly, which is the measurement that has not been made.
+### The instrumentation, and what it found
+
+`ztaucs` was dumped per level under both perturbations. **They are the same
+change**, which settles the first question:
+
+| level | ztaucs base | d(CO2 doubling) | d(uniform probe) |
+| ---: | ---: | ---: | ---: |
+| 1 | 0.94833 | -0.01445 | -0.01640 |
+| 5 | 0.62776 | -0.01598 | -0.01640 |
+| 10 | 0.34432 | -0.01151 | -0.01640 |
+
+And the flux they produce is the same too. Dumping `dftu` at the top of
+atmosphere directly, one cell, one timestep: the CO2 doubling gives +2.368 W/m2
+and the uniform probe +2.476 -- the probe slightly LARGER, exactly as the table
+above says it should be. Followed through all 56 radiation calls the two stay
+together, +1.489 and +1.698 at the last.
+
+**So the scheme is consistent and there is no forty-fold contradiction.** What
+there is instead is a measurement artifact, and finding it took mapping the
+response rather than averaging it.
+
+### The response is confined to the unlit half of the planet
+
+The instrumented cell was rank 0's, and at T42 on 8 ranks rank 0 holds only the
+first eight latitude rows -- all polar. Broken out by latitude, the global mean
+that started this hides two different behaviours:
+
+| | uniform probe | CO2 doubling | CH4 + N2O |
+| --- | ---: | ---: | ---: |
+| dark rows | +1.024 | +0.987 | -- |
+| sunlit rows | +0.053 | +1.425 | -- |
+| cells with no response at all | 61% | 0% | 75% |
+
+**In the dark the probe and the CO2 doubling agree, +1.02 against +0.99.** In
+sunlight the probe's longwave effect all but vanishes while CO2's does not. And
+the trace-gas term follows the PROBE's pattern exactly -- +0.52 and +0.43 at
+the two dark polar rows, and zero from 49 degrees south to the north pole.
+
+So the term is not weak because its band model is wrong, which section 4c ruled
+out against a line list, and not because the scheme cannot convert absorptivity
+into flux, which the dark rows show it can. It is weak because whatever
+suppresses an added longwave absorptivity in sunlit columns suppresses it too,
+and the same suppression is why the uniform probe's 2.4 W/m2 per unit was never
+a valid calibration: that number is a global mean over a response that exists
+in 39 percent of cells.
+
+**What is not yet known is the mechanism of that suppression**, and it is now a
+sharp question rather than a diffuse one: why does adding absorptivity to
+`ztaucs` change outgoing longwave in a dark column and not in a lit one, when
+CO2 doing the same thing changes it in both. That is where this stops.
 
 What it means for the term is unchanged and now better founded: the
 implementation is right by every test that can be run on it, the band model
