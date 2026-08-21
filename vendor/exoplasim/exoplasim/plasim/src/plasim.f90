@@ -137,6 +137,12 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 
       logical :: lrestart
 
+      integer :: ilatperm             ! permuted slot -> global latitude
+      real (kind=8) :: zsid(NLAT)     ! sid, gwd, csq and rcs reordered for
+      real (kind=8) :: zgwd(NLAT)     ! the scatter that follows
+      real :: zcsq(NLAT)
+      real :: zrcs(NLAT)
+
 !     ************************************************************
 !     * Initializations that cannot be run on parallel processes *
 !     ************************************************************
@@ -193,6 +199,29 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !     ***********************
 !     * broadcast & scatter *
 !     ***********************
+
+!     These four are the whole of what a process knows about WHERE its
+!     latitudes are, and everything else derives from them: deglat, cola and
+!     rcsq just below, the Legendre weight matrices in legini, the zenith
+!     angle in radmod. So reordering them here is what carries the paired
+!     decomposition into every latitude-dependent quantity in the model.
+!
+!     inilat has already run and filled the global arrays, and nothing reads
+!     them globally after this point -- tracer_ini0 is the last to do so and
+!     it is above, inside the root-only block.
+
+      if (LPAIRLAT .and. mypid == NROOT) then
+         do jlat = 1 , NLAT
+            zsid(jlat) = sid(ilatperm(jlat))
+            zgwd(jlat) = gwd(ilatperm(jlat))
+            zcsq(jlat) = csq(ilatperm(jlat))
+            zrcs(jlat) = rcs(ilatperm(jlat))
+         enddo
+         sid(:) = zsid(:)
+         gwd(:) = zgwd(:)
+         csq(:) = zcsq(:)
+         rcs(:) = zrcs(:)
+      endif
 
       call mpscdn(sid ,NLPP)  ! sine of latitude (kind=8)
       call mpscdn(gwd ,NLPP)  ! gaussian weights (kind=8)

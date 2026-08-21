@@ -176,6 +176,17 @@
       endif
       call mpscgp(zgw2,gw,1)
       call mpbcr(dlam)
+
+!     These four are NOT reordered for the paired latitude decomposition, and
+!     that is deliberate. mpscrn scatters in place, so the root's first chunk
+!     is written back over itself and its copy of the global array survives
+!     intact; hdiffo is the only routine that reads any of them, it runs on
+!     the root alone, and it indexes them by GLOBAL latitude beside the
+!     gathered fields it diffuses. The scattered values on the other
+!     processes are never read. Permuting these would leave hdiffo reading a
+!     reordered array through global indices, which is silently wrong rather
+!     than an error.
+
       call mpscrn(cphi,NLPP)
       call mpscrn(cphih(1),NLPP)
       call mpscrn(dphi,NLPP)

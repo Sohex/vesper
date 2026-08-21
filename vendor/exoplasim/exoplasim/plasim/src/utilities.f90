@@ -7,8 +7,23 @@
       real :: zdeglat(NLAT)
       real :: lat1(NLAT)
       real :: lat2(NLAT)
+      real :: zlat(NLAT)
+      integer :: ilatperm
       
       call mpgarn(zdeglat,deglat,NLPP)
+      
+!     mpgarn is a raw gather rather than one of the grid-space primitives, so
+!     it returns the latitudes in the order the ranks hold them. The cell
+!     bounds below are built from ADJACENT latitudes, which only means what it
+!     says in global order, so un-permute before using them and permute the
+!     answer back before it is scattered.
+
+      if (LPAIRLAT .and. mypid == NROOT) then
+         do jlat = 1 , NLAT
+            zlat(ilatperm(jlat)) = zdeglat(jlat)
+         enddo
+         zdeglat(:) = zlat(:)
+      endif
       
       if (mypid == NROOT) then
       
@@ -21,6 +36,17 @@
          lat2(jlat) = 0.5*(zdeglat(jlat+1)+zdeglat(jlat))*PI/180.0
       enddo
       
+      endif
+      
+      if (LPAIRLAT .and. mypid == NROOT) then
+         do jlat = 1 , NLAT
+            zlat(jlat) = lat1(ilatperm(jlat))
+         enddo
+         lat1(:) = zlat(:)
+         do jlat = 1 , NLAT
+            zlat(jlat) = lat2(ilatperm(jlat))
+         enddo
+         lat2(:) = zlat(:)
       endif
       
       call mpscrn(lat1,NLPP)
@@ -224,8 +250,21 @@
       character (len=*) :: fname
       real :: dd(NLPP)
       real :: ddn(NLAT)
+      real :: zlat(NLAT)
+      integer :: ilatperm
       
       call mpgarn(ddn,dd,NLPP)
+      
+!     A raw gather again, and this one goes straight to a file, so the record
+!     has to be in global latitude order like every other record the model
+!     writes.
+
+      if (LPAIRLAT .and. mypid==NROOT) then
+         do jlat = 1 , NLAT
+            zlat(ilatperm(jlat)) = ddn(jlat)
+         enddo
+         ddn(:) = zlat(:)
+      endif
       
       if (mypid==NROOT) then
          open(93,file=fname,form='unformatted')

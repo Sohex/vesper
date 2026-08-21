@@ -100,6 +100,7 @@
       parameter(NLON = NLAT + NLAT)        ! Number of longitudes
       parameter(NTRU = (NLON-1) / 3)       ! Triangular truncation
       parameter(NLPP = NLAT / NPRO)        ! Latitudes per process
+      parameter(NLHP = NLPP / 2)           ! Half of them, one hemisphere
       parameter(NHOR = NLON * NLPP)        ! Horizontal part
       parameter(NUGP = NLON * NLAT)        ! Number of gridpoints
       parameter(NPGP = NLON * NLAT / 2)    ! Dimension of packed fields
@@ -114,6 +115,31 @@
       parameter(NVCT = 2 * (NLEV+1))       ! Dim of Vert. Coord. Tab
       parameter(NZOM  = 2 * NTP1)          ! Dim for zonal mean diagnostics
       parameter(NROOT = 0)                 ! Master node
+
+!     ****************************************************************
+!     * PAIRED LATITUDE DECOMPOSITION                                *
+!     *                                                              *
+!     * A latitude and its mirror carry the same Legendre magnitudes *
+!     * -- P(-mu) = (-1)**(m+n) P(mu) -- so a transform that holds   *
+!     * both on one process does half the multiplies and reads the   *
+!     * weight matrix once instead of twice. The stock decomposition *
+!     * hands each process a CONTIGUOUS block of latitudes, which    *
+!     * puts a latitude and its mirror on different processes and    *
+!     * makes that saving unreachable on anything but one process.   *
+!     *                                                              *
+!     * With LPAIRLAT the scatter is permuted instead, so local      *
+!     * latitude l and NLPP+1-l are a mirror pair on every process.  *
+!     * It needs NPRO to divide NLAT/2, and falls back to the stock  *
+!     * contiguous layout when it does not. At NPRO == 1 the         *
+!     * permutation is the identity, which is why the single-process *
+!     * executable is the trivial case here and not a special one.   *
+!     *                                                              *
+!     * The permutation lives entirely in the five grid-space        *
+!     * transfers of mpimod; every latitude-dependent quantity is    *
+!     * derived from the scattered sid/gwd/csq/rcs and follows it.   *
+!     ****************************************************************
+
+      logical,parameter :: LPAIRLAT = (mod(NLAT,2*NPRO) == 0)
 
       parameter(EZ     = 1.63299310207D0)  ! ez = 1 / sqrt(3/8)
       parameter(PI     = 3.14159265359D0)  ! Pi

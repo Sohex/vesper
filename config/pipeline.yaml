@@ -618,4 +618,5 @@ one_offs:
   - exoplasim/scripts/verify_fold_exactness.sh
   - exoplasim/scripts/verify_fold_indexing.sh
   - exoplasim/scripts/verify_legendre_parity.py
+  - exoplasim/scripts/verify_latitude_pairing.py
   - exoplasim/scripts/bench_rank_layout.py

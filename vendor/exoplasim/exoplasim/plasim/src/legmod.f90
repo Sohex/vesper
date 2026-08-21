@@ -7,7 +7,8 @@ module legmod
 ! ************************
 ! * Legendre Polynomials *
 ! ************************
-use pumamod, only:NTRU,NTP1,NCSP,NESP,NLON,NLPP,NLAT,NHOR,NLEV,gwd,sid,plavor,nfilter
+use pumamod, only:NTRU,NTP1,NCSP,NESP,NLON,NLPP,NLHP,NLAT,NHOR,NLEV,gwd,sid,plavor,nfilter
+use pumamod, only:LPAIRLAT
 use pumamod, only:ngptfilter, nspvfilter,landhoskn0,filterkappa,nfilterexp,nud,mypid,NROOT
 
 real :: qi(NCSP,NLPP) ! P(m,n) * skspgp                     used in sp2fc
@@ -225,7 +226,7 @@ integer :: w ! Index for spherical harmonic
 
 sp(:,:) = 0.0
 
-if (NLPP < NLAT) then  ! Universal (parallel executable) version
+if (.not. LPAIRLAT) then ! Contiguous latitudes: no mirror is local
 !----------------------------------------------------------------------
   do l = 1 , NLPP
     w = 1
@@ -237,18 +238,18 @@ if (NLPP < NLAT) then  ! Universal (parallel executable) version
       enddo ! n
     enddo ! m
   enddo ! l
-else                   ! Single CPU version (symmetry conserving)
+else                     ! Paired latitudes: symmetry conserving
 !----------------------------------------------------------------------
-  do l = 1 , NLAT/2
+  do l = 1 , NLHP
     w = 1
     do m = 1 , NTP1
       do n = m , NTP1
         if (mod(m+n,2) == 0) then ! Symmetric modes
-          sp(1,w) = sp(1,w) + qc(w,l) * (fc(1,m,l) + fc(1,m,NLAT+1-l))
-          sp(2,w) = sp(2,w) + qc(w,l) * (fc(2,m,l) + fc(2,m,NLAT+1-l))
+          sp(1,w) = sp(1,w) + qc(w,l) * (fc(1,m,l) + fc(1,m,NLPP+1-l))
+          sp(2,w) = sp(2,w) + qc(w,l) * (fc(2,m,l) + fc(2,m,NLPP+1-l))
         else                      ! Antisymmetric modes
-          sp(1,w) = sp(1,w) + qc(w,l) * (fc(1,m,l) - fc(1,m,NLAT+1-l))
-          sp(2,w) = sp(2,w) + qc(w,l) * (fc(2,m,l) - fc(2,m,NLAT+1-l))
+          sp(1,w) = sp(1,w) + qc(w,l) * (fc(1,m,l) - fc(1,m,NLPP+1-l))
+          sp(2,w) = sp(2,w) + qc(w,l) * (fc(2,m,l) - fc(2,m,NLPP+1-l))
         endif
         w = w + 1
       enddo ! n
@@ -409,7 +410,7 @@ integer :: w ! Loop index for spectral mode
 pd(:,:,:) = 0.0
 pz(:,:,:) = 0.0
 
-if (NLPP < NLAT) then  ! Universal (parallel executable) version
+if (.not. LPAIRLAT) then ! Contiguous latitudes: no mirror is local
 !----------------------------------------------------------------------
 do v = 1 , NLEV
   do l = 1 , NLPP
@@ -425,11 +426,11 @@ do v = 1 , NLEV
     enddo ! m
   enddo ! l
 enddo ! v
-else                   ! Single CPU version (symmetry conserving)
+else                     ! Paired latitudes: symmetry conserving
 !----------------------------------------------------------------------
 do v = 1 , NLEV
-  do l = 1 , NLAT/2
-    k = NLAT+1-l
+  do l = 1 , NLHP
+    k = NLPP+1-l
     w = 1
     do m = 1 , NTP1
       do n = m , NTP1
@@ -486,7 +487,7 @@ integer :: w ! Loop index for spectral mode
 
 q(:,:,:) = 0.0
 
-if (NLPP < NLAT) then  ! Universal (parallel executable) version
+if (.not. LPAIRLAT) then ! Contiguous latitudes: no mirror is local
 !----------------------------------------------------------------------
 do v = 1 , NLEV
  do l = 1 , NLPP
@@ -502,11 +503,11 @@ do v = 1 , NLEV
   enddo ! m
  enddo ! l
 enddo ! v
-else                   ! Single CPU version (symmetry conserving)
+else                     ! Paired latitudes: symmetry conserving
 !----------------------------------------------------------------------
 do v = 1 , NLEV
- do l = 1 , NLAT/2
-  k = NLAT+1-l
+ do l = 1 , NLHP
+  k = NLPP+1-l
   w = 1
   do m = 1 , NTP1
    do n = m , NTP1
@@ -565,7 +566,7 @@ d(:,:,:) = 0.0
 t(:,:,:) = 0.0
 z(:,:,:) = 0.0
 
-if (NLPP < NLAT) then  ! Universal (parallel executable) version
+if (.not. LPAIRLAT) then ! Contiguous latitudes: no mirror is local
 !----------------------------------------------------------------------
 do v = 1 , NLEV
  do l = 1 , NLPP
@@ -589,11 +590,11 @@ do v = 1 , NLEV
   enddo ! m
  enddo ! l
 enddo ! v
-else                   ! Single CPU version (symmetry conserving)
+else                     ! Paired latitudes: symmetry conserving
 !----------------------------------------------------------------------
 do v = 1 , NLEV
- do l = 1 , NLAT/2
-  k = NLAT+1-l
+ do l = 1 , NLHP
+  k = NLPP+1-l
   w = 1
   do m = 1 , NTP1
    do n = m , NTP1

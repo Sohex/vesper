@@ -15,6 +15,46 @@
 !
 
 
+!     ==================
+!     FUNCTION ILATPERM
+!     ==================
+
+!     Permuted slot -> global latitude, the whole of the paired decomposition.
+!
+!     Slot kp is the kp-th latitude of the scatter buffer, so it lands on
+!     process ir = (kp-1)/NLPP at local index il = kp - ir*NLPP. The first
+!     NLHP local latitudes of a process are a northern block; the rest are
+!     those same latitudes' mirrors, in reverse, which is what makes local
+!     il and NLPP+1-il a mirror pair.
+!
+!     Without LPAIRLAT this is the identity and the layout is the stock
+!     contiguous one. At NPRO == 1 it is ALSO the identity, since ir is 0 and
+!     NLHP is NLAT/2: slot il > NLHP maps to NLAT - NLAT + il = il.
+
+      integer function ilatperm(kp)
+      use pumamod
+      integer :: kp
+      integer :: ir
+      integer :: il
+
+      if (.not. LPAIRLAT) then
+         ilatperm = kp
+         return
+      endif
+
+      ir = (kp - 1) / NLPP    ! process holding the slot
+      il =  kp - ir * NLPP    ! its local latitude there
+
+      if (il <= NLHP) then
+         ilatperm = ir * NLHP + il                 ! northern block
+      else
+         ilatperm = NLAT - ir * NLHP - NLPP + il   ! the mirror of it
+      endif
+
+      return
+      end function ilatperm
+
+
 !     ================
 !     SUBROUTINE MPBCI
 !     ================
@@ -132,12 +172,35 @@
 
       real :: pf(NUGP,klev)
       real :: pp(NHOR,klev)
+      real :: zp(NUGP)        ! one level, reordered for the scatter
+      integer :: ilatperm
+      integer :: jg
 
-      do jlev = 1 , klev
-         call mpi_scatter(pf(:,jlev),NHOR,mpi_rtype,                     &
-     &                    pp(:,jlev),NHOR,mpi_rtype,                     &
-     &                    NROOT,myworld,mpinfo)
-      enddo
+!     mpi_scatter sends contiguous chunks, so the paired layout is imposed
+!     HERE, by reordering the global array before it goes out. Every other
+!     grid-space transfer either routes through this routine or undoes the
+!     same permutation on the way back.
+
+      if (LPAIRLAT) then
+         do jlev = 1 , klev
+            if (mypid == NROOT) then
+               do jlat = 1 , NLAT
+                  jg = ilatperm(jlat)
+                  zp(1+(jlat-1)*NLON:jlat*NLON) =                        &
+     &               pf(1+(jg-1)*NLON:jg*NLON,jlev)
+               enddo
+            endif
+            call mpi_scatter(zp        ,NHOR,mpi_rtype,                  &
+     &                       pp(:,jlev),NHOR,mpi_rtype,                  &
+     &                       NROOT,myworld,mpinfo)
+         enddo
+      else
+         do jlev = 1 , klev
+            call mpi_scatter(pf(:,jlev),NHOR,mpi_rtype,                  &
+     &                       pp(:,jlev),NHOR,mpi_rtype,                  &
+     &                       NROOT,myworld,mpinfo)
+         enddo
+      endif
 
       return
       end subroutine mpscgp
@@ -151,12 +214,35 @@
 
       real :: pf(NLON*NLAT,klev)
       real :: pp(NHOR,klev)
+      real :: zp(NUGP)        ! one level, as the ranks are ordered
+      integer :: ilatperm
+      integer :: jg
 
-      do jlev = 1 , klev
-         call mpi_gather(pp(:,jlev),NHOR,mpi_rtype,                      &
-     &                   pf(:,jlev),NHOR,mpi_rtype,                      &
-     &                   NROOT,myworld,mpinfo)
-      enddo
+!     The gather undoes what mpscgp imposed, so pf comes back in global
+!     latitude order whatever the decomposition. Restart records, output
+!     records and every root-side calculation that walks latitudes as
+!     neighbours therefore need no knowledge of the layout.
+
+      if (LPAIRLAT) then
+         do jlev = 1 , klev
+            call mpi_gather(pp(:,jlev),NHOR,mpi_rtype,                   &
+     &                      zp        ,NHOR,mpi_rtype,                   &
+     &                      NROOT,myworld,mpinfo)
+            if (mypid == NROOT) then
+               do jlat = 1 , NLAT
+                  jg = ilatperm(jlat)
+                  pf(1+(jg-1)*NLON:jg*NLON,jlev) =                       &
+     &               zp(1+(jlat-1)*NLON:jlat*NLON)
+               enddo
+            endif
+         enddo
+      else
+         do jlev = 1 , klev
+            call mpi_gather(pp(:,jlev),NHOR,mpi_rtype,                   &
+     &                      pf(:,jlev),NHOR,mpi_rtype,                   &
+     &                      NROOT,myworld,mpinfo)
+         enddo
+      endif
 
       return
       end subroutine mpgagp
@@ -170,12 +256,31 @@
 
       real :: pf(NLON*NLAT,klev)
       real :: pp(NHOR,klev)
+      real :: zp(NUGP)        ! one level, as the ranks are ordered
+      integer :: ilatperm
+      integer :: jg
 
-      do jlev = 1 , klev
-         call mpi_allgather(pp(:,jlev),NHOR,mpi_rtype,                   &
-     &                      pf(:,jlev),NHOR,mpi_rtype,                   &
-     &                      myworld,mpinfo)
-      enddo
+!     As mpgagp, except that every process un-permutes rather than the root
+!     alone, because every process ends up holding the global field.
+
+      if (LPAIRLAT) then
+         do jlev = 1 , klev
+            call mpi_allgather(pp(:,jlev),NHOR,mpi_rtype,                &
+     &                         zp        ,NHOR,mpi_rtype,                &
+     &                         myworld,mpinfo)
+            do jlat = 1 , NLAT
+               jg = ilatperm(jlat)
+               pf(1+(jg-1)*NLON:jg*NLON,jlev) =                          &
+     &            zp(1+(jlat-1)*NLON:jlat*NLON)
+            enddo
+         enddo
+      else
+         do jlev = 1 , klev
+            call mpi_allgather(pp(:,jlev),NHOR,mpi_rtype,                &
+     &                         pf(:,jlev),NHOR,mpi_rtype,                &
+     &                         myworld,mpinfo)
+         enddo
+      endif
 
       return
       end subroutine mpgallgp
@@ -226,13 +331,31 @@
       use mpimod
 
       real :: pcs(NLAT,NLEV)
+      real :: zc(NLAT)        ! one level, as the ranks are ordered
+      integer :: ilatperm
 
-      do jlev = 1 , NLEV
-         call mpi_gather(pcs(:,jlev),NLPP,mpi_rtype                      &
-     &                  ,pcs(:,jlev),NLPP,mpi_rtype                      &
-     &                  ,NROOT,myworld,mpinfo)
+!     A cross section is a latitude axis rather than a grid, so the same
+!     permutation applies to it one element at a time.
 
-      enddo
+      if (LPAIRLAT) then
+         do jlev = 1 , NLEV
+            call mpi_gather(pcs(:,jlev),NLPP,mpi_rtype                   &
+     &                     ,zc         ,NLPP,mpi_rtype                   &
+     &                     ,NROOT,myworld,mpinfo)
+            if (mypid == NROOT) then
+               do jlat = 1 , NLAT
+                  pcs(ilatperm(jlat),jlev) = zc(jlat)
+               enddo
+            endif
+         enddo
+      else
+         do jlev = 1 , NLEV
+            call mpi_gather(pcs(:,jlev),NLPP,mpi_rtype                   &
+     &                     ,pcs(:,jlev),NLPP,mpi_rtype                   &
+     &                     ,NROOT,myworld,mpinfo)
+         enddo
+      endif
+
       return
       end subroutine mpgacs
 
