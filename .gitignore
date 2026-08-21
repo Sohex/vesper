@@ -176,3 +176,10 @@ source/*/*/grid
 source/*/*/planet.nc
 source/*/*/manifest.json
 vendor/orogen/node_modules
+
+# Fortran module files. The verifiers under exoplasim/scripts compile fragments
+# lifted out of the model source, and gfortran writes the .mod beside the
+# WORKING directory rather than beside the output. They now pass -J and a cwd,
+# so nothing should land here again; this is the backstop, because one of them
+# was committed before that was noticed.
+*.mod

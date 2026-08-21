@@ -272,13 +272,20 @@ implicit none
 real :: sp(2,NCSP)        ! Coefficients of spherical harmonics
 real :: fc(2,NLON/2,NLPP) ! Fourier coefficients
 
+integer :: j ! Loop index for spectral mode within one m
+integer :: k ! Index for the mirror latitude
 integer :: l ! Loop index for latitude
 integer :: m ! Loop index for zonal wavenumber m
 integer :: n ! Loop index for total wavenumber n
-integer :: w ! Loop index for spectral mode
+integer :: w ! Index of the first spectral mode of one m
+
+real :: ze1, ze2 ! partial sums over the symmetric modes
+real :: zo1, zo2 ! partial sums over the antisymmetric modes
 
 fc(:,:,:) = 0.0
 
+if (.not. LPAIRLAT) then ! Contiguous latitudes: no mirror is local
+!----------------------------------------------------------------------
 do l = 1 , NLPP
    w = 1  
    do m = 1 , NTP1
@@ -289,6 +296,43 @@ do l = 1 , NLPP
       enddo ! n
    enddo ! m
 enddo ! l
+else                     ! Paired latitudes: symmetry conserving
+!----------------------------------------------------------------------
+!  qi carries P, so qi(w,k) = s(w) * qi(w,l) with s = (-1)**(m+n). Summing
+!  the two parities apart therefore yields BOTH latitudes from one pass over
+!  the modes: the mirror is the same two partial sums with the odd one
+!  negated. Half the multiplies, and -- which matters more at this
+!  resolution -- each element of qi is read once for the pair instead of
+!  twice.
+!
+!  The parity is a property of the mode, so the n loop is split by STRIDE
+!  rather than tested inside. A mod() in the innermost loop of the model's
+!  hottest routine is a branch and a barrier to vectorisation both.
+do l = 1 , NLHP
+   k = NLPP + 1 - l
+   w = 1
+   do m = 1 , NTP1
+      ze1 = 0.0
+      ze2 = 0.0
+      zo1 = 0.0
+      zo2 = 0.0
+      do j = w , w + NTP1 - m , 2       ! n = m, m+2, ...   symmetric
+         ze1 = ze1 + qi(j,l) * sp(1,j)
+         ze2 = ze2 + qi(j,l) * sp(2,j)
+      enddo ! j
+      do j = w + 1 , w + NTP1 - m , 2   ! n = m+1, m+3, ... antisymmetric
+         zo1 = zo1 + qi(j,l) * sp(1,j)
+         zo2 = zo2 + qi(j,l) * sp(2,j)
+      enddo ! j
+      fc(1,m,l) = ze1 + zo1
+      fc(2,m,l) = ze2 + zo2
+      fc(1,m,k) = ze1 - zo1
+      fc(2,m,k) = ze2 - zo2
+      w = w + NTP1 - m + 1
+   enddo ! m
+enddo ! l
+!----------------------------------------------------------------------
+endif ! symmetric?
 return
 end
 
@@ -304,13 +348,20 @@ implicit none
 real :: sp(2,NCSP)        ! Coefficients of spherical harmonics
 real :: fc(2,NLON/2,NLPP) ! Fourier coefficients
 
+integer :: j ! Loop index for spectral mode within one m
+integer :: k ! Index for the mirror latitude
 integer :: l ! Loop index for latitude
 integer :: m ! Loop index for zonal wavenumber m
 integer :: n ! Loop index for total wavenumber n
-integer :: w ! Loop index for spectral mode
+integer :: w ! Index of the first spectral mode of one m
+
+real :: ze1, ze2 ! partial sums over the symmetric modes
+real :: zo1, zo2 ! partial sums over the antisymmetric modes
 
 fc(:,:,:) = 0.0
 
+if (.not. LPAIRLAT) then ! Contiguous latitudes: no mirror is local
+!----------------------------------------------------------------------
 do l = 1 , NLPP
    w = 1  
    do m = 1 , NTP1
@@ -321,6 +372,38 @@ do l = 1 , NLPP
       enddo ! n
    enddo ! m
 enddo ! l
+else                     ! Paired latitudes: symmetry conserving
+!----------------------------------------------------------------------
+!  As sp2fc, with the OPPOSITE parity: qj carries Q = dP/dmu, and the
+!  derivative of an even function is odd, so qj(w,k) = -s(w) * qj(w,l). The
+!  mirror is therefore the odd partial sum MINUS the even one rather than
+!  the other way round, and getting that sign the wrong way is the mistake
+!  the single-mode check exists to catch.
+do l = 1 , NLHP
+   k = NLPP + 1 - l
+   w = 1
+   do m = 1 , NTP1
+      ze1 = 0.0
+      ze2 = 0.0
+      zo1 = 0.0
+      zo2 = 0.0
+      do j = w , w + NTP1 - m , 2       ! n = m, m+2, ...   symmetric
+         ze1 = ze1 + qj(j,l) * sp(1,j)
+         ze2 = ze2 + qj(j,l) * sp(2,j)
+      enddo ! j
+      do j = w + 1 , w + NTP1 - m , 2   ! n = m+1, m+3, ... antisymmetric
+         zo1 = zo1 + qj(j,l) * sp(1,j)
+         zo2 = zo2 + qj(j,l) * sp(2,j)
+      enddo ! j
+      fc(1,m,l) = ze1 + zo1
+      fc(2,m,l) = ze2 + zo2
+      fc(1,m,k) = zo1 - ze1
+      fc(2,m,k) = zo2 - ze2
+      w = w + NTP1 - m + 1
+   enddo ! m
+enddo ! l
+!----------------------------------------------------------------------
+endif ! symmetric?
 return
 end
 

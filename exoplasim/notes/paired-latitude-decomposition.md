@@ -122,6 +122,19 @@ Two things in it still fail hard.
   control short is what keeps the comparison exercised rather than bypassed by
   a crash.
 
+### What the runtime test does NOT cover
+
+Two of the five primitives are correct by construction and unexercised, and
+saying so is the point of writing this down.
+
+- `mpgallgp` **has no call sites at all** in the model as it stands. Its
+  permutation is written to match `mpgagp` and nothing runs it.
+- `mpgacs` runs on the diagnostic interval, but a cross section is only ever
+  handed to `guiput`, which is a stub without the GUI. A wrong permutation
+  there cannot reach a restart, so this test would not see it.
+
+Anything that starts using either one needs its own check first.
+
 ## The result
 
 T21, 8 processes, 20 steps, tolerance 1e-10 declared before the arms ran.

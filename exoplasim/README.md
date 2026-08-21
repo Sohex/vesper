@@ -210,6 +210,7 @@ unless told they exist.
 | `verify_latitude_pairing.py` | compiles `plasimmod.f90`'s own `ilatperm` and checks the paired decomposition gives each process a mirror pair per slot pair, with two negative controls |
 | `verify_paired_decomposition.sh` | runs the paired and contiguous layouts against each other on one bed, plus a wrong-permutation control that must fail |
 | `compare_restarts.py` | compares two restarts record by record and separates a regrouped sum from a different computation |
+| `verify_symmetric_transform.py` | runs `legmod.f90`'s own `sp2fc` and `sp2fcdmu` against an associated Legendre table computed by scipy, one spectral mode at a time, with a negative control for each |
 | `bench_rank_layout.py` | rank layouts incl. oversubscribed, on latency AND throughput, with pinning verified |
 | `index_runs.py` | index every run by what it is, since a UUID says nothing |
 | `assess_convergence.py` | spin-up convergence against the predeclared criteria, over the last `--window` PRODUCTION orbits |

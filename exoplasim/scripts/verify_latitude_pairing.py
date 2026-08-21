@@ -81,9 +81,11 @@ def run_case(func: str, nlat: int, npro: int, workdir: Path) -> list[int]:
     f = workdir / f"perm_{nlat}_{npro}.f90"
     f.write_text(PARAMOD.format(nlat=nlat, npro=npro, func=func))
     exe = workdir / f"perm_{nlat}_{npro}.x"
+    # -J and cwd both, because gfortran writes the .mod beside the WORKING
+    # directory otherwise and leaves it in the repository.
     subprocess.run(["gfortran", "-ffixed-line-length-132", "-fcheck=all",
-                    "-o", str(exe), str(f)], check=True,
-                   capture_output=True, text=True)
+                    "-J", str(workdir), "-o", str(exe), str(f)], check=True,
+                   capture_output=True, text=True, cwd=workdir)
     out = subprocess.run([str(exe)], check=True, capture_output=True, text=True)
     return [int(x) for x in out.stdout.split()]
 
