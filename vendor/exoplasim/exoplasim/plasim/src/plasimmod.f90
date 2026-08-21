@@ -291,24 +291,41 @@
 !     * Global Spectral Arrays *
 !     **************************
 
-      real ::  sd(NESP,NLEV) = 0.0 ! Spectral Divergence
-      real ::  st(NESP,NLEV) = 0.0 ! Spectral Temperature
-      real ::  sz(NESP,NLEV) = 0.0 ! Spectral Vorticity
-      real ::  sq(NESP,NLEV) = 0.0 ! Spectral Specific Humidity
-      real ::  sp(NESP)      = 0.0 ! Spectral Pressure (ln Ps)
-      real ::  so(NESP)      = 0.0 ! Spectral Orography
-      real ::  sr(NESP,NLEV) = 0.0 ! Spectral Restoration Temperature
+      real, target ::  sd(NESP,NLEV) = 0.0 ! Spectral Divergence
+      real, target ::  st(NESP,NLEV) = 0.0 ! Spectral Temperature
+      real, target ::  sz(NESP,NLEV) = 0.0 ! Spectral Vorticity
+      real, target ::  sq(NESP,NLEV) = 0.0 ! Spectral Specific Humidity
+      real, target ::  sp(NESP)      = 0.0 ! Spectral Pressure (ln Ps)
+      real ::  so(NESP)      = 0.0 ! NOT shared: fc2sp writes all of it, per thread ! Spectral Orography
+      real, target ::  sr(NESP,NLEV) = 0.0 ! Spectral Restoration Temperature
       
       real :: sdipolep(NSPP) = 0.0 ! Spectral tidally-locked temperature dipole
       real :: sdipole(NESP) = 0.0 ! Spectral tidally-locked temperature dipole
 
+#ifdef OMPSHARED
+!     THE PARTIALS ARE NOT STORAGE. Each is this thread's slice of the full
+!     array above, so writing sdp IS writing sd and the gather that used to
+!     assemble sd out of every thread's sdp becomes a barrier that copies
+!     nothing. Associated once a thread by assoc_spectral, called from mpstart.
+!
+!     Shared build only. Under MPI a rank's partial has to be its own array:
+!     mpi_allgather forbids a send buffer aliasing its receive buffer, and the
+!     MPI build is the reference this one is verified against.
+      real, pointer :: sdp(:,:) => NULL() ! Spectral Divergence  Partial
+      real, pointer :: stp(:,:) => NULL() ! Spectral Temperature Partial
+      real, pointer :: szp(:,:) => NULL() ! Spectral Vorticity   Partial
+      real, pointer :: sqp(:,:) => NULL() ! Spectral S.Humidity  Partial
+      real, pointer :: spp(:)   => NULL() ! Spectral Pressure    Partial
+      real, pointer :: srp(:,:) => NULL() ! Spectral Restoration Partial
+#else
       real :: sdp(NSPP,NLEV) = 0.0 ! Spectral Divergence  Partial
       real :: stp(NSPP,NLEV) = 0.0 ! Spectral Temperature Partial
       real :: szp(NSPP,NLEV) = 0.0 ! Spectral Vorticity   Partial
       real :: sqp(NSPP,NLEV) = 0.0 ! Spectral S.Humidity  Partial
       real :: spp(NSPP)      = 0.0 ! Spectral Pressure    Partial
-      real :: sop(NSPP)      = 0.0 ! Spectral Orography   Partial
       real :: srp(NSPP,NLEV) = 0.0 ! Spectral Restoration Partial
+#endif
+      real :: sop(NSPP)      = 0.0 ! Spectral Orography   Partial, NOT a slice
 
       real :: sdt(NSPP,NLEV) = 0.0 ! Spectral Divergence  Tendency
       real :: stt(NSPP,NLEV) = 0.0 ! Spectral Temperature Tendency
@@ -772,14 +789,42 @@
 !$omp&  parc,pfac,planet_namelist,plarad,plasim_diag,plasim_hcadence,plasim_namelist,plasim_output,&
 !$omp&  plasim_restart,plasim_snapshot,plasim_status,plasimversion,plavor,pnu,pnu21,precip,psurf,&
 !$omp&  ptop,ptop2,ra1,ra2,ra4,radmod_namelist,rainmod_namelist,rcs,rcsq,rdbrv,rdsig,restim,rotspd,&
-!$omp&  sak,sakpp,sd,sdd,sdipole,sdipolep,sdm,sdp,sdt,seamod_namelist,seed,sellon,sid,sidereal_day,&
-!$omp&  sidereal_year,sigh,sigma,sigmah,sigrain,so,solar_day,sop,sp,span,spd,spm,spnorm,spp,spt,sq,&
-!$omp&  sqm,sqout,sqp,sqt,sr,sr1,sr2,srm,srp,st,std,stm,stp,stt,surfmod_namelist,syncstr,synctime,&
-!$omp&  sz,szd,szm,szp,szt,t0,t01s2,t2mean,tau,taucool,tdipole,tdipolep,tdissd,tdissq,tdisst,tdissz,&
-!$omp&  tempmax,tempmin,tfrc,tgr,time0,tkp,tmelt,tmstart,tropical_year,umax,vegmod_namelist,venti,&
-!$omp&  ventimin,vrmpi,vrmpimax,ww,yguinam,ympname,yplanet)
+!$omp&  sak,sakpp,sdd,sdipole,sdipolep,sdm,sdp,sdt,seamod_namelist,seed,sellon,sid,sidereal_day,&
+!$omp&  sidereal_year,sigh,sigma,sigmah,sigrain,so,solar_day,sop,span,spd,spm,spnorm,spp,spt,sqm,&
+!$omp&  sqout,sqp,sqt,sr1,sr2,srm,srp,std,stm,stp,stt,surfmod_namelist,syncstr,synctime,szd,szm,szp,&
+!$omp&  szt,t0,t01s2,t2mean,tau,taucool,tdipole,tdipolep,tdissd,tdissq,tdisst,tdissz,tempmax,&
+!$omp&  tempmin,tfrc,tgr,time0,tkp,tmelt,tmstart,tropical_year,umax,vegmod_namelist,venti,ventimin,&
+!$omp&  vrmpi,vrmpimax,ww,yguinam,ympname,yplanet)
 
       contains
+
+!     ==========================
+!     SUBROUTINE ASSOC_SPECTRAL
+!     ==========================
+
+!     Point this thread's partials at its own slice of the shared arrays.
+!
+!     Called once a thread, from mpstart, after mypid is known. Under any build
+!     but the shared one the partials are ordinary storage and this does
+!     nothing -- the body compiles away with the pointers it refers to.
+
+      subroutine assoc_spectral
+#ifdef OMPSHARED
+      integer :: lo, hi
+
+      lo = mypid * NSPP + 1
+      hi = lo + NSPP - 1
+
+      sdp => sd(lo:hi,:)
+      stp => st(lo:hi,:)
+      szp => sz(lo:hi,:)
+      sqp => sq(lo:hi,:)
+      srp => sr(lo:hi,:)
+      spp => sp(lo:hi)
+#endif
+      return
+      end subroutine assoc_spectral
+
 
 !     ==================
 !     FUNCTION ILATPERM

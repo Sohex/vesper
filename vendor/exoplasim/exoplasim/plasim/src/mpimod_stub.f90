@@ -172,6 +172,8 @@
         write(nud,*)'error : scalar version compiled with NPRO > 1!'
         stop
       endif
+
+      call assoc_spectral
       return
       end
 
@@ -296,5 +298,10 @@
       return
       end 
 
-
-
+      subroutine mpgathersp(pf,pp,klev) ! full spectral field from the slices
+      use pumamod
+      real pf(NESP,klev)
+      real pp(NSPP,klev)
+      pf(1:NSPP,1:klev) = pp(1:NSPP,1:klev)
+      return
+      end

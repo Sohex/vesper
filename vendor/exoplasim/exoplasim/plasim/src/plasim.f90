@@ -2939,6 +2939,12 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !*    0. save prognostic variables at (t-dt)
 !        and the non-linear divergence tendency terms
 !
+!     The shared spectral arrays are read in FULL by the phase before this one
+!     and written by SLICE in this one, and nothing else separates the two.
+!     Without this a thread arriving early overwrites what another is still
+!     reading. Inert without -fopenmp.
+!$omp barrier
+
       apm(:)   = spm(:)   ! log surface pressure
       adm(:,:) = sdm(:,:) ! divergence
       azm(:,:) = szm(:,:) ! (absolut) vorticity
@@ -3082,11 +3088,14 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !
 !     finaly the partial arrays are gathered from all processors (mpi)
 !
-      call mpgallsp(sd,sdp,NLEV)
-      call mpgallsp(sz,szp,NLEV)
-      call mpgallsp(st,stp,NLEV)
-      call mpgallsp(sp,spp,   1)
-      if (nqspec == 1) call mpgallsp(sq,sqp,NLEV)
+!     These are the whole of the gather traffic. Under the shared build the
+!     partial IS the slice, so mpgathersp is a barrier and moves nothing; under
+!     MPI it is the allgather this used to be.
+      call mpgathersp(sd,sdp,NLEV)
+      call mpgathersp(sz,szp,NLEV)
+      call mpgathersp(st,stp,NLEV)
+      call mpgathersp(sp,spp,   1)
+      if (nqspec == 1) call mpgathersp(sq,sqp,NLEV)
 !
 !     franks diagnostic
 !
@@ -3805,6 +3814,12 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !
 !     prepare diagnostics of efficiency
 !
+!     The shared spectral arrays are read in FULL by the phase before this one
+!     and written by SLICE in this one, and nothing else separates the two.
+!     Without this a thread arriving early overwrites what another is still
+!     reading. Inert without -fopenmp.
+!$omp barrier
+
       if(ndheat > 1) then
        allocate(zst(NESP,NLEV))      
        if (nqspec == 1) allocate(zsq(NESP,NLEV))      
@@ -4031,11 +4046,14 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
          if (nqspec == 1) sqm = sqm + pnu * sqp
       endif
 
-      call mpgallsp(sd,sdp,NLEV)
-      call mpgallsp(sz,szp,NLEV)
-      call mpgallsp(st,stp,NLEV)
-      call mpgallsp(sp,spp,   1)
-      if (nqspec == 1) call mpgallsp(sq,sqp,NLEV)
+!     These are the whole of the gather traffic. Under the shared build the
+!     partial IS the slice, so mpgathersp is a barrier and moves nothing; under
+!     MPI it is the allgather this used to be.
+      call mpgathersp(sd,sdp,NLEV)
+      call mpgathersp(sz,szp,NLEV)
+      call mpgathersp(st,stp,NLEV)
+      call mpgathersp(sp,spp,   1)
+      if (nqspec == 1) call mpgathersp(sq,sqp,NLEV)
 !
 !     franks diagnostic
 !

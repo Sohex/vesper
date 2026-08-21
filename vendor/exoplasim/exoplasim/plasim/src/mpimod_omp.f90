@@ -508,6 +508,8 @@
          allocate(ympname(nproc)) ; ympname(:) = 'thread'
       endif
 !$omp barrier
+
+      call assoc_spectral
       return
       end subroutine mpstart
 
@@ -748,3 +750,25 @@
       subroutine mrdimensions
       return
       end subroutine mrdimensions
+
+
+!     ==================================================================
+!     SUBROUTINE MPGATHERSP
+!     ==================================================================
+
+!     Make pf hold the full spectral field, given that each thread has
+!     contributed its own slice in pp.
+!
+!     Here that is a BARRIER and nothing else: pp is a pointer into pf, so
+!     the contribution was written in place and there is nothing to move.
+!     This is where the 105 GB a run of staging traffic went.
+
+      subroutine mpgathersp(pf,pp,klev)
+      use pumamod
+      use mpiomp
+      integer :: klev
+      real :: pf(NESP,klev)
+      real :: pp(NSPP,klev)
+!$omp barrier
+      return
+      end subroutine mpgathersp

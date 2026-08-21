@@ -1,6 +1,6 @@
 MPI_RUN=
 MOST_F90=gfortran
-MOST_F90_OPTS=-O3 -cpp -fopenmp -ffixed-line-length-132 -ffpe-trap=invalid,zero,overflow -ffpe-summary=none -finit-real=zero -march=znver4
+MOST_F90_OPTS=-O3 -cpp -fopenmp -ffixed-line-length-132 -ffpe-trap=invalid,zero,overflow -ffpe-summary=none -finit-real=zero -march=znver4 -DOMPSHARED
 MPIMOD=mpimod_omp
 UTILMOD=utilities_omp
 MOST_CC=gcc

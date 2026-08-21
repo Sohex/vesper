@@ -505,6 +505,8 @@
                       ympname,80,MPI_CHARACTER,   &   
                       NROOT,myworld,mpinfo)
 
+      call assoc_spectral
+
       return
       end subroutine mpstart
 
@@ -803,3 +805,26 @@
       return
       end 
 
+
+!     =====================
+!     SUBROUTINE MPGATHERSP
+!     =====================
+
+!     Make pf hold the full spectral field from every rank's slice. Under MPI
+!     that is exactly mpgallsp; the routine exists so the call sites need no
+!     preprocessor guard, because the SHARED build can answer it with a barrier.
+
+      subroutine mpgathersp(pf,pp,klev)
+      use mpimod
+
+      real :: pf(NESP,klev)
+      real :: pp(NSPP,klev)
+
+      do jlev = 1 , klev
+         call mpi_allgather(pp(:,jlev),NSPP,mpi_rtype,                   &
+     &                      pf(:,jlev),NSPP,mpi_rtype,                   &
+     &                      myworld,mpinfo)
+      enddo
+
+      return
+      end subroutine mpgathersp
