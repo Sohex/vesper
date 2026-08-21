@@ -290,3 +290,112 @@ and the arms that still ask something:
 - **T127**, the die discriminator: `L1`, `L2`, `T0`, `T0b`, `T1`, `T2b`, `T2c`,
   `T4`. The 2x2 on the dies is the reason this resolution is run at all.
 - **T170**, where the layout decision applies: `L1`, `L2`, `T1`, `T4`.
+
+## T127 and T170, measured 2026-08-21
+
+Cold beds, 300 steps, four rounds an arm, one setting: yield and
+migration-freedom were both null at T42 and are not dimensions here.
+
+### T127 -- the die discriminator
+
+| arm | jobs x ranks | latency s | beds/hour | spread |
+| --- | --- | ---: | ---: | ---: |
+| `L1_1x16` | 1 x 16 | **39.67** | 90.7 | 0.9% |
+| `L2_1x32` | 1 x 32 | 65.51 | 55.0 | 2.8% |
+| `T0_1x8` CCD0 | 1 x 8 | 46.19 | 77.9 | 0.9% |
+| `T0b_1x8_ccd1` | 1 x 8 | 51.59 | 69.8 | 1.3% |
+| `T1_2x8_dies` | 2 x 8 | 63.73 | **106.8** | 0.5% |
+| `T2b_2x8_core` CCD0 | 2 x 8 | 83.40 | 86.3 | 0.6% |
+| `T2c_2x8_ccd1` | 2 x 8 | 105.87 | 68.0 | 1.5% |
+| `T4_4x8` | 4 x 8 | 137.69 | 95.2 | 1.5% |
+
+### T170
+
+| arm | jobs x ranks | latency s | beds/hour | spread |
+| --- | --- | ---: | ---: | ---: |
+| `L1_1x16` | 1 x 16 | **85.71** | 42.0 | 0.6% |
+| `L2_1x32` | 1 x 32 | 128.08 | 28.1 | 3.9% |
+| `T1_2x8_dies` | 2 x 8 | 149.55 | **44.8** | 0.6% |
+| `T4_4x8` | 4 x 8 | 336.40 | 37.8 | 1.1% |
+
+The first `L2_1x32` at T170 came back with 36.1% self-scatter and was voided by
+the guard rather than reported; the row above is a six-round re-run.
+
+## THE DIES DIFFER AT T127, and the earlier closure was resolution-bound
+
+| | one job | two jobs sharing it | gain from sharing |
+| --- | ---: | ---: | ---: |
+| CCD0, 96 MB L3 | 77.9 beds/hr | 86.3 | **+10.8%** |
+| CCD1, 32 MB L3 | 69.8 | 68.0 | **-2.6%** |
+
+Single job, CCD0 is **10.5% faster**: 46.19 s against 51.59 s, twice the floor.
+And the contention behaviour diverges rather than merely differing in size --
+sharing CCD0 gains eleven percent, sharing CCD1 LOSES. A thirteen point swing,
+attributable to L3 and nothing else, since the 2x2 holds everything else fixed.
+
+It lands where the footprint says it must. Eight ranks at T127 want 50.7 MB of
+Legendre weights: inside CCD0's 96 MB and outside CCD1's 32 MB. T42 wanted
+1.8 MB and both dies held it, which is why `rank-layout-benchmark.md` measured
+them 0.9% apart and closed the question. **That closure was correct for the
+resolution it was taken at and does not survive to T127.**
+
+**The production consequence is sharper than the arm.** `L1_1x16` spans both
+dies, so eight of its sixteen ranks sit on CCD1 with 50.7 MB against 32 MB. The
+model is bulk-synchronous and the slowest rank paces every other one through
+the next collective, so a T127 run is already being paced by ranks that are
+thrashing. The table shows it: sixteen ranks beat eight-on-CCD0 by 14%
+(39.67 against 46.19) where doubling the ranks should approach twice.
+
+This also retires an argument made earlier in this project and got wrong. The
+L3-thrashing hypothesis was raised, a cache-miss profile appeared to refute it --
+the Legendre routines miss less than anything else in the model -- and it was
+dropped. That profile was taken at T42-scale footprints. The hypothesis was
+right and the refutation was measuring the wrong resolution.
+
+## SMT is refused, and the confound is gone
+
+| | 1x32 against 1x16 | latitudes a rank at 32 |
+| --- | ---: | ---: |
+| T42 | -113% | 2 |
+| T127 | -65% | 6 |
+| T170 | **-49.4%** | 8 |
+
+The penalty shrinks exactly as the over-decomposition confound weakens, which is
+what the T42 note predicted would happen and is the reason the question was
+reopened at higher resolution rather than settled cheaply. It never approaches
+parity. **So this is a genuine refusal of SMT for latency, not an artefact of
+too few latitudes a rank.**
+
+Two ranks per core is refused on a second, independent ground as well: a restart
+written at sixteen ranks is not readable at thirty-two. `NESP = NSPP * NPRO`
+with `NSPP = ceil(NRSP/NPRO)` gives 1904 at sixteen and 1920 at thirty-two, and
+the reader runs past the end of the record. Eight ranks CAN resume a sixteen-rank
+restart, so this is an asymmetry rather than a general limit -- but it means
+adopting thirty-two ranks would strand every existing run.
+
+## Throughput: the incumbent holds, and oversubscription gets worse with resolution
+
+`T4_4x8` against two-jobs-per-die: **+6.4% at T42, -10.9% at T127, -15.5% at
+T170.** It never cleared the 10% adoption bar and it turns negative exactly
+where the cache pressure arrives. Consistent with the die result and with the
+same mechanism.
+
+## The verdicts
+
+- **Latency: 16 ranks, spanning.** Unchanged. 32 is refused at every resolution
+  and on the restart incompatibility besides.
+- **Throughput: two concurrent 8-rank jobs, one per die.** Unchanged, and by a
+  wider margin at high resolution than at T42.
+- **The dies are NOT interchangeable at T127 and above.** New. A single job that
+  must fit one die belongs on CCD0, and the 2x8 throughput layout should keep
+  putting one job on each die rather than both on either.
+
+## What this leaves open
+
+The die result raises a question this matrix cannot answer: a 16-rank run gives
+every rank the same number of latitudes, and the two dies do not have the same
+cache to run them in. An uneven decomposition -- fewer latitudes on the CCD1
+ranks -- would balance against the cache rather than against the core count. It
+is a real option and it is not free: `mpimod` scatters equal `NHOR` blocks, so
+uneven latitudes per rank is a deeper change than the paired-latitude work.
+Worth a task rather than a paragraph.
