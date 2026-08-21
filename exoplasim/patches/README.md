@@ -56,19 +56,33 @@ here. Offered as ONE pull request with an offer to split, because the second is
 the other half of the same incomplete edit and the commented-out read block is
 what makes both self-evident.
 
-Plus #64, also not a patch here: `legmod.f90` applies the wavenumber-dependent
-physics filter inside the innermost loop of every spectral transform, where it
-is invariant in the enclosing latitude loop. Every use of `qi`, `qj`, `qu` and
-`qv` carries `skspgp` and every use of `qc`, `qe`, `qm` and `qq` carries
-`skgpsp`, 94 call sites without exception, so the filter folds into the weight
-matrices in `legini` and comes out of the loops. Offered as a SIMPLIFICATION
-that is slightly faster rather than as an optimisation: it is worth 1.6% at
-T127, 0.9% at T42 and nothing at T21, because those loops are bound by
-streaming the weight matrices rather than by the multiplier. Bit-identical to
-stock with the filter off and contraction disabled, which is what proves the
-mode indexing; a reassociation under default flags, because deleting a multiply
-changes what the compiler contracts to an FMA. The argument, the measurements
-and the test are in `exoplasim/notes/legendre-filter-fold.md`.
+Plus #64, also not a patch here, and **declined**: `legmod.f90` applies the
+wavenumber-dependent physics filter inside the innermost loop of every spectral
+transform, where it is invariant in the enclosing latitude loop. Every use of
+`qi`, `qj`, `qu` and `qv` carries `skspgp` and every use of `qc`, `qe`, `qm` and
+`qq` carries `skgpsp`, 94 call sites without exception, so the filter folds into
+the weight matrices in `legini` and comes out of the loops. It is worth 1.6% at
+T127, 0.9% at T42 and nothing at T21, because those loops are bound by streaming
+the weight matrices rather than by the multiplier.
+
+The maintainer read it as collapsing the filter to one coefficient per
+latitude-longitude pair, which would indeed be wrong, and the reply that it
+lands on the mode-indexed kernel rather than on the grid side did not change the
+outcome. The decline stands on a second ground that is correct as stated: the
+fold reassociates `(q*x)*s` to `(q*s)*x`, so it moves the last bits of every
+transform, and that is not a trade worth making for a cleanup. **The change is
+kept in this fork** because it is measured here and the reassociation is
+accounted for; it is not offered again. The argument, the measurements and the
+test are in `exoplasim/notes/legendre-filter-fold.md`.
+
+Plus #65, also not a patch here: two static array-bounds warnings on
+unreachable code. `oceanmod.f90` sized a loop bound from a non-parameter
+`nlem_oce` and `plasim.f90` ran a diagnostic loop from `NLEV-10`, which is
+negative at fewer than eleven levels. Neither is reachable at any configuration
+this project builds -- the claimed out-of-bounds in `oceanmod` was checked and
+is not one -- but both defeat a warning-clean build, which is what makes a new
+warning worth reading. `notes/audits/aocl-and-model-build-flags.md` carries the
+check.
 
 Also not a patch here, and not yet offered: `plasim/src/make_plasim` declared
 three of its own dependencies short. `glaciermod.o` did not depend on
