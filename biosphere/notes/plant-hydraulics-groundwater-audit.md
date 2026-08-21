@@ -26,7 +26,9 @@ recorded in `references/INDEX.md`:
 - Verbruggen et al. (2025), LPJ-GUESS-RE soil hydrology and aquifer boundary;
 - McMahon (1973), elastic similarity and self-weight buckling;
 - King (2005), the carbon-allocation consequences of mechanically constrained
-  tree allometry; and
+  tree allometry;
+- Givnish et al. (2014), an empirical joint test of hydraulic and allocation
+  limits on maximum tree height; and
 - Jia et al. (2026), a two-way ParFlow--LPJ-GUESS coupling.
 
 These studies establish model forms and failure modes. Their Earth species,
@@ -259,6 +261,19 @@ would miss the main carbon effect. Extra sapwood and heartwood also change
 maintenance respiration, C-N-P immobilization and turnover, litter and fire
 fuel, while thicker stems and shorter canopies feed back on light competition
 and demography.
+
+Givnish et al. provide an important empirical boundary on that interpretation.
+Across a rainfall gradient, maximum *Eucalyptus* height tracked the ratio of
+precipitation to evaporative demand, while carbon-isotope discrimination and
+allocation evidence supported hydraulic and dry-mass allocation limits acting
+together. Increasing height shifts production from leaves into stem and roots;
+the relevant carbon burden is construction of mostly non-respiring wood, so
+stem respiration is not an adequate proxy. Height--diameter allometry also
+varied with environment. The 31% self-weight result must therefore remain a
+controlled mechanics arm crossed with water and nutrient state, not a universal
+increase in realized biomass or a direct replacement for the height cap.
+Structural-root allocation and plastic allometry belong in the bracket as well
+as stem wood.
 
 GRAV-7 therefore owns a gravity-aware mechanical-allometry bracket and its
 carbon/nutrient consequences. PLHY-6 must combine that bracket with the
