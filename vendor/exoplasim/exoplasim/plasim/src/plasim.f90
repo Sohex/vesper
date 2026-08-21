@@ -577,18 +577,22 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !*    broadcast and scatter
 !
 
+#ifdef OMPSHARED
+!     Nothing to broadcast and nothing to scatter. The spectral state is one
+!     shared array: root has already written the words the others are about to
+!     read, and each partial already IS the slice it would have been filled
+!     from. A broadcast here would have every thread write the same shared
+!     words -- a race on identical values, so harmless in outcome, reported by
+!     ThreadSanitizer, and pure traffic; a scatter would only make the compiler
+!     copy a non-contiguous section in and out. One barrier does for both.
+!$omp barrier
+#else
       call mpbcrn(sp,NESP)
       call mpbcrn(sd,NESP*NLEV)
       call mpbcrn(st,NESP*NLEV)
       call mpbcrn(sz,NESP*NLEV)
       call mpbcrn(sq,NESP*NLEV)
 
-#ifdef OMPSHARED
-!     Nothing to scatter: each of these partials already IS the slice of the
-!     array it would have been filled from. Passing one here would only make
-!     the compiler copy a non-contiguous section in and out.
-!$omp barrier
-#else
       call mpscsp(sd,sdp,NLEV)
       call mpscsp(st,stp,NLEV)
       call mpscsp(sz,szp,NLEV)

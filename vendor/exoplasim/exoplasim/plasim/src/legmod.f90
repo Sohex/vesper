@@ -443,7 +443,6 @@ real :: pd(2,NESP/2,NLEV)
 real :: pz(2,NESP/2,NLEV)
 real :: pu(2,NLON/2,NLPP,NLEV)
 real :: pv(2,NLON/2,NLPP,NLEV)
-real :: zsave
 
 integer :: j ! Loop index for spectral mode within one m
 integer :: k ! Index for the mirror latitude
@@ -465,8 +464,6 @@ pv(:,:,:,:) = 0.0
 if (.not. LPAIRLAT) then ! Contiguous latitudes: no mirror is local
 !----------------------------------------------------------------------
 do v = 1 , NLEV
-  zsave = pz(1,2,v)
-  pz(1,2,v) = zsave - plavor
   do l = 1 , NLPP
     w = 1
     do m = 1 , NTP1
@@ -479,7 +476,16 @@ do v = 1 , NLEV
       enddo ! n
     enddo ! m
   enddo ! l
-  pz(1,2,v) = zsave
+! Planetary vorticity rides on the single mode w=2, which is m=1,n=2, so its
+! effect on the result is that one mode's contribution and nothing else. It is
+! applied here rather than by subtracting it from pz in place: pz aliases the
+! shared spectral state, every thread runs this routine over the whole of it,
+! and a subtract-transform-restore around the loop is a write race on one
+! element that costs run-to-run reproducibility. ThreadSanitizer reports it.
+  do l = 1 , NLPP
+    pu(1,1,l,v) = pu(1,1,l,v) - qv(2,l) * plavor
+    pv(2,1,l,v) = pv(2,1,l,v) + qu(2,l) * plavor
+  enddo ! l
 enddo ! v
 else                     ! Paired latitudes: symmetry conserving
 !----------------------------------------------------------------------
@@ -499,8 +505,6 @@ else                     ! Paired latitudes: symmetry conserving
 !  saving goes to stack traffic instead. That is measured on the built code
 !  rather than predicted.
 do v = 1 , NLEV
-  zsave = pz(1,2,v)
-  pz(1,2,v) = zsave - plavor
   do l = 1 , NLHP
     k = NLPP + 1 - l
     w = 1
@@ -552,7 +556,18 @@ do v = 1 , NLEV
       w = w + NTP1 - m + 1
     enddo ! m
   enddo ! l
-  pz(1,2,v) = zsave
+! The same planetary vorticity term as the branch above, and here it is not
+! symmetric with itself: w=2 is n=2 against m=1, so it falls in the ODD loop
+! and reaches zvz1o and zuz1o alone. Reading those two out of the four output
+! recombinations gives the mirror latitude a sign the home latitude does not
+! have -- taking the home form for both is the mistake this shape invites.
+  do l = 1 , NLHP
+    k = NLPP + 1 - l
+    pu(1,1,l,v) = pu(1,1,l,v) - qv(2,l) * plavor
+    pv(2,1,l,v) = pv(2,1,l,v) + qu(2,l) * plavor
+    pu(1,1,k,v) = pu(1,1,k,v) - qv(2,l) * plavor
+    pv(2,1,k,v) = pv(2,1,k,v) - qu(2,l) * plavor
+  enddo ! l
 enddo ! v
 !----------------------------------------------------------------------
 endif ! symmetric?
