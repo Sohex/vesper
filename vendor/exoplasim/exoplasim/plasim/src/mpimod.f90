@@ -15,45 +15,6 @@
 !
 
 
-!     ==================
-!     FUNCTION ILATPERM
-!     ==================
-
-!     Permuted slot -> global latitude, the whole of the paired decomposition.
-!
-!     Slot kp is the kp-th latitude of the scatter buffer, so it lands on
-!     process ir = (kp-1)/NLPP at local index il = kp - ir*NLPP. The first
-!     NLHP local latitudes of a process are a northern block; the rest are
-!     those same latitudes' mirrors, in reverse, which is what makes local
-!     il and NLPP+1-il a mirror pair.
-!
-!     Without LPAIRLAT this is the identity and the layout is the stock
-!     contiguous one. At NPRO == 1 it is ALSO the identity, since ir is 0 and
-!     NLHP is NLAT/2: slot il > NLHP maps to NLAT - NLAT + il = il.
-
-      integer function ilatperm(kp)
-      use pumamod
-      integer :: kp
-      integer :: ir
-      integer :: il
-
-      if (.not. LPAIRLAT) then
-         ilatperm = kp
-         return
-      endif
-
-      ir = (kp - 1) / NLPP    ! process holding the slot
-      il =  kp - ir * NLPP    ! its local latitude there
-
-      if (il <= NLHP) then
-         ilatperm = ir * NLHP + il                 ! northern block
-      else
-         ilatperm = NLAT - ir * NLHP - NLPP + il   ! the mirror of it
-      endif
-
-      return
-      end function ilatperm
-
 
 !     ================
 !     SUBROUTINE MPBCI
@@ -173,7 +134,6 @@
       real :: pf(NUGP,klev)
       real :: pp(NHOR,klev)
       real :: zp(NUGP)        ! one level, reordered for the scatter
-      integer :: ilatperm
       integer :: jg
 
 !     mpi_scatter sends contiguous chunks, so the paired layout is imposed
@@ -215,7 +175,6 @@
       real :: pf(NLON*NLAT,klev)
       real :: pp(NHOR,klev)
       real :: zp(NUGP)        ! one level, as the ranks are ordered
-      integer :: ilatperm
       integer :: jg
 
 !     The gather undoes what mpscgp imposed, so pf comes back in global
@@ -257,7 +216,6 @@
       real :: pf(NLON*NLAT,klev)
       real :: pp(NHOR,klev)
       real :: zp(NUGP)        ! one level, as the ranks are ordered
-      integer :: ilatperm
       integer :: jg
 
 !     As mpgagp, except that every process un-permutes rather than the root
@@ -332,7 +290,6 @@
 
       real :: pcs(NLAT,NLEV)
       real :: zc(NLAT)        ! one level, as the ranks are ordered
-      integer :: ilatperm
 
 !     A cross section is a latitude axis rather than a grid, so the same
 !     permutation applies to it one element at a time.

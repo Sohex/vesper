@@ -8,7 +8,6 @@
       real :: lat1(NLAT)
       real :: lat2(NLAT)
       real :: zlat(NLAT)
-      integer :: ilatperm
       
       call mpgarn(zdeglat,deglat,NLPP)
       
@@ -251,7 +250,6 @@
       real :: dd(NLPP)
       real :: ddn(NLAT)
       real :: zlat(NLAT)
-      integer :: ilatperm
       
       call mpgarn(ddn,dd,NLPP)
       

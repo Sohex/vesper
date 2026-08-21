@@ -207,7 +207,9 @@ unless told they exist.
 | `verify_fold_exactness.sh` | the same with FMA contraction disabled, which is what makes it exact |
 | `verify_fold_indexing.sh` | proves each spectral mode gets its OWN filter value, with a negative control |
 | `verify_legendre_parity.py` | checks P and its mu-derivative have opposite parity in legini's own recurrence |
-| `verify_latitude_pairing.py` | compiles `mpimod.f90`'s own `ilatperm` and checks the paired decomposition maps each process a mirror pair per slot pair, with a negative control |
+| `verify_latitude_pairing.py` | compiles `plasimmod.f90`'s own `ilatperm` and checks the paired decomposition gives each process a mirror pair per slot pair, with two negative controls |
+| `verify_paired_decomposition.sh` | runs the paired and contiguous layouts against each other on one bed, plus a wrong-permutation control that must fail |
+| `compare_restarts.py` | compares two restarts record by record and separates a regrouped sum from a different computation |
 | `bench_rank_layout.py` | rank layouts incl. oversubscribed, on latency AND throughput, with pinning verified |
 | `index_runs.py` | index every run by what it is, since a UUID says nothing |
 | `assess_convergence.py` | spin-up convergence against the predeclared criteria, over the last `--window` PRODUCTION orbits |

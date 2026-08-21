@@ -737,4 +737,44 @@
       logical :: ldtns   = .FALSE.    ! DTNS changed by GUI
       logical :: lrotspd = .FALSE.    ! rotspd changed by GUI
 
+      contains
+
+!     ==================
+!     FUNCTION ILATPERM
+!     ==================
+
+!     Permuted slot -> global latitude, the whole of the paired decomposition.
+!
+!     Slot kp is the kp-th latitude of the scatter buffer, so it lands on
+!     process ir = (kp-1)/NLPP at local index il = kp - ir*NLPP. The first
+!     NLHP local latitudes of a process are a northern block; the rest are
+!     those same latitudes' mirrors, in reverse, which is what makes local
+!     il and NLPP+1-il a mirror pair.
+!
+!     Without LPAIRLAT this is the identity and the layout is the stock
+!     contiguous one. At NPRO == 1 it is ALSO the identity, since ir is 0 and
+!     NLHP is NLAT/2: slot il > NLHP maps to NLAT - NLAT + il = il.
+
+      integer function ilatperm(kp)
+      integer :: kp
+      integer :: ir
+      integer :: il
+
+      if (.not. LPAIRLAT) then
+         ilatperm = kp
+         return
+      endif
+
+      ir = (kp - 1) / NLPP    ! process holding the slot
+      il =  kp - ir * NLPP    ! its local latitude there
+
+      if (il <= NLHP) then
+         ilatperm = ir * NLHP + il                 ! northern block
+      else
+         ilatperm = NLAT - ir * NLHP - NLPP + il   ! the mirror of it
+      endif
+
+      return
+      end function ilatperm
+
       end module pumamod

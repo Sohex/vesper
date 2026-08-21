@@ -137,7 +137,6 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 
       logical :: lrestart
 
-      integer :: ilatperm             ! permuted slot -> global latitude
       real (kind=8) :: zsid(NLAT)     ! sid, gwd, csq and rcs reordered for
       real (kind=8) :: zgwd(NLAT)     ! the scatter that follows
       real :: zcsq(NLAT)

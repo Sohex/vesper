@@ -2,13 +2,13 @@
 """Does `ilatperm` actually pair mirror latitudes on a process?
 
 The paired latitude decomposition rests entirely on one integer function in
-`mpimod.f90`. Every grid-space transfer calls it, and if it is wrong the model
+`plasimmod.f90`. Every grid-space transfer calls it, and if it is wrong the model
 still runs -- it just distributes latitudes somewhere else and then applies a
 north-south symmetry that no longer holds, which shows up as a plausible wrong
 climate rather than as an error.
 
 So this checks the REAL function text, not a reimplementation of it: the source
-is lifted verbatim out of `mpimod.f90`, compiled against a parameter module
+is lifted verbatim out of `plasimmod.f90`, compiled inside a parameter module
 that supplies one (NLAT, NPRO), run, and its map checked against properties
 that a wrong indexing cannot satisfy:
 
@@ -38,7 +38,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _paths import PROJECT_ROOT  # noqa: E402
 
-SRC = "vendor/exoplasim/exoplasim/plasim/src/mpimod.f90"
+SRC = "vendor/exoplasim/exoplasim/plasim/src/plasimmod.f90"
 
 # (NLAT, NPRO) covering the ladder and both sides of the divisibility fallback.
 CASES = [(32, 1), (32, 8), (32, 16), (32, 32),
@@ -54,11 +54,12 @@ PARAMOD = """
       integer, parameter :: NLPP = NLAT / NPRO
       integer, parameter :: NLHP = NLPP / 2
       logical, parameter :: LPAIRLAT = (mod(NLAT,2*NPRO) == 0)
+      contains
+{func}
       end module pumamod
 
       program dump
       use pumamod
-      integer :: ilatperm
       integer :: j
       do j = 1 , NLAT
          write(*,'(i6)') ilatperm(j)
@@ -78,7 +79,7 @@ def extract(text: str) -> str:
 
 def run_case(func: str, nlat: int, npro: int, workdir: Path) -> list[int]:
     f = workdir / f"perm_{nlat}_{npro}.f90"
-    f.write_text(PARAMOD.format(nlat=nlat, npro=npro) + "\n" + func + "\n")
+    f.write_text(PARAMOD.format(nlat=nlat, npro=npro, func=func))
     exe = workdir / f"perm_{nlat}_{npro}.x"
     subprocess.run(["gfortran", "-ffixed-line-length-132", "-fcheck=all",
                     "-o", str(exe), str(f)], check=True,
@@ -129,14 +130,25 @@ def main() -> int:
     text = (PROJECT_ROOT / SRC).read_text()
     good = extract(text)
 
-    # The control: send the northern block off by the wrong stride. It stays a
-    # bijection for NPRO == 1 and breaks the pairing everywhere else, which is
-    # exactly the mistake this function invites.
-    broken = good.replace("ilatperm = ir * NLHP + il",
-                          "ilatperm = ir * NLPP + il")
-    if broken == good:
-        raise SystemExit("could not build the negative control: the line it "
-                         "perturbs has moved")
+    # Two controls, because the two ways this function goes wrong fail
+    # different checks and a test that only catches one of them is half a test.
+    #
+    #   stride  the northern block advances by NLPP instead of NLHP. Latitudes
+    #           collide, so it is not even a bijection.
+    #   shift   the southern blocks are handed round the processes by one. It
+    #           IS a bijection and every process still holds NLPP latitudes;
+    #           they are simply not each other's mirrors. This is the subtler
+    #           mistake and the one a bijection check alone would wave through.
+    controls = {
+        "stride": good.replace("ilatperm = ir * NLHP + il",
+                               "ilatperm = ir * NLPP + il"),
+        "shift": good.replace("ilatperm = NLAT - ir * NLHP - NLPP + il",
+                              "ilatperm = NLAT - mod(ir+1,NPRO) * NLHP - NLPP + il"),
+    }
+    for nm, txt in controls.items():
+        if txt == good:
+            raise SystemExit(f"could not build the {nm} control: the line it "
+                             f"perturbs has moved")
 
     failures = 0
     with tempfile.TemporaryDirectory() as td:
@@ -154,21 +166,22 @@ def main() -> int:
                 print(f"[  ok  ] {tag}")
 
         print()
-        print("the negative control, which must fail")
-        caught = 0
-        checked = 0
-        for nlat, npro in CASES:
-            if npro == 1 or (nlat % (2 * npro)) != 0:
-                continue            # identity either way; the control cannot show there
-            checked += 1
-            if check(run_case(broken, nlat, npro, workdir), nlat, npro):
-                caught += 1
-        if caught == checked:
-            print(f"[  ok  ] all {checked} paired cases reject the wrong stride")
-        else:
-            failures += 1
-            print(f"[ FAIL ] {checked - caught} of {checked} paired cases "
-                  f"ACCEPT the wrong stride, so these checks prove nothing")
+        print("the negative controls, which must fail")
+        for nm, txt in controls.items():
+            caught = 0
+            checked = 0
+            for nlat, npro in CASES:
+                if npro == 1 or (nlat % (2 * npro)) != 0:
+                    continue        # identity either way; a control cannot show there
+                checked += 1
+                if check(run_case(txt, nlat, npro, workdir), nlat, npro):
+                    caught += 1
+            if caught == checked:
+                print(f"[  ok  ] all {checked} paired cases reject the {nm} control")
+            else:
+                failures += 1
+                print(f"[ FAIL ] {checked - caught} of {checked} paired cases "
+                      f"ACCEPT the {nm} control, so these checks prove nothing")
 
     print()
     print(f"{len(CASES)} cases, {failures} failed")
