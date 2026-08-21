@@ -183,11 +183,54 @@ on `mod(nstep, nafter) == 0` over the ABSOLUTE step count, so on this project's
 production restart neither a 1-step nor a 16-step segment writes one at all: the
 comparison that reported agreement at one timestep could not have failed.
 
-**The reduction identity is therefore UNVERIFIED rather than refuted.** It was
-stated at the one horizon that turns out to carry no output, so it needs
-re-running at a segment length chosen against the write cadence, at a fixed rank
-count. `notes/audits/model-reproducibility.md` is the measurement and CLIM-45
-is the re-test.
+**RE-TAKEN 2026-08-20 AS CLIM-45, AND IT FAILS.** Not badly, and not in a way
+that invalidates the change, but the recorded claim of bit-identity is wrong.
+
+The re-take fixes what CLIM-44 found wrong with the original: a segment of 56
+timesteps, chosen against the write cadence so `plasim_output` holds 13.4 MB
+rather than nothing; a fixed rank count; and the aerosol actually ACTIVE, which
+matters because with `ndustrad = 0` both code paths skip the aerosol entirely
+and would agree for no reason. One prescribed species, `ndustrad = 1`, against a
+binary built from `66dbcf0`, the commit before the multi-species change. The
+current binary also carries CLIM-42's trace-gas band, which is separately
+verified bit-identical at zero abundance, so the comparison isolates this
+change.
+
+| | result |
+| --- | --- |
+| `plasim_snapshot` | identical |
+| `plasim_status` after 56 steps | differs, 4.4e-10 relative at worst (`dcc`) |
+| `plasim_output` after 56 steps | differs, 76 of 446 records |
+| `plasim_status` after ONE step | differs, 76 of 199 records, 6.2e-12 at worst |
+
+**It differs from the first timestep, at a few ulps.** 1.3e-14 on `dust3`,
+2.4e-14 on the albedos, 6.2e-12 on cloud cover; by 56 steps chaos has taken
+that to 4.4e-10, which is the same magnitude CLIM-44 measured between 8 and 16
+ranks. The large differences in `plasim_output` are all in the 460-485
+diagnostic codes and include one, 482, that is identically zero in the old
+build -- a per-species diagnostic the old code does not populate, not a physics
+difference.
+
+**So the change is answer-preserving to ROUND-OFF, not to the bit**, and that
+is the claim this note should have carried. The consequence is practical: an
+A/B that crosses this commit cannot expect bit-identity and has to be read at
+the round-off bound, the same way a rank-count change is.
+
+**Where the ulp comes from is NOT the places section 8 predicted.** The
+`knz == 1` fast path is present and correct -- it takes `ssa1(klast)` and
+`bscat1(klast)` directly rather than forming `(s*tau)/tau`. The per-layer
+optical depth line is arithmetically identical to the old one, operand for
+operand, and so is the band-2 ratio. The remaining candidate is the two-stream
+restructure itself, the u-factors having moved inside the layer loop, and it is
+not pinned. It is not worth pinning at 1e-14 unless something else motivates
+it.
+
+Two things about the test bed, stated so the result is not over-read. The
+prescribed field is SYNTHETIC -- a smooth cosine in latitude times a sine in
+longitude, 0.05 to 0.20 band-1 optical depth -- because the real one needs a
+climatology this build does not have; the identity does not care what the field
+is, only that both binaries receive the same one. `DUSTQLW` is 0.3, a test
+input rather than a measured ratio, for the same reason.
 
 **Column conservation holds per species**, against a column maximum of 0.4896:
 1.30e-18 for one species, and 8.67e-19 and exactly 0.0 for two, with the second
