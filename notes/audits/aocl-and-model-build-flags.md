@@ -75,13 +75,72 @@ the second cost is worth, it is not being bought with speed.
 `memcpy` replacement should do, and it costs 41%. The model moves many small
 arrays; the dispatch overhead is not amortised.
 
-**`-fcheck=all` is not the lever it looks like.** Removing gfortran's runtime
-bounds checking from the production flags buys 5.0%, which lands exactly on the
-line that says "no difference", and it changes the restart, because the flag
-inhibits optimisations whose absence changes floating-point association. Five
-percent does not buy a numerics change, and it does not buy giving up the check:
+**`-fcheck=all` costs 5.0% AT T42, and the reason recorded here for keeping it
+was wrong.** Removing gfortran's runtime bounds checking buys 5.0% at this
+resolution, which lands on the line that says "no difference", and it changes
+the restart, because the flag inhibits optimisations whose absence changes
+floating-point association.
+
+This note previously argued that the check was earning its keep because
 `oceanmod.f90:236-238` compiles with `Array reference at (1) out of bounds
-(2 > 1)` from gfortran itself, so the checking is not guarding a hypothetical.
+(2 > 1)`, "so the checking is not guarding a hypothetical". Both halves of that
+are false, established 2026-08-20:
+
+- The diagnostic is a COMPILE-TIME warning from `-O3`'s static array-bounds
+  analysis, and it appears identically with and without `-fcheck=all` -- three
+  warnings either way. It is not the runtime checking the flag installs, so it
+  is not evidence for the flag.
+- The reference is unreachable. `NLEV_OCE` is a parameter equal to 1, the block
+  is guarded by `if(NLEV_OCE > 1)`, and the loop is `do jlev=1,nlem_oce` with
+  `nlem_oce = NLEV_OCE - 1 = 0` and never assigned anywhere in the file. The
+  body is correct for any `NLEV_OCE > 1`; gfortran simply does not use the
+  guard to prune it before bounds analysis.
+
+So it WAS a hypothetical, and the check was never guarding it. Declaring
+`nlem_oce` a `parameter` -- which is what it is -- lets gfortran prove the loop
+empty, and the warning goes. `plasim.f90:1629` was the same shape, a
+`neqsig==5` branch guarded by `NLEV > 10` whose body indexes `sigmah(0)` when
+`NLEV = 10`; `max(NLEV-10,1)` on the loop bound is the idiom the surrounding
+code already uses two lines below. With both, the model builds with ZERO
+warnings, and the restart sha is unchanged by either.
+
+The decision on `-fcheck=all` is therefore reopened on its real terms and is
+NOT settled here: runtime bounds checking is worth something on its own account,
+and against that it costs 5% at T42 and 17% at T127
+(`exoplasim/notes/spectral-transform-profile.md`). That is a cost/benefit call
+with no defect on the scale to break the tie.
+
+### Round three: the flags that survived round two, measured against the
+### production line, 2026-08-20
+
+Round two priced `-funroll-loops` and `-fprefetch-loop-arrays` at roughly 1.8%
+and 1% -- but those arms ALSO dropped `-fcheck=all`, so the marginal
+contribution of each flag was confounded with the removal. Measured directly
+against the current production line, which already has the bounds checking out,
+both are refused:
+
+| arm | paired gain vs production | rounds won | numerics |
+| --- | ---: | ---: | --- |
+| `-funroll-loops` | -0.15% | 3/6 | CHANGED |
+| `-fprefetch-loop-arrays` | -4.75% | 1/6 | unchanged |
+
+Both arms carry self-scatter above the 5% floor, because a concurrent job
+arrived partway through, so neither number is quotable AS A NUMBER. They are
+quotable as a REFUSAL: the decision threshold is a gain above 5%, both medians
+are at or below zero, and noise that is symmetric between interleaved,
+order-flipped arms does not turn a real gain into a negative median. A screening
+test tolerates noise the way an estimate does not.
+
+`-fprefetch-loop-arrays` being the worse of the two is consistent with the
+cache-miss profile: the Legendre routines miss least of anything in the model,
+so the hardware prefetcher is already doing this job and a software hint only
+adds instructions. It also comes back numerics-unchanged, which confirms round
+two's "CHANGED" verdicts on these arms belonged to `-fcheck=all` and not to the
+flags themselves.
+
+So the production flag line is closed for now. What is left in codegen is
+bounded by round two's other finding: the entire distance from scalar code to
+AVX-512 is worth 2 to 3% here.
 
 The model is compute-bound inside its own Fortran, which is where a spectral
 GCM should be bound. There is no library seam to widen.

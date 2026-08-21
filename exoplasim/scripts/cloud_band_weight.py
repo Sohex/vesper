@@ -54,6 +54,7 @@ CHECKS THAT CAN FAIL, run before any weight is printed:
 """
 from __future__ import annotations
 
+import argparse
 import json
 import sys
 from datetime import datetime, timezone
@@ -117,6 +118,15 @@ def band2_weighted(lam_um, flux, quantity):
 
 
 def main():
+    # Parsed before anything else runs, so `--help` exits without writing.
+    # smoke_test.py's check_help runs every script with `--help`; with no parser
+    # here the flag was ignored, the whole derivation ran, and OUT was rewritten
+    # with a fresh timestamp. That dirtied the working tree every time the smoke
+    # test was run, and twice blocked a merge.
+    argparse.ArgumentParser(
+        description="Derive the cloud shortwave band weight; writes "
+                    f"{OUT.relative_to(ROOT)}.").parse_args()
+
     report = {"checks": {}}
 
     # check 1

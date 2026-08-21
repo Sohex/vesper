@@ -1,0 +1,166 @@
+{
+  "terrain_hash": "e931b0d9947a232210a3cc11ba82003b5da15765d86e87956bc44c220932760e",
+  "generated": "2026-08-20T12:59:20.790123+00:00",
+  "mesh": {
+    "export_root": "/home/cfutro/docs/world/.claude/worktrees/spectral-optimisation/source/precarve-craton/exoplasim-T42",
+    "terrain_hash": "e931b0d9947a232210a3cc11ba82003b5da15765d86e87956bc44c220932760e",
+    "terrain_build": "precarve-craton",
+    "terrain_build_note": "2026-08 pre-carve base at g = 12.81; craton basin double-count removed, arc/forearc rules reachable, substrate_class naming",
+    "catalogue_hash": "7b56935b498da4e8ee0db6861092c21caa524503c3aefaa0fbff3782451612dd",
+    "catalogue_known": false,
+    "drainage_hypothesis": {
+      "preserveListGiven": 0,
+      "carveListGiven": 0,
+      "carvedByRetainZero": 0,
+      "entries": []
+    },
+    "selection_source": "threshold",
+    "seed": 16236323,
+    "num_regions": 2500001,
+    "planet_radius_km": 7645.2,
+    "surface_area_km2": 734492839.5500951
+  },
+  "grid": "exoplasim-T21",
+  "resolution": "T21",
+  "method": "Area-weighted land fraction per cell from the native mesh, thresholded; topography is the land-area-weighted mean elevation over land regions only.",
+  "land_definition": "surface_class == land (subaerial)",
+  "land_threshold": 0.5,
+  "gravity_m_s2": 12.81,
+  "land_fraction_gauss_weighted": 0.43066161162854305,
+  "mesh_land_fraction": 0.43171897530555725,
+  "land_cells": 1020,
+  "cells_below_mesh_resolution": 0,
+  "elevation_m": {
+    "min": -14.669548399235063,
+    "max": 2822.929307125803,
+    "mean": 341.8313569107344,
+    "cells_below_sea_level": 28
+  },
+  "codes": [
+    172,
+    129
+  ],
+  "generator": "exoplasim/scripts/build_boundary_conditions.py",
+  "source_config": {
+    "schema_version": 1,
+    "source_build": "precarve-craton",
+    "baseline_climatology": null,
+    "planet": {
+      "radius_earth": 1.2,
+      "gravity_m_s2": 12.81,
+      "mass_earth": 1.881009,
+      "rotation_hours": 30.0,
+      "obliquity_degrees": 32.0,
+      "eccentricity": 0.02
+    },
+    "star": {
+      "spectral_type": "K2.5V",
+      "activity": "active",
+      "surface_uv_relative_to_earth": 0.4,
+      "mass_solar": 0.8,
+      "luminosity_solar": 0.32359365692962827,
+      "effective_temperature_k": 4965.0,
+      "metallicity": 0.0
+    },
+    "orbit": {
+      "earth_solar_constant_w_m2": 1361.0,
+      "baseline_flux_earth": 0.945,
+      "sweep_flux_earth": [
+        0.9,
+        0.95,
+        1.0
+      ],
+      "longitude_vernal_equinox_degrees": 102.7
+    },
+    "atmosphere": {
+      "pN2_bar": 0.78025,
+      "pO2_bar": 0.21,
+      "pAr_bar": 0.0093,
+      "pCO2_bar": 0.00045,
+      "ozone": true
+    },
+    "radiation": {
+      "two_band_albedo": true,
+      "stellar_spectrum": "k25v"
+    },
+    "ocean": {
+      "horizontal_diffusion": false,
+      "horizontal_diffusivity_m2_s": 1000.0,
+      "salinity_psu": 34.7
+    },
+    "surface": {
+      "mixed_layer_depth_m": 50.0,
+      "sea_ice": true,
+      "glaciers": {
+        "enabled": true,
+        "min_snow_depth_m": 2.0,
+        "initial_height_m": -1.0
+      }
+    },
+    "model": {
+      "resolution": "T42",
+      "latitudes": 64,
+      "longitudes": 128,
+      "layers": 10,
+      "precision_bytes": 8,
+      "optimization_flag": "-march=znver4",
+      "ncpus": 16,
+      "timestep_minutes": 45.0,
+      "physics_filter": "gp|exp|sp",
+      "output_type": ".nc",
+      "uniform_land_surface": true,
+      "energy_diagnostics": false,
+      "energy_diagnostics_3d": false,
+      "cloud_absorption_scale": 1.192,
+      "ozone_scale": 0.794,
+      "ozone_uv_weight": 0.335,
+      "ozone_visible_weight": 0.914,
+      "h2o_sw_weight": 1.346,
+      "h2o_sw_level": 1.127,
+      "co2_sw_weight": 1.51,
+      "roughness_source": "lithology",
+      "soil_water_source": "pedology",
+      "land_albedo_source": "vegetated",
+      "vegetation_albedo": 0.165,
+      "vegetation_albedo_bracket": [
+        0.15,
+        0.171
+      ],
+      "vegetation_albedo_bands": [
+        0.075,
+        0.225
+      ],
+      "lithology_albedo_overrides": {
+        "playa_clastic": {
+          "albedo": 0.23,
+          "replaces": 0.19
+        }
+      },
+      "barren_rock_classes": [
+        "evaporite",
+        "playa_clastic"
+      ],
+      "geography_land_threshold": 0.5,
+      "seasonal_samples_per_orbit": 32,
+      "regular_output_bins_per_orbit": 12
+    },
+    "stellar_cycle": {
+      "components": {
+        "medium": {
+          "period_earth_years": 11.0,
+          "amplitude_flux_peak_to_peak": 0.025,
+          "note": "The lived rhythm. Damped about 0.83, so roughly 3.1 K peak-to-peak, some thirty times Earth's solar-cycle signal and the dominant climatic fact of any individual life. Fast enough to be planned around, too fast for ice to follow.\n"
+        },
+        "long": {
+          "period_earth_years": 57.0,
+          "amplitude_flux_peak_to_peak": 0.035,
+          "note": "The geomorphic driver. Essentially undamped at 0.99, roughly 5.2 K peak-to-peak, slow enough that glaciers equilibrate rather than merely breathing. Each grand minimum is a distinct historical era.\n"
+        }
+      },
+      "total_amplitude_flux_peak_to_peak": 0.06,
+      "alignment_recurrence_earth_years": 314
+    }
+  },
+  "config_sha256": "cbc711c4bbd6f7fd1d88b887bb24cdf2bfd57feece8bae52c4b9c6a954ab0ee7",
+  "git_commit": "df3a2d58b3d03cf52ba5e40dfccc319d92ffaace"
+}
