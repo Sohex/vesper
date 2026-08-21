@@ -99,26 +99,34 @@ build_arm() {
 }
 
 run_arm() {
-    local arm="$1"
-    rm -rf "$WORK/run_$arm"; mkdir -p "$WORK/run_$arm"
-    cp -a "$bed"/. "$WORK/run_$arm"/
-    ( cd "$WORK/run_$arm"
+    local arm="$1" nsteps="$2" tag="$3"
+    rm -rf "$WORK/run_$tag"; mkdir -p "$WORK/run_$tag"
+    cp -a "$bed"/. "$WORK/run_$tag"/
+    ( cd "$WORK/run_$tag"
       rm -f MOST_REST.* MOST_DIAG.* plasim_status Abort_Message
-      sed -i "s/^ *N_RUN_STEPS *=.*/ N_RUN_STEPS = $steps /" plasim_namelist
+      sed -i "s/^ *N_RUN_STEPS *=.*/ N_RUN_STEPS = $nsteps /" plasim_namelist
       cp -f "$WORK/ref/$arm.x" ./probe.x
-      if ! mpiexec -np "$ranks" ./probe.x >run.log 2>&1; then
-          echo "$arm: the MODEL failed, not the comparison. Last lines:" >&2
-          tail -8 run.log >&2
-          exit 1
-      fi
-      if [ -f Abort_Message ]; then echo "$arm ABORTED" >&2; exit 1; fi
-      [ -f plasim_status ] || { echo "$arm produced no plasim_status" >&2; exit 1; } )
-    echo "ran $arm"
+      mpiexec -np "$ranks" ./probe.x >run.log 2>&1 ) || return 1
+    if [ -f "$WORK/run_$tag/Abort_Message" ]; then return 1; fi
+    if [ ! -f "$WORK/run_$tag/plasim_status" ]; then return 1; fi
+    return 0
+}
+
+require_arm() {
+    local arm="$1" nsteps="$2"
+    if ! run_arm "$arm" "$nsteps" "$arm"; then
+        echo "$arm: the MODEL failed, not the comparison. Last lines:" >&2
+        tail -8 "$WORK/run_$arm/run.log" >&2
+        exit 1
+    fi
+    echo "ran $arm over $nsteps steps"
 }
 
 for arm in paired contig broken; do build_arm "$arm"; done
 restore
-for arm in paired contig broken; do run_arm "$arm"; done
+
+require_arm paired "$steps"
+require_arm contig "$steps"
 
 echo
 echo "==== paired against contiguous: must agree ===="
@@ -127,22 +135,49 @@ ok=0
     "$WORK/run_contig/plasim_status" "$WORK/run_paired/plasim_status" \
     --tol "$TOL" --exact dls --exact doro --exact darea --quiet || ok=$?
 
+# The control, over ONE step rather than the full length. A permutation that
+# pairs the wrong latitudes puts each process's Gaussian weights against
+# somebody else's fields, and over any distance that goes to a floating point
+# exception rather than to a comparable restart. One step keeps it inside the
+# window where it still produces one, so the comparison itself is exercised
+# rather than merely bypassed by a crash. If it cannot manage even that, the
+# rejection stands on the crash and is stated as such.
 echo
 echo "==== the control against contiguous: must NOT agree ===="
-if "$ROOT/.venv/bin/python" "$ROOT/exoplasim/scripts/compare_restarts.py" \
-    "$WORK/run_contig/plasim_status" "$WORK/run_broken/plasim_status" \
-    --tol "$TOL" --exact dls --exact doro --exact darea --quiet; then
+control_rejected=0
+control_how=""
+if run_arm broken 1 broken1; then
+    if run_arm contig 1 contig1; then
+        if ! "$ROOT/.venv/bin/python" "$ROOT/exoplasim/scripts/compare_restarts.py" \
+             "$WORK/run_contig1/plasim_status" "$WORK/run_broken1/plasim_status" \
+             --tol "$TOL" --exact dls --exact doro --exact darea --quiet; then
+            control_rejected=1
+            control_how="the comparison rejected it after one step"
+        fi
+    else
+        echo "the contiguous arm failed at one step, which is not about the control" >&2
+        exit 1
+    fi
+else
+    control_rejected=1
+    control_how="the model would not integrate one step with it"
+    tail -4 "$WORK/run_broken1/run.log" 2>/dev/null | sed 's/^/    /'
+fi
+
+if [ "$control_rejected" -eq 0 ]; then
     echo
-    echo "FAIL: the control arm, whose permutation strides wrong, PASSES the"
-    echo "      same comparison. The comparison proves nothing as it stands."
+    echo "FAIL: the control arm PASSES the same comparison, so the comparison"
+    echo "      proves nothing as it stands. Its permutation hands the southern"
+    echo "      blocks round the processes by one and cannot be right."
     exit 1
 fi
+echo "control rejected: $control_how"
 
 echo
 if [ "$ok" -eq 0 ]; then
     echo "PASS: paired and contiguous agree at the scale of a regrouped sum,"
     echo "      the round-tripped fields are bit identical, and a wrong"
-    echo "      permutation is rejected by the same test."
+    echo "      permutation is rejected."
 else
     exit 1
 fi
