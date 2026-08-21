@@ -583,12 +583,19 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       call mpbcrn(sz,NESP*NLEV)
       call mpbcrn(sq,NESP*NLEV)
 
+#ifdef OMPSHARED
+!     Nothing to scatter: each of these partials already IS the slice of the
+!     array it would have been filled from. Passing one here would only make
+!     the compiler copy a non-contiguous section in and out.
+!$omp barrier
+#else
       call mpscsp(sd,sdp,NLEV)
       call mpscsp(st,stp,NLEV)
       call mpscsp(sz,szp,NLEV)
       call mpscsp(sq,sqp,NLEV)
       call mpscsp(sr,srp,NLEV)
       call mpscsp(sp,spp,1)
+#endif
       call mpscsp(so,sop,1)
 
 !
@@ -3091,11 +3098,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !     These are the whole of the gather traffic. Under the shared build the
 !     partial IS the slice, so mpgathersp is a barrier and moves nothing; under
 !     MPI it is the allgather this used to be.
-      call mpgathersp(sd,sdp,NLEV)
-      call mpgathersp(sz,szp,NLEV)
-      call mpgathersp(st,stp,NLEV)
-      call mpgathersp(sp,spp,   1)
-      if (nqspec == 1) call mpgathersp(sq,sqp,NLEV)
+      call mpsyncsp
 !
 !     franks diagnostic
 !
@@ -4049,11 +4052,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !     These are the whole of the gather traffic. Under the shared build the
 !     partial IS the slice, so mpgathersp is a barrier and moves nothing; under
 !     MPI it is the allgather this used to be.
-      call mpgathersp(sd,sdp,NLEV)
-      call mpgathersp(sz,szp,NLEV)
-      call mpgathersp(st,stp,NLEV)
-      call mpgathersp(sp,spp,   1)
-      if (nqspec == 1) call mpgathersp(sq,sqp,NLEV)
+      call mpsyncsp
 !
 !     franks diagnostic
 !

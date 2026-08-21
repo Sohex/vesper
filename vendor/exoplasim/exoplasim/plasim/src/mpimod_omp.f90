@@ -772,3 +772,19 @@
 !$omp barrier
       return
       end subroutine mpgathersp
+
+
+!     ==================================================================
+!     SUBROUTINE MPSYNCSP
+!     ==================================================================
+
+!     Publish the spectral state. Under the shared build each thread has
+!     already written its own slice of the full array, so this is a barrier
+!     and takes no arguments -- deliberately, because passing a partial
+!     across a call boundary would make the compiler copy it in and out and
+!     the copy-out would land AFTER this barrier.
+
+      subroutine mpsyncsp
+!$omp barrier
+      return
+      end subroutine mpsyncsp

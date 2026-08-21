@@ -828,3 +828,22 @@
 
       return
       end subroutine mpgathersp
+
+
+!     ====================
+!     SUBROUTINE MPSYNCSP
+!     ====================
+
+!     Publish the spectral state. Under MPI the partials are separate arrays and
+!     the publish is the allgather in mpgathersp, so this is where that happens;
+!     the shared build answers the same call with a barrier.
+
+      subroutine mpsyncsp
+      use mpimod
+      call mpgathersp(sd,sdp,NLEV)
+      call mpgathersp(sz,szp,NLEV)
+      call mpgathersp(st,stp,NLEV)
+      call mpgathersp(sp,spp,   1)
+      if (nqspec == 1) call mpgathersp(sq,sqp,NLEV)
+      return
+      end subroutine mpsyncsp

@@ -305,3 +305,13 @@
       pf(1:NSPP,1:klev) = pp(1:NSPP,1:klev)
       return
       end
+
+      subroutine mpsyncsp ! publish the spectral state
+      use pumamod
+      call mpgathersp(sd,sdp,NLEV)
+      call mpgathersp(sz,szp,NLEV)
+      call mpgathersp(st,stp,NLEV)
+      call mpgathersp(sp,spp,   1)
+      if (nqspec == 1) call mpgathersp(sq,sqp,NLEV)
+      return
+      end
