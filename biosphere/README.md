@@ -29,6 +29,10 @@ allocation are audited in `notes/plant-physiology-carbon-allocation-audit.md`,
 BVOC emissions, secondary organic aerosol and atmospheric coupling are audited
 in `notes/bvoc-soa-atmospheric-coupling-audit.md`, wetlands, peat and methane
 are audited in `notes/wetlands-peat-methane-audit.md`, and
+the ExoPlaSim-to-LPJ weather path is audited in
+`notes/ecological-climate-forcing-audit.md`; EFOR-1 through EFOR-7 replace the
+project's artificial 12-bin forcing scaffold with a chronological,
+interval-explicit contract. Finally,
 `notes/productivity-prediction.md` registers what the answer should be before the
 model can contradict it.
 
@@ -57,7 +61,7 @@ a result.
 | productivity prediction | registered, unscored |
 | calendar and astronomy port | mechanical calendar and orbital geometry applied; natural phenology still has unreachable Earth dates under BIO-21 |
 | PFT degree-day rescale | generated from the orbit, 500 -> 247 gdd5min_est; the remaining annual-rate semantics are BIO-22 |
-| input module | `vesperinput`, runs end to end, splits across MPI ranks |
+| input module | `vesperinput`, runs end to end and splits across MPI ranks; its 12-bin `VESPDRV4` transport is integration scaffolding to be replaced under EFOR-1 through EFOR-7 |
 | soil | from `pedology/`, loop closing at smoke scale |
 | run harness | written; records inputs, binary and model identity in its manifest |
 | albedo and forest feedback | modelled mode exists; rootable/lake and spectral corrections are BIO-17 and BIO-18 |
@@ -160,26 +164,32 @@ convergence criteria, which are fixed in advance, and for the finding that
 the runoff-versus-precipitation choice is a 3.41x sensitivity on weathering
 intensity rather than a bracket.
 
-## Interannual forcing, and the stellar cycle
+## Current multiyear adapter, and why it is not accepted weather forcing
 
-The driver file carries however many years of climate it was built with and
-`vesperinput` cycles through them. One year is a fixed climate. Several are how a
-variable star reaches the biosphere:
+The current driver file can carry several input files and `vesperinput` cycles
+through them:
 
 ```bash
 python biosphere/scripts/build_lpj_driver.py \
     --climatology year0.nc year1.nc ... yearN.nc
 ```
 
-Each file contributes one year, in the order given, and the wrap means spin-up
-sees the whole sequence rather than one arbitrary phase of it.
+Each file contributes one nominal forcing year in order. This is mechanically
+useful, but every file is still a 12-bin regular product and LPJ-GUESS smooths
+those bins into quasi-daily weather. `build_climatology.py --per-year` preserves
+differences among model orbits while discarding event order within each orbit.
+It is therefore a seasonal/inter-orbit adapter, not an accepted daily weather
+sequence.
 
-This began as a single repeating year, which was not a missing feature but a
-wrong assumption: a fixed climatology cannot represent a variable star at all,
-and the model would have shown a flat line no matter how the star behaved.
+EFOR-1 through EFOR-7 replace this path with consecutive, interval-explicit
+ExoPlaSim forcing produced before climatological averaging. The averaged
+climatology remains the right artifact for maps and equilibrium summaries. It
+is not the right artifact for daily interception, snow, drought, phenology,
+respiration, fire or subdaily photosynthesis.
 
-Verified with three years at -3, 0 and +3 K on one cell. Annual NPP locks to the
-forcing period exactly and responds strongly:
+The adapter's cycling mechanism was verified with three artificial years at -3,
+0 and +3 K on one cell. Annual NPP locks to the supplied period and responds
+strongly:
 
 | phase | offset | NPP kgC/m2 |
 | --- | --- | --- |
@@ -187,7 +197,8 @@ forcing period exactly and responds strongly:
 | 1 | 0 K | 0.377 |
 | 2 | +3 K | 0.191 |
 
-Two things worth reading off that. The response is steep, nearly halving per 3 K,
+This is an interface response test, not a meaningful weather experiment. Two
+things are still worth reading off it. The response is steep, nearly halving per 3 K,
 because this cell is water-limited and warming raises evaporative demand. And the
 mean over the cycle, 0.359, is **4.8% below** the value at the mean climate,
 0.377. That is the concavity argument made concrete: running a variable star on
