@@ -111,6 +111,79 @@
       end subroutine shtns_setup
 
 
+      subroutine sh_sp2gp(psp, pgp, klev)
+!     Spectral to GRID for klev levels of one scalar field, the whole globe.
+!
+!     Replaces sp2fc followed by fc2gp: SHTns does the Legendre transform and
+!     the Fourier transform in one call, so there is no Fourier intermediate
+!     and nothing downstream should look for one.
+!
+!     PARALLEL OVER LEVELS, with SHTns called single-threaded. The model's team
+!     already exists and owns the parallelism; a thread takes whole levels and
+!     writes disjoint columns of pgp, so the levels need no coordination beyond
+!     the barrier that ends the worksharing. Calling one config from several
+!     threads at once is measured safe -- probe_shtns_concurrency.f90.
+      use pumamod, only: NESP, NUGP, NCSP
+      integer, intent(in) :: klev
+      real, intent(in)    :: psp(NESP,klev)      ! (2,NCSP) packed per level
+      real, intent(out)   :: pgp(NUGP,klev)
+      complex (kind=8) :: zlm(NCSP)
+      real (kind=8) :: zg(NUGP)
+      integer :: jlev, jm
+
+!$omp do schedule(static)
+      do jlev = 1 , klev
+         do jm = 1 , NCSP
+            zlm(jm) = cmplx(real(psp(2*jm-1,jlev),8),                   &
+     &                      real(psp(2*jm  ,jlev),8), kind=8)
+         enddo
+         call SH_to_spat(shtcfg, zlm, zg)
+         pgp(:,jlev) = real(SHTROOT * zg)
+      enddo
+!$omp end do
+      return
+      end subroutine sh_sp2gp
+
+
+      subroutine sh_dv2uv(psd, psz, pgu, pgv, klev)
+!     Divergence and vorticity to wind, the whole globe, for klev levels.
+!
+!     Replaces dv2uv followed by fc2gp on both components. The conversion is
+!     the measured one and every part of it matters:
+!
+!       the potentials carry 1/(l(l+1)), which is the factor legini keeps
+!         inside fmu and fmv and which a naive substitution applies twice;
+!       the TOROIDAL takes the opposite sign to the spheroidal, because
+!         divergence is the Laplacian of S and vorticity is MINUS that of T;
+!       u takes a further minus, and both carry sqrt(2 pi).
+!
+!     Robert form is on, so SHTns returns the wind already multiplied by
+!     cos(phi), which is what gu and gv are.
+      use pumamod, only: NESP, NUGP, NCSP, NLEV
+      integer, intent(in) :: klev
+      real, intent(in)    :: psd(NESP,klev), psz(NESP,klev)
+      real, intent(out)   :: pgu(NUGP,klev), pgv(NUGP,klev)
+      complex (kind=8) :: zs(NCSP), zt(NCSP)
+      real (kind=8) :: zvt(NUGP), zvp(NUGP)
+      integer :: jlev, jm
+
+!$omp do schedule(static)
+      do jlev = 1 , klev
+         do jm = 1 , NCSP
+            zs(jm) =  cmplx(real(psd(2*jm-1,jlev),8),                   &
+     &                      real(psd(2*jm  ,jlev),8), kind=8) * shtinv(jm)
+            zt(jm) = -cmplx(real(psz(2*jm-1,jlev),8),                   &
+     &                      real(psz(2*jm  ,jlev),8), kind=8) * shtinv(jm)
+         enddo
+         call SHsphtor_to_spat(shtcfg, zs, zt, zvt, zvp)
+         pgu(:,jlev) = real(-SHTROOT * zvp)
+         pgv(:,jlev) = real( SHTROOT * zvt)
+      enddo
+!$omp end do
+      return
+      end subroutine sh_dv2uv
+
+
       subroutine shtns_teardown
       if (.not. lshtns) return
       call shtns_destroy(shtcfg)
