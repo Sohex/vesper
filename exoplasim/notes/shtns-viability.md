@@ -458,3 +458,37 @@ was run.
 for bit identity twice and got it, repeatedly, while the underlying
 distribution had three or four outcomes. It asks four times now. A property
 that holds stochastically is not tested by a pair.
+
+## What the whole transform is worth, and why half of it was negative
+
+T127, sixteen threads, 300 steps, paired and interleaved, one binary with
+NSHTNS flipped so no compiler difference is in the comparison. Measured
+2026-08-22.
+
+| converted | paired gain | rounds faster | self-scatter |
+| --- | ---: | ---: | ---: |
+| inverse only | -28.50% [-30.20, -28.24] | 0 of 4 | 0.9%, 2.4% |
+| inverse + gridpointa forward | +13.17% [+10.67, +13.66] | 4 of 4 | 6.3%, 5.6% |
+| all dynamical-core sites | +16.81% [+7.22, +23.00] | 4 of 4 | 7.5%, 12.2% |
+
+The third row's scatter is well above the 5% floor and its interval overlaps the
+second's almost entirely, so **the difference between +13% and +17% is not
+resolved** and should not be quoted as an improvement. What the three rows do
+establish is the sign, and the size of the swing.
+
+**Half a transform is worse than none, by 41.7 points.** With only the inverse
+converted the model paid for both implementations at once: legmod's weight
+matrices stayed resident and its forward path still ran, while SHTns's tables
+were added beside them, and every `mpsumscp` reduction still executed. The
+inverse-only measurement was never evidence about SHTns and reading it as such
+would have killed the work one step before it paid.
+
+The gain also exceeds what the transform's own share predicts. `dv2uv` and its
+siblings are 14.9% of T127 runtime, so a 5.1x transform caps at about 12%. The
+forward conversion additionally DELETES the reductions -- SHTns integrates the
+globe and returns the finished field, so there are no partials to sum -- and
+that traffic was never inside the 14.9%.
+
+What is still legmod: the `span` diagnostic, the energy and entropy block under
+`nenergy`/`nentropy`, and legmod itself, which stays because `nshtns=0` is the
+reference the model check compares against.
