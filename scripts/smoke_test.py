@@ -628,6 +628,41 @@ def check_task_counts() -> list[str]:
     return problems
 
 
+def check_omp_directive_length() -> list[str]:
+    """No OpenMP directive line in the model runs past the fixed-form limit.
+
+    A `!$omp threadprivate(...)` list that overruns the line length is
+    TRUNCATED, and the names past the cut are simply not threadprivate. Nothing
+    fails to compile and nothing warns at the volume this build prints; what
+    happens is that every thread shares one copy of a variable that was meant to
+    be private, the last writer wins, and the model stops being reproducible run
+    to run.
+
+    That is exactly what happened when ten grid pointers were added to the list
+    in `plasimmod.f90`: the line reached 142 characters, the tail was dropped,
+    and two runs of one binary gave different restarts. It took a bisect against
+    a known-good restart sha to find, because the symptom -- nondeterminism in a
+    threaded build -- points at the new code rather than at a directive that
+    reads correctly in the editor.
+
+    The bar is 132, which is what `most_compiler_omp` passes as
+    `-ffixed-line-length-132`, and the check is over DIRECTIVES only: ordinary
+    over-length lines elsewhere in the vendored sources are upstream's and are
+    not silent in the same way.
+    """
+    src = ROOT / "vendor/exoplasim/exoplasim/plasim/src"
+    problems = []
+    if not src.is_dir():
+        return problems
+    for path in sorted(src.glob("*.f90")):
+        for n, line in enumerate(path.read_text(errors="replace").splitlines(), 1):
+            stripped = line.lstrip()
+            if stripped.startswith("!$omp") and len(line) > 132:
+                problems.append(f"{path.name}:{n} OpenMP directive is "
+                                f"{len(line)} characters, over the 132 limit")
+    return problems
+
+
 def check_no_shadowed_imports(files: list[Path]) -> list[str]:
     """A name bound by `import X` is never rebound to something else.
 
@@ -713,6 +748,8 @@ def main() -> None:
               ("the convergence window follows the declared purposes",
                check_production_window()),
               ("TASKS.md counts match their tables", check_task_counts()),
+              ("no OpenMP directive line is truncated",
+               check_omp_directive_length()),
               ("no imported module name is rebound",
                check_no_shadowed_imports(files)),
               ("a resume refuses a rewritten spectrum file",
