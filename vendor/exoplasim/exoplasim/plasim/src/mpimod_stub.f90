@@ -201,6 +201,7 @@
       endif
 
       call assoc_spectral
+      call assoc_grid
       return
       end
 

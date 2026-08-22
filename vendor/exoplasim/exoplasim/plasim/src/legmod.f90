@@ -490,9 +490,9 @@ implicit none
 integer :: v ! Loop index for level
 
 do v = 1 , NLEV
-   call sp2fc(sd(1,v),gd(1,v))
-   call sp2fc(st(1,v),gt(1,v))
-   call sp2fc(sz(1,v),gz(1,v))
+   call sp2fc(sd(1,v),gd(:,v))
+   call sp2fc(st(1,v),gt(:,v))
+   call sp2fc(sz(1,v),gz(:,v))
 enddo
 return
 end
@@ -954,10 +954,10 @@ integer :: jlev
 call dv2uv(sd,sz,gu,gv)
 
 do jlev = 1,NLEV
-  call sp2fc(sd(1,jlev),gd(1,jlev))
-  call sp2fc(st(1,jlev),gt(1,jlev))
-  call sp2fc(sz(1,jlev),gz(1,jlev))
-  if (nqspec == 1) call sp2fc(sq(1,jlev),gq(1,jlev))
+  call sp2fc(sd(1,jlev),gd(:,jlev))
+  call sp2fc(st(1,jlev),gt(:,jlev))
+  call sp2fc(sz(1,jlev),gz(:,jlev))
+  if (nqspec == 1) call sp2fc(sq(1,jlev),gq(:,jlev))
 enddo
 
 call sp2fc(sp,gp)
@@ -980,8 +980,8 @@ integer :: jlev
 call dv2uv(sd,sz,gu,gv)
 
 do jlev = 1,NLEV
-  if (nqspec == 1) call sp2fc(sq(1,jlev),gq(1,jlev))
-  call sp2fc(st(1,jlev),gt(1,jlev))
+  if (nqspec == 1) call sp2fc(sq(1,jlev),gq(:,jlev))
+  call sp2fc(st(1,jlev),gt(:,jlev))
 enddo
 
 call sp2fc(sp,gp)

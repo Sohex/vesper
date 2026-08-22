@@ -3581,8 +3581,8 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !     direct Legendre transformation (fourier domain to spectral domain)
 !
       do jlev = 1 , NLEV
-         call fc2sp(gtdt(1,jlev),zpst(1,jlev,mypart))
-         if (nqspec == 1) call fc2sp(gqdt(1,jlev),zpsq(1,jlev,mypart))
+         call fc2sp(gtdt(:,jlev),zpst(1,jlev,mypart))
+         if (nqspec == 1) call fc2sp(gqdt(:,jlev),zpsq(1,jlev,mypart))
       enddo
 
       call uv2dv(gudt,gvdt,zpsd(1,1,mypart),zpsz(1,1,mypart))

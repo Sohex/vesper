@@ -559,6 +559,7 @@
                       NROOT,myworld,mpinfo)
 
       call assoc_spectral
+      call assoc_grid
 
       return
       end subroutine mpstart

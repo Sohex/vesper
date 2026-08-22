@@ -413,6 +413,47 @@
 !     * Global Gridpoint Arrays (un-dimensionalized) *
 !     ************************************************
 
+#ifdef OMPSHARED
+!     THE GRID FIELDS THAT CROSS THE TRANSFORM are one shared globe, and a
+!     thread's name for one is a POINTER to its own band of it. SHTns wants the
+!     grid whole and contiguous; the physics wants a thread to address only its
+!     own latitudes. A band gives both, and it costs no memory: NPRO times NHOR
+!     IS NUGP, so one shared globe is exactly the bands it replaces.
+!
+!     The physics does not change. NHOR is still the band from the thread's
+!     side, so a whole-array statement over one of these still covers this
+!     thread's latitudes and nothing else -- a whole-array expression is not a
+!     call boundary and has nothing to copy. What DOES copy is one of these
+!     passed wholesale to an explicit-shape dummy, because the stride between
+!     levels is the globe and not the band; `probe_grid_contiguity.f90` measures
+!     that, and the copy-free forms are assumed-shape, one level at a time, and
+!     the base-address idiom this model already uses.
+!
+!     Associated once a thread by assoc_grid, called from mpstart.
+      real, target :: gd_g(NUGP,NLEV) = 0. ! divergence, whole globe
+      real, target :: gt_g(NUGP,NLEV) = 0. ! temperature (-t0), whole globe
+      real, target :: gz_g(NUGP,NLEV) = 0. ! absolut vorticity, whole globe
+      real, target :: gq_g(NUGP,NLEV) = 0. ! spec. humidity, whole globe
+      real, target :: gu_g(NUGP,NLEV) = 0. ! zonal wind (*cos(phi)), whole globe
+      real, target :: gv_g(NUGP,NLEV) = 0. ! meridional wind (*cos(phi)), whole globe
+      real, target :: gtdt_g(NUGP,NLEV) = 0. ! t-tendency, whole globe
+      real, target :: gqdt_g(NUGP,NLEV) = 0. ! q-tendency, whole globe
+      real, target :: gudt_g(NUGP,NLEV) = 0. ! u-tendency, whole globe
+      real, target :: gvdt_g(NUGP,NLEV) = 0. ! v-tendency, whole globe
+      real, target :: gp_g(NUGP) = 0. ! surface pressure or ln(ps), whole globe
+
+      real, pointer :: gd(:,:) => NULL() ! divergence
+      real, pointer :: gt(:,:) => NULL() ! temperature (-t0)
+      real, pointer :: gz(:,:) => NULL() ! absolut vorticity
+      real, pointer :: gq(:,:) => NULL() ! spec. humidity
+      real, pointer :: gu(:,:) => NULL() ! zonal wind (*cos(phi))
+      real, pointer :: gv(:,:) => NULL() ! meridional wind (*cos(phi))
+      real, pointer :: gtdt(:,:) => NULL() ! t-tendency
+      real, pointer :: gqdt(:,:) => NULL() ! q-tendency
+      real, pointer :: gudt(:,:) => NULL() ! u-tendency
+      real, pointer :: gvdt(:,:) => NULL() ! v-tendency
+      real, pointer :: gp(:) => NULL() ! surface pressure or ln(ps)
+#else
       real :: gd(NHOR,NLEV)   = 0. ! divergence
       real :: gt(NHOR,NLEV)   = 0. ! temperature (-t0)
       real :: gz(NHOR,NLEV)   = 0. ! absolut vorticity
@@ -424,6 +465,7 @@
       real :: gudt(NHOR,NLEV) = 0. ! u-tendency
       real :: gvdt(NHOR,NLEV) = 0. ! v-tendency
       real :: gp(NHOR)        = 0. ! surface pressure or ln(ps)
+#endif
       real :: gpj(NHOR)       = 0. ! dln(ps)/dphi
 
       real :: rcsq(NHOR)      = 0. ! 1/cos(phi)**2
@@ -875,6 +917,45 @@
 #endif
       return
       end subroutine assoc_spectral
+
+
+      subroutine assoc_grid
+#ifdef OMPSHARED
+      integer :: lo, hi
+
+!     A thread's band of the shared globe. The band is the same NHOR rows the
+!     thread's private array used to be, so this is a relabelling of storage and
+!     nothing else -- the model computes the same numbers in the same order.
+!
+!     WHAT THE ROW ORDER IS, and it is the trap. Row mypid*NHOR + i is thread
+!     mypid's LOCAL point i. That equals GLOBAL latitude order only when the
+!     scatter is contiguous. Under LPAIRLAT it is not: the permutation gives a
+!     thread a latitude and its mirror rather than a block, so the shared array
+!     is in thread order and not in latitude order.
+!
+!     That does not affect this routine or the physics, both of which only ever
+!     address a thread's own band. It affects anything that reads the array AS
+!     A GLOBE -- SHTns above all, which needs latitudes in its own Gauss order.
+!     SHTns and LPAIRLAT are therefore exclusive, and that is not a loss:
+!     LPAIRLAT exists to let legmod fold a mirror pair together, and SHTns
+!     replaces legmod.
+      lo = mypid * NHOR + 1
+      hi = lo + NHOR - 1
+
+      gd   => gd_g(lo:hi,:)
+      gt   => gt_g(lo:hi,:)
+      gz   => gz_g(lo:hi,:)
+      gq   => gq_g(lo:hi,:)
+      gu   => gu_g(lo:hi,:)
+      gv   => gv_g(lo:hi,:)
+      gtdt => gtdt_g(lo:hi,:)
+      gqdt => gqdt_g(lo:hi,:)
+      gudt => gudt_g(lo:hi,:)
+      gvdt => gvdt_g(lo:hi,:)
+      gp   => gp_g(lo:hi)
+#endif
+      return
+      end subroutine assoc_grid
 
 
 !     ==================
