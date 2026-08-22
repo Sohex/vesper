@@ -1,0 +1,85 @@
+.TH txt2grid 1  "USER COMMANDS"
+.SH NAME
+txt2grid \- convert text files to clm grid data files for LPJ
+.SH SYNOPSIS
+.B txt2grid
+[\-h] [\-v] [\-latlon] [\-map refgridfile] [-fmt s] [-skip n] [-cellsize size] [-cellsize_lon size] [-cellsize_lat size] [-float] [-double] [-json]
+.I txtfile gridfile
+.SH DESCRIPTION
+Program converts text files into LPJ grid data files
+By default text files have to be in the following format:
+
+.nf
+Id,Lon,Lat,X_CRU,Y_CRU
+1,-179.75,-16.25,1,148
+2,..
+.ni
+.SH OPTIONS
+.TP
+\-h,\--help
+Print a short help text.
+.TP
+\-v,\--verbose
+Verbose output.
+.TP
+\-latlon
+read first latitude then longitude value from text file.
+.TP
+\-map refgridfile
+Map cell coordinate to nearest cell in refgridfile.
+.TP
+\-fmt s
+Input format string for the scanf function in
+.B txt2grid
+, default is "%*d,%f,%f,%*d,%*d".
+.TP
+\-skip n
+Skip first n lines in text file, default is 1.
+.TP
+\-cellsize size
+Set latitudinal and longitudinal cell size, default is 0.5.
+.TP
+\-cellsize_lon size
+Set longitudinal cell size, default is 0.5.
+.TP
+\-cellsize_lat size
+Set latitudinal cell size, default is 0.5.
+.TP
+\-float
+Longitude/latitude values written in float format to clm file, default is short.
+.TP
+\-double
+Longitude/latitude values written in double format to clm file, default is short.
+.TP
+\-json
+JSON metafile is created with suffix '.json'
+.I textfile
+Filename of text file to convert.
+.TP
+.I gridfile
+Filename of clm grid data file written.
+.SH EXAMPLES
+.TP
+Create clm grid data file from text file containing longitude/latitude values in each line:
+.B txt2grid
+-skip 0 -fmt "%f %f" grid.txt grid.clm
+.TP
+Create clm grid data file with double values from text file containing longitude/latitude values in each line:
+.B txt2grid
+-skip 0 -double -fmt "%lf %lf" grid.txt grid.clm
+.PP
+.SH EXIT STATUS
+.B txt2grid
+returns a zero exit status if the clm file is created.
+Non zero is returned in case of failure.
+
+.SH AUTHORS
+
+For authors and contributors see AUTHORS file
+
+.SH COPYRIGHT
+
+(C) Potsdam Institute for Climate Impact Research (PIK), see COPYRIGHT file
+
+.SH SEE ALSO
+lpjml(1), txt2clm(1), cru2clm(1), grid2clm(1), catclm(1), cdf2grid(1), clm(5)

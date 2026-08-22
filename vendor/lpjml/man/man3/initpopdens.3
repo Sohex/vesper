@@ -1,0 +1,29 @@
+.TH initpopdens 3  "LPJmL programmers manual"
+.SH NAME
+initpopdens \- initialize population density data
+.SH SYNOPSIS
+.nf
+\fB#include "lpj.h"
+
+Popdens initpopdens(const Config *\fIconfig\fB);\fP
+
+.fi
+.SH DESCRIPTION
+Function initializes population density data and opens related files specified in the LPJmL configuration.
+The argument of \fBinitpopdens\fP is:
+.TP
+.I config
+Pointer to LPJmL configuration data. Must be read by \fBreadconfig()\fP.
+.SH RETURN VALUE
+Upon successful completion pointer to allocated population density data is returned and NULL in case of failure.
+
+.SH AUTHORS
+
+For authors and contributors see AUTHORS file
+
+.SH COPYRIGHT
+
+(C) Potsdam Institute for Climate Impact Research (PIK), see COPYRIGHT file
+
+.SH SEE ALSO
+freepopdens(3), getpopdens(3), readconfig(3) 

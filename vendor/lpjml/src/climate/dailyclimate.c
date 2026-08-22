@@ -1,0 +1,122 @@
+/**************************************************************************************/
+/**                                                                                \n**/
+/**                d  a  i  l  y  c  l  i  m  a  t  e  .  c                        \n**/
+/**                                                                                \n**/
+/**     C implementation of LPJmL                                                  \n**/
+/**                                                                                \n**/
+/**     Function dailyclimate gets daily value for temperature,                    \n**/
+/**     precipitation, long and short wave radiation and wet days.                 \n**/
+/**     The pointer to the climate data has to be initialized by the               \n**/
+/**     function getclimate for the specified year.                                \n**/
+/**                                                                                \n**/
+/** (C) Potsdam Institute for Climate Impact Research (PIK), see COPYRIGHT file    \n**/
+/** authors, and contributors see AUTHORS file                                     \n**/
+/** This file is part of LPJmL and licensed under GNU AGPL Version 3               \n**/
+/** or later. See LICENSE file or go to http://www.gnu.org/licenses/               \n**/
+/** Contact: https://github.com/PIK-LPJmL/LPJmL                                    \n**/
+/**                                                                                \n**/
+/**************************************************************************************/
+
+#include "lpj.h"
+
+void dailyclimate(Dailyclimate *daily,    /**< */
+                  const Climate *climate, /**< climate data pointer */
+                  Climbuf *climbuf,       /**< climate buffer pointer*/
+                  int cell,               /**< cell index */
+                  int day,                /**< day (1..365) */
+                  int month,              /**< month (0..11) */
+                  int dayofmonth          /**< day of the month */
+                  )                       /** \return void */
+{
+  Real tamp;
+  if(climate->file_temp.fmt!=FMS)
+  {
+    daily->isdailytemp=isdaily(climate->file_temp);
+    if(isdaily(climate->file_temp))
+    {
+      daily->temp=climate->data[0].temp[cell*NDAYYEAR+day-1];
+      climbuf->mtemp+=daily->temp;
+    }
+    else
+      daily->temp=interpolate(getcelltemp(climate,cell),month,dayofmonth);
+  }
+  else
+  {
+    daily->isdailytemp=TRUE;
+    climbuf->mtemp+=daily->temp;
+  }
+  daily->lwnet=isdaily(climate->file_lwnet) ? climate->data[0].lwnet[cell*NDAYYEAR+day-1]
+                      : interpolate(getcelllwnet(climate,cell),month,dayofmonth);
+  daily->swdown=isdaily(climate->file_swdown) ? climate->data[0].swdown[cell*NDAYYEAR+day-1]
+                      : interpolate(getcellswdown(climate,cell),month,dayofmonth);
+  if(climate->data[0].humid!=NULL)
+    daily->humid=isdaily(climate->file_humid) ? climate->data[0].humid[cell*NDAYYEAR+day-1]
+                      : interpolate(getcellhumid(climate,cell),month,dayofmonth);
+  if(climate->data[0].ignition!=NULL)
+  {
+    if(isdaily(climate->file_ignition))
+      daily->ignition=climate->data[0].ignition[cell*NDAYYEAR+day-1];
+    else
+      daily->ignition=interpolate(getcellignition(climate,cell),month,dayofmonth)*ndaymonth1[month];
+  }
+  if(isdaily(climate->file_wind))
+    daily->windspeed=climate->data[0].wind[cell*NDAYYEAR+day-1];
+  else
+    daily->windspeed=interpolate(getcellwind(climate,cell),month,dayofmonth);
+  if(climate->data[0].tmax!=NULL&&climate->data[0].tmin!=NULL) /* Tmin and Tmax available */
+  {
+    daily->tmax=isdaily(climate->file_tmax) ?  climate->data[0].tmax[cell*NDAYYEAR+day-1] : interpolate(getcelltmax(climate,cell),month,dayofmonth);
+    daily->tmin=isdaily(climate->file_tmin) ?  climate->data[0].tmin[cell*NDAYYEAR+day-1] : interpolate(getcelltmin(climate,cell),month,dayofmonth);
+  }
+  else if(climate->data[0].tamp!=NULL)
+  {
+    tamp=isdaily(climate->file_tamp) ?  climate->data[0].tamp[cell*NDAYYEAR+day-1] : interpolate(getcelltamp(climate,cell),month,dayofmonth);
+    daily->tmin=daily->temp-tamp*0.5;
+    daily->tmax=daily->temp+tamp*0.5;
+  }
+  if(climate->data[0].no3deposition!=NULL)
+  {
+    if(isdaily(climate->file_no3deposition))
+      daily->no3deposition=climate->data[0].no3deposition[cell*NDAYYEAR+day-1];
+    else
+      daily->no3deposition=interpolate(getcellno3deposition(climate,cell),month,dayofmonth);
+  }
+  if(climate->data[0].nh4deposition!=NULL)
+  {
+    if(isdaily(climate->file_nh4deposition))
+      daily->nh4deposition=climate->data[0].nh4deposition[cell*NDAYYEAR+day-1];
+    else
+      daily->nh4deposition=interpolate(getcellnh4deposition(climate,cell),month,dayofmonth);
+  }
+  if(climate->data[0].lightning!=NULL)
+  {
+    if(isdaily(climate->file_lightning))
+      daily->lightning=climate->data[0].lightning[cell*NDAYYEAR+day-1];
+    else
+      daily->lightning=interpolate(getcelllightning(climate,cell),month,dayofmonth)*ndaymonth1[month];
+  }
+  if(climate->file_prec.fmt!=FMS)
+  {
+    if(isdaily(climate->file_prec))
+    {
+      daily->prec=climate->data[0].prec[cell*NDAYYEAR+day-1];
+      climbuf->mprec+=daily->prec;
+    }
+    else
+    {
+      daily->prec=(israndomprec(climate)) ? climbuf->dval_prec[dayofmonth+1] :
+          interpolate(getcellprec(climate,cell),month,dayofmonth)*
+                        ndaymonth1[month];
+      daily->prec=(daily->prec>0.000001) ? daily->prec : 0.0;
+    }
+  }
+  else
+    climbuf->mprec+=daily->prec;
+ 
+  if(climate->data[0].burntarea!=NULL)
+   {
+    daily->burntarea=isdaily(climate->file_burntarea) ? climate->data[0].burntarea[cell*NDAYYEAR+day-1]
+                     : climate->data[0].burntarea[cell*12+month] * ndaymonth1[month];
+    daily->burntarea=(daily->burntarea > 0.000001) ? daily->burntarea : 0.0;
+  }
+} /* of 'dailyclimate' */

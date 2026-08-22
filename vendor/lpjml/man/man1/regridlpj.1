@@ -1,0 +1,62 @@
+.TH regridlpj 1  "USER COMMANDS"
+.SH NAME
+regridlpj \- regrid input data set for selected countries or specified grid file
+.SH SYNOPSIS
+.B regridlpj
+[\-h] [\-dir path] [\-inpath path] [-search] [-zero] [-drainage]
+.I filesuffix  [countrycode ...]
+.SH DESCRIPTION
+Program regrids input files for selected countries if country codes are provided. If country code is missing grid file \fIgrid_filesuffix.clm\fP is used for regridding. Configuration file \fIinput_filesuffix.cjson\fP is created in the current directory. The utility uses the \fI*.json\fP metafiles for regridding.
+.SH OPTIONS
+.TP
+\-h,\--help
+Print a short help text.
+.TP
+\-dir path
+Set directory for regridded input files.
+.TP
+\-inpath path
+Set directory for input files to regrid. By default path defined in environmental variable LPJINPATH is used.
+.TP
+\-search
+If grid coordinate cannot be found in old grid nearest grid cell is used.
+.TP
+\-zero
+If grid coordinate cannot be found in old grid values are set to zero.
+.TP
+\-drainage
+Drainage, elevation, reservoir and neighbour irrigation file will be regridded.
+.TP
+.I filesuffix
+File suffix for regridded input files and configuration file.
+.TP
+.I countrycode
+ISO 3166-1 alpha-3 abbreviations for countries or country
+codes as numbers defined in
+.I include/managepar.h
+.
+.SH EXAMPLES
+.TP
+Create input data files for USA:
+.B regridlpj
+usa USA
+.PP
+.TP
+Create input file for amazon basin:
+.B regridlpj
+-drainage amazon
+.PP
+grid file \fIgrid_amazon.clm\fP in the current directory is used for regridding.
+.SH EXIT STATUS
+Non zero is returned in case of failure.
+
+.SH AUTHORS
+
+For authors and contributors see AUTHORS file
+
+.SH COPYRIGHT
+
+(C) Potsdam Institute for Climate Impact Research (PIK), see COPYRIGHT file
+
+.SH SEE ALSO
+getcountry(1), regridclm(1), regridsoil(1), lpjml(1), txt2clm(1), cru2clm(1), clm(5)

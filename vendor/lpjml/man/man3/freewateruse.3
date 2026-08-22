@@ -1,0 +1,32 @@
+.TH freewateruse 3  "LPJmL programmers manual"
+.SH NAME
+freewateruse \- Closes file and deallocates water use data
+.SH SYNOPSIS
+.nf
+\fB#include "lpj.h"
+
+void freewateruse(Wateruse \fIwateruse\fB,Bool \fIisroot\fB);
+
+.fi
+.SH DESCRIPTION
+Function closes open file and deallocates water use data.
+The arguments of \fBfreewateruse\fP are:
+.TP
+.I wateruse
+Pointer to water use data. Must be initialized by \fBinitwateruse()\fP.
+.TP
+.I isroot
+task is root task.
+.SH RETURN VALUE
+None.
+
+.SH AUTHORS
+
+For authors and contributors see AUTHORS file
+
+.SH COPYRIGHT
+
+(C) Potsdam Institute for Climate Impact Research (PIK), see COPYRIGHT file
+
+.SH SEE ALSO
+initwateruse(3), getwateruse(3)

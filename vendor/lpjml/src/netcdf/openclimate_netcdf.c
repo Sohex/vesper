@@ -1,0 +1,464 @@
+/**************************************************************************************/
+/**                                                                                \n**/
+/**       o  p  e  n  c  l  i  m  a  t  e  _  n  e  t  c  d  f  .  c               \n**/
+/**                                                                                \n**/
+/**     C implementation of LPJmL                                                  \n**/
+/**                                                                                \n**/
+/**     Function opens climate data file in NetCDF format                          \n**/
+/**                                                                                \n**/
+/** (C) Potsdam Institute for Climate Impact Research (PIK), see COPYRIGHT file    \n**/
+/** authors, and contributors see AUTHORS file                                     \n**/
+/** This file is part of LPJmL and licensed under GNU AGPL Version 3               \n**/
+/** or later. See LICENSE file or go to http://www.gnu.org/licenses/               \n**/
+/** Contact: https://github.com/PIK-LPJmL/LPJmL                                    \n**/
+/**                                                                                \n**/
+/**************************************************************************************/
+
+#include "lpj.h"
+
+#ifdef USE_NETCDF
+#include <netcdf.h>
+#define error(var,rc) if(rc) {if(isroot(*config))fprintf(stderr,"ERROR403: Cannot read '%s' in '%s': %s.\n",var,name,nc_strerror(rc)); free_netcdf(file->ncid); return TRUE;}
+#endif
+
+Bool openclimate_netcdf(Climatefile *file,        /**< climate data file */
+                        Map **map,                /**< pointer to map or NULL */
+                        Attr **attrs,             /**< pointer to array of attributes or NULL */
+                        int *n_attr,              /**< size of array attribute */
+                        const char *name,         /**< filename */
+                        const Filename *filename, /**< filename properties */
+                        const char *units,        /**< units or NULL */
+                        const Config *config      /**< LPJ configuration */
+                       )                          /** \return TRUE on error */
+{
+#ifdef USE_NETCDF
+  char *s,*c,*unit,*s2;
+  int rc,var_id,time_id,ndims,*dimids;
+  int *time;
+  int m=0,d=0,time_diff;
+  double *date;
+  size_t len,time_len;
+  char var_name[NC_MAX_NAME];
+  Bool isopen,isdim,isfullyear;
+  file->isopen=FALSE;
+  if(name==NULL || file==NULL)
+    return TRUE;
+  rc=open_netcdf(name,&file->ncid,&isopen);
+  if(rc)
+  {
+    fprintf(stderr,"ERROR409: Cannot open '%s': %s.\n",
+            name,nc_strerror(rc));
+    return TRUE;
+  }
+  if(filename->time==NULL)
+  {
+    rc=nc_inq_varid(file->ncid,"time",&var_id);
+    if(rc)
+      rc=nc_inq_varid(file->ncid,"TIME",&var_id);
+  }
+  else
+    rc=nc_inq_varid(file->ncid,filename->time,&var_id);
+  if(rc)  /* time axis not found */
+    file->time_step=MISSING_TIME;
+  else
+  {
+    rc=nc_inq_varndims(file->ncid,var_id,&ndims);
+    error("time dim",rc);
+    if(ndims!=1)
+    {
+      fprintf(stderr,"ERROR408: Invalid number %d of dimensions for time in '%s', must be 1.\n",
+              ndims,name);
+      free_netcdf(file->ncid);
+      return TRUE;
+    }
+    nc_inq_vardimid(file->ncid,var_id,&time_id);
+    nc_inq_dimlen(file->ncid,time_id,&time_len);
+    if(!nc_inq_attlen(file->ncid, var_id, "units", &len))
+    {
+      s=malloc(len+1);
+      if(s==NULL)
+      {
+        printallocerr("s");
+        free_netcdf(file->ncid);
+        return TRUE;
+      }
+      nc_get_att_text(file->ncid, var_id, "units",s);
+      s[len]='\0';
+      if(!strcasecmp(config->netcdf.years_name,s))
+      {
+        file->time_step=YEAR;
+        time=newvec(int,time_len);
+        if(time==NULL)
+        {
+          printallocerr("time");
+          free_netcdf(file->ncid);
+          free(s);
+          return TRUE;
+        }
+        rc=nc_get_var_int(file->ncid,var_id,time);
+        if(rc)
+        {
+          fprintf(stderr,"ERROR417: Cannot read time in '%s': %s.\n",
+                  name,nc_strerror(rc));
+          free(time);
+          free_netcdf(file->ncid);
+          free(s);
+          return TRUE;
+        }
+        file->firstyear=time[0];
+        if(time_len>1)
+          file->delta_year=time[1]-time[0];
+        else
+          file->delta_year=1;
+        free(time);
+      }
+      else if(!strcmp("day as %Y%m%d.%f",s))
+      {
+        file->time_step=DAY;
+        date=newvec(double,time_len);
+        if(date==NULL)
+        {
+          printallocerr("date");
+          free_netcdf(file->ncid);
+          free(s);
+          return TRUE;
+        }
+        rc=nc_get_var_double(file->ncid,var_id,date);
+        if(rc)
+        {
+          fprintf(stderr,"ERROR417: Cannot read time in '%s': %s.\n",
+                  name,nc_strerror(rc));
+          free(date);
+          free_netcdf(file->ncid);
+          free(s);
+          return TRUE;
+        }
+        file->firstyear=(int)(date[0]/10000);
+        free(date);
+      }
+      else
+      {
+        s2=malloc(len+1);
+        if(s2==NULL)
+        {
+          printallocerr("name");
+          free(s);
+          free_netcdf(file->ncid);
+          return TRUE;
+        }
+        if(sscanf(s,"%s since %d",s2,&file->firstyear)!=2)
+        {
+          fprintf(stderr,"ERROR416: No start year in units '%s' in '%s'.\n",
+                  s,name);
+          free(s);
+          free(s2);
+          free_netcdf(file->ncid);
+          return TRUE;
+        }
+
+        if ((sscanf(s,"%*s since %*d-%d-%d",&m,&d)!=2)
+            || m != 1 || d != 1)
+        {
+          fprintf(stderr,"WARNING407: Relative time axis in '%s' appears not to start at Jan 1st, dates might be parsed wrong.\n",
+                  name);
+        }
+
+        time=newvec(int,time_len);
+        if(time==NULL)
+        {
+          printallocerr("time");
+          free_netcdf(file->ncid);
+          free(s2);
+          free(s);
+          return TRUE;
+        }
+        rc=nc_get_var_int(file->ncid,var_id,time);
+        if(rc)
+        {
+          fprintf(stderr,"ERROR417: Cannot read time in '%s': %s.\n",
+                  name,nc_strerror(rc));
+          free(time);
+          free(s2);
+          free_netcdf(file->ncid);
+          free(s);
+          return TRUE;
+        }
+        if(!strcmp(s2,"years"))
+        {
+          file->time_step=YEAR;
+          file->firstyear+=time[0];
+          if(time_len>1)
+            file->delta_year=time[1]-time[0];
+          else
+            file->delta_year=1;
+        }
+        else if(!strcmp(s2,"days"))
+        {
+          if(time_len==1)
+          {
+            file->time_step=YEAR;
+            file->delta_year=1;
+          }
+          else
+          {
+            if(time[1]-time[0]==1)
+            {
+              file->time_step=DAY;
+              file->delta_year=1;
+            }
+            else if(time[1]-time[0]>=NDAYYEAR)
+            {
+              file->time_step=YEAR;
+              file->delta_year=(time[1]-time[0])/NDAYYEAR;
+            }
+            else
+            {
+              file->delta_year=1;
+              file->time_step=MONTH;
+            }
+          }
+          file->firstyear+=time[0]/NDAYYEAR;
+        }
+        else if(strstr(s2,"months")!=NULL)
+        {
+          if(time_len==1)
+          {
+            file->time_step=YEAR;
+            file->delta_year=1;
+          }
+          else if(time[1]-time[0]==1)
+          {
+            file->time_step=MONTH;
+            file->delta_year=1;
+          }
+          else if((time[1]-time[0]) % NMONTH==0)
+          {
+            file->time_step=YEAR;
+            file->delta_year=(time[1]-time[0])/NMONTH;
+          }
+          file->firstyear+=time[0]/NMONTH;
+        }
+        else if(!strcmp(s2,"hours"))
+        {
+          file->delta_year=1;
+          if(time_len==1)
+            file->time_step=YEAR;
+          else
+          {
+            if(time_len>2)
+              time_diff=time[2]-time[1];
+            else
+              time_diff=time[1]-time[0];
+            if(time_diff<24)
+            {
+              fprintf(stderr,"ERROR437: Sub-daily time step %dh not allowed in '%s'.\n",
+                      time_diff,name);
+              free(s2);
+              free(time);
+              free_netcdf(file->ncid);
+              free(s);
+              return TRUE;
+            }
+            file->time_step=(time_diff==24) ? DAY : MONTH;
+          }
+          file->firstyear+=time[0]/NDAYYEAR/24;
+        }
+        else
+        {
+          fprintf(stderr,"ERROR432: Invalid time unit '%s' in '%s'.\n",
+                  s2,name);
+          free(s2);
+          free(time);
+          free_netcdf(file->ncid);
+          free(s);
+          return TRUE;
+        }
+        free(s2);
+        free(time);
+        if(!nc_inq_attlen(file->ncid, var_id,"calendar",&len))
+        {
+          c=malloc(len+1);
+          if(c==NULL)
+          {
+            printallocerr("c");
+            free_netcdf(file->ncid);
+            free(s);
+            return TRUE;
+          }
+          nc_get_att_text(file->ncid, var_id,"calendar",c);
+          c[len]='\0';
+          file->isleap=strcmp(c,"noleap") && strcmp(c,"365_day");
+          free(c);
+        }
+        else
+          file->isleap=TRUE;
+      }
+      free(s);
+    }
+    else
+    {
+      rc=nc_inq_attlen(file->ncid, var_id, "time_format", &len);
+      error("time_format",rc);
+      s=malloc(len+1);
+      if(s==NULL)
+      {
+        printallocerr("s");
+        free_netcdf(file->ncid);
+        return TRUE;
+      }
+      rc=nc_get_att_text(file->ncid, var_id, "time_format",s);
+      if(rc)
+      {
+        free(s);
+        fprintf(stderr,"ERROR418: Cannot read time format in '%s': %s.\n",
+                name,nc_strerror(rc));
+        free_netcdf(file->ncid);
+        return TRUE;
+      }
+      s[len]='\0';
+      unit=malloc(len+1);
+      if(unit==NULL)
+      {
+        printallocerr("unit");
+        free_netcdf(file->ncid);
+        free(s);
+        return TRUE;
+      }
+      if(sscanf(s,"%s from %*s %d",unit,&file->firstyear)!=2)
+      {
+        free(s);
+        free(unit);
+        fprintf(stderr,"ERROR419: Cannot detect first year in '%s'.\n",name);
+        free_netcdf(file->ncid);
+        return TRUE;
+      }
+      free(s);
+      if(!strcmp(unit,"years"))
+        file->time_step=YEAR;
+      else if(!strcmp(unit,"months"))
+        file->time_step=MONTH;
+      else if(!strcmp(unit,"days"))
+        file->time_step=DAY;
+      else
+      {
+        free(unit);
+        fprintf(stderr,"ERROR420: Cannot detect unit in '%s'.\n",name);
+        free_netcdf(file->ncid);
+        return TRUE;
+      }
+      free(unit);
+    }
+  }
+  switch(file->time_step)
+  {
+    case DAY:
+      if(time_len<NDAYYEAR)
+      {
+        fprintf(stderr,"ERROR438: Number of days=%zu in '%s' less than %d.\n",time_len,name,NDAYYEAR);
+        free_netcdf(file->ncid);
+        return TRUE;
+      }
+      if(file->isleap)
+      {
+        file->nyear=getnyearfromdays(&isfullyear,file->firstyear,time_len);
+        if(!isfullyear)
+          fprintf(stderr,"ERROR439: Number of days=%zu in '%s' is not multiple of %d excluding leap days.\n",time_len,name,NDAYYEAR);
+      }
+      else
+      {
+        if(time_len % NDAYYEAR)
+          fprintf(stderr,"ERROR439: Number of days=%zu in '%s' is not multiple of %d.\n",time_len,name,NDAYYEAR);
+        file->nyear=time_len/NDAYYEAR;
+      }
+      file->n=config->ngridcell*NDAYYEAR;
+      break;
+    case MONTH:
+      if(time_len<NMONTH)
+      {
+        fprintf(stderr,"ERROR438: Number of months=%zu in '%s' less than %d.\n",time_len,name,NMONTH);
+        free_netcdf(file->ncid);
+        return TRUE;
+      }
+      else if(time_len % NMONTH)
+        fprintf(stderr,"ERROR439: Number of months=%zu in '%s' is not multiple of %d.\n",time_len,name,NMONTH);
+      file->nyear=time_len/NMONTH;
+      file->n=config->ngridcell*NMONTH;
+      break;
+    case YEAR:
+      file->nyear=time_len;
+      file->n=config->ngridcell;
+      break;
+    case MISSING_TIME:
+      file->firstyear=0;
+      file->nyear=1;
+      file->delta_year=1;
+      file->n=config->ngridcell;
+      break;
+    case SECOND:
+      fputs("ERROR436: Invalid time step second.\n",stderr);
+      return TRUE;
+  }
+  if(getvar_netcdf(file,name,filename->var,filename->unit,units,config))
+  {
+    free_netcdf(file->ncid);
+    return TRUE;
+  }
+  if(getlatlon_netcdf(file,name,config))
+  {
+    free_netcdf(file->ncid);
+    return TRUE;
+  }
+  nc_inq_varndims(file->ncid,file->varid,&ndims);
+  if(file->time_step==MISSING_TIME)
+  {
+    if(ndims!=2 && ndims!=3)
+    {
+      nc_inq_varname(file->ncid,file->varid,var_name);
+      fprintf(stderr,"ERROR408: Invalid number of dimensions %d for variable '%s' in '%s', must be 2 or 3.\n",
+              ndims,var_name,name);
+      free_netcdf(file->ncid);
+      return TRUE;
+    }
+    isdim=(ndims==3);
+  }
+  else
+  {
+    if(ndims!=3 && ndims!=4)
+    {
+      nc_inq_varname(file->ncid,file->varid,var_name);
+      fprintf(stderr,"ERROR408: Invalid number of dimensions %d for variable '%s' in '%s', must be 3 or 4.\n",
+              ndims,var_name,name);
+      free_netcdf(file->ncid);
+      return TRUE;
+    }
+    isdim=(ndims==4);
+  }
+  if(isdim)
+  {
+    dimids=newvec(int,ndims);
+    if(dimids==NULL)
+    {
+      printallocerr("dimids");
+      free_netcdf(file->ncid);
+      return TRUE;
+    }
+    nc_inq_vardimid(file->ncid,file->varid,dimids);
+    nc_inq_dimlen(file->ncid,dimids[(file->time_step==MISSING_TIME) ? 0 : 1],&file->var_len);
+    free(dimids);
+  }
+  else
+    file->var_len=1;
+  if(map!=NULL)
+  {
+    *map=readmap_netcdf(file->ncid,(filename->map==NULL) ? MAP_NAME : filename->map);
+    if(*map==NULL && filename->map!=NULL)
+      fprintf(stderr,"WARNING409: Missing or invalid map '%s' in '%s'.\n",filename->map,name);
+  }
+  getglobalattrs_netcdf(file->ncid,attrs,n_attr);
+  file->isopen=TRUE;
+  return FALSE;
+#else
+  fputs("ERROR401: NetCDF input is not supported by this version of LPJmL.\n",stderr);
+  return TRUE;
+#endif
+} /* of 'openclimate_netcdf' */

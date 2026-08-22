@@ -1,0 +1,29 @@
+.TH pnet_dup 3  "version 1.0.3" "Pnet programmers manual"
+.SH NAME
+pnet_dup \- Duplicate network
+.SH SYNOPSIS
+.nf
+\fB#include <mpi.h>
+#include "pnet.h"
+
+Pnet *pnet_dup(const Pnet *\fpnet\fB);\fP
+.fi
+.SH DESCRIPTION
+Function copies network stored in Pnet struct. Must be called before \fBpnet_setup\fP. 
+The argument of \fBpnet_dup\fP is:
+.TP
+.I pnet
+Pointer to Pnet struct  to be copied.
+.SH RETURN VALUE
+Upon successful completion of \fBpnet_dup\fP a pointer to copied Pnet struct is returned.
+Otherwise NULL is returned.
+.SH AUTHORS
+
+For authors and contributors see AUTHORS file
+
+.SH COPYRIGHT
+
+(C) Potsdam Institute for Climate Impact Research (PIK), see COPYRIGHT file
+
+.SH SEE ALSO
+pnet_free(3), pnet_setup(3)

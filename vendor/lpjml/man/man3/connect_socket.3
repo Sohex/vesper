@@ -1,0 +1,35 @@
+.TH connect_socket 3  "version 1.0.1" "Socket library manual"
+.SH NAME
+connect_socket \- connects to  server socket
+.SH SYNOPSIS
+.nf
+\fB#include "types.h"
+#include "channel.h"
+
+Socket *connect_socket(const char *\fIhostname\fB,int \fIport\fB,int \fIwait\fB);\fP
+
+.fi
+.SH DESCRIPTION
+The arguments of \fBconnect_socket\fP are:
+.TP
+.I hostname
+Set name of host to connect.
+.TP
+.I port
+Set port number of TCP/IP connection.
+.TP
+.I wait
+Set maximum time to wait for connection (sec). .
+.SH RETURN VALUE
+Pointer to socket is returned on success and NULL in case of failure.
+
+.SH AUTHORS
+
+For authors and contributors see AUTHORS file
+
+.SH COPYRIGHT
+
+(C) Potsdam Institute for Climate Impact Research (PIK), see COPYRIGHT file
+
+.SH SEE ALSO
+close_socket(3), open_socket(3)

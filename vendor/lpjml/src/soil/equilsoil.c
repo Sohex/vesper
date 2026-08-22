@@ -1,0 +1,132 @@
+/**************************************************************************************/
+/**                                                                                \n**/
+/**                     e  q  u  i  l  s  o  i  l  . c                             \n**/
+/**                                                                                \n**/
+/**     C implementation of LPJmL                                                  \n**/
+/**                                                                                \n**/
+/**     SOIL DECOMPOSITION EQUILIBRIUM CALCULATION                                 \n**/
+/**                                                                                \n**/
+/**     Analytical solution of differential flux equations for fast and            \n**/
+/**     slow soil carbon pools.  Needs be to called several times to reach         \n**/
+/**     equilibrium.                                                               \n**/
+/**                                                                                \n**/
+/**       Rate of change of soil pool size = litter input - decomposition          \n**/
+/**         (5) dc/dt = litter_decom - kc                                          \n**/
+/**       At equilibrium,                                                          \n**/
+/**         (6) dc/dt = 0                                                          \n**/
+/**       From (5) & (6),                                                          \n**/
+/**         (7) c = litter_decom / k                                               \n**/
+/**                                                                                \n**/
+/** (C) Potsdam Institute for Climate Impact Research (PIK), see COPYRIGHT file    \n**/
+/** authors, and contributors see AUTHORS file                                     \n**/
+/** This file is part of LPJmL and licensed under GNU AGPL Version 3               \n**/
+/** or later. See LICENSE file or go to http://www.gnu.org/licenses/               \n**/
+/** Contact: https://github.com/PIK-LPJmL/LPJmL                                    \n**/
+/**                                                                                \n**/
+/**************************************************************************************/
+
+#include "lpj.h"
+
+void equilsoil(Soil *soil,            /**< pointer to soil data */
+               int ntotpft,           /**< total number of PFTs */
+               const Pftpar pftpar[], /**< PFT parameter array */
+               Bool iswetland,        /**< stand is wetland (TRUE/FALSE) */
+               Bool nremove           /**< remove mineral N */
+              )                       /** \return void         */
+{
+  int l,p;
+  Real epsilon_gas, soilmoist, V;
+  Poolpar *sum;
+  sum=newvec(Poolpar,ntotpft);
+  check(sum);
+  
+  for(p=0;p<ntotpft;p++)
+    sum[p].fast=sum[p].slow=0.0;
+
+  /* calculate c_shift */
+  forrootsoillayer(l)
+  {
+    if(nremove)
+    {
+      V=getV(soil,l);  /*soil air content (m3 air/m3 soil)*/
+      soilmoist=getsoilmoist(soil,l);
+      epsilon_gas=getepsilon_O2(V,soilmoist,soil->wsat[l],BO2);
+      soil->O2[l]=p_s/R_gas/(10+273.15)*O2s*WO2*soildepth[l]*epsilon_gas/1000; /*266 g/m3 converted to g/m2 per layer*/
+      epsilon_gas=getepsilon_CH4(V,soilmoist,soil->wsat[l],BCH4);
+      soil->CH4[l]=p_s/R_gas/(10+273.15)*param.pch4*1e-9*WCH4*soildepth[l]*epsilon_gas/1000;    /* corresponding to atmospheric CH4 concentration to g/m2 per layer*/
+    }
+    if(soil->count>0)
+    {
+      soil->decay_rate[l].fast/=soil->count;
+      soil->decay_rate[l].slow/=soil->count;
+    }
+    for(p=0;p<ntotpft;p++)
+    {
+      soil->c_shift[l][p].fast=soil->decay_rate[l].fast*soil->socfraction[l][p];
+      soil->c_shift[l][p].slow=soil->decay_rate[l].slow*soil->socfraction[l][p];
+      sum[p].fast+=soil->c_shift[l][p].fast;
+      sum[p].slow+=soil->c_shift[l][p].slow;
+    }
+  }
+  for(p=0;p<ntotpft;p++)
+  {
+    if(sum[p].fast>0)
+      for (l=0;l<LASTLAYER;l++) 
+        soil->c_shift[l][p].fast/=sum[p].fast;
+    else
+    {
+      soil->c_shift[0][p].fast=1.0;
+      for (l=1;l<LASTLAYER;l++) 
+        soil->c_shift[l][p].fast=0;
+    }
+    if(sum[p].slow>0)
+      for (l=0;l<LASTLAYER;l++) 
+        soil->c_shift[l][p].slow/=sum[p].slow;
+    else
+    {
+      soil->c_shift[0][p].slow=1.0;
+      for (l=1;l<LASTLAYER;l++) 
+        soil->c_shift[l][p].slow=0;
+    }
+  }
+
+  /* resest soil C and N pools*/
+  forrootsoillayer(l)
+  {
+    soil->pool[l].fast.carbon=soil->pool[l].fast.nitrogen=0;
+    soil->pool[l].slow.carbon=soil->pool[l].slow.nitrogen=0;
+  }
+     
+  /* caluclate equilibrium C and N pools for given C and N from litter and decay rates */
+  if(soil->count>0)
+    for(p=0;p<ntotpft;p++)
+    {
+      soil->decomp_litter_pft[p].carbon/=soil->count;
+      soil->decomp_litter_pft[p].nitrogen/=soil->count;
+    }
+  forrootsoillayer(l)
+  {
+    if(soil->decay_rate[l].fast>epsilon)
+    {
+      for(p=0;p<ntotpft;p++)
+      {
+        soil->pool[l].fast.carbon+=param.fastfrac*soil->decomp_litter_pft[p].carbon*soil->c_shift[l][p].fast/soil->decay_rate[l].fast;
+        soil->pool[l].fast.nitrogen+=param.fastfrac*soil->decomp_litter_pft[p].nitrogen*soil->c_shift[l][p].fast/soil->decay_rate[l].fast;
+      }
+    }
+    if(soil->decay_rate[l].slow>epsilon)
+    {
+      for(p=0;p<ntotpft;p++)
+      {
+        soil->pool[l].slow.carbon+=(1-param.fastfrac)*soil->decomp_litter_pft[p].carbon*soil->c_shift[l][p].slow/soil->decay_rate[l].slow;
+        soil->pool[l].slow.nitrogen+=(1-param.fastfrac)*soil->decomp_litter_pft[p].nitrogen*soil->c_shift[l][p].slow/soil->decay_rate[l].slow;
+      }
+    }
+  }
+
+  if(nremove)
+    forrootsoillayer(l)
+      soil->NH4[l]=soil->NO3[l]=0.0;
+
+  free(sum);
+}

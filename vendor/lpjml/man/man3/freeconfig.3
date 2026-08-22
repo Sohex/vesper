@@ -1,0 +1,29 @@
+.TH freeconfig 3  "LPJmL programmers manual"
+.SH NAME
+freeconfig \- Deallocate memory for LPJmL configuration
+.SH SYNOPSIS
+.nf
+\fB#include "lpj.h"
+
+void freeconfig(Config *\fIconfig\fB);
+
+.fi
+.SH DESCRIPTION
+Function deallocates memory for LPJmL configuration.
+The argument of \fBfreeconfig\fP is:
+.TP
+.I config
+LPJmL configuration data. 
+.SH RETURN VALUE
+None.
+
+.SH AUTHORS
+
+For authors and contributors see AUTHORS file
+
+.SH COPYRIGHT
+
+(C) Potsdam Institute for Climate Impact Research (PIK), see COPYRIGHT file
+
+.SH SEE ALSO
+readconfig(3), initconfig(3), initmpiconfig(3)

@@ -1,0 +1,367 @@
+/**************************************************************************************/
+/**                                                                                \n**/
+/**               c  r  e  a  t  e  _  n  e  t  c  d  f  .  c                      \n**/
+/**                                                                                \n**/
+/**     C implementation of LPJmL                                                  \n**/
+/**                                                                                \n**/
+/**     Function creates NetCDF file for output                                    \n**/
+/**                                                                                \n**/
+/** (C) Potsdam Institute for Climate Impact Research (PIK), see COPYRIGHT file    \n**/
+/** authors, and contributors see AUTHORS file                                     \n**/
+/** This file is part of LPJmL and licensed under GNU AGPL Version 3               \n**/
+/** or later. See LICENSE file or go to http://www.gnu.org/licenses/               \n**/
+/** Contact: https://github.com/PIK-LPJmL/LPJmL                                    \n**/
+/**                                                                                \n**/
+/**************************************************************************************/
+
+#include "lpj.h"
+
+#ifdef USE_NETCDF
+#include <netcdf.h>
+#include <time.h>
+
+static nc_type nctype[]={NC_BYTE,NC_SHORT,NC_INT,NC_FLOAT,NC_DOUBLE};
+#endif
+
+#define put_att_text(ncid,var,name,s) if(s!=NULL && strlen(s)) {rc=nc_put_att_text(ncid,var,name,strlen(s),s); error(rc);}
+
+#define error(rc) if(rc) {if(cdf->state==ONEFILE || cdf->state==CLOSE) {free(lon);free(lon_bnds);free(lat);free(lat_bnds);free(year);free(bnds);}fprintf(stderr,"ERROR427: Cannot write '%s': %s.\n",filename,nc_strerror(rc)); nc_close(cdf->ncid); return TRUE;}
+
+Bool create_netcdf(Netcdf *cdf,
+                   const char *filename,     /**< filename of NetCDF file */
+                   const char *name,         /**< name of output variable */
+                   const char *standard_name, /**< standard name of output variable or NULL */
+                   const char *long_name,    /**< long name of output variable or NULL */
+                   const char *units,        /**< unit of output variable or NULL */
+                   Type type,                /**< Type of output variable */
+                   int n,                    /**< number of samples per year (0/1/12/365) */
+                   int timestep,             /**< time step for annual output (yrs) */
+                   int actualyear,           /**< actual year for oneyear output */
+                   Bool oneyear,             /**< one file for each year (TRUE/FALSE) */
+                   const Coord_array *array, /**< coordinate array */
+                   const Config *config      /**< LPJ configuration */
+                  )                          /** \return TRUE on error */
+{
+#ifdef USE_NETCDF
+  char *s;
+  time_t t;
+  int i,rc,nyear,imiss=config->netcdf.missing_value.i;
+  int bnds_dim_id;
+  int dimids[2];
+  short smiss=config->netcdf.missing_value.s;
+  double *lon=NULL,*lat=NULL,*lon_bnds,*lat_bnds;
+  float miss=config->netcdf.missing_value.f;
+  double *year=NULL;
+  double *bnds=NULL;
+  size_t chunk[3];
+  int dim[3];
+  if(array==NULL || name==NULL || filename==NULL)
+  {
+    fputs("ERROR424: Invalid array pointer in create_netcdf().\n",stderr);
+    return TRUE;
+  }
+  cdf->missing_value=config->netcdf.missing_value;
+  cdf->index=array;
+  if(cdf->state==APPEND || cdf->state==CLOSE)
+  {
+     cdf->ncid=cdf->root->ncid;
+     cdf->time_dim_id=cdf->root->time_dim_id;
+     cdf->lon_dim_id=cdf->root->lon_dim_id;
+     cdf->lat_dim_id=cdf->root->lat_dim_id;
+     cdf->time_var_id=cdf->root->time_var_id;
+     cdf->lat_var_id=cdf->root->lat_var_id;
+     cdf->lon_var_id=cdf->root->lon_var_id;
+     cdf->time_bnds_var_id=cdf->root->time_bnds_var_id;
+     cdf->lat_bnds_var_id=cdf->root->lat_bnds_var_id;
+     cdf->lon_bnds_var_id=cdf->root->lon_bnds_var_id;
+  }
+  if(oneyear)
+    nyear=1;
+  else
+  {
+    nyear=config->lastyear-config->outputyear+1;
+    if(config->ischeckpoint)
+    {
+      if(cdf->state==ONEFILE || cdf->state==CREATE)
+      {
+        /* start from checkpoint file, output files exist and have to be opened */
+        rc=nc_open(filename,NC_WRITE|((config->isnetcdf4) ? NC_CLOBBER|NC_NETCDF4 : NC_CLOBBER),&cdf->ncid);
+        if(rc)
+        {
+          fprintf(stderr,"ERROR426: Cannot open file '%s': %s.\n",
+                  filename,nc_strerror(rc));
+          return TRUE;
+        }
+      }
+      if(config->nofill)
+        ncsetfill(cdf->ncid,NC_NOFILL);
+      /* get id of output variable */
+      rc=nc_inq_varid(cdf->ncid,name,&cdf->varid);
+      if(rc)
+      {
+        fprintf(stderr,"ERROR426: Cannot get variable '%s': %s.\n",
+                name,nc_strerror(rc));
+        return TRUE;
+      }
+      return FALSE;
+    }
+  }
+  if(cdf->state==ONEFILE || cdf->state==CLOSE)
+  {
+    if(setlatlon(&lat,&lon,&lat_bnds,&lon_bnds,array))
+      return TRUE;
+    if(n)
+    {
+      if(n==1 && oneyear)
+        year=NULL;
+      else
+      {
+        if(settimeaxis(&year,&bnds,nyear,n,timestep,config->outputyear,config->baseyear,oneyear,config->with_days,config->absyear,filename))
+        {
+          free(lat);
+          free(lat_bnds);
+          free(lon);
+          free(lon_bnds);
+          return TRUE;
+        }
+      }
+    }
+    else
+      year=NULL;
+  }
+  if(cdf->state==ONEFILE || cdf->state==CREATE)
+  {
+    rc=nc_create(filename,(config->isnetcdf4) ? NC_CLOBBER|NC_NETCDF4 : NC_CLOBBER,&cdf->ncid);
+    if(rc)
+    {
+      fprintf(stderr,"ERROR426: Cannot create file '%s': %s.\n",
+              filename,nc_strerror(rc));
+      if(cdf->state==ONEFILE)
+      {
+        free(year);
+        free(bnds);
+        free(lon);
+        free(lon_bnds);
+        free(lat);
+        free(lat_bnds);
+      }
+      return TRUE;
+    }
+    if(config->nofill)
+      ncsetfill(cdf->ncid,NC_NOFILL);
+    rc=nc_def_dim(cdf->ncid,config->netcdf.bnds_name,2,&bnds_dim_id);
+    error(rc);
+    if(n!=0 && (n>1 || !oneyear))
+    {
+      if(n==1)
+        rc=nc_def_dim(cdf->ncid,config->netcdf.time.dim,nyear/timestep,&cdf->time_dim_id);
+      else
+        rc=nc_def_dim(cdf->ncid,config->netcdf.time.dim,nyear*n,&cdf->time_dim_id);
+      error(rc);
+      rc=nc_def_var(cdf->ncid,config->netcdf.time.name,NC_DOUBLE,1,&cdf->time_dim_id,&cdf->time_var_id);
+      error(rc);
+      put_att_text(cdf->ncid, cdf->time_var_id,"standard_name",config->netcdf.time.standard_name);
+      put_att_text(cdf->ncid, cdf->time_var_id,"long_name",config->netcdf.time.long_name);
+      put_att_text(cdf->ncid, cdf->time_var_id,"comment",config->netcdf.time.comment);
+      rc=nc_put_att_text(cdf->ncid, cdf->time_var_id,"bounds",strlen(config->netcdf.time_bnds.name),config->netcdf.time_bnds.name);
+      error(rc);
+      dimids[0]=cdf->time_dim_id;
+      dimids[1]=bnds_dim_id;
+      rc=nc_def_var(cdf->ncid,config->netcdf.time_bnds.name,NC_DOUBLE,2,dimids,&cdf->time_bnds_var_id);
+      error(rc);
+      put_att_text(cdf->ncid, cdf->time_bnds_var_id,"long_name",config->netcdf.time_bnds.long_name);
+      put_att_text(cdf->ncid, cdf->time_bnds_var_id,"comment",config->netcdf.time_bnds.comment);
+    }
+    rc=nc_def_dim(cdf->ncid,config->netcdf.lat.dim,array->nlat,&cdf->lat_dim_id);
+    error(rc);
+    rc=nc_def_dim(cdf->ncid,config->netcdf.lon.dim,array->nlon,&cdf->lon_dim_id);
+    error(rc);
+    rc=nc_put_att_text(cdf->ncid,NC_GLOBAL,"title",
+                       strlen(config->sim_name),config->sim_name);
+    error(rc);
+    s=getsprintf("LPJmL C Version %s",getversion());
+    check(s);
+    rc=nc_put_att_text(cdf->ncid,NC_GLOBAL,"source",strlen(s),s);
+    free(s);
+    error(rc);
+    rc=nc_put_att_text(cdf->ncid,NC_GLOBAL,"GIT_repo",
+                       strlen(getrepo()),getrepo());
+    error(rc);
+    rc=nc_put_att_text(cdf->ncid,NC_GLOBAL,"GIT_hash",
+                       strlen(gethash()),gethash());
+    error(rc);
+    time(&t);
+    s=getsprintf("%s: %s",strdate(&t),config->arglist);
+    check(s);
+    rc=nc_put_att_text(cdf->ncid,NC_GLOBAL,"history",strlen(s),s);
+    free(s);
+    error(rc);
+    for(i=0;i<config->n_global;i++)
+    {
+      rc=nc_put_att_text(cdf->ncid,NC_GLOBAL,config->global_attrs[i].name,strlen(config->global_attrs[i].value),config->global_attrs[i].value);
+      error(rc);
+    }
+    rc=nc_def_var(cdf->ncid,config->netcdf.lat.name,NC_DOUBLE,1,&cdf->lat_dim_id,&cdf->lat_var_id);
+    error(rc);
+    dimids[0]=cdf->lat_dim_id;
+    dimids[1]=bnds_dim_id;
+    rc=nc_def_var(cdf->ncid,config->netcdf.lat_bnds.name,NC_DOUBLE,2,dimids,&cdf->lat_bnds_var_id);
+    error(rc);
+    rc=nc_def_var(cdf->ncid,config->netcdf.lon.name,NC_DOUBLE,1,&cdf->lon_dim_id,&cdf->lon_var_id);
+    error(rc);
+    dimids[0]=cdf->lon_dim_id;
+    dimids[1]=bnds_dim_id;
+    rc=nc_def_var(cdf->ncid,config->netcdf.lon_bnds.name,NC_DOUBLE,2,dimids,&cdf->lon_bnds_var_id);
+    error(rc);
+    if(n!=0 && (n>1 || !oneyear))
+    {
+      if(n==1)
+      {
+        if(config->absyear)
+          s=strdup(config->netcdf.years_name);
+        else
+        {
+          s=getsprintf("%s since %d-1-1 0:0:0",(config->with_days) ? "days" : "years",config->baseyear);
+        }
+      }
+      else if(n==12)
+      {
+        s=getsprintf("%s since %d-1-1 0:0:0",(config->with_days) ? "days" : "months",(oneyear) ? actualyear : config->baseyear);
+      }
+      else
+      {
+        s=getsprintf("days since %d-1-1 0:0:0",(oneyear) ? actualyear : config->baseyear);
+      }
+      check(s);
+      rc=nc_put_att_text(cdf->ncid,cdf->time_var_id,"units",strlen(s),s);
+      free(s);
+      error(rc);
+      put_att_text(cdf->ncid,cdf->time_var_id,"calendar",config->netcdf.calendar);
+      rc=nc_put_att_text(cdf->ncid, cdf->time_var_id,"axis",strlen("T"),"T");
+      error(rc);
+    }
+    put_att_text(cdf->ncid,cdf->lon_var_id,"units",config->netcdf.lon.unit);
+    put_att_text(cdf->ncid,cdf->lon_bnds_var_id,"units",config->netcdf.lon_bnds.unit);
+    put_att_text(cdf->ncid, cdf->lon_var_id,"long_name",config->netcdf.lon.long_name);
+    put_att_text(cdf->ncid, cdf->lon_var_id,"comment",config->netcdf.lon.comment);
+    put_att_text(cdf->ncid, cdf->lon_bnds_var_id,"long_name",config->netcdf.lon_bnds.long_name);
+    put_att_text(cdf->ncid, cdf->lon_bnds_var_id,"comment",config->netcdf.lon_bnds.comment);
+    put_att_text(cdf->ncid, cdf->lon_var_id,"standard_name",config->netcdf.lon.standard_name);
+    put_att_text(cdf->ncid, cdf->lon_bnds_var_id,"standard_name",config->netcdf.lon_bnds.standard_name);
+    rc=nc_put_att_text(cdf->ncid, cdf->lon_var_id,"bounds",strlen(config->netcdf.lon_bnds.name),config->netcdf.lon_bnds.name);
+    error(rc);
+    rc=nc_put_att_text(cdf->ncid, cdf->lon_var_id,"axis",strlen("X"),"X");
+    error(rc);
+    put_att_text(cdf->ncid,cdf->lat_var_id,"units",config->netcdf.lat.unit);
+    put_att_text(cdf->ncid,cdf->lat_bnds_var_id,"units",config->netcdf.lat_bnds.unit);
+    put_att_text(cdf->ncid, cdf->lat_var_id,"long_name",config->netcdf.lat.long_name);
+    put_att_text(cdf->ncid, cdf->lat_var_id,"comment",config->netcdf.lat.comment);
+    put_att_text(cdf->ncid, cdf->lat_bnds_var_id,"long_name", config->netcdf.lat_bnds.long_name);
+    put_att_text(cdf->ncid, cdf->lat_bnds_var_id,"comment", config->netcdf.lat_bnds.comment);
+    put_att_text(cdf->ncid, cdf->lat_var_id,"standard_name",config->netcdf.lat.standard_name);
+    put_att_text(cdf->ncid, cdf->lat_bnds_var_id,"standard_name",config->netcdf.lat_bnds.standard_name);
+    rc=nc_put_att_text(cdf->ncid, cdf->lat_var_id,"bounds",strlen(config->netcdf.lat_bnds.name),config->netcdf.lat_bnds.name);
+    error(rc);
+    rc=nc_put_att_text(cdf->ncid, cdf->lat_var_id,"axis",strlen("Y"),"Y");
+    error(rc);
+  }
+  if(n!=0 && (n>1 || !oneyear))
+  {
+    dim[0]=cdf->time_dim_id;
+    dim[1]=cdf->lat_dim_id;
+    dim[2]=cdf->lon_dim_id;
+    chunk[0]=1;
+    chunk[1]=array->nlat;
+    chunk[2]=array->nlon;
+  }
+  else
+  {
+    dim[0]=cdf->lat_dim_id;
+    dim[1]=cdf->lon_dim_id;
+    chunk[0]=array->nlat;
+    chunk[1]=array->nlon;
+  }
+  rc=nc_def_var(cdf->ncid,name,nctype[type],(year==NULL) ? 2 : 3,dim,&cdf->varid);
+  error(rc);
+  if(config->isnetcdf4)
+  {
+    rc=nc_def_var_chunking(cdf->ncid, cdf->varid, NC_CHUNKED,chunk);
+    error(rc);
+    if(config->compress)
+    {
+      rc=nc_def_var_deflate(cdf->ncid, cdf->varid, 0, 1, config->compress);
+      error(rc);
+    }
+  }
+  if(units!=NULL && strlen(units))
+  {
+    rc=nc_put_att_text(cdf->ncid, cdf->varid,"units",strlen(units),units);
+    error(rc);
+  }
+  if(standard_name==NULL)
+    rc=nc_put_att_text(cdf->ncid, cdf->varid,"standard_name",strlen(name),name);
+  else
+    rc=nc_put_att_text(cdf->ncid, cdf->varid,"standard_name",strlen(standard_name),standard_name);
+  error(rc);
+  if(long_name!=NULL)
+  {
+    rc=nc_put_att_text(cdf->ncid, cdf->varid,"long_name",strlen(long_name),long_name);
+    error(rc);
+  }
+  switch(type)
+  {
+    case LPJ_FLOAT:
+      nc_put_att_float(cdf->ncid, cdf->varid,"missing_value",NC_FLOAT,1,&miss);
+      rc=nc_put_att_float(cdf->ncid, cdf->varid,"_FillValue",NC_FLOAT,1,&miss);
+      break;
+    case LPJ_SHORT:
+      nc_put_att_short(cdf->ncid, cdf->varid,"missing_value",NC_SHORT,1,&smiss);
+      rc=nc_put_att_short(cdf->ncid, cdf->varid,"_FillValue",NC_SHORT,1,&smiss);
+      break;
+    case LPJ_INT:
+      nc_put_att_int(cdf->ncid, cdf->varid,"missing_value",NC_INT,1,&imiss);
+      rc=nc_put_att_int(cdf->ncid, cdf->varid,"_FillValue",NC_INT,1,&imiss);
+      break;
+    default:
+      fputs("ERROR428: Invalid data type in NetCDF file.\n",stderr);
+      free(lat);
+      free(lat_bnds);
+      free(lon);
+      free(lon_bnds);
+      free(year);
+      free(bnds);
+      return TRUE;
+  }
+  error(rc);
+  if(cdf->state==ONEFILE || cdf->state==CLOSE)
+  {
+    rc=nc_enddef(cdf->ncid);
+    error(rc);
+    if(year!=NULL)
+    {
+      rc=nc_put_var_double(cdf->ncid,cdf->time_var_id,year);
+      error(rc);
+      rc=nc_put_var_double(cdf->ncid,cdf->time_bnds_var_id,bnds);
+      error(rc);
+    }
+    rc=nc_put_var_double(cdf->ncid,cdf->lat_var_id,lat);
+    error(rc);
+    rc=nc_put_var_double(cdf->ncid,cdf->lat_bnds_var_id,lat_bnds);
+    error(rc);
+    rc=nc_put_var_double(cdf->ncid,cdf->lon_var_id,lon);
+    error(rc);
+    rc=nc_put_var_double(cdf->ncid,cdf->lon_bnds_var_id,lon_bnds);
+    error(rc);
+    free(lat);
+    free(lat_bnds);
+    free(lon);
+    free(lon_bnds);
+    free(year);
+    free(bnds);
+  }
+  return FALSE;
+#else
+  fputs("ERROR401: NetCDF output is not supported by this version of LPJmL.\n",stderr);
+  return TRUE;
+#endif
+} /* of 'create_netcdf' */

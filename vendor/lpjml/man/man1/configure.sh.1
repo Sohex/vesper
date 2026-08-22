@@ -1,0 +1,152 @@
+.TH configure.sh 1  "USER COMMANDS"
+.SH NAME
+configure.sh \- Configure LPJmL
+.SH SYNOPSIS
+.B configure.sh
+[-h] [-v] [-l] [-prefix \fIdir\fP] [-inpath \fIdir\fP] [-debug] [-with_timing] [-nompi] [-check] [-check_balance] [-noerror] [-Dmacro[=value] ...]
+.SH DESCRIPTION
+Script configures LPJmL for specific OS and compiler. File \fIMakefile.inc\fP and scripts \fBlpj_paths.sh\fP, \fBlpj_paths.csh\fP are created.
+If configure script exits with message "Unsupported operating system",
+\fIMakefile.$osname\fP is created from \fIMakefile.gcc\fP and probably has to be
+modified for your operating system/compiler.
+After successfull configuration LPJmL program and utilities can be created by invoking
+
+.B make all
+
+After a change in the configuration lpjml and utilities must be rebuilt by invoking
+
+.B make clean; make all
+.SH OPTIONS
+.TP
+-h,--help
+Print a short help text.
+.TP
+-v,--version
+Print version of LPJmL.
+.TP
+-l,--license
+Print LPJmL license file.
+.TP
+-prefix \fIdir\fP
+Set installation directory for LPJmL. Default is current working directory.
+.TP
+-inpath \fIdir\fP
+Set input directory for LPJmL. Default is \fI/p/project/lpjml/input/historical\fP.
+.TP
+-debug
+Set debug flags and disable optimization of compiler.
+.TP
+-with_timing
+Enable timing functions for performance analysis.
+.TP
+-check
+Enable run-time checking of memory leaks and access out of bounds.
+.TP
+-check_balance
+Enable balance checking in lpj functions.
+.TP
+-nompi
+Do not build the MPI version of the code.
+.TP
+-noerror
+Compilation continues after warning.
+.TP
+-Dmacro[=value]
+Defines macro for compilation
+.SH COMPILE MACROS
+The following macros are defined for compilation flags of lpjml:
+.TP
+CALC_EFF_CARBON
+Enable implementation of the effective carbon concentration
+.TP
+CHECK_BALANCE
+Local checks of water, carbon and nitrogen balance are enabled
+.TP
+CHECK_BOUNDARY
+Check array boundaries of output
+.TP
+COUPLING_WITH_FMS
+Enable coupling to FMS
+.TP
+DAILY_ESTABLISHMENT
+Enable daily establishment
+.TP
+DEBUG
+Diagnostic output is generated for debugging purposes
+.TP
+DEBUG_BSTRUCT
+Diagnostic output is generated for reading/writing of restart files
+.TP
+DEBUG_COUPLER
+Diagnostic output is generated for the coupler
+.TP
+DEBUG_IMAGE
+Diagnostic output related to the IMAGE coupling is generated for debugging purposes
+.TP
+DEBUG_N
+Diagnostic output related to the nitrogen cycle is generated for debugging purposes
+.TP
+IMAGE
+Include coupler to IMAGE model
+.TP
+LINEAR_DECAY
+Use linearized functions for litter decay
+.TP
+MICRO_HEATING
+Enable microbial heating
+.TP
+NRECOVEY_COST
+Costs for N recovery enabled
+.TP
+PERMUTE
+Random permutation of PFT list
+.TP
+SAFE
+Code is compiled with additional checks
+.TP
+STRICT_JSON
+Strict JSON checking
+.TP
+USE_MPI
+Compile parallel version of LPJmL
+.TP
+USE_NETCDF
+Enable NetCDF input/output
+.TP
+USE_RAND48
+Use drand48() random number generator
+.TP
+USE_UDUNITS
+Enable unit conversion in NetCDF files
+.TP
+USE_TIMING
+Enable timing for LPJmL functions for performace analysis
+.TP
+WITH_FIRE_MOISTURE
+Enable moisture dependent fire emissions
+.TP
+WITH_FPE
+Floating point exceptions are enabled for debugging purposes
+
+.SH EXAMPLE
+.TP
+Configure LPJmL with installation directory \fI/data/biosx/lpjml\fP:
+.B ./configure.sh
+-prefix /data/biosx/lpjml
+.PP
+Then \fBmake install\fP will install LPJmL in the target directory specified by '-prefix'.
+.SH EXIT STATUS
+.B configure.sh
+returns a zero exit status if LPJmL has been configured successfully.
+Non zero is returned in case of failure.
+
+.SH AUTHORS
+
+For authors and contributors see AUTHORS file
+
+.SH COPYRIGHT
+
+(C) Potsdam Institute for Climate Impact Research (PIK), see COPYRIGHT file
+
+.SH SEE ALSO
+lpj_paths.sh(1), lpj_paths.csh(1), lpjml(1)

@@ -1,0 +1,44 @@
+.TH newgrid 3  "LPJmL programmers manual"
+.SH NAME
+newgrid \- Allocates LPJ grid cells
+.SH SYNOPSIS
+.nf
+\fB#include "lpj.h"
+
+Cell *newgrid(Config *\fIconfig\fB,const Standtype \fIstandtype\fB[],
+              int \fInstand\fB,int \fInpft\fB,int \fIncft\fB);\fP
+
+.fi
+.SH DESCRIPTION
+Function allocates grid cells and reads soil code,
+country code and coordinates. If restart filename is set state 
+of grid cells is recovered from a restart file.    
+The arguments of \fBnewgrid\fP are:
+.TP
+.I config
+Pointer to LPJmL configuration data. Must be read by \fBreadconfig()\fP.
+.TP
+.I standtype
+Array of stand type definitions.
+.TP
+.I nstand
+Number of stand types.
+.TP
+.I npft
+Number of natural plant functional types.
+.TP
+.I ncft
+Number of crop plant functional types.
+.SH RETURN VALUE
+Upon successful completion pointer to allocated grid is returned and NULL in case of failure.
+
+.SH AUTHORS
+
+For authors and contributors see AUTHORS file
+
+.SH COPYRIGHT
+
+(C) Potsdam Institute for Climate Impact Research (PIK), see COPYRIGHT file
+
+.SH SEE ALSO
+readconfig(3), freegrid(3) 
