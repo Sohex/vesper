@@ -52,6 +52,7 @@ REPO="$(cd "$HERE/../.." && pwd)"
 . "$HERE/_bed_guard.sh"
 
 PKG="$REPO/vendor/exoplasim/exoplasim"
+BUILD="$REPO/.venv/bin/python $REPO/exoplasim/scripts/build_model.py"
 WORK="${TMPDIR:-/tmp}/verify_shared_determinism.$$"
 low="$(echo "$res" | tr 'A-Z' 'a-z')"
 name="most_plasim_${low}_l10_p${threads}_omp.x"
@@ -70,18 +71,18 @@ rm -rf "$WORK"; mkdir -p "$WORK/ref"
 build() {
     # -j is a FLAG and takes no argument: it selects the threaded build. The
     # thread count is -n, as it is for ranks. Passing the count to -j leaves
-    # ncpus at compile.sh's default of 4, which builds a p4 binary and leaves
+    # the thread count is explicit: build_model.py has no default for it, so
     # whatever p2 was lying in plasim/run untouched. The freshness check below
     # is here because that is not hypothetical: it happened, and a build from
     # before the fix was run under the name of the one after it.
     local stamp="$WORK/stamp"; : > "$stamp"
-    ( cd "$PKG" && ./compile.sh -j -n "$threads" -p 8 -r "$res" -v 10 -O march=znver4 ) \
+    ( $BUILD --res "$res" --ranks "$threads" --parmode omp ) \
         >"$WORK/build.log" 2>&1 || true
     [ -f "$PKG/plasim/run/$name" ] || {
         echo "build failed: no $name (see $WORK/build.log)" >&2; exit 1; }
     [ "$PKG/plasim/run/$name" -nt "$stamp" ] || {
         echo "build failed: $name is older than this build started, so" >&2
-        echo "  compile.sh did not produce it. See $WORK/build.log" >&2; exit 1; }
+        echo "  build_model.py did not produce it. See $WORK/build.log" >&2; exit 1; }
     cp -f "$PKG/plasim/run/$name" "$WORK/ref/probe.x"
     echo "built  $(sha256sum "$WORK/ref/probe.x" | cut -c1-16)"
 }

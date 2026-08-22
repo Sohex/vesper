@@ -33,12 +33,13 @@ BLAS, LAPACK or FFTW seam anywhere in the build, and an optimised replacement
 for one of those has nothing to attach to. Installing such a library is not a
 reason to rebuild.
 
-`config/planet.yaml` declares `model.optimization_flag`, which
-`rebuild_binaries.py` passes to `compile.sh`'s `-O` hook and which lands on
-`MOST_F90_OPTS`. **Declare it there and nowhere else.** Editing the generated
-`most_compiler_mpi` looks equivalent and is not: `configure.sh` rewrites that
-file, and `compile.sh` appends `-O` to a COPY of it under `plasim/bld`, so an
-edit there is both temporary and invisible to anything reading the original.
+`config/planet.yaml` declares `model.compile_flags`, and
+`exoplasim/scripts/build_model.py` reads it. **Declare flags there and nowhere
+else**, which is now enforceable rather than advisory: there is no generated
+compiler-options file to edit instead. There used to be three of them, they
+disagreed, and only the MPI one was ever written from this declaration -- so
+the threaded build, which is what this project measures, took whatever a
+hand-edited file happened to hold. `notes/audits/model-build-driver.md`.
 
 The two seams that do exist, `libm` and `memcpy`, were measured against AMD's
 implementations of both, and the optimisation flags were measured against each
@@ -148,8 +149,10 @@ optimising the inner loop of a problem whose outer numbers are wrong.
 
 ## Benchmark in FP32 while optimising, confirm in FP64 before believing
 
-`compile.sh -p 4` runs T170 39.7% faster than `-p 8`, so the iteration loop
-during optimisation work is roughly a third shorter for nothing. Use it.
+A four-byte build runs T170 39.7% faster than an eight-byte one, so the
+iteration loop during optimisation work is roughly a third shorter for nothing.
+Use it. Precision is declared in `config/planet.yaml`, so an FP32 arm means
+changing `model.precision_bytes` for the arm rather than passing a flag.
 Declared 2026-08-21.
 
 **The hazard is that FP32 is a different cache regime, not just a faster one.**

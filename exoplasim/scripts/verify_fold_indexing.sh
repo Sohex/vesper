@@ -34,10 +34,8 @@ RES=T21; LOW=t21; NAME="most_plasim_t21_l10_p16.x"
 
 cp -f "$SRC" "$SP/legmod_folded.f90"
 git -C "$WT" show HEAD:vendor/exoplasim/exoplasim/plasim/src/legmod.f90 > "$SP/legmod_unfolded.f90"
-cp -f "$PKG/most_compiler_mpi" "$PKG/most_compiler_mpi.orig"
 restore() {
     cp -f "$SP/legmod_folded.f90" "$SRC"
-    cp -f "$PKG/most_compiler_mpi.orig" "$PKG/most_compiler_mpi"
 }
 trap restore EXIT
 
@@ -73,18 +71,13 @@ PY
 
 # Contraction off: with it on, deleting the multiply changes which FMA the
 # compiler forms and the arms differ for reasons unrelated to indexing.
-python - "$PKG/most_compiler_mpi" <<'PY'
-import sys, pathlib
-p = pathlib.Path(sys.argv[1])
-p.write_text("\n".join(
-    l + " -ffp-contract=off" if l.startswith("MOST_F90_OPTS=") else l
-    for l in p.read_text().splitlines()) + "\n")
-PY
 
 for arm in unfolded folded wrong; do
     cp -f "$SP/legmod_${arm}.f90" "$SRC"
     inject "$SRC"
-    ( cd "$PKG" && ./compile.sh -n 16 -p 8 -r $RES -v 10 -O march=znver4 >/dev/null 2>&1 || true )
+    ( "$WT/.venv/bin/python" "$WT/exoplasim/scripts/build_model.py" \
+        --res "$RES" --ranks 16 --parmode mpi --extra-flag=-ffp-contract=off \
+        >/dev/null 2>&1 || true )
     [ -f "$PKG/plasim/run/$NAME" ] || { echo "build failed: $arm" >&2; exit 1; }
     cp -f "$PKG/plasim/run/$NAME" "$REF/idx_${arm}_${LOW}.x"
     echo "built $arm"

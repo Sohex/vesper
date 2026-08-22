@@ -35,6 +35,7 @@ REPO="$(cd "$HERE/../.." && pwd)"
 # shellcheck source=_bed_guard.sh
 . "$HERE/_bed_guard.sh"
 PKG="$REPO/vendor/exoplasim/exoplasim"
+BUILD="$REPO/.venv/bin/python $REPO/exoplasim/scripts/build_model.py"
 SRC="$PKG/plasim/src"
 low="$(echo "$res" | tr 'A-Z' 'a-z')"
 name="most_plasim_${low}_l10_p${ranks}_omp.x"
@@ -81,7 +82,7 @@ build_arm() {
             echo "control patch missed" >&2; exit 1; }
         ;;
     esac
-    ( cd "$PKG" && ./compile.sh -j -n "$ranks" -p 8 -r "$res" -v 10 ) \
+    ( $BUILD --res "$res" --ranks "$ranks" --parmode omp ) \
         >"$WORK/build_$arm.log" 2>&1 || true
     [ -f "$PKG/plasim/run/$name" ] || {
         echo "build failed: $arm (see $WORK/build_$arm.log)" >&2; exit 1; }

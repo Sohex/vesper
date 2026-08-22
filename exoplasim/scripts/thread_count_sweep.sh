@@ -13,6 +13,7 @@
 set -uo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 PKG="$REPO/vendor/exoplasim/exoplasim"
+BUILD="$REPO/.venv/bin/python $REPO/exoplasim/scripts/build_model.py"
 SCRATCH="${SCRATCH:-${TMPDIR:-/tmp}/thread_count_sweep}"
 mkdir -p "$SCRATCH"
 RES="${1:-T42}"
@@ -21,7 +22,7 @@ COUNTS="${3:-2 4 8 16}"
 low=$(echo "$RES" | tr 'A-Z' 'a-z')
 
 for n in $COUNTS; do
-    ( cd "$PKG" && ./compile.sh -j -p 8 -r "$RES" -v 10 -n "$n" ) \
+    ( $BUILD --res "$RES" --ranks "$n" --parmode omp ) \
         > "$SCRATCH/ts_build_${RES}_$n.log" 2>&1
     b="$PKG/plasim/run/most_plasim_${low}_l10_p${n}_omp.x"
     [ -f "$b" ] || { echo "build failed at $n threads"; exit 1; }

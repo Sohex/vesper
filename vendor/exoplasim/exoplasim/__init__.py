@@ -131,34 +131,17 @@ def sysconfigure():
     
     sourcedir = "/".join(__file__.split("/")[:-1]) #Get the absolute path for the module
      
+    # THIS FORK DOES NOT CONFIGURE OR COMPILE FROM HERE.
+    # `exoplasim/scripts/build_model.py` builds the model, from the flag line
+    # declared in `config/planet.yaml`, through CMake and Ninja. There are no
+    # generated `most_compiler*` files any more and no `configure.sh` to write
+    # them: they defaulted silently, disagreed with each other, and only one of
+    # the three was ever derived from the declaration.
+    # notes/audits/model-build-driver.md.
+
     try:
         cwd = os.getcwd()
         os.chdir(sourcedir)
-        pyversion = ".".join(sys.version.split(".")[:2])
-        #for pyfftfile in glob.glob(os.path.join(sourcedir,"pyfft*.so")):
-            #os.remove(pyfftfile)
-        if float(pyversion)>=3.5 and float(pyversion)<3.7:
-            print("./configure -v %s"%(pyversion))
-            result = subprocess.run(["./configure.sh -v %s"%(pyversion)],shell=True,check=True,
-                                    stdout=subprocess.PIPE,stderr=subprocess.PIPE,
-                                    universal_newlines=True)
-            print(result.stdout)
-            print(result.stderr)
-        elif float(pyversion)>=3.7:
-            print("./configure -v %s"%(pyversion))
-            result = subprocess.run(["./configure.sh -v %s"%(pyversion)],shell=True,check=True,
-                            capture_output=True,universal_newlines=True)
-            print(result.stdout)
-            print(result.stderr)
-        elif float(pyversion)<3.5 and float(pyversion)>=3.0:
-            print("./configure -v %s"%(pyversion))
-            os.system("./configure.sh -v %s"%(pyversion))
-            result=""
-        else:
-            print("./configure -v 3")
-            os.system("./configure.sh -v 3")
-            result=""
-            
         if not os.path.isfile(sourcedir+"/firstrun") :
             os.system(f"touch {sourcedir}/firstrun")
             compile_pyfft()
@@ -389,8 +372,10 @@ class Model(object):
         
         sourcedir = "/".join(__file__.split("/")[:-1]) #Get the absolute path for the module
         
-        if not os.path.isfile(sourcedir+"/firstrun") or not os.path.isfile(sourcedir+"/most_compiler")\
-            or not os.path.isfile(sourcedir+"/most_compiler_mpi"): #This means we haven't run yet, and have some post-install work to do
+        # The most_compiler* tests are gone with the files: this fork builds
+        # through exoplasim/scripts/build_model.py and has no generated
+        # compiler-options files to be missing.
+        if not os.path.isfile(sourcedir+"/firstrun"):
             recompile=True
             #os.system('spth=$(python%s -c "import exoplasim as exo; print(exo.__path__)") && echo $spth>sourcepath'%sys.version[0])
             #with open("sourcepath","r") as spf:
@@ -557,21 +542,21 @@ class Model(object):
         print("Checking for %s...."%self.executable)
         
         if recompile or not os.path.exists(self.executable):
-            extraflags = ""
-            if debug:
-                extraflags+= "-d "
-            if optimization:
-                extraflags+= "-O %s"%optimization
-            if self.mars:
-                extraflags+= "-m "
-            if force991:
-                extraflags+= "-f "
-            os.system("cwd=$(pwd) && "+
-                    "cd %s && ./compile.sh -n %d -p %d -r T%d -v %d "%(sourcedir,self.ncpus,
-                                                                        precision,self.nsp,
-                                                                        self.layers)+
-                    extraflags+" &&"+
-                    "cd $cwd")
+            # REFUSES RATHER THAN BUILDS, which is the point. Upstream compiles
+            # here on demand; this fork builds every executable through
+            # exoplasim/scripts/build_model.py so that one declaration in
+            # config/planet.yaml is what every binary carries, and so that a
+            # binary's provenance is recorded in exoplasim/binary_manifest.json.
+            # A model reaching this line is asking for a configuration nobody
+            # registered, and building it silently is how the registry stopped
+            # describing the binaries that existed.
+            raise SystemExit(
+                "no executable at %s.\n"%self.executable +
+                "This fork does not compile on demand. Build it with:\n"
+                "  python exoplasim/scripts/build_model.py --res T%d "%self.nsp +
+                "--levels %d --ranks %d --parmode mpi\n"%(self.layers,self.ncpus) +
+                "or add the configuration to rebuild_binaries.py's MATRIX if it "
+                "should be part of the registry.")
         
         os.system("cp %s/* %s/"%(source,self.workdir))
         #if self.burn7:

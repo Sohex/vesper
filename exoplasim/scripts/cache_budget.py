@@ -28,7 +28,7 @@ invents. This number is what the core cannot avoid touching.
 import argparse
 import sys
 
-# (NTRU, NLAT, NLON) per spectral truncation, as compile.sh resolves them.
+# (NTRU, NLAT, NLON) per spectral truncation, as build_model.py resolves them.
 RESOLUTIONS = {
     "T21":  (21,   32,   64),
     "T31":  (31,   48,   96),

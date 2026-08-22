@@ -50,6 +50,7 @@ REPO="$(cd "$HERE/../.." && pwd)"
 # shellcheck source=_bed_guard.sh
 . "$HERE/_bed_guard.sh"
 PKG="$REPO/vendor/exoplasim/exoplasim"
+BUILD="$REPO/.venv/bin/python $REPO/exoplasim/scripts/build_model.py"
 SRC="$PKG/plasim/src"
 low="$(echo "$res" | tr 'A-Z' 'a-z')"
 WORK="$REPO/exoplasim/bench/_shtnsmodel"
@@ -100,7 +101,7 @@ build_arm() {
             echo "control patch missed: $after sites still filtered" >&2; exit 1; }
     fi
     : > "$stamp"
-    ( cd "$PKG" && ./compile.sh -j -p 8 -n "$n" -r "$res" -v 10 ) \
+    ( $BUILD --res "$res" --ranks "$n" --parmode omp ) \
         >"$WORK/build_$arm.log" 2>&1 || true
     [ -f "$PKG/plasim/run/$name" ] && [ "$PKG/plasim/run/$name" -nt "$stamp" ] || {
         echo "build failed or stale: $arm (see $WORK/build_$arm.log)" >&2; exit 1; }

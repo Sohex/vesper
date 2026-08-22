@@ -61,6 +61,7 @@ REPO="$(cd "$HERE/../.." && pwd)"
 # shellcheck source=_bed_guard.sh
 . "$HERE/_bed_guard.sh"
 PKG="$REPO/vendor/exoplasim/exoplasim"
+BUILD="$REPO/.venv/bin/python $REPO/exoplasim/scripts/build_model.py"
 SRC="$PKG/plasim/src"
 low="$(echo "$res" | tr 'A-Z' 'a-z')"
 WORK="$REPO/exoplasim/bench/_tnumerics"
@@ -94,15 +95,15 @@ build_arm() {
     case "$arm" in
       reference)
         if [ "$reference" = "serial" ]; then
-            flags="-n 1"; name="most_plasim_${low}_l10_p1.x"
+            flags="--ranks 1 --parmode serial"; name="most_plasim_${low}_l10_p1.x"
         else
-            flags="-n $n";  name="most_plasim_${low}_l10_p${n}.x"
+            flags="--ranks $n --parmode mpi";  name="most_plasim_${low}_l10_p${n}.x"
         fi ;;
-      *) flags="-j -n $n"; name="most_plasim_${low}_l10_p${n}_omp.x" ;;
+      *) flags="--ranks $n --parmode omp"; name="most_plasim_${low}_l10_p${n}_omp.x" ;;
     esac
     : > "$stamp"
     # shellcheck disable=SC2086
-    ( cd "$PKG" && ./compile.sh $flags -p 8 -r "$res" -v 10 ) >"$WORK/build_$arm.log" 2>&1 || true
+    ( $BUILD --res "$res" $flags ) >"$WORK/build_$arm.log" 2>&1 || true
     [ -f "$PKG/plasim/run/$name" ] && [ "$PKG/plasim/run/$name" -nt "$stamp" ] || {
         echo "build failed or stale: $arm (see $WORK/build_$arm.log)" >&2; exit 1; }
     cp -f "$PKG/plasim/run/$name" "$WORK/ref/$arm.x"

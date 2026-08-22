@@ -8,7 +8,8 @@
 # separates "the team is too big" from "the work is unevenly spread".
 #
 # Needs a FRAME-POINTER build: DWARF fails on 94% of samples here and frame
-# pointers on none, at a measured cost of -1.17%. Build one with compile.sh -g
+# pointers on none, at a measured cost of -1.17%. Build one with
+# build_model.py --frame-pointers
 # and pass it as PROBE.
 #
 #   PROBE=/path/to/most_plasim_t170_l10_p16_omp_fp.x \
@@ -25,7 +26,7 @@ SCRATCH="${SCRATCH:-${TMPDIR:-/tmp}/attribute_barrier_wait}"
 mkdir -p "$SCRATCH"
 BED="${1:-bed_t170cold}"
 STEPS="${2:-300}"
-: "${PROBE:?set PROBE to a frame-pointer build, compile.sh -g}"
+: "${PROBE:?set PROBE to a frame-pointer build, build_model.py --frame-pointers}"
 
 d="$SCRATCH/run"; rm -rf "$d"; mkdir -p "$d"
 cp -a "$REPO/exoplasim/bench/$BED/." "$d/"

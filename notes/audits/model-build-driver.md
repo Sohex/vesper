@@ -112,3 +112,55 @@ where it does it.
 Nothing in this project calls `configure.sh`. The upstream install path in
 `vendor/exoplasim/exoplasim/__init__.py` does, and this project does not use it:
 the package is installed editable and built through `rebuild_binaries.py`.
+
+## Replaced, 2026-08-22
+
+`compile.sh`, `configure.sh`, `make_plasim`, the three `most_compiler*` files,
+the two `most_precision_options*` files and the four `most_{ice,snow}_build*`
+scripts are deleted. `vendor/exoplasim/exoplasim/plasim/CMakeLists.txt` and
+`exoplasim/scripts/build_model.py` replace them.
+
+**What the equivalence rests on.** The bar was fixed before the first build:
+byte-identical, or else an identical restart plus an identified reason for the
+difference. Byte-identity FAILED and the reason is known. CMake compiles out of
+tree, so gfortran embeds absolute paths in the runtime-diagnostic strings it
+carries -- `In file '<134 characters>', around line 590` -- where the old
+in-tree build embedded a bare filename. The same 1640 strings appear in both,
+each about 100 characters longer, `.rodata` grows 35,776 bytes, and every
+address downstream of it shifts. `-ffile-prefix-map` does not reach those
+strings, because they arrive through `#line` directives in the file CMake
+preprocesses for its module scanner.
+
+What is identical, and this is the stronger statement:
+
+| | T170 omp | T21 p8 mpi |
+| --- | --- | --- |
+| `.text` size | 1,917,198 both | 1,900,942 both |
+| defined symbols, name and size | 2187, no differences | 2194, no differences |
+
+and the restart, T170 over 60 steps on the SHTns path with `NLOWIO=1`, is
+`017a35afbdf1f5f6c621c734` from both builds. Two successive registry rebuilds
+also produced identical shas for all twelve executables, so the new build is
+reproducible run to run.
+
+**What each defect became.** The silent `-r` and `-p` defaults are gone: every
+argument is checked against a list and an unrecognised value exits non-zero
+having written nothing. The stale-binary trap is gone: the output name is
+removed first and written last, only on success. The three divergent compiler
+files are one declaration. The hand-declared dependency edges are gone --
+Ninja scans the `use` statements, so CONS-13's missing edge is not a thing that
+can be missing. And `plasim/bld` is one directory per configuration, so the
+registry builds concurrently.
+
+**What parallelism turned out to be worth.** A clean rebuild of all twelve
+registered executables: **19 s**, against about 300 s for the serial
+`compile.sh` loop it replaced. That is 3.5x inside each build, which
+`aocl-and-model-build-flags.md` measured, multiplied by four builds at once.
+
+**The upstream Python API is fenced rather than followed.** `exoplasim/__init__.py`
+configured and compiled on demand -- `sysconfigure()` ran `configure.sh`, and
+`Model.__init__` ran `compile.sh` whenever the executable it wanted was absent.
+Both are removed. A `Model` that finds no executable now raises, naming
+`build_model.py`, because building one silently is how the registry stopped
+describing the binaries that existed. Note the editable install resolves to the
+main checkout rather than to a worktree, so this takes effect on merge.

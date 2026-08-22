@@ -28,42 +28,27 @@ REF="$WT/exoplasim/bench/ref"
 name="most_plasim_${low}_l10_p16.x"
 
 cp -f "$SRC" "$KEEP"                      # the patched source, to restore
-# cp, not $(cat) + printf: command substitution strips trailing newlines and
-# printf '%s' does not put one back, so restoring that way left
-# most_compiler_mpi without its final newline. compile.sh cats these files
-# together, so the next build produced a makefile target literally named
-# `pumax_stubMOST_PREC=-fdefault-real-8.c` and failed with no hint of why.
-cp -f "$PKG/most_compiler_mpi" "$PKG/most_compiler_mpi.orig"
-restore() {
-    cp -f "$KEEP" "$SRC"
-    cp -f "$PKG/most_compiler_mpi.orig" "$PKG/most_compiler_mpi"
-}
+restore() { cp -f "$KEEP" "$SRC"; }
 trap restore EXIT
 
-# -ffp-contract=off for both arms
-python - "$PKG/most_compiler_mpi" <<'PY'
-import sys, pathlib
-p = pathlib.Path(sys.argv[1]); out = []
-for line in p.read_text().splitlines():
-    if line.startswith("MOST_F90_OPTS=") and "-ffp-contract" not in line:
-        line += " -ffp-contract=off"
-    out.append(line)
-p.write_text("\n".join(out) + "\n")
-PY
-grep MOST_F90_OPTS "$PKG/most_compiler_mpi"
+# -ffp-contract=off for both arms, and it reaches the compiler as an
+# --extra-flag rather than by editing a generated file in place. The old route
+# patched most_compiler_mpi, so a run that died left the flag behind for
+# whatever built next.
+CONTRACT_OFF="--extra-flag=-ffp-contract=off"
 
-cd "$PKG"
+BUILD="$WT/.venv/bin/python $WT/exoplasim/scripts/build_model.py"
 echo "building UNPATCHED $res with contraction off ..."
 git -C "$WT" checkout -- vendor/exoplasim/exoplasim/plasim/src/legmod.f90
-./compile.sh -n 16 -p 8 -r "$res" -v 10 -O march=znver4 >/dev/null 2>&1 || true
-[ -f "plasim/run/$name" ] || { echo "unpatched build failed" >&2; exit 1; }
-cp -f "plasim/run/$name" "$REF/unpatched_nofma_${low}.x"
+$BUILD --res "$res" --ranks 16 --parmode mpi $CONTRACT_OFF >/dev/null 2>&1 || true
+[ -f "$PKG/plasim/run/$name" ] || { echo "unpatched build failed" >&2; exit 1; }
+cp -f "$PKG/plasim/run/$name" "$REF/unpatched_nofma_${low}.x"
 
 echo "building PATCHED   $res with contraction off ..."
 cp -f "$KEEP" "$SRC"
-./compile.sh -n 16 -p 8 -r "$res" -v 10 -O march=znver4 >/dev/null 2>&1 || true
-[ -f "plasim/run/$name" ] || { echo "patched build failed" >&2; exit 1; }
-cp -f "plasim/run/$name" "$REF/patched_nofma_${low}.x"
+$BUILD --res "$res" --ranks 16 --parmode mpi $CONTRACT_OFF >/dev/null 2>&1 || true
+[ -f "$PKG/plasim/run/$name" ] || { echo "patched build failed" >&2; exit 1; }
+cp -f "$PKG/plasim/run/$name" "$REF/patched_nofma_${low}.x"
 
 cd "$WT"
 bed="exoplasim/bench/bed_$low"

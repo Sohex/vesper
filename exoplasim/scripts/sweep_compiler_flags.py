@@ -31,6 +31,7 @@ import json
 import shutil
 import statistics as st
 import subprocess
+import sys
 import time
 from pathlib import Path
 
@@ -38,59 +39,42 @@ from _paths import COMPONENT_ROOT, MODEL_RUN, PROJECT_ROOT
 
 PKG = PROJECT_ROOT / "vendor" / "exoplasim" / "exoplasim"
 
-# Arm name -> the flag handed to compile.sh's -O hook, WITHOUT its leading dash.
-# compile.sh appends it to MOST_F90_OPTS with `sed '3s/$/ '$optimization'/'`,
-# which quotes nothing, so a value containing whitespace corrupts the sed
-# expression. One flag per arm is not a style choice, it is the interface.
+# Arm name -> what it does to the DECLARED flag line in config/planet.yaml.
+# `add` and `drop` reach the compiler through build_model.py's --extra-flag and
+# --drop-flag, which put both in the build directory's name, so two arms cannot
+# land in one directory and reuse each other's objects.
 #
-# Arms needing more than one flag, or needing a flag REMOVED, edit the
-# MOST_F90_OPTS line instead; `drop` and `add` carry that.
+# There is no `opt` any more. It existed to feed compile.sh's -O hook, which
+# could only APPEND one whitespace-free token to a copy of a generated options
+# file; -march=znver4 is in the declared line itself now, so every arm carries it
+# by construction rather than by each arm remembering to.
 #
-# EVERY arm carries march=znver4 through `opt`, because it is already adopted and
-# an arm that silently dropped it would be measuring two changes at once.
+# A `drop` naming a flag the declared line does not contain is an ERROR, not a
+# no-op: an arm that silently dropped nothing would measure the control and
+# report it as the treatment.
 ARMS: dict[str, dict] = {
-    "stock":        {"opt": "march=znver4"},
-    "no_fcheck":    {"opt": "march=znver4", "drop": ["-fcheck=all"]},
-    "unroll":       {"opt": "march=znver4", "add": ["-funroll-loops"]},
-    "no_fcheck_unroll": {"opt": "march=znver4",
+    "stock":        {},
+    "no_fcheck":    {"drop": ["-fcheck=all"]},
+    "unroll":       {"add": ["-funroll-loops"]},
+    "no_fcheck_unroll": {
                          "drop": ["-fcheck=all"], "add": ["-funroll-loops"]},
     # -Ofast implies -ffast-math, which reassociates and would fight
     # -ffpe-trap=invalid; the trap is dropped WITH it so the arm measures
     # codegen rather than dying on the first denormal. It is a numerics change
     # by construction and is here to size the ceiling, not to be adopted.
-    "ofast":        {"opt": "march=znver4", "drop": ["-fcheck=all", "-O3",
+    "ofast":        {"drop": ["-fcheck=all", "-O3",
                                                      "-ffpe-trap=invalid,zero,overflow"],
                      "add": ["-Ofast"]},
-    "prefetch":     {"opt": "march=znver4", "drop": ["-fcheck=all"],
+    "prefetch":     {"drop": ["-fcheck=all"],
                      "add": ["-fprefetch-loop-arrays"]},
-    "ipa":          {"opt": "march=znver4", "drop": ["-fcheck=all"],
+    "ipa":          {"drop": ["-fcheck=all"],
                      "add": ["-fipa-pta", "-fno-semantic-interposition"]},
 }
 
 BASE_LINE_PREFIX = "MOST_F90_OPTS="
 
 
-def compiler_file() -> Path:
-    return PKG / "most_compiler_mpi"
-
-
-def set_base_flags(original: str, drop: list[str], add: list[str]) -> str:
-    """Rewrite the MOST_F90_OPTS line, dropping and adding whole flags."""
-    out = []
-    for line in original.splitlines():
-        if line.startswith(BASE_LINE_PREFIX):
-            flags = line[len(BASE_LINE_PREFIX):].split()
-            flags = [f for f in flags if f not in drop]
-            for a in add:
-                if a not in flags:
-                    flags.append(a)
-            line = BASE_LINE_PREFIX + " ".join(flags)
-        out.append(line)
-    return "\n".join(out) + "\n"
-
-
-def build(arm: str, spec: dict, res: str, layers: int, ranks: int,
-          original: str) -> Path | None:
+def build(arm: str, spec: dict, res: str, layers: int, ranks: int) -> Path | None:
     """Compile one arm and stash the executable under bench/flagsweep/."""
     name = f"most_plasim_t{res.lstrip('Tt').lower()}_l{layers}_p{ranks}.x"
     stash = COMPONENT_ROOT / "bench" / "flagsweep" / arm
@@ -100,11 +84,14 @@ def build(arm: str, spec: dict, res: str, layers: int, ranks: int,
         print(f"  {arm}: already built, reusing")
         return target
 
-    compiler_file().write_text(
-        set_base_flags(original, spec.get("drop", []), spec.get("add", [])))
-    cmd = ["./compile.sh", "-n", str(ranks), "-p", "8", "-r", res,
-           "-v", str(layers), "-O", spec["opt"]]
-    r = subprocess.run(cmd, cwd=PKG, capture_output=True, text=True)
+    cmd = [sys.executable, str(Path(__file__).resolve().parent / "build_model.py"),
+           "--res", res, "--levels", str(layers), "--ranks", str(ranks),
+           "--parmode", "mpi"]
+    for f in spec.get("drop", []):
+        cmd.append(f"--drop-flag={f}")
+    for f in spec.get("add", []):
+        cmd.append(f"--extra-flag={f}")
+    r = subprocess.run(cmd, capture_output=True, text=True)
     built = MODEL_RUN / name
     if r.returncode != 0 or not built.is_file():
         # One arm that will not compile must not take the sweep with it: the
@@ -144,20 +131,18 @@ def main() -> None:
     args = ap.parse_args()
 
     bed = args.bed.resolve()
-    original = compiler_file().read_text()
     arms = {a: ARMS[a] for a in args.arms}
 
-    try:
-        print("building arms")
-        exes = {a: build(a, s, args.resolution, args.layers, args.ranks, original)
-                for a, s in arms.items()}
-        exes = {a: e for a, e in exes.items() if e is not None}
-        arms = {a: s for a, s in arms.items() if a in exes}
-        if "stock" not in arms:
-            raise SystemExit("the stock arm failed to build; nothing to compare against")
-    finally:
-        compiler_file().write_text(original)   # never leave the tree edited
-        print("restored most_compiler_mpi")
+    # No try/finally: nothing to restore. No arm edits a file in the tree any
+    # more -- flags reach the compiler as arguments -- so a run that dies leaves
+    # nothing behind for whatever builds next, which is what the old route did.
+    print("building arms")
+    exes = {a: build(a, s, args.resolution, args.layers, args.ranks)
+            for a, s in arms.items()}
+    exes = {a: e for a, e in exes.items() if e is not None}
+    arms = {a: s for a, s in arms.items() if a in exes}
+    if "stock" not in arms:
+        raise SystemExit("the stock arm failed to build; nothing to compare against")
 
     print(f"\nwarm-up ({list(arms)[0]})")
     time_once(bed, exes[list(arms)[0]], args.ranks)

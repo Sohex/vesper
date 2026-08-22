@@ -39,6 +39,8 @@ uncommitted edit under `vendor/` is caught rather than waved through.
 
 from __future__ import annotations
 
+import concurrent.futures as cf
+
 import argparse
 from datetime import datetime, timezone
 import hashlib
@@ -50,6 +52,9 @@ import sys
 
 import yaml
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import build_model
+
 ROOT = Path(__file__).resolve().parents[2]
 PKG = ROOT / "vendor" / "exoplasim" / "exoplasim"
 SRC = PKG / "plasim" / "src"
@@ -57,26 +62,19 @@ RUN = PKG / "plasim" / "run"
 BIN = PKG / "plasim" / "bin"
 MANIFEST = ROOT / "exoplasim" / "binary_manifest.json"
 
-# Precision is declared, never inferred: compile.sh takes it in BYTES and
-# silently falls back to 4 for anything it does not recognise.
+# Precision is declared, never inferred. It reaches the compiler through
+# build_model.py, which refuses a value it does not recognise rather than
+# falling back to single -- archive CLIM-22 is that fallback having shipped
+# twelve single-precision binaries under a declaration of eight.
 _MODEL = yaml.safe_load(
     (ROOT / "config" / "planet.yaml").read_text(encoding="utf-8")
 )["model"]
 PRECISION = int(_MODEL["precision_bytes"])
 
-# The flag line is DECLARED IN FULL by `model.compile_flags.f90_opts`, and this script
-# writes it into `most_compiler_mpi` before every build.
-#
-# Not compile.sh's `-O` hook, which is what this used to use. That hook appends
-# (`sed '3s/$/ '$optimization'/'`), so it can add a flag and can never remove
-# one -- and removal is the operation that matters here, because `-fcheck=all`
-# arrives in configure.sh's generated default line and has to come OUT of
-# production builds. It also took exactly one flag, since the sed quotes nothing
-# and a value with whitespace would corrupt the expression rather than fail.
-#
-# Writing the whole line also makes a reconfigure harmless: configure.sh may
-# regenerate most_compiler_mpi with whatever defaults it likes, and the next
-# build overwrites line 3 from the config regardless.
+# The flag line is DECLARED IN FULL by `model.compile_flags.f90_opts` and reaches
+# the compiler through `build_model.py`, which reads the same declaration. There
+# is no generated compiler-options file to keep in step any more: the three that
+# existed disagreed, and only one of them was ever written from this declaration.
 _BUILD = _MODEL["compile_flags"]
 BASE_F90_OPTS = [str(f) for f in _BUILD["f90_opts"]]
 PROFILES = {k: [str(f) for f in v] for k, v in _BUILD["profiles"].items()}
@@ -91,31 +89,9 @@ for _flag in BASE_F90_OPTS + [f for v in PROFILES.values() for f in v]:
             f"model.compile_flags entries must each be a single token starting with '-', "
             f"got {_flag!r}")
 
-# MOST_F90_OPTS is line 3 of most_compiler_mpi, which compile.sh's own sed also
-# assumes. Asserted rather than searched, so a reshaped file fails loudly here
-# instead of producing a build with the wrong flags.
-F90_OPTS_LINE = 3
-
-
 def f90_opts(profile: str) -> list[str]:
     return BASE_F90_OPTS + PROFILES[profile]
 
-
-def write_flag_line(profile: str) -> str:
-    """Put the declared flag line into most_compiler_mpi; return what was written."""
-    f = PKG / "most_compiler_mpi"
-    lines = f.read_text(encoding="utf-8").splitlines()
-    if not lines[F90_OPTS_LINE - 1].startswith("MOST_F90_OPTS="):
-        raise SystemExit(
-            f"{f} line {F90_OPTS_LINE} is not MOST_F90_OPTS=; compile.sh's own "
-            f"sed assumes it is, so refusing to guess")
-    line = "MOST_F90_OPTS=" + " ".join(f90_opts(profile))
-    lines[F90_OPTS_LINE - 1] = line
-    # The trailing newline is load-bearing: compile.sh cats this file into the
-    # makefile, and without it the next file's first line joins this one and the
-    # build fails on a target named after two concatenated variables.
-    f.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    return line
 
 # The matrix. NLAT must divide the rank count, and 8, 16 and 32 all divide every
 # NLAT on the T21/T42/T85/T127/T170 ladder: 32, 64, 128, 192, 256. Every rung has
@@ -180,54 +156,34 @@ def toolchain(profile: str) -> dict:
     byte-identical executable, which is what makes the comparison below worth
     making at all.
 
-    `configure.sh` writes the compiler names and options into
-    `most_compiler_mpi` and `most_compiler`; the versions are asked of the
-    compilers those files actually name, so this stays right if they change.
+    There is one declaration and it is `config/planet.yaml`. What used to be
+    recorded here was the contents of three generated compiler-options files, of
+    which only one was ever written from that declaration -- so a threaded binary
+    carried a provenance record of flags it was not built with. The flag line
+    below is the one `build_model.py` hands the compiler, and the versions are
+    asked of the compilers it actually invokes.
     """
-    args, versions = {}, {}
-    for name in ("most_compiler_mpi", "most_compiler", "most_precision_options",
-                 "most_precision_optionsx"):
-        f = PKG / name
-        args[name] = f.read_text(encoding="utf-8") if f.is_file() else None
-
-    named = {}
-    for line in (args.get("most_compiler_mpi") or "").splitlines():
-        key, _, value = line.partition("=")
-        if key in ("MOST_F90", "MOST_CC"):
-            named[key] = value.split("#")[0].strip()
-    for key, exe in sorted(named.items()):
+    versions = {}
+    for exe in ("gfortran", "mpif90", "gcc", "cmake", "ninja"):
         try:
             r = subprocess.run([exe, "--version"], capture_output=True, text=True)
             versions[exe] = r.stdout.splitlines()[0].strip() if r.stdout else None
         except (OSError, IndexError):
             versions[exe] = None
 
-    # What compile.sh ACTUALLY fed the makefile. It copies most_compiler_mpi to
-    # plasim/bld/compilerargs and appends the -O flag THERE, so the file this
-    # function reads above never carries it and recording only that file
-    # under-reports the build. Adopting -march=znver4 is what exposed that: the
-    # executable carried 20,371 AVX-512 references while the manifest's flag
-    # line showed none. This is read after the build, so it describes the
-    # binaries that were just written rather than the previous set.
-    effective = None
-    bld = PKG / "plasim" / "bld" / "compilerargs"
-    if bld.is_file():
-        for line in bld.read_text(encoding="utf-8").splitlines():
-            if line.startswith("MOST_F90_OPTS="):
-                effective = line
-                break
-
-    # The DECLARED line is what the config says this profile should compile
-    # with; the EFFECTIVE line is what the makefile actually used. Recording
-    # both is what makes `--verify` able to say whether a moved sha is the
-    # config, the toolchain, or neither -- and verifying under a different
-    # profile than the binaries were built with is a real drift, reported as
-    # one rather than waved through.
-    return {"compiler_args": args, "compiler_versions": versions,
+    # DECLARED and EFFECTIVE are now the same list plus the precision flag,
+    # and both are recorded because they were once able to disagree: the old
+    # driver appended `-O` to a COPY of the options file, so the file this
+    # recorded never carried it and the manifest under-reported the build.
+    effective = f90_opts(profile) + (["-fdefault-real-8"] if PRECISION == 8 else [])
+    return {"compiler_versions": versions,
             "precision_bytes": PRECISION,
             "build_profile": profile,
-            "declared_f90_opts": "MOST_F90_OPTS=" + " ".join(f90_opts(profile)),
-            "effective_f90_opts": effective}
+            "declared_f90_opts": " ".join(f90_opts(profile)),
+            "effective_f90_opts": " ".join(effective),
+            "note": "The registry builds the MPI configuration; a threaded build "
+                    "adds -fopenmp -DOMPSHARED, and a profiling build "
+                    "-fno-omit-frame-pointer. build_model.py is where that happens."}
 
 
 def describe_toolchain_drift(prior: dict, current: dict) -> list[str]:
@@ -268,21 +224,16 @@ def main() -> None:
                          f"bounds checking and is for anything whose answer is "
                          f"not yet trusted. The profile is part of a binary's "
                          f"identity and is recorded beside its sha.")
+    ap.add_argument("--jobs", type=int, default=4,
+                    help="configurations to build at once (default 4). Each one "
+                         "compiles in its own directory, so they do not collide; "
+                         "each also runs its own parallel compile underneath.")
     ap.add_argument("--verify", action="store_true",
                     help="report staleness and exit without building")
     args = ap.parse_args()
 
     if not SRC.is_dir():
         raise SystemExit(f"no ExoPlaSim source at {SRC}; is the vendor/exoplasim subtree present?")
-
-    # `configure.sh` writes most_compiler_mpi and friends, and ExoPlaSim only runs
-    # it from `sysconfigure()`. A pip install used to trigger that; a subtree
-    # checkout has never been configured, so do it here when the output is
-    # absent. It is idempotent.
-    if not (PKG / "most_compiler_mpi").is_file():
-        print("configuring the vendored source (most_compiler_mpi absent) ...")
-        import exoplasim
-        exoplasim.sysconfigure()
 
     rev = subprocess.run(["git", "-C", str(ROOT), "log", "-1", "--format=%h %s",
                           "--", "vendor/exoplasim"],
@@ -340,35 +291,39 @@ def main() -> None:
             removed += 1
     print(f"removed {removed} existing executables\n")
 
-    flag_line = write_flag_line(args.profile)
+    flag_line = "MOST_F90_OPTS=" + " ".join(f90_opts(args.profile))
     print(f"profile {args.profile}: {flag_line}\n")
 
+    # CONCURRENTLY, which is new and is the whole reason the build directory is
+    # per-configuration. The old driver compiled every configuration in one
+    # `plasim/bld` that it emptied on entry, so two builds could not run at once
+    # without one deleting the other's objects and this loop had to be serial.
+    # `notes/audits/aocl-and-model-build-flags.md` measures parallelism inside a
+    # single build at 3.5x; this is the other half, across the twelve.
     built = {}
-    for res, lev, ranks in MATRIX:
-        name = expected(res, lev, ranks)
-        print(f"building {name} ...", flush=True)
-        # `-n` is ncpus and `-p` is PRECISION IN BYTES. This passed the rank
-        # count to both, so an 8-rank build got -p 8 and was double precision by
-        # accident, while a 16-rank build got -p 16, matched no case in
-        # compile.sh, and fell back to its default of 4. Every 16-rank binary
-        # was therefore single precision while config/planet.yaml declared 8,
-        # and ExoPlaSim quietly recompiled at -r8 on first use -- so the
-        # manifest described binaries that never ran a single orbit.
-        cmd = ["./compile.sh", "-n", str(ranks), "-p", str(PRECISION),
-               "-r", res, "-v", str(lev)]
-        # No -O. The whole flag line is written into most_compiler_mpi above,
-        # because -O can only append and this has to be able to REMOVE.
-        r = subprocess.run(cmd, cwd=PKG, capture_output=True, text=True)
-        target = RUN / name
-        if r.returncode != 0 or not target.is_file():
-            print(r.stdout[-1500:])
-            print(r.stderr[-1500:])
-            raise SystemExit(f"build failed for {name}")
-        built[name] = {"sha256": sha256(target),
-                       "resolution": res, "layers": lev, "ranks": ranks,
-                       "profile": args.profile,
-                       "sources": sources}
-        print(f"  {built[name]['sha256'][:16]}")
+    with cf.ThreadPoolExecutor(max_workers=args.jobs) as pool:
+        futures = {
+            pool.submit(build_model.build, res, lev, ranks, "mpi",
+                        args.profile, False, None, False): (res, lev, ranks)
+            for res, lev, ranks in MATRIX
+        }
+        for fut in cf.as_completed(futures):
+            res, lev, ranks = futures[fut]
+            name = expected(res, lev, ranks)
+            try:
+                target = fut.result()
+            except SystemExit as exc:
+                raise SystemExit(f"build failed for {name}: {exc}") from exc
+            if target.name != name:
+                raise SystemExit(
+                    f"build_model produced {target.name} where the registry "
+                    f"expects {name}; the two naming rules have diverged")
+            built[name] = {"sha256": sha256(target),
+                           "resolution": res, "layers": lev, "ranks": ranks,
+                           "profile": args.profile,
+                           "sources": sources}
+            print(f"built {name}  {built[name]['sha256'][:16]}", flush=True)
+    built = {k: built[k] for k in sorted(built)}
 
     payload = {
         "note": "Which model source each executable was compiled from. Generated "
@@ -377,9 +332,6 @@ def main() -> None:
                 "trusted -- rebuild rather than reason about it.",
         "generated": datetime.now(timezone.utc).isoformat(),
         "exoplasim_version": "3.4.2",
-        # Recomputed AFTER the build loop: `effective_f90_opts` is read from
-        # plasim/bld/compilerargs, which compile.sh writes, so before the
-        # loop it describes the previous build.
         "build_profile": args.profile,
         "toolchain": toolchain(args.profile),
         "model_source": subprocess.run(

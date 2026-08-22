@@ -19,7 +19,8 @@
 # `requirements.txt` is. The revision is here, in one place, and moving it is a
 # deliberate edit.
 #
-# -march=znver4 matches most_compiler_omp so the library and the model agree on
+# -march=znver4 matches config/planet.yaml's declared flag line so the library
+# and the model agree on
 # the instruction set; it is what gives SHTns its AVX-512, which is most of why
 # it beats a hand-written transform. --enable-openmp is required even though the
 # model calls it SINGLE-threaded, because that is the build that ships the

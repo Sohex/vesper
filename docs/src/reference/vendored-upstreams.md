@@ -64,9 +64,18 @@ to that fork's default branch, so a PR against upstream must name its head
 branch explicitly or it will offer the whole stack.
 
 It is installed EDITABLE, so the source you read is the source that compiles and
-the source that runs. Its build artifacts stay untracked: the subtree's own
-`.gitignore` excludes everything `configure.sh` and `compile.sh` generate, which
-is what keeps a five-binary rebuild from leaving the working tree dirty.
+the source that runs. Its build artifacts stay untracked: everything the build
+writes lands under `vendor/exoplasim/build/`, one directory per configuration,
+and in `plasim/run`, which is what keeps a twelve-binary rebuild from leaving
+the working tree dirty.
+
+**The fork does not use upstream's build system and no longer carries it.**
+`compile.sh`, `configure.sh`, `make_plasim` and the `most_compiler*` files are
+deleted; `plasim/CMakeLists.txt` and `exoplasim/scripts/build_model.py` replace
+them, and `exoplasim/__init__.py` raises rather than compiling on demand. That
+is the largest single divergence from upstream and it is deliberate: pulling
+upstream will conflict there, and the resolution is always to keep this side.
+`notes/audits/model-build-driver.md` says what the old one did wrong.
 
 The fork carries, over upstream: the low-I/O restart and broadcast repairs, the
 pyburn reader fix, the shortwave weights for a non-solar host, the dust and

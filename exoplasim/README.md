@@ -178,22 +178,36 @@ annualized to 365.2425 days before applying empirical Earth thresholds. That
 avoids classifying this world's 180.7-day orbital year as artificially dry.
 It is a worldbuilding interpretation, not a dynamic vegetation simulation.
 
-## The build variants, and which flags change the binary's identity
+## Building the model
 
-`compile.sh` produces a differently named executable for each combination,
-because these are different binaries at the same resolution and rank count
-rather than variants of one. `plasim/bld` keeps a marker per choice and empties
-itself when one changes: the objects share names, and a stale one links
-silently. Precision is the worst of the three to get wrong, because
-`-fdefault-real-8` changes the width of `real` in every declaration and a real*4
-object linked against real*8 ones does not fail -- it computes.
+`exoplasim/scripts/build_model.py` is the only way the model gets built. It
+reads the flag line from `config/planet.yaml`, checks every argument against a
+list, and builds through CMake and Ninja in a directory of its own per
+configuration.
 
-| flag | what it selects | name |
+    python exoplasim/scripts/build_model.py --res T170 --ranks 16 --parmode omp
+    python exoplasim/scripts/build_model.py --res T21  --ranks 8  --parmode mpi
+
+**An argument it does not recognise is an error, and that is the point.** What
+this replaced defaulted silently three times over -- an unrecognised `-r` built
+T21, an unrecognised `-p` built SINGLE precision under a declaration of eight,
+and the executable was named for the resolution the parse arrived at, so a
+caller that copied the name it asked for could get an untouched binary from a
+previous session. `notes/audits/model-build-driver.md` has the measurements.
+
+| option | what it selects | name |
 | --- | --- | --- |
-| none | MPI, one process per rank | `most_plasim_<res>_l10_p<n>.x` |
-| `-j` | threads instead of ranks, one process, `mpimod_omp` | `..._omp.x` |
-| `-p 8` | double precision, which is what `config/planet.yaml` declares | no change to the name |
-| `-g` | a PROFILING build: frame pointers. DWARF cannot unwind the -O3 code -- 94% of model samples get no caller -- and this costs -1.17% with an identical restart sha, so the profile measures the same model | `..._fp.x` |
+| `--parmode mpi` | one process per rank | `most_plasim_<res>_l10_p<n>.x` |
+| `--parmode omp` | threads instead of ranks, one process, `mpimod_omp` | `..._omp.x` |
+| `--parmode serial` | one process, no parallel layer; takes `--ranks 1` | no suffix |
+| `--profile` | a flag set from `config/planet.yaml`; `production` by default, `checked` adds `-fcheck=all` and `-finit-real=snan` | no change to the name |
+| `--frame-pointers` | a PROFILING build. DWARF cannot unwind the -O3 code -- 94% of model samples get no caller -- and this costs -1.17% with an identical restart sha, so the profile measures the same model | `..._fp.x` |
+| `--extra-flag=`, `--drop-flag=` | for a verification arm that varies a flag ON PURPOSE. Both are part of the build directory's identity, and a `--drop-flag` naming a flag the declaration does not carry is an error rather than a no-op | no change to the name |
+
+Precision is not an option: `config/planet.yaml` declares it. It is the worst of
+these to get wrong, because `-fdefault-real-8` changes the width of `real` in
+every declaration and a real*4 object linked against real*8 ones does not fail
+to link -- it computes.
 
 The paired latitude decomposition is retired. It existed to let legmod fold a
 mirror pair together, SHTns replaces legmod and cannot use the permuted layout
@@ -236,7 +250,6 @@ unless told they exist.
 | `verify_fold_indexing.sh` | proves each spectral mode gets its OWN filter value, with a negative control |
 | `verify_legendre_parity.py` | checks P and its mu-derivative have opposite parity in legini's own recurrence |
 | `verify_latitude_pairing.py` | compiles `plasimmod.f90`'s own `ilatperm` and checks the paired decomposition gives each process a mirror pair per slot pair, with two negative controls |
-| `verify_paired_decomposition.sh` | runs the paired and contiguous layouts against each other on one bed, plus a wrong-permutation control that must fail |
 | `compare_restarts.py` | compares two restarts record by record and separates a regrouped sum from a different computation |
 | `verify_symmetric_transform.py` | runs `legmod.f90`'s own `sp2fc` and `sp2fcdmu` against an associated Legendre table computed by scipy, one spectral mode at a time, with a negative control for each |
 | `verify_weight_factorisation.py` | checks that `legini`'s eight weight matrices are all P or Q times a per-mode and a per-latitude factor, which is what CLIM-48 rests on, with a negative control |
@@ -255,6 +268,7 @@ unless told they exist.
 | `verify_gauss_weights.sh` | the model's `inigau` against that reference, with the implementation it replaced as the control. Weights enter the FORWARD transform and nothing else, so an error here is invisible to every check that compares synthesis |
 | `profile_memory.sh` | where the model's data comes from: this core's L2, this die's L3, the OTHER die's cache, or DRAM. Zen-specific events, because the generic LLC ones report not-supported on AMD and no uncore PMU is exposed. Two passes, so nothing multiplexes. It is what makes the 32 MB per-die target checkable rather than assumed |
 | `count_memops.c` | an LD_PRELOAD interposer counting memcpy, memmove and memset by CALL SITE, for when a profile says a library address is hot and cannot say who reached it. It only sees calls through the PLT, and it is too slow for memset -- a hash probe on every call turns a ten second run into minutes -- so for that one use `perf --call-graph dwarf` instead. Its negative result is what proved the hot addresses were not memcpy |
+| `build_model.py` | builds ONE executable and refuses any argument it does not understand. The flag line comes from `config/planet.yaml`, the build directory is per configuration so two configurations cannot delete each other's objects, and Ninja derives the Fortran module dependencies instead of the rule set declaring them by hand |
 | `probe_shtns_nspat.c` | how many reals SHTns requires a spatial field to hold, against the NUGP the model allocates. `shtns.h` documents the spatial argument as being `shtns->nspat` long and says the library uses it as its own scratch, so an undersized buffer is a plausible cause of a fault inside a transform. It is not the cause here -- nspat is exactly NUGP at every resolution -- and the probe is kept because that is worth being able to re-establish in one command after any SHTns upgrade or layout change |
 | `run_shtns_probe.sh` | builds and runs any of the four probe drivers, in the model's own configuration -- double precision, OMPSHARED, NOPAIRLAT. They were each built by hand once, which made them findable but not runnable |
 | `verify_shtns_equivalence.sh` | the gate before any call site moves: the whole conversion recipe on DENSE fields against legmod, scalar and vector, divergence and vorticity separately and together, with a control that drops the Condon-Shortley phase |
