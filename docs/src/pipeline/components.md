@@ -23,6 +23,10 @@ analysis/            Project-level products that belong to no single component:
 maps/                Rendering. Terminal: nothing reads its output. Its generators
                      live in the component root rather than a scripts/ directory,
                      which is why an audit that globbed */scripts missed them.
+                     One UUID-named frame per state of the world under
+                     data/<build>/, taken after every step the map is reachable
+                     from, so a pass can be watched changing rather than only
+                     its end state drawn.
 ```
 
 ## 2. The data flow
@@ -105,6 +109,15 @@ Consumers are derived rather than declared: what reads an artifact is the set
 of steps that `need` the step which writes it, plus the steps marked
 `reads_export` for the export itself. Declaring both directions would be the
 same duplication one level down.
+
+`--plan` carries a `MAP:` line after every step the map is reachable from,
+which is most of loop A: a carve verdict changes the next terrain and the next
+terrain is the picture. That set is derived from the same graph rather than
+listed, and `maps/snapshot.py` keys a frame on the identity of the four inputs
+a map is drawn from -- so a step that moves none of them is recorded against
+the frame that already exists and costs no render. The result is one frame per
+state of the world, which is what lets a pass be watched changing rather than
+only its end state drawn. `--no-maps` drops the lines.
 
 `pipeline.py` plans and never RUNS A STEP. Several steps in the graph cost
 hours, and a script that could start one by accident is worse than no script.

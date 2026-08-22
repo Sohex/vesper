@@ -3,3 +3,17 @@
 # source/ and the climatology in about 25 seconds, and the region lookup is
 # cached across runs. Nothing here is a result.
 build/
+
+# Rendered frames: one UUID-named directory per state of the world, tens of MB
+# apiece and regenerable by maps/snapshot.py for as long as the inputs the frame
+# names still exist. data/<build>/INDEX.json is NOT ignored -- frame ids are
+# UUIDs, so it is the only record of what each frame was once the pixels are
+# gone, and a NEW build's index has to be committable too. Same
+# exclude-the-bulk-keep-the-record rule as exoplasim/runs/.
+#
+# No trailing slash, so this matches the symlink a worktree carries in place of
+# a frame as well as the directory itself. The root .gitignore's worktree block
+# exists because rules that end in "/" miss those links, and `git add -A` in a
+# worktree then commits an absolute path that means nothing anywhere else.
+data/*/*
+!data/*/INDEX.json

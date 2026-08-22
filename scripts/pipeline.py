@@ -6,6 +6,7 @@
     python scripts/pipeline.py --register          # the artifact register
     python scripts/pipeline.py --purge orogen      # what a change to X makes worthless
     python scripts/pipeline.py --purge orogen --execute      # ... and delete it
+    python scripts/pipeline.py --plan orogen --no-maps       # ... without the map frames
 
 The graph is `config/pipeline.yaml` and that file is its only source. This script
 reads it; the pipeline chapters under `docs/src/pipeline/` explain it and reference its step ids. Nothing restates
@@ -23,6 +24,16 @@ deletes. It is the same separation seen from the other side: running a step is
 expensive and is yours to start, but working out WHAT a change makes worthless
 is a graph question, and doing it by hand is how a keep-list goes wrong. It is a
 dry run until `--execute`, exactly like `scripts/archive_runs.py`.
+
+## The map after every step that can move it
+
+A plan carries a `MAP:` line after each step from which the map is reachable --
+`map_affecting` below derives that set from the same graph, so it needs no
+second list. The point is a series: one frame per state of the world, so the
+terrain, the lakes and the biomes can be watched changing through a pass rather
+than only at the end. `maps/snapshot.py` keys a frame on what it was drawn from,
+so a step that moves none of the map's four inputs costs a manifest row and no
+render. `--no-maps` drops the lines.
 
 ## Why purge is a graph question
 
@@ -229,6 +240,43 @@ def downstream(seed: str, by_id: dict) -> set:
     return out
 
 
+MAP_STEPS = ("basemap", "projections")
+
+
+def map_affecting(by_id: dict) -> set:
+    """Every step whose output can change the map.
+
+    Ancestors over `needs`, plus the export edge: the map reads
+    `source/{build}/` and declares `reads_export`, so `orogen` can change it and
+    so can everything upstream of `orogen`. Loop A is a cycle, so that is most
+    of loop A -- correctly. A carve verdict changes the next terrain, and the
+    next terrain is the picture.
+
+    NOT cut at `orogen` the way `downstream` is. That cut exists because "what
+    is now worthless" is a within-pass question; this one is "what can move the
+    picture", and it crosses the iteration boundary by design.
+
+    A step in this set is one the map is rendered after. That does not mean the
+    picture changes there: `maps/snapshot.py` keys a frame on the identity of
+    what it was drawn from, so a step that moves none of those four inputs is
+    recorded against the frame that already exists rather than rendering a
+    second copy of it.
+    """
+    out: set[str] = set()
+    frontier = set(MAP_STEPS)
+    while frontier:
+        nxt: set[str] = set()
+        for sid in frontier:
+            step = by_id.get(sid, {})
+            nxt |= set(step.get("needs", []))
+            if step.get("reads_export"):
+                nxt.add("orogen")
+        nxt -= out | set(MAP_STEPS)
+        out |= nxt
+        frontier = nxt
+    return out
+
+
 def order(target: str, by_id: dict) -> list[str]:
     """Depth-first postorder, which is a valid run order and tolerates cycles."""
     out, mark = [], set()
@@ -296,7 +344,7 @@ def cmd_status(graph: dict) -> int:
     return 0
 
 
-def cmd_plan(graph: dict, target: str, force: bool) -> int:
+def cmd_plan(graph: dict, target: str, force: bool, maps: bool = True) -> int:
     config = yaml.safe_load(
         (ROOT / "config" / "planet.yaml").read_text(encoding="utf-8"))
     by_id = steps_by_id(graph)
@@ -304,8 +352,9 @@ def cmd_plan(graph: dict, target: str, force: bool) -> int:
         raise SystemExit(f"no step '{target}'. Known: {', '.join(sorted(by_id))}")
     build = active_build()
     seq = order(target, by_id)
+    affecting = map_affecting(by_id) if maps else set()
     print(f"to make `{target}` current, in order:\n")
-    hours, undecidable = 0, 0
+    hours, undecidable, snapshots = 0, 0, 0
     for sid in seq:
         s = by_id[sid]
         ok, _ = present(s, build)
@@ -333,11 +382,19 @@ def cmd_plan(graph: dict, target: str, force: bool) -> int:
             print(f"  [ run     ] {sid:26s} {mark:8s} {s['script']}")
         if s.get("gate"):
             print(f"              GATE: {' '.join(s['gate'].split())}")
+        if sid in affecting:
+            snapshots += 1
+            print(f"              MAP:  python maps/snapshot.py --step {sid}")
     print(f"\n{len(seq)} steps in the closure, {hours} of them cost hours.")
     if undecidable:
         print(f"{undecidable} of the steps listed are UUID-named, so whether they "
               f"still need to run is\nINDEX.json's answer and not the "
               f"filesystem's. The hour count assumes they do.")
+    if snapshots:
+        print(f"{snapshots} of them can move the map, so a frame is rendered after "
+              f"each.\nA step that moves none of the four inputs the map is drawn "
+              f"from is recorded\nagainst the frame that already exists rather "
+              f"than redrawing it; --no-maps drops\nthe lines entirely.")
     print("This prints a plan. It does not run anything.")
     return 0
 
@@ -444,6 +501,9 @@ def main() -> None:
                          "Excludes STEP's own output, and never crosses `orogen`")
     ap.add_argument("--execute", action="store_true",
                     help="with --purge, actually delete; default is a dry run")
+    ap.add_argument("--no-maps", action="store_true",
+                    help="with --plan, leave out the map snapshot after each "
+                         "step that can move the picture")
     args = ap.parse_args()
     graph = load()
     if args.register:
@@ -451,7 +511,8 @@ def main() -> None:
     if args.purge:
         raise SystemExit(cmd_purge(graph, args.purge, args.execute))
     if args.plan:
-        raise SystemExit(cmd_plan(graph, args.plan, args.force))
+        raise SystemExit(cmd_plan(graph, args.plan, args.force,
+                                  maps=not args.no_maps))
     raise SystemExit(cmd_status(graph))
 
 

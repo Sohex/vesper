@@ -542,16 +542,26 @@ steps:
     writes: [analysis/error_budget.json]
 
   - id: basemap
+    reads_export: true
     script: maps/build_basemap.py
     cost: minutes
     needs: [analyze_climatology, surface_water]
     writes: [maps/build/basemap_provenance.json, maps/build/basemap.npy, maps/build/land.npy, maps/build/basemap_equirectangular.png, "maps/build/region_index_*.npy"]
+    # `reads_export` was absent while the terrain was read all the same, through
+    # `builds.mesh_export()`. It is what makes the map reachable from `orogen`,
+    # and so what makes the set of steps a frame is taken after derivable rather
+    # than listed.
 
   - id: projections
     script: maps/render_projections.py
     cost: minutes
     needs: [basemap]
-    writes: [maps/projections_provenance.json, "maps/vesper_*.png"]
+    writes: ["maps/data/{build}/INDEX.json", "maps/data/{build}/*/*.png", "maps/data/{build}/*/provenance.json"]
+    # One UUID-named frame per state of the world, namespaced by build like
+    # every other component's data. INDEX.json says what each frame is and is
+    # the only record once a frame is deleted, so it is tracked and they are
+    # not. The authagraph is the default output and the other six are behind
+    # flags; `maps/snapshot.py` is what the plan runs after each step.
 
   - id: world_state
     script: scripts/world_state.py
@@ -570,6 +580,11 @@ checks:
 # Present, deliberately outside the graph: no step row runs them (some are
 # imported as modules by step scripts).
 one_offs:
+  # Runs the `basemap` and `projections` steps at a point in a pass and writes
+  # nothing of its own, which is why it is here rather than a step: two rows
+  # naming one artifact would give `--purge` two answers. `--plan` names it
+  # after every step the map is reachable from.
+  - maps/snapshot.py
   - exoplasim/scripts/corrk_cross_check.py
   - exoplasim/scripts/predict_ocean_terms.py
   - exoplasim/scripts/score_rank_bench.py

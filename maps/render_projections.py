@@ -1,4 +1,12 @@
-"""Render the Vesper base map into seven projections.
+"""Render the Vesper base map into a projection, or into several.
+
+The AuthaGraph-style tetrahedral rectangle is the one drawn by default: it is
+the projection that shows the whole world at once with the least distortion of
+shape, so it is the picture to look at when the question is what the world looks
+like. The other six are behind their own flags, and each costs its own
+orientation search -- the icosahedral net alone searches 1500 attitudes -- so a
+default that drew all seven charged every caller for six pictures it did not
+ask for.
 
 Where a projection has a free orientation, it is chosen against the geography
 rather than assumed: central meridians, the butterfly's cut meridians and the
@@ -7,7 +15,13 @@ interruption over the most water. Fuller picked his net so Earth's continents
 came out whole; the same argument applied to this world gives a different net,
 so the net is derived here instead of copied.
 
-    python maps/render_projections.py [--width 2600] [--only winkel_tripel]
+    python maps/render_projections.py                      # the authagraph
+    python maps/render_projections.py --dymaxion --winkel-tripel
+    python maps/render_projections.py --all [--width 4000]
+
+Output goes to `maps/data/<build>/<frame>/`, one UUID-named frame per state of
+the world, with `maps/data/<build>/INDEX.json` saying what each frame is.
+`frames.py` carries why the name is a UUID and what a frame is keyed on.
 """
 
 from __future__ import annotations
@@ -22,11 +36,16 @@ import numpy as np
 from scipy.ndimage import binary_erosion, map_coordinates
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import frames  # noqa: E402
 import projections as P  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 BUILD = Path(__file__).resolve().parent / "build"
-OUT = Path(__file__).resolve().parent
+
+# The base map is 5760 wide by default and the mesh beneath it finer still, so
+# this is a render size rather than a limit. Past the base map's own width the
+# extra pixels are interpolation and not detail.
+DEFAULT_WIDTH = 4000
 
 BACKGROUND = np.array([13, 16, 21.0])
 GRATICULE = np.array([255, 255, 255.0])
@@ -492,126 +511,262 @@ def draw_outline(rgb, valid, thickness=1):
 
 
 # --------------------------------------------------------------------------
+# The projections, and the orientation each one needs
+#
+# One entry per output. The searches are LAZY and memoised: the tetrahedron
+# refines 40000 attitudes and the icosahedral net scores 1500, so a run that
+# draws one projection must not pay for the searches of the other six. Each
+# search records what it decided in `prov` as it decides it, so the frame's
+# provenance holds exactly the orientations that were actually chosen.
+
+
+class Orientation:
+    """The orientation searches, each run at most once and only if asked for."""
+
+    def __init__(self, base, prov, trials):
+        self.base, self.prov, self.trials = base, prov, trials
+        self._memo = {}
+
+    def _once(self, key, fn):
+        if key not in self._memo:
+            self._memo[key] = fn()
+        return self._memo[key]
+
+    def central_meridian(self):
+        def run():
+            lon0, cut = best_central_meridian(self.base)
+            print(f"central meridian {lon0:+.0f} "
+                  f"(antimeridian is {cut * 100:.0f}% land)")
+            self.prov["central_meridian"] = {
+                "lon0": lon0, "antimeridian_land_fraction": cut}
+            return lon0
+        return self._once("central_meridian", run)
+
+    def hemisphere_meridian(self):
+        def run():
+            lon0, cut = best_hemisphere_meridian(self.base)
+            print(f"hemisphere centre {lon0:+.0f} "
+                  f"(bounding meridians {cut * 100:.0f}% land)")
+            self.prov["hemispheres"] = {"lon0": lon0, "cut_land_fraction": cut}
+            return lon0
+        return self._once("hemisphere_meridian", run)
+
+    def polar_meridian(self):
+        """The polar plate has no orientation to search: its cut is the equator,
+        and the only free parameter is which meridian points down. It reuses the
+        central meridian so the set of maps stays consistent with itself."""
+        def run():
+            lon0 = self.central_meridian()
+            equator_land = parallel_land_fraction(self.base, 0.0)
+            print(f"polar plate cuts the equator "
+                  f"({equator_land * 100:.0f}% land)")
+            self.prov["polar_hemispheres"] = {
+                "lon0": lon0, "cut": "equator",
+                "cut_land_fraction": equator_land}
+            return lon0
+        return self._once("polar_meridian", run)
+
+    def butterfly(self):
+        def run():
+            lon, join, cut = best_butterfly(self.base)
+            print(f"butterfly vertices at {lon:+.1f}+90k, join {join} "
+                  f"(cut meridians {cut * 100:.0f}% land)")
+            self.prov["butterfly"] = {
+                "equatorial_vertex_lon": lon, "join_index": join,
+                "cut_land_fraction": cut}
+            return P.butterfly_net(P.octahedron(lon), join_index=join)
+        return self._once("butterfly", run)
+
+    def icosahedron(self):
+        def run():
+            verts, faces = P.icosahedron()
+            best = None
+            for edge_land, q in best_icosahedron_attitudes(
+                    self.base, trials=self.trials):
+                v = P.rotate(verts, q)
+                f2, f3, torn, fill = choose_net(self.base, v, faces)
+                score = 2.5 * torn + (1.0 - fill)
+                if best is None or score < best[0]:
+                    best = (score, q, v, f2, f3, torn, fill, edge_land)
+            _, quat, verts_r, faces2d, faces3d, torn, fill, edge_land = best
+            print(f"icosahedron edges {edge_land * 100:.0f}% land; net tears "
+                  f"{torn * 100:.0f}% land per cut edge, fills "
+                  f"{fill * 100:.0f}% of its box")
+            self.prov["icosahedron"] = {
+                "quaternion": [float(q) for q in quat],
+                "mean_edge_land_fraction": float(edge_land),
+                "mean_cut_edge_land_fraction": float(torn),
+                "net_fill_ratio": float(fill),
+                "attitude_trials": self.trials,
+                "vertices_lonlat": [
+                    [float(a), float(b)]
+                    for a, b in zip(*P.to_lonlat(np.asarray(verts_r)))
+                ],
+            }
+            return faces2d, faces3d
+        return self._once("icosahedron", run)
+
+    def tetrahedron(self):
+        def run():
+            q, m = best_tetrahedron_attitude(self.base)
+            tetra = P.TetrahedralRectangle(verts=P.rotate(P.tetrahedron()[0], q))
+            print(f"tetrahedral rectangle border {m['cut'] * 100:.0f}% land; "
+                  f"over land, mean anisotropy "
+                  f"{1 + m['land_shape_excess']:.2f} and "
+                  f"{m['land_grossly_misscaled'] * 100:.0f}% of land area "
+                  f"grossly mis-scaled")
+            self.prov["tetrahedron"] = {
+                "quaternion": [float(v) for v in q],
+                "border_land_fraction": m["cut"],
+                "land_mean_anisotropy": 1 + m["land_shape_excess"],
+                "land_area_grossly_misscaled_fraction": m["land_grossly_misscaled"],
+                "subdivision": 16,
+                "area_weight": 0.5,
+                "vertices_lonlat": [
+                    [float(a), float(b)]
+                    for a, b in zip(*P.to_lonlat(np.asarray(tetra.verts)))
+                ],
+            }
+            return tetra
+        return self._once("tetrahedron", run)
+
+
+# name -> what it takes to build it. The order is the order they are drawn in.
+PROJECTIONS = {
+    "authagraph": lambda o: o.tetrahedron(),
+    "winkel_tripel": lambda o: P.WinkelTripel(lon0=o.central_meridian()),
+    "equal_earth": lambda o: P.EqualEarth(lon0=o.central_meridian()),
+    "lambert_azimuthal":
+        lambda o: P.LambertAzimuthalHemispheres.equatorial(
+            lon0=o.hemisphere_meridian()),
+    "lambert_azimuthal_polar":
+        lambda o: P.LambertAzimuthalHemispheres.polar(lon0=o.polar_meridian()),
+    "waterman_butterfly":
+        lambda o: P.PolyhedralNet(*o.butterfly(), "waterman_butterfly",
+                                  "Waterman Butterfly"),
+    "dymaxion": lambda o: P.PolyhedralNet(*o.icosahedron(), "dymaxion",
+                                          "Dymaxion"),
+}
+DEFAULT_PROJECTION = "authagraph"
+
+# The blocks the searches above write, and the only part of a frame's sidecar
+# that survives from one invocation to the next.
+ORIENTATIONS = ("central_meridian", "hemispheres", "polar_hemispheres",
+                "butterfly", "icosahedron", "tetrahedron")
+
+
+def selected(args) -> list[str]:
+    """Which projections this invocation asks for.
+
+    No flag means the authagraph alone, and a flag REPLACES that default rather
+    than adding to it: `--dymaxion` asks for the Dymaxion, and a caller who
+    wants both says so. Every projection has a flag, including the default one,
+    so there is one way to name each of them.
+    """
+    if args.all:
+        return list(PROJECTIONS)
+    chosen = [n for n in PROJECTIONS if getattr(args, n)]
+    return chosen or [DEFAULT_PROJECTION]
+
+
+# --------------------------------------------------------------------------
 
 
 def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--width", type=int, default=2600)
-    ap.add_argument("--supersample", type=int, default=2)
-    ap.add_argument("--only", default=None)
-    ap.add_argument("--trials", type=int, default=1500)
+    ap = argparse.ArgumentParser(
+        description="Render the base map into the AuthaGraph-style projection, "
+                    "or into the ones named.")
+    ap.add_argument("--width", type=int, default=DEFAULT_WIDTH,
+                    help=f"render width in pixels (default {DEFAULT_WIDTH})")
+    ap.add_argument("--supersample", type=int, default=2,
+                    help="samples per output pixel on each axis")
+    ap.add_argument("--all", action="store_true",
+                    help="every projection rather than the authagraph alone")
+    for name in PROJECTIONS:
+        ap.add_argument(f"--{name.replace('_', '-')}", dest=name,
+                        action="store_true", help=f"render {name}")
+    ap.add_argument("--trials", type=int, default=1500,
+                    help="icosahedron attitudes searched, for --dymaxion")
+    ap.add_argument("--step", default=None,
+                    help="the pipeline step this frame stands after; recorded "
+                         "in INDEX.json against the frame")
+    ap.add_argument("--force", action="store_true",
+                    help="re-render even where the frame already holds the "
+                         "projection at this size")
     args = ap.parse_args()
+    names = selected(args)
+    if args.step:
+        frames.check_step(args.step)
 
     base = BaseMap()
     print(f"base map {base.w}x{base.h}")
 
+    # The frame is keyed on what the RASTER was drawn from, taken from the base
+    # map's own provenance rather than re-resolved from the config here. The two
+    # differ exactly when the base map is older than the config -- which is the
+    # case that matters, and recording the config's answer would file the frame
+    # under a world it does not show.
+    src_prov = json.loads((BUILD / "basemap_provenance.json").read_text())
+    if "inputs" not in src_prov:
+        raise SystemExit(
+            "maps/build/basemap_provenance.json carries no `inputs` block, so "
+            "the frame it belongs to cannot be identified. Rebuild it:\n"
+            "    python maps/build_basemap.py")
+
+    index = frames.load()
+    entry = frames.open_frame(index, src_prov["inputs"])
+    entry["climatology_caveat"] = src_prov.get("climatology_caveat")
+    entry["basemap_resolution"] = src_prov.get("resolution")
+    out_dir = frames.frame_dir(entry)
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    todo = names if args.force else frames.needs_render(
+        entry, names, args.width, args.supersample)
+    for skipped in [n for n in names if n not in todo]:
+        print(f"  {skipped}: already in {entry['frame_id']} at this size")
+
+    # Orientations ACCUMULATE across invocations, because a frame can be
+    # extended with a projection whose search has not been run yet, and the one
+    # already chosen for a projection beside it still describes the file on
+    # disk. Everything else in the sidecar is rewritten below, so only the
+    # orientation blocks are carried forward.
     prov = {}
-    lon0, cut = best_central_meridian(base)
-    print(f"central meridian {lon0:+.0f} (antimeridian is {cut * 100:.0f}% land)")
-    prov["central_meridian"] = {"lon0": lon0, "antimeridian_land_fraction": cut}
-
-    hemi_lon, hemi_cut = best_hemisphere_meridian(base)
-    print(f"hemisphere centre {hemi_lon:+.0f} (bounding meridians {hemi_cut * 100:.0f}% land)")
-    prov["hemispheres"] = {"lon0": hemi_lon, "cut_land_fraction": hemi_cut}
-
-    # The polar plate has no orientation to search: its cut is the equator, and
-    # the only free parameter is which meridian points down. It reuses the
-    # central meridian so the set of maps stays consistent with itself.
-    equator_land = parallel_land_fraction(base, 0.0)
-    print(f"polar plate cuts the equator ({equator_land * 100:.0f}% land)")
-    prov["polar_hemispheres"] = {
-        "lon0": lon0,
-        "cut": "equator",
-        "cut_land_fraction": equator_land,
-    }
-
-    bfly_lon, bfly_join, bfly_cut = best_butterfly(base)
-    print(f"butterfly vertices at {bfly_lon:+.1f}+90k, join {bfly_join} "
-          f"(cut meridians {bfly_cut * 100:.0f}% land)")
-    prov["butterfly"] = {
-        "equatorial_vertex_lon": bfly_lon,
-        "join_index": bfly_join,
-        "cut_land_fraction": bfly_cut,
-    }
-
-    verts, faces = P.icosahedron()
-    best = None
-    for edge_land, q in best_icosahedron_attitudes(base, trials=args.trials):
-        v = P.rotate(verts, q)
-        f2, f3, torn, fill = choose_net(base, v, faces)
-        score = 2.5 * torn + (1.0 - fill)
-        if best is None or score < best[0]:
-            best = (score, q, v, f2, f3, torn, fill, edge_land)
-    _, quat, verts_r, faces2d, faces3d, torn, fill, edge_land = best
-    print(f"icosahedron edges {edge_land * 100:.0f}% land; net tears "
-          f"{torn * 100:.0f}% land per cut edge, fills {fill * 100:.0f}% of its box")
-    prov["icosahedron"] = {
-        "quaternion": [float(q) for q in quat],
-        "mean_edge_land_fraction": float(edge_land),
-        "mean_cut_edge_land_fraction": float(torn),
-        "net_fill_ratio": float(fill),
-        "vertices_lonlat": [
-            [float(a), float(b)] for a, b in zip(*P.to_lonlat(np.asarray(verts_r)))
-        ],
-    }
-
-    tetra_q, tetra_m = best_tetrahedron_attitude(base)
-    tetra = P.TetrahedralRectangle(verts=P.rotate(P.tetrahedron()[0], tetra_q))
-    print(
-        f"tetrahedral rectangle border {tetra_m['cut'] * 100:.0f}% land; over land, mean "
-        f"anisotropy {1 + tetra_m['land_shape_excess']:.2f} and "
-        f"{tetra_m['land_grossly_misscaled'] * 100:.0f}% of land area grossly mis-scaled"
-    )
-    prov["tetrahedron"] = {
-        "quaternion": [float(q) for q in tetra_q],
-        "border_land_fraction": tetra_m["cut"],
-        "land_mean_anisotropy": 1 + tetra_m["land_shape_excess"],
-        "land_area_grossly_misscaled_fraction": tetra_m["land_grossly_misscaled"],
-        "subdivision": 16,
-        "area_weight": 0.5,
-        "vertices_lonlat": [
-            [float(a), float(b)] for a, b in zip(*P.to_lonlat(np.asarray(tetra.verts)))
-        ],
-    }
-
-    oct_verts = P.octahedron(bfly_lon)
-    b2d, b3d = P.butterfly_net(oct_verts, join_index=bfly_join)
-
-    todo = [
-        P.WinkelTripel(lon0=lon0),
-        P.EqualEarth(lon0=lon0),
-        P.LambertAzimuthalHemispheres.equatorial(lon0=hemi_lon),
-        P.LambertAzimuthalHemispheres.polar(lon0=lon0),
-        P.PolyhedralNet(b2d, b3d, "waterman_butterfly", "Waterman Butterfly"),
-        P.PolyhedralNet(faces2d, faces3d, "dymaxion", "Dymaxion"),
-        tetra,
-    ]
+    if (out_dir / "provenance.json").is_file():
+        prov = {k: v for k, v in
+                json.loads((out_dir / "provenance.json").read_text()).items()
+                if k in ORIENTATIONS}
+    orientation = Orientation(base, prov, args.trials)
 
     from PIL import Image
 
-    written = []
-    for proj in todo:
-        if args.only and proj.name != args.only:
-            continue
+    for name in todo:
+        proj = PROJECTIONS[name](orientation)
         img = render(proj, base, args.width, args.supersample)
-        path = OUT / f"vesper_{proj.name}.png"
+        path = out_dir / f"vesper_{name}.png"
         Image.fromarray(img).save(path, optimize=True)
-        print(f"  {path.name}  {img.shape[1]}x{img.shape[0]}")
-        written.append(path.name)
-
-    src_prov = json.loads((BUILD / "basemap_provenance.json").read_text())
-    prov.update(
-        {
-            "basemap": src_prov,
-            "outputs": written,
+        print(f"  {path.relative_to(ROOT)}  {img.shape[1]}x{img.shape[0]}")
+        entry.setdefault("outputs", {})[path.name] = {
+            "projection": proj.title,
             "width": args.width,
             "supersample": args.supersample,
-            "git_commit": subprocess.run(
-                ["git", "-C", str(ROOT), "rev-parse", "HEAD"], capture_output=True, text=True
-            ).stdout.strip(),
+            "pixels": [int(img.shape[1]), int(img.shape[0])],
         }
-    )
-    (OUT / "projections_provenance.json").write_text(json.dumps(prov, indent=2) + "\n")
+
+    frames.note_step(entry, args.step)
+    entry["git_commit"] = frames.git_commit()
+    # The sizes are per output rather than per invocation: a frame can be
+    # extended with another projection later, at another width, and one pair of
+    # top-level width/supersample keys would then describe the last run rather
+    # than the files beside it.
+    prov.update({
+        "frame_id": entry["frame_id"],
+        "basemap": src_prov,
+        "outputs": entry.get("outputs", {}),
+        "git_commit": entry["git_commit"],
+    })
+    (out_dir / "provenance.json").write_text(json.dumps(prov, indent=2) + "\n")
+    frames.save(index)
+    print(f"frame {entry['frame_id']}  ->  {out_dir.relative_to(ROOT)}")
 
 
 if __name__ == "__main__":

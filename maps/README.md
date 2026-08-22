@@ -1,17 +1,103 @@
 # maps/
 
-Illustrative colour maps of Vesper in seven projections. These are pictures, not
-analysis products: they exist to show what the world looks like.
+Illustrative colour maps of Vesper. These are pictures, not analysis products:
+they exist to show what the world looks like.
 
 ```bash
-python maps/build_basemap.py       # equirectangular base, ~25 s (lookup cached)
-python maps/render_projections.py  # the seven projections, ~5 min at width 3000
+python maps/build_basemap.py       # equirectangular base, ~30 s (lookup cached)
+python maps/render_projections.py  # the authagraph, ~50 s at width 4000
+python maps/render_projections.py --all           # all seven
+python maps/snapshot.py --step surface_water      # both, filed as a frame
 ```
+
+`--all` is minutes rather than a minute: the iterative inverses cost far more
+per pixel than the tetrahedral rectangle's does, and the Winkel tripel alone
+runs several times the whole default render.
+
+The AuthaGraph-style rectangle is the only projection drawn by default. It shows
+the whole world at once with the least distortion of shape of anything here, so
+it is the one to look at when the question is what the world looks like; the
+other six are behind their own flags, and each carries its own orientation
+search, so drawing all seven by default charged every caller for six pictures
+they had not asked for.
+
+| Flag | File | Projection | Property |
+| --- | --- | --- | --- |
+| default, or `--authagraph` | `vesper_authagraph.png` | AuthaGraph style | tetrahedral, shape-first, rectangular |
+| `--winkel-tripel` | `vesper_winkel_tripel.png` | Winkel tripel | compromise; the usual world map |
+| `--equal-earth` | `vesper_equal_earth.png` | Equal Earth | equal-area pseudocylindrical |
+| `--lambert-azimuthal` | `vesper_lambert_azimuthal.png` | Lambert azimuthal | equal-area, east/west hemispheres |
+| `--lambert-azimuthal-polar` | `vesper_lambert_azimuthal_polar.png` | Lambert azimuthal | equal-area, north/south hemispheres |
+| `--waterman-butterfly` | `vesper_waterman_butterfly.png` | butterfly | octahedral, interrupted |
+| `--dymaxion` | `vesper_dymaxion.png` | Dymaxion | icosahedral, interrupted |
+| `--all` | all seven | | |
+
+A flag replaces the default rather than adding to it, so `--dymaxion` draws the
+Dymaxion and nothing else, and `--authagraph --dymaxion` draws both.
+
+Two widths, and both are sized for the mesh underneath rather than fixed, since
+a 10M-region export carries detail a 5760-wide base map cannot show:
+`render_projections.py --width` is the width of a projection, and
+`build_basemap.py --width` the equirectangular grid it samples from.
+`snapshot.py` drives both and so calls the second `--basemap-width`.
+
+`projections.py` is the projection layer: the maths of each one, the nets, and
+the graticule. `build_basemap.py` draws the equirectangular raster,
+`render_projections.py` reprojects it into a frame, `frames.py` owns the frame
+manifest, and `snapshot.py` drives the first two from a point in the pipeline.
+
+## Where the output goes
+
+Output is namespaced by build like every other component's data, and inside
+that a frame is a UUID:
+
+```
+maps/data/<build>/INDEX.json          what each frame is. TRACKED
+maps/data/<build>/<frame>/*.png       the projections drawn for it
+maps/data/<build>/<frame>/provenance.json   every orientation the search chose
+```
+
+**A frame is one state of the world, and it is identified by what it was drawn
+from, not by when it was rendered.** The map is drawn from four things -- the
+terrain, the classification, the climatology and the lake solution -- and the
+frame id is a UUID with the identity of those four beside it in `INDEX.json`.
+A name built from the step or the label that produced it would separate frames
+only along the dimensions it encoded, which is the collision CLAUDE.md rule 6
+records against ExoPlaSim runs and LPJ-GUESS runs. `maps/frames.py` carries the
+argument.
+
+`INDEX.json` is tracked and the frames themselves are not: the pixels are
+regenerable while the four inputs survive, and the index is the only record of
+what a UUID was once they do not. Same rule as `exoplasim/runs/`.
+
+## A frame at every step that can move the picture
+
+`python scripts/pipeline.py --plan <target>` names `maps/snapshot.py --step <id>`
+after every step the map is reachable from, which is most of loop A: a carve
+verdict changes the next terrain and the next terrain is the picture. The point
+is a series -- the coastline the carve moved, the lakes the water balance
+filled, the biomes the new climatology repainted -- so that a pass can be
+watched changing rather than only its end state drawn.
+
+That is affordable because a frame is keyed on its inputs. `snapshot.py`
+rebuilds the base map only when the raster on disk is not the world the config
+describes, and a step that moves none of the four inputs is recorded against the
+frame that already exists rather than rendering a second copy of it. So the
+number of frames is the number of times the world actually changed, and the
+`steps` list on each frame says which steps it stood through. `--force` renders
+anyway, which is what to reach for after a change to the RENDERING rather than
+to the world.
+
+The set of steps is derived from `config/pipeline.yaml` by
+`scripts/pipeline.py:map_affecting` and is never listed twice; `snapshot.py`
+refuses a step the graph says cannot reach the map.
+
+## Naming the climatology
 
 `build_basemap.py` tints from the climatology `config/planet.yaml` names, and
 that key is null whenever the active build has no baseline yet, so the bare
-command above fails rather than falling back. Name the climatology that does
-exist and the map draws off it, tint and lapse rate from the same file:
+command fails rather than falling back. Name the climatology that does exist and
+the map draws off it, tint and lapse rate from the same file:
 
 ```bash
 python exoplasim/scripts/analyze_climatology.py --label bootstrap
@@ -21,21 +107,10 @@ python maps/build_basemap.py --climatology \
 
 The classification the tint reads is `<label>_classification.nc`, which is why
 `analyze_climatology.py` has to have run under that label first.
-`render_projections.py` needs no such argument: it inherits the climatology and
-its caveat from `basemap_provenance.json`.
-
-| File | Projection | Property |
-| --- | --- | --- |
-| `vesper_winkel_tripel.png` | Winkel tripel | compromise; the usual world map |
-| `vesper_equal_earth.png` | Equal Earth | equal-area pseudocylindrical |
-| `vesper_lambert_azimuthal.png` | Lambert azimuthal | equal-area, east/west hemispheres |
-| `vesper_lambert_azimuthal_polar.png` | Lambert azimuthal | equal-area, north/south hemispheres |
-| `vesper_waterman_butterfly.png` | butterfly | octahedral, interrupted |
-| `vesper_dymaxion.png` | Dymaxion | icosahedral, interrupted |
-| `vesper_authagraph.png` | AuthaGraph style | tetrahedral, shape-first, rectangular |
-
-`projections_provenance.json` records the build, the climatology, and every
-orientation the search chose.
+`render_projections.py` needs no such argument: it inherits the climatology, its
+caveat and the frame's whole identity from `basemap_provenance.json`, so a frame
+records the world the raster shows rather than the one the config currently
+names. `snapshot.py` takes `--climatology` and passes it through.
 
 ## What the colour means
 
