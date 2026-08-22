@@ -26,10 +26,18 @@
 # a comparison at three hundred fails on anything at all. Length is not a
 # detail here; it is what separates a defect from Lyapunov growth.
 #
-# THE CONTROL must fail, and it is the mistake this design actually invites:
-# every thread takes the band of its neighbour instead of its own. Still a
-# bijection, still NHOR rows each, still runs -- and wrong. A control that
-# corrupted the pointer outright would not stand in for it.
+# THE CONTROL must fail, and choosing it took a wrong turn worth recording.
+# The obvious one -- every thread takes its NEIGHBOUR's band -- PASSES, because
+# it is not a mistake. The physics is per-point and does not consult mypid, and
+# a band's global position is set by the transfer routines through ilatperm
+# rather than by the pointer offset, so if thread 0 works band 1 and thread 1
+# works band 0 both bands are still computed correctly. The offset is a
+# relabelling, which is exactly why the conversion was inert.
+#
+# The property that MATTERS is that the bands are DISJOINT. So the control
+# points every thread at thread 0's band: same size, same shape, still runs,
+# and now threads overwrite each other. That is the mistake this design really
+# invites -- an offset that forgets to depend on the thread.
 set -euo pipefail
 
 bed="$(cd "${1:?usage: verify_threaded_numerics.sh <bed> <res> <n> [reference]}" && pwd)"
@@ -67,9 +75,9 @@ build_arm() {
     local arm="$1" stamp="$WORK/.stamp" name flags
     restore
     if [ "$arm" = "wrongband" ]; then
-        sed -i 's/^      lo = mypid \* NHOR + 1$/      lo = mod(mypid+1,NPRO) * NHOR + 1/' \
+        sed -i 's/^      lo = mypid \* NHOR + 1$/      lo = 1   ! CONTROL: every thread on thread 0.s band/' \
             "$SRC/plasimmod.f90"
-        grep -q "mod(mypid+1,NPRO) \* NHOR" "$SRC/plasimmod.f90" || {
+        grep -q "lo = 1   ! CONTROL" "$SRC/plasimmod.f90" || {
             echo "control patch missed" >&2; exit 1; }
     fi
     case "$arm" in
@@ -187,11 +195,11 @@ for s in 1 20; do
 done
 
 echo
-echo "==== the wrong-band control, 1 step: must NOT agree ===="
+echo "==== the shared-band control, 1 step: must NOT agree ===="
 if run_arm wrongband 1 w1; then
     if compare r1 w1; then
-        echo "FAIL: every thread took its neighbour's band and the comparison"
-        echo "      did not notice, so it cannot see a misassociated pointer."
+        echo "FAIL: every thread shared one band and the comparison did not"
+        echo "      notice, so it cannot see bands that are not disjoint."
         rc=1
     else
         echo "control rejected, so the comparison has teeth."
