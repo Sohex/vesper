@@ -69,9 +69,10 @@ attribute and persists across calls. gfortran reports nothing, at any warning
 level tried: `-Wall -Wextra`, plus `-Wsurprising`, plus
 `-Wcharacter-truncation -Wconversion-extra`. No diagnostic mentions SAVE.
 
-Under `-fopenmp`, which the production line carries, a SAVEd local is SHARED by
-every thread. Eight threads each write their own id into a SAVEd scratch array,
-spin, then read it back; **seven of the eight read a value another thread
+Under `-fopenmp`, which `most_compiler_omp` carries and the production
+`most_compiler_mpi` line does not, a SAVEd local is SHARED by every thread.
+Eight threads each write their own id into a SAVEd scratch array, spin, then
+read it back; **seven of the eight read a value another thread
 wrote.**
 
 This is why the defect belongs to the thread port specifically. Under MPI each

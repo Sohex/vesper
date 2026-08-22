@@ -291,8 +291,9 @@ T21 L10 p1, OpenMP configuration, clean build each time, mean of two:
 
 3.5x, saturating by `-j8`. The bound is the dependency chain through
 `plasimmod.o`, which nearly every other object depends on and which nothing can
-start before. Rule 4 makes the unit of work 224 executables rather than one, so
-the operation is roughly 59 minutes against roughly 17.
+start before. Rule 4 makes the unit of work `rebuild_binaries.py`'s `MATRIX` rather than one
+executable, twelve on the T21/T42/T85/T127/T170 ladder, so at this rung the
+operation is roughly 3 minutes against roughly 1 and the higher rungs scale it.
 
 The win available is INSIDE each build and not across builds. Every
 configuration compiles in the same `plasim/bld`, which `compile.sh` empties on
