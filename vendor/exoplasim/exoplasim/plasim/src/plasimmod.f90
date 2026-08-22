@@ -461,6 +461,19 @@
       real, target :: hddt_g(NUGP,NLEV) = 0. ! heating rate, whole globe
       real, target :: hdek_g(NUGP,NLEV) = 0. ! kinetic energy change, whole globe
 
+!     The output humidity. nlowio defaults to 1 and outaccu then sums sqout on
+!     EVERY timestep, so this is a per-step transform in a production run even
+!     though the profiling beds set nlowio=0 and never reach it.
+      real, target :: zqout_g(NUGP,NLEV) = 0. ! output humidity, whole globe
+
+!     Where the finished field lands before the threads take it. sqout is
+!     THREADPRIVATE and the legmod path fills each copy with a PARTIAL that
+!     mpsum reduces; a wrapper returns the whole field at once, so it goes here
+!     and every thread copies all of it. They must all end up holding the same
+!     complete field, because that is what mpsum leaves them with and what
+!     outaccu and writesp assume.
+      real :: sqout_g(NESP,NLEV) = 0.0 ! output humidity, whole field, shared
+
       real, pointer :: gd(:,:) => NULL() ! divergence
       real, pointer :: gt(:,:) => NULL() ! temperature (-t0)
       real, pointer :: gz(:,:) => NULL() ! absolut vorticity
@@ -489,6 +502,7 @@
       real, pointer :: hdq(:,:)  => NULL()
       real, pointer :: hddt(:,:) => NULL()
       real, pointer :: hdek(:,:) => NULL()
+      real, pointer :: zqout(:,:) => NULL() ! output humidity
 #else
       real :: gtn(NHOR,NLEV)  = 0. ! t nonlinear term
       real :: gqn(NHOR,NLEV)  = 0. ! q nonlinear term
@@ -507,6 +521,8 @@
       real :: hdq(NHOR,NLEV)  = 0.
       real :: hddt(NHOR,NLEV) = 0.
       real :: hdek(NHOR,NLEV) = 0.
+      real :: zqout(NHOR,NLEV) = 0. ! output humidity
+      real :: sqout_g(NESP,NLEV) = 0.0 ! unused off the threaded build
       real :: gd(NHOR,NLEV)   = 0. ! divergence
       real :: gt(NHOR,NLEV)   = 0. ! temperature (-t0)
       real :: gz(NHOR,NLEV)   = 0. ! absolut vorticity
@@ -927,7 +943,7 @@
 !$omp&  dtrop,dtsa,dtsoil,dttl,dttrp,du,du0,dudt,dust3,dv,dv0,dvdt,dw,dwatc,dwmax,dz0,eccen,&
 !$omp&  efficiency_dat,evap,filterkappa,fixedlon,fluxmod_namelist,frcmod,g,ga,gascon,gd,gp,gpi,&
 !$omp&  gpimax,gpj,gq,gqdt,gqn,gtn,gut,gvt,guz,gvz,gke,guq,gvq,gvpp,&
-!$omp&  hdu,hdv,hdun,hdvn,hdq,hddt,hdek,&
+!$omp&  hdu,hdv,hdun,hdvn,hdq,hddt,hdek,zqout,&
 !$omp&  gt,gtdt,gu,gudt,guiinc,guimax,guimin,gv,gvdt,gwd,gz,&
 !$omp&  hcendstep,hcinterval,&
 !$omp&  hcstartstep,ice_output,icemod_namelist,kick,l_aero,laav,laavmax,landhoskn0,landmod_namelist,&
@@ -1029,6 +1045,7 @@
       hdq  => hdq_g(lo:hi,:)
       hddt => hddt_g(lo:hi,:)
       hdek => hdek_g(lo:hi,:)
+      zqout => zqout_g(lo:hi,:)
       dqt  => dqt_g(lo:hi,:)
 #endif
       return

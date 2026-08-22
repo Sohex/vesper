@@ -3360,7 +3360,6 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !     routines do not overlap -- master runs one and then the other -- so one
 !     set of slots serves both.
 
-      real zqout(NHOR,NLEV)
       real zgq(NLON,NLAT,NLEV)
       real zmmr(NLON,NLAT,NLEV)
       real znrho(NLON,NLAT,NLEV)
@@ -3491,10 +3490,34 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       if ((nlowio > 0 .or. mod(nstep,nafter)==0) .and. nqspec == 1) then
        do jlev=1,NLEV
         zqout(:,jlev)=gq(:,jlev)/exp(gp(:))
-        call gp2fc(zqout(1,jlev),NLON,NLPP)
-        call fc2sp(zqout(1,jlev),sqout(1,jlev))
+       enddo
+#ifdef OMPSHARED
+       if (nshtns == 1) then
+!         THE REDUCTION GOES, and the copy replacing it is not optional. sqout
+!         is threadprivate and the legmod branch below fills each copy with the
+!         partial from that thread's own latitudes, which mpsum turns into the
+!         whole field. sh_gp2sp returns the whole field already, so mpsum would
+!         multiply it by the thread count; and because the wrapper is parallel
+!         over LEVELS, writing straight into a threadprivate array would leave
+!         each copy holding only the levels its own thread owned.
+!$omp barrier
+          call sh_gp2sp(zqout_g, sqout_g, NLEV)
+!$omp barrier
+          sqout(:,:) = sqout_g(:,:)
+       else
+       do jlev=1,NLEV
+        call gp2fc(zqout(:,jlev),NLON,NLPP)
+        call fc2sp(zqout(:,jlev),sqout(1,jlev))
        enddo
        call mpsum(sqout,NLEV)
+       endif
+#else
+       do jlev=1,NLEV
+        call gp2fc(zqout(:,jlev),NLON,NLPP)
+        call fc2sp(zqout(:,jlev),sqout(1,jlev))
+       enddo
+       call mpsum(sqout,NLEV)
+#endif
       endif
 
 !
@@ -4424,14 +4447,14 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       else
       call gp2fc(hddt,NLON,NLPP*NLEV)
       do jlev=1,NLEV
-       call fc2sp(hddt(1,jlev),zhf1(1,jlev,mypart))
+       call fc2sp(hddt(:,jlev),zhf1(1,jlev,mypart))
       enddo
       call mpsumscp(zhf1,zstt1,NLEV)
       endif
 #else
       call gp2fc(hddt,NLON,NLPP*NLEV)
       do jlev=1,NLEV
-       call fc2sp(hddt(1,jlev),zhf1(1,jlev,mypart))
+       call fc2sp(hddt(:,jlev),zhf1(1,jlev,mypart))
       enddo
       call mpsumscp(zhf1,zstt1,NLEV)
 #endif
@@ -4478,14 +4501,14 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       else
       call gp2fc(hdek,NLON,NLPP*NLEV)
       do jlev=1,NLEV
-       call fc2sp(hdek(1,jlev),zhef(1,jlev,mypart))
+       call fc2sp(hdek(:,jlev),zhef(1,jlev,mypart))
       enddo
       call mpsumscp(zhef,zsde,NLEV)
       endif
 #else
       call gp2fc(hdek,NLON,NLPP*NLEV)
       do jlev=1,NLEV
-       call fc2sp(hdek(1,jlev),zhef(1,jlev,mypart))
+       call fc2sp(hdek(:,jlev),zhef(1,jlev,mypart))
       enddo
       call mpsumscp(zhef,zsde,NLEV)
 #endif
@@ -4525,14 +4548,14 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       else
       call gp2fc(hddt,NLON,NLPP*NLEV)
       do jlev=1,NLEV
-       call fc2sp(hddt(1,jlev),zhf2(1,jlev,mypart))
+       call fc2sp(hddt(:,jlev),zhf2(1,jlev,mypart))
       enddo
       call mpsumscp(zhf2,zstt2,NLEV)
       endif
 #else
       call gp2fc(hddt,NLON,NLPP*NLEV)
       do jlev=1,NLEV
-       call fc2sp(hddt(1,jlev),zhf2(1,jlev,mypart))
+       call fc2sp(hddt(:,jlev),zhf2(1,jlev,mypart))
       enddo
       call mpsumscp(zhf2,zstt2,NLEV)
 #endif

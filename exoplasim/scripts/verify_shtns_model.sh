@@ -116,6 +116,14 @@ run_arm() {
     ( cd "$d"
       rm -f ./*.x plasim_status Abort_Message
       sed -i "s/^ *N_RUN_STEPS *=.*/ N_RUN_STEPS = $steps /" plasim_namelist
+      # NLOWIO=1, because the beds set 0 and the output-humidity transform is
+      # then unreachable: its guard is (nlowio > 0 .or. mod(nstep,nafter)==0),
+      # sqout is never computed, and aasqsp comes out all zeros -- so this gate
+      # was comparing zero against zero for that path and would have passed a
+      # reduction that multiplied the answer by the thread count. Production
+      # spin-up runs low I/O, so this is also the configuration that ships.
+      # docs/src/practice/failure-modes.md class 29.
+      sed -i "s/^ *NLOWIO *=.*/ NLOWIO = 1 /" plasim_namelist
       sed -i "/^ *NSHTNS *=/d" plasim_namelist
       sed -i "2i\\ NSHTNS      =     $sw" plasim_namelist
       cp -f "$WORK/bin/$arm.x" ./probe.x
