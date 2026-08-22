@@ -2820,3 +2820,123 @@ guard is two thresholds and a counter. If there is not, the accelerator is a
 fixed schedule and its cost is a declared structural term rather than a bounded
 one. `config/pipeline.yaml` already carries exit predicates per loop, so the
 place to put the answer exists.
+
+
+## 36. A second TOPMODEL, and where its parameters come from
+
+*Read 2026-08-22. GW-26 takes the saturated-fraction form from PALADYN.
+ClimaLand implements it independently, which both confirms the form and shows
+the parameter provenance GW-26 has to decide.*
+
+`src/standalone/Soil/Runoff/Runoff.jl` implements SIMTOP, Niu et al. (2005), "A
+simple TOPMODEL-based runoff parameterization (SIMTOP) for use in global climate
+models":
+
+    f_sat = min(f_max * exp(-f_over/2 * z_wt), 1)          ! :374
+    R_ss  = R_sb * exp(-f_over * z_wt)                     ! :428
+
+### 36a. Four things GW-26 does not currently have
+
+1. **A factor of two, and one decay constant for both fluxes.** GW-26 states the
+   form as `f_sat = f_sat_max * exp(-f_grad * z_grad)`. SIMTOP's surface decay is
+   HALF its subsurface decay -- the same `f_over` appears in both, with `/2` in
+   the surface term only. So a single calibrated constant sets both fluxes and
+   they are not independent. Bracketing it moves surface and subsurface runoff
+   together.
+2. **The cap.** `min(..., 1)` is explicit; a saturated fraction can otherwise
+   exceed one.
+3. **Parameter provenance, split cleanly.** `f_over` and `R_sb` are both
+   labelled "calibrated" in their docstrings. `f_max` is not: it is "computed
+   from the topographic index CDF per grid cell". That is exactly the split
+   GW-26 wants -- the terrain-derived part is computable here from the 15.19 km
+   mesh, and the Earth-calibrated part is two scalars, which supports the row's
+   existing instruction to DECLARE and bracket `f_grad` rather than fit it.
+4. **Ice.** `:246-262` computes the saturated column twice: once including ice
+   (`theta_l + theta_i`) for the SURFACE saturated fraction, once with liquid
+   only for the SUBSURFACE flux. Frozen ground generates saturation-excess
+   surface runoff but not subsurface flow. Neither PALADYN's form as GW-26
+   states it nor the row itself carries that distinction, and it matters on a
+   world with a cold winter hemisphere.
+
+### 36b. The estimator decision GW-26 flagged now has two peers on the same side
+
+GW-26 records an open decision: PALADYN estimates grid-cell mean water table
+from column water content rather than from a lateral solve, and whether that is
+reconciled with this project's Dupuit-Forchheimer solution is unsettled.
+ClimaLand does the same thing -- `z_wt` is `depth - h` where `h` is the column
+integral of a saturation indicator weighted by `(theta - theta_r)/(nu -
+theta_r)`, `:246-256`. Two independent implementations, same choice. That does
+not settle the decision, but it means the column estimator is the field's normal
+practice and the lateral solve is the departure needing the argument.
+
+## 37. Snow: a third density model, and an albedo predictor we do not have
+
+### 37a. Density -- three rungs, and the middle one is cheap
+
+GRAV-8 records ExoPlaSim's constant 330 kg/m3 against PALADYN's prognostic
+Kojima (1967) self-loading compaction, which is linear in `g`. ClimaLand sits
+between them. `MinimumDensityModel`, `snow_parameterizations.jl:621`:
+
+    rho_snow = rho_min * (1 - q_l) + rho_liq * q_l
+    z_snow   = rho_liq * S / rho_snow
+
+Density interpolates from a dry-snow minimum toward liquid water by LIQUID MASS
+FRACTION. No load, no compaction, and therefore **no gravity term** -- so it does
+not address GRAV-8's argument, which stands. What it does show is that a density
+which responds to melt state is available without solving the compaction
+problem, and ExoPlaSim's constant misses that effect as well as the gravity one.
+ClimaLand's `AbstractDensityModel` is abstract and its docstring anticipates
+prognostic variants; only the minimum-density one ships.
+
+### 37b. Albedo -- the two models pick disjoint predictors
+
+**ExoPlaSim**, `landmod.f90:394-405`, is a linear ramp in SURFACE TEMPERATURE
+between 263.16 K and `tmelt`, blended by forest fraction:
+
+    zdalb    = (zalbmax - zalbmin) * (dts - 263.16)/(tmelt - 263.16)
+    zalbsnow = max(zalbmin, min(zalbmax, zalbmax - zdalb))
+
+**ClimaLand**, `snow_parameterizations.jl:49-52`:
+
+    alpha = min(1 - beta*(rho_snow/rho_liq - x0), 1) * (alpha_0 + d_alpha*exp(-k*cos_z))
+
+Zenith angle and snow density, the latter named "a proxy for grain size and
+liquid water content". No temperature term. The two models proxy the same
+physics -- grain metamorphism and wet snow -- through different observables, and
+one of them is one ExoPlaSim does not have for this surface at all.
+
+### 37c. What the missing zenith term is worth
+
+With ClimaLand's calibrated values, `toml/default_parameters.toml:155-183`:
+`alpha_0 = 0.59`, `d_alpha = 0.40`, `k = 1.96`, `beta = 0.97`, `x0 = 0.2`. At
+ExoPlaSim's constant 330 kg/m3 the density factor is 0.874.
+
+| cos(zenith) | 1.00 | 0.50 | 0.20 | 0.05 | 0.00 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| albedo | 0.565 | 0.647 | 0.752 | 0.833 | 0.865 |
+
+**The zenith term spans 0.30 at fixed density. ExoPlaSim's ENTIRE temperature
+range, `dsnowalbmn = 0.4` to `dsnowalbmx = 0.8`, spans 0.40.** The predictor
+this model omits carries roughly as much albedo variation as the one it uses.
+
+Flux-weighted daily means at 32 degrees obliquity:
+
+| | equator equinox | 45 equinox | 60 summer | 60 winter | 75 summer |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| albedo | 0.599 | 0.640 | 0.624 | 0.783 | 0.638 |
+
+A 0.18 seasonal-latitudinal swing that is absent here, and it is largest in the
+winter hemisphere at high latitude -- which is where snow is.
+
+Two connections. It lands in the SAME low-sun regime where section 29 found the
+two ocean-albedo branches diverging by 1.8x, so ExoPlaSim applies a zenith
+correction to open ocean by default while giving snow and ice none: **the same
+physical effect is present for one surface and absent for another inside one
+model.** And the density factor multiplies the whole albedo, so a wrong density
+constant reaches albedo DIRECTLY in peer practice, not only through cover depth
+as GRAV-8 currently has it.
+
+The values are Earth calibrations under a solar spectrum and do not transfer to
+a K dwarf. The FORM and the magnitude argument do, and both are orthogonal to
+the spectral reweighting PHYS-14 already did -- this is a separate axis, not a
+correction to that one.
