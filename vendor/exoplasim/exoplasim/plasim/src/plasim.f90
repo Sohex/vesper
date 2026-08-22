@@ -2524,7 +2524,8 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       subroutine gridpointa
       use pumamod
 #ifdef OMPSHARED
-      use shtnsmod, only: sh_sp2gp, sh_dv2uv, sh_sp2grad, shgdmu, shgdlam
+      use shtnsmod, only: sh_sp2gp, sh_dv2uv, sh_sp2grad, shgdmu, shgdlam,    &
+     &                    sh_gp2sp, sh_dztend, sh_advtend
 #endif
 !
 !*    Adiabatic Gridpoint Calculations
@@ -2656,6 +2657,25 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !     fft
 !
 
+#ifdef OMPSHARED
+      if (nshtns == 1) then
+!        THE REDUCTIONS ARE GONE, not merely faster. legmod integrates a
+!        thread's own latitudes and leaves a partial for mpsumscp to sum;
+!        SHTns integrates the globe and returns the finished field, so each
+!        wrapper writes sdt, stt, szt and spt directly. That is the structural
+!        half of what the forward conversion buys.
+!
+!        The first barrier is for the grid arrays, which every thread has just
+!        filled a band of; the second is for the spectral tendencies, which the
+!        wrappers fill by level and the caller reads whole.
+!$omp barrier
+         call sh_gp2sp(gvpp_g, spt, 1)
+         call sh_dztend(gvz_g, guz_g, gke_g, sdt, szt, NLEV)
+         call sh_advtend(gtn_g, gut_g, gvt_g, stt, NLEV)
+         if (nqspec == 1) call sh_advtend(gqn_g, guq_g, gvq_g, sqt, NLEV)
+!$omp barrier
+      else
+#endif
       call gp2fc(gtn ,NLON,NLPP*NLEV)
       call gp2fc(gqn ,NLON,NLPP*NLEV)
 
@@ -2683,6 +2703,9 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
          call qtend(zpsq(1,1,mypart),gqn,guq,gvq)
          call mpsumscp(zpsq,sqt,NLEV)
       endif
+#ifdef OMPSHARED
+      endif
+#endif
 !
 !     compute entropy
 !
