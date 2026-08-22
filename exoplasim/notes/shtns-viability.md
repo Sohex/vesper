@@ -246,3 +246,50 @@ would be decided on different evidence than any of this.
 
 NOTE ON WHERE THIS BELONGS: CLIM-52 lives in main's TASKS.md and not on this
 branch, so this finding has to reach that row when the branches meet.
+
+## FP32 on the CPU is worth 39.7%, and the GPU is not the interesting part
+
+*Measured 2026-08-21, T170 on sixteen threads, quiet machine.*
+
+`compile.sh -p 4` builds the model in single precision -- it is upstream's
+default and this project overrides it to eight. No port, no device, one flag.
+
+| | median | spread |
+| --- | ---: | ---: |
+| FP64 | 81.18 s | 0.6% |
+| FP32 | 48.93 s | 0.4% |
+
+**+39.69%** [+39.63, +39.82], faster in 4 of 4 rounds. It is the tightest
+measurement in this line of work and the largest single gain: the whole
+threading effort moved T170 from -25.7% to -5.5% against ranks, and one build
+flag returns 39.7%.
+
+It is stable in the narrow sense -- 300 steps at T170 completed and wrote a
+restart of 213 MB against FP64's 426, which confirms the build really is
+four-byte and not silently falling back. AVX-512 doubles its lanes for single,
+the bytes moved halve, and the per-die working set falls from 260 MB to 130,
+so the FP32 gain and the 32 MB target pull the same way rather than competing.
+
+**THE STABILITY EVIDENCE IS 0.043% OF A SPIN-UP, and that is the open risk.**
+300 steps at a 30 minute timestep is 6.2 model days. A 40-orbit spin-up is
+691,200 steps. Single precision fails where accumulation is long -- a small
+tendency lost against a large state, repeated -- so completing 300 steps says
+almost nothing about the workload this is for. The decisive test is a full
+FP32 spin-up, which costs hours and is exactly the thing the technique claims
+to make cheap.
+
+**It is a spin-up accelerator and not a production mode.** `config/planet.yaml`
+declares eight-byte precision, and CLIM-52 treats a converted state as a new
+initial condition that must settle at the target rather than as proof of
+equilibrium. So FP32 does not replace the FP64 work; it accelerates the phase
+that is thrown away, and FP64 does the final approach and the judging.
+
+**Where the FP32 state LANDS is not established.** Its restart records are four
+bytes against eight, so `compare_restarts.py` reads the two as different files
+rather than different answers. That comparison is the converter's job and is
+deliberately not faked here.
+
+This reorders the ladder. FP32 on the CPU is the cheap rung and is available
+now; FP32 on the GPU is the expensive rung and needs a whole-model port, since
+offloading the transform alone caps at 18.9% even at T170. Try the free one
+first.
