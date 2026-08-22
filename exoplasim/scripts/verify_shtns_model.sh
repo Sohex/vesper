@@ -90,6 +90,11 @@ build_arm() {
             echo "control patch: expected the filter in every wrapper, found $before" >&2
             exit 1; }
         sed -i 's/ \* real(fsp(jm),8)//g; s/ \* real(fsp(2),8)//g; s/real(fgp(jm),8)/1.0_8/g; s/real(pfil(jm),8)/1.0_8/g' "$SRC/shtnsmod.f90"
+        # A marker the smoke test refuses to see committed. A control patch is a
+        # deliberate corruption of the model source, and one of these was once
+        # committed by a `git add -A` that ran while this script was still
+        # working -- the trap then "restored" the tree to the corrupted commit.
+        sed -i '1i\!     CONTROL PATCH IN PROGRESS -- must not be committed' "$SRC/shtnsmod.f90"
         # grep -c exits 1 on no matches, which here is exactly success
         after=$(grep -cE 'real\(fsp\(|real\(fgp\(|real\(pfil\(' "$SRC/shtnsmod.f90" || true)
         [ "$after" = 0 ] || {

@@ -628,6 +628,39 @@ def check_task_counts() -> list[str]:
     return problems
 
 
+def check_no_control_patch() -> list[str]:
+    """No deliberate corruption is sitting in the committed model source.
+
+    Several checks work by patching a defect INTO `plasim/src`, building, and
+    requiring the result to fail -- that is what gives them teeth. They restore
+    the tree with `git checkout` when they finish.
+
+    That is safe until something commits while one is running. It happened:
+    `verify_threaded_numerics.sh` had `lo = mypid * NHOR + 1` replaced by an
+    offset that makes every thread's grid band overlap its neighbour's, a
+    `git add -A` swept it into a commit, and the script's own trap then restored
+    the tree to the corrupted commit. The model then crashed in the radiation on
+    every bed and every seed, and looked for all the world like a regression in
+    the change being tested -- it cost a long bisect, because the corruption was
+    in the baseline too.
+
+    So every control patch leaves a marker, and this refuses to let one be
+    committed. It cannot catch a patch that only DELETES code, which is why the
+    rule is that a control adds its marker first.
+    """
+    src = ROOT / "vendor/exoplasim/exoplasim/plasim/src"
+    problems = []
+    if not src.is_dir():
+        return problems
+    for path in sorted(src.glob("*.f90")):
+        for n, line in enumerate(path.read_text(errors="replace").splitlines(), 1):
+            if "CONTROL PATCH IN PROGRESS" in line or "! CONTROL:" in line:
+                problems.append(f"{path.name}:{n} carries a control patch marker; "
+                                f"a verification script's deliberate corruption "
+                                f"has been left in the source")
+    return problems
+
+
 def check_omp_directive_length() -> list[str]:
     """No OpenMP directive line in the model runs past the fixed-form limit.
 
@@ -748,6 +781,8 @@ def main() -> None:
               ("the convergence window follows the declared purposes",
                check_production_window()),
               ("TASKS.md counts match their tables", check_task_counts()),
+              ("no control patch is left in the model source",
+               check_no_control_patch()),
               ("no OpenMP directive line is truncated",
                check_omp_directive_length()),
               ("no imported module name is rebound",
