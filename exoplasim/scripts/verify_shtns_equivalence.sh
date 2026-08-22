@@ -100,3 +100,26 @@ if ./equiv_bad.x >/dev/null 2>&1; then
 else
     echo "  [  ok  ] control rejected, so the check has teeth"
 fi
+
+echo
+echo "==== the control, spectral filter dropped: must FAIL ===="
+# The failure this check was blind to for a whole session. legini folds
+# skspgp(n+1) into fsp, so every conversion legmod makes is filtered; a wrapper
+# that omits it is a different operator, and the error GROWS with total
+# wavenumber rather than announcing itself at n=1. It is invisible at the
+# default nfilter=0, which is why the driver above now runs the beds' nfilter=2.
+cp -f "$SRC"/shtnsmod.f90 shtnsmod.f90
+before=$(grep -c 'real(fsp(' shtnsmod.f90)
+[ "$before" -ge 6 ] || { echo "control patch: expected the filter in every wrapper, found $before"; exit 1; }
+sed -i 's/ \* real(fsp(jm),8)//g; s/ \* real(fsp(2),8)//g' shtnsmod.f90
+after=$(grep -c 'real(fsp(' shtnsmod.f90 || true)   # grep -c exits 1 on no matches, which here is success
+[ "$after" = 0 ] || { echo "control patch missed: $after sites still filtered"; exit 1; }
+echo "  dropped the filter from $before sites"
+build nofilt
+if ./equiv_nofilt.x >/dev/null 2>&1; then
+    echo "  [ FAIL ] the control passed, so this check cannot see an unfiltered"
+    echo "           wrapper -- which is the defect it exists to catch."
+    exit 1
+else
+    echo "  [  ok  ] control rejected, so the filter is actually under test"
+fi

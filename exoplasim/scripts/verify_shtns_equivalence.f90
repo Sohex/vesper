@@ -23,7 +23,8 @@
 !     mistake this recipe was got wrong by once.
       use, intrinsic :: iso_fortran_env, only: real64
       use pumamod, only: NLAT, NLON, NLPP, NLEV, NTRU, NTP1, NCSP, NESP,        &
-     &                   NUGP, sid, gwd, plavor
+     &                   NUGP, sid, gwd, plavor, EZ, nfilter, ngptfilter,           &
+     &                   nspvfilter, filterkappa, nfilterexp
       use shtnsmod, only: shtns_setup, sh_sp2gp, sh_dv2uv, sh_sp2grad
       implicit none
 
@@ -49,7 +50,19 @@
          sid(jj) = zsi(jj)
          gwd(jj) = zgw(jj)
       enddo
-      plavor = 0.0                     ! dv2uv would otherwise add it to mode 2
+!     THE CONFIGURATION UNDER TEST IS THE ONE THE MODEL RUNS, and both halves
+!     of that sentence were learned the hard way. This driver used to set
+!     plavor to zero and leave nfilter at its default of none, and it passed at
+!     5e-14 while the model it was certifying disagreed by 100% at the first
+!     step -- because a spectral filter and a rotating planet are exactly the
+!     two things the wrappers were missing, and neither was switched on here.
+!     A check may only simplify what it does not certify.
+      nfilter     = 2                  ! exponential, as the beds run it
+      ngptfilter  = 1
+      nspvfilter  = 1
+      filterkappa = 8.0
+      nfilterexp  = 8
+      plavor      = EZ                 ! rotating, as the model runs it
       call legini
       call shtns_setup
 
