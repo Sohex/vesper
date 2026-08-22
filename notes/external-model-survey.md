@@ -1937,3 +1937,48 @@ project cannot use models in that throughput band. Nothing here is a candidate
 for adoption; `Bucket` and `Soil` are read for their STRUCTURE, which is what
 LSHY-3 needs, and PALADYN remains the EMIC-class implementation reference
 because it runs at a comparable cost.
+
+
+### 23d. Snow density, and a moderation of GRAV-8
+
+GRAV-8 was opened on PALADYN's self-loading compaction term being linear in `g`
+while ExoPlaSim carries a constant. A third implementation changes how that
+should be read.
+
+ClimaLand declares `AbstractDensityModel` in `Snow.jl` and ships exactly one
+implementation, `MinimumDensityModel`, which computes
+
+    ρ_snow = ρ_min * (1 - q_l) + ρ_l * q_l
+
+a minimum dry-snow density blended toward liquid water density by the liquid
+fraction. There is no self-loading compaction and gravity does not appear.
+
+So across three land models the treatments are:
+
+| | snow density |
+| --- | --- |
+| ExoPlaSim | constant 330 kg/m3 |
+| ClimaLand | minimum density blended by liquid water content, no compaction |
+| PALADYN | prognostic: Anderson fresh-snow temperature dependence plus Kojima self-loading, LINEAR IN g |
+
+**Two of the three omit compaction, so ExoPlaSim's constant is conventional at
+this complexity level rather than anomalous.** That is a real difference from
+section 11's flat band arrays, where the structure existed and the value denied
+it; here the structure is absent everywhere and only PALADYN builds it.
+
+It does not make the term unimportant here, and the reason is the same one that
+raised the question. A term that can be omitted on Earth is one whose
+Earth-magnitude somebody judged small. That judgement does not transfer
+automatically at 1.306 times Earth's gravity, and nothing in these three models
+was asked to.
+
+So GRAV-8's question is not "why is this missing", since it is missing almost
+everywhere. It is whether the Earth-calibrated judgement that it is negligible
+survives this planet's gravity -- which is what the row already asks for, a
+price rather than a fix.
+
+One detail worth carrying into that pricing: no model does all of it. ClimaLand
+captures wet-snow density through liquid content, which PALADYN explicitly
+neglects; PALADYN captures fresh-snow temperature dependence and self-loading,
+which ClimaLand omits. The union of the two is what a complete treatment would
+be, and nobody at this complexity level has built it.
