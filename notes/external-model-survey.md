@@ -1654,3 +1654,45 @@ whichever it was. The question the row should ask first is what the ExoPlaSim
 stress is being compared AGAINST -- muffingen's synthetic profile, or an
 observational product -- because the multiplier is a ratio and the denominator
 has not been identified.
+
+
+## 19. What EMIC-class sea ice motion actually is
+
+*Read 2026-08-22 from `vendor/cgenie/genie-goldsteinseaice`. OCN-21 was opened
+today on the claim that sea ice dynamics needs wind stress and ocean currents.
+That is half right, and the half that is wrong makes the eventual fix smaller.*
+
+`tstepsic.f` announces itself at line 14 as a "2nd order explicit transport code
+using **upper level ocean velocities**", and the code bears it out: `tstipsic.f`
+builds its advective coefficients from `u(1,i,j)` and `u(2,i,j)`, the ocean's
+top-level velocity components, with `diffsic` as a diffusion term beside them.
+Ice area and thickness are carried as `varice` and moved by those coefficients,
+with `par_sica_thresh` and `par_sich_thresh` gating the doorway cases.
+
+Notably, a separate ice velocity field `uice` exists and is COMMENTED OUT at
+every use site. The live code advects ice with the water underneath it.
+
+**So this is not dynamic sea ice in the rheological sense.** There is no ice
+momentum equation, no internal ice stress, no wind stress applied to the floe.
+It is advection by ocean surface currents plus a diffusion term.
+
+That is a ladder rather than a binary, and it is worth stating because the two
+ends cost very different amounts:
+
+| | what it is |
+| --- | --- |
+| this project | thermodynamic only; ice forms and melts in place |
+| cGENIE | advection by upper-ocean velocity plus diffusion |
+| CLIMBER-X | `sic_dyn.f90` and `transport_sic.f90`, a full dynamic-thermodynamic scheme |
+
+**OCN-21's block is confirmed and its shape corrected.** The requirement is
+narrower than wind stress and currents: cGENIE needs only the ocean's surface
+velocity, and this world's ocean is a slab with no velocity field at all, so
+there is literally nothing to advect with. `u(1,i,j)` has no counterpart here.
+
+But the fix, when the block lifts, is smaller than "implement dynamic sea ice"
+suggests. It is an advection term on two prognostic fields using a velocity the
+ocean would already be producing. That belongs in OCN-21 because it changes what
+the row is estimating, and it strengthens the case for declaring the term in the
+error budget now: the eventual correction is cheap enough that the declaration
+is not deferring an expensive decision.
