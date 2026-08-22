@@ -153,6 +153,7 @@ references/climber-x/
 references/big-mitgcm/
 references/socrates/
 references/speedy/
+references/marbl/
 
 # Offline dust fields, rebuilt in minutes by aeolian/scripts/build_dust.py once a
 # climatology exists. The JSON report beside them IS tracked: it carries the
@@ -203,6 +204,7 @@ references/aus_groundwater
 references/big-mitgcm
 references/climber-x
 references/ecospeclib-all
+references/marbl
 references/poseidon_surface_albedo
 references/socrates
 references/speedy

@@ -401,7 +401,14 @@ explicit: cloud albedo depends on latitude in order to reduce net solar
 radiation at high latitudes and therefore to agree better with observational
 data. That is a fitted knob on a radiative quantity in a peer-reviewed model
 description, and it is what `docs/src/practice/failure-modes.md` class 16
-forbids by name. Anything borrowed from a SPEEDY-derived scheme carries it.
+forbids by name.
+
+It is THEIR modification and not SPEEDY's, which is worth stating because the
+distinction decides whether it travels. Stock SPEEDY applies two constants,
+`albcl = 0.43` and `albcls = 0.50` in `shortwave_radiation.f90`, uniformly and
+with no latitude term; the latitude dependence is BIG-MITgcm's, after Ragon et
+al. (2022). So the knob is local to their configuration, and the four longwave
+bands section 8a wants are not carrying it.
 
 **Its bathymetry preparation deletes closed water.** Isolated oceanic points and
 lakes are removed irrespective of size to avoid numerical instability, and every
