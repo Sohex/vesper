@@ -33,14 +33,14 @@ program shtns_concurrency
    complex(dp), allocatable :: Slm(:,:)
    real(dp), allocatable :: Sh(:,:,:), Ref(:,:,:)
 !  the analysis direction, which this probe did not originally cover
-   complex(dp), allocatable :: Alm(:,:), Aref(:,:), Blm(:,:), Bref(:,:)
-   real(dp), allocatable :: Vt(:,:,:), Vp(:,:,:)
+   complex(dp), allocatable :: Alm(:,:), Aref(:,:)
+   real(dp), allocatable :: Vt(:,:,:), Vp(:,:,:), Rt(:,:,:), Rp(:,:,:)
    integer :: nbada, nbadv
 
    lmax = 170 ; mmax = 170 ; mres = 1
    nlat = 256 ; nphi = 512
    eps_polar = 0.0_dp
-   norm = SHT_ORTHONORMAL + SHT_NO_CS_PHASE
+   norm = SHT_ORTHONORMAL            ! as shtnsmod configures it
    layout = SHT_GAUSS + SHT_PHI_CONTIGUOUS
 
    call shtns_verbose(0)
@@ -48,6 +48,7 @@ program shtns_concurrency
                                           ! model's team provides the parallelism
    shtns_c = shtns_create(lmax, mmax, mres, norm)
    call shtns_set_grid(shtns_c, layout, eps_polar, nlat, nphi)
+   call shtns_robert_form(shtns_c, 1)     ! as shtnsmod configures it
    call c_f_pointer(cptr=shtns_c, fptr=shtns)
 
    allocate( Slm(shtns%nlm, NF) )
@@ -89,17 +90,9 @@ program shtns_concurrency
 !  differ in the last bits from run to run, which is what a threaded model must
 !  never do.
    allocate( Alm(shtns%nlm, NF), Aref(shtns%nlm, NF) )
-   allocate( Blm(shtns%nlm, NF), Bref(shtns%nlm, NF) )
    allocate( Vt(shtns%nphi, shtns%nlat, NF), Vp(shtns%nphi, shtns%nlat, NF) )
    do jf = 1, NF
-      Vt(:,:,jf) = Ref(:,:,jf)
-      Vp(:,:,jf) = Ref(:,:,jf) * 0.5_dp
-   enddo
-   do jf = 1, NF
       call spat_to_SH(shtns_c, Ref(:,:,jf), Aref(:,jf))
-   enddo
-   do jf = 1, NF
-      call spat_to_SHsphtor(shtns_c, Vt(:,:,jf), Vp(:,:,jf), Bref(:,jf), Blm(:,jf))
    enddo
 
    nbada = 0 ; nbadv = 0
@@ -115,6 +108,30 @@ program shtns_concurrency
       enddo
    enddo
 
+!  ---- THE VECTOR TRANSFORMS, which nothing here had covered --------------
+!  sh_dv2uv and sh_sp2grad call SHsphtor_to_spat and SHsph_to_spat, and the
+!  forward path calls spat_to_SHsphtor. A scalar transform being safe says
+!  nothing about a vector one: it walks a different code path, and Robert form
+!  is on, which is another.
+   allocate( Rt(shtns%nphi, shtns%nlat, NF), Rp(shtns%nphi, shtns%nlat, NF) )
+   do jf = 1, NF
+      call SHsph_to_spat(shtns_c, Slm(:,jf), Rt(:,:,jf), Rp(:,:,jf))
+   enddo
+
+   nbadv = 0
+   do jr = 1, NROUND
+      Vt = 0.0_dp ; Vp = 0.0_dp
+      !$omp parallel do schedule(dynamic) private(jf) shared(Slm, Vt, Vp, shtns_c)
+      do jf = 1, NF
+         call SHsph_to_spat(shtns_c, Slm(:,jf), Vt(:,:,jf), Vp(:,:,jf))
+      enddo
+      !$omp end parallel do
+      do jf = 1, NF
+         if (any(Vt(:,:,jf) /= Rt(:,:,jf)) .or.                                  &
+  &          any(Vp(:,:,jf) /= Rp(:,:,jf))) nbadv = nbadv + 1
+      enddo
+   enddo
+
    write(*,'(a,i0,a,i0,a,i0)') 'lmax ', lmax, '  nlat ', nlat, '  nlm ', shtns%nlm
    write(*,'(a,i0,a,i0,a)') 'threads available: ', omp_get_max_threads(),        &
   &   ', transforms a round: ', NF, ''
@@ -127,6 +144,16 @@ program shtns_concurrency
       write(*,'(a,i0,a,i0,a)') '  [ FAIL ] ', nbad, ' of ', NF*NROUND,           &
   &      ' concurrent transforms differ from the serial answer'
       write(*,'(a,e12.5)')     '           worst difference ', worst
+      stop 1
+   endif
+   if (nbadv == 0) then
+      write(*,'(a,i0,a)') '  [  ok  ] all ', NF*NROUND,                          &
+  &      ' concurrent SHsph_to_spat are BIT IDENTICAL to the serial answer'
+   else
+      write(*,'(a,i0,a,i0,a)') '  [ FAIL ] ', nbadv, ' of ', NF*NROUND,          &
+  &      ' concurrent SHsph_to_spat differ from the serial answer'
+      write(*,'(a)') '           the VECTOR transform is not safe to call from'
+      write(*,'(a)') '           several threads on one configuration'
       stop 1
    endif
    if (nbada == 0) then

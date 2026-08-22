@@ -2554,6 +2554,15 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 
 #ifdef OMPSHARED
       if (nshtns == 1) then
+!        A BARRIER BEFORE, AND IT IS NOT SYMMETRY WITH THE ONE AFTER. legmod
+!        writes only the calling thread's band, so nothing it does can disturb
+!        another thread; these wrappers write the WHOLE GLOBE of every field,
+!        including bands other threads are still reading from earlier in the
+!        timestep. Without this, a thread that arrives early overwrites gu for a
+!        thread still in the physics behind it. The symptom is not a wrong
+!        answer, it is a last-bit difference that appears in perhaps one run in
+!        three -- which is why two runs agreeing is not evidence of anything.
+!$omp barrier
 !        SHTns does the Legendre transform and the FFT in ONE call, so the
 !        fields land in GRID space here and the fc2gp block below is skipped.
 !        Everything between the two has to be read with that in mind, which is
@@ -3386,6 +3395,9 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 
 #ifdef OMPSHARED
       if (nshtns == 1) then
+!        The leading barrier is required for the same reason as in gridpointa:
+!        these wrappers write the whole globe, not this thread's band.
+!$omp barrier
 !        As in gridpointa: one call per field, landing in GRID space, so there
 !        is no Fourier intermediate and no fc2gp. This site is the easy one --
 !        nothing between the transform and the dimensionalising below reads a

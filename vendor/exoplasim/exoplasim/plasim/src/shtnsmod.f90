@@ -140,7 +140,7 @@
       endif
 
       knorm = SHT_ORTHONORMAL          ! Condon-Shortley INCLUDED
-      klay  = SHT_GAUSS + SHT_PHI_CONTIGUOUS
+      klay  = SHT_QUICK_INIT + SHT_PHI_CONTIGUOUS
       zeps  = 0.0_8                    ! no polar truncation: it is worth
                                        ! 7% and this model does not make
                                        ! that approximation elsewhere
