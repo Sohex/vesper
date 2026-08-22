@@ -1118,18 +1118,20 @@ the configured star to produce the model's albedo constants.
 Weighting each spectrum by a 5772 K Planck and by `k25v_hr.dat`, split at
 0.75 um:
 
-| spectrum | Sun band1 / band2 / broadband | K2.5V band1 / band2 / broadband | model constant |
-| --- | --- | --- | ---: |
-| `iceblendmax` | 0.984 / 0.644 / 0.816 | 0.983 / 0.585 / 0.736 | 0.8 |
-| `iceblendmin` | 0.509 / 0.305 / 0.408 | 0.508 / 0.273 / 0.362 | 0.4 |
-| `glacalbmin` | 0.766 / 0.455 / 0.612 | 0.764 / 0.406 / 0.541 | 0.6 |
-| `seaicemax` | 0.894 / 0.530 / 0.714 | 0.892 / 0.473 / 0.631 | -- |
-| `seaicemin` | 0.637 / 0.380 / 0.510 | 0.636 / 0.339 / 0.451 | -- |
+| spectrum | model key | constant | Sun b1 / b2 / broadband | K2.5V b1 / b2 / broadband |
+| --- | --- | ---: | --- | --- |
+| `iceblendmax` | `dsnowalbmx` | 0.8 | 0.984 / 0.644 / 0.816 | 0.983 / 0.585 / 0.736 |
+| `iceblendmin` | `dsnowalbmn` | 0.4 | 0.509 / 0.305 / 0.408 | 0.508 / 0.273 / 0.362 |
+| `glacalbmin` | `dglacalbmn` | 0.6 | 0.766 / 0.455 / 0.612 | 0.764 / 0.406 / 0.541 |
+| `seaicemax` | `dicealbmx` | 0.7 | 0.894 / 0.530 / 0.714 | 0.892 / 0.473 / 0.631 |
+| `seaicemin` | `dicealbmn` | 0.5 | 0.637 / 0.380 / 0.510 | 0.636 / 0.339 / 0.451 |
+| `oceanblend` | `doceanalb` | 0.069 | 0.076 / 0.065 / 0.070 | 0.076 / 0.064 / 0.068 |
 
-**The solar column reproduces the model constants to within 0.016 on all three.**
-That is the check that matters: it establishes these spectra ARE the provenance
-of 0.8, 0.4 and 0.6, and it validates the integral before any conclusion is
-drawn from the K dwarf column.
+**The solar column reproduces every one of the six model constants**, the worst
+by 0.016 and the ocean to three decimals. Six for six is the check that matters:
+it establishes that these spectra ARE the provenance of the model's constants,
+and it validates the integral before any conclusion is drawn from the K dwarf
+column.
 
 Read across and the effect splits cleanly in two. Band 1 barely moves, at most
 0.002, because snow is flat and bright below 0.75 um. Band 2 falls by 0.04 to
@@ -1139,9 +1141,22 @@ where snow darkens. On top of that the band-1 flux share falls from 0.556 to
 per-band constant can capture; the second is what the two-band machinery would
 capture if the bands differed.
 
-**So the simulation's fresh snow is about 0.064 too bright, its old snow 0.038
-and its glacier ice 0.059**, and every one of those errs in the direction that
-weakens the ice-albedo feedback at the cold end.
+**So the simulation's fresh snow is about 0.064 too bright, its old snow 0.038,
+its glacier ice 0.059, its maximum sea ice 0.069 and its minimum sea ice
+0.049**, and every one errs in the direction that weakens the ice-albedo
+feedback at the cold end. Sea ice at 0.069 is the LARGEST single error in the
+set, and it is the one surface with no configuration key at all.
+
+**The ocean is the exception, and the exemption is worth stating.** `oceanblend`
+gives 0.070 under the Sun and 0.068 under this star, because water's reflectance
+is low and nearly flat across the split, 0.076 against 0.065. So the SPECTRAL
+half of OCN-7's question is answered negatively: re-weighting the ocean albedo
+for this host is worth 0.002 and does not earn its place. That row's
+spatial-variation half is untouched.
+
+Seven arrays carry this defect in total, and two of them, `dsnowalb` and
+`doceanalb`, are commented "spectral weighted" in the source while holding one
+value in both bands. The comment asserts what the value denies.
 
 ### 11d. What remains
 
