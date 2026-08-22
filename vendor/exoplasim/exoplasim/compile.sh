@@ -59,6 +59,33 @@ END
 
 
 prec=4
+
+# SHTns, from the project-local prefix exoplasim/scripts/build_shtns.sh builds.
+# The include path goes into the compile flags because shtnsmod includes
+# shtns.f03; the library goes on the link line. Both are empty and harmless if
+# it has not been built, and shtnsmod is the only object that needs either --
+# but the model links it unconditionally, so a run with nshtns=0 is unaffected
+# and a run with nshtns=1 fails at build rather than at midnight.
+# Three levels up: this script is at vendor/exoplasim/exoplasim/. It MUST be
+# resolved here, at the top, because compile.sh cds into plasim/bld before
+# it builds -- resolving it down there lands one directory short and the
+# only symptom is a missing include much later.
+SHTNS_PREFIX="$(cd "$(dirname "$0")/../../.." && pwd)/vendor/shtns-install"
+if [ -f "$SHTNS_PREFIX/include/shtns.f03" ]; then
+    export SHTNS_INC="-I$SHTNS_PREFIX/include"
+    # -lgomp explicitly: libshtns_omp pulls fftw3_omp, which needs it, and the
+    # MPI build does not compile with -fopenmp so it would not otherwise be on
+    # the link line. The MPI build cannot USE SHTns -- it has no single address
+    # space holding every latitude -- but it still links shtnsmod, so it still
+    # has to resolve the symbols.
+    export SHTNS_LIB="$(ls "$SHTNS_PREFIX"/lib/libshtns*.a | head -1) -lfftw3_omp -lfftw3 -lgomp -lm"
+else
+    echo "NOTE: no SHTns at $SHTNS_PREFIX; building without it."
+    echo "      exoplasim/scripts/build_shtns.sh installs it. nshtns=1 needs it."
+    export SHTNS_INC=""
+    export SHTNS_LIB=""
+fi
+
 resolution="t21"
 latitudes=32
 longitudes=64
@@ -303,6 +330,7 @@ echo "Writing makefile..."
 echo ""
 
 export OCEANCOUP=cpl_stub
+
 export FFTMOD=$fftopt
 #cat makefile
 

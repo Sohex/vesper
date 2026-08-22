@@ -149,6 +149,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 
       subroutine prolog
       use pumamod
+      use shtnsmod, only: shtns_setup
 
       logical :: lrestart
 
@@ -292,6 +293,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       call mpbci(nkits   ) ! number of initial timesteps
       call mpbci(nrestart) ! 1: read restart file 0: initial run
       call mpbci(nqspec  ) ! 1: spectral q 0: grodpoint q
+      call mpbci(nshtns  ) ! 1: SHTns transforms 0: legmod's own
       call mpbci(nsela   ) ! 1: semi lagrangian advection enabled
       call mpbci(l_aero  ) ! 1: aerosols enabled
 
@@ -482,6 +484,9 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       end if
 
       call legini
+!     After legini, because shtns_setup reads NTRU and the grid legini has just
+!     set up, and because legmod stays the transform until nshtns says otherwise.
+      if (nshtns == 1) call shtns_setup
 
       if (nrestart > 0) then
          call read_atmos_restart
@@ -1366,7 +1371,8 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
                    , ngui    , nguidbg , nhdiff  , nhordif , nkits      &
                    , noutput , nlowio  , nstpw   , nsnapshot, nstps     &
                    , npackgp , npacksp , nperpetual        , nprhor     &
-                   , nprint  , nqspec  , nrad    , nsela   , nsync      &
+                   , nprint  , nqspec  , nrad    , nsela   , nshtns     &
+                   , nsync                                             &
                    , ntime   , ntspd   , nveg    , nwpd    &
                    , n_start_year , n_start_month, n_run_steps          &
                    , n_run_years , n_run_months  , n_run_days           &

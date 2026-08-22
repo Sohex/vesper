@@ -237,6 +237,11 @@
       integer :: nsponge  = 0   ! switch for top sponge layer
       integer :: nstratosponge = 0 ! Switch for Newtonian cooling in hybrid stratosphere
       integer :: nqspec   = 1   ! 1: spectral q   0: gridpoint q (semi-Langrangian)
+!     SHTns is opt-in while it proves itself, so legmod stays the default and
+!     the model is unchanged at 0. It needs every latitude in one address space
+!     and the grid in latitude order, so it is refused on anything but the
+!     threaded build without LPAIRLAT -- shtns_setup checks rather than assumes.
+      integer :: nshtns   = 0   ! 1: SHTns transforms   0: legmod's own
       integer :: nrdrag   = 0   ! 1: Apply Rayleigh fraction to 20-layer atmosphere
       integer :: l_aero    = 1   ! 1: Aerosols on; this also enables the semi-Lagrangian advection tracer grid initialisations
 !>>> AYP -- NEEDED AS PART OF GLACIERMOD      
