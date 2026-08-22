@@ -626,6 +626,9 @@ one_offs:
   - exoplasim/scripts/verify_weight_factorisation_model.sh
   - exoplasim/scripts/cache_budget.py
   - exoplasim/scripts/probe_grid_contiguity.f90
+  - exoplasim/scripts/verify_threaded_numerics.sh
+  - exoplasim/scripts/verify_transform_roundtrip.sh
+  - exoplasim/scripts/verify_transform_roundtrip.f90
   - exoplasim/scripts/verify_omp_collectives.sh
   - exoplasim/scripts/verify_shared_determinism.sh
   - exoplasim/scripts/_bed_guard.sh

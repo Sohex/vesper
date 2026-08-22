@@ -1,0 +1,205 @@
+#!/bin/bash
+# Does the threaded build still compute the reference build's answer?
+#
+#   exoplasim/scripts/verify_threaded_numerics.sh <bed> <res> <n> [reference]
+#
+# Worldbuilding frame: a correctness check on the Vesper climate model's
+# threaded build. Nothing here is about the simulated planet.
+#
+# WHY THIS EXISTS AS A REGISTERED CHECK, and why it did not need to before.
+# Until the grid fields became bands of a shared globe, the threaded build was
+# BIT IDENTICAL to the MPI build at T21 on two, and that was the sharpest tool
+# in this component -- it caught the dv2uv planetary vorticity race and the
+# weight pre-scaling bug, both of which a tolerance would have let through.
+#
+# That standard is gone and cannot come back while the layout serves SHTns. A
+# thread's band is contiguous within a level and strided between them, so the
+# compiler cannot assume contiguity, vectorises differently, and moves last
+# bits. What replaces it is this: agreement at the scale of a regrouped sum, AT
+# SHORT RANGE, where the seed has not yet amplified. That is a weaker check, so
+# it is written down, given a control, and run rather than remembered.
+#
+# WHY SHORT RANGE IS THE WHOLE POINT. A last-bit difference in this model grows
+# by roughly three decades every twenty steps: measured on this change, 3.2e-13
+# at one step, 1.4e-13 at twenty, 3.0e-10 at sixty. A comparison at sixty steps
+# therefore FAILS a 1e-10 tolerance on a change that is perfectly sound, and
+# a comparison at three hundred fails on anything at all. Length is not a
+# detail here; it is what separates a defect from Lyapunov growth.
+#
+# THE CONTROL must fail, and it is the mistake this design actually invites:
+# every thread takes the band of its neighbour instead of its own. Still a
+# bijection, still NHOR rows each, still runs -- and wrong. A control that
+# corrupted the pointer outright would not stand in for it.
+set -euo pipefail
+
+bed="$(cd "${1:?usage: verify_threaded_numerics.sh <bed> <res> <n> [reference]}" && pwd)"
+res="${2:?}"
+n="${3:?}"
+reference="${4:-mpi}"     # mpi or serial; see the note on the hard fork
+
+HERE="$(cd "$(dirname "$0")" && pwd)"
+REPO="$(cd "$HERE/../.." && pwd)"
+# shellcheck source=_bed_guard.sh
+. "$HERE/_bed_guard.sh"
+PKG="$REPO/vendor/exoplasim/exoplasim"
+SRC="$PKG/plasim/src"
+low="$(echo "$res" | tr 'A-Z' 'a-z')"
+WORK="$REPO/exoplasim/bench/_tnumerics"
+TOL=1e-10
+STEPS="1 2 5 10 20 40"
+BIRTH=1e-11      # the norm at ONE step; above this the change is wrong at birth
+JUMP=1e4         # the largest ratio allowed between adjacent samples
+
+require_settled_bed "$bed"
+
+dirty="$(cd "$REPO" && git status --porcelain -- vendor/exoplasim/exoplasim/plasim/src)"
+if [ -n "$dirty" ]; then
+    echo "refusing: the model source is not what is committed --" >&2
+    echo "$dirty" >&2
+    exit 1
+fi
+
+rm -rf "$WORK"; mkdir -p "$WORK/ref"
+restore() { ( cd "$REPO" && git checkout -- vendor/exoplasim/exoplasim/plasim/src ); }
+trap restore EXIT
+
+build_arm() {
+    local arm="$1" stamp="$WORK/.stamp" name flags
+    restore
+    if [ "$arm" = "wrongband" ]; then
+        sed -i 's/^      lo = mypid \* NHOR + 1$/      lo = mod(mypid+1,NPRO) * NHOR + 1/' \
+            "$SRC/plasimmod.f90"
+        grep -q "mod(mypid+1,NPRO) \* NHOR" "$SRC/plasimmod.f90" || {
+            echo "control patch missed" >&2; exit 1; }
+    fi
+    case "$arm" in
+      reference)
+        if [ "$reference" = "serial" ]; then
+            flags="-n 1"; name="most_plasim_${low}_l10_p1.x"
+        else
+            flags="-n $n";  name="most_plasim_${low}_l10_p${n}.x"
+        fi ;;
+      *) flags="-j -n $n"; name="most_plasim_${low}_l10_p${n}_omp.x" ;;
+    esac
+    : > "$stamp"
+    # shellcheck disable=SC2086
+    ( cd "$PKG" && ./compile.sh $flags -p 8 -r "$res" -v 10 ) >"$WORK/build_$arm.log" 2>&1 || true
+    [ -f "$PKG/plasim/run/$name" ] && [ "$PKG/plasim/run/$name" -nt "$stamp" ] || {
+        echo "build failed or stale: $arm (see $WORK/build_$arm.log)" >&2; exit 1; }
+    cp -f "$PKG/plasim/run/$name" "$WORK/ref/$arm.x"
+    echo "  built $arm  $(sha256sum "$WORK/ref/$arm.x" | cut -c1-16)"
+}
+
+run_arm() {
+    local arm="$1" steps="$2" tag="$3" d="$WORK/run_$tag"
+    rm -rf "$d"; mkdir -p "$d"
+    cp -a "$bed"/. "$d"/
+    ( cd "$d"
+      rm -f ./*.x plasim_status Abort_Message
+      sed -i "s/^ *N_RUN_STEPS *=.*/ N_RUN_STEPS = $steps /" plasim_namelist
+      cp -f "$WORK/ref/$arm.x" ./probe.x
+      if [ "$arm" = "reference" ] && [ "$reference" != "serial" ]; then
+          mpiexec -np "$n" ./probe.x >run.log 2>&1
+      elif [ "$arm" = "reference" ]; then
+          ./probe.x >run.log 2>&1
+      else
+          export OMP_NUM_THREADS="$n" OMP_PROC_BIND=close OMP_PLACES=cores
+          export OMP_STACKSIZE=512M
+          ulimit -s unlimited
+          ./probe.x >run.log 2>&1
+      fi ) >/dev/null 2>&1 || true
+    [ -f "$d/plasim_status" ]
+}
+
+compare() {
+    "$REPO"/.venv/bin/python "$REPO"/exoplasim/scripts/compare_restarts.py \
+        "$WORK/run_$1/plasim_status" "$WORK/run_$2/plasim_status" \
+        --tol "$TOL" --exact dls --exact doro --exact darea --quiet
+}
+
+norm() {
+    "$REPO"/.venv/bin/python "$REPO"/exoplasim/scripts/compare_restarts.py \
+        "$WORK/run_$1/plasim_status" "$WORK/run_$2/plasim_status" \
+        --tol "$TOL" --norm 2>/dev/null
+}
+
+echo "$res, $n threads against the $reference build"
+echo "declared before the arms ran: tolerance $TOL, lengths [$STEPS],"
+echo "  birth bound $BIRTH at one step, jump bound ${JUMP}x between samples"
+echo
+build_arm reference
+build_arm threaded
+build_arm wrongband
+
+rc=0
+
+# HOW THE DIFFERENCE GROWS, which is the part two isolated tolerance checks
+# cannot tell you. A sound change starts at rounding scale and grows smoothly as
+# the model's own sensitivity amplifies it; a defect that only fires under some
+# condition -- a guard that opens on a particular step, a branch reached once a
+# field crosses a threshold -- puts a STEP in the curve instead.
+#
+# NOT gated on monotonicity, and that is measured rather than assumed. The
+# statistic is the worst record's relative difference, and which record is worst
+# changes with length, so the curve legitimately goes DOWN: on the grid-band
+# change it ran 3.2e-13 at one step, 1.4e-13 at twenty, 3.0e-10 at sixty. A
+# monotonicity gate would have failed a sound change.
+#
+# So the curve is the diagnostic and the gates are deliberately coarse: wrong at
+# birth, or a jump too large to be amplification.
+echo
+echo "==== how the difference grows ===="
+printf '  %8s  %14s  %s\n' steps norm "worst record"
+prev=""
+for s in $STEPS; do
+    if run_arm reference "$s" "r$s" && run_arm threaded "$s" "t$s"; then
+        read -r v rec <<<"$(norm "r$s" "t$s")"
+        printf '  %8s  %14s  %s\n' "$s" "$v" "$rec"
+        if [ "$s" = 1 ]; then
+            over=$(awk -v a="$v" -v b="$BIRTH" 'BEGIN{print (a>b)?1:0}')
+            if [ "$over" = 1 ]; then
+                echo "  FAIL: $v at one step is above the birth bound $BIRTH."
+                echo "        A change that is wrong at step one is not amplification."
+                rc=1
+            fi
+        fi
+        if [ -n "$prev" ]; then
+            big=$(awk -v a="$v" -v b="$prev" -v j="$JUMP" \
+                  'BEGIN{print (b>0 && a/b>j)?1:0}')
+            if [ "$big" = 1 ]; then
+                echo "  FAIL: the norm jumped by more than ${JUMP}x into $s steps."
+                echo "        Amplification is smooth; a step in the curve is a"
+                echo "        condition being met, not a seed growing."
+                rc=1
+            fi
+        fi
+        prev="$v"
+    else
+        echo "  $s steps: an arm produced no restart"; rc=1
+    fi
+done
+
+for s in 1 20; do
+    echo
+    echo "==== threaded against $reference, $s step(s): must agree ===="
+    compare "r$s" "t$s" || rc=1
+done
+
+echo
+echo "==== the wrong-band control, 1 step: must NOT agree ===="
+if run_arm wrongband 1 w1; then
+    if compare r1 w1; then
+        echo "FAIL: every thread took its neighbour's band and the comparison"
+        echo "      did not notice, so it cannot see a misassociated pointer."
+        rc=1
+    else
+        echo "control rejected, so the comparison has teeth."
+    fi
+else
+    echo "the control did not run. A crash is not a demonstration that the"
+    echo "comparison works, so this does not count as a pass."
+    rc=1
+fi
+echo
+echo "work kept at $WORK"
+exit $rc

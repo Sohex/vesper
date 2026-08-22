@@ -94,6 +94,14 @@ def main() -> int:
                          "Use it for fields that are only scattered and gathered.")
     ap.add_argument("--quiet", action="store_true",
                     help="report only the records that are not identical")
+    ap.add_argument("--norm", action="store_true",
+                    help="print ONLY the worst relative record difference, as a "
+                         "bare number, and exit 0 whatever it is. For tracking how "
+                         "a difference GROWS with run length: a sound change starts "
+                         "at rounding scale and grows smoothly, while a defect that "
+                         "only triggers under some condition puts a step in the "
+                         "curve. The verdict belongs to the caller, so this mode "
+                         "does not judge.")
     args = ap.parse_args()
 
     la, lb = records(args.left), records(args.right)
@@ -107,7 +115,7 @@ def main() -> int:
     for (name, a), (_, b) in zip(la, lb):
         if a == b:
             n_same += 1
-            if not args.quiet:
+            if not args.quiet and not args.norm:
                 print(f"[ identical ] {name}")
             continue
         if len(a) != len(b):
@@ -130,10 +138,16 @@ def main() -> int:
             exact_failed.append(name)
         if r <= args.tol:
             n_round += 1
-            print(f"[ rounding  ] {name}: {r:.3e}")
+            if not args.norm:
+                print(f"[ rounding  ] {name}: {r:.3e}")
         else:
             n_diff += 1
-            print(f"[ DIFFERENT ] {name}: {r:.3e}")
+            if not args.norm:
+                print(f"[ DIFFERENT ] {name}: {r:.3e}")
+
+    if args.norm:
+        print(f"{worst_val:.6e} {worst_name or '-'}")
+        return 0
 
     print()
     print(f"{len(la)} records: {n_same} identical, {n_round} at rounding scale, "
