@@ -74,3 +74,56 @@ at `gfull(i0:i1,:)` hits exactly that. If a pointer works, the 169 whole-array
 `where` statements never need touching, because the pointer already addresses
 only this thread's band. If it does not, the eight-module restructure is back.
 That probe is the next thing to run and it needs no SHTns.
+
+## The scope estimate was wrong, and the probe says why
+
+*Measured 2026-08-21.* The standing estimate was that SHTns needs the grid
+arrays full-globe, which means 169 whole-array `where` statements across about
+700 declarations in eight modules. **That is the cost of one design and not of
+the requirement.**
+
+It assumed making `NHOR` itself the globe, so every thread's arrays span every
+latitude and every whole-array statement has to become a slice. The alternative
+is Stage A's pattern applied to the grid: one shared full-globe array, and each
+thread's name for it a POINTER to its own band. Then `NHOR` is still the band
+from the thread's side, `where (dls < 0.5) gt = ...` still addresses only this
+thread's latitudes, and not one of the 169 statements changes. A whole-array
+expression is not a call boundary and has nothing to copy.
+
+What DOES copy is a band passed wholesale to an explicit-shape dummy, because
+the stride between levels is the globe and not the band. Measured by comparing
+the address the callee sees with the caller's slice, because behaviour cannot
+tell -- copy-out makes a copied argument look like a passed-through one:
+
+| how the band is passed | copied? |
+| --- | --- |
+| 2-D band to explicit-shape `(NHORB,NLEV)` | **yes** |
+| 2-D band to assumed-shape `(:,:)` | no |
+| 1-D band, one level, to `(NHORB)` | no |
+| base address `gfull(i0,1)` to `(NHORB)` | no |
+
+Three copy-free routes, and the last is the idiom this model already uses
+everywhere -- `fc2sp(gtdt(1,jlev),...)` is exactly it.
+
+**So the work is bounded by the wholesale passes, and there are 27:**
+
+| receiving routine | passes |
+| --- | ---: |
+| `gp2fc` | 12 |
+| `fc2gp` | 12 |
+| `uv2dv`, `fc2sp`, `calcgp` | 1 each |
+
+Twenty-four are the FFT, which SHTns performs itself and which therefore stop
+existing. Two more are Legendre routines SHTns also replaces. **`calcgp` is the
+only one left**, and it has three fixes to choose from.
+
+The change is the declarations for the transform-crossing arrays, the
+association, the transform call sites, and one physics routine. It is Stage A
+again, on the other half of the model.
+
+**One risk this does not measure.** A pointer array can generate worse code than
+a fixed-shape one, because the compiler must assume it may alias and cannot
+assume contiguity. Stage A took that cost on the spectral side and the model
+came out faster anyway, but the grid arrays are the ones the physics touches
+hardest, and it is a thing to measure rather than assume. Declaring the pointers
+`contiguous` where they are is the lever if it bites.
