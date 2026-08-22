@@ -91,7 +91,8 @@ build_arm() {
 }
 
 run_arm() {
-    local arm="$1" steps="$2" tag="$3" d="$WORK/run_$tag"
+    local arm="$1" steps="$2" tag="$3"
+    local d="$WORK/run_$tag"
     rm -rf "$d"; mkdir -p "$d"
     cp -a "$bed"/. "$d"/
     ( cd "$d"
