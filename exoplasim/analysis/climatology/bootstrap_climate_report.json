@@ -1,0 +1,87 @@
+{
+  "label": "bootstrap",
+  "source_regular": "/home/cfutro/docs/world/exoplasim/analysis/climatology/bootstrap_regular_climatology.nc",
+  "source_snapshots": "/home/cfutro/docs/world/exoplasim/analysis/climatology/bootstrap_snapshot_climatology.nc",
+  "climatology_orbits": 10,
+  "year_indices": [
+    50,
+    59
+  ],
+  "global_metrics": {
+    "surface_temperature_k": 292.0106447901919,
+    "air_temperature_2m_k": 291.4785782466302,
+    "precipitation_mm_day": 2.597793871174998,
+    "toa_net_radiation_w_m2": -0.47233792476219705,
+    "surface_downward_heat_flux_w_m2": 0.009438585828251828,
+    "planetary_sea_ice_fraction": 0.007874987015241319,
+    "ocean_mean_sea_ice_concentration": 0.013771524776343441,
+    "land_area_fraction": 0.42816883800921784
+  },
+  "koppen_land_area_fractions": {
+    "Af": 0.06559191568120355,
+    "Am": 0.01701751583057626,
+    "As": 0.03551087157755066,
+    "Aw": 0.06585264916020767,
+    "BSh": 0.14267439445048552,
+    "BSk": 0.011869912271041335,
+    "BWh": 0.17796188077906155,
+    "BWk": 0.00036450411016676957,
+    "Cfa": 0.04235226007783425,
+    "Cfb": 0.024979104004770446,
+    "Cfc": 0.0027417543528555936,
+    "Csa": 0.04679177211209095,
+    "Csb": 0.0014403055395797253,
+    "Cwa": 0.00854978164143351,
+    "Cwb": 0.004410156124046646,
+    "Dfa": 0.08621904100199146,
+    "Dfb": 0.10294365727052486,
+    "Dfc": 0.06207144005392681,
+    "Dsa": 0.07422304904002469,
+    "Dsb": 0.0038845811501422114,
+    "Dsc": 0.003994544704763219,
+    "Dwa": 0.00845798754541883,
+    "Dwb": 0.0022731891643702016,
+    "Dwc": 0.0034807164262424814,
+    "ET": 0.004343015929690885
+  },
+  "biome_land_area_fractions": {
+    "Boreal forest/woodland": 0.06954670118493252,
+    "Continental temperate/mixed forest": 0.27800150517247224,
+    "Cool oceanic forest/heath": 0.0027417543528555936,
+    "Desert": 0.17832638488922828,
+    "Everwet tropical forest": 0.06559191568120355,
+    "Mediterranean woodland/shrubland": 0.0482320776516707,
+    "Monsoon tropical forest": 0.01701751583057626,
+    "Seasonal tropical woodland/savanna": 0.10136352073775834,
+    "Steppe/semidesert": 0.15454430672152686,
+    "Temperate/subtropical forest": 0.08029130184808486,
+    "Tundra/alpine": 0.004343015929690885
+  },
+  "classification_method": {
+    "precipitation": "mean rates annualized to 365.2425 days before applying empirical Earth Koppen thresholds",
+    "seasonality": "twelve model time-bin means assigned by reconstructed simulated solar longitude",
+    "temperature_boundary_c_d_celsius": 0.0,
+    "interpretation": "heuristic worldbuilding diagnostic, not a dynamic vegetation model"
+  },
+  "hydrology_sign_convention": "ExoPlaSim evap is negative upward; plotted evaporation is -evap and P-E is pr+evap",
+  "season_definitions_solar_longitude_degrees": {
+    "Northern spring": [
+      0.0,
+      90.0
+    ],
+    "Northern summer": [
+      90.0,
+      180.0
+    ],
+    "Northern autumn": [
+      180.0,
+      270.0
+    ],
+    "Northern winter": [
+      270.0,
+      360.0
+    ]
+  },
+  "lowest_wind_sigma": 0.982818603515625,
+  "snapshot_product": "instantaneous orbital snapshots averaged across model orbits"
+}
