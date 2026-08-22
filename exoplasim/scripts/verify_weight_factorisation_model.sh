@@ -61,11 +61,19 @@ build_arm() {
     case "$arm" in
       factored) ;;
       eight)
-        ( cd "$REPO" && git show HEAD~1:vendor/exoplasim/exoplasim/plasim/src/legmod.f90 \
+        # The newest revision that still declares the eight matrices, found
+        # rather than counted back to. A fixed HEAD~n is wrong the moment
+        # anything else is committed, which it was within the hour.
+        local rev
+        rev="$(cd "$REPO" && git rev-list HEAD -- vendor/exoplasim/exoplasim/plasim/src/legmod.f90 \
+               | while read -r r; do
+                   if git show "$r:vendor/exoplasim/exoplasim/plasim/src/legmod.f90" \
+                      2>/dev/null | grep -q "qq(NCSP,NLPP)"; then echo "$r"; break; fi
+                 done)"
+        [ -n "$rev" ] || { echo "no revision of legmod.f90 has the eight-matrix form" >&2; exit 1; }
+        echo "  reference is ${rev:0:8}"
+        ( cd "$REPO" && git show "$rev:vendor/exoplasim/exoplasim/plasim/src/legmod.f90" \
               > "$SRC/legmod.f90" )
-        grep -q "qq(NCSP,NLPP)" "$SRC/legmod.f90" || {
-            echo "reference patch missed: HEAD~1 legmod.f90 has no eight-matrix form" >&2
-            exit 1; }
         ;;
       broken)
         sed -i 's/^      fmm(lm) = m \* skgpsp(n+1)$/      fmm(lm) = n * skgpsp(n+1)/' "$SRC/legmod.f90"
