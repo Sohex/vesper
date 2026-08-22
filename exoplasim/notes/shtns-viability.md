@@ -726,3 +726,56 @@ So legmod is no longer on any per-timestep path except that one output
 diagnostic, and it stays compiled regardless: `nshtns=0` is the reference
 `verify_shtns_model.sh` compares against, and deleting it would delete the
 comparison.
+
+## It was never memcpy: a third of T170 is memset, and it is diffuse
+
+Measured 2026-08-22, T170, sixteen threads, NSHTNS=1.
+
+The cpu-clock profile puts about 31% of the run in four libc addresses a few
+bytes apart and 11.6% in one libgomp address. Fetched by build-id from
+debuginfod and resolved, they are:
+
+  __memset_avx512_unaligned_erms    ~31%
+  gomp_team_barrier_wait_end        ~11.6%
+
+**Not memcpy.** Four adjacent addresses in libc were read as a copy loop for
+several hours of work, and the model is ZEROING, not copying. The interposer
+built to catch the copying found only 0.33 GiB a timestep going through
+memcpy and memmove, which at any plausible bandwidth cannot be a third of the
+run -- that negative result is what forced the addresses to be resolved
+properly.
+
+**The two heaviest zeroing sites are STARTUP.** `oroini_` and `roffini_` zero
+13.18 GiB each, and the counts are byte for byte identical at 5 steps and at
+25, which is what proves it. They vanish from a 300-step profile. A short
+profile therefore OVERSTATES the libc share badly, and
+`score_transform_profile.py --exclude-startup` does not save you: it drops a
+startup BUCKET by symbol name, and startup work that lands in a stripped
+library falls in `unbucketed` instead.
+
+**Per step it is diffuse.** DWARF unwinding over 300 steps, as a share of the
+samples whose leaf is in a stripped library:
+
+| caller | share |
+| --- | ---: |
+| `gridpointd_` at +0x55, +0x68, +0x7b, +0x3984 | 10.5% |
+| `mpgagp_`, `mpgallsp_`, `mpbci_`, `mpsumbcr_` | 9.5% |
+| `gridpointa_+0x5627` | 3.3% |
+| `sh_gp2sp`, `mkdheat_` | 2.0% |
+| callchain truncated | 33.6% |
+
+The three low offsets in `gridpointd` are the block of nine whole-array
+zeroings at its head -- `gudt`, `gvdt`, `gtdt`, `gqdt`, `dudt`, `dvdt`, `dtdt`,
+`dqdt`, `mmrt`. That is the largest single identifiable site and it is about
+2.7% of runtime.
+
+**So there is no low-hanging fruit here, and the reason is semantic rather than
+technical.** Those arrays are tendency ACCUMULATORS: the physics adds into them
+all timestep, so the zeroing is load-bearing and cannot simply be deleted.
+Removing it means making the first writer of each assign rather than
+accumulate, across every physics routine that touches them -- a wide,
+correctness-sensitive change for a few percent. The collectives are the same
+story one level down.
+
+What this does retire is the idea in CLIM-63 that the cost is copy-in and
+copy-out at explicit-shape dummies. It is not copying at all.

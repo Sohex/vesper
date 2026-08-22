@@ -225,11 +225,19 @@ def rank_shares(data: Path) -> dict[str, float]:
 
     shares: dict[str, float] = defaultdict(float)
     unbucketed: dict[str, float] = defaultdict(float)
+    # Per-symbol shares, kept so a bucket can be opened up. A bucket total says
+    # "physics, 12.9%", which is not a thing anyone can act on; the symbols under
+    # it are.
+    symbols: dict[str, float] = {}
+    sym_dso: dict[str, str] = {}
+    sym_bucket: dict[str, str] = {}
     for line in out.splitlines():
         m = re.match(r"\s*(\d+\.\d+)%\s+(\S+)\s+\[[.k]\]\s+(.+?)\s*$", line)
         if not m:
             continue
         pct, dso, sym = float(m.group(1)), m.group(2), m.group(3)
+        symbols[sym] = symbols.get(sym, 0.0) + pct
+        sym_dso[sym] = dso
         bucket = SYMBOL_BUCKET.get(sym)
         if bucket is None:
             for prefix, b in SYMBOL_PREFIX_BUCKETS:
@@ -245,22 +253,40 @@ def rank_shares(data: Path) -> dict[str, float]:
             bucket = "unbucketed"
             unbucketed[sym] += pct
         shares[bucket] += pct
+        sym_bucket[sym] = bucket
         if bucket == "mpi" and SPIN_SYMBOLS.search(sym):
             shares["_mpi_spin_named"] += pct
     shares["_unbucketed_top"] = unbucketed  # type: ignore[assignment]
+    shares["_symbols"] = symbols            # type: ignore[assignment]
+    shares["_sym_bucket"] = sym_bucket      # type: ignore[assignment]
+    shares["_sym_dso"] = sym_dso            # type: ignore[assignment]
     return shares
 
 
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("perf_dirs", type=Path, nargs="+")
+    ap.add_argument("--per-symbol", type=int, default=0, metavar="N",
+                    help="also list the N heaviest symbols in each bucket, "
+                         "which is what makes a bucket actionable")
     ap.add_argument("--exclude-startup", action="store_true", default=True,
-                    help="renormalise over the integration, dropping startup "
-                         "(default: on; a 600-step bed carries ~1.6 s of it)")
+                    help="renormalise over the integration, dropping the "
+                         "startup BUCKET (default: on; a 600-step bed carries "
+                         "~1.6 s of it). Note the hole: it drops symbols the "
+                         "table calls startup, and startup work that lands in "
+                         "a stripped library falls in `unbucketed` instead and "
+                         "survives. oroini_ and roffini_ between them zero 26 "
+                         "GiB through libc before step one, which at 25 steps "
+                         "is most of the libc share and at 300 is noise -- so "
+                         "a short profile overstates it and this flag does not "
+                         "save you. Profile the length you mean to run.")
     args = ap.parse_args()
 
     ranks: list[dict[str, float]] = []   # one normalised bucket table per rank
     unbucketed_total: dict[str, float] = defaultdict(float)
+    symbol_total: dict[str, float] = defaultdict(float)
+    symbol_bucket: dict[str, str] = {}
+    symbol_dso: dict[str, str] = {}
     passes = []
 
     for d in args.perf_dirs:
@@ -278,6 +304,10 @@ def main() -> None:
                       f"and what it dropped is whatever ran while perf was behind. "
                       f"Re-record with a larger PERF_MMAP_PAGES; do not score this.")
             s = rank_shares(f)
+            for sym, pct in s.pop("_symbols").items():      # type: ignore[union-attr]
+                symbol_total[sym] += pct
+            symbol_bucket.update(s.pop("_sym_bucket"))      # type: ignore[arg-type]
+            symbol_dso.update(s.pop("_sym_dso"))            # type: ignore[arg-type]
             top = s.pop("_unbucketed_top")
             for sym, pct in top.items():  # type: ignore[union-attr]
                 unbucketed_total[sym] += pct
@@ -367,6 +397,26 @@ def main() -> None:
             print(f"  ** {bucket} is {st.median(per_rank[bucket]):.1f}%, over the "
                   f"{EXPECT_EMPTY_PCT}% declared for a bed with it switched off: the bed "
                   f"is misconfigured, not the model slow.")
+
+    if args.per_symbol:
+        # A bucket total is a category, not a target. This opens each one so the
+        # answer to "where do the cycles go" is a routine rather than a noun.
+        print(f"\nheaviest symbols in each bucket (share of all samples)")
+        by_bucket: dict[str, list[tuple[str, float]]] = defaultdict(list)
+        for sym, pct in symbol_total.items():
+            by_bucket[symbol_bucket.get(sym, "unbucketed")].append((sym, pct))
+        order = sorted(by_bucket, key=lambda b: -sum(p for _, p in by_bucket[b]))
+        for b in order:
+            entries = sorted(by_bucket[b], key=lambda kv: -kv[1])
+            tot = sum(p for _, p in entries) / max(nranks, 1)
+            print(f"\n  {b}  ({tot:.2f}%)")
+            for sym, pct in entries[:args.per_symbol]:
+                share = pct / max(nranks, 1)
+                if share < 0.01:
+                    break
+                dso = symbol_dso.get(sym, "")
+                where = "" if dso.startswith("probe") or not dso else f"   [{dso}]"
+                print(f"    {share:6.2f}%  {sym}{where}")
 
     if unbucketed_total:
         print(f"\nheaviest unbucketed symbols (sum over ranks, uncalibrated):")
