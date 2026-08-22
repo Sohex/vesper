@@ -195,31 +195,64 @@ The modules that map onto open rows are `soil_hydro.f90` and `surface_hydro.f90`
 for LSHY-3, `soil_temp.f90` for LSHY-5, and `water_check.f90`, which is a water
 conservation checker of roughly the shape LSHY-7 describes.
 
-### 3e. What of PALADYN is NOT worth taking
+### 3e. What is not worth taking, and what is a floor rather than an upgrade
 
-**The vegetation.** TRIFFID with five plant functional types, against
-LPJ-GUESS CNP. Not close, in the wrong direction.
+Two of these are refusals and three are something else, and the distinction
+matters more than the list.
 
-**The methane fractions.** PALADYN emits methane as a constant fraction of
-heterotrophic respiration wherever respiration is anaerobic, with a different
-fraction per surface type. WET-6 already holds the fork's globally tuned
-respiration ratios to a higher standard than that, requiring vertically resolved
-substrate, temperature, saturation and redox state and retaining the tuned
-ratios only as named Earth structural bounds. Adopting PALADYN's constant would
-be a step down from a standard already set.
+**Not worth taking: the vegetation.** TRIFFID with five plant functional types,
+against LPJ-GUESS CNP. Not close, and in the wrong direction.
 
-**The peat structure, as a design.** Acrotelm and catotelm after Kleinen et al.
-(2012), transfer at a critical acrotelm carbon of 5 kgC/m2 after Wania et al.
-(2009), areal expansion after Stocker et al. (2014) limited to 1 percent a year
-with a minimum fraction seeding every cell. WET-4 and WET-9 already charter this
-ground with vertical resolution PALADYN does not have. The citations are useful;
-the design is not an upgrade.
+**Not worth taking: the uniform hydraulic defaults.** `k_sat`, `psi_sat` and the
+Clapp-Hornberger `b` are global uniform values by default, with a texture and
+organic-matter formulation available in an appendix. This project has a
+lithology-derived soil, so only the second path is relevant, and LSHY-1 already
+owns the property contract.
 
-**The uniform hydraulic defaults.** `k_sat`, `psi_sat` and the Clapp-Hornberger
-`b` are global uniform values by default, with a texture and organic matter
-formulation available in an appendix. This project has a lithology-derived soil,
-so only the second path is relevant, and LSHY-1 already owns the property
-contract.
+**A floor, not an upgrade: peat structure, peatland area and the methane
+fraction.** WET-4, WET-6 and WET-9 charter this ground to a standard PALADYN
+does not meet: vertically resolved substrate, temperature, saturation and redox
+state, production and oxidation exposed independently, and stock-conserving
+transition semantics. Measured against that specification PALADYN is a step
+down, and adopting it in place of the specification would be a step down from a
+standard already set.
+
+That comparison is against a TARGET, though, and the target is unproven. WET-1
+through WET-11 specify what an accepted wetland, peat and methane component
+would be; nothing has yet shown the chain is implementable within this project,
+and it rests on SDEC-3's vertical coordinate, PLHY-4 and PLHY-5, PCAR-5's trait
+registry and BVOC-6's oxidant bracket, all of which are wholly open. A standard
+that does not ship is worth less than a design that does. PALADYN is a design
+that works, is published, and runs at this project's throughput, so it is worth
+recording as the floor each part can fall back to rather than as a rejected
+option.
+
+The three parts are not equally viable as a floor, and this is the substance:
+
+- **Extent is genuinely supplied.** Wetland fraction is the TOPMODEL saturated
+  fraction wherever the surface is snow free, and potential peatland is the
+  fraction wet for at least three months of the year. That is a geographic
+  quantity computed from terrain and column water, and section 3a's index is its
+  input. It forfeits nothing WET-2 needs except the mutual exclusivity WET-2
+  asks for, which is a bookkeeping requirement rather than a physical one.
+- **Peat stock is supplied, at a cost that is nameable.** Acrotelm and catotelm
+  confined to the top soil layer, transfer at a critical acrotelm carbon of
+  5 kgC/m2 after Wania et al. (2009), catotelm shifted to lower layers as
+  density fills one, peat carbon vertical diffusivity set to zero, and areal
+  change after Stocker et al. (2014) limited to 1 percent a year with a minimum
+  fraction seeding every cell. What it forfeits is WET-4's vertical resolution,
+  and with it any depth-resolved redox claim.
+- **Methane is a bracket and never a measurement.** A constant fraction of
+  heterotrophic respiration wherever respiration is anaerobic, one fraction per
+  surface type. It cannot separate production from oxidation, which is what
+  WET-6 exists to expose, and it contains no transport at all, so WET-7's
+  diffusion, plant and ebullition pathways collapse into the constant. It yields
+  a surface FLUX under a transplanted-Earth assumption. It does not yield an
+  abundance, because an abundance needs the oxidant and lifetime calculation
+  WET-10 owns and this form does not contain, so it can never move
+  `atmosphere.pCH4_bar`.
+
+WET-12 carries the declaration and the condition for taking each part.
 
 ## 4. BIG-MITgcm is the nearest peer, and two of its details are warnings
 
