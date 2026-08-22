@@ -765,9 +765,60 @@ cycle's grand minima are worth. PHYS-14 owns it.
 `Bluemarineice.txt` and a mixture, so the reflectance data is available rather
 than to be found.
 
-### 9c. Isca is held unread
+### 9c. Isca has already wired SOCRATES into a spectral GCM
 
-It is the one tree acquired on the chance of a blind spot with no row behind it
-and no finding yet. Recording that is the point: an acquisition that has not
-paid is not the same as one that cannot, and the next person to look should know
-nobody has.
+`src/atmos_param/` is a ladder of interchangeable physics: `two_stream_gray_rad`,
+`rrtm_radiation`, `sea_esf_rad`, several convection schemes, and `qflux`, which
+is a prescribed ocean heat flux of the kind OCN-2 verifies here. And
+`src/atmos_param/socrates`.
+
+**That module is the answer to CLIM-61's interface question**, which is most of
+the work in adopting a band-resolved scheme. The whole integration is 3,452
+lines, of which `socrates_interface.F90` is 1,688 and `socrates_set_cld.F90` is
+503, and the spectral files arrive as namelist strings, `sw_spectral_filename`
+and `lw_spectral_filename`, so pointing it at a K dwarf file is configuration
+rather than code. Isca is FMS-based and ExoPlaSim is not, so nothing drops in;
+what transfers is the SPECIFICATION, because the call signature states exactly
+what a host model has to supply:
+
+    temperature, specific humidity, ozone, CO2, surface temperature,
+    pressure at full and half levels, height at full and half levels,
+    albedo, cosine of zenith angle, Sun-planet distance factor,
+    cloud fraction, effective radius, cloud water content
+
+and it returns heating rates, up and down fluxes, clear-sky counterparts, and
+optionally a spectral outgoing longwave.
+
+One detail in that list matters for PHYS-14. The albedo argument is a SINGLE
+broadband value per column, not the four-component visible and near-infrared by
+direct and diffuse that SEMI takes. So a band-resolved atmosphere does not by
+itself resolve the surface, and what surface albedo is fed to it remains a
+decision rather than something the scheme answers.
+
+### 9d. An exoplanet code with an Earth constant in it, and the check it prompted
+
+`src/shared/constants/constants.F90` puts the planetary constants in a runtime
+namelist, `constants_nml`, carrying `radius`, `grav`, `omega`,
+`orbital_period`, `rotation_period`, `solar_const`, `pstd`, `rdgas`, `kappa`
+and more, with `omega` derived as `2*pi/rotation_period` rather than set
+independently. That places Isca with `ClimaParams.jl` and with
+`config/planet.yaml`, and leaves CLIMBER-X's compile-time `parameter` block as
+the outlier of the four codes read here.
+
+But not entirely. `RADCON`, the conversion from radiative flux divergence to a
+heating rate, is a `parameter` built from `EARTH_GRAV`, `EARTH_CP_AIR` and
+`SECONDS_PER_DAY`, and it carries its author's own comment: not sure that
+RADCON makes sense when the diurnal cycle and gravity are changed, so setting
+them to use Earth values. An exoplanet-capable code, with a derived constant
+that escaped the parameterisation, and the uncertainty left on the record rather
+than resolved.
+
+That is worth more than the finding itself, because it says the
+inherited-constant class needs auditing regardless of what a code was built for.
+So the obvious check was made here: at this planet's gravity and day length a
+RADCON-like constant would be wrong by about 1.63x, which would be enormous.
+**ExoPlaSim is clean.** `radmod.f90` computes the heating rate as
+`-ga*(dflux(jlep)-dflux(jlev)) / (dsigma*dp*acpd*(1+ADV*dq))` and the layer
+thickness as `gascon/ga`, using the model's own gravity and specific heat
+throughout. A negative result, recorded because the check was cheap and the
+failure mode is real enough that a purpose-built code fell into it.
