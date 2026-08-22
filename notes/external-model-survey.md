@@ -2030,10 +2030,19 @@ than 4.6e-6 -- about 5.7 percent low, of which roughly 3.1 points is the window
 mismatch and 2.6 the stellar shift. One-signed: more photons per joule than
 assumed, so absorbed photon flux and therefore assimilation are understated.
 
-The lesson is narrower than "another inherited constant". A constant that was
-CORRECT stopped being correct when a neighbouring decision moved, and nothing
-connected the two. PCAR-11 accordingly asks for the pair to move together and to
-be routed through `vesper.h`, so the next window change carries both.
+**BIO-25 already owns this and I did not check before writing a row.**
+`biosphere/notes/implicit-earth-assumptions.md` finding 5 is headed "The PAR
+correction changes energy but not photons per joule" and specifies exactly the
+fix: generate a spectrum- and window-weighted `VESPER_CQ` beside `FRADPAR` and
+require the combined photon supply to reproduce the registered productivity
+calculation. The plant-physiology audit repeats it. The row I opened, PCAR-11,
+is withdrawn.
+
+What was NOT already recorded is the magnitude, and that is folded into BIO-25:
+about 5.7 percent low, decomposing into roughly 3.1 points of window mismatch
+and 2.6 of stellar shift. The window half would exist on Earth's spectrum too,
+which matters because it means the pair has to be recomputed over a COMMON
+window rather than merely re-starred.
 
 
 ## 25. The wetland latitude constant: nothing new, and one wrong claim withdrawn
