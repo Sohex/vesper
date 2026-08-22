@@ -956,9 +956,7 @@ value says it does not, and the declaration is what a reader sees first.
 `dsnowalbmn(2) = 0.4`, `dglacalbmn(2) = 0.6`, `dicealbmx(2) = 0.7`,
 `dicealbmn(2) = 0.5`, `doceanalb(2) = 0.069` and `dsnowalb(2) = 0.6`. Two of
 them are commented "spectral weighted" while holding one value in both bands:
-the comment asserts precisely what the value denies. ECOGEM's `k_w` and
-`k_chl` are the same shape in the ocean, a single attenuation coefficient for a
-process that is strongly wavelength dependent.
+the comment asserts precisely what the value denies.
 
 **What makes this worse than a plain inherited constant is that it disables a
 correct fix made elsewhere, silently.** A two-band scheme carries a star's
@@ -979,9 +977,13 @@ dimension, ask whether its elements differ. If they do not, either the variation
 is genuinely absent -- which is a claim, and belongs in a comment as one -- or
 the structure is decorative and the machinery built to consume it is a no-op.
 
-The cost history is `notes/external-model-survey.md` section 11 and PHYS-14.
-The vegetation instance was found and repaired; the other six were not, and five
-of them are wrong by 0.038 to 0.069 in the direction that weakens the
-ice-albedo feedback at the cold end. `notes/audits/inherited-earth-constants.md`
-is the neighbouring class: there the constant has no structure around it at all,
-so nothing pretends the variation is handled.
+The cost history is this project's own. The vegetation instance is recorded in
+`config/planet.yaml`, where codes 175 and 176 had "one identical field used to
+assert that a canopy reflects equally either side of the split"; it was found
+and repaired and the endmember moved. The other six were not, and five of them
+are wrong by 0.038 to 0.069 in the direction that weakens the ice-albedo
+feedback at the cold end. PHYS-14 owns them and
+`notes/external-model-survey.md` section 11 has the derivation.
+`notes/audits/inherited-earth-constants.md` is the neighbouring class: there the
+constant has no structure around it at all, so nothing pretends the variation is
+handled.
