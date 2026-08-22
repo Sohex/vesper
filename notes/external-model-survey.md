@@ -2184,3 +2184,62 @@ temperature restoring" is satisfied by the candidate and can be checked once.
 "Flux forcing that does not encode the answer" is this project's, is not
 checkable by inspecting cGENIE, and is the one that needs the declared
 procedure the row asks for.
+
+
+## 28. Why OCN-5 has to be a loop, derived rather than asserted
+
+*Read 2026-08-22 from `vendor/cgenie/genie-embm`. Section 27 left OCN-5's real
+risk as "flux forcing that encodes the answer" without saying what the mechanism
+is. EMBM says it.*
+
+### 28a. cGENIE tunes its atmosphere to make room for its ocean
+
+EMBM moves heat and moisture by advection plus diffusion. `tstipa.f` builds the
+coefficients as `betaz(l)*uatm(1,i,j)` zonally and `betam(l)*uatm(2,i,j)`
+meridionally, with `diffa(l,1,j)` and `diffa(l,2,j)` beside them, indexed by
+tracer and latitude. And `ini_embm_nml` exposes the lot: `diffamp(2)`,
+`diffwid`, `difflin`, `betaz(2)`, `betam(2)`, with the latitudinal shape set by
+`diffend = exp(-(0.5*pi/diffwid)**2)`.
+
+So the atmosphere's poleward transport is a PARAMETERISED object with an
+amplitude, a latitudinal width, a linear term and per-tracer advection scalings.
+In a coupled cGENIE run those are calibrated so that EMBM and GOLDSTEIN TOGETHER
+produce a sensible total transport. The partition between them is a tuned
+quantity.
+
+### 28b. This project cannot do that, and that is the whole problem
+
+Poleward heat transport is shared between atmosphere and ocean. In an ExoPlaSim
+run on a slab with `nhdiff` off, the ocean transports nothing, so the ATMOSPHERE
+carries the entire load -- and it does so through resolved primitive-equation
+dynamics, not through a coefficient anybody can turn down.
+
+Hand that run's surface fluxes to a dynamic ocean and the ocean transports heat
+too. The total is then an atmosphere already carrying the full load plus an
+ocean carrying more. There is no `betaz` to reduce, because ExoPlaSim's
+transport is emergent.
+
+That is the mechanism behind OCN-5's warning, and it is sharper than the row's
+own statement. The row says a restored ocean returns zero transport by
+construction. The flux-forced failure is the opposite sign: an ocean forced by a
+slab-derived climatology is being handed a flux field computed under the
+assumption that it does nothing, and acting on it OVER-transports.
+
+### 28c. So the loop is not stylistic
+
+The only resolution is to let the atmosphere respond. Run the ocean, take its
+heat transport, return it to the NEXT ExoPlaSim run as a heat-flux convergence
+field, and iterate until the partition is self-consistent. That return path
+already exists and is what OCN-2 verifies: `nfluko = 1` makes `oceanmod.f90`
+read surface code 903 as a monthly W/m2 field and `addfc` apply it under the
+header comment "prescribed advection".
+
+OCN-5 declares an iterative loop with an exit predicate rather than a one-shot
+forcing, and asserts that this is necessary. This is why: a single pass cannot
+converge the atmosphere-ocean transport partition, because the atmosphere in the
+forcing climatology has not been told the ocean exists.
+
+It also explains why OCN-2 is ordered before OCN-3 in the row's own reasoning.
+The channel that carries the correction back is the thing the loop is built
+around, and verifying it with a known field is cheaper than discovering it is
+wrong after a circulation exists to blame.
