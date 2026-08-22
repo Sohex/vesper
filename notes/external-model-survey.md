@@ -2758,3 +2758,65 @@ its consequence priced.
 The DAMM contrast says what the replacement looks like: an O2 limitation
 continuous in air-filled porosity needs no category and no latitude, and it is
 two Michaelis-Menten factors over quantities a soil column already carries.
+
+
+## 35. Two accelerators in one codebase, and only one of them is guarded
+
+*Read 2026-08-22. Section 30c found PlaSim-GOLDSTEIN gearing. GEMlite is the
+same project's other accelerator, and the difference between how the two are
+controlled is the reusable part.*
+
+### 35a. GEMlite, and the validity limit it states about itself
+
+`genie-gemlite/src/fortran/gemlite.f90` advances ocean and atmosphere
+geochemistry -- carbonate chemistry, weathering input, sedimentation -- without
+running BIOGEM's biology or the circulation. Its header states its own domain of
+validity rather than leaving it to be discovered:
+
+    ! NOTE: SURFACE FCO2 IS RAPIDLY EQUILIBRIATED WITH THE ATM, HENCE A PULSE OF
+    ! CO2 EMITTED TO THE ATMOSERE WILL NOT EFFECTIVELY BE DEALT WITH BY GEMLIE AS
+    ! IT REQUIRES DISEQUILIBRIUM BETWEEN OCEAN *SURFACE* AND ATM TO WORK
+
+It also warns that its `ocn` array has module scope only, "there is an entirely
+seperate `ocn` for BIOGEM" -- two live copies of the same ocean state, which is
+the duplicate-state hazard rule 5 exists for.
+
+### 35b. The guard is two-sided, and the thresholds are named
+
+`genie-main/genie.F`, with defaults from
+`src/xml-config/xml/definition.xml:241-282`:
+
+- **Entry, on a RATE.** `:621-638`. During the full-model phase, if the
+  year-on-year pCO2 change exceeds `gem_adapt_dpCO2dt`, default **0.1 ppm/yr**,
+  the phase counter is DECREMENTED and the full model runs another year. The
+  accelerator does not engage while the system is moving quickly. The config
+  description is explicit: "rate-of-change threshold for switching into GEMlite".
+- **Extension, on ACCUMULATED ERROR.** `:808-823`. Inside the accelerated phase,
+  if cumulative drift from the phase's starting pCO2 stays under
+  `gem_adapt_DpCO2`, default **0.1 ppm**, the phase may be extended.
+- **A hard cap by default.** That extension happens only if
+  `gem_adapt_auto_unlimitedGEM` is set, which is `.false.`, and the source says
+  why in place: "some risk of spurious stuff happening if staying in the GEM
+  phase for ever". `gem_yr_min = 10` and `gem_yr_max = 1000` bound the phase.
+
+So: engage on a rate, extend on an error integral, and refuse to run unbounded
+unless told to, with the reason recorded beside the switch.
+
+### 35c. The contrast, which is the point
+
+The PlaSim-GOLDSTEIN gearing of section 30c has **no adaptive guard at all**.
+`ngear_multiple` is a fixed integer and the atmosphere is skipped on a fixed
+schedule regardless of what the ocean is doing. The same project built both.
+
+The difference is not carelessness: GEMlite has a **scalar that summarises the
+accelerated subsystem's drift** and gearing does not. pCO2 is one number, it is
+already computed, and its rate and integral both mean something. That is what
+makes a guard writable.
+
+The transferable rule for this project's own accelerators is therefore a
+question to answer before building one: *what single number measures the drift
+this acceleration introduces, and is it already computed?* If there is one, the
+guard is two thresholds and a counter. If there is not, the accelerator is a
+fixed schedule and its cost is a declared structural term rather than a bounded
+one. `config/pipeline.yaml` already carries exit predicates per loop, so the
+place to put the answer exists.
