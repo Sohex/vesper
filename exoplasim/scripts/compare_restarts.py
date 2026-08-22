@@ -110,6 +110,7 @@ def main() -> int:
         return 1
 
     worst_name, worst_val = None, 0.0
+    worst_ndiff, worst_n = None, 0
     n_same = n_round = n_diff = 0
     exact_failed = []
     for (name, a), (_, b) in zip(la, lb):
@@ -130,10 +131,20 @@ def main() -> int:
             continue
         r = relative(va, vb)
         worst_abs = max(abs(x - y) for x, y in zip(va, vb))
+        # HOW MANY elements differ, not just by how much. A field that is almost
+        # all zeros with a few cells at a threshold value -- dql holds 127
+        # nonzero cells of 737280, every one of them exactly 1e-9 -- reports a
+        # huge number when ONE cell crosses, because the record's RMS is far
+        # below the value of a single cell. That is not wrong, and no
+        # denominator makes a full-amplitude change at one cell look small; what
+        # was missing is being able to tell it apart from field-wide drift
+        # without opening the file by hand. It cost an hour once.
+        ndiff = sum(1 for x, y in zip(va, vb) if x != y)
         if worst_abs <= args.abs_floor:
             r = 0.0                      # identical to the precision that means anything
         if r > worst_val:
             worst_name, worst_val = name, r
+            worst_ndiff, worst_n = ndiff, len(va)
         if name in args.exact:
             exact_failed.append(name)
         if r <= args.tol:
@@ -143,7 +154,8 @@ def main() -> int:
         else:
             n_diff += 1
             if not args.norm:
-                print(f"[ DIFFERENT ] {name}: {r:.3e}")
+                print(f"[ DIFFERENT ] {name}: {r:.3e}"
+                      f"  ({ndiff} of {len(va)} elements)")
 
     if args.norm:
         print(f"{worst_val:.6e} {worst_name or '-'}")
@@ -153,7 +165,10 @@ def main() -> int:
     print(f"{len(la)} records: {n_same} identical, {n_round} at rounding scale, "
           f"{n_diff} beyond it")
     if worst_name is not None:
-        print(f"worst: {worst_name} at {worst_val:.3e} relative, tolerance {args.tol:.0e}")
+        print(f"worst: {worst_name} at {worst_val:.3e} relative, "
+              f"tolerance {args.tol:.0e}"
+              + (f", differing in {worst_ndiff} of {worst_n} elements"
+                 if worst_ndiff is not None else ""))
 
     for name in args.exact:
         if name not in [n for n, _ in la]:
