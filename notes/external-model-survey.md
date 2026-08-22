@@ -1167,3 +1167,77 @@ analysis product on the pattern of `analysis/vegetation_albedo.py`, an anchoring
 convention for the band pair like `vegetation_albedo_bands`, keys in
 `config/planet.yaml`, and a decision about the sea ice pair, which belongs to
 `icemod` rather than `landmod` and has no config key at all today.
+
+
+## 12. OCN-4's photon question, answered on both candidates
+
+*Computed and read 2026-08-22 from `vendor/cgenie/genie-ecogem` and
+`references/marbl`. OCN-4 asks for the K-star photon dependency of each
+candidate; this is that, plus what the answer costs.*
+
+### 12a. What this star is worth in photons
+
+Integrating `k25v_hr.dat` against a 5772 K Planck over 0.2 to 5.0 um, with the
+conventional marine PAR window of 400 to 700 nm:
+
+| | Sun 5772 K | K2.5V | ratio |
+| --- | ---: | ---: | ---: |
+| fraction of flux in 400-700 nm | 0.369 | 0.313 | 0.849 |
+| umol photons per J WITHIN the band | 4.566 | 4.673 | 1.023 |
+| umol photons per W of total shortwave | 1.684 | 1.463 | **0.869** |
+
+**Read the ratios and not the absolutes.** The absolute fractions depend on the
+integration bounds and on a blackbody standing in for the Sun; the ratios are
+robust to both.
+
+The useful finding is the split. Almost the whole effect is the BAND FRACTION,
+at 0.849, and the mean photon energy inside the band moves only 2.3 percent
+because 400 to 700 nm is narrow enough that the spectral tilt within it barely
+matters. So a single scalar PAR fraction is adequate in STRUCTURE for a
+non-solar host. What is wrong is its value: this star delivers about 0.87 of the
+Sun's photon flux per unit shortwave.
+
+### 12b. The land has this and the ocean does not
+
+`FRADPAR` is 0.4624, derived from the k25v spectrum over a 400 to 750 nm window,
+and `biosphere/README.md` carries it against K2-18's 0.309. So the terrestrial
+side of this question was answered when the spectrum was adopted.
+
+Nothing has done it for the ocean, and the window is not obviously the same
+number. The terrestrial window was widened to 750 nm on predicted K2V
+photosystem peaks at 675, 711 and 746 nm, which REF-9 records as resting on four
+references all marked `held`. A marine window has the opposite pressure on it:
+water absorbs strongly beyond about 600 nm, so the light that reaches a
+phytoplankton cell is bluer than the light at the surface, and a window widened
+to 750 nm describes photons the water column has already removed. **Under a red
+host the two effects compound rather than cancel** -- less blue arriving, and
+what does arrive being weighted toward the part water takes first.
+
+OCN-4 therefore cannot inherit `FRADPAR`. It has to decide the marine window on
+its own evidence, and the number will not be 0.4624.
+
+### 12c. How the two candidates take it, and MARBL is better here
+
+**ECOGEM** computes `PAR(:,:) = PARfrac * dum_egbg_fxsw(:,:)` in `ecogem.f90`,
+with `PARfrac` a scalar in `ini_ecogem_nml`. Configurable, which is the good
+part. Attenuation is `k_w` for water and `k_chl` for chlorophyll, both scalars
+in the same namelist, so the light field is SPECTRALLY FLAT below the surface as
+well as at it. That is the same defect class as the surface albedo arrays in
+section 11, arriving in the ocean: a single attenuation coefficient cannot
+express that a red-shifted star's photons are removed faster.
+
+That is OCN-6's question rather than a new one, and this identifies the specific
+scalars it would replace. It also sharpens it: the error is one-signed, since a
+solar-tuned `k_w` under a redder star OVERSTATES the euphotic depth.
+
+**MARBL** takes PAR Column Fraction and shortwave as `interior_tendency_forcings`
+entries, so the conversion is the driver's responsibility and never a constant
+inside the model. For a non-solar host that is strictly better: the quantity
+OCN-4 would have to override in ECOGEM is one MARBL asks for by design, and
+`num_PAR_subcols` means it accepts a sub-column structure rather than one value.
+
+On this axis MARBL wins, and it is the axis this project cares about most.
+OCN-4's other criteria -- tracer and trait cost, the covarying trait space,
+fixed Earth inventories -- are untouched by this and still favour ECOGEM's
+trait-based ecology in principle. The comparison is now split rather than
+settled.
