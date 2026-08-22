@@ -10,7 +10,14 @@ run finished, and were then applied against a result that cleared one of them
 by 0.05 K.
 
 Estimates that cannot be verified are bracketed rather than guessed, and the
-bracket is reported. This is how albedo, evaporation and the carve verdict are
+bracket is reported. A bracket's DIRECTION is a claim like any other and needs
+its own argument: saying which end is the bound, or that a fuller treatment
+would move a correction one way, is a result to be shown rather than asserted
+while stating the bracket. `analysis/vegetation_albedo.py` asserted that a
+canopy treatment gives a smaller ratio than a leaf one and drew its bracket from
+that; the assertion holds for one of CLM's three leaf classes and fails for the
+other two, because canopy albedo depends on leaf transmittance as well as
+reflectance and the ratio between them is not constant across classes. This is how albedo, evaporation and the carve verdict are
 all handled.
 
 Claims are checked against the artifact rather than the documentation.

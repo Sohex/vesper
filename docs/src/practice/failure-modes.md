@@ -956,7 +956,10 @@ value says it does not, and the declaration is what a reader sees first.
 `dsnowalbmn(2) = 0.4`, `dglacalbmn(2) = 0.6`, `dicealbmx(2) = 0.7`,
 `dicealbmn(2) = 0.5`, `doceanalb(2) = 0.069` and `dsnowalb(2) = 0.6`. Two of
 them are commented "spectral weighted" while holding one value in both bands:
-the comment asserts precisely what the value denies.
+the comment asserts precisely what the value denies. Six of the seven are used
+as written; `doceanalb` is not, because `radmod` replaces the open-ocean term
+with a zenith formula, which is class 32 below and does not change the pattern
+here.
 
 **What makes this worse than a plain inherited constant is that it disables a
 correct fix made elsewhere, silently.** A two-band scheme carries a star's
@@ -987,3 +990,37 @@ feedback at the cold end. PHYS-14 owns them and
 `notes/audits/inherited-earth-constants.md` is the neighbouring class: there the
 constant has no structure around it at all, so nothing pretends the variation is
 handled.
+
+
+## 32. Characterising a value from where it is declared, not where it is used
+
+A constant is read at its declaration, or a predicate at its call site, and
+described from that alone. Something downstream overrides it, narrows it or
+adds a condition, so the description is wrong about the model while being
+correct about the line it was taken from.
+
+`seamod.f90:155-158` sets the ocean surface albedo from two namelist scalars
+everywhere `dls < 0.5`. Read that and stop, and this model has a constant ocean
+albedo. It does not: `radmod.f90:2895-2904` overwrites the open-ocean term
+during the shortwave with a zenith-dependent formula, active by default under
+`necham = 1`. The scalars survive only over land and sea ice, and `doceanalb`
+reaches open water in no configuration the project runs.
+
+The same shape on a predicate. `is_true_wetland_stand()` in the vendored
+LPJ-GUESS fork reads as a property of the stand, and is `PEATLAND && lat < 40.0`.
+Every call site that branches on it is latitude-dependent, and **no call site
+shows that**. An inventory of latitude branches built by grepping for latitude
+finds none of them.
+
+**Why it survives review.** The quoted line is accurate, the file and line
+number are right, and anyone checking the citation confirms it. The error is
+not in the evidence but in its scope: a declaration is evidence about a
+declaration. It is also self-reinforcing, because the wrong description usually
+makes the code look SIMPLER than it is, and a simpler story is easier to believe.
+
+**The test.** Before characterising what a model does with a value, find the
+value's last write and the predicate's definition, not its first. `grep` for the
+name and read the ASSIGNMENTS, not just the declaration; for a predicate, open
+it. If a description of behaviour rests on one site, it rests on an assumption
+that nothing else touches that quantity -- which is a claim, and is usually
+cheaper to check than to be wrong about.

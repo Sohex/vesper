@@ -20,7 +20,13 @@ is the check on that.
 
 Each section and the task rows that carry it. A section with no row either
 closes a candidate, records a negative result, or is framing; those say so.
-This table is the check that nothing here is a finding without a home.
+
+**The invariant, which is the point of the table: every section is either cited
+by a row in `TASKS.md` or named here as one that opens nothing.** The table is a
+snapshot and will go stale as rows move; re-derive it rather than trusting it,
+by collecting `external-model-survey.md section N` citations out of `TASKS.md`
+and diffing against the `## N.` headings here. A section that appears in neither
+is a finding with no home, which is the condition this exists to catch.
 
 | # | what it settles | carried by |
 | --- | --- | --- |
