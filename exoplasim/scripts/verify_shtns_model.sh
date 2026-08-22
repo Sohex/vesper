@@ -85,13 +85,13 @@ build_arm() {
     restore
     if [ "$arm" = "nofilter" ]; then
         local before after
-        before=$(grep -c 'real(fsp(' "$SRC/shtnsmod.f90")
+        before=$(grep -cE 'real\(fsp\(|real\(fgp\(|real\(pfil\(' "$SRC/shtnsmod.f90")
         [ "$before" -ge 6 ] || {
             echo "control patch: expected the filter in every wrapper, found $before" >&2
             exit 1; }
-        sed -i 's/ \* real(fsp(jm),8)//g; s/ \* real(fsp(2),8)//g' "$SRC/shtnsmod.f90"
+        sed -i 's/ \* real(fsp(jm),8)//g; s/ \* real(fsp(2),8)//g; s/real(fgp(jm),8)/1.0_8/g; s/real(pfil(jm),8)/1.0_8/g' "$SRC/shtnsmod.f90"
         # grep -c exits 1 on no matches, which here is exactly success
-        after=$(grep -c 'real(fsp(' "$SRC/shtnsmod.f90" || true)
+        after=$(grep -cE 'real\(fsp\(|real\(fgp\(|real\(pfil\(' "$SRC/shtnsmod.f90" || true)
         [ "$after" = 0 ] || {
             echo "control patch missed: $after sites still filtered" >&2; exit 1; }
     fi

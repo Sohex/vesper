@@ -109,10 +109,10 @@ echo "==== the control, spectral filter dropped: must FAIL ===="
 # wavenumber rather than announcing itself at n=1. It is invisible at the
 # default nfilter=0, which is why the driver above now runs the beds' nfilter=2.
 cp -f "$SRC"/shtnsmod.f90 shtnsmod.f90
-before=$(grep -c 'real(fsp(' shtnsmod.f90)
+before=$(grep -cE 'real\(fsp\(|real\(fgp\(|real\(pfil\(' shtnsmod.f90)
 [ "$before" -ge 6 ] || { echo "control patch: expected the filter in every wrapper, found $before"; exit 1; }
-sed -i 's/ \* real(fsp(jm),8)//g; s/ \* real(fsp(2),8)//g' shtnsmod.f90
-after=$(grep -c 'real(fsp(' shtnsmod.f90 || true)   # grep -c exits 1 on no matches, which here is success
+sed -i 's/ \* real(fsp(jm),8)//g; s/ \* real(fsp(2),8)//g; s/real(fgp(jm),8)/1.0_8/g; s/real(pfil(jm),8)/1.0_8/g' shtnsmod.f90
+after=$(grep -cE 'real\(fsp\(|real\(fgp\(|real\(pfil\(' shtnsmod.f90 || true)   # grep -c exits 1 on no matches, which here is success
 [ "$after" = 0 ] || { echo "control patch missed: $after sites still filtered"; exit 1; }
 echo "  dropped the filter from $before sites"
 build nofilt

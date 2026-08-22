@@ -71,11 +71,29 @@
 !     grid is this times SHTns's for the same coefficient.
       real (kind=8), parameter :: SHTROOT = 2.5066282746310002_8
 
+!     1/sqrt(2 pi), the ANALYSIS constant. Measured, not assumed to be the
+!     reciprocal of the synthesis one: legmod applies its Gaussian weight
+!     explicitly and SHTns applies its own, so the two directions could have
+!     differed by any power. They do not -- both columns of
+!     probe_shtns_forward_conventions come out at 0.398942280 flat.
+      real (kind=8), parameter :: SHTRINV = 0.3989422804014327_8
+
+!     1/cos(phi)^2 on the whole globe. mktend and qtend weight their vector and
+!     kinetic-energy terms with gwdc = gwd/cos^2 where fc2sp uses gwd, and SHTns
+!     applies one quadrature; the difference is this factor, applied to the
+!     field. Built here from the model's own inigau rather than from the
+!     scattered csq, which holds only a thread's own latitudes.
+      real, allocatable :: shrcsq(:)
+
 !     1/(l(l+1)) by MODE, zero at l=0. The factor between SHTns's
 !     spheroidal and toroidal potentials and this model's divergence and
 !     vorticity, and the one a naive substitution applies twice, since
 !     legini already carries it inside fmu and fmv.
       real (kind=8), allocatable :: shtinv(:)
+
+!     l(l+1) by MODE, the analysis companion to shtinv. Zero at l=0, which is
+!     right: a constant field has neither divergence nor vorticity.
+      real (kind=8), allocatable :: shtl1(:)
 
 !     Shared scratch for the two pressure derivatives. gpj is an NHOR module
 !     array and gpmt an NHOR local, both a thread's band, while the wrappers
@@ -87,8 +105,9 @@
       contains
 
       subroutine shtns_setup
-      integer :: knorm, klay, jm, jn, jlm, kok
-      real (kind=8) :: zeps
+      integer :: knorm, klay, jm, jn, jlm, kok, jlat
+      real (kind=8) :: zeps, zc
+      real (kind=8) :: zgsi(NLAT), zgw(NLAT)
 
 !     ONE THREAD BUILDS IT. prolog runs on the whole team, so without this
 !     every thread would call shtns_create and shtns_set_grid, race on the
@@ -132,13 +151,21 @@
       call shtns_robert_form(shtcfg, 1)
 
       allocate(shtinv(NCSP))
+      allocate(shtl1(NCSP))
       allocate(shgdmu(NUGP), shgdlam(NUGP))
+      allocate(shrcsq(NUGP))
+      call inigau(NLAT, zgsi, zgw)
+      do jlat = 1 , NLAT
+         zc = 1.0_8 - zgsi(jlat)*zgsi(jlat)
+         shrcsq((jlat-1)*NLON+1:jlat*NLON) = real(1.0_8 / zc)
+      enddo
       jlm = 0
       do jm = 0 , NTRU
          do jn = jm , NTRU
             jlm = jlm + 1
+            shtl1(jlm) = real(jn*(jn+1), 8)
             if (jn > 0) then
-               shtinv(jlm) = 1.0_8 / real(jn*(jn+1), 8)
+               shtinv(jlm) = 1.0_8 / shtl1(jlm)
             else
                shtinv(jlm) = 0.0_8
             endif
@@ -311,12 +338,219 @@
       end subroutine sh_sp2grad
 
 
+!     ==================================================================
+!     THE ANALYSIS DIRECTION
+!
+!     Grid to spectral. Four routines, all built from two primitives: a
+!     scalar analysis and a vector one. The recipe is measured, by
+!     probe_shtns_forward_conventions, and it is NOT the synthesis recipe
+!     read backwards -- the filter is skgpsp rather than skspgp, carried
+!     in fgp; legmod's Gaussian weight is explicit where SHTns applies
+!     its own; and the l(l+1) between potentials and divergence appears
+!     again with the opposite sign to synthesis.
+!
+!     THESE PRODUCE THE FINISHED FIELD, NOT A PARTIAL. legmod integrates
+!     over a thread's own latitudes and leaves a partial sum for
+!     mpsumscp to reduce; SHTns integrates over the globe in one call, so
+!     the reduction has nothing to add and the caller must not perform
+!     one. That is the structural win of the forward half and not merely
+!     a faster transform: the partials and their traffic go away.
+!
+!     Each is nowait, as the synthesis wrappers are, and the caller
+!     places the barrier.
+!     ==================================================================
+
+      subroutine sh_gp2sp(pgp, psp, klev)
+!     Scalar grid to spectral, replacing gp2fc followed by fc2sp.
+      use pumamod, only: NESP, NUGP, NCSP, NTP1
+      use legmod, only: fgp
+      integer, intent(in) :: klev
+      real, intent(in)    :: pgp(NUGP,klev)
+      real, intent(out)   :: psp(NESP,klev)
+      complex (kind=8) :: zlm(NCSP)
+      real (kind=8) :: zg(NUGP)
+      integer :: jlev, jm
+
+!$omp do schedule(static)
+      do jlev = 1 , klev
+         zg = real(pgp(:,jlev), 8)
+         call spat_to_SH(shtcfg, zg, zlm)
+         psp(:,jlev) = 0.0
+         call unpack_sp(zlm, fgp, SHTRINV, psp(1,jlev))
+      enddo
+!$omp end do nowait
+      return
+      end subroutine sh_gp2sp
+
+
+      subroutine sh_uv2dv(pgu, pgv, psd, psz, klev)
+!     Wind to divergence and vorticity, replacing gp2fc on both
+!     components followed by uv2dv.
+      use pumamod, only: NESP, NUGP, NCSP, NTP1
+      use legmod, only: fgp
+      integer, intent(in) :: klev
+      real, intent(in)    :: pgu(NUGP,klev), pgv(NUGP,klev)
+      real, intent(out)   :: psd(NESP,klev), psz(NESP,klev)
+      complex (kind=8) :: zs(NCSP), zt(NCSP)
+      integer :: jlev
+
+!$omp do schedule(static)
+      do jlev = 1 , klev
+         call analyse_uv(pgu(1,jlev), pgv(1,jlev), zs, zt)
+         psd(:,jlev) = 0.0
+         psz(:,jlev) = 0.0
+         call unpack_dv(zs, zt, psd(1,jlev), psz(1,jlev))
+      enddo
+!$omp end do nowait
+      return
+      end subroutine sh_uv2dv
+
+
+      subroutine sh_advtend(pgn, pgu, pgv, psp, klev)
+!     The advective tendency legmod builds in qtend, and the same shape as
+!     mktend's temperature term: minus the divergence of (pgu,pgv), plus the
+!     scalar analysis of pgn. The two vector terms carry gwdc and the scalar
+!     one gwd, which is the 1/cos^2 applied below.
+      use pumamod, only: NESP, NUGP, NCSP, NTP1
+      use legmod, only: fgp
+      integer, intent(in) :: klev
+      real, intent(in)    :: pgn(NUGP,klev), pgu(NUGP,klev), pgv(NUGP,klev)
+      real, intent(out)   :: psp(NESP,klev)
+      complex (kind=8) :: zs(NCSP), zt(NCSP), zlm(NCSP)
+      real (kind=8) :: zg(NUGP)
+      integer :: jlev, jm
+
+!$omp do schedule(static)
+      do jlev = 1 , klev
+         call analyse_uv(pgu(1,jlev), pgv(1,jlev), zs, zt)
+         zg = real(pgn(:,jlev), 8)
+         call spat_to_SH(shtcfg, zg, zlm)
+         do jm = 1 , NCSP
+            zlm(jm) = zlm(jm) + zs(jm) * shtl1(jm)
+         enddo
+         psp(:,jlev) = 0.0
+         call unpack_sp(zlm, fgp, SHTRINV, psp(1,jlev))
+      enddo
+!$omp end do nowait
+      return
+      end subroutine sh_advtend
+
+
+      subroutine sh_dztend(pgu, pgv, pgke, psd, psz, klev)
+!     The divergence and vorticity tendencies legmod builds in mktend. The
+!     vorticity term is the curl of (pgu,pgv) and the divergence term is its
+!     divergence plus l(l+1)/2 times the analysis of the kinetic energy, which
+!     legmod weights with gwdc and therefore takes 1/cos^2 here.
+      use pumamod, only: NESP, NUGP, NCSP, NTP1
+      use legmod, only: fgp
+      integer, intent(in) :: klev
+      real, intent(in)    :: pgu(NUGP,klev), pgv(NUGP,klev), pgke(NUGP,klev)
+      real, intent(out)   :: psd(NESP,klev), psz(NESP,klev)
+      complex (kind=8) :: zs(NCSP), zt(NCSP), zlm(NCSP)
+      real (kind=8) :: zg(NUGP)
+      integer :: jlev, jm
+
+!$omp do schedule(static)
+      do jlev = 1 , klev
+         call analyse_uv(pgu(1,jlev), pgv(1,jlev), zs, zt)
+         zg = real(pgke(:,jlev), 8) * real(shrcsq, 8)
+         call spat_to_SH(shtcfg, zg, zlm)
+         do jm = 1 , NCSP
+            zs(jm) = zs(jm) - 0.5_8 * zlm(jm)
+         enddo
+         psd(:,jlev) = 0.0
+         psz(:,jlev) = 0.0
+         call unpack_dv(zs, zt, psd(1,jlev), psz(1,jlev))
+      enddo
+!$omp end do nowait
+      return
+      end subroutine sh_dztend
+
+
+!     ---- the two primitives, and the packing -------------------------------
+
+      subroutine analyse_uv(pgu, pgv, ps, pt)
+!     One level of wind to spheroidal and toroidal potentials.
+!
+!     THE INPUT MAPPING IS THE MEASURED ONE and is the mirror of sh_dv2uv's
+!     output: theta grows southward where latitude grows northward, so the
+!     meridional component is negated. Robert form is on, so pgu and pgv go in
+!     as they are -- they already carry cos(phi).
+      use pumamod, only: NUGP, NCSP
+      real, intent(in) :: pgu(NUGP), pgv(NUGP)
+      complex (kind=8), intent(out) :: ps(NCSP), pt(NCSP)
+      real (kind=8) :: zvt(NUGP), zvp(NUGP)
+
+      zvt = -real(pgv, 8)
+      zvp =  real(pgu, 8)
+      call spat_to_SHsphtor(shtcfg, zvt, zvp, ps, pt)
+      return
+      end subroutine analyse_uv
+
+
+      subroutine unpack_sp(plm, pfil, pconst, psp)
+!     A complex mode array into this model's packed real one, filtered.
+      use pumamod, only: NCSP, NTP1
+      complex (kind=8), intent(in) :: plm(NCSP)
+      real, intent(in)  :: pfil(NCSP)
+      real (kind=8), intent(in) :: pconst
+      real, intent(out) :: psp(2*NCSP)
+      integer :: jm
+      real (kind=8) :: zf
+
+      do jm = 1 , NCSP
+         zf = pconst * real(pfil(jm),8)
+         psp(2*jm-1) = real(zf * real(plm(jm)))
+!        m=0 has no imaginary part. legmod leaves whatever gp2fc put in that
+!        slot, and nothing reads it -- verify_transform_roundtrip measured it as
+!        exactly the part a round trip does not preserve -- so it is set to zero
+!        rather than reproduced.
+         if (jm <= NTP1) then
+            psp(2*jm) = 0.0
+         else
+            psp(2*jm) = real(zf * aimag(plm(jm)))
+         endif
+      enddo
+      return
+      end subroutine unpack_sp
+
+
+      subroutine unpack_dv(ps, pt, psd, psz)
+!     Spheroidal and toroidal potentials into divergence and vorticity.
+!     l(l+1) with OPPOSITE signs, which is the measurement and not a guess:
+!     divergence is the Laplacian of S and vorticity is minus that of T, and
+!     the input mapping in analyse_uv puts the minus on the divergence here.
+      use pumamod, only: NCSP, NTP1
+      use legmod, only: fgp
+      complex (kind=8), intent(in) :: ps(NCSP), pt(NCSP)
+      real, intent(out) :: psd(2*NCSP), psz(2*NCSP)
+      integer :: jm
+      real (kind=8) :: zf
+
+      do jm = 1 , NCSP
+         zf = SHTRINV * real(fgp(jm),8) * shtl1(jm)
+         psd(2*jm-1) = real(-zf * real(ps(jm)))
+         psz(2*jm-1) = real( zf * real(pt(jm)))
+         if (jm <= NTP1) then
+            psd(2*jm) = 0.0
+            psz(2*jm) = 0.0
+         else
+            psd(2*jm) = real(-zf * aimag(ps(jm)))
+            psz(2*jm) = real( zf * aimag(pt(jm)))
+         endif
+      enddo
+      return
+      end subroutine unpack_dv
+
+
       subroutine shtns_teardown
       if (.not. lshtns) return
       call shtns_destroy(shtcfg)
       shtcfg = c_null_ptr
       if (allocated(shtinv)) deallocate(shtinv)
+      if (allocated(shtl1)) deallocate(shtl1)
       if (allocated(shgdmu)) deallocate(shgdmu, shgdlam)
+      if (allocated(shrcsq)) deallocate(shrcsq)
       lshtns = .false.
       return
       end subroutine shtns_teardown

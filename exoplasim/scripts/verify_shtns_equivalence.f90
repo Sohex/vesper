@@ -25,7 +25,8 @@
       use pumamod, only: NLAT, NLON, NLPP, NLEV, NTRU, NTP1, NCSP, NESP,        &
      &                   NUGP, sid, gwd, plavor, EZ, nfilter, ngptfilter,           &
      &                   nspvfilter, filterkappa, nfilterexp
-      use shtnsmod, only: shtns_setup, sh_sp2gp, sh_dv2uv, sh_sp2grad
+      use shtnsmod, only: shtns_setup, sh_sp2gp, sh_dv2uv, sh_sp2grad,        &
+     &                    sh_gp2sp, sh_uv2dv, sh_advtend, sh_dztend
       implicit none
 
       integer, parameter :: wp = real64
@@ -38,6 +39,14 @@
       real :: zsdf(NESP,1), zszf(NESP,1), zgu(NUGP,1), zgv(NUGP,1)
       real :: zgpj(NLON,NLPP), zgpm(NLON,NLPP), zgp(NLON,NLPP)
       real :: zdmu(NUGP,1), zdlam(NUGP,1)
+!     the analysis direction
+      real :: zga(NUGP,1), zgb(NUGP,1), zgc(NUGP,1)
+      real :: zsl(2,NESP/2)
+      real :: zfa(2,NLON/2,NLPP,NLEV), zfb(2,NLON/2,NLPP,NLEV)
+      real :: zfc(2,NLON/2,NLPP,NLEV)
+      real :: zrd(2,NESP/2,NLEV), zrz(2,NESP/2,NLEV), zrt(2,NESP/2,NLEV)
+      real :: zhd(NESP,1), zhz(NESP,1), zht(NESP,1)
+      integer :: jk
       integer :: jlon, jlat
       real :: zrm
       character(len=15) :: ycase(3) = ['divergence only','vorticity only ','both together  ']
@@ -149,6 +158,53 @@
      &     / maxval(abs(real(zgpm,wp)))
       call verdict('gpmt, the zonal one    ', zerr, ztol, nbad)
 
+
+!     ---- the analysis direction ---------------------------------------------
+!     Three band-limited grid fields, made through the synthesis path that the
+!     arms above have just certified, so the comparison measures the analysis
+!     and not aliasing: a forward transform is a quadrature, and an arbitrary
+!     grid field carries power above the truncation that the two sides fold
+!     back differently.
+      call mkgrid(1.0, -0.5, zga)
+      call mkgrid(0.6,  0.2, zgb)
+      call mkgrid(-0.3, 0.8, zgc)
+
+!     scalar: gp2fc then fc2sp
+      zfa(:,:,:,1) = reshape(zga(:,1),[2,NLON/2,NLPP])
+      call gp2fc(zfa(1,1,1,1),NLON,NLPP)
+      call fc2sp(zfa(1,1,1,1),zsl)
+      call sh_gp2sp(zga, zhd, 1)
+      call spcheck('gp2sp, the scalar analysis ', zsl, zhd, ztol, nbad)
+
+!     vector: gp2fc on both then uv2dv
+      zfa(:,:,:,1) = reshape(zga(:,1),[2,NLON/2,NLPP])
+      zfb(:,:,:,1) = reshape(zgb(:,1),[2,NLON/2,NLPP])
+      call gp2fc(zfa(1,1,1,1),NLON,NLPP)
+      call gp2fc(zfb(1,1,1,1),NLON,NLPP)
+      call uv2dv(zfa,zfb,zrd,zrz)
+      call sh_uv2dv(zga, zgb, zhd, zhz, 1)
+      call spcheck('uv2dv, divergence          ', zrd(1,1,1), zhd, ztol, nbad)
+      call spcheck('uv2dv, vorticity           ', zrz(1,1,1), zhz, ztol, nbad)
+
+!     qtend: minus the divergence of (uq,vq), plus the analysis of qn
+      zfa(:,:,:,1) = reshape(zga(:,1),[2,NLON/2,NLPP])
+      zfb(:,:,:,1) = reshape(zgb(:,1),[2,NLON/2,NLPP])
+      zfc(:,:,:,1) = reshape(zgc(:,1),[2,NLON/2,NLPP])
+      call gp2fc(zfa(1,1,1,1),NLON,NLPP)
+      call gp2fc(zfb(1,1,1,1),NLON,NLPP)
+      call gp2fc(zfc(1,1,1,1),NLON,NLPP)
+      call qtend(zrt,zfc,zfa,zfb)
+      call sh_advtend(zgc, zga, zgb, zht, 1)
+      call spcheck('qtend, the advective one   ', zrt(1,1,1), zht, ztol, nbad)
+
+!     mktend: d and z from (fu,fv) and the kinetic energy, t as qtend
+      call mktend(zrd,zrt,zrz,zfc,zfa,zfb,zfc,zfa,zfb)
+      call sh_dztend(zga, zgb, zgc, zhd, zhz, 1)
+      call spcheck('mktend, divergence         ', zrd(1,1,1), zhd, ztol, nbad)
+      call spcheck('mktend, vorticity          ', zrz(1,1,1), zhz, ztol, nbad)
+      call sh_advtend(zgc, zga, zgb, zht, 1)
+      call spcheck('mktend, temperature        ', zrt(1,1,1), zht, ztol, nbad)
+
       write(*,*)
       if (nbad == 0) then
          write(*,'(a)') '0 failed: the shipped wrappers compute this model'
@@ -170,5 +226,49 @@
          kbad = kbad + 1
       endif
       end subroutine verdict
+
+
+      subroutine mkgrid(pa, pb, pgrid)
+!     A band-limited grid field from a dense spectral one, through the
+!     synthesis path the arms above certify.
+      real, intent(in)  :: pa, pb
+      real, intent(out) :: pgrid(NUGP,1)
+      real :: zs(NESP,1)
+      integer :: jj
+      zs(:,1) = 0.0
+      do jj = 1 , NCSP
+         zs(2*jj-1,1) = pa / real(jj)
+         zs(2*jj  ,1) = pb / real(jj)
+      enddo
+      do jj = 1 , NTP1
+         zs(2*jj,1) = 0.0
+      enddo
+      call sh_sp2gp(zs, pgrid, 1)
+      end subroutine mkgrid
+
+      subroutine spcheck(yname, pref, pgot, ptol, kbad)
+!     Compare two packed spectral fields, EXCLUDING the m=0 imaginary slots.
+!     A zonal mean has no imaginary part; legmod leaves whatever gp2fc put
+!     there and nothing reads it, and the SHTns path sets it to zero. Comparing
+!     them would measure which garbage each side happens to carry.
+      character(len=*), intent(in) :: yname
+      real, intent(in) :: pref(2*NCSP), pgot(2*NCSP)
+      real(wp), intent(in) :: ptol
+      integer, intent(inout) :: kbad
+      real(wp) :: zerr, zden
+      integer :: jj
+      zerr = 0.0_wp
+      zden = 0.0_wp
+      do jj = 1 , NCSP
+         zden = max(zden, abs(real(pref(2*jj-1),wp)))
+         zerr = max(zerr, abs(real(pref(2*jj-1),wp) - real(pgot(2*jj-1),wp)))
+         if (jj > NTP1) then
+            zden = max(zden, abs(real(pref(2*jj),wp)))
+            zerr = max(zerr, abs(real(pref(2*jj),wp) - real(pgot(2*jj),wp)))
+         endif
+      enddo
+      if (zden > 0.0_wp) zerr = zerr / zden
+      call verdict(yname, zerr, ptol, kbad)
+      end subroutine spcheck
 
       end program shtns_equivalence
