@@ -33,14 +33,23 @@ different parts of the same files.
     modules/spinupdata.h      clean
     modules/CMakeLists.txt    clean
 
-Extending `vesperinput.cpp`, which subclasses `SoilInput`, is `TASKS.md`
-BIO-5.
-The fork adds `kplab`, `spmax` and `pwtr` to `SoilProperties`, so the subclass
-will need to carry them even if it does nothing with them.
+`VesperInput` contains a `SoilInput`; it does not subclass it. The build therefore
+needs no new members in `vesperinput.cpp`. The actual defect is in the fork's
+`SoilInput::get_mineral`: it copies `kplab`, `spmax` and `pwtr` from fields that
+the texture reader never initializes. The vendored C-N configuration supplies
+the fork's documented site defaults while `ifplim` is off. Replacing those
+defaults with per-cell Vesper fields is the BIO-5 through BIO-7 chain in
+`TASKS.md`.
 
 ## The input side is where the work is, and the fork is incomplete there
 
 Three routes supply the P weathering rate `pwtr`:
+
+> **Unit correction, 2026-08-21:** the fork calls the texture-path value
+> kgP/m2/year and divides it across one model orbit. On Vesper, “year” is
+> ambiguous by a factor of about 2.02. BIO-24 must define the absolute-time
+> contract before BIO-5 derives this field; the runoff-driven daily route and
+> BIO-8's daily deposition input do not share that ambiguity.
 
 1. **Soil-code table**, `data[soilcode][14]`, a constant per soil class.
 2. **Texture path**, `soiltype.pwtr = soilprop.pwtr` -- which is the path we take,
@@ -81,17 +90,21 @@ Two consequences specific to Vesper:
   expect a real but shallower upland-to-basin gradient -- a biome-scale
   pattern this pipeline can derive rather than assert.
 
-## Estimated work
+## Integration seams tracked in TASKS.md
 
-    apply the patch to the fork, build, confirm parity      small, measured clean
-    extend vesperinput.cpp for the new SoilProperties        small
-    add rock-class phosphorus to pedogenesis.yaml            small, same shape as quartz
-    emit pwtr/kplab/spmax per gridcell from build_soil.py    moderate
-    read them in the texture path                            moderate, upstream gap
-    P deposition, a declared constant as nitrogen's is       small
-    re-register the productivity predictions                 required, not optional
+The source and the rock-side information are already present: the CNP fork and
+Vesper port are vendored, while `pedogenesis.yaml` carries both per-class
+phosphorus content and release factors and `phosphorus_budget.py` reads them.
+What remains is split by contract rather than hidden inside one BIO-5 row:
 
-The last one is not negotiable: the pre-registered predictions in
+    BIO-5   derive pwtr/kplab/spmax from the existing pedology fields
+    BIO-6   emit the three per-cell soil-map columns
+    BIO-7   consume them in the fork and remove the temporary defaults
+    BIO-8   declare and propagate phosphorus deposition
+    BIO-9   register the C-N-P prediction before seeing a result
+    BIO-10  enable P limitation and validate parity and mass balance
+
+BIO-9 is not negotiable: the pre-registered predictions in
 `notes/productivity-prediction.md` were registered against a C-N model. A C-N-P
 model is a different model and needs its own registration with its own date, not
 a widened band on the old one.

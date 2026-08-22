@@ -718,9 +718,11 @@ def main() -> None:
             "slope_fines_lost": mean(fines_loss),
         },
         "regolith_note": (
-            "LPJ-GUESS 4.1.1 has a fixed 1.5 m profile and does not consume "
-            "regolith depth. It is computed and reported so the gap is visible; "
-            "see pedology/README.md."),
+            "LPJ-GUESS has a fixed 1.5 m physical profile. VesperInput consumes "
+            "regolith depth and weathered-bedrock fraction by scaling each "
+            "layer's texture-derived water capacity, but it does not change "
+            "layer or root geometry; see pedology/README.md and the soil/land-"
+            "surface hydraulic consistency audit."),
         "output": rel(output),
         "output_sha256": hashlib.sha256(output.read_bytes()).hexdigest(),
         "git_commit": subprocess.run(

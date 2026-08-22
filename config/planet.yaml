@@ -148,9 +148,13 @@ atmosphere:
   # several ppmv and this world does not.
   #
   # They are an ASSUMPTION in the same sense pCO2_bar is: the biogenic fluxes
-  # behind them are modern Earth's, held fixed, and this world has no biosphere
-  # model that could produce its own. exoplasim/notes/trace-gas-absorbers.md is
-  # the pricing and analysis/trace_gas_forcing.json the derivation.
+  # behind them are modern Earth's, held fixed. LPJ-GUESS contains a dormant
+  # peatland methane source, but Vesper has no accepted wetland-area, closed
+  # surface methane budget or oxidant/lifetime calculation from which to derive
+  # an abundance. WET-1 through WET-10 keep those distinct and WET-10 is the
+  # only route for replacing this prescribed value.
+  # exoplasim/notes/trace-gas-absorbers.md is the pricing and
+  # analysis/trace_gas_forcing.json the derivation.
   #
   # These are trace enough that the partial pressures above still sum to 1 bar
   # to six figures; they are stated in bar for consistency with pCO2_bar, and

@@ -32,8 +32,11 @@ loops:
     name: the vegetation-climate loop
     exit: re-take the verdict on modelled vegetation; if basins flip, re-enter A
   D:
-    name: the resolution change
-    exit: only after A, B and C have settled
+    name: progressive spatial-support convergence
+    exit: >
+      Advance only after the current support has settled, then replay A, B and
+      C on the candidate support; exit at the first T21/T42/T85/T127/T170 rung
+      that passes SPAT-8, or retain a resolution bracket if T170 does not.
 
 # writes: the COMPLETE set of artifacts a step produces, not a marker for them.
 #       `--purge` deletes exactly this, so a row that names only its report

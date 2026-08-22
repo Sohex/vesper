@@ -23,7 +23,7 @@ invariant is misfiled by its shape alone, wherever it came from.
 | `docs/src/practice/conventions.md` | how documents, numbers and results are kept, argued in full |
 | `docs/src/practice/failure-modes.md` | how this project goes wrong, by class |
 | `docs/src/reference/builds.md` | builds, identity, the registry, and the durable set |
-| `docs/src/reference/vendored-upstreams.md` | the two subtrees: what each fork carries, how to pull upstream, the branch conventions |
+| `docs/src/reference/vendored-upstreams.md` | the three subtrees: what each fork carries, how to pull upstream, the branch conventions |
 | `docs/src/reference/design-intent.md` | the standing decisions that shape the world |
 | `docs/src/reference/environment.md` | install commands, host packages, the model facts to know before touching it, and the command-line tools for reading an artifact, with the three traps that come of their assuming Earth |
 | `docs/src/reference/no-time-axis.md` | Orogen has no time axis. Read before asking any component for a duration, an age, or a rate |
@@ -225,6 +225,8 @@ notes/                 Dated findings with their evidence; notes/audits/ for aud
 vendor/orogen/         World Orogen fork, git subtree. Generates the geography.
 vendor/exoplasim/      ExoPlaSim fork, git subtree. THE model source: edited here,
                        compiled here, installed editable from here.
+vendor/lpj-guess/      LPJ-GUESS CNP fork, git subtree. The Vesper input and
+                       calendar port compile directly from this tree.
 .venv/                 Python 3.12. Untracked; see Environment below.
 ```
 

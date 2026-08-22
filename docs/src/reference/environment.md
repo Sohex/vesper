@@ -12,6 +12,17 @@ compiles in place and `requirements.txt` deliberately does not name it:
 
 What the fork contains and where it came from is in [the vendored upstreams](vendored-upstreams.md).
 
+LPJ-GUESS is likewise compiled from its subtree. Its generated `vesper.h` must
+exist first because the configured orbital year sizes arrays at compile time:
+
+    python biosphere/scripts/build_vesper_header.py
+    cmake -S vendor/lpj-guess -B vendor/lpj-guess/build \
+      -DCMAKE_BUILD_TYPE=Release -DUNIT_TESTS=OFF
+    cmake --build vendor/lpj-guess/build --parallel 16
+
+The build directory and generated header are ignored. Do not substitute an
+external checkout: run manifests point at the vendored binary and hash it.
+
 Two things about the model are worth knowing before you touch it. Several
 changes are NO-OPS until a namelist key turns them on -- `h2osww` defaults to
 1.0, `ndustrad` to 0, `nsolcycle` to 0 -- so a rebuilt binary reproduces the runs

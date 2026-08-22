@@ -15,8 +15,9 @@ fork exists to preserve. `land_mask` would put it under water.
 
 **Both fields are integrated from the native mesh, not sampled from the gridded
 export.** The export resamples categorical fields, `surface_class` among them, by
-taking the value of the region containing the cell centre. At T42 a cell holds
-roughly 300 mesh regions, so a point sample throws away the coastline. Here the
+taking the value of the region containing the cell centre. Against the 10M
+fine-support reference a global T42 cell holds about 1,221 regions on average,
+so a point sample throws away the coastline. Here the
 land fraction of each cell is the area-weighted fraction of its regions that are
 land, thresholded at `model.geography_land_threshold`, and topography is the
 land-area-weighted mean elevation over the land regions only, so ocean depths

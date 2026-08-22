@@ -1,6 +1,6 @@
 # 6. What happens next
 
-Three nested loops and then a resolution change.
+Three nested loops, repeated as needed along a spatial-support ladder.
 
 **A. The terrain loop, one turn of which is an ITERATION.** A generation on
 the carve list, then the commissioning of the build it produces: hydrography
@@ -354,22 +354,32 @@ was built.
 changes the climate, which changes evaporation over catchments, which can
 change the verdict. Re-run it; if basins flip, back to loop A.
 
-**D. The resolution change.** Only after A, B and C have settled.
+**D. Progressive spatial-support convergence.** T42 is an operating convention,
+not a ceiling. Candidate climate supports are T21/T42/T85/T127/T170, and the
+production rung is the first one on which the pre-registered coupled quantities
+converge closely enough for the decisions being made.
 
-1. Climate at T85, with the T42 vegetation regridded as its boundary
-   condition.
-2. Soil and biosphere at T85 on that climatology, loop B again.
-3. Climate at T85 again with T85 vegetation, unless step 2's vegetation turns
-   out close to the regridded T42 field, which is a cheap comparison worth
-   making first.
+1. Convert the accepted restart to the next candidate support with CLIM-52's
+   schema-aware converter, using support-matched target static fields. The
+   result is an initial condition, not a continued equilibrium.
+2. Settle loop A at that support, because changed orography, coastline,
+   precipitation and evaporation can change the carve verdict.
+3. Rebuild hydrography coupling, groundwater, soil and ecological forcing for
+   that support; settle loop B and the vegetation/climate feedback loop C.
+4. Compare the accepted candidate with the previous rung after conservative
+   remapping to one common support. Stop when SPAT-8's declared water, climate,
+   soil, vegetation, feedback and carve quantities pass. If they have not passed
+   by T170, carry the resolution spread as structural uncertainty.
 
-**The biosphere never decides the resolution.** LPJ-GUESS gridcells are
-independent columns, so its cost is linear in land-cell count and trivial at
-either resolution; the climate model's cost is what decides. Running it at
-T85 on T42 forcing would resolve detail that is not in its input. Expect T85
-to lower total NPP, and treat that as a resolution bias rather than a result:
-productivity saturates with water, so averaging the forcing before the model
-sees it inflates the answer.
+LPJ-GUESS gridcells are independent columns, so its direct cost grows roughly
+with land-cell count, but the biosphere can still determine whether a climate
+support is adequate: nonlinear ecology sees different forcing, soils and
+partial areas at different support. A finer LPJ grid on interpolated coarse
+forcing adds no information. A finer LPJ grid on a finer accepted climate can
+change the result, and no generic NPP sign follows because variance, covariance,
+thresholds, coastline and atmospheric feedback all move together. The fully
+resolved fine reference for these aggregation checks is the ~10M-region Orogen
+export (7.60 km mean edge), not the former 2.5M mesh.
 
 **E. The cycle reaching the biosphere, last, on the settled world.** A2 says
 when the cycle RUNS; what is left for the end is letting LPJ-GUESS see it.
@@ -389,10 +399,11 @@ each worked through in `biosphere/README.md`:
   scaled DOWN by the reciprocal factor; the two directions are opposite, both
   lists are named in `build_vesper_pfts.py`, and the factor is derived there
   from the configured orbit rather than written anywhere.
-- **T85 redistributes precipitation, it does not merely resolve it.** Steeper
-  relief means stronger orographic ascent and deeper rain shadows, so lee
-  basins dry and windward coasts wet. That reaches the carve verdict, which
-  should be re-taken at T85 rather than carried over from T42.
+- **Every finer candidate can redistribute precipitation rather than merely
+  resolve it.** Steeper represented relief means stronger orographic ascent and
+  deeper rain shadows, so lee basins can dry and windward coasts wet. That
+  reaches the carve verdict, which must be re-taken at the candidate support
+  rather than carried over from T42.
 - **The 30-hour day widens the real diurnal range and LPJ-GUESS cannot see
   it.** `dtr` reaches only the biogenic VOC scheme, and every cold limit runs
   through a twenty-year mean, so there is no daily-minimum plant mortality to

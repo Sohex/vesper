@@ -431,9 +431,13 @@ resolution: T42
 T42 for the iteration-1 baseline. The bracket ran at T21, which was right
 for a several-kelvin question. This pass feeds the carve verdict and the
 first LPJ-GUESS input, both of which will change and be redone, so the
-expensive grid is not warranted yet. T85 comes once terrain and biosphere
-have settled: it resolves the median basin catchment across 3.0 cells
-against T42's 0.7, and recovers the full 5,769 m mesh relief against 5,101.
+more expensive grid is not warranted yet. This does not make T42 a production
+constraint. The supported ladder is T21/T42/T85/T127/T170; after the current
+support settles, CLIM-52 can map its restart into the next rung and Loops A--C
+must settle again there. SPAT-8 chooses the first rung at which the coupled
+decision quantities converge, with the ~10M-region, 7.60 km Orogen mesh as the
+fine aggregation reference. A converted restart is a spin-up accelerator, not
+an equilibrium carried unchanged across resolution.
 
 ## `ncpus`
 
@@ -814,4 +818,3 @@ Per-component kelvin consequences are not recorded here. The canonical local
 sensitivity is `lib/sensitivity.py`; corrected magnitudes are in
 `exoplasim/notes/parameter-decisions.md`. THE AMPLITUDES BELOW ARE THE
 DECISION.
-

@@ -31,8 +31,10 @@ maps/                Rendering. Terminal: nothing reads its output. Its generato
 World Orogen (fork)
    |  seed + planet code -> terrain, lithology, closed basins, hydrology
    v
-source/<build>/exoplasim-T21|T42|T63|T85 + grid-512x256
-   |  raw/ mesh lives in the T42 export and is identical for all of them
+source/<build>/exoplasim-T21|T42|T85|T127|T170 + grid-512x256
+   |  one native raw/ mesh is stored in the T42 export as a carrier and is
+   |  identical beneath all five Gaussian grids; new support audits use the
+   |  ~10M-region, 7.60 km reference export
    v
 lib/gridding.py            integrate mesh fields onto any model grid
    |                        |

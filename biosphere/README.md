@@ -12,9 +12,36 @@ ExoPlaSim climatology and returns leaf area, carbon and plant functional type
 composition per gridcell, which becomes the surface albedo and forest fraction
 that the next climate run is forced with.
 
-The port is complete and runs end to end on real Vesper cells at smoke scale.
-What remains before a full run is a current climatology. The audit behind the
-porting choices is in `notes/lpj-guess-porting-audit.md`, and
+The model is mechanically integrated and has run end to end on real Vesper
+cells at smoke scale. A follow-up source audit exposed ecological-calendar and
+time-base correctness work below that interface; the smoke result is therefore
+an integration result, not yet a meaningful biosphere result.
+An interpretable full run still needs the surface-area, forcing, aggregation and
+acceptance contracts tracked as BIO-11 through BIO-15 and the newly exposed
+calendar, time-base and forcing corrections in BIO-21 through BIO-25.  The audit
+behind the original porting choices is in `notes/lpj-guess-porting-audit.md`, the
+remaining modelling gaps are evidenced in `notes/modelling-gap-audit.md`, the
+implicit Earth assumptions below the port are in
+`notes/implicit-earth-assumptions.md`, the soil decomposition, C-N-P and
+pedology/groundwater seams are audited in
+`notes/soil-decomposition-biogeochemistry-audit.md`, plant physiology and carbon
+allocation are audited in `notes/plant-physiology-carbon-allocation-audit.md`,
+BVOC emissions, secondary organic aerosol and atmospheric coupling are audited
+in `notes/bvoc-soa-atmospheric-coupling-audit.md`, wetlands, peat and methane
+are audited in `notes/wetlands-peat-methane-audit.md`, and
+the ExoPlaSim-to-LPJ weather path is audited in
+`notes/ecological-climate-forcing-audit.md`; EFOR-1 through EFOR-8 replace the
+project's artificial 12-bin forcing scaffold with a chronological,
+interval-explicit contract and carry authoritative land state. Soil and
+land-surface hydraulic consistency across ExoPlaSim, pedology, hydrography,
+groundwater and LPJ-GUESS is audited in
+`notes/soil-land-surface-hydraulic-consistency-audit.md`; LSHY-1 through LSHY-7
+define one property contract, fast-state owner and water/energy ledger rather
+than two independent land columns. Abiotic nutrient sources and their delivery
+from rock, dust and lightning through that water ledger are audited in
+`notes/abiotic-nutrient-delivery-audit.md`; ANUT-1 through ANUT-10 distinguish
+total material from root-zone-available N and P and close their destinations.
+Finally,
 `notes/productivity-prediction.md` registers what the answer should be before the
 model can contradict it.
 
@@ -36,33 +63,40 @@ a result.
 
 | item | state |
 | --- | --- |
-| model obtained | LPJ-GUESS 4.1.1, MPL-2.0, Zenodo 8065737, md5 verified |
-| build | clean on GCC 16.1.1, MPI on, netCDF off (not installed, not needed) |
-| smoke test | bundled 3-cell demo, 550 years, 73 s, expected PFTs |
-| Earth-assumption audit | complete, see the note |
+| model obtained | `mateusdp/LPJ-GUESS-NTD`, tag `LPJ-GUESS-CNP_v1.0`, commit `b368b893`; MPL-2.0 notices restored from verified 4.1.1 |
+| build | vendored CNP tree plus Vesper port; build verification awaits an available compute window |
+| smoke test | stock 4.1.1 port: bundled 3-cell demo, 550 years, 73 s, expected PFTs |
+| Earth-assumption audit | follow-up complete; BIO-21 through BIO-29 track cross-cutting assumptions including the latitude-use contract, PCAR-1 through PCAR-10 track plant physiology/allocation, SDEC-1 through SDEC-9 track soil decomposition/biogeochemistry, BVOC-1 through BVOC-10 track volatile carbon through chemistry/aerosol/climate, WET-1 through WET-11 track wetlands, peat and methane, LSHY-1 through LSHY-7 track the shared land-water and soil-property contract, and ANUT-1 through ANUT-10 track abiotic nutrient delivery |
 | productivity prediction | registered, unscored |
-| calendar and astronomy patch | written, applied, verified |
-| PFT degree-day rescale | generated from the orbit, 500 -> 247 gdd5min_est |
-| input module | `vesperinput`, runs end to end, splits across MPI ranks |
-| soil | from `pedology/`, loop closing at smoke scale |
-| run harness | not written; runs so far are hand-assembled in scratch |
-| albedo and forest feedback | not written, and it is the component's purpose |
-| full run | blocked on a current climatology; ~25 min on 16 ranks |
+| calendar and astronomy port | mechanical calendar and orbital geometry applied; natural phenology still has unreachable Earth dates under BIO-21 |
+| PFT degree-day rescale | generated from the orbit, 500 -> 247 gdd5min_est; the remaining annual-rate semantics are BIO-22 |
+| input module | `vesperinput`, runs end to end and splits across MPI ranks; its 12-bin `VESPDRV4` transport is integration scaffolding to be replaced under EFOR-1 through EFOR-8 |
+| soil and water | pedology depth scales LPJ capacity and pedology AWC sets ExoPlaSim's scalar bucket at smoke scale, but the models independently derive hydraulic properties and run separate snow/soil water balances; LSHY-1 through LSHY-7 own the consistency work |
+| abiotic nutrients | rock P and dust mass have useful relative/source artifacts, but no absolute source-to-root-zone ledger exists; `phosphorus_budget.py` does not consume dust deposition, and ANUT-1 through ANUT-10 own weathering, initial stocks, atmospheric N/P, transport, other-nutrient screening and closure |
+| run harness | written; records inputs, binary and model identity in its manifest |
+| albedo and forest feedback | modelled mode exists; rootable/lake and spectral corrections are BIO-17 and BIO-18 |
+| aerodynamic feedback | modelled roughness is open as BIO-16 |
+| BVOC/SOA feedback | LPJ source is present but off; carbon closure, PFT traits, reduced atmospheric chemistry/transport, direct optics and cloud effects are separated under BVOC-1 through BVOC-10 |
+| wetlands/peat/methane | LPJ's northern-Earth peat/CH4 source is present but off; current low-latitude saturation creates water and the full extent, groundwater, peat-stock, source/sink and atmospheric closure is separated under WET-1 through WET-11 |
+| full run | harness exists, but BIO-11 through BIO-15 and BIO-21 through BIO-25 must close before its output is interpreted; prior estimate ~25 min on 16 ranks |
 
-The model is not in this repository. It lives at
-`/home/cfutro/git/lpj-guess/guess_4.1` beside `ExoPlaSim` and
-`planet_heightmap_generation`, for the same reason those do.
+The model is vendored at `vendor/lpj-guess/` as a git subtree from the CNP fork.
+The Vesper calendar, astronomy and input-module changes live directly in that
+tree, so the source being reviewed is the source being compiled and run.
+Phosphorus limitation remains off until Vesper's soil-P fields and a replacement
+productivity prediction land together; this is a source normalization, not a
+silent change from the established C-N experiment.
 
 ```bash
-cd /home/cfutro/git/lpj-guess/guess_4.1
-patch --forward --strip=1 --directory=. < <world>/biosphere/patches/lpj-guess-4.1.1-vesper.patch
-cd ../build && cmake ../guess_4.1 -DCMAKE_BUILD_TYPE=Release && make -j16
+cmake -S vendor/lpj-guess -B vendor/lpj-guess/build \
+  -DCMAKE_BUILD_TYPE=Release -DUNIT_TESTS=OFF
+cmake --build vendor/lpj-guess/build --parallel 16
 ```
 
-`--reverse` restores the pristine 4.1.1 tree. The patch itself contains no
-planetary numbers: it points `framework/guessmath.h` at a generated `vesper.h`
-and wires `vesperinput` into the build. Copy `src/vesperinput.*` into `modules/`
-alongside it. See "Running it" below for the generators.
+`framework/vesper.h` is still generated and ignored; it contains the planetary
+numbers. The committed port only includes it and wires the in-tree
+`modules/vesperinput.*` into the build. See "Running it" below for the
+generators.
 
 ## The three things that decide whether this is credible
 
@@ -140,26 +174,32 @@ convergence criteria, which are fixed in advance, and for the finding that
 the runoff-versus-precipitation choice is a 3.41x sensitivity on weathering
 intensity rather than a bracket.
 
-## Interannual forcing, and the stellar cycle
+## Current multiyear adapter, and why it is not accepted weather forcing
 
-The driver file carries however many years of climate it was built with and
-`vesperinput` cycles through them. One year is a fixed climate. Several are how a
-variable star reaches the biosphere:
+The current driver file can carry several input files and `vesperinput` cycles
+through them:
 
 ```bash
 python biosphere/scripts/build_lpj_driver.py \
     --climatology year0.nc year1.nc ... yearN.nc
 ```
 
-Each file contributes one year, in the order given, and the wrap means spin-up
-sees the whole sequence rather than one arbitrary phase of it.
+Each file contributes one nominal forcing year in order. This is mechanically
+useful, but every file is still a 12-bin regular product and LPJ-GUESS smooths
+those bins into quasi-daily weather. `build_climatology.py --per-year` preserves
+differences among model orbits while discarding event order within each orbit.
+It is therefore a seasonal/inter-orbit adapter, not an accepted daily weather
+sequence.
 
-This began as a single repeating year, which was not a missing feature but a
-wrong assumption: a fixed climatology cannot represent a variable star at all,
-and the model would have shown a flat line no matter how the star behaved.
+EFOR-1 through EFOR-8 replace this path with consecutive, interval-explicit
+ExoPlaSim forcing produced before climatological averaging. The averaged
+climatology remains the right artifact for maps and equilibrium summaries. It
+is not the right artifact for daily interception, snow, drought, phenology,
+respiration, fire or subdaily photosynthesis.
 
-Verified with three years at -3, 0 and +3 K on one cell. Annual NPP locks to the
-forcing period exactly and responds strongly:
+The adapter's cycling mechanism was verified with three artificial years at -3,
+0 and +3 K on one cell. Annual NPP locks to the supplied period and responds
+strongly:
 
 | phase | offset | NPP kgC/m2 |
 | --- | --- | --- |
@@ -167,7 +207,8 @@ forcing period exactly and responds strongly:
 | 1 | 0 K | 0.377 |
 | 2 | +3 K | 0.191 |
 
-Two things worth reading off that. The response is steep, nearly halving per 3 K,
+This is an interface response test, not a meaningful weather experiment. Two
+things are still worth reading off it. The response is steep, nearly halving per 3 K,
 because this cell is water-limited and warming raises evaporative demand. And the
 mean over the cycle, 0.359, is **4.8% below** the value at the mean climate,
 0.377. That is the concavity argument made concrete: running a variable star on
@@ -196,47 +237,47 @@ plants freeze.
 The 13.8% figure is still the right measure of how much land is climatically
 marginal. It is not a measure of what this model will do with it.
 
-## Resolution: T42 first, T85 only behind the climate
+## Resolution: a convergence ladder, not a T42/T85 choice
 
-LPJ-GUESS gridcells are independent columns. There is no lateral flow between
-them and no communication after the initial split, so cost is exactly linear in
-cell count and resolution buys no dynamics, only a finer view of the forcing.
+T42 is the current operating point because it has been a useful balance of
+execution time and resolved climate, not because the biosphere or pipeline is
+intrinsically limited to it. The supported climate ladder is
+T21/T42/T85/T127/T170, and ongoing ExoPlaSim optimization changes the cost side
+of that choice. Historical T42/T85 timings are therefore measurements of old
+runs, not a permanent selection rule.
 
-| | land cells | CPU | wall on 16 ranks |
-| --- | --- | --- | --- |
-| T42 | 4,106 | 6.2 h | 23 min |
-| T85 | 16,489 | 25.0 h | 94 min |
+LPJ-GUESS grid cells are laterally independent, so its direct cost grows roughly
+with simulated land-cell count. That does **not** make finer support cosmetic.
+Each cell receives a different climate, soil and surface environment, while the
+higher-resolution atmosphere changes orography, coastlines, precipitation,
+extremes and feedbacks rather than merely interpolating a T42 answer. Running a
+fine LPJ grid on interpolated coarse forcing would add no information, but
+running it on an accepted fine climate can change both spatial pattern and
+extensive totals.
 
-**The biosphere is never the reason to choose a resolution.** Ninety-four
-minutes is nothing beside a T85 ExoPlaSim equilibrium, and the pipeline already
-follows `config.model.resolution`, with T85 exports present for every build. So
-the biosphere should simply match whatever the climate ran at.
+The reference under every climate grid is the ~10M-region Orogen export: 7.60 km
+mean edge and full sampling of the generator's ~20 km terrain-information floor.
+For scale, an average global climate cell contains about 4,883/1,221/305/136/76
+native regions at T21/T42/T85/T127/T170. Even T170 therefore aggregates terrain,
+soil and hydrologic variation; increasing truncation does not remove the need
+for conservative partial areas and ecological response units.
 
-Running LPJ-GUESS at T85 on T42 forcing would be worse than pointless: the extra
-cells would carry interpolated climate, so the model would resolve a detail that
-is not in its input, and the output would look sharper than the information
-behind it.
+No universal sign can be assigned to the NPP change. A concave response to one
+forcing can make `response(mean forcing)` exceed the mean local response, but
+real refinement changes variance, covariance, thresholds, coastline and the
+coupled atmospheric solution simultaneously. The Miami land-mean versus
+per-grid-cell calculation in `productivity-prediction.md` demonstrates an
+aggregation effect over that particular support; it does not predict the sign
+of T42-to-T170 coupled change.
 
-**Expect T85 to lower total NPP, and treat that as a resolution bias rather than
-a result.** Productivity saturates with water, so it is concave, and averaging
-the forcing before the model sees it inflates the answer. The same effect is
-already measured on the Miami side of `productivity-prediction.md`: applied at
-land means it gives 603 gC/m2/yr and applied per gridcell 443, a factor of 0.73
-purely from resolving heterogeneity. T42 to T85 is a much smaller step than that,
-but it points the same way, and it means a T42 and a T85 answer are not directly
-comparable without saying so.
-
-**The concavity is not the only thing that moves, and the other one is not a
-bias.** T85 resolves higher, steeper relief: `CLAUDE.md` records it recovering
-the full 5,769 m of mesh relief against T42's 5,101. Sharper orography means
-stronger forced ascent on windward slopes and deeper rain shadows behind them, so
-precipitation redistributes rather than merely smoothing differently. Expect
-windward coasts wetter and lee basins drier, and expect that to run past the
-biosphere into the carve verdict, since a drier rain-shadow basin is less likely
-to overflow and more likely to survive as a basin. A T85 pass is therefore not
-only a finer picture of the same world; parts of it are a different water
-balance, and the carve verdict should be re-taken rather than assumed to carry
-over.
+Choose the production support by the pre-registered convergence protocol in
+`spatial-support-ecological-aggregation-audit.md`. Each candidate inherits a
+mapped initial state through CLIM-52's restart converter where useful, then
+re-equilibrates terrain/climate, hydrology, soil, vegetation and feedback loops
+on its own support. Compare accepted equilibria after conservative remapping to
+one common area basis. Stop at the first rung sufficient for the declared
+decisions; if material results do not converge by T170, retain a resolution
+bracket rather than treating the highest answer as truth.
 
 ## Spin-up is in simulation years, and that halves it
 
@@ -311,10 +352,10 @@ failing. The driver file records the year length it was built for and
 python biosphere/scripts/build_vesper_header.py   # vesper.h, installed into the tree
 python biosphere/scripts/build_vesper_pfts.py     # degree-day limits rescaled
 python biosphere/scripts/build_lpj_driver.py      # climate + soil codes + gridlist
-cd /home/cfutro/git/lpj-guess/build && make -j16
+cmake --build vendor/lpj-guess/build --parallel 16
 ```
 
-### Fire is GLOBFIRM, and `cflux.out` is the only place it shows
+### Fire is GLOBFIRM, with flux and occurrence diagnostics
 
 `run_lpj_guess.py` writes `firemodel "GLOBFIRM"` after its `import` of
 `vesper_pfts.ins`, which still carries the shipped `firemodel "BLAZE"`. The later
@@ -325,10 +366,10 @@ statistics this world does not have; the shipped demo makes the same two
 substitutions for the same reason. The mismatch is not silent: LPJ-GUESS aborts
 on BLAZE with a non-GWGEN generator, so a run that starts is a run on GLOBFIRM.
 
-GLOBFIRM writes no `firert.out` and no burned area. Those are BLAZE-only, so the
-`Fire` column of `cflux.out` is the whole diagnostic, and without it in the
-harness's output list the fire module's burning is visible only as a plant
-mortality in `cmass` and `dens` that no output explains.
+GLOBFIRM writes its carbon loss in the `Fire` column of `cflux.out` and its
+inferred return time plus burned fraction in `firert.out`. The harness retains
+both. BLAZE has the richer daily/monthly burned-area and SIMFIRE analysis
+outputs, but those are separate from GLOBFIRM's annual occurrence diagnostic.
 
 One gate worth knowing when a short run reports no fire at all. With
 `iftwolayersoil 0`, which `iforganicsoilproperties` requires,
@@ -340,4 +381,3 @@ reported year, but it does mean fire is off for the first tenth of it.
 ## One-off tools
 
 - `scripts/score_prediction.py` -- one-off: scores a productivity prediction against an LPJ-GUESS run, the machinery behind BIO-2's nitrogen bracket. Registered under `one_offs` in `config/pipeline.yaml`; it generates nothing the pipeline reads.
-
