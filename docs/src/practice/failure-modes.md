@@ -1043,3 +1043,31 @@ and neither substitutes for the other.
 
 It is not class 17. There the check has no right answer; here it has one and
 computes it exactly, for a configuration nobody runs.
+
+## 30. A stochastic property tested by a pair
+
+A check asks whether two runs agree, they do, and the answer is recorded as
+"reproducible". But agreement is the question, not the observation: if the
+property fails only sometimes, a sample of two is a coin landing heads twice
+and reports the same thing whether the underlying rate is one in ten or never.
+
+`verify_shtns_model.sh` asked for bit identity twice and got it, more than once,
+across several days of changes -- while the model actually had three or four
+distinct outcomes, in clusters of two to four identical runs. The clustering is
+what makes this worse than an ordinary sample-size error: consecutive runs are
+positively correlated, because whatever varies between them (machine timing,
+which algorithm a self-tuning library picked at startup) persists for a while.
+So a pair is not even two independent draws.
+
+The tell is a check whose subject is a property of a DISTRIBUTION -- run to run
+identity, convergence, a race not firing -- tested with the smallest sample that
+can technically show disagreement. Ask what rate the check could miss: two runs
+cannot see one-in-three, and this one did not.
+
+There is no universal number. The bar is that the sample be large enough to
+catch a rate that would matter, stated where the check declares its other
+thresholds, and larger where consecutive draws are correlated. Four runs here,
+which catches one-in-three about four times in five; the cost is four T21 runs.
+
+It is not class 17. There the check has no answer that could mean "wrong"; here
+it has one and asks too few times to see it.

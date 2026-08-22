@@ -423,3 +423,38 @@ and FFTW's planner is not reentrant; four concurrent calls segfault inside
 With all three in, `verify_shtns_model.sh` at T21 on four threads: 1.1e-13 at
 one step, growing smoothly to 1.3e-10 at forty, 199 of 199 records at rounding
 scale at both one step and twenty, and the SHTns path bit identical run to run.
+
+## SHTns tunes itself, and a tuned library is not reproducible
+
+Measured 2026-08-22, T21.
+
+`shtns_set_grid` with `SHT_GAUSS` calls `shtns_set_grid_auto`, which BENCHMARKS
+the algorithm variants available for the grid and keeps whichever wins. The
+winner depends on machine timing during setup, the variants round differently,
+and so the model gives a different answer from one run to the next. Eight runs
+of one binary on one bed produced four distinct restart hashes, in clusters --
+three identical, then a different one, then four of those.
+
+`SHT_QUICK_INIT` selects the same grid by a fixed heuristic instead of by
+timing. Eight runs, one hash, at one thread and at four.
+
+**The diagnosis cost more than the fix, and the reason is worth keeping.** The
+symptom is nondeterminism in a threaded build, which points squarely at a data
+race, and there was a plausible one to find: the wrappers write the whole globe
+where legmod wrote a band, so both branches were missing a barrier BEFORE the
+transform. Adding it fixed five runs in six, which reads like progress toward a
+race and is not. ThreadSanitizer, on the recipe in
+`shared-spectral-state-trace.md`, found exactly one race in the whole model --
+`mpbci` writing the shared `nshtns`, benign, now threadprivate -- and nothing
+else.
+
+What settled it was running on ONE THREAD, where the model was still
+nondeterministic. No data race survives that test. The library was never
+instrumented, because it is C and the sanitizer was told to ignore
+non-instrumented modules, so the tool could not have found it however long it
+was run.
+
+**Two runs agreeing was what let this stand.** `verify_shtns_model.sh` asked
+for bit identity twice and got it, repeatedly, while the underlying
+distribution had three or four outcomes. It asks four times now. A property
+that holds stochastically is not tested by a pair.
