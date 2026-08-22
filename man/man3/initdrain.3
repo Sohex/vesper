@@ -1,0 +1,32 @@
+.TH initdrain 3  "LPJmL programmers manual"
+.SH NAME
+initdrain \- initialize river routing network
+.SH SYNOPSIS
+.nf
+\fB#include "lpj.h"
+
+Bool initdrain(Cell \fIgrid\fB[],Config *\fIconfig\fB);\fP
+
+.fi
+.SH DESCRIPTION
+Function initializes river routing network.  
+The arguments of \fBinitdrain\fP are:
+.TP
+.I grid
+Cell grid array initialized by \fBnewgrid()\fP.
+.TP
+.I config
+Pointer to LPJmL configuration data. Must be read by \fBreadconfig()\fP.
+.SH RETURN VALUE
+Upon successful completion FALSE is returned and TRUE in case of failure.
+
+.SH AUTHORS
+
+For authors and contributors see AUTHORS file
+
+.SH COPYRIGHT
+
+(C) Potsdam Institute for Climate Impact Research (PIK), see COPYRIGHT file
+
+.SH SEE ALSO
+newgrid(3), readconfig(3), iterate(3) 

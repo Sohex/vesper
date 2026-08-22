@@ -1,0 +1,57 @@
+.TH cft2clm 1  "USER COMMANDS"
+.SH NAME
+cft2clm \- convert binary land use data files to clm data files for LPJmL
+.SH SYNOPSIS
+.B cft2clm
+[\-h] [\-firstyear first] [\-lastyear last] [\-nyear n] [\-nbands n] [\-swap]
+.I cftfile clmfile
+.SH DESCRIPTION
+Program converts a raw binary land use data file consisting of 16bit integer values into a file format suitable for LPJmL. It is an alias to
+.B addheader
+-nbands 64 -firstyear 1700 -lastyear 2005 -scale 0.001 -ncell 0 -id LPJLUSE.
+.SH OPTIONS
+.TP
+\-h
+Print a short help text.
+.TP
+\-firstyear first
+First year in land use file (default is 1700).
+.TP
+\-lastyear  last
+Last year in land use file (default is 2005).
+.TP
+\-nyear n
+Number of years in land use file (default is 306).
+.TP
+\-nbands n
+Number of bands in output file (default is 64).
+.TP
+\-swap
+Change byte order in land use file
+.TP
+.I cftfile
+Filename of binary land use data file.
+.TP
+.I clmfile
+Filename of clm data file written.
+.SH EXAMPLES
+.TP
+Create clm data file from land use dataset changing byte order:
+.B cft2clm
+\-swap cft64.bin cft_1500-2017.clm
+.PP
+.SH EXIT STATUS
+.B cft2clm
+returns a zero exit status if the clm file is created.
+Non zero is returned in case of failure.
+
+.SH AUTHORS
+
+For authors and contributors see AUTHORS file
+
+.SH COPYRIGHT
+
+(C) Potsdam Institute for Climate Impact Research (PIK), see COPYRIGHT file
+
+.SH SEE ALSO
+lpjml(1), addheader(1), cru2clm(1), txt2clm(1), grid2clm(1), clm(5)

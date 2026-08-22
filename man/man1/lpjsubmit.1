@@ -1,0 +1,105 @@
+.TH lpjsubmit 1  "USER COMMANDS"
+.SH NAME
+lpjsubmit \- Submit parallel SLURM job for LPJmL simulations
+.SH SYNOPSIS
+.B lpjsubmit
+[\-h] [\-class c] [\-group g] [\-partition p] [\-wtime time] [\-blocking n] [\-o output] [\-e error] [\-q] [\-nocheck] [\-norun] [\-dependency id] [-couple program] [-constraint c][[-option op=text] ...]  [-cmd prg] ntasks args ...
+.SH DESCRIPTION
+Script creates SLURM job control file \fIslurm.jcf\fP and submits the job to the SLURM queue via
+.B
+sbatch
+for the LPJmL simulation program. Before submitting syntax of configuration file is checked by calling the
+.B
+lpjcheck
+program. Can only be used for the MPI version of \fBlpjml\fP.
+.SH OPTIONS
+.TP
+\-h,\--help
+Print a short help text.
+.TP
+\-class c
+Set the SLURM QOS to which the job will be submitted. Default class is 'short'. Valid classes can be obtained by the
+.B sacctmgr show qos
+command.
+.TP
+\-group g
+set the SLURM group account. Valid group accounts can be listed via
+.B sacctmgr show assoc where user=$USER
+command.
+.TP
+\-partition p
+Set the SLURM partition. Valid partitions can be obtained by the
+.B sinfo
+command.
+.TP
+\-wtime time
+Set wall clock limit of SLURM job. Time must be in the format hh:mm:ss.
+.TP
+\-blocking n
+Set blocking (number of tasks per node) for parallel job to n. Default is unlimited.
+.TP
+\-o output
+Set filename of output file, default is \fIlpjml.%j.out\fP.
+.TP
+\-e error
+Set filename of error file, default is \fIlpjml.%j.err\fP.
+.TP
+\-q,\--quiet
+Only error messages are displayed, other output is suppressed.
+.TP
+\-nocheck
+Do not check input files and output directories.
+.TP
+\-norun
+Do not submit job to batch queue, create \fIslurm.jcf\fP file only.
+.TP
+\-dependency \fIid\fP
+Slurm job will be scheduled after job with job id \fIid\fP finished successfully.
+.TP
+\-constraint c
+Define constraint c for slurm job.
+.TP
+\-option op=test
+Set option op to test for slurm job. This option can be repeated multiple times.
+.TP
+\-cmd prg
+Execute program prg before lpjml is called.
+.TP
+\-couple program
+Start couple program in the background before starting LPJmL.
+.TP
+ntasks
+Set the number of parallel MPI tasks.
+.TP
+args
+Set command line arguments for the
+.B
+lpjml
+program.
+.SH EXAMPLE
+.TP
+Submit job with 32 parallel MPI tasks starting from a restart file with a wall clock limit of 1h:
+.B lpjsubmit
+-wtime 1:00:00 32 -DFROM_RESTART lpjml.cjson
+.PP
+.SH ENVIRONMENT
+.TP
+LPJROOT
+Defines the root directory for LPJmL. The variable has to be defined before calling
+\fBlpjsubmit\fP. This is usually done by the \fBlpj_paths.sh\fP script.
+
+.SH EXIT STATUS
+.B lpjsubmit
+returns a zero exit status if job has been submitted.
+Non zero is returned in case of failure.
+
+.SH AUTHORS
+
+For authors and contributors see AUTHORS file
+
+.SH COPYRIGHT
+
+(C) Potsdam Institute for Climate Impact Research (PIK), see COPYRIGHT file
+
+.SH SEE ALSO
+lpjml(1), lpjcheck(1), lpj_paths.sh(1)

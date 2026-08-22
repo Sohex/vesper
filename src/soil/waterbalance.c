@@ -1,0 +1,378 @@
+/**************************************************************************************/
+/**                                                                                \n**/
+/**         w  a  t  e  r  b  a  l  a  n  c  e  .  c                               \n**/
+/**                                                                                \n**/
+/**     C implementation of LPJmL                                                  \n**/
+/**                                                                                \n**/
+/**     Function calculates water balance                                          \n**/
+/**                                                                                \n**/
+/** (C) Potsdam Institute for Climate Impact Research (PIK), see COPYRIGHT file    \n**/
+/** authors, and contributors see AUTHORS file                                     \n**/
+/** This file is part of LPJmL and licensed under GNU AGPL Version 3               \n**/
+/** or later. See LICENSE file or go to http://www.gnu.org/licenses/               \n**/
+/** Contact: https://github.com/PIK-LPJmL/LPJmL                                    \n**/
+/**************************************************************************************/
+
+#include "lpj.h"
+
+typedef struct
+{
+  Real duration,S,tp,tp1,Ks;
+} Data;
+
+void waterbalance(Stand *stand,           /**< Stand pointer */
+                  Real aet_stand[BOTTOMLAYER],
+                  Real green_transp[BOTTOMLAYER], /**< green fraction of transpiration */
+                  Real *evap,               /**< evaporation (mm) */
+                  Real *evap_blue,          /**< evaporation of irrigation water (mm) */
+                  Real wet_all,
+                  Real eeq,                 /**< equilibrium evapotranspiration (mm) */
+                  Real cover,
+                  Real *frac_g_evap,        /**< green water share of soil evaporation */
+                  Bool rw_manage,           /**< do rain water management? (TRUE/FALSE) */
+                  const Config *config      /**< LPJmL configuration */
+                 )                          /* \return water runoff (mm) */
+{
+  String line;
+  Real w_evap=0,w_evap_ice=0,whcs_evap=0,soildepth_evap=param.soildepth_evap,evap_ratio,green_evap=0,marginal;
+  Real evap_energy,evap_litter,evap_soil,evap_test;                    //litter_depth,
+  Soil *soil;
+  int l;
+  Real aet=0,updated_soil_water=0,previous_soil_water[NSOILLAYER],evap_out[BOTTOMLAYER];
+  Irrigation *data_irrig;
+  Real min_evap=0.05;
+#ifdef CHECK_BALANCE
+  Real water_after, water_before,balancew;
+  water_before=soilwater(&stand->soil);
+#endif
+  if(stand->type->landusetype==AGRICULTURE || stand->type->landusetype==SETASIDE_RF || stand->type->landusetype==SETASIDE_IR || stand->type->landusetype==SETASIDE_WETLAND || stand->type->landusetype==BIOMASS_GRASS ||
+      stand->type->landusetype==BIOMASS_TREE || stand->type->landusetype==GRASSLAND || stand->type->landusetype==OTHERS || stand->type->landusetype==AGRICULTURE_TREE || stand->type->landusetype==AGRICULTURE_GRASS)
+    data_irrig=stand->data;
+  else
+    data_irrig=NULL;
+
+  if(getlandusetype(stand)!=NATURAL && getlandusetype(stand)!=WETLAND)
+    min_evap=0.1;
+
+  soil=&stand->soil;
+  evap_ratio=evap_test=0.0;
+  for(l=0;l<LASTLAYER;l++)
+    evap_out[l]=0;
+  *frac_g_evap=0;
+  evap_litter=evap_soil=0;
+  marginal=0;
+  Real tmpwater=0;
+  forrootsoillayer(l)
+    aet+=aet_stand[l];
+  /* Evaporation */
+  evap_energy=eeq*PRIESTLEY_TAYLOR*max(1-cover,min_evap);
+#ifdef SAFE
+  foreachsoillayer(l)
+  {
+    if (soil->w[l]< -epsilon || soil->w_fw[l]< -epsilon )
+    {
+      if (soil->w_fw[l]<0)
+      {
+        if (soil->w[l]>epsilon)
+        {
+          soil->w[l]+=(soil->w_fw[l]/soil->whcs[l]);
+          soil->w_fw[l]=0;
+        }
+        else
+        {
+          marginal+=soil->w_fw[l];
+          soil->w_fw[l]=0;
+        }
+      }
+      if (soil->w[l]<0)
+      {
+        if(soil->w_fw[l]/soil->whcs[l]>epsilon)
+        {
+          soil->w_fw[l]+=(soil->w[l]*soil->whcs[l]);
+          soil->w[l]=0;
+        }
+        else
+        {
+          marginal+=soil->w[l] * soil->whcs[l];
+          soil->w[l]=0;
+        }
+      }
+      tmpwater=0;
+      if (soil->w[l]< -epsilon || soil->w_fw[l]< -epsilon )
+      {
+        fprintf(stderr,"Second waterbalance in cell (%s) soilwater=%.6f soilice=%.6f wsats=%.6f agtop_moist=%.6f\n",
+                sprintcoord(line,&stand->cell->coord),allwater(soil,l),allice(soil,l),soil->wsats[l],soil->litter.agtop_moist);
+        fflush(stderr);
+        fprintf(stderr,"Soil-moisture in layer %d negative in cell (%s): w:%g, fw:%g,lutype %s soil_type %s\n",
+                l,sprintcoord(line,&stand->cell->coord),soil->w[l],soil->w_fw[l],stand->type->name,soil->par->name);
+      }
+    }
+  }
+#endif
+  if(evap_energy>epsilon && (eeq*PRIESTLEY_TAYLOR*(1-wet_all)-aet)>epsilon)
+  {
+    if(soil->litter.agtop_wcap>epsilon)
+    {
+      evap_litter=evap_energy*soil->litter.agtop_moist/soil->litter.agtop_wcap*soil->litter.agtop_moist/soil->litter.agtop_wcap*soil->litter.agtop_cover; /* same as for evap_soil */
+      evap_litter=min(evap_litter,soil->litter.agtop_moist); /* for very small agtop_meist the result of the above line can be larger than agtop_moist */
+      evap_litter=min(evap_litter,eeq*PRIESTLEY_TAYLOR*(1-wet_all)-aet); /* close energy balance */
+    }
+    l=0;
+    whcs_evap=tmpwater=0;
+    do
+    {
+      /*w_evap is water content in soildepth_evap, i.e. that can evaporate */
+      w_evap+=(soil->w[l]*soil->whcs[l]+soil->ice_depth[l]+soil->w_fw[l]+soil->ice_fw[l]-aet_stand[l])*min(1,soildepth_evap/soildepth[l]);
+      w_evap_ice+=(soil->ice_depth[l]+soil->ice_fw[l])*min(1,soildepth_evap/soildepth[l]);
+      tmpwater+=(soil->w[l]*soil->whcs[l]+soil->w_fw[l]-aet_stand[l])*min(1,soildepth_evap/soildepth[l]);
+      whcs_evap+=soil->whcs[l]*min(1,soildepth_evap/soildepth[l]);
+      /* here frag_g_evap is AMOUNT of green soil water after transpiration in upper 30cm */
+      *frac_g_evap+=stand->frac_g[l]*(soil->w[l]*soil->whcs[l]+soil->ice_depth[l]+soil->w_fw[l]+soil->ice_fw[l]-aet_stand[l])*min(1,soildepth_evap/soildepth[l]);
+      l++;
+    }while((soildepth_evap-=soildepth[l-1])>0);
+
+    if(tmpwater<epsilon)
+      w_evap=0;
+    /* here frag_g_evap becomes FRACTION of green water in upper 30cm */
+    *frac_g_evap = w_evap>0 ? *frac_g_evap/w_evap : 1;
+
+    //      whcs_evap=param.soildepth_evap*soil->whc[0];
+    /*
+      if(w_evap/whcs_evap<1)
+        evap_soil=evap_energy*w_evap/whcs_evap*w_evap/whcs_evap*(1-soil->litter.agtop_cover);
+      else
+        evap_soil=evap_energy*(1-soil->litter.agtop_cover);     if above field cap then it's potential evap
+     */
+    if(w_evap>0)
+      evap_soil=evap_energy/(1+exp(5-10*w_evap/whcs_evap))*max(min_evap,(1-soil->litter.agtop_cover));
+    else
+      evap_soil=0;
+    if(evap_soil>tmpwater)
+      evap_soil=max(tmpwater,0);
+
+  //*evap=min(*evap,eeq*PRIESTLEY_TAYLOR*(1-wet_all)-aet); /*close the energy balance*/
+
+    if(stand->type->landusetype==AGRICULTURE || stand->type->landusetype==SETASIDE_RF || stand->type->landusetype==SETASIDE_IR || stand->type->landusetype==SETASIDE_WETLAND || stand->type->landusetype==BIOMASS_GRASS ||
+        stand->type->landusetype==BIOMASS_TREE || stand->type->landusetype==GRASSLAND || stand->type->landusetype==OTHERS || stand->type->landusetype==AGRICULTURE_TREE || stand->type->landusetype==AGRICULTURE_GRASS)
+      if(data_irrig->irrigation && data_irrig->irrig_system==DRIP)
+        evap_soil*=(1-(param.drip_evap*(1-*frac_g_evap))); /*reduced blue soil evaporation in case of DRIP irrigation */
+
+    if(rw_manage)
+      evap_soil*=(1-param.esoil_reduction); /* reduced soil evaporation - JH: should this also apply to evap_litter? */
+    if(evap_soil<0)
+    {
+      if(evap_soil<-epsilon)
+      {
+        fprintf(stderr,"ERROR212: Cell (%s) has negative evaporation, evap= %3.5f evap_litter= %3.5f w_evap = %3.5f w_evap_ice  = %3.5f-> truncated to zero.\n",
+               sprintcoord(line,&stand->cell->coord),evap_soil,evap_litter,w_evap,w_evap_ice);
+        fflush(stderr);
+      }
+      evap_soil=0;
+    }
+
+    evap_ratio=(w_evap-w_evap_ice>0) ? evap_soil/(w_evap-w_evap_ice) : 0;
+
+    soil->litter.agtop_moist-=evap_litter;
+    *evap=evap_litter+evap_soil;
+    /* calculate frac_g of total evap assuming frag_g_evap_litter = 1 */
+    *frac_g_evap=(evap_litter+evap_soil)>0 ? (evap_litter+*frac_g_evap*evap_soil)/(evap_litter+evap_soil) : 1;
+  }
+
+  soildepth_evap=param.soildepth_evap;
+  for (l=0;l<NSOILLAYER;l++)
+  {
+    previous_soil_water[l]=soil->w[l]*soil->whcs[l]+soil->ice_depth[l]+soil->w_fw[l]+soil->ice_fw[l];
+    //marginal=0;
+    if(l<BOTTOMLAYER)
+      /* release transpiration iiicedepth[%d] %3.12f, whcs[%d] %3.12f in line 136 waterbalance\n", l, soil->w[l], l, soil->w_fw[l], soil->ice_depth[l], soil->whcs[l])er */
+      soil->w_fw[l]-=aet_stand[l];
+    if(soildepth_evap>0)
+    {
+      /* release evaporation water */
+      evap_out[l]=(soil->w[l]*soil->whcs[l]+soil->w_fw[l])*evap_ratio*min(1,soildepth_evap/soildepth[l]);  // TODO isn't evap_ratio calculated for the whole soildepth_evap, Does it work when looping?
+      if(evap_out[l]>0)
+        soil->w_fw[l]-=evap_out[l];
+      else
+        evap_out[l]=0;
+      soildepth_evap-=soildepth[l];
+      evap_test+=evap_out[l];
+    }
+    if(soil->w_fw[l]<0)
+    {
+      soil->w[l]+=soil->w_fw[l]/soil->whcs[l];
+      soil->w_fw[l]=0;
+      if (soil->w[l]< -epsilon)
+      {
+        marginal+=soil->w[l] * soil->whcs[l];
+        soil->w[l]=0;
+      }
+    }
+    /* reallocate water above field capacity to freewater; needed here since thawing permafrost can increase soil->w */
+    if (soil->w[l]+soil->ice_depth[l]/soil->whcs[l]>(1+epsilon))
+    {
+      soil->w_fw[l]+=(soil->w[l]+soil->ice_depth[l]/soil->whcs[l]-1)*soil->whcs[l];
+#ifdef DEBUG
+      fprintf(stderr,"w[%d] %3.12f, fw[%d] %3.12f, icedepth[%d] %3.12f, whcs[%d] %3.12f at line %d in waterbalance().\n",
+              l, soil->w[l], l, soil->w_fw[l], l,soil->ice_depth[l],l, soil->whcs[l],__LINE__);
+#endif
+      soil->w[l]-=soil->w[l]+soil->ice_depth[l]/soil->whcs[l]-1;
+#ifdef DEBUG
+      fprintf(stderr,"w[%d] %3.12f, fw[%d] %3.12f, icedepth[%d] %3.12f, whcs[%d] %3.12f at line %d in waterbalance().\n",
+              l, soil->w[l], l, soil->w_fw[l],l, soil->ice_depth[l],l, soil->whcs[l],__LINE__);
+#endif
+    }
+    if (soil->w_fw[l]<0)
+    {
+      if (soil->w[l]>epsilon)
+      {
+        soil->w[l]+=(soil->w_fw[l]/soil->whcs[l]);
+        soil->w_fw[l]=0;
+      }
+      else
+      {
+        marginal+=soil->w_fw[l];
+        soil->w_fw[l]=0;
+      }
+    }
+    if (soil->w[l]<0)
+    {
+      if(soil->w_fw[l]/soil->whcs[l]>epsilon)
+      {
+        soil->w_fw[l]+=(soil->w[l]*soil->whcs[l]);
+        soil->w[l]=0;
+      }
+      else
+      {
+        marginal+=soil->w[l] * soil->whcs[l];
+        soil->w[l]=0;
+      }
+    }
+    if(soil->w[l]*soil->whcs[l]+soil->ice_depth[l]+soil->w_fw[l]+soil->ice_fw[l]<1e-12)
+      stand->frac_g[l]=1.0;
+
+    /* adapt shares of green water */
+    updated_soil_water=soil->w[l]*soil->whcs[l]+soil->ice_depth[l]+soil->w_fw[l]+soil->ice_fw[l];
+    if(l<BOTTOMLAYER)
+    {
+      if((updated_soil_water+marginal)!=previous_soil_water[l])
+      {
+#ifdef SAFE
+        if(fabs(updated_soil_water-previous_soil_water[l])-fabs(aet_stand[l]+evap_out[l])>0.001)
+        {
+          fprintf(stderr,"Soil water balance error in cell (%s), change= %3.5f evap= %3.5f transp= %3.5f balance= %3.5f\n",
+                  sprintcoord(line,&stand->cell->coord),previous_soil_water[l]-updated_soil_water,evap_out[l],aet_stand[l],
+                  previous_soil_water[l]-updated_soil_water-aet_stand[l]-evap_out[l]);
+          fflush(stderr);
+        }   
+#endif
+        if(updated_soil_water>epsilon)
+        {
+          green_transp[l]=aet_stand[l]*stand->frac_g[l];
+          green_evap=evap_out[l]*stand->frac_g[l];
+          *evap_blue+=evap_out[l]*(1-stand->frac_g[l]); /*blue evap*/
+          stand->frac_g[l]=(previous_soil_water[l]*stand->frac_g[l]-green_transp[l]-green_evap-marginal)/updated_soil_water; /* new green fraction equals old green amount - green losses divided by total water */
+        }
+        else
+        {
+          green_transp[l]=aet_stand[l]*stand->frac_g[l];
+          *evap_blue+=evap_out[l]*(1-stand->frac_g[l]); /*blue evap*/
+          stand->frac_g[l]=1.0;
+        }
+      }
+      if(stand->frac_g[l]< -0.01 || stand->frac_g[l]>1.01)
+      {
+
+        if(stand->frac_g[l]>1)
+          stand->frac_g[l]=1;
+        if(stand->frac_g[l]< -0.01)
+          stand->frac_g[l]=0;
+      }
+    }
+
+//#ifdef SAFE
+//    if(l==BOTTOMLAYER)
+//    {
+//      if(stand->frac_g[l]< -0.01 || stand->frac_g[l]>1.01)
+//      {
+//        fprintf(stderr,"ERROR214: Cell (%s) frac_g error in waterbalance() at bottomlayer, frac_g= %3.6f layer= %d w= %3.9f w_fw= %3.9f standtype= %s\n",
+//                sprintcoord(line,&stand->cell->coord),stand->frac_g[l],l,soil->w[l]*soil->whcs[l],soil->w_fw[l],stand->type->name);
+//        fflush(stderr);
+//        if(stand->frac_g[l]>1.01) stand->frac_g[l]=1;
+//        if(stand->frac_g[l]< -0.01) stand->frac_g[l]=0;
+//      }
+//      if(fabs(updated_soil_water-previous_soil_water[l])>0.001)
+//      {
+//        fprintf(stderr,"bottomlayer error updated= %3.12f previous= %3.5f standtype= %s marginal:%g\n",updated_soil_water,previous_soil_water[l],stand->type->name,marginal);
+//        fflush(stderr);
+//      }
+//    }
+//#endif
+    if(stand->frac_g[l]>1)
+      stand->frac_g[l]=1;
+    if(stand->frac_g[l]<0)
+      stand->frac_g[l]=0;
+    stand->cell->discharge.drunoff+=marginal*stand->frac;    // drunoff included in awater_flux rm next line
+    if(isnan(soil->w[l] )||  isnan(soil->w_fw[l]) || isnan(stand->cell->balance.atransp))
+    {
+      fail(FPE_ERR,TRUE,TRUE,"Floating point exception in waterbalance() in cell (%s), balance.atransp= %3.5f aet= %3.5f evap= %3.5f cover= %3.2f soilwater=%.4f soilice:%.4f w=%.4f fw:%.4f wpwps:%.4f wsats=%.6f layer: %d",
+           sprintcoord(line,&stand->cell->coord),stand->cell->balance.atransp,aet_stand[l],*evap,cover,allwater(soil,l),allice(soil,l),soil->w[l]*soil->whcs[l],soil->w_fw[l],soil->wpwps[l],soil->wsats[l],l);
+    }
+
+  } /* soil layer loop */
+
+  if(marginal<-2)
+  {
+    for (l=0;l<NSOILLAYER;l++)
+    {
+      if(soil->w[l]<epsilon || soil->w_fw[l]<epsilon)
+        fprintf(stderr,"end waterbalance Cell (%s) aet= %3.5f evap= %3.5f cover= %3.2f soilwater=%.4f soilice:%.4f w=%.4f fw:%.4f wpwps:%.4f wsats=%.6f layer: %d\n",
+                sprintcoord(line,&stand->cell->coord),aet_stand[l],*evap,cover,allwater(soil,l),allice(soil,l),soil->w[l]*soil->whcs[l],soil->w_fw[l],soil->wpwps[l],soil->wsats[l],l);
+      fprintf(stderr,"MARGINAL: %g\n",marginal);
+    }
+  }
+
+#ifdef CHECK_BALANCE
+  water_after=soilwater(&stand->soil);
+  balancew=water_after-water_before+marginal+aet+*evap;
+  if(fabs(balancew)>param.error_limit.w_fcn)
+  {
+    fputs("\nWater                 ",stderr);
+    foreachsoillayer(l)
+      fprintf(stderr," %12.2f",soil->w[l]);
+    fputs("\nfree Water            ",stderr);
+    foreachsoillayer(l)
+      fprintf(stderr," %12.2f",soil->w_fw[l]);
+    fputs("\nSaturated             ", stderr);
+    foreachsoillayer(l)
+      fprintf(stderr, " %12.2f", soil->wsat[l]);
+    fputs("\nPlant avail           ", stderr);
+    foreachsoillayer(l)
+      fprintf(stderr, " %12.2f", soil->whc[l]);
+    fputs("\nwilting point         ", stderr);
+    foreachsoillayer(l)
+      fprintf(stderr, " %12.2f", soil->wpwp[l]);
+    fputs("\nfree ice              ",stderr);
+    foreachsoillayer(l)
+      fprintf(stderr," %12.2f",soil->ice_fw[l]);
+    fputs("\nIce depth             ",stderr);
+    foreachsoillayer(l)
+      fprintf(stderr," %12.2f",soil->ice_depth[l]);
+    fputs("\nFreeze depth          ",stderr);
+    foreachsoillayer(l)
+      fprintf(stderr," %12.1f",soil->freeze_depth[l]);
+    fputs("\nIce pwph              ",stderr);
+    foreachsoillayer(l)
+      fprintf(stderr," %12.2f",soil->ice_pwp[l]);
+    fputs("\nAET_L                 ",stderr);
+    forrootsoillayer(l)
+      fprintf(stderr," %12.2f",    aet_stand[l]);
+    fputs("\n---------------------\n",stderr);
+
+    fail(INVALID_WATER_BALANCE_ERR,config->fail_on_balance,FALSE,"Invalid water balance in %s: balanceW: %g water_before: %.6f water_after: %.6f marginal: %g aet: %g evap: %g evap_test: %g rw_buff: %g wa: %g"
+         " evap_ratio: %g agtop_moist: %g evap_litter: %g evap_soil: %g w_evap: %g tmpwater: %g evap_energy: %g Pot_evap: %g wtable: %g\n",
+         __FUNCTION__,balancew,water_before,water_after,marginal,aet,*evap,evap_test,soil->rw_buffer,soil->wa,evap_ratio,soil->litter.agtop_moist,evap_litter,evap_soil,
+         w_evap,tmpwater,evap_energy,(eeq*PRIESTLEY_TAYLOR*(1-wet_all)-aet),soil->wtable);
+  }
+#endif
+
+} /* of 'waterbalance' */

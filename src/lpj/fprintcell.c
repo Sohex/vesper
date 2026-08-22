@@ -1,0 +1,136 @@
+/**************************************************************************************/
+/**                                                                                \n**/
+/**               f  p  r  i  n  t  c  e  l  l  .  c                               \n**/
+/**                                                                                \n**/
+/**     C implementation of LPJmL                                                  \n**/
+/**                                                                                \n**/
+/**     Function prints cell variables in text file (used by lpjprint              \n**/
+/**     to print contents of restart file)                                         \n**/
+/**                                                                                \n**/
+/** (C) Potsdam Institute for Climate Impact Research (PIK), see COPYRIGHT file    \n**/
+/** authors, and contributors see AUTHORS file                                     \n**/
+/** This file is part of LPJmL and licensed under GNU AGPL Version 3               \n**/
+/** or later. See LICENSE file or go to http://www.gnu.org/licenses/               \n**/
+/** Contact: https://github.com/PIK-LPJmL/LPJmL                                    \n**/
+/**                                                                                \n**/
+/**************************************************************************************/
+
+#include "lpj.h"
+
+void fprintcell(FILE *file,            /**< file pointer to text file */
+                const Cell grid[],     /**< cell array */
+                int ncell,             /**< number of cells */
+                int npft,              /**< number of natural PFTs */
+                int ncft,              /**< number of crop PFTs */
+                const Config *config   /**< LPJ configuration */
+               )
+{
+  int i,cell,cft;
+  for(cell=0;cell<ncell;cell++)
+  {
+    fputs("Coord:\t\t",file);
+    fprintcoord(file,&grid[cell].coord);
+    fprintf(file,"\nLand fraction:\t%g\n",grid[cell].landfrac);
+    if(config->with_lakes)
+      fprintf(file,"Lake fraction:\t%g\n",grid[cell].lakefrac);
+    fputs("Random seed:\t",file);
+    for(i=0;i<NSEED;i++)
+      printf(" %d",grid[cell].seed[i]);
+    fputc('\n',file);
+    if(config->with_lakes)
+      fprintf(file,"dmass_lake:\t%g (dm3)\n",grid[cell].discharge.dmass_lake);
+    if(config->river_routing)
+    {
+       fprintf(file,"dfout:\t\t%g (dm3/d)\n"
+                    "dmass_river:\t%g (dm3)\n"
+                    "dmass_sum:\t%g (dm3)\n"
+                     "lateral water:\t%g (dm3)\n",
+               grid[cell].discharge.dfout,
+               grid[cell].discharge.dmass_river,grid[cell].discharge.dmass_sum,
+               grid[cell].lateral_water);
+       fputs("Queue:\t\t",file);
+       fprintqueue(file,grid[cell].discharge.queue);
+       fputc('\n',file);
+       if(grid[cell].ml.dam)
+         fprintresdata(file,grid+cell);
+    }
+    if(grid[cell].skip)
+      fputs("Invalid soil\n",file);
+    else
+    {
+      fprintclimbuf(file,&grid[cell].climbuf,ncft);
+      fputs("GDD:\t\t",file);
+      for(cft=0;cft<npft;cft++)
+        fprintf(file," %6.1f",grid[cell].gdd[cft]);
+      fputc('\n',file);
+      if(config->withlanduse!=NO_LANDUSE)
+      {
+        if(grid[cell].ml.sdate_fixed!=NULL)
+        {
+          fputs("CFT     ",file);
+          for(cft=0;cft<ncft;cft++)
+            fprintf(file," %5d",cft);
+          fputs("\n--------",file);
+          for(cft=0;cft<ncft;cft++)
+            fputs(" -----",file);
+          fputs("\nrfsdate ",file);
+          for(cft=0;cft<ncft;cft++)
+            fprintf(file," %5d",grid[cell].ml.sdate_fixed[cft]);
+          fputs("\nirrsdate",file);
+          for(cft=ncft;cft<2*ncft;cft++)
+            fprintf(file," %5d",grid[cell].ml.sdate_fixed[cft]);
+          fputc('\n',file);
+        }
+        if(grid[cell].ml.crop_phu_fixed!=NULL)
+        {
+          fputs("\nfphu    ",file);
+          for(cft=0;cft<ncft;cft++)
+            fprintf(file," %5g",grid[cell].ml.crop_phu_fixed[cft]);
+          fputs("\nirrphu  ",file);
+          for(cft=ncft;cft<2*ncft;cft++)
+            fprintf(file," %5g",grid[cell].ml.crop_phu_fixed[cft]);
+          fputc('\n',file);
+        }
+        fputs("--------",file);
+        for(cft=0;cft<ncft;cft++)
+          fputs(" -----",file);
+        fprintf(file,"\nCropfrac (rf/ir/wl):\t%g\t%g\t%g\n",
+                grid[cell].ml.cropfrac_rf,grid[cell].ml.cropfrac_ir,
+                grid[cell].ml.cropfrac_wl);
+        fprintcropdates(file,grid[cell].ml.cropdates,config->pftpar+npft,ncft);
+      }
+      fputs("Establ. stock for biomass:\n"
+            "Type  RF     IR              RF     IR\n",file);
+      fprintf(file,"tree  %6.2f %6.2f (gC/m2) %6.2f %6.2f (gN/m2)\n",
+              grid[cell].balance.estab_storage_tree[0].carbon,
+              grid[cell].balance.estab_storage_tree[1].carbon,
+              grid[cell].balance.estab_storage_tree[0].nitrogen,
+              grid[cell].balance.estab_storage_tree[1].nitrogen);
+      fprintf(file,"grass %6.2f %6.2f (gC/m2) %6.2f %6.2f (gN/m2)\n",
+              grid[cell].balance.estab_storage_grass[0].carbon,
+              grid[cell].balance.estab_storage_grass[1].carbon,
+              grid[cell].balance.estab_storage_grass[0].nitrogen,
+              grid[cell].balance.estab_storage_grass[1].nitrogen);
+#ifndef IMAGE
+      fprintf(file,"fast product:\t%g (gC/m2) %g (gN/m2)\n",
+              grid[cell].ml.product.fast.carbon,
+              grid[cell].ml.product.fast.nitrogen);
+      fprintf(file,"slow product:\t%g (gC/m2) %g (gN/m2)\n",
+              grid[cell].ml.product.slow.carbon,
+              grid[cell].ml.product.slow.nitrogen);
+#endif
+      if(isspitfire(config))
+      {
+        fprintignition(file,&grid[cell].ignition);
+        if(config->isgsi_livefuel)
+          fprintf(file,"GSI livefuel:\t%g\n",grid[cell].gsi_cum);
+        fprintfwi(file,&grid[cell].fwi_data);
+      }
+      fprintf(file,"excess water:\t%g (mm)\n",grid[cell].balance.excess_water);
+      fprintf(file,"lateral water:\t%g (mm)\n",grid[cell].lateral_water);
+      fprintf(file,"lateral NO3:\t%g (mm)\n",grid[cell].NO3_lateral);
+     fprintstandlist(file,grid[cell].standlist,config->pftpar,npft+ncft);
+    }
+    fprinthydrotope(file,&grid[cell].hydrotopes);
+  } /* of 'for(cell=...)' */
+} /* of 'fprintcell' */

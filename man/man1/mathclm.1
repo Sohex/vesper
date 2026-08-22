@@ -1,0 +1,115 @@
+.TH matchclm 1  "USER COMMANDS"
+.SH NAME
+mathclm \- performs mathematical operations with clm files
+.SH SYNOPSIS
+.B mathclm
+[\-v] [\-f] [\-longheader] [-raw] [-json] [-metafile] [-type {byte|short|int|float|double}] {add|sub|mul|div|avg|max|min|repl|float|int|sum|tsum|tmean} \fIinfile1.clm\fP [{\fIinfile2.clm\fP|value}] \fIoutfile.clm\fP
+.SH DESCRIPTION
+Program performs mathematical operations on clm files.
+.SH OPTIONS
+.TP
+\-v,\--version
+Print version.
+.TP
+\-f
+Force overwrite of existing output file.
+.TP
+\-longheader
+Long (version 2) header assumed for clm files.
+.TP
+\-raw
+Input files are in raw binary format.
+.TP
+\-json
+Additional JSON metafile written.
+.TP
+\-metafile
+Files are JSON metafiles describing the structure of the data. An additional JSON metafile with suffix \fI.json\fP is written.
+.TP
+-type {byte|short|int|float|double}
+Set datatype of clm file. Default is short.
+.TP
+add|sub|mul|div|avg|max|min|repl|float|int|sum|tsum|mean
+Mathematical operation to be performed. The following operations are defined:
+.TP
+add
+Add each number.
+.TP
+sub
+Subtract each number.
+.TP
+div
+Divide each number.
+.TP
+mul
+Multiply each number.
+.TP
+avg
+Average of each two numbers.
+.TP
+max
+Maximum of each two numbers.
+.TP
+min
+Minimum of each two numbers.
+.TP
+repl
+Replace number by non-zero values of second file.
+.TP
+float
+Convert numbers to float.
+.TP
+int
+Convert numbers to int.
+.TP
+sum
+Sum all values of each band and write the sum into one band keeping the time steps. The number of bands is set to 1.
+.TP
+tsum
+Sum over all time steps within a year and write the sum into one time step keeping the bands. The number of time steps nstep is set to 1.
+.TP
+tmean
+Average over all time steps within a year and write the mean into one time step keeping the bands. The number of time steps nstep is set to 1.
+.TP
+.I infile1.clm
+First argument of operation. Must be a filename.
+.TP
+.I infile2.clm|value
+Second optional argument of operation. Can be a filename or a numerical value.
+.TP
+.I outfile.clm
+Filename of clm file where the results of the mathematical operation are written.
+.SH EXAMPLE
+.TP
+Add data of 2 files
+.B mathclm
+add infile1.clm infile2.clm outfile.clm
+.TP
+Convert data of file to float.
+.B mathclm
+float infile.clm outfile.clm
+.TP
+Set minimum value of data to zero
+.B mathclm
+max infile.clm 0 outfile.clm
+.TP
+Sum over all bands in clm file
+.B mathclm
+sum infile.clm outfile.clm
+.TP
+.PP
+.SH EXIT STATUS
+.B mathclm
+returns a zero exit status if the operations could be performed and file is created.
+Non zero is returned in case of failure.
+
+.SH AUTHORS
+
+For authors and contributors see AUTHORS file
+
+.SH COPYRIGHT
+
+(C) Potsdam Institute for Climate Impact Research (PIK), see COPYRIGHT file
+
+.SH SEE ALSO
+lpjml(1), catclm(1), txt2clm(1), grid2clm(1), cft2clm(1), clm(5)

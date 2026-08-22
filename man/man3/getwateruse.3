@@ -1,0 +1,39 @@
+.TH getwateruse 3  "LPJmL programmers manual"
+.SH NAME
+getwateruse \- Get water use data
+.SH SYNOPSIS
+.nf
+\fB#include "lpj.h"
+
+Bool getwateruse(Wateruse \fIwateruse\fB,Cell \fIgrid[]\fB,int \fIyear\fB,const Config *\fIconfig\fB);\fP
+
+.fi
+.SH DESCRIPTION
+Function reads water use data for specified year.
+The arguments of \fBgetwateruse\fP are:
+.TP
+.I wateruse
+Pointer to water use data.  Must be initialized by \fBinitwateruse()\fP.
+.TP
+.I grid
+Cell grid array allocated and initialized by \fBnewgrid()\fP.
+.TP
+.I year
+Sets year water use data is read.
+.TP
+.I config
+LPJmL configuration data. Must be read by \fBreadconfig()\fP.
+
+.SH RETURN VALUE
+Upon successful completion FALSE is returned and TRUE on error.
+
+.SH AUTHORS
+
+For authors and contributors see AUTHORS file
+
+.SH COPYRIGHT
+
+(C) Potsdam Institute for Climate Impact Research (PIK), see COPYRIGHT file
+
+.SH SEE ALSO
+readconfig(3), initwateruse(3), freewateruse(3), newgrid(3)

@@ -1,0 +1,34 @@
+.TH freegrid 3  "LPJmL programmers manual"
+.SH NAME
+freegrid \- Deallocate memory of LPJmL grid
+.SH SYNOPSIS
+.nf
+\fB#include "lpj.h"
+
+void freegrid(Cell \fIgrid\fB[],int \fInpft\fB,const Config *\fIconfig\fB);\fP
+
+.fi
+.SH DESCRIPTION
+Function deallocates memory of LPJmL grid.
+The arguments of \fBfreegrid\fP are:
+.TP
+.I grid
+Cell grid array allocated and initialized by \fBnewgrid()\fP.
+.TP
+.I npft
+Number of natural plant functionial types.
+.TP
+.I config
+LPJmL configuration data. Must be read by \fBreadconfig()\fP.
+.SH RETURN VALUE
+None
+.SH AUTHORS
+
+For authors and contributors see AUTHORS file
+
+.SH COPYRIGHT
+
+(C) Potsdam Institute for Climate Impact Research (PIK), see COPYRIGHT file
+
+.SH SEE ALSO
+readconfig(3), newgrid(3)

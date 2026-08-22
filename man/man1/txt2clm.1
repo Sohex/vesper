@@ -1,0 +1,78 @@
+.TH txt2clm 1  "USER COMMANDS"
+.SH NAME
+txt2clm \- convert text files to clm data files for LPJmL
+.SH SYNOPSIS
+.B txt2clm
+[\-h] [\-version v] [\-float] [\-int] [\-csv c] [\-scale s] [\-nbands n] [-nstep n] [\-timestep t] [\-firstyear f] [\-firstcell c] [\-ncell n]  [\-header id] [\-json]
+.I txtfile clmfile
+.SH DESCRIPTION
+Program converts text files containing white space separated numbers into LPJ climate data files. File is read until end of file is reached.
+.SH OPTIONS
+.TP
+\-h,\--help
+Print a short help text.
+.TP
+\-version v
+Set clm version, default is 3.
+.TP
+\-float
+Write data as float, default is short.
+.TP
+\-int
+Write data as int, default is short.
+.TP
+\-csv c
+Text file is in CSV format with separator character c.
+.TP
+\-scale s
+Scale data by a factor.
+.TP
+\-nbands n
+Set number of bands, default is 12.
+.TP
+\-nstep n
+Set number of time steps within year, default is 1. Number of bands and number of steps can both by >1 only if version of clm file is set to 4.
+TP
+\-timestep t
+Set number of years between time steps, default is 1. If timestep is greater than 1 then number of time steps within a year must be 1.
+.TP
+\-firstyear f
+Set first year, default is 1901.
+.TP
+\-firstcell c
+Set first cell, default is 0.
+.TP
+\-ncell n
+Set number of cells, default is 67420.
+.TP
+\-header id
+Set header string in clm file, default is LPJCLIM.
+.TP
+\-json
+JSON metafile is created with suffix '.json'.
+.I txtfile
+Filename of text file.
+.TP
+.I clmfile
+Filename of clm data file written.
+.SH EXAMPLES
+.TP
+Create clm data from text file:
+.B txt2clm
+-nbands 365 tmp_1901-2003.txt tmp2003.clm
+.PP
+.SH EXIT STATUS
+.B txt2clm
+returns a zero exit status if the clm file is created.
+Non zero is returned in case of failure.
+
+.SH AUTHORS
+
+For authors and contributors see AUTHORS file
+
+.SH COPYRIGHT
+
+(C) Potsdam Institute for Climate Impact Research (PIK), see COPYRIGHT file
+
+.SH SEE ALSO
+lpjml(1), asc2clm(1), cru2clm(1), grid2clm(1), txt2grid.(1), cft2clm(1), catclm(1), clm(5)

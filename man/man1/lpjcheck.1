@@ -1,0 +1,111 @@
+.TH lpjcheck 1  "USER COMMANDS"
+.SH NAME
+lpjcheck \- Checks syntax of LPJmL configuration files
+.SH SYNOPSIS
+.B lpjcheck
+[\-h] [\-v] [\-q] [\-nocheck] [-vv] [\-ofiles] [\-param] [-nopp] [-pp cmd] [\-pedantic] [\-couple host[:port]] [\-outpath \fIdir\fP]
+[\-inpath \fIdir\fP] [\-restartpath \fIdir\fP] [[\-Dmacro[=value]] [\-I\fIdir\fP] ...]
+\fIfilename\fP
+.SH DESCRIPTION
+Program checks the syntax of LPJmL configuration files. It is checked additionally whether all input files and output directories are present.
+\fBlpjcheck\fP will print the total amount of disk space used for the output files.
+.SH OPTIONS
+.TP
+\-h,\--help
+Print a short help text.
+.TP
+\-v,\--version
+Print LPJmL version.
+.TP
+\-q,\--quiet
+Only error messages are displayed, other output is suppressed.
+.TP
+\-nocheck
+Do not check for input/output files.
+.TP
+\-vv
+Verbosely print the actual values during reading of the configuration files.
+.TP
+\-ofiles
+List only all available output variables.
+.TP
+\-param
+Print LPJmL parameter.
+.TP
+\-nopp
+Disabling preprocessing of configuration file by \fBcpp\fP.
+.TP
+\-pp cmd
+Set preprocessor program to cmd. Default is \fBcpp\fP.
+.TP
+\-pedantic
+Return error on warnings.
+.TP
+\-couple host[:port]
+Set host where the coupled model is running. Default is localhost. Port is the port number for ingoing and outgoing data. Default port number is 2224.
+.TP
+\-outpath \fIdir\fP
+Set the output directory path. The path is added to the output filenames if they do not contain an absolute path.
+.TP
+\-inpath \fIdir\fP
+Set the input directory path. The path is added to the input filenames if they do not contain an absolute path.
+.TP
+\-restartpath \fIdir\fP
+Set the restart directory path. The path is added to the restart filenames if they do not contain an absolute path.
+.TP
+\-Dmacro[=value]
+Define macro for the preprocessor of the configuration file.
+.TP
+\-I\fIdir\fP
+Define include directory for the preprocessor of the configuration file.
+.TP
+.I filename
+Name of configuration file.
+.SH EXAMPLES
+.TP
+Check configuration file lpjml.cjson with input files located in the /p/projects/lpjml file system
+.B lpjcheck
+\-inpath /p/projects/lpjml lpjml.cjson
+.PP
+.SH ENVIRONMENT
+.TP
+LPJNOPP
+Disables preprocessor if set to "true", same as -nopp option.
+.TP
+LPJPEDANTIC
+Enables pedantic mode if set to "true", same as -pedantic option.
+LPJPREP
+Defines preprocessor command for LPJmL configuration file, default is \fBcpp\fP. Same as '-pp' option.
+.TP
+LPJROOT
+Defines the root directory for LPJmL. This directory is added to the
+include directories of the preprocessor
+.TP
+LPJINPATH
+Path appended to the input filenames. Only done for filenames without absolute path.
+.TP
+LPJOPTIONS
+Runtime options for the preprocessor of LPJmL configuration files
+.TP
+LPJOUTPATH
+Path appended to the output filenames. Only done for filenames without absolute path.
+.TP
+LPJRESTARTPATH
+Path appended to the restart filenames. Only done for filenames without absolute path.
+
+.SH EXIT STATUS
+.B
+lpjcheck
+returns a zero exit status if the configuration file has no syntax errors and all input files and output directories exist.
+Non zero is returned in case of failure.
+
+.SH AUTHORS
+
+For authors and contributors see AUTHORS file
+
+.SH COPYRIGHT
+
+(C) Potsdam Institute for Climate Impact Research (PIK), see COPYRIGHT file
+
+.SH SEE ALSO
+lpjml(1), lpjfiles(1), lpjsubmit(1)

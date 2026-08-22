@@ -1,0 +1,38 @@
+.TH initinput 3  "LPJmL programmers manual"
+.SH NAME
+initinput \- initialize input data
+.SH SYNOPSIS
+.nf
+\fB#include "lpj.h"
+
+Bool initinput(Input *\fIinput\fB,const Cell \fIgrid[]\fB,int \fIncft\fB,const Config *\fIconfig\fB);\fP
+
+.fi
+.SH DESCRIPTION
+Function initializes input data and opens related files specified in the LPJmL configuration.
+The arguments of \fBinitinput\fP are:
+.TP
+.I input
+Pointer to input to be initialized.
+.TP
+.I grid
+Cell grid array allocated and initialized by \fBnewgrid()\fP.
+.TP
+.I ncft
+Number of crop plant functional types.
+.TP
+.I config
+Pointer to LPJmL configuration data. Must be read by \fBreadconfig()\fP.
+.SH RETURN VALUE
+Upon successful completion FALSE is returned  and TRUE in case of failure.
+
+.SH AUTHORS
+
+For authors and contributors see AUTHORS file
+
+.SH COPYRIGHT
+
+(C) Potsdam Institute for Climate Impact Research (PIK), see COPYRIGHT file
+
+.SH SEE ALSO
+freeinput(3), initclimate(3), initlanduse(3), initwateruse(3), initpopdens(3), freeclimate(3), readconfig(3), iterate(3) 
