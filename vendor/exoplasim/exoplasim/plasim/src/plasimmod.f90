@@ -997,7 +997,7 @@
 !     SHTns and LPAIRLAT are therefore exclusive, and that is not a loss:
 !     LPAIRLAT exists to let legmod fold a mirror pair together, and SHTns
 !     replaces legmod.
-      lo = mypid * NHOR + 1
+      lo = max(1, mypid * NHOR + 1 - NLON)   ! CONTROL: bands overlap by a row
       hi = lo + NHOR - 1
 
       gd   => gd_g(lo:hi,:)
