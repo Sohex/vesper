@@ -264,6 +264,7 @@ unless told they exist.
 | `verify_shared_determinism.sh` | runs the threaded build repeatedly on one bed and requires one answer, since a race on shared state shows up as a different answer each time rather than a wrong one; the control is the pre-fix source and must NOT reproduce itself |
 | `_bed_guard.sh` | sourced, not run: refuses a comparison bed that starts cold with a kick and no fixed SEED, because the model seeds that noise from the clock and every comparison on such a bed measures the clock |
 | `bench_rank_layout.py` | rank layouts incl. oversubscribed, on latency AND throughput, with pinning verified |
+| `thread_count_sweep.sh` | sweeps the OpenMP thread count at one resolution, pairwise against sixteen. The count is compiled in via `num_threads(NPRO)`, so it builds one binary per count first and `OMP_NUM_THREADS` does nothing; NPRO must divide NLAT. `notes/thread-count-by-resolution.md` has the verdict |
 | `index_runs.py` | index every run by what it is, since a UUID says nothing |
 | `assess_convergence.py` | spin-up convergence against the predeclared criteria, over the last `--window` PRODUCTION orbits |
 | `close_state_energy.py` | closes the energy budget against the PROGNOSTIC STATE, which is the check the flux diagnostics cannot fail |

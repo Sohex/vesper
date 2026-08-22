@@ -665,10 +665,12 @@ bucket is not comparable between the two; nothing else here depends on it.
 | libm | 7.3% | 8.4% | 4.0% | 4.9% |
 
 **The two ends are limited by different things, which is why both were run.** At
-T42 the largest non-model cost is libgomp at a quarter of runtime: sixteen
-threads over sixty-four latitudes is four latitudes each, and the barriers cost
-more than the work between them. At T170 libgomp falls to a tenth and libc rises
-to a third.
+T42 the largest non-model cost is libgomp at a quarter of runtime, sixteen
+threads over sixty-four latitudes being four latitudes each. That is the price of
+the team rather than evidence against it: a thread sweep at T42 finds sixteen
+faster than eight by 36% and than four by 124%, and
+`thread-count-by-resolution.md` has the arms. At T170 libgomp falls to a tenth
+and libc rises to a third.
 
 **SHTns's own kernels are invisible, and that is the result rather than a
 measurement failure.** `SHsphtor_to_spat_fly2_l` and its siblings sample at

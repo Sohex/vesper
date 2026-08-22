@@ -373,6 +373,10 @@ the reader runs past the end of the record. Eight ranks CAN resume a sixteen-ran
 restart, so this is an asymmetry rather than a general limit -- but it means
 adopting thirty-two ranks would strand every existing run.
 
+Fewer than sixteen is refused as well, which this note does not cover and
+`thread-count-by-resolution.md` does: at T42, where the barrier share is highest
+of any rung, sixteen threads beats eight by 36% and four by 124%.
+
 ## Throughput: the incumbent holds, and oversubscription gets worse with resolution
 
 `T4_4x8` against two-jobs-per-die: **+6.4% at T42, -10.9% at T127, -15.5% at
