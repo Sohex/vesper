@@ -143,6 +143,14 @@ and the restart, T170 over 60 steps on the SHTns path with `NLOWIO=1`, is
 also produced identical shas for all twelve executables, so the new build is
 reproducible run to run.
 
+**And the gate agrees, which is the check that did not need interpreting.**
+`verify_shtns_model.sh` at T21 on four threads passes whole through the new
+build: both arms at rounding scale, the control rejected, and the four-run
+bit-identity arm giving `fcf46ebbb1302d3a` -- THE SAME HASH the same gate
+produced before the build system was replaced. So the binary the new system
+produces computes bit for bit what the old one's did, which is a statement about
+the model rather than about the executable's layout.
+
 **What each defect became.** The silent `-r` and `-p` defaults are gone: every
 argument is checked against a list and an unrecognised value exits non-zero
 having written nothing. The stale-binary trap is gone: the output name is
