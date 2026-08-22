@@ -1527,3 +1527,65 @@ real and only read the other.
 And ECOGEM's cost ladder from one to sixty-four populations is the answer to
 OCN-4's trait-count question, which the row currently frames as a single figure
 of sixteen. Sixteen is the reference configuration, not the price.
+
+
+## 17. Three published weathering schemes, shipped with their constants
+
+*Read 2026-08-22 from `vendor/cgenie/genie-rokgem`.*
+
+### 17a. What is there
+
+rokgem's basic weathering is coarser than this project's: `par_weather_CaSiO3b`
+and `par_weather_CaCO3` are GLOBAL rates in mol ALK per year, with
+`par_k_Tb` and `par_k_Tg` as temperature exponents for basalt and granite and
+`opt_weather_C_Si_bg` switching whether the two are distinguished at all. Against
+a lithology map derived from Orogen's own generator, that is a step down.
+
+Its spatially explicit mode is the interesting part. `par_weathopt` selects
+`Global_avg`, `GKWM` or `GEM_CO2`, and `data/input` ships THREE published
+parameterisations over lithology classes, each as a class list and a constants
+table: Amiotte-Suchet 2003, Gibbs 1999, and GEM_CO2.
+
+Their classes are carbonate, shale, sandstone, basalt, shield or granite, acid
+volcanics, and ice.
+
+### 17b. Where they agree and where they do not
+
+Amiotte 2003 and GEM_CO2 share their first column exactly -- 1.586, 0.672,
+0.152, 0.479, 0.095, then 0.272 against 0.222 for acid volcanics -- so they are
+the same base rates. Gibbs 1999 is a different formulation on different units
+entirely, 32000, 40000, 4000, 16000, 7900.
+
+Where the two that share rates DIVERGE is the pair of columns that appear to
+carry the carbonate against silicate split of CO2 consumption. For the carbonate
+class GEM_CO2 reads 0.93 and 0.07; Amiotte reads 1.00 and 0.00. For sandstone
+both read 0.125 and 0.875. The column meaning is inferred from position and the
+schemes' published form rather than from a header, so it wants confirming before
+being used.
+
+**If that reading is right, the disagreement is exactly the thermostat.**
+Silicate weathering is the long-term CO2 sink, because the carbon ends up in
+marine carbonate; carbonate weathering returns its CO2 on precipitation and is
+close to neutral over long timescales. So the fraction of weathering CO2
+consumption attributed to silicate is what sets a carbonate-silicate
+thermostat's strength, and two schemes sharing base rates still disagree on it.
+
+### 17c. Why this project should care, and why it cannot simply adopt
+
+`pedology/scripts/thermostat_efficiency.py` produces a thermostat number from
+one parameterisation, and `config/planet.yaml` records that the outgassing
+plausibility check behind the prescribed pCO2 came from
+`weathering_fluxes.py`. There is no structural uncertainty attached to either,
+and three published schemes disagreeing is a free estimate of what that
+uncertainty is worth.
+
+Adoption is a different matter and the class systems are why. rokgem works in
+carbonate, shale, sandstone, basalt, shield and acid; this world's land is
+playa clastic at about a quarter of it, continental clastic, schist, granite,
+granodiorite, melange and evaporite. There is no land carbonate class here at
+all -- LITH-26 places carbonate on the SHELF -- and playa clastic and evaporite
+have no counterpart in any of the three schemes.
+
+So the value is the BRACKET rather than the parameterisation: what does the
+choice among published schemes cost the thermostat number, once each is mapped
+onto the classes this world actually has. VOLC-9 owns that.
