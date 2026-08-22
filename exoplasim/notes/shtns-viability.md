@@ -318,15 +318,27 @@ mode-dependent ratio and these are flat.
 the 946 modes. The 2 pi is the azimuthal integral, PlaSim's harmonics carrying
 no `1/sqrt(2 pi)` in phi.
 
-**Vector**, with Robert form on, against `SHsphtor_to_spat`:
+**Vector**, with Robert form on, against `SHsphtor_to_spat`. Feed the
+potentials, read the components:
 
-    gu = -sqrt(2 pi)/(l(l+1)) * Vp        Vp is SHTns's phi component
-    gv = +sqrt(2 pi)/(l(l+1)) * Vt        Vt is its theta component
+    S =  divergence / (l(l+1))            spheroidal
+    T = -vorticity  / (l(l+1))            toroidal, note the sign
+    gu = -sqrt(2 pi) * Vp                 Vp is SHTns's phi component
+    gv = +sqrt(2 pi) * Vt                 Vt is its theta component
 
 The `l(l+1)` is the factor this model already carries inside `fmu` and `fmv`,
-and it is the one a naive substitution applies twice. The overall minus is not
-arbitrary: divergence is the Laplacian of the spheroidal potential and the
-Laplacian is `-l(l+1)` in spectral space.
+and it is the one a naive substitution applies twice.
+
+**The toroidal sign is opposite to the spheroidal, and it is not a fudge.** For
+`V = grad(S) + curl(T r)` the divergence is the Laplacian of S while the
+vorticity is MINUS the Laplacian of T, so the two potentials sit on opposite
+sides of their sources.
+
+That sign was missed by the per-mode probes and caught by the dense one. The
+probes drove DIVERGENCE only and took the toroidal on trust, which is the
+assumption a mixed field breaks; the vorticity-only arm then failed at a
+relative error of exactly 2.000, which is what a pure sign flip looks like and
+is why the arms are driven separately before they are driven together.
 
 ## The Condon-Shortley phase, and the mistake that hid it
 
@@ -348,3 +360,21 @@ throws away, and it is what both probes use now.
 
 Had this survived, the model would have run with every odd zonal wavenumber
 negated: stable, plausible, and wrong.
+
+
+## The gate: SHTns and the recipe compute this model
+
+`verify_shtns_equivalence.sh` runs the whole recipe on DENSE fields rather than
+one mode at a time, because a per-mode ratio can be right on every mode tried
+and still leave the recipe wrong. At T42 against `legmod`, relative:
+
+| arm | |
+| --- | ---: |
+| scalar, dense spectrum | 1.5e-14 |
+| u, v, divergence only | 9.1e-15, 2.0e-15 |
+| u, v, vorticity only | 2.0e-15, 9.4e-15 |
+| u, v, both together | 3.1e-15, 2.6e-15 |
+
+Its control drops the Condon-Shortley phase, which is the mistake this recipe
+was got wrong by once, and fails every arm. So the conversion is proved before
+a single call site in `plasim.f90` moves, which was the point.
