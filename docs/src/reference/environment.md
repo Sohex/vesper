@@ -54,3 +54,49 @@ Benchmarking it again needs one rule beyond a quiet machine: **interleave the
 arms**. Run as blocks, whichever arm goes first after an idle stretch gets the
 boost clock and the comparison measures the CPU's thermal state instead of the
 flag. That was worth 6% on a stock baseline against itself.
+
+## The per-die working set targets 32 MB
+
+**A thread team's working set on one die targets 32 MB, and a change that takes
+it above that is a regression even when this machine gets faster.** Declared
+2026-08-21 as a standing constraint on compute work.
+
+The number is not this desktop's. The 7950X3D has 96 MB of L3 on CCD0 and 32 MB
+on CCD1, so half its threads have a cushion the other half does not, and a
+working set between the two is fast on one die and slow on the other -- which is
+exactly the load imbalance `exoplasim/notes/rank-imbalance-and-weight-traffic.md`
+measured. 32 MB is the smaller of the two and is what a part with more cores and
+no stacked cache is likely to have or less. Targeting it is targeting the
+hardware this model might be moved to, not the hardware it is on.
+
+The rule carries an assumption, stated so it can be argued with rather than
+discovered: **above 32 MB is taken to be slower than below it, always.** That is
+a design target and not a measured law -- a 33 MB set with good locality can beat
+a 31 MB set that is streamed -- but the exception needs the argument, not the
+rule.
+
+**It applies per DIE and per TEAM, so count the copies.** A threadprivate array
+is one copy a thread, and eight threads on a die means eight. That is how the
+Legendre weight factorisation first missed: two matrices and six per-mode
+vectors came to 35.76 MB a die because the vectors, identical on every thread,
+were threadprivate. Shared, the same change is 30.82 MB. The 4.94 MB of
+redundant copies was the whole margin, and no arithmetic about the matrices
+would have found it.
+
+**A change that moves toward the ceiling is worth a small loss on this
+machine.** The weight factorisation costs 1.56% here and is kept, because the
+CCD that never had a cache problem is hiding the case the change exists for.
+
+**The target is the TOTAL, and the total is not there yet.** Counting only the
+component you just changed is how this rule gets quoted as satisfied while
+nothing fits. At T170 the transform loops cycle about 74 MB a die: 30.8 MB of
+weights, 31.5 MB in the six Fourier fields `mktend` holds, and 12.0 MB of
+spectral state. The factorisation took the weights from 120 MB, four times the
+die, to about one -- a large win on what had been the dominant term, and not a
+fit. The next terms are named by that arithmetic rather than guessed at.
+
+**Do not set a headroom margin below 32 until the total is near it.** Interrupts,
+the OS, page tables and set-associativity are all real and together are worth
+something like a tenth of the capacity, which is a correction to make when the
+budget is close. Applied to a working set 2.3x over, a tighter number is false
+precision and invites treating the trimmed component as the whole.

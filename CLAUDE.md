@@ -115,6 +115,10 @@ The arguments and the incidents behind these are in
   column alignment. They get copied out.
 - Every run and analysis product records its provenance (config hash, input
   hashes, software versions) in JSON. Keep that up when adding steps.
+- **A thread team's working set on one die targets 32 MB**, counting one copy
+  per thread for anything threadprivate. Above it is a regression even when
+  this machine gets faster: 32 MB is CCD1 here and is what a part without
+  stacked cache is likely to have. `docs/src/reference/environment.md`.
 - Thresholds are fixed before results are seen; a criterion chosen after the
   run it judges is not a criterion.
 - Estimates that cannot be verified are bracketed rather than guessed, and the
