@@ -181,3 +181,55 @@ Deleting `plasim/bld/<file>.o` is the fix.
 And one of my own: a probe must not use a hard-coded unit number. A Fortran unit
 is process-global, and three separate probes in this work reported nonsense
 because two threads opened the same one. One unit AND one filename per thread.
+
+## What is next, and it is not where the plan pointed
+
+The plan's Stage C was `so`, `sr`, `sak`, `sqout` and the accumulators, described
+as small traffic to be done for consistency rather than for speed. That is still
+true of those arrays and it is no longer the next thing.
+
+**`mkdheat` is, and it was missed by reading the wrong guard.** It is the
+frictional heating term, `spectrald` calls it at `plasim.f90:3974` under
+`ndheat > 0`, and `ndheat` is 1 by default -- so it runs every timestep. The
+three `mpsumsc` calls inside it were left on the old staging path in Stage B on
+the grounds that `nenergy` and `nentropy` are 0; that guard governs a block
+LOWER in the routine, and the reductions are above it and unconditional. A
+frame-pointer profile put the routine at 12.29% of all samples, second only to
+`radstep`.
+
+It carries both halves of the problem at once:
+
+| in `mkdheat`, per timestep | |
+| --- | --- |
+| `mpgallsp` | 8 calls, each staging about 2.5 MB a thread at T170 |
+| `mpsumsc` | 3 calls, still copying partials into a buffer |
+| stack locals | **18.7 MB a thread**, 299 MB across sixteen |
+
+Six of those locals are `(NESP,NLEV)` FULL spectral arrays -- `zsd`, `zsz`,
+`zsq`, `zsdef`, `zstf1`, `zstf2` -- one complete copy of the global field per
+thread. That is the pattern Stages A and B removed everywhere else, still
+standing here. One thread's 18.7 MB does not fit CCD1's 32 MB of L3 beside the
+weight matrices, which are 114.9 MB a die at T170.
+
+So the traffic argument and the cache argument name the same routine, and the
+fix is the machinery that already exists: shared arrays, threadprivate slices,
+`mpsumscp`, gathers that become barriers.
+
+## Two hypotheses that were wrong, and what refused them
+
+Kept because each cost a cycle and would otherwise be re-proposed.
+
+**The remaining `mpgallsp` calls in `spectrala` and `spectrald`.** All of them
+sit behind `ndiagsp == 1` or `nenergy > 0 .or. nentropy > 0`, all off. Cold.
+
+**mmap churn from Fortran array temporaries.** The physics creates about 250 of
+them and at T170 an `(NHOR,NLEV)` temporary is 655 KB, over glibc's 128 KB
+threshold, so each is an mmap/munmap pair serialising on an address space
+sixteen threads share and sixteen ranks do not. Plausible and false: raising
+`MALLOC_MMAP_THRESHOLD_` moved the threaded arm -1.1% and -0.5% against a 3%
+bar declared before the run, and moved the MPI arm the wrong way.
+
+Both were guesses at an attribution that a stripped libc will not give up. What
+answered it was building the model with `-fno-omit-frame-pointer` and letting
+perf walk out of the copy into the caller. That is the tool to reach for first
+next time, not third.

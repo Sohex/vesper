@@ -327,15 +327,24 @@ address a thread's chunk as written -- and it is the same decision that costs
 19% at T127 and 26% at T170. **The deficit is the price of emulating private
 memory inside shared memory.**
 
-So there is no cheap fix. A threaded build that WINS has to make the spectral
-state genuinely shared rather than threadprivate, which reopens the boundary the
-design closed and puts the physics back in scope. That is a different and much
-larger change than this one, and it should be decided on its own terms rather
-than entered by momentum from here.
+So there is no cheap fix inside this design. A threaded build that WINS has to
+make the spectral state genuinely shared rather than threadprivate.
 
-**And it is the plan's declared stopping condition.** SHTns needs threads, its
-own ceiling is 10 to 15%, and it cannot pay off a 26% hole. Stage 2 is not
-reachable from this footing.
+**That was done, and it is `shared-spectral-state.md`.** It did not reopen the
+physics: the staging traffic is entirely in the spectral half, which is confined
+to the dynamical core, and none of the 169 whole-array `where` statements
+touches a spectral array. Stage A shared the state and Stage B moved the
+tendency partials into the array the reduction reads. The deficit measured here,
+19% at T127 and 26% at T170, is about 5.5% and 10 to 15% after both.
+
+**The stopping condition that used to be stated here has expired on its own
+arithmetic.** It said SHTns has a ceiling of 10 to 15% and cannot pay off a 26%
+hole. The hole is no longer 26%: what is left is the same order as that ceiling
+at T170 and below it at T127. Threads are the direction the model develops
+along -- one address space is the tractable base for the optimisation work
+after this, and for the codebase over time -- and the remaining gap is a cost
+being paid down rather than a gate to clear first. `shared-spectral-state.md`
+carries the current numbers and what is next.
 
 ## What is left behind, and what it is worth
 
