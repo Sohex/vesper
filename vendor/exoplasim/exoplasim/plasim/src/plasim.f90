@@ -4328,6 +4328,9 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 
       subroutine mkdheat(zszt1,zszt2,zsdt1,zsdt2)
       use pumamod
+#ifdef OMPSHARED
+      use shtnsmod, only: sh_dv2uv, sh_sp2gp, sh_gp2sp, sh_slice
+#endif
 !
       real zszt1(NSPP,NLEV),zszt2(NSPP,NLEV)
       real zsdt1(NSPP,NLEV),zsdt2(NSPP,NLEV)
@@ -4339,11 +4342,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !     everywhere else. What is left here is genuinely per-process: the grid
 !     fields, which are this process's latitudes, and the NSPP partials.
       real zsdp(NSPP,NLEV),zszp(NSPP,NLEV),zsqp(NSPP,NLEV)
-      real zu(NHOR,NLEV),zun(NHOR,NLEV)
-      real zv(NHOR,NLEV),zvn(NHOR,NLEV)
-      real zq(NHOR,NLEV)
 !
-      real zdtdt(NHOR,NLEV),zdekin(NHOR,NLEV)
       real zsde(NSPP,NLEV)
       real zstt1(NSPP,NLEV)
       real zstt2(NSPP,NLEV)
@@ -4353,86 +4352,191 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       if (nqspec == 1) then
          zsqp(:,:)=sqp(:,:)
          call mpgallspp(zhq,zsqp,NLEV)
-         call sp2fl(zhq,zq,NLEV)
-         call fc2gp(zq,NLON,NLPP*NLEV)
+#ifdef OMPSHARED
+      if (nshtns == 1) then
+!        SHTns lands in GRID space, so sp2fl and its fc2gp both go.
+!$omp barrier
+         call sh_sp2gp(zhq, hdq_g, NLEV)
+!$omp barrier
       else
-         zq(:,:) = 0.0
+         call sp2fl(zhq,hdq,NLEV)
+         call fc2gp(hdq,NLON,NLPP*NLEV)
+      endif
+#else
+         call sp2fl(zhq,hdq,NLEV)
+         call fc2gp(hdq,NLON,NLPP*NLEV)
+#endif
+      else
+         hdq(:,:) = 0.0
       endif
       call mpgallspp(zhd,zsdp,NLEV)
       call mpgallspp(zhz,zszp,NLEV)
-      call dv2uv(zhd,zhz,zu,zv)
-      call fc2gp(zu,NLON,NLPP*NLEV)
-      call fc2gp(zv,NLON,NLPP*NLEV)
+#ifdef OMPSHARED
+      if (nshtns == 1) then
+!        One call for the pair, and it lands in grid space.
+!$omp barrier
+         call sh_dv2uv(zhd, zhz, hdu_g, hdv_g, NLEV)
+!$omp barrier
+      else
+      call dv2uv(zhd,zhz,hdu,hdv)
+      call fc2gp(hdu,NLON,NLPP*NLEV)
+      call fc2gp(hdv,NLON,NLPP*NLEV)
+      endif
+#else
+      call dv2uv(zhd,zhz,hdu,hdv)
+      call fc2gp(hdu,NLON,NLPP*NLEV)
+      call fc2gp(hdv,NLON,NLPP*NLEV)
+#endif
 !
       zsdp(:,:)=sdp(:,:)+zsdt1(:,:)*delt2
       zszp(:,:)=szp(:,:)+zszt1(:,:)*delt2
       call mpgallspp(zhd,zsdp,NLEV)
       call mpgallspp(zhz,zszp,NLEV)
-      call dv2uv(zhd,zhz,zun,zvn)
-      call fc2gp(zun,NLON,NLPP*NLEV)
-      call fc2gp(zvn,NLON,NLPP*NLEV)
+#ifdef OMPSHARED
+      if (nshtns == 1) then
+!        One call for the pair, and it lands in grid space.
+!$omp barrier
+         call sh_dv2uv(zhd, zhz, hdun_g, hdvn_g, NLEV)
+!$omp barrier
+      else
+      call dv2uv(zhd,zhz,hdun,hdvn)
+      call fc2gp(hdun,NLON,NLPP*NLEV)
+      call fc2gp(hdvn,NLON,NLPP*NLEV)
+      endif
+#else
+      call dv2uv(zhd,zhz,hdun,hdvn)
+      call fc2gp(hdun,NLON,NLPP*NLEV)
+      call fc2gp(hdvn,NLON,NLPP*NLEV)
+#endif
 !
       do jlev = 1 , NLEV
-       zu(:,jlev)=cv*zu(:,jlev)*SQRT(rcsq(:))
-       zv(:,jlev)=cv*zv(:,jlev)*SQRT(rcsq(:))
-       zun(:,jlev)=cv*zun(:,jlev)*SQRT(rcsq(:))
-       zvn(:,jlev)=cv*zvn(:,jlev)*SQRT(rcsq(:))
-       if (nqspec == 1) zq(:,jlev)=zq(:,jlev)*psurf/dp(:)
+       hdu(:,jlev)=cv*hdu(:,jlev)*SQRT(rcsq(:))
+       hdv(:,jlev)=cv*hdv(:,jlev)*SQRT(rcsq(:))
+       hdun(:,jlev)=cv*hdun(:,jlev)*SQRT(rcsq(:))
+       hdvn(:,jlev)=cv*hdvn(:,jlev)*SQRT(rcsq(:))
+       if (nqspec == 1) hdq(:,jlev)=hdq(:,jlev)*psurf/dp(:)
 
-       zdtdt(:,jlev)=-(zun(:,jlev)*zun(:,jlev)                          &
-     &                -zu(:,jlev)*zu(:,jlev)                            &
-     &                +zvn(:,jlev)*zvn(:,jlev)                          &
-     &                -zv(:,jlev)*zv(:,jlev))/deltsec2                  &
+       hddt(:,jlev)=-(hdun(:,jlev)*hdun(:,jlev)                          &
+     &                -hdu(:,jlev)*hdu(:,jlev)                            &
+     &                +hdvn(:,jlev)*hdvn(:,jlev)                          &
+     &                -hdv(:,jlev)*hdv(:,jlev))/deltsec2                  &
      &               *0.5/acpd/(1.+adv*dq(:,jlev))
       enddo
 !
-      zdtdt(:,:)=zdtdt(:,:)/ct/ww
-      call gp2fc(zdtdt,NLON,NLPP*NLEV)
+      hddt(:,:)=hddt(:,:)/ct/ww
+#ifdef OMPSHARED
+      if (nshtns == 1) then
+!        The finished field, so the reduction has nothing to add and
+!        each thread takes its slice instead.
+!$omp barrier
+         call sh_gp2sp(hddt_g, zhf1(1,1,0), NLEV)
+!$omp barrier
+         call sh_slice(zhf1(1,1,0), zstt1, NLEV)
+!$omp barrier
+      else
+      call gp2fc(hddt,NLON,NLPP*NLEV)
       do jlev=1,NLEV
-       call fc2sp(zdtdt(1,jlev),zhf1(1,jlev,mypart))
+       call fc2sp(hddt(1,jlev),zhf1(1,jlev,mypart))
       enddo
       call mpsumscp(zhf1,zstt1,NLEV)
+      endif
+#else
+      call gp2fc(hddt,NLON,NLPP*NLEV)
+      do jlev=1,NLEV
+       call fc2sp(hddt(1,jlev),zhf1(1,jlev,mypart))
+      enddo
+      call mpsumscp(zhf1,zstt1,NLEV)
+#endif
 !
       zsdp(:,:)=sdp(:,:)+zsdt2(:,:)*delt2
       zszp(:,:)=szp(:,:)+zszt2(:,:)*delt2
       call mpgallspp(zhd,zsdp,NLEV)
       call mpgallspp(zhz,zszp,NLEV)
-      call dv2uv(zhd,zhz,zun,zvn)
-      call fc2gp(zun,NLON,NLPP*NLEV)
-      call fc2gp(zvn,NLON,NLPP*NLEV)
+#ifdef OMPSHARED
+      if (nshtns == 1) then
+!        One call for the pair, and it lands in grid space.
+!$omp barrier
+         call sh_dv2uv(zhd, zhz, hdun_g, hdvn_g, NLEV)
+!$omp barrier
+      else
+      call dv2uv(zhd,zhz,hdun,hdvn)
+      call fc2gp(hdun,NLON,NLPP*NLEV)
+      call fc2gp(hdvn,NLON,NLPP*NLEV)
+      endif
+#else
+      call dv2uv(zhd,zhz,hdun,hdvn)
+      call fc2gp(hdun,NLON,NLPP*NLEV)
+      call fc2gp(hdvn,NLON,NLPP*NLEV)
+#endif
 !
       do jlev = 1 , NLEV
-       zun(:,jlev)=cv*zun(:,jlev)*SQRT(rcsq(:))
-       zvn(:,jlev)=cv*zvn(:,jlev)*SQRT(rcsq(:))
-       zdekin(:,jlev)=(zun(:,jlev)*zun(:,jlev)                          &
-     &                -zu(:,jlev)*zu(:,jlev)                            &
-     &                +zvn(:,jlev)*zvn(:,jlev)                          &
-     &                -zv(:,jlev)*zv(:,jlev))/deltsec2                  &
+       hdun(:,jlev)=cv*hdun(:,jlev)*SQRT(rcsq(:))
+       hdvn(:,jlev)=cv*hdvn(:,jlev)*SQRT(rcsq(:))
+       hdek(:,jlev)=(hdun(:,jlev)*hdun(:,jlev)                          &
+     &                -hdu(:,jlev)*hdu(:,jlev)                            &
+     &                +hdvn(:,jlev)*hdvn(:,jlev)                          &
+     &                -hdv(:,jlev)*hdv(:,jlev))/deltsec2                  &
      &               *dp(:)/ga*dsigma(jlev)   
       enddo
-      call gp2fc(zdekin,NLON,NLPP*NLEV)
+#ifdef OMPSHARED
+      if (nshtns == 1) then
+!        The finished field, so the reduction has nothing to add and
+!        each thread takes its slice instead.
+!$omp barrier
+         call sh_gp2sp(hdek_g, zhef(1,1,0), NLEV)
+!$omp barrier
+         call sh_slice(zhef(1,1,0), zsde, NLEV)
+!$omp barrier
+      else
+      call gp2fc(hdek,NLON,NLPP*NLEV)
       do jlev=1,NLEV
-       call fc2sp(zdekin(1,jlev),zhef(1,jlev,mypart))
+       call fc2sp(hdek(1,jlev),zhef(1,jlev,mypart))
       enddo
       call mpsumscp(zhef,zsde,NLEV)
+      endif
+#else
+      call gp2fc(hdek,NLON,NLPP*NLEV)
+      do jlev=1,NLEV
+       call fc2sp(hdek(1,jlev),zhef(1,jlev,mypart))
+      enddo
+      call mpsumscp(zhef,zsde,NLEV)
+#endif
       call mpgallspp(zhe,zsde,NLEV)
 !     Only the global mean survives, and zhe is one array the whole team reads,
 !     so the clear goes slice by slice rather than whole-array from every
 !     thread. mpzerosp is that, and on the MPI build it is the plain statement
 !     it replaces.
       call mpzerosp(zhe,2,NLEV)
-      call sp2fl(zhe,zdekin,NLEV)
-      call fc2gp(zdekin,NLON,NLPP*NLEV)
+      call sp2fl(zhe,hdek,NLEV)
+      call fc2gp(hdek,NLON,NLPP*NLEV)
       do jlev=1,NLEV
-       zdtdt(:,jlev)=-zdekin(:,jlev)                                    &
+       hddt(:,jlev)=-hdek(:,jlev)                                    &
      &           *0.5/acpd/(1.+adv*dq(:,jlev))/dp(:)*ga/dsigma(jlev) 
       enddo
-      zdtdt(:,:)=zdtdt(:,:)/ct/ww
-      call gp2fc(zdtdt,NLON,NLPP*NLEV)
+      hddt(:,:)=hddt(:,:)/ct/ww
+#ifdef OMPSHARED
+      if (nshtns == 1) then
+!        The finished field, so the reduction has nothing to add and
+!        each thread takes its slice instead.
+!$omp barrier
+         call sh_gp2sp(hddt_g, zhf2(1,1,0), NLEV)
+!$omp barrier
+         call sh_slice(zhf2(1,1,0), zstt2, NLEV)
+!$omp barrier
+      else
+      call gp2fc(hddt,NLON,NLPP*NLEV)
       do jlev=1,NLEV
-       call fc2sp(zdtdt(1,jlev),zhf2(1,jlev,mypart))
+       call fc2sp(hddt(1,jlev),zhf2(1,jlev,mypart))
       enddo
       call mpsumscp(zhf2,zstt2,NLEV)
+      endif
+#else
+      call gp2fc(hddt,NLON,NLPP*NLEV)
+      do jlev=1,NLEV
+       call fc2sp(hddt(1,jlev),zhf2(1,jlev,mypart))
+      enddo
+      call mpsumscp(zhf2,zstt2,NLEV)
+#endif
 !
 !     energy diagnostics
 !
@@ -4445,29 +4549,29 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !     values. zsde is dead from the reduction above and is the right shape.
        zsde(:,:)=zstt1(:,:)*ct*ww
        call mpgallspp(zhd,zsde,NLEV)
-       call sp2fl(zhd,zdtdt,NLEV)
-       call fc2gp(zdtdt,NLON,NLPP*NLEV)
+       call sp2fl(zhd,hddt,NLEV)
+       call fc2gp(hddt,NLON,NLPP*NLEV)
        denergy(:,23)=0.
        do jlev=1,NLEV
         denergy(:,23)=denergy(:,23)                                     &
-     &               +zdtdt(:,jlev)                                     &
+     &               +hddt(:,jlev)                                     &
      &               *acpd*(1.+adv*dq(:,jlev))*dp(:)/ga*dsigma(jlev)
         if(nener3d > 0) then
-         dener3d(:,jlev,23)=zdtdt(:,jlev)                               &
+         dener3d(:,jlev,23)=hddt(:,jlev)                               &
      &                   *acpd*(1.+adv*dq(:,jlev))*dp(:)/ga*dsigma(jlev)
         endif
        enddo
        zsde(:,:)=zstt2(:,:)*ct*ww
        call mpgallspp(zhd,zsde,NLEV)
-       call sp2fl(zhd,zdtdt,NLEV)
-       call fc2gp(zdtdt,NLON,NLPP*NLEV)
+       call sp2fl(zhd,hddt,NLEV)
+       call fc2gp(hddt,NLON,NLPP*NLEV)
        denergy(:,25)=0.
        do jlev=1,NLEV
         denergy(:,25)=denergy(:,25)                                     &
-     &               +zdtdt(:,jlev)                                     &
+     &               +hddt(:,jlev)                                     &
      &               *acpd*(1.+adv*dq(:,jlev))*dp(:)/ga*dsigma(jlev)
         if(nener3d > 0) then
-         dener3d(:,jlev,25)=zdtdt(:,jlev)                               &
+         dener3d(:,jlev,25)=hddt(:,jlev)                               &
      &                   *acpd*(1.+adv*dq(:,jlev))*dp(:)/ga*dsigma(jlev)
         endif
        enddo

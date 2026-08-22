@@ -478,6 +478,19 @@
       real, target :: gvq_g(NUGP,NLEV) = 0. ! v*q, whole globe
       real, target :: gvpp_g(NUGP) = 0. ! vertical integral of div, whole globe
 
+!     mkdheat's grid scratch. It calls dv2uv three times a timestep and runs
+!     every one -- ndheat defaults to 1 -- so it is the last hot legmod caller,
+!     and SHTns cannot be handed a band. These were (NHOR,NLEV) locals, which is
+!     also 18.7 MB of stack a thread at T170 that CLIM-57 left behind when it
+!     moved the SPECTRAL arrays out; the total across the team is unchanged.
+      real, target :: hdu_g(NUGP,NLEV)  = 0. ! wind before, whole globe
+      real, target :: hdv_g(NUGP,NLEV)  = 0.
+      real, target :: hdun_g(NUGP,NLEV) = 0. ! wind after, whole globe
+      real, target :: hdvn_g(NUGP,NLEV) = 0.
+      real, target :: hdq_g(NUGP,NLEV)  = 0. ! humidity, whole globe
+      real, target :: hddt_g(NUGP,NLEV) = 0. ! heating rate, whole globe
+      real, target :: hdek_g(NUGP,NLEV) = 0. ! kinetic energy change, whole globe
+
       real, pointer :: gd(:,:) => NULL() ! divergence
       real, pointer :: gt(:,:) => NULL() ! temperature (-t0)
       real, pointer :: gz(:,:) => NULL() ! absolut vorticity
@@ -499,6 +512,13 @@
       real, pointer :: guq(:,:) => NULL() ! u*q
       real, pointer :: gvq(:,:) => NULL() ! v*q
       real, pointer :: gvpp(:) => NULL() ! vertical integral of divergence
+      real, pointer :: hdu(:,:)  => NULL() ! mkdheat wind before
+      real, pointer :: hdv(:,:)  => NULL()
+      real, pointer :: hdun(:,:) => NULL() ! mkdheat wind after
+      real, pointer :: hdvn(:,:) => NULL()
+      real, pointer :: hdq(:,:)  => NULL()
+      real, pointer :: hddt(:,:) => NULL()
+      real, pointer :: hdek(:,:) => NULL()
 #else
       real :: gtn(NHOR,NLEV)  = 0. ! t nonlinear term
       real :: gqn(NHOR,NLEV)  = 0. ! q nonlinear term
@@ -510,6 +530,13 @@
       real :: guq(NHOR,NLEV)  = 0. ! u*q
       real :: gvq(NHOR,NLEV)  = 0. ! v*q
       real :: gvpp(NHOR)      = 0. ! vertical integral of divergence
+      real :: hdu(NHOR,NLEV)  = 0. ! mkdheat wind before
+      real :: hdv(NHOR,NLEV)  = 0.
+      real :: hdun(NHOR,NLEV) = 0. ! mkdheat wind after
+      real :: hdvn(NHOR,NLEV) = 0.
+      real :: hdq(NHOR,NLEV)  = 0.
+      real :: hddt(NHOR,NLEV) = 0.
+      real :: hdek(NHOR,NLEV) = 0.
       real :: gd(NHOR,NLEV)   = 0. ! divergence
       real :: gt(NHOR,NLEV)   = 0. ! temperature (-t0)
       real :: gz(NHOR,NLEV)   = 0. ! absolut vorticity
@@ -922,6 +949,7 @@
 !$omp&  dtrop,dtsa,dtsoil,dttl,dttrp,du,du0,dudt,dust3,dv,dv0,dvdt,dw,dwatc,dwmax,dz0,eccen,&
 !$omp&  efficiency_dat,evap,filterkappa,fixedlon,fluxmod_namelist,frcmod,g,ga,gascon,gd,gp,gpi,&
 !$omp&  gpimax,gpj,gq,gqdt,gqn,gtn,gut,gvt,guz,gvz,gke,guq,gvq,gvpp,&
+!$omp&  hdu,hdv,hdun,hdvn,hdq,hddt,hdek,&
 !$omp&  gt,gtdt,gu,gudt,guiinc,guimax,guimin,gv,gvdt,gwd,gz,&
 !$omp&  hcendstep,hcinterval,&
 !$omp&  hcstartstep,ice_output,icemod_namelist,kick,l_aero,laav,laavmax,landhoskn0,landmod_namelist,&
@@ -1022,6 +1050,13 @@
       guq  => guq_g(lo:hi,:)
       gvq  => gvq_g(lo:hi,:)
       gvpp => gvpp_g(lo:hi)
+      hdu  => hdu_g(lo:hi,:)
+      hdv  => hdv_g(lo:hi,:)
+      hdun => hdun_g(lo:hi,:)
+      hdvn => hdvn_g(lo:hi,:)
+      hdq  => hdq_g(lo:hi,:)
+      hddt => hddt_g(lo:hi,:)
+      hdek => hdek_g(lo:hi,:)
 #endif
       return
       end subroutine assoc_grid
