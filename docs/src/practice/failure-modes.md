@@ -944,3 +944,44 @@ a pointer; replace announced tension with the decision procedure that
 resolves it; fence an exception with the condition that licenses it; convert
 an open loop to a task row or delete it; make tool output state what it is
 and is not.
+
+## 31. A structure that can carry variation, holding one value
+
+An array whose index IS a physical dimension -- spectral band, layer, size
+class, phase -- initialised from a scalar, so every element holds the same
+number. The declaration says the quantity varies along that dimension and the
+value says it does not, and the declaration is what a reader sees first.
+
+`plasimmod.f90` carries seven of these at once: `dsnowalbmx(2) = 0.8`,
+`dsnowalbmn(2) = 0.4`, `dglacalbmn(2) = 0.6`, `dicealbmx(2) = 0.7`,
+`dicealbmn(2) = 0.5`, `doceanalb(2) = 0.069` and `dsnowalb(2) = 0.6`. Two of
+them are commented "spectral weighted" while holding one value in both bands:
+the comment asserts precisely what the value denies. ECOGEM's `k_w` and
+`k_chl` are the same shape in the ocean, a single attenuation coefficient for a
+process that is strongly wavelength dependent.
+
+**What makes this worse than a plain inherited constant is that it disables a
+correct fix made elsewhere, silently.** A two-band scheme carries a star's
+spectral shape by moving flux BETWEEN the bands. Moving flux between two equal
+numbers changes nothing. So adopting a measured stellar spectrum -- which was
+right, and which moved the band-1 share from 0.556 to 0.406 -- did exactly
+nothing for snow, glacier ice or sea ice, and nothing failed, and nothing said
+so. The one surface that had been repaired, vegetation, is the one that
+responded.
+
+It defeats every check this project runs. Dimensions are right. Units are
+right. Provenance is right. The value is defensible as a broadband mean, and
+under the Sun it reproduces the intended answer to within 0.016, which is why it
+survived. It is wrong only in a dimension nothing was inspecting.
+
+**The test is one line and mechanical.** For any array whose index is a physical
+dimension, ask whether its elements differ. If they do not, either the variation
+is genuinely absent -- which is a claim, and belongs in a comment as one -- or
+the structure is decorative and the machinery built to consume it is a no-op.
+
+The cost history is `notes/external-model-survey.md` section 11 and PHYS-14.
+The vegetation instance was found and repaired; the other six were not, and five
+of them are wrong by 0.038 to 0.069 in the direction that weakens the
+ice-albedo feedback at the cold end. `notes/audits/inherited-earth-constants.md`
+is the neighbouring class: there the constant has no structure around it at all,
+so nothing pretends the variation is handled.
