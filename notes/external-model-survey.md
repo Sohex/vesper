@@ -3388,3 +3388,135 @@ The hydraulic figure is a ceiling on the GRAVITATIONAL component of xylem
 tension alone. Real tension at the top of a transpiring tree also carries
 frictional path resistance, so the true ceiling is lower than `abs(psi_crit)/(rho_w*g)`
 in both cases -- which lowers both columns without changing either exponent.
+
+
+## 42. CLIMBER-X's methane: a lifetime with no chemistry, and a conversion made of Earth
+
+*Read 2026-08-22 from `references/climber-x/src/ch4/`, `src/lnd/` and
+`src/atm/lwr.f90`. The three headline numbers below were re-read directly rather
+than taken on report.*
+
+### 42a. The lifetime is a scalar, and one of five prescriptions is reusable
+
+There is no atmospheric chemistry. Methane is a single global box and its
+lifetime is `ch4%tau` in years, selected by `i_ch4_tau` at
+`src/ch4/ch4_model.f90:113-185`: a constant 9.5 years by default; a burden power
+law `tau_const*(ch4/ch4_ref)**0.24`; the same on a relaxed burden; an annual
+series read from a MAGICC-derived file; or route 5, the only quasi-mechanistic
+one:
+
+    tau_oh_0 = 1/(1/tau_int - 1/tau_cl - 1/tau_strat - 1/tau_soil)
+    d_oh     = log(ch4/1056)*oh_k_ch4 + emi_NOx*oh_k_NOx + emi_CO*oh_k_CO + emi_VOC*oh_k_VOC
+    tau_oh   = tau_oh_0/(d_oh_rel + (t2m_glob_ann - 286.83)*tau_oh_tempsens)
+    tau      = 1/(1/tau_oh + 1/tau_cl + 1/tau_soil + 1/tau_strat)
+
+**That is a shape BVOC-6 can take and a set of numbers it cannot.** Reciprocal
+lifetimes added over four sinks, with OH represented by a fitted log-linear
+surrogate in the burden and three precursor emissions plus a linear temperature
+term. It is a surrogate FOR OH, not OH. The anchors are two independent Earth
+baselines -- 1056 ppb and 286.83 K, both labelled 1927 in the source, and neither
+equal to `ch4_ref = 700` ppb which serves as the pre-industrial reference
+elsewhere. Note that `ch4_ref` does two unrelated jobs: it is the radiative
+reference in `src/atm/lwr.f90` AND the denominator of the power law at `:122`.
+
+### 42b. The conversion from mass to concentration is made of Earth
+
+`src/ch4/ch4_model.f90:40` sets `kgCH4_to_ppb = 1/2.7476e-9`, and the comment
+above it derives the figure from **Earth's atmospheric mass, 5.1480e18 kg**,
+before noting that the value actually used is the IPCC one from Prather et al.
+(2012). Both are Earth's.
+
+This matters beyond a port, because **any box-model methane budget this project
+builds needs the same factor**, and it is not a plant or a soil property -- it is
+the planet. Column mass per unit area is `P/g` and total mass is that over
+`4*pi*R^2`, so with this world's 1 bar summed from `planet.yaml`'s partial
+pressures, 1.20 Earth radii and 12.81 m/s2:
+
+| | atmospheric mass | Tg CH4 per ppb |
+| --- | ---: | ---: |
+| Earth, `P*4*pi*R^2/g` | 5.268e18 kg | 2.7476 |
+| Vesper, same method | 5.734e18 kg | **2.990** |
+| ratio | 1.088 | 1.088 |
+
+**A given source in Tg/yr produces about 92 percent of the ppb here that it
+would on Earth.** The same rescaling applies to N2O and CO2, whose modules carry
+their own Earth-derived factors at `src/n2o/n2o_model.f90:39` and
+`src/co2/co2_model.f90:43`. CLIMBER-X's cited 5.1480e18 kg is 2.3 percent below
+the simple estimate above, because global mean surface pressure is below
+sea-level pressure over land; the ratio is unaffected since both columns use one
+method.
+
+### 42c. One tuned number for two reservoirs, outside the published range for both
+
+The land source is a fraction of soil respiration, temperature-modulated per
+layer with `q10_ch4 = 1.8` referenced to 295 K. The fractions themselves,
+`nml/lnd_par.nml:236-238`, are where this bears on WET-6:
+
+    ch4_frac_wet  = 0.082  ! Riley 2011 0.2, Spahni 2011 range 0.024-0.0415
+    ch4_frac_peat = 0.082  ! Spahni 2011 range 0.2-0.25
+
+**The same tuned value covers both reservoirs, and it sits outside the cited
+published range for each -- above the wetland range and below the peat range.**
+The published values say peat and wetland fractions differ by roughly five to
+ten times; this model collapses them to one number and records the departure in
+its own namelist comment.
+
+WET-6 exists to separate methane production from globally tuned respiration
+ratios. This is an independent instance of exactly that defect, which raises the
+row's evidence from one model to two, and the comments supply a starting bracket
+that is defensible because it is published rather than invented: roughly
+0.024-0.0415 for wetlands and 0.2-0.25 for peat, on Spahni's numbers.
+
+The peat path does carry an oxic/anoxic split the wetland path does not:
+`f_oxic_peat = w_table_peat/acro_h`, so acrotelm above the water table oxidises
+and catotelm does not.
+
+### 42d. Wetland extent needs a compound topographic index -- which GW-26 is building
+
+All three wetland-fraction schemes at `src/lnd/surface_hydro.f90:565-613` key off
+a per-gridcell compound topographic index: SIMTOP as
+`f_sat = f_wet_max*exp(-f_wtab*w_table)`, DYPTOP as a fitted four-parameter
+curve, or a CTI-CDF lookup. **GW-26 is computing exactly that index**, and this
+is a third independent implementation consuming it, after PALADYN and
+ClimaLand's SIMTOP in section 36.
+
+Two constraints ride along. `cti_mean_crit = 5.5` is a threshold below which no
+wetland forms, so the index needs an absolute calibration and not just a
+ranking. And peat potential is computed from a **thirty-year inundation memory** --
+`nmonwet = nmon_year*30` at `src/lnd/lnd_params.f90:379`, a 360-month ring buffer
+-- so a peat fraction cannot be spun up from one model year. That is a spin-up
+cost WET-2 and WET-11 should carry.
+
+### 42e. Time constants, and a comment that is wrong on its face
+
+`src/main/timer.f90:44-55` fixes `nday_year = 360` and `sec_year = 31556926`,
+the Julian year, then defines
+
+    sec_day = sec_year / day_year   ! 8.765813d4, actual seconds per day
+
+**87658 seconds, and the comment calls it the actual seconds per day.** It is
+not; it is a Julian year divided into 360 parts. Every per-day rate in this model
+is per 1/360 of a Julian year, 1.5 percent longer than a day.
+
+That is a **third** distinct time convention across the trees read here, after
+cGENIE's compile-time `conv_yr_d = 365.25` and the separate hardcoded `3.15e7`
+in its sediment module. Three models, three answers, none configurable, and in
+this case a comment that actively misdirects.
+
+### 42f. What is absent, and one structural limit
+
+- **No ocean methane.** `src/main/coupler.f90:2115` sets the ocean flux to a
+  literal zero. Not a stub -- there is nothing to enable.
+- **No BVOC producer.** The VOC term in route 5 is a prescribed anthropogenic
+  emission series read from file. BVOC-6 gets a consumption interface from this
+  and no source.
+- **Ozone is a boundary condition, never an oxidant.** `src/bnd/o3.f90` reads a
+  prescribed CMIP6 field used only for longwave absorption.
+- **The equivalent-CO2 collapse is structural, not cosmetic.**
+  `src/atm/lwr.f90:185-196` implements Etminan et al. (2016) Table 1 and reduces
+  every greenhouse gas to a single `co2e` before the transfer code sees
+  anything. So there is **no path in this model to give methane its own band
+  under a different stellar spectrum.** Worth being precise about why it does
+  not transfer: the expression is longwave-only, so the K dwarf is not the
+  problem -- Earth's pressure broadening and band overlap are. Any methane
+  radiative treatment here has to come from ExoPlaSim's own band structure.
