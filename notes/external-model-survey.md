@@ -180,8 +180,9 @@ integrated honestly instead.
 
 ### 3d. The code is reachable, and the licence is clean
 
-CLIMBER-X is public at `cxesmc/climber-x` under GPL-3.0, with PALADYN in
-`climber-x/src/lnd/`. The tree has moved past the 2016 paper: lakes are implemented where
+CLIMBER-X is public at `cxesmc/climber-x` under GPL-3.0-or-later, and a pinned
+extraction is held locally at `references/climber-x/`, with PALADYN in
+`references/climber-x/src/lnd/`. `references/INDEX.md` records the revision. The tree has moved past the 2016 paper: lakes are implemented where
 the paper calls them a placeholder, and there is now `weathering.f90`,
 `dust_emis.f90`, `n2o_emis.f90` and water isotopes.
 
@@ -257,12 +258,12 @@ WET-12 carries the declaration and the condition for taking each part.
 ### 3f. Three more CLIMBER-X modules, and one of them fills the hole section 4 leaves
 
 PALADYN is one directory of `cxesmc/climber-x`. Three of its neighbours matter
-here, and the licence position of section 3d covers all of them. Paths below
-are in THAT repository and not in this one, which is why they are written with
-the `climber-x/` prefix: a bare `src/` in this tree reads as `docs/src/`, and
-`source/` is the Orogen exports directory that rule 7 governs.
+here, and the licence position of section 3d covers all of them. Paths below are on
+disk under `references/climber-x/` and are written in full: a bare `src/` in
+this tree reads as `docs/src/`, and `source/` is the Orogen exports directory
+that rule 7 governs.
 
-**`climber-x/src/smb` is a surface energy and mass balance model, and it is the answer to
+**`references/climber-x/src/smb` is a surface energy and mass balance model, and it is the answer to
 what section 4 refuses.** MITgcmIS's Positive Degree Day scheme is rejected
 below because it drives ablation from 2 m air temperature alone. SEMI is the
 opposite kind of object. Its interface takes surface albedo and downward
@@ -293,7 +294,7 @@ Two things in it do not transfer. Every constant is a PHYS-class inheritance,
 and `smb_bias_corr.f90` is a bias correction against Earth observations, which
 has no meaning on a world with none.
 
-**`climber-x/src/ch4` is a reduced atmospheric methane model, and WET-10 has a floor after
+**`references/climber-x/src/ch4` is a reduced atmospheric methane model, and WET-10 has a floor after
 all.** `ch4_model.f90` is 12 kB and is a partitioned-lifetime box: separate
 tropospheric OH, chlorine, soil and stratospheric sink timescales, an OH
 temperature sensitivity, and OH sensitivities to CO, NOx and VOC precursors,
@@ -309,7 +310,7 @@ the same calculation an OH field would come out of. So WET-10's oxidant and
 lifetime half has a reduced form available in shape, with the coefficients as
 the work.
 
-**`climber-x/src/sic` is dynamic-thermodynamic sea ice**, `sic_dyn.f90` and
+**`references/climber-x/src/sic` is dynamic-thermodynamic sea ice**, `sic_dyn.f90` and
 `transport_sic.f90`, against this project's thermodynamic-only scheme.
 BIG-MITgcm names excessive ice as the consequence of the configuration this
 stack also runs, so the term is not free. It is nevertheless BLOCKED rather than
@@ -338,8 +339,9 @@ years to reach that steady state.
 shallow-ice with Glen's law at n = 3, neglecting basal sliding, calving and
 basal melt as unresolvable at that resolution, and it costs about 1 CPU-hour per
 40,000 years. It also carries LLRA isostatic adjustment and lapse-rate,
-freshwater and sea-level corrections. The code is on Zenodo at
-`10.5281/zenodo.18723952`. So ice sheet flow is a small component rather than a
+freshwater and sea-level corrections. The code is on Zenodo at `10.5281/zenodo.18723952` and is held locally at
+`references/big-mitgcm/`, where `MITgcmIS.py` is the whole ice sheet model in
+557 lines; its gigabyte of simulation output was not fetched. So ice sheet flow is a small component rather than a
 large one, which is the useful correction to make.
 
 The FLOW half is worth taking and would not be ported. Equation 4 is
@@ -458,6 +460,17 @@ this machine's arithmetic. CliMA is the existence proof of the other answer,
 which is to design for GPUs from the first line and treat mixed precision as a
 modelling decision. That is a rewrite rather than an optimisation and is not on
 this project's table.
+
+**Surveying the other EMICs' source.** LOVECLIM, UVic ESCM and Bern3D were
+compared on cost and component list and their source was not opened. That is
+deliberate rather than unfinished: the value in CLIMBER-X is concentrated in its
+LAND SURFACE, which is the one place an EMIC could be ahead of this project, and
+those three are weaker there than CLIMBER-X by construction. LOVECLIM's
+vegetation is VECODE at two plant functional types, and UVic and Bern3D pair
+energy-moisture-balance atmospheres with land schemes simpler still. Where they
+lead is ocean biogeochemistry, and OCN-3 and OCN-4 already own that question
+with cGENIE and ECOGEM named. Reopening this needs a reason from a specific
+open row, not a second sweep.
 
 **Vendoring PALADYN whole.** A fourth subtree is a maintenance commitment, and
 the Earth configuration inside it is the OCN-12 problem in a new place: uniform
