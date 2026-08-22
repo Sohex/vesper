@@ -2629,44 +2629,61 @@ and LSHY-4 is scoped to close the loop; ENTS shows that an EMIC-class closure of
 it is three algebraic functions of two carbon pools, not a land-surface model.
 
 
-## 33. The moisture-stress bracket is a published three-parameter family
+## 33. Egea's family is the shape vocabulary -- but it limits a different flux
 
-*Read 2026-08-22, following section 32. ClimaLand carries the same limiter as a
-selectable model, and the general form contains both endpoints found there.*
+*Read 2026-08-22, following section 32, and CORRECTED against the paper itself
+after `paperfetch` retrieved it. The first reading of this had the algebra right
+and the physics wrong.*
 
-`src/standalone/Vegetation/soil_moisture_stress.jl` offers three:
+`src/standalone/Vegetation/soil_moisture_stress.jl` offers three models:
+`NoMoistureStressModel` with beta = 1; `TuzetMoistureStressModel`, a sigmoid in
+leaf water potential needing plant hydraulics; and
+`PiecewiseMoistureStressModel`, cited to **Egea et al. (2011)**:
 
-- `NoMoistureStressModel`: beta = 1 always.
-- `PiecewiseMoistureStressModel`, cited to **Egea et al. (2011)**,
-  doi 10.1016/j.agrformet.2011.05.019:
+    beta = min(1, max((theta - theta_low)/(theta_high - theta_low), 0) ** c)
 
-      beta = min(1, max((theta - theta_low)/(theta_high - theta_low), 0) ** c)
+### 33a. It is not the same beta
 
-- `TuzetMoistureStressModel`, a sigmoid in LEAF WATER POTENTIAL rather than in
-  soil moisture, which needs plant hydraulics to evaluate.
+That form is algebraically identical to section 32's two limiters, and it is
+tempting to call ExoPlaSim `c = 1` and ENTS `c = 4` in one family. **They limit
+different fluxes**, and the paper says so in its own title: "water stress in
+coupled photosynthesis-stomatal conductance models".
 
-**Section 32's two-point bracket is two points in the Egea family.** With
-`theta_low = 0`:
+- ClimaLand's `betam` multiplies PHOTOSYNTHESIS. `photosynthesis_farquhar.jl:335`
+  and `pmodel.jl:450` apply it to the carbon rate, and
+  `stomatalconductance.jl:141` notes it is "applied to `An` already, so it is not
+  applied again here". It is evaluated on ROOT-ZONE AVERAGED soil moisture,
+  weighted by root distribution over `canopy.biomass.rooting_depth`,
+  `soil_canopy_root_interactions.jl:185-193`.
+- ExoPlaSim's `drhs` and ENTS's `beta` multiply the SURFACE EVAPORATION FLUX
+  directly, over vegetated and bare ground alike, from a surface store with no
+  root weighting.
 
-| model | theta_high | c |
-| --- | --- | --- |
-| ExoPlaSim `landmod.f90:418` | `drhsfull * wsmax`, i.e. 0.4 of capacity | 1 |
-| ENTS `surflux.F:1334` | `bcap`, full capacity | 4 |
+So the three parameters are a good shape vocabulary for a limiter and the axes
+are the right axes, but Egea et al. is not a citation for the bare-soil
+evaporation case and must not be used as one.
 
-So the disagreement is not two rival schemes but two corners of one
-parameterisation, on the two axes it exposes. That matters for LSHY-3: a
-replacement column implementing the Egea form recovers BOTH existing behaviours
-as parameter choices, which turns the bracket into a runtime selection rather
-than a code fork, and matches the project's standing preference for bracketing
-over choosing.
+### 33b. The structural point the comparison actually supports
 
-**And it exposes a third axis both models pin at zero.** ClimaLand names
-`theta_low` the wilting point or residual water fraction, and requires
-`theta_high > theta_low` to lie above the residual water content. ExoPlaSim and
-ENTS both have `theta_low = 0` implicitly: their limiters approach zero
-evaporation only as the store itself approaches zero, so soil water held below
-the wilting point is still available to evaporate. Neither model can represent
-water the soil holds too tightly to give up.
+ClimaLand needs TWO limiters where ExoPlaSim and ENTS have one. Soil water
+supply is handled in the soil hydraulics; the canopy carries its own moisture
+stress on root-zone moisture; and the two are separate objects. The single
+lumped surface beta in the other two models is doing both jobs at once, on a
+store with no depth.
+
+That is exactly what `scripts/error_budget.py` records as structural -- "no
+stomatal or LAI control and no rooting depth" -- and it now has a concrete
+reference implementation to be priced against rather than a description.
+
+### 33c. The third axis, which survives the correction
+
+`theta_low` is named the wilting point or residual water fraction, and ClimaLand
+requires `theta_high > theta_low` to sit above the soil's residual water
+content. ExoPlaSim and ENTS both have it at zero in their own limiters: each
+approaches zero flux only as its store approaches empty, so water held below the
+wilting point is still available to be removed. That holds whichever flux the
+limiter is attached to, and it is a real axis for LSHY-3 independent of the
+scope confusion above.
 
 ## 34. Anoxia: computed from air-filled porosity, or switched on by latitude
 
