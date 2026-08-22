@@ -581,6 +581,72 @@ cheap makes it easy to run the loop before its exit predicate has been declared.
 either runs under Octave is unverified, and it is a host question before it is a
 modelling one.
 
+### 9g. 36 x 36 x 16 is a convention, and the connector is not what caps it
+
+The published coupling regrids onto 36 x 36 with 16 levels, which reads like a
+design point of the connector. It is not. Across the 547 configurations shipped
+with v0.9.50:
+
+| resolution | configs |
+| --- | ---: |
+| 36 x 36 x 16 | 376 |
+| 18 x 18 x 16 | 65 |
+| 36 x 36 x 17 | 58 |
+| 36 x 36 x 8 | 22 |
+| 18 x 18 x 8 | 15 |
+| 12 x 12 x 8 | 4 |
+| 48 x 40 x 16 | 2 |
+| 36 x 36 x 32 | 1 |
+
+A non-square higher horizontal grid and a doubled vertical grid both exist as
+working configurations. `maxi`, `maxj` and `maxk` are preprocessor defines
+(`ocean.cmn:32-33`) that muffingen writes into the build options
+(`muffingen.m:1580-1584`), and `par_dsc` sets maximum depth from the namelist.
+The grid is genuinely parametric and 36 x 36 x 16 is what 376 configurations
+happen to use.
+
+**What caps it is the ocean component, not the regridder.**
+
+- **It is serial.** Every OpenMP directive in the tree is commented out:
+  `tstepo.F:74` reads `c!$omp parallel`, `biogem.f90:718` and `:749` are
+  commented the same way, and `genie.F:484` is inside a `c$$$` block. The
+  single-core costs in 9a are therefore not a choice about how the runs were
+  configured, and there are no cores to spend on a finer grid.
+- **The barotropic solve runs every ocean timestep and scales badly.**
+  `invert` factorises the streamfunction matrix once at
+  `initialise_goldstein.F:1761`, but `ubarsolv` is called from `goldstein.F:429`
+  each step, and it is a forward elimination and a back substitution over the
+  banded factors: each is an outer loop of `imax*(jmax+1)` with an inner width
+  of at most `imax+1`. Under uniform horizontal refinement by a factor r that is
+  r^3 per call, and the band storage `gap(mpxi*mpxj, 2*mpxi+3)` grows as r^3 with
+  it. The one-off factorisation is worse, roughly r^4.
+- **The timestep is a namelist integer, not a stability result.**
+  `initialise_goldstein.F:515` sets `tv = sodaylen*yearlen/(nyear*tsc)` and
+  assigns it uniformly to every level; `nyear` defaults to 100. There is no
+  Courant number, no stability test and no diagnostic anywhere in the component,
+  and the source's own comment at `tstipo.F:24` says the variable-timestep option
+  "prevents convergence and obscures instabilities". Refining the grid means
+  raising `nyear` by hand, which multiplies the per-year cost by a further factor
+  of about r, and forgetting to raise it produces an unstable run rather than a
+  complaint.
+
+Taken together the barotropic cost per model year goes roughly as r^4 on one
+core. Doubling to 72 x 72 is therefore of order 16x, which turns 9a's 24 to 48
+hours into something between two and four weeks for the same 20,000-year
+spin-up. **That estimate is read off the loop structure and is NOT a
+measurement**, which is exactly why OCN-3 asks for wall clock on this machine:
+the tier's whole attraction is its price, and its price is a property of
+36 x 36 rather than of the model.
+
+Two further ceilings are worth knowing before anyone tries.
+`GOLDSTEINMAXISLES` defaults to 10 (`ocean.cmn:24-25`) and caps the island
+count at compile time, while a finer coastline resolves more islands, so
+muffingen's `.paths` and `.psiles` generation is the part of the connector that
+genuinely does need checking at higher resolution. And `dt` is derived from
+`sodaylen` and `yearlen`, so adopting this world's calendar changes the absolute
+ocean timestep at fixed `nyear` before any grid change is considered, with
+nothing in the component checking the result.
+
 ## 10. What this audit did NOT establish
 
 Recorded so the next reader knows the edges.
@@ -597,6 +663,14 @@ Recorded so the next reader knows the edges.
   `rsc` and `gsc` feed derived scale factors, and whether the
   frictional-geostrophic closure and its Earth-fitted transport parameters
   survive 1.20 radii is unanswered and is OCN-12's to answer.
+- Section 9g's r^4 cost growth is an estimate from the shape of `ubarsolv`'s
+  loops, not a timing. No cGENIE configuration has been compiled or run here at
+  any resolution, and the two to four week figure for a 72 x 72 spin-up should be
+  treated as an order of magnitude that OCN-18 exists to replace.
+- Nothing here checks what muffingen produces above 36 x 36. That it CAN write
+  larger dimensions is read from `muffingen.m:1580-1584`; whether the island and
+  path generation stays correct there is unknown, and so is whether the tool runs
+  outside MATLAB.
 - The wind-stress scaling in the published ExoPlaSim coupling, 2.0 or 2.6
   depending on the atmosphere's version, is recorded as a knob that has to be
   explained. What physical quantity it stands in for has NOT been determined,
@@ -617,10 +691,10 @@ Recorded so the next reader knows the edges.
 
 ## Tasks
 
-OCN-1 through OCN-17 in `TASKS.md`. Findings 1, 2, 5a, 5b and 5c are the
+OCN-1 through OCN-18 in `TASKS.md`. Findings 1, 2, 5a, 5b and 5c are the
 exploration rows; finding 3 is recorded here and became no row, being a
 constraint rather than work; finding 4's config half is OCN-9 and its prediction
 half is this document. Section 8 supplies the cross-component contracts and
 acceptance rows OCN-10 through OCN-16, plus LITH-26 for the existing static
 latitude shelf classifier. Section 9 rewrites OCN-3 into a two-host pricing and
-OCN-4 into a host-following ecosystem tier, and its coupling half is OCN-17.
+OCN-4 into a host-following ecosystem tier, and its coupling half is OCN-17. Section 9g's resolution ceiling is OCN-18.
