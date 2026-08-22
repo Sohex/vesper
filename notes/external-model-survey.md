@@ -1822,3 +1822,48 @@ the reweight is 46 lines, section 8b; the host-model interface is bounded at
 constants are a namelist with derived consistency. What remains genuinely open
 is the cost per timestep in this model, which is the measurement the row is
 ordered after the SHTns work to make.
+
+
+## 22. An independent two-band ice albedo, and what it settles for PHYS-14
+
+*Read 2026-08-22 from
+`references/exocam/cesm1.2.1/configs/cam_land_fv/SourceMods/src.clm/SurfaceAlbedoMod.F90`.*
+
+ExoCAM modified CLM's land ice albedo, and the modification is instructive twice
+over. The header reads:
+
+    ! The CLM default albice values are too high.
+    ! Full-spectral albedo for land ice is ~0.5 (Paterson, Physics of Glaciers, 1994, p. 59)
+    ! This is the value used in CAM3 by Pritchard et al., GRL, 35, 2008.
+
+      real(r8), public  :: albice(numrad) = &   ! albedo land ice by waveband (1=vis, 2=nir)
+                           (/ 0.80_r8, 0.55_r8 /)
+
+**First: the two bands hold different numbers.** An exoplanet GCM carrying a
+two-band surface albedo uses 0.80 in the visible and 0.55 in the near infrared,
+not one value twice. That is independent confirmation that the seven flat arrays
+in `plasimmod.f90` are anomalous rather than conventional, which is the claim
+failure mode class 31 rests on.
+
+**Second, and more useful: it shows the anchoring convention.** The values are
+chosen against a stated FULL-SPECTRAL target of about 0.5 from Paterson, with a
+precedent named. That is the same convention `vegetation_albedo_bands` already
+uses here, where the band pair is "anchored so their flux-weighted combination
+is the broadband value".
+
+So PHYS-14's remaining shape question is settled by precedent on both sides:
+this project's own vegetation work and an independent implementation reached the
+same rule. The band pair is anchored to reproduce the broadband value, and the
+broadband value is the one derived from the spectrum.
+
+The numbers are close enough to be a sanity check and different enough to be
+worth reading carefully. Section 11's `glacalbmin` derivation gives 0.766 and
+0.455 under the Sun, against CLM's 0.80 and 0.55; the visible agrees well and
+the near infrared sits lower. That is expected rather than troubling --
+`glacalbmin` is ExoPlaSim's GLACIAL MINIMUM blend, meaning old or dirty ice,
+while Paterson's 0.5 is a general glacier figure. The two are not the same
+surface, and the ordering is the right way round.
+
+Under `k25v` the same blend gives 0.764 and 0.406. The visible barely moves and
+the near infrared falls by 0.049, which is section 11's finding arriving from a
+second spectrum library.
