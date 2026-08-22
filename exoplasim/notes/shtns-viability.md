@@ -530,8 +530,7 @@ something the model does not care about -- most likely the normalisation, since
 divide by the largest GRID value, and the two differ by orders. That is a
 hypothesis and it is not tested.
 
-**RESOLVED: it is the Gaussian quadrature weights, and neither library is
-wrong.** `probe_shtns_analysis_margin.f90` tests three mechanisms and the third
+**RESOLVED: it is the Gaussian quadrature weights, and legmod's were wrong.** `probe_shtns_analysis_margin.f90` tests three mechanisms and the third
 is the one.
 
 Weights enter the ANALYSIS and not the synthesis -- legmod carries `gwd`
@@ -547,12 +546,23 @@ rather than a constant normalisation. Adjudicated against numpy's `leggauss`:
 | 96, equator | 9.4e-15 | 1.2e-14 |
 
 All three disagree near the pole and agree at the equator, and inigau and SHTns
-fall on OPPOSITE sides of numpy, so their difference is the sum. The polar
-weights are eighty times smaller than the equatorial ones and every standard
-algorithm loses relative precision there. `inigau` evaluates the Legendre
-polynomial as a trigonometric series and takes the weight as
-`z4(1-z^2)/z5^2`, which squares that error; SHTns uses its own scheme and lands
-about as far off in the other direction.
+fall on OPPOSITE sides of numpy, so their difference is the sum.
+
+That reads as "everyone is a bit wrong", and it was wrong to leave it there.
+Three double-precision implementations cannot adjudicate each other, so
+`gauss_weight_reference.py` computes the same textbook algorithm in x86
+longdouble -- eps about 1.1e-19, eight orders of margin on a disagreement at
+1e-11 -- and the answer is not symmetric at all:
+
+| latitude | inigau | SHTns | numpy leggauss |
+| --- | ---: | ---: | ---: |
+| 1, pole-most | 9.9e-11 | 2.7e-16 | 4.2e-11 |
+| 2 to 5 | 1.6e-12 to 7.2e-12 | 0, bit identical | 1.7e-13 to 3.1e-12 |
+
+**SHTns is right and `inigau` is the outlier.** numpy is also wrong at the pole,
+which is why the earlier three-way comparison read as a wash. `inigau` evaluated
+the Legendre polynomial as a TRIGONOMETRIC SERIES and took the weight as
+`z4(1-z^2)/z5^2`, which squares that series' error into the weight.
 
 A relative weight error of 1e-10 on products of order 0.1, summed over 192
 latitudes with partial cancellation, gives an absolute coefficient error of
@@ -568,11 +578,42 @@ same nlat on nphi=384 (mixed radix, 3*2^7) against nphi=512 (pure radix-2)
 gives 1.07e-14 against 1.20e-14, a ratio of 0.887 -- the mixed-radix length is
 marginally BETTER.
 
-**What follows.** The 1e-11 bar is not reachable by the analysis arms while the
-two libraries each compute their own polar weights, and that is a property of
-the comparison rather than of either transform. The bar for those arms should
-be set from the measured quadrature difference, which is an independent
-measurement and not a number chosen to make the test pass. Separately, and
-worth its own row: PlaSim's forward transform has always carried this weight
-error, so `inigau` is a real accuracy limitation in the model independent of
-SHTns. CLIM-61 carries both.
+**What followed: `inigau` was rewritten and the bar never moved.** Newton on
+P_n by the three-term recurrence, then w = 2/((1-x^2) P'^2), which is the
+textbook algorithm. Against the extended-precision reference at NLAT 32 to 256:
+nodes to 1.1e-16 ABSOLUTE, weights to 5.7e-15 at NLAT 32 and 6.9e-13 at 256,
+and the weights sum to 2 within 8.9e-16. `verify_gauss_weights.sh` is that
+check and its control is the implementation this replaced, which fails at
+9.9e-11.
+
+What limits it now is the recurrence rather than the algorithm: evaluating P_n
+over n terms accumulates about n*eps and the weight squares the derivative, so
+the floor is about 2*n*eps, which is 1.1e-13 at NLAT 256 and is what is
+measured. Converging the ANGLE instead of the node, to avoid forming 1-z^2 near
+the pole where z is 0.99993, was tried on the theory that the cancellation was
+the limit: it changed the weights by nothing outside noise and made the nodes
+worse near the equator. The bar is 1e-12, derived from 2*n*eps, and the nodes
+are judged in ABSOLUTE terms because they are cosines that pass through zero at
+the equator, where a relative bar says more about which latitude sits nearest
+the equator than about the algorithm.
+
+The equivalence arms then fell by one to two orders and the 1e-11 bar, declared
+before any of this existed, is met everywhere:
+
+| res | scalar analysis | was | uv2dv divergence | was |
+| --- | ---: | ---: | ---: | ---: |
+| T21 | 9.9e-16 | 2.2e-14 | 9.8e-15 | 1.1e-13 |
+| T42 | 7.6e-15 | 2.2e-13 | 5.3e-14 | 2.0e-12 |
+| T85 | 1.4e-14 | 1.2e-12 | 1.7e-13 | 2.2e-11 |
+| T127 | 9.9e-15 | 2.3e-12 | 2.2e-13 | 5.9e-11 |
+| T170 | 9.9e-15 | 4.9e-13 | 6.8e-14 | 9.9e-12 |
+
+Analysis now sits at the same order as synthesis, which is what it should
+always have done.
+
+**This is an accuracy improvement to the model and not only to the comparison.**
+The weights enter every grid-to-spectral transform PlaSim performs -- `fc2sp`
+carries gwd, `uv2dv` and `mktend` carry gwd/cos^2 -- and nothing in the
+synthesis direction touches them. So the error was invisible to every check
+that compares synthesis, which is how it survived, and it was in every forward
+transform this model has ever done.
