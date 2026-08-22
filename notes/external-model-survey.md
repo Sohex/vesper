@@ -2079,3 +2079,55 @@ dependence by looking at the call site.
 
 The audit's own coverage of that use site is `implicit-earth-assumptions.md`
 finding 8 and BIO-29, the biosphere-wide inventory this discovery prompted.
+
+
+## 26. GEMlite: OCN-3's argument survives, and a fourth acceleration idiom
+
+*Read 2026-08-22 from `vendor/cgenie/genie-gemlite` and `genie-main/genie.F`.
+Probed because OCN-3's choice of offline coupling rests entirely on deep-ocean
+spin-up cost, and a module named `gemlite` beside `goldlite` and `ocnlite`
+looked like it might undercut that.*
+
+**It does not, and the reason is worth stating precisely.** `genie.F` cycles it:
+`if (mod(koverall, kgemlite*kocn_loop) .eq. 1)`, running `gem_notyr` ordinary
+years and then switching to a GEM cycle. On entry the cycle calls
+`gemlite_cycleinit_wrapper`, then `cpl_comp_gemglt_wrapper` to "copy current
+state of tracer arrays to GEMlite", then `gemlite_climate_wrapper` to "copy
+climate state variables (here: sea-ice)".
+
+So the CLIMATE STATE IS COPIED AND HELD while the geochemistry advances. GEMlite
+is offline-tracer acceleration: it gets carbonate chemistry to equilibrium
+cheaply once the circulation is settled. It does nothing for the circulation
+itself, which is what OCN-3 means by equilibrating a deep ocean taking thousands
+of model years. That row's argument for offline coupling is unaffected.
+
+Its own header records the limit of the trick: surface fCO2 is rapidly
+equilibrated with the atmosphere, so a pulse of CO2 emitted to the atmosphere is
+NOT handled correctly, because GEMlite needs disequilibrium between ocean
+surface and atmosphere to work. An accelerator that is wrong for transients.
+
+### 26a. Four accelerators, three idioms
+
+This tree now has four devices of the same family in reach, and they are not the
+same shape:
+
+| device | idiom | what it holds |
+| --- | --- | --- |
+| `NCVEG` | internal timestep multiplier | vegetation carbon advanced against fixed climate |
+| PALADYN equilibrium spinup | internal timestep of 1000 years, possible because the components are fully implicit | annual cumulated NPP and litterfall |
+| `newsnow` | extrapolate a measured 5-year tendency forward by a declared interval | snow where it is shrinking or has persisted |
+| GEMlite | CYCLE: N ordinary years, then M accelerated years, repeat | climate state copied in and held |
+
+GEMlite's is the most conservative of the three idioms, because it returns to
+the full model periodically rather than running the accelerated component to
+convergence in one stretch. That is a design worth knowing about for CLIM-53,
+which asks not whether an accelerator is correct but what it is VALID FOR: a
+cycling accelerator is valid under weaker assumptions than a single long jump,
+since the full model re-establishes the state it was drifting from.
+
+And all four state their invalidity somewhere, which is the property CLIM-53 is
+really asking to reproduce. PALADYN's cannot be applied to processes
+intrinsically out of equilibrium. GEMlite's cannot handle a transient
+disequilibrium pulse. `newsnow` only extrapolates where snow already exists and
+is shrinking or has persisted a year. The device is never the deliverable; the
+statement of what it is valid for is.
