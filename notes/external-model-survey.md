@@ -65,7 +65,7 @@ about four times this stack's cost per simulated year. cGENIE at 36 x 36 x 16
 frictional-geostrophic is a far lighter object than that, so four times is a
 pessimistic bound on the ocean plan rather than an estimate of it.
 
-## 3. PALADYN, and the four formulations worth taking
+## 3. PALADYN and its neighbours in CLIMBER-X
 
 PALADYN (Willeit and Ganopolski, 2016, `10.5194/gmd-9-3817-2016`) is CLIMBER-X's
 land surface model. `references/INDEX.md` records it as read. It matters here
@@ -253,6 +253,67 @@ The three parts are not equally viable as a floor, and this is the substance:
   `atmosphere.pCH4_bar`.
 
 WET-12 carries the declaration and the condition for taking each part.
+
+### 3f. Three more CLIMBER-X modules, and one of them fills the hole section 4 leaves
+
+PALADYN is one directory of `cxesmc/climber-x`. Three of its neighbours matter
+here, and the licence position of section 3d covers all of them.
+
+**`src/smb` is a surface energy and mass balance model, and it is the answer to
+what section 4 refuses.** MITgcmIS's Positive Degree Day scheme is rejected
+below because it drives ablation from 2 m air temperature alone. SEMI is the
+opposite kind of object. Its interface takes surface albedo and downward
+shortwave in FOUR components each, visible and near-infrared by direct and
+diffuse, together with the derivatives of downward shortwave with respect to
+albedo, plus cloud cover, downward longwave, a lapse rate, a cosine of zenith
+angle and dust.
+
+That band structure is this project's own. The visible and near-infrared split
+is the same decomposition `lib/stellar.py` computes at 0.75 um and that
+`world_state.json` records as `flux_fraction_band1`, so the per-star reweighting
+already done maps onto SEMI's inputs instead of having to be invented. A scheme
+built for a two-band surface is the one kind of mass balance model a non-solar
+host does not immediately break.
+
+It also takes sub-grid surface elevation, an elevation standard deviation,
+surface slopes and elevation classes, and calls `downscaling_mod` for radiation,
+precipitation and wind. So it runs the surface balance on a DOWNSCALED field
+rather than on the cell mean. That is a third independent answer to the problem
+PHYS-13 and GRID-2 describe, and unlike the freezing-height criterion, which is
+a diagnostic, this one is a scheme that consumes the sub-grid distribution as an
+input. `smb_surface_par.f90` and `snow.f90` carry the surface side, and
+`snow_par` exposes `lsnow_dust`, `w_snow_dust` and `dust_con_scale`, so dust
+darkening of snow is a namelist switch rather than a gap. That is DUST-14,
+already solved in this model class.
+
+Two things in it do not transfer. Every constant is a PHYS-class inheritance,
+and `smb_bias_corr.f90` is a bias correction against Earth observations, which
+has no meaning on a world with none.
+
+**`src/ch4` is a reduced atmospheric methane model, and WET-10 has a floor after
+all.** `ch4_model.f90` is 12 kB and is a partitioned-lifetime box: separate
+tropospheric OH, chlorine, soil and stratospheric sink timescales, an OH
+temperature sensitivity, and OH sensitivities to CO, NOx and VOC precursors,
+with emissions converted to abundance in ppb.
+
+The structure is what transfers and the calibration is not. The precursor
+sensitivities are fitted to anthropogenic Earth emissions read from a file, the
+chlorine term is Earth stratospheric chemistry, and the OH field itself is a
+photochemical product of the host's ultraviolet. For this star that last one is
+not an open question: `config/planet.yaml` records that Rugheimer et al. (2013)
+computed the photochemical steady state at this effective temperature, which is
+the same calculation an OH field would come out of. So WET-10's oxidant and
+lifetime half has a reduced form available in shape, with the coefficients as
+the work.
+
+**`src/sic` is dynamic-thermodynamic sea ice**, `sic_dyn.f90` and
+`transport_sic.f90`, against this project's thermodynamic-only scheme.
+BIG-MITgcm names excessive ice as the consequence of the configuration this
+stack also runs, so the term is not free. It is nevertheless BLOCKED rather than
+available: sea ice dynamics needs wind stress and ocean currents, and this ocean
+is a slab with horizontal transport deliberately off. It becomes a question when
+the ocean plan lands and not before.
+
 
 ## 4. BIG-MITgcm is the nearest peer, and two of its details are warnings
 
