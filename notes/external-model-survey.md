@@ -30,40 +30,73 @@ glacier and carbon-silicate weathering modules exist, are off here, and carry
 Earth constants when on. `notes/audits/dormant-exoplasim-modules.md` records
 which.
 
-## 2. Cost, in CPU-hours per 100 simulated years
+## 2. Cost, and why the obvious comparison does not hold
 
-The unit matters. Simulated years per day hides the core count, and these models
-were measured on different machines with different core counts by different
-people.
+**The table below compares things that are not the same object, and every
+conclusion originally drawn from it was wrong in the same direction.** It is
+kept, with the error stated, because the error is instructive and because the
+numbers themselves are reported correctly by their sources.
 
-| model | configuration | CPU-h per 100 sim-yr | source |
+| model | what the figure covers | CPU-h per 100 sim-yr | source |
 | --- | --- | ---: | --- |
-| CLIMBER-X | 5 x 5 deg, full climate component | ~3.8 | 10,000 sim-yr/day on 16 CPUs, Willeit et al. (2022) |
-| LOVECLIM 1.2 | all components active | ~4 | 100 yr in ~4 h CPU on one Xeon, Goosse et al. (2010) |
-| this stack | ExoPlaSim T42 L10, 16 ranks, FP64 | ~76 | 77-93 s per 180.7-day orbit, measured here |
-| BIG-MITgcm | SPEEDY L5 + MITgcm L25, CS32 | ~300 | stated directly, Moinat et al. (2026) |
+| CLIMBER-X | atmosphere, 3-D ocean, sea ice AND the PALADYN land surface | ~3.8 | 10,000 sim-yr/day on 16 CPUs, Willeit et al. (2022) |
+| LOVECLIM 1.2 | ECBilt, the CLIO ocean and VECODE vegetation, all active | ~4 | 100 yr in ~4 h CPU on one Xeon, Goosse et al. (2010) |
+| this stack | ExoPlaSim ALONE, on a slab ocean | ~76 | 77-93 s per 180.7-day orbit, measured here |
+| BIG-MITgcm | SPEEDY L5, a 25-level ocean, sea ice and a 2-layer land model | ~300 | stated directly, Moinat et al. (2026) |
 
-UVic ESCM 2.10 states 4.6 to 11.5 hours per 100 years on a desktop without
-naming a core count, so it cannot be placed in this column; on wall clock it
-sits between LOVECLIM and this stack. ExoCAM's ~35,000 core-hours is per case
-rather than per unit model time and does not convert.
+UVic ESCM 2.10 states 4.6 to 11.5 hours per 100 years on a desktop without a
+core count and cannot be placed in this column. ExoCAM's ~35,000 core-hours is
+per case rather than per unit model time and does not convert.
 
-Two readings follow, and they point in opposite directions.
+### 2a. The error
 
-**The EMIC advantage is structural and already spent.** CLIMBER-X is about
-twenty times cheaper per simulated year than this stack, and the reason is that
-it does not solve the primitive equations: a 2.5-D statistical-dynamical
-atmosphere on a 5 degree grid parameterises the circulation a spectral core
-computes. For Earth that is a good trade. Here the circulation is one of the
-things being asked about, under 30 hour rotation and 32 degree obliquity, so it
-cannot be a parameterisation fitted to Earth's.
+Row three is one component. Rows one, two and four are coupled systems. Reading
+down the column and concluding that this stack "lands inside the EMIC band"
+compares an atmosphere against suites that carry an ocean, sea ice, a land
+surface and in two cases vegetation.
 
-**A three-dimensional ocean costs about four times.** That is the most useful
-single number in the table for OCN-3. BIG-MITgcm carries 25 levels of
-primitive-equation MITgcm at an atmospheric resolution comparable to T42 for
-about four times this stack's cost per simulated year. cGENIE at 36 x 36 x 16
-frictional-geostrophic is a far lighter object than that, so four times is a
-pessimistic bound on the ocean plan rather than an estimate of it.
+The comparison is too generous in both directions at once. It flatters this
+stack, because a Vesper commissioning is not one ExoPlaSim run: it is a
+bootstrap and a baseline, hydrography, pedology, an hours-class MPI LPJ-GUESS
+run, the aeolian components and a carve verdict, and an ITERATION adds an Orogen
+generation in front of all of it. `docs/src/pipeline/costs.md` already prices the
+work in those units and this section did not. And it flatters CLIMBER-X and
+LOVECLIM less than it looks, since their component counts are what their small
+numbers are buying.
+
+**The 4x reading was the worst of it.** "A three-dimensional ocean costs about
+four times" came from 300 against 76, and that ratio is a whole coupled system
+against a bare atmosphere, not the price of an ocean. It is also confounded on
+the atmosphere side: SPEEDY at five levels on CS32 is a much cheaper atmosphere
+than ExoPlaSim at T42 with ten. Two unlike things differ, and the difference was
+attributed to the one term that happened to be interesting.
+
+What partially survives is narrower and worth keeping. BIG-MITgcm's own
+breakdown puts BIOME4 and pysheds under five minutes and MITgcmIS at about
+1 CPU-hour per 40,000 years, so its 300 is almost entirely the coupled fast
+system rather than the slow components. That makes it an atmosphere-plus-ocean
+figure against an atmosphere-plus-slab figure, which is a real comparison with
+one confound rather than none.
+
+### 2b. The unit does not transfer, which is the deeper problem
+
+CPU-hours per 100 simulated years assumes every component advances on the same
+clock. This pipeline is asynchronous by construction: LPJ-GUESS runs once per
+pass of loop B, the carve verdict once per pass of loop A, the aerosols once per
+climatology. There is no rate at which the biosphere runs "per simulated year",
+so the unit is not merely inconvenient here, it is undefined.
+
+The units this project already uses are the right ones and they have no
+counterpart in the table: cost per commissioning, and cost per iteration.
+CLIMBER-X and LOVECLIM have no equivalent because nothing in them regenerates
+the terrain.
+
+So the honest position is that this stack's throughput has NOT been compared
+with the EMIC family, and cannot be by that column. What has been measured is
+that one ExoPlaSim orbit costs 77 to 93 seconds at T42 on 16 ranks, which is a
+fact about the atmosphere and is used correctly elsewhere in this note. OCN-3
+still needs cGENIE's cost, and SPAT-11 still needs the per-rung cost; neither is
+answered by the row above.
 
 ## 3. PALADYN and its neighbours in CLIMBER-X
 
