@@ -9,8 +9,61 @@ Vesper is a fictional planet and this project simulates it. What follows
 compares this project's machinery against the Earth system models of
 intermediate complexity, the exoplanet general circulation models, and two
 recent projects that sit between them, so the comparison is not run again. It
-reaches no adoption decision. What it produces is a short list of formulations
-worth taking and a shorter list of candidates that are now closed.
+reaches no adoption decision. What it produces is a list of formulations worth
+taking, a list of candidates now closed, magnitudes for terms this project
+carries as declared rather than measured, and corrections to several of this
+project's own assumptions where an external implementation showed one to be
+unsupported. Every finding is carried by a row in `TASKS.md`; the index below
+is the check on that.
+
+## Index
+
+Each section and the task rows that carry it. A section with no row either
+closes a candidate, records a negative result, or is framing; those say so.
+This table is the check that nothing here is a finding without a home.
+
+| # | what it settles | carried by |
+| --- | --- | --- |
+| 1 | The two families do not overlap, and this stack is in the gap | *framing; opens nothing* |
+| 2 | Cost, and why the obvious comparison does not hold | `OCN-3` |
+| 3 | PALADYN and its neighbours in CLIMBER-X | `CLIM-53`, `CLIM-63`, `DUST-14`, `GRAV-8`, `GRID-2`, `GW-26`, `LSHY-3`, `LSHY-5`, `LSHY-7`, `OCN-21`, `WET-10`, `WET-12` |
+| 4 | BIG-MITgcm is the nearest peer, and two of its details are warnings | `CLIM-62`, `GRAV-6`, `OCN-11`, `PHYS-13` |
+| 5 | CliMA is not a competitor and has one thing worth reading | `OCN-12` |
+| 6 | Candidates this survey closes | *closes candidates; `notes/audits/dormant-exoplasim-modules.md` records them* |
+| 7 | REF-10: the rest of the CLIMBER-X tree, triaged | *REF-10, now closed* |
+| 8 | SPEEDY and SOCRATES, read for CLIM-61 | `CLIM-61` |
+| 9 | The exoplanet models, read without a row to justify it | *parent of 15 and 21* |
+| 10 | cGENIE, first reading | `OCN-10`, `OCN-11`, `OCN-12`, `OCN-17`, `OCN-18`, `OCN-19`, `OCN-20`, `OCN-3` |
+| 11 | PHYS-14 answered: the model ships the spectra and never re-weights them | `OCN-7`, `PHYS-14` |
+| 12 | OCN-4's photon question, answered on both candidates | `OCN-4`, `OCN-6` |
+| 13 | The known-good suite, and an ordering constraint it imposes | `OCN-19`, `OCN-20`, `OCN-3` |
+| 14 | Which half of OCN-19 actually threads | `OCN-19` |
+| 15 | ExoRT is the wrong correlated-k for this planet, and the reason generalises | `CLIM-61` |
+| 16 | OCN-4 compared: the split is scientific against engineering | `OCN-4` |
+| 17 | Three published weathering schemes, shipped with their constants | `VOLC-9` |
+| 18 | muffingen's wind, and a second mechanism for OCN-17's multiplier | `OCN-11`, `OCN-17` |
+| 19 | What EMIC-class sea ice motion actually is | `OCN-21` |
+| 20 | Six methane schemes and a burial bracket | `OCN-13`, `WET-10` |
+| 21 | SOCRATES exposes the planet, not just the star | `CLIM-61` |
+| 22 | An independent two-band ice albedo, and what it settles for PHYS-14 | `PHYS-14` |
+| 23 | ClimaLand, and the land-column hypotheses LSHY registers | `GRAV-8`, `LSHY-1`, `LSHY-3` |
+| 24 | The conversion FRADPAR left behind | `BIO-25` |
+| 25 | The LPJ-GUESS Earth-constant scan, and where its results already live | *negative result: says where the scan already lives, so it is not repeated* |
+| 26 | GEMlite: OCN-3's argument survives, and a fourth acceleration idiom | `CLIM-53`, `OCN-3` |
+| 27 | cGENIE is flux-forced already, and OCN-5's requirement splits | `OCN-5` |
+| 28 | Why OCN-5 has to be a loop, derived rather than asserted | `OCN-10`, `OCN-17`, `OCN-2`, `OCN-5` |
+| 29 | Ocean albedo: three branches, and the two zenith forms are a free bracket | `OCN-7` |
+| 30 | `genie-plasim`: the coupling contract, written down, and how it is afforded | `OCN-10`, `OCN-17`, `OCN-21`, `OCN-3` |
+| 31 | VOLC-9's weathering columns, confirmed from use -- and the bracket is a different one | `VOLC-9` |
+| 32 | Two one-bucket land surfaces that disagree by an order of magnitude | `LSHY-3`, `LSHY-4` |
+| 33 | Egea's family is the shape vocabulary -- but it limits a different flux | `LSHY-3` |
+| 34 | Anoxia: computed from air-filled porosity, or switched on by latitude | `BIO-29`, `WET-2`, `WET-6` |
+| 35 | Two accelerators in one codebase, and only one of them is guarded | `CLIM-53`, `OCN-3`, `OCN-5` |
+| 36 | A second TOPMODEL, and where its parameters come from | `GW-26` |
+| 37 | Snow: a third density model, and an albedo predictor we do not have | `GRAV-8`, `PHYS-14` |
+| 38 | The leaf-to-canopy bound is asserted, and it is not one-signed | `BIO-18` |
+| 39 | Soil albedo does not know whether the soil is wet, and the blocker is the state variable | `DUST-17`, `PHYS-15` |
+| 40 | OCN-12's inventory, geochemistry side: BIOGEM and SEDGEM | `OCN-1`, `OCN-12`, `OCN-3`, `OCN-4` |
 
 ## 1. The two families do not overlap, and this stack is in the gap
 
@@ -1161,12 +1214,22 @@ set, and it is the one surface with no configuration key at all.
 gives 0.070 under the Sun and 0.068 under this star, because water's reflectance
 is low and nearly flat across the split, 0.076 against 0.065. So the SPECTRAL
 half of OCN-7's question is answered negatively: re-weighting the ocean albedo
-for this host is worth 0.002 and does not earn its place. That row's
-spatial-variation half is untouched.
+for this host is worth 0.002 and does not earn its place.
 
-Seven arrays carry this defect in total, and two of them, `dsnowalb` and
-`doceanalb`, are commented "spectral weighted" in the source while holding one
-value in both bands. The comment asserts what the value denies.
+**And it matters even less than that, for a reason that took a second reading of
+`radmod` to find.** In the default configuration `doceanalb` never reaches open
+water at all: `radmod.f90:2895-2904` overwrites the open-ocean term with a
+zenith-dependent formula, leaving the constant in force only over the sea-ice
+covered fraction. Section 29 has that in full, along with OCN-7's spatial half,
+which it answers.
+
+Seven arrays carry the flat-band declaration in total, and two of them,
+`dsnowalb` and `doceanalb`, are commented "spectral weighted" in the source
+while holding one value in both bands: the comment asserts what the value
+denies. Of the seven it is the SNOW and ICE arrays that bind in practice --
+`doceanalb` is a declaration the shortwave overrides, while `dsnowalb`,
+`dsnowalbmx`, `dsnowalbmn`, `dicealbmx`, `dicealbmn` and `dglacalbmn` are all
+used as written.
 
 ### 11d. What remains
 
@@ -1222,6 +1285,15 @@ phytoplankton cell is bluer than the light at the surface, and a window widened
 to 750 nm describes photons the water column has already removed. **Under a red
 host the two effects compound rather than cancel** -- less blue arriving, and
 what does arrive being weighted toward the part water takes first.
+
+Section 40e puts a number on the second of those: only 0.382 of this star's flux
+falls below 0.75 um against 0.537 of the Sun's, and water removes essentially
+all the rest within half a metre. **Do not read that 0.712 as a rival to the
+0.869 above.** They measure different things in different places. 0.869 is
+PHOTON flux per unit shortwave inside 400-700 nm AT THE SURFACE; 0.712 is the
+fraction of shortwave ENERGY still present BELOW the top metre or two. The first
+sets what a surface-referenced PAR parameter is worth, the second how much
+reaches anything living beneath the skin.
 
 OCN-4 therefore cannot inherit `FRADPAR`. It has to decide the marine window on
 its own evidence, and the number will not be 0.4624.
@@ -2033,13 +2105,12 @@ than 4.6e-6 -- about 5.7 percent low, of which roughly 3.1 points is the window
 mismatch and 2.6 the stellar shift. One-signed: more photons per joule than
 assumed, so absorbed photon flux and therefore assimilation are understated.
 
-**BIO-25 already owns this and I did not check before writing a row.**
-`biosphere/notes/implicit-earth-assumptions.md` finding 5 is headed "The PAR
-correction changes energy but not photons per joule" and specifies exactly the
-fix: generate a spectrum- and window-weighted `VESPER_CQ` beside `FRADPAR` and
-require the combined photon supply to reproduce the registered productivity
-calculation. The plant-physiology audit repeats it. The row I opened, PCAR-11,
-is withdrawn.
+**BIO-25 owns this.** `biosphere/notes/implicit-earth-assumptions.md` finding 5
+is headed "The PAR correction changes energy but not photons per joule" and
+specifies the fix: generate a spectrum- and window-weighted `VESPER_CQ` beside
+`FRADPAR` and require the combined photon supply to reproduce the registered
+productivity calculation. The plant-physiology audit repeats it. PCAR-11 was
+opened against the same mechanism and withdrawn as redundant.
 
 What was NOT already recorded is the magnitude, and that is folded into BIO-25:
 about 5.7 percent low, decomposing into roughly 3.1 points of window mismatch
@@ -2048,40 +2119,35 @@ which matters because it means the pair has to be recomputed over a COMMON
 window rather than merely re-starred.
 
 
-## 25. The wetland latitude constant: nothing new, and one wrong claim withdrawn
+## 25. The LPJ-GUESS Earth-constant scan, and where its results already live
 
-*2026-08-22. This section is kept as a negative result rather than deleted,
-because the mistake in it is instructive.*
+*2026-08-22. Kept so the scan is not repeated.*
 
 Scanning `vendor/lpj-guess` for constants with an Earth basis, in the way
-section 24 found `CQ`, turned up
-`PEATLAND_WETLAND_LATITUDE_LIMIT = 40.0`. Everything it turned up is already
-documented, and better, in `biosphere/notes/wetlands-peat-methane-audit.md`
-under the heading "Two unrelated models selected by Earth latitude". That
-section names `is_highlatitude_peatland_stand()` as `PEATLAND && lat >= 40.0`
-and `is_true_wetland_stand()` as `PEATLAND && lat < 40.0`, states the
-signed-latitude consequence outright -- "a Vesper cell at 60 S follows the
-low-latitude inundated-soil path" -- and says the branch "controls hydrology,
+section 24 found `CQ`, turned up `PEATLAND_WETLAND_LATITUDE_LIMIT = 40.0` and
+nothing else the project did not hold. **Do not re-run this scan expecting an
+inventory.** `biosphere/notes/wetlands-peat-methane-audit.md` already has it,
+under the heading "Two unrelated models selected by Earth latitude": it names
+`is_highlatitude_peatland_stand()` as `PEATLAND && lat >= 40.0` and
+`is_true_wetland_stand()` as `PEATLAND && lat < 40.0`, states the signed-latitude
+consequence outright -- "a Vesper cell at 60 S follows the low-latitude
+inundated-soil path" -- and records that the branch "controls hydrology,
 vegetation stress, decomposition and methane, not merely a default parameter".
-It also records that this prompted `implicit-earth-assumptions.md` finding 8 and
-BIO-29. WET-3 and WET-6 own the consequences.
+It prompted `implicit-earth-assumptions.md` finding 8 and BIO-29; WET-3 and
+WET-6 own the consequences.
 
-**The wrong claim.** I read `vegdynam.cpp:1286`, where `maxlai_peatland` doubles
-under `if (patch.stand.is_true_wetland_stand())` with a comment saying the
-doubling is for wetlands south of the limit, and reported a comment-versus-code
-mismatch: a latitude justification on an unconditional doubling. That was
-wrong. `is_true_wetland_stand()` IS the latitude test, so the comment is
-accurate and the doubling is latitude-conditional exactly as described. The
-audit had already said so one line further down than I read.
+What the inventory did NOT carry was a magnitude, and section 34 supplies one:
+on the slow and passive soil carbon pools the two branches differ by 0.36
+against 0.025, a factor of 14.4, which is the pair that decides whether peat
+accumulates at all.
 
-The lesson is the one this project's conventions state as checking claims
-against the artifact rather than the documentation, applied to a PREDICATE:
+**One method note that generalises**, because it cost a wrong claim here.
 `is_true_wetland_stand()` reads as a property of the stand and is a property of
-the stand AND its latitude. A call site cannot be audited for latitude
-dependence by looking at the call site.
-
-The audit's own coverage of that use site is `implicit-earth-assumptions.md`
-finding 8 and BIO-29, the biosphere-wide inventory this discovery prompted.
+the stand AND its latitude. **A call site cannot be audited for latitude
+dependence by looking at the call site**; the predicate has to be opened. That
+is this project's convention about checking claims against the artifact rather
+than the documentation, applied to a PREDICATE rather than a number, and BIO-29's
+inventory has to be run that way to be worth anything.
 
 
 ## 26. GEMlite: OCN-3's argument survives, and a fourth acceleration idiom
@@ -2303,10 +2369,10 @@ around, and verifying it with a known field is cheaper than discovering it is
 wrong after a circulation exists to blame.
 
 
-## 29. Ocean albedo: a shipped bracket, and two of my own claims corrected
+## 29. Ocean albedo: three branches, and the two zenith forms are a free bracket
 
 *Read 2026-08-22, starting from cGENIE's `ocean_alb.F` and following it into
-`radmod.f90`. Checking one level further changed the answer twice.*
+`radmod.f90`.*
 
 ### 29a. cGENIE integrates Briegleb over the daylight period
 
@@ -2332,16 +2398,14 @@ types, and the open-ocean term has THREE branches selected by `necham` and
 | `necham6=1` | `0.026/(zmu0**1.7+0.065) + 0.15*(zmu0-1)*(zmu0-0.5)*(zmu0-0.1) + 0.0082`, Briegleb |
 | both 0 | the constant `dsalb`, i.e. `doceanalb` |
 
-**Correction one.** OCN-7 says `seamod.f90:155-158` applies two namelist scalars
-everywhere `dls < 0.5`. It does, and then `radmod` OVERWRITES the open-ocean
-part. In the default configuration the scalars survive only for the land and
-sea-ice fractions, and `doceanalb` contributes nothing to open water at all.
-
-**Correction two.** Section 11 recorded `doceanalb(2) = 0.069` as one of seven
-flat band arrays. That stands as a declaration but is largely moot in practice,
-for the same reason: open ocean does not read it under the default. The sea-ice
-pair `dicealbmx` and `dicealbmn` DOES survive, so PHYS-14's sea-ice half is
-unaffected.
+**This overrides `seamod`.** `seamod.f90:155-158` does apply two namelist
+scalars everywhere `dls < 0.5` -- which is how OCN-7 states it -- but `radmod`
+then overwrites the open-ocean part. In the default configuration those scalars
+survive only for the land and sea-ice fractions, and `doceanalb` contributes
+nothing to open water at all: it is a declaration the shortwave replaces. The
+sea-ice pair `dicealbmx` and `dicealbmn` does survive, so PHYS-14's sea-ice half
+is unaffected. Section 11c carries this where a reader of the flat-array list
+will meet it.
 
 Worth noting that the zenith branches are spectrally flat too -- the expressions
 for `dsalb(1,:)` and `dsalb(2,:)` are identical -- but here the source SAYS so,
@@ -2631,9 +2695,9 @@ it is three algebraic functions of two carbon pools, not a land-surface model.
 
 ## 33. Egea's family is the shape vocabulary -- but it limits a different flux
 
-*Read 2026-08-22, following section 32, and CORRECTED against the paper itself
-after `paperfetch` retrieved it. The first reading of this had the algebra right
-and the physics wrong.*
+*Read 2026-08-22, following section 32, and checked against the paper itself
+rather than against the port that cites it -- which is what settles the scope
+question below.*
 
 `src/standalone/Vegetation/soil_moisture_stress.jl` offers three models:
 `NoMoistureStressModel` with beta = 1; `TuzetMoistureStressModel`, a sigmoid in
@@ -2762,24 +2826,19 @@ two Michaelis-Menten factors over quantities a soil column already carries.
 
 ## 35. Two accelerators in one codebase, and only one of them is guarded
 
-*Read 2026-08-22. Section 30c found PlaSim-GOLDSTEIN gearing. GEMlite is the
-same project's other accelerator, and the difference between how the two are
-controlled is the reusable part.*
+*Read 2026-08-22. **Section 26 already covers what GEMlite IS** -- offline-tracer
+acceleration that leaves the circulation alone, its cycling idiom, and the
+validity limit its own header states. This section is a different axis on the
+same device: section 30c found PlaSim-GOLDSTEIN gearing, and the difference
+between how the two accelerators are CONTROLLED is the reusable part.*
 
-### 35a. GEMlite, and the validity limit it states about itself
+### 35a. One thing section 26 did not record
 
-`genie-gemlite/src/fortran/gemlite.f90` advances ocean and atmosphere
-geochemistry -- carbonate chemistry, weathering input, sedimentation -- without
-running BIOGEM's biology or the circulation. Its header states its own domain of
-validity rather than leaving it to be discovered:
-
-    ! NOTE: SURFACE FCO2 IS RAPIDLY EQUILIBRIATED WITH THE ATM, HENCE A PULSE OF
-    ! CO2 EMITTED TO THE ATMOSERE WILL NOT EFFECTIVELY BE DEALT WITH BY GEMLIE AS
-    ! IT REQUIRES DISEQUILIBRIUM BETWEEN OCEAN *SURFACE* AND ATM TO WORK
-
-It also warns that its `ocn` array has module scope only, "there is an entirely
-seperate `ocn` for BIOGEM" -- two live copies of the same ocean state, which is
-the duplicate-state hazard rule 5 exists for.
+Beyond the validity limit already noted there, `gemlite.f90`'s header warns that
+its `ocn` array has module scope only -- "there is an entirely seperate `ocn`
+for BIOGEM". Two live copies of the same ocean state, which is the
+duplicate-state hazard rule 5 exists for, and it would need a provenance answer
+before adoption.
 
 ### 35b. The guard is two-sided, and the thresholds are named
 
@@ -2807,6 +2866,11 @@ unless told to, with the reason recorded beside the switch.
 The PlaSim-GOLDSTEIN gearing of section 30c has **no adaptive guard at all**.
 `ngear_multiple` is a fixed integer and the atmosphere is skipped on a fixed
 schedule regardless of what the ocean is doing. The same project built both.
+
+This is a second axis over section 26a's four accelerators. That table sorted
+them by IDIOM -- how the jump is taken. This sorts the same devices by whether
+anything MEASURES the jump's error while it is being taken, and only GEMlite
+does.
 
 The difference is not carelessness: GEMlite has a **scalar that summarises the
 accelerated subsystem's drift** and gearing does not. pCO2 is one number, it is
@@ -3190,6 +3254,11 @@ follows from the spectrum alone. **The magnitude is computable from what is
 already in the tree, and it is large.**
 
 ### 40e. What the redder star costs the photic zone: 0.71
+
+Section 12b already argued this direction qualitatively -- "water absorbs
+strongly beyond about 600 nm, so the light that reaches a phytoplankton cell is
+bluer than the light at the surface". What follows is its magnitude, and the
+distinction between this figure and section 12a's 0.869 is drawn there.
 
 `exoplasim/data/water/hale_querry_1973_liquid_water.dat` is this project's own
 extraction of Hale and Querry (1973) Table I, deliberately covering 0.75 to

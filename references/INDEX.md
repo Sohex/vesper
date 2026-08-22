@@ -40,7 +40,7 @@ exists to catch.
 
 ## Source trees held locally
 
-Two external model trees sit under `references/`, each extracted from a PINNED
+Ten external model trees sit under `references/`, each extracted from a PINNED
 TARBALL rather than cloned, so no nested `.git` exists for an outer command to
 trip over. They are read-only comparison material. Nothing in them is built,
 imported or vendored: code this project compiles lives in `vendor/` as a

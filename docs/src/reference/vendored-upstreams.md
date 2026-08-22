@@ -101,9 +101,17 @@ executable.
 frictional-geostrophic ocean OCN-19 and OCN-20 are about, and its `invert.f`
 ordering is what OCN-20 quotes. `genie-knowngood` ships the four reference
 configurations OCN-19 validates against. `genie-ecogem` is the ecosystem tier
-OCN-4 names beside MARBL. And `genie-plasim` is a PlaSim coupling module, which
-bears directly on OCN-17's evaluation of the published ExoPlaSim-to-cGENIE
-forcing path.
+OCN-4 names beside MARBL. And `genie-plasim` is not a coupling module but a
+whole PlaSim: a strict SUBSET of `vendor/exoplasim`'s module set -- no `p_exo`,
+no aerosol core, no MPI, no `hurricanemod` or `glaciermod` -- plus one file,
+`geniemod.f90`, 71 lines of pure declaration. So this subtree carries the Earth
+model ExoPlaSim's exoplanet capability was added to, and the entire
+atmosphere-ocean coupling surface is one array-declaration module. It bears on
+OCN-17's evaluation of the published ExoPlaSim-to-cGENIE path, and on OCN-10,
+whose forcing contract can be read off it rather than derived. Note that the two
+published paths are different arrangements: the offline regrid route moves wind
+stress, winds and albedo, while this in-tree one hands over seventeen fields.
+`notes/external-model-survey.md` section 30.
 
 **IT IS NON-DIMENSIONALISED AGAINST EARTH'S RADIUS AND GRAVITY, and half of the
 scales are configurable so the other half is easy to miss.**
