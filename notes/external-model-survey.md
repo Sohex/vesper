@@ -1589,3 +1589,68 @@ have no counterpart in any of the three schemes.
 So the value is the BRACKET rather than the parameterisation: what does the
 choice among published schemes cost the thermostat number, once each is mapped
 onto the classes this world actually has. VOLC-9 owns that.
+
+
+## 18. muffingen's wind, and a second mechanism for OCN-17's multiplier
+
+*Read 2026-08-22 from `references/muffingen`.*
+
+### 18a. What a from-scratch configuration actually produces
+
+`EXAMPLE_BLANK.m` turns on seven generators: `opt_makemask`, `opt_maketopo`,
+`opt_makeocean`, `opt_makerunoff`, `opt_makewind`, `opt_makealbedo` and the
+sediment option. So muffingen does not just make the grid files; it makes a
+runoff pattern, a wind field and an albedo file too.
+
+**This project already has better versions of at least three of those.** Runoff
+routing is `hydrography`'s, with drainage networks, catchments and a lake
+solver. Albedo is the surface work of section 11 and `build_surface_albedo.py`.
+Mask and bathymetry come from Orogen rather than being regridded from someone
+else's model.
+
+So OCN-11's contract is not "hand the export to muffingen and take the output".
+It is: use muffingen for the grid-topology artifacts that only it knows how to
+build, `.k1`, `.paths` and `.psiles`, and override the rest with what this
+project already computes. Which of the seven are taken and which are overridden
+is a decision the contract should state explicitly, because the defaults are all
+ON.
+
+### 18b. The wind it generates is synthetic and Earth-shaped
+
+`source/make_grid_winds_zonal.m` describes itself as creating "a synthetic zonal
+average windstress", and `par_tauopt` selects the regime: case 1 is low, annotated
+modern Northern Hemisphere or paleo Eocene; case 2 is high, annotated water
+world; case 3 detects a zonal gateway in the mask automatically. The file carries
+separate zonal profile parameters for a world with land and for a water world.
+
+For this planet that is the wrong object twice over. The profiles are fitted to
+Earth's circulation, and this world's wind stress is something ExoPlaSim
+computes at 30-hour rotation and 32 degree obliquity. `opt_makezonalwind` must
+be off and the stress must come from the atmosphere.
+
+### 18c. The gas transfer coefficient is not a second knob
+
+`par_tauopt` does not only select the wind. In `muffingen.m` the same switch
+writes `bg_par_gastransfer_a`, with the calibration chain in the comments: at
+a = 0.310 the low case gives 0.0201 mol m-2 yr-1 uatm-1, the water world 0.0297
+and the intermediate case 0.024903, leading to a = 0.722. All three branches
+currently write 0.722, which is worth noting on its own since they read as
+though they were meant to differ.
+
+**So wind stress and gas transfer are coupled in the generator by design.** That
+reframes OCN-17. The published regrid path instructs setting the wind-stress
+scaling to 2.0 or 2.6 AND moving `bg_par_gastransfer_a` from 0.715 to 1.1, and
+those are not two independent corrections. They are one adjustment about wind,
+made in the two places muffingen itself couples.
+
+It also says where the 0.715 came from: muffingen's own default is 0.722, so the
+regrid path starts essentially at the generator's value and raises it.
+
+That gives OCN-17 a second mechanism beside the C-grid staggering of section
+10c, and this one is the more likely of the two. Replacing a synthetic zonal
+stress with a real modelled one changes the stress magnitude and its
+distribution at once, and the gas transfer coefficient is calibrated against
+whichever it was. The question the row should ask first is what the ExoPlaSim
+stress is being compared AGAINST -- muffingen's synthetic profile, or an
+observational product -- because the multiplier is a ratio and the denominator
+has not been identified.
