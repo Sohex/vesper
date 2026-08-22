@@ -2034,3 +2034,40 @@ The lesson is narrower than "another inherited constant". A constant that was
 CORRECT stopped being correct when a neighbouring decision moved, and nothing
 connected the two. PCAR-11 accordingly asks for the pair to move together and to
 be routed through `vesper.h`, so the next window change carries both.
+
+
+## 25. One thing the wetland latitude constant reaches that the audit does not
+
+*Read 2026-08-22 from `vendor/lpj-guess`. Most of what this scan turned up about
+`PEATLAND_WETLAND_LATITUDE_LIMIT` is ALREADY DOCUMENTED and better:
+`biosphere/notes/wetlands-peat-methane-audit.md` carries a section headed "Two
+unrelated models selected by Earth latitude", names
+`Stand::is_highlatitude_peatland_stand()` as exactly `PEATLAND && lat >= 40.0`,
+and states the signed-latitude consequence outright -- "a Vesper cell at 60 S
+follows the low-latitude inundated-soil path". WET-3 and WET-6 own it. Nothing
+here adds to that.*
+
+One use site is not in the audit and is not in any WET row.
+`modules/vegdynam.cpp:1286`:
+
+    double maxlai_peatland = wetlandlailimit;   // set from .ins file
+    if (patch.stand.is_true_wetland_stand())
+        maxlai_peatland *= 2;  // Allow higher LAI values for wetlands south of
+                               // PEATLAND_WETLAND_LATITUDE_LIMIT N as these are more productive
+
+**The comment asserts a latitude restriction and the code does not test
+latitude.** It tests `is_true_wetland_stand()` and nothing else, so the doubling
+applies to every true wetland stand anywhere. `maxlai_peatland` then sets
+`maxfpc_peatland` through `1 - exp(-0.5 * maxlai)`, so it reaches foliar
+projective cover and therefore competition.
+
+Two things follow. The audit's finding is about the METHANE side, where the
+latitude test is real and wrong; this is the VEGETATION side, where the latitude
+test is absent and only claimed. Retiring the latitude regime from the methane
+models, which is what WET-6 asks for, would not touch this, because nothing
+connects the two but a comment that is itself inaccurate.
+
+And a reader auditing for latitude selection by searching for the constant finds
+this line and reads the comment as a fourth latitude dependence. It is not one.
+It is an unconditional doubling wearing a latitude justification, which is worth
+recording precisely because the search that finds it also mis-describes it.
