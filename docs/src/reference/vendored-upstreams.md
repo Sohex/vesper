@@ -3,7 +3,10 @@
 Three of this project's components are other people's code, vendored as git
 subtrees so that a change to the component and the change to whatever consumes
 it land together, and so provenance is a commit in this repository rather than
-the state of a directory outside it.
+the state of a directory outside it. Each is a maintained fork rather than a
+pinned dependency; `docs/src/reference/design-intent.md` says why that is the
+expected end state for an external model here and how to weigh a candidate
+against it.
 
 ## World Orogen
 

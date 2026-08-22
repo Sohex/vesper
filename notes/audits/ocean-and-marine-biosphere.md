@@ -703,12 +703,15 @@ with a changelog, which is the right answer an optimisation has to reproduce.
 Under this project's conventions that is what makes the work testable rather
 than merely benchmarkable.
 
-One scope consequence to state plainly rather than discover later: patching
-performance into cGENIE makes it a maintained fork on the LPJ-GUESS pattern, not
-a vendored dependency, and `docs/src/reference/vendored-upstreams.md` currently
-documents three subtrees. That is a real standing cost and it is incurred
-whether or not the physics turns out to be adequate, which is why OCN-3 comes
-first.
+Patching performance into cGENIE makes it a maintained fork on the ExoPlaSim and
+LPJ-GUESS pattern. That is the expected end state for an external model here
+rather than an argument against one, and
+`docs/src/reference/design-intent.md` records the reason: these models were not
+built for this project's subject or its runtime constraints, so the question
+about a candidate is whether its physics is worth the fork rather than whether it
+can be adopted unmodified. What a fork does NOT do is answer the physics
+question, which is why OCN-3 still precedes OCN-19 and OCN-20: performance work
+is spent on a host that has been chosen, not on one that is being evaluated.
 
 ## 10. What this audit did NOT establish
 
