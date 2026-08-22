@@ -189,6 +189,7 @@ source/*/*/raw
 source/*/*/grid
 source/*/*/planet.nc
 source/*/*/manifest.json
+vendor/cgenie/genie-main/genie.exe
 vendor/orogen/node_modules
 vendor/orogen/out
 .venv
@@ -202,6 +203,15 @@ references/climber-x
 references/ecospeclib-all
 references/poseidon_surface_albedo
 references/splib07
+
+# cGENIE build products. Its own .gitignore carries only .DS_Store, so unlike the
+# other three subtrees it excludes nothing it generates. Run output is NOT here:
+# `genie-main/user.mak` sets OUT_DIR to $(HOME)/cgenie_output, outside this
+# repository, so what a build leaves behind in the tree is objects and one
+# executable.
+vendor/cgenie/**/*.o
+vendor/cgenie/**/*.a
+vendor/cgenie/genie-main/genie.exe
 
 # Fortran module files. The verifiers under exoplasim/scripts compile fragments
 # lifted out of the model source, and gfortran writes the .mod beside the

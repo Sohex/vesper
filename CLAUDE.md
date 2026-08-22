@@ -228,6 +228,9 @@ vendor/exoplasim/      ExoPlaSim fork, git subtree. THE model source: edited her
                        compiled here, installed editable from here.
 vendor/lpj-guess/      LPJ-GUESS CNP fork, git subtree. The Vesper input and
                        calendar port compile directly from this tree.
+vendor/cgenie/         cGENIE.muffin, git subtree. The CANDIDATE offline ocean under
+                       OCN-3, not an adopted component: nothing reads it yet, and it
+                       does not build where it stands. See vendored-upstreams.md.
 .venv/                 Python 3.12. Untracked; see Environment below.
 ```
 

@@ -1,6 +1,6 @@
 # The vendored upstreams
 
-Three of this project's components are other people's code, vendored as git
+Four of this project's components are other people's code, vendored as git
 subtrees so that a change to the component and the change to whatever consumes
 it land together, and so provenance is a commit in this repository rather than
 the state of a directory outside it. Each is a maintained fork rather than a
@@ -70,3 +70,45 @@ Vendoring the CNP source does not itself enable phosphorus limitation.
 `data/ins/global.ins` and the run harness keep `ifplim 0` until the gridded
 weathering, sorption, deposition, and replacement productivity prediction are
 ready to land as one scientific change.
+
+## cGENIE
+
+The candidate offline ocean is vendored at `vendor/cgenie/`, a git subtree from
+the `master` branch of `derpycode/cgenie.muffin`, MIT licensed. Pull upstream
+with `git subtree pull --prefix vendor/cgenie cgenie-upstream master --squash`.
+
+The remote is `cgenie-upstream` and not `cgenie-fork`, which is the one place
+this differs from the three above: there is no personal fork yet. Create one and
+repoint the remote before the first change is pushed. A fork is expected rather
+than optional here, because OCN-19 and OCN-20 are fork-shaped by construction --
+one deletes dead duplication and threads BIOGEM's tracer loops, the other
+replaces the barotropic streamfunction solve.
+
+That is also why it is a subtree and not an extraction under `references/`.
+External source this project reads and will not edit is held there instead, and
+`references/INDEX.md` records which trees those are and why.
+
+**It does not build where it stands.** `genie-main/user.mak` sets
+`GENIE_ROOT = $(HOME)/cgenie.muffin` and `RUNTIME_ROOT = ../../cgenie.muffin`,
+so the tree expects to sit at `~/cgenie.muffin`. Repointing those is part of
+OCN-3's "whether it builds here" and is the first fork change anyone will make.
+Run output goes to `OUT_DIR = $(HOME)/cgenie_output`, outside this repository,
+which is why the ignore rules here cover only objects, archives and the
+executable.
+
+**What it carries that open rows already name.** `genie-goldstein` is the
+frictional-geostrophic ocean OCN-19 and OCN-20 are about, and its `invert.f`
+ordering is what OCN-20 quotes. `genie-knowngood` ships the four reference
+configurations OCN-19 validates against. `genie-ecogem` is the ecosystem tier
+OCN-4 names beside MARBL. And `genie-plasim` is a PlaSim coupling module, which
+bears directly on OCN-17's evaluation of the published ExoPlaSim-to-cGENIE
+forcing path.
+
+**`genie-paleo` is 1.4 GB of the 1.6 GB and has no consumer here.** It is 286
+directories of Earth paleogeographic reconstructions, and 678 PostScript plots
+are nearly all of that weight. This project generates its own geography, so
+nothing will ever read them. They are kept anyway, because a subtree mirrors its
+upstream and a filtered one cannot be pulled cleanly, and because deleting them
+would not shrink the history that already carries them. Dropping the plots is a
+legitimate fork change if the size starts to cost something; it is recorded here
+so that the size is a decision on the record rather than a surprise.
