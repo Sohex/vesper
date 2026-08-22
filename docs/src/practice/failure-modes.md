@@ -1071,3 +1071,34 @@ which catches one-in-three about four times in five; the cost is four T21 runs.
 
 It is not class 17. There the check has no answer that could mean "wrong"; here
 it has one and asks too few times to see it.
+
+## 31. A reader that outlives the format it reads
+
+An instrument is changed to record one more thing, and the number it reports
+moves. The change is small, the new number is not obviously absurd, and the
+instrument is the thing under suspicion -- so the run gets re-examined, the
+machine gets blamed, and the reader that turns raw output into the number is
+the one part nobody rechecks. It is code that has worked for the whole
+investigation.
+
+`perf record` gained `--sample-cpu` so barrier wait could be attributed to a
+die rather than inferred from thread creation order. That changed the
+`perf script -F` field list, which changed the header line, and an unanchored
+regex in the ad-hoc parser then matched callchain lines as if they were new
+samples. The barrier share came back 50% against 15% on the run before it. The
+error was in neither run.
+
+The tell is a share that moves by a factor after a change that should have
+moved it by nothing. Format changes do not perturb results, they break readers:
+a measurement that jumps when the INSTRUMENTATION changed rather than the code
+under test is the reader until proven otherwise, and that is the cheapest
+hypothesis to test as well as the most likely.
+
+The check is to run the new reader over the OLD capture. Both profiles here
+were still on disk, one parser over both agreed to a tenth of a point on all
+three categories, and that settled it in one command without re-running
+anything. Keep the previous capture until the reader has been re-validated
+against it, and anchor the patterns that decide where a record begins.
+
+It is not class 27. There the baseline was never taken; here it was, and the
+tool that reads it was silently replaced underneath.
