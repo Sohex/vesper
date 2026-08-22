@@ -126,6 +126,28 @@ What it is good for here, and this is the point of writing it down:
   gap ExoPlaSim does, so DUST-7's scavenging is a common omission rather than a
   peculiarity, and there is nothing to borrow.
 
+**cGENIE and its ExoPlaSim coupling, both on Zenodo.** Checked 2026-08-21, for
+OCN-3's host pricing.
+
+- **`10.5281/zenodo.10798347`**, `derpycode/cgenie.muffin` v0.9.50, MIT licence,
+  a 103 MB zip. This is the tagged release Liu et al. (2024) and Capirala and
+  Olson (2026) ran, and the reason to take this DOI rather than the GitHub head
+  is that the rotation-period modification is in it at a known state:
+  `genie-goldstein/src/fortran/initialise_goldstein.F:381-385`. It also carries
+  a `genie-plasim/` component directory, which is a PlaSim inside GENIE and is
+  NOT the coupling either paper used; do not mistake one for the other.
+- **`10.5281/zenodo.10802839`**, `acapirala/exoplasim_genie_regrid`, CC-BY-4.0,
+  11 KB, a concept DOI resolving to v1.2. Four files: MATLAB topography
+  converters in both directions, `make_exoplasimtogenie_input`, and a README.
+  The README is the valuable part and the dangerous part, because it carries the
+  wind-stress scaling factor the coupling needs and gives it a different value
+  per ExoPlaSim release. OCN-17 owns that; do not copy the number.
+
+Both are small enough to fetch directly and neither needs the batching rules in
+`docs/src/reference/large-data.md`. muffingen itself is separate, at
+`derpycode/muffingen` on GitHub, is MATLAB, and generates a cGENIE configuration
+from a bathymetry; whether it runs under Octave is unverified.
+
 ## The GW-3 Earth calibration: four inputs, all live
 
 Checked 2026-08-20. The water table solver has passed only identities,

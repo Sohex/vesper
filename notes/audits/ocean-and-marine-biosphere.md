@@ -14,7 +14,8 @@ TIER. Each is answered below.
 
 Four findings are about what the vendored model already contains and nobody has
 read; one is a pre-carve number read as a state, in a config block that is
-load-bearing; and one is a pricing that settles the coupling class. The tasks
+load-bearing; and one is a pricing that settles the coupling class. Section 9 is
+a second reading, which added the model class the first one skipped. The tasks
 they became are named at the end.
 
 Numbers are labelled with what they were measured on. The climate figures come
@@ -249,23 +250,38 @@ affordable, because equilibrating a deep ocean takes thousands of model years
 and an ExoPlaSim orbit is priced in wall-clock hours
 (`docs/src/pipeline/costs.md`).
 
-**Circulation host: MITgcm.** PISCES, MEDUSA and PlankTOM are NEMO
-configurations, so adopting any of them means adopting NEMO, whose grid and
-configuration machinery are harder to move off Earth than MITgcm's. MITgcm takes
-the sphere radius, gravity and the rotation rate as runtime parameters, which is
-exactly the axis this world moves along.
+**Circulation host: two candidates, priced against each other.** The NEMO family
+is out on one argument: PISCES, MEDUSA and PlankTOM are NEMO configurations, so
+adopting any of them means adopting NEMO, whose grid and configuration machinery
+are harder to move off Earth than the alternatives'. What remains is one
+resolved-circulation host and one EMIC, and they fail in opposite directions:
 
-**Ecosystem tier: Darwin.** MARBL is the better-engineered library by some
-distance, being deliberately driver-agnostic with a documented coupling
-interface, and it is the right fallback if the host question turns out
-differently. Its ecology is a small set of fixed Earth plant functional types,
-two of which are specific Earth evolutionary inventions. That is the same
-problem `biosphere/README.md` already records for LPJ-GUESS: "the shipped plant
-functional types are Earth's ... should be declared that way rather than
-presented as a prediction". Darwin is trait-based, so the modelled community
-composition is an output of the trait space rather than an input, which on a
-world whose nutrient supply is bracketed across a factor of four (finding 4) is
-the difference between a prediction and an assumption.
+- **MITgcm**, which takes the sphere radius, gravity and the rotation rate as
+  runtime parameters, resolves the straits, sills and partial coasts section 8b
+  requires, and cannot be equilibrated at a price this project can pay.
+- **cGENIE**, which reaches biogeochemical steady state in a day on one core,
+  already has a published and archived ExoPlaSim coupling, carries the closed
+  carbon cycle finding 5d needs, and hardcodes planetary radius in four places
+  while its transport and carbon parameters are fitted to Earth observations.
+
+Neither is an adoption. Section 9 reads cGENIE's source and cost the way
+finding 3 read LSG's; OCN-3 prices both hosts on this machine, against the same
+configuration, rather than scoping one as if the choice were settled.
+
+**Ecosystem tier: trait-based, and the host decides which one.** MARBL is the
+better-engineered library by some distance, being deliberately driver-agnostic
+with a documented coupling interface. Its ecology is a small set of fixed Earth
+plant functional types, two of which are specific Earth evolutionary inventions.
+That is the same problem `biosphere/README.md` already records for LPJ-GUESS:
+"the shipped plant functional types are Earth's ... should be declared that way
+rather than presented as a prediction". Darwin and ECOGEM are both trait-based,
+so in both the modelled community composition is an output of the trait space
+rather than an input, which on a world whose nutrient supply is bracketed across
+a factor of four (finding 4) is the difference between a prediction and an
+assumption. That property does not separate them, so the ecosystem tier follows
+the host rather than being chosen ahead of it: Darwin on MITgcm, ECOGEM on
+cGENIE, MARBL as the fallback wherever the trait space turns out not to be
+portable.
 
 An upper-trophic model is forced by a lower-trophic field and cannot precede
 one. It is the right tool when this project wants modelled nekton biomass, and
@@ -393,14 +409,199 @@ the 10M support and makes Orogen's latitude result a labelled bootstrap only.
 OCN-11 supplies support, ANUT-6 supplies sediment delivery and OCN-13/14 supply
 chemistry and biology; none should independently rewrite the rock map.
 
-## 9. What this audit did NOT establish
+## 9. The EMIC tier, which section 6 did not enumerate
+
+Section 6 compared one resolved-circulation host against the NEMO family and one
+ecosystem tier against MARBL. Both comparisons are between models of the same
+class, and the class itself was never priced. There is a third, and the argument
+that selected offline coupling points straight at it.
+
+### 9a. The cost argument selects the tier section 6 skipped
+
+Section 6 chose offline coupling because equilibrating a deep ocean takes
+thousands of model years against orbits priced in wall-clock hours, and then
+selected a host whose expense is the reason equilibration is unaffordable. The
+EMIC tier dissolves that tension rather than routing around it. Three costs,
+each measured by the model's own authors on Earth configurations:
+
+| source | configuration | cost |
+| --- | --- | --- |
+| Ridgwell et al. (2007) | GENIE-1, 12 active ocean biogeochemical tracers, CO2-climate feedback on | better than 1000 model years per 2.4 GHz CPU hour |
+| Edwards and Marsh (2005) | frictional-geostrophic ocean, EMBM atmosphere, dynamic-thermodynamic sea ice | 20 kyr of integration in about a day on a PC |
+| Capirala and Olson (2026) | 36 x 36 x 16, to physical and biogeochemical steady state at 20,000 model years | 24 to 48 hours on a single CPU core |
+
+What that buys is not only a cheaper run. Finding 4 brackets nutrient delivery
+across a factor of four, and at this price that bracket is an ensemble rather
+than a choice. It also makes OCN-5's loop something that can be run to its exit
+predicate and measured, instead of argued about in advance of a host nobody can
+afford to iterate.
+
+### 9b. The ExoPlaSim-to-cGENIE coupling is built, published and archived
+
+This is the part that makes the tier more than an alternative worth naming.
+Liu et al. (2024) and Capirala and Olson (2026) both drive cGENIE with
+ExoPlaSim, one way: ExoPlaSim v3.0.6 at T21 with 10 layers, run 100 model years
+to radiative balance at about 10 hours on 8 cores, supplying annually averaged
+wind fields and zonal planetary albedo, regridded to cGENIE's 36 x 36 grid.
+
+Both halves are archived. The model is `cgenie.muffin` v0.9.50 under an MIT
+licence at `10.5281/zenodo.10798347`; the regridding path is
+`acapirala/exoplasim_genie_regrid`, CC-BY-4.0, concept DOI
+`10.5281/zenodo.10802839` resolving to v1.2, which carries
+`make_exoplasimtogenie_input` plus topography converters in both directions.
+
+**It arrives with a knob, and the knob is the reason to read it before
+adopting it.** The regrid README instructs the user to set the wind stress
+scaling `ea_11` and `go_13` to 2.0 for ExoPlaSim v3.0.6 and 2.6 for v3.3.0, and
+to move `bg_par_gastransfer_a` from 0.715 to 1.1 alongside. That is a
+multiplier on a physical forcing whose value is selected by which version of
+the atmosphere produced the field. Under this project's conventions it is a
+knob and not a coupling: it must be derived, bracketed or declared, never
+inherited. `vendor/exoplasim` is a fork of neither release, so neither pair of
+numbers transfers, and the quantity the scaling stands in for has to be
+identified before a field crosses this boundary at all.
+
+### 9c. Finding 3's treatment, applied to cgenie.muffin v0.9.50
+
+Finding 3 rejected LSG by reading four constraints out of its source. The same
+reading here returns a different answer, and the difference is the whole reason
+this tier is worth a price rather than a rejection.
+
+Already parameterised:
+
+- **Rotation.** `genie-goldstein/src/fortran/initialise_goldstein.F:381-385`
+  branches: where the solar and sidereal day lengths differ, `fsc = 4*pi/sidaylen`,
+  and otherwise it falls back to the Earth literal `2*7.2921e-5`. `sidaylen` and
+  `sodaylen` are namelist reals in `ini_gold_nml` (line 207) and in
+  `ini_embm_nml` (`initialise_embm.F:217`). The source comment dates the change
+  and names its author: "CL (01/15/24) : used sidereal day length for Coriolis
+  effect scaling factor". Liu et al.'s modification is in the tree, not in a
+  branch.
+- **Calendar.** `yearlen` is a namelist real and `syr = yearlen * sodaylen`
+  (`initialise_goldstein.F:292`), so the year in seconds follows from
+  days-per-year and the length of a day rather than from 365.25. Vesper's orbit
+  and its 30-hour day reach that pair directly. Two separate Earth constants are
+  NOT covered by it and are compile-time: `global_daysperyear = 365.25` at
+  `genie-main/genie_control.f90:190`, and `conv_yr_d = 365.25` at
+  `gem_cmn.f90:585`.
+- **Ocean depth and grid.** `dsc = par_dsc`, so maximum depth is configuration;
+  `imax`, `jmax` and `kmax` are build-time, and muffingen writes `GENIENX`,
+  `GENIENY` and `GOLDSTEINNLEVS`, so 36 x 36 x 16 is a configuration rather than
+  a constant.
+
+Not lifted:
+
+- **Planetary radius, in four independent places.** Three bare literal
+  assignments, `initialise_goldstein.F:376`, `initialise_embm.F:459` and
+  `genie-goldsteinseaice/src/fortran/initialise_seaice.F:246`, each
+  `rsc = 6.37e6`; and one compile-time
+  `REAL,PARAMETER::const_rEarth = 6.37E+06` at `gem_cmn.f90:802`. The parameter
+  is the serious one. It sets every grid-cell area and volume in BIOGEM,
+  ATCHEM, SEDGEM, ROKGEM, ECOGEM and GEMLITE, and it scales the overturning
+  streamfunction. At 1.20 Earth radii every area is out by 1.44, and the
+  biogeochemical inventory built on those areas with them.
+- **Gravity**, `gsc = 9.81` at `initialise_goldstein.F:386`, entering the
+  density scale `rhosc = rh0sc*fsc*usc*rsc/gsc/dsc`.
+
+So the count is four Earth constants across five lines, two of which upstream
+has already turned into namelist inputs, against LSG's four constraints of
+which none is liftable short of a fork the size of the LPJ-GUESS port. That is
+a different order of problem. It is NOT a finding that changing the remaining
+two is correct: `rsc` and `gsc` enter derived scale factors, and whether the
+frictional-geostrophic closure and its fitted transport parameters still mean
+anything at 1.20 radii is exactly what OCN-12 has to decide rather than assume.
+
+### 9d. The Earth content that no constant sweep reaches
+
+Both descriptive papers state plainly that the model's parameters were fitted to
+Earth observations, and this is the exposure that matters more than the
+constants.
+
+Edwards and Marsh (2005) present the transport parameters as "a first attempt at
+tuning a 3-D climate model by a strictly defined procedure": a 1,000-member
+ensemble scored against observed meridional overturning and Atlantic heat
+transport, with the warning that "single-parameter sensitivity studies can
+therefore be misleading". Ridgwell et al. (2007) calibrated the ocean carbon
+cycle by assimilating three-dimensional observed phosphate and alkalinity with
+an ensemble Kalman filter, and offer a global export production of 8.9 PgC/yr
+and CaCO3 export of 1.2 PgC/yr as evidence of the fit.
+
+An EMIC's skill is substantially IN its calibration. That is the opposite of the
+position section 6 credited MITgcm with, where the planetary parameters are
+runtime values and the closures are argued rather than fitted. The implicit-Earth
+exposure is therefore worse here in kind and not merely in count, and none of it
+appears in a grep for constants. OCN-12 owns it, and this is the case it has to
+be sharpest about.
+
+One measured point cuts the other way, and it belongs here because it is the
+obvious objection to the tier. Edwards and Marsh find that model errors "are
+reduced only moderately by a doubling of resolution". Section 8b's concern is
+still real, because straits, sills and partial coasts are not representable at
+10 degrees of longitude whatever the error statistics do. But the presumption
+that a coarse frictional-geostrophic ocean is wrong in proportion to its
+coarseness is not supported by its own authors' measurement, and OCN-11 should
+test that rather than assume it.
+
+### 9e. What this tier buys that the resolved tier does not
+
+**Finding 5d, and OCN-16.** This audit's own pricing makes ocean carbon the only
+pathway on which a modelled marine ecosystem is a first-order control of this
+world's climate, and parks it behind prescribed pCO2. BIOGEM, SEDGEM and ROKGEM
+(Colbourn et al., 2013) are a closed carbon cycle with carbonate chemistry,
+sediment burial and terrestrial weathering. MITgcm with Darwin supplies the
+ocean half and neither the sediment nor the weathering side. If OCN-16 is ever
+opened, this is the tier that answers it, and
+`pedology/scripts/weathering_fluxes.py` already covers part of what ROKGEM does.
+
+**Trait-based ecology at EMIC cost.** ECOGEM (Ward et al., 2018) resolves an
+arbitrary number of plankton populations with traits assigned by size and
+functional group at runtime; its reference configuration is 16 populations
+across eight size classes in two functional types, and 1.1 adds a diatom group
+(Naidoo-Bagwell et al., 2024). The property section 6 used to prefer Darwin over
+MARBL, that community composition emerges from a declared trait space rather
+than arriving as fixed types, is a property of ECOGEM as well. That argument
+does not discriminate between them, and OCN-4 should stop being written as
+though it does.
+
+### 9f. What it costs that the resolved tier does not
+
+**A second atmosphere.** cGENIE ships EMBM, and the published coupling
+prescribes wind stress, wind speed and planetary albedo into it rather than
+replacing it. The modelled land and the modelled ocean would then be reading
+different atmospheres. Section 8a's one-owner rule does not forbid that, but it
+does forbid leaving it unstated: OCN-10 must name which heat, water and
+momentum terms EMBM owns and which arrive prescribed.
+
+**The forcing trap is untouched.** Both published couplings are one way, and
+this project wants the transport back as surface code 903. Section 7 and OCN-5
+apply unchanged, and if anything the trap is sharper here, because a model this
+cheap makes it easy to run the loop before its exit predicate has been declared.
+
+**MATLAB.** muffingen and the ExoPlaSim regrid script are both MATLAB. Whether
+either runs under Octave is unverified, and it is a host question before it is a
+modelling one.
+
+## 10. What this audit did NOT establish
 
 Recorded so the next reader knows the edges.
 
-- MITgcm has not been built on this host, and neither its build nor Darwin's
-  licence, tracer cost or trait-space requirements have been checked against
-  anything. Section 6 is a recommendation from the coupling and Earth-content
-  arguments, not from a measurement.
+- Neither host has been built on this machine. MITgcm's build, and Darwin's
+  tracer cost and trait-space requirements, have been checked against nothing at
+  all. cGENIE's source and licence have now been read at v0.9.50 and its costs
+  are quoted from its authors' papers, but nothing has been compiled or timed
+  HERE, which is the only number OCN-3 accepts. Section 6 remains a pair of
+  candidates from the coupling, cost and Earth-content arguments, not from a
+  measurement.
+- Section 9 does not establish that cGENIE's remaining Earth constants can be
+  changed correctly. It establishes where they are and how many there are.
+  `rsc` and `gsc` feed derived scale factors, and whether the
+  frictional-geostrophic closure and its Earth-fitted transport parameters
+  survive 1.20 radii is unanswered and is OCN-12's to answer.
+- The wind-stress scaling in the published ExoPlaSim coupling, 2.0 or 2.6
+  depending on the atmosphere's version, is recorded as a knob that has to be
+  explained. What physical quantity it stands in for has NOT been determined,
+  and neither paper is read closely enough here to say whether it is documented
+  anywhere but the regrid README.
 - The water-leaving albedo span in 5a is DECLARED, not sourced. It carries the
   pricing's whole uncertainty and no paper in `references/INDEX.md` backs it.
 - Every climate figure is on the bootstrap climatology. The 5a and 5d numbers
@@ -416,9 +617,10 @@ Recorded so the next reader knows the edges.
 
 ## Tasks
 
-OCN-1 through OCN-16 in `TASKS.md`. Findings 1, 2, 5a, 5b and 5c are the
+OCN-1 through OCN-17 in `TASKS.md`. Findings 1, 2, 5a, 5b and 5c are the
 exploration rows; finding 3 is recorded here and became no row, being a
 constraint rather than work; finding 4's config half is OCN-9 and its prediction
 half is this document. Section 8 supplies the cross-component contracts and
 acceptance rows OCN-10 through OCN-16, plus LITH-26 for the existing static
-latitude shelf classifier.
+latitude shelf classifier. Section 9 rewrites OCN-3 into a two-host pricing and
+OCN-4 into a host-following ecosystem tier, and its coupling half is OCN-17.
