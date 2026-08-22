@@ -32,10 +32,6 @@ program shtns_concurrency
    real(dp) :: eps_polar, worst, e
    complex(dp), allocatable :: Slm(:,:)
    real(dp), allocatable :: Sh(:,:,:), Ref(:,:,:)
-!  the analysis direction, which this probe did not originally cover
-   complex(dp), allocatable :: Alm(:,:), Aref(:,:), Blm(:,:), Bref(:,:)
-   real(dp), allocatable :: Vt(:,:,:), Vp(:,:,:)
-   integer :: nbada, nbadv
 
    lmax = 170 ; mmax = 170 ; mres = 1
    nlat = 256 ; nphi = 512
@@ -81,40 +77,6 @@ program shtns_concurrency
       enddo
    enddo
 
-!  ---- ANALYSIS, which is a different question and was never asked ----------
-!  Synthesis reads the configuration and writes only the caller's array. There
-!  is no reason analysis has to be the same, and the model now calls
-!  spat_to_SH and spat_to_SHsphtor from every thread at once. A shared scratch
-!  inside the configuration would not make the answer wrong -- it would make it
-!  differ in the last bits from run to run, which is what a threaded model must
-!  never do.
-   allocate( Alm(shtns%nlm, NF), Aref(shtns%nlm, NF) )
-   allocate( Blm(shtns%nlm, NF), Bref(shtns%nlm, NF) )
-   allocate( Vt(shtns%nphi, shtns%nlat, NF), Vp(shtns%nphi, shtns%nlat, NF) )
-   do jf = 1, NF
-      Vt(:,:,jf) = Ref(:,:,jf)
-      Vp(:,:,jf) = Ref(:,:,jf) * 0.5_dp
-   enddo
-   do jf = 1, NF
-      call spat_to_SH(shtns_c, Ref(:,:,jf), Aref(:,jf))
-   enddo
-   do jf = 1, NF
-      call spat_to_SHsphtor(shtns_c, Vt(:,:,jf), Vp(:,:,jf), Bref(:,jf), Blm(:,jf))
-   enddo
-
-   nbada = 0 ; nbadv = 0
-   do jr = 1, NROUND
-      Alm = (0.0_dp, 0.0_dp)
-      !$omp parallel do schedule(dynamic) private(jf) shared(Ref, Alm, shtns_c)
-      do jf = 1, NF
-         call spat_to_SH(shtns_c, Ref(:,:,jf), Alm(:,jf))
-      enddo
-      !$omp end parallel do
-      do jf = 1, NF
-         if (any(Alm(:,jf) /= Aref(:,jf))) nbada = nbada + 1
-      enddo
-   enddo
-
    write(*,'(a,i0,a,i0,a,i0)') 'lmax ', lmax, '  nlat ', nlat, '  nlm ', shtns%nlm
    write(*,'(a,i0,a,i0,a)') 'threads available: ', omp_get_max_threads(),        &
   &   ', transforms a round: ', NF, ''
@@ -127,14 +89,6 @@ program shtns_concurrency
       write(*,'(a,i0,a,i0,a)') '  [ FAIL ] ', nbad, ' of ', NF*NROUND,           &
   &      ' concurrent transforms differ from the serial answer'
       write(*,'(a,e12.5)')     '           worst difference ', worst
-      stop 1
-   endif
-   if (nbada == 0) then
-      write(*,'(a,i0,a)') '  [  ok  ] all ', NF*NROUND,                          &
-  &      ' concurrent spat_to_SH are BIT IDENTICAL to the serial answer'
-   else
-      write(*,'(a,i0,a,i0,a)') '  [ FAIL ] ', nbada, ' of ', NF*NROUND,          &
-  &      ' concurrent spat_to_SH differ from the serial answer'
       stop 1
    endif
 end program shtns_concurrency

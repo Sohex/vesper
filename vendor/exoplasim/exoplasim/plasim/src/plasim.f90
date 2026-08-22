@@ -2679,11 +2679,8 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !        target, to save a copy of 82 KB a thread.
 !$omp barrier
          call sh_gp2sp(gvpp_g, zpsp(1,0), 1)
-!$omp barrier
          call sh_dztend(gvz_g, guz_g, gke_g, zpsd(1,1,0), zpsz(1,1,0), NLEV)
-!$omp barrier
          call sh_advtend(gtn_g, gut_g, gvt_g, zpst(1,1,0), NLEV)
-!$omp barrier
          if (nqspec == 1)                                               &
      &      call sh_advtend(gqn_g, guq_g, gvq_g, zpsq(1,1,0), NLEV)
 !$omp barrier
