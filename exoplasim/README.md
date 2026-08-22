@@ -178,6 +178,34 @@ annualized to 365.2425 days before applying empirical Earth thresholds. That
 avoids classifying this world's 180.7-day orbital year as artificially dry.
 It is a worldbuilding interpretation, not a dynamic vegetation simulation.
 
+## The build variants, and which flags change the binary's identity
+
+`compile.sh` produces a differently named executable for each combination,
+because these are different binaries at the same resolution and rank count
+rather than variants of one. `plasim/bld` keeps a marker per choice and empties
+itself when one changes: the objects share names, and a stale one links
+silently. Precision is the worst of the three to get wrong, because
+`-fdefault-real-8` changes the width of `real` in every declaration and a real*4
+object linked against real*8 ones does not fail -- it computes.
+
+| flag | what it selects | name |
+| --- | --- | --- |
+| none | MPI, one process per rank | `most_plasim_<res>_l10_p<n>.x` |
+| `-j` | threads instead of ranks, one process, `mpimod_omp` | `..._omp.x` |
+| `-u` | unpaired latitudes: the stock contiguous layout instead of `LPAIRLAT` | `..._np.x` |
+| `-p 8` | double precision, which is what `config/planet.yaml` declares | no change to the name |
+
+`-u` exists for SHTns, which needs the grid in latitude order where `LPAIRLAT`
+permutes it, and it costs nothing there: the paired layout exists to let legmod
+fold a mirror pair together and SHTns replaces legmod. It should be DELETED
+rather than carried once `nshtns=1` becomes the default -- two grid layouts
+through the rest of that conversion is a cost this project has paid once
+already.
+
+`NSHTNS` is a NAMELIST switch and deliberately not a build flag, so that the
+two transforms can be compared inside one binary with no compiler difference in
+the comparison. That is what `verify_shtns_model.sh` relies on.
+
 ## Every script here
 
 The workflow above uses a few of these. The rest are tools you will not find
