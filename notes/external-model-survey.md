@@ -549,9 +549,12 @@ splits OCN-19 and OCN-20 more cleanly than they were split when written.
 
 `free_surface.f90` is called from `ocn_model.f90:533` but diagnoses sea surface
 height from density; it does not replace the rigid-lid machinery, and reading
-the filename as though it did would have been wrong. `restore_salinity.f90`,
-`flux_adj.f90` and `hosing.f90` are the named controls OCN-5 requires be kept
-explicit rather than physical, and `eos.f90` is an OCN-12 item.
+the filename as though it did would have been wrong.
+
+CORRECTION: an earlier version of this section named `restore_salinity.f90`,
+`flux_adj.f90` and `hosing.f90` as cGENIE's. They are CLIMBER-X's ocean files,
+read in section 7a and misattributed here. What cGENIE actually has is section
+27.
 
 **`src/geo/hypso_topo.f90` -> GRID-2.** A worked implementation of the shape
 GRID-2 declares: a high-resolution bed elevation binned into per-coarse-cell
@@ -2131,3 +2134,53 @@ intrinsically out of equilibrium. GEMlite's cannot handle a transient
 disequilibrium pulse. `newsnow` only extrapolates where snow already exists and
 is shrinking or has persisted a year. The device is never the deliverable; the
 statement of what it is valid for is.
+
+
+## 27. cGENIE is flux-forced already, and OCN-5's requirement splits
+
+*Read 2026-08-22 from `vendor/cgenie/genie-goldstein`. OCN-5 requires flux
+forcing with no temperature restoring, so the question is what the candidate
+does by default.*
+
+**There is no sea-surface temperature or salinity restoring.**
+`surf_ocn_sic.F` computes surface FLUX terms -- `fx0o` for heat into the ocean,
+`evap`, `fxsen` and the sea-ice counterparts -- under a comment reading "main
+i,j loop to compute surface flux terms". The ocean takes fluxes from whichever
+atmosphere it is coupled to.
+
+The one name that looks like restoring is not. `rel` sits in
+`common /ocn_relax/` and `velc.f:103` uses it as
+
+    u(1,i,j,k) = rel*u1(1,i,j,k) + (1.0 - rel)*u(1,i,j,k)
+
+which is a numerical under-relaxation blending the new velocity with the
+previous iterate. A solver control, not a physical term, and it should be
+recorded as such so nobody retires it as a restoring.
+
+The genuine explicit control is `get_hosing.F`, an additional freshwater
+forcing with `hosing`, `hosing_trend` and `nyears_hosing` in `ini_gold_nml`. It
+is called unconditionally from `goldstein.F:259` and its output is added to the
+freshwater flux at line 297, so it is always in the path and inert only by
+parameter value. That is exactly the class OCN-5 wants named rather than
+removed, and it needs stating in the provenance chain because a zero default is
+not the same as an absent term.
+
+### 27a. The requirement splits, and only half of it is about the ocean model
+
+OCN-5's warning is that "an ocean model forced by a climatology a zero-transport
+slab produced, and restored toward that climatology's own sea-surface
+temperature, returns a transport of zero by construction". That is two failures
+joined by an "and", and cGENIE's construction only rules out the second.
+
+There is no restoring, so the ocean cannot be pinned to a prescribed SST. But
+nothing about the model prevents the first: if the heat and freshwater fluxes
+handed to it are derived from a climatology a zero-transport slab produced, the
+ocean will reproduce the transport that climatology implies, which is zero. No
+property of the candidate protects against that, because the defect is in what
+this project supplies rather than in what the model does with it.
+
+So the row's requirement should be read as two, with different owners. "No
+temperature restoring" is satisfied by the candidate and can be checked once.
+"Flux forcing that does not encode the answer" is this project's, is not
+checkable by inspecting cGENIE, and is the one that needs the declared
+procedure the row asks for.
