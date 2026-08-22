@@ -3320,6 +3320,9 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 
       subroutine gridpointd
       use pumamod
+#ifdef OMPSHARED
+      use shtnsmod, only: sh_sp2gp, sh_dv2uv
+#endif
 !
 !     The same tendency partials gridpointa uses, from pumamod. The two
 !     routines do not overlap -- master runs one and then the other -- so one
@@ -3346,6 +3349,25 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !     transform to gridpoint domain
 !
 
+#ifdef OMPSHARED
+      if (nshtns == 1) then
+!        As in gridpointa: one call per field, landing in GRID space, so there
+!        is no Fourier intermediate and no fc2gp. This site is the easy one --
+!        nothing between the transform and the dimensionalising below reads a
+!        Fourier coefficient. invlegd leaves gd and gz alone and so does this.
+         call sh_dv2uv(sd, sz, gu_g, gv_g, NLEV)
+         call sh_sp2gp(st, gt_g, NLEV)
+         call sh_sp2gp(sp, gp_g, 1)
+         if (nqspec == 1) call sh_sp2gp(sq, gq_g, NLEV)
+      else
+         call invlegd
+         call fc2gp(gu  ,NLON,NLPP*NLEV)
+         call fc2gp(gv  ,NLON,NLPP*NLEV)
+         call fc2gp(gt  ,NLON,NLPP*NLEV)
+         call fc2gp(gp  ,NLON,NLPP)
+         if (nqspec == 1) call fc2gp(gq  ,NLON,NLPP*NLEV)
+      endif
+#else
       call invlegd
 
       call fc2gp(gu  ,NLON,NLPP*NLEV)
@@ -3355,6 +3377,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       if (nqspec == 1) then
          call fc2gp(gq  ,NLON,NLPP*NLEV)
       endif
+#endif
 
 !
 !     dimensionalize
