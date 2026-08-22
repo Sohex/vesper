@@ -779,3 +779,51 @@ story one level down.
 
 What this does retire is the idea in CLIM-63 that the cost is copy-in and
 copy-out at explicit-shape dummies. It is not copying at all.
+
+## Attributing the zeroing needed frame pointers, and they are free
+
+Measured 2026-08-22, T170.
+
+The memset attribution stalled at about a third of samples having no caller.
+That looked like clipped stacks and is not: widening the DWARF dump from 8 KB to
+32 KB left truncation at 44.1% and 44.4%, and 65528 bytes lost every sample to
+the ring buffer. The depth histogram is the tell -- **94.4% of samples landing in
+the model's own code had ONE frame**, not a long chain cut short. libdw cannot
+find usable CFI at an arbitrary PC inside an -O3 vectorised loop.
+
+Rebuilt with `-fno-omit-frame-pointer` and sampled with `--call-graph fp`, that
+figure is **0.0%**. What remains at depth one is 28.7% of the stripped-library
+leaves, which are samples inside libc and libgomp themselves; those are not
+built with frame pointers and cannot be reached from here.
+
+**It costs -1.17% at T170, interval [-3.18, +0.75], and the restart sha is
+IDENTICAL.** So a frame-pointer profile measures the same model, which is the
+part that mattered -- an instrument that perturbs the thing it measures is worth
+much less. `compile.sh -g` builds it, named `_fp` apart from the registered
+binaries.
+
+That inverts what this project had been doing. DWARF was the general tool and
+frame-pointer builds were ad hoc for particular investigations; on this build
+DWARF fails on nineteen samples in twenty and frame pointers are free.
+
+## And the zeroing is the physics, which is why there is nothing to pick up
+
+With the model side fully unwound, 300 steps, 0 lost samples, 88,661 stacks, of
+which 50.4% have their leaf in a stripped library. Where those come from:
+
+| first model frame | share |
+| --- | ---: |
+| none -- the libgomp barrier | 30.3% |
+| `radstep_` | 18.1% |
+| `master_` | 16.3% |
+| `gridpointd_` | 5.8% |
+| `rainstep_` | 5.6% |
+| `fluxstep_` | 4.9% |
+| `kuo_` | 4.2% |
+| `gridpointa_` | 4.1% |
+| `icestep_`, `mkdheat_` | 3.4% each |
+
+69.0% go through `master_`, 0.4% through `prolog_`. So it is per-step, it is
+every physics routine clearing its own work arrays, and there is no single site
+to attack. The earlier answer -- no low-hanging fruit -- survives being properly
+scoped, which is the outcome that was worth the detour either way.

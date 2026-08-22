@@ -99,7 +99,7 @@ nopt=0
 years=1
 nmars=0
 
-while getopts "p:r:v:n:O:t:jdhm" opt; do
+while getopts "p:r:v:n:O:t:jdhmg" opt; do
     case $opt in
         p)
             case $OPTARG in
@@ -215,6 +215,19 @@ while getopts "p:r:v:n:O:t:jdhm" opt; do
             # the same resolution and rank count, not a variant of it.
             parmode="omp"
             ;;
+        g)
+            # A PROFILING build: frame pointers, nothing else. DWARF cannot
+            # unwind this -O3 code -- 94% of samples landing in the model have
+            # no caller at all, and widening the stack dump from 8 KB to 32 KB
+            # leaves truncation at 44% because the trail is lost, not clipped.
+            # With frame pointers that figure is 0.0%.
+            #
+            # It costs -1.17% [-3.18, +0.75] at T170, an interval spanning zero,
+            # and the restart sha is IDENTICAL -- so a profile taken this way
+            # measures the same model. Named apart anyway, because it is a
+            # different binary and the registry should not confuse the two.
+            framepointer=1
+            ;;
         d)
             debug=1
             ;;
@@ -242,6 +255,7 @@ done
 
 suffix=""
 [ "$parmode" = "omp" ] && suffix="_omp"
+[ "${framepointer:-0}" = 1 ] && suffix="${suffix}_fp"
 echo "PRODUCING: "$optimization" -r"$prec" -o most_plasim_"$resolution"_l"$levels"_p"$ncpus$suffix".x"
 executable="most_plasim_"$resolution"_l"$levels"_p"$ncpus$suffix".x"
 
@@ -324,6 +338,16 @@ touch "PREC$prec"
 # The paired decomposition is retired, so its marker is too. A tree built when
 # it still existed carries stale objects, so clear it once.
 [ -e NOPAIR ] && rm -f *.o *.mod *.x NOPAIR
+
+# Frame pointers change every object, so the tree gets a marker like the others.
+if [ "${framepointer:-0}" = 1 ]
+then
+    [ ! -e FPTR ] && rm -f *.o *.mod *.x
+    touch FPTR
+    sed -i.bak '3s/$/ -fno-omit-frame-pointer/' compilerargs && rm -f compilerargs.bak
+else
+    [ -e FPTR ] && rm -f *.o *.mod *.x FPTR
+fi
 
 dbgs=""
 (($debug)) && dbgs='../../most_debug_options '

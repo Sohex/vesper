@@ -193,6 +193,7 @@ object linked against real*8 ones does not fail -- it computes.
 | none | MPI, one process per rank | `most_plasim_<res>_l10_p<n>.x` |
 | `-j` | threads instead of ranks, one process, `mpimod_omp` | `..._omp.x` |
 | `-p 8` | double precision, which is what `config/planet.yaml` declares | no change to the name |
+| `-g` | a PROFILING build: frame pointers. DWARF cannot unwind the -O3 code -- 94% of model samples get no caller -- and this costs -1.17% with an identical restart sha, so the profile measures the same model | `..._fp.x` |
 
 The paired latitude decomposition is retired. It existed to let legmod fold a
 mirror pair together, SHTns replaces legmod and cannot use the permuted layout
