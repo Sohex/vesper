@@ -119,11 +119,17 @@ export, and OCN-18 asks specifically what muffingen's `.k1`, `.paths` and
 `.psiles` generation does above 36 x 36. Deleting the whole directory would have
 cost that and saved 49 MB.
 
-Two consequences to know. The history still carries the deleted blobs, so `.git`
-did not shrink and will not; the saving is working-tree size, which is what
-`grep` and `find` pay. And a `git subtree pull` will reintroduce the plots until
-the same deletion is made in the fork, which is a `git subtree push` to
-`Sohex/cgenie.muffin` and has not been done.
+The deletion is IN THE FORK, not only in this checkout, so a `git subtree pull`
+will not reintroduce the plots. `git subtree split --prefix=vendor/cgenie`
+reconstructs real upstream lineage rather than rooting at the squash commit, so
+the split branch was a descendant of `008fd490` and pushed to the fork's master
+as a fast-forward carrying only the deletion. That is the general recipe for
+sending a change up: split, push the split branch to `cgenie-fork master`,
+delete the split branch.
+
+One consequence remains. The history here still carries the deleted blobs, so
+`.git` did not shrink and will not; the saving is working-tree size, which is
+what `grep` and `find` pay.
 
 Unrelated and worth knowing before someone blames the deletion: four directories
 that configs reference, `fkl_np10`, `fkl_pp01_DH`, `fm0450ab` and `wppcont1`,
