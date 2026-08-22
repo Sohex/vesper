@@ -2525,7 +2525,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       use pumamod
 #ifdef OMPSHARED
       use shtnsmod, only: sh_sp2gp, sh_dv2uv, sh_sp2grad, shgdmu, shgdlam,    &
-     &                    sh_gp2sp, sh_dztend, sh_advtend
+     &                    sh_gp2sp, sh_dztend, sh_advtend, sh_slice
 #endif
 !
 !*    Adiabatic Gridpoint Calculations
@@ -2668,12 +2668,27 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !        The first barrier is for the grid arrays, which every thread has just
 !        filled a band of; the second is for the spectral tendencies, which the
 !        wrappers fill by level and the caller reads whole.
+!        THE TENDENCIES ARE HELD AS A SLICE, not as a whole field: sdt is
+!        (NSPP,NLEV), the thread's modes at every level, because that is what
+!        the semi-implicit step in spectrala works on. The wrappers are parallel
+!        over LEVELS and produce every mode of the levels they own. The two
+!        decompositions are orthogonal, so the whole field lands in slot 0 of
+!        the partial scratch -- already shared, already this shape, and idle on
+!        this path -- and each thread then takes its slice. Giving the whole
+!        field its own arrays would cost 11.8 MB a die at T170 against a 32 MB
+!        target, to save a copy of 82 KB a thread.
 !$omp barrier
-         call sh_gp2sp(gvpp_g, spt, 1)
-         call sh_dztend(gvz_g, guz_g, gke_g, sdt, szt, NLEV)
-         call sh_advtend(gtn_g, gut_g, gvt_g, stt, NLEV)
-         if (nqspec == 1) call sh_advtend(gqn_g, guq_g, gvq_g, sqt, NLEV)
+         call sh_gp2sp(gvpp_g, zpsp(1,0), 1)
+         call sh_dztend(gvz_g, guz_g, gke_g, zpsd(1,1,0), zpsz(1,1,0), NLEV)
+         call sh_advtend(gtn_g, gut_g, gvt_g, zpst(1,1,0), NLEV)
+         if (nqspec == 1)                                               &
+     &      call sh_advtend(gqn_g, guq_g, gvq_g, zpsq(1,1,0), NLEV)
 !$omp barrier
+         call sh_slice(zpsp(1,0), spt, 1)
+         call sh_slice(zpsd(1,1,0), sdt, NLEV)
+         call sh_slice(zpsz(1,1,0), szt, NLEV)
+         call sh_slice(zpst(1,1,0), stt, NLEV)
+         if (nqspec == 1) call sh_slice(zpsq(1,1,0), sqt, NLEV)
       else
 #endif
       call gp2fc(gtn ,NLON,NLPP*NLEV)

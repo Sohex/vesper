@@ -543,6 +543,33 @@
       end subroutine unpack_dv
 
 
+      subroutine sh_slice(pfull, pslice, klev)
+!     Take this thread's spectral slice out of a whole field.
+!
+!     The analysis wrappers are parallel over LEVELS and produce every mode of
+!     the levels they own; the model holds its tendencies as an NSPP slice of
+!     the modes, all levels. The two decompositions are orthogonal, so a barrier
+!     and a copy between them is not avoidable -- it is the same handover
+!     mpsumscp performs at the end of its reduction, without the reduction.
+!
+!     NSPP*NLEV words a thread, which is about 82 KB at T127 against the 5.9 MB
+!     the transform just wrote.
+      use pumamod, only: NESP, NSPP, mypid
+      integer, intent(in) :: klev
+      real, intent(in)    :: pfull(NESP,klev)
+      real, intent(out)   :: pslice(NSPP,klev)
+      integer :: jlev, j, lo
+
+      lo = mypid * NSPP
+      do jlev = 1 , klev
+         do j = 1 , NSPP
+            pslice(j,jlev) = pfull(lo+j,jlev)
+         enddo
+      enddo
+      return
+      end subroutine sh_slice
+
+
       subroutine shtns_teardown
       if (.not. lshtns) return
       call shtns_destroy(shtcfg)
