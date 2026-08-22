@@ -70,8 +70,13 @@ occurrences to train on. Whether `minerals/` is doing something defensible
 without a training set, or is a plausibility field wearing a method's clothes,
 is not currently asked anywhere. ArcSDM is open source.
 
-**Landlab** -- ACQUIRED 2026-08-22, `references/landlab/`. A modular landscape evolution framework, one component per
-process. *Row-driven.* GRAV-6 records that glacial erosion carries no gravity
+**Landlab** -- ACQUIRED 2026-08-22, `references/landlab/`, AND IT DOES NOT SERVE THE ROW IT WAS FETCHED FOR.
+Of 61 components none is glacial, so GRAV-6's Glen's-law question has no source
+in any tree held here and that gap stands open. Re-keyed on inspection to what
+it does carry: `priority_flood_flow_router` as a direct comparison for
+`hydrography/drainage.py`, `flexure` for the isostasy blind spot, `lithology`
+for LITH, and fluvial erosion laws whose gravity dependence is implicit through
+shear stress and is a different question from GRAV-6's. *Row-driven.* GRAV-6 records that glacial erosion carries no gravity
 term while Glen's law makes ice velocity go as `g^3`. LITH and PHYS-13 sit
 beside it. Landlab is the most readable LEM and separates its erosion laws
 cleanly enough to read one without the rest. **Read the no-time-axis rule first**
