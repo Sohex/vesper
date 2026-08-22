@@ -258,7 +258,6 @@ model:
       - "-ffixed-line-length-132"
       - "-ffpe-trap=invalid,zero,overflow"
       - "-ffpe-summary=none"
-      - "-finit-real=zero"
       - "-march=znver4"
     # Flags added to f90_opts, by profile. The profile is part of a binary's
     # identity and is recorded in binary_manifest.json beside its sha.
@@ -272,7 +271,19 @@ model:
       # out-of-bounds during the CLIM-40 fold work: an off-by-one in a spectral
       # mode index that aborted in legini instead of returning a plausible
       # wrong climate.
-      checked: ["-fcheck=all"]
+      # -finit-real=snan initialises every local real to a signalling NaN, so a
+      # read of one traps at the instruction that uses it rather than quietly
+      # returning a zero. It was in f90_opts as -finit-real=zero, where it cost
+      # 26.03% of T170 [+22.76, +27.29] and the model was measured not to need
+      # it: the restart is bit identical without it, and identical again under
+      # snan with the trap MASKED, so nothing uninitialised reaches a stored
+      # value. Moving it here is what that buys -- a check that can FAIL rather
+      # than a tax that hides what it protects against.
+      # exoplasim/notes/the-zeroing-is-an-init-flag.md.
+      # It is usable in THIS profile because these are MPI binaries, which
+      # cannot run SHTns. On a threaded build snan traps inside the library
+      # before it can say anything about the model, which is CLIM-70.
+      checked: ["-fcheck=all", "-finit-real=snan"]
     profile: production
   ncpus: 16
   timestep_minutes: 45.0
