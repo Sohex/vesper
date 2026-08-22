@@ -62,7 +62,7 @@ cat > resmod.f90 <<EOF
       end module resmod
 EOF
 
-F="-c -O2 -cpp -ffixed-line-length-132 -ffpe-summary=none -finit-real=zero -fdefault-real-8"
+F="-c -O2 -cpp -DOMPSHARED -DNOPAIRLAT -ffixed-line-length-132 -ffpe-summary=none -finit-real=zero -fdefault-real-8"
 
 build () {
     local tag="$1"
@@ -73,7 +73,7 @@ build () {
     done
     gfortran $F -J . -I"$PREFIX/include" shtnsmod.f90 -o shtnsmod.o 2>shtnsmod.err \
         || { echo "compile failed: shtnsmod ($tag)"; head -20 shtnsmod.err; exit 1; }
-    gfortran -O2 -fdefault-real-8 -ffixed-line-length-132 -J . -I"$PREFIX/include" \
+    gfortran -O2 -cpp -DOMPSHARED -DNOPAIRLAT -fdefault-real-8 -ffixed-line-length-132 -J . -I"$PREFIX/include" \
         -c drive.f90 -o drive.o 2>drive.err \
         || { echo "compile failed: drive ($tag)"; head -25 drive.err; exit 1; }
     gfortran -o "equiv_$tag.x" drive.o shtnsmod.o legmod.o fftmod.o gaussmod.o \

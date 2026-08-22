@@ -25,6 +25,21 @@
 !         spheroidal, because divergence is the Laplacian of S while
 !         vorticity is minus the Laplacian of T.
 !
+!     THE SPECTRAL FILTER IS PART OF THE TRANSFORM. legini folds skspgp(n+1)
+!     into fsp, fmu and fmv, so every spectral-to-grid conversion legmod
+!     performs is filtered, and a replacement that is not filtered is not the
+!     same operator. The default is nfilter=0, which makes the factor one and
+!     the omission invisible -- which is exactly how it survived a check that
+!     never read a namelist. Any wrapper added here applies fsp.
+!
+!     THE m=0 IMAGINARY PARTS ARE JUNK AND MUST BE DROPPED. A zonal mean has no
+!     imaginary part, so legmod never reads those slots and nothing in the model
+!     keeps them clean -- verify_transform_roundtrip measured them as exactly
+!     the part a round trip does not preserve. SHTns has no such null space: it
+!     takes the coefficient it is given. Passing them through adds a spurious
+!     field of fixed size, which is invisible on a large field like gt and
+!     ruinous on a small one like ln(ps).
+!
 !     WHAT IT REQUIRES. SHTns needs every latitude in one address space,
 !     so it is available only to the threaded build, and it needs the
 !     grid in LATITUDE order, so it is incompatible with LPAIRLAT --
@@ -36,7 +51,11 @@
       module shtnsmod
       use iso_c_binding
       use pumamod, only: NTRU, NLAT, NLON, NCSP, NLEV, NLPP, NPRO,      &
-     &                   LPAIRLAT, nud, mypid, NROOT
+     &                   LPAIRLAT, nud, mypid, NROOT, NUGP, NTP1
+!     fsp is legmod's OWN per-mode filter table, skspgp(n+1) by mode, and it is
+!     shared rather than threadprivate. Taken directly rather than rebuilt here,
+!     so the two transforms cannot drift apart when a filter is added.
+      use legmod, only: fsp
       implicit none
       include 'shtns.f03'
 
@@ -58,16 +77,39 @@
 !     legini already carries it inside fmu and fmv.
       real (kind=8), allocatable :: shtinv(:)
 
+!     Shared scratch for the two pressure derivatives. gpj is an NHOR module
+!     array and gpmt an NHOR local, both a thread's band, while the wrappers
+!     produce the whole globe -- so the globe lands here and each thread copies
+!     its own band out. That copy is NHOR words a timestep, 65 KB a thread at
+!     T170, which is not worth a second storage rule to avoid.
+      real, allocatable :: shgdmu(:), shgdlam(:)
+
       contains
 
       subroutine shtns_setup
       integer :: knorm, klay, jm, jn, jlm, kok
       real (kind=8) :: zeps
 
+!     ONE THREAD BUILDS IT. prolog runs on the whole team, so without this
+!     every thread would call shtns_create and shtns_set_grid, race on the
+!     shared shtcfg, and allocate shtinv four times. It does not merely
+!     misbehave: FFTW's planner is not reentrant and the concurrent call
+!     segfaults inside fftw_mkplan_d. The implicit barrier that ends the
+!     single region is also what makes shtcfg safe to read afterwards.
+!$omp single
+
       lshtns = .false.
 
 !     Both of these are refusals rather than warnings: a model that
 !     silently ran the wrong transform would be the expensive failure.
+#ifndef OMPSHARED
+      if (mypid == NROOT) then
+         write(nud,*) '*** SHTns needs every latitude in ONE address space,'
+         write(nud,*) '*** which is the threaded build. This one is not it.'
+      endif
+      call mpabort('nshtns without OMPSHARED')
+#endif
+
       if (NPRO > 1 .and. LPAIRLAT) then
          if (mypid == NROOT) then
             write(nud,*) '*** SHTns needs the grid in LATITUDE order and'
@@ -90,6 +132,7 @@
       call shtns_robert_form(shtcfg, 1)
 
       allocate(shtinv(NCSP))
+      allocate(shgdmu(NUGP), shgdlam(NUGP))
       jlm = 0
       do jm = 0 , NTRU
          do jn = jm , NTRU
@@ -107,6 +150,8 @@
          write(nud,*) 'SHTns configured: T', NTRU, ' nlat', NLAT,        &
      &                ' nlon', NLON, ' modes', NCSP
       endif
+
+!$omp end single
       return
       end subroutine shtns_setup
 
@@ -133,9 +178,14 @@
 
 !$omp do schedule(static)
       do jlev = 1 , klev
-         do jm = 1 , NCSP
+         do jm = 1 , NTP1                  ! m=0: real, junk imaginary
+            zlm(jm) = cmplx(real(psp(2*jm-1,jlev),8), 0.0_8, kind=8)   &
+     &                * real(fsp(jm),8)
+         enddo
+         do jm = NTP1+1 , NCSP
             zlm(jm) = cmplx(real(psp(2*jm-1,jlev),8),                   &
-     &                      real(psp(2*jm  ,jlev),8), kind=8)
+     &                      real(psp(2*jm  ,jlev),8), kind=8)           &
+     &                * real(fsp(jm),8)
          enddo
          call SH_to_spat(shtcfg, zlm, zg)
          pgp(:,jlev) = real(SHTROOT * zg)
@@ -159,7 +209,17 @@
 !
 !     Robert form is on, so SHTns returns the wind already multiplied by
 !     cos(phi), which is what gu and gv are.
-      use pumamod, only: NESP, NUGP, NCSP, NLEV
+!
+!     AND THE PLANETARY VORTICITY. psz is ABSOLUTE vorticity -- plasim.f90 puts
+!     plavor into sz(3) at initialisation -- while the wind comes from the
+!     RELATIVE part, so plavor has to come back out. Flat index 3 is the real
+!     part of mode 2, which is l=1 m=0, the harmonic proportional to sin of
+!     latitude, and legmod removes exactly that one mode's contribution from its
+!     result. Here the coefficient is already a private copy, so it is taken off
+!     the coefficient instead. Leaving it out does not look wrong: it adds a
+!     solid-body rotation to the wind, the model runs, and it dies later in the
+!     radiation with a floating-point exception.
+      use pumamod, only: NESP, NUGP, NCSP, NLEV, plavor
       integer, intent(in) :: klev
       real, intent(in)    :: psd(NESP,klev), psz(NESP,klev)
       real, intent(out)   :: pgu(NUGP,klev), pgv(NUGP,klev)
@@ -169,12 +229,25 @@
 
 !$omp do schedule(static)
       do jlev = 1 , klev
-         do jm = 1 , NCSP
-            zs(jm) =  cmplx(real(psd(2*jm-1,jlev),8),                   &
-     &                      real(psd(2*jm  ,jlev),8), kind=8) * shtinv(jm)
-            zt(jm) = -cmplx(real(psz(2*jm-1,jlev),8),                   &
-     &                      real(psz(2*jm  ,jlev),8), kind=8) * shtinv(jm)
+         do jm = 1 , NTP1                  ! m=0: real, junk imaginary
+            zs(jm) =  cmplx(real(psd(2*jm-1,jlev),8), 0.0_8, kind=8)    &
+     &                * shtinv(jm) * real(fsp(jm),8)
+            zt(jm) = -cmplx(real(psz(2*jm-1,jlev),8), 0.0_8, kind=8)    &
+     &                * shtinv(jm) * real(fsp(jm),8)
          enddo
+         do jm = NTP1+1 , NCSP
+            zs(jm) =  cmplx(real(psd(2*jm-1,jlev),8),                   &
+     &                      real(psd(2*jm  ,jlev),8), kind=8)           &
+     &                * shtinv(jm) * real(fsp(jm),8)
+            zt(jm) = -cmplx(real(psz(2*jm-1,jlev),8),                   &
+     &                      real(psz(2*jm  ,jlev),8), kind=8)           &
+     &                * shtinv(jm) * real(fsp(jm),8)
+         enddo
+!        The planetary vorticity rides on the same mode and takes the same
+!        factors: legmod applies it as qmat(2,l)*fmv(2)*plavor, and fmv(2) is
+!        exactly shtinv(2)*fsp(2).
+         zt(2) = zt(2) + cmplx(real(plavor,8), 0.0_8, kind=8)           &
+     &           * shtinv(2) * real(fsp(2),8)
          call SHsphtor_to_spat(shtcfg, zs, zt, zvt, zvp)
          pgu(:,jlev) = real(-SHTROOT * zvp)
          pgv(:,jlev) = real( SHTROOT * zvt)
@@ -208,9 +281,14 @@
 
 !$omp do schedule(static)
       do jlev = 1 , klev
-         do jm = 1 , NCSP
+         do jm = 1 , NTP1                  ! m=0: real, junk imaginary
+            zlm(jm) = cmplx(real(psp(2*jm-1,jlev),8), 0.0_8, kind=8)   &
+     &                * real(fsp(jm),8)
+         enddo
+         do jm = NTP1+1 , NCSP
             zlm(jm) = cmplx(real(psp(2*jm-1,jlev),8),                   &
-     &                      real(psp(2*jm  ,jlev),8), kind=8)
+     &                      real(psp(2*jm  ,jlev),8), kind=8)           &
+     &                * real(fsp(jm),8)
          enddo
          call SHsph_to_spat(shtcfg, zlm, zvt, zvp)
          pgdmu(:,jlev)  = real(-SHTROOT * zvt)
@@ -226,6 +304,7 @@
       call shtns_destroy(shtcfg)
       shtcfg = c_null_ptr
       if (allocated(shtinv)) deallocate(shtinv)
+      if (allocated(shgdmu)) deallocate(shgdmu, shgdlam)
       lshtns = .false.
       return
       end subroutine shtns_teardown

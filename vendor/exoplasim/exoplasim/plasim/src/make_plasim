@@ -38,8 +38,8 @@ plasimmod.o:	plasimmod.f90 resmod.o
 carbonmod.o:	carbonmod.f90 radmod.o plasimmod.o ${RAINMOD}.o
 hurricanemod.o: hurricanemod.f90 plasimmod.o
 ${UTILMOD}.o:	${UTILMOD}.f90 plasimmod.o carbonmod.o
-shtnsmod.o:	shtnsmod.f90 plasimmod.o
-	$(MOST_F90) -c $(MOST_F90_OPTS) $(SHTNS_INC) shtnsmod.f90
+shtnsmod.o:	shtnsmod.f90 plasimmod.o legmod.o
+	$(MOST_F90) -c $(MOST_F90_OPTS) $(MOST_PREC) $(SHTNS_INC) shtnsmod.f90
 plasim.o:	plasim.f90 plasimmod.o restartmod.o radmod.o shtnsmod.o
 ${FFTMOD}.o:	${FFTMOD}.f90
 ${MPIMOD}.o:	${MPIMOD}.f90 plasimmod.o

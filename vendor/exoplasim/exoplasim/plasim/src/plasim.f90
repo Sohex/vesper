@@ -2523,6 +2523,9 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 
       subroutine gridpointa
       use pumamod
+#ifdef OMPSHARED
+      use shtnsmod, only: sh_sp2gp, sh_dv2uv, sh_sp2grad, shgdmu, shgdlam
+#endif
 !
 !*    Adiabatic Gridpoint Calculations
 !
@@ -2555,20 +2558,56 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !     sp -> gp  sp -> gpj (dlnps/dphi)
 !
 
+#ifdef OMPSHARED
+      if (nshtns == 1) then
+!        SHTns does the Legendre transform and the FFT in ONE call, so the
+!        fields land in GRID space here and the fc2gp block below is skipped.
+!        Everything between the two has to be read with that in mind, which is
+!        the whole reason this is a branch and not a call swap.
+         call sh_dv2uv(sd, sz, gu_g, gv_g, NLEV)
+         call sh_sp2gp(sd, gd_g, NLEV)
+         call sh_sp2gp(st, gt_g, NLEV)
+         call sh_sp2gp(sz, gz_g, NLEV)
+         if (nqspec == 1) call sh_sp2gp(sq, gq_g, NLEV)
+         call sh_sp2gp(sp, gp_g, 1)
+         call sh_sp2grad(sp, shgdmu, shgdlam, 1)
+         gpj(:) = shgdmu(mypid*NHOR+1:mypid*NHOR+NHOR)
+         gpmt   = reshape(shgdlam(mypid*NHOR+1:mypid*NHOR+NHOR), [NLON,NLPP])
+      else
+         call invlega
+      endif
+#else
       call invlega
+#endif
 
       if (ngui > 0 .or. mod(nstep,ndiag) == 0) then
         do jlev = 1 , NLEV
           do jlat = 1 , NLPP
             sec = CV / sqrt(csq(jlat))
-            csu(jlat,jlev) =  gu(1+(jlat-1)*NLON,jlev) * sec
-            csv(jlat,jlev) =  gv(1+(jlat-1)*NLON,jlev) * sec
-            cst(jlat,jlev) =(gt(1+(jlat-1)*NLON,jlev) + t0(jlev))*ct-TMELT
             j1=(jlat-1)*NLON+1
             j2=jlat*NLON
+!           THE ZONAL MEAN, and where it comes from depends on the transform.
+!           In Fourier space the first element of a latitude row IS the m=0
+!           coefficient, which is that mean; in grid space it is one longitude
+!           and means nothing. So under SHTns the mean is taken over the row,
+!           the way ccc below has always taken it.
+            if (nshtns == 1) then
+               csu(jlat,jlev) = SUM(gu(j1:j2,jlev))/real(NLON) * sec
+               csv(jlat,jlev) = SUM(gv(j1:j2,jlev))/real(NLON) * sec
+               cst(jlat,jlev) =(SUM(gt(j1:j2,jlev))/real(NLON)               &
+     &                          + t0(jlev))*ct-TMELT
+            else
+               csu(jlat,jlev) =  gu(1+(jlat-1)*NLON,jlev) * sec
+               csv(jlat,jlev) =  gv(1+(jlat-1)*NLON,jlev) * sec
+               cst(jlat,jlev) =(gt(1+(jlat-1)*NLON,jlev) + t0(jlev))*ct-TMELT
+            endif
             ccc(jlat,jlev) = SUM(dcc(j1:j2,jlev))/real(NLON)
             if (nqspec == 1) then
-               csm(jlat,jlev) = (gq(1+(jlat-1)*NLON,jlev))
+               if (nshtns == 1) then
+                  csm(jlat,jlev) = SUM(gq(j1:j2,jlev))/real(NLON)
+               else
+                  csm(jlat,jlev) = (gq(1+(jlat-1)*NLON,jlev))
+               endif
             else
                csm(jlat,jlev) = sum(dq(j1:j2,jlev))/real(NLON)
             endif
@@ -2577,23 +2616,31 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
         umax = maxval(csu)
       endif
 
-      do jlat = 1 , NLPP
-         do jlon = 1 , NLON , 2
-           gpmt(jlon  ,jlat) = -gp(jlon+1+(jlat-1)*NLON) * ((jlon-1)/2)
-           gpmt(jlon+1,jlat) =  gp(jlon  +(jlat-1)*NLON) * ((jlon-1)/2)
+!     The zonal derivative of ln(ps), built from gp's FOURIER coefficients by
+!     multiplying each by i*m. It cannot survive a transform that lands in grid
+!     space, and under SHTns it does not have to: sh_sp2grad returned it above,
+!     from the same call that returned the meridional one.
+      if (nshtns /= 1) then
+         do jlat = 1 , NLPP
+            do jlon = 1 , NLON , 2
+              gpmt(jlon  ,jlat) = -gp(jlon+1+(jlat-1)*NLON) * ((jlon-1)/2)
+              gpmt(jlon+1,jlat) =  gp(jlon  +(jlat-1)*NLON) * ((jlon-1)/2)
+            enddo
          enddo
-      enddo
 
-      call fc2gp(gu  ,NLON,NLPP*NLEV)
-      call fc2gp(gv  ,NLON,NLPP*NLEV)
-      call fc2gp(gt  ,NLON,NLPP*NLEV)
-      call fc2gp(gd  ,NLON,NLPP*NLEV)
-      call fc2gp(gz  ,NLON,NLPP*NLEV)
-      call fc2gp(gpj ,NLON,NLPP)
-      call fc2gp(gpmt,NLON,NLPP)
-      call fc2gp(gp  ,NLON,NLPP)
-      if (nqspec == 1) call fc2gp(gq  ,NLON,NLPP*NLEV)
+         call fc2gp(gu  ,NLON,NLPP*NLEV)
+         call fc2gp(gv  ,NLON,NLPP*NLEV)
+         call fc2gp(gt  ,NLON,NLPP*NLEV)
+         call fc2gp(gd  ,NLON,NLPP*NLEV)
+         call fc2gp(gz  ,NLON,NLPP*NLEV)
+         call fc2gp(gpj ,NLON,NLPP)
+         call fc2gp(gpmt,NLON,NLPP)
+         call fc2gp(gp  ,NLON,NLPP)
+         if (nqspec == 1) call fc2gp(gq  ,NLON,NLPP*NLEV)
+      endif
       gp = exp(gp)
+
+
 
       call calcgp(gtn,gqn,guz,gvz,gpmt,gvpp,gphi)
 
