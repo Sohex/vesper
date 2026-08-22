@@ -1443,3 +1443,87 @@ spectrum will usually fit better than an exoplanet-built code aimed at exotic
 compositions. Section 8b already showed SOCRATES treats the star as a data file.
 This is the other half of the same argument, and it is why CLIM-61's candidate
 order should be SOCRATES first rather than ExoRT.
+
+
+## 16. OCN-4 compared: the split is scientific against engineering
+
+*Read 2026-08-22 from `vendor/cgenie/genie-ecogem` and `references/marbl`.
+Section 12 settled the photon axis; this is the rest of what OCN-4 asks for.*
+
+### 16a. The trait space, where ECOGEM wins on the mechanism the row cares about
+
+ECOGEM's plankton configuration is a data file. `8P8Z.eco` is a list of rows
+reading type, size in micrometres, and a flag:
+
+    Phytoplankton     0.60   1
+    Phytoplankton     1.90   1
+    ...  through 1900.00
+    Zooplankton       0.60   1   ...
+
+Eight phytoplankton on a log-spaced size spectrum from 0.6 to 1900 um, and eight
+zooplankton. SIZE IS THE MASTER TRAIT and functional type the second axis, which
+is exactly the declared trait space OCN-4 says trait-based ecology is preferred
+for. And the cost is a file swap: the shipped set runs `1P` at one population,
+`NPD`, `8P8Z` at sixteen, `8P7Z1F` and `8P7Z3F`, up to `32P32Z` at
+sixty-four. No recompilation.
+
+It also ships a MATCHED STRUCTURAL PAIR, `3Diat4ZP_PiEu.eco` against
+`NoDiat4ZP_PiEu.eco`, which is a diatoms-on and diatoms-off comparison already
+built. That is the shape this project's conventions ask for when pre-registering
+a structural sensitivity, arriving free.
+
+MARBL is the other thing. `autotroph_cnt` defaults to 1, is 3 under the CESM2
+preset, and the settings file annotates it `cannot change : PFT_defaults ==
+'CESM2'` -- so under the standard preset the count is LOCKED at three named
+plant functional types. Composition is prescribed by PFT identity rather than
+emerging from a trait space.
+
+On the axis OCN-4 names as its reason for preferring trait-based ecology,
+ECOGEM wins and it is not close.
+
+### 16b. The engineering, where MARBL wins and it is also not close
+
+MARBL ships `tests/regression_tests`, `tests/input_files/baselines`,
+`tests/bld_tests`, and `MARBL_tools/code_consistency.py`. Its settings are YAML
+with a JSON form, carrying per-configuration defaults, declared dependencies
+such as `dependencies : base_bio_on`, longnames, units and datatypes, generated
+by `MARBL_generate_settings_file.py`.
+
+**And it ships a standalone driver**, `tests/driver_src` and `driver_exe`, so it
+runs without an ocean model against prescribed forcing. For this project that is
+worth more than it looks: OCN-3 names the aeolian pattern, downstream of one
+climate and upstream of the next, as the only affordable coupling class, and a
+component with its own offline driver is already shaped for it. OCN-4 could
+exercise MARBL before any ocean host is selected.
+
+ECOGEM has none of that. Section 13a records it has no entry in
+`genie-knowngood`, and there is no separate test suite, no settings schema and
+no offline driver. Its configuration is Fortran namelists and `.eco` text files.
+
+Stoichiometry is a wash and worth recording as one, since OCN-4 asks what fixed
+Earth relations survive. Both expose Redfield: MARBL as
+`parm_Red_D_C_P`, `parm_Red_D_N_P` and six more in the YAML; BIOGEM as
+`par_bio_red_POP_PON`, `par_bio_red_POP_POC` and others in `ini_biogem_nml`,
+with `bio_part_red` a four-dimensional array so the ratios can vary spatially.
+Neither buries them.
+
+### 16c. What that leaves the row
+
+The comparison does not resolve to a winner and should not be forced to. ECOGEM
+has the ecology this project wants and none of the infrastructure; MARBL has the
+infrastructure and a prescribed-PFT ecology.
+
+Three things follow that the row can act on without deciding.
+
+The photon axis in section 12 is not a tiebreaker either way now: `PARfrac` is a
+namelist scalar in ECOGEM and settable, and MARBL's driver-supplied PAR is
+cleaner but the difference is one number.
+
+MARBL's standalone driver means it can be TRIED before an ocean host exists,
+and ECOGEM cannot. That asymmetry is about sequencing rather than merit, and it
+is the cheapest thing available: a scoping note could exercise one candidate for
+real and only read the other.
+
+And ECOGEM's cost ladder from one to sixty-four populations is the answer to
+OCN-4's trait-count question, which the row currently frames as a single figure
+of sixteen. Sixteen is the reference configuration, not the price.
