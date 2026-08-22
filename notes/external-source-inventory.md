@@ -127,7 +127,10 @@ FATES is the modern independent implementation of the same idea.
 has 10 open rows of 10 and no external comparison. These are the standard global
 models for how nutrients actually reach an ocean, which is ANUT-6's subject.
 
-**SPITFIRE** -- ACQUIRED 2026-08-22 inside `references/lpjml/`. Process-based fire. *Row-driven.* FIRE has 10 open rows of 10
+**SPITFIRE** -- ACQUIRED 2026-08-22, and its host tree was then PROMOTED to a
+vendored subtree at `vendor/lpjml/` because the work intended on LPJmL is
+fork-shaped and it is planned into the pipeline, so the fire reading is now
+incidental to why the tree is here. Process-based fire. *Row-driven.* FIRE has 10 open rows of 10
 and the only scheme consulted is BLAZE, which arrived with LPJ-GUESS. SPITFIRE
 is the independent scheme in the same lineage and reaches a different answer
 about ignition and spread.
