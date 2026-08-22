@@ -270,16 +270,60 @@ changing biome or total ice volume, and a surface energy imbalance below
 0.2 W/m2. Five iterations were needed, each requiring several thousand simulated
 years to reach that steady state.
 
-**Its ice sheet module is nearly free.** MITgcmIS uses the shallow-ice
-approximation with Glen's law at n = 3 and a Positive Degree Day surface mass
-balance after Tsai and Ruan (2018), neglecting basal sliding, calving and basal
-melt as unresolvable at that resolution. It costs about 1 CPU-hour per 40,000
-years. Ice sheet flow is therefore a small component rather than a large one,
-and its diffusivity carries `(rho_i * g)^n` explicitly, which is the term
-GRAV-6 discusses at 2.23x here. GRAV-6's objection stands unchanged, that a
-`g^3` velocity applied to an Earth-calibrated ice mask is precision on the wrong
-quantity; what is new is a published formulation of the whole equation rather
-than a term to bolt on.
+**Its ice sheet module is nearly free, and it splits in two.** MITgcmIS is
+shallow-ice with Glen's law at n = 3, neglecting basal sliding, calving and
+basal melt as unresolvable at that resolution, and it costs about 1 CPU-hour per
+40,000 years. It also carries LLRA isostatic adjustment and lapse-rate,
+freshwater and sea-level corrections. The code is on Zenodo at
+`10.5281/zenodo.18723952`. So ice sheet flow is a small component rather than a
+large one, which is the useful correction to make.
+
+The FLOW half is worth taking and would not be ported. Equation 4 is
+
+    dH/dt = div(D grad H) + div(D grad z_B) + A_dot
+    D = 2a/(n+2) * (rho_i g)^n * |grad z_S|^(n-1) * H^(n+2)
+
+which is a few lines of algebra, and `(rho_i g)^n` is exactly the term GRAV-6
+discusses at 2.23x here, arriving correctly rather than bolted on. But MITgcmIS
+is Python on MITgcm's cubed sphere and this project's grids are Gaussian;
+CLAUDE.md rule 3 exists because that class of crossing has silently matched zero
+cells three times. Implementing shallow ice on the native mesh from the paper is
+less work than porting a cubed-sphere solver, so the paper is the deliverable
+and the repository is not.
+
+The MASS BALANCE half is where the difficulty lives, and theirs is weaker than
+what this project already plans. Its only two inputs are 2 m air temperature for
+ablation and snow precipitation for accumulation, taken as daily output over 30
+years and averaged per day and per cell from a steady state.
+
+- **Ablation is temperature-only.** The Positive Degree Day method after Tsai
+  and Ruan (2018) is better than a bare degree-day factor, since a percolation
+  layer of thickness `H_p` gives a semi-physical melt delay, but no shortwave,
+  albedo or spectrum enters it. Under a K2.5V host that is the term this world
+  differs on most over ice: `config/planet.yaml` records that ExoPlaSim's own
+  `k2.dat` made snow and ice 0.10 to 0.17 too dark in every run before the
+  measured spectrum replaced it. A temperature-only ablation scheme is
+  structurally blind to the quantity that correction exists to get right.
+- **Accumulation assumes away GRAV-8.** The paper states that the MITgcm land
+  module has no process that densifies snow into glacial ice, so densification
+  is assumed instantaneous and snow precipitation is divided directly by
+  `rho_i = 920 kg/m3`. That is the same missing physics GRAV-8 opens, handled by
+  assuming it does not matter.
+
+**And the ordering binds regardless of either.** `glac` is identically zero
+across all twelve bins and all 8,192 cells, and PHYS-13 establishes that this is
+a grid artifact rather than a fact about the planet: corrected to each mesh
+region's elevation, land below freezing in the warmest month goes from 0.002 to
+1.657 percent, because the model evaluates its own high ground about 7.8 K too
+warm on average and 21.9 K in the top tenth. A temperature-driven ablation
+scheme is the most sensitive possible consumer of exactly that bias, so run
+today it would return zero ice, confidently, for the wrong reason. The sequence
+that makes the question answerable is PHYS-13's ice mask, then CLIM-53's
+accelerator verdict, and only then whether flow is needed at all: `newsnow`
+grows ice without moving it, which is the cheaper test of whether ice persists
+for a year. The one standing claim that will eventually need flow is
+`config/planet.yaml`'s, that the long stellar cycle component is slow enough
+that the simulation's glaciers equilibrate rather than merely breathing.
 
 **Its cloud albedo is tuned on latitude for agreement.** The description is
 explicit: cloud albedo depends on latitude in order to reduce net solar
