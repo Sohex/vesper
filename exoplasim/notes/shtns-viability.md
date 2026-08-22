@@ -692,3 +692,37 @@ constantly. `plasimmod.f90` says so where the arrays are declared and
 biggest item. That is CLIM-63 and it is not free to fix: a layout with
 contiguous bands makes the globe non-contiguous per level, so the transform
 would gather instead, and the two requirements genuinely conflict.
+
+## The legmod sweep: what is converted and what is left
+
+Measured 2026-08-22 by grepping every caller of a legmod transform outside
+legmod itself, then checking each site's guard and its default.
+
+**Converted, all of them per-timestep.** `gridpointa` and `gridpointd` both
+directions; `mkdheat`'s three `dv2uv` calls, its three analyses and its `zhe`
+synthesis; `spectrald`'s forward; and `mkdqtgp` in rainmod, which the sweep
+found -- `nprc` defaults to 1, so it synthesised the adiabatic humidity
+tendency through legmod on every step of every run.
+
+**Left on legmod, and each for a stated reason.**
+
+`zqout`, the output humidity, is the one that is per-step and NOT converted.
+`nlowio` defaults to 1 and `outaccu` sums it every timestep, so it runs as often
+as anything above. It is left because the conversion is not a substitution:
+`sqout` is THREADPRIVATE and each thread's `fc2sp` fills a partial that
+`mpsum(sqout,NLEV)` reduces afterwards. A wrapper returns the COMPLETE field, so
+that reduction would multiply it by the thread count, and a level-parallel write
+into a threadprivate array leaves each copy holding only its own levels. It
+needs shared scratch and the reduction removed, which is the gridpointa pattern
+but on an output path where nothing checks the answer.
+
+`span` is inside `ngui > 0 .or. mod(nstep,ndiag) == 0 .or. mod(nstep,nafter) ==
+0`, so it is periodic rather than per-step. The `nenergy` and `nentropy` blocks
+are off by default. `glaciermod` and `surfmod` filter the orography, which is
+startup and occasional. `rainmod_bm`, `rainmod_mca` and `rainmod_kuo_old` are
+alternative schemes that `make_plasim` does not compile -- `RAINMOD=rainmod`.
+
+So legmod is no longer on any per-timestep path except that one output
+diagnostic, and it stays compiled regardless: `nshtns=0` is the reference
+`verify_shtns_model.sh` compares against, and deleting it would delete the
+comparison.
