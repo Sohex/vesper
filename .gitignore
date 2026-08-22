@@ -158,6 +158,7 @@ references/exort/
 references/exocam/
 references/isca/
 references/muffingen/
+references/climaland/
 
 # Offline dust fields, rebuilt in minutes by aeolian/scripts/build_dust.py once a
 # climatology exists. The JSON report beside them IS tracked: it carries the
@@ -206,6 +207,7 @@ hydrography/data/earth_validation_cache
 pedology/data/earth_validation_cache
 references/aus_groundwater
 references/big-mitgcm
+references/climaland
 references/climber-x
 references/ecospeclib-all
 references/exocam

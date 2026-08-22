@@ -1867,3 +1867,65 @@ surface, and the ordering is the right way round.
 Under `k25v` the same blend gives 0.764 and 0.406. The visible barely moves and
 the near infrared falls by 0.049, which is section 11's finding arriving from a
 second spectrum library.
+
+
+## 23. ClimaLand, and the land-column hypotheses LSHY registers
+
+*Read 2026-08-22 from `references/climaland/`, Apache-2.0, pulled because the
+biosphere and land half of the task list -- BIO, ANUT, BVOC, DEMO, FIRE, PCAR,
+PLHY, SDEC, EFOR, some ninety open rows -- had no external comparison at all.
+Every other tree in this survey is a climate or ocean model.*
+
+### 23a. It ships LSHY-3's hypotheses as interchangeable components
+
+`src/standalone/` contains `Bucket`, `Soil`, `Snow`, `Vegetation`,
+`SurfaceWater` and `InlandWater` as peer standalone models. LSHY-3 asks to
+"register the current bucket, a parsimonious multilayer scheme and
+gradient-driven flow as explicit hypotheses". ClimaLand ships the first and the
+third of those as swappable components against a shared interface, which is the
+SUMMA pattern of Clark et al. (2015) implemented -- and Clark is already in
+`references/INDEX.md`'s LSHY table as the argument FOR registering hypotheses
+this way.
+
+`Soil/rre.jl` is the Richards equation. `Soil/energy_hydrology.jl` is the
+phase-aware thermal and hydraulic column LSHY-5 describes. `Soil/Runoff` is
+LSHY-2's partition. `Vegetation/canopy_energy.jl` and
+`canopy_turbulent_fluxes.jl` are LSHY-4's fast vegetation-climate water loop.
+`Soil/Biogeochemistry` is SDEC's ground. `Vegetation/pfts.jl` is PCAR-5's trait
+registry.
+
+### 23b. The retention closure is a choice this project has not recorded as one
+
+`Soil/retention_models.jl` declares an abstract type with two implementations:
+
+    export AbstractSoilHydrologyClosure, vanGenuchten, BrooksCorey
+
+and `RichardsParameters` is parameterised over the closure type, so the choice
+is made at construction rather than compiled in.
+
+**That names a decision LSHY-1 currently leaves implicit.** LSHY-1 asks for a
+retention curve among the properties in its contract and says to compare
+pedology's AWC, ExoPlaSim's `dwmax` and LPJ-GUESS's Cosby derivation. Cosby
+(1984) is a Clapp-Hornberger form, and PALADYN uses Clapp-Hornberger too, per
+section 3. So this project sits entirely in one of the two families without
+having written down that a family was chosen.
+
+The two are not interchangeable in their tails. Brooks-Corey has a
+discontinuous air-entry point and a power-law tail; van Genuchten is smooth
+through saturation. Which matters most exactly where this world is unusual: a
+quarter of its land is playa clastic and it is three quarters endorheic by
+drainage, so wetting and drying through near-saturation is a common state rather
+than an edge case.
+
+That is not an argument for switching. It is an argument that LSHY-1's contract
+should carry the closure as a NAMED property with its family stated, so that a
+consumer knows which one it is reading and a later comparison has something to
+vary.
+
+### 23c. What this does not supply
+
+ClimaLand is CMIP-class and GPU-oriented, and section 2 established that this
+project cannot use models in that throughput band. Nothing here is a candidate
+for adoption; `Bucket` and `Soil` are read for their STRUCTURE, which is what
+LSHY-3 needs, and PALADYN remains the EMIC-class implementation reference
+because it runs at a comparable cost.
