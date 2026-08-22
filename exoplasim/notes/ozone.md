@@ -16,6 +16,19 @@ vertically through `bo3 = 20000` and `co3 = 5000`. It is prescribed, not
 computed: nothing about the star enters it. `no3 = 2` would read a climatology
 file instead, which is also Earth's.
 
+**`ozone_scale` corrects the level and not the shape**, because
+`radmod.f90:1966` applies it as `dqo3 = o3scale * dqo3`, a uniform multiplier on
+the whole field. So the pole-to-equator gradient in `a1o3` and the seasonal
+phase in `aco3` and `toffo3` survive at Earth's values. Both encode Earth
+circulation: the gradient is the Brewer-Dobson overturning, which depends on
+rotation rate and stratospheric wave driving, and the seasonal term is a
+one-year harmonic tuned to a 24-hour day and 23.4 degrees of obliquity against
+this world's 30 hours and 32 degrees. This is SECOND-ORDER against the column
+correction above and is recorded rather than acted on: the column is the term
+that moves the radiative budget, and a shape correction has no source to be
+derived from short of a stratospheric transport calculation this project does
+not do.
+
 ## What it gets right
 
 The shortwave absorption is not blind to the spectrum. Ozone transmissivity
