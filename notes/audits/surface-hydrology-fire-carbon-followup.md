@@ -11,11 +11,8 @@ emission paths, the BLAZE effects code and surface builders, the lake
 representation note and carve code, the weathering/outgassing diagnostic, and
 Orogen's exported tectonic fields.
 
-The following primary papers were also checked against publisher or full-text
-records.  `paperfetch` was attempted on the first five on 2026-08-21, but DNS
-resolution failed for every DOI, including the open-access paper; the last two
-were publisher-verified after that common failure.  None is represented as a
-locally filed/read reference yet:
+The following primary papers were added to `references/`, read in full on
+2026-08-21 and indexed in `references/INDEX.md`:
 
 - Betts and Ball (1997), *Albedo over the boreal forest*,
   `10.1029/96JD03876`;
@@ -51,15 +48,20 @@ the canopy.  A uniform snow layer therefore does **not** simply repaint all
 trees white.
 
 The residual is still material.  The mask is one scalar tree-cover fraction;
-it has no canopy height, plant/stem area, sky-view or gap fraction, intercepted
-snow, unloading, branch burial, standing dead structure or PFT distinction.
+it has no canopy exposure relative to snow depth, plant/stem area, sky-view or
+gap fraction, intercepted snow, unloading, branch burial, standing dead
+structure or PFT distinction.
 The two forested snow endpoints are initialized as fixed fractions of the
 K-star snow endpoints (`albsmaxf=0.5*albsmax`, with the minimum set from that),
 not derived from K-star radiative transfer through the accepted canopy.  Betts
-and Ball show the size and vegetation dependence of the Earth phenomenon;
+and Ball show the size and vegetation dependence of the Earth phenomenon.
 Essery shows that gap fraction, canopy snow and ground snow are separable model
-states.  Those sources justify a structural model and tests, not transplanting
-their Earth albedos.
+states, but also found that a simple PFT-weighted scheme, a gap-fraction scheme
+and a two-stream scheme gave similar large-scale results when supplied with
+realistic land cover and parameters.  The first port therefore needs explicit
+exposure and snow states plus a hierarchy of reduced operators; a full
+two-stream canopy is not automatically the best central model.  Those sources
+justify a structural model and tests, not transplanting their Earth albedos.
 
 This belongs in `BIO`, because LPJ canopy structure supplies the state and
 ExoPlaSim remains the radiative consumer.  It must extend BIO-17/BIO-18 rather
@@ -121,12 +123,19 @@ dominant subgrid population without tiles.
 CLIM-26's roughly -0.9% land-precipitation moisture response did not bound this
 error.  It measured an annual moisture term, whereas lake depth controls the
 phase and amplitude of surface temperature, evaporation and ice.  Bernus and
-Ottle found seasonal temperature differences of several kelvin for large/deep
+Ottlé found seasonal temperature differences of several kelvin for large/deep
 lakes and materially different evaporation when a lake energy balance replaced
 bare soil.  On Vesper, the correct first step is an offline/reduced seasonal
 bound using each basin's area and hypsometric depth, not an immediate global
 lake-model port.  Only a decision-relevant bound should trigger a coupled
 experiment, and every such run still requires explicit permission.
+
+FLake in Bernus and Ottlé is a freshwater model, and the paper identifies
+salinity as one cause of lake-temperature error because it changes albedo,
+evaporation and seasonal thermal behaviour.  That matters especially here:
+closed-basin Vesper lakes can become saline or briny.  The reduced bound must
+therefore cross depth and ice physics with a freshwater-to-brine property
+bracket rather than treating the freshwater result as the central answer.
 
 The carve criterion computes Penman open-water evaporation from climatological
 atmospheric forcing rather than reading the land bucket.  Thermal inertia can
@@ -154,6 +163,13 @@ diagnostic, but **cannot falsify 450 ppm by itself**.  Carbon flux depends on
 magma production or convergence throughput, mantle/slab carbon, volatile
 heterogeneity, degassing efficiency, subduction retention/recycling, and
 plume/rift sources.  Observed Earth segment fluxes vary by orders of magnitude.
+Le Voyer et al. measured more than three orders of magnitude of segment-scale
+flux variation; normalizing their tabulated results by segment length still
+spans more than two orders of magnitude because primary-magma carbon and magma
+production vary independently.  Marty and Tolstikhin likewise derive ridge,
+arc and plume fluxes from melt emplacement, source carbon and degassing, with
+most arc carbon recycled from the slab.  These are direct reasons not to turn
+fault length into capacity.
 
 The honest task is to partition the required global source across ridge, arc,
 rift/plume and metamorphic brackets; report length and relative-throughput
