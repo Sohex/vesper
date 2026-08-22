@@ -151,6 +151,8 @@ references/ecospeclib*/
 # into references/INDEX.md, which is what makes the extraction reproducible.
 references/climber-x/
 references/big-mitgcm/
+references/socrates/
+references/speedy/
 
 # Offline dust fields, rebuilt in minutes by aeolian/scripts/build_dust.py once a
 # climatology exists. The JSON report beside them IS tracked: it carries the
@@ -202,6 +204,8 @@ references/big-mitgcm
 references/climber-x
 references/ecospeclib-all
 references/poseidon_surface_albedo
+references/socrates
+references/speedy
 references/splib07
 
 # cGENIE build products. Its own .gitignore carries only .DS_Store, so unlike the
