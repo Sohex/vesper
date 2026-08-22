@@ -16,9 +16,13 @@ project's own assumptions where an external implementation showed one to be
 unsupported. Every finding is carried by a row in `TASKS.md`; the index below
 is the check on that.
 
-Its companion is `notes/external-source-inventory.md`, which lists what has NOT
-been read and why each candidate would be worth acquiring; this document is
-what came of the trees already held.
+It has two companions. `notes/external-source-inventory.md` lists what has NOT
+been read and why each candidate would be worth acquiring; this document is what
+came of the trees already held. And `notes/external-tree-checklist.md` is the
+METHOD derived from it -- what to check first in the next tree, in tiers by
+cost, with every item citing the sections that evidence it and the count of
+independently authored trees it was observed in. Read that one before acquiring
+anything, so the same classes are not rediscovered a sixth time.
 
 ## Index
 
