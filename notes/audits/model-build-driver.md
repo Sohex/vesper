@@ -61,7 +61,17 @@ executable is newer than the build that claimed to write it.
 
 `compile.sh -j` reads `most_compiler_omp`, and nothing derives that file from
 `config/planet.yaml`. It is a hand-edited file in the vendored tree, and the two
-agree today only because they were kept in step by hand.
+agree today only because they were kept in step by hand -- CLIM-69 had to edit
+both.
+
+There is a third file and a third shape. `most_compiler`, the serial one, keeps
+`MOST_F90_OPTS` on **line 2** where the other two have it on line 3, and it
+carries `-fcheck=all` and no `-march=znver4`, so it is the checked profile's
+flags under the production profile's name. Line 3 matters: `compile.sh`'s `-O`
+hook is `sed -i '3s/$/ '$optimization'/'`, and `rebuild_binaries.py` asserts
+`F90_OPTS_LINE = 3` for the file it writes. On the serial file line 3 is
+`MPIMOD=mpimod_stub`, so `-O` appends the flag to the MPIMOD line and the build
+takes a module name with a compiler flag stuck to it.
 
 This is not a corner. **All twelve binaries in `exoplasim/binary_manifest.json`
 are MPI**, and every threaded binary -- what `verify_shtns_model.sh`,
@@ -71,12 +81,23 @@ unregistered. `binary_manifest.json` records `most_compiler_mpi`'s contents as
 the toolchain, so a threaded binary that did reach the registry would carry a
 provenance record of flags it was not built with.
 
-## What is NOT wrong: the object tree
+## The object tree is safe, and it is what serialises the matrix
 
 `compile.sh` does `rm -rf *` inside `plasim/bld` on every run, so every build is
 a full build and no flag change can leave a stale object behind. A T170 threaded
 build costs about 21 s on this host. The "stale objects after a flag change"
 worry is answered, and answered in the safe direction.
+
+The cost is that there is ONE build directory for every configuration, so two
+builds cannot run at once without one deleting the other's objects. That is the
+reason `rebuild_binaries.py` is serial across the twelve executables of its
+`MATRIX`, and the reason the marker files exist at all: `MPI`, `OMP`, `PREC4`,
+`PREC8` and `FPTR` are there to notice that the shared directory now holds
+objects from a different configuration. A per-configuration build directory
+would retire all five and make the matrix parallel as well as each build.
+`aocl-and-model-build-flags.md`, "Is `make -j` safe now", has what parallelism
+inside one build is worth -- 3.5x, saturating by `-j8` -- and CONS-13 is the one
+missing dependency edge that holds it.
 
 ## configure.sh
 

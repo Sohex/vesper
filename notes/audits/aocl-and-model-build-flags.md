@@ -168,6 +168,63 @@ compares the executable's own sha, but it reports it as unknown provenance and
 cannot say that the toolchain is why. Installing a new compiler or a new libm
 is exactly the change that lands here.
 
+## Is `make -j` safe now, measured 2026-08-21
+
+The graph was re-derived from the source rather than read: for every file, the
+modules it `use`s, each resolved to the file defining it, checked against the
+prerequisites `make_plasim` declares. Run for all three configurations
+`compile.sh` can produce, since the module variables change which files are in
+`OBJ`.
+
+| configuration | OBJ members | members with no rule | missing edges |
+| --- | ---: | ---: | ---: |
+| serial, `most_compiler` | 35 | 0 | 0 |
+| MPI, `most_compiler_mpi` | 35 | 0 | 0 |
+| OpenMP, `most_compiler_omp` | 35 | 0 | **1** |
+
+The one edge is `utilities_omp.o`, which `use`s module `mpiomp` at lines 85 and
+106. `mpiomp` is defined in `mpimod_omp.f90`, and the rule names `plasimmod.o`
+and `carbonmod.o` only. `make -j16 utilities_omp.o` in a clean directory builds
+every declared prerequisite and then stops at `Cannot open module file
+'mpiomp.mod'`.
+
+**It does not bite, and what saves it is ordering rather than the graph.** Ten
+clean `make -e -j32 plasim.x` builds of the OpenMP configuration all passed,
+none failing on a missing module. `${MPIMOD}.o` is FIRST in `OBJ` and
+`${UTILMOD}.o` ninth, so make launches `mpimod_omp.o` immediately and it is
+finished long before anything asks for its `.mod`. The emptying of `plasim/bld`
+removed the stale-`.mod` mechanism that used to hide missing edges; this one is
+hidden by `OBJ` order instead.
+
+The fix is one line, adding `${MPIMOD}.o` to the `${UTILMOD}.o` rule. With it
+the clean-directory test passes and `mpimod_omp.o` is built as a prerequisite.
+It is inert in the other two configurations, being an ordering constraint on an
+object already in `OBJ`.
+
+### What parallelism is worth
+
+T21 L10 p1, OpenMP configuration, clean build each time, mean of two:
+
+| | wall | vs serial |
+| --- | ---: | ---: |
+| `-j1` | 15.8 s | -- |
+| `-j8` | 4.9 s | 3.2x |
+| `-j16` | 4.5 s | 3.5x |
+| `-j32` | 4.5 s | 3.5x |
+
+3.5x, saturating by `-j8`. The bound is the dependency chain through
+`plasimmod.o`, which nearly every other object depends on and which nothing can
+start before. Rule 4 makes the unit of work `rebuild_binaries.py`'s `MATRIX` rather than one
+executable, twelve on the T21/T42/T85/T127/T170 ladder, so at this rung the
+operation is roughly 3 minutes against roughly 1 and the higher rungs scale it.
+
+The win available is INSIDE each build and not across builds. Every
+configuration compiles in the same `plasim/bld`, which `compile.sh` empties on
+entry, so two configurations cannot build concurrently without one deleting the
+other's objects. That is why `rebuild_binaries.py` is serial across
+configurations and why it should stay that way until the build directory is
+per-configuration.
+
 ## Round two: the optimisation flags, measured 2026-08-20
 
 The first round refused AMD's libraries and left open whether the COMPILER has

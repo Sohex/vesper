@@ -45,7 +45,17 @@ implementations of both, and the optimisation flags were measured against each
 other. What that settled, with the numbers, is in
 `notes/audits/aocl-and-model-build-flags.md`: AMD's libraries are refused,
 `-march=znver4` is adopted and is worth 2 to 3%, `-ffpe-trap` costs under 1% and
-is kept for what it catches, and `-flto` is refused. The model is compute-bound
+is kept for what it catches, and `-flto` is refused.
+
+**`-finit-real=zero` is not in the production line, and the reason is the
+largest single figure in this file.** It initialises every local real on entry
+to every routine, arrays included, and it cost 26.03% of T170 [+22.76, +27.29].
+The model does not need it: the restart is bit identical without it, and
+identical again under `-finit-real=snan` with the trap masked, so nothing
+uninitialised reaches a stored value. It now lives in the `checked` profile,
+where a read of an uninitialised local traps instead of quietly returning a
+zero. `exoplasim/notes/the-zeroing-is-an-init-flag.md` has the three gates and
+the one thing they exposed, which is in SHTns rather than in the model. The model is compute-bound
 inside its own Fortran, and 2 to 3% is what the whole distance from scalar code
 to AVX-512 is worth here, which is also the bound on what any further codegen
 work can return.
