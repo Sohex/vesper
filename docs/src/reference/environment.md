@@ -135,3 +135,24 @@ streaming a whole `NCSP x NLPP` matrix past. One latitude's column of `pmat` is
 This is recorded so it is not rediscovered, and it is NOT the current priority.
 The die-level total is eight times its target, and blocking for L2 under that is
 optimising the inner loop of a problem whose outer numbers are wrong.
+
+## Benchmark in FP32 while optimising, confirm in FP64 before believing
+
+`compile.sh -p 4` runs T170 39.7% faster than `-p 8`, so the iteration loop
+during optimisation work is roughly a third shorter for nothing. Use it.
+Declared 2026-08-21.
+
+**The hazard is that FP32 is a different cache regime, not just a faster one.**
+It halves the per-die working set, 260 MB to 130 at T170. So a change whose
+benefit is about FOOTPRINT can measure well in single precision and vanish in
+double, and the reverse: the Legendre weight factorisation is exactly that shape
+of change, and it is kept for a cache argument that FP32 would have muddied.
+
+The rule that follows: **iterate in FP32, confirm in FP64, and quote only the
+FP64 number.** Anything cache- or bandwidth-bound is confirmed rather than
+extrapolated, and a result that appears only in one precision is a finding about
+the precision rather than about the change.
+
+Production is unaffected. `config/planet.yaml` declares eight-byte precision and
+FP32 is a benching and spin-up tool, never a run anything is read from --
+CLIM-59 and main's CLIM-52 carry that.

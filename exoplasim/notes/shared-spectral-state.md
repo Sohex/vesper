@@ -222,7 +222,7 @@ So the traffic argument and the cache argument name the same routine, and the
 fix is the machinery that already exists: shared arrays, threadprivate slices,
 `mpsumscp`, gathers that become barriers.
 
-**Done, CLIM-50.** The six full spectral arrays became four shared ones and
+**Done, CLIM-57.** The six full spectral arrays became four shared ones and
 three partial slots in `pumamod`; what stays on the stack is what is genuinely
 per-process, the grid fields covering this process's latitudes and the `NSPP`
 partials. Two collectives carry it, both build-agnostic the way `mpsumscp` is.
