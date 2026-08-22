@@ -75,14 +75,15 @@ ready to land as one scientific change.
 
 The candidate offline ocean is vendored at `vendor/cgenie/`, a git subtree from
 the `master` branch of `derpycode/cgenie.muffin`, MIT licensed. Pull upstream
-with `git subtree pull --prefix vendor/cgenie cgenie-upstream master --squash`.
+with `git subtree pull --prefix vendor/cgenie cgenie-fork master --squash`.
 
-The remote is `cgenie-upstream` and not `cgenie-fork`, which is the one place
-this differs from the three above: there is no personal fork yet. Create one and
-repoint the remote before the first change is pushed. A fork is expected rather
-than optional here, because OCN-19 and OCN-20 are fork-shaped by construction --
-one deletes dead duplication and threads BIOGEM's tracer loops, the other
-replaces the barotropic streamfunction solve.
+The remote is `cgenie-fork`, pointing at `Sohex/cgenie.muffin`, which is a fork
+of `derpycode/cgenie.muffin`. A fork is expected rather than optional here,
+because OCN-19 and OCN-20 are fork-shaped by construction: one deletes dead
+duplication and threads BIOGEM's tracer loops, the other replaces the barotropic
+streamfunction solve. As with ExoPlaSim, the fork's `master` is the integrated
+line, so upstream is pulled into the fork first and this subtree pulls from the
+fork.
 
 That is also why it is a subtree and not an extraction under `references/`.
 External source this project reads and will not edit is held there instead, and
@@ -104,11 +105,26 @@ OCN-4 names beside MARBL. And `genie-plasim` is a PlaSim coupling module, which
 bears directly on OCN-17's evaluation of the published ExoPlaSim-to-cGENIE
 forcing path.
 
-**`genie-paleo` is 1.4 GB of the 1.6 GB and has no consumer here.** It is 286
-directories of Earth paleogeographic reconstructions, and 678 PostScript plots
-are nearly all of that weight. This project generates its own geography, so
-nothing will ever read them. They are kept anyway, because a subtree mirrors its
-upstream and a filtered one cannot be pulled cleanly, and because deleting them
-would not shrink the history that already carries them. Dropping the plots is a
-legitimate fork change if the size starts to cost something; it is recorded here
-so that the size is a decision on the record rather than a surprise.
+**`genie-paleo`'s plots are deleted from this checkout, and the rest is kept.**
+That directory arrived at 1.4 GB, of which 678 PostScript plots of Earth
+paleogeographic reconstructions were 1290 MB. They are pictures, nothing here
+will read them, and removing them took the subtree from 1.6 GB to 289 MB.
+
+What was KEPT is the other 49 MB and the reason is specific: 486 base
+configurations under `genie-main/configs` point into those directories through
+`ea_1`, `go_1`, `gs_1` and `bg_par_pindir_name`, and the `.k1`, `.paths`,
+`.psiles` and `.dat` files they resolve to are the format reference for what a
+cGENIE bathymetry configuration IS. OCN-11 has to produce one from the Orogen
+export, and OCN-18 asks specifically what muffingen's `.k1`, `.paths` and
+`.psiles` generation does above 36 x 36. Deleting the whole directory would have
+cost that and saved 49 MB.
+
+Two consequences to know. The history still carries the deleted blobs, so `.git`
+did not shrink and will not; the saving is working-tree size, which is what
+`grep` and `find` pay. And a `git subtree pull` will reintroduce the plots until
+the same deletion is made in the fork, which is a `git subtree push` to
+`Sohex/cgenie.muffin` and has not been done.
+
+Unrelated and worth knowing before someone blames the deletion: four directories
+that configs reference, `fkl_np10`, `fkl_pp01_DH`, `fm0450ab` and `wppcont1`,
+are absent upstream and were never in the vendored commit.
