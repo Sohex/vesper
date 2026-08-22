@@ -3147,3 +3147,45 @@ biogeochemical parameters are namelist-exposed and the physical scaling
 constants are compile-time `PARAMETER`s. An audit that samples uniformly will
 spend its effort in the wrong place: the biology is configurable and the physics
 core is where the Earth is welded in.
+
+
+### 40d. "Rate time base" splits three ways, and only one is a unit conversion
+
+OCN-12 asks for an inventory of rate time bases. BIOGEM's fall into three
+classes that need different treatment, and the distinction is the deliverable --
+a day inside a UNIT is invisible to any search for constants.
+
+**One: physical and kinetic, unambiguous.** `par_bio_remin_sinkingrate` and its
+three siblings in `m d-1`, `par_bio_remin_CH4rate` in `d-1`, `par_scav_Fe_Ks`,
+`par_bio_remin_opal_K`. These are settling speeds and reaction rates. The "day"
+is 86400 seconds and nothing else, so **a port to a 30-hour rotation must NOT
+rescale them.** That is a decisive answer for most of the list.
+
+**Two: biological, ambiguous, and a modelling decision rather than a
+conversion.** `par_bio_tau`, "biological production time-scale (days)
+(OCMIP-2)". Its value was calibrated where the light cycle is 24 hours and
+phytoplankton physiology is entrained to it; the model itself resolves no
+diurnal cycle, so mechanically the day is again 86400 s. Whether the number
+should move with a 30-hour rotation cannot be settled by unit analysis and
+should be recorded as an open choice rather than silently converted.
+
+**Three: not temporal at all -- spectral, and one-signed.** Two parameters set
+the light response and neither has a time base:
+
+- `par_bio_c0_I`, half-saturation for light in **W m-2**, Doney et al. (2006).
+- `par_bio_I_eL`, **light e-folding depth in metres**, OCMIP-2.
+
+Both are solar-spectrum calibrations. `par_bio_c0_I` is the marine twin of the
+constant BIO-25 owns on land, where LPJ-GUESS's `CQ = 4.6e-6` is documented "for
+solar radiation at 550 nm": a light response fixed on an irradiance whose photon
+content and PAR fraction both change under a K dwarf.
+
+`par_bio_I_eL` is the sharper of the two, because its error has a known sign.
+It is a SINGLE SCALAR attenuation depth, and water's absorption is strongly
+wavelength dependent -- transparent in the blue-green, strongly absorbing in the
+red and near-infrared. A K dwarf puts more of its flux where water absorbs more,
+so **the photic zone is shallower here than one solar-calibrated e-folding depth
+implies, and marine production is confined nearer the surface.** The direction
+follows from the spectrum alone; the magnitude needs the stellar spectrum
+integrated against water's absorption, both of which this project can supply --
+`k25v_hr.dat` is already in hand.
