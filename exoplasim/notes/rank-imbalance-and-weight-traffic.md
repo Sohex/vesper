@@ -138,3 +138,33 @@ quarter of the traffic should win, and by more.
   five.
 - Whether the gain survives at T21 and T42, where the matrices already fit
   anything. Expect nothing there, as with the symmetry work.
+
+
+## CLIM-48 was built and it is a regression
+
+*Measured 2026-08-21, T170 on sixteen, quiet machine.*
+
+Storing P and Q and applying the per-mode and per-latitude factors, instead of
+storing the eight products, takes the weights from 15.1 MB a thread to about
+4.5 MB and from 114.9 MB a die to about 36, under CCD1's 32 MB of L3. It is
+correct: rounding scale against the eight-matrix build at 1 and 20 steps, worst
+4.8e-13 and 1.06e-11 against a 1e-10 bar declared first, with a control that
+corrupts one factor and is rejected.
+
+**And it is 1.56% SLOWER**, threaded build against threaded build, paired and
+interleaved: 80.57 s against 81.66 s, spreads 1.3% and 2.3%, the two-matrix form
+faster in 0 of 4 rounds, [-2.17, -0.74].
+
+The premise was this note's own argument read backwards. The filter fold moved a
+per-mode scalar INTO the matrices, saving one multiply in three, and returned
+1.6%; that was read as evidence the loops are bound by STREAMING the matrices,
+so cutting the matrices fourfold should pay. Undoing the fold costs 1.56%, which
+is the same number back. The reading that fits both measurements is the simpler
+one: **these loops are bound by the MULTIPLY, and the filter fold gained by
+removing one.** Resident weight footprint is not what limits them, and a 4x cut
+in it is worth nothing measurable here.
+
+That also revises what the T170 model-code penalty was about. It was attributed
+to weight pressure on CCD1; `mkdheat` then removed 106 MB of per-thread stack
+and halved that penalty, and this change removes 79 MB a die of weights and does
+not touch it. The pressure that mattered was the scratch, not the weights.
