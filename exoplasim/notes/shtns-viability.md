@@ -847,7 +847,16 @@ which 50.4% have their leaf in a stripped library. Where those come from:
 | `gridpointa_` | 4.1% |
 | `icestep_`, `mkdheat_` | 3.4% each |
 
-69.0% go through `master_`, 0.4% through `prolog_`. So it is per-step, it is
-every physics routine clearing its own work arrays, and there is no single site
-to attack. The earlier answer -- no low-hanging fruit -- survives being properly
-scoped, which is the outcome that was worth the detour either way.
+69.0% go through `master_`, 0.4% through `prolog_`. So it is per-step and it is
+spread across every physics routine.
+
+**The attribution is right and the cause was not, and the cause is one build
+flag.** `MOST_F90_OPTS` carries `-finit-real=zero`, which initialises every
+local real variable on entry to every routine, arrays included -- so the routine
+in the table is not clearing its own work arrays, the compiler is clearing them
+for it, which is why the cost is spread exactly as widely as the flag is.
+Removing it is worth **+26.03%** [+22.76, +27.29] at T170, 4 of 4 rounds, with a
+bit-identical restart, and the model is clean under a sNaN gate. The measurement,
+the three gates and the one trap it exposed are in
+`the-zeroing-is-an-init-flag.md`; the conclusion that there was no low-hanging
+fruit here does not survive it.
