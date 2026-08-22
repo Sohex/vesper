@@ -4495,8 +4495,19 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !     thread. mpzerosp is that, and on the MPI build it is the plain statement
 !     it replaces.
       call mpzerosp(zhe,2,NLEV)
+#ifdef OMPSHARED
+      if (nshtns == 1) then
+!$omp barrier
+         call sh_sp2gp(zhe, hdek_g, NLEV)
+!$omp barrier
+      else
       call sp2fl(zhe,hdek,NLEV)
       call fc2gp(hdek,NLON,NLPP*NLEV)
+      endif
+#else
+      call sp2fl(zhe,hdek,NLEV)
+      call fc2gp(hdek,NLON,NLPP*NLEV)
+#endif
       do jlev=1,NLEV
        hddt(:,jlev)=-hdek(:,jlev)                                    &
      &           *0.5/acpd/(1.+adv*dq(:,jlev))/dp(:)*ga/dsigma(jlev) 

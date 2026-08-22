@@ -535,7 +535,15 @@
       real :: dv(NHOR,NLEP)   = 0.     ! meridional wind [m/s]
       real :: dp(NHOR)        = 0.     ! surface pressure
       real :: dqsat(NHOR,NLEP)= 0.     ! saturation humidity
+#ifdef OMPSHARED
+!     Full-globe, because mkdqtgp synthesises into it every timestep -- nprc
+!     defaults to 1 -- and SHTns cannot be handed a band. It was the last
+!     per-step legmod caller outside the dynamical core.
+      real, target :: dqt_g(NUGP,NLEP) = 0. ! adiabatic q-tendencies, whole globe
+      real, pointer :: dqt(:,:) => NULL()   ! adiabatic q-tendencies (for eg kuo)
+#else
       real :: dqt(NHOR,NLEP)  = 0.     ! adiabatic q-tendencies (for eg kuo)
+#endif
       real :: mmrt(NHOR,NLEP) = 0.     ! mmr tendency array
       real :: dcc(NHOR,NLEP)  = 0.     ! cloud cover
       real :: dql(NHOR,NLEP)  = 0.     ! Liquid water content
@@ -1021,6 +1029,7 @@
       hdq  => hdq_g(lo:hi,:)
       hddt => hddt_g(lo:hi,:)
       hdek => hdek_g(lo:hi,:)
+      dqt  => dqt_g(lo:hi,:)
 #endif
       return
       end subroutine assoc_grid

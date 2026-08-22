@@ -44,7 +44,7 @@ plasim.o:	plasim.f90 plasimmod.o restartmod.o radmod.o shtnsmod.o
 ${FFTMOD}.o:	${FFTMOD}.f90
 ${MPIMOD}.o:	${MPIMOD}.f90 plasimmod.o
 ${GUIMOD}.o:	${GUIMOD}.f90 plasimmod.o radmod.o ${OCEANCOUP}.o
-${RAINMOD}.o:	${RAINMOD}.f90 plasimmod.o
+${RAINMOD}.o:	${RAINMOD}.f90 plasimmod.o shtnsmod.o
 ${VEGMOD}.o:	${VEGMOD}.f90 ${LANDMOD}.o
 ${LANDMOD}.o:	${LANDMOD}.f90 radmod.o plasimmod.o
 glaciermod.o:	glaciermod.f90 plasimmod.o ${LANDMOD}.o

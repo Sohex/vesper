@@ -255,13 +255,27 @@
 
       subroutine mkdqtgp
       use rainmod
+#ifdef OMPSHARED
+      use shtnsmod, only: sh_sp2gp
+#endif
 !
       real zsqt(NESP,NLEV)
 !
       if (nqspec == 1) then
          call mpgallsp(zsqt,sqt,NLEV)
+#ifdef OMPSHARED
+         if (nshtns == 1) then
+!$omp barrier
+            call sh_sp2gp(zsqt, dqt_g, NLEV)
+!$omp barrier
+         else
          call sp2fl(zsqt,dqt,NLEV)
          call fc2gp(dqt,NLON,NLPP*NLEV)
+         endif
+#else
+         call sp2fl(zsqt,dqt,NLEV)
+         call fc2gp(dqt,NLON,NLPP*NLEV)
+#endif
 !
          do jlev=1,NLEV
           dqt(:,jlev)=dqt(:,jlev)*psurf*ww/dp(:)
