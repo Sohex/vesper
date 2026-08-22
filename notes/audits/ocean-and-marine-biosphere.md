@@ -285,7 +285,115 @@ new baseline, new forcing, new transport field -- and every loop in this project
 carries a declared exit predicate in `config/pipeline.yaml` rather than a
 stopping habit. That is OCN-5, and it is a decision rather than a measurement.
 
-## 8. What this audit did NOT establish
+## 8. Integration with the terrestrial and biosphere audits
+
+The first version of this audit was written beside, rather than through, the
+land-biosphere audits.  Reading the two together exposes seven additional
+interfaces.  None changes the choice to scope an offline circulation model and
+a trait-based ecosystem.  They change what those words must mean before either
+can produce an interpreted result.
+
+### 8a. A climatology is not yet a conservative ocean forcing artifact
+
+EFOR-1 through EFOR-8 establish that a forcing file needs explicit interval,
+clock, field and conservation semantics.  The ocean needs the same discipline,
+but not the same artifact: it consumes atmosphere-ocean momentum, heat and
+freshwater exchanges, routed runoff and sea-ice freeze/melt rather than the
+land-column state LPJ consumes.  Wind stress, net and penetrative shortwave,
+longwave, sensible and latent heat, precipitation minus evaporation, river
+discharge, salt and ice freshwater all need one owner, time basis, support and
+sign convention.  A weak salinity restoring term can remain a named numerical
+control; it cannot silently replace the freshwater and salt budgets being
+investigated.  OCN-10 owns this boundary.
+
+### 8b. The ocean has another support crossing, not a privileged grid
+
+T42 is an operating convention rather than a constraint, while the 10M Orogen
+export is the reference support that fully resolves the generated terrain.
+An MITgcm grid therefore cannot be chosen once and called the planet.  It needs
+a versioned map from the 10M bathymetry and coastline into wet fractions,
+depth/volume, shelves, straits, sills and routed river mouths, plus conservative
+maps to every accepted T21/T42/T85/T127/T170 atmosphere.  Narrow connections
+and partial coastal cells can change circulation even when cell-mean depth is
+unchanged.  OCN-11 extends SPAT-1 through SPAT-5 and SPAT-8/10 to this crossing;
+OCN-3's coarse configuration is a candidate whose adequacy must be measured,
+not a fixed resolution.
+
+### 8c. MITgcm and Darwin do not escape the implicit-Earth audit
+
+Runtime radius, gravity and rotation parameters are necessary but not
+sufficient.  Calendar and rate constants, reference pressure, equation of
+state, geothermal and tidal assumptions, vertical and lateral closures,
+salinity and initial hydrography can still import Earth.  In an ecosystem,
+fixed Redfield relations, nutrient inventories, temperature functions,
+sinking speeds, irradiance/PAR conversions, latitude classifiers and supplied
+community traits do the same.  Latitude remains valid for geometry and
+Coriolis; it is not a water-mass, productivity or ecological regime.  OCN-12
+applies BIO-22/BIO-29's clock and latitude rules and the repository's
+gravity/pressure audit shape before either external model is accepted.
+
+### 8d. “Reached the ocean” is a boundary condition, not marine nutrition
+
+ANUT-6 routes terrestrial dissolved and particulate export to the coast;
+ANUT-3/4 provide particulate and fixed-N deposition, and ANUT-5 defines the
+accepted species/time interface. None specifies
+what happens after arrival.  A marine calculation needs an initial and forcing
+ledger for at least C, N, P, S, Fe and Si, with salt, alkalinity, DIC and
+oxygen as coupled chemical state: dissolved/particulate and bioavailable/refractory
+forms, estuarine/coastal retention, dust dissolution, hydrothermal and benthic
+sources, uptake, remineralisation, sinking, burial, fixation, denitrification
+and redox/anoxia. Any resulting marine CH4 or N2O is a named source to the
+shared atmospheric trace-gas ledger, not permission for the ocean component to
+set an atmospheric abundance independently. Carving changes both river delivery
+and release of stored basin solutes, so the no-carve and all-carve values are
+boundary brackets rather than marine productivity endmembers. OCN-13 begins at
+ANUT's terminal-export boundary and closes the internal ocean ledger without
+making ANUT own marine biogeochemistry.
+
+### 8e. Trait-based is not yet Vesper physiology
+
+Darwin makes community composition emergent only inside the trait space it is
+given.  OCN-14 must declare that space with covarying strategies and retain a
+transplanted-Earth case as a labelled bracket rather than tuning traits to a
+desired productivity map.  It also imports PCAR-1/2 and BIO-25's lessons:
+rates need an absolute-time versus orbital-phase registry; light limitation
+needs K-star spectrum/window-weighted photon supply and water-column spectral
+attenuation; and sinking, buoyancy and mixing responses must use Vesper gravity
+and the accepted circulation state.  Nutrient limitation consumes OCN-13's
+species and cannot infer general sufficiency from a C-N-P subset.
+
+### 8f. Marine output needs acceptance, and shared feedbacks need one owner
+
+OCN-15 gives the ocean and its biosphere an accepted artifact: source hashes,
+support and interval identity; volume/area, heat, freshwater, salt and elemental
+closure; circulation and overturning diagnostics; light, limitation,
+productivity, biomass, export and redox state; restart continuity; common-
+support convergence; and declared null/reduced cases.  A plausible global
+productivity total cannot compensate for a leaking or resolution-dependent
+ocean.
+
+Two feedbacks cross existing ownership.  OCN-8 should contribute marine sulfur
+or organic precursor and particle properties to BVOC-9's shared aerosol-number
+and cloud bracket rather than designing a second cloud module.  Ocean carbon
+must remain fail-closed while atmospheric CO2 is prescribed.  If that premise
+is reopened, OCN-16 joins air-sea exchange and carbonate chemistry to ANUT-6,
+OCN-13 and VOLC-8's weathering/outgassing bracket; only then does ocean biology
+leave the pipeline's leaf tier and enter a climate convergence loop.
+
+### 8g. The existing marine substrate already has a static latitude classifier
+
+This is not only a future external-model problem. Orogen's `shelfClass()`
+currently selects `carbonate` below 30 degrees absolute latitude and
+`shelf_clastic` above it. Its own comments call latitude a proxy for sea-surface
+temperature and promise downstream reclassification, but no downstream step or
+task existed. Temperature alone would still be incomplete: carbonate state,
+biological production and terrigenous supply are the mechanisms the class is
+standing in for. LITH-26 owns a climate/ocean-state-derived reclassification on
+the 10M support and makes Orogen's latitude result a labelled bootstrap only.
+OCN-11 supplies support, ANUT-6 supplies sediment delivery and OCN-13/14 supply
+chemistry and biology; none should independently rewrite the rock map.
+
+## 9. What this audit did NOT establish
 
 Recorded so the next reader knows the edges.
 
@@ -308,7 +416,9 @@ Recorded so the next reader knows the edges.
 
 ## Tasks
 
-OCN-1 through OCN-9 in `TASKS.md`. Findings 1, 2, 5a, 5b and 5c are the
+OCN-1 through OCN-16 in `TASKS.md`. Findings 1, 2, 5a, 5b and 5c are the
 exploration rows; finding 3 is recorded here and became no row, being a
 constraint rather than work; finding 4's config half is OCN-9 and its prediction
-half is this document.
+half is this document. Section 8 supplies the cross-component contracts and
+acceptance rows OCN-10 through OCN-16, plus LITH-26 for the existing static
+latitude shelf classifier.

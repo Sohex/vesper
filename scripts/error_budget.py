@@ -364,18 +364,20 @@ OTHER_ITEMS = [
      "improves an agreement. Bracket `hdiffk` and report the spread rather "
      "than tuning it -- a constant diffusivity is a BOUND on the missing "
      "transport, not the transport. TASKS.md CLIM-16."),
-    ("ocean salinity, 20 to 34.7 psu", "freezing point 272.07 to 271.24 K",
+    ("ocean salinity, 20 to 40 psu", "freezing point 272.07 to 270.94 K",
      "DECLARED, not derived: config/planet.yaml carries Earth's 34.7 because no "
      "salt budget exists here, and the model's TFREEZE is now set from it "
-     "rather than compiled in. The direction is one-signed and this world "
-     "pushes it: most land is endorheic, so the solutes that on Earth reach the "
-     "sea stay on closed-basin floors instead, and the exorheic share per unit "
-     "ocean area is under half Earth's. A fresher ocean freezes WARMER, so more "
-     "sea ice than these runs show, landing on the ice-albedo feedback the "
-     "stellar-cycle damping turns on. The span is about 1.1 K on one threshold; "
-     "what it is worth in global mean is unmeasured, and needs one A/B on a key "
-     "that is now settable: the A/B is TASKS.md CLIM-35 (setting the key "
-     "was archive CLIM-17)."),
+     "rather than compiled in. OCN-9 corrected the old one-signed inference: "
+     "exorheic delivery per unit ocean area ranges from 0.51x Earth's at zero "
+     "carving through about 0.91x at the median basin threshold to 2.14x in the "
+     "all-carve spill graph, before ocean-age sources and sinks. Fresher water "
+     "freezes warmer and saltier water colder, so the sea-ice sign follows the "
+     "accepted salinity rather than endorheism alone. The span is about 1.1 K "
+     "on one threshold. Archive CLIM-35 measured the S=20 arm growing seasonal "
+     "ice by 0.164% of the planet; its -0.105 W/m2 flux was below the two-orbit "
+     "resolution, while the S=30 arm moved -0.474 W/m2 without an ice change. "
+     "The mechanism is measured and the two-sided planetary prior remains "
+     "declared rather than inferred (setting the key was archive CLIM-17)."),
     ("roughness distribution", "land median 0.502 m under a 2.0 m mean",
      "Anchored to ExoPlaSim's tuned land mean, which the distribution says is "
      "carried by a rough tail. Anchoring inflates mid-range cells; direction "
