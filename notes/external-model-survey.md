@@ -284,12 +284,17 @@ The FLOW half is worth taking and would not be ported. Equation 4 is
     D = 2a/(n+2) * (rho_i g)^n * |grad z_S|^(n-1) * H^(n+2)
 
 which is a few lines of algebra, and `(rho_i g)^n` is exactly the term GRAV-6
-discusses at 2.23x here, arriving correctly rather than bolted on. But MITgcmIS
-is Python on MITgcm's cubed sphere and this project's grids are Gaussian;
+discusses at 2.23x here, arriving correctly rather than bolted on.
+
+There are two routes to it and this note does not choose between them. MITgcmIS
+is Python on MITgcm's cubed sphere while this project's grids are Gaussian, and
 CLAUDE.md rule 3 exists because that class of crossing has silently matched zero
-cells three times. Implementing shallow ice on the native mesh from the paper is
-less work than porting a cubed-sphere solver, so the paper is the deliverable
-and the repository is not.
+cells three times, which argues for implementing on the native mesh from the
+paper instead. Against that, a doubly nonlinear diffusion has direct local
+precedent for failing to converge on this mesh: GW-9's exponential
+transmissivity failed under both Picard and Kirchhoff and was abandoned. Which
+route is cheaper has not been measured and is CLIM-62's; nothing here should be
+read as having settled it.
 
 The MASS BALANCE half is where the difficulty lives, and theirs is weaker than
 what this project already plans. Its only two inputs are 2 m air temperature for
