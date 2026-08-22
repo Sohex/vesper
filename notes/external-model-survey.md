@@ -2376,3 +2376,86 @@ by up to 1.8x exactly where this planet's obliquity puts more of its year. That
 is a better instrument than the row's own framing suggests, and it is a bracket
 rather than a fix -- neither branch is obviously right for a K dwarf, and the
 question of which is a separate one from whether the term varies at all.
+
+
+## 30. `genie-plasim`: the coupling contract, written down, and how it is afforded
+
+*Read 2026-08-22. cGENIE ships a PlaSim. It is the same model this project
+runs, so the difference between the two trees is the coupling layer and nothing
+else -- which makes it a direct readout of what coupling an ocean to this
+atmosphere actually requires.*
+
+### 30a. It is UPSTREAM PlaSim, and the coupling surface is 71 lines
+
+`vendor/cgenie/genie-plasim/src/fortran/` is a strict SUBSET of
+`vendor/exoplasim/exoplasim/plasim/src/`, plus exactly one file. Absent from it:
+`p_exo.f90`, `p_mars.f90`, `p_earth.f90`, the aerosol core, `hurricanemod.f90`,
+`glaciermod.f90`, `newsnow.f90`, `carbonmod.f90`, the alternative rain schemes,
+and every MPI module. So ExoPlaSim's exoplanet capability IS those additions,
+and cGENIE's copy is the Earth model they were added to.
+
+The one addition on cGENIE's side is `geniemod.f90`, 71 lines, and it is pure
+declaration -- no logic. **The entire atmosphere-ocean coupling surface is one
+array-declaration module.** That is a far smaller thing than the OCN rows have
+been assuming.
+
+`lsgmod.f90` on our side is a 4-line stub, not an ocean. Nothing uses it and
+nothing can; the name is the only content.
+
+### 30b. The contract, enumerated
+
+Because the module is declaration-only, the contract can simply be read off.
+
+**Ocean to atmosphere, 7 declared and 6 used:** `genie_sst`, `genie_icet`,
+`genie_hght_sic`, `genie_frac_sic`, `genie_alb_sic`, `genie_co2`, and
+`genie_dflux` marked "not used".
+
+Note the fifth: **sea-ice albedo is supplied BY the ocean model**, so in this
+arrangement PlaSim's own `dicealbmx`/`dicealbmn` do not set it. That is the pair
+section 29 found surviving `radmod`'s open-ocean overwrite, and PHYS-14 owns it.
+
+**Atmosphere to ocean, 17 fields**, each stored as a full seasonal cycle:
+latent and sensible transfer COEFFICIENTS, `netsolar`, `solfor`, `insolar`,
+`inlong`, `sat`, `spec_hum`, `pressure`, `evap`, `precip`, `runoff`, wind stress
+as `stressx2/y2` and `stressx3/y3`, and `windspeed`. Plus `sfxatm_lnd` for ENTS
+carbon.
+
+This is a fuller handoff than the offline regrid path OCN-17 tracks, which moves
+wind stress, winds and albedo. The two published paths are different
+arrangements, not one; whether EMBM still runs under this one is not settled by
+the declaration module and I did not confirm it.
+
+### 30c. The gearing, which is how a coupled ocean is afforded
+
+`plasim.f90:604-655`. With `ngear = 1`, PlaSim integrates for
+`ngear_years_plasim` years while accumulating daily means into the seasonal
+arrays. For the next `ngear_multiple - 1` blocks it **returns immediately** and
+does not integrate at all; the ocean is driven from the stored cycle. The
+atmosphere runs one block in `ngear_multiple`.
+
+The non-obvious part, and the reason this is worth recording rather than
+inventing later: **the terms that depend on ocean temperature are recomputed
+live** against `tstar_ocn` at every geared step -- saturation specific humidity
+and hence latent heat, net longwave as `0.98 * sigma * T^4`, and sensible from
+`sat_plas - tstar_ocn`. Only the transfer coefficients and the downward
+radiative and moisture fields are replayed. The source comment says why:
+"Needed for stability." Naive replay of net heat flux would sever the negative
+feedback that holds SST, and the scheme is built specifically to keep it.
+
+Evaporation is deliberately NOT recomputed, commented as "necessary for moisture
+conservation", with the alternative of rescaling precipitation and runoff
+considered and rejected as no better.
+
+### 30d. What a Vesper port would hit
+
+- `NLAT_ATM = 32` is a `parameter`, so the module is compile-time fixed to T21.
+  This project runs T42. Mechanical, but it is a recompile and not a namelist.
+- `tstar_ocn` is in Celsius here -- `(tstar_ocn + 273.15)**4` -- against
+  ExoPlaSim's Kelvin. Rule 3's class of defect, on units rather than longitude.
+- Surface emissivity 0.98 and sigma are hardcoded in the geared longwave, so the
+  geared branch and the live branch could disagree if either is configured.
+- The seasonal arrays are dimensioned `(:,:,360)` by day-of-year. **This is NOT
+  a blocker here**: at a 182.8-day orbit and 30-hour rotation this world has
+  about 145 solar days per orbit, so the array is oversized and safe. It would
+  have to move for a longer year, and it is the same calendar-port class the
+  LPJ-GUESS work already went through.
