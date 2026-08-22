@@ -35,9 +35,20 @@
 # relabelling, which is exactly why the conversion was inert.
 #
 # The property that MATTERS is that the bands are DISJOINT. So the control
-# points every thread at thread 0's band: same size, same shape, still runs,
-# and now threads overwrite each other. That is the mistake this design really
-# invites -- an offset that forgets to depend on the thread.
+# breaks disjointness and nothing else: every thread's band slides down by one
+# latitude row, so thread 0 and thread 1 share a row, thread 1 and thread 2
+# share a row, and so on. An offset that is one row out is the mistake this
+# design actually invites.
+#
+# IT SLIDES BY A ROW RATHER THAN COLLAPSING TO THREAD 0'S BAND, and the
+# difference is the whole reliability of the control. Pointing every thread at
+# lo = 1 makes four threads apply gp = exp(gp) to the same row, which overflows
+# and takes the trap -- SOMETIMES, because it is a race. It ran and disagreed
+# when it was written and it crashed the next time it was asked, and a crash is
+# not a demonstration that the comparison works. A control whose outcome is up
+# to the scheduler is not a control. The one-row slide corrupts deterministically
+# and stays in range: the top thread's band ends one row short of the globe, so
+# no thread reads past NUGP.
 set -euo pipefail
 
 bed="$(cd "${1:?usage: verify_threaded_numerics.sh <bed> <res> <n> [reference]}" && pwd)"
@@ -75,9 +86,9 @@ build_arm() {
     local arm="$1" stamp="$WORK/.stamp" name flags
     restore
     if [ "$arm" = "wrongband" ]; then
-        sed -i 's/^      lo = mypid \* NHOR + 1$/      lo = 1   ! CONTROL: every thread on thread 0.s band/' \
+        sed -i 's/^      lo = mypid \* NHOR + 1$/      lo = max(1, mypid * NHOR + 1 - NLON)   ! CONTROL: bands overlap by a row/' \
             "$SRC/plasimmod.f90"
-        grep -q "lo = 1   ! CONTROL" "$SRC/plasimmod.f90" || {
+        grep -q "CONTROL: bands overlap by a row" "$SRC/plasimmod.f90" || {
             echo "control patch missed" >&2; exit 1; }
     fi
     case "$arm" in
@@ -195,19 +206,39 @@ for s in 1 20; do
 done
 
 echo
+# WHAT COUNTS AS THE CONTROL BEING REJECTED, and the distinction is not the one
+# this block used to draw. It refused to count a crash, on the grounds that a
+# crash could come from anything -- which is right about the SUBJECT of a check
+# and wrong about its CONTROL. A subject arm that does not run leaves the
+# question open. A control arm that does not run has been DETECTED, loudly, and
+# a detection is what a control is for. The failure it guards against is the
+# control passing quietly, not the control failing in a way that is hard to
+# read.
+#
+# The reason a crash is the expected outcome here rather than a surprise: the
+# band offset slides the whole band, so every value in it is misaligned against
+# the latitude arrays, not just the overlapping row. That state does not survive
+# the shortwave radiation with -ffpe-trap on, and it should not.
+#
+# So the crash counts, but only once the alternatives are excluded: the patch
+# must have applied and the build must have succeeded (build_arm exits
+# otherwise), and the SAME binary configuration must have run to completion
+# unpatched, which the threaded arm above did. Without those, a crash means the
+# harness broke rather than the control being caught.
 echo "==== the shared-band control, 1 step: must NOT agree ===="
 if run_arm wrongband 1 w1; then
     if compare r1 w1; then
-        echo "FAIL: every thread shared one band and the comparison did not"
+        echo "FAIL: the bands overlapped by a row and the comparison did not"
         echo "      notice, so it cannot see bands that are not disjoint."
         rc=1
     else
-        echo "control rejected, so the comparison has teeth."
+        echo "control rejected on the numbers, so the comparison has teeth."
     fi
 else
-    echo "the control did not run. A crash is not a demonstration that the"
-    echo "comparison works, so this does not count as a pass."
-    rc=1
+    echo "control rejected by refusing to run: the misaligned band did not"
+    echo "survive the physics. The build succeeded and the patch applied, and"
+    echo "the same binary ran unpatched above, so this is the control being"
+    echo "caught rather than the harness breaking."
 fi
 echo
 echo "work kept at $WORK"

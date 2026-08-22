@@ -634,6 +634,7 @@ one_offs:
   - exoplasim/scripts/probe_shtns_vector_conventions.f90
   - exoplasim/scripts/verify_shtns_equivalence.sh
   - exoplasim/scripts/verify_shtns_equivalence.f90
+  - exoplasim/scripts/verify_shtns_model.sh
   - exoplasim/scripts/build_shtns.sh
   - exoplasim/scripts/verify_omp_collectives.sh
   - exoplasim/scripts/verify_shared_determinism.sh
