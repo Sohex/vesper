@@ -1241,3 +1241,67 @@ OCN-4's other criteria -- tracer and trait cost, the covarying trait space,
 fixed Earth inventories -- are untouched by this and still favour ECOGEM's
 trait-based ecology in principle. The comparison is now split rather than
 settled.
+
+
+## 13. The known-good suite, and an ordering constraint it imposes
+
+*Read 2026-08-22. OCN-19 validates its threading against `genie-knowngood/`,
+described there as per-component reference output for four configurations. It is
+thinner than that, the comparator is better than expected, and the combination
+creates an ordering nobody has stated.*
+
+### 13a. What it actually is
+
+Four netCDF files, one per directory:
+
+| configuration | component | file | size |
+| --- | --- | --- | ---: |
+| `genie_eb_go_gs_ac_bg` | biogem | `fields_biogem_3d.nc` | 1.9 MB |
+| `genie_eb_go_gs_el` | ents | `ents_yearav_0000000020.nc` | 64 KB |
+| `genie_eb_go_gs` | goldstein | `gold_spn_av_0000000020_00.nc` | 312 KB |
+| `genie_na_go_ni` | goldstein | `gold_spn_av_0000000010_00.nc` | 312 KB |
+
+Three components, not four, since two configurations cover GOLDSTEIN. The
+integrations are twenty and ten model years, so this is a short-run regression
+surface rather than an equilibrated comparison -- which is adequate for what
+OCN-19 wants it for, and worth knowing before it is asked to carry more.
+
+**There is no ECOGEM reference.** If OCN-4 selects the trait-based tier, the
+ecosystem component arrives with no known-good at all, and one would have to be
+generated and blessed before any change to it could be validated. That is a cost
+on ECOGEM's side of OCN-4's ledger that the row does not currently carry.
+
+### 13b. The comparator is the right instrument and already exists
+
+`genie-main/src/c/compare.cpp`, built as `nccompare.exe` and driven by
+`compare-basic.sh`, takes `-r` as a relative tolerance IN ULPS and `-a` as an
+absolute floor below which differences are ignored.
+
+A tolerance in units in the last place is exactly the right measure for a
+reordering or threading change, because it asks how far the result moved in
+representable numbers rather than as a fraction. OCN-20 requires that the
+tolerance and the acceptance comparison be fixed before an iterative scheme is
+chosen; the instrument for that is in the tree and does not have to be written.
+
+### 13c. The constraint: this suite validates EARTH, so optimise first
+
+The GOLDSTEIN reference carries `opsi`, `opsi_a` and `opsi_p`, the global,
+Atlantic and Pacific overturning streamfunctions. Those are reported through
+`opsisc = dsc*usc*rsc*1e-6`, and section 10e establishes that `rsc` is Earth's
+radius, hardcoded.
+
+So every number in the known-good is a number at Earth's parameters. Change
+`rsc` for this planet and the reference values move with it, in a scaling that
+is not a simple factor across fields, and the suite stops being a comparison at
+all.
+
+**That orders the ocean work.** OCN-19's threading and OCN-20's solver
+replacement are correctness-preserving changes at fixed physics, which is
+precisely what a ULP-tolerance regression suite is for, and they can use it. The
+radius and gravity work under OCN-3 and OCN-12 is not, and it destroys the
+suite's applicability as its first act. Doing the optimisation first keeps a
+validation surface that doing it second would not have.
+
+If the order goes the other way, a replacement acceptance test has to be
+declared before the parameters move, and it cannot be a comparison against
+these files.
