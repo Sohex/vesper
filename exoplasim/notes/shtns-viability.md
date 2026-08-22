@@ -201,3 +201,48 @@ inside the transform, FP64 state either side -- is the only version of this that
 could pay, and it is a decision about how much accuracy the spectral core owes
 the climate, not a performance question. `verify_transform_roundtrip.sh` would
 quantify the cost exactly: the identity's residual IS the precision loss.
+
+## The resolution ladder and the GPU are independent, and only one is worth it
+
+CLIM-52 specifies a restart converter for progressive T21 to T170 advancement,
+and its contract already covers four-byte to eight-byte real conversion in both
+directions. The obvious pairing with the GPU finding above is to run the low
+rungs in FP32 on the device, where it is 64x its own FP64 rate, and switch to
+CPU and FP64 at the top. **The arithmetic inverts that.**
+
+The Legendre transform is O(N^3) and the physics O(N^2), so the transform's
+SHARE of runtime grows with resolution. Anchoring on the T170 measurement of
+18.9%:
+
+| rung | NLAT | transform share | ceiling on any transform-only speedup |
+| --- | ---: | ---: | ---: |
+| T21 | 32 | 2.8% | 2.8% |
+| T42 | 64 | 5.5% | 5.5% |
+| T85 | 128 | 10.4% | 10.4% |
+| T127 | 192 | 14.9% | 14.9% |
+| T170 | 256 | 18.9% | 18.9% |
+
+**So the GPU is useless at both ends, for opposite reasons.** On the low rungs,
+where FP32 would be tolerable because the run is being thrown away anyway, the
+transform is a few percent of the work and an infinitely fast one saves nothing
+worth a second code path. On the top rung, where the transform finally matters,
+the precision the model is built for is the precision this GPU does not do.
+
+The share figures below T170 are EXTRAPOLATED from one measurement through the
+O(N^3) over O(N^2) argument, not measured. The conclusion survives being wrong
+by a factor of two or three at the low end, which is why it is stated rather
+than measured, but a T42 profile would settle it if the question is ever
+reopened.
+
+**The ladder is still worth doing, for its own reason.** Its value is not
+per-step speed, it is not spinning the expensive resolution up from cold --
+total orbits, not milliseconds. Nothing here weakens CLIM-52; it only detaches
+it from the GPU.
+
+**And the cap applies to the GPU generally.** Offloading the transform alone is
+bounded by 18.9% even at T170. A device that actually paid would need the
+physics on it too, which is a whole-model port rather than a library swap, and
+would be decided on different evidence than any of this.
+
+NOTE ON WHERE THIS BELONGS: CLIM-52 lives in main's TASKS.md and not on this
+branch, so this finding has to reach that row when the branches meet.
