@@ -492,3 +492,43 @@ that traffic was never inside the 14.9%.
 What is still legmod: the `span` diagnostic, the energy and entropy block under
 `nenergy`/`nentropy`, and legmod itself, which stays because `nshtns=0` is the
 reference the model check compares against.
+
+## An open discrepancy: the analysis arms miss their bar above T42
+
+Measured 2026-08-22. `verify_shtns_equivalence.sh`, tolerance 1e-11 declared
+before any of this was written:
+
+| res | NTRU | scalar synthesis | scalar analysis | uv2dv divergence |
+| --- | ---: | ---: | ---: | ---: |
+| T21 | 21 | 1.0e-15 | 2.2e-14 | 1.1e-13 |
+| T42 | 42 | 9.2e-15 | 2.2e-13 | 2.0e-12 |
+| T85 | 85 | 2.0e-14 | 1.2e-12 | 2.2e-11 |
+| T127 | 127 | 3.2e-14 | 2.3e-12 | 5.9e-11 |
+| T170 | 170 | 5.6e-14 | 4.9e-13 | 9.9e-12 |
+
+Synthesis is at rounding scale everywhere. ANALYSIS is two to three orders
+worse, and above T42 the vector arms miss the bar.
+
+**What it is not.** Not l(l+1) amplification from returning divergence as
+l(l+1) times the spheroidal potential: that predicts growth like NTRU^2 and
+T170 is six times BETTER than T127. Not the reference field coming from SHTns's
+own synthesis rather than legmod's: swapping it changes the result in no digit,
+which follows from the two syntheses agreeing to 3e-14. Not a concurrency
+effect; these run on one thread.
+
+**What the model says, which is the question that matters.** At T127, one step,
+nshtns=1 against nshtns=0: every continuous field agrees at rounding scale. The
+single record beyond it is `dql`, and `dql` is a floor indicator -- 737,280
+cells of which 127 are nonzero and every nonzero one is exactly 1.0e-09. SHTns
+has 128. One thresholded cell crossed, which a relative metric on a
+floor-valued field reports as 76.
+
+So the transform is not visibly wrong in the model, and the array check is not
+meeting a bar it met at T42. Those are consistent only if the bar is measuring
+something the model does not care about -- most likely the normalisation, since
+`spcheck` divides by the largest spectral coefficient while the synthesis arms
+divide by the largest GRID value, and the two differ by orders. That is a
+hypothesis and it is not tested.
+
+**It is not resolved and the threshold has not been moved.** A criterion chosen
+after the run it judges is not a criterion. CLIM-61 carries it.

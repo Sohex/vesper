@@ -243,7 +243,21 @@
       do jj = 1 , NTP1
          zs(2*jj,1) = 0.0
       enddo
-      call sh_sp2gp(zs, pgrid, 1)
+!     Built with LEGMOD's synthesis, not SHTns's. The field is then exactly
+!     band-limited in the representation legmod's own quadrature inverts, so the
+!     analysis arms measure the analysis rather than whatever the other
+!     library's synthesis left outside legmod's band.
+      block
+        real :: zf(NLON,NLPP)
+        real :: zc(2,NCSP)
+        integer :: k
+        do k = 1 , NCSP
+           zc(1,k) = zs(2*k-1,1) ; zc(2,k) = zs(2*k,1)
+        enddo
+        call sp2fc(zc,zf)
+        call fc2gp(zf,NLON,NLPP)
+        pgrid(:,1) = reshape(zf,[NUGP])
+      end block
       end subroutine mkgrid
 
       subroutine spcheck(yname, pref, pgot, ptol, kbad)
