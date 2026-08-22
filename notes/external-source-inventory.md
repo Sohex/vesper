@@ -76,13 +76,17 @@ in any tree held here and that gap stands open. Re-keyed on inspection to what
 it does carry: `priority_flood_flow_router` as a direct comparison for
 `hydrography/drainage.py`, `flexure` for the isostasy blind spot, `lithology`
 for LITH, and fluvial erosion laws whose gravity dependence is implicit through
-shear stress and is a different question from GRAV-6's. *Row-driven.* GRAV-6 records that glacial erosion carries no gravity
-term while Glen's law makes ice velocity go as `g^3`. LITH and PHYS-13 sit
-beside it. Landlab is the most readable LEM and separates its erosion laws
-cleanly enough to read one without the rest. **Read the no-time-axis rule first**
-(`docs/src/reference/no-time-axis.md`): Orogen has no time axis and a LEM is
-explicitly time-evolving, so the transferable thing is the FORM of a
-gravity-scaled erosion law, not a rate. MIT licence.
+shear stress and is a different question from GRAV-6's. *Row-driven.*
+
+**Read the no-time-axis rule first** (`docs/src/reference/no-time-axis.md`):
+Orogen has no time axis and a landscape evolution model is explicitly
+time-evolving, so what transfers is the FORM of a law, never a rate.
+
+**GRAV-6 IS NOW AN UNSERVED ROW.** Its subject is glacial erosion under Glen's
+law, and no tree held here carries a glacial erosion rule. SICOPOLIS supplies
+the ice DYNAMICS and survey section 45a prices gravity through it, but abrasion
+and quarrying laws are a separate literature. If that row is to be served, it
+needs its own acquisition and this list does not currently contain one.
 
 **ESMF** -- ACQUIRED 2026-08-22, `references/esmf/`. Conservative regridding between unstructured and
 structured grids. *Row-driven.* SPAT has 11 open rows of 11 issued and no
