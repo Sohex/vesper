@@ -105,16 +105,16 @@ deformation radius, while 12.81 m/s2 puts the scale height at 0.766 of Earth's,
 which lowers it, for a net 0.957. Earth GCMs want roughly 50 km before
 cyclone-like vortices reach realistic intensity, which on this planet is about
 T320. **The capture half is off the resolution ladder this project has, and
-converting up does not put it on.**
+converting up does not put it on.** CLIM-55 owns that as a declared gap.
 
 **The index half is available at T42 for one namelist key and has never been
 asked for.** There is no prognostic hurricane state, so it is valid on a
 continuation segment as well as a cold start, unlike every surface field, which
-`landmod`'s `landini` takes from the restart. The decision procedure, if it is
-ever wanted: it is a diagnostic, so it goes on a segment declared `diagnostic`,
-`stormclim=True` has to be reapplied per segment for the CLIM-17 reason, and
-what it returns is whether this climate's environments admit cyclogenesis at
-all, not how many storms there are.
+`landmod`'s `landini` takes from the restart. It is not quite free: the eight
+indices are output codes 322 to 329, which are not in `REGULAR_CODES`, and
+`stormclim=True` has to be reapplied per segment for the CLIM-17 reason. What it
+returns is whether this climate's environments admit cyclogenesis at all, not
+how many storms there are. CLIM-54 owns the decision.
 
 Cost when off is not quite zero and is near enough: `hurricanestep` is called
 unconditionally at `plasim.f90:3485` and returns after zeroing seven `NHOR`
