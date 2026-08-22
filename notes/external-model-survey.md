@@ -855,3 +855,96 @@ RADCON-like constant would be wrong by about 1.63x, which would be enormous.
 thickness as `gascon/ga`, using the model's own gravity and specific heat
 throughout. A negative result, recorded because the check was cheap and the
 failure mode is real enough that a purpose-built code fell into it.
+
+
+## 10. cGENIE, first reading
+
+*Read 2026-08-22 from `vendor/cgenie/` at the vendored commit. The tree was
+vendored for OCN-3 and five rows wait on it; this is the reading that makes
+their citations checkable, plus one thing none of them anticipated.*
+
+### 10a. The citations verify, and two are stronger than the rows state
+
+**OCN-19's dead duplication is real and slightly worse.**
+`genie-goldstein/src/fortran/tstepo.F` declares six arrays at lines 32 to 35,
+two of them full four-dimensional tracer arrays `ts_t1` and `ts_t2` plus
+`ts1_t1`, `ts1_t2` and two density copies, and fills all six by copy at lines 62
+to 68 on every ocean timestep. The routines that would consume them,
+`tstepo_flux_t`, are COMMENTED OUT, as is the entire OpenMP block around them.
+The only live call is `call tstepo_flux()`.
+
+**OCN-19's "no disabled parallelism to re-enable" verifies and is stronger than
+a judgement.** Both OpenMP blocks are commented out rather than merely inactive,
+and the biogem one at `genie-biogem/src/fortran/biogem.f90:718-735` calls
+`sub_wasteCPUcycles1` and `sub_wasteCPUcycles2`, which are real subroutines at
+`biogem_lib.f90:2267` and `:2289`. The block was a scheduling experiment on
+deliberately wasted cycles, not a parallelisation anyone disabled.
+
+**OCN-20's ordering verifies at `invert.f:32`,** `k=i + j*n`, exactly as quoted.
+What the row does not carry is the comment three lines above it:
+
+    c NOTE: gfortran compiler will multiply flag as:
+    c     'Array reference ... out of bounds' ... but all OK
+    c     (I think ...)
+
+An acknowledged, unresolved out-of-bounds in the routine OCN-20 proposes to
+replace, hedged by its own author. That is a CORRECTNESS argument for the
+replacement beside the complexity one, and this project has both the instrument
+and the experience to settle it: `-ffpe-trap` is in the production flag line and
+the checked profile carries `-fcheck=all` precisely because that class caught a
+real out-of-bounds during the CLIM-40 fold work.
+
+### 10b. cGENIE ships a PlaSim, and it is our PlaSim
+
+`vendor/cgenie/genie-plasim/src/fortran` is a complete Planet Simulator:
+`plasim.f90`, `plasimmod.f90`, `radmod.f90`, `oceanmod.f90`, `seamod.f90`,
+`icemod.f90`, `landmod.f90`, `simba.f90`, `legmod.f90`, `fftmod.f90` and the
+rest, identifying itself as PUMA 2.0, Version 16 Revision 4.
+
+**Twenty-four of its twenty-five modules are also in
+`vendor/exoplasim/exoplasim/plasim/src`.** ExoPlaSim adds to that set -- the
+aerosol stack, glaciers, the carbon module, LSG, the MPI variants, the planet
+configurations -- and removes nothing. The single cGENIE-exclusive file is
+`geniemod.f90`.
+
+So a PlaSim-to-GOLDSTEIN coupling already exists, written against the same
+module names and the same `pumamod` state this project's model still has. That
+does not reopen OCN-3's offline decision, which rests on deep-ocean spin-up cost
+and is untouched by this. What it supplies is a REFERENCE INTERFACE for a
+contract OCN-10 is currently specifying from first principles.
+
+### 10c. The coupling contract, and a lead on OCN-17's multiplier
+
+`geniemod.f90` is 71 lines declaring the exchange arrays and `fluxmod.f90` is
+1,092 doing the work. What crosses, atmosphere to ocean: net solar, evaporation,
+precipitation, runoff, and TWO PAIRS of wind stress. What comes back: sea
+surface temperature, ice temperature, ice height, ice fraction and ice albedo.
+Alongside: cell area, land-sea mask, an atmospheric pressure term, and CO2. One
+array, `genie_dflux`, is annotated `!not used`.
+
+Two details matter more than the list.
+
+**The two stress pairs are a C-grid staggering, and cGENIE says so in its own
+comments.** `genie-main/genie_loop_wrappers.f90` lines 34 and 36 read
+`ocean_stressx2_ocn  surface wind stress (x) at u point` and
+`ocean_stressx3_ocn  surface wind stress (x) at v point`. `genie.F` lines 342 to
+360 accumulate both over `kocn_loop` steps and divide by the step count, so what
+the ocean receives is a time mean of a stress evaluated at two staggered
+locations.
+
+That is a concrete mechanism for the knob OCN-17 exists to explain. The
+published `exoplasim_genie_regrid` path instructs users to set `ea_11` and
+`go_13` to 2.0 or 2.6 depending on ExoPlaSim version, with a matching change to
+gas transfer. A regridding route that supplies one stress field where the ocean
+expects two staggered ones, or that misses the `kocn_loop` averaging, would need
+a compensating multiplier of about that size, and the fact that the scaling is
+applied on BOTH the atmosphere and ocean side is consistent with an
+interpolation mismatch rather than a physical correction. This is a hypothesis
+with a mechanism and a place to look, not an explanation; OCN-17 still owns the
+verdict.
+
+**The exchange arrays are dimensioned 360.** `g_netsolar_plas`,
+`g_evap_plas`, `g_precip_plas`, `g_runoff_plas` and all four stress arrays carry
+a trailing dimension of 360, an Earth year of daily fields compiled in. Vesper's
+orbit is 180.7 days. That is a calendar assumption in the coupling itself rather
+than in a namelist, and OCN-10's contract has to state what replaces it.
