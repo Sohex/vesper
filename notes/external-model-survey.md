@@ -2627,3 +2627,117 @@ That is useful precisely because it is minimal. `notes/audits/missed-couplings.m
 finding 4 and the error budget both record the one-way coupling as structural,
 and LSHY-4 is scoped to close the loop; ENTS shows that an EMIC-class closure of
 it is three algebraic functions of two carbon pools, not a land-surface model.
+
+
+## 33. The moisture-stress bracket is a published three-parameter family
+
+*Read 2026-08-22, following section 32. ClimaLand carries the same limiter as a
+selectable model, and the general form contains both endpoints found there.*
+
+`src/standalone/Vegetation/soil_moisture_stress.jl` offers three:
+
+- `NoMoistureStressModel`: beta = 1 always.
+- `PiecewiseMoistureStressModel`, cited to **Egea et al. (2011)**,
+  doi 10.1016/j.agrformet.2011.05.019:
+
+      beta = min(1, max((theta - theta_low)/(theta_high - theta_low), 0) ** c)
+
+- `TuzetMoistureStressModel`, a sigmoid in LEAF WATER POTENTIAL rather than in
+  soil moisture, which needs plant hydraulics to evaluate.
+
+**Section 32's two-point bracket is two points in the Egea family.** With
+`theta_low = 0`:
+
+| model | theta_high | c |
+| --- | --- | --- |
+| ExoPlaSim `landmod.f90:418` | `drhsfull * wsmax`, i.e. 0.4 of capacity | 1 |
+| ENTS `surflux.F:1334` | `bcap`, full capacity | 4 |
+
+So the disagreement is not two rival schemes but two corners of one
+parameterisation, on the two axes it exposes. That matters for LSHY-3: a
+replacement column implementing the Egea form recovers BOTH existing behaviours
+as parameter choices, which turns the bracket into a runtime selection rather
+than a code fork, and matches the project's standing preference for bracketing
+over choosing.
+
+**And it exposes a third axis both models pin at zero.** ClimaLand names
+`theta_low` the wilting point or residual water fraction, and requires
+`theta_high > theta_low` to lie above the residual water content. ExoPlaSim and
+ENTS both have `theta_low = 0` implicitly: their limiters approach zero
+evaporation only as the store itself approaches zero, so soil water held below
+the wilting point is still available to evaporate. Neither model can represent
+water the soil holds too tightly to give up.
+
+## 34. Anoxia: computed from air-filled porosity, or switched on by latitude
+
+*Read 2026-08-22. ClimaLand's soil biogeochemistry and the LPJ-GUESS fork solve
+the same problem -- when does waterlogging stop decomposition -- by different
+kinds of thing.*
+
+### 34a. ClimaLand computes it
+
+`Soil/Biogeochemistry/co2_parameterizations.jl` implements DAMM, the Dual
+Arrhenius Michaelis-Menten model of Davidson et al. (2012):
+
+    R = Vmax(T) * MM_sx * MM_o2
+    Sx       = p_sx * Csom * D_liq * theta_l**3          ! soluble substrate
+    MM_sx    = Sx / (kM_sx + Sx)
+    O2_avail = D_oa * O2_f * theta_a**(4/3)              ! Millington-Quirk tortuosity
+    MM_o2    = O2_avail / (kM_o2 + O2_avail)
+
+Decomposition is limited at BOTH ends of the moisture range by two separate
+mechanisms: substrate diffusion as `theta_l**3` when dry, oxygen supply as
+`theta_a**(4/3)` when wet. As air-filled porosity goes to zero, `MM_o2` goes to
+zero and respiration stops. **Anoxia is a computed consequence of water
+content.**
+
+Worth one note on style: the Arrhenius term is written in centered form,
+`Vmax = V_ref * exp(-Ea/R * (1/T - 1/T_ref))`, and the docstring says why --
+so that the rate and the temperature sensitivity are approximately orthogonal
+under calibration. Algebraically identical, better conditioned to fit.
+
+### 34b. The LPJ-GUESS fork switches it
+
+`somdynam.cpp:502` carries a humped empirical curve in water-filled pore space,
+Friend et al. (1997) Eqn 53 after Parton et al. (1993):
+
+| WFPS % | 10 | 30 | 50 | 60 | 70 | 80 | 90 | 100 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| modifier | 0.044 | 0.325 | 0.882 | 0.978 | 0.712 | 0.520 | 0.403 | 0.360 |
+
+It peaks at 60 percent and **bottoms out at 0.360 at full saturation**. A
+completely waterlogged mineral soil still decomposes at over a third of its
+optimum rate. On this curve alone, saturation does not preserve carbon.
+
+What preserves carbon is a categorical override, and the category is chosen by
+latitude. `framework/guess.cpp:1110` and its counterpart partition the single
+`PEATLAND` landcover class at `PEATLAND_WETLAND_LATITUDE_LIMIT = 40.0`:
+
+- `is_highlatitude_peatland_stand()`, `lat >= 40`: `moist_mod = RMOIST = 0.4`,
+  blending toward `RMOIST_ANAEROBIC = 0.025` once soil carbon passes an acrotelm
+  limit of 7.5 kgC/m2 after Wania et al. (2009b). It ALSO sets
+  `moist_mod_saturated`, which `somdynam.cpp:599` applies to the slow and
+  passive pools so their effective modifier is exactly 0.025.
+- `is_true_wetland_stand()`, `lat < 40`: `moist_mod = moisture_modifier(100) =
+  0.36` for every pool. `moist_mod_saturated` stays at its default 1.0, so the
+  slow and passive pools **never receive the anaerobic treatment**.
+
+### 34c. What that is worth, and why it is a Vesper problem
+
+On the long-lived carbon pools the two branches differ by **0.36 against 0.025,
+a factor of 14.4**, and the selector between them is a hard 40-degree latitude
+line inside the PEATLAND class. The fast pools are close at low carbon, 0.4
+against 0.36, and diverge as peat accumulates -- so the step falls precisely on
+the pools that decide whether peat accumulates at all.
+
+A latitude constant is an Earth climatology proxy standing in for where cold,
+wet, slowly-decomposing ground occurs. This world has 32 degrees of obliquity, a
+182.8-day orbit and a K-dwarf spectrum, so the latitude-to-climate mapping that
+makes 40 degrees meaningful on Earth does not carry over. BIO-29 already
+requires an inventory of every direct latitude branch and WET-2 already forbids
+latitude selection in the wetness classification; this is one such branch with
+its consequence priced.
+
+The DAMM contrast says what the replacement looks like: an O2 limitation
+continuous in air-filled porosity needs no category and no latitude, and it is
+two Michaelis-Menten factors over quantities a soil column already carries.
