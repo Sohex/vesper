@@ -702,21 +702,22 @@ legmod itself, then checking each site's guard and its default.
 
 **Converted, all of them per-timestep.** `gridpointa` and `gridpointd` both
 directions; `mkdheat`'s three `dv2uv` calls, its three analyses and its `zhe`
-synthesis; `spectrald`'s forward; and `mkdqtgp` in rainmod, which the sweep
-found -- `nprc` defaults to 1, so it synthesised the adiabatic humidity
-tendency through legmod on every step of every run.
+synthesis; `spectrald`'s forward; `mkdqtgp` in rainmod, which the sweep found --
+`nprc` defaults to 1, so it synthesised the adiabatic humidity tendency through
+legmod on every step of every run; and `zqout`, the output humidity, which
+`nlowio = 1` and `outaccu` make per-step as well.
+
+`zqout` was the one conversion that is not a substitution, and it is written up
+under the gate below because the check mattered more than the transform.
+`sqout` is THREADPRIVATE: the legmod path fills each thread's copy with the
+partial from its own latitudes and `mpsum(sqout,NLEV)` turns every copy into
+the whole field, so a wrapper returning the complete field would have that
+reduction multiply it by the thread count, and a level-parallel write into a
+threadprivate array leaves each copy holding only its own levels. It lands in
+shared storage instead, the reduction is dropped, and every thread takes all of
+it -- which is what `writesp` and `aasqout` need.
 
 **Left on legmod, and each for a stated reason.**
-
-`zqout`, the output humidity, is the one that is per-step and NOT converted.
-`nlowio` defaults to 1 and `outaccu` sums it every timestep, so it runs as often
-as anything above. It is left because the conversion is not a substitution:
-`sqout` is THREADPRIVATE and each thread's `fc2sp` fills a partial that
-`mpsum(sqout,NLEV)` reduces afterwards. A wrapper returns the COMPLETE field, so
-that reduction would multiply it by the thread count, and a level-parallel write
-into a threadprivate array leaves each copy holding only its own levels. It
-needs shared scratch and the reduction removed, which is the gridpointa pattern
-but on an output path where nothing checks the answer.
 
 `span` is inside `ngui > 0 .or. mod(nstep,ndiag) == 0 .or. mod(nstep,nafter) ==
 0`, so it is periodic rather than per-step. The `nenergy` and `nentropy` blocks
@@ -724,10 +725,31 @@ are off by default. `glaciermod` and `surfmod` filter the orography, which is
 startup and occasional. `rainmod_bm`, `rainmod_mca` and `rainmod_kuo_old` are
 alternative schemes that `make_plasim` does not compile -- `RAINMOD=rainmod`.
 
-So legmod is no longer on any per-timestep path except that one output
-diagnostic, and it stays compiled regardless: `nshtns=0` is the reference
-`verify_shtns_model.sh` compares against, and deleting it would delete the
-comparison.
+So legmod is no longer on any per-timestep path at all, and it stays compiled
+regardless: `nshtns=0` is the reference `verify_shtns_model.sh` compares
+against, and deleting it would delete the comparison.
+
+## The gate was comparing zero against zero on the output path
+
+Found while converting `zqout`, 2026-08-22, and it is why that conversion took a
+check before it took a line of code.
+
+`verify_shtns_model.sh`'s beds set `NLOWIO = 0`. The output-humidity transform
+is guarded by `nlowio > 0 .or. mod(nstep,nafter) == 0`, so at the bed's length it
+never fired: `sqout` was never computed, and `aasqsp` -- the only record of it
+that reaches the restart, and an accumulator rather than the field itself -- came
+out all zeros in both arms. The gate reported agreement on a path it had not
+run, and it would have passed a reduction that multiplied the answer by the
+thread count.
+
+The bed now sets `NLOWIO = 1`, which is also what production spin-up runs, so
+the gate certifies the configuration that ships. `aasqsp` then has 4840 of 5080
+values non-zero, both arms agree at rounding scale at 1 and 20 steps, and the
+filter control gets sharper as a side effect, its worst going from 12 to 36.
+
+`docs/src/practice/failure-modes.md` class 29, for the third time in this
+workstream: a check whose subject is switched off is not a check, and an
+accumulator is not evidence about the field it accumulates.
 
 ## It was never memcpy: a third of T170 is memset, and it is diffuse
 

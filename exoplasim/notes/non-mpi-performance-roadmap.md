@@ -7,67 +7,56 @@ already in this repository.*
 
 ## The answer in priority order
 
-There is one source-level optimization with a measured cause and a large enough
-working-set change to pursue directly: store the associated Legendre basis as
-P and Q plus separable factors rather than as eight full weight matrices.
+The one source-level optimization this document opened with -- store the
+associated Legendre basis as P and Q plus separable factors rather than as eight
+full weight matrices -- was built, measured and refused. Section 1 carries the
+result, and it removes the premise the priority rested on.
 
-After that, the most credible routes are not another compiler flag or a new
-math library. They are:
+What is left, and none of it is another compiler flag or a new math library:
 
 1. measure the largest scientifically acceptable timestep at each resolution;
 2. use resolution and precision staging to reduce total spin-up cost;
 3. profile and reduce repeated transcendental work in radiation;
-4. consider mixed precision for read-only transform weights, while keeping the
-   prognostic state and diagnostic accumulators in double precision;
-5. specialize expensive optional diagnostics and physics out of production
+4. specialize expensive optional diagnostics and physics out of production
    builds when they are disabled.
+
+Mixed precision for read-only transform weights was on this list and is not any
+more: SHTns stores no weight matrices, so there is nothing immutable left in the
+transform to demote. Section 5 says so.
 
 The FFT, generic compiler tuning, alternate `libm` implementations, and model
 output are already measured too small or actively slower on this host. They are
 controls, not priority work.
 
-## 1. Store P and Q, not eight Legendre matrices
+## 1. Store P and Q, not eight Legendre matrices: built, and refused
 
-This is the strongest open item because the bottleneck and the proposed change
-are both measured.
+Implemented in full, correct, four times smaller, and **1.56% SLOWER** on the
+threaded build at T170 -- 80.57 s against 81.66 s, paired and interleaved,
+faster in 0 of 4 rounds, [-2.17, -0.74]. It took the weights from 114.9 MB a die
+to about 36 and from 15.1 MB a thread to 4.5, which is under the 32 MB target,
+and bought nothing. The code is reverted; `verify_weight_factorisation_model.sh`
+is kept, and it agreed with the eight-matrix build to 4.8e-13 at one step and
+1.06e-11 at twenty against a 1e-10 bar declared before the arms ran.
 
-`legini` materializes eight `NCSP x latitude` matrices. All eight are either P
-or its derivative Q multiplied by a factor that depends only on the spectral
-mode and a factor that depends only on latitude. The current footprint is:
+**The premise was backwards.** The route was ranked first because the filter
+fold -- which moved a per-mode scalar INTO the matrices to save one multiply in
+three -- had returned 1.6%, read as evidence that these loops are bound by
+STREAMING the weight matrices. Undoing the fold costs the same 1.6% back, and
+the reading that fits both numbers is that the loops are bound by the MULTIPLY.
+A second measurement from the other end agrees: at NPRO=1 one thread streams
+30 MB of `pmat` and 30 MB of `qmat` per transform against 1.88 MB of each at
+NPRO=16, and the two time the same, 1.45 ms against 1.48. Sixteen times the
+weight traffic costs nothing measurable.
 
-| resolution | eight matrices per eight-core die | P and Q only |
-| --- | ---: | ---: |
-| T127 | 48.4 MB | 12.1 MB |
-| T170 | 114.9 MB | 28.7 MB |
+**And SHTns has since removed the matrices altogether**, computing the Legendre
+functions on the fly and storing no `NCSP x NLPP` array at all, which takes
+`pmat` and `qmat` out of `cache_budget.py` entirely -- 30.1 MB a die at T170,
+the whole of what this route was for. The cache-boundary finding in
+`rank-imbalance-and-weight-traffic.md` still stands; what no longer stands is
+that this is the way to act on it.
 
-The smaller representation fits the 32 MB cache at T170 where the present one
-does not. `rank-imbalance-and-weight-traffic.md` measured the cache boundary as
-the cause of the critical-path slowdown, so this attacks the cause rather than
-balancing around it.
-
-### Implementation shape
-
-- Retain raw P and Q matrices.
-- Retain the mode-only factors as `NCSP` vectors.
-- Apply latitude-only factors once outside the mode loop.
-- Reconstruct the eight current products at their use sites.
-- Keep the hot inner loops branchless and verify that the new mode-vector load
-  does not prevent vectorization.
-
-The factorization has already been checked to one unit in the last place, with
-an exact-zero filter case that prevents recovering P by division. The remaining
-question is performance, not algebra.
-
-### Acceptance test
-
-- A/B at T42, T85, T127, and T170 under production flags.
-- Restart comparison at a tolerance declared before the run.
-- Compiler vectorization report and disassembly for the transformed loops.
-- Hardware counters for last-level-cache traffic, not only elapsed time.
-- Reject the change if it merely moves the die imbalance or loses the existing
-  vectorization.
-
-This is already tracked as CLIM-48. It should remain the first experiment.
+CLIM-48, closed wontfix in `archive/tasks.md`. Reopen only if a resolution above
+T170 makes the memory headroom worth a small speed loss.
 
 ## 2. Price the timestep directly
 
@@ -151,29 +140,19 @@ slower than glibc on the T42 bed and changed the integration. Any approximation
 or reassociation here is a numerics change and needs radiative unit tests plus
 an end-to-end climate control.
 
-## 5. Consider mixed precision for immutable transform data
+## 5. Mixed precision for immutable transform data: no data left to demote
 
-Whole-model single precision is inappropriate for final runs, but the model is
-memory-traffic limited in its Legendre loops. That leaves a narrower question:
-can immutable P/Q weights or selected scratch arrays be stored in four bytes
-while accumulation and prognostic state remain in eight?
+This asked whether immutable P/Q weights or selected scratch arrays could be
+stored in four bytes while accumulation and prognostic state stayed in eight,
+on the reading that the Legendre loops are memory-traffic limited. Both halves
+of that premise are gone. The loops are multiply-bound, measured twice and
+recorded in section 1, and SHTns computes the Legendre functions on the fly and
+stores no weight matrices at all, so there is no immutable transform data in the
+per-timestep path to demote.
 
-Halving the weight traffic could compound the P/Q factorization. It could also
-inject a rounding error at every transform and erase the value of the double-
-precision state. Treat it as a separate experiment after the P/Q representation
-lands, not as part of that change.
-
-Required checks:
-
-- transform error by mode and latitude against all-double weights;
-- conservation of the constant and low-order modes;
-- restart differences after one step and after a short chaotic amplification
-  interval;
-- equilibrium energy and water gates;
-- actual cache and wall-time change.
-
-A useful negative result is entirely possible: once only P and Q remain, the
-double-precision pair may already fit cache and mixed precision may buy nothing.
+What survives from this line is section 3's precision staging, where the
+question is the precision of the RUN and not of a table, and CLIM-59 is where
+it is tracked. The checks listed here belong to that row.
 
 ## 6. Compile or allocate optional diagnostics out of the hot path
 
@@ -232,13 +211,13 @@ fusion has neither a large ceiling nor an obvious locality win.
 
 1. Establish the completed OpenMP/SHTns build as the new baseline, without
    attributing any of that work here.
-2. Implement and measure P/Q factorization.
-3. Run the timestep ladder at the resolutions that matter operationally.
-4. Build the restart converter and measure staged spin-up end to end.
-5. Attribute radiation `libm` time to call sites.
-6. Reconsider mixed-precision weights only after the P/Q cache footprint is
-   known.
-7. Re-profile before opening any compiler or diagnostic specialization work.
+2. Run the timestep ladder at the resolutions that matter operationally.
+3. Build the restart converter and measure staged spin-up end to end.
+4. Attribute radiation `libm` time to call sites.
+5. Re-profile before opening any compiler or diagnostic specialization work.
+
+Mixed-precision weights (5) fell with the P/Q factorization: SHTns stores no
+weight matrices, so there is no immutable transform data left to demote.
 
 Every performance A/B should use interleaved, order-flipped rounds on a quiet
 machine, include warm-ups, record restart differences, and compare the gain
