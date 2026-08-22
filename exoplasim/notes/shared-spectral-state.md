@@ -96,6 +96,12 @@ flipped, one driver owning the machine:
 | T127 | -18.9% | **-11.22%** [-11.64, -8.69] | 7.7 points |
 | T170 | -25.7% | **-20.66%** [-20.84, -20.17] | 5.0 points |
 
+Where T170 went afterwards, anchored on the quiet-machine runs at the end of
+this note rather than on each stage's own run: Stage B about **-11.6%**,
+derived by chaining the two clean paired ratios, against the -10.10% its own
+contaminated run reported; and mkdheat **-5.48%**, measured directly. So the
+line from Stage 1 is -25.7%, -20.7%, -11.6%, -5.5%.
+
 Self-scatter 1.6% and 0.7% on the threaded arm, against a 5% floor. Threads are
 faster in 0 of 4 rounds at both resolutions -- that is, slower in every round --
 so the remaining gap is real and not an artifact of taking medians.
@@ -239,12 +245,20 @@ though that arm alone would not have shown inertness -- both builds changed
 together and could have agreed with each other while both moved. Archer over
 120 steps: no races. Serial, MPI and threaded all build.
 
-**Not yet measured.** The first attempt is void: the ranks arm scattered 10.3%
-against a 5% floor and its median moved from 78.04 s to 85.33 s between runs on
-a binary whose only change was swapping identical implementations, because
-unrelated work was running on the machine. The threaded arm in the same run was
-clean at 2.8% and 84.97 s. One clean arm is not a paired result and the number
-is not quotable; it is re-run when the machine is quiet.
+**Measured, on a quiet machine, and it is worth 4.59%.** Directly, threaded
+build against threaded build so no baseline drift enters: Stage B 86.64 s
+against mkdheat 81.93 s, spreads 2.6% and 2.8%, mkdheat faster in 4 of 4 rounds,
+**+4.59%** [+3.82, +7.25]. Both arms wrote restart `4e5ac384ad34f5d1`, so the
+rewrite is inert at T170 on sixteen as well as at T21 on two -- a stronger
+statement than the small case alone, and free with the measurement.
+
+Against ranks in the same conditions: 73.56 s to 77.60 s, **-5.48%**
+[-5.57, -3.30], threads faster in 0 of 4 rounds.
+
+An earlier attempt at this is void and is not quoted anywhere: unrelated work
+was running, the ranks arm scattered 10.3% against the 5% floor and its median
+moved from 78.04 s to 85.33 s on a binary whose only change was swapping
+identical implementations. One clean arm is not a paired result.
 
 ## Two hypotheses that were wrong, and what refused them
 
