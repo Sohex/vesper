@@ -40,7 +40,7 @@ program conventions
    ! --- SHTns on the same grid and truncation -------------------------------
    lmax = NTRU ; mmax = NTRU ; mres = 1
    eps_polar = 0.0_dp
-   norm = SHT_ORTHONORMAL + SHT_NO_CS_PHASE
+   norm = SHT_ORTHONORMAL          ! Condon-Shortley INCLUDED, as PlaSim has it
    layout = SHT_GAUSS + SHT_PHI_CONTIGUOUS
    call shtns_verbose(0)
    j = shtns_use_threads(1)
@@ -103,13 +103,23 @@ contains
    Slm(:) = (0.0_dp, 0.0_dp)
    Slm(klm) = (1.0_dp, 0.0_dp)          ! PlaSim lm  <->  SHTns lm-1, 1-based here
    call SH_to_spat(sh_c, Slm, Sh_g)
+   ! SIGNED. A ratio of maxima cannot see the Condon-Shortley phase, which is
+   ! (-1)^m, and the first version of this probe therefore reported that the
+   ! conventions agreed when they differed on every odd m.
    pmodel = maxval(abs(real(zgpf,dp)))
    pshtns = maxval(abs(Sh_g))
-   if (pshtns > 0.0_dp) then
-      pratio = pmodel / pshtns
-   else
-      pratio = 0.0_dp
-   endif
+   pratio = lstsq(reshape(real(zgpf,dp),[NLON*NLPP]), reshape(Sh_g,[NLON*NLPP]))
    end subroutine oneratio
+
+   function lstsq(a, b) result(s)
+   real(dp), intent(in) :: a(:), b(:)
+   real(dp) :: s, den
+   den = sum(b*b)
+   if (den > 0.0_dp) then
+      s = sum(a*b) / den
+   else
+      s = 0.0_dp
+   endif
+   end function lstsq
 
 end program conventions

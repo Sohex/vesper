@@ -294,30 +294,57 @@ now; FP32 on the GPU is the expensive rung and needs a whole-model port, since
 offloading the transform alone caps at 18.9% even at T170. Try the free one
 first.
 
-## The scalar convention, measured rather than read
+## The conventions, measured rather than read
 
-*Measured 2026-08-21 at T42, one process, `probe_shtns_conventions.f90`.*
+*Measured 2026-08-21 at T42, one process, by `probe_shtns_conventions.f90` and
+`probe_shtns_vector_conventions.f90`.*
 
 Reading two normalisation conventions against each other and hoping is how a
 factor of sqrt(2) survives into a climate. So one spectral mode at a time is
-driven through both transforms onto the same grid and divided.
+driven through both transforms onto the same grid and the two are divided.
+
+**The configuration that matches this model:**
+
+    shtns_create(NTRU, NTRU, 1, SHT_ORTHONORMAL)      ! NOT SHT_NO_CS_PHASE
+    shtns_set_grid(cfg, SHT_GAUSS + SHT_PHI_CONTIGUOUS, eps, NLAT, NLON)
+    shtns_robert_form(cfg, 1)                          ! for the vector transforms
 
 **The index map is the same.** SHTns's `LM(l,m)` is 0-based with m outer and l
 inner, which is the order `legini` builds `lm` in, so PlaSim `lm` is SHTns
-`lm-1`. That is confirmed by the result rather than assumed: a wrong map gives a
-mode-dependent ratio, and this one is constant.
+`lm-1`. Confirmed by the result rather than assumed: a wrong map gives a
+mode-dependent ratio and these are flat.
 
-**The scale is sqrt(2 pi), everywhere.** With `SHT_ORTHONORMAL` and
-`SHT_NO_CS_PHASE`, the model's grid is SHTns's times 2.50662827 for every mode
-tried, across m = 0, 1, 2 and NTRU/2 and both n = m and n = m+1, and the worst
-deviation from that constant over ALL 946 modes is zero to eight decimals. It is
-sqrt(2 pi) to 4.6e-9, which is the print precision. The 2 pi is the azimuthal
-integral: PlaSim's harmonics carry no 1/sqrt(2 pi) in phi.
+**Scalar.** The model's grid is `+sqrt(2 pi)` times SHTns's, for every one of
+the 946 modes. The 2 pi is the azimuthal integral, PlaSim's harmonics carrying
+no `1/sqrt(2 pi)` in phi.
 
-So the scalar conversion is one scalar, foldable into the coefficient conversion
-at no cost, and no per-mode vector is needed.
+**Vector**, with Robert form on, against `SHsphtor_to_spat`:
 
-**This is the scalar case only.** The vector transforms are where the l(l+1)
-between spheroidal/toroidal potentials and divergence/vorticity lives, and this
-model already carries `1/(n(n+1))` inside `fmu` and `fmv`. That is a separate
-measurement and it is the one that can double-apply a factor.
+    gu = -sqrt(2 pi)/(l(l+1)) * Vp        Vp is SHTns's phi component
+    gv = +sqrt(2 pi)/(l(l+1)) * Vt        Vt is its theta component
+
+The `l(l+1)` is the factor this model already carries inside `fmu` and `fmv`,
+and it is the one a naive substitution applies twice. The overall minus is not
+arbitrary: divergence is the Laplacian of the spheroidal potential and the
+Laplacian is `-l(l+1)` in spectral space.
+
+## The Condon-Shortley phase, and the mistake that hid it
+
+**PlaSim carries the Condon-Shortley phase, so `SHT_NO_CS_PHASE` must NOT be
+set.** With it set, the ratio is `(-1)^m` times the value above -- correct at
+even m and sign-flipped at odd m, on both the scalar and the vector transforms.
+
+The first version of both probes compared the MAXIMUM ABSOLUTE VALUE of the two
+grids. A magnitude cannot see a phase, so it reported a clean constant
+`sqrt(2 pi)` and the conclusion "the conventions agree as configured" was
+recorded with the wrong flag in it. The vector probe caught it only because the
+sign happened to alternate against a component that was already expected to
+flip, which made the m-dependence visible where a single number was not.
+
+**Compare signed fields, not magnitudes.** A ratio of maxima answers "are these
+the same size", and the question was "are these the same field". The fix is a
+least-squares scale, `sum(a*b)/sum(b*b)`, which carries the sign a maximum
+throws away, and it is what both probes use now.
+
+Had this survived, the model would have run with every odd zonal wavenumber
+negated: stable, plausible, and wrong.
