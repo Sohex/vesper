@@ -36,13 +36,27 @@ import lapse  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 BUILD_DIR = Path(__file__).resolve().parent / "build"
+# Set by `--climatology`; None means take the configured one.
+_CLIMATOLOGY_OVERRIDE: Path | None = None
+
+
 # Resolved at call time, not import time, and from the config rather than a
 # hardcoded directory.
 def _climatology() -> Path:
     """The climatology FILE. It used to return the directory and callers
     appended `baseline_regular_climatology.nc`, which finds nothing once a
     product is labelled anything else -- a bootstrap climatology is
-    `bootstrap_regular_climatology.nc`."""
+    `bootstrap_regular_climatology.nc`.
+
+    `--climatology` overrides it, which is the only way to draw a map off a
+    climatology `config/planet.yaml` deliberately does not name. Early in a
+    cycle the one that exists is the bootstrap's, and the config key is held at
+    null so that nothing reads it by DEFAULT; naming it per invocation is a
+    caller's declaration rather than a fallback, and the tint is illustrative
+    either way. `paths.climatology_path` names this flag in its own error.
+    """
+    if _CLIMATOLOGY_OVERRIDE is not None:
+        return _CLIMATOLOGY_OVERRIDE
     import sys as _sys
     _sys.path.insert(0, str(ROOT / "lib"))
     from paths import climatology_path
@@ -60,6 +74,19 @@ def _classification() -> Path:
     clim = _climatology()
     return clim.with_name(clim.name.replace("_regular_climatology.nc",
                                             "_classification.nc"))
+
+
+def _caveat() -> str:
+    """What a reader must know about the tint, taken from the product read."""
+    label = _climatology().name.replace("_regular_climatology.nc", "")
+    caveat = (f"biome and temperature fields are T42 and come from the "
+              f"`{label}` climatology; the tint is illustrative, not a result")
+    if label.startswith("bootstrap"):
+        caveat += (". A bootstrap climatology is the FIRST run on the build, on "
+                   "terrain-only surface fields, so its biomes are not the "
+                   "baseline's and no number here is a baseline number")
+    return caveat
+
 
 WIDTH, HEIGHT = 5760, 2880
 
@@ -303,7 +330,24 @@ def hillshade(elev_km, lat_deg, radius_km, exaggeration=14.0):
 
 def main():
     import argparse
-    argparse.ArgumentParser(description=__doc__ or "Render the basemap").parse_args()
+    ap = argparse.ArgumentParser(description=__doc__ or "Render the basemap")
+    ap.add_argument("--climatology", type=Path, default=None,
+                    help="REGULAR climatology file to tint from, overriding "
+                         "config/planet.yaml's baseline_climatology")
+    args = ap.parse_args()
+    if args.climatology is not None:
+        global _CLIMATOLOGY_OVERRIDE
+        _CLIMATOLOGY_OVERRIDE = args.climatology.resolve()
+        # The classification name is derived from this one, so a file that does
+        # not carry the suffix would silently resolve the tint to the wrong
+        # product instead of failing.
+        if not _CLIMATOLOGY_OVERRIDE.name.endswith("_regular_climatology.nc"):
+            raise SystemExit(f"--climatology must name a REGULAR climatology "
+                             f"(*_regular_climatology.nc), got "
+                             f"{_CLIMATOLOGY_OVERRIDE.name}")
+        for pth in (_CLIMATOLOGY_OVERRIDE, _classification()):
+            if not pth.exists():
+                raise SystemExit(f"missing {pth}")
 
     src = builds.mesh_export()
     manifest = json.loads((src / "manifest.json").read_text())
@@ -380,7 +424,11 @@ def main():
     # correction from the T42 orography to this one. The rate is measured, not
     # Earth's 6.5 (PHYS-12), and it is the warm-season one because the field
     # being extrapolated is the warmest month.
-    lapse_k_per_km = lapse.environmental_lapse_k_per_km(season="warmest")
+    # The file is passed rather than left to default: lapse.py resolves its own
+    # from config/planet.yaml, which would ignore --climatology and take the
+    # rate from a different climatology than the tint.
+    lapse_k_per_km = lapse.environmental_lapse_k_per_km(
+        season="warmest", climatology_file=_climatology())
     t_surface = warmest_hi - lapse_k_per_km * (elev - clim_elev_hi)
     ice = np.clip((273.15 - t_surface) / 4.0, 0, 1)[..., None]
     lrgb = lrgb * (1 - ice) + ICE_RGB * ice
@@ -436,10 +484,10 @@ def main():
         "source_export": str(src.relative_to(ROOT)),
         "final_elevation_hash": manifest["hashes"]["finalElevation"],
         "climatology": str(_climatology().relative_to(ROOT)),
-        "climatology_caveat": (
-            "biome and temperature fields are T42 and were computed on the "
-            "pre-carve terrain; the tint is illustrative, not a result"
-        ),
+        # Derived from the product actually read, not fixed: the caveat a reader
+        # needs is which climatology this is, and a bootstrap's biomes are not a
+        # baseline's.
+        "climatology_caveat": _caveat(),
         "resolution": [WIDTH, HEIGHT],
         "planet_radius_km": radius_km,
         "numpy": np.__version__,

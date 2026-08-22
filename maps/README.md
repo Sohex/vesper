@@ -8,6 +8,22 @@ python maps/build_basemap.py       # equirectangular base, ~25 s (lookup cached)
 python maps/render_projections.py  # the seven projections, ~5 min at width 3000
 ```
 
+`build_basemap.py` tints from the climatology `config/planet.yaml` names, and
+that key is null whenever the active build has no baseline yet, so the bare
+command above fails rather than falling back. Name the climatology that does
+exist and the map draws off it, tint and lapse rate from the same file:
+
+```bash
+python exoplasim/scripts/analyze_climatology.py --label bootstrap
+python maps/build_basemap.py --climatology \
+    exoplasim/analysis/climatology/bootstrap_regular_climatology.nc
+```
+
+The classification the tint reads is `<label>_classification.nc`, which is why
+`analyze_climatology.py` has to have run under that label first.
+`render_projections.py` needs no such argument: it inherits the climatology and
+its caveat from `basemap_provenance.json`.
+
 | File | Projection | Property |
 | --- | --- | --- |
 | `vesper_winkel_tripel.png` | Winkel tripel | compromise; the usual world map |
