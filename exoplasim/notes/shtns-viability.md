@@ -647,3 +647,48 @@ everywhere else, arrived at from the library's side.
 
 QUICK_INIT stays until that is measured. Determinism is not negotiable and
 archive CLIM-44 is this model failing to be reproducible, paid for once.
+
+## Where the time goes now, T42 and T170
+
+Measured 2026-08-22, threaded build, sixteen threads, `perf record` at 997 Hz on
+`cpu-clock` through `profile_transforms.sh PERF_LAUNCH=omp`. ONE pass each and
+no repeat, so the wall times are indicative and the SHARES are the measurement.
+The T42 bed runs `NENERGY = 1` and the T170 bed does not, so the diagnostics
+bucket is not comparable between the two; nothing else here depends on it.
+
+| | T42 legmod | T42 SHTns | T170 legmod | T170 SHTns |
+| --- | ---: | ---: | ---: | ---: |
+| wall | 5.80 s | 5.08 s | 96.34 s | 76.91 s |
+| model code | 51.4% | 48.3% | 58.0% | 51.2% |
+| libc | 16.5% | 16.4% | 25.1% | 31.2% |
+| libgomp | 21.0% | 25.5% | 8.7% | 10.9% |
+| libm | 7.3% | 8.4% | 4.0% | 4.9% |
+
+**The two ends are limited by different things, which is why both were run.** At
+T42 the largest non-model cost is libgomp at a quarter of runtime: sixteen
+threads over sixty-four latitudes is four latitudes each, and the barriers cost
+more than the work between them. At T170 libgomp falls to a tenth and libc rises
+to a third.
+
+**SHTns's own kernels are invisible, and that is the result rather than a
+measurement failure.** `SHsphtor_to_spat_fly2_l` and its siblings sample at
+0.00%, the wrappers at 0.74% together. The saving is almost entirely in the
+model's own code -- 55.9 s to 39.4 s at T170 -- which is legmod's Legendre
+arithmetic going away. The transform is no longer a thing worth optimising.
+
+**libc is the same 24 SECONDS in both paths at T170**, 25.10% of 96.34 against
+31.21% of 76.91. The share rises only because the denominator fell. So the
+wrapper temporaries -- the full-globe `zg`, `zvt`, `zvp` one per field-level --
+add nothing measurable, which retires the idea that eliminating them is worth a
+precision macro. It also means the largest single cost in the model is one the
+transform work never touched and cannot touch.
+
+What it most likely is: the grid arrays are full-globe with threadprivate band
+POINTERS, and a band is `gd_g(lo:hi,:)`, which is not contiguous -- the stride
+between levels is the globe. Every one of those passed wholesale to an
+explicit-shape dummy is copied in and out again, and the physics does that
+constantly. `plasimmod.f90` says so where the arrays are declared and
+`probe_grid_contiguity.f90` measures it; what is new is that it is now the
+biggest item. That is CLIM-63 and it is not free to fix: a layout with
+contiguous bands makes the globe non-contiguous per level, so the transform
+would gather instead, and the two requirements genuinely conflict.
