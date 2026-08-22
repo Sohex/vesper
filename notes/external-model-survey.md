@@ -3186,6 +3186,50 @@ wavelength dependent -- transparent in the blue-green, strongly absorbing in the
 red and near-infrared. A K dwarf puts more of its flux where water absorbs more,
 so **the photic zone is shallower here than one solar-calibrated e-folding depth
 implies, and marine production is confined nearer the surface.** The direction
-follows from the spectrum alone; the magnitude needs the stellar spectrum
-integrated against water's absorption, both of which this project can supply --
-`k25v_hr.dat` is already in hand.
+follows from the spectrum alone. **The magnitude is computable from what is
+already in the tree, and it is large.**
+
+### 40e. What the redder star costs the photic zone: 0.71
+
+`exoplasim/data/water/hale_querry_1973_liquid_water.dat` is this project's own
+extraction of Hale and Querry (1973) Table I, deliberately covering 0.75 to
+4.0 um. Converting to an absorption coefficient, `a = 4*pi*k/lambda`:
+
+| lambda um | 0.75 | 0.80 | 0.90 | 1.00 | 1.20 | 1.50 | 2.00 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| e-folding depth m | 0.383 | 0.509 | 0.147 | 0.028 | 0.010 | 0.0008 | 0.0001 |
+
+**The longest e-folding depth anywhere above 0.75 um is 0.51 m.** Every photon
+in shortwave band 2 is deposited in the top metre or two of water as heat. What
+reaches the photic zone is band 1 and essentially nothing else, so the band-1
+flux fraction IS the fraction available below the surface layer:
+
+| | band-1 fraction |
+| --- | ---: |
+| k25v, real spectrum via `lib/stellar.band_fractions` | **0.382** |
+| Sun, 5772 K Planck -- `analysis/vegetation_albedo.py`'s own reference | **0.537** |
+| ratio | **0.712** |
+
+The k25v figure reproduces the project's canonical `flux_fraction_band1 = 0.382`
+exactly, so this uses no new number.
+
+**This star delivers 71 percent as much light to the water below the first metre
+or two as the Sun does**, before any question of how the remaining visible
+attenuates with depth.
+
+Three limits on that figure, none of which change its sign. It is the flux
+reaching below the surface layer, NOT the photic depth itself -- the depth also
+needs visible attenuation, and the visible half of Table I is not extracted here
+(the existing file stops at 0.75 um deliberately, and the PDF is a scan whose
+table would not extract reliably, so it was not guessed at). It is pure water,
+whereas attenuation in productive water is dominated by chlorophyll and CDOM,
+which absorb more strongly in the blue and therefore partly offset the penalty.
+And it treats band 2 as wholly removed, which the table above justifies.
+
+**It is also not only a biology result.** The same calculation says a larger
+share of this star's shortwave is deposited as heat in the topmost water. For
+the present slab ocean that is invisible, since the slab is one layer. For
+OCN-1's multi-layer column it is not: penetrative solar heating would be more
+surface-concentrated here than Earth tuning assumes, which stratifies the top of
+the column more strongly. OCN-10 already names "net and penetrative" solar in
+its forcing contract, so the place to carry it exists.
