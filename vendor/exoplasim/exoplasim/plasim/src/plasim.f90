@@ -225,18 +225,6 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !     them globally after this point -- tracer_ini0 is the last to do so and
 !     it is above, inside the root-only block.
 
-      if (LPAIRLAT .and. mypid == NROOT) then
-         do jlat = 1 , NLAT
-            zsid(jlat) = sid(ilatperm(jlat))
-            zgwd(jlat) = gwd(ilatperm(jlat))
-            zcsq(jlat) = csq(ilatperm(jlat))
-            zrcs(jlat) = rcs(ilatperm(jlat))
-         enddo
-         sid(:) = zsid(:)
-         gwd(:) = zgwd(:)
-         csq(:) = zcsq(:)
-         rcs(:) = zrcs(:)
-      endif
 
       call mpscdn(sid ,NLPP)  ! sine of latitude (kind=8)
       call mpscdn(gwd ,NLPP)  ! gaussian weights (kind=8)

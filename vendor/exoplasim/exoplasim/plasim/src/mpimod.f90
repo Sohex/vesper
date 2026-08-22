@@ -141,26 +141,11 @@
 !     grid-space transfer either routes through this routine or undoes the
 !     same permutation on the way back.
 
-      if (LPAIRLAT) then
-         do jlev = 1 , klev
-            if (mypid == NROOT) then
-               do jlat = 1 , NLAT
-                  jg = ilatperm(jlat)
-                  zp(1+(jlat-1)*NLON:jlat*NLON) =                        &
-     &               pf(1+(jg-1)*NLON:jg*NLON,jlev)
-               enddo
-            endif
-            call mpi_scatter(zp        ,NHOR,mpi_rtype,                  &
-     &                       pp(:,jlev),NHOR,mpi_rtype,                  &
-     &                       NROOT,myworld,mpinfo)
-         enddo
-      else
          do jlev = 1 , klev
             call mpi_scatter(pf(:,jlev),NHOR,mpi_rtype,                  &
      &                       pp(:,jlev),NHOR,mpi_rtype,                  &
      &                       NROOT,myworld,mpinfo)
          enddo
-      endif
 
       return
       end subroutine mpscgp
@@ -182,26 +167,11 @@
 !     records and every root-side calculation that walks latitudes as
 !     neighbours therefore need no knowledge of the layout.
 
-      if (LPAIRLAT) then
-         do jlev = 1 , klev
-            call mpi_gather(pp(:,jlev),NHOR,mpi_rtype,                   &
-     &                      zp        ,NHOR,mpi_rtype,                   &
-     &                      NROOT,myworld,mpinfo)
-            if (mypid == NROOT) then
-               do jlat = 1 , NLAT
-                  jg = ilatperm(jlat)
-                  pf(1+(jg-1)*NLON:jg*NLON,jlev) =                       &
-     &               zp(1+(jlat-1)*NLON:jlat*NLON)
-               enddo
-            endif
-         enddo
-      else
          do jlev = 1 , klev
             call mpi_gather(pp(:,jlev),NHOR,mpi_rtype,                   &
      &                      pf(:,jlev),NHOR,mpi_rtype,                   &
      &                      NROOT,myworld,mpinfo)
          enddo
-      endif
 
       return
       end subroutine mpgagp
@@ -221,24 +191,11 @@
 !     As mpgagp, except that every process un-permutes rather than the root
 !     alone, because every process ends up holding the global field.
 
-      if (LPAIRLAT) then
-         do jlev = 1 , klev
-            call mpi_allgather(pp(:,jlev),NHOR,mpi_rtype,                &
-     &                         zp        ,NHOR,mpi_rtype,                &
-     &                         myworld,mpinfo)
-            do jlat = 1 , NLAT
-               jg = ilatperm(jlat)
-               pf(1+(jg-1)*NLON:jg*NLON,jlev) =                          &
-     &            zp(1+(jlat-1)*NLON:jlat*NLON)
-            enddo
-         enddo
-      else
          do jlev = 1 , klev
             call mpi_allgather(pp(:,jlev),NHOR,mpi_rtype,                &
      &                         pf(:,jlev),NHOR,mpi_rtype,                &
      &                         myworld,mpinfo)
          enddo
-      endif
 
       return
       end subroutine mpgallgp
@@ -294,24 +251,11 @@
 !     A cross section is a latitude axis rather than a grid, so the same
 !     permutation applies to it one element at a time.
 
-      if (LPAIRLAT) then
-         do jlev = 1 , NLEV
-            call mpi_gather(pcs(:,jlev),NLPP,mpi_rtype                   &
-     &                     ,zc         ,NLPP,mpi_rtype                   &
-     &                     ,NROOT,myworld,mpinfo)
-            if (mypid == NROOT) then
-               do jlat = 1 , NLAT
-                  pcs(ilatperm(jlat),jlev) = zc(jlat)
-               enddo
-            endif
-         enddo
-      else
          do jlev = 1 , NLEV
             call mpi_gather(pcs(:,jlev),NLPP,mpi_rtype                   &
      &                     ,pcs(:,jlev),NLPP,mpi_rtype                   &
      &                     ,NROOT,myworld,mpinfo)
          enddo
-      endif
 
       return
       end subroutine mpgacs

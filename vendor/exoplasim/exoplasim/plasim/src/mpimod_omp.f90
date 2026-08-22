@@ -175,9 +175,8 @@
 !     Grid point transfers. These carry the paired latitude permutation,
 !     and here it is simpler than in the MPI version: a thread reads the
 !     latitudes it owns straight out of the shared array at the global
-!     offsets ilatperm gives, so the same code serves both layouts --
-!     without LPAIRLAT the map is the identity and the slots are the
-!     contiguous block the stock decomposition hands out.
+!     a contiguous block of latitudes. The paired decomposition that once
+!     permuted this is gone: SHTns replaced the transform it accelerated.
 !     ==================================================================
 
       subroutine mpscgp(pf,pp,klev) ! scatter gridpoint fields
@@ -192,7 +191,7 @@
          if (mypid == NROOT) zbufgp(:) = pf(:,jlev)
 !$omp barrier
          do jlat = 1 , NLPP
-            jg = ilatperm(mypid*NLPP + jlat)
+            jg = mypid*NLPP + jlat
             pp(1+(jlat-1)*NLON:jlat*NLON,jlev) =                        &
      &         zbufgp(1+(jg-1)*NLON:jg*NLON)
          enddo
@@ -212,7 +211,7 @@
 
       do jlev = 1 , klev
          do jlat = 1 , NLPP
-            jg = ilatperm(mypid*NLPP + jlat)
+            jg = mypid*NLPP + jlat
             zbufgp(1+(jg-1)*NLON:jg*NLON) =                             &
      &         pp(1+(jlat-1)*NLON:jlat*NLON,jlev)
          enddo
@@ -234,7 +233,7 @@
 
       do jlev = 1 , klev
          do jlat = 1 , NLPP
-            jg = ilatperm(mypid*NLPP + jlat)
+            jg = mypid*NLPP + jlat
             zbufgp(1+(jg-1)*NLON:jg*NLON) =                             &
      &         pp(1+(jlat-1)*NLON:jlat*NLON,jlev)
          enddo
@@ -254,7 +253,7 @@
 
       do jlev = 1 , NLEV
          do jlat = 1 , NLPP
-            zbufcs(ilatperm(mypid*NLPP + jlat)) = pcs(jlat,jlev)
+            zbufcs(mypid*NLPP + jlat) = pcs(jlat,jlev)
          enddo
 !$omp barrier
          if (mypid == NROOT) pcs(:,jlev) = zbufcs(:)

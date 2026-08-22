@@ -8,7 +8,6 @@ module legmod
 ! * Legendre Polynomials *
 ! ************************
 use pumamod, only:NTRU,NTP1,NCSP,NESP,NLON,NLPP,NLHP,NLAT,NHOR,NLEV,gwd,sid,plavor,nfilter
-use pumamod, only:LPAIRLAT
 use pumamod, only:ngptfilter, nspvfilter,landhoskn0,filterkappa,nfilterexp,nud,mypid,NROOT
 
 ! TWO MATRICES, NOT EIGHT.
@@ -274,7 +273,6 @@ integer :: w ! Index for spherical harmonic
 
 sp(:,:) = 0.0
 
-if (.not. LPAIRLAT) then ! Contiguous latitudes: no mirror is local
 !----------------------------------------------------------------------
   do l = 1 , NLPP
     w = 1
@@ -286,25 +284,6 @@ if (.not. LPAIRLAT) then ! Contiguous latitudes: no mirror is local
       enddo ! n
     enddo ! m
   enddo ! l
-else                     ! Paired latitudes: symmetry conserving
-!----------------------------------------------------------------------
-  do l = 1 , NLHP
-    w = 1
-    do m = 1 , NTP1
-      do n = m , NTP1
-        if (mod(m+n,2) == 0) then ! Symmetric modes
-          sp(1,w) = sp(1,w) + pmat(w,l)*fgp(w)*gwd(l) * (fc(1,m,l) + fc(1,m,NLPP+1-l))
-          sp(2,w) = sp(2,w) + pmat(w,l)*fgp(w)*gwd(l) * (fc(2,m,l) + fc(2,m,NLPP+1-l))
-        else                      ! Antisymmetric modes
-          sp(1,w) = sp(1,w) + pmat(w,l)*fgp(w)*gwd(l) * (fc(1,m,l) - fc(1,m,NLPP+1-l))
-          sp(2,w) = sp(2,w) + pmat(w,l)*fgp(w)*gwd(l) * (fc(2,m,l) - fc(2,m,NLPP+1-l))
-        endif
-        w = w + 1
-      enddo ! n
-    enddo ! m
-  enddo ! l
-!----------------------------------------------------------------------
-endif ! parallel ?
 return
 end
 
@@ -344,7 +323,6 @@ enddo
 
 fc(:,:,:) = 0.0
 
-if (.not. LPAIRLAT) then ! Contiguous latitudes: no mirror is local
 !----------------------------------------------------------------------
 do l = 1 , NLPP
    w = 1  
@@ -356,43 +334,6 @@ do l = 1 , NLPP
       enddo ! n
    enddo ! m
 enddo ! l
-else                     ! Paired latitudes: symmetry conserving
-!----------------------------------------------------------------------
-!  qi carries P, so pmat(w,k) = s(w) * pmat(w,l) with s = (-1)**(m+n). Summing
-!  the two parities apart therefore yields BOTH latitudes from one pass over
-!  the modes: the mirror is the same two partial sums with the odd one
-!  negated. Half the multiplies, and -- which matters more at this
-!  resolution -- each element of qi is read once for the pair instead of
-!  twice.
-!
-!  The parity is a property of the mode, so the n loop is split by STRIDE
-!  rather than tested inside. A mod() in the innermost loop of the model's
-!  hottest routine is a branch and a barrier to vectorisation both.
-do l = 1 , NLHP
-   k = NLPP + 1 - l
-   w = 1
-   do m = 1 , NTP1
-      ze1 = 0.0
-      ze2 = 0.0
-      zo1 = 0.0
-      zo2 = 0.0
-      do j = w , w + NTP1 - m , 2       ! n = m, m+2, ...   symmetric
-         ze1 = ze1 + pmat(j,l) * zsp(1,j)
-         ze2 = ze2 + pmat(j,l) * zsp(2,j)
-      enddo ! j
-      do j = w + 1 , w + NTP1 - m , 2   ! n = m+1, m+3, ... antisymmetric
-         zo1 = zo1 + pmat(j,l) * zsp(1,j)
-         zo2 = zo2 + pmat(j,l) * zsp(2,j)
-      enddo ! j
-      fc(1,m,l) = ze1 + zo1
-      fc(2,m,l) = ze2 + zo2
-      fc(1,m,k) = ze1 - zo1
-      fc(2,m,k) = ze2 - zo2
-      w = w + NTP1 - m + 1
-   enddo ! m
-enddo ! l
-!----------------------------------------------------------------------
-endif ! symmetric?
 return
 end
 
@@ -432,7 +373,6 @@ enddo
 
 fc(:,:,:) = 0.0
 
-if (.not. LPAIRLAT) then ! Contiguous latitudes: no mirror is local
 !----------------------------------------------------------------------
 do l = 1 , NLPP
    w = 1  
@@ -444,38 +384,6 @@ do l = 1 , NLPP
       enddo ! n
    enddo ! m
 enddo ! l
-else                     ! Paired latitudes: symmetry conserving
-!----------------------------------------------------------------------
-!  As sp2fc, with the OPPOSITE parity: qj carries Q = dP/dmu, and the
-!  derivative of an even function is odd, so qmat(w,k) = -s(w) * qmat(w,l). The
-!  mirror is therefore the odd partial sum MINUS the even one rather than
-!  the other way round, and getting that sign the wrong way is the mistake
-!  the single-mode check exists to catch.
-do l = 1 , NLHP
-   k = NLPP + 1 - l
-   w = 1
-   do m = 1 , NTP1
-      ze1 = 0.0
-      ze2 = 0.0
-      zo1 = 0.0
-      zo2 = 0.0
-      do j = w , w + NTP1 - m , 2       ! n = m, m+2, ...   symmetric
-         ze1 = ze1 + qmat(j,l) * zsp(1,j)
-         ze2 = ze2 + qmat(j,l) * zsp(2,j)
-      enddo ! j
-      do j = w + 1 , w + NTP1 - m , 2   ! n = m+1, m+3, ... antisymmetric
-         zo1 = zo1 + qmat(j,l) * zsp(1,j)
-         zo2 = zo2 + qmat(j,l) * zsp(2,j)
-      enddo ! j
-      fc(1,m,l) = ze1 + zo1
-      fc(2,m,l) = ze2 + zo2
-      fc(1,m,k) = zo1 - ze1
-      fc(2,m,k) = zo2 - ze2
-      w = w + NTP1 - m + 1
-   enddo ! m
-enddo ! l
-!----------------------------------------------------------------------
-endif ! symmetric?
 return
 end
 
@@ -536,7 +444,6 @@ integer :: jm                    ! mode index for the per-level scaling
 pu(:,:,:,:) = 0.0
 pv(:,:,:,:) = 0.0
 
-if (.not. LPAIRLAT) then ! Contiguous latitudes: no mirror is local
 !----------------------------------------------------------------------
 do v = 1 , NLEV
   do jm = 1 , NCSP
@@ -568,96 +475,6 @@ do v = 1 , NLEV
     pv(2,1,l,v) = pv(2,1,l,v) + pmat(2,l) * fmu(2) * plavor
   enddo ! l
 enddo ! v
-else                     ! Paired latitudes: symmetry conserving
-!----------------------------------------------------------------------
-!  This one does NOT reduce to a single parity split, and pattern-matching
-!  sp2fc onto it gives a wrong answer that looks right. dv2uv mixes pmat, carrying
-!  P, with qmat, carrying dP/dmu, and the two have OPPOSITE parity:
-!
-!      pmat(w,k) =  s(w) * pmat(w,l)        s = (-1)**(m+n)
-!      qmat(w,k) = -s(w) * qmat(w,l)
-!
-!  so u and v do not share a split and each of the eight products needs its
-!  own pair of accumulators. Substituting the two relations into the four
-!  outputs above gives the mirror as the same sixteen sums recombined, with
-!  the qv terms and the odd terms each contributing a sign flip.
-!
-!  Sixteen live accumulators is the cost, and the risk: if they spill, the
-!  saving goes to stack traffic instead. That is measured on the built code
-!  rather than predicted.
-do v = 1 , NLEV
-  do jm = 1 , NCSP
-     zzu(1,jm) = fmu(jm)*pz(1,jm,v) ; zzu(2,jm) = fmu(jm)*pz(2,jm,v)
-     zzv(1,jm) = fmv(jm)*pz(1,jm,v) ; zzv(2,jm) = fmv(jm)*pz(2,jm,v)
-     zdu(1,jm) = fmu(jm)*pd(1,jm,v) ; zdu(2,jm) = fmu(jm)*pd(2,jm,v)
-     zdv(1,jm) = fmv(jm)*pd(1,jm,v) ; zdv(2,jm) = fmv(jm)*pd(2,jm,v)
-  enddo
-  do l = 1 , NLHP
-    k = NLPP + 1 - l
-    w = 1
-    do m = 1 , NTP1
-      zvz1e = 0.0
-      zvz1o = 0.0
-      zvz2e = 0.0
-      zvz2o = 0.0
-      zvd1e = 0.0
-      zvd1o = 0.0
-      zvd2e = 0.0
-      zvd2o = 0.0
-      zuz1e = 0.0
-      zuz1o = 0.0
-      zuz2e = 0.0
-      zuz2o = 0.0
-      zud1e = 0.0
-      zud1o = 0.0
-      zud2e = 0.0
-      zud2o = 0.0
-      do j = w , w + NTP1 - m , 2       ! n = m, m+2, ...   symmetric
-        zvz1e = zvz1e + qmat(j,l)*zzv(1,j)
-        zvz2e = zvz2e + qmat(j,l)*zzv(2,j)
-        zvd1e = zvd1e + qmat(j,l)*zdv(1,j)
-        zvd2e = zvd2e + qmat(j,l)*zdv(2,j)
-        zuz1e = zuz1e + pmat(j,l)*zzu(1,j)
-        zuz2e = zuz2e + pmat(j,l)*zzu(2,j)
-        zud1e = zud1e + pmat(j,l)*zdu(1,j)
-        zud2e = zud2e + pmat(j,l)*zdu(2,j)
-      enddo ! j
-      do j = w + 1 , w + NTP1 - m , 2   ! n = m+1, m+3, ... antisymmetric
-        zvz1o = zvz1o + qmat(j,l)*zzv(1,j)
-        zvz2o = zvz2o + qmat(j,l)*zzv(2,j)
-        zvd1o = zvd1o + qmat(j,l)*zdv(1,j)
-        zvd2o = zvd2o + qmat(j,l)*zdv(2,j)
-        zuz1o = zuz1o + pmat(j,l)*zzu(1,j)
-        zuz2o = zuz2o + pmat(j,l)*zzu(2,j)
-        zud1o = zud1o + pmat(j,l)*zdu(1,j)
-        zud2o = zud2o + pmat(j,l)*zdu(2,j)
-      enddo ! j
-      pu(1,m,l,v) =  (zvz1e + zvz1o) + (zud2e + zud2o)
-      pu(2,m,l,v) =  (zvz2e + zvz2o) - (zud1e + zud1o)
-      pv(1,m,l,v) =  (zuz2e + zuz2o) - (zvd1e + zvd1o)
-      pv(2,m,l,v) = -(zuz1e + zuz1o) - (zvd2e + zvd2o)
-      pu(1,m,k,v) =  (zvz1o - zvz1e) + (zud2e - zud2o)
-      pu(2,m,k,v) =  (zvz2o - zvz2e) + (zud1o - zud1e)
-      pv(1,m,k,v) =  (zuz2e - zuz2o) + (zvd1e - zvd1o)
-      pv(2,m,k,v) =  (zuz1o - zuz1e) + (zvd2e - zvd2o)
-      w = w + NTP1 - m + 1
-    enddo ! m
-  enddo ! l
-! The same planetary vorticity term as the branch above, and here it is not
-! symmetric with itself: w=2 is n=2 against m=1, so it falls in the ODD loop
-! and reaches zvz1o and zuz1o alone. Reading those two out of the four output
-! recombinations gives the mirror latitude a sign the home latitude does not
-! have -- taking the home form for both is the mistake this shape invites.
-  do l = 1 , NLHP
-    k = NLPP + 1 - l
-    pu(1,1,l,v) = pu(1,1,l,v) - qmat(2,l) * fmv(2) * plavor
-    pv(2,1,l,v) = pv(2,1,l,v) + pmat(2,l) * fmu(2) * plavor
-    pu(1,1,k,v) = pu(1,1,k,v) - qmat(2,l) * fmv(2) * plavor
-    pv(2,1,k,v) = pv(2,1,k,v) - pmat(2,l) * fmu(2) * plavor
-  enddo ! l
-enddo ! v
-!----------------------------------------------------------------------
-endif ! symmetric?
 return
 end
 
@@ -685,7 +502,6 @@ integer :: w ! Loop index for spectral mode
 pd(:,:,:) = 0.0
 pz(:,:,:) = 0.0
 
-if (.not. LPAIRLAT) then ! Contiguous latitudes: no mirror is local
 !----------------------------------------------------------------------
 do v = 1 , NLEV
   do l = 1 , NLPP
@@ -701,40 +517,6 @@ do v = 1 , NLEV
     enddo ! m
   enddo ! l
 enddo ! v
-else                     ! Paired latitudes: symmetry conserving
-!----------------------------------------------------------------------
-do v = 1 , NLEV
-  do l = 1 , NLHP
-    k = NLPP+1-l
-    w = 1
-    do m = 1 , NTP1
-      do n = m , NTP1
-        if (mod(m+n,2) == 0) then ! symmetric -----------------
-          pz(1,w,v) = pz(1,w,v) + qmat(w,l)*fgp(w)*gwdc(l) * (pu(1,m,l,v)-pu(1,m,k,v)) &
-                                - pmat(w,l)*fmm(w)*gwdc(l) * (pv(2,m,l,v)+pv(2,m,k,v))
-          pz(2,w,v) = pz(2,w,v) + qmat(w,l)*fgp(w)*gwdc(l) * (pu(2,m,l,v)-pu(2,m,k,v)) &
-                                + pmat(w,l)*fmm(w)*gwdc(l) * (pv(1,m,l,v)+pv(1,m,k,v))
-          pd(1,w,v) = pd(1,w,v) - qmat(w,l)*fgp(w)*gwdc(l) * (pv(1,m,l,v)-pv(1,m,k,v)) &
-                                - pmat(w,l)*fmm(w)*gwdc(l) * (pu(2,m,l,v)+pu(2,m,k,v))
-          pd(2,w,v) = pd(2,w,v) - qmat(w,l)*fgp(w)*gwdc(l) * (pv(2,m,l,v)-pv(2,m,k,v)) &
-                                + pmat(w,l)*fmm(w)*gwdc(l) * (pu(1,m,l,v)+pu(1,m,k,v))
-        else ! ---------------- antisymmetric -----------------
-          pz(1,w,v) = pz(1,w,v) + qmat(w,l)*fgp(w)*gwdc(l) * (pu(1,m,l,v)+pu(1,m,k,v)) &
-                                - pmat(w,l)*fmm(w)*gwdc(l) * (pv(2,m,l,v)-pv(2,m,k,v))
-          pz(2,w,v) = pz(2,w,v) + qmat(w,l)*fgp(w)*gwdc(l) * (pu(2,m,l,v)+pu(2,m,k,v)) &
-                                + pmat(w,l)*fmm(w)*gwdc(l) * (pv(1,m,l,v)-pv(1,m,k,v))
-          pd(1,w,v) = pd(1,w,v) - qmat(w,l)*fgp(w)*gwdc(l) * (pv(1,m,l,v)+pv(1,m,k,v)) &
-                                - pmat(w,l)*fmm(w)*gwdc(l) * (pu(2,m,l,v)-pu(2,m,k,v))
-          pd(2,w,v) = pd(2,w,v) - qmat(w,l)*fgp(w)*gwdc(l) * (pv(2,m,l,v)+pv(2,m,k,v)) &
-                                + pmat(w,l)*fmm(w)*gwdc(l) * (pu(1,m,l,v)-pu(1,m,k,v))
-        endif
-        w = w + 1
-      enddo ! n
-    enddo ! m
-  enddo ! l
-enddo ! v
-!----------------------------------------------------------------------
-endif ! symmetric?
 return
 end 
 
@@ -762,7 +544,6 @@ integer :: w ! Loop index for spectral mode
 
 q(:,:,:) = 0.0
 
-if (.not. LPAIRLAT) then ! Contiguous latitudes: no mirror is local
 !----------------------------------------------------------------------
 do v = 1 , NLEV
  do l = 1 , NLPP
@@ -778,36 +559,6 @@ do v = 1 , NLEV
   enddo ! m
  enddo ! l
 enddo ! v
-else                     ! Paired latitudes: symmetry conserving
-!----------------------------------------------------------------------
-do v = 1 , NLEV
- do l = 1 , NLHP
-  k = NLPP+1-l
-  w = 1
-  do m = 1 , NTP1
-   do n = m , NTP1
-    if (mod(m+n,2) == 0) then ! symmetric -----------------
-      q(1,w,v)=q(1,w,v)+qmat(w,l)*fgp(w)*gwdc(l)*(vq(1,m,l,v)-vq(1,m,k,v)) &
-                       +pmat(w,l)*fgp(w)*gwd(l)*(qn(1,m,l,v)+qn(1,m,k,v)) &
-                       +pmat(w,l)*fmm(w)*gwdc(l)*(uq(2,m,l,v)+uq(2,m,k,v))
-      q(2,w,v)=q(2,w,v)+qmat(w,l)*fgp(w)*gwdc(l)*(vq(2,m,l,v)-vq(2,m,k,v)) &
-                       +pmat(w,l)*fgp(w)*gwd(l)*(qn(2,m,l,v)+qn(2,m,k,v)) &
-                       -pmat(w,l)*fmm(w)*gwdc(l)*(uq(1,m,l,v)+uq(1,m,k,v))
-    else ! ---------------- antisymmetric -----------------
-      q(1,w,v)=q(1,w,v)+qmat(w,l)*fgp(w)*gwdc(l)*(vq(1,m,l,v)+vq(1,m,k,v)) &
-                       +pmat(w,l)*fgp(w)*gwd(l)*(qn(1,m,l,v)-qn(1,m,k,v)) &
-                       +pmat(w,l)*fmm(w)*gwdc(l)*(uq(2,m,l,v)-uq(2,m,k,v))
-      q(2,w,v)=q(2,w,v)+qmat(w,l)*fgp(w)*gwdc(l)*(vq(2,m,l,v)+vq(2,m,k,v)) &
-                       +pmat(w,l)*fgp(w)*gwd(l)*(qn(2,m,l,v)-qn(2,m,k,v)) &
-                       -pmat(w,l)*fmm(w)*gwdc(l)*(uq(1,m,l,v)-uq(1,m,k,v))
-    endif
-    w = w + 1
-   enddo ! n
-  enddo ! m
- enddo ! l
-enddo ! v
-!----------------------------------------------------------------------
-endif ! symmetric?
 return
 end
 
@@ -841,7 +592,6 @@ d(:,:,:) = 0.0
 t(:,:,:) = 0.0
 z(:,:,:) = 0.0
 
-if (.not. LPAIRLAT) then ! Contiguous latitudes: no mirror is local
 !----------------------------------------------------------------------
 do v = 1 , NLEV
  do l = 1 , NLPP
@@ -865,56 +615,6 @@ do v = 1 , NLEV
   enddo ! m
  enddo ! l
 enddo ! v
-else                     ! Paired latitudes: symmetry conserving
-!----------------------------------------------------------------------
-do v = 1 , NLEV
- do l = 1 , NLHP
-  k = NLPP+1-l
-  w = 1
-  do m = 1 , NTP1
-   do n = m , NTP1
-    if (mod(m+n,2) == 0) then ! symmetric -----------------
-      d(1,w,v)=d(1,w,v)+pmat(w,l)*fmq(w)*gwdc(l)*(ke(1,m,l,v)+ke(1,m,k,v)) &
-                       -qmat(w,l)*fgp(w)*gwdc(l)*(fv(1,m,l,v)-fv(1,m,k,v)) &
-                       -pmat(w,l)*fmm(w)*gwdc(l)*(fu(2,m,l,v)+fu(2,m,k,v))
-      d(2,w,v)=d(2,w,v)+pmat(w,l)*fmq(w)*gwdc(l)*(ke(2,m,l,v)+ke(2,m,k,v)) &
-                       -qmat(w,l)*fgp(w)*gwdc(l)*(fv(2,m,l,v)-fv(2,m,k,v)) &
-                       +pmat(w,l)*fmm(w)*gwdc(l)*(fu(1,m,l,v)+fu(1,m,k,v))
-      t(1,w,v)=t(1,w,v)+qmat(w,l)*fgp(w)*gwdc(l)*(vt(1,m,l,v)-vt(1,m,k,v)) &
-                       +pmat(w,l)*fgp(w)*gwd(l)*(tn(1,m,l,v)+tn(1,m,k,v)) &
-                       +pmat(w,l)*fmm(w)*gwdc(l)*(ut(2,m,l,v)+ut(2,m,k,v))
-      t(2,w,v)=t(2,w,v)+qmat(w,l)*fgp(w)*gwdc(l)*(vt(2,m,l,v)-vt(2,m,k,v)) &
-                       +pmat(w,l)*fgp(w)*gwd(l)*(tn(2,m,l,v)+tn(2,m,k,v)) &
-                       -pmat(w,l)*fmm(w)*gwdc(l)*(ut(1,m,l,v)+ut(1,m,k,v))
-      z(1,w,v)=z(1,w,v)+qmat(w,l)*fgp(w)*gwdc(l)*(fu(1,m,l,v)-fu(1,m,k,v)) &
-                       -pmat(w,l)*fmm(w)*gwdc(l)*(fv(2,m,l,v)+fv(2,m,k,v))
-      z(2,w,v)=z(2,w,v)+qmat(w,l)*fgp(w)*gwdc(l)*(fu(2,m,l,v)-fu(2,m,k,v)) &
-                       +pmat(w,l)*fmm(w)*gwdc(l)*(fv(1,m,l,v)+fv(1,m,k,v))
-    else ! ---------------- antisymmetric -----------------
-      d(1,w,v)=d(1,w,v)+pmat(w,l)*fmq(w)*gwdc(l)*(ke(1,m,l,v)-ke(1,m,k,v)) &
-                       -qmat(w,l)*fgp(w)*gwdc(l)*(fv(1,m,l,v)+fv(1,m,k,v)) &
-                       -pmat(w,l)*fmm(w)*gwdc(l)*(fu(2,m,l,v)-fu(2,m,k,v))
-      d(2,w,v)=d(2,w,v)+pmat(w,l)*fmq(w)*gwdc(l)*(ke(2,m,l,v)-ke(2,m,k,v)) &
-                       -qmat(w,l)*fgp(w)*gwdc(l)*(fv(2,m,l,v)+fv(2,m,k,v)) &
-                       +pmat(w,l)*fmm(w)*gwdc(l)*(fu(1,m,l,v)-fu(1,m,k,v))
-      t(1,w,v)=t(1,w,v)+qmat(w,l)*fgp(w)*gwdc(l)*(vt(1,m,l,v)+vt(1,m,k,v)) &
-                       +pmat(w,l)*fgp(w)*gwd(l)*(tn(1,m,l,v)-tn(1,m,k,v)) &
-                       +pmat(w,l)*fmm(w)*gwdc(l)*(ut(2,m,l,v)-ut(2,m,k,v))
-      t(2,w,v)=t(2,w,v)+qmat(w,l)*fgp(w)*gwdc(l)*(vt(2,m,l,v)+vt(2,m,k,v)) &
-                       +pmat(w,l)*fgp(w)*gwd(l)*(tn(2,m,l,v)-tn(2,m,k,v)) &
-                       -pmat(w,l)*fmm(w)*gwdc(l)*(ut(1,m,l,v)-ut(1,m,k,v))
-      z(1,w,v)=z(1,w,v)+qmat(w,l)*fgp(w)*gwdc(l)*(fu(1,m,l,v)+fu(1,m,k,v)) &
-                       -pmat(w,l)*fmm(w)*gwdc(l)*(fv(2,m,l,v)-fv(2,m,k,v))
-      z(2,w,v)=z(2,w,v)+qmat(w,l)*fgp(w)*gwdc(l)*(fu(2,m,l,v)+fu(2,m,k,v)) &
-                       +pmat(w,l)*fmm(w)*gwdc(l)*(fv(1,m,l,v)-fv(1,m,k,v))
-    endif
-    w = w + 1
-   enddo ! n
-  enddo ! m
- enddo ! l
-enddo ! v
-!----------------------------------------------------------------------
-endif ! symmetric?
 return
 end
 

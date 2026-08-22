@@ -17,12 +17,6 @@
 !     says in global order, so un-permute before using them and permute the
 !     answer back before it is scattered.
 
-      if (LPAIRLAT .and. mypid == NROOT) then
-         do jlat = 1 , NLAT
-            zlat(ilatperm(jlat)) = zdeglat(jlat)
-         enddo
-         zdeglat(:) = zlat(:)
-      endif
       
       if (mypid == NROOT) then
       
@@ -37,16 +31,6 @@
       
       endif
       
-      if (LPAIRLAT .and. mypid == NROOT) then
-         do jlat = 1 , NLAT
-            zlat(jlat) = lat1(ilatperm(jlat))
-         enddo
-         lat1(:) = zlat(:)
-         do jlat = 1 , NLAT
-            zlat(jlat) = lat2(ilatperm(jlat))
-         enddo
-         lat2(:) = zlat(:)
-      endif
       
       call mpscrn(lat1,NLPP)
       call mpscrn(lat2,NLPP)
@@ -257,12 +241,6 @@
 !     has to be in global latitude order like every other record the model
 !     writes.
 
-      if (LPAIRLAT .and. mypid==NROOT) then
-         do jlat = 1 , NLAT
-            zlat(ilatperm(jlat)) = ddn(jlat)
-         enddo
-         ddn(:) = zlat(:)
-      endif
       
       if (mypid==NROOT) then
          open(93,file=fname,form='unformatted')

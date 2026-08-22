@@ -116,36 +116,6 @@
       parameter(NZOM  = 2 * NTP1)          ! Dim for zonal mean diagnostics
       parameter(NROOT = 0)                 ! Master node
 
-!     ****************************************************************
-!     * PAIRED LATITUDE DECOMPOSITION                                *
-!     *                                                              *
-!     * A latitude and its mirror carry the same Legendre magnitudes *
-!     * -- P(-mu) = (-1)**(m+n) P(mu) -- so a transform that holds   *
-!     * both on one process does half the multiplies and reads the   *
-!     * weight matrix once instead of twice. The stock decomposition *
-!     * hands each process a CONTIGUOUS block of latitudes, which    *
-!     * puts a latitude and its mirror on different processes and    *
-!     * makes that saving unreachable on anything but one process.   *
-!     *                                                              *
-!     * With LPAIRLAT the scatter is permuted instead, so local      *
-!     * latitude l and NLPP+1-l are a mirror pair on every process.  *
-!     * It needs NPRO to divide NLAT/2, and falls back to the stock  *
-!     * contiguous layout when it does not. At NPRO == 1 the         *
-!     * permutation is the identity, which is why the single-process *
-!     * executable is the trivial case here and not a special one.   *
-!     *                                                              *
-!     * The permutation lives entirely in the five grid-space        *
-!     * transfers of mpimod; every latitude-dependent quantity is    *
-!     * derived from the scattered sid/gwd/csq/rcs and follows it.   *
-!     ****************************************************************
-
-!     THE PAIRED DECOMPOSITION IS RETIRED. It existed to let legmod fold a
-!     latitude and its mirror together, and SHTns replaces legmod -- and cannot
-!     use the permuted layout anyway, since it needs the grid in latitude order.
-!     Carrying two grid layouts through the rest of that conversion is a cost
-!     this project has paid once. The symbol stays only so the paired branches
-!     can be deleted in a change that is provably inert on its own.
-      logical,parameter :: LPAIRLAT = .false.
 
       parameter(EZ     = 1.63299310207D0)  ! ez = 1 / sqrt(3/8)
       parameter(PI     = 3.14159265359D0)  ! Pi
@@ -246,7 +216,7 @@
 !     SHTns is opt-in while it proves itself, so legmod stays the default and
 !     the model is unchanged at 0. It needs every latitude in one address space
 !     and the grid in latitude order, so it is refused on anything but the
-!     threaded build without LPAIRLAT -- shtns_setup checks rather than assumes.
+!     threaded build -- shtns_setup checks that rather than assuming it.
 !     SHTns needs every latitude in one address space, so it is the default
 !     where that holds and unavailable where it does not. legmod stays as the
 !     reference verify_shtns_model.sh compares against, reachable with NSHTNS=0.
@@ -1014,18 +984,12 @@
 !     thread's private array used to be, so this is a relabelling of storage and
 !     nothing else -- the model computes the same numbers in the same order.
 !
-!     WHAT THE ROW ORDER IS, and it is the trap. Row mypid*NHOR + i is thread
-!     mypid's LOCAL point i. That equals GLOBAL latitude order only when the
-!     scatter is contiguous. Under LPAIRLAT it is not: the permutation gives a
-!     thread a latitude and its mirror rather than a block, so the shared array
-!     is in thread order and not in latitude order.
-!
-!     That does not affect this routine or the physics, both of which only ever
-!     address a thread's own band. It affects anything that reads the array AS
-!     A GLOBE -- SHTns above all, which needs latitudes in its own Gauss order.
-!     SHTns and LPAIRLAT are therefore exclusive, and that is not a loss:
-!     LPAIRLAT exists to let legmod fold a mirror pair together, and SHTns
-!     replaces legmod.
+!     WHAT THE ROW ORDER IS. Row mypid*NHOR + i is thread mypid's LOCAL point i,
+!     and because the scatter hands out a contiguous block of latitudes, that is
+!     also global latitude order -- which is what lets anything read the array AS
+!     A GLOBE, SHTns above all, since it needs latitudes in its own Gauss order.
+!     A decomposition that permuted the scatter would break that, and the paired
+!     one did; it was retired when SHTns replaced the transform it accelerated.
       lo = mypid * NHOR + 1
       hi = lo + NHOR - 1
 
@@ -1062,42 +1026,5 @@
       end subroutine assoc_grid
 
 
-!     ==================
-!     FUNCTION ILATPERM
-!     ==================
-
-!     Permuted slot -> global latitude, the whole of the paired decomposition.
-!
-!     Slot kp is the kp-th latitude of the scatter buffer, so it lands on
-!     process ir = (kp-1)/NLPP at local index il = kp - ir*NLPP. The first
-!     NLHP local latitudes of a process are a northern block; the rest are
-!     those same latitudes' mirrors, in reverse, which is what makes local
-!     il and NLPP+1-il a mirror pair.
-!
-!     Without LPAIRLAT this is the identity and the layout is the stock
-!     contiguous one. At NPRO == 1 it is ALSO the identity, since ir is 0 and
-!     NLHP is NLAT/2: slot il > NLHP maps to NLAT - NLAT + il = il.
-
-      integer function ilatperm(kp)
-      integer :: kp
-      integer :: ir
-      integer :: il
-
-      if (.not. LPAIRLAT) then
-         ilatperm = kp
-         return
-      endif
-
-      ir = (kp - 1) / NLPP    ! process holding the slot
-      il =  kp - ir * NLPP    ! its local latitude there
-
-      if (il <= NLHP) then
-         ilatperm = ir * NLHP + il                 ! northern block
-      else
-         ilatperm = NLAT - ir * NLHP - NLPP + il   ! the mirror of it
-      endif
-
-      return
-      end function ilatperm
 
       end module pumamod

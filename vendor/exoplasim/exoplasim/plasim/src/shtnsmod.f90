@@ -41,17 +41,17 @@
 !     ruinous on a small one like ln(ps).
 !
 !     WHAT IT REQUIRES. SHTns needs every latitude in one address space,
-!     so it is available only to the threaded build, and it needs the
-!     grid in LATITUDE order, so it is incompatible with LPAIRLAT --
-!     which costs nothing, since LPAIRLAT exists to let legmod fold a
-!     mirror pair together and SHTns replaces legmod. Both are checked
-!     rather than assumed, in shtns_setup.
+!     so it is available only to the threaded build, which shtns_setup
+!     checks rather than assumes. It also needs the grid in LATITUDE
+!     order, which used to conflict with the paired decomposition; that
+!     is gone, since it existed to let legmod fold a mirror pair
+!     together and SHTns replaced legmod.
 !     ==================================================================
 
       module shtnsmod
       use iso_c_binding
       use pumamod, only: NTRU, NLAT, NLON, NCSP, NLEV, NLPP, NPRO,      &
-     &                   LPAIRLAT, nud, mypid, NROOT, NUGP, NTP1
+     &                   nud, mypid, NROOT, NUGP, NTP1
 !     fsp is legmod's OWN per-mode filter table, skspgp(n+1) by mode, and it is
 !     shared rather than threadprivate. Taken directly rather than rebuilt here,
 !     so the two transforms cannot drift apart when a filter is added.
@@ -128,16 +128,6 @@
       endif
       call mpabort('nshtns without OMPSHARED')
 #endif
-
-      if (NPRO > 1 .and. LPAIRLAT) then
-         if (mypid == NROOT) then
-            write(nud,*) '*** SHTns needs the grid in LATITUDE order and'
-            write(nud,*) '*** LPAIRLAT permutes it. Rebuild without the'
-            write(nud,*) '*** paired decomposition: SHTns replaces the'
-            write(nud,*) '*** transform LPAIRLAT exists to accelerate.'
-         endif
-         call mpabort('nshtns with LPAIRLAT')
-      endif
 
       knorm = SHT_ORTHONORMAL          ! Condon-Shortley INCLUDED
       klay  = SHT_QUICK_INIT + SHT_PHI_CONTIGUOUS
