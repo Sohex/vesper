@@ -1918,12 +1918,16 @@ having written down that a family was chosen.
 The two are not interchangeable in their tails. Brooks-Corey has a
 discontinuous air-entry point and a power-law tail; van Genuchten is smooth
 through saturation. Which matters most exactly where this world is unusual: a
-quarter of its land is playa clastic, so wetting and drying through
-near-saturation is a common state rather than an edge case. That argument rests
-on the PLAYA FRACTION and not on endorheic drainage: the pre-carve build's 76
-percent is a limit under rule 9, the carve loop exists to reduce it, and the
-derived figure is not known. Playa extent is a lithology property and does not
-move the same way.
+quarter of its land is playa clastic in the pre-carve build, so wetting and
+drying through near-saturation is a common state rather than an edge case.
+
+That qualifier is load-bearing and I first wrote this without it. Playa extent is
+NOT independent of endorheism: Orogen assigns basin fill on
+`when: (c) => !!c.endorheic`, so opening a basin removes the cover and the
+fraction moves with the carve list exactly as the drainage figures do. LITH-27
+owns rechecking it. The argument survives in a weaker form -- this terrain
+produces near-saturation surfaces as a class -- and not as a claim about a
+settled area.
 
 That is not an argument for switching. It is an argument that LSHY-1's contract
 should carry the closure as a NAMED property with its family stated, so that a
