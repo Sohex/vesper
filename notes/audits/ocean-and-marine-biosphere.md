@@ -250,23 +250,44 @@ affordable, because equilibrating a deep ocean takes thousands of model years
 and an ExoPlaSim orbit is priced in wall-clock hours
 (`docs/src/pipeline/costs.md`).
 
-**Circulation host: two candidates, priced against each other.** The NEMO family
-is out on one argument: PISCES, MEDUSA and PlankTOM are NEMO configurations, so
-adopting any of them means adopting NEMO, whose grid and configuration machinery
-are harder to move off Earth than the alternatives'. What remains is one
-resolved-circulation host and one EMIC, and they fail in opposite directions:
+**Circulation host: cGENIE, and the resolved tier is off the board.** Two
+eliminations and one candidate.
 
-- **MITgcm**, which takes the sphere radius, gravity and the rotation rate as
-  runtime parameters, resolves the straits, sills and partial coasts section 8b
-  requires, and cannot be equilibrated at a price this project can pay.
-- **cGENIE**, which reaches biogeochemical steady state in a day on one core,
-  already has a published and archived ExoPlaSim coupling, carries the closed
-  carbon cycle finding 5d needs, and hardcodes planetary radius in four places
-  while its transport and carbon parameters are fitted to Earth observations.
+The NEMO family goes on one argument: PISCES, MEDUSA and PlankTOM are NEMO
+configurations, so adopting any of them means adopting NEMO, whose grid and
+configuration machinery are harder to move off Earth than the alternatives'.
 
-Neither is an adoption. Section 9 reads cGENIE's source and cost the way
-finding 3 read LSG's; OCN-3 prices both hosts on this machine, against the same
-configuration, rather than scoping one as if the choice were settled.
+**MITgcm goes on the coupling-class argument, applied to itself.** This is
+recorded rather than left implicit, so the next reader does not re-open it. The
+objection is NOT that MITgcm is cluster software; a coarse global configuration
+runs on a workstation, and the runtime parameters for sphere radius, gravity and
+rotation rate are exactly the axis this world moves along. The objection is that
+the property this project needs from an ocean model is an EQUILIBRIUM, and a
+primitive-equation model reaches one only after thousands of model years at a
+timestep set by resolved dynamics. That is the same argument that chose offline
+coupling at the top of this section, and it does not stop applying because the
+model in question is the one being considered. The connectivity MITgcm would buy
+is real, but it is only available at a resolution whose spin-up is unaffordable,
+so it is not a fallback: it is a benefit priced out of reach. A coarse MITgcm
+resolves no more than cGENIE does and still cannot be equilibrated.
+
+That leaves **cGENIE**, which reaches biogeochemical steady state in a day on one
+core, already has a published and archived ExoPlaSim coupling, carries the closed
+carbon cycle finding 5d needs, and hardcodes planetary radius in four places
+while its transport and carbon parameters are fitted to Earth observations.
+
+It is a candidate, not an adoption. Section 9 reads its source and cost the way
+finding 3 read LSG's, and OCN-3 establishes viability and measured cost on this
+machine before anything is committed to it.
+
+**The consequence of dropping the resolved tier is that connectivity now rides
+entirely on resolution.** Section 8b's straits, sills and partial coasts were the
+one thing the other candidate was for. With it gone they become a constraint on
+how fine a grid cGENIE must run, not a choice between hosts, and if that grid
+turns out to be unaffordable the honest outcome is a declared
+unresolved-connectivity bracket rather than a quiet acceptance of whatever
+36 x 36 represents. That is what makes OCN-18 load-bearing rather than an
+optimisation.
 
 **Ecosystem tier: trait-based, and the host decides which one.** MARBL is the
 better-engineered library by some distance, being deliberately driver-agnostic
@@ -278,10 +299,10 @@ rather than presented as a prediction". Darwin and ECOGEM are both trait-based,
 so in both the modelled community composition is an output of the trait space
 rather than an input, which on a world whose nutrient supply is bracketed across
 a factor of four (finding 4) is the difference between a prediction and an
-assumption. That property does not separate them, so the ecosystem tier follows
-the host rather than being chosen ahead of it: Darwin on MITgcm, ECOGEM on
-cGENIE, MARBL as the fallback wherever the trait space turns out not to be
-portable.
+assumption. That property does not separate them, and the host
+decides which is reachable: Darwin is an MITgcm package and leaves the board with
+it, so the tier is ECOGEM, with driver-agnostic MARBL as the fallback wherever
+the trait space turns out not to be portable.
 
 An upper-trophic model is forced by a lower-trophic field and cannot precede
 one. It is the right tool when this project wants modelled nekton biomass, and
@@ -326,7 +347,7 @@ investigated.  OCN-10 owns this boundary.
 
 T42 is an operating convention rather than a constraint, while the 10M Orogen
 export is the reference support that fully resolves the generated terrain.
-An MITgcm grid therefore cannot be chosen once and called the planet.  It needs
+The ocean grid therefore cannot be chosen once and called the planet.  It needs
 a versioned map from the 10M bathymetry and coastline into wet fractions,
 depth/volume, shelves, straits, sills and routed river mouths, plus conservative
 maps to every accepted T21/T42/T85/T127/T170 atmosphere.  Narrow connections
@@ -335,7 +356,7 @@ unchanged.  OCN-11 extends SPAT-1 through SPAT-5 and SPAT-8/10 to this crossing;
 OCN-3's coarse configuration is a candidate whose adequacy must be measured,
 not a fixed resolution.
 
-### 8c. MITgcm and Darwin do not escape the implicit-Earth audit
+### 8c. An external ocean model does not escape the implicit-Earth audit
 
 Runtime radius, gravity and rotation parameters are necessary but not
 sufficient.  Calendar and rate constants, reference pressure, equation of
@@ -346,9 +367,11 @@ sinking speeds, irradiance/PAR conversions, latitude classifiers and supplied
 community traits do the same.  Latitude remains valid for geometry and
 Coriolis; it is not a water-mass, productivity or ecological regime.  OCN-12
 applies BIO-22/BIO-29's clock and latitude rules and the repository's
-gravity/pressure audit shape before either external model is accepted.
+gravity/pressure audit shape before any external ocean or ecosystem model is
+accepted.  Section 9d is that audit's sharpest case, because an EMIC's skill is
+substantially in a calibration fitted to Earth.
 
-### 8d. “Reached the ocean” is a boundary condition, not marine nutrition
+### 8d. "Reached the ocean" is a boundary condition, not marine nutrition
 
 ANUT-6 routes terrestrial dissolved and particulate export to the coast;
 ANUT-3/4 provide particulate and fixed-N deposition, and ANUT-5 defines the
@@ -368,8 +391,8 @@ making ANUT own marine biogeochemistry.
 
 ### 8e. Trait-based is not yet Vesper physiology
 
-Darwin makes community composition emergent only inside the trait space it is
-given.  OCN-14 must declare that space with covarying strategies and retain a
+A trait-based ecosystem makes community composition emergent only inside the
+trait space it is given.  OCN-14 must declare that space with covarying strategies and retain a
 transplanted-Earth case as a labelled bracket rather than tuning traits to a
 desired productivity map.  It also imports PCAR-1/2 and BIO-25's lessons:
 rates need an absolute-time versus orbital-phase registry; light limitation
@@ -409,14 +432,15 @@ the 10M support and makes Orogen's latitude result a labelled bootstrap only.
 OCN-11 supplies support, ANUT-6 supplies sediment delivery and OCN-13/14 supply
 chemistry and biology; none should independently rewrite the rock map.
 
-## 9. The EMIC tier, which section 6 did not enumerate
+## 9. cGENIE read at source: cost, constants, coupling and ceiling
 
-Section 6 compared one resolved-circulation host against the NEMO family and one
-ecosystem tier against MARBL. Both comparisons are between models of the same
-class, and the class itself was never priced. There is a third, and the argument
-that selected offline coupling points straight at it.
+Section 6 selects the EMIC tier on the coupling-class argument. This section is
+the reading behind that selection: what the model costs, what it hardcodes,
+what its published ExoPlaSim coupling supplies, and where its resolution stops.
+It is to cGENIE what finding 3 is to LSG, and it is the evidence OCN-3 through
+OCN-4 and OCN-17 through OCN-20 are drawn from.
 
-### 9a. The cost argument selects the tier section 6 skipped
+### 9a. The cost argument selects this tier
 
 Section 6 chose offline coupling because equilibrating a deep ocean takes
 thousands of model years against orbits priced in wall-clock hours, and then
@@ -526,12 +550,13 @@ cycle by assimilating three-dimensional observed phosphate and alkalinity with
 an ensemble Kalman filter, and offer a global export production of 8.9 PgC/yr
 and CaCO3 export of 1.2 PgC/yr as evidence of the fit.
 
-An EMIC's skill is substantially IN its calibration. That is the opposite of the
-position section 6 credited MITgcm with, where the planetary parameters are
-runtime values and the closures are argued rather than fitted. The implicit-Earth
-exposure is therefore worse here in kind and not merely in count, and none of it
-appears in a grep for constants. OCN-12 owns it, and this is the case it has to
-be sharpest about.
+An EMIC's skill is substantially IN its calibration, which is the opposite of a
+primitive-equation model whose planetary parameters are runtime values and whose
+closures are argued rather than fitted. Section 6 dropped that alternative on
+cost, so this exposure is not a comparison any more: it is simply the cost of the
+remaining candidate, worse in kind and not merely in count, and none of it appears
+in a grep for constants. OCN-12 owns it, and this is the case it has to be
+sharpest about.
 
 One measured point cuts the other way, and it belongs here because it is the
 obvious objection to the tier. Edwards and Marsh find that model errors "are
@@ -548,20 +573,21 @@ test that rather than assume it.
 pathway on which a modelled marine ecosystem is a first-order control of this
 world's climate, and parks it behind prescribed pCO2. BIOGEM, SEDGEM and ROKGEM
 (Colbourn et al., 2013) are a closed carbon cycle with carbonate chemistry,
-sediment burial and terrestrial weathering. MITgcm with Darwin supplies the
-ocean half and neither the sediment nor the weathering side. If OCN-16 is ever
-opened, this is the tier that answers it, and
+sediment burial and terrestrial weathering. A circulation host with an ecosystem
+package bolted on supplies the ocean half and neither the sediment nor the
+weathering side, which is one more reason the resolved tier was not the answer to
+this. If OCN-16 is ever opened, this is the tier that answers it, and
 `pedology/scripts/weathering_fluxes.py` already covers part of what ROKGEM does.
 
 **Trait-based ecology at EMIC cost.** ECOGEM (Ward et al., 2018) resolves an
 arbitrary number of plankton populations with traits assigned by size and
 functional group at runtime; its reference configuration is 16 populations
 across eight size classes in two functional types, and 1.1 adds a diatom group
-(Naidoo-Bagwell et al., 2024). The property section 6 used to prefer Darwin over
-MARBL, that community composition emerges from a declared trait space rather
-than arriving as fixed types, is a property of ECOGEM as well. That argument
-does not discriminate between them, and OCN-4 should stop being written as
-though it does.
+(Naidoo-Bagwell et al., 2024). The property section 6 used to prefer a
+trait-based tier over MARBL, that community composition emerges from a declared
+trait space rather than arriving as fixed types, is a property of ECOGEM, so
+dropping the resolved host costs nothing on this axis. MARBL remains the fallback
+precisely because it is driver-agnostic.
 
 ### 9f. What it costs that the resolved tier does not
 
@@ -717,13 +743,17 @@ is spent on a host that has been chosen, not on one that is being evaluated.
 
 Recorded so the next reader knows the edges.
 
-- Neither host has been built on this machine. MITgcm's build, and Darwin's
-  tracer cost and trait-space requirements, have been checked against nothing at
-  all. cGENIE's source and licence have now been read at v0.9.50 and its costs
-  are quoted from its authors' papers, but nothing has been compiled or timed
-  HERE, which is the only number OCN-3 accepts. Section 6 remains a pair of
-  candidates from the coupling, cost and Earth-content arguments, not from a
-  measurement.
+- Nothing has been built on this machine. cGENIE's source and licence have been
+  read at v0.9.50 and its costs are quoted from its authors' papers on Earth
+  configurations, but nothing has been compiled or timed HERE, which is the only
+  number OCN-3 accepts.
+- MITgcm was dropped on the coupling-class argument rather than on a measurement
+  of it. Nobody here has timed a coarse global MITgcm configuration or its
+  spin-up, and the claim that its connectivity is priced out of reach is an
+  inference from the equilibrium requirement, not a benchmark. It is a cheap
+  thing to falsify if a future reader wants to: the number that would reopen it
+  is model years per wall-clock day at a resolution that resolves the straits
+  section 8b names.
 - Section 9 does not establish that cGENIE's remaining Earth constants can be
   changed correctly. It establishes where they are and how many there are.
   `rsc` and `gsc` feed derived scale factors, and whether the
@@ -769,5 +799,6 @@ exploration rows; finding 3 is recorded here and became no row, being a
 constraint rather than work; finding 4's config half is OCN-9 and its prediction
 half is this document. Section 8 supplies the cross-component contracts and
 acceptance rows OCN-10 through OCN-16, plus LITH-26 for the existing static
-latitude shelf classifier. Section 9 rewrites OCN-3 into a two-host pricing and
-OCN-4 into a host-following ecosystem tier, and its coupling half is OCN-17. Section 9g's resolution ceiling is OCN-18, and section 9h's profile-then-optimise split is OCN-19 and OCN-20.
+latitude shelf classifier. Section 9 supplies OCN-3's single-host viability and cost row and
+OCN-4's ecosystem tier, its coupling half is OCN-17, its resolution ceiling is
+OCN-18, and its profile-then-optimise split is OCN-19 and OCN-20.
