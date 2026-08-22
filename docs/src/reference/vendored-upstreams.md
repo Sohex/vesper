@@ -171,3 +171,42 @@ what `grep` and `find` pay.
 Unrelated and worth knowing before someone blames the deletion: four directories
 that configs reference, `fkl_np10`, `fkl_pp01_DH`, `fm0450ab` and `wppcont1`,
 are absent upstream and were never in the vendored commit.
+
+## LPJmL
+
+LPJmL is vendored at `vendor/lpjml/`, a git subtree squashed from the `master`
+branch of `PIK-LPJmL/LPJmL` at commit `572e2b906ac2c55b2ee6661a93e4633b126254e4`.
+Pull upstream with:
+
+    git subtree pull --prefix vendor/lpjml \
+      https://github.com/PIK-LPJmL/LPJmL.git master --squash
+
+**It is a subtree and not a `references/` extraction for the usual reason**: the
+work intended on it is fork-shaped and it is planned into the pipeline. It was
+first pulled down as read-only comparison material for SPITFIRE, its
+process-based fire scheme, because FIRE has ten open rows of ten issued and the
+only scheme consulted was BLAZE, which arrived with LPJ-GUESS. That reading is
+still worth doing and is now incidental to why it is here.
+
+**It is NOT the biosphere, and it does not supersede LPJ-GUESS.** This project's
+terrestrial biosphere is the LPJ-GUESS CNP fork above, and nothing in that
+changes. LPJmL is a different model in the same LPJ family -- same lineage,
+different code base, different scope -- and having both vendored is deliberate
+rather than duplication. Read `vendor/lpj-guess/` when the question is about this
+project's biosphere; read `vendor/lpjml/` when the question is about LPJmL.
+
+**Nothing reads it yet**, exactly as with cGENIE: it is vendored source with no
+pipeline step, so `config/pipeline.yaml` has no row for it and rule 7's "what is
+now worthless" question does not reach it. When a step does consume it, that step
+and its artifact go into the pipeline graph in the same commit.
+
+**It ships its own `.gitignore`**, covering objects, the binaries `configure.sh`
+generates into `bin/`, the `Makefile.inc` that script writes, and the `output/`
+and `restart/` directories. Nested ignore files are honoured, so unlike cGENIE --
+whose own ignore file carries only `.DS_Store` -- this subtree needs no build
+rules added to the repository root.
+
+**The licence is AGPL-3.0**, which is stronger copyleft than the other three
+subtrees carry: MIT for cGENIE, MPL-2.0 for LPJ-GUESS, GPL for ExoPlaSim. That
+is not a problem for reading or for local modification, and it is worth knowing
+before any of it is copied into code that leaves this repository.

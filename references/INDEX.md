@@ -40,7 +40,7 @@ exists to catch.
 
 ## Source trees held locally
 
-Eighteen external model trees sit under `references/`, each extracted from a PINNED
+Seventeen external model trees sit under `references/`, each extracted from a PINNED
 TARBALL rather than cloned, so no nested `.git` exists for an outer command to
 trip over. They are read-only comparison material. Nothing in them is built,
 imported or vendored: code this project compiles lives in `vendor/` as a
@@ -67,8 +67,13 @@ what make the extraction reproducible.
 | `references/esmf/` | ESMF, the Earth System Modeling Framework, for its conservative regridding between unstructured and structured grids. Acquired because SPAT has eleven open rows of eleven issued with no external eye, and because rule 3 exists here: mesh-to-grid transfers have silently matched zero cells on three separate scripts. ESMF is the reference implementation both of conservative remapping and of what 'conservative' is permitted to mean, which gives `lib/gridding.py` something to be checked against that can FAIL | `esmf-org/esmf` commit `d8cb7c6c83b3154eeeaadede4676397904916293` | University Corporation for Atmospheric Research; see LICENSE in the tree |
 | `references/pysdm/` | PySDM, a super-droplet cloud microphysics implementation, chosen over a production two-moment scheme for readability. Acquired as a BLIND-SPOT probe with no row naming it: aerosol here is offline dust, sea salt and volcanic sulfate and the clouds are diagnostic, so nothing connects condensation nuclei to droplet number to cloud albedo. The aerosol indirect effect is not wrong here, it is ABSENT, and no row says so | `open-atmos/PySDM` commit `5d031f507f44037cc05bfe896a0ae322c3744162` | GPL-3.0 |
 | `references/fates/` | FATES, the Functionally Assembled Terrestrial Ecosystem Simulator. Acquired as a blind-spot probe: DEMO has six open rows of six issued and the only demographic model consulted is the one this project runs, whose assumptions are hard to see from inside it. FATES is the modern independent implementation of the same cohort idea | `NGEET/fates` commit `5efa6fbfd173afe85d523431e75c8a6ec493b242` | Regents of the University of California through LBNL; see LICENSE.txt in the tree |
-| `references/lpjml/` | LPJmL, held for SPITFIRE, its process-based fire scheme. FIRE has ten open rows of ten issued and the only scheme consulted is BLAZE, which arrived with the vendored LPJ-GUESS. SPITFIRE is the independent scheme in the same lineage and reaches different answers on ignition and spread | `PIK-LPJmL/LPJmL` commit `572e2b906ac2c55b2ee6661a93e4633b126254e4` | AGPL-3.0 |
 | `references/arcsdm/` | ArcSDM, the open-source spatial data modeller for mineral prospectivity -- weights of evidence, fuzzy logic and neural approaches. Acquired as a blind-spot probe: MIN reads as one open row of six issued, which is what a finished domain and an unexamined one both look like. THE TENSION TO SURFACE: prospectivity methods are SUPERVISED, calibrated against known deposit occurrences, and this world has none to train on. Whether `minerals/` is doing something defensible without a training set, or is a plausibility field wearing a method's clothes, is not asked anywhere today | `gtkfi/ArcSDM` commit `37c39e16809663f7952505f26ba1a2a46f8ae7b0` | not stated in the tree; published by the Geological Survey of Finland. Check at point of use |
+
+**LPJmL was here and was PROMOTED to `vendor/lpjml/` on 2026-08-22**, because
+the work intended on it is fork-shaped and it is planned into the pipeline. That
+is the whole of the distinction this section rests on: what this project will
+edit and compile lives in `vendor/` as a subtree, what it only reads lives here.
+`docs/src/reference/vendored-upstreams.md` carries it now.
 
 Refresh by re-fetching the tarball at the recorded revision and
 extracting over the directory. There is no working tree to pull into, which is

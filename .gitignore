@@ -165,7 +165,6 @@ references/cama-flood/
 references/esmf/
 references/fates/
 references/landlab/
-references/lpjml/
 references/pysdm/
 
 # Offline dust fields, rebuilt in minutes by aeolian/scripts/build_dust.py once a
@@ -222,7 +221,6 @@ references/climaland
 references/esmf
 references/fates
 references/landlab
-references/lpjml
 references/pysdm
 references/climber-x
 references/ecospeclib-all
