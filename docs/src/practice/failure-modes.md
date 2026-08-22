@@ -1002,3 +1002,44 @@ the budget being visible beside it.
 It is not class 24. That is a summary asserted without its primitives; this is a
 primitive asserted in place of the summary, and it fails in the opposite
 direction: the part is measured correctly and compared to the wrong thing.
+
+## 29. A check that simplifies away the configuration it certifies
+
+A verification driver stands the component up outside the model, which is the
+whole reason it is sharp: it can drive dense fields through both sides, isolate
+one mode, and carry controls the model could never run. Standing it up means
+choosing values for everything the model would have supplied, and each of those
+choices is a chance to certify a configuration that does not exist.
+
+`verify_shtns_equivalence.f90` reported nine arms at 5e-14 while the model it
+certified disagreed with itself by 100% at the first step. It set `plavor = 0`
+so the planetary vorticity correction would not enter the comparison, and it
+never read a namelist, so `nfilter` kept its default of none. Those are exactly
+the two things the SHTns wrappers were missing: legmod takes the planetary
+vorticity back out of the wind, and `legini` folds `skspgp(n+1)` into `fsp`,
+`fmu` and `fmv`, so every conversion it performs is filtered. Both terms are
+identically one in the configuration the check chose, and neither is one in any
+configuration the model runs.
+
+The simplification is not the error. Zeroing a term to isolate another is
+correct practice, and a driver that had SAID it certifies the unfiltered
+non-rotating case would have been honest and useful. The error is the scope
+claimed: nine green arms were read as "the wrappers compute this model".
+
+The tell is a default taken rather than set. A term the driver never mentions
+is a term whose value came from a module initialiser, and a module initialiser
+is not the model's configuration. Grep the driver for every quantity the
+operator under test depends on and ask which of them the model sets from a
+namelist.
+
+Two fixes, and the second is the one that generalises. The driver now sets the
+beds' `nfilter` and a rotating planet, and a control drops `fsp` from every
+wrapper and must fail. But an array comparison certifies the TRANSFORM, and the
+model reaches that transform through a namelist, a build configuration and a
+call site the array comparison never touches -- so the gate that closes it is a
+second check that runs the MODEL, `verify_shtns_model.sh`, one binary with the
+switch flipped. A component check and a model check answer different questions
+and neither substitutes for the other.
+
+It is not class 17. There the check has no right answer; here it has one and
+computes it exactly, for a configuration nobody runs.

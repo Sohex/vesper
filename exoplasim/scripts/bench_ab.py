@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import shutil
 import statistics as st
 import subprocess
@@ -63,9 +64,35 @@ def launcher(spec: str, ranks: int) -> tuple[list[str], dict]:
     return ["bash", "-c", "ulimit -s unlimited; exec ./probe_ab.x"], env
 
 
-def run_once(bed: Path, exe: Path, ranks: int, spec: str = "mpi") -> tuple[float, str]:
+def set_namelist(bed: Path, settings: list[str]) -> None:
+    """Force KEY=VALUE into plasim_namelist, in place.
+
+    Some arms differ by a NAMELIST switch rather than by an executable -- NSHTNS
+    is the reason this exists, and it is a switch precisely so that the two
+    transforms can be timed without a second build in the comparison. Setting it
+    per arm keeps that property: the two arms then differ by the one thing under
+    test and share every compiler decision.
+
+    Rewritten before every run rather than once at setup, because the arms share
+    one bed and whichever ran last would otherwise leave its setting behind.
+    """
+    nl = bed / "plasim_namelist"
+    lines = nl.read_text().splitlines()
+    for kv in settings:
+        key, _, val = kv.partition("=")
+        key, val = key.strip().upper(), val.strip()
+        pat = re.compile(rf"^\s*{re.escape(key)}\s*=", re.IGNORECASE)
+        lines = [l for l in lines if not pat.match(l)]
+        lines.insert(1, f" {key} = {val} ")
+    nl.write_text("\n".join(lines) + "\n")
+
+
+def run_once(bed: Path, exe: Path, ranks: int, spec: str = "mpi",
+             settings: list[str] | None = None) -> tuple[float, str]:
     local = bed / "probe_ab.x"
     shutil.copy2(exe, local)
+    if settings:
+        set_namelist(bed, settings)
     for stale in ("plasim_status", "Abort_Message"):
         (bed / stale).unlink(missing_ok=True)
     cmd, env = launcher(spec, ranks)
@@ -96,6 +123,10 @@ def main() -> None:
                     help="mpi, or omp[:active|passive]")
     ap.add_argument("--b-launch", default="mpi",
                     help="mpi, or omp[:active|passive]")
+    ap.add_argument("--a-nl", action="append", default=[], metavar="KEY=VALUE",
+                    help="namelist setting forced for arm A; repeatable")
+    ap.add_argument("--b-nl", action="append", default=[], metavar="KEY=VALUE",
+                    help="namelist setting forced for arm B; repeatable")
     ap.add_argument("--rounds", type=int, default=6)
     ap.add_argument("--out", type=Path, default=None)
     args = ap.parse_args()
@@ -111,20 +142,24 @@ def main() -> None:
     # `notes/audits/aocl-and-model-build-flags.md` found between blocked
     # sessions, one level down.
     print("warm-up (both arms) ...", flush=True)
-    run_once(bed, a, args.ranks, args.a_launch)
-    run_once(bed, b, args.ranks, args.b_launch)
+    run_once(bed, a, args.ranks, args.a_launch, args.a_nl)
+    run_once(bed, b, args.ranks, args.b_launch, args.b_nl)
 
     ta: list[float] = []
     tb: list[float] = []
     sa: set[str] = set()
     sb: set[str] = set()
+    # An arm carries its own launcher and namelist rather than being looked up
+    # by executable, because the two arms may BE the same executable -- which is
+    # the point when what differs is a namelist switch.
+    arm_a = (a, args.a_launch, args.a_nl, ta, sa)
+    arm_b = (b, args.b_launch, args.b_nl, tb, sb)
     for rnd in range(1, args.rounds + 1):
         # Flip the order each round so neither arm is always first.
         first_is_a = rnd % 2 == 1
-        pair = [(a, ta, sa), (b, tb, sb)] if first_is_a else [(b, tb, sb), (a, ta, sa)]
-        for exe, times, shas in pair:
-            spec = args.a_launch if exe == a else args.b_launch
-            dt, sha = run_once(bed, exe, args.ranks, spec)
+        pair = [arm_a, arm_b] if first_is_a else [arm_b, arm_a]
+        for exe, spec, settings, times, shas in pair:
+            dt, sha = run_once(bed, exe, args.ranks, spec, settings)
             times.append(dt)
             shas.add(sha)
         print(f"  round {rnd:2d}: {args.label_a}={ta[-1]:7.2f}  "

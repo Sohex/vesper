@@ -378,3 +378,48 @@ and still leave the recipe wrong. At T42 against `legmod`, relative:
 Its control drops the Condon-Shortley phase, which is the mistake this recipe
 was got wrong by once, and fails every arm. So the conversion is proved before
 a single call site in `plasim.f90` moves, which was the point.
+
+## Three more terms in the recipe, found by running the model
+
+Measured 2026-08-22, T21, unpaired threaded build.
+
+The gate above was passing while the model disagreed with itself by 100% at the
+first step, and the reason it could is `docs/src/practice/failure-modes.md`
+class 29: the driver set `plavor = 0` and never read a namelist, so two terms
+that are identically one in ITS configuration and never one in the model's were
+outside the comparison. Wiring `gridpointa` found all three of these.
+
+**The planetary vorticity.** `sz` is ABSOLUTE vorticity -- `plasim.f90` writes
+`plavor` into `sz(3)`, the real part of mode 2, which is l=1 m=0, the harmonic
+proportional to sine of latitude -- while the wind comes from the relative part.
+`dv2uv` takes it back out of its result; `sh_dv2uv` takes it off the coefficient
+instead, as `zt(2) + plavor*shtinv(2)*fsp(2)`, which is legmod's `fmv(2)`
+exactly. Leaving it out adds a solid-body rotation, and the model does not fail
+where the wind is wrong: it runs, and dies later in the shortwave radiation.
+
+**The spectral filter, which is part of the operator and not a setting beside
+it.** `legini` folds `skspgp(n+1)` into `fsp`, `fmu` and `fmv`, so every
+spectral-to-grid conversion legmod performs is filtered. The beds run
+`nfilter = 2`, the exponential filter, `exp(-8 (n/NTRU)^8)`. An unfiltered
+wrapper is a different operator, and its signature is a relative error that
+GROWS with total wavenumber rather than announcing itself at n=1: 1.4e-5 at
+n=3, 4.6e-2 at n=10, 3.4 at n=16, with the ratio between adjacent n tracking
+`((n+1)/n)^8` to two figures from n=10 up. The wrappers take legmod's own `fsp`
+rather than rebuilding the filter, so the two cannot drift when a filter is
+added.
+
+**The m=0 imaginary parts.** A zonal mean has no imaginary part, legmod never
+reads those slots, and nothing keeps them clean --
+`verify_transform_roundtrip` measured them as exactly the part a round trip
+does not preserve. SHTns has no such null space and takes the coefficient it is
+given, so they are zeroed on the way in. On this bed they happened to be zero
+already, which is the sort of luck that decides whether a defect is found in an
+afternoon or in a climatology.
+
+`shtns_setup` also runs under `!$omp single`. `prolog` runs on the whole team
+and FFTW's planner is not reentrant; four concurrent calls segfault inside
+`fftw_mkplan_d`.
+
+With all three in, `verify_shtns_model.sh` at T21 on four threads: 1.1e-13 at
+one step, growing smoothly to 1.3e-10 at forty, 199 of 199 records at rounding
+scale at both one step and twenty, and the SHTns path bit identical run to run.
