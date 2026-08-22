@@ -9,12 +9,14 @@
 # from one binary: the real one, and the control with the Condon-Shortley phase
 # dropped, which must fail.
 #
-# SHTns is not a system package here. Point this at a prefix built with
-# --enable-openmp; the second argument, or SHTNS_PREFIX, or the default below.
+# SHTns lives in vendor/shtns-install, built from a pinned revision by
+# exoplasim/scripts/build_shtns.sh, which is where this looks by default. A
+# second argument or SHTNS_PREFIX overrides it, which is how a candidate upgrade
+# is checked before it is pinned.
 set -euo pipefail
 
 res="${1:-T42}"
-PREFIX="${2:-${SHTNS_PREFIX:-/usr/local}}"
+PREFIX="${2:-${SHTNS_PREFIX:-$(cd "$(dirname "$0")/../.." && pwd)/vendor/shtns-install}}"
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 REPO="$(cd "$HERE/../.." && pwd)"

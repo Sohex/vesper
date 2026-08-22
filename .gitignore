@@ -177,6 +177,12 @@ source/*/*/planet.nc
 source/*/*/manifest.json
 vendor/orogen/node_modules
 
+# SHTns is a build dependency used UNMODIFIED, so it is neither a subtree nor a
+# system install: exoplasim/scripts/build_shtns.sh builds a pinned revision into
+# these, untracked the way .venv is. The script is the record, not the tree.
+vendor/shtns-src/
+vendor/shtns-install/
+
 # Fortran module files. The verifiers under exoplasim/scripts compile fragments
 # lifted out of the model source, and gfortran writes the .mod beside the
 # WORKING directory rather than beside the output. They now pass -J and a cwd,
