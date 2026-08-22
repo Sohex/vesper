@@ -144,6 +144,24 @@ SHTns runs under the model's trap mask whether or not its authors assumed
 masked exceptions, and its padding read is safe only while the stack garbage
 under it is not a NaN.
 
+## Adopted, and what the adoption verified
+
+`config/planet.yaml` no longer declares `-finit-real=zero`, and `checked`
+carries `-finit-real=snan`. The threaded build compiles byte for byte to
+`c8b9c41046fd93ca`, which IS the arm the 26.03% was measured on, so the
+declaration delivers the measured thing rather than something believed
+equivalent to it.
+
+Determinism was the one thing this could have cost, archive CLIM-44 being this
+model failing to reproduce and having been paid for once. It survives:
+`verify_shtns_model.sh` passes whole on the new build, both arms at rounding
+scale, the control rejected, and the four-run bit-identity arm giving one hash,
+`fcf46ebbb1302d3a`.
+
+`checked` is usable because `rebuild_binaries.py` builds MPI binaries, which
+cannot run SHTns and therefore never meet the trap below. On a threaded build
+snan still trips on the library first, which is CLIM-70.
+
 ## What this retires
 
 The conclusion that there is no low-hanging fruit in the zeroing, and the

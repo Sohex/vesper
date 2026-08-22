@@ -1,4 +1,3 @@
-!     CONTROL PATCH IN PROGRESS -- must not be committed
 !     ==================================================================
 !     shtnsmod.f90
 !     ------------
@@ -210,12 +209,12 @@
       do jlev = 1 , klev
          do jm = 1 , NTP1                  ! m=0: real, junk imaginary
             zlm(jm) = cmplx(real(psp(2*jm-1,jlev),8), 0.0_8, kind=8)   &
-     &               
+     &                * real(fsp(jm),8)
          enddo
          do jm = NTP1+1 , NCSP
             zlm(jm) = cmplx(real(psp(2*jm-1,jlev),8),                   &
      &                      real(psp(2*jm  ,jlev),8), kind=8)           &
-     &               
+     &                * real(fsp(jm),8)
          enddo
          call SH_to_spat(shtcfg, zlm, zg)
          pgp(:,jlev) = real(SHTROOT * zg)
@@ -261,23 +260,23 @@
       do jlev = 1 , klev
          do jm = 1 , NTP1                  ! m=0: real, junk imaginary
             zs(jm) =  cmplx(real(psd(2*jm-1,jlev),8), 0.0_8, kind=8)    &
-     &                * shtinv(jm)
+     &                * shtinv(jm) * real(fsp(jm),8)
             zt(jm) = -cmplx(real(psz(2*jm-1,jlev),8), 0.0_8, kind=8)    &
-     &                * shtinv(jm)
+     &                * shtinv(jm) * real(fsp(jm),8)
          enddo
          do jm = NTP1+1 , NCSP
             zs(jm) =  cmplx(real(psd(2*jm-1,jlev),8),                   &
      &                      real(psd(2*jm  ,jlev),8), kind=8)           &
-     &                * shtinv(jm)
+     &                * shtinv(jm) * real(fsp(jm),8)
             zt(jm) = -cmplx(real(psz(2*jm-1,jlev),8),                   &
      &                      real(psz(2*jm  ,jlev),8), kind=8)           &
-     &                * shtinv(jm)
+     &                * shtinv(jm) * real(fsp(jm),8)
          enddo
 !        The planetary vorticity rides on the same mode and takes the same
 !        factors: legmod applies it as qmat(2,l)*fmv(2)*plavor, and fmv(2) is
 !        exactly shtinv(2)*fsp(2).
          zt(2) = zt(2) + cmplx(real(plavor,8), 0.0_8, kind=8)           &
-     &           * shtinv(2)
+     &           * shtinv(2) * real(fsp(2),8)
          call SHsphtor_to_spat(shtcfg, zs, zt, zvt, zvp)
          pgu(:,jlev) = real(-SHTROOT * zvp)
          pgv(:,jlev) = real( SHTROOT * zvt)
@@ -313,12 +312,12 @@
       do jlev = 1 , klev
          do jm = 1 , NTP1                  ! m=0: real, junk imaginary
             zlm(jm) = cmplx(real(psp(2*jm-1,jlev),8), 0.0_8, kind=8)   &
-     &               
+     &                * real(fsp(jm),8)
          enddo
          do jm = NTP1+1 , NCSP
             zlm(jm) = cmplx(real(psp(2*jm-1,jlev),8),                   &
      &                      real(psp(2*jm  ,jlev),8), kind=8)           &
-     &               
+     &                * real(fsp(jm),8)
          enddo
          call SHsph_to_spat(shtcfg, zlm, zvt, zvp)
          pgdmu(:,jlev)  = real(-SHTROOT * zvt)
@@ -490,7 +489,7 @@
       real (kind=8) :: zf
 
       do jm = 1 , NCSP
-         zf = pconst * 1.0_8
+         zf = pconst * real(pfil(jm),8)
          psp(2*jm-1) = real(zf * real(plm(jm)))
 !        m=0 has no imaginary part. legmod leaves whatever gp2fc put in that
 !        slot, and nothing reads it -- verify_transform_roundtrip measured it as
@@ -519,7 +518,7 @@
       real (kind=8) :: zf
 
       do jm = 1 , NCSP
-         zf = SHTRINV * 1.0_8 * shtl1(jm)
+         zf = SHTRINV * real(fgp(jm),8) * shtl1(jm)
          psd(2*jm-1) = real(-zf * real(ps(jm)))
          psz(2*jm-1) = real( zf * real(pt(jm)))
          if (jm <= NTP1) then
