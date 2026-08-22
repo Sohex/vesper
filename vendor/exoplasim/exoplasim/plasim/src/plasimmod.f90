@@ -459,6 +459,24 @@
       real, target :: gvdt_g(NUGP,NLEV) = 0. ! v-tendency, whole globe
       real, target :: gp_g(NUGP) = 0. ! surface pressure or ln(ps), whole globe
 
+!     The nonlinear terms gridpointa builds and then transforms. They were
+!     locals of that routine, contiguous per thread, and they move here for the
+!     same reason the prognostic fields did: SHTns analyses the GLOBE in one
+!     call and cannot be handed a band. calcgp takes them by use association
+!     rather than as arguments now, because a band of a full-globe array is not
+!     a contiguous (NHOR,NLEV) block and passing one to an explicit-shape dummy
+!     copies it in and out again on every call, on both transform paths.
+      real, target :: gtn_g(NUGP,NLEV) = 0. ! t nonlinear term, whole globe
+      real, target :: gqn_g(NUGP,NLEV) = 0. ! q nonlinear term, whole globe
+      real, target :: gut_g(NUGP,NLEV) = 0. ! u*t, whole globe
+      real, target :: gvt_g(NUGP,NLEV) = 0. ! v*t, whole globe
+      real, target :: guz_g(NUGP,NLEV) = 0. ! u forcing, whole globe
+      real, target :: gvz_g(NUGP,NLEV) = 0. ! v forcing, whole globe
+      real, target :: gke_g(NUGP,NLEV) = 0. ! kinetic energy, whole globe
+      real, target :: guq_g(NUGP,NLEV) = 0. ! u*q, whole globe
+      real, target :: gvq_g(NUGP,NLEV) = 0. ! v*q, whole globe
+      real, target :: gvpp_g(NUGP) = 0. ! vertical integral of div, whole globe
+
       real, pointer :: gd(:,:) => NULL() ! divergence
       real, pointer :: gt(:,:) => NULL() ! temperature (-t0)
       real, pointer :: gz(:,:) => NULL() ! absolut vorticity
@@ -470,7 +488,27 @@
       real, pointer :: gudt(:,:) => NULL() ! u-tendency
       real, pointer :: gvdt(:,:) => NULL() ! v-tendency
       real, pointer :: gp(:) => NULL() ! surface pressure or ln(ps)
+      real, pointer :: gtn(:,:) => NULL() ! t nonlinear term
+      real, pointer :: gqn(:,:) => NULL() ! q nonlinear term
+      real, pointer :: gut(:,:) => NULL() ! u*t
+      real, pointer :: gvt(:,:) => NULL() ! v*t
+      real, pointer :: guz(:,:) => NULL() ! u forcing
+      real, pointer :: gvz(:,:) => NULL() ! v forcing
+      real, pointer :: gke(:,:) => NULL() ! kinetic energy
+      real, pointer :: guq(:,:) => NULL() ! u*q
+      real, pointer :: gvq(:,:) => NULL() ! v*q
+      real, pointer :: gvpp(:) => NULL() ! vertical integral of divergence
 #else
+      real :: gtn(NHOR,NLEV)  = 0. ! t nonlinear term
+      real :: gqn(NHOR,NLEV)  = 0. ! q nonlinear term
+      real :: gut(NHOR,NLEV)  = 0. ! u*t
+      real :: gvt(NHOR,NLEV)  = 0. ! v*t
+      real :: guz(NHOR,NLEV)  = 0. ! u forcing
+      real :: gvz(NHOR,NLEV)  = 0. ! v forcing
+      real :: gke(NHOR,NLEV)  = 0. ! kinetic energy
+      real :: guq(NHOR,NLEV)  = 0. ! u*q
+      real :: gvq(NHOR,NLEV)  = 0. ! v*q
+      real :: gvpp(NHOR)      = 0. ! vertical integral of divergence
       real :: gd(NHOR,NLEV)   = 0. ! divergence
       real :: gt(NHOR,NLEV)   = 0. ! temperature (-t0)
       real :: gz(NHOR,NLEV)   = 0. ! absolut vorticity
@@ -882,7 +920,7 @@
 !$omp&  dsp2d,dsp3d,dswfl,dt,dtaux,dtauy,dtd2,dtd3,dtd4,dtd5,dtdt,dtdtlwr,dtdtswr,dtep,dtns,dtrace,&
 !$omp&  dtrop,dtsa,dtsoil,dttl,dttrp,du,du0,dudt,dust3,dv,dv0,dvdt,dw,dwatc,dwmax,dz0,eccen,&
 !$omp&  efficiency_dat,evap,filterkappa,fixedlon,fluxmod_namelist,frcmod,g,ga,gascon,gd,gp,gpi,&
-!$omp&  gpimax,gpj,gq,gqdt,gt,gtdt,gu,gudt,guiinc,guimax,guimin,gv,gvdt,gwd,gz,hcendstep,hcinterval,&
+!$omp&  gpimax,gpj,gq,gqdt,gqn,gtn,gut,gvt,guz,gvz,gke,guq,gvq,gvpp,gt,gtdt,gu,gudt,guiinc,guimax,guimin,gv,gvdt,gwd,gz,hcendstep,hcinterval,&
 !$omp&  hcstartstep,ice_output,icemod_namelist,kick,l_aero,laav,laavmax,landhoskn0,landmod_namelist,&
 !$omp&  ldisp,ldtep,ldtns,lnb,lrotspd,m_days_per_month,m_days_per_year,mars,mcal_days_per_year,&
 !$omp&  meananom0,meed,mint,mintru,miscmod_namelist,mmr,mmrt,mocd,model,mpinfo,mpoti,mpotimax,&
@@ -970,6 +1008,16 @@
       gudt => gudt_g(lo:hi,:)
       gvdt => gvdt_g(lo:hi,:)
       gp   => gp_g(lo:hi)
+      gtn  => gtn_g(lo:hi,:)
+      gqn  => gqn_g(lo:hi,:)
+      gut  => gut_g(lo:hi,:)
+      gvt  => gvt_g(lo:hi,:)
+      guz  => guz_g(lo:hi,:)
+      gvz  => gvz_g(lo:hi,:)
+      gke  => gke_g(lo:hi,:)
+      guq  => guq_g(lo:hi,:)
+      gvq  => gvq_g(lo:hi,:)
+      gvpp => gvpp_g(lo:hi)
 #endif
       return
       end subroutine assoc_grid

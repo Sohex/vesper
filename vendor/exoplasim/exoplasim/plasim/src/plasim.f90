@@ -2529,17 +2529,10 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !
 !*    Adiabatic Gridpoint Calculations
 !
-      real gtn(NHOR,NLEV)
-      real gut(NHOR,NLEV)
-      real gvt(NHOR,NLEV)
-      real gqn(NHOR,NLEV)
-      real guq(NHOR,NLEV)
-      real gvq(NHOR,NLEV)
-      real guz(NHOR,NLEV)
-      real gvz(NHOR,NLEV)
-      real gke(NHOR,NLEV)
+!     gtn, gqn, gut, gvt, guz, gvz, gke, guq, gvq and gvpp live in pumamod now,
+!     as bands of full-globe arrays, because SHTns analyses the globe in one
+!     call. gphi and gpmt stay local: neither is transformed.
       real gphi(NHOR,NLEV)
-      real gvpp(NHOR)
       real gpmt(NLON,NLPP)
 !     The tendency partials are zpsd, zpst, zpsz, zpsq and zpsp in pumamod,
 !     one slot per process, written in place and reduced where they lie. They
@@ -2645,7 +2638,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 
 
 
-      call calcgp(gtn,gqn,guz,gvz,gpmt,gvpp,gphi)
+      call calcgp(gpmt,gphi)
 
       gut = gu * gt
       gvt = gv * gt
@@ -2790,7 +2783,11 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !     SUBROUTINE CALCGP
 !     =================
 
-      subroutine calcgp(gtn,gqn,guz,gvz,gpm,gvp,gphi)
+      subroutine calcgp(gpm,gphi)
+!     gtn, gqn, guz, gvz and gvpp come from pumamod rather than the argument
+!     list. They are bands of full-globe arrays, and a band is not a contiguous
+!     (NHOR,NLEV) block, so passing one to an explicit-shape dummy would copy it
+!     in and out on every call -- on both transform paths, not just the new one.
 
 !     *****************************************************
 !     * computes nonlinear tendencies in grid point space *
@@ -2798,11 +2795,8 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 
       use pumamod
 
-      real gtn(NHOR,NLEV)
-      real gqn(NHOR,NLEV)                                                       !NEU
       real gphi(NHOR,NLEV)
-      real guz(NHOR,NLEV), gvz(NHOR,NLEV)
-      real gpm(NHOR)     , gvp(NHOR)
+      real gpm(NHOR)
       real zsdotp(NHOR,NLEM),zsumd(NHOR)
       real ztpta(NHOR),ztptb(NHOR)
       real zvgpg(NHOR,NLEV)
@@ -2834,28 +2828,28 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       enddo
 
 !     *******
-!     * gvp *
+!     * gvpp *
 !     *******
 
       zsumd = dsigma(1) * gd(:,1)
-      gvp   = dsigma(1) * zvgpg(:,1)
-      zsdotp(:,1) = zsumd + gvp
+      gvpp   = dsigma(1) * zvgpg(:,1)
+      zsdotp(:,1) = zsumd + gvpp
 
       do jlev = 2 , NLEV-1
          zsumd = zsumd + dsigma(jlev) * gd(:,jlev)
-         gvp   = gvp   + dsigma(jlev) * zvgpg(:,jlev)
-         zsdotp(:,jlev) = zsumd + gvp
+         gvpp   = gvpp   + dsigma(jlev) * zvgpg(:,jlev)
+         zsdotp(:,jlev) = zsumd + gvpp
       enddo
 
       zsumd = zsumd + dsigma(NLEV) * gd(:,NLEV)
-      gvp   = gvp   + dsigma(NLEV) * zvgpg(:,NLEV)
+      gvpp   = gvpp   + dsigma(NLEV) * zvgpg(:,NLEV)
 
 !     **************
 !     * loop  400: *
 !     **************
 
       do jlev = 1 , NLEM
-         zsdotp(:,jlev) = (sigmah(jlev) * (zsumd+gvp) - zsdotp(:,jlev))
+         zsdotp(:,jlev) = (sigmah(jlev) * (zsumd+gvpp) - zsdotp(:,jlev))
          gtd(:,jlev) = zsdotp(:,jlev) * (gt(:,jlev+1) - gt(:,jlev))
          gqm(:,jlev) = zsdotp(:,jlev) * (gq(:,jlev+1) + gq(:,jlev))
          gud(:,jlev) = zsdotp(:,jlev) * (gu(:,jlev+1) - gu(:,jlev))
@@ -2869,7 +2863,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       zsumd = zvgpg(:,1) * dsigma(1)
 
       gtn(:,1) = gt(:,1) * gd(:,1) - akap * ztv2(:,1) * gd(:,1)         &
-     &   - rdsig(1)*(gtd(:,1) + t01s2(1) * (sigmah(1)*gvp-zsumd))
+     &   - rdsig(1)*(gtd(:,1) + t01s2(1) * (sigmah(1)*gvpp-zsumd))
 
       gqn(:,1) = - rdsig(1) * gqm(:,1)
 
@@ -2897,7 +2891,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
      &       + akap * ztv2(:,jlev) * (zvgpg(:,jlev) - ztptb)            &
      &       + tkp(jlev) * (zvgpg(:,jlev) - ztpta)                      &
      &       - rdsig(jlev) * (gtd(:,jlev) + gtd(:,jlev-1)               &
-     &                       +gvp*(t01s2(jlev)*sigmah(jlev)             &
+     &                       +gvpp*(t01s2(jlev)*sigmah(jlev)             &
      &                            +t01s2(jlev-1)*sigmah(jlev-1))        &
      &                       -zsumd*(t01s2(jlev-1)+t01s2(jlev))         &
      &                       +zvgpg(:,jlev)*dsigma(jlev)*t01s2(jlev-1))
@@ -2930,7 +2924,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
      &   + akap*ztv2(:,NLEV)*(zvgpg(:,NLEV)-ztptb)                      &
      &   + tkp(NLEV)*(zvgpg(:,NLEV)-ztpta)                              &
      &   - rdsig(NLEV)*(gtd(:,NLEM)                                     &
-     &                 +t01s2(NLEV-1)*(sigmah(NLEV-1)*gvp-zsumd))
+     &                 +t01s2(NLEV-1)*(sigmah(NLEV-1)*gvpp-zsumd))
 
       gqn(:,NLEV) = rdsig(NLEV) * gqm(:,NLEM)
 
