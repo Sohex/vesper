@@ -647,6 +647,69 @@ genuinely does need checking at higher resolution. And `dt` is derived from
 ocean timestep at fixed `nyear` before any grid change is considered, with
 nothing in the component checking the result.
 
+### 9h. There is no disabled parallelism to re-enable, and threads do not touch the solver
+
+The commented OpenMP in 9g reads like working parallelism somebody switched off.
+It is not. Both blocks are abandoned plumbing experiments.
+
+In `tstepo.F:74-90` the directives are `!$OMP SECTIONS` around two calls to
+`tstepo_flux_t` operating on duplicate copies of the tracer state, beside the one
+real `call tstepo_flux()`. In `biogem.f90:718-735` the sections call
+`sub_wasteCPUcycles1` and `sub_wasteCPUcycles2`, which are real routines in
+`biogem_lib.f90:2261-2299`. That is somebody testing whether OpenMP could be
+plumbed through the build at all, not a parallel decomposition of the physics.
+**Making the component threaded is new work, not an un-commenting**, and the
+absence of any partitioning of the tracer arrays is the reason.
+
+One free result falls out of reading it. `tstepo.F:32-35` declares `ts_t1`,
+`ts1_t1`, `rho_t1`, `ts_t2`, `ts1_t2` and `rho_t2`, and lines 62-68 fill all six
+on every ocean timestep. Nothing reads them: the only consumers are the
+commented calls. That is six full array copies per timestep serving dead code,
+and it grows with resolution exactly as the rest does. Deleting it is a
+correctness-neutral saving available before any parallelisation question is
+settled.
+
+**Threads and the solver are complementary, and neither substitutes for the
+other.**
+
+- `ubarsolv` will not thread. Its forward elimination
+  `gb(j) = gb(j) - ratm(j,j-i)*gb(i)` and its back substitution both carry a
+  loop-carried dependence; a banded triangular solve is sequential along the
+  band by construction. Threading the ocean does not make the barotropic step
+  faster.
+- What threads well is the other half. BIOGEM's `do n=1,n_vocn` loop over the
+  vectorised ocean columns is close to embarrassingly parallel, and the tracer
+  loops in `tstepo_flux` are 3D sweeps. That is where the tracer count buys
+  work worth dividing.
+- What the barotropic solve wants is an algorithmic change. The band structure
+  is a consequence of the lexicographic ordering `k = i + j*n` at
+  `invert.f:32`, which fixes the bandwidth at `imax`. A fill-reducing ordering,
+  or an iterative treatment of what is after all an elliptic streamfunction
+  equation, attacks the r^3 directly rather than dividing it. The complication
+  to price first is the island machinery: `ratm`, `psisl`, `erisl` and
+  `matinv_gold` all assume the current factorisation, and `GOLDSTEINMAXISLES`
+  bounds them.
+
+**Which of the two pays more is unmeasured, and the two arguments are
+different.** The barotropic solve dominates GROWTH with resolution; it may still
+be a minority of RUNTIME at 36 x 36, where twelve or more BIOGEM tracers are
+doing the bulk of the work. Those are not the same claim and this audit
+establishes neither. A profile at the shipped grid decides the order, and it is
+cheap next to either piece of work.
+
+The acceptance criterion already exists and should be used rather than invented.
+`genie-knowngood/` ships per-component NetCDF output for four configurations,
+with a changelog, which is the right answer an optimisation has to reproduce.
+Under this project's conventions that is what makes the work testable rather
+than merely benchmarkable.
+
+One scope consequence to state plainly rather than discover later: patching
+performance into cGENIE makes it a maintained fork on the LPJ-GUESS pattern, not
+a vendored dependency, and `docs/src/reference/vendored-upstreams.md` currently
+documents three subtrees. That is a real standing cost and it is incurred
+whether or not the physics turns out to be adequate, which is why OCN-3 comes
+first.
+
 ## 10. What this audit did NOT establish
 
 Recorded so the next reader knows the edges.
@@ -671,6 +734,13 @@ Recorded so the next reader knows the edges.
   larger dimensions is read from `muffingen.m:1580-1584`; whether the island and
   path generation stays correct there is unknown, and so is whether the tool runs
   outside MATLAB.
+- Section 9h does not establish which half of the ocean component dominates
+  runtime at 36 x 36. It establishes that the growth argument and the runtime
+  argument are different and that nobody here has measured either. OCN-19's
+  profile is the first thing that should happen if this host is selected.
+- Whether a fill-reducing reordering or an iterative solve is the better answer
+  is not established either, and the island machinery that constrains both has
+  been located but not priced.
 - The wind-stress scaling in the published ExoPlaSim coupling, 2.0 or 2.6
   depending on the atmosphere's version, is recorded as a knob that has to be
   explained. What physical quantity it stands in for has NOT been determined,
@@ -691,10 +761,10 @@ Recorded so the next reader knows the edges.
 
 ## Tasks
 
-OCN-1 through OCN-18 in `TASKS.md`. Findings 1, 2, 5a, 5b and 5c are the
+OCN-1 through OCN-20 in `TASKS.md`. Findings 1, 2, 5a, 5b and 5c are the
 exploration rows; finding 3 is recorded here and became no row, being a
 constraint rather than work; finding 4's config half is OCN-9 and its prediction
 half is this document. Section 8 supplies the cross-component contracts and
 acceptance rows OCN-10 through OCN-16, plus LITH-26 for the existing static
 latitude shelf classifier. Section 9 rewrites OCN-3 into a two-host pricing and
-OCN-4 into a host-following ecosystem tier, and its coupling half is OCN-17. Section 9g's resolution ceiling is OCN-18.
+OCN-4 into a host-following ecosystem tier, and its coupling half is OCN-17. Section 9g's resolution ceiling is OCN-18, and section 9h's profile-then-optimise split is OCN-19 and OCN-20.
