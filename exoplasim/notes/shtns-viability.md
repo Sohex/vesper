@@ -617,3 +617,33 @@ carries gwd, `uv2dv` and `mktend` carry gwd/cos^2 -- and nothing in the
 synthesis direction touches them. So the error was invisible to every check
 that compares synthesis, which is how it survived, and it was in every forward
 transform this model has ever done.
+
+## SHT_QUICK_INIT is a determinism choice, not a speed one
+
+`shtns_setup` asks for `SHT_QUICK_INIT` because the default `SHT_GAUSS` times
+its algorithm variants at startup and keeps the winner, which is what made the
+model give four distinct restart hashes in eight runs. The flag picks by a fixed
+heuristic instead.
+
+`nm` on the resulting binary shows only `_fly` kernels -- `SHsphtor_to_spat_-
+fly2_m0l` and its siblings -- so SHTns is recomputing the Legendre functions
+with SIMD rather than streaming stored tables. Nobody chose that for speed.
+
+Whether it costs anything is CLIM-62, and the prediction is that it depends on
+resolution in a way the 32 MB rule already anticipates. Stored tables are
+nlm * nlat/2 * 8 bytes:
+
+| rung | tables | share of a 32 MB die |
+| --- | ---: | ---: |
+| T42 | 0.23 MB | 0.7% |
+| T85 | 1.83 MB | 5.7% |
+| T127 | 6.05 MB | 18.9% |
+| T170 | 14.36 MB | 44.9% |
+
+So stored tables should win at T42, wash near T85, and lose at T170 -- which is
+the only rung where the transform is a large enough share of runtime to care
+about. On-the-fly being cache-light is the same argument the 32 MB target makes
+everywhere else, arrived at from the library's side.
+
+QUICK_INIT stays until that is measured. Determinism is not negotiable and
+archive CLIM-44 is this model failing to be reproducible, paid for once.

@@ -85,6 +85,25 @@ BUCKETS: dict[str, tuple[str, ...]] = {
         "ev_", "es_cc_", "e_plcl_", "density_", "trho_", "gettcll_", "poti_",
         "tands_", "momint_", "vdiffo_", "mknudge_", "mkflcor_", "mkflukoi_",
     ),
+    # THE SHTns PATH, declared before the first profile was read. It is the
+    # counterpart of `legendre` AND `fft` together, not of `legendre` alone:
+    # SHTns does the Legendre sum and the longitudinal FFT in one call, so a
+    # comparison that set it against the Legendre bucket by itself would
+    # understate what it replaced.
+    #
+    # Split in two so the model's own marshalling is visible separately from
+    # the library's arithmetic. `shtns_wrap` is the conversion, the packing and
+    # the full-globe temporaries -- the part this project can still change --
+    # and `shtns_lib` is SHTns itself. If the wrappers are a large share of the
+    # pair, the temporaries are worth removing; if they are noise, they are not.
+    "shtns_wrap": (
+        "__shtnsmod_MOD_sh_sp2gp", "__shtnsmod_MOD_sh_dv2uv",
+        "__shtnsmod_MOD_sh_sp2grad", "__shtnsmod_MOD_sh_gp2sp",
+        "__shtnsmod_MOD_sh_uv2dv", "__shtnsmod_MOD_sh_advtend",
+        "__shtnsmod_MOD_sh_dztend", "__shtnsmod_MOD_sh_slice",
+        "__shtnsmod_MOD_analyse_uv", "__shtnsmod_MOD_unpack_sp",
+        "__shtnsmod_MOD_unpack_dv", "__shtnsmod_MOD_shtns_setup",
+    ),
     # Spectral-space arithmetic. Untouched by any transform swap; see above.
     "spectral_step": ("spectrala_", "spectrald_", "makebm_", "minvers_", "hdiffo_"),
     "radiation": (
@@ -139,6 +158,27 @@ SPIN_SYMBOLS = re.compile(r"opal_progress|mca_btl_sm_poll|__vdso_gettimeofday|"
 
 SYMBOL_BUCKET = {sym: bucket for bucket, syms in BUCKETS.items() for sym in syms}
 
+# SHTns's own arithmetic, matched by PREFIX because the library names one symbol
+# per specialised kernel -- SHsphtor_to_spat_fly2_m0l and dozens like it -- and
+# an exact list would go stale on a library upgrade without anyone noticing.
+# Declared before the first profile was read, with the wrapper bucket above.
+#
+# The `_fly` in those names is worth knowing: it is SHTns's ON-THE-FLY
+# algorithm, which recomputes the Legendre functions with SIMD instead of
+# streaming stored tables. shtns_setup asks for SHT_QUICK_INIT, which picks by a
+# fixed heuristic rather than by timing, because the timing made the model
+# irreproducible. If these dominate, that choice is worth revisiting against a
+# deterministic way of getting the stored-table path.
+SYMBOL_PREFIX_BUCKETS = (
+    ("SH_to_spat", "shtns_lib"),
+    ("spat_to_SH", "shtns_lib"),
+    ("SHsph", "shtns_lib"),
+    ("SHtor", "shtns_lib"),
+    ("SHqst", "shtns_lib"),
+    ("shtns_", "shtns_lib"),
+    ("fftw", "shtns_lib"),
+)
+
 # What the profile is being read FOR. The addressable share is what a different
 # transform could touch at all; everything outside it bounds the answer by
 # Amdahl no matter how fast the transform becomes.
@@ -191,6 +231,11 @@ def rank_shares(data: Path) -> dict[str, float]:
             continue
         pct, dso, sym = float(m.group(1)), m.group(2), m.group(3)
         bucket = SYMBOL_BUCKET.get(sym)
+        if bucket is None:
+            for prefix, b in SYMBOL_PREFIX_BUCKETS:
+                if sym.startswith(prefix):
+                    bucket = b
+                    break
         if bucket is None:
             for pattern, b in DSO_BUCKETS:
                 if pattern.search(dso):
