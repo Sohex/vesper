@@ -2225,7 +2225,65 @@ construction. The flux-forced failure is the opposite sign: an ocean forced by a
 slab-derived climatology is being handed a flux field computed under the
 assumption that it does nothing, and acting on it OVER-transports.
 
-### 28c. So the loop is not stylistic
+### 28c. But the published path does not do that, and the difference is an
+### architectural fork nobody has stated
+
+Section 28b cannot be the whole story, because the published
+ExoPlaSim-to-cGENIE work exists and functions. The resolution is that it uses a
+DIFFERENT ARCHITECTURE from the one OCN-10 is specifying.
+
+EMBM is still running in it. `ea_` prefixed parameters appear 13,688 times
+across the shipped configurations against 7,314 `go_` and 2,759 `gs_`, and the
+regrid README instructs setting `ea_11`, an EMBM parameter. And EMBM's namelist
+reads its winds from files: `xu_wstress`, `yu_wstress`, `xv_wstress`,
+`yv_wstress`, `u_wspeed`, `v_wspeed`. Which is exactly what the regrid path
+converts -- wind stress, wind velocity and planetary albedo.
+
+So the published path supplies ExoPlaSim's DYNAMICS to EMBM and lets EMBM
+compute the heat fluxes with its own tunable transport. The partition stays
+where cGENIE can tune it, and the over-transport problem of 28b never arises.
+
+**That gives two architectures, and this project has not chosen between them.**
+
+| | what ExoPlaSim supplies | who computes surface heat flux | partition |
+| --- | --- | --- | --- |
+| published path | wind stress, winds, albedo, topography | EMBM | tunable in EMBM |
+| OCN-10 as written | the full flux set, including net and penetrative shortwave, longwave, sensible and latent heat | ExoPlaSim | not tunable anywhere |
+
+OCN-10 specifies the second: a contract carrying "net and penetrative shortwave,
+longwave, sensible and latent heat". That is not what the published path does,
+and it is the one that needs OCN-5's loop.
+
+The first has its own cost, which is why this is a fork rather than an obvious
+choice. Running EMBM means running a second atmosphere, with `diffamp`,
+`diffwid`, `difflin`, `betaz` and `betam` calibrated for Earth, on a planet with
+30-hour rotation and 32 degree obliquity. Those would have to be re-tuned -- and
+tuning an atmospheric transport to make a coupled answer come out is exactly
+what `docs/src/practice/failure-modes.md` class 16 forbids.
+
+So: architecture one avoids the loop and buys a tuning problem this project's
+conventions will not permit it to solve the usual way. Architecture two keeps
+ExoPlaSim as the only atmosphere and needs the loop. The second is more
+consistent with everything else here, but the choice should be made explicitly
+rather than by OCN-10 quietly specifying it.
+
+### 28d. And the multiplier is `scf`
+
+`initialise_embm.F:1195` uses `scf` in the wind-stress non-dimensionalisation as
+`... *rh0sc*dsc*usc*fsc/(rhoair*cd*scf)`, beside the drag coefficient. It is in
+BOTH `ini_embm_nml` and `ini_gold_nml`, and `initialise_goldstein.F:2110` passes
+it on as `go_scf`. The shipped configurations set `ea_11` and `go_13` to the
+same value, 1.531013488769531300.
+
+So OCN-17's multiplier is the WIND STRESS SCALING, it must be identical in both
+components because both consume the stress, and the regrid README's 2.0 and 2.6
+are that factor set for an ExoPlaSim-derived stress product against a default
+tuned for cGENIE's own. That supersedes the C-grid staggering hypothesis of
+section 10c and the gas-transfer coupling of 18c as the primary explanation:
+both of those are consequences of the same quantity rather than separate
+mechanisms.
+
+### 28e. So the loop is not stylistic, for architecture two
 
 The only resolution is to let the atmosphere respond. Run the ocean, take its
 heat transport, return it to the NEXT ExoPlaSim run as a heat-flux convergence
