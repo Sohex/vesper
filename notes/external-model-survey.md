@@ -990,3 +990,86 @@ its per-configuration settings files and its run logs; the generator is a
 separate repository. Answering what it does above 36 x 36, and whether it runs
 under Octave, needs that download. The settings and logs survive here only
 because the earlier deletion took the PostScript plots and left everything else.
+
+### 10e. GOLDSTEIN's non-dimensionalisation, which is half Earth's
+
+`initialise_goldstein.F:370-398` sets the scales the whole ocean is
+non-dimensionalised against. Some are configurable and some are not, and the
+split is not where a reader would guess.
+
+**Configurable, through `ini_gold_nml`:** `sodaylen` and `sidaylen`, the solar
+and sidereal day lengths; `yearlen`; `nyear`; `par_dsc`, the depth scale; and
+`par_dk`.
+
+**Hardcoded in the source:**
+
+    usc   = 0.05      ! velocity scale, m/s
+    rsc   = 6.37e6    ! EARTH RADIUS
+    gsc   = 9.81      ! EARTH GRAVITY
+    rh0sc = 1e3       ! reference density
+    cpsc  = 3981.1    ! seawater heat capacity
+
+`rh0sc` and `cpsc` are properties of sea water and transfer. `usc` is a
+modelling choice rather than a planetary constant. `rsc` and `gsc` are Earth's
+and are not exposed anywhere.
+
+**And four derived scales carry them into everything:**
+
+    tsc     = rsc/usc                          ! every non-dimensional time
+    rhosc   = rh0sc*fsc*usc*rsc/gsc/dsc        ! carries BOTH rsc and gsc
+    opsisc  = dsc*usc*rsc*1e-6                 ! overturning streamfunction
+    rfluxsc = rsc/(dsc*usc*rh0sc*cpsc)         ! heat flux scaling
+
+At this planet's radius of 1.20 Earth and gravity of 1.306 Earth, `tsc`,
+`opsisc` and `rfluxsc` are each wrong by a factor of 1.20 and `rhosc` by about
+eight percent, in a model that is entirely non-dimensional. An overturning
+reported through `opsisc` would be twenty percent low, and it would look
+plausible.
+
+**Rotation is the exception, and it fails open.** Somebody added sidereal-day
+support in January 2024, and the code reads:
+
+    if (abs(sodaylen-sidaylen).gt.0.001) then
+       fsc = 4*pi/sidaylen
+    else
+       fsc = 2*7.2921e-5
+    endif
+
+The comment says the branch exists for backwards compatibility. What it means in
+practice is that a configuration setting the solar and sidereal day lengths
+equal -- an easy thing to do wrong, and exactly wrong for a rotating planet --
+silently reverts the Coriolis scaling to EARTH's rate rather than failing. That
+is the fail-open pattern this project's conventions forbid, in the one planetary
+constant the source does parameterise.
+
+There is also precedent in the file for a scale being wrong. Line 642 carries
+`rma error: rhosc value in coeffs assumed dsc=4 km, corrected offline for IPCC
+runs with GENIE-1`, so a scaling constant has already been wrong once here and
+was patched outside the code.
+
+None of this is an argument against cGENIE. It is the inventory OCN-12 exists to
+take, arriving early, and the answer to OCN-3's question of how the candidate
+consumes Vesper radius, gravity, rotation and calendar is now specific: calendar
+and rotation yes, with a fail-open on rotation; radius and gravity no.
+
+### 10f. muffingen, and the blank world
+
+`references/muffingen/`, GPL-3.0, the grid generator whose outputs fill
+`genie-paleo`. Three things bear on open rows.
+
+**It does not need a GCM.** `EXAMPLE_BLANK.m` sets `par_gcm=''` with every
+netCDF input name empty, so muffingen will build `.k1`, `.paths` and `.psiles`
+from a supplied mask and topography alone. That is OCN-11's route: the Orogen
+bathymetry rather than someone else's model output. `EXAMPLE_K2_supercontinent.m`
+is the idealised-world precedent beside it.
+
+**It writes the gas transfer parameter OCN-17 is asking about.** `muffingen.m`
+emits `bg_par_gastransfer_a = 0.722` into the configurations it generates, and
+the published regrid path instructs users to move that to 1.1 alongside the
+wind-stress scaling. So the multiplier that row is chasing has a default here to
+be compared against, which is a second place to look after the staggering in
+section 10c.
+
+**Octave is unresolved.** The tree is MATLAB `.m` with a LaTeX manual under
+`DOCS/`, and a quick search finds no Octave statement either way. OCN-18 asks
+whether it runs under Octave and that remains open; the manual is where to look.

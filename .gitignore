@@ -157,6 +157,7 @@ references/marbl/
 references/exort/
 references/exocam/
 references/isca/
+references/muffingen/
 
 # Offline dust fields, rebuilt in minutes by aeolian/scripts/build_dust.py once a
 # climatology exists. The JSON report beside them IS tracked: it carries the
@@ -211,6 +212,7 @@ references/exocam
 references/exort
 references/isca
 references/marbl
+references/muffingen
 references/poseidon_surface_albedo
 references/socrates
 references/speedy
