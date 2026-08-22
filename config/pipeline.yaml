@@ -634,6 +634,8 @@ one_offs:
   - exoplasim/scripts/probe_shtns_vector_conventions.f90
   - exoplasim/scripts/probe_shtns_forward_conventions.f90
   - exoplasim/scripts/probe_shtns_analysis_margin.f90
+  - exoplasim/scripts/gauss_weight_reference.py
+  - exoplasim/scripts/verify_gauss_weights.sh
   - exoplasim/scripts/run_shtns_probe.sh
   - exoplasim/scripts/verify_shtns_equivalence.sh
   - exoplasim/scripts/verify_shtns_equivalence.f90
