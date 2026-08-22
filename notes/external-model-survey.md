@@ -1073,3 +1073,82 @@ section 10c.
 **Octave is unresolved.** The tree is MATLAB `.m` with a LaTeX manual under
 `DOCS/`, and a quick search finds no Octave statement either way. OCN-18 asks
 whether it runs under Octave and that remains open; the manual is where to look.
+
+
+## 11. PHYS-14 answered: the model ships the spectra and never re-weights them
+
+*Computed 2026-08-22. The row was opened on an argument from the vegetation
+precedent; this is the argument checked, and it is stronger than stated.*
+
+### 11a. Snow reflects identically either side of the band split
+
+`vendor/exoplasim/exoplasim/plasim/src/plasimmod.f90:428-432`:
+
+    real :: dsnowalbmx(2) = 0.8
+    real :: dsnowalbmn(2) = 0.4
+    real :: dglacalbmn(2) = 0.6
+
+Two-element band arrays initialised from a scalar, so element 1 and element 2
+are equal. The simulation's snow reflects the same fraction in the visible as in
+the near infrared, which is false on Earth and false here.
+
+That is the SAME DEFECT the vegetation work already fixed.
+`config/planet.yaml` records it in those words: codes 175 and 176 carry the
+vegetation albedo "where one identical field used to assert that a canopy
+reflects equally either side of the split". Vegetation was repaired and given a
+band pair. Snow, glacier ice and sea ice were not.
+
+It also means the k25v spectrum fix did NOTHING for snow. The two-band machinery
+carries a star's spectral shape by moving flux between the bands; if both bands
+hold the same number, moving flux between them changes nothing.
+
+### 11b. The model ships the spectra its own constants came from
+
+`vendor/exoplasim/exoplasim/surfacespecs.py` is a library of ECOSTRESS surface
+reflectance spectra interpolated to the 965 wavelengths ExoPlaSim uses, which is
+the grid `k25v.dat` is written on. It contains `iceblendmax`, `iceblendmin`,
+`glacalbmin`, `seaicemax` and `seaicemin`, each documented as a re-weighted
+snow, ice, water and frost blend chosen to yield a specific model reflectance.
+
+Only `__init__.py` and `pRT.py` import it. Nothing weights those spectra against
+the configured star to produce the model's albedo constants.
+
+### 11c. The numbers, and a check that the method is right
+
+Weighting each spectrum by a 5772 K Planck and by `k25v_hr.dat`, split at
+0.75 um:
+
+| spectrum | Sun band1 / band2 / broadband | K2.5V band1 / band2 / broadband | model constant |
+| --- | --- | --- | ---: |
+| `iceblendmax` | 0.984 / 0.644 / 0.816 | 0.983 / 0.585 / 0.736 | 0.8 |
+| `iceblendmin` | 0.509 / 0.305 / 0.408 | 0.508 / 0.273 / 0.362 | 0.4 |
+| `glacalbmin` | 0.766 / 0.455 / 0.612 | 0.764 / 0.406 / 0.541 | 0.6 |
+| `seaicemax` | 0.894 / 0.530 / 0.714 | 0.892 / 0.473 / 0.631 | -- |
+| `seaicemin` | 0.637 / 0.380 / 0.510 | 0.636 / 0.339 / 0.451 | -- |
+
+**The solar column reproduces the model constants to within 0.016 on all three.**
+That is the check that matters: it establishes these spectra ARE the provenance
+of 0.8, 0.4 and 0.6, and it validates the integral before any conclusion is
+drawn from the K dwarf column.
+
+Read across and the effect splits cleanly in two. Band 1 barely moves, at most
+0.002, because snow is flat and bright below 0.75 um. Band 2 falls by 0.04 to
+0.06, because this star's flux sits deeper into the infrared WITHIN that band,
+where snow darkens. On top of that the band-1 flux share falls from 0.556 to
+0.406, moving weight onto the darker band. The first of those is what no fixed
+per-band constant can capture; the second is what the two-band machinery would
+capture if the bands differed.
+
+**So the simulation's fresh snow is about 0.064 too bright, its old snow 0.038
+and its glacier ice 0.059**, and every one of those errs in the direction that
+weakens the ice-albedo feedback at the cold end.
+
+### 11d. What remains
+
+The derivation is not the work any more; the numbers above are it, and
+`iceblendmax` against `iceblendmin` is already the bracket PHYS-14 asked for
+over grain size and impurity. What remains is the shape: a provenance-stamped
+analysis product on the pattern of `analysis/vegetation_albedo.py`, an anchoring
+convention for the band pair like `vegetation_albedo_bands`, keys in
+`config/planet.yaml`, and a decision about the sea ice pair, which belongs to
+`icemod` rather than `landmod` and has no config key at all today.
