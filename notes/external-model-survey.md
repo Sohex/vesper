@@ -1305,3 +1305,79 @@ validation surface that doing it second would not have.
 If the order goes the other way, a replacement acceptance test has to be
 declared before the parameters move, and it cannot be a comparison against
 these files.
+
+
+## 14. Which half of OCN-19 actually threads
+
+*Static analysis 2026-08-22. OCN-19 names two threading targets, BIOGEM's
+`do n=1,n_vocn` sweep and the 3-D loops in `tstepo_flux`, and treats them as one
+piece of work. They are not comparable.*
+
+### 14a. BIOGEM threads, on three checks
+
+The loop in `genie-biogem/src/fortran/biogem.f90:754` is:
+
+    do n=1,n_vocn
+       call sub_box_remin_DOM(vocn(n),vbio_remin(n),loc_dtyr)
+       call sub_box_remin_part(loc_dtyr,vocn(n),vphys_ocn(n),vbio_part(n),vbio_remin(n))
+    end do
+
+Every argument is indexed by `n`, `loc_dtyr` is a read-only scalar, and the
+reduction back onto the grid, `bio_remin = bio_remin + fun_lib_conv_vocnTOocn(...)`,
+happens AFTER the loop rather than inside it.
+
+Both callees live in `biogem_box.f90`, at 161 and 1,208 lines. Checked for the
+three things that would break it:
+
+- no `SAVE` or `DATA` statements in either;
+- no writes to module-scope arrays -- `bio_remin`, `bio_part`, `ocn`,
+  `phys_ocn`, `bio_settle` are all reached through dummy arguments;
+- **no initialised locals anywhere in `biogem_box.f90`**, which is the implicit
+  SAVE that CLIM-51 catalogues, where a local declared with an initialiser is
+  silently persistent and therefore silently SHARED under `-fopenmp`.
+
+That last one is the striking result. CLIM-51 found 103 such declarations in
+`plasim/src` and records that "gfortran reports nothing at any warning level
+tried, so there is no flag that shortens this and it is reading". Across all of
+BIOGEM and ECOGEM the same pattern appears 23 times, none of them in
+`biogem_box.f90`:
+
+| file | count |
+| --- | ---: |
+| `biogem_lib.f90` | 14 |
+| `ecogem_lib.f90` | 4 |
+| `ecogem.f90` | 2 |
+| `biogem_data.f90`, `biogem_data_ascii.f90`, `ecogem_data.f90` | 1 each |
+| **`biogem_box.f90`** | **0** |
+
+Two honest caveats. That count is an UPPER BOUND: it does not separate
+module-scope declarations, which are legitimately shared, from procedure-body
+ones, which are the hazard, and CLIM-51's 103 counts only the second kind. And
+this is one level into the call tree; the callees call further functions whose
+files are among the 23.
+
+### 14b. GOLDSTEIN does not, and the reason is structural
+
+`tstepo_flux.F` includes `ocean.cmn` twice, and `ocean.cmn` declares
+**44 common blocks**. GOLDSTEIN's entire state is global by construction:
+`ocn_invars`, `ocn_vars`, `ocn_lego`, `ocn_islands` and forty more. The loops
+themselves are Fortran-77 numbered nests over `j`, `i` and `l`.
+
+Threading that is not the same job as threading BIOGEM. In BIOGEM the state
+arrives as derived-type arrays indexed by the loop variable, so privacy is the
+default and sharing is explicit. In GOLDSTEIN sharing is the default and every
+variable the loop touches has to be proved read-only or made private, across
+44 blocks.
+
+### 14c. What this does to the row
+
+OCN-19 should not treat its two targets as one decomposition. BIOGEM's sweep is
+the tractable half and the static evidence says it threads; `tstepo_flux` is a
+common-block privatisation exercise that happens to contain loops.
+
+It also changes what the profile is FOR. OCN-19 orders the profile first so that
+the half that pays can be identified, which is right. But if the profile says
+`tstepo_flux` dominates, the answer is not "thread it" -- it is that the
+threading route is expensive there and OCN-20's algorithmic route matters more.
+The profile decides between two DIFFERENT kinds of work, not between two
+candidates for the same kind.
