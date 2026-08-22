@@ -3019,3 +3019,46 @@ derivation gap.
 This lands on BIO-18, which is deriving tree and grass endmembers separately.
 The class-dependence above is precisely along that split, which makes the
 separate treatment more necessary than the row currently argues.
+
+
+## 39. Soil albedo does not know whether the soil is wet, and the blocker is the state variable
+
+*Read 2026-08-22, closing the ClimaLand sweep.*
+
+`src/standalone/Soil/soil_albedo.jl` offers two parameterizations. The second,
+`CLMTwoBandSoilAlbedo`, after Lawrence and Chase (2007) and modified per
+Braghiere et al. (2023):
+
+    alpha_band = alpha_band_dry * (1 - S_e) + alpha_band_wet * S_e
+
+with `S_e` the effective saturation averaged over `albedo_calc_top_thickness`,
+default **0.02 m**.
+
+Three things follow.
+
+**The band structure already matches.** ExoPlaSim carries `dalbclim1` for below
+0.75 um and `dalbclim2` for above, `landmod.f90:118-119` -- the same split this
+project uses everywhere. CLM's parameterization is defined on exactly that pair,
+so it would drop into the existing structure rather than requiring a new one.
+
+**What is missing is the moisture dependence.** `dalbclim` and its two band
+companions are prescribed static fields. Nothing in this project's albedo
+products carries a wet/dry axis either -- `analysis/rock_albedo.py`,
+`analysis/playa_albedo.py` and the surface-class builder are all moisture-blind.
+Wet ground is darker than dry ground, and on land with a strong seasonal wetting
+cycle that is a real seasonal albedo term with no representation at all.
+
+**The blocker is the state variable, not the parameterization.** CLM reads
+effective saturation over the top two centimetres. Section 32 established that
+ExoPlaSim's land is one scalar bucket with no depth, so there is no surface
+layer to read and no way to evaluate `S_e` even if the coefficients were in
+hand. **A moisture-dependent soil albedo is unavailable here because the state
+does not exist, not because the physics is unknown.**
+
+That connects to LSHY-3 beyond its own scope: the replacement land column would
+supply exactly the near-surface saturation this needs, so it enables a climate
+feedback rather than only improving a hydrological one.
+
+No magnitude is quoted because this tree ships none -- the dry and wet values
+are spatially varying MODIS-consistent fields rather than constants. Lawrence
+and Chase (2007) and Braghiere et al. (2023) are where they come from.
