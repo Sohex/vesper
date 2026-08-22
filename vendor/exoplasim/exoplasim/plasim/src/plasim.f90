@@ -2571,6 +2571,9 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
          if (nqspec == 1) call sh_sp2gp(sq, gq_g, NLEV)
          call sh_sp2gp(sp, gp_g, 1)
          call sh_sp2grad(sp, shgdmu, shgdlam, 1)
+!        The wrappers return without synchronising, on purpose: see the note in
+!        shtnsmod. Nothing above this line may be read until here.
+!$omp barrier
          gpj(:) = shgdmu(mypid*NHOR+1:mypid*NHOR+NHOR)
          gpmt   = reshape(shgdlam(mypid*NHOR+1:mypid*NHOR+NHOR), [NLON,NLPP])
       else
@@ -3359,6 +3362,8 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
          call sh_sp2gp(st, gt_g, NLEV)
          call sh_sp2gp(sp, gp_g, 1)
          if (nqspec == 1) call sh_sp2gp(sq, gq_g, NLEV)
+!        The wrappers do not synchronise; the caller does.
+!$omp barrier
       else
          call invlegd
          call fc2gp(gu  ,NLON,NLPP*NLEV)

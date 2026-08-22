@@ -165,9 +165,21 @@
 !
 !     PARALLEL OVER LEVELS, with SHTns called single-threaded. The model's team
 !     already exists and owns the parallelism; a thread takes whole levels and
-!     writes disjoint columns of pgp, so the levels need no coordination beyond
-!     the barrier that ends the worksharing. Calling one config from several
-!     threads at once is measured safe -- probe_shtns_concurrency.f90.
+!     writes disjoint columns of pgp. Calling one config from several threads at
+!     once is measured safe -- probe_shtns_concurrency.f90.
+!
+!     NOWAIT, AND THE CALLER PLACES THE BARRIER. A level loop is a poor unit of
+!     work on its own: NLEV is 10 and the team is 16, so six threads have
+!     nothing to do, and the two single-level calls gridpointa makes -- sp and
+!     its gradient -- would run on one thread while fifteen waited. Releasing
+!     the threads lets a thread that is finished with one field start the next,
+!     which turns five short loops and two serial ones into one flow. The loops
+!     are independent by construction: each reads spectral state that nobody
+!     writes and fills a grid array that nobody else fills.
+!
+!     What that costs is a contract. There is no barrier at the end of these
+!     routines, so grid data is NOT ready when one returns, and the caller must
+!     issue !$omp barrier before reading any of it.
       use pumamod, only: NESP, NUGP, NCSP
       integer, intent(in) :: klev
       real, intent(in)    :: psp(NESP,klev)      ! (2,NCSP) packed per level
@@ -190,7 +202,7 @@
          call SH_to_spat(shtcfg, zlm, zg)
          pgp(:,jlev) = real(SHTROOT * zg)
       enddo
-!$omp end do
+!$omp end do nowait
       return
       end subroutine sh_sp2gp
 
@@ -252,7 +264,7 @@
          pgu(:,jlev) = real(-SHTROOT * zvp)
          pgv(:,jlev) = real( SHTROOT * zvt)
       enddo
-!$omp end do
+!$omp end do nowait
       return
       end subroutine sh_dv2uv
 
@@ -294,7 +306,7 @@
          pgdmu(:,jlev)  = real(-SHTROOT * zvt)
          pgdlam(:,jlev) = real( SHTROOT * zvp)
       enddo
-!$omp end do
+!$omp end do nowait
       return
       end subroutine sh_sp2grad
 
