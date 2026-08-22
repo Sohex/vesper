@@ -920,7 +920,9 @@
 !$omp&  dsp2d,dsp3d,dswfl,dt,dtaux,dtauy,dtd2,dtd3,dtd4,dtd5,dtdt,dtdtlwr,dtdtswr,dtep,dtns,dtrace,&
 !$omp&  dtrop,dtsa,dtsoil,dttl,dttrp,du,du0,dudt,dust3,dv,dv0,dvdt,dw,dwatc,dwmax,dz0,eccen,&
 !$omp&  efficiency_dat,evap,filterkappa,fixedlon,fluxmod_namelist,frcmod,g,ga,gascon,gd,gp,gpi,&
-!$omp&  gpimax,gpj,gq,gqdt,gqn,gtn,gut,gvt,guz,gvz,gke,guq,gvq,gvpp,gt,gtdt,gu,gudt,guiinc,guimax,guimin,gv,gvdt,gwd,gz,hcendstep,hcinterval,&
+!$omp&  gpimax,gpj,gq,gqdt,gqn,gtn,gut,gvt,guz,gvz,gke,guq,gvq,gvpp,&
+!$omp&  gt,gtdt,gu,gudt,guiinc,guimax,guimin,gv,gvdt,gwd,gz,&
+!$omp&  hcendstep,hcinterval,&
 !$omp&  hcstartstep,ice_output,icemod_namelist,kick,l_aero,laav,laavmax,landhoskn0,landmod_namelist,&
 !$omp&  ldisp,ldtep,ldtns,lnb,lrotspd,m_days_per_month,m_days_per_year,mars,mcal_days_per_year,&
 !$omp&  meananom0,meed,mint,mintru,miscmod_namelist,mmr,mmrt,mocd,model,mpinfo,mpoti,mpotimax,&
