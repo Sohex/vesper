@@ -186,21 +186,31 @@ done
 # model around it, where the reduction order and the barriers are also in play.
 # Archive CLIM-44 is this model failing to be reproducible and it has been paid
 # for once.
+# FOUR RUNS, NOT TWO, and the number was bought. SHTns's default grid setup
+# BENCHMARKS its algorithm variants and keeps the winner, so which one it uses
+# depends on machine timing at startup and different variants round differently.
+# The runs then cluster: three identical, then a different one, then three of
+# those. Two runs agreeing said nothing, and it said nothing for long enough to
+# send a whole afternoon after a data race that did not exist -- the model was
+# nondeterministic on ONE thread, which no race explains. shtns_setup asks for
+# SHT_QUICK_INIT now, which skips the benchmark.
+REPEATS=4
 echo
-echo "==== NSHTNS=1 twice, 20 steps: must be BIT identical ===="
-if run_arm shipped 1 20 s20b; then
-    a="$(sha256sum "$WORK/run_s20/plasim_status"  | cut -c1-16)"
-    b="$(sha256sum "$WORK/run_s20b/plasim_status" | cut -c1-16)"
-    if [ "$a" = "$b" ]; then
-        echo "  [  ok  ] $a twice"
+echo "==== NSHTNS=1 $REPEATS times, 20 steps: must be BIT identical ===="
+first=""
+for r in $(seq 2 "$REPEATS"); do
+    if run_arm shipped 1 20 "s20r$r"; then
+        h="$(sha256sum "$WORK/run_s20r$r/plasim_status" | cut -c1-16)"
     else
-        echo "  [ FAIL ] $a then $b: the SHTns path is not reproducible"
+        echo "  [ FAIL ] repeat $r produced no restart"; rc=1; continue
+    fi
+    [ -z "$first" ] && first="$(sha256sum "$WORK/run_s20/plasim_status" | cut -c1-16)"
+    if [ "$h" != "$first" ]; then
+        echo "  [ FAIL ] $first then $h at repeat $r: not reproducible"
         rc=1
     fi
-else
-    echo "  [ FAIL ] the second run produced no restart"
-    rc=1
-fi
+done
+[ -n "$first" ] && echo "  [  ok  ] $first, $REPEATS runs" 
 
 echo
 echo "==== the control, spectral filter dropped: must NOT agree ===="
