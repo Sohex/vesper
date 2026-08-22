@@ -2940,3 +2940,82 @@ The values are Earth calibrations under a solar spectrum and do not transfer to
 a K dwarf. The FORM and the magnitude argument do, and both are orthogonal to
 the spectral reweighting PHYS-14 already did -- this is a separate axis, not a
 correction to that one.
+
+
+## 38. The leaf-to-canopy bound is asserted, and it is not one-signed
+
+*Read 2026-08-22. ClimaLand's PFT table carries a quantity this project's leaf
+dataset does not, and it turns out to decide the sign of an assumption
+`analysis/vegetation_albedo.py` currently states without argument.*
+
+### 38a. What the PFT table is
+
+`src/standalone/Vegetation/pfts.jl` is a covarying trait registry of the kind
+PCAR-5 and WET-5 describe, and worth noting for its shape alone: a
+`pft_param_list` naming every parameter a PFT must define to be valid, each
+value carrying its literature source inline, with the sources listed at the top
+of the file. Sixteen parameters spanning canopy radiative transfer, conductance,
+photosynthesis and plant hydraulics, `rooting_depth` among them.
+
+Its leaf optics are FOUR numbers per class, not two: reflectance AND
+TRANSMITTANCE in each of PAR and NIR. CLM5.0 Table 2.3.1, three distinct sets:
+
+| class | a_PAR | a_NIR | t_PAR | t_NIR | t_NIR/a_NIR |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| needleleaf | 0.07 | 0.35 | 0.05 | 0.10 | 0.286 |
+| broadleaf tree | 0.10 | 0.45 | 0.05 | 0.25 | 0.556 |
+| grass / crop | 0.11 | 0.35 | 0.05 | 0.34 | **0.971** |
+
+Grass transmits nearly as much near-infrared as it reflects.
+
+As a cross-check, this project's leaf band pair from 553 ECOSTRESS spectra,
+`k25v_band1 = 0.1244` and `k25v_band2 = 0.3738`, sits comfortably inside the
+reflectance columns. The levels agree; the transmittances have no counterpart
+here.
+
+### 38b. Why the missing column decides a sign
+
+`analysis/vegetation_albedo.py:33-35` states: "A canopy treatment would give a
+smaller ratio than a leaf one, so the leaf ratio UPPER-bounds the correction",
+and the bracket runs from no correction to the leaf ratio on that basis. No
+argument is given for the direction.
+
+Canopy albedo depends on the SINGLE-SCATTERING ALBEDO `omega = alpha + tau`, not
+on reflectance alone. A leaf that transmits strongly in the near-infrared raises
+`omega_NIR` without raising `omega_PAR`, so the canopy retains more of its NIR
+albedo relative to PAR than the leaf does -- and since a K dwarf moves flux INTO
+the near-infrared, that AMPLIFIES the correction at canopy level instead of
+diluting it.
+
+Taking this project's own band pair and CLM's transmittance ratios, through the
+semi-infinite isotropic-scattering similarity result
+`alpha_canopy = (1 - sqrt(1-omega))/(1 + sqrt(1-omega))`:
+
+| class | canopy k25v/sun | against leaf 1.1501 |
+| --- | ---: | --- |
+| needleleaf | 1.1379 | smaller, the stated bound holds |
+| broadleaf tree | 1.1848 | **larger, the bound fails** |
+| grass / crop | 1.2226 | **larger, the bound fails** |
+
+**The assertion holds for one of CLM's three classes and fails for the other
+two**, including grass -- which is the class where this project's own per-class
+table already shows the largest K-star shift, 0.303 to 0.333.
+
+### 38c. What this does and does not establish
+
+It does NOT give a canopy ratio. The similarity result is a sensitivity
+argument, not a canopy model: no leaf angle distribution, no clumping despite
+`Omega` sitting right there in the table, no soil background, no finite LAI and
+no direct/diffuse split. ClimaLand's actual `TwoStreamModel` has all of those,
+and the transmittances are an Earth calibration besides.
+
+What it establishes is narrower and enough: **the sign of the leaf-to-canopy
+correction is not determined by leaf reflectance alone**, so an unqualified
+"a canopy treatment would give a smaller ratio" is not supported, and the upper
+end of the bracket may not be an upper end. Settling it needs leaf
+transmittance, which a reflectance library does not carry -- a data gap, not a
+derivation gap.
+
+This lands on BIO-18, which is deriving tree and grass endmembers separately.
+The class-dependence above is precisely along that split, which makes the
+separate treatment more necessary than the row currently argues.
