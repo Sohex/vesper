@@ -1766,3 +1766,59 @@ parameterisations shipped with their constants, so the bracket over scheme
 choice is available rather than needing to be constructed. The redox dependence
 matters here specifically, because OCN-13 also asks for anoxia and a redox
 ledger, and these three fractions are where those two requirements meet.
+
+
+## 21. SOCRATES exposes the planet, not just the star
+
+*Read 2026-08-22 from `references/socrates/src/modules_core/rad_ccf.F90`.*
+
+Section 8b established that SOCRATES treats the STAR as a data file. It treats
+the PLANET the same way, and this is the only external code read today that gets
+that structurally right.
+
+Six constants are declared `PROTECTED` rather than `PARAMETER`, so they are
+read-only to users of the module and writable within it:
+
+    planet_radius   = 6.37E+06
+    grav_acc        = 9.80665
+    mol_weight_air  = 28.966e-03
+    r_gas_dry       = 287.026
+    cp_air_dry      = 1.005e+03
+    repsilon        = 18.0153 / 28.966
+
+And the module contains `set_socrates_constants(iu_nml)`, whose own comment
+reads "Read planet-specific constants from namelist":
+
+    NAMELIST /socrates_constants/ &
+      planet_radius, mol_weight_air, grav_acc, r_gas_dry, cp_air_dry
+    READ(NML=socrates_constants, UNIT=iu_nml)
+    repsilon = molar_weight(ip_h2o)*1.0E-03_RealK / mol_weight_air
+
+**`repsilon` is derived after the read rather than exposed**, so the water to air
+molecular weight ratio cannot drift out of consistency with the air molecular
+weight somebody set. That is the discipline `config/planet.yaml` already uses,
+where mass follows from gravity and `derive()` raises if the two disagree,
+arrived at independently.
+
+Against everything else read today the contrast is sharp. CLIMBER-X puts Earth's
+radius, gravity and even the Sun's visible share in a compile-time `parameter`
+block, section 7a. GOLDSTEIN hardcodes `rsc` and `gsc` inside a subroutine and
+derives four scales from them, section 10e. Isca uses a runtime namelist for
+most of it and still let `RADCON` through as a `parameter`, section 9d. SOCRATES
+is the one that exposes the set, protects it from outside writes, and derives
+the dependent member.
+
+For this planet only two of the five actually move. Radius goes to 7.645e6 and
+gravity to 12.81; `mol_weight_air`, `r_gas_dry` and `cp_air_dry` are essentially
+Earth's already, because this atmosphere is 78 percent N2, 21 percent O2 and
+0.93 percent Ar, which is Earth's composition to three figures.
+
+**So CLIM-61's candidate is now well-supported on five separate axes**, none of
+which needed a run to establish: it covers every gas this world has, section
+15a; it costs about an order of magnitude over the present scheme and roughly a
+third of ExoRT, sections 8b and 15b; the stellar spectrum is a BT-Settl file and
+the reweight is 46 lines, section 8b; the host-model interface is bounded at
+3,452 lines by Isca's existing integration, section 9c; and the planetary
+constants are a namelist with derived consistency. What remains genuinely open
+is the cost per timestep in this model, which is the measurement the row is
+ordered after the SHTns work to make.
