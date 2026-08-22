@@ -81,6 +81,14 @@ is a finding with no home, which is the condition this exists to catch.
 | 45 | SICOPOLIS: gravity enters at four different powers, and two of them are hidden | `CLIM-62`, `CLIM-63`, `GRAV-6` |
 | 46 | The rest of cGENIE: six statements of the year, one of them in bash | `BVOC-6`, `OCN-3` |
 | 47 | CLIMBER-X's geography module, at line level -- and two places this project is ahead | `GRID-2`, `OCN-11` |
+| 48 | Methane lifetime is computable here, through one of two doors | `BVOC-6`, `WET-10` |
+| 49 | Two clean negatives, one real defect, and a citation that was wrong | `GRID-3`, `MIN-3` |
+| 50 | What representing the aerosol indirect effect would actually require | `CLIM-64` |
+| 51 | SPITFIRE has a mechanism under a prescribed ignition field. BLAZE has neither. | `FIRE-1`, `FIRE-6` |
+| 52 | Inundation is one array and two scalars, and gravity cancels out of the discharge | `ANUT-6`, `SURF-7`, `WET-2` |
+| 53 | Landlab: the router is the wrong one, the lake mapper is the right one | `GRAV-6`, `HYD-21` |
+| 54 | In one model a patch is a sample; in the other it is a place | `BIO-29`, `DEMO-1`, `PLHY-6` |
+| 55 | A conservation identity that can fail, and a default this project inverts | `SPAT-11` |
 
 ## 1. The two families do not overlap, and this stack is in the gap
 
@@ -4108,3 +4116,770 @@ project has not hit yet only because discharge stops early.
   declining it.
 - **Reef habitat from seabed slope and photic-zone hypsometry** -- a biosphere
   hook with no project analogue.
+
+
+## 48. Methane lifetime is computable here, through one of two doors
+
+*Read 2026-08-22 from `references/caaba-mecca/`. The three load-bearing claims
+below were re-read directly. Sections 42a and 46a established that neither
+CLIMBER-X nor cGENIE has any chemistry -- both carry a prescribed scalar
+lifetime. This tree computes one.*
+
+### 48a. The chain is real, and there is no prescribed lifetime anywhere
+
+`mecca/gas.eqn` carries 2,323 gas-phase reactions, 414 of them photolysis. The
+methane sink is not a parameter:
+
+    <G4101> CH4 + OH  = CH3 + H2O : 1.85E-20*EXP(2.82*LOG(temp)-987./temp)
+    <G2111> H2O + O1D = 2 OH      : 1.63E-10*EXP(60./temp)
+    <J1001a> O3 + hv  = O1D + O2  : jx(ip_O1D)
+
+So the chain runs stellar UV -> J(O1D) -> O(1D) -> OH -> CH4 loss, with O(1D)
+quenching by N2 and O2 setting the OH yield per photolysis event. **Nothing in
+the tree computes a methane lifetime**; it must be derived offline as
+`1/(k_G4101 * [OH])` from run output. That is the contrast with the other two
+models, and it is the point.
+
+The bands that matter for J(O1D) are 289.87 to 337.5 nm -- **exactly where a K
+dwarf is most depressed against the Sun.**
+
+### 48b. JVAL cannot take a stellar spectrum, and the reason is not the runtime
+
+The obvious hook fails. JVAL's runtime band fluxes are hardcoded solar arrays
+interpolated between solar maximum and minimum, and there IS a 16-element
+override, but the CAABA box calls the routine without it.
+
+**The blocking finding is one level deeper.** `tools/jvpp/jvpp_step2.f90:64` holds
+a 176-element `flx` PARAMETER, the ATLAS-2 solar spectrum, and it is the WEIGHT
+in the effective-cross-section integration that generated every `sig_*`
+coefficient in the 19,393-line `messy_jval_jvpp.inc`. Those coefficients are
+solar-flux-weighted band averages. Substituting a star means replacing that
+array and re-running the JVPP preprocessor to regenerate the include file --
+mechanical, but not a configuration change. JVAL's grid also starts at 178.6 nm,
+so anything below that is outside it entirely apart from an explicit
+Lyman-alpha treatment.
+
+### 48c. CLOUDJ is the tractable door, with a caveat that must not be dropped
+
+`input/cloudj/FJX_spec.txt` is a plain text file whose `SPhot` block is the solar
+photon flux in 18 bins, effective wavelengths 187 to 599 nm, read at
+initialisation. **Substituting a K2.5V spectrum is editing eighteen numbers.**
+CAABA accepts `photrat_channel = 'cloudj'`.
+
+**But whether CLOUDJ has ever been exercised in this release is not determined
+from source.** There is no `caaba_cloudj.nml` in `nml/` and no CLOUDJ entry in
+`testsuite/`, where RADJIMT and TRAJECT both have one. That is a build check
+before anything is planned around it, not an assumption to carry.
+
+Two second-order corrections ride along: the Rayleigh cross sections in the same
+file are described as flux-weighted and so also carry a solar weighting, and
+JVAL's Lyman-alpha treatment is a fit at a WAVELENGTH rather than over a
+spectrum, so it transfers given the right flux at 121.6 nm -- which for a K dwarf
+is not a scaling of the bolometric flux.
+
+### 48d. Gravity is in the pressure-to-column conversion
+
+`messy_jval.f90:1544`:
+
+    REAL, PARAMETER :: sp = N_A/(M_air_SI*g)*1.E-4   ! [part./cm^2 * 1/Pa]
+
+Overhead column density is `P/(m*g)`, so using Earth's 9.80665 on a world at
+12.81 makes **every O2 and O3 slant column 1.306x too large**, in every band,
+independently of the spectrum. `messy_jval.f90:1231` carries the same constant
+into layer thickness. This must be corrected whichever photolysis door is taken.
+
+### 48e. What a box model can and cannot answer
+
+CAABA is one well-mixed box. There is no transport, no vertical structure -- the
+19-level Earth standard atmosphere it is handed exists only to compute overhead
+columns, and one level is then selected by nearest pressure -- and temperature,
+pressure and humidity are constant through a standard run. The single spatial
+parameter exists solely to divide surface emission fluxes.
+
+So it answers: **what is the local chemical destruction rate of CH4 given this
+temperature, this humidity, this ozone column, this stellar spectrum and these
+ambient precursor levels.** That is precisely the number WET-10 lacks. It does
+NOT give a global lifetime, which needs that local rate weighted over the
+atmosphere's mass and OH distribution -- an offline integration over ExoPlaSim's
+climatology using a grid of box results.
+
+Beyond the spectrum, a Vesper run needs source edits rather than namelist
+entries for: the ozone column profile, the surface albedo (hardcoded 0.07, sea
+surface, clear sky), and any wetland CH4 emission flux, which must be added as a
+scenario routine. The diurnal cycle is `COS(2*PI*dayreal)` with `dayreal` in
+units of a hardcoded 86400 s, the declination carries a 365.25-day year, and
+obliquity is a hardcoded 23.441 degrees.
+
+## 49. Two clean negatives, one real defect, and a citation that was wrong
+
+*Read 2026-08-22. Both halves of this probe were set up to be allowed to come
+back negative, and both partly did.*
+
+### 49a. The citation was wrong, and it was mine
+
+`paperfetch` returned a four-page 2002 ISPRS conference paper on Mars
+cartographic constants when asked for Archinal et al. (2018), and **it was filed
+in `references/INDEX.md` under the 2018 citation**. Archinal is a co-author of
+both, which is presumably how it went astray. That is failure-mode class 9 --
+a claim taken from a citation rather than from the paper -- caught at the file
+rather than at a number, and only because an agent checked `pdfinfo` rather than
+trusting the filename. **A re-fetch of the same DOI returned the same wrong paper
+a second time**, so this is a reproducible `paperfetch` failure on that DOI and
+not a transient one. The record is corrected, and the real report was then
+supplied by hand.
+
+**What the real report adds**, and it is the part that bears on 49c: the general
+pole definition -- "the north pole is that pole of rotation that lies on the
+north side of the invariable plane of the solar system" -- the prime meridian as
+an ANGLE rather than a feature, `W` measured easterly from the node to the
+meridian point, with the explicit provision that "for planets or satellites with
+no accurately observable fixed surface features, the expression for W defines the
+prime meridian", which is exactly a simulated world's case. And the rule that
+settles the pairing: **"If W increases with time, the planet has a direct (or
+prograde) rotation, and, if W decreases with time, the rotation is said to be
+retrograde."**
+
+What the 2002 paper does carry is worth having: the IAU planetocentric and
+planetographic definitions verbatim, the point that the two are **paired rather
+than independently chosen**, and the rule that decides the pairing --
+planetographic longitude is positive WEST for a prograde rotator and positive
+EAST for a retrograde one, planetocentric is always positive east, and the mixed
+pairing is called out as not IAU-approved.
+
+### 49b. Rule 3's failure was an indexing bug, and the conventions would have given one thing
+
+Asked which IAU convention would have prevented the failure rule 3 describes,
+the answer is **essentially none**. Both sides of that boundary are positive-east,
+right-handed, same cell order; they differ only in where the axis label starts,
+and `lib/gridding.py` already refuses when the latitude axes differ numerically
+at all. Planetocentric-versus-planetographic, east-versus-west, and the pole
+convention are all irrelevant to it.
+
+The one partial hit is real though narrow: **a 180-degree label offset IS a
+prime-meridian disagreement**, and the paper's warning generalises -- "any change
+in this value will result in a change in longitude of any point on the planet".
+Had both components been required to declare a prime-meridian origin beside
+their longitude arrays, the offset would have been declared rather than
+discovered as zero matched cells. That makes it legible; it does not stop the
+join. Rule 3's own remedy -- map by index, share one coordinate source -- is
+strictly better, because it removes the join rather than documenting it.
+
+### 49c. Two things this world has never decided
+
+- **Rotation direction is not established.** `config/planet.yaml` carries a
+  signless `rotation_hours: 30.0`, and nothing anywhere says prograde or
+  retrograde. The model runs it prograde by omission, because a positive
+  rotation period becomes a positive rotation speed. **And by the convention
+  above, rotation direction is what decides whether a planetographic system is
+  positive-west or positive-east** -- so this world cannot answer a basic
+  cartographic question about itself because the spin was defaulted rather than
+  chosen.
+- **The prime meridian is drawn and never defined.** `maps/README.md` says the
+  prime meridian is drawn heavier; nothing says which meridian it is or what
+  fixes it. On a world with no Airy-0 that is a free choice -- and the IAU's
+  provision for exactly that case is that the expression for `W` DEFINES the
+  meridian rather than being corrected to fit a feature. So the declaration
+  available here is a phase, not a landmark, and the Working Group's standing
+  emphasis is that once chosen it does not change.
+
+### 49d. Prospectivity: the vocabulary charge does not stick, and a real defect does
+
+Weights of evidence needs a point set of known deposits and **refuses to run
+without one** -- the toolbox raises before reaching any arithmetic, because the
+prior is always `D/T`. Every validation tool in the suite takes deposit points as
+a required parameter. And there is no unsupervised prospectivity path in the
+toolbox at all: fuzzy overlay was removed and handed to Esri, leaving reclassify
+and PCA, neither of which produces a favourability map.
+
+**The tension this probe was testing does not exist**, because `minerals/` never
+reached for the supervised method. It is a hand-weighted multiplicative rule
+stack normalised to 0-1: a maximum over per-lithology host weights, then
+`(1 + w*x)` modifiers, then boolean gates. An exhaustive search of `minerals/`
+for supervised vocabulary -- prior, posterior, contrast, training, AUC -- returns
+nothing. The word it uses is **favourability**, which is the correct term for an
+unsupervised index.
+
+**One real defect, and it is worth a row.** `normalise()` divides by
+`field[land].max()`, a single cell's value. `minerals/README.md` states that
+comparing one deposit type against another says nothing, which covers the
+cross-type case. It does not cover the temporal one: **a new build producing one
+unusually favourable cell rescales the entire field downward**, so the numbers
+are not comparable across builds either. The README rejects quantiles on the
+grounds that clipping the top would flatten exactly the cells the layer exists to
+identify -- a good argument about the top of the distribution that does not
+address the stability of the divisor.
+
+**And one honest structural point.** ArcSDM's entire validation branch requires
+presences, so these fields are **untestable within this world by construction** --
+which meets this project's own standard that a check with no possible wrong
+answer is not a test. The substitute is the `grounding` attribute travelling on
+each variable, which grades the provenance of the RULE rather than the
+correctness of the FIELD. That is a good move, and no document in `minerals/`
+draws the distinction out loud.
+
+## 50. What representing the aerosol indirect effect would actually require
+
+*Read 2026-08-22 from `references/pysdm/`, a blind-spot probe with no row naming
+it. Nothing here was executed; PySDM is not installed in this project's venv.*
+
+### 50a. The aerosol side is four numbers per mode
+
+The condensation solver reads exactly four per-particle attributes, and
+composition is not one of them -- densities, molar masses and dissociation
+numbers are collapsed to a single hygroscopicity kappa per mode before the
+simulation starts. So an offline aerosol product would need to carry, per mode:
+
+| quantity | note |
+| --- | --- |
+| number concentration | becomes multiplicity after sampling |
+| median dry radius | lognormal is what both activation examples use |
+| geometric standard deviation | |
+| **kappa** | **the only compositional information the solver ever sees** |
+
+Mineral dust, sea salt and sulfate differ only through kappa and their size
+distributions. That is a far smaller demand than "represent aerosol
+microphysics" suggests, and this project's offline aerosol products could carry
+it.
+
+### 50b. The input that is not available
+
+**Updraft velocity is prescribed and never derived.** There is no buoyancy
+closure; the parcel environment takes `w` as a given. That is the hard blocker,
+because an ExoPlaSim grid cell has no resolved updraft and nothing else in the
+chain generates supersaturation.
+
+And the cheap door is shut: **PySDM implements no Twomey and no
+Abdul-Razzak-Ghan.** A search for Twomey returns nothing, and the
+Abdul-Razzak-Ghan directory is a reproduction TARGET -- hardcoded arrays
+digitised from the paper's figures, used to check the super-droplet result
+against. Activation is emergent from condensation, not parameterised.
+
+The Koehler algebra itself is trivial and closed-form, and a product exists that
+counts the number fraction activating below a given peak supersaturation. **The
+missing piece is not the algebra, it is that peak supersaturation** -- obtainable
+here only by integrating the parcel, and exactly what Abdul-Razzak-Ghan
+parameterises. Anyone pricing this should price acquiring an ARG implementation,
+not this tree.
+
+### 50c. It does reach albedo, and stops one step short of being usable
+
+The chain runs further than expected: effective radius from volume moments,
+liquid water path, optical depth `1.5*LWP/(rho_w*r_eff)` after Stephens (1978),
+and albedo `((1-g)*tau)/(2 + (1-g)*tau)` after Bohren (1987), with asymmetry
+parameter 0.85. It is opt-in; both optics default to null.
+
+**There is no spectral dependence anywhere in it, and no solar zenith angle.**
+Stephens as coded is the geometric-optics limit with no wavelength; Bohren is
+conservative scattering with no absorption and no zenith argument. For a project
+that has just established a K dwarf shifts 0.382 of its flux below 0.75 um
+against the Sun's 0.537, and that zenith dependence is worth 0.30 in snow albedo,
+a cloud albedo with neither is not the end of the chain -- it is one step short
+of it.
+
+Retargeting the physics is cheap: constants are a merged dict with an unknown-key
+guard, and gravity appears at first power in three places only. The awkward
+Earth-specificity is elsewhere -- liquid droplet terminal velocity is an
+empirical fit in radius with **no gravity term to rescale at all**, though
+ventilation defaults to neglected so it does not touch activation.
+
+## 51. SPITFIRE has a mechanism under a prescribed ignition field. BLAZE has neither.
+
+*Read 2026-08-22 from `vendor/lpjml/src/spitfire/`, with `vendor/lpj-guess/modules/blaze.cpp`
+and `simfire.cpp` read for the comparison FIRE has never had.*
+
+### 51a. Lightning is a prescribed Earth climatology, and it is the first blocker
+
+Lightning ignitions are read from an input file -- the default is literally named
+`lightning_fixed` -- and interpolated to daily if monthly. **There is no lightning
+parameterisation anywhere in the tree**; the coupled-model path where a live
+field would arrive is commented out. Its only use is one line multiplying by two
+Earth-tuned constants whose product is 0.008, one of which is Earth's
+cloud-to-ground flash fraction.
+
+Replaceable, but nothing in LPJmL will generate it. **A Vesper lightning field
+has to come from ExoPlaSim convection or a standalone parameterisation, and that
+is the FIRE row to open first.** The human-ignition half is clean: it goes to
+zero at zero population density.
+
+### 51b. Gravity has no entry point at all, which is a different finding from the ones before it
+
+Rate of spread is Rothermel and Albini, and the wind factor, packing ratio,
+reaction intensity and heat sink are all coded faithfully. **Rothermel's slope
+term is not implemented** -- the spread uses `(1 + phi_wind)` alone -- and a
+search for gravity across the whole of LPJmL returns nothing.
+
+So 12.81 m/s2 changes nothing in the coded spread. Unlike GRAV-6's glacial term
+or GRAV-8's snow density, **this is not a constant to correct but a term that is
+absent**, and a gravity-aware fire scheme would mean adding slope physics rather
+than rescaling anything.
+
+The wind input has no stated height and is reduced by a single per-PFT factor of
+0.4, which is an Earth 10 m-to-midflame reduction folded into one number -- so
+there is no Earth boundary-layer formula to port either, only an Earth-tuned
+scalar. With zero vegetation cover the input wind is used unreduced.
+
+### 51c. About twenty per-day hardcodes, and the worst cluster is dead code
+
+The dead-fuel moisture path is genuinely portable: it reads a real prognostic
+litter water pool, and the 1/10/100/1000-hour class labels are naming only, with
+no timescale in the code.
+
+The fire danger index is not. The Nesterov accumulator adds
+`tmax*(tmax-(tmin-4))` **once per model day with no rate constant**, so its
+magnitude scales directly with days per year -- and this world has about 145
+solar days of 30 hours against Earth's 365 of 24, each drawn from a wider
+diurnal range. The single knob absorbing that is an Earth-fitted `alpha_fuelp`.
+Around it sit a 90-day window, a 5-day fire queue, a 10-day precipitation mean
+and a 21-day running mean.
+
+**The alarming-looking cluster is free to delete.** The Canadian FWI block
+carries four twelve-element month-indexed day-length tables and four latitude
+branches -- and `getfwi` is **diagnostic output only**. Nothing in the fire
+behaviour reads it. That is the largest concentration of Earth astronomy in the
+module and it can go without touching a single result.
+
+One hardcode worth moving rather than deleting: the fire danger index divides by
+Earth sea-level pressure as a literal. This world is 1 bar, so the error is about
+1.3 percent -- but it is a place where a `config/planet.yaml` value belongs.
+
+### 51d. BLAZE is the harder blocker, not the easier one
+
+This is the comparison FIRE has never had, and it does not favour the scheme this
+project already has.
+
+**BLAZE has no ignition model whatsoever.** Its burned area is a single
+regression: a biome coefficient times a vegetation-cover power times a
+Nesterov-maximum power times an exponential in population density, then scaled by
+an observed monthly burned-area climatology read from a file. The biome
+coefficients are fitted to Earth's satellite fire record, the population density
+is HYDE Earth human population history, and the risk climatology is GFED.
+
+So the comparison is: SPITFIRE needs **one input field replaced** and keeps a
+mechanistic spread model underneath; BLAZE needs an Earth biome map, an Earth
+population history and an Earth burned-area climatology, and **has no mechanism
+to fall back on** when they are absent. Its rate of spread is one line.
+
+What BLAZE has that SPITFIRE lacks is worth recording anyway: a Keetch-Byram
+drought index and McArthur danger index as a genuinely different formulation,
+with a stated 10 m wind height; and biome-specific empirical survival curves
+instead of one mortality equation, each fitted to a named Earth region.
+
+One discrepancy worth a row if the two are ever compared numerically: **their
+Nesterov reset conditions are different quantities** -- BLAZE resets on the
+diurnal temperature range falling below 4, SPITFIRE on the daily minimum falling
+below 4 -- while their accumulation terms agree.
+
+
+## 52. Inundation is one array and two scalars, and gravity cancels out of the discharge
+
+*Read 2026-08-22 from `references/cama-flood/`, plus the methods of IMAGE-GNM and
+Global NEWS 2, whose `references/INDEX.md` rows can now go from held to read.*
+
+### 52a. The sub-grid representation, which is smaller than expected
+
+The whole of CaMa-Flood's floodplain representation is **one precomputed array
+per cell**: `fldhgt`, a ten-bin CDF of **height above the nearest drainage**
+within each unit catchment, stored at each decile of flooded AREA. Bin three is
+the flood depth when 30 percent of the catchment is flooded.
+
+At initialisation that height CDF becomes a storage-versus-level curve --
+ten nested prisms of constant width increment, each with its own lateral slope.
+At runtime the **prognostic state is two scalars**, channel storage and
+floodplain storage, both in double precision even in single-precision builds so
+the budget closes. Depth, flooded fraction, flooded area and water surface
+elevation are all diagnostic, recovered each step by walking up the storage bins
+and solving a quadratic for the partial width in the bin the water reaches.
+
+The closure that makes it work is that channel and floodplain share one water
+surface elevation, so there is no separate floodplain level to carry.
+
+**The cost is not the physics, it is the preprocessing.** `fldhgt` is not
+generated anywhere in the CaMa tree -- it comes from an external upscaling
+package operating on a high-resolution DEM. Adopting this here means **writing
+the HAND-CDF preprocessor against the Voronoi mesh ourselves.** And HAND does not
+exist in this project at all: `build_hydrography.py` already computes level, area
+and volume curves at 128 levels, but per CLOSED BASIN from the priority-flood
+ordering. That is a lake curve. CaMa's is per routing cell and keyed on height
+above the channel. Different quantity, same word.
+
+### 52b. Gravity cancels from steady-state discharge
+
+The momentum equation is local inertial after Bates et al. (2010), semi-implicit
+in friction, and `PGRV` is a **namelist parameter defaulting to 9.8** -- so
+setting this world's gravity is one line, which is the good case.
+
+But the more useful result is what that buys. Setting the flux at the next step
+equal to the current one collapses the equation to `q = (1/n) h^(5/3) S^(1/2)` --
+**Manning, with gravity gone entirely.** For a given depth, slope and roughness,
+steady-state discharge here is identical to Earth's. Gravity only sets the
+gravity-wave celerity, so it governs the transient and the stable timestep and
+nothing else. The kinematic-wave alternative has no gravity term at all.
+
+For SURF-7 that is decisive: **a discharge mask needs no gravity correction.** A
+flood-duration or wave-timing product does.
+
+The timestep is `alpha * dx / sqrt(g*h)` with alpha 0.7, so substeps scale as
+`g^(1/2)` and this world costs about 14 percent more of them at the same depths.
+Depth, not gravity, drives that cost.
+
+Two flaws worth carrying. **There are two gravities in the model**: the namelist
+`PGRV = 9.8` for the routing, and a separate hardcoded `9.80665` parameter in the
+heat module used for frictional heating. And the **sediment scheme is
+inconsistent under gravity**: shear velocity goes as `g^(1/2)`, rising 14 percent
+here, against a critical-shear curve that is a fixed function of grain diameter
+with no gravity in it at all. Entrainment would be spuriously enhanced unless
+that curve is re-derived.
+
+The tracer scheme is a pure passive advector with no reaction term: **transport
+free, retention not at all.**
+
+### 52c. The two nutrient models fail differently, and only one piece is portable
+
+**IMAGE-GNM** has the right shape for a routed world. Land to water is a soil
+budget rather than an export coefficient, and in-water retention is nutrient
+spiralling:
+
+    R = 1 - exp(-vf / HL),   HL = D / tau,   tau = V / Q
+
+That is **two numbers** -- 35 m/yr for nitrogen, 44.5 for phosphorus, applied
+identically to rivers, lakes, reservoirs and wetlands -- plus a temperature
+modifier on annual mean AIR temperature as a proxy for water. It also imposes a
+statistical Horton network for stream orders 1 to 5 inside every half-degree
+cell, which is the same problem this project has in reverse. **But it produces
+total N and total P only.** Speciation is named as future work.
+
+**Global NEWS 2** speciates -- DIN, DON, DIP, DOP, DOC, PN, PP, POC, TSS, which
+is exactly ANUT-6's dissolved and particulate split -- and has **no routing at
+all**: lumped basin-to-mouth export fractions, steady state, retained nutrients
+permanently lost. Its fitted coefficients were calibrated against 40 to 108 Earth
+basins, and **the numeric values are in Supplementary Tables not present in the
+PDF held here.**
+
+So the portable object is IMAGE-GNM's three equations, and they need volume and
+depth per cell -- **which means they need 52a's channel storage first. Retention
+has no representation to be wrong until transient storage exists.**
+
+## 53. Landlab: the router is the wrong one, the lake mapper is the right one
+
+*Read 2026-08-22. Landlab was acquired for GRAV-6 and does not serve it; this is
+what it does serve.*
+
+### 53a. `priority_flood_flow_router` cannot do what this project needs
+
+It is a thin wrapper over RichDEM, **raster-only and it raises on anything
+else**, and it **fills or breaches every depression**. There is no preserve list,
+no sink set, no terminal-sink mode. Closed-boundary nodes are excluded by being
+set to positive infinity before filling -- treated as a wall, the opposite of a
+sink -- and their cell area is zeroed.
+
+`hydrography/drainage.py` seeds its heap with preserved endorheic basin sinks and
+keeps them terminal. **The named-alike component does the opposite thing.**
+
+**The right comparisons are two other components.**
+`DepressionFinderAndRouter` accepts a user-supplied array of pit node ids and
+takes `reroute_flow=False`, which identifies depressions without routing through
+them -- sinks stay terminal -- and it runs on non-raster grids. `LakeMapperBarnes`
+is the pure-Python Barnes priority-flood, grid-agnostic except in D8 mode, and it
+carries the feature that matters most here: **`fill_surface` can be a different
+field from `surface`**, so the rock surface keeps its depression while a water
+level is written separately. It exposes lake volumes, areas, depths and outlets
+directly, and it seeds the flood only from fixed-value boundary nodes rather than
+the whole perimeter, raising if that set is empty. That is the peer for the lake
+solver, not the router.
+
+### 53b. Flow accumulation, checked a third time and correct
+
+Section 47d found CLIMBER-X accumulating local cell area per traversal, which is
+wrong, and confirmed this project's fork is right. Landlab is the third
+independent implementation and it is also correct: seeded with each node's own
+cell area once, traversed in descending depression-free elevation so every
+donor's own donors have already contributed, then a single transfer of the full
+upstream total.
+
+Three traps in it are worth knowing anyway, because they are silent. The sort
+array is a public field that is **only** filled by the depression-removal step,
+so constructing with depression updates off and calling the router yields an
+all-zeros traversal order and garbage accumulation with no error. The ordering
+guarantee rests on the epsilon fill being on; with exact ties on a flat, argsort
+order is arbitrary and a donor can be visited too early. And the field name it
+writes holds an elevation sort here, not the topological stack the default
+accumulator writes into that same name.
+
+### 53c. Flexure: gravity at one place, and the sign of its effect is not obvious
+
+The isostasy blind spot section 47g named has a cheap implementation here, and it
+is not a plate PDE -- it superposes analytic point-load Green's functions, with
+`kei(r/alpha)` in 2-D and a damped exponential in 1-D. Airy is a one-line
+short-circuit.
+
+**Gravity enters at exactly one place, the mantle specific weight, at power 1.**
+What propagates from that is worth stating carefully:
+
+| quantity | scaling | at 12.81 m/s2 |
+| --- | --- | ---: |
+| flexural parameter alpha | `g^-1/4` | 0.935x |
+| deflection per unit LOAD in newtons | `g^-1/2` | 0.875x |
+| **deflection per unit sediment or ice THICKNESS** | **`g^+1/2`** | **1.143x** |
+| Airy | gravity cancels exactly | 1.000x |
+
+The third row is the one that matters, because a load is a weight: heavier
+gravity makes a given thickness of ice or sediment depress the bed **more**, not
+less, even though the response per newton falls. The flexural wavelength shrinks.
+
+Two defects to know before copying the pattern: the 1-D class omits the cell-area
+factor the 2-D path applies, so its result is off by a factor of the grid
+spacing; and the gFlex wrapper's step method calls a name that does not exist, so
+it raises on every call.
+
+### 53d. Where gravity hides in the erosion laws
+
+**Gravity appears literally in one of the fluvial components and is absorbed into
+the erodibility coefficient in the rest.** For stream power in all its variants,
+that coefficient is `K_sp`, whose docstring in every file says the units depend on
+the area exponent -- so **a gravity rescaling of K is only meaningful at fixed
+m**, and the shear-stress derivation that would carry gravity is done offline
+with only the exponents arriving.
+
+Two nuances worth having. `GravelBedrockEroder`'s core transport law is
+dimensionless and **needs no gravity**; gravity survives only in two diagnostic
+utilities the step method never calls, where the source states the power outright
+as `g^-1/2`. And `SedDepEroder` is the only component that takes gravity as a
+parameter, carrying it at seven different powers from `g^-1` through `g^+1`,
+while warning in its own docstring that it is under active development.
+
+### 53e. Grid support is raster-first in practice
+
+Architecturally grid-agnostic; in practice not. The graph layer treats Voronoi as
+first class and supplies the dual topology components would need, but component
+files mention the raster grid 92 times against 4 for the Voronoi grid, and the
+raster gets specialised gradient and mapping implementations the irregular grids
+lack. Seven components raise on non-raster outright, including the priority-flood
+router and gFlex; several more will simply fail on a missing grid-spacing
+attribute.
+
+One trap the documentation actively causes: hex, radial and framed-Voronoi grids
+are **not** Python subclasses of the Voronoi grid -- they are siblings sharing a
+graph-level ancestor -- while the published inheritance table says otherwise and
+the FAQ recommends an isinstance idiom that breaks on exactly that. Three
+components already carry that idiom with a dead Voronoi branch.
+
+
+## 54. In one model a patch is a sample; in the other it is a place
+
+*Read 2026-08-22 from `references/fates/`, compared against `vendor/lpj-guess/`.
+DEMO has six open rows of six issued and had never consulted a second
+demographic model.*
+
+### 54a. The structural difference, and everything follows from it
+
+**FATES patches are area-tracked places**: each carries an area in square metres
+summing to a notional 10,000 m2 site, an age, and a land-use label, and the sum
+is enforced. Disturbance creates a new patch of age zero out of area contributed
+by donors, and similar patches are fused back on a PFT-by-size biomass profile.
+
+**LPJ-GUESS patches are replicate Monte Carlo samples** with no area member at
+all -- the header says so outright, "replicate patches are required in each stand
+to accomodate stochastic variation" -- aggregated by an unweighted mean over the
+patch count. They are created once at stand construction and never created or
+destroyed. Disturbance is a memoryless Bernoulli draw per patch per year that
+kills all vegetation and resets the patch age.
+
+So FATES holds a real distribution over successional age and LPJ-GUESS holds an
+ensemble. **And the shipped CNP configuration sets `npatch 1`**, which means the
+ensemble has one member: one patch, one stochastic disturbance trajectory, with a
+100-year disturbance interval. Worth checking against what
+`biosphere/scripts/build_lpj_driver.py` actually writes, which was not
+determinable here.
+
+Two consequences DEMO should carry. FATES separates **rate** from **area** and
+**density loss** from **gap creation** -- with the default disturbance fraction
+of 1.0, a canopy tree's death produces no density loss at all, only new disturbed
+area, while an understory death is pure density loss. That distinction is
+unrepresentable in the current fork and it sits upstream of standing biomass.
+And canopy layer is cohort STATE that changes the physics, which is what makes
+that distinction expressible.
+
+### 54b. The calendar exists twice, and the two are mixed inside one process
+
+`FatesConstantsMod.F90:299` sets `days_per_year = 365.00` as a compile-time
+parameter, its own comment saying "assume HLM uses 365 day calendar". The host
+also supplies `hlm_days_per_year` at runtime. **The compile-time constants are
+used 146 times across the model; the runtime ones 21 times.**
+
+They meet inside a single physical process:
+
+- cohort density is decremented using the **runtime** value
+- the litter deposited by exactly those dead plants uses the **compile-time**
+  value
+
+On Earth the two agree exactly. On a 145-day year the number of plants killed and
+the litter they produce differ by 365/145. That is a mass-balance defect that
+cannot appear on the calendar it was written for.
+
+**And there are exactly two latitude branches in the whole model, both in cold
+phenology, both unreachable here.** They reset the chilling-day counter on day
+270 and the growing-degree-day counter on day 181. A ~145-day year never reaches
+either, so **the counters are never reset** -- they do not merely give wrong
+answers, they accumulate without bound. The growing-degree-day threshold itself
+is an empirical fit to Earth satellite phenology, accumulated per day above a
+hardcoded 0 degC base, so a short year accumulates a fraction of Earth's total
+against an unchanged threshold.
+
+### 54c. The question neither model can answer about itself
+
+Every mortality and turnover rate in both models is **per year, and the year is
+the orbit**. Background mortality of 0.014/yr is a residence time of about 71
+orbits, whatever an orbit is. On this world's 182.8-Earth-day year that is half
+the Earth residence time, so **a naive port halves standing woody biomass through
+the mortality term alone**, before any productivity difference enters.
+
+**Whether these rates should be held per orbit or per unit time is a modelling
+decision, and neither model's parameter file can express it, because on Earth
+the two coincide.** That is the genuinely new question this comparison produces,
+and it applies to background mortality, the cold-stress scalar, seed decay, and
+every tissue turnover time.
+
+The same class of finding as section 46b's six statements of the year, arriving
+from a completely different direction: not a constant stated inconsistently, but
+a unit that is ambiguous by construction.
+
+### 54d. Two smaller things that connect to earlier findings
+
+`grav_earth = 9.8` appears in exactly two places, and one of them is plant
+hydraulics, as the gravitational head of the plant water column. At 12.81 m/s2
+that term rises 30.7 percent, which raises the fractional loss of conductivity at
+a given soil water potential and therefore raises hydraulic-failure mortality --
+**effectively capping tree height**. That is section 41c's hydraulic ceiling
+arriving as a mortality term rather than as an allometric limit, in an
+independent model.
+
+And `wm2_to_umolm2s = 4.6` is the same Earth-solar-spectrum photon conversion
+that BIO-25 owns on land and section 40d found as the marine `par_bio_c0_I`.
+Three models, three instances, one constant.
+
+### 54e. What it cannot buy
+
+FATES cannot be run here. It is not a DGVM with a climate driver; it is a canopy
+and demography module requiring a host land model to supply per-layer soil
+hydraulic state, canopy-air vapour pressures, vegetation temperature and a
+transpiration flux from someone else's canopy solver. Adopting it means adopting
+CLM or ELM.
+
+The value is comparative, and it is real: **the DEMO rows that should change
+shape are the ones about disturbance representation and canopy-layer-dependent
+mortality, not the ones about processes.** Both models carry C-N-P and PFT
+allometry; FATES spends its complexity on space within a gridcell.
+
+One useful negative: day length and solar geometry are entirely host-supplied.
+Obliquity, day length and rotation never touch FATES source, so that whole class
+of port problem does not exist there.
+
+## 55. A conservation identity that can fail, and a default this project inverts
+
+*Read 2026-08-22 from `references/esmf/`. SPAT has eleven open rows of eleven
+issued and no external comparison had ever been made. Note that the narrative
+regridding chapter is absent from this tree and the `Regrid/doc` sources are
+stale SCRIP-era text contradicted by the code -- everything below is from code
+and from the in-source documentation blocks.*
+
+### 55a. The check `lib/gridding.py` has never had
+
+ESMF states, and tests itself against, an identity:
+
+    sum(F_src * A_src * frac_src)  ==  sum(F_dst * A_dst)            [DSTAREA]
+    sum(F_src * A_src * frac_src)  ==  sum(F_dst * A_dst * frac_dst) [FRACAREA]
+
+and holds itself to about **1e-9 relative** on analytic fields. Interpolation
+accuracy is a separate and much looser test at 1e-2 maximum pointwise.
+
+This project's conventions require that a check have a right answer -- "if you
+cannot say in advance what result would mean wrong, it is not a test". **This is
+one, it is cheap, and `lib/gridding.py` has never been checked against anything
+of the kind.** Form the mesh-side integral and the grid-side integral of the same
+field and require agreement to a tolerance registered in advance.
+
+### 55b. Rule 3's fear is structural, and ESMF's answer is architectural
+
+ESMF does not carefully match longitudes. **It converts both sides to unit-sphere
+Cartesian at the boundary, so no longitude label ever participates in geometry**,
+with the poles special-cased to exact unit vectors. The dateline is not a handled
+case; it is not a case, because the branch cut does not survive the conversion.
+
+This project reaches the same safety by a different route -- one column
+expression, index-for-index by construction, with a translation layer explicitly
+refused because it would imply there is something to translate. Both are sound.
+The ESMF route additionally makes the pole a non-case, where `lib/gridding.py`
+meets narrow polar Gaussian cells as an empty-cell backfill.
+
+Conservative regridding there **forbids artificial pole cells outright** and
+errors if asked for one, for a structural reason worth carrying: an artificial
+pole cell is invented area, and inventing area breaks conservation.
+
+### 55c. The default this project inverts
+
+ESMF's discipline is three-part, and the third part is what makes it work:
+
+1. **Unmapped destination cells are an ERROR by default.** Ignoring them is an
+   explicit opt-in flag.
+2. **The check runs on the weight matrix**, not on the intermediate search -- so a
+   cell whose bounding box overlapped something but whose polygon intersection
+   came out empty is still caught.
+3. **The diagnostic names the offending element id.**
+
+And the total-miss case, which is exactly the shape of rule 3's failure, has its
+own message: "No suitable source locations found for regridding (it could be that
+the source is empty, completely masked, or completely disjoint from the
+destination)". **ESMF cannot silently match zero cells.**
+
+`lib/gridding.py:243-254` does the opposite for the same situation: grid cells
+with no mesh region are silently backfilled from the nearest region centre and
+the count is returned. The count is a good start and callers are told to retain
+it for provenance, but **there is no threshold at which it refuses.** SPAT-10
+already asks for an inventory of nearest fallbacks; the precedent argues for
+making refusal the default and the fallback the opt-in.
+
+### 55d. Normalisation is a property of the field, not of the operation
+
+ESMF offers two normalisations and they map exactly onto SPAT-1's intensive and
+extensive distinction:
+
+- **DSTAREA**, the default: weights are intersection area over destination area,
+  untouched. The destination value is the source integral spread over the whole
+  cell, diluted toward zero where coverage is partial. **This is what makes the
+  extensive sum close.**
+- **FRACAREA**: weights divided by the destination fraction. The value is the
+  average over the covered part only, so a field of ones remaps to ones.
+
+So an extensive total uses DSTAREA and is not divided by fraction; a density or
+rate uses FRACAREA. **Either way the fraction field must be carried alongside the
+result** -- a fraction discarded is a conservation identity that can no longer be
+evaluated. The framing worth borrowing is that the choice belongs to the field,
+not to the call.
+
+Note also that conservative regridding there does **not** normalise by
+destination fraction by default, and the documentation says so plainly: for a
+partially overlapping destination the caller must divide. That is a footgun
+stated out loud.
+
+### 55e. Two things that make adoption cheaper than it looks
+
+**Arbitrary N-gons are first-class.** Elements with more than four sides are
+ear-clip triangulated internally, each triangle carrying the parent's mask, with
+weights reassembled onto the original element id. A ~15 km Voronoi mesh is a
+supported input, not something to pre-triangulate. What ESMF needs is node
+coordinates, element ids, a connectivity list in counterclockwise order, and
+optionally areas -- it computes great-circle areas itself otherwise.
+
+**The weight file is a plain NetCDF sparse matrix.** Generating one needs a built
+ESMF; **applying one needs only netCDF4 and scipy.sparse, and checking one needs
+only the areas and fractions the same file already carries.** A weight file
+generated once per build-and-grid pair and committed as a durable artifact would
+give this project a conservative operator with no runtime dependency on ESMF at
+all. Whether ESMF builds on this host was not determined -- the task was
+read-only.
+
+One caveat to carry if second-order is ever used: **it silently degrades to
+first order** when a source cell has fewer than three unmasked neighbours, when
+the centroid falls outside the neighbour polygon, or when the gradient
+reconstruction fails. No warning is emitted, and the first of those is exactly
+what a coastline looks like.
