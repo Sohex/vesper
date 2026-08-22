@@ -3080,3 +3080,70 @@ carries nothing. That is a deliberate position, not an omission.
 No magnitude is quoted because this tree ships none -- the dry and wet values
 are spatially varying MODIS-consistent fields rather than constants. Lawrence
 and Chase (2007) and Braghiere et al. (2023) are where they come from.
+
+
+## 40. OCN-12's inventory, geochemistry side: BIOGEM and SEDGEM
+
+*Read 2026-08-22, closing the cGENIE sweep. OCN-12 already has the circulation
+side, where GOLDSTEIN's non-dimensionalisation hardcodes Earth's radius and
+gravity. The geochemistry side splits differently, and the split is the useful
+part.*
+
+### 40a. The calendar is compile-time, and it is stated more than once
+
+`genie-main/src/fortran/cmngem/gem_cmn.f90:585-587`:
+
+    REAL,PARAMETER::conv_yr_d  = 365.25 !360.00 !365.0
+    REAL,PARAMETER::conv_yr_hr = 24.0 * conv_yr_d
+    REAL,PARAMETER::conv_yr_s  = 3600.0 * conv_yr_hr
+
+Three things in three lines.
+
+**All `PARAMETER`, so compile-time.** Every per-year to per-second conversion in
+BIOGEM and SEDGEM runs through `conv_yr_s`, and none of it is reachable from a
+namelist. Changing the year length is a recompile, not a configuration.
+
+**`conv_yr_d` carries two commented alternatives on its own line**, 360.00 and
+365.0. That is not idle: section 30 found the PlaSim coupling's seasonal arrays
+dimensioned `(:,:,360)`, a 360-day year. So the codebase holds a 365.25-day
+geochemistry calendar beside a 360-day atmosphere coupling, and the alternative
+sits commented out where someone switched it.
+
+**The 24-hour day is hardcoded** as the literal `24.0`, not derived from a
+rotation period. This world's is 30 hours.
+
+For scale: `conv_yr_s` is 31,557,600 s against this world's 15,794,006 s, so
+every rate constant carried through it is **2.00x** out.
+
+### 40b. A second, inconsistent statement of the same quantity
+
+`sedgem_box_archer1991_sedflx.f90` hardcodes the literal `3.15e7` **twelve
+times** as its own seconds-per-year, converting the organic matter decay
+constant `rc` -- `par_sed_archer1991_rc`, order 2e-9 per second -- to a per-year
+reaction rate.
+
+`3.15e7` is 31,500,000 s. The model's own `conv_yr_s` is 31,557,600. **The
+sediment diagenesis module runs on a year 0.183 percent shorter than the rest of
+the model.** On Earth that is negligible and invisible. It matters here because
+it means the year length is not stated once, so a port that fixes `conv_yr_d`
+leaves this module on an Earth year and nothing fails.
+
+`gem_cmn.f90:802` likewise carries `const_rEarth = 6.37E+06` as a `PARAMETER`,
+with `6.371E+06` commented beside it -- the same value GOLDSTEIN's `rsc`
+hardcodes independently, so Earth's radius is stated at least twice across the
+model.
+
+### 40c. The good news, and it changes where the audit's effort goes
+
+BIOGEM's stoichiometry is **not** hardcoded. `biogem_lib.f90:179-184` declares
+`par_bio_red_POP_PON`, `par_bio_red_POP_POC`, `par_bio_red_POP_PO2` and
+`par_bio_red_PON_ALK` and puts all four in `ini_biogem_nml`, with
+`par_bio_red_PC_flex` available to switch C:P to flexible stoichiometry
+entirely. OCN-12's "Redfield or fixed stoichiometry" item is already exposed
+here, and the fixed ratios are a default rather than an assumption.
+
+**So the porting difficulty is not uniform across this model.** The
+biogeochemical parameters are namelist-exposed and the physical scaling
+constants are compile-time `PARAMETER`s. An audit that samples uniformly will
+spend its effort in the wrong place: the biology is configurable and the physics
+core is where the Earth is welded in.
