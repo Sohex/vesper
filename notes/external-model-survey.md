@@ -599,3 +599,90 @@ because the tree is comparison material rather than a dependency. Six
 directories got a listing and a judgement rather than a read, named in 7b, on
 the grounds that no open row named a mechanism they contain: a listing is enough
 to apply the declared rule and not enough to claim anything else about them.
+
+
+## 8. SPEEDY and SOCRATES, read for CLIM-61
+
+*Read 2026-08-22 from `references/speedy/` and `references/socrates/` at the
+pinned revisions. CLIM-61's costing is ordered after the SHTns forward direction
+lands, because both touch the same worktree. Reading is not, and what follows
+changes what the row is about.*
+
+### 8a. SPEEDY: the cheap rung is real, and it is only the longwave half
+
+Its SHORTWAVE is no better than what this model already has.
+`shortwave_radiation.f90` splits incoming flux at `fband2 = 0.05` and applies
+fitted absorptivities per constituent, `absdry`, `absaer`, `abswv1`, `abswv2`,
+`abscl1`, `abscl2` and an ozone fraction `epssw`. That is the same class of
+object as Lacis and Hansen: two bands and fitted absorptances. Adopting it would
+buy nothing and would need the same per-star reweighting `config/planet.yaml`
+already carries, because `fband2` is a solar split.
+
+Its LONGWAVE is four bands and that is the part worth having.
+`longwave_radiation.f90` declares `nband = 4` and `mod_radcon.f90` carries
+`fband(100:400,4)`, the energy fraction emitted in each band as a function of
+temperature, against this model's single Sasamori broadband plus the one band
+added for CH4 and N2O.
+
+**The longwave partition is star-independent, and that is the whole reason it
+transfers.** It divides the PLANET's own emission, so it is a property of the
+Planck function at terrestrial temperatures rather than of the host. Nothing in
+it needs the treatment every shortwave term here has had.
+
+Two caveats, both fixable and both worth knowing before the row is costed. The
+partition is not a Planck integral but a fit:
+
+    fband(T,2) = (0.148 - 3.0e-6*(T-247)^2) * eps1
+    fband(T,3) = (0.356 - 5.2e-6*(T-282)^2) * eps1
+    fband(T,4) = (0.314 + 1.0e-5*(T-315)^2) * eps1
+    fband(T,1) = eps1 - the other three
+
+And it is CLAMPED FLAT outside 200 to 320 K: below 200 K every band takes its
+200 K value and above 320 K its 320 K value. Stratospheric temperatures sit
+below 200 K routinely, so the clamp is reached in normal operation rather than
+at an extreme. Re-deriving those four quadratics from an actual Planck integral
+over the band edges is cheap and would remove the clamp; it is the kind of work
+`shortwave_band_weights.py` already does for the other half of the spectrum.
+
+### 8b. SOCRATES: the star is a data file, which is the whole argument
+
+The cost first, because it is smaller than the four orders of magnitude quoted
+when comparing whole models. In the `ga7` configuration the shortwave file
+carries 6 spectral bands, 8 gaseous absorbers and at most 12 k-terms in a band;
+the longwave carries 9 bands and 12 absorbers. Against 2 shortwave bands and one
+broadband longwave that is roughly an order of magnitude more radiative work,
+not four. With `radstep` already the largest single term in the profile at over
+12 percent, a tenfold radiation cost is about a twofold whole-model slowdown.
+That is a number for CLIM-61 to MEASURE rather than a reason to stop, and the
+cost is tunable: `sbin/Ccorr_k` builds spectral files, so dropping absorbers
+this world has no use for and reducing k-terms are both available.
+
+**The distribution already supports non-solar hosts and ships the worked
+example.** `data/solar/trappist1` is a stellar spectrum, and its header reads
+"BT-Settl, teff = 2600 K, logg = 5, meta = 0" -- the same library and the same
+three parameters `build_stellar_spectrum.py` uses to produce this star's
+spectrum at 4965 K. `examples/trappist1/mk_ga_trappist` is 46 lines. There is
+also `examples/mars` and `examples/titan`.
+
+What that script does is the finding. It takes an existing shortwave spectral
+file, runs `prep_spec`, points it at the stellar spectrum, and writes a new
+spectral file. **The k-distributions are not regenerated.** Gas absorption is a
+property of the gas and not of the star; what changes for a different host is
+how much incident flux falls in each band, which is a re-weighting of a file
+that already exists. And the longwave file is copied into the hybrid unchanged,
+which is section 8a's point arriving from the other direction.
+
+**So the argument for CLIM-61 is not only accuracy.** This project carries seven
+derived per-star corrections onto a broadband scheme -- `ozone_scale`,
+`ozone_uv_weight`, `ozone_visible_weight`, `h2o_sw_weight`, `h2o_sw_level`,
+`co2_sw_weight` and `cloud_absorption_scale` -- plus a hand-added longwave band,
+and every one of them exists because a fitted broadband absorptance cannot be
+re-weighted structurally. You have to re-derive each one. In a band-resolved
+scheme the same operation is a tool invocation against a spectrum file, and it
+is the operation those seven factors are each a manual instance of.
+
+That reframes the row. The question is not only whether correlated-k is more
+accurate at a price. It is whether the seven factors keep needing maintenance
+every time the star, the composition or a surface endmember moves, and what
+retiring that maintenance is worth against a whole-model slowdown CLIM-61 has
+yet to measure.
