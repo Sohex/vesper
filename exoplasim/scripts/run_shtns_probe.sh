@@ -19,7 +19,7 @@
 # verify_shtns_model.sh, which runs the model. Do not read a probe's output as
 # a pass.
 #
-# The build matches the model's: double precision, OMPSHARED and NOPAIRLAT
+# The build matches the model's: double precision and OMPSHARED
 # defined. A probe compiled at real*4 disagrees with legmod by 1e-5 and worse
 # at high total wavenumber -- that is the weight factorisation losing precision
 # in legmod, not a convention -- and a probe built without OMPSHARED is refused
@@ -74,14 +74,14 @@ cat > resmod.f90 <<EOF
       end module resmod
 EOF
 
-F="-c -O2 -cpp -DOMPSHARED -DNOPAIRLAT -ffixed-line-length-132 -ffpe-summary=none -finit-real=zero -fdefault-real-8"
+F="-c -O2 -cpp -DOMPSHARED -ffixed-line-length-132 -ffpe-summary=none -finit-real=zero -fdefault-real-8"
 for f in resmod plasimmod abortstub gaussmod specblock fftmod legmod; do
     gfortran $F -J . "$f.f90" -o "$f.o" 2>"$f.err" \
         || { echo "compile failed: $f"; head -15 "$f.err"; exit 1; }
 done
 gfortran $F -J . -I"$PREFIX/include" shtnsmod.f90 -o shtnsmod.o 2>shtnsmod.err \
     || { echo "compile failed: shtnsmod"; head -20 shtnsmod.err; exit 1; }
-gfortran -O2 -cpp -DOMPSHARED -DNOPAIRLAT -fdefault-real-8 \
+gfortran -O2 -cpp -DOMPSHARED -fdefault-real-8 \
     -ffixed-line-length-132 -J . -I"$PREFIX/include" -c drive.f90 -o drive.o \
     2>drive.err || { echo "compile failed: $(basename "$drv")"; head -30 drive.err; exit 1; }
 gfortran -o probe.x drive.o shtnsmod.o legmod.o fftmod.o gaussmod.o \

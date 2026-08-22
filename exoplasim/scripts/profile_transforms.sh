@@ -2,6 +2,7 @@
 # Profile a bed under perf, every rank, and leave the samples for scoring.
 #
 #   exoplasim/scripts/profile_transforms.sh <bed_dir> <binary> <ranks> [repeat]
+#   PERF_LAUNCH=omp ... <ranks is the thread count>   for the threaded build
 #
 # Worldbuilding frame: a COMPUTE measurement of the Vesper climate model on this
 # desktop. Nothing it produces is about the simulated planet.
@@ -30,10 +31,31 @@ here="$(cd "$(dirname "$0")" && pwd)"
 export PERF_EVENT="${PERF_EVENT:-cpu-clock}"
 export PERF_FREQ="${PERF_FREQ:-997}"
 
+# PERF_LAUNCH=omp profiles the THREADED build, which is one process rather than
+# one per rank -- so there is no filename collision to solve and no mpiexec to
+# lose the ring buffer inside. The sample file is still named perf.rank00.data,
+# because that is what score_transform_profile.py reads and a threaded profile
+# is the same measurement of the same model.
+#
+# The two exports and the ulimit are not tuning. libgomp does not bind by
+# default, and unbound threads on this processor land on SMT siblings and across
+# both dies, which changes what any profile of them means. The master thread
+# runs on the process stack rather than on OMP_STACKSIZE, and at T127 it
+# overruns the default.
+export PERF_LAUNCH="${PERF_LAUNCH:-mpi}"
+run_model () {
+    if [ "$PERF_LAUNCH" = "omp" ]; then
+        OMP_PROC_BIND=close OMP_PLACES=cores OMP_STACKSIZE=512M \
+            bash -c "ulimit -s unlimited; exec $*"
+    else
+        mpiexec -np "$ranks" $*
+    fi
+}
+
 cd "$bed"
 
 echo "== warm-up, unrecorded =="
-mpiexec -np "$ranks" "./$binary" >/dev/null 2>&1 || {
+run_model "./$binary" >/dev/null 2>&1 || {
     echo "warm-up failed; check $bed for Abort_Message" >&2; exit 1; }
 [ -e Abort_Message ] && { echo "model aborted during warm-up" >&2; exit 1; }
 
@@ -47,15 +69,19 @@ for r in $(seq 1 "$repeat"); do
     export PERF_OUTDIR="$outdir"
     echo "== recorded pass $r of $repeat -> $(basename "$outdir") =="
     start=$(date +%s.%N)
-    mpiexec -np "$ranks" "$here/perf_rank.sh" "./$binary"
+    if [ "$PERF_LAUNCH" = "omp" ]; then
+        run_model "perf record --quiet --freq $PERF_FREQ --event $PERF_EVENT --call-graph fp --mmap-pages 32 --output $outdir/perf.rank00.data ./$binary"
+    else
+        mpiexec -np "$ranks" "$here/perf_rank.sh" "./$binary"
+    fi
     end=$(date +%s.%N)
     [ -e Abort_Message ] && { echo "model aborted in pass $r" >&2; exit 1; }
     # The restart sha is the numerics tripwire: every pass integrates the same
     # steps from the same state, so a pass that disagrees with its siblings is
     # not a slow measurement, it is a different model.
     sha=$(sha256sum plasim_status 2>/dev/null | cut -c1-16 || echo "(no plasim_status)")
-    printf '{"pass":%d,"wall_s":%.3f,"ranks":%d,"binary":"%s","event":"%s","freq":%s,"status_sha256_16":"%s"}\n' \
-        "$r" "$(echo "$end - $start" | bc)" "$ranks" "$binary" "$PERF_EVENT" "$PERF_FREQ" "$sha" \
+    printf '{"pass":%d,"wall_s":%.3f,"ranks":%d,"launch":"%s","binary":"%s","event":"%s","freq":%s,"status_sha256_16":"%s"}\n' \
+        "$r" "$(echo "$end - $start" | bc)" "$ranks" "$PERF_LAUNCH" "$binary" "$PERF_EVENT" "$PERF_FREQ" "$sha" \
         > "$outdir/pass.json"
     cat "$outdir/pass.json"
 done

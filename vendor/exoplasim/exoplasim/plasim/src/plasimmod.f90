@@ -139,19 +139,13 @@
 !     * derived from the scattered sid/gwd/csq/rcs and follows it.   *
 !     ****************************************************************
 
-!     UNPAIRED BY BUILD. The saving above lives entirely inside legmod, and
-!     SHTns replaces legmod -- so a build headed for SHTns has nothing to spend
-!     the permuted layout on, and SHTns cannot use it anyway, since it needs the
-!     grid in latitude order. -u turns it off, which makes the layout the stock
-!     contiguous one and makes nshtns=1 reachable. It is a build choice and not
-!     a namelist one because legmod branches on it and the transfer routines
-!     permute on it; a runtime logical would cost the dead-branch elimination in
-!     the very code it exists to speed up.
-#ifdef NOPAIRLAT
+!     THE PAIRED DECOMPOSITION IS RETIRED. It existed to let legmod fold a
+!     latitude and its mirror together, and SHTns replaces legmod -- and cannot
+!     use the permuted layout anyway, since it needs the grid in latitude order.
+!     Carrying two grid layouts through the rest of that conversion is a cost
+!     this project has paid once. The symbol stays only so the paired branches
+!     can be deleted in a change that is provably inert on its own.
       logical,parameter :: LPAIRLAT = .false.
-#else
-      logical,parameter :: LPAIRLAT = (mod(NLAT,2*NPRO) == 0)
-#endif
 
       parameter(EZ     = 1.63299310207D0)  ! ez = 1 / sqrt(3/8)
       parameter(PI     = 3.14159265359D0)  ! Pi
@@ -253,7 +247,14 @@
 !     the model is unchanged at 0. It needs every latitude in one address space
 !     and the grid in latitude order, so it is refused on anything but the
 !     threaded build without LPAIRLAT -- shtns_setup checks rather than assumes.
-      integer :: nshtns   = 0   ! 1: SHTns transforms   0: legmod's own
+!     SHTns needs every latitude in one address space, so it is the default
+!     where that holds and unavailable where it does not. legmod stays as the
+!     reference verify_shtns_model.sh compares against, reachable with NSHTNS=0.
+#ifdef OMPSHARED
+      integer :: nshtns   = 1   ! 1: SHTns transforms   0: legmod's own
+#else
+      integer :: nshtns   = 0   ! the MPI build cannot use SHTns
+#endif
       integer :: nrdrag   = 0   ! 1: Apply Rayleigh fraction to 20-layer atmosphere
       integer :: l_aero    = 1   ! 1: Aerosols on; this also enables the semi-Lagrangian advection tracer grid initialisations
 !>>> AYP -- NEEDED AS PART OF GLACIERMOD      

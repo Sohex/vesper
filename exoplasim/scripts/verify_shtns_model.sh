@@ -24,11 +24,10 @@
 # transforms can be compared without a second build in the comparison, which
 # would put compiler differences in the same column as transform differences.
 #
-# WHY IT NEEDS THE UNPAIRED BUILD. SHTns wants the grid in latitude order and
-# LPAIRLAT permutes it, so the binary is built with -u. That is not a
-# concession: LPAIRLAT exists to let legmod fold a mirror pair together, and
-# SHTns replaces legmod. The nshtns=0 arm therefore runs legmod's contiguous
-# branch, which is the honest reference for a build that has no paired layout.
+# THE PAIRED DECOMPOSITION IS GONE, so there is no build switch here any more.
+# It existed to let legmod fold a mirror pair together and SHTns replaces
+# legmod, so the nshtns=0 arm runs legmod's contiguous branch, which is the
+# honest reference for the only layout the model now has.
 #
 # WHY THE LENGTHS ARE SHORT, and the bounds: see the long argument in
 # verify_threaded_numerics.sh. A last-bit difference in this model grows by
@@ -81,7 +80,7 @@ trap restore EXIT
 build_arm() {
     local arm="$1"
     local stamp="$WORK/.stamp"
-    local name="most_plasim_${low}_l10_p${n}_omp_np.x"
+    local name="most_plasim_${low}_l10_p${n}_omp.x"
     restore
     if [ "$arm" = "nofilter" ]; then
         local before after
@@ -101,7 +100,7 @@ build_arm() {
             echo "control patch missed: $after sites still filtered" >&2; exit 1; }
     fi
     : > "$stamp"
-    ( cd "$PKG" && ./compile.sh -j -u -p 8 -n "$n" -r "$res" -v 10 ) \
+    ( cd "$PKG" && ./compile.sh -j -p 8 -n "$n" -r "$res" -v 10 ) \
         >"$WORK/build_$arm.log" 2>&1 || true
     [ -f "$PKG/plasim/run/$name" ] && [ "$PKG/plasim/run/$name" -nt "$stamp" ] || {
         echo "build failed or stale: $arm (see $WORK/build_$arm.log)" >&2; exit 1; }
@@ -139,7 +138,7 @@ norm() {
         --tol "$TOL" --norm 2>/dev/null
 }
 
-echo "$res, $n thread(s), unpaired build: NSHTNS=1 against NSHTNS=0"
+echo "$res, $n thread(s): NSHTNS=1 against NSHTNS=0"
 echo "declared before the arms ran: tolerance $TOL, lengths [$STEPS],"
 echo "  birth bound $BIRTH at one step, jump bound ${JUMP}x between samples"
 echo "  (all three taken unchanged from verify_threaded_numerics.sh)"

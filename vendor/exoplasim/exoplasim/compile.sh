@@ -99,7 +99,7 @@ nopt=0
 years=1
 nmars=0
 
-while getopts "p:r:v:n:O:t:jdhmu" opt; do
+while getopts "p:r:v:n:O:t:jdhm" opt; do
     case $opt in
         p)
             case $OPTARG in
@@ -215,14 +215,6 @@ while getopts "p:r:v:n:O:t:jdhmu" opt; do
             # the same resolution and rank count, not a variant of it.
             parmode="omp"
             ;;
-        u)
-            # Unpaired latitudes: the stock contiguous layout. Required for
-            # SHTns, which needs the grid in latitude order, and pointless
-            # against it -- the paired layout exists to fold a mirror pair
-            # together inside legmod, which SHTns replaces. A separate binary
-            # identity because the grid layout genuinely differs.
-            nopairlat=1
-            ;;
         d)
             debug=1
             ;;
@@ -250,7 +242,6 @@ done
 
 suffix=""
 [ "$parmode" = "omp" ] && suffix="_omp"
-[ "${nopairlat:-0}" = 1 ] && suffix="${suffix}_np"
 echo "PRODUCING: "$optimization" -r"$prec" -o most_plasim_"$resolution"_l"$levels"_p"$ncpus$suffix".x"
 executable="most_plasim_"$resolution"_l"$levels"_p"$ncpus$suffix".x"
 
@@ -330,17 +321,9 @@ then
 fi
 touch "PREC$prec"
 
-# The pairing switch gets its own marker for the same reason the parallel layer
-# does: it changes a parameter nearly every object sees, and the two settings
-# share object and .mod names, so a stale one links silently.
-if [ "${nopairlat:-0}" = 1 ]
-then
-    [ ! -e NOPAIR ] && rm -f *.o *.mod *.x
-    touch NOPAIR
-    sed -i.bak '3s/$/ -DNOPAIRLAT/' compilerargs && rm -f compilerargs.bak
-else
-    [ -e NOPAIR ] && rm -f *.o *.mod *.x NOPAIR
-fi
+# The paired decomposition is retired, so its marker is too. A tree built when
+# it still existed carries stale objects, so clear it once.
+[ -e NOPAIR ] && rm -f *.o *.mod *.x NOPAIR
 
 dbgs=""
 (($debug)) && dbgs='../../most_debug_options '

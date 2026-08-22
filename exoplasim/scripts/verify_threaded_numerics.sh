@@ -117,6 +117,15 @@ run_arm() {
     ( cd "$d"
       rm -f ./*.x plasim_status Abort_Message
       sed -i "s/^ *N_RUN_STEPS *=.*/ N_RUN_STEPS = $steps /" plasim_namelist
+      # NSHTNS=0 ON BOTH ARMS, deliberately. This check is about the shared grid
+      # bands, not the transform: the MPI build cannot run SHTns at all, so
+      # leaving the threaded arm on its new default would compare two different
+      # transforms and read the difference as a band problem. It would also
+      # blunt the control, because SHTns rewrites the whole globe every step and
+      # masks an overlapping band -- which is exactly how a committed control
+      # patch once hid in plain sight.
+      sed -i "/^ *NSHTNS *=/d" plasim_namelist
+      sed -i "2i\\ NSHTNS      =     0" plasim_namelist
       cp -f "$WORK/ref/$arm.x" ./probe.x
       if [ "$arm" = "reference" ] && [ "$reference" != "serial" ]; then
           mpiexec -np "$n" ./probe.x >run.log 2>&1

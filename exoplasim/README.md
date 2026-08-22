@@ -192,19 +192,18 @@ object linked against real*8 ones does not fail -- it computes.
 | --- | --- | --- |
 | none | MPI, one process per rank | `most_plasim_<res>_l10_p<n>.x` |
 | `-j` | threads instead of ranks, one process, `mpimod_omp` | `..._omp.x` |
-| `-u` | unpaired latitudes: the stock contiguous layout instead of `LPAIRLAT` | `..._np.x` |
 | `-p 8` | double precision, which is what `config/planet.yaml` declares | no change to the name |
 
-`-u` exists for SHTns, which needs the grid in latitude order where `LPAIRLAT`
-permutes it, and it costs nothing there: the paired layout exists to let legmod
-fold a mirror pair together and SHTns replaces legmod. It should be DELETED
-rather than carried once `nshtns=1` becomes the default -- two grid layouts
-through the rest of that conversion is a cost this project has paid once
-already.
+The paired latitude decomposition is retired. It existed to let legmod fold a
+mirror pair together, SHTns replaces legmod and cannot use the permuted layout
+anyway, and carrying two grid layouts was a cost with nothing left to buy.
 
-`NSHTNS` is a NAMELIST switch and deliberately not a build flag, so that the
-two transforms can be compared inside one binary with no compiler difference in
-the comparison. That is what `verify_shtns_model.sh` relies on.
+`NSHTNS` is a NAMELIST switch and deliberately not a build flag, so the two
+transforms can be compared inside one binary with no compiler difference in the
+comparison -- which is what `verify_shtns_model.sh` relies on. It defaults to 1
+on the threaded build and 0 on the MPI build, which cannot run SHTns at all;
+legmod remains reachable with `NSHTNS = 0` and is the reference that gate
+compares against.
 
 ## Every script here
 
