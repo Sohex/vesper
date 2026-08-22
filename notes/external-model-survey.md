@@ -80,19 +80,22 @@ is a finding with no home, which is the condition this exists to catch.
 | 40 | OCN-12's inventory, geochemistry side: BIOGEM and SEDGEM | `OCN-1`, `OCN-12`, `OCN-3`, `OCN-4` |
 | 41 | A plant-hydraulics parameter that carries the gravity of whoever stored it | `GRAV-7`, `PLHY-6` |
 | 42 | CLIMBER-X's methane: a lifetime with no chemistry, and a conversion made of Earth | `BVOC-6`, `GW-26`, `OCN-12`, `WET-10`, `WET-6` |
-| 43 | Sea-ice dynamics priced, and OCN-21's block is scheme-dependent | `CLIM-16`, `DUST-14`, `OCN-12`, `OCN-21`, `PHYS-14` |
+| 43 | Sea-ice dynamics priced, and OCN-21's block is scheme-dependent | `CLIM-65`, `DUST-14`, `OCN-12`, `OCN-21`, `PHYS-14` |
 | 44 | SOCRATES: the k-tables do not have to be rebuilt for a new star | `CLIM-61` |
 | 45 | SICOPOLIS: gravity enters at four different powers, and two of them are hidden | `CLIM-62`, `CLIM-63`, `GRAV-6` |
 | 46 | The rest of cGENIE: six statements of the year, one of them in bash | `BVOC-6`, `OCN-3` |
 | 47 | CLIMBER-X's geography module, at line level -- and two places this project is ahead | `GRID-2`, `OCN-11` |
 | 48 | Methane lifetime is computable here, through one of two doors | `BVOC-6`, `WET-10` |
-| 49 | Two clean negatives, one real defect, and a citation that was wrong | `GRID-3`, `MIN-3` |
+| 49 | Two clean negatives, one real defect, and a citation that was wrong | `GRID-3`, `MIN-7` |
 | 50 | What representing the aerosol indirect effect would actually require | `CLIM-64` |
 | 51 | SPITFIRE has a mechanism under a prescribed ignition field. BLAZE has neither. | `FIRE-1`, `FIRE-6` |
 | 52 | Inundation is one array and two scalars, and gravity cancels out of the discharge | `ANUT-6`, `SURF-7`, `WET-2` |
 | 53 | Landlab: the router is the wrong one, the lake mapper is the right one | `GRAV-6`, `HYD-21` |
 | 54 | In one model a patch is a sample; in the other it is a place | `BIO-29`, `DEMO-1`, `PLHY-6` |
 | 55 | A conservation identity that can fail, and a default this project inverts | `SPAT-11` |
+| 56 | The sweep turned inward, and the surface modules carry live defects | `CLIM-66`, `CLIM-67`, `GRAV-9` |
+| 57 | What the Vesper calendar port did not reach | `BIO-31`, `BIO-32`, `BIO-33`, `SDEC-10` |
+| 58 | The radiation sweep: a correction that never acts, and a calendar off by eight | `CLIM-68`, `CLIM-69`, `CONS-14`, `OCN-22` |
 
 ## 1. The two families do not overlap, and this stack is in the gap
 
@@ -5128,3 +5131,134 @@ the orbit length would turn an absolute threshold into a per-orbit one. A
 Recording these is the point of a sweep as much as the defects are: the next
 person to grep for `365` in this tree will find them, and three of the four would
 be broken by "fixing" them.
+
+
+## 58. The radiation sweep: a correction that never acts, and a calendar off by eight
+
+*Read 2026-08-22 across the radiation and atmosphere modules of
+`vendor/exoplasim`, checked against the diagnostics of an actual run rather than
+against the source alone. Two findings here are the most consequential of the
+whole sweep, because both are live and both were invisible from the namelist.*
+
+### 58a. Half of the cloud-absorption correction is dead code
+
+`config/planet.yaml` carries `cloud_absorption_scale: 1.192`, derived through a
+Mie calculation from liquid water's refractive index and documented as worth
+about +2.0 K. `run_exoplasim.py:171-175` applies it to two keys, `TSWR3` and
+`ACL2`.
+
+**`ACL2` never acts.** Its only computational uses are at `radmod.f90:2393-2396`,
+inside a block opening `if (nswrcl == 0)` at `:2387` and closing at `:2461`. And
+`nswrcl` defaults to **1** at `:182`, which is what every run in `bench/` records.
+The cloud absorptivities are read from the namelist, broadcast, and never
+consumed.
+
+`TSWR3` is live -- but only at `radmod.f90:2382`, four lines ABOVE the branch. It
+has a second use at `:2445` which is inside it and equally dead.
+
+So the correction is applied at half strength, and nothing says so. Reading the
+declaration at `:206` gives a wrong account of the model, which is class 32
+exactly; the difference from every earlier instance is that **this project
+deliberately set the value, computed it carefully, and got nothing for it.**
+
+### 58b. The calendar's seconds-per-day is eight times too large, and the run log says so
+
+`calmod.f90:44-45` declares `calini` with **eight** dummy arguments. Both call
+sites -- `plasim.f90:428` and `:1521` -- pass **seven**:
+
+    call calini(n_days_per_month,n_days_per_year,n_start_step,ntspd &
+                ,solar_day,-1,mcal_days_per_year)
+
+So `kmpstep` receives `mcal_days_per_year` and `calmod.f90:67` puts **360** into
+the minutes-per-timestep. The eighth dummy gets nothing, and its only assignment
+sits after a `return` and is unreachable. No compile error, because `calini` is an
+external procedure with no explicit interface.
+
+**The proof is in the output.** A T42 run's own diagnostics print
+
+    * Sec per calendar day:  345600 *
+
+which is 16 timesteps x 360 x 60. At the actual 45-minute timestep the correct
+figure is 16 x 45 x 60 = **43200**. Eight times out.
+
+What it damages is bounded, and worth stating precisely so it is neither ignored
+nor overstated: the hour and minute stamped on every output record advance 360
+minutes per timestep and run past 24, and the year-month-day builder runs on a
+360-unit year that does not match a 182.8-day orbit, so the reported calendar
+drifts against orbital phase. `mcal_days_per_year` itself is read downstream only
+where its use is commented out, so no physics reads the wrong number. **It is the
+timestamps, not the physics -- but the timestamps are what every analysis product
+keys its time axis to.**
+
+### 58c. The two-band ocean albedo is collapsed by the default that computes it
+
+Section 29 established that `radmod.f90:2892-2903` overwrites the open-ocean
+albedo with a zenith-dependent formula under `necham = 1`. What that section did
+not record is that **`dsalb(1,:)` and `dsalb(2,:)` receive the identical
+expression.** The band index is a physical dimension and both elements get one
+value.
+
+This project sets `two_band_albedo: true` precisely to obtain spectral surface
+albedo, and `solarini` duly computes 0.0744 and 0.0636 for the two ocean bands.
+Over ice-free ocean -- most of the planet -- that is undone every radiation step
+for the direct beam. The diffuse component is read before the overwrite and does
+keep its two bands.
+
+### 58d. A correction to how the flat-array finding should be read
+
+Class 31's founding instance is the seven two-element band arrays in
+`plasimmod.f90`. The naive reading -- that those arrays hold one value in this
+project's runs -- **is false, and worth correcting.**
+
+`nsimplealbedo` defaults to 1, and at seven sites in `radmod.f90` it collapses
+each band pair into its flux-weighted mean immediately after computing them
+separately. That default is what makes the arrays flat. **This project sets
+`two_band_albedo: true`, so the switch is 0 and the bands genuinely differ** --
+the run diagnostics show snow at 0.7525 against 0.4061 across the split, a factor
+of 1.85.
+
+So the defect class is real and the project is already outside it, by a
+configuration choice made for other reasons. The eighth member of that array set,
+`dgroundalb`, was missing from the original list and behaves the same way.
+
+### 58e. Latent traps, one of which is one namelist key away
+
+- **`carbonmod` rewrites both namelist files with truncated groups.** Its private
+  copy of the radiation namelist carries 27 keys where the real one carries 60,
+  and it writes over the file at run end. Under `nco2evolve=1` that **deletes
+  every fork key** -- the stellar spectrum file, the two-band albedo switch, the
+  ozone and water-vapour weights, the trace-gas bands, the dust and cloud
+  settings -- and the next year runs on defaults. It does the same to the
+  atmosphere namelist, dropping the day count and the timestep. Not armed today.
+  It is one key away.
+- **`carbonmod` also captures the surface pressure before the orography
+  correction and writes the uncorrected value back**, so under the same switch
+  surface pressure ratchets up every year on top of the intended drift.
+- **The resolution-dependent radiation tuning is unreachable**: it is gated on a
+  switch read from a namelist that has not been read yet, so the tuning never
+  applies and the run log says so.
+- **`noromax` is read on the root rank and never broadcast**, then passed to a
+  routine called on every rank -- the same class as an incident already recorded
+  for the trace-gas keys.
+- **Land and sea initialisation run after the radiation setup**, so a namelist
+  albedo silently overrides the star-derived spectral one. The Python API makes
+  that easy to trip, writing one scalar into both bands; it also writes the
+  minimum snow albedo twice and the maximum never, so that key cannot be set
+  through it at all.
+- **`nfixorb` defaults to 0**, which discards the declared obliquity, eccentricity
+  and perihelion and substitutes Berger's Earth values. Every entry point in this
+  project passes the fixed-orbit flag, so it is safe by choice rather than by
+  default.
+
+### 58f. Earth constants the namelist cannot reach
+
+Air's molar mass is hardcoded at three sites and used to convert the namelist CO2
+volume mixing ratio to a mass mixing ratio in both the shortwave and the
+longwave, while the model's own gas constant is a namelist key set from the
+declared composition -- so the two are out of step by construction. The shortwave
+airmass magnification carries constants encoding Earth's scale-height-to-radius
+ratio, which matters most near the terminator, and at 32 degrees obliquity the
+terminator is a larger share of the illuminated disc than on Earth. Surface
+longwave emissivity is compile-time, with land at exactly 1. And one file
+normalises Rayleigh column mass by 101100 Pa while another normalises the band
+model by 101325, so one bar is two numbers inside one module.
