@@ -1986,3 +1986,51 @@ captures wet-snow density through liquid content, which PALADYN explicitly
 neglects; PALADYN captures fresh-snow temperature dependence and self-loading,
 which ClimaLand omits. The union of the two is what a complete treatment would
 be, and nobody at this complexity level has built it.
+
+
+## 24. The conversion FRADPAR left behind
+
+*Computed 2026-08-22. Found by asking what ClimaLand's `λ_γ_PAR` corresponds to
+here, which turned out to be a constant nobody had moved.*
+
+ClimaLand converts absorbed PAR energy to mol photons with a representative
+wavelength, `λ_γ_PAR`, set per experiment and defaulting to 500 nm. LPJ-GUESS
+has the same quantity as `CQ`, and `vendor/lpj-guess/modules/canexch.h:42` reads:
+
+    /// conversion factor for solar radiation at 550 nm from J/m2 to mol_quanta/m2
+    const double CQ = 4.6e-6;
+
+`canexch.cpp` uses it in every photosynthesis expression beside `apar`, and
+`driver.cpp` builds `apar` as `rad * FRADPAR`. So `FRADPAR` and `CQ` convert
+irradiance into photon-limited assimilation TOGETHER.
+
+**`FRADPAR` is derived for this star. `CQ` is a `const` in a header, absent from
+`vesper.h`, untouched by `build_vesper_header.py`.**
+
+Integrating `k25v_hr.dat` against a 5772 K Planck:
+
+| window | Sun | K2.5V |
+| --- | ---: | ---: |
+| 400-700 nm | 4.567e-6 | 4.673e-6 |
+| 400-750 nm | 4.743e-6 | 4.864e-6 |
+
+The solar 400-700 value reproduces the shipped 4.6e-6, which is the check that
+the integral is the right one before anything is concluded from the rest.
+
+Two errors compound and the larger is this project's own.
+`biosphere/notes/productivity-prediction.md` records the photosynthetic window
+being widened from 400-700 to 400-750 nm on Lehmer et al. (2021)'s predicted K2V
+peaks at 675, 711 and 746 nm, moving `FRADPAR` from 0.3963 to 0.4624, a rise of
+16.8 percent. `CQ` stayed at a value defined for the narrower and bluer band, so
+the joules that widening ADDED are converted at a wavelength belonging to a
+window that no longer applies.
+
+Against FRADPAR's actual window and this star, `CQ` should be 4.864e-6 rather
+than 4.6e-6 -- about 5.7 percent low, of which roughly 3.1 points is the window
+mismatch and 2.6 the stellar shift. One-signed: more photons per joule than
+assumed, so absorbed photon flux and therefore assimilation are understated.
+
+The lesson is narrower than "another inherited constant". A constant that was
+CORRECT stopped being correct when a neighbouring decision moved, and nothing
+connected the two. PCAR-11 accordingly asks for the pair to move together and to
+be routed through `vesper.h`, so the next window change carries both.
