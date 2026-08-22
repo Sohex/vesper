@@ -142,6 +142,17 @@ So the production flag line is closed for now. What is left in codegen is
 bounded by round two's other finding: the entire distance from scalar code to
 AVX-512 is worth 2 to 3% here.
 
+**Round three's refusals were re-taken on 2026-08-22 and one of them reverses.**
+Everything above was measured on the MPI build with legmod as the transform;
+SHTns has since taken every per-timestep transform site. `-funroll-loops` is
+**+11.10%** on the threaded T170 build, 4 of 4 rounds, and is adopted --
+what it unrolls is now the physics rather than the Legendre sums this round
+measured. `-fprefetch-loop-arrays` and `-fstack-arrays` keep their refusals, and
+`-flto` is refused again on its own timing rather than on the `zsolars` defect,
+which CLIM-37 and CLIM-38 fixed. `notes/audits/model-build-flags.md` has all
+four, and the reading that matters for this document: a refusal is only as good
+as the profile it was taken on.
+
 The model is compute-bound inside its own Fortran, which is where a spectral
 GCM should be bound. There is no library seam to widen.
 
@@ -290,7 +301,9 @@ output, and reaches `assess_convergence` as a plausible number.
 `-flto` is not what it looks like and is written up in
 `notes/audits/zsolars-restart-overread.md`. The model integrates reproducibly
 under it; the varying bytes are uninitialised padding in one restart record,
-from a defect the flag exposed rather than caused.
+from a defect the flag exposed rather than caused. That defect is fixed, so this
+was never a standing refusal -- re-measured on 2026-08-22 the flag loses every
+round and changes the answer, which is the refusal it now rests on.
 
 ### Where the orbit goes
 

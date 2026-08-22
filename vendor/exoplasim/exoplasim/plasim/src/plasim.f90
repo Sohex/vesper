@@ -3360,9 +3360,6 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !     routines do not overlap -- master runs one and then the other -- so one
 !     set of slots serves both.
 
-      real zgq(NLON,NLAT,NLEV)
-      real zmmr(NLON,NLAT,NLEV)
-      real znrho(NLON,NLAT,NLEV)
 !
 !*    Diabatic Gridpoint Calculations
 !

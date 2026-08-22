@@ -254,11 +254,26 @@ model:
   compile_flags:
     f90_opts:
       - "-O3"
+      # Redundant under the CMake build, which supplies its own -cpp for the
+      # preprocessing pass its module scanner needs: dropping it here leaves a
+      # byte-identical binary. Kept because that redundancy is a property of the
+      # build system rather than of the language, and stating the intent is free.
       - "-cpp"
-      - "-ffixed-line-length-132"
       - "-ffpe-trap=invalid,zero,overflow"
       - "-ffpe-summary=none"
       - "-march=znver4"
+      # +11.10% [+5.73, +11.49] at T170 on sixteen threads, faster in 4 of 4
+      # rounds, restart sha unchanged. It was REFUSED at -0.15% on 2026-08-20,
+      # measured on the MPI build with legmod in the hot path; SHTns has since
+      # taken every per-timestep transform site and the loops this unrolls are
+      # not the ones that were measured. notes/audits/model-build-flags.md.
+      - "-funroll-loops"
+      # Line numbers in every backtrace, for 1.19 MB of binary and no code
+      # change at all: .text is byte identical with and without it, so the
+      # +1.83% the bench reported is noise above a 5% scatter floor and is not
+      # quoted as a gain. Twice this session a fault had to be re-created on a
+      # specially rebuilt binary to find out which line it came from.
+      - "-g"
     # Flags added to f90_opts, by profile. The profile is part of a binary's
     # identity and is recorded in binary_manifest.json beside its sha.
     profiles:

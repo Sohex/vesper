@@ -539,6 +539,25 @@
 
       real :: rcsq(NHOR)      = 0. ! 1/cos(phi)**2
 
+!     The three whole-globe gather buffers gridpointd hands to mpgagp and
+!     mpscgp. ONE COPY, not one per thread, and that is what the code already
+!     meant: both collectives route every thread's band through the shared
+!     zbufgp and then only NROOT touches the destination -- so on the threaded
+!     build fifteen of sixteen copies were never written to at all.
+!
+!     They were locals of gridpointd, (NLON,NLAT,NLEV) each, which is 10.486 MB
+!     at T170: 31.5 MB a thread and 168 MB across sixteen, against a 32 MB
+!     per-die working-set target. zgq is not read at all in the configuration
+!     this project runs, its branch needing nqspec == 0 where both the default
+!     and every bed are 1.
+!
+!     Outside the OMPSHARED guard deliberately: under MPI a module array is one
+!     per process, which is exactly what a local was, so the MPI build is
+!     unchanged and the threaded build stops carrying sixteen of them.
+      real :: zgq(NLON,NLAT,NLEV)   = 0. ! q, whole globe, for the tracer gather
+      real :: zmmr(NLON,NLAT,NLEV)  = 0. ! aerosol mmr, whole globe
+      real :: znrho(NLON,NLAT,NLEV) = 0. ! aerosol number density, whole globe
+
 !     *********************************************
 !     * Global Gridpoint Arrays (dimensionalized) *
 !     *********************************************
