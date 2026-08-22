@@ -38,6 +38,27 @@ exists to catch.
 
 ---
 
+## Source trees held locally
+
+Two external model trees sit under `references/`, each extracted from a PINNED
+TARBALL rather than cloned, so no nested `.git` exists for an outer command to
+trip over. They are read-only comparison material. Nothing in them is built,
+imported or vendored: code this project compiles lives in `vendor/` as a
+subtree, and the distinction is the point. Both directories are untracked, in
+the same exclude-the-bulk-keep-the-record way as the PDFs, so the rows below are
+what make the extraction reproducible.
+
+| tree | what it is, and what it was consulted for | pinned at | licence |
+| --- | --- | --- | --- |
+| `references/climber-x/` | CLIMBER-X, the EMIC whose land model is PALADYN. `src/lnd` is PALADYN, `src/smb` is the SEMI surface energy and mass balance model, `src/ch4` the atmospheric methane box, `src/sic` dynamic-thermodynamic sea ice. Read for `notes/external-model-survey.md` section 3, and cited by LSHY-3, LSHY-5, LSHY-7, CLIM-53, CLIM-63, GW-26, GRAV-8, DUST-14, GRID-2 and WET-10 | `cxesmc/climber-x` commit `60b1818b9eb57aaf5a318f071a146f02479db09a`, dated 2026-07-17. Tarball sha256 `9a419ecad2ef80da15158bf421fe3e1a870ff037b2b5b418a5b3fff326748f94` | GPL-3.0-or-later. ExoPlaSim is GPL-2-or-later, so a combination is permitted with the combined work under GPL-3 |
+| `references/big-mitgcm/` | The BIG-MITgcm v1.0 release, MINUS its 1 GB `data.zip` of simulation output, which is model results rather than model source and was not fetched. `MITgcmIS.py` is the entire ice sheet model in 557 lines. Read for `notes/external-model-survey.md` section 4, and cited by GRAV-6, CLIM-53, CLIM-62, OCN-3, OCN-11 and PHYS-13 | Zenodo `10.5281/zenodo.18723952`, Moinat et al. | CC-BY-4.0 |
+
+Refresh either by re-fetching the tarball at the recorded revision and
+extracting over the directory. There is no working tree to pull into, which is
+deliberate: a pinned extraction cannot drift under a reader who came back to
+check a claim months later.
+
+
 ## Biosphere: photosynthesis under a non-solar spectrum
 
 The largest single item in the error budget (`scripts/error_budget.py`): bare

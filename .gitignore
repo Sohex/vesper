@@ -142,6 +142,16 @@ references/_*
 references/*.zip
 references/ecospeclib*/
 
+# External model source, extracted from a pinned tarball rather than cloned, so
+# there is no nested .git for an outer command to trip over. Read-only material
+# for comparison against this project's own components; nothing here is built,
+# imported or vendored -- code this project COMPILES lives in vendor/ as a
+# subtree. Same exclude-the-bulk-keep-the-record rule as the PDFs above: the
+# pinned revision, the licence and what each tree was consulted for are written
+# into references/INDEX.md, which is what makes the extraction reproducible.
+references/climber-x/
+references/big-mitgcm/
+
 # Offline dust fields, rebuilt in minutes by aeolian/scripts/build_dust.py once a
 # climatology exists. The JSON report beside them IS tracked: it carries the
 # numbers, the brackets and the provenance, and it is kilobytes.
@@ -187,6 +197,8 @@ hydrography/analysis/cache_era5
 hydrography/data/earth_validation_cache
 pedology/data/earth_validation_cache
 references/aus_groundwater
+references/big-mitgcm
+references/climber-x
 references/ecospeclib-all
 references/poseidon_surface_albedo
 references/splib07
