@@ -74,6 +74,13 @@ is a finding with no home, which is the condition this exists to catch.
 | 38 | The leaf-to-canopy bound is asserted, and it is not one-signed | `BIO-18` |
 | 39 | Soil albedo does not know whether the soil is wet, and the blocker is the state variable | `DUST-17`, `PHYS-15` |
 | 40 | OCN-12's inventory, geochemistry side: BIOGEM and SEDGEM | `OCN-1`, `OCN-12`, `OCN-3`, `OCN-4` |
+| 41 | A plant-hydraulics parameter that carries the gravity of whoever stored it | `GRAV-7`, `PLHY-6` |
+| 42 | CLIMBER-X's methane: a lifetime with no chemistry, and a conversion made of Earth | `BVOC-6`, `GW-26`, `OCN-12`, `WET-10`, `WET-6` |
+| 43 | Sea-ice dynamics priced, and OCN-21's block is scheme-dependent | `CLIM-16`, `DUST-14`, `OCN-12`, `OCN-21`, `PHYS-14` |
+| 44 | SOCRATES: the k-tables do not have to be rebuilt for a new star | `CLIM-61` |
+| 45 | SICOPOLIS: gravity enters at four different powers, and two of them are hidden | `CLIM-62`, `CLIM-63`, `GRAV-6` |
+| 46 | The rest of cGENIE: six statements of the year, one of them in bash | `BVOC-6`, `OCN-3` |
+| 47 | CLIMBER-X's geography module, at line level -- and two places this project is ahead | `GRID-2`, `OCN-11` |
 
 ## 1. The two families do not overlap, and this stack is in the gap
 
@@ -3520,3 +3527,584 @@ this case a comment that actively misdirects.
   not transfer: the expression is longwave-only, so the K dwarf is not the
   problem -- Earth's pressure broadening and band overlap are. Any methane
   radiative treatment here has to come from ExoPlaSim's own band structure.
+
+
+## 43. Sea-ice dynamics priced, and OCN-21's block is scheme-dependent
+
+*Read 2026-08-22 from `references/climber-x/src/sic/`, `src/atm/`, `src/ocn/`.
+The force-balance claim in 43b was verified directly against the source before
+being acted on, because it changes a row's status.*
+
+### 43a. What a full dynamic-thermodynamic scheme costs
+
+`sic/sic_dyn.f90` is EVP -- elastic-viscous-plastic, Hunke and Dukowicz (1997),
+elliptical yield curve, on a C-grid, its header citing SIS2. The price, which is
+what OCN-21 asked for:
+
+- **Five new prognostic 2-D fields, all in the restart**: `ui`, `vi` and the
+  three stress-tensor components `str_d`, `str_t`, `str_s`
+  (`sic_dyn.f90:70-74`, written at `sic_model.f90:966-977`).
+- **A sixth field promoted**: ice concentration must become prognostic and
+  separately advected (`sic_model.f90:198-250`). The diagnostic
+  thickness-area relation is retained but is incompatible with advection.
+- **Five forcing fields in**: `uo`, `vo`, `tauxa`, `tauya`, `ssh`
+  (`sic_dyn.f90:64-68`), and `tauxo`/`tauyo` returned to the ocean.
+- **An EVP subcycle per sea-ice step**, `evp_sub_steps = 50` in the namelist
+  against an SIS2 default of 432, plus one flux-corrected transport pass per
+  advected field, three of them.
+- **Numerical guards it cannot run without**: a hard velocity clamp at
+  `cfl_fac*dx/dt` with `cfl_fac = 0.1` "for CFL stability near the Poles", a
+  minimum shear rate capping the viscosity, and `limit_stresses` called before
+  every step to cap inherited stresses against current ice pressure.
+- Nine rheology parameters, all namelist. Two densities are NOT: `Rho_ocean =
+  1030` and `Rho_ice = 905` are `parameter`s inside the type, and the second
+  disagrees with the thermodynamics' own `rho_sic = 910`.
+
+### 43b. The block is real for one scheme and not the other
+
+OCN-21 is blocked because a slab ocean has no velocity field to advect ice with.
+That is exactly right for cGENIE's scheme, which is advection by upper-ocean
+velocity and has nothing to do without it. **It is not right for EVP, which is a
+momentum solve.** `sic_dyn.f90:603` forms the forcing as
+
+    (Cor + PFu(I,j))*mi_u(I,j) + (fxic_now + tauxa(I,j))
+
+-- Coriolis, sea-surface tilt, internal ice stress, and **wind stress**. Ocean
+velocity enters only as the drag reference, `uio_init = ui - uo` at `:593`.
+
+So with `uo = vo = 0` and `ssh = 0`, the tilt term vanishes and the drag becomes
+drag against still water, while **wind stress, internal ice stress and Coriolis
+all remain**. Wind-driven ice dynamics over a motionless ocean is a reduced but
+coherent configuration -- it is what free-drift approximations do, and on Earth
+the wind term dominates ice drift on short timescales anyway.
+
+**OCN-21's block should therefore be stated as scheme-dependent rather than
+absolute.** The row's conclusion does not change -- the term is still unpriced
+and still belongs in the error budget first -- but "there is nothing to advect
+with" is an argument against one family of schemes, not against sea-ice motion.
+
+### 43c. Earth constants, including one a search cannot find
+
+`src/main/constants.f90:58,60,67` welds `R_earth`, `omega` and `g` as
+compile-time `parameter`s with no namelist path, consumed directly in all three
+components' grids and in every thermal-wind term.
+
+Three more worth recording:
+
+- **`p = 0.1*(-z)  ! pressure in bar`**, `ocn/eos.f90:85`, in all three
+  equation-of-state branches. That 0.1 is Earth's gravity times seawater
+  density, and **there is no `9.81` and no `1025` on the line** -- an Earth
+  constant that no search for constants finds, and a clean instance of
+  failure-mode class 32 in its unit form.
+- **`frac_vu = 0.45`**, `constants.f90:79`, "fraction of solar spectrum in
+  visible and ultraviolet" -- a welded band weight with no namelist path and no
+  stated split wavelength, serving as the only shortwave band division. This
+  project's equivalent is 0.382 at 0.75 um, derived and configured.
+- **`atm_mass = 5.12e18` kg** welded at `atm/atm_params.f90:240`, with reference
+  surface pressure derived FROM it and the welded `g`, and the scale height
+  `hatm = Rd*T0/g` at `:241` carrying gravity into the whole radiation column's
+  vertical coordinate. A second independent Earth atmospheric mass in this
+  survey, after section 42b's methane conversion.
+
+And **three different Coriolis floors in three components**: `5.e-5` as a
+literal in `sic/sic_grid.f90:223`, `fcormin = 1e-5` in the atmosphere namelist,
+`5.e-6` in the ocean's. At Earth rotation the sea-ice floor binds equatorward of
+about 20 degrees -- it is not a small-number guard, it replaces the Coriolis
+parameter over a fifth of the globe.
+
+### 43d. The rotation assumption that cannot be configured out
+
+`atm/slp.f90:338` maps latitude through `6*hadwidsc*(...)`, so the mapped
+coordinate runs from 0 to 3*pi between equator and pole, and `:447-453` assign
+the overturning cell by which pi-interval it falls in. **The literal `6` is a
+hard-wired three-cell-per-hemisphere assumption.** Reinforcing it,
+`atm/atm_grid.f90:43-47` fixes `jpn=jm/6, jtn=jm/3, jts=jm*2/3, jps=jm*5/6` as
+compile-time cell boundaries at plus and minus 30 and 60 degrees.
+
+The only freedom is a Hadley width scale clamped to `[0.5, 1.5]`. **The cell
+count can never change.** Cell count and width both depend on rotation rate, and
+this world turns in 30 hours rather than 24.
+
+That is worth carrying not because this project should adopt CLIMBER-X's
+atmosphere -- it should not -- but as a warning about the class: a statistical
+dynamical atmosphere encodes a circulation structure that a primitive-equation
+model computes. Relatedly, `atm/synop.f90:135` scales synoptic eddy production
+by `2*omega*|sin(lat)|` through an Earth-tuned coefficient, so changing rotation
+alone rescales the model's entire eddy transport with nothing compensating.
+
+### 43e. A transferable recipe for the no-q-flux term
+
+`src/main/coupler.f90:4142-4146` and `:4189-4191` show how a q-flux is actually
+made: run the model with **prescribed** SSTs, write the diagnosed net surface
+heat flux to a restart as `qflux`, then read it back and apply it as
+`(flx_ocn - qflux)/cslab` against a 30 m slab.
+
+CLIM-16 carries no-q-flux as a STRUCTURAL error term, and CLIM-16's own framing
+is that a constant diffusivity is a bound on the missing transport rather than
+the transport. This is a different and complementary instrument: a procedure for
+converting the declared term into a diagnosed field, at the cost of one
+prescribed-SST run. It does not make the transport physical -- the field is a
+residual, and calling it transport would be exactly the tuning the project
+forbids -- but it bounds the term with a measurement instead of an assumption.
+
+### 43f. Blind spots
+
+- **Prognostic snow on ice with grain size and dust darkening.**
+  `sic/surface_par_sic.f90:111-260` carries two snow-albedo schemes, both taking
+  prognostic grain size and dust concentration, with grain size corrected for
+  solar zenith angle. Snow grain size is in the restart. This is section 37's
+  missing predictor, implemented, plus a dust path.
+- **A closed dust loop**: `atm/dust.f90` makes dust a prognostic advected tracer
+  that deposits onto sea-ice snow and feeds its albedo. This project's aeolian
+  component is offline by design, so emission-transport-deposition-albedo is
+  open here and closed there.
+- **Snow-to-ice conversion by flooding**, brine rejection as a separate
+  freshwater flux, and a Kraus-Turner prognostic mixed layer -- the last being
+  what a fixed-depth slab replaces with a constant.
+- **An online radiative-kernel feedback decomposition**, `atm/feedbacks.f90` and
+  `atm/rad_kernels.f90`, computing an error-budget attribution during the run.
+
+## 44. SOCRATES: the k-tables do not have to be rebuilt for a new star
+
+*Read 2026-08-22 from `references/socrates/`. CLIM-61 prices a band-resolved
+scheme against the broadband one; this is that price, and it is far lower than
+the tooling's size suggests.*
+
+### 44a. The crux: the Met Office's own non-solar example rebuilds nothing
+
+`examples/trappist1/mk_ga_trappist:5-15` takes the standard Earth `ga9` shortwave
+file, runs `prep_spec` on it, selects **block 2 only**, feeds it a TRAPPIST-1
+spectrum, and writes the result. **No `corr_k` is run anywhere in that example.**
+Blocks 3, 5, 10-12 and 17 are carried over from Earth verbatim.
+
+TRAPPIST-1 is a 2600 K M8 dwarf. That is a far larger spectral shift than
+4965 K, so if the cheap path is accepted there it is accepted here.
+
+There is no runtime spectrum input -- the radiation code reads `solar_flux_band`
+out of block 2 of the spectral file -- so "swap a spectrum at runtime" is not
+available. But rewriting block 2 is one `prep_spec` invocation.
+
+### 44b. Two tiers, and the expensive one is optional
+
+| tier | what it does | cost |
+| --- | --- | --- |
+| cheap | rewrite block 2's per-band solar fractions | one `prep_spec` run, seconds |
+| expensive | re-run the correlated-k fit with `+S <stellar spectrum>`, which re-weights the wavenumber-to-g-space mapping, the k values and the k-term weights | the tooling's own README says "probably several days if not done in parallel", needs ~20 GB, and about an hour on re-runs once the line-by-line files exist |
+
+**And the longwave file is entirely star-independent.** Its k-fits use Planckian
+weighting `+p` rather than `+S`, so an Earth longwave spectral file transfers
+untouched. That halves the problem before it starts.
+
+### 44c. Two things the cheap tier leaves stale
+
+If CLIM-61 takes the cheap tier it should do so knowing **three** star-weighted
+quantities exist, not one. Block 3's Rayleigh coefficients are solar-weighted,
+block 5's k-term weights are solar-weighted, and every cloud and aerosol band
+average is built by `Cscatter_average -S <solspec>`. The TRAPPIST-1 example
+regenerates none of them. Block 3 and the scatter averages are cheap to redo;
+block 5 is the expensive tier.
+
+### 44d. The atmosphere is the easy part here
+
+The foreign broadener is hard-coded to HITRAN's air-broadened half-width,
+`src/correlated_k/adjust_path.f90:116-118`, with no substitution mechanism --
+only an empirical far-wing line-shape correction for CO2. **That is good news:
+a 1 bar N2/O2/Ar atmosphere is exactly what air-broadening coefficients
+describe**, so none of the Mars or H2 machinery applies and no correction is
+needed. The standard pressure-temperature grids span 1 Pa to 10 bar and 100 to
+400 K, comfortably covering this world.
+
+Composition enters Rayleigh scattering as a three-way choice, and
+`examples/rayleigh/run_me` is close to this project's case already: it patches N2
+and argon into an Earth file and tabulates custom Rayleigh coefficients per gas.
+
+**One trap.** `src/modules_gen/refract_re_ccf.f90:46-51` declares wavelength
+validity ranges for the refractive-index dispersion formulae -- argon's is
+0.140 to 0.568 um -- and those bounds **appear nowhere outside their own
+declaration**. The Sellmeier forms are silently extrapolated beyond them, and a
+K dwarf puts more flux redward of argon's upper bound than the Sun does. The
+size of the resulting error is not determined from source.
+
+### 44e. Ozone is separable
+
+Ozone has its own gas index and its own block-4 and block-5 entries, fitted in
+two independent runs -- cross-sections in the UV and visible, HITRAN lines in
+the near-infrared -- and appended separately at `prep_spec` time. It can be
+regenerated, replaced or removed without touching another gas. The standard
+cross-section data covers 195 to 1100 nm; below 195 nm needs the separate
+`sp_uv` toolchain, which is a photolysis-rate chain rather than a flux one.
+
+
+## 45. SICOPOLIS: gravity enters at four different powers, and two of them are hidden
+
+*Read 2026-08-22 from `references/climber-x/src/ice_sico/` and `src/bmb/`.
+GRAV-6 records that Glen's law makes ice velocity go as g^3. That is right, and
+it is not the largest exponent in the model.*
+
+### 45a. The powers, from the model's own algebra
+
+There is exactly one gravitational constant in CLIMBER-X, `g = 9.81` at
+`src/main/constants.f90:67`, and **seventeen lines in a 28,000-line ice model
+mention it.**
+
+| term | expression | power of g | at 12.81 m/s2 |
+| --- | --- | ---: | ---: |
+| driving stress | `RHO*G*H_c*(...)`, `calc_vxy_m.f90:658` | 1 | 1.31x |
+| SIA velocity and diffusivity | Glen `creep = sigma^2` times stress | **3** | **2.23x** |
+| **strain heating** | `creep(sigma)*sigma^2 = sigma^4`, `calc_temp_enth_m.f90:823-827` | **4** | **2.91x** |
+| basal sliding | `C_slide*tau_b^p/p_b_red^q`, `p=3, q=2` | **p-q = 1** | 1.31x |
+| frictional basal heating | `G/L` times `tau_b*v_b` | 1 explicit, 2 composite | 1.71x |
+
+**Two consequences GRAV-6 does not currently carry.**
+
+**Strain heating is a higher power than flow.** At g^4 against g^3, the thermal
+feedback outruns the dynamic one, so a Vesper ice sheet goes temperate more
+readily than the velocity scaling alone suggests -- and temperate ice then
+re-enters the flow through the rate factor and the sliding switch. The
+gravity signal concentrates in the temperate fraction.
+
+**Deformation and sliding do not scale together.** Sliding goes as `g^(p-q)`,
+which is g^1 under the default Weertman exponents, against g^3 for internal
+deformation. The deformation-to-sliding ratio therefore shifts by **g^2 = 1.71x**
+toward deformation. That changes the MODE of flow, not merely its speed, and it
+is the kind of thing a single "2.23x faster" figure conceals. Note also that
+`c_slide` carries units of `m/(a*Pa^(p-q))` -- dimensional, so its Earth-tuned
+value is wrong at another gravity by exactly that factor.
+
+### 45b. Two Earth gravities with no `G` on the line
+
+Class 32 again, in the unit form section 43c found in the ocean equation of
+state:
+
+- `sico_params.f90:165`: `BETA = 8.7d-04`, commented "Clausius-Clapeyron
+  gradient, K/m". Per metre **of ice**. Dividing by `rho_i*g` gives 9.75e-8 K/Pa,
+  the textbook `dTm/dp`, so `BETA` is a material property times Earth's gravity.
+  **At this world's gravity it must become 1.136e-3 K/m.** It propagates into
+  five derived coefficients, so the pressure-melting point, the position of the
+  cold-temperate transition surface and temperate-layer drainage all move with
+  gravity through a constant that reads as a property of ice.
+- `bmb/bmb_model.f90:347`: the sub-shelf freezing point carries `7.64e-4` per
+  metre of depth, which is 7.58e-8 K/Pa times seawater `rho*g`. **9.98e-4 here.**
+
+Neither line contains a `9.81`, a density, or the letter `G`.
+
+### 45c. Route C is a downgrade from Route A on the free boundary
+
+CLIM-62's Route A rests on this project already owning an elliptic operator with
+exact closure and an **active set**, which is what a margin needs because
+`H >= 0` is a free boundary. SICOPOLIS does not do that. `calc_thk_m.f90:1306`
+and `:1376` **clip**:
+
+    H_neu = max(H_neu_flow + dtime*mb_source, 0)
+
+and the implicit variants solve the same unconstrained system and clip
+afterwards. There is no active set, no variational inequality and no
+complementarity condition in the module. The mass the clip destroys or invents
+is then **rebooked as a surface mass balance correction** at `:1437-1443`,
+redefining accumulation and runoff after the fact so the diagnostics balance.
+
+That is the concrete difference to record in CLIM-62: **Route A gets the margin
+right by construction; Route C gets it approximately and repairs the books.**
+The margin itself is a per-cell binary against a single-precision epsilon, with
+no sub-grid position.
+
+### 45d. What the port would actually cost
+
+The gravity edit is small and locatable -- seventeen lines, one parameter, two
+hidden literals. The real costs are elsewhere:
+
+- **Dimensional Earth-tuned limiters sitting on g^3 and g^4 quantities**, none of
+  which scales itself: `hd_max = 500` m2/s and `vh_max = 3000` m/a will bind
+  roughly 2.2x more often here, silently truncating the very effect being
+  studied.
+- **Earth geography welded in**: seven named region ids read from a mask file,
+  a Greenland exclusion switch, and a 604-line discharge parameterisation
+  documented as being for the Greenland ice sheet with a hard-coded 32 km length
+  scale.
+- **None of the material constants is namelist-configurable** -- density, latent
+  heat, conductivity, radius and gravity are all compile-time and shared with the
+  atmosphere and ocean, so changing one is a whole-model change.
+- **`hydro_m.f90` is 2,041 lines of dead code carrying a second, inconsistent
+  constant set** -- its own `rho_ice = 917` against the model's 910, its own
+  `gravity_const`. Its only call site is commented out. Do not port it.
+- The rate-factor table is **n=3 specific**, units 1/(s*Pa^3), so selecting the
+  n=4 flow law leaves a Pa^-3 table feeding a sigma^3 creep function.
+
+The coupling surface is NOT the expensive part: thirteen fields in, seven out,
+about ninety lines of translation. One trap in it -- the adapter is 1-based and
+SICOPOLIS 0-based and the two transpose, which is rule 3's class of defect on
+indices.
+
+### 45e. The enthalpy formulation, and why it costs more here
+
+The default is ENTM, the melting-CTS enthalpy method of Greve and Blatter: the
+conventional enthalpy solve plus a corrector that re-solves the column from the
+cold-temperate transition upward so the transition condition is satisfied
+exactly. **The corrector makes per-column cost depend on how much of the column
+is temperate.** Combined with 45a's g^4 strain heating and 45b's steeper
+pressure-melting gradient, a Vesper ice sheet is temperate over more of its
+volume -- so a run here is slower per timestep than an Earth run of the same
+size, not merely different. That is a cost this project should expect rather than
+discover.
+
+## 46. The rest of cGENIE: six statements of the year, one of them in bash
+
+*Read 2026-08-22 from `vendor/cgenie/genie-atchem/`, `genie-goldlite/`,
+`genie-ocnlite/`, `genie-forcings/`, `genie-paleo/`, `genie-lib/`.*
+
+### 46a. Methane: two forms, and only one of them transfers
+
+`genie-atchem` offers six selectable CH4 sink schemes and **none is photolysis**.
+The atmosphere is one well-mixed box, homogenised every step, and the source
+says so: "omitting [OH], [NOx] etc etc". The lifetime is the entire chemistry.
+
+Two families, and the distinction decides which is usable here:
+
+**Power laws in PARTIAL PRESSURE, which transfer.** The default is
+`tau = tau0*(pCH4/C0)**N` with `tau0 = 8.3` yr, `C0 = 1700 ppb`, `N = 0.238`
+after Osborn and Wigley (1994); `schmidt03` is the same form with
+namelist-settable constants and a calibration range of 1x to 200x C0 against the
+default's 8x. **`schmidt03` is the better-conditioned of the two and is the shape
+BVOC-6 should take**, alongside section 42a's reciprocal-sink decomposition.
+
+**Polynomial emulators in ABSOLUTE MOLE INVENTORY, which do not.** `claire06`
+and `goldblatt06` fit photochemical-model output as bivariate polynomials in
+`log10` of the total O2 and CH4 inventories **in Tmol**, not mixing ratios. That
+anchors them to Earth's atmospheric mass, and this world's is 1.088x by section
+42b. The source's own comment concedes the risk: "neither O2 nor CH4 are
+truncated at edge of training values here, so USE CAUTION". **Do not adopt this
+family**; it would be evaluated far outside its training range with no warning.
+
+A trap worth recording even so: `par_atm_CH4_photochem` defaults to `"default"`,
+and the default scheme reads only the compile-time constants -- so the three
+namelist `par_pCH4_oxidation_*` values are **silently ignored unless the scheme
+string is also changed**, while the run log prints them as though in force.
+
+There is also a diffusion-limited hydrogen escape variant with a fixed
+first-order rate of 3.7e-5 per year on the CH4 inventory. It is a function of
+neither exobase temperature nor gravity, so it is Earth-specific and would need
+rederiving here.
+
+### 46b. Six independent statements of the year, and the authoritative one is a shell script
+
+Section 40a found `conv_yr_d = 365.25` as a compile-time parameter with
+alternatives commented on its own line, and a separate hardcoded `3.15e7` in the
+sediment module. That was not two defects but the visible members of a family of
+six:
+
+1. `gem_cmn.f90:585-587` -- `conv_yr_d = 365.25`, then `24.0` for the day, then
+   `conv_yr_s`. All compile-time.
+2. `genie_control.f90:190` -- `global_daysperyear = 365.25`, **a second and
+   entirely separate declaration** in a different module with no cross-reference,
+   passed into the insolation routine. So the orbital year reaches radiation
+   through this and biogeochemistry through `conv_yr_s`, and nothing checks they
+   agree.
+3. `initialise_genie.F:110` -- `genie_timestep = 3600.0`, a one-hour master step,
+   beside an Earth solar constant of 1368.
+4. Config files -- `ma_genie_timestep=63115.2` with a 360-day IGCM alternative
+   commented adjacent, 1.44 percent apart. Nothing verifies that timestep times
+   step-count equals `conv_yr_s`.
+5. **`genie-main/runmuffin.sh:229`** -- `3600.0*24.0*365.25/...` as bash
+   literals, in a different language from the model, appended to the generated
+   config. **This overrides item 4 for every standard run, which makes a shell
+   script the authoritative statement of the year length.**
+6. `genie-lib/libutil1/calndr.f:26-27` -- a 360-day 12x30 calendar with the
+   365-day version commented on the adjacent line. Dead: the makefile compiles
+   only two unrelated files.
+
+And the atmosphere's mole inventory is Earth's by construction, stated three
+times: `par_atm_th = 7777.0` m, a compile-time non-namelist atmospheric
+thickness tuned down from 8000 m so that 1 ppm CO2 equals OCMIP's 2.123 PgC;
+`conv_atm_mol = 1.7692e20`; and that same literal repeated inline in
+`atchem_box.f90:328` in a module where the named constant is already in scope.
+With `const_rEarth` beside them, the box volume is Earth's by definition. For
+this world all three must move together -- the same quantity section 42b priced
+at 1.088x for CLIMBER-X.
+
+### 46c. The two "lite" accelerators are not accelerators
+
+The inventory listed `goldlite` and `ocnlite` as tier-0 reading. They resolve to
+nothing, which is worth recording so nobody looks again.
+
+**`ocnlite` is an empty template.** Its main routine is three comment headers and
+no statements; its box module contains one dummy subroutine with an
+`! #### INSERT CODE ####` marker; its library declares nothing. It compiles and
+is fully wired into the main loop behind a flag that defaults false, and no
+config in the tree sets it. Its shutdown routine is even mislabelled "END
+GEMlite".
+
+**`goldlite` is an abandoned prototype** for diagnosing ocean transport as a
+cell-to-cell colour matrix. It states no domain of validity anywhere -- the
+property section 35 praised GEMlite for. Its structural limit is unstated and
+severe: the matrix can only hold four von-Neumann neighbours, so transport
+further than one cell per diagnostic interval is silently discarded. It also
+calls its own transport diagnosis with an actual argument six times smaller than
+the dummy expects, through an external interface that cannot catch it, which is
+strong evidence it has never been run.
+
+So section 35's contrast stands and sharpens: **of cGENIE's three "lite"
+modules, one works and states its own invalidity, and the two that came after it
+were never finished.**
+
+### 46d. What adopting a geography actually costs
+
+`genie-paleo` is 286 pre-baked Earth palaeogeographies and no code. Each is a
+17-file set on a 36x36 grid. The adoption cost for a NEW geography is not the
+bathymetry -- that regrids -- it is the **`.psiles` and `.paths` pair**, which is
+topological: an integer island-label map, and a hand-ordered list of
+`(direction, i, j)` triples tracing a closed integration circuit around each
+island for the barotropic streamfunction solve.
+
+**These cannot be produced by regridding a heightfield.** They encode which land
+masses are separate and how a contour walks around each one, and muffingen
+generates them interactively. For this project that is manual work per build,
+and **it invalidates on every generation that changes continent connectivity** --
+which is exactly what a new Orogen generation does. OCN-3 and OCN-11 should
+carry that as a per-iteration cost, not a one-off.
+
+Modern Earth orbital parameters are also written as live literals into about 130
+of those configs -- eccentricity 0.0167, `sin(obliquity) = 0.397789`, longitude
+of perihelion 102.92 -- and obliquity has **two competing parameter names read by
+two different code branches**, so setting the wrong one for your branch is
+silent.
+
+`genie-forcings` by contrast is clean: 6,061 files of per-tracer flag tables and
+`(year, value)` time series, with no coastline hardcoded anywhere. Its only Earth
+assumption is the time unit.
+
+### 46e. Two blind spots worth naming
+
+- **A slab terrestrial carbon reservoir with isotope exchange.** A two-way CO2
+  flux between the atmosphere and a per-cell standing carbon pool, initialised at
+  2300 PgC, carrying 13C both directions with no vegetation model at all. Worth
+  knowing this exists given how expensive the LPJ-GUESS path is.
+- **Earth-observation cost functions as first-class build targets.** Three
+  `errfn_*` programs plus a HadCM3 target file compile to binaries that score the
+  model against observed phosphate and alkalinity. For this world every one of
+  them is inert -- there is nothing to tune against -- and that should be known
+  before anyone assumes the vendored tuning path is usable.
+
+
+## 47. CLIMBER-X's geography module, at line level -- and two places this project is ahead
+
+*Read 2026-08-22. Section 7a already triaged `references/climber-x/src/geo/` at
+DIRECTORY level and keyed its files to rows. This is the line-level reading, and
+it reaches a different kind of conclusion: on two of the mechanisms this project
+has built, the nearest peer on disk is the weaker implementation.*
+
+### 47a. Endorheic drainage: the peer routes twice to get what this gets once
+
+`topo_fill.f90:73-117` fills **every** depression, Planchon and Darboux (2001),
+imposing `eps = 1e-4` m of slope per filled cell "to ensure all points are routed
+to the ocean". `runoff_routing.f90:130-203` then walks the filled surface to the
+first ocean cell. Lakes exist only because `lakes.f90:104` recovers them as
+`z_topo_fill - z_topo`, and a **second** routing pass un-fills the lake cells and
+flags local depressions to build the lake catchment map.
+
+This project's `drainage.py:resolve()` seeds a priority-flood heap with preserved
+basin sinks and gets one network carrying both properties. **The peer pays for
+two routings to reach the same two answers, and imposes an artificial gradient to
+do it** -- over a 10,000-cell flat path that is a metre of invented slope.
+
+### 47b. Lake overflow: the peer is one-way and knowingly open
+
+`coupler.f90:3709` makes lake spill `max(0, vol - vol_pot)` and delivers it to
+the ocean. **There is no basin-to-basin cascade anywhere in the peer.** Its water
+budget is open in three places its own comments admit: a nonphysical negative
+runoff from ocean to lake to hold below-sea-level lakes at a minimum volume; a
+`! todo move old lake water to somewhere to conserve water` where a lake that
+vanishes under changing topography drops its volume; and a geo-side overflow term
+commented out and hard-zeroed before the volume is clipped.
+
+This project's saddle-routed, cycle-collapsing fixed-point cascade conserves
+where that does not. `hydrography/README.md` currently carries an UNVALIDATED
+flag on the lake solver; **this is evidence for the design, though not for the
+numbers**, and the distinction matters -- the solver is still unvalidated against
+observation, and what is established here is only that its structure exceeds the
+nearest peer's.
+
+Also worth noting: lake volume is not in the peer's restart file, so a restarted
+run refills every lake from its minimum.
+
+### 47c. A peer defect that is exactly what rule 1 exists to prevent
+
+`geo.f90:405` and `:797`:
+
+    where (z_sur < 0) z_sur = 0  ! negative surface elevation not allowed, fixme? could be negative over lakes...
+
+**The surface elevation handed to the land and atmosphere is clamped at zero**,
+so a below-sea-level lake surface is reported at 0 m. This project's rule 1 --
+take land from `surface_class`, never from `land_mask`, because they disagree
+over dry closed-basin floor below sea level, and preserving that terrain is the
+entire point of the fork -- is the rule that prevents precisely this. The peer
+has the defect, in a `fixme` its authors noticed and left.
+
+### 47d. A defect in the peer, checked clean here
+
+`runoff_routing.f90:190-191` accumulates flow as
+
+    flow_acc(ir,jr) = flow_acc(ir,jr) + area(ir,jr)
+
+inside the downstream walk. That adds the **visited** cell's own area once per
+traversal, so the result is local area times path count rather than upstream
+area, and on a lat-lon grid where area varies as `cos(lat)` a basin draining
+across latitudes is systematically wrong. The source cell's own area is never
+added, and the write sits inside an OpenMP loop with no atomic.
+
+**Checked against `vendor/orogen/js/basins.js` and this fork is correct.** It
+initialises `accum[r] = area[r]` per cell, orders by in-degree rather than by
+elevation -- with a comment explaining that on a filled flat many cells share an
+elevation so a sort gives no guarantee -- and accumulates full upstream sums. The
+top-50 river-mouth ranking that `build_hydrography.py` derives from it is sound.
+Recorded so the check is not repeated.
+
+### 47e. The mechanism this project genuinely lacks
+
+**Runoff delivery to ocean cells, with embayment-first spreading**, about 190
+lines in `coast_cells.f90:115-186`. Per coastal cell it builds an ordered
+neighbour list -- the cell itself, then 3x3 neighbours **sorted by fewest ocean
+neighbours first**, then a fixed 28-entry distant stencil reaching four cells in
+longitude -- and runoff, calving and weathering flux each spread over the first
+few. The embayment-first ordering is the non-obvious part: freshwater goes
+preferentially into enclosed water rather than straight to open ocean.
+
+This project's `river_discharge()` stops at the land margin. OCN-11 and ANUT-6
+both need the far side, and this is a small liftable shape for it. Note also
+`fix_runoff.f90`, which exists purely because the hi-res routing destination and
+the coarse ocean fraction disagree -- the mesh-versus-T42 disagreement this
+project has not hit yet only because discharge stops early.
+
+### 47f. Three smaller things worth having
+
+- **The land/ocean fraction threshold is latitude-dependent** in the peer:
+  `fcrit = f_crit + max(0, f_crit_eq - f_crit)*cos(lat)**30`, an equatorial band
+  of about ten degrees, doubled at the poles. The values are currently equal so
+  the hook is inert, but it is structured to vary because a coarse cell's ocean
+  fraction has different consequences where straits carry through-flow. This
+  project chose a scalar `geography_land_threshold: 0.5` without that
+  consideration being recorded.
+- **A depth QUANTILE, not a mean, is what the ocean receives.**
+  `hires_to_lowres.f90:476-478` computes the 90th-percentile bed elevation of the
+  ocean part of each coarse cell and hands that to the ocean model. A worked
+  answer to a question GRID-2 and OCN-11 will both ask.
+- **Topography filtering at a stated length scale**, `topo_filter.f90`: a
+  Gaussian in kilometres with cached per-latitude weights. This project has no
+  smoothing anywhere in the terrain-to-model path, only in rendering. Note the
+  planetary trap in it -- the filter width is computed in cells from a distance
+  in km via Earth's radius, so a 1.20-radius planet at the same degree spacing
+  gets FEWER filter points for the same nominal length scale, silently changing
+  effective resolution.
+
+### 47g. Blind spots
+
+- **Geothermal heat flux as a field** (`q_geo.f90`). Absent project-wide, and it
+  is the lower boundary any groundwater temperature or deep-soil term would need.
+- **Isostasy**, and it is nearly free: the lagged relaxed-bed form is
+  `z_bed_rel = z_bed + rho_i/rho_as*h_ice` plus a relaxation with a 3000-year lag
+  -- three lines of density ratios, no gravity. The spherical-harmonic
+  alternatives beside it are Earth's interior structure and do not transfer.
+- **Sediment thickness treated as a read-in boundary field** rather than a
+  modelled quantity, which is cheaper than the reason this project gave for
+  declining it.
+- **Reef habitat from seabed slope and photic-zone hypsometry** -- a biosphere
+  hook with no project analogue.

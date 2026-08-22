@@ -33,11 +33,11 @@ was never entered.
 
 | path | what it is | serves |
 | --- | --- | --- |
-| `src/ice_sico/` | SICOPOLIS, 27k lines, behind the 1.2k-line `src/ice/` adapter that also serves Yelmo | CLIM-62 route C and its separability question. STARTED: the adapter measurement is already in CLIM-62 |
-| `src/geo/` | 21 files including `drainage_basins.f90`, `coast_cells.f90`, `connect_ocn.f90` | HYD's drainage and basins, OCN-11's coast and bathymetry contract, SURF-7's discharge mask. **The nearest peer to this project's hydrography that exists on this disk** |
-| `src/ch4/` and `src/bnd/ch4*.f90` | the methane module and its radiative forcing path | WET-10, which has to close a methane flux, and BVOC-6 |
+| `src/ice_sico/` | SICOPOLIS, 27k lines, behind the 1.2k-line `src/ice/` adapter that also serves Yelmo | CLIM-62 route C and its separability question. DONE 2026-08-22, survey section 45 |
+| `src/geo/` | 21 files including `drainage_basins.f90`, `coast_cells.f90`, `connect_ocn.f90` | HYD's drainage and basins, OCN-11's coast and bathymetry contract, SURF-7's discharge mask. **The nearest peer to this project's hydrography that exists on this disk.** DONE 2026-08-22, survey section 47 -- and note the correction: section 7a had already triaged this directory at FILE level, so it was unread rather than unopened. `gia.f90`, `vilma.F90`, `fastearth.F90`, `sed.f90`, `q_geo.f90`, `topo_filter.f90` and `geo_grid.f90` were absent from that triage entirely |
+| `src/ch4/` and `src/bnd/ch4*.f90` | the methane module and its radiative forcing path | WET-10, which has to close a methane flux, and BVOC-6. DONE 2026-08-22, survey section 42 |
 | `src/lndvc/`, `src/bnd/` | land vegetation carbon; boundary and forcing construction | BIO, EFOR |
-| `references/socrates/` correlated-k tooling | the k-table generator, as opposed to the radiation code already read | CLIM-61, which prices a band-resolved scheme |
+| `references/socrates/` correlated-k tooling | the k-table generator, as opposed to the radiation code already read | CLIM-61, which prices a band-resolved scheme. DONE 2026-08-22, survey section 44 |
 
 ## Tier 1: open rows, no external comparison in the domain
 
@@ -55,6 +55,8 @@ The blind spot: **methane lifetime on this world is unknown.** A K dwarf's
 ultraviolet changes photolysis rates, so Earth's roughly nine years does not
 transfer, and WET-10 has to close a methane budget without it. A box model is
 small, portable, and answerable offline. GPL, part of the MESSy project.
+
+**Note on the two cGENIE "lite" accelerators**, which an earlier draft of this list expected to be worth reading: they are not. Survey section 46c records that `ocnlite` is an empty template and `goldlite` an abandoned prototype that has never been run.
 
 **ArcSDM, or the USGS three-part assessment method** -- mineral prospectivity
 mapping. *Blind-spot-driven.* MIN has 1 open row of 6 issued, which reads as a
