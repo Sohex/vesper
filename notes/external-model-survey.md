@@ -3312,3 +3312,79 @@ OCN-1's multi-layer column it is not: penetrative solar heating would be more
 surface-concentrated here than Earth tuning assumes, which stratifies the top of
 the column more strongly. OCN-10 already names "net and penetrative" solar in
 its forcing contract, so the place to carry it exists.
+
+
+## 41. A plant-hydraulics parameter that carries the gravity of whoever stored it
+
+*Read 2026-08-22 from ClimaLand's `src/standalone/Vegetation/plant_hydraulics.jl`
+and `toml/default_parameters.toml`. PLHY-6 is porting plant water potentials and
+GRAV-7 requires the mechanical and hydraulic height ceilings be coupled rather
+than treated independently; this is a unit trap on the first and a scaling
+relation for the second.*
+
+### 41a. The model
+
+The plant is a Darcy medium. `plant_hydraulics.jl:197` gives the flux between
+two compartments as
+
+    F = -K_eff * ((psi2 - psi1)/(z2 - z1) + 1)
+
+with `K_eff` the harmonic mean of their conductivities, and `:256` gives the
+vulnerability curve as Weibull, `K = K_sat * exp(-(psi/psi63)**c)`, with `psi63`
+the potential at 63 percent conductance loss after Liu (2020) and `c` the shape
+after Sperry (2016). Both are per-PFT in `pfts.jl`. That is an independent
+reference implementation of what PLHY-6 is porting, with its parameterisations
+named.
+
+### 41b. The trap: the gravitational term is written as `1`
+
+In that flux expression the gravitational gradient is the bare `+ 1`, which is
+correct **only because `psi` is in metres of head**. Head is `P/(rho*g)`, so the
+unit convention absorbs gravity and then hides it.
+
+`toml/default_parameters.toml:49-53` shows exactly where it goes:
+
+    ["psi_63"]
+    value = -408.163265306122448
+    description = "... Computed by -4 / 0.0098. Holtzman's original parameter
+                   value is -4 MPa"
+
+The published quantity is **-4 MPa**, a material property of xylem. The stored
+number is that divided by 0.0098 MPa per metre, which is `rho*g/1e6` at **Earth's
+gravity**. So `-408.16` is not a plant property; it is a plant property times
+Earth. The same -4 MPa here is **-312.26 m** of head, and the ratio is exactly
+`1/1.306`.
+
+The use site closes the loop: `soil_moisture_stress.jl:82` converts back with
+`psi * rho_water * grav` using the model's own gravity. So a port that moves
+`grav` to 12.81 while carrying `psi_63 = -408.16` forward does not merely fail to
+correct the parameter -- it makes the error twice, presenting the Tuzet stress
+function with -5.22 MPa where the literature says -4.
+
+**The general rule, which is what PLHY-6 should carry:** any plant-hydraulics
+parameter published as a PRESSURE and stored as a HEAD carries the gravity of
+whoever stored it, and nothing in the stored value says so. Failure-mode class
+32 in its unit form -- the declaration is a number, and only the use site and a
+description string say what it means.
+
+### 41c. The two ceilings scale differently, which is what GRAV-7 needs
+
+GRAV-7 requires the mechanical and hydraulic height ceilings be coupled. They do
+not respond to gravity at the same rate, and the difference is the whole reason
+coupling matters here rather than on Earth:
+
+| ceiling | form | scaling | at 12.81 m/s2 |
+| --- | --- | --- | --- |
+| hydraulic | `h_max = abs(psi_crit)/(rho_w*g)` | `g^-1` | **0.766x Earth** |
+| mechanical | Greenhill self-loaded buckling, `(E/(rho*g))^(1/3) * d^(2/3)` | `g^-1/3` | **0.915x Earth** |
+
+Both assume unchanged material properties, which is the no-retuning stance
+GRAV-7 and PLHY-6 already take. **The hydraulic ceiling tightens about two and a
+half times faster with gravity than the mechanical one**, so a world at 1.306
+Earth gravity moves the binding constraint toward hydraulics. On Earth the two
+are close enough that either can bind; here the ordering is more likely fixed.
+
+The hydraulic figure is a ceiling on the GRAVITATIONAL component of xylem
+tension alone. Real tension at the top of a transpiring tree also carries
+frictional path resistance, so the true ceiling is lower than `abs(psi_crit)/(rho_w*g)`
+in both cases -- which lowers both columns without changing either exponent.
