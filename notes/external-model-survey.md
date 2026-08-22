@@ -693,3 +693,81 @@ accurate at a price. It is whether the seven factors keep needing maintenance
 every time the star, the composition or a surface endmember moves, and what
 retiring that maintenance is worth against a whole-model slowdown CLIM-61 has
 yet to measure.
+
+
+## 9. The exoplanet models, read without a row to justify it
+
+*Read 2026-08-22 from `references/exort/`, `references/exocam/` and
+`references/isca/`. This section exists because the rule REF-10 declared was
+wrong, and the correction found something.*
+
+REF-10's rule was that a module is worth reading when an open row already names
+its mechanism. That rule cannot find a blind spot, because a blind spot is by
+definition a thing no row names. It was also written here rather than being a
+standing convention of this project, and then cited as though it were one.
+
+The blind spot in the survey itself was visible once the rule was dropped: three
+EARTH models had been read closely, PALADYN, BIG-MITgcm and cGENIE, and no
+exoplanet model had been read at all. For a project whose distinguishing feature
+is not being Earth, that is the wrong place to have spent all the attention.
+
+### 9a. What the exoplanet models converge on, and it is this project's method
+
+`references/exort/data/solar` ships stellar spectra as BT-Settl models binned
+onto ExoRT's band grids, and `tools/makeStellarSpectrum_fromSED.py` bins a raw
+SED onto any of them. SOCRATES ships `data/solar/trappist1`, also BT-Settl, with
+`teff`, `logg` and metallicity in its header. `build_stellar_spectrum.py` here
+takes BT-Settl and this star's effective temperature and metallicity, deriving
+surface gravity and refusing a grid point that disagrees.
+
+Three independent codes, the same library and the same three parameters. That
+is a convergence rather than a finding, and it is worth recording precisely
+because nothing needs to change: the stellar input this project builds is the
+input both of those codes would want.
+
+ExoRT also gives CLIM-61 a second cost point with structure SOCRATES does not
+have. It ships FOUR band configurations, n28, n42, n68 and n84, chosen by
+atmospheric regime. So correlated-k is a ladder rather than a single price, and
+`ga7`'s 6 shortwave and 9 longwave bands is one rung of several.
+
+### 9b. Snow and ice albedo were never re-derived, and nothing had noticed
+
+`references/exocam/tools/py_progs/broadband_albedo_calculator.py` integrates a
+reflectance spectrum against a stellar spectrum to a broadband albedo. That is
+what `analysis/vegetation_albedo.py`, `analysis/playa_albedo.py` and
+`analysis/rock_albedo.py` each do by hand, so the tool is a second
+implementation to check those three against, which is the kind of test the
+conventions ask for and this project cannot otherwise construct.
+
+Looking for the fourth one is what found the gap. There is no
+`analysis/snow_albedo.py`. `config/planet.yaml` carries no snow or ice albedo
+key. Nothing here writes `dsnowalbmn`, `dsnowalbmx` or `dglacalbmn`, so all
+three take ExoPlaSim's namelist defaults while vegetation, playa clastics and
+every rock class carry values reweighted to this star.
+
+The argument that those three needed reweighting applies to snow unchanged, and
+in the opposite direction. Snow's reflectance is a property of snow, but band 2
+runs from 0.75 um into the infrared, snow darkens steeply across it, and this
+star puts 61.8 percent of its flux there. A leaf is dark in the visible and
+bright in the near infrared, so this star RAISED the vegetation endmember; snow
+is the reverse and should fall.
+
+What makes it worth a row rather than a note is leverage. `config/planet.yaml`
+already records that the wrong stellar spectrum made snow and ice 0.10 to 0.17
+too dark in every run before it was replaced, so the sensitivity is established
+and measured. The spectrum was fixed. The endmembers were not. And snow and ice
+albedo drive the ice-albedo feedback, which is the dominant feedback at the cold
+end, so this reaches the bare-rock endmember arm, PHYS-13's ice mask, the
+extreme-cold land fraction the design flux is capped by, and what the stellar
+cycle's grand minima are worth. PHYS-14 owns it.
+
+`references/exocam/tools/spectral_albedos` ships `snow100um.txt`,
+`Bluemarineice.txt` and a mixture, so the reflectance data is available rather
+than to be found.
+
+### 9c. Isca is held unread
+
+It is the one tree acquired on the chance of a blind spot with no row behind it
+and no finding yet. Recording that is the point: an acquisition that has not
+paid is not the same as one that cannot, and the next person to look should know
+nobody has.
