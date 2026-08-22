@@ -245,12 +245,22 @@ steps:
       the reduction identity and for reproducing pre-GW-15 runs. The baselevels
       are why this step needs `surface_water`: that artifact is the only thing
       that knows where the rivers and lakes are.
-      READ `hydrography/README.md` BEFORE CONSUMING THE DEPTH FIELD. GW-3 scored
-      it against 70,119 Australian bores at R^2 = 0.017 against a bar of 0.07
-      and a ceiling of 0.857: the range is right, the pattern is not, and a
-      per-cell depth from it does not mean anything. What survives is the
-      per-basin exchange direction. MIN-6 cannot use this field and SURF-7's
-      mask gets AUC 0.52 to 0.57 from it.
+      READ `hydrography/README.md` BEFORE CONSUMING THE DEPTH FIELD. The
+      solver's skill is REGIME-DEPENDENT, scored on two continents against a bar
+      declared first, and the README owns the scores. Where the
+      evapotranspiration sink takes the recharge locally, the steady state
+      collapses to that local balance and the flow solve contributes almost no
+      spatial variance; where recharge is large and the aquifers transmissive,
+      lateral flow sets the head and the solve does real work. There is per-cell
+      skill in the second case and none in the first, so `sink_fraction` and
+      `at_surface` in `water_table.nc` are the unit of certification rather than
+      the field as a whole. What survives in BOTH regimes is the per-basin
+      exchange direction. MIN-6 cannot use a per-cell depth, and SURF-7's mask
+      gets AUC 0.52 to 0.57; both were measured over ALL cells, and re-measuring
+      them restricted to cells where the sink did not set the depth is what
+      those rows now ask for. This planet's own regime is NOT known and moves
+      with loop A, so re-read the flag after each accepted baseline rather than
+      transporting either continent's result.
 
   - id: soil
     script: pedology/scripts/build_soil.py
