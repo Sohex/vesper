@@ -356,6 +356,47 @@
       end subroutine mpsumsc
 
 
+      subroutine mpgallspp(pf,pp,klev) ! gather to all, into shared storage
+      use pumamod
+      use mpiomp
+      integer :: klev
+      real :: pf(NESP,klev)
+      real :: pp(NSPP,klev)
+
+!     mpgallsp with the staging removed. pf is one array the whole team can
+!     see, so a thread writing its own slice of it IS the gather, and the
+!     buffer every partial used to be copied through is not needed.
+!
+!     Two barriers, and both are load bearing. The first keeps this write clear
+!     of whatever the previous use of pf was still reading -- these arrays are
+!     scratch and get reused. The second stops a reader running before every
+!     slice is written.
+!$omp barrier
+      pf(mypid*NSPP+1:mypid*NSPP+NSPP,1:klev) = pp(:,1:klev)
+!$omp barrier
+      return
+      end subroutine mpgallspp
+
+
+      subroutine mpzerosp(pf,kfrom,klev) ! clear a replicated spectral array
+      use pumamod
+      use mpiomp
+      integer :: kfrom, klev
+      real :: pf(NESP,klev)
+      integer :: lo, hi
+
+!     pf is shared, so every thread clearing the whole of it would be a race --
+!     on identical values, and still a race, and still reported. Each clears
+!     only the slice it owns. Modes below kfrom survive wherever they live.
+      lo = max(kfrom, mypid*NSPP + 1)
+      hi = mypid*NSPP + NSPP
+!$omp barrier
+      if (lo <= hi) pf(lo:hi,1:klev) = 0.0
+!$omp barrier
+      return
+      end subroutine mpzerosp
+
+
       subroutine mpsumscp(ppart,psp,klev) ! sum & scatter, partials in place
       use pumamod
       use mpiomp

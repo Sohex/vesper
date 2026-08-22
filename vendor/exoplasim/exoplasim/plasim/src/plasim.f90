@@ -4188,38 +4188,43 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       real zszt1(NSPP,NLEV),zszt2(NSPP,NLEV)
       real zsdt1(NSPP,NLEV),zsdt2(NSPP,NLEV)
 !
-      real zsd(NESP,NLEV),zsz(NESP,NLEV),zsq(NESP,NLEV)
+!     The six FULL spectral arrays this routine used to keep on the stack are
+!     zhd, zhz, zhq, zhe and the three partial slots zhf1, zhf2, zhef, all in
+!     pumamod. They were 14.1 MB a thread at T170 and one complete copy of the
+!     global field per thread, which is the thing Stages A and B removed
+!     everywhere else. What is left here is genuinely per-process: the grid
+!     fields, which are this process's latitudes, and the NSPP partials.
       real zsdp(NSPP,NLEV),zszp(NSPP,NLEV),zsqp(NSPP,NLEV)
       real zu(NHOR,NLEV),zun(NHOR,NLEV)
       real zv(NHOR,NLEV),zvn(NHOR,NLEV)
       real zq(NHOR,NLEV)
 !
       real zdtdt(NHOR,NLEV),zdekin(NHOR,NLEV)
-      real zsde(NSPP,NLEV),zsdef(NESP,NLEV)
-      real zstt1(NSPP,NLEV),zstf1(NESP,NLEV)
-      real zstt2(NSPP,NLEV),zstf2(NESP,NLEV)
+      real zsde(NSPP,NLEV)
+      real zstt1(NSPP,NLEV)
+      real zstt2(NSPP,NLEV)
 !
       zsdp(:,:)=sdp(:,:)
       zszp(:,:)=szp(:,:)
       if (nqspec == 1) then
          zsqp(:,:)=sqp(:,:)
-         call mpgallsp(zsq,zsqp,NLEV)
-         call sp2fl(zsq,zq,NLEV)
+         call mpgallspp(zhq,zsqp,NLEV)
+         call sp2fl(zhq,zq,NLEV)
          call fc2gp(zq,NLON,NLPP*NLEV)
       else
          zq(:,:) = 0.0
       endif
-      call mpgallsp(zsd,zsdp,NLEV)
-      call mpgallsp(zsz,zszp,NLEV)
-      call dv2uv(zsd,zsz,zu,zv)
+      call mpgallspp(zhd,zsdp,NLEV)
+      call mpgallspp(zhz,zszp,NLEV)
+      call dv2uv(zhd,zhz,zu,zv)
       call fc2gp(zu,NLON,NLPP*NLEV)
       call fc2gp(zv,NLON,NLPP*NLEV)
 !
       zsdp(:,:)=sdp(:,:)+zsdt1(:,:)*delt2
       zszp(:,:)=szp(:,:)+zszt1(:,:)*delt2
-      call mpgallsp(zsd,zsdp,NLEV)
-      call mpgallsp(zsz,zszp,NLEV)
-      call dv2uv(zsd,zsz,zun,zvn)
+      call mpgallspp(zhd,zsdp,NLEV)
+      call mpgallspp(zhz,zszp,NLEV)
+      call dv2uv(zhd,zhz,zun,zvn)
       call fc2gp(zun,NLON,NLPP*NLEV)
       call fc2gp(zvn,NLON,NLPP*NLEV)
 !
@@ -4240,15 +4245,15 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       zdtdt(:,:)=zdtdt(:,:)/ct/ww
       call gp2fc(zdtdt,NLON,NLPP*NLEV)
       do jlev=1,NLEV
-       call fc2sp(zdtdt(1,jlev),zstf1(1,jlev))
+       call fc2sp(zdtdt(1,jlev),zhf1(1,jlev,mypart))
       enddo
-      call mpsumsc(zstf1,zstt1,NLEV)
+      call mpsumscp(zhf1,zstt1,NLEV)
 !
       zsdp(:,:)=sdp(:,:)+zsdt2(:,:)*delt2
       zszp(:,:)=szp(:,:)+zszt2(:,:)*delt2
-      call mpgallsp(zsd,zsdp,NLEV)
-      call mpgallsp(zsz,zszp,NLEV)
-      call dv2uv(zsd,zsz,zun,zvn)
+      call mpgallspp(zhd,zsdp,NLEV)
+      call mpgallspp(zhz,zszp,NLEV)
+      call dv2uv(zhd,zhz,zun,zvn)
       call fc2gp(zun,NLON,NLPP*NLEV)
       call fc2gp(zvn,NLON,NLPP*NLEV)
 !
@@ -4263,12 +4268,16 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       enddo
       call gp2fc(zdekin,NLON,NLPP*NLEV)
       do jlev=1,NLEV
-       call fc2sp(zdekin(1,jlev),zsdef(1,jlev))
+       call fc2sp(zdekin(1,jlev),zhef(1,jlev,mypart))
       enddo
-      call mpsumsc(zsdef,zsde,NLEV)
-      call mpgallsp(zsdef,zsde,NLEV)
-      zsdef(2:NESP,:)=0.
-      call sp2fl(zsdef,zdekin,NLEV)
+      call mpsumscp(zhef,zsde,NLEV)
+      call mpgallspp(zhe,zsde,NLEV)
+!     Only the global mean survives, and zhe is one array the whole team reads,
+!     so the clear goes slice by slice rather than whole-array from every
+!     thread. mpzerosp is that, and on the MPI build it is the plain statement
+!     it replaces.
+      call mpzerosp(zhe,2,NLEV)
+      call sp2fl(zhe,zdekin,NLEV)
       call fc2gp(zdekin,NLON,NLPP*NLEV)
       do jlev=1,NLEV
        zdtdt(:,jlev)=-zdekin(:,jlev)                                    &
@@ -4277,16 +4286,22 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       zdtdt(:,:)=zdtdt(:,:)/ct/ww
       call gp2fc(zdtdt,NLON,NLPP*NLEV)
       do jlev=1,NLEV
-       call fc2sp(zdtdt(1,jlev),zstf2(1,jlev))
+       call fc2sp(zdtdt(1,jlev),zhf2(1,jlev,mypart))
       enddo
-      call mpsumsc(zstf2,zstt2,NLEV)
+      call mpsumscp(zhf2,zstt2,NLEV)
 !
 !     energy diagnostics
 !
       if(nenergy > 0) then
-       call mpgallsp(zstf1,zstt1,NLEV)       
-       zstf1(:,:)=zstf1(:,:)*ct*ww
-       call sp2fl(zstf1,zdtdt,NLEV)
+!     zhd is finished with by here and is the right shape, so the diagnostic
+!     borrows it rather than keeping a seventh full array alive all timestep
+!     for a block that is off by default. The scaling goes on the PARTIAL
+!     before the gather, not on the gathered array afterwards: zhd is shared,
+!     and every thread scaling the whole of it would be a race on identical
+!     values. zsde is dead from the reduction above and is the right shape.
+       zsde(:,:)=zstt1(:,:)*ct*ww
+       call mpgallspp(zhd,zsde,NLEV)
+       call sp2fl(zhd,zdtdt,NLEV)
        call fc2gp(zdtdt,NLON,NLPP*NLEV)
        denergy(:,23)=0.
        do jlev=1,NLEV
@@ -4298,9 +4313,9 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
      &                   *acpd*(1.+adv*dq(:,jlev))*dp(:)/ga*dsigma(jlev)
         endif
        enddo
-       call mpgallsp(zstf2,zstt2,NLEV)
-       zstf2(:,:)=zstf2(:,:)*ct*ww
-       call sp2fl(zstf2,zdtdt,NLEV)
+       zsde(:,:)=zstt2(:,:)*ct*ww
+       call mpgallspp(zhd,zsde,NLEV)
+       call sp2fl(zhd,zdtdt,NLEV)
        call fc2gp(zdtdt,NLON,NLPP*NLEV)
        denergy(:,25)=0.
        do jlev=1,NLEV

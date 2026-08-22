@@ -84,6 +84,23 @@
       return
       end
 
+      subroutine mpgallspp(pf,pp,klev) ! gather to all, into shared storage
+      use pumamod
+      real pf(NESP,klev)
+      real pp(NSPP,klev)
+!     One process, so the gather is the copy it always was here.
+      pf(1:NSPP,1:klev) = pp(1:NSPP,1:klev)
+      return
+      end
+
+      subroutine mpzerosp(pf,kfrom,klev) ! clear a replicated spectral array
+      use pumamod
+      integer kfrom, klev
+      real pf(NESP,klev)
+      pf(kfrom:NESP,1:klev) = 0.0
+      return
+      end
+
       subroutine mpsum(psp,klev) ! sum spectral fields
       return
       end

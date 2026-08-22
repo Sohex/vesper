@@ -359,6 +359,24 @@
       real :: zpsz(NESP,NLEV,0:NPART-1) = 0.0 ! Vorticity   partial, by process
       real :: zpsq(NESP,NLEV,0:NPART-1) = 0.0 ! S.Humidity  partial, by process
       real :: zpsp(NESP,     0:NPART-1) = 0.0 ! Pressure    partial, by process
+
+!     MKDHEAT'S SCRATCH. The frictional heating term runs every timestep and
+!     held thirteen arrays on the stack, 18.7 MB a thread at T170 and 299 MB
+!     across sixteen, of which six were FULL spectral arrays -- one complete
+!     copy of the global field per thread. These four replace them and there is
+!     one of each: a module array is shared between threads unless it is
+!     threadprivate, and every rank has its own, so the same declaration says
+!     the right thing on both builds.
+      real :: zhd(NESP,NLEV) = 0.0 ! divergence,  gathered
+      real :: zhz(NESP,NLEV) = 0.0 ! vorticity,   gathered
+      real :: zhq(NESP,NLEV) = 0.0 ! humidity,    gathered
+      real :: zhe(NESP,NLEV) = 0.0 ! kinetic energy loss, gathered after reduction
+
+!     and its three reduction partials, one slot per process, exactly as the
+!     tendency partials above.
+      real :: zhf1(NESP,NLEV,0:NPART-1) = 0.0 ! heating from the first wind pair
+      real :: zhf2(NESP,NLEV,0:NPART-1) = 0.0 ! heating from the second
+      real :: zhef(NESP,NLEV,0:NPART-1) = 0.0 ! kinetic energy loss, partial
       
       real :: sdm(NSPP,NLEV) = 0.0 ! Spectral Divergence  Minus
       real :: stm(NSPP,NLEV) = 0.0 ! Spectral Temperature Minus

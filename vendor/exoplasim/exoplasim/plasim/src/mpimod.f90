@@ -335,6 +335,39 @@
       return
       end subroutine mpgallsp
 
+
+      subroutine mpgallspp(pf,pp,klev) ! gather to all, into shared storage
+      use mpimod
+
+      real :: pf(NESP,klev)
+      real :: pp(NSPP,klev)
+
+!     Ranks share no storage, so there is nothing here that mpgallsp did not
+!     already do. The routine exists so the caller does not have to know which
+!     build it is compiled for; the threaded one is where the staging went.
+      do jlev = 1 , klev
+         call mpi_allgather(pp(:,jlev),NSPP,mpi_rtype                   &
+     &                     ,pf(:,jlev),NSPP,mpi_rtype                   &
+     &                     ,myworld,mpinfo)
+      enddo
+
+      return
+      end subroutine mpgallspp
+
+
+      subroutine mpzerosp(pf,kfrom,klev) ! clear a replicated spectral array
+      use mpimod
+
+      integer :: kfrom, klev
+      real :: pf(NESP,klev)
+
+!     Every rank holds the whole array and clears the whole of it. Under
+!     threads there is one array and each thread clears only its own slice.
+      pf(kfrom:NESP,1:klev) = 0.0
+
+      return
+      end subroutine mpzerosp
+
 !     ================
 !     SUBROUTINE MPSUM
 !     ================
