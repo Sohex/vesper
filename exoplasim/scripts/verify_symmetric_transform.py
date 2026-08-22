@@ -63,8 +63,9 @@ STUB = """
       integer, parameter :: NLPP = NLAT
       integer, parameter :: NLHP = NLPP / 2
       logical, parameter :: LPAIRLAT = .true.
-      real :: qi(NCSP,NLPP)
-      real :: qj(NCSP,NLPP)
+      real :: pmat(NCSP,NLPP)
+      real :: qmat(NCSP,NLPP)
+      real :: fsp(NCSP)
       end module legmod
 
       program drive
@@ -73,12 +74,17 @@ STUB = """
       real :: sp(2,NCSP)
       real :: fc(2,NLON/2,NLPP)
       integer :: w, m, l
+!     The table this script supplies IS P and dP/dmu, so the per-mode filter
+!     the transforms carry is unity here. legini folds skspgp into fsp; the
+!     point of the check is the geometry, and a filter of one leaves the
+!     analytic answer the same table that went in.
       open(20,file='qi.dat',status='old')
-      read(20,*) qi
+      read(20,*) pmat
       close(20)
       open(21,file='qj.dat',status='old')
-      read(21,*) qj
+      read(21,*) qmat
       close(21)
+      fsp(:) = 1.0
       open(30,file='fc.dat',status='replace')
       do w = 1 , NCSP
          sp(:,:) = 0.0
@@ -116,8 +122,10 @@ STUB_DV = """
       integer, parameter :: NLHP = NLPP / 2
       logical, parameter :: LPAIRLAT = .true.
       real, parameter :: plavor = 0.0
-      real :: qu(NCSP,NLPP)
-      real :: qv(NCSP,NLPP)
+      real :: pmat(NCSP,NLPP)
+      real :: qmat(NCSP,NLPP)
+      real :: fmu(NCSP)
+      real :: fmv(NCSP)
       end module legmod
 
       program drive
@@ -128,12 +136,21 @@ STUB_DV = """
       real :: pu(2,NLON/2,NLPP,NLEV)
       real :: pv(2,NLON/2,NLPP,NLEV)
       integer :: w, m, l
-      open(20,file='qu.dat',status='old')
-      read(20,*) qu
+!     dv2uv's two weights are pmat*fmu and qmat*fmv, so the table and the
+!     per-mode factor are supplied apart, exactly as legini stores them. The
+!     factors carry the 1/(n(n+1)) and the m; the filter is unity here.
+      open(20,file='pmat.dat',status='old')
+      read(20,*) pmat
       close(20)
-      open(21,file='qv.dat',status='old')
-      read(21,*) qv
+      open(21,file='qmat.dat',status='old')
+      read(21,*) qmat
       close(21)
+      open(22,file='fmu.dat',status='old')
+      read(22,*) fmu
+      close(22)
+      open(23,file='fmv.dat',status='old')
+      read(23,*) fmv
+      close(23)
       open(30,file='uv.dat',status='replace')
       do w = 1 , NCSP
          pz(:,:,:) = 0.0
@@ -185,13 +202,19 @@ def legendre_tables(ntru: int, nlat: int):
     # qu and qv as legini builds them, without the m and 1/(n(n+1)) factors
     # mattering to the parity: qu carries P and qv carries dP/dmu, which is all
     # the symmetric path relies on.
-    qu = np.zeros_like(qi)
-    qv = np.zeros_like(qj)
+    # legini stores the table and the per-mode factor APART -- pmat and qmat
+    # against fmu and fmv -- so the check supplies them apart too and lets the
+    # lifted loops recombine them. The analytic reference is still the product,
+    # because qu = pmat*fmu and qv = qmat*fmv is the identity being relied on.
+    fmu = np.zeros(ncsp)
+    fmv = np.zeros(ncsp)
     for lm, (m, n) in enumerate(modes):
         znn1 = 0.0 if n == 0 else 1.0 / (n * (n + 1))
-        qu[lm, :] = qi[lm, :] * znn1 * m
-        qv[lm, :] = qj[lm, :] * znn1
-    return qi, qj, qu, qv, modes
+        fmu[lm] = znn1 * m
+        fmv[lm] = znn1
+    qu = qi * fmu[:, None]
+    qv = qj * fmv[:, None]
+    return qi, qj, qu, qv, fmu, fmv, modes
 
 
 def run(func_text: str, ntru: int, nlat: int, qi, qj, workdir: Path):
@@ -212,18 +235,20 @@ def run(func_text: str, ntru: int, nlat: int, qi, qj, workdir: Path):
     return out.reshape(ncsp, 2, nlat, ntp1, 2)
 
 
-def run_dv(func_text: str, ntru: int, nlat: int, qu, qv, workdir: Path):
+def run_dv(func_text: str, ntru: int, nlat: int, pmat, qmat, fmu, fmv, workdir: Path):
     src = workdir / "drive_dv.f90"
     src.write_text(STUB_DV.format(ntru=ntru, nlat=nlat) + "\n" + func_text + "\n")
     exe = workdir / "drive_dv.x"
     subprocess.run(["gfortran", "-fdefault-real-8", "-ffixed-line-length-132",
                     "-J", str(workdir), "-o", str(exe), str(src)],
                    check=True, capture_output=True, text=True, cwd=workdir)
-    np.savetxt(workdir / "qu.dat", qu.flatten(order="F"))
-    np.savetxt(workdir / "qv.dat", qv.flatten(order="F"))
+    np.savetxt(workdir / "pmat.dat", pmat.flatten(order="F"))
+    np.savetxt(workdir / "qmat.dat", qmat.flatten(order="F"))
+    np.savetxt(workdir / "fmu.dat", fmu)
+    np.savetxt(workdir / "fmv.dat", fmv)
     subprocess.run([str(exe)], check=True, cwd=workdir, capture_output=True)
     out = np.loadtxt(workdir / "uv.dat")
-    ncsp, ntp1 = qu.shape[0], ntru + 1
+    ncsp, ntp1 = pmat.shape[0], ntru + 1
     return out.reshape(ncsp, nlat, ntp1, 4)
 
 
@@ -313,7 +338,7 @@ def main() -> int:
         raise SystemExit("could not build the dv2uv control: the line it "
                          "perturbs has moved")
 
-    qi, qj, qu, qv, modes = legendre_tables(args.ntru, args.nlat)
+    qi, qj, qu, qv, fmu, fmv, modes = legendre_tables(args.ntru, args.nlat)
     print(f"NTRU {args.ntru}, NLAT {args.nlat}, {len(modes)} modes, "
           f"tolerance {args.tol:.0e}")
 
@@ -332,7 +357,7 @@ def main() -> int:
             print(f"[  ok  ] every mode reproduces its own Legendre weight at "
                   f"every one of the {args.nlat} latitudes, both components")
 
-        bad = check_dv(run_dv(good_dv, args.ntru, args.nlat, qu, qv, wd),
+        bad = check_dv(run_dv(good_dv, args.ntru, args.nlat, qi, qj, fmu, fmv, wd),
                        qu, qv, modes, args.ntru, args.nlat, args.tol)
         if bad:
             failures += 1
@@ -357,7 +382,7 @@ def main() -> int:
                 print(f"[ FAIL ] the {nm} control PASSES, so this check proves "
                       f"nothing about it")
 
-        bad = check_dv(run_dv(control_dv, args.ntru, args.nlat, qu, qv, wd),
+        bad = check_dv(run_dv(control_dv, args.ntru, args.nlat, qi, qj, fmu, fmv, wd),
                        qu, qv, modes, args.ntru, args.nlat, args.tol)
         if bad:
             print(f"[  ok  ] flipping the sign that joins dv2uv's two parities "
