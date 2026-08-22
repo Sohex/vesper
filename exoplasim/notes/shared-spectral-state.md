@@ -97,7 +97,8 @@ flipped, one driver owning the machine:
 | T170 | -25.7% | **-20.66%** [-20.84, -20.17] | 5.0 points |
 
 Self-scatter 1.6% and 0.7% on the threaded arm, against a 5% floor. Threads are
-slower in 0 of 4 rounds at both resolutions, so the remaining gap is real.
+faster in 0 of 4 rounds at both resolutions -- that is, slower in every round --
+so the remaining gap is real and not an artifact of taking medians.
 
 **The prediction written down before the run was wrong.** It said the threaded
 build would land level with MPI plus or minus a few percent. It did not; it
@@ -182,7 +183,7 @@ And one of my own: a probe must not use a hard-coded unit number. A Fortran unit
 is process-global, and three separate probes in this work reported nonsense
 because two threads opened the same one. One unit AND one filename per thread.
 
-## What is next, and it is not where the plan pointed
+## mkdheat, which is where the plan did not point
 
 The plan's Stage C was `so`, `sr`, `sak`, `sqout` and the accumulators, described
 as small traffic to be done for consistency rather than for speed. That is still
@@ -214,6 +215,36 @@ weight matrices, which are 114.9 MB a die at T170.
 So the traffic argument and the cache argument name the same routine, and the
 fix is the machinery that already exists: shared arrays, threadprivate slices,
 `mpsumscp`, gathers that become barriers.
+
+**Done, CLIM-50.** The six full spectral arrays became four shared ones and
+three partial slots in `pumamod`; what stays on the stack is what is genuinely
+per-process, the grid fields covering this process's latitudes and the `NSPP`
+partials. Two collectives carry it, both build-agnostic the way `mpsumscp` is.
+`mpgallspp` is `mpgallsp` with the staging removed -- the destination is one
+array the team can see, so a thread writing its own slice IS the gather.
+`mpzerosp` clears a replicated spectral array from a given mode upward, slice by
+slice under threads and as the plain statement it replaces under MPI.
+
+Two places the shared-array discipline bit, both caught reading the code rather
+than by the detector. `zhd(:,:) = zhd(:,:)*ct*ww` in the `nenergy` block would
+have been every thread writing a shared array, so the scaling moved onto the
+small partial before the gather. And clearing modes 2 upward could not stay a
+whole-array statement, which is what `mpzerosp` exists for.
+
+**It is numerically INERT**, and that is the bar this change earns by
+reassociating nothing: the T21 two-thread restart hashes `53b3316c9fa35f59`,
+the value Stage B produced on the same bed at the same length before `mkdheat`
+was touched. Bit identical against MPI at 60 steps as well, 199 of 199 records,
+though that arm alone would not have shown inertness -- both builds changed
+together and could have agreed with each other while both moved. Archer over
+120 steps: no races. Serial, MPI and threaded all build.
+
+**Not yet measured.** The first attempt is void: the ranks arm scattered 10.3%
+against a 5% floor and its median moved from 78.04 s to 85.33 s between runs on
+a binary whose only change was swapping identical implementations, because
+unrelated work was running on the machine. The threaded arm in the same run was
+clean at 2.8% and 84.97 s. One clean arm is not a paired result and the number
+is not quotable; it is re-run when the machine is quiet.
 
 ## Two hypotheses that were wrong, and what refused them
 
