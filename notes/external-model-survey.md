@@ -16,6 +16,10 @@ project's own assumptions where an external implementation showed one to be
 unsupported. Every finding is carried by a row in `TASKS.md`; the index below
 is the check on that.
 
+Its companion is `notes/external-source-inventory.md`, which lists what has NOT
+been read and why each candidate would be worth acquiring; this document is
+what came of the trees already held.
+
 ## Index
 
 Each section and the task rows that carry it. A section with no row either
