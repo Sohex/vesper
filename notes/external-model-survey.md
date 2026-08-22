@@ -2301,3 +2301,78 @@ It also explains why OCN-2 is ordered before OCN-3 in the row's own reasoning.
 The channel that carries the correction back is the thing the loop is built
 around, and verifying it with a known field is cheaper than discovering it is
 wrong after a circulation exists to blame.
+
+
+## 29. Ocean albedo: a shipped bracket, and two of my own claims corrected
+
+*Read 2026-08-22, starting from cGENIE's `ocean_alb.F` and following it into
+`radmod.f90`. Checking one level further changed the answer twice.*
+
+### 29a. cGENIE integrates Briegleb over the daylight period
+
+`genie-embm/src/fortran/ocean_alb.F` computes a flux-weighted daily mean ocean
+albedo by adaptive quadrature over the daylight period, storing `albo(j,istep)`
+per latitude row and timestep. Its integrand `rad_out` is Briegleb:
+
+    rspec = 0.026/(czsol**1.7 + 0.065) + 0.15*(czsol-0.1)*(czsol-0.5)*(czsol-1.0)
+    rtot  = rspec + 0.06
+
+So ocean albedo there is a function of solar zenith angle, integrated over the
+day. Not of water properties.
+
+### 29b. ExoPlaSim already does this, and ships the same formula as an option
+
+`radmod.f90:2895-2904` sets the direct-beam surface albedo as a sum over surface
+types, and the open-ocean term has THREE branches selected by `necham` and
+`necham6`:
+
+| switch | open-ocean albedo |
+| --- | --- |
+| `necham=1`, the DEFAULT | `min(0.05/(zmu0+0.15), 0.15)`, ECHAM-3 |
+| `necham6=1` | `0.026/(zmu0**1.7+0.065) + 0.15*(zmu0-1)*(zmu0-0.5)*(zmu0-0.1) + 0.0082`, Briegleb |
+| both 0 | the constant `dsalb`, i.e. `doceanalb` |
+
+**Correction one.** OCN-7 says `seamod.f90:155-158` applies two namelist scalars
+everywhere `dls < 0.5`. It does, and then `radmod` OVERWRITES the open-ocean
+part. In the default configuration the scalars survive only for the land and
+sea-ice fractions, and `doceanalb` contributes nothing to open water at all.
+
+**Correction two.** Section 11 recorded `doceanalb(2) = 0.069` as one of seven
+flat band arrays. That stands as a declaration but is largely moot in practice,
+for the same reason: open ocean does not read it under the default. The sea-ice
+pair `dicealbmx` and `dicealbmn` DOES survive, so PHYS-14's sea-ice half is
+unaffected.
+
+Worth noting that the zenith branches are spectrally flat too -- the expressions
+for `dsalb(1,:)` and `dsalb(2,:)` are identical -- but here the source SAYS so,
+in a comment reading "Currently: we use the same albedo for both spectral
+ranges". That is the honest version of failure mode class 31: the comment states
+what the code does rather than denying it.
+
+### 29c. The two parameterisations are a free bracket, and it opens where this planet lives
+
+Flux-weighted daily means, computed over the daylight period at both:
+
+| latitude and season | ECHAM-3 (default) | Briegleb | ratio |
+| --- | ---: | ---: | ---: |
+| equator, equinox | 0.058 | 0.052 | 0.90x |
+| 45 deg, equinox | 0.075 | 0.079 | 1.05x |
+| 45 deg, solstice at 32 deg obliquity | 0.143 | 0.234 | **1.64x** |
+| 60 deg, winter | 0.150 | 0.273 | **1.82x** |
+| 70 deg, summer | 0.074 | 0.076 | 1.02x |
+
+They agree within about ten percent wherever the sun is high and diverge to
+1.8x where it is low. The cause is the cap: ECHAM-3's `min(..., 0.15)` binds
+above 79.5 degrees zenith and Briegleb has no ceiling.
+
+**That divergence region is larger on this planet than on Earth.** At 32 degrees
+obliquity against Earth's 23.4, high latitudes spend more of the year in the
+low-sun regime where the two disagree, and the winter hemisphere is where sea
+ice forms.
+
+So OCN-7's spatial half has a zero-cost A/B available: two parameterisations
+already in the source, both defensible, selected by a namelist switch, differing
+by up to 1.8x exactly where this planet's obliquity puts more of its year. That
+is a better instrument than the row's own framing suggests, and it is a bracket
+rather than a fix -- neither branch is obviously right for a K dwarf, and the
+question of which is a separate one from whether the term varies at all.
