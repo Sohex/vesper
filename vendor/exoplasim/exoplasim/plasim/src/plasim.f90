@@ -3365,7 +3365,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       subroutine gridpointd
       use pumamod
 #ifdef OMPSHARED
-      use shtnsmod, only: sh_sp2gp, sh_dv2uv
+      use shtnsmod, only: sh_sp2gp, sh_dv2uv, sh_gp2sp, sh_uv2dv, sh_slice
 #endif
 !
 !     The same tendency partials gridpointa uses, from pumamod. The two
@@ -3697,6 +3697,22 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !     transform to spectral space
 !
 
+#ifdef OMPSHARED
+      if (nshtns == 1) then
+!        The last transform site. As in gridpointa: the finished field lands in
+!        slot 0 of the partial scratch and each thread takes its slice, and the
+!        four reductions go away because there is nothing partial to reduce.
+!$omp barrier
+         call sh_gp2sp(gtdt_g, zpst(1,1,0), NLEV)
+         call sh_uv2dv(gudt_g, gvdt_g, zpsd(1,1,0), zpsz(1,1,0), NLEV)
+         if (nqspec == 1) call sh_gp2sp(gqdt_g, zpsq(1,1,0), NLEV)
+!$omp barrier
+         call sh_slice(zpst(1,1,0), stt, NLEV)
+         call sh_slice(zpsd(1,1,0), sdt, NLEV)
+         call sh_slice(zpsz(1,1,0), szt, NLEV)
+         if (nqspec == 1) call sh_slice(zpsq(1,1,0), sqt, NLEV)
+      else
+#endif
       call gp2fc(gtdt,NLON,NLPP*NLEV)
       call gp2fc(gudt,NLON,NLPP*NLEV)
       call gp2fc(gvdt,NLON,NLPP*NLEV)
@@ -3716,6 +3732,9 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       call mpsumscp(zpsd,sdt,NLEV)
       call mpsumscp(zpsz,szt,NLEV)
       if (nqspec == 1) call mpsumscp(zpsq,sqt,NLEV)
+#ifdef OMPSHARED
+      endif
+#endif
       if (nqspec == 0) dq(:,:) = dq(:,:) + dqdt(:,:) * deltsec
       if (nsela == 1 .and. l_aero > 0) mmr(:,:) = mmr(:,:) + mmrt(:,:) * deltsec
 
