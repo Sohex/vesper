@@ -36,6 +36,50 @@ amplitudes to 0.0, which reduces the guard to `gsolinst = gsol0`, so the
 ordinary binaries are bit-exact identical to an unpatched model until a cycle is
 configured on.
 
+## Working in a git worktree
+
+A worktree carries the tracked tree and nothing else, so everything this project
+deliberately keeps out of history is absent from it: the Orogen export payloads,
+the reference PDFs and bulk datasets, the climate run output, the Earth
+validation caches, `node_modules`, `.venv`. A script that runs in the main
+checkout dies on a missing file there.
+
+    python scripts/link_worktree.py                    # from inside the worktree
+    python scripts/link_worktree.py --worktree PATH    # from the main checkout
+    python scripts/link_worktree.py --check            # report only, exit 1 if incomplete
+
+It symlinks that set back to the main checkout. The set is DERIVED from the
+ignore rules on every run rather than listed, so a new build or a new cache is
+picked up without editing it, and a wholly-ignored directory is linked as a unit
+while a directory holding tracked content is linked entry by entry. The second
+half of that is what puts the links at `exoplasim/runs/<id>` rather than over
+`runs/` itself, whose `INDEX.json` is tracked. Re-running it is how a worktree
+picks up a build added since: a correct link is left alone, a stale one is
+repaired, and one whose target has been archived away is removed.
+
+Two things are held back. Everything compiled from tracked source that a
+worktree may have edited -- `vendor/exoplasim` and the LPJ-GUESS build -- is not
+linked, because a link both hides the worktree's own edit behind the main
+checkout's binary and lets a rebuild in the worktree overwrite that binary,
+which is CLAUDE.md rule 4 with the safety off. Build them in the worktree, or
+pass `--model-binaries` when the worktree does not touch the model. Regenerable
+output is not linked either, for the narrower reason that the worktree's build
+would land in the main checkout.
+
+`.venv` IS linked, and ExoPlaSim is installed editable from the main checkout's
+`vendor/exoplasim`. So `import exoplasim` in a worktree reads the main
+checkout's model source whichever tree the interpreter was invoked from. That is
+a property of the editable install rather than of the link, and it is not
+fixable from the worktree side: model work in a worktree needs its own editable
+install and its own compile.
+
+A symlink is a file and not the directory it stands in for, so an ignore rule
+ending in `/` does not cover the link that replaces it. `.gitignore` carries a
+second set of patterns for exactly these paths, and the script's last act is to
+check `git status` in the worktree and name any link that block still fails to
+cover. That is what keeps the block complete: it is tested rather than
+remembered.
+
 ## The toolchain: what is declared, and what optimised libraries do not buy
 
 The model links glibc's `libm` and `libmvec`, `libgfortran` and Open MPI, and

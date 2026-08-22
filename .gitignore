@@ -166,16 +166,30 @@ docs/book/
 # and the method note are tracked; what it chews on is not.
 exoplasim/bench/
 
-# A worktree cannot see the ignored payloads (source/ exports, compiled model
-# binaries), so working in one means symlinking them in from the main checkout.
-# The rules above end in "/" and so match directories, not the symlinks that
-# stand in for them; without these an accidental `git add -A` would commit
-# absolute paths that mean nothing on any other machine.
+# A worktree cannot see the ignored payloads (source/ exports, reference data,
+# run output, caches), so working in one means symlinking them in from the main
+# checkout -- which `scripts/link_worktree.py` does, deriving the set from the
+# ignore rules rather than from a list. The rules above end in "/" and so match
+# directories, not the symlinks that stand in for them; without these an
+# accidental `git add -A` would commit absolute paths that mean nothing on any
+# other machine. That script's last act is to check `git status` in the worktree
+# and name any link this block still fails to cover, so this stays complete by
+# being tested rather than by being remembered.
 source/*/*/raw
 source/*/*/grid
 source/*/*/planet.nc
 source/*/*/manifest.json
 vendor/orogen/node_modules
+vendor/orogen/out
+.venv
+exoplasim/bench
+hydrography/analysis/cache_era5
+hydrography/data/earth_validation_cache
+pedology/data/earth_validation_cache
+references/aus_groundwater
+references/ecospeclib-all
+references/poseidon_surface_albedo
+references/splib07
 
 # Fortran module files. The verifiers under exoplasim/scripts compile fragments
 # lifted out of the model source, and gfortran writes the .mod beside the
