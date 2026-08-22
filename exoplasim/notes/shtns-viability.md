@@ -293,3 +293,31 @@ This reorders the ladder. FP32 on the CPU is the cheap rung and is available
 now; FP32 on the GPU is the expensive rung and needs a whole-model port, since
 offloading the transform alone caps at 18.9% even at T170. Try the free one
 first.
+
+## The scalar convention, measured rather than read
+
+*Measured 2026-08-21 at T42, one process, `probe_shtns_conventions.f90`.*
+
+Reading two normalisation conventions against each other and hoping is how a
+factor of sqrt(2) survives into a climate. So one spectral mode at a time is
+driven through both transforms onto the same grid and divided.
+
+**The index map is the same.** SHTns's `LM(l,m)` is 0-based with m outer and l
+inner, which is the order `legini` builds `lm` in, so PlaSim `lm` is SHTns
+`lm-1`. That is confirmed by the result rather than assumed: a wrong map gives a
+mode-dependent ratio, and this one is constant.
+
+**The scale is sqrt(2 pi), everywhere.** With `SHT_ORTHONORMAL` and
+`SHT_NO_CS_PHASE`, the model's grid is SHTns's times 2.50662827 for every mode
+tried, across m = 0, 1, 2 and NTRU/2 and both n = m and n = m+1, and the worst
+deviation from that constant over ALL 946 modes is zero to eight decimals. It is
+sqrt(2 pi) to 4.6e-9, which is the print precision. The 2 pi is the azimuthal
+integral: PlaSim's harmonics carry no 1/sqrt(2 pi) in phi.
+
+So the scalar conversion is one scalar, foldable into the coefficient conversion
+at no cost, and no per-mode vector is needed.
+
+**This is the scalar case only.** The vector transforms are where the l(l+1)
+between spheroidal/toroidal potentials and divergence/vorticity lives, and this
+model already carries `1/(n(n+1))` inside `fmu` and `fmv`. That is a separate
+measurement and it is the one that can double-apply a factor.
