@@ -1696,3 +1696,73 @@ ocean would already be producing. That belongs in OCN-21 because it changes what
 the row is estimating, and it strengthens the case for declaring the term in the
 error budget now: the eventual correction is cheap enough that the declaration
 is not deferring an expensive decision.
+
+
+## 20. Six methane schemes and a burial bracket
+
+*Read 2026-08-22 from `vendor/cgenie/genie-atchem` and `genie-sedgem`.*
+
+### 20a. WET-10's lifetime half has a route, not just a floor
+
+`atchem_box.f90` carries SIX methane oxidation schemes:
+`sub_calc_oxidize_CH4_default`, `_schmidt03`, `_claire06`, `_claire06_fixed`,
+`_claire06H` and `_goldblatt06`, plus `sub_calc_reduce_N2O_lifetime` beside
+them.
+
+The default is Osborn and Wigley (1994), a power law in methane concentration:
+
+    loc_tau = const_pCH4_oxidation_tau0 * (loc_CH4/const_pCH4_oxidation_C0)**const_pCH4_oxidation_N
+
+with the comment "omitting [OH], [NOx] etc etc". The OH chemistry is folded into
+three constants, and the concentration is clamped at half the reference value
+because that is where the calibration curve ends -- Osborn and Wigley's curve
+runs to four times it at the other end.
+
+**`schmidt03` is the same functional form with the constants EXPOSED.** It reads
+`par_pCH4_oxidation_tau0`, `C0` and `N` from the namelist where the default uses
+hardcoded `const_` values, and its header names its calibration: a fit to the
+2-D photochemistry model of Schmidt and Shindell (2003).
+
+That is the route for WET-10 rather than merely a floor. The row needs an
+oxidant and lifetime calculation for this star; `schmidt03` needs three numbers
+from a photochemistry calculation, and `config/planet.yaml` already records that
+Rugheimer et al. (2013) computed the photochemical steady state at this
+effective temperature -- the same class of calculation Schmidt and Shindell's
+model does. So the shape is: take `schmidt03`'s form, re-derive its three
+constants for this host.
+
+All the schemes conserve explicitly, which is the other thing WET-10 wants:
+
+    O2  -= 2.0 * fracdecay * CH4
+    CO2 += fracdecay * CH4          (with 13C and 14C carried through)
+    CH4 *= (1.0 - fracdecay)
+
+Methane oxidation consuming O2 two-for-one, the carbon arriving as CO2, and the
+isotopes following. And it operates per grid cell rather than as a global box.
+
+The `claire06` and `goldblatt06` families are the exception and should be left
+alone: they take a whole-atmosphere conversion factor with no grid indices, and
+they are Archean anoxic-atmosphere formulations. That is section 15c's lesson
+again -- built for a kind of planet this one is not.
+
+### 20b. Burial has published alternatives, like weathering did
+
+`sedgem_lib.f90` selects diagenesis by string: `par_sed_diagen_CaCO3opt`,
+`par_sed_diagen_opalopt` and `par_sed_diagen_Corgopt`, and the source ships four
+sediment flux implementations beside them --
+`sedgem_box_archer1991_sedflx.f90`, `sedgem_box_ridgwell2001_sedflx.f90`,
+`sedgem_box_ridgwelletal2003_sedflx.f90` and `sedgem_box_benthic.f90`.
+
+Organic carbon burial is fractional and redox-dependent:
+`par_sed_diagen_fracCpres_ox`, `_anox` and `_eux` give separate preservation
+fractions under oxic, anoxic and euxinic conditions, with
+`par_sed_diagen_fracCpres_scale` for a Dunne scheme, and
+`par_sed_huelse2017_sim_P_loss_pres_fracC` ties phosphorus loss to organic
+carbon burial.
+
+OCN-13 requires burial in its marine ledger and phosphorus among its species.
+This is the same shape as section 17's weathering finding: several published
+parameterisations shipped with their constants, so the bracket over scheme
+choice is available rather than needing to be constructed. The redox dependence
+matters here specifically, because OCN-13 also asks for anoxia and a redox
+ledger, and these three fractions are where those two requirements meet.
