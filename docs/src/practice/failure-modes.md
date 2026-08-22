@@ -976,3 +976,29 @@ the difference large" but "does the null case come out null".
 Related: class 17 is a check that CANNOT fail. This is its mirror, a check that
 fails for a reason outside what it checks, and it is the more expensive of the
 two because it produces work rather than merely permitting it.
+
+## 28. One component measured against the whole's budget
+
+A constraint is stated over a total -- a working set, an error budget, a mass
+balance -- and then a change to one term is checked against the total's ceiling
+as though the term were the whole. It reads as rigor because a real number is
+compared with a real limit, and both numbers are right; only the comparison is
+meaningless.
+
+Three times in one afternoon, on one change. The Legendre weight factorisation
+was reported as bringing the per-die working set "to about 36 MB, under CCD1's
+32 MB" -- which is not under it, and was not caught until someone read the two
+numbers side by side. Corrected to 30.82 MB by sharing what had been duplicated,
+it was then reported as fitting the die, when 30.82 MB is the WEIGHTS and the
+die also has to hold the Fourier fields, the spectral state and the reduction
+partials. The total is about 260 MB. The weights had gone from four times the
+die to about one, which is a large win on the dominant term and is not a fit.
+
+The tell is a sentence that names one array and one cache in the same breath.
+The fix is to make the total computable and cite it -- `cache_budget.py` for
+this one -- so that a component's number cannot be quoted as the budget without
+the budget being visible beside it.
+
+It is not class 24. That is a summary asserted without its primitives; this is a
+primitive asserted in place of the summary, and it fails in the opposite
+direction: the part is measured correctly and compared to the wrong thing.

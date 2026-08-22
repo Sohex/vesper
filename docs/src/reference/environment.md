@@ -100,3 +100,38 @@ the OS, page tables and set-associativity are all real and together are worth
 something like a tenth of the capacity, which is a correction to make when the
 budget is close. Applied to a working set 2.3x over, a tighter number is false
 precision and invites treating the trimmed component as the whole.
+
+### Counting it: `exoplasim/scripts/cache_budget.py`
+
+The budget is a script rather than a table here, because a number recomputed by
+hand every time a resolution or a thread count moves is a number that gets
+quoted stale, and because a component of it gets quoted as the whole. Both
+happened while this rule was being written.
+
+    python exoplasim/scripts/cache_budget.py --res T170 --threads 16 --per-die 8
+
+**Three storage classes, and the third is the one that catches people.**
+`private` is one copy a thread, so eight on a die. `shared` is one copy that
+every thread reads all of. `sliced` is one copy of which a thread only ever
+touches its own `NSPP` rows -- the reduction partials are this, since thread t
+writes slot t and reads only its own rows of every slot. Counting a sliced array
+as fully resident overstates it by the thread ratio, which at sixteen threads on
+an eight-thread die is a factor of two.
+
+At T170 on sixteen the total is about 260 MB a die against the 32 MB target,
+eight times over, and the largest terms are the reduction partials rather than
+anything the transforms hold. The physics modules' grid arrays and their
+compiler temporaries are not counted, so it is a floor.
+
+### A second target, not yet a priority: the hot loops in L2
+
+Zen 4 has 1 MB of L2 a core, private to it. **The innermost transform loops
+should aim to fit their working chunk in that**, which is a different and
+stricter goal than the die-level one and needs a different technique: blocking
+the latitude and level loops so the chunk in flight is a megabyte rather than
+streaming a whole `NCSP x NLPP` matrix past. One latitude's column of `pmat` is
+118 KB at T170 and fits easily; the loop as written walks 1.88 MB of it.
+
+This is recorded so it is not rediscovered, and it is NOT the current priority.
+The die-level total is eight times its target, and blocking for L2 under that is
+optimising the inner loop of a problem whose outer numbers are wrong.

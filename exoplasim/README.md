@@ -213,6 +213,7 @@ unless told they exist.
 | `verify_symmetric_transform.py` | runs `legmod.f90`'s own `sp2fc` and `sp2fcdmu` against an associated Legendre table computed by scipy, one spectral mode at a time, with a negative control for each |
 | `verify_weight_factorisation.py` | checks that `legini`'s eight weight matrices are all P or Q times a per-mode and a per-latitude factor, which is what CLIM-48 rests on, with a negative control |
 | `verify_weight_factorisation_model.sh` | the other half of that: runs the two-matrix form against the eight-matrix one on one bed at a declared tolerance, with a control that corrupts one per-mode factor and must fail |
+| `cache_budget.py` | what the dynamical core cycles through one die's L3, by component and storage class, against the 32 MB target; the class to get right is `sliced`, one copy of which a thread touches only its own rows |
 | `verify_omp_collectives.sh` | checks each of `mpimod_omp.f90`'s 39 routines against the answer written down in advance, with mode-dependent data so an index error cannot cancel |
 | `verify_shared_determinism.sh` | runs the threaded build repeatedly on one bed and requires one answer, since a race on shared state shows up as a different answer each time rather than a wrong one; the control is the pre-fix source and must NOT reproduce itself |
 | `_bed_guard.sh` | sourced, not run: refuses a comparison bed that starts cold with a kick and no fixed SEED, because the model seeds that noise from the clock and every comparison on such a bed measures the clock |
