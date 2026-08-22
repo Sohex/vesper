@@ -3059,6 +3059,24 @@ That connects to LSHY-3 beyond its own scope: the replacement land column would
 supply exactly the near-surface saturation this needs, so it enables a climate
 feedback rather than only improving a hydrological one.
 
+**And it is the second consumer of a state DUST-17 already specifies.** Dust
+emission is NOT missing its moisture term -- `aeolian/scripts/build_dust.py`
+gates the threshold friction velocity through Fecan et al. (1999) equations 14
+and 15, and `aeolian/config/dust.yaml:108-120` already carries the depth and
+bulk-density pair that converts a water depth to gravimetric percent, stated
+once and reaching the model as the namelist constant `dustwcv`. What DUST-17
+owns is the same problem this section describes: the scalar bucket has no
+profile, so the emitting layer's water is inferred rather than held. Fecan's
+correction and CLM's albedo saturation are both surface-skin quantities and need
+not read at the same depth, but they must come off ONE profile -- DUST-17's own
+requirement is to avoid "a second central hydrology", and a saturation defined
+independently for albedo would be exactly that.
+
+Soil formation is not in this set. `pedology/scripts/build_soil.py:301-303` takes
+RUNOFF rather than soil moisture for weathering and argues the choice: leaching
+requires water to drain through the profile, and rain that falls and evaporates
+carries nothing. That is a deliberate position, not an omission.
+
 No magnitude is quoted because this tree ships none -- the dry and wet values
 are spatially varying MODIS-consistent fields rather than constants. Lawrence
 and Chase (2007) and Braghiere et al. (2023) are where they come from.
