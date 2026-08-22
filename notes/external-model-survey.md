@@ -907,11 +907,13 @@ aerosol stack, glaciers, the carbon module, LSG, the MPI variants, the planet
 configurations -- and removes nothing. The single cGENIE-exclusive file is
 `geniemod.f90`.
 
-So a PlaSim-to-GOLDSTEIN coupling already exists, written against the same
-module names and the same `pumamod` state this project's model still has. That
-does not reopen OCN-3's offline decision, which rests on deep-ocean spin-up cost
-and is untouched by this. What it supplies is a REFERENCE INTERFACE for a
-contract OCN-10 is currently specifying from first principles.
+That a PlaSim-to-cGENIE path exists is the PREMISE of OCN-17 rather than news:
+that row exists because of the published `exoplasim_genie_regrid` work. What the
+module comparison adds is how close the bundled one is -- written against the
+same module names and the same `pumamod` state this project's model still has,
+so it is a reference interface OCN-10 can read rather than a related project to
+cite. It does not reopen OCN-3's offline decision, which rests on deep-ocean
+spin-up cost and is untouched.
 
 ### 10c. The coupling contract, and a lead on OCN-17's multiplier
 
@@ -948,3 +950,43 @@ verdict.
 a trailing dimension of 360, an Earth year of daily fields compiled in. Vesper's
 orbit is 180.7 days. That is a calendar assumption in the coupling itself rather
 than in a namelist, and OCN-10's contract has to state what replaces it.
+
+### 10d. OCN-18's three questions, two answered and one needing a download
+
+**The island bound is 5, not 10, and cGENIE's own configurations routinely
+exceed it.** `genie-main/genie_control.f90:79` reads
+`#define GOLDSTEINMAXISLES 5`. Counting the maximum island index in every
+`.psiles` file shipped under `genie-paleo`, across 294 configurations:
+
+| islands | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| configurations | 46 | 58 | 47 | 54 | 34 | 22 | 27 | 6 |
+
+So 89 of 294, about thirty percent, need the macro raised above its default, and
+none exceeds 8. Island count is therefore a per-geography property that drives a
+COMPILE-TIME bound, and a new geography can require a rebuild before it will run
+at all. That is a constraint on OCN-11's bathymetry contract as much as on
+OCN-18: this world is about three quarters endorheic with a coastline nothing
+has counted islands on, and the number is not knowable until a candidate
+configuration is generated. OCN-20's instruction to cost the island machinery
+first is sharpened by this, since `ratm`, `psisl`, `erisl` and `matinv_gold` all
+scale with it.
+
+**The resolution ceiling is declared and unexercised.** muffingen's own settings
+files annotate `par_max_i` and `par_max_j` as `[1-72]`, four times the cell count
+of the shipped grid. But of the shipped configurations 131 are 36 x 36, five are
+18 x 18 and one is 12 x 12, and NOTHING ships above 36. So the range is a
+declaration rather than a demonstration, which is the distinction OCN-18 exists
+to make: the tier's attraction is its price and that price is a property of
+36 x 36.
+
+Two details worth carrying. `par_max_k=17` with `par_add_Dk=1`, so the shipped
+depth structure is 16 levels plus one extra. And `par_A_frac_threshold=0.50`, a
+land fractional area threshold identical in convention to this project's
+`geography_land_threshold`.
+
+**muffingen itself is not in this tree.** `genie-paleo` holds only its outputs,
+its per-configuration settings files and its run logs; the generator is a
+separate repository. Answering what it does above 36 x 36, and whether it runs
+under Octave, needs that download. The settings and logs survive here only
+because the earlier deletion took the PostScript plots and left everything else.
