@@ -99,13 +99,24 @@ quantities:
 | `daylength = 24.0 * hh / PI` | 24 h rotation | **unchanged**, see below |
 | `K = 13750.98708` | 12/pi x 3600, angular units to seconds per day | **unchanged**, see below |
 | `FRADPAR` | 0.5 | unresolved, see below |
-| `BETA` global shortwave albedo | 0.17 | avoidable |
+| `BETA` global shortwave albedo | 0.17 | LIVE on every path |
 
-`BETA` is avoidable because it is only applied on the `SUNSHINE` and `SWRAD`
-paths. Driving with `NETSWRAD_TS`, which is what ExoPlaSim's `rss` already is,
-sets `net_coeff = 1` and bypasses it entirely. That is the right choice anyway:
+`BETA` reaches the SHORTWAVE only on the `SUNSHINE` and `SWRAD` paths. Driving
+with `NETSWRAD_TS`, which is what ExoPlaSim's `rss` already is, sets
+`net_coeff = 1` there. That much is right, and it is the right choice anyway:
 this project computes surface albedo from lithology and knows it far better than
 a global constant does.
+
+**It does NOT bypass `BETA` entirely.** `modules/driver.cpp:1158` inverts the
+net longwave flux as
+
+    rl = (B + (1-B)*(w/qo/(1.0 - BETA) - C)/D) * (A - temp)
+
+and that division sits OUTSIDE every `instype` branch, so it applies on
+`NETSWRAD_TS` as on the others. An Earth broadband shortwave albedo, tuned to the
+solar spectrum, therefore sets `uu`, `hn` and so `climate.eet` on this project's
+live path. The shortwave half of this constant is avoided and the longwave half
+is not.
 
 ### PFT bioclimatic limits
 

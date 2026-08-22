@@ -4887,3 +4887,244 @@ first order** when a source cell has fewer than three unmasked neighbours, when
 the centroid falls outside the neighbour polygon, or when the gradient
 reconstruction fails. No warning is emitted, and the first of those is exactly
 what a coastline looks like.
+
+
+## 56. The sweep turned inward, and the surface modules carry live defects
+
+*Read 2026-08-22 across `landmod`, `seamod`, `icemod`, `oceanmod`, `glaciermod`,
+`surfmod`, `simba`, `newsnow` and `buildice` in `vendor/exoplasim`. Unlike every
+section before it, these are not comparisons -- this is the code that produces
+this world's numbers. Every magnitude below was recomputed directly.*
+
+### 56a. Two mirror-image averaging errors, in modules that disagree with each other
+
+**Sea ice takes an arithmetic mean where series conduction requires a harmonic
+one.** `icemod.f90:1427`:
+
+    zckap(:) = (CKAPSN*zhsnow(:) + CKAPI*xiced(:)) / (zhsnow(:) + xiced(:))
+
+Snow over ice is two conductors in series, so the effective conductivity is
+`(h_s+h_i)/(h_s/k_s + h_i/k_i)`. With snow at 0.31 and ice at 2.03 W/m/K the two
+forms diverge fast:
+
+| snow / ice (m) | 0.05 / 1.0 | 0.10 / 1.0 | 0.30 / 1.0 | 0.50 / 1.0 |
+| --- | ---: | ---: | ---: | ---: |
+| as coded | 1.948 | 1.874 | 1.633 | 1.457 |
+| correct | 1.606 | 1.349 | 0.890 | 0.712 |
+| error | +21% | **+39%** | **+83%** | **+104%** |
+
+**And `landmod.f90:751` solves the identical series problem with the correct
+harmonic form.** Two modules of one model, same physics, two answers.
+
+**Land takes a harmonic mean where an extensive blend requires an arithmetic
+one.** `landmod.f90:743` blends snow and soil heat capacity in the top layer
+harmonically. Heat capacity is extensive; the blend is
+`(C_sn*z_sn + C_so*z_so)/z_top`. The coded form is exact at both endpoints,
+which is why it looks right, and wrong everywhere between -- **25 to 31 percent
+low** across partial snow cover.
+
+The two errors are mirror images: one module uses arithmetic where harmonic is
+right, the other harmonic where arithmetic is right.
+
+What they change: sea-ice growth under snow, and therefore winter ice thickness
+and extent, on a planet whose dominant feedback is ice albedo; and the land
+surface's thermal inertia under partial snow, which sets the temperature the
+snow-albedo ramp reads.
+
+### 56b. Glacier orography is built from Earth's mass and radius
+
+`glaciermod.f90:352-356` computes its own gravity from first principles:
+
+    radius = 6.371e6
+    grav   = gconst*p_mass/(radius+dz)**2
+
+with `p_mass` Earth's mass. That evaluates to **9.8200 m/s2**, not the model's
+`ga = 12.81`. Glacier thickness is converted to geopotential with it, and every
+reader divides by `ga` to recover metres -- including printouts in the same
+file. **So a glacier enters the orography at 0.767 of its physical thickness,
+understated by 23.3 percent.**
+
+At the current snow cap that is about 1.4 m of missing elevation, which is small.
+It scales linearly, so it is a trap rather than a crisis today -- but the
+external ice-sheet path this module documents adds hundreds of metres at a
+stroke, and the error goes with it.
+
+This is the only place in the surface modules where a gravity on a physical path
+is not `ga`. That clean negative is worth as much as the finding: Charnock
+roughness, the geopotential conversions, sea-ice freeboard and the slab heat
+capacity were all checked and are all correct.
+
+### 56c. Surface wetness exceeds one at every segment boundary
+
+`landmod.f90:487` computes the evaporation factor without a cap:
+
+    drhs(jhor) = dwatc(jhor)/(drhsfull*dwmax(jhor))
+
+Both siblings cap it -- `:418` and `:576` each wrap the same expression in
+`AMIN1(1., ...)`. Since `dwatc` is capped at `dwmax` and `drhsfull = 0.4`,
+**`drhs` reaches 2.5**, and `plasim.f90` calls the flux step before the surface
+step, so the atmosphere sees it for one timestep before it is recomputed
+correctly. It recurs at every restart, which means every segment boundary.
+Evaporation above the potential rate is not a small error.
+
+### 56d. Class 31 and 32 in the code we run
+
+**Class 31, the soil instance.** `landmod.f90:703-709` fills `zcap` and `zdiff`
+per soil layer inside a loop whose right-hand sides do not depend on the layer
+index. Five layers are passed into an implicit diffusion solve and only the first
+is later modified. The declaration says the thermal properties vary with depth
+and the values say they do not -- while `dsoilz` on the next line genuinely does
+vary. The suppressed variation is moisture dependence, which this model already
+tracks, and the transition to bedrock.
+
+**Class 31, in effect, on sea ice.** Compactness is computed prognostically,
+carried in the restart and written to output -- and thresholded to 0 or 1 at 0.5
+before anything reads it. `seamod.f90:266-273` then blends albedo, roughness and
+wetness across a fraction that can only ever be zero or one. **The marginal ice
+zone becomes a step function in exactly the quantity the ice-albedo feedback runs
+through.**
+
+**Class 32, twice on albedo.** The glacier maximum albedo is declared with its
+own default and assigned the SNOW maximum -- there is no glacier-maximum
+parameter at all. The forest snow albedos have declared defaults that are dead
+code, the live values being fixed fractions of the open-snow maximum, so the
+open-snow minimum follows the K-dwarf spectrum and the forest minimum does not.
+And `dicealbmn`, declared and named a minimum, is used as an intercept at a bare
+literal 273 K with a cap above and **no floor below**, so ice albedo falls
+beneath its own declared minimum without limit.
+
+**Class 32, on the ocean slab.** `dlayer` is a namelist variable declared as the
+layer depth, and `oceanmod.f90:229` overwrites its only element with `mldepth`
+immediately after the namelist read. Setting it has no effect and nothing says so.
+
+### 56e. Latent traps, recorded before they become live
+
+- **The ocean diffusion operator is scaled by Earth's radius**, a hardcoded
+  `PLARAD` in a module that compiles against `resmod` and never sees the model's
+  own. Horizontal diffusion is off today -- but `config/planet.yaml` names those
+  exact keys as the ones to be BRACKETED for the no-q-flux term, and that bracket
+  would run on an Earth-radius operator and come out 44 percent too wide. **Fix
+  before the bracket, not after.**
+- **The wet-soil albedo option divides a flux by a capacity**, using the water
+  flux where the water content was meant, so enabling it would paint all unfrozen
+  land at desert-sand albedo.
+- **Cold-start sea ice is Earth's Arctic seasonal cycle**, a twelve-element
+  monthly thickness factor from a CCM3 report, with Earth's specific
+  north-south asymmetry hardcoded. And the routine that sets it tests an unread
+  SST array still holding its `-999` sentinel, so a cold start ices the globe.
+- **The glacier module's own 30 m formation threshold can never fire**, because
+  the snow cap holds the field at 5 m water equivalent. That leaves a persistence
+  test whose header describes a one-year criterion and whose code has no year in
+  it -- the flag is only ever cleared, never set, and is absent from the restart,
+  so it silently resets at every segment boundary.
+- **`newsnow` and `buildice` are compiled into every build with T21 hardcoded**,
+  and would silently truncate a T42 field to its first 2048 points.
+
+
+## 57. What the Vesper calendar port did not reach
+
+*Read 2026-08-22 across `vendor/lpj-guess`. The port's whole footprint is six
+files and about 65 changed lines; most of the model was never touched. These are
+the places that matters.*
+
+### 57a. The month exists twice in one function
+
+`modules/driver.cpp:660` sets the mean monthly temperature from a **hardcoded
+31-day** buffer:
+
+    climate.mtemp = climate.dtemp_31.mean();
+
+and fifty-eight lines later, `:718` reads **the same buffer** the ported way,
+`dtemp_31.periodicmean(date.ndaymonth[date.month])`, where the month is 15 days.
+
+`mtemp` is not a diagnostic. It feeds the minimum and maximum monthly
+temperatures, then their twenty-year memories, which are **the PFT establishment
+and survival criteria**, and it gates the growing-degree-day and chilling-day
+resets.
+
+**And the sign is the opposite of what the porting audit predicted.** That note
+expects the coldest-month mean to read more extreme because a Vesper month is
+shorter. The code never uses the month, so a 31-day window over a 183-day orbit
+*damps* the seasonal cycle -- by about 3.55 percent of half-amplitude more than a
+ported month would, which is roughly 1.4 C off the establishment range on a cell
+with a 40 C annual swing. The fix is one line, calling a function already used
+two lines below.
+
+### 57b. A leaf lifetime read as orbits in one file and as Earth months in another
+
+`modules/growth.cpp:1424` treats `leaflong` as simulation years and multiplies by
+the orbit length -- correct within the model. `framework/guess.h:2145` computes
+Reich et al. (1992) specific leaf area as
+
+    sla = 0.2 * pow(10.0, 2.41 - 0.38*log10(12.0 * leaflong))
+
+where the `12.0` converts Earth years to **Earth months**. The same factor
+appears for the minimum leaf C:N, and the leaf C:P derives from that SLA.
+
+The live instruction file sets both `ifcalcsla` and `ifcalccton`, so these
+**overwrite** the declared per-PFT values, and the PFT builder deliberately does
+not rescale `leaflong`. At the value every summergreen and grass PFT carries,
+SLA comes out about 23 percent low and the minimum leaf C:N about 26 percent
+high. SLA is leaf area per kgC, so it goes straight into LAI, absorbed radiation
+and photosynthesis; the C:N and C:P minima set the entire nutrient-limitation
+cascade.
+
+This is the per-orbit versus per-unit-time question of section 54c, arriving as a
+concrete unit mismatch inside one binary.
+
+### 57c. A constant an audit calls avoided, which is not
+
+`biosphere/notes/lpj-guess-porting-audit.md` records the global shortwave albedo
+`BETA = 0.17` as "avoidable because it is only applied on the `SUNSHINE` and
+`SWRAD` paths", and states that driving with `NETSWRAD_TS` "bypasses it
+entirely".
+
+The first half is right. `net_coeff` is set to `1 - BETA` only for the shortwave
+paths, and the live path correctly gets 1. **The second half is wrong.**
+`modules/driver.cpp:1158` inverts the net longwave flux with
+
+    rl = (B + (1-B)*(w/qo/(1.0 - BETA) - C)/D) * (A - temp)
+
+and that division sits outside every `instype` branch. An Earth broadband
+albedo, tuned to the solar spectrum, therefore sets the evapotranspiration term
+on this project's live path. The audit has been corrected.
+
+### 57d. A second, unported copy of the orbital block
+
+`modules/weathergen.cpp:1859-1936` carries its own insolation code with Earth's
+solar constant, Earth's eccentricity, Earth's obliquity and Earth's solstice
+offset -- **and Vesper's year length mixed into the same two equations.** That is
+precisely the pattern sections 40b and 54b found in cGENIE and FATES: the year
+carried twice and the two mixed inside one process.
+
+It is dormant. The Vesper input path never reaches it, and it arms itself only if
+the weather generator or the fire model is enabled. Recorded because it is live
+source that looks ported and is not.
+
+### 57e. The phosphorus cycle is the nitrogen cycle, copied
+
+Four instances with one cause. The P uptake profile is a verbatim copy of the N
+one **including the comment**, which still says "nitrogen". The P stoichiometry
+scalings are N's values with N's citations, and the source admits it in a comment
+ending "SAME FOR P, MAKES SENSE?". The sorbed and strongly-sorbed P exchange
+uses one rate constant for both directions, which forces its steady state to
+exactly equal pools where the cited source gives distinct rates. And the P
+saturation concentration is set to the nitrogen value with the phosphorus value
+commented out directly above it.
+
+Each is defensible alone. Together they mean the P cycle has no independent
+parameterisation, in a fork whose entire reason for existing is C-N-P.
+
+### 57f. The clean negatives are fix-traps, and matter as much
+
+Several constants that look unported are **correct and must not be changed**.
+The 24-hour and 86400-second constants are right under the project's declared
+calendar option, and the daylength ratio in the photosynthesis term is
+dimensionless with the 24 cancelling. A `10*12/365` unit conversion in the
+leaching term is an absolute-time Century saturation point and converting it to
+the orbit length would turn an absolute threshold into a per-orbit one. A
+365-day cap in the BVOC store is a duration in days, not a year.
+
+Recording these is the point of a sweep as much as the defects are: the next
+person to grep for `365` in this tree will find them, and three of the four would
+be broken by "fixing" them.

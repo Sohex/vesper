@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+      - main
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --python ${{ matrix.python-version }} --extra test --frozen
+
+      - name: Lint (ruff)
+        run: |
+          uvx ruff format --check pyrcel/ tests/ examples/ tools/
+          uvx ruff check pyrcel/ tests/ examples/ tools/
+
+      - name: Type check (pyrefly)
+        run: uv run pyrefly check
+
+      - name: Run fast tests
+        run: uv run pytest tests/ -m "not slow" -v
+
+  slow-tests:
+    runs-on: ubuntu-latest
+    # Run on the weekly schedule, manual dispatch, or pushes to master.
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/master'
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --python ${{ matrix.python-version }} --extra test --frozen
+
+      - name: Run full test suite (including slow oracle tests)
+        run: uv run pytest tests/ -v
