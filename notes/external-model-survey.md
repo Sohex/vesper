@@ -445,9 +445,13 @@ bands section 8a wants are not carrying it.
 
 **Its bathymetry preparation deletes closed water.** Isolated oceanic points and
 lakes are removed irrespective of size to avoid numerical instability, and every
-point shallower than 20 m is set to 20 m. On a world where about three quarters
-of land drainage is endorheic, a preparation step that silently removes enclosed
-water is not a detail. OCN-11 already requires bathymetric smoothing and
+point shallower than 20 m is set to 20 m. On a world whose terrain generator
+produces closed basins in quantity -- the pre-carve build is 76 percent endorheic
+by land drainage, which rule 9 makes a LIMIT rather than a state -- a preparation
+step that silently removes enclosed water is not a detail. The carve loop exists
+to open those basins, so the derived figure will be lower and is not yet known;
+what matters here is that the class of feature exists at all and the step deletes
+it irrespective of size. OCN-11 already requires bathymetric smoothing and
 connectivity changes to be declared explicitly; this is that requirement
 justified by an observed case.
 
@@ -968,9 +972,10 @@ So 89 of 294, about thirty percent, need the macro raised above its default, and
 none exceeds 8. Island count is therefore a per-geography property that drives a
 COMPILE-TIME bound, and a new geography can require a rebuild before it will run
 at all. That is a constraint on OCN-11's bathymetry contract as much as on
-OCN-18: this world is about three quarters endorheic with a coastline nothing
-has counted islands on, and the number is not knowable until a candidate
-configuration is generated. OCN-20's instruction to cost the island machinery
+OCN-18: this world's coastline has never had islands counted on it, and the
+number is not knowable until a candidate configuration is generated on an
+accepted terrain -- which is after loop A closes, since carving changes the
+coastline. OCN-20's instruction to cost the island machinery
 first is sharpened by this, since `ratm`, `psisl`, `erisl` and `matinv_gold` all
 scale with it.
 
@@ -1913,9 +1918,12 @@ having written down that a family was chosen.
 The two are not interchangeable in their tails. Brooks-Corey has a
 discontinuous air-entry point and a power-law tail; van Genuchten is smooth
 through saturation. Which matters most exactly where this world is unusual: a
-quarter of its land is playa clastic and it is three quarters endorheic by
-drainage, so wetting and drying through near-saturation is a common state rather
-than an edge case.
+quarter of its land is playa clastic, so wetting and drying through
+near-saturation is a common state rather than an edge case. That argument rests
+on the PLAYA FRACTION and not on endorheic drainage: the pre-carve build's 76
+percent is a limit under rule 9, the carve loop exists to reduce it, and the
+derived figure is not known. Playa extent is a lithology property and does not
+move the same way.
 
 That is not an argument for switching. It is an argument that LSHY-1's contract
 should carry the closure as a NAMED property with its family stated, so that a
