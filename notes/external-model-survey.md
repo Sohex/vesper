@@ -2459,3 +2459,99 @@ considered and rejected as no better.
   about 145 solar days per orbit, so the array is oversized and safe. It would
   have to move for a longer year, and it is the same calendar-port class the
   LPJ-GUESS work already went through.
+
+
+## 31. VOLC-9's weathering columns, confirmed from use -- and the bracket is a different one
+
+*Read 2026-08-22. VOLC-9 required its column reading be confirmed before any
+bracket was built on it, on the grounds that a bracket over a misread column is
+worse than none. The Fortran that consumes the table settles it.*
+
+### 31a. The columns, from use rather than position
+
+`rokgem_data.f90:814` reads `weath_consts(i,j), j=1,7` positionally, with no
+header. What each column does, from where it appears in `rokgem_box.f90`:
+
+| col | meaning | evidence |
+| --- | --- | --- |
+| 1 | base weathering rate | multiplied into `conv_factor(k)` at 1559, 1592, 1716 |
+| 2 | runoff EXPONENT | `loc_runoff(i,j) ** weath_consts(k,2)` at 1568, 1601 |
+| 3 | fCa, carbonate fraction | partitions `dum_calcium_flux` at 1848, 1900 |
+| 4 | fSi, silicate fraction | partitions `dum_calcium_flux` at 1858, 1910 |
+| 5 | osmium yield | 1927-1928 |
+| 6, 7 | 187Os and 188Os | 1930-1931 |
+
+The source names columns 3 and 4 outright at 1842: "extra array terms for fCa
+and fSi in weath_consts array". **VOLC-9's inferred reading of those two columns
+was correct.** The precondition is met.
+
+### 31b. But the conclusion that depended on it does not fire
+
+VOLC-9 expected the two schemes to disagree on fCa/fSi, and reasoned that if so
+the disagreement would be the thermostat itself. They do not disagree. The two
+files the code actually reads carry IDENTICAL columns 3 and 4:
+
+    carbonate 0.93/0.07   shale 0.39/0.61   sand 0.48/0.52   basalt 0.00/1.00
+
+The 1.00/0.00 values the row cites are in `Amiotte_2003_consts.dat` and
+`Gibbs_1999_consts.dat`, which have four columns and which the seven-column
+reader cannot consume.
+
+Because there are only TWO selectable 2D schemes, and the source names them:
+`rokgem.f90:69` labels `GKWM` as "Gibbs et al (1999)" and `:76` labels
+`GEM_CO2` as "Amiotte-Suchet et al (2003)". The four-column files are the
+archival originals of the same two schemes -- `GKWM_consts.dat` shares columns 1
+and 2 with `Gibbs_1999_consts.dat` exactly, and `GEM_CO2_consts.dat` with
+`Amiotte_2003_consts.dat` exactly, apart from one edited acid-volcanics rate,
+0.222 against 0.272. So the row's "three published alternatives" are two schemes
+in two vintages each.
+
+Note also that the base rates are not comparable across schemes -- 32000 against
+1.586 -- because `conv_GKWM` and `conv_GEM_CO2` carry different unit systems.
+
+### 31c. The bracket that is really there: the runoff exponent
+
+The schemes differ in the FUNCTIONAL FORM of the runoff response, which is a
+structural difference rather than a constant one:
+
+- **GKWM**, `rokgem_box.f90:1568`: flux proportional to `runoff ** k`, with the
+  per-lithology exponents 0.91 carbonate, 0.68 shale, 0.74 sandstone, 0.69
+  basalt, 0.75 granite. **Sublinear.**
+- **GEM_CO2**, `:1723`: flux proportional to `loc_runoff(i,j)`. **Strictly
+  linear**, and its column 2 is uniformly 1.0, consistent and unused.
+
+Both normalise through `r_avg_runoff`, so they agree at average runoff by
+construction and diverge away from it. Weighting the exponents by fSi gives an
+effective silicate exponent of **0.720**.
+
+Spatially, GKWM against GEM_CO2 silicate flux:
+
+| runoff / mean | 0.2 | 0.5 | 1.0 | 2.0 | 3.0 | 5.0 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| ratio | 1.57x | 1.21x | 1.00x | 0.82x | 0.74x | 0.64x |
+
+And as a thermostat, under a warming-driven runoff increase of factor f:
+
+| f | 1.05 | 1.10 | 1.25 | 1.50 |
+| --- | ---: | ---: | ---: | ---: |
+| GKWM weaker by | 29% | 29% | 30% | 32% |
+
+**About 30 percent, and flat across the range**, which makes it usable as a
+single bracket number rather than a curve. Silicate weathering is the long-term
+sink, so this is the thermostat strength directly -- which is what VOLC-9 asked
+for, arrived at through the runoff exponent instead of through fCa/fSi.
+
+It bites harder here than on Earth for a specific reason: the divergence lives
+entirely in the TAILS of the runoff distribution, since the two forms are pinned
+together at the mean. A world whose runoff distribution is shaped differently
+from Earth's therefore sees a different scheme-choice penalty, and the shape is
+a derived property of the accepted carve and the resulting hydrography rather
+than anything readable off the present export.
+
+### 31d. One trap, currently inert
+
+`sub_load_weath` reads seven values list-directed. Given a four-column file it
+would continue onto the following line and desynchronise the whole table
+silently rather than failing. The archival files are not selectable through
+`par_weathopt`, so nothing can trigger this today -- but VOLC-9 currently treats
+those files as the scheme definitions, and anyone acting on that would hit it.
