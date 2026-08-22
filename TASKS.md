@@ -580,7 +580,7 @@ Status: `open` | `doing` | `blocked` | `done` | `wontfix` (with a reason).
 
 ## REF -- references and provenance
 
-1 open of 10 issued.
+0 open of 10 issued.
 
 | id | task | source | status |
 | --- | --- | --- | --- |
@@ -593,7 +593,7 @@ Status: `open` | `doing` | `blocked` | `done` | `wontfix` (with a reason).
 | REF-7 | -- | -- | done, see `archive/tasks.md` |
 | REF-8 | -- | -- | done, see `archive/tasks.md` |
 | REF-9 | -- | -- | done, see `archive/tasks.md` |
-| REF-10 | Triage the rest of `references/climber-x/src/` against the open task list ONCE, with the rule declared first, so the tree is not re-surveyed piecemeal every time somebody remembers it exists. `src/lnd` and `src/smb` are read and their findings are in `notes/external-model-survey.md`; `atm`, `ocn`, `geo`, `bmb`, `lndvc`, `bnd` and `utils` are not, and together they are about 1.8 MB of Fortran. THE RULE: a module is a HIT when it implements a mechanism an open row already names, and it is recorded and dropped otherwise -- an interesting module with no row waiting on it is a distraction, and adding a row because a module exists is the tail wagging the dog. `src/geo` IS THE PRIORITY and its filenames say why: `drainage_basins.f90`, `runoff_routing.f90`, `lakes.f90` and `topo_fill.f90` sit on hydrography's ground, `hypso_topo.f90` and `hires_to_lowres.f90` on GRID-2's and SPAT's, and `coast_cells.f90`, `connect_ocn.f90` and `fill_ocean.f90` on OCN-11's ocean connectivity and bathymetry contract, which is the row BIG-MITgcm's delete-the-lakes step already justified. `src/bmb` is basal mass balance and is downstream of ice existing at all | `notes/external-model-survey.md` section 3f, `references/INDEX.md` | open. EXPLORATION: the deliverable is a hit list keyed to row ids plus an explicit note of what was read and dropped, appended to the survey note, and NOT a set of new rows. Whether a hit earns a row is decided per hit and afterwards, by the row that was waiting rather than by this one. Bound the work: this is a read of a tree already on disk at a pinned revision, it needs no execution and no build, and it is finished when every directory above has been opened once [step: any] |
+| REF-10 | -- | -- | done, see `archive/tasks.md` |
 
 ## SPAT -- spatial support and ecological aggregation
 

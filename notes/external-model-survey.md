@@ -477,3 +477,125 @@ the Earth configuration inside it is the OCN-12 problem in a new place: uniform
 hydraulic defaults, an ETOPO1 topographic index, calibrated methane fractions
 per surface type. The formulations in section 3 are the valuable part and they
 are all in the paper.
+
+
+## 7. REF-10: the rest of the CLIMBER-X tree, triaged
+
+*Read 2026-08-22 against `references/climber-x/` at the pinned revision. The
+rule was declared in REF-10 before the reading: a module is a HIT when it
+implements a mechanism an open row already names, and is recorded and dropped
+otherwise. Depth varies deliberately. Where a directory listing was enough to
+apply the rule, that is all it got, and this says which.*
+
+### 7a. Hits, keyed to the rows that were waiting
+
+**`src/ocn` -> OCN-19, OCN-20, OCN-5, OCN-12.** The ocean shares GOLDSTEIN's
+lineage with cGENIE, and it is not a family resemblance: `invert.f90:70` orders
+the streamfunction points as `k = i + j*n`, which is what OCN-20 quotes from
+cGENIE's `invert.f:32`, and `ubarsolv`, `island`, `matinv` and `jbar` are all
+still called from `momentum.f90`.
+
+What has changed matters to those two rows. `ubarsolv` has been reworked for
+CONTIGUOUS BAND STORAGE, with the LU factors repacked as `Lband`, `Uband` and
+`Udiag` built once in `momentum`, and a unit-stride dot product over the upper
+band in back substitution. It is still two triangular sweeps, so the `r^3` per
+timestep OCN-20 targets is untouched. **The memory-layout half of that
+optimisation exists in a GPL-3 sibling and the complexity half does not**, which
+splits OCN-19 and OCN-20 more cleanly than they were split when written.
+
+`free_surface.f90` is called from `ocn_model.f90:533` but diagnoses sea surface
+height from density; it does not replace the rigid-lid machinery, and reading
+the filename as though it did would have been wrong. `restore_salinity.f90`,
+`flux_adj.f90` and `hosing.f90` are the named controls OCN-5 requires be kept
+explicit rather than physical, and `eos.f90` is an OCN-12 item.
+
+**`src/geo/hypso_topo.f90` -> GRID-2.** A worked implementation of the shape
+GRID-2 declares: a high-resolution bed elevation binned into per-coarse-cell
+AREA FRACTIONS, 10 m bins to 6500 m, with an update cadence and a finer
+refinement band over a depth range of interest. It is oriented at ocean depth
+for sediment and coral rather than at land relief, so the binning is not
+transferable and the shape is.
+
+**`src/geo` hydrology -> HYD, OCN-11.** `lakes.f90` is a dynamic lake model,
+`topo_fill.f90` fills topography, and `drainage_basins.f90`, `runoff_routing.f90`
+and `fix_runoff.f90` sit beside them. Depression filling is the algorithmic
+counterpart to the carve list. `coast_cells.f90`, `connect_ocn.f90` and
+`fill_ocean.f90` are ocean connectivity and are OCN-11's contract implemented,
+which is worth reading beside BIG-MITgcm's delete-the-lakes step rather than
+instead of it.
+
+**`src/main/constants.f90` -> OCN-12, and it is a negative hit of the most
+useful kind.** `R_earth`, `omega`, `fcoriolis = 2*omega`, `g = 9.81` and the
+WGS84 ellipsoid are Fortran `parameter` constants, and so is
+`frac_vu = 0.45`, commented "fraction of solar spectrum in visible and
+ultraviolet". That is the Sun's band split hardcoded at compile time, and it is
+the exact opposite of `ClimaParams.jl`'s declared planetary block in section 5.
+
+It also PRICES the standing advice to take formulations and not the tree. Every
+module recommended in section 3 imports Earth constants from this file except
+one: `surface_hydro.f90`, `soil_temp.f90` and `surface_par_lnd.f90` all do, as
+do every ocean module, all of `geo`, and `sico_params.f90`. `soil_hydro.f90`
+does not. So severing that dependency is part of the cost of any take, and this
+file is its audit list.
+
+**`src/ice_sico` -> CLIM-62.** A third route, and the heaviest: SICOPOLIS with
+full thermomechanics, a temperature-dependent rate factor, an enhancement
+factor and finite-viscosity regularisation on Glen's law at n = 3. That is
+exactly what BIG-MITgcm omits and what GRAV-6 notes is sometimes included.
+Recorded as an option with its weight named; nothing here recommends it.
+
+**`src/bnd/fake_*.f90` -> OCN-10, EFOR-1.** The offline-driver pattern, worked:
+`fake_lnd.f90` reads runoff and discharge from one netCDF file, precomputes
+monthly-to-daily interpolation weights, and presents the same derived type the
+real component would, so a component can be swapped for a file without its
+consumers knowing. There are eight of these, one per component.
+
+**`src/main/coupler.f90` -> a principle rather than a row.** Every exchange goes
+through one COMMON GRID, `cmn_to_atm` and `atm_to_cmn` and their siblings, never
+component to component pairwise. That is CLAUDE.md rule 3's positive form as
+architecture. It also confirms section 3f's reading of SEMI from the other side:
+`alb_vis_dir_ice_semi`, `alb_vis_dif_ice_semi`, `alb_nir_dir_ice_semi` and
+`alb_nir_dif_ice_semi` are carried on the common grid, so the four-component
+albedo is the coupled interface and not an internal convenience.
+
+### 7b. Read and dropped
+
+**`src/atm/lwr.f90` and `swr.f90` -> CLIM-61, and the answer is no.** This was
+expected to be a middle rung between the broadband scheme and correlated-k. It
+is not. The shortwave is TWO bands, visible-plus-ultraviolet against infrared,
+split at the hardcoded `frac_vu`, which is the same structure PlaSim already
+has. The longwave is not band-resolved at all: it is a fitted parameterisation
+over gas concentrations producing a CO2 equivalent, with coefficients like
+`ak_o3 = 0.6` carrying the comment "from tuning of total LW contribution by
+O3". So SPEEDY's four longwave bands remain the only cheaper rung identified,
+and CLIM-61's candidate list does not grow.
+
+**The rest of `src/atm`** is the statistical-dynamical core, `adifa`, `crisa`,
+`u2d`, `u3d`, `wvel`, `slp`, `synop`, `vesta`, `diffuse_impl`. This project runs
+a spectral primitive-equation core and is not replacing it. `feedbacks.f90` and
+`rad_kernels.f90` are radiative-kernel feedback decomposition with no open row
+waiting; CLIM-1 closed the energy decomposition question at this resolution.
+
+**`src/co2` and `src/n2o`** are the same box-model shape as `src/ch4`. Neither
+gets a row: CO2 is prescribed by decision under OCN-16 and N2O is prescribed
+with its abundance measured from Rugheimer, so unlike methane there is no row
+waiting for a reduced form to fill.
+
+**`src/bnd`, the rest.** `luc.f90` is land use change, `cfc.f90`, `d13c_atm.f90`
+and `D14c_atm.f90` are Earth isotope and halocarbon forcings. `insolation.f90`,
+`solar.f90` and `o3.f90` are owned here already by `lib/orbit.py`,
+`lib/stellar.py` and a determined `ozone_scale`, with SPEC closed at 0 of 5.
+
+**`src/bmb`** is basal mass balance and is downstream of ice existing at all.
+**`src/utils`** is a tridiagonal solver, a filter, a precision module and a
+hysteresis helper. **`src/lndvc`**, **`src/ice`** and **`src/bgc-dummy`** are
+coupling shims and disabled stubs; `bgc-dummy` is four dotfiles.
+
+### 7c. What this triage did not do
+
+It read for mechanisms against open rows and nothing else. It did not evaluate
+correctness, did not build anything, and did not compare numerical results,
+because the tree is comparison material rather than a dependency. Six
+directories got a listing and a judgement rather than a read, named in 7b, on
+the grounds that no open row named a mechanism they contain: a listing is enough
+to apply the declared rule and not enough to claim anything else about them.
