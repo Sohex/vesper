@@ -105,6 +105,35 @@ OCN-4 names beside MARBL. And `genie-plasim` is a PlaSim coupling module, which
 bears directly on OCN-17's evaluation of the published ExoPlaSim-to-cGENIE
 forcing path.
 
+**IT IS NON-DIMENSIONALISED AGAINST EARTH'S RADIUS AND GRAVITY, and half of the
+scales are configurable so the other half is easy to miss.**
+`genie-goldstein/src/fortran/initialise_goldstein.F:376-391` hardcodes
+`rsc = 6.37e6` and `gsc = 9.81` and exposes neither, while `sodaylen`,
+`sidaylen`, `yearlen`, `nyear` and the depth scale `par_dsc` are all in
+`ini_gold_nml`. Four derived scales then carry the hardcoded pair everywhere:
+`tsc = rsc/usc` sets every non-dimensional time, `rhosc` carries both, `opsisc`
+scales the reported overturning streamfunction and `rfluxsc` the heat flux.
+
+At this planet's 1.20 Earth radii and 1.306 Earth gravity, three of those are
+wrong by a factor of 1.20 and `rhosc` by about eight percent. **Nothing will
+warn.** The model is entirely non-dimensional, so an overturning reported
+through `opsisc` comes back twenty percent low, in the right units, looking
+exactly like an answer.
+
+Rotation is the one planetary constant the source does parameterise, and it
+FAILS OPEN. `fsc` takes `4*pi/sidaylen` only when the solar and sidereal day
+lengths differ by more than 0.001, and otherwise reverts to Earth's
+`2*7.2921e-5` for backwards compatibility. A configuration that sets the two
+equal gets Earth's Coriolis scaling silently. Set them to this planet's values
+and check `fsc` took the intended branch before believing any run.
+
+None of this is an argument against the model, and OCN-12 owns the full
+inventory. It is here because it is the thing most likely to produce a
+plausible wrong number for somebody who assumed a namelist covered the planet.
+`notes/external-model-survey.md` section 10e has the derivation and the
+precedent, including a scale that was already wrong once and corrected outside
+the code.
+
 **`genie-paleo`'s plots are deleted from this checkout, and the rest is kept.**
 That directory arrived at 1.4 GB, of which 678 PostScript plots of Earth
 paleogeographic reconstructions were 1290 MB. They are pictures, nothing here
