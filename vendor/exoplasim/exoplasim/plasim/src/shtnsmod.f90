@@ -184,6 +184,43 @@
       end subroutine sh_dv2uv
 
 
+      subroutine sh_sp2grad(psp, pgdmu, pgdlam, klev)
+!     Both horizontal derivatives of a scalar, on the grid, in one call.
+!
+!     Replaces sp2fcdmu for the meridional derivative AND the model's own zonal
+!     one, which gridpointa builds by hand from the FOURIER coefficients of gp
+!     by multiplying each by i*m. That construction cannot survive a transform
+!     that lands in grid space, and it does not have to: SHsph_to_spat returns
+!     both components of the gradient together.
+!
+!     No 1/(l(l+1)) here, unlike sh_dv2uv. SHsph_to_spat takes the scalar
+!     ITSELF and differentiates it, rather than a potential whose Laplacian is
+!     the source, and the measurement confirms it -- the ratio is a pure
+!     sqrt(2 pi) with no dependence on l.
+      use pumamod, only: NESP, NUGP, NCSP
+      integer, intent(in) :: klev
+      real, intent(in)    :: psp(NESP,klev)
+      real, intent(out)   :: pgdmu(NUGP,klev)     ! as sp2fcdmu gives it
+      real, intent(out)   :: pgdlam(NUGP,klev)    ! the zonal derivative
+      complex (kind=8) :: zlm(NCSP)
+      real (kind=8) :: zvt(NUGP), zvp(NUGP)
+      integer :: jlev, jm
+
+!$omp do schedule(static)
+      do jlev = 1 , klev
+         do jm = 1 , NCSP
+            zlm(jm) = cmplx(real(psp(2*jm-1,jlev),8),                   &
+     &                      real(psp(2*jm  ,jlev),8), kind=8)
+         enddo
+         call SHsph_to_spat(shtcfg, zlm, zvt, zvp)
+         pgdmu(:,jlev)  = real(-SHTROOT * zvt)
+         pgdlam(:,jlev) = real( SHTROOT * zvp)
+      enddo
+!$omp end do
+      return
+      end subroutine sh_sp2grad
+
+
       subroutine shtns_teardown
       if (.not. lshtns) return
       call shtns_destroy(shtcfg)

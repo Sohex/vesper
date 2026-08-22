@@ -24,7 +24,7 @@
       use, intrinsic :: iso_fortran_env, only: real64
       use pumamod, only: NLAT, NLON, NLPP, NLEV, NTRU, NTP1, NCSP, NESP,        &
      &                   NUGP, sid, gwd, plavor
-      use shtnsmod, only: shtns_setup, sh_sp2gp, sh_dv2uv
+      use shtnsmod, only: shtns_setup, sh_sp2gp, sh_dv2uv, sh_sp2grad
       implicit none
 
       integer, parameter :: wp = real64
@@ -35,6 +35,10 @@
       real :: zsd(2,NESP/2,NLEV), zsz(2,NESP/2,NLEV)
       real :: zfu(2,NLON/2,NLPP,NLEV), zfv(2,NLON/2,NLPP,NLEV)
       real :: zsdf(NESP,1), zszf(NESP,1), zgu(NUGP,1), zgv(NUGP,1)
+      real :: zgpj(NLON,NLPP), zgpm(NLON,NLPP), zgp(NLON,NLPP)
+      real :: zdmu(NUGP,1), zdlam(NUGP,1)
+      integer :: jlon, jlat
+      real :: zrm
       character(len=15) :: ycase(3) = ['divergence only','vorticity only ','both together  ']
 
       ztol = 1.0e-11_wp
@@ -107,6 +111,30 @@
      &        / max(maxval(abs(real(zfv(:,:,:,1),wp))), 1.0e-30_wp)
          call verdict('v, '//ycase(jcase), zerr, ztol, nbad)
       enddo
+
+!     ---- the two pressure derivatives ---------------------------------------
+!     gpj as sp2fcdmu gives it, and gpmt as gridpointa builds it by hand from
+!     gp's FOURIER coefficients by multiplying each by i*m -- the construction
+!     that cannot survive a transform landing in grid space.
+      call sp2fcdmu(zspc,zgpj)
+      call fc2gp(zgpj,NLON,NLPP)
+      call sp2fc(zspc,zgp)
+      do jlat = 1 , NLPP
+         do jlon = 1 , NLON-1 , 2
+            zrm = real((jlon-1)/2)
+            zgpm(jlon  ,jlat) = -zgp(jlon+1,jlat) * zrm
+            zgpm(jlon+1,jlat) =  zgp(jlon  ,jlat) * zrm
+         enddo
+      enddo
+      call fc2gp(zgpm,NLON,NLPP)
+
+      call sh_sp2grad(zsp1, zdmu, zdlam, 1)
+      zerr = maxval(abs(reshape(real(zgpj,wp),[NUGP]) - real(zdmu(:,1),wp)))    &
+     &     / maxval(abs(real(zgpj,wp)))
+      call verdict('gpj, the mu derivative ', zerr, ztol, nbad)
+      zerr = maxval(abs(reshape(real(zgpm,wp),[NUGP]) - real(zdlam(:,1),wp)))   &
+     &     / maxval(abs(real(zgpm,wp)))
+      call verdict('gpmt, the zonal one    ', zerr, ztol, nbad)
 
       write(*,*)
       if (nbad == 0) then
