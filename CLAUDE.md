@@ -16,6 +16,7 @@ invariant is misfiled by its shape alone, wherever it came from.
 | `docs/src/SUMMARY.md` | the docs book. Its pipeline chapters are CANONICAL for pipeline REASONING: what the components are, how they connect, why the order is what it is, and why it is a loop. **Read them before pipeline work** |
 | `config/pipeline.yaml` | CANONICAL for the pipeline GRAPH: every step, what it writes, what must precede it, its cost, and each loop's exit predicate. The two do not overlap; the pipeline chapters reference step ids from here |
 | `scripts/pipeline.py` | `--status` what exists, `--plan <step>` the ordered steps to a target, `--register` the artifact table, `--purge <step>` everything a change to that step makes worthless. Plans and never RUNS a step; `--purge` deletes, and is a dry run until `--execute` |
+| `scripts/link_worktree.py` | a worktree sees the tracked tree and NOTHING else: no export payloads, no references, no run output, no `.venv`. Run it first in a new worktree and never hand-link one; `--check` says whether one is complete. What it deliberately does not link, and why, is in `docs/src/reference/environment.md` |
 | `source/README.md` | how to read an export: field conventions, the land-mask rule, the traps |
 | `vendor/orogen/tools/README.md` | the authoritative export format |
 | `<component>/README.md` | what that component does and how to run it |
