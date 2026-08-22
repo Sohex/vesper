@@ -27,6 +27,9 @@ recorded.
 
 ## Tier 0: already on disk, never opened
 
+**All five rows below were read on 2026-08-22 and are closed.** Survey sections
+42, 44, 45, 46 and 47 carry the findings.
+
 The cheapest reading available, and it should precede any download.
 `references/climber-x/` was pinned for PALADYN and SEMI, and most of the tree
 was never entered.
@@ -41,7 +44,7 @@ was never entered.
 
 ## Tier 1: open rows, no external comparison in the domain
 
-**CaMa-Flood** -- global river routing with floodplain inundation from sub-grid
+**CaMa-Flood** -- ACQUIRED 2026-08-22, `references/cama-flood/`. Global river routing with floodplain inundation from sub-grid
 topography. *Row-driven and blind-spot-driven at once.* Serves WET-2's seasonal
 inundation, ANUT-6's routing, SURF-7's discharge mask and GRID-2's sub-grid
 hypsometry. The blind spot behind it is larger than any of those: nothing here
@@ -49,7 +52,7 @@ represents transient water storage in a channel network, so floodplain area --
 which sets evaporation and methane-emitting area -- has no representation to be
 wrong. Yamazaki et al.; freely available for research, licence to verify.
 
-**CAABA/MECCA** -- a tropospheric chemistry box model. *Both.* BVOC-6 names
+**CAABA/MECCA** -- ACQUIRED 2026-08-22, `references/caaba-mecca/`, release 4.6.0. A tropospheric chemistry box model. *Both.* BVOC-6 names
 OH/O3/NO3 with no external reference and BVOC-10 closes a loop through them.
 The blind spot: **methane lifetime on this world is unknown.** A K dwarf's
 ultraviolet changes photolysis rates, so Earth's roughly nine years does not
@@ -58,7 +61,7 @@ small, portable, and answerable offline. GPL, part of the MESSy project.
 
 **Note on the two cGENIE "lite" accelerators**, which an earlier draft of this list expected to be worth reading: they are not. Survey section 46c records that `ocnlite` is an empty template and `goldlite` an abandoned prototype that has never been run.
 
-**ArcSDM, or the USGS three-part assessment method** -- mineral prospectivity
+**ArcSDM** -- ACQUIRED 2026-08-22, `references/arcsdm/`. Mineral prospectivity
 mapping. *Blind-spot-driven.* MIN has 1 open row of 6 issued, which reads as a
 finished domain and may instead be an unexamined one. The tension worth
 surfacing: prospectivity methods are SUPERVISED -- weights-of-evidence and fuzzy
@@ -67,7 +70,7 @@ occurrences to train on. Whether `minerals/` is doing something defensible
 without a training set, or is a plausibility field wearing a method's clothes,
 is not currently asked anywhere. ArcSDM is open source.
 
-**Landlab** -- a modular landscape evolution framework, one component per
+**Landlab** -- ACQUIRED 2026-08-22, `references/landlab/`. A modular landscape evolution framework, one component per
 process. *Row-driven.* GRAV-6 records that glacial erosion carries no gravity
 term while Glen's law makes ice velocity go as `g^3`. LITH and PHYS-13 sit
 beside it. Landlab is the most readable LEM and separates its erosion laws
@@ -76,7 +79,7 @@ cleanly enough to read one without the rest. **Read the no-time-axis rule first*
 explicitly time-evolving, so the transferable thing is the FORM of a
 gravity-scaled erosion law, not a rate. MIT licence.
 
-**ESMF/ESMPy, or SCRIP** -- conservative regridding between unstructured and
+**ESMF** -- ACQUIRED 2026-08-22, `references/esmf/`. Conservative regridding between unstructured and
 structured grids. *Row-driven.* SPAT has 11 open rows of 11 issued and no
 external eye, and rule 3 exists because mesh-to-grid transfers have silently
 matched zero cells three times. ESMF is the reference implementation of
@@ -88,8 +91,7 @@ something to be checked against that can fail.
 
 These are on the list BECAUSE nothing names them.
 
-**A two-moment cloud microphysics scheme** -- PySDM for readability, or
-Morrison-Gettelman as the production reference. Aerosol here is offline dust,
+**PySDM** -- ACQUIRED 2026-08-22, `references/pysdm/`. Super-droplet cloud microphysics, taken over a production two-moment scheme for readability. Aerosol here is offline dust,
 sea salt and volcanic sulfate, and the clouds are diagnostic. **Nothing connects
 condensation nuclei to droplet number to cloud albedo**, so the aerosol indirect
 effect is not wrong here, it is absent, and no row says so. Large; scope before
@@ -107,16 +109,16 @@ graticule is labelled when the body is not Earth. Whether this project's
 conventions agree with any of them has never been asked. Documents rather than
 source, and cheap.
 
-**FATES, or ED2** -- vegetation demography. *Blind-spot-driven.* DEMO has 6 open
+**FATES** -- ACQUIRED 2026-08-22, `references/fates/`. Vegetation demography. *Blind-spot-driven.* DEMO has 6 open
 rows of 6 issued and the only demographic model consulted is the one this
 project runs. A cohort model's assumptions are hard to see from inside it, and
 FATES is the modern independent implementation of the same idea.
 
-**Global NEWS 2, or IMAGE-GNM** -- riverine nutrient export. *Row-driven.* ANUT
+**Global NEWS 2 and IMAGE-GNM** -- riverine nutrient export. NO PUBLIC SOURCE for either, checked 2026-08-22, so the papers are the acquisition rather than a tree: Beusen et al. (2015) `10.5194/gmd-8-4045-2015` for IMAGE-GNM and Mayorga et al. (2010) `10.1016/j.envsoft.2010.01.007` for Global NEWS 2. *Row-driven.* ANUT
 has 10 open rows of 10 and no external comparison. These are the standard global
 models for how nutrients actually reach an ocean, which is ANUT-6's subject.
 
-**SPITFIRE** -- process-based fire. *Row-driven.* FIRE has 10 open rows of 10
+**SPITFIRE** -- ACQUIRED 2026-08-22 inside `references/lpjml/`. Process-based fire. *Row-driven.* FIRE has 10 open rows of 10
 and the only scheme consulted is BLAZE, which arrived with LPJ-GUESS. SPITFIRE
 is the independent scheme in the same lineage and reaches a different answer
 about ignition and spread.
