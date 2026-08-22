@@ -629,6 +629,7 @@ one_offs:
   - exoplasim/scripts/verify_threaded_numerics.sh
   - exoplasim/scripts/verify_transform_roundtrip.sh
   - exoplasim/scripts/verify_transform_roundtrip.f90
+  - exoplasim/scripts/probe_shtns_concurrency.f90
   - exoplasim/scripts/verify_omp_collectives.sh
   - exoplasim/scripts/verify_shared_determinism.sh
   - exoplasim/scripts/_bed_guard.sh
