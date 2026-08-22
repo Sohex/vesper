@@ -127,3 +127,77 @@ assume contiguity. Stage A took that cost on the spectral side and the model
 came out faster anyway, but the grid arrays are the ones the physics touches
 hardest, and it is a thing to measure rather than assume. Declaring the pointers
 `contiguous` where they are is the lever if it bites.
+
+## What SHTns actually offers, surveyed before writing any call site
+
+*3.7.5, surveyed 2026-08-21.* The API maps onto this model's transforms almost
+one to one, and two of the flags remove work the integration would otherwise
+have had to do by hand.
+
+| what `plasim` does | SHTns |
+| --- | --- |
+| `sp2fc` then `fc2gp` | `SH_to_spat` |
+| `gp2fc` then `fc2sp` | `spat_to_SH` |
+| **`dv2uv`**, divergence and vorticity to wind | **`SHsphtor_to_spat`** |
+| **`uv2dv`**, wind to divergence and vorticity | **`spat_to_SHsphtor`** |
+| `sp2fcdmu`, the mu derivative | `SHsph_to_spat` |
+
+`dv2uv` is the largest single transform routine at 6.64% of samples, and it has
+a purpose-built vector transform rather than needing to be assembled out of
+scalar ones. Every call also has `_l` and `_ml` variants -- truncated at a given
+degree, and per zonal wavenumber -- and the `_ml` family is what a transpose
+decomposition would be built from if the chosen one ever fails.
+
+**`SHT_ROBERT_FORM` matches this model's wind convention.** `shtns_robert_form`
+makes vector synthesis return the field multiplied by sin(theta) and analysis
+divide by it first. `gu` is documented in `plasimmod.f90` as "zonal wind
+(*cos(phi))", which is that form. Without the flag every vector transform would
+need a cos factor applied by hand, with the pole handling that implies.
+
+**Conventions are configuration, not arithmetic.** Normalisation is
+`sht_orthonormal`, `sht_fourpi` or `sht_schmidt`; `SHT_NO_CS_PHASE` controls the
+Condon-Shortley phase; `SHT_SOUTH_POLE_FIRST` controls latitude order, and is
+left OFF because `inigau` hands this model north first; `SHT_PHI_CONTIGUOUS`
+matches the `(NLON, NLAT)` layout the shared grid arrays already have.
+`SHT_LOAD_SAVE_CFG` caches the plan, which matters because initialisation is
+not cheap and every run pays it.
+
+**THE TRAP, and it is worth stating before it is met.** SHTns's spheroidal and
+toroidal potentials differ from divergence and vorticity by a factor of
+l(l+1). This model already carries `1/(n(n+1))` inside `fmu` and `fmv`, so a
+naive substitution applies it twice. `verify_transform_roundtrip.sh` is the
+check that catches it, which is an argument for wiring the identity against
+SHTns before any model code moves.
+
+## The GPU, answered on paper because the hardware makes it answerable
+
+The machine has an RTX 4090 and CUDA, and SHTns has `SHT_ALLOW_GPU`. It is not
+attractive here, for a reason that is not the one usually given.
+
+| | FP64 TFLOP/s |
+| --- | ---: |
+| RTX 4090 | 1.29 |
+| 7950X3D, 16 cores, AVX-512 | 1.28 |
+
+**Consumer NVIDIA throttles FP64 to a sixty-fourth of its FP32 rate**, so this
+GPU has no double precision advantage over this CPU at all. The model is built
+`-fdefault-real-8` and `config/planet.yaml` declares eight-byte precision.
+
+**Transfer is NOT the blocker, which is the counterintuitive part.** The
+spectral and grid fields crossing the transform are about 128 MB a timestep in
+both directions at T170, which is 5.1 ms over PCIe 4.0 against a transform that
+currently costs 48.9 ms. Ten percent overhead. The usual objection does not
+apply; the arithmetic rate does.
+
+**And GPU mode breaks the chosen parallel design.** `SHT_ALLOW_GPU` documents
+that "the same plan cannot be used simultaneously by different threads anymore",
+so the GPU forces one thread to drive the transform while the rest wait -- which
+costs 140% of current runtime unless the device wins by a wide margin, and it
+does not win at all in FP64.
+
+**What WOULD change this is precision, not hardware.** `SHT_FP32` exists and is
+GPU-only, and FP32 is 64x FP64 on this part. A mixed-precision transform -- FP32
+inside the transform, FP64 state either side -- is the only version of this that
+could pay, and it is a decision about how much accuracy the spectral core owes
+the climate, not a performance question. `verify_transform_roundtrip.sh` would
+quantify the cost exactly: the identity's residual IS the precision loss.
