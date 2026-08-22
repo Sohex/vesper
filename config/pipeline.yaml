@@ -648,3 +648,4 @@ one_offs:
   - exoplasim/scripts/_bed_guard.sh
   - exoplasim/scripts/bench_rank_layout.py
   - exoplasim/scripts/thread_count_sweep.sh
+  - exoplasim/scripts/attribute_barrier_wait.sh

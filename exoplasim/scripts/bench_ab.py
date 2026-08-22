@@ -35,6 +35,13 @@ def launcher(spec: str, ranks: int) -> tuple[list[str], dict]:
     """How to start one arm, and the environment it needs.
 
     `mpi`             mpiexec -np <ranks>, which binds rank r to core r.
+    `omp@<cores>`     as `omp`, but with an explicit thread-to-core order:
+                      a comma-separated core list, thread t taking the t'th
+                      entry. Each core expands to both its SMT siblings, so a
+                      thread has exactly the freedom `OMP_PLACES=cores` gives
+                      it and only the ORDER differs from the control. The
+                      decomposition is unchanged, so an arm that differs only
+                      in placement must stay bit identical.
     `omp[:policy]`    one process; the thread count is compiled in. The two
                       exports are not optional and not tuning: libgomp does NOT
                       bind by default, its placement changes run to run, and
@@ -48,12 +55,20 @@ def launcher(spec: str, ranks: int) -> tuple[list[str], dict]:
     import os
     if spec == "mpi":
         return ["mpiexec", "-np", str(ranks), "./probe_ab.x"], dict(os.environ)
-    if spec.split(":")[0] != "omp":
-        raise SystemExit(f"unknown launcher {spec!r}; use mpi or omp[:active|passive]")
+    head = spec.split(":")[0].split("@")[0]
+    if head != "omp":
+        raise SystemExit(f"unknown launcher {spec!r}; use mpi, omp[:active|passive] or omp@<cores>")
     env = dict(os.environ)
     env["OMP_STACKSIZE"] = env.get("OMP_STACKSIZE", "512M")
     env["OMP_PROC_BIND"] = "close"
-    env["OMP_PLACES"] = "cores"
+    if "@" in spec.split(":")[0]:
+        order = [int(c) for c in spec.split(":")[0].split("@", 1)[1].split(",")]
+        if len(order) != ranks or sorted(order) != sorted(set(order)):
+            raise SystemExit(f"omp@ needs {ranks} distinct cores, got {len(order)}")
+        nsib = os.cpu_count() // 2
+        env["OMP_PLACES"] = ",".join(f"{{{c},{c + nsib}}}" for c in order)
+    else:
+        env["OMP_PLACES"] = "cores"
     if ":" in spec:
         env["OMP_WAIT_POLICY"] = spec.split(":", 1)[1]
     # OMP_STACKSIZE sizes the NON-MASTER threads only; the master runs on the

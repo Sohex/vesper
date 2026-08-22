@@ -74,31 +74,72 @@ footprint is small, so giving up half the cores for it costs more.
 
 Sixteen being right does not make a quarter of T42 runtime uninteresting, so the
 barrier cost was attributed per thread rather than left as one number. From the
-fully-unwound T170 profile, classifying a sample as barrier when its leaf is in a
-stripped library and no model frame appears anywhere in the stack:
+T170 frame-pointer profile, classifying a sample by its leaf: 83.8% model, 15.0%
+barrier -- leaf in a stripped library with no model frame anywhere in the stack
+-- and 1.1% kernel. Two runs, one taken with `--sample-cpu` and one without,
+agree on all three to a tenth of a point.
 
-| | share of that thread's cycles |
+Threads are pinned one to a core, verified rather than assumed: every thread
+spends 100% of its samples on one core once both SMT siblings of a core are
+counted as that core, which is what `OMP_PLACES=cores` promises.
+
+| core | die | barrier |
+| ---: | --- | ---: |
+| 0-7 | CCD0, 96 MB | 16.7 to 18.1%, flat, mean 17.25% |
+| 8-15 | CCD1, 32 MB | 8.8 to 16.5%, rising, mean 13.33% |
+
+**The floor is 8.8% and the spread above it is imbalance.** The least-waiting
+thread is on the critical path; what the others spend above it is time waiting.
+Perfect rebalancing is therefore worth at most about six points of runtime, and
+the rest is serial regions and barrier machinery, which no thread count and no
+rebalancing reaches. This is a lower bound on waiting in both directions: the
+event is cycles, and a thread that has stopped spinning and gone to sleep in a
+futex burns none.
+
+**The die accounts for 42% of the spread and the decomposition for the rest.**
+T170 is NLAT 256 over sixteen threads, sixteen latitudes each and contiguous, so
+the die boundary falls on the equator: threads 0-7 hold the northern hemisphere
+on CCD0 and threads 8-15 the southern on CCD1. Cores 8 and 9 are both the
+equatorial bands, where convection and insolation are heaviest, and they sit on
+the 32 MB die. The two effects stack on the same two threads.
+
+Which die is faster for this model is measured at T127 and NOT at T170: an
+eight-rank job takes 46.19 s on CCD0 against 51.59 s on CCD1, so cache beats
+clock by 10.5% there, and `smt-rank-layout.md` has no single-die arm at T170 to
+say whether that carries. The barrier attribution above is T170, so the
+direction of the die effect at T170 is inferred from the barrier shares
+themselves rather than from a wall-time arm.
+
+## Placement cannot collect it
+
+That invites a free fix, since thread-to-core order is `OMP_PLACES` and not
+code. Swapping the hemispheres between dies puts the critical-path bands on the
+96 MB die at the cost of putting the northern bands on the 32 MB one. It also
+tests the extrapolation above, since a placement swap can only pay if the die
+difference measured at T127 survives to T170.
+
+| | median |
 | --- | ---: |
-| least-waiting thread | 9.0% |
-| most-waiting thread | 18.2% |
-| team mean | 15.3% |
+| hemispheres on native dies | 69.16 s |
+| hemispheres swapped | 69.16 s |
 
-**The floor is 9.0% and the spread above it is imbalance.** The least-waiting
-thread is on the critical path; what the others spend above it is time waiting
-for work that could have been theirs. Perfect rebalancing is therefore worth at
-most about six points of runtime, and the remaining nine are serial regions and
-barrier machinery, which no thread count and no rebalancing reaches.
+**+0.006%, [-1.03, +3.66], faster in 2 of 4 rounds, and bit identical.** The
+decomposition is untouched by a placement change, so the restart sha matching is
+what proves the arm changed only what it claimed to.
 
-This is a lower bound on waiting in both directions: the event is cycles, and a
-thread that has given up spinning and gone to sleep in a futex burns none, so
-sleep is invisible to it.
+The null is informative rather than disappointing, and it is the reason the
+T127 die figure is not quoted here as a T170 one. Either the die difference
+does not carry to T170, or it does and there are only eight fast cores for work
+that does not fit in them, so moving the advantage relocates the bottleneck
+instead of removing it. The arm does not separate those two, and does not need
+to: both say placement is spent. **A static permutation cannot give the faster
+die more WORK, and that is the only thing that would help.** A work queue can,
+by construction: slower threads take fewer chunks and no part of the model has
+to know the topology. That is an argument for the block decomposition in
+CLIM-68 and the collapsed iteration space in CLIM-67, and it exists only
+because the cheap shortcut was tried and failed.
 
-The lever the number points at is the LEVEL decomposition, and that is CLIM-67's
-territory rather than a second task: the SHTns wrappers are parallel over levels,
-NLEV is 10 against sixteen threads, and a static schedule over ten items across
-sixteen threads cannot be balanced. The wrappers already chain `nowait` so work
-flows between loops, which is why the imbalance is six points rather than the
-forty a single unchained loop would give.
+The arm is `bench_ab.py --b-launch omp@<core order>`.
 
 ## Verdict
 
