@@ -758,10 +758,12 @@ is a convergence rather than a finding, and it is worth recording precisely
 because nothing needs to change: the stellar input this project builds is the
 input both of those codes would want.
 
-ExoRT also gives CLIM-61 a second cost point with structure SOCRATES does not
-have. It ships FOUR band configurations, n28, n42, n68 and n84, chosen by
-atmospheric regime. So correlated-k is a ladder rather than a single price, and
-`ga7`'s 6 shortwave and 9 longwave bands is one rung of several.
+ExoRT ships FOUR band configurations, n28, n42, n68 and n84, chosen by
+atmospheric regime, which looks at first like a cost ladder for CLIM-61.
+Section 15 reads their gas coverage and withdraws that: they are aimed at
+Archean and hydrogen-rich atmospheres, they carry no ozone and no N2O, and
+`n68equiv` costs about three times `ga7`. The ladder is real and it is a ladder
+for other planets than this one.
 
 ### 9b. Snow and ice albedo were never re-derived, and nothing had noticed
 
@@ -1381,3 +1383,63 @@ the half that pays can be identified, which is right. But if the profile says
 threading route is expensive there and OCN-20's algorithmic route matters more.
 The profile decides between two DIFFERENT kinds of work, not between two
 candidates for the same kind.
+
+
+## 15. ExoRT is the wrong correlated-k for this planet, and the reason generalises
+
+*Read 2026-08-22. Section 9a called ExoRT a second cost point for CLIM-61 with
+structure SOCRATES lacks. Reading its gas coverage inverts that.*
+
+### 15a. What it covers, and what it does not
+
+`source/README` states the configurations plainly: `n68equiv`, the recommended
+one, is CO2, H2O and CH4 from HITRAN2016 in 68 bins with equivalent-extinction
+overlap; `n84equiv` is the same at 84; `n28archean` adds N2-N2, N2-H2 and H2-H2
+CIA at 28 bins; `n42h2o` and `n68h2o` are N2 and H2O only.
+
+The k-array roots in `n68equiv/radgrid.F90` confirm it: `kc` for line
+absorption, then `kco2ch4`, `kco2co2`, `kco2h2`, `kh2h2`, `kh2ofrgn`,
+`kh2oself`, `kmtckd`, `kn2h2`, `kn2n2`, `ko2co2`, `ko2n2`, `ko2o2`. A line
+table plus a full collision-induced set.
+
+**There is no ozone table and no N2O.** `kabs.F90` mentions neither.
+
+That is disqualifying here rather than inconvenient. `atmosphere.ozone` is true,
+`ozone_scale` is a derived 0.794, and `ozone_uv_weight` and
+`ozone_visible_weight` are separately derived for this host, because the star's
+ultraviolet is the reason `surface_uv_relative_to_earth` is 0.4. And
+`pN2O_bar` is a measured 3e-07 with CLIM-42 having added a longwave band
+specifically to carry CH4 and N2O. Adopting ExoRT would DISCARD both.
+
+SOCRATES `ga7` lists water vapour, carbon dioxide, ozone, dinitrogen oxide,
+methane, oxygen, sulphur dioxide and carbonyl sulphide -- every gas this world
+has, and two spares.
+
+### 15b. And it is more expensive, not less
+
+`n68equiv` is 68 intervals at 8 Gauss points, so 544 monochromatic calculations
+per column, and `n84equiv` is 672. SOCRATES `ga7` is 6 shortwave bands at up to
+12 k-terms and 9 longwave bands, of order 170. The present scheme is 2 shortwave
+bands and one longwave.
+
+So the exoplanet-native code costs roughly three times the Earth code AND covers
+fewer of this atmosphere's gases. On both axes that matter to CLIM-61 it loses.
+
+### 15c. The reason, which is worth more than the verdict
+
+ExoRT is built for the exoplanet cases the field actually studies: Archean
+Earth, hydrogen-rich atmospheres, tidally locked worlds around M dwarfs. Those
+need N2-H2 and H2-H2 CIA and have no ozone layer to speak of. Its band
+configurations are named for exactly those regimes.
+
+**Vesper is not that kind of exoplanet.** Its atmosphere is 1 bar of N2, O2 and
+Ar with 450 ppm CO2, interactive water vapour and an ozone layer -- a composition
+much closer to modern Earth than to any archetypal exoplanet target. What is not
+Earth-like is the STAR.
+
+That is the generalisation, and it should be applied when weighing any candidate
+component: for this project, an Earth-built code with a substitutable stellar
+spectrum will usually fit better than an exoplanet-built code aimed at exotic
+compositions. Section 8b already showed SOCRATES treats the star as a data file.
+This is the other half of the same argument, and it is why CLIM-61's candidate
+order should be SOCRATES first rather than ExoRT.
