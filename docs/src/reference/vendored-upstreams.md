@@ -21,6 +21,37 @@ Gaussian (spectral) grids.
 
 ## ExoPlaSim
 
+### It is a HARD fork as of 2026-08-21
+
+**Upstream compatibility is no longer a constraint on this component.** The
+threaded build is the line this model develops along, and the changes it wants
+next -- full-globe grid arrays for SHTns above all -- cannot be made while the
+MPI decomposition also has to keep working. Declared deliberately, so that the
+next person does not preserve a contract nobody is holding.
+
+What that licenses: removing the MPI path, restructuring the parallelism,
+changing array shapes and storage classes across the physics, and taking any
+change that is faster without asking whether it could be contributed back.
+Pulling upstream is not expected to be possible again, and a change worth
+sending upstream now has to be written for upstream separately.
+
+**What it does NOT license, and this is the part that bites.** The MPI build is
+the reference every correctness check in this component compares against --
+bit-identity at T21 on two, rounding scale at T170 on sixteen, every
+`compare_restarts.py` arm. It caught the dv2uv planetary vorticity race, the
+weight pre-scaling bug, and the mkdheat inertness result. **Do not delete it
+until the serial build has replaced it as that reference**: threaded at N
+threads against `mpimod_stub` at one, at rounding scale. The serial build is
+arguably the better reference anyway, since it has no reduce-scatter ordering to
+explain away.
+
+And removing MPI is not itself a speedup. The threaded build does not link it;
+`${MPIMOD}` selects a different file. The fork buys permission to BREAK the MPI
+path when it blocks a restructure, which is a reason to drop it lazily at the
+point it is in the way rather than as a task of its own.
+
+### Before the fork
+
 The climate model is a personal fork vendored at `vendor/exoplasim/`, a git
 subtree from the `master` branch of `Sohex/ExoPlaSim`. Pull upstream with
 `git subtree pull --prefix vendor/exoplasim exoplasim-fork master --squash`.
