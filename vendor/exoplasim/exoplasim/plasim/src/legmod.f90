@@ -318,8 +318,8 @@ real :: zsp(2,NCSP) ! sp with the per-mode factor already in it
 ! multiply they always were -- storing two matrices instead of eight costs
 ! nothing here at all.
 do j = 1 , NCSP
-   zsp(1,j) = fsp(j) * zsp(1,j)
-   zsp(2,j) = fsp(j) * zsp(2,j)
+   zsp(1,j) = fsp(j) * sp(1,j)
+   zsp(2,j) = fsp(j) * sp(2,j)
 enddo
 
 fc(:,:,:) = 0.0
@@ -406,8 +406,8 @@ real :: zsp(2,NCSP) ! sp with the per-mode factor already in it
 ! multiply they always were -- storing two matrices instead of eight costs
 ! nothing here at all.
 do j = 1 , NCSP
-   zsp(1,j) = fsp(j) * zsp(1,j)
-   zsp(2,j) = fsp(j) * zsp(2,j)
+   zsp(1,j) = fsp(j) * sp(1,j)
+   zsp(2,j) = fsp(j) * sp(2,j)
 enddo
 
 fc(:,:,:) = 0.0
