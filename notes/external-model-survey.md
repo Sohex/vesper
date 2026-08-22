@@ -2555,3 +2555,75 @@ would continue onto the following line and desynchronise the whole table
 silently rather than failing. The archival files are not selectable through
 `par_weathopt`, so nothing can trigger this today -- but VOLC-9 currently treats
 those files as the scheme definitions, and anyone acting on that would hit it.
+
+
+## 32. Two one-bucket land surfaces that disagree by an order of magnitude
+
+*Read 2026-08-22. LSHY-3 is specifying a replacement for ExoPlaSim's scalar
+bucket and LSHY-4 the vegetation-water loop around it. cGENIE's ENTS is a peer
+implementation of the same abstraction, so the two can be compared directly.*
+
+### 32a. The same equation, a different limiter
+
+Both models compute land evaporation as a bulk aerodynamic flux scaled by a
+soil-moisture factor. They differ in that factor.
+
+**ExoPlaSim**, `landmod.f90:418`, with `drhsfull = 0.4` at `:53`:
+
+    drhs = min(1, W / (drhsfull * Wmax))
+
+Linear, and **saturated at the potential rate for any bucket above 40 percent
+full**.
+
+**ENTS**, `surflux.F:1334`:
+
+    beta = min(1, (W / bcap)**4)
+
+Quartic, reaching the potential rate only at a full bucket.
+
+At equal fractional fill:
+
+| W/Wmax | 0.1 | 0.2 | 0.3 | 0.4 | 0.5 | 0.6 | 0.8 | 1.0 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| ExoPlaSim | 0.25 | 0.50 | 0.75 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 |
+| ENTS | 0.0001 | 0.0016 | 0.0081 | 0.026 | 0.063 | 0.130 | 0.410 | 1.00 |
+| ratio | 2500x | 312x | 93x | 39x | 16x | 8x | 2x | 1x |
+
+They agree only at a full bucket and diverge by an order of magnitude or more
+across the dry half of the range. **ExoPlaSim is the permissive extreme.**
+
+Two honest limits on that table. It compares the SHAPE at equal fractional fill,
+not absolute evaporation, because the capacity differs too -- ExoPlaSim's `wsmax`
+is a uniform namelist scalar while ENTS's `bcap = min(k8, k9 + k10*Csoil)` is
+carbon-dependent. And ENTS's `k8`, `k9`, `k10` arrive through the `ents_control`
+namelist and are NOT shipped in this tree, so the capacity half of the comparison
+cannot be closed from here. Neither limiter is right; this is a bracket, and the
+point is that the project's own side sits at one end of it.
+
+The direction matters for more than evaporation: at a given bucket state
+ExoPlaSim converts more of its precipitation to evaporation and less to runoff,
+and `scripts/error_budget.py` already records that the E/R ratio is amplified
+into the carve.
+
+### 32b. Vegetation reaches the ENTS climate through three prescribed-here fields
+
+ENTS carries two prognostic carbon pools, `Cveg` and `Csoil`, and derives three
+surface properties from them that ExoPlaSim prescribes:
+
+| property | ENTS | ExoPlaSim |
+| --- | --- | --- |
+| bucket capacity | `min(k8, k9 + k10*Csoil)`, `setup_ents.F:474` | `wsmax`, uniform namelist scalar |
+| roughness | `max(0.001, kz0*Cveg)`, `:476` | `dz0clim`, prescribed field |
+| soil albedo | sand-to-peat interpolation in `Csoil`, `initialise_ents.F:239` | `dalbclim`, prescribed field |
+
+Worth being precise about what this does and does not show. It is NOT that ENTS
+has a stomatal scheme and ExoPlaSim lacks one -- ENTS has no stomatal term in its
+evaporation either. `fv` and `fws` exist but feed photosynthesis, and the
+comment at `surflux.F:1386` distinguishing bare-soil evaporation from
+evapotranspiration sits above a formula that is the same in both cases. The
+whole vegetation-to-water coupling in ENTS runs through `bcap`.
+
+That is useful precisely because it is minimal. `notes/audits/missed-couplings.md`
+finding 4 and the error budget both record the one-way coupling as structural,
+and LSHY-4 is scoped to close the loop; ENTS shows that an EMIC-class closure of
+it is three algebraic functions of two carbon pools, not a land-surface model.
