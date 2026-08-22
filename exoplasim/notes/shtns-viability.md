@@ -530,5 +530,49 @@ something the model does not care about -- most likely the normalisation, since
 divide by the largest GRID value, and the two differ by orders. That is a
 hypothesis and it is not tested.
 
-**It is not resolved and the threshold has not been moved.** A criterion chosen
-after the run it judges is not a criterion. CLIM-61 carries it.
+**RESOLVED: it is the Gaussian quadrature weights, and neither library is
+wrong.** `probe_shtns_analysis_margin.f90` tests three mechanisms and the third
+is the one.
+
+Weights enter the ANALYSIS and not the synthesis -- legmod carries `gwd`
+explicitly, SHTns applies its own -- which is the shape of the symptom. Compared
+directly, `gwd` against `shtns_gauss_wts` at T127: the ratio runs from
+0.999999999997 to 1.00000000001, a spread of 1.02e-10, varying with latitude
+rather than a constant normalisation. Adjudicated against numpy's `leggauss`:
+
+| latitude | inigau vs numpy | SHTns vs numpy |
+| --- | ---: | ---: |
+| 1, pole-most | 5.7e-11 | 4.2e-11 |
+| 5 | 5.0e-12 | 1.8e-12 |
+| 96, equator | 9.4e-15 | 1.2e-14 |
+
+All three disagree near the pole and agree at the equator, and inigau and SHTns
+fall on OPPOSITE sides of numpy, so their difference is the sum. The polar
+weights are eighty times smaller than the equatorial ones and every standard
+algorithm loses relative precision there. `inigau` evaluates the Legendre
+polynomial as a trigonometric series and takes the weight as
+`z4(1-z^2)/z5^2`, which squares that error; SHTns uses its own scheme and lands
+about as far off in the other direction.
+
+A relative weight error of 1e-10 on products of order 0.1, summed over 192
+latitudes with partial cancellation, gives an absolute coefficient error of
+order 1e-11 -- which is the floor the analysis arms sit on, field-blind and
+band-limit-blind, exactly as measured.
+
+**The other two mechanisms are excluded by the same probe.** Band-limiting the
+test field from n<=127 to n<=31 moves the error from 2.5e-11 to 2.0e-11, a
+quarter, not the collapse that under-integration of the vector integrand would
+give -- and the SCALAR analysis carries the same 2.3e-11, so it is not vector
+specific at all. The FFT radix contributes nothing: an SHTns round trip at the
+same nlat on nphi=384 (mixed radix, 3*2^7) against nphi=512 (pure radix-2)
+gives 1.07e-14 against 1.20e-14, a ratio of 0.887 -- the mixed-radix length is
+marginally BETTER.
+
+**What follows.** The 1e-11 bar is not reachable by the analysis arms while the
+two libraries each compute their own polar weights, and that is a property of
+the comparison rather than of either transform. The bar for those arms should
+be set from the measured quadrature difference, which is an independent
+measurement and not a number chosen to make the test pass. Separately, and
+worth its own row: PlaSim's forward transform has always carried this weight
+error, so `inigau` is a real accuracy limitation in the model independent of
+SHTns. CLIM-61 carries both.
