@@ -181,7 +181,7 @@ integrated honestly instead.
 ### 3d. The code is reachable, and the licence is clean
 
 CLIMBER-X is public at `cxesmc/climber-x` under GPL-3.0, with PALADYN in
-`src/lnd/`. The tree has moved past the 2016 paper: lakes are implemented where
+`climber-x/src/lnd/`. The tree has moved past the 2016 paper: lakes are implemented where
 the paper calls them a placeholder, and there is now `weathering.f90`,
 `dust_emis.f90`, `n2o_emis.f90` and water isotopes.
 
@@ -257,9 +257,12 @@ WET-12 carries the declaration and the condition for taking each part.
 ### 3f. Three more CLIMBER-X modules, and one of them fills the hole section 4 leaves
 
 PALADYN is one directory of `cxesmc/climber-x`. Three of its neighbours matter
-here, and the licence position of section 3d covers all of them.
+here, and the licence position of section 3d covers all of them. Paths below
+are in THAT repository and not in this one, which is why they are written with
+the `climber-x/` prefix: a bare `src/` in this tree reads as `docs/src/`, and
+`source/` is the Orogen exports directory that rule 7 governs.
 
-**`src/smb` is a surface energy and mass balance model, and it is the answer to
+**`climber-x/src/smb` is a surface energy and mass balance model, and it is the answer to
 what section 4 refuses.** MITgcmIS's Positive Degree Day scheme is rejected
 below because it drives ablation from 2 m air temperature alone. SEMI is the
 opposite kind of object. Its interface takes surface albedo and downward
@@ -290,7 +293,7 @@ Two things in it do not transfer. Every constant is a PHYS-class inheritance,
 and `smb_bias_corr.f90` is a bias correction against Earth observations, which
 has no meaning on a world with none.
 
-**`src/ch4` is a reduced atmospheric methane model, and WET-10 has a floor after
+**`climber-x/src/ch4` is a reduced atmospheric methane model, and WET-10 has a floor after
 all.** `ch4_model.f90` is 12 kB and is a partitioned-lifetime box: separate
 tropospheric OH, chlorine, soil and stratospheric sink timescales, an OH
 temperature sensitivity, and OH sensitivities to CO, NOx and VOC precursors,
@@ -306,7 +309,7 @@ the same calculation an OH field would come out of. So WET-10's oxidant and
 lifetime half has a reduced form available in shape, with the coefficients as
 the work.
 
-**`src/sic` is dynamic-thermodynamic sea ice**, `sic_dyn.f90` and
+**`climber-x/src/sic` is dynamic-thermodynamic sea ice**, `sic_dyn.f90` and
 `transport_sic.f90`, against this project's thermodynamic-only scheme.
 BIG-MITgcm names excessive ice as the consequence of the configuration this
 stack also runs, so the term is not free. It is nevertheless BLOCKED rather than
