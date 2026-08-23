@@ -81,7 +81,9 @@ T42_SECONDS_PER_ORBIT_AT_DT45 = 90.0
 # share-weighted work; T170 extrapolates grid work as nlat^2 and Legendre as
 # ntru^3. Each is REPLACED by measurement the first time a job at that rung
 # completes, and the output says which of the two any number is.
-RUNG_FACTOR = {"T21": 0.30, "T42": 1.00, "T85": 4.2, "T127": 10.0, "T170": 18.7}
+# T21 is MEASURED on this host at 37 s per orbit against T42's 90; the rest
+# remain declared brackets until a job replaces them.
+RUNG_FACTOR = {"T21": 0.411, "T42": 1.00, "T85": 4.2, "T127": 10.0, "T170": 18.7}
 
 # `model.resolution` does NOT carry the grid on its own. `read_sra` validates
 # every staged surface file against `model.latitudes` and `model.longitudes`,
@@ -110,9 +112,31 @@ def estimate(rung: str, dt: float, orbits: int) -> float:
 
 
 def write_config(base: dict, name: str, rung: str, kappa: float | None,
-                 dt: float, energy: bool) -> Path:
+                 dt: float, energy: bool, bootstrap: bool = False) -> Path:
+    """One arm's config, derived from planet.yaml rather than hand-copied.
+
+    `bootstrap` is what makes the ladder reachable, and it is the project's own
+    vocabulary rather than a trick: a BOOTSTRAP RUN is the first climate run on
+    a build, on TERRAIN-ONLY fields. `intended_surface_codes` requires only
+    BASE_SURFACE_CODES -- orography 129 and the land mask 172 -- when the three
+    `*_source` keys are `uniform`, and every rung on the ladder has exactly
+    those two staged. The derived fields that only T42 carries are what a
+    BASELINE run needs, and this sweep is not measuring a baseline: it is
+    measuring where the model traps and what an orbit costs, both of which are
+    properties of the resolution and the namelist.
+
+    The sharp orography that the filter exists to tame is code 129, so it is
+    present in this configuration. That is what makes the trap question askable
+    here at all.
+    """
     cfg = copy.deepcopy(base)
     m = cfg["model"]
+    if bootstrap:
+        m["land_albedo_source"] = "uniform"
+        m["soil_water_source"] = "uniform"
+        m["roughness_source"] = "uniform"
+        m["dust_source"] = "none"
+        m["dust_emission"] = "none"
     m["resolution"] = rung
     m["latitudes"], m["longitudes"] = RUNG_GRID[rung]
     m["timestep_minutes"] = dt
@@ -145,11 +169,12 @@ def seconds_per_orbit(run_dir: Path) -> float | None:
 def run_job(job: dict, base: dict, log_dir: Path) -> dict:
     """One arm. Never raises: a failure is a result with a diagnosis."""
     name = job["name"]
+    from_restart = job["track"] in ("A", "S")
     cfg = write_config(base, name, job["rung"], job["kappa"], job["dt"],
-                       job["track"] == "A")
+                       job["track"] == "A", bootstrap=not from_restart)
     cmd = [sys.executable, str(ROOT / "exoplasim/scripts/run_exoplasim.py"),
            "--config", str(cfg), "--clean-io", "--run-years", str(job["orbits"])]
-    if job["track"] == "A":
+    if from_restart:
         # From the spun-up T42 restart. Both arms of every comparison inherit the
         # same superseded surface, which is what that flag is for.
         cmd += ["--restart-from", str(PARENT_RESTART), "--superseded-surface-ok"]
@@ -238,6 +263,17 @@ def build_jobs() -> list[dict]:
                          "orbits": 2, "name": f"A_T42_{tag}_dt{dt:g}",
                          "priority": 10})
 
+    # COST ANCHORS, run early and deliberately out of cost order. SPAT-11's
+    # deliverable is what each rung COSTS, and a budget that runs out at T85
+    # leaves the top of the ladder unpriced -- which is the one number the whole
+    # optimisation workstream rests on and nobody has written down. One orbit at
+    # the production step and the production filter, per rung, before the wide
+    # sweep gets any of the budget.
+    for rung in ("T85", "T127", "T170"):
+        jobs.append({"track": "B", "rung": rung, "kappa": 8.0, "dt": 45.0,
+                     "orbits": 1, "name": f"C_{rung}_k8_dt45_anchor",
+                     "priority": 15})
+
     # S. THE TRAP BOUNDARY, which is world-qoo's actual deliverable: the
     # weakest filter that still runs at each step. One orbit is enough, because
     # the failure is immediate -- the arm that trapped wrote no output record at
@@ -254,13 +290,26 @@ def build_jobs() -> list[dict]:
                          "orbits": 1, "name": f"S_T42_{tag}_dt{dt:g}",
                          "priority": 20})
 
-    # B. The ladder, attempted. Expected to abandon at the first rung for want
-    # of staged surface fields; cheap to find out and worth recording.
-    for rung, prio in (("T21", 30), ("T85", 31), ("T127", 32), ("T170", 33)):
-        for dt in (45.0, 22.5):
-            jobs.append({"track": "B", "rung": rung, "kappa": 8.0, "dt": dt,
-                         "orbits": 1, "name": f"B_{rung}_k8_dt{dt:g}",
-                         "priority": prio})
+    # B. THE LADDER, on bootstrap surface fields and cold. Reachable after all:
+    # every rung has orography and the land mask staged, which is exactly what a
+    # bootstrap run reads. Cheapest rung first inside each priority, and the
+    # deadline decides how far up it gets -- what it does not reach is written
+    # out with its estimate rather than dropped quietly. The cost column here is
+    # SPAT-11's deliverable.
+    ladder = {"T21": (30, (90.0, 60.0, 45.0, 30.0, 22.5, 15.0)),
+              "T85": (31, (45.0, 30.0, 22.5, 15.0)),
+              "T127": (32, (45.0, 30.0, 22.5)),
+              "T170": (33, (45.0, 30.0))}
+    for rung, (prio, steps) in ladder.items():
+        for dt in steps:
+            for kappa in (8.0, None):
+                if rung != "T21" and dt == 45.0 and kappa == 8.0:
+                    continue  # the cost anchor above already runs this cell
+                tag = "off" if kappa is None else f"k{kappa:g}"
+                jobs.append({"track": "B", "rung": rung, "kappa": kappa,
+                             "dt": dt, "orbits": 1,
+                             "name": f"B_{rung}_{tag}_dt{dt:g}",
+                             "priority": prio})
 
     # F. DEEPENING, priority last. The residual's spread is 4 to 13 percent of
     # its value on a two-orbit window; four orbits roughly halves that, and
