@@ -1345,12 +1345,17 @@ scalars it would replace. It also sharpens it: the error is one-signed, since a
 solar-tuned `k_w` under a redder star OVERSTATES the euphotic depth.
 
 **MARBL** takes PAR Column Fraction and shortwave as `interior_tendency_forcings`
-entries, so the conversion is the driver's responsibility and never a constant
-inside the model. For a non-solar host that is strictly better: the quantity
-OCN-4 would have to override in ECOGEM is one MARBL asks for by design, and
+entries, so the shortwave field itself is the driver's responsibility, and
 `num_PAR_subcols` means it accepts a sub-column structure rather than one value.
+But the FRACTION is not asked for: `f_qsw_par = 0.45_r8` is a Fortran
+`parameter` at `marbl_settings_mod.F90:160` with no YAML entry at all, and the
+six attenuation literals beside it are hardcoded the same way. So the axis
+INVERTS on reachability. ECOGEM's `PARfrac`, `k_w` and `k_chl` are all namelist
+and can be overridden without touching source; MARBL's PAR fraction cannot.
 
-On this axis MARBL wins, and it is the axis this project cares about most.
+Both are spectrally flat, so the magnitude verdict above is unchanged and OCN-6
+still owns it. What changes is which candidate can be corrected from a
+configuration file, and that is ECOGEM.
 OCN-4's other criteria -- tracer and trait cost, the covarying trait space,
 fixed Earth inventories -- are untouched by this and still favour ECOGEM's
 trait-based ecology in principle. The comparison is now split rather than
@@ -1584,11 +1589,16 @@ It also ships a MATCHED STRUCTURAL PAIR, `3Diat4ZP_PiEu.eco` against
 built. That is the shape this project's conventions ask for when pre-registering
 a structural sensitivity, arriving free.
 
-MARBL is the other thing. `autotroph_cnt` defaults to 1, is 3 under the CESM2
-preset, and the settings file annotates it `cannot change : PFT_defaults ==
-'CESM2'` -- so under the standard preset the count is LOCKED at three named
-plant functional types. Composition is prescribed by PFT identity rather than
-emerging from a trait space.
+MARBL is the other thing, though NOT because the count is fixed: `PFT_defaults`
+takes `user-specified` as well as a named preset, and the shipped
+`settings_cesm2.1+cocco.yaml` variant proves the count moves. The difference is
+that MARBL has no allometric GENERATOR. ECOGEM derives its traits from 36
+`_a`/`_b` coefficient pairs in `ini_ecogem_nml`, applied as 39
+`coef_a * volume ** coef_b` statements, so a population is a size and the traits
+follow. MARBL asks for 38 hand-set parameters per autotroph with a poison
+default of `1e34`, so a user-specified configuration is a hand table per
+population and composition is prescribed by identity rather than emerging from a
+trait space.
 
 On the axis OCN-4 names as its reason for preferring trait-based ecology,
 ECOGEM wins and it is not close.
@@ -1601,12 +1611,15 @@ with a JSON form, carrying per-configuration defaults, declared dependencies
 such as `dependencies : base_bio_on`, longnames, units and datatypes, generated
 by `MARBL_generate_settings_file.py`.
 
-**And it ships a standalone driver**, `tests/driver_src` and `driver_exe`, so it
-runs without an ocean model against prescribed forcing. For this project that is
-worth more than it looks: OCN-3 names the aeolian pattern, downstream of one
-climate and upstream of the next, as the only affordable coupling class, and a
-component with its own offline driver is already shaped for it. OCN-4 could
-exercise MARBL before any ocean host is selected.
+**And it ships a standalone driver**, `tests/driver_src` and `driver_exe` -- but
+it is a TEST HARNESS and not an offline model, which is a smaller thing than it
+first reads as. `marbl.F90` dispatches ten single-shot test names, and
+`call_compute_subroutines` calls the compute routines once per column: there is
+no time loop and no tracer update. So it can answer a tendency-sensitivity
+question, the response of a rate to a forcing at a stated state, and it cannot
+produce a spun-up state. OCN-3's aeolian pattern, downstream of one climate and
+upstream of the next, needs the second. What OCN-4 can exercise before an ocean
+host is selected is a tendency, not a candidate.
 
 ECOGEM has none of that. Section 13a records it has no entry in
 `genie-knowngood`, and there is no separate test suite, no settings schema and
@@ -1627,9 +1640,10 @@ infrastructure and a prescribed-PFT ecology.
 
 Three things follow that the row can act on without deciding.
 
-The photon axis in section 12 is not a tiebreaker either way now: `PARfrac` is a
-namelist scalar in ECOGEM and settable, and MARBL's driver-supplied PAR is
-cleaner but the difference is one number.
+The photon axis in section 12 favours ECOGEM rather than neither: its `PARfrac`,
+`k_w` and `k_chl` are namelist scalars, while MARBL's PAR fraction is a
+compile-time `parameter` with no configuration entry. Section 12c carries the
+correction and the line numbers.
 
 MARBL's standalone driver means it can be TRIED before an ocean host exists,
 and ECOGEM cannot. That asymmetry is about sequencing rather than merit, and it
@@ -5051,7 +5065,10 @@ shorter. The code never uses the month, so a 31-day window over a 183-day orbit
 *damps* the seasonal cycle -- by about 3.55 percent of half-amplitude more than a
 ported month would, which is roughly 1.4 C off the establishment range on a cell
 with a 40 C annual swing. The fix is one line, calling a function already used
-two lines below.
+58 lines below in the same file. It also warrants a capacity guard beside it:
+`Historic::periodicmean` returns the whole-buffer mean when the window it is
+asked for exceeds the buffer, so an orbit whose months outgrow the compile-time
+31 would reintroduce this silently.
 
 ### 57b. A leaf lifetime read as orbits in one file and as Earth months in another
 
@@ -5110,10 +5127,17 @@ Four instances with one cause. The P uptake profile is a verbatim copy of the N
 one **including the comment**, which still says "nitrogen". The P stoichiometry
 scalings are N's values with N's citations, and the source admits it in a comment
 ending "SAME FOR P, MAKES SENSE?". The sorbed and strongly-sorbed P exchange
-uses one rate constant for both directions, which forces its steady state to
-exactly equal pools where the cited source gives distinct rates. And the P
-saturation concentration is set to the nitrogen value with the phosphorus value
-commented out directly above it.
+uses one rate constant for both directions -- and THAT ONE IS NOT A DEFECT, which
+this section had wrong. Wang et al. (2010) Appendix D states it outright:
+"musorb and mussb are rate constants for the sorbed and strongly sorbed P pools,
+respectively, both are equal to 0.0067 year-1". The equality is the source's own
+and copying it was correct. What is really wrong at those lines is different and
+larger: `UOCC` is declared and never used, `Soil::pmass_occluded` is never
+assigned, and the occluded pool is commented out of the P conservation sum, so
+the fork has no terminal phosphorus sink at all and equal rates therefore drive
+the strongly sorbed pool to the sorbed pool and hold it there. And the P
+saturation concentration is set to the nitrogen value with a different value
+commented out directly above it, neither of them sourced anywhere in the tree.
 
 Each is defensible alone. Together they mean the P cycle has no independent
 parameterisation, in a fork whose entire reason for existing is C-N-P.
