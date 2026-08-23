@@ -1417,6 +1417,8 @@ def main() -> None:
         twobandalbedo=bool(config["radiation"]["two_band_albedo"]),
         timestep=float(model_cfg["timestep_minutes"]),
         physicsfilter=model_cfg["physics_filter"],
+        filterkappa=float(model_cfg["filter_kappa"]),
+        filterpower=int(model_cfg["filter_power"]),
         landmap=str(landmap),
         topomap=str(topomap),
         runsteps=int(derived["runsteps_per_orbit"]),

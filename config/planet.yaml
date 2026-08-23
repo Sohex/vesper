@@ -334,6 +334,15 @@ model:
   ncpus: 16
   timestep_minutes: 45.0
   physics_filter: "gp|exp|sp"
+  # The exponential filter's shape, f(n) = exp(-kappa (n/NTRU)^gamma). These are
+  # ExoPlaSim's own defaults restated so they are DECLARED rather than inherited
+  # from a library default nothing here names: the filter is load-bearing (the
+  # model takes a floating-point trap in the shortwave without it,
+  # exoplasim/notes/physics-filter-stability.md) and its strength is therefore a
+  # decision, not a detail. Scale-free in n/NTRU, so the same FRACTION of every
+  # rung's spectrum is damped; the half-power point is n/NTRU = 0.737 at kappa 8.
+  filter_kappa: 8.0
+  filter_power: 8
   output_type: .nc
   # Declares that ExoPlaSim's configure() clears every surface field when handed
   # a landmap, so anything not supplied here falls back to a namelist default.
