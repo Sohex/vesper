@@ -105,3 +105,43 @@ transform.
 
 `config_save` appends rather than truncates, and only when the tuning pass ran.
 A run that is allowed to save is a run that raced.
+
+## Pilot: the authored config works, and the tuner's one big claim was noise
+
+`probe_shtns_variant_cost.c`, T170, single-threaded, 2001 repetitions per type,
+each variant forced through an authored `shtns_cfg` and CONFIRMED by reading
+back what the library says it loaded rather than assuming the request took.
+Median microseconds per call, with the interquartile range beside it:
+
+| type | fly1 | fly2 | fly3 | fly4 | IQR band |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| syn `SH_to_spat` | 282.5 | 286.5 | 298.3 | **277.2** | 6 to 28 |
+| ana `spat_to_SH` | 328.7 | 324.0 | 328.3 | **322.4** | 7 to 15 |
+| vsy `SHsphtor_to_spat` | **512.9** | 519.5 | 547.7 | 581.8 | 11 to 18 |
+| van `spat_to_SHsphtor` | 606.0 | **601.3** | 607.9 | 604.3 | 13 to 22 |
+
+**The 13% the tuner reported for T170 `syn` is not there.** Against fly2, fly4
+is 3.2% faster on `syn`, not 13%, and the difference the tuner acted on came
+from single unrepeated samples. The direction of the effect is real; its size
+was noise-inflated by an order of magnitude, which is what an unrepeated
+instrument does.
+
+**No uniform variant wins.** fly4 takes `syn` by 3.2% and loses `vsy` by 12.0%,
+and `vsy` is the more expensive call. A uniform-fly4 configuration is a net loss
+at T170 even though it holds the single best number in the table.
+
+So the per-rung pick is a per-TYPE vector at each rung, which is what the
+library's own structure already said, and the pilot's purpose was to establish
+that a vector can be pinned at all and to measure the scatter that any adoption
+threshold has to clear. Both are now known: the route works, and the scatter is
+2 to 4% of a median.
+
+WHAT THIS IS WORTH AT MODEL LEVEL, stated before the full sweep rather than
+after it. `shtns-viability.md` measures SHTns's own kernels at 0.00% of T170
+model runtime with the wrappers at 0.74% together. A few percent of a few
+percent is a model-level effect of order 0.1%, against a bench self-scatter
+floor of 5%. **No model-level A/B can resolve this choice**, and one run at a
+declared tolerance can only confirm that the restart still agrees. The
+transform-level measurement above is the only instrument that reaches the
+effect, which is `docs/src/practice/failure-modes.md` class 34 applied before
+the measurement instead of after.
