@@ -30,7 +30,7 @@ while the other ten are over-weighted by 1.1%.
 Bin 0 is NOT the long one -- it holds the minimum. A derivation that assumed
 eleven equal bins and took the twelfth as the residual reported a 1.19x excess
 on bin 0 and a mechanism to explain it; both were artefacts of the assumption.
-`TASKS.md` CLIM-13 carries the correction and the evidence.
+CLIM-13 carries the correction and the evidence.
 
 ## A separate, smaller truncation that weighting does not fix
 

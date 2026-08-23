@@ -13,7 +13,7 @@ reaches no adoption decision. What it produces is a list of formulations worth
 taking, a list of candidates now closed, magnitudes for terms this project
 carries as declared rather than measured, and corrections to several of this
 project's own assumptions where an external implementation showed one to be
-unsupported. Every finding is carried by a row in `TASKS.md`; the index below
+unsupported. Every finding is carried by an issue in `bd`; the index below
 is the check on that.
 
 It has two companions. `notes/external-source-inventory.md` lists what has NOT
@@ -30,10 +30,10 @@ Each section and the task rows that carry it. A section with no row either
 closes a candidate, records a negative result, or is framing; those say so.
 
 **The invariant, which is the point of the table: every section is either cited
-by a row in `TASKS.md` or named here as one that opens nothing.** The table is a
-snapshot and will go stale as rows move; re-derive it rather than trusting it,
-by collecting `external-model-survey.md section N` citations out of `TASKS.md`
-and diffing against the `## N.` headings here. A section that appears in neither
+by an issue in `bd` or named here as one that opens nothing.** The table is a
+snapshot and will go stale as issues move; re-derive it rather than trusting it,
+by collecting `external-model-survey.md section N` citations out of the tracker
+-- `bd search external-model-survey` -- and diffing against the `## N.` headings here. A section that appears in neither
 is a finding with no home, which is the condition this exists to catch.
 
 | # | what it settles | carried by |

@@ -855,7 +855,7 @@ A thing that should not exist is not refuted by measuring how badly it performs,
 and measuring it is worse than saying nothing, because the measurement records
 the wrong reason and the wrong reason expires.
 
-**What happened.** `pipeline.py` read `TASKS.md` to print a "carve
+**What happened.** `pipeline.py` read the markdown tracker to print a "carve
 gate": the open tasks whose `[step: <id>]` marker named a step upstream of
 `carve_list`. Two fixes were attempted, in order, and both were answers to
 questions nobody had asked.
@@ -863,7 +863,7 @@ questions nobody had asked.
 The first moved the parsing into a new `scripts/carve_gate.py`, so that the
 graph tool read no tracker. That relocated the coupling and left the machinery
 standing, and the coupling was never the defect: the gate was DEFINED over
-tracker prose, so any correct implementation of it must read `TASKS.md`. A
+tracker prose, so any correct implementation of it must read the tracker. A
 defect that cannot be removed without removing the feature it serves is a fact
 about the feature, and this one was pointing at the gate the whole time. The
 commit recorded "output is byte-identical" as though that were a virtue, which

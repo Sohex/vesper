@@ -903,7 +903,7 @@ over unequal record counts, a `.mean(0)` against a record mean -- CLIM-13)
 and the fourth was sampling: one record per 24.00 h against a 30.00 h day
 samples the diurnal cycle at five phases forever, while the streams integrate
 every step. At `NWPD = 8` the atmosphere and the streams agree to 0.008 W/m2
-and the surface budget closes; `archive/tasks.md` CLIM-11 has the four
+and the surface budget closes; CLIM-11 has the four
 layers. What was never the answer: more model time, or the offline
 radiative transfer this note once proposed.
 

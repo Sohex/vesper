@@ -294,6 +294,6 @@ The HYD comparison must include GRAV-7's mechanical-allometry arm rather than
 changing water lift while leaving the carbon cost of height Earth-fixed. No raw
 water-table-depth feed and no additive groundwater ET route is physically closed.
 
-PLHY-1 through PLHY-7 record that work in `TASKS.md`. Source/fixture and
+PLHY-1 through PLHY-7 record that work as issues. Source/fixture and
 diagnostic plumbing can proceed without a model run; every measured sensitivity
 or production execution remains subject to the explicit compute permission.

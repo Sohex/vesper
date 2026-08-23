@@ -185,7 +185,7 @@ delivers nothing. They are auto-preserved by `index = inf` only in the RATIO for
 of the test; `export_carve_list.py` decides them on the discharge form, which asks
 whether the lake surface itself gains, and on the corrected evaporation 243 of
 them do. Whether that population was a window artifact was settled under
-HYD-17 (archive/tasks.md): it was not; the count is noise about a constant
+HYD-17: it was not; the count is noise about a constant
 across one- to ten-orbit windows.
 
 ## 4. The climate figures are labelled 180 degrees from the maps
@@ -214,7 +214,7 @@ reconciling their labels is the wrong repair.
 
 ## Tasks
 
-Tracked in `TASKS.md`, not restated here.
+Tracked in the `bd` issue tracker, not restated here.
 
 | finding | id |
 | --- | --- |

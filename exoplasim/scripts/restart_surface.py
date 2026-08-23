@@ -28,7 +28,7 @@ well-formed, and every downstream product the wrong answer.
 That is not hypothetical. `landmod.f90` used to read the per-cell `dwmax` out of
 the restart and then assign the scalar namelist `wsmax` over it on every resume,
 so a soil water capacity that varies by two orders of magnitude across the
-continents was flattened to one number after the first orbit. TASKS.md CLIM-67
+continents was flattened to one number after the first orbit. CLIM-67
 removed the block; this is the check that would have named it.
 
 IT IS A TEST AND NOT A DIAGNOSTIC, which is the reason it belongs on the resume
@@ -502,7 +502,7 @@ def verify_restart_surface_fields(run_dir: Path, restart: Path, codes: set[int],
             + "\n  ".join(failures)
             + "\n\nA restart is only as good as the boundary fields inside it. "
             "See exoplasim/README.md, 'Which resume path is valid', and "
-            "TASKS.md CLIM-67 and CLIM-70.")
+            "CLIM-67 and CLIM-70.")
     if superseded and not allow_superseded:
         raise RuntimeError(
             f"{run_dir} was prepared with --superseded-surface-ok "

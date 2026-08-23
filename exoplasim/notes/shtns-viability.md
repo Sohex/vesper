@@ -244,7 +244,7 @@ bounded by 18.9% even at T170. A device that actually paid would need the
 physics on it too, which is a whole-model port rather than a library swap, and
 would be decided on different evidence than any of this.
 
-NOTE ON WHERE THIS BELONGS: CLIM-52 lives in main's TASKS.md and not on this
+NOTE ON WHERE THIS BELONGS: CLIM-52 lives in main's tracker and not on this
 branch, so this finding has to reach that row when the branches meet.
 
 ## FP32 on the CPU is worth 39.7%, and the GPU is not the interesting part

@@ -7,7 +7,7 @@ planet. Measured 2026-08-22 against `vendor/exoplasim/exoplasim/compile.sh` and
 
 Every defect below shares one shape: an input the driver does not recognise
 produces a DIFFERENT BUILD rather than an error, and the difference is invisible
-downstream. `archive/tasks.md` CLIM-22 is this shape having already cost a
+downstream. Closed CLIM-22 is this shape having already cost a
 session -- every 16-rank binary silently built single precision -- and the
 mechanism that allowed it is untouched.
 

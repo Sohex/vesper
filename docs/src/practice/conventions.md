@@ -76,6 +76,52 @@ Almost every class in [failure modes](failure-modes.md) was found that way.
   warning, the status label, and the argument behind a live decision.
   Failure-modes class 25.
 
+## The issue tracker
+
+Work is tracked in `bd` (beads): `bd ready` for what is unblocked, `bd show
+<id>` for one issue, `bd list --label clim` for an area. These conventions
+predate it and survived the move off a markdown table.
+
+- **Every issue cites the document that justifies it.** An issue with no
+  source is not yet a finding and probably needs one. Findings and issues are
+  kept apart: a document under `notes/audits/` says what is true and carries
+  its evidence, the issue says what to do about it, so a finding can be read
+  without being re-litigated and an issue can be closed without editing the
+  argument that produced it.
+- **An issue that turns out to be wrong is closed with its reason, not
+  deleted.** The reasoning is the point: a refutation records why something
+  that looked like work turned out not to be, and several of the closed ones
+  reverse an earlier conclusion. Deleting them loses the argument and invites
+  the same issue being opened again.
+- **Ids are never reused, and beads issues them.** A reused id makes every
+  citation of it ambiguous forever. Hand-allocated ids did that twice: taking
+  the max over six area tables and not the seventh issued a duplicate HYD-17,
+  and two different tasks were both issued CLIM-19, which is why the second
+  now sits under `clim-19-b`. Areas are labels, not id space.
+- **An issue names the step it touches**, as a `step:<id>` label whose id comes
+  from `config/pipeline.yaml`. It says WHERE the work lands and is annotation,
+  not a verdict. The carve gate -- does anything outstanding still move what
+  the verdict is computed from -- is a judgement made by READING the open
+  issues, because the answer is what closing one would CHANGE and that is in
+  its own prose. Computing it from these markers was tried and removed: a
+  marker names a location, not an effect, so the two are not interchangeable
+  at any count. `pipeline.py` reads no tracker, so nothing recorded in beads
+  can change what the pipeline planner reports.
+- **Regenerating a derived artifact is a STEP, not an issue.** It belongs in
+  the ordering in `sequencing.md`, beside the run that consumes it. An issue
+  that says "rebuild X before the next run" is tracking state, and state is
+  what `check_consistency.py` and `world_state.json` are for. Archived HYD-16
+  and BIO-1 were both such rows and should never have been.
+- **An issue is code, physics, a decision or a measurement that settles a
+  mechanism.** If closing it would produce only a number that the next
+  iteration regenerates, it is not an issue; the durable half is whatever it
+  teaches.
+- **Blocking and related are different edges.** `bd dep add <issue>
+  <blocker>` says the first cannot proceed until the second lands, and drives
+  `bd ready`. `bd dep relate` says two issues inform each other -- a consumer,
+  a shared boundary, a precedent -- without either waiting. Recording a
+  consumer as a blocker makes `bd ready` lie in the direction that hides work.
+
 ## Prose registers
 
 - **Write about the simulation in the simulation's terms.** Some of this
@@ -89,8 +135,8 @@ Almost every class in [failure modes](failure-modes.md) was found that way.
   (extinction efficiency, albedo, flood seeding); a euphemism for a standard
   term is one quantity with two names, which is its own failure class. And any
   document that can be read standalone states the worldbuilding frame up
-  front, as `TASKS.md` does. THE RULE IS SUBJECT TO ITSELF: do not enumerate
-  the phrases it exists to avoid, here or anywhere -- an enumeration in a
+  front, as `biosphere/notes/fire-model-audit.md` does. THE RULE IS SUBJECT TO
+  ITSELF: do not enumerate the phrases it exists to avoid, here or anywhere -- an enumeration in a
   file loaded into every session re-supplies, on every turn, exactly what it
   guards against. Commits f5de28f, 47a68b3 and 9957a0b hold the specifics for
   anyone who needs them.

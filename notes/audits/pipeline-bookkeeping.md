@@ -15,7 +15,7 @@ carry no `h2osww` or `co2sww`, which is the no-op-until-enabled convention
 working exactly as CLAUDE.md describes it.
 
 So this audit is not about the physics, and it found nothing about the physics
-that TASKS.md did not already carry. **It is about the machinery that is supposed
+that the tracker did not already carry. **It is about the machinery that is supposed
 to tell you where the pipeline stands: the graph, the planner, the error budget
 and the task file.** Four of those describe the pipeline incorrectly, and the
 first one is why the pipeline cannot currently say when an iteration is finished.
@@ -137,7 +137,7 @@ seasonal rectification check.
 measured 2026-08-18. They came from CLIM-13's original mechanism, 570 timesteps
 for the first bin against 480 for the other eleven. That figure was a residual
 derived by assuming eleven equal bins, so it forced every discrepancy onto the
-twelfth; `TASKS.md` CLIM-13 carries the refutation. The real weights come from
+twelfth; CLIM-13 carries the refutation. The real weights come from
 pyburn's own binning, `np.linspace(0, ntimes, 13).astype(int)`, which at the
 182 records per orbit of an `NLOWIO = 0` run gives
 
@@ -173,12 +173,12 @@ this audit.
 
 | where | said | actually |
 | --- | --- | --- |
-| `TASKS.md` DUST-3 | items 1, 2, 3 and 5 "AUTHORED as four patches in `PENDING_PATCHES` ... none applied", and "WHAT REMAINS is item 4 alone" | all resident and compiled; item 4 merged at `ddeb635`; `PENDING_PATCHES` is empty |
+| DUST-3 | items 1, 2, 3 and 5 "AUTHORED as four patches in `PENDING_PATCHES` ... none applied", and "WHAT REMAINS is item 4 alone" | all resident and compiled; item 4 merged at `ddeb635`; `PENDING_PATCHES` is empty |
 | `build_star_cycle_exoplasim.sh` | "THE LAST THREE ARE STILL IN `PENDING_PATCHES` ... the check below will refuse to run", and "five resident patches besides this one" above a list of seven | all resident; the check passes; the count was seven |
 | `exoplasim/notes/first-output-bin.md` | the low-I/O patch is "written and not applied ... has not been compiled into a binary and no run has used it" | resident and in all five binaries. The "no run has used it" half is still true and is kept |
 | `aeolian/notes/prescribed-dust-run.md` | "RESIDENT, not applied", and a `patch -p1` step in the run recipe | resident AND applied; running that line now would fail or double-apply |
 
-The `TASKS.md` row was the costly one, because the carve gate is computed from
+The tracker row was the costly one, because the carve gate is computed from
 that file and was reporting `rebuild_binaries` as blocked on work that had
 landed. (The gate was computed by `pipeline.py --status` when this was
 written. Computing it was removed entirely on 2026-08-19, as a category error:

@@ -26,7 +26,7 @@ It was stale before it was written down. The commit that quotes it, `02c916e`,
 also *contains* the reassessment at 66 orbits, which reads -0.6010 on orbits 56
 to 65 -- a miss of 0.1010, seventy times larger. The prose was written from the
 number the run had before the commit's own work re-measured it, and the sentence
-then propagated into `TASKS.md` and into `water-and-energy-closure.md`. Nothing
+then propagated into the tracker and into `water-and-energy-closure.md`. Nothing
 chose the window; a number outlived its measurement.
 
 ## The assessment does not shop for a window
@@ -141,7 +141,7 @@ Most of it is now named: the adiabatic spectral step creates energy, so the
 model really does radiate away more than it stores, and the reported net is a
 correct measurement of a planet that is not conserving. About -0.20 W/m2 of it
 remained unattributed until CLIM-11 closed the surface half as measurement
-(aliasing and instrument; `archive/tasks.md`).
+(aliasing and instrument; closed issues).
 `exoplasim/notes/water-and-energy-closure.md` carries the measurement. A
 criterion that stopped reading the number would also stop anyone noticing when
 it changed.

@@ -86,7 +86,7 @@ repeating. See `exoplasim/notes/parameter-decisions.md`.
 ## What is wrong with this and must be fixed downstream
 
 - **The -4.7 K offset is a proxy**, not a measurement. The redo against the
-  real 0.945 climatology is `TASKS.md` CLIM-34.
+  real 0.945 climatology is CLIM-34.
 - **The lapse rate is no longer assumed.** It is measured from the model's own
   10-level profile by `lib/lapse.py`, and the measurement says the bracket this
   note explored sat entirely on the shallow side; the correction section below

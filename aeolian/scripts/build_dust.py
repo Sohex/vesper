@@ -582,7 +582,7 @@ def main() -> None:
     #
     # A previous version of this file divided by cos(phi) on the strength of
     # `RevCosPhi` appearing in burn7.cpp's pressure-level path. That was wrong
-    # and it is recorded in TASKS.md as CLIM-4, closed wontfix, so nobody
+    # and it is recorded as CLIM-4, closed wontfix, so nobody
     # rediscovers the same false lead in the same source file.
     sel = lev >= cfg["transport"]["steering_sigma"]
     if not np.any(sel):

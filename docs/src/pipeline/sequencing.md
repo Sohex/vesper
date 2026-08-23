@@ -63,15 +63,15 @@ current state, with what is already present marked skippable.
 The other half is **the carve gate: nothing outstanding may still move an
 artifact the verdict is computed from.** It is not a ceremony about
 irreversibility -- a wrong verdict is recoverable, because a build is replaced
-wholesale -- and it is not a computation. **Read `TASKS.md` and decide.** Each
-row in the open set says what it is waiting on.
+wholesale -- and it is not a computation. **Read the open issues and decide.**
+`bd ready` and `bd blocked` say what each one is waiting on.
 
-Whether a row still moves the verdict is a fact about what closing it would
-CHANGE, and that lives in the row's prose; a task can name an upstream step
-and move nothing -- deferred, a bound, blocked on something that happens
-after the carve. The `[step: <id>]` marker records only where the work is
-FILED. `TASKS.md`'s conventions record why no marker traversal substitutes
-for reading the rows.
+Whether an issue still moves the verdict is a fact about what closing it would
+CHANGE, and that lives in the issue's own prose; an issue can name an upstream
+step and move nothing -- deferred, a bound, blocked on something that happens
+after the carve. The `step:<id>` label records only where the work is FILED.
+`conventions.md` records why no label traversal substitutes for reading the
+issues.
 
 Two imperatives in the block have no mechanical backstop, which is what earns
 them their emphasis: `rebuild_binaries.py --verify` first, because nothing

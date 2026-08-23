@@ -15,7 +15,7 @@ the project-owned components around those three upstreams.
 See the docs book (`docs/src/SUMMARY.md`) for the pipeline end to end, and `world_state.json` for the
 current values: builds, runs and verdicts, generated from the artifacts by
 `scripts/world_state.py`. Findings are in `notes/`, with their evidence, and
-what is still to be done is in `TASKS.md`.
+what is still to be done is in the `bd` issue tracker.
 
 ## Layout
 

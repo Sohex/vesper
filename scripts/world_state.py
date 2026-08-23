@@ -5,7 +5,7 @@ Generated, not hand-maintained. Every prose summary in this project has drifted
 from its artifacts at least once, usually within a commit of the number changing,
 so the state file reads the artifacts instead of restating them. Everything it
 writes is derived from an artifact: what is judged rather than measured belongs
-in a notes document, and what is to be done about it in `TASKS.md`.
+in a notes document, and what is to be done about it in the `bd` issue tracker.
 
     python scripts/world_state.py
 
@@ -38,7 +38,7 @@ SCHEMA_VERSION = 1
 # question two documents after it had been measured at 295.18 K, and it still
 # reported the weathering bracket at a width pedology/README.md had already
 # corrected. Findings live in `notes/` and `notes/audits/` with their evidence,
-# what to do about them lives in `TASKS.md`, and both are read by people rather
+# what to do about them lives in the `bd` issue tracker, and both are read by
 # than regenerated over.
 
 
@@ -123,7 +123,7 @@ def builds(active: str) -> dict:
             # depends on the floor because Orogen assigns basin fill on
             # `is_endorheic`. Reporting one under an ambiguous name is how a
             # retention argument came to quote a catchment share as though it
-            # were the fill. `archive/tasks.md` CONS-12 asked for this rename.
+            # were the fill. CONS-12 asked for this rename.
             "endorheic_catchment_share_of_land":
                 (b.get("drainageConsistency") or {}).get("fractionOfLand"),
             "endorheic_basin_floor_share_of_land": basin_floor_share(d),
@@ -453,7 +453,7 @@ def main() -> None:
         "generator": "scripts/world_state.py",
         "note": "Generated from the artifacts. Do not edit; re-run the generator. "
                 "Only derived values live here. Findings are in `notes/`, with "
-                "their evidence, and open work is in `TASKS.md`.",
+                "their evidence, and open work is in the `bd` issue tracker.",
         "planet": config["planet"],
         "star": config["star"],
         "orbit": config["orbit"],

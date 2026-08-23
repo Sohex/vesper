@@ -1,7 +1,7 @@
 # Audit: Orogen's lithology model
 
 *Audited 2026-08-16, against `vendor/orogen` at `cf-fork` 3907c58. Tasks in
-`TASKS.md` under `LITH`.*
+the `bd` issue tracker under the `lith` label.*
 
 Prompted by a specific question -- is the absence of a gypsum class an oversight?
 -- and widened because lithology now feeds albedo, erodibility, phosphorus and

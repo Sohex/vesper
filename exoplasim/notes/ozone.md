@@ -63,7 +63,7 @@ Both errors overstate stratospheric heating. They do not cancel.
 
 ## What to do about it
 
-Pricing the surface-climate stake is `TASKS.md` CLIM-32; in a ten-layer
+Pricing the surface-climate stake is CLIM-32; in a ten-layer
 model there is little stratosphere to heat, so the surface effect may be
 small even though the bias is real.
 

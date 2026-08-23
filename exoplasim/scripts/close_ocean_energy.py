@@ -88,7 +88,7 @@ span was derived as `total_steps - 11 * ordinary_bin_steps`, which assumes
 eleven equal bins and therefore forces every discrepancy onto the twelfth. The
 bin centres say bin 0 holds the FEWEST records, and the restore mechanism it
 invoked belongs to `NLOWIO = 1`, which is the regime whose 36 records per orbit
-bin exactly. `TASKS.md` CLIM-13 has the measurement.
+bin exactly. CLIM-13 has the measurement.
 
 Usage:
 
@@ -583,7 +583,7 @@ def close_ocean(run_dir: Path, first_orbit=None, last_orbit=None) -> dict:
     # spans run 480 to 496 steps with bin 0 at the MINIMUM -- and pyburn's
     # binning cannot produce a long first bin anyway, because it splits the raw
     # records with `np.linspace(0, ntimes, nbin+1).astype(int)` and divides each
-    # bin by its own count. See archive/tasks.md CLIM-13 for the correction.
+    # bin by its own count. See CLIM-13 for the correction.
     # PER ORBIT throughout: `counts`, `w` and `binned_time` describe one
     # orbit, while `nbin` spans the whole window. The equal-weight error this
     # block reports is a property of how pyburn splits ONE orbit, so it is

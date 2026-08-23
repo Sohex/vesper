@@ -794,7 +794,7 @@ Recorded so the next reader knows the edges.
 
 ## Tasks
 
-OCN-1 through OCN-20 in `TASKS.md`. Findings 1, 2, 5a, 5b and 5c are the
+OCN-1 through OCN-20. Findings 1, 2, 5a, 5b and 5c are the
 exploration rows; finding 3 is recorded here and became no row, being a
 constraint rather than work; finding 4's config half is OCN-9 and its prediction
 half is this document. Section 8 supplies the cross-component contracts and

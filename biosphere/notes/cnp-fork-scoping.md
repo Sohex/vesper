@@ -38,8 +38,7 @@ needs no new members in `vesperinput.cpp`. The actual defect is in the fork's
 `SoilInput::get_mineral`: it copies `kplab`, `spmax` and `pwtr` from fields that
 the texture reader never initializes. The vendored C-N configuration supplies
 the fork's documented site defaults while `ifplim` is off. Replacing those
-defaults with per-cell Vesper fields is the BIO-5 through BIO-7 chain in
-`TASKS.md`.
+defaults with per-cell Vesper fields is the BIO-5 through BIO-7 chain of issues.
 
 ## The input side is where the work is, and the fork is incomplete there
 
@@ -90,7 +89,7 @@ Two consequences specific to Vesper:
   expect a real but shallower upland-to-basin gradient -- a biome-scale
   pattern this pipeline can derive rather than assert.
 
-## Integration seams tracked in TASKS.md
+## Integration seams tracked as issues
 
 The source and the rock-side information are already present: the CNP fork and
 Vesper port are vendored, while `pedogenesis.yaml` carries both per-class

@@ -31,8 +31,9 @@ generator is absent from the graph. `CLAUDE.md` rule 7 depends on all of this:
 Detail lives with the thing it describes. Each component directory has a
 `README.md` saying what it does and how to run it. Dated findings live in
 `notes/` with their evidence -- `notes/audits/` for audits, and the remaining
-files there for measurements and pending changes that carry a date. `TASKS.md`
-says what to do about a finding; `world_state.json` holds every current value.
+files there for measurements and pending changes that carry a date. The `bd`
+issue tracker says what to do about a finding; `world_state.json` holds every
+current value.
 
 This book holds what crosses component boundaries and does not change with the
 current iteration:

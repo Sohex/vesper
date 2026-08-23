@@ -13,7 +13,7 @@ The damage is one output record and it is measurable on a field that cannot
 vary. Under `NLOWIO = 1` the land mask reads 0.95341 in orbit 0 bin 0 and
 exactly 1.0 in every other bin of every orbit; a cold-started low-I/O run reads
 1.0 throughout, and a clean-I/O run accumulates nothing so shows nothing. Both
-conditions are needed, which is what identifies the cause. TASKS.md CLIM-31,
+conditions are needed, which is what identifies the cause. CLIM-31,
 `exoplasim/notes/first-output-bin.md`.
 
 WHY ZEROING IS SAFE, which is the whole argument for this being a fix rather

@@ -569,7 +569,7 @@ def main() -> None:
     # restart instead, and nothing compared the two. CLIM-67 was a restart
     # branch that read the per-cell dwmax and then assigned a namelist scalar
     # over it, with every file, manifest and report still well-formed. This
-    # compares CONTENT, on every code this project stages. TASKS.md CLIM-70.
+    # compares CONTENT, on every code this project stages. CLIM-70.
     surface_restart = verify_restart_surface_fields(
         run_dir, restart, intended_surface_codes(config), manifest=manifest,
         allow_superseded=args.superseded_surface_ok)

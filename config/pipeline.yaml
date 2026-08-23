@@ -200,7 +200,7 @@ steps:
       answer. The cap on extreme-cold land fraction must be DECLARED in advance
       by this re-derivation: the purged artifact inferred it at 0.0642, which
       reproduced 0.945 from an unconstrained winner of 0.8725, and a threshold
-      fitted to its own answer is what TASKS.md CLIM-30 exists to undo
+      fitted to its own answer is what CLIM-30 exists to undo
 
   - id: analyze_climatology
     script: exoplasim/scripts/analyze_climatology.py
@@ -360,7 +360,7 @@ steps:
       be re-weighted for this host (`config/planet.yaml`); `acl2` and `tswr3`
       are the ones that never were. Derived from liquid water's k(lambda), which
       carries no spectrum, flux-weighted over range 2 per star. Lands on
-      `model.cloud_absorption_scale`. TASKS.md PHYS-11
+      `model.cloud_absorption_scale`. PHYS-11
 
   - id: baseline_run
     script: exoplasim/scripts/run_exoplasim.py
@@ -450,11 +450,11 @@ steps:
     writes: ["source/{build}/"]
     gate: >
       the carve gate: nothing outstanding may still move an artifact the verdict
-      is computed from. READ TASKS.md AND DECIDE. Deliberately not computed, and
-      not because a filter over `[step: <id>]` markers performed badly -- because
-      it answers a different question. Whether a row still moves the verdict is a
-      fact about what closing it would CHANGE, which is its prose; a marker
-      records where the work is filed. A task can name an upstream step and move
+      is computed from. READ THE OPEN ISSUES AND DECIDE. Deliberately not computed,
+      and not because a filter over `step:` labels performed badly -- because
+      it answers a different question. Whether an issue still moves the verdict
+      is a fact about what closing it would CHANGE, which is its prose; a label
+      records where the work is filed. An issue can name an upstream step and move
       nothing, being deferred, a bound, or blocked on something after the carve.
 
   - id: weathering_fluxes

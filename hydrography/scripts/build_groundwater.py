@@ -172,7 +172,7 @@ def report_path(args, out: Path) -> Path:
 
     So the name follows the ARTIFACT when one is named, and otherwise carries
     the variant in it. The names below are unchanged for the default run and for
-    the sigma and noise arms, because `notes/` and `archive/tasks.md` cite them.
+    the sigma and noise arms, because `notes/` and the closed issues cite them.
     """
     if args.output is not None:
         return ANALYSIS / f"{out.stem}_report.json"

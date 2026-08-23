@@ -130,7 +130,7 @@ DEFAULT_ATTENUATION = 0.5
 #   low   the land rate. A lake responding no faster than the moisture-limited
 #         ground beside it is the weakest response that is physically arguable.
 #   high  6.7 %/K, the convexity of saturation vapour pressure the project
-#         already measures (PHYS-5, archive/tasks.md). At fixed relative
+#         already measures (closed PHYS-5). At fixed relative
 #         humidity the deficit driving Penman's aerodynamic term grows at that
 #         rate and the radiative term does not grow at all, so the Penman
 #         response at fixed radiation and wind is strictly below it.
@@ -363,7 +363,7 @@ OTHER_ITEMS = [
      "transport exists, and the argument for switching it on is not that it "
      "improves an agreement. Bracket `hdiffk` and report the spread rather "
      "than tuning it -- a constant diffusivity is a BOUND on the missing "
-     "transport, not the transport. TASKS.md CLIM-16."),
+     "transport, not the transport. CLIM-16."),
     ("ocean salinity, 20 to 40 psu", "freezing point 272.07 to 270.94 K",
      "DECLARED, not derived: config/planet.yaml carries Earth's 34.7 because no "
      "salt budget exists here, and the model's TFREEZE is now set from it "

@@ -320,7 +320,7 @@ def main() -> None:
     print(f"\nwrote {out}  ({out.stat().st_size / 1e6:.0f} MB, {len(samples)} samples)",
           flush=True)
     print("the raw file is NOT deleted; it remains the source of record for "
-          "re-extraction. If reclaiming its space matters, add a TASKS.md row "
+          "re-extraction. If reclaiming its space matters, open an issue "
           "naming what must finish first", flush=True)
 
 

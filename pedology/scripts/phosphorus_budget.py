@@ -13,7 +13,7 @@ unit weathering flux -- and until now **nothing read either of them**. The claim
 that this world has P-starved uplands against P-rich basin floors, and that wind
 returns some of it, was prose with grounded data sitting beside it and no
 computation in between. The result remains a relative diagnostic; ANUT-1
-through ANUT-3 in `TASKS.md` own the missing mass-carrying implementation.
+through ANUT-3 own the missing mass-carrying implementation.
 
 ## What it computes
 

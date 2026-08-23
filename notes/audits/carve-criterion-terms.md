@@ -353,15 +353,15 @@ was rewritten to handle, and this is the first climate in which it fires.
 
 ## The no-runoff population
 
-HYD-17 (archive/tasks.md) refuted the window hypothesis: the count is noise
-about a constant across one- to ten-orbit windows. What is not periodic is the
+HYD-17 refuted the window hypothesis: the count is noise about a constant
+across one- to ten-orbit windows. What is not periodic is the
 soil store; the measured land-mean drift is 8.6 mm per bin.
 
 ---
 
 ## Tasks
 
-Tracked in `TASKS.md`, not restated here.
+Tracked in the `bd` issue tracker, not restated here.
 
 | finding | id |
 | --- | --- |

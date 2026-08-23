@@ -1,7 +1,7 @@
 # Audit: how gravity enters Orogen
 
 *Audited 2026-08-16, against `vendor/orogen` at `cf-fork` 3907c58. Tasks in
-`TASKS.md` under `GRAV`.*
+the `bd` issue tracker under the `grav` label.*
 
 Two questions were put: whether gravity being applied as a post-hoc scaling
 factor rather than entering generation warrants fixing, and whether the unscaled

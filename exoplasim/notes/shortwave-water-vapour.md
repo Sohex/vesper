@@ -259,7 +259,7 @@ unit flux ratio -- `docs/src/pipeline/state.md` section 5b, the converged T42 se
 0.945-0.968, which is the direction this correction moves. That is 0.861 K per
 W/m2 once the incident-to-absorbed conversion is made. The stellar sweep's 33 K
 for 21 W/m2 is deliberately NOT used: it is 3.4x the local slope because it
-crosses the ice transition, and `TASKS.md` BUDG-4 exists because that slope has
+crosses the ice transition, and BUDG-4 exists because that slope has
 been reused across regimes before.
 
 **Not included, and expected to subtract a few tenths of a kelvin.** Moving
@@ -275,8 +275,7 @@ atmosphere gains 15.0 W/m2 of radiative heating and must shed it; the only large
 term available is latent heating, so precipitation falls. Full compensation is
 -189 mm/yr, 19% of the total. The +2.5 K of warming pushes back at roughly
 2-3% per kelvin, so the net is nearer -12 to -15%. Runoff is 15.5% of land
-precipitation and amplifies a precipitation change by about 6.5x (`TASKS.md`
-BUDG-1), so this is the largest single thing anything in this repository has
+precipitation and amplifies a precipitation change by about 6.5x (BUDG-1), so this is the largest single thing anything in this repository has
 predicted for the carve criterion's denominator.
 
 ## What this does to the design mean, and to the flux
@@ -296,7 +295,7 @@ taken on the current climatology is downstream of all of it.
 
 ## CO2: there is nothing to re-weight, and that is why it is a separate note
 
-`TASKS.md` PHYS-1 asked for the CO2 shortwave absorptance to be re-weighted the
+PHYS-1 asked for the CO2 shortwave absorptance to be re-weighted the
 same way. **ExoPlaSim has no shortwave CO2 absorptance at all.** `radmod.f90`
 carries CO2 only in `lwr`, from Sasamori (1968); `swr` has ozone in band 1 and
 water vapour in band 2 and nothing else. Lacis and Hansen did not parameterise it

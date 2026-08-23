@@ -159,7 +159,7 @@ GCM should be bound. There is no library seam to widen.
 ## Two build-system defects found while measuring
 
 Both were closed the day they were found, CONS-11 and CONS-10; the evidence
-below is what they were found to be, and `archive/tasks.md` carries what was
+below is what they were found to be, and the closed issues carry what was
 done. The dependency defect turned out to be three edges rather than the one
 described here.
 

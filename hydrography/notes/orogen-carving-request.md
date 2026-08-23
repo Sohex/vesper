@@ -257,7 +257,7 @@ has the property the docs claim for it. `tools/README.md` describes erodibility 
 Neither is 1, which is expected once cover stripping swaps cells to their basement
 erodibility after the normalisation was applied. So the normalisation is a
 property of the field at the time it was computed, not of the field as shipped.
-A clause in the fork's `tools/README.md` saying so is `TASKS.md` HYD-19: a
+A clause in the fork's `tools/README.md` saying so is HYD-19: a
 downstream model that assumes mean 1 and rescales against it would introduce a
 few percent of error for no reason.
 

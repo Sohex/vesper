@@ -311,7 +311,7 @@ def annual_mean(ds: Dataset, name: str) -> np.ndarray:
     other ten hold fifteen. `lib/climatology.py` recovers the counts from the
     bin centres. Worth +0.16% on land P - E, which is under a basin against the
     error budget's own response -- small, and no reason for the criterion to be
-    computed on a mean nobody can defend. TASKS.md CLIM-13.
+    computed on a mean nobody can defend. CLIM-13.
     """
     return weighted_annual_mean(np.asarray(ds[name][:]), np.asarray(ds["time"][:]))
 

@@ -354,7 +354,7 @@ def main() -> None:
             print(f"  at u = {u_at:8.2f} atmos-cm: {a_old:.6f} -> {a_new:.6f} "
                   f"({100*(a_new/a_old-1):+.1f}%), "
                   f"{(a_new-a_old)*EARTH_MEAN_INSOLATION:+.2f} W/m2 of insolation")
-        print("\nThis prints. Put the four numbers in radmod.f90 and rebuild; TASKS.md PHYS-10.")
+        print("\nThis prints. Put the four numbers in radmod.f90 and rebuild; PHYS-10.")
         return
 
     if args.bands:

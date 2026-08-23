@@ -66,10 +66,10 @@ answers "do these describe the same world", this answers "what exists and what
 must run to reach X". Asking either to do the other's job would give two answers
 to one question.
 
-## What this does NOT read: TASKS.md
+## What this does NOT read: the issue tracker
 
 This module answers graph questions and nothing else. It does not read the
-tracker, so nothing written in `TASKS.md` can change what it reports.
+tracker, so nothing recorded in `bd` can change what it reports.
 
 It used to, to print a carve gate -- "open tasks touching a step upstream of
 `carve_list`" -- and that was wrong twice over. A regex over human-written
@@ -79,8 +79,8 @@ from the one it named: whether a row still moves the verdict depends on what
 closing it would CHANGE, which is the row's prose, while a `[step: <id>]` marker
 records where the work is filed. No traversal turns the second into the first,
 so the output looked decided while deciding nothing. The gate is a judgement
-made by READING `TASKS.md` before carving; `config/pipeline.yaml` states it
-against the `orogen` step.
+made by READING the open issues before carving; `config/pipeline.yaml` states
+it against the `orogen` step.
 """
 
 from __future__ import annotations

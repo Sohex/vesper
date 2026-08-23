@@ -75,7 +75,7 @@ documents, numbers and results are kept; this file says how work proceeds.
   are already changing it -- is exactly when to ask it. Two tells
   that you have skipped it. **A defect that cannot be removed without removing
   the feature it serves is a fact about the FEATURE**: `pipeline.py` had to read
-  `TASKS.md` because the gate was DEFINED over tracker prose, so the coupling
+  the tracker because the gate was DEFINED over tracker prose, so the coupling
   was not relocatable and "fix the coupling" had exactly one answer. And
   **preserving behaviour is a virtue only after the behaviour is known to be
   wanted** -- "output is byte-identical" went into that commit as though it
@@ -122,7 +122,7 @@ documents, numbers and results are kept; this file says how work proceeds.
   numbers nothing is currently reading, and it churns artifacts out from under
   whatever is. So: regenerate when a step you are actually running needs it,
   and otherwise leave it. If a mismatch would change a conclusion someone is
-  about to draw, say so in a sentence and move on. `TASKS.md` says the same
+  about to draw, say so in a sentence and move on. The tracker says the same
   thing from the other side -- a row that says "rebuild X before the next run"
   is tracking state, and state is what `check_consistency.py` and
   `world_state.json` are for.

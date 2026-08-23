@@ -1,7 +1,7 @@
 # Fire-model audit and implementation path
 
-This note records the source and literature audit behind the `FIRE` tasks in
-`TASKS.md`.  It is about the fictional Vesper simulation.  It does not select
+This note records the source and literature audit behind the `FIRE` issues in
+the `bd` tracker.  It is about the fictional Vesper simulation.  It does not select
 parameters by fitting a desired result, and it does not claim that an Earth
 fire parameterisation becomes portable merely by setting human population to
 zero.

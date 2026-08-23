@@ -207,7 +207,7 @@ models then evolve separate snow, soil water, ice, evaporation and runoff
 histories. The source audit and the work required to replace this integration
 scaffolding are in
 `../biosphere/notes/soil-land-surface-hydraulic-consistency-audit.md` and
-LSHY-1 through LSHY-7 in `../TASKS.md`.
+LSHY-1 through LSHY-7.
 
 The checked-in `analysis/soil_report.json` predates that source correction and
 still says LPJ-GUESS does not consume regolith depth. The report generator now

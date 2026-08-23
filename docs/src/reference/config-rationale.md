@@ -266,8 +266,7 @@ at the same time -- the two would otherwise pull against each other, since
 the cycle wants an active star and the biosphere wants a quiet one.
 
 What this does NOT settle is ozone's radiative effect on the climate, which
-is a different quantity from its shielding of the surface; pricing it is
-`TASKS.md` CLIM-32.
+is a different quantity from its shielding of the surface; pricing it is CLIM-32.
 
 ## `metallicity`
 
@@ -317,7 +316,7 @@ PROVISIONAL, 2026-08-19. Chosen from the habitability-by-latitude derivation
 of `docs/src/pipeline/state.md` section 5b, codified as
 `derive_design_flux.py` (step `design_flux`), which declares its thresholds in
 advance. The extreme-cold cap it needs is not yet declared ahead of the run
-(`TASKS.md` CLIM-30), and `docs/src/pipeline/sequencing.md` loop C re-derives
+(CLIM-30), and `docs/src/pipeline/sequencing.md` loop C re-derives
 the flux on every new terrain.
 
 It keeps its value rather than being cleared, because it is an INPUT and not a
@@ -485,8 +484,7 @@ surface:
 PARTLY DETERMINED. Sea ice and glaciers are decided. `mixed_layer_depth_m` is
 NOT: 50 m is a default, it sets seasonal amplitude, and this world's year is
 half Earth's so it damps seasonality about twice as hard as Earth's ocean does.
-`scripts/error_budget.py` books it as a structural item; pricing it is
-`TASKS.md` CLIM-33.
+`scripts/error_budget.py` books it as a structural item; pricing it is CLIM-33.
 
 ## `glaciers`
 

@@ -855,7 +855,7 @@ secondhand from a citing abstract, but the original has not been read here.
 `vendor/orogen/js/lithology.js` defines 20 rock classes each carrying an
 erodibility, a density and an albedo: sixty numbers with **no citation anywhere
 in the module**. Fetched 2026-08-16 to ground them. See
-`notes/audits/orogen-lithology.md` and `TASKS.md` under `LITH`.
+`notes/audits/orogen-lithology.md` and the `bd` issue tracker under the `lith` label.
 
 ## Erodibility by lithology
 

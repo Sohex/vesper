@@ -113,7 +113,7 @@ star:
 # that derivation has no script, no analysis product, no row in
 # config/pipeline.yaml and no recorded threshold, and does not name the runs it
 # was projected across. Those runs are now deleted, so it is not reproducible
-# even in principle from this tree. TASKS.md CLIM-24. Section 6 requires the
+# even in principle from this tree. CLIM-24. Section 6 requires the
 # flux to be RE-DERIVED on every new terrain in any case, so it is scheduled to
 # move rather than merely unsupported.
 #
@@ -227,7 +227,7 @@ radiation:
 #
 # What it is worth: the freezing point runs 272.07 K at S = 20 and 270.94 K at
 # S = 40, so the plausible span is about 1.1 K on one threshold. Carried in
-# analysis/error_budget.json rather than guessed at here. TASKS.md CLIM-17.
+# analysis/error_budget.json rather than guessed at here. CLIM-17.
 ocean:
   # CLIM-16. Ocean horizontal heat diffusion, `nhdiff` and `hdiffk` in
   # oceanmod_nl. OFF here: the error budget carries no-q-flux as a STRUCTURAL
@@ -353,7 +353,7 @@ model:
   # TURN BOTH BACK ON for the first low-I/O-off block of any T85 run, before any
   # T42 number is carried into loop D. The term CLIM-1 measured is resolution-
   # and timestep-dependent by nature, so it has to be re-measured there rather
-  # than carried; `close_term_energy.py` is what re-measures it. archive/tasks.md
+  # than carried; `close_term_energy.py` is what re-measures it.
   # CLIM-1 states the condition and docs/src/reference/config-rationale.md keeps the argument.
   energy_diagnostics: false
   energy_diagnostics_3d: false
@@ -400,7 +400,7 @@ model:
   #
   # One-signed and a LOWER BOUND: the correlated-k side lacks the MT_CKD
   # continuum too, so the real deficit is larger than 12.7%. Carried as a key
-  # rather than as a line in the error budget, per TASKS.md PHYS-9;
+  # rather than as a line in the error budget, per PHYS-9;
   # `exoplasim/notes/corrk-cross-check.md` is the measurement. radmod.f90's
   # default is 1.0, which is Eq. 21 unmodified.
   h2o_sw_level: 1.127

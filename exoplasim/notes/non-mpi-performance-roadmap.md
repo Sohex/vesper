@@ -55,7 +55,7 @@ the whole of what this route was for. The cache-boundary finding in
 `rank-imbalance-and-weight-traffic.md` still stands; what no longer stands is
 that this is the way to act on it.
 
-CLIM-48, closed wontfix in `archive/tasks.md`. Reopen only if a resolution above
+CLIM-48, closed wontfix. Reopen only if a resolution above
 T170 makes the memory headroom worth a small speed loss.
 
 ## 2. Price the timestep directly

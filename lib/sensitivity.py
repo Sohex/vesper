@@ -151,7 +151,7 @@ def planetary_albedo(cfg: dict | None = None,
             v = np.asarray(ds.variables[name][:], dtype=float)
             if v.ndim == 3:
                 # Bins hold unequal numbers of raw records; weight by them
-                # rather than equally. climatology.py, TASKS.md CLIM-13.
+                # rather than equally. climatology.py, CLIM-13.
                 v = clim.annual_mean(v, centres)
             return float((v * w).sum() / w.sum())
         net_down = mean("rst")

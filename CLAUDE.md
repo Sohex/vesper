@@ -31,7 +31,7 @@ invariant is misfiled by its shape alone, wherever it came from.
 | `docs/src/reference/large-data.md` | batch, chunk, checkpoint, report. Required for any step whose input runs to GB |
 | `docs/src/reference/external-data.md` | routes into data this project does not generate; check the AWS Registry of Open Data before an API |
 | `notes/audits/` | findings: what is true, with its evidence |
-| `TASKS.md` | what to do about a finding, tracked atomically; closed ones move to `archive/tasks.md` |
+| `bd` (beads) | what to do about a finding, tracked atomically. `bd ready` for what is unblocked, `bd show <id>` for one issue, `bd list --label clim` for an area. Every issue cites the document that justifies it |
 | `world_state.json` | every current value |
 
 ## The rules that will bite you
@@ -109,8 +109,9 @@ The arguments and the incidents behind these are in
   vegetation -- so no sentence parses as being about the real world or about
   people; keep established technical terms whose context already
   disambiguates them; and any document that can be read standalone states the
-  worldbuilding frame up front, as `TASKS.md` does. THIS RULE IS SUBJECT TO
-  ITSELF: do not enumerate the phrases it exists to avoid, here or anywhere.
+  worldbuilding frame up front, as `biosphere/notes/fire-model-audit.md` does.
+  THIS RULE IS SUBJECT TO ITSELF: do not enumerate the phrases it exists to
+  avoid, here or anywhere.
   The argument and the history are in `docs/src/practice/conventions.md`.
 - Keep citations and table cells on one source line, even where that breaks
   column alignment. They get copied out.
@@ -157,11 +158,11 @@ The arguments and the incidents behind these are in
   row in the same commit; rule 7 is only answerable from a graph that is
   complete.
 - **Findings and tasks are kept apart.** A document under `notes/audits/` says
-  what is true and carries its evidence; `TASKS.md` says what to do about it
-  and cites the document.
+  what is true and carries its evidence; the `bd` issue tracker says what to do
+  about it and cites the document.
 - **No poison seeds.** Do not print what a rule forbids, announce tensions
   between rules, or leave untracked "worth checking" loops: state the
-  positive form, the decision procedure, and a task row.
+  positive form, the decision procedure, and an issue.
   `docs/src/practice/failure-modes.md` class 26.
 
 ## Working agreements
@@ -277,7 +278,7 @@ restart layout. `docs/src/reference/environment.md` has the install commands,
 the host packages, and the argument behind each of those facts.
 
 
-<!-- BEGIN BEADS INTEGRATION v:1 profile:minimal hash:6cd5cc61 -->
+<!-- BEGIN BEADS INTEGRATION v:1 profile:minimal hash:970c3bf2 -->
 ## Beads Issue Tracker
 
 This project uses **bd (beads)** for issue tracking. Run `bd prime` to see full workflow context and commands.
@@ -321,6 +322,7 @@ This protocol applies when ending a Beads implementation workflow. It is subordi
 
    # Team-maintainer opt-in only, unless current instructions forbid it:
    git pull --rebase
+   bd dolt push
    git push
    git status
    ```

@@ -290,7 +290,7 @@ def rayleigh_coefficient(name: str | None = None,
     have used, which is the 4965 K blackbody value and is self-consistent for
     the star it describes but not for this one. The FACTOR is a property of the
     defect and does not move when the spectrum file is rebuilt; the two values
-    it was measured between do, so they are dated in `archive/tasks.md` SPEC-2
+    it was measured between do, so they are dated in SPEC-2
     beside the seven significant figures the patched Fortran agreed to.
     """
     if temperature_k is not None:

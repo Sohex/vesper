@@ -300,7 +300,7 @@ tracks them.
 
 ## Tasks
 
-Tracked in `TASKS.md` and not restated here.
+Tracked in the `bd` issue tracker and not restated here.
 
 | finding | id |
 | --- | --- |

@@ -152,7 +152,7 @@ def main() -> None:
         land = np.asarray(data["lsm"][0], dtype=float) > 0.5
         # Weighted by records per bin, which are not equal: pyburn's
         # linspace().astype(int) split puts sixteen records in two bins of
-        # twelve and fifteen in the rest. TASKS.md CLIM-13.
+        # twelve and fifteen in the rest. CLIM-13.
         centres = np.asarray(data["time"][:], dtype=float)
         temperature = annual_mean(np.asarray(data["tas"][:], dtype=float),
                                   centres) - KELVIN

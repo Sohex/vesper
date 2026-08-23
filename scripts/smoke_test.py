@@ -54,14 +54,10 @@ purge-never-reaches-the-terrain property, run from `main()` with the rest):
    and `climatology = <a Path>` in `main()` leaves every `climatology.foo()`
    after it calling a Path method. The name is defined and the import is live,
    so neither the import check nor pyflakes sees it.
-11. **`TASKS.md` header counts match their tables.** The count is what the
-   one-table-per-prefix layout exists to make readable in one place, and a
-   hand-maintained number goes stale the way every other one in this project
-   has.
-12. **A resume refuses a rewritten spectrum file.** The config names the
+11. **A resume refuses a rewritten spectrum file.** The config names the
    spectrum and the model reads the file, so a config comparison cannot see
    `k25v.dat` regenerated in place. CONS-3.
-13. **The tools `environment.md` names are actually on this host.** That
+12. **The tools `environment.md` names are actually on this host.** That
    document sends a reader to `ncdump`, NCO, `h5diff` and `yq` rather than a
    Python session, and nothing else checks the claim is true. Both
    directions, so the document and the check cannot drift apart.
@@ -585,55 +581,6 @@ def check_slope_fit() -> list[str]:
     return problems
 
 
-def check_task_counts() -> list[str]:
-    """Each TASKS.md prefix's header count matches the table under it.
-
-    The header line is the answer to "what is left here" and "what may I number
-    next", and its convention says the table is what it is computed FROM -- so
-    the two disagreeing means one of the two questions is being answered wrong.
-    It has drifted once already: CLIM read `4 open of 30 issued` against a table
-    of 31 rows with 3 open, both halves stale from the same commit, which is
-    what a hand-maintained count does. Openness is read from the status
-    column, not from where a row sits.
-    """
-    text = (ROOT / "TASKS.md").read_text(encoding="utf-8")
-    problems, prefix, header = [], None, None
-    issued = open_now = 0
-
-    def settle() -> None:
-        if not prefix:
-            return
-        if header is None:
-            problems.append(f"{prefix} has no `N open of M issued.` line")
-        elif header != (open_now, issued):
-            problems.append(
-                f"{prefix} says {header[0]} open of {header[1]} issued; "
-                f"its table has {open_now} open of {issued}")
-
-    for line in text.splitlines():
-        m = re.match(r"^## ([A-Z]+) --", line)
-        if m:
-            settle()
-            prefix, header, issued, open_now = m.group(1), None, 0, 0
-            continue
-        m = re.match(r"^(\d+) open of (\d+) issued\.", line)
-        if m and prefix:
-            header = (int(m.group(1)), int(m.group(2)))
-            continue
-        if not line.startswith("| ") or line.startswith(("| id", "| ---")):
-            continue
-        cells = [c.strip() for c in line.strip().strip("|").split("|")]
-        if len(cells) < 4 or not re.fullmatch(r"[A-Z]+-[0-9a-z]+", cells[0]):
-            continue
-        issued += 1
-        if not cells[3].lower().startswith(("done", "wontfix")):
-            open_now += 1
-    settle()
-    if prefix is None:
-        problems.append("no prefix sections found; has TASKS.md changed shape?")
-    return problems
-
-
 def check_no_control_patch() -> list[str]:
     """No deliberate corruption is sitting in the committed model source.
 
@@ -853,7 +800,6 @@ def main() -> None:
                check_slope_fit()),
               ("the convergence window follows the declared purposes",
                check_production_window()),
-              ("TASKS.md counts match their tables", check_task_counts()),
               ("no control patch is left in the model source",
                check_no_control_patch()),
               ("no OpenMP directive line is truncated",
