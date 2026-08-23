@@ -353,6 +353,35 @@ model:
   # Irrelevant to a run seeded from a restart, which reads its state.
   # `make_profile_bed.py` already declared one for exactly this reason.
   cold_start_seed: 88888888
+  # DETERMINED, 2026-08-23, by the filter x timestep x resolution sweep;
+  # exoplasim/notes/physics-filter-stability.md carries the arms and
+  # exoplasim/notes/parameter-decisions.md the argument.
+  #
+  # THE ADOPTED STEP PER RUNG. The filter buys timestep, so these are not
+  # independent of `filter_kappa` above and do not survive a change to it. Each
+  # is at or below the coarsest step measured to carry that rung, and the
+  # MEASURED CEILING is the second column, kept beside it because the gap is
+  # where a cheaper run is waiting once someone does the convergence experiment
+  # the roadmap asks for. A step that merely does not blow up is a stability
+  # floor and not a licence: the ceiling is where the model REFUSES or breaks,
+  # not where it stops being right.
+  #
+  #   rung   adopted   measured ceiling at kappa 8
+  #   T21      45        90 or coarser, untested above
+  #   T42      45        60
+  #   T85      45        45, untested above
+  #   T127     30        30; dt 45 refuses outright
+  #   T170     22.5      22.5; dt 30 starts and blows up after 3.8 min
+  #
+  # `timestep_minutes` above is the ACTIVE value and must equal this table's
+  # entry for `resolution`; check_consistency.py enforces that, because two
+  # places holding a timestep is two places for them to disagree.
+  resolution_timestep_minutes:
+    T21: 45.0
+    T42: 45.0
+    T85: 45.0
+    T127: 30.0
+    T170: 22.5
   output_type: .nc
   # Declares that ExoPlaSim's configure() clears every surface field when handed
   # a landmap, so anything not supplied here falls back to a namelist default.

@@ -576,10 +576,60 @@ bistability including glacier albedo hysteresis and excluding ice-sheet growth.
 
   `Model.configure` defaults it OFF, `Earthlike` leaves it off with a 45-minute
   timestep, and the three tidally-locked classes turn it on with a 30-minute
-  one. This config carries the timestep of the first and the filter of the
-  second, and Vesper is not tidally locked. Which of those is right is CLIM's
-  physics-filter row; it gates the timestep ladder, because a filter that damps
-  the smallest scales is a filter that changes the largest stable step.
+  one. This config took the timestep of the first and the filter of the second,
+  and Vesper is not tidally locked -- which read like inherited cargo and is
+  not. SETTLED 2026-08-23, and the setting stays.
+
+## The filter and the timestep are one decision, per rung
+
+`exoplasim/notes/physics-filter-stability.md` has the arms; this is the
+argument. The filter BUYS TIMESTEP: without it the model takes a floating-point
+trap in the shortwave on the first radiation call at 45 minutes and runs at
+22.5, and the requirement strengthens up the ladder -- unfiltered, T42 runs at
+dt 30 and T170 needs dt 10. So a filter strength and a timestep are not two
+settings, and neither survives a change to the other.
+
+**KAPPA 8 AT EVERY RUNG, and it is not a compromise between the two axes
+because it wins on both.** Against kappa 4, 2, 1 and off it takes the longest
+stable step at every rung tested, AND it gives the smallest spurious energy
+creation in the adiabatic step -- 0.3147 W/m2 at dt 45 against 0.3460, 0.4020,
+0.6574 and a trap. Weakening the filter costs stability and conservation
+together, which is the unusual case where there is nothing to trade.
+
+What kappa 8 costs is spectrum, and that is the only reason not to go stronger:
+`f(n) = exp(-kappa (n/NTRU)^gamma)` is scale-free in `n/NTRU` with its
+half-power point at 0.737, so every rung loses the same FRACTION of its
+spectrum, and a stronger filter takes more of it for a benefit nothing has
+measured. Nothing above kappa 8 was tested, and the row to reopen this is a
+measurement that shows what a stronger filter buys.
+
+**THE STEP IS THE PER-RUNG PART.** `config/planet.yaml` carries the table under
+`model.resolution_timestep_minutes` and `check_consistency.py` refuses a
+`timestep_minutes` that disagrees with it. Adopted against measured ceiling:
+
+| rung | adopted | measured ceiling at kappa 8 |
+| --- | ---: | --- |
+| T21 | 45 | 90 or coarser, untested above |
+| T42 | 45 | 60 |
+| T85 | 45 | 45, untested above |
+| T127 | 30 | 30; dt 45 refuses outright |
+| T170 | 22.5 | 22.5; dt 30 starts and blows up after 3.8 minutes |
+
+**The adopted step is not the ceiling where a gap exists, and the gap is
+deliberate.** A step that does not blow up is a STABILITY FLOOR, not a licence:
+the ceiling is where the model refuses or breaks, not where it stops being
+right. T42 at 60 minutes would be a third off every T42 run and it is not
+adopted, because the roadmap's own timestep experiment -- cold-start stability
+with traps armed, warm-start energy and water closure, climatological
+differences after settling, wall time per orbit rather than per step -- has not
+been run. That experiment is SPAT-11's, and this table is what it starts from
+rather than what it concludes.
+
+Two cells carry more risk than the others and should be read that way. T85 at 45
+and T127 at 30 are each at their tested ceiling on a single orbit, and T170 at
+22.5 sits one step below a cell that blows up LATE -- after 3.8 minutes of
+integration, not at the first call -- which is the failure mode a short check
+cannot see.
 
 ### Two traps found in the process
 

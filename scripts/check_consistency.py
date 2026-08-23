@@ -594,6 +594,35 @@ def main() -> int:
     except Exception as exc:
         rep.add(FAIL, "config", str(exc))
 
+    # -- the active timestep matches the per-rung table ----------------------
+    #
+    # The filter buys timestep, so the step a rung can take is a MEASURED
+    # property of that rung and of `model.filter_kappa`, not a preference. It
+    # lives in `model.resolution_timestep_minutes`; `model.timestep_minutes` is
+    # the active value. Two places holding a timestep is two places for them to
+    # disagree, and the disagreement would be silent -- the model runs happily
+    # at a step nobody chose for the resolution it is running.
+    try:
+        model = config["model"]
+        table = model.get("resolution_timestep_minutes") or {}
+        rung = str(model.get("resolution", "")).upper()
+        active = float(model["timestep_minutes"])
+        if not table:
+            rep.add(WARN, "timestep vs the per-rung table", "no table declared")
+        elif rung not in table:
+            rep.add(FAIL, "timestep vs the per-rung table",
+                    f"resolution {rung} has no entry; the adopted step for a rung "
+                    f"is measured, so a rung with no entry has no adopted step")
+        elif abs(float(table[rung]) - active) > 1e-9:
+            rep.add(FAIL, "timestep vs the per-rung table",
+                    f"model.timestep_minutes is {active} and the table says "
+                    f"{table[rung]} for {rung}")
+        else:
+            rep.add(OK, "timestep vs the per-rung table",
+                    f"{rung} at {active} min, kappa {model.get('filter_kappa')}")
+    except Exception as exc:
+        rep.add(WARN, "timestep vs the per-rung table", f"not checked: {exc}")
+
     # -- config blocks declare their determination status --------------------
     #
     # A value that has never been decided must not be indistinguishable from one
