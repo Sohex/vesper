@@ -332,8 +332,8 @@ def run_cell(bed: Path, work: Path, ranks: int, noutput: int, steps: int) -> dic
     binary = f"most_plasim_t42_l10_p{ranks}.x"
     if not (work / binary).exists():
         raise SystemExit(f"{binary} is not in the bed. ExoPlaSim compiles one "
-                         "executable per (resolution, layers, ranks) triple; "
-                         "CLAUDE.md rule 4.")
+                         "executable per (resolution, layers, ranks, parmode) "
+                         "configuration; CLAUDE.md rule 4.")
 
     started = datetime.datetime.now(datetime.timezone.utc)
     proc = subprocess.run(["mpiexec", "-np", str(ranks), f"./{binary}"],

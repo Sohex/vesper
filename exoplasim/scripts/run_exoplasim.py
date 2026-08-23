@@ -1154,7 +1154,7 @@ def main() -> None:
         "--ncpus", type=int, default=None,
         help="override model.ncpus for this run. Selects a different compiled "
              "binary, since ExoPlaSim builds one per (resolution, layers, "
-             "ranks); NLAT must divide by it")
+             "ranks, parmode); NLAT must divide by it")
     parser.add_argument(
         "--mpi-opts", type=str, default=None,
         help="extra flags for mpiexec, e.g. "

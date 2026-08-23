@@ -804,7 +804,8 @@ def main() -> int:
 
     # -- binaries vs the patches they should contain -------------------------
     #
-    # ExoPlaSim builds one executable per (resolution, layers, ranks) triple, so
+    # ExoPlaSim builds one executable per (resolution, layers, ranks, parmode)
+    # configuration, so
     # changing the source and rebuilding touches only the configuration in use
     # and leaves the rest silently stale. That is failure class 11, and it fired
     # three times in one day. Vendoring the model as a subtree does not fix it:

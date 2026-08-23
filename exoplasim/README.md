@@ -400,7 +400,8 @@ given `--run`; it cannot recompute a name, which is the safer direction.
 be undone silently by any reinstall of the untracked `.venv`.
 
 **Patched source and per-configuration binaries.** ExoPlaSim compiles a separate
-executable for every (resolution, layers, ranks) triple, so patching the source
+executable for every (resolution, layers, ranks, parmode) configuration, so
+patching the source
 and running rebuilds *only the configuration you are running*. Every other binary
 keeps the old code until something asks for it. This is failure class 11 and it
 fired three times in a single day.
