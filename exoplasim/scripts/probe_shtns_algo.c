@@ -2,7 +2,7 @@
  *
  *   gcc -O2 -I<prefix>/include probe_shtns_algo.c -o probe -L<prefix>/lib \
  *       -lshtns_omp -lfftw3_omp -lfftw3 -lm -fopenmp
- *   ./probe <NTRU> <NLAT> <NLON> <quick|timed>
+ *   ./probe <NTRU> <NLAT> <NLON> <quick|timed|fly>
  *
  * Worldbuilding frame: a COMPUTE check on the Vesper climate model's transform
  * library. Nothing here is about the simulated planet.
@@ -35,11 +35,17 @@
 int main(int argc, char **argv)
 {
     if (argc != 5) {
-        fprintf(stderr, "usage: %s <NTRU> <NLAT> <NLON> <quick|timed>\n", argv[0]);
+        fprintf(stderr, "usage: %s <NTRU> <NLAT> <NLON> <quick|timed|fly>\n", argv[0]);
         return 2;
     }
     int ntru = atoi(argv[1]), nlat = atoi(argv[2]), nlon = atoi(argv[3]);
+    /* `fly` is SHT_GAUSS_FLY, which the task row called deterministic by
+     * construction. It is not: shtns_set_grid_auto sets quick_init only for
+     * quick_init, reg_fast and reg_poles, so gauss_fly falls through to
+     * choose_best_sht exactly as sht_gauss does. This mode exists so that
+     * claim can be tested rather than repeated. */
     int timed = (strcmp(argv[4], "timed") == 0);
+    int fly = (strcmp(argv[4], "fly") == 0);
 
     /* Verbose 1 makes the library name the algorithm it settled on. That
      * printout IS the measurement here, so it goes to stdout as the library
@@ -47,7 +53,8 @@ int main(int argc, char **argv)
     shtns_verbose(1);
     shtns_use_threads(1);          /* the model's team is the parallelism */
     shtns_cfg s = shtns_create(ntru, ntru, 1, sht_orthonormal);
-    enum shtns_type mode = timed ? sht_gauss : sht_quick_init;
+    enum shtns_type mode = fly ? sht_gauss_fly
+                         : (timed ? sht_gauss : sht_quick_init);
     shtns_set_grid(s, mode | SHT_PHI_CONTIGUOUS, 0.0, nlat, nlon);
     printf("nlat %d nlon %d ntru %d mode %s\n", nlat, nlon, ntru, argv[4]);
     return 0;

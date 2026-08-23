@@ -57,7 +57,12 @@ purge-never-reaches-the-terrain property, run from `main()` with the rest):
 11. **A resume refuses a rewritten spectrum file.** The config names the
    spectrum and the model reads the file, so a config comparison cannot see
    `k25v.dat` regenerated in place. CONS-3.
-12. **The tools `environment.md` names are actually on this host.** That
+12b. **SHTns is asked for the one grid mode that runs no timing race.**
+   `SHT_GAUSS` and `SHT_GAUSS_FLY` both benchmark algorithm variants at startup
+   and keep the winner, which sets the transform functions and so the restart
+   hash. Archive CLIM-44 is that, paid for once. CLIM-74 measured the
+   alternatives at about 0.1% of runtime, so the tempting edit is all cost.
+13. **The tools `environment.md` names are actually on this host.** That
    document sends a reader to `ncdump`, NCO, `h5diff` and `yq` rather than a
    Python session, and nothing else checks the claim is true. Both
    directions, so the document and the check cannot drift apart.
@@ -581,6 +586,55 @@ def check_slope_fit() -> list[str]:
     return problems
 
 
+def check_shtns_init_is_deterministic() -> list[str]:
+    """The model asks SHTns for the ONE grid mode that runs no timing race.
+
+    CLIM-74 measured what the alternatives cost and the answer was determinism.
+    `SHT_GAUSS` benchmarks its algorithm variants at startup and keeps the
+    winner, and `SHT_GAUSS_FLY` is not the deterministic floor it reads as:
+    `shtns_set_grid_auto` sets `quick_init` only for `quick_init`, `reg_fast`
+    and `reg_poles`, so `gauss_fly` falls through to `choose_best_sht` exactly
+    as `gauss` does. Probed at T170, both return a different pick vector on
+    every run; `SHT_QUICK_INIT` runs zero races.
+
+    A different transform function is a different rounding order, so the model's
+    restart hash follows the winner of that race. Archive CLIM-44 is this model
+    failing to be reproducible and it was paid for once. The choice is therefore
+    not a tuning preference, and this check is here because the tempting edit --
+    swapping in `SHT_GAUSS` or `SHT_AUTO` to let the library pick something
+    faster -- reintroduces it silently and costs about 0.1% of runtime at best.
+    `exoplasim/notes/shtns-algorithm-selection.md` has the measurements.
+    """
+    src = ROOT / "vendor/exoplasim/exoplasim/plasim/src/shtnsmod.f90"
+    problems = []
+    if not src.is_file():
+        return problems
+    racing = ("SHT_GAUSS_FLY", "SHT_AUTO", "SHT_REG_DCT", "SHT_REG_FAST",
+              "SHT_REG_POLES", "SHT_GAUSS")
+    seen = False
+    for n, line in enumerate(src.read_text(errors="replace").splitlines(), 1):
+        code = line.split("!")[0]
+        if "klay" not in code or "=" not in code:
+            continue
+        seen = True
+        for name in racing:
+            # SHT_GAUSS is a prefix of SHT_GAUSS_FLY, so match the token.
+            if re.search(rf"\b{name}\b", code):
+                problems.append(
+                    f"shtnsmod.f90:{n} asks SHTns for {name}, which runs a "
+                    f"startup timing race; its winner sets the transform "
+                    f"functions and so the restart hash. Archive CLIM-44.")
+        if not re.search(r"\bSHT_QUICK_INIT\b", code):
+            problems.append(
+                f"shtnsmod.f90:{n} sets the SHTns grid mode without "
+                f"SHT_QUICK_INIT, which is the only mode measured to run no "
+                f"timing race at all.")
+    if not seen:
+        problems.append("shtnsmod.f90 has no klay assignment; the SHTns grid "
+                        "mode is no longer where this check looks for it")
+    return problems
+
+
 def check_no_control_patch() -> list[str]:
     """No deliberate corruption is sitting in the committed model source.
 
@@ -802,6 +856,8 @@ def main() -> None:
                check_production_window()),
               ("no control patch is left in the model source",
                check_no_control_patch()),
+              ("SHTns is asked for the one mode that runs no timing race",
+               check_shtns_init_is_deterministic()),
               ("no OpenMP directive line is truncated",
                check_omp_directive_length()),
               ("no imported module name is rebound",
