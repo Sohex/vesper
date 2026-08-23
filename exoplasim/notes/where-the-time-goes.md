@@ -84,3 +84,53 @@ rather than about the calls: this project already holds correlated-k tables and
 a harness that cross-checks the current band model against them, so "should the
 radiation be replaced" has to be priced before "should these `pow` calls be
 made cheaper". Optimising a scheme that is about to be swapped is wasted work.
+
+## Filling the transform's team is worth nothing, and that was built to find out
+
+Measured 2026-08-22. The wrappers are `!$omp do schedule(static)` over
+`jlev = 1, klev`, and at T170 klev is NLEV=10 against sixteen threads. That is
+not a near miss: `schedule(static)` gives threads 10 to 15 no iterations AT ALL,
+and it does so independently in every one of the back-to-back calls, so `nowait`
+lets a starved thread reach the next loop without giving it work there. Four
+calls a step pass klev=1, where fifteen threads get nothing. `sh_sp2gp`'s own
+comment already described this and offered `nowait` as the mitigation; the
+mitigation does not do what it claims.
+
+**So it was fixed, and the fix is worth nothing.** Batching the (field, level)
+pairs into one iteration space -- gridpointa's four scalar fields become 40
+units rather than four lots of ten -- was implemented, verified BIT IDENTICAL at
+T170 over 60 steps, and measured:
+
+| | paired gain | rounds | verdict |
+| --- | ---: | ---: | --- |
+| T170, 300 steps | **-0.28%** [-1.02, +0.43] | 2/4 | a clean null |
+| T42, 600 steps | -2.17% | 0/4 | refused, scatter 7.8% over the floor |
+| T42, 3000 steps | +1.77% [-0.66, +2.27] | 3/4 | readable, spans zero |
+| T42, 3000 steps | +0.74% [-4.27, +2.78] | 6/8 | refused, scatter 6.0% |
+
+T170 is a null with tight intervals. T42 is UNRESOLVED rather than null: three
+attempts, a point estimate wandering from -2.17% to +1.77% to +0.74%, and an
+interval that never clears zero. Whatever the effect is at the low rung, it is
+below this machine's noise floor. The code was reverted -- it earns no place --
+and the finding is kept here because the next person to read `sh_sp2gp`'s
+comment will have the same idea.
+
+**Why it is null is the part worth carrying.** The transform is under 10% of
+T170: `sh_dv2uv` 0.94%, the SHTns kernels about 2.8% between them, libfftw3
+3.55%. Filling six idle threads through a tenth of the run cannot return much,
+and if the transform is bandwidth-bound -- CLIM-67's own measurement has the
+SHTns path taking 11.17% of its demand fills from DRAM against legmod's 4.05% --
+adding threads to it returns nothing at all.
+
+**And it is the second experiment to say the imbalance model over-predicts.**
+The hemisphere swap in `thread-count-by-resolution.md` CUT the measured
+imbalance and bought +0.006%. This removed a real starvation and bought -0.28%.
+`max - mean` over per-thread work has now failed twice as a predictor of
+recoverable wall time, which is why the six points CLIM-67 quotes are an upper
+bound and not a target.
+
+**A note on beds.** The first T42 arm returned a confident -2.17% on a 2.94 s
+bed against a startup of about 1.6 s, and the harness refused it for exceeding
+its scatter floor. Lengthening the bed did not sharpen that number, it REVERSED
+its sign. A bed too short to clear its own floor does not give a weak answer, it
+gives a wrong one.
