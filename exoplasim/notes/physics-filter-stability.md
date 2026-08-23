@@ -289,3 +289,43 @@ quantity to exceed single precision is a diagnostic accumulator with a step
 count in its denominator, which is not the same claim as the state having gone.
 Whether the state was already bad is UNDETERMINED, and this note said otherwise
 before the call site was read.
+
+## The unbooked filter dissipation is bounded, by an identity that runs the wrong way
+
+The filter preserves `n = 0` exactly -- `f(0) = exp(0) = 1` -- so it cannot move
+the global mean of a linear field and the enthalpy budget is safe from it.
+Kinetic energy is QUADRATIC in the winds, so damping high-n modes removes KE,
+and nothing books that removal: `mkdheat` recomputes the wind field around
+Rayleigh friction and biharmonic diffusion and returns the difference as heat,
+`fluxmod` books surface and vertical-diffusion friction, and neither knows the
+filter exists.
+
+The instrument that would find it is the kinetic-energy steady-state identity,
+`-denergy27 = denergy(21+22+23+25)`: in a settled run the adiabatic generation
+must equal the frictional dissipation returned as heat, so an unbooked SINK
+shows up as a gap. **A stronger filter removes more, so the gap must widen with
+kappa if the filter is what it is missing.**
+
+| kappa | KE identity residual, W/m2 |
+| --- | ---: |
+| 8 | -0.0002, -0.0114, -0.0109, -0.0113, -0.0134 |
+| 4 | +0.0108, -0.0002, -0.0030 |
+| 2 | +0.0074, +0.0092, +0.0052 |
+| 1 | +0.1457, +0.0141, +0.0120 |
+| off | +0.0429, +0.0387, +0.0325 |
+
+**It narrows with kappa instead, and is widest with the filter OFF** -- where
+the filter's dissipation is identically zero and there is nothing to book. So
+the residual is not the missing term; it tracks filter WEAKNESS, which is what
+the adiabatic residual does too and for the same reason: less filtering leaves
+more small-scale structure for the time scheme to mishandle.
+
+At the setting this project runs, kappa 8, the identity closes to within 0.013
+W/m2 against a conversion of about 2.1 -- six tenths of a percent. So the
+unbooked term is REAL IN PRINCIPLE AND BOUNDED BELOW WHAT THIS INSTRUMENT CAN
+SEE at production settings. It is not worth a term in `mkdheat` on this
+evidence, and the row closes on the bound rather than on an implementation.
+
+What would reopen it: a configuration where the identity stops closing at the
+adopted kappa, or a rung whose KE conversion is large enough that six tenths of
+a percent is worth chasing.
