@@ -145,3 +145,24 @@ declared tolerance can only confirm that the restart still agrees. The
 transform-level measurement above is the only instrument that reaches the
 effect, which is `docs/src/practice/failure-modes.md` class 34 applied before
 the measurement instead of after.
+
+## Verdict
+
+`SHT_QUICK_INIT` stands at every rung, which is where the model already was.
+The choice was never between speeds: it is the only mode of the three that runs
+no timing race, and `SHT_GAUSS_FLY` -- which CLIM-74 opened calling
+"deterministic by construction, the honest floor to measure against" -- returns
+a different pick vector on every run exactly as `SHT_GAUSS` does.
+
+The per-rung, per-type table was NOT measured. `shtns_variant_sweep.py` is the
+instrument and it is registered, but the sweep was abandoned once the size of
+the effect was known: about 0.1% of model runtime, below what any model-level
+comparison on this host can resolve, against a determinism property this
+project has already paid for once. Measuring a table to four decimal places to
+decide something the first decimal place settles is the instrument working
+harder than the question deserves.
+
+What guards the decision is `smoke_test.py`, which fails if `shtnsmod.f90` asks
+for a racing mode. Reopen on the predicate in the CLIM-74 close, not on a
+suspicion that a few percent of a transform is lying around: it is, and it is
+worth a tenth of a percent.
