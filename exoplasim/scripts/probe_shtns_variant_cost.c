@@ -72,11 +72,16 @@ int main(int argc, char **argv)
 
     /* The four calls shtnsmod.f90 actually makes: scalar synthesis and
      * analysis, and the vector pair behind sh_dv2uv and sh_uv2dv. */
-    const char *name[4] = {"syn SH_to_spat", "ana spat_to_SH",
-                           "vsy SHsphtor_to_spat", "van spat_to_SHsphtor"};
+    /* The FIVE calls shtnsmod.f90 makes, and only those: SH_to_spat,
+     * spat_to_SH, SHsphtor_to_spat, SHsph_to_spat and spat_to_SHsphtor.
+     * Timing a type the model never calls would weight the pick by work that
+     * does not happen. */
+    const char *name[5] = {"syn SH_to_spat", "ana spat_to_SH",
+                           "vsy SHsphtor_to_spat", "van spat_to_SHsphtor",
+                           "gsp SHsph_to_spat"};
     double *t = (double *)malloc(reps * sizeof(double));
 
-    for (int k = 0; k < 4; k++) {
+    for (int k = 0; k < 5; k++) {
         for (int r = 0; r < reps; r++) {
             double t0 = now();
             switch (k) {
@@ -84,6 +89,7 @@ int main(int argc, char **argv)
                 case 1: spat_to_SH(s, Qh, Qlm); break;
                 case 2: SHsphtor_to_spat(s, Slm, Qlm, Sh, Th); break;
                 case 3: spat_to_SHsphtor(s, Sh, Th, Slm, Qlm); break;
+                case 4: SHsph_to_spat(s, Slm, Sh, Th); break;
             }
             t[r] = now() - t0;
         }
