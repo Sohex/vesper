@@ -261,3 +261,31 @@ having a ground truth to check against.
 **The probe cannot see a late blow-up**, and T170 at dt 30 is the demonstration:
 it passes 400 steps and dies after 3.8 minutes of integration. A cell that
 "runs" under the probe has only been shown not to REFUSE.
+
+### Every ladder cell is ONE DRAW, and that is now fixed forward
+
+The ladder was measured on COLD starts, and `initrandom` (`plasim.f90:2068`)
+takes the namelist `SEED` when `seed(1)` is non-zero and the SYSTEM CLOCK
+otherwise. Nothing wrote `SEED`. So each cell above is one draw of an initial
+kick rather than a verdict that re-running would confirm.
+
+The instant refusals are almost certainly robust anyway: they are monotone
+across many cells and both filter settings, and a marginal result decided by a
+random kick would not produce a clean staircase. The LATE failures are the
+exposed ones -- T127 at dt 22.5 and T170 at dt 30 are exactly the shape of
+result an initial condition can move.
+
+They are kept as one draw deliberately. Both are loud, immediate to recognise
+and understood well enough to act on if they turn up in other work, and a
+re-measurement would cost orbits to confirm a boundary nothing is planning to
+sit on. `model.cold_start_seed` is declared from here, so the next cold run is
+reproducible even though these were not.
+
+### What the T127 dt 22.5 blow-up actually wrote
+
+Not a prognostic field. `outmod.f90:611` writes `aroff` -- ACCUMULATED RUNOFF,
+code 160 -- on the line after `aroff(:) = aroff(:)/real(naccuout)`. So the first
+quantity to exceed single precision is a diagnostic accumulator with a step
+count in its denominator, which is not the same claim as the state having gone.
+Whether the state was already bad is UNDETERMINED, and this note said otherwise
+before the call site was read.

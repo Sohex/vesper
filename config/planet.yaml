@@ -343,6 +343,16 @@ model:
   # rung's spectrum is damped; the half-power point is n/NTRU = 0.737 at kappa 8.
   filter_kappa: 8.0
   filter_power: 8
+  # DECLARED. The seed for a COLD start's initial kick, and it is here because
+  # without it there is none: `initrandom` (plasim.f90:2068) takes the namelist
+  # SEED when seed(1) is non-zero and the SYSTEM CLOCK otherwise, and nothing in
+  # this tree was writing SEED -- so every cold-started run was a different
+  # initial condition and no cold result could be checked by running it again.
+  # That is not a small gap: the resolution-ladder stability boundary was
+  # measured entirely on cold starts, so each of its cells was one draw.
+  # Irrelevant to a run seeded from a restart, which reads its state.
+  # `make_profile_bed.py` already declared one for exactly this reason.
+  cold_start_seed: 88888888
   output_type: .nc
   # Declares that ExoPlaSim's configure() clears every surface field when handed
   # a landmap, so anything not supplied here falls back to a namelist default.

@@ -681,6 +681,33 @@ def set_low_io(model, low_io: bool) -> None:
     model._edit_namelist("plasim_namelist", "NLOWIO", "1" if low_io else "0")
 
 
+def declare_cold_start_seed(model, config: dict, is_cold: bool) -> None:
+    """Give a cold start a DECLARED initial kick instead of the clock's.
+
+    `initrandom` at `plasim.f90:2068` reads the namelist `SEED` when `seed(1)`
+    is non-zero and calls `system_clock` otherwise. Nothing here wrote `SEED`,
+    so every cold-started run drew a different initial condition and no cold
+    result could be checked by re-running it. The resolution-ladder stability
+    boundary was measured entirely on cold starts, which makes each of its cells
+    one draw rather than a verdict.
+
+    Only for a cold start. A run seeded from a restart reads its state, so the
+    kick never happens and writing a seed there would suggest a control this has
+    no part in.
+    """
+    if not is_cold:
+        return
+    seed = int(config["model"].get("cold_start_seed", 0))
+    if seed == 0:
+        raise RuntimeError(
+            "model.cold_start_seed is 0 or absent, which is the value that makes "
+            "initrandom fall back to the system clock. Declare it; a cold run "
+            "nobody can reproduce is a measurement nobody can check.")
+    model._edit_namelist("plasim_namelist", "SEED", str(seed))
+    print(f"cold start: SEED = {seed} (declared; without it initrandom takes "
+          f"the system clock and the run is unreproducible)")
+
+
 def enable_energy_diagnostics(model, config: dict) -> bool:
     """Set nenergy in plasim_nl, which the Python API does not expose.
 
@@ -1500,6 +1527,7 @@ def main() -> None:
                              str(int(args.writes_per_day)))
         print(f"NWPD = {args.writes_per_day} writes/day "
               f"(default 1 samples 5 diurnal phases; see CLIM-11)")
+    declare_cold_start_seed(model, config, args.restart_from is None)
     set_low_io(model, args.low_io)
     if enable_energy_diagnostics(model, config):
         n = register_energy_diagnostic_codes()
