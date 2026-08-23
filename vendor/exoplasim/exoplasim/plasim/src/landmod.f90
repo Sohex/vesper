@@ -1,5 +1,4 @@
 
-#define limitwater 1
 
       module landmod
       use pumamod
@@ -476,19 +475,12 @@
 
        n_sea_points = ncountsea(dls)
        
-#if limitwater == 1
-!	If you had created a restart file, but then need to change the soil water
-!	capacity later.
-       dwcl(:,:) = wsmax * drhsfull * drhsland
-       do jhor=1,NHOR
-          dwmax(jhor) = AMAX1(wsmax,0.0)
-          if (dsnow(jhor) .le. 0.) then
-             drhs(jhor) = 0.
-             if (dwmax(jhor) > 0.) &
-     &           drhs(jhor) = dwatc(jhor)/(drhsfull*dwmax(jhor))
-          endif
-       enddo
-#endif
+!     dwmax and dwcl are restored above; drhs and dwatc are restored by
+!     read_atmos_restart, which plasim.f90 calls before surfini. Nothing on
+!     this path recomputes any of them. Resetting the soil water capacity from
+!     the namelist on an existing restart is what newsurf=2 below is for: it is
+!     namelist-driven, and it leaves the per-cell dwmax and the 14-month dwcl
+!     as fields rather than flattening them to scalars.
 
       endif ! if (restart == 0)
 
@@ -740,8 +732,8 @@
 !     1: snow (m of ztop) 2: heat capacity
 !
        zsntop(:)=AMIN1(dsnowz(:)*1000./rhosnow,zztop(:))
-       zctop(:)=zcap(:,1)*snowcap*zztop(:)                              &
-     &         /(zcap(:,1)*zsntop(:)+snowcap*(zztop(:)-zsntop(:)))
+       zctop(:)=(snowcap*zsntop(:)+zcap(:,1)*(zztop(:)-zsntop(:)))      &
+     &         /zztop(:)
 !
 !     new properties of the uppermost soil layer (mixed soil/snow)
 !     1: snow depth (m) 2: total thickness 3: conductivity
@@ -750,8 +742,8 @@
        zsoilz1(:)=zsoilz(:,1)+zsnowz(:)
        zdiff1(:)=zdiff(:,1)*snowdiff*zsoilz1(:)                         &
      &          /(snowdiff*zsoilz(:,1)+zdiff(:,1)*zsnowz(:))
-       zcap1(:)=zcap(:,1)*snowcap*zsoilz1(:)                            &
-     &         /(zcap(:,1)*zsnowz(:)+snowcap*zsoilz(:,1))
+       zcap1(:)=(snowcap*zsnowz(:)+zcap(:,1)*zsoilz(:,1))               &
+     &         /zsoilz1(:)
 !
 !     new surface temp. implicit w.r.t. conductive heat flux
 !
@@ -790,8 +782,8 @@
 !     1: snow (m of dztop) 2: heat capacity
 !
        zsntop(:)=AMIN1(dsnowz(:)*1000./rhosnow,zztop(:))
-       zctop(:)=zcap(:,1)*snowcap*zztop(:)                              &
-     &         /(zcap(:,1)*zsntop(:)+snowcap*(zztop(:)-zsntop(:)))
+       zctop(:)=(snowcap*zsntop(:)+zcap(:,1)*(zztop(:)-zsntop(:)))      &
+     &         /zztop(:)
 !
 !     new properties of the uppermost soil layer (mixed soil/snow)
 !     1: snow depth (m) 2: total thickness 3: conductivity 4: heat capacity
@@ -800,8 +792,8 @@
        zsoilz1(:)=zsoilz(:,1)+zsnowz(:)
        zdiff1(:)=zdiff(:,1)*snowdiff*zsoilz1(:)                         &
      &          /(snowdiff*zsoilz(:,1)+zdiff(:,1)*zsnowz(:))
-       zcap1(:)=zcap(:,1)*snowcap*zsoilz1(:)                            &
-     &         /(zcap(:,1)*zsnowz(:)+snowcap*zsoilz(:,1))
+       zcap1(:)=(snowcap*zsnowz(:)+zcap(:,1)*zsoilz(:,1))               &
+     &         /zsoilz1(:)
 !
       endwhere
 !     write(nud,*) 'landmod 881 zsnowz = ',sum(zsnowz(:))

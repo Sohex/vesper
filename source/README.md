@@ -14,12 +14,15 @@ trust and why.
 against. Prefer it to reading the files directly.
 
 
-Five exports of the same planet per build, all from seed 16236323, and all
-carrying the same `manifest.hashes.finalElevation` within a build. The REGION
-COUNT is a property of the build rather than of the project and is in
-`manifest.numRegions`: `precarve-craton` is 2,500,001 at a 15.19 km mean edge,
-and 10,000,004 is the default for anything generated from now on, for the reason
-under the recipe below. Check that hash against `lib/orogen.py` before trusting any number quoted
+Five Gaussian exports of the same planet per build, all from seed 16236323, and
+all carrying the same `manifest.hashes.finalElevation` within a build. The
+REGION COUNT is a property of the build rather than of the project and is in
+`manifest.numRegions`: `precarve-craton` is the older 2.5M-region build at a
+15.19 km mean edge, while `precarve-craton-10m` is the current fine-support
+reference at about 10M regions and 7.60 km. The latter fully samples Orogen's
+measured ~20 km terrain-information floor and is the support to use for new
+aggregation/resolution work. Check the terrain hash against `lib/orogen.py`
+before trusting any number quoted
 about the terrain: the seed and parameters alone do not identify a build, because
 fixes to the generator change the terrain under a fixed seed, and one such fix
 (over-erosion) moved mean land elevation by a factor of four. Anything derived
@@ -29,9 +32,10 @@ says what moved.
 | Directory | Grid | Notes |
 | --- | --- | --- |
 | `exoplasim-T21/` | 64×32 Gaussian | grid only |
-| `exoplasim-T42/` | 128×64 Gaussian | the only one with `raw/` (native 2.5M-region mesh) |
-| `exoplasim-T63/` | 192×96 Gaussian | grid only |
+| `exoplasim-T42/` | 128×64 Gaussian | the only one with `raw/` (native mesh storage carrier) |
 | `exoplasim-T85/` | 256×128 Gaussian | grid only |
+| `exoplasim-T127/` | 384×192 Gaussian | grid only |
+| `exoplasim-T170/` | 512×256 Gaussian | grid only |
 | `grid-512x256/` | 512×256 uniform | grid only; for mapping/visualisation |
 
 Each has `manifest.json` (the field catalogue -- path, dtype, shape, units,
@@ -296,4 +300,3 @@ and `params` alike -- and differ only in `manifest.planet.gravityMS2` and the
 - `orog_mean/std/min/max` are declared `units: 'km'` and are neither scaled nor
   converted through the hypsometric curve -- they are raw model units. We do not
   consume them. Anything that starts to must convert them first.
-

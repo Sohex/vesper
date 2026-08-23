@@ -61,7 +61,7 @@ executable is newer than the build that claimed to write it.
 
 `compile.sh -j` reads `most_compiler_omp`, and nothing derives that file from
 `config/planet.yaml`. It is a hand-edited file in the vendored tree, and the two
-agree today only because they were kept in step by hand -- CLIM-69 had to edit
+agree today only because they were kept in step by hand -- CLIM-81 had to edit
 both.
 
 There is a third file and a third shape. `most_compiler`, the serial one, keeps

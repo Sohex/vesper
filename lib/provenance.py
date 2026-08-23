@@ -175,6 +175,30 @@ def config_drift(recorded: dict, current: dict,
     return out
 
 
+# The cartographic declaration: what the world's spin and its zero meridian ARE,
+# recorded so the question has an answer, and read by nothing that makes an
+# artifact. Traced the same way as everything else here, `grep -c` returning 0
+# for all three names in `build_surface_albedo.py`, `build_surface_soil_water.py`,
+# `build_boundary_conditions.py`, `build_surface_roughness.py`,
+# `build_vesper_header.py`, `build_vesper_pfts.py`, `build_lpj_driver.py`,
+# `run_exoplasim.py` and `continue_exoplasim.py`.
+#
+# Unioned into each consumer's set rather than shared as one, because
+# reachability is a property of the consumer: if a generator ever learns to
+# orient a field from these, it drops the group and states what it reads. The
+# honesty guard in `check_consistency.py` re-runs the grep and fails the moment
+# one of them does.
+#
+# `model` is the wrong home and so is `SURFACE_UNREAD_MODEL_KEYS`: these are
+# `planet.` keys, and a set whose name promises one block should not carry
+# another.
+CARTOGRAPHIC_DECLARATION_KEYS = frozenset({
+    "planet.rotation_direction",
+    "planet.longitude_positive",
+    "planet.prime_meridian",
+})
+
+
 # Moved here from `scripts/check_consistency.py` so that ONE registry answers
 # "has the config moved under this artifact" for every consumer that asks.
 # `scripts/pipeline.py` is the second asker and appeared after this set did.
@@ -192,7 +216,7 @@ BIOSPHERE_INERT_CONFIG_KEYS = {
     # `stellar_cycle.components`, by `run_stellar_cycle.py`.
     "stellar_cycle.components.medium.note",
     "stellar_cycle.components.long.note",
-}
+} | CARTOGRAPHIC_DECLARATION_KEYS
 
 
 # Per-CONSUMER inert config keys for the STAGED SURFACE FIELDS, keyed by the
@@ -335,7 +359,7 @@ _SURFACE_BLOCKS = {
 
 
 SURFACE_INERT_CONFIG_KEYS = {
-    step: blocks | SURFACE_UNREAD_MODEL_KEYS[step]
+    step: blocks | SURFACE_UNREAD_MODEL_KEYS[step] | CARTOGRAPHIC_DECLARATION_KEYS
     for step, blocks in _SURFACE_BLOCKS.items()
 }
 

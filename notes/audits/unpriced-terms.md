@@ -192,12 +192,14 @@ all:
   LPJ-GUESS is terrestrial. Nothing here constrains it, and the pathway bound is
   what keeps that from being an open-ended hole.
 
-**The bound does not reach carbonaceous aerosol**, and that is the one still
-open. Smoke and secondary organics ABSORB, so their forcing per unit optical
-depth is larger and of the opposite sign to both scatterers, and the pathway
-argument above says nothing about them. Fire is enabled in LPJ-GUESS
-(`firemodel "GLOBFIRM"`) and biogenic emissions are already in the driver, so
-both are estimable once a biosphere run exists on this build. `CLIM-29`.
+**The bound does not reach carbonaceous aerosol**, and that remains open, but a
+later source-and-paper audit corrected the grouping here.  Primary fire
+black/brown carbon can absorb strongly and remains `CLIM-29`.  Secondary organic
+aerosol is commonly scattering-dominated; absorption, sign, yield and lifetime
+depend on precursor chemistry, oxidants, aging and cloud processing.  LPJ-GUESS
+has a dormant BVOC emissions module, not an atmospheric SOA model.  BVOC-1
+through BVOC-10 now track that separate source--chemistry--transport--optics--
+cloud chain; see `biosphere/notes/bvoc-soa-atmospheric-coupling-audit.md`.
 
 ### The checks, and that they can fail
 
@@ -305,4 +307,5 @@ Tracked in `TASKS.md` and not restated here.
 | 1. the interior moisture source | `CLIM-26`, closed by the measurement above |
 | 2. sea salt, measured | `CLIM-27`, closed by the component above |
 | 2b. volcanic sulfate, measured and bounding | `CLIM-28`, closed by the component above |
-| 2c. carbonaceous aerosol, which absorbs and is not bounded | `CLIM-29` |
+| 2c. primary fire carbonaceous aerosol, not bounded | `CLIM-29` |
+| 2d. biogenic SOA source, chemistry, direct and cloud effects | `BVOC-1` through `BVOC-10` |

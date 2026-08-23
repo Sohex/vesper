@@ -4,7 +4,16 @@ What LPJ-GUESS assumes about Earth, where those assumptions live in the source,
 and what has to change before the model says anything about this planet. Written
 after obtaining and building the model, before any Vesper-specific code exists.
 
-## The model as obtained
+> **Follow-up correction, 2026-08-21:** this first audit found the mechanical
+> calendar and astronomy seams but did not exhaust the ecological uses of an
+> Earth year. Natural phenology still contains an unreachable day 195, and PFT,
+> SOM and nutrient processes retain mixed annual time bases. The evidenced
+> non-fire follow-up is `implicit-earth-assumptions.md`, tracked as BIO-21
+> through BIO-28. Where this note says the port is complete or that all remaining
+> code follows `year_length()`, read that as mechanical integration rather than
+> ecological correctness.
+
+## The model as originally obtained
 
 LPJ-GUESS 4.1.1, released 2021-10-13, Mozilla Public Licence 2.0, from Zenodo
 record 8065737. No registration is required; the licence permits modification and
@@ -18,9 +27,9 @@ build     /home/cfutro/git/lpj-guess/build
 binary    /home/cfutro/git/lpj-guess/build/guess
 ```
 
-It lives beside `ExoPlaSim` and `planet_heightmap_generation` in `~/git` for the
-same reason those do: it is third-party source that this project modifies but
-does not own, and it is not this repository's history to keep.
+These paths record the checkout used for the original audit. The active source
+is now the CNP fork vendored at `vendor/lpj-guess/`; see
+`docs/src/reference/vendored-upstreams.md` for its pinned identity.
 
 Build state: configures and compiles clean with CMake 4.4.2 and GCC 16.1.1, zero
 errors, for a codebase last touched in 2021. MPI is found and enabled. netCDF is
@@ -90,13 +99,24 @@ quantities:
 | `daylength = 24.0 * hh / PI` | 24 h rotation | **unchanged**, see below |
 | `K = 13750.98708` | 12/pi x 3600, angular units to seconds per day | **unchanged**, see below |
 | `FRADPAR` | 0.5 | unresolved, see below |
-| `BETA` global shortwave albedo | 0.17 | avoidable |
+| `BETA` global shortwave albedo | 0.17 | LIVE on every path |
 
-`BETA` is avoidable because it is only applied on the `SUNSHINE` and `SWRAD`
-paths. Driving with `NETSWRAD_TS`, which is what ExoPlaSim's `rss` already is,
-sets `net_coeff = 1` and bypasses it entirely. That is the right choice anyway:
+`BETA` reaches the SHORTWAVE only on the `SUNSHINE` and `SWRAD` paths. Driving
+with `NETSWRAD_TS`, which is what ExoPlaSim's `rss` already is, sets
+`net_coeff = 1` there. That much is right, and it is the right choice anyway:
 this project computes surface albedo from lithology and knows it far better than
 a global constant does.
+
+**It does NOT bypass `BETA` entirely.** `modules/driver.cpp:1158` inverts the
+net longwave flux as
+
+    rl = (B + (1-B)*(w/qo/(1.0 - BETA) - C)/D) * (A - temp)
+
+and that division sits OUTSIDE every `instype` branch, so it applies on
+`NETSWRAD_TS` as on the others. An Earth broadband shortwave albedo, tuned to the
+solar spectrum, therefore sets `uu`, `hn` and so `climate.eet` on this project's
+live path. The shortwave half of this constant is avoided and the longwave half
+is not.
 
 ### PFT bioclimatic limits
 
@@ -174,10 +194,42 @@ Earth `gdd5min` thresholds would exclude almost every tree PFT for reasons that
 have nothing to do with the climate. They should be rescaled by
 180.655 / 365.2569 = 0.4946 so that a threshold means the same absolute amount of
 growing season it meant on Earth. Temperature limits (`tcmin_surv`, `twmin`) are
-physiology and do not scale. One second-order effect: a Vesper month is 15.1 days
-rather than 30.4, so "coldest month mean temperature" is averaged over a shorter
-window and will read slightly more extreme than the Earth-calibrated limits
-expect.
+physiology and do not scale.
+
+This note originally predicted a second-order effect in the other direction:
+that a Vesper month being about half an Earth month, "coldest month mean
+temperature" would be averaged over a shorter window and read slightly more
+extreme than the Earth-calibrated limits expect. Both halves of that are wrong.
+
+Ported, there is no effect at all. A trailing boxcar of width `W` days over a
+seasonal cycle of period `P` days attenuates the amplitude by
+`sin(pi W/P) / (pi W/P)`, which depends on the window only as a fraction of the
+orbit. A month is one twelfth of the orbit in either calendar, so Earth's
+30.4/365.2569 gives 0.9886 and Vesper's 15/183 gives 0.9890. The eleven even
+months are indistinguishable from Earth's. Only the twelfth differs, because
+`month_lengths` puts the remainder there: 18/183 attenuates to 0.9842, worth
+about 0.2 C of `mtemp_max20 - mtemp_min20` on a gridcell with a 40 C annual
+swing, and only when the extreme month is that one.
+
+Unported, the effect was real, larger, and of the opposite sign. `mtemp` was
+`climate.dtemp_31.mean()`, a mean over the whole 31-day history buffer rather
+than over `date.ndaymonth`, so the window stayed 31 days whatever the calendar
+said. A 31-day window over a 183-day orbit attenuates to 0.9535 against a
+month's 0.9890: the seasonal cycle read 3.55 percent of half-amplitude LESS
+extreme than a ported month would, roughly 1.4 C off the
+`mtemp_max20 - mtemp_min20` range of a gridcell with a 40 C annual swing, and
+in the direction that makes cold limits easier to pass rather than harder. The
+trailing window also lagged 15.5 days instead of 7.5, so the month-end sample
+carried most of the previous month with it. `mtemp` feeds `mtemp_min` and
+`mtemp_max`, thence `mtemp_min20` and `mtemp_max20`, which are the PFT
+establishment and survival criteria, and it gates the GDD5 and chill-day reset.
+
+`driver.cpp` now takes `mtemp` from
+`dtemp_31.periodicmean(date.ndaymonth[date.month])`, the same form the monthly
+history buffers two blocks below it already used. `Historic::periodicmean`
+returns the whole-buffer mean when asked for more steps than the buffer holds,
+so a calendar whose months outgrew the buffer would silently reintroduce this;
+`dailyaccounting_gridcell` refuses on the first simulation day instead.
 
 ## PAR fraction: resolved, and it found a climate bug
 
@@ -256,16 +308,12 @@ So the first LPJ-GUESS run is a shakedown on the pre-carve climatology, to prove
 the input module, the patch and the calendar, and it must be labelled as such.
 The first run that means anything waits on a `carved-zoned` climatology.
 
-## The patch, written
+## The port, originally written as a patch
 
-`patches/lpj-guess-4.1.1-vesper.patch`, against the pinned 4.1.1 tarball, in the
-same style as `exoplasim/patches/exoplasim-3.4.2-star-cycle.patch`.
-
-```bash
-cd /home/cfutro/git/lpj-guess/guess_4.1
-patch --forward --strip=1 --directory=. < <world>/biosphere/patches/lpj-guess-4.1.1-vesper.patch
-cd ../build && make -j16
-```
+The port was first verified as `patches/lpj-guess-4.1.1-vesper.patch` against
+the pinned 4.1.1 tarball. It now lives directly in `vendor/lpj-guess/`, together
+with `modules/vesperinput.*`; the obsolete patch and duplicate source copy were
+removed when the CNP fork became a subtree.
 
 Every planetary constant is collected in one block in `framework/guessmath.h`,
 which `guess.h` and `spinupdata.h` both already include, so the assumptions are

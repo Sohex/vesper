@@ -16,6 +16,7 @@ invariant is misfiled by its shape alone, wherever it came from.
 | `docs/src/SUMMARY.md` | the docs book. Its pipeline chapters are CANONICAL for pipeline REASONING: what the components are, how they connect, why the order is what it is, and why it is a loop. **Read them before pipeline work** |
 | `config/pipeline.yaml` | CANONICAL for the pipeline GRAPH: every step, what it writes, what must precede it, its cost, and each loop's exit predicate. The two do not overlap; the pipeline chapters reference step ids from here |
 | `scripts/pipeline.py` | `--status` what exists, `--plan <step>` the ordered steps to a target, `--register` the artifact table, `--purge <step>` everything a change to that step makes worthless. Plans and never RUNS a step; `--purge` deletes, and is a dry run until `--execute` |
+| `scripts/link_worktree.py` | a worktree sees the tracked tree and NOTHING else: no export payloads, no references, no run output, no `.venv`. Run it first in a new worktree and never hand-link one; `--check` says whether one is complete. What it deliberately does not link, and why, is in `docs/src/reference/environment.md` |
 | `source/README.md` | how to read an export: field conventions, the land-mask rule, the traps |
 | `vendor/orogen/tools/README.md` | the authoritative export format |
 | `<component>/README.md` | what that component does and how to run it |
@@ -23,9 +24,9 @@ invariant is misfiled by its shape alone, wherever it came from.
 | `docs/src/practice/conventions.md` | how documents, numbers and results are kept, argued in full |
 | `docs/src/practice/failure-modes.md` | how this project goes wrong, by class |
 | `docs/src/reference/builds.md` | builds, identity, the registry, and the durable set |
-| `docs/src/reference/vendored-upstreams.md` | the two subtrees: what each fork carries, how to pull upstream, the branch conventions |
+| `docs/src/reference/vendored-upstreams.md` | the three subtrees: what each fork carries, how to pull upstream, the branch conventions |
 | `docs/src/reference/design-intent.md` | the standing decisions that shape the world |
-| `docs/src/reference/environment.md` | install commands, host packages, and the model facts to know before touching it |
+| `docs/src/reference/environment.md` | install commands, host packages, the model facts to know before touching it, and the command-line tools for reading an artifact, with the three traps that come of their assuming Earth |
 | `docs/src/reference/no-time-axis.md` | Orogen has no time axis. Read before asking any component for a duration, an age, or a rate |
 | `docs/src/reference/large-data.md` | batch, chunk, checkpoint, report. Required for any step whose input runs to GB |
 | `docs/src/reference/external-data.md` | routes into data this project does not generate; check the AWS Registry of Open Data before an API |
@@ -229,6 +230,14 @@ notes/                 Dated findings with their evidence; notes/audits/ for aud
 vendor/orogen/         World Orogen fork, git subtree. Generates the geography.
 vendor/exoplasim/      ExoPlaSim fork, git subtree. THE model source: edited here,
                        compiled here, installed editable from here.
+vendor/lpj-guess/      LPJ-GUESS CNP fork, git subtree. The Vesper input and
+                       calendar port compile directly from this tree.
+vendor/cgenie/         cGENIE.muffin, git subtree. The CANDIDATE offline ocean under
+                       OCN-3, not an adopted component: nothing reads it yet, and it
+                       does not build where it stands. See vendored-upstreams.md.
+vendor/lpjml/          LPJmL, git subtree. NOT the biosphere and NOT a replacement for
+                       lpj-guess: a different model in the same family, vendored because
+                       the intended work is fork-shaped. Nothing reads it yet.
 .venv/                 Python 3.12. Untracked; see Environment below.
 ```
 

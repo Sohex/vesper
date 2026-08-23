@@ -17,15 +17,13 @@ CONFIG = PROJECT_ROOT / "config" / "planet.yaml"
 SOURCE = PROJECT_ROOT / "source"
 
 GENERATED = COMPONENT_ROOT / "generated"
-PATCHES = COMPONENT_ROOT / "patches"
-SRC = COMPONENT_ROOT / "src"
 RUNS = COMPONENT_ROOT / "runs"
 
-# LPJ-GUESS is third-party source this project modifies but does not own, so it
-# lives beside ExoPlaSim and the Orogen fork rather than in this repository.
-GUESS_ROOT = Path("/home/cfutro/git/lpj-guess")
-GUESS_SOURCE = GUESS_ROOT / "guess_4.1"
-GUESS_BUILD = GUESS_ROOT / "build"
+# The CNP fork is a git subtree, on the same terms as ExoPlaSim and Orogen: the
+# source read here is the source compiled and run, and its commit is repository
+# provenance rather than unrecorded state in an external checkout.
+GUESS_SOURCE = PROJECT_ROOT / "vendor" / "lpj-guess"
+GUESS_BUILD = GUESS_SOURCE / "build"
 GUESS_BINARY = GUESS_BUILD / "guess"
 
 LIB = PROJECT_ROOT / "lib"

@@ -46,6 +46,11 @@ ACCUMULATOR_RECORDS = {
     "naccu", "naccua", "naccuice", "naccuo", "naccuoce", "naccuout",
     # outmod
     "atsa", "atsama",
+    # outmod, the accumulated hurricane indices. Zeroed at the same interval
+    # boundary as everything above (outmod.f90:2490) and written to the restart
+    # unconditionally (plasim.f90:958), so they are here whether or not
+    # NSTORMDIAG is on. notes/audits/dormant-exoplasim-modules.md finding 4.
+    "agpi", "aventi", "alaav", "ampoti", "avrmpi", "acapen", "alnb", "achim",
     # seamod
     "cheata", "clhdta", "clhfla", "clwfla", "cpmea", "cprsa", "croffa",
     "cshdta", "cshfla", "cswfla", "ctauxa", "ctauya", "cust3a",

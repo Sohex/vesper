@@ -16,7 +16,6 @@ hydrography/, on this terrain, and are a result rather than a tint.
 Writes maps/build/basemap.npy (H x W x 3 uint8) and a provenance sidecar.
 """
 
-import hashlib
 import json
 import subprocess
 import sys
@@ -34,15 +33,32 @@ from lib import builds  # noqa: E402
 import gridding  # noqa: E402
 import lapse  # noqa: E402
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import frames  # noqa: E402
+
 ROOT = Path(__file__).resolve().parents[1]
 BUILD_DIR = Path(__file__).resolve().parent / "build"
+# Set by `--climatology`; None means take the configured one.
+_CLIMATOLOGY_OVERRIDE: Path | None = None
+
+
 # Resolved at call time, not import time, and from the config rather than a
 # hardcoded directory.
 def _climatology() -> Path:
     """The climatology FILE. It used to return the directory and callers
     appended `baseline_regular_climatology.nc`, which finds nothing once a
     product is labelled anything else -- a bootstrap climatology is
-    `bootstrap_regular_climatology.nc`."""
+    `bootstrap_regular_climatology.nc`.
+
+    `--climatology` overrides it, which is the only way to draw a map off a
+    climatology `config/planet.yaml` deliberately does not name. Early in a
+    cycle the one that exists is the bootstrap's, and the config key is held at
+    null so that nothing reads it by DEFAULT; naming it per invocation is a
+    caller's declaration rather than a fallback, and the tint is illustrative
+    either way. `paths.climatology_path` names this flag in its own error.
+    """
+    if _CLIMATOLOGY_OVERRIDE is not None:
+        return _CLIMATOLOGY_OVERRIDE
     import sys as _sys
     _sys.path.insert(0, str(ROOT / "lib"))
     from paths import climatology_path
@@ -61,6 +77,24 @@ def _classification() -> Path:
     return clim.with_name(clim.name.replace("_regular_climatology.nc",
                                             "_classification.nc"))
 
+
+def _caveat() -> str:
+    """What a reader must know about the tint, taken from the product read."""
+    label = _climatology().name.replace("_regular_climatology.nc", "")
+    caveat = (f"biome and temperature fields are T42 and come from the "
+              f"`{label}` climatology; the tint is illustrative, not a result")
+    if label.startswith("bootstrap"):
+        caveat += (". A bootstrap climatology is the FIRST run on the build, on "
+                   "terrain-only surface fields, so its biomes are not the "
+                   "baseline's and no number here is a baseline number")
+    return caveat
+
+
+# Render grid. `--width` moves it, because the sampling that is enough for one
+# mesh is not enough for the next: 5760x2880 is about six pixels per region over
+# a 2.5M-region export and under two over the ~10M-region one. Height follows
+# width, since the grid is equirectangular. The nearest-region lookup is cached
+# per size, so a change here costs one re-query and not one per map.
 WIDTH, HEIGHT = 5760, 2880
 
 # Biome palette, indexed by biome_index from baseline_classification.nc.
@@ -110,16 +144,6 @@ PLAYA_RGB = np.array([203, 187, 155.0])
 ROCK_RGB = np.array([138, 126, 112.0])
 ICE_RGB = np.array([238, 242, 246.0])
 SEAICE_RGB = np.array([226, 234, 240.0])
-
-
-def sha256(path, limit=None):
-    h = hashlib.sha256()
-    with open(path, "rb") as fh:
-        while chunk := fh.read(1 << 20):
-            h.update(chunk)
-            if limit and fh.tell() > limit:
-                break
-    return h.hexdigest()
 
 
 def pixel_directions():
@@ -238,6 +262,18 @@ def fill_ocean_gaps(field, land):
     return out
 
 
+def surface_water_path() -> Path:
+    """The lake and river solution for the build being drawn.
+
+    Per-build. This read was the flat hydrography/data/, which holds whatever
+    build was current when it was last written -- so a map could be drawn with
+    one terrain's coastlines and another terrain's lakes, and would say nothing
+    about it. Named here rather than inline because the provenance block has to
+    hash the same file the compositing reads.
+    """
+    return builds.component_data("hydrography") / "surface_water.nc"
+
+
 def load_surface_water(idx):
     """Lakes and rivers from the hydrography water balance, per pixel.
 
@@ -246,12 +282,7 @@ def load_surface_water(idx):
     has not been run, the map is drawn without standing water rather than
     failing, and says so.
     """
-    # Per-build. This read was the flat hydrography/data/, which holds whatever
-    # build was current when it was last written -- so a map could be drawn with
-    # one terrain's coastlines and another terrain's lakes, and would say
-    # nothing about it. Optional stays optional: a missing solve still draws
-    # without water, but only for the build actually being mapped.
-    path = builds.component_data("hydrography") / "surface_water.nc"
+    path = surface_water_path()
     if not path.exists():
         print(f"  no surface_water.nc for this build; drawing without lakes or rivers")
         return None
@@ -303,7 +334,32 @@ def hillshade(elev_km, lat_deg, radius_km, exaggeration=14.0):
 
 def main():
     import argparse
-    argparse.ArgumentParser(description=__doc__ or "Render the basemap").parse_args()
+    global WIDTH, HEIGHT
+    ap = argparse.ArgumentParser(description=__doc__ or "Render the basemap")
+    ap.add_argument("--climatology", type=Path, default=None,
+                    help="REGULAR climatology file to tint from, overriding "
+                         "config/planet.yaml's baseline_climatology")
+    ap.add_argument("--width", type=int, default=WIDTH,
+                    help=f"equirectangular width in pixels, height is half of "
+                         f"it (default {WIDTH})")
+    args = ap.parse_args()
+    if args.width != WIDTH:
+        if args.width % 2:
+            raise SystemExit("--width must be even: the height is half of it")
+        WIDTH, HEIGHT = args.width, args.width // 2
+    if args.climatology is not None:
+        global _CLIMATOLOGY_OVERRIDE
+        _CLIMATOLOGY_OVERRIDE = args.climatology.resolve()
+        # The classification name is derived from this one, so a file that does
+        # not carry the suffix would silently resolve the tint to the wrong
+        # product instead of failing.
+        if not _CLIMATOLOGY_OVERRIDE.name.endswith("_regular_climatology.nc"):
+            raise SystemExit(f"--climatology must name a REGULAR climatology "
+                             f"(*_regular_climatology.nc), got "
+                             f"{_CLIMATOLOGY_OVERRIDE.name}")
+        for pth in (_CLIMATOLOGY_OVERRIDE, _classification()):
+            if not pth.exists():
+                raise SystemExit(f"missing {pth}")
 
     src = builds.mesh_export()
     manifest = json.loads((src / "manifest.json").read_text())
@@ -380,7 +436,11 @@ def main():
     # correction from the T42 orography to this one. The rate is measured, not
     # Earth's 6.5 (PHYS-12), and it is the warm-season one because the field
     # being extrapolated is the warmest month.
-    lapse_k_per_km = lapse.environmental_lapse_k_per_km(season="warmest")
+    # The file is passed rather than left to default: lapse.py resolves its own
+    # from config/planet.yaml, which would ignore --climatology and take the
+    # rate from a different climatology than the tint.
+    lapse_k_per_km = lapse.environmental_lapse_k_per_km(
+        season="warmest", climatology_file=_climatology())
     t_surface = warmest_hi - lapse_k_per_km * (elev - clim_elev_hi)
     ice = np.clip((273.15 - t_surface) / 4.0, 0, 1)[..., None]
     lrgb = lrgb * (1 - ice) + ICE_RGB * ice
@@ -390,6 +450,7 @@ def main():
     # Lakes and rivers, which are the one part of the colour that is a result
     # rather than a tint: a water balance solved in hydrography/, not a guess.
     water = np.zeros(elev.shape, bool)
+    water_path = surface_water_path()
     surface_water = load_surface_water(idx)
     if surface_water is not None:
         lake, lake_depth, discharge = surface_water
@@ -431,15 +492,29 @@ def main():
 
     Image.fromarray(rgb).save(BUILD_DIR / "basemap_equirectangular.png")
 
+    # The identity of everything the raster was drawn from, and the fingerprint
+    # over it. `render_projections.py` copies this into the frame it writes
+    # rather than re-deriving it from the config, so a frame records the world
+    # THIS raster holds and not the one the config currently names.
+    inputs = frames.inputs(
+        source_build=src.parent.name,
+        terrain_hash=manifest["hashes"]["finalElevation"],
+        climatology=_climatology(),
+        classification=_classification(),
+        surface_water=(water_path if water_path.exists() else None),
+    )
+
     prov = {
         "source_build": src.parent.name,
         "source_export": str(src.relative_to(ROOT)),
         "final_elevation_hash": manifest["hashes"]["finalElevation"],
         "climatology": str(_climatology().relative_to(ROOT)),
-        "climatology_caveat": (
-            "biome and temperature fields are T42 and were computed on the "
-            "pre-carve terrain; the tint is illustrative, not a result"
-        ),
+        # Derived from the product actually read, not fixed: the caveat a reader
+        # needs is which climatology this is, and a bootstrap's biomes are not a
+        # baseline's.
+        "climatology_caveat": _caveat(),
+        "inputs": inputs,
+        "fingerprint": frames.fingerprint(inputs),
         "resolution": [WIDTH, HEIGHT],
         "planet_radius_km": radius_km,
         "numpy": np.__version__,

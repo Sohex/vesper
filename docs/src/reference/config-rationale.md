@@ -102,6 +102,101 @@ mass_earth = (g/g_earth) * radius_earth^2, and `derive()` raises if the two
 keys below disagree, so they cannot drift apart. The formula is written here
 and the value is not.
 
+## `rotation_direction`
+
+```
+rotation_direction: prograde
+```
+
+The IAU cartographic convention makes rotation direction and longitude sense
+one declaration rather than two: `W`, the angle from the ascending node to the
+prime meridian, increases with time for a prograde rotator and decreases for a
+retrograde one, and planetographic longitude is positive west for a prograde
+rotator and positive east for a retrograde one. So a world that has not said
+which way it turns cannot say which way its longitudes run either, and the
+three keys here are written together for that reason.
+
+Prograde is read off the code rather than chosen, and it is structural in three
+independent places.
+
+`radmod.f90:solang` builds the solar hour angle as a term rising with the time
+of day plus a term rising with the grid column, so the column at local noon
+falls as the day advances: the subsolar point tracks toward decreasing
+longitude and the planet turns toward increasing longitude. That is eastward
+rotation on an east-positive axis.
+
+`plasimmod.f90` initialises `plavor`, the planetary vorticity coefficient, to a
+positive constant, so the Coriolis parameter is positive in the northern
+hemisphere and the simulated flow is Earth-handed: cyclonic circulation turns
+counterclockwise north of the equator.
+
+ExoPlaSim reaches the model as `ROTSPD = 1/rotationperiod`, and
+`run_exoplasim.py` derives the rotation period from `rotation_hours`, which is
+signless and positive. A retrograde world is therefore not expressible on this
+path at all: it would need a negative rotation period, which the day-count
+arithmetic beside the namelist edit would then mangle. Every run this project
+has integrated, archived included, was prograde, and none of them could have
+been anything else.
+
+## `longitude_positive`
+
+```
+longitude_positive: east
+```
+
+`maps/projections.py:unit` places a point at
+`(cos lat sin lon, sin lat, cos lat cos lon)` and the World Orogen export
+recovers longitude as `atan2(x, z)` about the same y-up pole, so increasing
+longitude is a positive right-handed rotation about the north pole. East is
+therefore both the direction of increasing longitude and the direction the
+planet turns, and the two agree because `rotation_direction` is prograde.
+
+Positive east on a prograde rotator is the IAU planetocentric system, which is
+the one this project wants: planetocentric latitude is what a sphere has, and
+the planetographic pairing for a prograde rotator would be positive west. The
+mixed pairing, planetocentric latitude with planetographic longitude sense, is
+explicitly not IAU-approved.
+
+This declaration changes no join and is not a datum for one. Longitude labels
+differ between the export and ExoPlaSim's own output by construction, and the
+remedy is CLAUDE.md rule 3: map by index, share one coordinate source. Declaring
+a longitude sense makes an axis legible; it does not make a longitude match
+safe, and nothing here weakens the rule that forbids the match.
+
+## `prime_meridian`
+
+```
+prime_meridian: orogen_export_zero
+```
+
+This world carries no fixed observable surface feature that a meridian could be
+anchored to, which is the case the IAU report provides for directly: where there
+is none, the expression for `W` defines the prime meridian rather than being
+corrected to fit a landmark. What is available is a phase, and the phase is
+already fixed.
+
+The World Orogen mesh frame supplies it. Every mesh region carries unit-sphere
+cartesian coordinates in the generator's own y-up frame, and the export's
+longitude is `atan2(x, z)`, so the meridian through `x = 0, z > 0` is the frame's
+zero. `maps/render_projections.py:draw_graticule` already draws that meridian and
+the antimeridian heavier, in a pass over multiples of 180 degrees, and it draws
+them on the export's own longitudes rather than on any model output's labels.
+
+Naming the export frame is better than writing a `W` expression, and better than
+picking a landform. It needs no celestial reference frame, which this project
+does not have; it is reproducible from the planet code and the seed, both of
+which are in the durable set of CLAUDE.md rule 7, so the meridian survives a
+regeneration that the terrain itself does not; and it is what every artifact in
+the tree was already drawn and integrated against, so the declaration costs
+nothing downstream.
+
+The value names a datum rather than an offset, deliberately. An offset in degrees
+would read as a knob, and nothing in the pipeline applies one; moving the prime
+meridian would mean adopting a different datum and reworking everything that
+reads the export frame. The Working Group's standing emphasis is the reason to
+write it down now: any change to this value changes the longitude of every point
+on the planet, so a longitude system is chosen once and not revisited.
+
 ## `star`
 
 ```
@@ -431,9 +526,13 @@ resolution: T42
 T42 for the iteration-1 baseline. The bracket ran at T21, which was right
 for a several-kelvin question. This pass feeds the carve verdict and the
 first LPJ-GUESS input, both of which will change and be redone, so the
-expensive grid is not warranted yet. T85 comes once terrain and biosphere
-have settled: it resolves the median basin catchment across 3.0 cells
-against T42's 0.7, and recovers the full 5,769 m mesh relief against 5,101.
+more expensive grid is not warranted yet. This does not make T42 a production
+constraint. The supported ladder is T21/T42/T85/T127/T170; after the current
+support settles, CLIM-52 can map its restart into the next rung and Loops A--C
+must settle again there. SPAT-8 chooses the first rung at which the coupled
+decision quantities converge, with the ~10M-region, 7.60 km Orogen mesh as the
+fine aggregation reference. A converted restart is a spin-up accelerator, not
+an equilibrium carried unchanged across resolution.
 
 ## `ncpus`
 
@@ -814,4 +913,3 @@ Per-component kelvin consequences are not recorded here. The canonical local
 sensitivity is `lib/sensitivity.py`; corrected magnitudes are in
 `exoplasim/notes/parameter-decisions.md`. THE AMPLITUDES BELOW ARE THE
 DECISION.
-

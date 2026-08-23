@@ -163,13 +163,14 @@ below is what they were found to be, and `archive/tasks.md` carries what was
 done. The dependency defect turned out to be three edges rather than the one
 described here.
 
-A CLEAN build of the model fails. `glaciermod.o`'s rule in `make_plasim` names
+A CLEAN build of the model failed. `glaciermod.o`'s rule in `make_plasim` named
 `plasimmod.o` but not `landmod.o`, while `outmod.o`, which does depend on
-`glaciermod.o`, sits EARLIER in `OBJ` than `landmod.o` does. `compile.sh` never
-empties `plasim/bld` except when switching between the MPI and serial builds,
-so a `landmod.mod` from some previous build is always lying there and the
-missing edge never shows. The same missing edge makes `make -j` unsafe at any
-level.
+`glaciermod.o`, sits EARLIER in `OBJ` than `landmod.o` does. `compile.sh` did not
+empty `plasim/bld` except when switching between the MPI and serial builds,
+so a `landmod.mod` from some previous build was always lying there and the
+missing edge never showed. Both halves of that are fixed: the rule names
+`${LANDMOD}.o` and `compile.sh` now empties `plasim/bld` on every build. What
+the fix left is measured below.
 
 `binary_manifest.json` records the sha of every source file that goes into a
 build and `exoplasim_version`, and records nothing about the compiler or the
@@ -312,3 +313,61 @@ and `NSNAPSHOT` restored take 12.719 s against 12.678 s with output off, while
 producing 230 MB, so the model's own output path is inside the noise. Against a
 measured 148 s per orbit and roughly 106 s of model compute, the orbit is about
 five sixths compute, and the ceiling on every I/O-side lever is the rest.
+
+
+## Is `make -j` safe now, measured 2026-08-21
+
+The graph was re-derived from the source rather than read: for every file, the
+modules it `use`s, each resolved to the file defining it, checked against the
+prerequisites `make_plasim` declares. Run for all three configurations
+`compile.sh` can produce, since the module variables change which files are in
+`OBJ`.
+
+| configuration | OBJ members | members with no rule | missing edges |
+| --- | ---: | ---: | ---: |
+| serial, `most_compiler` | 35 | 0 | 0 |
+| MPI, `most_compiler_mpi` | 35 | 0 | 0 |
+| OpenMP, `most_compiler_omp` | 35 | 0 | **1** |
+
+The one edge is `utilities_omp.o`, which `use`s module `mpiomp` at lines 85 and
+106. `mpiomp` is defined in `mpimod_omp.f90`, and the rule names `plasimmod.o`
+and `carbonmod.o` only. `make -j16 utilities_omp.o` in a clean directory builds
+every declared prerequisite and then stops at `Cannot open module file
+'mpiomp.mod'`.
+
+**It does not bite, and what saves it is ordering rather than the graph.** Ten
+clean `make -e -j32 plasim.x` builds of the OpenMP configuration all passed,
+none failing on a missing module. `${MPIMOD}.o` is FIRST in `OBJ` and
+`${UTILMOD}.o` ninth, so make launches `mpimod_omp.o` immediately and it is
+finished long before anything asks for its `.mod`. The emptying of `plasim/bld`
+removed the stale-`.mod` mechanism that used to hide missing edges; this one is
+hidden by `OBJ` order instead.
+
+The fix is one line, adding `${MPIMOD}.o` to the `${UTILMOD}.o` rule. With it
+the clean-directory test passes and `mpimod_omp.o` is built as a prerequisite.
+It is inert in the other two configurations, being an ordering constraint on an
+object already in `OBJ`.
+
+### What parallelism is worth
+
+T21 L10 p1, OpenMP configuration, clean build each time, mean of two:
+
+| | wall | vs serial |
+| --- | ---: | ---: |
+| `-j1` | 15.8 s | -- |
+| `-j8` | 4.9 s | 3.2x |
+| `-j16` | 4.5 s | 3.5x |
+| `-j32` | 4.5 s | 3.5x |
+
+3.5x, saturating by `-j8`. The bound is the dependency chain through
+`plasimmod.o`, which nearly every other object depends on and which nothing can
+start before. Rule 4 makes the unit of work `rebuild_binaries.py`'s `MATRIX` rather than one
+executable, twelve on the T21/T42/T85/T127/T170 ladder, so at this rung the
+operation is roughly 3 minutes against roughly 1 and the higher rungs scale it.
+
+The win available is INSIDE each build and not across builds. Every
+configuration compiles in the same `plasim/bld`, which `compile.sh` empties on
+entry, so two configurations cannot build concurrently without one deleting the
+other's objects. That is why `rebuild_binaries.py` is serial across
+configurations and why it should stay that way until the build directory is
+per-configuration.

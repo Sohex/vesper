@@ -253,30 +253,43 @@ the solver takes gravity from `config/planet.yaml`.
 
 ## What this field may be used for, and what it may not
 
-**It was scored against 70,119 Australian bores and it has no skill.** GW-3, in
-`notes/earth-calibration-criterion.md`: R^2 = 0.017 against a declared bar of
-0.07, a resolvable ceiling of 0.857, and 0.2098 for a statistical fit over the
-same inputs. The residual standard deviation equals the observed standard
-deviation, which is the signature of a near-constant field.
+**It is not a wetland mask.** Wetland extent depends on native-mesh relief,
+seasonal persistence, routed inundation and groundwater discharge; thresholding
+an ExoPlaSim/LPJ cell-mean depth would erase all four and can double-count the
+solved lakes, rivers and playas. WET-2 therefore derives mutually exclusive
+native-mesh persistent-peat, saturated-soil, seasonal-inundation, open-water and
+dry-soil fractions before aggregation. WET-3 makes those states consume the
+same mass-conserving groundwater/surface-water exchange as PLHY-4 rather than
+LPJ-GUESS's fixed wetland runon or saturation source.
 
-**The range is right and the pattern is not.** With the sink and local
-baselevels the 95th percentile depth is 52 m against an observed 42 m, where
-before it was 6.9 m. So the field spans the right values and puts them in the
-wrong places.
+**The Earth result is regime-dependent, not a blanket failure.** Australia was
+the first test because it resembles the proposed arid, endorheic Vesper state.
+There the current solver reaches Pearson +0.0703 on cell means and produces only
+1.91 m of spread against 18.36 m observed: the evapotranspiration sink takes the
+recharge locally and the flow solve contributes almost no spatial variance.
 
-Three mechanisms were added and none moved skill: the sink, local baselevels and
-a basin-scale thickness. Each fixed something real. The information is not
-missing -- a regression on the model's own inputs reaches 0.28 -- so the
-formulation maps it badly rather than lacking it, and adding a fourth bulk term
-is not the fix. What is, on the evidence, is sub-grid hypsometry: at 15.19 km an
-interfluve is one or two cells wide and there is nowhere to put a water table
-that follows terrain.
+GW-22 then tested the same solver and 15.19 km mesh against **73,451 USGS bores
+explicitly labelled unconfined**. It reaches Pearson +0.2599, with model spread
+20.72 m against 28.94 m observed. An affine correction fitted on half the cells
+and scored on the other half gives held-out R2 +0.0646 with standard deviation
+0.0216 over twenty splits, clearing the declared 0.07 bar on nine. The signal is
+real and reproducible; its uncertainty straddles the declared bar rather than
+supporting a universal pass/fail label.
 
-**So: do not read a per-cell depth from this and expect it to mean anything.**
-MIN-6's supergene rules need the depth itself and cannot use it. SURF-7 needs a
-discharge mask and gets AUC 0.52 to 0.57 from this one, which is barely above
-chance. What survives is the per-basin exchange DIRECTION, which is a
-zero-crossing that never depended on the depth being right.
+**What changed between continents is measurable.** Where `sink_fraction` is
+near one, depth is chiefly the local recharge--ET balance. Where it is low and
+`at_surface` is set, the cell is pinned and seeping. Low `sink_fraction` with
+`at_surface` clear is the regime where lateral flow set the head, and it is the
+regime that showed skill against the US unconfined wells. `water_table.nc`
+ships both fields so every depth consumer can distinguish these cases.
+
+Vesper's final regime is not yet known. On the current bootstrap climatology
+and pre-carve terrain the sink takes a median 97.0% of recharge, but both
+recharge and basin structure change when the climate/terrain loop closes.
+Re-read `sink_fraction` after each accepted baseline rather than transporting
+either the Australian failure or the US result wholesale. Uses that need a
+per-cell depth should preserve this regime flag and the permeability bracket;
+wetland area additionally needs the native-mesh seasonal treatment above.
 
 **The depth field is a bracket, not a value.** Gleeson's within-class spread is
 1.5 to 2.5 orders of magnitude. `--sigma -1` and `--sigma +1` shift every class
@@ -506,9 +519,8 @@ for another carve iteration, and the counts are in `world_state.json` and
 
 ## One-off tools
 
-- `scripts/build_earth_wtd_sites.py` -- one-off: assembles Australian bore water table depths into one site table for GW-3, the solver's only external check. Reads the Australian Groundwater Explorer's per-state download, whose `level_<state>.csv` sits BESIDE the geodatabase rather than inside it. Reconciles three datums against an identity that can fail, and reports the quality flag rather than filtering on it, because the codes are per-agency and filtering would select which state survives. Registered under `one_offs` in `config/pipeline.yaml`.
+- `scripts/build_earth_wtd_sites.py` -- one-off: assembles Australian bore water table depths into one site table for GW-3, the first leg of the solver's Earth comparator. Reads the Australian Groundwater Explorer's per-state download, whose `level_<state>.csv` sits BESIDE the geodatabase rather than inside it. Reconciles three datums against an identity that can fail, and reports the quality flag rather than filtering on it, because the codes are per-agency and filtering would select which state survives. Registered under `one_offs` in `config/pipeline.yaml`.
 - `scripts/earth_calibration.py` -- one-off: the GW-3 Earth comparator end to end, mesh, ETOPO, GLHYMPS permeability, recharge, drainage, solve and score, with `--edge-km` or `--regions` setting the mesh so the same case can be run at more than one cell size. The original was written inline and lost, which is GW-20 and is why this exists as a script: the one number that judges this component was recorded and not reproducible. Stages cache under `data/earth_validation_cache/edge<E>km/` and are skipped when present; the cache is gitignored and regenerable, the result is `analysis/earth_calibration.json`. Runs with the sink and the river baselevels ON, as the pipeline gate requires. Registered under `one_offs` in `config/pipeline.yaml`.
 - `scripts/build_us_wtd_sites.py` -- one-off: the United States half of the Earth comparator's observations, GW-22, companion to `build_earth_wtd_sites.py`. `external-data.md` says take Australia FIRST and the US second; this is the second leg, and it exists because GW-21 concluded the limit on the Australian score is the input fields rather than the formulation or the mesh, which is a claim resting on one region. Fetches USGS `monitoring-locations` and `field-measurements` at parameter code 72019, depth to water in feet below land surface, paging blind on the `next` link because `numberMatched` is absent from every response. The US set can be BETTER than the Australian one rather than merely bigger: `aquifer_type_code` separates confined from unconfined directly, where Australia can only infer it from bore depth, and a `Static` qualifier marks readings not taken while pumping, which `external-data.md` notes Fan's four columns cannot support. Writes `data/earth_validation/us_wtd_sites.csv`. Registered under `one_offs` in `config/pipeline.yaml`.
 - `scripts/fetch_recharge.py` -- one-off: pulls a window of the global recharge grid by BYTE RANGE rather than downloading it. `RechargeTotal.nc` is a classic netCDF3 whose one variable is a contiguous big-endian float64 array, so whole rows can be ranged out of a multi-gigabyte file; the script carries the data offset and the exact windows, which is the part `docs/src/reference/external-data.md` cannot hold compactly. Windows are deliberately WIDER than the region they serve wherever a bbox edge would cut land, because a cell with no coverage is not land, so it is ocean, so it is a fixed head at sea level. Registered under `one_offs` in `config/pipeline.yaml`.
 - `scripts/validate_lake_solver.py` -- one-off: checks the lake solver against real endorheic basins on Copernicus DEM tiles, which is where HYD-7's mesh-scale storage deficit was measured. Registered under `one_offs` in `config/pipeline.yaml`; it generates nothing the pipeline reads.
-

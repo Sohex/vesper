@@ -5,7 +5,7 @@ model on this desktop. Nothing here is about the simulated planet. Measured
 2026-08-22 at b4ec421d, T170 on sixteen threads, 300 steps on
 `bench/bed_t170cold`, frame-pointer build, warm-up discarded.*
 
-This profile exists to answer one question -- is CLIM-68 still worth doing --
+This profile exists to answer one question -- is CLIM-80 still worth doing --
 and it answers it no. It is kept because the question will be asked again and
 because the shape of the model's cost has moved twice in one day.
 
@@ -35,7 +35,7 @@ because the shape of the model's cost has moved twice in one day.
 build this morning, and it was `-finit-real=zero`.
 `the-zeroing-is-an-init-flag.md` has that measurement.
 
-## What it retires: CLIM-68
+## What it retires: CLIM-80
 
 The row proposed restructuring the physics onto cache-resident column blocks,
 NPROMA style. Its stated prize was the 31% memset, on the argument that blocking
@@ -66,7 +66,7 @@ than in the transform.
 ## What it promotes
 
 **The barrier, at 17.89%**, is now the largest single item outside the model's
-own code. That is CLIM-67's load imbalance seen from the other side: per-thread
+own code. That is CLIM-79's load imbalance seen from the other side: per-thread
 attribution puts the least-waiting thread at 9.0% of its cycles and the
 most-waiting at 18.2%, so roughly six points of runtime are threads waiting for
 each other, and a static schedule over NLEV=10 levels across sixteen threads is
@@ -79,7 +79,7 @@ at 1.70%, and the call graph attributes all of it to `radstep` through `lwr` and
 `swr`. Two routines and one libm function is a far smaller surface than a
 physics-wide restructuring, which is what makes it the better target.
 
-That is CLIM-72, and it is deliberately framed as a question about the SCHEME
+That is CLIM-84, and it is deliberately framed as a question about the SCHEME
 rather than about the calls: this project already holds correlated-k tables and
 a harness that cross-checks the current band model against them, so "should the
 radiation be replaced" has to be priced before "should these `pow` calls be
@@ -118,7 +118,7 @@ comment will have the same idea.
 **Why it is null is the part worth carrying.** The transform is under 10% of
 T170: `sh_dv2uv` 0.94%, the SHTns kernels about 2.8% between them, libfftw3
 3.55%. Filling six idle threads through a tenth of the run cannot return much,
-and if the transform is bandwidth-bound -- CLIM-67's own measurement has the
+and if the transform is bandwidth-bound -- CLIM-79's own measurement has the
 SHTns path taking 11.17% of its demand fills from DRAM against legmod's 4.05% --
 adding threads to it returns nothing at all.
 
@@ -146,7 +146,7 @@ Two attempts to collect the barrier's cost by moving work around returned
 nothing, which left an ambiguity that mattered: either the slack was real and
 redistribution could not reach it, or there was no slack and the per-thread
 spread was barrier machinery. Those two lead to opposite decisions about
-CLIM-67's large shape, and no amount of further redistribution separates them.
+CLIM-79's large shape, and no amount of further redistribution separates them.
 
 **So it was measured from the other side: spend it.** A control patch on a
 throwaway build adds a calibrated busy-wait to every thread EXCEPT the two on
@@ -172,7 +172,7 @@ point is the slack.
 points the barrier attribution implies as an upper bound -- which is where a
 real quantity should sit relative to its bound.
 
-So CLIM-67's premise survives, and the two null results are re-read rather than
+So CLIM-79's premise survives, and the two null results are re-read rather than
 explained away: the slack exists at close to the predicted size, and what those
 experiments showed is that a static permutation cannot reach it and that fixing
 the transform does not touch it. A work queue over the physics is the mechanism

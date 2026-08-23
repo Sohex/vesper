@@ -240,12 +240,12 @@ def land_weighted(export: Export, grid_dir: Path, values: np.ndarray):
     fraction = np.where(empty, 0.0, land_area / np.maximum(total, 1e-30))
 
     if empty.any():
-        # Cells finer than the mesh. At T85 this is 35 of 32,768, all polar,
-        # because the 2.5M-region mesh averages 17 km spacing against a polar
-        # cell far narrower than that. Fall back to the nearest region centre,
-        # which is what the exporter's own categorical rule does. Refining the
-        # mesh is not a free fix: region count is a generation parameter, so a
-        # finer mesh is a different planet.
+        # Cells finer than the mesh, normally narrow polar Gaussian cells. The
+        # old 2.5M build had 35 at T85, but that is not a portable count: SPAT-3
+        # measures and reports it separately for every grid against the 10M
+        # fine-support reference. Fall back to the nearest region centre, which
+        # is what the exporter's own categorical rule does; callers must retain
+        # `empty` so the substitution cannot disappear from provenance.
         nearest = _nearest_region(export, grid_dir, np.flatnonzero(empty), nlat, nlon)
         fraction[empty] = (export.surface_class[nearest] == LAND).astype(float)
         mean[empty] = np.where(export.surface_class[nearest] == LAND,

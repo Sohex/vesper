@@ -44,6 +44,15 @@ exhumation, because it is what a rock map alone cannot tell you: a porphyry form
 1-5 km down and is destroyed by deep erosion, while an orogenic gold system forms
 5-15 km down and is revealed by it. The same erosion that removes one exposes the
 other.
+
+## What 1.0 means
+
+Each rule's own ATTAINABLE MAXIMUM, computed in closed form from the config by
+`ceiling` below, and not this build's best cell. `prospectivity_scale.py` argues
+why and `config/prospectivity.yaml`'s `input_ranges` block declares the tops of
+the ranges it multiplies. The field therefore reaches 1.0 only where a cell
+attains every modifier at once, and `max_over_land` in the report says how close
+this build comes.
 """
 
 from __future__ import annotations
@@ -61,23 +70,32 @@ import yaml
 
 from _paths import CONFIG, DATA, PROJECT_ROOT, PROSPECTIVITY
 from paths import rel  # noqa: E402
+from prospectivity_scale import host_ceiling, host_weight, normalise
 
 import builds
 from orogen import LAND, Export
 
 
-def normalise(field: np.ndarray, land: np.ndarray) -> np.ndarray:
-    """Scale to 0-1 over land, leaving ocean at zero.
+def ceiling(spec: dict, ranges: dict) -> float:
+    """The largest score this rule can award, in closed form over the config.
 
-    Normalised by the maximum rather than by a quantile: prospectivity is a
-    relative statement within this world, and clipping the top would flatten
-    exactly the cells the layer exists to identify.
+    Mirrors the score expression in `main` term for term and in the same order,
+    which is what makes it checkable: `normalise` raises if a score exceeds it.
+
+    `require_cover` is absent because it multiplies by a boolean and so cannot
+    raise the maximum, and the craton branch REPLACES the score rather than
+    scaling it, which is why it returns rather than multiplying.
     """
-    out = np.zeros_like(field, dtype=np.float32)
-    top = field[land].max() if land.any() else 0.0
-    if top > 0:
-        out[land] = (field[land] / top).astype(np.float32)
-    return out
+    if spec.get("craton_weight"):
+        return float(spec["craton_weight"]) * ranges["craton_weight"]
+    top = host_ceiling(spec.get("hosts"), spec.get("name", ""))
+    if spec.get("fold_belt_weight"):
+        top *= 1.0 + spec["fold_belt_weight"] * ranges["fold_belt_weight"]
+    if spec.get("stress_weight"):
+        top *= 1.0 + spec["stress_weight"] * ranges["stress_norm"]
+    if spec.get("favour_deep_exhumation"):
+        top *= 1.0 + ranges["deep_exhumation"]
+    return top
 
 
 def main() -> None:
@@ -100,10 +118,15 @@ def main() -> None:
     erosion = mesh.field("erosionDelta").astype(float)
     craton = mesh.field("r_t_craton").astype(float)
     fold = mesh.field("r_t_foldBelt").astype(float)
+    # Stress against the DECLARED reference, not against this build's own
+    # maximum. The maximum is a single cell and it is a seafloor one, because
+    # ocean stress runs higher than land stress and `r_stress` spans both; the
+    # config says where the reference comes from and how to re-derive it.
     stress = mesh.field("r_stress").astype(float)
-    stress = stress / stress.max() if stress.max() > 0 else stress
+    stress = np.clip(stress / rules["stress_reference"], 0.0, 1.0)
     area = mesh.field("cell_area").astype(float)
 
+    ranges = rules["input_ranges"]
     codes = {c["code"]: c["id"] for c in mesh.manifest["lithology"]["rockClasses"]}
     ex = rules["exhumation"]
     cover_ok = thickness >= ex["cover_preserved_km"]
@@ -111,17 +134,10 @@ def main() -> None:
 
     fields, summary = {}, {}
     for key, spec in rules["deposits"].items():
-        score = np.zeros(land.shape, dtype=float)
-
         # Host rock. Substrate is what is at the top of the stack; basement is
         # what a deposit sat in. Both count, because a deposit hosted in the
         # basement is still there when cover survives above it.
-        for code, weight in (spec.get("hosts") or {}).items():
-            if code not in codes:
-                continue
-            score = np.maximum(score,
-                               weight * ((substrate == codes[code])
-                                         | (basement == codes[code])))
+        score = host_weight(spec, substrate, basement, codes)
 
         if spec.get("fold_belt_weight"):
             score = score * (1.0 + spec["fold_belt_weight"] * fold)
@@ -139,13 +155,21 @@ def main() -> None:
             score = spec["craton_weight"] * craton * gate
 
         score[~land] = 0.0
-        fields[key] = normalise(score, land)
+        top = ceiling(spec, ranges)
+        fields[key] = normalise(score, land, top, key)
         lit = land & (fields[key] > 0)
         summary[key] = {
             "name": spec["name"],
+            # The divisor, so a reader can recover the raw score and see which
+            # modifiers a rule had available to it.
+            "attainable_maximum": top,
             "land_fraction_nonzero": float(area[lit].sum() / area[land].sum()),
             "land_fraction_above_half": float(
                 area[land & (fields[key] > 0.5)].sum() / area[land].sum()),
+            # How close the best cell on this build comes to what the rule can
+            # award. Below 1 means no cell attains every modifier at once, which
+            # the old land-maximum divisor reported as 1.0 whatever was true.
+            "max_over_land": float(fields[key][land].max()),
             "mean_over_land": float(np.average(fields[key][land],
                                                weights=area[land])),
         }
@@ -161,6 +185,13 @@ def main() -> None:
             var.units = "1"
             var.description = ("relative prospectivity, 0-1 over land; NOT a "
                                "deposit and NOT a lithology")
+            var.attainable_maximum = summary[key]["attainable_maximum"]
+            var.scaling = ("fraction of this rule's attainable maximum, the "
+                           "host weight times every modifier at the top of its "
+                           "declared input range. A property of the rule, so "
+                           "the same number means the same thing on any build; "
+                           "the field reaches 1.0 only where some cell attains "
+                           "every modifier at once")
         data.setncattr("vesper_source_build", str(config["source_build"]))
         data.setncattr("vesper_terrain_hash", mesh.terrain_hash)
         data.setncattr("note", "Tectonic and magmatic ore prospectivity. Read "
@@ -177,18 +208,27 @@ def main() -> None:
                                      capture_output=True, text=True,
                                      cwd=PROJECT_ROOT).stdout.strip() or None,
         "deposits": summary,
-        "note": ("Relative within this world, normalised by the land maximum "
-                 "per deposit type. A 1.0 is the most favourable cell here, not "
-                 "an absolute grade or tonnage, and cross-type comparison of "
-                 "the numbers is meaningless."),
+        "note": ("Each deposit type is scaled by its own ATTAINABLE MAXIMUM, "
+                 "computed in closed form from the config: the host weight "
+                 "times every modifier at the top of its declared input range. "
+                 "A 1.0 is a cell attaining everything the rule can award, not "
+                 "an absolute grade or tonnage and not merely the best cell on "
+                 "this build, so the same number means the same thing on any "
+                 "build. Cross-type comparison of the numbers is still "
+                 "meaningless: the maxima are different quantities."),
+        "input_ranges": rules["input_ranges"],
+        "stress_reference": rules["stress_reference"],
     }
     (out.parent / "prospectivity_report.json").write_text(
         json.dumps(report, indent=2) + "\n", encoding="utf-8")
 
-    print(f"{'deposit':28}{'% land':>9}{'% >0.5':>9}{'mean':>8}")
+    print(f"{'deposit':28}{'% land':>9}{'% >0.5':>9}{'max':>8}{'mean':>8}"
+          f"{'ceiling':>9}")
     for key, s in summary.items():
         print(f"  {s['name'][:26]:26}{100*s['land_fraction_nonzero']:9.2f}"
-              f"{100*s['land_fraction_above_half']:9.2f}{s['mean_over_land']:8.3f}")
+              f"{100*s['land_fraction_above_half']:9.2f}"
+              f"{s['max_over_land']:8.3f}{s['mean_over_land']:8.3f}"
+              f"{s['attainable_maximum']:9.3f}")
     print(f"\nwrote {rel(out)}")
 
 

@@ -12,6 +12,17 @@ compiles in place and `requirements.txt` deliberately does not name it:
 
 What the fork contains and where it came from is in [the vendored upstreams](vendored-upstreams.md).
 
+LPJ-GUESS is likewise compiled from its subtree. Its generated `vesper.h` must
+exist first because the configured orbital year sizes arrays at compile time:
+
+    python biosphere/scripts/build_vesper_header.py
+    cmake -S vendor/lpj-guess -B vendor/lpj-guess/build \
+      -DCMAKE_BUILD_TYPE=Release -DUNIT_TESTS=OFF
+    cmake --build vendor/lpj-guess/build --parallel 16
+
+The build directory and generated header are ignored. Do not substitute an
+external checkout: run manifests point at the vendored binary and hash it.
+
 Two things about the model are worth knowing before you touch it. Several
 changes are NO-OPS until a namelist key turns them on -- `h2osww` defaults to
 1.0, `ndustrad` to 0, `nsolcycle` to 0 -- so a rebuilt binary reproduces the runs
@@ -24,6 +35,50 @@ is no cycle executable and no cycle tree: `nsolcycle` defaults to 0 and both
 amplitudes to 0.0, which reduces the guard to `gsolinst = gsol0`, so the
 ordinary binaries are bit-exact identical to an unpatched model until a cycle is
 configured on.
+
+## Working in a git worktree
+
+A worktree carries the tracked tree and nothing else, so everything this project
+deliberately keeps out of history is absent from it: the Orogen export payloads,
+the reference PDFs and bulk datasets, the climate run output, the Earth
+validation caches, `node_modules`, `.venv`. A script that runs in the main
+checkout dies on a missing file there.
+
+    python scripts/link_worktree.py                    # from inside the worktree
+    python scripts/link_worktree.py --worktree PATH    # from the main checkout
+    python scripts/link_worktree.py --check            # report only, exit 1 if incomplete
+
+It symlinks that set back to the main checkout. The set is DERIVED from the
+ignore rules on every run rather than listed, so a new build or a new cache is
+picked up without editing it, and a wholly-ignored directory is linked as a unit
+while a directory holding tracked content is linked entry by entry. The second
+half of that is what puts the links at `exoplasim/runs/<id>` rather than over
+`runs/` itself, whose `INDEX.json` is tracked. Re-running it is how a worktree
+picks up a build added since: a correct link is left alone, a stale one is
+repaired, and one whose target has been archived away is removed.
+
+Two things are held back. Everything compiled from tracked source that a
+worktree may have edited -- `vendor/exoplasim` and the LPJ-GUESS build -- is not
+linked, because a link both hides the worktree's own edit behind the main
+checkout's binary and lets a rebuild in the worktree overwrite that binary,
+which is CLAUDE.md rule 4 with the safety off. Build them in the worktree, or
+pass `--model-binaries` when the worktree does not touch the model. Regenerable
+output is not linked either, for the narrower reason that the worktree's build
+would land in the main checkout.
+
+`.venv` IS linked, and ExoPlaSim is installed editable from the main checkout's
+`vendor/exoplasim`. So `import exoplasim` in a worktree reads the main
+checkout's model source whichever tree the interpreter was invoked from. That is
+a property of the editable install rather than of the link, and it is not
+fixable from the worktree side: model work in a worktree needs its own editable
+install and its own compile.
+
+A symlink is a file and not the directory it stands in for, so an ignore rule
+ending in `/` does not cover the link that replaces it. `.gitignore` carries a
+second set of patterns for exactly these paths, and the script's last act is to
+check `git status` in the worktree and name any link that block still fails to
+cover. That is what keeps the block complete: it is tested rather than
+remembered.
 
 ## The toolchain: what is declared, and what optimised libraries do not buy
 
@@ -169,3 +224,50 @@ the precision rather than about the change.
 Production is unaffected. `config/planet.yaml` declares eight-byte precision and
 FP32 is a benching and spin-up tool, never a run anything is read from --
 CLIM-59 and main's CLIM-52 carry that.
+## Reading the artifacts from the command line
+
+The host carries the netCDF and NCO command-line tools, and they are the first
+reach for inspecting a run or a climatology: `ncdump -h` for structure and
+global attributes, `ncks` to subset, `ncdiff` to difference two files, `ncwa` to
+collapse dimensions, `ncatted` for metadata. Model output and analysis products
+are all `NETCDF4`, which is HDF5 underneath, so `h5diff` compares two files at
+the value level with a tolerance, `-d` absolute and `-p` relative. That is the
+tool for asking whether one run reproduces another.
+
+Beside them: `yq` for `config/pipeline.yaml` and `config/planet.yaml`, the GDAL
+command-line tools `gdalinfo` and `ogrinfo` for the reference shapefiles and the
+Copernicus DEM COGs,
+`dot` for rendering a graph, `valgrind` for the Fortran, and `ncdu` for the run
+tree. In the venv, `dask`, `flox` and `bottleneck` back xarray over anything
+run-sized; see [large data](large-data.md), which they assist and do not
+replace.
+
+### Three traps, because these tools assume Earth
+
+**NCO does not know this planet's grid, and `ncwa -a lat,lon` is an UNWEIGHTED
+mean.** The files carry no Gaussian weight variable, so there is nothing for
+`-w` to find and nothing warns. Over a Gaussian latitude grid that produces a
+global mean which is wrong and entirely plausible, which is the worst shape a
+number can have. Area weights come from the project's own grid convention in
+`lib/gridding.py`.
+
+**The time axis is not a calendar.** It is `units = timesteps` with no
+`calendar` attribute and raw counts for values. Any operator that assumes an
+Earth calendar either refuses or silently imposes 365 days on a planet whose
+orbital period is not that. Time-bin weights come from `lib/climatology.py`, and
+the orbital period from `lib/orbit.py`.
+
+**`ncra` needs a record dimension and these files have none.** `time` is a fixed
+dimension, so a time mean wants `ncks --mk_rec_dmn time` first.
+
+### What was refused, so the search is not run twice
+
+**CDO**, whose distinguishing operators are calendar climatologies and Earth
+remapping. On a `units = timesteps` axis the first family is unusable and the
+second is a trap, and NCO covers the reductions that remain. **nccmp**, because
+every file here is `NETCDF4` and `h5diff` already compares values with a
+tolerance. **cartopy**, because `maps/projections.py` is the projection layer
+and cartopy's value is Earth coastlines and features. **ccache**, because its
+handling of Fortran `.mod` outputs is not reliable enough to trust against
+rule 4; the build-time lever that was measured instead is `make -j`, in
+`notes/audits/aocl-and-model-build-flags.md`.

@@ -55,12 +55,12 @@ ANALYSIS = COMPONENT_ROOT / "analysis"
 
 # Output files worth keeping. LPJ-GUESS writes one per quantity, per rank.
 #
-# cflux.out carries the Fire column, which is the only fire diagnostic GLOBFIRM
-# produces: firert.out and burned area are written under BLAZE only. Without it
-# the fire module's burning is visible in cmass and dens as a plant mortality
-# no output explains.
+# cflux.out carries the fire carbon flux. GLOBFIRM also exposes its inferred
+# return time and burned fraction through firert.out; retain both so fire-driven
+# mortality in cmass and dens has an occurrence diagnostic as well as a flux.
 OUTPUTS = ("anpp.out", "lai.out", "fpc.out", "cmass.out", "aaet.out",
-           "cpool.out", "dens.out", "agpp.out", "nsources.out", "cflux.out")
+           "cpool.out", "dens.out", "agpp.out", "nsources.out", "cflux.out",
+           "firert.out")
 
 
 def sha256(path: Path) -> str:
@@ -83,6 +83,12 @@ def build_instruction(paths: dict, settings: dict) -> str:
 ! runN/ directory before reading anything.
 
 import "{paths['pfts']}"
+
+! The vendored source is the CNP fork, but Vesper's gridded soil phosphorus
+! inputs and replacement productivity prediction are not ready. Keep the
+! established C-N model until those land together; the later declaration wins.
+ifplim 0
+ifwalkernplim 0
 
 title "{settings['title']}"
 nyear {settings['nyear']}
@@ -282,7 +288,10 @@ def main() -> None:
             "notes/productivity-prediction.md."),
         "software": {
             "platform": platform.platform(),
-            "lpj_guess": "4.1.1 + biosphere/patches/lpj-guess-4.1.1-vesper.patch",
+            "lpj_guess": (
+                "LPJ-GUESS-CNP v1.0 (b368b893c4324840b43c56866e901c6916858afb) "
+                "+ in-tree Vesper port; phosphorus limitation disabled"
+            ),
         },
         "git_commit": subprocess.run(
             ["git", "rev-parse", "HEAD"], capture_output=True, text=True,

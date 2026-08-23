@@ -1,0 +1,58 @@
+/**************************************************************************************/
+/**                                                                                \n**/
+/**                       i  n  p  u  t  .  c  j  s  o  n                          \n**/
+/**                                                                                \n**/
+/** Configuration file for input dataset for LPJ C Version 6.1.1                   \n**/
+/**                                                                                \n**/
+/** (C) Potsdam Institute for Climate Impact Research (PIK), see COPYRIGHT file    \n**/
+/** authors, and contributors see AUTHORS file                                     \n**/
+/** This file is part of LPJmL and licensed under GNU AGPL Version 3               \n**/
+/** or later. See LICENSE file or go to http://www.gnu.org/licenses/               \n**/
+/** Contact: https://github.com/PIK-LPJmL/LPJmL                                    \n**/
+/**                                                                                \n**/
+/**************************************************************************************/
+
+{
+  "kbf" :          { "fmt" : "meta", "var" : "KBF", "name" :"kbf.clm.json"},
+  "slope_mean" :   { "fmt" : "meta", "name" : "GloSlope-30as_mean.clm.json"},
+  "slope_min"  :   { "fmt" : "meta", "name" : "GloSlope-30as_min.clm.json"},
+  "slope_max"  :   { "fmt" : "meta", "name" : "GloSlope-30as_max.clm.json"},
+  "ch4" :          { "fmt" : "txt", "name" : "CH4_concentration_1700-2022.dat"},
+  "hydrotopes" :   { "fmt" : "meta", "name" : "hydro2_shuffle_new.clm.json"},
+  "temp" :         { "id" : 1, "fmt" : "meta",  "name" : "tas_gswp3-w5e5_obsclim_1901-2019.clm.json"},
+  "prec" :         { "id" : 2, "fmt" : "meta",  "name" : "pr_gswp3-w5e5_obsclim_1901-2019.clm.json"},
+  "lwnet" :        { "id" : 4, "fmt" : "meta",  "name" : "lwnet_gswp3-w5e5_obsclim_1901-2019.clm.json"},
+  "swdown" :       { "id" : 3, "fmt" : "meta",  "name" : "rsds_gswp3-w5e5_obsclim_1901-2019.clm.json"},
+  "wind":          { "id" : 15, "fmt" : "meta",  "name" : "sfcwind_gswp3-w5e5_obsclim_1901-2019.clm.json"},
+  "tmax":          { "id" : 9, "fmt" : "meta",  "name" : "tasmax_gswp3-w5e5_obsclim_1901-2019.clm.json"},
+  "tmin":          { "id" : 8, "fmt" : "meta",  "name" : "tasmin_gswp3-w5e5_obsclim_1901-2019.clm.json"},
+  "humid":         { "id" : 14, "fmt" : "meta",  "name" : "huss_gswp3-w5e5_obsclim_1901-2019.clm.json"},
+  "lightning":     { "id" : 23, "fmt" : "meta",  "name" : "lightning_fixed.clm.json"},
+  "popnum":        { "id" : 21, "fmt" : "meta",  "name" : "population_histsoc_0p5deg_annual_1861-2005.clm.json"},
+  "human_ignition":{ "id" : 22, "fmt" : "meta",  "name" : "human_ignition.clm.json"},
+  "ignition" :     { "fmt" : "clm",  "name" : "/p/projects/lpjml/input/historical/input_VERSION3/prescribed_ignitions_2003_2016.clm"},
+  "maxfiresize" : { "fmt" : "cdf", "var" : "maxBA", "name" : "/p/projects/biodiversity/oberhagemann/input/BorealMixedForestTerrainMaxBA.nc"},
+  "burntarea" :    { "id" : 13, "fmt" : "clm",  "name" : "/data/biosx/mforkel/input_new/GFED_CNFDB_ALFDB_Interp.BA.360.720.1901.2012.30days.clm"},
+  "soil" :         { "id" : 41, "fmt" : "meta", "name" : "soil_30arcmin_13_types.clm.json"},
+  "coord" :        { "id" : 43, "fmt" : "meta",  "name" : "grid.clm.json"},
+  "landfrac" :     { "id" : 44, "fmt" : "meta",  "name" : "landfrac_gadm36.clm.json"},
+  "countrycode" :  { "id" : 45, "fmt" : "meta",  "name" : "cow_full_2018.clm.json"},
+  "no3deposition" : { "id" : 17, "fmt" : "meta",  "name" : "no3-deposition_isimip3a_histsoc_1850-2021.clm.json"},
+  "nh4deposition" : { "id" : 16, "fmt" : "meta",  "name" : "nh4-deposition_isimip3a_histsoc_1850-2021.clm.json"},
+  "soilpH" :        { "id" : 46, "fmt" : "meta",  "name" : "soil_pH_30arcmin.clm.json"},
+  "landuse" :      { "id" : 6, "fmt" : "meta",  "name" : "cft_default_cft_aggregation_30min_1500-2017_fallow_to_others_64bands.clm.json"},
+  "fertilizer_nr" : { "id" : 18, "fmt" :"meta",  "name" : "fert_N_default_cft_aggregation_30min_1860-2017.clm.json"},
+  "manure_nr" :    { "id" : 19, "fmt" : "meta", "name" : "manure_N_default_cft_aggregation_30min_1860-2017.clm.json"},
+  "with_tillage" : { "id" : 7, "fmt" : "meta", "name" : "tillage_1973_1974-2010_1973_as_till_everywhere.clm.json"},
+  "residue_on_field" : { "id" : 8, "fmt" : "meta", "name" : "residues_madrat_1850-2015_16bands.clm.json"},
+  "sdate" : { "id" : 25,"fmt" : "meta", "name" : "sdate_24_bands.clm.json"},
+  "crop_phu" : {"id": 26,"fmt" : "meta", "name" : "phusum_gswp3-w5e5_obsclim_24_bands_annual_1901-2019.clm.json"},
+  "grassland_lsuha" : { "id" : 24, "fmt" : "meta",  "name" : "grassland_lsuha_gswp3_2000-2000.clm.json"},
+  "lakes" :        { "id" : 36, "fmt" : "meta", "name" : "glwd_lakes_and_rivers_30arcmin.clm.json"},
+  "drainage" :     { "id" : 37, "fmt" : "meta",  "name" : "drainage_stn_30arcmin.clm.json"},
+  "neighb_irrig" : { "id" : 38, "fmt" : "meta",  "name" : "neighbour_irrig_stn_30arcmin_adjacent_exclude_downstream_exclude_upstream.clm.json"},
+  "elevation" :    { "id" : 39, "fmt" : "meta",  "name" : "elevation_gadm_30arcmin.clm.json"},
+  "reservoir" :    { "id" : 40, "fmt" : "meta",  "name" : "reservoir_stn_30arcmin_par1.clm.json"},
+  "co2" :          { "id" : 5, "fmt" : "txt",  "name" : "global_co2_ann_1700_2022.txt"},
+  "wateruse" :     { "id" : 20, "fmt" : "meta",  "name" : "wateruse_isimip3a_histsoc_1850-2021.clm.json" } /* water consumption for industry,household and livestock */
+}

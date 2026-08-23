@@ -103,16 +103,16 @@ of magnitude in the table above. That bracket was understood as controlling
 emission and the direct radiative effect. It now controls a snow albedo term as
 well, and nothing has said so.
 
-## 3. Ocean salinity is nowhere declared, and Earth's arrives through the freezing point
+## 3. Ocean salinity was undeclared; its declaration remains a bracket
 
 `icemod.f90`:
 
     real :: TFREEZE = 271.25  ! freezing temp. for sea ice at S=34.7
 
-`config/planet.yaml` declares no salinity. Nothing in `config/`, `notes/`,
-`pedology/` or `hydrography/` declares one either, and there is no ocean salt
-budget anywhere in the project. So this world's sea ice forms at Earth's
-freezing point because nobody chose otherwise.
+This was the state found by the audit. CLIM-17 subsequently made the inherited
+Earth value visible as the explicitly DECLARED `ocean.salinity_psu: 34.7` and
+made the sea-ice freezing point derive from it. There is still no ocean salt
+budget, so visibility and setability do not make that value determined.
 
 **This is the DUST-6 pattern and the world it lands on is the one where it is
 least likely to be right.** The defining hydrological fact here is that the
@@ -123,18 +123,18 @@ flux into terminal basins rather than into the ocean is a planet whose ocean has
 a different salt budget from Earth's, and the project computes the basin half in
 detail and the ocean half not at all.
 
-The direction is determinate even without the budget. **A fresher ocean freezes
-warmer, so sea ice forms more readily and there is more of it.** Earth's 34.7 psu
-gives -1.9 C; a substantially fresher ocean moves that up toward 0 C, which is a
-degree or more of freezing-point shift applied to a world whose sea ice fraction
-runs between 0.2% and 6.2% across the flux range and whose stellar-cycle damping
-turns on the ice-albedo feedback.
+OCN-9 corrected the one-sided inference. The pre-carve exorheic delivery per
+unit ocean area is about 0.51 times Earth's, but it is the zero-carve floor; the
+median basin-threshold sweep is about 0.91 and the all-carve spill graph reaches
+2.14 times Earth. Carving can additionally remobilise solute stored in former
+terminal basins. **A fresher ocean still freezes warmer and a saltier one
+colder, but drainage topology alone does not select which side of 34.7 psu this
+world occupies.** The freezing-point and sea-ice mechanism remains real while
+the sign becomes part of the declared salinity bracket.
 
-The fix is not necessarily to compute the budget, which needs an ocean age and an
-outgassing history this project does not have. It is to DECLARE a salinity with
-its reasoning, the way `metallicity` is declared in the `star` block, and to set
-`TFREEZE` from it rather than inheriting a number attached to a comment about
-Earth.
+Computing the budget still needs an ocean age and an outgassing history this
+project does not have. The implemented fix is therefore the declared salinity
+and derived `TFREEZE`; OCN-13/OCN-16 own any future salt and carbon ledgers.
 
 ## 4. The soil field that closes the loop to the climate is uncited
 

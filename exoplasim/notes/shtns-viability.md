@@ -629,7 +629,7 @@ heuristic instead.
 fly2_m0l` and its siblings -- so SHTns is recomputing the Legendre functions
 with SIMD rather than streaming stored tables. Nobody chose that for speed.
 
-Whether it costs anything is CLIM-62, and the prediction is that it depends on
+Whether it costs anything is CLIM-74, and the prediction is that it depends on
 resolution in a way the 32 MB rule already anticipates. Stored tables are
 nlm * nlat/2 * 8 bytes:
 
@@ -691,7 +691,7 @@ between levels is the globe. Every one of those passed wholesale to an
 explicit-shape dummy is copied in and out again, and the physics does that
 constantly. `plasimmod.f90` says so where the arrays are declared and
 `probe_grid_contiguity.f90` measures it; what is new is that it is now the
-biggest item. That is CLIM-63 and it is not free to fix: a layout with
+biggest item. That is CLIM-75 and it is not free to fix: a layout with
 contiguous bands makes the globe non-contiguous per level, so the transform
 would gather instead, and the two requirements genuinely conflict.
 
@@ -801,7 +801,7 @@ accumulate, across every physics routine that touches them -- a wide,
 correctness-sensitive change for a few percent. The collectives are the same
 story one level down.
 
-What this does retire is the idea in CLIM-63 that the cost is copy-in and
+What this does retire is the idea in CLIM-75 that the cost is copy-in and
 copy-out at explicit-shape dummies. It is not copying at all.
 
 ## Attributing the zeroing needed frame pointers, and they are free

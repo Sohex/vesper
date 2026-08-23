@@ -55,6 +55,31 @@ planet:
   rotation_hours: 30.0
   obliquity_degrees: 32.0
   eccentricity: 0.02
+  # DETERMINED, and a declaration of what this tree already does rather than a
+  # change to any of it. The IAU convention couples these three, because
+  # rotation direction is what decides whether a planetographic longitude runs
+  # east or west, so they are one declaration and not three; and a longitude
+  # system, once chosen, does not change.
+  #
+  # Prograde and east-positive are structural rather than preferred.
+  # `radmod.f90:solang` builds the hour angle so that the subsolar point walks
+  # toward decreasing longitude, `plavor` is positive so the Coriolis parameter
+  # is positive in the northern hemisphere, and ExoPlaSim reaches ROTSPD as
+  # 1/rotationperiod, so a retrograde world is not expressible on this path at
+  # all. `maps/projections.py:unit` and the export's own `lon = atan2(x, z)`
+  # about a y-up pole put increasing longitude in the right-handed sense about
+  # the north pole, which is the pairing the IAU approves for a prograde
+  # rotator.
+  #
+  # `prime_meridian` is a PHASE and not a landmark, which is the case the IAU
+  # provides for on a body carrying no fixed observable surface feature:
+  # `orogen_export_zero` is the meridian the World Orogen export frame calls
+  # zero, reproducible from the planet code and the seed rather than measured
+  # off the terrain, and the one the graticule already draws heavier.
+  # docs/src/reference/config-rationale.md carries the evidence for each.
+  rotation_direction: prograde
+  longitude_positive: east
+  prime_meridian: orogen_export_zero
 
 # DETERMINED. Spectral type, activity and the surface ultraviolet that follows
 # from them. The star is chromospherically active, of the kind epsilon Eridani
@@ -148,9 +173,13 @@ atmosphere:
   # several ppmv and this world does not.
   #
   # They are an ASSUMPTION in the same sense pCO2_bar is: the biogenic fluxes
-  # behind them are modern Earth's, held fixed, and this world has no biosphere
-  # model that could produce its own. exoplasim/notes/trace-gas-absorbers.md is
-  # the pricing and analysis/trace_gas_forcing.json the derivation.
+  # behind them are modern Earth's, held fixed. LPJ-GUESS contains a dormant
+  # peatland methane source, but Vesper has no accepted wetland-area, closed
+  # surface methane budget or oxidant/lifetime calculation from which to derive
+  # an abundance. WET-1 through WET-10 keep those distinct and WET-10 is the
+  # only route for replacing this prescribed value.
+  # exoplasim/notes/trace-gas-absorbers.md is the pricing and
+  # analysis/trace_gas_forcing.json the derivation.
   #
   # These are trace enough that the partial pressures above still sum to 1 bar
   # to six figures; they are stated in bar for consistency with pCO2_bar, and
@@ -185,14 +214,16 @@ radiation:
 # uptake, evaporite burial and reverse weathering, integrated over an ocean age
 # and an outgassing history that nothing here supplies.
 #
-# The DIRECTION is knowable without the budget, and it is the interesting part.
-# Most of this world's land is endorheic, so the solutes that on Earth reach the
-# sea accumulate on closed-basin floors instead -- the exorheic share of the
-# planet's surface is under half Earth's per unit ocean area. Less salt
-# delivered means a FRESHER ocean, and fresher water freezes WARMER, so sea ice
-# forms more readily than these runs show. That lands on the ice-albedo feedback
-# the stellar-cycle damping turns on, which is why it is worth declaring rather
-# than shrugging at.
+# CORRECTED 2026-08-21 by OCN-9: drainage does not determine even the direction
+# from the pre-carve build. The reported exorheic flux per unit ocean area is
+# 0.51x Earth's at zero carving, about 0.91x at the median basin threshold and
+# 2.14x if every spill chain is opened. Carving can also remobilise solute held
+# on a former terminal-basin floor. The present export is therefore a FLOOR on
+# delivery for this terrain, not a steady-state salt budget or evidence for a
+# fresher ocean. Fresher water still freezes warmer and saltier water colder,
+# so salinity remains worth bracketing across the sea-ice feedback; its sign is
+# conditional on the accepted carve and the unmodelled ocean-age source/sink
+# history rather than asserted from endorheism alone.
 #
 # What it is worth: the freezing point runs 272.07 K at S = 20 and 270.94 K at
 # S = 40, so the plausible span is about 1.1 K on one threshold. Carried in

@@ -152,8 +152,11 @@ size, needs no patch, and keeps the run comparable to a no-lake control by
 changing only three input fields.
 
 Mask flipping and per-cell `ymld` were held pending the first pass; CLIM-26
-measured the lake moisture term at -0.9% of land precipitation, so neither is
-planned. Reopen only with a measurement that moves that.
+measured the lake moisture term at -0.9% of land precipitation, so neither was
+then planned. That annual moisture response does **not** bound the seasonal
+temperature, ice and evaporation-phase error from giving a lake the land soil
+thermal column. HYD-21 now owns an offline/reduced seasonal bound using basin
+area and hypsometric depth before any coupled implementation or run is proposed.
 
 ---
 

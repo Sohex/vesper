@@ -184,9 +184,12 @@ the cheap version. `CLIM-39` and `CLIM-40`.
 
 **This component does not retire when that lands.** ExoPlaSim's aerosol is one
 tracer with one radius and one density fixed at compile time, so the in-model
-chain gets the burden and the optical depth and cannot get the size-resolved
-DEPOSITION field that pedology and the phosphorus budget read. That is the
-declared cost of DUST-8 and the note carries the numbers.
+chain gets the burden and the optical depth and cannot provide a
+composition- and size-resolved soil nutrient input. The offline artifact emits
+total mineral deposition, but `phosphorus_budget.py` does not currently read it
+and it contains no elemental composition or bioavailable fraction. ANUT-3 owns
+that missing soil-facing transformation. This is the declared cost of DUST-8
+and the note carries the radiation-side numbers.
 
 ## Sea salt
 
@@ -262,8 +265,12 @@ eruption history `docs/src/reference/no-time-axis.md` says does not exist, and m
 biogenic sulfur, which needs a marine biosphere this project does not have at
 all.
 
-**That bound does not reach carbonaceous aerosol**, which absorbs rather than
-scatters and whose forcing per unit optical depth is larger and of the opposite
-sign. Fire is enabled in LPJ-GUESS and biogenic emissions are in the driver, so
-smoke and secondary organics are estimable once a biosphere run exists on this
-build. That is CLIM-29.
+**That bound does not reach carbonaceous aerosol**, but carbonaceous is not one
+optical species.  Primary fire black/brown carbon can absorb strongly and stays
+under CLIM-29.  Secondary organic aerosol is usually represented as mostly
+scattering, with pathway- and wavelength-dependent brown-carbon absorption, and
+its sign cannot be declared before chemistry, aging and optics exist.  The LPJ
+BVOC module is present but off; it supplies only a source inventory, not the
+oxidation, partitioning, aerosol burden, optics or cloud response.  Those stages
+are audited in `biosphere/notes/bvoc-soa-atmospheric-coupling-audit.md` and
+tracked as BVOC-1 through BVOC-10.

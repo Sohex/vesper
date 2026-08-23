@@ -160,7 +160,7 @@ scale, the control rejected, and the four-run bit-identity arm giving one hash,
 
 `checked` is usable because `rebuild_binaries.py` builds MPI binaries, which
 cannot run SHTns and therefore never meet the trap below. On a threaded build
-snan still trips on the library first, which is CLIM-70.
+snan still trips on the library first, which is CLIM-82.
 
 ## What this retires
 

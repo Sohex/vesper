@@ -4,7 +4,7 @@ Measured on 2026-08-21 and 2026-08-22, on the SHTns build of the threaded
 ExoPlaSim fork that supplies Vesper's simulated climate. The question is a
 configuration one about the model executable, not about the simulated world.
 
-CLIM-65 was opened on an inference rather than a measurement. At T42 libgomp is
+CLIM-77 was opened on an inference rather than a measurement. At T42 libgomp is
 a quarter of runtime, 25.5% with SHTns and 21.0% with legmod, against 10.9% at
 T170; sixty-four latitudes across sixteen threads is four each, and the task
 reasoned that the barriers were costing more than the work between them and
@@ -136,7 +136,7 @@ to: both say placement is spent. **A static permutation cannot give the faster
 die more WORK, and that is the only thing that would help.** A work queue can,
 by construction: slower threads take fewer chunks and no part of the model has
 to know the topology. That is an argument for the block decomposition in
-CLIM-68 and the collapsed iteration space in CLIM-67, and it exists only
+CLIM-80 and the collapsed iteration space in CLIM-79, and it exists only
 because the cheap shortcut was tried and failed.
 
 The arm is `bench_ab.py --b-launch omp@<core order>`.

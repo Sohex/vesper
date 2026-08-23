@@ -142,6 +142,31 @@ references/_*
 references/*.zip
 references/ecospeclib*/
 
+# External model source, extracted from a pinned tarball rather than cloned, so
+# there is no nested .git for an outer command to trip over. Read-only material
+# for comparison against this project's own components; nothing here is built,
+# imported or vendored -- code this project COMPILES lives in vendor/ as a
+# subtree. Same exclude-the-bulk-keep-the-record rule as the PDFs above: the
+# pinned revision, the licence and what each tree was consulted for are written
+# into references/INDEX.md, which is what makes the extraction reproducible.
+references/climber-x/
+references/big-mitgcm/
+references/socrates/
+references/speedy/
+references/marbl/
+references/exort/
+references/exocam/
+references/isca/
+references/muffingen/
+references/climaland/
+references/arcsdm/
+references/caaba-mecca/
+references/cama-flood/
+references/esmf/
+references/fates/
+references/landlab/
+references/pysdm/
+
 # Offline dust fields, rebuilt in minutes by aeolian/scripts/build_dust.py once a
 # climatology exists. The JSON report beside them IS tracked: it carries the
 # numbers, the brackets and the provenance, and it is kilobytes.
@@ -166,16 +191,57 @@ docs/book/
 # and the method note are tracked; what it chews on is not.
 exoplasim/bench/
 
-# A worktree cannot see the ignored payloads (source/ exports, compiled model
-# binaries), so working in one means symlinking them in from the main checkout.
-# The rules above end in "/" and so match directories, not the symlinks that
-# stand in for them; without these an accidental `git add -A` would commit
-# absolute paths that mean nothing on any other machine.
+# A worktree cannot see the ignored payloads (source/ exports, reference data,
+# run output, caches), so working in one means symlinking them in from the main
+# checkout -- which `scripts/link_worktree.py` does, deriving the set from the
+# ignore rules rather than from a list. The rules above end in "/" and so match
+# directories, not the symlinks that stand in for them; without these an
+# accidental `git add -A` would commit absolute paths that mean nothing on any
+# other machine. That script's last act is to check `git status` in the worktree
+# and name any link this block still fails to cover, so this stays complete by
+# being tested rather than by being remembered.
 source/*/*/raw
 source/*/*/grid
 source/*/*/planet.nc
 source/*/*/manifest.json
+vendor/cgenie/genie-main/genie.exe
 vendor/orogen/node_modules
+vendor/orogen/out
+.venv
+exoplasim/bench
+hydrography/analysis/cache_era5
+hydrography/data/earth_validation_cache
+pedology/data/earth_validation_cache
+references/aus_groundwater
+references/big-mitgcm
+references/arcsdm
+references/caaba-mecca
+references/cama-flood
+references/climaland
+references/esmf
+references/fates
+references/landlab
+references/pysdm
+references/climber-x
+references/ecospeclib-all
+references/exocam
+references/exort
+references/isca
+references/marbl
+references/muffingen
+references/poseidon_surface_albedo
+references/socrates
+references/speedy
+references/splib07
+
+# cGENIE build products. Its own .gitignore carries only .DS_Store, so unlike the
+# other three subtrees it excludes nothing it generates. Run output is NOT here:
+# `genie-main/user.mak` sets OUT_DIR to $(HOME)/cgenie_output, outside this
+# repository, so what a build leaves behind in the tree is objects and one
+# executable.
+vendor/cgenie/**/*.o
+vendor/cgenie/**/*.a
+vendor/cgenie/genie-main/genie.exe
 
 # SHTns is a build dependency used UNMODIFIED, so it is neither a subtree nor a
 # system install: exoplasim/scripts/build_shtns.sh builds a pinned revision into

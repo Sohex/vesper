@@ -302,10 +302,6 @@
       
       parameter(zcvel=4.2)
       parameter(zcexp=0.18)
-      parameter(gconst=6.67408e-11)
-      parameter(p_mass=5.9722e24)
-      parameter(rad_p1=6378137.0)
-      parameter(rad_p2=6356752.3)
 !
       real zuroff(NLON,NLAT)
       real zvroff(NLON,NLAT)
@@ -345,14 +341,19 @@
       
       groundoro(:) = groundoro(:)*oroscale
       
+!     Glacier thickness enters the orography as geopotential, and every reader
+!     of doro divides by ga to get metres back, so the gravity used here has to
+!     be the model's. zgm is the GM the model's own surface gravity implies on
+!     its own radius, which keeps the height dependence below while making
+!     grav = ga at the surface.
+
+      radius = plarad
+      zgm    = ga*radius**2
+
       do i=1,NHOR ! Add elevation of snowpack/ice sheet
-         jlat = i/NLON + 1
-!          radius = sqrt(((rad_p1**2*cola(jlat))**2+(rad_p2**2*sid(jlat))**2)/&
-!      &                 ((rad_p1*cola(jlat))**2+(rad_p2*sid(jlat))**2))
-         radius=6.371e6
-         dz = radius**2*groundoro(i)/(gconst*p_mass-radius*groundoro(i))
+         dz = radius**2*groundoro(i)/(zgm-radius*groundoro(i))
          dhsnow = dsnowz(i)/(rhoglac/1000.0) !Convert from meters of lq H20 equivalent to actual snow depth
-         grav = gconst*p_mass/(radius+dz)**2
+         grav = zgm/(radius+dz)**2
          glacieroro(i) = grav*dhsnow - grav/(dz+radius)*dhsnow**2
          doro(i) = groundoro(i) + glacieroro(i)
 !          if(mypid==NROOT) then

@@ -77,6 +77,16 @@ number, because Sillitoe (2005) p. 736 says there is no wet bound on rainfall at
 all: the wet-side control is erosion outpacing water-table descent, and erosion
 answers to rainfall and slope together. What each rule still cannot test is named
 against it in the config rather than here.
+
+## What 1.0 means
+
+Each rule's own ATTAINABLE MAXIMUM, computed in closed form from the config by
+`deposit_ceiling` and `brine_ceiling` below, and not the best cell under this
+climatology. `prospectivity_scale.py` argues why, and the `input_ranges` block
+in `config/downstream_prospectivity.yaml` declares the tops of the ranges it
+multiplies. It matters more here than on the tectonic half, because these rules
+move with a climate as well as with a terrain, so a divisor read from the field
+itself let a single wet cell rescale a whole field between two runs of one rule.
 """
 
 from __future__ import annotations
@@ -101,6 +111,7 @@ from gridding import climatology_cells
 from orogen import LAND, Export
 from orbit import orbital_year_days
 from paths import climatology_path, rel
+from prospectivity_scale import host_ceiling, host_weight, normalise
 from provenance import require_build
 
 EARTH_YEAR_DAYS = 365.2422
@@ -136,33 +147,36 @@ def load_module(component: str, name: str):
     return module
 
 
-def normalise(field: np.ndarray, land: np.ndarray) -> np.ndarray:
-    """Scale to 0-1 over land, leaving ocean at zero.
+def deposit_ceiling(key: str, spec: dict, ranges: dict,
+                    intensity_max: float) -> float:
+    """The largest score a weathering or drainage rule can award.
 
-    By the maximum rather than by a quantile, exactly as the tectonic file does,
-    and for the same reason: prospectivity is a relative statement within this
-    world, and clipping the top would flatten the cells the layer exists to find.
+    Closed form over the config, mirroring the score expression in `main` term
+    for term; `normalise` raises if a score exceeds it. Every climatic and
+    relief test multiplies by a boolean and so cannot raise the maximum, which
+    is why only the two special cases and the intensity term appear.
     """
-    out = np.zeros_like(field, dtype=np.float32)
-    top = field[land].max() if land.any() else 0.0
-    if top > 0:
-        out[land] = (field[land] / top).astype(np.float32)
-    return out
+    if key == "supergene_cu":
+        return float(ranges["upstream_prospectivity"])
+    if key == "placer_au":
+        return float(ranges["catchment_share"])
+    return host_ceiling(spec.get("hosts"), spec.get("name", "")) * intensity_max
 
 
-def host_weight(spec: dict, substrate, basement, codes) -> np.ndarray:
-    """Best host weight per region, from substrate or basement.
+def brine_ceiling(key: str, spec: dict, ranges: dict) -> float:
+    """The largest score a brine rule can award, in closed form over the config.
 
-    Both count, because a deposit hosted in the basement is still there when
-    cover survives above it. Same rule as the tectonic file.
+    `require_no_overflow` multiplies by a boolean and cannot raise the maximum.
     """
-    score = np.zeros(substrate.shape, dtype=float)
-    for code, weight in (spec.get("hosts") or {}).items():
-        if code not in codes:
-            continue
-        score = np.maximum(score, weight * ((substrate == codes[code])
-                                            | (basement == codes[code])))
-    return score
+    if spec.get("path") in ("alkaline", "ca_rich"):
+        return float(ranges["divide_excess"])
+    if key == "brine_potash":
+        return float(ranges["potassium_ueq_l"])
+    if spec.get("catchment_hosts"):
+        return host_ceiling(spec["catchment_hosts"], spec.get("name", ""))
+    raise ValueError(
+        f"{key} matches no brine branch, so nothing bounds it. Give it a branch "
+        "in main and a ceiling here in the same edit.")
 
 
 def main() -> None:
@@ -259,6 +273,12 @@ def main() -> None:
         .read_text(encoding="utf-8"))
     intensity = soil.weathering_intensity(runoff_region, temperature,
                                           pedo["weathering"])
+    # The top of the intensity range, read from the pedology config that applies
+    # the clip rather than copied here. `weathering_intensity` returns
+    # `np.clip(..., minimum, maximum)`, so this bounds every rule that scales by
+    # it and it moves if that clip does.
+    ranges = rules["input_ranges"]
+    intensity_max = float(pedo["weathering"]["maximum"])
 
     # --- drainage --------------------------------------------------------
     with nc.Dataset(hydro / "regions.nc") as ds:
@@ -344,8 +364,10 @@ def main() -> None:
             score = score * intensity
 
         score = np.where(land, score, 0.0)
-        fields[key] = normalise(score, land)
-        summary[key] = {"name": spec["name"], "grounding": spec["grounding"]}
+        top = deposit_ceiling(key, spec, ranges, intensity_max)
+        fields[key] = normalise(score, land, top, key)
+        summary[key] = {"name": spec["name"], "grounding": spec["grounding"],
+                        "attainable_maximum": top}
 
     # --- brines, per basin then painted onto its floor ---------------------
     index = {b: i for i, b in enumerate(basin_ids)}
@@ -365,9 +387,21 @@ def main() -> None:
     # excess is the strength of the prediction. A basin at Ca/HCO3 = 0.31 is a
     # soda lake in a way one at 0.98 is not, and collapsing both to "alkaline"
     # would emit a mask wearing the shape of a field.
-    with np.errstate(invalid="ignore"):
-        alkaline_excess = np.clip(1.0 - ca_ratio, 0.0, None)
-        ca_excess = np.clip(ca_ratio - 1.0, 0.0, None)
+    #
+    # BOTH SIDES ARE THE DEFICIENT SPECIES' SHORTFALL against the abundant one,
+    # which is what makes them one quantity measured twice rather than two. The
+    # alkaline side is `1 - Ca/HCO3`, the Ca-rich side `1 - HCO3/Ca`. Writing
+    # the second as `Ca/HCO3 - 1` instead would have been the same ordering on
+    # an unbounded scale, which is a scale nothing can normalise against: a
+    # basin at Ca/HCO3 = 40 would have set the divisor for every gypsum basin on
+    # the planet. As shortfalls both run 0 to 1 with a bound that is a property
+    # of the ratio and not of a build.
+    with np.errstate(invalid="ignore", divide="ignore"):
+        # Both written so an unresolved basin stays NaN through to the
+        # `nan_to_num` below. A basin with no solved ratio has no brine, and
+        # substituting a number for the missing ratio here would give it one.
+        alkaline_excess = np.clip(1.0 - ca_ratio, 0.0, 1.0)
+        ca_excess = np.clip(1.0 - 1.0 / ca_ratio, 0.0, 1.0)
     alkaline_excess = np.nan_to_num(alkaline_excess, nan=0.0)
     ca_excess = np.nan_to_num(ca_excess, nan=0.0)
 
@@ -419,8 +453,10 @@ def main() -> None:
         # the catchment would put salt on the mountains that feed the pan.
         floor = land & mesh.field("is_endorheic").astype(bool) & (terminal >= 0)
         score = np.where(floor, per_basin[safe], 0.0)
-        fields[key] = normalise(score, land)
-        summary[key] = {"name": spec["name"], "grounding": spec["grounding"]}
+        top = brine_ceiling(key, spec, ranges)
+        fields[key] = normalise(score, land, top, key)
+        summary[key] = {"name": spec["name"], "grounding": spec["grounding"],
+                        "attainable_maximum": top}
 
     land_area = float(area[land].sum())
     for key, field in fields.items():
@@ -429,6 +465,10 @@ def main() -> None:
             "land_fraction_nonzero": float(area[lit].sum() / land_area),
             "land_fraction_above_half": float(
                 area[land & (field > 0.5)].sum() / land_area),
+            # How close the best cell under this climatology comes to what the
+            # rule can award. Below 1 means no cell attains every modifier at
+            # once, which a land-maximum divisor reported as 1.0 regardless.
+            "max_over_land": float(field[land].max()),
             "mean_over_land": float(np.average(field[land], weights=area[land])),
         })
 
@@ -451,6 +491,13 @@ def main() -> None:
             var.grounding = summary[key]["grounding"]
             var.description = ("relative prospectivity, 0-1 over land; NOT a "
                                "deposit and NOT a lithology")
+            var.attainable_maximum = summary[key]["attainable_maximum"]
+            var.scaling = ("fraction of this rule's attainable maximum, the "
+                           "host weight times every modifier at the top of its "
+                           "declared input range. A property of the rule, so "
+                           "the same number means the same thing on any build "
+                           "and under any climatology; the field reaches 1.0 "
+                           "only where some cell attains every modifier at once")
         ds.setncattr("vesper_source_build", build)
         ds.setncattr("vesper_terrain_hash", mesh.terrain_hash)
         ds.setncattr("climatology", rel(climatology))
@@ -475,12 +522,19 @@ def main() -> None:
                                      cwd=PROJECT_ROOT).stdout.strip() or None,
         "deposits": summary,
         "rule_audit": {"never_fires": empty, "always_fires": saturated},
-        "note": ("Relative within this world, normalised by the land maximum "
-                 "per deposit type. A 1.0 is the most favourable cell here, not "
-                 "an absolute grade or tonnage, and cross-type comparison of "
-                 "the numbers is meaningless. Read `grounding` before quoting "
-                 "any of them: two of the brine entries are derived from the "
-                 "chemical divide and the rest are declared judgment."),
+        "note": ("Each deposit type is scaled by its own ATTAINABLE MAXIMUM, "
+                 "computed in closed form from the config: the host weight "
+                 "times every modifier at the top of its declared input range. "
+                 "A 1.0 is a cell attaining everything the rule can award, not "
+                 "an absolute grade or tonnage and not merely the best cell "
+                 "under this climatology, so the same number means the same "
+                 "thing on any build. Cross-type comparison of the numbers is "
+                 "still meaningless: the maxima are different quantities. Read "
+                 "`grounding` before quoting any of them: two of the brine "
+                 "entries are derived from the chemical divide and the rest "
+                 "are declared judgment."),
+        "input_ranges": ranges,
+        "weathering_intensity_maximum": intensity_max,
         "disposable": ("Driven by a pre-carve climatology, lake solution and "
                        "brine solve. The carve replaces all three. The tectonic "
                        "half in prospectivity.nc does not move with a climate "
@@ -489,11 +543,14 @@ def main() -> None:
     (out.parent / "downstream_prospectivity_report.json").write_text(
         json.dumps(report, indent=2) + "\n", encoding="utf-8")
 
-    print(f"{'deposit':30}{'grounding':>10}{'% land':>9}{'% >0.5':>9}{'mean':>8}")
+    print(f"{'deposit':30}{'grounding':>10}{'% land':>9}{'% >0.5':>9}"
+          f"{'max':>8}{'mean':>8}{'ceiling':>10}")
     for key, s in summary.items():
         print(f"  {s['name'][:28]:28}{s['grounding']:>10}"
               f"{100*s['land_fraction_nonzero']:9.2f}"
-              f"{100*s['land_fraction_above_half']:9.2f}{s['mean_over_land']:8.4f}")
+              f"{100*s['land_fraction_above_half']:9.2f}"
+              f"{s['max_over_land']:8.4f}{s['mean_over_land']:8.4f}"
+              f"{s['attainable_maximum']:10.3f}")
     if empty:
         print(f"\nrules that never fire: {', '.join(empty)}")
     if saturated:

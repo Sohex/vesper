@@ -34,11 +34,13 @@ value, everything else takes a canopy value scaled by forest fraction. It is
 integrated to the grid over land only, so a coastal cell is not dragged toward
 open water.
 
-`z0_orographic` is the part worth having a 2.5M-region mesh for. Each T42 cell
-holds roughly 610 mesh regions, which is enough to measure the standard deviation
-of elevation *inside* the cell rather than inferring it from the resolved slope.
-That subgrid relief is what the atmosphere feels as form drag and what a gridded
-elevation dataset cannot give.
+`z0_orographic` is the part worth retaining the native mesh for. The 10M
+fine-support reference contributes about 1,221 regions per global T42 cell on
+average (and about 76 even at T170), enough to measure the distribution of
+elevation *inside* the cell rather than infer it from resolved slope. Counts
+over land vary and are reported by the builder; SPAT-3 is the shared artifact
+for comparisons across the full T21/T42/T85/T127/T170 ladder. That subgrid
+relief is what a gridded mean elevation cannot supply.
 
 ## The one free parameter, and why it is anchored rather than chosen
 

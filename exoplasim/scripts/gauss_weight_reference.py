@@ -8,7 +8,7 @@ WHY THIS EXISTS. `inigau` and SHTns disagree about the Gaussian quadrature
 weights by up to 1e-10 near the poles, and numpy's `leggauss` disagrees with
 both -- it sits between them. Three double-precision implementations that
 disagree cannot settle which is right, and the weights enter every forward
-transform the model performs, so the question is not academic. CLIM-61.
+transform the model performs, so the question is not academic. CLIM-73.
 
 x86 `longdouble` carries a 64-bit mantissa, eps about 1.1e-19, which is eight
 orders of margin on a disagreement at 1e-11. That is enough to adjudicate and

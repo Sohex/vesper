@@ -1,0 +1,141 @@
+.TH bin2cdf 1  "USER COMMANDS"
+.SH NAME
+bin2cdf \- convert binary output files into NetCDF files
+.SH SYNOPSIS
+.B bin2cdf
+[\-h] [\-v] [\-clm] [\-floatgrid] [\-doublegrid] [\-revlat] [\-days] [\-absyear] [\-cellsize size] [\-compress level] [\-descr d] [\-missing_value val] [[\-attr name=value] ...] [\-units u] [\-nounit u] [-global] [-swap] [\-short] [\-nbands n] [\-nstep n] [\-timestep t] [\-ispft] [\-firstyear y] [\-baseyear y] [\-scale s] [\-notime] [\-metafile] [\-config file] [\-netcdf4] [\-map name]
+.I [varname gridfile] binfile netcdffile
+.SH DESCRIPTION
+Program converts binary output files into NetCDF file.
+.SH OPTIONS
+.TP
+\-h,\--help
+Print a short help text.
+.TP
+\-v,\--version
+Print LPJmL version.
+.TP
+\-clm
+File is in clm format, default is raw.
+.TP
+\-floatgrid
+Set datatype of grid file to float, default is short.
+.TP
+\-doublegrid
+Set datatype of grid file to double, default is short.
+.TP
+\-revlat
+Reverse latitudinal bands.
+.TP
+\-days
+Use days as units for time axis in output.
+.TP
+\-absyear
+Use absolute years as units for annual time axis instead of relative years to base year.
+.TP
+\-netcdf4
+File written is in NetCDF4 format, compress flag is enabled.
+.TP
+\-cellsize size
+Set cell size in grid file to size. Default is 0.5 deg.
+.TP
+\-compress level
+Compression level for NetCDF4 files. Valid levels are 0 (no compression) to 9.
+.TP
+\-descr d
+Set long name for variable in NetCDF file.
+.TP
+\-missing_value val
+Set missing value for variable in NetCDF file to val.
+.TP
+\-attr name=value
+Set global attribute name in NetCDF file to value.
+.TP
+\-units u
+Set units for variable in NetCDF file. If set this overrides the unit defined in a JSON metafile.
+.TP
+\-nounit u
+Set unit for variable to u if unit is the empty string in a JSON metafile.
+.TP
+\-global
+Use global grid for NetCDF file.
+.TP
+\-swap
+Change byte order in binary file.
+.TP
+\-short
+Data type of output is short, default is float.
+.TP
+\-nstep n
+Set number of outputs per year, default is 1.
+.TP
+\-nbands n
+Set number of PFTs or layers, default is 1.
+.TP
+\-timestep t
+Set number of years between time steps, default is 1. If timestep is greater than 1 then number of time steps within a year must be 1.
+.TP
+\-ispft
+Output is PFT specific.
+.TP
+\-firstyear y
+Set first year in NetCDF file. Default is 1901.
+.TP
+\-baseyear y
+Set base year of time axis in NetCDF file. Default is firstyear.
+.TP
+\-scale s
+Scale output with factor s, default is 1. If set this overrides the scaling factor defined in a JSON metafile.
+.TP
+\-notime
+Omit time axis.
+.TP
+\-metafile
+Set the input format to JSON metafile instead of raw.
+.TP
+\-config file
+read missing values and axis names from JSON file
+.TP
+\-map name
+Name of map in JSON metafile, default is "band_names".
+.TP
+varname
+Variable name in NetCDF file. If not specified variable name is read from metafile.
+.TP
+.I gridfile
+Filename of grid data file. If not specified filename is read from metafile.
+.TP
+.I binfile
+Filename of binary data file or JSON metafile if -metafile option is set.
+.TP
+.I netcdffile
+Filename of NetCDF file created.
+.SH EXAMPLES
+.TP
+Create NetCDF file for vegetation carbon:
+.B bin2cdf
+-units gC/m2 -descr "vegetation carbon" vegc output/grid.bin output/vegc.bin vegc.nc
+.TP
+Convert monthly data:
+.B bin2cdf
+-units gC/m2/month -descr "Net primary production" -nstep 12 npp output/grid.bin output/mnpp.bin mnpp.nc
+.TP
+Create NetCDF file from JSON metafile:
+.B bin2cdf
+-metafile vegc.bin.json vegc.nc
+.PP
+.SH EXIT STATUS
+.B bin2cdf
+returns a zero exit status if the NetCDF file is created.
+Non zero is returned in case of failure.
+
+.SH AUTHORS
+
+For authors and contributors see AUTHORS file
+
+.SH COPYRIGHT
+
+(C) Potsdam Institute for Climate Impact Research (PIK), see COPYRIGHT file
+
+.SH SEE ALSO
+allbin2cdf(1), cdf2bin(1), cmpbin(1), soil2cdf(1), clm2cdf(1), country2cdf(1), drainage2cdf(1), reservoir2cdf(1), lpjml(1)

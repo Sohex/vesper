@@ -12,7 +12,7 @@
 # that compares synthesis, which is how the previous inigau carried weights
 # wrong by 1e-10 at the pole-most latitude for as long as this model has run.
 # It surfaced only as an unexplained floor on the ANALYSIS arms of
-# verify_shtns_equivalence.sh. CLIM-61.
+# verify_shtns_equivalence.sh. CLIM-73.
 #
 # THE REFERENCE IS INDEPENDENT AND HIGHER PRECISION, which is what makes this a
 # test rather than a comparison: gauss_weight_reference.py runs the same

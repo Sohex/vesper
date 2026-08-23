@@ -115,7 +115,8 @@ def soil_codes(config: dict, land: np.ndarray) -> tuple[np.ndarray, dict]:
     Not sampled from the gridded export. That export resamples categorical fields
     by the region containing the cell centre, which at T42 throws away most of
     what is in a cell. Instead each soil code's share of a cell's *land* area is
-    accumulated over the 2.5M-region mesh and the largest share wins.
+    accumulated over the configured build's native mesh (the 10M export for new
+    spatial-support work) and the largest share wins.
 
     Dominant rather than averaged, because a soil code is categorical: the mean
     of code 1 and code 3 is code 2, which is not what half granite and half

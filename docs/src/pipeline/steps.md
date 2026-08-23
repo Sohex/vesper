@@ -184,10 +184,12 @@ Vesper number, so porting the component to another world is a config change.
 
 ### 3.7 The biosphere
 
-`biosphere/` runs LPJ-GUESS 4.1.1, patched for this world's calendar and
-astronomy; the patch carries no planetary numbers itself but reads a generated
-`vesper.h` derived from `config/planet.yaml`. The calendar decisions -- 24-hour
-model days, rescaled degree-day limits, and why -- are `biosphere/README.md`'s.
+`biosphere/` runs the vendored LPJ-GUESS CNP v1.0 fork, with phosphorus
+limitation deliberately disabled until its Vesper inputs are ready. The in-tree
+port adapts the model to this world's calendar and astronomy; it carries no
+planetary numbers itself but reads a generated `vesper.h` derived from
+`config/planet.yaml`. The calendar decisions -- 24-hour model days, rescaled
+degree-day limits, and why -- are `biosphere/README.md`'s.
 What the pipeline has to know is the LOCK: the year is compiled into the
 model, and the year is a function of the semimajor axis, so the axis has to be
 locked before the biosphere is built against it and later flux changes go

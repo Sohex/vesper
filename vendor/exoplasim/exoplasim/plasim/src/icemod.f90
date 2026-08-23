@@ -1424,7 +1424,8 @@
       end where
       where(xiced(:) >= xmind)
        zhsnow(:)=1.E3/CRHOSN*xsnow(:)
-       zckap(:)=(CKAPSN*zhsnow(:)+CKAPI*xiced(:))/(zhsnow(:)+xiced(:))
+       zckap(:)=(zhsnow(:)+xiced(:))                                    &
+     &         /(zhsnow(:)/CKAPSN+xiced(:)/CKAPI)
       endwhere
 !
 !     limit ice thickness 
@@ -1776,8 +1777,8 @@
        zhsnow(jhor)=1.E3/CRHOSN*xsnow(jhor)
        if(xiced(jhor) >= xmind) then
         zcpdt=zrcpl/xdt
-        zckap_mean(jhor)=(CKAPSN*zhsnow(jhor)+CKAPI*xiced(jhor))        &
-     &                  /(zhsnow(jhor)+xiced(jhor))
+        zckap_mean(jhor)=(zhsnow(jhor)+xiced(jhor))                     &
+     &                  /(zhsnow(jhor)/CKAPSN+xiced(jhor)/CKAPI)
 !
 !     new skin temperature (implicit w.r.t. heat conduction)
 !

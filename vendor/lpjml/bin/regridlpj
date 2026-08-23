@@ -1,0 +1,225 @@
+#!/bin/bash
+#################################################################################
+##                                                                             ##
+##                  r  e  g  r  i  d  l  p  j                                  ##
+##                                                                             ##
+##    sh script to regrid input files to specified countries or grid file      ##
+##                                                                             ##
+##    Usage: regridlpj [-h] [-dir path] [-inpath path] [-zero] [-search]       ##
+##           [-drainage] filesuffix [countrycode ...]                          ##
+##                                                                             ##
+## (C) Potsdam Institute for Climate Impact Research (PIK), see COPYRIGHT file ##
+## authors, and contributors see AUTHORS file                                  ##
+## This file is part of LPJmL and licensed under GNU AGPL Version 3            ##
+## or later. See LICENSE file or go to http://www.gnu.org/licenses/            ##
+## Contact: https://github.com/PIK-LPJmL/LPJmL                                 ##
+##                                                                             ##
+#################################################################################
+
+cmd=$(basename $0)
+USAGE="Usage: $0 [-h] [-dir path] [-inpath path] [-zero] [-search] [-drainage] filesuffix [countrycode ...]"
+args="$cmd $*"
+opt=""
+drainage=0
+dir=$PWD
+while(( "$#" )); do
+  case "$1" in
+  -h|--help)
+      echo -e "$0 - regrid input data set for seleted countries or specified grid file\n"
+      echo -e $USAGE
+      echo -e "\nArguments:"
+      echo "-h,--help    print this help text"
+      echo "-dir path    set directory for regridded input files"
+      echo "-inpath path set directory for input files to regrid"
+      echo "-search      nearest grid cell is used if cell cannot be found"
+      echo "-zero        set data to zero if cell cannot be found"
+      echo "-drainage    drainage, elevation, reservoir and irrigation data is regridded"
+      echo "filesuffix   file suffix for regridded input files and configuration file"
+      echo "countrycode  ISO 3166-1 alpha-3 abbreviation for country codes"
+      echo -e "\n(C) Potsdam Institute for Climate Impact Research (PIK), see COPYRIGHT file"
+      exit 0
+      ;;
+    -dir)
+    if [ $# -lt 2 ]
+    then
+      echo >&2 "Argument missing after option '-dir'"
+      echo >&2 $USAGE
+      exit 1
+    fi
+    shift 1
+    dir=$1
+    shift 1
+    ;;
+    -inpath)
+    if [ $# -lt 2 ]
+    then
+      echo >&2 "Argument missing after option '-inpath'"
+      echo >&2 $USAGE
+      exit 1
+    fi
+    shift 1
+    LPJINPATH=$1
+    shift 1
+    ;;
+    -drainage)
+    drainage=1
+    shift 1
+    ;;
+    -zero)
+    opt="-zero"
+    shift 1
+    ;;
+    -search)
+    opt="-search"
+    shift 1
+    ;;
+    -*)
+     echo >&2 Invalid option \'$1\'
+     echo >&2 $USAGE
+     exit 1
+     ;;
+   *)
+     break
+     ;;
+  esac
+done
+if [ $# -lt 1 ]
+then
+  echo >&2 Error: Missing arguments
+  echo >&2 $USAGE
+  exit 1
+fi
+if [ "$LPJINPATH" = "" ]
+then
+  LPJINPATH=/p/projects/lpjml/inputs/public_standard
+  echo >&2 Error: Environment variable LPJINPATH is not set, set to $LPJINPATH
+fi
+if [ "$LPJROOT" = "" ]
+then
+  echo >&2 Error: environment variable LPJROOT is not set
+  echo >&2 "Set by export LPJROOT=<path to lpjml directory>"
+  exit 1
+fi
+name=$1
+if [ "$dir" != $PWD ]
+then
+  mkdir -p $dir
+fi
+shift 1
+if [ $# -gt 0 ]
+then
+  if getcountry -json $LPJINPATH/input_VERSION2/cow_full_2018.clm  $grid $dir/grid_$name.clm $* ;
+  then
+    echo regridding for countries $*
+  else
+    exit 1
+  fi
+else
+  if [ "$dir" != $PWD ]
+  then
+    cp grid_$name.clm $dir
+    cp grid_$name.clm.json $dir
+  fi
+fi
+if  regridclm $opt -metafile $dir/grid_$name.clm  $LPJINPATH/soil_30arcmin_13_types.clm.json $dir/soil_$name.clm
+then
+  regridclm $opt -metafile $dir/grid_$name.clm $LPJINPATH/tas_gswp3-w5e5_obsclim_1901-2019.clm.json $dir/tmp_$name.clm
+  regridclm $opt -metafile $dir/grid_$name.clm $LPJINPATH/tasmin_gswp3-w5e5_obsclim_1901-2019.clm.json $dir/tmin_$name.clm
+  regridclm $opt -metafile $dir/grid_$name.clm $LPJINPATH/tasmax_gswp3-w5e5_obsclim_1901-2019.clm.json $dir/tmax_$name.clm
+  regridclm $opt -metafile $dir/grid_$name.clm $LPJINPATH/pr_gswp3-w5e5_obsclim_1901-2019.clm.json $dir/prec_$name.clm
+  regridclm $opt -metafile $dir/grid_$name.clm $LPJINPATH/lwnet_gswp3-w5e5_obsclim_1901-2019.clm.json $dir/lwnet_$name.clm
+  regridclm $opt -metafile $dir/grid_$name.clm $LPJINPATH/rsds_gswp3-w5e5_obsclim_1901-2019.clm.json $dir/swdown_$name.clm
+  regridclm $opt -metafile $dir/grid_$name.clm $LPJINPATH/huss_gswp3-w5e5_obsclim_1901-2019.clm.json $dir/humid_$name.clm
+  regridclm $opt -metafile $dir/grid_$name.clm $LPJINPATH/human_ignition.clm.json $dir/human_ignition_$name.clm
+  regridclm $opt -metafile $dir/grid_$name.clm $LPJINPATH/population_histsoc_0p5deg_annual_1861-2005.clm.json $dir/popnum_$name.clm
+  regridclm $opt -metafile $dir/grid_$name.clm $LPJINPATH/lightning_fixed.clm.json $dir/lightning_$name.clm
+  regridclm $opt -metafile $dir/grid_$name.clm $LPJINPATH/sfcwind_gswp3-w5e5_obsclim_1901-2019.clm.json $dir/windspeed_$name.clm
+  regridclm $opt -metafile $dir/grid_$name.clm $LPJINPATH/glwd_lakes_and_rivers_30arcmin.clm.json $dir/lakes_$name.clm
+  regridclm $opt -metafile $dir/grid_$name.clm $LPJINPATH/landfrac_gadm36.clm.json $dir/landfrac_$name.clm
+  regridclm $opt -metafile $dir/grid_$name.clm $LPJINPATH/kbf.clm.json $dir/kbf_$name.clm
+  regridclm $opt -metafile $dir/grid_$name.clm $LPJINPATH/wateruse_isimip3a_histsoc_1850-2021.clm.json $dir/wateruse_$name.clm
+  regridclm $opt -metafile $dir/grid_$name.clm $LPJINPATH/lightning_fixed.clm.json $dir/lightning_$name.clm
+  regridclm $opt -metafile $dir/grid_$name.clm $LPJINPATH/human_ignition.clm.json $dir/human_ignition_$name.clm
+  regridclm $opt -metafile $dir/grid_$name.clm $LPJINPATH/population_histsoc_0p5deg_annual_1861-2005.clm.json $dir/popnum_$name.clm
+  regridclm $opt -metafile $dir/grid_$name.clm $LPJINPATH/cow_full_2018.clm.json $dir/country_$name.clm
+  regridclm $opt -metafile $dir/grid_$name.clm $LPJINPATH/no3-deposition_isimip3a_histsoc_1850-2021.clm.json $dir/no3_deposition_$name.clm
+  regridclm $opt -metafile $dir/grid_$name.clm $LPJINPATH/nh4-deposition_isimip3a_histsoc_1850-2021.clm.json $dir/nh4_deposition_$name.clm
+  regridclm $opt -metafile $dir/grid_$name.clm $LPJINPATH/soil_pH_30arcmin.clm.json $dir/soil_ph_$name.clm
+  regridclm $opt -metafile $dir/grid_$name.clm $LPJINPATH/tillage_1973_1974-2010_1973_as_till_everywhere.clm.json $dir/tillage_$name.clm
+  regridclm $opt -metafile $dir/grid_$name.clm $LPJINPATH/grassland_lsuha_gswp3_2000-2000.clm.json $dir/grassland_lsuha_$name.clm
+  regridclm $opt -metafile $dir/grid_$name.clm $LPJINPATH/residues_madrat_1850-2015_16bands.clm.json $dir/residue_$name.clm
+  regridclm $opt -metafile $dir/grid_$name.clm $LPJINPATH/sdate_24_bands.clm.json $dir/sdate_$name.clm
+  regridclm $opt -metafile $dir/grid_$name.clm $LPJINPATH/phusum_gswp3-w5e5_obsclim_24_bands_annual_1901-2019.clm.json $dir/crop_phu_$name.clm
+  regridclm $opt -metafile $dir/grid_$name.clm $LPJINPATH/GloSlope-30as_mean.clm.json $dir/slope_mean_$name.clm
+  regridclm $opt -metafile $dir/grid_$name.clm $LPJINPATH/GloSlope-30as_min.clm.json $dir/slope_min_$name.clm
+  regridclm $opt -metafile $dir/grid_$name.clm $LPJINPATH/GloSlope-30as_max.clm.json $dir/slope_max_$name.clm
+  regridclm $opt -metafile $dir/grid_$name.clm $LPJINPATH/hydro2_shuffle_new.clm.json $dir/hydro_$name.clm
+  regridclm $opt -metafile $dir/grid_$name.clm $LPJINPATH/cft_default_cft_aggregation_30min_1500-2017_fallow_to_others_64bands.clm.json $dir/landuse_$name.clm
+  regridclm $opt -metafile $dir/grid_$name.clm $LPJINPATH/fert_N_default_cft_aggregation_30min_1860-2017.clm.json $dir/fertilizer_$name.clm
+  regridclm $opt -metafile $dir/grid_$name.clm $LPJINPATH/manure_N_default_cft_aggregation_30min_1860-2017.clm.json $dir/manure_$name.clm
+  if [ "$drainage" = "1" ]
+  then
+    regridclm $opt -metafile $dir/grid_$name.clm  $LPJINPATH/elevation_gadm_30arcmin.clm.json $dir/elevation_$name.clm
+    regridclm $opt -metafile $dir/grid_$name.clm  $LPJINPATH/reservoir_stn_30arcmin_par1.clm.json $dir/reservoir_$name.clm
+    regriddrain -metafile $dir/grid_$name.clm  $LPJINPATH/drainage_stn_30arcmin.clm.json $dir/drainage_$name.clm
+    regridirrig -metafile $dir/grid_$name.clm  $LPJINPATH/neighbour_irrig_stn_30arcmin_adjacent_exclude_downstream_exclude_upstream.clm.json $dir/irrig_$name.clm
+  fi
+  cat << EOF >input_$name.cjson
+/**********************************************************************/
+/**                                                                  **/
+EOF
+  printf "/** File: %-58s **/\n" input_$name.cjson >>input_$name.cjson
+  printf "/** Source: %-56s **/\n" "$args" >>input_$name.cjson
+  printf "/** Configuration file for input dataset for LPJmL C Version %-7s **/\n" $(cat $LPJROOT/VERSION)  >>input_$name.cjson
+  cat << EOF >>input_$name.cjson
+/**                                                                  **/
+/** Created: $(date +"%d.%m.%Y")                                              **/
+/**                                                                  **/
+/**********************************************************************/
+{
+  "soil"             : { "fmt" : "meta", "name" : "$dir/soil_$name.clm.json"},
+  "coord"            : { "fmt" : "meta", "name" : "$dir/grid_$name.clm.json"},
+  "countrycode"      : { "fmt" : "meta", "name" : "$dir/country_$name.clm.json"},
+  "landfrac"         : { "fmt" : "meta", "name" : "$dir/landfrac_$name.clm.json"},
+  "elevation"        : { "fmt" : "meta", "name" : "$dir/elevation_$name.clm.json"},
+  "drainage"         : { "fmt" : "meta", "name" : "$dir/drainage_$name.clm.json"},
+  "neighb_irrig"     : { "fmt" : "meta", "name" : "$dir/irrig_$name.clm.json"},
+  "reservoir"        : { "fmt" : "meta", "name" : "$dir/reservoir_$name.clm.json"},
+  "lakes"            : { "fmt" : "meta", "name" : "$dir/lakes_$name.clm.json"},
+  "slope_mean"       : { "fmt" : "meta", "name" : "$dir/slope_mean_$name.clm.json"},
+  "slope_min"        : { "fmt" : "meta", "name" : "$dir/slope_min_$name.clm.json"},
+  "slope_max"        : { "fmt" : "meta", "name" : "$dir/slope_max_$name.clm.json"},
+  "kbf"              : { "fmt" : "meta", "name" : "$dir/kbf_$name.clm.json"},
+  "hydrotopes"       : { "fmt" : "meta", "name" : "$dir/hydro_$name.clm.json"},
+  "landuse"          : { "fmt" : "meta", "name" : "$dir/landuse_$name.clm.json"},
+  "wateruse"         : { "fmt" : "meta", "name" : "$dir/wateruse_$name.clm.json"},
+  "grassland_lsuha"  : { "fmt" : "meta", "name" : "$dir/grassland_lsuha_$name.clm.json"},
+  "with_tillage"     : { "fmt" : "meta", "name" : "$dir/tillage_$name.clm.json"},
+  "residue_on_field" : { "fmt" : "meta", "name" : "$dir/residue_$name.clm.json"},
+  "sdate"            : { "fmt" : "meta", "name" : "$dir/sdate_$name.clm.json"},
+  "crop_phu"         : { "fmt" : "meta", "name" : "$dir/crop_phu_$name.clm.json"},
+  "temp"             : { "fmt" : "meta", "name" : "$dir/tmp_$name.clm.json"},
+  "prec"             : { "fmt" : "meta", "name" : "$dir/prec_$name.clm.json"},
+  "lwnet"            : { "fmt" : "meta", "name" : "$dir/lwnet_$name.clm.json"},
+  "swdown"           : { "fmt" : "meta", "name" : "$dir/swdown_$name.clm.json"},
+  "cloud"            : { "fmt" : "meta", "name" : "$dir/cld_$name.clm.json"},
+  "wind"             : { "fmt" : "meta", "name" : "$dir/windspeed_$name.clm.json"},
+  "tmin"             : { "fmt" : "meta", "name" : "$dir/tmin_$name.clm.json"},
+  "tmax"             : { "fmt" : "meta", "name" : "$dir/tmax_$name.clm.json"},
+  "humid"            : { "fmt" : "meta", "name" : "$dir/humid_$name.clm.json"},
+  "lightning"        : { "fmt" : "meta", "name" : "$dir/lightning_$name.clm.json"},
+  "human_ignition"   : { "fmt" : "meta", "name" : "$dir/human_ignition_$name.clm.json"},
+  "popnum"           : { "fmt" : "meta", "name" : "$dir/popnum_$name.clm.json"},
+  "co2"              : { "id" : 5, "fmt" : "txt",  "name" : "$LPJINPATH/global_co2_ann_1700_2022.txt"},
+  "ch4"              : { "fmt" : "txt", "name" : "$LPJINPATH/CH4_concentration_1700-2022.dat"},
+  "wetdays"          : { "fmt" : "meta", "name" : "$dir/wet_$name.clm.json"},
+  "no3deposition"    : { "fmt" : "meta", "name" : "$dir/no3_deposition_$name.clm.json"},
+  "nh4deposition"    : { "fmt" : "meta", "name" : "$dir/nh4_deposition_$name.clm.json"},
+  "soilpH"           : { "fmt" : "meta", "name" : "$dir/soil_ph_$name.clm.json"},
+  "manure_nr"        : { "fmt" : "meta", "name" : "$dir/manure_$name.clm.json"},
+  "fertilizer_nr"    : { "fmt" : "meta", "name" : "$dir/fertilizer_$name.clm.json"}
+}
+EOF
+else
+  exit 1
+fi

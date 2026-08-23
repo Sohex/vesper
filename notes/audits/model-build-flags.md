@@ -74,8 +74,8 @@ numerics-unchanged. Its interval spans zero and it wins 3 of 4, so it fails the
 bar on speed as well; but a flag that moves the answer is a numerics decision
 and must not be folded into a timing comparison at all.
 
-**`-fstack-arrays` was measured twice on purpose**, either side of CLIM-71,
-because its value depends on what is on the stack and CLIM-71 took 503 MB of
+**`-fstack-arrays` was measured twice on purpose**, either side of CLIM-83,
+because its value depends on what is on the stack and CLIM-83 took 503 MB of
 per-team stack away. Before: -0.15% [-0.66, +0.12], 2 of 4. After: **-0.75%**
 [-1.84, -0.25], 0 of 4, with scatter of 1.4% and 1.0%. The answer did not flip,
 and it is now a clean negative rather than a null.
@@ -90,9 +90,9 @@ a line number in every backtrace. Twice in one session a fault had to be
 re-created on a specially rebuilt binary to find out which line raised it --
 once for the sNaN gate and once inside SHTns -- and that is the whole argument.
 
-## `-ffpe-trap` stays unmasked, which closes CLIM-70
+## `-ffpe-trap` stays unmasked, which closes CLIM-82
 
-CLIM-70 asked whether the model should run SHTns under an unmasked FE_INVALID at
+CLIM-82 asked whether the model should run SHTns under an unmasked FE_INVALID at
 all, SHTns having been caught reading a lane of its own stack scratch that it
 never wrote. The answer is yes, and it comes from measurements already taken
 rather than from new ones.

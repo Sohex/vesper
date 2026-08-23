@@ -1,5 +1,5 @@
 #!/bin/bash
-# CLIM-65: is sixteen threads the right count at every resolution?
+# CLIM-77: is sixteen threads the right count at every resolution?
 # The arms and the verdict are exoplasim/notes/thread-count-by-resolution.md.
 #
 # The thread count is COMPILED IN -- `!$omp parallel num_threads(NPRO)` -- so a

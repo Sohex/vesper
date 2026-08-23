@@ -1,0 +1,38 @@
+.TH getclimate 3  "LPJmL programmers manual"
+.SH NAME
+getclimate \- get climate data for specified year
+.SH SYNOPSIS
+.nf
+\fB#include "lpj.h"
+
+Bool getclimate(Climate *\fIclimate\fB,const Cell \fIgrid[]\fB,int \fI year\fB,const Config *\fIconfig\fB);\fP
+
+.fi
+.SH DESCRIPTION
+Function gets climate data for specified year.
+The arguments of \fBgetclimate\fP are:
+.TP
+.I climate
+Pointer to climate data. Must be initialized by \fBinitclimate()\fP.
+.TP
+.I grid
+Cell grid array allocated and initialized by \fBnewgrid()\fP.
+.TP
+.I year
+year climate data is read.
+.TP
+.I config
+LPJmL configuration data. Must be read by \fBreadconfig()\fP.
+.SH RETURN VALUE
+Upon successful read FALSE is returned and TRUE in case of failure.
+
+.SH AUTHORS
+
+For authors and contributors see AUTHORS file
+
+.SH COPYRIGHT
+
+(C) Potsdam Institute for Climate Impact Research (PIK), see COPYRIGHT file
+
+.SH SEE ALSO
+initclimate(3), freeclimate(3), getco2(3), readconfig(3), iterate(3) 

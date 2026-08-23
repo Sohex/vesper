@@ -1,0 +1,47 @@
+/**************************************************************************************/
+/**                                                                                \n**/
+/**                t  i  l  l  a  g  e  .  c                                       \n**/
+/**                                                                                \n**/
+/**     C implementation of LPJmL                                                  \n**/
+/**                                                                                \n**/
+/** (C) Potsdam Institute for Climate Impact Research (PIK), see COPYRIGHT file    \n**/
+/** authors, and contributors see AUTHORS file                                     \n**/
+/** This file is part of LPJmL and licensed under GNU AGPL Version 3               \n**/
+/** or later. See LICENSE file or go to http://www.gnu.org/licenses/               \n**/
+/** Contact: https://github.com/PIK-LPJmL/LPJmL                                    \n**/
+/**                                                                                \n**/
+/**************************************************************************************/
+
+#include "lpj.h"
+
+void tillage(Soil *soil, /**< pointer to soil data */
+             Real frac   /**< fraction (0..1) */
+            )
+{
+  int i,l;
+  if (soil->wtable>layerbound[1])                            // tillage not possible if flooded
+  {
+    /* move above ground litter pools to same litter structure in sub-soil (agsub) */
+    for (l = 0; l < soil->litter.n; l++)
+    {
+      soil->litter.item[l].agsub.leaf.carbon += soil->litter.item[l].agtop.leaf.carbon*frac;
+      soil->litter.item[l].agtop.leaf.carbon *= (1-frac);
+      soil->litter.item[l].agsub.leaf.nitrogen += soil->litter.item[l].agtop.leaf.nitrogen*frac;
+      soil->litter.item[l].agtop.leaf.nitrogen *= (1 - frac);
+
+      for (i = 0; i < NFUELCLASS; i++)
+      {
+        soil->litter.item[l].agsub.wood[i].carbon += soil->litter.item[l].agtop.wood[i].carbon*frac;
+        soil->litter.item[l].agtop.wood[i].carbon *= (1 - frac);
+        soil->litter.item[l].agsub.wood[i].nitrogen += soil->litter.item[l].agtop.wood[i].nitrogen*frac;
+        soil->litter.item[l].agtop.wood[i].nitrogen *= (1 - frac);
+      }
+    }
+
+    /* do some changes to bulk density here */
+    for(l=0;l<NTILLLAYER;l++)
+      soil->df_tillage[l]-=(soil->df_tillage[l]-0.667*1)*param.mixing_efficiency; /* eq. 305 from APEX documentation, expressed as fraction of BD after full settling */
+    /* do whatever tillage is supposed to do otherwise here */
+  }
+ 
+} /* of 'tillage' */

@@ -1072,7 +1072,86 @@ which catches one-in-three about four times in five; the cost is four T21 runs.
 It is not class 17. There the check has no answer that could mean "wrong"; here
 it has one and asks too few times to see it.
 
-## 31. A reader that outlives the format it reads
+## 31. A structure that can carry variation, holding one value
+
+An array whose index IS a physical dimension -- spectral band, layer, size
+class, phase -- initialised from a scalar, so every element holds the same
+number. The declaration says the quantity varies along that dimension and the
+value says it does not, and the declaration is what a reader sees first.
+
+`plasimmod.f90` carries seven of these at once: `dsnowalbmx(2) = 0.8`,
+`dsnowalbmn(2) = 0.4`, `dglacalbmn(2) = 0.6`, `dicealbmx(2) = 0.7`,
+`dicealbmn(2) = 0.5`, `doceanalb(2) = 0.069` and `dsnowalb(2) = 0.6`. Two of
+them are commented "spectral weighted" while holding one value in both bands:
+the comment asserts precisely what the value denies. Six of the seven are used
+as written; `doceanalb` is not, because `radmod` replaces the open-ocean term
+with a zenith formula, which is class 32 below and does not change the pattern
+here.
+
+**What makes this worse than a plain inherited constant is that it disables a
+correct fix made elsewhere, silently.** A two-band scheme carries a star's
+spectral shape by moving flux BETWEEN the bands. Moving flux between two equal
+numbers changes nothing. So adopting a measured stellar spectrum -- which was
+right, and which moved the band-1 share from 0.556 to 0.406 -- did exactly
+nothing for snow, glacier ice or sea ice, and nothing failed, and nothing said
+so. The one surface that had been repaired, vegetation, is the one that
+responded.
+
+It defeats every check this project runs. Dimensions are right. Units are
+right. Provenance is right. The value is defensible as a broadband mean, and
+under the Sun it reproduces the intended answer to within 0.016, which is why it
+survived. It is wrong only in a dimension nothing was inspecting.
+
+**The test is one line and mechanical.** For any array whose index is a physical
+dimension, ask whether its elements differ. If they do not, either the variation
+is genuinely absent -- which is a claim, and belongs in a comment as one -- or
+the structure is decorative and the machinery built to consume it is a no-op.
+
+The cost history is this project's own. The vegetation instance is recorded in
+`config/planet.yaml`, where codes 175 and 176 had "one identical field used to
+assert that a canopy reflects equally either side of the split"; it was found
+and repaired and the endmember moved. The other six were not, and five of them
+are wrong by 0.038 to 0.069 in the direction that weakens the ice-albedo
+feedback at the cold end. PHYS-14 owns them and
+`notes/external-model-survey.md` section 11 has the derivation.
+`notes/audits/inherited-earth-constants.md` is the neighbouring class: there the
+constant has no structure around it at all, so nothing pretends the variation is
+handled.
+
+
+## 32. Characterising a value from where it is declared, not where it is used
+
+A constant is read at its declaration, or a predicate at its call site, and
+described from that alone. Something downstream overrides it, narrows it or
+adds a condition, so the description is wrong about the model while being
+correct about the line it was taken from.
+
+`seamod.f90:155-158` sets the ocean surface albedo from two namelist scalars
+everywhere `dls < 0.5`. Read that and stop, and this model has a constant ocean
+albedo. It does not: `radmod.f90:2895-2904` overwrites the open-ocean term
+during the shortwave with a zenith-dependent formula, active by default under
+`necham = 1`. The scalars survive only over land and sea ice, and `doceanalb`
+reaches open water in no configuration the project runs.
+
+The same shape on a predicate. `is_true_wetland_stand()` in the vendored
+LPJ-GUESS fork reads as a property of the stand, and is `PEATLAND && lat < 40.0`.
+Every call site that branches on it is latitude-dependent, and **no call site
+shows that**. An inventory of latitude branches built by grepping for latitude
+finds none of them.
+
+**Why it survives review.** The quoted line is accurate, the file and line
+number are right, and anyone checking the citation confirms it. The error is
+not in the evidence but in its scope: a declaration is evidence about a
+declaration. It is also self-reinforcing, because the wrong description usually
+makes the code look SIMPLER than it is, and a simpler story is easier to believe.
+
+**The test.** Before characterising what a model does with a value, find the
+value's last write and the predicate's definition, not its first. `grep` for the
+name and read the ASSIGNMENTS, not just the declaration; for a predicate, open
+it. If a description of behaviour rests on one site, it rests on an assumption
+that nothing else touches that quantity -- which is a claim, and is usually
+cheaper to check than to be wrong about.
+## 33. A reader that outlives the format it reads
 
 An instrument is changed to record one more thing, and the number it reports
 moves. The change is small, the new number is not obviously absurd, and the
