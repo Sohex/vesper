@@ -55,6 +55,31 @@ planet:
   rotation_hours: 30.0
   obliquity_degrees: 32.0
   eccentricity: 0.02
+  # DETERMINED, and a declaration of what this tree already does rather than a
+  # change to any of it. The IAU convention couples these three, because
+  # rotation direction is what decides whether a planetographic longitude runs
+  # east or west, so they are one declaration and not three; and a longitude
+  # system, once chosen, does not change.
+  #
+  # Prograde and east-positive are structural rather than preferred.
+  # `radmod.f90:solang` builds the hour angle so that the subsolar point walks
+  # toward decreasing longitude, `plavor` is positive so the Coriolis parameter
+  # is positive in the northern hemisphere, and ExoPlaSim reaches ROTSPD as
+  # 1/rotationperiod, so a retrograde world is not expressible on this path at
+  # all. `maps/projections.py:unit` and the export's own `lon = atan2(x, z)`
+  # about a y-up pole put increasing longitude in the right-handed sense about
+  # the north pole, which is the pairing the IAU approves for a prograde
+  # rotator.
+  #
+  # `prime_meridian` is a PHASE and not a landmark, which is the case the IAU
+  # provides for on a body carrying no fixed observable surface feature:
+  # `orogen_export_zero` is the meridian the World Orogen export frame calls
+  # zero, reproducible from the planet code and the seed rather than measured
+  # off the terrain, and the one the graticule already draws heavier.
+  # docs/src/reference/config-rationale.md carries the evidence for each.
+  rotation_direction: prograde
+  longitude_positive: east
+  prime_meridian: orogen_export_zero
 
 # DETERMINED. Spectral type, activity and the surface ultraviolet that follows
 # from them. The star is chromospherically active, of the kind epsilon Eridani

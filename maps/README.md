@@ -174,8 +174,12 @@ summer temperature is a result and lives in `world_state.json`.
 
 ## The graticule
 
-Every 30 degrees, with the equator and the prime meridian drawn heavier. It is
-not projected as geometry; each pixel measures its own distance to the nearest
+Every 30 degrees, with the equator and the prime meridian drawn heavier.
+`config/planet.yaml` declares which meridian that is and which way longitude
+runs, and `docs/src/reference/config-rationale.md` argues both; the heavy pass
+here is on multiples of 180 degrees, so it draws the equator, the prime meridian
+and the antimeridian, on the export's own longitudes rather than on any model
+output's labels. It is not projected as geometry; each pixel measures its own distance to the nearest
 line and shades accordingly, which is what lets the same code draw a correct
 graticule on a butterfly or a tetrahedral rectangle without knowing anything
 about either. Three details make it read:

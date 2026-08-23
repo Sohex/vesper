@@ -156,6 +156,14 @@ INERT_CONFIG_KEYS = {
     # produced, which is a false positive that trains people to reach for a
     # bypass.
     "baseline_climatology",
+    # The cartographic declaration. `lib/provenance.py` carries the trace and
+    # the argument; repeated here because this guard is a deliberate explicit
+    # allowlist rather than an import of someone else's, and because the run
+    # and resume path is the one consumer that would strand a run in flight.
+    # Nothing passes a spin direction or a zero meridian to the model.
+    "planet.rotation_direction",
+    "planet.longitude_positive",
+    "planet.prime_meridian",
 }
 
 
