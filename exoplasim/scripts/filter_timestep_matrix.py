@@ -99,6 +99,11 @@ RUNG_GRID = {"T21": (32, 64), "T42": (64, 128), "T85": (128, 256),
 OVERHEAD_S = 150.0
 
 TRAP = re.compile(r"SIGFPE|Floating-point exception")
+# A trap at the first radiation call and a blow-up twenty minutes in are both
+# SIGFPE and are not the same event. The wall clock separates them, and the
+# outcome records which: a refusal is a property of the configuration, a late
+# failure is the integration going unstable and has to be read as such.
+LATE_FAILURE_S = 120.0
 CRASH = re.compile(r"crashed or begun producing garbage")
 
 
@@ -160,9 +165,13 @@ def seconds_per_orbit(run_dir: Path) -> float | None:
             text = diag.read_bytes()[-4000:].decode("latin-1")
         except OSError:
             continue
-        hit = re.search(r"Seconds per sim year:\s*(\d+)", text)
+        # BOTH UNITS. The model prints "Seconds per sim year" when it is quick
+        # and "Minutes per sim year" when it is not, so a seconds-only pattern
+        # silently loses exactly the expensive rungs whose cost is the reason
+        # for measuring -- T85 at dt 15 and T127 at dt 30 both read as no data.
+        hit = re.search(r"(Seconds|Minutes) per sim year\s*:?\s*(\d+)", text)
         if hit:
-            return float(hit.group(1))
+            return float(hit.group(2)) * (60.0 if hit.group(1) == "Minutes" else 1.0)
     return None
 
 
@@ -200,7 +209,8 @@ def run_job(job: dict, base: dict, log_dir: Path) -> dict:
     result = {**job, "returncode": rc, "wall_s": round(elapsed, 1),
               "run_id": run_id, "trapped": trapped, "crashed": crashed,
               "log": str(log.relative_to(ROOT)) if log.is_relative_to(ROOT) else str(log),
-              "outcome": ("trap" if trapped else
+              "outcome": ("late_failure" if trapped and elapsed > LATE_FAILURE_S else
+                          "trap" if trapped else
                           "crash" if crashed else
                           "ok" if rc == 0 else "failed")}
     if run_id and (RUNS / run_id).is_dir():
