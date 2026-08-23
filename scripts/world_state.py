@@ -118,10 +118,20 @@ def builds(active: str) -> dict:
                                     if k != "entries"},
             "preserved_basins": b["counts"]["preserved"],
             "land_fraction": m.get("landSeaMask", {}).get("landFractionBySurfaceClass"),
-            "endorheic_fraction_of_land":
+            # TWO endorheic quantities, and the key used to name neither. A
+            # basin's CATCHMENT is far larger than its FLOOR, and the lithology
+            # depends on the floor because Orogen assigns basin fill on
+            # `is_endorheic`. Reporting one under an ambiguous name is how a
+            # retention argument came to quote a catchment share as though it
+            # were the fill. `archive/tasks.md` CONS-12 asked for this rename.
+            "endorheic_catchment_share_of_land":
                 (b.get("drainageConsistency") or {}).get("fractionOfLand"),
+            "endorheic_basin_floor_share_of_land": basin_floor_share(d),
+            # Every class, not the top six. Truncation hid `evaporite`, which
+            # ranks tenth, so basin fill -- playa clastic plus evaporite, the
+            # quantity a carve moves -- was not reconstructible from this file.
             "lithology_land_fractions": {k: round(v, 5) for k, v in
-                                         sorted(comp.items(), key=lambda kv: -kv[1])[:6]},
+                                         sorted(comp.items(), key=lambda kv: -kv[1])},
             # Land elevation, area-weighted over surface_class land. Here
             # because it was being written into README prose instead, where it
             # survived a gravity correction that changed it by a quarter and
@@ -133,6 +143,38 @@ def builds(active: str) -> dict:
             "superseded": (d / "SUPERSEDED.md").is_file(),
         }
     return out
+
+
+def basin_floor_share(build_dir: Path) -> float | None:
+    """Area-weighted share of land that is closed-basin FLOOR, not catchment.
+
+    The lithology's basin fill is assigned on `is_endorheic`, so this is the
+    quantity a fill fraction has to be read against. Land comes from
+    `surface_class` per CLAUDE.md rule 1: `land_mask` drops the dry floors
+    below sea level, which are exactly the cells this measures.
+
+    A PRE-CARVE BUILD REPORTS A LIMIT, NOT A STATE. The carve list moves
+    `is_endorheic` directly, so this falls as basins are opened.
+    """
+    root = build_dir / "exoplasim-T42"
+    try:
+        man = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
+        raw = man["raw"]["fields"]
+        names = raw if isinstance(raw, dict) else {f["name"]: f for f in raw}
+
+        def field(name: str):
+            spec = names[name]
+            return np.fromfile(root / spec["path"], dtype=spec["dtype"])
+
+        area = field("cell_area").astype(float)
+        land = field("surface_class") == 1
+        endo = field("is_endorheic").astype(bool)
+        if not land.any():
+            return None
+        return round(float(area[land & endo].sum() / area[land].sum()), 6)
+    except Exception:
+        # Same as land_elevation: a missing payload is not a state error.
+        return None
 
 
 def land_elevation(build_dir: Path) -> dict | None:
