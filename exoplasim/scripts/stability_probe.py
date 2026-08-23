@@ -1,0 +1,210 @@
+#!/usr/bin/env python3
+"""Where does the model refuse to start, and what does a step cost? In minutes.
+
+    python exoplasim/scripts/stability_probe.py --rung T170 --dt 22.5 --steps 300
+    python exoplasim/scripts/stability_probe.py --rung T170 --sweep 45,30,22.5,15,10
+
+Worldbuilding frame: a COMPUTE and stability probe on the Vesper project's
+climate model. Nothing here is about the simulated planet.
+
+WHY THIS EXISTS RATHER THAN ANOTHER ORBIT. The matrix answered the same two
+questions by integrating whole orbits, which costs 80 minutes at T170 and gave
+one cell per 80 minutes. Neither question needs an orbit:
+
+  COST is linear in step count. Measured at four rungs across six timesteps --
+  T21 19 s at dt 90 rising to 112 at dt 15, T85 295 at dt 45 to 900 at dt 15 --
+  every one within a few percent of proportional. So one short probe gives the
+  per-step cost, and every other timestep at that rung follows by arithmetic.
+  A rung needs ONE measurement, not one per timestep.
+
+  THE REFUSAL happens at the first radiation call. The trapping arms wrote no
+  output record at all and died in under a tenth of a minute, so three hundred
+  steps is already two orders of magnitude more than that failure needs.
+
+WHAT IT CANNOT SEE, stated so nothing reads more into it than it holds: the
+LATE blow-up. T127 at dt 22.5 integrated twenty minutes and 4.3 GB before a
+field exceeded single precision in the output writer. A short probe passes that
+cell. So this maps the refusal boundary and prices the rung; whether a
+configuration survives a whole orbit is a longer question and this does not
+answer it.
+
+THE TEMPLATE is a run directory that already has the rung's surface fields
+staged and its binary beside them -- a crashed arm serves, since what failed
+there was the integration and not the staging. Output is switched off, which is
+what keeps a T170 probe from writing twelve gigabytes to measure a step.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import re
+import shutil
+import subprocess
+import sys
+import time
+from datetime import datetime, timezone
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import _paths  # noqa: F401
+
+ROOT = Path(__file__).resolve().parents[2]
+RUNS = ROOT / "exoplasim" / "runs"
+WORK = Path("/tmp/vesper-stability-probe")
+OUT = ROOT / "exoplasim" / "analysis" / "stability_probe.json"
+
+# Hours in a Vesper orbit: 182.801 d x 30.0 h. Both come from config/planet.yaml
+# through derive(); restated here only to turn a per-step cost into a per-orbit
+# one, and checked against the matrix's own measured orbits below.
+ORBIT_HOURS = 182.801 * 30.0
+NLAT = {"T21": 32, "T42": 64, "T85": 128, "T127": 192, "T170": 256}
+TRAP = re.compile(r"SIGFPE|Floating-point exception|signal 8")
+
+
+def steps_per_orbit(dt_minutes: float) -> float:
+    return ORBIT_HOURS * 60.0 / dt_minutes
+
+
+def find_template(rung: str) -> Path:
+    """A run directory carrying this rung's staged surface fields and binary."""
+    want = f"N{NLAT[rung]:03d}_surf_"
+    best = None
+    for d in sorted(RUNS.glob("run_*"), key=lambda p: p.stat().st_mtime, reverse=True):
+        if not d.is_dir():
+            continue
+        if not any(d.glob(f"{want}*.sra")):
+            continue
+        if not any(d.glob(f"most_plasim_t{rung[1:]}_l*_p*.x")):
+            continue
+        best = d
+        break
+    if best is None:
+        raise SystemExit(
+            f"no run directory carries {want}*.sra and a {rung} binary. "
+            f"Run one arm at {rung} first, even a failing one: what this needs "
+            f"from it is the staging, not the integration.")
+    return best
+
+
+def build_bed(rung: str, template: Path, tag: str) -> tuple[Path, str]:
+    bed = WORK / f"bed_{rung}_{tag}"
+    if bed.exists():
+        shutil.rmtree(bed)
+    bed.mkdir(parents=True)
+    binary = sorted(template.glob(f"most_plasim_t{rung[1:]}_l*_p*.x"))
+    # The MPI binary, not the threaded one: the matrix measured on MPI and a
+    # cost compared across parallel modes is not a cost comparison.
+    binary = [b for b in binary if not b.name.endswith("_omp.x")] or binary
+    exe = binary[0]
+    for pattern in ("*_namelist", "*.nl", f"N{NLAT[rung]:03d}_surf_*.sra",
+                    "k25v*.dat", "GUI.cfg"):
+        for f in template.glob(pattern):
+            if f.is_file():
+                shutil.copy2(f, bed / f.name)
+    shutil.copy2(exe, bed / exe.name)
+    return bed, exe.name
+
+
+def set_keys(bed: Path, keys: dict[str, str]) -> None:
+    path = bed / "plasim_namelist"
+    text = path.read_text(encoding="latin-1")
+    for key, value in keys.items():
+        pattern = re.compile(rf"^\s*{key}\s*=.*$", re.MULTILINE | re.IGNORECASE)
+        line = f" {key} = {value}"
+        if pattern.search(text):
+            text = pattern.sub(line, text, count=1)
+        else:
+            # Namelists are order-free, so an absent key is APPENDED rather than
+            # left to a compiled-in default nobody named.
+            text = text.rstrip()
+            text = text[:text.rfind("/")] + line + "\n/\n"
+    path.write_text(text, encoding="latin-1")
+
+
+def probe(rung: str, dt: float, kappa: float | None, steps: int,
+          ranks: int, template: Path) -> dict:
+    tag = ("off" if kappa is None else f"k{kappa:g}") + f"_dt{dt:g}"
+    bed, exe = build_bed(rung, template, tag)
+    keys = {"N_RUN_STEPS": str(steps), "NOUTPUT": "0", "NSNAPSHOT": "0",
+            "NDIAG": "0", "MPSTEP": f"{dt}", "NENERGY": "0", "NENER3D": "0"}
+    if kappa is None:
+        keys |= {"NFILTER": "0", "NGPTFILTER": "0", "NSPVFILTER": "0"}
+    else:
+        keys |= {"NFILTER": "2", "NGPTFILTER": "1", "NSPVFILTER": "1",
+                 "FILTERKAPPA": f"{kappa}"}
+    set_keys(bed, keys)
+    started = time.monotonic()
+    proc = subprocess.run(["mpiexec", "-np", str(ranks), f"./{exe}"], cwd=bed,
+                          capture_output=True, text=True, timeout=3600)
+    elapsed = time.monotonic() - started
+    text = (proc.stdout or "") + (proc.stderr or "")
+    trapped = bool(TRAP.search(text)) or proc.returncode != 0
+    result = {"rung": rung, "dt_minutes": dt,
+              "kappa": kappa, "steps": steps, "ranks": ranks,
+              "wall_s": round(elapsed, 2), "returncode": proc.returncode,
+              "outcome": "refused" if trapped else "ran"}
+    if not trapped:
+        per_step = elapsed / steps
+        result["seconds_per_step"] = round(per_step, 5)
+        result["implied_seconds_per_orbit"] = round(per_step * steps_per_orbit(dt), 1)
+    else:
+        result["failed_after_s"] = round(elapsed, 2)
+        frames = [ln.strip() for ln in text.splitlines() if re.match(r"^#\d+ ", ln.strip())]
+        result["backtrace"] = frames[:6]
+    shutil.rmtree(bed, ignore_errors=True)
+    return result
+
+
+def main() -> None:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--rung", required=True, choices=sorted(NLAT))
+    ap.add_argument("--dt", type=float, default=None)
+    ap.add_argument("--sweep", default=None,
+                    help="comma-separated timesteps in minutes, cheapest first")
+    ap.add_argument("--kappa", default="8",
+                    help="filter strength, or 'off'. Comma-separated to sweep.")
+    ap.add_argument("--steps", type=int, default=300,
+                    help="timesteps per probe. The refusal fires on the first "
+                         "radiation call, so this is already far more than that "
+                         "failure needs; it is long enough to price a step.")
+    ap.add_argument("--ranks", type=int, default=16)
+    ap.add_argument("--out", type=Path, default=OUT)
+    args = ap.parse_args()
+
+    dts = ([float(x) for x in args.sweep.split(",")] if args.sweep
+           else [args.dt if args.dt else 45.0])
+    kappas = [None if k.strip().lower() == "off" else float(k)
+              for k in args.kappa.split(",")]
+    WORK.mkdir(parents=True, exist_ok=True)
+    template = find_template(args.rung)
+    print(f"template: {template.relative_to(ROOT)}")
+
+    results = []
+    for dt in dts:
+        for kappa in kappas:
+            r = probe(args.rung, dt, kappa, args.steps, args.ranks, template)
+            results.append(r)
+            k = "off" if kappa is None else f"{kappa:g}"
+            if r["outcome"] == "ran":
+                print(f"  {args.rung} kappa {k:>3s} dt {dt:5.1f}  ran   "
+                      f"{r['seconds_per_step']:.4f} s/step -> "
+                      f"{r['implied_seconds_per_orbit']/60:.1f} min/orbit", flush=True)
+            else:
+                print(f"  {args.rung} kappa {k:>3s} dt {dt:5.1f}  REFUSED "
+                      f"after {r['failed_after_s']:.1f} s", flush=True)
+            prior = json.loads(args.out.read_text()) if args.out.is_file() else {"probes": []}
+            prior.setdefault("probes", [])
+            prior["probes"] = [p for p in prior["probes"]
+                               if not (p["rung"] == r["rung"] and p["dt_minutes"] == r["dt_minutes"]
+                                       and p["kappa"] == r["kappa"])] + [r]
+            prior["note"] = ("Refusal boundary and per-step cost. Short probes: "
+                             "this cannot see a LATE blow-up. "
+                             "exoplasim/scripts/stability_probe.py")
+            prior["generated"] = datetime.now(timezone.utc).isoformat()
+            args.out.parent.mkdir(parents=True, exist_ok=True)
+            args.out.write_text(json.dumps(prior, indent=2))
+    print(f"\nwrote {args.out.relative_to(ROOT)}")
+
+
+if __name__ == "__main__":
+    main()
