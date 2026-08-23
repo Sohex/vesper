@@ -125,6 +125,13 @@ The arguments and the incidents behind these are in
 - Estimates that cannot be verified are bracketed rather than guessed, and the
   bracket is reported.
 - Claims are checked against the artifact rather than the documentation.
+- **Check the instrument against the size of the effect before believing a
+  number.** Work out what the effect is worth in the units the instrument
+  reports and compare that with its own scatter; if the effect is smaller, the
+  number is noise however tidy it looks. A bed shorter than its startup, a sweep
+  whose range never reaches the effect, and a refusal taken on a profile the
+  model no longer has all return ordinary-looking numbers.
+  `docs/src/practice/failure-modes.md` class 34.
 - Convergence claims state their exact criteria and are labelled honestly when
   they miss. Preserve that standard rather than rounding results into passes.
 - Scripts anchor their paths in a `_paths.py` and resolve from the file

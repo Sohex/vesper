@@ -1181,3 +1181,50 @@ against it, and anchor the patterns that decide where a record begins.
 
 It is not class 27. There the baseline was never taken; here it was, and the
 tool that reads it was silently replaced underneath.
+
+## 34. An instrument too blunt to produce a number, producing one
+
+A measurement whose noise floor, resolution or range cannot separate the effect
+being looked for. It does not fail and it does not warn. It returns a number of
+the ordinary size and shape, and often a tidy one, because noise is as capable of
+a monotone table as signal is.
+
+The tell is arithmetic and it is one line: work out what the effect would be
+worth IN THE UNITS THE INSTRUMENT REPORTS, and compare that with the
+instrument's own scatter. If the effect is smaller, the number is noise however
+convincing it looks.
+
+Four in one day, 2026-08-22, which is why this is a class.
+
+**A bed shorter than its own startup.** `-fstack-arrays` measured -2.17% on a
+2.94 s T42 bed against a startup of about 1.6 s, with self-scatter of 7.8%
+against a 5% floor. `bench_ab.py` refused it. Lengthening the bed did not sharpen
+that number, it REVERSED it, to +1.77%. A bed too short does not give a weak
+answer, it gives a wrong one.
+
+**A sweep whose range never reached the effect.** The slack probe swept added
+delays of 0 to 800 us a step, which over 300 steps is 0.24 s of added work
+against a run-to-run scatter of about 1 s. It produced a clean monotone table,
+47.43 s rising to 48.33 s, that reads as a threshold being crossed and is
+entirely noise. Re-run to 20,000 us, where the added work is 6 s, the real
+saturation appeared at about 2.0 s and the earlier "knee" was nowhere near it.
+
+**An unwinder that could not see the stack.** DWARF returned no caller for 94% of
+samples landing in the model's own code, and the depth histogram -- not the
+truncation figure -- is what showed it: those samples had ONE frame, not a long
+chain cut short. Widening the dump from 8 KB to 32 KB changed nothing because
+nothing was being clipped. Frame pointers gave 0.0%, cost -1.17%, and left the
+restart sha identical.
+
+**A refusal that outlived its profile.** `-funroll-loops` was refused at -0.15%
+on the MPI build with legmod in the hot path. SHTns replaced every per-timestep
+transform, and re-measured on the threaded build the same flag is **+11.10%**.
+The instrument was fine; the CONFIGURATION it measured no longer existed, which
+is the same error one level up. A refusal should record the profile it was taken
+on, so a later reader can tell whether it still holds.
+
+The connecting thread is that all four produced plausible numbers, and in three
+of them the number was acted on or nearly was. What caught each was checking the
+instrument against the size of the effect rather than checking the result against
+expectation.
+
