@@ -67,6 +67,11 @@ ROOT = Path(__file__).resolve().parents[2]
 CONFIG = ROOT / "config" / "planet.yaml"
 RUNS = ROOT / "exoplasim" / "runs"
 OUT = ROOT / "exoplasim" / "analysis" / "filter_timestep_matrix.json"
+# The sprint writes BESIDE the matrix, never over it. They are different
+# experiments and the matrix took five and a half hours; an output path shared
+# between a long run and a focused follow-up is one --sprint away from deleting
+# the thing the follow-up exists to extend.
+OUT_SPRINT = ROOT / "exoplasim" / "analysis" / "filter_timestep_sprint.json"
 WORK = Path("/tmp/vesper-filter-matrix")
 PARENT_RESTART = RUNS / "run_4182235e9781" / "MOST_REST.00039"
 
@@ -81,9 +86,12 @@ T42_SECONDS_PER_ORBIT_AT_DT45 = 90.0
 # share-weighted work; T170 extrapolates grid work as nlat^2 and Legendre as
 # ntru^3. Each is REPLACED by measurement the first time a job at that rung
 # completes, and the output says which of the two any number is.
-# T21 is MEASURED on this host at 37 s per orbit against T42's 90; the rest
-# remain declared brackets until a job replaces them.
-RUNG_FACTOR = {"T21": 0.411, "T42": 1.00, "T85": 4.2, "T127": 10.0, "T170": 18.7}
+# MEASURED on this host by the 2026-08-23 sweep, normalised to dt 45: T21 37,
+# T42 93, T85 296 and T127 760 seconds per orbit. The brackets these replace
+# said 0.30, 4.2 and 10.0, so they ran 25 to 30 percent high at the top --
+# worth knowing before anything budgets off a bracket. T170 is STILL A BRACKET:
+# every T170 arm in that sweep trapped, so nothing has priced it.
+RUNG_FACTOR = {"T21": 0.407, "T42": 1.00, "T85": 3.20, "T127": 8.21, "T170": 18.7}
 
 # `model.resolution` does NOT carry the grid on its own. `read_sra` validates
 # every staged surface file against `model.latitudes` and `model.longitudes`,
@@ -341,22 +349,62 @@ def build_jobs() -> list[dict]:
     return jobs
 
 
+def build_sprint_jobs() -> list[dict]:
+    """T170, and the one cell in the matrix that does not fit its pattern.
+
+    The full sweep left T170 unpriced -- every arm trapped, at dt 45 and dt 30,
+    filtered and not -- so the ladder's top rung has no cost number and the
+    optimisation workstream's central claim still rests on an extrapolation.
+
+    WHERE TO START, and it is arithmetic rather than a guess. T127 runs at dt 30
+    and the stable step scales roughly as 1/N for a fixed wind speed, so T170
+    wants about 30 * 127/170 = 22.4 minutes. dt 22.5 is therefore the first arm
+    and dt 15 the fallback, ordered by PRIORITY rather than by cost so the
+    number that is missing arrives first even though it is not the cheapest
+    thing here.
+
+    T127 at dt 22.5 is the anomaly: it runs at dt 30 and fails LATE at 22.5,
+    after 20.6 minutes, and in `writegp_` rather than `swr_` -- the output
+    routine, not the radiation. Non-monotone stability in the timestep should
+    not happen, so the first move is to reproduce it and find out whether it
+    lands in the same place twice.
+    """
+    jobs = []
+    for prio, rung, kappa, dt in (
+            (10, "T170", 8.0, 22.5),
+            (11, "T127", 8.0, 22.5),
+            (20, "T170", None, 22.5),
+            (30, "T170", 8.0, 15.0),
+            (40, "T170", None, 15.0),
+            (50, "T170", 8.0, 10.0)):
+        tag = "off" if kappa is None else f"k{kappa:g}"
+        jobs.append({"track": "B", "rung": rung, "kappa": kappa, "dt": dt,
+                     "orbits": 1, "name": f"P_{rung}_{tag}_dt{dt:g}",
+                     "priority": prio})
+    return jobs
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--hours", type=float, default=6.5,
                     help="wall-clock budget. Jobs are priced before they start "
                          "and skipped when they will not fit what is left.")
+    ap.add_argument("--sprint", action="store_true",
+                    help="run the focused T170 and T127-anomaly list instead of "
+                         "the full matrix. Ordered by priority rather than cost, "
+                         "because the missing number is not the cheapest job.")
     ap.add_argument("--min-free-gb", type=float, default=60.0,
                     help="stop scheduling when free disk falls below this")
     args = ap.parse_args()
 
+    out_path = OUT_SPRINT if args.sprint else OUT
     base = yaml.safe_load(CONFIG.read_text(encoding="utf-8"))
     WORK.mkdir(parents=True, exist_ok=True)
     log_dir = WORK / "logs"
     log_dir.mkdir(exist_ok=True)
 
     deadline = now() + args.hours * 3600.0
-    jobs = build_jobs()
+    jobs = build_sprint_jobs() if args.sprint else build_jobs()
     started_at = datetime.now(timezone.utc).isoformat()
     done: list[dict] = []
     skipped: list[dict] = []
@@ -390,8 +438,8 @@ def main() -> None:
             "completed": done,
             "skipped_for_budget": skipped,
         }
-        OUT.parent.mkdir(parents=True, exist_ok=True)
-        OUT.write_text(json.dumps(payload, indent=2))
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(json.dumps(payload, indent=2))
 
     flush("running")
     for job in jobs:
@@ -430,7 +478,7 @@ def main() -> None:
 
     flush("finished")
     print(f"\n{len(done)} jobs run, {len(skipped)} skipped for budget or disk")
-    print(f"wrote {OUT.relative_to(ROOT)}")
+    print(f"wrote {out_path.relative_to(ROOT)}")
 
 
 if __name__ == "__main__":
