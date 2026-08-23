@@ -301,6 +301,11 @@ def main() -> None:
     started_at = datetime.now(timezone.utc).isoformat()
     done: list[dict] = []
     skipped: list[dict] = []
+    # Declared BEFORE flush() closes over it: a rung that cannot be LAUNCHED is
+    # different from one that traps -- the first is this tree's artifact path,
+    # the second is the physics being measured -- so the reason is carried in
+    # the result rather than inferred from a gap in it.
+    abandoned: dict[str, str] = {}
 
     def flush(note: str = "") -> None:
         payload = {
@@ -330,10 +335,6 @@ def main() -> None:
         OUT.write_text(json.dumps(payload, indent=2))
 
     flush("running")
-    # A rung that cannot be LAUNCHED is different from one that traps: the first
-    # is this tree's artifact path, the second is the physics being measured.
-    # Abandon the rung on the first, keep going on the second.
-    abandoned: dict[str, str] = {}
     for job in jobs:
         if job["rung"] in abandoned:
             skipped.append({**job, "reason": f"rung abandoned: {abandoned[job['rung']]}"})
