@@ -203,3 +203,61 @@ the model is deterministic and a cold start with a declared seed should
 reproduce exactly. If it fails at the same step, it is a property of the
 configuration; if it wanders, something in the run is not deterministic, and
 archive CLIM-44 says how much that costs.
+
+## T170, and the filter requirement gets STRONGER up the ladder
+
+*Measured 2026-08-23. One full orbit at dt 22.5 through `run_exoplasim.py`; the
+rest of the grid by `stability_probe.py`, 400 steps with output off.*
+
+| dt | kappa 8 | kappa off |
+| ---: | --- | --- |
+| 45 | refuses | refuses |
+| 30 | starts, blows up after 3.8 min | refuses |
+| 22.5 | **completes an orbit, 51 min** | refuses |
+| 15 | starts | refuses |
+| 10 | starts | starts |
+
+**The unfiltered model needs dt 10 at T170 where it needed 30 at T42.** That is
+the resolution dependence upstream states as the reason for filtering at all --
+a finer grid resolves sharper gradients off the same orography, so the ringing
+worsens while a scale-free filter keeps cutting the same fraction -- and it is
+now measured rather than quoted. It also settles the shape of the trade: the
+filter is not a fixed overhead to be tuned once, it is buying more timestep the
+further up the ladder the model goes.
+
+The arithmetic pick landed. T127 runs at dt 30, the stable step scales roughly
+as 1/N, and 30 * 127/170 = 22.4 predicted 22.5 -- which is exactly the coarsest
+step that carries T170 through a whole orbit.
+
+### The ladder priced, normalised to dt 45
+
+| rung | s/orbit | x T42 | measured at |
+| --- | ---: | ---: | --- |
+| T21 | 37 | 0.40 | six timesteps |
+| T42 | 93 | 1.00 | seven timesteps |
+| T85 | 296 | 3.18 | four timesteps |
+| T127 | 760 | 8.17 | dt 30 |
+| T170 | 1530 | 16.5 | dt 22.5, one full orbit |
+
+T170's declared bracket was 18.7 and it measures 16.5, so the brackets ran 13 to
+30 percent high all the way up. **What a rung actually costs, at the step it can
+actually run**, is the second column times the step ratio: T170 is not 16.5
+times T42, it is 16.5 times T42 AND needs half the step, so an orbit costs 33
+times what T42's does. That factor is the one SPAT-11 exists to state.
+
+### What the probe is worth, and where it is not
+
+Against the full-orbit measurement at dt 22.5 the probe reads 20% high --
+60.8 minutes against 51.0 -- and the offset is consistent across the other
+timesteps, since correcting by it reproduces the linear-in-steps law from the
+one ground truth to within a percent. So the probe is a BRACKET for cost and a
+verdict for refusal, and the two should not be quoted the same way.
+
+Two lengths are differenced rather than one divided, because a single 200-step
+probe read 69.2 minutes an orbit where the truth was 51: a bed shorter than its
+own startup measuring its startup, which is class 34 and was caught here by
+having a ground truth to check against.
+
+**The probe cannot see a late blow-up**, and T170 at dt 30 is the demonstration:
+it passes 400 steps and dies after 3.8 minutes of integration. A cell that
+"runs" under the probe has only been shown not to REFUSE.

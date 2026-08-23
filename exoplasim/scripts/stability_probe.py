@@ -121,6 +121,15 @@ def set_keys(bed: Path, keys: dict[str, str]) -> None:
     path.write_text(text, encoding="latin-1")
 
 
+def time_run(bed: Path, exe: str, ranks: int) -> tuple[float, bool, str]:
+    started = time.monotonic()
+    proc = subprocess.run(["mpiexec", "-np", str(ranks), f"./{exe}"], cwd=bed,
+                          capture_output=True, text=True, timeout=3600)
+    elapsed = time.monotonic() - started
+    text = (proc.stdout or "") + (proc.stderr or "")
+    return elapsed, bool(TRAP.search(text)) or proc.returncode != 0, text
+
+
 def probe(rung: str, dt: float, kappa: float | None, steps: int,
           ranks: int, template: Path) -> dict:
     tag = ("off" if kappa is None else f"k{kappa:g}") + f"_dt{dt:g}"
@@ -132,25 +141,43 @@ def probe(rung: str, dt: float, kappa: float | None, steps: int,
     else:
         keys |= {"NFILTER": "2", "NGPTFILTER": "1", "NSPVFILTER": "1",
                  "FILTERKAPPA": f"{kappa}"}
-    set_keys(bed, keys)
-    started = time.monotonic()
-    proc = subprocess.run(["mpiexec", "-np", str(ranks), f"./{exe}"], cwd=bed,
-                          capture_output=True, text=True, timeout=3600)
-    elapsed = time.monotonic() - started
-    text = (proc.stdout or "") + (proc.stderr or "")
-    trapped = bool(TRAP.search(text)) or proc.returncode != 0
-    result = {"rung": rung, "dt_minutes": dt,
-              "kappa": kappa, "steps": steps, "ranks": ranks,
-              "wall_s": round(elapsed, 2), "returncode": proc.returncode,
+    # TWO LENGTHS, AND THE SLOPE BETWEEN THEM. A single short run divides the
+    # STARTUP cost -- Legendre setup, FFTW planning, staging -- over its own few
+    # hundred steps, while an orbit divides it over fourteen thousand. Measured
+    # here: a 200-step probe of T170 at dt 22.5 implied 69.2 minutes an orbit
+    # where the full orbit took 51, an overstatement of 36% that is entirely
+    # startup. Differencing two lengths cancels it, which is the correction
+    # `docs/src/practice/failure-modes.md` class 34 exists to demand -- a bed
+    # shorter than its own startup measuring the startup.
+    short_steps = max(50, steps // 3)
+    set_keys(bed, keys | {"N_RUN_STEPS": str(short_steps)})
+    t_short, trapped, text = time_run(bed, exe, ranks)
+    result = {"rung": rung, "dt_minutes": dt, "kappa": kappa, "ranks": ranks,
+              "steps_short": short_steps, "steps_long": steps,
+              "wall_short_s": round(t_short, 2),
               "outcome": "refused" if trapped else "ran"}
-    if not trapped:
-        per_step = elapsed / steps
-        result["seconds_per_step"] = round(per_step, 5)
-        result["implied_seconds_per_orbit"] = round(per_step * steps_per_orbit(dt), 1)
-    else:
-        result["failed_after_s"] = round(elapsed, 2)
+    if trapped:
+        result["failed_after_s"] = round(t_short, 2)
         frames = [ln.strip() for ln in text.splitlines() if re.match(r"^#\d+ ", ln.strip())]
         result["backtrace"] = frames[:6]
+        shutil.rmtree(bed, ignore_errors=True)
+        return result
+
+    set_keys(bed, keys | {"N_RUN_STEPS": str(steps)})
+    t_long, trapped_long, _ = time_run(bed, exe, ranks)
+    result["wall_long_s"] = round(t_long, 2)
+    if trapped_long:
+        # Ran short and refused long: that is a LATE failure inside the probe's
+        # own range, and worth more than either number.
+        result["outcome"] = "refused_only_at_length"
+        shutil.rmtree(bed, ignore_errors=True)
+        return result
+    per_step = (t_long - t_short) / (steps - short_steps)
+    result["seconds_per_step"] = round(per_step, 5)
+    result["startup_s"] = round(t_long - per_step * steps, 2)
+    result["implied_seconds_per_orbit"] = round(per_step * steps_per_orbit(dt), 1)
+    result["naive_single_run_seconds_per_orbit"] = round(
+        (t_long / steps) * steps_per_orbit(dt), 1)
     shutil.rmtree(bed, ignore_errors=True)
     return result
 
@@ -163,7 +190,7 @@ def main() -> None:
                     help="comma-separated timesteps in minutes, cheapest first")
     ap.add_argument("--kappa", default="8",
                     help="filter strength, or 'off'. Comma-separated to sweep.")
-    ap.add_argument("--steps", type=int, default=300,
+    ap.add_argument("--steps", type=int, default=600,
                     help="timesteps per probe. The refusal fires on the first "
                          "radiation call, so this is already far more than that "
                          "failure needs; it is long enough to price a step.")
@@ -188,7 +215,9 @@ def main() -> None:
             if r["outcome"] == "ran":
                 print(f"  {args.rung} kappa {k:>3s} dt {dt:5.1f}  ran   "
                       f"{r['seconds_per_step']:.4f} s/step -> "
-                      f"{r['implied_seconds_per_orbit']/60:.1f} min/orbit", flush=True)
+                      f"{r['implied_seconds_per_orbit']/60:.1f} min/orbit  "
+                      f"(startup {r['startup_s']:.0f} s; naive single run would "
+                      f"say {r['naive_single_run_seconds_per_orbit']/60:.1f})", flush=True)
             else:
                 print(f"  {args.rung} kappa {k:>3s} dt {dt:5.1f}  REFUSED "
                       f"after {r['failed_after_s']:.1f} s", flush=True)

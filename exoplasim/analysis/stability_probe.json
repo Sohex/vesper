@@ -1,0 +1,176 @@
+{
+  "probes": [
+    {
+      "rung": "T170",
+      "dt_minutes": 45.0,
+      "kappa": 8.0,
+      "ranks": 16,
+      "steps_short": 133,
+      "steps_long": 400,
+      "wall_short_s": 9.28,
+      "outcome": "refused",
+      "failed_after_s": 9.28,
+      "backtrace": [
+        "#0  0x7f68d5827402 in ???",
+        "#1  0x7f68d58251e5 in ???",
+        "#2  0x7f68d4c44caf in ???",
+        "#3  0x55a48b935126 in swr_",
+        "#4  0x55a48b96b745 in radstep_",
+        "#5  0x55a48b8d8ff8 in gridpointd_"
+      ]
+    },
+    {
+      "rung": "T170",
+      "dt_minutes": 45.0,
+      "kappa": null,
+      "ranks": 16,
+      "steps_short": 133,
+      "steps_long": 400,
+      "wall_short_s": 9.64,
+      "outcome": "refused",
+      "failed_after_s": 9.64,
+      "backtrace": [
+        "#0  0x7fcd18427402 in ???",
+        "#1  0x7fcd184251e5 in ???",
+        "#2  0x7fcd17a44caf in ???",
+        "#3  0x7fcd1838612c in ???",
+        "#4  0x559f549c8844 in lwr_",
+        "#5  0x559f54a0773b in radstep_"
+      ]
+    },
+    {
+      "rung": "T170",
+      "dt_minutes": 30.0,
+      "kappa": 8.0,
+      "ranks": 16,
+      "steps_short": 133,
+      "steps_long": 400,
+      "wall_short_s": 39.55,
+      "outcome": "ran",
+      "wall_long_s": 106.38,
+      "seconds_per_step": 0.25031,
+      "startup_s": 6.25,
+      "implied_seconds_per_orbit": 2745.4,
+      "naive_single_run_seconds_per_orbit": 2916.9
+    },
+    {
+      "rung": "T170",
+      "dt_minutes": 30.0,
+      "kappa": null,
+      "ranks": 16,
+      "steps_short": 133,
+      "steps_long": 400,
+      "wall_short_s": 8.35,
+      "outcome": "refused",
+      "failed_after_s": 8.35,
+      "backtrace": [
+        "#0  0x7fb90c427402 in ???",
+        "#1  0x7fb90c4251e5 in ???",
+        "#2  0x7fb90ba44caf in ???",
+        "#3  0x7fb90ccc312c in ???",
+        "#4  0x55e403a72844 in lwr_",
+        "#5  0x55e403ab173b in radstep_"
+      ]
+    },
+    {
+      "rung": "T170",
+      "dt_minutes": 22.5,
+      "kappa": 8.0,
+      "ranks": 16,
+      "steps_short": 133,
+      "steps_long": 400,
+      "wall_short_s": 39.9,
+      "outcome": "ran",
+      "wall_long_s": 106.47,
+      "seconds_per_step": 0.24931,
+      "startup_s": 6.74,
+      "implied_seconds_per_orbit": 3645.9,
+      "naive_single_run_seconds_per_orbit": 3892.4
+    },
+    {
+      "rung": "T170",
+      "dt_minutes": 22.5,
+      "kappa": null,
+      "ranks": 16,
+      "steps_short": 133,
+      "steps_long": 400,
+      "wall_short_s": 9.0,
+      "outcome": "refused",
+      "failed_after_s": 9.0,
+      "backtrace": [
+        "#0  0x7feeafe27402 in ???",
+        "#1  0x7feeafe251e5 in ???",
+        "#2  0x7feeaf444caf in ???",
+        "#3  0x56298de410d1 in swr_",
+        "#4  0x56298de77745 in radstep_",
+        "#5  0x56298dde4ff8 in gridpointd_"
+      ]
+    },
+    {
+      "rung": "T170",
+      "dt_minutes": 15.0,
+      "kappa": 8.0,
+      "ranks": 16,
+      "steps_short": 133,
+      "steps_long": 400,
+      "wall_short_s": 40.08,
+      "outcome": "ran",
+      "wall_long_s": 109.56,
+      "seconds_per_step": 0.26023,
+      "startup_s": 5.46,
+      "implied_seconds_per_orbit": 5708.4,
+      "naive_single_run_seconds_per_orbit": 6008.1
+    },
+    {
+      "rung": "T170",
+      "dt_minutes": 15.0,
+      "kappa": null,
+      "ranks": 16,
+      "steps_short": 133,
+      "steps_long": 400,
+      "wall_short_s": 12.01,
+      "outcome": "refused",
+      "failed_after_s": 12.01,
+      "backtrace": [
+        "#0  0x7f65af427402 in ???",
+        "#1  0x7f65af4251e5 in ???",
+        "#2  0x7f65ae844caf in ???",
+        "#3  0x7f65af38612c in ???",
+        "#4  0x55dcc184d844 in lwr_",
+        "#5  0x55dcc188c73b in radstep_"
+      ]
+    },
+    {
+      "rung": "T170",
+      "dt_minutes": 10.0,
+      "kappa": 8.0,
+      "ranks": 16,
+      "steps_short": 133,
+      "steps_long": 400,
+      "wall_short_s": 41.35,
+      "outcome": "ran",
+      "wall_long_s": 110.25,
+      "seconds_per_step": 0.25803,
+      "startup_s": 7.03,
+      "implied_seconds_per_orbit": 8490.3,
+      "naive_single_run_seconds_per_orbit": 9068.9
+    },
+    {
+      "rung": "T170",
+      "dt_minutes": 10.0,
+      "kappa": null,
+      "ranks": 16,
+      "steps_short": 133,
+      "steps_long": 400,
+      "wall_short_s": 44.34,
+      "outcome": "ran",
+      "wall_long_s": 115.86,
+      "seconds_per_step": 0.26786,
+      "startup_s": 8.71,
+      "implied_seconds_per_orbit": 8813.6,
+      "naive_single_run_seconds_per_orbit": 9530.5
+    }
+  ],
+  "note": "Refusal boundary and per-step cost. Short probes: this cannot see a LATE blow-up. exoplasim/scripts/stability_probe.py",
+  "generated": "2026-08-23T23:38:06.478726+00:00"
+}
