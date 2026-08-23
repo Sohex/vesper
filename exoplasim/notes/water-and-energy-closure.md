@@ -505,6 +505,21 @@ the frictional dissipation returned as heat. It does, to -0.0073 W/m2 out of
 2.21. Had that failed, `denergy27` would not have been the adiabatic generation
 and the second identity would have meant nothing.
 
+THE PHYSICS FILTER IS A SECOND WAY THIS IDENTITY CAN FAIL, AND IT IS NOT YET
+EXCLUDED. Both terms are built from GRIDPOINT fields at `plasim.f90:3275-3325`,
+and both come through filtered transforms: `denergy27` takes its winds from
+`dv2uv`, which applies `fmu = znn1*m*skspgp` and `fmv = znn1*skspgp`, and
+kinetic energy is quadratic in them, so it carries the filter SQUARED;
+`denergy26` takes its temperature from `sp2fl` through `sp2fc`, which applies
+`fsp = skspgp`, and enthalpy is linear in it, so it carries the filter to the
+first power. `f` against `f^2` does not cancel, so `26 - 27` cannot vanish under
+a nontrivial filter even for a core that conserves exactly, and the discrepancy
+is largest where `f` is near 0.5 -- `n/NTRU = 0.737`, by construction. Whether
+that accounts for the +0.3446 is not established here and is settled by one
+short arm at `NFILTER = 0`; the row for it is CLIM's unbooked-filter issue.
+Until that runs, read the number below as the identity's failure rather than as
+a measurement of energy creation.
+
 One thing the second identity does NOT separate, and the distinction matters to
 whoever takes this further. Both terms compare the raw new state against the
 Robert-Asselin-filtered old one, because `atm`, `adm` and `azm` are `stm`, `sdm`
