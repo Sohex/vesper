@@ -566,8 +566,20 @@ bistability including glacier albedo hysteresis and excluding ice-sheet growth.
   made lithology-dependent later; it is second-order next to albedo.
 - `stormclim` False. Turning it on yields tropical-cyclone diagnostics, which is
   a worldbuilding output rather than a physics correction.
-- Diffusion and physics-filter coefficients are all at resolution-dependent
-  defaults. We enable the filter but tune nothing.
+- Diffusion coefficients are at resolution-dependent defaults and nothing is
+  tuned. The PHYSICS FILTER is a different case and was misfiled here: it is
+  not a coefficient left at a default, it is a switch this project turned on,
+  and `f(n) = exp(-8 (n/NTRU)^8)` is not resolution-dependent at all. It is
+  scale-free in `n/NTRU`, with a half-power point at `n/NTRU = 0.737` at every
+  rung -- n=15.5 at T21 and n=125.2 at T170 -- so it removes the same FRACTION
+  of the spectrum whatever the truncation.
+
+  `Model.configure` defaults it OFF, `Earthlike` leaves it off with a 45-minute
+  timestep, and the three tidally-locked classes turn it on with a 30-minute
+  one. This config carries the timestep of the first and the filter of the
+  second, and Vesper is not tidally locked. Which of those is right is CLIM's
+  physics-filter row; it gates the timestep ladder, because a filter that damps
+  the smallest scales is a filter that changes the largest stable step.
 
 ### Two traps found in the process
 
