@@ -19,6 +19,7 @@ import yaml
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _paths import CONFIG, INPUTS, RUNS  # noqa: E402
 from provenance import config_drift  # noqa: E402
+from restart_surface import verify_restart_surface_fields  # noqa: E402
 from segments import SEGMENT_PURPOSES  # noqa: E402
 from run_exoplasim import (  # noqa: E402
     SHORTWAVE_GAS_KEYS,
@@ -31,6 +32,7 @@ from run_exoplasim import (  # noqa: E402
     stage_stellar_spectrum,
     stellar_spectrum_path,
     stellar_spectrum_digest,
+    intended_surface_codes,
     require_stellar_spectrum,
     verify_stellar_spectrum,
     REGULAR_CODES,
@@ -260,6 +262,19 @@ def main() -> None:
     parser.add_argument(
         "--high-cadence-interval", type=int, default=4,
         help="timesteps between high-cadence samples (default 4)")
+    # The prepare-time flag of the same name authorises ADOPTING a donor's
+    # surface. It says nothing about the segments that follow, and
+    # `stage_surface_extras` rewrites the current `.sra` into the run directory
+    # on every resume, so such a run comes to assert a surface the model will
+    # not read. Restating it here keeps that a claim about this segment, made on
+    # purpose and stamped on it. See restart_surface.py.
+    parser.add_argument(
+        "--superseded-surface-ok", action="store_true",
+        help="this run adopted its donor's surface at prepare time and the "
+             "staged .sra no longer describes what the model reads. Continue "
+             "anyway, and stamp the segment with what it is actually "
+             "integrating. Valid for a paired A/B, never for the canonical "
+             "chain")
     args = parser.parse_args()
     if args.orbits < 1:
         raise ValueError("--orbits must be positive")
@@ -548,6 +563,20 @@ def main() -> None:
 
     stage_surface_extras(run_dir, config)
     surface_field_report(run_dir, config)
+    # Presence is not the property that failed. `surface_field_report` above
+    # says the .sra files are in the run directory, which is the whole of what
+    # a cold start needs; a resume takes every one of those fields out of the
+    # restart instead, and nothing compared the two. CLIM-67 was a restart
+    # branch that read the per-cell dwmax and then assigned a namelist scalar
+    # over it, with every file, manifest and report still well-formed. This
+    # compares CONTENT, on every code this project stages. TASKS.md CLIM-70.
+    surface_restart = verify_restart_surface_fields(
+        run_dir, restart, intended_surface_codes(config), manifest=manifest,
+        allow_superseded=args.superseded_surface_ok)
+    print(f"  restart surface verified against the "
+          f"{surface_restart['reference']} reference: "
+          f"{surface_restart['matched']} of {len(surface_restart['codes'])} "
+          f"codes carry the field they were built from")
     started = datetime.now(timezone.utc).isoformat()
     try:
         model.run(years=args.orbits, crashifbroken=True, clean=True)
@@ -621,6 +650,12 @@ def main() -> None:
             # low-I/O change alters the restart layout and a resume across it
             # is not merely unattributed but wrong.
             "executable_sha256": segment_exe_sha,
+            # WHICH SURFACE these particular orbits were integrated on, checked
+            # inside the restart rather than taken from the run directory. A
+            # run that adopted a donor's surface keeps integrating it while the
+            # staged .sra beside it is refreshed on every resume, so this is
+            # the only per-segment record of which of the two the model read.
+            "surface_restart_check": surface_restart,
             "diagnostics": new_diagnostics,
         }
     )

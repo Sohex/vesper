@@ -139,6 +139,35 @@ stays the same. The run manifest carries a sha256 of both spectrum files and a r
 refuses across a change to either. A run prepared before that existed is stamped
 on its first resume and says so.
 
+A resume also compares the SURFACE FIELDS BY CONTENT, and for the same reason.
+`surface_field_report` checks that the `.sra` files are present in the run
+directory, which is the whole of what a cold start needs; a resume takes those
+fields out of the restart instead, so presence says nothing about what the model
+will read. `restart_surface.py` reads the restart's own copy of every code this
+project stages and requires it to equal, exactly, the field the run was built
+from. The mapping from surface code to restart record is checked against
+`surfmod.f90`'s `surfcode` table so a renumbering upstream fails loudly, and
+`--self-test` builds the restart a substitution would have written and requires
+the check to refuse it.
+
+Two things are asserted and they have different references. First, the restart
+still carries the surface the run ADOPTED: the staged `.sra` for a cold-started
+run, `MOST_REST.seed` for one seeded with `--restart-from`. A departure means the
+model re-derived a boundary field between segments, and that is never
+overridable. Second, the staged `.sra` in the run directory IS what the model
+reads -- true after a cold start, and deliberately false for a run prepared with
+`--superseded-surface-ok`, which adopts a donor's surface and discards the staged
+one. `stage_surface_extras` then rewrites the current `.sra` into that directory
+on every resume, so the directory and the manifest come to assert a surface the
+model will not read. That is refused on resume and restated with
+`--superseded-surface-ok` on `continue_exoplasim.py`, which stamps the segment
+with what it is actually integrating.
+
+Codes 129 and, under `NVEG = 2`, 212 and 229 are excluded and reported by name
+rather than dropped: the model transforms the orography before it reaches the
+restart, and coupled vegetation owns forest cover and field capacity once a run
+starts, so in neither case is the staged file the right answer.
+
 Assess a spin-up and create a separate five-orbit seasonal climatology only
 after it passes:
 
@@ -193,6 +222,7 @@ unless told they exist.
 | `sra.py` | writes ExoPlaSim's `.sra` surface format; imported by the builders above |
 | `run_exoplasim.py` | prepare, validate and run an experiment |
 | `continue_exoplasim.py` | resume a prepared run from its latest restart; `--purpose` says what the segment is for |
+| `restart_surface.py` | checks a restart's own copy of every staged surface field against the field it was built from; gates every resume, and `--self-test` proves it can fail |
 | `segments.py` | what a run's segments were for and which orbits that makes usable; the one reader of the manifest's `segments` list |
 | `finalize_existing_segment.py` | record a completed segment after post-run bookkeeping failed; takes the same `--purpose` |
 | `run_stellar_cycle.py` | run or resume a superposed-sinusoid stellar-flux experiment |
