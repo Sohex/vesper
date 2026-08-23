@@ -82,3 +82,86 @@ with filter strength, the diagnostic bias is the explanation; if it sits still
 while the filter weakens, it is not, and the semi-implicit scheme keeps the
 attribution. Both arms must be checked for the `swr` trap before their numbers
 are read, since the weaker arm may simply reproduce arm B.
+
+## The grid, and it refutes the bias hypothesis
+
+*Measured 2026-08-23. Five arms, all from `MOST_REST.00039` of
+`run_4182235e9781`, two orbits each, `NENERGY = 1`, `NLOWIO = 0`, same binary
+and same superseded surface. Configs generated from `config/planet.yaml`,
+differing only in the two knobs named.*
+
+`denergy26 - denergy27`, which must be zero:
+
+| arm | 26 - 27, W/m2 | spread | KE identity |
+| --- | ---: | ---: | ---: |
+| kappa 8, dt 45 | **0.3147** | 0.0150 | -0.0000 |
+| kappa 2, dt 45 | 0.4020 | 0.0528 | 0.0371 |
+| kappa 8, dt 22.5 | 0.1204 | 0.0114 | -0.0137 |
+| kappa 2, dt 22.5 | 0.1637 | 0.0153 | 0.0064 |
+| **filter off, dt 22.5** | **0.5575** | 0.0503 | 0.0312 |
+
+The kinetic-energy identity closes in every arm against a conversion of about
+2.1 W/m2, so the pairing that makes 26 - 27 readable holds throughout.
+
+### The filter off RUNS at half the timestep
+
+It traps at dt 45 and integrates two clean orbits at dt 22.5. **The prediction
+stated before the arms ran -- that it would trap at either step, because the
+failure is on the first radiation call and before time integration can amplify
+anything -- is wrong.** The trap is a timestep-stability interaction, not
+Gibbs ringing in the reconstruction alone.
+
+So the filter is not required in the abstract. It is required AT A 45-MINUTE
+STEP. Upstream pairs `gp|exp|sp` with 30 minutes; this configuration pairs it
+with 45 and would need about 22.5 without it. **The filter buys timestep**, and
+that is the finding that reaches SPAT-11: the largest scientifically acceptable
+step is a function of filter strength, so the ladder has to sweep both or it
+measures one arbitrary point on a trade.
+
+### The adiabatic source is not the diagnostic biasing itself
+
+The hypothesis was that `denergy26` carries the filter to the first power and
+`denergy27` carries it squared, so `26 - 27` could not vanish under a
+nontrivial filter even for a core that conserves exactly. **It is refuted, and
+by the arm that makes the bias identically zero.** With the filter off, `f = 1`
+everywhere, the two terms carry the same weight by construction and the bias
+term is exactly nothing -- and the residual is the LARGEST of the five, 0.5575
+against 0.1204 for kappa 8 at the same timestep. If bias were the cause,
+removing it would drive the residual toward zero; it raises it by a factor of
+4.6.
+
+Both dependences point the same way instead:
+
+- **It scales with the timestep.** Halving dt takes 0.3147 to 0.1204 at kappa 8
+  and 0.4020 to 0.1637 at kappa 2 -- ratios of 0.38 and 0.41, between first and
+  second order. A truncation error behaves like this; a spatial weighting
+  artifact does not.
+- **It grows as the filter weakens.** At dt 22.5 the sequence kappa 8, kappa 2,
+  off is 0.1204, 0.1637, 0.5575, monotone. Less filtering leaves more
+  small-scale structure for the semi-implicit step to mishandle.
+
+So the closure note's attribution stands: the spectral core genuinely does not
+conserve enthalpy plus kinetic energy, and the time scheme and the semi-implicit
+conversion carry it. What is new is that the size is not a constant of the
+model -- it is set by the timestep and by how much spectrum survives the filter,
+and at the configuration this project runs it is 0.31 W/m2.
+
+The unbooked-dissipation question is untouched by this: no term books what the
+filter removes, and `mkdheat` still covers only Rayleigh friction and biharmonic
+diffusion.
+
+### The short-timestep arms are not contaminated by their restart
+
+The restart was written at dt 45, and the roadmap warns that a timestep arm
+needs its own compatible start because the file stores a step count and leapfrog
+history. Checked rather than assumed, per orbit:
+
+| arm | orbit 0 | orbit 1 |
+| --- | ---: | ---: |
+| kappa 8, dt 22.5 | 0.1284 | 0.1123 |
+| kappa 8, dt 45 | 0.3253 | 0.3042 |
+
+The short-step arm drifts between orbits by 0.016 and the control at its own
+native step by 0.021. A leapfrog inconsistency would have made the first orbit
+of the short-step arm stand out from its second, and it does not stand out any
+more than the control does from its own.

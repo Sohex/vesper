@@ -1,0 +1,303 @@
+{
+  "schema_version": 1,
+  "generator": "exoplasim/scripts/close_term_energy.py",
+  "generator_sha256": "8ed578fe045de76fefa64382c0d390802a7b2e23896df3551326b687b89dfb05",
+  "run_dir": "/home/cfutro/docs/world/exoplasim/runs/run_6fd5e349579d",
+  "run_id": "run_6fd5e349579d",
+  "source_build": "precarve-craton",
+  "config_sha256": "212405c6b35959365d26d6b5d53b1bcac4582daa76f8fa4a9f51218035791077",
+  "geography": "071c2952",
+  "window": {
+    "first_orbit": 0,
+    "last_orbit": 0,
+    "orbits": 1,
+    "low_io_off": true,
+    "low_io_problems": []
+  },
+  "identities": {
+    "gridpoint_physics_closure": {
+      "statement": "sum(denergy 6,7,8,9,10,11,12,13,14,21,22) = denergy04",
+      "right_answer_w_m2": 0.0,
+      "sum_of_terms": {
+        "mean_w_m2": 1.898960562175374,
+        "spread_w_m2": NaN
+      },
+      "denergy04": {
+        "mean_w_m2": 1.9347808284079415,
+        "spread_w_m2": NaN
+      },
+      "residual": {
+        "mean_w_m2": 0.03582026623256751,
+        "spread_w_m2": NaN
+      }
+    },
+    "adiabatic_energy_conservation": {
+      "statement": "denergy26 - denergy27 = 0 across the adiabatic spectral step (enthalpy plus kinetic energy)",
+      "right_answer_w_m2": 0.0,
+      "enthalpy_tendency": {
+        "mean_w_m2": -1.9096485549238917,
+        "spread_w_m2": NaN
+      },
+      "minus_kinetic_tendency": {
+        "mean_w_m2": -2.038084248508833,
+        "spread_w_m2": NaN
+      },
+      "residual": {
+        "mean_w_m2": 0.12843569358494134,
+        "spread_w_m2": NaN
+      }
+    },
+    "kinetic_energy_steady_state": {
+      "statement": "-denergy27 = denergy 21+22+23+25 in a settled run",
+      "right_answer_w_m2": 0.0,
+      "adiabatic_generation": {
+        "mean_w_m2": 2.038084248508833,
+        "spread_w_m2": NaN
+      },
+      "frictional_heat_returned": {
+        "mean_w_m2": 2.052690639686329,
+        "spread_w_m2": NaN
+      },
+      "residual": {
+        "mean_w_m2": -0.014606391177495848,
+        "spread_w_m2": NaN
+      }
+    }
+  },
+  "atmosphere_budget_w_m2": {
+    "radiative_convergence": {
+      "mean_w_m2": -94.25744698994939,
+      "spread_w_m2": NaN
+    },
+    "sensible_from_surface": {
+      "mean_w_m2": 19.220954355908955,
+      "spread_w_m2": NaN
+    },
+    "latent_from_surface": {
+      "mean_w_m2": 75.18610085849156,
+      "spread_w_m2": NaN
+    },
+    "latent_asymmetry": {
+      "mean_w_m2": -0.2165133854235819,
+      "spread_w_m2": NaN
+    },
+    "adiabatic_non_conservation": {
+      "mean_w_m2": 0.12843569358494134,
+      "spread_w_m2": NaN
+    },
+    "spectral_diffusion_of_heat": {
+      "mean_w_m2": -0.009200824530427039,
+      "spread_w_m2": NaN
+    },
+    "flux_route_total": {
+      "mean_w_m2": 0.14960822445112854,
+      "spread_w_m2": NaN
+    },
+    "closed_total": {
+      "mean_w_m2": 0.05232970808206094,
+      "spread_w_m2": NaN
+    },
+    "column_enthalpy_j_m2": 1977268561.508674
+  },
+  "terms_w_m2": {
+    "denergy01": {
+      "mean_w_m2": 1977268561.508674,
+      "spread_w_m2": NaN
+    },
+    "denergy02": {
+      "mean_w_m2": -1.547419987022926,
+      "spread_w_m2": NaN
+    },
+    "denergy03": {
+      "mean_w_m2": 1.94593526055587,
+      "spread_w_m2": NaN
+    },
+    "denergy04": {
+      "mean_w_m2": 1.9347808284079415,
+      "spread_w_m2": NaN
+    },
+    "denergy05": {
+      "mean_w_m2": 0.2532287718501353,
+      "spread_w_m2": NaN
+    },
+    "denergy06": {
+      "mean_w_m2": 0.0,
+      "spread_w_m2": NaN
+    },
+    "denergy07": {
+      "mean_w_m2": 19.17907192526944,
+      "spread_w_m2": NaN
+    },
+    "denergy08": {
+      "mean_w_m2": 0.007947336835238461,
+      "spread_w_m2": NaN
+    },
+    "denergy09": {
+      "mean_w_m2": -179.87114273034294,
+      "spread_w_m2": NaN
+    },
+    "denergy10": {
+      "mean_w_m2": 85.82358584890733,
+      "spread_w_m2": NaN
+    },
+    "denergy11": {
+      "mean_w_m2": 20.19306307935166,
+      "spread_w_m2": NaN
+    },
+    "denergy12": {
+      "mean_w_m2": 64.08071322779442,
+      "spread_w_m2": NaN
+    },
+    "denergy13": {
+      "mean_w_m2": -0.0003503349482638143,
+      "spread_w_m2": NaN
+    },
+    "denergy14": {
+      "mean_w_m2": -9.304188834078106,
+      "spread_w_m2": NaN
+    },
+    "denergy15": {
+      "mean_w_m2": -21.84864294645426,
+      "spread_w_m2": NaN
+    },
+    "denergy16": {
+      "mean_w_m2": -64.08069995793103,
+      "spread_w_m2": NaN
+    },
+    "denergy17": {
+      "mean_w_m2": -357.8089497255058,
+      "spread_w_m2": NaN
+    },
+    "denergy18": {
+      "mean_w_m2": 177.93780693795438,
+      "spread_w_m2": NaN
+    },
+    "denergy19": {
+      "mean_w_m2": -202.8277180138265,
+      "spread_w_m2": NaN
+    },
+    "denergy20": {
+      "mean_w_m2": 380.7655249313891,
+      "spread_w_m2": NaN
+    },
+    "denergy21": {
+      "mean_w_m2": 0.8139623921831106,
+      "spread_w_m2": NaN
+    },
+    "denergy22": {
+      "mean_w_m2": 0.9762986512034812,
+      "spread_w_m2": NaN
+    },
+    "denergy23": {
+      "mean_w_m2": 0.2320879467043209,
+      "spread_w_m2": NaN
+    },
+    "denergy24": {
+      "mean_w_m2": -0.009200824530427039,
+      "spread_w_m2": NaN
+    },
+    "denergy25": {
+      "mean_w_m2": 0.030341649595416076,
+      "spread_w_m2": NaN
+    },
+    "denergy26": {
+      "mean_w_m2": -1.9096485549238917,
+      "spread_w_m2": NaN
+    },
+    "denergy27": {
+      "mean_w_m2": -2.038084248508833,
+      "spread_w_m2": NaN
+    },
+    "denergy28": {
+      "mean_w_m2": 257.88765899940637,
+      "spread_w_m2": NaN
+    }
+  },
+  "fluxes_w_m2": {
+    "ntr": {
+      "mean_w_m2": 2.872556241135572,
+      "spread_w_m2": NaN
+    },
+    "rst": {
+      "mean_w_m2": 243.58842339027262,
+      "spread_w_m2": NaN
+    },
+    "rsut": {
+      "mean_w_m2": -78.79174089454118,
+      "spread_w_m2": NaN
+    },
+    "rlut": {
+      "mean_w_m2": -240.7158671944628,
+      "spread_w_m2": NaN
+    },
+    "rss": {
+      "mean_w_m2": 157.58145254328088,
+      "spread_w_m2": NaN
+    },
+    "rls": {
+      "mean_w_m2": -60.45144931219591,
+      "spread_w_m2": NaN
+    },
+    "hfss": {
+      "mean_w_m2": -19.220954355908955,
+      "spread_w_m2": NaN
+    },
+    "hfls": {
+      "mean_w_m2": -75.18610085849156,
+      "spread_w_m2": NaN
+    },
+    "hfns": {
+      "mean_w_m2": 2.305928848160527,
+      "spread_w_m2": NaN
+    }
+  },
+  "executable_sha256": "a4ccf1070247caa1a5fc225990c34b85596de40feb82ab3c6fe08ef7186a07ca",
+  "software": {
+    "python": "3.14.7",
+    "exoplasim": "3.4.2",
+    "numpy": "2.5.2",
+    "gfortran": "GNU Fortran (GCC) 16.2.1 20260810"
+  },
+  "per_orbit": [
+    {
+      "orbit": 0,
+      "denergy01": 1977268561.508674,
+      "denergy02": -1.547419987022926,
+      "denergy03": 1.94593526055587,
+      "denergy04": 1.9347808284079415,
+      "denergy05": 0.2532287718501353,
+      "denergy06": 0.0,
+      "denergy07": 19.17907192526944,
+      "denergy08": 0.007947336835238461,
+      "denergy09": -179.87114273034294,
+      "denergy10": 85.82358584890733,
+      "denergy11": 20.19306307935166,
+      "denergy12": 64.08071322779442,
+      "denergy13": -0.0003503349482638143,
+      "denergy14": -9.304188834078106,
+      "denergy15": -21.84864294645426,
+      "denergy16": -64.08069995793103,
+      "denergy17": -357.8089497255058,
+      "denergy18": 177.93780693795438,
+      "denergy19": -202.8277180138265,
+      "denergy20": 380.7655249313891,
+      "denergy21": 0.8139623921831106,
+      "denergy22": 0.9762986512034812,
+      "denergy23": 0.2320879467043209,
+      "denergy24": -0.009200824530427039,
+      "denergy25": 0.030341649595416076,
+      "denergy26": -1.9096485549238917,
+      "denergy27": -2.038084248508833,
+      "denergy28": 257.88765899940637,
+      "ntr": 2.872556241135572,
+      "rst": 243.58842339027262,
+      "rsut": -78.79174089454118,
+      "rlut": -240.7158671944628,
+      "rss": 157.58145254328088,
+      "rls": -60.45144931219591,
+      "hfss": -19.220954355908955,
+      "hfls": -75.18610085849156,
+      "hfns": 2.305928848160527
+    }
+  ]
+}
