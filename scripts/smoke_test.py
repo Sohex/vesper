@@ -62,6 +62,10 @@ purge-never-reaches-the-terrain property, run from `main()` with the rest):
    and keep the winner, which sets the transform functions and so the restart
    hash. Archive CLIM-44 is that, paid for once. CLIM-74 measured the
    alternatives at about 0.1% of runtime, so the tempting edit is all cost.
+12c. **pyburn's compiled extensions load on this interpreter.** `pyfft` and
+   `pyfft991` are untracked f2py build artifacts tagged with a CPython ABI, so
+   rebuilding the venv on a new interpreter invalidates them and every run then
+   fails at postprocessing -- reported by ExoPlaSim as the MODEL crashing.
 13. **The tools `environment.md` names are actually on this host.** That
    document sends a reader to `ncdump`, NCO, `h5diff` and `yq` rather than a
    Python session, and nothing else checks the claim is true. Both
@@ -635,6 +639,42 @@ def check_shtns_init_is_deterministic() -> list[str]:
     return problems
 
 
+def check_compiled_extensions() -> list[str]:
+    """The f2py extensions pyburn needs are importable by THIS interpreter.
+
+    `pyburn.readfile` imports `exoplasim.pyfft` (pyburn.py:662) to build the
+    Gaussian grid, so a missing or mis-tagged extension makes every raw model
+    file unreadable. The `.so` files are untracked build artifacts compiled for
+    one CPython ABI; git tracks only `pyfft.f90` and `pyfft991.f90`. Rebuilding
+    the venv on a new interpreter therefore invalidates them silently, and
+    nothing notices until a run finishes and its postprocessing fails.
+
+    It cost a pair of diagnostic runs to find, and the failure does not look
+    like itself: `__init__.py:1150` turns any postprocessing exception into
+    `_crash()`, which moves the working directory to `<run>_crashed/` and
+    reports "ExoPlaSim has crashed or begun producing garbage". The model had
+    integrated perfectly.
+
+    Imports rather than inspecting filenames, because the question is whether
+    THIS interpreter can load them, not whether a file of about the right name
+    is on disk.
+    """
+    problems = []
+    if not (ROOT / "vendor/exoplasim/exoplasim").is_dir():
+        return problems
+    import importlib
+    for name in ("exoplasim.pyfft", "exoplasim.pyfft991"):
+        try:
+            importlib.import_module(name)
+        except Exception as exc:
+            problems.append(
+                f"{name} will not import ({type(exc).__name__}), so pyburn "
+                f"cannot read raw model output and every run will fail at "
+                f"postprocessing. Rebuild it from its .f90 with numpy.f2py "
+                f"against this interpreter.")
+    return problems
+
+
 def check_no_control_patch() -> list[str]:
     """No deliberate corruption is sitting in the committed model source.
 
@@ -858,6 +898,8 @@ def main() -> None:
                check_no_control_patch()),
               ("SHTns is asked for the one mode that runs no timing race",
                check_shtns_init_is_deterministic()),
+              ("pyburn's compiled extensions load on this interpreter",
+               check_compiled_extensions()),
               ("no OpenMP directive line is truncated",
                check_omp_directive_length()),
               ("no imported module name is rebound",
