@@ -122,15 +122,70 @@ and if the transform is bandwidth-bound -- CLIM-67's own measurement has the
 SHTns path taking 11.17% of its demand fills from DRAM against legmod's 4.05% --
 adding threads to it returns nothing at all.
 
-**And it is the second experiment to say the imbalance model over-predicts.**
-The hemisphere swap in `thread-count-by-resolution.md` CUT the measured
-imbalance and bought +0.006%. This removed a real starvation and bought -0.28%.
-`max - mean` over per-thread work has now failed twice as a predictor of
-recoverable wall time, which is why the six points CLIM-67 quotes are an upper
-bound and not a target.
+**And it is the second experiment to collect nothing by REDISTRIBUTING work.**
+The hemisphere swap in `thread-count-by-resolution.md` cut the measured
+imbalance and bought +0.006%; this removed a real starvation and bought -0.28%.
+For a while that read as evidence that `max - mean` over per-thread work
+over-predicts what is recoverable. It is not: the section below spends the slack
+directly and finds it real, at very nearly the size the barrier attribution
+implies. What these two experiments establish is narrower and more useful --
+the slack is NOT REACHABLE BY REDISTRIBUTION. Existence and reachability are
+different claims and it is worth not conflating them.
 
 **A note on beds.** The first T42 arm returned a confident -2.17% on a 2.94 s
 bed against a startup of about 1.6 s, and the harness refused it for exceeding
 its scatter floor. Lengthening the bed did not sharpen that number, it REVERSED
 its sign. A bed too short to clear its own floor does not give a weak answer, it
 gives a wrong one.
+
+## The slack is real, and it is about 4%, measured by spending it
+
+Measured 2026-08-22, T170 on sixteen threads, 300 steps.
+
+Two attempts to collect the barrier's cost by moving work around returned
+nothing, which left an ambiguity that mattered: either the slack was real and
+redistribution could not reach it, or there was no slack and the per-thread
+spread was barrier machinery. Those two lead to opposite decisions about
+CLIM-67's large shape, and no amount of further redistribution separates them.
+
+**So it was measured from the other side: spend it.** A control patch on a
+throwaway build adds a calibrated busy-wait to every thread EXCEPT the two on
+the critical path -- 8 and 9, which the attribution puts at 13.7% and 14.4%
+barrier wait against 20 to 24% for the rest -- at the end of the diabatic
+timestep, with the delay set by an environment variable so nothing else differs
+between arms. If the slack is real, spending it is free until the spend exceeds
+it.
+
+| delay a step | work added over 300 steps | wall, median | absorbed |
+| ---: | ---: | ---: | ---: |
+| 0 | 0.00 s | 48.35 s | -- |
+| 2,500 us | 0.75 s | 47.96 s | all |
+| 5,000 us | 1.50 s | 47.34 s | all |
+| 10,000 us | 3.00 s | 48.85 s | about 2.0 s |
+| 20,000 us | 6.00 s | 52.04 s | about 1.9 s |
+
+Against a baseline of about 47.9 s the absorbed amount rises and then SATURATES:
+1.5 s vanishes entirely, 3.0 s costs 0.95 s, 6.0 s costs 4.1 s. The saturation
+point is the slack.
+
+**About 2.0 s of a 47.9 s run, which is 4.2%**, and it sits just under the six
+points the barrier attribution implies as an upper bound -- which is where a
+real quantity should sit relative to its bound.
+
+So CLIM-67's premise survives, and the two null results are re-read rather than
+explained away: the slack exists at close to the predicted size, and what those
+experiments showed is that a static permutation cannot reach it and that fixing
+the transform does not touch it. A work queue over the physics is the mechanism
+that could, and 4.2% is what it is playing for -- an upper bound still, since a
+queue has its own overhead, but now an upper bound with a measured floor under
+it rather than an inference.
+
+**The first sweep was designed wrong and is kept as a caution.** It swept delays
+of 0 to 800 us, which over 300 steps is 0.24 s of added work against a
+run-to-run scatter of about 1 s. It produced a tidy monotone table -- 47.43 s at
+zero rising to 48.33 s at 800 us -- that reads as a signal and is entirely
+noise, and it would have put the knee in the wrong place. The arithmetic that
+catches it is one line: 300 steps times D microseconds is 0.0003*D seconds, so
+crossing a slack of seconds needs tens of thousands of microseconds a step, not
+hundreds. Same failure as the 2.94 s T42 bed above: an instrument too blunt to
+produce a number still produces one.
