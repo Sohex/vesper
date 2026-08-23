@@ -58,24 +58,45 @@ static const double ATMFRAC=0.7;
 // their minimum (nitrogen saturation) (Parton et al 1993, Fig. 4)
 // Comment: NMASS_SAT is too high when considering BNF - Zaehle
 static const double NMASS_SAT = 0.002 * 0.05;
-//static const double PMASS_SAT = 0.002 * 0.001;
-static const double PMASS_SAT = 0.002;
 // Corresponds to the nitrogen concentration in litter where SOM C:N ratio reach
 // their minimum (nitrogen saturation) (Parton et al 1993, Fig. 4)
 static const double NCONC_SAT = 0.02;
-//static const double PCONC_SAT = 0.004;
+
+// The phosphorus saturation pair. Neither is derived for phosphorus.
+//
+// PCONC_SAT carries NCONC_SAT's value exactly, so the litter P concentration at
+// which SOM C:P is driven to its minimum is the litter N concentration at which
+// SOM C:N is. PMASS_SAT carries the 0.002 that NMASS_SAT is built from, without
+// the 0.05 that turns it into a soil available-N pool, so it is neither the
+// nitrogen value nor a phosphorus one. The fork's own source offered 0.004 and
+// 0.002 * 0.001 as phosphorus candidates in commented-out lines, with no
+// citation and no derivation behind either; those lines are removed rather than
+// left as undated alternatives to grep past. Deriving both is a task row
+// against BIO-33, and P limitation is refused until they are, so nothing here
+// reaches a live result. parameters.cpp holds the refusal.
+static const double PMASS_SAT = 0.002;
 static const double PCONC_SAT = 0.02;
 
-//Phosphorus Constants
-// rate constant for sorbed P [d-1] (Wang et al. 2007)
+// Phosphorus sorption rate constants, Wang et al. (2007) as restated by
+// Wang et al. (2010) Appendix D.
+//
+// USORB and USSORB are EQUAL IN THE SOURCE, not by a copy here: Wang et al.
+// (2010) state that the rate constants for the sorbed and strongly sorbed P
+// pools "both are equal to 0.0067 year-1". Do not read the equality as a defect
+// and do not split the two without a source that measures them apart. What
+// follows from it is that Eq. D10, dPssb/dt = USORB*Psorb - USSORB*Pssb, drives
+// the strongly sorbed pool to exactly the size of the sorbed pool, and stays
+// there, because nothing drains it: UOCC is declared below and never used, so
+// Soil::pmass_occluded is initialised, serialised and never written. Occlusion
+// is absent from this model, not slow.
+//
+// The published rates are per YEAR. Dividing by date.year_length() converts
+// them to per model day, which on this world's calendar is not per Earth day:
+// every annual rate in this file is converted the same way, and reclassifying
+// them by absolute time, seasonal cycle or accumulated flux is BIO-22's, not a
+// change to make here in isolation.
 static const double USORB = 0.0067 / date.year_length();
-//static const double USORB = 0.0067;
-
-// rate constant for strongly sorbed P [d-1] (Wang et al. 2007)
 static const double USSORB = 0.0067 / date.year_length();
-//static const double USSORB = 0.0067;
-
-// rate constant for occluded P [d-1] (Wang et al. 2007)
 static const double UOCC = 1.0E-5 / date.year_length();
 
 ///////////////////////////////////////////////////////////////////////////////////////

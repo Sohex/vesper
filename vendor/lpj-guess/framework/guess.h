@@ -162,6 +162,74 @@ const double SOILDEPTH_LOWER = 1000.0;
 //  Must be a multiple of Dz_soil
 const double SOILDEPTH_EVAP = 200.0;
 
+/// Sentinel for a per-layer soil fraction or porosity that no input path has set
+/** Soiltype fills org_frac_gridcell, min_frac_gridcell and porosity_gridcell
+ *  with this. A fraction and a porosity are both in [0,1], so any value at or
+ *  below this one is an unwritten array and not a soil.
+ */
+const double UNSET_SOIL_FRAC = -1.0;
+
+/// Advantage a fine root in the upper soil layer has for mineral N uptake
+/** The mineral nitrogen profile is taken to decline exponentially with depth
+ *  (Franzluebbers et al. 2009), giving roots in SOILDEPTH_UPPER an approximate
+ *  factor-of-two advantage over roots in SOILDEPTH_LOWER. Used by
+ *  Pft::init_nupscoeff().
+ */
+const double NUPS_UPPER_ADV = 2.0;
+
+/// Advantage a fine root in the upper soil layer has for labile P uptake
+/** Soil phosphorus is more surface-stratified than soil nitrogen, so this
+ *  belongs ABOVE NUPS_UPPER_ADV. Jobbagy and Jackson (2001) measure the
+ *  fraction of the top metre's content held in the top 20 cm across the USDA
+ *  National Soil Characterization Database and report a median of 0.43 for
+ *  extractable P against 0.36 for total N, with P the shallower of the two in
+ *  61 percent of paired profiles.
+ *
+ *  That contrast fixes the direction and not yet the value: the N figure of 2.0
+ *  is stated for MINERAL N over a 0-500/500-1500 mm split, while the measured
+ *  contrast is for extractable P and TOTAL N over 0-200 mm within the top
+ *  metre, and fitting an exponential to the measured factors reproduces 3.4 for
+ *  N rather than the 2.0 this model carries. Until a construction is found that
+ *  recovers the N value it is calibrated against, this stays equal to
+ *  NUPS_UPPER_ADV, which makes P uptake competition among PFTs rank exactly as
+ *  N uptake competition does. Deriving it is a task row against BIO-33; P
+ *  limitation is refused in the meantime, see parameters.cpp.
+ *
+ *  It is written as its own literal rather than as NUPS_UPPER_ADV so that the
+ *  two move independently, which is the property the C-N-P fork needs and does
+ *  not currently have. Used by Pft::init_pupscoeff().
+ */
+const double PUPS_UPPER_ADV = 2.0;
+
+/// Fraction between minimum and maximum leaf C:P ratio, and its CROPGREEN value
+/** These, PFRAC_LEAFTOROOT, PFRAC_LEAFTOSAP and PFRAC_MAXTOMIN are the
+ *  phosphorus stoichiometry scalings. Every one of them currently carries the
+ *  value the corresponding C:N scaling carries in Pft::init_cton_limits(),
+ *  where they are attributed to White et al. (2000) and Friend et al. (1997).
+ *  Those papers measured nitrogen, so the citations do not transfer and are not
+ *  repeated here: a leaf whose C:N range is a factor of 2.78 wide has no
+ *  measured reason to have a C:P range a factor of 2.78 wide. Leaf N:P is not
+ *  fixed across species or across soil P supply, which is the effect a C-N-P
+ *  model exists to resolve.
+ *
+ *  They are named and defined separately from their C:N counterparts so that
+ *  deriving one does not require touching the nitrogen side, and so that a
+ *  change to the nitrogen side cannot move phosphorus silently. Deriving them
+ *  is a task row against BIO-33; P limitation is refused in the meantime, see
+ *  parameters.cpp.
+ */
+const double PFRAC_MINTOMAX = 2.78;
+const double PFRAC_MINTOMAX_CROPGREEN = 5.0;
+
+/// Fraction between leaf and fine root C:P ratio. See PFRAC_MINTOMAX.
+const double PFRAC_LEAFTOROOT = 1.16;
+
+/// Fraction between leaf and sapwood C:P ratio. See PFRAC_MINTOMAX.
+const double PFRAC_LEAFTOSAP = 6.9;
+
+/// Tightening of the root and sapwood C:P range against the leaf range. See PFRAC_MINTOMAX.
+const double PFRAC_MAXTOMIN = 0.9;
+
 /// Year at which to calculate equilibrium soil carbon
 const int SOLVESOM_END=400;
 
@@ -2168,15 +2236,14 @@ public:
 	void init_ctop_min() {
 		// ctop_leaf_min has to be supplied in the insfile for crops with P limitation
 		if (!(phenology == CROPGREEN && (ifnlim || ifplim))) {
-			// Reich et al 1992, Table 1 (includes conversion x500 from mg/g_dry_weight to
-			// kgN/kgC)
+			// Regression of leaf C:P on SLA. The divisor converts the regressed
+			// AVERAGE leaf C:P to the MINIMUM, and so is the same min-to-max
+			// fraction init_ctop_limits() uses to go back the other way; it is
+			// PFRAC_MINTOMAX rather than a bare literal so the two cannot drift.
+			// Leafphysiognomy does not enter the regression, unlike the C:N one.
 
-			if (leafphysiognomy == BROADLEAF)
-				//ctop_leaf_min = Calculation from leaflong??;
-				ctop_leaf_min = exp(8.63342 + log(sla) * -0.80936) / ((2.78 + 1.0) / 2.0); //Calculation from sla
-			else if (leafphysiognomy == NEEDLELEAF)
-				//ctop_leaf_min = Calculation from leaflong??;
-				ctop_leaf_min = exp(8.63342 + log(sla) * -0.80936) / ((2.78 + 1.0) / 2.0); //Calculation from sla
+			if (leafphysiognomy == BROADLEAF || leafphysiognomy == NEEDLELEAF)
+				ctop_leaf_min = exp(8.63342 + log(sla) * -0.80936) / ((PFRAC_MINTOMAX + 1.0) / 2.0);
 		}
 	}
 
@@ -2229,23 +2296,23 @@ public:
 
 	void init_ctop_limits() {
 
-		// Fraction between min and max C:N ratio White et al. 2000 SAME FOR P, MAKES SENSE?
-		double frac_mintomax = (phenology == CROPGREEN && (ifnlim || ifplim)) ? 5.0 : 2.78;	// Use value also without nlim ?
+		// Fraction between min and max leaf C:P ratio
+		double frac_mintomax = (phenology == CROPGREEN && (ifnlim || ifplim)) ? PFRAC_MINTOMAX_CROPGREEN : PFRAC_MINTOMAX;
 
-																				// Fraction between leaf and root C:N ratio
-		double frac_leaftoroot = 1.16; // Friend et al. 1997
+		// Fraction between leaf and root C:P ratio
+		double frac_leaftoroot = PFRAC_LEAFTOROOT;
 
-									   // Fraction between leaf and sap wood C:N ratio
-		double frac_leaftosap = 6.9;   // Friend et al. 1997
+		// Fraction between leaf and sap wood C:P ratio
+		double frac_leaftosap = PFRAC_LEAFTOSAP;
 
-									   // Max leaf C:N ratio
+		// Max leaf C:P ratio
 		ctop_leaf_max = ctop_leaf_min * frac_mintomax;
 
 		// Average leaf C:P ratio
 		ctop_leaf_avr = avg_ctop(ctop_leaf_min, ctop_leaf_max);
 
-		// Tighter C:P ratio range for roots and sapwood: picked out thin air
-		double frac_maxtomin = .9;
+		// Tighter C:P ratio range for roots and sapwood
+		double frac_maxtomin = PFRAC_MAXTOMIN;
 
 		// Maximum fine root C:P ratio
 		ctop_root_max = ctop_leaf_max * frac_leaftoroot;
@@ -2278,9 +2345,7 @@ public:
 	void init_nupscoeff() {
 
 		// Fraction fine root in upper soil layer should have higher possibility for mineralized nitrogen uptake
-		// Soil nitrogen profile is considered to have a exponential decline (Franzluebbers et al. 2009) giving
-		// an approximate advantage of 2 of having more roots in the upper soil layer
-		const double upper_adv = 2.0;
+		const double upper_adv = NUPS_UPPER_ADV;
 
 		// Simple solution until we get C and N in all soil layers.
 		double rootdist_upper = 0.0;
@@ -2300,12 +2365,10 @@ public:
 	/// Calculates coefficient to compensate for different vertical distribution of fine root on phosphorus uptake
 	void init_pupscoeff() {
 
-		// Fraction fine root in upper soil layer should have higher possibility for mineralized nitrogen uptake
-		// Soil nitrogen profile is considered to have a exponential decline (Franzluebbers et al. 2009) giving
-		// an approximate advantage of 2 of having more roots in the upper soil layer
-		const double upper_adv = 2.0;
+		// Fraction fine root in upper soil layer should have higher possibility for labile phosphorus uptake
+		const double upper_adv = PUPS_UPPER_ADV;
 
-		// Simple solution until we get C and N in all soil layers.
+		// Simple solution until we get C and P in all soil layers.
 		double rootdist_upper = 0.0;
 		double rootdist_lower = 0.0;
 
@@ -3438,6 +3501,20 @@ public:
 		runon = 0.0;
 		for (int ii = 0; ii < 10; ii++)
 			soiltempdepths[ii] = 0.0;
+
+		// The per-layer thermal profile has no default, only a sentinel.
+		//
+		// Every input path that can reach Soil::update_layer_fractions with
+		// iforganicsoilproperties set must fill these three arrays. A zero here
+		// would let a path that forgets produce a zero-porosity, zero-fraction
+		// soil that runs and reports numbers; UNSET_SOIL_FRAC is outside the
+		// range any fraction or porosity can take, so update_layer_fractions
+		// can refuse instead.
+		for (int ii = 0; ii < NSOILLAYER; ii++) {
+			org_frac_gridcell[ii] = UNSET_SOIL_FRAC;
+			min_frac_gridcell[ii] = UNSET_SOIL_FRAC;
+			porosity_gridcell[ii] = UNSET_SOIL_FRAC;
+		}
 	}
 
 	/// Override the default SOM years with 70-80% of the spin-up period length

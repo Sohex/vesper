@@ -3314,8 +3314,15 @@ void Soil::update_layer_fractions(const int& daynum, const int& mixedl, const in
 					Fpwp_ref[ii] = soiltype.water_below_wp;
 					Frac_water_belowpwp[ii] = soiltype.water_below_wp;
 				} 
-				else {			
+				else {
 					// Use values updated using input of soil carbon
+					if (soiltype.porosity_gridcell[ii-IDX] <= UNSET_SOIL_FRAC ||
+					    soiltype.org_frac_gridcell[ii-IDX] <= UNSET_SOIL_FRAC ||
+					    soiltype.min_frac_gridcell[ii-IDX] <= UNSET_SOIL_FRAC) {
+						fail("Soil::update_layer_fractions: iforganicsoilproperties is set and soilcode is %d, but the per-layer soil profile was never written for layer %d. The input path that supplied this gridcell must fill porosity_gridcell, org_frac_gridcell and min_frac_gridcell.",
+							soiltype.soilcode, ii-IDX);
+					}
+
 					por[ii] = soiltype.porosity_gridcell[ii-IDX];
 					Frac_org[ii] = soiltype.org_frac_gridcell[ii-IDX];
 					Frac_min[ii] = soiltype.min_frac_gridcell[ii-IDX];
@@ -3353,6 +3360,13 @@ void Soil::update_layer_fractions(const int& daynum, const int& mixedl, const in
 				}
 				else {
 					// Use values updated using input of soil carbon
+					if (soiltype.porosity_gridcell[ii - IDX] <= UNSET_SOIL_FRAC ||
+					    soiltype.org_frac_gridcell[ii - IDX] <= UNSET_SOIL_FRAC ||
+					    soiltype.min_frac_gridcell[ii - IDX] <= UNSET_SOIL_FRAC) {
+						fail("Soil::update_layer_fractions: iforganicsoilproperties is set and soilcode is %d, but the per-layer soil profile was never written for layer %d. The input path that supplied this gridcell must fill porosity_gridcell, org_frac_gridcell and min_frac_gridcell.",
+							soiltype.soilcode, ii - IDX);
+					}
+
 					por[ii] = soiltype.porosity_gridcell[ii - IDX];
 					Frac_org[ii] = soiltype.org_frac_gridcell[ii - IDX];
 					Frac_min[ii] = soiltype.min_frac_gridcell[ii - IDX];

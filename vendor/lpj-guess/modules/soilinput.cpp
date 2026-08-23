@@ -733,7 +733,12 @@ void soil_parameters(Soiltype& soiltype, int soilcode) {
 	soiltype.gwp[1] = SOILDEPTH_LOWER * data[soilcode][5];
 	soiltype.gwsats[0] = SOILDEPTH_UPPER * data[soilcode][6];
 	soiltype.gwsats[1] = SOILDEPTH_LOWER * data[soilcode][6];
-	soiltype.wtot = (data[soilcode - 1][1] + data[soilcode][5]) * (SOILDEPTH_UPPER + SOILDEPTH_LOWER);
+	// Total water the two Gerten layers can hold. Written as the sum of the four
+	// quantities set immediately above rather than rebuilt from the table, which
+	// is the same identity SoilInput::get_soil uses and which cannot go out of
+	// bounds. It previously read data[soilcode - 1][1], indexing off the front
+	// of the table at soilcode 0.
+	soiltype.wtot = soiltype.gawc[0] + soiltype.gawc[1] + soiltype.gwp[0] + soiltype.gwp[1];
 
 	// Populate the arrays in a more general way
 	for (int s = 0; s < NSOILLAYER_UPPER; s++) {
@@ -755,6 +760,24 @@ void soil_parameters(Soiltype& soiltype, int soilcode) {
 	soiltype.water_below_wp = data[soilcode][5];
 	soiltype.porosity = data[soilcode][11];
 	soiltype.mineral_frac = 1.0 - soiltype.organic_frac - soiltype.porosity;
+
+	// The per-layer organic, mineral and porosity profile.
+	//
+	// Soil::update_layer_fractions, reached from Soil::soil_temp_multilayer,
+	// reads these three arrays into the per-layer heat capacity and thermal
+	// conductivity whenever iforganicsoilproperties is set and the soilcode is
+	// not the organic one, and Soiltype leaves them at a sentinel that
+	// update_layer_fractions refuses, so this path has to write them. There is
+	// no soil carbon input on a soilcode-only soil and therefore no vertical
+	// structure to resolve: every layer takes the whole-profile values set just
+	// above, which is the degenerate case of what get_soil derives from a SoilC
+	// column, and makes the iforganicsoilproperties branch agree with the
+	// branch beside it instead of reading uninitialised memory.
+	for (int s = 0; s < NSOILLAYER; s++) {
+		soiltype.org_frac_gridcell[s] = soiltype.organic_frac;
+		soiltype.min_frac_gridcell[s] = soiltype.mineral_frac;
+		soiltype.porosity_gridcell[s] = soiltype.porosity;
+	}
 
 	// Phosphorus soil data
 	// FIXED FOR AMAZON FACE AT THE MOMENT

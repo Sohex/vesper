@@ -194,10 +194,42 @@ Earth `gdd5min` thresholds would exclude almost every tree PFT for reasons that
 have nothing to do with the climate. They should be rescaled by
 180.655 / 365.2569 = 0.4946 so that a threshold means the same absolute amount of
 growing season it meant on Earth. Temperature limits (`tcmin_surv`, `twmin`) are
-physiology and do not scale. One second-order effect: a Vesper month is 15.1 days
-rather than 30.4, so "coldest month mean temperature" is averaged over a shorter
-window and will read slightly more extreme than the Earth-calibrated limits
-expect.
+physiology and do not scale.
+
+This note originally predicted a second-order effect in the other direction:
+that a Vesper month being about half an Earth month, "coldest month mean
+temperature" would be averaged over a shorter window and read slightly more
+extreme than the Earth-calibrated limits expect. Both halves of that are wrong.
+
+Ported, there is no effect at all. A trailing boxcar of width `W` days over a
+seasonal cycle of period `P` days attenuates the amplitude by
+`sin(pi W/P) / (pi W/P)`, which depends on the window only as a fraction of the
+orbit. A month is one twelfth of the orbit in either calendar, so Earth's
+30.4/365.2569 gives 0.9886 and Vesper's 15/183 gives 0.9890. The eleven even
+months are indistinguishable from Earth's. Only the twelfth differs, because
+`month_lengths` puts the remainder there: 18/183 attenuates to 0.9842, worth
+about 0.2 C of `mtemp_max20 - mtemp_min20` on a gridcell with a 40 C annual
+swing, and only when the extreme month is that one.
+
+Unported, the effect was real, larger, and of the opposite sign. `mtemp` was
+`climate.dtemp_31.mean()`, a mean over the whole 31-day history buffer rather
+than over `date.ndaymonth`, so the window stayed 31 days whatever the calendar
+said. A 31-day window over a 183-day orbit attenuates to 0.9535 against a
+month's 0.9890: the seasonal cycle read 3.55 percent of half-amplitude LESS
+extreme than a ported month would, roughly 1.4 C off the
+`mtemp_max20 - mtemp_min20` range of a gridcell with a 40 C annual swing, and
+in the direction that makes cold limits easier to pass rather than harder. The
+trailing window also lagged 15.5 days instead of 7.5, so the month-end sample
+carried most of the previous month with it. `mtemp` feeds `mtemp_min` and
+`mtemp_max`, thence `mtemp_min20` and `mtemp_max20`, which are the PFT
+establishment and survival criteria, and it gates the GDD5 and chill-day reset.
+
+`driver.cpp` now takes `mtemp` from
+`dtemp_31.periodicmean(date.ndaymonth[date.month])`, the same form the monthly
+history buffers two blocks below it already used. `Historic::periodicmean`
+returns the whole-buffer mean when asked for more steps than the buffer holds,
+so a calendar whose months outgrew the buffer would silently reintroduce this;
+`dailyaccounting_gridcell` refuses on the first simulation day instead.
 
 ## PAR fraction: resolved, and it found a climate bug
 

@@ -564,6 +564,20 @@ void dailyaccounting_gridcell(Gridcell& gridcell) {
 		}
 
 		if (date.year == 0) {
+			// The monthly means below are taken from these buffers with
+			// periodicmean/periodicsum over date.ndaymonth. Historic degrades
+			// silently to the whole buffer when asked for more steps than it
+			// holds, so a month longer than CAPACITY would return a window of
+			// the wrong length with no diagnostic. The month lengths come from
+			// VESPER_MONTH_LENGTHS and move with the orbit; refuse rather than
+			// average the wrong window.
+			for (int m = 0; m < 12; m++) {
+				if ((size_t)date.ndaymonth[m] > climate.dtemp_31.CAPACITY) {
+					fail("dailyaccounting_gridcell: month %d is %d days, longer than the %d-day climate history buffer. Widen Climate::dtemp_31/dprec_31/deet_31.",
+						m, date.ndaymonth[m], (int)climate.dtemp_31.CAPACITY);
+				}
+			}
+
 			// First day of simulation - initialise running annual mean temperature and daily temperatures for the last month
 			for (unsigned int d = 0; d < climate.dtemp_31.CAPACITY; d++) {
 				climate.dtemp_31.add(climate.temp);
@@ -655,9 +669,13 @@ void dailyaccounting_gridcell(Gridcell& gridcell) {
 	// Save yesterday's mean temperature for the last month
 	mtemp_last = climate.mtemp;
 
-	// Update daily temperatures, and mean overall temperature, for last 31 days
+	// Update daily temperatures, and the running mean over the current month,
+	// from the buffer of the last CAPACITY days. The mean is taken over
+	// date.ndaymonth, not over the whole buffer: mtemp is the monthly mean that
+	// feeds mtemp_min/mtemp_max and thence the PFT establishment and survival
+	// limits, so its window has to be this world's month.
 	climate.dtemp_31.add(climate.temp);
-	climate.mtemp = climate.dtemp_31.mean();
+	climate.mtemp = climate.dtemp_31.periodicmean(date.ndaymonth[date.month]);
 
 	climate.dprec_31.add(climate.prec);
 	climate.deet_31.add(climate.eet);

@@ -1269,6 +1269,31 @@ void plib_callback(int callback) {
 		if (!itemparsed("ifwalkernplim")) badins("ifwalkernplim");
 		if (!itemparsed("freenyears")) badins("freenyears");
 
+		// Phosphorus limitation is refused until the phosphorus cycle has a
+		// parameterisation of its own.
+		//
+		// The C-N-P fork's P side was built by copying the N side, and the
+		// copies that remain are not cosmetic: PUPS_UPPER_ADV equals
+		// NUPS_UPPER_ADV, so P uptake competition among PFTs can only rank the
+		// way N uptake competition ranks; PFRAC_MINTOMAX, PFRAC_LEAFTOROOT,
+		// PFRAC_LEAFTOSAP and PFRAC_MAXTOMIN carry the C:N scalings, so leaf
+		// N:P is pinned; and PCONC_SAT carries NCONC_SAT, so litter P
+		// saturation is litter N saturation. Each of those is now named and
+		// documented where it lives, and each states what would settle it.
+		// Running with ifplim 1 before they are settled produces a P-limited
+		// world whose P limitation is N limitation under another name, and it
+		// produces it silently, which is worse than not running.
+		//
+		// Deriving them is a task row against BIO-33. Lift this refusal in the
+		// same change that lands the derivations, not before.
+		if (ifplim) {
+			sendmessage("Error", "ifplim 1 is refused: the phosphorus stoichiometry, "
+				"uptake profile and saturation constants still carry their nitrogen "
+				"values. See PFRAC_MINTOMAX and PUPS_UPPER_ADV in guess.h and "
+				"PCONC_SAT in somdynam.cpp, and TASKS.md BIO-33.");
+			plibabort();
+		}
+
 		if (nyear_spinup <= freenyears) {
 			sendmessage("Error", "freenyears must be smaller than nyear_spinup");
 			plibabort();
@@ -1608,11 +1633,14 @@ void plib_callback(int callback) {
 			}
 
 			if (ifcalccton) {
-				if(!(ppft->phenology == CROPGREEN && run_landcover && (ifnlim || ifplim)))
+				if(!(ppft->phenology == CROPGREEN && run_landcover && (ifnlim || ifplim))) {
 					// Calculate leaf C:N ratio minimum
 					ppft->init_cton_min();
-					// Calculate leaf C:P ratio minimum
-					ppft->init_ctop_min();
+				}
+				// Calculate leaf C:P ratio minimum. Outside the guard above, as
+				// the indentation has always had it: init_ctop_min() repeats
+				// the same test on its own, so both orders behave alike.
+				ppft->init_ctop_min();
 			}
 
 			// Calculate C:N ratio limits
