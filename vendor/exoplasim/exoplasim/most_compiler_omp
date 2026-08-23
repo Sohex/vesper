@@ -12,15 +12,3 @@ LEGMOD=legini
 LEGFAST=legfast32.o
 GUIMOD=guimod_stub
 PUMAX=pumax_stub
-
-# -finit-real=zero and -ffpe-trap=invalid,zero,overflow stand together here by
-# decision, not by inheritance. Production keeps the zero fill, and detection of
-# an uninitialised read belongs to the debug configuration instead.
-#
-# The reason is measured rather than argued: at -O1 and above gfortran folds a
-# signalling NaN to a quiet one before any instruction runs, so swapping this
-# line to -finit-real=snan arms no trap at -O3. It would give up a deterministic
-# fill and buy nothing. Poisoned initialisation only survives to the arithmetic
-# at -Og and below, which makes the debug build a different optimisation level
-# and therefore a second binary rather than a flag anyone flips on this line.
-# See notes/audits/uninitialised-reads-and-implicit-save.md, finding 1.
