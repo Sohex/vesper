@@ -38,3 +38,14 @@ s3fs==2026.7.0
 # understates that bar badly, 0.13 against 0.21 held out, so the flexible
 # arm is not a convenience: the number it produces is the criterion.
 scikit-learn==1.9.0
+
+# These four were installed in the venv but never declared here, which meant the
+# environment could not be rebuilt from this file. That went unnoticed until a
+# tracked `.venv` symlink destroyed the venv and it had to be: `requests` for the
+# hydrography fetchers, and dask, flox and bottleneck because
+# docs/src/reference/environment.md sends a reader to them for anything run-sized
+# and smoke_test.py checks that every package it names imports.
+requests==2.34.2
+dask==2026.7.1
+flox==0.11.2
+bottleneck==1.6.0

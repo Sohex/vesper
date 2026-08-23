@@ -238,7 +238,9 @@ vendor/cgenie/         cGENIE.muffin, git subtree. The CANDIDATE offline ocean u
 vendor/lpjml/          LPJmL, git subtree. NOT the biosphere and NOT a replacement for
                        lpj-guess: a different model in the same family, vendored because
                        the intended work is fork-shaped. Nothing reads it yet.
-.venv/                 Python 3.12. Untracked; see Environment below.
+.venv/                 Python 3.14. Untracked, and NEVER tracked: a symlink named
+                       .venv was committed once and checked out in the main repo it
+                       points at itself, which destroys the environment. See Environment.
 ```
 
 New components get a sibling directory and read the same `config/planet.yaml`
