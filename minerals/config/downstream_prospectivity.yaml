@@ -22,6 +22,43 @@ schema_version: 1
 #                      the rule deliberately has none. Better than a number
 #   declared         - judgment, reasoning written out, no source behind it
 
+# THE DIVISOR IS PART OF THE RULE, exactly as in the tectonic file, and the
+# argument is there and in `scripts/prospectivity_scale.py` rather than repeated
+# here. Each field is scaled by the rule's attainable maximum -- the host weight
+# times every modifier at the top of its declared range -- and never by whichever
+# cell this build and this climatology happened to score highest. That matters
+# more on this half than on the tectonic one, because these rules move with a
+# climate as well as with a terrain, so a land-maximum divisor let a single wet
+# cell rescale a whole field between two runs of the same rule.
+#
+# These are the tops of the ranges. A modifier added to the script without an
+# entry here fails the ceiling check on the next run.
+input_ranges:
+  # `weathering_intensity` is NOT here, because it is already bounded where it
+  # is defined: `pedology/config/pedogenesis.yaml` clips it at
+  # `weathering.maximum` and `build_soil.weathering_intensity` applies the clip.
+  # The script reads that value from the pedology config rather than carrying a
+  # second copy of it, so raising the clip raises these ceilings with it.
+  #
+  # A field already on 0-1 read from another artifact: the tectonic porphyry
+  # field that supergene copper multiplies, and the drainage-accumulated share
+  # of gold-bearing catchment that the placer rule computes. Both are shares by
+  # construction, so 1 is a bound rather than an observation.
+  upstream_prospectivity: 1.0
+  catchment_share: 1.0
+  # The two sides of the chemical divide, each expressed as the deficient
+  # species' shortfall against the abundant one, so both run 0 to 1 by
+  # construction. See `brines` below for why the Ca side is written that way.
+  divide_excess: 1.0
+  # Potassium supply, in the units `pedology/scripts/brine_paths.py` reports.
+  # A basin's `k_ueq_l` is a runoff-weighted mixture of Meybeck (1987) table 2C
+  # release concentrations over its catchment, so it cannot exceed the largest K
+  # release among the lithologies this world's rock map reaches. That is
+  # `halite_evaporite` at 100 ueq/l, the concentration a catchment draining
+  # nothing but salt crust would deliver. A property of the release table and
+  # the rock map, both of which are checked in, and not of any terrain.
+  potassium_ueq_l: 100.0
+
 deposits:
 
   bauxite:
@@ -300,6 +337,14 @@ brines:
     # Orogen's rock table has no gypsum lithology at all -- its evaporite class
     # is a salt crust -- so a Ca-rich path can only arise where the catchment
     # already drains halite evaporite or a carbonate-poor silicate mix.
+    #
+    # SCALED AS A SHORTFALL, `1 - HCO3/Ca`, which is the mirror image of the
+    # alkaline side's `1 - Ca/HCO3` and not a different quantity. The obvious
+    # alternative, `Ca/HCO3 - 1`, orders the basins identically but is unbounded
+    # above, and an unbounded score has no divisor that is a property of the
+    # rule: one basin at Ca/HCO3 = 40 would set the scale for every gypsum basin
+    # on the planet. Both sides now measure how far the deficient species falls
+    # short of the abundant one, so both run 0 to 1 by construction.
     path: ca_rich
     require_no_overflow: true
 

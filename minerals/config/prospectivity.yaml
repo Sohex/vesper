@@ -52,6 +52,54 @@ exhumation:
   # an absolute depth, because erosionDelta carries no physical unit.
   deep_exhumation_delta: 0.058
 
+# THE DIVISOR IS PART OF THE RULE. Each field below is a 0-1 field per deposit
+# type, and what "1" means is set here rather than by whichever cell a build
+# happened to score highest. `prospectivity_scale.py` argues why at length; the
+# short form is that a divisor read from `field[land].max()` is one cell, so a
+# generation that produces a single unusually favourable cell rescales every
+# other cell downward and no two builds' numbers mean the same thing.
+#
+# The divisor is instead each rule's attainable maximum, the host weight times
+# every modifier at the top of its range, computed in closed form from this
+# file. These are the tops of those ranges. A modifier added to the script
+# without an entry here fails the ceiling check on the next run.
+input_ranges:
+  # `r_t_foldBelt` is `min(1, stressNorm * FOLD_BELT_MULT)` in
+  # `vendor/orogen/js/elevation.js`, so 1 is a bound by construction rather
+  # than an observation, and the saturated fold belt is a real state on this
+  # world rather than a limit nothing approaches.
+  fold_belt_weight: 1.0
+  # `r_t_craton` is `max(0, 1 - tectonicActivity * CRATON_TECTONIC_MULT)`, so 1
+  # is a bound by construction too: a cell with no tectonic activity at all.
+  craton_weight: 1.0
+  # `favour_deep_exhumation` multiplies by `1 + deep`, and `deep` is the boolean
+  # test against `deep_exhumation_delta` above.
+  deep_exhumation: 1.0
+  # Stress enters as `stress_norm`, which is `r_stress / stress_reference`
+  # clipped to 1, so its top is 1 by construction once the reference is fixed.
+  stress_norm: 1.0
+
+# `r_stress` is a propagated magnitude with no declared range, in model units,
+# and it is the one input here that has to be given a scale rather than reading
+# with one. The scale is Orogen's own: `elevation.js` computes `maxStress` as
+# the `STRESS_PERCENTILE` (0.97) quantile of propagated stress over cells above
+# `STRESS_PROPAGATE_MIN` (0.01), and every internal consumer reads
+# `stressNorm = min(1, r_stress / maxStress)`. Taking the same reference means
+# saturated stress here is saturated stress there.
+#
+# It is measured once and frozen, exactly as `deep_exhumation_delta` above is,
+# because a reference recomputed per build is the defect this block exists to
+# remove. Measured on `precarve-craton` and verified against an identity rather
+# than assumed: `min(1, min(1, r_stress/reference) * FOLD_BELT_MULT)`
+# reproduces the exported `r_t_foldBelt` to 1e-6 over every land cell Orogen
+# assigned one. Re-derive it, and check that identity again, if a generation
+# changes the plate model or the stress propagation constants.
+#
+# Reading the build's own `r_stress` maximum instead, which is what this file
+# used to do implicitly, took the divisor from a SEAFLOOR cell -- ocean stress
+# runs higher than land stress, and the field is land-only.
+stress_reference: 1.449732
+
 deposits:
 
   # Arc magmatism, emplaced shallow above a batholith, and requiring both the arc

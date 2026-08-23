@@ -79,9 +79,10 @@ Pacific island arcs. Orogen already carries that distinction, since
 `arc_andesite` is continental-arc and `arc_basalt` is island-arc.
 
 On this world the split has a clear answer. Continental arc outweighs island arc
-about forty to one by area, so Cu-Mo reaches high favourability across 4.65% of
-land while gold-rich porphyry clears 0.5 on 0.12%. This is a copper planet rather
-than a gold one, and that follows from its arcs being continental.
+by more than an order of magnitude in area, so Cu-Mo clears half its attainable
+maximum over tens of times the land gold-rich porphyry does. This is a copper
+planet rather than a gold one, and that follows from its arcs being continental.
+Both shares are in `prospectivity_report.json` under `land_fraction_above_half`.
 
 Kimberlite is the other entry worth noting: it needs a thick cratonic keel, and
 before the craton basin double-count was removed this world had almost none. See
@@ -99,7 +100,10 @@ toward zero. The first calcite therefore decides irreversibly which way a brine
 goes, `brine_paths.py` solves it per basin from Meybeck's release table, and
 these two fields are the two sides of that answer. They are scaled by the SIZE of
 the excess rather than by its sign, because a basin at Ca/HCO3 of 0.31 is a soda
-lake in a way one at 0.98 is not.
+lake in a way one at 0.98 is not. Each side measures the DEFICIENT species'
+shortfall against the abundant one -- `1 - Ca/HCO3` alkaline, `1 - HCO3/Ca`
+Ca-rich -- so the two are one quantity read from either end and both run 0 to 1
+with a bound that belongs to the ratio rather than to a build.
 
 Both are gated on the basin not overflowing. A basin pinned at its spill never
 reaches saturation, so nothing crystallises whatever its chemistry, and the lake
@@ -190,10 +194,33 @@ granite twice under different names.
 
 ## Reading the numbers
 
-Prospectivity is **relative within this world**, normalised by the land maximum
-per deposit type. A 1.0 is the most favourable cell here, not a grade or a
-tonnage, and comparing the number for one deposit type against another says
-nothing. What is comparable is the spatial pattern within a type.
+Prospectivity is **a fraction of what its own rule can award**. Each deposit type
+is divided by its ATTAINABLE MAXIMUM: the host weight times every modifier
+evaluated at the top of its declared input range, computed in closed form from
+the config by `scripts/prospectivity_scale.py`. A 1.0 is a cell that attains
+everything the rule offers -- for orogenic gold, a schist cell that is
+simultaneously a saturated fold belt, at saturated stress and deeply exhumed --
+and not a grade or a tonnage.
+
+**The divisor is a property of the rule, so the same number means the same thing
+on every build.** It was previously `field[land].max()`, which is one cell: a
+generation that produced a single unusually favourable cell rescaled every other
+cell downward, and nothing in the artifact said so. The consequence of the fix is
+that a field no longer reaches 1.0 unless some cell actually attains the maximum,
+and `max_over_land` in each report says how close this build comes. That number
+was 1.0 by construction before and carried no information.
+
+Comparing one deposit type's number against another's still says nothing, because
+the two maxima are different quantities. What is comparable is the spatial pattern
+within a type, and now also the same type across builds.
+
+The scaling arithmetic and the ceiling check live in
+`scripts/prospectivity_scale.py`, which both scripts import: it normalises
+against a supplied ceiling, raises when a score exceeds one -- a closed form that
+disagrees with the expression it bounds is a defect with a right answer, so it is
+a test -- and holds the host-weight lookup the two scripts had each written for
+themselves. Each script keeps its own `ceiling` function next to its own score
+expression, because the two must mirror each other term for term.
 
 Read `grounding` before quoting any downstream number. Each rule carries one of
 `derived`, `sourced`, `sourced-negative` or `declared`, and they are not equally
