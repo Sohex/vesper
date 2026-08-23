@@ -597,6 +597,7 @@ one_offs:
   - maps/snapshot.py
   - exoplasim/scripts/corrk_cross_check.py
   - exoplasim/scripts/shtns_variant_sweep.py
+  - exoplasim/scripts/build_pyfft.py
   - exoplasim/scripts/predict_ocean_terms.py
   - exoplasim/scripts/score_rank_bench.py
   - exoplasim/scripts/reproducibility_matrix.py

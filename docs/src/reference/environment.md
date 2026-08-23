@@ -12,6 +12,23 @@ compiles in place and `requirements.txt` deliberately does not name it:
 
 What the fork contains and where it came from is in [the vendored upstreams](vendored-upstreams.md).
 
+**A NEW INTERPRETER MEANS A PYFFT REBUILD.** `pyburn` imports `exoplasim.pyfft`
+to build the Gaussian grid, so without it no raw model output can be read and
+every run fails at postprocessing. It and `pyfft991` are f2py extensions tagged
+with a CPython ABI, and git tracks only their `.f90` sources -- so rebuilding
+`.venv` on a new Python leaves the sources looking untouched and the extensions
+unloadable. Rebuild them, which needs `meson`, `ninja` and `gfortran` on the
+host because numpy refuses the distutils backend on Python >= 3.12:
+
+    python exoplasim/scripts/build_pyfft.py            # build both and verify
+    python exoplasim/scripts/build_pyfft.py --check    # do they load? exit 1 if not
+
+`scripts/smoke_test.py` carries the same check, so a stale ABI is caught before
+a run rather than after one. That matters because the failure does not look like
+itself: `exoplasim/__init__.py` turns any postprocessing exception into
+`_crash()`, which moves the run to `<run>_crashed/` and reports "ExoPlaSim has
+crashed or begun producing garbage" for a model that integrated perfectly.
+
 LPJ-GUESS is likewise compiled from its subtree. Its generated `vesper.h` must
 exist first because the configured orbital year sizes arrays at compile time:
 

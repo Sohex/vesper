@@ -61,67 +61,81 @@ def _noneparse(text,dtype):
             
     #return sourcedir
                 
-def compile_pyfft():
-    '''Compile or recompile the pyfft libraries. Requires meson, ninja, gfortran, and gcc.'''
-    
-    sourcedir = "/".join(__file__.split("/")[:-1]) #Get the absolute path for the module
-    print(sourcedir)
-     
-    try:
-        cwd = os.getcwd()
-        os.chdir(sourcedir)
-        
-        if not os.path.isfile(sourcedir+"/most_compiler")\
-            or not os.path.isfile(sourcedir+"/most_compiler_mpi")\
-            or not os.path.isfile(sourcedir+"/firstrun"):
-            os.system(f"touch {sourcedir}/firstrun")
-            sysconfigure()
-        
-        
-        import numpy.f2py
-        with open("pyfft.f90","r") as pyfft_file:
-            pyfft_source = pyfft_file.read()
-        failed = pyburn.f2py_compile(pyfft_source,modulename='pyfft',
-                                    extra_args='--f90exec=gfortran --f77exec=gfortran --f90flags="-O3"',
-                                    extension='.f90')
-        if failed!=0:
-            print(failed)
-            #raise Exception("Encountered an error in pyfft compilation with f2py.... please ensure gfortran is installed and configured correctly.")
-        
-        with open("pyfft991.f90","r") as pyfft991_file:
-            pyfft991_source = pyfft991_file.read()
-        failed = pyburn.f2py_compile(pyfft991_source,modulename='pyfft991',
-                                    extra_args='--f90exec=gfortran --f77exec=gfortran --f90flags="-O3"',
-                                    extension='.f90')
-        if failed!=0:
-            print(failed)
-            #raise Exception("Encountered an error in pyfft991 compilation with f2py.... please ensure gfortran is installed and configured correctly.")
-            
-        #if self.burn7:
-            #os.system("nc-config --version > ncversion.tmp")
-            #with open("ncversion.tmp","r") as ncftmpf:
-                #version = float('.'.join(ncftmpf.read().split()[1].split('.')[:2]))
-            #if version>4.2:
-                #os.system("cd postprocessor && ./build_init.sh || ./build_init_compatibility.sh")
-            #else:
-                #os.system("cd postprocessor && rm burn7.x && make")
-            #os.chdir(cwd)
-            #os.system("touch %s/postprocessor/netcdfbuilt"%sourcedir)
-            
-        os.chdir(cwd)
-    except PermissionError:
-        raise PermissionError("\nHi! Welcome to ExoPlaSim. It looks like this is the first "+
-                            "time you're using this program since installing, and you "+
-                            "may have installed it to a location that needs root "+
-                            "privileges to modify. This is not ideal! If you want to "+
-                            "use the program this way, you will need to run python code"+
-                            " that uses ExoPlaSim with sudo privileges; i.e. sudo "+
-                            "python3 myscript.py. If you did this because pip install "+
-                            "breaks without sudo privileges, then try using \n\n\tpip "+ "install --user exoplasim \n\ninstead. It is generally a "+
-                                "very bad idea to install things with sudo pip install.")
-    except Exception as e:
-        raise e
-    
+def compile_pyfft(verify=True):
+    '''Build the pyfft and pyfft991 f2py extensions for the RUNNING interpreter.
+
+    `pyburn.readfile` imports `exoplasim.pyfft` to build the Gaussian grid, so
+    without these two extensions no raw model output can be read and every run
+    fails at postprocessing.
+
+    THIS FORK REWROTE THIS FUNCTION, and the reasons are each a defect that cost
+    something. The version it replaces:
+
+      * swallowed failure. `if failed != 0: print(failed)` with the `raise`
+        commented out, so a build that produced nothing returned normally and
+        the caller carried on believing it had extensions.
+      * called `sysconfigure()`, which calls back into this function, both of
+        them gated on marker files -- `firstrun`, `most_compiler`,
+        `most_compiler_mpi` -- that this fork no longer writes or reads for
+        anything. Merely constructing a Model created `firstrun`, which then
+        disabled the auto-rebuild path permanently.
+      * verified nothing. Whether the artifact it produced could be imported by
+        the interpreter that would need it was never checked.
+
+    The extensions are tagged with a CPython ABI and are untracked build
+    artifacts; git carries only the .f90 sources. So an interpreter change
+    invalidates them silently. That happened: the venv moved to 3.14 and left
+    cpython-312 extensions behind, and the next run reported it as the MODEL
+    crashing, because `_run` turns any postprocessing exception into `_crash()`.
+
+    Needs meson, ninja and gfortran: numpy refuses the distutils backend on
+    Python >= 3.12, so `f2py -c` shells out to meson.
+    '''
+    import importlib
+    import subprocess
+    import sys
+
+    sourcedir = os.path.dirname(os.path.abspath(__file__))
+    built = []
+    for modulename in ("pyfft", "pyfft991"):
+        source = os.path.join(sourcedir, modulename + ".f90")
+        if not os.path.isfile(source):
+            raise FileNotFoundError(
+                f"{source} is missing; it is the tracked source these "
+                f"extensions are built from.")
+        # Through the interpreter that will IMPORT the result, so the ABI tag
+        # cannot disagree with the interpreter that needs it.
+        result = subprocess.run(
+            [sys.executable, "-m", "numpy.f2py", "-c", "-m", modulename,
+             modulename + ".f90", "--f90exec=gfortran", "--f77exec=gfortran"],
+            cwd=sourcedir, capture_output=True, text=True)
+        if result.returncode != 0:
+            tail = "\n".join((result.stderr or result.stdout).splitlines()[-15:])
+            raise RuntimeError(
+                f"f2py failed to build {modulename} (exit {result.returncode}).\n"
+                f"It needs meson, ninja and gfortran on PATH.\n{tail}")
+        built.append(modulename)
+
+    if verify:
+        # A build that produced an unimportable artifact is a failed build, and
+        # the only way to know is to import it. inigau's Gaussian weights are
+        # the measure of [-1, 1] and must sum to 2 -- a check with a right
+        # answer rather than a smoke test that merely runs.
+        for modulename in built:
+            full = "exoplasim." + modulename
+            importlib.invalidate_caches()
+            module = importlib.import_module(full)
+            nlat = 192 if modulename == "pyfft991" else 64
+            weights = module.inigau(nlat)[1]
+            total = float(weights.sum())
+            if abs(total - 2.0) > 1e-10:
+                raise RuntimeError(
+                    f"{full} imported but inigau({nlat}) returned Gaussian "
+                    f"weights summing to {total!r}, not 2.0. The build is "
+                    f"wrong, not merely present.")
+    return built
+
+
 def sysconfigure():
     '''Rerun the ExoPlaSim system configuration script.
     
@@ -139,13 +153,22 @@ def sysconfigure():
     # the three was ever derived from the declaration.
     # notes/audits/model-build-driver.md.
 
+    # NOR DOES IT BUILD THE PYFFT EXTENSIONS ANY MORE. It used to, gated on a
+    # `firstrun` marker file, and `compile_pyfft()` touched that same marker
+    # before calling back into here -- so merely constructing a Model created it
+    # and disabled the rebuild permanently, whether or not anything had been
+    # built. A build that can be switched off by the existence of a file nobody
+    # writes on purpose is not a build path.
+    #
+    # `exoplasim/scripts/build_pyfft.py` is that path now: explicit, registered
+    # in config/pipeline.yaml, and verified by importing what it produced.
+    # `scripts/smoke_test.py` fails when the extensions do not load, so a stale
+    # ABI is caught before a run rather than after one.
+
     try:
         cwd = os.getcwd()
         os.chdir(sourcedir)
-        if not os.path.isfile(sourcedir+"/firstrun") :
-            os.system(f"touch {sourcedir}/firstrun")
-            compile_pyfft()
-            
+        
         #import numpy.f2py
         #with open("pyfft.f90","r") as pyfft_file:
             #pyfft_source = pyfft_file.read()
