@@ -262,3 +262,9 @@ vendor/shtns-install/
 # executables it produces land in vendor/exoplasim/exoplasim/plasim/run and are
 # recorded in exoplasim/binary_manifest.json.
 vendor/exoplasim/build/
+
+# Beads / Dolt files (added by bd init)
+.dolt/
+*.db
+.beads-credential-key
+.beads/proxieddb/
