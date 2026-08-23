@@ -165,3 +165,41 @@ The short-step arm drifts between orbits by 0.016 and the control at its own
 native step by 0.021. A leapfrog inconsistency would have made the first orbit
 of the short-step arm stand out from its second, and it does not stand out any
 more than the control does from its own.
+
+## Two failure modes, and only one of them is the filter's
+
+The 2026-08-23 sweep classified every SIGFPE as one event. They are two, and the
+wall clock separates them cleanly.
+
+**THE REFUSAL, at the first radiation call.** `swr_` through `radstep_` from
+`gridpointd_`, in under a tenth of a minute, with no output record written at
+all. This is the filter's failure: it is what the whole T42 boundary above is
+made of, and it is a property of the CONFIGURATION -- the model will not take a
+first step at that combination of step and filter.
+
+**THE BLOW-UP, most of an orbit in.** `writegp_` at `outmod.f90:130`, reached
+through `outgp_`, after twenty minutes and 4.3 GB of output. That line is
+`zzf(:) = zf(:)`, and the declarations are the whole story: `zf` is `real`,
+which is eight bytes under `-fdefault-real-8`, and `zzf` is `real(kind=4)`. So
+every field this model writes passes through a DOUBLE-TO-SINGLE NARROWING, and
+`-ffpe-trap=overflow` fires when a value exceeds about 3.4e38. The state had
+already gone; the output writer is only where it became visible.
+
+That makes the narrowing an accidental sanity check on the state, and a poor
+one: it catches 1e39 and passes 1e10 K in silence. Worth knowing before anyone
+reads a clean run as a checked one.
+
+T127 AT dt 22.5 IS THE SECOND KIND, and it is the one cell in the matrix that
+does not fit its pattern: T127 runs at dt 30 and blows up at 22.5, where a
+shorter step should be safer. Three candidates, and the sweep cannot separate
+them. It may be a genuine nonlinear instability, which is not obliged to be
+monotone in the timestep. It may be the COLD START -- track B runs carry no
+restart, so what is being integrated is a kick whose evolution depends on the
+step, and that is a spin-up property rather than an equilibrium one. Or it may
+be something else that moves with the step.
+
+The first thing to establish is whether it lands in the same place twice, since
+the model is deterministic and a cold start with a declared seed should
+reproduce exactly. If it fails at the same step, it is a property of the
+configuration; if it wanders, something in the run is not deterministic, and
+archive CLIM-44 says how much that costs.
