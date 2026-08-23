@@ -426,7 +426,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !     Copy some calendar variables to calmod
 
       call calini(n_days_per_month,n_days_per_year,n_start_step,ntspd &
-                  ,solar_day,-1,mcal_days_per_year)
+                  ,solar_day,-1,mpstep,mcal_days_per_year)
 !                  ,day_24hr,-1)
 
       call mpbci(mcal_days_per_year)
@@ -1519,7 +1519,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !     Convert start date to timesteps since 1-Jan-0000
 
       call calini(n_days_per_month,n_days_per_year,n_start_step,ntspd &
-                   ,solar_day,0,mcal_days_per_year)
+                   ,solar_day,0,mpstep,mcal_days_per_year)
 !                  ,day_24hr,0)
       
       call cal2step(n_start_step,mtspd,n_start_year,n_start_month,1,0,0)

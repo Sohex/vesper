@@ -45,6 +45,9 @@
                        ,ktspd,psolday,kpid,kmpstep,kcal_days_per_year)
       use calmod
 
+!     calini has no implicit none of its own, and kmpstep would otherwise be
+!     typed INTEGER by its initial letter while the caller passes REAL mpstep.
+      real    kmpstep
       integer kcal_days_per_year
       
       n_days_per_month = k_days_per_month
@@ -69,6 +72,8 @@
       tcalday = mtspd * mpstep * 60.0 ! Timesteps/calendary day * minutes/timestep * 60 s/min
       
 
+      kcal_days_per_year = m_days_per_year
+
       if (kpid == 0) then
          write(nud,1050)
          write(nud,1060)
@@ -88,11 +93,9 @@
  1030 format(" * Start step:",i21," *")
  1040 format(" * Timesteps per day:",i14," *")
  1045 format(" * Timesteps per calendar day:",i5," *")
- 1046 format(" * Sec per calendar day:",i8," *")
+ 1046 format(" * Sec per calendar day:",i11," *")
  1050 format(" *************************************")
- 
-      kcal_days_per_year = m_days_per_year
- 
+
       end subroutine calini
 
 !     ====================

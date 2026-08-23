@@ -366,9 +366,10 @@
      &               ,nsol,nswrcl,nrscat,rcl1,rcl2,acl2,clgray,tpofmt   &
      &               ,acllwr,tswr1,tswr2,tswr3,th2oc,dawn
       if (mypid == NROOT) then
-      open(23,file=radmod_namelist)
+      open(23,file=trim(radmod_namelist)//'.new')
       write(23,radmod_nl)
       close(23)
+      call nlreplace(trim(radmod_namelist)//'.new',radmod_namelist)
       endif
       return
       end subroutine co2update
@@ -386,12 +387,126 @@
      &               kick,mpstep,naqua,ndiag,nguidbg,nqspec,  &  
      &               nveg,nwpd,nprint,nsync,syncstr,psurf
       if (mypid == NROOT) then
-      open(23,file=plasim_namelist,form='formatted')
+      open(23,file=trim(plasim_namelist)//'.new',form='formatted')
       write(23,plasim_nl)
       close(23)
+      call nlreplace(trim(plasim_namelist)//'.new',plasim_namelist)
       endif
       return
       end subroutine psurfupdate
                    
 
       
+
+!
+!     ===============================
+!
+
+      subroutine nlreplace(cnew,cold)
+      use pumamod, only: nud
+
+!     Put the namelist group just written to <cnew> in place of the file
+!     <cold>, but only if every key <cold> carries also appears in <cnew>.
+!
+!     co2update and psurfupdate each declare a PRIVATE copy of a namelist
+!     group that belongs to another module, and a copy that has fallen behind
+!     the real group silently deletes every key it does not name. Counting keys
+!     does not catch that: a namelist file lists only the keys someone set,
+!     while a namelist WRITE emits every key in the group, so the truncated
+!     group can be larger than the file it destroys. Key containment is the
+!     invariant that holds.
+
+      implicit none
+      character (len=*) :: cnew,cold
+      integer, parameter :: MAXKEY = 512
+      character (len=80)  :: yold(MAXKEY),ynew(MAXKEY),ykey
+      character (len=256) :: yline
+      integer :: iold,inew,ios,j,k,iunit,junit
+      logical :: lseen
+
+      iold = 0
+      open(newunit=iunit,file=cold,status='old',iostat=ios)
+      if (ios /= 0) return                 ! no file yet, nothing to protect
+      do
+         read(iunit,'(a)',iostat=ios) yline
+         if (ios /= 0) exit
+         call nlkey(yline,ykey)
+         if (ykey == ' ' .or. iold >= MAXKEY) cycle
+         iold = iold + 1
+         yold(iold) = ykey
+      enddo
+      close(iunit)
+
+      inew = 0
+      open(newunit=iunit,file=cnew,status='old',iostat=ios)
+      if (ios /= 0) return
+      do
+         read(iunit,'(a)',iostat=ios) yline
+         if (ios /= 0) exit
+         call nlkey(yline,ykey)
+         if (ykey == ' ' .or. inew >= MAXKEY) cycle
+         inew = inew + 1
+         ynew(inew) = ykey
+      enddo
+      close(iunit)
+
+      do j = 1 , iold
+         lseen = .false.
+         do k = 1 , inew
+            if (ynew(k) == yold(j)) lseen = .true.
+         enddo
+         if (.not. lseen) then
+            write(nud,*) '*** nlreplace: ',trim(cold),' left unchanged'
+            write(nud,*) '*** the group written to ',trim(cnew),         &
+     &                   ' carries no key ',trim(yold(j))
+            return
+         endif
+      enddo
+
+!     every key survives: put the new group in place
+
+      open(newunit=iunit,file=cnew,status='old',iostat=ios)
+      if (ios /= 0) return
+      open(newunit=junit,file=cold,status='replace')
+      do
+         read(iunit,'(a)',iostat=ios) yline
+         if (ios /= 0) exit
+         write(junit,'(a)') trim(yline)
+      enddo
+      close(junit)
+      close(iunit,status='delete')
+
+      return
+      end subroutine nlreplace
+
+!
+!     ===============================
+!
+
+      subroutine nlkey(cline,ckey)
+
+!     The namelist key assigned on one line of a namelist file, upper cased and
+!     stripped of any array subscript. Blank if the line assigns nothing.
+
+      implicit none
+      character (len=*) :: cline
+      character (len=*) :: ckey
+      integer :: ieq,ipar,j,ic
+
+      ckey = ' '
+      ieq = index(cline,'=')
+      if (ieq < 2) return
+      ckey = adjustl(cline(1:ieq-1))
+      ipar = index(ckey,'(')
+      if (ipar > 1) ckey = ckey(1:ipar-1)
+      if (ckey(1:1) == '&' .or. ckey(1:1) == '!' .or. ckey(1:1) == '/') then
+         ckey = ' '
+         return
+      endif
+      do j = 1 , len_trim(ckey)
+         ic = ichar(ckey(j:j))
+         if (ic >= 97 .and. ic <= 122) ckey(j:j) = char(ic-32)
+      enddo
+
+      return
+      end subroutine nlkey
