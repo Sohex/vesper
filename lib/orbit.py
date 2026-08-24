@@ -40,3 +40,28 @@ def earth_years_per_orbit(config: dict, flux_ratio: float | None = None) -> floa
     against anything quoted per Earth year.
     """
     return orbital_year_days(config, flux_ratio) / EARTH_SIDEREAL_YEAR_DAYS
+
+
+def model_year_days(config: dict, flux_ratio: float | None = None) -> int:
+    """The orbit rounded to whole 24-hour steps, which is what a model integrates.
+
+    A model that steps in whole days cannot hold a fractional orbit, so its year
+    is this and not `orbital_year_days`. LPJ-GUESS sizes every per-day array by
+    it and the LPJ driver file bins the climatology into it, and the two have to
+    agree by construction rather than by both happening to call `round`.
+    """
+    return int(round(orbital_year_days(config, flux_ratio)))
+
+
+def earth_years_per_model_year(config: dict, flux_ratio: float | None = None) -> float:
+    """One MODELLED year in Earth years: the factor that converts model rates.
+
+    Distinct from `earth_years_per_orbit`, which uses the true orbit. Use this
+    one wherever the quantity is integrated or counted BY THE MODEL -- a
+    degree-day sum over the simulation year, a count of simulation years, a
+    fraction applied once per simulation year -- because the model's absolute
+    time is whole days and not the true orbit. The two differ by the rounding,
+    a tenth of a percent here, which is below every threshold that reads them
+    but is still one fact rather than two.
+    """
+    return model_year_days(config, flux_ratio) / EARTH_SIDEREAL_YEAR_DAYS

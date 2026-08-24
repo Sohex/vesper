@@ -39,8 +39,13 @@
 ///////////////////////////////////////////////////////////////////////////////////////
 // FILE SCOPE GLOBAL CONSTANTS
 
-// Turnover times (in years, approximate) for litter and SOM fractions at 10 deg C with
-// ample moisture (Meentemeyer 1978; Foley 1995)
+// Turnover times for litter and SOM fractions at 10 deg C with ample moisture
+// (Meentemeyer 1978; Foley 1995). In EARTH years: these are decomposition times
+// measured on Earth, and decomposition does not know this world's orbit. They
+// are used only by som_dynamics_lpj, the ifcentury 0 path; the live CENTURY path
+// takes its K_MAX from Parton et al. (2010) already on a daily basis, which is
+// absolute time and needs no conversion. See
+// biosphere/notes/time-base-unit-contract.md.
 
 static const double TAU_LITTER=2.85; // Thonicke, Sitch, pers comm, 26/11/01
 static const double TAU_SOILFAST=33.0;
@@ -244,13 +249,18 @@ void decayrates(double wcont,double gtemp_soil,double& k_soilfast,double& k_soil
 	// temperature responses and converting from annual to daily basis
 	// NB: Temperature response (gtemp; Lloyd & Taylor 1994) set by framework
 
-	k_soilfast=k_soilfast10*gtemp_soil*moist_response/(double)date.year_length();
+	// Annual to daily on ABSOLUTE time: the TAU constants above are Earth years,
+	// so the divisor is the Earth year. Dividing by the simulation year instead
+	// ran every litter and SOM pool through an Earth year of decomposition each
+	// orbit, which on this calendar is close to twice as fast per unit absolute
+	// time and halves equilibrium soil carbon.
+	k_soilfast=k_soilfast10*gtemp_soil*moist_response/VESPER_EARTH_YEAR_DAYS;
 	if (tillage) {
 		k_soilfast *= TILLAGE_FACTOR; // Increased HR for crops (tillage)
 	}
-	k_soilslow=k_soilslow10*gtemp_soil*moist_response/(double)date.year_length();
+	k_soilslow=k_soilslow10*gtemp_soil*moist_response/VESPER_EARTH_YEAR_DAYS;
 
-	fr_litter=exp(-k_litter10*gtemp_soil*moist_response/(double)date.year_length());
+	fr_litter=exp(-k_litter10*gtemp_soil*moist_response/VESPER_EARTH_YEAR_DAYS);
 	fr_soilfast=exp(-k_soilfast);
 	fr_soilslow=exp(-k_soilslow);
 }
@@ -1613,7 +1623,10 @@ void soilnadd(Patch& patch) {
 	const double nmin_avail = soil.nmass_avail(NH4);
 
 	if (nmin_avail < NMASS_SAT) {
-		const double daily_nfix = soil.anfix_calc / (double)date.year_length();
+		// anfix_calc is kgN/m2 per EARTH year (see below), so the absolute-day
+		// rate divides by the Earth year. Dividing by the simulation year would
+		// deliver an Earth year of fixation every orbit.
+		const double daily_nfix = soil.anfix_calc / VESPER_EARTH_YEAR_DAYS;
 
 		if (nmin_avail + daily_nfix < NMASS_SAT) {
 			soil.NH4_mass += daily_nfix;
@@ -1632,11 +1645,22 @@ void soilnadd(Patch& patch) {
 	// by using five year average aaet
 	if (date.islastmonth && date.islastday) {
 
-		// Add this year's AET to aaet_5 which keeps track of the last 5 years
+		// Add this simulation year's AET to aaet_5, which keeps the last
+		// NYEARAAET simulation years. The window is a count of seasonal cycles
+		// and stays as it is; what needs converting is the CONTENT, because each
+		// entry is a sum over one orbit and Cleveland's regression is fitted on
+		// evapotranspiration per EARTH year.
 		patch.aaet_5.add(patch.aaet+patch.aevap+patch.aintercep);
 
-		// Calculate estimated nitrogen fixation (aaet should be in cm/yr, eqn is in nitrogen/ha/yr)
-		soil.anfix_calc = max((nfix_a * patch.aaet_5.mean() * CM_PER_MM + nfix_b) * HA_PER_M2, 0.0);
+		// Calculate estimated nitrogen fixation (aaet in cm per Earth year, eqn
+		// gives kgN/ha per Earth year). BOTH terms needed the conversion and for
+		// different reasons: the AET-proportional term because the sum it
+		// multiplies spans an orbit rather than an Earth year, and the intercept
+		// because it is a rate per Earth year that was being added once per
+		// orbit. biosphere/notes/time-base-unit-contract.md.
+		const double aaet_mm_per_earth_year =
+			patch.aaet_5.mean() / VESPER_EARTH_YEARS_PER_ORBIT;
+		soil.anfix_calc = max((nfix_a * aaet_mm_per_earth_year * CM_PER_MM + nfix_b) * HA_PER_M2, 0.0);
 
 		if (date.year >= soil.solvesomcent_beginyr && date.year <= soil.solvesomcent_endyr) {
 			soil.anfix_mean += soil.anfix;

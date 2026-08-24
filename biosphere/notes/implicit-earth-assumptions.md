@@ -49,8 +49,8 @@ per 181-day orbit:
 | leaf, root and sapwood turnover | PFT `turnover_*` | fraction per orbit |
 | leaf and tree longevity | `leaflong`, `longevity`, individual age | model orbits |
 | establishment and growth-efficiency mortality | `est_max`, `greff_min`, `NYEARGREFF` | per orbit / five orbits |
-| litter and SOM turnover | `TAU_LITTER`, `TAU_SOILFAST`, `TAU_SOILSLOW` in `somdynam.cpp` | same decay fraction per orbit |
-| CNP P-pool kinetics | `USORB`, `USSORB`, `UOCC` in `somdynam.cpp` | published annual rates are divided by the model-year length, while the source comments incorrectly label them per day |
+| litter and SOM turnover | `TAU_LITTER`, `TAU_SOILFAST`, `TAU_SOILSLOW` in `somdynam.cpp` | same decay fraction per orbit, on the `ifcentury 0` path only. The live CENTURY path takes its `K_MAX` from Parton et al. (2010) already on a daily basis, which is absolute time and was never affected |
+| CNP P-pool kinetics | `USORB`, `USSORB`, `UOCC` in `somdynam.cpp` | published annual rates divided by the model-year length rather than by the Earth year |
 
 For an absolute-time calibration, retaining the Earth annual fraction on every
 Vesper orbit makes the process about 2.02 times as fast per Earth year. But not
@@ -62,7 +62,10 @@ orbit/Earth-year ratio.
 The fix is therefore an explicit registry of each annual quantity as
 absolute-time, seasonal-cycle, accumulated-flux or diagnostic, followed by
 parameter-specific conversions and no-simulation checks. Fire rates are outside
-this audit and registry pending the dedicated fire review. This is BIO-22.
+this audit and registry pending the dedicated fire review. This is BIO-22, and
+the registry it asks for is `biosphere/notes/time-base-unit-contract.md`, which
+carries the class, the unit and the READER of every quantity here and records
+which conversions have been applied.
 
 ## 3. The climate handoff discards planetary pressure and longwave radiation
 
@@ -108,7 +111,8 @@ a daily P-deposition contract and does not have this defect.
 BIO-24 defines absolute-day, Earth-year and orbit units at every nutrient input
 boundary, corrects deposition and fixation, and makes BIO-5's `pwtr` contract
 unambiguous before the field is emitted. The mass-balance diagnostics must name
-their reporting interval as well.
+their reporting interval as well. The definitions and the per-quantity state are
+in `biosphere/notes/time-base-unit-contract.md`.
 
 ## 5. The PAR correction changes energy but not photons per joule
 

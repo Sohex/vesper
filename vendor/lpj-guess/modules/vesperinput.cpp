@@ -11,7 +11,10 @@
 ///     climate model knows the surface albedo far better than driver.cpp's
 ///     global BETA constant of 0.17 does, and this project computes that albedo
 ///     from lithology.
-///  2. Nitrogen deposition is divided by the year length rather than by 365.
+///  2. Nitrogen deposition is declared per EARTH year and divided by the Earth
+///     year, because deposition is an atmospheric flux in absolute time and
+///     does not know this world's orbit. See
+///     biosphere/notes/time-base-unit-contract.md.
 ///  3. The gridlist, soil codes and climate arrive in one generated binary file
 ///     rather than several curated text files.
 ///  4. The file's year length is checked against the compiled-in one.
@@ -33,7 +36,7 @@ REGISTER_INPUT_MODULE("vesper", VesperInput)
 namespace {
 
 /// Little-endian, and both writer and reader are x86-64. Checked via the magic.
-const char DRIVER_MAGIC[8] = {'V','E','S','P','D','R','V','4'};
+const char DRIVER_MAGIC[8] = {'V','E','S','P','D','R','V','5'};
 
 /// Bins per year in the driver file. ExoPlaSim's regular_output_bins_per_orbit.
 const int DRIVER_BINS = 12;
@@ -420,11 +423,14 @@ bool VesperInput::getclimate(Gridcell& gridcell) {
 		interpolate(cell, wanted);
 	}
 
-	// Per day of absolute time, so the year length rather than 365. Split evenly
-	// between reduced and oxidised, as demoinput does; neither the split nor the
-	// total is measured on this world, and both are declared in the driver file
+	// Per day of ABSOLUTE time, so the Earth year and not this world's. The
+	// driver file declares kgN/ha per Earth year; dividing by the simulation
+	// year would deliver a whole Earth year of nitrogen every orbit, which on
+	// this calendar is close to twice the declared rate. Split evenly between
+	// reduced and oxidised, as demoinput does; neither the split nor the total
+	// is measured on this world, and both are declared in the driver file
 	// rather than assumed here.
-	const double per_day = ndep / 2.0 / (double)Date::MAX_YEAR_LENGTH * HA_PER_M2;
+	const double per_day = ndep / 2.0 / VESPER_EARTH_YEAR_DAYS * HA_PER_M2;
 	gridcell.dNH4dep = per_day;
 	gridcell.dNO3dep = per_day;
 

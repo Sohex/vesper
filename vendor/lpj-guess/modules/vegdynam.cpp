@@ -992,8 +992,16 @@ void mortality_guess(Stand& stand, Patch& patch, const Climate& climate, double 
 	int i;
 	bool killed;
 
-	// Value of mort_greff when growth efficiency below PFT-specific threshold
-	const double KMORTGREFF=0.3;
+	// Value of mort_greff when growth efficiency below PFT-specific threshold.
+	// Suppression mortality is an absolute-time hazard: 0.3 is the fraction of a
+	// suppressed cohort Smith et al. (2001) kill per EARTH year, and mortality
+	// is imposed once per simulation year, so the Earth fraction has to be
+	// re-expressed over the shorter year rather than applied to it. Left at 0.3
+	// it would kill 0.3 per orbit, close to half again per Earth year.
+	// biosphere/notes/time-base-unit-contract.md, class ABSOLUTE-RATE.
+	const double KMORTGREFF_PER_EARTH_YEAR = 0.3;
+	const double KMORTGREFF =
+		1.0 - pow(1.0 - KMORTGREFF_PER_EARTH_YEAR, VESPER_EARTH_YEARS_PER_ORBIT);
 	// Coefficient in calculation of background mortality (negated natural log of
 	// fraction of population expected to survive to age 'longevity'; see Eqn 14
 	// below)

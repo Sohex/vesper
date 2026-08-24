@@ -1,30 +1,47 @@
-"""Rescale the PFT limits that are annual sums, and the durations counted in
-years -- in opposite directions -- and nothing else.
+"""Apply the biosphere time-base unit contract to the PFT instruction file.
 
 LPJ-GUESS's plant functional types are Earth's, and keeping them is a declared
 choice: this is an Earth-analogue biosphere, not a prediction of alien
-physiology. But some of their bioclimatic limits are calibrated per *year*, and
-Vesper's year is half of Earth's, so those limits mean something different here.
+physiology. But their parameters are Earth calibrations, and several of them are
+per *year* -- an Earth year of 365.2569 days, not this world's orbit of roughly
+half that. This script is the boundary between the two: `global.ins` is in EARTH
+units, and the file it writes is in MODEL units, where one year is one orbit.
+Every parameter it carries is therefore in one of four classes, and the class
+decides the conversion. The classes, the evidence and the reader-by-reader
+inventory are in `biosphere/notes/time-base-unit-contract.md`.
 
-Two kinds of parameter, scaling in opposite directions.
-
-**Annual sums scale.** `gdd5min_est` is the minimum growing degree-days above
-5 C a PFT needs *in a year* to establish. Degree-days accumulate per day at the
-same rate on both worlds, so a Vesper year reaches roughly half the annual total
-for identical temperatures. Left alone, Earth thresholds exclude nearly every
-tree PFT for reasons that have nothing to do with the climate. This is not
+**ANNUAL_SUM** -- a threshold on something accumulated over one year.
+`gdd5min_est` is the minimum growing degree-days above 5 C a PFT needs in a year
+to establish; `greff_min` is a threshold on annual net production per unit leaf
+area. Degree-days and carbon accumulate per day at the same rate on both worlds,
+so a shorter year reaches a smaller total for an identical climate, and the
+threshold scales DOWN with the year. Left alone, Earth thresholds exclude nearly
+every tree PFT for reasons that have nothing to do with the climate. That is not
 hypothetical: the patched model run on Earth's own demo data collapses boreal
 needleleaf and temperate broadleaf to grass.
 
-**Everything else does not.** `tcmin_surv`, `tcmin_est`, `tcmax_est`,
-`twmin_est` are temperatures, which are physiology and carry over unchanged.
-`phengdd5ramp` is a *within-season* accumulation counted from the start of the
-growing season, so it too is already in absolute time and must not be touched.
-Rescaling it would be a real error, which is why it is named here explicitly
-rather than merely omitted.
+**YEAR_COUNT** -- a duration counted in years. A simulation year is about half an
+Earth year, so representing the same absolute span needs about twice as many of
+them, and these scale UP by the reciprocal. `nyear_spinup 500` reads like an
+absolute statement and is not.
+
+**ANNUAL_RATE** -- a FRACTION applied once per year. A fraction does not scale
+linearly: an Earth-calibrated `r` per Earth year becomes `1 - (1-r)**f` per
+orbit, which leaves 1.0 at 1.0 where a linear multiplier would silently change
+what "all of it" means.
+
+**UNSCALED** -- physiology, within-season accumulations, sentinels, and anything
+counted in seasonal cycles rather than absolute time. Named explicitly, because a
+parameter that is merely absent from the lists reads as an oversight.
+
+Confusing the directions would be worse than doing neither, so the class of every
+parameter this script touches is written into the generated header and into the
+provenance JSON beside it.
 
 The scale factor is derived from the configured orbit, not written down, because
-the year length moves with the stellar flux.
+the year length moves with the stellar flux. It uses the MODELLED year -- whole
+24-hour steps, which is what the model integrates over -- and not the true
+orbital period, which the model cannot represent.
 
     python biosphere/scripts/build_vesper_pfts.py
 """
@@ -48,38 +65,92 @@ import orbit
 
 EARTH_YEAR_DAYS = orbit.EARTH_SIDEREAL_YEAR_DAYS
 
-# Two kinds of scaling, in opposite directions, and confusing them would be
-# worse than doing neither.
+# A threshold on a quantity accumulated over one year. Scales DOWN by the year
+# ratio, linearly, because the accumulation itself is linear in time.
 #
-# SCALED_DOWN are annual *sums*. A shorter year accumulates less, so a threshold
-# has to come down by the year ratio to mean the same climate.
-SCALED_DOWN = ("gdd5min_est", "gdd5min")
+#   gdd5min_est  growing degree-days above 5 C needed in a year to establish
+#   gdd5min      the same limit under its other spelling
+#   gdd0_min     degree-day window on a 0 C base; sentinels in global.ins
+#   gdd0_max
+#   greff_min    kgC/m2 leaf per year below which growth suppression kills
+ANNUAL_SUM = ("gdd5min_est", "gdd5min", "gdd0_min", "gdd0_max", "greff_min")
 
-# SCALED_UP are *durations counted in years*. A simulation year is only 0.4946
-# Earth years, so representing the same absolute span needs more of them: the
-# reciprocal, 2.022.
+# A duration counted in years. Scales UP by the reciprocal.
 #
 # This is the same trap gdd5min was, one level up, and it is easy to miss because
 # "500 years of spin-up" reads like an absolute statement and is not. At
-# nyear_spinup 500 this world gets 247 Earth years of soil and vegetation
-# development where Earth practice assumes 500.
+# nyear_spinup 500 this world would get about 247 Earth years of soil and
+# vegetation development where Earth practice assumes 500.
 #
 #   nyear_spinup   time for vegetation and soil pools to reach steady state
 #   distinterval   mean return time of generic patch-destroying disturbance
 #   freenyears     time allowed to build an N pool before N limitation bites
-SCALED_UP = ("nyear_spinup", "distinterval", "freenyears")
+#   longevity      age at which 0.1% of a cohort survives; compared against
+#                  Individual::age, which counts simulation years
+#   leaflong       leaf lifespan; Pft::initsla converts it back to the absolute
+#                  months Reich et al. (1992) regressed SLA and leaf C:N against
+YEAR_COUNT = ("nyear_spinup", "distinterval", "freenyears", "longevity", "leaflong")
+
+# A fraction of a pool moved once per year. Converted as a rate, not multiplied.
+#
+#   turnover_leaf  leaf C moved to litter per year
+#   turnover_root  fine root C moved to litter per year
+#   turnover_sap   sapwood C converted to heartwood per year
+ANNUAL_RATE = ("turnover_leaf", "turnover_root", "turnover_sap")
 
 # Named so the decision not to scale them is explicit and reviewable, rather
 # than an omission someone later reads as an oversight.
 DELIBERATELY_UNSCALED = (
     "phengdd5ramp",   # within-season accumulation, already absolute time
     "tcmin_surv", "tcmin_est", "tcmax_est", "twmin_est", "twminusc",
-    "gdd0_min", "gdd0_max",  # "no restriction" sentinels, 0 and 100000
+    "k_chilla", "k_chillb", "k_chillk",  # chill-day sums, within-season
     # Counted in growing seasons rather than in absolute time. One simulation
     # year is one seasonal cycle on this world just as on Earth, so these are
     # already in the right unit.
     "estinterval",
+    "est_max",        # saplings per m2 per growing season, not per Earth year
 )
+
+# Written as integers by plib, or read as a whole number of simulation years.
+WHOLE_NUMBER = ("nyear_spinup", "distinterval", "freenyears")
+
+# Above this a value is a "no restriction" sentinel rather than a limit, and
+# scaling it would quietly turn it into one.
+SENTINEL_ABOVE = 1e4
+
+
+UNIT = {
+    "ANNUAL_SUM": "per simulation year",
+    "YEAR_COUNT": "simulation years",
+    "ANNUAL_RATE": "fraction per simulation year",
+}
+
+CLASS_OF = {}
+for _name in ANNUAL_SUM:
+    CLASS_OF[_name] = "ANNUAL_SUM"
+for _name in YEAR_COUNT:
+    CLASS_OF[_name] = "YEAR_COUNT"
+for _name in ANNUAL_RATE:
+    CLASS_OF[_name] = "ANNUAL_RATE"
+
+
+def convert(kind: str, value: float, factor: float) -> float:
+    """The one place each class's arithmetic lives."""
+    if kind == "ANNUAL_SUM":
+        return value * factor
+    if kind == "YEAR_COUNT":
+        return value / factor
+    if kind == "ANNUAL_RATE":
+        # A fraction, so a rate conversion and not a multiplier. Leaves 1.0 at
+        # 1.0, which is what a summergreen shedding every leaf every year means.
+        return 1.0 - (1.0 - value) ** factor
+    raise ValueError(kind)
+
+
+def render(name: str, value: float) -> str:
+    if name in WHOLE_NUMBER:
+        return f"{value:.0f}"
+    return f"{value:.6g}"
 
 
 def main() -> None:
@@ -91,50 +162,71 @@ def main() -> None:
 
     config = yaml.safe_load(CONFIG.read_text())
     orbital_days = orbit.orbital_year_days(config)
-    factor = orbital_days / EARTH_YEAR_DAYS
+    model_year_days = orbit.model_year_days(config)
+    # The MODELLED year, because that is the span the model integrates a degree
+    # day sum over and counts a simulation year as. It differs from the true
+    # orbit by the rounding to whole days.
+    factor = orbit.earth_years_per_model_year(config)
 
     text = args.source.read_text()
     changes = []
 
+    # Longest first so no name can match as the prefix of another.
+    names = sorted(CLASS_OF, key=len, reverse=True)
+    pattern = re.compile(
+        r"^([ \t]*)\b(" + "|".join(names) + r")\b([ \t]+)([0-9.]+)[^\n]*$",
+        re.MULTILINE)
+
     def rescale(match: re.Match) -> str:
-        name, gap, value = match.group(1), match.group(2), float(match.group(3))
-        # Sentinels meaning "no limit" stay sentinels; scaling 0 is a no-op but
+        indent, name, gap, raw = match.groups()
+        value = float(raw)
+        kind = CLASS_OF[name]
+        # Sentinels meaning "no limit" stay sentinels: scaling 0 is a no-op but
         # scaling a large "no restriction" value would quietly become a limit.
-        if value <= 0.0 or value >= 1e4:
+        if value <= 0.0 or value >= SENTINEL_ABOVE:
             return match.group(0)
-        new = value * factor
-        changes.append({"parameter": name, "from": value, "to": round(new, 2),
-                        "direction": "down, an annual sum"})
-        return f"{name}{gap}{new:.1f}"
+        new = convert(kind, value, factor)
+        changes.append({"parameter": name, "class": kind,
+                        "from": value, "to": float(f"{new:.6g}")})
+        return (f"{indent}{name}{gap}{render(name, new)}"
+                f"\t! {UNIT[kind]}; Earth calibration {value:g}")
 
-    def rescale_up(match: re.Match) -> str:
-        name, gap, value = match.group(1), match.group(2), float(match.group(3))
-        if value <= 0.0:
-            return match.group(0)
-        new = value / factor
-        changes.append({"parameter": name, "from": value, "to": round(new, 2),
-                        "direction": "up, a duration in years"})
-        return f"{name}{gap}{new:.0f}"
+    rescaled = pattern.sub(rescale, text)
 
-    rescaled = re.compile(
-        r"\b(" + "|".join(SCALED_DOWN) + r")(\s+)([0-9.]+)").sub(rescale, text)
-    rescaled = re.compile(
-        r"\b(" + "|".join(SCALED_UP) + r")(\s+)([0-9.]+)").sub(rescale_up, rescaled)
+    # The shipped file's own inline comments on rescaled lines are replaced,
+    # because several of them state the Earth unit and would now be wrong. The
+    # upstream annotation is in the vendored source the header names.
+    by_class = {}
+    for change in changes:
+        by_class.setdefault(change["class"], set()).add(change["parameter"])
+    class_lines = "\n".join(
+        f"!// {kind:12s} {', '.join(sorted(by_class[kind]))}"
+        for kind in ("ANNUAL_SUM", "YEAR_COUNT", "ANNUAL_RATE")
+        if kind in by_class) or "!// nothing rescaled"
 
-    rescaled_names = ", ".join(sorted({c["parameter"] for c in changes})) or "nothing"
     header = f"""!///////////////////////////////////////////////////////////////////////////////
 !// GENERATED by biosphere/scripts/build_vesper_pfts.py. Do not edit.
 !//
-!// {args.source.name} with annual degree-day limits rescaled for Vesper's year.
+!// {args.source.name}, which is in EARTH units, converted to MODEL units, where
+!// one year is one orbit. The registry that decides each parameter's class is
+!// biosphere/notes/time-base-unit-contract.md.
 !//
 !// orbit        {orbital_days:.4f} Earth days at {config['orbit']['baseline_flux_earth']} S-Earth
+!// model year   {model_year_days} steps of 24 h
 !// Earth year   {EARTH_YEAR_DAYS:.4f} days
-!// factor       {factor:.6f}
-!// rescaled     {rescaled_names}
+!// factor       {factor:.6f} Earth years per simulation year
+!//
+{class_lines}
 !// NOT rescaled {", ".join(DELIBERATELY_UNSCALED)}
 !//
-!// phengdd5ramp is deliberately untouched: it is a within-season accumulation,
-!// already in absolute time, and scaling it would be a real error.
+!// ANNUAL_SUM scales down with the year, YEAR_COUNT up by the reciprocal, and
+!// ANNUAL_RATE converts as 1-(1-r)^factor rather than multiplying, so that a
+!// fraction of 1.0 stays 1.0. phengdd5ramp is deliberately untouched: it is a
+!// within-season accumulation, already in absolute time, and scaling it would be
+!// a real error.
+!//
+!// Inline comments on rescaled lines are regenerated, because the shipped ones
+!// state the Earth unit. The upstream annotation is in the source named above.
 !//
 !// generated {datetime.now(timezone.utc).isoformat(timespec="seconds")}
 !///////////////////////////////////////////////////////////////////////////////
@@ -157,10 +249,13 @@ def main() -> None:
         # `source_config` in an ExoPlaSim run manifest.
         "source_config": config,
         "orbital_year_earth_days": orbital_days,
+        "model_year_days": model_year_days,
         "earth_year_days": EARTH_YEAR_DAYS,
         "scale_factor": factor,
-        "scaled_down_annual_sums": SCALED_DOWN,
-        "scaled_up_year_counts": SCALED_UP,
+        "contract": "biosphere/notes/time-base-unit-contract.md",
+        "annual_sum_scaled_down": ANNUAL_SUM,
+        "year_count_scaled_up": YEAR_COUNT,
+        "annual_rate_converted": ANNUAL_RATE,
         "deliberately_unscaled": DELIBERATELY_UNSCALED,
         "changes": changes,
         "output_sha256": hashlib.sha256(output.read_bytes()).hexdigest(),
@@ -172,10 +267,12 @@ def main() -> None:
     report_path = output.with_name(output.stem + "_provenance.json")
     report_path.write_text(json.dumps(report, indent=2) + "\n")
 
-    print(f"orbit   {orbital_days:.4f} Earth days -> factor {factor:.6f}")
+    print(f"orbit   {orbital_days:.4f} Earth days, model year {model_year_days} "
+          f"-> factor {factor:.6f}")
     print(f"changed {len(changes)} parameter values:")
     for change in changes:
-        print(f"   {change['parameter']:14s} {change['from']:>8.1f} -> {change['to']:.1f}")
+        print(f"   {change['class']:12s} {change['parameter']:14s} "
+              f"{change['from']:>8g} -> {change['to']:g}")
     print(f"\nwrote {rel(output)}")
     print(f"      {report_path.name}")
 
