@@ -4,14 +4,11 @@
     python exoplasim/scripts/rebuild_binaries.py            # rebuild all
     python exoplasim/scripts/rebuild_binaries.py --verify   # check, build nothing
 
-ExoPlaSim compiles a separate executable per (resolution, layers, ranks,
-parmode) configuration. Parmode is the fourth dimension rather than a detail of
-the third: `mpi` distributes NLAT over ranks and `omp` over threads, they are
-different compilers through a different flag line, and a threaded binary is a
-different executable from its MPI twin at the same rank count.
-Patching the model source and running rebuilds **only the configuration you are
-running**; every other binary keeps the old code, silently, until something asks
-for it. That is `docs/src/practice/failure-modes.md` class 11 and it fired three times in one
+ExoPlaSim compiles a separate executable per (resolution, layers, ranks)
+configuration -- the geometry and the thread count are `parameter`s compiled in,
+not settings a binary reads. Patching the model source and running rebuilds
+**only the configuration you are running**; every other binary keeps the old
+code, silently, until something asks for it. That is `docs/src/practice/failure-modes.md` class 11 and it fired three times in one
 day: the T42 16-rank binary was three days stale, the star-cycle tree was four
 days stale and had no 16-rank binary at all, and of six executables on disk
 exactly one was newer than the patched source.
@@ -98,23 +95,22 @@ def f90_opts(profile: str) -> list[str]:
     return BASE_F90_OPTS + PROFILES[profile]
 
 
-# PARMODE_FLAGS restates what `build_model.build` adds for a threaded build, and
-# the restatement is checked rather than trusted: `assert_parmode_flags_agree()`
-# below fails the run if the two lists ever diverge. Recording a flag line the
-# compiler did not receive is the defect `toolchain()` documents, and it reached
-# the manifest once already.
-PARMODE_FLAGS = {"mpi": [], "omp": ["-fopenmp", "-DOMPSHARED"]}
-PARMODES = tuple(PARMODE_FLAGS)
+# THREADED_FLAGS restates what `build_model.build` adds on top of the declared
+# line, and the restatement is checked rather than trusted:
+# `assert_threaded_flags_agree()` below fails the run if the two lists ever
+# diverge. Recording a flag line the compiler did not receive is the defect
+# `toolchain()` documents, and it reached the manifest once already.
+THREADED_FLAGS = ["-fopenmp", "-DOMPSHARED"]
 
 
-def effective_opts(profile: str, parmode: str) -> list[str]:
+def effective_opts(profile: str) -> list[str]:
     """The flag line the compiler actually receives for this configuration."""
-    return (f90_opts(profile) + PARMODE_FLAGS[parmode]
+    return (f90_opts(profile) + THREADED_FLAGS
             + (["-fdefault-real-8"] if PRECISION == 8 else []))
 
 
-def assert_parmode_flags_agree() -> None:
-    """Check PARMODE_FLAGS against the source that adds them.
+def assert_threaded_flags_agree() -> None:
+    """Check THREADED_FLAGS against the source that adds them.
 
     `build_model.build` is where a flag reaches the compiler. This module only
     RECORDS what went in, so the two can drift apart silently and the manifest
@@ -122,15 +118,12 @@ def assert_parmode_flags_agree() -> None:
     that does the work.
     """
     src = Path(build_model.__file__).read_text(encoding="utf-8")
-    for parmode, flags in PARMODE_FLAGS.items():
-        if parmode == "mpi":
-            continue
-        want = "flags = flags + [" + ", ".join(repr(f) for f in flags) + "]"
-        if want.replace("'", '"') not in src.replace("'", '"'):
-            raise SystemExit(
-                f"PARMODE_FLAGS[{parmode!r}] is {flags}, and build_model.py no "
-                f"longer contains {want!r}. One of the two has moved; the "
-                f"manifest must record the line the compiler receives.")
+    want = "flags = flags + [" + ", ".join(repr(f) for f in THREADED_FLAGS) + "]"
+    if want.replace("'", '"') not in src.replace("'", '"'):
+        raise SystemExit(
+            f"THREADED_FLAGS is {THREADED_FLAGS}, and build_model.py no longer "
+            f"contains {want!r}. One of the two has moved; the manifest must "
+            f"record the line the compiler receives.")
 
 
 # The matrix. NLAT must divide the rank count, and 8, 16 and 32 all divide every
@@ -138,7 +131,7 @@ def assert_parmode_flags_agree() -> None:
 # an export under `source/<build>/exoplasim-<T>`, and a rung without a binary is
 # terrain nothing can run.
 #
-# The 32-rank rows exist for the SMT arms of
+# The 32-thread rows exist for the SMT arms of
 # `exoplasim/notes/smt-rank-layout.md`, and the 8-rank rows at the high
 # resolutions exist because several of those arms are concurrent 8-rank jobs. A
 # rank-layout matrix needs every rank count it compares, at every resolution it
@@ -156,19 +149,12 @@ def assert_parmode_flags_agree() -> None:
 # every resolution, and NPRO must divide NLAT. The sweep binaries that settled
 # that are arms, built by `thread_count_sweep.sh` and not registered; these are
 # the configurations something is meant to RUN.
-# THREADED ONLY, as of 2026-08-24. `nshtns` is 1 in the threaded build and 0 in
-# the MPI one, so the parmode picks the TRANSFORM and not merely how the work is
-# spread -- and SHTns is 5.1x legmod's transform on this host
-# (`exoplasim/notes/shtns-viability.md`). This project runs SHTns, so this is
-# what it builds.
-#
-# THE MPI ENTRIES ARE GONE RATHER THAN COMMENTED. They were built, verified and
-# gated on for as long as the threaded ones were, and the difference nobody
-# could see was that every run used the MPI ones and no run ever used the
-# threaded ones. Keeping a second registered runtime that nothing exercises is
-# how `writesp`, `writescalar` and `writecolumn` kept an unguarded write for as
-# long as they did: harmless under MPI, and corruption under threads. One
-# runtime, exercised.
+# ONE RUNTIME, EXERCISED. The model has one parallel layer, threads over a
+# shared address space, and it runs SHTns: `nshtns` is 1 here, and SHTns is 5.1x
+# legmod's transform on this host (`exoplasim/notes/shtns-viability.md`). A
+# second registered runtime that nothing exercises is how `writesp`,
+# `writescalar` and `writecolumn` kept an unguarded write for as long as they
+# did -- harmless under distributed ranks, and corruption under threads.
 # EVERY ROW IS A RUNG SOMETHING IS MEANT TO RUN. None of them is an
 # executable-only cost artifact, and the question "is this rung runnable" is not
 # answered by the presence of its binary. Three things have to line up, and each
@@ -180,11 +166,11 @@ def assert_parmode_flags_agree() -> None:
 # checks before the model is reached. A rung with a binary and no surface family
 # is not a runnable rung; it is an unfinished one, and `scripts/pipeline.py
 # --status` with that rung configured is what says which. world-3oj.
-MATRIX = [("T21", 10, 16, "omp"),
-          ("T42", 10, 16, "omp"),
-          ("T85", 10, 16, "omp"),
-          ("T127", 10, 16, "omp"),
-          ("T170", 10, 16, "omp")]
+MATRIX = [("T21", 10, 16),
+          ("T42", 10, 16),
+          ("T85", 10, 16),
+          ("T127", 10, 16),
+          ("T170", 10, 16)]
 
 
 def sha256(path: Path) -> str:
@@ -210,10 +196,10 @@ def model_sources() -> dict[str, str]:
     `plasim/src`. A glob hashes files no configuration compiles, so editing one
     reports every executable as built from changed source when no compiled line
     moved -- and files that compile nowhere are kept on purpose here, the
-    offline glacier accelerator among them. The configurable slots are expanded
-    to every value the build file admits, because this manifest spans the
-    configurations rule 4 counts binaries over and one recorded source set has
-    to cover them all.
+    offline glacier accelerator among them. The one configurable slot left is
+    PLASIM_FFT, and it is expanded to every value the build file admits, because
+    this manifest spans the configurations rule 4 counts binaries over and one
+    recorded source set has to cover them all.
     """
     names = restart_schema.compiled_modules(PKG / "plasim", (".f90", ".c"))
     files = [SRC / n for n in sorted(names)]
@@ -251,7 +237,7 @@ def toolchain(profile: str) -> dict:
     asked of the compilers it actually invokes.
     """
     versions = {}
-    for exe in ("gfortran", "mpif90", "gcc", "cmake", "ninja"):
+    for exe in ("gfortran", "gcc", "cmake", "ninja"):
         try:
             r = subprocess.run([exe, "--version"], capture_output=True, text=True)
             versions[exe] = r.stdout.splitlines()[0].strip() if r.stdout else None
@@ -266,18 +252,16 @@ def toolchain(profile: str) -> dict:
             "precision_bytes": PRECISION,
             "build_profile": profile,
             "declared_f90_opts": " ".join(f90_opts(profile)),
-            # ONE LINE PER PARMODE, because there is no single effective line any
-            # more: a threaded build carries -fopenmp -DOMPSHARED and an MPI one
-            # does not. Recording one of them for both is how a threaded binary
-            # came to carry a provenance record of flags it was not built with,
-            # which is the defect this function's docstring is about. Each
-            # binary also records its own line, and this is the summary.
-            "effective_f90_opts_by_parmode": {
-                pm: " ".join(effective_opts(profile, pm)) for pm in PARMODES},
-            "note": "The registry builds every configuration in MATRIX, which is "
-                    "threaded only. A profiling build adds -fno-omit-frame-pointer "
-                    "and is an arm rather than a registry entry. build_model.py "
-                    "is where a flag reaches the compiler."}
+            # THE LINE THE COMPILER RECEIVED, declared plus the threading and
+            # precision flags build_model.py appends. Recording the declared line
+            # alone is how a binary came to carry a provenance record of flags it
+            # was not built with, which is the defect this function's docstring is
+            # about. Each binary also records its own line, and this is the summary.
+            "effective_f90_opts": " ".join(effective_opts(profile)),
+            "note": "The registry builds every configuration in MATRIX. A "
+                    "profiling build adds -fno-omit-frame-pointer and is an arm "
+                    "rather than a registry entry. build_model.py is where a flag "
+                    "reaches the compiler."}
 
 
 def describe_toolchain_drift(prior: dict, current: dict) -> list[str]:
@@ -298,15 +282,15 @@ def describe_toolchain_drift(prior: dict, current: dict) -> list[str]:
                    f"config now declares {current.get('precision_bytes')}")
     for key, label in (("declared_f90_opts", "model.compile_flags.f90_opts, as written"),
                        ("build_profile", "model.compile_flags profile"),
-                       ("effective_f90_opts_by_parmode",
-                        "the flag lines the compiler received, by parmode")):
+                       ("effective_f90_opts",
+                        "the flag line the compiler received")):
         if prior.get(key) != current.get(key):
             out.append(f"{label}: built with {prior.get(key)!r}, "
                        f"now {current.get(key)!r}")
     return out
 
 
-def expected(res: str, lev: int, ranks: int, parmode: str) -> str:
+def expected(res: str, lev: int, ranks: int) -> str:
     """The registry's name for a configuration.
 
     Deliberately a SECOND statement of the rule `build_model.executable_name`
@@ -314,8 +298,7 @@ def expected(res: str, lev: int, ranks: int, parmode: str) -> str:
     other after every build below, and a check that asks one function twice
     cannot fail -- `docs/src/practice/failure-modes.md` class 17.
     """
-    suffix = "_omp" if parmode == "omp" else ""
-    return f"most_plasim_{res.lower()}_l{lev}_p{ranks}{suffix}.x"
+    return f"most_plasim_{res.lower()}_l{lev}_p{ranks}.x"
 
 
 def main() -> None:
@@ -338,7 +321,7 @@ def main() -> None:
     if not SRC.is_dir():
         raise SystemExit(f"no ExoPlaSim source at {SRC}; is the vendor/exoplasim subtree present?")
 
-    assert_parmode_flags_agree()
+    assert_threaded_flags_agree()
 
     rev = subprocess.run(["git", "-C", str(ROOT), "log", "-1", "--format=%h %s",
                           "--", "vendor/exoplasim"],
@@ -370,8 +353,8 @@ def main() -> None:
         # directory cannot see that one. It is the same class 11 shape: silent
         # until something asks for the configuration. The ladder in `MATRIX` is
         # the declaration of what must exist, so check against it.
-        missing = [expected(r, l, k, pm) for r, l, k, pm in MATRIX
-                   if not (RUN / expected(r, l, k, pm)).is_file()]
+        missing = [expected(r, l, k) for r, l, k in MATRIX
+                   if not (RUN / expected(r, l, k)).is_file()]
         if missing:
             print("IN THE MATRIX AND NOT BUILT:", ", ".join(missing))
         if absent:
@@ -408,13 +391,13 @@ def main() -> None:
     built = {}
     with cf.ThreadPoolExecutor(max_workers=args.jobs) as pool:
         futures = {
-            pool.submit(build_model.build, res, lev, ranks, parmode,
-                        args.profile, False, None, False): (res, lev, ranks, parmode)
-            for res, lev, ranks, parmode in MATRIX
+            pool.submit(build_model.build, res, lev, ranks,
+                        args.profile, False, None, False): (res, lev, ranks)
+            for res, lev, ranks in MATRIX
         }
         for fut in cf.as_completed(futures):
-            res, lev, ranks, parmode = futures[fut]
-            name = expected(res, lev, ranks, parmode)
+            res, lev, ranks = futures[fut]
+            name = expected(res, lev, ranks)
             try:
                 target = fut.result()
             except SystemExit as exc:
@@ -425,13 +408,11 @@ def main() -> None:
                     f"expects {name}; the two naming rules have diverged")
             built[name] = {"sha256": sha256(target),
                            "resolution": res, "layers": lev, "ranks": ranks,
-                           "parmode": parmode,
                            "profile": args.profile,
-                           # PER BINARY, because the parmode changes it. The
-                           # top-level toolchain summarises; this is the line
-                           # THIS executable was compiled with.
+                           # PER BINARY. The top-level toolchain summarises; this
+                           # is the line THIS executable was compiled with.
                            "effective_f90_opts": " ".join(
-                               effective_opts(args.profile, parmode)),
+                               effective_opts(args.profile)),
                            "sources": sources}
             print(f"built {name}  {built[name]['sha256'][:16]}", flush=True)
     built = {k: built[k] for k in sorted(built)}

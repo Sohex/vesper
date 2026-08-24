@@ -38,20 +38,21 @@ change that is faster without asking whether it could be contributed back.
 Pulling upstream is not expected to be possible again, and a change worth
 sending upstream now has to be written for upstream separately.
 
-**What it does NOT license, and this is the part that bites.** The MPI build is
-the reference every correctness check in this component compares against --
-bit-identity at T21 on two, rounding scale at T170 on sixteen, every
-`compare_restarts.py` arm. It caught the dv2uv planetary vorticity race, the
-weight pre-scaling bug, and the mkdheat inertness result. **Do not delete it
-until the serial build has replaced it as that reference**: threaded at N
-threads against `mpimod_stub` at one, at rounding scale. The serial build is
-arguably the better reference anyway, since it has no reduce-scatter ordering to
-explain away.
+**The MPI path is gone, and with it the parmode axis.** `mpimod.f90`,
+`mpimod_multi.f90` and `mpimod_stub.f90` are deleted, `plasim/CMakeLists.txt`
+names `mpimod_omp.f90` and `utilities_omp.f90` as literals, and
+`build_model.py` has no `--parmode`: the model has one parallel layer, threads
+over a shared address space. Removing it is not a speedup -- the threaded build
+never linked it -- and what it costs is the second reference. Every correctness
+check in this component used to compare a threaded arm against an MPI one, and
+that comparison caught the dv2uv planetary vorticity race, the weight
+pre-scaling bug and the mkdheat inertness result. **A gate that needs an
+independent reference now has to build one**, from a control patch or from a
+standalone driver, rather than reaching for a second registered runtime.
 
-And removing MPI is not itself a speedup. The threaded build does not link it;
-`${MPIMOD}` selects a different file. The fork buys permission to BREAK the MPI
-path when it blocks a restructure, which is a reason to drop it lazily at the
-point it is in the way rather than as a task of its own.
+The executable's name follows: `most_plasim_<res>_l<levels>_p<ranks>.x` carries
+no parallel-mode suffix, because there is one parallel mode and an axis with one
+value separates no two builds.
 
 ### Before the fork
 

@@ -332,7 +332,7 @@ def run_cell(bed: Path, work: Path, ranks: int, noutput: int, steps: int) -> dic
     binary = f"most_plasim_t42_l10_p{ranks}.x"
     if not (work / binary).exists():
         raise SystemExit(f"{binary} is not in the bed. ExoPlaSim compiles one "
-                         "executable per (resolution, layers, ranks, parmode) "
+                         "executable per (resolution, layers, ranks) "
                          "configuration; CLAUDE.md rule 4.")
 
     started = datetime.datetime.now(datetime.timezone.utc)

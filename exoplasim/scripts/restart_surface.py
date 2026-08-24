@@ -71,7 +71,7 @@ module exists for.
 
 The model's only operations between the staged `.sra` and the restart record are
 a list-directed ASCII read into `real*8` (`-fdefault-real-8`, `configure.sh:73`),
-an MPI scatter, and the matching gather at write time (`mpimod.f90:719`). None of
+a scatter, and the matching gather at write time (`mpimod_omp.f90:684`). None of
 those is arithmetic. This module parses the same ASCII text with the same
 correctly-rounded decimal-to-binary conversion, so the two sides are bit-equal
 when nothing has substituted the field.

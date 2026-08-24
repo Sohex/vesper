@@ -11,10 +11,10 @@
 #
 # WHY CMAKE AND NINJA. The rule set this replaces declared Fortran module
 # dependencies BY HAND, one edge per line, and a missing edge does not fail: it
-# works until the object order stops hiding it. CONS-13 is one such edge that
-# survived because ${MPIMOD}.o happens to be first in the link list. CMake with
+# works until the object order stops hiding it. CMake with
 # Ninja scans the `use` statements and generates the edges, so that whole class
-# of defect stops being possible rather than being fixed once.
+# of defect stops being possible rather than being fixed once. (CONS-13 was an
+# edge into the parallel layer, which the old link list happened to put first.)
 
 cmake_minimum_required(VERSION 3.20)
 
@@ -30,9 +30,8 @@ project(plasim LANGUAGES Fortran C)
 
 set(PLASIM_NLAT      "" CACHE STRING "latitudes (32 48 64 96 128 160 192 256)")
 set(PLASIM_NLEV      "" CACHE STRING "vertical levels")
-set(PLASIM_NPRO      "" CACHE STRING "ranks (mpi) or threads (omp); 1 for serial")
+set(PLASIM_NPRO      "" CACHE STRING "OpenMP threads")
 set(PLASIM_PRECISION "" CACHE STRING "bytes per real: 4 or 8")
-set(PLASIM_PARMODE   "" CACHE STRING "serial | mpi | omp")
 set(PLASIM_FFLAGS    "" CACHE STRING "the whole Fortran flag line, from config/planet.yaml")
 set(PLASIM_FFT       "fftmod"  CACHE STRING "fftmod | fft991mod")
 set(PLASIM_SHTNS_PREFIX "" CACHE PATH "prefix holding include/shtns.f03 and lib/libshtns*.a")
@@ -46,7 +45,7 @@ function(require_one_of name value)
     endif()
 endfunction()
 
-foreach(v PLASIM_NLAT PLASIM_NLEV PLASIM_NPRO PLASIM_PRECISION PLASIM_PARMODE PLASIM_FFLAGS)
+foreach(v PLASIM_NLAT PLASIM_NLEV PLASIM_NPRO PLASIM_PRECISION PLASIM_FFLAGS)
     if("${${v}}" STREQUAL "")
         message(FATAL_ERROR "${v} is not set, and has no default. Build through "
                             "exoplasim/scripts/build_model.py.")
@@ -60,7 +59,6 @@ endforeach()
 # world-ajx.
 require_one_of(PLASIM_NLAT      "${PLASIM_NLAT}"      32 48 64 96 128 160 192 256)
 require_one_of(PLASIM_PRECISION "${PLASIM_PRECISION}" 4 8)
-require_one_of(PLASIM_PARMODE   "${PLASIM_PARMODE}"   serial mpi omp)
 require_one_of(PLASIM_FFT       "${PLASIM_FFT}"       fftmod fft991mod)
 
 if(NOT PLASIM_NLEV MATCHES "^[0-9]+$" OR PLASIM_NLEV LESS 1)
@@ -72,6 +70,8 @@ endif()
 
 # NLPP = NLAT/NPRO is a `parameter` in plasimmod, so a non-dividing count builds
 # a model whose bands do not tile the globe. Integer division would hide it.
+# NPRO is the OpenMP thread count: the decomposition over NLAT is what the
+# threads divide, so it is as real here as it was under ranks.
 math(EXPR _nlpp_rem "${PLASIM_NLAT} % ${PLASIM_NPRO}")
 if(NOT _nlpp_rem EQUAL 0)
     message(FATAL_ERROR
@@ -117,19 +117,8 @@ foreach(cfg DEBUG RELEASE RELWITHDEBINFO MINSIZEREL)
 endforeach()
 
 # ---------------------------------------------------------------------------
-# The configuration-dependent source variants.
+# The one configuration-dependent source variant: PLASIM_FFT.
 # ---------------------------------------------------------------------------
-
-if(PLASIM_PARMODE STREQUAL "omp")
-    set(_mpimod  mpimod_omp)
-    set(_utilmod utilities_omp)
-elseif(PLASIM_PARMODE STREQUAL "mpi")
-    set(_mpimod  mpimod)
-    set(_utilmod utilities)
-else()
-    set(_mpimod  mpimod_stub)
-    set(_utilmod utilities_stub)
-endif()
 
 # resmod.f90 is generated, so it lives in the build directory and never in the
 # source tree. The build system this replaced wrote it next to the sources,
@@ -153,9 +142,12 @@ file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/resmod.f90"
 # p_mars, defaulted to p_earth, was never given a value by build_model.py, and
 # the one alternative it admitted had a doubled comma in its planet_nl
 # continuation and could not compile. world-58v.
+# mpimod_omp.f90 and utilities_omp.f90 are literals for the same reason: this
+# build has one parallel layer, threads over a shared address space, and the
+# variants the parmode axis chose between are gone from the tree. world-38b.
 set(_sources
     shtnsmod.f90
-    ${_mpimod}.f90
+    mpimod_omp.f90
     ${PLASIM_FFT}.f90
     guimod_stub.f90
     rainmod.f90
@@ -163,7 +155,7 @@ set(_sources
     p_earth.f90
     carbonmod.f90
     hurricanemod.f90
-    ${_utilmod}.f90
+    utilities_omp.f90
     "${CMAKE_CURRENT_BINARY_DIR}/resmod.f90"
     plasim.f90
     plasimmod.f90
@@ -202,14 +194,14 @@ set_target_properties(plasim.x PROPERTIES
 
 # ---------------------------------------------------------------------------
 # SHTns. shtnsmod includes shtns.f03, and the model links it in every
-# configuration -- the MPI build cannot USE it, having no single address space
-# holding every latitude, but it still has to resolve the symbols.
+# configuration. The transform runs over every latitude at once, which is why
+# it needs the single shared address space the threaded build has.
 # ---------------------------------------------------------------------------
 
 if(PLASIM_SHTNS_PREFIX STREQUAL "")
     message(FATAL_ERROR
         "PLASIM_SHTNS_PREFIX is not set. shtnsmod.f90 includes shtns.f03 and the "
-        "model links SHTns in every configuration. exoplasim/scripts/build_shtns.sh "
+        "model links SHTns. exoplasim/scripts/build_shtns.sh "
         "installs it.")
 endif()
 if(NOT EXISTS "${PLASIM_SHTNS_PREFIX}/include/shtns.f03")
@@ -226,11 +218,10 @@ endif()
 list(GET _shtns_lib 0 _shtns_lib)
 
 target_include_directories(plasim.x PRIVATE "${PLASIM_SHTNS_PREFIX}/include")
-# -lgomp explicitly: libshtns_omp pulls fftw3_omp, which needs it, and the MPI
-# build does not compile with -fopenmp so it would not otherwise be on the link
-# line.
+# -lgomp explicitly: libshtns_omp pulls fftw3_omp, which needs it, and naming it
+# here keeps the link line independent of which flags reached the compiler.
 target_link_libraries(plasim.x PRIVATE "${_shtns_lib}" fftw3_omp fftw3 gomp m)
 
 message(STATUS "plasim: NLAT=${PLASIM_NLAT} NLON=${PLASIM_NLON} NLEV=${PLASIM_NLEV} "
-               "NPRO=${PLASIM_NPRO} ${PLASIM_PARMODE} real*${PLASIM_PRECISION}")
+               "NPRO=${PLASIM_NPRO} threads real*${PLASIM_PRECISION}")
 message(STATUS "plasim: ${CMAKE_Fortran_FLAGS}")

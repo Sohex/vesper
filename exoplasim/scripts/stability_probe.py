@@ -94,10 +94,11 @@ def build_bed(rung: str, template: Path, tag: str) -> tuple[Path, str]:
     if bed.exists():
         shutil.rmtree(bed)
     bed.mkdir(parents=True)
-    binary = sorted(template.glob(f"most_plasim_t{rung[1:]}_l*_p*.x"))
-    # The MPI binary, not the threaded one: the matrix measured on MPI and a
-    # cost compared across parallel modes is not a cost comparison.
-    binary = [b for b in binary if not b.name.endswith("_omp.x")] or binary
+    # A registry binary, not a profiling arm: `_fp` carries
+    # -fno-omit-frame-pointer and costs -1.17%, so a cost measured on one is not
+    # the model's cost. There is one parallel mode, so nothing else to exclude.
+    binary = sorted(b for b in template.glob(f"most_plasim_t{rung[1:]}_l*_p*.x")
+                    if not b.name.endswith("_fp.x"))
     exe = binary[0]
     for pattern in ("*_namelist", "*.nl", f"N{NLAT[rung]:03d}_surf_*.sra",
                     "k25v*.dat", "GUI.cfg"):

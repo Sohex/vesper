@@ -214,8 +214,8 @@ reads the flag line from `config/planet.yaml`, checks every argument against a
 list, and builds through CMake and Ninja in a directory of its own per
 configuration.
 
-    python exoplasim/scripts/build_model.py --res T170 --ranks 16 --parmode omp
-    python exoplasim/scripts/build_model.py --res T21  --ranks 8  --parmode mpi
+    python exoplasim/scripts/build_model.py --res T170 --ranks 16
+    python exoplasim/scripts/build_model.py --res T21  --ranks 8
 
 **An argument it does not recognise is an error, and that is the point.** What
 this replaced defaulted silently three times over -- an unrecognised `-r` built
@@ -226,9 +226,7 @@ previous session. `notes/audits/model-build-driver.md` has the measurements.
 
 | option | what it selects | name |
 | --- | --- | --- |
-| `--parmode mpi` | one process per rank | `most_plasim_<res>_l10_p<n>.x` |
-| `--parmode omp` | threads instead of ranks, one process, `mpimod_omp` | `..._omp.x` |
-| `--parmode serial` | one process, no parallel layer; takes `--ranks 1` | no suffix |
+| `--ranks <n>` | the OpenMP thread count; NLAT must divide by it. There is one parallel layer, `mpimod_omp` over a shared address space, so there is no parmode to choose and no suffix to carry | `most_plasim_<res>_l10_p<n>.x` |
 | `--profile` | a flag set from `config/planet.yaml`; `production` by default, `checked` adds `-fcheck=all` and `-finit-real=snan` | no change to the name |
 | `--frame-pointers` | a PROFILING build. DWARF cannot unwind the -O3 code -- 94% of model samples get no caller -- and this costs -1.17% with an identical restart sha, so the profile measures the same model | `..._fp.x` |
 | `--extra-flag=`, `--drop-flag=` | for a verification arm that varies a flag ON PURPOSE. Both are part of the build directory's identity, and a `--drop-flag` naming a flag the declaration does not carry is an error rather than a no-op | no change to the name |
@@ -468,20 +466,20 @@ carrier of the adiabatic sink: it alternates sign every step, so it contributes
 to the second time difference the sink is built from whatever the timestep is.
 
 **Patched source and per-configuration binaries.** ExoPlaSim compiles a separate
-executable for every (resolution, layers, ranks, parmode) configuration, so
+executable for every (resolution, layers, ranks) configuration, so
 patching the source
 and running rebuilds *only the configuration you are running*. Every other binary
 keeps the old code until something asks for it. This is failure class 11 and it
 fired three times in a single day.
 
-**The `p` in `most_plasim_t42_l10_p16.x` is RANKS, and the `-p` flag to
-`compile.sh` is PRECISION IN BYTES.** One letter, two meanings, and they sit one
-call apart: `__init__.py` builds the name as
-`"most_plasim_t%d_l%d_p%d.x" % (nsp, layers, ncpus)`, while `compile.sh` matches
+**The `p` in `most_plasim_t42_l10_p16.x` is THE PARALLEL WIDTH, and the `-p`
+flag to the build this replaced was PRECISION IN BYTES.** One letter, two
+meanings, and they sat one call apart: `__init__.py` builds the name as
+`"most_plasim_t%d_l%d_p%d.x" % (nsp, layers, ncpus)`, while `compile.sh` matched
 `-p` against `4`, `8`, `single` and `double` with a default of `prec=4`.
 
-Read the name as ranks. `_p16` is the sixteen-rank build, `_p8` the eight-rank
-one, and neither says anything about precision -- `config/planet.yaml`'s
+Read the name as threads. `_p16` is the sixteen-thread build, `_p8` the
+eight-thread one, and neither says anything about precision -- `config/planet.yaml`'s
 `precision_bytes` does, and `rebuild_binaries.py` is what carries it to the
 flag. The one case where the two readings agree is `_p8`, because `-p 8` happens
 to be a precision `compile.sh` recognises; that coincidence is why the bug in

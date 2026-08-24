@@ -85,8 +85,7 @@ def build(arm: str, spec: dict, res: str, layers: int, ranks: int) -> Path | Non
         return target
 
     cmd = [sys.executable, str(Path(__file__).resolve().parent / "build_model.py"),
-           "--res", res, "--levels", str(layers), "--ranks", str(ranks),
-           "--parmode", "mpi"]
+           "--res", res, "--levels", str(layers), "--ranks", str(ranks)]
     for f in spec.get("drop", []):
         cmd.append(f"--drop-flag={f}")
     for f in spec.get("add", []):

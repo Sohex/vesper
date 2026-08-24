@@ -69,7 +69,7 @@ PARAMOD = """
 
 
 def extract(text: str) -> str:
-    """The ilatperm function, verbatim, from mpimod.f90."""
+    """The ilatperm function, verbatim, out of the model source."""
     m = re.search(r"^      integer function ilatperm.*?^      end function ilatperm",
                   text, re.M | re.S)
     if m is None:

@@ -53,10 +53,10 @@ do not renumber.
    and never reconstruct one. This has silently matched zero cells on three
    separate scripts.
 4. **After any change under `vendor/exoplasim`, rebuild every binary.**
-   ExoPlaSim compiles one executable per (resolution, layers, ranks, parmode)
-   configuration -- parmode being `mpi` or the threaded `omp`, a different
-   compiler through a different flag line -- so a rebuild only refreshes the
-   configuration you ran, and the rest go stale silently. `python exoplasim/scripts/rebuild_binaries.py`, then `--verify`,
+   ExoPlaSim compiles one executable per (resolution, layers, ranks)
+   configuration -- the grid and the thread count are `parameter`s compiled in,
+   not settings a binary reads -- so a rebuild only refreshes the configuration
+   you ran, and the rest go stale silently. `python exoplasim/scripts/rebuild_binaries.py`, then `--verify`,
    which compares every executable against the sha of the source it was built
    from.
 5. **Pointing one component at another's output is deliberate, never

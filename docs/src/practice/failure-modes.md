@@ -286,12 +286,13 @@ share".
 
 ## 11. A patched source, and one binary per configuration
 
-ExoPlaSim compiles a separate executable for every (resolution, layers, ranks,
-parmode) configuration: `most_plasim_t42_l10_p16.x`, `most_plasim_t21_l10_p8.x`
-and the threaded `most_plasim_t42_l10_p16_omp.x` are different files built from
-the same source at different times. **Patching the source and
-rebuilding rebuilds only the configuration you are running.** Every other binary
-on disk keeps the old code, silently, until something asks for it.
+ExoPlaSim compiles a separate executable for every (resolution, layers, ranks)
+configuration: `most_plasim_t42_l10_p16.x` and `most_plasim_t21_l10_p8.x` are
+different files built from the same source at different times, because the grid
+and the thread count are `parameter`s compiled in rather than settings a binary
+reads. **Patching the source and rebuilding rebuilds only the configuration you
+are running.** Every other binary on disk keeps the old code, silently, until
+something asks for it.
 
 Found moving from the T21 flux bracket to a T42 bootstrap. The ozone
 band-weight patch adds `o3uvw` and `o3visw` to `radmod_nl`. The T21 8-rank binary

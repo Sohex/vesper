@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Build one PlaSim executable, and refuse anything it does not understand.
 
-    python exoplasim/scripts/build_model.py --res T170 --ranks 16 --parmode omp
-    python exoplasim/scripts/build_model.py --res T21 --ranks 8 --parmode mpi --profile checked
+    python exoplasim/scripts/build_model.py --res T170 --ranks 16
+    python exoplasim/scripts/build_model.py --res T21 --ranks 8 --profile checked
 
 Worldbuilding frame: this builds the Vesper project's climate model, a hard fork
 of ExoPlaSim. Nothing here is about the simulated planet.
@@ -22,9 +22,15 @@ resolution, no default rank count and no default precision.
 
 WHERE THE FLAGS COME FROM. `config/planet.yaml`, `model.compile_flags`, and
 nowhere else. The old build had three hand-edited files -- `most_compiler`,
-`most_compiler_mpi`, `most_compiler_omp` -- of which only the MPI one was
-written from the declaration, so the threaded build, which is what this project
-now measures, took whatever was in a file nothing derived. That was CONS-14.
+`most_compiler_mpi`, `most_compiler_omp` -- of which only one was written from
+the declaration, so the threaded build, which is what this project measures,
+took whatever was in a file nothing derived. That was CONS-14.
+
+ONE PARALLEL LAYER. This project builds and runs threads over a shared address
+space and nothing else, so there is no parmode argument, no parmode in the build
+tag and no parmode in the executable name: an axis with one value separates no
+two builds and only invites a caller to ask for a configuration that does not
+exist. `-fopenmp -DOMPSHARED` therefore reaches every compile below. world-38b.
 
 WHERE IT BUILDS. One directory per configuration under `vendor/exoplasim/build/`,
 so two configurations cannot delete each other's objects. The old build had one
@@ -70,8 +76,6 @@ CONTROL_MARKERS = ("CONTROL PATCH IN PROGRESS", "! CONTROL:")
 # nothing. SPAT-2.
 RESOLUTIONS = dict(rungs.RUNGS)
 
-PARMODES = ("serial", "mpi", "omp")
-
 
 def declared() -> dict:
     return yaml.safe_load(CONFIG.read_text(encoding="utf-8"))["model"]
@@ -115,7 +119,7 @@ def patched_sources() -> list[Path]:
     patches `plasim/src` in place builds into the same directory the registry
     entry claims. That happened: `verify_shtns_model.sh` strips the spectral
     filter out of `shtnsmod.f90` for its control arm, and
-    `build/t21_l10_p16_omp_production/plasim.x` was left holding a binary with
+    `build/t21_l10_p16_production/plasim.x` was left holding a binary with
     zero filter sites while the live source had eleven. `--no-publish` keeps an
     arm out of the model run directory; it does nothing about the build
     directory, and `--print-path` hands the caller exactly that path. The
@@ -155,7 +159,7 @@ def source_state(patched: list[Path]) -> str:
     return h.hexdigest()[:8]
 
 
-def tag(res: str, levels: int, ranks: int, parmode: str, profile: str,
+def tag(res: str, levels: int, ranks: int, profile: str,
         frame_pointers: bool, extra: list[str], source: str = "") -> str:
     """The build directory's name, and it names every input that changes a byte.
 
@@ -164,7 +168,7 @@ def tag(res: str, levels: int, ranks: int, parmode: str, profile: str,
     flag arms cannot land in one directory and quietly reuse each other's
     objects. `source` is the same thing for a patched model source, and it goes
     under `PATCHED_ROOT` rather than beside the registry's builds."""
-    parts = [res.lower(), f"l{levels}", f"p{ranks}", parmode, profile]
+    parts = [res.lower(), f"l{levels}", f"p{ranks}", profile]
     if frame_pointers:
         parts.append("fp")
     if extra:
@@ -174,27 +178,26 @@ def tag(res: str, levels: int, ranks: int, parmode: str, profile: str,
     return "_".join(parts)
 
 
-def executable_name(res: str, levels: int, ranks: int, parmode: str,
+def executable_name(res: str, levels: int, ranks: int,
                     frame_pointers: bool) -> str:
-    """The registry's name for this binary. Unchanged from the old build, because
-    `binary_manifest.json` and every bed manifest already carry these names."""
-    suffix = ""
-    if parmode == "omp":
-        suffix += "_omp"
-    if frame_pointers:
-        suffix += "_fp"
+    """The registry's name for this binary.
+
+    `most_plasim_<res>_l<levels>_p<ranks>.x`, and the `p` is the parallel width
+    -- threads here -- not the precision. It carries no parallel-mode suffix
+    because there is one parallel mode; `vendor/exoplasim/exoplasim/__init__.py`
+    composes the same name when it goes looking for the binary to run.
+    """
+    suffix = "_fp" if frame_pointers else ""
     return f"most_plasim_{res.lower()}_l{levels}_p{ranks}{suffix}.x"
 
 
-def build(res_arg: str, levels: int, ranks: int, parmode: str, profile: str,
+def build(res_arg: str, levels: int, ranks: int, profile: str,
           frame_pointers: bool, jobs: int | None, verbose: bool,
           extra: list[str] | None = None, drop: list[str] | None = None,
           publish: bool = True) -> Path:
     extra = list(extra or [])
     drop = list(drop or [])
     res, nlat = resolve(res_arg)
-    if parmode not in PARMODES:
-        raise SystemExit(f"--parmode {parmode!r} is not one of {' '.join(PARMODES)}")
     if ranks < 1:
         raise SystemExit(f"--ranks must be at least 1, got {ranks}")
     if nlat % ranks:
@@ -202,8 +205,6 @@ def build(res_arg: str, levels: int, ranks: int, parmode: str, profile: str,
             f"--ranks {ranks} does not divide the {nlat} latitudes of {res}. "
             f"NLPP is NLAT/NPRO and is a parameter, so the bands would not tile "
             f"the globe.")
-    if parmode == "serial" and ranks != 1:
-        raise SystemExit("--parmode serial takes --ranks 1")
 
     flags, precision = flag_line(profile)
     # DROP FIRST, so an arm that removes a declared flag and adds a replacement
@@ -218,8 +219,7 @@ def build(res_arg: str, levels: int, ranks: int, parmode: str, profile: str,
         flags = [f for f in flags if f != d]
     if frame_pointers:
         flags = flags + ["-fno-omit-frame-pointer"]
-    if parmode == "omp":
-        flags = flags + ["-fopenmp", "-DOMPSHARED"]
+    flags = flags + ["-fopenmp", "-DOMPSHARED"]
     # LAST, so an arm can override a declared flag by restating it. This is the
     # only route by which a flag reaches the compiler without being declared in
     # config/planet.yaml, and it exists for the verification arms that vary a
@@ -233,9 +233,9 @@ def build(res_arg: str, levels: int, ranks: int, parmode: str, profile: str,
     # was how the postprocessor came to route T63 and T106 into the module
     # that cannot transform them. world-i38.
     fft = rungs.fft_module(res)
-    compiler = "mpif90" if parmode == "mpi" else "gfortran"
+    compiler = "gfortran"
     if shutil.which(compiler) is None:
-        raise SystemExit(f"{compiler} is not on PATH, and --parmode {parmode} needs it.")
+        raise SystemExit(f"{compiler} is not on PATH, and the model is built with it.")
 
     # A PATCHED SOURCE IS AN ARM, and an arm is not a registry entry. It gets
     # its own root and its own hash, and it never publishes -- the registry's
@@ -263,7 +263,7 @@ def build(res_arg: str, levels: int, ranks: int, parmode: str, profile: str,
               f"building under {PATCHED_ROOT.name}/ so the registry's tag keeps "
               f"meaning the committed source.", file=sys.stderr)
 
-    bdir = root / tag(res, levels, ranks, parmode, profile, frame_pointers,
+    bdir = root / tag(res, levels, ranks, profile, frame_pointers,
                       drop + extra, source)
     bdir.mkdir(parents=True, exist_ok=True)
 
@@ -274,7 +274,6 @@ def build(res_arg: str, levels: int, ranks: int, parmode: str, profile: str,
         f"-DPLASIM_NLEV={levels}",
         f"-DPLASIM_NPRO={ranks}",
         f"-DPLASIM_PRECISION={precision}",
-        f"-DPLASIM_PARMODE={parmode}",
         f"-DPLASIM_FFT={fft}",
         f"-DPLASIM_FFLAGS={' '.join(flags)}",
         f"-DPLASIM_SHTNS_PREFIX={SHTNS_PREFIX}",
@@ -306,7 +305,7 @@ def build(res_arg: str, levels: int, ranks: int, parmode: str, profile: str,
     # expected name pointing at a binary from a previous session -- which is how
     # three arms of a flag comparison turned out to be one file.
     MODEL_RUN.mkdir(parents=True, exist_ok=True)
-    out = MODEL_RUN / executable_name(res, levels, ranks, parmode, frame_pointers)
+    out = MODEL_RUN / executable_name(res, levels, ranks, frame_pointers)
     out.unlink(missing_ok=True)
     shutil.copy2(built, out)
     return out
@@ -329,8 +328,8 @@ def main() -> None:
                     help="resolution name (T21..T170) or latitude count (32..256)")
     ap.add_argument("--levels", type=int, default=10, help="vertical levels (default 10)")
     ap.add_argument("--ranks", type=int, required=True,
-                    help="MPI ranks, or OpenMP threads for --parmode omp")
-    ap.add_argument("--parmode", required=True, choices=PARMODES)
+                    help="OpenMP threads; NLAT must divide by it, and it is the "
+                         "`p` in the executable's name")
     ap.add_argument("--profile", default=None,
                     help="build profile from config/planet.yaml "
                          "(default: model.compile_flags.profile)")
@@ -362,7 +361,7 @@ def main() -> None:
     for f in a.extra_flag + a.drop_flag:
         if not f.startswith("-") or f.split() != [f]:
             raise SystemExit(f"{f!r} must be one token starting with '-'")
-    out = build(a.res, a.levels, a.ranks, a.parmode, profile,
+    out = build(a.res, a.levels, a.ranks, profile,
                 a.frame_pointers, a.jobs, a.verbose, a.extra_flag, a.drop_flag,
                 publish=not a.no_publish)
     if a.print_path:

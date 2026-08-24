@@ -989,7 +989,7 @@ def main() -> int:
 
     # -- binaries vs the patches they should contain -------------------------
     #
-    # ExoPlaSim builds one executable per (resolution, layers, ranks, parmode)
+    # ExoPlaSim builds one executable per (resolution, layers, ranks)
     # configuration, so
     # changing the source and rebuilding touches only the configuration in use
     # and leaves the rest silently stale. That is failure class 11, and it fired
@@ -1046,13 +1046,13 @@ def main() -> int:
     try:
         m = config["model"]
         run_dir = ROOT / "vendor" / "exoplasim" / "exoplasim" / "plasim" / "run"
-        # THE PARMODE IS PART OF THE NAME. `model.parmode` decides which binary a
-        # run uses and therefore which transform integrates it, so a check that
-        # names the executable has to carry it too -- otherwise it asserts a
-        # binary that is not built and never looks at the one that is. world-bdh.
-        _suffix = "_omp" if str(m.get("parmode", "mpi")) == "omp" else ""
+        # THE NAME IS THE CONFIGURATION AND NOTHING ELSE: resolution, layers and
+        # the thread count, which is what `build_model.executable_name` composes
+        # and what a run goes looking for. A check that names it any other way
+        # asserts a binary that is not built and never looks at the one that is.
+        # world-bdh, world-38b.
         exe = run_dir / (f"most_plasim_t{int(str(m['resolution']).lstrip('Tt'))}"
-                         f"_l{int(m['layers'])}_p{int(m['ncpus'])}{_suffix}.x")
+                         f"_l{int(m['layers'])}_p{int(m['ncpus'])}.x")
         components = (config.get("stellar_cycle") or {}).get("components") or {}
         slots = {"medium": "", "long": "2"}
         # There is no separate cycle executable any more. The star-cycle change
