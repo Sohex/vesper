@@ -3104,7 +3104,11 @@ References
                                     str((not self.twobandalbedo)*1))
             if key=="maxsnow":
                 self.maxsnow=value
-                if maxsnow:
+                # world-1ok: `maxsnow` is configure()'s parameter name and is
+                # unbound here. Tested against None rather than truthiness so a
+                # declared cap of zero sets DSMAX to zero instead of removing
+                # the key and reverting to landmod's compiled 5 m.
+                if self.maxsnow is not None:
                     self._edit_namelist("landmod_namelist","DSMAX",str(self.maxsnow))
                 else:
                     self._rm_namelist_param("landmod_namelist","DSMAX")
@@ -3271,7 +3275,7 @@ References
                 
             if key=="soildepth":
                 self.soildepth=value
-                self.dzsoils = np.array([0.4, 0.8, 1.6, 3.2, 6.4])*soildepth
+                self.dzsoils = np.array([0.4, 0.8, 1.6, 3.2, 6.4])*self.soildepth # world-1ok
                 self._edit_namelist("landmod_namelist",
                                     "DSOILZ",",".join(self.dzsoils.astype(str)))
                 
@@ -3344,7 +3348,7 @@ References
                     self._rm_postcodes("snapshot.nl",[322,323,324,325,326,327,328,329])
             if key=="nstorms":
                 self.nstorms=value
-                self._edit_namelist("hurricane_namelist","NSTORMS",str(self.int(nstorms)))
+                self._edit_namelist("hurricane_namelist","NSTORMS",str(int(self.nstorms))) # world-1ok
             if key=="stormcapture":
                 self.stormcapture=value
                 if self.stormcapture["toggle"]:
@@ -3397,7 +3401,7 @@ References
                     elif f"{sourcedir}/hazeconstants/{self.aerofile}.dat" in glob.glob(f"{sourcedir}/hazeconstants/*.dat"):
                         os.system(f"cp {sourcedir}/hazeconstants/{self.aerofile}.dat {self.workdir}/")
                     if self.aerofile[-4:]==".dat":
-                        self.aerofile=aerofile[:-4]
+                        self.aerofile=self.aerofile[:-4] # world-1ok
                     self.aerorad=True
                     self._edit_namelist("aero_namelist","l_aerorad",str(self.aerorad*1))
                     self._edit_namelist("aero_namelist","aerofile","'%s.dat'"%self.aerofile)
@@ -3416,7 +3420,7 @@ References
                     elif f"{sourcedir}/hazeconstants/{self.aerofile}.dat" in glob.glob(f"{sourcedir}/hazeconstants/*.dat"):
                         os.system(f"cp {sourcedir}/hazeconstants/{self.aerofile}.dat {self.workdir}/")
                     if self.aerofile[-4:]==".dat":
-                        self.aerofile=aerofile[:-4]
+                        self.aerofile=self.aerofile[:-4] # world-1ok
                     self.aerorad=True
                     self._edit_namelist("aero_namelist","l_aerorad",str(self.aerorad*1))
                     self._edit_namelist("aero_namelist","aerofile","'%s.dat'"%self.aerofile)
@@ -3480,7 +3484,7 @@ References
         if restim:
             #self._edit_namelist("plasim_namelist","RESTIM","%f,%d*0.0"%(self.top_restoretime,self.layers-1))
             self._edit_namelist("plasim_namelist","NSPONGE","1")
-            self._edit_namelist("plasim_namelist","DAMPSP","%"%self._top_restoretime)
+            self._edit_namelist("plasim_namelist","DAMPSP","%f"%self.top_restoretime) # world-qd4
         elif not restim and slowrotator:
             #self._edit_namelist("plasim_namelist","RESTIM","%f,%d*0.0"%(1.0,self.layers-1))
             self._edit_namelist("plasim_namelist","NSPONGE","1")
