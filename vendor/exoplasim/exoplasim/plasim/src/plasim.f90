@@ -329,8 +329,6 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       call mpbci(ndiaggp   ) ! switch for franks grid point diagnostics
       call mpbci(ndiagsp   ) ! switch for franks spectral diagnostics
       call mpbci(ndiagcf   ) ! switch for cloud forcing diagnostics
-      call mpbci(nentropy  ) ! switch for entropy diagnostics
-      call mpbci(nentro3d  ) ! switch for 3d entropy diagnostics
       call mpbci(nenergy  )  ! switch for energy diagnostics
       call mpbci(nener3d  )  ! switch for 3d energy diagnostics
 !     WITHOUT THIS THE FIXER DEADLOCKS. The namelist is read on NROOT only, so
@@ -462,18 +460,6 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       if(ndiagcf > 0) then
        allocate(dclforc(NHOR,7))
        dclforc(:,:)=0.
-      end if
-      if(nentropy > 0) then
-       allocate(dentropy(NHOR,36))
-       allocate(dentrot(NHOR,NLEV))
-       allocate(dentroq(NHOR,NLEV))
-       allocate(dentrop(NHOR))
-       allocate(dentro(NHOR))
-       dentropy(:,:)=0.
-      end if
-      if(nentro3d > 0) then
-       allocate(dentro3d(NHOR,NLEV,23))
-       dentro3d(:,:,:)=0.
       end if
       if(nenergy > 0) then
        allocate(denergy(NHOR,28))
@@ -809,7 +795,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
            call snapshotsc
            call snapshotgp
            koutdiag=ndiaggp3d+ndiaggp2d+ndiagsp3d+ndiagsp2d+ndiagcf     &
-     &             +nentropy+nenergy
+     &             +nenergy
            if(koutdiag > 0) call snapshotdiag
          endif
          if (nhcadence>0 .and. hcstartstep>0 .and. hcendstep>0) then
@@ -855,7 +841,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
            call outsc
            call outgp
            koutdiag=ndiaggp3d+ndiaggp2d+ndiagsp3d+ndiagsp2d+ndiagcf     &
-     &             +nentropy+nenergy
+     &             +nenergy
            if(koutdiag > 0) call outdiag
           endif
           call outreset
@@ -903,14 +889,10 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       if(ndiaggp3d > 0) deallocate(dgp3d)
       if(ndiagsp3d > 0) deallocate(dsp3d)
       if(ndiagcf   > 0) deallocate(dclforc)
-      if(nentropy  > 0) then 
-       deallocate(dentropy,dentrop,dentrot,dentroq,dentro)
-      endif
       if(nenergy   > 0) deallocate(denergy)
       if(nenergy   > 0) deallocate(adenergy)
       if(nener3d   > 0) deallocate(dener3d)
       if(nener3d   > 0) deallocate(adener3d)
-      if(nentro3d  > 0) deallocate(dentro3d)
 !
 !     close output file
 !
@@ -1521,7 +1503,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
                    , ndel    , ndheat  , ndiag   , ndiagcf , ndiaggp    &
                    , ndiaggp2d , ndiaggp3d , ndesert                    &
                    , ndiagsp   , ndiagsp2d , ndiagsp3d, dttl            &
-                   , ndl     , nentropy, nentro3d, neqsig               &
+                   , ndl     , neqsig                                   &
                    , ngui    , nhdiff  , nhordif , nkits                &
                    , noutput , nlowio  , nstpw   , nsnapshot, nstps     &
                    , nperpetual        , nprhor                         &
@@ -3055,19 +3037,6 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !
 !     compute entropy
 !
-      if(nentropy > 0) then
-       zp00=100000.
-       dentrop(:)=psurf*gp(:)
-       dentropy(:,1)=0.
-       do jlev=1,NLEV
-        dentrot(:,jlev)=ct*(gt(:,jlev)+t0(jlev))
-        dentroq(:,jlev)=gq(:,jlev)*psurf/dentrop(:)
-        dentro(:)=acpd*(1.+adv*dentroq(:,jlev))*dentrop(:)*dsigma(jlev) &
-     &    *log(dentrot(:,jlev)*(zp00/(dentrop(:)*sigma(jlev)))**akap)/ga
-        dentropy(:,1)=dentropy(:,1)+dentro(:)
-        if(nentro3d > 0) dentro3d(:,jlev,1)=dentro(:)
-       enddo
-      endif
 !
 !     save u, v, and ps (at time t) for tracer transport
 !
@@ -3793,9 +3762,9 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
        deallocate(ztt)
       endif
 !
-!     entropy/energy diagnostics
+!     energy diagnostics
 !
-      if(nenergy > 0 .or. nentropy > 0) then
+      if(nenergy > 0) then
        allocate(ztt(NESP,NLEV))
        allocate(zttgp(NHOR,NLEV))
        allocate(zst(NESP,NLEV))
@@ -3840,33 +3809,6 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
        if (nqspec == 1) deallocate(zsq)
        deallocate(zsp)
       endif       
-      if(nentropy > 0) then
-       dentropy(:,2)=0.
-       dentropy(:,35)=0.
-       dentropy(:,36)=0.
-       do jlev=1,NLEV
-        dentro(:)=zttgp(:,jlev)/dentrot(:,jlev)                         &
-     &         *acpd*(1.+adv*dentroq(:,jlev))*dentrop(:)/ga*dsigma(jlev)&
-     &         -gascon*(1.+(1./rdbrv-1.)*dentroq(:,jlev))               &
-     &         *(zpgp(:)-zpmgp(:))/deltsec2/dentrop(:)                  &
-     &         *dentrop(:)*dsigma(jlev)/ga
-        dentropy(:,2)=dentropy(:,2)+dentro(:)
-        if(nentro3d > 0) dentro3d(:,jlev,2)=dentro(:)
-        dentro(:)=zttgp(:,jlev)/dentrot(:,jlev)                         &
-     &         *acpd*(1.+adv*dentroq(:,jlev))*dentrop(:)/ga*dsigma(jlev)
-        dentropy(:,35)=dentropy(:,35)+dentro(:)
-        dentropy(:,36)=dentropy(:,36)                                   &
-     &                +((acpd*(1.+adv*zqgp(:,jlev))                     & 
-     &                  *log(ztgp(:,jlev)+zttgp(:,jlev)*deltsec2)       &
-     &                  -gascon*(1.+(1./rdbrv-1.)*zqgp(:,jlev))         &
-     &                  *log(zpgp(:)))*zpgp(:)                          &
-     &                 -(acpd*(1.+adv*zqmgp(:,jlev))                    &
-     &                  *log(ztgp(:,jlev))                              &
-     &                  -gascon*(1.+(1./rdbrv-1.)*zqmgp(:,jlev))        &
-     &                  *log(zpmgp(:)))*zpmgp(:))                       &
-     &                /deltsec2/ga*dsigma(jlev) 
-       enddo
-      endif
       if(nenergy > 0) then
        allocate(zsd(NESP,NLEV))
        allocate(zsz(NESP,NLEV))
@@ -4105,7 +4047,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
        deallocate(zekin)
        deallocate(zepot)
       endif
-      if(nenergy > 0 .or. nentropy > 0) then
+      if(nenergy > 0) then
        deallocate(zttgp)
        deallocate(zqgp)
        deallocate(zqmgp)
@@ -4430,24 +4372,8 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
        enddo
       endif
 !
-!     entropy/energy diagnostics
+!     energy diagnostics
 !
-      if(nentropy > 0) then
-       dentropy(:,4)=0.
-       dentropy(:,33)=0.
-       do jlev=1,NLEV
-        dentro(:)=dtdt(:,jlev)/dentrot(:,jlev)                          &
-     &         *acpd*(1.+adv*dentroq(:,jlev))*dentrop(:)/ga*dsigma(jlev)
-        dentropy(:,4)=dentropy(:,4)+dentro(:)
-        if(nentro3d > 0) dentro3d(:,jlev,4)=dentro(:)
-        zfac=ww*tfrc(jlev)/(1.+tfrc(jlev)*delt2)
-        dentro(:)=((du(:,jlev)+dudt(:,jlev)*deltsec2)**2                &
-     &             +(dv(:,jlev)+dvdt(:,jlev)*deltsec2)**2)              &
-     &             *zfac*dentrop(:)/ga*dsigma(jlev)/dentrot(:,jlev)
-        dentropy(:,33)=dentropy(:,33)+dentro(:)
-        if(nentro3d > 0) dentro3d(:,jlev,23)=dentro(:)
-       enddo
-      endif
       if(nenergy > 0) then
        denergy(:,4)=0.
        do jlev=1,NLEV
@@ -4816,25 +4742,8 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
        enddo
       endif
 !
-!     entropy/energy diagnostics
+!     energy diagnostics
 !
-      if(nentropy > 0) then
-       allocate(ztt(NESP,NLEV))
-       allocate(zttgp(NHOR,NLEV))
-       call mpgallsp(ztt,stt,NLEV)
-       ztt(:,:)=ztt(:,:)*ct*ww
-       call sp2fl(ztt,zttgp,NLEV)
-       call fc2gp(zttgp,NLON,NLPP*NLEV)
-       deallocate(ztt)
-       dentropy(:,3)=0.
-       do jlev=1,NLEV
-        dentro(:)=zttgp(:,jlev)/dentrot(:,jlev)                         &
-     &         *acpd*(1.+adv*dentroq(:,jlev))*dentrop(:)/ga*dsigma(jlev)
-        dentropy(:,3)=dentropy(:,3)+dentro(:)
-        if(nentro3d > 0) dentro3d(:,jlev,3)=dentro(:) 
-       enddo
-       deallocate(zttgp)
-      endif
       if(nenergy > 0) then
        allocate(ztt(NESP,NLEV))
        allocate(zttgp(NHOR,NLEV))
@@ -4881,7 +4790,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !
 !     energy/entropy diagnostics
 !
-      if(nenergy > 0 .or. nentropy > 0) then
+      if(nenergy > 0) then
        allocate(zsttd(NSPP,NLEV))
        do jlev=1,NLEV
         zsttd(:,jlev)=-tdisst(jlev)*sakpp(1:NSPP,jlev)*stp(:,jlev)      &
@@ -5031,25 +4940,8 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
        enddo
       endif
 !
-!     entropy/energy diagnostics
+!     energy diagnostics
 !
-      if(nentropy > 0) then
-       allocate(ztt(NESP,NLEV))
-       allocate(zttgp(NHOR,NLEV))
-       call mpgallsp(ztt,stt,NLEV)
-       ztt(:,:)=ztt(:,:)*ct*ww
-       call sp2fl(ztt,zttgp,NLEV)
-       call fc2gp(zttgp,NLON,NLPP*NLEV)
-       deallocate(ztt)
-       dentropy(:,5)=0.
-       do jlev=1,NLEV
-        dentro(:)=zttgp(:,jlev)/dentrot(:,jlev)                         &
-     &         *acpd*(1.+adv*dentroq(:,jlev))*dentrop(:)/ga*dsigma(jlev)
-        dentropy(:,5)=dentropy(:,5)+dentro(:)
-        if(nentro3d > 0) dentro3d(:,jlev,5)=dentro(:)
-       enddo
-       deallocate(zttgp)
-      endif
       if(nenergy > 0) then
        allocate(ztt(NESP,NLEV))
        allocate(zttgp(NHOR,NLEV))
@@ -5100,7 +4992,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
        deallocate(ztt)
        deallocate(zttgp)
       endif
-      if(nenergy > 0 .or. nentropy > 0) then
+      if(nenergy > 0) then
        deallocate(zsttd)
       endif
 !

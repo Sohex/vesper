@@ -209,8 +209,6 @@
       integer :: ntime    =  0  ! switch for time use diagnostics
       integer :: nperpetual = 0 ! radiation day for perpetual integration
       integer :: n_sea_points=0 ! number of sea points on grid
-      integer :: nentropy = 0   ! switch for entropy diagnostics
-      integer :: nentro3d = 0   ! switch for 3d entropy diagnostics
       integer :: nenergy  = 0   ! switch for energy diagnostics
       integer :: nenergyfix = 0 ! switch for the energy fixer. NOT PHYSICS: a
 !                               ! correction for the conversion defect on
@@ -778,16 +776,10 @@
       real, allocatable :: dgp2d(:,:),dsp2d(:,:)     ! 2-d diagnostics
       real, allocatable :: dgp3d(:,:,:),dsp3d(:,:,:) ! 3-d diagnostics
       real, allocatable :: dclforc(:,:)   ! cloud forcing diagnostics
-      real, allocatable :: dentropy(:,:)  ! entropy diagnostics
-      real, allocatable :: dentro3d(:,:,:)! entropy diagnostics 3d
       real, allocatable :: denergy(:,:)   ! energy diagnostics
       real, allocatable :: dener3d(:,:,:) ! energy diagnostics 3d
       real, allocatable :: adenergy(:,:)   ! accumulated energy diagnostics
       real, allocatable :: adener3d(:,:,:) ! accumulated energy diagnostics 3d
-      real, allocatable :: dentrop(:)     ! ps for entropy diagnostics
-      real, allocatable :: dentrot(:,:)   ! t for entropy diagnostics
-      real, allocatable :: dentroq(:,:)   ! q for entropy diagnostics
-      real, allocatable :: dentro(:)      ! 2d entropy for diagnostics
 
 !
 !     accumulated output
@@ -1034,7 +1026,7 @@
 !$omp&  assol,assolu,asthr,asthru,ataux,atauy,ats0,atsa,atsama,atsami,atsol,atsolu,atthr,aventi,&
 !$omp&  avrmpi,azdecl,azmuz,bm1,c,capen,ccc,chim,chlat,co2,cola,crap,csm,csq,cst,csu,csv,ct,cv,&
 !$omp&  daeros,dalb,damp,dampsp,dawn,day_24hr,dcc,dclforc,dconv,deglat,delt,delt2,deltsec,deltsec2,&
-!$omp&  dener3d,denergy,dentro,dentro3d,dentrop,dentropy,dentroq,dentrot,devap,dfd,dflux,dforest,&
+!$omp&  dener3d,denergy,devap,dfd,dflux,dforest,&
 !$omp&  dftd,dftu,dfu,dglac,dglacalbmn,dgp2d,dgp3d,dgroundalb,dicealbmn,dicealbmx,dicec,diced,dlhdt,&
 !$omp&  dlhfl,dls,dlwfl,dmld,doceanalb,dp,dp0,dprc,dprl,dprs,dq,dqco2,dqdt,dql,dqo3,dqsat,dqt,dqvi,&
 !$omp&  drhs,drunoff,dsalb,dshdt,dshfl,dsigma,dsmelt,dsndch,dsnow,dsnowalb,dsnowalbmn,dsnowalbmx,&
@@ -1052,7 +1044,7 @@
 !$omp&  n_days_per_month,n_days_per_year,n_run_days,n_run_months,n_run_steps,n_run_years,&
 !$omp&  n_sea_points,n_start_month,n_start_step,n_start_year,n_steps_per_year,naccuout,nadv,nafter,&
 !$omp&  naqua,ncoeff,ndatim,ndel,ndesert,ndheat,ndiag,ndiagcf,ndiaggp,ndiaggp2d,ndiaggp3d,ndiagsp,&
-!$omp&  ndiagsp2d,ndiagsp3d,ndivdamp,ndl,nener3d,nenergy,nentro3d,nentropy,neqsig,nfilter,&
+!$omp&  ndiagsp2d,ndiagsp3d,ndivdamp,ndl,nener3d,nenergy,neqsig,nfilter,&
 !$omp&  nenergyfix,denergyfix,denergyd24,denergyacc,nenergyacc,nenergywin,&
 !$omp&  dconvacc,nconvacc,nconvtime,dconvspd,dconvspa,dsdiv,ndealias,ddealias,&
 !$omp&  nfilterexp,nfixorb,ngenkeplerian,nglspec,ngptfilter,ngui,nguidbg,nhcadence,nhcstp,&

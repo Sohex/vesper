@@ -1095,11 +1095,6 @@
 !
 !     entropy diagnostics
 !
-      if(nentropy > 0) then
-       where(dls(:) > 0.)
-        dentropy(:,18)=zctop(:)*zztop(:)*(dts(:)-dtsm(:))/(dtsm(:)*deltsec)
-       endwhere
-      endif
 !
       return
       end subroutine tands
@@ -1126,7 +1121,6 @@
       real zdiff(NHOR,NLSOIL-1)
       real ztold(NHOR,NLSOIL)
 !
-      if(nentropy > 0) ztold(:,:)=dsoilt(:,:)
 !
 !     implicit scheme for soiltemp
 !
@@ -1208,16 +1202,6 @@
 !
 !     entropy diagnostics
 !
-      if(nentropy > 0) then
-       dentropy(:,19)=0.
-       do jlev=1,NLSOIL
-        where(dls(:) > 0.)
-         dentropy(:,19)=dentropy(:,19)                                  &
-     &                 +zcap(:,jlev)*(dsoilt(:,jlev)-ztold(:,jlev))     &
-     &                 /dsoilt(:,jlev)
-        endwhere
-       enddo
-      endif
 !
       return
       end subroutine mktsoil

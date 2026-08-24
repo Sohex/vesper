@@ -242,12 +242,37 @@ module-level cases are already inventoried in
 `notes/audits/dormant-exoplasim-modules.md` section 1 and are not re-argued.
 What that audit does not carry:
 
-**Entropy diagnostics, about 452 lines across nine modules.** Three separately
-declared switches named `nentropy`, in `plasim_nl` (`plasim.f90:1412`),
-`icemod_nl` (`icemod.f90:288`) and `oceanmod_nl` (`oceanmod.f90:160`), plus
-`nentro3d`. Nothing writes any of them, and none appears in any run namelist.
-381 lines over 42 sites are gated on `nentropy > 0` and 71 lines over 31 sites
-on `nentro3d > 0`. This is the largest namelist-gated block in the model.
+**Entropy diagnostics: deleted, 447 lines across ten modules.** Three separately
+declared switches named `nentropy`, in `plasim_nl`, `icemod_nl` and
+`oceanmod_nl`, plus `nentro3d`. Nothing wrote any of them, in Fortran, in the
+shipped templates, in either driver script or in any staged run namelist, so
+they were unconditionally zero in every configuration this repository can
+produce, and they were the largest namelist-gated block in the model.
+
+The verdict is deletion rather than "declared off", and the reason is that
+"enabled and consumed" was not available. The blocks write output codes
+320 to 355 and 420 to 442, and 320 and 321 are ALREADY `tempmin` and `tempmax`
+on the same stream, in `REGULAR_CODES`, and mapped by `pyburn` as `mint` and
+`maxt`; 322 to 329 collide with the hurricane diagnostics. Turning `nentropy`
+on would have written duplicate codes into the raw stream for fields this
+project reads. `pyburn` has no entry for any entropy code, so nothing could have
+read them even without the collision. Enabling them therefore needed a code
+renumbering that nobody had asked for, and the switch that appeared to offer
+them was a trap.
+
+Deleting could not change the integrated climate. Every assignment inside the
+guarded ranges is to `dentropy`, `dentro3d`, `dentrop`, `dentrot`, `dentroq`,
+`dentro`, `xentro`, `yentro` or a block-local temporary; no prognostic and no
+physics variable is written in any of them, and none of those arrays is read
+outside a guard. They shared no storage with the `nenergy` diagnostics this
+project does run, which use `denergy`, `dener3d`, `adenergy` and `adener3d` and
+ARE registered with the postprocessor. The four `nenergy > 0 .or. nentropy > 0`
+allocation blocks lose only the dead disjunct, and `koutdiag` loses a term that
+was always zero.
+
+This project's interest in where the model loses energy is served by `nenergy`,
+which is on, consumed, and separately arrayed. If entropy production is ever
+wanted it is a fresh derivation against a code range that is free.
 
 **`tpcore.f90` and `trc_routines.f90`, 2221 lines, are dead twice over.** The
 outer gate is `NQSPEC = 1`, which advects moisture spectrally: `tracer_main`'s
@@ -275,11 +300,14 @@ is unreachable by construction.
 
 **The GUI costs real work on every diagnostic step.** `guimod_stub.f90` is
 always the compiled variant, so all 23 `call gui*` sites reach empty returns.
-The argument preparation is not behind `ngui`. `subroutine energy`
-(`plasim.f90:2395-2412`) exists only to build `ziso(6)` for `guiput`, `diag`
-calls it unconditionally at `:2329`, and its five inputs `umax`, `t2mean`,
-`precip`, `evap` and `olr` have no other consumer in the model: producing them
-costs five `mpgagp` full-globe gathers at `plasim.f90:2821-2829`.
+The argument preparation is not behind `ngui`. `subroutine energy` exists only
+to build `ziso(6)` for `guiput`, `diag` calls it unconditionally, and its five
+inputs `umax`, `t2mean`, `precip`, `evap` and `olr` have no other consumer in
+the model. Four of the five cost four full-globe gathers less than they did:
+world-mt5 replaced them with a local weighted sum and a reduction, for the
+weighting rather than for the cost. The four remaining `mpgagp` calls in that
+block feed `guips` and the zonal cross sections, and the cross sections ARE
+consumed -- `xsect` prints them to the diagnostic log through `wrzs`.
 
 **`nprint` gates 902 lines** of instrumentation across six modules, and reads
 back 0. This is diagnostic code designed to be off; it is recorded as a size,

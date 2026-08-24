@@ -1695,71 +1695,8 @@
        enddo
       end if
 !
-!     entropy/energy diagnostics
+!     energy diagnostics
 !
-      if(nentropy > 0) then
-       dentropy(:,16)=dlwfl(:,NLEP)/dt(:,NLEP)
-       dentropy(:,17)=dswfl(:,NLEP)/dt(:,NLEP)
-       dentropy(:,27)=dftd(:,NLEP)/dt(:,NLEP)
-       dentropy(:,28)=dftu(:,NLEP)/dt(:,NLEP)
-       dentropy(:,9)=0.
-       dentropy(:,10)=0.
-       dentropy(:,21)=0.
-       dentropy(:,22)=0.
-       dentropy(:,23)=0.
-       dentropy(:,24)=0.
-       dentropy(:,26)=0.
-       dentropy(:,29)=0.
-       dentropy(:,30)=0.
-       do jlev=1,NLEV
-        jlep=jlev+1  
-        dentro(:)=dftu0(:,jlev)/dentrot(:,jlev)
-        dentropy(:,29)=dentropy(:,29)+dentro(:)
-        if(nentro3d > 0) dentro3d(:,jlev,19)=dentro(:)
-        dentro(:)=dftd0(:,jlev)/dentrot(:,jlev)
-        dentropy(:,30)=dentropy(:,30)+dentro(:)
-        if(nentro3d > 0) dentro3d(:,jlev,20)=dentro(:)
-        dentro(:)=-ga*(dlwfl(:,jlep)-dlwfl(:,jlev))                     &
-     &           /(dsigma(jlev)*dp(:)*acpd*(1.+ADV*dq(:,jlev)))         &
-     &         *acpd*(1.+adv*dentroq(:,jlev))*dentrop(:)/ga*dsigma(jlev)&
-     &         /dentrot(:,jlev)
-        dentropy(:,9)=dentropy(:,9)+dentro(:)
-        if(nentro3d > 0) dentro3d(:,jlev,9)=dentro(:)
-        dentro(:)=-ga*(dswfl(:,jlep)-dswfl(:,jlev))                     &
-     &           /(dsigma(jlev)*dp(:)*acpd*(1.+ADV*dq(:,jlev)))         &
-     &         *acpd*(1.+adv*dentroq(:,jlev))*dentrop(:)/ga*dsigma(jlev)&
-     &         /dentrot(:,jlev)
-        dentropy(:,10)=dentropy(:,10)+dentro(:)
-        if(nentro3d > 0) dentro3d(:,jlev,10)=dentro(:)
-        dentro(:)=-ga*(dftd(:,jlep)-dftd(:,jlev))                       &
-     &           /(dsigma(jlev)*dp(:)*acpd*(1.+ADV*dq(:,jlev)))         &
-     &         *acpd*(1.+adv*dentroq(:,jlev))*dentrop(:)/ga*dsigma(jlev)&
-     &         /dentrot(:,jlev) 
-        dentropy(:,21)=dentropy(:,21)+dentro(:)
-        if(nentro3d > 0) dentro3d(:,jlev,15)=dentro(:)
-        dentro(:)=-ga*(dftu(:,jlep)-dftu(:,jlev))                       &
-     &           /(dsigma(jlev)*dp(:)*acpd*(1.+ADV*dq(:,jlev)))         &
-     &         *acpd*(1.+adv*dentroq(:,jlev))*dentrop(:)/ga*dsigma(jlev)&
-     &         /dentrot(:,jlev)
-        dentropy(:,22)=dentropy(:,22)+dentro(:)
-        if(nentro3d > 0) dentro3d(:,jlev,16)=dentro(:)
-        dentro(:)=-ga*(dftue1(:,jlep)-dftue1(:,jlev))                   &
-     &           /(dsigma(jlev)*dp(:)*acpd*(1.+ADV*dq(:,jlev)))         &
-     &         *acpd*(1.+adv*dentroq(:,jlev))*dentrop(:)/ga*dsigma(jlev)&
-     &         /dentrot(:,jlev)
-        dentropy(:,23)=dentropy(:,23)+dentro(:)
-        if(nentro3d > 0) dentro3d(:,jlev,17)=dentro(:) 
-        dentro(:)=-ga*(dftue2(:,jlep)-dftue2(:,jlev))                   &
-     &           /(dsigma(jlev)*dp(:)*acpd*(1.+ADV*dq(:,jlev)))         &
-     &         *acpd*(1.+adv*dentroq(:,jlev))*dentrop(:)/ga*dsigma(jlev)&
-     &         /dentrot(:,jlev)
-        dentropy(:,24)=dentropy(:,24)+dentro(:)
-        if(nentro3d > 0) dentro3d(:,jlev,18)=dentro(:)
-        dentropy(:,26)=dentropy(:,26)+dentro(:)*dentrot(:,jlev)
-       enddo
-       dentropy(:,25)=(dftu(:,NLEP)+dentropy(:,26))/dt(:,NLEP)
-       dentropy(:,26)=-dentropy(:,26)/dt(:,NLEP)
-      endif
       if(nenergy > 0) then
        allocate(zdtdte(NHOR,NLEV))
        denergy(:,9)=0.

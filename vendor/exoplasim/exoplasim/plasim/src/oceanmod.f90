@@ -42,7 +42,6 @@
       integer :: nprint           = 0   ! print debug information
       integer :: nprhor           = 0   ! gp to print debug information
       integer :: nhdiff           = 0   ! switch for horizontal heat diffusion
-      integer :: nentropy         = 0   ! switch for entropy diagnostics
       integer :: nlsg             = 0   ! coupling flag to lsg   
       integer :: naomod           = 320 ! atmos/ocean(lsg) ration    
 
@@ -136,7 +135,6 @@
 !
 !     additional diagnostics
 !
-      real,allocatable :: yentro(:,:)  ! entropy diagnostics
 !
 !     Parallel Stuff
 !
@@ -150,9 +148,9 @@
 !     Inert without -fopenmp, so the MPI and serial builds are unchanged.
 !$omp threadprivate(clfi,cphi,cphih,cps,crhos,dlam,dlayer,dmue,dphi,dtmix,gw,hdiffk,mldepth,&
 !$omp&  mpinfo,mypid,myworld,&
-!$omp&  naccuout,naomod,ndatim,ndiag,nentropy,newsurf,nfluko,ngui,nhdiff,nlsg,nocean,nout,noutput,&
+!$omp&  naccuout,naomod,ndatim,ndiag,newsurf,nfluko,ngui,nhdiff,nlsg,nocean,nout,noutput,&
 !$omp&  nperpetual_ocean,nprhor,nprint,nproc,nrestart,nstep,ntspd,nud,solar_day,taunc,tfreeze,&
-!$omp&  vdiffk,vdiffkl,version,ycliced,yclsst,yclsst2,ydsst,ydssta,yentro,yfldo,yfldoa,yfsst,yfsst2,&
+!$omp&  vdiffk,vdiffkl,version,ycliced,yclsst,yclsst2,ydsst,ydssta,yfldo,yfldoa,yfsst,yfsst2,&
 !$omp&  yfssta,yheat,yheata,yicec,yiced,yicesnow,yiflux,yifluxa,yifluxr,yls,ymld,ypme,yqhd,yqhda,&
 !$omp&  yroff,ysst,ytaux,ytauy,yust3)
 
@@ -187,7 +185,7 @@
 !
       namelist/oceanmod_nl/ndiag,nout,nfluko,ntspd,nocean,nprint,nprhor    &
     &                  ,nperpetual_ocean,naomod,nlsg,taunc,dlayer,mldepth       &
-    &                  ,vdiffkl,newsurf,hdiffk,nentropy,nhdiff
+    &                  ,vdiffkl,newsurf,hdiffk,nhdiff
 !
 !     get process id
 !
@@ -273,7 +271,6 @@
       call mpbci(nperpetual_ocean)
       call mpbci(nlsg)
       call mpbci(naomod)
-      call mpbci(nentropy)
       call mpbci(nhdiff)
       call mpbcr(taunc)
       call mpbcr(solar_day)
@@ -454,10 +451,6 @@
 !
 !     allocate space for entropy diagnostics
 !
-      if (nentropy > 0) then
-       allocate(yentro(NHOR,7))
-       yentro(:,:)=0.
-      endif
 !
       return
       end subroutine oceanini
@@ -589,11 +582,6 @@
 !
 !     entropy diagnostics
 !
-       if(nentropy > 0) then
-        where(yls(:) < 1.)
-         yentro(:,3)=yfsst2(:)/ysst(:,1)
-        endwhere
-       endif
 !
 !     set sst
 !
@@ -731,7 +719,6 @@
 !
 !     deallocate entropy space
 !
-      if(nentropy > 0) deallocate(yentro)
 !
       return
       end subroutine oceanstop
@@ -811,12 +798,6 @@
 !
 !     entropy diagnostics
 !
-      if(nentropy > 0) then
-       do je=1,7
-        ih(1) = 990+je
-        call mpwritegph(31,yentro(1,je),NHOR,1,ih)
-       enddo
-      endif
 !
       return
       end subroutine oceanout
@@ -911,12 +892,6 @@
 !
 !     entropy diagnostics
 !
-      if(nentropy > 0) then
-       where(yls(:) < 1.)
-        yentro(:,1)=CPS*CRHOS*ymld(:,1)*log(zsst(:,1))
-        yentro(:,2)=yheat(:)/zsst(:,1)
-       endwhere
-      endif
 !
 !     add heat fluxes from the atmosphere and the deep ocean
 !     if there is ice, use the deep ocean hfl directly for ice change
@@ -945,10 +920,6 @@
 !
 !     entropy diagnostics
 !
-      if(nentropy > 0) then
-       allocate(ztentro(NHOR))
-       ztentro(:)=zsst(:,1)
-      endif
 !
 !     comput residual flux going into sea ice (if sst < tfreeze)
 !
@@ -980,11 +951,6 @@
 !
 !     entropy diagnostics
 !
-      if(nentropy > 0) then
-       where(yls(:) < 1.)
-        yentro(:,4)=yqhd(:)/zold(:,1)
-       endwhere
-      endif
 !
 !     print dbug information if needed
 !
@@ -1037,20 +1003,6 @@
 !
 !     entropy diagnostics
 !
-      if(nentropy > 0) then
-       yentro(:,5)=0.
-       do jlev=1,NLEV_OCE
-        where(yls(:) < 1.)
-         yentro(:,5)=yentro(:,5)                                        &
-     &              +(zsst(:,jlev)-zold(:,jlev))*ymld(:,jlev)           &
-     &              /zcpsdt/zold(:,jlev)
-        endwhere
-       enddo
-       where(yls(:) < 1.)
-         yentro(:,6)=yiflux(:)/ztentro(:)
-       endwhere
-       deallocate(ztentro)
-      endif
 !
 !     if coupled without flux correction:
 !     force sst to be TFREEZE and use hfl to change ice
@@ -1159,7 +1111,6 @@
 !     use high precesion
 !
       zsst(:)=ysst(:,1)
-      if(nentropy > 0) zssto(:)=zsst(:)
 !
 !     distinguish diffent cases to treat sea ice 
 !
@@ -1228,11 +1179,6 @@
 !
 !      entropy diagnostics
 !
-      if(nentropy > 0) then 
-       where(yls < 1.)
-        yentro(:,3)=(zsst(:)-zssto(:))*ymld(:,1)/zcpsdt/zssto(:)
-       endwhere
-      endif
 !
 !     print dbug information if needed
 !
@@ -1432,9 +1378,6 @@
 !
       zsst(:,:)=psst(:,:)
 !
-      if(nentropy > 0) then
-       yentro(:,7)=0.
-      endif
       zdelt=dtmix/real(nsub)
       call mpgagp(zls,yls,1)
 !
@@ -1444,9 +1387,6 @@
        call mpgagp(zt,zsst(1,jlev),1)
 !
        if(mypid==NROOT) then
-        if(nentropy > 0) then
-         where(zls(:,:) < 1.) zentro(:,:)=0.
-        endif
         zztm=0.
         zzgw=0.
         do jlat=1,NLAT
@@ -1497,11 +1437,6 @@
           enddo
          enddo
 !
-         if(nentropy > 0) then
-          where(zls(:,:) < 1.)
-           zentro(:,:)=zdtdt(:,:)/(zt(:,:)+zztm)+zentro(:,:)/real(nsub)
-          endwhere
-         endif
          where(zls(:,:) < 1.) zt(:,:)=zt(:,:)+zdtdt(:,:)*zdelt
         enddo
         where(zls(:,:) < 1.) zdtdt(:,:)=(zt(:,:)-ztold(:,:))/dtmix
@@ -1511,12 +1446,6 @@
        where(yls(:) < 1.)
         psst(:,jlev)=psst(:,jlev)+zdtdtp(:)*dtmix
        endwhere
-       if(nentropy > 0) then
-        call mpscgp(zentro,zentrop,1)
-        where(yls(:) < 1)
-         yentro(:,7)=yentro(:,7)+zentrop(:)*CRHOS*CPS*ymld(:,jlev)
-        endwhere
-       endif
       enddo
 !
       end subroutine hdiffo

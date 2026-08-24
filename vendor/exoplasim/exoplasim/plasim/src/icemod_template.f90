@@ -47,7 +47,6 @@
       integer :: nperpetual_ice = 0! perpetual climate conditions (day)
       integer :: nprint = 0        ! debug print out
       integer :: nprhor = 0        ! gp for debug printout
-      integer :: nentropy = 0      ! switch for entropy diagnostics
       integer :: ngui   = 0        ! switch for gui
       integer :: naout  = 0        ! no additional output fields 
 !
@@ -156,7 +155,6 @@
 !
 !     entropy diagnostics
 !
-      real,allocatable :: xentro(:,:)
 !
 !     additional fields
 !
@@ -258,7 +256,7 @@
       logical :: lxsnow
 !
       namelist/icemod_nl/nout,nfluko,nperpetual_ice,ntspd,nprint,nprhor &
-     &               ,nentropy,nice,nsnow,ntskin,ncpl_ice_ocean,taunc   &
+     &               ,nice,nsnow,ntskin,ncpl_ice_ocean,taunc   &
      &               ,xmind,xmaxd,thicec,newsurf,naout
 !
 !     copy input parameter to icemod
@@ -310,7 +308,6 @@
       call mpbci(ncpl_ice_ocean)
       call mpbci(nprint)
       call mpbci(nprhor)
-      call mpbci(nentropy)
       call mpbci(naout)
       call mpbcr(taunc)
       call mpbcr(xmind)
@@ -430,10 +427,6 @@
       piced(:)=xiced(:)
       psnow(:)=xsnow(:)
 !
-      if(nentropy > 0) then
-       allocate(xentro(NHOR,1))
-       xentro(:,:)=0.
-      endif
 !
       if(naout > 0) then
        allocate(xaout(NHOR,naout))
@@ -966,9 +959,6 @@
 !
       call oceanstop
 !
-      if(nentropy > 0) then
-       deallocate(xentro)
-      endif
 !
       if(naout > 0) then
        deallocate(xaout)
@@ -1469,10 +1459,6 @@
       call mpwritegph(71,xcroffa,NHOR,1,ih)
       ih(1) = 796
       call mpwritegph(71,xstoia,NHOR,1,ih)
-      if(nentropy > 0) then
-       ih(1) = 797
-       call mpwritegph(71,xentro,NHOR,1,ih)
-      endif
       if(naout > 0) then
        do ja=1,naout
         ih(1)=750+ja
@@ -1780,9 +1766,6 @@
 !
 !     entropy diagnostics
 !
-      if(nentropy > 0) then
-       xentro(:,1)=xtsflux(:)/ztso(:)
-      endif
 !
       return
       end subroutine skintemp

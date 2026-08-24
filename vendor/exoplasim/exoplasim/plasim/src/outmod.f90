@@ -1158,26 +1158,6 @@
        call writegp(40,dclforc(1,7),107,0)
       end if
 
-!     **************************************
-!     * entropy diagnostics if switched on *
-!     **************************************
-
-      if(nentropy > 0) then
-       do jdiag=1,36
-        jcode=319+jdiag
-        if(jcode == 333) cycle                      !333 is reserved
-        call writegp(40,dentropy(1,jdiag),jcode,0)
-       enddo
-      end if
-      if(nentro3d > 0) then
-       do jdiag=1,23
-        jcode=419+jdiag
-        do jlev=1,NLEV
-         call writegp(40,dentro3d(1,jlev,jdiag),jcode,jlev)
-        enddo
-       enddo
-      end if
-
 !     *************************************
 !     * energy diagnostics if switched on *
 !     *************************************
@@ -2237,26 +2217,6 @@
        call writegp(140,dclforc(1,5),105,0)
        call writegp(140,dclforc(1,6),106,0)
        call writegp(140,dclforc(1,7),107,0)
-      end if
-
-!     **************************************
-!     * entropy diagnostics if switched on *
-!     **************************************
-
-      if(nentropy > 0) then
-       do jdiag=1,36
-        jcode=319+jdiag
-        if(jcode == 333) cycle                      !333 is reserved
-        call writegp(140,dentropy(1,jdiag),jcode,0)
-       enddo
-      end if
-      if(nentro3d > 0) then
-       do jdiag=1,23
-        jcode=419+jdiag
-        do jlev=1,NLEV
-         call writegp(140,dentro3d(1,jlev,jdiag),jcode,jlev)
-        enddo
-       enddo
       end if
 
 !     *************************************

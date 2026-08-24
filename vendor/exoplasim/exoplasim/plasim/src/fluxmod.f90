@@ -515,16 +515,8 @@
        deallocate(zprf7)
       endif
 !
-!     entropy/energy diagnostics
+!     energy diagnostics
 !
-      if(nentropy > 0) then
-       dentropy(:,31)=zdtdt(:)/dentrot(:,NLEV)*dentrop(:)*dsigma(NLEV)  &
-     &               *acpd*(1.+adv*dentroq(:,NLEV))/ga
-       if(nentro3d > 0) then
-        dentro3d(:,1:NLEM,21)=0.
-        dentro3d(:,NLEV,21)=dentropy(:,31)
-       endif
-      endif
       if(nenergy > 0) then
        denergy(:,21)=zdtdt(:)*acpd*(1.+adv*dq(:,NLEV))*dp(:)            &
      &              /ga*dsigma(NLEV) 
@@ -649,17 +641,8 @@
        dgp3d(:,NLEV,3)=(ztn(:)-dt(:,NLEV))/deltsec2
       end if
 !
-!     entropy/energy diagnostics
+!     energy diagnostics
 !
-      if(nentropy > 0) then
-       dentropy(:,7)=(ztn(:)-dt(:,NLEV))/deltsec2/dentrot(:,NLEV)       &
-     &        *acpd*(1.+adv*dentroq(:,NLEV))*dentrop(:)/ga*dsigma(NLEV)
-       dentropy(:,34)=dshfl(:)/dt(:,NLEP)
-       if(nentro3d > 0) then
-        dentro3d(:,1:NLEM,7)=0.
-        dentro3d(:,NLEV,7)=dentropy(:,7)
-       endif
-      endif
       if(nenergy > 0) then
        denergy(:,7)=(ztn(:)-dt(:,NLEV))/deltsec2                        &
      &             *acpd*(1.+adv*dq(:,NLEV))*dp(:)/ga*dsigma(NLEV)
@@ -803,9 +786,6 @@
 !     entropy diagnostics
 !
 
-      if(nentropy > 0) then
-       dentropy(:,15)=dlhfl(:)/dt(:,NLEP)
-      endif
 !
       return
       end subroutine mkevap
@@ -1080,26 +1060,8 @@
        enddo
       end if
 !
-!     entropy/energy diagnostics
+!     energy diagnostics
 !
-      if(nentropy > 0) then
-       dentropy(:,8)=0.
-       dentropy(:,32)=0.
-       do jlev=1,NLEV
-        dentro(:)=zdtdt(:,jlev)/dentrot(:,jlev)                         &
-     &         *acpd*(1.+adv*dentroq(:,jlev))*dentrop(:)/ga*dsigma(jlev) 
-        dentropy(:,8)=dentropy(:,8)+dentro(:)
-        if(nentro3d > 0) dentro3d(:,jlev,8)=dentro(:)
-        dentro(:)=-((zun(:,jlev)*zun(:,jlev)                            &
-     &                  -zu(:,jlev)*zu(:,jlev)                          &
-     &                  +zvn(:,jlev)*zvn(:,jlev)                        &
-     &                  -zv(:,jlev)*zv(:,jlev))/deltsec2                &
-     &                  -(zken(:,jlev)-zke(:,jlev))/deltsec2)           &
-     &                 *0.5*dentrop(:)/ga*dsigma(jlev)/dentrot(:,jlev)
-        dentropy(:,32)=dentropy(:,32)+dentro(:)
-        if(nentro3d > 0) dentro3d(:,jlev,22)=dentro(:) 
-       enddo
-      endif
       if(nenergy > 0) then
        denergy(:,8)=0.
        denergy(:,22)=0.
