@@ -33,11 +33,15 @@ classifiers = [
   "Programming Language :: Python :: 3.12"
   ]  
   
-[projection.optional-dependencies]
+# `projection` here was a typo for `project`, so hatchling ignored the whole
+# table and `pip install exoplasim[nc]` installed nothing and said nothing.
+# The pRT extra went with pRT.py (world-569); basemap left the mpl extra
+# because its only appearance in the package is inside a commented-out block
+# in gcmt.py. world-p44.
+[project.optional-dependencies]
 h5 = ['h5py',]
 nc = ['netCDF4',]
-mpl = ['matplotlib','basemap']
-pRT = ['petitRADTRANS>=2.4']
+mpl = ['matplotlib']
   
 [project.urls]
 Documentation = "https://exoplasim.readthedocs.io"
