@@ -66,7 +66,7 @@ import numpy as np
 
 from _paths import ANALYSIS
 from shortwave_band_weights import (CO2_BANDS, CO2_FIT_RANGE, Spectrum, blend,
-                                    co2_closed_form, SOLAR_TEFF)
+                                    co2_closed_form, radmod_co2_fit, SOLAR_TEFF)
 
 # The Generic PCM bundle, outside this repo and read-only.
 CORRK = Path.home() / "git" / "generic_pcm" / "LMDZ.GENERIC" / "datagcm" / "corrk_data"
@@ -354,7 +354,16 @@ def main() -> None:
             print(f"  at u = {u_at:8.2f} atmos-cm: {a_old:.6f} -> {a_new:.6f} "
                   f"({100*(a_new/a_old-1):+.1f}%), "
                   f"{(a_new-a_old)*EARTH_MEAN_INSOLATION:+.2f} W/m2 of insolation")
-        print("\nThis prints. Put the four numbers in radmod.f90 and rebuild; PHYS-10.")
+        # This refit LANDED: radmod.f90 carries it. Read the four back out of the
+        # source and say whether they still match, so a later edit to either side
+        # shows up here as a disagreement rather than as nothing.
+        in_model = radmod_co2_fit()
+        same = all(abs(in_model[k] - fit[k]) <= 5e-5 * abs(fit[k]) for k in ("a1", "b1", "a2", "b2"))
+        print("\nradmod.f90 carries " + " ".join(
+            f"{k}={in_model[k]:.6g}" for k in ("a1", "b1", "a2", "b2")))
+        print("  " + ("matches this refit, as PHYS-10 landed it"
+                      if same else
+                      "DOES NOT match this refit -- one of the two has moved"))
         return
 
     if args.bands:

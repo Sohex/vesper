@@ -1,6 +1,20 @@
 Add a shortwave CO2 absorptance to `swr`, with `co2sww` in `radmod_nl` beside
 `o3uvw`, `o3visw` and `h2osww`.
 
+ITS FOUR FIT COEFFICIENTS ARE SUPERSEDED AND THE SUBTREE IS RIGHT. The diff below
+codes zca1 = 3.8265E-4, zcb1 = 44.539, zca2 = 2.2325E-3, zcb2 = 5.8954E-3, fitted
+to Howard, Burch and Williams (1956). PHYS-10 refitted the same closed form to
+HITRAN2020 through the Generic PCM correlated-k tables, by
+`exoplasim/scripts/corrk_cross_check.py --fit`, and `radmod.f90` in the subtree
+now carries 3.0658E-4, 20.376, 3.8193E-3, 3.9672E-3, which is 7.2% weaker at this
+planet's CO2 path. Applying this file to a pristine tree would restore the strong
+fit. Nothing does apply it -- the subtree is the model, and this file is the
+authored record of what the absorber IS and why it was added, which the refit did
+not change. The refit's own argument is in the subtree's comment block at the
+same place and in `exoplasim/notes/corrk-cross-check.md`. Offered upstream as
+PR #62 with the Howard fit, because upstream has no correlated-k tables to hand
+and the form, the range and the protocol are what the PR is about.
+
 WHAT IT CHANGES, AND IT IS A NEW ABSORBER RATHER THAN A RE-WEIGHTING.
 `radmod.f90` has NO shortwave CO2 term at all: `swr` carries ozone in band 1 and
 water vapour in band 2 and nothing else, and CO2 appears only in `lwr`, from

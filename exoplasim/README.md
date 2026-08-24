@@ -379,7 +379,7 @@ unless told they exist.
 | `dust_aerofile.py` | writes the model's `aerofile` from the dust optics, and validates the round trip |
 | `dust_forcing.py` | prices the dust radiative forcing per surface, shortwave and longwave |
 | `build_surface_dust.py` | the prescribed dust column as surface code 1811, read only at `ndustrad = 1` |
-| `shortwave_band_weights.py` | integrates the H2O and CO2 band absorptances against this star, for `h2osww` and `co2sww`, and fits the closed form the CO2 patch codes |
+| `shortwave_band_weights.py` | integrates the H2O and CO2 band absorptances against this star, for `h2osww` and `co2sww`, and fits the CO2 closed form to Howard's bands. That fit is NOT the one `radmod.f90` runs: PHYS-10 refitted it to the line list, and the script reads the running coefficients out of the model source so the artifact carries both |
 | `cloud_band_weight.py` | the CLOUD half of the same correction: Mie over liquid water's k(lambda) to a co-albedo, flux-weighted over range 2 against a 5772 K Sun, for `model.cloud_absorption_scale` which scales `tswr3` and `acl2`. PHYS-11 |
 | `spectral_tail.py` | asks whether the damping is absorbing the cascade at the truncation or reaching down into the resolved scales: fits the flow's own inertial range in zonal wavenumber and reports where the spectrum leaves it. Criteria are fixed in the script. Writes `analysis/spectral_tail.json` |
 | `transform_exactness.py` | asks whether the model's Gaussian quadrature is exact for the terms `calcgp` forms, by building each one twice from the same coefficients -- once on the model's grid and once on a grid three times finer -- and comparing the global mean. A quadratic and a cubic are carried as controls that can fail. Writes `analysis/transform_exactness.json` |
@@ -517,7 +517,9 @@ is 0.0 and not 1.0. Arguments in `exoplasim/notes/ozone.md`,
 `exoplasim/notes/shortwave-co2.md`; values in `config/planet.yaml`; derivation in
 `exoplasim/scripts/shortwave_band_weights.py`. Both were derived from Howard's
 1950s band data and both have been checked against correlated-k tables built from
-a modern line list, in `exoplasim/notes/corrk-cross-check.md`.
+a modern line list, in `exoplasim/notes/corrk-cross-check.md`; the CO2 closed
+form was then REFITTED to that line list, so `radmod.f90`'s four coefficients no
+longer come from Howard and the patch header records that its own do.
 The model source is `vendor/exoplasim`, a git subtree from the `master` branch
 of the personal fork, installed editable so the source you read is the source
 that compiles. There is no patch stack to keep applied: a model change is a
