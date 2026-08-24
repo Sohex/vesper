@@ -412,6 +412,20 @@ the adiabatic conversion's reference half as the semi-implicit scheme applies it
 and as it stands at time t, printed at `ndiag` cadence in `denergy02`'s own
 units. Four extra spectral transforms a timestep, for a diagnostic arm.
 
+`model.conversion_time_level` takes that conversion's divergence half back to
+time t, so the two halves meet. It CHANGES WHAT THE MODEL INTEGRATES, and it
+takes that half out of the semi-implicit treatment in the temperature equation,
+so the timestep it is stable at is the explicit gravity-wave one -- 9.5 minutes
+at T42 on this planet against a configured 22.5 -- and the model refuses the
+setting above that limit rather than integrating something that is not a
+solution. `world-0ov`.
+
+`model.robert_filter` sets PNU, the leapfrog time filter's coefficient. Absent
+leaves the value ExoPlaSim's own namelist carries. It is here because the filter
+is what damps the leapfrog computational mode, and that mode is a candidate
+carrier of the adiabatic sink: it alternates sign every step, so it contributes
+to the second time difference the sink is built from whatever the timestep is.
+
 **Patched source and per-configuration binaries.** ExoPlaSim compiles a separate
 executable for every (resolution, layers, ranks, parmode) configuration, so
 patching the source

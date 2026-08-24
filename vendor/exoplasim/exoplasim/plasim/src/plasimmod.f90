@@ -216,13 +216,24 @@
 !                               ! threaded build.
       integer :: nenergyacc = 0 ! steps accumulated into the current window
       integer :: nenergywin = 0 ! windows completed; the first is discarded
-      real :: dconvacc(8) = 0.0 ! the conversion decomposition's running sums,
+      integer :: nconvtime = 0  ! switch for taking the reference conversion's
+!                               ! divergence half at time t rather than on sdt,
+!                               ! so that it meets the advective half `calcgp`
+!                               ! carries. world-0ov. Default off: it changes
+!                               ! what the model integrates and the semi-implicit
+!                               ! scheme no longer treats that half implicitly,
+!                               ! so the timestep it is stable at is its own
+!                               ! question and is not the one the rung table
+!                               ! answers.
+      real :: dconvacc(10) = 0.0 ! the conversion decomposition's running sums,
 !                               ! nenergy > 1 only: denergy02, 26, 27, the
 !                               ! implicit reference conversion as applied, the
 !                               ! rest of the implicit term, the same conversion
 !                               ! evaluated at time t, the reference conversion's
-!                               ! undifferenced part at time t, and the sample
-!                               ! count. A
+!                               ! undifferenced part at time t, the same half on
+!                               ! the divergence at t-dt, the same half on the
+!                               ! adiabatic t+dt that `mpsyncsp` has just
+!                               ! published into sd, and the sample count. A
 !                               ! CONTROL for world-0ov, carried across steps and
 !                               ! written only on NROOT, after the reduction.
       integer :: nconvacc = 0   ! steps accumulated into dconvacc
@@ -1012,7 +1023,7 @@
 !$omp&  naqua,ncoeff,ndatim,ndel,ndesert,ndheat,ndiag,ndiagcf,ndiaggp,ndiaggp2d,ndiaggp3d,ndiagsp,&
 !$omp&  ndiagsp2d,ndiagsp3d,ndivdamp,ndl,nener3d,nenergy,nentro3d,nentropy,neqsig,nfilter,&
 !$omp&  nenergyfix,denergyfix,denergyd24,denergyacc,nenergyacc,nenergywin,&
-!$omp&  dconvacc,nconvacc,&
+!$omp&  dconvacc,nconvacc,nconvtime,&
 !$omp&  nfilterexp,nfixorb,nflux,ngenkeplerian,nglspec,ngptfilter,ngui,nguidbg,nhcadence,nhcstp,&
 !$omp&  nhdiff,nhordif,nhurricane,nindex,nkits,nlowio,noutput,npackgp,npacksp,nperpetual,nprhor,&
 !$omp&  nprint,nproc,nqspec,nrad,nrdrag,nrestart,nrho,nscatsp,nseedlen,nsela,&

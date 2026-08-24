@@ -817,6 +817,61 @@ def declare_energy_fixer(model, config: dict) -> bool:
     return True
 
 
+def declare_robert_filter(model, config: dict) -> float | None:
+    """PNU, the leapfrog time filter's coefficient. world-0ov.
+
+    The leapfrog scheme carries a computational mode that alternates sign every
+    step, and the Robert-Asselin filter is what damps it. It matters here beyond
+    stability: the adiabatic sink is the reference conversion's two halves being
+    taken at different time levels, the displacement between them is the second
+    time difference of the divergence, and a mode that alternates sign every
+    step contributes to that difference whatever the timestep is.
+
+    IT IS IN `planet_nl` AND NOT `plasim_nl`, which is where a reader looks
+    first: `pnu` is declared in `plasimmod.f90` at 0.0 and set to 0.1 by
+    `p_earth.f90`'s `planet_ini`, so the value that runs comes from the planet
+    module and the key that overrides it sits in the planet namelist. Written to
+    the wrong one the model aborts with "Cannot match namelist object name pnu",
+    which is the loud failure and not the silent one.
+
+    Absent means the value the planet module sets, so a config predating this
+    reads exactly as it did.
+    """
+    value = config["model"].get("robert_filter")
+    if value is None:
+        return None
+    model._edit_namelist("planet_namelist", "PNU", repr(float(value)))
+    print(f"Robert time filter: PNU = {float(value)}")
+    return float(value)
+
+
+def declare_conversion_time_level(model, config: dict) -> bool:
+    """Put the reference conversion's two halves on one time level. world-0ov.
+
+    `calcgp` carries the advective half of the adiabatic reference conversion at
+    time t and `spectrala` applies its divergence half on `sdt`, the centred
+    mean of t-dt and t+dt. The identity that makes the two cancel the momentum
+    equations' reference pressure-gradient work is the global integral of a
+    mass-flux divergence, which holds at one time level and not across two, and
+    the reference geopotential weights the split by up to 3.8 times `t0`. On the
+    dry adiabatic arm the displacement is 0.96 W/m2 against a sink of 0.79.
+
+    ON, this puts the divergence half back at time t. IT CHANGES WHAT THE MODEL
+    INTEGRATES, and it takes that half out of the semi-implicit treatment in the
+    temperature equation while the divergence solve still treats the temperature
+    implicitly, so the timestep it is stable at is its own question and is NOT
+    the one `model.resolution_timestep_minutes` answers.
+
+    Absent means off, so a config predating this reads exactly as it did.
+    """
+    if not config["model"].get("conversion_time_level", False):
+        return False
+    model._edit_namelist("plasim_namelist", "NCONVTIME", "1")
+    print("conversion time level: the reference conversion's divergence half is "
+          "taken at t, not on sdt. A CHANGE TO THE DYNAMICS; world-0ov.")
+    return True
+
+
 def declare_hyperdiffusion(model, config: dict) -> dict:
     """Write the derived horizontal diffusion, overriding the compiled branch.
 
@@ -1292,7 +1347,8 @@ def expected_namelist_keys(config: dict) -> dict:
     only that they agree with themselves. CONS-9.
     """
     m = config["model"]
-    want: dict = {"radmod_namelist": {}, "icemod_namelist": {}, "plasim_namelist": {}}
+    want: dict = {"radmod_namelist": {}, "icemod_namelist": {}, "plasim_namelist": {},
+                  "planet_namelist": {}}
     for key, name, default in SHORTWAVE_GAS_KEYS:
         v = m.get(key)
         if v is not None and float(v) != default:
@@ -1305,6 +1361,10 @@ def expected_namelist_keys(config: dict) -> dict:
         want["icemod_namelist"]["TFREEZE"] = round(freezing_point_k(salinity), 4)
     if energy_diagnostics_enabled(config):
         want["plasim_namelist"]["NENERGY"] = float(energy_diagnostics_level(config))
+    if m.get("conversion_time_level", False):
+        want["plasim_namelist"]["NCONVTIME"] = 1.0
+    if m.get("robert_filter") is not None:
+        want["planet_namelist"]["PNU"] = float(m["robert_filter"])
         if m.get("energy_diagnostics_3d", False):
             want["plasim_namelist"]["NENER3D"] = 1.0
     return {f: keys for f, keys in want.items() if keys}
@@ -1736,6 +1796,8 @@ def main() -> None:
     declare_cold_start_seed(model, config, args.restart_from is None)
     hyperdiffusion = declare_hyperdiffusion(model, config)
     dynamics_only = declare_dynamics_only(model, config)
+    robert_filter = declare_robert_filter(model, config)
+    conversion_time_level = declare_conversion_time_level(model, config)
     set_low_io(model, args.low_io)
     energy_fixer = declare_energy_fixer(model, config)
     if enable_energy_diagnostics(model, config):
@@ -1863,6 +1925,8 @@ def main() -> None:
         # against the config that was meant to.
         "hyperdiffusion": hyperdiffusion,
         "dynamics_only": dynamics_only,
+        "conversion_time_level": conversion_time_level,
+        "robert_filter": robert_filter,
         # A CORRECTION and not physics; what it is correcting is world-0ov and
         # the fixer itself is world-mzy. On the manifest because whether a run
         # carries it changes what its surface fluxes mean.

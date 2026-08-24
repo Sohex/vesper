@@ -1140,6 +1140,17 @@ Every call site that branches on it is latitude-dependent, and **no call site
 shows that**. An inventory of latitude branches built by grepping for latitude
 finds none of them.
 
+A third, and this one eliminated a candidate wrongly. `plasimmod.f90` declares
+`pnu = 0.0`, the Robert-Asselin time filter's coefficient, and `PNU` is absent
+from every namelist this project writes. Read those two facts together and the
+filter is a no-op, which is what the adiabatic energy sink's elimination list
+said and why the filter was struck off it. The model runs at `pnu = 0.1`:
+`p_earth.f90` sets it in `planet_ini`, before the namelist is read, so the
+declaration is overwritten by a planet module rather than by a namelist and no
+grep of the namelists shows it. The run's own diagnostic echoes `PNU = 0.1`, and
+that echo is the artifact -- it reports what was integrated, where every source
+line reports only what one line says.
+
 **Why it survives review.** The quoted line is accurate, the file and line
 number are right, and anyone checking the citation confirms it. The error is
 not in the evidence but in its scope: a declaration is evidence about a
@@ -1149,7 +1160,8 @@ makes the code look SIMPLER than it is, and a simpler story is easier to believe
 **The test.** Before characterising what a model does with a value, find the
 value's last write and the predicate's definition, not its first. `grep` for the
 name and read the ASSIGNMENTS, not just the declaration; for a predicate, open
-it. If a description of behaviour rests on one site, it rests on an assumption
+it. Where a run echoes its own configuration, read the echo: it is the only
+record of what the model used. If a description of behaviour rests on one site, it rests on an assumption
 that nothing else touches that quantity -- which is a claim, and is usually
 cheaper to check than to be wrong about.
 ## 33. A reader that outlives the format it reads

@@ -595,6 +595,45 @@ arithmetic and units as `denergy02`, so the displacement between the two can be
 read directly. It costs four extra spectral transforms a timestep and is for a
 diagnostic arm, not for production. `true` and `1` are the same setting.
 
+## `conversion_time_level`
+
+```
+conversion_time_level: false
+```
+
+`nconvtime` in plasim_nl. The adiabatic reference conversion's advective half is
+explicit in `calcgp` at time t and its divergence half is the `tkp*c` part of
+`tau`, applied on `sdt`. This takes the divergence half back to the state at t so
+the two halves meet, and it is world-0ov's first repair route.
+
+IT CHANGES WHAT THE MODEL INTEGRATES. It leaves that half out of the
+semi-implicit treatment in the temperature equation while the divergence solve
+still treats the temperature implicitly, so what it is stable at is the explicit
+gravity-wave timestep, `dt < a / (c sqrt(N(N+1)))` with
+`c = sqrt(R T0 / (1 - kappa))` -- 9.5 minutes at T42 on this planet against a
+configured 22.5. It blew up inside ten model days at 22.5 and the model refuses
+the setting above the limit rather than integrating something that is not a
+solution.
+
+OFF, because the price is a timestep 2.4 times shorter at every rung and the
+operation the sink actually comes from is not yet named (world-pkf).
+
+## `robert_filter`
+
+```
+robert_filter: 0.1
+```
+
+`PNU` in planet_nl, the leapfrog time filter's coefficient, and the key is in the
+PLANET namelist rather than the model one because that is where the model
+declares it. Absent leaves what `p_earth.f90`'s `planet_ini` sets, which is 0.1
+and not the 0.0 `plasimmod.f90` declares.
+
+Present because the filter had been eliminated as a candidate for the adiabatic
+energy sink on the strength of that declaration. Varying it from 0.02 to 0.25
+moves the sink by 3.5 percent, so the elimination survives -- but by measurement
+now rather than by a misread default.
+
 ## `ozone_scale`
 
 ```

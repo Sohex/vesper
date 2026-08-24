@@ -549,10 +549,15 @@ as physics.
   `sd` rather than a "plus" array, so the update writes `sd` in place and the
   compared states are `t - dt` and `t + dt`. The step is `deltsec2` and the
   division is right.
-- **Not the Robert-Asselin time filter.** `pnu` defaults to 0.0 and is absent
-  from every namelist here, so `pnu21 = 1` and the filter is a no-op. The caveat
-  in `water-and-energy-closure.md` about both terms carrying the time filter does
-  not apply to this project's runs.
+- **The Robert-Asselin time filter is NOT eliminated, and reading it as absent
+  was wrong.** `pnu` is declared 0.0 in `plasimmod.f90`, and the declaration is
+  never what runs: `p_earth.f90`'s `planet_ini` sets it to 0.1 before the
+  namelist is read, `PNU` is absent from every namelist here so nothing overrides
+  it, and the model echoes `PNU = 0.1`. A module default that a planet module
+  overwrites is a value the source shows and the run does not use, which is why
+  the reading has to come from the run's own namelist echo. The filter is live,
+  and the caveat in `water-and-energy-closure.md` about both terms carrying it
+  applies.
 - **Not the physics filter's unbooked dissipation.** Sharpening the filter cuts
   its KE removal by 0.074 W/m2 and OPENS the identity by 0.151 -- opposite
   directions.
@@ -595,7 +600,7 @@ has nowhere to hide.
 | the physics filter | dry run with the filter off | sink grows to **-1.363**. The filter REDUCES it |
 | time truncation | dt 22.5 against dt 11.25 | 0.85x per halving, where linear would be 0.50x |
 | the kinetic-energy side | steady-state KE identity | closes at -0.035 |
-| the Robert-Asselin filter | `pnu` | 0.0, a no-op |
+| the Robert-Asselin filter | `pnu` | 0.1, live -- `p_earth.f90` sets it over the module default. NOT eliminated |
 | a diagnostic time-level error | `adm` is t-dt, `sd` after update is t+dt | the 2dt division is right |
 
 ### What it is
@@ -1048,6 +1053,43 @@ evaluated with `V.grad ln ps` at t and `D` at the mean of t-dt and t+dt, and
 others; it is the whole of the sink and then some, with the remaining terms
 returning a little of it.
 
+### And it does not scale with the timestep, nor with the time filter
+
+The displacement is `(D(t+dt) - 2 D(t) + D(t-dt)) / 2`. A resolved mode of
+frequency w contributes `D (cos(w dt) - 1)` to that, which at this timestep is an
+order-one fraction of `D` for the fastest resolved gravity waves and falls by
+between 2.6 and 4 when the timestep is halved. Control arms at 22.5 and 11.25
+min, compared at matched model time because the dry flow decays through the
+orbit, W/m2:
+
+    days     22.5: 26-27   cimp-ct  |  11.25: 26-27   cimp-ct
+    17.5          -1.675    -2.089  |         -1.203    -1.755
+    41.5          -1.122    -1.322  |         -0.993    -1.192
+    65.5          -0.824    -0.936  |         -0.741    -0.869
+    89.5          -0.700    -0.797  |         -0.569    -0.647
+   113.5          -0.557    -0.660  |         -0.551    -0.659
+
+Halving the timestep moves the displacement by about a tenth. So the resolved
+modes do not carry it, and a shorter timestep is not a mitigation: the sink is
+nearly the same for twice the cost per orbit.
+
+What alternates sign every step, and therefore contributes to a second time
+difference whatever the timestep is, is the leapfrog computational mode, and
+what sets its amplitude is the Robert-Asselin filter -- `pnu`, live at 0.1 and
+not the no-op this project had eliminated it as. **It is not that either.** One
+orbit each, first three prints dropped, W/m2:
+
+    PNU     denergy26 - denergy27     Cimp - Ct
+    0.02          -0.8110              -0.9691
+    0.10          -0.7938              -0.9588
+    0.25          -0.7836              -0.9350
+
+Monotone in the direction the hypothesis wanted and a twelfth of the size it
+needed: a 12.5-fold range in the filter coefficient moves the displacement by
+3.5 percent, against a threshold of 50 fixed before the arms ran. Neither
+candidate time-difference mechanism survives, which is what sent the control
+after the divergences themselves.
+
 That is what "the two ends do not meet" means, stated in the model's own
 arithmetic, and it moves the fix. The reference conversion's discretisation is
 right and does not need correcting. What is split is a mass-flux divergence
@@ -1057,11 +1099,79 @@ identity across two time levels of the semi-implicit scheme, so nothing about
 It also rules out the repair as first written. `tkp * (zvgpg - ztpta)` cannot be
 moved to the implicit side: it is a product of the wind and the surface-pressure
 gradient, quadratic in the prognostic variables, and the semi-implicit operator
-takes only what is linear in them. The routes that remain are to bring the
-divergence half back to time t and pay for the stability elsewhere, to evaluate
-the advective half on the same time mean the divergence half uses, which needs a
-second gridpoint pass, or to keep the global energy fixer, which is what ECHAM,
-the IFS and CAM all do for this.
+takes only what is linear in them.
+
+Bringing the divergence half back to time t is the other direction, and it is
+`model.conversion_time_level`. It takes that half out of the semi-implicit
+treatment in the temperature equation while the divergence solve still treats the
+temperature implicitly, so what it is stable at is the EXPLICIT gravity-wave
+timestep,
+
+    dt  <  a / (c sqrt(N (N+1))),    c = sqrt(R T0 / (1 - kappa))
+
+which is 9.5 minutes at T42 on this planet against a configured 22.5. Run above
+it and the model blows up inside ten model days, which is what it did, so the
+model refuses the setting above the limit rather than integrating something that
+is not a solution. The route therefore costs a timestep 2.4 times shorter at
+every rung, and the section below is why a shorter timestep on its own buys
+nothing.
+
+## The divergence the solve hands the conversion is not the one the model keeps
+
+The displacement is `Cimp - Ct`, and both are the same expression on a different
+divergence. The control prints it on four of them. One orbit of the dry adiabatic
+arm, first three prints dropped, W/m2:
+
+    Ctm   on the divergence at t-dt, `adm`                    +1.2727
+    Ct    on the divergence at t, `sd` at entry               +1.2700
+    Ctp   on the ADIABATIC t+dt, `sd` after mpsyncsp          -0.7017
+    Cimp  on `sdt`, which is what the model applies           +0.2855
+
+`(Ctp + Ctm) / 2 = 0.2855 = Cimp`, to every digit printed. That is `sdp = 2 sdt
+- adm` holding exactly, and it is what certifies that each array is the field it
+is taken for -- an arithmetic identity between three separately transformed and
+separately reduced quantities is not something a mislabelled array satisfies.
+
+**The state's divergence gives +1.27 at t-dt and +1.27 at t. The divergence the
+ADIABATIC step produces gives -0.70. By the next step the state gives +1.27
+again.** Between those two the only thing that touches `sdp` is `spectrald`, so
+`spectrald` moves this quantity by about two watts every step, and that is where
+the sink comes from:
+
+    Cimp - Ct  =  (Ctp - Ct) / 2
+
+exactly, because `sdt` is the mean of the raw adiabatic t+dt and the filtered
+t-dt. **The temperature equation is charged for half of a divergence the model
+discards before the next step.** Its implicit conversion rides `sdt`; its
+advective half rides the state, which no longer contains what `spectrald` took
+out. The two ends of one conversion, on two different fields.
+
+### Which operation in `spectrald` does it is NOT established
+
+The obvious candidate is the divergence hyperdiffusion, whose implicit form is a
+per-mode division by `1 + delt2 tdissd sakpp` and is a strong low-pass. It is not
+enough. Arms at a quarter and four times the standing T42 divergence timescale,
+one orbit each, first three prints dropped, W/m2:
+
+    tdissd    Ctp      Cimp - Ct    denergy26 - denergy27
+    0.0557   -0.7466    -1.0023          -0.8286
+    0.2229   -0.6737    -0.9588          -0.7938
+    0.8916   -0.5832    -0.8338          -0.6970
+
+Monotone, in the direction a diffusive explanation wants, and a sixteenfold range
+in the damping timescale moves the displacement by a sixth. The threshold fixed
+before the arms ran was a third between the outer two, and this misses it. Where
+`delt2 tdissd sakpp` exceeds one the retained amplitude goes as `1/tdissd`, so a
+sixteenfold range would move the modes that carry the effect by sixteen; a sixth
+says those are not the modes.
+
+So three knobs have now been varied over large ranges and each moves the
+displacement by between a twentieth and a sixth: the timestep, the
+Robert-Asselin coefficient and the divergence damping. **The displacement is
+robust to all of them and is the whole of the sink.** What localises it is not
+another knob but the same control one level down -- the conversion printed
+immediately before and after each write to `sdp` in `spectrald`, which names the
+operation rather than bracketing it.
 
 ### Two readings of the same decomposition, and only one is the budget
 
@@ -1160,9 +1270,9 @@ Three further defects, each found by a run rather than by reading:
 
 The correction is updated once per model day from the mean over that day, not
 every step. The argument for it was that the PER-STEP imbalance swings by about
-250 W/m2 either way -- the leapfrog's computational mode, undamped because `pnu`
-is 0.0 -- so a step-by-step controller should be chasing noise, and averaging it
-out should tighten the correction sharply.
+250 W/m2 either way -- the leapfrog's computational mode, damped at `pnu` = 0.1
+and not absent -- so a step-by-step controller should be chasing noise, and
+averaging it out should tighten the correction sharply.
 
 **It did not.** Same configuration, same restart, second half of the orbit:
 

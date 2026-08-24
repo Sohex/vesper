@@ -334,6 +334,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !     skipped it. Exactly the failure `notes/audits/nlowio-collective-deadlock.md`
 !     records for `nlowio`, which is why that one is broadcast fifty lines above.
       call mpbci(nenergyfix)  ! switch for the energy fixer, world-mzy
+      call mpbci(nconvtime)   ! the conversion's time level, world-0ov
       call mpbci(ndiaggp3d ) ! no of 3d gp diagnostic arrays
       call mpbci(ndiaggp2d ) ! no of 2d gp diagnostic arrays
       call mpbci(ndiagsp3d ) ! no of 3d sp diagnostic arrays
@@ -671,6 +672,34 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       delt     = TWOPI     / ntspd   ! timestep scaled
       delt2    = delt + delt
       call makebm
+!
+!     NCONVTIME TAKES THE TEMPERATURE EQUATION'S REFERENCE CONVERSION OUT OF THE
+!     SEMI-IMPLICIT TREATMENT, so the timestep it is stable at is the EXPLICIT
+!     gravity-wave one and not the rung table's. For a spectral model the fastest
+!     resolved external mode gives
+!
+!         dt  <  a / (c sqrt(N (N+1))),    c = sqrt(R T0 / (1 - kappa))
+!
+!     which at T42 on this planet is 9.5 minutes against a configured 22.5. Run
+!     above it and the model blows up inside ten model days, which is what
+!     happened. This refuses rather than letting a declared setting integrate
+!     something that is not a solution. world-0ov.
+!
+      if (nconvtime > 0) then
+         zcgw  = sqrt(gascon * t0(NLEV) * ct / (1.0 - akap))
+         zcgwd = plarad / (zcgw * sqrt(real(NTRU) * real(NTRU+1)))
+         if (mypid == NROOT) then
+            write(nud,'(A,F8.1,A,F8.1,A)')                              &
+     &         ' NCONVTIME: explicit gravity-wave timestep limit ',      &
+     &         zcgwd/60.0,' min, this run runs at ',deltsec/60.0,' min'
+         endif
+         if (deltsec > zcgwd) then
+            if (mypid == NROOT) write(nud,*)                            &
+     &         'NCONVTIME needs a timestep at or below the explicit ',   &
+     &         'gravity-wave limit; see world-0ov'
+            stop 'nconvtime above the explicit gravity-wave timestep'
+         endif
+      endif
 
       if (mypid == NROOT .and. nsela > 0) then
          call tracer_ini
@@ -1380,7 +1409,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
                    , psurf   , ptop    , ptop2   , taucool              &
                    , restim  , t0      , tfrc    , nstratosponge        &
                    , sigh    , nenergy , nener3d , nsponge , dampsp     &
-                   , nenergyfix                                          &
+                   , nenergyfix, nconvtime                               &
                    , l_aero
 !
 !     preset namelist parameter according to model set up
@@ -3059,7 +3088,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !     level and the semi-implicit displacement read off as the difference.
       real, allocatable :: zcnow(:,:), zcsdt(:,:), zcwrk(:,:), zcgp(:,:)
       real :: zcw(NHOR)
-      real :: zcs(8)
+      real :: zcs(10)
 !
 !*    0. save prognostic variables at (t-dt)
 !        and the non-linear divergence tendency terms
@@ -3079,7 +3108,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !
 !     The control's copy of the divergence at time t, taken BEFORE the solve
 !     overwrites sdt and before mpsyncsp advances sd. See the declaration.
-      if (nenergy > 1) then
+      if (nenergy > 1 .or. nconvtime > 0) then
          allocate(zcnow(NESP,NLEV))
          zcnow(:,:) = sd(:,:)
       endif
@@ -3151,6 +3180,38 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
          stt(jsp,jlev)=stt(jsp,jlev)-dot_product(tau(:,jlev),sdt(jsp,:))
         enddo
        enddo
+!
+!     3a. THE REFERENCE CONVERSION'S TWO HALVES, PUT ON ONE TIME LEVEL. world-0ov.
+!
+!     The reference conversion is applied in two places: `calcgp` carries the
+!     advective half `tkp*(zvgpg-ztpta)` at time t, and its divergence half is
+!     the `tkp*c` part of `tau` just applied, on `sdt` -- the centred mean of
+!     t-dt and t+dt, since `sdp = 2 sdt - adm`. What makes the two halves cancel
+!     the momentum equations' reference pressure-gradient work is
+!     `<ps (V.grad ln ps + D)> = 0`, the global integral of a mass-flux
+!     divergence, and that identity holds at ONE time level and not across two.
+!     The reference geopotential weights the split by up to 3.8 times t0, so the
+!     displacement is 0.96 W/m2 against a sink of 0.79.
+!
+!     This puts the divergence half back on the divergence at t, which is what
+!     `zcnow` holds. It is a CHANGE TO WHAT THE MODEL INTEGRATES: the semi-
+!     implicit scheme no longer treats that half implicitly in the temperature
+!     equation, while the divergence solve above still treats the temperature
+!     implicitly, so the timestep this is stable at is its own question.
+!
+      if (nconvtime > 0) then
+       do jlev = 1 , NLEV
+        do jsp = 1 , NSPP
+         jsg = jsp + mypid * NSPP
+         zsum = 0.0
+         do jlev2 = 1 , jlev
+          zsum = zsum + tkp(jlev) * c(jlev2,jlev)                       &
+     &                * (sdt(jsp,jlev2) - zcnow(jsg,jlev2))
+         enddo
+         stt(jsp,jlev) = stt(jsp,jlev) + zsum
+        enddo
+       enddo
+      endif
 !
       endif
 !
@@ -3436,7 +3497,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
         if (mypid == NROOT) then
 !        WINDOWED, over one model day, and this is the point of the design.
 !        The PER-STEP imbalance swings by about 250 W/m2 either way -- that is
-!        the leapfrog's computational mode, undamped here because pnu is 0.0 --
+!        the leapfrog's computational mode, damped at pnu = 0.1 and not gone --
 !        while the thing being corrected is a systematic loss of order half a
 !        watt. A controller that reacts step by step converges in the mean and
 !        wanders across -0.2 to +1.8 getting there, which is what it did.
@@ -3516,8 +3577,8 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
         zcs(1) = dot_product(denergy(:,2),zcw)
         zcs(2) = dot_product(denergy(:,26),zcw)
         zcs(3) = dot_product(denergy(:,27),zcw)
-        zcs(8) = sum(zcw)
-        do jterm = 1 , 4
+        zcs(10) = sum(zcw)
+        do jterm = 1 , 6
          do jlev = 1 , NLEV
           zcwrk(:,jlev) = 0.0
           do jlev2 = 1 , NLEV
@@ -3532,6 +3593,12 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
            else if (jterm == 3) then
             if (jlev2 <= jlev) zcwrk(:,jlev) = zcwrk(:,jlev)            &
      &         - tkp(jlev) * c(jlev2,jlev) * zcnow(:,jlev2)
+           else if (jterm == 5) then
+            if (jlev2 <= jlev) zcwrk(:,jlev) = zcwrk(:,jlev)            &
+     &         - tkp(jlev) * c(jlev2,jlev) * zsd(:,jlev2)
+           else if (jterm == 6) then
+            if (jlev2 <= jlev) zcwrk(:,jlev) = zcwrk(:,jlev)            &
+     &         - tkp(jlev) * c(jlev2,jlev) * sd(:,jlev2)
            endif
           enddo
           if (jterm == 4) zcwrk(:,jlev) = -tkp(jlev) * zcnow(:,jlev)
@@ -3545,19 +3612,20 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
      &                   *zpgp(:)/ga*dsigma(jlev),zcw)
          enddo
         enddo
-        call mpsumbcr(zcs,8)
+        call mpsumbcr(zcs,10)
         if (mypid == NROOT) then
 !        THE FIRST MODEL DAY IS DROPPED, for the reason the fixer's window drops
 !        its first: the first step out of a restart carries an imbalance of order
 !        250 W/m2, and this is a mean over an orbit.
          if (nstep > nstep1 + ntspd) then
-          dconvacc(1:7) = dconvacc(1:7) + zcs(1:7) / zcs(8)
-          dconvacc(8) = dconvacc(8) + 1.0
+          dconvacc(1:9) = dconvacc(1:9) + zcs(1:9) / zcs(10)
+          dconvacc(10) = dconvacc(10) + 1.0
           nconvacc = nconvacc + 1
          endif
          if (mod(nstep,ndiag) == 0 .and. nconvacc > 0) then
-          write(nud,'(A,I9,I9,7E15.6)') ' CONVDECOMP d02 d26 d27 cimp '//&
-     &      'cvadv ct dt ', nstep, nconvacc, dconvacc(1:7) / dconvacc(8)
+          write(nud,'(A,I9,I9,9E15.6)') ' CONVDECOMP d02 d26 d27 cimp '//&
+     &      'cvadv ct dt ctm ctp ', nstep, nconvacc,                    &
+     &      dconvacc(1:9) / dconvacc(10)
          endif
         endif
         deallocate(zcsdt)
@@ -3579,7 +3647,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
        deallocate(zpmgp)
        deallocate(ztgp)
       endif
-      if (nenergy > 1) deallocate(zcnow)
+      if (nenergy > 1 .or. nconvtime > 0) deallocate(zcnow)
 !
       return
       end
