@@ -1,7 +1,7 @@
 #!/bin/bash
-# Does the threaded build still compute the reference build's answer?
+# Does the threaded build compute the right answer over its grid bands?
 #
-#   exoplasim/scripts/verify_threaded_numerics.sh <bed> <res> <n> [reference]
+#   exoplasim/scripts/verify_threaded_numerics.sh <bed> <res> <n>
 #
 # Worldbuilding frame: a correctness check on the Vesper climate model's
 # threaded build. Nothing here is about the simulated planet.
@@ -12,19 +12,35 @@
 # in this component -- it caught the dv2uv planetary vorticity race and the
 # weight pre-scaling bug, both of which a tolerance would have let through.
 #
-# That standard is gone and cannot come back while the layout serves SHTns. A
-# thread's band is contiguous within a level and strided between them, so the
-# compiler cannot assume contiguity, vectorises differently, and moves last
-# bits. What replaces it is this: agreement at the scale of a regrouped sum, AT
-# SHORT RANGE, where the seed has not yet amplified. That is a weaker check, so
-# it is written down, given a control, and run rather than remembered.
+# WHAT REPLACED THAT COMPARISON, TWICE. The layout change took bit identity
+# away: a thread's band is contiguous within a level and strided between them,
+# so the compiler cannot assume contiguity, vectorises differently and moves
+# last bits. What stood in its place was agreement between the threaded and the
+# MPI build at short range, and world-38b then removed the MPI build, leaving
+# that arm with nothing on the other side. world-d5l took the decision this file
+# now implements: build a standalone INDEPENDENT driver rather than keep only
+# the control arm or retire the gate.
 #
-# WHY SHORT RANGE IS THE WHOLE POINT. A last-bit difference in this model grows
-# by roughly three decades every twenty steps: measured on this change, 3.2e-13
-# at one step, 1.4e-13 at twenty, 3.0e-10 at sixty. A comparison at sixty steps
-# therefore FAILS a 1e-10 tolerance on a change that is perfectly sound, and
-# a comparison at three hundred fails on anything at all. Length is not a
-# detail here; it is what separates a defect from Lyapunov growth.
+# SO THE SECOND SIDE IS A DRIVER AND NOT A BUILD, and that is stronger than what
+# it replaces rather than weaker. `verify_banded_transform.sh` computes the band
+# decomposition's answer from a table scipy produces and a quadrature pinned by
+# two identities, and requires the model's own scatter, weight matrices, banded
+# partial sums and cross-thread reduction to return it, at rounding scale, with
+# three controls that must fail. Two builds of one source can agree and both be
+# wrong; a right answer cannot be agreed with wrongly. Read that script's header
+# and the driver's for what is independent, what is not, and what the choice
+# makes invisible.
+#
+# WHAT THE DRIVER CANNOT DO is integrate the model. It says nothing about a
+# defect that needs a timestep to appear, which is why the arm below still runs
+# the model itself.
+#
+# THE GROWTH CURVE THAT USED TO BE HERE NEEDS TWO MODEL ARMS THAT DIFFER AT
+# LAST-BIT SCALE, and world-38b left one build, so it is not run here. Nothing
+# is lost: `verify_shtns_model.sh` carries the same curve, the same
+# reassociation floor, the same birth and jump bounds and the same reference to
+# `world-2ic` on a pair that is still live -- NSHTNS=0 against NSHTNS=1 on one
+# binary. That is where the rung-dependence experiment world-2ic names is run.
 #
 # THE CONTROL must fail, and choosing it took a wrong turn worth recording.
 # The obvious one -- every thread takes its NEIGHBOUR's band -- PASSES, because
@@ -50,52 +66,28 @@
 # and stays in range: the top thread's band ends one row short of the globe, so
 # no thread reads past NUGP.
 #
-# WHERE THESE BOUNDS COME FROM, AND WHICH OF THEM IS DERIVED.
-#
-# THE REASSOCIATION FLOOR is arithmetic and is derived per rung. Every spectral
-# restart record is a `fc2sp` analysis, a sum over the whole grid, so the
-# rigorous upper bound on how much a regrouped float64 version of that sum can
-# differ, in ANY association order, is NLAT*NLON*eps. It is 4.6e-13 at T21 and
-# 2.9e-11 at T170 -- a factor of 64 across the ladder, because the ladder is
-# what sets the length of the sum. `floor_at_rung` computes it, and the gate
-# REFUSES to run where the declared birth bound is below it: a bound under the
-# floor fails every sound change, and 1e-11 is under it from T106 up. That is
-# the rung-dependence made loud rather than silent.
-#
-# THE BIRTH SCALE the floor implies is larger than the floor, because the birth
-# norm is taken over every restart record and one of them applies a gain of its
-# own. `rainmod.f90:92` sets rcrit = MAX(0.85, MAX(sigma, 1-sigma)) and the
-# cloud fraction carries 1/(1-rcrit)^2, which on the linear sigma grid is
-# (2*NLEV)^2 = 400 at the top and bottom levels. So a difference born at the
-# floor can present as 400 times the floor and still be nothing but
-# reassociation. Two measurements exist: 3.2e-13 for the grid-band change here,
-# and 3.35e-12 for the SHTns change on the baseline bed, ten times larger for
-# exactly this reason (exoplasim/notes/shtns-viability.md).
-#
-# TOL AND JUMP ARE NOT DERIVED, and the rung they were measured at is not on
-# record. Both encode the rate at which the model amplifies a last-bit
-# difference, which is a property of the flow and not of the arithmetic, and is
-# rung-dependent by construction: a finer truncation resolves faster-growing
-# modes and reaches a given norm in fewer steps for entirely sound reasons.
-# `world-2ic` is that question, and it names the experiment that settles it:
-# run this gate's growth curve unchanged at three rungs on the same terrain and
-# fit the per-step factor at each. Until then the two are what they have been,
-# and this header is what they rest on.
+# IT IS THE SAME PATCH `verify_banded_transform.sh` APPLIES, on the same line,
+# deliberately. One property, one control, in both gates: there the driver
+# catches it in the transform alone, here the model catches it after a timestep
+# of physics, and a control that differed between them would leave open which
+# of the two had changed.
 set -euo pipefail
 
-bed="$(cd "${1:?usage: verify_threaded_numerics.sh <bed> <res> <n> [reference]}" && pwd)"
+bed="$(cd "${1:?usage: verify_threaded_numerics.sh <bed> <res> <n>}" && pwd)"
 res="${2:?}"
 n="${3:?}"
-# THERE IS NO REFERENCE BUILD LEFT. This gate's whole shape is the threaded
-# build against an INDEPENDENT one, and world-38b removed both independents:
-# `serial` and `mpi` are no longer build modes. It refuses rather than running,
-# because the name the mpi arm looked for is now the threaded binary's own name
-# and dropping the flag would compare the thing under test against itself and
-# pass. What replaces the reference is world-d5l's open question: a control
-# patch as the second side, a standalone driver, or this gate goes. The bounds
-# below and the control patch are kept because they are the part that survives
-# whichever answer that question gets.
-reference="${4:-none}"
+# THE FOURTH ARGUMENT IS GONE. It named a reference BUILD, and `serial` and
+# `mpi` are not build modes any more. Dropping it silently would have been the
+# trap: the name the mpi arm looked for is now the threaded binary's own name,
+# so an unflagged reference arm would have built the thing under test, compared
+# it against itself and passed. A caller who still names one is asking for a
+# comparison this gate does not perform, so it is refused rather than ignored.
+if [ $# -gt 3 ]; then
+    echo "refusing: there is no reference BUILD to name any more." >&2
+    echo "  world-38b left one build. The independent side is now" >&2
+    echo "  verify_banded_transform.sh, which this gate runs itself." >&2
+    exit 2
+fi
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 REPO="$(cd "$HERE/../.." && pwd)"
@@ -106,30 +98,9 @@ BUILD="$REPO/.venv/bin/python $REPO/exoplasim/scripts/build_model.py"
 SRC="$PKG/plasim/src"
 low="$(echo "$res" | tr 'A-Z' 'a-z')"
 WORK="$REPO/exoplasim/bench/_tnumerics"
-TOL=1e-10
-STEPS="1 2 5 10 20 40"
-BIRTH=1e-11      # the norm at ONE step; above this the change is wrong at birth
-JUMP=1e4         # the largest ratio allowed between adjacent samples
 
 require_settled_bed "$bed"
 require_bed_grid "$bed" "$res"
-
-# The reassociation floor at THIS rung, and the refusal that goes with it. See
-# the header. `floor` is NLAT*NLON*eps, and a birth bound below it cannot be met
-# by correct arithmetic.
-PYX="$REPO/.venv/bin/python"; [ -x "$PYX" ] || PYX=python3
-floor="$("$PYX" -c "import sys; sys.path.insert(0, '$REPO/lib'); import rungs, numpy as np; nlat, nlon, _ = rungs.geometry('$res'); print(repr(nlat * nlon * float(np.finfo(np.float64).eps)))")" || {
-    echo "unknown resolution $res: it is not a rung in lib/rungs.py" >&2; exit 2; }
-gained="$(awk -v f="$floor" 'BEGIN{printf "%.3g", f*400}')"
-if awk -v b="$BIRTH" -v f="$floor" 'BEGIN{exit !(b < f)}'; then
-    echo "refusing: the birth bound $BIRTH is below the reassociation floor at" >&2
-    echo "  $res, which is $floor = NLAT*NLON * float64 eps. A regrouped sum over" >&2
-    echo "  this grid can differ by that much in any association order, so the" >&2
-    echo "  bound fails every correct change at this rung. It has to be derived" >&2
-    echo "  per rung before this gate runs here -- world-2ic." >&2
-    exit 2
-fi
-
 
 dirty="$(cd "$REPO" && git status --porcelain -- vendor/exoplasim/exoplasim/plasim/src)"
 if [ -n "$dirty" ]; then
@@ -142,8 +113,23 @@ rm -rf "$WORK"; mkdir -p "$WORK/ref"
 restore() { ( cd "$REPO" && git checkout -- vendor/exoplasim/exoplasim/plasim/src ); }
 trap restore EXIT
 
+rc=0
+
+# ---------------------------------------------------------------------------
+# The independent side. It builds and runs on its own and needs no bed: its
+# subject is the transform chain rather than an integration, which is exactly
+# why it can have a right answer at all.
+# ---------------------------------------------------------------------------
+echo "==== the independent side: the banded analysis against its reference ===="
+if "$HERE/verify_banded_transform.sh" "$res" "$n"; then
+    echo "the model's banded analysis returns the independently computed answer."
+else
+    echo "FAIL: the banded analysis does not return the reference answer."
+    rc=1
+fi
+
 build_arm() {
-    local arm="$1" stamp="$WORK/.stamp" name flags
+    local arm="$1" stamp="$WORK/.stamp" name
     restore
     if [ "$arm" = "wrongband" ]; then
         sed -i 's/^      lo = mypid \* NHOR + 1$/      lo = max(1, mypid * NHOR + 1 - NLON)   ! CONTROL: bands overlap by a row/' \
@@ -151,23 +137,9 @@ build_arm() {
         grep -q "CONTROL: bands overlap by a row" "$SRC/plasimmod.f90" || {
             echo "control patch missed" >&2; exit 1; }
     fi
-    case "$arm" in
-      reference)
-        echo "refusing: there is no reference build to compare against." >&2
-        echo "  This gate runs the threaded build against an INDEPENDENT one," >&2
-        echo "  and world-38b left one build. --ranks 1 and the mpi arm are not" >&2
-        echo "  configurations build_model.py accepts any more, and the name the" >&2
-        echo "  mpi arm looked for, most_plasim_${low}_l10_p${n}.x, is now the" >&2
-        echo "  threaded binary itself: running it would compare the thing under" >&2
-        echo "  test against itself and pass." >&2
-        echo "  world-d5l is the decision -- a control patch as the second side," >&2
-        echo "  a standalone driver, or this gate goes. Do not repoint it." >&2
-        exit 2 ;;
-      *) flags="--ranks $n"; name="most_plasim_${low}_l10_p${n}.x" ;;
-    esac
+    name="most_plasim_${low}_l10_p${n}.x"
     : > "$stamp"
-    # shellcheck disable=SC2086
-    ( $BUILD --res "$res" $flags ) >"$WORK/build_$arm.log" 2>&1 || true
+    ( $BUILD --res "$res" --ranks "$n" ) >"$WORK/build_$arm.log" 2>&1 || true
     [ -f "$PKG/plasim/run/$name" ] && [ "$PKG/plasim/run/$name" -nt "$stamp" ] || {
         echo "build failed or stale: $arm (see $WORK/build_$arm.log)" >&2; exit 1; }
     cp -f "$PKG/plasim/run/$name" "$WORK/ref/$arm.x"
@@ -200,78 +172,19 @@ run_arm() {
 compare() {
     "$REPO"/.venv/bin/python "$REPO"/exoplasim/scripts/compare_restarts.py \
         "$WORK/run_$1/plasim_status" "$WORK/run_$2/plasim_status" \
-        --tol "$TOL" --exact dls --exact doro --exact darea --quiet
+        --tol 1e-10 --exact dls --exact doro --exact darea --quiet
 }
 
-norm() {
-    "$REPO"/.venv/bin/python "$REPO"/exoplasim/scripts/compare_restarts.py \
-        "$WORK/run_$1/plasim_status" "$WORK/run_$2/plasim_status" \
-        --tol "$TOL" --norm 2>/dev/null
-}
-
-echo "$res, $n threads against the $reference build"   # refuses in build_arm
-echo "declared before the arms ran: tolerance $TOL, lengths [$STEPS],"
-echo "derived at $res: reassociation floor $floor = NLAT*NLON * float64 eps,"
-echo "  and $gained once rainmod.f90:92's (2*NLEV)^2 record gain is allowed for"
-echo "  birth bound $BIRTH at one step, jump bound ${JUMP}x between samples"
 echo
-build_arm reference
+echo "==== the model itself, $res on $n threads ===="
 build_arm threaded
 build_arm wrongband
 
-rc=0
-
-# HOW THE DIFFERENCE GROWS, which is the part two isolated tolerance checks
-# cannot tell you. A sound change starts at rounding scale and grows smoothly as
-# the model's own sensitivity amplifies it; a defect that only fires under some
-# condition -- a guard that opens on a particular step, a branch reached once a
-# field crosses a threshold -- puts a STEP in the curve instead.
-#
-# NOT gated on monotonicity, and that is measured rather than assumed. The
-# statistic is the worst record's relative difference, and which record is worst
-# changes with length, so the curve legitimately goes DOWN: on the grid-band
-# change it ran 3.2e-13 at one step, 1.4e-13 at twenty, 3.0e-10 at sixty. A
-# monotonicity gate would have failed a sound change.
-#
-# So the curve is the diagnostic and the gates are deliberately coarse: wrong at
-# birth, or a jump too large to be amplification.
-echo
-echo "==== how the difference grows ===="
-printf '  %8s  %14s  %s\n' steps norm "worst record"
-prev=""
-for s in $STEPS; do
-    if run_arm reference "$s" "r$s" && run_arm threaded "$s" "t$s"; then
-        read -r v rec <<<"$(norm "r$s" "t$s")"
-        printf '  %8s  %14s  %s\n' "$s" "$v" "$rec"
-        if [ "$s" = 1 ]; then
-            over=$(awk -v a="$v" -v b="$BIRTH" 'BEGIN{print (a>b)?1:0}')
-            if [ "$over" = 1 ]; then
-                echo "  FAIL: $v at one step is above the birth bound $BIRTH."
-                echo "        A change that is wrong at step one is not amplification."
-                rc=1
-            fi
-        fi
-        if [ -n "$prev" ]; then
-            big=$(awk -v a="$v" -v b="$prev" -v j="$JUMP" \
-                  'BEGIN{print (b>0 && a/b>j)?1:0}')
-            if [ "$big" = 1 ]; then
-                echo "  FAIL: the norm jumped by more than ${JUMP}x into $s steps."
-                echo "        Amplification is smooth; a step in the curve is a"
-                echo "        condition being met, not a seed growing."
-                rc=1
-            fi
-        fi
-        prev="$v"
-    else
-        echo "  $s steps: an arm produced no restart"; rc=1
-    fi
-done
-
-for s in 1 20; do
-    echo
-    echo "==== threaded against $reference, $s step(s): must agree ===="
-    compare "r$s" "t$s" || rc=1
-done
+if ! run_arm threaded 1 t1; then
+    echo "FAIL: the threaded build produced no restart at one step, so the"
+    echo "      control below has nothing to be compared against."
+    rc=1
+fi
 
 echo
 # WHAT COUNTS AS THE CONTROL BEING REJECTED, and the distinction is not the one
@@ -295,7 +208,7 @@ echo
 # harness broke rather than the control being caught.
 echo "==== the shared-band control, 1 step: must NOT agree ===="
 if run_arm wrongband 1 w1; then
-    if compare r1 w1; then
+    if compare t1 w1; then
         echo "FAIL: the bands overlapped by a row and the comparison did not"
         echo "      notice, so it cannot see bands that are not disjoint."
         rc=1
