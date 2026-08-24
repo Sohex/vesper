@@ -805,3 +805,87 @@ The state's own spectral tail is separately excluded as the controlling
 variable: across the dry arms it moves by 1.3x while the sink moves by 2.4x,
 and the unfiltered arm carries 22 percent LESS total eddy energy than the
 filtered one while sinking 2.4 times as fast.
+
+## The term, named: the adiabatic conversion in the temperature equation
+
+A control patch in `calcgp` split the global-mean temperature tendency into its
+three pieces, using the model's own Gaussian quadrature. It can be split there
+without a transform because `mktend`'s (0,0) coefficient takes nothing from
+`gut` or `gvt` -- `fmm` carries a factor m and `qmat`'s derivative vanishes at
+n=0 -- so the global-mean temperature tendency IS the global mean of `gtn`. The
+vertical piece was taken by difference, so the three sum to `gtn` by
+construction and the top level's separate form needed no special case.
+
+    P1   gt*gd, the flux-form divergence term
+    P2   akap*ztv2*(zvgpg - ztptb) + tkp*(zvgpg - ztpta), the conversion
+    P3   the vertical advection, by difference
+
+Alongside it, the same run printed the (0,0) coefficient of the temperature
+tendency on either side of the semi-implicit correction. **They are equal to
+every printed digit, and the divergence coefficient is exactly zero.** The
+correction is `stt -= tau . sdt` and `sdt(1:2,:)` is forced to zero above it, so
+the semi-implicit step cannot reach the global mean at all. It is exonerated,
+from the model rather than by argument.
+
+The same three pieces were rebuilt independently from the model's gridpoint
+output, on a grid refined until they stopped moving -- under one percent from a
+384-latitude reference to a 512-latitude one, so the derivative error is not
+what separates them. Late in the run, where the initial transient has gone:
+
+    piece    reconstruction    model      agreement
+    P1        -2.68e-8        -3.11e-8      86 %
+    P3        +6.52e-8        +6.64e-8      98 %
+    P2        +2.40e-8        -9.43e-8      opposite sign
+
+**P1 and P3 agree and P2 does not, and P2 is the only piece that uses the `c`
+matrix.** The difference is 1.18e-7 K/s, which at this column mass is 0.89 W/m2
+-- the 0.87 W/m2 that goes missing, to within the scatter of a single sample.
+
+That closes the search. The sink is the adiabatic conversion term in the
+temperature equation, and the statement does not rest on the reconstruction at
+all: in the model's own numbers the temperature equation's conversion removes
+about 1.0 W/m2 of enthalpy across `spectrala` while the divergence equation's
+counterpart delivers 0.147 W/m2 to kinetic energy. The conversion the flow
+actually supports, computed from the state with both ends agreeing to 0.07
+percent, is 0.30 W/m2. Neither end of the model's conversion matches it and the
+two shortfalls sum to the sink.
+
+### What it is not, each excluded by measurement rather than by argument
+
+  the transform      the quadrature is exact for every term `calcgp` forms,
+                     including `rcsq * U * dlnps/dlam` at 1e-15 and
+                     `exp(ln ps)` at 4e-11, with a quadratic and a cubic
+                     carried as controls that could have failed
+  its truncation     truncating the conversion costs 0.0027 W/m2 net between
+                     the two ends, and truncating the advection 0.03, against
+                     0.87. Both were measured as the same quantity with and
+                     without the projection, so the derivative error cancels
+                     exactly and only the truncation is left
+  the semi-implicit
+  scheme             it cannot reach the global mean, and separately the
+                     matrices satisfy the adjoint identity conservation needs:
+                     with `t0` isothermal, `t01s2` vanishes and the
+                     construction gives tau(j,k) = tkp(k) g(k,j) dsigma(j) /
+                     dsigma(k), so dsigma_k tau(j,k) = akap t0 dsigma_j g(k,j)
+                     exactly
+  the vertical
+  discretisation     `c(a,b) = g(b,a) dsigma(a)/dsigma(b)` is built in, which
+                     is the Simmons-Burridge relation the vertical scheme is
+                     named for
+
+The remedy is not a knob. Either the conversion's discretisation is corrected
+so the two equations meet, or the model carries a global energy fixer of the
+kind ECHAM, the IFS and CAM all carry for exactly this reason -- and a fixer is
+an admission, not a fix: it restores the total without restoring where the
+energy went.
+
+### A note on the instrument
+
+The reconstruction from output was nearly discarded on a wrong diagnosis. Its
+`P2` sits at 78 percent of its own larger part, so a plausible-looking error
+budget said the error exceeded the quantity and the comparison meant nothing.
+Refining the grid until the answer stopped moving is what settled it -- the
+convergence test, not the estimate. `docs/src/practice/failure-modes.md` class
+34 cuts both ways: an instrument too coarse for the effect returns an
+ordinary-looking number, and an instrument assumed too coarse throws away a
+real one.
