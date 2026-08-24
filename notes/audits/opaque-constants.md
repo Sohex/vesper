@@ -247,40 +247,42 @@ fraction by 0.01 to 0.03 absolute wherever the modelled relative humidity sits
 near threshold. ExoPlaSim ships `rcritmod` and `rcritslope` for exactly this and
 neither appears anywhere outside `vendor/`.
 
-## 9. The boundary-layer scheme runs entirely at compiled defaults
+## 9. The boundary-layer scheme runs at compiled defaults, now named
 
-Every run's `fluxmod_namelist`, `seamod_namelist` and `surfmod_namelist` are
-empty -- `&fluxmod_nl /END` -- so `fluxmod.f90:25-30` is live and unexamined:
+Every run's `fluxmod_namelist`, `seamod_namelist` and `surfmod_namelist` is an
+empty group, so `fluxmod`'s constants are live and were unexamined. They are in
+`fluxmod_nl` and reachable; what was missing was any statement of what they are.
+Each now carries one at its declaration, and `ztscal` -- the reference
+temperature converting sigma to metres for the mixing-length profile, a bare
+`parameter` inside `vdiff` with no comment and no namelist route -- joins them
+as a namelist key.
 
-    zumin      = 1.    ! minimum wind speed for PBL exhcange (m/s)
-    vdiff_lamm = 160.  ! const. used in vdiff (see parameterization)
-    vdiff_b    = 5.    !        "
-    vdiff_c    = 5.    !        "
-    vdiff_d    = 5.    !        "
+`vdiff_lamm` is the asymptotic mixing length in metres, the single number
+setting free-tropospheric vertical diffusivity, and `zlamh` derives the heat
+version from it. The three fives are the Louis stability-function coefficients,
+cited to "ECHAM REPORT 218", which is a citation to a report and not a
+derivation; none of the three is separately justified there or here. They are
+kept at ECHAM's values because nothing in this project has measured a
+replacement, not because they have been shown to apply here, and the
+declarations say so.
 
-`vdiff_lamm` is the asymptotic mixing length in metres, the single number setting
-free-tropospheric vertical diffusivity, and `zlamh = vdiff_lamm*SQRT(3*vdiff_d*
-0.5)` at `:783` derives the heat version from it. The three fives are the Louis
-stability-function coefficients, cited at `:243` to "ECHAM REPORT 218" -- a
-citation to a report, not a derivation, and none of the three is separately
-justified. `zumin` is documented as m/s and applied at `:204` as a floor on
-`u^2+v^2` and again at `:816` as a floor on a wind difference: one constant, two
-quantities, one wrong unit in the comment. `parameter(ztscal=250.)` at `:762`, the
-reference temperature converting sigma to metres for the mixing-length profile,
-has no comment at all.
+`zumin` was documented as m/s and applied in `mktcoe` as a floor on `u^2+v^2`
+and in `vdiff` as a floor on a wind DIFFERENCE: one constant, two quantities,
+one wrong unit. The `mktcoe` site now squares it. At the declared 1 m/s the two
+forms coincide, which is why nothing noticed, and why the correction moves no
+number today.
 
-`fluxmod.f90:254-255` carries a hidden `g^(1/3)`:
-
-    zrifh(jhor)=(1.+(0.0016*zdth**(1./3.)/SQRT(zabsu2(jhor))/zkblnz2)**1.25)**0.8
-
-The Miller et al. (1992) free-convection enhancement, on the `zri <= 0 .and. dls
-< 1` branch, which is unstable ocean and therefore most of the ocean most of the
-time. In the strongly convective limit the bracket collapses to
-`0.0016*dth^(1/3)/(|U|*C_N)`, which is the convective velocity scale with `g` and
-the inversion height folded into the coefficient, and there is no `ga` in the
-expression. At 12.81 against 9.81 the coefficient is low by `1.306^(1/3)` = 1.093,
-so **free-convection latent and sensible exchange over calm unstable ocean is
-about 9% weak**, over the warm ocean where this world's evaporation is.
+**The free-convection coefficient carried a hidden `g^(1/3)` and now carries
+this world's.** The Miller et al. (1992) enhancement fires on the
+`zri <= 0 .and. dls < 1` branch, which is unstable ocean and therefore most of
+the ocean most of the time. In the strongly convective limit the bracket
+collapses to `0.0016*dth^(1/3)/(|U|*C_N)`, which is the convective velocity
+scale `w* = (g H z_i / T)^(1/3)` with the gravity and the inversion height
+folded into the coefficient, and there was no `ga` anywhere in the expression.
+At 12.81 against 9.81 it was low by `1.306^(1/3)` = 1.093, so free-convection
+latent and sensible exchange over calm unstable ocean was about 9 per cent weak,
+over the warm ocean where this world's evaporation is. `fluxini` now derives it
+once from `ga` and prints it. This moves the surface fluxes.
 `missed-couplings.md` reaches `dtransh` and stops before this branch.
 
 ## 10. Earth's radius in `oceanmod`, under a scheduled measurement

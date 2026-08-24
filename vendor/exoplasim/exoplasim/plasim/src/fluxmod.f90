@@ -22,11 +22,54 @@
       integer :: nstress = 1      ! switch for wind stress
       integer :: ntsa    = 2      ! flag for near surface temp calc.
 
-      real :: zumin      = 1.    ! minimum wind speed for PBL exhcange (m/s) 
-      real :: vdiff_lamm = 160.  ! const. used in vdiff (see parameterization)
-      real :: vdiff_b    = 5.    !        "
-      real :: vdiff_c    = 5.    !        "
-      real :: vdiff_d    = 5.    !        "
+!     THE BOUNDARY LAYER'S FIVE CONSTANTS, and every one of them is in
+!     fluxmod_nl and has never been written by any run of this project: the
+!     staged fluxmod_namelist is an empty group. They are named here rather than
+!     left as bare literals so that a reader knows what a run would be changing.
+!     world-e2k.
+!
+!     zumin is a gustiness floor standing in for the unresolved wind variance
+!     that keeps the surface exchange from collapsing in a calm cell. It is in
+!     m/s and it is used at two places against two DIFFERENT quantities: a
+!     squared speed in mktcoe, where it is squared, and a wind DIFFERENCE
+!     between adjacent levels in vdiff, where it is not. The comment used to say
+!     m/s while the first site compared it against m2/s2; at the declared 1 m/s
+!     the two forms coincide, which is why nothing noticed.
+      real :: zumin      = 1.    ! gustiness floor on the exchange wind (m/s)
+!
+!     vdiff_lamm is the asymptotic mixing length, in metres: the single number
+!     that sets free-tropospheric vertical diffusivity, through
+!     zmixm = lamm*k*z/(lamm + k*z), and through zlamh below it the heat
+!     version. 160 m is ECHAM's and is a fit to Earth's free troposphere. It is
+!     not obviously transferable, and it is left at ECHAM's value because
+!     nothing in this project has measured a replacement -- not because 160 m
+!     has been shown to apply here.
+      real :: vdiff_lamm = 160.  ! asymptotic mixing length (m)
+!
+!     The three Louis stability-function coefficients, cited in mktcoe to ECHAM
+!     REPORT 218, which is a report and not a derivation. None of the three is
+!     separately justified there or here; they are one fitted set and are used
+!     as one.
+      real :: vdiff_b    = 5.    ! Louis stability function, unstable slope
+      real :: vdiff_c    = 5.    ! Louis stability function, unstable denominator
+      real :: vdiff_d    = 5.    ! Louis stability function, stable branch
+!
+!     The reference temperature that converts a sigma level to a height, through
+!     the hypsometric zzlev = -gascon*ztscal*ln(sigmah)/ga. gascon and ga are
+!     this world's; 250 K is a representative mid-tropospheric temperature and
+!     was a bare `parameter` inside vdiff with no comment and no namelist route.
+      real :: ztscal     = 250.  ! reference temperature for sigma-to-height (K)
+!
+!     THE FREE-CONVECTION COEFFICIENT, derived in fluxini rather than declared.
+!     Miller et al. (1992)'s unstable-ocean transfer collapses in the convective
+!     limit to 0.0016*dth^(1/3)/(|U|*C_N), which is the convective velocity
+!     scale w* = (g H z_i / T)^(1/3) with the gravity and the inversion height
+!     folded into the coefficient. There is no ga anywhere in the expression, so
+!     on a 12.81 m/s2 world the coefficient was low by (12.81/9.80665)^(1/3) =
+!     1.093 and free-convection latent and sensible exchange over calm unstable
+!     ocean was about 9 per cent weak -- over the warm ocean, where the
+!     evaporation is. Scaled here, once, rather than at every gridpoint.
+      real :: freeconv   = 0.0   ! set by fluxini from ga
 
 !
 !     arrays
@@ -51,7 +94,7 @@
 !     Threads instead of ranks: a thread owns what a rank owned.
 !     Inert without -fopenmp, so the MPI and serial builds are unchanged.
 !$omp threadprivate(dtransh,dtransm,nevap,nshfl,nstress,ntsa,nvdiff,time4ev,time4fl,time4sf,time4sh,&
-!$omp&  time4st,time4tr,time4vd,vdiff_b,vdiff_c,vdiff_d,vdiff_lamm,version,zumin)
+!$omp&  time4st,time4tr,time4vd,vdiff_b,vdiff_c,vdiff_d,vdiff_lamm,version,zumin,ztscal,freeconv)
 
       end module fluxmod
 
@@ -63,7 +106,7 @@
       use fluxmod
 !
       namelist/fluxmod_nl/nvdiff,nshfl,nevap,nstress,ntsa                  &
-     &                ,zumin,vdiff_lamm,vdiff_b,vdiff_c,vdiff_d
+     &                ,zumin,vdiff_lamm,vdiff_b,vdiff_c,vdiff_d,ztscal
 !
       if(mypid==NROOT) then
          open(11,file=fluxmod_namelist)
@@ -87,6 +130,14 @@
       call mpbcr(vdiff_b)
       call mpbcr(vdiff_c)
       call mpbcr(vdiff_d)
+      call mpbcr(ztscal)
+
+!     ONCE, FROM THIS WORLD'S GRAVITY. See the declaration: 0.0016 is Miller's
+!     coefficient with Earth's g folded in, and w* goes as g^(1/3). world-e2k.
+      freeconv = 0.0016 * (ga / 9.80665)**(1./3.)
+      if (mypid == NROOT) then
+         write(nud,'(" * free-convection coefficient ",f12.8," *")') freeconv
+      endif
 
       return
       end subroutine fluxini
@@ -201,7 +252,10 @@
 !     windspeed (squared):
 !
 
-      zabsu2(:)=AMAX1(zumin,du(:,NLEV)*du(:,NLEV)+dv(:,NLEV)*dv(:,NLEV))
+!     SQUARED, because zabsu2 is a squared speed and zumin is a speed. At the
+!     declared 1 m/s this is the same number; at any other value it was the
+!     wrong one. world-e2k.
+      zabsu2(:)=AMAX1(zumin*zumin,du(:,NLEV)*du(:,NLEV)+dv(:,NLEV)*dv(:,NLEV))
 
 !
 !     z off lowermost layer
@@ -251,7 +305,7 @@
         if(dls(jhor) < 1.) then
          zdth=-(dtsa(jhor)                                              &
      &         -dt(jhor,NLEP)*(1.+(1./rdbrv-1.)*dq(jhor,NLEP)))
-         zrifh(jhor)=(1.+(0.0016*zdth**(1./3.)/SQRT(zabsu2(jhor))       &
+         zrifh(jhor)=(1.+(freeconv*zdth**(1./3.)/SQRT(zabsu2(jhor))     &
      &                  /zkblnz2)**1.25)**0.8
         else
          zrifh(jhor)=1.-3.*vdiff_b*zri(jhor)/zdenom
@@ -766,7 +820,6 @@
 !     calculate t,q,u,v tendencies due to vertical diffusion
 !     using the ECHAM semi-implicit scheme
 !
-      parameter(ztscal=250.)
 !
       real zdtdt(NHOR,NLEV)
       real zdudt(NHOR,NLEV)
