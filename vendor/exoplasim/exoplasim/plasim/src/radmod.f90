@@ -2200,7 +2200,16 @@
 !     a 5772 K spectrum and multiplied per band by the water vapour transmission
 !     so the two gases do not both claim the same photons, by
 !     exoplasim/scripts/corrk_cross_check.py --fit. It replaces a fit to
-!     Howard's bands that was 7.2% high at this planet's path.
+!     Howard's bands that is 7.2% stronger at this planet's path.
+!
+!     REFITTED once since, unchanged in method, when world-olt closed the hole
+!     the correlated-k bundle's join used to leave between its IR and VI band
+!     sets: 1974.95 to 2000 cm-1 was inside the table span and inside no band,
+!     and every band-weighted total priced it as transparent. Closing it adds
+!     1.7e-4 of the flux at 5 um and moves the absorptance at this planet's path
+!     by +0.5%, worth +0.01 W/m2 of insolation -- an eighth of the fit's own rms
+!     residual, so the coefficients follow their derivation rather than the
+!     result being worth chasing.
 !
 !     WHY THE WHOLE CURVE AND NOT THE TWO BANDS THAT WERE WRONG. The defect
 !     found was in the per-band water overlap: Howard's band-mean absorptance,
@@ -2208,22 +2217,22 @@
 !     band cores, putting the 2.7 um clear fraction at 0.171 where the line list
 !     says 0.003 and the 2.0 um one at 0.479 where it says 0.718. Correcting
 !     only those makes the TOTAL worse: summed over Howard's eight intervals the
-!     line list gives 0.004494 against the derivation's 0.005536, 18.8% low,
-!     while over all bands it gives 0.005098, 7.9% low. About an eighth of the
+!     line list gives 0.004520 against the derivation's 0.005536, 18.4% low,
+!     while over all bands it gives 0.005123, 7.5% low. About an eighth of the
 !     CO2 shortwave absorption falls outside every interval Howard measured, and
 !     the overlap error was partly standing in for it. Taking the level from the
 !     line list across the range needs no band bookkeeping and cannot cancel two
 !     errors by accident.
 !
 !     The form is a worse fit to this curve than to Howard's, and the cost sits
-!     where the model does not go: 8.9% of itself at u = 1e4, but 4.6% over
+!     where the model does not go: 8.8% of itself at u = 1e4, but 4.5% over
 !     100 to 1000 atmos-cm where a T42 column sits, against 4.0% for the fit it
 !     replaces. co2sww is unaffected -- it is a star-over-Sun RATIO and the two
 !     derivations agree on it to 0.03%.
-      parameter(zca1=3.0658E-4)
-      parameter(zcb1=20.376)
-      parameter(zca2=3.8193E-3)
-      parameter(zcb2=3.9672E-3)
+      parameter(zca1=3.1020E-4)
+      parameter(zcb1=19.857)
+      parameter(zca2=3.8291E-3)
+      parameter(zcb2=3.9587E-3)
       parameter(aa=0.2542857142857143)
       parameter(bb=0.8229693877551021)
       parameter(c0=0.14997959183673468)

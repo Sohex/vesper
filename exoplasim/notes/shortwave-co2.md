@@ -171,13 +171,13 @@ only absorption data that script has; it is what the patch header codes and what
 `co2.closed_form_fit`. PHYS-10 refitted the same form, over the same range and
 by the same protocol, to HITRAN2020 through the Generic PCM correlated-k tables,
 and that is what `radmod.f90` carries. At this planet's CO2 path the Howard fit
-is 7.7% stronger. The artifact records the running coefficients separately, in
+is 7.2% stronger. The artifact records the running coefficients separately, in
 `co2.closed_form_fit_in_radmod`, read out of the model source rather than
 restated, so the two cannot silently diverge again; the argument for the refit
 is `exoplasim/notes/corrk-cross-check.md`.
 
 Over 1 to 1e4 atmos-cm, which the model never leaves, the Howard fit is within
-4% of its own integration at worst and 1.2% rms; the line-list fit is 4.6% over
+4% of its own integration at worst and 1.2% rms; the line-list fit is 4.5% over
 the 100 to 1000 atmos-cm a T42 column occupies and worse only at the far end of
 the range, where no column goes. On a 2.7 W/m2 term either residual is at most a
 tenth of a W/m2, smaller than the 2.7 um bracket and far smaller than the H2O

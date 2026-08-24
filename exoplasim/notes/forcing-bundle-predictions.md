@@ -423,7 +423,7 @@ predictions were soft.
 | term | change | prediction, global mean | source |
 | --- | --- | ---: | --- |
 | PHYS-9 | `h2oswl` 1.127 | +1.25 K (+1.4 W/m2 TOA, +7.4 W/m2 atmospheric) | scaled from the table in `exoplasim/notes/corrk-cross-check.md`; arithmetic below |
-| PHYS-10 | line-list CO2 coefficients | about -0.03 K | the same table's CO2 row prices -7.9%; the landed fit is -7.2% at the planet path |
+| PHYS-10 | line-list CO2 coefficients | about -0.03 K | the same table's CO2 row prices -7.5%; the landed fit is -6.7% at the planet path |
 | CLIM-16 | `nhdiff = 1`, `hdiffk = 1000` | 0.00 W/m2 global by construction; +0.03 to +0.12 K via the ice edge | this note |
 | CLIM-17 | `TFREEZE` from declared salinity | 0.000 K | this note |
 | SPEC-1 | model reads `k25v` | 0.00 to +0.03 K | `analysis/error_budget.json`, measured on the warm state; the A/B re-measures it |

@@ -100,7 +100,12 @@ HOWARD_CO2_INTERVALS = {name: (b["lo"], b["hi"]) for name, b in CO2_BANDS.items(
 
 
 class CorrK:
-    """One premixed correlated-k table, IR and VI bands joined without overlap."""
+    """One premixed correlated-k table, its IR and VI band sets joined here.
+
+    The join is this script's, not the bundle's: see `__init__`. `join` is the
+    wavenumber the two sets meet at and `truncated` is the IR band that was cut
+    back to reach it, which a consumer has to know before pricing anything.
+    """
 
     def __init__(self, name: str, root: Path = CORRK, bands: str = BANDS):
         d = root / name
@@ -120,7 +125,7 @@ class CorrK:
         gw = np.loadtxt(d / "g.dat", skiprows=1)
         self.g = gw[:-1]                                      # the last weight is 0
 
-        edges, blocks = [], []
+        half = {}
         for tag in ("IR", "VI"):
             token = (d / bands / f"narrowbands_{tag}.in").read_text().split()
             nb = int(token[0])
@@ -131,12 +136,48 @@ class CorrK:
                 raise SystemExit(f"{tag} table is {raw.size} values, expected {np.prod(shape)}")
             # gasv8(L_NTREF, L_NPREF, L_REFVAR, L_NSPECT, L_NGAUSS), Fortran order.
             k = raw.reshape(shape, order="F")[..., :len(self.g)]
-            # IR runs 10-3000 cm-1 and VI 2000-30000; keep IR only below the join.
-            keep = e[:, 1] <= 2000.0 + 1e-6 if tag == "IR" else np.ones(nb, bool)
-            edges.append(e[keep])
-            blocks.append(k[:, :, :, keep])
-        self.edges = np.vstack(edges)
-        self.k = np.concatenate(blocks, axis=3)
+            # EACH SET IS CONTIGUOUS IN ITSELF, to the bit, and the join below is
+            # then the only place this script can open a hole. Checking it here
+            # is what makes that statement a fact about the files rather than an
+            # assumption about them.
+            step = float(np.abs(e[1:, 0] - e[:-1, 1]).max()) if nb > 1 else 0.0
+            if step != 0.0:
+                raise SystemExit(
+                    f"the {tag} set of {name}/{bands} is not contiguous: adjacent "
+                    f"edges differ by up to {step:g} cm-1. The join below assumes "
+                    "each half partitions its own span")
+            half[tag] = (e, k)
+
+        # THE JOIN IS THIS SCRIPT'S AND NOT THE BUNDLE'S. Upstream the two sets
+        # OVERLAP -- IR runs 10-3000 cm-1 and VI 2000-30000 -- and the Generic
+        # PCM never concatenates them: `rad_correlatedk_read_opacity_tables.F90`
+        # sets `IR_VI_wnlimit = 3000.` and hands `WNOI` and `WNOV` to two
+        # independent solvers. One flux-weighted partition is what the checks
+        # below need, so the two are joined here, and where that join is put is
+        # a decision this file owns.
+        #
+        # IT IS THE VI SET'S OWN FIRST EDGE, so the halves meet to the bit, and
+        # the IR band that straddles it is TRUNCATED rather than dropped. Cutting
+        # at a round 2000 and dropping every IR band reaching past it left
+        # 1974.95 to 2000 in neither half: 1.7e-4 of the solar flux inside the
+        # table span and inside no band, which every `broadband` below then
+        # priced as transparent. The truncated band keeps its own
+        # k-distribution, which is the only opacity the bundle carries over that
+        # sliver, and applying a band's distribution to a tenth of its width is
+        # an approximation where treating it as clear is a hole. world-olt.
+        #
+        # NOTHING IS WIDENED. An edge moved outward would make the arithmetic in
+        # `run_checks` telescope again while silencing the only instrument that
+        # can see a hole; this narrows one band and leaves that check sharp.
+        e_ir, k_ir = half["IR"]
+        e_vi, k_vi = half["VI"]
+        self.join = float(e_vi[0, 0])
+        keep = e_ir[:, 0] < self.join
+        e_ir, k_ir = e_ir[keep].copy(), k_ir[:, :, :, keep]
+        self.truncated = (float(e_ir[-1, 0]), float(e_ir[-1, 1]), self.join)
+        e_ir[-1, 1] = self.join
+        self.edges = np.vstack([e_ir, e_vi])
+        self.k = np.concatenate([k_ir, k_vi], axis=3)
         self.logk = np.log10(np.maximum(self.k, 1e-200))
 
     def kvec(self, p_mbar: float, t_k: float, q: float) -> np.ndarray:
@@ -269,18 +310,21 @@ def run_checks(t376: CorrK, t1000: CorrK, sun: Spectrum, water_cm: float,
     edges = sorted((float(lo), float(hi)) for lo, hi in t376.edges)
     lo_cm1, hi_cm1 = float(edges[0][0]), float(edges[-1][1])
     direct = sun.fraction_in_band(lo_cm1, hi_cm1)
-    # The IR and VI halves of the bundle are JOINED WITHOUT OVERLAP and do not
-    # meet: measured on the 376 ppm table, the IR set ends at 1974.95 cm-1 and
-    # the VI set begins at 2000. Flux in that hole is in the span and in no
-    # band, so it is computed and named rather than allowed to appear as a
-    # summation error.
+    # THE HOLE DETECTOR STAYS EVEN THOUGH THE JOIN NOW CLOSES. It is the only
+    # instrument that can see flux inside the span and inside no band, and it is
+    # what found the 1974.95 to 2000 cm-1 sliver the old round-number cut left.
+    # Reporting the count rather than assuming zero is the whole point.
     holes = [(edges[i][1], edges[i + 1][0]) for i in range(len(edges) - 1)
              if edges[i + 1][0] > edges[i][1]]
     hole_flux = sum(sun.fraction_in_band(a, b) for a, b in holes)
     slack = len(f) * float(np.finfo(np.float64).eps)
+    tlo, thi, tjoin = t376.truncated
+    print(f"  IR and VI joined at {t376.join:.6f} cm-1, the VI set's own first "
+          f"edge; the IR band straddling it is cut from {tlo:.6f}-{thi:.6f} to "
+          f"{tlo:.6f}-{tjoin:.6f} and keeps its own k")
     print(f"  flux fraction inside the {lo_cm1:g}-{hi_cm1:g} cm-1 table span, solar: "
-          f"{f.sum():.5f} in bands + {hole_flux:.5f} in {len(holes)} gap(s) "
-          f"between the IR and VI sets = {direct:.5f} integrated in one piece "
+          f"{f.sum():.5f} in {len(f)} bands + {hole_flux:.5f} in {len(holes)} gap(s) "
+          f"= {direct:.5f} integrated in one piece "
           "(the rest is below 0.33 um, where neither gas absorbs)")
     if abs(f.sum() + hole_flux - direct) > slack:
         failed.append(
@@ -290,6 +334,12 @@ def run_checks(t376: CorrK, t1000: CorrK, sun: Spectrum, water_cm: float,
             "differences of one cumulative integral, so a contiguous partition "
             f"telescopes exactly and can only differ by {slack:.1e} of float64 "
             "reassociation: the band edges overlap, or the span is misread")
+    if holes:
+        failed.append(
+            f"{len(holes)} window(s) carrying {hole_flux:.6f} of the flux sit "
+            "inside the table span and inside no band, so the correlated-k "
+            "tables price them as transparent in both gas sets. The join is "
+            f"made at the VI set's first edge and should leave none: {holes}")
 
     print("  T_mix/T_dry must return the same H2O absorptance from both tables:")
     for q in (1e-3, 1e-2, 1e-1):

@@ -3469,6 +3469,9 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 
       subroutine spectrala
       use pumamod
+#ifdef OMPSHARED
+      use shtnsmod, only: sh_sp2gp, sh_dv2uv
+#endif
 !
 !*    Add adiabatic and diabatic tendencies
 !
@@ -3504,11 +3507,13 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !     franks diagnostics
 !
       real, allocatable :: ztt(:,:)
-      real, allocatable :: zttgp(:,:)
       real, allocatable :: zsd(:,:),zsz(:,:),zsq(:,:),zsp(:),zst(:,:)
-      real, allocatable :: zugp(:,:),zvgp(:,:),zekin(:,:),zepot(:,:)
-      real, allocatable :: zqgp(:,:),zpgp(:)
-      real, allocatable :: zqmgp(:,:),zpmgp(:),ztgp(:,:)
+      real, allocatable :: zekin(:,:),zepot(:,:)
+!
+!     zttgp, ztgp, zqgp, zqmgp, zugp, zvgp, zpgp and zpmgp are in pumamod now,
+!     as bands of full-globe arrays, for the reason gtn and hdu are: SHTns
+!     writes the GLOBE in one call and cannot be handed a band. zekin and zepot
+!     stay here because nothing transforms into them.
 !
 !     the energy fixer's scratch: the imbalance, the column heat capacity it is
 !     spread over, and the weight sum that turns the pair into a per-area rate
@@ -3773,20 +3778,38 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !
       if(nenergy > 0) then
        allocate(ztt(NESP,NLEV))
-       allocate(zttgp(NHOR,NLEV))
        allocate(zst(NESP,NLEV))
        if (nqspec == 1) allocate(zsq(NESP,NLEV))
        allocate(zsp(NESP))
-       allocate(ztgp(NHOR,NLEV))
-       allocate(zqgp(NHOR,NLEV))
-       allocate(zqmgp(NHOR,NLEV))
-       allocate(zpgp(NHOR))
-       allocate(zpmgp(NHOR))
        call mpgallsp(ztt,stt,NLEV)
        call mpgallsp(zst,atm,NLEV)
        if (nqspec == 1) call mpgallsp(zsq,aqm,NLEV)
        call mpgallsp(zsp,apm,1)
        ztt(:,:)=ztt(:,:)*ct*ww
+#ifdef OMPSHARED
+       if (nshtns == 1) then
+!        SHTns lands in GRID space, so sp2fl and its fc2gp both go. `sq` and
+!        `sp` are the state at t+dt here -- the partials alias them -- so this
+!        is not gridpointa's transform repeated, it is a different time level.
+!
+!        THE LEADING BARRIER keeps a thread's write to the whole globe clear of
+!        a thread still reading last step's values out of the same scratch; the
+!        trailing one is the wrappers' nowait contract. Six calls between one
+!        pair, because the sources are not written in between and the
+!        destinations are disjoint.
+!$omp barrier
+         call sh_sp2gp(ztt, zttgp_g, NLEV)
+         if (nqspec == 1) call sh_sp2gp(sq, zqgp_g, NLEV)
+         if (nqspec == 1) call sh_sp2gp(zsq, zqmgp_g, NLEV)
+         call sh_sp2gp(zst, ztgp_g, NLEV)
+         call sh_sp2gp(zsp, zpmgp_g, 1)
+         call sh_sp2gp(sp, zpgp_g, 1)
+!$omp barrier
+         if (nqspec /= 1) then
+            zqgp(:,:) = 0.0
+            zqmgp(:,:) = 0.0
+         endif
+       else
        call sp2fl(ztt,zttgp,NLEV)
        if (nqspec == 1) call sp2fl(sq,zqgp,NLEV)
        if (nqspec == 1) call sp2fl(zsq,zqmgp,NLEV)
@@ -3804,6 +3827,26 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
        call fc2gp(ztgp,NLON,NLPP*NLEV)
        call fc2gp(zpgp,NLON,NLPP)
        call fc2gp(zpmgp,NLON,NLPP)
+       endif
+#else
+       call sp2fl(ztt,zttgp,NLEV)
+       if (nqspec == 1) call sp2fl(sq,zqgp,NLEV)
+       if (nqspec == 1) call sp2fl(zsq,zqmgp,NLEV)
+       call sp2fl(zst,ztgp,NLEV)
+       call sp2fl(zsp,zpmgp,1)
+       call sp2fl(sp,zpgp,1)
+       call fc2gp(zttgp,NLON,NLPP*NLEV)
+       if (nqspec == 1) then
+          call fc2gp(zqgp,NLON,NLPP*NLEV)
+          call fc2gp(zqmgp,NLON,NLPP*NLEV)
+       else
+          zqgp(:,:) = 0.0
+          zqmgp(:,:) = 0.0
+       endif
+       call fc2gp(ztgp,NLON,NLPP*NLEV)
+       call fc2gp(zpgp,NLON,NLPP)
+       call fc2gp(zpmgp,NLON,NLPP)
+#endif
        zpmgp(:)=psurf*exp(zpmgp(:))
        zpgp(:)=psurf*exp(zpgp(:))
        do jlev=1,NLEV
@@ -3819,24 +3862,57 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       if(nenergy > 0) then
        allocate(zsd(NESP,NLEV))
        allocate(zsz(NESP,NLEV))
-       allocate(zugp(NHOR,NLEV))
-       allocate(zvgp(NHOR,NLEV))
        allocate(zekin(NHOR,NLEV))
        allocate(zepot(NHOR,NLEV))
        call mpgallsp(zsd,adm,NLEV)
        call mpgallsp(zsz,azm,NLEV)
+#ifdef OMPSHARED
+       if (nshtns == 1) then
+!        One call for the pair, and it lands in grid space. `zsz` is ABSOLUTE
+!        vorticity, which is what both transforms take: legmod removes
+!        plavor's mode from its result and sh_dv2uv takes it off the
+!        coefficient.
+!$omp barrier
+         call sh_dv2uv(zsd, zsz, zugp_g, zvgp_g, NLEV)
+!$omp barrier
+       else
        call dv2uv(zsd,zsz,zugp,zvgp)
        call fc2gp(zugp,NLON,NLPP*NLEV)
        call fc2gp(zvgp,NLON,NLPP*NLEV)
+       endif
+#else
+       call dv2uv(zsd,zsz,zugp,zvgp)
+       call fc2gp(zugp,NLON,NLPP*NLEV)
+       call fc2gp(zvgp,NLON,NLPP*NLEV)
+#endif
        do jlev=1,NLEV
         zekin(:,jlev)=0.5*(zugp(:,jlev)*zugp(:,jlev)                    &
      &                    +zvgp(:,jlev)*zvgp(:,jlev))*cv*cv*rcsq(:)     &
      &               *zpmgp(:)   
         zepot(:,jlev)=ztgp(:,jlev)*acpd*(1.+adv*zqmgp(:,jlev))*zpmgp(:) 
        enddo
+#ifdef OMPSHARED
+       if (nshtns == 1) then
+!        THE LEADING BARRIER IS NOT SYMMETRY. The pair above is written to the
+!        SAME globe, and the loop just above reads it: without this a thread
+!        that arrives early overwrites the wind at t-dt for a thread still
+!        forming zekin from it. `sd` and `sz` here are the state at t+dt --
+!        `sdp` and `szp` alias them, so the tendencies applied above have
+!        already advanced them -- and the difference of the two kinetic
+!        energies is what denergy27 is.
+!$omp barrier
+         call sh_dv2uv(sd, sz, zugp_g, zvgp_g, NLEV)
+!$omp barrier
+       else
        call dv2uv(sd,sz,zugp,zvgp)
        call fc2gp(zugp,NLON,NLPP*NLEV)
        call fc2gp(zvgp,NLON,NLPP*NLEV)
+       endif
+#else
+       call dv2uv(sd,sz,zugp,zvgp)
+       call fc2gp(zugp,NLON,NLPP*NLEV)
+       call fc2gp(zvgp,NLON,NLPP*NLEV)
+#endif
        denergy(:,27)=0.
        denergy(:,26)=0.
        denergy(:,2)=0.
@@ -4049,18 +4125,8 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
        endif
        deallocate(zsd)
        deallocate(zsz)
-       deallocate(zugp)
-       deallocate(zvgp)
        deallocate(zekin)
        deallocate(zepot)
-      endif
-      if(nenergy > 0) then
-       deallocate(zttgp)
-       deallocate(zqgp)
-       deallocate(zqmgp)
-       deallocate(zpgp)
-       deallocate(zpmgp)
-       deallocate(ztgp)
       endif
       if (nenergy > 1 .or. nconvtime > 0) deallocate(zcnow)
 !
@@ -4663,6 +4729,9 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 
       subroutine spectrald
       use pumamod
+#ifdef OMPSHARED
+      use shtnsmod, only: sh_sp2gp
+#endif
 !
       real :: zsdt1(NSPP,NLEV),zsdt2(NSPP,NLEV)
       real :: zszt1(NSPP,NLEV),zszt2(NSPP,NLEV)
@@ -4672,11 +4741,16 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !     franks diagnostics
 !
       real, allocatable :: ztt(:,:)
-      real, allocatable :: zttgp(:,:)
       real, allocatable :: zst(:,:),zsq(:,:),zstt(:,:),zstt2(:,:)
       real, allocatable :: zsttd(:,:)
-      real, allocatable :: ztgp(:,:),zdtgp(:,:),zqgp(:,:)
+      real, allocatable :: zdtgp(:,:)
       real, allocatable :: zgw(:),zsum1(:)
+!
+!     zttgp, ztgp and zqgp are in pumamod, as bands of full-globe arrays --
+!     spectrala's twins, and this routine runs after it, so one set of slots
+!     serves both. zdtgp stays here: the ndheat > 1 efficiency block that
+!     fills it is not converted, ndheat defaulting to 1 and nothing in this
+!     project raising it.
 !
 !     prepare diagnostics of efficiency
 !
@@ -4691,8 +4765,6 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
        if (nqspec == 1) allocate(zsq(NESP,NLEV))      
        allocate(zstt(NESP,NLEV)) 
        allocate(zstt2(NESP,NLEV)) 
-       allocate(ztgp(NHOR,NLEV)) 
-       allocate(zqgp(NHOR,NLEV)) 
        allocate(zdtgp(NHOR,NLEV)) 
        allocate(zsum1(4))
        allocate(zgw(NHOR))
@@ -4753,11 +4825,24 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !
       if(nenergy > 0) then
        allocate(ztt(NESP,NLEV))
-       allocate(zttgp(NHOR,NLEV))
        call mpgallsp(ztt,stt,NLEV)
        ztt(:,:)=ztt(:,:)*ct*ww
+#ifdef OMPSHARED
+       if (nshtns == 1) then
+!        SHTns lands in GRID space, so sp2fl and its fc2gp both go. The
+!        barriers are the wrappers' contract: they write the whole globe and
+!        return without synchronising.
+!$omp barrier
+         call sh_sp2gp(ztt, zttgp_g, NLEV)
+!$omp barrier
+       else
        call sp2fl(ztt,zttgp,NLEV)
        call fc2gp(zttgp,NLON,NLPP*NLEV)
+       endif
+#else
+       call sp2fl(ztt,zttgp,NLEV)
+       call fc2gp(zttgp,NLON,NLPP*NLEV)
+#endif
        deallocate(ztt)
        denergy(:,3)=0.
        do jlev=1,NLEV
@@ -4769,7 +4854,6 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
      &                   *acpd*(1.+adv*dq(:,jlev))*dp(:)/ga*dsigma(jlev)
         endif 
        enddo
-       deallocate(zttgp)
       endif
 
 !     calculates spectral tendencies from restoration (if included)
@@ -4878,8 +4962,6 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
        if (nqspec == 1) deallocate(zsq)
        deallocate(zstt)
        deallocate(zstt2)
-       deallocate(ztgp)
-       deallocate(zqgp)
        deallocate(zdtgp)
        deallocate(zsum1)
        deallocate(zgw)
@@ -4951,11 +5033,21 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !
       if(nenergy > 0) then
        allocate(ztt(NESP,NLEV))
-       allocate(zttgp(NHOR,NLEV))
        call mpgallsp(ztt,stt,NLEV)
        ztt(:,:)=ztt(:,:)*ct*ww
+#ifdef OMPSHARED
+       if (nshtns == 1) then
+!$omp barrier
+         call sh_sp2gp(ztt, zttgp_g, NLEV)
+!$omp barrier
+       else
        call sp2fl(ztt,zttgp,NLEV)
        call fc2gp(zttgp,NLON,NLPP*NLEV)
+       endif
+#else
+       call sp2fl(ztt,zttgp,NLEV)
+       call fc2gp(zttgp,NLON,NLPP*NLEV)
+#endif
        denergy(:,5)=0.
        do jlev=1,NLEV
         denergy(:,5)=denergy(:,5)                                       &
@@ -4968,8 +5060,22 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
        enddo
        call mpgallsp(ztt,zsttd,NLEV)
        ztt(:,:)=ztt(:,:)*ct*ww
+#ifdef OMPSHARED
+       if (nshtns == 1) then
+!        THE LEADING BARRIER IS NOT SYMMETRY: the denergy05 loop above reads
+!        the same globe this call overwrites, and a thread that arrives early
+!        would take the diffusion heating away from a thread still forming 05.
+!$omp barrier
+         call sh_sp2gp(ztt, zttgp_g, NLEV)
+!$omp barrier
+       else
        call sp2fl(ztt,zttgp,NLEV)
        call fc2gp(zttgp,NLON,NLPP*NLEV)
+       endif
+#else
+       call sp2fl(ztt,zttgp,NLEV)
+       call fc2gp(zttgp,NLON,NLPP*NLEV)
+#endif
        denergy(:,24)=0.
        do jlev=1,NLEV
         denergy(:,24)=denergy(:,24)                                     &
@@ -4997,7 +5103,6 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
         denergyd24 = zd24(1)/zd24(2)
        endif
        deallocate(ztt)
-       deallocate(zttgp)
       endif
       if(nenergy > 0) then
        deallocate(zsttd)

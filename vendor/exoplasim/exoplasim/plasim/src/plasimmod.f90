@@ -525,6 +525,34 @@
       real, target :: hddt_g(NUGP,NLEV) = 0. ! heating rate, whole globe
       real, target :: hdek_g(NUGP,NLEV) = 0. ! kinetic energy change, whole globe
 
+!     The energy diagnostics' grid scratch. `config/planet.yaml` declares
+!     `energy_diagnostics` and `energy_fixer`, so every production run carries
+!     NENERGY = 1 and NENERGYFIX = 1 and `spectrala` and `spectrald` transform
+!     these EVERY timestep; `denergy` 24, 26 and 27 then drive the fixer, which
+!     writes `stt`. They are not prints.
+!
+!     WHY THEY CANNOT BE READ OFF ANOTHER ROUTINE. `assoc_spectral` points
+!     `sdp`, `spp`, `sqp` and `szp` at slices of `sd`, `sp`, `sq` and `sz`, so
+!     `spectrala`'s writes to the partials have already advanced the shared
+!     state by the time the diagnostics run: what these transform is the state
+!     at t+dt, and the pairing against `apm`, `aqm` and `atm` at t-dt is what
+!     makes 26 and 27 a centred difference. `gridpointa`'s `dp`, `dq`, `gu` and
+!     `gv` are the state at t, which is a DIFFERENT quantity.
+!
+!     They are here rather than local because SHTns writes the whole globe and
+!     cannot be handed a band. `spectrala` and `spectrald` do not overlap --
+!     master runs one and then the other -- so one set of slots serves both,
+!     the way `gridpointa`'s and `gridpointd`'s does. The total across the team
+!     is what the per-thread locals were.
+      real, target :: zttgp_g(NUGP,NLEV) = 0. ! temperature tendency, whole globe
+      real, target :: ztgp_g(NUGP,NLEV)  = 0. ! temperature at t-dt
+      real, target :: zqgp_g(NUGP,NLEV)  = 0. ! humidity at t+dt
+      real, target :: zqmgp_g(NUGP,NLEV) = 0. ! humidity at t-dt
+      real, target :: zugp_g(NUGP,NLEV)  = 0. ! wind, one time level then the other
+      real, target :: zvgp_g(NUGP,NLEV)  = 0.
+      real, target :: zpgp_g(NUGP)  = 0.      ! surface pressure at t+dt
+      real, target :: zpmgp_g(NUGP) = 0.      ! surface pressure at t-dt
+
 !     The output humidity. nlowio defaults to 1 and outaccu then sums sqout on
 !     EVERY timestep, so this is a per-step transform in a production run even
 !     though the profiling beds set nlowio=0 and never reach it.
@@ -567,6 +595,14 @@
       real, pointer :: hddt(:,:) => NULL()
       real, pointer :: hdek(:,:) => NULL()
       real, pointer :: zqout(:,:) => NULL() ! output humidity
+      real, pointer :: zttgp(:,:) => NULL() ! energy diagnostics, dt/dt
+      real, pointer :: ztgp(:,:)  => NULL() ! energy diagnostics, t at t-dt
+      real, pointer :: zqgp(:,:)  => NULL() ! energy diagnostics, q at t+dt
+      real, pointer :: zqmgp(:,:) => NULL() ! energy diagnostics, q at t-dt
+      real, pointer :: zugp(:,:)  => NULL() ! energy diagnostics, u
+      real, pointer :: zvgp(:,:)  => NULL() ! energy diagnostics, v
+      real, pointer :: zpgp(:)    => NULL() ! energy diagnostics, ps at t+dt
+      real, pointer :: zpmgp(:)   => NULL() ! energy diagnostics, ps at t-dt
 #else
       real :: gtn(NHOR,NLEV)  = 0. ! t nonlinear term
       real :: gqn(NHOR,NLEV)  = 0. ! q nonlinear term
@@ -586,6 +622,14 @@
       real :: hddt(NHOR,NLEV) = 0.
       real :: hdek(NHOR,NLEV) = 0.
       real :: zqout(NHOR,NLEV) = 0. ! output humidity
+      real :: zttgp(NHOR,NLEV) = 0. ! energy diagnostics, dt/dt
+      real :: ztgp(NHOR,NLEV)  = 0. ! energy diagnostics, t at t-dt
+      real :: zqgp(NHOR,NLEV)  = 0. ! energy diagnostics, q at t+dt
+      real :: zqmgp(NHOR,NLEV) = 0. ! energy diagnostics, q at t-dt
+      real :: zugp(NHOR,NLEV)  = 0. ! energy diagnostics, u
+      real :: zvgp(NHOR,NLEV)  = 0. ! energy diagnostics, v
+      real :: zpgp(NHOR)       = 0. ! energy diagnostics, ps at t+dt
+      real :: zpmgp(NHOR)      = 0. ! energy diagnostics, ps at t-dt
       real :: sqout_g(NESP,NLEV) = 0.0 ! unused off the threaded build
       real :: gd(NHOR,NLEV)   = 0. ! divergence
       real :: gt(NHOR,NLEV)   = 0. ! temperature (-t0)
@@ -1033,6 +1077,7 @@
 !$omp&  efficiency_dat,evap,filterkappa,fixedlon,fluxmod_namelist,frcmod,g,ga,gascon,gd,gp,gpi,&
 !$omp&  gpimax,gpj,gq,gqdt,gqn,gtn,gut,gvt,guz,gvz,gke,guq,gvq,gvpp,&
 !$omp&  hdu,hdv,hdun,hdvn,hdq,hddt,hdek,zqout,&
+!$omp&  zttgp,ztgp,zqgp,zqmgp,zugp,zvgp,zpgp,zpmgp,&
 !$omp&  gt,gtdt,gu,gudt,guiinc,guimax,guimin,gv,gvdt,gwd,gz,&
 !$omp&  hcendstep,hcinterval,&
 !$omp&  hcstartstep,ice_output,icemod_namelist,kick,l_aero,laav,laavmax,landhoskn0,landmod_namelist,&
@@ -1179,6 +1224,14 @@
       hddt => hddt_g(lo:hi,:)
       hdek => hdek_g(lo:hi,:)
       zqout => zqout_g(lo:hi,:)
+      zttgp => zttgp_g(lo:hi,:)
+      ztgp  => ztgp_g(lo:hi,:)
+      zqgp  => zqgp_g(lo:hi,:)
+      zqmgp => zqmgp_g(lo:hi,:)
+      zugp  => zugp_g(lo:hi,:)
+      zvgp  => zvgp_g(lo:hi,:)
+      zpgp  => zpgp_g(lo:hi)
+      zpmgp => zpmgp_g(lo:hi)
       dqt  => dqt_g(lo:hi,:)
 #endif
       return

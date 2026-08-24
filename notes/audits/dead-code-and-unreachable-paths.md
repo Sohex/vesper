@@ -320,39 +320,59 @@ consumed -- `xsect` prints them to the diagnostic log through `wrzs`.
 back 0. This is diagnostic code designed to be off; it is recorded as a size,
 not as a defect.
 
-## 4. The transform migration is less complete than the tracker records
+## 4. The transform migration and what is left on legmod deliberately
 
 CLIM-64 closed on the finding that `mkdheat` was the last hot legmod caller. It
-is not.
+was not, and the sites it missed were the energy diagnostics.
 
 `mkdheat`'s two `sp2fl` calls were inside `if(nenergy > 0)` and outside every
 `nshtns` branch, under a comment describing the block as off by default.
-`config/planet.yaml` declares `energy_diagnostics` and every production
-namelist records `NENERGY = 1`, so the block runs every timestep of every run
-and legmod's Legendre loops ran with it. Both now take `sh_sp2gp` into `hddt_g`
-under `nshtns == 1`, the way the `zhe` transform above them already did, and the
-comment says what is true.
+`config/planet.yaml` declares `energy_diagnostics` and `energy_fixer`, so every
+production namelist records `NENERGY = 1` and `NENERGYFIX = 1`, the block runs
+every timestep of every run and legmod's Legendre loops ran with it. Both now
+take `sh_sp2gp` into `hddt_g` under `nshtns == 1`, the way the `zhe` transform
+above them already did.
 
-`mkdheat` was not the only one, and this is the part CLIM-64 missed rather than
-got wrong about `mkdheat`. Thirteen more legmod transforms run per timestep
-inside live `nenergy` blocks with no `nshtns` branch, in `spectrala` and
-`spectrald`:
+`spectrala` and `spectrald` carried eleven more of the same shape on the same
+guard. All eleven now branch on `nshtns` (world-3ya):
 
-| where | what | guard |
-| --- | --- | --- |
-| `spectrala` | six `sp2fl` | `nenergy > 0 .or. nentropy > 0` |
-| `spectrala` | two `dv2uv` | `nenergy > 0` |
-| `spectrala` | one `sp2fl` | `nenergy > 1` |
-| `spectrald` | one `sp2fl` | `nenergy > 0` |
-| `spectrald` | three `sp2fl` | `nenergy > 0 .or. nentropy > 0` |
-| `spectrald` | two `sp2fl` | `nenergy > 0` |
+| where | what | guard | live at the production namelist |
+| --- | --- | --- | --- |
+| `spectrala` | four `sp2fl`, two of them `nqspec`-guarded | `nenergy > 0` | yes |
+| `spectrala` | two single-level `sp2fl` | `nenergy > 0` | yes |
+| `spectrala` | two `dv2uv` | `nenergy > 0` | yes |
+| `spectrala` | one `sp2fl`, six times a step in a `jterm` loop | `nenergy > 1` | no |
+| `spectrald` | one `sp2fl` | `nenergy > 0` | yes |
+| `spectrald` | three `sp2fl`, one of them `nqspec`-guarded | `ndheat > 1` | no |
+| `spectrald` | two `sp2fl` | `nenergy > 0` | yes |
 
-None of them can be swapped in place, which is why `mkdheat` went first: they
-write into arrays the routine ALLOCATES per thread, and `sh_sp2gp` uses `!$omp
-do` and needs a shared full-globe destination. `mkdheat`'s did not, because
-`hddt_g` and its per-thread pointer already existed from CLIM-57. Converting the
-rest means giving each of those scratch arrays the same `_g` twin, which is the
-shape of work `exoplasim/notes/shared-spectral-state.md` describes.
+The two rows that are not live stay on legmod, and that is a decision rather
+than an omission. `ndheat` defaults to 1 (`plasimmod.f90:273`) and nothing in
+this project raises it; its block writes to Fortran unit 9 and nothing reads
+that file. `nenergy > 1` is the world-0ov conversion control, which
+`run_exoplasim.py:948-959` reaches only from `energy_diagnostics: 2`. Neither
+is worth the barrier surface.
+
+WHY THEY COULD NOT BE SWAPPED IN PLACE, which is why `mkdheat` went first:
+`sh_sp2gp` uses an `!$omp do` and writes the WHOLE GLOBE, while these wrote
+into arrays the routines ALLOCATED per thread, so each thread would have kept
+only the levels its own iterations covered. `mkdheat`'s could move because
+`hddt_g` and its per-thread pointer already existed from CLIM-57. `zttgp`,
+`ztgp`, `zqgp`, `zqmgp`, `zugp`, `zvgp`, `zpgp` and `zpmgp` now have the same
+`_g` twin and threadprivate band pointer, which is the shape of work
+`exoplasim/notes/shared-spectral-state.md` describes. The added shared storage
+is `6*NUGP*NLEV + 2*NUGP` words, and the team total is what the per-thread
+allocations were: one shared copy replaces NPRO private ones of NUGP/NPRO rows.
+
+THE TRAP THESE SITES SET, and it is the reason "just read it off gridpointa"
+is wrong. `assoc_spectral` (`plasimmod.f90:1170-1176`) points `sdp`, `spp`,
+`sqp` and `szp` at slices of `sd`, `sp`, `sq` and `sz`, so a write to a partial
+IS a write to the shared field. By the time `spectrala`'s diagnostics run, its
+step 4 has already advanced them: `sp2fl(sq,...)` and `sp2fl(sp,...)` there
+transform the state at t+dt, and the pairing against `apm`, `aqm` and `atm` at
+t-dt is what makes `denergy` 26 and 27 a centred difference. `gridpointa`'s
+`dp`, `dq`, `gu` and `gv` are the state at t. The two look interchangeable and
+are not.
 
 The rest of legmod is correctly retained and must not be read as dead. The axis
 is `nshtns`, a runtime namelist key, not the parmode: `verify_shtns_model.sh`
@@ -362,7 +382,7 @@ so the threaded build carries both transforms and switches at runtime.
 reference arm. Only `sp3fc` (`legmod.f90:465-476`, 12 lines) is unreachable in
 every configuration.
 
-The mirror holds on the other side: all four `use shtnsmod` sites that import
+The mirror holds on the other side: all seven `use shtnsmod` sites that import
 the wrappers are inside `#ifdef OMPSHARED`, so about 398 lines of
 `shtnsmod.f90` are compiled with zero references in any MPI or serial build.
 That is exactly why `CMakeLists.txt` has to link SHTns in every configuration.
