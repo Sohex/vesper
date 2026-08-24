@@ -623,3 +623,55 @@ That also settles the shape of the earlier question. Speed cannot be bought by
 spending physics here because the physics was already being spent -- at
 0.6 W/m2 with the filter and 1.4 without it, in a configuration with no physics
 in it at all.
+
+### The resolution test was confounded, and says only what it says
+
+Dry adiabatic, dt 22.5, one orbit, filter on:
+
+| rung | sink | K per orbit | initial state |
+| --- | ---: | ---: | --- |
+| T21 | -0.041 | -0.076 | COLD |
+| T42 | -0.579 | -1.182 | settled restart |
+| T85 | -0.163 | -0.306 | COLD |
+
+**Not a resolution scaling.** T21 and T85 were cold-started because no spun-up
+state exists above T42, and a cold start carries almost no eddy energy for the
+sink to act on. The ordering -- T42 worst, T85 next, T21 nearly clean -- tracks
+how much small-scale energy each arm had, not its truncation.
+
+It does reinforce the one dependence that has held throughout: **the sink tracks
+resolved small-scale energy.** What it cannot do is separate spectral truncation
+of the nonlinear terms from the alternatives, which was the point of running it.
+Doing that properly needs a spun-up state at each rung, which is a commissioning
+task rather than a test.
+
+### Where instrumentation has to go, and why not elsewhere
+
+The state changes in exactly two places per timestep. `spectrald` contributes
++0.27, matching the booked diffusion heating in `denergy24`. `26 - 27` is -0.87
+against a total of -0.58, so the loss is in `spectrala`.
+
+Inside `spectrala` the update is `stp = delt2*stt + atm` and its siblings --
+arithmetic that cannot lose energy on its own. The tendencies are what carry it,
+and they are formed in `gridpointa` by `mktend`, which computes the nonlinear
+terms in gridpoint space and transforms them back **with truncation**. Energy in
+the part of the product that falls outside the truncation is discarded.
+
+That predicts what was measured rather than being fitted to it: the loss per
+step goes as `dt` because it is a tendency increment, so the loss RATE is
+dt-independent -- 0.85 per halving against 0.50 for a first-order and 0.25 for a
+second-order time error. **The semi-implicit splitting is excluded by its own
+scaling**, which is why it is not the first target.
+
+So the instrumentation is a two-point comparison inside one routine: the energy
+tendency implied by the gridpoint fields entering `mktend`, against the energy
+tendency implied by the truncated spectral tendencies leaving it. Their
+difference is the discarded energy, directly measured. The project's
+control-patch pattern is the vehicle -- patch, mark with `CONTROL PATCH IN
+PROGRESS`, build one binary, run, restore -- and `smoke_test` refuses to let the
+marker be committed.
+
+NOT AVAILABLE, and worth stating so it is not attempted: parking the
+decomposition in unused `denergy` slots. All 28 are written somewhere, and
+radiation writes 9 and 10 in `gridpointd`, which runs after `spectrala` and
+would overwrite them before output.
