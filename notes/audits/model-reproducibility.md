@@ -92,8 +92,8 @@ own resource accounting, so two identical integrations differ in it by
 construction. Filtering it by reading a diff is not enough: every line of that
 block is conditional on its counter being non-zero, so a filter built from one
 pair of runs passed three cells and failed three more when "Page faults"
-appeared. The filter is now taken from the block that writes it,
-`plasim.f90:1011-1042`. With it, the difference is exactly zero.
+appeared. The filter is now taken from the block that writes it, the `nresources` block at
+`plasim.f90:1145-1175`. With it, the difference is exactly zero.
 
 **A bed copied out of `exoplasim/runs/` carries the binaries that run STARTED
 with.** The first pass of this matrix measured a tree three commits behind the
@@ -115,8 +115,18 @@ first establish its own reproducibility horizon with a same-binary control -- is
 is the same rank count, and a same-binary control is one cheap run rather than a
 bound carried on every claim.
 
-Not measured here: rank counts other than 8 and 16, resolutions other than T42,
-and segments longer than 56 timesteps. The build-flag benchmark covers the last
+**"Rank count" here is the DECOMPOSITION count and the finding survives the MPI
+removal.** These runs were MPI at 8 and 16 ranks. world-38b removed the MPI and
+serial build paths, so `NPRO` is now the OpenMP thread count -- and `NPRO` is
+what `NLPP = NLAT / NPRO` divides the latitudes by, so the decomposition is
+exactly as live under threads as it was under ranks. An A/B must hold the THREAD
+count fixed, for the same reason and by the same arithmetic. world-ljj added a
+runtime refusal in `mpstart` for a thread count that does not divide `NLAT`,
+which removes the one way the count could change the answer without changing the
+binary.
+
+Not measured here: decomposition counts other than 8 and 16, resolutions other
+than T42, and segments longer than 56 timesteps. The build-flag benchmark covers the last
 of those in one configuration, at 600 steps on 16 ranks with output off, where
 `plasim_status` came out bit-identical across about 48 repeats spanning four
 binaries (`notes/audits/aocl-and-model-build-flags.md`).
