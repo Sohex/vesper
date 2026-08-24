@@ -265,6 +265,11 @@ unless told they exist.
 | `run_exoplasim.py` | prepare, validate and run an experiment |
 | `continue_exoplasim.py` | resume a prepared run from its latest restart; `--purpose` says what the segment is for |
 | `restart_surface.py` | checks a restart's own copy of every staged surface field against the field it was built from; gates every resume, and `--self-test` proves it can fail |
+| `convert_restart.py` | converts a restart across horizontal resolution and real precision onto a template the target executable wrote, and reports what the conversion cost; the result is a NEW INITIAL CONDITION, never a continuation. `--inspect`, `--check-template`, `--dry-run`, and `--self-test` proves every transform against a control that fails |
+| `restart_format.py` | the one restart parser and writer: names are found by position, not by looking like text. Imported, not run |
+| `restart_schema.py` | what every restart record IS. Its inventory is parsed out of the model's own `put_restart_*` call sites; its semantic policy is reviewed and checked in, and `check_policy_covers_source` fails if the model grows a record the policy has not been told about |
+| `restart_transforms.py` | the two ways a field crosses a resolution change: triangular spectral projection by `(m,n)`, and a conservative Gaussian remap whose longitude is a fraction of a turn from the cell index and never a degree |
+| `restart_convert_selftest.py` | the converter's proof; reached through `convert_restart.py --self-test` |
 | `segments.py` | what a run's segments were for and which orbits that makes usable; the one reader of the manifest's `segments` list |
 | `finalize_existing_segment.py` | record a completed segment after post-run bookkeeping failed; takes the same `--purpose` |
 | `run_stellar_cycle.py` | run or resume a superposed-sinusoid stellar-flux experiment |

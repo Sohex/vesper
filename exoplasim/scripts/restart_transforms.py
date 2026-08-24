@@ -31,7 +31,6 @@ from dataclasses import dataclass
 
 import numpy as np
 
-import _paths  # noqa: F401  -- puts the shared modules on the path
 from gauss_weight_reference import gauss_legendre
 
 

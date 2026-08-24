@@ -612,6 +612,10 @@ one_offs:
   - exoplasim/scripts/dry_energy_order.py
   - exoplasim/scripts/transform_exactness.py
   - exoplasim/scripts/restart_surface.py
+  # Restart conversion across resolution and precision, and the modules it
+  # is built from. Outside the graph: a converted restart is an initial
+  # condition a caller chooses to make, not a product any step needs.
+  - exoplasim/scripts/convert_restart.py
   - hydrography/scripts/validate_lake_solver.py
   - hydrography/scripts/build_earth_wtd_sites.py
   - hydrography/scripts/build_us_wtd_sites.py
