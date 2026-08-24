@@ -734,10 +734,13 @@ def check_omp_directive_length() -> list[str]:
     threaded build -- points at the new code rather than at a directive that
     reads correctly in the editor.
 
-    The bar is 132, which is what `most_compiler_omp` passes as
-    `-ffixed-line-length-132`, and the check is over DIRECTIVES only: ordinary
-    over-length lines elsewhere in the vendored sources are upstream's and are
-    not silent in the same way.
+    The bar is 132 because these are `.f90` files, gfortran compiles them as
+    FREE form, and 132 columns is gfortran's free-form default. It is a
+    property of the language rather than of any flag, which is why
+    `-ffixed-line-length-132` was measured to be a no-op and left out of
+    `config/planet.yaml`'s `f90_opts` (`notes/audits/model-build-flags.md`).
+    The check is over DIRECTIVES only: ordinary over-length lines elsewhere in
+    the vendored sources are upstream's and are not silent in the same way.
     """
     src = ROOT / "vendor/exoplasim/exoplasim/plasim/src"
     problems = []

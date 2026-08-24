@@ -1,17 +1,20 @@
 #!/usr/bin/env python3
-"""CH4 and N2O: this host's surface mixing ratios, and what the missing band is worth.
+"""CH4 and N2O: this host's surface mixing ratios, and what their band is worth.
 
     python analysis/trace_gas_forcing.py
 
 Worldbuilding. Vesper is an invented planet and this script is about the
-simulation of it: a toy climate model's longwave scheme, the two trace
-absorbers it has no term for, and the modelled mixing ratios that set what
-those terms would be worth. Every quantity here is a modelled field.
+simulation of it: a toy climate model's longwave scheme, two trace absorbers,
+and the modelled mixing ratios that set what their terms are worth. Every
+quantity here is a modelled field.
 
-`config/planet.yaml` records that PlaSim's longwave is Sasamori (1968) over
-water vapour, CO2 and ozone, that `radmod.f90` carries no CH4 and no N2O term,
-and that adding either means adding a band rather than setting a key. This
-script prices that omission, and it writes `analysis/trace_gas_forcing.json`.
+This is the OFFLINE answer, from line-by-line fits, and it is the reference the
+model's own band is measured against rather than a price for an omission.
+`radmod.f90` carries CH4 and N2O in the resident trace-gas band of CLIM-42, and
+`exoplasim/notes/trace-gas-band.md` reports that band returning 40 per cent of
+the number computed here -- the same fraction this broadband scheme returns for
+CO2. So what this script bounds is the residual the scheme still misses.
+It writes `analysis/trace_gas_forcing.json`.
 `exoplasim/notes/trace-gas-absorbers.md` is the argument; this is the
 derivation made re-runnable.
 
