@@ -1881,15 +1881,18 @@ def expected_namelist_keys(config: dict) -> dict:
     from the staging code, because a check built out of the staging lists tests
     only that they agree with themselves. CONS-9.
 
-    A float value is compared numerically. A STR value is a per-level array,
-    held as the `n*value` text a Fortran namelist replicates, and is compared as
-    text: that is the only comparison that tells a replicated array apart from a
-    scalar, and a namelist scalar assigned to an array sets element 1 only.
+    A value is either a number or a SEQUENCE of numbers, and both go through one
+    comparison: the staged text is expanded into its elements, Fortran's
+    `n*value` replication included, and compared element by element at 1e-9.
+    LENGTH is half the check and is what tells a replicated array apart from a
+    scalar -- a namelist scalar assigned to an array sets element 1 only, so a
+    one-element ARRAY where the config wants NLEV of them is the world-720
+    failure and must not pass.
     """
     m = config["model"]
     want: dict = {"radmod_namelist": {}, "icemod_namelist": {}, "plasim_namelist": {},
                   "planet_namelist": {}, "landmod_namelist": {},
-                  "glacier_namelist": {}}
+                  "glacier_namelist": {}, "oceanmod_namelist": {}}
     for key, name, default in SHORTWAVE_GAS_KEYS:
         v = m.get(key)
         if v is not None and float(v) != default:
@@ -1907,6 +1910,31 @@ def expected_namelist_keys(config: dict) -> dict:
     # world-ayx, and unconditional for the same reason.
     want["radmod_namelist"]["BO3"] = float(m.get("ozone_height_m", 20000.0))
     want["radmod_namelist"]["CO3"] = float(m.get("ozone_spread_m", 5000.0))
+    # world-nfh, the per-band canopy albedo, and PHYS-11's cloud absorption
+    # pair. All three are written unconditionally by `configure_otherargs` and
+    # all three are ARRAYS or scale one: ALBFOREST is per band, ACL2 is the
+    # three-layer cloud triplet, and dropping either reverts the modelled
+    # surface and cloud to radmod's and landmod's compiled Earth-Sun broadband
+    # endmembers. ALBFOREST is the one this gate could not hold until the
+    # comparison carried sequences; world-2wd.
+    #
+    # Rounded to the six significant digits `configure_otherargs` writes, for
+    # AKAP's reason below: the comparison is against the value the namelist can
+    # hold and not against one more digit than it carries.
+    want["landmod_namelist"]["ALBFOREST"] = [
+        float(f"{float(v):.6g}") for v in m["vegetation_albedo_bands"]]
+    cloud_scale = float(m.get("cloud_absorption_scale", 1.0))
+    want["radmod_namelist"]["TSWR3"] = float(f"{0.0055 * cloud_scale:.6g}")
+    want["radmod_namelist"]["ACL2"] = [
+        float(f"{v * cloud_scale:.6g}") for v in (0.05, 0.10, 0.20)]
+    # CLIM-16, oceanmod_nl, and unconditional for the same reason. NLEV_OCE is
+    # 1 so HDIFFK is a one-element array, which is why one element is what this
+    # asks for.
+    ocean = config.get("ocean", {})
+    want["oceanmod_namelist"]["NHDIFF"] = float(
+        int(bool(ocean.get("horizontal_diffusion", False))))
+    want["oceanmod_namelist"]["HDIFFK"] = [
+        float(f"{float(ocean.get('horizontal_diffusivity_m2_s', 1.0e3)):.6g}")]
     # world-cwc and world-qpe, written unconditionally by configure_otherargs
     # for the same reason. DSMAX is the one CLIM-17 already lost once: a key
     # whose whole purpose is to be lifted reverts to the compiled 5 m on any
@@ -1999,14 +2027,15 @@ def expected_namelist_keys(config: dict) -> dict:
         ntru = int(rung.lstrip("Tt"))
         want["plasim_namelist"]["NHDIFF"] = float(
             round(float(hd["cutoff_fraction"]) * ntru))
-        # PER-LEVEL ARRAYS, compared as the replicated text the namelist holds.
-        # A scalar here would pass while levels 2..NLEV kept `readnl`'s values,
-        # which is world-720's failure and is exactly what this must not miss.
+        # PER-LEVEL ARRAYS, asked for at their full length. A scalar here would
+        # pass a value comparison while levels 2..NLEV kept `readnl`'s values,
+        # which is world-720's failure; it fails a LENGTH comparison, which is
+        # exactly what this must not miss.
         layers = int(m["layers"])
-        want["plasim_namelist"]["NDEL"] = f"{layers}*{int(hd['order_alpha'])}"
+        want["plasim_namelist"]["NDEL"] = [float(int(hd["order_alpha"]))] * layers
         for key, field in (("TDISSD", "divergence"), ("TDISSZ", "vorticity"),
                            ("TDISST", "temperature"), ("TDISSQ", "humidity")):
-            want["plasim_namelist"][key] = f"{layers}*{float(tau[field])}"
+            want["plasim_namelist"][key] = [float(tau[field])] * layers
     return {f: keys for f, keys in want.items() if keys}
 
 
@@ -2032,23 +2061,28 @@ def verify_staged_namelists(run_dir: Path, config: dict) -> dict:
             except (KeyError, FileNotFoundError):
                 wrong.append(f"{key} absent from {fname}, config wants {want}")
                 continue
-            # A str want is a per-level ARRAY, held as the `n*value` text a
-            # Fortran namelist replicates. Compared as text because that is the
-            # only form that distinguishes a replicated array from a scalar,
-            # and a scalar sets element 1 only. world-720, world-8bs.
-            if isinstance(want, str):
-                if raw.rstrip(",").strip() != want:
-                    wrong.append(f"{key} in {fname} is {raw!r}, config wants {want!r}")
-                checked[f"{key}@{fname}"] = raw
-                continue
+            wanted = [float(v) for v in want] if isinstance(want, (list, tuple)) \
+                else [float(want)]
             try:
-                got = float(raw)
+                got = namelist_elements(raw)
             except ValueError:
                 wrong.append(f"{key} in {fname} is not a number")
                 continue
-            if abs(got - want) > 1e-9:
-                wrong.append(f"{key} in {fname} is {got:g}, config wants {want:g}")
-            checked[f"{key}@{fname}"] = got
+            if len(got) != len(wanted):
+                # LENGTH FIRST. A scalar staged where the config wants a
+                # per-level array sets element 1 and leaves levels 2..NLEV at
+                # `readnl`'s compiled values, which reads as correct at every
+                # element the comparison would otherwise look at. world-720.
+                wrong.append(
+                    f"{key} in {fname} has {len(got)} element(s), config wants "
+                    f"{len(wanted)}: {raw!r}")
+            else:
+                for i, (g, w) in enumerate(zip(got, wanted), start=1):
+                    if abs(g - w) > 1e-9:
+                        where = f"{key} in {fname}" if len(wanted) == 1 \
+                            else f"element {i} of {key} in {fname}"
+                        wrong.append(f"{where} is {g:g}, config wants {w:g}")
+            checked[f"{key}@{fname}"] = got[0] if len(got) == 1 else got
     if wrong:
         raise SystemExit(
             "the staged namelists do not match config/planet.yaml:\n  "
@@ -2057,6 +2091,26 @@ def verify_staged_namelists(run_dir: Path, config: dict) -> dict:
               "Fix the staging rather than the check; see docs/src/practice/failure-modes.md "
               "class 22.")
     return checked
+
+
+def namelist_elements(raw: str) -> list[float]:
+    """A staged namelist value as the list of numbers the model will read.
+
+    Fortran's `n*value` replication is expanded, because a replicated array and
+    the same array written out element by element are the same value to the
+    model and must be the same value here. Raises ValueError on anything that
+    is not a number, which is what puts a logical or a string beyond this gate.
+    """
+    elements: list[float] = []
+    for token in raw.replace(",", " ").split():
+        count, star, value = token.partition("*")
+        if star:
+            elements.extend([float(value)] * int(count))
+        else:
+            elements.append(float(count))
+    if not elements:
+        raise ValueError(f"no numbers in {raw!r}")
+    return elements
 
 
 def namelist_value(path: Path, key: str) -> str:
