@@ -502,37 +502,36 @@ than as lineage. A restart with neither a run manifest nor a report beside it
 is now refused: that case used to skip the surface guard entirely, because the
 guard reads the donor's manifest and there was none.
 
-**The model-owned post-load fixup is REFUSED, on a measurement at a real rung
-change.** The derived records -- `dalb`, `dsalb1`, `dsalb2`, `dz0`, `dqsat` --
-arrive holding the template's values, and the model recomputes each of them
-during its first timestep. Measured at T21 to T42 by running the same converted
-state twice, once as the converter produces it and once with those five
-replaced by the donor's own values remapped onto the target grid, which is the
-perfect-fixup proxy because the donor's derived state is consistent with the
-prognostics that were converted.
+**The model-owned post-load fixup is REFUSED, and the transient it would have
+removed is gone anyway.** Seven records are rebuilt by the model before it uses
+them again -- `dalb`, `dsalb1`, `dsalb2`, `dz0`, `dqsat`, and `dcc` and `dql`,
+which `rainmod.f90:1917-1918` zeroes and `mkclouds` rebuilds every timestep
+under NCLOUDS = 1. They are REMAPPED from the donor and named in the report,
+not taken from the template: between the two, the donor's is consistent with
+the prognostics that were converted and the template's is consistent with
+nothing in the file.
 
-The template was a one-orbit T42 cold start carrying 188 times the donor's ice,
-so its albedo was 0.104 out in the area-weighted mean and 0.63 at worst: 33.6
-W/m2 of reflected shortwave instantaneously.
-
-IT LASTS EXACTLY ONE TIMESTEP, and the arithmetic says so rather than a
-comparison. The first output record averages 160 steps, so 33.6 W/m2 predicts
-0.210 on that record; measured, 0.213. An error surviving into a second
+That was measured before it was reasoned. Running the same converted T21-to-T42
+state twice, once with those records from the template and once remapped from
+the donor -- which at equal resolution is the perfect-fixup limit -- the
+template arm's albedo was 0.104 out in the area-weighted mean, worth 33.6 W/m2
+of reflected shortwave instantaneously. The first output record averages 160
+steps, so that predicts 0.210 on the record; measured, 0.213. Agreement to 1.7%
+is the mechanism rather than a comparison: an error surviving into a second
 timestep would double it.
 
-A fixup therefore removes a one-timestep transient worth 0.21 W/m2 on one
-record and 0.005 W/m2 over the orbit, against an energy fixer this project
-carries at 0.42. It is not worth a model change and its rule-4 rebuild. What
-does the work instead is `first_record_tainted` on the segment, which a
-consumer already refuses.
+So the fixup would have bought one timestep, and remapping instead of taking
+the template's values buys the same thing for nothing. A model change and its
+rule-4 rebuild would buy what is left, which is the difference between a
+remapped diagnostic and a recomputed one for a single step.
+
+`dqsat` and `dql` are identically zero in every restart on disk -- written,
+carried, never populated.
 
 The arms are `run_953ee807d32f` and `run_2c42c68fe9ca`, one T42 orbit each,
 seeded from the same conversion of `run_2b20e3324bb0`'s restart onto a template
 cut from `run_8102b89a08ac`. All three ran on executable `eae6b0e89357`, so the
-comparison is paired on everything but the five records.
-
-`dqsat` is identically zero in every restart on disk -- written, carried, never
-populated -- so its rebuild is trivially satisfied.
+comparison is paired on everything but those records.
 
 **THE TEMPLATE'S OWN STATE IS WHAT MATTERS, and it is not the derived records.**
 On the same conversion, 124 target land cells and 132 target ocean cells found
