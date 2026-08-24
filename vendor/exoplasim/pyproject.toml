@@ -50,36 +50,20 @@ Issues = "https://github.com/alphaparrot/ExoPlaSim/issues"
   
 [tool.hatch.build.targets.wheel]
 packages = ['/exoplasim',]
-exclude = ['exoplasim/cat*',
-                  'exoplasim/Cat_UG_00',
-                  'exoplasim/glacier',
-                  'exoplasim/images',
-                  'exoplasim/octave',
-                  'exoplasim/Plasim_Report',
-                  'exoplasim/Plasim_RM_16', 
+# Only the manuals are left to exclude: the sibling models, their manuals, the
+# LSG tree, the utilities and the Earth boundary sets are deleted rather than
+# packaged around. world-6ak.
+exclude = ['exoplasim/Plasim_RM_16',
                   'exoplasim/Plasim_UG_16',
-                  'exoplasim/puma',
                   'exoplasim/Puma_UG_17',
-                  'exoplasim/ug_cat_00',
-                  'exoplasim/sam',
-                  'exoplasim/lsg',
-                  'exoplasim/tools',
                   'exoplasim/plasim/run/*.sra']
 
 [tool.hatch.build.targets.sdist]
 packages = ['/exoplasim',]
-exclude = ['exoplasim/cat*',
-                  'exoplasim/Cat_UG_00',
-                  'exoplasim/glacier',
-                  'exoplasim/images',
-                  'exoplasim/octave',
-                  'exoplasim/Plasim_Report',
-                  'exoplasim/Plasim_RM_16', 
+# Only the manuals are left to exclude: the sibling models, their manuals, the
+# LSG tree, the utilities and the Earth boundary sets are deleted rather than
+# packaged around. world-6ak.
+exclude = ['exoplasim/Plasim_RM_16',
                   'exoplasim/Plasim_UG_16',
-                  'exoplasim/puma',
                   'exoplasim/Puma_UG_17',
-                  'exoplasim/ug_cat_00',
-                  'exoplasim/sam',
-                  'exoplasim/lsg',
-                  'exoplasim/tools',
                   'exoplasim/plasim/run/*.sra']

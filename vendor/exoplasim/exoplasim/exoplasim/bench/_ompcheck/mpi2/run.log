@@ -1,9 +1,0 @@
---------------------------------------------------------------------------
-prterun was unable to launch the specified application as it could not
-access an executable:
-
-   Executable: ./probe.x
-   Node: yggdrasil
-
-while attempting to start process rank 0.
---------------------------------------------------------------------------

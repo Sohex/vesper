@@ -54,9 +54,9 @@ foreach(v PLASIM_NLAT PLASIM_NLEV PLASIM_NPRO PLASIM_PRECISION PLASIM_PARMODE PL
 endforeach()
 
 # THE LADDER, and it is `lib/rungs.py` that declares it. 48 is T31, which was
-# missing here: `plasim/dat/T31` carries a complete surface set, `plasim.f90`
-# has an mpstep branch for it and `radmod.f90` a tuning branch, and
-# build_model.py resolved --res T31 cleanly and then died at this line.
+# missing here: `plasim.f90` has an mpstep branch for it and `radmod.f90` a
+# tuning branch, and build_model.py resolved --res T31 cleanly and then died at
+# this line.
 # world-ajx.
 require_one_of(PLASIM_NLAT      "${PLASIM_NLAT}"      32 48 64 96 128 160 192 256)
 require_one_of(PLASIM_PRECISION "${PLASIM_PRECISION}" 4 8)

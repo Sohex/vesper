@@ -37,7 +37,6 @@
 
 # compiled model executables land beside the tracked run inputs
 /exoplasim/plasim/run/*.x
-!/exoplasim/plasim/run/burn7.x
 /exoplasim/plasim/run/most_plasim_run
 
 # raw model output, written in place by a run started from the source tree

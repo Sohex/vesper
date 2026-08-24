@@ -346,11 +346,10 @@ class Model(object):
         self.currentyear=inityear
         
         # The ladder, as one table rather than a dispatch chain. It is the same
-        # ladder as `lib/rungs.py`, `plasim/CMakeLists.txt` and the T31 data set
-        # in `plasim/dat/`, and it is written here as a table so those can be
-        # checked against each other. The chain this replaced accepted seven
-        # rungs where the ladder declares eight -- T31 was absent although
-        # `plasim/dat/T31` carries a complete surface set and both `mpstep` and
+        # ladder as `lib/rungs.py` and `plasim/CMakeLists.txt`, and it is
+        # written here as a table so those can be checked against each other.
+        # The chain this replaced accepted seven rungs where the ladder declares
+        # eight -- T31 was absent although both `mpstep` and
         # `radmod` have a T31 branch -- and its T106 arm tested the string
         # "T106" twice where "t106" was meant, so the lower-case spelling it
         # advertised fell through to the ValueError. Which FFT module a rung

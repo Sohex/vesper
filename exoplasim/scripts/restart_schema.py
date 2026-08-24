@@ -68,8 +68,9 @@ def compiled_modules(plasim_dir: Path, suffixes: tuple = (".f90",)) -> tuple:
     """Every source the model executable is built from, in build order.
 
     Parsed from `plasim/CMakeLists.txt`, which is what `build_model.py` drives.
-    `plasim/bld/` is the old build's leftover and is NOT authoritative: it has
-    drifted from `plasim/src/`.
+    The build this replaced staged a second copy of every source under
+    `plasim/bld/` and drifted from `plasim/src/`; that directory is gone, and
+    reading the build file rather than any staged copy is what keeps it gone.
 
     `suffixes` widens it past Fortran. The restart scan wants the `.f90` set
     alone; `rebuild_binaries.model_sources` wants the C stub too, because it is

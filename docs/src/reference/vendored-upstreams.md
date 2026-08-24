@@ -94,6 +94,23 @@ is the largest single divergence from upstream and it is deliberate: pulling
 upstream will conflict there, and the resolution is always to keep this side.
 `notes/audits/model-build-driver.md` says what the old one did wrong.
 
+**The sibling models, the LSG ocean and the Earth boundary sets are deleted
+too.** Upstream ships PUMA, SAM, CAT and their manuals, the octave and cat_tools
+utility trees, an `images` gallery, the burn7 postprocessor, the full LSG source
+and `plasim/dat`'s Earth and Mars surface sets alongside the model. Nothing here
+built, read or shipped any of it: burn7 is superseded by `pyburn`, and LSG was
+closed as an option by `notes/audits/ocean-and-marine-biosphere.md` finding 3
+and `notes/external-model-survey.md` section 6. What is deliberately KEPT and
+why: `plasim/src/specs` and `basespecs`, which are the ECOSTRESS spectra
+`surfacespecs.py` was derived from and `analysis/ice_albedo.py` reads;
+`stellarspectra`, a live search root in `run_exoplasim.py`; `hazeconstants`,
+which `Model.configure` stages an aerosol file from; `tools`, because
+`exoplasim/notes/restart-resolution-precision-converter.md` names `pusca.f90`'s
+`convert_restart_array` as the base for the converter that note designs; and the
+PlaSim reference manual, the PlaSim user guide and the PUMA user guide, which
+document the model and the spectral core that run. The CAT manuals and the
+climate report went with the models they describe.
+
 The fork carries, over upstream: the low-I/O restart and broadcast repairs, the
 pyburn reader fix, the shortwave weights for a non-solar host, the dust and
 aerosol stack, and the stellar cycle. `exoplasim/patches/README.md` says which
