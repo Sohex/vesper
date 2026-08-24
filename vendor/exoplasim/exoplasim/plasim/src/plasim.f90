@@ -2525,6 +2525,83 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       return
       end
 
+!     =====================
+!     SUBROUTINE GPAREAMEAN
+!     =====================
+
+      subroutine gpareamean(pf,pmean)
+!
+!     The AREA-weighted global mean of a distributed gridpoint field.
+!
+!     The one place in this model that turns a gridpoint field into a global
+!     mean, because sum/NUGP is not that mean: the Gaussian latitudes are
+!     unequally spaced, so the arithmetic mean over the cells over-weights the
+!     poles, and by an amount that is a function of NLAT. Two rungs then report
+!     different global means for the same simulated field, from the quadrature
+!     alone. world-mt5.
+!
+!     gwd holds this rank's Gaussian weights, indexed over its own NLPP
+!     latitudes, and sums to 2 over the globe. The normalisation is taken from
+!     the summed weight rather than assumed, so a rank holding no latitudes
+!     costs nothing.
+!
+!     COLLECTIVE. mpsumbcr carries an OpenMP barrier, so every rank has to reach
+!     this; call it OUTSIDE any `mypid == NROOT` guard and print the result
+!     inside one. That is the shape every caller here uses.
+!
+      use pumamod
+      real, intent(in)  :: pf(NHOR)
+      real, intent(out) :: pmean
+      real :: zgw(NHOR)
+      real :: zs(2)
+      integer :: jlat, jlon, jhor
+
+      jhor = 0
+      do jlat = 1 , NLPP
+       do jlon = 1 , NLON
+        jhor = jhor + 1
+        zgw(jhor) = gwd(jlat)
+       enddo
+      enddo
+      zs(1) = dot_product(pf,zgw)
+      zs(2) = sum(zgw)
+      call mpsumbcr(zs,2)
+      pmean = zs(1) / zs(2)
+      return
+      end
+
+!     ================
+!     FUNCTION UGPMEAN
+!     ================
+
+      function ugpmean(pf)
+!
+!     The AREA-weighted global mean of a GATHERED gridpoint field, pf(NUGP).
+!
+!     The companion to gpareamean above, for the diagnostic prints that already
+!     hold the whole globe on one rank. It computes the Gaussian weights from
+!     inigau rather than from gwd, because gwd is scattered and a gathered
+!     field is indexed by GLOBAL latitude. That also makes it collective-free,
+!     so it is safe inside a `mypid == NROOT` guard, which is where every one of
+!     those prints lives. NLAT is small and these are startup prints, so
+!     recomputing the nodes costs nothing worth avoiding.
+!
+      use pumamod
+      real :: pf(NUGP)
+      real (kind=8) :: zsi(NLAT), zgw(NLAT)
+      integer :: jlat
+
+      call inigau(NLAT,zsi,zgw)
+      zs = 0.0
+      zw = 0.0
+      do jlat = 1 , NLAT
+       zs = zs + zgw(jlat) * sum(pf((jlat-1)*NLON+1:jlat*NLON))
+       zw = zw + zgw(jlat) * NLON
+      enddo
+      ugpmean = zs / zw
+      return
+      end
+
 !     ==============
 !     FUNCTION RMSSP
 !     ==============
@@ -2739,6 +2816,11 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !     past; that copy was 68 GB over a 300-step T127 run.
 
       real zgp(NLON,NLAT)
+
+!     The Gaussian weight spread over this rank's gridpoints, and the reduction
+!     buffer for the area-weighted global means below. world-mt5.
+      real zgw(NHOR)
+      real zmean(5)
 
       real (kind=4) zcs(NLAT,NLEV)
       real (kind=4) zsp(NESP)
@@ -2973,16 +3055,38 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
          call guihor("DQVI"//char(0),dqvi,1,1.0,0.0)! Vertically integrated q
          call guigv("GU"  // char(0),gu)            ! Send u to GUI
          call guigv("GV"  // char(0),gv)            ! Send v to GUI
-         call mpgagp(zgp,dtsa,1)
-         if (mypid == NROOT) t2mean = sum(zgp) / (NLON * NLAT) ! Mean of 2m temperature
-         call mpgagp(zgp,dprc,1)        ! Convective precip
-         if (mypid == NROOT) precip = sum(zgp)
-         call mpgagp(zgp,dprl,1)        ! Large scale precip
-         if (mypid == NROOT) precip = (precip + sum(zgp)) / (NLON * NLAT)
-         call mpgagp(zgp,devap,1)       ! Evaporation
-         if (mypid == NROOT) evap = sum(zgp) / (NLON * NLAT)
-         call mpgagp(zgp,dftu,1)        ! OLR = dftu level 1
-         if (mypid == NROOT) olr = -sum(zgp) / (NLON * NLAT)! make positive upwards
+!        AREA-WEIGHTED GLOBAL MEANS, world-mt5. These were sum/(NLON*NLAT),
+!        which is the arithmetic mean of the cells and not the mean over the
+!        sphere: the Gaussian latitudes are unequally spaced, so an unweighted
+!        sum over-weights the poles, and by an amount that is a function of
+!        NLAT. The same simulated climate then reports a different global mean
+!        T2m, precipitation, evaporation and OLR at two rungs from the
+!        quadrature alone, which is the one thing a resolution comparison must
+!        not do.
+!
+!        gwd is this rank's Gaussian weights, indexed over its own NLPP
+!        latitudes, and sums to 2 over the globe. The normalisation is taken
+!        from the summed weight rather than assumed, the way the conversion
+!        diagnostic below does, so it stays right if a rank holds no latitudes.
+!        Summing locally and reducing also drops four full-globe gathers per
+!        diagnostic step, which the gathered form needed and this does not.
+         jhor = 0
+         do jlat = 1 , NLPP
+          do jlon = 1 , NLON
+           jhor = jhor + 1
+           zgw(jhor) = gwd(jlat)
+          enddo
+         enddo
+         zmean(1) = dot_product(dtsa(:),zgw(:))
+         zmean(2) = dot_product(dprc(:),zgw(:)) + dot_product(dprl(:),zgw(:))
+         zmean(3) = dot_product(devap(:),zgw(:))
+         zmean(4) = -dot_product(dftu(:,1),zgw(:)) ! make positive upwards
+         zmean(5) = sum(zgw(:))
+         call mpsumbcr(zmean,5)
+         t2mean = zmean(1) / zmean(5)   ! Mean of 2m temperature
+         precip = zmean(2) / zmean(5)   ! Convective plus large scale precip
+         evap   = zmean(3) / zmean(5)   ! Evaporation
+         olr    = zmean(4) / zmean(5)   ! OLR = dftu level 1
          gp(:) = gp(:) - 1.0
          call gp2fc(gp,NLON,NLPP)
          call fc2sp(gp,span)

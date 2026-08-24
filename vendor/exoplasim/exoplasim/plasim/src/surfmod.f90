@@ -473,7 +473,7 @@
             write(nud,'(/,"Topography read from surface file")')
             write(nud,'("Maximum: ",f10.2," [m]")') maxval(doro) / ga
             write(nud,'("Minimum: ",f10.2," [m]")') minval(doro) / ga
-            write(nud,'("Mean:    ",f10.2," [m]")') sum(doro) / (ga * NUGP)
+            write(nud,'("Mean:    ",f10.2," [m]")') ugpmean(doro) / ga
          endif
          doro(:) = doro(:) * oroscale  ! Scale orography
 
@@ -490,7 +490,7 @@
             write(nud,'(/,"Topography after spectral fitting")')
             write(nud,'("Maximum: ",f10.2," [m]")') maxval(doro) / ga
             write(nud,'("Minimum: ",f10.2," [m]")') minval(doro) / ga
-            write(nud,'("Mean:    ",f10.2," [m]")') sum(doro) / (ga * NUGP)
+            write(nud,'("Mean:    ",f10.2," [m]")') ugpmean(doro) / ga
          endif
          if (mypid == NROOT) then
             so(:) = so(:) / (cv*cv)

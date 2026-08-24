@@ -202,16 +202,23 @@
       real :: plsm(NHOR)
 
       call mpsumval(plsm,NHOR,1,zsum)
+!     THE FRACTION OF THE SPHERE, not the fraction of the cells. world-mt5.
+!     zsum/NUGP is a cell count, and on a Gaussian grid a polar cell covers a
+!     small fraction of the area of an equatorial one, so the counted percentage
+!     is not the land fraction of the world and differs from it by an amount
+!     that is a function of NLAT. The counts stay because n_sea_points is a
+!     count; the percentage reported beside them is the area.
+      call gpareamean(plsm,zlfrac)
       ilpo    = nint(zsum)
       ispo    = NUGP - ilpo
-      ilperc  = nint((100.0 * zsum) / NUGP)
+      ilperc  = nint(100.0 * zlfrac)
       isperc  = 100 - ilperc
   
       if (mypid == NROOT) then
          write(nud,'(a,i6,a,i6,a,i3,a)') &
-              ' Land:',ilpo,' from',NUGP,' = ',ilperc,'%'
+              ' Land:',ilpo,' from',NUGP,' = ',ilperc,'% of area'
          write(nud,'(a,i6,a,i6,a,i3,a)') &
-              ' Sea: ',ispo,' from',NUGP,' = ',isperc,'%'
+              ' Sea: ',ispo,' from',NUGP,' = ',isperc,'% of area'
       endif
       ncountsea = ispo
 
