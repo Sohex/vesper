@@ -2203,14 +2203,29 @@ def main() -> None:
                 "low_io": bool(args.low_io),
                 "high_cadence": False,
                 "purpose": "spinup",
-                # CLIM-31. A seeded run opens with the donor's accumulator state,
-                # so under low I/O its FIRST output record is normalised against
-                # a count that includes another run's partial window -- the land
-                # mask, which cannot vary, reads 0.95341 there. Needs both
-                # conditions: a cold start is clean and clean I/O accumulates
-                # nothing. Recorded rather than inferred, so a consumer can
-                # refuse the orbit instead of rediscovering the constant.
-                "first_record_tainted": bool(args.low_io and restart_seed is not None),
+                # WHY A FIRST RECORD IS REFUSABLE, and it is no longer CLIM-31.
+                #
+                # CLIM-31 was the donor's partial accumulation window arriving
+                # in the seed: under low I/O the land mask, which cannot vary,
+                # read 0.95341 in the first record. That is FIXED. The
+                # accumulator reset takes its record set and its clean values
+                # from `restart_schema.py` rather than from a hand list that
+                # covered 49 of 114, and a converted seeded run now reads
+                # exactly 1.0 there.
+                #
+                # What remains is narrower and applies only to a CONVERTED
+                # state. Its derived surface records -- albedo, roughness --
+                # come from the target template and are not consistent with the
+                # prognostics that were remapped onto it, so the model's first
+                # timestep runs on the template's albedo before rebuilding it.
+                # One timestep, and then it is gone: measured at T21 to T42
+                # against a template 0.104 out in area-weighted albedo, the
+                # first record carries 0.213 W/m2 of reflected shortwave, which
+                # is 33.6 W/m2 spread over the 160 steps the record averages.
+                # Under clean I/O the first record is an instantaneous sample
+                # rather than an accumulation, so it does not pick this up.
+                # world-eyb.
+                "first_record_tainted": bool(args.low_io and conversion is not None),
                 "stellar_spectrum_digest": stellar_spectrum_digest(config),
                 "finished_utc": datetime.now(timezone.utc).isoformat(),
             })

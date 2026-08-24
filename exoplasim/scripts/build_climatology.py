@@ -349,11 +349,17 @@ def main() -> None:
         # an accumulation cannot be undone, so variance, extremes and single
         # records are gone from those orbits for good.
         #
-        # One corrupt-record case does remain and is narrower: a run SEEDED with
-        # --restart-from opens on the donor's accumulator state, so its first
-        # output record is normalised against a count that includes another
-        # run's partial window. CLIM-31, and the segment records it as
-        # `first_record_tainted`.
+        # One corrupt-record case does remain and is narrower: a CONVERTED
+        # state's derived surface records come from its target template and are
+        # not consistent with the prognostics remapped onto it, so the model's
+        # first timestep runs on the template's albedo before rebuilding it.
+        # One timestep, which a low-I/O record averages in. The segment records
+        # it as `first_record_tainted`. world-eyb.
+        #
+        # CLIM-31's own case -- the donor's partial accumulation window -- is
+        # fixed: the accumulator reset now takes its record set from the schema
+        # rather than a hand list, and a seeded run reads the land mask at
+        # exactly 1.0 in its first record.
         message = (
             f"orbits {tainted[0]}-{tainted[-1]} of {len(list(years))} were run "
             "with PlaSim's low-I/O accumulation, so each orbit holds interval "
