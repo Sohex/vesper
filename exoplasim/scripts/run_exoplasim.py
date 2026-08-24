@@ -28,9 +28,26 @@ EARTH_SIDEREAL_YEAR_DAYS = 365.2568983
 SOLAR_EFFECTIVE_TEMPERATURE_K = 5772.0
 
 # Climate and balance fields retained in compact annual products.
+#
+# CODE 151, psl, IS DELIBERATELY ABSENT from both lists. world-ld1. It is a
+# reduction of surface pressure to sea level, and a reduction is only as good
+# as the lapse rate it extrapolates with: pyburn does it at RLAPSE = 0.0065,
+# Earth's International Standard Atmosphere rate, against 7.8 K/km measured
+# from this model's own sigma profile, and then applies ECMWF's 255 K
+# cold-surface guard, which is calibrated on Earth's surface temperature
+# distribution and on this world fires over ordinary land for much of the
+# orbit. An honest rate has to be MEASURED from a climatology, and
+# config/planet.yaml declares `baseline_climatology: null`, so on this build
+# no honest rate exists. Nothing in this project reads psl -- checked across
+# every component -- so the choice is between not writing it and writing a
+# CF-named field that looks authoritative and is not.
+#
+# Restore 151 when lib/lapse.environmental_lapse_k_per_km has a climatology to
+# measure, and pass the rate and the guard through rather than restoring the
+# defaults; the exact threading is in world-ld1.
 REGULAR_CODES = [
     50, 51, 52, 53, 54, 110, 129, 130, 131, 132, 133, 134, 135, 139,
-    140, 141, 142, 143, 144, 146, 147, 151, 157, 160, 163, 164, 167,
+    140, 141, 142, 143, 144, 146, 147, 157, 160, 163, 164, 167,
     168, 170, 171, 172, 174, 175, 176, 177, 178, 179, 180,
     181, 182, 184, 203, 204, 205, 207, 208, 209, 210, 211, 218, 221,
     230, 232, 238, 259, 260, 261, 262, 263, 264, 267, 318, 320, 321,
@@ -40,7 +57,7 @@ REGULAR_CODES = [
 # three-dimensional humidity and vertical-motion fields.
 SNAPSHOT_CODES = [
     50, 51, 52, 53, 54, 129, 130, 131, 132, 134, 139, 140, 141, 142,
-    143, 144, 151, 160, 163, 164, 167, 168, 170, 171, 172,
+    143, 144, 160, 163, 164, 167, 168, 170, 171, 172,
     175, 180, 181, 182, 210, 211, 218, 230, 232, 259, 260, 261, 263,
     318, 320, 321,
 ]
