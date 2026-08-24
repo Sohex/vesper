@@ -101,11 +101,19 @@ build_arm() {
             echo "control patch missed: $after sites still filtered" >&2; exit 1; }
     fi
     : > "$stamp"
-    ( $BUILD --res "$res" --ranks "$n" --parmode omp ) \
-        >"$WORK/build_$arm.log" 2>&1 || true
-    [ -f "$PKG/plasim/run/$name" ] && [ "$PKG/plasim/run/$name" -nt "$stamp" ] || {
-        echo "build failed or stale: $arm (see $WORK/build_$arm.log)" >&2; exit 1; }
-    cp -f "$PKG/plasim/run/$name" "$WORK/bin/$arm.x"
+    # --no-publish and --print-path: an ARM must not land in the model run
+    # directory under the registry's naming. Publishing overwrote the shipped
+    # executable with a filter-dropped control and left a thread count nobody
+    # asked for beside it, so check_consistency reported the binary a run would
+    # pick up as having unknown provenance -- rule 4 reached from inside a
+    # check. world-v3d.
+    built=$( $BUILD --res "$res" --ranks "$n" --parmode omp --no-publish --print-path \
+        2>"$WORK/build_$arm.log" ) || {
+        echo "build failed: $arm (see $WORK/build_$arm.log)" >&2; exit 1; }
+    [ -f "$built" ] && [ "$built" -nt "$stamp" ] || {
+        echo "build produced nothing newer than the stamp: $arm "\
+             "(see $WORK/build_$arm.log)" >&2; exit 1; }
+    cp -f "$built" "$WORK/bin/$arm.x"
     echo "  built $arm  $(sha256sum "$WORK/bin/$arm.x" | cut -c1-16)"
 }
 
@@ -158,12 +166,24 @@ rc=0
 
 echo
 echo "==== how the difference grows ===="
-printf '  %8s  %14s  %s\n' steps norm "worst record"
+# DECADES SINCE BIRTH is reported because the absolute bound below is not
+# bed-independent and this is. A last-bit difference in this model grows by
+# roughly three decades every twenty steps, so that is the scale to read the
+# column against; the same growth from a seed ten times larger crosses a fixed
+# tolerance sooner without anything being wrong with the transform. The
+# baseline bed seeds `dcc` 57x higher than a cold-start bed does and fails the
+# 20-step bound on that record alone. world-y9m,
+# exoplasim/notes/shtns-viability.md.
+printf '  %8s  %14s  %10s  %s\n' steps norm "decades" "worst record"
 prev=""
+birthnorm=""
 for s in $STEPS; do
     if run_arm shipped 0 "$s" "l$s" && run_arm shipped 1 "$s" "s$s"; then
         read -r v rec <<<"$(norm "l$s" "s$s")"
-        printf '  %8s  %14s  %s\n' "$s" "$v" "$rec"
+        [ -n "$birthnorm" ] || birthnorm="$v"
+        dec=$(awk -v a="$v" -v b="$birthnorm" \
+              'BEGIN{ if (b>0 && a>0) printf "%.2f", log(a/b)/log(10); else printf "-" }')
+        printf '  %8s  %14s  %10s  %s\n' "$s" "$v" "$dec" "$rec"
         if [ "$s" = 1 ]; then
             over=$(awk -v a="$v" -v b="$BIRTH" 'BEGIN{print (a>b)?1:0}')
             if [ "$over" = 1 ]; then

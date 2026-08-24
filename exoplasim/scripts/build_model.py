@@ -126,7 +126,8 @@ def executable_name(res: str, levels: int, ranks: int, parmode: str,
 
 def build(res_arg: str, levels: int, ranks: int, parmode: str, profile: str,
           frame_pointers: bool, jobs: int | None, verbose: bool,
-          extra: list[str] | None = None, drop: list[str] | None = None) -> Path:
+          extra: list[str] | None = None, drop: list[str] | None = None,
+          publish: bool = True) -> Path:
     extra = list(extra or [])
     drop = list(drop or [])
     res, nlat = resolve(res_arg)
@@ -196,6 +197,16 @@ def build(res_arg: str, levels: int, ranks: int, parmode: str, profile: str,
     if not built.is_file():
         raise SystemExit(f"the build reported success but {built} is not there")
 
+    # AN ARM IS NOT A REGISTRY ENTRY. A caller building a comparison arm --
+    # verify_shtns_model's two, the flag sweep's, a thread count outside MATRIX
+    # -- wants the executable, not the registry's copy of it. Publishing anyway
+    # overwrites the shipped binary with an arm and leaves thread counts nobody
+    # asked for beside it, so `check_consistency` reports the executable a run
+    # would pick up as having unknown provenance. That is rule 4's failure mode
+    # reached from inside a verification. world-v3d.
+    if not publish:
+        return built
+
     # THE NAME IS WRITTEN LAST AND ONLY ON SUCCESS, and the old file is removed
     # first. The build this replaced removed only the name it was about to write,
     # so a build that silently became another resolution left the caller's
@@ -245,6 +256,12 @@ def main() -> None:
                     help="parallel compile jobs (default: ninja's own choice)")
     ap.add_argument("--print-path", action="store_true",
                     help="print only the path of the executable produced")
+    ap.add_argument("--no-publish", action="store_true",
+                    help="leave the executable in its build directory instead "
+                         "of copying it into the model run directory under the "
+                         "registry's naming. For a comparison ARM: an arm that "
+                         "publishes overwrites the shipped binary and gives "
+                         "the next run unknown provenance")
     ap.add_argument("--verbose", action="store_true")
     a = ap.parse_args()
 
@@ -253,7 +270,8 @@ def main() -> None:
         if not f.startswith("-") or f.split() != [f]:
             raise SystemExit(f"{f!r} must be one token starting with '-'")
     out = build(a.res, a.levels, a.ranks, a.parmode, profile,
-                a.frame_pointers, a.jobs, a.verbose, a.extra_flag, a.drop_flag)
+                a.frame_pointers, a.jobs, a.verbose, a.extra_flag, a.drop_flag,
+                publish=not a.no_publish)
     if a.print_path:
         print(out)
     else:

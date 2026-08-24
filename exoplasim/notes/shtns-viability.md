@@ -851,3 +851,69 @@ bit-identical restart, and the model is clean under a sNaN gate. The measurement
 the three gates and the one trap it exposed are in
 `the-zeroing-is-an-init-flag.md`; the conclusion that there was no low-hanging
 fruit here does not survive it.
+
+## The model gate's 20-step tolerance is bed-dependent, and dcc is why
+
+Measured 2026-08-24, T21, on the binaries of a full rebuild from a cleared
+object cache.
+
+`verify_shtns_model.sh` FAILS on a bed cut from `run_2b20e3324bb0`, the
+85-orbit baseline, and PASSES on one cut from `run_9df7ffa14256`, a one-orbit
+cold start. Same build, same thread count, same everything else.
+
+| bed | born at 1 step | at 20 steps | verdict |
+| --- | --- | --- | --- |
+| 85-orbit baseline | 3.35e-12 | 3.94e-10 | FAIL against 1e-10 |
+| cold start, 1 orbit | 5.88e-14 | 2.00e-11 | PASS |
+
+Every OTHER declared criterion passes on both. Both are born inside the 1e-11
+birth bound. Neither jumps more than 5.4x between adjacent samples against a
+1e4 bound. The SHTns arm is bit identical over four runs on both. The
+filter-dropped control is rejected on both.
+
+### One record, and it has a gain the others do not
+
+At 20 steps on the failing bed, `dcc` is 3.94e-10 and the next record that is
+not simply its own accumulator is `xcpmea` at 8.3e-12 -- a factor of 47 below.
+198 of 199 records are inside the tolerance by more than an order of magnitude.
+
+`rainmod.f90:1977` is why:
+
+```text
+zcc = zwfac * AMAX1(0., (zrh - rcrit) / (1. - rcrit))**2
+```
+
+with `rcrit(:) = MAX(0.85, MAX(sigma, 1-sigma))` at `rainmod.f90:92`. The
+derivative of cloud fraction with respect to relative humidity carries
+`1/(1-rcrit)^2`, which is 44 at the eight interior levels and 400 at the top
+and bottom. So `dcc` amplifies whatever difference reaches it by up to two and
+a half decades, and no other record in the restart does. The prediction from
+those constants -- 40 to 400 times the difference the ungained records carry,
+which at 20 steps is about 4e-12 -- is 1.7e-10 to 1.7e-9. Observed: 3.94e-10.
+
+The amplification acts only BETWEEN the two clamps: `AMAX1` at zero and
+`AMIN1(...,zclmax)` at the top pass a last-bit change through as no change at
+all. The failing bed holds 32.1% of its cloud field between them against the
+passing bed's 21.1%, which is a factor of 1.5 of the 57x difference in seed
+and not the whole of it. The rest is the flow: an equilibrated state carries
+more small-scale structure for the two transforms to disagree about.
+
+### What that makes the 1e-10 bound
+
+Not a bed-independent criterion. It was taken unchanged from
+`verify_threaded_numerics.sh`, which calibrated it against a difference born
+at 3.2e-13; this one is born at 3.35e-12 on the baseline bed, ten times
+larger, so the same growth crosses the same bound sooner. The bound therefore
+tests seed AND growth together, while the birth bound already tests the seed
+and the jump bound already tests the growth's shape.
+
+The script's own stated physics is the bed-independent form: a last-bit
+difference grows by roughly three decades every twenty steps. Both beds are
+inside that -- 2.07 decades on the failing bed, 2.53 on the passing one -- and
+that is the criterion the curve is printed for. Changing the gate's verdict to
+rest on it is a decision to take before a run rather than after this one, so
+it is not taken here.
+
+WHAT IS NOT IMPLICATED is the transform. At one step on the failing bed every
+spectral record is bit identical between the two arms and the largest
+difference anywhere outside `dcc` is 1.5e-13.
