@@ -68,8 +68,8 @@ that the audit could not have seen.**
 First, the arms that ran were mislabelled. `hdiffo` divided the requested
 coefficient by a compiled `parameter(PLARAD=6.371E6)`, Earth's radius, on an
 angular grid where the radius is what supplies the metric, so every CLIM-16 and
-CLIM-19 arm realised `(a/a_earth)**2 = 1.4396` times the diffusivity it
-declared: the 300/1000/3000 bracket really ran 432/1440/4318. **world-mll**
+CLIM-19 arm realised `(PLARAD/6.371E6)**2 = 1.4401` times the diffusivity it
+declared: the 300/1000/3000 bracket really ran 432/1440/4320. **world-mll**
 removed the parameter, so `hdiffo` takes the radius from `planet_nl` through
 `pumamod` and `oceanini` aborts if `nhdiff > 0` reaches it with no radius
 (`oceanmod.f90:290-292`). The conservation claim on that result does not depend

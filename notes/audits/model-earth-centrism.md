@@ -231,9 +231,11 @@ Live and already exercised: `NHDIFF` and `HDIFFK` are written unconditionally by
 (`oceanmod.f90:291-296`), and `hdiffk` now means what it says. The grid there is
 still angular, so the radius is what supplies the metric.
 
-**What it cost, and what is still mislabelled.** (7.6452/6.371)^2 = 1.4396.
-Every arm applied 1.44 times the tendency of its nominal diffusivity, so the
-CLIM-16 bracket was really 432/1440/4318 and the predicted rms heating table in
+**What it cost, and what is still mislabelled.** The divisor was `hdiffo`'s own
+`parameter(PLARAD=6.371E6)` and the metric that belonged there is this planet's
+`PLARAD = 7645464.0`, so the factor is (7645464/6371000)^2 = 1.4401. Every arm
+applied 1.44 times the tendency of its nominal diffusivity, so the CLIM-16
+bracket was really 432/1440/4320 and the predicted rms heating table in
 `exoplasim/notes/forcing-bundle-predictions.md` understates the model by the
 same factor, 0.75/2.51/7.53 becoming 1.08/3.61/10.84. Those labels are wrong
 wherever that bracket is quoted; world-vho is the correction, and clim-65's arms

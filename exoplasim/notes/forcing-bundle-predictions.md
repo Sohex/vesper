@@ -47,6 +47,17 @@ Applied to the baseline annual-mean SST (ocean zonal-mean contrast 41.0 K):
 | 1000 (the default) | 2.51 | 75.1 |
 | 3000 | 7.53 | 225.3 |
 
+**These are TRUE diffusivities, and the arms measured below did not run at
+them.** `predict_ocean_terms.py` has always built its operator on this planet's
+radius, so this table is the prediction at the coefficient named in its own
+first column; `hdiffo` did not, until `world-mll`, and divided by a compiled
+Earth radius instead. Arms that ran before that fix realised
+(PLARAD/6.371E6)^2 = 1.4401 times the coefficient their namelist declared. The
+operator is linear in `hdiffk`, so the CLIM-16 bracket, which realised
+432/1440/4320, predicts 1.08/3.61/10.84 W/m2 rms rather than the three rows
+above. `hdiffk` means what it says from `world-mll` on, and a new arm set to
+1000 realises 1000.
+
 The pattern at the default, by latitude band: -0.16 W/m2 at 0-20 degrees,
 -0.27 at 20-40, +0.37 at 40-60, +0.36 at 60-90. Low latitudes lose heat to
 high latitudes, which is the transport the term exists to stand in for. The
@@ -67,7 +78,8 @@ and one-signed toward warming.
   for a global signal to be.
 - The band redistribution comes out with the opposite sign: the 0-40 degree
   surface must lose heat relative to the control and 40-90 must gain.
-- The response departs grossly from linear across the 300-3000 bracket.
+- The response departs grossly from linear across the bracket, which spans a
+  factor of ten in `hdiffk` whatever the endpoints are called.
 
 **A direct pointwise check now exists.** The ocean stream survives every model
 call as of CLIM-12, and with `nhdiff > 0` its horizontal-diffusion code becomes
@@ -87,9 +99,13 @@ of it improves an agreement.
 
 ## Measured: the CLIM-16 hdiffk bracket, 2026-08-20
 
-Four arms on the declared 300/1000/3000 bracket plus a length-matched control,
-all seeded from one restart on `t42_l10_p8`, one settling orbit then fifteen
-labelled `diagnostic`. All four carry `cloud_absorption_scale` 1.192, so the set
+Four arms on a bracket plus a length-matched control, all seeded from one
+restart on `t42_l10_p8`, one settling orbit then fifteen labelled `diagnostic`.
+**The arms realised 432, 1440 and 4320 m2/s**, which is what they are named by
+below and what a new arm would have to be SET to in order to reproduce them.
+Their namelists declared `HDIFFK` 300, 1000 and 3000, and under the code of the
+day that is what realised the bracket above; the run record is findable by
+either number and only one of them is a diffusivity. All four carry `cloud_absorption_scale` 1.192, so the set
 is internally paired and is NOT comparable with the earlier bundle arms, which
 ran at 1.0.
 
@@ -102,9 +118,9 @@ point does.
 
 | arm | d net TOA, W/m2 | 0-20 deg SST | 20-40 deg | 40-60 deg | 60-90 deg | d sea ice |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| 300 | +0.041 +/- 0.159 | -0.070 +/- 0.021 | -0.015 +/- 0.040 | +0.221 +/- 0.045 | +0.283 +/- 0.225 | -0.00052 +/- 0.00030 |
-| 1000 | +0.009 +/- 0.166 | -0.037 +/- 0.028 | -0.020 +/- 0.044 | +0.191 +/- 0.048 | -0.104 +/- 0.196 | +0.00001 +/- 0.00025 |
-| 3000 | +0.113 +/- 0.121 | -0.128 +/- 0.035 | +0.013 +/- 0.066 | +0.572 +/- 0.065 | +0.519 +/- 0.164 | -0.00124 +/- 0.00026 |
+| 432 | +0.041 +/- 0.159 | -0.070 +/- 0.021 | -0.015 +/- 0.040 | +0.221 +/- 0.045 | +0.283 +/- 0.225 | -0.00052 +/- 0.00030 |
+| 1440 | +0.009 +/- 0.166 | -0.037 +/- 0.028 | -0.020 +/- 0.044 | +0.191 +/- 0.048 | -0.104 +/- 0.196 | +0.00001 +/- 0.00025 |
+| 4320 | +0.113 +/- 0.121 | -0.128 +/- 0.035 | +0.013 +/- 0.066 | +0.572 +/- 0.065 | +0.519 +/- 0.164 | -0.00124 +/- 0.00026 |
 
 **Conservation holds, which was the primary claim.** Every arm's global net TOA
 difference is consistent with zero and inside the declared 0.3 W/m2, so the
@@ -117,25 +133,28 @@ The 20-40 band sits at zero rather than the loss the offline operator's applied
 heating suggested; that is the crossover latitude and the SST response is not
 the applied heating, so it is a mild mismatch and not a sign failure.
 
-**The ice-edge term is now measured, through AREA rather than flux.** At 3000
+**The ice-edge term is now measured, through AREA rather than flux.** At 4320
 the arm loses 0.00124 of the planet in sea ice, resolved, and on CLIM-17's
 conversion that is +0.079 to +0.127 K -- the prediction was +0.03 to +0.12 K at
-the DEFAULT, so at three times the diffusivity the term lands at the low end of
-a linear expectation. At the default itself the ice change is +0.00001, which
-is nothing: the predicted kelvin term is not resolved there and is not claimed.
+a true 1000, so at somewhat over four times that diffusivity the term lands at
+the low end of a linear expectation. At 1440 itself the ice change is +0.00001,
+which is nothing: the predicted kelvin term is not resolved there and is not
+claimed.
 
 **Linearity holds, and the apparent failure was a measurement.** In this
-realisation the 300 point sat 3.86x above the line through the two upper
+realisation the 432 point sat 3.86x above the line through the two upper
 points, which looked one-signed at 15 of 15 orbits. A replicate from a
-different restart put it at -0.0359, below 1000 rather than above it and
+different restart put it at -0.0359, below 1440 rather than above it and
 indistinguishable from zero. The excess was an ice-state draw, not a response;
-the section above has the numbers. Between 1000 and 3000, where the response
-exceeds the variability, 3000 over 1000 is 2.99 here and 2.89 in the replicate
-against a diffusivity ratio of 3.00.
+the section above has the numbers. Between 1440 and 4320, where the response
+exceeds the variability, the upper over the middle is 2.99 here and 2.89 in the
+replicate against a diffusivity ratio of 3.00. The ratio is unchanged by the
+relabelling: 4320/1440 is 3.00 exactly as 3000/1000 was, because every arm was
+scaled by the same factor.
 
 **The spread the row asked for**, then, widened by the replicate: the 40-60
-ocean warming runs +0.13 to +0.19 K at the default and +0.36 to +0.57 K at
-3000, the two ends of each being two realisations of the SAME key, and the
+ocean warming runs +0.13 to +0.19 K at 1440 and +0.36 to +0.57 K at
+4320, the two ends of each being two realisations of the SAME key, and the
 sea-ice response 0 to -0.00124 of the planet. A constant diffusivity is a bound on the missing transport rather
 than the transport, and this is the width of that bound.
 
@@ -143,12 +162,16 @@ than the transport, and this is the width of that bound.
 
 Declared 2026-08-20, BEFORE the replicate ran.
 
-The bracket's 40-60 degree ocean warming is linear between 1000 and 3000 to
-0.3% and the 300 point sits 3.86x above that line, warming slightly MORE than
-1000 on 3.3x less diffusivity. Both are resolved 15 of 15 orbits. The arms were
+The bracket's 40-60 degree ocean warming is linear between 1440 and 4320 to
+0.3% and the 432 point sits 3.86x above that line, warming slightly MORE than
+1440 on 3.3x less diffusivity. Both are resolved 15 of 15 orbits. The arms were
 checked first for the cheap explanation and it is not there: the namelists carry
 HDIFFK 300/1000/3000 with NHDIFF 1, the control NHDIFF 0, and every other key
-including TSWR3 identical across the four.
+including TSWR3 identical across the four. Those namelist numbers are the
+declared coefficient and not the realised diffusivity, which is 1.4401 times
+each of them for the reason given under the prediction table; the check is on
+the four arms being identical but for that key, and it does not depend on which
+of the two numbers names the arm.
 
 **The test is a replicate from a DIFFERENT restart.** Internal variability in
 the ice state is a property of the initial condition and repeats differently;
@@ -157,19 +180,19 @@ four arms, same fifteen diagnostic orbits, seeded from `MOST_REST.00035`
 instead of `00039`.
 
 **The statistic, fixed here:** paired per-orbit d(40-60 degree ocean SST)
-against the arm's own control, and the ratio of the 300 point to the line
-through 1000 and 3000.
+against the arm's own control, and the ratio of the lowest point to the line
+through the upper two.
 
-- **Ratio again near 3.9, and 300 again at or above 1000:** the departure is a
+- **Ratio again near 3.9, and 432 again at or above 1440:** the departure is a
   property of the response. Linearity is refuted across the bracket and the
   bound CLIM-16 reports has structure in it.
-- **Ratio near 1, or 300 clearly below 1000:** the original was internal
+- **Ratio near 1, or 432 clearly below 1440:** the original was internal
   variability, linearity holds, and CLIM-16's spread stands as a clean bound.
 - **Anything between:** report as unresolved. Do not average the two
   realisations into a verdict; two draws do not make a distribution.
 
 **Secondary, and declared so it cannot be fitted afterwards:** the sea-ice
-pattern. In the first realisation 300 and 3000 lost ice and 1000 lost none. If
+pattern. In the first realisation 432 and 4320 lost ice and 1440 lost none. If
 the ice-albedo amplifier is the mechanism, that pattern repeats with the SST
 pattern; if the SST pattern repeats while the ice pattern does not, the
 mechanism is something else and this note names none.
@@ -179,41 +202,43 @@ mechanism is something else and this note names none.
 The declared test ran: the same four arms, fifteen diagnostic orbits, seeded
 from `MOST_REST.00035` instead of `00039`.
 
-| hdiffk | realisation 1, REST.00039 | realisation 2, REST.00035 |
+| realised hdiffk | realisation 1, REST.00039 | realisation 2, REST.00035 |
 | ---: | ---: | ---: |
-| 300 | +0.2213 +/- 0.0451, 15/15 | **-0.0359 +/- 0.0763, 7/15** |
-| 1000 | +0.1913 +/- 0.0479, 15/15 | +0.1252 +/- 0.0474, 14/15 |
-| 3000 | +0.5720 +/- 0.0654, 15/15 | +0.3620 +/- 0.0562, 15/15 |
-| ratio of 300 to the line through the upper two | 3.86x | -0.96x |
+| 432 | +0.2213 +/- 0.0451, 15/15 | **-0.0359 +/- 0.0763, 7/15** |
+| 1440 | +0.1913 +/- 0.0479, 15/15 | +0.1252 +/- 0.0474, 14/15 |
+| 4320 | +0.5720 +/- 0.0654, 15/15 | +0.3620 +/- 0.0562, 15/15 |
+| ratio of 432 to the line through the upper two | 3.86x | -0.96x |
 
 **Verdict, by the rule declared before the run: INTERNAL VARIABILITY, and
-linearity holds.** The 300 point does not merely fail to reproduce its excess,
+linearity holds.** The 432 point does not merely fail to reproduce its excess,
 it changes sign -- one-signed positive on all fifteen orbits in the first
 realisation, indistinguishable from zero and slightly negative in the second,
-and clearly below 1000 rather than above it. That is the second verdict
+and clearly below 1440 rather than above it. That is the second verdict
 verbatim.
 
 **Linearity between the upper two points reproduces, which is the positive
-half.** 3000 over 1000 is 2.99 in the first realisation and 2.89 in the second,
+half.** 4320 over 1440 is 2.99 in the first realisation and 2.89 in the second,
 against a diffusivity ratio of 3.00. The operator is linear in `hdiffk` by
 construction and the response follows it wherever the response is bigger than
 the variability.
 
-**The secondary ice check behaves as declared.** At 300 the ice went -0.00052
+**The secondary ice check behaves as declared.** At 432 the ice went -0.00052
 in the first realisation and +0.00016 in the second, flipping WITH the SST
-sign; at 1000 it went +0.00001 then -0.00053. The ice and the temperature move
+sign; at 1440 it went +0.00001 then -0.00053. The ice and the temperature move
 together and neither repeats, which is the ice-albedo amplifier working on a
-variability draw rather than on the diffusivity. The 300 point is unresolvable
+variability draw rather than on the diffusivity. The 432 point is unresolvable
 at this segment length for a simple reason: the response the line predicts
 there is +0.04 to +0.06 K, and the ice draw is worth several times that.
 
 **What this costs CLIM-16, and it is not nothing.** The same key gives +0.191
-and +0.125 K at 1000, and +0.572 and +0.362 K at 3000: a 35 to 37% span
+and +0.125 K at 1440, and +0.572 and +0.362 K at 4320: a 35 to 37% span
 between realisations of one configuration. CLIM-16's reported spread was
 computed inside a single realisation and is therefore too tight. The honest
-bound across both is **+0.13 to +0.19 K at the default and +0.36 to +0.57 K at
-3000**, and any future arm quoting a single realisation's error bar as the
-uncertainty on a mean is understating it by about a third.
+bound across both is **+0.13 to +0.19 K at 1440 and +0.36 to +0.57 K at
+4320**, and any future arm quoting a single realisation's error bar as the
+uncertainty on a mean is understating it by about a third. Neither figure is a
+bound at the DEFAULT any more: the default is a true 1000, no arm has run
+there, and the nearest measured point is 1.44 times it.
 
 ## CLIM-17: the freezing point from the declared salinity
 
@@ -424,7 +449,7 @@ predictions were soft.
 | --- | --- | ---: | --- |
 | PHYS-9 | `h2oswl` 1.127 | +1.25 K (+1.4 W/m2 TOA, +7.4 W/m2 atmospheric) | scaled from the table in `exoplasim/notes/corrk-cross-check.md`; arithmetic below |
 | PHYS-10 | line-list CO2 coefficients | about -0.03 K | the same table's CO2 row prices -7.5%; the landed fit is -6.7% at the planet path |
-| CLIM-16 | `nhdiff = 1`, `hdiffk = 1000` | 0.00 W/m2 global by construction; +0.03 to +0.12 K via the ice edge | this note |
+| CLIM-16 | `nhdiff = 1`, `hdiffk = 1000`, meaning 1000 m2/s since `world-mll` | 0.00 W/m2 global by construction; +0.03 to +0.12 K via the ice edge | this note |
 | CLIM-17 | `TFREEZE` from declared salinity | 0.000 K | this note |
 | SPEC-1 | model reads `k25v` | 0.00 to +0.03 K | `analysis/error_budget.json`, measured on the warm state; the A/B re-measures it |
 | SPEC-5 | `vegetation_albedo` 0.165, bands [0.075, 0.225] | -0.64 K, bracket 0 to -0.90 | `analysis/vegetation_albedo.json`; +0.0105 on composited land mean at 0.61 K per 0.01. One-signed toward a cooler simulated mean |
