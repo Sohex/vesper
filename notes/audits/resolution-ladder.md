@@ -53,6 +53,42 @@ standard error of the fitted offset is 0.113 K against an allowance of 0.075 K,
 so the test is noise-dominated by half again. What is new is that the noise has
 a wall-clock price, and that the price is paid at the most expensive rung.
 
+## A twenty-orbit window declares convergence thirteen orbits sooner
+
+The obvious objection to widening the window is that a wider one needs more
+orbits before it can return any verdict at all, so the two effects trade. They
+do, and the trade has an interior optimum. Swept over `run_8044646ea7f0`,
+window against every truncation from 35 to 85 orbits:
+
+| window | first pass | stable from | verdict flips |
+| ---: | ---: | ---: | ---: |
+| 10 | 58 | 78 | 7 |
+| 15 | 62 | 78 | 3 |
+| **20** | **65** | **65** | 1 |
+| 25 | 68 | 68 | 1 |
+| 30 | 71 | 71 | 1 |
+| 35 | 76 | 76 | 1 |
+
+"Stable from N" is defined as: every truncation from N to 85 passes. It was
+fixed before the sweep was run, because a criterion chosen after the run it
+judges is not a criterion.
+
+From window 20 upward the test stops flickering entirely -- first pass and
+stable point coincide -- and from there each extra five orbits of window costs
+about three orbits before the verdict arrives. Below 20 the noise costs more
+than the width saves: window 10 first passes at 58 and then takes another
+twenty orbits to stop changing its mind.
+
+So **window 20 declares convergence at orbit 65 where window 10 declares it at
+78**. Widening the window does not make the test slower to satisfy; at the
+current width the test is paying thirteen orbits for its own scatter. At T170,
+where the note's own measurement puts an orbit at 1530 s at dt 22.5, thirteen
+orbits is five and a half hours.
+
+This is one run. It is not yet the default, and what would settle it is the
+same sweep on the T42 arms -- a window chosen on a single rung is a window
+fitted to one dataset.
+
 ## The T42 rung does not run at the T21 timestep
 
 `timestep_minutes` is one scalar in `config/planet.yaml` and does not move with
