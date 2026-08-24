@@ -34,7 +34,8 @@ is independent of the separate audit of the spectrum itself.
 
 Only the absorption data differs: Howard's total band absorption over 8 CO2 and
 9 H2O bands, divided by the band width for his Eq. 11 band-average, against
-`1 - sum_g w_g exp(-k_g u)` over 78 correlated-k bands from 10 to 30000 cm-1.
+`1 - sum_g w_g exp(-k_g u)` over the correlated-k bands from 10 to 30000 cm-1,
+76 of them once the IR and VI sets are joined -- see the join section below.
 
 ## What would have meant "wrong", stated before the numbers were computed
 
@@ -95,7 +96,10 @@ identical and only the CO2 differs by 2.66x. It does, to 0.05 to 0.20%.
 **The spectral coverage is accounted for.** The tables span 10 to 30000 cm-1,
 which holds 0.972 of the solar flux and 0.992 of this star's. The remainder is
 below 0.33 um, where neither gas absorbs, and the denominator is the whole flux
-on both sides, so nothing is lost.
+on both sides, so nothing is lost. All of that 0.972 is inside a band: the
+per-band fractions and the one-piece integral telescope exactly, which they can
+only do for a partition with no hole in it, and `run_checks` raises on the
+difference. The join that makes it a partition is the section below.
 
 ## The result
 
@@ -277,6 +281,72 @@ the absorption sits at 1.3 to 3.5 um, where the boost is 1.35 to 1.52, and only 
 fifth of it sits below 1 um where the boost is near unity. The derivation reaches
 the same conclusion from Howard's bands and the agreement is on the mechanism, not
 only on the number.
+
+## The join between the IR and VI sets, and the hole it used to leave
+
+Re-measured 2026-08-24; the finding is world-olt. Everything above this section
+was measured on 2026-08-18 against a 75-band join and its digits are that day's.
+
+**The bundle does not ship one band set, and it does not ship a gap either.**
+The `40x38` grid is two sets that OVERLAP: `narrowbands_IR.in` runs 10 to 3000
+cm-1 in 40 bands and `narrowbands_VI.in` runs 2000 to 30000 in 38, each
+contiguous inside itself to the bit, and they share 2000 to 3000. The Generic
+PCM never concatenates them -- `rad_correlatedk_read_opacity_tables.F90` sets
+`IR_VI_wnlimit = 3000.` and hands `WNOI` and `WNOV` to two independent solvers,
+one thermal and one stellar. The two files are byte-identical between the 376
+and 1000 ppm tables, so this is a property of the grid and not of a mixture.
+
+**One flux-weighted partition is what THIS check needs, so the join is this
+script's own decision, and the first version of it opened a hole.** Cutting the
+IR set at a round 2000 cm-1 and dropping every band that reached past it also
+dropped 1974.95 to 2000, because the IR grid has no edge at 2000: its nearest
+edge below is 1974.952011. That 25.05 cm-1 window, at 5.0 to 5.06 um where the
+shortwave and thermal halves hand over, was inside the table span and inside no
+band. It carries 1.7e-4 of the solar flux and 2.5e-4 of this star's, and every
+band-weighted total priced it as transparent in both gas sets.
+
+**The join is now the VI set's own first edge, and the IR band that straddles it
+is truncated rather than dropped.** The two halves meet to the bit, the
+truncated band keeps its own k-distribution -- the only opacity the bundle
+carries over that sliver -- and no edge moves outward. That last part is the
+constraint: the per-band flux fractions are differences of one cumulative
+integral, so they telescope exactly for a contiguous partition and cannot for
+anything else, and widening a band to make the sum close would have removed the
+only instrument that can see a hole. `run_checks` still counts holes and still
+raises on one, and now reports the join and the truncation by name.
+
+**What closing it moved**, at the same paths and the same spectra as the table
+above:
+
+| | 75-band join | 76-band join |
+| --- | ---: | ---: |
+| flux fraction inside the span, in bands | 0.97187 | 0.97204 |
+| flux fraction inside the span, in no band | 0.00017 | 0.00000 |
+| `h2osww`, k25v over Sun | 1.3271 | 1.3272 |
+| `co2sww`, k25v over Sun | 1.5094 | 1.5093 |
+| CO2 absorptance after the H2O overlap, planet path | 0.005098 | 0.005123 |
+| the same over Howard's eight intervals only | 0.004494 | 0.004520 |
+
+The two weights are unmoved at the digit that matters, because both are RATIOS
+and the sliver enters numerator and denominator alike. The absorptance moves by
++0.5%, worth +0.01 W/m2 of Earth-mean insolation.
+
+**The refit was re-landed.** `--fit` reads `radmod.f90`'s four coefficients back
+out of the source and says whether they still match, so the join change showed
+up there as a disagreement rather than as nothing. The coefficients follow their
+derivation: `zca1` 3.1020E-4, `zcb1` 19.857, `zca2` 3.8291E-3, `zcb2` 3.9587E-3,
+against 3.0658E-4, 20.376, 3.8193E-3 and 3.9672E-3. The absorptance at this
+planet's path goes from 0.005027 to 0.005051, +0.5% and +0.008 W/m2, against a
+fit residual of 3.3% rms -- so this is bookkeeping following a derivation, and
+not a result worth chasing. The fit quality is unchanged to the digit that
+matters: 8.8% at u = 1e4 and 4.5% over the 100 to 1000 atmos-cm a T42 column
+occupies, against 8.9% and 4.6%.
+
+**What a consumer has to carry forward.** A band-resolved scheme built on this
+bundle should NOT inherit this script's join. The two sets are meant to be used
+separately, over their own spans, by two solvers; joining them is an instrument
+for comparing one broadband number against another, and the 2000 to 3000 cm-1
+overlap the join throws away is real data that a thermal scheme wants.
 
 ## The data
 

@@ -146,11 +146,11 @@ produce.**
 
 `radmod.f90:2262-2265` runs the HITRAN2020 refit under PHYS-10:
 
-    zca1=3.0658E-4  zcb1=20.376  zca2=3.8193E-3  zcb2=3.9672E-3
+    zca1=3.1020E-4  zcb1=19.857  zca2=3.8291E-3  zcb2=3.9587E-3
 
 `patches/exoplasim-3.4.2-co2-shortwave.patch:193-196` and
 `analysis/shortwave_band_weights.json` (`co2.closed_form_fit`) both still carry
-the Howard fit, `3.8265E-4, 44.539, 2.2325E-3, 5.8954E-3`, which is +7.7% in
+the Howard fit, `3.8265E-4, 44.539, 2.2325E-3, 5.8954E-3`, which is +7.2% in
 absorptance at this planet's own CO2 path. `notes/shortwave-co2.md:163-165`
 asserts the two agree, and `shortwave_band_weights.py:986-988` writes that claim
 into every regenerated JSON, where it is true of the patch and false of the model.
