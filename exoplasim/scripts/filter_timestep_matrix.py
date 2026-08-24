@@ -188,7 +188,8 @@ def run_job(job: dict, base: dict, log_dir: Path) -> dict:
     name = job["name"]
     from_restart = job["track"] in ("A", "S")
     cfg = write_config(base, name, job["rung"], job["kappa"], job["dt"],
-                       job["track"] == "A", bootstrap=not from_restart)
+                       job["track"] == "A" or job.get("energy", False),
+                       bootstrap=not from_restart)
     cmd = [sys.executable, str(ROOT / "exoplasim/scripts/run_exoplasim.py"),
            "--config", str(cfg), "--clean-io", "--run-years", str(job["orbits"])]
     if from_restart:
@@ -384,11 +385,48 @@ def build_sprint_jobs() -> list[dict]:
     return jobs
 
 
+def build_acceptability_jobs() -> list[dict]:
+    """SPAT-11's remaining criteria: does the candidate step survive an ORBIT,
+    and is it still RIGHT there.
+
+    The refusal boundary is mapped and the ladder is priced, which discharges
+    two of the roadmap's five criteria. The other three -- warm-start energy,
+    water and extrema checks, climatological differences after settling, and
+    identical output sampling in physical time -- all need a run at orbit
+    length, and the roadmap is explicit that the step "must not be an automatic
+    rule inferred only from whether a short run crashes".
+
+    CANDIDATE AND CONTROL AT EACH RUNG, from the same declared seed, energy
+    diagnostics on. The control is the adopted step and the candidate is the
+    coarsest step that passed the probe. Two things come out of the pair: does
+    the candidate reach the end of an orbit, which is the failure mode the probe
+    is blind to; and does its adiabatic residual sit where the timestep scaling
+    says it should, which is the cheapest available reading on whether the
+    coarser step is still solving the same problem.
+
+    ORDERED CHEAPEST FIRST, because the saving is not: T85 at 75 minutes against
+    45 is a 40 percent cut on that rung and costs four minutes to test, while
+    T170 at 27 against 22.5 is 17 percent and costs an hour.
+    """
+    pairs = [("T42", 45.0, 60.0), ("T85", 45.0, 75.0),
+             ("T127", 30.0, 36.0), ("T170", 22.5, 27.0)]
+    jobs = []
+    for prio, (rung, control, candidate) in enumerate(pairs):
+        for role, dt in (("cand", candidate), ("ctrl", control)):
+            jobs.append({"track": "B", "rung": rung, "kappa": 8.0, "dt": dt,
+                         "orbits": 1, "energy": True,
+                         "name": f"X_{rung}_{role}_dt{dt:g}",
+                         "priority": 10 + prio})
+    return jobs
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--hours", type=float, default=6.5,
                     help="wall-clock budget. Jobs are priced before they start "
                          "and skipped when they will not fit what is left.")
+    ap.add_argument("--acceptability", action="store_true",
+                    help="SPAT-11's candidate-vs-control pairs at orbit length")
     ap.add_argument("--sprint", action="store_true",
                     help="run the focused T170 and T127-anomaly list instead of "
                          "the full matrix. Ordered by priority rather than cost, "
@@ -397,14 +435,16 @@ def main() -> None:
                     help="stop scheduling when free disk falls below this")
     args = ap.parse_args()
 
-    out_path = OUT_SPRINT if args.sprint else OUT
+    out_path = (ROOT / "exoplasim" / "analysis" / "timestep_acceptability.json"
+                if args.acceptability else OUT_SPRINT if args.sprint else OUT)
     base = yaml.safe_load(CONFIG.read_text(encoding="utf-8"))
     WORK.mkdir(parents=True, exist_ok=True)
     log_dir = WORK / "logs"
     log_dir.mkdir(exist_ok=True)
 
     deadline = now() + args.hours * 3600.0
-    jobs = build_sprint_jobs() if args.sprint else build_jobs()
+    jobs = (build_acceptability_jobs() if args.acceptability
+            else build_sprint_jobs() if args.sprint else build_jobs())
     started_at = datetime.now(timezone.utc).isoformat()
     done: list[dict] = []
     skipped: list[dict] = []
@@ -460,7 +500,8 @@ def main() -> None:
         print(f"[{time.strftime('%H:%M:%S')}] {job['name']} "
               f"est {cost/60:.1f} min, {remaining/60:.0f} min left", flush=True)
         result = run_job(job, base, log_dir)
-        if result["outcome"] == "ok" and job["track"] == "A" and result["run_id"]:
+        if (result["outcome"] == "ok" and result["run_id"]
+                and (job["track"] == "A" or job.get("energy"))):
             result["identity"] = measure_identity(result["run_id"], job["orbits"])
         if (job["track"] == "B" and result["outcome"] == "failed"
                 and not any(d["rung"] == job["rung"] and d["outcome"] != "failed"

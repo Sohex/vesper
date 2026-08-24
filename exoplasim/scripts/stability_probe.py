@@ -45,6 +45,8 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
+import yaml
+
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import _paths  # noqa: F401
 
@@ -134,8 +136,16 @@ def probe(rung: str, dt: float, kappa: float | None, steps: int,
           ranks: int, template: Path) -> dict:
     tag = ("off" if kappa is None else f"k{kappa:g}") + f"_dt{dt:g}"
     bed, exe = build_bed(rung, template, tag)
+    # SEED is declared, not inherited: the template is a run directory made
+    # before `model.cold_start_seed` existed, and `initrandom` falls back to the
+    # system clock when seed(1) is zero. A probe nobody can re-run is a boundary
+    # nobody can check.
+    seed = int(yaml.safe_load(
+        (ROOT / "config" / "planet.yaml").read_text(encoding="utf-8")
+    )["model"]["cold_start_seed"])
     keys = {"N_RUN_STEPS": str(steps), "NOUTPUT": "0", "NSNAPSHOT": "0",
-            "NDIAG": "0", "MPSTEP": f"{dt}", "NENERGY": "0", "NENER3D": "0"}
+            "NDIAG": "0", "MPSTEP": f"{dt}", "NENERGY": "0", "NENER3D": "0",
+            "SEED": str(seed)}
     if kappa is None:
         keys |= {"NFILTER": "0", "NGPTFILTER": "0", "NSPVFILTER": "0"}
     else:
