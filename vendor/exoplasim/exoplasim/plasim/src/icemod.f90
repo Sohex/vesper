@@ -103,6 +103,17 @@
       real :: xmaxd         = 9.0  ! maximal ice thickness (m; neg. = no limit)
       real :: thicec        = 0.5  ! threshold to obtain make mask from comp. 
 !
+!     THE LEAD-CLOSING SCALE, and the whole of this model's lead
+!     parameterisation. mkicec closes a cell's compactness with an e-folding
+!     of hlead metres of new ice growth, and icestep then thresholds the
+!     result at thicec into a hard mask, so hlead alone sets how much ice has
+!     to grow before a cell counts as iced for albedo and roughness. It was a
+!     local variable credited to Hippler 1979, unreachable from any namelist,
+!     on a world whose year is half Earth's and which therefore grows a
+!     different amount of ice per season.
+!
+      real :: hlead         = 0.5  ! lead-closing growth scale (m)
+!
 !     global integer
 !
       integer :: nud        = 6    ! unit for messages
@@ -231,7 +242,7 @@
 !$omp&  xfluxc,xfluxca,xflxice,xflxice2,xflxicea,xgw,xheat,xheata,xicec,xicecc,xiced,ximelt,ximelta,&
 !$omp&  xlhdt,xlhfl,xls,xlwfl,xmaxd,xmind,xmld,xoflux,xofluxa,xoheat,xpme,xprs,xqmelt,xqmelta,xroff,&
 !$omp&  xscflx,xscflxa,xshdt,xshfl,xsmelt,xsmelta,xsmflx,xsndch,xsnow,xsst,xstoi,xstoia,xswfl,xtaux,&
-!$omp&  xtauy,xts,xtsflux,xtsfluxa,xust3,xcoldsst,tsst_eq,tsst_pol,hice_ini)
+!$omp&  xtauy,xts,xtsflux,xtsfluxa,xust3,xcoldsst,tsst_eq,tsst_pol,hice_ini,hlead)
 
       end module icemod
 
@@ -356,7 +367,7 @@
       namelist/icemod_nl/nout,nfluko,nperpetual_ice,ntspd,nprint,nprhor &
      &               ,nentropy,nice,nseaice,nsnow,ntskin,ncpl_ice_ocean,taunc   &
      &               ,xmind,xmaxd,thicec,TFREEZE,CRHOS,CPS,CLFI          &
-     &               ,tsst_eq,tsst_pol,hice_ini,newsurf,naout
+     &               ,tsst_eq,tsst_pol,hice_ini,hlead,newsurf,naout
 !
 !     copy input parameter to icemod
 !
@@ -424,6 +435,7 @@
       call mpbcr(tsst_eq)
       call mpbcr(tsst_pol)
       call mpbcr(hice_ini)
+      call mpbcr(hlead)
 !
 !     set time step
 !
@@ -897,9 +909,20 @@
       
       
 !
-!     correct sea ice to a maximum of xmaxd 
-!     get the needed hflx from the global ocean/ice 
-!     update ximelt
+!     correct sea ice to a maximum of xmaxd and update ximelt
+!
+!     THE THICKNESS LIMIT PAYS FOR ITSELF, LOCALLY. Melting the excess takes
+!     latent heat, and getiflx used to take it as a GLOBAL area-weighted sum
+!     spread over every other cell with ice below xmaxd: a heat transport with
+!     no physical carrier, and one that silently dropped the remainder
+!     whenever the demand exceeded the capacity. The heat now comes out of the
+!     same cell's conductive flux to the ocean, which is local, conserving,
+!     and the only sink the cell has.
+!
+!     Set xmaxd negative to switch the limit off entirely, which is what a
+!     world with no Earth Arctic to calibrate against should do: xmaxd is not
+!     only a clamp, it also zeroes the conductive flux in mkcflux and skintemp
+!     once ice reaches it, so a positive value stops basal growth outright.
 !
       zcflux(:)=0.
       if(xmaxd >= 0.) then 
@@ -908,13 +931,13 @@
         xiced(:)=xmaxd
         xcfluxr(:)=xcfluxr(:)+zcflux(:)
         ximelt(:)=ximelt(:)+zcflux(:)
+        xcflux(:)=xcflux(:)-zcflux(:)
 !
 !       diagnose the lost ice as accumulated snow 
 !       (to make the budged from the atm. output) 
 !
         xsndch(:)=xsndch(:)+zcflux(:)*1000./CRHOI/zrhoilfdt!/xdt
        end where
-       call getiflx
       endif
 !
 !     depug print out if needed
@@ -1349,9 +1372,6 @@
 
       subroutine mkicec(picedo,picedn,picec)
       use icemod
-      real :: zh0 = 0.5
-!     Implicitly SAVE, so one copy shared by the whole team.
-!$omp threadprivate(zh0)
       real :: picedo(NHOR)  ! old thickness (input)
       real :: picedn(NHOR)  ! new thickness (input)
       real :: picec(NHOR)   ! old and new compactness (input & output)
@@ -1363,7 +1383,7 @@
 !     compute new compactness (following Hippler '79; diagnostics)
 !
       where(picedn(:) > picedo(:))
-       picec(:)=picec(:)+(1.-picec(:))*(picedn(:)-picedo(:))/zh0
+       picec(:)=picec(:)+(1.-picec(:))*(picedn(:)-picedo(:))/hlead
        picec(:)=AMIN1(picec(:),1.)
       endwhere
       where(picedn(:) < picedo(:))
@@ -1402,9 +1422,6 @@
 
       subroutine mkicecf(picedc,piced,picec)
       use icemod
-      real :: zh0 = 0.5
-!     Implicitly SAVE, so one copy shared by the whole team.
-!$omp threadprivate(zh0)
       real :: picedc(NHOR)  ! clim. thickness (input)
       real :: piced(NHOR)   ! actual thickness (input)
       real :: picec(NHOR)   ! new compactness (input & output)
@@ -1419,7 +1436,7 @@
        if(piced(jhor) > 0. .and. picedc(jhor) > 0) then
         zdice=piced(jhor)-picedc(jhor)
         if(zdice > 0.) then
-         picec(jhor)=1.-(1.-xclicec2(jhor))*exp(-zdice/zh0)
+         picec(jhor)=1.-(1.-xclicec2(jhor))*exp(-zdice/hlead)
         else
          picec(jhor)=xclicec2(jhor)*sqrt(piced(jhor)/picedc(jhor))
         endif
@@ -2181,40 +2198,4 @@
       return
       end subroutine make_ice_thickness
 
-!     ==================
-!     SUBROUTINE GETIFLX
-!     ==================
-
-      subroutine getiflx
-      use icemod
-!
-      real :: zsum(2)
-      real :: zflx(NHOR) = 0.
-!     Implicitly SAVE, so one copy shared by the whole team.
-!$omp threadprivate(zflx)
-!
-      zrhoilfdt=CRHOI*CLFI/xdt
-!
-      where(xls(:) < 1.)
-       zflx(:)=AMAX1(0.,xmaxd-xiced(:))*zrhoilfdt
-      endwhere
-!
-      zsum(1)=SUM(xcfluxr(:)*xgw(:),MASK=(xls(:) < 1.))
-      zsum(2)=SUM(zflx(:)*xgw(:),MASK=(xls(:) < 1.))
-      call mpsumbcr(zsum,2)
-!
-      if(zsum(1) > 0. .and. zsum(2) > 0.) then
-       zfac=zsum(1)/zsum(2)
-       if(zfac <= 1.) then
-        where(xls(:) < 1.)
-         zflx(:)=zflx(:)*zfac
-        endwhere
-       endif
-       where(xls(:) < 1.)
-        xcfluxr(:)=xcfluxr(:)-zflx(:)
-        xcflux(:)=xcflux(:)-zflx(:)
-       endwhere
-      endif
-!
-      return
-      end subroutine getiflx      
+     

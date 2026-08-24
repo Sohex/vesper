@@ -317,6 +317,38 @@ ocean:
 surface:
   mixed_layer_depth_m: 50.0
   sea_ice: true
+
+  # DECLARED, 2026-08-24. NO MAXIMUM SEA-ICE THICKNESS, which is what a
+  # negative value means to `icemod_nl`'s XMAXD. The compiled 9 m is Earth's
+  # Arctic multi-year maximum and is a stand-in for ice export, which is a
+  # process this model does not have: the error budget already carries "sea
+  # ice does not move" as a declared structural term, and half-parameterising
+  # it with a thickness cap makes that term dishonest rather than smaller.
+  #
+  # XMAXD is not only a clamp. `mkcflux` and `skintemp` zero the conductive
+  # heat flux once modelled ice reaches it, so a positive value stops basal
+  # growth outright, and what got past it was melted and paid for out of a
+  # global area-weighted sum spread over every other iced cell. That
+  # redistribution is gone; the limit now pays locally where it is switched
+  # on, and here it is switched off.
+  #
+  # Nothing is left unbounded by this. Conductive growth goes as the square
+  # root of time, because the flux through the ice falls as its thickness
+  # rises, so the modelled thickness is limited by the model's own physics
+  # rather than by a number. It is dormant at the current climate and live in
+  # any cold sweep arm. world-12c.
+  sea_ice_max_thickness_m: -1.0
+
+  # DECLARED, and EXPOSED rather than changed: the value is ExoPlaSim's.
+  # This is the whole of the model's lead parameterisation. A cell's ice
+  # compactness closes with an e-folding of this much new ice growth, and the
+  # compactness is then thresholded into the hard mask that albedo and
+  # roughness see, so this length alone sets how much ice must grow before a
+  # cell goes white. It is calibrated to Earth's Arctic and this world's year
+  # is half Earth's, so the ice grown per season is not the same; nothing here
+  # can recalibrate it, and it reaches `icemod_nl` as HLEAD so that a bracket
+  # arm can. world-12c.
+  sea_ice_lead_closing_m: 0.5
   glaciers:
     enabled: true
     min_snow_depth_m: 2.0

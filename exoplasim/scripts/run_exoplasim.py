@@ -177,6 +177,11 @@ def configure_otherargs(derived: dict) -> dict:
         "TSST_EQ@icemod_namelist": f"{derived['cold_start_sst_equator_k']:.4f}",
         "TSST_POL@icemod_namelist": f"{derived['cold_start_sst_pole_k']:.4f}",
         "HICE_INI@icemod_namelist": f"{derived['cold_start_ice_thickness_m']:.4f}",
+        # THE TWO SEA-ICE LENGTHS, icemod_nl. Written unconditionally,
+        # defaults included, so the namelist in the run directory records what
+        # the arm ran with rather than leaving it to the binary. world-12c.
+        "XMAXD@icemod_namelist": f"{derived['sea_ice_max_thickness_m']:.4f}",
+        "HLEAD@icemod_namelist": f"{derived['sea_ice_lead_closing_m']:.4f}",
         # CLIM-16, oceanmod_nl. Written unconditionally, defaults included, so
         # the namelist in the run directory records what the arm actually ran
         # with instead of leaving it to the binary's compiled value.
@@ -371,6 +376,13 @@ def derive(config: dict, flux_ratio: float) -> dict:
             config["ocean"]["cold_start"]["sst_pole_k"]),
         "cold_start_ice_thickness_m": float(
             config["ocean"]["cold_start"]["sea_ice_thickness_m"]),
+        # world-12c. Negative means no maximum thickness. The lead-closing
+        # scale is DECLARED at ExoPlaSim's value rather than recalibrated;
+        # nothing here can recalibrate it.
+        "sea_ice_max_thickness_m": float(
+            config["surface"]["sea_ice_max_thickness_m"]),
+        "sea_ice_lead_closing_m": float(
+            config["surface"]["sea_ice_lead_closing_m"]),
         # CLIM-16. Ocean horizontal heat transport EXISTS; a constant
         # diffusivity is a BOUND on the missing transport rather than the
         # transport, and it is bracketed rather than tuned. NLEV_OCE is 1
@@ -1605,6 +1617,12 @@ def expected_namelist_keys(config: dict) -> dict:
             float(cold["sst_pole_k"]), 4)
         want["icemod_namelist"]["HICE_INI"] = round(
             float(cold["sea_ice_thickness_m"]), 4)
+    ice_max = config.get("surface", {}).get("sea_ice_max_thickness_m")
+    if ice_max is not None:
+        want["icemod_namelist"]["XMAXD"] = round(float(ice_max), 4)
+    lead = config.get("surface", {}).get("sea_ice_lead_closing_m")
+    if lead is not None:
+        want["icemod_namelist"]["HLEAD"] = round(float(lead), 4)
     if energy_diagnostics_enabled(config):
         want["plasim_namelist"]["NENERGY"] = float(energy_diagnostics_level(config))
     if m.get("conversion_time_level", False):
