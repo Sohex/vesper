@@ -243,12 +243,33 @@ built, re-run and explored without costing a re-commissioning.
 
 ## 6. The model recommendation
 
-**Coupling class: offline, on the aeolian pattern.** The ocean model reads a
-climatology and writes fields the next climate run is forced with. It is not
-synchronously coupled to the atmosphere. This is the only class that is
-affordable, because equilibrating a deep ocean takes thousands of model years
-and an ExoPlaSim orbit is priced in wall-clock hours
+**Coupling class: offline full-flux, on the aeolian pattern.** The ocean model
+reads a climatology and writes fields the next climate run is forced with. It is
+not synchronously coupled to the atmosphere.
+
+The reason is the resolution ladder, and it is sharper than "a deep ocean is
+expensive". A coupled intermediate-complexity atmosphere-ocean model spends 98
+percent of its time in the atmosphere; the frictional-geostrophic ocean is
+nearly free. So what a dynamic ocean costs is not the ocean. It is being obliged
+to integrate the ATMOSPHERE for the thousands of model years the ocean needs,
+and that price is paid at whatever rung the atmosphere is running. Offline
+coupling is the only class in which the ocean's cost does not climb the
+T21/T42/T85/T127/T170 ladder with the atmosphere, and this project stops at the
+first rung that passes SPAT-8 rather than at a fixed resolution
 (`docs/src/pipeline/costs.md`).
+
+**Two other coupling architectures were considered and eliminated**, recorded
+here so neither is re-opened. An offline path supplying only wind stress, winds
+and albedo, letting an energy-moisture balance atmosphere compute the heat
+fluxes with its own parameterised transport, keeps the partition tunable and
+needs no loop -- but the tuning is of an Earth-calibrated second atmosphere on a
+30-hour, 32-degree world, which is class 16. A synchronous path with gearing
+solves the partition inside the model, and does not reach the top of the ladder:
+its shipped form is single-task and compile-time fixed to T21 with ten levels,
+its matched-grid convention puts a serial r^4 ocean at 512 x 256, and the only
+lever that would make it affordable at a high rung is the one that turns it back
+into offline coupling. The arithmetic is in `notes/external-model-survey.md`
+section 59.
 
 **Circulation host: cGENIE, and the resolved tier is off the board.** Two
 eliminations and one candidate.
@@ -321,6 +342,16 @@ weakly, and temperature NOT restored. It also creates a loop -- transport field,
 new baseline, new forcing, new transport field -- and every loop in this project
 carries a declared exit predicate in `config/pipeline.yaml` rather than a
 stopping habit. That is OCN-5, and it is a decision rather than a measurement.
+
+The hand-over itself has a rule, taken from the eliminated synchronous
+architecture, where it is a working arrangement rather than an inference. Terms
+that depend on ocean temperature are recomputed live against it -- saturation
+specific humidity and hence latent heat, net longwave, and sensible heat --
+while only the transfer coefficients and the downward radiative and moisture
+fields are replayed. Naive replay of net heat flux severs the negative feedback
+that holds sea surface temperature. Evaporation is deliberately not recomputed,
+for moisture conservation, with rescaling precipitation and runoff considered
+and rejected. `notes/external-model-survey.md` section 59f.
 
 ## 8. Integration with the terrestrial and biosphere audits
 

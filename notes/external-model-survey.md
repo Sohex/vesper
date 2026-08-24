@@ -96,6 +96,7 @@ is a finding with no home, which is the condition this exists to catch.
 | 56 | The sweep turned inward, and the surface modules carry live defects | `CLIM-66`, `CLIM-67`, `GRAV-9` |
 | 57 | What the Vesper calendar port did not reach | `BIO-31`, `BIO-32`, `BIO-33`, `SDEC-10` |
 | 58 | The radiation sweep: a correction that never acts, and a calendar off by eight | `CLIM-68`, `CLIM-69`, `CONS-14`, `OCN-22` |
+| 59 | The coupling architecture, decided: the ocean's cost must not climb the ladder | `OCN-2`, `OCN-3`, `OCN-5`, `OCN-11`, `OCN-12`, `OCN-17`, `OCN-18` |
 
 ## 1. The two families do not overlap, and this stack is in the gap
 
@@ -5286,3 +5287,136 @@ terminator is a larger share of the illuminated disc than on Earth. Surface
 longwave emissivity is compile-time, with land at exactly 1. And one file
 normalises Rayleigh column mass by 101100 Pa while another normalises the band
 model by 101325, so one bar is two numbers inside one module.
+
+
+## 59. The coupling architecture, decided: the ocean's cost must not climb the ladder
+
+*Read 2026-08-24: Holden et al. (2016), the PLASIM-GENIE paper, against
+`vendor/cgenie/genie-plasim` and this project's own measured rung costs.
+Sections 10b, 28c and 30 recorded three candidate architectures and left the
+choice unmade. This section makes it, and records the two eliminations so
+neither is re-opened.*
+
+### 59a. The three architectures, and the axis that separates them
+
+| | what ExoPlaSim supplies | who computes the surface heat flux | who owns the transport partition |
+| --- | --- | --- | --- |
+| offline regrid | wind stress, winds, albedo | EMBM | tunable in EMBM's `betaz`, `betam`, `diffamp` |
+| offline full-flux | the full flux set | ExoPlaSim | an outer loop through surface code 903 |
+| online geared | 17 fields, live, ocean returns SST and five ice fields | ExoPlaSim | the coupling |
+
+The separating axis is not physics and it is not engineering burden. It is
+whether the ocean's cost is a function of the atmosphere's resolution. This
+project climbs a T21/T42/T85/T127/T170 ladder and stops at the first rung that
+passes SPAT-8, so an architecture whose ocean cost is tied to the atmosphere
+grid is priced out at the top of the ladder no matter what it is worth at the
+bottom.
+
+### 59b. Offline regrid is eliminated on tuning
+
+It supplies ExoPlaSim's dynamics to EMBM and lets EMBM compute the heat fluxes
+with its own parameterised transport, which is why the published path works
+without an outer loop: the partition stays where cGENIE can tune it. That means
+running a second atmosphere whose `diffamp`, `diffwid`, `difflin`, `betaz` and
+`betam` are calibrated for Earth, on a world with a 30-hour rotation and 32
+degrees of obliquity, and re-tuning them until the coupled answer comes out.
+That is what `docs/src/practice/failure-modes.md` class 16 forbids.
+
+### 59c. Online geared is eliminated on the ladder, and the arithmetic is not close
+
+The gearing at `plasim.f90:604-655` is what makes a coupled ocean affordable:
+the atmosphere integrates `ngear_years_plasim` years while accumulating daily
+means, then returns immediately for the next `ngear_multiple - 1` blocks while
+the ocean is driven from the stored cycle. The shipped configurations set
+`ngear_years_plasim = 1` and `ngear_multiple = 10`, so the atmosphere runs one
+year in ten.
+
+Against that, the ocean needs of order 10,000 years to reach steady state, and
+the geared atmosphere therefore integrates of order 1,000. Composing this
+project's measured T42 figure of roughly a thousand local years a day on
+sixteen ranks with the Legendre work ratios brackets T170 at **5 to 15 local
+years a day, timestep unmeasured**, so those thousand years are **67 to 200
+days of wall clock**. Offline puts the same equilibration on one core for a day
+and never advances the atmosphere at all.
+
+Three further findings, each sufficient on its own at the top of the ladder:
+
+**The shipped coupling is single-task.** `geniemod.f90` declares
+`NPRO_ATM = 1`, `NLAT_ATM = 32` and `NLEV_ATM = 10` as `parameter`s, and the
+makefile links `mpimod_stub.f90` unconditionally -- it is the only mpimod in the
+component. `vendor/exoplasim` ships `mpimod.f90`, `mpimod_multi.f90` and
+`mpimod_omp.f90` beside the stub. The bracket above assumes sixteen ranks the
+published arrangement cannot use.
+
+**Matched grids do not survive the ladder.** The published coupling matches the
+three horizontal grids explicitly to avoid interpolation, at T21 against a
+64 x 32 ocean. Matching at T170 is a 512 x 256 ocean, eight times linear on a
+serial component that grows as r^4 per model year: about 4,000x, which is a wall
+rather than a cost. Declining to match means writing the regridder the offline
+architecture needs anyway, and keeping the online architecture's atmosphere
+cost.
+
+**The only affordability lever removes the reason to want it.** Online geared's
+one real advantage is that the partition converges inside the model because the
+atmosphere responds to the ocean every block. The only way to reach a high rung
+is a larger `ngear_multiple`, which is precisely the number of ocean years
+driven by a replayed atmospheric seasonal cycle. Geared hard enough to be
+affordable it is offline coupling with a shorter iteration, and the property
+being paid for degrades in proportion to the affordability bought.
+
+### 59d. Two Earth-fitted corrections in the published coupling, and neither has a Vesper analogue
+
+Recorded because they are properties of the ocean components rather than of the
+coupling, so they survive the elimination and reach the adopted architecture
+through OCN-12.
+
+A reasonable ocean circulation and salinity distribution required an
+Atlantic-Pacific moisture flux adjustment, varied over 0 to 0.32 Sv and set by
+comparison against Talley's basin freshwater budgets; the superseded IGCM
+coupling needed 0.79 Sv, reversing the sign of the simulated flux. The sea-ice
+component carries a third, energy flux corrections diagnosed against observed
+present-day sea-ice thickness. There are no such basins here and no such
+observations, so these are routes to "reasonable" that are closed rather than
+expensive, and an adequacy claim resting on the components' Earth behaviour
+inherits them.
+
+### 59e. `scf` is a tuned parameter, which settles OCN-17 against reuse
+
+Section 28d identified the multiplier as the wind stress scaling from source.
+The paper states what it is for: the frictional-geostrophic ocean dissipates
+wind energy, so increased surface wind strengths are required to compensate and
+drive a reasonable circulation. Its conventional ensemble range is 1 to 3,
+widened to 2 to 4 for the T21 coupling in anticipation of understated Southern
+Ocean zonal wind stress, and it was varied as one of six subjectively tuned
+ocean parameters over a 50-member ensemble.
+
+So it is neither a regridding artifact nor a quantity derivable from the ratio
+of two stress products over a common grid. It is a knob in the class-16 sense,
+and the published 2.0 and 2.6 are two settings of it rather than a correction to
+inherit. If GOLDSTEIN is adopted, `scf` is declared as a bracket and the bracket
+is reported.
+
+### 59f. What the eliminated architecture is still worth
+
+The gearing is a design input for OCN-5's loop rather than a dead end. It
+demonstrates that replaying a stored seasonal cycle to an ocean is stable
+provided the terms that depend on ocean temperature are recomputed live against
+it -- saturation specific humidity and hence latent heat, net longwave, and
+sensible heat -- while only the transfer coefficients and the downward radiative
+and moisture fields are replayed. The source comment says why: naive replay of
+net heat flux severs the negative feedback that holds sea surface temperature.
+Evaporation is deliberately not recomputed, for moisture conservation, with
+rescaling precipitation and runoff considered and rejected.
+
+That is a hand-over rule OCN-10's contract can adopt directly, and it was
+arrived at by a working coupling rather than by this project's reasoning.
+
+### 59g. The consequence for ordering
+
+Offline full-flux has exactly one structural weakness: the partition is
+iterated rather than solved. A slab-forced climatology hands the ocean a flux
+field computed on the assumption that the ocean does nothing, so the ocean
+over-transports, and the correction has to return to the next atmospheric run.
+Surface code 903 under `nfluko = 1` is the only channel for it.
+
+That makes OCN-2 the critical path rather than merely the cheapest row.
