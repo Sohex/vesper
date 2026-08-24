@@ -470,3 +470,45 @@ damping alone gives a better-confined spectrum than any filtered configuration
 measured, and the kinetic-energy identity comes closer to closing without the
 filter than with it sharpened. What it costs is the timestep, and whether that
 is worth paying is a decision that needs the missing arm.
+
+## The clean comparison: the trade is monotone and intrinsic to these knobs
+
+*The confounded arms above are replaced by three that differ in ONE variable.
+T42, dt 22.5 throughout, derived hyperdiffusion throughout, two orbits from the
+same settled restart. Only the filter changes.*
+
+| filter | spectral bite | adiabatic 26-27 | KE identity |
+| --- | ---: | ---: | ---: |
+| gamma 8 | 0.60 | -0.593 | -0.015 |
+| gamma 16 | 0.67 | -1.683 | +0.019 |
+| off | **0.76** | **-2.675** | +0.030 |
+
+**Monotone in every column.** Weakening the filter improves confinement by 0.16
+of the truncation and costs 2.08 W/m2 of adiabatic conservation, with no sweet
+spot between. At fixed timestep the trade is intrinsic to these two knobs, and
+the earlier reading -- that it might be an accounting artifact of the filter's
+own unbooked dissipation -- is now excluded twice: once by the removal
+calculation running the wrong way, and once by this monotone series.
+
+The kinetic-energy identity moves the other way, -0.015 to +0.030, and stays
+small throughout against a conversion of about 2 W/m2. So the dissipation is
+being booked in every configuration; it is the adiabatic step that degrades.
+
+### An unexplained reversal, recorded rather than smoothed
+
+Under PlaSim's own T42 diffusion the adiabatic residual was POSITIVE and fell
+with the timestep: +0.315 at dt 45, +0.189 at dt 30, +0.120 at dt 22.5. Under
+the derived diffusion it is NEGATIVE and its magnitude GROWS as the timestep
+shortens: -0.458 at dt 45 against -0.593 at dt 22.5.
+
+A single term scaling with dt cannot do that. Two terms can -- a positive one
+that shrinks with the timestep, which is what the semi-implicit truncation
+should do, and a negative one that does not, which appeared when the diffusion
+was weakened. Fitting the two points gives roughly +0.22 for the first at dt 45
+and -0.68 for the second, but two points and a guessed functional form is not a
+decomposition and it is not offered as one.
+
+What it does say is that the adiabatic residual is not one thing, and that the
+timestep scaling measured under the old diffusion does not transfer. Any
+argument that leaned on "26 - 27 scales with dt" needs re-checking against the
+configuration it is being applied to.
