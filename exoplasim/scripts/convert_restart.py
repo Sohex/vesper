@@ -258,6 +258,13 @@ def convert(src: RestartState, tgt: RestartState, *,
     src_area = rt.cell_area(src.geometry.nlat)
     tgt_area = rt.cell_area(tgt.geometry.nlat)
     masks = {d: _domain_mask(src, d) for d in ("global", "land", "ocean")}
+    # The TARGET's own classes, from the template's mask. A target cell outside
+    # a field's domain -- ocean, for a soil temperature -- is SUPPOSED to take
+    # the template's value and is not a fallback; a target cell INSIDE the
+    # domain with no source of its own class is, and is the only one worth
+    # counting. Conflating the two reported 3,399 fallbacks on a T21-to-T42
+    # conversion where the real number was zero.
+    tgt_masks = {d: _domain_mask(tgt, d) for d in ("global", "land", "ocean")}
     out_dtype = REAL[tgt.real_bytes]
     fractions: dict[str, np.ndarray] = {}      # remapped covers, for their pairs
     records, reports = [], []
@@ -345,7 +352,7 @@ def convert(src: RestartState, tgt: RestartState, *,
                                      ).astype(np.float64).reshape(-1, tgt.geometry.nugp)
             out = np.empty((src_lv.shape[0], tgt.geometry.nugp))
             detail = {"remap": pol.remap, "domain": pol.domain}
-            unfilled = 0
+            unfilled = outside = 0
             for k, level in enumerate(src_lv):
                 if pol.remap == rs.THICKNESS:
                     cover = fractions.get(pol.partner)
@@ -362,7 +369,11 @@ def convert(src: RestartState, tgt: RestartState, *,
                 else:
                     value, missed = rt.remap(level, weights, mask=masks[pol.domain])
                 gaps = missed | ~np.isfinite(value)
-                unfilled += int(gaps.sum())
+                in_domain = tgt_masks[pol.domain]
+                if in_domain is None:
+                    in_domain = np.ones(tgt.geometry.nugp, dtype=bool)
+                unfilled = max(unfilled, int((gaps & in_domain).sum()))
+                outside = max(outside, int((gaps & ~in_domain).sum()))
                 value = np.where(gaps, fallback[k % fallback.shape[0]], value)
                 if pol.bounds is not None:
                     lo, hi = pol.bounds
@@ -371,19 +382,49 @@ def convert(src: RestartState, tgt: RestartState, *,
                         int(np.count_nonzero(clipped != value))
                     value = clipped
                 if pol.conserve or pol.remap == rs.RESERVOIR:
-                    before = float((level * src_area).sum())
-                    after = float((value * tgt_area).sum())
+                    # Over the FIELD'S OWN DOMAIN at each end. A global integral
+                    # would be part remapped and part template, and would say
+                    # the sea-ice volume moved by 693% when what it measured was
+                    # the template's ice on cells this field never covered.
+                    src_in = (masks[pol.domain] if masks[pol.domain] is not None
+                              else np.ones(src.geometry.nugp, dtype=bool))
+                    # Times the fraction it is measured per, where it is not
+                    # the whole cell: an ice thickness is a depth over the
+                    # ice-covered part and its inventory is a volume.
+                    src_w = (src.decode(pol.measured_per)
+                             if pol.measured_per else 1.0)
+                    tgt_w = (fractions.get(pol.measured_per, 1.0)
+                             if pol.measured_per else 1.0)
+                    if pol.measured_per:
+                        detail["inventory_measured_per"] = pol.measured_per
+                    before = float((level * src_w * src_area)[src_in].sum())
+                    after = float((value * tgt_w * tgt_area)[in_domain].sum())
+                    # What the TEMPLATE put there, on the in-domain cells the
+                    # mask change left with no source of their own class. It is
+                    # the whole of the difference wherever the remap itself is
+                    # conservative, and separating it is what makes the residual
+                    # actionable: a template cut from a run in a different state
+                    # from the donor injects that state at every moved
+                    # coastline cell.
+                    injected = float(
+                        (value * tgt_w * tgt_area)[gaps & in_domain].sum())
                     detail.setdefault("inventory", []).append(
                         {"level": k, "source": before, "target": after,
+                         "from_template_fallback": injected,
                          "relative_residual": (abs(after - before) / abs(before))
-                         if before else 0.0})
+                         if before else 0.0,
+                         "residual_explained_by_fallback": (
+                             abs(injected) / abs(after - before)
+                             if abs(after - before) > 0 else None)})
                 out[k] = value
             if pol.remap == rs.FRACTION:
                 fractions[name] = out[0]
             detail["fallback_cells"] = unfilled
+            detail["cells_outside_domain"] = outside
             if unfilled:
                 detail["fallback"] = ("the target template, for target cells "
-                                      "with no source overlap of their class")
+                                      "IN this field's domain that found no "
+                                      "source of their own class")
             if pol.conserve:
                 detail["conserves"] = pol.conserve
             payload, cast_detail = cast(out.ravel())

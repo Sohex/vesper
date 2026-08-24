@@ -245,6 +245,11 @@ class Policy:
     # reservoir has to close against.
     partner: str | None = None
     conserve: str | None = None
+    # The fraction this quantity is measured PER, where that is not the whole
+    # cell. An ice thickness is a depth over the ice-covered part, so its
+    # inventory is thickness x cover x area, and comparing thickness x area
+    # before and after says a volume-conserving remap moved the volume by 634%.
+    measured_per: str | None = None
     # True where SIMBA takes ownership of the field under coupled vegetation.
     vegetation_owned: bool = False
     # For an accumulator, what `outreset` and its equivalents do to it at an
@@ -409,6 +414,7 @@ POLICY.update({
                     bounds=(0.0, 1.0), partner="diced", why="ice cover"),
     "diced": Policy(PROGNOSTIC_GRID, REMAP, THICKNESS, domain="ocean",
                     partner="dicec", conserve="sea_ice_volume",
+                    measured_per="dicec",
                     why="ice thickness; the VOLUME is what survives a "
                         "coastline change, not the thickness"),
     "dwatc": Policy(PROGNOSTIC_GRID, REMAP, RESERVOIR, domain="land",
@@ -458,10 +464,16 @@ POLICY.update({
                     bounds=(0.0, 1.0), partner="xiced", why="ice cover"),
     "xiced": Policy(PROGNOSTIC_GRID, REMAP, THICKNESS, domain="ocean",
                     partner="xicec", conserve="ice_model_volume",
+                    measured_per="xicec",
                     why="ice thickness; remapped as volume with its cover"),
     "xsnow": Policy(PROGNOSTIC_GRID, REMAP, RESERVOIR, domain="ocean",
                     conserve="ice_snow", bounds=(0.0, None),
-                    why="snow on sea ice, water equivalent"),
+                    measured_per="xicec",
+                    why="snow on sea ice, water equivalent. A DEPTH ON THE ICE "
+                        "COLUMN rather than over the cell: `icemod.f90:591` "
+                        "adds it to xiced in the same length units after a "
+                        "density conversion, so its inventory carries the ice "
+                        "cover the way xiced's does"),
     "xicecc": Policy(PROGNOSTIC_GRID, REMAP, FRACTION, domain="ocean",
                      bounds=(0.0, 1.0),
                      why="prognostically computed ice cover"),
