@@ -93,18 +93,27 @@ def gaussian_weights(nlat: int) -> np.ndarray:
     return w[::-1] / w.sum()          # model latitudes run north to south
 
 
-def dsigma_from_levels(lev: np.ndarray) -> np.ndarray:
-    """The model's half levels, recovered from its full ones and then checked."""
-    sigmah = np.empty(len(lev) + 1)
-    sigmah[0] = 0.0
-    for j, s in enumerate(lev):
-        sigmah[j + 1] = 2.0 * s - sigmah[j]
-    if abs(sigmah[-1] - 1.0) > 1e-4:
-        raise SystemExit(
-            f"the midpoint recursion gives sigmah(NLEV) = {sigmah[-1]:.6f}, not "
-            f"1: these are not the levels this rule describes and dsigma cannot "
-            f"be trusted")
-    return np.diff(sigmah)
+def dsigma(levp: np.ndarray) -> np.ndarray:
+    """The model's layer thicknesses, TAKEN from the output rather than rebuilt.
+
+    PlaSim sets the half levels as the midpoint of adjacent full levels
+    (`plasim.f90:1644`), and `levp` carries the result. The inverse recursion --
+    full levels as the midpoint of adjacent half levels -- looks equally
+    plausible and is wrong by 28 percent at the bottom layer and 16 percent at
+    the top, which is where the mass is.
+
+    IT IS TAKEN AND NOT REBUILT because no cheap check separates the two rules:
+    both land on sigmah(NLEV) = 1 and both give thicknesses summing to 1, so a
+    check on either would pass on the wrong answer. That is exactly the shape
+    `docs/src/practice/failure-modes.md` class 17 warns about, and this comment
+    is here because a check of that kind was written first and did not fire.
+    """
+    sh = np.concatenate([[0.0], np.asarray(levp[1:], dtype=float)])
+    ds = np.diff(sh)
+    if abs(ds.sum() - 1.0) > 1e-5 or abs(sh[-1] - 1.0) > 1e-5:
+        raise SystemExit(f"levp does not describe half levels: they span "
+                         f"{ds.sum():.6f} and end at {sh[-1]:.6f}, not 1")
+    return ds
 
 
 def arm_series(run_dir: Path, gravity: float):
@@ -116,8 +125,11 @@ def arm_series(run_dir: Path, gravity: float):
     times, etot, enth, kin, oro, eddy, mass = [], [], [], [], [], [], []
     for path in files:
         d = nc.Dataset(path)
-        lev = np.asarray(d.variables["lev"][:], dtype=float)
-        ds = dsigma_from_levels(lev)
+        if "levp" not in d.variables:
+            raise SystemExit(f"{path} carries no levp; the layer thicknesses "
+                             f"cannot be taken from the model and must not be "
+                             f"guessed")
+        ds = dsigma(np.asarray(d.variables["levp"][:], dtype=float))
         w = gaussian_weights(d.dimensions["lat"].size)[None, :, None]
         ua = np.asarray(d.variables["ua"][:], dtype=float)
         va = np.asarray(d.variables["va"][:], dtype=float)

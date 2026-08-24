@@ -806,7 +806,7 @@ variable: across the dry arms it moves by 1.3x while the sink moves by 2.4x,
 and the unfiltered arm carries 22 percent LESS total eddy energy than the
 filtered one while sinking 2.4 times as fast.
 
-## The term, named: the adiabatic conversion in the temperature equation
+## The term: the adiabatic conversion in the temperature equation
 
 A control patch in `calcgp` split the global-mean temperature tendency into its
 three pieces, using the model's own Gaussian quadrature. It can be split there
@@ -820,6 +820,17 @@ construction and the top level's separate form needed no special case.
     P2   akap*ztv2*(zvgpg - ztptb) + tkp*(zvgpg - ztpta), the conversion
     P3   the vertical advection, by difference
 
+Late in the run, in K/s, the model's own numbers:
+
+    nstep     P1          P2          P3          total
+    597760   -3.0e-8     -1.58e-7    +1.19e-7    -6.9e-8
+    600320   -3.1e-8     -9.4e-8     +6.6e-8     -5.9e-8
+    600960   -4.2e-8     -8.8e-8     +9.2e-8     -3.8e-8
+
+**P1 and P3 largely cancel, and P2 sets the total.** P2 is negative at every
+print, from the first step to the last. The global-mean cooling that drives the
+sink is the adiabatic conversion term, not the advection.
+
 Alongside it, the same run printed the (0,0) coefficient of the temperature
 tendency on either side of the semi-implicit correction. **They are equal to
 every printed digit, and the divergence coefficient is exactly zero.** The
@@ -827,40 +838,23 @@ correction is `stt -= tau . sdt` and `sdt(1:2,:)` is forced to zero above it, so
 the semi-implicit step cannot reach the global mean at all. It is exonerated,
 from the model rather than by argument.
 
-The same three pieces were rebuilt independently from the model's gridpoint
-output, on a grid refined until they stopped moving -- under one percent from a
-384-latitude reference to a 512-latitude one, so the derivative error is not
-what separates them. Late in the run, where the initial transient has gone:
-
-    piece    reconstruction    model      agreement
-    P1        -2.68e-8        -3.11e-8      86 %
-    P3        +6.52e-8        +6.64e-8      98 %
-    P2        +2.40e-8        -9.43e-8      opposite sign
-
-**P1 and P3 agree and P2 does not, and P2 is the only piece that uses the `c`
-matrix.** The difference is 1.18e-7 K/s, which at this column mass is 0.89 W/m2
--- the 0.87 W/m2 that goes missing, to within the scatter of a single sample.
-
-That closes the search. The sink is the adiabatic conversion term in the
-temperature equation, and the statement does not rest on the reconstruction at
-all: in the model's own numbers the temperature equation's conversion removes
-about 1.0 W/m2 of enthalpy across `spectrala` while the divergence equation's
-counterpart delivers 0.147 W/m2 to kinetic energy. The conversion the flow
-actually supports, computed from the state with both ends agreeing to 0.07
-percent, is 0.30 W/m2. Neither end of the model's conversion matches it and the
-two shortfalls sum to the sink.
+So, in the model's own arithmetic and with nothing rebuilt from output: across
+`spectrala` the temperature equation removes about 1.0 W/m2 of enthalpy, led by
+its conversion term, while the divergence equation delivers 0.147 W/m2 to
+kinetic energy. The two ends of one conversion, and they do not meet.
 
 ### What it is not, each excluded by measurement rather than by argument
 
   the transform      the quadrature is exact for every term `calcgp` forms,
                      including `rcsq * U * dlnps/dlam` at 1e-15 and
                      `exp(ln ps)` at 4e-11, with a quadratic and a cubic
-                     carried as controls that could have failed
-  its truncation     truncating the conversion costs 0.0027 W/m2 net between
-                     the two ends, and truncating the advection 0.03, against
-                     0.87. Both were measured as the same quantity with and
-                     without the projection, so the derivative error cancels
-                     exactly and only the truncation is left
+                     carried as controls that could have failed. Single-level,
+                     so no layer thickness enters it
+  its truncation     truncating the conversion costs 0.003 W/m2 net between the
+                     two ends and truncating the advection 0.03, against 0.87.
+                     Both are the same quantity measured with and without the
+                     projection, so every error common to the two cancels and
+                     only the truncation is left
   the semi-implicit
   scheme             it cannot reach the global mean, and separately the
                      matrices satisfy the adjoint identity conservation needs:
@@ -873,19 +867,34 @@ two shortfalls sum to the sink.
                      is the Simmons-Burridge relation the vertical scheme is
                      named for
 
-The remedy is not a knob. Either the conversion's discretisation is corrected
-so the two equations meet, or the model carries a global energy fixer of the
-kind ECHAM, the IFS and CAM all carry for exactly this reason -- and a fixer is
-an admission, not a fix: it restores the total without restoring where the
-energy went.
+### What is NOT established, and why the reconstruction cannot say it
 
-### A note on the instrument
+Rebuilding the same three pieces from the model's gridpoint output puts P2 at
+the opposite sign to the model's. That is not evidence against the model. **The
+reconstruction has now produced two defects of its own and no independent
+validation**, so its absolute values carry nothing:
 
-The reconstruction from output was nearly discarded on a wrong diagnosis. Its
-`P2` sits at 78 percent of its own larger part, so a plausible-looking error
-budget said the error exceeded the quantity and the comparison meant nothing.
-Refining the grid until the answer stopped moving is what settled it -- the
-convergence test, not the estimate. `docs/src/practice/failure-modes.md` class
-34 cuts both ways: an instrument too coarse for the effect returns an
-ordinary-looking number, and an instrument assumed too coarse throws away a
-real one.
+  it rebuilt the half levels by the wrong recursion. PlaSim sets sigmah as the
+  midpoint of adjacent SIGMAS (`plasim.f90:1644`); the inverse -- sigma as the
+  midpoint of adjacent sigmah -- looks equally natural and is wrong by 28
+  percent at the bottom layer and 16 percent at the top, where the mass is. It
+  survived because the guard written against it, sigmah(NLEV) = 1, is satisfied
+  by BOTH rules, as is a thickness sum of 1. A check that passes on the error it
+  was written to catch is failure-modes class 17, and this one was mine.
+
+  its one external check is inconclusive at the cadence available. The
+  continuity equation ties `D + zvgpg` to the surface-pressure tendency, but the
+  output's centred difference spans nearly eight days and averages away the
+  field being predicted.
+
+The conversion identity it does satisfy -- the two ends agreeing to a few
+percent -- uses the same derivative operators on both sides, so it certifies
+internal consistency and not correctness. The layer-thickness defect is fixed in
+`dry_energy_order.py`, which now TAKES the thicknesses from `levp` rather than
+rebuilding them, and says in the code why a check was not the answer.
+
+The remedy is not a knob. Either the conversion's discretisation is corrected so
+the two equations meet, or the model carries a global energy fixer of the kind
+ECHAM, the IFS and CAM all carry for exactly this reason -- and a fixer is an
+admission, not a fix: it restores the total without restoring where the energy
+went.
