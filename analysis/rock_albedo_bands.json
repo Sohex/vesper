@@ -15,6 +15,7 @@
     2.49
   ],
   "stellar_flux_fraction_inside_working_range": 0.9225,
+  "method_check": "preparation_spread_below_sample_spread, per class: the ratio is claimed to be a property of the mineral, so within a class the spread between sample preparations must be smaller than the spread between samples. Fixed before the first run.",
   "recombination_tolerance": 1e-05,
   "residual_flag_threshold_albedo": 0.005,
   "lithology_table": "vendor/orogen/js/lithology.js",
@@ -23,7 +24,7 @@
   },
   "classes": {
     "water": {
-      "why": "open water, and what a persistent lake is painted with. The thinnest class in the table: ECOSTRESS's seawater spectra are thermal-infrared only, so the shortwave comes from POSEIDON's USGS ocean spectrum with ECOSTRESS tap water beside it as the only independent measurement of the same liquid. Two measurements is not a population, and the bracket says so.",
+      "why": "open water, and what a persistent lake is painted with. The thinnest class in the table: ECOSTRESS's seawater spectra are thermal-infrared only, so the shortwave comes from POSEIDON's USGS ocean spectrum with ECOSTRESS tap water beside it as the only independent measurement of the same liquid. Two measurements is not a population, and the bracket says so. The preparation test does not apply here and is expected to miss: the two entries are two liquids from two libraries, not one material prepared two ways.",
       "spectra": 2,
       "band2_over_band1": 0.7632,
       "band2_over_band1_bracket": [
@@ -34,6 +35,9 @@
         "liquid": 0.8445,
         "poseidon": 0.6819
       },
+      "preparation_spread": 0.1626,
+      "sample_spread_p10_p90": 0.1301,
+      "preparation_spread_below_sample_spread": false,
       "measured_band1_flux_share": 0.3923,
       "thin": true,
       "broadband": 0.06,
@@ -68,6 +72,9 @@
         "fine": 1.131,
         "solid": 0.9783
       },
+      "preparation_spread": 0.1526,
+      "sample_spread_p10_p90": 0.3733,
+      "preparation_spread_below_sample_spread": true,
       "measured_band1_flux_share": 0.3923,
       "thin": false,
       "broadband": 0.1,
@@ -102,6 +109,9 @@
         "fine": 1.131,
         "solid": 0.9783
       },
+      "preparation_spread": 0.1526,
+      "sample_spread_p10_p90": 0.3733,
+      "preparation_spread_below_sample_spread": true,
       "measured_band1_flux_share": 0.3923,
       "thin": false,
       "broadband": 0.1,
@@ -136,6 +146,9 @@
         "fine": 1.131,
         "solid": 0.9783
       },
+      "preparation_spread": 0.1526,
+      "sample_spread_p10_p90": 0.3733,
+      "preparation_spread_below_sample_spread": true,
       "measured_band1_flux_share": 0.3923,
       "thin": false,
       "broadband": 0.1,
@@ -170,6 +183,9 @@
         "fine": 1.1353,
         "solid": 0.9735
       },
+      "preparation_spread": 0.1618,
+      "sample_spread_p10_p90": 0.3578,
+      "preparation_spread_below_sample_spread": true,
       "measured_band1_flux_share": 0.3923,
       "thin": false,
       "broadband": 0.13,
@@ -204,6 +220,9 @@
         "fine": 1.1533,
         "solid": 0.9506
       },
+      "preparation_spread": 0.2027,
+      "sample_spread_p10_p90": 0.3128,
+      "preparation_spread_below_sample_spread": true,
       "measured_band1_flux_share": 0.3923,
       "thin": false,
       "broadband": 0.2,
@@ -238,6 +257,9 @@
         "fine": 1.1565,
         "solid": 0.9937
       },
+      "preparation_spread": 0.1627,
+      "sample_spread_p10_p90": 0.4681,
+      "preparation_spread_below_sample_spread": true,
       "measured_band1_flux_share": 0.3923,
       "thin": false,
       "broadband": 0.16,
@@ -272,6 +294,9 @@
         "fine": 1.2689,
         "solid": 1.161
       },
+      "preparation_spread": 0.1079,
+      "sample_spread_p10_p90": 0.6397,
+      "preparation_spread_below_sample_spread": true,
       "measured_band1_flux_share": 0.3923,
       "thin": false,
       "broadband": 0.3,
@@ -306,6 +331,9 @@
         "fine": 1.1713,
         "solid": 1.0177
       },
+      "preparation_spread": 0.1536,
+      "sample_spread_p10_p90": 0.6321,
+      "preparation_spread_below_sample_spread": true,
       "measured_band1_flux_share": 0.3923,
       "thin": false,
       "broadband": 0.28,
@@ -341,6 +369,9 @@
         "fine": 1.3262,
         "solid": 1.079
       },
+      "preparation_spread": 0.2472,
+      "sample_spread_p10_p90": 1.1142,
+      "preparation_spread_below_sample_spread": true,
       "measured_band1_flux_share": 0.3923,
       "thin": false,
       "broadband": 0.28,
@@ -376,6 +407,9 @@
         "fine": 1.3452,
         "solid": 1.1969
       },
+      "preparation_spread": 0.1483,
+      "sample_spread_p10_p90": 0.8,
+      "preparation_spread_below_sample_spread": true,
       "measured_band1_flux_share": 0.3923,
       "thin": false,
       "broadband": 0.22,
@@ -411,6 +445,9 @@
         "fine": 1.2391,
         "solid": 1.2476
       },
+      "preparation_spread": 0.127,
+      "sample_spread_p10_p90": 1.2123,
+      "preparation_spread_below_sample_spread": true,
       "measured_band1_flux_share": 0.3923,
       "thin": false,
       "broadband": 0.45,
@@ -446,6 +483,9 @@
         "fine": 1.2095,
         "solid": 0.9823
       },
+      "preparation_spread": 0.2272,
+      "sample_spread_p10_p90": 0.8483,
+      "preparation_spread_below_sample_spread": true,
       "measured_band1_flux_share": 0.3923,
       "thin": false,
       "broadband": 0.18,
@@ -481,6 +521,9 @@
         "fine": 1.5618,
         "solid": 1.5519
       },
+      "preparation_spread": 0.2495,
+      "sample_spread_p10_p90": 1.069,
+      "preparation_spread_below_sample_spread": true,
       "measured_band1_flux_share": 0.3923,
       "thin": false,
       "broadband": 0.3,
@@ -516,6 +559,9 @@
         "fine": 1.1192,
         "solid": 1.1037
       },
+      "preparation_spread": 0.0426,
+      "sample_spread_p10_p90": 0.6247,
+      "preparation_spread_below_sample_spread": true,
       "measured_band1_flux_share": 0.3923,
       "thin": false,
       "broadband": 0.35,
@@ -551,6 +597,9 @@
         "fine": 1.5618,
         "solid": 1.4265
       },
+      "preparation_spread": 0.2495,
+      "sample_spread_p10_p90": 1.0557,
+      "preparation_spread_below_sample_spread": true,
       "measured_band1_flux_share": 0.3923,
       "thin": false,
       "broadband": 0.28,
@@ -586,6 +635,9 @@
         "fine": 1.4552,
         "solid": 1.5519
       },
+      "preparation_spread": 0.2395,
+      "sample_spread_p10_p90": 1.0556,
+      "preparation_spread_below_sample_spread": true,
       "measured_band1_flux_share": 0.3923,
       "thin": false,
       "broadband": 0.28,
@@ -621,6 +673,9 @@
         "fine": 1.3278,
         "solid": 1.417
       },
+      "preparation_spread": 0.1192,
+      "sample_spread_p10_p90": 1.1362,
+      "preparation_spread_below_sample_spread": true,
       "measured_band1_flux_share": 0.3923,
       "thin": false,
       "broadband": 0.25,
@@ -656,6 +711,9 @@
         "fine": 0.9667,
         "medium": 0.9324
       },
+      "preparation_spread": 0.0644,
+      "sample_spread_p10_p90": 0.2331,
+      "preparation_spread_below_sample_spread": true,
       "measured_band1_flux_share": 0.3923,
       "thin": false,
       "broadband": 0.5,
@@ -689,6 +747,9 @@
       "by_preparation": {
         "none": 1.8252
       },
+      "preparation_spread": null,
+      "sample_spread_p10_p90": 0.3953,
+      "preparation_spread_below_sample_spread": null,
       "measured_band1_flux_share": 0.3923,
       "thin": false,
       "broadband": 0.23,

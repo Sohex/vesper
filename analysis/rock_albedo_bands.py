@@ -40,6 +40,12 @@ than asserting it: ECOSTRESS carries the same rock types at `solid`, `coarse`,
 read off the library instead of being argued about. That sensitivity is one of
 the two things the reported bracket is made of.
 
+It is also a prediction that can fail. If the ratio really is a property of the
+mineral, then within a class the spread BETWEEN preparations must be smaller
+than the spread between samples, because the samples differ in mineralogy and
+the preparations do not. `preparation_spread_below_sample_spread` in the output
+is that comparison, class by class, and it was fixed before the first run.
+
 ## Anchoring, and the residual `bio-18` asks for
 
 The model recombines the pair with its own band weights: `radmod.f90` forms
@@ -151,7 +157,10 @@ PROXIES: dict[str, dict] = {
                "thermal-infrared only, so the shortwave comes from POSEIDON's "
                "USGS ocean spectrum with ECOSTRESS tap water beside it as the "
                "only independent measurement of the same liquid. Two "
-               "measurements is not a population, and the bracket says so.",
+               "measurements is not a population, and the bracket says so. "
+               "The preparation test does not apply here and is expected to "
+               "miss: the two entries are two liquids from two libraries, not "
+               "one material prepared two ways.",
         "eco": ("water.tapwater.*",),
         "poseidon": ("GoodisGordon2025-GG25/USGS_ocean_seawater_GG25.txt",),
     },
@@ -381,12 +390,23 @@ def main() -> None:
         # stands for a lithology at all.
         lo = min([central, *prep_median.values(), float(np.percentile(rho, 10))])
         hi = max([central, *prep_median.values(), float(np.percentile(rho, 90))])
+        prep_spread = (max(prep_median.values()) - min(prep_median.values())
+                       if len(prep_median) > 1 else None)
+        sample_spread = float(np.percentile(rho, 90) - np.percentile(rho, 10))
         classes[code] = {
             "why": spec["why"],
             "spectra": len(rows),
             "band2_over_band1": round(central, 4),
             "band2_over_band1_bracket": [round(lo, 4), round(hi, 4)],
             "by_preparation": {k: round(v, 4) for k, v in prep_median.items()},
+            "preparation_spread": (None if prep_spread is None
+                                   else round(prep_spread, 4)),
+            "sample_spread_p10_p90": round(sample_spread, 4),
+            # The method's own prediction: preparation must matter less than
+            # mineralogy, because the ratio is claimed to be a property of the
+            # mineral. Null where the class has only one preparation.
+            "preparation_spread_below_sample_spread": (
+                None if prep_spread is None else bool(prep_spread < sample_spread)),
             "measured_band1_flux_share": round(g1, 4),
             # A class standing on fewer than five spectra has a bracket that is
             # a spread between samples rather than an estimate of one, and is
@@ -439,6 +459,11 @@ def main() -> None:
                                   "and the band-edge interval",
         "working_range_um": list(WORKING),
         "stellar_flux_fraction_inside_working_range": round(covered, 4),
+        "method_check": (
+            "preparation_spread_below_sample_spread, per class: the ratio is "
+            "claimed to be a property of the mineral, so within a class the "
+            "spread between sample preparations must be smaller than the "
+            "spread between samples. Fixed before the first run."),
         "recombination_tolerance": RECOMBINATION_TOLERANCE,
         "residual_flag_threshold_albedo": RESIDUAL_FLAG,
         "lithology_table": rel(LITHOLOGY_JS),
@@ -465,6 +490,17 @@ def main() -> None:
               f"{blo:8.3f}-{bhi:<7.3f}{row['broadband']:7.2f}{b1:8.4f}{b2:8.4f}"
               f"{row['range_mismatch_residual_albedo']:+9.4f}"
               f"{' *' if row['flagged'] else ''}")
+    tested = {k: r for k, r in report_classes.items()
+              if r["preparation_spread_below_sample_spread"] is not None}
+    missed = [k for k, r in tested.items()
+              if not r["preparation_spread_below_sample_spread"]]
+    print(f"preparation matters less than mineralogy in "
+          f"{len(tested) - len(missed)} of {len(tested)} classes carrying more "
+          "than one preparation"
+          + ("" if not missed else
+             ". The exceptions are " + ", ".join(missed) + ", where the "
+             "cancellation this method rests on is weakest, so read their "
+             "brackets and not their central values"))
     print(f"wrote {args.output.relative_to(ROOT)}")
 
 
