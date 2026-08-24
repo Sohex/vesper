@@ -2,8 +2,10 @@
 """Compare the albedo-endmember runs and decide whether the bracket resolved.
 
 The experiment asks whether this world has one stable climate or more than one.
-Two land-surface endmembers, bare rock at 0.315 land-mean albedo and vegetated at
-0.223, are integrated separately at each flux. If they converge, the vegetation
+Two land-surface endmembers, bare rock and vegetated, are integrated separately
+at each flux; which run is which is read off `model.land_albedo_source` on its
+own manifest, and the land-mean albedo each was handed is measured from its own
+staged field and reported beside it. If they converge, the vegetation
 feedback is a correction and either branch can be taken forward. If they stay
 apart, the land-surface assumption is a first-order term and the coupled loop
 has to resolve it.
@@ -94,30 +96,56 @@ def orbit_means(run_dir: Path, last: int = 5) -> dict:
     return out
 
 
-def albedo_mode(run_dir: Path, nlat: int, nlon: int) -> tuple[str, float]:
-    """Identify the endmember from the albedo field the run actually staged.
+def albedo_mode(run_dir: Path, manifest: dict, nlat: int,
+                nlon: int) -> tuple[str, float]:
+    """The endmember the run was CONFIGURED as, and the land-mean albedo it got.
 
-    Each run directory holds the SRA it was given, so the mode is recoverable
-    from the run itself rather than from `inputs/`, which later cases overwrite.
+    THE MODE IS THE DECLARATION, NOT A THRESHOLD OVER THE RESULT. This used to
+    classify on `mean > 0.256`, a number placed between endmembers that were
+    0.315 and 0.223 when it was written. The endmembers have moved: measured
+    2026-08-24, `inputs/t21/albedo_report.json` gives 0.2483 for bare rock and
+    0.1659 for vegetated. Both are BELOW 0.256, so the classifier returned
+    "vegetated" for every run, `temps` is a dict keyed on the name, the two arms
+    of the bracket collapsed into one entry, and the script reported "cannot
+    bracket" on the experiment that decides whether the vegetation feedback is
+    first-order. The separation between the endmembers survived -- 0.082 against
+    the 0.092 the threshold was placed in -- so what failed was not resolution
+    but PLACEMENT: a fixed cut point cannot track two means that both move.
+
+    `model.land_albedo_source` is on every run manifest under `source_config`,
+    it is the thing the run was asked for, and it moves with nothing. There is
+    no fallback: a manifest without it is a manifest this script cannot read,
+    and guessing from the field is what produced the collapse.
+
+    The land-mean albedo is still measured from the run's own staged SRA and
+    reported beside the mode, because it is what makes the two arms a bracket
+    and `main` now checks that they actually differ.
     """
     from run_exoplasim import read_sra
+
+    mode = (manifest.get("source_config", {}).get("model", {})
+            .get("land_albedo_source"))
+    if not mode:
+        raise SystemExit(
+            f"{run_dir.name} has no source_config.model.land_albedo_source on "
+            "its manifest, so what endmember it is cannot be read off the run. "
+            "Classifying it from the albedo field is what this script used to "
+            "do and it is how the bracket collapsed.")
+
     # Named exactly, not globbed. ExoPlaSim writes these as N<nlat>_surf_<code>,
     # so the filename is fully determined by the grid the run already declares --
     # there is nothing to choose between, and sorting to pick [0] would silently
     # take another resolution's file if one were ever present.
     apath = run_dir / f"N{nlat:03d}_surf_0174.sra"
     if not apath.is_file():
-        return "uniform", float("nan")
+        return str(mode), float("nan")
     field = read_sra(apath, 174, nlat, nlon)
     mpath = run_dir / f"N{nlat:03d}_surf_0172.sra"
     land = (read_sra(mpath, 172, nlat, nlon) > 0.5 if mpath.is_file()
             else np.ones_like(field, bool))
     w = gauss_weights(nlat)[:, None] * np.ones_like(field)
     mean = float((field[land] * w[land]).sum() / w[land].sum())
-    # The two endmembers are about 0.09 apart (0.315 vs 0.223); 0.256 sits
-    # between them, nearer the vegetated mean.
-    name = "lithology" if mean > 0.256 else "vegetated"
-    return name, mean
+    return str(mode), mean
 
 
 def main() -> None:
@@ -137,7 +165,8 @@ def main() -> None:
     for d in dirs:
         man = json.loads((d / "run_manifest.json").read_text(encoding="utf-8"))
         mcfg = man["source_config"]["model"]
-        mode, land_albedo = albedo_mode(d, int(mcfg["latitudes"]), int(mcfg["longitudes"]))
+        mode, land_albedo = albedo_mode(d, man, int(mcfg["latitudes"]),
+                                        int(mcfg["longitudes"]))
         rows.append({
             "run": d.name,
             "flux": float(man["derived_parameters"]["stellar_flux_ratio_earth"]),
@@ -164,6 +193,17 @@ def main() -> None:
         temps = {r["albedo_mode"]: r.get("ts") for r in at}
         if len(temps) < 2:
             print(f"  {flux:.2f}: only {list(temps)} present, cannot bracket")
+            continue
+        # THE ARMS MUST DIFFER IN THE THING BEING BRACKETED. Two runs labelled
+        # with different modes that were handed the same land albedo are one
+        # experiment run twice, and their spread measures drift rather than
+        # sensitivity. Checked on the field each run actually staged, so a
+        # mislabelled manifest cannot pass as a bracket.
+        albedos = {r["albedo_mode"]: r.get("land_mean_albedo") for r in at}
+        finite = [v for v in albedos.values() if v == v]
+        if len(finite) > 1 and max(finite) - min(finite) <= 0.0:
+            print(f"  {flux:.2f}: the arms were handed the same land-mean "
+                  f"albedo ({albedos}), so this is not a bracket")
             continue
         spread = max(temps.values()) - min(temps.values())
         warmest = max(temps.values())
