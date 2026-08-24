@@ -143,10 +143,39 @@ run_arm() {
     [ -f "$d/plasim_status" ]
 }
 
+# WHAT THE VERDICT RESTS ON: the state the model INTEGRATES. A record it
+# rebuilds from other state before it uses it again -- cloud cover, liquid
+# water, albedo, roughness, saturation humidity -- is a snapshot of a
+# diagnostic, and it carries whatever gain its formula applies. `dcc` amplifies
+# a relative-humidity difference by 1/(1-rcrit)^2, 44 at the interior levels
+# and 400 at the top and bottom, so it crosses a tolerance the integrated state
+# passes by an order of magnitude, and WHERE it crosses depends on the bed: the
+# 85-orbit baseline seeds it 57x higher than a one-orbit cold start and fails
+# the 20-step bound on that record alone while everything else is 47x inside
+# it. Excluding it is not a loosening -- the gain amplifies the difference and
+# the noise alike, so it buys no detection power it then gives back.
+#
+# ONLY THE EQUALITY VERDICT EXCLUDES THEM. The growth curve below still takes
+# its norm over every record, so the birth and jump bounds keep the most
+# sensitive detector in the file: a gain is exactly what you want for "is this
+# wrong at step one", and it is only a liability against a fixed bound twenty
+# steps later.
+#
+# The list is taken from restart_schema.py rather than written here, so a
+# record that becomes diagnostic in the model becomes advisory here without
+# anyone remembering to. They are REPORTED, never hidden. world-y9m,
+# exoplasim/notes/shtns-viability.md.
+ADVISORY=$( "$REPO"/.venv/bin/python -c "
+import sys; sys.path.insert(0, '$REPO/exoplasim/scripts')
+import restart_schema as rs
+print(' '.join('--advisory ' + n for n, p in sorted(rs.POLICY.items())
+               if p.rebuilt_by_model))" )
+
 compare() {
+    # shellcheck disable=SC2086
     "$REPO"/.venv/bin/python "$REPO"/exoplasim/scripts/compare_restarts.py \
         "$WORK/run_$1/plasim_status" "$WORK/run_$2/plasim_status" \
-        --tol "$TOL" --exact dls --exact doro --exact darea --quiet
+        --tol "$TOL" --exact dls --exact doro --exact darea $ADVISORY --quiet
 }
 
 norm() {

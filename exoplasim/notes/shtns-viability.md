@@ -907,12 +907,29 @@ larger, so the same growth crosses the same bound sooner. The bound therefore
 tests seed AND growth together, while the birth bound already tests the seed
 and the jump bound already tests the growth's shape.
 
-The script's own stated physics is the bed-independent form: a last-bit
-difference grows by roughly three decades every twenty steps. Both beds are
-inside that -- 2.07 decades on the failing bed, 2.53 on the passing one -- and
-that is the criterion the curve is printed for. Changing the gate's verdict to
-rest on it is a decision to take before a run rather than after this one, so
-it is not taken here.
+### What the gate does now
+
+The equality verdict rests on the state the model INTEGRATES. A record it
+rebuilds from other state before it uses it again is reported as `advisory`
+with its value, and does not count: its restart value is a snapshot carrying
+whatever gain its formula applies, and `dcc`'s is 44 to 400. Excluding it is
+not a loosening, because the gain amplifies the difference and the noise
+alike and so buys no detection power it then gives back.
+
+Only the VERDICT excludes them. The growth curve still takes its norm over
+every record, so the birth and jump bounds keep the most sensitive detector in
+the file -- a gain is what you want for "is this wrong at step one", and is
+only a liability against a fixed bound twenty steps later. The curve also
+reports decades since birth, which is the bed-independent way to read it.
+
+The list comes from `restart_schema.py`'s `rebuilt_by_model`, so a record that
+becomes diagnostic in the model becomes advisory here without anyone
+remembering to.
+
+Both beds now pass, and the filter-dropped control is still rejected. The
+worst COUNTED record at 20 steps on the baseline bed is `aadcc` -- `dcc`'s own
+accumulator, which carries the same gain and is not excluded -- at 1.82e-11,
+five times inside the bound.
 
 WHAT IS NOT IMPLICATED is the transform. At one step on the failing bed every
 spectral record is bit identical between the two arms and the largest

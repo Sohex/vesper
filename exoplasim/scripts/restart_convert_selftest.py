@@ -523,13 +523,19 @@ def test_end_to_end(tmp: Path, donor: Path) -> list[str]:
     said.append(f"eight to four to eight bytes moves {moved} records, none of "
                 "them by more than the cast error the report declared")
 
-    recompute = [r.name for r in rep42 if r.action == rs.RECOMPUTE]
-    _require(sorted(recompute) == sorted(
-        n for n, p in rs.POLICY.items()
-        if p.action == rs.RECOMPUTE and n in src.by_name),
-        "the report does not name every derived record the model must rebuild")
-    said.append("the report names every derived record the target model has "
-                f"to rebuild before the state is self-consistent: {', '.join(sorted(recompute))}")
+    rebuilt = sorted(n for n, p in rs.POLICY.items()
+                     if p.rebuilt_by_model and n in src.by_name)
+    for name in rebuilt:
+        _require(rs.POLICY[name].action == rs.REMAP,
+                 f"'{name}' is rebuilt by the model and is taken from the "
+                 "template rather than remapped; the template's value is "
+                 "consistent with nothing in the converted file")
+        _require(mid.by_name[name].payload != up_state.by_name[name].payload
+                 or src.decode(name).std() == 0.0,
+                 f"'{name}' arrived from the template unchanged, so it carries "
+                 "the template's state rather than the donor's")
+    said.append(f"the {len(rebuilt)} records the model rebuilds are remapped "
+                f"from the donor and named in the report: {', '.join(rebuilt)}")
 
     # 4. Refusals, each before an output exists.
     fabricated = list(src.records) + [rf.Record(name="notarecord",

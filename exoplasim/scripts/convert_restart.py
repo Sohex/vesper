@@ -486,7 +486,8 @@ def template_provenance(template: Path) -> dict | None:
 
 
 def build_report(src, tgt, out_path, reports, source_manifest) -> dict:
-    recompute = [r.name for r in reports if r.action == rs.RECOMPUTE]
+    recompute = sorted(r.name for r in reports
+                       if rs.POLICY[r.name].rebuilt_by_model)
     # An accumulator the model never resets spans the whole run rather than one
     # output window, so taking the template's value restarts a sum that was
     # never meant to restart. That is what a new lineage means, and it is named
@@ -513,7 +514,7 @@ def build_report(src, tgt, out_path, reports, source_manifest) -> dict:
                      "source_bytes": r.source_bytes,
                      "target_bytes": r.target_bytes, **r.detail}
                     for r in reports],
-        "expected_to_change_in_model_fixup": recompute,
+        "rebuilt_by_the_model_on_the_first_step": recompute,
         "whole_run_accumulators_restarted": never_reset,
         "status": "initial_condition",
         "note": ("A new initial condition at the target support. Not a bitwise "

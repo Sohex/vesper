@@ -79,6 +79,19 @@ def main() -> int:
     ap.add_argument("--exact", action="append", default=[],
                     help="a record name that must be BIT IDENTICAL, repeatable. "
                          "Use it for fields that are only scattered and gathered.")
+    ap.add_argument("--advisory", action="append", default=[], metavar="NAME",
+                    help="a record REPORTED but not counted toward the verdict, "
+                         "repeatable. For a DIAGNOSTIC the model rebuilds from "
+                         "other state before it uses it again: its value here "
+                         "is a snapshot, and it carries whatever gain its "
+                         "formula applies to the state it was built from. "
+                         "`dcc` amplifies a relative-humidity difference by "
+                         "1/(1-rcrit)^2, which is 44 at the interior levels "
+                         "and 400 at the top and bottom, so it crosses any "
+                         "tolerance the integrated state passes and does so at "
+                         "a threshold that depends on the bed. Reported, "
+                         "never hidden: a record dropped silently is how a "
+                         "check stops being one.")
     ap.add_argument("--quiet", action="store_true",
                     help="report only the records that are not identical")
     ap.add_argument("--norm", action="store_true",
@@ -98,7 +111,7 @@ def main() -> int:
 
     worst_name, worst_val = None, 0.0
     worst_ndiff, worst_n = None, 0
-    n_same = n_round = n_diff = 0
+    n_same = n_round = n_diff = n_advisory = 0
     exact_failed = []
     for (name, a), (_, b) in zip(la, lb):
         if a == b:
@@ -129,11 +142,18 @@ def main() -> int:
         ndiff = sum(1 for x, y in zip(va, vb) if x != y)
         if worst_abs <= args.abs_floor:
             r = 0.0                      # identical to the precision that means anything
-        if r > worst_val:
+        if r > worst_val and name not in args.advisory:
             worst_name, worst_val = name, r
             worst_ndiff, worst_n = ndiff, len(va)
         if name in args.exact:
             exact_failed.append(name)
+        if name in args.advisory:
+            n_advisory += 1
+            if not args.norm:
+                print(f"[ advisory  ] {name}: {r:.3e}"
+                      + (f"  ({ndiff} of {len(va)} elements)" if r > args.tol else "")
+                      + "  -- rebuilt by the model, not counted")
+            continue
         if r <= args.tol:
             n_round += 1
             if not args.norm:
@@ -150,13 +170,19 @@ def main() -> int:
 
     print()
     print(f"{len(la)} records: {n_same} identical, {n_round} at rounding scale, "
-          f"{n_diff} beyond it")
+          f"{n_diff} beyond it"
+          + (f", {n_advisory} advisory" if n_advisory else ""))
     if worst_name is not None:
         print(f"worst: {worst_name} at {worst_val:.3e} relative, "
               f"tolerance {args.tol:.0e}"
               + (f", differing in {worst_ndiff} of {worst_n} elements"
                  if worst_ndiff is not None else ""))
 
+    for name in args.advisory:
+        if name not in [n for n, _ in la]:
+            print(f"FAIL: --advisory named {name}, which is not a record in "
+                  "these files")
+            return 1
     for name in args.exact:
         if name not in [n for n, _ in la]:
             print(f"FAIL: --exact named {name}, which is not a record in these files")

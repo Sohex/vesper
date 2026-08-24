@@ -252,6 +252,14 @@ class Policy:
     measured_per: str | None = None
     # True where SIMBA takes ownership of the field under coupled vegetation.
     vegetation_owned: bool = False
+    # True where the model REBUILDS this record from other state before it uses
+    # it again, so whatever a converted restart carries survives one timestep.
+    # It is not a licence to put anything there: between the template's value
+    # and the donor's own, the donor's is consistent with the prognostics that
+    # were converted and the template's is consistent with nothing in the file.
+    # So these are REMAPPED like any other field and merely NAMED here, which
+    # is what the report's expected_to_change_in_model_fixup list is built from.
+    rebuilt_by_model: bool = False
     # For an accumulator, what `outreset` and its equivalents do to it at an
     # interval boundary: "zero", "sentinel" for one whose clean value is not
     # zero, or "none" for one the model deliberately never resets. Anything
@@ -391,20 +399,29 @@ POLICY.update({
                      why="the ocean's climatological sea surface temperature"),
 })
 
-# --- derived state: the target model rebuilds it ---------------------------
+# --- state the model rebuilds before it uses it again -------------------
+# Remapped like anything else, and named so the report can say the target
+# model will overwrite them. Taking the template's values instead put a
+# one-orbit cold start's cloud field into a converted state: 0.39 in
+# column cloud cover away from the donor's own. world-eyb.
 POLICY.update({
-    "dalb": Policy(DERIVED_GRID, RECOMPUTE,
-                   why="albedo is a function of snow, ice, vegetation and the "
-                       "background climatology; reproducing the formula here "
-                       "would be a second implementation of the physics"),
-    "dsalb1": Policy(DERIVED_GRID, RECOMPUTE, why="the same, below 0.75 um"),
-    "dsalb2": Policy(DERIVED_GRID, RECOMPUTE, why="the same, above 0.75 um"),
-    "dz0": Policy(DERIVED_GRID, RECOMPUTE,
-                  why="roughness follows from the climatology, snow and ice"),
-    "dqsat": Policy(DERIVED_GRID, RECOMPUTE,
-                    why="saturation humidity is a function of temperature and "
-                        "pressure at the target's own levels"),
+    "dalb": Policy(DERIVED_GRID, REMAP, INTENSIVE, bounds=(0.0, 1.0),
+                  rebuilt_by_model=True,
+                  why="surface albedo, rebuilt each step from snow, ice, vegetation and the background climatology"),
+    "dsalb1": Policy(DERIVED_GRID, REMAP, INTENSIVE, bounds=(0.0, 1.0),
+                  rebuilt_by_model=True,
+                  why="the same, below 0.75 um"),
+    "dsalb2": Policy(DERIVED_GRID, REMAP, INTENSIVE, bounds=(0.0, 1.0),
+                  rebuilt_by_model=True,
+                  why="the same, above 0.75 um"),
+    "dz0": Policy(DERIVED_GRID, REMAP, INTENSIVE, bounds=(0.0, None),
+                  rebuilt_by_model=True,
+                  why="roughness, rebuilt from the climatology, snow and ice"),
+    "dqsat": Policy(DERIVED_GRID, REMAP, INTENSIVE, bounds=(0.0, None),
+                  rebuilt_by_model=True,
+                  why="saturation humidity, a function of temperature and pressure. Identically zero in every restart on disk: written, carried, never populated"),
 })
+
 
 # --- prognostic gridpoint state --------------------------------------------
 POLICY.update({
@@ -424,10 +441,20 @@ POLICY.update({
                       why="surface runoff rate"),
     "dust3": Policy(PROGNOSTIC_GRID, REMAP, INTENSIVE,
                     why="friction velocity cubed, the coupling quantity"),
-    "dcc": Policy(PROGNOSTIC_GRID, REMAP, INTENSIVE, bounds=(0.0, 1.0),
-                  why="cloud cover per level"),
-    "dql": Policy(PROGNOSTIC_GRID, REMAP, INTENSIVE, bounds=(0.0, None),
-                  why="cloud liquid water, a mixing ratio"),
+    "dcc": Policy(DERIVED_GRID, REMAP, INTENSIVE, bounds=(0.0, 1.0),
+                  rebuilt_by_model=True,
+                  why="cloud cover per level, and it is DIAGNOSTIC rather than "
+                      "integrated: `rainmod.f90:1918` zeroes it and "
+                      "`mkclouds` rebuilds the whole field from humidity and "
+                      "temperature every timestep under NCLOUDS = 1, which is "
+                      "what the runs set. Its restart value is used once, by "
+                      "the radiation in `fluxstep`, before `rainstep` "
+                      "overwrites it"),
+    "dql": Policy(DERIVED_GRID, REMAP, INTENSIVE, bounds=(0.0, None),
+                  rebuilt_by_model=True,
+                  why="cloud liquid water. Zeroed on the line above dcc at "
+                      "`rainmod.f90:1917` and rebuilt in the same routine, so "
+                      "it is diagnostic on the same terms"),
     "dt": Policy(PROGNOSTIC_GRID, REMAP, INTENSIVE,
                  why="the surface level of the temperature array; the levels "
                      "above it are spectral and travel in st"),
