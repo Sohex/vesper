@@ -9,7 +9,7 @@ was run.
 ## Result
 
 The current 12-bin input is project scaffolding, not a scientific or upstream
-model constraint. `VESPDRV4`, `DRIVER_BINS = 12`, the four climate arrays and
+model constraint. The `VESPDRV` driver format, `DRIVER_BINS = 12`, the four climate arrays and
 their interpolation were all added by this project. ExoPlaSim integrates at a
 45-minute step, and LPJ-GUESS already has a daily input path plus a subdaily
 temperature/radiation path. There is no reason to preserve the binary or its
@@ -34,7 +34,7 @@ science.
 `run_exoplasim.py` asks pyburn to turn each orbit into 12 regular time-bin
 means. `build_lpj_driver.py` then refuses any other bin count, converts
 precipitation rates to bin totals, and writes temperature, total precipitation,
-net surface shortwave and diurnal range to `VESPDRV4`. `vesperinput.cpp` repeats
+net surface shortwave and diurnal range to the driver file. `vesperinput.cpp` repeats
 the 12-bin check and calls LPJ-GUESS's monthly interpolation functions. Those
 functions generate smooth quasi-daily temperature and radiation and spread
 each bin's precipitation total smoothly across its days.
@@ -46,9 +46,9 @@ the framework supports subdaily temperature and radiation vectors. The present
 adapter proved that a Vesper grid, calendar and soil can run end to end. It did
 not establish 12 seasonal bins as an adequate forcing representation.
 
-The replacement should not version `VESPDRV5` around a new fixed number of
-bins. It should carry explicit interval bounds in seconds, orbital position and
-local solar phase. A consumer can then aggregate or subdivide according to the
+The replacement should not version the next `VESPDRV` magic around a new fixed
+number of bins. It should carry explicit interval bounds in seconds, orbital
+position and local solar phase. A consumer can then aggregate or subdivide according to the
 process it is actually executing.
 
 ## 2. Chronology is discarded before LPJ-GUESS sees it
