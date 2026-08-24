@@ -28,6 +28,31 @@
       integer :: lastn = 0
       integer :: ifax(10)
       real,allocatable :: trigs(:)
+
+!     Threads instead of ranks: a thread owns what a rank owned. The same
+!     treatment fftmod already carries, and this module needs it for the same
+!     reason and one more: fftini deallocates trigs, reallocates it and reruns
+!     set99 whenever n changes, and ifax is rewritten by that call, so a shared
+!     planner is a use-after-free for every thread already inside fft991. This
+!     module is what T63 and T106 compile against and this project builds omp,
+!     so those two rungs were the ones exposed.
+!
+!     lastn = 0 is the lazy-init sentinel and has to hold in EVERY thread's
+!     copy, not only the initial thread's. gfortran implements threadprivate
+!     as ELF thread-local storage, whose initialization image is replicated
+!     into each thread's block, so a declared initialiser is what each thread
+!     starts from. gfortran is the only compiler this project builds omp with:
+!     build_model.py passes gfortran for parmode omp and mpif90 only for mpi.
+!
+!     Per-thread cost: trigs(NLON) plus ifax(10), nallowed(NRES) and lastn,
+!     which is under 2.7 kB per thread at double precision at T106, the widest
+!     rung this module serves. Sixteen threads is under 45 kB against the
+!     32 MB per-die working set, so this is not a budget question. The
+!     automatic worka/workb in gp2fc are already per-thread stack.
+!
+!     Inert without -fopenmp, so the MPI and serial builds are unchanged.
+!$omp threadprivate(lastn,nallowed,ifax,trigs)
+
       end module fftmod
 
 
