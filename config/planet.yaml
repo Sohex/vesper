@@ -212,8 +212,9 @@ radiation:
 # every run on this world without any file saying so, which is the DUST-6
 # pattern.
 #
-# Salinity reaches the model through FOUR compiled numbers, not one, and OCN-10
-# found three of them unreachable. All four are `icemod_nl` keys now and
+# Salinity reaches the model through FOUR compiled numbers, not one, and
+# `notes/audits/model-earth-centrism.md` finding 10 found three of them
+# unreachable; world-9hb is the fix. All four are `icemod_nl` keys now and
 # `run_exoplasim.py` writes the first three from the salinity below:
 #   TFREEZE  the freezing point, which sets where sea ice forms at all.
 #   CRHOS    sea water density, which is the mixed-layer heat capacity with CPS
@@ -265,7 +266,8 @@ ocean:
   # used to leave its climatology at a -999 sentinel, test every ocean cell
   # below the freezing point, build full ice cover from that, and shape it
   # with an Earth Arctic-Antarctic table, while the ocean itself started at
-  # its freezing point everywhere. OCN-6 measured it.
+  # its freezing point everywhere. `notes/audits/model-earth-centrism.md`
+  # finding 1 measured it; world-6fh is the fix.
   #
   # So the cold start is DECLARED, and `icemod.f90` refuses to run a cold
   # start that declares nothing. It is a smooth profile in latitude,

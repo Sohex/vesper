@@ -165,11 +165,11 @@ def configure_otherargs(derived: dict) -> dict:
         # TFREEZE moves one of four. Density is the mixed-layer heat capacity
         # with the specific heat, and it is the snow-ice flooding threshold as
         # the difference from ice density, where a one per cent density error
-        # is a ten per cent threshold error. OCN-10.
+        # is a ten per cent threshold error. world-9hb.
         "CRHOS@icemod_namelist": f"{derived['sea_water_density_kg_m3']:.2f}",
         "CPS@icemod_namelist": f"{derived['sea_water_heat_capacity_j_kg_k']:.2f}",
         "CLFI@icemod_namelist": f"{derived['sea_ice_fusion_j_kg']:.1f}",
-        # THE DECLARED COLD START, icemod_nl. OCN-6. icemod refuses a cold
+        # THE DECLARED COLD START, icemod_nl. world-6fh. icemod refuses a cold
         # start with no SST climatology and no declared profile, so these are
         # not optional; they are written on a resume too because constructing
         # the model over an existing run directory re-copies the shipped
@@ -346,7 +346,7 @@ def derive(config: dict, flux_ratio: float) -> dict:
         "ocean_salinity_psu": float(config["ocean"]["salinity_psu"]),
         "sea_water_freezing_point_k": freezing_point_k(
             config["ocean"]["salinity_psu"]),
-        # OCN-10. Density and specific heat are evaluated AT the freezing point
+        # world-9hb. Density and specific heat are evaluated AT the freezing point
         # of the declared salinity, not at some mean sea surface temperature:
         # the flooding threshold is a property of the water the modelled ice
         # floats in, and over the mixed layer's range the specific heat moves
@@ -362,7 +362,7 @@ def derive(config: dict, flux_ratio: float) -> dict:
         # the ice's own salinity and temperature, and icemod carries neither as
         # a variable.
         "sea_ice_fusion_j_kg": float(config["ocean"]["sea_ice_fusion_j_kg"]),
-        # OCN-6. The declared cold start. DECLARED and not derived: an SST
+        # world-6fh. The declared cold start. DECLARED and not derived: an SST
         # field is what this model produces, so there is nothing here to
         # compute one from, and the alternative was a constructed Earth field.
         "cold_start_sst_equator_k": float(
