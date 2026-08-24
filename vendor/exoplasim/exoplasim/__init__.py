@@ -2216,7 +2216,11 @@ References
         self.meananomaly0 = meananomaly0
         
         if type(orography)!=type(None):
-            self._edit_namelist("landmod_namelist","OROSCALE",str(orography))
+            # planet_namelist, not landmod_namelist: OROSCALE is declared in
+            # planet_nl, which is the only group read before surface_ini uses it.
+            # Written to landmod_namelist this aborted the run on landmod's bare
+            # read. world-vv4.
+            self._edit_namelist("planet_namelist","OROSCALE",str(orography))
             self._edit_namelist("glacier_namelist","NGLACIER","1")
         self.orography=orography
                 
@@ -2972,7 +2976,7 @@ References
                 
             if key=="orography":
                 self.orography=value
-                self._edit_namelist("landmod_namelist","OROSCALE",str(self.orography))
+                self._edit_namelist("planet_namelist","OROSCALE",str(self.orography)) # world-vv4
                 self._edit_namelist("glacier_namelist","NGLACIER",str((self.orography!=1)*1))
             if key=="seaice":
                 self.seaice=value
@@ -3206,7 +3210,11 @@ References
                         self._edit_namelist("landmod_namelist","DWATCINI","0.0")
                     os.system("rm %s/*.sra"%self.workdir)
                 else:
-                    self._edit_namelist("landmod_namelist","NDESERT","0")
+                    # plasim_namelist on BOTH branches. NDESERT is declared in
+                    # plasim_nl and in no landmod group, so turning a desert
+                    # planet back off wrote a name landmod's bare read aborts on,
+                    # and left NDESERT = 1 standing in plasim_namelist. world-vv4.
+                    self._edit_namelist("plasim_namelist","NDESERT","0")
                     self._rm_namelist_param("landmod_namelist","NWATCINI")
                     self._rm_namelist_param("landmod_namelist","DWATCINI")
             if key=="aquaplanet":

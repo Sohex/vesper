@@ -180,18 +180,20 @@
       integer :: ncoeff   =  0  ! number of modes to print
       integer :: ndiag    =  0  ! write diagnostics interval 0 = every 10th. day
       integer :: ngui     =  0  ! 1: run with GUI
+!     NOT A NAMELIST KEY. sellon selects the column the X11 GUI draws, and
+!     `change_sellon` in the uncompiled guimod.f90 is the only thing that ever
+!     writes it. It was in plasim_nl, where setting it did nothing in any
+!     buildable configuration: guimod_stub.f90 is what CMakeLists compiles and
+!     its column routines are bodyless. world-9fk.
       integer :: sellon   =  1  ! index of longitude for column mode
       integer :: nkits    =  3  ! number of initial timesteps
       integer :: nrestart =  0  ! 1 for true, 0 for false
       integer :: nrad     =  1  ! switches radiation off/on  1/0
-      integer :: nflux    =  1  ! vertical diffusion 1/0
       integer :: nadv     =  1  ! advection 1/0=(y/n)
       integer :: nhordif  =  1  ! horizontal diffusion 1/0=(y/n)
       integer :: neqsig   =  0  ! equidistant sigma levels (1/0)=(y/n) !2=log-equidistant; 3=pseudolog; 4=lin-equidistant
       integer :: nprint   =  0  ! comprehensive print out (only for checks!)
       integer :: nprhor   =  0  ! grid point for print out (only for checks!)
-      integer :: npacksp  =  0  ! pack spectral fields on output
-      integer :: npackgp  =  0  ! pack gridpoint fields on output
       integer :: naccuout =  0  ! accumulation counter for diagnistics
       integer :: ndiaggp  =  0  ! switch for frank's gp-diagnostic arrays
       integer :: ndiagsp  =  0  ! switch for frank's sp-diagnostic arrays
@@ -205,8 +207,6 @@
       integer :: ntime    =  0  ! switch for time use diagnostics
       integer :: nperpetual = 0 ! radiation day for perpetual integration
       integer :: n_sea_points=0 ! number of sea points on grid
-      integer :: nentropy = 0   ! switch for entropy diagnostics
-      integer :: nentro3d = 0   ! switch for 3d entropy diagnostics
       integer :: nenergy  = 0   ! switch for energy diagnostics
       integer :: nenergyfix = 0 ! switch for the energy fixer. NOT PHYSICS: a
 !                               ! correction for the conversion defect on
@@ -774,16 +774,10 @@
       real, allocatable :: dgp2d(:,:),dsp2d(:,:)     ! 2-d diagnostics
       real, allocatable :: dgp3d(:,:,:),dsp3d(:,:,:) ! 3-d diagnostics
       real, allocatable :: dclforc(:,:)   ! cloud forcing diagnostics
-      real, allocatable :: dentropy(:,:)  ! entropy diagnostics
-      real, allocatable :: dentro3d(:,:,:)! entropy diagnostics 3d
       real, allocatable :: denergy(:,:)   ! energy diagnostics
       real, allocatable :: dener3d(:,:,:) ! energy diagnostics 3d
       real, allocatable :: adenergy(:,:)   ! accumulated energy diagnostics
       real, allocatable :: adener3d(:,:,:) ! accumulated energy diagnostics 3d
-      real, allocatable :: dentrop(:)     ! ps for entropy diagnostics
-      real, allocatable :: dentrot(:,:)   ! t for entropy diagnostics
-      real, allocatable :: dentroq(:,:)   ! q for entropy diagnostics
-      real, allocatable :: dentro(:)      ! 2d entropy for diagnostics
 
 !
 !     accumulated output
@@ -966,9 +960,19 @@
       real :: tropical_year = 0.0      ! Length of tropical year [sec]
       real :: ww     = 0.0             ! Omega used for scaling
       real :: oroscale = 1.0           ! Orography scaling
-      real :: ra1    = 0.0             !
+!     THE MAGNUS-TETEN COEFFICIENTS, two sets. ra1, ra2 and ra4 are saturation
+!     over LIQUID water; ra1i, ra2i and ra4i are saturation over ICE. The model
+!     had only the liquid set and used it at every saturation site while the
+!     latent heat already switched to ALS below TMELT, so the thermodynamics
+!     disagreed with itself: over ice the saturation vapour pressure is about
+!     25 per cent below the liquid value at 250 K, and cold-cloud condensation
+!     was systematically over-produced. world-ako.
+      real :: ra1    = 0.0             ! over liquid water
       real :: ra2    = 0.0             !
       real :: ra4    = 0.0             !
+      real :: ra1i   = 0.0             ! over ice
+      real :: ra2i   = 0.0             !
+      real :: ra4i   = 0.0             !
       real :: acpd   = 0.0             ! acpd = gascon / akap ! Specific heat for dry air
       real :: adv    = 0.0             ! acpv / acpd - 1.0
       real :: cv     = 0.0             ! cv = plarad * ww
@@ -991,6 +995,8 @@
       integer, parameter :: PLALSG = 3
       parameter (NPARCS = 5)          ! Number of GUI parameters
       character(6) :: yguinam(NPARCS) ! Variable names for GUI display
+!     NOT A NAMELIST KEY, for the same reason as sellon above. Its only reader
+!     is initgui in the uncompiled guimod.f90. world-9fk.
       integer(kind=4) :: nguidbg   = 0        ! 1: GUI debug printout
       integer(kind=4) :: model     = PLASIM
       integer :: nshutdown = 0        ! Flag for shutdown request
@@ -1018,7 +1024,7 @@
 !$omp&  assol,assolu,asthr,asthru,ataux,atauy,ats0,atsa,atsama,atsami,atsol,atsolu,atthr,aventi,&
 !$omp&  avrmpi,azdecl,azmuz,bm1,c,capen,ccc,chim,chlat,co2,cola,crap,csm,csq,cst,csu,csv,ct,cv,&
 !$omp&  daeros,dalb,damp,dampsp,dawn,day_24hr,dcc,dclforc,dconv,deglat,delt,delt2,deltsec,deltsec2,&
-!$omp&  dener3d,denergy,dentro,dentro3d,dentrop,dentropy,dentroq,dentrot,devap,dfd,dflux,dforest,&
+!$omp&  dener3d,denergy,devap,dfd,dflux,dforest,&
 !$omp&  dftd,dftu,dfu,dglac,dglacalbmn,dgp2d,dgp3d,dgroundalb,dicealbmn,dicealbmx,dicec,diced,dlhdt,&
 !$omp&  dlhfl,dls,dlwfl,dmld,doceanalb,dp,dp0,dprc,dprl,dprs,dq,dqco2,dqdt,dql,dqo3,dqsat,dqt,dqvi,&
 !$omp&  drhs,drunoff,dsalb,dshdt,dshfl,dsigma,dsmelt,dsndch,dsnow,dsnowalb,dsnowalbmn,dsnowalbmx,&
@@ -1036,11 +1042,11 @@
 !$omp&  n_days_per_month,n_days_per_year,n_run_days,n_run_months,n_run_steps,n_run_years,&
 !$omp&  n_sea_points,n_start_month,n_start_step,n_start_year,n_steps_per_year,naccuout,nadv,nafter,&
 !$omp&  naqua,ncoeff,ndatim,ndel,ndesert,ndheat,ndiag,ndiagcf,ndiaggp,ndiaggp2d,ndiaggp3d,ndiagsp,&
-!$omp&  ndiagsp2d,ndiagsp3d,ndivdamp,ndl,nener3d,nenergy,nentro3d,nentropy,neqsig,nfilter,&
+!$omp&  ndiagsp2d,ndiagsp3d,ndivdamp,ndl,nener3d,nenergy,neqsig,nfilter,&
 !$omp&  nenergyfix,denergyfix,denergyd24,denergyacc,nenergyacc,nenergywin,&
 !$omp&  dconvacc,nconvacc,nconvtime,dconvspd,dconvspa,dsdiv,ndealias,ddealias,&
-!$omp&  nfilterexp,nfixorb,nflux,ngenkeplerian,nglspec,ngptfilter,ngui,nguidbg,nhcadence,nhcstp,&
-!$omp&  nhdiff,nhordif,nhurricane,nindex,nkits,nlowio,noutput,npackgp,npacksp,nperpetual,nprhor,&
+!$omp&  nfilterexp,nfixorb,ngenkeplerian,nglspec,ngptfilter,ngui,nguidbg,nhcadence,nhcstp,&
+!$omp&  nhdiff,nhordif,nhurricane,nindex,nkits,nlowio,noutput,nperpetual,nprhor,&
 !$omp&  nprint,nproc,nqspec,nrad,nrdrag,nrestart,nrho,nscatsp,nseedlen,nsela,&
 !$omp&  nshtns,nshutdown,nsnapshot,&
 !$omp&  nspinit,nsponge,nspvfilter,nstep,nstep1,nstps,nstpw,nstratosponge,nsync,ntime,ntpal,ntspd,&
@@ -1048,6 +1054,7 @@
 !$omp&  parc,pfac,planet_namelist,plarad,plasim_diag,plasim_hcadence,plasim_namelist,plasim_output,&
 !$omp&  plasim_restart,plasim_snapshot,plasim_status,plasimversion,plavor,pnu,pnu21,precip,psurf,&
 !$omp&  ptop,ptop2,ra1,ra2,ra4,radmod_namelist,rainmod_namelist,rcs,rcsq,rdbrv,rdsig,restim,rotspd,&
+!$omp&  ra1i,ra2i,ra4i,&
 !$omp&  sak,sakpp,sdd,sdipole,sdipolep,sdm,sdp,sdt,seamod_namelist,seed,sellon,sid,sidereal_day,&
 !$omp&  sidereal_year,sigh,sigma,sigmah,sigrain,so,solar_day,sop,span,spd,spm,spnorm,spp,spt,sqm,&
 !$omp&  sqout,sqp,sqt,sr1,sr2,srm,srp,std,stm,stp,stt,surfmod_namelist,syncstr,synctime,szd,szm,szp,&
@@ -1056,6 +1063,47 @@
 !$omp&  vrmpi,vrmpimax,ww,yguinam,ympname,yplanet)
 
       contains
+
+!     ==============================
+!     FUNCTIONS RA1S, RA2S AND RA4S
+!     ==============================
+
+!     The Magnus-Teten coefficient for the phase the condensate is in at pt.
+!
+!     Below TMELT the vapour is in equilibrium with ICE and not with supercooled
+!     liquid, which is what the latent heat already assumes: rainmod switches to
+!     ALS below TMELT at four sites and fluxmod at one, and the Clausius-Clapeyron
+!     derivative beside them is the liquid one multiplied by L_s/cp. Using the
+!     liquid coefficients under an ice latent heat over-produces cold-cloud
+!     condensation by about 25 per cent at 250 K. world-ako.
+!
+!     ELEMENTAL so an array temperature works, and so the branch is per gridpoint
+!     rather than per column. Every call site already evaluates an exponential,
+!     so the selection costs nothing measurable beside it.
+!
+!     A SEA SURFACE DOES NOT USE THESE. fluxmod treats every cell with
+!     dls < 0.5 as evaporating liquid whatever its temperature, so seamod's
+!     saturation stays liquid to agree with the latent heat beside it, and
+!     fluxmod's own two sites take the phase from the arm they are in rather
+!     than from the temperature.
+
+      elemental real function ra1s(pt)
+      real, intent(in) :: pt
+      ra1s = ra1
+      if (pt < tmelt) ra1s = ra1i
+      end function ra1s
+
+      elemental real function ra2s(pt)
+      real, intent(in) :: pt
+      ra2s = ra2
+      if (pt < tmelt) ra2s = ra2i
+      end function ra2s
+
+      elemental real function ra4s(pt)
+      real, intent(in) :: pt
+      ra4s = ra4
+      if (pt < tmelt) ra4s = ra4i
+      end function ra4s
 
 !     ==========================
 !     SUBROUTINE ASSOC_SPECTRAL

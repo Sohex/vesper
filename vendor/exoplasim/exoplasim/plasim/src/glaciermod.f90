@@ -187,7 +187,7 @@
           write(nud,'(/,"Initial Icesheet Heights")')
           write(nud,'("Maximum: ",f10.2," [m]")') (maxval(zsnow))
           write(nud,'("Minimum: ",f10.2," [m]")') (minval(zsnow))
-          write(nud,'("Mean:    ",f10.2," [m]")') (sum(zsnow) / (NUGP))
+          write(nud,'("Mean:    ",f10.2," [m]")') (ugpmean(zsnow))
         endif 
       endif
       
@@ -200,7 +200,7 @@
             write(nud,'(/,"Topography before glaciers")')
             write(nud,'("Maximum: ",f10.2," [m]")') (maxval(zoro) / ga)
             write(nud,'("Minimum: ",f10.2," [m]")') (minval(zoro) / ga)
-            write(nud,'("Mean:    ",f10.2," [m]")') (sum(zoro) / (ga*NUGP))
+            write(nud,'("Mean:    ",f10.2," [m]")') (ugpmean(zoro) / ga)
           endif        
         endif
         
@@ -231,7 +231,7 @@
            write(nud,'(/,"Topography after spectral fitting")')
            write(nud,'("Maximum: ",f10.2," [m]")') maxval(doro) / ga
            write(nud,'("Minimum: ",f10.2," [m]")') minval(doro) / ga
-           write(nud,'("Mean:    ",f10.2," [m]")') sum(doro) / (ga * NUGP)
+           write(nud,'("Mean:    ",f10.2," [m]")') ugpmean(doro) / ga
         endif
         
         if (mypid == NROOT) then
@@ -258,6 +258,11 @@
         endif ! (mypid == NROOT)
         call mpscsp(sp,spm,1)
         
+!       A CELL-MEAN DEPTH AGAINST A COLUMN THRESHOLD. 30 m is the minimum ice
+!       thickness for a sheet to flow, which is a property of ice and not of the
+!       grid, but dsnowz here is the mean over the cell: a coarse cell that is
+!       half covered to 40 m does not flag while a fine cell fully covered to
+!       31 m does. Anchored to T21 in that sense. world-khn.
         where (dsnowz(:) > 30.0) dglac = 1.0 !If we have more than 30 m of lq H2O equivalent in snow/ice, it's a glacier
                                              !30 meters of ice is the minimum thickness for an ice sheet to flow
         where (dls(:) < 0.5) persistt = 0.0
@@ -268,7 +273,7 @@
           write(nud,'(/,"New Topography after glaciers")')
           write(nud,'("Maximum: ",f10.2," [m]")') (maxval(zoro) / ga)
           write(nud,'("Minimum: ",f10.2," [m]")') (minval(zoro) / ga)
-          write(nud,'("Mean:    ",f10.2," [m]")') (sum(zoro) / (ga*NUGP))
+          write(nud,'("Mean:    ",f10.2," [m]")') (ugpmean(zoro) / ga)
         endif
       
       else    !nglacier == 0
@@ -280,7 +285,7 @@
             write(nud,'(/,"Topography before smoothing")')
             write(nud,'("Maximum: ",f10.2," [m]")') (maxval(zoro) / ga)
             write(nud,'("Minimum: ",f10.2," [m]")') (minval(zoro) / ga)
-            write(nud,'("Mean:    ",f10.2," [m]")') (sum(zoro) / (ga*NUGP))
+            write(nud,'("Mean:    ",f10.2," [m]")') (ugpmean(zoro) / ga)
           endif    
         endif
           
@@ -302,7 +307,7 @@
            write(nud,'(/,"Topography after spectral fitting")')
            write(nud,'("Maximum: ",f10.2," [m]")') maxval(doro) / ga
            write(nud,'("Minimum: ",f10.2," [m]")') minval(doro) / ga
-           write(nud,'("Mean:    ",f10.2," [m]")') sum(doro) / (ga * NUGP)
+           write(nud,'("Mean:    ",f10.2," [m]")') ugpmean(doro) / ga
         endif
         
         if (mypid == NROOT) then
@@ -335,7 +340,7 @@
           write(nud,'(/,"New Topography after glaciers")')
           write(nud,'("Maximum: ",f10.2," [m]")') (maxval(zoro) / ga)
           write(nud,'("Minimum: ",f10.2," [m]")') (minval(zoro) / ga)
-          write(nud,'("Mean:    ",f10.2," [m]")') (sum(zoro) / (ga*NUGP))
+          write(nud,'("Mean:    ",f10.2," [m]")') (ugpmean(zoro) / ga)
         endif
       
       endif !nglacier switch
@@ -395,7 +400,7 @@
        write(nud,'(/,"Topography before glaciers and before smoothing")')
        write(nud,'("Maximum: ",f10.2," [m]")') (maxval(zoro) / ga)
        write(nud,'("Minimum: ",f10.2," [m]")') (minval(zoro) / ga)
-       write(nud,'("Mean:    ",f10.2," [m]")') (sum(zoro) / (ga*NUGP))
+       write(nud,'("Mean:    ",f10.2," [m]")') (ugpmean(zoro) / ga)
       
       endif
       
@@ -432,7 +437,7 @@
        write(nud,'(/,"Glacial Topography")')
        write(nud,'("Maximum: ",f10.2," [m]")') (maxval(zoro) / ga)
        write(nud,'("Minimum: ",f10.2," [m]")') (minval(zoro) / ga)
-       write(nud,'("Mean:    ",f10.2," [m]")') (sum(zoro) / (ga*NUGP))
+       write(nud,'("Mean:    ",f10.2," [m]")') (ugpmean(zoro) / ga)
       
       endif
       
@@ -442,7 +447,7 @@
        write(nud,'(/,"Ground Topography")')
        write(nud,'("Maximum: ",f10.2," [m]")') (maxval(zoro) / ga)
        write(nud,'("Minimum: ",f10.2," [m]")') (minval(zoro) / ga)
-       write(nud,'("Mean:    ",f10.2," [m]")') (sum(zoro) / (ga*NUGP))
+       write(nud,'("Mean:    ",f10.2," [m]")') (ugpmean(zoro) / ga)
       
       endif
       call mpgagp(zoro,doro-groundoro,1)
@@ -451,7 +456,7 @@
        write(nud,'(/,"Net-Ground Topography")')
        write(nud,'("Maximum: ",f10.2," [m]")') (maxval(zoro) / ga)
        write(nud,'("Minimum: ",f10.2," [m]")') (minval(zoro) / ga)
-       write(nud,'("Mean:    ",f10.2," [m]")') (sum(zoro) / (ga*NUGP))
+       write(nud,'("Mean:    ",f10.2," [m]")') (ugpmean(zoro) / ga)
       
       endif
       call mpgagp(zoro,doro-glacieroro,1)
@@ -460,7 +465,7 @@
        write(nud,'(/,"Net-Glacier Topography")')
        write(nud,'("Maximum: ",f10.2," [m]")') (maxval(zoro) / ga)
        write(nud,'("Minimum: ",f10.2," [m]")') (minval(zoro) / ga)
-       write(nud,'("Mean:    ",f10.2," [m]")') (sum(zoro) / (ga*NUGP))
+       write(nud,'("Mean:    ",f10.2," [m]")') (ugpmean(zoro) / ga)
       
       endif
       call mpgagp(zoro,glacieroro+groundoro,1)
@@ -469,7 +474,7 @@
        write(nud,'(/,"Ground + Glacier Topography")')
        write(nud,'("Maximum: ",f10.2," [m]")') (maxval(zoro) / ga)
        write(nud,'("Minimum: ",f10.2," [m]")') (minval(zoro) / ga)
-       write(nud,'("Mean:    ",f10.2," [m]")') (sum(zoro) / (ga*NUGP))
+       write(nud,'("Mean:    ",f10.2," [m]")') (ugpmean(zoro) / ga)
       
       endif
       
@@ -484,7 +489,7 @@
        write(nud,'(/,"Topography after glaciers and before smoothing")')
        write(nud,'("Maximum: ",f10.2," [m]")') (maxval(zoro) / ga)
        write(nud,'("Minimum: ",f10.2," [m]")') (minval(zoro) / ga)
-       write(nud,'("Mean:    ",f10.2," [m]")') (sum(zoro) / (ga*NUGP))
+       write(nud,'("Mean:    ",f10.2," [m]")') (ugpmean(zoro) / ga)
       
        zoro(:,:)=MAX(zoro(:,:),0.)
        where(zlsm(:,:) < 1.) zoro(:,:)=zlsm(:,:)-1.

@@ -124,6 +124,14 @@ def heat_content(nc: Dataset, gravity: float, acpd: float) -> dict[str, np.ndarr
     atmosphere = np.sum(
         read("ta") * acpd * (1.0 + adv * read("hus"))
         * surface_pressure[:, None] * dsigma[None, :, None, None], axis=1) / gravity
+    # THE MOISTURE FIXER MOVES THIS TERM BETWEEN COLUMNS, every timestep and
+    # unconditionally: `miscmod.f90:fixer` removes negative specific humidity by
+    # borrowing it, first within a column, then along a latitude row, then
+    # globally. The global step conserves the column integral, so this reservoir
+    # is intact for a GLOBAL closure and this script is a global closure. It is
+    # not intact for a regional or per-column one, and in the branch where the
+    # global deficit exceeds the global surplus the fixer is a sink rather than a
+    # redistribution. world-bsp.
     vapour = ALV * read("prw")
 
     # Over an ice-covered ocean cell `ts` is the ice surface, not the mixed

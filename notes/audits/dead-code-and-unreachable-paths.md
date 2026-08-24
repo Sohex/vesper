@@ -71,26 +71,27 @@ rather than the values this project derived.
 why `verify_staged_namelists` passes. `run_2b20e3324bb0` reached
 `climatology_complete` at 85 orbits on this namelist.
 
-### 1b. `configure(orography=)` writes a key no namelist declares
+### 1b. `configure(orography=)` wrote a key no namelist declared
 
-`vendor/exoplasim/exoplasim/__init__.py:2739` and `:3495` write `OROSCALE` into
-`landmod_namelist`.
+`OROSCALE` went into `landmod_namelist` from both the `configure` and the
+`modify` path, and `oroscale` appeared in no `namelist /.../` statement in any
+of the 57 source files. `landmod.f90`'s read of `landmod_nl` is bare, with no
+`iostat`, so an unrecognised name aborts the run rather than being ignored: the
+documented API would have stopped the model, and was latent only because this
+harness never passes `orography=`.
 
-`oroscale` is a module variable (`plasimmod.f90:965`, default 1.0) and is used
-at `glaciermod.f90:170`, `:241`, `:342` and `surfmod.f90:429`. It appears in no
-`namelist /.../` statement in any of the 57 source files. `landmod_nl`
-(`landmod.f90:168-173`) does not carry it.
+`oroscale` now lives in `planet_nl`, in every planet module, and the API writes
+it to `planet_namelist`. It could not go into `landmod_nl`: every reader of it
+-- `surfmod`'s scaling of `doro` and `glaciermod`'s three -- runs inside
+`surface_ini`, and `planet_ini` is the only namelist read that happens before
+that. `p_mars.f90` already assigned it in the planet module, so `planet_nl` is
+also where it was already treated as belonging.
 
-`landmod.f90:215` is a bare `read(12,landmod_nl)` with no `iostat`, so an
-unrecognised name aborts the run rather than being ignored. The orography
-scaling knob is therefore unreachable from any namelist, and the documented API
-that sets it would stop the model. Latent only because the harness never passes
-`orography=`.
-
-`NDESERT` has the same shape on one branch: `__init__.py:3719` writes it to
-`plasim_namelist`, which declares it at `plasim.f90:1410`, while `:3729`, the
-`desertplanet=False` arm of the same call, writes it to `landmod_namelist`,
-which does not.
+`NDESERT` had the same shape on one branch: the `desertplanet=True` arm wrote it
+to `plasim_namelist`, which declares it, and the `desertplanet=False` arm wrote
+it to `landmod_namelist`, which does not -- so turning a desert planet back off
+aborted the run and left `NDESERT = 1` standing. Both arms now write
+`plasim_namelist`.
 
 ### 1c. The LSG coupler stub has drifted from its call sites
 
@@ -248,12 +249,37 @@ module-level cases are already inventoried in
 `notes/audits/dormant-exoplasim-modules.md` section 1 and are not re-argued.
 What that audit does not carry:
 
-**Entropy diagnostics, about 452 lines across nine modules.** Three separately
-declared switches named `nentropy`, in `plasim_nl` (`plasim.f90:1412`),
-`icemod_nl` (`icemod.f90:288`) and `oceanmod_nl` (`oceanmod.f90:160`), plus
-`nentro3d`. Nothing writes any of them, and none appears in any run namelist.
-381 lines over 42 sites are gated on `nentropy > 0` and 71 lines over 31 sites
-on `nentro3d > 0`. This is the largest namelist-gated block in the model.
+**Entropy diagnostics: deleted, 447 lines across ten modules.** Three separately
+declared switches named `nentropy`, in `plasim_nl`, `icemod_nl` and
+`oceanmod_nl`, plus `nentro3d`. Nothing wrote any of them, in Fortran, in the
+shipped templates, in either driver script or in any staged run namelist, so
+they were unconditionally zero in every configuration this repository can
+produce, and they were the largest namelist-gated block in the model.
+
+The verdict is deletion rather than "declared off", and the reason is that
+"enabled and consumed" was not available. The blocks write output codes
+320 to 355 and 420 to 442, and 320 and 321 are ALREADY `tempmin` and `tempmax`
+on the same stream, in `REGULAR_CODES`, and mapped by `pyburn` as `mint` and
+`maxt`; 322 to 329 collide with the hurricane diagnostics. Turning `nentropy`
+on would have written duplicate codes into the raw stream for fields this
+project reads. `pyburn` has no entry for any entropy code, so nothing could have
+read them even without the collision. Enabling them therefore needed a code
+renumbering that nobody had asked for, and the switch that appeared to offer
+them was a trap.
+
+Deleting could not change the integrated climate. Every assignment inside the
+guarded ranges is to `dentropy`, `dentro3d`, `dentrop`, `dentrot`, `dentroq`,
+`dentro`, `xentro`, `yentro` or a block-local temporary; no prognostic and no
+physics variable is written in any of them, and none of those arrays is read
+outside a guard. They shared no storage with the `nenergy` diagnostics this
+project does run, which use `denergy`, `dener3d`, `adenergy` and `adener3d` and
+ARE registered with the postprocessor. The four `nenergy > 0 .or. nentropy > 0`
+allocation blocks lose only the dead disjunct, and `koutdiag` loses a term that
+was always zero.
+
+This project's interest in where the model loses energy is served by `nenergy`,
+which is on, consumed, and separately arrayed. If entropy production is ever
+wanted it is a fresh derivation against a code range that is free.
 
 **`tpcore.f90` and `trc_routines.f90`, 2221 lines, are dead twice over.** The
 outer gate is `NQSPEC = 1`, which advects moisture spectrally: `tracer_main`'s
@@ -281,11 +307,14 @@ is unreachable by construction.
 
 **The GUI costs real work on every diagnostic step.** `guimod_stub.f90` is
 always the compiled variant, so all 23 `call gui*` sites reach empty returns.
-The argument preparation is not behind `ngui`. `subroutine energy`
-(`plasim.f90:2395-2412`) exists only to build `ziso(6)` for `guiput`, `diag`
-calls it unconditionally at `:2329`, and its five inputs `umax`, `t2mean`,
-`precip`, `evap` and `olr` have no other consumer in the model: producing them
-costs five `mpgagp` full-globe gathers at `plasim.f90:2821-2829`.
+The argument preparation is not behind `ngui`. `subroutine energy` exists only
+to build `ziso(6)` for `guiput`, `diag` calls it unconditionally, and its five
+inputs `umax`, `t2mean`, `precip`, `evap` and `olr` have no other consumer in
+the model. Four of the five cost four full-globe gathers less than they did:
+world-mt5 replaced them with a local weighted sum and a reduction, for the
+weighting rather than for the cost. The four remaining `mpgagp` calls in that
+block feed `guips` and the zonal cross sections, and the cross sections ARE
+consumed -- `xsect` prints them to the diagnostic log through `wrzs`.
 
 **`nprint` gates 902 lines** of instrumentation across six modules, and reads
 back 0. This is diagnostic code designed to be off; it is recorded as a size,
@@ -296,14 +325,34 @@ not as a defect.
 CLIM-64 closed on the finding that `mkdheat` was the last hot legmod caller. It
 is not.
 
-`mkdheat` calls legmod's `sp2fl` at `plasim.f90:5092` and `:5106`, inside
-`if(nenergy > 0)` and outside every `nshtns` branch. The comment above that
-block describes it as off by default. `config/planet.yaml:502` declares
-`energy_diagnostics: true`, `run_exoplasim.py` maps that to `NENERGY = 1`, and
-`run_2b20e3324bb0/plasim_namelist:3` records `NENERGY = 1`. The block runs every
-timestep of every production run, and legmod's Legendre loops run with it,
-alongside `dv2uv` at `plasim.f90:3578` and `:3587` and the `sp2fc` that `sp2fl`
-calls.
+`mkdheat`'s two `sp2fl` calls were inside `if(nenergy > 0)` and outside every
+`nshtns` branch, under a comment describing the block as off by default.
+`config/planet.yaml` declares `energy_diagnostics` and every production
+namelist records `NENERGY = 1`, so the block runs every timestep of every run
+and legmod's Legendre loops ran with it. Both now take `sh_sp2gp` into `hddt_g`
+under `nshtns == 1`, the way the `zhe` transform above them already did, and the
+comment says what is true.
+
+`mkdheat` was not the only one, and this is the part CLIM-64 missed rather than
+got wrong about `mkdheat`. Thirteen more legmod transforms run per timestep
+inside live `nenergy` blocks with no `nshtns` branch, in `spectrala` and
+`spectrald`:
+
+| where | what | guard |
+| --- | --- | --- |
+| `spectrala` | six `sp2fl` | `nenergy > 0 .or. nentropy > 0` |
+| `spectrala` | two `dv2uv` | `nenergy > 0` |
+| `spectrala` | one `sp2fl` | `nenergy > 1` |
+| `spectrald` | one `sp2fl` | `nenergy > 0` |
+| `spectrald` | three `sp2fl` | `nenergy > 0 .or. nentropy > 0` |
+| `spectrald` | two `sp2fl` | `nenergy > 0` |
+
+None of them can be swapped in place, which is why `mkdheat` went first: they
+write into arrays the routine ALLOCATES per thread, and `sh_sp2gp` uses `!$omp
+do` and needs a shared full-globe destination. `mkdheat`'s did not, because
+`hddt_g` and its per-thread pointer already existed from CLIM-57. Converting the
+rest means giving each of those scratch arrays the same `_g` twin, which is the
+shape of work `exoplasim/notes/shared-spectral-state.md` describes.
 
 The rest of legmod is correctly retained and must not be read as dead. The axis
 is `nshtns`, a runtime namelist key, not the parmode: `verify_shtns_model.sh`
@@ -333,15 +382,23 @@ have no writer anywhere in this project. Most of those are ordinary unused
 knobs. These are different: they are declared, documented, sometimes written,
 and read by no code at all.
 
-**`nfixer` is the one that matters.** Declared in `miscmod_nl`
-(`miscmod.f90:41`), default 1 at `:10`, commented "switch for negative humidity
-fix (1/0 : on/off)". It is tested nowhere: `miscstep` calls `fixer`
-unconditionally at `miscmod.f90:93`. `fixer` (`:132-198`) borrows moisture
-between columns to remove negative humidity, so a mass redistribution term
-documented as optional is in fact always on. This bears on the closure work in
-`exoplasim/scripts/close_*_energy.py`. It is not fork damage: the independently
-vendored PlaSim under `vendor/cgenie/genie-plasim/src/fortran/miscmod.f90:91`
-has the same unconditional call.
+**`nfixer` was the one that mattered, and it is gone.** It was declared in
+`miscmod_nl`, defaulted to 1 and was commented "switch for negative humidity fix
+(1/0 : on/off)", and it was tested nowhere: `miscstep` calls `fixer`
+unconditionally, so setting NFIXER=0 was silently ignored. Not fork damage --
+the independently vendored PlaSim under
+`vendor/cgenie/genie-plasim/src/fortran/miscmod.f90` has the same unconditional
+call. The switch was removed rather than wired up, because negative specific
+humidity is not a state this model may integrate and "off" was never a
+configuration.
+
+What the fixer does is now recorded where it runs: it borrows moisture between
+columns, first within a column, then along a latitude row, then globally, and
+the global step conserves the column integral except in the branch where the
+global deficit exceeds the global surplus, where it takes the field to zero and
+is a sink. So a global moisture or latent-energy closure carries no term for it
+and a regional one does. `exoplasim/scripts/close_state_energy.py` names it
+against its vapour reservoir.
 
 **`aeroqlw` is fork-added and has no writer.** Declared `radmod.f90:906`,
 defined `:305`, default 0.0, and described by the fork's own comment at
@@ -353,12 +410,21 @@ why `run_exoplasim.py:1242` pins `l_aerorad = 0`. The other half of that pin's
 stated rationale, that `aero_ini` never populates `apart` from the namelist, was
 fixed at `aeromod.f90:277` and the comment has not caught up.
 
-Read by nothing, and several of them written into every run: `nflux`,
-`npackgp`, `npacksp`, `nguidbg` (written `0` in all nine runs), `nsurf`, `zeta`
-(whose own declaration at `carbonmod.f90:48` says "not used", and which the
-shipped template writes into every `carbonmod_namelist`), and `ngpitrigger`.
-`sellon` is used only by the four GUI stub calls at `plasim.f90:2854-2857`, so
-it is a knob with no effect in any buildable configuration.
+Read by nothing, and now retired: `nflux`, `npackgp`, `npacksp`, `nsurf`,
+`zeta` (whose own declaration said "not used", and which the shipped
+`carbonmod_namelist` template wrote into every run) and `ngpitrigger` are gone
+from their groups, their declarations, their broadcasts and the shipped
+templates. Of the seven, only `nguidbg` and `zeta` were ever staged: `npackgp`,
+`npacksp` and `nsurf` appear in no template and no run, contrary to the earlier
+reading of this row.
+
+`nguidbg` and `sellon` are out of `plasim_nl` and out of the template but keep
+their module declarations, because their only reader is the uncompiled
+`guimod.f90` and the compiled build passes `sellon` to bodyless column routines
+in `guimod_stub.f90`. `nguidbg` also had a second declaration inside the private
+`plasim_nl` that `carbonmod`'s `psurfupdate` WRITES; that group emits a new
+`plasim_namelist`, and `plasim_nl` no longer declares the name, so it had to go
+from there too or the next read would abort.
 
 ## 6. What this makes of the earlier audit
 
@@ -399,11 +465,14 @@ migration and are live; this is not transform fallout.
 
 `earthveg` (`specblock.f90:1426-1747`) is 322 lines of spectral data referenced
 by no file in the tree; the other thirteen arrays in that module are read by
-`radmod.f90`. `hcadencediag` (`outmod.f90:2320-2427`) has one call site and it
-is commented out at `plasim.f90:807-809`. `hcadencesc` (`outmod.f90:2178-2201`)
-has none at all, which is a gap rather than only waste: the ordinary and
-snapshot output paths each call a scalar writer beside the gridpoint one, and
-the high-cadence path does not, so that stream writes no scalar record.
+`radmod.f90`. `hcadencediag` and `hcadencesc` are gone, with the commented-out
+call that was `hcadencediag`'s only call site. The high-cadence stream writes no
+scalar record and wants none: it exists for the gust distribution DUST-5 needs,
+its postprocessed field list is the winds, and its time axis comes from the code
+139 record `hcadencegp` already writes -- which is what
+`aeolian/scripts/extract_high_cadence_wind.py` keeps and what pyburn counts to
+build the axis. The ordinary and snapshot streams call a scalar writer because
+they are read as climate fields and want the orbital phase; this one is not.
 `outdiag.f90` is an orphan file duplicating the live `outdiag` at
 `outmod.f90:1096`, and adding it to the build would be a duplicate-symbol error.
 

@@ -24,6 +24,7 @@ from segments import SEGMENT_PURPOSES  # noqa: E402
 from run_exoplasim import (  # noqa: E402
     declare_parmode,
     declare_dry_constants,
+    declare_hyperdiffusion,
     prepare_thread_stack,
     declare_dynamics_only,
     declare_energy_fixer,
@@ -466,8 +467,23 @@ def main() -> None:
         ozone=bool(atmosphere["ozone"]),
         mldepth=float(surface["mixed_layer_depth_m"]),
         twobandalbedo=bool(config["radiation"]["two_band_albedo"]),
+        # DECLARED, not inherited. Earthlike.configure supplies vtype=4 and
+        # modeltop=50.0 from its own signature, so NEQSIG and PTOP reached the
+        # model from a library subclass default that no document here named.
+        # Passed explicitly so the vertical grid and the model top are config,
+        # and verified below like every other config-set key. world-a05.
+        vtype=int(model_cfg["vertical_grid"]),
+        modeltop=float(model_cfg["model_top_hpa"]),
         timestep=float(model_cfg["timestep_minutes"]),
         physicsfilter=model_cfg["physics_filter"],
+        # RESTATED, and they have to be. `configure()` writes FILTERKAPPA and
+        # NFILTEREXP unconditionally from its OWN defaults (8.0 and 8), so a
+        # continuation that passes only `physicsfilter` rewrites the filter
+        # exponent to 8 while the config declares 16. The filter is this model's
+        # small-scale damping, so that is a change in the integrated dynamics
+        # partway through a run, not a lost switch. world-8bs.
+        filterkappa=float(model_cfg["filter_kappa"]),
+        filterpower=int(model_cfg["filter_power"]),
         landmap=str(landmap),
         topomap=str(topomap),
         restartfile=str(restart),
@@ -563,6 +579,12 @@ def main() -> None:
     # pressure reduction makes that a change in the mean state, not only in the
     # dry column.
     declare_dry_constants(model, config)
+    # The hyperdiffusion is on exactly the same footing, and was the half this
+    # script never wrote at all: `configure()` does not touch NDEL, NHDIFF or
+    # TDISS*, so a continuation left them at `readnl`'s compiled T21/T42 branch
+    # and integrated the derived damping on the prepare segment and ExoPlaSim's
+    # on every segment after it. world-8bs.
+    declare_hyperdiffusion(model, config)
     staged_namelists = verify_staged_namelists(run_dir, config)
     print(f"  namelists verified: {len(staged_namelists)} config-set keys "
           f"present with the declared values")

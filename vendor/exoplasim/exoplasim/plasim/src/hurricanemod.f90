@@ -46,7 +46,6 @@
       
       integer :: hc_capture = 0
       integer :: nktrigger = 0 ! 1/0=yes/no Use the combined Komacek metric (exclude GPI etc)
-      integer :: ngpitrigger = 1 ! 1/0=yes/no This may be the only trigger that works reasonably well
       
 ! Thermodynamic Constants
       real :: CPD=1005.7       ! [J/kg.K] Specific heat of dry air at constant pressure
@@ -68,6 +67,21 @@
       real :: MAXSURFTEMP=373.15 ! Maximum surface temperature to trigger (default 100 C)
       real :: WINDTHRESH=33.0  ! Lower-atmosphere windspeed necessary to count as a hurricane
       real :: SWINDTHRESH=20.5 ! Concurrent Surface wind speed necessary to count as a hurricane
+!     FOUR THRESHOLDS IN GRID UNITS, not physical ones. SIZETHRESH and ENDTHRESH
+!     are UNWEIGHTED counts of flagged gridpoints, so 30 cells is 1.46 per cent
+!     of the globe at T21 and 0.37 per cent at T42, and a different area at
+!     different latitudes within one rung. MINSTORMLEN and MAXSTORMLEN are in
+!     TIMESTEPS, so they are a different duration at every step length.
+!
+!     They are NOT converted to an area and a duration, and that is deliberate.
+!     This whole diagnostic is Earth-empirical end to end and stays off on this
+!     world (nstormdiag = 0): LAVTHRESH is an absolute vorticity threshold
+!     against a planetary vorticity 0.8 of Earth's at a 30-hour day, CPD is
+!     hardcoded rather than tied to acpd, and CL is an admitted fudge. Making
+!     two of the thresholds rung-independent while the rest stay fitted to
+!     Earth would buy a false look of correctness. If the diagnostic is ever
+!     wanted, all of them are a re-derivation and not a namelist tweak.
+!     world-khn and world-9d1.
       integer :: SIZETHRESH = 30 ! Number of cells where condition must be satisfied
       integer :: ENDTHRESH = 16 !Number of cells below which size has to stop for storm output to end
       integer :: MINSTORMLEN = 256 ! Minimum number of timesteps that must have elapsed for storm to count
@@ -87,7 +101,7 @@
 !     Inert without -fopenmp, so the MPI and serial builds are unchanged.
 !$omp threadprivate(aa,allflag,alv0,baz,bb,ckcd,cl,cpd,cpv,cpvmcl,endthresh,eps,gpimask,gpithresh,&
 !$omp&  hc_capture,hc_indlog,hc_namelist,hc_output,k20flag,kstorms,laavmask,lavthresh,maxstormlen,&
-!$omp&  maxsurftemp,minstormlen,minsurftemp,mpotimask,ngpitrigger,nktrigger,nstormdiag,nstormlen,&
+!$omp&  maxsurftemp,minstormlen,minsurftemp,mpotimask,nktrigger,nstormdiag,nstormlen,&
 !$omp&  nstorms,nuh,rd,rvp,shear,sizethresh,swindmask,swindthresh,top,tsmask,ventimask,vithresh,&
 !$omp&  vmxthresh,vrmpimask,vrmthresh,wind,windflag,windmask,windthresh)
 
@@ -174,7 +188,7 @@
       
       namelist /hurricane_nl/ CKCD, VITHRESH, GPITHRESH, VMXTHRESH, LAVTHRESH, WINDTHRESH, &
      &                        SWINDTHRESH, VRMTHRESH, SIZETHRESH, baz, top, hc_capture, &
-     &                        nktrigger, ngpitrigger, nstorms, nstormdiag, ENDTHRESH, &
+     &                        nktrigger, nstorms, nstormdiag, ENDTHRESH, &
      &                        MAXSTORMLEN, MINSTORMLEN, MINSURFTEMP, MAXSURFTEMP 
       
       
@@ -210,7 +224,6 @@
       call mpbcr(top)
       call mpbci(hc_capture)
       call mpbci(nktrigger)
-      call mpbci(ngpitrigger)
       call mpbci(SIZETHRESH)
       call mpbci(ENDTHRESH)
       call mpbci(MINSTORMLEN)
@@ -350,9 +363,7 @@
       call mpgagp(zzf1,swind(:)*gpimask(:),1)
       if (mypid==NROOT) then
          swindmax=maxval(zzf1)
-         trigger=windtrigger*(nktrigger-1)+k20trigger*nktrigger!(nktrigger*(1-ngpitrigger)*k20trigger+ &
-!      &           (1-nktrigger)*(1-ngpitrigger)*alltrigger+ &
-!      &           npgitrigger*windtrigger)
+         trigger=windtrigger*(nktrigger-1)+k20trigger*nktrigger
          nstormlen = nstormlen + trigger
          if (hc_capture*trigger .gt. 0.5) then
             if (nwritehurricane < 1) then

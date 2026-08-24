@@ -526,41 +526,61 @@ geopotential of order 2500 m2/s2 that is about 200 Pa, 0.2 per cent of surface
 pressure, but it means the realised global-mean surface pressure depends on an
 undeclared Earth number.
 
-## 18. The model's calendar is a 360-day Earth year that `calini` never updates
+## 18. The calendar was a 360-day Earth year that `calini` never updated
 
-`calmod.f90:19-22` declares `n_days_per_month=30`, `n_days_per_year=360`,
-`m_days_per_year=360`, `m_days_per_month=30`. `calini` (`calmod.f90:44-99`)
-copies `n_days_per_month`, `n_days_per_year`, `n_start_step`, `ntspd`,
-`solar_day` and `mpstep` -- and NOT `m_days_per_year` or `m_days_per_month`,
-which `plasim.f90:1506-1507` has just set to 183 and 15.
+`calmod` declares its own `n_days_per_month`, `n_days_per_year`,
+`m_days_per_year`, `m_days_per_month` and `mtspd` beside `pumamod`'s, with the
+same names. `calini` copied two of the five and derived `mtspd` from the pair it
+had not copied, so the calendar's own trio stayed at Earth's 360 days, 30-day
+months and an `mtspd` computed against them, while `readnl` had set `pumamod`'s
+to this world's.
 
-So `mtspd` in calmod is `146*40/360`, truncating to 16, and the calendar year is
-`360*16 = 5760` steps against the orbit's `n_steps_per_year = 5850`. The
-calendar drifts 1.54 per cent per orbit against the season and is a full year
-out after about 65 orbits. `tcalday` becomes 43200 s, so a "calendar day" is
-half a 24-hour day and `step2cal30` reports hours 0 to 11. `cal2step` and
-`step2cal30` are not inverses: `plasim.f90:1585` encodes with `mtspd = 32`, 146
-and 15, and `step2cal30` decodes with 16, 360 and 30, so year 1 month 1 day 1
-encodes to step 4672 and decodes as `23-Oct-0001`. `outmod.f90:119` and `:147`
-then pack `ihead(3)` from that while `ihead(8)` reports pumamod's
-`m_days_per_year = 183`, so one eight-word header carries two different days per
-year.
+What that cost, measured before the repair. `mtspd` in calmod was `146*40/360`,
+truncating to 16, so the calendar year was `360*16 = 5760` steps against the
+orbit's 5850: 1.54 per cent per orbit, a full year out after about 65 orbits.
+`tcalday` came out at 43200 s, so a "calendar day" was half a 24-hour day and
+`step2cal30` reported hours 0 to 11. `cal2step` and `step2cal30` were not
+inverses -- one encoded with `mtspd = 32`, 146 and 15, the other decoded with
+16, 360 and 30 -- so year 1 month 1 day 1 encoded to step 4672 and decoded as
+`23-Oct-0001`, and `outmod` packed `ihead(3)` from that while `ihead(8)`
+reported `pumamod`'s 183, one eight-word header carrying two days-per-year.
 
-**Bounded today.** `pyburn.py:492` and `:539` take the netCDF time axis from
-`header[6]`, the raw step counter, and radiation takes its orbital phase from
-`n_steps_per_year` independently (`radmod.f90:1848`, `:1979`), so nothing this
-project reads goes through the broken calendar. It becomes live the moment
-anyone enables climatological ozone (`radmod.f90:1999`), t-nudging or flux
-correction (`miscmod.f90:264`, `:321`), the land surface annual cycle
-(`landmod.f90:1490`, `:1519`), or prescribed ice and SST (`icemod.f90:1883-1919`,
-`oceanmod.f90:745`, `:765`) -- all of which interpolate through `step2cal30`.
+`pumamod`'s `m_days_per_month` had no setter anywhere and stayed at 30 against a
+183-day year, so twelve months did not span the year in either module.
 
-Related trap in the same machinery: `n_days_per_year == 365` silently switches
-the whole model to Earth's Gregorian calendar, with `mondays`, the 400/100/4 leap
-rule and `Jan..Dec` names (`calmod.f90:107`, `:138`, `:277`, `:387`, `:463`).
-`N_DAYS_PER_YEAR` is derived from the flux and the rotation period at
-`run_exoplasim.py:238`, so nothing structurally prevents a future world landing
-on 365, and there is no guard and no message.
+**The repair.** `calini` copies all five and takes `mtspd` from the caller
+rather than deriving it, so the calendar day IS the 24-hour day, `tcalday` comes
+out at `day_24hr` by construction, and the calendar year is
+`m_days_per_year * mtspd`. `readnl` sets `m_days_per_month` as the year over
+twelve ROUNDED UP, so twelve months always cover the orbit and the last is the
+short one; rounding down gives a thirteenth month. `cal2step`'s simplified
+branch uses `m_days_*` and takes `kyea-1`, which makes it the exact inverse of
+`step2cal30` -- verified over three years of steps -- and makes year 1 month 1
+day 1 encode to step 0.
+
+That last one was not only a labelling defect. `plasim`'s cold start sets
+`nstep = n_start_step` from that call and `radmod` takes the orbital phase from
+`mod(nstep,n_steps_per_year)`, so every cold start began at phase 0.799, four
+fifths of an orbit past the `meananomaly0` the config declares. It now begins at
+phase 0. This changes the initial condition of every new cold start; by rule 7
+every existing build and run is disposable and nothing is owed.
+
+A residual remains and is irreducible: the calendar year is 5856 steps against
+the orbit's 5850, 0.10 per cent, because `m_days_per_year` and `mtspd` are
+integers and the orbit is 182.5 24-hour days. It was 1.54 per cent.
+
+**What reads it.** `pyburn` takes the netCDF time axis from `header[6]`, the raw
+step counter, and radiation takes its orbital phase from `n_steps_per_year`
+independently, so no published number went through the broken calendar. It
+becomes load-bearing the moment anyone enables climatological ozone, t-nudging
+or flux correction, the land surface annual cycle, or prescribed ice and SST --
+all of which interpolate through `step2cal30`.
+
+The related trap is closed rather than recorded: `n_days_per_year == 365`
+switched the whole module to Earth's Gregorian calendar -- `mondays`, the
+400/100/4 leap rule, `Jan..Dec` -- and `N_DAYS_PER_YEAR` is derived from this
+world's flux and rotation period, so nothing structurally kept it off 365 and
+there was no guard and no message. `calini` now aborts on it and says why.
 
 ## 19. The glacier persistence test is one run segment, which here is half an Earth year
 
@@ -661,25 +681,49 @@ uniform **+0.029 to convective cloud fraction** wherever the result is not
 clamped to [0.05, 0.8]. The point is not which choice is right but that a free
 choice here is worth 3 per cent absolute cloud cover.
 
-## 24. There is no saturation-over-ice branch, and the remedy is blocked by mechanism I
+## 24. Saturation now branches on ice below the melting point
 
-`p_earth.f90:44-46` sets `ra1=610.78`, `ra2=17.2693882`, `ra4=35.86`, the
-Magnus-Teten coefficients over LIQUID water, and that single formula is used at
-every `zqsat` site in `rainmod.f90` and at `seamod.f90:254`. Meanwhile the
-latent heat correctly switches to `ALS` below `TMELT` at `rainmod.f90:767`,
-`:886`, `:980`, `:1083` and at `fluxmod.f90:693-700`, and the Clausius-Clapeyron
-derivative is the liquid one multiplied by L_s/cp.
-
+The model carried one Magnus-Teten triple, `ra1`, `ra2`, `ra4`, the coefficients
+over LIQUID water, and used it at every saturation site in `rainmod`, `landmod`,
+`seamod`, `simba` and `fluxmod`, while the latent heat already switched to `ALS`
+below `TMELT` at four sites in `rainmod` and one in `fluxmod`, with the
+Clausius-Clapeyron derivative beside them the liquid one multiplied by L_s/cp.
 Saturation over ice is about 25 per cent below saturation over liquid at 250 K,
-so cold-cloud condensation is systematically over-produced and the
-thermodynamics is internally inconsistent with its own latent heat.
+so cold-cloud condensation was systematically over-produced and the
+thermodynamics disagreed with its own latent heat.
 
-The ice coefficient set that the Magnus formula needs over ice is
-610.66/21.875/7.65, measured on Earth's water. `alv`, `als` and `tmelt` are now
-in `planet_nl` on the module that compiles, so the latent heats and the
-switching temperature are settable, but `ra1`, `ra2` and `ra4` are one set and
-the fix needs a second BRANCH rather than a different single set. It is a source
-change either way. world-ako.
+`pumamod` now carries `ra1i`, `ra2i`, `ra4i` beside the liquid triple, in
+`planet_nl` on `p_earth.f90`, at the standard over-ice 610.66/21.875/7.65.
+That triple was in the tree already: `p_mars.f90` carried it in the LIQUID
+slots, which is how the set was identified. `p_mars.f90` and `p_exo.f90` have
+since been deleted under world-58v and world-cmz -- neither was ever a legal
+build value -- so `p_earth.f90` is the only planet module and the only place
+the pair of triples has to exist.
+
+The selection goes through three elemental functions in `pumamod`, `ra1s(T)`,
+`ra2s(T)` and `ra4s(T)`, so the branch is per gridpoint and every call site
+already evaluates an exponential beside it. Thirty-two sites in `rainmod`, two
+in `landmod` and one in `simba` take the temperature already in the expression.
+
+Two families deliberately do NOT branch on temperature, and that is what
+"consistent with the latent heat already in use" means here:
+
+- `fluxmod`'s two sites take the phase from the `where` arm they are in. That
+  mask is `dt > TMELT .or. dls < 0.5`, so a cell with `dls < 0.5` takes the
+  liquid arm however cold it is, because the water under a partial ice cover is
+  still water and `icemod` owns the ice surface. Branching on temperature there
+  would put an ice saturation under a liquid latent heat on exactly those cells.
+- `seamod`'s two sea-surface saturations stay liquid, for the same reason.
+
+The audit's earlier reading that this "cannot be fixed from config" was right
+about config and beside the point: it needs a second branch rather than a
+different single set, so it was always a source change. `alv`, `als` and `tmelt`
+are in `p_earth`'s `planet_nl` now, put there by world-58v, so the latent heats
+and the switching temperature are settable beside the coefficients.
+
+This is a physics change and it moves the climate: cold-cloud condensation falls
+where it was over-produced. A correct term that worsens an agreement is
+information.
 
 ## 25. Snow and glacier densities are Earth compaction values
 
@@ -766,24 +810,76 @@ None of these affects a run today. Each is recorded because it fires on a change
 this project already intends to make, and because a dormant Earth constant reads
 exactly like a live one to whoever throws the switch.
 
-**Dust would settle about 1790 times too slowly.** `aeromod.f90:43-44` declares
+**Every item below now says so where the switch is thrown.** world-9d1's action
+was the same for each: put the trigger and the consequence at the code a person
+reads before flipping it, rather than only in this note. What that produced:
+
+- Berger's Milankovitch series, and the `iyrbp = 1950 - n_start_year` remnant
+  that feeds it. The remnant carries the note; `radini` reaches the series only
+  at `nfixorb == 0` and `run_exoplasim.py` passes `fixedorbit=True` at every
+  call.
+- `orb_decl`'s vernal equinox, which hardcodes Earth calendar day 80.5 of a
+  365-day year through `lambm0 + (calday - ve/365.)*2.*pie`. `calday` is a
+  FRACTION of the year in this fork, so `ve/365` is a constant belonging to
+  another planet's calendar. Dormant on one keyword: `keplerian=True` routes
+  `solang` to `gen_orb_decl`, which takes its phase from `mvelpp` and
+  `meananom0r` and is correct and config-reachable.
+- `rainmod_bm`'s `ztaud = 7200.` and `ztaus = 14400.`, Earth's canonical
+  two-hour deep and four-hour shallow Betts-Miller relaxation, absolute seconds
+  with nothing tying them to this world's day, convective depth or timestep. The
+  switch is swapping RAINMOD in the build.
+- The hurricane diagnostics, covered by world-khn's declaration block at
+  `hurricanemod`'s thresholds. The positive form is that this diagnostic is not
+  meaningful on this world and stays off; if it is ever wanted its thresholds
+  are a re-derivation, not a namelist tweak.
+- `carbonmod`, dormant at `NCARBON = 0` though `carbonstep` is called every
+  timestep. One thing there was a defect and not only a dormancy: `localprecip`
+  used `3.154e9`, Earth's seconds per year times 100, two lines from a
+  `timeweight` that correctly uses `m_days_per_year`, so the two disagreed by
+  the ratio of the years -- about a factor of two here. That is fixed to the
+  model's own orbit. `CO2EARTH`, `PEARTH`, `VEARTH`, `RAD_EARTH` beside a
+  correct `plarad`, the 288 K reference in `exp(kact*(tsurf - 288.0))` and the
+  `tune1`/`tune2` pair commented as fitted to make the global average match are
+  all recorded at the module head as what turning `NCARBON` on would need.
+- LSG and the coupler, which are not compiled -- `CMakeLists` links a four-line
+  `src/lsgmod.f90` stub and `cpl_stub.f90` -- and are unreachable twice over:
+  `oceanmod` aborts unless `n_days_per_year` is exactly 360, and that is a count
+  of SIDEREAL DAYS PER ORBIT and is this planet's, 146, not a setting. The note
+  sits at the `nlsg > 0` branch, with what `lsg/src/lsgmod.f90` and `cpl.f90`
+  carry.
+- `icemod_template.f90`, a stale pre-fork copy in no build that still carries
+  `parameter(TFREEZE=271.25)`, the compiled Earth freezing point CLIM-17
+  replaced with a namelist key. It is the file a grep for TFREEZE hits first, so
+  it now opens with a banner saying it is not in any build and pointing at
+  `icemod.f90`.
+- `plasim/bld/make_plasim`, which named `OCEAN=lsgmod` against `lsg/src`, no
+  longer exists.
+
+**Dust would have settled about 1790 times too slowly.** `aeromod.f90` declares
 `apart = 50e-9` m and `rhop = 1000` kg/m3, a photochemical haze grain at water
-density, and both are in `aero_nl`. `run_exoplasim.py:1154-1252` writes every
-key in `prov["namelist_values"]`, and
-`aeolian/scripts/build_dust_source_fields.py:98-129` builds that dict with the
-fourteen `DUST*` keys and NEITHER `APART` NOR `RHOP`. The correct values exist
-unread in `exoplasim/data/dust/vesper_dust_aerosol.provenance.json` as
-`apart_m = 2.2068e-06` and `rhop_kg_m3 = 2600.0`, derived for this planet's
-gravity by `dust_aerofile.py:158`. Through `vels` at `aerocore.f90:1185` the
-radius contributes 1948, the density 2.602 and the Cunningham factor 0.354, so
-1793 net; sedimentation is the only removal term active by default, so the
-burden falls back on the timestep-dependent 99-per-cent-per-step scrub at
-`aerocore.f90:944`. Fires on `model.dust_emission`. Note that
-`aeolian/notes/in-model-dust.md:528` asserts the sidecar carries `APART` and
-`RHOP` in `namelist_values`, and the code does not do this. A new instance of
-the class in `aerosol-particle-radius.md`, not the audited one: that audit is
-about radmod's copy diverging from aeromod's, and this is about neither copy
-ever being set.
+density, and both are in `aero_nl`. `enable_dust_emission` wrote every key in
+the SOURCE-FIELD provenance, and `build_dust_source_fields.py` builds that dict
+with the fourteen `DUST*` keys and neither of these two, so nothing wrote them
+and `aero_ini` validates the emission constants and not the grain. Through
+`vels`, which is Stokes, the radius enters squared and contributes 1948, the
+density 2.602 and the Cunningham factor 0.354 the other way, so 1793 net; and
+sedimentation is the only removal term active at `ldepvel = 0` and
+`lwetdep = 0`, so the burden would instead have been set by the
+timestep-dependent 99-per-cent-per-step bottom-layer scrub. `mmr2n` was off by
+the cube.
+
+`enable_dust_emission` now reads the AEROFILE's own sidecar,
+`exoplasim/data/dust/vesper_dust_aerosol.provenance.json`, whose
+`namelist_values` block carried `APART = 2.2068e-06` and `RHOP = 2600.0`
+unread -- the burden-matched radius `dust_aerofile.py` derives for this planet's
+gravity -- and writes both into `aero_namelist`, refusing if the sidecar is
+missing or either value is not positive. Two provenance files reach that
+function and the distinction is load-bearing: the source-field sidecar carries
+the emission law, the aerofile sidecar carries the grain.
+
+A new instance of the class in `aerosol-particle-radius.md`, not the audited
+one: that audit is about radmod's copy diverging from aeromod's, and this was
+about neither copy ever being set.
 
 **SIMBA is Earth-fitted throughout, with two latent traps.** Unreachable at
 `NVEG = 0` and one namelist key away. `rlue = 3.4E-10` kg C/J
@@ -1130,7 +1226,7 @@ named because they were filed independently.
 | 27. runoff velocity constants | `world-529` |
 | 28. the run log identifies the planet as Earth | `world-1o4` |
 | mechanism I, the build compiles `p_earth` | `world-cwu`, `world-58v` |
-| dormant, dust `APART` and `RHOP` are never written | `world-906` |
+| dust `APART` and `RHOP` were never written | `world-906`, fixed |
 | dormant, SIMBA and its two traps | `world-9hv` |
 | dormant, `nfluko` relaxes toward the constructed field | `world-4ba` |
 | dormant, the radiation tuning is pinned at T21 | `world-ys9` |

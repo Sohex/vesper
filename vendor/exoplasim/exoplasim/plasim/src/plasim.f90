@@ -318,7 +318,6 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       call mpbci(n_start_year)
       call mpbci(n_start_month)
 
-      call mpbci(nflux   ) !
       call mpbci(nadv    ) !
       call mpbci(nhordif ) !
       call mpbci(nrad    ) !
@@ -330,8 +329,6 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       call mpbci(ndiaggp   ) ! switch for franks grid point diagnostics
       call mpbci(ndiagsp   ) ! switch for franks spectral diagnostics
       call mpbci(ndiagcf   ) ! switch for cloud forcing diagnostics
-      call mpbci(nentropy  ) ! switch for entropy diagnostics
-      call mpbci(nentro3d  ) ! switch for 3d entropy diagnostics
       call mpbci(nenergy  )  ! switch for energy diagnostics
       call mpbci(nener3d  )  ! switch for 3d energy diagnostics
 !     WITHOUT THIS THE FIXER DEADLOCKS. The namelist is read on NROOT only, so
@@ -381,6 +378,9 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       call mpbcr(ra1     )
       call mpbcr(ra2     )
       call mpbcr(ra4     )
+      call mpbcr(ra1i    ) ! the over-ice set, world-ako
+      call mpbcr(ra2i    )
+      call mpbcr(ra4i    )
       call mpbcr(rdbrv   )
       call mpbcr(ww      )
       call mpbcr(solar_day)
@@ -437,7 +437,8 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !     Copy some calendar variables to calmod
 
       call calini(n_days_per_month,n_days_per_year,n_start_step,ntspd &
-                  ,solar_day,-1,mpstep,mcal_days_per_year)
+                  ,solar_day,-1,mpstep,mcal_days_per_year &
+                  ,m_days_per_year,m_days_per_month,mtspd)
 !                  ,day_24hr,-1)
 
       call mpbci(mcal_days_per_year)
@@ -466,18 +467,6 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       if(ndiagcf > 0) then
        allocate(dclforc(NHOR,7))
        dclforc(:,:)=0.
-      end if
-      if(nentropy > 0) then
-       allocate(dentropy(NHOR,36))
-       allocate(dentrot(NHOR,NLEV))
-       allocate(dentroq(NHOR,NLEV))
-       allocate(dentrop(NHOR))
-       allocate(dentro(NHOR))
-       dentropy(:,:)=0.
-      end if
-      if(nentro3d > 0) then
-       allocate(dentro3d(NHOR,NLEV,23))
-       dentro3d(:,:,:)=0.
       end if
       if(nenergy > 0) then
        allocate(denergy(NHOR,28))
@@ -813,7 +802,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
            call snapshotsc
            call snapshotgp
            koutdiag=ndiaggp3d+ndiaggp2d+ndiagsp3d+ndiagsp2d+ndiagcf     &
-     &             +nentropy+nenergy
+     &             +nenergy
            if(koutdiag > 0) call snapshotdiag
          endif
          if (nhcadence>0 .and. hcstartstep>0 .and. hcendstep>0) then
@@ -833,9 +822,18 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !               The storm-capture block below writes one hcadencesp and one
 !               hcadencegp, which is the intended pattern.
                 call hcadencegp(141)
-!                 koutdiag=ndiaggp3d+ndiaggp2d+ndiagsp3d+ndiagsp2d+ndiagcf     &
-!      &                   +nentropy+nenergy
-!                 if(koutdiag > 0) call hcadencediag
+!               NO SCALAR AND NO DIAGNOSTIC RECORD, and that is the decision
+!               rather than a gap. The regular stream calls outsc beside outgp
+!               and the snapshot stream calls snapshotsc beside snapshotgp,
+!               because both are read as climate fields and want the orbital
+!               phase alongside them. This stream is not: it exists for the gust
+!               distribution DUST-5 needs, its postprocessed field list is the
+!               winds, its time axis comes from the code 139 record that
+!               hcadencegp already writes, and one orbit of it is 15 GB before
+!               anything is added. `hcadencesc` and `hcadencediag` are gone with
+!               the commented-out call that used to stand here; a stream that
+!               wants the orbital scalars can call outsc's codes itself.
+!               world-4vp.
              endif
            endif
          endif
@@ -850,7 +848,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
            call outsc
            call outgp
            koutdiag=ndiaggp3d+ndiaggp2d+ndiagsp3d+ndiagsp2d+ndiagcf     &
-     &             +nentropy+nenergy
+     &             +nenergy
            if(koutdiag > 0) call outdiag
           endif
           call outreset
@@ -898,14 +896,10 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       if(ndiaggp3d > 0) deallocate(dgp3d)
       if(ndiagsp3d > 0) deallocate(dsp3d)
       if(ndiagcf   > 0) deallocate(dclforc)
-      if(nentropy  > 0) then 
-       deallocate(dentropy,dentrop,dentrot,dentroq,dentro)
-      endif
       if(nenergy   > 0) deallocate(denergy)
       if(nenergy   > 0) deallocate(adenergy)
       if(nener3d   > 0) deallocate(dener3d)
       if(nener3d   > 0) deallocate(adener3d)
-      if(nentro3d  > 0) deallocate(dentro3d)
 !
 !     close output file
 !
@@ -1516,10 +1510,10 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
                    , ndel    , ndheat  , ndiag   , ndiagcf , ndiaggp    &
                    , ndiaggp2d , ndiaggp3d , ndesert                    &
                    , ndiagsp   , ndiagsp2d , ndiagsp3d, dttl            &
-                   , ndl     , nentropy, nentro3d, neqsig  , nflux      &
-                   , ngui    , nguidbg , nhdiff  , nhordif , nkits      &
+                   , ndl     , neqsig                                   &
+                   , ngui    , nhdiff  , nhordif , nkits                &
                    , noutput , nlowio  , nstpw   , nsnapshot, nstps     &
-                   , npackgp , npacksp , nperpetual        , nprhor     &
+                   , nperpetual        , nprhor                         &
                    , nprint  , nqspec  , nrad    , nsela   , nshtns     &
                    , nsync                                             &
                    , ntime   , ntspd   , nveg    , nwpd    &
@@ -1527,7 +1521,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
                    , n_run_years , n_run_months  , n_run_days           &
                    , n_days_per_month, n_days_per_year, fixedlon        &
                    , nhcadence, hcstartstep, hcendstep, hcinterval      &
-                   , seed    , sellon  , nfilter , ngptfilter, nspvfilter   &
+                   , seed    , nfilter , ngptfilter, nspvfilter          &
                    , landhoskn0, nfilterexp, filterkappa                &
                    , syncstr , synctime, nrdrag  , frcmod               &
                    , dtep    , dtns    , dtrop   , dttrp                &
@@ -1610,8 +1604,17 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !        If there's one day per year, then solar_day is zero. But really, it's infinite
       endif
       
-      m_days_per_year = nint(n_days_per_year * sidereal_day / day_24hr) !24-hour days per year
-      n_days_per_month = m_days_per_year / 12 !24-hour days per month
+!     THE CALENDAR'S THREE LENGTHS, and all three are set here because calmod
+!     copies them rather than deriving its own. m_days_per_month had no setter
+!     at all and stayed at Earth's 30 while the year became 183, so twelve
+!     months did not span a year. The division ROUNDS UP, so twelve months
+!     always cover the orbit and the last one is the short one; rounding down
+!     gives a thirteenth month. The floors keep step2cal30's mod and divide off
+!     zero for an orbit shorter than a day or a year shorter than twelve.
+!     world-x1k.
+      m_days_per_year = max(1,nint(n_days_per_year * sidereal_day / day_24hr)) !24-hour days per year
+      m_days_per_month = max(1,(m_days_per_year + 11) / 12) !24-hour days per month
+      n_days_per_month = m_days_per_month
       
       
 !       day_24hr IS NOT PURELY A UNIT CONVERSION, and the upstream comment that
@@ -1697,7 +1700,8 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !     Convert start date to timesteps since 1-Jan-0000
 
       call calini(n_days_per_month,n_days_per_year,n_start_step,ntspd &
-                   ,solar_day,0,mpstep,mcal_days_per_year)
+                   ,solar_day,0,mpstep,mcal_days_per_year &
+                   ,m_days_per_year,m_days_per_month,mtspd)
 !                  ,day_24hr,0)
       
       call cal2step(n_start_step,mtspd,n_start_year,n_start_month,1,0,0)
@@ -1863,6 +1867,26 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
        
       elseif(neqsig==4) then
       
+!      THE QUARTIC, and what fixes its coefficients. sigmah(zsk) with
+!      zsk = jlev/NLEV is a quartic with no quadratic term, so three free
+!      coefficients, and two of them are determined rather than fitted:
+!
+!        sigmah(1) = 1                 the last half-level IS the surface
+!        d sigmah/d zsk = 0 at zsk = 1 half-levels bunch at the surface, which
+!                                      is what puts resolution in the boundary
+!                                      layer
+!
+!      a1 + a3 + a4 = 1 and a1 + 3 a3 + 4 a4 = 0, so choosing a1 leaves no
+!      freedom: a4 = -(1 - 4 a1)/... solves to a3 = 1.75, a4 = -1.5 at
+!      a1 = 0.75. The ONE fitted number is a1, the slope at the model top, and
+!      it sets how much of the column the upper half spans. It is upstream's and
+!      carries no derivation there.
+!
+!      The three lines below are the whole of what neqsig==4 adds over the
+!      neqsig==0 fallback: shift the top half-level to zero, normalise, and map
+!      affinely onto [ptop/psurf, 1]. Without them the model top sits wherever
+!      the polynomial puts it at this NLEV -- sigma 0.0766, or 7660 Pa at ten
+!      layers -- and `ptop` is ignored. world-a05.
        do jlev=1,NLEV
         zsk=REAL(jlev)/REAL(NLEV)
         sigmah(jlev)=0.75*zsk+1.75*zsk**3-1.5*zsk**4
@@ -2532,6 +2556,83 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       return
       end
 
+!     =====================
+!     SUBROUTINE GPAREAMEAN
+!     =====================
+
+      subroutine gpareamean(pf,pmean)
+!
+!     The AREA-weighted global mean of a distributed gridpoint field.
+!
+!     The one place in this model that turns a gridpoint field into a global
+!     mean, because sum/NUGP is not that mean: the Gaussian latitudes are
+!     unequally spaced, so the arithmetic mean over the cells over-weights the
+!     poles, and by an amount that is a function of NLAT. Two rungs then report
+!     different global means for the same simulated field, from the quadrature
+!     alone. world-mt5.
+!
+!     gwd holds this rank's Gaussian weights, indexed over its own NLPP
+!     latitudes, and sums to 2 over the globe. The normalisation is taken from
+!     the summed weight rather than assumed, so a rank holding no latitudes
+!     costs nothing.
+!
+!     COLLECTIVE. mpsumbcr carries an OpenMP barrier, so every rank has to reach
+!     this; call it OUTSIDE any `mypid == NROOT` guard and print the result
+!     inside one. That is the shape every caller here uses.
+!
+      use pumamod
+      real, intent(in)  :: pf(NHOR)
+      real, intent(out) :: pmean
+      real :: zgw(NHOR)
+      real :: zs(2)
+      integer :: jlat, jlon, jhor
+
+      jhor = 0
+      do jlat = 1 , NLPP
+       do jlon = 1 , NLON
+        jhor = jhor + 1
+        zgw(jhor) = gwd(jlat)
+       enddo
+      enddo
+      zs(1) = dot_product(pf,zgw)
+      zs(2) = sum(zgw)
+      call mpsumbcr(zs,2)
+      pmean = zs(1) / zs(2)
+      return
+      end
+
+!     ================
+!     FUNCTION UGPMEAN
+!     ================
+
+      function ugpmean(pf)
+!
+!     The AREA-weighted global mean of a GATHERED gridpoint field, pf(NUGP).
+!
+!     The companion to gpareamean above, for the diagnostic prints that already
+!     hold the whole globe on one rank. It computes the Gaussian weights from
+!     inigau rather than from gwd, because gwd is scattered and a gathered
+!     field is indexed by GLOBAL latitude. That also makes it collective-free,
+!     so it is safe inside a `mypid == NROOT` guard, which is where every one of
+!     those prints lives. NLAT is small and these are startup prints, so
+!     recomputing the nodes costs nothing worth avoiding.
+!
+      use pumamod
+      real :: pf(NUGP)
+      real (kind=8) :: zsi(NLAT), zgw(NLAT)
+      integer :: jlat
+
+      call inigau(NLAT,zsi,zgw)
+      zs = 0.0
+      zw = 0.0
+      do jlat = 1 , NLAT
+       zs = zs + zgw(jlat) * sum(pf((jlat-1)*NLON+1:jlat*NLON))
+       zw = zw + zgw(jlat) * NLON
+      enddo
+      ugpmean = zs / zw
+      return
+      end
+
 !     ==============
 !     FUNCTION RMSSP
 !     ==============
@@ -2747,6 +2848,11 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 
       real zgp(NLON,NLAT)
 
+!     The Gaussian weight spread over this rank's gridpoints, and the reduction
+!     buffer for the area-weighted global means below. world-mt5.
+      real zgw(NHOR)
+      real zmean(5)
+
       real (kind=4) zcs(NLAT,NLEV)
       real (kind=4) zsp(NESP)
 
@@ -2938,19 +3044,6 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !
 !     compute entropy
 !
-      if(nentropy > 0) then
-       zp00=100000.
-       dentrop(:)=psurf*gp(:)
-       dentropy(:,1)=0.
-       do jlev=1,NLEV
-        dentrot(:,jlev)=ct*(gt(:,jlev)+t0(jlev))
-        dentroq(:,jlev)=gq(:,jlev)*psurf/dentrop(:)
-        dentro(:)=acpd*(1.+adv*dentroq(:,jlev))*dentrop(:)*dsigma(jlev) &
-     &    *log(dentrot(:,jlev)*(zp00/(dentrop(:)*sigma(jlev)))**akap)/ga
-        dentropy(:,1)=dentropy(:,1)+dentro(:)
-        if(nentro3d > 0) dentro3d(:,jlev,1)=dentro(:)
-       enddo
-      endif
 !
 !     save u, v, and ps (at time t) for tracer transport
 !
@@ -2980,16 +3073,38 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
          call guihor("DQVI"//char(0),dqvi,1,1.0,0.0)! Vertically integrated q
          call guigv("GU"  // char(0),gu)            ! Send u to GUI
          call guigv("GV"  // char(0),gv)            ! Send v to GUI
-         call mpgagp(zgp,dtsa,1)
-         if (mypid == NROOT) t2mean = sum(zgp) / (NLON * NLAT) ! Mean of 2m temperature
-         call mpgagp(zgp,dprc,1)        ! Convective precip
-         if (mypid == NROOT) precip = sum(zgp)
-         call mpgagp(zgp,dprl,1)        ! Large scale precip
-         if (mypid == NROOT) precip = (precip + sum(zgp)) / (NLON * NLAT)
-         call mpgagp(zgp,devap,1)       ! Evaporation
-         if (mypid == NROOT) evap = sum(zgp) / (NLON * NLAT)
-         call mpgagp(zgp,dftu,1)        ! OLR = dftu level 1
-         if (mypid == NROOT) olr = -sum(zgp) / (NLON * NLAT)! make positive upwards
+!        AREA-WEIGHTED GLOBAL MEANS, world-mt5. These were sum/(NLON*NLAT),
+!        which is the arithmetic mean of the cells and not the mean over the
+!        sphere: the Gaussian latitudes are unequally spaced, so an unweighted
+!        sum over-weights the poles, and by an amount that is a function of
+!        NLAT. The same simulated climate then reports a different global mean
+!        T2m, precipitation, evaporation and OLR at two rungs from the
+!        quadrature alone, which is the one thing a resolution comparison must
+!        not do.
+!
+!        gwd is this rank's Gaussian weights, indexed over its own NLPP
+!        latitudes, and sums to 2 over the globe. The normalisation is taken
+!        from the summed weight rather than assumed, the way the conversion
+!        diagnostic below does, so it stays right if a rank holds no latitudes.
+!        Summing locally and reducing also drops four full-globe gathers per
+!        diagnostic step, which the gathered form needed and this does not.
+         jhor = 0
+         do jlat = 1 , NLPP
+          do jlon = 1 , NLON
+           jhor = jhor + 1
+           zgw(jhor) = gwd(jlat)
+          enddo
+         enddo
+         zmean(1) = dot_product(dtsa(:),zgw(:))
+         zmean(2) = dot_product(dprc(:),zgw(:)) + dot_product(dprl(:),zgw(:))
+         zmean(3) = dot_product(devap(:),zgw(:))
+         zmean(4) = -dot_product(dftu(:,1),zgw(:)) ! make positive upwards
+         zmean(5) = sum(zgw(:))
+         call mpsumbcr(zmean,5)
+         t2mean = zmean(1) / zmean(5)   ! Mean of 2m temperature
+         precip = zmean(2) / zmean(5)   ! Convective plus large scale precip
+         evap   = zmean(3) / zmean(5)   ! Evaporation
+         olr    = zmean(4) / zmean(5)   ! OLR = dftu level 1
          gp(:) = gp(:) - 1.0
          call gp2fc(gp,NLON,NLPP)
          call fc2sp(gp,span)
@@ -3654,9 +3769,9 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
        deallocate(ztt)
       endif
 !
-!     entropy/energy diagnostics
+!     energy diagnostics
 !
-      if(nenergy > 0 .or. nentropy > 0) then
+      if(nenergy > 0) then
        allocate(ztt(NESP,NLEV))
        allocate(zttgp(NHOR,NLEV))
        allocate(zst(NESP,NLEV))
@@ -3701,33 +3816,6 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
        if (nqspec == 1) deallocate(zsq)
        deallocate(zsp)
       endif       
-      if(nentropy > 0) then
-       dentropy(:,2)=0.
-       dentropy(:,35)=0.
-       dentropy(:,36)=0.
-       do jlev=1,NLEV
-        dentro(:)=zttgp(:,jlev)/dentrot(:,jlev)                         &
-     &         *acpd*(1.+adv*dentroq(:,jlev))*dentrop(:)/ga*dsigma(jlev)&
-     &         -gascon*(1.+(1./rdbrv-1.)*dentroq(:,jlev))               &
-     &         *(zpgp(:)-zpmgp(:))/deltsec2/dentrop(:)                  &
-     &         *dentrop(:)*dsigma(jlev)/ga
-        dentropy(:,2)=dentropy(:,2)+dentro(:)
-        if(nentro3d > 0) dentro3d(:,jlev,2)=dentro(:)
-        dentro(:)=zttgp(:,jlev)/dentrot(:,jlev)                         &
-     &         *acpd*(1.+adv*dentroq(:,jlev))*dentrop(:)/ga*dsigma(jlev)
-        dentropy(:,35)=dentropy(:,35)+dentro(:)
-        dentropy(:,36)=dentropy(:,36)                                   &
-     &                +((acpd*(1.+adv*zqgp(:,jlev))                     & 
-     &                  *log(ztgp(:,jlev)+zttgp(:,jlev)*deltsec2)       &
-     &                  -gascon*(1.+(1./rdbrv-1.)*zqgp(:,jlev))         &
-     &                  *log(zpgp(:)))*zpgp(:)                          &
-     &                 -(acpd*(1.+adv*zqmgp(:,jlev))                    &
-     &                  *log(ztgp(:,jlev))                              &
-     &                  -gascon*(1.+(1./rdbrv-1.)*zqmgp(:,jlev))        &
-     &                  *log(zpmgp(:)))*zpmgp(:))                       &
-     &                /deltsec2/ga*dsigma(jlev) 
-       enddo
-      endif
       if(nenergy > 0) then
        allocate(zsd(NESP,NLEV))
        allocate(zsz(NESP,NLEV))
@@ -3966,7 +4054,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
        deallocate(zekin)
        deallocate(zepot)
       endif
-      if(nenergy > 0 .or. nentropy > 0) then
+      if(nenergy > 0) then
        deallocate(zttgp)
        deallocate(zqgp)
        deallocate(zqmgp)
@@ -4291,24 +4379,8 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
        enddo
       endif
 !
-!     entropy/energy diagnostics
+!     energy diagnostics
 !
-      if(nentropy > 0) then
-       dentropy(:,4)=0.
-       dentropy(:,33)=0.
-       do jlev=1,NLEV
-        dentro(:)=dtdt(:,jlev)/dentrot(:,jlev)                          &
-     &         *acpd*(1.+adv*dentroq(:,jlev))*dentrop(:)/ga*dsigma(jlev)
-        dentropy(:,4)=dentropy(:,4)+dentro(:)
-        if(nentro3d > 0) dentro3d(:,jlev,4)=dentro(:)
-        zfac=ww*tfrc(jlev)/(1.+tfrc(jlev)*delt2)
-        dentro(:)=((du(:,jlev)+dudt(:,jlev)*deltsec2)**2                &
-     &             +(dv(:,jlev)+dvdt(:,jlev)*deltsec2)**2)              &
-     &             *zfac*dentrop(:)/ga*dsigma(jlev)/dentrot(:,jlev)
-        dentropy(:,33)=dentropy(:,33)+dentro(:)
-        if(nentro3d > 0) dentro3d(:,jlev,23)=dentro(:)
-       enddo
-      endif
       if(nenergy > 0) then
        denergy(:,4)=0.
        do jlev=1,NLEV
@@ -4677,25 +4749,8 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
        enddo
       endif
 !
-!     entropy/energy diagnostics
+!     energy diagnostics
 !
-      if(nentropy > 0) then
-       allocate(ztt(NESP,NLEV))
-       allocate(zttgp(NHOR,NLEV))
-       call mpgallsp(ztt,stt,NLEV)
-       ztt(:,:)=ztt(:,:)*ct*ww
-       call sp2fl(ztt,zttgp,NLEV)
-       call fc2gp(zttgp,NLON,NLPP*NLEV)
-       deallocate(ztt)
-       dentropy(:,3)=0.
-       do jlev=1,NLEV
-        dentro(:)=zttgp(:,jlev)/dentrot(:,jlev)                         &
-     &         *acpd*(1.+adv*dentroq(:,jlev))*dentrop(:)/ga*dsigma(jlev)
-        dentropy(:,3)=dentropy(:,3)+dentro(:)
-        if(nentro3d > 0) dentro3d(:,jlev,3)=dentro(:) 
-       enddo
-       deallocate(zttgp)
-      endif
       if(nenergy > 0) then
        allocate(ztt(NESP,NLEV))
        allocate(zttgp(NHOR,NLEV))
@@ -4742,7 +4797,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !
 !     energy/entropy diagnostics
 !
-      if(nenergy > 0 .or. nentropy > 0) then
+      if(nenergy > 0) then
        allocate(zsttd(NSPP,NLEV))
        do jlev=1,NLEV
         zsttd(:,jlev)=-tdisst(jlev)*sakpp(1:NSPP,jlev)*stp(:,jlev)      &
@@ -4892,25 +4947,8 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
        enddo
       endif
 !
-!     entropy/energy diagnostics
+!     energy diagnostics
 !
-      if(nentropy > 0) then
-       allocate(ztt(NESP,NLEV))
-       allocate(zttgp(NHOR,NLEV))
-       call mpgallsp(ztt,stt,NLEV)
-       ztt(:,:)=ztt(:,:)*ct*ww
-       call sp2fl(ztt,zttgp,NLEV)
-       call fc2gp(zttgp,NLON,NLPP*NLEV)
-       deallocate(ztt)
-       dentropy(:,5)=0.
-       do jlev=1,NLEV
-        dentro(:)=zttgp(:,jlev)/dentrot(:,jlev)                         &
-     &         *acpd*(1.+adv*dentroq(:,jlev))*dentrop(:)/ga*dsigma(jlev)
-        dentropy(:,5)=dentropy(:,5)+dentro(:)
-        if(nentro3d > 0) dentro3d(:,jlev,5)=dentro(:)
-       enddo
-       deallocate(zttgp)
-      endif
       if(nenergy > 0) then
        allocate(ztt(NESP,NLEV))
        allocate(zttgp(NHOR,NLEV))
@@ -4961,7 +4999,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
        deallocate(ztt)
        deallocate(zttgp)
       endif
-      if(nenergy > 0 .or. nentropy > 0) then
+      if(nenergy > 0) then
        deallocate(zsttd)
       endif
 !
@@ -5243,16 +5281,39 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !     energy diagnostics
 !
       if(nenergy > 0) then
+!     NOT OFF BY DEFAULT. config/planet.yaml declares energy_diagnostics and
+!     every production namelist records NENERGY = 1, so this block runs on every
+!     timestep of every run. It said "off by default" and its two transforms were
+!     the last hot legmod callers in the model, outside every nshtns branch, so
+!     the SHTns build did the Legendre transform twice: once through the wrappers
+!     for the dynamics and once through legmod for this diagnostic. world-dr8.
+!
 !     zhd is finished with by here and is the right shape, so the diagnostic
-!     borrows it rather than keeping a seventh full array alive all timestep
-!     for a block that is off by default. The scaling goes on the PARTIAL
-!     before the gather, not on the gathered array afterwards: zhd is shared,
-!     and every thread scaling the whole of it would be a race on identical
-!     values. zsde is dead from the reduction above and is the right shape.
+!     borrows it rather than keeping a seventh full array alive all timestep.
+!     The scaling goes on the PARTIAL before the gather, not on the gathered
+!     array afterwards: zhd is shared, and every thread scaling the whole of it
+!     would be a race on identical values. zsde is dead from the reduction above
+!     and is the right shape.
        zsde(:,:)=zstt1(:,:)*ct*ww
        call mpgallspp(zhd,zsde,NLEV)
+#ifdef OMPSHARED
+       if (nshtns == 1) then
+!        Same contract as the zhe transform above: the wrapper has no trailing
+!        barrier, and hddt_g is what the whole team writes while hddt is this
+!        thread's band of it. The LEADING barrier matters as much: hddt still
+!        holds the heating rate the loop below this block's twin has been
+!        reading.
+!$omp barrier
+          call sh_sp2gp(zhd, hddt_g, NLEV)
+!$omp barrier
+       else
        call sp2fl(zhd,hddt,NLEV)
        call fc2gp(hddt,NLON,NLPP*NLEV)
+       endif
+#else
+       call sp2fl(zhd,hddt,NLEV)
+       call fc2gp(hddt,NLON,NLPP*NLEV)
+#endif
        denergy(:,23)=0.
        do jlev=1,NLEV
         denergy(:,23)=denergy(:,23)                                     &
@@ -5265,8 +5326,19 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
        enddo
        zsde(:,:)=zstt2(:,:)*ct*ww
        call mpgallspp(zhd,zsde,NLEV)
+#ifdef OMPSHARED
+       if (nshtns == 1) then
+!$omp barrier
+          call sh_sp2gp(zhd, hddt_g, NLEV)
+!$omp barrier
+       else
        call sp2fl(zhd,hddt,NLEV)
        call fc2gp(hddt,NLON,NLPP*NLEV)
+       endif
+#else
+       call sp2fl(zhd,hddt,NLEV)
+       call fc2gp(hddt,NLON,NLPP*NLEV)
+#endif
        denergy(:,25)=0.
        do jlev=1,NLEV
         denergy(:,25)=denergy(:,25)                                     &

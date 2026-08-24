@@ -14,6 +14,15 @@
 !
 !     namelist parameters
 !
+!     THE SUBGRID SNOW-COVER SCALE, and it was a bare 0.01 at seven sites. The
+!     snow-covered fraction of a cell is taken as dsnow/(dsnow + snowcovz), so
+!     snowcovz is the snow depth at which half the cell is covered: it stands in
+!     for the distribution of snow depth WITHIN the cell and therefore depends
+!     on how big the cell is. 1 cm is the canonical value and carries no NLAT
+!     term here or upstream. Anchored to T21; named and put in landmod_nl so a
+!     rung study can move it, rather than left as a literal in seven places.
+!     world-khn.
+      real    :: snowcovz = 0.01  ! snow depth at half cell cover (m water eq.)
       integer :: nlandt   = 1     ! switch for land model (1/0 : prog./clim)
       integer :: nlandw   = 1     ! switch for soil model (1/0 : prog./clim)
       integer :: newsurf  = 0     ! (dtcl,dwcl) 1: update from file, 2:reset 
@@ -187,6 +196,7 @@
 !$omp&  darea,dgroundalbnl,doro,dqs,drhsfull,drhsland,driver,dsmax,dsnowt,dsnowz,dsoilt,dsoilz,dtcl,&
 !$omp&  dtclim,dtclsoil,dts,dtsm,duroff,dvroff,dwatcini,dwater,dwcl,dwclim,dz0clim,dz0climo,dz0land,&
 !$omp&  dzglac,dztop,forcovmn,forcovmx,lversion,newsurf,nlandt,nlandw,nwatcini,nwetsoil,rhosnow,&
+!$omp&  snowcovz,&
 !$omp&  rinifor,rlue,rnbiocats,roffexp,roffpit,roffvel,&
 !$omp&  sicecap,sicediff,snowcap,snowdiff,soilcap,soildiff,tau_soil,tau_veg,wsmax)
 
@@ -201,16 +211,23 @@
       real :: plsm(NHOR)
 
       call mpsumval(plsm,NHOR,1,zsum)
+!     THE FRACTION OF THE SPHERE, not the fraction of the cells. world-mt5.
+!     zsum/NUGP is a cell count, and on a Gaussian grid a polar cell covers a
+!     small fraction of the area of an equatorial one, so the counted percentage
+!     is not the land fraction of the world and differs from it by an amount
+!     that is a function of NLAT. The counts stay because n_sea_points is a
+!     count; the percentage reported beside them is the area.
+      call gpareamean(plsm,zlfrac)
       ilpo    = nint(zsum)
       ispo    = NUGP - ilpo
-      ilperc  = nint((100.0 * zsum) / NUGP)
+      ilperc  = nint(100.0 * zlfrac)
       isperc  = 100 - ilperc
   
       if (mypid == NROOT) then
          write(nud,'(a,i6,a,i6,a,i3,a)') &
-              ' Land:',ilpo,' from',NUGP,' = ',ilperc,'%'
+              ' Land:',ilpo,' from',NUGP,' = ',ilperc,'% of area'
          write(nud,'(a,i6,a,i6,a,i3,a)') &
-              ' Sea: ',ispo,' from',NUGP,' = ',isperc,'%'
+              ' Sea: ',ispo,' from',NUGP,' = ',isperc,'% of area'
       endif
       ncountsea = ispo
 
@@ -236,6 +253,7 @@
      &                ,soildiff,sicediff,snowdiff,sicecap,snowcap       &
      &                ,rhosnow,roffvel,roffexp,roffpit                  &
      &                ,newsurf,rinifor,nwatcini,dwatcini,dgroundalb
+     &                ,snowcovz
 !
       dtclsoil(:) = tmelt
       dsoilt(:,:) = tmelt
@@ -343,6 +361,7 @@
       call mpbcr(dzglac)
       call mpbcr(dztop)
       call mpbcr(dsmax)
+      call mpbcr(snowcovz)
       call mpbcr(rlue)
       call mpbcr(co2conv)
       call mpbcr(tau_veg)
@@ -466,7 +485,7 @@
        do jhor=1,NHOR
         if(dls(jhor) > 0.0) then
          dtsm(jhor)=dts(jhor)
-         dqs(jhor)=rdbrv*ra1*EXP(ra2*(dts(jhor)-tmelt)/(dts(jhor)-ra4)) &
+         dqs(jhor)=rdbrv*ra1s(dts(jhor))*EXP(ra2s(dts(jhor))*(dts(jhor)-tmelt)/(dts(jhor)-ra4s(dts(jhor)))) &
      &            /psurf
          dqs(jhor)=dqs(jhor)/(1.-(1./rdbrv-1.)*dqs(jhor))
          dsnow(jhor)=dsnowz(jhor)
@@ -484,11 +503,11 @@
           zdalb2=(zalbmax2-zalbmin2)*(dts(jhor)-263.16)/(tmelt-263.16)
           zalbsnow2=MAX(zalbmin2,MIN(zalbmax2,zalbmax2-zdalb2))
           dalb(jhor)=dalbclim(jhor)                                     &
-     &        +(zalbsnow-dalbclim(jhor))*dsnow(jhor)/(dsnow(jhor)+0.01)
+     &        +(zalbsnow-dalbclim(jhor))*dsnow(jhor)/(dsnow(jhor)+snowcovz)
           dsalb(1,jhor) = dalbclim1(jhor)                               &
-     &        +(zalbsnow1-dalbclim1(jhor))*dsnow(jhor)/(dsnow(jhor)+0.01)
+     &        +(zalbsnow1-dalbclim1(jhor))*dsnow(jhor)/(dsnow(jhor)+snowcovz)
           dsalb(2,jhor) = dalbclim2(jhor)                               &
-     &        +(zalbsnow2-dalbclim2(jhor))*dsnow(jhor)/(dsnow(jhor)+0.01)
+     &        +(zalbsnow2-dalbclim2(jhor))*dsnow(jhor)/(dsnow(jhor)+snowcovz)
           drhs(jhor)=1.
          else
           dalb(jhor)=dalbclim(jhor)
@@ -633,7 +652,7 @@
       do jhor=1,NHOR
        if(dls(jhor) > 0.0) then
         dtsm(jhor)=dts(jhor)
-        dqs(jhor)=rdbrv*ra1*EXP(ra2*(dts(jhor)-tmelt)/(dts(jhor)-ra4))  &
+        dqs(jhor)=rdbrv*ra1s(dts(jhor))*EXP(ra2s(dts(jhor))*(dts(jhor)-tmelt)/(dts(jhor)-ra4s(dts(jhor))))  &
      &           /dp(jhor)
         dqs(jhor)=dqs(jhor)/(1.-(1./rdbrv-1.)*dqs(jhor))
         dsnow(jhor)=dsnowz(jhor)
@@ -651,11 +670,11 @@
          zdalb2=(zalbmax2-zalbmin2)*(dts(jhor)-263.16)/(tmelt-263.16)
          zalbsnow2=MAX(zalbmin2,MIN(zalbmax2,zalbmax2-zdalb2))
          dalb(jhor)=dalbclim(jhor)                                     &
-     &       +(zalbsnow-dalbclim(jhor))*dsnow(jhor)/(dsnow(jhor)+0.01)
+     &       +(zalbsnow-dalbclim(jhor))*dsnow(jhor)/(dsnow(jhor)+snowcovz)
          dsalb(1,jhor) = dalbclim1(jhor)                               &
-     &       +(zalbsnow1-dalbclim1(jhor))*dsnow(jhor)/(dsnow(jhor)+0.01)
+     &       +(zalbsnow1-dalbclim1(jhor))*dsnow(jhor)/(dsnow(jhor)+snowcovz)
          dsalb(2,jhor) = dalbclim2(jhor)                               &
-     &       +(zalbsnow2-dalbclim2(jhor))*dsnow(jhor)/(dsnow(jhor)+0.01)
+     &       +(zalbsnow2-dalbclim2(jhor))*dsnow(jhor)/(dsnow(jhor)+snowcovz)
          drhs(jhor)=1.
         else
          dalb(jhor)=dalbclim(jhor)
@@ -1078,11 +1097,6 @@
 !
 !     entropy diagnostics
 !
-      if(nentropy > 0) then
-       where(dls(:) > 0.)
-        dentropy(:,18)=zctop(:)*zztop(:)*(dts(:)-dtsm(:))/(dtsm(:)*deltsec)
-       endwhere
-      endif
 !
       return
       end subroutine tands
@@ -1109,7 +1123,6 @@
       real zdiff(NHOR,NLSOIL-1)
       real ztold(NHOR,NLSOIL)
 !
-      if(nentropy > 0) ztold(:,:)=dsoilt(:,:)
 !
 !     implicit scheme for soiltemp
 !
@@ -1191,16 +1204,6 @@
 !
 !     entropy diagnostics
 !
-      if(nentropy > 0) then
-       dentropy(:,19)=0.
-       do jlev=1,NLSOIL
-        where(dls(:) > 0.)
-         dentropy(:,19)=dentropy(:,19)                                  &
-     &                 +zcap(:,jlev)*(dsoilt(:,jlev)-ztold(:,jlev))     &
-     &                 /dsoilt(:,jlev)
-        endwhere
-       enddo
-      endif
 !
       return
       end subroutine mktsoil

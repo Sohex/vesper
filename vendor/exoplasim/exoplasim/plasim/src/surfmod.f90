@@ -15,7 +15,6 @@
 
 !     namelist parameter
 
-      integer :: nsurf = 1
       integer :: noromax = NTRU
 
       real :: doro(NHOR) = 0.0     ! orography
@@ -23,7 +22,7 @@
 
 !     Threads instead of ranks: a thread owns what a rank owned.
 !     Inert without -fopenmp, so the MPI and serial builds are unchanged.
-!$omp threadprivate(doro,nfreefo,noromax,nsurcod,nsurf,nsurnum,version,ysfile,ysurnam)
+!$omp threadprivate(doro,nfreefo,noromax,nsurcod,nsurnum,version,ysfile,ysurnam)
 
       end module surfmod
 
@@ -401,7 +400,7 @@
 !
 !     initialize surface parameter
 !
-      namelist/surfmod_nl/nspinit,nsurf,noromax
+      namelist/surfmod_nl/nspinit,noromax
 
       if (mypid == NROOT) then
        open(11,file=surfmod_namelist)
@@ -418,7 +417,6 @@
        write(nud,surfmod_nl)
       endif
 
-      call mpbci(nsurf)
       
       call glacierprep
 
@@ -451,7 +449,7 @@
             write(nud,'(/,"Topography read from surface file")')
             write(nud,'("Maximum: ",f10.2," [m]")') maxval(doro) / ga
             write(nud,'("Minimum: ",f10.2," [m]")') minval(doro) / ga
-            write(nud,'("Mean:    ",f10.2," [m]")') sum(doro) / (ga * NUGP)
+            write(nud,'("Mean:    ",f10.2," [m]")') ugpmean(doro) / ga
          endif
          doro(:) = doro(:) * oroscale  ! Scale orography
 
@@ -468,7 +466,7 @@
             write(nud,'(/,"Topography after spectral fitting")')
             write(nud,'("Maximum: ",f10.2," [m]")') maxval(doro) / ga
             write(nud,'("Minimum: ",f10.2," [m]")') minval(doro) / ga
-            write(nud,'("Mean:    ",f10.2," [m]")') sum(doro) / (ga * NUGP)
+            write(nud,'("Mean:    ",f10.2," [m]")') ugpmean(doro) / ga
          endif
          if (mypid == NROOT) then
             so(:) = so(:) / (cv*cv)

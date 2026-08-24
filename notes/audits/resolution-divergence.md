@@ -164,16 +164,31 @@ tail at T21 and removes most of the resolved spectrum at T85 and above. The
 neighbouring exponential filter normalises by NTRU and does not have this
 problem, which is what makes the omission legible.
 
-**Global-mean diagnostics are unweighted.** `plasim.f90:2822-2830` forms mean 2m
-temperature, precipitation, evaporation and outgoing longwave as
-`sum(zgp) / (NLON * NLAT)` with no Gaussian weight. On an unequally spaced
-Gaussian grid this over-weights high latitudes, and the size of the error is a
-function of NLAT, so the same simulated climate reports different global means at
-two rungs from quadrature alone. `icemod.f90:2002` and `utilities.f90:38` weight
-correctly, so the convention exists and this path departs from it.
+**Global means are area-weighted, and the four in `gridpointa` had no consumer.**
+The mean 2m temperature, precipitation, evaporation and outgoing longwave were
+formed as `sum(zgp) / (NLON * NLAT)` with no Gaussian weight, which on an
+unequally spaced grid over-weights high latitudes by an amount that is a
+function of NLAT. Measured on the way to fixing it: the only reader of
+`t2mean`, `precip`, `evap` and `olr` is `energy`, which passes them to
+`guiput`, and `plasim/CMakeLists.txt:156` compiles `guimod_stub.f90`, whose
+`guiput` is a bodyless `return`. So no published number moved, and the
+quadrature error had never reached one. The prints that a person does read did
+move: the land and sea percentages from `ncountsea` were a fraction of the
+CELLS, and the "Mean:" topography and icesheet-height lines in `surfmod` and
+`glaciermod` were arithmetic means over the grid.
 
-**Absolute per-cell thresholds.** Each of these compares a gridcell mean against
-a constant chosen for one cell size, with no NLAT term:
+The weighting now goes through two helpers in `plasim.f90`, `gpareamean` for a
+distributed field and `ugpmean` for a gathered one, so there is one place that
+turns a gridpoint field into a global mean rather than a convention that half
+the call sites follow. `icemod.f90` and `utilities.f90` already weighted
+correctly.
+
+**Absolute per-cell thresholds, now declared as anchored.** Each of these
+compares a gridcell mean, or a raw cell count, against a constant chosen for one
+cell size, with no NLAT term. Each now says so at its declaration, and
+`exoplasim/notes/resolution-tuned-parameters.md` section 4 carries the list a
+convergence experiment has to account for. `snowcovz` was a bare 0.01 at seven
+sites and is now one named key in `landmod_nl`.
 
 | what | where | why it moves |
 | --- | --- | --- |

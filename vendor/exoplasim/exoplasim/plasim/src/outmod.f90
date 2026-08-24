@@ -1125,26 +1125,6 @@
        call writegp(40,dclforc(1,7),107,0)
       end if
 
-!     **************************************
-!     * entropy diagnostics if switched on *
-!     **************************************
-
-      if(nentropy > 0) then
-       do jdiag=1,36
-        jcode=319+jdiag
-        if(jcode == 333) cycle                      !333 is reserved
-        call writegp(40,dentropy(1,jdiag),jcode,0)
-       enddo
-      end if
-      if(nentro3d > 0) then
-       do jdiag=1,23
-        jcode=419+jdiag
-        do jlev=1,NLEV
-         call writegp(40,dentro3d(1,jlev,jdiag),jcode,jlev)
-        enddo
-       enddo
-      end if
-
 !     *************************************
 !     * energy diagnostics if switched on *
 !     *************************************
@@ -2137,37 +2117,6 @@
       return
       end
          
-!     =====================
-!     SUBROUTINE HCADENCESC
-!     =====================
-!     !Output scalars of interest
-
-      subroutine hcadencesc(kunit)
-      use pumamod
-      use radmod
-      
-      integer, intent(in) :: kunit
-      
-        !True anomaly
-        call writescalar(kunit,orbnu*180./PI,50)
-        
-        !Solar ecliptic longitude
-        call writescalar(kunit,lambm*180./PI,51)
-        
-        !Solar declination
-        call writescalar(kunit,zdeclf*180./PI,52)
-        
-        !Solar distance modulus
-        call writescalar(kunit,1.0/sqrt(eccf),53)
-        
-        !Solar right ascension
-        call writescalar(kunit,rasc*180./PI,54)
-        
-      
-      return
-      end
-      
-      
 !     ==================
 !     SUBROUTINE SNAPSHOTDIAG
 !     ==================
@@ -2237,26 +2186,6 @@
        call writegp(140,dclforc(1,7),107,0)
       end if
 
-!     **************************************
-!     * entropy diagnostics if switched on *
-!     **************************************
-
-      if(nentropy > 0) then
-       do jdiag=1,36
-        jcode=319+jdiag
-        if(jcode == 333) cycle                      !333 is reserved
-        call writegp(140,dentropy(1,jdiag),jcode,0)
-       enddo
-      end if
-      if(nentro3d > 0) then
-       do jdiag=1,23
-        jcode=419+jdiag
-        do jlev=1,NLEV
-         call writegp(140,dentro3d(1,jlev,jdiag),jcode,jlev)
-        enddo
-       enddo
-      end if
-
 !     *************************************
 !     * energy diagnostics if switched on *
 !     *************************************
@@ -2280,120 +2209,6 @@
       end
       
      
-!     ==================
-!     SUBROUTINE HCADENCEDIAG
-!     ==================
-
-      subroutine hcadencediag(kunit)
-      use pumamod
-
-      integer, intent(in) :: kunit
-      
-!     *****************************************
-!     * 2-D diagnostic arrays, if switched on *
-!     *****************************************
-
-      if(ndiagsp2d > 0 .and. mypid == NROOT) then
-       do jdiag=1,ndiagsp2d
-        jcode=50+jdiag
-        call writesp(kunit,dsp2d(1,jdiag),jcode,0,1.,0.0)
-       enddo
-      end if
-
-!     *****************************************
-!     * 3-D diagnostic arrays, if switched on *
-!     *****************************************
-
-      if(ndiagsp3d > 0 .and. mypid == NROOT) then
-       do jdiag=1,ndiagsp3d
-        jcode=60+jdiag
-        do jlev=1,NLEV
-         call writesp(kunit,dsp3d(1,jlev,jdiag),jcode,jlev,1.,0.0)
-        enddo
-       enddo
-      end if
-
-!     *****************************************
-!     * 2-D diagnostic arrays, if switched on *
-!     *****************************************
-
-      if(ndiaggp2d > 0) then
-       do jdiag=1,ndiaggp2d
-        jcode=jdiag
-        call writegp(kunit,dgp2d(1,jdiag),jcode,0)
-       enddo
-      end if
-
-!     *****************************************
-!     * 3-D diagnostic arrays, if switched on *
-!     *****************************************
-
-      if(ndiaggp3d > 0) then
-       do jdiag=1,ndiaggp3d
-        jcode=20+jdiag
-        do jlev=1,NLEV
-         call writegp(kunit,dgp3d(1,jlev,jdiag),jcode,jlev)
-        enddo
-       enddo
-      end if
-
-!     ************************************************
-!     * cloud forcing (clear sky fluxes) diagnostics *
-!     ************************************************
-
-      if(ndiagcf > 0) then
-       call writegp(kunit,dclforc(1,1),101,0)
-       call writegp(kunit,dclforc(1,2),102,0)
-       call writegp(kunit,dclforc(1,3),103,0)
-       call writegp(kunit,dclforc(1,4),104,0)
-       call writegp(kunit,dclforc(1,5),105,0)
-       call writegp(kunit,dclforc(1,6),106,0)
-       call writegp(kunit,dclforc(1,7),107,0)
-      end if
-
-!     **************************************
-!     * entropy diagnostics if switched on *
-!     **************************************
-
-      if(nentropy > 0) then
-       do jdiag=1,36
-        jcode=319+jdiag
-        if(jcode == 333) cycle                      !333 is reserved
-        call writegp(kunit,dentropy(1,jdiag),jcode,0)
-       enddo
-      end if
-      if(nentro3d > 0) then
-       do jdiag=1,23
-        jcode=419+jdiag
-        do jlev=1,NLEV
-         call writegp(kunit,dentro3d(1,jlev,jdiag),jcode,jlev)
-        enddo
-       enddo
-      end if
-
-!     *************************************
-!     * energy diagnostics if switched on *
-!     *************************************
-
-      if(nenergy > 0) then
-       do jdiag=1,28
-        jcode=359+jdiag
-        call writegp(kunit,denergy(1,jdiag),jcode,0)
-       enddo
-      end if
-      if(nener3d > 0) then
-       do jdiag=1,28
-        jcode=459+jdiag
-        do jlev=1,NLEV
-         call writegp(kunit,dener3d(1,jlev,jdiag),jcode,jlev)
-        enddo
-       enddo
-      end if
-!
-      return
-      end
-      
-      
 !     ===================
 !     SUBROUTINE OUTRESET
 !     ===================

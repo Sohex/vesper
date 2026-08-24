@@ -1574,6 +1574,45 @@ def enable_dust_emission(model, run_dir: Path, config: dict) -> dict | None:
     shutil.copyfile(aerofile, run_dir / aerofile.name)
     model._edit_namelist("aero_namelist", "aerofile", f"'{aerofile.name}'")
 
+    # APART AND RHOP COME FROM THE FILE THE OPTICS WERE BUILT FOR, and they were
+    # written by nothing at all. `aeromod.f90` declares apart = 50 nm and
+    # rhop = 1000 kg/m3, a photochemical haze grain at water density, and
+    # `aero_ini` validates the fourteen emission constants and not these two, so
+    # an unwritten pair sits silently at the compiled values.
+    #
+    # WHAT THAT IS WORTH. `vels` is Stokes, v = 2 beta apart^2 ga (rhop - rhog) /
+    # (9 mu), so the radius enters squared: (2.2068e-6/5e-8)^2 = 1948, density
+    # 2.6, Cunningham 0.354 the other way, about 1790 net. The compiled default
+    # settles the grain at roughly a micrometre a second where the intended one
+    # falls at 0.21 cm/s, and sedimentation is the only removal term active at
+    # ldepvel = 0 and lwetdep = 0, so the burden would instead be set by the
+    # timestep-dependent bottom-layer scrub. `mmr2n` is off by the cube.
+    #
+    # The sidecar is the aerofile's own, beside the .dat: it is the file
+    # `dust_aerofile.py` writes the burden-matched radius into, derived for THIS
+    # planet's gravity, and it already carried a `namelist_values` block that
+    # nothing opened. world-906.
+    aero_prov = aerofile.with_name(aerofile.stem + ".provenance.json")
+    if not aero_prov.is_file():
+        raise RuntimeError(
+            f"{aero_prov} is missing. APART and RHOP live with the aerofile "
+            "they were derived for, not in the config; run "
+            "exoplasim/scripts/dust_aerofile.py.")
+    aero_values = dict(json.loads(aero_prov.read_text(encoding="utf-8"))
+                       ["namelist_values"])
+    for key in ("APART", "RHOP"):
+        if float(aero_values.get(key, 0.0)) <= 0.0:
+            raise RuntimeError(
+                f"{aero_prov} carries no positive {key}. The tracer's radius "
+                "and density set the settling velocity and the number density; "
+                "aeromod's compiled defaults are a 50 nm haze grain at water "
+                "density and are wrong by about three orders of magnitude in "
+                "the settling velocity.")
+        model._edit_namelist("aero_namelist", key, f"{float(aero_values[key])!r}")
+    print(f"  dust grain: APART = {float(aero_values['APART']):.4e} m, "
+          f"RHOP = {float(aero_values['RHOP']):g} kg/m3, from "
+          f"{aero_prov.name}")
+
     # WHETHER THE EMITTED DUST IS RADIATIVELY ACTIVE, and it is a switch now
     # rather than a pin. Both reasons it was pinned off have been repaired:
     #
@@ -1624,6 +1663,7 @@ def enable_dust_emission(model, run_dir: Path, config: dict) -> dict | None:
         "terrain_hash": prov["terrain_hash"],
         "field_sha256": prov["output_sha256"],
         "namelist_values": values,
+        "aerosol_namelist_values": aero_values,
         "radiatively_active": radiative,
         "aeroqlw": aeroqlw if radiative else None,
         "source_cells": prov["field_statistics"]["srcw_cells_nonzero"],
@@ -1840,6 +1880,11 @@ def expected_namelist_keys(config: dict) -> dict:
     Derived from `config/planet.yaml` and from nothing else -- deliberately not
     from the staging code, because a check built out of the staging lists tests
     only that they agree with themselves. CONS-9.
+
+    A float value is compared numerically. A STR value is a per-level array,
+    held as the `n*value` text a Fortran namelist replicates, and is compared as
+    text: that is the only comparison that tells a replicated array apart from a
+    scalar, and a namelist scalar assigned to an array sets element 1 only.
     """
     m = config["model"]
     want: dict = {"radmod_namelist": {}, "icemod_namelist": {}, "plasim_namelist": {},
@@ -1929,6 +1974,39 @@ def expected_namelist_keys(config: dict) -> dict:
         want["planet_namelist"]["ALR"] = float(profile["lapse_rate_k_per_m"])
         want["plasim_namelist"]["TGR"] = float(profile["surface_temperature_k"])
         want["plasim_namelist"]["DTROP"] = float(profile["tropopause_height_m"])
+    # THE FILTER AND THE HYPERDIFFUSION, the two sets world-8bs found missing
+    # from every continuation. They fail in opposite ways and both are silent.
+    # `configure()` writes FILTERKAPPA and NFILTEREXP unconditionally from its
+    # own defaults, so a dropped key is a WRONG value; it does not write NDEL,
+    # NHDIFF or TDISS* at all, so a dropped key is an ABSENT one and the model
+    # falls back to `readnl`'s compiled T21/T42 branch. Checking only the config
+    # keys catches the first; checking presence catches the second.
+    # world-a05: NEQSIG and PTOP came from a library subclass default. Now they
+    # are config, and a continuation that dropped them would put the model top
+    # somewhere else without saying so. PTOP is written in Pa from hPa.
+    if m.get("vertical_grid") is not None:
+        want["plasim_namelist"]["NEQSIG"] = float(m["vertical_grid"])
+    if m.get("model_top_hpa") is not None:
+        want["plasim_namelist"]["PTOP"] = float(m["model_top_hpa"]) * 100.0
+    if m.get("filter_kappa") is not None:
+        want["plasim_namelist"]["FILTERKAPPA"] = float(m["filter_kappa"])
+    if m.get("filter_power") is not None:
+        want["plasim_namelist"]["NFILTEREXP"] = float(m["filter_power"])
+    hd = m.get("hyperdiffusion")
+    if hd:
+        rung = str(m["resolution"]).upper()
+        tau = hd["timescales_days"][rung]
+        ntru = int(rung.lstrip("Tt"))
+        want["plasim_namelist"]["NHDIFF"] = float(
+            round(float(hd["cutoff_fraction"]) * ntru))
+        # PER-LEVEL ARRAYS, compared as the replicated text the namelist holds.
+        # A scalar here would pass while levels 2..NLEV kept `readnl`'s values,
+        # which is world-720's failure and is exactly what this must not miss.
+        layers = int(m["layers"])
+        want["plasim_namelist"]["NDEL"] = f"{layers}*{int(hd['order_alpha'])}"
+        for key, field in (("TDISSD", "divergence"), ("TDISSZ", "vorticity"),
+                           ("TDISST", "temperature"), ("TDISSQ", "humidity")):
+            want["plasim_namelist"][key] = f"{layers}*{float(tau[field])}"
     return {f: keys for f, keys in want.items() if keys}
 
 
@@ -1950,10 +2028,21 @@ def verify_staged_namelists(run_dir: Path, config: dict) -> dict:
         path = run_dir / fname
         for key, want in keys.items():
             try:
-                got = float(namelist_value(path, key))
+                raw = namelist_value(path, key)
             except (KeyError, FileNotFoundError):
-                wrong.append(f"{key} absent from {fname}, config wants {want:g}")
+                wrong.append(f"{key} absent from {fname}, config wants {want}")
                 continue
+            # A str want is a per-level ARRAY, held as the `n*value` text a
+            # Fortran namelist replicates. Compared as text because that is the
+            # only form that distinguishes a replicated array from a scalar,
+            # and a scalar sets element 1 only. world-720, world-8bs.
+            if isinstance(want, str):
+                if raw.rstrip(",").strip() != want:
+                    wrong.append(f"{key} in {fname} is {raw!r}, config wants {want!r}")
+                checked[f"{key}@{fname}"] = raw
+                continue
+            try:
+                got = float(raw)
             except ValueError:
                 wrong.append(f"{key} in {fname} is not a number")
                 continue
@@ -2337,6 +2426,13 @@ def main() -> None:
         ozone=bool(atmosphere["ozone"]),
         mldepth=float(surface["mixed_layer_depth_m"]),
         twobandalbedo=bool(config["radiation"]["two_band_albedo"]),
+        # DECLARED, not inherited. Earthlike.configure supplies vtype=4 and
+        # modeltop=50.0 from its own signature, so NEQSIG and PTOP reached the
+        # model from a library subclass default that no document here named.
+        # Passed explicitly so the vertical grid and the model top are config,
+        # and verified below like every other config-set key. world-a05.
+        vtype=int(model_cfg["vertical_grid"]),
+        modeltop=float(model_cfg["model_top_hpa"]),
         timestep=float(model_cfg["timestep_minutes"]),
         physicsfilter=model_cfg["physics_filter"],
         filterkappa=float(model_cfg["filter_kappa"]),

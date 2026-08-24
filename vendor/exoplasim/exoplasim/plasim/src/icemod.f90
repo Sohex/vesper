@@ -43,7 +43,6 @@
       integer :: nperpetual_ice = 0! perpetual climate conditions (day)
       integer :: nprint = 0        ! debug print out
       integer :: nprhor = 0        ! gp for debug printout
-      integer :: nentropy = 0      ! switch for entropy diagnostics
       integer :: ngui   = 0        ! switch for gui
       integer :: naout  = 0        ! no additional output fields 
 !
@@ -214,7 +213,6 @@
 !
 !     entropy diagnostics
 !
-      real,allocatable :: xentro(:,:)
 !
 !     additional fields
 !
@@ -234,10 +232,10 @@
 !     Inert without -fopenmp, so the MPI and serial builds are unchanged.
 !$omp threadprivate(cheat,cicemin,clfi,cpme,cps,crhos,croff,csnow,ctaux,ctauy,cust3,deglat,&
 !$omp&  mpinfo,mypid,myworld,&
-!$omp&  naccuo,naccuout,naout,ncpl_ice_ocean,nentropy,newsurf,nfluko,ngui,nice,nicec2d,nout,noutput,&
+!$omp&  naccuo,naccuout,naout,ncpl_ice_ocean,newsurf,nfluko,ngui,nice,nicec2d,nout,noutput,&
 !$omp&  nperpetual_ice,nprhor,nprint,nproc,nrestart,nseaice,nsnow,nstep,ntskin,ntspd,nud,solar_day,&
 !$omp&  taunc,tfreeze,thicec,version,xaheat,xaout,xcflux,xcfluxa,xcfluxf,xcfluxn,xcfluxna,xcfluxr,&
-!$omp&  xcfluxra,xclicec,xclicec2,xcliced,xcliced2,xclsst,xclsst2,xclssto,xcpmea,xcroffa,xdt,xentro,&
+!$omp&  xcfluxra,xclicec,xclicec2,xcliced,xcliced2,xclsst,xclsst2,xclssto,xcpmea,xcroffa,xdt,&
 !$omp&  xfluxc,xfluxca,xflxice,xflxice2,xflxicea,xgw,xheat,xheata,xicec,xicecc,xiced,ximelt,ximelta,&
 !$omp&  xlhdt,xlhfl,xls,xlwfl,xmaxd,xmind,xmld,xoflux,xofluxa,xoheat,xpme,xprs,xqmelt,xqmelta,xroff,&
 !$omp&  xscflx,xscflxa,xshdt,xshfl,xsmelt,xsmelta,xsmflx,xsndch,xsnow,xsst,xstoi,xstoia,xswfl,xtaux,&
@@ -364,7 +362,7 @@
       logical :: lxsnow
 !
       namelist/icemod_nl/nout,nfluko,nperpetual_ice,ntspd,nprint,nprhor &
-     &               ,nentropy,nice,nseaice,nsnow,ntskin,ncpl_ice_ocean,taunc   &
+     &               ,nice,nseaice,nsnow,ntskin,ncpl_ice_ocean,taunc   &
      &               ,xmind,xmaxd,thicec,TFREEZE,CRHOS,CPS,CLFI          &
      &               ,tsst_eq,tsst_pol,hice_ini,hlead,newsurf,naout
 !
@@ -421,7 +419,6 @@
       call mpbci(ncpl_ice_ocean)
       call mpbci(nprint)
       call mpbci(nprhor)
-      call mpbci(nentropy)
       call mpbci(naout)
       call mpbcr(taunc)
       call mpbcr(xmind)
@@ -588,10 +585,6 @@
       piced(:)=xiced(:)
       psnow(:)=xsnow(:)
 !
-      if(nentropy > 0) then
-       allocate(xentro(NHOR,1))
-       xentro(:,:)=0.
-      endif
 !
       if(naout > 0) then
        allocate(xaout(NHOR,naout))
@@ -1245,9 +1238,6 @@
 !
       call oceanstop
 !
-      if(nentropy > 0) then
-       deallocate(xentro)
-      endif
 !
       if(naout > 0) then
        deallocate(xaout)
@@ -1712,10 +1702,6 @@
       call mpwritegph(71,xcroffa,NHOR,1,ih)
       ih(1) = 796
       call mpwritegph(71,xstoia,NHOR,1,ih)
-      if(nentropy > 0) then
-       ih(1) = 797
-       call mpwritegph(71,xentro,NHOR,1,ih)
-      endif
       if(naout > 0) then
        do ja=1,naout
         ih(1)=750+ja
@@ -2029,9 +2015,6 @@
 !
 !     entropy diagnostics
 !
-      if(nentropy > 0) then
-       xentro(:,1)=xtsflux(:)/ztso(:)
-      endif
 !
       return
       end subroutine skintemp

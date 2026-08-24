@@ -418,7 +418,7 @@ do jhor = 1 , NHOR
     ! zsvp = saturation vapor pressure [Pa] (Magnus-Teten)
     ! zvpd = vapor pressure deficit    [Pa] (set to >= 0.01 Pa)
 
-    zsvp = ra1*exp(ra2*(dt(jhor,NLEP)-TMELT)/(dt(jhor,NLEP)-ra4))
+    zsvp = ra1s(dt(jhor,NLEP))*exp(ra2s(dt(jhor,NLEP))*(dt(jhor,NLEP)-TMELT)/(dt(jhor,NLEP)-ra4s(dt(jhor,NLEP))))
     zvpd = max(0.01, zsvp - dp(jhor)*dq(jhor,NLEV)/0.622)
 
     ! structurally limited leaf area index (eq. 6.6 PlaSim RM)
@@ -535,7 +535,7 @@ do jhor = 1 , NHOR
 
       zalbsn = (albsmax - albsmin) * (dt(jhor,NLEP)-263.16) / (TMELT-263.16)
       zalbsn = max(albsmin,min(albsmax,albsmax-zalbsn))
-      zvalb  = zvalb+(zalbsn-zvalb)*dsnow(jhor)/(dsnow(jhor)+0.01)
+      zvalb  = zvalb+(zalbsn-zvalb)*dsnow(jhor)/(dsnow(jhor)+snowcovz)
       zvalb  = vsalb_min * zforest + zvalb * (1.-zforest)
       zvrhs  = 1.0
     endif

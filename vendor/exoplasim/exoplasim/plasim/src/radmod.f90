@@ -1041,6 +1041,14 @@
 !
 !**   1) read and print version & namelist parameters
 !
+!     A LIVE REMNANT OF AN EARTH CALENDAR, and inert. iyrbp is a year before
+!     1950 AD, and it reaches nothing here: it feeds orb_params, which is
+!     Berger's Milankovitch series for EARTH's orbital elements, and radini
+!     reaches that only at nfixorb == 0. run_exoplasim.py passes fixedorbit=True
+!     at every call, so nfixorb is 1 and the series is unreachable. Throwing
+!     that switch would compute this world's eccentricity, obliquity and
+!     longitude of perihelion from Earth's polynomial fits at a year AD.
+!     world-9d1.
       iyrbp = 1950 - n_start_year
 
       if (mypid==NROOT) then
@@ -1695,71 +1703,8 @@
        enddo
       end if
 !
-!     entropy/energy diagnostics
+!     energy diagnostics
 !
-      if(nentropy > 0) then
-       dentropy(:,16)=dlwfl(:,NLEP)/dt(:,NLEP)
-       dentropy(:,17)=dswfl(:,NLEP)/dt(:,NLEP)
-       dentropy(:,27)=dftd(:,NLEP)/dt(:,NLEP)
-       dentropy(:,28)=dftu(:,NLEP)/dt(:,NLEP)
-       dentropy(:,9)=0.
-       dentropy(:,10)=0.
-       dentropy(:,21)=0.
-       dentropy(:,22)=0.
-       dentropy(:,23)=0.
-       dentropy(:,24)=0.
-       dentropy(:,26)=0.
-       dentropy(:,29)=0.
-       dentropy(:,30)=0.
-       do jlev=1,NLEV
-        jlep=jlev+1  
-        dentro(:)=dftu0(:,jlev)/dentrot(:,jlev)
-        dentropy(:,29)=dentropy(:,29)+dentro(:)
-        if(nentro3d > 0) dentro3d(:,jlev,19)=dentro(:)
-        dentro(:)=dftd0(:,jlev)/dentrot(:,jlev)
-        dentropy(:,30)=dentropy(:,30)+dentro(:)
-        if(nentro3d > 0) dentro3d(:,jlev,20)=dentro(:)
-        dentro(:)=-ga*(dlwfl(:,jlep)-dlwfl(:,jlev))                     &
-     &           /(dsigma(jlev)*dp(:)*acpd*(1.+ADV*dq(:,jlev)))         &
-     &         *acpd*(1.+adv*dentroq(:,jlev))*dentrop(:)/ga*dsigma(jlev)&
-     &         /dentrot(:,jlev)
-        dentropy(:,9)=dentropy(:,9)+dentro(:)
-        if(nentro3d > 0) dentro3d(:,jlev,9)=dentro(:)
-        dentro(:)=-ga*(dswfl(:,jlep)-dswfl(:,jlev))                     &
-     &           /(dsigma(jlev)*dp(:)*acpd*(1.+ADV*dq(:,jlev)))         &
-     &         *acpd*(1.+adv*dentroq(:,jlev))*dentrop(:)/ga*dsigma(jlev)&
-     &         /dentrot(:,jlev)
-        dentropy(:,10)=dentropy(:,10)+dentro(:)
-        if(nentro3d > 0) dentro3d(:,jlev,10)=dentro(:)
-        dentro(:)=-ga*(dftd(:,jlep)-dftd(:,jlev))                       &
-     &           /(dsigma(jlev)*dp(:)*acpd*(1.+ADV*dq(:,jlev)))         &
-     &         *acpd*(1.+adv*dentroq(:,jlev))*dentrop(:)/ga*dsigma(jlev)&
-     &         /dentrot(:,jlev) 
-        dentropy(:,21)=dentropy(:,21)+dentro(:)
-        if(nentro3d > 0) dentro3d(:,jlev,15)=dentro(:)
-        dentro(:)=-ga*(dftu(:,jlep)-dftu(:,jlev))                       &
-     &           /(dsigma(jlev)*dp(:)*acpd*(1.+ADV*dq(:,jlev)))         &
-     &         *acpd*(1.+adv*dentroq(:,jlev))*dentrop(:)/ga*dsigma(jlev)&
-     &         /dentrot(:,jlev)
-        dentropy(:,22)=dentropy(:,22)+dentro(:)
-        if(nentro3d > 0) dentro3d(:,jlev,16)=dentro(:)
-        dentro(:)=-ga*(dftue1(:,jlep)-dftue1(:,jlev))                   &
-     &           /(dsigma(jlev)*dp(:)*acpd*(1.+ADV*dq(:,jlev)))         &
-     &         *acpd*(1.+adv*dentroq(:,jlev))*dentrop(:)/ga*dsigma(jlev)&
-     &         /dentrot(:,jlev)
-        dentropy(:,23)=dentropy(:,23)+dentro(:)
-        if(nentro3d > 0) dentro3d(:,jlev,17)=dentro(:) 
-        dentro(:)=-ga*(dftue2(:,jlep)-dftue2(:,jlev))                   &
-     &           /(dsigma(jlev)*dp(:)*acpd*(1.+ADV*dq(:,jlev)))         &
-     &         *acpd*(1.+adv*dentroq(:,jlev))*dentrop(:)/ga*dsigma(jlev)&
-     &         /dentrot(:,jlev)
-        dentropy(:,24)=dentropy(:,24)+dentro(:)
-        if(nentro3d > 0) dentro3d(:,jlev,18)=dentro(:)
-        dentropy(:,26)=dentropy(:,26)+dentro(:)*dentrot(:,jlev)
-       enddo
-       dentropy(:,25)=(dftu(:,NLEP)+dentropy(:,26))/dt(:,NLEP)
-       dentropy(:,26)=-dentropy(:,26)/dt(:,NLEP)
-      endif
       if(nenergy > 0) then
        allocate(zdtdte(NHOR,NLEV))
        denergy(:,9)=0.
@@ -4321,6 +4266,14 @@
 ! the days in a model year times the 2*pi radians in a complete orbit.
 !
 
+!     EARTH'S CALENDAR, HARDCODED, and it does not scale. ve is Earth calendar
+!     day 80.5 of a 365-day year, so ve/365 = 0.2205 is Earth's phase from
+!     1 January to its vernal equinox; calday is a FRACTION of the year in this
+!     fork, so the offset is a constant that belongs to another planet's
+!     calendar. Dormant on ONE KEYWORD: run_exoplasim.py passes keplerian=True,
+!     which routes solang to gen_orb_decl, whose phase comes from mvelpp and
+!     meananom0r and is correct and config-reachable. Setting keplerian=False
+!     lands here. world-9d1.
       lambm  = lambm0 + (calday - ve/365.)*2.*pie                            !& Moving to more robust system
             ! / (mcal_days_per_year + ndatim(7)) ! ndatim(7) = leap year
       lmm    = lambm  - mvelpp

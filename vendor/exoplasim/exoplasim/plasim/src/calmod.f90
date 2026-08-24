@@ -42,35 +42,61 @@
 !     =================
 
       subroutine calini(k_days_per_month,k_days_per_year,k_start_step &
-                       ,ktspd,psolday,kpid,kmpstep,kcal_days_per_year)
+                       ,ktspd,psolday,kpid,kmpstep,kcal_days_per_year &
+                       ,km_days_per_year,km_days_per_month,kmtspd)
       use calmod
 
 !     calini has no implicit none of its own, and kmpstep would otherwise be
 !     typed INTEGER by its initial letter while the caller passes REAL mpstep.
       real    kmpstep
       integer kcal_days_per_year
+      integer km_days_per_year
+      integer km_days_per_month
+      integer kmtspd
       
       n_days_per_month = k_days_per_month
       n_days_per_year  = k_days_per_year
       n_start_step     = k_start_step
       ntspd            = ktspd
       solar_day        = psolday
-      
-      mtspd = n_days_per_year * ntspd / m_days_per_year !sidereal days per year * timesteps per sidereal day / 360 days per year
-      
-      !  200 sd   N dt    1 year
-      !  ------ * ----- * --------
-      !  1 year   1 sd    360 days
-      
-      !mtspd in calmod.f90 is timesteps per 1/360th of the year
-      
-      !If there are e.g. 5 days worth of timesteps per "day", there will conversely be 5x fewer days
-      !per year, and therefore this will rescale mtspd to that necessary for 360 days per year.
+
+!     ALL FIVE COPIED, and mtspd copied rather than derived. calmod declares its
+!     own m_days_per_year, m_days_per_month and mtspd beside pumamod's, with the
+!     same names, and this routine used to copy the first two of the five and
+!     leave the calendar's own trio at Earth's 360 and 30 with an mtspd it
+!     computed from them. The model then encoded a date with pumamod's numbers
+!     and decoded it with Earth's, and cal2step and step2cal30 were not
+!     inverses. world-x1k.
+!
+!     THE CALENDAR DAY IS THE 24-HOUR DAY. m_days_per_year is the count of
+!     24-hour days in an orbit and mtspd is timesteps per 24-hour day, so
+!     m_days_per_year * mtspd is the orbit in timesteps and tcalday below comes
+!     out at day_24hr by construction rather than by coincidence.
+      m_days_per_year  = km_days_per_year
+      m_days_per_month = km_days_per_month
+      mtspd            = kmtspd
       
       mpstep = kmpstep
       
-      tcalday = mtspd * mpstep * 60.0 ! Timesteps/calendary day * minutes/timestep * 60 s/min
-      
+      tcalday = mtspd * mpstep * 60.0 ! Timesteps/calendar day * minutes/timestep * 60 s/min
+
+!     THE GREGORIAN TRAPDOOR, closed. n_days_per_year == 365 switches this
+!     module to Earth's calendar entire -- the 400/100/4 leap rule, the twelve
+!     named months of unequal length, weekdays -- at yday2mmdd, cal2step,
+!     step2cal, ndayofyear and nweekday. It is derived from this world's flux
+!     and rotation period, so nothing structurally keeps it off 365, and there
+!     was no guard and no message. A world that lands there gets an abort and
+!     the reason, not a different planet's calendar.
+      if (n_days_per_year == 365) then
+         write(nud,*) '*** calini: n_days_per_year is 365 ***'
+         write(nud,*) 'That value switches this model to Earth''s Gregorian'
+         write(nud,*) 'calendar: the 400/100/4 leap rule, twelve named months'
+         write(nud,*) 'of unequal length, and weekdays. It is a rotation count'
+         write(nud,*) 'for THIS world and the coincidence is meaningless.'
+         write(nud,*) 'Change the rotation period or the orbit rather than'
+         write(nud,*) 'running on a calendar that is not this planet''s.'
+         stop
+      endif
 
       kcal_days_per_year = m_days_per_year
 
@@ -254,10 +280,23 @@
 
       logical :: leap
 
+!     m_days_*, NOT n_days_*: step2cal30 decodes with m_days_per_year and
+!     m_days_per_month, and this is its inverse. n_days_per_year counts SIDEREAL
+!     days and n_days_per_month is a twelfth of the 24-HOUR-day year, so the
+!     pair does not even agree with itself -- twelve n_days_per_month is not
+!     n_days_per_year. Callers pass mtspd as ktspd, which is now calmod's own.
+!     world-x1k.
+!     kyea-1, LIKE kmon AND kday. step2cal30 labels the first year 1, so year 1
+!     month 1 day 1 is the epoch and encodes to step 0; with kyea taken as a
+!     count of ELAPSED years it encoded to a whole year of steps and the two
+!     were not inverses. That was not only a labelling defect: plasim's cold
+!     start sets nstep = n_start_step from this call, and radmod takes the
+!     orbital phase from mod(nstep,n_steps_per_year), so every cold start began
+!     four fifths of an orbit past the meananomaly0 its own config declares.
       if (n_days_per_year /= 365) then ! simplified calendar
-         kstep = ktspd * (kyea    * n_days_per_year  &
-                       + (kmon-1) * n_days_per_month &
-                       +  kday-1)
+         kstep = ktspd * ((kyea-1) * m_days_per_year  &
+                       +  (kmon-1) * m_days_per_month &
+                       +   kday-1)
       return
       endif
       iy400 = kyea   /  400    ! segment [400]

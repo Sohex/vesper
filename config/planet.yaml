@@ -397,6 +397,21 @@ model:
   latitudes: 32
   longitudes: 64
   layers: 10
+  # THE VERTICAL GRID AND THE MODEL TOP, declared rather than inherited from a
+  # library subclass. Both reached the model from `Earthlike.configure`'s own
+  # defaults, which no document in this project named and which
+  # `parameter-decisions.md` recorded as the base class's. They are not
+  # cosmetic: `vertical_grid` selects the sigma construction and `model_top_hpa`
+  # is where the top half-level sits, so an unstated pair fixes the depth of the
+  # modelled atmosphere.
+  #
+  # 4 is the quartic distribution rescaled so the top half-level lands on
+  # `model_top_hpa`; without the rescaling the top would sit wherever the
+  # polynomial puts it at this NLEV, which is 7660 Pa at ten layers.
+  vertical_grid: 4
+  # 50 hPa, one twentieth of the surface pressure. Both values are the ones every
+  # run to date integrated; this declares them and changes nothing.
+  model_top_hpa: 50.0
   precision_bytes: 8
   # How the model binary is compiled. The flag line is stated in FULL here
   # rather than as a delta against a generated default, because a delta cannot
