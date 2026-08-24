@@ -1663,15 +1663,19 @@ def main() -> None:
         # Zeroed in a COPY, so the donor run is never modified: a restart is the
         # only record of where a run was, and editing one in place would make a
         # completed run unreproducible to fix a defect in the run seeded from
-        # it. Every record zeroed is one the model itself sets to zero at an
-        # interval boundary, so the copy describes a run sitting exactly at the
-        # start of an accumulation window.
+        # it. Every record it rewrites is one the model itself puts back to a
+        # clean value at an interval boundary -- which is zero for most and a
+        # large sentinel for the two running minima -- so the copy describes a
+        # run sitting exactly at the start of an accumulation window.
         seeded_from = restart_seed
         restart_seed = run_dir / "MOST_REST.seed"
         run_dir.mkdir(parents=True, exist_ok=True)
         reset_info = reset_restart_accumulators.reset(seeded_from, restart_seed)
-        print(f"seed {seeded_from.name} from {seeded_from.parent.name}: zeroed "
-              f"{len(reset_info['zeroed'])} accumulator records (CLIM-31)")
+        print(f"seed {seeded_from.name} from {seeded_from.parent.name}: "
+              f"zeroed {len(reset_info['zeroed'])} accumulator records, "
+              f"{len(reset_info['sentinels'])} put back to a nonzero clean "
+              f"value, {len(reset_info['never_reset_by_the_model'])} the model "
+              "resets nowhere left as they were (CLIM-31)")
 
         src_manifest = seeded_from.parent / "run_manifest.json"
         if src_manifest.is_file():

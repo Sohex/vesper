@@ -53,6 +53,7 @@ import _paths
 import restart_format as rf
 import restart_schema as rs
 import restart_transforms as rt
+from restart_schema import ConversionError, _int, infer_real_bytes
 
 # The version of the conversion contract itself. A change to what a policy
 # DOES belongs in this number, because a report is the only record of how a
@@ -69,59 +70,9 @@ CONFIG_RTOL = 1e-6
 REAL = {4: np.dtype("<f4"), 8: np.dtype("<f8")}
 
 
-class ConversionError(Exception):
-    """The conversion cannot be done, and doing it partly would be worse."""
-
-
 # ---------------------------------------------------------------------------
 # Reading a file into geometry
 # ---------------------------------------------------------------------------
-
-def _int(record) -> int:
-    if record.nbytes != 4:
-        raise ConversionError(
-            f"'{record.name}' should be a four-byte integer and is "
-            f"{record.nbytes} bytes")
-    return struct.unpack("<i", record.payload)[0]
-
-
-def infer_real_bytes(by_name: dict, nlat: int, nlev: int, nrsp: int) -> int:
-    """Four or eight, agreed by every record whose element count is known.
-
-    The element counts come from the integer headers, which are always four
-    bytes, so this does not assume the answer it is looking for. Every check
-    must agree: a length divisible by eight is not evidence on its own, since
-    an integer array and a four-byte real array of the same count are the same
-    size, and a disagreement means the file is not what the headers say.
-    """
-    invariants = {"sp": nrsp, "sz": nrsp * nlev, "dls": nlat * 2 * nlat}
-    votes = {}
-    for name, count in invariants.items():
-        if name not in by_name:
-            continue
-        nbytes = by_name[name].nbytes
-        if nbytes % count:
-            raise ConversionError(
-                f"'{name}' is {nbytes} bytes and holds {count} elements, "
-                "which is not a whole number of bytes each")
-        votes[name] = nbytes // count
-    if not votes:
-        raise ConversionError(
-            "none of sp, sz or dls is present, so the real width cannot be "
-            "established from anything the headers already pin down")
-    widths = set(votes.values())
-    if len(widths) > 1:
-        detail = ", ".join(f"{n} says {w}" for n, w in sorted(votes.items()))
-        raise ConversionError(
-            f"the records disagree about the real width ({detail}). The file "
-            "does not match its own headers.")
-    width = widths.pop()
-    if width not in REAL:
-        raise ConversionError(
-            f"a real width of {width} bytes; this model is built at four or "
-            "eight and nothing here can guess at another")
-    return width
-
 
 @dataclass
 class RestartState:
@@ -145,32 +96,13 @@ class RestartState:
 
 def load(path: Path) -> RestartState:
     records = rf.read(path)
-    by_name = rf.index(records)
-    for needed in ("nlat", "nlon", "nlev", "nrsp"):
-        if needed not in by_name:
-            raise ConversionError(
-                f"{path}: no '{needed}' record. A restart this model wrote "
-                "always opens with its geometry.")
-    nlat, nlon = _int(by_name["nlat"]), _int(by_name["nlon"])
-    nlev, nrsp = _int(by_name["nlev"]), _int(by_name["nrsp"])
-    if nlon != 2 * nlat:
-        raise ConversionError(
-            f"{path}: NLON {nlon} is not twice NLAT {nlat}; this converter's "
-            "grid contract does not cover that")
-    real_bytes = infer_real_bytes(by_name, nlat, nlev, nrsp)
-    geometry = rs.Geometry(
-        nlat=nlat, nlev=nlev,
-        nlsoil=_int(by_name["nlsoil"]) if "nlsoil" in by_name else 0,
-        nlev_oce=_int(by_name["nlev_oce"]) if "nlev_oce" in by_name else 0,
-        nesp=(by_name["aasosp"].nbytes // real_bytes
-              if "aasosp" in by_name else nrsp),
-        nseedlen=by_name["seed"].nbytes // 4 if "seed" in by_name else 0)
-    if geometry.nrsp != nrsp:
-        raise ConversionError(
-            f"{path}: the file says NRSP is {nrsp} and a T{geometry.ntru} "
-            f"grid gives {geometry.nrsp}; the header and the grid disagree")
-    return RestartState(path=Path(path), records=records, by_name=by_name,
-                        geometry=geometry, real_bytes=real_bytes)
+    try:
+        geometry, real_bytes = rs.describe(records)
+    except ConversionError as exc:
+        raise ConversionError(f"{path}: {exc}") from None
+    return RestartState(path=Path(path), records=records,
+                        by_name=rf.index(records), geometry=geometry,
+                        real_bytes=real_bytes)
 
 
 # ---------------------------------------------------------------------------

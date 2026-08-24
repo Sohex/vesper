@@ -24,11 +24,21 @@ comments beside them.
 
 `check_policy_covers_source()` holds the two halves together, and it can fail
 in the direction that matters: add a record to the model and forget its policy,
-and the check goes red rather than the converter guessing.
+and the check goes red rather than the converter guessing. It also holds the
+reset column against `outreset` and its per-module equivalents, which is what
+stops "an accumulator's clean value is zero" from quietly becoming false -- it
+already is for four of them.
+
+IF YOU ADD OR REMOVE A RESTART RECORD, THIS FILE IS THE ONE TO EDIT, and
+`scripts/smoke_test.py` is what fails until you have. `exoplasim/README.md`
+carries the contract under "If you add or remove a restart record"; the tools
+that read this table are `convert_restart.py`, `reset_restart_accumulators.py`
+and `restart_surface.py`.
 """
 from __future__ import annotations
 
 import re
+import struct
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -36,16 +46,52 @@ from pathlib import Path
 # The mechanical half: what the model source says it writes.
 # ---------------------------------------------------------------------------
 
-# The modules `plasim/bld/make_plasim` links into `plasim.x` that write restart
-# records. `plasim_dummy.f90` and `icemod_template.f90` are NOT in that list --
-# the first is a separate program and the second is the template `icemod.f90`
-# was generated from -- so their names are not records this executable can
-# emit, and treating them as optional would weaken the unknown-record error
-# into nothing.
-WRITING_MODULES = (
-    "plasim.f90", "landmod.f90", "glaciermod.f90", "icemod.f90",
-    "oceanmod.f90", "seamod.f90", "radmod.f90", "simba.f90",
-)
+# Which sources `plasim.x` is built from is read out of the build itself rather
+# than listed here. `plasim_dummy.f90` and `icemod_template.f90` are not in it
+# -- the first is a separate program, the second the template `icemod.f90` was
+# generated from -- so their names are not records this executable can emit,
+# and a hand list would have to keep saying so. The configurable slots are
+# expanded to every value the build file offers, because a record or a reset
+# must be the same across the configurations rule 4 counts binaries over.
+CMAKE = "CMakeLists.txt"
+_SOURCES_BLOCK = re.compile(r"set\(_sources(?P<body>.*?)\)", re.DOTALL)
+_CMAKE_SET = re.compile(r"^\s*set\(\s*(?P<name>[A-Za-z_][A-Za-z0-9_]*)\s+"
+                        r"(?P<value>[A-Za-z0-9_.\"]+)", re.MULTILINE)
+
+
+def compiled_modules(plasim_dir: Path) -> tuple:
+    """Every Fortran source the model executable is built from, in build order.
+
+    Parsed from `plasim/CMakeLists.txt`, which is what `build_model.py` drives.
+    `plasim/bld/` is the old build's leftover and is NOT authoritative: it has
+    drifted from `plasim/src/`.
+    """
+    text = (Path(plasim_dir) / CMAKE).read_text(encoding="utf-8")
+    block = _SOURCES_BLOCK.search(text)
+    if block is None:
+        raise ValueError(f"{plasim_dir / CMAKE} has no _sources list; the "
+                         "build file has been restructured")
+    choices: dict = {}
+    for m in _CMAKE_SET.finditer(text):
+        choices.setdefault(m["name"], set()).add(m["value"].strip('"'))
+    out = []
+    for token in block["body"].split():
+        token = token.strip('"')
+        if not token.endswith(".f90"):
+            continue                       # the C stub, and the generated resmod
+        stem = token[:-4]
+        if "/" in stem:
+            # resmod.f90 is generated into the build directory from the
+            # requested geometry. It holds no restart call and no reset.
+            continue
+        var = re.fullmatch(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}", stem)
+        if var is None:
+            out.append(token)
+            continue
+        for value in sorted(v for v in choices.get(var[1], ()) if v):
+            if value and not value.startswith("$"):
+                out.append(f"{value}.f90")
+    return tuple(dict.fromkeys(out))
 
 # `put_restart_array(yn,pa,k1,k2,k3)` writes `pa(1:k1,1:k3)`, so the WRITTEN
 # length is k1*k3 and the declared second dimension k2 never reaches the file.
@@ -94,6 +140,10 @@ class SourceRecord:
     module: str
     line: int
     writer: str
+    # The actual argument the call site passes: `aasqsp` is written from
+    # `aasqout` and the six spectral accumulators are all named this way, so
+    # anything looking for the variable cannot look for the record name.
+    variable: str
     # Every shape the source can write this name with: ('NUGP', 'NLEV'),
     # ('NRSP', 1), ('NESP', 'NLEV'), (2, 1), or () for a scalar. More than one
     # where a switch chooses between them -- `dq` is the surface level under
@@ -106,7 +156,7 @@ def inventory_from_source(src_dir: Path) -> dict[str, SourceRecord]:
     """Every restart name `plasim.x` can emit, from the call sites themselves."""
     src_dir = Path(src_dir)
     found: dict[str, SourceRecord] = {}
-    for module in WRITING_MODULES:
+    for module in compiled_modules(src_dir.parent):
         path = src_dir / module
         if not path.is_file():
             raise FileNotFoundError(f"{path} is missing; the model source moved")
@@ -116,6 +166,7 @@ def inventory_from_source(src_dir: Path) -> dict[str, SourceRecord]:
             if m is None:
                 continue
             fn, name, args = m["fn"].lower(), m["name"], _split_args(m["rest"])
+            variable = re.split(r"[(\s]", args[0])[0] if args else name
             if fn == "put_restart_integer":
                 shape = ()
             elif fn == "put_restart_real":
@@ -136,12 +187,13 @@ def inventory_from_source(src_dir: Path) -> dict[str, SourceRecord]:
                 if shape not in prior.shapes:
                     found[name] = SourceRecord(
                         name=name, module=prior.module, line=prior.line,
-                        writer=prior.writer, shapes=prior.shapes + (shape,),
-                        guard=prior.guard)
+                        writer=prior.writer, variable=prior.variable,
+                        shapes=prior.shapes + (shape,), guard=prior.guard)
                 continue
             found[name] = SourceRecord(
                 name=name, module=module, line=lineno, writer=fn,
-                shapes=(shape,), guard=g["cond"].strip() if g else None)
+                variable=variable, shapes=(shape,),
+                guard=g["cond"].strip() if g else None)
     return found
 
 
@@ -443,14 +495,22 @@ POLICY.update(_acc(["agpp", "agppl", "agppw", "alitter", "anogrow", "anpp",
                     "aresh", "adcsoil", "adcveg", "adlai"]))
 
 
-# The three accumulators `outmod.f90:outreset` does not simply zero. Every tool
+# The four accumulators `outmod.f90:outreset` does not simply zero. Every tool
 # that writes a clean accumulator has to carry these, and the general rule --
-# "an accumulator's clean value is zero" -- is wrong for all three.
+# "an accumulator's clean value is zero" -- is wrong for all four.
+# `check_policy_covers_source` holds them against the source, which is how
+# `atsami` was found: reading the list by eye had missed it.
 POLICY["tempmin"] = Policy(
     ACCUMULATOR, RESET, model_reset="sentinel", reset_value=1.0e3,
     why="a running MINIMUM over the window. `outmod.f90:2469` resets it to "
         "1.0e3, not to zero, and a zeroed one reports a minimum of 0 K for "
         "the rest of the run")
+POLICY["atsami"] = Policy(
+    ACCUMULATOR, RESET, model_reset="sentinel", reset_value=1.0e10,
+    why="the running MINIMUM surface air temperature over the window. "
+        "`outmod.f90:2463` resets it to 1.0e10 while its maximum partner "
+        "atsama resets to zero, and a zeroed one reports a minimum of 0 K "
+        "for the rest of the run")
 POLICY["asndch"] = Policy(
     ACCUMULATOR, RESET, model_reset="none",
     why="net accumulated snow depth change. `outmod.f90:2459` has its reset "
@@ -479,8 +539,26 @@ def check_policy_covers_source(src_dir: Path) -> list[str]:
             "has no entry for it")
     for name in sorted(set(POLICY) - set(inventory)):
         problems.append(
-            f"POLICY names '{name}' and no call site in "
-            f"{', '.join(WRITING_MODULES)} writes it")
+            f"POLICY names '{name}' and no call site in any source "
+            f"{CMAKE} compiles writes it")
+
+    # The reset column, held against the source that owns it. This is what
+    # keeps "an accumulator's clean value is zero" from becoming a rule the
+    # model has quietly stopped obeying.
+    resets = model_resets_from_source(src_dir)
+    for name in sorted(set(POLICY) & set(inventory)):
+        pol = POLICY[name]
+        if pol.semantic != ACCUMULATOR:
+            continue
+        kind, value = derived_model_reset(name, inventory, resets)
+        if kind != pol.model_reset:
+            problems.append(
+                f"'{name}' is recorded as model_reset={pol.model_reset!r} and "
+                f"the source resets {inventory[name].variable} as {kind!r}")
+        elif kind == "sentinel" and value != pol.reset_value:
+            problems.append(
+                f"'{name}' is recorded as resetting to {pol.reset_value} and "
+                f"the source resets it to {value}")
     return problems
 
 
@@ -578,3 +656,129 @@ def element_count(name: str, geometry: Geometry, inventory) -> int:
 
 def candidate_counts(name: str, geometry: Geometry, inventory) -> list[int]:
     return [geometry.elements(shape) for shape in inventory[name].shapes]
+
+
+# ---------------------------------------------------------------------------
+# What the model does to an accumulator at an interval boundary
+# ---------------------------------------------------------------------------
+
+# An assignment of a bare numeric literal, outside a declaration and outside a
+# comment. `aast(:,j) = 0.`, `tempmin(:) = 1.0e3` and `naccuout=0` all match.
+_RESET = re.compile(
+    r"^\s*(?P<var>[a-z][a-z0-9_]*)\s*(\([^)]*\))?\s*="
+    r"\s*(?P<value>[-+]?(\d+\.?\d*|\.\d+)([eEdD][-+]?\d+)?)\s*$",
+    re.IGNORECASE)
+
+
+def model_resets_from_source(src_dir: Path) -> dict:
+    """{variable: the constant the model assigns it}, over the compiled modules.
+
+    An accumulator's clean value is whatever `outreset` and its per-module
+    equivalents put there, and that is a fact about the source rather than a
+    convention: `tempmin` goes to 1.0e3 because it is a running minimum, and a
+    tool that assumed zero would report a minimum of 0 K for the rest of a run.
+    Deriving it is what makes the `model_reset` column falsifiable instead of
+    asserted.
+    """
+    src_dir = Path(src_dir)
+    resets: dict = {}
+    for module in compiled_modules(src_dir.parent):
+        for line in (src_dir / module).read_text(encoding="utf-8",
+                                                 errors="ignore").splitlines():
+            if "::" in line or line.lstrip().startswith("!"):
+                continue
+            m = _RESET.match(line.split("!")[0])
+            if m is None:
+                continue
+            resets.setdefault(m["var"].lower(), set()).add(float(m["value"]))
+    return resets
+
+
+def derived_model_reset(name: str, inventory: dict, resets: dict):
+    """('zero' | 'sentinel' | 'none', value) for one record, from the source."""
+    values = resets.get(inventory[name].variable.lower())
+    if not values:
+        return "none", None
+    if values == {0.0}:
+        return "zero", None
+    nonzero = sorted(values - {0.0})
+    return "sentinel", nonzero[-1]
+
+
+class ConversionError(Exception):
+    """A restart cannot be worked on, and working on it partly would be worse."""
+
+
+def _int(record) -> int:
+    if record.nbytes != 4:
+        raise ConversionError(
+            f"'{record.name}' should be a four-byte integer and is "
+            f"{record.nbytes} bytes")
+    return struct.unpack("<i", record.payload)[0]
+
+
+def infer_real_bytes(by_name: dict, nlat: int, nlev: int, nrsp: int) -> int:
+    """Four or eight, agreed by every record whose element count is known.
+
+    The element counts come from the integer headers, which are always four
+    bytes, so this does not assume the answer it is looking for. Every check
+    must agree: a length divisible by eight is not evidence on its own, since
+    an integer array and a four-byte real array of the same count are the same
+    size, and a disagreement means the file is not what the headers say.
+    """
+    invariants = {"sp": nrsp, "sz": nrsp * nlev, "dls": nlat * 2 * nlat}
+    votes = {}
+    for name, count in invariants.items():
+        if name not in by_name:
+            continue
+        nbytes = by_name[name].nbytes
+        if nbytes % count:
+            raise ConversionError(
+                f"'{name}' is {nbytes} bytes and holds {count} elements, "
+                "which is not a whole number of bytes each")
+        votes[name] = nbytes // count
+    if not votes:
+        raise ConversionError(
+            "none of sp, sz or dls is present, so the real width cannot be "
+            "established from anything the headers already pin down")
+    widths = set(votes.values())
+    if len(widths) > 1:
+        detail = ", ".join(f"{n} says {w}" for n, w in sorted(votes.items()))
+        raise ConversionError(
+            f"the records disagree about the real width ({detail}). The file "
+            "does not match its own headers.")
+    width = widths.pop()
+    if width not in (4, 8):
+        raise ConversionError(
+            f"a real width of {width} bytes; this model is built at four or "
+            "eight and nothing here can guess at another")
+    return width
+
+
+def describe(records) -> tuple:
+    """(Geometry, real width) for a parsed restart, from its own headers."""
+    by_name = {rec.name: rec for rec in records}
+    for needed in ("nlat", "nlon", "nlev", "nrsp"):
+        if needed not in by_name:
+            raise ConversionError(
+                f"no '{needed}' record. A restart this model wrote always "
+                "opens with its geometry.")
+    nlat, nlon = _int(by_name["nlat"]), _int(by_name["nlon"])
+    nlev, nrsp = _int(by_name["nlev"]), _int(by_name["nrsp"])
+    if nlon != 2 * nlat:
+        raise ConversionError(
+            f"NLON {nlon} is not twice NLAT {nlat}; no grid contract here "
+            "covers that")
+    real_bytes = infer_real_bytes(by_name, nlat, nlev, nrsp)
+    geometry = Geometry(
+        nlat=nlat, nlev=nlev,
+        nlsoil=_int(by_name["nlsoil"]) if "nlsoil" in by_name else 0,
+        nlev_oce=_int(by_name["nlev_oce"]) if "nlev_oce" in by_name else 0,
+        nesp=(by_name["aasosp"].nbytes // real_bytes
+              if "aasosp" in by_name else nrsp),
+        nseedlen=by_name["seed"].nbytes // 4 if "seed" in by_name else 0)
+    if geometry.nrsp != nrsp:
+        raise ConversionError(
+            f"the file says NRSP is {nrsp} and a T{geometry.ntru} grid gives "
+            f"{geometry.nrsp}; the header and the grid disagree")
+    return geometry, real_bytes

@@ -810,6 +810,38 @@ def check_documented_tools() -> list[str]:
     return problems
 
 
+def check_restart_schema_covers_the_model() -> list[str]:
+    """Every restart record the model writes has a policy, with the right reset.
+
+    THIS IS THE ANSWER TO "what do I have to update if I add a restart record".
+    `exoplasim/scripts/restart_schema.py` is the one place, and this makes the
+    tree go red rather than leaving it to be found by whoever next converts a
+    restart or seeds a run.
+
+    It fails in the direction that matters and in both directions at once. A
+    `put_restart_*` call the policy does not name is an unknown record, and
+    `convert_restart.py` treats one as a hard error rather than passing it
+    through -- because a record nobody has classified has no defensible
+    behaviour across a resolution change. A policy entry no call site writes is
+    a record that has been removed from the model and left behind here. And the
+    reset column is checked against `outreset` and its per-module equivalents,
+    which is what stops "an accumulator's clean value is zero" from silently
+    becoming false: it already is for four of them.
+
+    `reset_restart_accumulators.py` reads the same policy, so a gap here is a
+    seeded run opening mid-window on the donor's partial accumulation.
+    """
+    sys.path.insert(0, str(ROOT / "exoplasim" / "scripts"))
+    try:
+        import restart_schema
+    except ImportError as exc:
+        return [f"exoplasim/scripts/restart_schema.py does not import: {exc}"]
+    src = ROOT / "vendor" / "exoplasim" / "exoplasim" / "plasim" / "src"
+    if not src.is_dir():
+        return [f"{src} is missing; the vendored model source moved"]
+    return restart_schema.check_policy_covers_source(src)
+
+
 def check_no_shadowed_imports(files: list[Path]) -> list[str]:
     """A name bound by `import X` is never rebound to something else.
 
@@ -904,6 +936,8 @@ def main() -> None:
                check_omp_directive_length()),
               ("no imported module name is rebound",
                check_no_shadowed_imports(files)),
+              ("the restart schema covers every record the model writes",
+               check_restart_schema_covers_the_model()),
               ("a resume refuses a rewritten spectrum file",
                check_spectrum_guard()),
               ("the tools environment.md names are on this host",

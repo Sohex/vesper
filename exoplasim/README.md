@@ -249,6 +249,40 @@ on the threaded build and 0 on the MPI build, which cannot run SHTns at all;
 legmod remains reachable with `NSHTNS = 0` and is the reference that gate
 compares against.
 
+## If you add or remove a restart record
+
+A `put_restart_integer`, `put_restart_real`, `put_restart_seed`,
+`put_restart_array`, `mpputgp` or `mpputsp` call site is not a local change.
+Three tools read the restart by NAME and none of them can guess at a record
+nobody has classified: `convert_restart.py` treats an unknown name as a hard
+error rather than passing it through, `reset_restart_accumulators.py` decides
+from the same table whether a record is a partial accumulation to clear before
+a seeded run, and `restart_surface.py` gates every resume on named records.
+
+**One file to update: `exoplasim/scripts/restart_schema.py`.** Add a `POLICY`
+entry saying what the record IS -- its semantic class, what a conversion does
+with it, and for a gridpoint field whether remapping it averages an intensity
+or moves an inventory, on which surface class, within what bounds. The
+mechanical half -- which names exist, from which module, with what shape and
+which variable behind them -- is parsed out of the call sites themselves and
+out of `plasim/CMakeLists.txt`, so nothing there needs touching.
+
+**The gate is `scripts/smoke_test.py`,** check "the restart schema covers every
+record the model writes". It goes red for a call site with no policy, for a
+policy entry no call site writes, and for an accumulator whose reset in
+`outreset` no longer matches what the schema records. Its own control shows it
+failing in all three directions.
+
+**An accumulator's clean value is not always zero.** `tempmin` resets to 1.0e3
+and `atsami` to 1.0e10, both running minima; `asndch` and `aanrho` are reset by
+the model nowhere. The schema carries all four and the gate holds them against
+the source, which is how `atsami` was found after a by-eye reading had missed
+it.
+
+Nothing else needs changing. `convert_restart.py --self-test` and
+`reset_restart_accumulators.py --self-test` both read the schema, so they cover
+the new record the moment it has a policy.
+
 ## Every script here
 
 The workflow above uses a few of these. The rest are tools you will not find
