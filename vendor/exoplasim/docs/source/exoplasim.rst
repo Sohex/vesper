@@ -29,15 +29,6 @@ exoplasim.pyburn module
    :show-inheritance:
    
 
-exoplasim.randomcontinents module
----------------------------------
-
-.. program-output:: python ../exoplasim/randomcontinents.py --help
-.. automodule:: exoplasim.randomcontinents
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 
 exoplasim.makestellarspec module
 --------------------------------
@@ -47,12 +38,4 @@ exoplasim.makestellarspec module
    :undoc-members:
    :show-inheritance:   
    
-
-exoplasim.pRT module
---------------------
-
-.. automodule:: exoplasim.pRT
-   :members:
-   :undoc-members:
-   :show-inheritance:   
    
