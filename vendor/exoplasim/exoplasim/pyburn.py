@@ -1792,7 +1792,16 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=180
                 variable,meta = _transformvar(lon[:],lat[:],wap,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
                                               substellarlon=substellarlon,physfilter=physfilter,
                                               zonal=zonal)
-                rdataset[meta[0]] = [variable*1.0e-2,meta] #transform to hPa/s
+                # NO CONVERSION. This divided by 100 to give hPa/s while the
+                # entry for code 135 above declares `Pa s-1`, so the field was
+                # a hundred times smaller than its own label said and than the
+                # CF canonical unit for lagrangian_tendency_of_air_pressure.
+                # Measured before the fix: an RMS of 2.6e-4 Pa/s where the run's
+                # own divergence field implies 7e-2, correlating at 0.95 to 0.98
+                # against omega rebuilt from continuity with a fitted scale of
+                # 94. `ps` and `psl` are converted AND labelled hPa; this one
+                # was converted and not labelled. world-w51.
+                rdataset[meta[0]] = [variable,meta]
                 
             elif key==str(wzcode): #Vertical wind wa
                 # wa = -omega * gascon * ta / (grav * pa)
@@ -2623,7 +2632,16 @@ def advancedDataset(filename, variablecodes, mode='grid', substellarlon=180.0,
                 variable,meta = _transformvar(lon[:],lat[:],wap,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
                                               substellarlon=substellarlon,physfilter=physfilter,
                                               zonal=zonal)
-                rdataset[meta[0]] = [variable*1.0e-2,meta] #transform to hPa/s
+                # NO CONVERSION. This divided by 100 to give hPa/s while the
+                # entry for code 135 above declares `Pa s-1`, so the field was
+                # a hundred times smaller than its own label said and than the
+                # CF canonical unit for lagrangian_tendency_of_air_pressure.
+                # Measured before the fix: an RMS of 2.6e-4 Pa/s where the run's
+                # own divergence field implies 7e-2, correlating at 0.95 to 0.98
+                # against omega rebuilt from continuity with a fitted scale of
+                # 94. `ps` and `psl` are converted AND labelled hPa; this one
+                # was converted and not labelled. world-w51.
+                rdataset[meta[0]] = [variable,meta]
                 
             elif key==str(wzcode): #Vertical wind wa
                 # wa = -omega * gascon * ta / (grav * pa)
