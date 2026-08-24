@@ -279,6 +279,9 @@ SURFACE_UNREAD_MODEL_KEYS = {
         "model.seasonal_samples_per_orbit", "model.soil_water_source",
         "model.timestep_minutes", "model.uniform_land_surface",
         "model.vegetation_albedo_bracket",
+        # world-9m5. tree_albedo and grass_albedo themselves are READ here and
+        # are deliberately absent; only their brackets are unread.
+        "model.tree_albedo_bracket", "model.grass_albedo_bracket",
     }),
     "surface_roughness": frozenset({
         "model.co2_sw_weight", "model.energy_diagnostics",
@@ -308,6 +311,11 @@ SURFACE_UNREAD_MODEL_KEYS = {
         "model.timestep_minutes", "model.uniform_land_surface",
         "model.vegetation_albedo", "model.vegetation_albedo_bands",
         "model.vegetation_albedo_bracket",
+        # world-9m5. The two cover endmembers moved out of
+        # build_surface_albedo.py's argparse defaults and into the config
+        # beside model.vegetation_albedo, so they are inert wherever that is.
+        "model.tree_albedo", "model.tree_albedo_bracket",
+        "model.grass_albedo", "model.grass_albedo_bracket",
     }),
     "surface_soil_water": frozenset({
         # Not `model.` keys, and the first non-model entries here. Both
@@ -344,6 +352,11 @@ SURFACE_UNREAD_MODEL_KEYS = {
         "model.seasonal_samples_per_orbit", "model.timestep_minutes",
         "model.vegetation_albedo", "model.vegetation_albedo_bands",
         "model.vegetation_albedo_bracket",
+        # world-9m5. The two cover endmembers moved out of
+        # build_surface_albedo.py's argparse defaults and into the config
+        # beside model.vegetation_albedo, so they are inert wherever that is.
+        "model.tree_albedo", "model.tree_albedo_bracket",
+        "model.grass_albedo", "model.grass_albedo_bracket",
     }),
     "boundary_conditions": frozenset({
         "model.barren_rock_classes", "model.co2_sw_weight",
@@ -373,6 +386,11 @@ SURFACE_UNREAD_MODEL_KEYS = {
         "model.timestep_minutes", "model.uniform_land_surface",
         "model.vegetation_albedo", "model.vegetation_albedo_bands",
         "model.vegetation_albedo_bracket",
+        # world-9m5. The two cover endmembers moved out of
+        # build_surface_albedo.py's argparse defaults and into the config
+        # beside model.vegetation_albedo, so they are inert wherever that is.
+        "model.tree_albedo", "model.tree_albedo_bracket",
+        "model.grass_albedo", "model.grass_albedo_bracket",
     }),
 }
 

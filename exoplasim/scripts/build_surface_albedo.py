@@ -39,7 +39,10 @@ cold bias propagates into whatever vegetation model consumes the result.
   modelled   the answer rather than an endmember: per-cell cover from an
              LPJ-GUESS run, blended against the lithology substrate. This is the
              mode that closes the loop, and the only one that is not an
-             assumption. Needs --vegetation pointing at a run's fpc.out.
+             assumption. Needs --vegetation pointing at a run's fpc.out. Its two
+             cover endmembers come from `model.tree_albedo` and
+             `model.grass_albedo`, star-weighted by the same derivation as
+             `model.vegetation_albedo`.
   uniform    write nothing and let ExoPlaSim default to 0.22.
 
 The two endmembers are about 15 to 19 W/m2 apart in absorbed flux, against 21
@@ -160,11 +163,16 @@ def main() -> None:
                          "evaporation field the derived evaporite split needs. "
                          "Must be the climatology the LPJ-GUESS driver was "
                          "built from when used for the former.")
-    ap.add_argument("--tree-albedo", type=float, default=0.13,
-                    help="albedo of full tree cover. Closed canopy is dark; "
-                         "0.12-0.15 covers needleleaf through broadleaf.")
-    ap.add_argument("--grass-albedo", type=float, default=0.19,
-                    help="albedo of full grass cover, lighter than forest")
+    ap.add_argument("--tree-albedo", type=float, default=None,
+                    help="albedo of full tree cover, for --mode modelled. "
+                         "Defaults to model.tree_albedo in the config, derived "
+                         "for THIS star by analysis/vegetation_albedo.py; 0.13 "
+                         "is the Earth-Sun endmember it replaced, pass it "
+                         "explicitly to reproduce the old surface")
+    ap.add_argument("--grass-albedo", type=float, default=None,
+                    help="albedo of full grass cover, for --mode modelled. "
+                         "Defaults to model.grass_albedo in the config, same "
+                         "derivation; 0.19 is the Earth-Sun endmember")
     ap.add_argument("--target-mean", type=float, default=0.20,
                     help="land-mean albedo for --mode scaled")
     ap.add_argument("--vegetation-albedo", type=float, default=None,
@@ -194,6 +202,26 @@ def main() -> None:
                 "or an explicit --vegetation-albedo; the derivation is "
                 "analysis/vegetation_albedo.py, and 0.15 is the un-reweighted "
                 "Earth-Sun endmember if that is really what is meant")
+    # Same rule as --vegetation-albedo above and for the same reason: no silent
+    # Earth-Sun default. 0.13 and 0.19 were the two endmembers left behind when
+    # 0.15 was re-weighted and moved to the config, and `modelled` is the mode
+    # that blends them. world-9m5.
+    cover_from_config = []
+    if mode == "modelled":
+        for name, earth_sun in (("tree_albedo", 0.13), ("grass_albedo", 0.19)):
+            if getattr(args, name) is not None:
+                continue
+            try:
+                setattr(args, name, float(model[name]))
+                cover_from_config.append(name)
+            except KeyError:
+                flag = "--" + name.replace("_", "-")
+                raise SystemExit(
+                    f"--mode modelled needs model.{name} in the config or an "
+                    f"explicit {flag}; the derivation is "
+                    f"analysis/vegetation_albedo.py, and {earth_sun} is the "
+                    "un-reweighted Earth-Sun endmember if that is really what "
+                    "is meant")
     nlat, nlon = int(model["latitudes"]), int(model["longitudes"])
 
     # Deliberately from the grid, not from config: see builds.resolution_of.
@@ -532,6 +560,10 @@ def main() -> None:
             "land_cells_without_vegetation_left_bare": missing,
             "tree_albedo": args.tree_albedo,
             "grass_albedo": args.grass_albedo,
+            "cover_albedo_source": (
+                "config model." + ", config model.".join(cover_from_config)
+                if cover_from_config else "explicit on the command line"),
+            "cover_albedo_derivation": "analysis/vegetation_albedo.json",
             "barren_masked": ("barren classes forced to zero cover; LPJ-GUESS is "
                               "not told which ground is salt crust or playa"),
             "coordinate_source": str(args.climatology),
