@@ -9,17 +9,20 @@
     "grass": {
       "n": 4,
       "sun": 0.303,
-      "k25v": 0.333
+      "k25v": 0.333,
+      "band2_over_band1": 2.558
     },
     "shrub": {
       "n": 199,
       "sun": 0.2549,
-      "k25v": 0.2785
+      "k25v": 0.2785,
+      "band2_over_band1": 2.7977
     },
     "tree": {
       "n": 350,
       "sun": 0.2456,
-      "k25v": 0.2713
+      "k25v": 0.2713,
+      "band2_over_band1": 3.1459
     }
   },
   "leaf_means": {
@@ -57,14 +60,61 @@
     ]
   },
   "vegetation_albedo_bands": [
-    0.075,
-    0.225
+    0.074,
+    0.222
   ],
-  "band_shape_from_leaf": [
-    0.4535,
-    1.3628
+  "cover_albedo_bands": {
+    "tree": [
+      0.064,
+      0.192
+    ],
+    "grass": [
+      0.093,
+      0.281
+    ]
+  },
+  "cover_albedo_bands_bracket": {
+    "tree": [
+      [
+        0.061,
+        0.064
+      ],
+      [
+        0.192,
+        0.193
+      ]
+    ],
+    "grass": [
+      [
+        0.093,
+        0.107
+      ],
+      [
+        0.272,
+        0.281
+      ]
+    ]
+  },
+  "cover_band_ratio": {
+    "grass": 3.0052,
+    "tree": 3.0052
+  },
+  "tree_band_ratio_p10": 2.7101,
+  "grass_band_ratio_max": 2.7135,
+  "band2_over_band1": 3.0052,
+  "band2_over_band1_per_class": {
+    "grass": 2.558,
+    "shrub": 2.7977,
+    "tree": 3.1459
+  },
+  "band_ratio_separates_tree_from_grass": false,
+  "model_band_flux_fractions": [
+    0.382372,
+    0.617628
   ],
-  "band1_flux_fraction_full_spectrum": 0.3846,
-  "band_recombination_residual": 0.0023,
-  "note": "The ratio, not the level, transfers from leaf to canopy; the leaf ratio upper-bounds the correction, so the bracket runs from the uncorrected Earth-Sun endmember to the tails-carried leaf ratio. The band pair is the same integrals split at 0.75 um, anchored to the broadband value. cover_albedo applies the same ratio to the tree and grass endmembers build_surface_albedo.py blends in --mode modelled."
+  "model_band_flux_source": "lib/stellar.band_fractions, which reproduces radmod.f90 solarini including the minwavel cut and the band-edge interval",
+  "measured_range_band1_flux_share": 0.3989,
+  "band_recombination_residual": 0.00041,
+  "band_recombination_residual_naive_anchor": 0.00249,
+  "note": "The ratio, not the level, transfers from leaf to canopy; the leaf ratio upper-bounds the correction, so the bracket runs from the uncorrected Earth-Sun endmember to the tails-carried leaf ratio. The band pair is the same integrals split at 0.75 um, anchored on the model's own band weights so that z1*band1 + z2*band2 returns the broadband value as an identity. cover_albedo_bands gives tree and grass their own band ratios, which unlike the broadband ratio are resolved against the within-class spread."
 }

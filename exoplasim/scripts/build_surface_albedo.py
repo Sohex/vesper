@@ -2,7 +2,9 @@
 """Write background land albedo from World Orogen lithology.
 
 ExoPlaSim presets background albedo to a uniform `albland` of 0.22 and reads
-codes 174 (broadband), 175 (<0.75 um) and 176 (>0.75 um) if the files exist. On
+codes 174 (broadband), 175 (<0.75 um) and 176 (>0.75 um) if the files exist, and
+at `NSIMPLEALBEDO = 0` -- this project's setting -- the radiation reads the PAIR
+and never 174. All three carry a real field here; see "The two bands" below. On
 this planet the substrate is not uniform at all: area-weighted bare-rock albedo
 over land is 0.315, and the spread runs 0.10 for basalt to 0.50 for evaporite.
 Using 0.22 everywhere is a planetary albedo error of about 0.04, roughly
@@ -54,11 +56,35 @@ rather than shifting one. Run both endmembers before trusting either.
 
 Ocean cells are written with the water class value; ExoPlaSim computes ocean
 albedo separately, so the value there is inert, but the array has to be full.
+
+The two bands
+-------------
+
+Every surface written here carries a band pair, not just the vegetated paint.
+The shape comes from a measured reflectance spectrum for the material -- rock
+class by rock class from `analysis/rock_albedo_bands.json`, canopy from
+`analysis/vegetation_albedo.json` -- and it is applied as a dimensionless
+RATIO, so it composes with whatever level the class carries after overrides,
+the derived evaporite split and lakes have moved it.
+
+The pair is anchored on the model's own band weights, `lib/stellar`'s
+reproduction of `solarini`, so that
+
+    z1 * band1 + z2 * band2 == broadband
+
+holds cell by cell. That identity is asserted on the three fields immediately
+before they are written; it is the check that can fail, and it fails if a
+repaint moves a level without moving the material with it.
+
+`--flat-bands` writes one identical field to all three codes, which is what this
+script did before the rock table had a split and is the only way to reproduce a
+surface built then.
 """
 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from pathlib import Path
 
@@ -66,12 +92,14 @@ from netCDF4 import Dataset
 import numpy as np
 import yaml
 
-from _paths import CONFIG, INPUTS
+from _paths import CONFIG, INPUTS, PROJECT_ROOT
 
 import climatology  # noqa: E402  from lib/, put on sys.path by _paths
+import stellar
 from sra import write_sra
 from builds import resolution_of, grid_export, mesh_export
 from gridding import land_fraction_of_class, land_weighted, region_cells
+from paths import rel
 from provenance import config_stamp
 from orogen import Export, LAND
 
@@ -79,6 +107,20 @@ from orogen import Export, LAND
 # radiation uses the two-band pair; 174 is written too so the broadband
 # diagnostic agrees rather than silently keeping 0.22.
 ALBEDO_CODES = (174, 175, 176)
+
+# The two derivations that supply the band SHAPE. Neither supplies a level:
+# levels come from the export's rock table, the config overrides and the config
+# cover endmembers, so a shape file and a level file can never disagree about a
+# number they do not both hold.
+ROCK_BANDS = PROJECT_ROOT / "analysis" / "rock_albedo_bands.json"
+VEGETATION_BANDS = PROJECT_ROOT / "analysis" / "vegetation_albedo.json"
+
+# The recombination identity's tolerance, in albedo, fixed before any field was
+# written. Set from the INSTRUMENT: `.sra` is written at `%12.5f`, so a value
+# reaches the model with a quantum of 5e-6 and a two-term recombination of such
+# values cannot be held tighter. Twice that leaves the check able to fail on a
+# construction error while ignoring the format's own rounding.
+RECOMBINATION_TOLERANCE = 1.0e-5
 
 # 212 is forest fraction. It is written here rather than left at its default
 # because it is not independent of the albedo assumption: landmod blends snow
@@ -136,6 +178,40 @@ def _rock_id(mesh_dir: Path, code: str) -> int:
     raise KeyError(f"no rock class {code!r} in {mesh_dir}")
 
 
+def band_shapes(rho: np.ndarray, z1: float, z2: float):
+    """Dimensionless (band1, band2) multipliers for a band ratio `rho`.
+
+    `z1*s1 + z2*s2 == 1` by construction, so multiplying any broadband albedo
+    by the pair gives a pair that recombines to it in the model's own weights.
+    """
+    s1 = 1.0 / (z1 + z2 * rho)
+    return s1, rho * s1
+
+
+def rock_band_ratios(path: Path, mesh_root: Path) -> dict[int, float]:
+    """Rock class id -> band2/band1, for the classes this export carries.
+
+    Keyed by CODE in the file and resolved to this export's ids here, because
+    ids move when Orogen adds a class and codes do not. A class the file does
+    not cover raises rather than defaulting to 1.0: a silent 1.0 is exactly the
+    spectrally flat substrate this table exists to remove.
+    """
+    table = json.loads(path.read_text(encoding="utf-8"))["classes"]
+    lit = json.loads((mesh_root / "manifest.json").read_text(
+        encoding="utf-8"))["lithology"]
+    ratios = {}
+    for entry in lit["rockClasses"]:
+        code = entry["code"]
+        if code not in table:
+            raise SystemExit(
+                f"{path.name} has no band ratio for rock class {code!r}, which "
+                f"{mesh_root} carries. Add a proxy in "
+                "analysis/rock_albedo_bands.py and re-run it; a class with no "
+                "ratio would be written spectrally flat.")
+        ratios[int(entry["id"])] = float(table[code]["band2_over_band1"])
+    return ratios
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", type=Path, default=CONFIG)
@@ -183,6 +259,13 @@ def main() -> None:
                          "pass it explicitly to reproduce the old surface")
     ap.add_argument("--forest-fraction", type=float, default=None,
                     help="override the forest fraction implied by --mode")
+    ap.add_argument("--flat-bands", action="store_true",
+                    help="write one identical field to 174, 175 and 176. What "
+                         "this script did before the rock table had a band "
+                         "split, and the only way to reproduce a surface built "
+                         "then; the radiation reads 175 and 176 and not 174 at "
+                         "NSIMPLEALBEDO=0, so this asserts every material on "
+                         "the planet reflects equally either side of 0.75 um")
     args = ap.parse_args()
 
     config = yaml.safe_load(args.config.read_text(encoding="utf-8"))
@@ -195,7 +278,7 @@ def main() -> None:
         # defect SPEC-5 closed. The config value is the derived one.
         try:
             args.vegetation_albedo = float(model["vegetation_albedo"])
-            veg_from_config = True
+            veg_from_config = True    # recorded in the report; see below
         except KeyError:
             raise SystemExit(
                 "--mode vegetated needs model.vegetation_albedo in the config "
@@ -262,6 +345,19 @@ def main() -> None:
     # coastal cell.
     region_albedo = mesh.rock_albedo.astype(np.float64).copy()
 
+    # The band ratio travels beside the albedo and is repainted wherever the
+    # albedo is, because a repaint changes the MATERIAL and the ratio is a
+    # property of the material. The two arrays are only ever assigned together;
+    # the recombination check at the end is what catches it if they are not.
+    z1, z2 = (float(v) for v in stellar.band_fractions())
+    rock_ratio = rock_band_ratios(ROCK_BANDS, mesh.root)
+    region_rho = np.empty(region_albedo.shape, dtype=np.float64)
+    for rid, value in rock_ratio.items():
+        region_rho[rock == rid] = value
+    veg_json = json.loads(VEGETATION_BANDS.read_text(encoding="utf-8"))
+    canopy_rho = float(veg_json["band2_over_band1"])
+    cover_rho = {k: float(v) for k, v in veg_json["cover_band_ratio"].items()}
+
     # Rock-class overrides, applied before anything else reads the field. These
     # exist because the export's albedo table was written for plausibility rather
     # than radiative accuracy, and one of its entries dominates this planet's
@@ -313,6 +409,7 @@ def main() -> None:
     if mode == "vegetated":
         veg_painted = is_land & ~barren
         region_albedo[veg_painted] = args.vegetation_albedo
+        region_rho[veg_painted] = canopy_rho
         endmembers["vegetated"] = _land_mean(region_albedo)
 
     # Lakes, last, because a lake covers whatever lithology is under it and no
@@ -404,7 +501,10 @@ def main() -> None:
                 # Geometric salt that is not ephemeral becomes playa; ephemeral
                 # ground becomes salt crust regardless of what Orogen called it.
                 region_albedo[geo_salt & ~ephemeral] = playa_a
+                region_rho[geo_salt & ~ephemeral] = rock_ratio[
+                    _rock_id(mesh.root, "playa_clastic")]
                 region_albedo[ephemeral] = salt_a
+                region_rho[ephemeral] = rock_ratio[evaporite_id]
                 after_e = float(np.average(region_albedo[is_land],
                                            weights=area_r[is_land]))
                 evap_report = {
@@ -436,6 +536,7 @@ def main() -> None:
             paint_water = lake
         before = float(np.average(region_albedo[is_land], weights=area_r[is_land]))
         region_albedo[paint_water] = water_albedo_value
+        region_rho[paint_water] = rock_ratio[_rock_id(mesh.root, "water")]
         after = float(np.average(region_albedo[is_land], weights=area_r[is_land]))
         lake_report = {
             "source": str(args.lakes),
@@ -451,28 +552,21 @@ def main() -> None:
     fraction, alb_grid, _empty = land_weighted(mesh, grid_dir, region_albedo)
     land_cells = fraction >= float(model["geography_land_threshold"])
 
-    # The vegetated band pair for codes 175/176. One identical field in all
-    # three codes was a fair statement about a rock table with no spectral
-    # split; over a canopy it asserts equal reflectance either side of
-    # 0.75 um, which is the one thing a canopy certainly does not do, and the
-    # model reads the pair separately at NSIMPLEALBEDO = 0. Minerals and
-    # water keep their broadband value in both bands -- the derivation only
-    # exists for the vegetated paint. analysis/vegetation_albedo.py; SPEC-5.
-    # An explicit --vegetation-albedo skips the split: the config band pair is
-    # anchored to the config broadband, and pairing it with a different level
-    # would mix two derivations. This is also what makes the pre-SPEC-5
-    # surface exactly reproducible: --vegetation-albedo 0.15 gives the old
-    # identical field in all three codes.
+    # Codes 175 and 176, from the same regions and the same gridding as 174.
+    # One identical field in all three was a fair statement about a rock table
+    # with no spectral split and is false about every material on this planet:
+    # a canopy is dark below 0.75 um and bright above it, a soil more so, and
+    # halite runs the other way. The model reads the pair and not 174 at
+    # NSIMPLEALBEDO = 0.
+    #
+    # `land_weighted` is an area-weighted mean, so it is linear in its argument
+    # and the recombination identity survives gridding; the assertion before
+    # the write is what proves that rather than this comment.
     band_grids = None
-    veg_bands = model.get("vegetation_albedo_bands") if veg_from_config else None
-    if mode == "vegetated" and veg_bands and veg_painted is not None:
-        veg_final = (veg_painted if lake_mask is None
-                     else veg_painted & ~lake_mask)
-        band_grids = []
-        for value in (float(veg_bands[0]), float(veg_bands[1])):
-            banded = region_albedo.copy()
-            banded[veg_final] = value
-            band_grids.append(land_weighted(mesh, grid_dir, banded)[1])
+    if not args.flat_bands:
+        shape1, shape2 = band_shapes(region_rho, z1, z2)
+        band_grids = [land_weighted(mesh, grid_dir, region_albedo * shape1)[1],
+                      land_weighted(mesh, grid_dir, region_albedo * shape2)[1]]
 
     raw_fraction, raw_alb, _ = land_weighted(mesh, grid_dir,
                                              mesh.rock_albedo.astype(np.float64))
@@ -480,7 +574,14 @@ def main() -> None:
     raw_mean = float(np.average(mesh.rock_albedo[is_land], weights=area[is_land]))
 
     if mode == "scaled":
-        alb_grid = np.clip(alb_grid * (args.target_mean / raw_mean), 0.05, 0.80)
+        scaled_grid = np.clip(alb_grid * (args.target_mean / raw_mean), 0.05, 0.80)
+        # The bands take the SAME per-cell factor, clip included, so the
+        # identity survives a mode whose whole point is to move the level.
+        if band_grids is not None:
+            with np.errstate(invalid="ignore", divide="ignore"):
+                factor = np.where(alb_grid > 0, scaled_grid / alb_grid, 1.0)
+            band_grids = [g * factor for g in band_grids]
+        alb_grid = scaled_grid
 
     # --- the loop closure -----------------------------------------------------
     # Blend the lithology substrate against what actually grew, cell by cell,
@@ -546,6 +647,32 @@ def main() -> None:
         grass_cover *= rootable
 
         total_cover = np.clip(tree_cover + grass_cover, 0.0, 1.0)
+
+        # The same blend on the bands, with each endmember carrying its own
+        # band pair. The substrate term keeps the pair the lithology gave it,
+        # so a modelled cell is a real mixture of a canopy spectrum and a rock
+        # spectrum rather than one broadband number copied three times. This is
+        # the mode the docstring calls the only one that is not an assumption,
+        # and until now it was the one mode with no split at all.
+        #
+        # The weights are whatever the cover says; they are not renormalised
+        # here, so the identity holds through the clip above without this block
+        # needing to agree with the broadband line about what the weights mean.
+        cover_shapes = {}
+        for name in ("tree", "grass"):
+            cs1, cs2 = band_shapes(cover_rho[name], z1, z2)
+            cover_shapes[name] = (cs1, cs2)
+        if band_grids is not None:
+            blended = []
+            for index in (0, 1):
+                blended.append(np.where(
+                    land_cells,
+                    tree_cover * args.tree_albedo * cover_shapes["tree"][index]
+                    + grass_cover * args.grass_albedo * cover_shapes["grass"][index]
+                    + (1.0 - total_cover) * band_grids[index],
+                    band_grids[index]))
+            band_grids = blended
+
         alb_grid = np.where(
             land_cells,
             tree_cover * args.tree_albedo
@@ -564,6 +691,11 @@ def main() -> None:
                 "config model." + ", config model.".join(cover_from_config)
                 if cover_from_config else "explicit on the command line"),
             "cover_albedo_derivation": "analysis/vegetation_albedo.json",
+            "tree_albedo_bands": [round(args.tree_albedo * cover_shapes["tree"][0], 5),
+                                  round(args.tree_albedo * cover_shapes["tree"][1], 5)],
+            "grass_albedo_bands": [round(args.grass_albedo * cover_shapes["grass"][0], 5),
+                                   round(args.grass_albedo * cover_shapes["grass"][1], 5)],
+            "cover_band_ratio": {k: round(v, 4) for k, v in cover_rho.items()},
             "barren_masked": ("barren classes forced to zero cover; LPJ-GUESS is "
                               "not told which ground is salt crust or playa"),
             "coordinate_source": str(args.climatology),
@@ -602,11 +734,53 @@ def main() -> None:
     written = []
     band_fields = {code: field for code in ALBEDO_CODES}
     band_means = None
+    band_check = {"split": False, "reason": "--flat-bands"}
     if band_grids is not None:
-        band_fields[175] = np.where(land_cells, band_grids[0], water_albedo)
-        band_fields[176] = np.where(land_cells, band_grids[1], water_albedo)
+        # Ocean gets the water class's own pair rather than its broadband value
+        # in both bands. It is inert -- the model computes ocean albedo itself
+        # -- but a flat pair there would make the identity below pass over
+        # ocean for the wrong reason, and a check that cannot fail on two
+        # thirds of the grid is not much of a check.
+        ws1, ws2 = band_shapes(rock_ratio[_rock_id(mesh.root, "water")], z1, z2)
+        band_fields[175] = np.where(land_cells, band_grids[0], water_albedo * ws1)
+        band_fields[176] = np.where(land_cells, band_grids[1], water_albedo * ws2)
         band_means = {"band1_land_mean": gmean(band_fields[175]),
                       "band2_land_mean": gmean(band_fields[176])}
+
+        # The check that can fail. Every level in this script is reached by a
+        # chain of repaints, and the band arrays follow that chain through a
+        # separate variable; if any repaint moved one without the other, or if
+        # a mode rescaled the broadband and not the pair, the recombination
+        # stops returning the broadband field. Asserted on the arrays about to
+        # be written, over the whole grid, and reported as a number rather than
+        # a boolean so a later change can see it move.
+        recombined = z1 * band_fields[175] + z2 * band_fields[176]
+        residual = np.abs(recombined - band_fields[174])
+        worst = float(residual.max())
+        if worst > RECOMBINATION_TOLERANCE:
+            j, i = np.unravel_index(int(residual.argmax()), residual.shape)
+            raise SystemExit(
+                f"the band pair does not recombine to the broadband field: "
+                f"worst cell ({j}, {i}) is off by {worst:.3e} against a "
+                f"tolerance of {RECOMBINATION_TOLERANCE:.1e}. "
+                f"174 = {band_fields[174][j, i]:.6f}, "
+                f"175 = {band_fields[175][j, i]:.6f}, "
+                f"176 = {band_fields[176][j, i]:.6f}, "
+                f"z = ({z1:.5f}, {z2:.5f}). A repaint has moved a level "
+                "without moving its band ratio, or a mode has rescaled one and "
+                "not the other.")
+        band_check = {
+            "split": True,
+            "band_flux_fractions": [round(z1, 6), round(z2, 6)],
+            "band_flux_source": "lib/stellar.band_fractions",
+            "rock_band_ratios": "analysis/rock_albedo_bands.json",
+            "canopy_band_ratios": "analysis/vegetation_albedo.json",
+            "recombination_worst_residual": worst,
+            "recombination_tolerance": RECOMBINATION_TOLERANCE,
+            "note": "z1*175 + z2*176 == 174 over the whole grid, checked before "
+                    "writing. The .sra format rounds at %12.5f, so the "
+                    "tolerance is twice that quantum and not tighter.",
+        }
     for code in ALBEDO_CODES:
         path = output / f"orogen_{resolution}_surf_{code:04d}.sra"
         write_sra(path, code, band_fields[code])
@@ -628,11 +802,16 @@ def main() -> None:
         "lithology_albedo_overrides": applied,
         "vegetation_albedo": (None if mode != "vegetated" else {
             "value": args.vegetation_albedo,
-            "source": "config model.vegetation_albedo unless --vegetation-albedo",
+            "source": ("config model.vegetation_albedo" if veg_from_config
+                       else "explicit --vegetation-albedo"),
             "derivation": "analysis/vegetation_albedo.json",
-            "bands_175_176": (list(map(float, veg_bands)) if veg_bands else None),
-            **(band_means or {}),
+            "band_ratio": canopy_rho,
+            "bands_175_176": (
+                None if args.flat_bands
+                else [round(args.vegetation_albedo * v, 5)
+                      for v in band_shapes(canopy_rho, z1, z2)]),
         }),
+        "bands": {**band_check, **(band_means or {})},
         "barren_rock_classes": barren_applied,
         "forest_note": ("dforest blends snow albedo between forested and "
                         "unforested endpoints, so it has to agree with the "
@@ -651,6 +830,12 @@ def main() -> None:
                    "snow are applied by the model on top of this."),
     }
     # Provenance stamp; lib/provenance.py owns the shape and the inert set.
+    # The two band-shape files are hashed beside it because they are inputs
+    # this generator reads and the config stamp does not cover them: a re-run
+    # of either moves 175 and 176 without moving a single config key.
+    report["band_shape_inputs"] = {
+        rel(path): hashlib.sha256(path.read_bytes()).hexdigest()
+        for path in (ROCK_BANDS, VEGETATION_BANDS) if path.is_file()}
     report.update(config_stamp(config, "exoplasim/scripts/build_surface_albedo.py"))
     (output / "albedo_report.json").write_text(
         json.dumps(report, indent=2) + "\n", encoding="utf-8")

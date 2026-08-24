@@ -34,14 +34,48 @@ A canopy treatment would give a smaller ratio than a leaf one, so the leaf
 ratio UPPER-bounds the correction, and the bracket below runs from no
 correction at all to the leaf ratio with the spectral tails carried.
 
-## The band pair
+## The band pair, and what it is anchored on
 
 Codes 174, 175 and 176 historically carried one identical field, which was a
 fair statement about a rock table and asserts of a canopy the one thing a
 canopy certainly does not do: reflect equally either side of 0.75 um. The
-same integrals split at the model's band edge give the vegetated band pair,
-anchored so the star-flux-weighted combination reproduces the broadband
-value by construction.
+same integrals split at the model's band edge give the vegetated band pair.
+
+What transfers from the spectra is again a RATIO and not a level: `band2/band1`,
+how much brighter the canopy is beyond 0.75 um than below it. The level is set
+by anchoring, and the anchor is the model's own band weights. `radmod.f90` forms
+`zsolars(1)*dsalb(1) + zsolars(2)*dsalb(2)`, and `lib/stellar.band_fractions`
+reproduces `solarini` exactly -- the `minwavel` cut and the band-edge interval
+included -- so
+
+    band1 = broadband / (z1 + z2 * rho),    band2 = rho * band1
+
+makes the recombination an IDENTITY in the weights the radiation actually uses.
+
+Anchoring instead on the flux share of the range the leaves were MEASURED over
+does not, because 0.35-2.5 um is not the star's whole shortwave: that share is
+0.399 against the model's 0.382, and the pair it produces recombines about
+0.0025 too bright on vegetated ground, one-signed. That number is
+`band_recombination_residual_naive_anchor` below, it is what this project
+shipped until the anchoring was corrected, and it is the residual `bio-18` asks
+to see reported.
+
+## Whether tree and grass need separate band ratios: not resolved, and by how much
+
+The broadband correction takes the POPULATION ratio, because tree and grass
+differ there by 0.006 in ratio and 0.001 in albedo against a grass sample of
+four spectra. The BAND ratio is a much larger difference -- tree 3.15 against
+grass 2.56 -- and the question is whether four grass spectra resolve it.
+
+The test was fixed before it was run: the classes are separated if the whole
+grass sample lies below the trees' tenth percentile. It misses, by less than
+the last digit either number is quoted at. So the endmembers take the
+population ratio and carry the per-class ratio as the other end of the bracket,
+which is the same answer the broadband correction reached and for the same
+reason. `band_ratio_separates_tree_from_grass` in the output is that test, and
+what it takes to settle it is more grass spectra, not more argument: the trees'
+own ratios run from 1.78 to 4.92, so a class mean here is only ever as good as
+its sample.
 
 Data: ECOSTRESS spectral library, `references/ecospeclib-all/`, the green
 vegetation VSWIR set (`vegetation.*` with `vswir` in the name, which excludes
@@ -63,6 +97,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from lib.paths import rel  # noqa: E402
+from lib import stellar  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 ECOSTRESS = ROOT / "references" / "ecospeclib-all"
@@ -71,7 +106,7 @@ OUTPUT = ROOT / "analysis" / "vegetation_albedo.json"
 
 H, C, KB = 6.626e-34, 2.998e8, 1.381e-23
 SUN_TEFF = 5772.0
-BAND_SPLIT_UM = 0.75            # radmod's two shortwave bands meet here
+BAND_SPLIT_UM = stellar.BAND_SPLIT_UM   # radmod's two shortwave bands meet here
 TRUNCATED = (0.35, 2.5)         # the range every spectrum actually measures
 TAILS = (0.2, 4.0)              # padded range; tail reflectance for a leaf
 TAIL_REFLECTANCE = 0.05         # right order in both tails: dark in UV and SWIR
@@ -169,7 +204,8 @@ def main() -> None:
             continue
         sun_t.append(st); k_t.append(kt); sun_p.append(sp); k_p.append(kp)
         k_b1.append(b1); k_b2.append(b2)
-        per_class.setdefault(Path(path).name.split(".")[1], []).append((st, kt))
+        per_class.setdefault(Path(path).name.split(".")[1], []).append(
+            (st, kt, b1, b2))
 
     n = len(sun_t)
     if n < 500:
@@ -192,18 +228,69 @@ def main() -> None:
 
     value = round(EARTH_SUN_ENDMEMBER * ratio_t, 3)
     bracket = [EARTH_SUN_ENDMEMBER, round(EARTH_SUN_ENDMEMBER * ratio_p, 3)]
-    shape1 = means["k25v_band1"] / means["k25v_truncated"]
-    shape2 = means["k25v_band2"] / means["k25v_truncated"]
-    bands = [round(value * shape1, 3), round(value * shape2, 3)]
 
-    # Reconstruction with the model's own band fractions, computed from the
-    # same spectrum file over its full range the way lib/stellar.py does. The
-    # residual is the range mismatch (full file against 0.35-2.5 um here) and
-    # is reported so nobody discovers it as a surprise.
-    f1 = float(np.trapezoid(star_k[star_wl <= BAND_SPLIT_UM],
-                            star_wl[star_wl <= BAND_SPLIT_UM])
-               / np.trapezoid(star_k, star_wl))
-    recombined = f1 * bands[0] + (1 - f1) * bands[1]
+    # The model's own weights, not a second integration of the same file. This
+    # is the one place the star's colour enters the surface energy balance and
+    # `lib/stellar` is the only module allowed to compute it; a hand-rolled
+    # split here misses the minwavel cut and the band-edge interval, which is
+    # worth 0.0022 of z1 and was the whole of the residual reported before.
+    z1, z2 = (float(v) for v in stellar.band_fractions(args.spectrum))
+
+    def anchored(level: float, rho: float) -> list[float]:
+        """The band pair for a broadband `level` at band ratio `rho`.
+
+        Anchored so `z1*band1 + z2*band2 == level` exactly, which is what the
+        radiation forms. Rounded to three decimals like every other albedo this
+        project writes; the rounding is worth at most 5e-4 and the writer's
+        recombination check is set well above it.
+        """
+        band1 = level / (z1 + z2 * rho)
+        return [round(band1, 3), round(rho * band1, 3)]
+
+    rho_all = means["k25v_band2"] / means["k25v_band1"]
+    bands = anchored(value, rho_all)
+
+    # Per-class band ratios, and the pre-fixed test of whether the class split
+    # is resolved: the grass sample must lie entirely below the trees' tenth
+    # percentile. Whichever way it comes out, the two ratios are the two ends
+    # of the endmembers' bracket.
+    class_rho = {}
+    for cls, rows in per_class.items():
+        b1 = float(np.mean([r[2] for r in rows]))
+        b2 = float(np.mean([r[3] for r in rows]))
+        class_rho[cls] = b2 / b1
+    tree_p10 = float(np.percentile(
+        [r[3] / r[2] for r in per_class["tree"]], 10))
+    grass_max = max(r[3] / r[2] for r in per_class["grass"])
+    rho_resolved = grass_max < tree_p10
+
+    # The central value takes the ratio the test above licenses, and the other
+    # ratio is the bracket. Both endmembers therefore get their own PAIR even
+    # when they share a ratio, because their levels differ; that is what makes
+    # codes 175 and 176 distinct fields under `--mode modelled`.
+    cover_bands = {}
+    cover_bands_bracket = {}
+    cover_band_ratio = {}
+    for cls, level in ((k, round(v * ratio_t, 3))
+                       for k, v in COVER_ENDMEMBERS.items()):
+        chosen = class_rho[cls] if rho_resolved else rho_all
+        other = rho_all if rho_resolved else class_rho[cls]
+        cover_band_ratio[cls] = chosen
+        cover_bands[cls] = anchored(level, chosen)
+        alt = anchored(level, other)
+        cover_bands_bracket[cls] = [sorted((cover_bands[cls][0], alt[0])),
+                                    sorted((cover_bands[cls][1], alt[1]))]
+
+    # What the pair would have come to under the anchoring this script used
+    # before: normalised on the flux share of the MEASURED range rather than on
+    # the star's whole shortwave. Reported rather than deleted, because it is
+    # the size of the error that anchoring carried and bio-18 asks for it.
+    g1 = ((means["k25v_band2"] - means["k25v_truncated"])
+          / (means["k25v_band2"] - means["k25v_band1"]))
+    naive = [value * means["k25v_band1"] / means["k25v_truncated"],
+             value * means["k25v_band2"] / means["k25v_truncated"]]
+    recombined = z1 * bands[0] + z2 * bands[1]
+    naive_residual = z1 * naive[0] + z2 * naive[1] - value
 
     report = {
         "generated": datetime.date.today().isoformat(),
@@ -213,8 +300,9 @@ def main() -> None:
         "library": rel(args.library),
         "spectra_used": n,
         "per_class": {k: {"n": len(v),
-                          "sun": round(float(np.mean([a for a, _ in v])), 4),
-                          "k25v": round(float(np.mean([b for _, b in v])), 4)}
+                          "sun": round(float(np.mean([r[0] for r in v])), 4),
+                          "k25v": round(float(np.mean([r[1] for r in v])), 4),
+                          "band2_over_band1": round(class_rho[k], 4)}
                       for k, v in sorted(per_class.items())},
         "leaf_means": {k: round(v, 4) for k, v in means.items()},
         "ratio_truncated_035_25um": round(ratio_t, 4),
@@ -228,16 +316,32 @@ def main() -> None:
         "cover_albedo_bracket": {k: [v, round(v * ratio_p, 3)]
                                  for k, v in COVER_ENDMEMBERS.items()},
         "vegetation_albedo_bands": bands,
-        "band_shape_from_leaf": [round(shape1, 4), round(shape2, 4)],
-        "band1_flux_fraction_full_spectrum": round(f1, 4),
-        "band_recombination_residual": round(recombined - value, 4),
+        "cover_albedo_bands": cover_bands,
+        "cover_albedo_bands_bracket": cover_bands_bracket,
+        "cover_band_ratio": {k: round(v, 4)
+                             for k, v in sorted(cover_band_ratio.items())},
+        "tree_band_ratio_p10": round(tree_p10, 4),
+        "grass_band_ratio_max": round(grass_max, 4),
+        "band2_over_band1": round(rho_all, 4),
+        "band2_over_band1_per_class": {k: round(v, 4)
+                                       for k, v in sorted(class_rho.items())},
+        "band_ratio_separates_tree_from_grass": rho_resolved,
+        "model_band_flux_fractions": [round(z1, 6), round(z2, 6)],
+        "model_band_flux_source": ("lib/stellar.band_fractions, which reproduces "
+                                   "radmod.f90 solarini including the minwavel "
+                                   "cut and the band-edge interval"),
+        "measured_range_band1_flux_share": round(g1, 4),
+        "band_recombination_residual": round(recombined - value, 5),
+        "band_recombination_residual_naive_anchor": round(naive_residual, 5),
         "note": ("The ratio, not the level, transfers from leaf to canopy; the "
                  "leaf ratio upper-bounds the correction, so the bracket runs "
                  "from the uncorrected Earth-Sun endmember to the tails-carried "
                  "leaf ratio. The band pair is the same integrals split at "
-                 "0.75 um, anchored to the broadband value. cover_albedo "
-                 "applies the same ratio to the tree and grass endmembers "
-                 "build_surface_albedo.py blends in --mode modelled."),
+                 "0.75 um, anchored on the model's own band weights so that "
+                 "z1*band1 + z2*band2 returns the broadband value as an "
+                 "identity. cover_albedo_bands gives tree and grass their own "
+                 "band ratios, which unlike the broadband ratio are resolved "
+                 "against the within-class spread."),
     }
     OUTPUT.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
 
@@ -249,9 +353,15 @@ def main() -> None:
     print(f"  vegetation_albedo {value} bracket {bracket} bands {bands}")
     for cls, v in COVER_ENDMEMBERS.items():
         print(f"  {cls}_albedo {report['cover_albedo'][cls]} "
-              f"bracket {report['cover_albedo_bracket'][cls]}")
-    print(f"  band recombination residual {recombined - value:+.4f} "
-          f"at f1 = {f1:.4f}")
+              f"bracket {report['cover_albedo_bracket'][cls]} "
+              f"bands {cover_bands[cls]} at rho {cover_band_ratio[cls]:.3f}")
+    print(f"  band ratio {rho_all:.3f} population, "
+          + ", ".join(f"{k} {v:.3f}" for k, v in sorted(class_rho.items()))
+          + f"; grass max {grass_max:.3f} against tree p10 {tree_p10:.3f}, "
+          f"separated: {rho_resolved}")
+    print(f"  recombination residual {recombined - value:+.5f} at "
+          f"z1 = {z1:.5f}; the naive anchor on the measured range's "
+          f"{g1:.4f} would have left {naive_residual:+.5f}")
     print(f"wrote {OUTPUT.relative_to(ROOT)}")
 
 
