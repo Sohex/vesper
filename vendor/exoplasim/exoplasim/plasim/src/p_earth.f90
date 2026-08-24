@@ -13,7 +13,7 @@ namelist /planet_nl/ nfixorb, eccen, mvelp, obliq  &
                 , meananom0, rotspd, sidereal_day  &
                 , solar_day, sidereal_year, tropical_year &
                 , akap, alr, gascon, ra1, ra2, ra4 &
-                , pnu, ga, plarad, ngenkeplerian &
+                , pnu, ga, plarad, ngenkeplerian, oroscale &
                 , gsol0 &
                 , yplanet
 
@@ -71,6 +71,15 @@ pnu     = 0.1        ! Time filter constant
 
 ga            =       9.80665 ! Gravity (mean on NN)
 plarad        = 6371220.0     ! Radius
+
+! oroscale scales the orography read from the surface file. It belongs to
+! planet_nl and to no other group because it has to be SET BEFORE IT IS USED:
+! planet_ini is the only namelist read that happens before surface_ini, and
+! every reader of oroscale -- surfmod's scaling of doro and glaciermod's three
+! -- runs inside surface_ini. It was in no namelist at all, so the documented
+! configure(orography=) wrote a name landmod_nl does not declare, and
+! landmod's bare read would have aborted the run. world-vv4.
+oroscale      =       1.0     ! Orography scaling
 
 ! *********
 ! Radiation

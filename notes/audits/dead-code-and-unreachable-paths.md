@@ -71,26 +71,27 @@ rather than the values this project derived.
 why `verify_staged_namelists` passes. `run_2b20e3324bb0` reached
 `climatology_complete` at 85 orbits on this namelist.
 
-### 1b. `configure(orography=)` writes a key no namelist declares
+### 1b. `configure(orography=)` wrote a key no namelist declared
 
-`vendor/exoplasim/exoplasim/__init__.py:2739` and `:3495` write `OROSCALE` into
-`landmod_namelist`.
+`OROSCALE` went into `landmod_namelist` from both the `configure` and the
+`modify` path, and `oroscale` appeared in no `namelist /.../` statement in any
+of the 57 source files. `landmod.f90`'s read of `landmod_nl` is bare, with no
+`iostat`, so an unrecognised name aborts the run rather than being ignored: the
+documented API would have stopped the model, and was latent only because this
+harness never passes `orography=`.
 
-`oroscale` is a module variable (`plasimmod.f90:965`, default 1.0) and is used
-at `glaciermod.f90:170`, `:241`, `:342` and `surfmod.f90:429`. It appears in no
-`namelist /.../` statement in any of the 57 source files. `landmod_nl`
-(`landmod.f90:168-173`) does not carry it.
+`oroscale` now lives in `planet_nl`, in every planet module, and the API writes
+it to `planet_namelist`. It could not go into `landmod_nl`: every reader of it
+-- `surfmod`'s scaling of `doro` and `glaciermod`'s three -- runs inside
+`surface_ini`, and `planet_ini` is the only namelist read that happens before
+that. `p_mars.f90` already assigned it in the planet module, so `planet_nl` is
+also where it was already treated as belonging.
 
-`landmod.f90:215` is a bare `read(12,landmod_nl)` with no `iostat`, so an
-unrecognised name aborts the run rather than being ignored. The orography
-scaling knob is therefore unreachable from any namelist, and the documented API
-that sets it would stop the model. Latent only because the harness never passes
-`orography=`.
-
-`NDESERT` has the same shape on one branch: `__init__.py:3719` writes it to
-`plasim_namelist`, which declares it at `plasim.f90:1410`, while `:3729`, the
-`desertplanet=False` arm of the same call, writes it to `landmod_namelist`,
-which does not.
+`NDESERT` had the same shape on one branch: the `desertplanet=True` arm wrote it
+to `plasim_namelist`, which declares it, and the `desertplanet=False` arm wrote
+it to `landmod_namelist`, which does not -- so turning a desert planet back off
+aborted the run and left `NDESERT = 1` standing. Both arms now write
+`plasim_namelist`.
 
 ### 1c. The LSG coupler stub has drifted from its call sites
 
