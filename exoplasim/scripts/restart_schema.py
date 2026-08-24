@@ -47,24 +47,33 @@ from pathlib import Path
 # ---------------------------------------------------------------------------
 
 # Which sources `plasim.x` is built from is read out of the build itself rather
-# than listed here. `plasim_dummy.f90` and `icemod_template.f90` are not in it
-# -- the first is a separate program, the second the template `icemod.f90` was
-# generated from -- so their names are not records this executable can emit,
-# and a hand list would have to keep saying so. The configurable slots are
-# expanded to every value the build file offers, because a record or a reset
-# must be the same across the configurations rule 4 counts binaries over.
+# than listed here, so a file that sits in `plasim/src` and is in no source list
+# cannot contribute a record this executable emits, and no hand list has to keep
+# saying which those are. The configurable slots are expanded to every value the
+# build file offers, because a record or a reset must be the same across the
+# configurations rule 4 counts binaries over.
 CMAKE = "CMakeLists.txt"
 _SOURCES_BLOCK = re.compile(r"set\(_sources(?P<body>.*?)\)", re.DOTALL)
 _CMAKE_SET = re.compile(r"^\s*set\(\s*(?P<name>[A-Za-z_][A-Za-z0-9_]*)\s+"
                         r"(?P<value>[A-Za-z0-9_.\"]+)", re.MULTILINE)
+# `set()` gives a cache slot ONE value, its default. `require_one_of` is where
+# the admitted values are, and a slot whose alternatives are only there would
+# otherwise be read as having none: PLASIM_FFT defaults to fftmod and
+# `lib/rungs.py` picks fft991mod for the longitude counts fftmod cannot factor.
+_CMAKE_REQUIRE = re.compile(r"^\s*require_one_of\(\s*(?P<name>[A-Za-z_][A-Za-z0-9_]*)\s+"
+                            r"\S+\s+(?P<values>[^)]*)\)", re.MULTILINE)
 
 
-def compiled_modules(plasim_dir: Path) -> tuple:
-    """Every Fortran source the model executable is built from, in build order.
+def compiled_modules(plasim_dir: Path, suffixes: tuple = (".f90",)) -> tuple:
+    """Every source the model executable is built from, in build order.
 
     Parsed from `plasim/CMakeLists.txt`, which is what `build_model.py` drives.
     `plasim/bld/` is the old build's leftover and is NOT authoritative: it has
     drifted from `plasim/src/`.
+
+    `suffixes` widens it past Fortran. The restart scan wants the `.f90` set
+    alone; `rebuild_binaries.model_sources` wants the C stub too, because it is
+    asking what a binary was compiled FROM rather than what can emit a record.
     """
     text = (Path(plasim_dir) / CMAKE).read_text(encoding="utf-8")
     block = _SOURCES_BLOCK.search(text)
@@ -74,12 +83,14 @@ def compiled_modules(plasim_dir: Path) -> tuple:
     choices: dict = {}
     for m in _CMAKE_SET.finditer(text):
         choices.setdefault(m["name"], set()).add(m["value"].strip('"'))
+    for m in _CMAKE_REQUIRE.finditer(text):
+        choices.setdefault(m["name"], set()).update(m["values"].split())
     out = []
     for token in block["body"].split():
         token = token.strip('"')
-        if not token.endswith(".f90"):
-            continue                       # the C stub, and the generated resmod
-        stem = token[:-4]
+        if not token.endswith(suffixes):
+            continue
+        stem = token.rsplit(".", 1)[0]
         if "/" in stem:
             # resmod.f90 is generated into the build directory from the
             # requested geometry. It holds no restart call and no reset.
@@ -88,9 +99,10 @@ def compiled_modules(plasim_dir: Path) -> tuple:
         if var is None:
             out.append(token)
             continue
+        suffix = token[len(stem):]
         for value in sorted(v for v in choices.get(var[1], ()) if v):
             if value and not value.startswith("$"):
-                out.append(f"{value}.f90")
+                out.append(f"{value}{suffix}")
     return tuple(dict.fromkeys(out))
 
 # `put_restart_array(yn,pa,k1,k2,k3)` writes `pa(1:k1,1:k3)`, so the WRITTEN

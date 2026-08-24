@@ -58,6 +58,7 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import build_model
+import restart_schema
 
 ROOT = Path(__file__).resolve().parents[2]
 PKG = ROOT / "vendor" / "exoplasim" / "exoplasim"
@@ -204,10 +205,23 @@ def model_sources() -> dict[str, str]:
     Hashing the files rather than reading the subtree's commit is deliberate.
     A commit says what was COMMITTED; these shas say what is on disk right now,
     so an uncommitted edit under vendor/ is caught rather than waved through.
+
+    The set is READ OUT OF `plasim/CMakeLists.txt`, not globbed from
+    `plasim/src`. A glob hashes files no configuration compiles, so editing one
+    reports every executable as built from changed source when no compiled line
+    moved -- and files that compile nowhere are kept on purpose here, the
+    offline glacier accelerator among them. The configurable slots are expanded
+    to every value the build file admits, because this manifest spans the
+    configurations rule 4 counts binaries over and one recorded source set has
+    to cover them all.
     """
-    files = (sorted(SRC.glob("*.f90")) + sorted(SRC.glob("*.c"))
-             + sorted(SRC.glob("make_*")))
-    return {str(f.relative_to(PKG)): sha256(f) for f in files if f.is_file()}
+    names = restart_schema.compiled_modules(PKG / "plasim", (".f90", ".c"))
+    files = [SRC / n for n in sorted(names)]
+    missing = [n for n, f in zip(sorted(names), files) if not f.is_file()]
+    if missing:
+        raise SystemExit(f"{SRC} is missing sources CMakeLists.txt lists: "
+                         f"{', '.join(missing)}")
+    return {str(f.relative_to(PKG)): sha256(f) for f in files}
 
 
 def toolchain(profile: str) -> dict:

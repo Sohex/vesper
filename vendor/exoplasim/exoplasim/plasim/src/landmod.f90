@@ -11,7 +11,6 @@
 !
       parameter(NLSOIL=5)
       parameter(WSMAX_EARTH = 0.5) ! Initial value vor Earth
-      parameter(WSMAX_MARS  = 0.0) ! Initial value for Mars
 !
 !     namelist parameters
 !
@@ -244,15 +243,6 @@
       dtcl(:,:)   = tmelt
       dtclim(:)   = tmelt
       
-
-      if (mars == 1) then
-         wsmax = WSMAX_MARS
-!        nlandt = 0
-!        nlandw = 0
-!        dtclsoil(:) = tmelt_CO2
-!        dsoilt(:,:) = tmelt_CO2
-!        dsnowt(:)   = tmelt_CO2
-      endif
 
       if (ndesert == 1 .and. nrestart == 0) then
          dwatcini = 0.0

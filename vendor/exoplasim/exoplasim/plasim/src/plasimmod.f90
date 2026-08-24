@@ -127,7 +127,6 @@
       parameter(TWOPI  = PI + PI)          ! 2 Pi
       parameter(RV     = 461.51)           ! Gas constant for water vapour
       parameter(ACPV   = 1870.)            ! Specific heat for water vapour
-      parameter(TMELT_CO2 = 148.0)         ! Melting point (CO2) - for Mars
 
 !     ***************
 !     * Date & Time *
@@ -168,7 +167,6 @@
 !     **************************
 
       integer :: kick     =  1  ! add noise for kick > 0
-      integer :: mars     =  0  ! global switch for planet mars
       integer :: noutput  =  1  ! master switch for output: 0=no output
       integer :: nsnapshot = 0  ! switch for snapshot output
       integer :: nhcadence = 0  ! Switch for high-cadence snapshot output
@@ -1032,7 +1030,7 @@
 !$omp&  gt,gtdt,gu,gudt,guiinc,guimax,guimin,gv,gvdt,gwd,gz,&
 !$omp&  hcendstep,hcinterval,&
 !$omp&  hcstartstep,ice_output,icemod_namelist,kick,l_aero,laav,laavmax,landhoskn0,landmod_namelist,&
-!$omp&  ldisp,ldtep,ldtns,lnb,lrotspd,m_days_per_month,m_days_per_year,mars,mcal_days_per_year,&
+!$omp&  ldisp,ldtep,ldtns,lnb,lrotspd,m_days_per_month,m_days_per_year,mcal_days_per_year,&
 !$omp&  meananom0,meed,mint,mintru,miscmod_namelist,mmr,mmrt,mocd,model,mpinfo,mpoti,mpotimax,&
 !$omp&  mpstep,mrdim,mrinfo,mrnum,mrpid,mrtru,mrworld,mstep,mtspd,mvelp,mypart,mypid,myworld,&
 !$omp&  n_days_per_month,n_days_per_year,n_run_days,n_run_months,n_run_steps,n_run_years,&
