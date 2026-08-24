@@ -2,7 +2,8 @@
 
 Audited 2026-08-21, against the namelists ExoPlaSim itself wrote in
 `exoplasim/runs/run_066cd40559fc/` rather than against the scripts that intend
-them, and against the build path in `vendor/exoplasim/exoplasim/compile.sh`.
+them, and against the build declaration in
+`vendor/exoplasim/exoplasim/plasim/CMakeLists.txt`.
 
 Worldbuilding frame: this file is about which parts of the Vesper simulation's
 climate model source are compiled into the binary and never execute. Nothing
@@ -28,8 +29,8 @@ assumed, and one is a facility this project is half-using without knowing it.
 | `hurricanemod.f90` | `NSTORMDIAG = 0`, `HC_CAPTURE = 0` | `configure(stormclim=)`, never passed |
 | `aeromod.f90`, `aerocore.f90` | `L_AERO = 0` | `model.dust_emission` absent from `config/planet.yaml` |
 | `tpcore.f90`, `trc_routines.f90` | `NQSPEC = 1` | model default; nothing writes it |
-| `lsgmod.f90` | `NLSG = 0`, and `OCEANCOUP=cpl_stub` at compile time | `compile.sh:305` |
-| `guimod.f90`, `pumax.c` | `NGUI = 0`, and both are `_stub` variants | `configure.sh:307-310` |
+| `lsgmod.f90` | `NLSG = 0`, and `cpl_stub.f90` is compiled in its place | `CMakeLists.txt:183` |
+| `guimod.f90`, `pumax.c` | `NGUI = 0`, and both are `_stub` variants | `CMakeLists.txt:151,181` |
 
 Sub-features off inside modules that do run: `NHDIFF = 0` (deliberate, CLIM-16),
 `NFLUKO = 0`, `NDUSTRAD = 0`, `NENERGY` and `NENER3D` unset, `NHCADENCE = 0`,
@@ -58,7 +59,7 @@ this project does believe in is `pedology/scripts/weathering_fluxes.py`, offline
 and citable.
 
 **`lsgmod.f90`.** Doubly off, and the second half is the one that matters:
-`compile.sh:305` exports `OCEANCOUP=cpl_stub`, so `cpl.f90` is never compiled
+`CMakeLists.txt:183` names `cpl_stub.f90`, so `cpl.f90` is never compiled
 and every coupling call in `oceanmod` reaches an empty return. `lsgmod.o` links
 as dead weight. The package also ships the full LSG source in `lsg/src/`, which
 nothing builds. This is recorded so that nobody rediscovers a 3-D ocean sitting
@@ -141,7 +142,8 @@ Glaciers are ON: `glaciermod.f90` is compiled, `NGLACIER = 1`, `GLACELIM = 2.0`,
 `ICESHEETH = -1.0`, from `surface.glaciers.enabled`. What is not wired is the
 offline half of the facility.
 
-`configure.sh:99-108` builds two standalone programs from `plasim/src`:
+The deleted `configure.sh` built two standalone programs from `plasim/src`,
+and the CMake build that replaced it has no rule for either:
 
 - `buildice.f90`, 29 lines. Reads `newdsnow` and `lsm`, adds 400 m of ice to
   every land cell capped at 3 km, writes `newdsnow` back. A one-shot ice-sheet
@@ -161,7 +163,8 @@ orbits instead of the tens of thousands the model would have to integrate.
 model call, and all four are sitting in the run directory cited at the top. So
 every glacier-enabled run this project has made has produced the accelerator's
 feedstock and nothing has ever consumed it. Nothing in ExoPlaSim's own Python
-invokes either program either -- only `configure.sh`, which builds them -- and
+invokes either program either -- only the deleted `configure.sh` ever built
+them, and nothing builds them now -- and
 `newsnow`, `buildice` and `newdsnow` appear nowhere in this repository outside
 `vendor/`.
 
@@ -179,15 +182,32 @@ this is the device that exists for exactly that. CLIM-53 owns the verdict.
 
 ## 6. What is not compiled at all
 
-Recorded so it is not re-derived. Selected against at build time:
-`fft991mod.f90` (only T63 and T106, or an explicit `-f`, choose it),
-`rainmod_bm.f90`, `rainmod_mca.f90` and `rainmod_kuo_old.f90` (`RAINMOD=rainmod`
-selects Kuo), `p_mars.f90` and `p_exo.f90` (`PLAMOD=p_earth`; `p_exo.f90` is
-referenced by no build script in the tree and its own header says it is the
-Earth module), `mpimod_stub.f90`, `mpimod_omp.f90`, `mpimod_multi.f90`,
-`utilities_stub`, `cpl.f90`, `guimod.f90`, `pumax.c`. Dead in the tree rather
-than deselected: `icemod_template.f90`, `plasim_dummy.f90`, and `outdiag.f90`,
-which duplicates the subroutine that lives at `outmod.f90:1070`.
+Recorded so it is not re-derived, and stated against the `_sources` list in
+`plasim/CMakeLists.txt:147-184`, which is the whole of the build declaration.
+
+The parallel layer is a variant slot, not an exclusion. `CMakeLists.txt:118-127`
+selects `mpimod_omp` with `utilities_omp` for `PARMODE=omp`, `mpimod` with
+`utilities` for `mpi`, and `mpimod_stub` with `utilities_stub` for `serial`. All
+three are built: omp is what every binary in `exoplasim/binary_manifest.json`
+is, and the other two are the references the threaded build is checked against.
+
+Selected against by a variant slot: `fft991mod.f90` (only T63 and T106 choose
+it, and neither is in the registry matrix), `p_mars.f90` (`PLASIM_PLANET`
+defaults to `p_earth` and `build_model.py` never passes the flag).
+
+Compiled by no configuration and reachable by no flag, because the build names
+them as literals with no variant slot at all: `rainmod_bm.f90`,
+`rainmod_mca.f90` and `rainmod_kuo_old.f90` (`CMakeLists.txt:152` hardcodes
+`rainmod.f90`), `cpl.f90`, `guimod.f90`, `pumax.c`, `mpimod_multi.f90`, and
+`p_exo.f90`, which `CMakeLists.txt:61` does not admit as a legal value.
+
+Dead in the tree rather than deselected: `icemod_template.f90`,
+`plasim_dummy.f90`, `readdat.f90`, `resmod_def.f90`, and `outdiag.f90`, which
+duplicates the subroutine that lives at `outmod.f90:1096`.
+
+`notes/audits/dead-code-and-unreachable-paths.md` carries the line counts, the
+two build options that are accepted and cannot compile, and the consequence that
+every file in this list is hashed into the binary registry.
 
 The package's `glacier/` directory is not a model and not related to
 `glaciermod.f90`. It is a PDF, a readme and `N032_surf_0129.sra`, an Earth T21
