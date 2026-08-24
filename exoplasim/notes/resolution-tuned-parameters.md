@@ -218,3 +218,62 @@ diagnostic is what judges it.
   resolves more eddy kinetic energy, so `U` may rise with truncation and the rule
   may need one iteration. Most eddy energy sits at large scales, so the effect is
   expected to be small, and it is a prediction to check rather than an assumption.
+
+## The hyperdiffusion is not what damps this model
+
+*Measured 2026-08-23, after the derived values were implemented and tested.*
+
+The derived damping was applied at T42 and run two orbits from the settled
+restart. **The kinetic-energy spectrum did not move**: inertial-range slope
+-2.49 against the old configuration's -2.48, bite point m=28 in both, against a
+change in `tau_vorticity` of 3.7x. A diagnostic insensitive to a factor of
+nearly four in the quantity it is meant to judge is either broken or is watching
+the wrong mechanism.
+
+It is the wrong mechanism. The physics filter and the hyperdiffusion both damp
+the top of the spectrum, and they are not close:
+
+| n/N | hyperdiffusion, derived | physics filter | filter stronger by |
+| ---: | ---: | ---: | ---: |
+| 0.5 | 19579 h | 12.0 h | 1632x |
+| 0.7 | 379 h | 0.81 h | 466x |
+| 1.0 | 26.7 h | 0.047 h | 571x |
+
+The filter is applied at BOTH transform directions every timestep, so a field is
+multiplied by `f(n)^2` per step and the implied rate is `2 kappa (n/N)^gamma /
+dt`. At the truncation that is an e-folding every 169 seconds, against the
+hyperdiffusion's 26.7 hours. **Between two and three orders of magnitude, at
+every scale.**
+
+### Where the damping actually starts
+
+Against the flow's own cascade rate at T42, the filter overtakes at
+**n/N = 0.41**, and the spectrum's measured departure from its inertial range is
+at **0.44**. Prediction and measurement agree to the resolution of the
+diagnostic, which is what makes this an explanation rather than a coincidence.
+
+So the model damps everything above about 0.44 of its truncation, and the
+confinement criterion the derivation was built to -- damping subdominant to the
+cascade until 0.6 or above -- is missed by the FILTER, not by the diffusion.
+
+### What that overturns
+
+**This row's premise.** The high-rung late failures were attributed to
+hyperdiffusion inherited from T21 being too weak. It cannot be that: whatever
+the hyperdiffusion was set to, the filter was providing several hundred times
+more damping at the same scales. The inherited values were indefensible and are
+now derived, which is worth having on its own, but they were never what was
+holding those runs up or letting them go.
+
+**The filter is the lever.** `filter_kappa` was chosen at 8 because it won on
+stability and on the adiabatic residual, with no measurement of what it was
+doing to the resolved spectrum. It is doing a great deal: reaching down to 0.41
+of the truncation, where the design intent was 0.6 and above.
+
+**And the rung-dependence still needs explaining.** The filter is scale-free in
+`n/N`, so it damps the same FRACTION of the spectrum at every truncation; its
+ratio to the cascade at the truncation moves only from 570 at T42 to 282 at
+T170, through the timestep. Neither mechanism is strongly rung-dependent, so the
+late failures at T85 and above are not explained by damping at all and the
+ordinary candidate -- the advective CFL at the shorter grid spacing -- is back
+in front.
