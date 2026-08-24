@@ -502,28 +502,41 @@ than as lineage. A restart with neither a run manifest nor a report beside it
 is now refused: that case used to skip the surface guard entirely, because the
 guard reads the donor's manifest and there was none.
 
-**The model-owned post-load fixup is PRICED and not built.** The derived
-records -- `dalb`, `dsalb1`, `dsalb2`, `dz0`, `dqsat` -- arrive holding the
-template's values, and the model recomputes each of them during its first
-timestep, so the question is what one timestep of inconsistency costs. Measured
-by running the same converted state twice, once as the converter produces it
-and once with those five records taken from the donor, which at equal
-resolution is the perfect-fixup limit: the first output record differs by
-7.3e-4 K in surface temperature, 5.0e-2 W/m2 in reflected shortwave and 2.4e-2
-W/m2 in outgoing longwave. Beyond that record the two arms diverge the way any
-two nearby initial conditions diverge in this model, which is not the fixup's
-doing.
+**The model-owned post-load fixup is REFUSED, on a measurement at a real rung
+change.** The derived records -- `dalb`, `dsalb1`, `dsalb2`, `dz0`, `dqsat` --
+arrive holding the template's values, and the model recomputes each of them
+during its first timestep. Measured at T21 to T42 by running the same converted
+state twice, once as the converter produces it and once with those five
+replaced by the donor's own values remapped onto the target grid, which is the
+perfect-fixup proxy because the donor's derived state is consistent with the
+prognostics that were converted.
 
-Against the terms this project already carries -- the energy fixer at 0.42
-W/m2, the adiabatic sink at 0.6 to 1.4 -- a 0.05 W/m2 transient lasting one
-output record does not buy a model change and the rule-4 rebuild behind it.
+The template was a one-orbit T42 cold start carrying 188 times the donor's ice,
+so its albedo was 0.104 out in the area-weighted mean and 0.63 at worst: 33.6
+W/m2 of reflected shortwave instantaneously.
 
-WHAT THAT MEASUREMENT DOES NOT COVER is the case the fixup exists for. At equal
-resolution the template's derived fields are already close to the donor's. A
-template at another rung is a different grid's state and the mismatch could be
-larger by any amount. Measuring that needs a target-resolution surface stack,
-which is SPAT-2, and until it exists the converter names the five records in
-its report and the model rebuilds them on its own.
+IT LASTS EXACTLY ONE TIMESTEP, and the arithmetic says so rather than a
+comparison. The first output record averages 160 steps, so 33.6 W/m2 predicts
+0.210 on that record; measured, 0.213. An error surviving into a second
+timestep would double it.
+
+A fixup therefore removes a one-timestep transient worth 0.21 W/m2 on one
+record and 0.005 W/m2 over the orbit, against an energy fixer this project
+carries at 0.42. It is not worth a model change and its rule-4 rebuild. What
+does the work instead is `first_record_tainted` on the segment, which a
+consumer already refuses.
+
+`dqsat` is identically zero in every restart on disk -- written, carried, never
+populated -- so its rebuild is trivially satisfied.
+
+**THE TEMPLATE'S OWN STATE IS WHAT MATTERS, and it is not the derived records.**
+On the same conversion, 124 target land cells and 132 target ocean cells found
+no source of their own class: the cells a moved coastline creates. They take
+the template's value by declared fallback, and with a cold template that is
+the template's ice -- 103% of the sea-ice volume residual is exactly that. The
+derived records recover in a timestep; a prognostic reservoir arriving on a
+coastline cell does not. Cut a template from a run in a state near the donor's,
+and read `from_template_fallback` in the report before trusting an inventory.
 
 ## The decisions the contract rests on
 
