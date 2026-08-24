@@ -1,9 +1,11 @@
 !     ==================================================================
 !     mpimod_omp.f90
 !     --------------
-!     A third implementation of the MPI layer's contract, in which the
-!     ranks are THREADS of one process. It replaces <mpimod.f90> the way
-!     <mpimod_stub.f90> does, selected by ${MPIMOD} in make_plasim.
+!     The model's parallel layer, and the only one: the ranks the rest of
+!     the model is written against are THREADS of one process. It is
+!     named as a literal in plasim/CMakeLists.txt; the distributed and
+!     serial implementations of the same contract are deleted, and so is
+!     the parmode axis that chose between them (world-38b).
 !
 !     WHY. SHTns has no distributed mode -- its parallelism is OpenMP --
 !     so a spectral transform library needs every latitude reachable in

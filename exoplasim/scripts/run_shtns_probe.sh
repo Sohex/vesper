@@ -57,8 +57,8 @@ cp "$SRC"/plasimmod.f90 "$SRC"/legmod.f90 "$SRC"/fftmod.f90 \
 cp "$drv" drive.f90
 
 # shtnsmod calls mpabort on a configuration it refuses. That is the whole of its
-# dependency on the MPI layer, and mpimod_stub drags the restart I/O chain in
-# behind it, so a two-line stub stands in for the model's file handling.
+# dependency on the parallel layer, and mpimod_omp drags the restart I/O chain
+# in behind it, so a two-line stub stands in for the model's file handling.
 cat > abortstub.f90 <<'EOF'
       subroutine mpabort(ytext)
       character(len=*) :: ytext
