@@ -65,6 +65,7 @@ if [ -n "$dirty" ]; then
 fi
 
 require_settled_bed "$bed"
+require_bed_grid "$bed" "$res"
 
 rm -rf "$WORK"; mkdir -p "$WORK/ref"
 

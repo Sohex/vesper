@@ -17,8 +17,10 @@ absorption data differs:
 
     project   Howard's total band absorption per band, divided by the band
               width for his Eq. 11 band-average, over 8 CO2 and 9 H2O bands
-    here      1 - sum_g w_g exp(-k_g u) per correlated-k band, over 78 bands
-              from 10 to 30000 cm-1
+    here      1 - sum_g w_g exp(-k_g u) per correlated-k band, over the
+              bundle's IR and VI band sets from 10 to 30000 cm-1. They are
+              joined without overlap and do not meet: `run_checks` measures the
+              gap between them and the flux that falls in it.
 
 The SPECTRA ARE THE SAME OBJECTS. This module imports `blend` and `Spectrum`
 from `shortwave_band_weights`, so the BT-Settl 4965 K and 5772 K blends are
@@ -31,8 +33,11 @@ WHAT CANNOT BE MADE COMPARABLE, AND IS THEREFORE REPORTED RATHER THAN HIDDEN
   isolated by dividing the mixture transmission by the dry-slice transmission,
   which is the random-overlap assumption -- the same one the project makes when
   it charges CO2 with the fraction of its interval water vapour leaves.
-  `--checks` proves the division works: it must return the same H2O absorptance
-  from the 376 ppm and the 1000 ppm table, and it does to 0.2%.
+  The checks prove the division works, and they RUN BEFORE ANY NUMBER IS
+  QUOTED and raise: the two tables must return the same H2O absorptance, and
+  the bound is the CO2 absorptance the division exists to remove, because a
+  residual of removing something cannot exceed the thing removed. `--checks`
+  runs them and stops there; every other invocation runs them first.
 - The tables carry LINE CENTRES ONLY, +-25 cm-1, with the plinth removed on the
   MT_CKD convention. The H2O self and foreign continuum is absent and the bundle
   has no H2O far-wing file to add it back. It absorbs in the windows BETWEEN the
@@ -203,8 +208,42 @@ def spectra(refresh: bool = False) -> tuple[Spectrum, Spectrum]:
     return out[0], out[1]
 
 
-def run_checks(t376: CorrK, t1000: CorrK, sun: Spectrum, water_cm: float, t_k: float) -> None:
-    """The three things that could have failed, before any number is quoted."""
+def run_checks(t376: CorrK, t1000: CorrK, sun: Spectrum, water_cm: float,
+               t_k: float, co2_atmos_cm: float) -> list[str]:
+    """The three things that could have failed, before any number is quoted.
+
+    EVERY ONE OF THESE HAS A RIGHT ANSWER AND A BOUND DERIVED FROM IT. They
+    used to print and return nothing, so "the three things that could have
+    failed" could not fail: this file was the one sibling of
+    `co2_overlap_589.py`, `trace_gas_band_model.py` and `cloud_band_weight.py`
+    that did not raise. Each bound below is an inequality the physics or the
+    arithmetic forces, not a number chosen to fit what the tables happen to
+    give, and none of them has a tolerance in it.
+
+    1. THE MIXING-RATIO SCALING. CO2 is trace and N2-broadened in both tables,
+       so `k` is exactly proportional to the CO2 mixing ratio and the ratio of
+       the two tables' `k` is exactly the ratio of their mixing ratios. The
+       selection admits bands where another absorber contributes, and that can
+       only DILUTE the ratio toward 1 -- it cannot push it above. So the median
+       must lie in [1, ratio_expected]. A misread file layout, a table read at
+       the wrong index, or the same table read twice all land outside it.
+
+    2. THE BAND BINNING CONSERVES FLUX. The per-band fractions and a direct
+       integration of the same spectrum over the table's full span are the same
+       sum in two groupings, so they differ only by float64 reassociation. The
+       bound is `N * eps` over the band count, which is a rigorous upper bound
+       on any association order.
+
+    3. THE RANDOM-OVERLAP DIVISION. `T_mix / T_dry` is what isolates H2O, and
+       the two tables must return the same H2O absorptance from it. The error
+       the division can introduce is bounded by the quantity it removes: the
+       CO2 absorptance itself over the same path. That is rigorous and needs no
+       tolerance -- a disagreement larger than the CO2 signal is not a residual
+       of removing CO2.
+
+    Returns the failures; the caller raises.
+    """
+    failed = []
     ratio_expected = co2_vmr_of(TABLE_1000) / co2_vmr_of(TABLE_376)
     it = int(np.argmin(abs(t376.T - t_k)))
     ip = int(np.argmin(abs(t376.p - math.log10(P_STANDARD_MBAR))))
@@ -214,24 +253,69 @@ def run_checks(t376: CorrK, t1000: CorrK, sun: Spectrum, water_cm: float, t_k: f
     strong = a.max(axis=1) > 1e-27
     r = (b / np.maximum(a, 1e-300))[strong]
     co2ish = r > 2.0
+    median = float(np.median(r[co2ish]))
     print(f"  k(1000 ppm)/k(376 ppm) where CO2 dominates: expected {ratio_expected:.4f}, "
-          f"got {np.median(r[co2ish]):.4f} "
+          f"got {median:.4f} "
           f"[{np.percentile(r[co2ish], 2):.4f}, {np.percentile(r[co2ish], 98):.4f}] "
           f"over {co2ish.sum()} points")
+    if not 1.0 <= median <= ratio_expected:
+        failed.append(
+            f"the k ratio's median is {median:.4f}, outside [1, "
+            f"{ratio_expected:.4f}]. Dilution by another absorber can only pull "
+            "it toward 1, so nothing physical puts it outside that range: the "
+            "table layout is being read wrong")
 
     f = flux_fractions(t376, sun)
-    print(f"  flux fraction inside the 10-30000 cm-1 table span, solar: {f.sum():.5f} "
+    edges = sorted((float(lo), float(hi)) for lo, hi in t376.edges)
+    lo_cm1, hi_cm1 = float(edges[0][0]), float(edges[-1][1])
+    direct = sun.fraction_in_band(lo_cm1, hi_cm1)
+    # The IR and VI halves of the bundle are JOINED WITHOUT OVERLAP and do not
+    # meet: measured on the 376 ppm table, the IR set ends at 1974.95 cm-1 and
+    # the VI set begins at 2000. Flux in that hole is in the span and in no
+    # band, so it is computed and named rather than allowed to appear as a
+    # summation error.
+    holes = [(edges[i][1], edges[i + 1][0]) for i in range(len(edges) - 1)
+             if edges[i + 1][0] > edges[i][1]]
+    hole_flux = sum(sun.fraction_in_band(a, b) for a, b in holes)
+    slack = len(f) * float(np.finfo(np.float64).eps)
+    print(f"  flux fraction inside the {lo_cm1:g}-{hi_cm1:g} cm-1 table span, solar: "
+          f"{f.sum():.5f} in bands + {hole_flux:.5f} in {len(holes)} gap(s) "
+          f"between the IR and VI sets = {direct:.5f} integrated in one piece "
           "(the rest is below 0.33 um, where neither gas absorbs)")
+    if abs(f.sum() + hole_flux - direct) > slack:
+        failed.append(
+            f"the per-band flux fractions and the gaps sum to "
+            f"{f.sum() + hole_flux:.9f} and the same spectrum integrated over "
+            f"the whole span gives {direct:.9f}. The band fractions are "
+            "differences of one cumulative integral, so a contiguous partition "
+            f"telescopes exactly and can only differ by {slack:.1e} of float64 "
+            "reassociation: the band edges overlap, or the span is misread")
 
     print("  T_mix/T_dry must return the same H2O absorptance from both tables:")
     for q in (1e-3, 1e-2, 1e-1):
         u = air_column_for_water(water_cm, q)
-        vals = []
+        vals, co2_signal = [], 0.0
         for tab in (t376, t1000):
+            frac = flux_fractions(tab, sun)
             aa = 1.0 - tab.transmission(P_STANDARD_MBAR, t_k, q, u) / tab.transmission(
                 P_STANDARD_MBAR, t_k, DRY, u)
-            vals.append(broadband(flux_fractions(tab, sun), aa))
-        print(f"    q={q:.0e}  {vals[0]:.6f} vs {vals[1]:.6f}  ({100*(vals[1]/vals[0]-1):+.2f}%)")
+            vals.append(broadband(frac, aa))
+            # What the division had to remove, on this table's own CO2 amount.
+            a_co2 = 1.0 - tab.transmission(
+                P_STANDARD_MBAR, t_k, DRY,
+                air_column_for_co2(co2_atmos_cm, co2_vmr_of(tab.name)))
+            co2_signal = max(co2_signal, broadband(frac, a_co2))
+        gap = abs(vals[1] - vals[0])
+        print(f"    q={q:.0e}  {vals[0]:.6f} vs {vals[1]:.6f}  "
+              f"({100*(vals[1]/vals[0]-1):+.2f}%), against a CO2 signal of "
+              f"{co2_signal:.6f}")
+        if gap > co2_signal:
+            failed.append(
+                f"at q={q:.0e} the two tables' H2O absorptance differs by "
+                f"{gap:.6f}, more than the {co2_signal:.6f} of CO2 absorptance "
+                "the division exists to remove. A residual cannot exceed what "
+                "was removed, so the random-overlap division is not working")
+    return failed
 
 
 def fit_against_line_list(table: CorrK, sun: Spectrum, clear: np.ndarray,
@@ -303,9 +387,22 @@ def main() -> None:
     vmr = co2_vmr_of(TABLE_376)
     t_k, q = args.temperature, args.water_vmr
 
+    # THE CHECKS RUN BEFORE ANY NUMBER IS QUOTED, always, which is what
+    # "before any number is quoted" was supposed to mean. `--checks` used to
+    # return here, so the only path that ran them was the one that computed
+    # nothing, and every quoted number came out of a run that had checked
+    # nothing. They cost about a second.
+    print("CHECKS")
+    failed = run_checks(t376, CorrK(TABLE_1000), sun, args.water_cm, t_k,
+                        args.co2_earth)
+    if failed:
+        for line in failed:
+            print(f"  FAIL: {line}")
+        raise SystemExit(
+            "the correlated-k tables are not being read as this script "
+            "assumes, so nothing computed from them means anything")
+    print("  all three hold\n")
     if args.checks:
-        print("CHECKS")
-        run_checks(t376, CorrK(TABLE_1000), sun, args.water_cm, t_k)
         return
 
     fs, fr = flux_fractions(t376, sun), flux_fractions(t376, star)

@@ -39,6 +39,38 @@
 # fsp, so every conversion legmod performs is filtered; a wrapper that omits it
 # is a different operator whose error grows with total wavenumber instead of
 # announcing itself at n=1. Dropping fsp from the wrappers must break this.
+#
+# WHERE THESE BOUNDS COME FROM, AND WHICH OF THEM IS DERIVED.
+#
+# THE REASSOCIATION FLOOR is arithmetic and is derived per rung. Every spectral
+# restart record is a `fc2sp` analysis, a sum over the whole grid, so the
+# rigorous upper bound on how much a regrouped float64 version of that sum can
+# differ, in ANY association order, is NLAT*NLON*eps. It is 4.6e-13 at T21 and
+# 2.9e-11 at T170 -- a factor of 64 across the ladder, because the ladder is
+# what sets the length of the sum. `floor_at_rung` computes it, and the gate
+# REFUSES to run where the declared birth bound is below it: a bound under the
+# floor fails every sound change, and 1e-11 is under it from T106 up. That is
+# the rung-dependence made loud rather than silent.
+#
+# THE BIRTH SCALE the floor implies is larger than the floor, because the birth
+# norm is taken over every restart record and one of them applies a gain of its
+# own. `rainmod.f90:92` sets rcrit = MAX(0.85, MAX(sigma, 1-sigma)) and the
+# cloud fraction carries 1/(1-rcrit)^2, which on the linear sigma grid is
+# (2*NLEV)^2 = 400 at the top and bottom levels. So a difference born at the
+# floor can present as 400 times the floor and still be nothing but
+# reassociation. Two measurements exist: 3.2e-13 for the grid-band change here,
+# and 3.35e-12 for the SHTns change on the baseline bed, ten times larger for
+# exactly this reason (exoplasim/notes/shtns-viability.md).
+#
+# TOL AND JUMP ARE NOT DERIVED, and the rung they were measured at is not on
+# record. Both encode the rate at which the model amplifies a last-bit
+# difference, which is a property of the flow and not of the arithmetic, and is
+# rung-dependent by construction: a finer truncation resolves faster-growing
+# modes and reaches a given norm in fewer steps for entirely sound reasons.
+# `world-2ic` is that question, and it names the experiment that settles it:
+# run this gate's growth curve unchanged at three rungs on the same terrain and
+# fit the per-step factor at each. Until then the two are what they have been,
+# and this header is what they rest on.
 set -euo pipefail
 
 bed="$(cd "${1:?usage: verify_shtns_model.sh <bed> <res> <n>}" && pwd)"
@@ -60,6 +92,24 @@ BIRTH=1e-11      # the norm at ONE step; above this the change is wrong at birth
 JUMP=1e4         # the largest ratio allowed between adjacent samples
 
 require_settled_bed "$bed"
+require_bed_grid "$bed" "$res"
+
+# The reassociation floor at THIS rung, and the refusal that goes with it. See
+# the header. `floor` is NLAT*NLON*eps, and a birth bound below it cannot be met
+# by correct arithmetic.
+PYX="$REPO/.venv/bin/python"; [ -x "$PYX" ] || PYX=python3
+floor="$("$PYX" -c "import sys; sys.path.insert(0, '$REPO/lib'); import rungs, numpy as np; nlat, nlon, _ = rungs.geometry('$res'); print(repr(nlat * nlon * float(np.finfo(np.float64).eps)))")" || {
+    echo "unknown resolution $res: it is not a rung in lib/rungs.py" >&2; exit 2; }
+gained="$(awk -v f="$floor" 'BEGIN{printf "%.3g", f*400}')"
+if awk -v b="$BIRTH" -v f="$floor" 'BEGIN{exit !(b < f)}'; then
+    echo "refusing: the birth bound $BIRTH is below the reassociation floor at" >&2
+    echo "  $res, which is $floor = NLAT*NLON * float64 eps. A regrouped sum over" >&2
+    echo "  this grid can differ by that much in any association order, so the" >&2
+    echo "  bound fails every correct change at this rung. It has to be derived" >&2
+    echo "  per rung before this gate runs here -- world-2ic." >&2
+    exit 2
+fi
+
 
 if [ ! -f "$REPO/vendor/shtns-install/include/shtns.f03" ]; then
     echo "refusing: no SHTns at vendor/shtns-install." >&2
@@ -186,6 +236,8 @@ norm() {
 
 echo "$res, $n thread(s): NSHTNS=1 against NSHTNS=0"
 echo "declared before the arms ran: tolerance $TOL, lengths [$STEPS],"
+echo "derived at $res: reassociation floor $floor = NLAT*NLON * float64 eps,"
+echo "  and $gained once rainmod.f90:92's (2*NLEV)^2 record gain is allowed for"
 echo "  birth bound $BIRTH at one step, jump bound ${JUMP}x between samples"
 echo "  (all three taken unchanged from verify_threaded_numerics.sh)"
 echo

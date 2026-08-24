@@ -53,8 +53,37 @@ import _paths  # noqa: F401
 ROOT = Path(__file__).resolve().parents[2]
 ANALYSIS = ROOT / "exoplasim" / "analysis"
 
-ROUNDOFF = 1e-10      # a control above this means the apparatus is wrong
 STORAGE = 1e-6        # the output is written as float32; a round trip cannot beat it
+
+# Machine epsilon of the float64 every array here is held in.
+EPSILON = float(np.finfo(np.float64).eps)
+
+
+def roundoff_bound(nlat_fine: int, nlon_fine: int) -> float:
+    """The largest relative error float64 summation can put in a global mean.
+
+    DERIVED, and derived at the rung the run is at rather than declared once for
+    every rung. A control's global mean is formed by analysing on the coarse
+    grid, synthesising onto the fine one and area-weighting a sum over its
+    points, and the longest of those sums is the mean itself. The rigorous upper
+    bound on the relative error of a float64 sum of N terms, in ANY association
+    order, is `N * eps`; the other stages are shorter sums and are absorbed by
+    it. So a control disagreeing by more than that is not round-off, and the
+    apparatus is wrong.
+
+    It replaces a flat 1e-10 that was not derived anywhere and did not move with
+    the rung. At T42 refined threefold this is 1.6e-11, and the two controls
+    measured on run_329c5fa3fe73 sit at 4.8e-15 and 3.6e-17 -- three decades and
+    more below a bound that is deliberately the worst case rather than the
+    typical one, because numpy sums pairwise and pairwise error grows as
+    log2(N), not N. The bound is what CANNOT be round-off, not what round-off
+    usually is.
+
+    The gate applies only to the controls. The measured terms are reported
+    against it and not failed on it, which is how `exp(lnps)` reads: it is the
+    one term above this scale, and being above it is the finding.
+    """
+    return nlat_fine * nlon_fine * EPSILON
 
 
 class SHT:
@@ -113,6 +142,7 @@ def main() -> int:
 
     coarse = SHT(ntru, nlat, nlon)
     fine = SHT(ntru, nlat * args.refine, nlon * args.refine)
+    roundoff = roundoff_bound(fine.nlat, nlon * args.refine)
     wc, wf = coarse.w, fine.w
     nlon_f = nlon * args.refine
     muc, muf = coarse.mu, fine.mu
@@ -159,6 +189,8 @@ def main() -> int:
     ]
 
     print(f"{run.name}, T{ntru} on {nlat}x{nlon}, reference {fine.nlat}x{nlon_f}")
+    print(f"  control bound {roundoff:.2e} = {fine.nlat}*{nlon_f} * float64 eps, "
+          f"derived at this run's rung")
     print(f"  round trip on U = ua*cos(phi) : {trip:.2e}  "
           f"(must reach the float32 the output is stored in, {STORAGE:g})")
     print(f"  round trip on ua itself       : {trip_u:.2e}  "
@@ -170,7 +202,7 @@ def main() -> int:
         rms = float(np.sqrt((ff ** 2).mean()))
         rel = abs(a - b) / rms if rms else float("nan")
         flag = ""
-        if control and rel > ROUNDOFF:
+        if control and rel > roundoff:
             flag = "  <-- CONTROL FAILED"
             failed.append(name)
         print(f"  {name:28s} coarse {a:>13.6e}  fine {b:>13.6e}  "
@@ -192,7 +224,10 @@ def main() -> int:
                "reference_grid": [fine.nlat, nlon_f],
                "time_index": k, "level_index": lev,
                "round_trip_U": trip, "round_trip_ua": trip_u,
-               "roundoff_threshold": ROUNDOFF, "terms": out,
+               "roundoff_threshold": roundoff,
+               "roundoff_threshold_derivation":
+                   f"{fine.nlat}*{nlon_f} points * float64 eps {EPSILON:.3e}",
+               "terms": out,
                "controls_failed": failed, "verdict": verdict}
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(payload, indent=2) + "\n")
