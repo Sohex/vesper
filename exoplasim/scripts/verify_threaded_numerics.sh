@@ -86,7 +86,14 @@ set -euo pipefail
 bed="$(cd "${1:?usage: verify_threaded_numerics.sh <bed> <res> <n> [reference]}" && pwd)"
 res="${2:?}"
 n="${3:?}"
-reference="${4:-mpi}"     # mpi or serial; see the note on the hard fork
+# THE REFERENCE IS THE SERIAL BUILD. This project builds and runs the threaded
+# OpenMP parmode and nothing else; the MPI path is being removed under
+# world-38b, so defaulting the reference arm to it would default this gate to a
+# configuration that will not exist. `mpi` is still accepted as an explicit
+# argument for as long as that build does, because a gate that can compare
+# against two independent references is worth more than one that can compare
+# against one -- but nothing should reach for it by accident.
+reference="${4:-serial}"  # serial or mpi; see the note on the hard fork
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 REPO="$(cd "$HERE/../.." && pwd)"
