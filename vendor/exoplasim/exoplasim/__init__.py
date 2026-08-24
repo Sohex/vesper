@@ -360,6 +360,7 @@ class Model(object):
     """
     def __init__(self,resolution="T21",layers=10,ncpus=4,precision=8,debug=False,inityear=0,
                 recompile=False,optimization=None,mars=False,workdir="most",source=None,force991=False,
+                parmode="mpi",
                 modelname="MOST_EXP",outputtype=".npz",crashtolerant=False,outputfaulttolerant=False,
                 hyperthreading=True,mpi_opts=None):
         
@@ -502,7 +503,25 @@ class Model(object):
             recompile=True
         
         self.ncpus = ncpus
-        if self.ncpus>1:
+        # PARMODE IS PART OF THE EXECUTABLE'S IDENTITY, not a detail of ncpus.
+        # `mpi` distributes NLAT over ranks and launches through mpiexec; `omp`
+        # distributes it over threads of ONE process, which is what the SHTns
+        # transform path needs because SHTns's parallelism is threads. They are
+        # different binaries from a different flag line, and upstream's API knew
+        # only the first, so a project that had moved to `omp` could not ask for
+        # it and silently kept running `mpi`. That is what happened here: 179
+        # runs, none of them on the threaded build. world-bdh.
+        self.parmode = parmode
+        if self.parmode not in ("mpi","omp"):
+            raise ValueError("parmode must be 'mpi' or 'omp', not %r"%parmode)
+        if self.parmode == "omp":
+            # One process, ncpus threads. OMP_PLACES and OMP_PROC_BIND are not
+            # tuning: without them the runtime is free to migrate threads and the
+            # per-die working set the model is built around stops meaning
+            # anything.
+            self._exec = ("OMP_NUM_THREADS=%d OMP_PLACES=cores "
+                          "OMP_PROC_BIND=close ./"%self.ncpus)
+        elif self.ncpus>1:
             self._exec = "mpiexec -np %d "%self.ncpus
             if mpi_opts is not None:
                 self._exec += mpi_opts+" "
@@ -557,7 +576,8 @@ class Model(object):
         if not source:
             source = "%s/plasim/run"%sourcedir
         
-        self.executable = source+"/most_plasim_t%d_l%d_p%d.x"%(self.nsp,self.layers,ncpus)
+        self.executable = source+"/most_plasim_t%d_l%d_p%d%s.x"%(
+            self.nsp,self.layers,ncpus,"_omp" if self.parmode=="omp" else "")
         
         #if self.burn7:
             #burnsource = "%s/postprocessor"%sourcedir
@@ -577,7 +597,8 @@ class Model(object):
                 "no executable at %s.\n"%self.executable +
                 "This fork does not compile on demand. Build it with:\n"
                 "  python exoplasim/scripts/build_model.py --res T%d "%self.nsp +
-                "--levels %d --ranks %d --parmode mpi\n"%(self.layers,self.ncpus) +
+                "--levels %d --ranks %d --parmode %s\n"%(self.layers,self.ncpus,
+                                                          self.parmode) +
                 "or add the configuration to rebuild_binaries.py's MATRIX if it "
                 "should be part of the registry.")
         

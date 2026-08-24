@@ -845,6 +845,33 @@ def declare_robert_filter(model, config: dict) -> float | None:
     return float(value)
 
 
+def declare_parmode(config: dict) -> str:
+    """Which compiled parallel mode this run uses. DECLARED, never defaulted.
+
+    `mpi` distributes NLAT over ranks and launches through mpiexec; `omp`
+    distributes it over threads of one process, which is what the SHTns
+    transform path requires because SHTns's parallelism is threads. They are
+    different binaries built from a different flag line, and `nshtns` is 1 by
+    default in the threaded build and 0 in the MPI one -- so the parmode decides
+    which TRANSFORM integrates the run, not just how the work is spread.
+
+    It is declared rather than defaulted because upstream's API knew only `mpi`
+    and named its executable without a parmode, so a project that had moved to
+    the threaded build could not ask for it and silently kept running the other
+    one. That is what happened here: 179 runs, none of them threaded, while the
+    threaded binaries were built, verified and gated on. world-bdh.
+    """
+    mode = config["model"].get("parmode")
+    if mode is None:
+        raise RuntimeError(
+            "model.parmode is absent. It selects which compiled binary and "
+            "therefore which spectral transform integrates the run, so it is "
+            "declared and never defaulted. world-bdh.")
+    if mode not in ("mpi", "omp"):
+        raise RuntimeError(f"model.parmode must be 'mpi' or 'omp', not {mode!r}")
+    return mode
+
+
 def declare_dealias_conversion(model, config: dict) -> bool:
     """Truncate V.grad(ln ps) to the retained modes before the products. world-ly5.
 
@@ -1279,6 +1306,7 @@ def physical_fingerprint(config: dict, flux_ratio: float) -> dict:
         "resolution": str(m["resolution"]),
         "layers": int(m["layers"]),
         "ranks": int(m["ncpus"]),
+        "parmode": str(m.get("parmode", "mpi")),
         "precision_bytes": int(m["precision_bytes"]),
         "flux_ratio": round(float(flux_ratio), 6),
         "co2_ppm": round(1e6 * float(a["pCO2_bar"]), 3),
@@ -1701,6 +1729,11 @@ def main() -> None:
     star = config["star"]
     model_cfg = config["model"]
     surface = config["surface"]
+    parmode = declare_parmode(config)
+    if parmode == "omp" and mpi_opts:
+        raise RuntimeError(
+            "--mpi-opts was given but model.parmode is 'omp', which launches one "
+            "process and no mpiexec. The flags would be silently dropped.")
     model = exo.Earthlike(
         resolution=model_cfg["resolution"],
         layers=int(model_cfg["layers"]),
@@ -1711,7 +1744,10 @@ def main() -> None:
         outputtype=model_cfg["output_type"],
         hyperthreading=False,
         mpi_opts=mpi_opts,
+        parmode=parmode,
     )
+    print(f"parmode: {parmode} "
+          f"({'threads, SHTns transform' if parmode == 'omp' else 'ranks, legmod transform'})")
     model.configure(
         restartfile=None if restart_seed is None else str(restart_seed),
         flux=derived["stellar_flux_w_m2"],
@@ -1865,9 +1901,10 @@ def main() -> None:
     # ExoPlaSim copies its whole run directory in, so every previously built
     # executable is present. Name the one this run will actually use rather than
     # taking the last glob match, which sorts p8 after p16.
+    exe_suffix = "_omp" if str(model_cfg.get("parmode")) == "omp" else ""
     exe_path = run_dir / (
         f"most_plasim_t{int(str(model_cfg['resolution']).lstrip('Tt'))}"
-        f"_l{int(model_cfg['layers'])}_p{int(model_cfg['ncpus'])}.x"
+        f"_l{int(model_cfg['layers'])}_p{int(model_cfg['ncpus'])}{exe_suffix}.x"
     )
     if not exe_path.is_file():
         raise RuntimeError(f"expected executable {exe_path} is not in the run directory")

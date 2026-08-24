@@ -162,8 +162,19 @@
 
       zf(:) = pf(:) * spnorm(1:NRSP) * pscale
       zf(1) = zf(1) + poff ! Add offset if necessary
-      write (kunit) ihead
-      write (kunit) zf
+!     ONLY NROOT WRITES. `writegp` has always guarded this and these did not,
+!     which was invisible under MPI: every rank is its own process, unit 40 is
+!     opened with a filename only on NROOT, and the other fifteen ranks' writes
+!     land in a `fort.40` nobody reads -- one sits in every MPI run directory.
+!     The threaded build is ONE process, so unit 40 is shared and all sixteen
+!     threads interleave into the real output: the file carries a clean first
+!     block and then a payload with no header, and pyburn stops on it. That is
+!     world-bdh, and it is what "built, verified and never run" hides -- the
+!     transform checks compare restarts and arrays, and never the output stream.
+      if (mypid == NROOT) then
+         write (kunit) ihead
+         write (kunit) zf
+      endif
 
       return
       end
@@ -191,8 +202,19 @@
       ihead(7) = nstep - nstep1
       ihead(8) = m_days_per_year
 
-      write (kunit) ihead
-      write (kunit) pf
+!     ONLY NROOT WRITES. `writegp` has always guarded this and these did not,
+!     which was invisible under MPI: every rank is its own process, unit 40 is
+!     opened with a filename only on NROOT, and the other fifteen ranks' writes
+!     land in a `fort.40` nobody reads -- one sits in every MPI run directory.
+!     The threaded build is ONE process, so unit 40 is shared and all sixteen
+!     threads interleave into the real output: the file carries a clean first
+!     block and then a payload with no header, and pyburn stops on it. That is
+!     world-bdh, and it is what "built, verified and never run" hides -- the
+!     transform checks compare restarts and arrays, and never the output stream.
+      if (mypid == NROOT) then
+         write (kunit) ihead
+         write (kunit) pf
+      endif
 
       return
       end
@@ -220,8 +242,12 @@
       ihead(7) = nstep - nstep1
       ihead(8) = m_days_per_year
 
-      write (kunit) ihead
-      write (kunit) pf
+!     Guarded for the reason writesp and writescalar above are: one process, one
+!     unit 40, sixteen threads. Unused today and a trap in waiting otherwise.
+      if (mypid == NROOT) then
+         write (kunit) ihead
+         write (kunit) pf
+      endif
 
       return
       end

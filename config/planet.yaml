@@ -332,6 +332,13 @@ model:
       checked: ["-fcheck=all", "-finit-real=snan"]
     profile: production
   ncpus: 16
+  # DECLARED 2026-08-24, and it selects the TRANSFORM and not just the layout.
+  # `omp` is one process with ncpus threads and `nshtns` defaults to 1 there;
+  # `mpi` is ncpus ranks and cannot use SHTns at all. Upstream's API named its
+  # executable without a parmode, so nothing could ask for the threaded build and
+  # 179 runs went to the MPI one while the threaded binaries were built, verified
+  # and gated on. world-bdh. This project runs SHTns, so this is `omp`.
+  parmode: omp
   timestep_minutes: 45.0
   physics_filter: "gp|exp|sp"
   # The exponential filter's shape, f(n) = exp(-kappa (n/NTRU)^gamma). These are
