@@ -1244,16 +1244,47 @@ def enable_dust_emission(model, run_dir: Path, config: dict) -> dict | None:
     shutil.copyfile(aerofile, run_dir / aerofile.name)
     model._edit_namelist("aero_namelist", "aerofile", f"'{aerofile.name}'")
 
-    # RADIATIVELY INERT, and that is not a preference. `l_aerorad = 1` would put
-    # the emitted dust into the shortwave through `radmod`'s own `apart`, which
-    # `aero_ini` never populates from the namelist -- upstream defect 1 in
-    # `aeolian/notes/in-model-dust.md`, still open because it lives in
-    # `radmod.f90`. At this world's effective radius that path gives an optical
-    # depth 1/385 of intent, and the longwave term is missing on top of it,
-    # which `notes/dust.md` prices at several kelvin of spurious cooling. So the
-    # only non-wrong setting available on this branch is off. The file is staged
-    # and named anyway, so turning it on once item 5 lands is a namelist change.
-    model._edit_namelist("aero_namelist", "l_aerorad", "0")
+    # WHETHER THE EMITTED DUST IS RADIATIVELY ACTIVE, and it is a switch now
+    # rather than a pin. Both reasons it was pinned off have been repaired:
+    #
+    #   * the shortwave. `l_aerorad = 1` put the emitted dust into the shortwave
+    #     through `radmod`'s OWN `apart`, which `aero_ini` did not populate from
+    #     the namelist, so the optical depth came out (50e-9/apart)**2 of intent
+    #     -- 1/385 at this world's optical effective radius. `aeromod.f90`'s
+    #     `aero_ini` now hands the value across as `rad_apart = apart`, inside
+    #     the NROOT block because `radini` broadcasts it.
+    #   * the longwave. `aeroqlw` had no writer anywhere in the project, so the
+    #     interactive path had no thermal term structurally available, and
+    #     shortwave-only dust is worth several kelvin of spurious cooling.
+    #     `build_surface_dust.py` now derives it beside `DUSTQLW`; the two are
+    #     the same ratio and, on this world, the same number, for the reason
+    #     recorded there.
+    #
+    # It stays OFF by default, which is what every existing run has, and dust-13
+    # is the decision. Turning it on needs the prescribed field's provenance for
+    # the ratio, which is where the ratio is derived; there is no default for it
+    # here and none in the Fortran either, because `radini` aborts on an
+    # interactive aerosol with `aeroqlw` at zero rather than assume one.
+    radiative = bool(config["model"].get("dust_emission_radiative", False))
+    model._edit_namelist("aero_namelist", "l_aerorad", "1" if radiative else "0")
+    if radiative:
+        dust_field = surface_sra(config, sorted(DUST_SURFACE_CODES)[0])
+        dust_prov = dust_field.with_name(dust_field.stem + "_provenance.json")
+        if not dust_prov.is_file():
+            raise RuntimeError(
+                "model.dust_emission_radiative is on but "
+                f"{dust_prov} is missing. AEROQLW is derived there, beside "
+                "DUSTQLW and from the same optics; run "
+                "exoplasim/scripts/build_surface_dust.py.")
+        aeroqlw = float(json.loads(dust_prov.read_text(encoding="utf-8"))
+                        ["namelist_values"].get("AEROQLW", 0.0))
+        if aeroqlw <= 0.0:
+            raise RuntimeError(
+                f"{dust_prov} carries no AEROQLW. Shortwave-only dust is worse "
+                "than no dust; see notes/dust.md and radini's own refusal.")
+        # radmod_nl, NOT aero_nl, so it stays out of `values`: everything in
+        # that dict is written into aero_namelist by the loop below.
+        model._edit_namelist("radmod_namelist", "AEROQLW", f"{aeroqlw}")
 
     for key, value in values.items():
         model._edit_namelist("aero_namelist", key, f"{value}")
@@ -1263,6 +1294,8 @@ def enable_dust_emission(model, run_dir: Path, config: dict) -> dict | None:
         "terrain_hash": prov["terrain_hash"],
         "field_sha256": prov["output_sha256"],
         "namelist_values": values,
+        "radiatively_active": radiative,
+        "aeroqlw": aeroqlw if radiative else None,
         "source_cells": prov["field_statistics"]["srcw_cells_nonzero"],
     }
 
@@ -1992,6 +2025,12 @@ def main() -> None:
               f"({emission['z0_bracket_end']} end). Needs "
               "patches/exoplasim-3.4.2-dust-emission.patch, the two aerosol "
               "patches under it, and a rebuild.")
+        if emission["radiatively_active"]:
+            print(f"  and RADIATIVELY ACTIVE: l_aerorad = 1, AEROQLW "
+                  f"{emission['aeroqlw']:.6f}")
+        else:
+            print("  and radiatively inert: l_aerorad = 0. dust-13 is the "
+                  "decision; model.dust_emission_radiative turns it on.")
 
     if args.writes_per_day is not None:
         if args.writes_per_day < 1:

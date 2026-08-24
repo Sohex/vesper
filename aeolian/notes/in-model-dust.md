@@ -402,10 +402,12 @@ has made set it to zero -- the same reason the seven `aerocore` defects survived
 The first run to enable the aerosol would have died in the namelist read before
 reaching any of this. `enable_dust_emission` rewrites the key.
 
-**The emitted dust defaults to `l_aerorad = 0`.** The apart fix (defect 1)
-and the longwave term are RESIDENT, so enabling radiation is a namelist
-change, taken deliberately rather than defaulted. The aerofile is staged and named anyway, so turning it
-on once item 5 lands is a namelist change.
+**The emitted dust defaults to `l_aerorad = 0`.** The apart fix (defect 1) and
+the longwave term are RESIDENT, and `AEROQLW` is now derived beside `DUSTQLW` in
+the prescribed field's provenance, from the same optics and for the reason
+recorded there, so the thermal term has a writer as well as a home. Enabling the
+radiation is therefore `model.dust_emission_radiative`, taken deliberately
+rather than defaulted, and the aerofile is staged and named on either setting.
 
 ### Predicted effects, stated before they run
 

@@ -166,15 +166,18 @@ them, and set `L_AERO = 1` and `l_source = 2`. `model.dust_dry_deposition` and
 `model.dust_wet_scavenging` switch on the two removal terms independently, which
 is what lets each be its own A/B arm off one binary.
 
-The emitted dust is RADIATIVELY INERT on that path and the driver sets
-`l_aerorad = 0` to say so. The two reasons that setting was chosen for have both
-since closed: `aerosol-apart.patch` populates `radmod`'s `apart` from the one
-`aeromod` declares, and `aerosol-longwave.patch` gives the transported aerosol
-its thermal-IR absorption through `aeroqlw`, which `radini` now aborts without.
-So turning the radiation on is a decision about which aerosols the climate
-carries rather than a wait on missing physics, and it is taken in DUST-13
-against `CLIM-39`: `ndustrad` and `iaerint` cannot both be on, so interactive
-dust on today's code puts sea salt out of the radiation permanently.
+The emitted dust is RADIATIVELY INERT by default and
+`model.dust_emission_radiative` is the switch; the driver writes `l_aerorad`
+from it. The two reasons that setting was chosen for have both since closed:
+`aero_ini` populates `radmod`'s `apart` from the one `aeromod` declares, and the
+transported aerosol has its thermal-IR absorption through `aeroqlw`, which
+`radini` aborts without and which `build_surface_dust.py` now derives beside
+`DUSTQLW` so something writes it. So turning the radiation on is a decision
+about which aerosols the climate carries rather than a wait on missing physics,
+and it is taken in DUST-13. The exclusion that framing used to carry is gone
+with `CLIM-39`: the transported tracer is one species of the array at index
+`ndustrad+1`, so a prescribed field and a transported one no longer share a
+slot and both can be on at once.
 
 `aeolian/notes/multi-species-aerosol.md` is the companion design, for the other
 end of the same interface: the radiation carries ONE aerosol with one global set
