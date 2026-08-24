@@ -13,6 +13,7 @@ namelist /planet_nl/ nfixorb, eccen, mvelp, obliq  &
                 , meananom0, rotspd, sidereal_day, &
                 , solar_day, sidereal_year, tropical_year &
                 , akap, alr, gascon, ra1, ra2, ra4 &
+                , ra1i, ra2i, ra4i &
                 , pnu, ga, plarad, ngenkeplerian, oroscale &
                 , gsol0 &
                 , yplanet
@@ -45,9 +46,16 @@ akap    =   0.2273    ! Kappa
 alr     =   0.0025    ! Lapse rate
 gascon  = 188.9       ! Gas constant
 psurf   = 636.0       ! Mean surface pressure [Pa]
+! MISLABELLED UPSTREAM: this triple is the Magnus-Teten set over ICE, not over
+! liquid water. It is set in both slots because on Mars the condensate is ice at
+! every temperature the surface reaches, so the phase selection has nothing to
+! choose between. world-ako.
 ra1     = 610.66      ! Parameter for Magnus-Teten-Formula
 ra2     =  21.875     ! for saturation vapor pressure
-ra4     =   7.65      ! over liquid water
+ra4     =   7.65      ! over ice
+ra1i    = 610.66
+ra2i    =  21.875
+ra4i    =   7.65
 tgr     = 210.0       ! mean ground temperature
 
 ! ********

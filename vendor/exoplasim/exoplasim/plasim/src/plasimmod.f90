@@ -970,9 +970,19 @@
       real :: tropical_year = 0.0      ! Length of tropical year [sec]
       real :: ww     = 0.0             ! Omega used for scaling
       real :: oroscale = 1.0           ! Orography scaling
-      real :: ra1    = 0.0             !
+!     THE MAGNUS-TETEN COEFFICIENTS, two sets. ra1, ra2 and ra4 are saturation
+!     over LIQUID water; ra1i, ra2i and ra4i are saturation over ICE. The model
+!     had only the liquid set and used it at every saturation site while the
+!     latent heat already switched to ALS below TMELT, so the thermodynamics
+!     disagreed with itself: over ice the saturation vapour pressure is about
+!     25 per cent below the liquid value at 250 K, and cold-cloud condensation
+!     was systematically over-produced. world-ako.
+      real :: ra1    = 0.0             ! over liquid water
       real :: ra2    = 0.0             !
       real :: ra4    = 0.0             !
+      real :: ra1i   = 0.0             ! over ice
+      real :: ra2i   = 0.0             !
+      real :: ra4i   = 0.0             !
       real :: acpd   = 0.0             ! acpd = gascon / akap ! Specific heat for dry air
       real :: adv    = 0.0             ! acpv / acpd - 1.0
       real :: cv     = 0.0             ! cv = plarad * ww
@@ -1054,6 +1064,7 @@
 !$omp&  parc,pfac,planet_namelist,plarad,plasim_diag,plasim_hcadence,plasim_namelist,plasim_output,&
 !$omp&  plasim_restart,plasim_snapshot,plasim_status,plasimversion,plavor,pnu,pnu21,precip,psurf,&
 !$omp&  ptop,ptop2,ra1,ra2,ra4,radmod_namelist,rainmod_namelist,rcs,rcsq,rdbrv,rdsig,restim,rotspd,&
+!$omp&  ra1i,ra2i,ra4i,&
 !$omp&  sak,sakpp,sdd,sdipole,sdipolep,sdm,sdp,sdt,seamod_namelist,seed,sellon,sid,sidereal_day,&
 !$omp&  sidereal_year,sigh,sigma,sigmah,sigrain,so,solar_day,sop,span,spd,spm,spnorm,spp,spt,sqm,&
 !$omp&  sqout,sqp,sqt,sr1,sr2,srm,srp,std,stm,stp,stt,surfmod_namelist,syncstr,synctime,szd,szm,szp,&
@@ -1062,6 +1073,47 @@
 !$omp&  vrmpi,vrmpimax,ww,yguinam,ympname,yplanet)
 
       contains
+
+!     ==============================
+!     FUNCTIONS RA1S, RA2S AND RA4S
+!     ==============================
+
+!     The Magnus-Teten coefficient for the phase the condensate is in at pt.
+!
+!     Below TMELT the vapour is in equilibrium with ICE and not with supercooled
+!     liquid, which is what the latent heat already assumes: rainmod switches to
+!     ALS below TMELT at four sites and fluxmod at one, and the Clausius-Clapeyron
+!     derivative beside them is the liquid one multiplied by L_s/cp. Using the
+!     liquid coefficients under an ice latent heat over-produces cold-cloud
+!     condensation by about 25 per cent at 250 K. world-ako.
+!
+!     ELEMENTAL so an array temperature works, and so the branch is per gridpoint
+!     rather than per column. Every call site already evaluates an exponential,
+!     so the selection costs nothing measurable beside it.
+!
+!     A SEA SURFACE DOES NOT USE THESE. fluxmod treats every cell with
+!     dls < 0.5 as evaporating liquid whatever its temperature, so seamod's
+!     saturation stays liquid to agree with the latent heat beside it, and
+!     fluxmod's own two sites take the phase from the arm they are in rather
+!     than from the temperature.
+
+      elemental real function ra1s(pt)
+      real, intent(in) :: pt
+      ra1s = ra1
+      if (pt < tmelt) ra1s = ra1i
+      end function ra1s
+
+      elemental real function ra2s(pt)
+      real, intent(in) :: pt
+      ra2s = ra2
+      if (pt < tmelt) ra2s = ra2i
+      end function ra2s
+
+      elemental real function ra4s(pt)
+      real, intent(in) :: pt
+      ra4s = ra4
+      if (pt < tmelt) ra4s = ra4i
+      end function ra4s
 
 !     ==========================
 !     SUBROUTINE ASSOC_SPECTRAL

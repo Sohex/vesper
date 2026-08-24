@@ -679,24 +679,46 @@ uniform **+0.029 to convective cloud fraction** wherever the result is not
 clamped to [0.05, 0.8]. The point is not which choice is right but that a free
 choice here is worth 3 per cent absolute cloud cover.
 
-## 24. There is no saturation-over-ice branch, and the remedy is blocked by mechanism I
+## 24. Saturation now branches on ice below the melting point
 
-`p_earth.f90:44-46` sets `ra1=610.78`, `ra2=17.2693882`, `ra4=35.86`, the
-Magnus-Teten coefficients over LIQUID water, and that single formula is used at
-every `zqsat` site in `rainmod.f90` and at `seamod.f90:254`. Meanwhile the
-latent heat correctly switches to `ALS` below `TMELT` at `rainmod.f90:767`,
-`:886`, `:980`, `:1083` and at `fluxmod.f90:693-700`, and the Clausius-Clapeyron
-derivative is the liquid one multiplied by L_s/cp.
-
+The model carried one Magnus-Teten triple, `ra1`, `ra2`, `ra4`, the coefficients
+over LIQUID water, and used it at every saturation site in `rainmod`, `landmod`,
+`seamod`, `simba` and `fluxmod`, while the latent heat already switched to `ALS`
+below `TMELT` at four sites in `rainmod` and one in `fluxmod`, with the
+Clausius-Clapeyron derivative beside them the liquid one multiplied by L_s/cp.
 Saturation over ice is about 25 per cent below saturation over liquid at 250 K,
-so cold-cloud condensation is systematically over-produced and the
-thermodynamics is internally inconsistent with its own latent heat.
+so cold-cloud condensation was systematically over-produced and the
+thermodynamics disagreed with its own latent heat.
 
-The ice coefficient set is already in the tree at `p_mars.f90:48-50`, as
-610.66/21.875/7.65. **This cannot be fixed from config as the tree is built:**
-`p_exo.f90` exposes `alv`, `als` and `tmelt` in `planet_nl` and `p_earth.f90`
-does not, and `p_earth` is what compiles. It needs a second branch rather than a
-different single set in any case, so it is a source change either way.
+`pumamod` now carries `ra1i`, `ra2i`, `ra4i` beside the liquid triple, in
+`planet_nl` in all three planet modules, at the standard over-ice
+610.66/21.875/7.65 -- which is what `p_mars.f90` already carried, mislabelled as
+liquid, and which that module now declares in both slots because on Mars the
+condensate is ice at every temperature the surface reaches.
+
+The selection goes through three elemental functions in `pumamod`, `ra1s(T)`,
+`ra2s(T)` and `ra4s(T)`, so the branch is per gridpoint and every call site
+already evaluates an exponential beside it. Thirty-two sites in `rainmod`, two
+in `landmod` and one in `simba` take the temperature already in the expression.
+
+Two families deliberately do NOT branch on temperature, and that is what
+"consistent with the latent heat already in use" means here:
+
+- `fluxmod`'s two sites take the phase from the `where` arm they are in. That
+  mask is `dt > TMELT .or. dls < 0.5`, so a cell with `dls < 0.5` takes the
+  liquid arm however cold it is, because the water under a partial ice cover is
+  still water and `icemod` owns the ice surface. Branching on temperature there
+  would put an ice saturation under a liquid latent heat on exactly those cells.
+- `seamod`'s two sea-surface saturations stay liquid, for the same reason.
+
+The audit's earlier reading that this "cannot be fixed from config" was right
+about config and beside the point: it needs a second branch rather than a
+different single set, so it was always a source change. `alv`, `als` and `tmelt`
+are still absent from `p_earth`'s `planet_nl`, which is world-cwu and world-58v.
+
+This is a physics change and it moves the climate: cold-cloud condensation falls
+where it was over-produced. A correct term that worsens an agreement is
+information.
 
 ## 25. Snow and glacier densities are Earth compaction values
 

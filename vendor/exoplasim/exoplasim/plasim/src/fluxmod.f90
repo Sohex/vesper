@@ -690,6 +690,13 @@
 
       devap(:)=-dp(:)*zkonst2/1000.*(zqn(:)-dq(:,NLEV))
 
+!     THE SATURATION PHASE FOLLOWS THE ARM, not the temperature. The mask below
+!     is the model's own statement of which phase is evaporating, and it is not
+!     the temperature test alone: a cell with dls < 0.5 takes the liquid arm
+!     however cold it is, because the water surface under a partial ice cover is
+!     still water and icemod owns the ice. Selecting the coefficients on
+!     dt < TMELT here would put an ice saturation under a liquid latent heat on
+!     exactly those cells. world-ako.
       where(dt(:,NLEP) > TMELT .or. dls(:) < 0.5)
        dlhfl(:)=devap(:)*ALV*1000.
        dlhdt(:)=-1.*ALV*zkdiff(:)*zkonst2*dp(:)                         &
@@ -697,7 +704,7 @@
       elsewhere
        dlhfl(:)=devap(:)*ALS*1000.
        dlhdt(:)=-1.*ALS*zkdiff(:)*zkonst2*dp(:)                         &
-     &         *ra2*(TMELT-ra4)*dq(:,NLEP)/(dt(:,NLEP)-ra4)**2
+     &         *ra2i*(TMELT-ra4i)*dq(:,NLEP)/(dt(:,NLEP)-ra4i)**2
       endwhere
       where(dlhfl(:) == 0.) dlhdt(:)=0.
 !

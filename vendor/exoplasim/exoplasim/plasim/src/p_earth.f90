@@ -13,6 +13,7 @@ namelist /planet_nl/ nfixorb, eccen, mvelp, obliq  &
                 , meananom0, rotspd, sidereal_day  &
                 , solar_day, sidereal_year, tropical_year &
                 , akap, alr, gascon, ra1, ra2, ra4 &
+                , ra1i, ra2i, ra4i &
                 , pnu, ga, plarad, ngenkeplerian, oroscale &
                 , gsol0 &
                 , yplanet
@@ -58,6 +59,9 @@ gascon  = 287.0       ! Gas constant
 ra1     = 610.78      ! Parameter for Magnus-Teten-Formula
 ra2     =  17.2693882 ! for saturation vapor pressure
 ra4     =  35.86      ! over liquid water
+ra1i    = 610.66      ! and the same formula
+ra2i    =  21.875     ! for saturation vapor pressure
+ra4i    =   7.65      ! over ice
 
 ! ********
 ! Numerics

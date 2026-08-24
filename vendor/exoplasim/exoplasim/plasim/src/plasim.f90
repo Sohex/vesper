@@ -373,6 +373,9 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       call mpbcr(ra1     )
       call mpbcr(ra2     )
       call mpbcr(ra4     )
+      call mpbcr(ra1i    ) ! the over-ice set, world-ako
+      call mpbcr(ra2i    )
+      call mpbcr(ra4i    )
       call mpbcr(rdbrv   )
       call mpbcr(ww      )
       call mpbcr(solar_day)

@@ -179,6 +179,11 @@
 !      in the module header.
 !
        zsicf(:)=AMAX1(0.0,AMIN1(1.0,(TMELT-dts(:))/dicealbdt))
+!     LIQUID, unconditionally, and that is the consistent choice rather than an
+!     oversight. fluxmod's latent heat takes the ALV arm for every cell with
+!     dls < 0.5 whatever its temperature -- the water under a partial ice cover
+!     is still water and icemod owns the ice surface -- so a sea saturation that
+!     switched on temperature would sit under a liquid latent heat. world-ako.
        dqs(:)  = rdbrv*ra1*EXP(ra2*(dt(:,NLEP)-TMELT)   &
      &          /(dt(:,NLEP)-ra4))/psurf
        dqs(:)  = dqs(:)/(1.-(1./rdbrv-1.)*dqs(:))
@@ -303,6 +308,7 @@
 !      in the module header.
 !
        zsicf(:)=AMAX1(0.0,AMIN1(1.0,(TMELT-dts(:))/dicealbdt))
+!     LIQUID, for the reason recorded at the sea-surface saturation above.
        dqs(:)=rdbrv*ra1*EXP(ra2*(dt(:,NLEP)-TMELT)                      &
      &       /(dt(:,NLEP)-ra4))/dp(:)
        dqs(:)=dqs(:)/(1.-(1./rdbrv-1.)*dqs(:))

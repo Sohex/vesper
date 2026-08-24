@@ -439,7 +439,7 @@
 !     saturation humidity
 !
 
-       zqsat(:)=rdbrv*ra1*exp(ra2*(zt(:)-TMELT)/(zt(:)-ra4))            &
+       zqsat(:)=rdbrv*ra1s(zt(:))*exp(ra2s(zt(:))*(zt(:)-TMELT)/(zt(:)-ra4s(zt(:))))            &
      &         /(dp(:)*sigma(jlev))
 !
 !      avoid negative qsat
@@ -491,11 +491,11 @@
 !
 
         zdqdt(:)=(zqsto(:)-zq(:))                                       &
-     &          /(1.0+zlcpe(:)*ra2*(TMELT-ra4)                          &
-     &           *zqsat(:)*zcor(:)/(zt(:)-ra4)**2)
+     &          /(1.0+zlcpe(:)*ra2s(zt(:))*(TMELT-ra4s(zt(:)))                          &
+     &           *zqsat(:)*zcor(:)/(zt(:)-ra4s(zt(:)))**2)
         ztn(:)=zt(:)-zdqdt(:)*zlcpe(:)
         zqn(:)=zq(:)+zdqdt(:)
-        zqsat(:)=rdbrv*ra1*exp(ra2*(ztn(:)-TMELT)/(ztn(:)-ra4))         &
+        zqsat(:)=rdbrv*ra1s(ztn(:))*exp(ra2s(ztn(:))*(ztn(:)-TMELT)/(ztn(:)-ra4s(ztn(:))))         &
      &          /(dp(:)*sigma(jlev))
 !
 !      avoid negative qsat
@@ -505,8 +505,8 @@
         zcor(:)=1./(1.-(1./rdbrv-1.)*zqsat(:))
         zqsat(:)=zqsat(:)*zcor(:)
         zdqdt(:)=(zqsat(:)-zqn(:))                                      &
-     &          /(1.0+zlcpe(:)*ra2*(TMELT-ra4)                          &
-     &           *zqsat(:)*zcor(:)/(ztn(:)-ra4)**2)
+     &          /(1.0+zlcpe(:)*ra2s(ztn(:))*(TMELT-ra4s(ztn(:)))                          &
+     &           *zqsat(:)*zcor(:)/(ztn(:)-ra4s(ztn(:)))**2)
         ztn(:)=ztn(:)-zdqdt(:)*zlcpe(:)
         zqn(:)=zqn(:)+zdqdt(:)
 
@@ -781,8 +781,8 @@
 !     surface air specific humidity
 !
 
-        zqsnl=rdbrv*ra1*exp(ra2*(zte(jhor,NLEV)-TMELT)                  &
-     &                          /(zte(jhor,NLEV)-ra4))                  &
+        zqsnl=rdbrv*ra1s(zte(jhor,NLEV))*exp(ra2s(zte(jhor,NLEV))*(zte(jhor,NLEV)-TMELT)                  &
+     &                          /(zte(jhor,NLEV)-ra4s(zte(jhor,NLEV))))                  &
      &       /(dp(jhor)*sigma(NLEV))
 !
 !      avoid negative qsat
@@ -796,7 +796,7 @@
 !     saturation humidity:
 !
 
-        zqsnl=rdbrv*ra1*exp(ra2*(ztnew-TMELT)/(ztnew-ra4))              &
+        zqsnl=rdbrv*ra1s(ztnew)*exp(ra2s(ztnew)*(ztnew-TMELT)/(ztnew-ra4s(ztnew)))              &
      &       /(dp(jhor)*sigma(NLEV))
 !
 !      avoid negative qsat
@@ -826,7 +826,7 @@
 !     temperature correction term
 !
 
-         zdqsdt=ra2*(TMELT-ra4)*zqsnl*zcor/((ztnew-ra4)*(ztnew-ra4))
+         zdqsdt=ra2s(ztnew)*(TMELT-ra4s(ztnew))*zqsnl*zcor/((ztnew-ra4s(ztnew))*(ztnew-ra4s(ztnew)))
 
 
 !
@@ -841,7 +841,7 @@
 !     second iteration:
 !
 
-         zqsnl=rdbrv*ra1*exp(ra2*(ztnew-TMELT)/(ztnew-ra4))             &
+         zqsnl=rdbrv*ra1s(ztnew)*exp(ra2s(ztnew)*(ztnew-TMELT)/(ztnew-ra4s(ztnew)))             &
      &        /(dp(jhor)*sigma(NLEV))
 !
 !      avoid negative qsat
@@ -850,7 +850,7 @@
 !
          zcor=1./(1.-(1./rdbrv-1.)*zqsnl)
          zqsnl=zqsnl*zcor
-         zdqsdt=ra2*(TMELT-ra4)*zqsnl*zcor/((ztnew-ra4)*(ztnew-ra4))
+         zdqsdt=ra2s(ztnew)*(TMELT-ra4s(ztnew))*zqsnl*zcor/((ztnew-ra4s(ztnew))*(ztnew-ra4s(ztnew)))
          zrain=(zqnew-zqsnl)/(1.+zlcp*zdqsdt)
          ztnew=ztnew+zlcp*zrain
          zqnew=zqnew-zrain
@@ -865,8 +865,8 @@
          itop(jhor)=NLEV
          ztp(jhor)=ztnew
          zqp(jhor)=zqnew
-         zqsa=rdbrv*ra1*exp(ra2*(zte(jhor,NLEV)-TMELT)                  &
-     &                          /(zte(jhor,NLEV)-ra4))                  &
+         zqsa=rdbrv*ra1s(zte(jhor,NLEV))*exp(ra2s(zte(jhor,NLEV))*(zte(jhor,NLEV)-TMELT)                  &
+     &                          /(zte(jhor,NLEV)-ra4s(zte(jhor,NLEV))))                  &
      &       /(dp(jhor)*sigma(NLEV))
 !
 !      avoid negative qsat
@@ -915,7 +915,7 @@
 !     saturation humidity:
 !
 
-         zqsnl=rdbrv*ra1*exp(ra2*(ztnew-TMELT)/(ztnew-ra4))             &
+         zqsnl=rdbrv*ra1s(ztnew)*exp(ra2s(ztnew)*(ztnew-TMELT)/(ztnew-ra4s(ztnew)))             &
      &        /(dp(jhor)*sigma(jlev))
 !
 !      avoid negative qsat
@@ -945,7 +945,7 @@
 !     temperature correction term
 !
 
-          zdqsdt=ra2*(TMELT-ra4)*zqsnl*zcor/((ztnew-ra4)*(ztnew-ra4))
+          zdqsdt=ra2s(ztnew)*(TMELT-ra4s(ztnew))*zqsnl*zcor/((ztnew-ra4s(ztnew))*(ztnew-ra4s(ztnew)))
 
 
 !
@@ -960,7 +960,7 @@
 !     second iteration:
 !
 
-          zqsnl=rdbrv*ra1*exp(ra2*(ztnew-TMELT)/(ztnew-ra4))            &
+          zqsnl=rdbrv*ra1s(ztnew)*exp(ra2s(ztnew)*(ztnew-TMELT)/(ztnew-ra4s(ztnew)))            &
      &         /(dp(jhor)*sigma(jlev))
 !
 !      avoid negative qsat
@@ -969,7 +969,7 @@
 !
           zcor=1./(1.-(1./rdbrv-1.)*zqsnl)
           zqsnl=zqsnl*zcor
-          zdqsdt=ra2*(TMELT-ra4)*zqsnl*zcor/((ztnew-ra4)*(ztnew-ra4))
+          zdqsdt=ra2s(ztnew)*(TMELT-ra4s(ztnew))*zqsnl*zcor/((ztnew-ra4s(ztnew))*(ztnew-ra4s(ztnew)))
           zrain=(zqnew-zqsnl)/(1.+zlcp*zdqsdt)
           ztnew=ztnew+zlcp*zrain
           zqnew=zqnew-zrain
@@ -990,8 +990,8 @@
            itop(jhor)=jlev
            ztp(jhor)=ztnew
            zqp(jhor)=zqnew
-           zqsa=rdbrv*ra1*exp(ra2*(zte(jhor,jlev)-TMELT)                &
-     &                           /(zte(jhor,jlev)-ra4))                 &
+           zqsa=rdbrv*ra1s(zte(jhor,jlev))*exp(ra2s(zte(jhor,jlev))*(zte(jhor,jlev)-TMELT)                &
+     &                           /(zte(jhor,jlev)-ra4s(zte(jhor,jlev))))                 &
      &         /(dp(jhor)*sigma(jlev))
 !
 !      avoid negative qsat
@@ -1014,8 +1014,8 @@
 
            ztnew=zte(jhor,jlep)
            zqnew=zqe(jhor,jlep)
-           zqsnl=rdbrv*ra1*exp(ra2*(zte(jhor,jlep)-TMELT)               &
-     &                            /(zte(jhor,jlep)-ra4))                &
+           zqsnl=rdbrv*ra1s(zte(jhor,jlep))*exp(ra2s(zte(jhor,jlep))*(zte(jhor,jlep)-TMELT)               &
+     &                            /(zte(jhor,jlep)-ra4s(zte(jhor,jlep))))                &
      &         /(dp(jhor)*sigma(jlep))
 !
 !      avoid negative qsat
@@ -1039,7 +1039,7 @@
 !     temperature correction term
 !
 
-           zdqsdt=ra2*(TMELT-ra4)*zqsnl*zcor/((ztnew-ra4)*(ztnew-ra4))
+           zdqsdt=ra2s(ztnew)*(TMELT-ra4s(ztnew))*zqsnl*zcor/((ztnew-ra4s(ztnew))*(ztnew-ra4s(ztnew)))
 
 !
 !     update t and q
@@ -1053,7 +1053,7 @@
 !     second iteration:
 !
 
-           zqsnl=rdbrv*ra1*exp(ra2*(ztnew-TMELT)/(ztnew-ra4))            &
+           zqsnl=rdbrv*ra1s(ztnew)*exp(ra2s(ztnew)*(ztnew-TMELT)/(ztnew-ra4s(ztnew)))            &
      &          /(dp(jhor)*sigma(jlep))
 !
 !      avoid negative qsat
@@ -1062,7 +1062,7 @@
 !
            zcor=1./(1.-(1./rdbrv-1.)*zqsnl)
            zqsnl=zqsnl*zcor
-           zdqsdt=ra2*(TMELT-ra4)*zqsnl*zcor/((ztnew-ra4)*(ztnew-ra4))
+           zdqsdt=ra2s(ztnew)*(TMELT-ra4s(ztnew))*zqsnl*zcor/((ztnew-ra4s(ztnew))*(ztnew-ra4s(ztnew)))
            zrain=(zqnew-zqsnl)/(1.+zlcp*zdqsdt)
            ztnew=ztnew+zlcp*zrain
            zqnew=zqnew-zrain
@@ -1112,7 +1112,7 @@
 !     saturation humidity
 !
 
-         zqsnl=rdbrv*ra1*exp(ra2*(ztnew-TMELT)/(ztnew-ra4))             &
+         zqsnl=rdbrv*ra1s(ztnew)*exp(ra2s(ztnew)*(ztnew-TMELT)/(ztnew-ra4s(ztnew)))             &
      &        /(dp(jhor)*sigma(jlev))
 !
 !      avoid negative qsat
@@ -1142,7 +1142,7 @@
 !     temperature correction term
 !
 
-          zdqsdt=ra2*(TMELT-ra4)*zqsnl*zcor/((ztnew-ra4)*(ztnew-ra4))
+          zdqsdt=ra2s(ztnew)*(TMELT-ra4s(ztnew))*zqsnl*zcor/((ztnew-ra4s(ztnew))*(ztnew-ra4s(ztnew)))
 
 !
 !     update t,q
@@ -1156,7 +1156,7 @@
 !     second iteration:
 !
 
-          zqsnl=rdbrv*ra1*exp(ra2*(ztnew-TMELT)/(ztnew-ra4))            &
+          zqsnl=rdbrv*ra1s(ztnew)*exp(ra2s(ztnew)*(ztnew-TMELT)/(ztnew-ra4s(ztnew)))            &
      &         /(dp(jhor)*sigma(jlev))
 !
 !      avoid negative qsat
@@ -1165,7 +1165,7 @@
 !
           zcor=1./(1.-(1./rdbrv-1.)*zqsnl)
           zqsnl=zqsnl*zcor
-          zdqsdt=ra2*(TMELT-ra4)*zqsnl*zcor/((ztnew-ra4)*(ztnew-ra4))
+          zdqsdt=ra2s(ztnew)*(TMELT-ra4s(ztnew))*zqsnl*zcor/((ztnew-ra4s(ztnew))*(ztnew-ra4s(ztnew)))
           zrain=(zqnew-zqsnl)/(1.+zlcp*zdqsdt)
           ztnew=ztnew+zlcp*zrain
           zqnew=zqnew-zrain
@@ -1185,8 +1185,8 @@
            itop(jhor)=jlev
            ztp(jhor)=ztnew
            zqp(jhor)=zqnew
-           zqsa=rdbrv*ra1*exp(ra2*(zte(jhor,jlev)-TMELT)                &
-     &                            /(zte(jhor,jlev)-ra4))                &
+           zqsa=rdbrv*ra1s(zte(jhor,jlev))*exp(ra2s(zte(jhor,jlev))*(zte(jhor,jlev)-TMELT)                &
+     &                            /(zte(jhor,jlev)-ra4s(zte(jhor,jlev))))                &
      &         /(dp(jhor)*sigma(jlev))
 !
 !      avoid negative qsat
@@ -1636,8 +1636,8 @@
         if(kshallow(jhor) > 0 .and. jlev+1 == ktop(jhor)) then
          zrthl=(dsigma(jlp)+dsigma(jlev))                               &
      &        /(zt(jhor,jlev)*dsigma(jlp)+zt(jhor,jlp)*dsigma(jlev))
-         zzqs=rdbrv*ra1*exp(ra2*(zt(jhor,jlev)-TMELT)                   &
-     &                     /(zt(jhor,jlev)-ra4))                        &
+         zzqs=rdbrv*ra1s(zt(jhor,jlev))*exp(ra2s(zt(jhor,jlev))*(zt(jhor,jlev)-TMELT)                   &
+     &                     /(zt(jhor,jlev)-ra4s(zt(jhor,jlev))))                        &
      &       /(dp(jhor)*sigma(jlev))
 !
 !      avoid negative qsat
@@ -1646,8 +1646,8 @@
 !
          zcor=1./(1.-(1./rdbrv-1.)*zzqs)
          zzqs=zzqs*zcor
-         zzqsp=rdbrv*ra1*exp(ra2*(zt(jhor,jlp)-TMELT)                   &
-     &                     /(zt(jhor,jlp)-ra4))                         &
+         zzqsp=rdbrv*ra1s(zt(jhor,jlp))*exp(ra2s(zt(jhor,jlp))*(zt(jhor,jlp)-TMELT)                   &
+     &                     /(zt(jhor,jlp)-ra4s(zt(jhor,jlp))))                         &
      &       /(dp(jhor)*sigma(jlp))
 !
 !      avoid negative qsat
@@ -1989,7 +1989,7 @@
       do jlev=1,NLEV
        zt(:)=dt(:,jlev)+dtdt(:,jlev)*deltsec2
        zq(:)=dq(:,jlev)+dqdt(:,jlev)*deltsec2
-       zqsat(:)=rdbrv*ra1*exp(ra2*(zt(:)-TMELT)/(zt(:)-ra4))            &
+       zqsat(:)=rdbrv*ra1s(zt(:))*exp(ra2s(zt(:))*(zt(:)-TMELT)/(zt(:)-ra4s(zt(:))))            &
      &         /(dp(:)*sigma(jlev))
 !
 !      avoid negative qsat
@@ -2271,7 +2271,7 @@
 !
 !        saturation humidity
 ! 
-         zqsat(:)=rdbrv*ra1*exp(ra2*(zt(:)-TMELT)/(zt(:)-ra4))          &
+         zqsat(:)=rdbrv*ra1s(zt(:))*exp(ra2s(zt(:))*(zt(:)-TMELT)/(zt(:)-ra4s(zt(:))))          &
      &         /(dp(:)*sigma(jlev))
 !
 !        avoid negative qsat
@@ -2288,8 +2288,8 @@
          where((zq(:).lt.zqsat(:)).AND.zprl(:) > zeps)
            zlcpe(:)=ALV/(acpd*(1.+ADV*dq(:,jlev)))
            zdqdt(:)=AMIN1(gamma*(zqsat(:)-zq(:))*dsigma(jlev)/deltsec2  &
-     &                   /(1.0+zlcpe(:)*ra2*(TMELT-ra4)                 &
-     &                   *zqsat(:)*zcor(:)/(zt(:)-ra4)**2)              &
+     &                   /(1.0+zlcpe(:)*ra2s(zt(:))*(TMELT-ra4s(zt(:)))                 &
+     &                   *zqsat(:)*zcor(:)/(zt(:)-ra4s(zt(:)))**2)              &
      &                   ,zprl(:))
            zprl(:)=zprl(:)-zdqdt(:)
            zdqdt(:)=zdqdt(:)/dsigma(jlev)
@@ -2299,8 +2299,8 @@
          where((zq(:).lt.zqsat(:)).AND.zprc(:) > zeps)
            zlcpe(:)=ALV/(acpd*(1.+ADV*dq(:,jlev)))
            zdqdt(:)=AMIN1(gamma*(zqsat(:)-zq(:))*dsigma(jlev)/deltsec2  &
-     &                   /(1.0+zlcpe(:)*ra2*(TMELT-ra4)                 &
-     &                   *zqsat(:)*zcor(:)/(zt(:)-ra4)**2)              &
+     &                   /(1.0+zlcpe(:)*ra2s(zt(:))*(TMELT-ra4s(zt(:)))                 &
+     &                   *zqsat(:)*zcor(:)/(zt(:)-ra4s(zt(:)))**2)              &
      &                   ,zprc(:))
            zprc(:)=zprc(:)-zdqdt(:)
            zdqdt(:)=zdqdt(:)/dsigma(jlev)
@@ -2310,8 +2310,8 @@
          where((zq(:).lt.zqsat(:)).AND.zprsl(:) > zeps)
            zlcpe(:)=ALS/(acpd*(1.+ADV*dq(:,jlev)))
            zdqdt(:)=AMIN1(gamma*(zqsat(:)-zq(:))*dsigma(jlev)/deltsec2  &
-     &                   /(1.0+zlcpe(:)*ra2*(TMELT-ra4)                 &
-     &                   *zqsat(:)*zcor(:)/(zt(:)-ra4)**2)              &
+     &                   /(1.0+zlcpe(:)*ra2s(zt(:))*(TMELT-ra4s(zt(:)))                 &
+     &                   *zqsat(:)*zcor(:)/(zt(:)-ra4s(zt(:)))**2)              &
      &                   ,zprsl(:))
            zprsl(:)=zprsl(:)-zdqdt(:)
            zdqdt(:)=zdqdt(:)/dsigma(jlev)
@@ -2321,8 +2321,8 @@
          where((zq(:).lt.zqsat(:)).AND.zprsc(:) > zeps)
            zlcpe(:)=ALS/(acpd*(1.+ADV*dq(:,jlev)))
            zdqdt(:)=AMIN1(gamma*(zqsat(:)-zq(:))*dsigma(jlev)/deltsec2  &
-     &                   /(1.0+zlcpe(:)*ra2*(TMELT-ra4)                 &
-     &                   *zqsat(:)*zcor(:)/(zt(:)-ra4)**2)              &
+     &                   /(1.0+zlcpe(:)*ra2s(zt(:))*(TMELT-ra4s(zt(:)))                 &
+     &                   *zqsat(:)*zcor(:)/(zt(:)-ra4s(zt(:)))**2)              &
      &                   ,zprsc(:))
            zprsc(:)=zprsc(:)-zdqdt(:)
            zdqdt(:)=zdqdt(:)/dsigma(jlev)
