@@ -56,8 +56,6 @@ SHTNS_PREFIX = PROJECT_ROOT / "vendor" / "shtns-install"
 # A value outside it must be an ERROR: `-r 170` used to build T21 and say
 # nothing. SPAT-2.
 RESOLUTIONS = dict(rungs.RUNGS)
-# T63 and T106 are not powers of two in longitude and need the other FFT.
-NEEDS_FFT991 = {"T63", "T106"}
 
 PARMODES = ("serial", "mpi", "omp")
 
@@ -165,7 +163,12 @@ def build(res_arg: str, levels: int, ranks: int, parmode: str, profile: str,
     # flag sweep. An arm's flags are part of its build directory's name.
     flags = flags + extra
 
-    fft = "fft991mod" if res in NEEDS_FFT991 else "fftmod"
+    # WHICH FFT, from the ladder registry and not from a set named here: the
+    # rule is which radix chain covers this rung's longitude count, and it is
+    # derived in `lib/rungs.py:fft_module` rather than listed. A hand-kept set
+    # was how the postprocessor came to route T63 and T106 into the module
+    # that cannot transform them. world-i38.
+    fft = rungs.fft_module(res)
     compiler = "mpif90" if parmode == "mpi" else "gfortran"
     if shutil.which(compiler) is None:
         raise SystemExit(f"{compiler} is not on PATH, and --parmode {parmode} needs it.")

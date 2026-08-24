@@ -88,3 +88,39 @@ def model_grid(config: dict) -> tuple[str, int, int]:
             "stale rather than leaving a truncation paired with another "
             "grid's dimensions.")
     return rung, nlat, nlon
+
+
+def fft_module(rung: str) -> str:
+    """The Fortran FFT module that can transform this rung's longitudes.
+
+    `fftmod` is the radix 8-4-3-2 transform: `gp2fc` does one pass of radix 8,
+    then radix 4 while four or more remain, then a single radix 3 or radix 2
+    tail. It therefore transforms `8 * 4**k * r` with `r` in 1, 2, 3, and
+    NOTHING ELSE -- its `nallowed` table is that set, not an independent fact.
+    `fft991mod` is the FFT991 package, whose `set99` factorises with 8, 6, 5,
+    4, 3 and 2 and covers the lengths `fftmod` cannot.
+
+    DERIVED RATHER THAN LISTED, because a table is what went wrong: the
+    postprocessor named the two longitude counts that need `fft991mod` and
+    then tested them against a LATITUDE, so T63 and T106 both selected the
+    module that cannot transform them and the extension's bare Fortran `stop`
+    killed the interpreter with no traceback. world-i38.
+
+    `vendor/exoplasim/exoplasim/pyburn.py:_fftmodule` states the same rule for
+    the postprocessor's f2py extensions. That package stays importable on its
+    own and cannot import this one, so the rule is written twice on purpose;
+    each names the other.
+    """
+    _, nlon, _ = geometry(rung)
+    return "fftmod" if _fftmod_can_transform(nlon) else "fft991mod"
+
+
+def _fftmod_can_transform(nlon: int) -> bool:
+    """Whether `fftmod`'s radix loop covers `nlon` columns. See `fft_module`."""
+    n = int(nlon)
+    if n % 8:
+        return False
+    r = n // 8
+    while r % 4 == 0:
+        r //= 4
+    return r in (1, 2, 3)

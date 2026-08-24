@@ -30,6 +30,48 @@ Additionally, at least at first, there are the following restrictions:
     **The Mars shortcut for derived variables is unsupported.** This will be supported in future versions.
 '''
 
+def _fftmodule(nlon):
+    """The FFT extension that can transform `nlon` longitudes.
+
+    THE CRITERION IS THE LONGITUDE COUNT. `pyfft` is the radix 8-4-3-2
+    transform: it does one pass of radix 8, then radix 4 until fewer than four
+    remain, then a single radix 3 or radix 2 tail, so it transforms
+    `8 * 4**k * r` with `r` in 1, 2, 3 and nothing else. `pyfft991` is the
+    FFT991 package, which factorises with 8, 6, 5, 4, 3 and 2 and covers the
+    lengths `pyfft` cannot. That is the whole of the rule, and it is derived
+    here from the radix loop rather than listed, so a longitude count nobody
+    has thought about yet still routes correctly.
+
+    WHAT THIS REPLACED. Six sites tested `nlat in [192,320]`, where `nlat` was
+    `min(header[4],header[5])` -- the LATITUDE count -- against the LONGITUDE
+    counts of T63 and T106. Both rungs therefore selected `pyfft`, whose table
+    contains neither 192 nor 320, and its refusal is a bare Fortran `stop`:
+    from inside an f2py extension that terminates the interpreter with status
+    0, so the driver sees a successful process that wrote no output file.
+
+    The project side of this rule is `lib/rungs.py:fft_module`, which routes
+    the MODEL build to `fftmod` or `fft991mod` by the same derivation. This
+    package has to stay importable on its own, so the rule is stated in both
+    places rather than shared; each names the other.
+    """
+    n = int(nlon)
+    if n % 8 == 0:
+        r = n // 8
+        while r % 4 == 0:
+            r //= 4
+        if r in (1, 2, 3):
+            if sys.version[0] == "2":
+                import exoplasim.pyfft2 as pyfft
+            else:
+                import exoplasim.pyfft as pyfft
+            return pyfft
+    if sys.version[0] == "2":
+        import exoplasim.pyfft991v2 as pyfft
+    else:
+        import exoplasim.pyfft991 as pyfft
+    return pyfft
+
+
 def _log(destination,string):
     if destination is None:
         if string=="\n":
@@ -650,16 +692,7 @@ def readfile(filename):
     nlon = max(headers['main'][4],headers['main'][5])
     ntru = headers['main'][7]
     
-    if sys.version[0]=="2":
-        if nlat in [192,320]:
-            import exoplasim.pyfft991v2 as pyfft
-        else:
-            import exoplasim.pyfft2 as pyfft
-    else:
-        if nlat in [192,320]:
-            import exoplasim.pyfft991 as pyfft
-        else:
-            import exoplasim.pyfft as pyfft
+    pyfft = _fftmodule(nlon)
     
     
     sid,gwd = pyfft.inigau(nlat)
@@ -732,16 +765,7 @@ def _transformvar(lon,lat,variable,meta,nlat,nlon,nlev,ntru,ntime,mode='grid',
         Transformed array
     '''
     
-    if sys.version[0]=="2":
-        if nlat in [192,320]:
-            import exoplasim.pyfft991v2 as pyfft
-        else:
-            import exoplasim.pyfft2 as pyfft
-    else:
-        if nlat in [192,320]:
-            import exoplasim.pyfft991 as pyfft
-        else:
-            import exoplasim.pyfft as pyfft
+    pyfft = _fftmodule(nlon)
     
     if nlev in variable.shape:
         levd = "lev"
@@ -1076,16 +1100,7 @@ def _transformvectorvar(lon,uvar,vvar,umeta,vmeta,lats,nlon,nlev,ntru,ntime,mode
         
     nlat = len(rlats)
     
-    if sys.version[0]=="2":
-        if nlat in [192,320]:
-            import exoplasim.pyfft991v2 as pyfft
-        else:
-            import exoplasim.pyfft2 as pyfft
-    else:
-        if nlat in [192,320]:
-            import exoplasim.pyfft991 as pyfft
-        else:
-            import exoplasim.pyfft as pyfft
+    pyfft = _fftmodule(nlon)
     
         
     rdcostheta = radius/np.cos(rlats)
