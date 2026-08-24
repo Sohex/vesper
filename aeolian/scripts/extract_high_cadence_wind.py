@@ -12,23 +12,28 @@ turns it into a small netCDF holding the bottom model level alone.
 Chunked, checkpointed and reporting progress throughout, because this is a
 15 GB input and `docs/src/reference/large-data.md` says that is not optional.
 
-## Why this exists: pyburn cannot read a high-cadence file at all
+## Why this exists: pyburn holds the whole decoded record set
 
-Not "not efficiently". At all, and for a reason unrelated to size.
+It used to exist for two reasons and now exists for one. The other was a MODEL
+defect and has been fixed where it belonged.
 
-`pyburn.readallvariables` builds its time axis by counting records of code 139,
-and reshapes every variable to `(ntimes, nlev, dim1)`. The high-cadence stream
-writes its GRIDPOINT fields twice per timestep and its SPECTRAL fields once, so
-`ntimes` comes out at twice the true sample count and every spectral variable
-fails to reshape. That would have happened on the original file too, after
-however many hours, so the run that was killed at 73 minutes was never going to
-produce anything.
+THE DEFECT, for the record. `plasim.f90` called `hcadencegp` twice in a row, so
+the high-cadence stream wrote its GRIDPOINT fields twice per timestep and its
+SPECTRAL fields once. `pyburn.readallvariables` builds its time axis by counting
+records of code 139, so `ntimes` came out at twice the true sample count and
+every spectral variable failed to reshape -- "cannot reshape array of size
+7402780 into shape (2926,10,506)", where 7402780 is exactly half of the product.
+It was in the first squashed import of the subtree, so it had been there as long
+as the fork had, and this script used to work around it by keeping only the
+first code 139 of each timestep. The duplicate call is gone and the workaround
+with it; what remains is a GUARD, because a filter that silently halves a sample
+count is worse than a crash.
 
 The winds are the spectral half: `outmod.f90:hcadencesp` writes divergence (155)
 and vorticity (138), and `ua`, `va` and `spd` are all derived from them by a
-transform. So this keeps the spectral records, plus exactly ONE code 139 per
-timestep to serve as the time marker, and drops the rest. That fixes the axis
-and shrinks a timestep from 350 records to 43 on the way.
+transform. So this keeps the spectral records, plus the code 139 per timestep
+that serves as the time marker, and drops the rest -- which shrinks a timestep
+from 350 records to 43 and is the whole of what makes the size tractable.
 
 ## And it could not have been done in one pass either
 
@@ -172,10 +177,16 @@ def write_chunk(src: Path, dst: Path, preamble, group,
                 spectral_dim1_value: int) -> None:
     """The grid descriptor, then the records that make a readable time axis.
 
-    Keeps every spectral record, because that is where the winds are, and
-    exactly one code 139 per timestep, because that is what pyburn counts to get
-    `ntimes`. Dropping the second copy of each gridpoint field is the whole fix:
-    with both present the axis comes out doubled and nothing reshapes.
+    Keeps every spectral record, because that is where the winds are, and the
+    code 139 per timestep that pyburn counts to get `ntimes`.
+
+    THE COUNT IS CHECKED RATHER THAN CLAMPED. This used to keep only the first
+    139 of each timestep, to undo a model that wrote its gridpoint fields twice;
+    that duplicate call is fixed in `plasim.f90` and a filter that quietly drops
+    half a sample set would now be removing real samples. So a second marker in
+    one timestep raises: it means the model has regressed, and halving the gust
+    distribution silently is exactly the failure this whole script exists to
+    stop.
     """
     with open(src, "rb") as fh, open(dst, "wb") as out:
         fh.seek(preamble[0])
@@ -194,7 +205,14 @@ def write_chunk(src: Path, dst: Path, preamble, group,
                 keep = dim1 == spectral_dim1_value
                 if code == TIME_MARKER_CODE:
                     seen_marker += 1
-                    keep = seen_marker == 1
+                    if seen_marker > 1:
+                        raise RuntimeError(
+                            f"two code {TIME_MARKER_CODE} records in one "
+                            f"timestep of {src}. The model wrote its gridpoint "
+                            "high-cadence fields twice, which plasim.f90's "
+                            "duplicated hcadencegp call used to do and no "
+                            "longer should. Fix the model, not this reader.")
+                    keep = True
                 if keep:
                     n32, m32 = np.int32(head_len).tobytes(), np.int32(body_len).tobytes()
                     out.write(n32 + head + n32)

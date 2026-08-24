@@ -604,7 +604,24 @@ def main() -> None:
           f"codes carry the field they were built from")
     started = datetime.now(timezone.utc).isoformat()
     try:
-        model.run(years=args.orbits, crashifbroken=True, clean=True)
+        # `clean` deletes the RAW outputs once pyburn has written the netCDF,
+        # and for a high-cadence segment the raw file is the deliverable: the
+        # netCDF pyburn writes is the ordinary twelve-bin average, and
+        # `aeolian/scripts/extract_high_cadence_wind.py` reads the raw stream
+        # because that is where the per-sample records are. So a high-cadence
+        # segment keeps everything and drops the raws it does not need itself.
+        model.run(years=args.orbits, crashifbroken=True,
+                  clean=not args.high_cadence)
+        if args.high_cadence:
+            for year in range(start_year, start_year + args.orbits):
+                for name in (f"MOST.{year:05d}", f"MOST_SNAP.{year:05d}"):
+                    raw = run_dir / name
+                    if raw.is_file():
+                        raw.unlink()
+            kept = sorted((run_dir / "highcadence").glob("MOST_HC.[0-9]*"))
+            kept = [p for p in kept if p.suffix == ""]
+            print(f"  high-cadence raw kept: {[p.name for p in kept]}")
+            print("  extract it with aeolian/scripts/extract_high_cadence_wind.py")
         new_diagnostics = []
         for year in range(start_year, start_year + args.orbits):
             output = run_dir / f"MOST.{year:05d}.nc"

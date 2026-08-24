@@ -794,7 +794,15 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
            if ((nhcstp .ge. hcstartstep) .and. (nhcstp<hcendstep)) then
              write(nud,*) "HC OUTPUT step",nhcstp
              if (mod(nhcstp-hcstartstep,hcinterval)==0) then
-                call hcadencegp(141)
+!               ONCE, NOT TWICE. Upstream calls this twice in a row -- it is in
+!               the first squashed import of the subtree, so it has been there as
+!               long as the fork has. Every gridpoint high-cadence record was
+!               written twice, and the spectral half beside it once, so pyburn
+!               derives the sample count from one and the array from the other
+!               and cannot reshape: "cannot reshape array of size 7402780 into
+!               shape (2926,10,506)", and 7402780 is exactly half of 2926*10*506.
+!               The storm-capture block below writes one hcadencesp and one
+!               hcadencegp, which is the intended pattern.
                 call hcadencegp(141)
 !                 koutdiag=ndiaggp3d+ndiaggp2d+ndiagsp3d+ndiagsp2d+ndiagcf     &
 !      &                   +nentropy+nenergy
