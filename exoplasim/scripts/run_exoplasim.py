@@ -169,6 +169,14 @@ def configure_otherargs(derived: dict) -> dict:
         "CRHOS@icemod_namelist": f"{derived['sea_water_density_kg_m3']:.2f}",
         "CPS@icemod_namelist": f"{derived['sea_water_heat_capacity_j_kg_k']:.2f}",
         "CLFI@icemod_namelist": f"{derived['sea_ice_fusion_j_kg']:.1f}",
+        # THE DECLARED COLD START, icemod_nl. OCN-6. icemod refuses a cold
+        # start with no SST climatology and no declared profile, so these are
+        # not optional; they are written on a resume too because constructing
+        # the model over an existing run directory re-copies the shipped
+        # namelists, and a segment that lost them would refuse to start.
+        "TSST_EQ@icemod_namelist": f"{derived['cold_start_sst_equator_k']:.4f}",
+        "TSST_POL@icemod_namelist": f"{derived['cold_start_sst_pole_k']:.4f}",
+        "HICE_INI@icemod_namelist": f"{derived['cold_start_ice_thickness_m']:.4f}",
         # CLIM-16, oceanmod_nl. Written unconditionally, defaults included, so
         # the namelist in the run directory records what the arm actually ran
         # with instead of leaving it to the binary's compiled value.
@@ -354,6 +362,15 @@ def derive(config: dict, flux_ratio: float) -> dict:
         # the ice's own salinity and temperature, and icemod carries neither as
         # a variable.
         "sea_ice_fusion_j_kg": float(config["ocean"]["sea_ice_fusion_j_kg"]),
+        # OCN-6. The declared cold start. DECLARED and not derived: an SST
+        # field is what this model produces, so there is nothing here to
+        # compute one from, and the alternative was a constructed Earth field.
+        "cold_start_sst_equator_k": float(
+            config["ocean"]["cold_start"]["sst_equator_k"]),
+        "cold_start_sst_pole_k": float(
+            config["ocean"]["cold_start"]["sst_pole_k"]),
+        "cold_start_ice_thickness_m": float(
+            config["ocean"]["cold_start"]["sea_ice_thickness_m"]),
         # CLIM-16. Ocean horizontal heat transport EXISTS; a constant
         # diffusivity is a BOUND on the missing transport rather than the
         # transport, and it is bracketed rather than tuned. NLEV_OCE is 1
@@ -1580,6 +1597,14 @@ def expected_namelist_keys(config: dict) -> dict:
     fusion = config.get("ocean", {}).get("sea_ice_fusion_j_kg")
     if fusion is not None:
         want["icemod_namelist"]["CLFI"] = round(float(fusion), 1)
+    cold = config.get("ocean", {}).get("cold_start")
+    if cold is not None:
+        want["icemod_namelist"]["TSST_EQ"] = round(
+            float(cold["sst_equator_k"]), 4)
+        want["icemod_namelist"]["TSST_POL"] = round(
+            float(cold["sst_pole_k"]), 4)
+        want["icemod_namelist"]["HICE_INI"] = round(
+            float(cold["sea_ice_thickness_m"]), 4)
     if energy_diagnostics_enabled(config):
         want["plasim_namelist"]["NENERGY"] = float(energy_diagnostics_level(config))
     if m.get("conversion_time_level", False):

@@ -73,6 +73,31 @@
       real :: CPS       = 3990.34  ! specific heat of sea water (J/(kg*K))
       real :: CLFI      = 3.28E5   ! heat of fusion of sea ice (J/kg)
       
+!
+!     THE DECLARED COLD START. This model has no sea surface temperature or
+!     sea-ice climatology to begin from unless one is supplied as surface
+!     codes 169, 210 and 211, and a world that has none is not a world whose
+!     ocean can be guessed: an SST field is what this model PRODUCES. So a
+!     cold start with no climatology begins from a stated profile instead of
+!     a constructed one, and refuses to run if nothing states it.
+!
+!     The profile is hemispherically symmetric by construction --
+!     tsst_pol + (tsst_eq-tsst_pol)*cos(lat)**2 -- because an initial
+!     condition that is asymmetric between the hemispheres puts a difference
+!     into the answer that nothing in the world put there. What it replaced
+!     did exactly that: with code 169 absent xclsst held its -999 sentinel,
+!     every ocean cell tested below the freezing point, and make_ice_thickness
+!     shaped the resulting cover with an Earth Arctic-Antarctic table.
+!
+!     hice_ini is the thickness the cold start puts on cells whose declared
+!     SST is at or below the freezing point. Zero is an ice-free cold start
+!     and is the default, which is the side of the hysteresis a flux sweep
+!     cannot otherwise approach from.
+!
+      real :: tsst_eq       = -999.! cold-start SST at the equator (K)
+      real :: tsst_pol      = -999.! cold-start SST at the poles (K)
+      real :: hice_ini      =  0.  ! cold-start sea-ice thickness (m)
+!
       real :: taunc         =  0.  ! time scale for newtonian cooling
       real :: xmind         = 0.1  ! minimal ice thickness (m)
       real :: xmaxd         = 9.0  ! maximal ice thickness (m; neg. = no limit)
@@ -133,6 +158,7 @@
       real :: xfluxc(NHOR)    = 0.  ! cond. heatflux (w/m2)
       real :: xscflx(NHOR)    = 0.  ! flux from snow -> ice conversion (w/m2)
       real :: xgw(NHOR)       = 0.  ! gaussian weights
+      real :: xcoldsst(NHOR)  = 0.  ! declared cold-start SST profile (K)
 !
 !     Climatological fields
 !
@@ -205,7 +231,7 @@
 !$omp&  xfluxc,xfluxca,xflxice,xflxice2,xflxicea,xgw,xheat,xheata,xicec,xicecc,xiced,ximelt,ximelta,&
 !$omp&  xlhdt,xlhfl,xls,xlwfl,xmaxd,xmind,xmld,xoflux,xofluxa,xoheat,xpme,xprs,xqmelt,xqmelta,xroff,&
 !$omp&  xscflx,xscflxa,xshdt,xshfl,xsmelt,xsmelta,xsmflx,xsndch,xsnow,xsst,xstoi,xstoia,xswfl,xtaux,&
-!$omp&  xtauy,xts,xtsflux,xtsfluxa,xust3)
+!$omp&  xtauy,xts,xtsflux,xtsfluxa,xust3,xcoldsst,tsst_eq,tsst_pol,hice_ini)
 
       end module icemod
 
@@ -216,6 +242,19 @@
 
       subroutine read_ice_surface
       use icemod
+
+!     THE -999 SENTINEL IS THE RECORD OF WHAT THIS WORLD HAS. mpsurfgp leaves
+!     its argument untouched when the file is absent, so a field that stays at
+!     -999 was not read, and every branch below that would prescribe the
+!     surface from a climatology is refused on that test rather than fed a
+!     construction. The sentinel is written to the restart with the field, so
+!     the test answers the same on a continuation as on a cold start. Restore
+!     it before each read: read_ice_surface is called again with newsurf = 1
+!     after the restart arrays have been loaded.
+
+      xclsst(:,:)  = -999.
+      xclicec(:,:) = -999.
+      xcliced(:,:) = -999.
 
       call mpsurfgp('xls',xls,NHOR,1)
       call mpsurfgp('xclsst' ,xclsst ,NHOR,14)
@@ -245,20 +284,25 @@
          write(nud,*) 'ice cover {xclicec} converted from % to fraction'
       endif
 
-      if (zmax < 0.0) then ! xclicec was not read
-         xclicec(:,:) = 0.0
-         if (nice > 0.5) then
-         where (xclsst(:,:) <= TFREEZE) xclicec(:,:) = 1.0
-         endif
-         if (mypid == NROOT) &
-         write(nud,*) 'ice cover {xclicec} constructed from SST'
-      endif
+!     NO ICE COVER IS CONSTRUCTED FROM THE SST FIELD. What stood here tested
+!     xclsst against the freezing point, and with xclsst at its sentinel that
+!     put full cover on every ocean cell of every world that ships no code
+!     210. The cover stays at the sentinel, iceget clamps it to zero for the
+!     model, and the cold start builds a DECLARED initial state instead.
 
-      if (xcliced(1,1) < 0.0) then ! xcliced was not read
+      if (zmax < 0.0 .and. mypid == NROOT) &
+         write(nud,*) 'no ice cover {xclicec}: none read, and none constructed'
+
+      call mpmaxval(xcliced,NHOR,14,zmaxd)
+      if (zmax >= 0.0 .and. zmaxd < 0.0) then ! cover read, thickness not
          nicec2d = 1
          call make_ice_thickness
-         if (mypid == NROOT) &
+         if (mypid == NROOT) then
          write(nud,*) 'ice thickness {xcliced} computed from ice cover'
+         write(nud,*) 'WARNING: by the CCM3 cover-to-thickness relation, which'
+         write(nud,*) 'is fitted to Earth and is asymmetric between the'
+         write(nud,*) 'hemispheres. Supply code 211 to avoid it.'
+         endif
       endif
       endif
 
@@ -267,10 +311,14 @@
          xcliced(:,:) = 0.0
       endif
 !     correct climatological ice with land-sea mask
+!     A sentinel is not a value to correct: zeroing it over land would leave
+!     the array part -999 and part 0, and the test above reads a global max.
 
       do jm = 0 , 13
-         where (xls(:) >= 1.0)
+         where (xls(:) >= 1.0 .and. xclicec(:,jm) >= 0.0)
             xclicec(:,jm) = 0.0
+         endwhere
+         where (xls(:) >= 1.0 .and. xcliced(:,jm) >= 0.0)
             xcliced(:,jm) = 0.0
          endwhere
       enddo
@@ -308,7 +356,7 @@
       namelist/icemod_nl/nout,nfluko,nperpetual_ice,ntspd,nprint,nprhor &
      &               ,nentropy,nice,nseaice,nsnow,ntskin,ncpl_ice_ocean,taunc   &
      &               ,xmind,xmaxd,thicec,TFREEZE,CRHOS,CPS,CLFI          &
-     &               ,newsurf,naout
+     &               ,tsst_eq,tsst_pol,hice_ini,newsurf,naout
 !
 !     copy input parameter to icemod
 !
@@ -373,6 +421,9 @@
       call mpbcr(CRHOS)
       call mpbcr(CPS)
       call mpbcr(CLFI)
+      call mpbcr(tsst_eq)
+      call mpbcr(tsst_pol)
+      call mpbcr(hice_ini)
 !
 !     set time step
 !
@@ -382,17 +433,7 @@
       if (nrestart == 0) then ! read start file
        
          call read_ice_surface
-!
-!        initialize
-!
-         call iceget
-         xiced(:)=xcliced2(:)
-         xicec(:)=xclicec2(:)
-         where(xicec(:) >= thicec)
-          xicec(:)=1.
-         elsewhere
-          xicec(:)=0.
-         endwhere
+         call ice_cold_start
 
       else ! (nrestart /= 0)
 !
@@ -455,10 +496,58 @@
                   
       endif ! (nrestart == 0)
 !
+!     WHAT NEEDS A CLIMATOLOGY, AND WHAT HAPPENS WHEN THERE IS NONE.
+!
+!     Three branches of this model do not integrate a surface, they prescribe
+!     one from an observed climatology, and each is refused rather than run
+!     against a construction. The test is the -999 sentinel in the field
+!     itself, which survives the restart, so a continuation that switches one
+!     of these on is refused the same way a cold start is.
+!
+!       nice == 0    prescribes ice cover and thickness from codes 210, 211
+!       ntskin == 0  takes the skin temperature from the SST climatology, 169
+!       nfluko /= 0  RELAXES the modelled state toward the climatology. That
+!                    is the model's q-flux, and both of its branches read
+!                    Earth artefacts here: nfluko = 1 reads code 709, and
+!                    nfluko = 2 relaxes ice toward xcliced2 and compares SST
+!                    against xclssto. Relaxing this world toward a field that
+!                    was constructed from a sentinel is the whole of the
+!                    hazard, and it is refused at the point of switching on.
+!
+      call mpmaxval(xclsst ,NHOR,14,zclsst)
+      call mpmaxval(xcliced,NHOR,14,zcliced)
+!
+      if (nfluko /= 0 .and. zclsst < 0.) then
+         call mpabort('icemod: nfluko needs a sea surface temperature '      &
+     &              //'climatology (code 169) to relax toward, and this '    &
+     &              //'run has none')
+      endif
+      if (nfluko == 2 .and. nseaice > 0 .and. zcliced < 0.) then
+         call mpabort('icemod: nfluko = 2 relaxes sea ice toward a '         &
+     &              //'thickness climatology (code 211), and this run has '  &
+     &              //'none')
+      endif
+      if (nice == 0 .and. nseaice > 0 .and. zcliced < 0.) then
+         call mpabort('icemod: nice = 0 prescribes sea ice from a '          &
+     &              //'climatology (codes 210 and 211), and this run has '   &
+     &              //'none')
+      endif
+      if (ntskin == 0 .and. zclsst < 0.) then
+         call mpabort('icemod: ntskin = 0 takes the skin temperature from '  &
+     &              //'a sea surface temperature climatology (code 169), '   &
+     &              //'and this run has none')
+      endif
+!
 !     read flux correction
 !
       if (nfluko == 1) then
+         xflxice(:,:) = -999.
          call mpsurfgp('xflxice',xflxice,NHOR,14)
+         call mpmaxval(xflxice,NHOR,14,zflxice)
+         if (zflxice < -900.) then
+            call mpabort('icemod: nfluko = 1 needs the ice flux correction ' &
+     &                 //'field (code 709), and this run has none')
+         endif
       endif
 !
 !     open output file
@@ -471,7 +560,7 @@
 !
       call oceanini(nstep,nrestart,noutput,kdpy,ngui,xsst,xmld,xoheat   &
      &             ,ntspd,solar_day,oceanmod_namelist,ocean_output      &
-     &             ,TFREEZE,CRHOS,CPS,CLFI)
+     &             ,TFREEZE,CRHOS,CPS,CLFI,xcoldsst)
 !
       xoflux(:)=xoheat(:)
 !
@@ -499,6 +588,91 @@
 !
       return
       end subroutine iceini
+
+!     =========================
+!     SUBROUTINE ICE_COLD_START
+!     =========================
+
+      subroutine ice_cold_start
+      use icemod
+!
+!     The initial ice and sea surface temperature of a run that starts from no
+!     restart. Two cases, and the model must be told which it is in rather
+!     than guessing: either a sea surface temperature climatology was read, in
+!     which case the cold start is that climatology as it always was, or none
+!     was, in which case it is the DECLARED profile in icemod_nl.
+!
+!     xicecc is set on BOTH paths. It is the prognostic compactness, mkicec
+!     only grows it from whatever it holds, and icestep copies it into xicec
+!     every step -- so leaving it at zero beside a non-zero thickness gave a
+!     first output bin with ice thickness everywhere and ice cover identically
+!     nowhere. Thick ice carrying no albedo is not a state this model can
+!     start from.
+!
+      real :: zsst(NHOR)
+      real :: zclsst
+      real :: zpi
+      integer :: jlat, jhor1, jhor2
+!
+      zpi = 4.*ATAN(1.)
+!
+      call mpmaxval(xclsst,NHOR,14,zclsst)
+!
+      if (zclsst > 0.) then
+!
+!        A climatology was read. Start from it.
+!
+         call iceget
+         xiced(:)  = xcliced2(:)
+         xicecc(:) = xclicec2(:)
+!        Thickness without compactness is the same non-state from the other
+!        direction, and it is what a run supplying code 211 and not 210 gets.
+         where (xiced(:) > 0. .and. xicecc(:) <= 0.)
+            xicecc(:) = 1.
+         endwhere
+      else
+!
+!        None was. Start from the declared profile.
+!
+         if (tsst_eq < 0. .or. tsst_pol < 0.) then
+            call mpabort('icemod: a cold start with no sea surface '        &
+     &                 //'temperature climatology (code 169) needs '        &
+     &                 //'tsst_eq and tsst_pol declared in icemod_nl')
+         endif
+         do jlat = 1 , NLPP
+            jhor1 = (jlat-1)*NLON + 1
+            jhor2 = jlat*NLON
+            zsst(jhor1:jhor2) = tsst_pol                                    &
+     &          + (tsst_eq - tsst_pol)*COS(deglat(jlat)*zpi/180.)**2
+         enddo
+         xcoldsst(:) = zsst(:)
+!
+         xiced(:)  = 0.
+         xicecc(:) = 0.
+         where (xls(:) < 0.5 .and. zsst(:) <= TFREEZE)
+            xiced(:)  = hice_ini
+         endwhere
+         where (xiced(:) > 0.)
+            xicecc(:) = 1.
+         endwhere
+!
+         if (mypid == NROOT) then
+            write(nud,*) '* cold start from the declared SST profile:'
+            write(nud,*) '*   equator ',tsst_eq,' K, pole ',tsst_pol,' K'
+            write(nud,*) '*   sea ice ',hice_ini,' m below ',TFREEZE,' K'
+         endif
+      endif
+!
+!     the ice mask icestep applies to compactness, applied to the same field
+!
+      where (xicecc(:) >= thicec)
+         xicec(:) = 1.
+      elsewhere
+         xicec(:) = 0.
+      endwhere
+!
+      return
+      end subroutine ice_cold_start
 
 !     =====================================================================
 !     SUBROUTINE icestep

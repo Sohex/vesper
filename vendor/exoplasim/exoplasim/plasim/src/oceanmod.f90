@@ -106,7 +106,16 @@
       real :: ydsst(NHOR)  = 0.         ! heat flux from vdiff (w/m2)
       real :: yqhd(NHOR)   = 0.         ! heat flux from hdiff (w/m2)
 
-      real :: yclsst(NHOR,0:13)         ! climatological sst (K)
+!     -999 IS THE RECORD OF HAVING NO CLIMATOLOGY, and an initialiser rather
+!     than whatever the loader left in the page: this is a module-scope SAVE
+!     array, which -finit-real does not reach, and mpsurfgp leaves its
+!     argument untouched when code 169 is absent. What stood here had no
+!     initialiser at all beside four neighbours that do, and oceanini then
+!     clipped the uninitialised memory up to the freezing point and copied it
+!     into the ocean temperature, so every cold start began with the whole
+!     modelled ocean at its freezing point. The sentinel is a restart record,
+!     so it answers the same question on every continuation.
+      real :: yclsst(NHOR,0:13) = -999. ! climatological sst (K)
       real :: yfsst(NHOR,0:13) = 0.     ! flux corr. sst (W/m**2)
 
       real :: yclsst2(NHOR) = 0.        ! climatological sst (K)
@@ -156,7 +165,8 @@
 !
       subroutine oceanini(kstep,krestart,koutput,kdpy,kgui,psst,pmld    &
      &                   ,piflux,ktspd,psolday,oceanmod_namelist        &
-     &                   ,ocean_output, ifreezet, prhos, pcps, pclfi)
+     &                   ,ocean_output, ifreezet, prhos, pcps, pclfi      &
+     &                   ,pcoldsst)
       use oceanmod
 !     Only the radius; pumamod's NLON, NLAT and NHOR are not oceanmod's.
       use pumamod, only: plarad
@@ -165,6 +175,7 @@
       real :: prhos                 ! density of sea water, from icemod_nl
       real :: pcps                  ! specific heat of sea water, from icemod_nl
       real :: pclfi                 ! heat of fusion of sea ice, from icemod_nl
+      real :: pcoldsst(NHOR)        ! declared cold-start SST profile, icemod_nl
       real :: psst(NHOR),pmld(NHOR),piflux(NHOR)
       real (kind=8) :: zsi(NLAT)
       real (kind=8) :: zgw(NLAT)
@@ -310,6 +321,7 @@
 !
       if (nrestart == 0) then ! new start (read start file)
          call mpsurfgp('yls',yls,NHOR,1)
+         yclsst(:,:) = -999.
          call mpsurfgp('yclsst',yclsst,NHOR,14)
 
 !        make sure, that land sea mask values are 0 or 1
@@ -320,17 +332,31 @@
             yls(:) = 0.0
          endwhere
 !
-!        make clsst >= tfreeze
-!
-         yclsst(:,:) = MAX(yclsst(:,:),TFREEZE)
-!
 !        initialize sst
 !
-         call oceanget
-
-         do jlev=1,NLEV_OCE
-            ysst(:,jlev) = yclsst2(:)
-         enddo
+!        Either a climatology was read, in which case the ocean starts from it
+!        as it always has, or none was, in which case it starts from the
+!        DECLARED cold-start profile icemod built and yclsst stays at its
+!        sentinel. It stays there on purpose: yclsst is what nfluko relaxes
+!        toward, the declared profile is an initial condition and not a
+!        climatology, and a run that overwrote the sentinel with it would have
+!        no way left to tell the two apart on the next continuation.
+!
+         call mpmaxval(yclsst,NHOR,14,zclsst)
+         if (zclsst > 0.) then
+            yclsst(:,:) = MAX(yclsst(:,:),TFREEZE)
+            call oceanget
+            do jlev=1,NLEV_OCE
+               ysst(:,jlev) = yclsst2(:)
+            enddo
+         else
+            do jlev=1,NLEV_OCE
+               ysst(:,jlev) = MAX(pcoldsst(:),TFREEZE)
+            enddo
+            if (mypid == NROOT) then
+               write(nud,*) '* ocean cold start from the declared SST profile'
+            endif
+         endif
 
       else ! restart from restart file 
          if (mypid == NROOT) then
@@ -353,15 +379,43 @@
          call mpgetgp('yfldo'  ,yfldo  ,NHOR,   1)
 
          if (newsurf == 1) then ! Read new surface data
+            yclsst(:,:) = -999.
             call mpsurfgp('yclsst',yclsst,NHOR,14)
-            yclsst(:,:) = MAX(yclsst(:,:),TFREEZE)
+            call mpmaxval(yclsst,NHOR,14,zclsst)
+            if (zclsst > 0.) yclsst(:,:) = MAX(yclsst(:,:),TFREEZE)
          endif
       endif ! (nrestart == 0)
+!
+!     THE FLUX CORRECTION IS A RELAXATION TOWARD A CLIMATOLOGY, so a run with
+!     no climatology cannot have one. addfc reads yclsst2 as the temperature
+!     ice is held at, and mkfc relaxes the modelled SST toward it; with yclsst
+!     at its sentinel both would drive the ocean at a field that says only
+!     that no such field exists. icemod refuses nfluko on the same test.
+!
+      call mpmaxval(yclsst,NHOR,14,zclsst)
+      if (nfluko /= 0 .and. zclsst < 0.) then
+         call mpabort('oceanmod: nfluko needs a sea surface temperature '    &
+     &              //'climatology (code 169) to relax toward, and this '    &
+     &              //'run has none')
+      endif
+!     nocean = 0 does not integrate an ocean, it PRESCRIBES one: oceanstep
+!     sets ysst to yclsst2 every step. Same requirement, same refusal.
+      if (nocean == 0 .and. zclsst < 0.) then
+         call mpabort('oceanmod: nocean = 0 prescribes the sea surface '     &
+     &              //'temperature from a climatology (code 169), and this ' &
+     &              //'run has none')
+      endif
 !
 !     read flux correction
 !
       if (nfluko == 1) then
+         yfsst(:,:) = -999.
          call mpsurfgp('yfsst',yfsst,NHOR,14)
+         call mpmaxval(yfsst,NHOR,14,zfsst)
+         if (zfsst < -900.) then
+            call mpabort('oceanmod: nfluko = 1 needs the ocean flux '        &
+     &                 //'correction field (code 903), and this run has none')
+         endif
       endif
 !
 !     initialize lsg coupling

@@ -256,6 +256,46 @@ ocean:
   horizontal_diffusivity_m2_s: 1000.0
   salinity_psu: 34.7
 
+  # DECLARED, 2026-08-24. WHAT A COLD START ON THIS WORLD BEGINS FROM.
+  #
+  # ExoPlaSim expects a sea surface temperature climatology (surface code 169)
+  # and a sea-ice climatology (210, 211) to start from, and this world has
+  # none: an SST field is what the model PRODUCES, so there is nothing to
+  # supply and nothing to derive one from. With those files absent the model
+  # used to leave its climatology at a -999 sentinel, test every ocean cell
+  # below the freezing point, build full ice cover from that, and shape it
+  # with an Earth Arctic-Antarctic table, while the ocean itself started at
+  # its freezing point everywhere. OCN-6 measured it.
+  #
+  # So the cold start is DECLARED, and `icemod.f90` refuses to run a cold
+  # start that declares nothing. It is a smooth profile in latitude,
+  # sst_pole_k + (sst_equator_k - sst_pole_k)*cos(lat)**2, hemispherically
+  # symmetric BY CONSTRUCTION: an initial condition asymmetric between the
+  # hemispheres puts a difference into the answer that nothing in the world
+  # put there, and that asymmetry was the largest single artefact in the
+  # field this replaces.
+  #
+  # DECLARED and not DETERMINED, in the mixed_layer_depth_m sense: nothing
+  # here can compute it, it washes out, and the run it starts is a BOOTSTRAP
+  # whose numbers are not the baseline. What the two numbers are for:
+  #   sst_pole_k     is above the freezing point across the whole declared
+  #                  salinity bracket, S = 20 to 40, so a salinity arm cannot
+  #                  silently move the cold start from one side of the
+  #                  ice-albedo feedback to the other.
+  #   sst_equator_k  is a warm equator and about 27 K of equator-to-pole
+  #                  contrast. It is a first guess and claims nothing more.
+  # Together with a zero initial thickness the cold start is ICE-FREE, which
+  # is the side a flux sweep could not otherwise approach a branch from.
+  #
+  # A HYSTERESIS PROBE NEEDS BOTH SIDES. To start an arm iced, declare a
+  # sub-freezing sst_pole_k, or a non-zero sea_ice_thickness_m, or both; the
+  # three keys reach icemod_nl as TSST_EQ, TSST_POL and HICE_INI and the
+  # staged namelist is checked against this file.
+  cold_start:
+    sst_equator_k: 300.0
+    sst_pole_k: 273.0
+    sea_ice_thickness_m: 0.0
+
   # DECLARED, and the one salinity-dependent constant that is not derived from
   # the salinity above: the heat of fusion of sea ice is a function of the
   # ice's OWN salinity and temperature, and `icemod.f90` carries neither as a
