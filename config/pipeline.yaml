@@ -343,6 +343,12 @@ steps:
     needs: [stellar_spectrum]
     writes: [analysis/vegetation_albedo.json]
 
+  - id: ice_albedo
+    script: analysis/ice_albedo.py
+    cost: seconds
+    needs: [stellar_spectrum]
+    writes: [analysis/ice_albedo.json]
+
   - id: shortwave_band_weights
     script: exoplasim/scripts/shortwave_band_weights.py
     cost: minutes

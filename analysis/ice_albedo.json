@@ -1,98 +1,142 @@
 {
   "generated": "2026-08-24",
   "generator": "analysis/ice_albedo.py",
-  "spectrum": "exoplasim/inputs/stellarspectra/k25v_hr.dat",
+  "finding": "radmod.f90 normalises a numerator integrated on the 965-point blend grid by a denominator integrated on the 2048-point spectrum grid. The two do not span the same band-1 interval, so the quotient is not a reflectance.",
+  "spectrum_lowres": "exoplasim/inputs/stellarspectra/k25v.dat",
+  "spectrum_hires": "exoplasim/inputs/stellarspectra/k25v_hr.dat",
   "spectrum_sha256": "50729d2432316108c45332eac45e6d36e7b6f7fd0c34c854bfc822533119cb51",
   "library": "vendor/exoplasim/exoplasim/surfacespecs.py",
   "library_sha256": "f82754cee486cd69efbc50a6e1b8b17a4b977184bb563f93949442a25ddc30a8",
-  "wavelengths": 965,
-  "band_split_um": 0.75,
-  "band1_flux_fraction": 0.3824,
-  "solar_tolerance": 0.02,
-  "flux_outside_measured_range": 0.006086,
+  "reproduction_tolerance": 1e-09,
+  "band1_flux_fraction": 0.382372,
   "surfaces": {
-    "snow_albedo_max": {
+    "dsnowalbmx": {
       "blend": "iceblendmax",
-      "declared_at": "plasimmod.f90 dsnowalbmx",
-      "model_constant": 0.8,
-      "solar_broadband": 0.8193,
-      "solar_check_residual": 0.0193,
-      "bands": [
-        0.983,
-        0.585
+      "surface": "snow, maximum",
+      "declared_default": 0.8,
+      "model_bands": [
+        0.968193,
+        0.585286
       ],
-      "broadband": 0.737,
-      "shift_from_model_constant": -0.063,
-      "recombination_residual": 2.224e-05
+      "recorded_bands": [
+        0.968193,
+        0.585286
+      ],
+      "single_grid_bands": [
+        0.982629,
+        0.585611
+      ],
+      "band1_error": -0.014437,
+      "band2_error": -0.000325,
+      "band1_error_relative": -0.014692,
+      "hi_res_reference_bands": [
+        0.982705,
+        0.585277
+      ]
     },
-    "snow_albedo_min": {
+    "dsnowalbmn": {
       "blend": "iceblendmin",
-      "declared_at": "plasimmod.f90 dsnowalbmn",
-      "model_constant": 0.4,
-      "solar_broadband": 0.41,
-      "solar_check_residual": 0.01,
-      "bands": [
-        0.508,
-        0.273
+      "surface": "snow, minimum",
+      "declared_default": 0.4,
+      "model_bands": [
+        0.500267,
+        0.272589
       ],
-      "broadband": 0.363,
-      "shift_from_model_constant": -0.037,
-      "recombination_residual": 1.671e-05
-    },
-    "glacier_albedo_min": {
-      "blend": "glacalbmin",
-      "declared_at": "plasimmod.f90 dglacalbmn",
-      "model_constant": 0.6,
-      "solar_broadband": 0.615,
-      "solar_check_residual": 0.015,
-      "bands": [
-        0.764,
-        0.406
+      "recorded_bands": [
+        0.500267,
+        0.272589
       ],
-      "broadband": 0.543,
-      "shift_from_model_constant": -0.057,
-      "recombination_residual": 2.515e-05
+      "single_grid_bands": [
+        0.507726,
+        0.272741
+      ],
+      "band1_error": -0.007459,
+      "band2_error": -0.000152,
+      "band1_error_relative": -0.014692,
+      "hi_res_reference_bands": [
+        0.507797,
+        0.272605
+      ]
     },
-    "sea_ice_albedo_max": {
+    "dicealbmx": {
       "blend": "seaicemax",
-      "declared_at": "icemod.f90 dicealbmx",
-      "model_constant": 0.7,
-      "solar_broadband": 0.7176,
-      "solar_check_residual": 0.0176,
-      "bands": [
-        0.892,
-        0.473
+      "surface": "sea ice, maximum",
+      "declared_default": 0.7,
+      "model_bands": [
+        0.878555,
+        0.472884
       ],
-      "broadband": 0.633,
-      "shift_from_model_constant": -0.067,
-      "recombination_residual": 2.941e-05
+      "recorded_bands": [
+        0.878555,
+        0.472884
+      ],
+      "single_grid_bands": [
+        0.891655,
+        0.473147
+      ],
+      "band1_error": -0.0131,
+      "band2_error": -0.000263,
+      "band1_error_relative": -0.014692,
+      "hi_res_reference_bands": [
+        0.891761,
+        0.472886
+      ]
     },
-    "sea_ice_albedo_min": {
+    "dicealbmn": {
       "blend": "seaicemin",
-      "declared_at": "icemod.f90 dicealbmn",
-      "model_constant": 0.5,
-      "solar_broadband": 0.5125,
-      "solar_check_residual": 0.0125,
-      "bands": [
-        0.636,
-        0.339
+      "surface": "sea ice, minimum",
+      "declared_default": 0.5,
+      "model_bands": [
+        0.626302,
+        0.339473
       ],
-      "broadband": 0.453,
-      "shift_from_model_constant": -0.047,
-      "recombination_residual": 2.09e-05
+      "recorded_bands": [
+        0.626302,
+        0.339473
+      ],
+      "single_grid_bands": [
+        0.635641,
+        0.339662
+      ],
+      "band1_error": -0.009339,
+      "band2_error": -0.000189,
+      "band1_error_relative": -0.014692,
+      "hi_res_reference_bands": [
+        0.63572,
+        0.339482
+      ]
+    },
+    "dglacalbmn": {
+      "blend": "glacalbmin",
+      "surface": "glacier ice, minimum",
+      "declared_default": 0.6,
+      "model_bands": [
+        0.752429,
+        0.406179
+      ],
+      "recorded_bands": [
+        0.752429,
+        0.406179
+      ],
+      "single_grid_bands": [
+        0.763648,
+        0.406404
+      ],
+      "band1_error": -0.011219,
+      "band2_error": -0.000226,
+      "band1_error_relative": -0.014692,
+      "hi_res_reference_bands": [
+        0.763741,
+        0.406184
+      ]
     }
   },
-  "ocean_reference": {
-    "blend": "oceanblend",
-    "declared_at": "seamod.f90 doceanalb",
-    "model_constant": 0.069,
-    "solar_broadband": 0.0705,
-    "bands": [
-      0.076,
-      0.064
-    ],
-    "broadband": 0.068,
-    "verdict": "no key: water is flat across the split, so the re-weighting is worth about 0.002 and the band pair barely separates"
+  "broadband_error": {
+    "dsnowalbmx": -0.005721,
+    "dsnowalbmn": -0.002946,
+    "dicealbmx": -0.005172,
+    "dicealbmn": -0.003688,
+    "dglacalbmn": -0.004429
   },
-  "note": "Bands are the star-flux-weighted integrals either side of the model's band edge, so their recombination at band1_flux_fraction reproduces the broadband value by construction; the residual is the band-edge interval solarini books to band 1. Every surface here is currently too BRIGHT in the model, one-signed against the ice-albedo feedback at the cold end."
+  "note": "band1_error is what the mixed normalisation costs; it is one-signed DARKER on every surface, so the simulation's ice-albedo feedback is slightly stronger than a consistent integration gives, not weaker. The flat declarations at plasimmod.f90:428-432 never reach the radiation and are not the defect."
 }

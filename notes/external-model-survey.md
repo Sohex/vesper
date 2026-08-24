@@ -48,7 +48,7 @@ is a finding with no home, which is the condition this exists to catch.
 | 8 | SPEEDY and SOCRATES, read for CLIM-61 | `CLIM-61` |
 | 9 | The exoplanet models, read without a row to justify it | *parent of 15 and 21* |
 | 10 | cGENIE, first reading | `OCN-10`, `OCN-11`, `OCN-12`, `OCN-17`, `OCN-18`, `OCN-19`, `OCN-20`, `OCN-3` |
-| 11 | PHYS-14 answered: the model ships the spectra and never re-weights them | `OCN-7`, `PHYS-14` |
+| 11 | PHYS-14: the PYTHON library never re-weights the spectra, and the FORTRAN does | `OCN-7`, `PHYS-14` |
 | 12 | OCN-4's photon question, answered on both candidates | `OCN-4`, `OCN-6` |
 | 13 | The known-good suite, and an ordering constraint it imposes | `OCN-19`, `OCN-20`, `OCN-3` |
 | 14 | Which half of OCN-19 actually threads | `OCN-19` |
@@ -1171,7 +1171,7 @@ section 10c.
 whether it runs under Octave and that remains open; the manual is where to look.
 
 
-## 11. PHYS-14 answered: the model ships the spectra and never re-weights them
+## 11. PHYS-14: the PYTHON library never re-weights the spectra, and the FORTRAN does
 
 *Computed 2026-08-22. The row was opened on an argument from the vegetation
 precedent; this is the argument checked, and it is stronger than stated.*
@@ -1264,15 +1264,79 @@ denies. Of the seven it is the SNOW and ICE arrays that bind in practice --
 `dsnowalbmx`, `dsnowalbmn`, `dicealbmx`, `dicealbmn` and `dglacalbmn` are all
 used as written.
 
-### 11d. What remains
+### 11d. The model already does this, and the flat arrays never reach the radiation
 
-The derivation is not the work any more; the numbers above are it, and
-`iceblendmax` against `iceblendmin` is already the bracket PHYS-14 asked for
-over grain size and impurity. What remains is the shape: a provenance-stamped
-analysis product on the pattern of `analysis/vegetation_albedo.py`, an anchoring
-convention for the band pair like `vegetation_albedo_bands`, keys in
-`config/planet.yaml`, and a decision about the sea ice pair, which belongs to
-`icemod` rather than `landmod` and has no config key at all today.
+*Checked against a run rather than against the source, 2026-08-24, and it
+overturns the section above.*
+
+`radmod.f90:600-790` carries the same five blends as Fortran arrays over the
+same 965 wavelengths, weights each by the configured stellar spectrum, splits at
+0.75 um and assigns `dsnowalb`, `dsnowalbmn`, `dsnowalbmx`, `dicealbmn`,
+`dicealbmx` and `dglacalbmn`. `radini` is called at `plasim.f90:513`, BEFORE
+`surfini` reads any surface namelist. So the two-element declarations at
+`plasimmod.f90:428-432` are defaults that are overwritten before they are used.
+
+The run says so directly. "Finalized Albedos" in
+`exoplasim/runs/run_2b20e3324bb0/MOST_DIAG.00001`:
+
+| constant | band 1 | band 2 |
+| --- | ---: | ---: |
+| `dsnowalbmx` | 0.968193 | 0.585286 |
+| `dsnowalbmn` | 0.500267 | 0.272589 |
+| `dicealbmx` | 0.878555 | 0.472884 |
+| `dicealbmn` | 0.626302 | 0.339473 |
+| `dglacalbmn` | 0.752429 | 0.406179 |
+
+The bands hold different numbers, and they are this star's. **The simulation's
+snow does not reflect identically either side of the split, and the `k25v` fix
+did reach it.** What sections 11a to 11c established is narrower than they
+claimed: it is `surfacespecs.py`, the PYTHON copy, that nothing weights, and the
+agreement of the K2.5V column above with those hand integrals is what identifies
+the Fortran computation rather than what replaces it.
+
+The error was reading declarations and not checking a run, on a module where the
+value at the declaration site is not the value in use. Conventions: claims are
+checked against the artifact rather than the documentation.
+
+### 11e. The defect that is actually there: one quotient, two grids
+
+Reproducing `radmod`'s arithmetic exactly recovers all ten numbers above to
+machine precision, and doing so isolates a real fault.
+
+- The numerator, `a1` and `a2`, sums `bb3(k)*blend(k)` over `wavelengths` -- the
+  965-point grid the blends live on, running 0.34 to 14.01 um.
+- The denominator, `z1` and `z2` at `:519-545`, sums `bb1` and `bb2` over `wv1`
+  and `wv2` -- the 2048-point grid, band 1 from the file's start with everything
+  below `minwavel` zeroed, band 2 out to 100 um, and the band-edge interval
+  added to `z1`.
+- `zdenom1 = 0.01/z1` at `:609` then divides the one by the other.
+
+A ratio of integrals is a reflectance only when numerator and denominator cover
+the same interval with the same spectrum. These cover different intervals on
+different grids, so the quotient is not one. **This is CLAUDE.md rule 3's class
+of defect on wavelength rather than longitude**, and the same family as the
+Rayleigh reference mismatch already found in this module.
+
+Band 2 nearly escapes, at most 3.3e-4, because this star has little flux beyond
+14.01 um where the blend grid stops. Band 1 does not:
+
+| constant | model band 1 | one grid throughout | error | broadband |
+| --- | ---: | ---: | ---: | ---: |
+| `dsnowalbmx` | 0.968193 | 0.982629 | -0.01444 | -0.00572 |
+| `dsnowalbmn` | 0.500267 | 0.507726 | -0.00746 | -0.00295 |
+| `dicealbmx` | 0.878555 | 0.891655 | -0.01310 | -0.00517 |
+| `dicealbmn` | 0.626302 | 0.635641 | -0.00934 | -0.00369 |
+| `dglacalbmn` | 0.752429 | 0.763648 | -0.01122 | -0.00443 |
+
+**The relative error is -1.47% on band 1 for every surface**, which is the
+signature of a single wrong denominator rather than five separate problems, and
+it is one-signed DARKER. So the simulation's ice-albedo feedback is slightly
+STRONGER than a consistent integration gives, not weaker -- the opposite sign to
+what section 11c inferred from the flat declarations.
+
+`analysis/ice_albedo.py` is the measurement, and its check that can fail is the
+reproduction: it refuses unless it recovers what the model printed, so the
+difference between the two columns is the normalisation and nothing else.
 
 
 ## 12. OCN-4's photon question, answered on both candidates
