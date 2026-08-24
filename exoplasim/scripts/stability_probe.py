@@ -172,13 +172,21 @@ def probe(rung: str, dt: float, kappa: float | None, steps: int,
     # model's only damping, which is the whole point of being able to vary it:
     # the strength the core actually demands cannot be measured while a second
     # mechanism supplies several hundred times more.
+    #
+    # EVERY LEVEL, WRITTEN OUT. These are per-level arrays and a namelist scalar
+    # sets element 1 only, leaving levels 2 upward on the compiled branch's
+    # values -- which at T42 are already in SECONDS, so the array is mixed-unit
+    # and `dayseccheck` converts none of it. An arm that scales tau by a factor
+    # and reaches one level of ten is not the arm it reports. world-720.
     if tau_scale is not None:
         hd = cfg_all["model"]["hyperdiffusion"]["timescales_days"][rung]
-        keys |= {"TDISSD": f"{hd['divergence'] / tau_scale}",
-                 "TDISSZ": f"{hd['vorticity'] / tau_scale}",
-                 "TDISST": f"{hd['temperature'] / tau_scale}",
-                 "TDISSQ": f"{hd['humidity'] / tau_scale}",
-                 "NDEL": f"{int(cfg_all['model']['hyperdiffusion']['order_alpha'])}"}
+        layers = int(cfg_all["model"]["layers"])
+        alpha = int(cfg_all["model"]["hyperdiffusion"]["order_alpha"])
+        keys |= {"TDISSD": f"{layers}*{hd['divergence'] / tau_scale}",
+                 "TDISSZ": f"{layers}*{hd['vorticity'] / tau_scale}",
+                 "TDISST": f"{layers}*{hd['temperature'] / tau_scale}",
+                 "TDISSQ": f"{layers}*{hd['humidity'] / tau_scale}",
+                 "NDEL": f"{layers}*{alpha}"}
     set_keys(bed, keys | {"N_RUN_STEPS": str(short_steps)})
     t_short, trapped, text = time_run(bed, exe, ranks)
     result = {"rung": rung, "dt_minutes": dt, "kappa": kappa, "ranks": ranks,

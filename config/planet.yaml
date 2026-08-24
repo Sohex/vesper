@@ -473,6 +473,75 @@ model:
     T85: 45.0
     T127: 30.0
     T170: 22.5
+  # DERIVED, 2026-08-24. The COLD START's initial temperature profile, which
+  # `setzt` builds from a surface temperature, a lapse rate and a tropopause
+  # height and which `initfd` reaches only when `nrestart` is 0. Until this
+  # block existed all three came from ExoPlaSim's Earth defaults -- 288 K,
+  # 6.5 K/km and 12 km -- and `TGR` additionally sets the orographic reduction
+  # of surface pressure at every start, restart included, so the realised
+  # global-mean surface pressure depended on an undeclared Earth number.
+  # world-wmw.
+  #
+  # A bootstrap equilibrates away from its initial state, so this buys spin-up
+  # length and blow-up margin rather than an answer. It is worth declaring
+  # because the resolution ladder's stability boundary was measured ENTIRELY on
+  # cold starts, which makes this transient the ceiling that boundary sits
+  # under.
+  cold_start_profile:
+    # This model's own converged global-mean surface temperature at the declared
+    # baseline flux: `lib/sensitivity.py` SLOPE_BRACKET_RUNS, warm arm, flux
+    # ratio 0.945, run_524fbed77a9a. Re-derive when the canonical climatology
+    # lineage is declared.
+    surface_temperature_k: 289.03
+    # The same fraction of the DRY ADIABAT that Earth's standard 6.5 K/km is of
+    # Earth's: 0.666 of g/cp. This atmosphere's g/cp is 12.75 K/km against
+    # Earth's 9.76, from the composition below through `lib/lapse.py`, so a
+    # profile that keeps the Earth NUMBER keeps neither the stratification nor
+    # the fraction of neutrality it was chosen at. Not `lib/lapse.py`'s measured
+    # environmental rate: that reads a climatology, and a cold start is what
+    # runs before there is one.
+    lapse_rate_k_per_m: 0.008489
+    # Earth's 12 km is 1.42 pressure scale heights at its own R, T and g. This
+    # atmosphere's scale height is 0.768 of Earth's, so the same number of scale
+    # heights is 9.22 km. What this fixes is where the profile turns isothermal,
+    # and a fixed geometric height would put that turn at a different pressure.
+    tropopause_height_m: 9220.0
+  # DERIVED, 2026-08-24, from `cold_start_profile` above. The semi-implicit
+  # scheme's reference temperature, isothermal on every level, and the thing the
+  # reference geopotential `Phi0_k = sum_j g(j,k) t0` is built out of -- so the
+  # adiabatic conversion defect world-0ov measures, and the fixer world-mzy
+  # applies against it, are both proportional to it. It also sets the explicit
+  # gravity-wave timestep limit `nconvtime` refuses above.
+  #
+  # THE DERIVATION, and it is checkable: the mass-weighted mean of the
+  # `setzt` profile over the model's own ten sigma levels, weights `dsigma`.
+  # Run on Earth's constants and Earth's ISA profile that rule returns 248.4 K,
+  # which is where ExoPlaSim's inherited 250.0 comes from; run on this
+  # atmosphere's constants and the profile above it returns 249.4. The two agree
+  # to 0.65 K, so this is a NULL RESULT and is recorded as one: the core energy
+  # sink scales with `t0` and moves by 0.26% under it, which is 0.002 W/m2 on a
+  # sink of 0.79. Declaring it is what stops the sink resting on a number nobody
+  # chose. world-bmf.
+  semi_implicit_reference_temperature_k: 249.4
+  # DECLARED, 2026-08-24, and in ROTATIONS. Rayleigh drag on the top model
+  # levels, `TFRC`, one entry per level from the top down and zero for no drag.
+  # ExoPlaSim applies 20 and 100 to the top two unconditionally at NLEV 10 --
+  # not behind `nrdrag` the way the NLEV 20 branch is -- and this project set
+  # neither `TFRC` nor `FRCMOD`, so a top-of-model sponge was live in every run
+  # and declared nowhere. world-aee.
+  #
+  # ROTATIONS AND NOT DAYS, because the wave field the sponge absorbs has its
+  # timescales set by the rotation rate: the model's whole nondimensionalisation
+  # is in 1/Omega, and Earth's 20 days is 20 rotations. Keeping the number in
+  # rotations is therefore what carries the inherited tuning across to a 30-hour
+  # rotator; keeping it in days would tighten the sponge to 16 rotations. It is
+  # also what the model was doing before world-rt1: the day_24hr
+  # nondimensionalisation delivered exactly 20 and 100 SIDEREAL days, so the
+  # ladder's stability boundary was measured under this and is preserved by it.
+  #
+  # The layers are sigma 0.025 and 0.094 here, roughly 2.5 to 9.4 kPa, so this
+  # is a stratospheric sponge and not boundary-layer drag.
+  rayleigh_sponge_rotations: [20.0, 100.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
   output_type: .nc
   # Declares that ExoPlaSim's configure() clears every surface field when handed
   # a landmap, so anything not supplied here falls back to a namelist default.

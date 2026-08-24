@@ -23,6 +23,7 @@ from restart_surface import verify_restart_surface_fields  # noqa: E402
 from segments import SEGMENT_PURPOSES  # noqa: E402
 from run_exoplasim import (  # noqa: E402
     declare_parmode,
+    declare_dry_constants,
     declare_dynamics_only,
     declare_energy_fixer,
     declare_robert_filter,
@@ -549,6 +550,13 @@ def main() -> None:
     declare_robert_filter(model, config)
     declare_conversion_time_level(model, config)
     declare_dealias_conversion(model, config)
+    # AKAP, T0, TGR, DTROP, ALR and TFRC are on the same footing as the switches
+    # above: configure() rewrites planet_namelist and plasim_namelist here, so a
+    # continuation that did not re-apply them would revert to p_earth.f90's
+    # constants partway through a run. TGR reaching the orographic surface
+    # pressure reduction makes that a change in the mean state, not only in the
+    # dry column.
+    declare_dry_constants(model, config)
     staged_namelists = verify_staged_namelists(run_dir, config)
     print(f"  namelists verified: {len(staged_namelists)} config-set keys "
           f"present with the declared values")

@@ -1026,12 +1026,20 @@ def declare_hyperdiffusion(model, config: dict) -> dict:
     tau = table[rung]
     ntru = int(rung.lstrip("Tt"))
     nhdiff = int(round(float(hd["cutoff_fraction"]) * ntru))
-    keys = {"NDEL": f"{int(hd['order_alpha'])}",
+    # EVERY LEVEL, WRITTEN OUT. `TDISS*` and `NDEL` are per-level arrays, and a
+    # Fortran namelist assignment of a scalar to an array sets element 1 only:
+    # levels 2 to NLEV then keep whatever readnl's compiled branch left there,
+    # which at T21 is ExoPlaSim's own table in days and at T42 is that branch's
+    # values already in SECONDS. `dayseccheck` discriminates on maxval, so a
+    # mixed array converts nothing and level 1 is read in the wrong unit. The
+    # `n*value` replication is what ExoPlaSim's own wrapper writes; world-720.
+    layers = int(model_cfg["layers"])
+    keys = {"NDEL": f"{layers}*{int(hd['order_alpha'])}",
             "NHDIFF": f"{nhdiff}",
-            "TDISSD": f"{float(tau['divergence'])}",
-            "TDISSZ": f"{float(tau['vorticity'])}",
-            "TDISST": f"{float(tau['temperature'])}",
-            "TDISSQ": f"{float(tau['humidity'])}"}
+            "TDISSD": f"{layers}*{float(tau['divergence'])}",
+            "TDISSZ": f"{layers}*{float(tau['vorticity'])}",
+            "TDISST": f"{layers}*{float(tau['temperature'])}",
+            "TDISSQ": f"{layers}*{float(tau['humidity'])}"}
     for key, value in keys.items():
         model._edit_namelist("plasim_namelist", key, value)
     print(f"hyperdiffusion: {rung} alpha={hd['order_alpha']} "
@@ -1040,6 +1048,86 @@ def declare_hyperdiffusion(model, config: dict) -> dict:
     return {"rung": rung, "nhdiff": nhdiff, "cutoff_fraction_actual": nhdiff / ntru,
             "order_alpha": int(hd["order_alpha"]), "timescales_days": dict(tau),
             "eddy_wind_m_s": float(hd["eddy_wind_m_s"])}
+
+
+def declare_dry_constants(model, config: dict) -> dict:
+    """The dry thermodynamic constants, the cold-start profile and the sponge.
+
+    Four things ExoPlaSim otherwise takes from `p_earth.f90` and its compiled
+    defaults, grouped because they are all read by the same dry column and all
+    were inherited rather than chosen.
+
+    AKAP. `p_earth.f90:41` declares R/cp as 0.286 and `readnl` derives the
+    specific heat of dry air from it as `acpd = gascon/akap`. GASCON reaches the
+    model derived from the declared composition and this did not, so the model
+    ran a cp inconsistent with its own gas constant. Both come off
+    `lib/lapse.py:gas_properties` here, which is the one place in this tree that
+    turns the composition into (R, cp), and the R it returns is checked against
+    the GASCON the model was actually configured with rather than assumed to
+    agree. world-cwu.
+
+    T0. The semi-implicit reference temperature, written as a per-level list
+    because it is an array and a namelist scalar would set element 1 only.
+    world-bmf.
+
+    TGR, ALR, DTROP. The cold start's initial profile, and TGR additionally sets
+    the orographic reduction of surface pressure on EVERY start. world-wmw.
+
+    TFRC. Rayleigh drag on the top levels, in seconds, from a declaration in
+    rotations. Written for every level so the value is the config's and not
+    `readnl`'s unconditional NLEV==10 branch. world-aee.
+    """
+    import lapse
+
+    model_cfg = config["model"]
+    layers = int(model_cfg["layers"])
+    gas_constant, cp = lapse.gas_properties(config)
+    akap = gas_constant / cp
+    # A CHECK THAT CAN FAIL: the same composition through two implementations.
+    # If ExoPlaSim's mean molecular weight and this module's molar masses ever
+    # disagree, akap and gascon stop being two views of one gas and the model
+    # gets a cp that belongs to neither.
+    configured = float(model.gascon)
+    if abs(configured - gas_constant) > 0.01:
+        raise RuntimeError(
+            f"lib/lapse.py derives R = {gas_constant:.4f} J/kg/K from the "
+            f"declared composition and ExoPlaSim was configured with GASCON = "
+            f"{configured:.4f}. akap = R/cp is only meaningful beside the "
+            "gascon it was derived with; reconcile the two before running.")
+
+    profile = model_cfg["cold_start_profile"]
+    t0 = float(model_cfg["semi_implicit_reference_temperature_k"])
+    sponge = [float(x) for x in model_cfg["rayleigh_sponge_rotations"]]
+    if len(sponge) != layers:
+        raise ValueError(
+            f"model.rayleigh_sponge_rotations has {len(sponge)} entries and the "
+            f"model has {layers} levels. TFRC is per level and a short list is "
+            "a level whose drag nobody declared.")
+    # TFRC is entered in SECONDS. One rotation is the SIDEREAL day, which is
+    # also the model's own unit of time after world-rt1, so a sponge declared in
+    # rotations is the same number of nondimensional units at any rotation rate.
+    rotation_s = float(config["planet"]["rotation_hours"]) * 3600.0
+    tfrc = ",".join(f"{x * rotation_s:.6g}" for x in sponge)
+
+    model._edit_namelist("planet_namelist", "AKAP", f"{akap:.8g}")
+    model._edit_namelist("planet_namelist", "ALR",
+                         f"{float(profile['lapse_rate_k_per_m']):.8g}")
+    model._edit_namelist("plasim_namelist", "TGR",
+                         f"{float(profile['surface_temperature_k']):.8g}")
+    model._edit_namelist("plasim_namelist", "DTROP",
+                         f"{float(profile['tropopause_height_m']):.8g}")
+    model._edit_namelist("plasim_namelist", "T0", f"{layers}*{t0:.8g}")
+    model._edit_namelist("plasim_namelist", "TFRC", tfrc)
+    print(f"dry constants: akap={akap:.6f} (cp={cp:.2f} J/kg/K beside gascon "
+          f"{configured:.4f}), t0={t0:g} K, cold start "
+          f"{profile['surface_temperature_k']:g} K / "
+          f"{float(profile['lapse_rate_k_per_m']) * 1000:g} K/km / "
+          f"{profile['tropopause_height_m']:g} m, "
+          f"sponge {sponge[:2]} rotations")
+    return {"akap": akap, "cp_j_kg_k": cp, "gascon_j_kg_k": configured,
+            "t0_k": t0, "cold_start_profile": dict(profile),
+            "rayleigh_sponge_rotations": sponge,
+            "rayleigh_sponge_seconds": [x * rotation_s for x in sponge]}
 
 
 def declare_dynamics_only(model, config: dict) -> bool:
@@ -1493,6 +1581,22 @@ def expected_namelist_keys(config: dict) -> dict:
         want["planet_namelist"]["PNU"] = float(m["robert_filter"])
         if m.get("energy_diagnostics_3d", False):
             want["plasim_namelist"]["NENER3D"] = 1.0
+    # The scalar half of `declare_dry_constants`. Each of these reverts to a
+    # p_earth.f90 or plasimmod.f90 Earth default if a continuation drops it, and
+    # TGR reverting moves the realised mean surface pressure, so the class-22
+    # failure here is a change in the mean state rather than a lost switch. T0
+    # and TFRC are per-level lists and cannot go through this float comparison.
+    profile = m.get("cold_start_profile")
+    if profile is not None:
+        import lapse
+        gas_constant, cp = lapse.gas_properties(config)
+        # Formatted the way `declare_dry_constants` writes it, so the comparison
+        # is against the value the namelist can hold and not against one more
+        # digit than it carries.
+        want["planet_namelist"]["AKAP"] = float(f"{gas_constant / cp:.8g}")
+        want["planet_namelist"]["ALR"] = float(profile["lapse_rate_k_per_m"])
+        want["plasim_namelist"]["TGR"] = float(profile["surface_temperature_k"])
+        want["plasim_namelist"]["DTROP"] = float(profile["tropopause_height_m"])
     return {f: keys for f, keys in want.items() if keys}
 
 
@@ -1981,6 +2085,7 @@ def main() -> None:
               f"(default 1 samples 5 diurnal phases; see CLIM-11)")
     declare_cold_start_seed(model, config, args.restart_from is None)
     hyperdiffusion = declare_hyperdiffusion(model, config)
+    dry_constants = declare_dry_constants(model, config)
     dynamics_only = declare_dynamics_only(model, config)
     robert_filter = declare_robert_filter(model, config)
     conversion_time_level = declare_conversion_time_level(model, config)
@@ -2131,6 +2236,10 @@ def main() -> None:
         # result can be read against the operator that produced it rather than
         # against the config that was meant to.
         "hyperdiffusion": hyperdiffusion,
+        # The dry thermodynamic constants, the cold-start profile and the top
+        # sponge, all of which used to be ExoPlaSim's Earth defaults and none of
+        # which appeared in a manifest.
+        "dry_constants": dry_constants,
         "dynamics_only": dynamics_only,
         "conversion_time_level": conversion_time_level,
         "dealias_conversion": dealias_conversion,
