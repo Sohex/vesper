@@ -327,8 +327,38 @@
       "startup_s": 1.77,
       "implied_seconds_per_orbit": 86.5,
       "naive_single_run_seconds_per_orbit": 115.5
+    },
+    {
+      "rung": "T42",
+      "dt_minutes": 90.0,
+      "kappa": 8.0,
+      "ranks": 16,
+      "steps_short": 133,
+      "steps_long": 400,
+      "wall_short_s": 3.38,
+      "outcome": "no_refusal_in_steps",
+      "wall_long_s": 6.67,
+      "seconds_per_step": 0.01231,
+      "startup_s": 1.75,
+      "implied_seconds_per_orbit": 45.0,
+      "naive_single_run_seconds_per_orbit": 61.0
+    },
+    {
+      "rung": "T42",
+      "dt_minutes": 60.0,
+      "kappa": 8.0,
+      "ranks": 16,
+      "steps_short": 133,
+      "steps_long": 400,
+      "wall_short_s": 3.36,
+      "outcome": "no_refusal_in_steps",
+      "wall_long_s": 6.75,
+      "seconds_per_step": 0.01268,
+      "startup_s": 1.68,
+      "implied_seconds_per_orbit": 69.6,
+      "naive_single_run_seconds_per_orbit": 92.5
     }
   ],
   "note": "Refusal boundary and per-step cost. Short probes: this cannot see a LATE blow-up. exoplasim/scripts/stability_probe.py",
-  "generated": "2026-08-24T00:11:17.354073+00:00"
+  "generated": "2026-08-24T02:09:03.320434+00:00"
 }
