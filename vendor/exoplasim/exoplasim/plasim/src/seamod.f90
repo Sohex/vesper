@@ -78,10 +78,9 @@
 
 !     Threads instead of ranks: a thread owns what a rank owned.
 !     Inert without -fopenmp, so the MPI and serial builds are unchanged.
-!$omp threadprivate(albice,albsea,charnock,cheata,cicec,ciced,clhdta,clhfla,clwfla,cmld,cpmea,cprsa,&
-!$omp&  albicemn,dicealbdt,&
-!$omp&  croffa,cshdta,cshfla,csmelt,csndch,csnow,csst,cswfla,ctauxa,ctauya,cts,cust3a,dqs,drhsice,&
-!$omp&  drhssea,dsst,dts,dz0ice,dz0sea,naccua,ncpl_atmos_ice,version)
+!$omp threadprivate(albice,albicemn,albsea,charnock,cheata,cicec,ciced,clhdta,clhfla,clwfla,cmld,&
+!$omp&  cpmea,cprsa,croffa,cshdta,cshfla,csmelt,csndch,csnow,csst,cswfla,ctauxa,ctauya,cts,cust3a,&
+!$omp&  dicealbdt,dqs,drhsice,drhssea,dsst,dts,dz0ice,dz0sea,naccua,ncpl_atmos_ice,version)
 
       end module seamod
 
