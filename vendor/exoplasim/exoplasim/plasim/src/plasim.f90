@@ -647,7 +647,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       do jkits=1,ikits
          deltsec  = (day_24hr / mtspd) / (2**nkits) !Timestep
          deltsec2 = deltsec + deltsec
-         delt     = (TWOPI     / ntspd) / (2**nkits) !Fraction of rotation
+         delt     = deltsec * ww       !Timestep in the model's own time unit
          delt2    = delt + delt
          if (mypid == NROOT) then
             write(nud,*) 'Initial timestep ',jkits,'   deltsec = ',deltsec
@@ -668,9 +668,25 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !     * with 1 planetary rotation per sidereal day (2 Pi) of Earth   *
 !     ****************************************************************
 
+!     THE NONDIMENSIONAL TIMESTEP IS deltsec*ww AND NOT TWOPI/ntspd. world-r8o.
+!
+!     `ntspd` counts timesteps per SOLAR day and `ww` is built from the SIDEREAL
+!     one, so `TWOPI/ntspd` nondimensionalises the timestep against a clock the
+!     rest of the model does not use. The two differ by
+!     n_days_per_year/(n_days_per_year-1), which is 0.69% here.
+!
+!     It did not show, because `ntspd = nint(solar_day)/nint(mpstep*60)` is an
+!     INTEGER division: at every timestep on the rung table it truncates to
+!     exactly `sidereal_day/deltsec` and the error is annulled. The truncation
+!     stops annulling it above n_days_per_year-1 steps per day, which is below
+!     dt = 12.4 min -- inside the range the T127 and T170 rungs are headed for.
+!     Written this way the identity holds at every timestep instead of at the
+!     ones where an integer division happens to agree, which is also what the
+!     declaration of `delt` in plasimmod.f90 says it is.
+!
       deltsec  = day_24hr / mtspd   ! timestep in seconds
       deltsec2 = deltsec + deltsec   ! timestep in seconds * 2
-      delt     = TWOPI     / ntspd   ! timestep scaled
+      delt     = deltsec * ww        ! timestep in the model's own time unit
       delt2    = delt + delt
       call makebm
 !
@@ -1507,9 +1523,20 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       n_days_per_month = m_days_per_year / 12 !24-hour days per month
       
       
-!       It would appear that day_24hr and sidereal_day cannot be inconsistent with rotspd.
-!       For some reason, keeping day_24hr to 24 hours produces NaNs. Why is this?? As near
-!       as I can tell, it's purely used for time unit conversions.
+!       day_24hr IS NOT PURELY A UNIT CONVERSION, and the upstream comment that
+!       said so is what hid world-rt1. Two distinct roles meet in this symbol:
+!
+!         - the seconds in a 24-hour day, which is the unit tfrc, restim,
+!           tdiss*, dampsp and taucool are ENTERED in and the unit
+!           config/planet.yaml derives its timescales_days in. That role is
+!           genuinely a conversion and day_24hr is right for it.
+!         - the model's unit of time, which is 1/ww = sidereal_day/TWOPI. That
+!           role belongs to sidereal_day, and using day_24hr for it applied
+!           every damping timescale over 1/rotspd times its namelist value.
+!
+!       The two coincide on Earth, where rotspd is 1, and nothing in the source
+!       assigns day_24hr anywhere: it holds 86400.0 for the whole run. The two
+!       roles are separated by name now, so neither depends on the other.
 
       ww    = TWOPI / sidereal_day ! Omega (scaling)
       acpd  = gascon / akap        ! Specific heat for dry air
@@ -1622,10 +1649,13 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       write(nud,'("*************************************")')
 
 !     set sponge layer time scale
+!     The [days]-to-[sec] guard keeps day_24hr, which is the unit the value is
+!     ENTERED in; the nondimensionalisation takes sidereal_day, which is the
+!     unit the model INTEGRATES in. world-rt1.
 
       if(dampsp > 0.) then
        if(dampsp < (day_24hr/mtspd)) dampsp=dampsp*day_24hr
-       dampsp=day_24hr/(TWOPI*dampsp)
+       dampsp=sidereal_day/(TWOPI*dampsp)
       endif
 
 !     set franks diagnostics
@@ -1645,16 +1675,43 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       real :: pf(NLEV)
       character (len=*) :: yn
 
+!     THE WHOLE ARRAY HAS TO BE IN ONE UNIT. world-720.
+!
+!     This routine decides [days] against [sec] from maxval alone and then
+!     converts every level. A namelist that sets element 1 only -- which is what
+!     a Fortran scalar assignment to an array key does -- leaves the rest at the
+!     compiled default, and at NTRU 42 those defaults have already been filled
+!     in SECONDS by the branch in readnl. The array is then mixed-unit: maxval
+!     sees the seconds, converts nothing, and level 1's value is read as a
+!     timescale of a few seconds beside its neighbours' tens of thousands. That
+!     is four orders of magnitude of damping on the top model level, silently.
+!
+!     A right answer rather than a comparison: an array whose positive entries
+!     straddle the discriminator cannot be in one unit, whatever the units are.
+
       zmax = maxval(pf(:))
+      zmin = day_24hr
+      do jlev = 1 , NLEV
+         if (pf(jlev) > 0.0) zmin = min(zmin,pf(jlev))
+      enddo
+      if (zmax >= (day_24hr / mtspd) .and. zmin < (day_24hr / mtspd)      &
+     &    .and. zmax > 0.0) then
+         write(nud,*) 'MIXED UNITS in ',trim(yn),': min ',zmin,' max ',zmax
+         write(nud,*) 'the timestep is ',day_24hr/mtspd,' [sec], so these'
+         write(nud,*) 'cannot all be [days] or all be [sec]. A namelist key'
+         write(nud,*) 'written as a scalar sets element 1 only; write it as'
+         write(nud,*) 'NLEV*value instead. see world-720'
+         stop 'mixed units in a per-level timescale'
+      endif
       if (zmax < (day_24hr / mtspd) .and. zmax > 0.0) then
          write(nud,*) 'old maxval(',trim(yn),') = ',zmax
          write(nud,*) 'assuming [days] - converting to [sec]'
          pf(:) = pf(:) * day_24hr
          write(nud,*) 'new maxval(',trim(yn),') = ',maxval(pf(:))
-      endif   
+      endif
       return
-      end 
-         
+      end
+
 !     =================
 !     SUBROUTINE INITPM
 !     =================
@@ -1765,10 +1822,24 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       sigma(1     ) = 0.5 * sigmah(1)
       sigma(2:NLEV) = 0.5 * (sigmah(1:NLEV-1) + sigmah(2:NLEV))
         
-!     dimensionless coefficient for newtonian cooling
-!     friction and timestep. of course a day is 2*PI in non dimensional
-!     units using omega as the unit of frquency.
-!     
+!     DIMENSIONLESS DAMPING RATES. THE UNIT OF TIME IS 1/ww, NOT A 24-HOUR DAY.
+!     world-rt1.
+!
+!     `ww = TWOPI/sidereal_day` is the model's unit of frequency, so a
+!     dimensional timescale T in seconds becomes the rate `1/(T*ww)` =
+!     `sidereal_day/(TWOPI*T)`. These lines divided by `day_24hr` instead. The
+!     ratio is `day_24hr/sidereal_day` = `rotspd`, which is 1 on Earth and
+!     hides there; off Earth every one of restim, tfrc, tdiss* and dampsp was
+!     applied over 1/rotspd times its namelist value.
+!
+!     TWO DIFFERENT DAYS MEET HERE AND THEY ARE NOT INTERCHANGEABLE. The unit a
+!     namelist value is ENTERED in stays the 24-hour day, because that is what
+!     `config/planet.yaml`'s `hyperdiffusion.timescales_days` is derived in and
+!     what `scripts/check_consistency.py` recomputes it in; `dayseccheck` below
+!     therefore still multiplies by `day_24hr`. The unit the model INTEGRATES in
+!     is the sidereal day. Changing either one changes what the model does, so
+!     neither is a free conversion factor.
+!
 !     dayseccheck assumes units [days] if values < timestep
 !     and converts values to [sec] (compatibilty routine)
 
@@ -1780,13 +1851,13 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       call dayseccheck(tdissq,"tdissq")
 
       where (restim > 0.0)
-         damp = day_24hr / (TWOPI * restim)
+         damp = sidereal_day / (TWOPI * restim)
       elsewhere
          damp = 0.0
       endwhere
-         
+
       where (tfrc > 0.0)
-          tfrc = day_24hr / (TWOPI * tfrc)
+          tfrc = sidereal_day / (TWOPI * tfrc)
       elsewhere
           tfrc = 0.0
       endwhere
@@ -1796,22 +1867,22 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       do jlev=1,NLEV
        jdel = ndel(jlev)
        if (tdissd(jlev) > 0.0) then
-        tdissd(jlev) = day_24hr/(TWOPI*tdissd(jlev))
+        tdissd(jlev) = sidereal_day/(TWOPI*tdissd(jlev))
        else
         tdissd(jlev)=0.
        endif
        if (tdissz(jlev) > 0.0) then
-        tdissz(jlev) = day_24hr/(TWOPI*tdissz(jlev))
+        tdissz(jlev) = sidereal_day/(TWOPI*tdissz(jlev))
        else
         tdissz(jlev)=0.
        endif
        if (tdisst(jlev) > 0.0) then
-        tdisst(jlev) = day_24hr/(TWOPI*tdisst(jlev))
+        tdisst(jlev) = sidereal_day/(TWOPI*tdisst(jlev))
        else
         tdisst(jlev) = 0.
        endif
        if (tdissq(jlev) > 0.0) then
-        tdissq(jlev) = day_24hr/(TWOPI*tdissq(jlev))
+        tdissq(jlev) = sidereal_day/(TWOPI*tdissq(jlev))
        else
         tdissq(jlev)=0.
        endif
