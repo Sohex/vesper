@@ -474,6 +474,37 @@ stellar-cycle machinery exists to resolve. See exoplasim/notes/stellar-spectrum-
 for what that biases and by how much; results predating this remain valid in
 kind, with the direction of the error known.
 
+## `ocean`
+
+```
+ocean:
+```
+
+MIXED, and the block the model reaches through more keys than it looks like.
+`horizontal_diffusion` and `horizontal_diffusivity_m2_s` are the cheapest bound
+on the missing ocean heat transport and exist to be BRACKETED rather than
+tuned; the coefficient is realised at the value it declares, which it was not
+before world-mll, so an arm measured earlier carries the wrong label on its
+diffusivity.
+
+`salinity_psu` is DECLARED, and it reaches the model through FOUR compiled
+constants and not one: the freezing point, sea water's density, sea water's
+specific heat and the heat of fusion of sea ice. `run_exoplasim.py` derives the
+first three from it and `sea_ice_fusion_j_kg` declares the fourth, because that
+one depends on the ice's own salinity and temperature and `icemod.f90` carries
+neither as a variable. A salinity bracket therefore moves the mixed-layer heat
+capacity and the snow-ice flooding threshold as well as the freezing point.
+
+`cold_start` is DECLARED and is what a run with no restart begins from. This
+world has no sea surface temperature or sea-ice climatology and cannot have
+one -- an SST field is what the model PRODUCES -- so the cold start is a stated
+latitude profile, hemispherically symmetric by construction, and `icemod.f90`
+refuses a cold start that declares nothing rather than constructing a field
+from a sentinel. The full argument is in the block's own comment; the reason it
+is not merely cosmetic is that a hysteresis probe is only meaningful if both
+sides of it can be reached, and the constructed field this replaced put every
+arm on the iced side.
+
 ## `surface`
 
 ```
@@ -485,6 +516,16 @@ PARTLY DETERMINED. Sea ice and glaciers are decided. `mixed_layer_depth_m` is
 NOT: 50 m is a default, it sets seasonal amplitude, and this world's year is
 half Earth's so it damps seasonality about twice as hard as Earth's ocean does.
 `scripts/error_budget.py` books it as a structural item; pricing it is CLIM-33.
+
+`sea_ice_max_thickness_m` and `sea_ice_lead_closing_m` are DECLARED and are the
+two Earth Arctic lengths inside the sea-ice model. The first is negative, which
+means no maximum: it is not only a clamp, since the model zeroes the conductive
+heat flux once ice reaches it, and the process it stood in for is ice export,
+which this model does not have and which the error budget already carries as a
+declared structural term. The second is the whole of the lead
+parameterisation and sets how much ice must grow before a cell goes white for
+albedo and roughness; it is exposed at ExoPlaSim's value rather than
+recalibrated, because nothing here can recalibrate it.
 
 ## `glaciers`
 

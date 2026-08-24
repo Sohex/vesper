@@ -78,7 +78,7 @@ BUCKETS: dict[str, tuple[str, ...]] = {
         "roffstep_", "clsgstep_", "lsg_", "planet_step_",
         "kuo_", "mkrain_", "mklsp_", "mkdca_", "mkshallow_", "mkcflux_",
         "vdiff_", "vdiffo_", "mkevap_", "mkdqtgp_", "surflx_", "getflx_",
-        "getflxco_", "getiflx_", "mkiflux_", "mkiflx_", "mkstress_", "mkshfl_",
+        "getflxco_", "mkiflux_", "mkiflx_", "mkstress_", "mkshfl_",
         "mksst_", "mkice_", "mkicec_", "mkicecf_", "mktsoil_", "skintemp_",
         "iceget_", "oceanget_", "gsettle_", "subsnow_", "newtonraphson_",
         "cape_", "stability_check_", "getshear_", "ql_", "qld_", "lv_", "rv_",
