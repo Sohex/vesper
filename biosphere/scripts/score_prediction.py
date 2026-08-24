@@ -89,9 +89,9 @@ def main() -> None:
 
     # Simulation years are this world's years. Everything registered is per Earth
     # year. Getting this wrong looks like missing every line low by 2.
-    to_earth = manifest.get("simulation_years_to_earth_years")
+    to_earth = manifest.get("annual_flux_per_orbit_to_per_earth_year")
     if to_earth is None:
-        to_earth = 1.0 / orbit.earth_years_per_orbit(config)
+        to_earth = 1.0 / orbit.earth_years_per_model_year(config)
 
     with nc.Dataset(climatology) as data:
         lat = np.asarray(data["lat"][:], dtype=float)
@@ -217,7 +217,7 @@ def main() -> None:
         "cells_scored": n_done,
         "land_cells": n_land,
         "partial": partial,
-        "simulation_years_to_earth_years": to_earth,
+        "annual_flux_per_orbit_to_per_earth_year": to_earth,
         "land_area_km2": land_area_km2,
         "land_mean_npp_gc_m2_earth_year": land_mean_npp,
         "total_npp_pgc_earth_year": total_npp_pgc,

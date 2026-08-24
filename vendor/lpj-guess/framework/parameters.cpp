@@ -691,11 +691,11 @@ void plib_declarations(int id,xtring setname) {
 		declareitem("reprfrac",&ppft->reprfrac,0.0,1.0,1,CB_NONE,
 			"Fraction of NPP allocated to reproduction");
 		declareitem("turnover_leaf",&ppft->turnover_leaf,0.0,1.0,1,CB_NONE,
-			"Leaf turnover (fraction/year)");
+			"Leaf turnover (fraction per simulation year)");
 		declareitem("turnover_root",&ppft->turnover_root,0.0,1.0,1,CB_NONE,
-			"Fine root turnover (fraction/year)");
+			"Fine root turnover (fraction per simulation year)");
 		declareitem("turnover_sap",&ppft->turnover_sap,0.0,1.0,1,CB_NONE,
-			"Sapwood turnover (fraction/year)");
+			"Sapwood turnover (fraction per simulation year)");
 		declareitem("wooddens",&ppft->wooddens,10.0,1000.0,1,CB_NONE,
 			"Sapwood and heartwood density (kgC/m3)");
 		declareitem("crownarea_max",&ppft->crownarea_max,1.0,1000.0,1,CB_NONE,
@@ -733,7 +733,7 @@ void plib_declarations(int id,xtring setname) {
 		declareitem("twminusc",&ppft->twminusc,0,100,1,CB_NONE,
 			"Stupid larch parameter");
 		declareitem("gdd5min_est",&ppft->gdd5min_est,0.0,5000.0,1,CB_NONE,
-			"Min GDD on 5 deg C base for establishment");
+			"Min GDD on 5 deg C base for establishment, summed over one simulation year");
 		declareitem("k_chilla",&ppft->k_chilla,0.0,5000.0,1,CB_NONE,
 			"Constant in equation for budburst chilling time requirement");
 		declareitem("k_chillb",&ppft->k_chillb,0.0,5000.0,1,CB_NONE,
@@ -745,7 +745,7 @@ void plib_declarations(int id,xtring setname) {
 		declareitem("alphar",&ppft->alphar,0.01,100.0,1,CB_NONE,
 			"Shape parameter for recruitment-juv growth rate relationship");
 		declareitem("est_max",&ppft->est_max,1.0e-4,1.0,1,CB_NONE,
-			"Max sapling establishment rate (indiv/m2/year)");
+			"Max sapling establishment rate (indiv/m2 per simulation year)");
 		declareitem("kest_repr",&ppft->kest_repr,1.0,1000.0,1,CB_NONE,
 			"Constant in equation for tree estab rate");
 		declareitem("kest_bg",&ppft->kest_bg,0.0,1.0,1,CB_NONE,
@@ -753,11 +753,11 @@ void plib_declarations(int id,xtring setname) {
 		declareitem("kest_pres",&ppft->kest_pres,0.0,1.0,1,CB_NONE,
 			"Constant in equation for tree estab rate");
 		declareitem("longevity",&ppft->longevity,0.0,3000.0,1,CB_NONE,
-			"Expected longevity under lifetime non-stressed conditions (yr)");
+			"Expected longevity under lifetime non-stressed conditions (simulation years)");
 		declareitem("greff_min",&ppft->greff_min,0.0,1.0,1,CB_NONE,
-			"Threshold for growth suppression mortality (kgC/m2 leaf/yr)");
+			"Threshold for growth suppression mortality (kgC/m2 leaf per simulation year)");
 		declareitem("leaflong",&ppft->leaflong,0.1,100.0,1,CB_NONE,
-			"Leaf longevity (years)");
+			"Leaf longevity (simulation years)");
 		declareitem("intc",&ppft->intc,0.0,1.0,1,CB_NONE,"Interception coefficient");
 
 		// guess2008 - DLE

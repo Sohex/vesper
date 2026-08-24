@@ -279,13 +279,24 @@ def main() -> None:
         "source_build": config.get("source_build"),
         "stellar_spectrum": config.get("radiation", {}).get("stellar_spectrum"),
         "orbital_year_earth_days": orbit.orbital_year_days(config),
-        "simulation_years_to_earth_years": (
-            1.0 / orbit.earth_years_per_orbit(config)),
+        "model_year_days": orbit.model_year_days(config),
+        "earth_year_days": orbit.EARTH_SIDEREAL_YEAR_DAYS,
+        "earth_years_per_simulation_year": orbit.earth_years_per_model_year(config),
+        "annual_flux_per_orbit_to_per_earth_year": (
+            1.0 / orbit.earth_years_per_model_year(config)),
+        "reporting_interval": (
+            "one simulation year, which is one orbit of "
+            f"{orbit.model_year_days(config)} absolute days"),
         "unit_note": (
-            "LPJ-GUESS reports per simulation year, which is this world's year. "
-            "Multiply by simulation_years_to_earth_years before comparing with "
-            "anything quoted per Earth year, including "
-            "notes/productivity-prediction.md."),
+            "Every annual column in the .out files is a sum over one simulation "
+            "year, which is one orbit and not one Earth year. Multiply such a "
+            "flux by annual_flux_per_orbit_to_per_earth_year before comparing "
+            "with anything quoted per Earth year, including "
+            "notes/productivity-prediction.md. The name says which direction "
+            "the factor goes, because the two directions differ by four in the "
+            "answer and look identical in a script. The registry of which "
+            "quantity is in which unit is "
+            "biosphere/notes/time-base-unit-contract.md."),
         "software": {
             "platform": platform.platform(),
             "lpj_guess": (

@@ -205,6 +205,33 @@ const int VESPER_YEAR_LENGTH_DAYS = {constants['year_length_days']};
 /// Twelve month lengths summing to VESPER_YEAR_LENGTH_DAYS.
 #define VESPER_MONTH_LENGTHS {{{months}}}
 
+/// Earth's orbital period in days: the unit every Earth calibration was measured in.
+/** The three units this model works in are the absolute day, the Earth year and
+ *  the orbit, and only two of them are the same length on both worlds. Divide a
+ *  published per-Earth-year flux by this to get its per-absolute-day rate;
+ *  dividing by VESPER_YEAR_LENGTH_DAYS instead delivers a whole Earth year of it
+ *  every {constants['year_length_days']} days. Which quantity is in which unit is settled in
+ *  biosphere/notes/time-base-unit-contract.md.
+ */
+const double VESPER_EARTH_YEAR_DAYS = {constants['earth_year_days']:.7f};
+
+/// One simulation year in Earth years: {constants['year_length_days']} / {constants['earth_year_days']:.4f}.
+/** The conversion for anything the model integrates or counts over its own
+ *  year. An Earth-calibrated fraction r per Earth year becomes
+ *  1 - pow(1 - r, VESPER_EARTH_YEARS_PER_ORBIT) per simulation year; an
+ *  Earth-calibrated annual SUM scales by it directly; a duration counted in
+ *  years scales by its reciprocal.
+ */
+const double VESPER_EARTH_YEARS_PER_ORBIT = {constants['earth_years_per_model_year']:.9f};
+
+/// Earth months in one simulation year: 12 x VESPER_EARTH_YEARS_PER_ORBIT.
+/** Reich et al. (1992) regressed specific leaf area and leaf C:N on leaf
+ *  lifespan in absolute MONTHS. The instruction file declares leaf lifespan in
+ *  simulation years, so that regression needs the absolute months one simulation
+ *  year holds and not Earth's twelve.
+ */
+const double VESPER_EARTH_MONTHS_PER_ORBIT = {constants['earth_months_per_model_year']:.9f};
+
 /// Stellar constant at Vesper's orbit, W/m2. {constants['flux_earth']} x {constants['earth_solar_constant']}.
 const double VESPER_STELLAR_CONSTANT = {constants['stellar_constant_w_m2']:.4f};
 
@@ -256,7 +283,7 @@ def main() -> None:
     earth_solar = float(config["orbit"].get("earth_solar_constant_w_m2",
                                             EARTH_SOLAR_CONSTANT_DEFAULT))
     orbital_days = orbit.orbital_year_days(config)
-    year_length = int(round(orbital_days))
+    year_length = orbit.model_year_days(config)
     rotation_hours = float(config["planet"]["rotation_hours"])
 
     climatology = args.climatology or climatology_path()
@@ -287,6 +314,9 @@ def main() -> None:
         "modelled_year_hours": year_length * 24.0,
         "true_year_hours": orbital_days * 24.0,
         "year_length_error_percent": 100.0 * (year_length - orbital_days) / orbital_days,
+        "earth_year_days": orbit.EARTH_SIDEREAL_YEAR_DAYS,
+        "earth_years_per_model_year": orbit.earth_years_per_model_year(config),
+        "earth_months_per_model_year": 12.0 * orbit.earth_years_per_model_year(config),
         "rotation_hours": rotation_hours,
         "rotation_error_percent": 100.0 * (rotation_hours - 24.0) / 24.0,
         "stellar_constant_w_m2": flux * earth_solar,

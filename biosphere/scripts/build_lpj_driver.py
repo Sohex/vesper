@@ -49,7 +49,12 @@ import orbit
 from gridding import land_fraction_of_class
 from orogen import Export
 
-MAGIC = b"VESPDRV4"   # V2 regolith depth, V3 bedrock water, V4 multiple years
+# V2 regolith depth, V3 bedrock water, V4 multiple years, V5 nitrogen deposition
+# read per Earth year rather than per orbit. V5 carries the same bytes as V4 and
+# differs only in what the ndep field MEANS, which is exactly the change a magic
+# has to catch: a V4 file read by a V5 binary would look perfectly valid and
+# deliver half the nitrogen. See biosphere/notes/time-base-unit-contract.md.
+MAGIC = b"VESPDRV5"
 
 # Coordinate precision shared with pedology/scripts/build_soil.py, so the soil
 # map keys match exactly. See where lon_signed is rounded.
@@ -179,10 +184,14 @@ def main() -> None:
                              "column. Without it every cell is given the full "
                              "profile depth, which is LPJ-GUESS's own default.")
     parser.add_argument("--ndep", type=float, default=0.5,
-                        help="nitrogen deposition, kgN/ha/yr. A declared "
-                             "assumption: this world has no deposition field and "
-                             "no industry. Default is a low pre-industrial-like "
-                             "value; report the sensitivity, do not tune it.")
+                        help="nitrogen deposition, kgN/ha per EARTH YEAR. "
+                             "Absolute time, not per orbit: deposition is an "
+                             "atmospheric flux and does not know how long this "
+                             "world takes to go round its star. A declared "
+                             "assumption -- this world has no deposition field "
+                             "and no industry. Default is a low "
+                             "pre-industrial-like value; report the "
+                             "sensitivity, do not tune it.")
     args = parser.parse_args()
 
     config = yaml.safe_load(CONFIG.read_text())
@@ -199,7 +208,7 @@ def main() -> None:
             raise SystemExit(f"{path} does not exist")
     climatology = Path(climatologies[0])
 
-    year_length = int(round(orbit.orbital_year_days(config)))
+    year_length = orbit.model_year_days(config)
     co2_ppm = float(config["atmosphere"]["pCO2_bar"]) / 1.0 * 1e6
 
     # Each climatology contributes one year, stacked as [year][bin][lat][lon].
@@ -345,10 +354,13 @@ def main() -> None:
                                   if soil_map else "none, full profile assumed"),
         "cells_without_depth": missing_depth,
         "co2_ppm": co2_ppm,
-        "ndep_kgn_ha_yr": args.ndep,
+        "ndep_kgn_ha_earth_year": args.ndep,
+        "ndep_kgn_ha_absolute_day": args.ndep / orbit.EARTH_SIDEREAL_YEAR_DAYS,
         "ndep_note": (
             "Declared, not measured. This world has no deposition field and no "
-            "industry, so any value is an assumption and NPP inherits it."),
+            "industry, so any value is an assumption and NPP inherits it. The "
+            "unit is per EARTH year; vesperinput divides by the Earth year to "
+            "reach the per-absolute-day rate it hands the model."),
         "insolation": "NETSWRAD_TS, net downward surface shortwave (rss), W/m2",
         "land_definition": "lsm from the climatology, itself built from surface_class",
         "land_mean_temperature_c": float(
@@ -376,7 +388,9 @@ def main() -> None:
     print(f"year length    {year_length} days, bins {bin_days.astype(int).tolist()}")
     print(f"climate years  {nyears} "
           f"({'cycled' if nyears > 1 else 'fixed climate, repeated'})")
-    print(f"CO2            {co2_ppm:.0f} ppm     N deposition {args.ndep} kgN/ha/yr")
+    print(f"CO2            {co2_ppm:.0f} ppm     "
+          f"N deposition {args.ndep} kgN/ha/Earth-yr "
+          f"({args.ndep / orbit.EARTH_SIDEREAL_YEAR_DAYS:.3e} per absolute day)")
     print(f"land means     {report['land_mean_temperature_c']:.2f} C, "
           f"{report['land_mean_precip_mm_per_earth_year']:.0f} mm/Earth-yr, "
           f"{report['land_mean_net_sw_w_m2']:.1f} W/m2 net SW")

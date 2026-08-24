@@ -1863,7 +1863,12 @@ public:
 	double k_latosa;
 	/// specific leaf area (m2/kgC)
 	double sla;
-	/// leaf longevity (years)
+	/// leaf longevity, in SIMULATION YEARS
+	/** One simulation year is one orbit, not one Earth year. The generated
+	 *  instruction file carries this rescaled from its Earth calibration; see
+	 *  biosphere/notes/time-base-unit-contract.md and initsla() below, which
+	 *  converts it back to the absolute months Reich et al. (1992) regressed.
+	 */
 	double leaflong;
 	/// leaf to root mass ratio under non-water-stressed conditions
 	double ltor_max;
@@ -1892,10 +1897,18 @@ public:
 	 *  mass effect disabled (individual and cohort modes)
 	 */
 	double kest_pres;
-	/// expected longevity under non-stressed conditions (individual and cohort modes)
+	/// expected longevity in SIMULATION YEARS (individual and cohort modes)
+	/** Compared against Individual::age, which counts simulation years, so both
+	 *  sides are orbits and the generated instruction file rescales this up from
+	 *  its Earth calibration.
+	 */
 	double longevity;
 	/// threshold growth efficiency for imposition of growth suppression mortality
-	/** kgC/m2 leaf/year, individual and cohort modes */
+	/** kgC/m2 leaf per SIMULATION YEAR, individual and cohort modes. An annual
+	 *  sum, so the generated instruction file scales it down from its Earth
+	 *  calibration alongside gdd5min_est; left at the Earth value it would
+	 *  condemn every suppressed cohort on a world whose year is shorter.
+	 */
 	double greff_min;
 
 	// Bioclimatic limits (all temperatures deg C)
@@ -2201,6 +2214,13 @@ public:
 	}
 
 	/// Calculates SLA given leaf longevity
+	/** leaflong is declared in SIMULATION YEARS, so the Reich regression, which
+	 *  was fitted against leaf lifespan in absolute MONTHS, is fed
+	 *  VESPER_EARTH_MONTHS_PER_ORBIT rather than Earth's twelve. Read as twelve
+	 *  it made the same symbol mean orbits here and Earth years in growth.cpp's
+	 *  raingreen leaf replacement, and SLA propagates through LAI, FPAR and APAR
+	 *  into every productivity number the model reports.
+	 */
 	void initsla() {
 
 		// SLA has to be supplied in the insfile for crops with N limitation
@@ -2209,26 +2229,34 @@ public:
 			// Reich et al 1992, Table 1 (includes conversion x2.0 from m2/kg_dry_weight to
 			// m2/kgC)
 
+			const double leaflong_months = VESPER_EARTH_MONTHS_PER_ORBIT * leaflong;
+
 			if (leafphysiognomy == BROADLEAF) {
-				sla = 0.2 * pow(10.0, 2.41 - 0.38 * log10(12.0 * leaflong));
+				sla = 0.2 * pow(10.0, 2.41 - 0.38 * log10(leaflong_months));
 			}
 			else if (leafphysiognomy == NEEDLELEAF) {
-				sla = 0.2 * pow(10.0, 2.29 - 0.4 * log10(12.0 * leaflong));
+				sla = 0.2 * pow(10.0, 2.29 - 0.4 * log10(leaflong_months));
 			}
 		}
 	}
 
 	/// Calculates minimum leaf C:N ratio given leaf longevity
+	/** Absolute months, for the same reason as initsla(). cton_leaf_min sets
+	 *  cton_leaf_max and cton_leaf_avr below it, and thence the whole nitrogen
+	 *  limitation cascade.
+	 */
 	void init_cton_min() {
 		// cton_leaf_min has to be supplied in the insfile for crops with N limitation
 		if (!(phenology == CROPGREEN && (ifnlim || ifplim))) {
 			// Reich et al 1992, Table 1 (includes conversion x500 from mg/g_dry_weight to
 			// kgN/kgC)
 
+			const double leaflong_months = VESPER_EARTH_MONTHS_PER_ORBIT * leaflong;
+
 			if (leafphysiognomy == BROADLEAF)
-				cton_leaf_min = 500.0 / pow(10.0, 1.75 - 0.33 * log10(12.0 * leaflong));
+				cton_leaf_min = 500.0 / pow(10.0, 1.75 - 0.33 * log10(leaflong_months));
 			else if (leafphysiognomy == NEEDLELEAF)
-				cton_leaf_min = 500.0 / pow(10.0, 1.52 - 0.26 * log10(12.0 * leaflong));
+				cton_leaf_min = 500.0 / pow(10.0, 1.52 - 0.26 * log10(leaflong_months));
 		}
 	}
 

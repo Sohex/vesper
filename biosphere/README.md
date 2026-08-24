@@ -22,7 +22,9 @@ calendar, time-base and forcing corrections in BIO-21 through BIO-25.  The audit
 behind the original porting choices is in `notes/lpj-guess-porting-audit.md`, the
 remaining modelling gaps are evidenced in `notes/modelling-gap-audit.md`, the
 implicit Earth assumptions below the port are in
-`notes/implicit-earth-assumptions.md`, the soil decomposition, C-N-P and
+`notes/implicit-earth-assumptions.md` and the absolute-day/Earth-year/orbit unit
+contract they are resolved against, with the class and the reader of every
+quantity that carries a year, is in `notes/time-base-unit-contract.md`, the soil decomposition, C-N-P and
 pedology/groundwater seams are audited in
 `notes/soil-decomposition-biogeochemistry-audit.md`, plant physiology and carbon
 allocation are audited in `notes/plant-physiology-carbon-allocation-audit.md`,
@@ -69,8 +71,8 @@ a result.
 | Earth-assumption audit | follow-up complete; BIO-21 through BIO-29 track cross-cutting assumptions including the latitude-use contract, PCAR-1 through PCAR-10 track plant physiology/allocation, SDEC-1 through SDEC-9 track soil decomposition/biogeochemistry, BVOC-1 through BVOC-10 track volatile carbon through chemistry/aerosol/climate, WET-1 through WET-11 track wetlands, peat and methane, LSHY-1 through LSHY-7 track the shared land-water and soil-property contract, and ANUT-1 through ANUT-10 track abiotic nutrient delivery |
 | productivity prediction | registered, unscored |
 | calendar and astronomy port | mechanical calendar and orbital geometry applied; natural phenology still has unreachable Earth dates under BIO-21 |
-| PFT degree-day rescale | generated from the orbit, 500 -> 247 gdd5min_est; the remaining annual-rate semantics are BIO-22 |
-| input module | `vesperinput`, runs end to end and splits across MPI ranks; its 12-bin `VESPDRV4` transport is integration scaffolding to be replaced under EFOR-1 through EFOR-8 |
+| PFT time base | one contract with four classes, in `notes/time-base-unit-contract.md`; `build_vesper_pfts.py` executes it and names each parameter's class in the file it writes and in its provenance |
+| input module | `vesperinput`, runs end to end and splits across MPI ranks; its 12-bin `VESPDRV5` transport is integration scaffolding to be replaced under EFOR-1 through EFOR-8 |
 | soil and water | pedology depth scales LPJ capacity and pedology AWC sets ExoPlaSim's scalar bucket at smoke scale, but the models independently derive hydraulic properties and run separate snow/soil water balances; LSHY-1 through LSHY-7 own the consistency work |
 | abiotic nutrients | rock P and dust mass have useful relative/source artifacts, but no absolute source-to-root-zone ledger exists; `phosphorus_budget.py` does not consume dust deposition, and ANUT-1 through ANUT-10 own weathering, initial stocks, atmospheric N/P, transport, other-nutrient screening and closure |
 | run harness | written; records inputs, binary and model identity in its manifest |
@@ -286,17 +288,24 @@ is about half an Earth year, so the shipped 500 gives this world roughly half th
 absolute vegetation and soil development that Earth practice assumes.
 
 `build_vesper_pfts.py` therefore scales year *counts* UP by the reciprocal of the
-factor it scales annual *sums* DOWN by, deriving both from the configured orbit.
-Confusing those two directions would be worse than doing neither, so both lists
-are named in that script and the rescaled values are written into
-`generated/vesper_pfts.ins` and its provenance:
+factor it scales annual *sums* DOWN by, and converts fractions applied once a year
+as rates rather than multiplying them. Confusing those directions would be worse
+than doing neither, so the class of every parameter is named in
+`notes/time-base-unit-contract.md`, in that script, in the generated
+`generated/vesper_pfts.ins` and in its provenance. The classes:
 
-| parameter | shipped | scaled? | why |
+| parameter | class | direction | why |
 | --- | --- | --- | --- |
-| `nyear_spinup` | 500 | up | time to reach steady state |
-| `distinterval` | 100 | up | disturbance return time |
-| `freenyears` | 100 | up | time to build an N pool before N limits |
-| `estinterval` | 5 | no | counted in growing seasons, not absolute time |
+| `nyear_spinup` | year count | up | time to reach steady state |
+| `distinterval` | year count | up | disturbance return time |
+| `freenyears` | year count | up | time to build an N pool before N limits |
+| `longevity` | year count | up | compared against an age that counts simulation years |
+| `leaflong` | year count | up | leaf lifespan, and the SLA regression converts it back to absolute months |
+| `gdd5min_est` | annual sum | down | degree-days accumulated in one year |
+| `greff_min` | annual sum | down | annual production per unit leaf area |
+| `turnover_leaf`, `turnover_root`, `turnover_sap` | annual rate | rate conversion | a fraction, so `1-(1-r)^f` and not a multiplier |
+| `estinterval`, `est_max` | seasonal cycle | none | counted in growing seasons, not absolute time |
+| `phengdd5ramp` | within-season | none | already absolute time; scaling it would be a real error |
 
 Slow soil carbon does not need integrating for all of that: `ifcentury 1` solves
 the equilibrium pool sizes analytically, accumulating running means between 70%
