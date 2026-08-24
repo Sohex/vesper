@@ -399,13 +399,13 @@ model:
   layers: 10
   precision_bytes: 8
   # How the model binary is compiled. The flag line is stated in FULL here
-  # rather than as a delta against whatever configure.sh generated, because a
-  # delta cannot express a REMOVAL and removal is what this needs: -fcheck=all
-  # is in configure.sh's default line and is the thing being taken out of
-  # production builds. rebuild_binaries.py writes line 3 of most_compiler_mpi
-  # from this list before every build, so a reconfigure cannot quietly restore
-  # a flag, and binary_manifest.json records the line the makefile actually
-  # used.
+  # rather than as a delta against a generated default, because a delta cannot
+  # express a REMOVAL and removal is what this needs: -fcheck=all was in the
+  # default line of the build system this replaced and is the thing being taken
+  # out of production builds. build_model.py passes this list to CMake as
+  # PLASIM_FFLAGS and CMake adds nothing to it, so there is no default line left
+  # to restore a flag, and binary_manifest.json records the flags each
+  # executable was actually built with.
   #
   # -march=znver4 rather than native: the two produce a byte-identical
   # executable on this host, and the explicit name records what was targeted

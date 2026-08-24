@@ -81,9 +81,15 @@ to publish at all. Nothing under `patched/` is a registry entry, and a build
 directly under `build/` is always from the committed model source.
 
 **The fork does not use upstream's build system and no longer carries it.**
-`compile.sh`, `configure.sh`, `make_plasim` and the `most_compiler*` files are
-deleted; `plasim/CMakeLists.txt` and `exoplasim/scripts/build_model.py` replace
-them, and `exoplasim/__init__.py` raises rather than compiling on demand. That
+`compile.sh`, `configure.sh`, `make_plasim`, the `most_compiler*` files,
+`make_most` and the X11 launcher `most.c` it built are deleted, along with
+`setup.py` and `MANIFEST.in`, which were setuptools inputs the declared
+hatchling backend never read and which disagreed with `pyproject.toml` on both
+version and dependencies; `plasim/CMakeLists.txt` and
+`exoplasim/scripts/build_model.py` replace the build, `pyproject.toml` is the
+only packaging declaration, and `exoplasim/__init__.py` raises rather than
+compiling on demand -- its `sysconfigure()` and `printsysconfig()`, which ran
+and read the generated configuration, are gone with the files they served. That
 is the largest single divergence from upstream and it is deliberate: pulling
 upstream will conflict there, and the resolution is always to keep this side.
 `notes/audits/model-build-driver.md` says what the old one did wrong.
