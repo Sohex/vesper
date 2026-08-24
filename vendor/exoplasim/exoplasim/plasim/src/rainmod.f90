@@ -30,6 +30,30 @@
       real :: rkshallow = 10. ! diffusivity for shallow convection (m*m/s)
       real :: gamma   = 0.01  ! tuning parameter for evaporation of precip.
 
+!
+!     THE TWO CCM3 CLOUD-WATER CONSTANTS, which were bare literals in mkclouds
+!     with no namelist route and no unit. Kiehl et al. (1996) pp. 49-50 give the
+!     diagnostic in-cloud liquid water as ql(z) = ql0 exp(-z/hl) with
+!     hl = 700 ln(1 + PW), PW the precipitable water in kg/m2 and hl in metres.
+!
+!     hl IS A LENGTH AND THE 700 IS THE ONLY TERM IN mkclouds WITH NO ga IN IT.
+!     The mid-layer heights it is measured against are built hypsometrically as
+!     -dt*gascon/ga*ALOG(...), so they scale as 1/g, and dqvi already carries
+!     1/g; leaving the coefficient at Earth's value distributes the cloud water
+!     over a profile inconsistent with the heights beside it. Liquid water
+!     tracks vapour and vapour's geometric scale height is gascon*T/ga, so the
+!     coefficient scales with (gascon/ga) over Earth's own. clwhsc below zero
+!     means DERIVE it that way, which is the default and which reproduces 700
+!     exactly at Earth's gascon and ga; a positive value overrides and is used
+!     as it stands, in metres.
+!
+!     clwref is ql0, the reference in-cloud liquid water density in kg/m3. It is
+!     a condensate concentration set by microphysics and carries no gravity
+!     dependence, so it is exposed at Kiehl's own value rather than scaled, and
+!     the bracket around it is a separate question.
+      real :: clwhsc = -1.0    ! cloud water e-folding length coefficient, m per
+                               ! ln(1+kg/m2); < 0 = derive from gascon and ga
+      real :: clwref = 0.00021 ! reference in-cloud liquid water density (kg/m3)
       real :: rcritmod = 1.0   ! Modifier for cloud critical relative humidity
       real :: rcritslope = 0.0 !By-level modifier for changing cloud height bias
       real :: rcrit(NLEV)    ! critical relative hum. for non conv. clouds
@@ -64,7 +88,8 @@
 !     Inert without -fopenmp, so the MPI and serial builds are unchanged.
 !$omp threadprivate(clwcrit1,clwcrit2,clwfac,dprcl,dprll,dprscl,dprsll,gamma,icclev,icctot,kbeta,&
 !$omp&  nbeta,nclouds,ncsurf,ndca,nevapprec,nmoment,nprc,nprl,nshallow,nstorain,pdeep,pdeepth,rbeta,&
-!$omp&  rcrit,rcritmod,rcritslope,rhbeta,rkshallow,time4cl,time4dca,time4prc,time4prl,time4rain,&
+!$omp&  clwhsc,clwref,rcrit,rcritmod,rcritslope,rhbeta,rkshallow,time4cl,time4dca,time4prc,&
+!$omp&  time4prl,time4rain,&
 !$omp&  version)
 
       end module rainmod
@@ -78,7 +103,8 @@
 !
       namelist/rainmod_nl/kbeta,nprl,nprc,ndca,ncsurf,nmoment,nshallow  &
      &       ,nstorain,rcrit,clwcrit1,clwcrit2,pdeep,rkshallow,gamma    &
-     &       ,nclouds,pdeepth,nevapprec,nbeta,rhbeta,rbeta,rcritmod,rcritslope      
+     &       ,nclouds,pdeepth,nevapprec,nbeta,rhbeta,rbeta,rcritmod,rcritslope      &
+     &       ,clwhsc,clwref
 !
 !     reset defaults (according to general setup... tuning)
 !
@@ -128,8 +154,20 @@
       call mpbcr(pdeepth)
       call mpbcr(rkshallow)
       call mpbcr(gamma)
+      call mpbcr(clwhsc)
+      call mpbcr(clwref)
       call mpbcrn(rcrit,NLEV)
       call mpbcrn(rcrit,NLEV)
+!
+!     CCM3 cloud-water e-folding length coefficient. Derived from this planet's
+!     own gascon and ga unless the namelist gave a positive value, so the
+!     coefficient and the heights it is measured against carry the same gravity.
+!     At Earth's 287.0 and 9.80665 this returns 700.0 to rounding.
+!
+      if(clwhsc < 0.) clwhsc = 700.*(gascon/ga)/(287.0/9.80665)
+      if(mypid==NROOT) then
+       write(nud,*) 'cloud water e-folding length coefficient (m) ',clwhsc
+      endif
 !
 !     smoothing factor for cloud suppression
 !
@@ -2002,10 +2040,10 @@
 
       dcc(:,NLEP)=1.
       dqvi(:)=dqvi(:)*dp(:)/ga
-      zzh(:)=700.*ALOG(1.+dqvi(:))
+      zzh(:)=clwhsc*ALOG(1.+dqvi(:))
       do jlev=1,NLEV
        where(zzh(:) > 0. .and. dcc(:,jlev) > 0.)
-        dql(:,jlev)=0.00021*EXP(-zzf(:,jlev)/zzh(:))*gascon*dt(:,jlev)  &
+        dql(:,jlev)=clwref*EXP(-zzf(:,jlev)/zzh(:))*gascon*dt(:,jlev)   &
      &             /(sigma(jlev)*dp(:))
         dql(:,jlev)=MAX(dql(:,jlev),1.E-9)
        endwhere

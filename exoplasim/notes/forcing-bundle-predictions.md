@@ -430,6 +430,24 @@ predictions were soft.
 | DUST-11 | prescribed dust arm | separate note | `aeolian/notes/prescribed-dust-run.md` |
 | CLIM-32 | ozone arms, `O3SCALE` 0.794 -> 0.500 | +0.2 to +0.9 K, warming | this note; arms only, `ozone_scale` unchanged in the baseline config |
 | CLIM-33 | mixed layer arms, 25 m and 100 m | 0.000 K annual mean by construction | this note; arms only, `mixed_layer_depth_m` unchanged in the baseline config |
+| world-ofn | `clwhsc` derived from `gascon` and `ga` | sign not assigned; see below | `notes/audits/model-earth-centrism.md` finding 5 |
+
+**world-ofn is the one term in this table whose sign is not assigned, and the
+reason is that it moves two things in opposite directions.** `mkclouds` carried
+the CCM3 cloud-water e-folding length coefficient as an Earth literal while the
+mid-layer heights it is measured against are built hypsometrically from the
+model's own `gascon` and `ga`; the coefficient is now built the same way, which
+shortens it in the same proportion the heights shorten. Integrated over the
+T21/L10 sigma set at 25 kg/m2 of precipitable water, the pre-change liquid water
+per layer ran 7.2 times the calibrated value at sigma 0.038 falling to 0.78 at
+sigma 0.98, so the change thins high cloud sharply and thickens the lowest three
+layers slightly, at a column total that barely moves. Thinner high cloud lowers
+the longwave trap and thicker low cloud raises the shortwave reflection: both
+terms point the simulated mean DOWN, which is why this is the one place the sum
+above is likely to be understating a cooling rather than a warming. It is not
+priced here because pricing it needs a baseline climatology and
+`config/planet.yaml` declares none. Price it before the bundle is summed
+against a run, not after.
 
 **Sum, excluding dust and the unassigned cloud term: +0.6 K, spread roughly
 -0.3 to +1.3, still dominated by the water vapour level but no longer

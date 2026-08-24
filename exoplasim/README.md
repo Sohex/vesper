@@ -520,6 +520,18 @@ is 0.0 and not 1.0. Arguments in `exoplasim/notes/ozone.md`,
 a modern line list, in `exoplasim/notes/corrk-cross-check.md`; the CO2 closed
 form was then REFITTED to that line list, so `radmod.f90`'s four coefficients no
 longer come from Howard and the patch header records that its own do.
+**Two cloud constants and two surface emissivities are namelist keys now, and
+one of them is derived rather than set.** `clwhsc` and `clwref` in `rainmod_nl`
+are the CCM3 cloud-water e-folding length coefficient and the reference
+in-cloud liquid density that `mkclouds` carried as bare literals; `clwhsc`
+below zero, which is the default, means DERIVE it from this planet's own
+`gascon` and `ga`, because it is a length and the heights it is measured
+against are already built that way. `elwland` and `elwsea` in `radmod_nl` are
+the surface longwave emissivities `lwr` carried as one literal; they are
+declared in `config/planet.yaml` at the values that literal had. `dql` is not
+diagnostic: it sets shortwave cloud optical depth and longwave cloud
+emissivity, so `clwhsc` moves both.
+
 The model source is `vendor/exoplasim`, a git subtree from the `master` branch
 of the personal fork, installed editable so the source you read is the source
 that compiles. There is no patch stack to keep applied: a model change is a
