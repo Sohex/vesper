@@ -98,6 +98,7 @@ import numpy as np  # noqa: E402
 import yaml  # noqa: E402
 
 import builds  # noqa: E402
+import rungs  # noqa: E402
 import orbit as orbit_lib  # noqa: E402
 import climatology
 import paths  # noqa: E402
@@ -174,10 +175,18 @@ CARVE_CHANNELS = {"land_precipitation": (1, 0, 0),
                   "lake_evaporation": (0, 0, 1)}
 
 
-ALBEDO_REPORT = ROOT / "exoplasim" / "inputs" / "t42" / "albedo_report.json"
+def albedo_report_path(config) -> Path:
+    """The albedo report for the CONFIGURED rung.
+
+    It was a module-level constant naming `inputs/t42/`, which is a directory
+    this tree no longer has: every surface input family is rooted by
+    resolution. SPAT-2.
+    """
+    return (ROOT / "exoplasim" / "inputs"
+            / rungs.model_grid(config)[0].lower() / "albedo_report.json")
 
 
-def albedo_items() -> list[tuple[str, float, str]]:
+def albedo_items(config) -> list[tuple[str, float, str]]:
     """(label, land-mean albedo delta, note) for the albedo half of the budget.
 
     Two of these are MEASURED by `build_surface_albedo.py` and are read from the
@@ -199,6 +208,7 @@ def albedo_items() -> list[tuple[str, float, str]]:
     Deltas are the plausible RANGE of the item, not its current value: the budget
     ranks what refining each would buy.
     """
+    ALBEDO_REPORT = albedo_report_path(config)
     if not ALBEDO_REPORT.exists():
         raise SystemExit(f"{ALBEDO_REPORT} is missing; run the surface_albedo step")
     report = json.loads(ALBEDO_REPORT.read_text(encoding="utf-8"))
@@ -427,7 +437,7 @@ def albedo_to_kelvin(d_land, land_fraction, planetary_albedo, attenuation):
 
 def land_fraction(config) -> float:
     """From the build manifest, by surface_class, never from a literal."""
-    manifest = builds.build_root(config) / "exoplasim-T42" / "manifest.json"
+    manifest = builds.mesh_export(config) / "manifest.json"
     m = json.loads(manifest.read_text(encoding="utf-8"))
     return float(m["landSeaMask"]["landFractionBySurfaceClass"])
 
@@ -701,7 +711,7 @@ def main() -> None:
                 f"{low:+d}" if low == high else f"{low:+d} to {high:+d}")
 
     rows = []
-    for label, delta, note in albedo_items():
+    for label, delta, note in albedo_items(config):
         naive = albedo_to_kelvin(delta, fraction, planetary_albedo, 1.0)
         atten = albedo_to_kelvin(delta, fraction, planetary_albedo,
                                  DEFAULT_ATTENUATION)

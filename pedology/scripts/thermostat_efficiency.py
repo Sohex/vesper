@@ -45,6 +45,7 @@ from _paths import (ANALYSIS, CONFIG, PEDOGENESIS, PROJECT_ROOT, SOURCE,
 
 import climatology as climatology_lib  # noqa: E402  from lib/, via _paths.
 # Aliased because `climatology` names a Path in main() and in read_weathering().
+from builds import grid_export  # noqa: E402
 from paths import rel  # noqa: E402
 
 from build_soil import EARTH_YEAR_DAYS, KELVIN, weathering_intensity
@@ -71,7 +72,11 @@ def read_weathering(climatology: Path, params: dict) -> np.ndarray:
 
 
 def read_terrain(build: str) -> dict:
-    path = SOURCE / build / "exoplasim-T42" / "planet.nc"
+    # planet.nc is PER GRID -- grid_cell_area, is_endorheic and basin_index are
+    # all on the export's own Gaussian grid -- and these are combined
+    # elementwise with a climatology, so reading the T42 one while the model
+    # runs at another rung mixes two supports. SPAT-2.
+    path = grid_export(build=build) / "planet.nc"
     with nc.Dataset(path) as data:
         return {
             "path": path,
@@ -118,7 +123,7 @@ def pending_carve(terrain: dict, build: str, carve_list: Path) -> tuple[np.ndarr
     carve_list = carve_list.resolve()
     verdict = json.loads(carve_list.read_text())
     by_id = {basin["id"]: basin for basin in verdict["basins"]}
-    manifest = json.loads((SOURCE / build / "exoplasim-T42"
+    manifest = json.loads((grid_export(build=build)
                            / "manifest.json").read_text())
     preserved = manifest["basins"]["preserved"]
 
@@ -218,7 +223,7 @@ def main() -> None:
         print()
         others = {}
         for other in sorted(p.name for p in SOURCE.iterdir() if p.is_dir()):
-            path = SOURCE / other / "exoplasim-T42" / "planet.nc"
+            path = grid_export(build=other) / "planet.nc"
             if not path.is_file() or other == build:
                 continue
             result = efficiency(weathering, read_terrain(other))

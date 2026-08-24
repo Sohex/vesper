@@ -95,7 +95,11 @@ def main() -> None:
     p_rel = ped.get("phosphorus_release_relative") or {}
     barren = set(cfg["model"]["barren_rock_classes"])
 
-    ex = Export(builds.build_root(cfg) / "exoplasim-T42")
+    # The MESH carrier: surface_class, cell_area and substrate_class are
+    # native-mesh fields and Export refuses an export without raw/. The
+    # literal here read as "the T42 export" and meant "wherever the mesh
+    # is". SPAT-2.
+    ex = Export(builds.mesh_export(cfg))
     land = ex.surface_class == LAND
     area = ex.cell_area
     rock = ex.substrate_class

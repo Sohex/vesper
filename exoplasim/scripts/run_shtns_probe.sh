@@ -37,11 +37,12 @@ WORK="$REPO/exoplasim/bench/_shtnsprobe"
 [ -f "$drv" ] || drv="$HERE/$drv"
 [ -f "$drv" ] || { echo "no such probe: $1" >&2; exit 2; }
 
-case "$res" in
-  T21) nlat=32 ;; T42) nlat=64 ;; T85) nlat=128 ;;
-  T127) nlat=192 ;; T170) nlat=256 ;;
-  *) echo "unknown resolution $res" >&2; exit 2 ;;
-esac
+# The ladder is `lib/rungs.py` and nowhere else; this asks it rather than
+# carrying a `case` that has already drifted twice -- the two probes disagreed
+# about whether T31 and T63 exist. SPAT-2.
+PY="$REPO/.venv/bin/python"; [ -x "$PY" ] || PY=python3
+nlat=$("$PY" -c "import sys; sys.path.insert(0, '$REPO/lib'); import rungs; print(rungs.geometry('$res')[0])") || {
+  echo "unknown resolution $res: it is not a rung in lib/rungs.py" >&2; exit 2; }
 
 if [ ! -f "$PREFIX/include/shtns.f03" ]; then
     echo "no shtns.f03 under $PREFIX -- exoplasim/scripts/build_shtns.sh" >&2

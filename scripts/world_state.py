@@ -28,6 +28,9 @@ import sys as _sys
 if str(ROOT / "lib") not in _sys.path:
     _sys.path.insert(0, str(ROOT / "lib"))
 from paths import rel  # noqa: E402
+# Aliased: there is a `builds()` reporter below, and the bare name would be
+# rebound by it -- which `scripts/smoke_test.py` lints for.
+import builds as build_registry  # noqa: E402
 import stellar  # noqa: E402
 SCHEMA_VERSION = 1
 
@@ -101,7 +104,10 @@ def builds(active: str) -> dict:
     for d in sorted((ROOT / "source").iterdir()):
         if d.name != active:
             continue
-        man = d / "exoplasim-T42" / "manifest.json"
+        try:
+            man = build_registry.mesh_export_of(d) / "manifest.json"
+        except RuntimeError:
+            continue          # a stub build with no payload
         if not man.is_file():
             continue
         m = json.loads(man.read_text(encoding="utf-8"))
@@ -156,8 +162,8 @@ def basin_floor_share(build_dir: Path) -> float | None:
     A PRE-CARVE BUILD REPORTS A LIMIT, NOT A STATE. The carve list moves
     `is_endorheic` directly, so this falls as basins are opened.
     """
-    root = build_dir / "exoplasim-T42"
     try:
+        root = build_registry.mesh_export_of(build_dir)
         man = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
         raw = man["raw"]["fields"]
         names = raw if isinstance(raw, dict) else {f["name"]: f for f in raw}
@@ -185,8 +191,8 @@ def land_elevation(build_dir: Path) -> dict | None:
     below-sea-level basin floors, which is most of what makes this world's
     hypsometry unusual.
     """
-    root = build_dir / "exoplasim-T42"
     try:
+        root = build_registry.mesh_export_of(build_dir)
         man = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
         raw = man["raw"]["fields"]
         names = raw if isinstance(raw, dict) else {f["name"]: f for f in raw}

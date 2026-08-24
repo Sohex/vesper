@@ -49,6 +49,7 @@ SOURCE = ROOT / "source"
 ARCHIVE = ROOT / "archive" / "builds"
 
 sys.path.insert(0, str(ROOT / "lib"))
+import builds  # noqa: E402
 from orogen import _KNOWN_TERRAIN_HASHES  # noqa: E402
 
 # A build is these five exports. Fewer means it is still being generated.
@@ -120,7 +121,12 @@ def main() -> None:
         if d.name == active:
             print(f"  LIVE     {d.name:26}{size/1e9:>6.2f} GB  untouched")
             continue
-        man = d / "exoplasim-T42" / "manifest.json"
+        # The mesh carrier, not "the T42 export": a build's identity is in
+        # the manifest beside its native mesh. SPAT-2.
+        try:
+            man = builds.mesh_export_of(d) / "manifest.json"
+        except RuntimeError:
+            continue
         if not man.is_file():
             print(f"  SKIP     {d.name:26}{size/1e9:>6.2f} GB  no T42 manifest")
             continue

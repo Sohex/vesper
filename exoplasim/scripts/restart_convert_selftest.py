@@ -32,6 +32,7 @@ import reset_restart_accumulators as ra
 import restart_format as rf
 import restart_schema as rs
 import restart_transforms as rt
+import rungs
 
 MODEL_SRC = _paths.MODEL_SRC / "plasim" / "src"
 
@@ -60,6 +61,20 @@ def _refuses(fn, what: str, naming: str | None = None) -> None:
     raise Failed(f"{what}: was accepted and should not have been")
 
 
+def _next_rung(rung: str) -> str:
+    """The rung above `rung` on the ladder, for a fixture that changes support.
+
+    Taken from the registry rather than written as T42, so the fixture follows
+    the ladder if it ever gains a rung between these two. SPAT-2.
+    """
+    ladder = [r for r, _ in sorted(rungs.RUNGS.items(), key=lambda kv: kv[1])]
+    i = ladder.index(rung)
+    if i + 1 >= len(ladder):
+        raise Failed(f"{rung} is the top of the ladder; this fixture needs a "
+                     "rung above the donor's")
+    return ladder[i + 1]
+
+
 def _donor() -> Path:
     """The one real restart in the tree, or nothing to test against."""
     runs = sorted(p for p in (_paths.RUNS).glob("run_*/plasim_restart"))
@@ -86,10 +101,10 @@ def _synthetic_template(src: cv.RestartState, nlat: int, real_bytes: int,
     has a coastline that is consistent between the two resolutions rather than
     an invented one.
     """
+    _, _, ntru = rungs.geometry(rungs.rung_of_latitudes(nlat))
     g = rs.Geometry(nlat=nlat, nlev=src.geometry.nlev,
                     nlsoil=src.geometry.nlsoil, nlev_oce=src.geometry.nlev_oce,
-                    nesp=_round_up((4 * nlat - 1) // 3, src),
-                    nseedlen=src.geometry.nseedlen)
+                    nesp=_round_up(ntru, src), nseedlen=src.geometry.nseedlen)
     inventory = rs.inventory_from_source(MODEL_SRC)
     dtype = cv.REAL[real_bytes]
     weights = rt.build_weights(src.geometry.nlat, nlat)
@@ -383,12 +398,15 @@ def test_end_to_end(tmp: Path, donor: Path) -> list[str]:
     # on an output boundary -- so it is normalised first, exactly as
     # build_restart_template.py does it. The right answer is then the cleaned
     # donor, byte for byte: nothing but the accumulation window may move.
-    ra.reset(donor, tmp / "template_t21")
-    clean = cv.load(tmp / "template_t21")
+    # Named from the donor's own geometry rather than from a literal, so the
+    # fixture cannot be filed under a rung it is not.
+    same_rung = tmp / f"template_{src.geometry.label.lower()}"
+    ra.reset(donor, same_rung)
+    clean = cv.load(same_rung)
     cv.check_compatible(src, clean, inventory)
     records, reports = cv.convert(src, clean)
     rf.write(tmp / "identity", records, overwrite=True)
-    _require((tmp / "identity").read_bytes() == (tmp / "template_t21").read_bytes(),
+    _require((tmp / "identity").read_bytes() == same_rung.read_bytes(),
              "a conversion onto the donor's own grid and precision moved "
              "something other than the accumulation window")
     moved = sum(1 for a, b in zip(rf.read(tmp / "identity"), src.records)
@@ -399,28 +417,38 @@ def test_end_to_end(tmp: Path, donor: Path) -> list[str]:
                 f"reproduces it byte for byte across {len(records)} records, "
                 f"with only the {moved} accumulation records moved")
 
-    # 2. Up and back down. The spectral state has a right answer here.
-    t42 = _synthetic_template(src, 64, 8, tmp / "template_t42")
-    up_state = cv.load(t42)
+    # 2. Up one rung and back down. The spectral state has a right answer here:
+    # projection keeps every shared (m,n) exactly, so the round trip is the
+    # identity on the prognostic spectral records however far apart the rungs
+    # are. The rung above is taken from the registry rather than fixed at T42,
+    # which also makes this a non-doubling ratio and works the remap harder.
+    # One rung up, named from the fixture's own geometry.
+    finer = rungs.RUNGS[_next_rung(src.geometry.label)]
+    up_path = tmp / f"template_{_next_rung(src.geometry.label).lower()}"
+    up_state = cv.load(_synthetic_template(src, finer, 8, up_path))
     cv.check_compatible(src, up_state, inventory)
     recs42, rep42 = cv.convert(src, up_state)
-    rf.write(tmp / "t42", recs42, overwrite=True)
-    mid = cv.load(tmp / "t42")
-    _require(mid.geometry.label == "T42", "the fixture did not reach T42")
+    stepped = tmp / f"stepped_{_next_rung(src.geometry.label).lower()}"
+    rf.write(stepped, recs42, overwrite=True)
+    mid = cv.load(stepped)
+    _require(mid.geometry.label == _next_rung(src.geometry.label),
+             "the fixture did not reach the next rung up")
 
     # Back down onto the same clean T21 template. A dirty one is refused, and
     # the donor itself is dirty: a run does not end on an output boundary.
     cv.check_compatible(mid, clean, inventory)
     recs21, rep21 = cv.convert(mid, clean)
-    rf.write(tmp / "t21_again", recs21, overwrite=True)
-    back = cv.load(tmp / "t21_again")
+    returned = tmp / f"returned_{src.geometry.label.lower()}"
+    rf.write(returned, recs21, overwrite=True)
+    back = cv.load(returned)
     spectral = [n for n, p in rs.POLICY.items()
                 if p.action == rs.PROJECT and n in src.by_name]
     for name in spectral:
         _require(back.by_name[name].payload == src.by_name[name].payload,
                  f"'{name}' did not survive T21 to T42 to T21 unchanged")
-    said.append(f"T21 to T42 to T21 returns all {len(spectral)} spectral "
-                "prognostic records bit for bit")
+    said.append(f"{src.geometry.label} to {mid.geometry.label} and back "
+                f"returns all {len(spectral)} spectral prognostic records "
+                "bit for bit")
 
     # 3. What the report has to carry for the fields that cannot round-trip.
     remapped = [r for r in rep42 if r.action == rs.REMAP]

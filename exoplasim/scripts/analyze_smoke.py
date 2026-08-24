@@ -23,6 +23,7 @@ from numpy.polynomial.legendre import leggauss
 from _paths import ANALYSIS, INPUTS
 
 import climatology  # noqa: E402  from lib/, put on sys.path by _paths
+import rungs  # noqa: E402  the ladder registry
 import gridding
 
 
@@ -94,8 +95,12 @@ def main() -> None:
     gravity = float(manifest["derived_parameters"]["gravity_m_s2"])
     # The supplied topography is surf code 0129 (geopotential); divide by g.
     import sra as _sra
+    # The rung comes from the RUN being analysed, not from a literal and not
+    # from the config: a smoke run at another rung read T42 files named T42 in
+    # a directory that no longer exists. SPAT-2.
+    res = rungs.rung_of_latitudes(lat.size)
     supplied_elevation = _sra.read_sra(
-        INPUTS / "t42" / "orogen_T42_surf_0129.sra",
+        INPUTS / res.lower() / f"orogen_{res}_surf_0129.sra",
         lat.size, lon.size) / gravity
     model_elevation = data["sg"][0] / gravity
     difference = model_elevation - supplied_elevation
@@ -121,7 +126,7 @@ def main() -> None:
     extent = [-180, 180, -90, 90]
     fig, axes = plt.subplots(1, 3, figsize=(16, 4.6), constrained_layout=True)
     fields = [supplied_elevation, model_elevation, difference]
-    titles = ["Supplied T42 elevation", "ExoPlaSim spectral elevation", "Model minus supplied"]
+    titles = [f"Supplied {res} elevation", "ExoPlaSim spectral elevation", "Model minus supplied"]
     cmaps = ["terrain", "terrain", "RdBu_r"]
     limits = [(0, 6000), (-1000, 6000), (-3000, 3000)]
     for ax, field, title, cmap, (vmin, vmax) in zip(axes, fields, titles, cmaps, limits):
@@ -132,7 +137,7 @@ def main() -> None:
         ax.set_xlabel("longitude")
         ax.set_ylabel("latitude")
         fig.colorbar(image, ax=ax, label="m", shrink=0.83)
-    fig.suptitle("Custom topography after ExoPlaSim T42 spectral truncation")
+    fig.suptitle(f"Custom topography after ExoPlaSim {res} spectral truncation")
     topo_plot = args.output / "model_used_topography.png"
     fig.savefig(topo_plot, dpi=180)
     plt.close(fig)

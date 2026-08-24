@@ -1044,7 +1044,6 @@ def main() -> int:
     # component to config/planet.yaml without rebuilding leaves a binary whose
     # namelist has no slot for it, and Fortran rejects the whole group.
     try:
-        cyc = ROOT / "exoplasim" / "inputs" / "exoplasim_cycle_t42"
         m = config["model"]
         run_dir = ROOT / "vendor" / "exoplasim" / "exoplasim" / "plasim" / "run"
         # THE PARMODE IS PART OF THE NAME. `model.parmode` decides which binary a

@@ -27,10 +27,11 @@ import numpy as np
 
 # _paths first: it is what puts the project's lib/ on the path, so anything
 # imported from there has to come after it.
-from _paths import ANALYSIS, DATA
+from _paths import ANALYSIS, CONFIG, DATA
 from builds import build_root, grid_export
 import drainage as dr
 import gridding
+import rungs
 from orogen import Export, LAND, OCEAN
 
 N_LEVELS = 128  # samples per basin hypsometric curve
@@ -198,9 +199,22 @@ def river_mouths(export: Export, drn: dr.Drainage, top: int = 200):
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--export", type=str, default=None, help="Orogen export with raw/")
-    ap.add_argument("--grids", nargs="*", default=["exoplasim-T42", "exoplasim-T85"])
+    # The CONFIGURED rung, not two literals. A coupling matrix is only read at
+    # the resolution the model is being run on -- `gridding.coupling_path`
+    # resolves it that way and `require_index_alignment` refuses a mismatched
+    # one -- so defaulting to T42 and T85 made the wrong two and not the one
+    # needed. Ask for more rungs explicitly; they are not cheap and nothing
+    # should generate them behind the caller. SPAT-2.
+    ap.add_argument("--grids", nargs="*", default=None,
+                    help="export grid directories to build a coupling matrix "
+                         "on, e.g. exoplasim-T85. Defaults to the rung "
+                         "config/planet.yaml names.")
     ap.add_argument("--output", type=str, default=None)
     args = ap.parse_args()
+    if args.grids is None:
+        import yaml
+        config = yaml.safe_load(Path(CONFIG).read_text(encoding="utf-8"))
+        args.grids = [f"exoplasim-{rungs.model_grid(config)[0]}"]
 
     ANALYSIS.mkdir(parents=True, exist_ok=True)
 

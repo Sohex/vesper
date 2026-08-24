@@ -18,6 +18,14 @@ from pathlib import Path
 
 import yaml
 
+# `maps/frames.py` reaches this module as `from lib import builds`, where lib is
+# not on sys.path as a directory, so a bare sibling import fails there. Anchor
+# it the way every script anchors its own imports.
+import sys as _sys
+if str(Path(__file__).resolve().parent) not in _sys.path:
+    _sys.path.insert(0, str(Path(__file__).resolve().parent))
+import rungs  # noqa: E402
+
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 SOURCE = PROJECT_ROOT / "source"
 CONFIG = PROJECT_ROOT / "config" / "planet.yaml"
@@ -28,9 +36,18 @@ def _config(config: dict | None = None) -> dict:
         CONFIG.read_text(encoding="utf-8"))
 
 
+def is_build(path: Path) -> bool:
+    """A build directory is one holding at least one grid export.
+
+    Tested by shape rather than by naming a rung: `exoplasim-T42` was the
+    literal here, so a build that had every other grid and not that one was not
+    a build. SPAT-2.
+    """
+    return Path(path).is_dir() and any(Path(path).glob("exoplasim-T*"))
+
+
 def available() -> list[str]:
-    return sorted(p.name for p in SOURCE.iterdir()
-                  if p.is_dir() and (p / "exoplasim-T42").is_dir())
+    return sorted(p.name for p in SOURCE.iterdir() if is_build(p))
 
 
 def build_root(config: dict | None = None) -> Path:
@@ -40,22 +57,59 @@ def build_root(config: dict | None = None) -> Path:
         raise RuntimeError(
             f"config/planet.yaml has no source_build. Available: {available()}")
     path = SOURCE / name
-    if not (path / "exoplasim-T42").is_dir():
+    if not is_build(path):
         raise RuntimeError(
             f"source_build {name!r} is not a build directory. Available: {available()}")
     return path
 
 
 def mesh_export(config: dict | None = None) -> Path:
-    """Export carrying `raw/`. The mesh is identical across grids in a build."""
-    return build_root(config) / "exoplasim-T42"
+    """The export directory carrying `raw/`: the build's MESH STORAGE CARRIER.
+
+    The native mesh is written once per build rather than once per grid,
+    because it is the same mesh for every grid. It happens to be stored under
+    `exoplasim-T42`, and that name has been read as "the T42 export" by
+    consumers that meant "the export the raw mesh is in" -- which is how a T42
+    literal ended up in code paths that have nothing to do with T42.
+
+    So the carrier is IDENTIFIED rather than named: whichever export holds
+    `raw/`. That is also a check, because a build with none and a build with
+    two are both wrong and were both previously invisible.
+    """
+    return mesh_export_of(build_root(config))
 
 
-def grid_export(config: dict | None = None, resolution: str | None = None) -> Path:
-    """Export whose grid matches the configured model resolution."""
+def mesh_export_of(root: Path) -> Path:
+    """The mesh storage carrier under one build directory. See `mesh_export`."""
+    root = Path(root)
+    carriers = sorted(d for d in root.glob("exoplasim-T*") if (d / "raw").is_dir())
+    if not carriers:
+        raise RuntimeError(
+            f"no export under {root} carries raw/. The native mesh is stored "
+            "once per build and every mesh consumer reads it from there; "
+            "without it nothing can integrate from the mesh.")
+    if len(carriers) > 1:
+        raise RuntimeError(
+            f"{len(carriers)} exports under {root} carry raw/ "
+            f"({', '.join(d.name for d in carriers)}). The mesh is one thing "
+            "per build and two copies are two chances to read the older one.")
+    return carriers[0]
+
+
+def grid_export(config: dict | None = None, resolution: str | None = None,
+                *, build: str | None = None) -> Path:
+    """Export whose grid matches the configured model resolution.
+
+    `build` names another build's directory, for a consumer processing a build
+    that is not the active one. The resolution is checked against the ladder
+    registry, so a typo asks for a grid that cannot exist rather than a
+    directory that silently is not there.
+    """
     cfg = _config(config)
     res = (resolution or str(cfg["model"]["resolution"])).upper()
-    return build_root(cfg) / f"exoplasim-{res}"
+    rungs.geometry(res)                      # refuses anything off the ladder
+    root = (SOURCE / build) if build else build_root(cfg)
+    return root / f"exoplasim-{res}"
 
 
 def component_data(component: str, config: dict | None = None,
@@ -101,15 +155,22 @@ def terrain_hash(config: dict | None = None) -> str:
 
 
 def soilmap(config: dict | None = None) -> Path:
-    """Pedology's soil map for the configured build.
+    """Pedology's soil map for the configured build AND RUNG.
 
     Soil texture derives from lithology, so this is per-build like everything
     else downstream of a terrain. It was a flat `pedology/data/soilmap.txt` with
     no build in the name, which is the same trap that caught four hydrography
     scripts with one fewer script in it -- and this one feeds LPJ-GUESS, which
     would have grown a biosphere on another planet's soil without complaint.
+
+    The rung is in the name for the same reason the build is. The map is one
+    row per LAND CELL of a climate grid -- 1,019 rows at T21 -- so it is a
+    property of the support as much as of the terrain, and a name without the
+    rung in it means a run at another rung overwrites it and every consumer
+    that has not been re-run reads another grid's soil. SPAT-2.
     """
-    return component_data("pedology", config) / "soilmap.txt"
+    res = rungs.model_grid(_config(config))[0]
+    return component_data("pedology", config) / f"soilmap_{res}.txt"
 
 
 def resolution_of(grid_dir: Path) -> str:

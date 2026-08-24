@@ -43,20 +43,19 @@ from pathlib import Path
 
 import yaml
 
-from _paths import CONFIG, MODEL_RUN, PROJECT_ROOT
+from _paths import CONFIG, MODEL_RUN, PROJECT_ROOT  # noqa: E402
+import rungs  # noqa: E402  -- the ladder registry; _paths put lib on the path
 
 PKG = PROJECT_ROOT / "vendor" / "exoplasim" / "exoplasim"
 PLASIM = PKG / "plasim"
 BUILD_ROOT = PROJECT_ROOT / "vendor" / "exoplasim" / "build"
 SHTNS_PREFIX = PROJECT_ROOT / "vendor" / "shtns-install"
 
-# Resolution name -> latitudes. The only spellings accepted, and the reason the
-# table is here rather than in a `case` is that a value outside it must be an
-# ERROR: `-r 170` used to build T21 and say nothing.
-RESOLUTIONS = {
-    "T21": 32, "T42": 64, "T63": 96, "T85": 128,
-    "T106": 160, "T127": 192, "T170": 256,
-}
+# Resolution name -> latitudes, from `lib/gridding.py`, which is the one place
+# the ladder is written down and checks each rung's name against its own grid.
+# A value outside it must be an ERROR: `-r 170` used to build T21 and say
+# nothing. SPAT-2.
+RESOLUTIONS = dict(rungs.RUNGS)
 # T63 and T106 are not powers of two in longitude and need the other FFT.
 NEEDS_FFT991 = {"T63", "T106"}
 

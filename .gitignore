@@ -43,7 +43,6 @@ exoplasim/runs/*
 
 # Patched ExoPlaSim build artifacts, produced by
 # exoplasim/scripts/build_star_cycle_exoplasim.sh from the vendored source.
-exoplasim/inputs/exoplasim_cycle_t42/
 
 # Full climatology fields, ~220 MB, regenerable from exoplasim/runs/ with
 # build_climatology.py. The reports, maps, and classification products that

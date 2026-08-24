@@ -810,6 +810,86 @@ def check_documented_tools() -> list[str]:
     return problems
 
 
+# An enumeration of the ladder -- "T21/T42/T85/T127/T170" -- is prose about the
+# ladder, not a path, and the slashes in it are what made it look like one.
+# Stripped before the path test rather than exempted after it.
+RUNG_LADDER = re.compile(
+    r"\b[tT](?:21|31|42|63|85|106|127|170)"
+    r"(?:/[tT](?:21|31|42|63|85|106|127|170))+\b")
+# A ladder rung appearing in something PATH-SHAPED: next to a separator, or in
+# a filename with an extension. `T42` in prose, as a dict key in a per-rung
+# table, or as a command-line default is not this; `inputs/t42/` and
+# `orogen_T42_surf_0129.sra` are.
+RUNG_IN_PATH = re.compile(
+    r"""(?:^|[-/_'"(\[])[tT](?:21|31|42|63|85|106|127|170)(?:[-/_.'"),\]]|$)""")
+# The registry itself, the build matrix that declares which rungs have
+# binaries, and the reproducibility recipe that names one executable.
+RUNG_OWNER = ("lib/rungs.py", "lib/gridding.py", "scripts/smoke_test.py",
+              "exoplasim/scripts/rebuild_binaries.py",
+              "exoplasim/scripts/shtns_variant_sweep.py",
+              "exoplasim/scripts/reproducibility_matrix.py")
+
+
+def check_no_rung_literal_in_a_path(files: list[Path]) -> list[str]:
+    """No artifact path carries a resolution literal.
+
+    SPAT-2. The ladder is T21/T42/T85/T127/T170 and the pipeline named T42 and
+    T85 in the paths it wrote to, so a run at any other rung wrote its fields
+    into a directory named for a rung it was not. It was not hypothetical: the
+    graph declared `exoplasim/inputs/t42/orogen_T42_surf_0129.sra` while the
+    staged file on disk was `inputs/t21/orogen_T21_surf_0129.sra`, so every
+    ExoPlaSim input row in `config/pipeline.yaml` pointed at a file that did
+    not exist and declared none of the ones that did.
+
+    The rung belongs in the path -- an input family IS per-resolution -- but it
+    has to arrive as a parameter. `{res}` and `{res_lower}` in the graph,
+    `rungs.model_grid(config)` in a script, `rung_of_latitudes` where the
+    artifact itself says how big it is.
+
+    Prose is skipped exactly as in the other line lints, and the registry, the
+    build matrix and the reproducibility recipe are exempt: those NAME rungs on
+    purpose rather than building a path out of one.
+    """
+    bad = []
+    for f in list(files) + [ROOT / "config" / "pipeline.yaml"]:
+        rel = str(f.relative_to(ROOT))
+        if rel in RUNG_OWNER:
+            continue
+        for i, line in enumerate(f.read_text(encoding="utf-8",
+                                             errors="ignore").splitlines(), 1):
+            stripped = line.strip()
+            if (stripped.startswith("#") or "rung-ok" in line
+                    or "`" in line or stripped.startswith("*")):
+                continue
+            probe = RUNG_LADDER.sub("<ladder>", line)
+            if "/" not in probe and not re.search(r"\.(sra|nc|json|rest)\b", probe):
+                continue                      # not path-shaped
+            if RUNG_IN_PATH.search(probe):
+                bad.append(f"{rel}:{i}: {stripped[:78]}")
+    return bad
+
+
+def check_configured_grid() -> list[str]:
+    """`resolution`, `latitudes` and `longitudes` are one fact, not three.
+
+    `config/planet.yaml` carries all three because `read_sra` validates staged
+    surface files against the latter two, so a resolution changed without them
+    refuses its own inputs. That makes a stale pairing possible and silent
+    until something reads a file. The rung table derives the dimensions and
+    `rungs.model_grid` refuses a disagreement; this is where that runs without
+    anyone having to call it.
+    """
+    import yaml
+    sys.path.insert(0, str(ROOT / "lib"))
+    import rungs
+    cfg = yaml.safe_load((ROOT / "config" / "planet.yaml").read_text(encoding="utf-8"))
+    try:
+        rungs.model_grid(cfg)
+    except RuntimeError as exc:
+        return [str(exc)]
+    return []
+
+
 def check_restart_schema_covers_the_model() -> list[str]:
     """Every restart record the model writes has a policy, with the right reset.
 
@@ -946,6 +1026,10 @@ def main() -> None:
                check_no_shadowed_imports(files)),
               ("the restart schema covers every record the model writes",
                check_restart_schema_covers_the_model()),
+              ("no artifact path carries a resolution literal",
+               check_no_rung_literal_in_a_path(files)),
+              ("the configured resolution matches its own grid dimensions",
+               check_configured_grid()),
               ("a resume refuses a rewritten spectrum file",
                check_spectrum_guard()),
               ("the tools environment.md names are on this host",

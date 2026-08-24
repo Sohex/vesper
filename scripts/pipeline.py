@@ -118,8 +118,34 @@ def spectrum_name() -> str:
     return str(cfg.get("radiation", {}).get("stellar_spectrum", "k25v"))
 
 
+def model_resolution() -> str:
+    """The configured ladder rung, checked against its own grid dimensions.
+
+    `{res}` and `{res_lower}` in a `writes` entry stand for this. Every
+    ExoPlaSim input family is named and rooted by resolution -- `inputs/t21/`
+    holding `orogen_T21_surf_0172.sra` -- and the graph carried `t42` and
+    `T42` as literals, so it declared artifacts that do not exist and declared
+    none of the ones that do. SPAT-2.
+    """
+    import sys as _sys
+    import yaml
+    if str(ROOT / "lib") not in _sys.path:
+        _sys.path.insert(0, str(ROOT / "lib"))
+    import rungs
+    cfg = yaml.safe_load((ROOT / "config" / "planet.yaml").read_text(encoding="utf-8"))
+    return rungs.model_grid(cfg)[0]
+
+
+def _substitute(path: str, build: str) -> str:
+    res = model_resolution()
+    return (path.replace("{build}", build)
+                .replace("{name}", spectrum_name())
+                .replace("{res_lower}", res.lower())
+                .replace("{res}", res))
+
+
 def resolve(path: str, build: str) -> Path:
-    return ROOT / path.replace("{build}", build).replace("{name}", spectrum_name())
+    return ROOT / _substitute(path, build)
 
 
 def expand(path: str, build: str) -> list[Path]:
@@ -139,8 +165,7 @@ def expand(path: str, build: str) -> list[Path]:
     means.
     """
     if "*" in path:
-        pattern = path.replace("{build}", build).replace("{name}", spectrum_name())
-        return sorted(ROOT.glob(pattern))
+        return sorted(ROOT.glob(_substitute(path, build)))
     target = resolve(path, build)
     if path.endswith("/"):
         return sorted(q for q in target.rglob("*") if q.is_file())

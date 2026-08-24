@@ -2,7 +2,7 @@
 """Compare two or more World Orogen exports: terrain, composition, basement.
 
     python scripts/compare_exports.py source/precarve-craton/exoplasim-T42 /tmp/probe/raw
-    python scripts/compare_exports.py --glim A/exoplasim-T42 B/exoplasim-T42
+    python scripts/compare_exports.py --glim A/exoplasim-<rung> B/exoplasim-<rung>
 
 Takes export directories -- anything with a `manifest.json` and `raw/` beside it,
 including the lean `--no-grid --only geometry,elevation,basins,lithology` probes

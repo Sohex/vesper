@@ -4,8 +4,10 @@
 Worldbuilding frame: the restart is the saved state of the Vesper climate
 model. Nothing here is about the real world.
 
-    python exoplasim/scripts/build_restart_template.py --from-run RUN_DIR \
-        --output exoplasim/inputs/templates/T21_l10_p16_omp.rest
+    python exoplasim/scripts/build_restart_template.py --from-run RUN_DIR
+
+The output name is derived from the run's own geometry and thread count, so a
+template cannot be filed under a rung it is not.
 
 WHAT A TEMPLATE IS FOR. `convert_restart.py` starts from a template and
 overlays only the state whose policy permits transfer, so the template is what

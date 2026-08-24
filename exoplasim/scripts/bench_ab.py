@@ -2,8 +2,8 @@
 """Paired, interleaved A/B of two executables on one bed.
 
     python exoplasim/scripts/bench_ab.py --bed exoplasim/bench/bed_t85 \
-        --a exoplasim/bench/ref/unpatched_t85.x \
-        --b exoplasim/bench/ref/patched_t85.x --rounds 6
+        --a exoplasim/bench/ref/unpatched_<rung>.x \
+        --b exoplasim/bench/ref/patched_<rung>.x --rounds 6
 
 Worldbuilding frame: a COMPUTE measurement of the Vesper climate model on this
 desktop. Nothing here is about the simulated planet.

@@ -45,6 +45,14 @@ from orogen import Export, LAND
 # outside this block -- is for the eye and says so.
 
 
+# The ladder registry lives in `lib/rungs.py`, which carries no dependencies so
+# that `build_model.py` and the shell probes can reach it without pulling in
+# numpy and the export reader. It is re-exported here because this module is
+# where a reader looks for anything about the grid, and because one definition
+# with two doors is the point: SPAT-2 exists because the ladder had six copies.
+from rungs import RUNGS, geometry, model_grid, rung_of_latitudes  # noqa: F401,E402
+
+
 def column(lon, nlon: int) -> np.ndarray:
     """Grid column for a World Orogen longitude. THE column expression.
 
