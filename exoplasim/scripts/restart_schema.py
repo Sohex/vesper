@@ -195,11 +195,18 @@ class Policy:
     conserve: str | None = None
     # True where SIMBA takes ownership of the field under coupled vegetation.
     vegetation_owned: bool = False
+    # For an accumulator, what `outreset` and its equivalents do to it at an
+    # interval boundary: "zero", "sentinel" for one whose clean value is not
+    # zero, or "none" for one the model deliberately never resets. Anything
+    # that writes a clean accumulator has to know this: zeroing a running
+    # minimum makes its minimum zero forever.
+    model_reset: str | None = None
+    reset_value: float | None = None
     why: str = ""
 
 
-def _acc(names, *, klev=None):
-    return {n: Policy(ACCUMULATOR, RESET,
+def _acc(names):
+    return {n: Policy(ACCUMULATOR, RESET, model_reset="zero",
                       why="accumulated over the output window; the window "
                           "restarts at the target") for n in names}
 
@@ -434,6 +441,26 @@ POLICY.update({
 })
 POLICY.update(_acc(["agpp", "agppl", "agppw", "alitter", "anogrow", "anpp",
                     "aresh", "adcsoil", "adcveg", "adlai"]))
+
+
+# The three accumulators `outmod.f90:outreset` does not simply zero. Every tool
+# that writes a clean accumulator has to carry these, and the general rule --
+# "an accumulator's clean value is zero" -- is wrong for all three.
+POLICY["tempmin"] = Policy(
+    ACCUMULATOR, RESET, model_reset="sentinel", reset_value=1.0e3,
+    why="a running MINIMUM over the window. `outmod.f90:2469` resets it to "
+        "1.0e3, not to zero, and a zeroed one reports a minimum of 0 K for "
+        "the rest of the run")
+POLICY["asndch"] = Policy(
+    ACCUMULATOR, RESET, model_reset="none",
+    why="net accumulated snow depth change. `outmod.f90:2459` has its reset "
+        "commented out on purpose -- 'Let the net snow change keep "
+        "accumulating' -- so it spans the whole run rather than the window")
+POLICY["aanrho"] = Policy(
+    ACCUMULATOR, RESET, model_reset="none",
+    why="accumulated aerosol number density. It is divided by naccuout at "
+        "`outmod.f90:508` exactly as aammr is, and unlike aammr it appears "
+        "in no reset at all")
 
 
 def check_policy_covers_source(src_dir: Path) -> list[str]:

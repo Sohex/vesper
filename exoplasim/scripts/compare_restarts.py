@@ -28,26 +28,13 @@ import struct
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import restart_format  # noqa: E402
+
 
 def records(path: Path):
-    """(name, payload) pairs, in file order."""
-    raw = path.read_bytes()
-    out, pos, name = [], 0, None
-    while pos < len(raw):
-        (n,) = struct.unpack_from("<i", raw, pos)
-        body = raw[pos + 4:pos + 4 + n]
-        (m,) = struct.unpack_from("<i", raw, pos + 4 + n)
-        if m != n:
-            raise SystemExit(f"{path}: record markers disagree at byte {pos} "
-                             f"({n} vs {m}); this is not a sequential "
-                             f"unformatted file written by this model")
-        pos += 8 + n
-        if n == 16 and all(32 <= c < 127 for c in body):
-            name = body.decode().strip()
-            continue
-        out.append((name if name is not None else "<unnamed>", body))
-        name = None
-    return out
+    """(name, payload) pairs, in file order. `restart_format` owns the framing."""
+    return [(rec.name, rec.payload) for rec in restart_format.read(path)]
 
 
 def as_numbers(body: bytes):

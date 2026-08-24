@@ -60,32 +60,11 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _paths import PROJECT_ROOT  # noqa: E402
-
-NAME_BYTES = 16
-
+import restart_format  # noqa: E402
 
 def read_records(path: Path) -> dict:
-    """{name: raw bytes}, in file order. See the module docstring on the format."""
-    data = path.read_bytes()
-    out, i, order = {}, 0, []
-    while i < len(data) - 8:
-        (n,) = struct.unpack_from("<i", data, i)
-        if n <= 0 or i + 8 + n > len(data):
-            break
-        payload = data[i + 4:i + 4 + n]
-        if struct.unpack_from("<i", data, i + 4 + n)[0] != n:
-            break
-        i += 8 + n
-        if n != NAME_BYTES:
-            continue
-        name = payload.decode("latin-1").strip()
-        if i + 8 > len(data):
-            break
-        (m,) = struct.unpack_from("<i", data, i)
-        out[name] = data[i + 4:i + 4 + m]
-        order.append(name)
-        i += 8 + m
-    return out
+    """{name: raw bytes}, in file order. `restart_format` owns the framing."""
+    return restart_format.payloads(path)
 
 
 def compare(a: bytes, b: bytes) -> dict | None:

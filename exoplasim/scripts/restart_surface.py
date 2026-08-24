@@ -132,7 +132,7 @@ that table out of the vendored source and refuses if any entry here disagrees.
 A renumbering upstream fails loudly rather than quietly comparing the wrong
 record.
 
-The restart record walker is `diff_restarts.read_records`; the `.sra` reader is
+The restart record walker is `restart_format`; the `.sra` reader is
 `sra.read_sra`. Neither is reimplemented here.
 
 ## Index mapping
@@ -157,8 +157,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _paths import MODEL_SRC, PROJECT_ROOT, RUNS  # noqa: E402
-from diff_restarts import read_records  # noqa: E402
-from reset_restart_accumulators import read_records as walk_records  # noqa: E402
+import restart_format  # noqa: E402
 from sra import read_sra  # noqa: E402
 
 
@@ -342,7 +341,7 @@ def verify_restart_surface_fields(run_dir: Path, restart: Path, codes: set[int],
             "staged surface fields are not this run's surface, so nothing here "
             "can be checked against them.")
 
-    records = read_records(restart)
+    records = restart_format.payloads(restart)
 
     # Which surface this run is entitled to be carrying. A run prepared with
     # --superseded-surface-ok adopted its donor's surface and discarded the
@@ -360,7 +359,7 @@ def verify_restart_surface_fields(run_dir: Path, restart: Path, codes: set[int],
             f"from the staged .sra -- and {seed.name} is gone, so nothing on "
             "disk says what that surface was. There is no reference to check "
             "this restart against.")
-    seed_records = read_records(seed) if override else {}
+    seed_records = restart_format.payloads(seed) if override else {}
 
     verdicts, failures = [], []
     superseded = []
@@ -562,18 +561,15 @@ def overwrite_record(raw: bytes, name: str, payload: bytes) -> bytes:
     restart is the sole record of where a run was, so nothing here writes into
     `exoplasim/runs/`.
     """
-    out = bytearray(raw)
-    current = None
-    for start, _end, body in walk_records(raw):
-        if len(body) == 16 and body.strip() and all(32 <= b < 127 for b in body):
-            current = body.decode("ascii").strip()
+    records = restart_format.decode(raw)
+    for i, rec in enumerate(records):
+        if rec.name != name:
             continue
-        if current == name:
-            if len(payload) != len(body):
-                raise ValueError(f"{name} is {len(body)} bytes, not {len(payload)}")
-            out[start + 4:start + 4 + len(body)] = payload
-            return bytes(out)
-        current = None
+        if len(payload) != rec.nbytes:
+            raise ValueError(f"{name} is {rec.nbytes} bytes, not {len(payload)}")
+        records[i] = restart_format.Record(name=name, payload=payload,
+                                           offset=rec.offset)
+        return restart_format.encode(records)
     raise KeyError(name)
 
 

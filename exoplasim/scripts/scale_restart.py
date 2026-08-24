@@ -74,6 +74,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import _paths  # noqa: F401
+import restart_format  # noqa: E402
 
 # The whole field scales: the (0,0) mode of vorticity and divergence is zero.
 SCALE_WHOLE = ("sz", "sd", "szm", "sdm")
@@ -81,20 +82,6 @@ SCALE_WHOLE = ("sz", "sd", "szm", "sdm")
 SCALE_ANOMALY = ("st", "sq", "stm", "sqm")
 # The component proportional to the orography is held and the residual scales.
 SCALE_RESIDUAL = ("sp", "spm")
-
-
-def records(path: Path):
-    raw = path.read_bytes()
-    out, pos = [], 0
-    while pos < len(raw):
-        (n,) = struct.unpack_from("<i", raw, pos)
-        body = raw[pos + 4: pos + 4 + n]
-        (m,) = struct.unpack_from("<i", raw, pos + 4 + n)
-        if m != n:
-            raise SystemExit(f"{path}: record markers disagree at byte {pos}")
-        out.append((pos, n, body))
-        pos += 8 + n
-    return raw, out
 
 
 def scale_record(body: bytes, factor: float, nrsp: int, hold_mean: bool,
@@ -145,48 +132,44 @@ def main() -> int:
         raise SystemExit("--factor must be positive; a sign flip is a different "
                          "experiment and this script does not claim it")
 
-    raw, recs = records(args.source)
-    names = {}
-    for idx, (pos, n, body) in enumerate(recs):
-        if n == 16:
-            names[body.decode("ascii", "replace").strip()] = idx + 1
+    raw = args.source.read_bytes()
+    recs = restart_format.decode(raw, args.source)
+    at = {rec.name: i for i, rec in enumerate(recs)}
 
-    nrsp_idx = names.get("nrsp")
-    if nrsp_idx is None:
+    if "nrsp" not in at:
         raise SystemExit("no nrsp record: this is not a plasim restart")
-    (nrsp,) = struct.unpack("<i", recs[nrsp_idx][2])
+    (nrsp,) = struct.unpack("<i", recs[at["nrsp"]].payload)
 
-    so_idx = names.get("so")
-    if so_idx is None:
+    if "so" not in at:
         raise SystemExit("no so record: the orographic component of ln(ps) "
                          "cannot be held, and scaling it whole destroys the run")
-    so = np.frombuffer(recs[so_idx][2], dtype="<f8")
+    so = np.frombuffer(recs[at["so"]].payload, dtype="<f8")
 
-    out = bytearray(raw)
     touched = {}
     projections = {}
     wanted = None if args.only is None else {n.strip() for n in args.only.split(",")}
     for name in SCALE_WHOLE + SCALE_ANOMALY + SCALE_RESIDUAL:
         if wanted is not None and name not in wanted:
             continue
-        idx = names.get(name)
-        if idx is None:
+        if name not in at:
             raise SystemExit(f"record {name!r} is absent; refusing to scale a "
                              f"state this script does not recognise")
-        pos, n, body = recs[idx]
+        rec = recs[at[name]]
         new, coeffs = scale_record(
-            body, args.factor, nrsp,
+            rec.payload, args.factor, nrsp,
             hold_mean=name in SCALE_ANOMALY + SCALE_RESIDUAL,
             hold_along=so if name in SCALE_RESIDUAL else None)
-        out[pos + 4: pos + 4 + n] = new
-        touched[name] = len(body) // 8
+        recs[at[name]] = restart_format.Record(name=name, payload=new,
+                                               offset=rec.offset)
+        touched[name] = len(rec.payload) // 8
         if coeffs:
             projections[name] = coeffs
 
     args.dest.parent.mkdir(parents=True, exist_ok=True)
-    args.dest.write_bytes(bytes(out))
+    out = restart_format.encode(recs)
+    args.dest.write_bytes(out)
 
-    digest = hashlib.sha256(bytes(out)).hexdigest()
+    digest = hashlib.sha256(out).hexdigest()
     payload = {
         "note": "amplitude-scaled restart for the world-bxr order test; "
                 "exoplasim/scripts/scale_restart.py",

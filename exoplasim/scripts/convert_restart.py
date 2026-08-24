@@ -455,6 +455,14 @@ def _geometry_dict(state: RestartState) -> dict:
 
 def build_report(src, tgt, out_path, reports, source_manifest) -> dict:
     recompute = [r.name for r in reports if r.action == rs.RECOMPUTE]
+    # An accumulator the model never resets spans the whole run rather than one
+    # output window, so taking the template's value restarts a sum that was
+    # never meant to restart. That is what a new lineage means, and it is named
+    # here rather than left to be discovered in an output.
+    never_reset = sorted(
+        r.name for r in reports
+        if rs.POLICY[r.name].semantic == rs.ACCUMULATOR
+        and rs.POLICY[r.name].model_reset == "none")
     return {
         "schema_version": 1,
         "converter_version": CONVERTER_VERSION,
@@ -473,6 +481,7 @@ def build_report(src, tgt, out_path, reports, source_manifest) -> dict:
                      "target_bytes": r.target_bytes, **r.detail}
                     for r in reports],
         "expected_to_change_in_model_fixup": recompute,
+        "whole_run_accumulators_restarted": never_reset,
         "status": "initial_condition",
         "note": ("A new initial condition at the target support. Not a bitwise "
                  "continuation and not evidence that the source and target are "

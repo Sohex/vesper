@@ -35,8 +35,11 @@ float alike, so the same operation serves both without knowing the type.
 from __future__ import annotations
 
 import argparse
+import sys
 from pathlib import Path
-import struct
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import restart_format  # noqa: E402
 
 # Reset to zero by the model at every interval boundary. Counters first, then
 # the arrays they normalise. `darea` is NOT here and must never be: it looks
@@ -63,50 +66,21 @@ ACCUMULATOR_RECORDS = {
 }
 
 
-def read_records(data: bytes):
-    """Every sequential-unformatted record as (start, end, payload)."""
-    out, pos, n = [], 0, len(data)
-    while pos < n:
-        if pos + 4 > n:
-            raise ValueError(f"truncated record header at byte {pos}")
-        (length,) = struct.unpack("<i", data[pos:pos + 4])
-        body = pos + 4
-        tail = body + length
-        if length < 0 or tail + 4 > n:
-            raise ValueError(f"record at byte {pos} claims {length} bytes, "
-                             "which does not fit; this is not a little-endian "
-                             "sequential unformatted file")
-        (check,) = struct.unpack("<i", data[tail:tail + 4])
-        if check != length:
-            raise ValueError(f"record at byte {pos} has header {length} and "
-                             f"trailer {check}; they must match")
-        out.append((pos, tail + 4, data[body:tail]))
-        pos = tail + 4
-    return out
-
-
 def reset(src: Path, dst: Path) -> dict:
-    raw = src.read_bytes()
-    records = read_records(raw)
-    out = bytearray(raw)
-    zeroed, seen, name = [], [], None
-    for start, end, payload in records:
-        if len(payload) == 16:
-            candidate = payload.decode("ascii", "replace").strip()
-            # A 16-byte record is a name only if it looks like one. A data
-            # record of four 4-byte values is also 16 bytes, so the check
-            # matters: names are printable and unpadded on the right.
-            if candidate and all(32 <= b < 127 for b in payload):
-                name = candidate
-                seen.append(name)
-                continue
-        if name is not None and name in ACCUMULATOR_RECORDS:
-            body = start + 4
-            out[body:body + len(payload)] = b"\x00" * len(payload)
-            zeroed.append((name, len(payload)))
-        name = None
-    dst.write_bytes(bytes(out))
-    return {"records": len(records), "names": seen, "zeroed": zeroed}
+    """Every accumulator record zeroed; every other record untouched."""
+    records = restart_format.read(src)
+    out, zeroed = [], []
+    for rec in records:
+        if rec.name in ACCUMULATOR_RECORDS:
+            out.append(restart_format.Record(name=rec.name,
+                                             payload=b"\x00" * rec.nbytes,
+                                             offset=rec.offset))
+            zeroed.append((rec.name, rec.nbytes))
+        else:
+            out.append(rec)
+    restart_format.write(dst, out, overwrite=True)
+    return {"records": len(records), "names": [r.name for r in records],
+            "zeroed": zeroed}
 
 
 def main() -> None:

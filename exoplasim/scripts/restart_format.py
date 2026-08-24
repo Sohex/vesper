@@ -84,14 +84,25 @@ def _read_physical(raw: bytes, pos: int, path) -> tuple[bytes, int]:
 
 
 def read(path: Path) -> list[Record]:
-    """Every named quantity in file order.
+    """Every named quantity of a restart file, in file order."""
+    path = Path(path)
+    return decode(path.read_bytes(), path)
+
+
+def payloads(path: Path) -> dict:
+    """{name: payload bytes}, for callers that want no more than that."""
+    return {rec.name: rec.payload for rec in read(path)}
+
+
+def decode(raw: bytes, path="<bytes>") -> list[Record]:
+    """Every named quantity in a restart's bytes, in order.
 
     Raises rather than repairing. A restart that does not parse is not a
-    restart to convert from: the caller wanted a state and there is no state
-    here to be had.
+    restart to work from: the caller wanted a state and there is no state here
+    to be had. The readers this replaced ended their loop on a malformed record
+    and returned what they had up to that point, so a truncated file came back
+    as a short but perfectly ordinary-looking answer.
     """
-    path = Path(path)
-    raw = path.read_bytes()
     if not raw:
         raise RestartFormatError(f"{path}: empty file")
 
