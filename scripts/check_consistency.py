@@ -224,22 +224,32 @@ def audit_runs(rep: "Report", runs: Path, runner) -> None:
                             unrecorded.setdefault(run.name, set()).add(key)
                         continue
                     raw = raw.rstrip(",").strip()
-                    # A str want is a per-level ARRAY held as the `n*value`
-                    # text a Fortran namelist replicates, and is compared as
-                    # text for the reason `expected_namelist_keys` gives: a
-                    # scalar there sets element 1 and leaves levels 2..NLEV
-                    # on the compiled values. world-720.
-                    if isinstance(want, str):
-                        if raw != want:
-                            bad.append(f"{key}={raw} not {want}")
-                        continue
+                    # ONE comparison path, `run_exoplasim.namelist_elements`,
+                    # which is what verify_staged_namelists uses at prepare
+                    # time. It expands Fortran's `n*value` replication, so a
+                    # replicated array and the same array written out element
+                    # by element compare equal -- they are the same value to
+                    # the model. LENGTH IS COMPARED FIRST, and that is what
+                    # catches world-720: a scalar where NLEV elements are
+                    # wanted sets element 1 and leaves levels 2..NLEV on the
+                    # compiled values, and it fails here on its length rather
+                    # than on its spelling.
+                    wanted = ([float(v) for v in want]
+                              if isinstance(want, (list, tuple))
+                              else [float(want)])
                     try:
-                        got = float(raw)
+                        got = runner.namelist_elements(raw)
                     except ValueError:
                         bad.append(f"{key}={raw!r} is not a number")
                         continue
-                    if abs(got - float(want)) > 1e-9:
-                        bad.append(f"{key}={got:g} not {float(want):g}")
+                    if len(got) != len(wanted):
+                        bad.append(f"{key} has {len(got)} element(s), "
+                                   f"config wants {len(wanted)}")
+                        continue
+                    for i, (g, w) in enumerate(zip(got, wanted)):
+                        if abs(g - w) > 1e-9:
+                            bad.append(f"{key}[{i + 1}]={g:g} not {w:g}")
+                            break
             if bad:
                 wrong.append(f"{run.name}: " + ", ".join(bad))
         if wrong:
@@ -293,12 +303,17 @@ def audit_runs(rep: "Report", runs: Path, runner) -> None:
             layers = int((data.get("physical") or {}).get("layers")
                          or data["source_config"]["model"]["layers"])
             tau = hd["timescales_days"]
-            want = {"NHDIFF": float(hd["nhdiff"]),
-                    "NDEL": f"{layers}*{int(hd['order_alpha'])}",
-                    "TDISSD": f"{layers}*{float(tau['divergence'])}",
-                    "TDISSZ": f"{layers}*{float(tau['vorticity'])}",
-                    "TDISST": f"{layers}*{float(tau['temperature'])}",
-                    "TDISSQ": f"{layers}*{float(tau['humidity'])}"}
+            # Per-level keys are wanted as a LIST of `layers` elements, and
+            # compared through the same `namelist_elements` expansion the
+            # namelist case uses. Length carries world-720: a scalar sets
+            # element 1 and leaves levels 2..NLEV on readnl's compiled branch,
+            # and it fails on having one element where `layers` are wanted.
+            want = {"NHDIFF": [float(hd["nhdiff"])],
+                    "NDEL": [float(int(hd["order_alpha"]))] * layers,
+                    "TDISSD": [float(tau["divergence"])] * layers,
+                    "TDISSZ": [float(tau["vorticity"])] * layers,
+                    "TDISST": [float(tau["temperature"])] * layers,
+                    "TDISSQ": [float(tau["humidity"])] * layers}
             seen += 1
             missing, differs = [], []
             for key, expect in want.items():
@@ -307,11 +322,19 @@ def audit_runs(rep: "Report", runs: Path, runner) -> None:
                 except (KeyError, FileNotFoundError):
                     missing.append(key)
                     continue
-                if isinstance(expect, str):
-                    if raw != expect:
-                        differs.append(f"{key}={raw} not {expect}")
-                elif abs(float(raw) - expect) > 1e-9:
-                    differs.append(f"{key}={raw} not {expect:g}")
+                try:
+                    got = runner.namelist_elements(raw)
+                except ValueError:
+                    differs.append(f"{key}={raw!r} is not a number")
+                    continue
+                if len(got) != len(expect):
+                    differs.append(f"{key} has {len(got)} element(s), "
+                                   f"the manifest declares {len(expect)}")
+                    continue
+                for i, (g, w) in enumerate(zip(got, expect)):
+                    if abs(g - w) > 1e-9:
+                        differs.append(f"{key}[{i + 1}]={g:g} not {w:g}")
+                        break
             # One line per run: the same five keys go wrong together on
             # every run that has them wrong at all, and a per-key list
             # buries which runs are affected under how.
@@ -500,9 +523,24 @@ def self_test() -> int:
         run = root / "runs" / "run_selftest"
         run.mkdir(parents=True)
         want = runner.expected_namelist_keys(cfg)
+
+        def as_fortran(value):
+            """A wanted value as a namelist would carry it.
+
+            A sequence is written out ELEMENT BY ELEMENT rather than as
+            `n*value`, deliberately: the two are the same value to the model,
+            so a fixture written the long way and a gate that expands
+            replication must agree. If they ever stop agreeing, the green case
+            below is what says so.
+            """
+            if isinstance(value, (list, tuple)):
+                return ", ".join(f"{float(v):g}" for v in value)
+            return value
+
         for fname, keys in want.items():
             (run / fname).write_text(
-                "".join(f" {key} = {value}\n" for key, value in keys.items()),
+                "".join(f" {key} = {as_fortran(value)}\n"
+                        for key, value in keys.items()),
                 encoding="ascii")
         inputs = root / "inputs" / rung.lower()
         inputs.mkdir(parents=True)
@@ -580,10 +618,15 @@ def self_test() -> int:
          )[NAMELISTS][0], FAIL,
          "the filter exponent run_2b20e3324bb0 got wrong is this shape")
 
+    # The fixture writes arrays out element by element, so collapsing NDEL to
+    # a scalar means keeping the FIRST element and dropping the rest -- which
+    # is exactly what a Fortran scalar assignment to an array does, and what
+    # the runs on disk actually carry.
     case("a per-level array staged as a scalar fails",
          verdicts(lambda run, root: (run / "plasim_namelist").write_text(
-             re.sub(r"NDEL = \d+\*", "NDEL = ",
-                    (run / "plasim_namelist").read_text(encoding="ascii")),
+             re.sub(r"^ NDEL = ([^,\n]+).*$", r" NDEL = \1",
+                    (run / "plasim_namelist").read_text(encoding="ascii"),
+                    flags=re.MULTILINE),
              encoding="ascii"))[NAMELISTS][0], FAIL,
          "a namelist scalar sets element 1 and leaves 2..NLEV compiled; world-720")
 
