@@ -1728,15 +1728,12 @@ def main() -> None:
         # large sentinel for the two running minima -- so the copy describes a
         # run sitting exactly at the start of an accumulation window.
         seeded_from = restart_seed
-        restart_seed = run_dir / "MOST_REST.seed"
-        run_dir.mkdir(parents=True, exist_ok=True)
-        reset_info = reset_restart_accumulators.reset(seeded_from, restart_seed)
-        print(f"seed {seeded_from.name} from {seeded_from.parent.name}: "
-              f"zeroed {len(reset_info['zeroed'])} accumulator records, "
-              f"{len(reset_info['sentinels'])} put back to a nonzero clean "
-              f"value, {len(reset_info['never_reset_by_the_model'])} the model "
-              "resets nowhere left as they were (CLIM-31)")
 
+        # BEFORE the copy, and before the run directory exists. A guard that
+        # fires after doing work leaves the work behind: this one used to run
+        # after the seed was written and left a run directory holding nothing
+        # but a MOST_REST.seed on every refusal.
+        #
         # A CONVERTED restart is not a donor run's file and has no run
         # directory to carry a manifest. Its provenance is the conversion
         # report `convert_restart.py` wrote beside it, which names the template
@@ -1829,6 +1826,20 @@ def main() -> None:
                     "three dalbcl bands from the restart when restart > 0 -- so "
                     "those changes would be silently discarded and the run would "
                     "reproduce its parent. Cold-start instead.")
+
+        # Every refusal above has now been passed, so the copy is made and the
+        # run directory created. Zeroed in a COPY so the donor is never
+        # modified: a restart is the only record of where a run was, and
+        # editing one in place would make a completed run unreproducible to fix
+        # a defect in the run seeded from it.
+        restart_seed = run_dir / "MOST_REST.seed"
+        run_dir.mkdir(parents=True, exist_ok=True)
+        reset_info = reset_restart_accumulators.reset(seeded_from, restart_seed)
+        print(f"seed {seeded_from.name} from {seeded_from.parent.name}: "
+              f"zeroed {len(reset_info['zeroed'])} accumulator records, "
+              f"{len(reset_info['sentinels'])} put back to a nonzero clean "
+              f"value, {len(reset_info['never_reset_by_the_model'])} the model "
+              "resets nowhere left as they were (CLIM-31)")
 
     atmosphere = config["atmosphere"]
     planet = config["planet"]
