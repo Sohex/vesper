@@ -18,16 +18,13 @@
 !
       parameter(TMELT=273.16)           ! melting temp. for snow (0 deg C)
                                         ! ALL DENSITIES IN (kg/m**3)
-      parameter(CRHOS = 1030.)          ! DENSITY OF SEA WATER AT S=34.7
       parameter(CRHOI = 920.)           ! DENSITY OF ICE
       parameter(CRHOF = 1003.8)         ! DENSITY OF 'FRESH' WATER AT S=5
       parameter(CRHOSN = 330.)          ! DENSITY OF SNOW
-      parameter(CPS = 4180.)            ! SPECIFIC HEAT OF SEA WATER (J/kg*K)
       parameter(CPI = 2070.)            ! SPECIFIC HEAT OF ICE (J/(kg*K))
       parameter(CPSN = 2090.)           ! SPECIFIC HEAT OF SNOW (J/(kg*K))
       parameter(CKAPI = 2.03)           ! HEAT CONDUCTIVITY IN ICE (W/(m*K))
       parameter(CKAPSN = 0.31)          ! HEAT CONDUCTIVITY IN SNOW (W/(m*K))
-      parameter(CLFI  = 3.28E5)         ! HEAT OF FUSION OF ICE (J/kg)
       parameter(CLFSN = 3.337E5)        ! HEAT OF FUSION OF SNOW (J/kg)
 !
 !     namelist parameters
@@ -51,7 +48,30 @@
       integer :: ngui   = 0        ! switch for gui
       integer :: naout  = 0        ! no additional output fields 
 !
+!
+!     THE OCEAN'S SALINITY REACHES THE MODEL THROUGH FOUR NUMBERS, NOT ONE.
+!     All four are icemod_nl keys, and icemod passes the last three to
+!     oceanini so that the two modules cannot hold different sea water.
+!     Set them together: a bracket that moves only the freezing point moves
+!     one of the four ways salinity acts.
+!
+!     TFREEZE  the freezing point, which sets where ice forms at all.
+!     CRHOS    sea water density. It is the mixed-layer heat capacity with
+!              CPS, and it is the snow-ice flooding threshold in subsnow as
+!              the DIFFERENCE CRHOS-CRHOI, where a one per cent density
+!              error is a ten per cent threshold error.
+!     CPS      sea water specific heat. The compiled default is sea water's
+!              at S=34.7 and its freezing point, from the UNESCO (1983)
+!              polynomial. It was 4180, which is FRESH water at about 25 C.
+!     CLFI     the heat of fusion of sea ice, depressed below pure ice's
+!              3.337e5 by brine. DECLARED rather than derived: it is a
+!              function of the ice's own salinity and temperature and this
+!              model carries neither as a variable.
+!
       real :: TFREEZE   =  271.25  ! freezing temp. for sea ice at S=34.7
+      real :: CRHOS     = 1030.    ! density of sea water (kg/m**3)
+      real :: CPS       = 3990.34  ! specific heat of sea water (J/(kg*K))
+      real :: CLFI      = 3.28E5   ! heat of fusion of sea ice (J/kg)
       
       real :: taunc         =  0.  ! time scale for newtonian cooling
       real :: xmind         = 0.1  ! minimal ice thickness (m)
@@ -176,7 +196,8 @@
 
 !     Threads instead of ranks: a thread owns what a rank owned.
 !     Inert without -fopenmp, so the MPI and serial builds are unchanged.
-!$omp threadprivate(cheat,cicemin,cpme,croff,csnow,ctaux,ctauy,cust3,deglat,mpinfo,mypid,myworld,&
+!$omp threadprivate(cheat,cicemin,clfi,cpme,cps,crhos,croff,csnow,ctaux,ctauy,cust3,deglat,&
+!$omp&  mpinfo,mypid,myworld,&
 !$omp&  naccuo,naccuout,naout,ncpl_ice_ocean,nentropy,newsurf,nfluko,ngui,nice,nicec2d,nout,noutput,&
 !$omp&  nperpetual_ice,nprhor,nprint,nproc,nrestart,nseaice,nsnow,nstep,ntskin,ntspd,nud,solar_day,&
 !$omp&  taunc,tfreeze,thicec,version,xaheat,xaout,xcflux,xcfluxa,xcfluxf,xcfluxn,xcfluxna,xcfluxr,&
@@ -286,7 +307,8 @@
 !
       namelist/icemod_nl/nout,nfluko,nperpetual_ice,ntspd,nprint,nprhor &
      &               ,nentropy,nice,nseaice,nsnow,ntskin,ncpl_ice_ocean,taunc   &
-     &               ,xmind,xmaxd,thicec,TFREEZE,newsurf,naout
+     &               ,xmind,xmaxd,thicec,TFREEZE,CRHOS,CPS,CLFI          &
+     &               ,newsurf,naout
 !
 !     copy input parameter to icemod
 !
@@ -348,6 +370,9 @@
       call mpbcr(xmaxd)
       call mpbcr(thicec)
       call mpbcr(TFREEZE)
+      call mpbcr(CRHOS)
+      call mpbcr(CPS)
+      call mpbcr(CLFI)
 !
 !     set time step
 !
@@ -445,7 +470,8 @@
 !     initialize ocean
 !
       call oceanini(nstep,nrestart,noutput,kdpy,ngui,xsst,xmld,xoheat   &
-     &             ,ntspd,solar_day,oceanmod_namelist,ocean_output,TFREEZE)
+     &             ,ntspd,solar_day,oceanmod_namelist,ocean_output      &
+     &             ,TFREEZE,CRHOS,CPS,CLFI)
 !
       xoflux(:)=xoheat(:)
 !

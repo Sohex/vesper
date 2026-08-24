@@ -17,10 +17,7 @@
       parameter(NLPP = NLAT / NPRO)     ! Latitudes per process
       parameter(NHOR = NLON * NLPP)     ! Horizontal part
       parameter(NROOT = 0)              ! Master node
-      parameter(CRHOS=1030.)            ! Density of sea water (kg/m**3)
       parameter(CRHOI=920.)             ! Density of sea ice (kg/m**3)
-      parameter(CPS=4180.)              ! Specific heat of sea water (J/kg*K)
-      parameter(CLFI  = 3.28E5)         ! Heat of fusion of ice (J/kg)
       parameter(PI = 3.14159265359D0)   ! PI
 !
 !     THE PLANET RADIUS IS NOT A PARAMETER HERE. `hdiffo` works on an angular
@@ -70,7 +67,17 @@
       real :: dtmix                     ! time step (s)
       real :: solar_day    = 86400.0    ! 24 * 60 * 60 (for Earth)
 !
+!
+!     THE SEA WATER CONSTANTS ARE NOT PARAMETERS HERE. All four come from
+!     icemod through oceanini, which is what stops the ice model and the
+!     ocean model holding different sea water: they are icemod_nl keys and
+!     icemod.f90 says what each one does. The defaults below are only what
+!     stands until oceanini is called.
+!
       real :: TFREEZE  = 271.25         ! Freezing point (K)
+      real :: CRHOS    = 1030.          ! Density of sea water (kg/m**3)
+      real :: CPS      = 3990.34        ! Specific heat of sea water (J/(kg*K))
+      real :: CLFI     = 3.28E5         ! Heat of fusion of sea ice (J/kg)
       
       real :: dlam                      ! delta longitude
       real :: dphi(NLAT)                ! delta latitude
@@ -132,7 +139,8 @@
 
 !     Threads instead of ranks: a thread owns what a rank owned.
 !     Inert without -fopenmp, so the MPI and serial builds are unchanged.
-!$omp threadprivate(cphi,cphih,dlam,dlayer,dmue,dphi,dtmix,gw,hdiffk,mldepth,mpinfo,mypid,myworld,&
+!$omp threadprivate(clfi,cphi,cphih,cps,crhos,dlam,dlayer,dmue,dphi,dtmix,gw,hdiffk,mldepth,&
+!$omp&  mpinfo,mypid,myworld,&
 !$omp&  naccuout,naomod,ndatim,ndiag,nentropy,newsurf,nfluko,ngui,nhdiff,nlsg,nocean,nout,noutput,&
 !$omp&  nperpetual_ocean,nprhor,nprint,nproc,nrestart,nstep,ntspd,nud,solar_day,taunc,tfreeze,&
 !$omp&  vdiffk,vdiffkl,version,ycliced,yclsst,yclsst2,ydsst,ydssta,yentro,yfldo,yfldoa,yfsst,yfsst2,&
@@ -148,12 +156,15 @@
 !
       subroutine oceanini(kstep,krestart,koutput,kdpy,kgui,psst,pmld    &
      &                   ,piflux,ktspd,psolday,oceanmod_namelist        &
-     &                   ,ocean_output, ifreezet)
+     &                   ,ocean_output, ifreezet, prhos, pcps, pclfi)
       use oceanmod
 !     Only the radius; pumamod's NLON, NLAT and NHOR are not oceanmod's.
       use pumamod, only: plarad
 !
       real :: ifreezet
+      real :: prhos                 ! density of sea water, from icemod_nl
+      real :: pcps                  ! specific heat of sea water, from icemod_nl
+      real :: pclfi                 ! heat of fusion of sea ice, from icemod_nl
       real :: psst(NHOR),pmld(NHOR),piflux(NHOR)
       real (kind=8) :: zsi(NLAT)
       real (kind=8) :: zgw(NLAT)
@@ -220,6 +231,9 @@
       solar_day = psolday
       
       TFREEZE = ifreezet
+      CRHOS   = prhos
+      CPS     = pcps
+      CLFI    = pclfi
 !
 !     read and print namelist and distribute it
 !
@@ -256,6 +270,9 @@
       call mpbcrn(hdiffk,NLEV_OCE)
       call mpbcrn(dlayer,NLEV_OCE)
       call mpbcr(TFREEZE)
+      call mpbcr(CRHOS)
+      call mpbcr(CPS)
+      call mpbcr(CLFI)
 !
 !
 !     Horizontal diffusion runs on the planet radius planet_nl declared. Say so
