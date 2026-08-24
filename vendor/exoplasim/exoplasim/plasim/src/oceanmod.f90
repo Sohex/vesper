@@ -21,8 +21,14 @@
       parameter(CRHOI=920.)             ! Density of sea ice (kg/m**3)
       parameter(CPS=4180.)              ! Specific heat of sea water (J/kg*K)
       parameter(CLFI  = 3.28E5)         ! Heat of fusion of ice (J/kg)
-      parameter(PLARAD=6.371E6)         ! Earth radius (m)
       parameter(PI = 3.14159265359D0)   ! PI
+!
+!     THE PLANET RADIUS IS NOT A PARAMETER HERE. `hdiffo` works on an angular
+!     grid -- dlam is 2*pi/NLON and cphi, dphi and dmue are radians -- so the
+!     radius is what turns the angular Laplacian into a metric one, and a
+!     compiled Earth radius makes the realised diffusivity (a_earth/a)**2 times
+!     the coefficient the namelist asked for. It is taken from pumamod, which
+!     planet_nl sets, at the one place that uses it.
 !
 !     namelist parameter
 !
@@ -144,6 +150,8 @@
      &                   ,piflux,ktspd,psolday,oceanmod_namelist        &
      &                   ,ocean_output, ifreezet)
       use oceanmod
+!     Only the radius; pumamod's NLON, NLAT and NHOR are not oceanmod's.
+      use pumamod, only: plarad
 !
       real :: ifreezet
       real :: psst(NHOR),pmld(NHOR),piflux(NHOR)
@@ -248,6 +256,21 @@
       call mpbcrn(hdiffk,NLEV_OCE)
       call mpbcrn(dlayer,NLEV_OCE)
       call mpbcr(TFREEZE)
+!
+!
+!     Horizontal diffusion runs on the planet radius planet_nl declared. Say so
+!     in the log, because hdiffk is stated in m2/s and the grid it acts on is
+!     angular: what the run integrated is unreadable from the namelist alone.
+!
+      if (nhdiff > 0) then
+         if (plarad <= 0.) then
+            call mpabort('oceanmod: nhdiff > 0 needs a planet radius, and '   &
+     &                 //'planet_nl has not set one')
+         endif
+         if (mypid == NROOT) then
+            write(nud,*) '* ocean horizontal diffusion on planet radius (m): ',plarad
+         endif
+      endif
 !
       do jlev=1,NLEV_OCE
          ymld(:,jlev) = dlayer(jlev)
@@ -1321,6 +1344,10 @@
 
       subroutine hdiffo(psst)
       use oceanmod
+!     The planet radius, from planet_nl by way of pumamod. `only:` because
+!     pumamod also declares NLON, NLAT and NHOR and this routine means
+!     oceanmod's. tracermod.f90:168 reaches for plarad the same way.
+      use pumamod, only: plarad
       parameter(nsub=100)
 !
       real(kind=8) :: psst(NHOR,NLEV_OCE)
