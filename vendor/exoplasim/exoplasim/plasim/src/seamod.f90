@@ -193,9 +193,14 @@
      &         +dicec(:)*(dicealbmn(2)+zsicf(:)*(dicealbmx(2)-dicealbmn(2)))
        dz0(:)=dz0sea*(1.-dicec(:))+dz0ice*dicec(:)
       endwhere
-      endif
+!
+!     Inside the cold-start branch and not after it: on a restart seaini does
+!     not set dsalb -- nothing does, dsalb is not a restart record -- so
+!     rebuilding dalb from it there would overwrite the restored value with an
+!     unset one. The first seastep of the run sets both.
 !
       call seaalbarchive
+      endif
 !
       return
       end subroutine seaini
