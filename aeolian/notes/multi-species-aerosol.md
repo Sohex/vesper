@@ -117,7 +117,8 @@ both be on.
 | mineral dust | +0.34 to +0.61 | the field and the aerofile both exist |
 | sea salt | -0.16 to -0.89 | the offline field exists; needs an `.sra` writer and an aerofile column |
 | volcanic sulfate | -0.013 to -0.032 | one to two orders down; nearly free once the array exists, and it decides nothing |
-| primary fire carbonaceous / biogenic SOA | not yet priced | CLIM-29 owns primary smoke; BVOC-1 through BVOC-10 own the separate SOA source--chemistry--cloud chain |
+| primary fire carbonaceous | not yet priced | CLIM-29 and FIRE-9. An absorber, and the one the spare slot was reserved for |
+| biogenic SOA | not yet priced | BVOC-1 through BVOC-10. A SEPARATE species from the row above, not a variant of it: see section 10 |
 
 Sea salt is the one that changes an answer. It is also the cheaper half of the
 pair to prescribe, because it is a pure scatterer over a dark surface that does
@@ -274,3 +275,38 @@ So a second PRESCRIBED species does not need a burden-matched radius, an
 `apart`, or an absolute cross-section. It needs four ratios per band. That is a
 much smaller derivation than the dust one, and it can be taken straight from
 `analysis/sea_salt_optics.json` without touching the settling machinery.
+
+## 10. Four slots, five prescribed claimants
+
+`NAERSP` is 4 and the source comment says what the four were for: mineral dust,
+sea salt, volcanic sulfate, and one spare held for the carbonaceous aerosol
+CLIM-29 is waiting on. The table in section 6 now has five prescribed species in
+it, because biogenic secondary organic aerosol is not the carbonaceous aerosol
+that spare slot was reserved for.
+
+The two are distinct in the one place a shared slot would force them to be
+identical, which is the optics. `bvoc-soa-atmospheric-coupling-audit.md`
+finding 8 is that the SOA the modelled biosphere would produce is mostly
+SCATTERING, with a weakly absorbing brown-carbon end, while primary fire
+carbonaceous carries black carbon and is an absorber. Section 2 of this note
+already establishes that one scalar set cannot describe two species with
+different single-scattering albedos; that is the whole reason the species array
+exists. Putting smoke and SOA in one slot would re-create the defect the array
+was built to remove, one species later.
+
+The interactive path tightens it further. `naerosp` is `ndustrad + iaerint`, so
+choosing the transported tracer spends one of the four and leaves three
+prescribed. Dust, sea salt and either smoke or SOA fit; the fifth does not exist.
+
+**Raising `NAERSP` costs memory in `aodsp` and nothing else**, which the source
+comment states and the arithmetic supports: the per-layer per-species optical
+depth array is the only thing dimensioned by it that scales with the grid. There
+is no code change beyond the parameter, because every loop over species is
+already bounded by `naerosp` rather than unrolled.
+
+So the seam between this component and the SOA chain is one line and one
+decision, tracked as CLIM-85, and the decision is not urgent: neither smoke nor SOA has a burden yet.
+What must not happen quietly is the two arriving into one slot because four was
+the number when the array was written. Section 9 applies to both -- a prescribed
+species needs four ratios per band and no absolute cross-section -- so the cost
+of the fifth species is the slot, not the derivation.

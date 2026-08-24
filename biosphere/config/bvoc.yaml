@@ -1,0 +1,131 @@
+# THE BVOC ACTIVATION DECLARATION. Read by biosphere/scripts/bvoc_gate.py.
+#
+# Turning the simulated biosphere's volatile organic source on is not a switch.
+# It is the point where four models get collapsed into one, and this file is
+# where each of them is either DECLARED or refused. The argument is in
+# biosphere/notes/bvoc-activation-contract.md; the finding it rests on is
+# biosphere/notes/bvoc-soa-atmospheric-coupling-audit.md.
+#
+# THE SENTINEL IS `undeclared`, AND IT REFUSES. There is no default value for
+# any field here, deliberately: a default is how an Earth number becomes this
+# world's number without anyone deciding it should. Replacing `undeclared` with
+# a value is a DECISION and takes the bd issue named beside it.
+#
+# The gate is fail-closed in one direction only. With `requested: false` it
+# reports what is undeclared and exits 0, because a biosphere run with the
+# volatile source off is a correct run. With `requested: true` it refuses,
+# by name, for every unmet precondition.
+
+version: 1
+
+# The only switch a caller sets. `true` REQUESTS activation; it does not grant
+# it. `biosphere/scripts/run_lpj_guess.py` asks the gate and writes `ifbvoc 0`
+# into the instruction file whenever the gate has not granted activation.
+requested: false
+
+# BVOC-1. What an activated run must be able to emit, and what is accepted on
+# the way back out. Each field names the artifact that satisfies it: a path to
+# a fixture, a report, or a declared statement. `undeclared` refuses.
+source:
+  # Monthly flux per monoterpene compound, not the endocyclic/other pair the
+  # vendored fork's output tables collapse to. Alpha- and beta-pinene have
+  # different highly oxidized molecule yields in the SOA literature this
+  # project has read, so a lumped terpene mass cannot reconstruct the branch
+  # any chemistry operator would take. BVOC-11.
+  compound_resolved_output: undeclared
+  # Flux carrying the patch axis as well as the PFT axis. The vendored output
+  # tables average over replicate patches, which erases the disturbance history
+  # that the isoprene study this project read identifies as a first-order
+  # control on canopy emission. BVOC-11.
+  patch_resolved_output: undeclared
+  # A fixture that writes, reloads and compares the monoterpene storage pool
+  # across a restart. The pool is in the serializer; nothing exercises it.
+  # BVOC-3.
+  storage_restart_fixture: undeclared
+  # Emitted and stored volatile carbon removed from a named plant pool, and the
+  # declared synthesis energy charged exactly once. BVOC-3.
+  carbon_closure: undeclared
+  # The rotation-rate, photoperiod, year-length, leaf-energy and hydraulic
+  # dependencies ported off Earth's constants. BVOC-4.
+  environmental_response_port: undeclared
+  # A named lower model plus a lumped bracket for the volatile classes the
+  # retained module does not represent. BVOC-5.
+  missing_scope_bracket: undeclared
+
+# BVOC-2. The emission traits themselves. The vendored PFT file's capacities
+# are Earth measurements under standard conditions and several of its entries
+# say in the source that they were copied from another PFT. Keeping them is
+# allowed and is the transplanted-Earth central case; keeping them SILENTLY is
+# not, and neither is retuning them toward a desired aerosol forcing.
+traits:
+  # The covarying live plant trait registry these belong in, with its
+  # provenance stamp. PCAR-5 owns it; it does not exist yet.
+  registry: undeclared
+  # Which simulated PFTs emit at all, as a fraction rather than a mean over
+  # emitters and non-emitters together.
+  emitter_fraction: undeclared
+  # The per-compound split, per PFT. The vendored file gives every PFT the same
+  # storage-fraction vector.
+  speciation: undeclared
+  # Seasonal onset and decay, in this world's photoperiod and year.
+  seasonality: undeclared
+  # Whether a PFT emits from synthesis, from storage, or both.
+  storage_strategy: undeclared
+
+  # MINIMUM bracket widths, as multiplicative factors on a capacity. These are
+  # a FLOOR on declared uncertainty and the gate refuses anything narrower: a
+  # narrower bracket is a claim to know this world's plants better than the
+  # Earth studies know Earth's. They are not central values and nothing is
+  # computed from them.
+  #
+  # Read from the Earth literature recorded in references/INDEX.md and argued
+  # in the audit: the global emissions framework puts isoprene near a factor
+  # two and many monoterpenes near a factor three, with local and seasonal
+  # uncertainty higher; the species-composition study puts apparent capacity
+  # shifts from aggregation alone at roughly half again for isoprene and a
+  # little less for monoterpenes.
+  minimum_bracket_factor:
+    isoprene_capacity: 2.0
+    monoterpene_capacity: 3.0
+    species_composition: 1.5
+  # The declared brackets themselves, once PCAR-5's registry carries them.
+  declared_bracket_factor: undeclared
+
+# BVOC-6. The oxidant environment the source would be used in. A fixed Earth
+# mass yield is a screening bound and is never the central coupling.
+oxidants:
+  # The reduced chemistry the bracket is evaluated with: its inputs, its
+  # outputs, and where it runs. The contract names the required signature.
+  interface: undeclared
+  # What derived the bracket ends. A parametric lifetime taken from another
+  # model supplies a SHAPE, not a bracket: every coefficient in it is fitted to
+  # Earth and has to be re-fitted or bracketed here.
+  instrument: undeclared
+  # Both ends, and they must differ. A bracket whose ends agree is a central
+  # value with two names.
+  bracket: undeclared
+  # Set true only by BVOC-6 or WET-10, when the simulated atmosphere's ozone
+  # and methane are derived from this world's own surface fluxes rather than
+  # prescribed from a fixed-Earth-flux photochemical calculation. While it is
+  # false, a biosphere-derived volatile source combined with that prescribed
+  # state is not a closed atmospheric state, and the gate says so.
+  trace_gas_state_closed: false
+
+# BVOC-9. The aerosol-number and cloud branch, pre-registered in
+# biosphere/notes/bvoc-cloud-sensitivity-preregistration.md.
+#
+# `none` is the registered default arm and needs nothing. `offline_ccn_bound`
+# is the second arm and needs an offline artifact. `activation_port` is the
+# third and is built only on the materiality verdict the pre-registration
+# defines, which cannot be taken before the first two arms have run.
+clouds:
+  branch: none
+  # The artifact the branch is carried by. The gate refuses any branch other
+  # than `none` that names the prescribed aerosol optical-depth field: a
+  # column optical depth is a mass-and-optics quantity and cannot stand in for
+  # particle number, so scaling it is an unregistered fourth arm rather than
+  # either of the two registered ones.
+  carrier: undeclared
+  # The verdict, once the registered comparison has been scored. Never set
+  # before the arms exist.
+  materiality_verdict: undeclared

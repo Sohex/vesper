@@ -90,6 +90,14 @@ import "{paths['pfts']}"
 ifplim 0
 ifwalkernplim 0
 
+! The volatile organic source. Written here rather than inherited, because an
+! inherited zero cannot be told apart from nobody having decided. What requests
+! it is biosphere/config/bvoc.yaml and what grants it is
+! biosphere/scripts/bvoc_gate.py, which refuses until the preconditions it names
+! are declared. plib takes the later declaration, so this overrides the imported
+! PFT file whichever way it reads.
+ifbvoc {settings['ifbvoc']}
+
 title "{settings['title']}"
 nyear {settings['nyear']}
 
@@ -118,10 +126,11 @@ iforganicsoilproperties 1
 
 outputdirectory "./"
 """ + "".join(
-        f'file_{name.split(".")[0]} "{name}"\n' for name in OUTPUTS)
+        f'file_{name.split(".")[0]} "{name}"\n' for name in settings["outputs"])
 
 
-def merge_outputs(run_dir: Path, ranks: int) -> dict[str, int]:
+def merge_outputs(run_dir: Path, ranks: int,
+                  outputs: tuple[str, ...] = OUTPUTS) -> dict[str, int]:
     """Concatenate per-rank output, keeping one header.
 
     Rank directories each hold a complete set of files covering their own cells,
@@ -130,7 +139,7 @@ def merge_outputs(run_dir: Path, ranks: int) -> dict[str, int]:
     planet.
     """
     counts = {}
-    for name in OUTPUTS:
+    for name in outputs:
         pieces = [run_dir / f"run{rank}" / name for rank in range(1, ranks + 1)]
         pieces = [p for p in pieces if p.is_file()]
         if not pieces:
@@ -209,9 +218,21 @@ def main() -> None:
         "soilmap": Path(args.soilmap).resolve(),
         "pfts": (run_dir / "vesper_pfts.ins").resolve(),
     }
+    # The volatile organic source, asked rather than assumed. `require` exits
+    # with every unmet precondition named if biosphere/config/bvoc.yaml requests
+    # activation; with no request it grants nothing and the run is a correct run
+    # with the source off. Retaining the compound-resolved tables is part of
+    # activation and not a separate decision: a run that emits volatile carbon
+    # and discards the speciation is the collapse the contract exists to stop.
+    import bvoc_gate
+    bvoc_active = bvoc_gate.require(planet=config)
+    outputs = OUTPUTS + (bvoc_gate.ACTIVATED_OUTPUTS if bvoc_active else ())
+
     settings = {
         "title": run_id, "nyear": args.nyear, "npatch": args.npatch,
         "nfix_a": args.nfix_a, "nfix_b": args.nfix_b,
+        "ifbvoc": 1 if bvoc_active else 0,
+        "outputs": outputs,
     }
 
     if args.dry_run:
@@ -244,7 +265,7 @@ def main() -> None:
             f"LPJ-GUESS exited {result.returncode} after {elapsed:.0f} s. "
             f"See {run_dir / 'mpirun.log'} and {run_dir}/run*/guess.log")
 
-    counts = merge_outputs(run_dir, args.ranks)
+    counts = merge_outputs(run_dir, args.ranks, outputs)
     cells = 0
     if (run_dir / "anpp.out").is_file():
         rows = (run_dir / "anpp.out").read_text().splitlines()[1:]
@@ -262,6 +283,7 @@ def main() -> None:
             "nfix_a": args.nfix_a,
             "nfix_b": args.nfix_b,
             "label": args.label,
+            "ifbvoc": settings["ifbvoc"],
         },
         "wall_seconds": round(elapsed, 1),
         "ranks": args.ranks,

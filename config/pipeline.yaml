@@ -528,11 +528,25 @@ steps:
     needs: [baseline_climatology, soil, vesper_pfts]
     writes: [biosphere/generated/vesper_driver_provenance.json, biosphere/generated/vesper_driver.bin]
 
+  - id: bvoc_gate
+    script: biosphere/scripts/bvoc_gate.py
+    loop: B
+    cost: seconds
+    needs: []
+    writes: [biosphere/generated/bvoc_gate_report.json]
+    gate: >
+      the activation contract for the simulated biosphere's volatile organic
+      source. It reads biosphere/config/bvoc.yaml and REFUSES activation, by
+      name, for every precondition still undeclared; with no request it reports
+      and exits 0, because a biosphere run with that source off is a correct
+      run. `lpj_run` needs it so the refusal sits on the path rather than
+      beside it.
+
   - id: lpj_run
     script: biosphere/scripts/run_lpj_guess.py
     loop: B
     cost: hours
-    needs: [lpj_driver]
+    needs: [lpj_driver, bvoc_gate]
     writes: [biosphere/runs/]
 
   - id: prospectivity
