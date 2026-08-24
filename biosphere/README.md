@@ -355,6 +355,29 @@ python biosphere/scripts/build_lpj_driver.py      # climate + soil codes + gridl
 cmake --build vendor/lpj-guess/build --parallel 16
 ```
 
+### The volatile organic source is off, and off is a decision
+
+`bvoc_gate.py` is that decision made explicit. `ifbvoc 1` reads like one switch
+and is four models -- the simulated plants' production of speciated volatile
+carbon, its oxidation in an atmosphere whose oxidants this project has not
+derived, the aerosol that oxidation would make, and what that aerosol would do
+to the model's radiation and clouds -- and only the first exists in the vendored
+source. `biosphere/config/bvoc.yaml` is where each precondition is declared, the
+sentinel `undeclared` refuses, and there is no default value for any field in
+it. The contract is `notes/bvoc-activation-contract.md` and the cloud arm is
+pre-registered in `notes/bvoc-cloud-sensitivity-preregistration.md`.
+
+```bash
+python biosphere/scripts/bvoc_gate.py                       # what is undeclared
+python biosphere/scripts/bvoc_gate.py --check-run runs/<id> # accept or reject output
+```
+
+`run_lpj_guess.py` asks the gate and writes `ifbvoc` into the instruction file
+from the answer, rather than inheriting the imported PFT file's zero: an
+inherited zero cannot be told apart from nobody having decided. Requesting
+activation in the declaration while a precondition is undeclared makes the run
+exit with every unmet one named.
+
 ### Fire is GLOBFIRM, with flux and occurrence diagnostics
 
 `run_lpj_guess.py` writes `firemodel "GLOBFIRM"` after its `import` of
