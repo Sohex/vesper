@@ -534,6 +534,25 @@ model:
   # Worth about +2.0 K on the arms' own measured slope, which is why the flux
   # re-derivation must follow it and not precede it.
   cloud_absorption_scale: 1.192
+  # SURFACE LONGWAVE EMISSIVITY, DECLARED AND NOT DERIVED. `radmod.f90`'s `lwr`
+  # wrote these as one literal, `zeps = dls + 0.98*(1-dls)`, so the modelled
+  # land emitted as a perfect blackbody by construction and everything the mask
+  # does not call land got 0.98. They are named keys now and these values
+  # reproduce that literal exactly, so declaring them changes no result.
+  #
+  # 1.0 over land is not a measurement and is not defended here. Bare rock,
+  # desert sand and salt crust are 0.90 to 0.95 broadband in the thermal window,
+  # and this world's barren land classes are a large fraction of its land; the
+  # cost is one-signed, overstated land emission plus the (1-eps) reflection of
+  # downward longwave that `lwr` discards outright while eps is 1. Sea water is
+  # 0.985 to 0.99, so 0.98 is slightly low in the same direction. The bracket to
+  # run an arm over is 0.90 to 1.0 for land and 0.98 to 0.99 for the rest.
+  #
+  # The honest answer is a per-cell field out of the lithology map rather than
+  # two scalars, which is `world-38y`. Until that exists these two make the
+  # assumption visible, put it in every run's namelist, and give it an arm.
+  land_longwave_emissivity: 1.0
+  sea_longwave_emissivity: 0.98
   ozone_scale: 0.794
   ozone_uv_weight: 0.335
   ozone_visible_weight: 0.914

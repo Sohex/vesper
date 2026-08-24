@@ -75,6 +75,25 @@
       real    :: tswr3   = 0.0055 ! tuning of cloud s. scattering alb. range2
       real    :: tpofmt  = 1.00   ! tuning of point of mean transmittance
       real    :: acllwr  = 0.100  ! mass absorption coefficient for clouds (lwr)
+!
+!     SURFACE LONGWAVE EMISSIVITY, split by the land-sea mask. Upstream wrote
+!     zeps = dls + 0.98*(1-dls) as a literal in lwr, so the modelled land was a
+!     perfect blackbody by construction and everything the mask does not call
+!     land -- ocean and sea ice -- was 0.98, with no comment, no unit and no
+!     source anywhere. Named here so a run records what it emitted with; the
+!     defaults reproduce that literal exactly and no run changes.
+!
+!     Both are broadband thermal emissivities, dimensionless, 0 to 1, and both
+!     are DECLARED rather than derived. 1.0 over land is not a measurement:
+!     bare rock, desert sand and salt crust run 0.90 to 0.95 broadband, which
+!     on a world with a large barren land fraction is several W/m2 of
+!     one-signed overstated land emission, and the (1-eps) reflection of
+!     downward longwave at the foot of lwr is identically zero while eps is 1.
+!     Sea water is 0.985 to 0.99. A per-cell field derived from the lithology
+!     map is the honest answer and is a separate piece of work; these two
+!     scalars are what makes the omission visible and gives it an arm.
+      real    :: elwland = 1.0    ! surface lw emissivity, land
+      real    :: elwsea  = 0.98   ! surface lw emissivity, ocean and sea ice
       real    :: a0o3    = 0.25   ! parameter to define o3 profile
       real    :: a1o3    = 0.11   ! parameter to define o3 profile
       real    :: aco3    = 0.08   ! parameter to define o3 profile
@@ -388,7 +407,8 @@
 !     Inert without -fopenmp, so the MPI and serial builds are unchanged.
 !$omp threadprivate(a0o3,a1o3,acl2,acllwr,aco3,aerofile,aeroqlw,aeroqs,aodsp,apart,aqlw,bo3,bscat1,&
 !$omp&  bscat2,ch4,clgray,co2sww,co3,daerod,ddustcol,ddustod,desync,dftd0,dftde1,dftde2,dftu0,&
-!$omp&  dftue1,dftue2,dqo3cl,dusthsc,dustqlw,dustsc,eccf,gdist2,gmu0,gmu1,gsol0,gsolamp,gsolamp2,&
+!$omp&  dftue1,dftue2,dqo3cl,dusthsc,dustqlw,dustsc,eccf,elwland,elwsea,gdist2,gmu0,gmu1,gsol0,&
+!$omp&  gsolamp,gsolamp2,&
 !$omp&  gsolperiod,gsolperiod2,gsolphase,gsolphase2,gsolstart,h2oswl,h2osww,iaerint,iyrad,iyrbp,&
 !$omp&  l_aerorad,lambm,lambm0,ldustchk,lstarfile,meananom0r,minwavel,mvelpp,n2o,naerosp,nclouds,&
 !$omp&  ncstsol,ndcycle,ndustrad,necham,necham6,newrsc,nfixed,nlwr,no3,npbroaden,nradice,nrscat,&
@@ -902,6 +922,7 @@
      &               ,a0o3,a1o3,aco3,bo3,co3,toffo3,o3scale,newrsc,necham,necham6   &
      &               ,nsol,nclouds,nswrcl,nrscat,rcl1,rcl2,acl2,clgray,tpofmt   &
      &               ,acllwr,tswr1,tswr2,tswr3,th2oc,dawn,starbbtemp,nstartemp  &
+     &               ,elwland,elwsea                                            &
      &               ,nsimplealbedo,nstarfile,starfile,starfilehr,minwavel      &
      &               ,ndustrad,dustsc,dusthsc,dustqlw,aerofile,aeroqlw          &
      &               ,nsolcycle,gsolstart,gsolamp,gsolperiod,gsolphase   &
@@ -932,6 +953,8 @@
 !     tswr2   ! tuning of cloud back scattering c. range2
 !     tswr3   ! tuning of cloud s. scattering alb. range2
 !     th2oc   ! absorption coefficient for h2o continuum
+!     elwland : surface longwave emissivity over land (1)
+!     elwsea  : surface longwave emissivity over ocean and sea ice (1)
 !     dawn    : zenith angle threshhold for night
 !
 !     aerosol namelist parameters:
@@ -1060,6 +1083,8 @@
       call mpbcr(h2osww)
       call mpbcr(h2oswl)
       call mpbcr(co2sww)
+      call mpbcr(elwland)
+      call mpbcr(elwsea)
       call mpbcr(o3scale)
       call mpbcr(co2)
 !
@@ -3234,7 +3259,7 @@
 !*    top downward flux, surface grayness and surface upward flux
 !
       zbd(:,0)=SBK*zttop**4 !We could add IR flux from M dwarf host star here? --AYP
-      zeps(:)=dls(:)+0.98*(1.-dls(:))
+      zeps(:)=elwland*dls(:)+elwsea*(1.-dls(:))
       zbu(:,NLEP)=zeps(:)*zst4(:,NLEP)
       zbue1(:,NLEP)=0.
       zbue2(:,NLEP)=zbu(:,NLEP)

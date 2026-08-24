@@ -725,6 +725,36 @@ Derived in `exoplasim/notes/shortwave-co2.md`, which also carries the 2.7 um
 overlap decision, the Earth-column check the derivation had to pass, and the
 statement that this correction and `h2o_sw_weight`'s have the same sign.
 
+## `land_longwave_emissivity` and `sea_longwave_emissivity`
+
+```
+land_longwave_emissivity: 1.0
+sea_longwave_emissivity: 0.98
+```
+
+DECLARED, not derived, and the only two keys in this file whose values are
+stated in order to be argued with. `lwr` wrote them as one literal,
+`zeps = dls + 0.98*(1-dls)`, so the modelled land emitted as a perfect
+blackbody by construction and everything the land-sea mask does not call land
+took 0.98, with no comment, no unit and no source anywhere in the tree. These
+keys set `ELWLAND` and `ELWSEA` in `radmod_nl` at the values that literal
+carried, so naming them changes no result.
+
+Unity over land is not a measurement. Bare rock, desert sand and salt crust are
+0.90 to 0.95 broadband in the thermal window, and the modelled surface's barren
+classes cover a large share of its land. The cost is one-signed: overstated
+land emission, plus the reflection of downward longwave that `lwr` computes as
+`(1 - eps)` and therefore discards entirely while `eps` is 1. Sea water is
+0.985 to 0.99, so the non-land value is slightly low in the same direction.
+
+Both are written into every run's `radmod_namelist` unconditionally and checked
+there by `verify_staged_namelists`, because a continuation that drops them
+silently returns the modelled surface to the compiled literal.
+
+The per-cell field the lithology map could support is `world-38y`. These two
+scalars exist to make the assumption visible and give it an arm, not to settle
+it.
+
 ## `energy_diagnostics_3d`
 
 ```

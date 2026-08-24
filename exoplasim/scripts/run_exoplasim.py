@@ -173,6 +173,14 @@ def configure_otherargs(derived: dict) -> dict:
         "ACL2@radmod_namelist": ", ".join(
             f"{v * derived['cloud_absorption_scale']:.6g}"
             for v in (0.05, 0.10, 0.20)),
+        # world-qvu, radmod_nl. Written unconditionally, defaults included, for
+        # the same reason NHDIFF is: these were a bare literal in lwr until they
+        # were named, so the namelist in the run directory is the only place a
+        # reader can find out what the modelled surface emitted with.
+        "ELWLAND@radmod_namelist":
+            f"{derived['land_longwave_emissivity']:.6g}",
+        "ELWSEA@radmod_namelist":
+            f"{derived['sea_longwave_emissivity']:.6g}",
     }
 
 
@@ -275,6 +283,12 @@ def derive(config: dict, flux_ratio: float) -> dict:
         # which is the arm the prediction says has to come out bit-identical.
         "cloud_absorption_scale": float(
             config["model"].get("cloud_absorption_scale", 1.0)),
+        # world-qvu. The defaults here are radmod.f90's own, so a config that
+        # says nothing reproduces the compiled literal exactly.
+        "land_longwave_emissivity": float(
+            config["model"].get("land_longwave_emissivity", 1.0)),
+        "sea_longwave_emissivity": float(
+            config["model"].get("sea_longwave_emissivity", 0.98)),
     }
 
 
@@ -1474,6 +1488,13 @@ def expected_namelist_keys(config: dict) -> dict:
     o3 = m.get("ozone_scale")
     if o3 is not None and float(o3) != 1.0:
         want["radmod_namelist"]["O3SCALE"] = float(o3)
+    # world-qvu. Written unconditionally by configure_otherargs, so they are
+    # checked unconditionally: an absent key here means a continuation dropped
+    # them and the modelled surface reverted to radmod.f90's compiled literal.
+    want["radmod_namelist"]["ELWLAND"] = float(
+        m.get("land_longwave_emissivity", 1.0))
+    want["radmod_namelist"]["ELWSEA"] = float(
+        m.get("sea_longwave_emissivity", 0.98))
     salinity = config.get("ocean", {}).get("salinity_psu")
     if salinity is not None:
         want["icemod_namelist"]["TFREEZE"] = round(freezing_point_k(salinity), 4)
