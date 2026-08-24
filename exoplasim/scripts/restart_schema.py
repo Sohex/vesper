@@ -498,6 +498,12 @@ POLICY.update({
     "dsnowz": Policy(PROGNOSTIC_GRID, REMAP, RESERVOIR, domain="land",
                      conserve="land_snow", bounds=(0.0, None),
                      why="snow depth in metres of water equivalent"),
+    "persistt": Policy(PROGNOSTIC_GRID, REMAP, INTENSIVE, domain="land",
+                       bounds=(0.0, None),
+                       why="seconds of continuous snow cover at or above "
+                           "glacelim; the glacier persistence clock. An "
+                           "elapsed TIME per cell, so it remaps as an "
+                           "intensity and not as an inventory"),
     "dsoilt": Policy(PROGNOSTIC_GRID, REMAP, INTENSIVE, domain="land",
                      why="soil temperature per layer"),
     "xts": Policy(PROGNOSTIC_GRID, REMAP, INTENSIVE, domain="ocean",
