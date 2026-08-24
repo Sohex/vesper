@@ -193,12 +193,16 @@ exoplasim/bench/
 # A worktree cannot see the ignored payloads (source/ exports, reference data,
 # run output, caches), so working in one means symlinking them in from the main
 # checkout -- which `scripts/link_worktree.py` does, deriving the set from the
-# ignore rules rather than from a list. The rules above end in "/" and so match
-# directories, not the symlinks that stand in for them; without these an
-# accidental `git add -A` would commit absolute paths that mean nothing on any
-# other machine. That script's last act is to check `git status` in the worktree
-# and name any link this block still fails to cover, so this stays complete by
-# being tested rather than by being remembered.
+# ignore rules rather than from a list. The rules that name them end in "/" and
+# so match directories, not the symlinks that stand in for them -- and some of
+# those rules are not above but in `.beads/.gitignore`, while a directory git
+# collapsed because every file inside it is ignored has no rule of its own at
+# all. Without these an accidental `git add -A` would commit absolute paths that
+# mean nothing on any other machine. That script's last act is to check `git
+# status` in the worktree and name any link this block still fails to cover, so
+# this stays complete by being tested rather than by being remembered.
+.beads/backup
+.beads/embeddeddolt
 source/*/*/raw
 source/*/*/grid
 source/*/*/planet.nc
@@ -206,6 +210,8 @@ source/*/*/manifest.json
 vendor/cgenie/genie-main/genie.exe
 vendor/orogen/node_modules
 vendor/orogen/out
+vendor/shtns-src
+vendor/shtns-install
 .venv
 exoplasim/bench
 hydrography/analysis/cache_era5
@@ -232,6 +238,7 @@ references/poseidon_surface_albedo
 references/socrates
 references/speedy
 references/splib07
+references/pyrcel/pyrcel/data
 
 # cGENIE build products. Its own .gitignore carries only .DS_Store, so unlike the
 # other three subtrees it excludes nothing it generates. Run output is NOT here:
