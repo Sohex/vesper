@@ -8,13 +8,13 @@ files it checkpoints itself into. Nothing here is about the simulated world.
 
 ## What is true
 
-`radstop`, the routine that writes radiation state into the restart, saves the
+`radstop`, the routine that writes radiation state into the restart, saved the
 two solar constants with
 
-    radmod.f90:1594    call mpputgp('zsolars',zsolars,2,1)
+    call mpputgp('zsolars',zsolars,2,1)
 
-`zsolars` is declared `real :: zsolars(2)` at `radmod.f90:251`. `mpputgp`
-(`mpimod.f90:639`) declares its dummy `p(kdim,klev)`, allocates a LOCAL
+`zsolars` is declared `real :: zsolars(2)` at `radmod.f90:354`. `mpputgp`
+(now `mpimod_omp.f90:680`) declares its dummy `p(kdim,klev)`, allocates a LOCAL
 `z(NUGP,klev)`, gathers into it with `mpgagp`, and writes all of `z`:
 
     real :: z(NUGP,klev)
@@ -34,10 +34,15 @@ moves too MANY, so nothing comes back wrong and the surplus is written out.
 
 ## What it costs, which is not the physics
 
-Nothing reads the record. `get_restart_array("zsolars",...)` is commented out at
-`radmod.f90:992`, and `solarini` recomputes the pair and broadcasts it
-(`radmod.f90:711`). So the integration is untouched, and no run on disk is
+Nothing reads the RECORD. `get_restart_array("zsolars",...)` is commented out at
+`radmod.f90:1177`, and `solarini` recomputes the pair and broadcasts it
+(`radmod.f90:865`). So the integration is untouched, and no run on disk is
 wrong because of this.
+
+The pair ITSELF is not a diagnostic and was not one then: `swr` forms the
+band-weighted surface albedo from it at `nstartemp = 1`
+(`radmod.f90:2918`), so `zsolars` is live model state every timestep. What
+nothing reads is the restart copy.
 
 What it damages is RESTART IDENTITY. A restart's bytes are the restart's name in
 this project: `continue_exoplasim.py` records `input_restart_sha256` on every
@@ -75,19 +80,16 @@ routines assume. **459 call sites, one genuine mismatch, and it is this one.**
 The 24 sites in `simba.f90` that a shape match flags are `allocatable` and are
 allocated `NHOR` at `simba.f90:171`, so they are correct.
 
-## The fix is already in the same file
+## The fix was already in the same file
 
 `zsolars` is a global pair, not a distributed gridpoint field, so it does not
-belong in a gather at all. `solarini` writes it correctly eleven hundred lines
-earlier:
-
-    radmod.f90:696     call put_restart_array("zsolars",zsolars,2,2,1)
-
-One call is the right idiom and the other is not, in one file, for one array.
+belong in a gather at all. `solarini` wrote it correctly eleven hundred lines
+earlier, with `put_restart_array("zsolars",zsolars,2,2,1)`. One call was the
+right idiom and the other was not, in one file, for one array.
 
 ## The fix, and what was checked before and after it
 
-Applied at `radmod.f90:1594`, replacing the gather with
+Applied at `radmod.f90:1782`, replacing the gather with
 `if (mypid == NROOT) call put_restart_array('zsolars',zsolars,2,2,1)`.
 
 Checked BEFORE changing it, because the low-I/O change made restart layout
@@ -128,8 +130,22 @@ disabled, pointed at a unit nothing opens.
 Both defects are present in `alphaparrot/ExoPlaSim` master verbatim, checked
 before anything was offered, and both went upstream as PR #63.
 
-So there is no reading under which the nine calls are doing their job. Removed,
+So there is no reading under which the nine calls were doing their job. Removed,
 with the reason recorded at the site. Verified in isolation, at stock flags so
 the `-march=znver4` change could not hide it: `fort.34` is no longer created,
 the restart still holds 398 records, and it is BYTE-IDENTICAL to the build
 carrying only the `zsolars` fix. The removal is exactly neutral.
+
+## What the surviving write is FOR, and what the converter does with it
+
+world-5rq settled the question this record left implicit. The write is a
+CONFIGURATION FINGERPRINT and not checkpointed state, and `radstop` says so at
+`radmod.f90:1764-1781`: it is the only place a restart handed on without its run
+directory records which two-band split of the stellar constant the orbits were
+integrated with, and a restart whose `zsolars` disagrees with the configuration
+it is resumed under is a different star.
+
+`exoplasim/scripts/restart_schema.py` carries the matching conversion policy and
+gives the same reason: `zsolars` is TARGET and deliberately not REQUIRE_EQUAL,
+because a converter that refused over it would be refusing on a value the model
+is about to discard and recompute.

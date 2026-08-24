@@ -12,12 +12,23 @@ The Stage 1 thread port found an implicit SAVE. Two things follow that the
 build flags are the natural place to ask about: what would have caught that
 defect earlier, and what else of its class is sitting in `plasim/src`.
 
-## The production flag line
+## The production flag line, as measured
 
     MOST_F90_OPTS=-O3 -cpp -fopenmp -ffixed-line-length-132
                   -ffpe-trap=invalid,zero,overflow -ffpe-summary=none
                   -finit-real=zero -march=znver4 -fno-omit-frame-pointer
     MOST_PREC=-fdefault-real-8
+
+**Both findings below were acted on and the flag line moved.** The declaration
+is `config/planet.yaml`'s `model.compile_flags.f90_opts` and there is no
+`most_compiler*` file any more. `-finit-real=zero` has LEFT the production
+profile, which is finding 1's remedy: `-finit-real=snan` is in the `checked`
+profile instead, so poisoned initialisation lives where it can be trapped rather
+than in the line whose optimisation level folds it away. Whether the `checked`
+profile can still run that flag is `world-5rs`: its declaration justifies the
+flag by the binaries being MPI, and world-38b removed the MPI build.
+`notes/audits/model-build-flags.md` is the re-run of the whole line on the
+threaded build and is what a reader wanting today's flags should read.
 
 `notes/audits/aocl-and-model-build-flags.md` keeps `-ffpe-trap` on the argument
 that a NaN then raises SIGFPE at the line that made it, rather than propagating
@@ -69,37 +80,52 @@ attribute and persists across calls. gfortran reports nothing, at any warning
 level tried: `-Wall -Wextra`, plus `-Wsurprising`, plus
 `-Wcharacter-truncation -Wconversion-extra`. No diagnostic mentions SAVE.
 
-Under `-fopenmp`, which `most_compiler_omp` carries and the production
-`most_compiler_mpi` line does not, a SAVEd local is SHARED by every thread.
-Eight threads each write their own id into a SAVEd scratch array, spin, then
-read it back; **seven of the eight read a value another thread
-wrote.**
+Under `-fopenmp`, a SAVEd local is SHARED by every thread. Eight threads each
+write their own id into a SAVEd scratch array, spin, then read it back; **seven
+of the eight read a value another thread wrote.**
 
 This is why the defect belongs to the thread port specifically. Under MPI each
-rank is a separate process, so its SAVEd locals are private by construction and
-the same source is correct. The identical source under OpenMP is a data race.
-Ranks and threads therefore do not merely differ in performance here; they
-differ in which defects are reachable, and a source that has only ever run
-under ranks has never exercised this class.
+rank was a separate process, so its SAVEd locals were private by construction
+and the same source was correct. The identical source under OpenMP is a data
+race. Ranks and threads did not merely differ in performance here; they differed
+in which defects are reachable, and a source that had only ever run under ranks
+had never exercised this class.
+
+**That asymmetry is now the whole picture rather than half of it.** world-38b
+removed the MPI and serial build paths, so every build this project makes is
+`-fopenmp` and every one of the sites below is in the reachable half. There is no
+longer a configuration in which an implicit SAVE is harmless by construction.
 
 ## What is on disk
 
-103 procedure-body declarations in `vendor/exoplasim/exoplasim/plasim/src`
-carry an initialiser and so are implicitly SAVEd:
+Counted 2026-08-21: 103 procedure-body declarations in
+`vendor/exoplasim/exoplasim/plasim/src` carried an initialiser and so were
+implicitly SAVEd, across `plasim_dummy.f90` 18, `icemod.f90` 14,
+`icemod_template.f90` 14, `hurricanemod.f90` 13, `mpimod.f90` 8,
+`mpimod_multi.f90` 7, `carbonmod.f90` 5, `mpimod_stub.f90` 5, `cpl.f90` 4,
+`glaciermod.f90` 4, and 11 in the remainder.
+
+**Re-counted 2026-08-24 by the same method: 46 sites across nine files.**
 
 | file | sites |
 | --- | ---: |
-| plasim_dummy.f90 | 18 |
-| icemod.f90 | 14 |
-| icemod_template.f90 | 14 |
 | hurricanemod.f90 | 13 |
-| mpimod.f90 | 8 |
-| mpimod_multi.f90 | 7 |
+| icemod.f90 | 11 |
 | carbonmod.f90 | 5 |
-| mpimod_stub.f90 | 5 |
-| cpl.f90 | 4 |
 | glaciermod.f90 | 4 |
-| remainder | 11 |
+| landmod.f90 | 4 |
+| oceanmod.f90 | 3 |
+| seamod.f90 | 3 |
+| mpimod_omp.f90 | 2 |
+| surfmod.f90 | 1 |
+
+Most of the fall is deletion rather than repair: `plasim_dummy.f90`,
+`icemod_template.f90` and `cpl.f90` went under world-cmz, and `mpimod.f90`,
+`mpimod_multi.f90` and `mpimod_stub.f90` under world-38b, which is 56 sites in
+files no configuration compiled. `icemod.f90` lost three to the salinity, lead
+and cold-start work and to world-ro6's removal of unreferenced procedures. The
+files that remain are the files that are compiled, so the population is now
+entirely live.
 
 Counted by walking each file and tracking procedure nesting, matching type
 declarations that carry `::` and an initialiser, and excluding `parameter`
@@ -108,7 +134,7 @@ method's limits are its own: continuation lines are not joined, and a genuinely
 intended persistent counter is indistinguishable from a scratch array by shape
 alone.
 
-So 103 is a POPULATION, not a defect count. A site that is written before it is
+So the count is a POPULATION, not a defect count. A site that is written before it is
 read on every call is harmless whatever its storage class, and some of these
 are deliberate. What the number establishes is that the class is enumerable,
 that it is larger than the one site the thread port tripped over, and that
