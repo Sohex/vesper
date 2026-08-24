@@ -349,17 +349,13 @@ system binutils on `PATH`. Note that binutils DID move in the same transaction,
 this prefix holds fixed. It is the same upstream version at a new pkgrel, and
 nothing has ever implicated it.
 
-**To build with it**, override the compiler OpenMPI's wrappers call. ExoPlaSim's
-`bld/compilerargs` invokes `mpif90`, `mpicc` and `mpicxx`, and the three
-variables are read by the wrappers rather than baked into them:
-
-    export OMPI_FC=$HOME/toolchains/gcc-16.1.1/bin/gfortran
-    export OMPI_CC=$HOME/toolchains/gcc-16.1.1/bin/gcc
-    export OMPI_CXX=$HOME/toolchains/gcc-16.1.1/bin/g++
-
-Confirm the override took, because a wrapper that ignores it fails silently and
-produces a working binary at the wrong speed: `OMPI_FC=... mpif90 --version`
-must report 16.1.1, not 16.2.1.
+**Building the model with it has no route today.** The MPI wrappers this used to
+go through are gone with the MPI build: `build_model.py` names `gfortran`, finds
+it with `shutil.which` and hands CMake the bare name, so the compiler a build
+uses is whichever `gfortran` is first on `PATH` -- and this prefix is
+deliberately kept off `PATH`. Giving a comparison build an explicit compiler
+path is `world-f1l`, and until it lands the prefix serves the standalone probes,
+which take their compiler from the command line.
 
 **To check what actually built a finished binary**, read its `.comment` section
 with `readelf -p .comment <binary>`. A 16.2.1 build of anything on this system
@@ -390,14 +386,8 @@ C++ links against the system `libstdc++.so.6`, since the shared C++ runtime is
 in a separate `libstdc++` package that is not extracted here. The same soname
 argument applies and a C++ test program compiles and runs.
 
-**Verified 2026-08-18** on this prefix: `gfortran --version` reports 16.1.1,
-a Fortran hello-world compiles and runs, `mpif90` under `OMPI_FC` reports 16.1.1,
-and an `MPI_Allreduce` program built through `mpif90` with ExoPlaSim's exact flag
-set runs correctly on 4 ranks. Note that OpenMPI's `mpi.mod` is built by the
-system 16.2.1 compiler and is read without complaint, because both compilers
-write GFORTRAN module format version 16; that compatibility is the one thing
-here most likely to break on a future GCC major bump, and it fails loudly at
-compile time if it does.
+**Verified 2026-08-18** on this prefix: `gfortran --version` reports 16.1.1 and
+a Fortran hello-world compiles and runs.
 
 **This prefix is not managed by pacman.** It receives no security updates, it is
 invisible to `pacman -Qo` and to every dependency check, and nothing will ever
