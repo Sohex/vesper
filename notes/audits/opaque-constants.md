@@ -90,7 +90,7 @@ are entered in. Changing it changes what the model integrates.
 
 ## 3. `t0 = 250.0 K` on every level, and the energy sink scales with it
 
-`plasimmod.f90:882` declares `t0(NLEV) = 250.0`, the semi-implicit reference
+`plasimmod.f90:879` declares `t0(NLEV) = 250.0`, the semi-implicit reference
 temperature, isothermal on all ten levels. It is a `plasim_nl` key and no run
 sets it: every diag echoes `T0= 10*250.0`. Nothing in `notes/`, `docs/src/` or
 `bd` asks why 250, though `resolution-tuned-parameters.md` cites it a dozen times
@@ -287,19 +287,27 @@ once from `ga` and prints it. This moves the surface fluxes.
 
 ## 10. Earth's radius in `oceanmod`, under a scheduled measurement
 
-`oceanmod.f90:24`, used at `:1344` as `zfac=hdiffk(jlev)/plarad/plarad`:
+`oceanmod.f90` carried, and used in `hdiffo` as `zfac=hdiffk(jlev)/plarad/plarad`:
 
     parameter(PLARAD=6.371E6)         ! Earth radius (m)
 
-`oceanmod` uses `resmod` rather than `pumamod`, so this is its own parameter and
-shadows nothing. It is dormant: `NHDIFF=0` in every run namelist. It is recorded
-anyway because of what `config/planet.yaml` says about that key -- the horizontal
-diffusion keys "exist to be BRACKETED in an A/B, not tuned into the baseline",
-which is `clim-65`. When that A/B runs, `hdiffo` divides the requested `hdiffk` by
-Earth's radius squared on a planet of 1.20 radii, making the effective diffusivity
-1.44 times whatever the arm declares, with nothing in the output to say so. The
-bracket would come back wrong. This is a trap under a scheduled measurement rather
-than a dormant defect.
+`oceanmod` used `resmod` rather than `pumamod`, so this was its own parameter and
+shadowed nothing. It was dormant: `NHDIFF=0` in every run namelist. It was
+recorded anyway because of what `config/planet.yaml` says about that key -- the
+horizontal diffusion keys "exist to be BRACKETED in an A/B, not tuned into the
+baseline", which is `clim-65`. When that A/B ran, `hdiffo` would have divided the
+requested `hdiffk` by Earth's radius squared on a planet of 1.20 radii, making the
+effective diffusivity 1.44 times whatever the arm declared, with nothing in the
+output to say so. The bracket would have come back wrong. This was a trap under a
+scheduled measurement rather than a dormant defect.
+
+**Fixed by world-mll**, before that A/B ran. `hdiffo` reads `plarad` from
+`planet_nl` through `pumamod` (`oceanmod.f90:1376`, applied at `:1394`),
+`oceanini` refuses `nhdiff > 0` with no radius and logs the radius it will use
+(`:291-296`), and `horizontal_diffusivity_m2_s` now means what it says. What the
+fix does NOT repair is the CLIM-16 bracket that already ran and did reach this
+code: its arms are labelled 300/1000/3000 and were 432/1440/4320. world-vho
+carries the relabelling.
 
 `ocean-and-marine-biosphere.md:95` catches the identical `parameter(radea=
 6.371E6)` in `cpl.f90`, which is genuinely dead; the live twin two files away was

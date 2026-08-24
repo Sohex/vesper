@@ -151,7 +151,7 @@ def main() -> None:
             matched += 1
 
     # Lakes, as an area-weighted bucket depth. `drhs` reaches 1 once soil water
-    # exceeds 40% of dwmax (landmod.f90:52-53), so a SHALLOWER bucket saturates
+    # exceeds 40% of dwmax (landmod.f90:103-104), so a SHALLOWER bucket saturates
     # the wetness factor on less water and evaporates at the potential rate,
     # where a deeper one needs proportionally more water to get there. The note
     # in lake-representation.md reads the other way, "large and full"; large is
@@ -162,7 +162,7 @@ def main() -> None:
     # here is fed by its catchment, and that water never reaches the evaporating
     # bucket. `dwatc` gains only from local precipitation minus evaporation
     # (landmod.f90:1097); routed river water accumulates into `driver`
-    # (landmod.f90:1390), a separate store that discharges to the ocean. So a
+    # (landmod.f90:1527), a separate store that discharges to the ocean. So a
     # cell's annual evaporation is capped by its own precipitation plus storage
     # however dwmax is set, and lake evaporation stays underestimated. What this
     # buys is the seasonal partition -- a lake cell that stays at potential rate

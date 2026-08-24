@@ -166,23 +166,29 @@ wind, no Earth days" is not true of what reaches the integration.
 The same cancellation reaches `restim`, `tfrc`, `dampsp` and `taucool`. Of
 those only `tfrc` is live; see finding 20.
 
-## 3. The ocean's horizontal diffusion runs on Earth's radius
+## 3. The ocean's horizontal diffusion ran on Earth's radius, and the arms that ran are mislabelled
 
-`oceanmod.f90:24`, `parameter(PLARAD=6.371E6)`, with the comment "Earth radius
-(m)", used at `oceanmod.f90:1344` as `zfac=hdiffk(jlev)/plarad/plarad`.
-`oceanmod` does `use resmod` rather than `use pumamod` (`oceanmod.f90:3`), so it
-never sees the correct `plarad` that `planet_namelist` sets. It is a `parameter`,
-so no namelist can move it.
+`oceanmod.f90` carried `parameter(PLARAD=6.371E6)`, with the comment "Earth
+radius (m)", used in `hdiffo` as `zfac=hdiffk(jlev)/plarad/plarad`. `oceanmod`
+did `use resmod` rather than `use pumamod`, so it never saw the `plarad` that
+`planet_namelist` sets, and being a `parameter` no namelist could move it.
 
 Live and already exercised: `NHDIFF` and `HDIFFK` are written unconditionally by
-`run_exoplasim.py:166-168`, and the CLIM-16 and CLIM-19 arms ran at 300, 1000
-and 3000.
+`run_exoplasim.py`, and the CLIM-16 and CLIM-19 arms ran at 300, 1000 and 3000.
 
-**What it costs.** (7.6452/6.371)^2 = 1.4396. Every arm applied 1.44 times the
-tendency of its nominal diffusivity, so the bracket was really 432/1440/4318 and
-the predicted rms heating table in
+**Fixed by world-mll.** The parameter is gone. `hdiffo` takes the radius from
+`planet_nl` by way of `pumamod` (`oceanmod.f90:1376`, applied at `:1394`),
+`oceanini` aborts if `nhdiff > 0` with no radius and logs the radius it will use
+(`oceanmod.f90:291-296`), and `hdiffk` now means what it says. The grid there is
+still angular, so the radius is what supplies the metric.
+
+**What it cost, and what is still mislabelled.** (7.6452/6.371)^2 = 1.4396.
+Every arm applied 1.44 times the tendency of its nominal diffusivity, so the
+CLIM-16 bracket was really 432/1440/4318 and the predicted rms heating table in
 `exoplasim/notes/forcing-bundle-predictions.md` understates the model by the
-same factor, 0.75/2.51/7.53 becoming 1.08/3.61/10.84.
+same factor, 0.75/2.51/7.53 becoming 1.08/3.61/10.84. Those labels are wrong
+wherever that bracket is quoted; world-vho is the correction, and clim-65's arms
+have to be declared against the fixed meaning.
 
 This also resolves an open discrepancy. `predict_ocean_terms.py:99` builds its
 operator with `a = radius_earth * EARTH_RADIUS_M`, which is Vesper's radius,
@@ -1136,7 +1142,7 @@ in finding 24.
 into sigma2/s, so only the magnitude of `rkshallow = 10.` is unjustified rather
 than the conversion.
 
-**`t0 = 250.0 K`** (`plasimmod.f90:882`) is the semi-implicit reference
+**`t0 = 250.0 K`** (`plasimmod.f90:879`) is the semi-implicit reference
 temperature, a reference rather than a constraint, and the `nconvtime`
 gravity-wave check derives its limit from it correctly with `gascon` and `akap`.
 

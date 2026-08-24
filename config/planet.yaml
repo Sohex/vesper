@@ -553,7 +553,7 @@ model:
   # DETERMINED, 2026-08-23. Horizontal diffusion, derived rather than inherited;
   # exoplasim/notes/resolution-tuned-parameters.md carries the argument and
   # references/ holds the three sources. ExoPlaSim hard-codes these for T21 and
-  # T42 only (plasim.f90:1388) and every finer rung silently falls through to
+  # T42 only (plasim.f90:1544) and every finer rung silently falls through to
   # T21's, which is 4x too weak at the truncation at T170 and -- the larger
   # defect -- damps at 41% of the local cascade rate at HALF the truncation,
   # because `nhdiff` is an absolute wavenumber worth 71% of T21's spectrum and
@@ -837,7 +837,7 @@ model:
   # and refuses without this line.
   #
   # WHY SHALLOWER THAN THE 0.5 m DEFAULT AND NOT DEEPER. `drhs` reaches 1 once
-  # soil water exceeds 40% of `dwmax` (landmod.f90:52-53), so a shallower bucket
+  # soil water exceeds 40% of `dwmax` (landmod.f90:103-104), so a shallower bucket
   # saturates the wetness factor on less water and the cell evaporates at the
   # potential rate; a deeper one needs proportionally more water to get there,
   # and this planet's lakes sit in the arid cells where that water is not

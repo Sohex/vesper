@@ -26,7 +26,7 @@ checking.
 **[inspection]** The mechanism is recorded in
 `exoplasim/notes/lake-representation.md`. PlaSim has no lake. A land cell's
 evaporation is capped by its own precipitation plus storage, because runoff
-leaves `dwatc` and enters `driver` (`landmod.f90:1390`), a separate store that is
+leaves `dwatc` and enters `driver` (`landmod.f90:1527`), a separate store that is
 advected downhill and discharged at the coast, and nothing returns `driver` to
 the evaporating bucket. No setting of `dwmax` fixes it.
 
