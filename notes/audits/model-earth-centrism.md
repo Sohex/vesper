@@ -805,6 +805,51 @@ None of these affects a run today. Each is recorded because it fires on a change
 this project already intends to make, and because a dormant Earth constant reads
 exactly like a live one to whoever throws the switch.
 
+**Every item below now says so where the switch is thrown.** world-9d1's action
+was the same for each: put the trigger and the consequence at the code a person
+reads before flipping it, rather than only in this note. What that produced:
+
+- Berger's Milankovitch series, and the `iyrbp = 1950 - n_start_year` remnant
+  that feeds it. The remnant carries the note; `radini` reaches the series only
+  at `nfixorb == 0` and `run_exoplasim.py` passes `fixedorbit=True` at every
+  call.
+- `orb_decl`'s vernal equinox, which hardcodes Earth calendar day 80.5 of a
+  365-day year through `lambm0 + (calday - ve/365.)*2.*pie`. `calday` is a
+  FRACTION of the year in this fork, so `ve/365` is a constant belonging to
+  another planet's calendar. Dormant on one keyword: `keplerian=True` routes
+  `solang` to `gen_orb_decl`, which takes its phase from `mvelpp` and
+  `meananom0r` and is correct and config-reachable.
+- `rainmod_bm`'s `ztaud = 7200.` and `ztaus = 14400.`, Earth's canonical
+  two-hour deep and four-hour shallow Betts-Miller relaxation, absolute seconds
+  with nothing tying them to this world's day, convective depth or timestep. The
+  switch is swapping RAINMOD in the build.
+- The hurricane diagnostics, covered by world-khn's declaration block at
+  `hurricanemod`'s thresholds. The positive form is that this diagnostic is not
+  meaningful on this world and stays off; if it is ever wanted its thresholds
+  are a re-derivation, not a namelist tweak.
+- `carbonmod`, dormant at `NCARBON = 0` though `carbonstep` is called every
+  timestep. One thing there was a defect and not only a dormancy: `localprecip`
+  used `3.154e9`, Earth's seconds per year times 100, two lines from a
+  `timeweight` that correctly uses `m_days_per_year`, so the two disagreed by
+  the ratio of the years -- about a factor of two here. That is fixed to the
+  model's own orbit. `CO2EARTH`, `PEARTH`, `VEARTH`, `RAD_EARTH` beside a
+  correct `plarad`, the 288 K reference in `exp(kact*(tsurf - 288.0))` and the
+  `tune1`/`tune2` pair commented as fitted to make the global average match are
+  all recorded at the module head as what turning `NCARBON` on would need.
+- LSG and the coupler, which are not compiled -- `CMakeLists` links a four-line
+  `src/lsgmod.f90` stub and `cpl_stub.f90` -- and are unreachable twice over:
+  `oceanmod` aborts unless `n_days_per_year` is exactly 360, and that is a count
+  of SIDEREAL DAYS PER ORBIT and is this planet's, 146, not a setting. The note
+  sits at the `nlsg > 0` branch, with what `lsg/src/lsgmod.f90` and `cpl.f90`
+  carry.
+- `icemod_template.f90`, a stale pre-fork copy in no build that still carries
+  `parameter(TFREEZE=271.25)`, the compiled Earth freezing point CLIM-17
+  replaced with a namelist key. It is the file a grep for TFREEZE hits first, so
+  it now opens with a banner saying it is not in any build and pointing at
+  `icemod.f90`.
+- `plasim/bld/make_plasim`, which named `OCEAN=lsgmod` against `lsg/src`, no
+  longer exists.
+
 **Dust would have settled about 1790 times too slowly.** `aeromod.f90` declares
 `apart = 50e-9` m and `rhop = 1000` kg/m3, a photochemical haze grain at water
 density, and both are in `aero_nl`. `enable_dust_emission` wrote every key in

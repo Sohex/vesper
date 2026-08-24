@@ -1,3 +1,13 @@
+!     ===================================================================
+!     NOT IN ANY BUILD, AND PRE-FORK. CMakeLists compiles icemod.f90; this
+!     file is a stale copy taken before this fork's changes to the ice
+!     module. It still carries parameter(TFREEZE=271.25), the compiled Earth
+!     freezing point that CLIM-17 deliberately replaced with a namelist key
+!     derived from the declared salinity, and it has no nseaice and no
+!     threadprivate directives. It is the file a grep for TFREEZE hits first
+!     and it gives the pre-CLIM-17 answer. Read icemod.f90 instead.
+!     world-9d1.
+!     ===================================================================
       module icemod
 
       use resmod

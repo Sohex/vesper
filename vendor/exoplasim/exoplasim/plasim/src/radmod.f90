@@ -1041,6 +1041,14 @@
 !
 !**   1) read and print version & namelist parameters
 !
+!     A LIVE REMNANT OF AN EARTH CALENDAR, and inert. iyrbp is a year before
+!     1950 AD, and it reaches nothing here: it feeds orb_params, which is
+!     Berger's Milankovitch series for EARTH's orbital elements, and radini
+!     reaches that only at nfixorb == 0. run_exoplasim.py passes fixedorbit=True
+!     at every call, so nfixorb is 1 and the series is unreachable. Throwing
+!     that switch would compute this world's eccentricity, obliquity and
+!     longitude of perihelion from Earth's polynomial fits at a year AD.
+!     world-9d1.
       iyrbp = 1950 - n_start_year
 
       if (mypid==NROOT) then
@@ -4281,6 +4289,14 @@
 ! the days in a model year times the 2*pi radians in a complete orbit.
 !
 
+!     EARTH'S CALENDAR, HARDCODED, and it does not scale. ve is Earth calendar
+!     day 80.5 of a 365-day year, so ve/365 = 0.2205 is Earth's phase from
+!     1 January to its vernal equinox; calday is a FRACTION of the year in this
+!     fork, so the offset is a constant that belongs to another planet's
+!     calendar. Dormant on ONE KEYWORD: run_exoplasim.py passes keplerian=True,
+!     which routes solang to gen_orb_decl, whose phase comes from mvelpp and
+!     meananom0r and is correct and config-reachable. Setting keplerian=False
+!     lands here. world-9d1.
       lambm  = lambm0 + (calday - ve/365.)*2.*pie                            !& Moving to more robust system
             ! / (mcal_days_per_year + ndatim(7)) ! ndatim(7) = leap year
       lmm    = lambm  - mvelpp

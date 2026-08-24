@@ -411,6 +411,12 @@
       parameter(zdpfreez=-4000.) ! saturation point difference at freezing l.
       parameter(zdptop=-2000.)   ! saturation point difference at cloud top
       parameter(zdpsh=-5000.)    ! saturation point difference for shallow c.
+!     EARTH'S BETTS-MILLER TIMESCALES, the canonical two-hour deep and four-hour
+!     shallow relaxation, and they are absolute seconds with nothing tying them
+!     to this world's day, its convective depth or its timestep. This file is
+!     not compiled: CMakeLists selects rainmod.f90. Swapping RAINMOD in the
+!     build is the switch that makes them live, and they are a re-derivation
+!     rather than a port. world-9d1.
       parameter(ztaud=7200.)     ! adjustment time scale for deep c.
       parameter(ztaus=14400.)    ! adjustment time scale for shallow c.
       parameter(zbeta=1.0)       ! beta

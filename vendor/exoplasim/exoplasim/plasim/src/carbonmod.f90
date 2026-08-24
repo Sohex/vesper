@@ -23,6 +23,26 @@
 !                                ! weathering rate.
 ! #endif
 ! #endif
+!     THIS WHOLE MODULE IS FITTED TO EARTH, and it is dormant at NCARBON = 0,
+!     which is what every run of this project sets. `carbonstep` is still called
+!     every timestep; everything below the ncarbon test is what a nonzero
+!     NCARBON turns on. Recorded here because a dormant Earth constant reads
+!     exactly like a live one to whoever throws the switch. world-9d1.
+!
+!       CO2EARTH, PEARTH and VEARTH are Earth reference states the weathering
+!         law is expressed as a ratio against. They are the scheme's normalisation
+!         and are not wrong on their own; what they mean for a different
+!         atmosphere is undecided.
+!       RAD_EARTH and RAD_EARTHSQ sit beside a correct `plarad` in pumamod and
+!         are used for the surface area the outgassing is spread over. On this
+!         world they are wrong by the radius ratio squared.
+!       exp(kact*(tsurf - 288.0)) below takes 288 K as the reference surface
+!         temperature. That is Earth's global mean, not this world's.
+!       tune1 and tune2 are commented as a tuning adjustment to make the global
+!         average match, so they are fitted to Earth by construction.
+!
+!     Turning NCARBON on is a re-derivation of all of these, not a namelist
+!     change. dust-13's shape, for the carbon cycle.
       parameter(CO2EARTH=330.0)  ! Earth CO2 level in ubars
       parameter(RAD_EARTH=6371220.0) !Earth radius
       parameter(RAD_EARTHSQ=6371220.0*6371220.0) !Earth radius squared
@@ -170,7 +190,12 @@
       
       call mpbci(cstep)
       
-      localprecip(:) = (dprc(:) + dprl(:))*3.154e9 !cm/yr
+!     THE MODEL'S YEAR, not Earth's. 3.154e9 is Earth's seconds per year times
+!     100 to reach cm, and it stood two lines from a timeweight that correctly
+!     uses m_days_per_year, so the two disagreed by the ratio of the years --
+!     about a factor of two on this world. dprc and dprl are in m/s, so the
+!     conversion is the orbit in seconds times 100. world-9d1.
+      localprecip(:) = (dprc(:) + dprl(:))*m_days_per_year*day_24hr*100.0 !cm/yr
       localavgprecip(:) = localavgprecip(:) + localprecip(:)*timeweight
       
       

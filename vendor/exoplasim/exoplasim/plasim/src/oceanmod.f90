@@ -417,6 +417,15 @@
 !
 !     initialize lsg coupling
 !
+!     LSG IS UNREACHABLE ON THIS WORLD, and the abort below is why. It refuses
+!     unless n_days_per_year is exactly 360, which is a count of SIDEREAL DAYS
+!     PER ORBIT and is this planet's, not a setting. It is 146 here and cannot
+!     be 360 without changing the orbit or the rotation period. That is on top
+!     of the module not being compiled at all -- CMakeLists links the four-line
+!     src/lsgmod.f90 stub and cpl_stub.f90 -- and of lsg/src/lsgmod.f90 carrying
+!     Earth's g, radius, rotation rate, seawater density, freezing point and a
+!     density polynomial fitted to Earth's T and S range, and cpl.f90 being
+!     T21-only and Earth-radius-only by parameter. world-9d1.
       if (nlsg > 0) then
        call mpgagp(zls,yls,1)
        call ntomin(nstep,ndatim(5),ndatim(4),ndatim(3),ndatim(2)        &
