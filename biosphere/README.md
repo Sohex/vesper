@@ -26,7 +26,9 @@ implicit Earth assumptions below the port are in
 contract they are resolved against, with the class and the reader of every
 quantity that carries a year, is in `notes/time-base-unit-contract.md`, the soil decomposition, C-N-P and
 pedology/groundwater seams are audited in
-`notes/soil-decomposition-biogeochemistry-audit.md`, plant physiology and carbon
+`notes/soil-decomposition-biogeochemistry-audit.md`, every phosphorus constant
+the CNP fork runs on is registered with its source or its bracket in
+`notes/phosphorus-cycle-parameterisation.md`, plant physiology and carbon
 allocation are audited in `notes/plant-physiology-carbon-allocation-audit.md`,
 BVOC emissions, secondary organic aerosol and atmospheric coupling are audited
 in `notes/bvoc-soa-atmospheric-coupling-audit.md`, wetlands, peat and methane
@@ -75,6 +77,8 @@ a result.
 | input module | `vesperinput`, runs end to end and splits across MPI ranks; its 12-bin `VESPDRV5` transport is integration scaffolding to be replaced under EFOR-1 through EFOR-8 |
 | soil and water | pedology depth scales LPJ capacity and pedology AWC sets ExoPlaSim's scalar bucket at smoke scale, but the models independently derive hydraulic properties and run separate snow/soil water balances; LSHY-1 through LSHY-7 own the consistency work |
 | abiotic nutrients | rock P and dust mass have useful relative/source artifacts, but no absolute source-to-root-zone ledger exists; `phosphorus_budget.py` does not consume dust deposition, and ANUT-1 through ANUT-10 own weathering, initial stocks, atmospheric N/P, transport, other-nutrient screening and closure |
+| phosphorus parameters | every constant registered with its source or its bracket in `notes/phosphorus-cycle-parameterisation.md`; the uptake profile, the leaf C:P window and the root proportion are derived, the sapwood proportion and the two soil saturation thresholds are not, and `ifplim 1` fails closed naming them |
+| phosphorus sinks | leaching, fire and harvest only. Terminal occlusion is a DECLARED ABSENCE, argued in the same note, so a simulated soil that must be old carries its phosphorus depletion in its initial stocks rather than developing it |
 | run harness | written; records inputs, binary and model identity in its manifest |
 | albedo and forest feedback | modelled mode exists; rootable/lake and spectral corrections are BIO-17 and BIO-18 |
 | aerodynamic feedback | modelled roughness is open as BIO-16 |

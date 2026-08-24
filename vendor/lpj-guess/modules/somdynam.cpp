@@ -67,18 +67,46 @@ static const double NMASS_SAT = 0.002 * 0.05;
 // their minimum (nitrogen saturation) (Parton et al 1993, Fig. 4)
 static const double NCONC_SAT = 0.02;
 
-// The phosphorus saturation pair. Neither is derived for phosphorus.
+// The phosphorus saturation pair, and NEITHER IS DERIVED FOR PHOSPHORUS. They
+// are the fmax argument of setptoc(), the value of the driving pool at which a
+// SOM pool's C:P reaches its minimum, and they are the reason parameters.cpp
+// still refuses ifplim 1.
 //
-// PCONC_SAT carries NCONC_SAT's value exactly, so the litter P concentration at
-// which SOM C:P is driven to its minimum is the litter N concentration at which
-// SOM C:N is. PMASS_SAT carries the 0.002 that NMASS_SAT is built from, without
-// the 0.05 that turns it into a soil available-N pool, so it is neither the
-// nitrogen value nor a phosphorus one. The fork's own source offered 0.004 and
-// 0.002 * 0.001 as phosphorus candidates in commented-out lines, with no
-// citation and no derivation behind either; those lines are removed rather than
-// left as undated alternatives to grep past. Deriving both is a task row
-// against BIO-33, and P limitation is refused until they are, so nothing here
-// reaches a live result. parameters.cpp holds the refusal.
+// PCONC_SAT carries NCONC_SAT's value exactly. PMASS_SAT carries the 0.002 that
+// NMASS_SAT is built from, without the 0.05 that turns it into a soil
+// available-N pool, so it is neither the nitrogen value nor a phosphorus one.
+// The fork's own source offered 0.004 and 0.002 * 0.001 as phosphorus
+// candidates in commented-out lines, with no citation and no derivation behind
+// either.
+//
+// What each does to the model is worse than a wrong magnitude: each DISABLES
+// the ramp it belongs to, and they do it in opposite directions.
+//
+// PCONC_SAT is compared against litter_pmass / (litter_cmass * 2), so 0.02 is
+// reached only at a litter C:P of 25 by mass. Observed senesced-litter C:P is
+// 1219 by mass globally and 660 to 1596 across forest biomes (McGroddy et al.
+// 2004, Table 1, converted from molar), so the threshold is 26 to 64 times
+// below anything the model can produce and the surface microbial pool sits at
+// its MAXIMUM C:P of 80 always. The nitrogen constant is not in that position:
+// the same 0.02 is a litter C:N of 25 against an observed 57, a factor of 2.3,
+// so the nitrogen ramp does span.
+//
+// PMASS_SAT is compared against soil.pmass_labile, so 0.002 kgP/m2 is 2 gP/m2.
+// Yang et al. (2013) put global labile soil P at 3.6 PgP in the top half metre,
+// about 28 gP/m2, and this fork's own published run simulates 2.11 PgP, about
+// 16 gP/m2. The threshold is 8 to 14 times BELOW the pool it gates, so the
+// slow, passive and microbial pools sit at their MINIMUM C:P always. It also
+// doubles as the value pmass_labile is pinned to whenever P limitation is off,
+// which is what this project runs, so the reported labile P is an order of
+// magnitude low there for the same reason.
+//
+// Deriving them needs Parton, Stewart and Cole (1988), Biogeochemistry 5:
+// 109-131, doi:10.1007/BF02180320, which setptoc's own documentation cites and
+// which this project does not hold and could not obtain. What a
+// same-relative-position transfer off the nitrogen pair would give is recorded
+// in biosphere/notes/phosphorus-cycle-parameterisation.md and is NOT adopted
+// here, because it would calibrate phosphorus against a nitrogen threshold
+// whose own position is not derived either.
 static const double PMASS_SAT = 0.002;
 static const double PCONC_SAT = 0.02;
 
@@ -1151,11 +1179,31 @@ void somfluxes(Patch& patch, bool ifequilsom, bool tillage) {
 	//	soil.pmass_sorbed = 0.0;
 	//}
 
+	// Wang et al. (2010) Eq. D10, and the RECEIVING SIDE OF IT, which the fork
+	// left out: pmass_strongly_sorbed was declared, initialised, serialised and
+	// output, and read here, but never written anywhere in the tree. With it
+	// pinned at zero the back term vanished, so this was not a transfer between
+	// two pools but a first-order drain of the sorbed pool that could never shut
+	// off, at USORB per Earth year against a weathering input two orders of
+	// magnitude smaller. It closed the phosphorus balance only because pcont()
+	// excluded the destination pool and this line booked the difference as an
+	// ecosystem loss.
+	//
+	// Assigning the pool makes both terms real. USORB equals USSORB, so the
+	// strongly sorbed pool fills to the size of the sorbed pool and the net flux
+	// goes to zero, which is the behaviour the cited equation describes. The
+	// flux is an internal transfer and is no longer reported as a soil P loss;
+	// Patch::pcont() now counts the pool instead, and double-booking it would
+	// break the balance the two together close.
+	//
+	// This has no terminal sink beyond it. Occlusion is absent from this model
+	// by decision, not by oversight: see
+	// biosphere/notes/phosphorus-cycle-parameterisation.md.
 	double delta_strongly_sorbed = USORB * soil.pmass_sorbed - USSORB * soil.pmass_strongly_sorbed;
 
 	pmass_add(soil, -delta_strongly_sorbed);
 
-	patch.fluxes.report_flux(Fluxes::P_SOIL, delta_strongly_sorbed);
+	soil.pmass_strongly_sorbed += delta_strongly_sorbed;
 
 	//soil.pmass_labile_delta = 0.0;
 

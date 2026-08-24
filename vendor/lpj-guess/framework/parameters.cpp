@@ -1269,28 +1269,39 @@ void plib_callback(int callback) {
 		if (!itemparsed("ifwalkernplim")) badins("ifwalkernplim");
 		if (!itemparsed("freenyears")) badins("freenyears");
 
-		// Phosphorus limitation is refused until the phosphorus cycle has a
-		// parameterisation of its own.
+		// Phosphorus limitation is refused until every constant the phosphorus
+		// cycle runs on is a phosphorus constant.
 		//
-		// The C-N-P fork's P side was built by copying the N side, and the
-		// copies that remain are not cosmetic: PUPS_UPPER_ADV equals
-		// NUPS_UPPER_ADV, so P uptake competition among PFTs can only rank the
-		// way N uptake competition ranks; PFRAC_MINTOMAX, PFRAC_LEAFTOROOT,
-		// PFRAC_LEAFTOSAP and PFRAC_MAXTOMIN carry the C:N scalings, so leaf
-		// N:P is pinned; and PCONC_SAT carries NCONC_SAT, so litter P
-		// saturation is litter N saturation. Each of those is now named and
-		// documented where it lives, and each states what would settle it.
-		// Running with ifplim 1 before they are settled produces a P-limited
-		// world whose P limitation is N limitation under another name, and it
-		// produces it silently, which is worse than not running.
+		// The C-N-P fork's P side was built by copying the N side. Most of
+		// those copies are now separated and derived: PUPS_UPPER_ADV from the
+		// measured phosphorus-against-nitrogen soil profile contrast,
+		// PFRAC_MINTOMAX from the measured dispersion contrast in foliar C:P
+		// against foliar C:N, PFRAC_LEAFTOROOT kept because a global test could
+		// not separate root N:P from leaf N:P. Each carries its source and its
+		// bracket in guess.h, and each is BRACKETED rather than measured, so a
+		// run that uses them has to say which end of each bracket it is on.
 		//
-		// Deriving them is a task row against BIO-33. Lift this refusal in the
-		// same change that lands the derivations, not before.
+		// Three are not settled at all. PFRAC_LEAFTOSAP has no derivable
+		// scalar, because the one measurement of wood-against-leaf phosphorus
+		// scaling rejects the fixed-proportion form this constant assumes.
+		// PMASS_SAT and PCONC_SAT are the labile-P and litter-P saturation
+		// pair, and both disable the mechanism they belong to rather than
+		// merely mis-setting it: PMASS_SAT saturates it everywhere and
+		// PCONC_SAT can never be reached. Their source, Parton, Stewart and
+		// Cole (1988), is not held by this project.
+		//
+		// Running with ifplim 1 before those three are settled produces a
+		// P-limited world whose soil organic C:P is a constant and whose woody
+		// P demand is nitrogen's, and it produces it silently, which is worse
+		// than not running. Lift this refusal in the change that settles them,
+		// not before. BIO-34; the evidence is in
+		// biosphere/notes/phosphorus-cycle-parameterisation.md.
 		if (ifplim) {
-			sendmessage("Error", "ifplim 1 is refused: the phosphorus stoichiometry, "
-				"uptake profile and saturation constants still carry their nitrogen "
-				"values. See PFRAC_MINTOMAX and PUPS_UPPER_ADV in guess.h and "
-				"PCONC_SAT in somdynam.cpp, and TASKS.md BIO-33.");
+			sendmessage("Error", "ifplim 1 is refused: PFRAC_LEAFTOSAP in guess.h has no "
+				"phosphorus derivation, and PMASS_SAT and PCONC_SAT in somdynam.cpp "
+				"still carry nitrogen's saturation values, which disables the soil C:P "
+				"response entirely. See biosphere/notes/phosphorus-cycle-parameterisation.md "
+				"and BIO-34.");
 			plibabort();
 		}
 

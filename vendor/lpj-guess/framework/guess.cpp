@@ -612,8 +612,21 @@ double Patch::pcont(double scale_indiv, bool luc) {
 
 	pcont += soil.pmass_labile;
 	pcont += soil.pmass_sorbed;
-	//pcont += soil.pmass_strongly_sorbed;
-	//pcont += soil.pmass_occluded;
+	// Both of these were commented out of the sum. The strongly sorbed pool had
+	// to be, because somfluxes() drained phosphorus into it without ever writing
+	// it and booked the difference as a soil P loss; counting it here as well
+	// would have double-booked. It is written now, so it belongs in the content
+	// and the loss is no longer reported. The occluded pool is counted for
+	// completeness and is structurally zero: this model has no occlusion flux,
+	// which is a declared absence argued in
+	// biosphere/notes/phosphorus-cycle-parameterisation.md. A sum that already
+	// includes it is what makes adding one later a change to one file.
+	//
+	// This sum feeds MassBalance::check_patch_P(), which is declared in guess.h
+	// and called from nowhere in this tree, so it is a latent check and not a
+	// live one. That is why the omission could stand.
+	pcont += soil.pmass_strongly_sorbed;
+	pcont += soil.pmass_occluded;
 	pcont += soil.snowpack_pmass_labile;
 
 	for (int i = 0; i<NSOMPOOL; i++)
