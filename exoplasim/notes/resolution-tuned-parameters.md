@@ -10,9 +10,9 @@ branch on resolution, and they are not one phenomenon: **one is live and
 silently wrong above T42, one is unreachable code at every resolution, and two
 are narrow.**
 
-## 1. Hyperdiffusion: LIVE, and every rung above T42 gets T21's
+## 1. Hyperdiffusion: upstream gives every rung above T42 T21's, and this project overrides it
 
-`plasim.f90:1388` is the whole of the resolution dependence:
+`plasim.f90:1544` is the whole of the resolution dependence:
 
     if(NTRU==42) then
      nhdiff=16
@@ -24,7 +24,7 @@ are narrow.**
     endif
 
 There is no branch for T85, T127 or T170, so they fall through to the module
-defaults at `plasimmod.f90:383,816-819`, which are T21's:
+defaults at `plasimmod.f90:206,447,874-877`, which are T21's:
 
 | | T21 defaults, used at T85/T127/T170 | T42 branch |
 | --- | --- | --- |
@@ -44,7 +44,7 @@ the source -- `NHDIFF=16` in a T42 run and `NHDIFF=15` in a T170 one, with
 The units are NOT a problem, which is worth recording because they look like
 one. The T42 branch multiplies by `day_24hr` and the module defaults do not, so
 the echo shows 65664 at T42 against 5.6 at T170. `dayseccheck`
-(`plasim.f90:1588`) catches exactly that: below one timestep it assumes days and
+(`plasim.f90:1768`) catches exactly that: below one timestep it assumes days and
 converts, logging as it goes, and the T170 diag carries
 `assuming [days] - converting to [sec]` for all three. The values differ; the
 units do not.
@@ -56,9 +56,21 @@ T127 fails after twenty minutes at dt 22.5 and T170 after 3.8 at dt 30 -- so
 the hyperdiffusion inherited from T21 is a live candidate for the ladder's
 stability ceiling and has not been separated from the CFL limit.
 
+That prediction is refuted further down, and the branch is no longer what this
+project integrates. `config/planet.yaml` carries `model.hyperdiffusion` with a
+derived timescale table for every rung on the ladder;
+`run_exoplasim.py:declare_hyperdiffusion` writes `NDEL`, `NHDIFF` and the four
+`TDISS*` into `plasim_namelist` as layer-count-replicated lists and refuses a
+rung the table does not name, `continue_exoplasim.py` calls the same function so
+a continuation cannot drop them, and `scripts/check_consistency.py` compares the
+table against the rule it claims to come from. `readnl` reads the namelist AFTER
+applying the branch above and `initpm` builds the operator after that, so the
+override needs no source change and no rebuild. What the section describes is
+therefore a property of ExoPlaSim, not of a run this project prepares today.
+
 ## 2. Radiation: UNREACHABLE at every resolution, including T42
 
-`radmod.f90:909-980` sets shortwave transmissivities and the water-vapour
+`radmod.f90:968-1035` sets shortwave transmissivities and the water-vapour
 continuum per resolution -- `tswr1`, `tswr2`, `tswr3`, `th2oc` -- through a
 variable named `jtune`, with branches for T21/T1, T31 and T42. Every branch is
 guarded:
@@ -68,8 +80,8 @@ guarded:
     else
      ... tswr1=0.089 ... jtune=1
 
-`ndcycle` defaults to 1 at `radmod.f90:186`, and **the block runs at line 909
-while `read(11,radmod_nl)` is at line 988** -- seventy-nine lines later. So
+`ndcycle` defaults to 1 at `radmod.f90:205`, and **the block runs at line 968
+while `read(11,radmod_nl)` is at line 1056** -- eighty-eight lines later. So
 `ndcycle` is always its compiled default when the test is made, whatever the
 namelist says, and `jtune` is always 0.
 

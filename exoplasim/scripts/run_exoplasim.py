@@ -1246,7 +1246,7 @@ def declare_conversion_time_level(model, config: dict) -> bool:
 def declare_hyperdiffusion(model, config: dict) -> dict:
     """Write the derived horizontal diffusion, overriding the compiled branch.
 
-    ExoPlaSim hard-codes these for T21 and T42 only (`plasim.f90:1388`), and
+    ExoPlaSim hard-codes these for T21 and T42 only (`plasim.f90:1544`), and
     every finer rung silently falls through to T21's -- which at T170 is four
     times too weak at the truncation and, worse, damps at 41% of the LOCAL
     CASCADE RATE at half the truncation, because `nhdiff` is an absolute

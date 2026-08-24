@@ -79,7 +79,7 @@ This is the useful discovery. PlaSim's land surface is a bucket:
 
 - `landmod.f90:1097-1099`: `dwatc` accumulates, `drunoff = max(0, dwatc - dwmax)`,
   and `dwatc` is then clamped to `dwmax`.
-- `landmod.f90:52-53`: `drhsland = 0.25`, `drhsfull = 0.4`. The evaporation
+- `landmod.f90:103-104`: `drhsland = 0.25`, `drhsfull = 0.4`. The evaporation
   wetness factor `drhs` reaches 1 once soil water exceeds 40% of `dwmax`.
 - `seamod.f90:145`: over sea, `drhs = 1` outright.
 
@@ -172,7 +172,7 @@ Lever 2 says a large full bucket evaporates at open water's rate, so set `dwmax`
 from basin hypsometry. The first half is right and the prescription that follows
 from it is not.
 
-`drhs` reaches 1 once soil water exceeds **40% of `dwmax`** (`landmod.f90:52-53`).
+`drhs` reaches 1 once soil water exceeds **40% of `dwmax`** (`landmod.f90:103-104`).
 That threshold scales with the bucket, so a *deeper* bucket needs proportionally
 more water to reach the same wetness. Large is right for storage and wrong for
 wetness, and on this planet the two do not point the same way: the lakes sit in
@@ -187,7 +187,7 @@ bucket:
 
 - `dwatc` gains only from local precipitation minus evaporation
   (`landmod.f90:1097`).
-- Routed river water accumulates into `driver` (`landmod.f90:1390`), a separate
+- Routed river water accumulates into `driver` (`landmod.f90:1527`), a separate
   store that is advected downhill by `mkradv` and discharged at the coast.
 - Nothing returns `driver` to `dwatc`.
 

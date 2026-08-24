@@ -293,21 +293,26 @@ and `--purge` will not name it.
 
 ## 12. One Earth constant found on the way, which is not about resolution
 
-`oceanmod.f90:24` is `parameter(PLARAD=6.371E6)`. The module uses only `resmod`,
-not `pumamod`, so this is the ocean's ONLY definition of the planet radius and
-the configured value never reaches it. The grid there is angular, `dlam` being
-`2*pi/NLON` with `cphi` and `dphi` in radians, so `zfac = hdiffk/plarad/plarad`
-at `:1344` is what supplies the metric.
+`oceanmod.f90` carried `parameter(PLARAD=6.371E6)`. The module used only
+`resmod`, not `pumamod`, so this was the ocean's ONLY definition of the planet
+radius and the configured value never reached it. The grid there is angular,
+`dlam` being `2*pi/NLON` with `cphi` and `dphi` in radians, so
+`zfac = hdiffk/plarad/plarad` is what supplies the metric.
 
 At the declared 1.20 Earth radii, the simulated ocean's horizontal heat
-diffusion therefore runs 1.44 times stronger than the coefficient it is given:
-an arm labelled 1000 m2/s behaves as 1440.
+diffusion therefore ran 1.44 times stronger than the coefficient it was given:
+an arm labelled 1000 m2/s behaved as 1440.
+
+**Fixed by world-mll**: `hdiffo` takes the radius from `planet_nl` through
+`pumamod` (`oceanmod.f90:1376`, applied at `:1394`) and `oceanini` refuses
+`nhdiff > 0` with no radius (`:291-296`).
 
 `nhdiff` defaults to 0 in `oceanmod` and `config/planet.yaml` sets
 `horizontal_diffusion: false`, so no current run reaches it. `clim-16` was closed
-on a MEASURED 300/1000/3000 bracket, and those arms did reach it, so the
-diffusivity labels on that result are the ones affected. Its conservation claim
-does not depend on the coefficient's value and is untouched.
+on a MEASURED 300/1000/3000 bracket, and those arms did reach the old code, so
+the diffusivity labels on that result are the ones affected -- 432/1440/4320 is
+what ran. Its conservation claim does not depend on the coefficient's value and
+is untouched. world-vho is the relabelling.
 
 This belongs to the family in `notes/audits/inherited-earth-constants.md`, whose
 clean list does not cover `oceanmod`.
