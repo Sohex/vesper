@@ -66,6 +66,9 @@ purge-never-reaches-the-terrain property, run from `main()` with the rest):
    `pyfft991` are untracked f2py build artifacts tagged with a CPython ABI, so
    rebuilding the venv on a new interpreter invalidates them and every run then
    fails at postprocessing -- reported by ExoPlaSim as the MODEL crashing.
+12d. **The transform gates run the configured spectral filter.** The SHTns
+   drivers set `filterkappa` and `nfilterexp` as literals while claiming to run
+   the model's configuration; `filter_power` moved and they did not.
 13. **The tools `environment.md` names are actually on this host.** That
    document sends a reader to `ncdump`, NCO, `h5diff` and `yq` rather than a
    Python session, and nothing else checks the claim is true. Both
@@ -890,6 +893,51 @@ def check_configured_grid() -> list[str]:
     return []
 
 
+def check_gate_filter_matches_config() -> list[str]:
+    """A transform gate runs the spectral filter `config/planet.yaml` declares.
+
+    `verify_shtns_equivalence.f90` asserts "THE CONFIGURATION UNDER TEST IS THE
+    ONE THE MODEL RUNS" and then sets `filterkappa` and `nfilterexp` as
+    literals. `filter_power` moved from 8 to 16 in config and the three drivers
+    did not, so the gate certified a filter the model had stopped using and
+    said nothing about it.
+
+    The strength is not cosmetic to the verdict. Both arms of the comparison
+    carry the same `skspgp(n)`, so it divides out of a per-mode ratio, but the
+    gate's error is a field norm: the filter reweights the residual's spectrum
+    against a denominator the low modes own.
+    `exp(-kappa*x**16)/exp(-kappa*x**8)` peaks at `exp(kappa/4)`, which is 7.39
+    at kappa 8 and falls at `n/NTRU = (1/2)**(1/8) = 0.917` -- the mid-to-high
+    band where the SHTns residual is largest. A gate left at gamma 8 sees that
+    band at a seventh of the amplitude the shipped configuration gives it.
+
+    Both directions, so config and the drivers cannot drift apart in either.
+    """
+    import yaml
+    cfg = yaml.safe_load((ROOT / "config" / "planet.yaml").read_text(encoding="utf-8"))
+    model = cfg.get("model", {})
+    want = {"filterkappa": ("filter_kappa", float(model["filter_kappa"])),
+            "nfilterexp": ("filter_power", float(model["filter_power"]))}
+    assign = re.compile(r"^\s*(filterkappa|nfilterexp)\s*=\s*([0-9.eE+-]+)\s*(!.*)?$")
+    bad, seen = [], set()
+    for f in sorted((ROOT / "exoplasim" / "scripts").glob("*.f90")):
+        for i, line in enumerate(f.read_text(encoding="utf-8").splitlines(), 1):
+            m = assign.match(line)
+            if not m:
+                continue
+            key, got = m.group(1), float(m.group(2))
+            cfg_key, cfg_val = want[key]
+            seen.add(key)
+            if got != cfg_val:
+                bad.append(f"{f.relative_to(ROOT)}:{i}: {key} = {m.group(2)}, "
+                           f"but config/planet.yaml model.{cfg_key} is {cfg_val:g}")
+    for key, (cfg_key, _) in want.items():
+        if key not in seen:
+            bad.append(f"no driver under exoplasim/scripts sets {key}; the "
+                       f"config.{cfg_key} comparison has nothing to check")
+    return bad
+
+
 def check_restart_schema_covers_the_model() -> list[str]:
     """Every restart record the model writes has a policy, with the right reset.
 
@@ -1026,6 +1074,8 @@ def main() -> None:
                check_no_shadowed_imports(files)),
               ("the restart schema covers every record the model writes",
                check_restart_schema_covers_the_model()),
+              ("the transform gates run the configured spectral filter",
+               check_gate_filter_matches_config()),
               ("no artifact path carries a resolution literal",
                check_no_rung_literal_in_a_path(files)),
               ("the configured resolution matches its own grid dimensions",

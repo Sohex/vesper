@@ -64,7 +64,7 @@
       ngptfilter  = 1
       nspvfilter  = 1
       filterkappa = 8.0
-      nfilterexp  = 8
+      nfilterexp  = 16
       plavor      = EZ
       call legini
       call shtns_setup
