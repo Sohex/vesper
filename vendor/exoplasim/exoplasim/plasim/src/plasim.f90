@@ -825,9 +825,18 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !               The storm-capture block below writes one hcadencesp and one
 !               hcadencegp, which is the intended pattern.
                 call hcadencegp(141)
-!                 koutdiag=ndiaggp3d+ndiaggp2d+ndiagsp3d+ndiagsp2d+ndiagcf     &
-!      &                   +nentropy+nenergy
-!                 if(koutdiag > 0) call hcadencediag
+!               NO SCALAR AND NO DIAGNOSTIC RECORD, and that is the decision
+!               rather than a gap. The regular stream calls outsc beside outgp
+!               and the snapshot stream calls snapshotsc beside snapshotgp,
+!               because both are read as climate fields and want the orbital
+!               phase alongside them. This stream is not: it exists for the gust
+!               distribution DUST-5 needs, its postprocessed field list is the
+!               winds, its time axis comes from the code 139 record that
+!               hcadencegp already writes, and one orbit of it is 15 GB before
+!               anything is added. `hcadencesc` and `hcadencediag` are gone with
+!               the commented-out call that used to stand here; a stream that
+!               wants the orbital scalars can call outsc's codes itself.
+!               world-4vp.
              endif
            endif
          endif

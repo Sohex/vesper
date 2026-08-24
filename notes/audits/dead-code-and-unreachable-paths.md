@@ -410,11 +410,14 @@ migration and are live; this is not transform fallout.
 
 `earthveg` (`specblock.f90:1426-1747`) is 322 lines of spectral data referenced
 by no file in the tree; the other thirteen arrays in that module are read by
-`radmod.f90`. `hcadencediag` (`outmod.f90:2320-2427`) has one call site and it
-is commented out at `plasim.f90:807-809`. `hcadencesc` (`outmod.f90:2178-2201`)
-has none at all, which is a gap rather than only waste: the ordinary and
-snapshot output paths each call a scalar writer beside the gridpoint one, and
-the high-cadence path does not, so that stream writes no scalar record.
+`radmod.f90`. `hcadencediag` and `hcadencesc` are gone, with the commented-out
+call that was `hcadencediag`'s only call site. The high-cadence stream writes no
+scalar record and wants none: it exists for the gust distribution DUST-5 needs,
+its postprocessed field list is the winds, and its time axis comes from the code
+139 record `hcadencegp` already writes -- which is what
+`aeolian/scripts/extract_high_cadence_wind.py` keeps and what pyburn counts to
+build the axis. The ordinary and snapshot streams call a scalar writer because
+they are read as climate fields and want the orbital phase; this one is not.
 `outdiag.f90` is an orphan file duplicating the live `outdiag` at
 `outmod.f90:1096`, and adding it to the build would be a duplicate-symbol error.
 

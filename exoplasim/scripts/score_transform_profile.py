@@ -123,7 +123,7 @@ BUCKETS: dict[str, tuple[str, ...]] = {
         "outgp_", "outsp_", "outsc_",
         "writegp_", "writesp_", "writescalar_", "write_short_", "writecolumn_",
         "snapshotgp_", "snapshotsp_", "snapshotsc_", "snapshotdiag_",
-        "hcadencegp_", "hcadencesp_", "hcadencesc_", "hcadencediag_",
+        "hcadencegp_", "hcadencesp_",
         "mpwritegp_", "mpwritegph_", "mpwritesp_", "mpreadgp_", "mpreadsp_",
     ),
     "startup": (
