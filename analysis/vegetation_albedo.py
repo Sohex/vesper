@@ -77,6 +77,19 @@ TAILS = (0.2, 4.0)              # padded range; tail reflectance for a leaf
 TAIL_REFLECTANCE = 0.05         # right order in both tails: dark in UV and SWIR
 EARTH_SUN_ENDMEMBER = 0.15      # the value this derivation replaces
 
+# The other two endmembers named in the same sentence of
+# `notes/audits/inherited-earth-constants.md` finding 1, and left behind when
+# 0.15 was re-weighted: `build_surface_albedo.py`'s full-tree-cover and
+# full-grass-cover albedos, which are what `--mode modelled` blends. Same kind
+# of quantity as 0.15, so they take the same correction.
+#
+# The POPULATION ratio and not the per-class one. The per-class truncated
+# ratios are 1.105 for tree and 1.099 for grass against 1.100 for the whole
+# leaf set, a spread of 0.006 in ratio and 0.001 in albedo, and the grass class
+# has n = 4. A per-class ratio is not better resolved than the effect it would
+# be claiming to separate.
+COVER_ENDMEMBERS = {"tree": 0.13, "grass": 0.19}
+
 # The audit's own numbers, reproduced as a check that can fail: if this script
 # stops matching notes/audits/inherited-earth-constants.md finding 1, one of
 # the two is wrong and the disagreement must not be averaged over.
@@ -209,6 +222,11 @@ def main() -> None:
         "earth_sun_endmember": EARTH_SUN_ENDMEMBER,
         "vegetation_albedo": value,
         "vegetation_albedo_bracket": bracket,
+        "cover_albedo": {k: round(v * ratio_t, 3)
+                         for k, v in COVER_ENDMEMBERS.items()},
+        "cover_albedo_earth_sun": dict(COVER_ENDMEMBERS),
+        "cover_albedo_bracket": {k: [v, round(v * ratio_p, 3)]
+                                 for k, v in COVER_ENDMEMBERS.items()},
         "vegetation_albedo_bands": bands,
         "band_shape_from_leaf": [round(shape1, 4), round(shape2, 4)],
         "band1_flux_fraction_full_spectrum": round(f1, 4),
@@ -217,7 +235,9 @@ def main() -> None:
                  "leaf ratio upper-bounds the correction, so the bracket runs "
                  "from the uncorrected Earth-Sun endmember to the tails-carried "
                  "leaf ratio. The band pair is the same integrals split at "
-                 "0.75 um, anchored to the broadband value."),
+                 "0.75 um, anchored to the broadband value. cover_albedo "
+                 "applies the same ratio to the tree and grass endmembers "
+                 "build_surface_albedo.py blends in --mode modelled."),
     }
     OUTPUT.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
 
@@ -227,6 +247,9 @@ def main() -> None:
     print(f"  ratio {ratio_t:.4f} truncated, {ratio_p:.4f} with tails "
           f"(audit: {AUDIT['ratio_truncated']}, {AUDIT['ratio_tails']})")
     print(f"  vegetation_albedo {value} bracket {bracket} bands {bands}")
+    for cls, v in COVER_ENDMEMBERS.items():
+        print(f"  {cls}_albedo {report['cover_albedo'][cls]} "
+              f"bracket {report['cover_albedo_bracket'][cls]}")
     print(f"  band recombination residual {recombined - value:+.4f} "
           f"at f1 = {f1:.4f}")
     print(f"wrote {OUTPUT.relative_to(ROOT)}")

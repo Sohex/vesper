@@ -1,5 +1,5 @@
 {
-  "generated": "2026-08-19",
+  "generated": "2026-08-24",
   "generator": "analysis/vegetation_albedo.py",
   "spectrum": "exoplasim/inputs/stellarspectra/k25v_hr.dat",
   "spectrum_sha256": "50729d2432316108c45332eac45e6d36e7b6f7fd0c34c854bfc822533119cb51",
@@ -38,6 +38,24 @@
     0.15,
     0.171
   ],
+  "cover_albedo": {
+    "tree": 0.143,
+    "grass": 0.209
+  },
+  "cover_albedo_earth_sun": {
+    "tree": 0.13,
+    "grass": 0.19
+  },
+  "cover_albedo_bracket": {
+    "tree": [
+      0.13,
+      0.148
+    ],
+    "grass": [
+      0.19,
+      0.217
+    ]
+  },
   "vegetation_albedo_bands": [
     0.075,
     0.225
@@ -48,5 +66,5 @@
   ],
   "band1_flux_fraction_full_spectrum": 0.3846,
   "band_recombination_residual": 0.0023,
-  "note": "The ratio, not the level, transfers from leaf to canopy; the leaf ratio upper-bounds the correction, so the bracket runs from the uncorrected Earth-Sun endmember to the tails-carried leaf ratio. The band pair is the same integrals split at 0.75 um, anchored to the broadband value."
+  "note": "The ratio, not the level, transfers from leaf to canopy; the leaf ratio upper-bounds the correction, so the bracket runs from the uncorrected Earth-Sun endmember to the tails-carried leaf ratio. The band pair is the same integrals split at 0.75 um, anchored to the broadband value. cover_albedo applies the same ratio to the tree and grass endmembers build_surface_albedo.py blends in --mode modelled."
 }
