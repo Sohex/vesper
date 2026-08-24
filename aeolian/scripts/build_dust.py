@@ -440,12 +440,35 @@ def source_fractions(config: dict, cfg: dict, lakes: Path,
     substrate = export.field("substrate_class")
 
     weights = cfg["source"]["erodible_weight"]
+    # THE AEOLIAN ROUGHNESS IS PER LITHOLOGY, and it is carried alongside the
+    # erodibility because it is the same mosaic: a clastic playa is a smooth
+    # clay plain and an evaporite pan is an embossed salt crust, and across the
+    # old single scalar's bracket the emission moved by a factor of 370,000.
+    # world-c8m. `by_class` gives (low, central, high) for each named class;
+    # anything unnamed falls back to the scalar and its bracket, so a class
+    # added to `erodible_weight` without a roughness is not silently given one.
+    by_class = cfg["drag_partition"].get("aeolian_z0_by_class_m", {})
+    dp_scalar = cfg["drag_partition"]
+    fallback = (dp_scalar["aeolian_z0_bracket_m"][0], dp_scalar["aeolian_z0_m"],
+                dp_scalar["aeolian_z0_bracket_m"][1])
     erodible = np.zeros(substrate.shape[0])
+    # ln(z0) per region, one plane per bracket end. Geometric because the drag
+    # goes as 1/ln(z/z0), so it is ln(z0) that averages over a patchwork.
+    ln_z0 = np.zeros((3, substrate.shape[0]))
     per_class = {}
+    z0_used = {}
     for code, w in weights.items():
         mask = substrate == ids[code]
         per_class[code] = float(w)
         erodible[mask] = w
+        entry = by_class.get(code)
+        if entry is None:
+            ends = fallback
+        else:
+            ends = (entry["bracket"][0], entry["z0"], entry["bracket"][1])
+        z0_used[code] = [float(e) for e in ends]
+        for j, e in enumerate(ends):
+            ln_z0[j, mask] = np.log(float(e))
     # Standing water removes a region from the source entirely: a flooded playa
     # emits nothing, which is the seasonal half of why fill is not all source.
     with Dataset(lakes) as ds:
@@ -489,14 +512,28 @@ def source_fractions(config: dict, cfg: dict, lakes: Path,
         erodible_of_cell = np.where(total_area > 0, erod_area / total_area, 0.0)
     land_fraction = np.where(total_area > 0, land_area / total_area, 0.0)
 
+    # The cell's aeolian roughness, weighted by what actually emits there. A
+    # cell with no erodible area keeps the central scalar and emits nothing, so
+    # the value there is a placeholder rather than a claim.
+    z0_cell = np.empty((3, ncell))
+    wgt = np.zeros(ncell)
+    np.add.at(wgt, cell[is_land], (area * erodible)[is_land])
+    for j in range(3):
+        acc = np.zeros(ncell)
+        np.add.at(acc, cell[is_land], (area * erodible * ln_z0[j])[is_land])
+        with np.errstate(invalid="ignore", divide="ignore"):
+            z0_cell[j] = np.where(wgt > 0, np.exp(acc / np.maximum(wgt, 1e-300)),
+                                  fallback[1])
+
     detail = {}
     for code in weights:
         detail[code] = land_fraction_of_class(
             export, grid_dir, substrate == ids[code]).tolist()
     detail["pavement_region_fraction"] = pavement_fraction
+    detail["aeolian_z0_by_class_m"] = z0_used
     return (erodible_of_cell.reshape(nlat, nlon),
             land_fraction.reshape(nlat, nlon), per_class, detail,
-            export.terrain_hash)
+            export.terrain_hash, z0_cell.reshape(3, nlat, nlon))
 
 
 def main() -> None:
@@ -582,8 +619,8 @@ def main() -> None:
         raise SystemExit("too few usable time bins; refusing to guess a climate")
 
     clay = soil_clay_grid(soilmap(config), lat, lon)
-    erodible, land_fraction, per_class, class_detail, terrain = source_fractions(
-        config, cfg, lakes, args.surface_classes)
+    (erodible, land_fraction, per_class, class_detail, terrain,
+     z0_cell) = source_fractions(config, cfg, lakes, args.surface_classes)
 
     # The lowest model level's height, from the model's own sigma coordinate
     # through the hypsometric relation. Assuming 10 m would misstate u* by the
@@ -671,9 +708,12 @@ def main() -> None:
         cfg["subgrid_wind"]["weibull_shape"] = k_measured
     if args.weibull_shape is not None:
         cfg["subgrid_wind"]["weibull_shape"] = float(args.weibull_shape)
-    ends = [("low", dp["aeolian_z0_bracket_m"][0]),
-            ("central", dp["aeolian_z0_m"]),
-            ("high", dp["aeolian_z0_bracket_m"][1])]
+    # THE ARMS ARE THE BRACKET ENDS OF EVERY CLASS AT ONCE, as fields rather
+    # than scalars: `z0_cell` carries one plane per end, each an erodible-area
+    # weighted geometric mean of the per-lithology roughness. A cell of pure
+    # clastic playa and a cell of pure evaporite therefore sit at different
+    # roughnesses within the same arm, which is the whole point of world-c8m.
+    ends = [("low", z0_cell[0]), ("central", z0_cell[1]), ("high", z0_cell[2])]
 
     w = np.cos(np.deg2rad(lat))[:, None] * np.ones((1, nlon))
     is_land = land_fraction > 0.5
@@ -725,7 +765,19 @@ def main() -> None:
         emit_annual = climatology.masked_mean(emission, bin_centres, good)
         emit_mean = gmean(emit_annual)
         outcomes[shelter] = {
-            "aeolian_z0_m": z0a,
+            # A FIELD, so it is reported as one: the erodible-weighted
+            # geometric mean over emitting cells, and the range across them.
+            # A single number here would hide that a clastic playa and an
+            # evaporite pan sit at different roughnesses in the same arm.
+            "aeolian_z0_m": {
+                "erodible_weighted_geometric_mean": float(np.exp(
+                    (np.log(z0a) * erodible).sum()
+                    / max(float(erodible.sum()), 1e-30))),
+                "min_over_emitting_cells": float(z0a[erodible > 0].min())
+                if np.any(erodible > 0) else None,
+                "max_over_emitting_cells": float(z0a[erodible > 0].max())
+                if np.any(erodible > 0) else None,
+            },
             "global_emission_Tg_per_earth_year":
                 round(emit_mean * EARTH_YEAR_S * planet_area / 1e9, 3),
             "land_mean_aod": round(gmean(aod_annual, is_land), 5),
@@ -769,6 +821,10 @@ def main() -> None:
         ],
         "source_map": {
             "erodible_weights": per_class,
+            # The roughness each class carried, so a result is readable without
+            # the config it was run against. world-c8m.
+            "aeolian_z0_by_class_m": class_detail.get(
+                "aeolian_z0_by_class_m", {}),
             "erodible_fraction_of_land": round(gmean(erodible, is_land), 5),
             "land_fraction": round(gmean(land_fraction), 4),
         },
@@ -891,8 +947,10 @@ def run_one(good, z0_aeolian, cfg, nbin, nlat, nlon, frac_bin, d_bin, rho_p, u_b
         # MB95 still partitions stress between the bed and whatever roughness
         # the patch itself carries, which is the ratio of its own z0 to the
         # smooth-bed value. A patch at the smooth limit keeps all of it.
+        # `z0_aeolian` is a FIELD now, one roughness per cell from the erodible
+        # lithology mosaic, so it broadcasts rather than filling a constant.
         u_star_soil = u_star_patch * drag_efficiency(
-            np.full_like(u_star_patch, z0_aeolian), cfg)
+            np.broadcast_to(z0_aeolian, u_star_patch.shape), cfg)
 
         u_st = em_cfg["u_star_st_typical_m_s"] * gravity_threshold_scaling(
             em_cfg, gravity)

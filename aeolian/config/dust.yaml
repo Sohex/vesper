@@ -184,6 +184,57 @@ drag_partition:
   # about what that arm is: the no-sheltering LIMIT, not a surface anyone expects
   # to find. world-494.
   aeolian_z0_bracket_m: [3.3e-6, 1.0e-3]
+  # PER ERODIBLE LITHOLOGY, each sourced, because the scalar above was the whole
+  # of the answer: across its old bracket the emission moved by a factor of
+  # 370,000 and nothing else in the calculation is close to that leverage
+  # (world-c8m). The two classes this world's `source.erodible_weight` names are
+  # not the same surface and the literature says so directly.
+  #
+  # Marticorena et al. (1997), on Saharan paleolakes: lakes fed by streams
+  # "loaded with detritic sediments became clayey plains with SMOOTH SURFACES",
+  # while "paleolakes, fed by superficial gypseous water, became EMBOSSED
+  # TOPOGRAPHY, sensitive to weathering", and the present features of sebkhas
+  # "vary, depending on their salt content and on the experienced periods of
+  # drying and moistening". A clastic playa and an evaporite pan are a smooth
+  # surface and a rough one, and the second is the more variable.
+  #
+  # The values are aerodynamic roughness lengths of the ERODIBLE PATCH, which is
+  # what `drag_efficiency` takes -- not the grid-cell roughness. Cells combine
+  # them as an erodible-area-weighted GEOMETRIC mean, because the drag goes as
+  # 1/ln(z/z0) and it is ln(z0) that averages.
+  aeolian_z0_by_class_m:
+    playa_clastic:
+      z0: 3.0e-5
+      bracket: [1.0e-5, 1.0e-4]
+      # Prigent et al. (2005): the Bodele and Chott Djerid enclosed depressions,
+      # which are the Sahara's strongest dust sources, "could have been lakes
+      # during former wet climate periods, allowing accumulation of sediments.
+      # For those regions it can be expected that the surface is relatively
+      # smooth, with low roughness parameters." Their Table 1's smoothest
+      # entries are 2.3e-3 cm and 4.0e-3 cm, and they record that "a low surface
+      # roughness on the order of 0.001 cm is used to describe active dust
+      # sources", which is the 1e-5 m low end. The 1e-4 m high end is where they
+      # put the sand-desert boundary, "z0 below ~0.02 cm", stepped down one
+      # order because a clay plain is smoother than a sand sheet.
+      source: prigent2005 table 1 and section 4.1; marticorena1997 section 3.2.2
+    evaporite:
+      z0: 1.4e-4
+      bracket: [5.3e-5, 3.9e-4]
+      # MacKinnon et al. (2004) measured this surface directly. Their site 208
+      # is a playa carrying `saltpush` -- "salt push-ups or ridges created by
+      # expanding salt and clay crusts on playa surfaces", 2 cm high, 0.5 cm
+      # wide, 5 cm apart -- and it is the strongest sheltering species there,
+      # threshold friction velocity ratio 0.75 against 0.98 and 0.99 for the
+      # sparse bushes beside it. The aerodynamically derived z0 at that site is
+      # 0.014 cm with a range of 0.0053 to 0.039 cm over the measurement set,
+      # which is this central value and this bracket unchanged.
+      #
+      # It is five times the clastic value and its bracket is wider, which is
+      # the embossed-topography half of the Marticorena distinction above.
+      # Prigent et al. (2005) corroborate the roughness indirectly: the salt
+      # desert of Dasht-e Kevir "does not appear as a smooth surface on the ERS
+      # map, maybe because of specific properties of salty soils."
+      source: mackinnon2004 tables 1 and 2, site 208
 # --- the subgrid wind distribution -------------------------------------------
 #
 # NOT OPTIONAL, and the reason is arithmetic rather than taste. Emission goes as
