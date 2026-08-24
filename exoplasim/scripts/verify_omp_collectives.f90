@@ -85,9 +85,16 @@
          enddo
       endif
 
-!     ---- a thread must receive the latitudes ilatperm says it does ----
+!     ---- a thread must receive a CONTIGUOUS block of latitudes ---------
+!     Thread r holds global latitudes r*NLPP+1 .. (r+1)*NLPP, which is the
+!     placement contract every routine that indexes a band by arithmetic
+!     rather than by a lookup depends on. The round trip above cannot see
+!     this: a scatter and a gather that share one permutation are still
+!     mutually inverse, so they compose to the identity while every thread
+!     holds latitudes other than the ones it is assumed to hold. Reading the
+!     scattered array directly is the only thing that separates the two.
       do jl = 1 , NLPP
-         iwant = ilatperm(mypid*NLPP + jl)
+         iwant = mypid*NLPP + jl
          if (zhor(1+(jl-1)*NLON) /= real(1+(iwant-1)*NLON)) then
             call failed('mpscgp latitude placement', nfail)
             exit
