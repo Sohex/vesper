@@ -610,6 +610,7 @@ one_offs:
   - exoplasim/scripts/reset_restart_accumulators.py
   - exoplasim/scripts/scale_restart.py
   - exoplasim/scripts/dry_energy_order.py
+  - exoplasim/scripts/transform_exactness.py
   - exoplasim/scripts/restart_surface.py
   - hydrography/scripts/validate_lake_solver.py
   - hydrography/scripts/build_earth_wtd_sites.py

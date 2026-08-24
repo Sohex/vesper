@@ -710,3 +710,98 @@ NOT AVAILABLE, and worth stating so it is not attempted: parking a decomposition
 in unused `denergy` slots. All 28 are written somewhere, and radiation writes 9
 and 10 in `gridpointd`, which runs after `spectrala` and would overwrite them
 before output.
+
+## The transform is exonerated, and the loss is in the conversion
+
+The instrumentation went to `gridpointa` and came back with a refutation.
+
+**The quadrature is exact.** The sink is a global-mean enthalpy loss, and the
+global-mean temperature tendency comes through exactly one gridpoint field: in
+`mktend` the (0,0) mode picks up neither the `fmm` term, which carries a factor
+m, nor the `qmat` term, whose derivative vanishes there. So the transform can
+only carry the sink if the quadrature that forms that mean is inexact. It is
+not. `exoplasim/scripts/transform_exactness.py` builds each term twice from the
+same T42 coefficients, once on the model's 64x128 grid and once on a 192x384
+grid where the quadrature is exact to far higher degree, and every term agrees:
+the quadratic products at 5e-15, `rcsq * U * dlnps/dlam` at 1e-15, and
+`exp(ln ps)` at 4e-11. The two controls could have failed and did not -- a pure
+quadratic, which the grid is built to dealias, and a cubic, which it is not,
+but whose global mean needs only degree 126 against a 64-point rule exact to
+127.
+
+So the cubic aliasing this note reached for is real in the tendency FIELD and
+absent from its global mean, which is the only part the sink can come from.
+
+**The budget closes everywhere except one term.** In the dry adiabatic run
+`spectrald` books +0.4177 to enthalpy, and that is exactly `denergy24` +
+`denergy23` + `denergy25` -- spectral diffusion of heat plus the two friction
+terms `mkdheat` converts. The kinetic side loses the same 0.1797 to friction.
+Against the state, enthalpy trends at -0.6149, kinetic at -0.0430 and the
+orographic term at -0.0006 for a total of -0.6585, and the terms reproduce that
+to five percent by two independent routes.
+
+**What is left is `denergy26 - denergy27`, and it is not a failed cancellation.**
+Across `spectrala` the enthalpy falls at 1.0135 W/m2 while the kinetic energy
+gains only 0.1472. The conversion between them, computed from the model's own
+state rather than from either diagnostic -- omega from continuity on the refined
+grid, against the specific volume -- comes to 0.45 +/- 0.22 W/m2. So neither
+side matches it: the thermal side loses about 0.56 more than the conversion
+accounts for and the kinetic side gains about 0.30 less, and the two shortfalls
+sum to the 0.87 that goes missing. This is not one side of a large cancellation
+being slightly wrong. It is a conversion whose two ends are discretised in
+different variables and do not meet.
+
+`wap` cannot be used for this and was not: the postprocessed vertical velocity
+has an RMS of 2.6e-4 Pa/s where the divergence field implies 7e-2, a factor of
+266, with a best-fit scale of 73 against a crude reference. That is a defect in
+the diagnostic, not in the model, and it is tracked separately.
+
+### The amplitude ladder, and why it does not run
+
+Each candidate term enters the energy tendency at a different power of the flow
+amplitude, so multiplying the state and re-measuring would name the term by an
+exponent fixed in advance. `scale_restart.py` and `dry_energy_order.py` were
+built for it and both are kept, because the machinery is sound and the finding
+that killed the experiment is worth having.
+
+**A scaled state is not a state this model will run.** At 0.5 and at 0.25 the
+surface layer reached negative absolute temperatures within seconds and the run
+took SIGFPE on `log(z/z0)`. Scaling one field group at a time located it exactly:
+scaling the winds alone kills it, scaling temperature alone or humidity alone
+does not. That is thermal-wind balance -- a quarter of the wind against the full
+temperature gradient is not a state, and the adjustment radiates gravity waves
+that blow the model up at dt 22.5.
+
+Scaling everything together does not save it either, and finding out why
+produced the one durable fact in this section: **ln(ps) is 96 percent
+orographic.** Regressed on `so` across its coefficients it gives R^2 = 0.96,
+because surface pressure is mostly a statement about how much atmosphere stands
+above the terrain. Temperature and humidity carry no terrain signature at all,
+below 0.005 at every level. So `scale_restart.py` projects the orographic
+component out of ln(ps) and holds it -- but holding it while scaling the winds
+is the same imbalance by another route, and the first attempt, which scaled
+ln(ps) whole, lost one percent of the atmosphere's MASS. The mass drift is what
+caught it.
+
+The one arm that survived at 0.7 is therefore not evidence either: its eddy
+kinetic energy came out more than double the unscaled run's, which is an
+adjustment and not a scaled flow.
+
+### What the decay says, and why it is not enough
+
+A dry adiabatic atmosphere has no source. With the radiation emptied there is
+nothing to maintain the temperature gradient the eddies feed on, so the flow
+decays -- by a factor of four over one orbit -- and one run sweeps a range of
+amplitudes on its own, in balance the whole way. The sink declines with it,
+tracking total kinetic energy at r = 0.96 with an exponent of 1.84, which is
+close to a fourth power in amplitude. But everything in a decaying flow decays
+together: eddy kinetic energy falls to 0.489 of its value, the zonal mean to
+0.627, the tail above 0.6 of the truncation to 0.313, and the sink to 0.483.
+The measures are collinear and they do not fall in proportion, so no single
+amplitude is being traced and the exponent from any one of them is an artefact
+of which one was chosen. Recorded as suggestive, not as attribution.
+
+The state's own spectral tail is separately excluded as the controlling
+variable: across the dry arms it moves by 1.3x while the sink moves by 2.4x,
+and the unfiltered arm carries 22 percent LESS total eddy energy than the
+filtered one while sinking 2.4 times as fast.

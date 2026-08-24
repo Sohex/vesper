@@ -133,6 +133,10 @@ def main() -> int:
     ap.add_argument("dest", type=Path)
     ap.add_argument("--factor", type=float, required=True,
                     help="multiplier on the flow; 1.0 rewrites the file unchanged")
+    ap.add_argument("--only", default=None,
+                    help="scale only these records, comma separated, out of the "
+                         "groups above. For isolating which field a failure "
+                         "comes from; the default scales the whole state")
     ap.add_argument("--report", type=Path, default=None,
                     help="write a JSON provenance record here")
     args = ap.parse_args()
@@ -161,7 +165,10 @@ def main() -> int:
     out = bytearray(raw)
     touched = {}
     projections = {}
+    wanted = None if args.only is None else {n.strip() for n in args.only.split(",")}
     for name in SCALE_WHOLE + SCALE_ANOMALY + SCALE_RESIDUAL:
+        if wanted is not None and name not in wanted:
+            continue
         idx = names.get(name)
         if idx is None:
             raise SystemExit(f"record {name!r} is absent; refusing to scale a "
@@ -189,6 +196,7 @@ def main() -> int:
         "dest": str(args.dest),
         "dest_sha256": digest,
         "factor": args.factor,
+        "only": args.only,
         "nrsp": nrsp,
         "scaled_whole": list(SCALE_WHOLE),
         "scaled_anomaly_mean_held": list(SCALE_ANOMALY),

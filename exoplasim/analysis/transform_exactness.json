@@ -1,0 +1,65 @@
+{
+  "note": "quadrature exactness of the model's nonlinear terms, for world-bxr. exoplasim/scripts/transform_exactness.py",
+  "generated": "2026-08-24T04:14:50.706408+00:00",
+  "run": "run_329c5fa3fe73",
+  "truncation": 42,
+  "grid": [
+    64,
+    128
+  ],
+  "reference_grid": [
+    192,
+    384
+  ],
+  "time_index": 20,
+  "level_index": 8,
+  "round_trip_U": 2.829202895521311e-07,
+  "round_trip_ua": 0.05734248618323687,
+  "roundoff_threshold": 1e-10,
+  "terms": [
+    {
+      "term": "CONTROL quadratic  T*U",
+      "coarse": 851.8703270051486,
+      "fine": 851.8703270051399,
+      "relative_error": 4.8382010298594654e-15,
+      "control": true
+    },
+    {
+      "term": "CONTROL cubic      U*V*T",
+      "coarse": -10.907040382349352,
+      "fine": -10.907040382349537,
+      "relative_error": 3.6485063703528953e-17,
+      "control": true
+    },
+    {
+      "term": "gke      U*U + V*V",
+      "coarse": 45.478321197486366,
+      "fine": 45.47832119748585,
+      "relative_error": 5.626431929080026e-15,
+      "control": false
+    },
+    {
+      "term": "zvgpg    rcsq*U*dlnps/dlam",
+      "coarse": -0.1622423780032436,
+      "fine": -0.16224237800325367,
+      "relative_error": 1.0572490155485263e-15,
+      "control": false
+    },
+    {
+      "term": "gp       exp(lnps)",
+      "coarse": 97538.49350677425,
+      "fine": 97538.49350318716,
+      "relative_error": 3.741446156088686e-11,
+      "control": false
+    },
+    {
+      "term": "rcsq*(U*U+V*V)",
+      "coarse": 136.83185752990732,
+      "fine": 136.83185752990758,
+      "relative_error": 8.019820865326237e-16,
+      "control": false
+    }
+  ],
+  "controls_failed": [],
+  "verdict": "the quadrature is exact for every term formed here"
+}
