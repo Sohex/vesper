@@ -8,8 +8,21 @@ Worldbuilding. Vesper is an invented planet and this script is about the
 simulation of it: whether the climate model gives the same bytes twice from the
 same inputs. Nothing here is a claim about the world.
 
-CLIM-44. This exists because two measurements of this project's own model
-disagree, and every A/B this project runs depends on which of them is general:
+CLIM-44, RE-DERIVED OVER THREAD COUNTS. The question -- does the model give the
+same bytes twice, and what decides it -- is the same question under any runtime,
+and it has to be re-asked under this one. `world-38b` removed the MPI build, so
+the parallel width is now a THREAD count and the arms below are threads. That is
+not a relabelling: ranks had one address space each and threads share one, so
+the class of defect that can produce a run-to-run difference is different, and
+the answer CLIM-44 got under MPI does not carry over.
+
+`exoplasim/analysis/reproducibility_matrix.json` and
+`notes/audits/model-reproducibility.md` hold the MPI answer. They are a record
+of a runtime this project no longer has: the verdict there is not evidence about
+the threaded model, and re-running this script is what replaces it.
+
+The original disagreement this was built to settle, kept because the design
+below is answerable to it:
 
 - CLIM-39, at T42 L10 on **8 ranks** with output ON, found gridpoint output
   bit-identical at 1 timestep and DIFFERENT by 16, and found `plasim_status`
@@ -49,7 +62,7 @@ sweep would confound whichever two it holds fixed:
 
 | factor | levels |
 | --- | --- |
-| ranks | 8, 16 |
+| threads | 8, 16 |
 | output | `NOUTPUT`/`NSNAPSHOT` 0, or the production 1 |
 | steps | derived from the write cadence, see below |
 
@@ -82,17 +95,31 @@ bytes are equal or they are not.
 Each hypothesis owns a pattern, and the matrix can refute all three:
 
 - **H1, writing output is what does it.** Cells at `NOUTPUT = 0` reproduce and
-  cells at `NOUTPUT = 1` do not, at BOTH rank counts.
-- **H2, MPI reduction ordering at 8 ranks.** Cells at 8 ranks do not
-  reproduce and cells at 16 ranks do, at both output settings.
+  cells at `NOUTPUT = 1` do not, at BOTH thread counts.
+- **H2, a residual race in the shared spectral state.** Cells at 16 threads do
+  not reproduce and cells at 8 do, at both output settings: more threads is
+  more interleavings and more chances for an unsynchronised read.
+
+  This is NOT the MPI hypothesis renamed, and the difference is the reason it
+  had to be re-derived rather than relabelled. Under MPI the candidate was
+  reduction ORDERING, because `MPI_Reduce` may associate in any order it likes.
+  The threaded reduction cannot do that: `mpimod_omp.f90:mpsumsc` sums the
+  per-thread partials in an explicit `it = 0, NPRO-1` loop, so the summation
+  order is fixed by the source at every width and is not a candidate at all.
+  What replaces it is the hazard threads have and ranks did not -- shared
+  state. `exoplasim/notes/shared-spectral-state-trace.md` records twenty races
+  found on `sd`, `st`, `sz`, `sq` and `sp` and none left over 120 steps at T21
+  on two threads, and this is the whole-model arm of that same question at the
+  widths production actually runs.
 - **H3, the model reproduces now.** Every cell reproduces, CLIM-39's own
   configuration included. Note what this does NOT establish: H3 is a pattern,
-  not a mechanism. Running the same matrix on the pre-fix binaries a run
-  directory keeps -- which still write `zsolars` as a 65536-byte record --
-  gives the SAME pattern, so "it was the overread" is refuted as the cause of
-  run-to-run variation even though the overread is real. It is deterministic
-  per rank count under `-finit-real=zero`, which makes it a source of
-  RANK-dependence rather than of run-to-run difference.
+  not a mechanism. Under MPI the comfortable explanation was refuted by
+  accident: the same matrix run on pre-fix binaries a run directory had frozen
+  -- which still write `zsolars` as a 65536-byte record -- gave the SAME
+  pattern, so "it was the overread" was refuted as the cause of run-to-run
+  variation even though the overread is real. It is deterministic per parallel
+  width under `-finit-real=zero`, which makes it a source of WIDTH-dependence
+  rather than of run-to-run difference.
 
 H3 is the one to try hardest to refute, because it is the comfortable answer
 and because it is the only one that would let this project go back to
@@ -118,8 +145,16 @@ REPLACE ITS EXECUTABLES:
         bed/plasim_snapshot bed/plasim_status && rm -rf bed/snapshots/*
     cp -f vendor/exoplasim/exoplasim/plasim/run/most_plasim_t42_l10_p*.x bed/
 
-The second line is not optional and `check_binaries` refuses without it: a run
-directory keeps the executables it was STARTED with, so a bed copied from a
+**THE 8-THREAD BINARY HAS TO BE BUILT ON PURPOSE.**
+`rebuild_binaries.py:MATRIX` builds every rung at width 16 and nothing at 8, so
+`most_plasim_t42_l10_p8.x` is not a registered binary and the glob above will
+not find one. Build it before a run of this matrix, and expect
+`check_binaries` to refuse a bed without it rather than to quietly drop the
+narrow arm. It was not like this under MPI, where both widths were built as a
+matter of course.
+
+The executables line is not optional and `check_binaries` refuses without it: a
+run directory keeps the executables it was STARTED with, so a bed copied from a
 recent run silently pins the model source to whenever that run began. The
 outputs are dropped because `snapshots/` alone can be gigabytes and none of it
 is read.
@@ -128,13 +163,24 @@ is read.
 
 Two things cost a cycle each here and are not obvious.
 
-**Only NROOT's writes to `nud` survive.** `nud` is unit 6 and every rank writes
-to it, but the diagnostics that reach `plasim_diag` are the root's; the others
-go nowhere. So `if (mypid == NROOT)` is not a filter, it is the only thing that
-works -- and at T42 on 8 ranks NROOT holds the first eight latitude rows, which
-are all polar. A diagnostic written that way is sampling one climate zone. To
-see any other cell, write to a per-rank unit: `write(70+mypid,...)` gives one
-`fort.7N` per rank.
+**`nud` no longer discards what the non-root threads write, and that is a
+change of runtime rather than of code.** `nud` is unit 6, `plasim.f90:opendiag`
+opens it to `plasim_diag` under `if (mypid == NROOT)`, and `mypid` is now a
+thread id. A Fortran unit is a property of the PROCESS, not of the thread, so
+one open makes unit 6 the diagnostics file for every thread in it. Under MPI a
+non-root rank's write to `nud` went to its own stdout and out of the record;
+under threads it lands in `plasim_diag` beside the root's, in whatever order the
+threads reach it.
+
+So `if (mypid == NROOT)` is still the only guard that works, and it now has to
+be there for a second reason. It also gives this matrix a candidate it did not
+have before: a cell that disagrees ONLY on `plasim_diag`, with the restart and
+the gridpoint files bit-identical, is an unguarded `write(nud,...)` racing and
+not the integration diverging. Read it that way first. To instrument a thread
+other than the root, write to a per-thread unit -- `write(70+mypid,...)` gives
+one `fort.7N` each -- rather than to `nud`, and note that at T42 on 8 threads
+NROOT holds the first eight latitude rows, which are all polar, so a diagnostic
+written through the guard is sampling one climate zone.
 
 **A temporary namelist key can break the run for reasons that are not about
 the key.** Adding one to `radmod_nl` and setting it in `radmod_namelist` failed
@@ -170,8 +216,22 @@ from _paths import ANALYSIS, PROJECT_ROOT  # noqa: E402
 
 OUTPUT = ANALYSIS / "reproducibility_matrix.json"
 
-RANKS = (8, 16)
+# The two parallel widths, in THREADS. `world-38b` left one build and one
+# parallel mode, so a width is a thread count and there is no mpiexec: the
+# binary is launched directly under the environment
+# `vendor/exoplasim/exoplasim/__init__.py` composes for it. 16 is the width
+# every registered binary is built at; 8 is the narrower arm.
+THREADS = (8, 16)
 OUTPUT_LEVELS = (0, 1)
+
+# The launch environment, copied from `exoplasim/__init__.py:Model.__init__`
+# rather than invented here, so a cell runs the model the way a run does.
+# OMP_PLACES and OMP_PROC_BIND are not tuning: without them the runtime may
+# migrate threads and the per-die working set the model is built around stops
+# meaning anything, which would make a timing an artifact of placement. They do
+# not bear on bit-identity, which is the point -- a cell must differ from a
+# production run in the thread COUNT and in nothing else.
+OMP_ENV = {"OMP_PLACES": "cores", "OMP_PROC_BIND": "close"}
 
 # Artifacts compared between repeats. Missing ones are recorded as missing
 # rather than skipped, so a cell that silently stopped producing output cannot
@@ -197,8 +257,8 @@ WALL_CLOCK = re.compile(
     r"|Sim years per day)")
 
 HYPOTHESES = {
-    "H1_output_writing": "NOUTPUT = 0 reproduces, NOUTPUT = 1 does not, at both rank counts",
-    "H2_rank_reduction_order": "8 ranks does not reproduce, 16 ranks does, at both output settings",
+    "H1_output_writing": "NOUTPUT = 0 reproduces, NOUTPUT = 1 does not, at both thread counts",
+    "H2_shared_state_race": "16 threads does not reproduce, 8 threads does, at both output settings",
     "H3_reproducible_now": "every cell reproduces, CLIM-39's own configuration included",
 }
 
@@ -299,8 +359,8 @@ def check_binaries(bed: Path) -> dict:
     manifest = json.loads((PROJECT_ROOT / "exoplasim" / "binary_manifest.json")
                           .read_text(encoding="utf-8"))["binaries"]
     seen, stale = {}, []
-    for ranks in RANKS:
-        name = f"most_plasim_t42_l10_p{ranks}.x"
+    for threads in THREADS:
+        name = f"most_plasim_t42_l10_p{threads}.x"
         path = bed / name
         if not path.exists():
             raise SystemExit(f"{name} is not in the bed")
@@ -321,7 +381,16 @@ def check_binaries(bed: Path) -> dict:
     return seen
 
 
-def run_cell(bed: Path, work: Path, ranks: int, noutput: int, steps: int) -> dict:
+def run_cell(bed: Path, work: Path, threads: int, noutput: int, steps: int) -> dict:
+    """One cell: one binary, one input, one width, run to completion.
+
+    ONE PROCESS AND `threads` THREADS, launched directly. There is no `mpiexec`
+    here and there must not be: the width is compiled into the executable, so
+    `mpiexec -np N ./most_plasim_t42_l10_pN.x` would start N copies of an
+    N-thread binary, each believing it owns every latitude, in one directory
+    over one set of restart files. That is not a wider arm of this experiment,
+    it is N runs corrupting each other's output.
+    """
     if work.exists():
         shutil.rmtree(work)
     shutil.copytree(bed, work, symlinks=True)
@@ -329,19 +398,21 @@ def run_cell(bed: Path, work: Path, ranks: int, noutput: int, steps: int) -> dic
     set_namelist(work / "plasim_namelist",
                  N_RUN_STEPS=steps, NOUTPUT=noutput, NSNAPSHOT=noutput)
 
-    binary = f"most_plasim_t42_l10_p{ranks}.x"
+    binary = f"most_plasim_t42_l10_p{threads}.x"
     if not (work / binary).exists():
         raise SystemExit(f"{binary} is not in the bed. ExoPlaSim compiles one "
-                         "executable per (resolution, layers, ranks) "
+                         "executable per (resolution, layers, threads) "
                          "configuration; CLAUDE.md rule 4.")
 
+    env = dict(os.environ, OMP_NUM_THREADS=str(threads), **OMP_ENV)
+
     started = datetime.datetime.now(datetime.timezone.utc)
-    proc = subprocess.run(["mpiexec", "-np", str(ranks), f"./{binary}"],
-                          cwd=work, capture_output=True, text=True)
+    proc = subprocess.run([f"./{binary}"], cwd=work, env=env,
+                          capture_output=True, text=True)
     elapsed = (datetime.datetime.now(datetime.timezone.utc) - started).total_seconds()
 
     if (work / "Abort_Message").exists() or proc.returncode != 0:
-        raise SystemExit(f"the model aborted at ranks={ranks} noutput={noutput} "
+        raise SystemExit(f"the model aborted at threads={threads} noutput={noutput} "
                          f"steps={steps} (rc {proc.returncode})\n"
                          f"{proc.stdout[-2000:]}\n{proc.stderr[-2000:]}")
 
@@ -370,14 +441,20 @@ def score(cells: dict) -> dict:
     verdict = {
         "H1_output_writing": (all_of(lambda k: part(k, 1) == 0, True)
                               and all_of(lambda k: part(k, 1) == 1, False)),
-        "H2_rank_reduction_order": (all_of(lambda k: part(k, 0) == 8, False)
-                                    and all_of(lambda k: part(k, 0) == 16, True)),
+        "H2_shared_state_race": (all_of(lambda k: part(k, 0) == 16, False)
+                                 and all_of(lambda k: part(k, 0) == 8, True)),
         "H3_reproducible_now": all(repro.values()),
     }
     survivors = [k for k, v in verdict.items() if v]
-    # Reproducible WITHIN a rank count is not the same as rank-independent, and
-    # the matrix already holds the evidence for both. This is reported rather
-    # than scored: no hypothesis above is about it, and it was not predicted.
+    # Reproducible WITHIN a thread count is not the same as width-independent,
+    # and the matrix already holds the evidence for both. This is reported
+    # rather than scored: no hypothesis above is about it, and it was not
+    # predicted. It is the half of CLIM-44's answer that was never about MPI --
+    # NLPP is NLAT/NPRO whether NPRO counts ranks or threads, so two widths
+    # decompose differently and sum their partials in a different grouping.
+    # Under MPI 8 against 16 differed in 83 of 199 restart records, at
+    # round-off and growing; whether the threaded model differs by as much is
+    # what this column re-measures.
     across = {}
     for noutput in OUTPUT_LEVELS:
         for steps in {c["steps"] for c in cells.values()}:
@@ -386,13 +463,13 @@ def score(cells: dict) -> dict:
             shas = {cells[k]["repeats"][0]["sha256"]["plasim_status"] for k in keys}
             if len(keys) > 1:
                 across[f"noutput={noutput},steps={steps}"] = (
-                    "same across rank counts" if len(shas) == 1
-                    else "DIFFERS across rank counts")
+                    "same across thread counts" if len(shas) == 1
+                    else "DIFFERS across thread counts")
 
     return {"per_hypothesis": verdict,
             "survivors": survivors,
             "vacuous_cells": vacuous,
-            "across_rank_counts": across,
+            "across_thread_counts": across,
             "reading": (survivors[0] if len(survivors) == 1 else
                         "NONE of the declared hypotheses matches the pattern; "
                         "the cause is something the matrix did not vary")}
@@ -426,7 +503,7 @@ def main() -> None:
         lengths = segment_lengths(scalars["nstep"], args.nafter)
     steps = (lengths["no_write"], lengths["two_writes"])
 
-    cells = list(product(RANKS, OUTPUT_LEVELS, steps))
+    cells = list(product(THREADS, OUTPUT_LEVELS, steps))
     if args.plan:
         print(f"{len(cells)} cells x {args.repeats} repeats "
               f"= {len(cells) * args.repeats} model runs\n")
@@ -434,8 +511,8 @@ def main() -> None:
               f"nafter {args.nafter}")
         print(f"  first write {lengths['steps_to_first_write']} steps in, so "
               f"{steps[0]} crosses none and {steps[1]} crosses two\n")
-        for ranks, noutput, steps in cells:
-            print(f"  ranks={ranks:2d}  NOUTPUT={noutput}  steps={steps:2d}")
+        for threads, noutput, steps in cells:
+            print(f"  threads={threads:2d}  NOUTPUT={noutput}  steps={steps:2d}")
         print("\ndeclared readings:")
         for name, pattern in HYPOTHESES.items():
             print(f"  {name}: {pattern}")
@@ -455,13 +532,13 @@ def main() -> None:
     work_root.mkdir(parents=True, exist_ok=True)
 
     results = {}
-    for ranks, noutput, steps in cells:
-        key = f"{ranks}_{noutput}_{steps}"
+    for threads, noutput, steps in cells:
+        key = f"{threads}_{noutput}_{steps}"
         repeats = []
         for i in range(args.repeats):
-            print(f"  ranks={ranks:2d} NOUTPUT={noutput} steps={steps:2d} "
+            print(f"  threads={threads:2d} NOUTPUT={noutput} steps={steps:2d} "
                   f"repeat {i + 1}/{args.repeats}", flush=True)
-            repeats.append(run_cell(bed, work_root / f"{key}_{i}", ranks, noutput, steps))
+            repeats.append(run_cell(bed, work_root / f"{key}_{i}", threads, noutput, steps))
 
         first = repeats[0]["sha256"]
         disagreeing = sorted(name for name in ARTIFACTS
@@ -480,7 +557,7 @@ def main() -> None:
         wrote_output = out_bytes > 2 * 32816
         vacuous = noutput == 1 and not wrote_output
         results[key] = {
-            "ranks": ranks, "noutput": noutput, "steps": steps,
+            "threads": threads, "noutput": noutput, "steps": steps,
             "repeats": repeats,
             "artifacts_produced": produced,
             "artifacts_disagreeing": disagreeing,
@@ -503,6 +580,12 @@ def main() -> None:
                              .replace(microsecond=0).isoformat(),
         "generator": "exoplasim/scripts/reproducibility_matrix.py",
         "task": "CLIM-44",
+        # Which runtime the cells were measured under. The MPI answer and the
+        # threaded one are not comparable and an artifact that does not say
+        # which it is cannot be told apart from the other by reading it, so
+        # this is stamped rather than inferred from the field names.
+        "runtime": "openmp",
+        "parallel_widths": list(THREADS),
         "bed": str(bed),
         "repeats": args.repeats,
         "host_cpu_count": os.cpu_count(),

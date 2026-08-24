@@ -1,4 +1,4 @@
-# The model is run-to-run reproducible; the rank count is what is not free
+# Under MPI the model was run-to-run reproducible, and the rank count was what was not free
 
 Measured 2026-08-20 for CLIM-44, on `exoplasim/scripts/reproducibility_matrix.py`.
 The artifact is `exoplasim/analysis/reproducibility_matrix.json`.
@@ -6,6 +6,26 @@ The artifact is `exoplasim/analysis/reproducibility_matrix.json`.
 Worldbuilding frame: this is about the Vesper simulation's climate model and
 whether it produces the same bytes twice. Nothing here is a claim about the
 simulated world.
+
+**EVERY MEASUREMENT HERE WAS TAKEN UNDER MPI, AND THIS PROJECT NO LONGER HAS
+THAT RUNTIME.** `world-38b` removed the MPI build; the parallel width is a
+thread count now and one process holds every band. The numbers below are kept
+because they are what was measured, and the design argument -- what makes a
+control vacuous, why the segment lengths are derived, why a bed's executables
+are hashed -- carries over unchanged. The VERDICTS do not: threads share an
+address space and ranks did not, so run-to-run bit-identity has to be
+established again rather than inherited. `reproducibility_matrix.py` has been
+re-derived over thread counts under `world-7b2` and running it is what replaces
+this; until it is run, this project has no measurement of whether the threaded
+model reproduces.
+
+What is expected to survive and what is not, so the re-measurement is judged
+against something stated first. The width-dependence should survive: `NLPP` is
+`NLAT/NPRO` whether `NPRO` counts ranks or threads, so two widths still
+decompose differently and group their partial sums differently, and 8 against 16
+should still differ at round-off and grow. Bit-reproducibility at a FIXED width
+is the part that is genuinely re-opened, because the defect class that could
+break it is one MPI did not have.
 
 ## What is true
 
