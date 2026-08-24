@@ -1,8 +1,15 @@
 # Restart conversion across horizontal resolution and precision
 
-*This is an implementation specification for converting ExoPlaSim restart
-states. Written 2026-08-21 from the current model source and restart artifacts.
-It is a design note; none of the converter described here has been implemented.*
+*Worldbuilding frame: the restart is the saved state of the Vesper climate
+model. Nothing here is about the real world.*
+
+*This is the contract for converting ExoPlaSim restart states, and the argument
+behind it. The converter is `exoplasim/scripts/convert_restart.py`, built out
+of `restart_format.py` (framing), `restart_schema.py` (what every record is)
+and `restart_transforms.py` (the two operators); `exoplasim/README.md` says
+what each is for. Everything up to the model boundary is built and proven by
+`convert_restart.py --self-test`. What is NOT built is the half that needs the
+target executable: the template writer and the model-owned post-load fixup.*
 
 ## Decision
 
@@ -419,7 +426,12 @@ report's target surface hashes match the current run.
 
 ## Verification
 
-### Unit tests
+### Built and passing, none of them needing the model
+
+`convert_restart.py --self-test`, six sections against the restart on disk.
+Every positive claim carries a control that fails: a prefix copy of the packed
+spectral array, a longitude axis without its wrap, a record of the wrong width
+out-voted rather than refused.
 
 - malformed, truncated, wrong-endian, and marker-mismatch files are rejected;
 - parser/writer round-trip is byte-identical;
@@ -440,7 +452,10 @@ Every positive transformation test needs a negative control: a swapped
 coefficient pair, wrong triangular offset, nonperiodic longitude edge, or
 incorrect field policy that the test demonstrably rejects.
 
-### End-to-end tests
+### End to end
+
+The first five need no model and are in the self-test. The rest need the target
+executable and a template it wrote, and are tracked separately.
 
 1. Same resolution and precision, preservation mode: byte-identical output.
 2. Same resolution, eight to four to eight bytes: only declared cast error.
@@ -462,64 +477,56 @@ incorrect field policy that the test demonstrably rejects.
 The last test is statistical and physical, not a restart checksum. Resolution
 conversion deliberately changes the represented state and the model is chaotic.
 
-## Delivery plan
+## What remains, and why it stops where it does
 
-### Phase 1: format and schema, 2-3 days
+The line is the model boundary. Framing, schema, precision, spectral
+projection, grid remapping, the refusals and the report are built, and each is
+provable against an identity or a conservation law without an executable. Three
+things are not, and none of them can be settled by reading:
 
-- consolidate the restart parser/writer;
-- generate and review the current record inventory;
-- implement source/target inspection and linting;
-- define the target-template contract.
+- **the template writer.** Either a target-build mode that initialises, calls
+  the model's own reset routines and writes a restart without advancing the
+  climate, or a tightly controlled one-step wrapper recipe. The second is
+  available today and needs validating that every accumulation counter lands at
+  its reset value; the first avoids maintaining cold defaults and sentinels
+  outside the model, and `tempmin`'s 1.0e3 is the argument for it.
+- **the model-owned post-load fixup.** A converted-restart path, enabled
+  explicitly, that recomputes grid areas and derived surface fields, enforces
+  land/ocean/glacier consistency, rebuilds humidity, albedo, roughness and the
+  saturation caches through the model's own routines, and resets every
+  accumulation window through its own reset routines. The converter already
+  names the records this must touch.
+- **`run_exoplasim.py` integration.** Ingesting the conversion report into
+  `initial_state`, validating the target surface hashes, recording the donor as
+  provenance, and teaching the `--restart-from` surface guard to recognise a
+  valid report. That guard today correctly refuses a donor restart whose
+  embedded roughness, capacity or albedo would supersede newly staged surface
+  files, and a converted restart resolves that only if the report's target
+  surface hashes match the run.
 
-### Phase 2: precision conversion, 1-2 days
+## The decisions the contract rests on
 
-- typed decoding and encoding;
-- precision inference and validation;
-- cast/error reporting;
-- same-resolution target read test.
-
-### Phase 3: spectral projection, 2-3 days
-
-- semantic triangular unpack/pack;
-- prognostic/static field policy;
-- projection and negative-control tests.
-
-### Phase 4: grid and coupled-surface state, 5-8 days
-
-- Gaussian conservative weights;
-- land/ocean class handling;
-- reservoir and sea-ice special cases;
-- conservation reporting.
-
-### Phase 5: model fixup and wrapper integration, 3-5 days
-
-- converted-restart namelist path;
-- model-owned derived-state rebuild and reset;
-- template generation;
-- `run_exoplasim.py` provenance and surface validation.
-
-### Phase 6: hardening, 4-6 days
-
-- full target-build matrix;
-- FPE/bounds smoke runs;
-- settling and invariant tests;
-- operator documentation.
-
-A useful atmosphere-only prototype is approximately one engineer-week. A
-coupled, provenance-complete converter is approximately three to four
-engineer-weeks, excluding timestep and vertical-resolution conversion.
-
-## Decisions to make before implementation
-
-1. Whether the exact target template is mandatory even for precision-only
-   conversions. Requiring it is safer; omitting it makes the simple path more
-   convenient.
-2. Whether a mismatched random-seed shape keeps the template seed or requires a
-   user-supplied deterministic seed.
-3. The fallback for target land/ocean cells with no same-class source overlap.
-4. Conservation tolerances for each precision and field class.
-5. Whether to increase the restart record limit now or keep all new metadata in
-   sidecars for the first release.
-6. Whether the target-build template writer is a model mode or a tightly
-   controlled one-step wrapper recipe.
+1. **The exact target template is mandatory, precision-only conversions
+   included.** A conversion without the target's own record set, precision and
+   static fields is a guess at what the target expects, and the convenience of
+   the simple path is not worth a second way of being wrong.
+2. **A mismatched random-seed shape is refused, not resolved.** The seed's
+   length belongs to the compiler, so neither the donor's nor the template's is
+   inferable as the right answer: the caller names one, with `--seed` or
+   `--keep-template-seed`.
+3. **The fallback for a target cell with no same-class source overlap is the
+   target template**, and every such cell is counted in the report. It is the
+   only value on hand that belongs to the target grid.
+4. **The tolerance on a configuration real is one part in a million**, fixed
+   before any conversion was run. It is far looser than the cast a value may
+   have crossed and far tighter than a configuration change, which moves these
+   by percent. Conservation is not given a tolerance at all: the remap conserves
+   a global integral to rounding, and where a mask makes that impossible the
+   residual is reported rather than tested against a number.
+5. **New metadata goes in a sidecar.** `restartmod.f90` fixes its name table at
+   200 entries and rejects entry 200, a current restart holds 199, and raising
+   the limit is a model change that makes every binary stale under rule 4.
+6. **The template writer is not settled**, because it is the one decision that
+   cannot be taken without running the model. Its two candidates are under
+   "What remains" above.
 

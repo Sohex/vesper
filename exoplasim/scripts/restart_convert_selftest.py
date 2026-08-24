@@ -436,6 +436,41 @@ def test_end_to_end(tmp: Path, donor: Path) -> list[str]:
                 f"{len(masked)} remapped under a mask also report the cells "
                 "the mask left for the template to fill")
 
+    static = [n for n, pol in rs.POLICY.items()
+              if pol.action == rs.TARGET and n in src.by_name]
+    for name in static:
+        _require(mid.by_name[name].payload == up_state.by_name[name].payload,
+                 f"'{name}' is the target's own and did not arrive from the "
+                 "template byte for byte")
+    said.append(f"all {len(static)} static and target-owned records arrive "
+                "from the template byte for byte, none of them the donor's")
+
+    # Eight bytes down to four and back. The only thing that may have moved is
+    # the narrowing, so the round trip is checked against the cast error the
+    # report declared rather than against a tolerance invented here.
+    narrow = _synthetic_template(src, src.geometry.nlat, 4, tmp / "template_fp32")
+    fp32_state = cv.load(narrow)
+    _require(fp32_state.real_bytes == 4, "the four-byte fixture is not four-byte")
+    recs32, rep32 = cv.convert(src, fp32_state)
+    rf.write(tmp / "fp32", recs32, overwrite=True)
+    wide = cv.load(tmp / "fp32")
+    recs_back, _ = cv.convert(wide, src)
+    rf.write(tmp / "fp64_again", recs_back, overwrite=True)
+    widened = cv.load(tmp / "fp64_again")
+    declared = {r.name: r.detail.get("cast_abs_error", 0.0) for r in rep32}
+    moved = 0
+    for name, pol in rs.POLICY.items():
+        if pol.action not in (rs.PROJECT, rs.REMAP) or name not in src.by_name:
+            continue
+        before, after = src.decode(name), widened.decode(name)
+        worst = float(np.abs(after - before).max())
+        _require(worst <= declared[name] * (1.0 + 1e-12),
+                 f"'{name}' moved by {worst:.3e} through eight to four to "
+                 f"eight bytes and the report declared {declared[name]:.3e}")
+        moved += worst > 0.0
+    said.append(f"eight to four to eight bytes moves {moved} records, none of "
+                "them by more than the cast error the report declared")
+
     recompute = [r.name for r in rep42 if r.action == rs.RECOMPUTE]
     _require(sorted(recompute) == sorted(
         n for n, p in rs.POLICY.items()
