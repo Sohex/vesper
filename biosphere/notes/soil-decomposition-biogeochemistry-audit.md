@@ -56,30 +56,50 @@ complex soil model. SDEC-1 requires a deterministic daily-to-monthly operator
 fixture, C-N-P closure and parity before patching individual expressions. It is
 a blocker for the present C-N result as well as C-N-P activation.
 
-### 2. The implemented phosphorus topology does not match its published description
+### 2. The phosphorus topology was an unbounded drain, and is now the published one
 
-The daily path computes a reversible-looking transfer
-`USORB * sorbed - USSORB * strongly_sorbed`, removes that amount through
-`pmass_add()`, and reports it as an external `P_SOIL` flux. It never increments
-`pmass_strongly_sorbed`. That stock consequently remains zero and the reverse
-term cannot operate. `UOCC` and the occluded stock are unused, and
-`Patch::pcont()` excludes both strongly sorbed and occluded P.
+The daily path computed a reversible-looking transfer
+`USORB * sorbed - USSORB * strongly_sorbed`, removed that amount through
+`pmass_add()`, and reported it as an external `P_SOIL` flux. It never
+incremented `pmass_strongly_sorbed`, which is declared, initialised, serialised
+and reported but was assigned nowhere in the tree. With that stock pinned at
+zero the reverse term vanished, so the line was not an exchange between two
+pools: it was a first-order drain of the sorbed pool that could never shut off.
 
-Dantas de Paula et al. (2025), including its Appendix A2, describes labile,
-sorbed and strongly sorbed pools with sorbed--strongly-sorbed exchange. Wang et
-al. (2010) instead makes loss to occluded P an acknowledged terminal sink for
-its time horizon. The fork currently mixes those interpretations: it declares
-a strongly sorbed state and desorption coefficient but behaves as a named
-external sink. SDEC-2 must choose and implement one topology, align stocks,
-flux labels, outputs and the mass-balance boundary with it, and establish
-publication/source parity before BIO-10 enables P limitation.
+The magnitude, from the `Spmax` of 77 to 145 gP/m2 the fork adopts from Wang et
+al. (2010) Table A1: 0.52 to 0.97 gP/m2 per Earth year, against a default
+`soiltype.pwtr` weathering supply of 0.003 gP/m2 per Earth year. Under
+`ifplim 1` the soil phosphorus system could not have reached a steady state.
 
-The `USORB` and `USSORB` comments are also wrong: Dantas de Paula et al. give
-both coefficients as 0.0067 per year, not per day. Dividing by a year length is
-therefore intentional, but BIO-22/BIO-24 must make that an absolute Earth-year
-rate rather than silently applying it once per 181-day orbit. `PMASS_SAT`,
-`PCONC_SAT` and their commented-out alternatives also need provenance and unit
-tests; they should not be retuned to obtain a desired Vesper response.
+It did not surface as a conservation failure because `Patch::pcont()` excluded
+the destination pool, so the phosphorus had genuinely left the accounted system
+and the books balanced, and because `MassBalance::check_patch_P` is declared in
+`guess.h` and called from nowhere in this tree.
+
+The topology chosen is the published one: Dantas de Paula et al. (2025) Appendix
+A2 and Wang et al. (2010) Eq. D10, a reversible exchange between the sorbed and
+strongly sorbed stocks. `pmass_strongly_sorbed` is assigned, so both terms are
+real and the stock fills to the size of the sorbed pool, where the net flux goes
+to zero. The transfer is internal, so it is no longer reported as a soil P loss,
+and `Patch::pcont()` counts the pool instead; double-booking it would break the
+balance the two together close.
+
+Occlusion is a DECLARED ABSENCE rather than the alternative topology. `UOCC` had
+no citation anywhere in the tree, occluded phosphorus is terminal so an
+unbracketed rate would set this world's long-run soil phosphorus stock, and
+`equilsom` spins the pools for 40000 model years without saving and restoring
+the sorbed stocks the way it does `pmass_labile`, so a terminal sink inside that
+device would drain every cell over a span the run does not represent. `UOCC` is
+deleted and `Patch::pcont()` counts `pmass_occluded` anyway, so that adding a
+flux later is a change to one file. The argument is in
+`biosphere/notes/phosphorus-cycle-parameterisation.md`.
+
+`USORB` and `USSORB` are 0.0067 per EARTH year, and now divide by
+`VESPER_EARTH_YEAR_DAYS` rather than by the model year, under
+`biosphere/notes/time-base-unit-contract.md`. Their equality is Wang et al.
+(2010)'s own and is not a copying artifact. `PMASS_SAT` and `PCONC_SAT` still
+need provenance, and each disables its ramp rather than mis-setting it; that is
+its own row, blocked on a paper this project could not obtain.
 
 ### 3. A bulk SOM column breaks the depth, root and groundwater contracts
 

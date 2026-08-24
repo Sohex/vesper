@@ -5245,12 +5245,18 @@ this section had wrong. Wang et al. (2010) Appendix D states it outright:
 "musorb and mussb are rate constants for the sorbed and strongly sorbed P pools,
 respectively, both are equal to 0.0067 year-1". The equality is the source's own
 and copying it was correct. What is really wrong at those lines is different and
-larger: `UOCC` is declared and never used, `Soil::pmass_occluded` is never
-assigned, and the occluded pool is commented out of the P conservation sum, so
-the fork has no terminal phosphorus sink at all and equal rates therefore drive
-the strongly sorbed pool to the sorbed pool and hold it there. And the P
-saturation concentration is set to the nitrogen value with a different value
-commented out directly above it, neither of them sourced anywhere in the tree.
+larger, and it is the RECEIVING pool rather than the occluded one:
+`Soil::pmass_strongly_sorbed` was declared, initialised, serialised, reported and
+read, and assigned nowhere. With it pinned at zero the back term of Eq. D10
+vanished, so that line was not an exchange between two pools but an unstoppable
+first-order drain of the sorbed pool, 0.52 to 0.97 gP/m2 per Earth year against a
+weathering supply of 0.003, booked as an ecosystem loss and invisible because
+`Patch::pcont()` excluded the destination pool and `MassBalance::check_patch_P`
+is called from nowhere. `UOCC` was dead alongside it, and occlusion is now a
+declared absence rather than a missing flux. And the P saturation concentration
+is set to the nitrogen value, with a different value commented out directly
+above it, neither of them sourced anywhere in the tree; each of the pair disables
+its own ramp rather than mis-setting it.
 
 Each is defensible alone. Together they mean the P cycle has no independent
 parameterisation, in a fork whose entire reason for existing is C-N-P.

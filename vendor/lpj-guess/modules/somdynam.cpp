@@ -67,18 +67,46 @@ static const double NMASS_SAT = 0.002 * 0.05;
 // their minimum (nitrogen saturation) (Parton et al 1993, Fig. 4)
 static const double NCONC_SAT = 0.02;
 
-// The phosphorus saturation pair. Neither is derived for phosphorus.
+// The phosphorus saturation pair, and NEITHER IS DERIVED FOR PHOSPHORUS. They
+// are the fmax argument of setptoc(), the value of the driving pool at which a
+// SOM pool's C:P reaches its minimum, and they are the reason parameters.cpp
+// still refuses ifplim 1.
 //
-// PCONC_SAT carries NCONC_SAT's value exactly, so the litter P concentration at
-// which SOM C:P is driven to its minimum is the litter N concentration at which
-// SOM C:N is. PMASS_SAT carries the 0.002 that NMASS_SAT is built from, without
-// the 0.05 that turns it into a soil available-N pool, so it is neither the
-// nitrogen value nor a phosphorus one. The fork's own source offered 0.004 and
-// 0.002 * 0.001 as phosphorus candidates in commented-out lines, with no
-// citation and no derivation behind either; those lines are removed rather than
-// left as undated alternatives to grep past. Deriving both is a task row
-// against BIO-33, and P limitation is refused until they are, so nothing here
-// reaches a live result. parameters.cpp holds the refusal.
+// PCONC_SAT carries NCONC_SAT's value exactly. PMASS_SAT carries the 0.002 that
+// NMASS_SAT is built from, without the 0.05 that turns it into a soil
+// available-N pool, so it is neither the nitrogen value nor a phosphorus one.
+// The fork's own source offered 0.004 and 0.002 * 0.001 as phosphorus
+// candidates in commented-out lines, with no citation and no derivation behind
+// either.
+//
+// What each does to the model is worse than a wrong magnitude: each DISABLES
+// the ramp it belongs to, and they do it in opposite directions.
+//
+// PCONC_SAT is compared against litter_pmass / (litter_cmass * 2), so 0.02 is
+// reached only at a litter C:P of 25 by mass. Observed senesced-litter C:P is
+// 1219 by mass globally and 660 to 1596 across forest biomes (McGroddy et al.
+// 2004, Table 1, converted from molar), so the threshold is 26 to 64 times
+// below anything the model can produce and the surface microbial pool sits at
+// its MAXIMUM C:P of 80 always. The nitrogen constant is not in that position:
+// the same 0.02 is a litter C:N of 25 against an observed 57, a factor of 2.3,
+// so the nitrogen ramp does span.
+//
+// PMASS_SAT is compared against soil.pmass_labile, so 0.002 kgP/m2 is 2 gP/m2.
+// Yang et al. (2013) put global labile soil P at 3.6 PgP in the top half metre,
+// about 28 gP/m2, and this fork's own published run simulates 2.11 PgP, about
+// 16 gP/m2. The threshold is 8 to 14 times BELOW the pool it gates, so the
+// slow, passive and microbial pools sit at their MINIMUM C:P always. It also
+// doubles as the value pmass_labile is pinned to whenever P limitation is off,
+// which is what this project runs, so the reported labile P is an order of
+// magnitude low there for the same reason.
+//
+// Deriving them needs Parton, Stewart and Cole (1988), Biogeochemistry 5:
+// 109-131, doi:10.1007/BF02180320, which setptoc's own documentation cites and
+// which this project does not hold and could not obtain. What a
+// same-relative-position transfer off the nitrogen pair would give is recorded
+// in biosphere/notes/phosphorus-cycle-parameterisation.md and is NOT adopted
+// here, because it would calibrate phosphorus against a nitrogen threshold
+// whose own position is not derived either.
 static const double PMASS_SAT = 0.002;
 static const double PCONC_SAT = 0.02;
 
@@ -90,19 +118,26 @@ static const double PCONC_SAT = 0.02;
 // pools "both are equal to 0.0067 year-1". Do not read the equality as a defect
 // and do not split the two without a source that measures them apart. What
 // follows from it is that Eq. D10, dPssb/dt = USORB*Psorb - USSORB*Pssb, drives
-// the strongly sorbed pool to exactly the size of the sorbed pool, and stays
-// there, because nothing drains it: UOCC is declared below and never used, so
-// Soil::pmass_occluded is initialised, serialised and never written. Occlusion
-// is absent from this model, not slow.
+// the strongly sorbed pool to exactly the size of the sorbed pool and holds it
+// there, so the strongly sorbed pool is a stock and not a sink. Nothing drains
+// it: this model has no terminal occlusion, which is a declared gap and not a
+// slow process. biosphere/notes/phosphorus-cycle-parameterisation.md argues the
+// decision, and parameters.cpp refuses ifplim 1 while it stands.
 //
-// The published rates are per YEAR. Dividing by date.year_length() converts
-// them to per model day, which on this world's calendar is not per Earth day:
-// every annual rate in this file is converted the same way, and reclassifying
-// them by absolute time, seasonal cycle or accumulated flux is BIO-22's, not a
-// change to make here in isolation.
-static const double USORB = 0.0067 / date.year_length();
-static const double USSORB = 0.0067 / date.year_length();
-static const double UOCC = 1.0E-5 / date.year_length();
+// ABSOLUTE-RATE, per EARTH year: sorption is chemistry and does not know this
+// world's orbit, so the divisor is the Earth year and not the simulation year.
+// Dividing by date.year_length() delivered an Earth year of sorption every
+// orbit, which is close to twice the published rate per unit absolute time.
+// biosphere/notes/time-base-unit-contract.md.
+//
+// The reader is somfluxes(), which is called once per absolute day on the live
+// daily path. equilsom() also calls it twelve times per model year with
+// monthly-aggregated decay rates, so there these two constants act at 12/365 of
+// their intended speed. That is a rate of approach and not an equilibrium:
+// USORB == USSORB fixes the equilibrium at Pssb = Psorb whatever the constants
+// are, and equilsom's 40000 model years reach it either way.
+static const double USORB = 0.0067 / VESPER_EARTH_YEAR_DAYS;
+static const double USSORB = 0.0067 / VESPER_EARTH_YEAR_DAYS;
 
 ///////////////////////////////////////////////////////////////////////////////////////
 // FILE SCOPE GLOBAL VARIABLES
@@ -1144,11 +1179,31 @@ void somfluxes(Patch& patch, bool ifequilsom, bool tillage) {
 	//	soil.pmass_sorbed = 0.0;
 	//}
 
+	// Wang et al. (2010) Eq. D10, and the RECEIVING SIDE OF IT, which the fork
+	// left out: pmass_strongly_sorbed was declared, initialised, serialised and
+	// output, and read here, but never written anywhere in the tree. With it
+	// pinned at zero the back term vanished, so this was not a transfer between
+	// two pools but a first-order drain of the sorbed pool that could never shut
+	// off, at USORB per Earth year against a weathering input two orders of
+	// magnitude smaller. It closed the phosphorus balance only because pcont()
+	// excluded the destination pool and this line booked the difference as an
+	// ecosystem loss.
+	//
+	// Assigning the pool makes both terms real. USORB equals USSORB, so the
+	// strongly sorbed pool fills to the size of the sorbed pool and the net flux
+	// goes to zero, which is the behaviour the cited equation describes. The
+	// flux is an internal transfer and is no longer reported as a soil P loss;
+	// Patch::pcont() now counts the pool instead, and double-booking it would
+	// break the balance the two together close.
+	//
+	// This has no terminal sink beyond it. Occlusion is absent from this model
+	// by decision, not by oversight: see
+	// biosphere/notes/phosphorus-cycle-parameterisation.md.
 	double delta_strongly_sorbed = USORB * soil.pmass_sorbed - USSORB * soil.pmass_strongly_sorbed;
 
 	pmass_add(soil, -delta_strongly_sorbed);
 
-	patch.fluxes.report_flux(Fluxes::P_SOIL, delta_strongly_sorbed);
+	soil.pmass_strongly_sorbed += delta_strongly_sorbed;
 
 	//soil.pmass_labile_delta = 0.0;
 
@@ -1691,13 +1746,25 @@ void soilpadd(Patch& patch) {
 	double shield = patch.get_climate().pwtr_shield;
 
 	if (param["file_pwtr"].str != "") {
-		// daily_pwtr = patch.get_climate().pwtr / date.year_length();
+		// The gridded route is already a per-absolute-day calculation: runoff is
+		// this day's runoff, so the result carries no year in it and needs no
+		// conversion. It is inactive on this world, which supplies no file_pwtr.
 		p_temp_effect = exp(-ea / R_gas_constant * (1 / (soiltemp + 273.0) - 1 / 284.15));
 		daily_pwtr = bi * (pcont / 100.0) * patch.soil.runoff * p_temp_effect * shield / 1000.0;
 	}
 	else {
-		//daily_pwtr = soil.soiltype.pwtr * temperature_modifier(soil.get_soil_temp_25()) * moisture_modifier(wfps) / date.year_length();
-		daily_pwtr = soil.soiltype.pwtr / date.year_length();
+		// The texture route, and the one this world takes. Soiltype::pwtr is
+		// ABSOLUTE-RATE, declared kgP/m2 per EARTH year, because rock weathering
+		// does not know this world's orbit; BIO-5 emits the field against that
+		// declaration. Dividing by date.year_length() delivered a whole Earth
+		// year of weathered phosphorus every orbit.
+		// biosphere/notes/time-base-unit-contract.md.
+		//
+		// It carries no temperature or moisture dependence. The gridded route
+		// takes temperature through p_temp_effect and neither route reads the
+		// water-filled pore space computed at the top of this function, so that
+		// local stands unused. Supplying a climate dependence here is BIO-5's.
+		daily_pwtr = soil.soiltype.pwtr / VESPER_EARTH_YEAR_DAYS;
 	}
 
 	//if (pmin_avail + daily_pwtr < PMASS_SAT || date.year <= freenyears) {

@@ -156,9 +156,9 @@ boundary, so each has a declared unit and a place where it is divided down.
 | Cleveland fixation, intercept `nfix_b` | `somdynam.cpp:soilnadd` | ABSOLUTE-RATE | kgN/ha per Earth year, so it inherits the same per-Earth-year result and the same daily divisor | corrected HERE. It was added once per orbit |
 | `anfix_calc` to daily | `somdynam.cpp:soilnadd` | ABSOLUTE-RATE | kgN/m2 per Earth year, divided by `VESPER_EARTH_YEAR_DAYS` | corrected HERE |
 | phosphorus deposition `dpdep` | `driver.cpp` accumulates it; `vesperinput.cpp` never sets it | ABSOLUTE-RATE | kgP/m2 per absolute day | ZERO on this world, because the Vesper input module supplies no P deposition. Not a unit defect; a missing flux, and ANUT-1 through ANUT-10 own supplying it |
-| texture-path `Soiltype::pwtr` | `somdynam.cpp:soilpadd` | ABSOLUTE-RATE | kgP/m2 per EARTH year, to be divided by `VESPER_EARTH_YEAR_DAYS` | **NOT APPLIED.** Still divided by the simulation year, so it delivers an Earth year of weathering every orbit. BIO-5 must emit the field against this contract |
+| texture-path `Soiltype::pwtr` | `somdynam.cpp:soilpadd` | ABSOLUTE-RATE | kgP/m2 per EARTH year, divided by `VESPER_EARTH_YEAR_DAYS` | corrected HERE. It was divided by the simulation year, delivering an Earth year of weathering every orbit. BIO-5 emits the field against this declaration |
 | gridded-path `pwtr_bi`, `pwtr_pcont`, `pwtr_shield`, `pwtr_ea` | `somdynam.cpp:soilpadd` | ABSOLUTE-RATE | already a daily calculation driven by `patch.soil.runoff` | correct as it stands, and inactive: it needs `file_pwtr`, which this world does not supply |
-| `USORB`, `USSORB`, `UOCC` | `somdynam.cpp` P sorption kinetics | ABSOLUTE-RATE | published per Earth year, to be divided by `VESPER_EARTH_YEAR_DAYS` | **NOT APPLIED.** Still divided by the simulation year. `UOCC` is declared and never used, so occlusion is absent from this model rather than slow |
+| `USORB`, `USSORB` | `somdynam.cpp:somfluxes`, and `equilsom` through it | ABSOLUTE-RATE | published per Earth year, divided by `VESPER_EARTH_YEAR_DAYS` | corrected HERE. `UOCC` is gone with them: it was declared and never used, so occlusion is a declared absence and not a slow process. See `biosphere/notes/phosphorus-cycle-parameterisation.md` |
 | `apwtr`, `apdep`, `anfix`, `aNH4dep`, `aNO3dep` and the `.out` columns fed from them | `commonoutput.cpp`, `miscoutput.cpp` | DIAGNOSTIC | sums over one simulation year, which is one orbit | the reporting interval and the conversion factor are named in the run manifest, under `reporting_interval` and `annual_flux_per_orbit_to_per_earth_year` |
 
 ## `leaflong`, and why it is declared in orbits
@@ -214,6 +214,16 @@ figure here is arithmetic and none is a measurement.
   year's, and the intercept halves because it was applied once per orbit. Both
   move the same way, so the registered `nfix_a`/`nfix_b` bracket in BIO-2 has to
   be re-derived against this contract rather than carried over.
+- **Phosphorus weathering input roughly halves per orbit** and is unchanged per
+  unit absolute time, which is what a rock-weathering rate should be. Labile P
+  is a small, fast pool against that input, so the equilibrium labile stock is
+  set by the balance of supply against uptake and leaching rather than by the
+  supply alone; the effect on P limitation therefore has to be measured and is
+  not read off this arithmetic.
+- **Sorption to the strongly sorbed pool slows by the same factor**, and its
+  equilibrium does not move at all: `USORB` equals `USSORB`, so the strongly
+  sorbed pool settles at the size of the sorbed pool whatever the rate is. Only
+  the approach time changes, from about 150 orbits to about 150 Earth years.
 - **Growth-suppression mortality falls from 0.3 to about 0.16 per orbit**, which
   is the same hazard per unit absolute time.
 - **`greff_min` halves**, which removes a spurious condemnation: growth efficiency
@@ -233,11 +243,12 @@ figure here is arithmetic and none is a measurement.
 
 ## What is not settled here
 
-- The texture-path `pwtr` and the `USORB`/`USSORB`/`UOCC` sorption kinetics have
-  their contract stated above and their conversion NOT applied, because the
-  phosphorus sources are being worked separately. Until then the P route runs
-  about twice as fast per unit absolute time as its published calibration, and
-  BIO-5 must emit `pwtr` in kgP/m2 per Earth year.
+- The phosphorus route's remaining unknown is not a unit. Its conversions are
+  applied above, but `PUPS_UPPER_ADV`, the `PFRAC_*` stoichiometry and the
+  `PMASS_SAT`/`PCONC_SAT` pair still carry nitrogen's values, and
+  `parameters.cpp` refuses `ifplim 1` until they are derived. What each one is
+  worth, and what would settle it, is in
+  `biosphere/notes/phosphorus-cycle-parameterisation.md`.
 - Nothing here is verified by execution. LPJ-GUESS does not build on this tree:
   `framework/vesper.h` is generated, and the chain to it runs through a baseline
   run and a baseline climatology that do not exist. The regression checks BIO-22

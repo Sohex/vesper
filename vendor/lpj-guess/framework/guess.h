@@ -178,56 +178,102 @@ const double UNSET_SOIL_FRAC = -1.0;
 const double NUPS_UPPER_ADV = 2.0;
 
 /// Advantage a fine root in the upper soil layer has for labile P uptake
-/** Soil phosphorus is more surface-stratified than soil nitrogen, so this
- *  belongs ABOVE NUPS_UPPER_ADV. Jobbagy and Jackson (2001) measure the
- *  fraction of the top metre's content held in the top 20 cm across the USDA
- *  National Soil Characterization Database and report a median of 0.43 for
- *  extractable P against 0.36 for total N, with P the shallower of the two in
- *  61 percent of paired profiles.
+/** Soil phosphorus is more surface-stratified than soil nitrogen, so this sits
+ *  ABOVE NUPS_UPPER_ADV. Jobbagy and Jackson (2001) measure the fraction of the
+ *  top metre's content held in the top 20 cm across the USDA National Soil
+ *  Characterization Database and report a median of 0.43 for extractable P
+ *  against 0.36 for total N, with P the shallower of the two in 61 percent of
+ *  paired profiles. Extractable P is the closest measured analogue of this
+ *  model's labile P pool, which is what makes the pair usable.
  *
- *  That contrast fixes the direction and not yet the value: the N figure of 2.0
- *  is stated for MINERAL N over a 0-500/500-1500 mm split, while the measured
- *  contrast is for extractable P and TOTAL N over 0-200 mm within the top
- *  metre, and fitting an exponential to the measured factors reproduces 3.4 for
- *  N rather than the 2.0 this model carries. Until a construction is found that
- *  recovers the N value it is calibrated against, this stays equal to
- *  NUPS_UPPER_ADV, which makes P uptake competition among PFTs rank exactly as
- *  N uptake competition does. Deriving it is a task row against BIO-33; P
- *  limitation is refused in the meantime, see parameters.cpp.
+ *  The ABSOLUTE construction on those factors is refuted, not untested: fitting
+ *  an exponential density profile to each factor and taking the mean density in
+ *  0-500 mm against 500-1500 mm returns 3.45 for nitrogen where this model
+ *  carries 2.0. So the transferable quantity is the CONTRAST and not the level.
+ *  The same construction returns 5.47 for phosphorus, a ratio of 1.59, and
+ *  2.0 x 1.59 is the value below. Carrying the contrast onto the model's own
+ *  nitrogen calibration inherits whatever bias that calibration carries, which
+ *  is the price of the one route the refutation leaves open.
+ *
+ *  BRACKETED 2.9 to 3.5. Jobbagy measures only the top metre while this model's
+ *  lower layer reaches 1500 mm, so the bracket is the contrast recomputed with
+ *  the profile truncated at 1000 mm and extended to 3000 mm.
+ *  biosphere/notes/phosphorus-cycle-parameterisation.md carries the arithmetic.
  *
  *  It is written as its own literal rather than as NUPS_UPPER_ADV so that the
- *  two move independently, which is the property the C-N-P fork needs and does
- *  not currently have. Used by Pft::init_pupscoeff().
+ *  two move independently, which is the property the C-N-P fork needs.
+ *  Used by Pft::init_pupscoeff().
  */
-const double PUPS_UPPER_ADV = 2.0;
+const double PUPS_UPPER_ADV = 3.18;
 
 /// Fraction between minimum and maximum leaf C:P ratio, and its CROPGREEN value
-/** These, PFRAC_LEAFTOROOT, PFRAC_LEAFTOSAP and PFRAC_MAXTOMIN are the
- *  phosphorus stoichiometry scalings. Every one of them currently carries the
- *  value the corresponding C:N scaling carries in Pft::init_cton_limits(),
- *  where they are attributed to White et al. (2000) and Friend et al. (1997).
- *  Those papers measured nitrogen, so the citations do not transfer and are not
- *  repeated here: a leaf whose C:N range is a factor of 2.78 wide has no
- *  measured reason to have a C:P range a factor of 2.78 wide. Leaf N:P is not
- *  fixed across species or across soil P supply, which is the effect a C-N-P
- *  model exists to resolve.
+/** The width of the leaf C:P window a PFT may occupy. Its C:N counterpart in
+ *  Pft::init_cton_limits() is 2.78, from White et al. (2000) and Reich et al.
+ *  (1992), and those papers measured nitrogen, so the value does not transfer
+ *  and the citations are not repeated here.
  *
- *  They are named and defined separately from their C:N counterparts so that
- *  deriving one does not require touching the nitrogen side, and so that a
- *  change to the nitrogen side cannot move phosphorus silently. Deriving them
- *  is a task row against BIO-33; P limitation is refused in the meantime, see
- *  parameters.cpp.
+ *  What does transfer is the measured contrast in how far the two ratios move.
+ *  McGroddy et al. (2004) report the coefficient of variation of foliar ratios
+ *  across forests worldwide: 79 percent for C:P against 59 percent for C:N,
+ *  over the same 55 to 59 stands. Treating each ratio as lognormal, the log
+ *  standard deviations are in the ratio 1.274, and a window of width 2.78
+ *  widened by that exponent is the 3.68 below. Leaf C:P is the wider of the
+ *  two, which is the effect a C-N-P model exists to resolve and which a copied
+ *  2.78 removes.
+ *
+ *  BRACKETED 3.68 to 4.41. The upper end applies the same dispersion contrast
+ *  linearly to the window's relative half-width instead of to its logarithm.
+ *  The value adopted is the lower end, and the assumption both ends rest on is
+ *  that within-PFT plasticity scales like across-forest dispersion.
+ *  biosphere/notes/phosphorus-cycle-parameterisation.md carries the arithmetic.
+ *
+ *  The CROPGREEN value is its nitrogen counterpart 5.0 carried through the same
+ *  exponent. Cropland is inert here and fails closed under BIO-27, so it is
+ *  converted for consistency rather than for a result.
  */
-const double PFRAC_MINTOMAX = 2.78;
-const double PFRAC_MINTOMAX_CROPGREEN = 5.0;
+const double PFRAC_MINTOMAX = 3.68;
+const double PFRAC_MINTOMAX_CROPGREEN = 7.77;
 
-/// Fraction between leaf and fine root C:P ratio. See PFRAC_MINTOMAX.
+/// Fraction between leaf and fine root C:P ratio
+/** This one keeps its nitrogen counterpart's 1.16, and keeps it as a tested
+ *  result rather than as a copy. The quantity that decides it is the ratio of
+ *  fine-root N:P to green-leaf N:P, because a C:P proportion divided by a C:N
+ *  proportion is exactly that. Yuan et al. (2011) compile 631 live-root N:P
+ *  samples and test them against the two global green-leaf compilations,
+ *  finding no significant difference (p = 0.271 against Reich and Oleksyn
+ *  (2004), p = 0.120 against Wright et al. (2004)). Fine roots are P-poor and
+ *  N-poor against leaves in the same proportion.
+ *
+ *  BRACKETED 1.02 to 1.35, from the point estimates the test could not
+ *  separate: live-root N:P of 16.0 against leaf N:P of 13.8 and 18.2.
+ */
 const double PFRAC_LEAFTOROOT = 1.16;
 
-/// Fraction between leaf and sapwood C:P ratio. See PFRAC_MINTOMAX.
+/// Fraction between leaf and sapwood C:P ratio
+/** UNDERIVED, and the form is what blocks it. Its nitrogen counterpart is 6.9
+ *  from Friend et al. (1997), and a fixed proportion is a defensible form for
+ *  nitrogen: Heineman et al. (2016) regress wood on leaf nutrient
+ *  concentrations across 58 species and cannot distinguish the N exponent from
+ *  1. For phosphorus the same regression returns an exponent near 2, so wood
+ *  C:P is not a fixed multiple of leaf C:P and no scalar derived from that data
+ *  would mean what this constant claims to mean.
+ *
+ *  Deriving a scalar anyway from the concentration means, 2557 ug/g wood N and
+ *  111 ug/g wood P against tropical foliar N:P, gives about 8. It is recorded
+ *  and NOT adopted, because it rests on one tropical gradient and on a form the
+ *  same measurement rejects. Choosing between a refuted scalar and a nonlinear
+ *  wood-leaf P relation is a modelling decision, and it is BIO-34's remaining
+ *  open item. P limitation is refused meanwhile, see parameters.cpp.
+ */
 const double PFRAC_LEAFTOSAP = 6.9;
 
-/// Tightening of the root and sapwood C:P range against the leaf range. See PFRAC_MINTOMAX.
+/// Tightening of the root and sapwood C:P range against the leaf range
+/** Keeps its nitrogen counterpart's 0.9, and there is nothing to derive: the
+ *  nitrogen original is declared arbitrary where it is set in
+ *  Pft::init_cton_limits(), so this is a copy of a number that was never
+ *  measured for either element. That is a whole-model gap and not a phosphorus
+ *  one, and it is not what the ifplim refusal is about.
+ */
 const double PFRAC_MAXTOMIN = 0.9;
 
 /// Year at which to calculate equilibrium soil carbon
@@ -2264,14 +2310,31 @@ public:
 	void init_ctop_min() {
 		// ctop_leaf_min has to be supplied in the insfile for crops with P limitation
 		if (!(phenology == CROPGREEN && (ifnlim || ifplim))) {
-			// Regression of leaf C:P on SLA. The divisor converts the regressed
-			// AVERAGE leaf C:P to the MINIMUM, and so is the same min-to-max
-			// fraction init_ctop_limits() uses to go back the other way; it is
-			// PFRAC_MINTOMAX rather than a bare literal so the two cannot drift.
+			// Regression of leaf C:P on SLA, from the TRY database by way of
+			// Dantas de Paula et al. (2025) Eq. A3. It returns the AVERAGE leaf
+			// C:P, which is what plant P demand is computed from, so the
+			// divisor here has to be the one that makes init_ctop_limits()
+			// return that average again.
+			//
+			// That average is avg_ctop(), the HARMONIC mean of the min and the
+			// max: it is the C:P whose P:C is the arithmetic mean of the two
+			// bounding P:C ratios, which is the right average when what is
+			// being averaged is a tissue concentration. So the divisor is
+			// 2f/(1+f) and not (1+f)/2, and this is written as its reciprocal
+			// below. The arithmetic form left ctop_leaf_avr at 4f/(1+f)^2 of
+			// the regressed average, which is 0.778 of it at the 2.78 this file
+			// used to carry, so leaf P demand was 28 percent above what Eq. A3
+			// asks for. The error is in the mean convention, not in f.
+			//
+			// The check this has to pass, and the one the arithmetic form
+			// failed: after init_ctop_limits(), ctop_leaf_avr must equal the
+			// regression's own output to within rounding, for any f.
+			//
 			// Leafphysiognomy does not enter the regression, unlike the C:N one.
 
 			if (leafphysiognomy == BROADLEAF || leafphysiognomy == NEEDLELEAF)
-				ctop_leaf_min = exp(8.63342 + log(sla) * -0.80936) / ((PFRAC_MINTOMAX + 1.0) / 2.0);
+				ctop_leaf_min = exp(8.63342 + log(sla) * -0.80936) *
+					(1.0 + PFRAC_MINTOMAX) / (2.0 * PFRAC_MINTOMAX);
 		}
 	}
 

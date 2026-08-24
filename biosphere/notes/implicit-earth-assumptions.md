@@ -50,7 +50,7 @@ per 181-day orbit:
 | leaf and tree longevity | `leaflong`, `longevity`, individual age | model orbits |
 | establishment and growth-efficiency mortality | `est_max`, `greff_min`, `NYEARGREFF` | per orbit / five orbits |
 | litter and SOM turnover | `TAU_LITTER`, `TAU_SOILFAST`, `TAU_SOILSLOW` in `somdynam.cpp` | same decay fraction per orbit, on the `ifcentury 0` path only. The live CENTURY path takes its `K_MAX` from Parton et al. (2010) already on a daily basis, which is absolute time and was never affected |
-| CNP P-pool kinetics | `USORB`, `USSORB`, `UOCC` in `somdynam.cpp` | published annual rates divided by the model-year length rather than by the Earth year |
+| CNP P-pool kinetics | `USORB`, `USSORB` in `somdynam.cpp` | published Earth-annual rates, divided by `VESPER_EARTH_YEAR_DAYS`. `UOCC` is gone with the occlusion decision |
 
 For an absolute-time calibration, retaining the Earth annual fraction on every
 Vesper orbit makes the process about 2.02 times as fast per Earth year. But not
