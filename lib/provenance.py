@@ -255,6 +255,13 @@ SURFACE_UNREAD_MODEL_KEYS = {
     # than its leaves because config_drift tests a block name before recursing,
     # so naming the block skips everything under it.
     "surface_albedo": frozenset({
+        # world-cwc and world-qpe. Both are GLACIER MODEL namelist values:
+        # max_snow_depth_m becomes DSMAX and persistence_orbits becomes
+        # GLACPERSIST, and both are consumed by the model at run time. No
+        # build_surface_*.py mentions a glacier at all -- traced by grep over
+        # all four builders -- so neither reaches a staged surface field.
+        "surface.glaciers.max_snow_depth_m",
+        "surface.glaciers.persistence_orbits",
         "model.co2_sw_weight", "model.energy_diagnostics",
         "model.energy_diagnostics_3d", "model.h2o_sw_level",
         "model.h2o_sw_weight", "model.layers", "model.ncpus",
@@ -284,6 +291,13 @@ SURFACE_UNREAD_MODEL_KEYS = {
         "model.tree_albedo_bracket", "model.grass_albedo_bracket",
     }),
     "surface_roughness": frozenset({
+        # world-cwc and world-qpe. Both are GLACIER MODEL namelist values:
+        # max_snow_depth_m becomes DSMAX and persistence_orbits becomes
+        # GLACPERSIST, and both are consumed by the model at run time. No
+        # build_surface_*.py mentions a glacier at all -- traced by grep over
+        # all four builders -- so neither reaches a staged surface field.
+        "surface.glaciers.max_snow_depth_m",
+        "surface.glaciers.persistence_orbits",
         "model.co2_sw_weight", "model.energy_diagnostics",
         "model.energy_diagnostics_3d", "model.geography_land_threshold",
         "model.h2o_sw_level", "model.h2o_sw_weight",
@@ -318,6 +332,13 @@ SURFACE_UNREAD_MODEL_KEYS = {
         "model.grass_albedo", "model.grass_albedo_bracket",
     }),
     "surface_soil_water": frozenset({
+        # world-cwc and world-qpe. Both are GLACIER MODEL namelist values:
+        # max_snow_depth_m becomes DSMAX and persistence_orbits becomes
+        # GLACPERSIST, and both are consumed by the model at run time. No
+        # build_surface_*.py mentions a glacier at all -- traced by grep over
+        # all four builders -- so neither reaches a staged surface field.
+        "surface.glaciers.max_snow_depth_m",
+        "surface.glaciers.persistence_orbits",
         # Not `model.` keys, and the first non-model entries here. Both
         # describe OCEAN HEAT TRANSPORT in the climate model (CLIM-16);
         # this builder makes a soil water field out of the export and
