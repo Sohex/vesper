@@ -90,10 +90,16 @@ fi
 # The declared flag line, asked of build_model.py rather than restated here, so
 # this measures the compiler the model is built with. `checked` is the profile
 # for verification arms: config/planet.yaml says so and gives the reason.
+# The precision comes back with the flags rather than being restated: real*4 and
+# real*8 are different arithmetic and a driver at the wrong one disagrees with
+# legmod by 1e-5 at high total wavenumber, which is a precision difference
+# wearing a defect's clothes.
 FFLAGS="$("$PY" -c "
 import sys; sys.path.insert(0, '$REPO/exoplasim/scripts')
 import build_model
-flags, _prec = build_model.flag_line('checked')
+flags, prec = build_model.flag_line('checked')
+if prec == 8:
+    flags = flags + ['-fdefault-real-8']
 print(' '.join(flags))")"
 
 rm -rf "$WORK"; mkdir -p "$WORK"
@@ -151,11 +157,11 @@ build () {
     rm -f ./*.o ./*.mod
     for f in resmod plasimmod iostub gaussmod specblock mpimod_omp legmod; do
         # shellcheck disable=SC2086
-        gfortran $F -fdefault-real-8 -J . "$f.f90" -o "$f.o" 2>"$f.err" \
+        gfortran $F -J . "$f.f90" -o "$f.o" 2>"$f.err" \
             || { echo "compile failed: $f ($tag)"; head -20 "$f.err"; exit 1; }
     done
     # shellcheck disable=SC2086
-    gfortran $F -fdefault-real-8 -J . drive.f90 -o drive.o 2>drive.err \
+    gfortran $F -J . drive.f90 -o drive.o 2>drive.err \
         || { echo "compile failed: drive ($tag)"; head -30 drive.err; exit 1; }
     gfortran -o "run_$tag.x" drive.o legmod.o mpimod_omp.o specblock.o \
         gaussmod.o iostub.o plasimmod.o resmod.o -fopenmp -g 2>link.err \
