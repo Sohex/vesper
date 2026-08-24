@@ -654,24 +654,59 @@ against a total of -0.58, so the loss is in `spectrala`.
 Inside `spectrala` the update is `stp = delt2*stt + atm` and its siblings --
 arithmetic that cannot lose energy on its own. The tendencies are what carry it,
 and they are formed in `gridpointa` by `mktend`, which computes the nonlinear
-terms in gridpoint space and transforms them back **with truncation**. Energy in
-the part of the product that falls outside the truncation is discarded.
+terms in gridpoint space and transforms them back with truncation.
 
-That predicts what was measured rather than being fitted to it: the loss per
-step goes as `dt` because it is a tendency increment, so the loss RATE is
+**"Truncation discards energy" is not, by itself, a mechanism.** The discarded
+part of a tendency lies entirely above the truncation, and the state it acts on
+lies entirely below it; the two are orthogonal, so an exact projection removes
+nothing the state could have received. Any energy argument that stops at "the
+product exceeds the truncation" proves too much -- it would condemn every
+spectral model ever written, including the ones that conserve energy to
+round-off.
+
+Two things break that orthogonality, and both live in the same routine:
+
+  THE PAIRING IS MASS-WEIGHTED. Energy is not the plain inner product of the
+  state with the tendency but the integral of one against the other weighted by
+  the mass of the column, so the field the tendency is paired against is
+  `ps * u`, not `u`. A product of two resolved fields is not resolved, so
+  `ps * u` reaches above the truncation and is no longer orthogonal to what the
+  projection throws away. Only the anomalous part of `ps` contributes, since a
+  constant times a resolved field stays resolved.
+
+  THE GRID DEALIASES PRODUCTS OF TWO FIELDS, AND `calcgp` FORMS PRODUCTS OF
+  THREE. `NLON = 3*NTRU + 1` at every rung on the ladder, which is exactly the
+  condition for a quadratic product to transform without aliasing. The
+  sigma-coordinate tendencies are not quadratic: `zsdotp` is itself a sum of
+  products, and it multiplies a vertical difference of temperature or wind to
+  make `gtd`, `gud` and `gvd`. Aliasing is not a projection -- it folds content
+  from above the truncation back onto resolved wavenumbers at the wrong phase --
+  so nothing above protects against it.
+
+Both are second order or higher in the flow, and every other candidate enters at
+a different order. That is testable without touching the model: multiply the
+state by a factor and re-measure, and each term shows itself by an exponent that
+is predicted in advance. `exoplasim/scripts/scale_restart.py` builds the arms
+and `exoplasim/scripts/dry_energy_order.py` fits the exponent, with the
+attribution bands and the fitting window fixed in the scripts before any arm
+ran. The spectral SHAPE is identical across arms, so the tail fraction near the
+truncation is held while the amplitude moves -- which is the one control that
+separates "how much energy is up there" from "how much flow there is".
+
+That control was worth building because the obvious proxy failed. Across the
+three dry arms the eddy kinetic energy above 0.6 of the truncation moves by 1.3x
+while the sink moves by 2.4x, and the unfiltered arm carries 22 percent LESS
+total eddy energy than the filtered one while sinking 2.4 times as fast. The
+state's own tail is therefore not the controlling variable, and the range it
+spans is too small to settle anything either way -- failure-modes class 34,
+reached by an instrument whose dynamic range never covered the effect.
+
+The semi-implicit splitting stays excluded by its own scaling: the loss per step
+goes as `dt` because it is a tendency increment, so the loss RATE is
 dt-independent -- 0.85 per halving against 0.50 for a first-order and 0.25 for a
-second-order time error. **The semi-implicit splitting is excluded by its own
-scaling**, which is why it is not the first target.
+second-order time error.
 
-So the instrumentation is a two-point comparison inside one routine: the energy
-tendency implied by the gridpoint fields entering `mktend`, against the energy
-tendency implied by the truncated spectral tendencies leaving it. Their
-difference is the discarded energy, directly measured. The project's
-control-patch pattern is the vehicle -- patch, mark with `CONTROL PATCH IN
-PROGRESS`, build one binary, run, restore -- and `smoke_test` refuses to let the
-marker be committed.
-
-NOT AVAILABLE, and worth stating so it is not attempted: parking the
-decomposition in unused `denergy` slots. All 28 are written somewhere, and
-radiation writes 9 and 10 in `gridpointd`, which runs after `spectrala` and
-would overwrite them before output.
+NOT AVAILABLE, and worth stating so it is not attempted: parking a decomposition
+in unused `denergy` slots. All 28 are written somewhere, and radiation writes 9
+and 10 in `gridpointd`, which runs after `spectrala` and would overwrite them
+before output.
