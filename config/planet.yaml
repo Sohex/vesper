@@ -554,6 +554,30 @@ model:
   land_longwave_emissivity: 1.0
   sea_longwave_emissivity: 0.98
   ozone_scale: 0.794
+  # WHERE THE OZONE SITS, and it is a pressure, not an altitude. `mko3` builds
+  # its height coordinate hypsometrically from the model's own gascon and ga,
+  # correctly, and then places the profile against BO3 and CO3, which upstream
+  # carries as fixed geometric lengths in metres fitted to Earth. This planet's
+  # scale height is 0.7656 of Earth's, so upstream's 20 km is 3.6 scale heights
+  # here against 2.7 on Earth and the whole profile is pushed to the top of the
+  # model.
+  #
+  # The modelled photochemical maximum is set by pressure-like conditions --
+  # ultraviolet optical depth and three-body recombination density -- not by
+  # geometric altitude, so pressure is the invariant to hold. These are
+  # upstream's 20000 and 5000 scaled by (gascon/ga) over Earth's own, which is
+  # the same factor the heights they are compared against already carry. The
+  # ratio is 0.765592 at gascon 287.017, from the declared composition, and the
+  # gravity above.
+  #
+  # Holding it exactly reproduces Earth's own layer-by-layer share of the ozone
+  # column on this world's sigma levels, to machine precision, which is the
+  # falsifiable form of the claim: exoplasim/notes/ozone.md carries the numbers.
+  # This corrects a REDISTRIBUTION, not the column -- `ozone_scale` is the
+  # column -- so the budget effect is small and the top-layer heating rate is
+  # where it shows.
+  ozone_height_m: 15311.8
+  ozone_spread_m: 3828.0
   ozone_uv_weight: 0.335
   ozone_visible_weight: 0.914
   # The Lacis and Hansen shortwave gas absorptances are fractions of SOLAR flux,

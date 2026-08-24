@@ -61,6 +61,44 @@ ozone is overestimated.
 
 Both errors overstate stratospheric heating. They do not cancel.
 
+## Where the profile sat, which was a third thing and is now corrected
+
+`bo3` and `co3` are LENGTHS IN METRES, and upstream carries them as fixed
+geometric ones fitted to Earth. `mko3` builds the height coordinate it compares
+them against hypsometrically, from the model's own `gascon` and `ga`, which is
+correct; the two constants it compares against did not follow. This world's
+scale height is 0.7656 of Earth's, so upstream's 20 km is 3.6 scale heights here
+against 2.7 on Earth, and the modelled profile is pushed toward the model top.
+
+**Height is the wrong invariant.** The modelled photochemical maximum is set by
+pressure-like conditions -- ultraviolet optical depth and three-body
+recombination density -- not by geometric altitude. Holding pressure fixed means
+scaling both constants by `(gascon/ga)` over Earth's own, which is exactly the
+factor the heights already carry, and `config/planet.yaml` declares them at that.
+
+MEASURED, on the model's own ten sigma levels taken from
+`analysis/climatology/bootstrap_regular_climatology.nc`, with a temperature
+profile running 230 K at the model top to 288 K at the surface, by reproducing
+`mko3`'s recursion:
+
+| placement | top layer | layer 2 | layer 3 |
+| --- | ---: | ---: | ---: |
+| Earth gravity, 20 km | 0.4184 | 0.3326 | 0.1243 |
+| this gravity, 20 km | 0.6718 | 0.1930 | 0.0628 |
+| this gravity, pressure-equivalent | 0.4184 | 0.3326 | 0.1243 |
+
+The third row equals the first to machine precision, every layer, and that is
+the point rather than a coincidence: once `bo3` and `co3` carry the same
+`(gascon/ga)` the heights do, the argument of the profile's logistic is a
+function of sigma alone at a given temperature profile, so the column's
+distribution over the sigma levels is gravity-independent by construction. The
+recursion returning that identity is the check that could have failed.
+
+This corrects a REDISTRIBUTION and not the column -- `ozone_scale` is the column
+-- so the budget effect at the surface is small, consistent with what this note
+already says. Where it shows is the top layer's shortwave heating rate, and that
+is the layer setting the modelled tropopause temperature and static stability.
+
 ## What to do about it
 
 Pricing the surface-climate stake is CLIM-32; in a ten-layer

@@ -755,6 +755,41 @@ The per-cell field the lithology map could support is `world-38y`. These two
 scalars exist to make the assumption visible and give it an arm, not to settle
 it.
 
+## `ozone_height_m` and `ozone_spread_m`
+
+```
+ozone_height_m: 15311.8
+ozone_spread_m: 3828.0
+```
+
+`mko3` places its synthetic ozone profile with a logistic in geometric height,
+centred at `BO3` with width `CO3`, both in metres. It builds the height
+coordinate it compares them against hypsometrically from the model's own
+`gascon` and `ga`, correctly; upstream's two constants are Earth's and do not
+follow, so on a higher-gravity world the whole profile is pushed toward the
+model top.
+
+Height is the wrong invariant. The modelled photochemical maximum is set by
+pressure-like conditions, ultraviolet optical depth and three-body
+recombination density, so pressure is what to hold fixed, and holding it means
+scaling both by `(gascon/ga)` over Earth's own -- the same factor the heights
+already carry. Doing so reproduces Earth's own layer-by-layer share of the
+ozone column on this world's sigma levels to machine precision, which is the
+form of the claim that could have failed;
+`exoplasim/notes/ozone.md` carries the recursion and the numbers.
+
+This is a REDISTRIBUTION and not a column change. `ozone_scale` is the column.
+The budget effect at the surface is second-order and the top model layer's
+shortwave heating rate is where it shows, which is the layer setting the
+modelled tropopause temperature and static stability.
+
+Written into `radmod_namelist` by `configure_otherargs`, so they are reapplied
+on every continuation, and checked there by `verify_staged_namelists`. They are
+NOT routed through `configure(ozone=...)`: that path also rewrites `A0O3`,
+`A1O3`, `ACO3` and `TOFFO3` from the same dict, and those four are a separate
+question about profile SHAPE that `exoplasim/notes/ozone.md` records and this
+does not touch.
+
 ## `energy_diagnostics_3d`
 
 ```

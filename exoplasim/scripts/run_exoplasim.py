@@ -181,6 +181,13 @@ def configure_otherargs(derived: dict) -> dict:
             f"{derived['land_longwave_emissivity']:.6g}",
         "ELWSEA@radmod_namelist":
             f"{derived['sea_longwave_emissivity']:.6g}",
+        # world-ayx, radmod_nl. Where the synthetic ozone profile sits. Written
+        # here rather than through configure(ozone=dict) deliberately: that path
+        # also rewrites A0O3, A1O3, ACO3 and TOFFO3 from the dict, which would
+        # make four more Earth constants into transcriptions in this file. These
+        # two are the only ones the gravity argument reaches.
+        "BO3@radmod_namelist": f"{derived['ozone_height_m']:.6g}",
+        "CO3@radmod_namelist": f"{derived['ozone_spread_m']:.6g}",
     }
 
 
@@ -289,6 +296,10 @@ def derive(config: dict, flux_ratio: float) -> dict:
             config["model"].get("land_longwave_emissivity", 1.0)),
         "sea_longwave_emissivity": float(
             config["model"].get("sea_longwave_emissivity", 0.98)),
+        # world-ayx. Defaults are radmod.f90's own, so a config that says
+        # nothing keeps upstream's fixed geometric placement.
+        "ozone_height_m": float(config["model"].get("ozone_height_m", 20000.0)),
+        "ozone_spread_m": float(config["model"].get("ozone_spread_m", 5000.0)),
     }
 
 
@@ -1528,6 +1539,9 @@ def expected_namelist_keys(config: dict) -> dict:
         m.get("land_longwave_emissivity", 1.0))
     want["radmod_namelist"]["ELWSEA"] = float(
         m.get("sea_longwave_emissivity", 0.98))
+    # world-ayx, and unconditional for the same reason.
+    want["radmod_namelist"]["BO3"] = float(m.get("ozone_height_m", 20000.0))
+    want["radmod_namelist"]["CO3"] = float(m.get("ozone_spread_m", 5000.0))
     salinity = config.get("ocean", {}).get("salinity_psu")
     if salinity is not None:
         want["icemod_namelist"]["TFREEZE"] = round(freezing_point_k(salinity), 4)
