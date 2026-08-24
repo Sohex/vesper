@@ -97,9 +97,11 @@ flux later is a change to one file. The argument is in
 `USORB` and `USSORB` are 0.0067 per EARTH year, and now divide by
 `VESPER_EARTH_YEAR_DAYS` rather than by the model year, under
 `biosphere/notes/time-base-unit-contract.md`. Their equality is Wang et al.
-(2010)'s own and is not a copying artifact. `PMASS_SAT` and `PCONC_SAT` still
-need provenance, and each disables its ramp rather than mis-setting it; that is
-its own row, blocked on a paper this project could not obtain.
+(2010)'s own and is not a copying artifact. `PMASS_SAT` is Parton, Stewart and
+Cole (1988) Fig. 3 exactly and is not a copy, but the labile P pool it gates is
+the fork's wider Hedley-labile one and not that figure's resin-extractable
+orthophosphate, so its ramp saturates everywhere. `PCONC_SAT` has no phosphorus
+source at all and its ramp can never be reached. Both are their own rows.
 
 ### 3. A bulk SOM column breaks the depth, root and groundwater contracts
 

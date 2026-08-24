@@ -1281,27 +1281,50 @@ void plib_callback(int callback) {
 		// bracket in guess.h, and each is BRACKETED rather than measured, so a
 		// run that uses them has to say which end of each bracket it is on.
 		//
-		// Three are not settled at all. PFRAC_LEAFTOSAP has no derivable
-		// scalar, because the one measurement of wood-against-leaf phosphorus
-		// scaling rejects the fixed-proportion form this constant assumes.
-		// PMASS_SAT and PCONC_SAT are the labile-P and litter-P saturation
-		// pair, and both disable the mechanism they belong to rather than
-		// merely mis-setting it: PMASS_SAT saturates it everywhere and
-		// PCONC_SAT can never be reached. Their source, Parton, Stewart and
-		// Cole (1988), is not held by this project.
+		// Two are not settled at all, and one is settled against its source
+		// but not against the pool it reads.
 		//
-		// Running with ifplim 1 before those three are settled produces a
-		// P-limited world whose soil organic C:P is a constant and whose woody
-		// P demand is nitrogen's, and it produces it silently, which is worse
-		// than not running. Lift this refusal in the change that settles them,
-		// not before. BIO-34; the evidence is in
+		// PFRAC_LEAFTOSAP has no derivable scalar, because the one measurement
+		// of wood-against-leaf phosphorus scaling rejects the fixed-proportion
+		// form this constant assumes.
+		//
+		// PCONC_SAT is the litter-P saturation threshold and carries
+		// NCONC_SAT's value exactly. Parton, Stewart and Cole (1988), which
+		// setptoc's own documentation cites, has no counterpart to it at all:
+		// no surface microbial pool and no C:P ramp driven by a litter
+		// concentration. 0.02 is 26 to 64 times above the richest litter this
+		// model can produce, so the surface microbial pool sits at its maximum
+		// C:P always.
+		//
+		// PMASS_SAT is that paper's Fig. 3 exactly, 2.0 gP/m2 of labile P, and
+		// it is not changed. But Parton's labile P is resin-extractable
+		// orthophosphate and this fork's soil.pmass_labile is the wider
+		// Hedley-labile pool, about eight times larger in the fork's own
+		// global run, so the ramp saturates everywhere and the slow, passive
+		// and soil microbial pools sit at their minimum C:P always. Choosing
+		// how to reconcile the two is a modelling decision.
+		//
+		// A fourth defect only bites under ifplim 1: the P immobilisation
+		// branch in somdynam.cpp scales sompool[SURFHUMUS].ptoc down and
+		// nothing sets it back, because SURFHUMUS is in the nitrogen ramp and
+		// not the phosphorus one, so surface humus C:P ratchets upward over a
+		// run.
+		//
+		// Running with ifplim 1 before those are settled produces a P-limited
+		// world whose soil organic C:P is pinned at its most phosphorus-rich
+		// end and whose woody P demand is nitrogen's, and it produces it
+		// silently, which is worse than not running. Lift this refusal in the
+		// change that settles them, not before. BIO-34 and WORLD-PIDX; the
+		// evidence is in
 		// biosphere/notes/phosphorus-cycle-parameterisation.md.
 		if (ifplim) {
 			sendmessage("Error", "ifplim 1 is refused: PFRAC_LEAFTOSAP in guess.h has no "
-				"phosphorus derivation, and PMASS_SAT and PCONC_SAT in somdynam.cpp "
-				"still carry nitrogen's saturation values, which disables the soil C:P "
-				"response entirely. See biosphere/notes/phosphorus-cycle-parameterisation.md "
-				"and BIO-34.");
+				"phosphorus derivation; PCONC_SAT in somdynam.cpp still carries nitrogen's "
+				"saturation value and has no phosphorus source; PMASS_SAT is its source's "
+				"value but reads a labile P pool its source did not define, so the soil C:P "
+				"ramp saturates everywhere; and the surface humus P:C ratchets downward "
+				"because no phosphorus ramp resets it. See "
+				"biosphere/notes/phosphorus-cycle-parameterisation.md, BIO-34 and WORLD-PIDX.");
 			plibabort();
 		}
 

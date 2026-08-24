@@ -67,46 +67,69 @@ static const double NMASS_SAT = 0.002 * 0.05;
 // their minimum (nitrogen saturation) (Parton et al 1993, Fig. 4)
 static const double NCONC_SAT = 0.02;
 
-// The phosphorus saturation pair, and NEITHER IS DERIVED FOR PHOSPHORUS. They
-// are the fmax argument of setptoc(), the value of the driving pool at which a
-// SOM pool's C:P reaches its minimum, and they are the reason parameters.cpp
-// still refuses ifplim 1.
+// The phosphorus saturation pair. Each is the fmax argument of setptoc(), the
+// value of the driving quantity at which a SOM pool's C:P reaches its minimum.
+// One of them is now derived and the other is not, and they fail differently.
 //
-// PCONC_SAT carries NCONC_SAT's value exactly. PMASS_SAT carries the 0.002 that
-// NMASS_SAT is built from, without the 0.05 that turns it into a soil
-// available-N pool, so it is neither the nitrogen value nor a phosphorus one.
-// The fork's own source offered 0.004 and 0.002 * 0.001 as phosphorus
-// candidates in commented-out lines, with no citation and no derivation behind
-// either.
+// PMASS_SAT IS Parton, Stewart and Cole (1988), read directly off Fig. 3,
+// p. 115: that figure plots the C:P ratio of the passive, slow and active soil
+// organic matter against soil labile P over an axis running 0 to 2.0 gP/m2,
+// and every line reaches its minimum at the right-hand end of that axis.
+// 2.0 gP/m2 is 0.002 kgP/m2, the value here. The three (ctop_max, ctop_min)
+// pairs passed to setptoc() below are that figure's three lines exactly: slow
+// 200 to 90, passive 200 to 20, active 80 to 30. setptoc's linear
+// interpolation is the figure's straight lines, and it sets the P:C of the
+// pool RECEIVING carbon, which is the paper's own statement of how the organic
+// P flows are computed (p. 115). So the constant is derived, the functional
+// form is the source's, and the resemblance to the 0.002 inside NMASS_SAT is a
+// coincidence of two unrelated readings.
 //
-// What each does to the model is worse than a wrong magnitude: each DISABLES
-// the ramp it belongs to, and they do it in opposite directions.
+// What is NOT derived is the pool this threshold is applied to. Parton's
+// labile P is orthophosphate that is isotopically exchangeable or
+// anion-exchange-resin extractable, over 0 to 20 cm (p. 115). This fork's
+// soil.pmass_labile is the Hedley-labile pool of Wang et al. (2010) and Yang
+// et al. (2013) -- labile inorganic PLUS labile organic P -- and Dantas de
+// Paula et al. (2025) adopt that wider definition deliberately, to stand in
+// for the biomineralisation pathway the model does not carry. Their own global
+// numbers separate the two: 2.11 PgP simulated labile P and 3.6 PgP
+// Hedley-labile, against 0.319 PgP by Olsen extraction over 0 to 20 cm. Over
+// 1.3e14 m2 of ice-free land those are 16, 28 and 2.4 gP/m2, and Parton's
+// 2.0 gP/m2 sits on the last of them. The fork's own sorption parameters say
+// the same thing from the inside: kplab, the Langmuir half-saturation for
+// labile P, is 10 to 78 gP/m2 by soil order (Wang et al. 2010, Table A1), so
+// this threshold is 5 to 39 times below the level at which the fork's own
+// isotherm expects labile P to be halfway to saturating.
 //
-// PCONC_SAT is compared against litter_pmass / (litter_cmass * 2), so 0.02 is
-// reached only at a litter C:P of 25 by mass. Observed senesced-litter C:P is
-// 1219 by mass globally and 660 to 1596 across forest biomes (McGroddy et al.
-// 2004, Table 1, converted from molar), so the threshold is 26 to 64 times
-// below anything the model can produce and the surface microbial pool sits at
-// its MAXIMUM C:P of 80 always. The nitrogen constant is not in that position:
-// the same 0.02 is a litter C:N of 25 against an observed 57, a factor of 2.3,
-// so the nitrogen ramp does span.
+// The consequence is that fac exceeds fmax nearly everywhere, and the slow,
+// passive and soil microbial pools sit at their MINIMUM C:P always, which is
+// their most phosphorus-rich end. That is not a wrong constant. It is a right
+// constant reading a pool its source did not define. Converting the threshold
+// into this fork's labile-P currency, or driving setptoc with a
+// resin-equivalent fraction of that pool, is a modelling decision and not an
+// arithmetic one.
 //
-// PMASS_SAT is compared against soil.pmass_labile, so 0.002 kgP/m2 is 2 gP/m2.
-// Yang et al. (2013) put global labile soil P at 3.6 PgP in the top half metre,
-// about 28 gP/m2, and this fork's own published run simulates 2.11 PgP, about
-// 16 gP/m2. The threshold is 8 to 14 times BELOW the pool it gates, so the
-// slow, passive and microbial pools sit at their MINIMUM C:P always. It also
-// doubles as the value pmass_labile is pinned to whenever P limitation is off,
-// which is what this project runs, so the reported labile P is an order of
-// magnitude low there for the same reason.
+// PCONC_SAT has no phosphorus source at all. It carries NCONC_SAT's 0.02
+// exactly, and Parton, Stewart and Cole (1988) contains no counterpart to it:
+// that model has no surface microbial pool and no C:P ramp driven by a litter
+// concentration. Its only C:P ramps are the three soil pools above, driven by
+// labile P; litter P is set by a fixed structural C:P of 500 with the
+// remainder going to the metabolic pool (p. 115). So both the ramp PCONC_SAT
+// belongs to and its value are nitrogen's, carried across.
 //
-// Deriving them needs Parton, Stewart and Cole (1988), Biogeochemistry 5:
-// 109-131, doi:10.1007/BF02180320, which setptoc's own documentation cites and
-// which this project does not hold and could not obtain. What a
-// same-relative-position transfer off the nitrogen pair would give is recorded
-// in biosphere/notes/phosphorus-cycle-parameterisation.md and is NOT adopted
-// here, because it would calibrate phosphorus against a nitrogen threshold
-// whose own position is not derived either.
+// It is compared against litter_pmass / (litter_cmass * 2), a phosphorus
+// fraction of litter dry mass, whose whole attainable range is 3.1e-4 to
+// 7.6e-4 for senesced-litter C:P of 1596 to 660 by mass (McGroddy et al. 2004,
+// Table 1). 0.02 is 26 to 64 times above the richest litter the model can
+// make, so the surface microbial pool sits at its MAXIMUM C:P of 80 always.
+// That bounds any replacement from above; nothing in the cited source anchors
+// it from below.
+//
+// Neither value is changed here, because neither is settled by arithmetic:
+// PMASS_SAT is correct against its source and wrong against its driver, and
+// PCONC_SAT has no source. parameters.cpp refuses ifplim 1 while that stands,
+// and biosphere/notes/phosphorus-cycle-parameterisation.md carries the
+// evidence, the arithmetic and what each is worth in the model's own reported
+// stocks.
 static const double PMASS_SAT = 0.002;
 static const double PCONC_SAT = 0.02;
 
@@ -509,8 +532,14 @@ void setntoc(Soil& soil, double fac, pooltype pool, double cton_max, double cton
 }
 
 /// Set P:C ratios for SOM pools
-/** Set P:C ratios for slow, passive, humus and soil microbial pools
-*  based on mineral phosphorus pool or litter phosphorus fraction (Parton et al 1988, Fig 43)
+/** Set P:C ratios for the slow, passive and soil microbial pools from the
+*  labile P pool, and for the surface microbial pool from the litter P
+*  fraction. The first is Parton, Stewart and Cole (1988) Fig. 3, p. 115,
+*  whose three straight lines are the (ctop_max, ctop_min) pairs the callers
+*  pass and whose axis maximum is PMASS_SAT. The second has no counterpart in
+*  that paper; see the PCONC_SAT comment at the top of this file. The ratio
+*  set here is the P:C of the pool RECEIVING carbon, which is the paper's own
+*  construction, and it is applied in transferdecomp() below.
 */
 void setptoc(Soil& soil, double fac, pooltype pool, double ctop_max, double ctop_min,
 	double fmin, double fmax) {
@@ -817,15 +846,33 @@ void somfluxes(Patch& patch, bool ifequilsom, bool tillage) {
 
 	setntoc(soil, nmin_mass, SURFHUMUS, 30.0, 15.0, 0.0, NMASS_SAT);
 
-	// Set P:C ratios for humus, soil microbial, passive and slow pool based on estimated mineral nitrogen pool
-	// (Parton et al 1988, Fig 2)
+	// Set P:C ratios for the slow, passive and soil microbial pools from the
+	// labile P pool. The three (ctop_max, ctop_min) pairs and the saturating
+	// value of the driver are Parton, Stewart and Cole (1988) Fig. 3, p. 115,
+	// line for line; pmin_mass is soil.pmass_labile, which is NOT the labile P
+	// that figure was drawn against. See the PMASS_SAT comment at the top of
+	// this file.
 
 	setptoc(soil, pmin_mass, SLOWSOM, 200.0, 90.0, 0.0, PMASS_SAT);
 
 	setptoc(soil, pmin_mass, PASSIVESOM, 200.0, 20.0, 0.0, PMASS_SAT);
 
-	setptoc(soil, pmin_mass, SOILMICRO, 80.0, 30.0, 0.0, PMASS_SAT); //Check this
+	// Checked against the source: 80 and 30 are Fig. 3's ACTIVE soil P line,
+	// and this fork's soil microbial pool is CENTURY's active pool. The
+	// paper's conclusions (p. 128) give the active range as 20 to 80 where its
+	// model description (p. 115) and Fig. 3 give 30 to 80; the code follows
+	// the figure.
+	setptoc(soil, pmin_mass, SOILMICRO, 80.0, 30.0, 0.0, PMASS_SAT);
 
+	// SURFHUMUS is deliberately absent from the phosphorus ramp and present in
+	// the nitrogen one above, and that asymmetry is not free: the P
+	// immobilisation branch below multiplies sompool[SURFHUMUS].ptoc down by
+	// ptoc_reduction, and nothing ever sets it back, so the surface humus C:P
+	// ratchets upward without bound over a run instead of being re-derived
+	// each day the way SLOWSOM and SOILMICRO are. Parton, Stewart and Cole
+	// (1988) has no humus pool to take a (ctop_max, ctop_min) pair from, so
+	// uncommenting this line would import SLOWSOM's pair without a source.
+	// Registered in biosphere/notes/phosphorus-cycle-parameterisation.md.
 	//setptoc(soil, pmin_mass, SURFHUMUS, 200.0, 90.0, 0.0, PMASS_SAT);
 
 
@@ -1235,6 +1282,15 @@ void somfluxes(Patch& patch, bool ifequilsom, bool tillage) {
 
 	// If no phosphorus limitation or during free phosphorus years set soil
 	// available phosphorus to its saturation level.
+	//
+	// PMASS_SAT is the right constant for this second job as well as for the
+	// ramp: "saturated" here means exactly "at the value where setptoc() stops
+	// responding", so the two uses move together and must not be split. What
+	// follows from it is that the labile P this configuration reports is a
+	// CONSTANT meaning "not limiting", not a simulated stock, and comparing it
+	// against a measured labile P or against this fork's own P-limited run is
+	// meaningless in either direction. commonoutput.cpp writes it into PO4_mass
+	// and availp all the same.
 	if (!ifplim || date.year <= freenyears) {
 		soil.pmass_labile = PMASS_SAT;
 		//soil.pmass_labile = 0.0;
@@ -1569,6 +1625,13 @@ void transfer_litter(Patch& patch) {
 
 	// Set N:C ratio of surface microbial pool based on N:C ratio of litter from all PFTs
 	// Parton et al 1993 Fig 4. Dry mass litter == cmass litter * 2
+	//
+	// The phosphorus line below has no such figure behind it. Parton, Stewart
+	// and Cole (1988) carries no surface microbial pool and no C:P ramp driven
+	// by a litter concentration, so both the structure and PCONC_SAT are the
+	// nitrogen line's, and the pair 80 and 30 is Fig. 3's ACTIVE SOIL line
+	// applied to a surface pool. See the PCONC_SAT comment at the top of this
+	// file for the bound on any replacement.
 	if (!negligible(litter_cmass)) {
 		setntoc(soil, litter_nmass / (litter_cmass * 2.0), SURFMICRO, 20.0, 10.0, 0.0, NCONC_SAT);
 		setptoc(soil, litter_pmass / (litter_cmass * 2.0), SURFMICRO, 80.0, 30.0, 0.0, PCONC_SAT);
