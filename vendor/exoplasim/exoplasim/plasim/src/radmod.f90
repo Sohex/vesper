@@ -2682,11 +2682,18 @@
          zaert1(:,jlev) = (4.0*zaeru1(:))/zaerd1(:,jlev) ! transmission band 1
          zaerr1(:,jlev) = (zaeru1(:) + 1.0)*(zaeru1(:) - 1.0)*(EXP(zaertf1(:,jlev))-EXP(-zaertf1(:,jlev)))/zaerd1(:,jlev) ! reflection band 1
 
-         ! Next do scattered light
+         ! Next do scattered light. The DIFFUSE beam takes zmu00, so every
+         ! quantity below it must be the s one: zaertf1s and zaerd1s were
+         ! computed here and then never read, and the transmission and
+         ! reflection were built from the direct-beam zaertf1 and zaerd1, which
+         ! made the diffuse stream bit-identical to the direct one and dropped
+         ! the factor-of-2 diffusivity the scattered beam carries. zaeru1 is a
+         ! function of the single-scattering albedo and the backscatter ratio
+         ! only, so it is shared by both beams and is correct as it stands.
          zaertf1s(:,jlev) = MIN(25.,(ztemp1(:)*aod1(:,jlev))/zmu00)  ! effective t band 1 using zmu00 not zmu0!
-         zaerd1s(:,jlev) = (((zaeru1(:)+1.0)**2.0)*EXP(zaertf1(:,jlev)) - ((zaeru1(:)-1.0)**2.0)*EXP(-zaertf1(:,jlev))) ! denominator band 1
-         zaert1s(:,jlev) = (4.0*zaeru1(:))/zaerd1(:,jlev) ! transmission band 1
-         zaerr1s(:,jlev) = (zaeru1(:) + 1.0)*(zaeru1(:) - 1.0)*(EXP(zaertf1(:,jlev))-EXP(-zaertf1(:,jlev)))/zaerd1(:,jlev) ! reflection band 1
+         zaerd1s(:,jlev) = (((zaeru1(:)+1.0)**2.0)*EXP(zaertf1s(:,jlev)) - ((zaeru1(:)-1.0)**2.0)*EXP(-zaertf1s(:,jlev))) ! denominator band 1
+         zaert1s(:,jlev) = (4.0*zaeru1(:))/zaerd1s(:,jlev) ! transmission band 1
+         zaerr1s(:,jlev) = (zaeru1(:) + 1.0)*(zaeru1(:) - 1.0)*(EXP(zaertf1s(:,jlev))-EXP(-zaertf1s(:,jlev)))/zaerd1s(:,jlev) ! reflection band 1
         endwhere
 
       ! CONSERVATIVE SCATTERING, band 1. As ssa goes to 1 the u-factor diverges
@@ -2694,6 +2701,11 @@
       ! 2*b*tau/mu, so the two-stream collapses to T = 1/(1+b*tau/mu) and
       ! R = (b*tau/mu)/(1+b*tau/mu). That is the limit of the expressions
       ! above, not a different scheme.
+      !
+      ! The diffuse beam takes the same limit at mu = zmu00, so it gets its own
+      ! b*tau/mu and not a copy of the direct answer. Copying was what this
+      ! branch did when it was written, which made the defect above it read as
+      ! deliberate rather than as the transcription it was.
 
         where(losun(:) .and. aod1(:,jlev) > 0. .and. lcons1(:))
          ztcon(:) = zbs1(:)*aod1(:,jlev)/(zmu0+zero)
@@ -2701,10 +2713,11 @@
          zaerd1(:,jlev) = 1.0
          zaert1(:,jlev) = 1.0/(1.0+ztcon(:))
          zaerr1(:,jlev) = ztcon(:)/(1.0+ztcon(:))
+         ztcon(:) = zbs1(:)*aod1(:,jlev)/zmu00
          zaertf1s(:,jlev) = 0.
          zaerd1s(:,jlev) = 1.0
-         zaert1s(:,jlev) = zaert1(:,jlev)
-         zaerr1s(:,jlev) = zaerr1(:,jlev)
+         zaert1s(:,jlev) = 1.0/(1.0+ztcon(:))
+         zaerr1s(:,jlev) = ztcon(:)/(1.0+ztcon(:))
         endwhere
 
         where(losun(:) .and. aod1(:,jlev) > 0. .and. .not. lcons2(:))
@@ -2716,9 +2729,9 @@
          zaerr2(:,jlev) = (zaeru2(:) + 1.0)*(zaeru2(:) - 1.0)*(EXP(zaertf2(:,jlev))-EXP(-zaertf2(:,jlev)))/zaerd2(:,jlev) ! reflection band 2
 
          zaertf2s(:,jlev) = MIN(25.,(ztemp2(:)*aod2(:,jlev))/zmu00) ! effective t band 2
-         zaerd2s(:,jlev) = (((zaeru2(:)+1.0)**2.0)*EXP(zaertf2(:,jlev)) - ((zaeru2(:)-1.0)**2.0)*EXP(-zaertf2(:,jlev))) ! denominator band 2
-         zaert2s(:,jlev) = (4.0*zaeru2(:))/zaerd2(:,jlev) ! transmission band 2
-         zaerr2s(:,jlev) = (zaeru2(:) + 1.0)*(zaeru2(:) - 1.0)*(EXP(zaertf2(:,jlev))-EXP(-zaertf2(:,jlev)))/zaerd2(:,jlev) ! reflection band 2
+         zaerd2s(:,jlev) = (((zaeru2(:)+1.0)**2.0)*EXP(zaertf2s(:,jlev)) - ((zaeru2(:)-1.0)**2.0)*EXP(-zaertf2s(:,jlev))) ! denominator band 2
+         zaert2s(:,jlev) = (4.0*zaeru2(:))/zaerd2s(:,jlev) ! transmission band 2
+         zaerr2s(:,jlev) = (zaeru2(:) + 1.0)*(zaeru2(:) - 1.0)*(EXP(zaertf2s(:,jlev))-EXP(-zaertf2s(:,jlev)))/zaerd2s(:,jlev) ! reflection band 2
         endwhere
 
         where(losun(:) .and. aod1(:,jlev) > 0. .and. lcons2(:))
@@ -2727,10 +2740,11 @@
          zaerd2(:,jlev) = 1.0
          zaert2(:,jlev) = 1.0/(1.0+ztcon(:))
          zaerr2(:,jlev) = ztcon(:)/(1.0+ztcon(:))
+         ztcon(:) = zbs2(:)*aod2(:,jlev)/zmu00
          zaertf2s(:,jlev) = 0.
          zaerd2s(:,jlev) = 1.0
-         zaert2s(:,jlev) = zaert2(:,jlev)
-         zaerr2s(:,jlev) = zaerr2(:,jlev)
+         zaert2s(:,jlev) = 1.0/(1.0+ztcon(:))
+         zaerr2s(:,jlev) = ztcon(:)/(1.0+ztcon(:))
         endwhere
 
        enddo ! levels loop
