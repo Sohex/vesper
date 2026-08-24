@@ -1107,7 +1107,9 @@ def declare_dry_constants(model, config: dict) -> dict:
     # also the model's own unit of time after world-rt1, so a sponge declared in
     # rotations is the same number of nondimensional units at any rotation rate.
     rotation_s = float(config["planet"]["rotation_hours"]) * 3600.0
-    tfrc = ",".join(f"{x * rotation_s:.6g}" for x in sponge)
+    # Fixed point rather than %g: a namelist real is parsed by the Fortran
+    # runtime and there is no reason to hand it an exponent it has to read back.
+    tfrc = ",".join(f"{x * rotation_s:.4f}" for x in sponge)
 
     model._edit_namelist("planet_namelist", "AKAP", f"{akap:.8g}")
     model._edit_namelist("planet_namelist", "ALR",
