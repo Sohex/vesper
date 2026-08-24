@@ -39,6 +39,16 @@ since the loop is only monotone if an already-carved basin stays carved.
 **Config internal consistency.** Gravity against mass, and the declared orbit
 against the flux it is derived from.
 
+**What the runs on disk actually integrated.** Three cases over run directories,
+in `audit_runs`. The staged namelists against the config and the manifest each
+run carries, the staged namelists against the hyperdiffusion block the manifest
+declares, and the per-code `surface_field_sha256` against the `.sra` files that
+are there now. Until these existed, `run_exoplasim.py`'s `expected_namelist_keys`
+and `verify_staged_namelists` were the only guard on any of it and both fire only
+at prepare and continue time, so a run already on disk was invisible: the T21 run
+the project's numbers rest on records a hyperdiffusion block its namelist does not
+carry, and a person reading run directories is what found it.
+
 **The flux-to-kelvin slope against the runs it was measured on.** `lib/sensitivity.py`
 declares one sensitivity for the whole project. Its predecessor was called
 FALLBACK_SLOPE, nothing ever fell back to it, and it survived two terrain changes
@@ -57,7 +67,9 @@ generators -- both works and teaches the wrong thing.
 The audit above compares artifacts, so nothing in it says whether the comparison
 itself can still tell a real change from a cosmetic one. `--self-test` asks that
 directly: it edits the live `config/planet.yaml` IN MEMORY and asserts what the
-comparison must say about each edit. A comment must not be drift, an allowlisted
+comparison must say about each edit, and it builds a run directory that agrees
+with itself and asserts what `audit_runs` must say about each way of breaking
+it. A comment must not be drift, an allowlisted
 key must not be drift, a parameter must be, a deleted key must be, and every
 allowlist entry must name a key that exists. The parameter case is the one that
 matters: a comparison that fired at nothing would pass every negative case here
@@ -146,6 +158,240 @@ def sha256_of(path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def audit_runs(rep: "Report", runs: Path, runner) -> None:
+    """What the runs already on disk actually integrated, read back off them.
+
+    Three cases, and they exist because nothing looked. The guard that a run
+    got the damping, the filter and the radiation its config asked for is
+    `run_exoplasim.py`'s `expected_namelist_keys` plus
+    `verify_staged_namelists`, and both fire only while a run is being prepared
+    or resumed. A run already on disk -- prepared before the guard, seeded from
+    a template, or edited -- was invisible to every check in the tree, and the
+    runs here turned out not to agree with their own manifests.
+
+    SEVERITY IS NOT A NEW JUDGEMENT. Each case applies the SAME predicate as
+    the prepare-time guard it mirrors, at the same severity.
+    `verify_staged_namelists` raises on a staged key whose value is not what
+    the config asks for, so a wrong value here fails. The restart guard in
+    `run_exoplasim.py` refuses to seed from a run whose recorded
+    `surface_field_sha256` no longer matches the `.sra` on disk -- "content
+    changed for code(s) ..." -- so a changed surface here fails.
+
+    The one thing a retrospective check meets that a prepare-time one cannot
+    is a run that PREDATES a key. `expected_namelist_keys` supplies the
+    model's own default for a config that never declared the key, so an
+    absent namelist entry on such a run means the model integrated its
+    compiled value and NOTHING RECORDED WHICH. That is unobservable rather
+    than wrong, and it warns -- the same answer this file already gives a
+    climatology carrying no build identity. What separates the two is the
+    run's own `namelist_checks` block: an entry there is the run asserting it
+    staged that key and read it back, so the same key missing from the file
+    is the manifest contradicted, and that fails.
+
+    Takes the runs directory and the runner module rather than reading ROOT,
+    so `--self-test` can drive it over a fixture whose right answer is known
+    in advance instead of only over whatever happens to be on disk.
+    """
+    manifests = sorted(runs.glob("run_*/run_manifest.json"))
+
+    # -- a run against the namelists it staged -------------------------------
+    try:
+        wrong, unrecorded, unstaged, seen = [], {}, [], 0
+        for manifest in manifests:
+            data = json.loads(manifest.read_text(encoding="utf-8"))
+            cfg = data.get("source_config")
+            if not cfg:
+                continue
+            run = manifest.parent
+            if not (run / "plasim_namelist").is_file():
+                # Nothing was ever staged; the run died before `configure()`
+                # wrote its namelists. There is no claim to contradict.
+                unstaged.append(run.name)
+                continue
+            seen += 1
+            claimed = set(data.get("namelist_checks") or {})
+            bad = []
+            for fname, keys in runner.expected_namelist_keys(cfg).items():
+                path = run / fname
+                for key, want in keys.items():
+                    try:
+                        raw = runner.namelist_value(path, key)
+                    except (KeyError, FileNotFoundError):
+                        if f"{key}@{fname}" in claimed or key in claimed:
+                            bad.append(f"{key} claimed staged, absent from "
+                                       f"{fname}")
+                        else:
+                            unrecorded.setdefault(run.name, set()).add(key)
+                        continue
+                    raw = raw.rstrip(",").strip()
+                    # A str want is a per-level ARRAY held as the `n*value`
+                    # text a Fortran namelist replicates, and is compared as
+                    # text for the reason `expected_namelist_keys` gives: a
+                    # scalar there sets element 1 and leaves levels 2..NLEV
+                    # on the compiled values. world-720.
+                    if isinstance(want, str):
+                        if raw != want:
+                            bad.append(f"{key}={raw} not {want}")
+                        continue
+                    try:
+                        got = float(raw)
+                    except ValueError:
+                        bad.append(f"{key}={raw!r} is not a number")
+                        continue
+                    if abs(got - float(want)) > 1e-9:
+                        bad.append(f"{key}={got:g} not {float(want):g}")
+            if bad:
+                wrong.append(f"{run.name}: " + ", ".join(bad))
+        if wrong:
+            rep.add(FAIL, "runs vs the namelists they staged",
+                    "; ".join(wrong[:4])
+                    + (f" (+{len(wrong) - 4} more runs)" if len(wrong) > 4 else "")
+                    + " -- the namelist in the run directory is what the "
+                      "model integrated, so these runs did not integrate "
+                      "what their own configuration asks for")
+        else:
+            rep.add(OK, "runs vs the namelists they staged",
+                    f"{seen} runs carry namelists and every key their config "
+                    f"declares is in them with the declared value")
+        if unrecorded:
+            lines = [f"{name}: {', '.join(sorted(keys))}"
+                     for name, keys in sorted(unrecorded.items())]
+            rep.add(WARN, "namelist keys the runs never recorded",
+                    "; ".join(lines[:3])
+                    + (f" (+{len(lines) - 3} more runs)" if len(lines) > 3 else "")
+                    + " -- absent from the namelist and never claimed on the "
+                      "manifest, so the model used its compiled value and no "
+                      "artifact says which")
+        if unstaged:
+            rep.add(WARN, "runs that staged no namelists",
+                    f"{', '.join(unstaged)} have a manifest and no "
+                    f"plasim_namelist, so there is nothing to read back")
+    except Exception as exc:
+        rep.add(WARN, "runs vs the namelists they staged", f"not checked: {exc}")
+
+    # -- a run against the hyperdiffusion its manifest declares --------------
+    #
+    # world-e6m, and the narrowest of the three: it does not go through the
+    # config at all. The manifest's `hyperdiffusion` block is the run's own
+    # record of the damping it was prepared with, `plasim_namelist` is what the
+    # model read, and both are inside the run directory, so nothing outside it
+    # can move the answer and the right answer is equality. It is separate from
+    # the case above because a manifest that carries the block has made the
+    # claim even where the config route cannot see it: run_2b20e3324bb0 records
+    # a full hyperdiffusion block and its namelist has no NDEL, NHDIFF or TDISS*
+    # at all, so the model fell back to `readnl`'s compiled T21 branch -- a
+    # grad^4 operator where the block says grad^8, and humidity damped 7.4x too
+    # hard. world-1nz found it by hand.
+    try:
+        wrong, seen, silent = [], 0, []
+        for manifest in manifests:
+            data = json.loads(manifest.read_text(encoding="utf-8"))
+            hd = data.get("hyperdiffusion")
+            nl = manifest.parent / "plasim_namelist"
+            if not hd or not nl.is_file():
+                continue
+            layers = int((data.get("physical") or {}).get("layers")
+                         or data["source_config"]["model"]["layers"])
+            tau = hd["timescales_days"]
+            want = {"NHDIFF": float(hd["nhdiff"]),
+                    "NDEL": f"{layers}*{int(hd['order_alpha'])}",
+                    "TDISSD": f"{layers}*{float(tau['divergence'])}",
+                    "TDISSZ": f"{layers}*{float(tau['vorticity'])}",
+                    "TDISST": f"{layers}*{float(tau['temperature'])}",
+                    "TDISSQ": f"{layers}*{float(tau['humidity'])}"}
+            seen += 1
+            missing, differs = [], []
+            for key, expect in want.items():
+                try:
+                    raw = runner.namelist_value(nl, key).rstrip(",").strip()
+                except (KeyError, FileNotFoundError):
+                    missing.append(key)
+                    continue
+                if isinstance(expect, str):
+                    if raw != expect:
+                        differs.append(f"{key}={raw} not {expect}")
+                elif abs(float(raw) - expect) > 1e-9:
+                    differs.append(f"{key}={raw} not {expect:g}")
+            # One line per run: the same five keys go wrong together on
+            # every run that has them wrong at all, and a per-key list
+            # buries which runs are affected under how.
+            if missing:
+                silent.append(f"{manifest.parent.name} carries none of "
+                              f"{', '.join(missing)}")
+            if differs:
+                wrong.append(f"{manifest.parent.name}: "
+                             + ", ".join(differs))
+        if wrong or silent:
+            lines = silent + wrong
+            rep.add(FAIL, "runs vs the hyperdiffusion they declare",
+                    "; ".join(lines[:4])
+                    + (f" (+{len(lines) - 4} more runs)" if len(lines) > 4 else "")
+                    + " -- an absent key leaves the model on readnl's "
+                      "compiled branch and a scalar leaves levels 2..NLEV "
+                      "on it, so these runs damped differently from what "
+                      "their manifests record")
+        else:
+            rep.add(OK, "runs vs the hyperdiffusion they declare",
+                    f"{seen} runs declare a hyperdiffusion block and each "
+                    f"carries it per level in its own namelist")
+    except Exception as exc:
+        rep.add(WARN, "runs vs the hyperdiffusion they declare",
+                f"not checked: {exc}")
+
+    # -- a run against the surface fields it staged --------------------------
+    #
+    # A `.sra` lives under one name per code per rung and is regenerated in
+    # place, so an albedo rebuilt with lakes composited is still code 174. The
+    # run that was made on the old one keeps reading its restart's copy while
+    # the new file sits beside it in the run directory, which is why
+    # `run_exoplasim.py` refuses to seed a new run from a donor whose recorded
+    # `surface_field_sha256` no longer matches the file on disk. That refusal
+    # only ever looked at the donor of the run being prepared. This asks it of
+    # every run there is, so a regenerated input cannot orphan one silently.
+    try:
+        orphaned, unstamped, seen = [], [], 0
+        for manifest in manifests:
+            data = json.loads(manifest.read_text(encoding="utf-8"))
+            cfg = data.get("source_config")
+            hashes = data.get("surface_field_sha256")
+            if not cfg:
+                continue
+            if not hashes:
+                unstamped.append(manifest.parent.name)
+                continue
+            seen += 1
+            moved = []
+            for code, was in sorted(hashes.items(), key=lambda kv: int(kv[0])):
+                path = runner.surface_sra(cfg, int(code))
+                if not path.is_file():
+                    moved.append(f"{code} is gone")
+                elif sha256_of(path) != was:
+                    moved.append(f"{code} {was[:8]} -> {sha256_of(path)[:8]}")
+            if moved:
+                orphaned.append(f"{manifest.parent.name} "
+                                f"({cfg['model']['resolution']}): "
+                                + ", ".join(moved))
+        if orphaned:
+            rep.add(FAIL, "runs vs the surface fields they staged",
+                    "; ".join(orphaned[:4])
+                    + (f" (+{len(orphaned) - 4} more runs)"
+                       if len(orphaned) > 4 else "")
+                    + " -- the file under that code has been regenerated "
+                      "since, so the run is on a surface the tree no longer "
+                      "holds and nothing can be seeded from it")
+        else:
+            rep.add(OK, "runs vs the surface fields they staged",
+                    f"{seen} runs record per-code hashes and every one still "
+                    f"matches the .sra at that code")
+        if unstamped:
+            rep.add(WARN, "runs that record no surface hashes",
+                    f"{', '.join(unstamped)} predate surface_field_sha256, "
+                    f"so which surface they integrated cannot be settled")
+    except Exception as exc:
+        rep.add(WARN, "runs vs the surface fields they staged",
+                f"not checked: {exc}")
+
+
 def self_test() -> int:
     """Assert what the config comparison must say about known edits.
 
@@ -226,6 +472,163 @@ def self_test() -> int:
          unknown_inert_keys(inert, base), [], "an entry that matches nothing excuses nothing")
     case("resume allowlist entries all exist",
          unknown_inert_keys(INERT_CONFIG_KEYS, base), [], "same, for the resume guard")
+
+    # -- the retrospective run gates, over a fixture whose answer is known ----
+    #
+    # `audit_runs` reads run directories, and every run on disk today fails it.
+    # That says nothing about whether it can tell a run that agrees with itself
+    # from one that does not: a gate that fired at everything would look exactly
+    # the same. So the fixture below is a run built to AGREE -- namelists
+    # written from the same `expected_namelist_keys` the gate reads back, a
+    # hyperdiffusion block derived from the same config, and surface files
+    # hashed as staged -- and it is asserted GREEN first. Each case after it
+    # breaks exactly one thing and names the verdict in advance.
+    import tempfile
+    from copy import deepcopy
+    sys.path.append(str(ROOT / "exoplasim" / "scripts"))
+    import run_exoplasim as runner
+
+    NAMELISTS, HYPERDIFF, SURFACE = ("runs vs the namelists they staged",
+                                     "runs vs the hyperdiffusion they declare",
+                                     "runs vs the surface fields they staged")
+
+    def build_fixture(root: Path) -> Path:
+        """A run directory that agrees with its own manifest in every way."""
+        cfg = deepcopy(base)
+        model = cfg["model"]
+        rung = str(model["resolution"]).upper()
+        run = root / "runs" / "run_selftest"
+        run.mkdir(parents=True)
+        want = runner.expected_namelist_keys(cfg)
+        for fname, keys in want.items():
+            (run / fname).write_text(
+                "".join(f" {key} = {value}\n" for key, value in keys.items()),
+                encoding="ascii")
+        inputs = root / "inputs" / rung.lower()
+        inputs.mkdir(parents=True)
+        hashes = {}
+        for code in sorted(runner.intended_surface_codes(cfg)):
+            sra = inputs / f"orogen_{rung}_surf_{code:04d}.sra"
+            sra.write_text(f"self-test surface field {code}\n", encoding="ascii")
+            hashes[str(code)] = sha256_of(sra)
+        hd = model["hyperdiffusion"]
+        (run / "run_manifest.json").write_text(json.dumps({
+            "run_id": "run_selftest",
+            "physical": {"resolution": rung, "layers": int(model["layers"])},
+            "source_config": cfg,
+            # Every key claimed, so a deleted one is the manifest contradicted
+            # rather than a key the run predates. The case below removes a key
+            # from here as well, to reach the other branch.
+            "namelist_checks": {f"{k}@{f}": v
+                                for f, ks in want.items() for k, v in ks.items()},
+            "hyperdiffusion": {
+                "rung": rung,
+                "nhdiff": round(float(hd["cutoff_fraction"]) * int(rung.lstrip("T"))),
+                "order_alpha": int(hd["order_alpha"]),
+                "timescales_days": hd["timescales_days"][rung],
+            },
+            "surface_field_sha256": hashes,
+        }, indent=1) + "\n", encoding="utf-8")
+        return run
+
+    def verdicts(edit=None) -> dict:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            run = build_fixture(root)
+            if edit is not None:
+                edit(run, root)
+            saved = runner.INPUTS
+            # `surface_sra` resolves against the runner's module-level INPUTS,
+            # so the fixture's surface has to be reachable through it.
+            runner.INPUTS = root / "inputs"
+            try:
+                r = Report()
+                audit_runs(r, root / "runs", runner)
+            finally:
+                runner.INPUTS = saved
+            return {check: (status, detail) for status, check, detail in r.rows}
+
+    def drop(run: Path, fname: str, key: str) -> None:
+        path = run / fname
+        path.write_text("".join(
+            line for line in path.read_text(encoding="ascii").splitlines(True)
+            if not line.strip().upper().startswith(key + " ")), encoding="ascii")
+
+    def unclaim(run: Path, *keys: str) -> None:
+        path = run / "run_manifest.json"
+        data = json.loads(path.read_text(encoding="utf-8"))
+        data["namelist_checks"] = {k: v for k, v in data["namelist_checks"].items()
+                                   if k.split("@")[0] not in keys}
+        path.write_text(json.dumps(data, indent=1) + "\n", encoding="utf-8")
+
+    HD_KEYS = ("NHDIFF", "NDEL", "TDISSD", "TDISSZ", "TDISST", "TDISSQ")
+
+    green = verdicts()
+    case("a run that agrees with itself passes all three",
+         {check: status for check, (status, _) in green.items()},
+         {NAMELISTS: OK, HYPERDIFF: OK, SURFACE: OK},
+         "otherwise every case below would pass on a gate that only ever fails")
+    case("and the fixture is a run the gates actually read",
+         [green[check][1].split()[0] for check in (NAMELISTS, HYPERDIFF, SURFACE)],
+         ["1", "1", "1"],
+         "an empty runs directory would report three OKs as well")
+
+    case("a staged key with the wrong value fails",
+         verdicts(lambda run, root: (run / "plasim_namelist").write_text(
+             (run / "plasim_namelist").read_text(encoding="ascii")
+             .replace("FILTERKAPPA = ", "FILTERKAPPA = 1"), encoding="ascii")
+         )[NAMELISTS][0], FAIL,
+         "the filter exponent run_2b20e3324bb0 got wrong is this shape")
+
+    case("a per-level array staged as a scalar fails",
+         verdicts(lambda run, root: (run / "plasim_namelist").write_text(
+             re.sub(r"NDEL = \d+\*", "NDEL = ",
+                    (run / "plasim_namelist").read_text(encoding="ascii")),
+             encoding="ascii"))[NAMELISTS][0], FAIL,
+         "a namelist scalar sets element 1 and leaves 2..NLEV compiled; world-720")
+
+    case("a claimed key absent from the file fails",
+         verdicts(lambda run, root: drop(run, "plasim_namelist",
+                                         "FILTERKAPPA"))[NAMELISTS][0], FAIL,
+         "the manifest says it was staged and read back, and it is not there")
+
+    def predates(run, root):
+        drop(run, "plasim_namelist", "FILTERKAPPA")
+        unclaim(run, "FILTERKAPPA")
+    predated = verdicts(predates)
+    case("a key the run never claimed does not fail",
+         predated[NAMELISTS][0], OK,
+         "the model used its compiled value; unobservable, not wrong")
+    case("and it is reported rather than passed over",
+         predated["namelist keys the runs never recorded"][0], WARN,
+         "otherwise the case above would be indistinguishable from not looking")
+
+    def no_damping(run, root):
+        for key in HD_KEYS:
+            drop(run, "plasim_namelist", key)
+        unclaim(run, *HD_KEYS)
+    case("a declared hyperdiffusion block with no keys in the namelist fails",
+         verdicts(no_damping)[HYPERDIFF][0], FAIL,
+         "run_2b20e3324bb0 and run_8102b89a08ac are exactly this; world-1nz")
+
+    case("a surface field regenerated under the same code fails",
+         verdicts(lambda run, root: next(
+             (root / "inputs").rglob("*.sra")).write_text("edited\n",
+                                                          encoding="ascii")
+         )[SURFACE][0], FAIL,
+         "the name never moves, so only the digest can say the file changed")
+
+    def unstamped(run, root):
+        path = run / "run_manifest.json"
+        data = json.loads(path.read_text(encoding="utf-8"))
+        data.pop("surface_field_sha256")
+        path.write_text(json.dumps(data, indent=1) + "\n", encoding="utf-8")
+    without = verdicts(unstamped)
+    case("a run that records no surface hashes does not fail",
+         without[SURFACE][0], OK, "there is no claim to contradict")
+    case("and it is reported rather than passed over",
+         without["runs that record no surface hashes"][0], WARN,
+         "which surface it integrated cannot be settled either way")
 
     width = max(len(n) for n, _, _ in cases) + 2
     for name, ok, why in cases:
@@ -706,6 +1109,25 @@ def main() -> int:
                     "change in kind")
     except Exception as exc:
         rep.add(WARN, "energy fixer declared", f"not checked: {exc}")
+
+    # -- what the runs already on disk actually integrated -------------------
+    #
+    # Everything above this line reads the configuration and the artifacts a
+    # generator wrote. `audit_runs` reads RUN DIRECTORIES, which is where the
+    # model's own record of what it integrated lives. Its argument, and the
+    # reasoning for each case and its severity, are on the function.
+    try:
+        # Appended, not inserted: `lib/` must keep priority, and nothing under
+        # `exoplasim/scripts/` shares a module name with it today.
+        scripts = str(ROOT / "exoplasim" / "scripts")
+        if scripts not in sys.path:
+            sys.path.append(scripts)
+        import run_exoplasim as runner          # noqa: E402
+    except Exception as exc:
+        rep.add(WARN, "runs vs the namelists they staged",
+                f"not checked: run_exoplasim.py did not import: {exc}")
+    else:
+        audit_runs(rep, ROOT / "exoplasim" / "runs", runner)
 
     # -- the derived diffusion table matches the rule it claims to come from --
     #
