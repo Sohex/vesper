@@ -34,6 +34,9 @@ import close_state_energy
 # The one reader of the manifest's segment records; see
 # exoplasim/scripts/segments.py for what a purpose means.
 from segments import orbit_purposes, production_window
+# CLAUDE.md names lib/sensitivity.py as the one flux-to-kelvin conversion, and
+# the radiative damping this file relaxes at is that conversion inverted.
+from sensitivity import planetary_albedo_from_fluxes, radiative_damping_w_m2_per_k
 
 
 def output_files(run_dir: Path) -> list[Path]:
@@ -58,20 +61,33 @@ def slope(series: np.ndarray, window: int) -> float:
     return float(np.polyfit(x, y, 1)[0])
 
 
-# The mixed layer's heat capacity, and the feedback strength measured from
-# converged points spanning the design band. Together they set how long an
-# approach takes, which is what turns a drift rate into a remaining offset.
+# The mixed layer's heat capacity and the radiative damping. Together they set
+# how long an approach takes, which is what turns a drift rate into a remaining
+# offset -- and the offset is what `OFFSET_TOLERANCE_K` passes or fails a run
+# on, so neither may be a number typed in beside the code that uses it.
+#
+# THE SLAB IS MODELLING THE MODEL'S OWN MIXED LAYER, so it takes the model's own
+# sea water. `close_state_energy.py` reads CRHOS and CPS off `oceanmod.f90` and
+# is imported here already; the 1025 and 3990 that stood here were 0.5% and 4.6%
+# off them, uncited, and in the same direction.
 import yaml as _yaml
 _MLD = float(_yaml.safe_load(
     (Path(__file__).resolve().parents[2] / "config" / "planet.yaml")
     .read_text(encoding="utf-8"))["surface"]["mixed_layer_depth_m"])
-SLAB_HEAT_CAPACITY = _MLD * 1025.0 * 3990.0      # J/m2/K, from the config's depth
-FEEDBACK_W_M2_K = 1.31                            # measured, not assumed
+SLAB_HEAT_CAPACITY = _MLD * close_state_energy.CRHOS * close_state_energy.CPS
 
 
-def relaxation_orbits(orbital_year_days: float) -> float:
-    tau_seconds = SLAB_HEAT_CAPACITY / FEEDBACK_W_M2_K
-    return tau_seconds / (orbital_year_days * 86400.0)
+def relaxation_orbits(orbital_year_days: float, feedback_w_m2_k: float) -> float:
+    """Orbits for an e-folding of the slab's approach to equilibrium.
+
+    `feedback_w_m2_k` is the radiative damping, and it comes from
+    `lib/sensitivity.py` -- the one flux-to-kelvin conversion -- evaluated at
+    the planetary albedo THIS RUN reports, so it moves with the run the way
+    `year_days` already does. A private constant stood here instead, 1.31
+    W/m2/K commented "measured, not assumed" with nothing saying where, 11%
+    above what the module's own slope implies.
+    """
+    return (SLAB_HEAT_CAPACITY / feedback_w_m2_k) / (orbital_year_days * 86400.0)
 
 
 def approach_to_equilibrium(orbits: np.ndarray, series: np.ndarray,
@@ -160,7 +176,9 @@ def main() -> None:
         with Dataset(path) as nc:
             weights = leggauss(len(nc.dimensions["lat"]))[1][::-1]
             record = {"year_index": year}
-            for name in ["ts", "ntr", "hfns", "sic", "pr"]:
+            # rst and rsut are read for the planetary albedo the radiative
+            # damping is evaluated at: the run's own, not a declared one.
+            for name in ["ts", "ntr", "hfns", "sic", "pr", "rst", "rsut"]:
                 field = np.asarray(nc[name][:], dtype=float)
                 value = float(global_mean(field, weights).mean())
                 if name == "pr":
@@ -173,7 +191,7 @@ def main() -> None:
     # orbits. `records` keeps all of them, and the plot draws all of them, so
     # nothing is hidden -- only excluded from the verdict.
     arrays = {key: np.array([record[key] for record in records[:window_end + 1]])
-              for key in ["ts", "ntr", "hfns", "sic", "pr"]}
+              for key in ["ts", "ntr", "hfns", "sic", "pr", "rst", "rsut"]}
     w = args.window
     metrics = {
         "temperature_slope_k_per_orbit": slope(arrays["ts"], w),
@@ -235,7 +253,12 @@ def main() -> None:
     if manifest_path.is_file():
         year_days = float(json.loads(manifest_path.read_text(encoding="utf-8"))
                           ["derived_parameters"]["orbital_year_earth_days"])
-    tau_expected = relaxation_orbits(year_days)
+    # The albedo is this run's own, over the same window every other metric is
+    # taken over, so the damping moves with the run exactly as `year_days` does.
+    window_alpha = planetary_albedo_from_fluxes(
+        float(arrays["rst"][-w:].mean()), float(arrays["rsut"][-w:].mean()))
+    feedback_w_m2_k = radiative_damping_w_m2_per_k(window_alpha)
+    tau_expected = relaxation_orbits(year_days, feedback_w_m2_k)
     orbits_axis = np.arange(len(arrays["ts"]), dtype=float)
     asymptote, half_width, tau_fit = approach_to_equilibrium(orbits_axis, arrays["ts"])
     offset = asymptote - metrics["temperature_mean_k"]
@@ -263,6 +286,11 @@ def main() -> None:
         "temperature_remaining_offset_k": offset,
         "relaxation_orbits_fitted": tau_fit,
         "relaxation_orbits_expected": tau_expected,
+        # What tau_expected was built from, so the fallback offset below can be
+        # audited without re-deriving it. lib/sensitivity.py owns the damping.
+        "planetary_albedo_in_window": window_alpha,
+        "radiative_damping_w_m2_per_k": feedback_w_m2_k,
+        "slab_heat_capacity_j_m2_k": SLAB_HEAT_CAPACITY,
         "remaining_offset_implied_by_drift_k":
             metrics["temperature_slope_k_per_orbit"] * tau_expected,
     })

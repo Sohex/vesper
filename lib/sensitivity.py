@@ -125,6 +125,20 @@ def _gaussian_weights(nlat: int, nlon: int) -> np.ndarray:
     return leggauss(nlat)[1][::-1][:, None] * np.ones((1, nlon))
 
 
+def planetary_albedo_from_fluxes(net_down_w_m2: float,
+                                 upward_w_m2: float) -> float:
+    """Planetary albedo from globally meaned `rst` and `rsut`.
+
+    Separate from `planetary_albedo` only in where the two fluxes come from, so
+    a caller holding a run's own annual means -- rather than a climatology file
+    -- gets the same arithmetic instead of writing it again. `rst` is NET
+    downward at the top and `rsut` is the upward part, so their sum is the
+    incident flux and no separate insolation figure is needed.
+    """
+    upward = abs(float(upward_w_m2))
+    return upward / (float(net_down_w_m2) + upward)
+
+
 def planetary_albedo(cfg: dict | None = None,
                      climatology: Path | None = None) -> tuple[float, dict]:
     """Measured, not assumed: reflected over incident at the top of atmosphere.
@@ -159,7 +173,7 @@ def planetary_albedo(cfg: dict | None = None,
         run_id = getattr(ds, "vesper_run_id", None)
         flux = float(getattr(ds, "vesper_flux_ratio", float("nan")))
     incident = net_down + upward
-    alpha = upward / incident
+    alpha = planetary_albedo_from_fluxes(net_down, upward)
     return alpha, {
         "source": rel(path),
         "run_id": run_id,
@@ -187,6 +201,23 @@ def forcing_to_kelvin(w_m2: float, alpha: float, cfg: dict | None = None,
                       slope: float | None = None) -> float:
     """A top-of-atmosphere forcing in W/m2 to kelvin. Positive warms."""
     return w_m2 * kelvin_per_w_m2(alpha, cfg, slope)
+
+
+def radiative_damping_w_m2_per_k(alpha: float, cfg: dict | None = None,
+                                 slope: float | None = None) -> float:
+    """W/m2 of top-of-atmosphere forcing per kelvin of response.
+
+    The reciprocal of `kelvin_per_w_m2`, and therefore the SAME measurement seen
+    from the other side rather than a second one. It is what an energy-balance
+    relaxation time divides a heat capacity by: `tau = C / lambda`.
+
+    It is here, and not carried as its own constant beside a slab model, because
+    a private copy is a second sensitivity in a project that has already paid
+    for having three. `assess_convergence.py` held 1.31 W/m2/K "measured, not
+    assumed" with no pointer to the measurement, 11% above what this module's
+    slope implies.
+    """
+    return 1.0 / kelvin_per_w_m2(alpha, cfg, slope)
 
 
 def flux_ratio_to_kelvin(d_flux: float, slope: float | None = None) -> float:
