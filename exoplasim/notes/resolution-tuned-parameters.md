@@ -569,3 +569,57 @@ which operation loses the energy -- the semi-implicit reference-state splitting
 is the obvious candidate and has not been tested, and testing it wants a dry
 adiabatic configuration where total energy must be exactly conserved and any
 drift is unambiguously the numerics.
+
+## The sink, found: the dynamical core loses energy and the filter conceals it
+
+*Dry adiabatic runs, 2026-08-23. Radiation emptied (`nswr = nlwr = 0`, keeping
+`nrad = 1` so the orbital geometry is still computed), evaporation, sensible
+flux, surface stress and vertical diffusion off, and large-scale, convective,
+shallow and dry-adjustment heating switched out of `rainstep`. Nothing heats or
+cools the atmosphere, and there is no surface exchange left to absorb anything.*
+
+**The atmosphere cools anyway.** T42, dt 22.5, one orbit from the settled
+restart: mass-weighted column temperature falls 1.18 K, and the column enthalpy
+trends at **-0.579 W/m2** -- the same number by two routes, since 1.18 K over an
+orbit is 0.586 W/m2 at this column mass. Measured from the model's own
+`denergy01`, not from the term decomposition that reports it.
+
+So the sink is real. It is not the diagnostic, and with the surface removed it
+has nowhere to hide.
+
+### What it is not
+
+| candidate | test | verdict |
+| --- | --- | --- |
+| mass drift | global-mean surface pressure over the orbit | +188 ppm, worth +0.02 W/m2. Not it |
+| the physics filter | dry run with the filter off | sink grows to **-1.363**. The filter REDUCES it |
+| time truncation | dt 22.5 against dt 11.25 | 0.85x per halving, where linear would be 0.50x |
+| the kinetic-energy side | steady-state KE identity | closes at -0.035 |
+| the Robert-Asselin filter | `pnu` | 0.0, a no-op |
+| a diagnostic time-level error | `adm` is t-dt, `sd` after update is t+dt | the 2dt division is right |
+
+### What it is
+
+A loss that **grows as small-scale energy survives** and is **largely
+independent of the timestep**. Both point away from the time scheme and toward
+the spatial treatment of the nonlinear terms: quadratic products are dealiased
+by the Gaussian grid at T42, but the primitive equations in sigma coordinates
+carry non-polynomial terms through `exp(ln p_s)`, which the transform cannot
+dealias.
+
+That is a candidate class rather than a line, and identifying the line needs the
+model instrumented rather than run.
+
+### What it means for everything above
+
+**The filter is not a damping cost. It is a mitigation of a dynamical-core
+defect.** Removing it more than doubles the core's energy loss, which is why
+every unfiltered configuration in this note showed a worse adiabatic residual.
+"Recovering resolution" by weakening the filter is therefore not free and not
+merely a trade against confinement: it exposes more of the scales the core
+mishandles.
+
+That also settles the shape of the earlier question. Speed cannot be bought by
+spending physics here because the physics was already being spent -- at
+0.6 W/m2 with the filter and 1.4 without it, in a configuration with no physics
+in it at all.

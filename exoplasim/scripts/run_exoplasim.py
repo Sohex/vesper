@@ -761,6 +761,49 @@ def declare_hyperdiffusion(model, config: dict) -> dict:
             "eddy_wind_m_s": float(hd["eddy_wind_m_s"])}
 
 
+def declare_dynamics_only(model, config: dict) -> bool:
+    """Strip every diabatic source, leaving the dynamical core alone.
+
+    A DIAGNOSTIC CONFIGURATION, not a climate. With radiation, vertical
+    diffusion and surface fluxes off and precipitation, convection and dry
+    convective adjustment switched out of `rainstep`, nothing heats or cools the
+    atmosphere. Anything that then appears in the energy budget is the numerics,
+    and -- the point of it -- there is no surface exchange left to absorb it.
+
+    That matters because the adiabatic residual is otherwise INVISIBLE: measured
+    across three filters, `26 - 27` moved 2.08 W/m2 while the closed budget moved
+    0.013, because the surface silently supplied whatever the dynamics destroyed.
+    Take the surface away and the same sink has nowhere to hide.
+
+    THE DAMPING STAYS ON, deliberately. `26 - 27` is measured across `spectrala`
+    and the hyperdiffusion is applied in `spectrald`, so the damping does not
+    enter the identity; removing it would only make the run blow up sooner. The
+    physics filter is left to the config, so it can be varied as its own arm.
+    """
+    if not bool(config["model"].get("dynamics_only", False)):
+        return False
+    # RADIATION STAYS SWITCHED ON AND IS EMPTIED INSTEAD. `nrad = 0` skips
+    # `radstep` entirely, which leaves `eccf` at its initialised zero, and
+    # `outsc_` then writes `1.0/sqrt(eccf)` -- a divide by zero that traps under
+    # the project's floating-point traps at the first output record. Setting
+    # `nswr` and `nlwr` to zero leaves the orbital geometry computed and removes
+    # every radiative tendency, which is what this mode actually wants.
+    # NOT `nflux`. It is accepted by `plasim_nl` and read by nothing -- the only
+    # occurrence in the source is its own namelist declaration -- so setting it
+    # is silent and does nothing. Measured: with `nflux = 0` the latent flux was
+    # still 6.5 W/m2. The live switches are fluxmod's.
+    for key in ("NEVAP", "NSHFL", "NSTRESS", "NVDIFF"):
+        model._edit_namelist("fluxmod_namelist", key, "0")
+    for key in ("NSWR", "NLWR"):
+        model._edit_namelist("radmod_namelist", key, "0")
+    for key in ("NPRL", "NPRC", "NDCA", "NSHALLOW"):
+        model._edit_namelist("rainmod_namelist", key, "0")
+    print("dynamics only: nswr=0 nlwr=0, no evaporation, sensible flux, "
+          "surface stress or vertical diffusion, and large-scale, convective, "
+          "shallow and dry-adjustment heating all off. Not a climate.")
+    return True
+
+
 def enable_energy_diagnostics(model, config: dict) -> bool:
     """Set nenergy in plasim_nl, which the Python API does not expose.
 
@@ -1582,6 +1625,7 @@ def main() -> None:
               f"(default 1 samples 5 diurnal phases; see CLIM-11)")
     declare_cold_start_seed(model, config, args.restart_from is None)
     hyperdiffusion = declare_hyperdiffusion(model, config)
+    dynamics_only = declare_dynamics_only(model, config)
     set_low_io(model, args.low_io)
     if enable_energy_diagnostics(model, config):
         n = register_energy_diagnostic_codes()
@@ -1707,6 +1751,7 @@ def main() -> None:
         # result can be read against the operator that produced it rather than
         # against the config that was meant to.
         "hyperdiffusion": hyperdiffusion,
+        "dynamics_only": dynamics_only,
         # Null when the run has no interactive emission, which is most of them.
         # Like prescribed_dust, the values are copied from the fields' own
         # provenance rather than from the config, so the manifest says what the
