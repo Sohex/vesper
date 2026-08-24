@@ -50,6 +50,72 @@ def available() -> list[str]:
     return sorted(p.name for p in SOURCE.iterdir() if is_build(p))
 
 
+# What one finished grid export holds, from the recipe in `source/README.md`:
+# the field catalogue, the CF netCDF, the binary field directory and the
+# per-export README. `raw/` is deliberately not here -- exactly one export per
+# build carries it and `mesh_export_of` is the check for that.
+_EXPORT_CONTENTS = ("manifest.json", "planet.nc", "README.txt")
+
+
+def incomplete_exports(root: Path) -> list[str]:
+    """Why a build directory is not a finished set of exports; empty if it is.
+
+    DERIVED RATHER THAN LISTED, and that is the whole point of it.
+    `scripts/archive_builds.py` held the completeness test as five literal
+    directory names -- T21, T42, T63, T85 and `grid-512x256`. The recipe in
+    `source/README.md` has since retired T63 and added T127 and T170, so the
+    ACTIVE build matched none of that list and could never have been archived
+    however superseded it became, while the older build passed on a T63 nothing
+    emits any more.
+
+    A build cannot be asked which grids the recipe of its own day emitted,
+    because nothing records that. What it CAN be asked is whether each export
+    it carries is finished, and that is the property "still being generated"
+    actually names: an export is written file by file, so a directory missing
+    its manifest or its netCDF is one being written now. A Gaussian export must
+    also name a rung in `lib/rungs.py`, so a misspelled or half-named directory
+    is refused rather than counted.
+
+    AN EXPORT DIRECTORY CARRYING NO DATA IS ABSENT, NOT UNFINISHED. The
+    exporter writes `README.txt` from a template that needs nothing computed,
+    so a directory holding that and nothing else is a grid whose export never
+    produced anything -- indistinguishable from a grid the recipe of that day
+    never emitted, and with no payload to lose either way.
+    `source/precarve-craton/exoplasim-T127` is one, and calling it unfinished
+    would block a build that is otherwise written through. What blocks is a
+    directory with DATA in it and a piece missing, which is what an export
+    being written now looks like.
+
+    This is not the only refusal in front of a deletion, and it was never meant
+    to be. `lib/orogen.py`'s registry rejects any terrain hash a human has not
+    registered, `mesh_export_of` rejects a build with no `raw/` carrier or with
+    two, and the caller skips the configured build, so a build being generated
+    right now is refused several times over before this is consulted.
+    """
+    root = Path(root)
+    reasons = []
+    exports = sorted(d for d in root.iterdir()
+                     if d.is_dir() and (d.name.startswith("exoplasim-")
+                                        or d.name.startswith("grid-")))
+    if not exports:
+        return [f"{root.name} carries no grid export"]
+    for d in exports:
+        if not any(f.name != "README.txt" for f in d.iterdir()):
+            continue  # no data written: absent, not unfinished
+        if d.name.startswith("exoplasim-"):
+            try:
+                resolution_of(d)
+            except RuntimeError as exc:
+                reasons.append(str(exc))
+                continue
+        missing = [f for f in _EXPORT_CONTENTS if not (d / f).is_file()]
+        if not (d / "grid").is_dir() or not any((d / "grid").iterdir()):
+            missing.append("grid/")
+        if missing:
+            reasons.append(f"{d.name} is missing {', '.join(missing)}")
+    return reasons
+
+
 def build_root(config: dict | None = None) -> Path:
     """Directory of the configured build."""
     name = _config(config).get("source_build")
