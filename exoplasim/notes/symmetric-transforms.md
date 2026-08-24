@@ -4,7 +4,21 @@
 Nothing in it is about the simulated planet. Derived 2026-08-20, built and
 measured 2026-08-21.*
 
-The decomposition that makes any of this reachable in production is a separate
+**THE SYMMETRIC PATHS DESCRIBED HERE ARE DELETED.** `2508bedb` removed them
+along with the decomposition that made them reachable, for the reason given in
+`paired-latitude-decomposition.md`: SHTns replaced `legmod` and cannot use a
+permuted layout, so a mirror pair no longer lands on one thread and there is
+nothing for the algebra below to run on. `sp2fc`, `sp2fcdmu` and `dv2uv` are
+plain full-latitude multiplies over `pmat` and `qmat` again. The deletion is bit
+inert and that was checked: the T21 restart sha is `a7418dea572f853f` on both
+sides of it.
+
+The record is kept for the derivation, which is the part that would have to be
+redone rather than reread if a mirror pair ever sits on one thread again, and
+for the measured ladder at the end, which is what the two halves together were
+worth and is the only number anyone should quote for them.
+
+The decomposition that made any of this reachable in production is a separate
 change with its own note, `paired-latitude-decomposition.md`. Read that one
 first: without it a mirror pair sits on two different processes and none of the
 algebra below can be used.
@@ -104,19 +118,18 @@ existing forward branches at the same time.
 
 ## Built, and checked against something that can fail
 
-All three inverse transforms carry a symmetric path now, selected by `LPAIRLAT`
-and running over `NLHP` mirror pairs. The `mod(m+n,2)` test is gone from all of
-them: the `n` loop is split into two strided loops instead, which needs no test
-and leaves the innermost loop branchless.
+All three inverse transforms carried a symmetric path, selected by `LPAIRLAT`
+and running over `NLHP` mirror pairs, with the `mod(m+n,2)` test gone from all
+of them: the `n` loop was split into two strided loops instead, which needs no
+test and leaves the innermost loop branchless.
 
-`verify_symmetric_transform.py` is the test with a right answer. It lifts the
-three loops VERBATIM out of `legmod.f90`, compiles them against a stub module
-whose `qi`, `qj`, `qu` and `qv` it supplies -- an associated Legendre table
-computed by scipy, an implementation the model shares nothing with -- and runs
-one spectral mode at a time. The transform is by definition the matrix-vector
-product with that table, so the answer at every latitude is known in advance,
+The test with a right answer lifted the three loops VERBATIM out of
+`legmod.f90`, compiled them against a stub module whose weight matrices it
+supplied -- an associated Legendre table computed by scipy -- and ran one
+spectral mode at a time. The transform is by definition the matrix-vector
+product with that table, so the answer at every latitude was known in advance,
 INCLUDING the mirrors the symmetric path never reads. Supplying the table also
-makes the check free of any normalisation or phase convention: the model is
+made the check free of any normalisation or phase convention: the routine was
 asked to reproduce what it was given.
 
 66 modes at NTRU=10, 16 latitudes, both Fourier components, all four of
@@ -133,6 +146,13 @@ End to end, `verify_paired_decomposition.sh` at 8 processes: 143 of 199 restart
 records bit identical, 56 at rounding scale, worst 1.9e-11 against a 1e-10
 tolerance declared before the arms ran, and the wrong-permutation control out
 by 6.3e15.
+
+**What survives that gate is `verify_inverse_transform.py`**, under world-2div.
+The mirror controls perturbed lines that no longer exist and the gate refused
+to run, so it was re-scoped to the half that never depended on the layout: the
+three routines against the matrix-vector product with the table AND the
+per-mode factor they are handed, which is what the fork's surviving change to
+them is. Seven controls, anchored to lines that exist.
 
 ## What it is worth
 
@@ -193,6 +213,9 @@ the inverse transforms were the place to work, `dv2uv` was the largest single
 routine, and the payoff grows with resolution.
 
 ## Offering it upstream
+
+This section is what the pitch WOULD have been. It is kept because the trade it
+states is the trade anyone reviving this has to make again.
 
 Unlike the filter fold, this is a capability rather than a cleanup: it removes a
 restriction -- the symmetric path being unreachable on more than one process --

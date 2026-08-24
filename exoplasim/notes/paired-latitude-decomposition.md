@@ -19,10 +19,16 @@ permutation sites named below no longer exist either.
 
 The record is kept for two things it establishes independently of the layout:
 what a survey of "routes through the primitives" misses, and what the two halves
-of the symmetric transform were measured to be worth. The gate that lifted
-`ilatperm` out of `plasimmod.f90`, `verify_latitude_pairing.py`, was deleted
-with its pipeline row under `world-h8o`: there was no function left to point it
-at, and repointing it would have made it pass vacuously.
+of the symmetric transform were measured to be worth.
+
+Three gates were left pointing at the deleted code, and the three verdicts are
+not the same verdict:
+
+| gate | what became of it |
+| --- | --- |
+| `verify_latitude_pairing.py` | DELETED with its pipeline row under `world-h8o`. It lifted `ilatperm`; there was no function left to point it at, and repointing it would have made it pass vacuously |
+| `verify_symmetric_transform.py` | RENAMED and re-scoped to `verify_inverse_transform.py` under `world-2div`. Its mirror controls perturbed lines that no longer exist, but the half that never depended on the layout survives and is worth more than it was: the fork's per-mode factor hoist is live in those loops |
+| `verify_omp_collectives.f90` | REPAIRED under `world-8y1e`. It called `ilatperm` and so failed in the compiler rather than with a message. Only the placement block was broken, and the scatter is contiguous again, so that block asserts the contiguous placement instead |
 
 ## The change
 
@@ -122,15 +128,17 @@ fail different checks:
 The shift control is the one that matters. A bijection check alone waves it
 through, and it is the mistake this function actually invites.
 
-**`verify_paired_decomposition.sh`** builds the paired and contiguous layouts
-from the same source and runs them on the same bed, at the same process count.
-This cannot be a checksum comparison and it is important to say why: each
-process sums the transform over the latitudes it holds and `mpsumsc` completes
-the partial sums, so changing WHICH latitudes a process holds regroups a
-floating point sum and the last bits move legitimately. What separates a
-regrouped sum from a different computation is size, not exactness.
+**`verify_paired_decomposition.sh`** built the paired and contiguous layouts
+from the same source and ran them on the same bed, at the same process count.
+It is deleted with the layout it compared. It could not be a checksum
+comparison and it is worth saying why, because the next comparison across a
+decomposition change meets the same thing: each process sums the transform over
+the latitudes it holds and `mpsumsc` completes the partial sums, so changing
+WHICH latitudes a process holds regroups a floating point sum and the last bits
+move legitimately. What separates a regrouped sum from a different computation
+is size, not exactness.
 
-Two things in it still fail hard.
+Two things in it failed hard, and both are the shape to reuse.
 
 - **The round-tripped fields must be bit identical.** `dls`, `doro` and `darea`
   are scattered in and gathered back with no arithmetic between. A permutation
@@ -144,10 +152,12 @@ Two things in it still fail hard.
   control short is what keeps the comparison exercised rather than bypassed by
   a crash.
 
-### What the runtime test does NOT cover
+### What the runtime test did NOT cover
 
-Two of the five primitives are correct by construction and unexercised, and
-saying so is the point of writing this down.
+Two of the five primitives were correct by construction and unexercised. The
+permutation they would have carried is gone, so the gap is closed by deletion
+rather than by a check, but the two facts underneath it are still true of the
+threaded layer and still decide whether anything new needs its own gate.
 
 - `mpgallgp` **has no call sites at all** in the model as it stands. Its
   permutation is written to match `mpgagp` and nothing runs it.

@@ -172,10 +172,12 @@ both.
   it is silent on `mkdheat` and on every physics term.
 - `dv2uv` under the bands. It is a synthesis routine with no partial sum and no
   reduction, and its only band dependence is the `pmat` and `qmat` rows for the
-  thread's own latitudes, which the table arm checks directly. Its loop and its
-  mirror combination are checked by `verify_symmetric_transform.py` against a
-  scipy table. What is not checked anywhere is `dv2uv`'s planetary vorticity
-  term under the bands, and pinning that needs the vector convention
+  thread's own latitudes, which the table arm checks directly. Its loop is
+  checked by `verify_inverse_transform.py`, at one thread, against the
+  matrix-vector product with the table and the per-mode factors it is handed,
+  planetary vorticity included as an offset on the vorticity coefficient. What
+  is not checked anywhere is that planetary vorticity term UNDER THE BANDS, and
+  pinning that needs the vector convention
   `probe_shtns_vector_conventions.f90` was written to discover.
 - The growth of a last-bit difference with run length. That needs two model arms
   differing at last-bit scale and there is one build. `verify_shtns_model.sh`
