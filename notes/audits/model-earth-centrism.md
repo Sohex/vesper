@@ -524,41 +524,61 @@ geopotential of order 2500 m2/s2 that is about 200 Pa, 0.2 per cent of surface
 pressure, but it means the realised global-mean surface pressure depends on an
 undeclared Earth number.
 
-## 18. The model's calendar is a 360-day Earth year that `calini` never updates
+## 18. The calendar was a 360-day Earth year that `calini` never updated
 
-`calmod.f90:19-22` declares `n_days_per_month=30`, `n_days_per_year=360`,
-`m_days_per_year=360`, `m_days_per_month=30`. `calini` (`calmod.f90:44-99`)
-copies `n_days_per_month`, `n_days_per_year`, `n_start_step`, `ntspd`,
-`solar_day` and `mpstep` -- and NOT `m_days_per_year` or `m_days_per_month`,
-which `plasim.f90:1506-1507` has just set to 183 and 15.
+`calmod` declares its own `n_days_per_month`, `n_days_per_year`,
+`m_days_per_year`, `m_days_per_month` and `mtspd` beside `pumamod`'s, with the
+same names. `calini` copied two of the five and derived `mtspd` from the pair it
+had not copied, so the calendar's own trio stayed at Earth's 360 days, 30-day
+months and an `mtspd` computed against them, while `readnl` had set `pumamod`'s
+to this world's.
 
-So `mtspd` in calmod is `146*40/360`, truncating to 16, and the calendar year is
-`360*16 = 5760` steps against the orbit's `n_steps_per_year = 5850`. The
-calendar drifts 1.54 per cent per orbit against the season and is a full year
-out after about 65 orbits. `tcalday` becomes 43200 s, so a "calendar day" is
-half a 24-hour day and `step2cal30` reports hours 0 to 11. `cal2step` and
-`step2cal30` are not inverses: `plasim.f90:1585` encodes with `mtspd = 32`, 146
-and 15, and `step2cal30` decodes with 16, 360 and 30, so year 1 month 1 day 1
-encodes to step 4672 and decodes as `23-Oct-0001`. `outmod.f90:119` and `:147`
-then pack `ihead(3)` from that while `ihead(8)` reports pumamod's
-`m_days_per_year = 183`, so one eight-word header carries two different days per
-year.
+What that cost, measured before the repair. `mtspd` in calmod was `146*40/360`,
+truncating to 16, so the calendar year was `360*16 = 5760` steps against the
+orbit's 5850: 1.54 per cent per orbit, a full year out after about 65 orbits.
+`tcalday` came out at 43200 s, so a "calendar day" was half a 24-hour day and
+`step2cal30` reported hours 0 to 11. `cal2step` and `step2cal30` were not
+inverses -- one encoded with `mtspd = 32`, 146 and 15, the other decoded with
+16, 360 and 30 -- so year 1 month 1 day 1 encoded to step 4672 and decoded as
+`23-Oct-0001`, and `outmod` packed `ihead(3)` from that while `ihead(8)`
+reported `pumamod`'s 183, one eight-word header carrying two days-per-year.
 
-**Bounded today.** `pyburn.py:492` and `:539` take the netCDF time axis from
-`header[6]`, the raw step counter, and radiation takes its orbital phase from
-`n_steps_per_year` independently (`radmod.f90:1848`, `:1979`), so nothing this
-project reads goes through the broken calendar. It becomes live the moment
-anyone enables climatological ozone (`radmod.f90:1999`), t-nudging or flux
-correction (`miscmod.f90:264`, `:321`), the land surface annual cycle
-(`landmod.f90:1490`, `:1519`), or prescribed ice and SST (`icemod.f90:1883-1919`,
-`oceanmod.f90:745`, `:765`) -- all of which interpolate through `step2cal30`.
+`pumamod`'s `m_days_per_month` had no setter anywhere and stayed at 30 against a
+183-day year, so twelve months did not span the year in either module.
 
-Related trap in the same machinery: `n_days_per_year == 365` silently switches
-the whole model to Earth's Gregorian calendar, with `mondays`, the 400/100/4 leap
-rule and `Jan..Dec` names (`calmod.f90:107`, `:138`, `:277`, `:387`, `:463`).
-`N_DAYS_PER_YEAR` is derived from the flux and the rotation period at
-`run_exoplasim.py:238`, so nothing structurally prevents a future world landing
-on 365, and there is no guard and no message.
+**The repair.** `calini` copies all five and takes `mtspd` from the caller
+rather than deriving it, so the calendar day IS the 24-hour day, `tcalday` comes
+out at `day_24hr` by construction, and the calendar year is
+`m_days_per_year * mtspd`. `readnl` sets `m_days_per_month` as the year over
+twelve ROUNDED UP, so twelve months always cover the orbit and the last is the
+short one; rounding down gives a thirteenth month. `cal2step`'s simplified
+branch uses `m_days_*` and takes `kyea-1`, which makes it the exact inverse of
+`step2cal30` -- verified over three years of steps -- and makes year 1 month 1
+day 1 encode to step 0.
+
+That last one was not only a labelling defect. `plasim`'s cold start sets
+`nstep = n_start_step` from that call and `radmod` takes the orbital phase from
+`mod(nstep,n_steps_per_year)`, so every cold start began at phase 0.799, four
+fifths of an orbit past the `meananomaly0` the config declares. It now begins at
+phase 0. This changes the initial condition of every new cold start; by rule 7
+every existing build and run is disposable and nothing is owed.
+
+A residual remains and is irreducible: the calendar year is 5856 steps against
+the orbit's 5850, 0.10 per cent, because `m_days_per_year` and `mtspd` are
+integers and the orbit is 182.5 24-hour days. It was 1.54 per cent.
+
+**What reads it.** `pyburn` takes the netCDF time axis from `header[6]`, the raw
+step counter, and radiation takes its orbital phase from `n_steps_per_year`
+independently, so no published number went through the broken calendar. It
+becomes load-bearing the moment anyone enables climatological ozone, t-nudging
+or flux correction, the land surface annual cycle, or prescribed ice and SST --
+all of which interpolate through `step2cal30`.
+
+The related trap is closed rather than recorded: `n_days_per_year == 365`
+switched the whole module to Earth's Gregorian calendar -- `mondays`, the
+400/100/4 leap rule, `Jan..Dec` -- and `N_DAYS_PER_YEAR` is derived from this
+world's flux and rotation period, so nothing structurally kept it off 365 and
+there was no guard and no message. `calini` now aborts on it and says why.
 
 ## 19. The glacier persistence test is one run segment, which here is half an Earth year
 

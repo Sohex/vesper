@@ -429,7 +429,8 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !     Copy some calendar variables to calmod
 
       call calini(n_days_per_month,n_days_per_year,n_start_step,ntspd &
-                  ,solar_day,-1,mpstep,mcal_days_per_year)
+                  ,solar_day,-1,mpstep,mcal_days_per_year &
+                  ,m_days_per_year,m_days_per_month,mtspd)
 !                  ,day_24hr,-1)
 
       call mpbci(mcal_days_per_year)
@@ -1611,8 +1612,17 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !        If there's one day per year, then solar_day is zero. But really, it's infinite
       endif
       
-      m_days_per_year = nint(n_days_per_year * sidereal_day / day_24hr) !24-hour days per year
-      n_days_per_month = m_days_per_year / 12 !24-hour days per month
+!     THE CALENDAR'S THREE LENGTHS, and all three are set here because calmod
+!     copies them rather than deriving its own. m_days_per_month had no setter
+!     at all and stayed at Earth's 30 while the year became 183, so twelve
+!     months did not span a year. The division ROUNDS UP, so twelve months
+!     always cover the orbit and the last one is the short one; rounding down
+!     gives a thirteenth month. The floors keep step2cal30's mod and divide off
+!     zero for an orbit shorter than a day or a year shorter than twelve.
+!     world-x1k.
+      m_days_per_year = max(1,nint(n_days_per_year * sidereal_day / day_24hr)) !24-hour days per year
+      m_days_per_month = max(1,(m_days_per_year + 11) / 12) !24-hour days per month
+      n_days_per_month = m_days_per_month
       
       
 !       day_24hr IS NOT PURELY A UNIT CONVERSION, and the upstream comment that
@@ -1698,7 +1708,8 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !     Convert start date to timesteps since 1-Jan-0000
 
       call calini(n_days_per_month,n_days_per_year,n_start_step,ntspd &
-                   ,solar_day,0,mpstep,mcal_days_per_year)
+                   ,solar_day,0,mpstep,mcal_days_per_year &
+                   ,m_days_per_year,m_days_per_month,mtspd)
 !                  ,day_24hr,0)
       
       call cal2step(n_start_step,mtspd,n_start_year,n_start_month,1,0,0)
