@@ -1,16 +1,19 @@
 {
   "schema_version": 1,
-  "generated": "2026-08-21T01:59:20.200166+00:00",
-  "git_commit": "93eb23f8bbf1fc40b463e52cdb47053119df4924",
+  "generated": "2026-08-24T02:11:11.426522+00:00",
+  "git_commit": "66ac7ab16b3c2181a76017fb991c708329a82b0c",
   "generator": "scripts/world_state.py",
-  "note": "Generated from the artifacts. Do not edit; re-run the generator. Only derived values live here. Findings are in `notes/`, with their evidence, and open work is in `TASKS.md`.",
+  "note": "Generated from the artifacts. Do not edit; re-run the generator. Only derived values live here. Findings are in `notes/`, with their evidence, and open work is in the `bd` issue tracker.",
   "planet": {
     "radius_earth": 1.2,
     "gravity_m_s2": 12.81,
     "mass_earth": 1.881009,
     "rotation_hours": 30.0,
     "obliquity_degrees": 32.0,
-    "eccentricity": 0.02
+    "eccentricity": 0.02,
+    "rotation_direction": "prograde",
+    "longitude_positive": "east",
+    "prime_meridian": "orogen_export_zero"
   },
   "star": {
     "spectral_type": "K2.5V",
@@ -61,10 +64,80 @@
       "longitudes": 128,
       "layers": 10,
       "precision_bytes": 8,
-      "optimization_flag": "-march=znver4",
+      "compile_flags": {
+        "f90_opts": [
+          "-O3",
+          "-cpp",
+          "-ffpe-trap=invalid,zero,overflow",
+          "-ffpe-summary=none",
+          "-march=znver4",
+          "-funroll-loops",
+          "-g"
+        ],
+        "profiles": {
+          "production": [],
+          "checked": [
+            "-fcheck=all",
+            "-finit-real=snan"
+          ]
+        },
+        "profile": "production"
+      },
       "ncpus": 16,
       "timestep_minutes": 45.0,
       "physics_filter": "gp|exp|sp",
+      "filter_kappa": 8.0,
+      "filter_power": 16,
+      "cold_start_seed": 88888888,
+      "hyperdiffusion": {
+        "eddy_wind_m_s": 5.94,
+        "order_alpha": 4,
+        "cutoff_fraction": 0.381,
+        "ratios_to_vorticity": {
+          "divergence": 0.2,
+          "temperature": 2.533,
+          "humidity": 0.333
+        },
+        "timescales_days": {
+          "T21": {
+            "divergence": 0.4457,
+            "vorticity": 2.2285,
+            "temperature": 5.6449,
+            "humidity": 0.7421
+          },
+          "T42": {
+            "divergence": 0.2229,
+            "vorticity": 1.1143,
+            "temperature": 2.8224,
+            "humidity": 0.3711
+          },
+          "T85": {
+            "divergence": 0.1101,
+            "vorticity": 0.5506,
+            "temperature": 1.3946,
+            "humidity": 0.1833
+          },
+          "T127": {
+            "divergence": 0.0737,
+            "vorticity": 0.3685,
+            "temperature": 0.9334,
+            "humidity": 0.1227
+          },
+          "T170": {
+            "divergence": 0.0551,
+            "vorticity": 0.2753,
+            "temperature": 0.6973,
+            "humidity": 0.0917
+          }
+        }
+      },
+      "resolution_timestep_minutes": {
+        "T21": 45.0,
+        "T42": 45.0,
+        "T85": 45.0,
+        "T127": 30.0,
+        "T170": 22.5
+      },
       "output_type": ".nc",
       "uniform_land_surface": true,
       "energy_diagnostics": false,
@@ -146,14 +219,26 @@
       },
       "preserved_basins": 3621,
       "land_fraction": 0.4317189425633888,
-      "endorheic_fraction_of_land": 0.7629547203568442,
+      "endorheic_catchment_share_of_land": 0.7629547203568442,
+      "endorheic_basin_floor_share_of_land": 0.26762,
       "lithology_land_fractions": {
         "playa_clastic": 0.23869,
         "continental_clastic": 0.18923,
         "schist": 0.11795,
         "granite": 0.11047,
         "granodiorite": 0.07288,
-        "melange": 0.06169
+        "melange": 0.06169,
+        "arc_andesite": 0.04958,
+        "shelf_clastic": 0.04085,
+        "carbonate": 0.03794,
+        "evaporite": 0.02849,
+        "pelagic": 0.01249,
+        "oib": 0.01186,
+        "flood_basalt": 0.00957,
+        "morb": 0.00742,
+        "gneiss": 0.00488,
+        "foreland_clastic": 0.0048,
+        "arc_basalt": 0.00121
       },
       "land_elevation_km": {
         "mean": 0.3957,
@@ -161,6 +246,7 @@
         "min": -0.5624
       },
       "grids": [
+        "T127",
         "T21",
         "T42",
         "T63",
