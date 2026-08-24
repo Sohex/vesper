@@ -674,7 +674,7 @@ one_offs:
   - exoplasim/scripts/build_model.py
   - exoplasim/scripts/verify_legendre_parity.py
   - exoplasim/scripts/compare_restarts.py
-  - exoplasim/scripts/verify_symmetric_transform.py
+  - exoplasim/scripts/verify_inverse_transform.py
   - exoplasim/scripts/verify_weight_factorisation.py
   - exoplasim/scripts/verify_weight_factorisation_model.sh
   - exoplasim/scripts/cache_budget.py

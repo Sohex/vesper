@@ -318,7 +318,7 @@ unless told they exist.
 | `verify_filter_fold.sh` | bit-identity check on the Legendre filter fold, filters off |
 | `verify_legendre_parity.py` | checks P and its mu-derivative have opposite parity in legini's own recurrence |
 | `compare_restarts.py` | compares two restarts record by record and separates a regrouped sum from a different computation |
-| `verify_symmetric_transform.py` | runs `legmod.f90`'s own `sp2fc` and `sp2fcdmu` against an associated Legendre table computed by scipy, one spectral mode at a time, with a negative control for each |
+| `verify_inverse_transform.py` | lifts `legmod.f90`'s own `sp2fc`, `sp2fcdmu` and `dv2uv` and checks each against the matrix-vector product with the table and the per-mode factor it was handed, one spectral mode at a time, planetary vorticity included as an offset on the vorticity coefficient; the per-mode factor is not unity, so a factor carried to the wrong mode cannot hide, and seven negative controls must each be rejected |
 | `verify_weight_factorisation.py` | checks that `legini`'s eight weight matrices are all P or Q times a per-mode and a per-latitude factor, which is what CLIM-48 rests on, with a negative control |
 | `verify_weight_factorisation_model.sh` | the other half of that: runs the two-matrix form against the eight-matrix one on one bed at a declared tolerance, with a control that corrupts one per-mode factor and must fail |
 | `cache_budget.py` | what the dynamical core cycles through one die's L3, by component and storage class, against the 32 MB target; the class to get right is `sliced`, one copy of which a thread touches only its own rows |
