@@ -185,6 +185,29 @@ set(_sources
 list(TRANSFORM _sources PREPEND "${CMAKE_CURRENT_SOURCE_DIR}/src/"
      REGEX "^[^/]+$")
 
+# ---------------------------------------------------------------------------
+# RAINMOD IS NOT VECTORISATION SAFE. Its convection scheme iterates a parcel
+# temperature, ztnew, by Newton steps on Tetens' saturation formula, whose
+# every term divides by (ztnew - ra4) -- ra4 being 35.86 K, the formula's pole.
+# A column that stops convecting leaves its lane's iteration unconstrained, and
+# a lane just below the pole gives exp() an argument near +4800: overflow, and
+# with -ffpe-trap=overflow in the production profile, SIGFPE. The scalar code
+# never reaches those lanes, because the enclosing `if` skips them; the
+# vectorised code computes them and discards the result.
+#
+# So the flag stops the model computing values it was always going to throw
+# away. It costs 2.8% of wall clock here -- four interleaved rounds at T42 from
+# one state, against 24.9% for the same flag on radmod as well and 43% for it
+# on the whole model. rainmod holds almost none of the vectorisation value;
+# radmod, which held most of it, is fixed in its source and stays vectorised.
+#
+# This is a build-level guard over a source-level defect: the 34 unguarded
+# Tetens sites are world-6tp. When they are guarded this block goes.
+# ---------------------------------------------------------------------------
+set_source_files_properties(
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/rainmod.f90"
+    PROPERTIES COMPILE_OPTIONS "-fno-tree-vectorize")
+
 add_executable(plasim.x ${_sources})
 set_target_properties(plasim.x PROPERTIES
     Fortran_MODULE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/modules"

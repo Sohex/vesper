@@ -2464,29 +2464,29 @@
         where(losun(:) .and. (dcc(:,jlev) > 0.))
          zlwp(:) = min(1000.0,1000.*dql(:,jlev)*dp(:)/ga*dsigma(jlev))
          ztau(:) = 2.0 * ALOG10(zlwp(:)+1.5)**3.9
-         zlog(:) = log(1000.0 / ztau(:))
+         zlog(:) = log(max(1.E-30,1000.0 / ztau(:)))
          zb2(:)  = zb4 / ALOG(3.+0.1*ztau(:))
          zom0(:) = min(0.9999,1.0 - zb5 * zlog(:))
          zun(:)  = 1.0 - zom0(:)
          zuz(:)  = zun(:) + 2.0 * zb2(:) * zom0(:)
-         zu(:)   = SQRT(zuz(:)/zun(:))
-         zexp(:) = exp(min(25.0,ztau(:)*SQRT(zuz(:)*zun(:))/zmu00))
+         zu(:)   = SQRT(max(0.,zuz(:)/zun(:)))
+         zexp(:) = exp(min(25.0,ztau(:)*SQRT(max(0.,zuz(:)*zun(:)))/zmu00))
          zr(:)   = (zu(:)+1.)*(zu(:)+1.)*zexp(:)                      &
      &           - (zu(:)-1.)*(zu(:)-1.)/zexp(:)
          zrcl1s(:,jlev)=1.-1./(1.+zb3*ztau(:))
          ztcl2s(:,jlev)=4.*zu(:)/zr(:)
          zrcl2s(:,jlev)=(zu(:)*zu(:)-1.)/zr(:)*(zexp(:)-1./zexp(:))
 
-         zb1(:)  = tswr1*SQRT(zmu0(:))
-         zb2(:)  = tswr2*SQRT(zmu0(:))/ALOG(3.+0.1*ztau(:))
+         zb1(:)  = tswr1*SQRT(max(0.,zmu0(:)))
+         zb2(:)  = tswr2*SQRT(max(0.,zmu0(:)))/ALOG(3.+0.1*ztau(:))
          zom0(:) = min(0.9999,1.-tswr3*zmu0(:)*zmu0(:)*zlog(:))
          zun(:)  = 1.0 - zom0(:)
          zuz(:)  = zun(:) + 2.0 * zb2(:) * zom0(:)
-         zu(:)   = SQRT(zuz(:)/zun(:))
-         zexp(:) = exp(min(25.0,ztau(:)*SQRT(zuz(:)*zun(:))/zmu0(:)))
+         zu(:)   = SQRT(max(0.,zuz(:)/zun(:)))
+         zexp(:) = exp(min(25.0,ztau(:)*SQRT(max(0.,zuz(:)*zun(:)))/max(1.E-30,zmu0(:))))
          zr(:)   = (zu(:)+1.)*(zu(:)+1.)*zexp(:)                      &
      &           - (zu(:)-1.)*(zu(:)-1.)/zexp(:)
-         zrcl1(:,jlev)=1.-1./(1.+zb1(:)*ztau(:)/zmu0(:))
+         zrcl1(:,jlev)=1.-1./(1.+zb1(:)*ztau(:)/max(1.E-30,zmu0(:)))
          ztcl2(:,jlev)=4.*zu(:)/zr(:)
          zrcl2(:,jlev)=(zu(:)*zu(:)-1.)/zr(:)*(zexp(:)-1./zexp(:))
          zrcl1(:,jlev)=zcs(:)*zrcl1(:,jlev)+(1.-zcs(:))*zrcl1s(:,jlev)
@@ -2500,19 +2500,26 @@
 !
 !     magnification factor
 !
-      where(losun(:))
-       zm(:)=35./SQRT(1.+1224.*zmu0(:)*zmu0(:))
+!     UNCONDITIONAL, not under where(losun). These are the running column
+!     integrals the loop below accumulates into, and setting them only in
+!     daylight leaves every night lane holding whatever the stack already had.
+!     The loop then reads those lanes -- zo3t(:)=zo3t(:)+... is a read -- so a
+!     stale non-finite word propagates out of a lane the mask was supposed to
+!     have excluded, and the FPE trap catches it inside the radiation. Setting
+!     them for every lane changes nothing where the mask keeps the result, and
+!     zm's own formula is safe for ANY zmu0: the square root's argument is
+!     1 + 1224*zmu0^2, which cannot be negative. world-bhs.
+      zm(:)=35./SQRT(1.+1224.*zmu0(:)*zmu0(:))
 !
 !     absorber amount and clear sky fraction
 !
-       zcs(:)=1.
-       zo3t(:)=0.
-       zxo3t(:)=0.
-       zwvt(:)=0.
-       zywvt(:)=0.
-       zco2t(:)=0.
-       zyco2t(:)=0.
-      endwhere
+      zcs(:)=1.
+      zo3t(:)=0.
+      zxo3t(:)=0.
+      zwvt(:)=0.
+      zywvt(:)=0.
+      zco2t(:)=0.
+      zyco2t(:)=0.
 !
 !     CO2 is well mixed, so its mass mixing ratio is one scalar for the column.
 !     co2 is the namelist volume mixing ratio in ppmv, the same quantity lwr
@@ -3342,9 +3349,9 @@
 !     a) 6.3mu
 !
         where(zsumwv(:) <= 0.01)
-         zah2o(:)=0.846*(zsumwv(:)+3.59E-5)**0.243-zh2o0a
+         zah2o(:)=0.846*max(0.,zsumwv(:)+3.59E-5)**0.243-zh2o0a
         elsewhere
-         zah2o(:)=0.24*ALOG10(zsumwv(:)+0.01)+zah2oc
+         zah2o(:)=0.24*ALOG10(max(1.E-30,zsumwv(:)+0.01))+zah2oc
         endwhere
 !
 !     b) continuum
@@ -3356,25 +3363,25 @@
 !     co2 absorption:
 !
         where(zsumco2(:) <= 1.0)
-         zaco2(:)=0.0676*(zsumco2(:)+0.01022)**0.421-zco20
+         zaco2(:)=0.0676*max(0.,zsumco2(:)+0.01022)**0.421-zco20
         elsewhere
-         zaco2(:)=0.0546*ALOG10(zsumco2(:))+zaco2c
+         zaco2(:)=0.0546*ALOG10(max(1.E-30,zsumco2(:)))+zaco2c
         endwhere
 !
 !     Boer et al. (1984) scheme for t(h2o) at co2 overlapp
 !
         where(zsumwv(:)<= 2.)
-         zth2o(:)=1.-(0.832*(zsumwv(:)+0.0286)**0.26-zh2o0)
+         zth2o(:)=1.-(0.832*max(0.,zsumwv(:)+0.0286)**0.26-zh2o0)
         elsewhere
-         zth2o(:)=max(0.,zth2oc-0.1196*log(zsumwv(:)-0.6931))
+         zth2o(:)=max(0.,zth2oc-0.1196*log(max(1.E-30,zsumwv(:)-0.6931)))
         endwhere
 !
 !     o3 absorption:
 !
         where(zsumo3(:) <= 0.01)
-         zao3(:)= 0.209*(zsumo3(:)+7.E-5)**0.436 - zao30
+         zao3(:)= 0.209*max(0.,zsumo3(:)+7.E-5)**0.436 - zao30
         elsewhere
-         zao3(:)= 0.0212*log10(zsumo3(:))+zao3c
+         zao3(:)= 0.0212*log10(max(1.E-30,zsumo3(:)))+zao3c
         endwhere
 !
 !     CH4 and N2O. CLIM-42.
