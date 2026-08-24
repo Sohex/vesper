@@ -94,6 +94,15 @@ is the largest single divergence from upstream and it is deliberate: pulling
 upstream will conflict there, and the resolution is always to keep this side.
 `notes/audits/model-build-driver.md` says what the old one did wrong.
 
+Upstream's sphinx documentation goes with it. `docs/` and `.readthedocs.yaml`
+built the readthedocs site for the pip-installable package: an install path
+this fork replaced, a feature list advertising modules it deleted, and an API
+page for functions that are gone. Nothing here built it and a fork whose build,
+install path and module set all differ has no upstream doc to keep current.
+What the aerosol pages carried is in `aeromod.f90` and `radmod.f90`, which is
+where a claim about the model is checked anyway; the PlaSim reference manual
+and user guide under `plasim/doc` are kept and are a different tree. world-chv.
+
 **The sibling models, the LSG ocean and the Earth boundary sets are deleted
 too.** Upstream ships PUMA, SAM, CAT and their manuals, the octave and cat_tools
 utility trees, an `images` gallery, the burn7 postprocessor, the full LSG source
