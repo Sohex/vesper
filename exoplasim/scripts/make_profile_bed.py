@@ -140,7 +140,8 @@ def main() -> None:
     ap.add_argument("--dest", type=Path, required=True,
                     help="bed directory to create; refuses to overwrite")
     ap.add_argument("--binary", required=True,
-                    help="executable name, e.g. most_plasim_t42_l10_p16.x")
+                    help="executable name, e.g. "
+                         "most_plasim_t<res>_l<layers>_p<ranks>.x")
     ap.add_argument("--binary-dir", type=Path, default=MODEL_RUN,
                     help="where to take the executable from (default: the vendored "
                          "model's run/ directory, which is what binary_manifest.json "

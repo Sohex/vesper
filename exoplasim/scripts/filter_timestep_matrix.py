@@ -63,6 +63,7 @@ import yaml
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import _paths  # noqa: F401
 from paths import rel  # noqa: E402  from lib/, put on sys.path by _paths
+import rungs  # noqa: E402  the one rung-to-dimension mapping
 
 ROOT = Path(__file__).resolve().parents[2]
 CONFIG = ROOT / "config" / "planet.yaml"
@@ -99,9 +100,11 @@ RUNG_FACTOR = {"T21": 0.407, "T42": 1.00, "T85": 3.20, "T127": 8.21, "T170": 18.
 # so a config with the resolution changed and those left behind refuses its own
 # inputs with an "Unexpected SRA header". That is SPAT-2's finding -- the
 # artifact path still carries resolution literals -- met head on, and it is why
-# these three move together here.
-RUNG_GRID = {"T21": (32, 64), "T42": (64, 128), "T85": (128, 256),
-             "T127": (192, 384), "T170": (256, 512)}
+# these three move together where the arm's config is built below.
+#
+# The mapping comes from `lib/rungs.py`. A private copy stood here, directly
+# under this comment's own citation of SPAT-2, and it was missing T31, T63 and
+# T106.
 
 # Prep, staging and postprocessing, which the model's own seconds-per-orbit does
 # not count. Scaled by rung because the postprocessor reads the raw file.
@@ -169,7 +172,7 @@ def write_config(base: dict, name: str, rung: str, kappa: float | None,
         m["dust_source"] = "none"
         m["dust_emission"] = "none"
     m["resolution"] = rung
-    m["latitudes"], m["longitudes"] = RUNG_GRID[rung]
+    m["latitudes"], m["longitudes"] = rungs.geometry(rung)[:2]
     m["timestep_minutes"] = dt
     m["energy_diagnostics"] = energy
     m["energy_diagnostics_3d"] = False

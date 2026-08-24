@@ -69,6 +69,12 @@ purge-never-reaches-the-terrain property, run from `main()` with the rest):
 12d. **The transform gates run the configured spectral filter.** The SHTns
    drivers set `filterkappa` and `nfilterexp` as literals while claiming to run
    the model's configuration; `filter_power` moved and they did not.
+12e. **The rung-to-dimension table is `lib/rungs.py` and nowhere else.** The
+   path lint tests for a rung inside something path-shaped, so a `case "$res"
+   in T21) nlat=32` and a `{"T21": (32, 64)}` are out of its scope by
+   construction -- and those are what the surviving SPAT-2 copies were. Both
+   rung lints read shell scripts as well as Python, which `d.glob("*.py")`
+   made impossible.
 13. **The tools `environment.md` names are actually on this host.** That
    document sends a reader to `ncdump`, NCO, `h5diff` and `yq` rather than a
    Python session, and nothing else checks the claim is true. Both
@@ -826,11 +832,24 @@ RUNG_LADDER = re.compile(
 RUNG_IN_PATH = re.compile(
     r"""(?:^|[-/_'"(\[])[tT](?:21|31|42|63|85|106|127|170)(?:[-/_.'"),\]]|$)""")
 # The registry itself, the build matrix that declares which rungs have
-# binaries, and the reproducibility recipe that names one executable.
-RUNG_OWNER = ("lib/rungs.py", "lib/gridding.py", "scripts/smoke_test.py",
-              "exoplasim/scripts/rebuild_binaries.py",
-              "exoplasim/scripts/shtns_variant_sweep.py",
-              "exoplasim/scripts/reproducibility_matrix.py")
+# binaries, and the reproducibility recipe that names one executable. A mapping
+# rather than a tuple, so every exemption has to say why it is one.
+RUNG_OWNER = {
+    "lib/rungs.py": "the registry itself",
+    "lib/gridding.py": "the one grid convention",
+    "scripts/smoke_test.py": "this lint",
+    "exoplasim/scripts/rebuild_binaries.py":
+        "the build matrix, which declares which rungs have binaries",
+    "exoplasim/scripts/shtns_variant_sweep.py": "names the rungs it sweeps",
+    "exoplasim/scripts/reproducibility_matrix.py":
+        "the recipe, which names one executable",
+    "exoplasim/scripts/verify_fold_indexing.sh":
+        "cannot run at all: its paths point at a worktree that is gone. "
+        "world-en0 decides whether it stays before anyone repairs it",
+    "exoplasim/scripts/verify_fold_exactness.sh":
+        "cannot run at all: its paths point at a worktree that is gone. "
+        "world-en0 decides whether it stays before anyone repairs it",
+}
 
 
 def check_no_rung_literal_in_a_path(files: list[Path]) -> list[str]:
@@ -865,10 +884,93 @@ def check_no_rung_literal_in_a_path(files: list[Path]) -> list[str]:
                     or "`" in line or stripped.startswith("*")):
                 continue
             probe = RUNG_LADDER.sub("<ladder>", line)
-            if "/" not in probe and not re.search(r"\.(sra|nc|json|rest)\b", probe):
+            if "/" not in probe and not re.search(r"\.(sra|nc|json|rest|x)\b", probe):
                 continue                      # not path-shaped
             if RUNG_IN_PATH.search(probe):
                 bad.append(f"{rel}:{i}: {stripped[:78]}")
+    return bad
+
+
+
+# The ladder spelled as a MAPPING rather than as a path: `T21) nlat=32`, or
+# `{"T21": 32}`, or a bare `(32 64 128 192 256)`. A dict from rung to dimensions
+# is not path-shaped, so `check_no_rung_literal_in_a_path` was never going to
+# see it, and four of these survived the sweep that created lib/rungs.py.
+#
+# Exempt by NAME and with a reason, never by pattern: an exemption that matches
+# a shape exempts the next copy too.
+RUNG_TABLE_EXEMPT = {
+    "lib/rungs.py": "the registry itself",
+    "scripts/smoke_test.py": "this lint",
+    "exoplasim/scripts/restart_convert_selftest.py":
+        "enumerates SOURCE-TARGET grid pairs for the converter, which is a "
+        "property of the conversion rather than a rung-to-dimension mapping; "
+        "it maps no rung name to anything",
+    "exoplasim/scripts/verify_latitude_pairing.py":
+        "the pairing identity is a property of a LATITUDE COUNT and the cases "
+        "are chosen to span odd and even NLPP; they are not a rung table and "
+        "the file names no rung",
+}
+
+
+def check_no_rung_table_outside_rungs(files: list[Path]) -> list[str]:
+    """The rung-to-dimension mapping is `lib/rungs.py` and nowhere else.
+
+    SPAT-2 again, and the half its first lint could not reach. That lint tests
+    for a rung inside something PATH-SHAPED, so a `case "$res" in T21) nlat=32`
+    or a `{"T21": (32, 64)}` is out of scope by construction -- and those are
+    what the surviving copies are. `lib/rungs.py`'s own docstring says it exists
+    because "four scripts each carried their own copy of the mapping, and two of
+    the four were missing rungs the others had"; four more were still carrying
+    one when this was written, and one of them cited SPAT-2 in the comment
+    directly above its own copy.
+
+    Two shapes, because the copies come in two:
+
+    - A rung literal on the same line as one of THAT RUNG's own dimensions, its
+      truncation, latitudes or longitudes. Two such lines in a file is a table;
+      one is a single case and might be a filename.
+    - Three or more of the ladder's latitude counts as standalone integers on
+      one line, which is the ladder written in dimensions with the rungs left
+      off. `verify_gauss_weights.sh` had exactly that.
+
+    Shell scripts are included, which the path lint's `d.glob("*.py")` never
+    was.
+    """
+    sys.path.insert(0, str(ROOT / "lib"))
+    import rungs
+
+    dims = {}
+    for rung in rungs.RUNGS:
+        nlat, nlon, ntru = rungs.geometry(rung)
+        dims[rung.upper()] = {str(nlat), str(nlon), str(ntru)}
+    nlats = {str(rungs.geometry(r)[0]) for r in rungs.RUNGS}
+    pair = re.compile(r"\b[tT](21|31|42|63|85|106|127|170)\b")
+    number = re.compile(r"(?<![\w.])\d{2,3}(?![\w.])")
+
+    bad = []
+    for f in files:
+        rel = str(f.relative_to(ROOT))
+        if rel in RUNG_TABLE_EXEMPT:
+            continue
+        hits = []
+        for i, line in enumerate(f.read_text(encoding="utf-8",
+                                             errors="ignore").splitlines(), 1):
+            stripped = line.strip()
+            if stripped.startswith("#") or "rung-table-ok" in line:
+                continue
+            numbers = set(number.findall(line))
+            paired = [f"T{m.group(1)}" for m in pair.finditer(line)
+                      if dims["T" + m.group(1)] & numbers]
+            if paired:
+                hits.append(f"{rel}:{i}: {', '.join(sorted(set(paired)))} beside "
+                            f"its own dimensions -- {stripped[:60]}")
+            elif len(numbers & nlats) >= 3:
+                hits.append(f"{rel}:{i}: {len(numbers & nlats)} of the ladder's "
+                            f"latitude counts -- {stripped[:60]}")
+        # One line is a single case; two is a table.
+        if len(hits) >= 2 or any("latitude counts" in h for h in hits):
+            bad.extend(hits)
     return bad
 
 
@@ -1042,6 +1144,10 @@ def main() -> None:
 
     files = sorted({f for d in SCRIPT_DIRS if d.is_dir()
                     for f in d.glob("*.py")})
+    # The rung lints read shell too: SPAT-2's copies did not all land in Python,
+    # and `d.glob("*.py")` made every shell offender invisible to both of them.
+    shell_files = sorted({f for d in SCRIPT_DIRS if d.is_dir()
+                          for f in d.glob("*.sh")})
     print(f"{len(files)} modules under {len(SCRIPT_DIRS)} directories\n")
 
     checks = [("imports", check_imports(files)),
@@ -1077,7 +1183,9 @@ def main() -> None:
               ("the transform gates run the configured spectral filter",
                check_gate_filter_matches_config()),
               ("no artifact path carries a resolution literal",
-               check_no_rung_literal_in_a_path(files)),
+               check_no_rung_literal_in_a_path(files + shell_files)),
+              ("the rung-to-dimension table is lib/rungs.py and nowhere else",
+               check_no_rung_table_outside_rungs(files + shell_files)),
               ("the configured resolution matches its own grid dimensions",
                check_configured_grid()),
               ("a resume refuses a rewritten spectrum file",
