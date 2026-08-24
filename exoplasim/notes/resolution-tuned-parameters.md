@@ -98,3 +98,89 @@ them. Those are fitted to PHYSICS rather than to a resolution, and they are not
 part of this. The distinction worth keeping: a coefficient fitted to a
 line-by-line calculation is a model of an absorber, and a coefficient set by a
 branch on `NTRU` is a knob compensating for a grid.
+
+
+## The derivation: what the damping has to absorb
+
+*Added 2026-08-23, with the three sources in `references/`.*
+
+**Neither source supplies a derivation, and both say so.** ECHAM5's model
+description is explicit that horizontal diffusion "does not involve a physical
+model of subgrid-scale processes, but rather a numerically convenient form of
+scale selective diffusion with coefficients determined empirically to ensure a
+realistic behavior of the resolved scales" (Report 349 section 4). Laursen and
+Eliasen (1989), whose scheme PlaSim implements, chose theirs by running a series
+of integrations at different diffusion strengths and comparing the resulting
+kinetic-energy spectra against OBSERVED January means. So the numbers in the
+PlaSim Reference Manual are two points from someone else's tuning exercise
+against Earth observations, and nothing in the literature makes them anchors.
+
+What the literature does supply is a form and, unexpectedly, a corroboration.
+
+### ECHAM5's empirical table implies one physical rule
+
+Report 349 Table 4.1 gives the e-folding damping time of the highest resolvable
+wavenumber -- the same quantity PlaSim's `tau` is -- across seven truncations.
+Read as an advective time at the smallest resolved scale, `tau_0 = dx / U` with
+`dx = pi a / N`, it implies a wind:
+
+| truncation | tau_0, hours | implied U, m/s |
+| --- | ---: | ---: |
+| T21 | 6 | 44.1 |
+| T31 | 12 | 14.9 |
+| T42 | 9 | 14.7 |
+| T63 | 7 | 12.6 |
+| T85 | 5 | 13.1 |
+| T106 | 3 | 17.5 |
+| T159 | 2 | 17.5 |
+
+**From T31 to T159 the implied wind is 12.6 to 17.5 m/s** -- constant to within
+the precision of values quoted only in whole hours, across a factor of five in
+resolution, and squarely a real upper-tropospheric eddy speed for Earth. Their
+empirical tuning is therefore consistent with a single physical statement:
+**damp the smallest resolved scale on its own advective timescale.** T21 is the
+outlier at 44 m/s, and its per-level order structure differs from every other
+column in the table too.
+
+That is a rule rather than a number, it contains the planet through `a` and the
+flow through `U`, and it was not fitted to the values it reproduces.
+
+### Applied to this planet
+
+`U` is the EDDY wind -- the departure from the zonal mean, which is what
+cascades to the truncation; the zonal-mean jet does not. Measured from
+`run_4182235e9781` orbit 39, area-weighted over the column: **5.94 m/s**, against
+14.7 implied for Earth. Vesper's eddies are slower and its grid boxes larger, so
+the same rule asks for LESS damping at a given truncation, not more.
+
+| rung | dx, km | tau_0 = dx/U | what the model uses now | too weak by |
+| --- | ---: | ---: | ---: | ---: |
+| T21 | 1144 | 2.23 d | 5.60 d | 2.5x |
+| T42 | 572 | 1.11 d | 0.76 d | 0.7x -- STRONGER than the rule |
+| T85 | 283 | 0.551 d | 5.60 d | 10.2x |
+| T127 | 189 | 0.368 d | 5.60 d | 15.2x |
+| T170 | 141 | 0.275 d | 5.60 d | 20.3x |
+
+**This explains the ladder.** T42 is the one rung whose setting was chosen for a
+grid of about its own fineness, and it lands within a factor of 1.5 of the rule
+-- which is why T42 runs, and runs at a longer step than anything above it.
+Everything above inherits T21's number and is ten to twenty times under-damped,
+which is why those rungs fail LATE rather than refusing: the cascade arrives at
+the truncation faster than the damping removes it, and enstrophy accumulates
+until the state goes.
+
+T21 is under-damped by 2.5x on this planet as well, and that is in scope.
+
+### What the rule does not yet settle
+
+- **One timescale against four.** The rule gives a single `tau_0`; PlaSim
+  carries separate values for divergence, vorticity, temperature and humidity
+  spanning a factor of twelve at T42. ECHAM5 quotes one `tau_0` for all three of
+  its diffused variables. The per-variable ratios are a further undocumented
+  choice and are not derived here.
+- **`alpha` and `n*`.** The rule fixes the damping AT the truncation and says
+  nothing about how far down the spectrum it should reach.
+- **Whether `U` is resolution-dependent.** It was measured at T42; a finer grid
+  resolves more eddy kinetic energy, so `U` may rise with truncation and the rule
+  may need one iteration. Most eddy energy sits at large scales, so the effect is
+  expected to be small, and it is a prediction to check rather than an assumption.
