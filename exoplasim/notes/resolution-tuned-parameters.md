@@ -1173,6 +1173,69 @@ another knob but the same control one level down -- the conversion printed
 immediately before and after each write to `sdp` in `spectrald`, which names the
 operation rather than bracketing it.
 
+## What the model's own two references say, and where this departs from them
+
+`spectrala` cites Hoskins and Simmons (1975) for the semi-implicit scheme and
+Simmons and Burridge (1981) for the vertical scheme. Both are now held and read,
+and they move three of the claims above.
+
+**THE SPLIT IS THE METHOD'S DESIGN, NOT A DEFECT.** HS75 Appendix I writes the
+explicit temperature tendency out in full, and its reference-temperature term
+carries `V_s . grad ln p*` ALONE where its anomaly term carries
+`(D_s + V_s . grad ln p*)`. The reference conversion's divergence half appears
+instead in `tau_rs`, as `2 kappa T_r dsigma_s alpha`. That is `ztpta`, `ztptb`
+and `tkp*c` exactly, so `calcgp` is a faithful implementation and the split is
+what makes the gravity-wave system linear enough to invert. Nothing here is a
+fork artifact, and no repair should read as one.
+
+**THE NON-CONSERVATION IS ACKNOWLEDGED BY THE AUTHORS.** HS75 section 5(b): the
+total energy "is formally conserved by the continuous equations and by the
+vertical finite difference scheme but not by the horizontal spectral scheme or
+by the time differencing". SB75's section 3e gives the conservation requirement
+for the conversion and it is a requirement at ONE time level -- its advective
+part must use "`(1/p grad p)_k` calculated in the same way as in the momentum
+equation" -- and the semi-implicit scheme of their section 4 is never claimed to
+preserve it. So this model losing energy through the conversion is expected. What
+is not expected is how much, and how it behaves.
+
+**AND THE SCALING IS WHERE THIS DEPARTS.** HS75 measured the spurious total-energy
+change against timestep and found it "improve by approximately an order of
+magnitude between S90 and S30, and between S30 and S5" -- an order per threefold
+reduction. This model's sink moves a tenth per HALVING. Whatever carries it here
+is not the time-truncation error HS75 characterised, which is the same conclusion
+the timestep arm reached from the other end.
+
+### The remedy HS75 names, which this model does not carry
+
+HS75 section 2, on the transform grid: "There are terms for which this grid is
+insufficient for removing aliased interactions. These terms are the triple
+correlation involved in the ENERGY CONVERSION TERM and in the vertical advection
+terms. These require in theory `M_g >= 4M + 1`." PlaSim's grid is `NLON = 3*NTRU
++ 1`, which is the `3M + 1` that dealiases a product of TWO fields and not of
+three. **The conversion term is aliased in this model by construction**, and the
+term it aliases is the one carrying the sink.
+
+That is not on its own an accusation: HS75 tested it in their section 7, on a
+two-layer baroclinic problem, and found "the aliasing of the triple products is
+not a problem here". Their case is two layers at triangular 21 with no orography.
+This one is ten layers at T42 over a surface pressure field that is 96 percent
+orography, and the standing result is that the sink scales with how much
+small-scale energy survives -- which is also what HS75 offered for their own
+error growth: "probably related to the increase in energy in the high
+wavenumbers".
+
+They name two remedies and the cheaper one is a term, not an apparatus:
+
+  truncate `V . grad ln p*` spectrally before it is used, which is HS75's own
+  option (ii) and costs one transform round trip on `zvgpg` in `calcgp`
+
+  run the transform on a grid large enough for the triple products, `4M + 1`,
+  which changes every binary's cost
+
+Neither is tried. The first is what to try, because it is cheap and because
+aliasing is a property of the grid alone -- which is exactly the shape of a
+mechanism that three knobs could not move.
+
 ### Two readings of the same decomposition, and only one is the budget
 
 Both are true and they are not interchangeable.
