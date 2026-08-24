@@ -46,7 +46,51 @@
       real    :: albsmaxf2 = 0.4   ! max. albedo for snow (with forest)
       real    :: albgmin2  = 0.6   ! min. albedo for glaciers
       real    :: albgmax2  = 0.8   ! max. albedo for glaciers
-      
+
+!     Snow under a canopy, per band.
+!
+!     A forested snow endmember is a mixture of the exposed snow and the canopy
+!     that hides the rest of it, so the only spectrum-free quantity in it is the
+!     masked FRACTION. Upstream carries the mixture already evaluated, as one
+!     broadband ratio (albsmaxf/albsmax = 0.5, albsminf/albsmaxf = 0.75), and a
+!     ratio evaluated under one spectrum cannot be reapplied either side of
+!     0.75 micron: a canopy is dark in band 1 and bright in band 2 while snow
+!     runs the other way, so one factor is wrong in both bands at once.
+!
+!     albforest is the canopy albedo per band and forcov* the masked fraction:
+!     albsmaxf_b = forcovmx*albforest(b) + (1-forcovmx)*albsmax_b, and the same
+!     for the minimum with forcovmn. The defaults are what upstream's two ratios
+!     imply when solved against its Earth-Sun canopy endmember 0.15:
+!     0.6153846*0.15 + 0.3846154*0.8 = 0.4 = albsmaxf and 0.4*0.15 + 0.6*0.4 =
+!     0.3 = albsminf, exactly. An Earth configuration therefore reproduces
+!     upstream to the last digit, which is a check that can fail.
+!
+!     The two fractions differ because upstream's two pairs differ: multiple
+!     scattering between a bright snowpack and the canopy masks more of it than
+!     the same canopy masks of aged snow. They are separate keys rather than one
+!     averaged fraction so that neither pair has to be discarded.
+      real    :: albforest(2) = 0.15   ! canopy albedo, per band
+      real    :: forcovmx = 0.6153846  ! canopy fraction masking max-alb snow
+      real    :: forcovmn = 0.4        ! canopy fraction masking min-alb snow
+
+!     River routing, used by roffini here and by oroini in glaciermod.
+!
+!     u = zcvel/zdx * |grad(zoro)|**roffexp, and zoro is GEOPOTENTIAL, so the
+!     slope term already carries ga**roffexp while an open-channel velocity
+!     scales as sqrt(ga). Upstream's zcvel = 4.2 absorbs neither. The
+!     coefficient multiplying the geopotential slope is roffvel*ga**(0.5-roffexp),
+!     which leaves the whole expression proportional to sqrt(ga) once the
+!     geopotential slope is divided back to a topographic one. At ga = 9.80665
+!     that product is 4.200, upstream's fitted value, so an Earth configuration
+!     is unchanged.
+!
+!     roffpit is the elevation added to a local minimum per pit-filling pass.
+!     Upstream adds 1 m2/s2, which is a HEIGHT only after division by ga; this
+!     is the height, and 0.101972 m is upstream's increment at Earth gravity.
+      real    :: roffvel  = 2.022845 ! routing velocity coefficient (per sqrt(g))
+      real    :: roffexp  = 0.18     ! routing velocity slope exponent
+      real    :: roffpit  = 0.101972 ! pit-filling elevation increment (m)
+
       real    :: dz0land  = 2.0   ! roughness length land
       real    :: drhsland = 0.25  ! wetness factor land
       real    :: drhsfull = 0.4   ! threshold above which drhs=1 [frac. of wsmax]
@@ -67,7 +111,25 @@
       real    :: rinifor  =  0.5
       real    :: rnbiocats=  0.0
 !
-!     global scalars (snow similar to the sea ice module)
+!     Surface thermal scalars (snow similar to the sea ice module).
+!
+!     All seven are namelist keys, in landmod_nl below. They were compiled-in
+!     constants, so a run could not say what thermal inertia its land carried
+!     and could not vary it; soildiff in particular was reachable from nowhere
+!     at all while soilcap was reachable only through cpsoil.
+!
+!     They are SCALARS and the model has no per-cell field for any of them, so
+!     one value covers every lithology. soildiff and soilcap are moist mineral
+!     soil: thermal inertia sqrt(k*rho*c) = 2078 J/m2/K/s**0.5, against roughly
+!     625 for a dry playa or salt crust, so a surface dominated by evaporite
+!     and playa clastics is damped by about 3.3x too much. Giving those classes
+!     their own inertia needs a field, not a different scalar.
+!
+!     rhosnow is a settled snow density and converts water equivalent to the
+!     physical snow thickness that insulates the soil column below; rhoglac in
+!     glaciermod does the same for ice thickness in the orography. Both are set
+!     by overburden compaction, which scales with gravity, so both are low for a
+!     planet with stronger surface gravity than the one they were measured on.
 !
       real :: rhosnow  = 330.    ! snow density (kg/m**3)
       real :: soildiff = 1.8     ! heat diffusivity of the soil (W/m/K)
@@ -120,13 +182,14 @@
 
 !     Threads instead of ranks: a thread owns what a rank owned.
 !     Inert without -fopenmp, so the MPI and serial builds are unchanged.
-!$omp threadprivate(albgmax,albgmax1,albgmax2,albgmin,albgmin1,albgmin2,albland,alblandmax,&
+!$omp threadprivate(albforest,albgmax,albgmax1,albgmax2,albgmin,albgmin1,albgmin2,albland,alblandmax,&
 !$omp&  alblandnl,albsmax,albsmax1,albsmax2,albsmaxf,albsmaxf1,albsmaxf2,albsmin,albsmin1,albsmin2,&
 !$omp&  albsminf,albsminf1,albsminf2,co2conv,dalbcl,dalbcl1,dalbcl2,dalbclim,dalbclim1,dalbclim2,&
 !$omp&  darea,dgroundalbnl,doro,dqs,drhsfull,drhsland,driver,dsmax,dsnowt,dsnowz,dsoilt,dsoilz,dtcl,&
 !$omp&  dtclim,dtclsoil,dts,dtsm,duroff,dvroff,dwatcini,dwater,dwcl,dwclim,dz0clim,dz0climo,dz0land,&
-!$omp&  dzglac,dztop,lversion,newsurf,nlandt,nlandw,nwatcini,nwetsoil,rhosnow,rinifor,rlue,&
-!$omp&  rnbiocats,sicecap,sicediff,snowcap,snowdiff,soilcap,soildiff,tau_soil,tau_veg,wsmax)
+!$omp&  dzglac,dztop,forcovmn,forcovmx,lversion,newsurf,nlandt,nlandw,nwatcini,nwetsoil,rhosnow,&
+!$omp&  rinifor,rlue,rnbiocats,roffexp,roffpit,roffvel,&
+!$omp&  sicecap,sicediff,snowcap,snowdiff,soilcap,soildiff,tau_soil,tau_veg,wsmax)
 
       end module landmod
 
@@ -170,6 +233,9 @@
      &                ,dsmax,wsmax,drhsfull,dzglac,dztop,dsoilz         &
      &                ,rlue,co2conv,tau_veg,tau_soil                    &
      &                ,rnbiocats,nwetsoil,soilcap                       &
+     &                ,albforest,forcovmx,forcovmn                      &
+     &                ,soildiff,sicediff,snowdiff,sicecap,snowcap       &
+     &                ,rhosnow,roffvel,roffexp,roffpit                  &
      &                ,newsurf,rinifor,nwatcini,dwatcini,dgroundalb
 !
       dtclsoil(:) = tmelt
@@ -226,15 +292,26 @@
       albgmax1 = dsnowalbmx(1)
       albsmax2 = dsnowalbmx(2)
       albgmax2 = dsnowalbmx(2)
-      albsmaxf1 = 0.5*albsmax1
-      albsmaxf2 = 0.5*albsmax2
       albsmin1 = dsnowalbmn(1)
       albsmin2 = dsnowalbmn(2)
       albgmin1 = dglacalbmn(1)
       albgmin2 = dglacalbmn(2)
-      albsminf1 = 0.75*albsmaxf1
-      albsminf2 = 0.75*albsmaxf2
-      
+
+!     Snow seen through a canopy: mix the band's exposed snow with the band's
+!     canopy albedo at the masked fraction, rather than rescaling the band by a
+!     ratio measured under a different spectrum. See the albforest block in the
+!     module header for the derivation and for the Earth identity.
+
+      albsmaxf1 = forcovmx*albforest(1) + (1.-forcovmx)*albsmax1
+      albsmaxf2 = forcovmx*albforest(2) + (1.-forcovmx)*albsmax2
+      albsminf1 = forcovmn*albforest(1) + (1.-forcovmn)*albsmin1
+      albsminf2 = forcovmn*albforest(2) + (1.-forcovmn)*albsmin2
+
+      write(nud,*) "Forested snow albedo, band 1: max",albsmaxf1, &
+     &             " min",albsminf1
+      write(nud,*) "Forested snow albedo, band 2: max",albsmaxf2, &
+     &             " min",albsminf2
+
       endif
 
       if (wsmax < 0.0) wsmax = 0.0 ! Catch user error
@@ -283,7 +360,21 @@
       call mpbcr(rinifor)
       call mpbcr(rnbiocats)
       call mpbcrn(dsoilz,NLSOIL)
-      
+
+      call mpbcrn(albforest,2)
+      call mpbcr(forcovmx)
+      call mpbcr(forcovmn)
+      call mpbcr(soildiff)
+      call mpbcr(sicediff)
+      call mpbcr(snowdiff)
+      call mpbcr(soilcap)
+      call mpbcr(sicecap)
+      call mpbcr(snowcap)
+      call mpbcr(rhosnow)
+      call mpbcr(roffvel)
+      call mpbcr(roffexp)
+      call mpbcr(roffpit)
+
       call mpbcrn(dsnowalbmn,2)
       call mpbcrn(dsnowalbmx,2)
       call mpbcrn(dglacalbmn,2)
@@ -430,6 +521,12 @@
 !*       modifications according to glacier mask
 !
 
+!        A cell that starts as glacier starts at the snow CAP, so with the cap
+!        lifted (dsmax <= 0) it starts at zero here and glacierini, which runs
+!        immediately after landini, raises it to glacelim. That is the glacier
+!        module's own initial depth and the intended one; the line below is not
+!        the only thing setting it.
+
          if(dglac(jhor) > 0.5) then
           dsnowz(jhor)=AMAX1(dsmax,0.)
           dsnow(jhor)=dsnowz(jhor)
@@ -451,6 +548,15 @@
 
         endif
        enddo
+
+!      Same archival correction landstep makes; see the block at the end of
+!      landstep for why dalb has to be rebuilt from dsalb rather than from the
+!      non-spectral scalars.
+
+       if (nstartemp == 1) then
+        where(dls(:) > 0.0)                                             &
+     &   dalb(:)=zsolars(1)*dsalb(1,:)+zsolars(2)*dsalb(2,:)
+       endif
 
       else ! restart > 0
 
@@ -508,6 +614,7 @@
 
       subroutine landstep
       use landmod
+      use radmod, only: nstartemp, zsolars
 
 !
 !     get climatological values if t and/or w are non interactive
@@ -607,6 +714,28 @@
      &  ,albgmax2-(albgmax2-albgmin2)*(dts(:)-263.16)/(tmelt-263.16)))
        drhs(:)=1.0
       end where
+
+!
+!*    archive the albedo the radiation actually used
+!
+!     At nstartemp = 1 the shortwave reads dsalb and nothing else, and radmod
+!     writes the flux-weighted combination of the two bands into dalb as the
+!     diagnostic of what it used. radstep runs BEFORE surfstep, so everything
+!     above has just overwritten that diagnostic with a value built from the
+!     six non-spectral scalars, which landini never re-derives from the
+!     spectrum and which are therefore still Earth-Sun broadband. dalb is what
+!     outmod accumulates and writes as code 175, so 175 disagreed with the
+!     radiation over every snow, forest-snow and glacier cell.
+!
+!     Over land radmod leaves dsalb untouched (its ocean direct-beam branch is
+!     gated on 1-dls), so this reproduces radmod's own dalb exactly rather than
+!     approximating it. At nstartemp = 0 the shortwave reads dalb itself and
+!     the block above is the value it will use, so nothing happens here.
+
+      if (nstartemp == 1) then
+       where(dls(:) > 0.0)                                              &
+     &  dalb(:)=zsolars(1)*dsalb(1,:)+zsolars(2)*dsalb(2,:)
+      endif
 
       return
       end subroutine landstep
@@ -1182,8 +1311,16 @@
 
       subroutine roffini
       use landmod
-      parameter(zcvel=4.2)
-      parameter(zcexp=0.18)
+!
+!     zcvel and zoroinc were parameter(4.2) and a literal 1.0 m2/s2. Both are
+!     now derived from namelist keys so that they carry this planet's gravity:
+!     see the roffvel block in the module header. glaciermod's oroini does the
+!     same, and is the copy that survives, because glacierini runs after
+!     landini and recomputes duroff and dvroff.
+!
+      real :: zcvel
+      real :: zcexp
+      real :: zoroinc
 !
       real zuroff(NLON,NLAT)
       real zvroff(NLON,NLAT)
@@ -1193,6 +1330,10 @@
       real zsi(NLON,NLAT)
       real zsir(NLON,NLPP)
 
+!
+      zcexp   = roffexp
+      zcvel   = roffvel*ga**(0.5-roffexp)
+      zoroinc = roffpit*ga
 !
       ilat = NLAT ! using ilat suppresses compiler warnings for T1
 !
@@ -1228,7 +1369,7 @@
      &      .and. zoro(jlon,jlat) <= zoro(jlon,jlat+1)                  &
      &      .and. zoro(jlon,jlat) <= zoro(jlon+1,jlat)                  &
      &      .and. zoro(jlon,jlat) <= zoro(jlon-1,jlat)) then
-           zoron(jlon,jlat)=1.+MIN(zoro(jlon+1,jlat),zoro(jlon-1,jlat)  &
+           zoron(jlon,jlat)=zoroinc+MIN(zoro(jlon+1,jlat),zoro(jlon-1,jlat)  &
      &                            ,zoro(jlon,jlat+1),zoro(jlon,jlat-1))
            jconv=jconv+1
           else
@@ -1240,7 +1381,7 @@
      &     .and. zoro(1,jlat) <= zoro(1,jlat+1)                         &
      &     .and. zoro(1,jlat) <= zoro(2,jlat)                           &
      &     .and. zoro(1,jlat) <= zoro(NLON,jlat)) then
-          zoron(1,jlat)=1.+MIN(zoro(2,jlat),zoro(NLON,jlat)             &
+          zoron(1,jlat)=zoroinc+MIN(zoro(2,jlat),zoro(NLON,jlat)             &
      &                        ,zoro(1,jlat+1),zoro(1,jlat-1))
           jconv=jconv+1
          else
@@ -1251,7 +1392,7 @@
      &     .and. zoro(NLON,jlat) <= zoro(NLON,jlat+1)                   &
      &     .and. zoro(NLON,jlat) <= zoro(1,jlat)                        &
      &     .and. zoro(NLON,jlat) <= zoro(NLON-1,jlat)) then
-          zoron(NLON,jlat)=1.+MIN(zoro(1,jlat),zoro(NLON-1,jlat)        &
+          zoron(NLON,jlat)=zoroinc+MIN(zoro(1,jlat),zoro(NLON-1,jlat)        &
      &                           ,zoro(NLON,jlat+1),zoro(NLON,jlat-1))
           jconv=jconv+1
          else
@@ -1263,7 +1404,7 @@
      &    .and. zoro(jlon,1) <= zoro(jlon,2)                            &
      &    .and. zoro(jlon,1) <= zoro(jlon+1,1)                          &
      &    .and. zoro(jlon,1) <= zoro(jlon-1,1)) then
-          zoron(jlon,1)=1.+MIN(zoro(jlon+1,1),zoro(jlon-1,1)            &
+          zoron(jlon,1)=zoroinc+MIN(zoro(jlon+1,1),zoro(jlon-1,1)            &
      &                        ,zoro(jlon,2))
           jconv=jconv+1
          else
@@ -1273,7 +1414,7 @@
      &    .and. zoro(jlon,NLAT) <= zoro(jlon,NLAT-1)                    &
      &    .and. zoro(jlon,NLAT) <= zoro(jlon+1,NLAT)                    &
      &    .and. zoro(jlon,NLAT) <= zoro(jlon-1,NLAT)) then
-          zoron(jlon,NLAT)=1.+MIN(zoro(jlon+1,NLAT),zoro(jlon-1,NLAT)   &
+          zoron(jlon,NLAT)=zoroinc+MIN(zoro(jlon+1,NLAT),zoro(jlon-1,NLAT)   &
      &                           ,zoro(jlon,NLAT-1))
           jconv=jconv+1
          else
@@ -1284,7 +1425,7 @@
      &    .and. zoro(1,1) <= zoro(1,2)                                  &
      &    .and. zoro(1,1) <= zoro(2,1)                                  &
      &    .and. zoro(1,1) <= zoro(NLON,1)) then
-         zoron(1,1)=1.+MIN(zoro(2,1),zoro(NLON,1)                       &
+         zoron(1,1)=zoroinc+MIN(zoro(2,1),zoro(NLON,1)                       &
      &                    ,zoro(1,2))
          jconv=jconv+1
         else
@@ -1294,7 +1435,7 @@
      &    .and. zoro(NLON,NLAT) <= zoro(NLON,NLAT-1)                    &
      &    .and. zoro(NLON,NLAT) <= zoro(1,NLAT)                         &
      &    .and. zoro(NLON,NLAT) <= zoro(NLON-1,NLAT)) then
-         zoron(NLON,NLAT)=1.+MIN(zoro(1,NLAT),zoro(NLON-1,NLAT)         &
+         zoron(NLON,NLAT)=zoroinc+MIN(zoro(1,NLAT),zoro(NLON-1,NLAT)         &
      &                          ,zoro(NLON,NLAT-1))
          jconv=jconv+1
         else
@@ -1304,7 +1445,7 @@
      &    .and. zoro(NLON,1) <= zoro(NLON,2)                            &
      &    .and. zoro(NLON,1) <= zoro(1,1)                               &
      &    .and. zoro(NLON,1) <= zoro(NLON-1,1)) then
-         zoron(NLON,1)=1.+MIN(zoro(1,1),zoro(NLON-1,1)                  &
+         zoron(NLON,1)=zoroinc+MIN(zoro(1,1),zoro(NLON-1,1)                  &
      &                       ,zoro(NLON,2))
          jconv=jconv+1
         else
@@ -1314,7 +1455,7 @@
      &    .and. zoro(1,NLAT) <= zoro(1,NLAT-1)                          &
      &    .and. zoro(1,NLAT) <= zoro(2,NLAT)                            &
      &    .and. zoro(1,NLAT) <= zoro(NLON,NLAT)) then
-         zoron(1,NLAT)=1.+MIN(zoro(NLON,NLAT),zoro(2,NLAT)              &
+         zoron(1,NLAT)=zoroinc+MIN(zoro(NLON,NLAT),zoro(2,NLAT)              &
      &                       ,zoro(1,NLAT-1))
          jconv=jconv+1
         else

@@ -17,6 +17,25 @@
       real    :: drhssea  = 1.    ! wetness factor sea
       real    :: drhsice  = 1.    !  "         "   ice
       real    :: charnock = 0.018 ! albedo for free ocean
+
+!     Sea-ice albedo ramp.
+!
+!     Upstream ramps the ice albedo with an absolute SLOPE, 0.025 per K below
+!     273.0, clipped at the maximum. That slope is Earth's broadband span
+!     albice - 0.5 = 0.25 divided by 10 K, so it only saturates where the span
+!     is 0.25. With the endpoints re-weighted to this star's spectrum the two
+!     bands have spans of 0.256 and 0.133, so band 2 saturated 4.7 K warmer
+!     than band 1 for no reason to do with the modelled ice, and the whole ramp
+!     was tied to 273.0, which is neither TMELT nor TFREEZE: at the melting
+!     point it returned 0.004 BELOW its own declared minimum.
+!
+!     dicealbdt is the ramp WIDTH instead, so the ramp is fractional and both
+!     bands saturate at the same temperature, and the warm end is anchored on
+!     TMELT. This is the structure landmod already uses for snow and glacier
+!     ice. 10.0 K is upstream's implied width at Earth's broadband span, so an
+!     Earth configuration keeps the same saturation temperature.
+      real    :: dicealbdt = 10.0 ! width of the sea-ice albedo ramp (K)
+      real    :: albicemn  = 0.5  ! min. albedo for sea ice (non-spectral)
       
 !
 !     global arrays
@@ -60,6 +79,7 @@
 !     Threads instead of ranks: a thread owns what a rank owned.
 !     Inert without -fopenmp, so the MPI and serial builds are unchanged.
 !$omp threadprivate(albice,albsea,charnock,cheata,cicec,ciced,clhdta,clhfla,clwfla,cmld,cpmea,cprsa,&
+!$omp&  albicemn,dicealbdt,&
 !$omp&  croffa,cshdta,cshfla,csmelt,csndch,csnow,csst,cswfla,ctauxa,ctauya,cts,cust3a,dqs,drhsice,&
 !$omp&  drhssea,dsst,dts,dz0ice,dz0sea,naccua,ncpl_atmos_ice,version)
 
@@ -72,8 +92,13 @@
       subroutine seaini
       use seamod
 !
+      real :: zsicf(NHOR) = 0.
+!     Implicitly SAVE, so one copy shared by the whole team.
+!$omp threadprivate(zsicf)
+!
       namelist/seamod_nl/albsea,albice,dz0sea,dz0ice,drhssea,drhsice       &
-     &               ,ncpl_atmos_ice,charnock,doceanalb,dicealbmn,dicealbmx
+     &               ,ncpl_atmos_ice,charnock,doceanalb,dicealbmn,dicealbmx  &
+     &               ,dicealbdt,albicemn
 !
 !     read namelist
 !
@@ -98,6 +123,8 @@
       call mpbcr(drhsice)
       call mpbci(ncpl_atmos_ice)
       call mpbcr(charnock)
+      call mpbcr(dicealbdt)
+      call mpbcr(albicemn)
       call mpbcrn(doceanalb,2)
       call mpbcrn(dicealbmn,2)
       call mpbcrn(dicealbmx,2)
@@ -144,21 +171,31 @@
          call mpgetgp('cswfla',cswfla,NHOR,1)
          call mpgetgp('clwfla',clwfla,NHOR,1)
       else
+!
+      zsicf(:)=0.0
       where(dls(:) < 0.5)
+!
+!      Fractional sea-ice albedo ramp: 0 at the melting point, 1 at dicealbdt
+!      below it, and the same fraction in both bands. See the dicealbdt block
+!      in the module header.
+!
+       zsicf(:)=AMAX1(0.0,AMIN1(1.0,(TMELT-dts(:))/dicealbdt))
        dqs(:)  = rdbrv*ra1*EXP(ra2*(dt(:,NLEP)-TMELT)   &
      &          /(dt(:,NLEP)-ra4))/psurf
        dqs(:)  = dqs(:)/(1.-(1./rdbrv-1.)*dqs(:))
        dq(:,NLEP) = dqs(:)
        drhs(:)=drhssea*(1.-dicec(:))+drhsice*dicec(:)
        dalb(:)=albsea*(1.-dicec(:))   &
-     &         +dicec(:)*AMIN1(albice,0.5+0.025*(273.-dts(:)))
+     &         +dicec(:)*(albicemn+zsicf(:)*(albice-albicemn))
        dsalb(1,:)=doceanalb(1)*(1.-dicec(:))   &
-     &         +dicec(:)*AMIN1(dicealbmx(1),dicealbmn(1)+0.025*(273.-dts(:)))
+     &         +dicec(:)*(dicealbmn(1)+zsicf(:)*(dicealbmx(1)-dicealbmn(1)))
        dsalb(2,:)=doceanalb(2)*(1.-dicec(:))   &
-     &         +dicec(:)*AMIN1(dicealbmx(2),dicealbmn(2)+0.025*(273.-dts(:)))
+     &         +dicec(:)*(dicealbmn(2)+zsicf(:)*(dicealbmx(2)-dicealbmn(2)))
        dz0(:)=dz0sea*(1.-dicec(:))+dz0ice*dicec(:)
       endwhere
       endif
+!
+      call seaalbarchive
 !
       return
       end subroutine seaini
@@ -173,6 +210,10 @@
       real :: zz0(NHOR) = 0.
 !     Implicitly SAVE, so one copy shared by the whole team.
 !$omp threadprivate(zz0)
+!
+      real :: zsicf(NHOR) = 0.
+!     Implicitly SAVE, so one copy shared by the whole team.
+!$omp threadprivate(zsicf)
 !
 !     coupling to sea ice
 !
@@ -249,8 +290,15 @@
 !
 !     set dependent surface variables
 !
+      zsicf(:)=0.0
       where(dls(:) < 0.5)
        dt(:,NLEP)=dts(:)
+!
+!      Fractional sea-ice albedo ramp: 0 at the melting point, 1 at dicealbdt
+!      below it, and the same fraction in both bands. See the dicealbdt block
+!      in the module header.
+!
+       zsicf(:)=AMAX1(0.0,AMIN1(1.0,(TMELT-dts(:))/dicealbdt))
        dqs(:)=rdbrv*ra1*EXP(ra2*(dt(:,NLEP)-TMELT)                      &
      &       /(dt(:,NLEP)-ra4))/dp(:)
        dqs(:)=dqs(:)/(1.-(1./rdbrv-1.)*dqs(:))
@@ -265,16 +313,50 @@
 !
        drhs(:)=drhssea*(1.-dicec(:))+drhsice*dicec(:)
        dalb(:)=albsea*(1.-dicec(:))                                     &
-     &           +dicec(:)*AMIN1(albice,0.5+0.025*(273.-dts(:)))
-       dsalb(1,:)=doceanalb(1)*(1.-dicec(:))                                     &
-     &           +dicec(:)*AMIN1(dicealbmx(1),dicealbmn(1)+0.025*(273.-dts(:)))
-       dsalb(2,:)=doceanalb(2)*(1.-dicec(:))                                     &
-     &           +dicec(:)*AMIN1(dicealbmx(2),dicealbmn(2)+0.025*(273.-dts(:)))
+     &           +dicec(:)*(albicemn+zsicf(:)*(albice-albicemn))
+       dsalb(1,:)=doceanalb(1)*(1.-dicec(:))                            &
+     &           +dicec(:)*(dicealbmn(1)+zsicf(:)*(dicealbmx(1)-dicealbmn(1)))
+       dsalb(2,:)=doceanalb(2)*(1.-dicec(:))                            &
+     &           +dicec(:)*(dicealbmn(2)+zsicf(:)*(dicealbmx(2)-dicealbmn(2)))
        dz0(:)=zz0(:)*(1.-dicec(:))+dz0ice*dicec(:)
       endwhere
 !
+      call seaalbarchive
+!
       return
       end subroutine seastep
+
+!     ==========================
+!     SUBROUTINE SEAALBARCHIVE
+!     ==========================
+
+      subroutine seaalbarchive
+      use seamod
+      use radmod, only: nstartemp, zsolars
+!
+!     Archive the albedo the radiation actually used.
+!
+!     At nstartemp = 1 the shortwave reads dsalb and nothing else, and radmod
+!     writes the flux-weighted combination of the two bands into dalb as the
+!     diagnostic of what it used. radstep runs BEFORE surfstep, so seastep has
+!     just overwritten that diagnostic with albsea and albice, which are Earth
+!     broadband and which seaini never re-derives from the spectrum. dalb is
+!     what outmod accumulates and writes as code 175.
+!
+!     Exact over the ice fraction, where radmod leaves dsalb alone. Over the
+!     open-water fraction radmod additionally substitutes the ECHAM-3
+!     zenith-angle direct-beam albedo when necham = 1, which this diagnostic
+!     does not carry, so 175 there is the flux-weighted doceanalb rather than
+!     the zenith-corrected value. At nstartemp = 0 the shortwave reads dalb
+!     itself and the value set above is the one it will use.
+!
+      if (nstartemp == 1) then
+       where(dls(:) < 0.5)                                              &
+     &  dalb(:)=zsolars(1)*dsalb(1,:)+zsolars(2)*dsalb(2,:)
+      endif
+!
+      return
+      end subroutine seaalbarchive
 
 !     ===================
 !     SUBROUTINE SEASTOP

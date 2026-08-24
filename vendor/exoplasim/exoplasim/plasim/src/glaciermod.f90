@@ -7,9 +7,15 @@
 !	height. This does this by keeping track of two orography fields; the lithographic orography
 !	and the glacier orography. The surface orography is the sum of the two. Every timestep, the
 !	model checks to see if existing snow on a gridpoint has melted away (default reaching a
-!       depth below 2.0 meters liquid water equivalent. If a gridpoint retains some snow cover 
-!	continuously for an entire year, its glacier flag is turned on for the subsequent year.
-!	If its snow depth in subsequent years falls below 2 meters, the glacier flag is turned off.
+!       depth below 2.0 meters liquid water equivalent, GLACELIM). A gridpoint that holds snow
+!	above that depth continuously for GLACPERSIST orbits becomes a glacier; if its snow depth
+!	later falls below GLACELIM the clock restarts, and below 0.1 m the glacier flag is cleared.
+!	The elapsed time is carried in the restart, so the criterion does not depend on how the
+!	run was cut into segments.
+!
+!	The orography is recomputed by oroini, which runs at INITIALISATION only, so the ice
+!	sheet's effect on the circulation appears at segment boundaries rather than continuously.
+!	That is the coupling this module was written for and not a defect.
 !
 !	Due to the ground orography implementation being introduced, this module also introduces
 !	the possibility of coupling to an orogeny model.
@@ -33,25 +39,50 @@
       real :: glacelim = 2.0 ! Minimum snow depth in meters liquid water equivalent that has to be maintained
                                  ! year-round to convert the gridpoint to a glacier.
       real :: icesheeth = -1.0 !Initial snow depth
+
+!     How long the snow has to stay above glacelim, in ORBITS.
+!
+!     The module header says "continuously for an entire year". What the code
+!     did was continuously for one INVOCATION of the model: persistflag was set
+!     .TRUE. in the declaration, glacierstep only ever cleared it, and
+!     glacierstop converted whatever survived. So the duration was the segment
+!     length, it was not reachable from any namelist, and it silently changed
+!     meaning with the caller's choice of segment. persistt below counts the
+!     time instead, and it is carried in the restart, so the criterion is the
+!     same however a run is cut into segments.
+!
+!     1.0 is one orbit, which is what the header asks for and what a
+!     one-orbit-per-invocation caller was already getting.
+      real :: glacpersist = 1.0
+      real :: glacpersec  = 0.0 ! glacpersist in seconds; set in glacierprep
 !
 !     global arrays
 !
       real :: groundoro(NHOR)  = 0.0
       real :: glacieroro(NHOR) = 0.0
       real :: netoro(NHOR) = 0.0
-      logical :: persistflag(NHOR) = .TRUE.
+      real :: persistt(NHOR) = 0.0 ! seconds of continuous cover above glacelim
       
 !
 !     global scalars
 !
+!     rhoglac converts water equivalent to ice thickness for the orography, as
+!     rhosnow in landmod does for the snow that insulates the soil column. Both
+!     are settled densities set by overburden compaction, so both are measured
+!     under the gravity of the planet they were measured on and both are low
+!     for a planet whose surface gravity is higher. INHERITED rather than
+!     rescaled: firn densification is not a closed-form function of gravity
+!     that can be evaluated here, and the effect is bracketed at roughly 10 to
+!     20 per cent on snow insulation thickness and on glacier relief rather
+!     than guessed at. Both are namelist keys so the bracket can be run.
       real :: rhoglac  = 850.    ! glacial ice density (kg/m**3)
 
 !
 
 !     Threads instead of ranks: a thread owns what a rank owned.
 !     Inert without -fopenmp, so the MPI and serial builds are unchanged.
-!$omp threadprivate(glacelim,glacier_namelist,glacieroro,groundoro,gversion,icesheeth,netoro,&
-!$omp&  nglacier,persistflag,rhoglac)
+!$omp threadprivate(glacelim,glacier_namelist,glacieroro,glacpersec,glacpersist,groundoro,&
+!$omp&  gversion,icesheeth,netoro,nglacier,persistt,rhoglac)
 
       end module glaciermod
           
@@ -62,7 +93,7 @@
       subroutine glacierprep
       use glaciermod
 
-      namelist/glacier_nl/nglacier,glacelim,icesheeth
+      namelist/glacier_nl/nglacier,glacelim,icesheeth,glacpersist,rhoglac
       
       if (mypid==NROOT) then
          open(23,file=glacier_namelist)
@@ -79,6 +110,24 @@
       call mpbci(nglacier)
       call mpbcr(glacelim)
       call mpbcr(icesheeth)
+      call mpbcr(glacpersist)
+      call mpbcr(rhoglac)
+
+!     Orbits to seconds. m_days_per_year * day_24hr is the orbital period, the
+!     same conversion landini uses for tau_veg and tau_soil, and initpm has
+!     already set both from n_days_per_year and the rotation rate.
+
+      glacpersec = glacpersist * m_days_per_year * day_24hr
+
+      if (mypid==NROOT) then
+         write(nud,'(" * Glacier persistence: ",f8.3," orbits =",e12.4," s *")') &
+     &        glacpersist,glacpersec
+      endif
+
+      if (glacpersec <= 0.0) then
+         write(nud,*)' *** error: glacpersist = ',glacpersist
+         stop 1
+      endif
       
       if (mypid==NROOT) nglspec = nglacier
       
@@ -111,6 +160,7 @@
         call mpgetgp('groundsg',groundoro ,NHOR,1)
         call mpgetgp('dglacsg' ,glacieroro,NHOR,1)
         call mpgetgp('doro'    ,doro      ,NHOR,1)
+        call mpgetgp('persistt',persistt  ,NHOR,1)
       else
         call mpsurfgp('doro'    ,doro    ,NHOR,1)
         groundoro(:) = doro(:)
@@ -210,7 +260,7 @@
         
         where (dsnowz(:) > 30.0) dglac = 1.0 !If we have more than 30 m of lq H2O equivalent in snow/ice, it's a glacier
                                              !30 meters of ice is the minimum thickness for an ice sheet to flow
-        where (dls(:) < 0.5) persistflag = .FALSE.
+        where (dls(:) < 0.5) persistt = 0.0
         
         call mpgagp(zoro,doro,1)
         
@@ -299,9 +349,17 @@
 
       subroutine oroini
       use glaciermod
-      
-      parameter(zcvel=4.2)
-      parameter(zcexp=0.18)
+!
+!     zcvel and zoroinc were parameter(4.2) and a literal 1.0 m2/s2. Both now
+!     come from landmod's roffvel, roffexp and roffpit so that they carry this
+!     planet's gravity; the derivation and the Earth identity are in the
+!     roffvel block in landmod's module header. This is the copy that survives:
+!     glacierini runs after landini, so oroini overwrites whatever roffini put
+!     in duroff and dvroff.
+!
+      real :: zcvel
+      real :: zcexp
+      real :: zoroinc
 !
       real zuroff(NLON,NLAT)
       real zvroff(NLON,NLAT)
@@ -315,6 +373,10 @@
       real dhsnow
       real radius
       
+!
+      zcexp   = roffexp
+      zcvel   = roffvel*ga**(0.5-roffexp)
+      zoroinc = roffpit*ga
 !
       ilat = NLAT ! using ilat suppresses compiler warnings for T1
 !
@@ -441,7 +503,7 @@
      &      .and. zoro(jlon,jlat) <= zoro(jlon,jlat+1)                  &
      &      .and. zoro(jlon,jlat) <= zoro(jlon+1,jlat)                  &
      &      .and. zoro(jlon,jlat) <= zoro(jlon-1,jlat)) then
-           zoron(jlon,jlat)=1.+MIN(zoro(jlon+1,jlat),zoro(jlon-1,jlat)  &
+           zoron(jlon,jlat)=zoroinc+MIN(zoro(jlon+1,jlat),zoro(jlon-1,jlat)  &
      &                            ,zoro(jlon,jlat+1),zoro(jlon,jlat-1))
            jconv=jconv+1
           else
@@ -453,7 +515,7 @@
      &     .and. zoro(1,jlat) <= zoro(1,jlat+1)                         &
      &     .and. zoro(1,jlat) <= zoro(2,jlat)                           &
      &     .and. zoro(1,jlat) <= zoro(NLON,jlat)) then
-          zoron(1,jlat)=1.+MIN(zoro(2,jlat),zoro(NLON,jlat)             &
+          zoron(1,jlat)=zoroinc+MIN(zoro(2,jlat),zoro(NLON,jlat)             &
      &                        ,zoro(1,jlat+1),zoro(1,jlat-1))
           jconv=jconv+1
          else
@@ -464,7 +526,7 @@
      &     .and. zoro(NLON,jlat) <= zoro(NLON,jlat+1)                   &
      &     .and. zoro(NLON,jlat) <= zoro(1,jlat)                        &
      &     .and. zoro(NLON,jlat) <= zoro(NLON-1,jlat)) then
-          zoron(NLON,jlat)=1.+MIN(zoro(1,jlat),zoro(NLON-1,jlat)        &
+          zoron(NLON,jlat)=zoroinc+MIN(zoro(1,jlat),zoro(NLON-1,jlat)        &
      &                           ,zoro(NLON,jlat+1),zoro(NLON,jlat-1))
           jconv=jconv+1
          else
@@ -476,7 +538,7 @@
      &    .and. zoro(jlon,1) <= zoro(jlon,2)                            &
      &    .and. zoro(jlon,1) <= zoro(jlon+1,1)                          &
      &    .and. zoro(jlon,1) <= zoro(jlon-1,1)) then
-          zoron(jlon,1)=1.+MIN(zoro(jlon+1,1),zoro(jlon-1,1)            &
+          zoron(jlon,1)=zoroinc+MIN(zoro(jlon+1,1),zoro(jlon-1,1)            &
      &                        ,zoro(jlon,2))
           jconv=jconv+1
          else
@@ -486,7 +548,7 @@
      &    .and. zoro(jlon,NLAT) <= zoro(jlon,NLAT-1)                    &
      &    .and. zoro(jlon,NLAT) <= zoro(jlon+1,NLAT)                    &
      &    .and. zoro(jlon,NLAT) <= zoro(jlon-1,NLAT)) then
-          zoron(jlon,NLAT)=1.+MIN(zoro(jlon+1,NLAT),zoro(jlon-1,NLAT)   &
+          zoron(jlon,NLAT)=zoroinc+MIN(zoro(jlon+1,NLAT),zoro(jlon-1,NLAT)   &
      &                           ,zoro(jlon,NLAT-1))
           jconv=jconv+1
          else
@@ -497,7 +559,7 @@
      &    .and. zoro(1,1) <= zoro(1,2)                                  &
      &    .and. zoro(1,1) <= zoro(2,1)                                  &
      &    .and. zoro(1,1) <= zoro(NLON,1)) then
-         zoron(1,1)=1.+MIN(zoro(2,1),zoro(NLON,1)                       &
+         zoron(1,1)=zoroinc+MIN(zoro(2,1),zoro(NLON,1)                       &
      &                    ,zoro(1,2))
          jconv=jconv+1
         else
@@ -507,7 +569,7 @@
      &    .and. zoro(NLON,NLAT) <= zoro(NLON,NLAT-1)                    &
      &    .and. zoro(NLON,NLAT) <= zoro(1,NLAT)                         &
      &    .and. zoro(NLON,NLAT) <= zoro(NLON-1,NLAT)) then
-         zoron(NLON,NLAT)=1.+MIN(zoro(1,NLAT),zoro(NLON-1,NLAT)         &
+         zoron(NLON,NLAT)=zoroinc+MIN(zoro(1,NLAT),zoro(NLON-1,NLAT)         &
      &                          ,zoro(NLON,NLAT-1))
          jconv=jconv+1
         else
@@ -517,7 +579,7 @@
      &    .and. zoro(NLON,1) <= zoro(NLON,2)                            &
      &    .and. zoro(NLON,1) <= zoro(1,1)                               &
      &    .and. zoro(NLON,1) <= zoro(NLON-1,1)) then
-         zoron(NLON,1)=1.+MIN(zoro(1,1),zoro(NLON-1,1)                  &
+         zoron(NLON,1)=zoroinc+MIN(zoro(1,1),zoro(NLON-1,1)                  &
      &                       ,zoro(NLON,2))
          jconv=jconv+1
         else
@@ -527,7 +589,7 @@
      &    .and. zoro(1,NLAT) <= zoro(1,NLAT-1)                          &
      &    .and. zoro(1,NLAT) <= zoro(2,NLAT)                            &
      &    .and. zoro(1,NLAT) <= zoro(NLON,NLAT)) then
-         zoron(1,NLAT)=1.+MIN(zoro(NLON,NLAT),zoro(2,NLAT)              &
+         zoron(1,NLAT)=zoroinc+MIN(zoro(NLON,NLAT),zoro(2,NLAT)              &
      &                       ,zoro(1,NLAT-1))
          jconv=jconv+1
         else
@@ -585,8 +647,15 @@
       
       do jhor = 1,NHOR
          if (dls(jhor) > 0.5) then
-            if (dsnowz(jhor) < glacelim) persistflag(jhor) = .FALSE. !Snowpack below minimum persistent threshhold
+            if (dsnowz(jhor) < glacelim) then
+               persistt(jhor) = 0.0                 !Snowpack below the persistence threshold: the clock restarts
+            else
+               persistt(jhor) = persistt(jhor) + deltsec
+               if (persistt(jhor) >= glacpersec) dglac(jhor) = 1.0
+            endif
             if (dsnowz(jhor) < 0.1) dglac(jhor) = 0.0 !If the snow/ice is basically gone, so is the glacier
+         else
+            persistt(jhor) = 0.0
          endif
       enddo
       
@@ -610,9 +679,15 @@
       
       call finishup(dsnowz,'newdsnow')
       call finishup(asndch,'restart_snow')
-      
-      where (persistflag(:)) dglac = 1.0
-      where (persistflag(:)) rpersist = 1.0
+
+!     The conversion is glacierstep's now: it fires the moment the accumulated
+!     cover reaches glacpersec, so it no longer depends on where the caller cut
+!     the run into segments. What is left here is the diagnostic field, which
+!     is set rather than only raised so that a cell whose clock has restarted
+!     reports zero.
+
+      rpersist(:) = 0.0
+      where (persistt(:) >= glacpersec) rpersist(:) = 1.0
       
       endif
       
@@ -622,6 +697,7 @@
       call mpputgp('groundsg',groundoro ,NHOR,1)
       call mpputgp('dglacsg' ,glacieroro,NHOR,1)
       call mpputgp('doro'    ,doro      ,NHOR,1)
+      call mpputgp('persistt',persistt  ,NHOR,1)
       
 !       endif
       
