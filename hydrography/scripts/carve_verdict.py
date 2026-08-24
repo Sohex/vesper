@@ -71,6 +71,7 @@ from orbit import orbital_year_days
 from orogen import Export
 from paths import climatology_path, rel, require_clean_io
 from lake_balance import BasinSet, carve_verdict, solve
+from lapse import reference_height_m
 
 DRHSFULL = 0.4          # landmod.f90: wetness reaches 1 above this fraction
 WSMAX_EARTH = 0.5       # landmod.f90 default field capacity, metres
@@ -148,7 +149,8 @@ def reference_level_air(climatology):
 
 
 def penman_open_water(t_air, q_air, wind, p_air, rss, rls, land_albedo,
-                      gravity, diurnal_range=None, column_relative_humidity=None):
+                      gravity, diurnal_range=None, column_relative_humidity=None,
+                      cfg=None):
     """Penman open-water evaporation, m/s.
 
     Combines the energy budget with an aerodynamic term, which is what makes it
@@ -174,6 +176,10 @@ def penman_open_water(t_air, q_air, wind, p_air, rss, rls, land_albedo,
     sees is wetter than the cell mean the model reports. Correcting it needs a
     fetch-dependent boundary-layer model, so it is bracketed rather than
     applied -- a floor chosen to move the answer would be a knob.
+
+    `cfg` is the parsed `config/planet.yaml`, for the reference height's gas
+    constant and gravity. It is optional only so the existing callers that pass
+    `gravity` alone keep working; omitting it re-reads the same file.
     """
     lam = 2.501e6 - 2370.0 * (t_air - 273.15)          # latent heat, J/kg
     # DIURNAL INTEGRATION. Saturation vapour pressure is convex in temperature at
@@ -213,8 +219,12 @@ def penman_open_water(t_air, q_air, wind, p_air, rss, rls, land_albedo,
     sw_down = rss / np.maximum(1.0 - land_albedo, 1e-3)
     net_radiation = (1.0 - WATER_ALBEDO) * sw_down + rls
 
-    scale_height = GASCON * t_air / gravity
-    z_ref = scale_height * np.log(1.0 / SIGMA_LOWEST)
+    # ONE derivation of the height the transfer coefficient is taken over.
+    # `exoplasim/scripts/build_surface_roughness.py` needs the same z_ref and
+    # carried the EARTH-gravity answer as a literal instead; the expression is
+    # now `lib/lapse.py:reference_height_m`, whose R comes from the configured
+    # composition rather than being retyped from the run namelist.
+    z_ref = reference_height_m(t_air, cfg, SIGMA_LOWEST)
     ce_neutral = KARMAN ** 2 / np.log(np.maximum(z_ref, 1.0) / Z0_WATER) ** 2
     rho = p_air / (GASCON * t_air)
     u = np.maximum(wind, 0.1)
@@ -534,7 +544,7 @@ def main() -> None:
         / f"orogen_{resolution}_surf_0174.sra", *p_air.shape)
     gravity = float(config["planet"]["gravity_m_s2"])
     penman = penman_open_water(t_air, q_air, wind, p_air, rss, rls, land_albedo,
-                               gravity, diurnal_range=diurnal)
+                               gravity, diurnal_range=diurnal, cfg=config)
     ocean_validation = validate_over_ocean(penman, evap, lsm)
     # The sub-grid dry column, bracketed rather than applied. A lake moistens
     # the air over itself and the cell mean does not know it; how much is a
@@ -545,7 +555,7 @@ def main() -> None:
         f"rh_floor_{int(rh * 100)}": round(float(np.mean(
             penman_open_water(t_air, q_air, wind, p_air, rss, rls, land_albedo,
                               gravity, diurnal_range=diurnal,
-                              column_relative_humidity=rh)[land])) * 86400.0 * 1000.0, 4)
+                              column_relative_humidity=rh, cfg=config)[land])) * 86400.0 * 1000.0, 4)
         for rh in (0.7, 0.8, 0.9)}
     dry_column_bracket["as_computed"] = round(
         float(np.mean(penman[land])) * 86400.0 * 1000.0, 4)

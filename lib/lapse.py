@@ -1,4 +1,6 @@
-"""The environmental lapse rate, measured from the model's own profile.
+"""The environmental lapse rate, and the height the lowest model level sits at.
+
+Both are the same hypsometric `R T / g`, which is why they share a module.
 
 Earth's 6.5 K/km was hardcoded in three places (PHYS-12), none of which said it
 was Earth's, and the note that bracketed it explored 5.5 to 6.5 -- entirely on
@@ -70,6 +72,41 @@ R_UNIVERSAL = 8314.462618          # J/kmol/K
 
 SIGMA_WINDOW = (0.45, 0.90)
 FIT_RMS_LIMIT_K = 1.0
+
+# The model's bottom full level at NLEV = 10. PlaSim sets the half levels first
+# and each full level as the midpoint of the pair around it (plasim.f90:1644),
+# so this is a property of the level count and not of the planet. Passed rather
+# than read from a climatology so a caller that runs before any run exists can
+# still ask; a caller holding the model's `lev` axis should pass its bottom
+# entry instead.
+SIGMA_LOWEST = 0.9828
+
+
+def reference_height_m(t_air_k: float, cfg: dict | None = None,
+                       sigma_lowest: float = SIGMA_LOWEST) -> float:
+    """Height of the lowest model level above the surface, metres.
+
+    Hypsometric, with the same `R T / g` scale height `_column_rates` integrates
+    with, so the height a bulk transfer coefficient is derived over and the
+    heights a lapse rate is fitted against come from one expression.
+
+    THE GRAVITY IS THIS PLANET'S. Two consumers hardcoded the Earth-gravity
+    answer, 141.6 m, which is high by the gravity ratio and inflates every
+    `ln(z_ref/z0)` it feeds. `ce = k^2 / ln(z_ref/z0)^2` is the quantity
+    roughness acts through, so a reference height 31% too high moves `ce` at
+    ExoPlaSim's uniform `dz0land` by 14% and the bare-to-vegetated CONTRAST it
+    is quoted for by 9%.
+
+    Linear in the air temperature, so a caller with no climatology to measure
+    one from brackets it rather than picking a value. `t_air_k` may be a field,
+    in which case the height comes back with its shape.
+    """
+    cfg = _config(cfg)
+    r_specific, _cp = gas_properties(cfg)
+    gravity = float(cfg["planet"]["gravity_m_s2"])
+    height = (r_specific * np.asarray(t_air_k, dtype=float) / gravity
+              ) * float(np.log(1.0 / sigma_lowest))
+    return float(height) if height.ndim == 0 else height
 
 
 def _config(cfg: dict | None) -> dict:

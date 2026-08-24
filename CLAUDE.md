@@ -268,7 +268,8 @@ config's `resolution`, `latitudes` and `longitudes` are one fact),
 `paths.py` (repo-relative paths), `gridding.py` (mesh-to-grid, the one grid
 convention), `orbit.py` (orbital period), `stellar.py` (spectrum, band split,
 Rayleigh coefficient), `sensitivity.py` (the one flux-to-kelvin conversion),
-`climatology.py` (time-bin weights), `lapse.py` (lapse rates),
+`climatology.py` (time-bin weights), `lapse.py` (lapse rates, and the
+height of the lowest model level),
 `surface_classes.py` (derived surface classes BY NAME), `provenance.py` (build
 stamping and config drift). Rule 5 cites `builds.py` and `provenance.py` from this list.
 
