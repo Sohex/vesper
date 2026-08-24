@@ -1,0 +1,22 @@
+{
+  "probes": [
+    {
+      "rung": "T42",
+      "dt_minutes": 22.5,
+      "kappa": null,
+      "ranks": 16,
+      "steps_short": 133,
+      "steps_long": 400,
+      "wall_short_s": 3.39,
+      "outcome": "no_refusal_in_steps",
+      "wall_long_s": 6.53,
+      "seconds_per_step": 0.01178,
+      "startup_s": 1.82,
+      "implied_seconds_per_orbit": 172.3,
+      "naive_single_run_seconds_per_orbit": 238.9,
+      "tau_scale": 500.0
+    }
+  ],
+  "note": "Refusal boundary and per-step cost. Short probes: this cannot see a LATE blow-up. exoplasim/scripts/stability_probe.py",
+  "generated": "2026-08-24T02:22:53.297376+00:00"
+}

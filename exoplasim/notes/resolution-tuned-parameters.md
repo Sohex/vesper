@@ -412,3 +412,61 @@ step buys speed while making `26 - 27` worse in proportion. But the physics bein
 that could give both is the TIME SCHEME, where the error actually lives, and
 that is the semi-implicit attribution `water-and-energy-closure.md` names as
 needing its own experiment.
+
+## The Earth dependence is removable, and removing it answers the constant
+
+*2026-08-23. The scrutiny above left the derived damping resting on a constant
+assumed to be one, checkable only against Earth reanalysis this project does not
+hold. That is the wrong shape for an Earth-agnostic system, and it is avoidable.*
+
+### The two requirements are different and only one is physics
+
+- **Absorb the cascade.** `tau <= dx/U`, which at T42 is 1.114 d. Derived from
+  this planet's own radius and measured eddy wind, with no Earth in it.
+- **Run at all.** The filter currently supplies an e-folding of 169 s at the
+  truncation, which is **571 times more damping than the cascade requires**.
+
+That gap is a property of the dynamical core, not of the planet, so the constant
+was never "one advective time" in the first place -- it is whatever stability
+demands. And what stability demands is measurable HERE, on this model, which is
+what removes Earth from the derivation entirely. ECHAM's table keeps a role, but
+only for the SCALING with truncation, `tau ~ 1/N`, which is a statement about
+resolution rather than about a planet.
+
+### Measured: the cascade-absorbing value is sufficient on its own
+
+T42, **physics filter off entirely**, derived hyperdiffusion as the only damping,
+dt 22.5, two orbits from the settled restart:
+
+| | filter gamma 8, dt 45 | filter gamma 16, dt 45 | **no filter, dt 22.5** |
+| --- | ---: | ---: | ---: |
+| ran | yes | yes | **yes** |
+| spectral bite point | 0.60 | 0.67 | **0.76** |
+| pile-up (excess over the power law) | none | none | **none, 1.14x** |
+| kinetic-energy identity | -0.000 | +0.151 | **+0.030** |
+| adiabatic residual 26-27 | -0.458 | -1.443 | **-2.675** |
+
+**The model runs on the derived damping alone**, and does so with the best
+spectral confinement measured -- 0.76 of the truncation against the filter's
+0.60 -- and no pile-up. So `C = 1`, the cascade-absorbing value, is sufficient.
+It did not need calibrating against Earth, and the question of whether ECHAM's
+constant is 1.0 or 0.65 does not arise: their constant is theirs, and this one
+is measured here.
+
+### What is still confounded, and what it would take
+
+The three arms do not differ in one variable: the unfiltered one runs at dt 22.5
+because dt 45 refuses without a filter. So the adiabatic residual of -2.675
+cannot be read against -0.458 directly -- half the timestep should have REDUCED
+it, and it is five times larger, which says the damping reduction dominates the
+timestep improvement, but by how much is not separable from these three points.
+
+A clean comparison needs the unfiltered arm at dt 45, which does not run, or the
+filtered arms at dt 22.5, which do. The second is available and cheap and is the
+next measurement rather than a conclusion.
+
+What can be said without it: **the filter is not required at T42**, the derived
+damping alone gives a better-confined spectrum than any filtered configuration
+measured, and the kinetic-energy identity comes closer to closing without the
+filter than with it sharpened. What it costs is the timestep, and whether that
+is worth paying is a decision that needs the missing arm.

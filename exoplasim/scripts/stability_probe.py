@@ -133,13 +133,16 @@ def time_run(bed: Path, exe: str, ranks: int) -> tuple[float, bool, str]:
 
 
 def probe(rung: str, dt: float, kappa: float | None, steps: int,
-          ranks: int, template: Path, gamma: int) -> dict:
+          ranks: int, template: Path, gamma: int,
+          tau_scale: float | None = None) -> dict:
     tag = ("off" if kappa is None else f"k{kappa:g}") + f"_dt{dt:g}"
     bed, exe = build_bed(rung, template, tag)
     # SEED is declared, not inherited: the template is a run directory made
     # before `model.cold_start_seed` existed, and `initrandom` falls back to the
     # system clock when seed(1) is zero. A probe nobody can re-run is a boundary
     # nobody can check.
+    cfg_all = yaml.safe_load(
+        (ROOT / "config" / "planet.yaml").read_text(encoding="utf-8"))
     seed = int(yaml.safe_load(
         (ROOT / "config" / "planet.yaml").read_text(encoding="utf-8")
     )["model"]["cold_start_seed"])
@@ -164,6 +167,17 @@ def probe(rung: str, dt: float, kappa: float | None, steps: int,
     # `docs/src/practice/failure-modes.md` class 34 exists to demand -- a bed
     # shorter than its own startup measuring the startup.
     short_steps = max(50, steps // 3)
+    # HYPERDIFFUSION TOO, and scaled. With the filter off this becomes the
+    # model's only damping, which is the whole point of being able to vary it:
+    # the strength the core actually demands cannot be measured while a second
+    # mechanism supplies several hundred times more.
+    if tau_scale is not None:
+        hd = cfg_all["model"]["hyperdiffusion"]["timescales_days"][rung]
+        keys |= {"TDISSD": f"{hd['divergence'] / tau_scale}",
+                 "TDISSZ": f"{hd['vorticity'] / tau_scale}",
+                 "TDISST": f"{hd['temperature'] / tau_scale}",
+                 "TDISSQ": f"{hd['humidity'] / tau_scale}",
+                 "NDEL": f"{int(cfg_all['model']['hyperdiffusion']['order_alpha'])}"}
     set_keys(bed, keys | {"N_RUN_STEPS": str(short_steps)})
     t_short, trapped, text = time_run(bed, exe, ranks)
     result = {"rung": rung, "dt_minutes": dt, "kappa": kappa, "ranks": ranks,
@@ -208,6 +222,10 @@ def main() -> None:
                     help="timesteps per probe. The refusal fires on the first "
                          "radiation call, so this is already far more than that "
                          "failure needs; it is long enough to price a step.")
+    ap.add_argument("--tau-scale", type=float, default=None,
+                    help="multiply the derived hyperdiffusion STRENGTH by this "
+                         "(so tau is divided by it). 1 is the cascade-absorbing "
+                         "value; larger is stronger damping.")
     ap.add_argument("--gamma", type=int, default=None,
                     help="filter power; default is config/planet.yaml's")
     ap.add_argument("--ranks", type=int, default=16)
@@ -230,7 +248,8 @@ def main() -> None:
     for dt in dts:
         for kappa in kappas:
             r = probe(args.rung, dt, kappa, args.steps, args.ranks, template,
-                      args.gamma)
+                      args.gamma, args.tau_scale)
+            r["tau_scale"] = args.tau_scale
             results.append(r)
             k = "off" if kappa is None else f"{kappa:g}"
             if r["outcome"] != "refused":
