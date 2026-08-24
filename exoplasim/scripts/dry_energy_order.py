@@ -44,12 +44,22 @@ Global means use Gaussian weights, not cos(lat): the output is on the model's
 Gaussian grid and the quadrature that is exact there is the one the model
 integrates with.
 
-THE WINDOW, ALSO FIXED IN ADVANCE. A scaled state is out of equilibrium and the
-flow regenerates toward its natural amplitude, which would contaminate a trend
-fitted across the whole orbit. So the sink is fitted only while the global eddy
-kinetic energy stays within +/-25 percent of its value at the start of the arm,
-and an arm whose window holds fewer than five samples is reported as
-unmeasurable rather than fitted.
+HOW THE ARMS ARE COMPARED. A dry adiabatic atmosphere has no source: with the
+radiation emptied there is nothing to maintain the temperature gradient the
+eddies feed on, so the flow DECAYS -- by a factor of four over one orbit at full
+amplitude. Nothing regenerates and no arm returns to a common state, which means
+a single trend per arm would compare arms at different stages of their own
+spin-down.
+
+So the exponent is fitted ACROSS ARMS AT MATCHED MODEL TIME, sample by sample.
+At the first sample the arms are exact scaled copies of one another by
+construction, and they drift apart from there, so the exponent is reported as a
+series and attributed from its median over the FIRST QUARTER of the record.
+That rule is fixed here and looks only at the model time and the scale factor,
+never at the sink, so it cannot be tuned toward an answer.
+
+The instantaneous sink is a centred difference of the total energy, one-sided at
+the ends.
 """
 from __future__ import annotations
 
@@ -74,8 +84,8 @@ BANDS = [
     (2.70, 3.40, "the quadratic nonlinear terms"),
     (3.70, 4.40, "the cubic terms, which this grid does not dealias"),
 ]
-WINDOW_TOLERANCE = 0.25   # eddy KE may drift this far before the arm is regenerating
-MIN_WINDOW_SAMPLES = 5
+ATTRIBUTION_FRACTION = 0.25   # the leading quarter of the record, where the
+                              # arms are still near-scaled copies of each other
 
 
 def gaussian_weights(nlat: int) -> np.ndarray:
@@ -139,20 +149,10 @@ def arm_series(run_dir: Path, gravity: float):
             "eddy_ke": cat(eddy), "mass": cat(mass)}
 
 
-def fit_sink(s: dict, seconds_per_step: float):
-    """W/m2, over the window where the arm is not yet regenerating."""
-    e0 = s["eddy_ke"][0]
-    inside = np.abs(s["eddy_ke"] / e0 - 1.0) <= WINDOW_TOLERANCE
-    stop = len(inside)
-    for i, ok in enumerate(inside):
-        if not ok:
-            stop = i
-            break
-    if stop < MIN_WINDOW_SAMPLES:
-        return None, stop
-    t = s["time"][:stop] * seconds_per_step
-    slope = float(np.polyfit(t, s["total"][:stop], 1)[0])
-    return slope, stop
+def instantaneous_sink(s: dict, seconds_per_step: float) -> np.ndarray:
+    """W/m2 at each sample: a centred difference of the total energy."""
+    t = s["time"] * seconds_per_step
+    return np.gradient(s["total"], t)
 
 
 def main() -> int:
@@ -175,59 +175,74 @@ def main() -> int:
         manifest = json.loads((run / "run_manifest.json").read_text())
         dt = float(manifest["source_config"]["model"]["timestep_minutes"]) * 60.0
         s = arm_series(run, gravity)
-        sink, stop = fit_sink(s, dt)
+        sink = instantaneous_sink(s, dt)
+        total = s["total"]
+        span = (s["time"][-1] - s["time"][0]) * dt
         rows.append({
             "eps": float(eps), "run": run.name, "samples": int(len(s["time"])),
-            "window_samples": int(stop),
-            "sink_w_m2": sink,
+            "mean_sink_w_m2": float((total[-1] - total[0]) / span),
             "eddy_ke_initial_j_m2": float(s["eddy_ke"][0]),
+            "eddy_ke_final_over_initial": float(s["eddy_ke"][-1] / s["eddy_ke"][0]),
             "mass_drift_ppm": float((s["mass"][-1] / s["mass"][0] - 1) * 1e6),
             "enthalpy_trend_j_m2": float(s["enthalpy"][-1] - s["enthalpy"][0]),
             "kinetic_trend_j_m2": float(s["kinetic"][-1] - s["kinetic"][0]),
             "orographic_trend_j_m2": float(s["orographic"][-1] - s["orographic"][0]),
             "eddy_ke_series": [float(x) for x in s["eddy_ke"]],
-            "total_series": [float(x) for x in s["total"]],
+            "total_series": [float(x) for x in total],
+            "sink_series": [float(x) for x in sink],
         })
 
     rows.sort(key=lambda r: -r["eps"])
-    print(f"{'eps':>6} {'run':>18} {'window':>7} {'sink W/m2':>11} "
-          f"{'eddy KE J/m2':>13} {'mass ppm':>9}")
+    print(f"{'eps':>6} {'run':>18} {'mean sink':>10} {'eddy KE J/m2':>13} "
+          f"{'decayed to':>11} {'mass ppm':>9}")
     for r in rows:
-        sink = "unmeasurable" if r["sink_w_m2"] is None else f"{r['sink_w_m2']:+.4f}"
-        print(f"{r['eps']:>6.2f} {r['run']:>18} {r['window_samples']:>7d} "
-              f"{sink:>11} {r['eddy_ke_initial_j_m2']:>13.4g} "
+        print(f"{r['eps']:>6.2f} {r['run']:>18} {r['mean_sink_w_m2']:>+10.4f} "
+              f"{r['eddy_ke_initial_j_m2']:>13.4g} "
+              f"{r['eddy_ke_final_over_initial']:>11.3f} "
               f"{r['mass_drift_ppm']:>+9.1f}")
 
-    usable = [r for r in rows if r["sink_w_m2"] is not None
-              and r["sink_w_m2"] < 0 and r["eps"] > 0]
     exponent = None
-    attribution = "not attributable: fewer than two arms with a measurable sink"
-    if len(usable) >= 2:
-        x = np.log([r["eps"] for r in usable])
-        y = np.log([abs(r["sink_w_m2"]) for r in usable])
-        exponent = float(np.polyfit(x, y, 1)[0])
-        resid = float(np.max(np.abs(y - np.polyval(np.polyfit(x, y, 1), x))))
-        attribution = ("no single band: the sink is a mixture of orders, or the "
-                       "window is contaminated")
-        for lo, hi, label in BANDS:
-            if lo <= exponent <= hi:
-                attribution = label
-                break
-        print(f"\nexponent in eps: {exponent:+.2f}  "
-              f"(worst log residual {resid:.3f})")
+    attribution = "not attributable: fewer than two arms"
+    series = []
+    if len(rows) >= 2:
+        n = min(len(r["sink_series"]) for r in rows)
+        x = np.log([r["eps"] for r in rows])
+        for k in range(n):
+            y = np.array([r["sink_series"][k] for r in rows])
+            if np.any(y >= 0):
+                series.append(None)
+                continue
+            series.append(float(np.polyfit(x, np.log(-y), 1)[0]))
+        lead = [v for v in series[:max(1, int(n * ATTRIBUTION_FRACTION))]
+                if v is not None]
+        if lead:
+            exponent = float(np.median(lead))
+            attribution = ("no single band: the sink is a mixture of orders, or "
+                           "the arms have already diverged")
+            for lo, hi, label in BANDS:
+                if lo <= exponent <= hi:
+                    attribution = label
+                    break
+        whole = [v for v in series if v is not None]
+        print(f"\nexponent in eps, per sample (leading quarter): "
+              + " ".join(f"{v:+.2f}" if v is not None else "  n/a"
+                         for v in series[:max(1, int(n * ATTRIBUTION_FRACTION))]))
+        print(f"median over the leading quarter : {exponent:+.2f}"
+              if exponent is not None else "median: unavailable")
+        if whole:
+            print(f"median over the whole record   : {np.median(whole):+.2f}")
         print(f"attribution: {attribution}")
-        print("pairwise exponents:")
-        for a, b in zip(usable, usable[1:]):
-            p = np.log(abs(a["sink_w_m2"]) / abs(b["sink_w_m2"])) / np.log(a["eps"] / b["eps"])
-            print(f"  {a['eps']:.2f} -> {b['eps']:.2f} : {p:+.2f}")
+        print("\nfor reference, the exponent from the whole-record mean sinks:")
+        y = np.log([-r["mean_sink_w_m2"] for r in rows])
+        print(f"  {float(np.polyfit(x, y, 1)[0]):+.2f}")
 
     payload = {"note": "dry adiabatic energy sink against flow amplitude, for "
                        "world-bxr; bands fixed in the script before any arm ran. "
                        "exoplasim/scripts/dry_energy_order.py",
                "generated": datetime.now(timezone.utc).isoformat(),
                "gravity_m_s2": gravity,
-               "window_tolerance": WINDOW_TOLERANCE,
-               "min_window_samples": MIN_WINDOW_SAMPLES,
+               "attribution_fraction": ATTRIBUTION_FRACTION,
+               "exponent_per_sample": series,
                "bands": [{"low": lo, "high": hi, "term": t} for lo, hi, t in BANDS],
                "arms": rows, "exponent": exponent, "attribution": attribution}
     args.out.parent.mkdir(parents=True, exist_ok=True)

@@ -33,13 +33,24 @@ WHAT IS SCALED, AND WHAT IS NOT.
   scaled whole      sz sd szm sdm      vorticity and divergence, whose (0,0)
                     mode is zero by construction; planetary vorticity is added
                     at runtime and is not in this file
-  scaled anomaly    st sq sp stm sqm spm    the (0,0) coefficient of every level
-                    is preserved, so the global mean temperature, the global
-                    mean humidity and the global mean ln(ps) do not move. Scaling
-                    the mean ln(ps) would change the atmosphere's MASS, and the
-                    sink is reported per square metre of it.
-  untouched         so   spectral orography: the boundary condition. Holding it
-                    fixed is what makes the eps^1 arm mean something.
+  scaled anomaly    st sq stm sqm    the (0,0) coefficient of every level is
+                    preserved, so the global mean temperature and the global mean
+                    humidity do not move. Measured against `so`, neither field
+                    carries any terrain signature at all -- R^2 below 0.005 at
+                    every level -- so the global mean is the whole of what has to
+                    be held.
+  scaled residual   sp spm   ln(ps) is 96 percent OROGRAPHIC: regressed on `so`
+                    across its coefficients it gives R^2 = 0.96, because surface
+                    pressure is mostly a statement about how much atmosphere
+                    stands above the terrain. Scaling it whole removes kilometres
+                    of that atmosphere from over unchanged mountains, and the
+                    model does not survive it: at 0.5 and at 0.25 the surface
+                    layer reached negative absolute temperatures within seconds
+                    and the run took SIGFPE on `log(z/z0)`. So the component
+                    proportional to `so` is projected out and HELD, and only the
+                    residual scales. The (0,0) coefficient is held with it.
+  untouched         so   spectral orography: the boundary condition, and the
+                    reference the ln(ps) projection is taken against.
                     sr   PUMA's restoration temperature, which PlaSim does not use.
                     everything else, including the surface, the ocean and the
                     accumulators. A dry adiabatic run exchanges nothing with them.
@@ -59,13 +70,17 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+import numpy as np
+
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import _paths  # noqa: F401
 
 # The whole field scales: the (0,0) mode of vorticity and divergence is zero.
 SCALE_WHOLE = ("sz", "sd", "szm", "sdm")
 # The anomaly scales and the (0,0) mode of each level is held.
-SCALE_ANOMALY = ("st", "sq", "sp", "stm", "sqm", "spm")
+SCALE_ANOMALY = ("st", "sq", "stm", "sqm")
+# The component proportional to the orography is held and the residual scales.
+SCALE_RESIDUAL = ("sp", "spm")
 
 
 def records(path: Path):
@@ -82,21 +97,34 @@ def records(path: Path):
     return raw, out
 
 
-def scale_record(body: bytes, factor: float, nrsp: int, hold_mean: bool) -> bytes:
+def scale_record(body: bytes, factor: float, nrsp: int, hold_mean: bool,
+                 hold_along: np.ndarray | None = None) -> bytes:
     if len(body) % 8:
         raise SystemExit("expected an 8-byte real record")
-    vals = list(struct.unpack(f"<{len(body)//8}d", body))
+    vals = np.frombuffer(body, dtype="<f8").copy()
     if len(vals) % nrsp:
         raise SystemExit(f"record of {len(vals)} reals is not a multiple of "
                          f"NRSP={nrsp}; the truncation in this file is not what "
                          f"the header says")
+    coefficients = []
     for base in range(0, len(vals), nrsp):
         # index 0 is the real part of (n=0,m=0) and index 1 its imaginary part,
         # which is identically zero. Holding both is holding the global mean.
-        start = base + (2 if hold_mean else 0)
-        for i in range(start, base + nrsp):
-            vals[i] *= factor
-    return struct.pack(f"<{len(vals)}d", *vals)
+        start = 2 if hold_mean else 0
+        level = vals[base: base + nrsp]
+        held = np.zeros(nrsp - start)
+        if hold_along is not None:
+            x = hold_along[start:]
+            c = float(x @ level[start:] / (x @ x))
+            held = c * x
+            coefficients.append(c)
+        # Written as an interpolation rather than as held + factor*(level - held)
+        # so that factor 1.0 reproduces the input BIT FOR BIT: 1.0*level plus
+        # 0.0*held is exact, where the round trip through the projection is not.
+        # The held leading coefficients are never touched at all, for the same
+        # reason.
+        level[start:] = factor * level[start:] + (1.0 - factor) * held
+    return vals.tobytes(), coefficients
 
 
 def main() -> int:
@@ -124,18 +152,29 @@ def main() -> int:
         raise SystemExit("no nrsp record: this is not a plasim restart")
     (nrsp,) = struct.unpack("<i", recs[nrsp_idx][2])
 
+    so_idx = names.get("so")
+    if so_idx is None:
+        raise SystemExit("no so record: the orographic component of ln(ps) "
+                         "cannot be held, and scaling it whole destroys the run")
+    so = np.frombuffer(recs[so_idx][2], dtype="<f8")
+
     out = bytearray(raw)
     touched = {}
-    for name in SCALE_WHOLE + SCALE_ANOMALY:
+    projections = {}
+    for name in SCALE_WHOLE + SCALE_ANOMALY + SCALE_RESIDUAL:
         idx = names.get(name)
         if idx is None:
             raise SystemExit(f"record {name!r} is absent; refusing to scale a "
                              f"state this script does not recognise")
         pos, n, body = recs[idx]
-        new = scale_record(body, args.factor, nrsp,
-                           hold_mean=name in SCALE_ANOMALY)
+        new, coeffs = scale_record(
+            body, args.factor, nrsp,
+            hold_mean=name in SCALE_ANOMALY + SCALE_RESIDUAL,
+            hold_along=so if name in SCALE_RESIDUAL else None)
         out[pos + 4: pos + 4 + n] = new
         touched[name] = len(body) // 8
+        if coeffs:
+            projections[name] = coeffs
 
     args.dest.parent.mkdir(parents=True, exist_ok=True)
     args.dest.write_bytes(bytes(out))
@@ -153,6 +192,8 @@ def main() -> int:
         "nrsp": nrsp,
         "scaled_whole": list(SCALE_WHOLE),
         "scaled_anomaly_mean_held": list(SCALE_ANOMALY),
+        "scaled_residual_orography_held": list(SCALE_RESIDUAL),
+        "orographic_projection": projections,
         "reals_per_record": touched,
     }
     if args.report:
