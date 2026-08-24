@@ -211,6 +211,8 @@ STATIC_GRID = "static-grid"
 DERIVED_GRID = "derived-grid"
 ACCUMULATOR = "accumulator"
 OPAQUE = "opaque-build-state"
+CONTROLLER = "controller-state"    # a correction the model is tracking, not a
+                                   # state variable and not an accumulator
 
 # Conversion actions.
 TARGET = "target"                # take the target template's value
@@ -311,6 +313,19 @@ POLICY.update({
     "zsolars": Policy(OPAQUE, REQUIRE_EQUAL,
                       why="the two-band split of the stellar constant is "
                           "derived from configuration, not from the grid"),
+})
+
+# --- controller state ------------------------------------------------------
+POLICY.update({
+    "denergyfix": Policy(
+        CONTROLLER, TARGET,
+        why="the energy fixer's integrated correction, carried across a "
+            "restart so a segment does not begin uncorrected (world-fsr). "
+            "TARGET rather than COPY across a CONVERSION: it is a heating rate "
+            "the controller reached against one truncation's own conversion "
+            "defect, and that defect is resolution-dependent, so a T21 "
+            "correction is not the T85 one. The target starts from its "
+            "template's value and re-converges in one window."),
 })
 
 # --- accumulation counters -------------------------------------------------

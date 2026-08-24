@@ -193,7 +193,6 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       call mpbcr(day_24hr)
       
       if (mypid == NROOT) then
-         call print_planet
          call restart_ini(lrestart,plasim_restart)
          if (lrestart) then
             nrestart = 1
@@ -204,6 +203,13 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
          call inigau(NLAT,sid,gwd)  ! Gaussian abscissas and weights
          call inilat                ! Set latitudinal arrays
          call readnl                ! Open and read <plasim_namelist>
+!        AFTER readnl, NOT BEFORE IT. world-1o4. `print_planet` reports
+!        sidereal_day and the orbit period derived from it, and readnl is where
+!        sidereal_day is recomputed from rotspd. Called first, the table
+!        reported a 23.93 h rotation and a 183.30-day orbit for a model that
+!        then integrated 30 h and 146 days. It writes and reads nothing else, so
+!        the only thing this ordering changes is that the numbers are true.
+         call print_planet
          call initpm                ! Several initializations
          call initsi                ! Initialize semi implicit scheme
          call guistart              ! Initialize GUI
@@ -1026,6 +1032,23 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
          call put_restart_real('arasc'   ,arasc )
 !        Marks a restart whose accumulator set is complete.
          call put_restart_real('accuvers',1.0)
+!        THE ENERGY FIXER'S INTEGRATED CORRECTION. world-fsr.
+!
+!        `denergyfix` is a controller state, not a diagnostic: it is the uniform
+!        heating currently being applied, reached in one window and then tracked.
+!        Left out of the restart it returned to zero at every segment boundary,
+!        so the first 2*ntspd steps of every segment ran with NO correction and
+!        then stepped to the full value -- and any run shorter than one window,
+!        which includes the 20-step transform gates, never applied one at all.
+!
+!        The three window accumulators are deliberately NOT saved beside it. The
+!        first step out of a restart carries a start-up transient of order 250
+!        W/m2 and the design discards the first window for exactly that reason;
+!        splicing a partial window across a segment boundary would feed that
+!        transient into the previous segment's average. A segment starts on the
+!        previous segment's converged correction and measures its own first
+!        clean window before changing it, which is what the design asks for.
+         call put_restart_real('denergyfix',denergyfix)
       endif
 !     Accumulated hurricane indices are gridpoint fields divided by naccuout in
 !     outgp; they were not saved either.
@@ -1171,6 +1194,62 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       use pumamod
       use restartmod, only: nexcheck
 
+!     THE STAMPED GEOMETRY IS READ BEFORE ANY ARRAY IS. world-4yz.
+!
+!     `epilog` writes nlat, nlon, nlev and nrsp into every restart and nothing
+!     read them back. `get_restart_array` is `read (nreaunit) pa(1:k1,:)` with
+!     no iostat, and an unformatted sequential read that consumes FEWER values
+!     than the record holds is legal and advances: a donor written at a higher
+!     truncation is silently reinterpreted, the target taking the leading k1*k3
+!     values of a longer record, which runs out of the donor's level one into
+!     its tail rather than truncating the field. A lower-truncation donor hits
+!     end of record and dies with no iostat to say why.
+!
+!     `exoplasim/scripts/restart_schema.py` validates all four, but that is the
+!     CONVERTER: an unconverted restart from another rung passed every gate the
+!     run path had. This is the run path's own gate, and it is placed above the
+!     first array read because a mis-sized read has already done its damage by
+!     the time anything downstream could notice.
+!
+!     A restart written before this project stamped them is possible in
+!     principle, so nexcheck is lowered for the four reads and a value that did
+!     not arrive is left at its sentinel and passes. An UNSTAMPED restart is not
+!     a MISMATCHED one.
+
+      nresbad = 0
+      if (mypid == NROOT) then
+         jrlat = -1
+         jrlon = -1
+         jrlev = -1
+         jrrsp = -1
+         nexcheck = 0
+         call get_restart_integer('nlat',jrlat)
+         call get_restart_integer('nlon',jrlon)
+         call get_restart_integer('nlev',jrlev)
+         call get_restart_integer('nrsp',jrrsp)
+         nexcheck = 1
+         if ((jrlat > 0 .and. jrlat /= NLAT) .or.                        &
+     &       (jrlon > 0 .and. jrlon /= NLON) .or.                        &
+     &       (jrlev > 0 .and. jrlev /= NLEV) .or.                        &
+     &       (jrrsp > 0 .and. jrrsp /= NRSP)) then
+            nresbad = 1
+            write(nud,*) '*** RESTART GEOMETRY MISMATCH ***'
+            write(nud,*) 'restart NLAT NLON NLEV NRSP: ',                &
+     &                   jrlat,jrlon,jrlev,jrrsp
+            write(nud,*) 'this binary NLAT NLON NLEV NRSP: ',            &
+     &                   NLAT,NLON,NLEV,NRSP
+            write(nud,*) 'the spectral records are sized by the writing'
+            write(nud,*) 'truncation and would be resliced, not projected.'
+            write(nud,*) 'Convert it: exoplasim/scripts/convert_restart.py'
+            write(nud,*) 'see world-4yz'
+         endif
+      endif
+!     EVERY TASK STOPS, not just NROOT. The reads above are root-only and the
+!     next collective is the broadcast below, so a root-only stop would leave
+!     the others in a collective nobody is going to enter.
+      call mpbci(nresbad)
+      if (nresbad > 0) stop 'restart written at a different resolution'
+
 !     read scalars and full spectral arrays
 
       if (mypid == NROOT) then
@@ -1283,6 +1362,11 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
             call get_restart_real('ardist'  ,ardist)
             call get_restart_real('arasc'   ,arasc )
          endif
+!        The fixer's integrated correction, world-fsr. Read under the same
+!        lowered nexcheck: a restart written before it was saved leaves
+!        denergyfix at its declared zero, which is what that segment would have
+!        started from anyway. Only NROOT ever reads or applies it.
+         call get_restart_real('denergyfix',denergyfix)
          nexcheck = 1
       endif
       call mpbcr(zaccuvers)

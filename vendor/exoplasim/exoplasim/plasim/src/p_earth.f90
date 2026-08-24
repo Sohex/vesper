@@ -18,6 +18,8 @@ namelist /planet_nl/ nfixorb, eccen, mvelp, obliq  &
                 , yplanet
 
 yplanet = "Earth"    ! Planet name
+! INERT, like tropical_year below: assigned in all three planet modules and read
+! nowhere in plasim/src. world-cwu.
 nplanet = 3          ! 3rd. stone from the sun
 
 ! *********
@@ -31,6 +33,10 @@ rotspd        =     1.0       ! Rotation speed (factor)
 sidereal_day  =    86164.0916 !      23h 56m 04s
 solar_day     =    86400.0    !      24h 00m 00s
 sidereal_year = 31558149.0    ! 365d 06h 09m 09s
+! INERT. Set here, broadcast at plasim.f90:375, and consumed nowhere in the
+! source CMakeLists.txt compiles -- checked case-insensitively across the whole
+! of plasim/src. Recorded because a reader auditing the planet configuration
+! cannot otherwise tell it from a live value. world-cwu.
 tropical_year = 31556956.0    ! 365d 05h 49m 16s
 meananom0     = -2.9589       ! Jan 1
 
@@ -38,6 +44,14 @@ meananom0     = -2.9589       ! Jan 1
 ! Atmosphere
 ! **********
 
+! LIVE, all three, and all three are Earth's. They are fallbacks, not
+! constants: this project writes AKAP, ALR and GASCON into planet_namelist and
+! the namelist read below overrides them.
+!   akap feeds acpd = gascon/akap at plasim.f90, so it sets the specific heat of
+!     dry air and must be derived beside whatever gascon is. world-cwu.
+!   alr builds the cold-start temperature profile in setzt, eleven uses, plus
+!     four in guimod. A lowercase grep misses them; the uses are uppercase and
+!     that is what once had it recorded as inert. world-wmw.
 akap    =   0.286     ! Kappa (Poisson constant R/Cp)
 alr     =   0.0065    ! Lapse rate
 gascon  = 287.0       ! Gas constant
@@ -89,16 +103,31 @@ end
 subroutine print_planet
 use radmod
 
-p_mass        =    5.9736  ! [10^24 kg]
-p_volume      =  108.321   ! [10^10 km3]
-p_radius_eq   = 6378.0     ! Equatorial radius
-p_radius_po   = 6356.0     ! Polar radius
-p_ellipticity =    0.0034  ! Ellipticity
-p_density     = 5520.0     ! [kg/m3]
-p_albedo      =    0.385   ! Bond albedo
-p_blackt      =  247.3     ! Black body temperature
-p_perihelion  =  147.1     ! Perihelion [10^6 km]
-p_aphelion    =  152.1     ! Aphelion [10^6 km]
+! EVERY ROW IS THIS RUN'S OWN STATE. world-1o4.
+!
+! This table used to carry Earth's mass, volume, equatorial and polar radii,
+! ellipticity, density, Bond albedo, black-body temperature, perihelion and
+! aphelion as literals, printed under whatever `yplanet` said and one row above
+! a correct mean radius. A plausible number from the wrong world is worse than
+! an error, so the literals are gone: what remains is either a namelist value or
+! is DERIVED from one.
+!
+! Mass, volume and density follow from `ga` and `plarad` alone, through
+! `g = GM/a^2` on a sphere. Run on Earth's own ga and plarad they return 5.964,
+! 108.34 and 5505 against the measured 5.972, 108.32 and 5514, which is the
+! check that the derivation is the right one: the residual is the oblateness and
+! the rotation this model does not have.
+!
+! Dropped rather than derived, because the model holds nothing they follow from:
+! equatorial and polar radii and ellipticity (this planet is a sphere here), and
+! Bond albedo, black-body temperature, perihelion and aphelion (the first is an
+! outcome of the run and the last three need the star's luminosity, which
+! reaches the model already collapsed into gsol0).
+
+p_bignewton   = 6.67430E-11 ! Gravitational constant [m3/kg/s2], CODATA 2018
+p_mass        = ga * plarad * plarad / p_bignewton / 1.0E24   ! [10^24 kg]
+p_volume      = 4.0 * PI * plarad**3 / 3.0 / 1.0E19           ! [10^10 km3]
+p_density     = p_mass * 1.0E24 / (p_volume * 1.0E19)         ! [kg/m3]
 p_sidorbit    =  sidereal_year / sidereal_day ! Sidereal orbit period
 
 write(nud,4000)
@@ -109,19 +138,12 @@ write(nud,2000) 'Parameter','Units','Value'
 write(nud,1000)
 write(nud,3000) 'Mass'             ,'[10^24 kg]'  ,p_mass
 write(nud,3000) 'Volume'           ,'[10^10 km3]' ,p_volume
-write(nud,3000) 'Equatorial radius','[km]'        ,p_radius_eq
-write(nud,3000) 'Polar radius'     ,'[km]'        ,p_radius_po
 write(nud,3000) 'Mean radius'      ,'[km]'        ,plarad/1000.0
-write(nud,3000) 'Ellipticity'      ,' '           ,p_ellipticity
 write(nud,3000) 'Mean density'     ,'[kg/m3]'     ,p_density
 write(nud,3000) 'Surface gravity'  ,'[m/s2]'      ,ga
-write(nud,3000) 'Bond albedo'      ,' '           ,p_albedo
 write(nud,3000) 'Solar irradiance' ,'[W/m2]'      ,gsol0
-write(nud,3000) 'Black-body temperature','[K]'    ,p_blackt
 write(nud,3000) 'Sidereal orbit period' ,'[days]' ,p_sidorbit
 write(nud,3000) 'Sidereal rotation period','[h]'  ,sidereal_day/3600.0
-write(nud,3000) 'Perihelion'       ,'[10^6 km]'   ,p_perihelion
-write(nud,3000) 'Aphelion'         ,'[10^6 km]'   ,p_aphelion
 
 if (nfixorb /= 0) then
    write(nud,3010) 'Using fixed orbit'       ,' '
