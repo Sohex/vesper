@@ -586,6 +586,29 @@
          call mpabort('thread count does not match NPRO')
       endif
 
+!     NPRO MUST DIVIDE NLAT, and until here nothing in the Fortran said so.
+!     NLPP is parameter(NLAT/NPRO), integer division, restated verbatim in four
+!     other modules, so a thread count that does not divide the latitudes gives
+!     NPRO*NLPP < NLAT and every consequence is silent: the scatters and gathers
+!     cover only part of the globe, makeareas reads cell areas from latitude
+!     slots the gather never filled, and assoc_grid below leaves the top of the
+!     globe owned by no thread, so the forward transform analyses a polar band
+!     that is whatever the array was initialised to.
+!
+!     CMakeLists.txt and build_model.py both refuse this at build time, and that
+!     is the right place for it. This is here because it was the ONLY place: a
+!     hand-edited resmod.f90 or a direct cmake invocation reaches neither, and
+!     the failure they would let through is a wrong climate rather than a crash.
+!     world-ljj.
+      if (mod(NLAT,NPRO) /= 0) then
+         if (mypid == NROOT) then
+            write(nud,*)'NLAT =',NLAT,' NPRO =',NPRO,' NLPP =',NLPP
+            write(nud,*)'NPRO does not divide NLAT: ',NPRO*NLPP,' latitudes'
+            write(nud,*)'would be owned by a thread and ',NLAT-NPRO*NLPP,' by none'
+         endif
+         call mpabort('NPRO does not divide NLAT')
+      endif
+
       if (mypid == NROOT) then
          allocate(ympname(nproc)) ; ympname(:) = 'thread'
       endif
