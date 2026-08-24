@@ -298,7 +298,18 @@ model:
   # notes/audits/aocl-and-model-build-flags.md has the measurement.
   compile_flags:
     f90_opts:
-      - "-O3"
+      # -O2, NOT -O3. The two are the same speed here and only one of them
+      # runs: 41.35 s against 41.23 s over four interleaved rounds of one T42
+      # orbit from one state, a 0.3% gap inside the 0.7 s round-to-round
+      # scatter. -O3 is not free of consequence though -- the loop transforms
+      # it adds evaluate the masked-out lanes of the physics modules' `where`
+      # blocks, where the arguments are legitimately out of domain, and the
+      # -ffpe-trap below then turns a discarded lane into SIGFPE. That killed
+      # a T42 run eight orbits in, and moved to a new site each time one was
+      # clamped. -O2 still vectorises, so this removes the transforms that
+      # were firing rather than the whole class; the 66 masked domain-
+      # sensitive intrinsics are world-5a0. notes/audits/model-build-flags.md.
+      - "-O2"
       # Redundant under the CMake build, which supplies its own -cpp for the
       # preprocessing pass its module scanner needs: dropping it here leaves a
       # byte-identical binary. Kept because that redundancy is a property of the

@@ -1,6 +1,27 @@
       module rainmod
       use pumamod
 !
+!     EVERY TETENS EXPONENT IN THIS FILE IS CLAMPED TO +-80, and the clamp
+!     cannot change an answer. Saturation mixing ratio is
+!
+!         zqs = rdbrv*ra1*exp(ra2*(T-TMELT)/(T-ra4)) / (dp*sigma)
+!
+!     and every one of the eighteen places that evaluates it caps the result
+!     on the next line with AMIN1(zqs,rdbrv): the model already declares that
+!     the mixing ratio cannot exceed rdbrv. Since dp*sigma is at most about
+!     1e5 Pa and ra1 is 610.78, the cap already binds once the exponent passes
+!     about +5, so clamping at +80 -- where exp is 5.5e34 -- lands far inside
+!     the region the cap was going to flatten anyway. Below, exp(-80) is 2e-35
+!     and the ratio is zero to every digit the model keeps.
+!
+!     What the clamp removes is a trap, not a value. T here is not always a
+!     grid temperature: kuo iterates a PARCEL temperature by Newton steps on
+!     this same formula, with no bound of its own and no convergence test, and
+!     a parcel that is not converging can carry T towards ra4, the formula's
+!     pole at 35.86 K. The exponent then runs away and exp() overflows, which
+!     the production profile's -ffpe-trap turns into SIGFPE -- observed at
+!     both the ztnew site and the zte site in one timestep. world-bhs.
+!
 !     version identifier (date)
 !
       character(len=80) :: version = '11.07.2010 by Larry'
@@ -387,7 +408,7 @@
 !     saturation humidity
 !
 
-       zqsat(:)=rdbrv*ra1*exp(ra2*(zt(:)-TMELT)/(zt(:)-ra4))            &
+       zqsat(:)=rdbrv*ra1*exp(min(80.,max(-80.,ra2*(zt(:)-TMELT)/(zt(:)-ra4))))            &
      &         /(dp(:)*sigma(jlev))
 !
 !      avoid negative qsat
@@ -443,7 +464,7 @@
      &           *zqsat(:)*zcor(:)/(zt(:)-ra4)**2)
         ztn(:)=zt(:)-zdqdt(:)*zlcpe(:)
         zqn(:)=zq(:)+zdqdt(:)
-        zqsat(:)=rdbrv*ra1*exp(ra2*(ztn(:)-TMELT)/(ztn(:)-ra4))         &
+        zqsat(:)=rdbrv*ra1*exp(min(80.,max(-80.,ra2*(ztn(:)-TMELT)/(ztn(:)-ra4))))         &
      &          /(dp(:)*sigma(jlev))
 !
 !      avoid negative qsat
@@ -729,8 +750,8 @@
 !     surface air specific humidity
 !
 
-        zqsnl=rdbrv*ra1*exp(ra2*(zte(jhor,NLEV)-TMELT)                  &
-     &                          /(zte(jhor,NLEV)-ra4))                  &
+        zqsnl=rdbrv*ra1*exp(min(80.,max(-80.,ra2*(zte(jhor,NLEV)-TMELT)                  &
+     &                          /(zte(jhor,NLEV)-ra4))))                  &
      &       /(dp(jhor)*sigma(NLEV))
 !
 !      avoid negative qsat
@@ -744,7 +765,7 @@
 !     saturation humidity:
 !
 
-        zqsnl=rdbrv*ra1*exp(ra2*(ztnew-TMELT)/(ztnew-ra4))              &
+        zqsnl=rdbrv*ra1*exp(min(80.,max(-80.,ra2*(ztnew-TMELT)/(ztnew-ra4))))              &
      &       /(dp(jhor)*sigma(NLEV))
 !
 !      avoid negative qsat
@@ -789,7 +810,7 @@
 !     second iteration:
 !
 
-         zqsnl=rdbrv*ra1*exp(ra2*(ztnew-TMELT)/(ztnew-ra4))             &
+         zqsnl=rdbrv*ra1*exp(min(80.,max(-80.,ra2*(ztnew-TMELT)/(ztnew-ra4))))             &
      &        /(dp(jhor)*sigma(NLEV))
 !
 !      avoid negative qsat
@@ -813,8 +834,8 @@
          itop(jhor)=NLEV
          ztp(jhor)=ztnew
          zqp(jhor)=zqnew
-         zqsa=rdbrv*ra1*exp(ra2*(zte(jhor,NLEV)-TMELT)                  &
-     &                          /(zte(jhor,NLEV)-ra4))                  &
+         zqsa=rdbrv*ra1*exp(min(80.,max(-80.,ra2*(zte(jhor,NLEV)-TMELT)                  &
+     &                          /(zte(jhor,NLEV)-ra4))))                  &
      &       /(dp(jhor)*sigma(NLEV))
 !
 !      avoid negative qsat
@@ -863,7 +884,7 @@
 !     saturation humidity:
 !
 
-         zqsnl=rdbrv*ra1*exp(ra2*(ztnew-TMELT)/(ztnew-ra4))             &
+         zqsnl=rdbrv*ra1*exp(min(80.,max(-80.,ra2*(ztnew-TMELT)/(ztnew-ra4))))             &
      &        /(dp(jhor)*sigma(jlev))
 !
 !      avoid negative qsat
@@ -908,7 +929,7 @@
 !     second iteration:
 !
 
-          zqsnl=rdbrv*ra1*exp(ra2*(ztnew-TMELT)/(ztnew-ra4))            &
+          zqsnl=rdbrv*ra1*exp(min(80.,max(-80.,ra2*(ztnew-TMELT)/(ztnew-ra4))))            &
      &         /(dp(jhor)*sigma(jlev))
 !
 !      avoid negative qsat
@@ -938,8 +959,8 @@
            itop(jhor)=jlev
            ztp(jhor)=ztnew
            zqp(jhor)=zqnew
-           zqsa=rdbrv*ra1*exp(ra2*(zte(jhor,jlev)-TMELT)                &
-     &                           /(zte(jhor,jlev)-ra4))                 &
+           zqsa=rdbrv*ra1*exp(min(80.,max(-80.,ra2*(zte(jhor,jlev)-TMELT)                &
+     &                           /(zte(jhor,jlev)-ra4))))                 &
      &         /(dp(jhor)*sigma(jlev))
 !
 !      avoid negative qsat
@@ -962,8 +983,8 @@
 
            ztnew=zte(jhor,jlep)
            zqnew=zqe(jhor,jlep)
-           zqsnl=rdbrv*ra1*exp(ra2*(zte(jhor,jlep)-TMELT)               &
-     &                            /(zte(jhor,jlep)-ra4))                &
+           zqsnl=rdbrv*ra1*exp(min(80.,max(-80.,ra2*(zte(jhor,jlep)-TMELT)               &
+     &                            /(zte(jhor,jlep)-ra4))))                &
      &         /(dp(jhor)*sigma(jlep))
 !
 !      avoid negative qsat
@@ -1001,7 +1022,7 @@
 !     second iteration:
 !
 
-           zqsnl=rdbrv*ra1*exp(ra2*(ztnew-TMELT)/(ztnew-ra4))            &
+           zqsnl=rdbrv*ra1*exp(min(80.,max(-80.,ra2*(ztnew-TMELT)/(ztnew-ra4))))            &
      &          /(dp(jhor)*sigma(jlep))
 !
 !      avoid negative qsat
@@ -1060,7 +1081,7 @@
 !     saturation humidity
 !
 
-         zqsnl=rdbrv*ra1*exp(ra2*(ztnew-TMELT)/(ztnew-ra4))             &
+         zqsnl=rdbrv*ra1*exp(min(80.,max(-80.,ra2*(ztnew-TMELT)/(ztnew-ra4))))             &
      &        /(dp(jhor)*sigma(jlev))
 !
 !      avoid negative qsat
@@ -1104,7 +1125,7 @@
 !     second iteration:
 !
 
-          zqsnl=rdbrv*ra1*exp(ra2*(ztnew-TMELT)/(ztnew-ra4))            &
+          zqsnl=rdbrv*ra1*exp(min(80.,max(-80.,ra2*(ztnew-TMELT)/(ztnew-ra4))))            &
      &         /(dp(jhor)*sigma(jlev))
 !
 !      avoid negative qsat
@@ -1133,8 +1154,8 @@
            itop(jhor)=jlev
            ztp(jhor)=ztnew
            zqp(jhor)=zqnew
-           zqsa=rdbrv*ra1*exp(ra2*(zte(jhor,jlev)-TMELT)                &
-     &                            /(zte(jhor,jlev)-ra4))                &
+           zqsa=rdbrv*ra1*exp(min(80.,max(-80.,ra2*(zte(jhor,jlev)-TMELT)                &
+     &                            /(zte(jhor,jlev)-ra4))))                &
      &         /(dp(jhor)*sigma(jlev))
 !
 !      avoid negative qsat
@@ -1584,8 +1605,8 @@
         if(kshallow(jhor) > 0 .and. jlev+1 == ktop(jhor)) then
          zrthl=(dsigma(jlp)+dsigma(jlev))                               &
      &        /(zt(jhor,jlev)*dsigma(jlp)+zt(jhor,jlp)*dsigma(jlev))
-         zzqs=rdbrv*ra1*exp(ra2*(zt(jhor,jlev)-TMELT)                   &
-     &                     /(zt(jhor,jlev)-ra4))                        &
+         zzqs=rdbrv*ra1*exp(min(80.,max(-80.,ra2*(zt(jhor,jlev)-TMELT)                   &
+     &                     /(zt(jhor,jlev)-ra4))))                        &
      &       /(dp(jhor)*sigma(jlev))
 !
 !      avoid negative qsat
@@ -1594,8 +1615,8 @@
 !
          zcor=1./(1.-(1./rdbrv-1.)*zzqs)
          zzqs=zzqs*zcor
-         zzqsp=rdbrv*ra1*exp(ra2*(zt(jhor,jlp)-TMELT)                   &
-     &                     /(zt(jhor,jlp)-ra4))                         &
+         zzqsp=rdbrv*ra1*exp(min(80.,max(-80.,ra2*(zt(jhor,jlp)-TMELT)                   &
+     &                     /(zt(jhor,jlp)-ra4))))                         &
      &       /(dp(jhor)*sigma(jlp))
 !
 !      avoid negative qsat
@@ -1937,7 +1958,7 @@
       do jlev=1,NLEV
        zt(:)=dt(:,jlev)+dtdt(:,jlev)*deltsec2
        zq(:)=dq(:,jlev)+dqdt(:,jlev)*deltsec2
-       zqsat(:)=rdbrv*ra1*exp(ra2*(zt(:)-TMELT)/(zt(:)-ra4))            &
+       zqsat(:)=rdbrv*ra1*exp(min(80.,max(-80.,ra2*(zt(:)-TMELT)/(zt(:)-ra4))))            &
      &         /(dp(:)*sigma(jlev))
 !
 !      avoid negative qsat
@@ -2219,7 +2240,7 @@
 !
 !        saturation humidity
 ! 
-         zqsat(:)=rdbrv*ra1*exp(ra2*(zt(:)-TMELT)/(zt(:)-ra4))          &
+         zqsat(:)=rdbrv*ra1*exp(min(80.,max(-80.,ra2*(zt(:)-TMELT)/(zt(:)-ra4))))          &
      &         /(dp(:)*sigma(jlev))
 !
 !        avoid negative qsat

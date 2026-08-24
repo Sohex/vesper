@@ -122,9 +122,54 @@ mask real NaNs arising INSIDE the transform, which is exactly where a bad
 gridpoint first shows up, so it would trade the whole value of the flag for a
 theoretical exposure that is measured to be inert.
 
+## `-O3` is replaced by `-O2`, which is the same speed and does not crash
+
+*Measured 2026-08-24, T42 on sixteen threads, one orbit of 5850 steps from a
+single restart, four interleaved rounds.*
+
+| arm | rounds | mean |
+| --- | --- | --- |
+| `-O3` | 41.13, 41.98, 40.61, 41.19 | 41.23 s |
+| `-O2` | 41.35, 41.42, 41.23, 41.38 | 41.35 s |
+
+The gap is 0.3% and the `-O3` arm's own spread is 1.37 s, so this is not a
+slowdown; it is two builds that run at the same speed. `-O3` was adopted on the
+screen above, which only asked whether it changed a byte, and no benchmark was
+ever run on it. One has now been.
+
+`-O3` is not neutral, though, because of what its extra loop transforms do to
+this particular source. Fortran evaluates BOTH sides of a `where` block and
+masks only the assignment, and the physics modules lean on that: 66 calls to
+`sqrt`, `log`, `log10` and `exp` sit inside masked blocks whose masked-out lanes
+hold arguments the function is undefined on. `SQRT(zmu0)` under a `where(losun)`
+is the plainest -- the cosine of the solar zenith angle is negative at night by
+construction. Scalar code never reaches those lanes. Vectorised code does, and
+with `-ffpe-trap` unmasked a discarded lane becomes SIGFPE.
+
+That is what killed a T42 run eight orbits in. The evidence that it is the
+optimisation and not the state: the same restart completes at `-O2`, at `-O1`
+and with `-mno-avx512f`, and the state it starts from is ordinary -- gridpoint
+temperature 244.7 to 327.2 K, humidity positive, nothing non-finite. It is not
+one bad expression either. Clamping the site that faulted moved the fault to
+`kuo`'s Tetens exponent; clamping all eighteen of those moved it to the
+shortwave; and `-ffpe-trap=overflow`, `=invalid` and `=zero` each fire on their
+own.
+
+**`-O2` is a removal of the transforms that were firing, not a fix for the
+class.** `-O2` vectorises too. A different state or a different rung can wake
+the same 66 sites, and world-5a0 carries the work of making each argument safe
+where it can be argued to be free -- as it can for the Tetens exponents, every
+one of which is capped by `AMIN1(zqs,rdbrv)` on the next line.
+
+Two alternatives were measured and refused. `-fno-tree-vectorize` on the whole
+model costs 43% and buys the same thing `-O2` buys for nothing. The same flag on
+`rainmod.f90` alone costs 2.8% and does not work at all: the faulting `exp` is a
+scalar call into libm that the compiler speculates past the enclosing `if`
+regardless.
+
 ## The line, after
 
-    -O3 -cpp -ffpe-trap=invalid,zero,overflow -ffpe-summary=none
+    -O2 -cpp -ffpe-trap=invalid,zero,overflow -ffpe-summary=none
     -march=znver4 -funroll-loops -g
 
 with `checked` adding `-fcheck=all -finit-real=snan`, and `build_model.py`
