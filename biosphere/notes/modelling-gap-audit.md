@@ -135,19 +135,52 @@ must leave persistent water at water albedo with zero forest.  A regression
 fixture should cover a partial lake cell, a fully barren cell and an ordinary
 rootable cell.  This is BIO-17.
 
-## 8. Modelled vegetation discards the two-band spectral correction
+## 8. The two-band surface albedo, and the two rules it establishes
 
-SPEC-5 derived a K-star vegetation endmember and the two-band pair `[0.075,
-0.225]`.  The modelled path instead uses scalar tree and grass albedos, after
-which the writer copies the same broadband grid to fields 174, 175 and 176.  It
-therefore reintroduces the assumption SPEC-5 removed: equal vegetation
-reflectance on both sides of 0.75 micrometres.  The archived SPEC-5 result
-already calls the tree and grass constants its residual.
+**Settled 2026-08-24.**  Every material this project writes to codes 174, 175
+and 176 now carries a band pair, `--mode modelled` included, and two rules come
+out of getting there that bind anything else that writes one.
 
-Tree and grass need separately justified broadband levels and band pairs whose
-stellar-flux-weighted recombination reproduces those levels.  Modelled mode must
-then write distinct 175 and 176 fields and report the recombination residual.
-This is BIO-18.
+The blocker was never the canopy.  A modelled cell is
+`cover*canopy + (1-cover)*substrate`, and the substrate had no split at all:
+the rock table carries one broadband number per class.
+`analysis/rock_albedo_bands.py` supplies `band2/band1` for every Orogen rock
+class from ECOSTRESS directional-hemispherical reflectance under this star.  It
+derives the SHAPE and never the level, because laboratory preparation moves a
+level by a factor of 2.2 to 5.1 on the same rock and cancels from a ratio; the
+bracket is measured rather than argued, since the library carries the same rock
+at four preparations and the ratio's sensitivity to preparation can be read off
+it directly.
+
+**A band pair is anchored on the model's own band weights.**  `radmod.f90`
+forms `zsolars(1)*dsalb(1) + zsolars(2)*dsalb(2)`, and `lib/stellar` reproduces
+those weights including the `minwavel` cut and the band-edge interval.  Anchor
+on anything else and the pair does not return the broadband level the
+derivation set: normalising instead on the flux share of the 0.35-2.5
+micrometre range leaf spectra are measured over, which is 0.399 against the
+model's 0.382, left vegetated ground about 0.0025 too bright, one-signed, and
+`analysis/vegetation_albedo.json` reports that as
+`band_recombination_residual_naive_anchor`.  Anchoring on the model's weights
+removes it by construction, and `build_surface_albedo.py` asserts
+`z1*175 + z2*176 == 174` cell by cell before writing, at twice the `.sra`
+format's own quantum.  The assertion is what catches a repaint that moves a
+level without moving the material's ratio with it.
+
+**Whether tree and grass need separate band ratios is not resolved, and the
+test says so.**  The broadband correction takes the population leaf ratio,
+because the classes differ there by 0.001 in albedo under a grass sample of
+four spectra.  The band ratio is a much larger difference -- tree 3.15 against
+grass 2.56, measured 2026-08-24 -- and the pre-fixed test was whether the grass
+sample lies entirely below the trees' tenth percentile.  It misses, 2.713
+against 2.710.  So both endmembers take the population ratio and carry the
+per-class ratio as the other end of the bracket, and their pairs are distinct
+because their levels are.  What settles it is more grass spectra rather than
+more argument: the trees' own ratios run 1.78 to 4.92, so a class mean here is
+only as good as its sample.  BIO-18's own note argues the same class dependence
+from leaf transmittance, and the leaf library cannot settle either half of it,
+because it carries reflectance and not transmittance.
+
+BIO-18 and `world-36g` are closed.
 
 ## 9. The pipeline cannot prove soil and LPJ used the same climate
 
