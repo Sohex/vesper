@@ -21,13 +21,26 @@ reported as a numerics change whatever its time, because that is a different
 question from whether it is faster and must not be settled by the same number.
 
 The build is the slow part and is done once per arm, up front. Timing is the
-wall time of the `mpiexec` call on the bed, which is model compute: the bed has
-its output streams off.
+wall time of the model on the bed, which is model compute: the bed has its
+output streams off.
+
+**ONE PROCESS AND `--ranks` THREADS.** `world-38b` left one build and one
+parallel mode, so the width compiled into the executable is a thread count and
+the binary is launched directly under the environment
+`vendor/exoplasim/exoplasim/__init__.py` composes for a run. There is no
+`mpiexec` and there must not be: `mpiexec -np N` on an N-thread binary would
+start N copies of it, each believing it owns every latitude, in one bed over one
+set of restart files -- so the arm would be timed on N**2 threads contending for
+the machine and the restart sha the arm reports would be whichever copy wrote
+last. The thread pinning is part of the measurement rather than tuning: without
+it the runtime may migrate threads between rounds, and this script exists
+because an unpaired comparison hands a 6% artefact to whichever arm ran first.
 """
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import shutil
 import statistics as st
 import subprocess
@@ -105,12 +118,20 @@ def build(arm: str, spec: dict, res: str, layers: int, ranks: int) -> Path | Non
     return target
 
 
+# The launch environment, copied from `exoplasim/__init__.py:Model.__init__`
+# rather than invented here, so an arm is timed on the model the way a run runs
+# it. `--ranks` is build_model.py's name for the parallel width and is kept for
+# that reason; it is a thread count.
+OMP_ENV = {"OMP_PLACES": "cores", "OMP_PROC_BIND": "close"}
+
+
 def time_once(bed: Path, exe: Path, ranks: int) -> tuple[float, str]:
     local = bed / exe.name
     shutil.copy2(exe, local)
+    env = dict(os.environ, OMP_NUM_THREADS=str(ranks), **OMP_ENV)
     t0 = time.perf_counter()
-    subprocess.run(["mpiexec", "-np", str(ranks), f"./{local.name}"],
-                   cwd=bed, capture_output=True, text=True)
+    subprocess.run([f"./{local.name}"], cwd=bed, env=env,
+                   capture_output=True, text=True)
     dt = time.perf_counter() - t0
     status = bed / "plasim_status"
     sha = subprocess.run(["sha256sum", str(status)], capture_output=True,
