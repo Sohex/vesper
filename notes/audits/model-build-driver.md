@@ -1,15 +1,26 @@
-# The model build driver fails silently, and in the direction that costs most
+# The model build driver failed silently, and in the direction that cost most
 
 *Worldbuilding frame: this is about the BUILD SYSTEM of the Vesper project's
 climate model, a vendored fork of ExoPlaSim. Nothing here concerns the simulated
 planet. Measured 2026-08-22 against `vendor/exoplasim/exoplasim/compile.sh` and
 `configure.sh` at 335de8c7.*
 
-Every defect below shares one shape: an input the driver does not recognise
-produces a DIFFERENT BUILD rather than an error, and the difference is invisible
-downstream. Closed CLIM-22 is this shape having already cost a
-session -- every 16-rank binary silently built single precision -- and the
-mechanism that allowed it is untouched.
+**THE DRIVER THIS AUDIT MEASURED NO LONGER EXISTS.** It was replaced the same
+day by CMake and `exoplasim/scripts/build_model.py`, and the "Replaced,
+2026-08-22" section at the foot records the equivalence evidence and what each
+defect became. The findings are kept because they are the reason the replacement
+was made and because the SHAPE they share is the transferable part: an input the
+driver does not recognise produces a DIFFERENT BUILD rather than an error, and
+the difference is invisible downstream. Closed CLIM-22 is that shape having
+already cost a session, every 16-rank binary silently built single precision.
+
+Two things have moved again since. `PLASIM_PLANET` and the parmode axis are
+gone: world-58v removed the planet-module choice and world-38b removed the MPI
+and serial build paths, so the only variant slot left is the FFT module and the
+registry matrix is five threaded executables rather than twelve. And world-cmz
+replaced `model_sources()`'s `SRC/*.f90` glob with the compiled set read out of
+`CMakeLists.txt`, so editing a file no configuration compiles no longer
+invalidates every binary's provenance.
 
 ## An unrecognised `-r` builds T21 and says nothing
 
@@ -73,13 +84,15 @@ hook is `sed -i '3s/$/ '$optimization'/'`, and `rebuild_binaries.py` asserts
 `MPIMOD=mpimod_stub`, so `-O` appends the flag to the MPIMOD line and the build
 takes a module name with a compiler flag stuck to it.
 
-This is not a corner. **All twelve binaries in `exoplasim/binary_manifest.json`
-are MPI**, and every threaded binary -- what `verify_shtns_model.sh`,
-`verify_shared_determinism.sh`, `thread_count_sweep.sh` and `bench_ab.py` build
-and measure, which is this entire optimisation workstream -- is ad hoc and
-unregistered. `binary_manifest.json` records `most_compiler_mpi`'s contents as
-the toolchain, so a threaded binary that did reach the registry would carry a
-provenance record of flags it was not built with.
+This was not a corner. **All twelve binaries in `exoplasim/binary_manifest.json`
+were MPI**, and every threaded binary -- what `verify_shtns_model.sh`,
+`verify_shared_determinism.sh`, `thread_count_sweep.sh` and `bench_ab.py` built
+and measured, which was this entire optimisation workstream -- was ad hoc and
+unregistered. `binary_manifest.json` recorded `most_compiler_mpi`'s contents as
+the toolchain, so a threaded binary that did reach the registry would have
+carried a provenance record of flags it was not built with. The registry is now
+five threaded executables, one per rung of `rebuild_binaries.MATRIX`, and there
+is no MPI arm to disagree with them.
 
 ## The object tree is safe, and it is what serialises the matrix
 
@@ -113,7 +126,7 @@ Nothing in this project calls `configure.sh`. The upstream install path in
 `vendor/exoplasim/exoplasim/__init__.py` does, and this project does not use it:
 the package is installed editable and built through `rebuild_binaries.py`.
 
-## Replaced, 2026-08-22
+## Replaced, 2026-08-22, and again by world-38b
 
 `compile.sh`, `configure.sh`, `make_plasim`, the three `most_compiler*` files,
 the two `most_precision_options*` files and the four `most_{ice,snow}_build*`
@@ -153,7 +166,9 @@ the model rather than about the executable's layout.
 
 **What each defect became.** The silent `-r` and `-p` defaults are gone: every
 argument is checked against a list and an unrecognised value exits non-zero
-having written nothing. The stale-binary trap is gone: the output name is
+having written nothing. `-r` in particular now resolves through `lib/rungs.py`,
+which is the ladder's one declaration, so the seven-name-plus-seven-number
+`case` cannot drift from it. The stale-binary trap is gone: the output name is
 removed first and written last, only on success. The three divergent compiler
 files are one declaration. The hand-declared dependency edges are gone --
 Ninja scans the `use` statements, so CONS-13's missing edge is not a thing that
@@ -172,3 +187,20 @@ Both are removed. A `Model` that finds no executable now raises, naming
 `build_model.py`, because building one silently is how the registry stopped
 describing the binaries that existed. Note the editable install resolves to the
 main checkout rather than to a worktree, so this takes effect on merge.
+
+world-phg finished that removal: `sysconfigure()` and `printsysconfig()` are
+gone, and so is the `firstrun` block in `Model.__init__`, which was not dormant
+on a fresh clone -- it set `recompile=True` whenever its marker was absent, and
+the recompile branch REFUSES rather than builds, so the first `Model`
+constructed after a clone would have aborted even where the executable it wanted
+was present. `make_most`, `most.c`, `setup.py` and `MANIFEST.in` went with them.
+
+**One defect of this exact shape survived into the CMake build and was caught
+later.** `build_model.py` composed its build-directory tag from resolution,
+layers, ranks, parmode, profile, frame pointers and the flag delta, and NOT from
+the state of the model source, so `verify_shtns_model.sh`'s control arm --
+which patches `shtnsmod.f90` in place to remove the spectral filter -- built a
+filter-stripped binary into the registry's own build directory under the
+registry's own tag. world-70k made a patched source build under `build/patched/`
+with a hash of what it patched, and refuse to publish.
+`notes/audits/resolution-divergence.md` finding 1 has the measurement.

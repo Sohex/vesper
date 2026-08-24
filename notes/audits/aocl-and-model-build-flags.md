@@ -6,6 +6,18 @@ Worldbuilding frame: this file is about how the Vesper simulation's climate
 model is COMPILED and how fast it integrates. Nothing here is about the
 simulated world.
 
+**THE BUILD SYSTEM MEASURED HERE IS GONE, and the profile is too.** Every number
+below was taken on the MPI build with `legmod` as the transform, through
+`compile.sh`, `make_plasim` and the three `most_compiler*` files. `compile.sh`
+and `make_plasim` were replaced by CMake and `exoplasim/scripts/build_model.py`
+on 2026-08-22 (`notes/audits/model-build-driver.md`), and world-38b then removed
+the MPI and serial build paths entirely, so the project builds and runs only the
+threaded OpenMP arm. Since the measurement SHTns has also taken every
+per-timestep transform site. `notes/audits/model-build-flags.md` is the re-run
+on the build and profile that exist; what survives here is the AOCL answer,
+which is about what the executable LINKS and does not depend on how it was
+built.
+
 ## The question
 
 AMD Optimizing CPU Libraries were installed on the workstation. Do the builds
@@ -168,9 +180,14 @@ A CLEAN build of the model failed. `glaciermod.o`'s rule in `make_plasim` named
 `glaciermod.o`, sits EARLIER in `OBJ` than `landmod.o` does. `compile.sh` did not
 empty `plasim/bld` except when switching between the MPI and serial builds,
 so a `landmod.mod` from some previous build was always lying there and the
-missing edge never showed. Both halves of that are fixed: the rule names
-`${LANDMOD}.o` and `compile.sh` now empties `plasim/bld` on every build. What
-the fix left is measured below.
+missing edge never showed. Both halves of that were fixed: the rule named
+`${LANDMOD}.o` and `compile.sh` emptied `plasim/bld` on every build. What that
+fix left is measured below.
+
+The whole class went with the build system. Ninja scans the `use` statements, so
+a hand-declared dependency edge is not a thing that can be missing, and CONS-13,
+the one remaining missing edge the parallelism section below is blocked on, is
+not a thing either.
 
 `binary_manifest.json` records the sha of every source file that goes into a
 build and `exoplasim_version`, and records nothing about the compiler or the
@@ -178,7 +195,12 @@ flags. A toolchain change therefore produces a different executable under an
 identical set of recorded sources. `--verify` still catches it, since it
 compares the executable's own sha, but it reports it as unknown provenance and
 cannot say that the toolchain is why. Installing a new compiler or a new libm
-is exactly the change that lands here.
+is exactly the change that lands here, and that is still true.
+
+What has changed about the manifest is which sources it hashes: world-cmz
+replaced `model_sources()`'s `SRC/*.f90` glob with the compiled set read out of
+`CMakeLists.txt`, so a file no configuration compiles no longer invalidates
+every binary's provenance when it is edited.
 
 ## Is `make -j` safe now, measured 2026-08-21
 
@@ -313,61 +335,3 @@ and `NSNAPSHOT` restored take 12.719 s against 12.678 s with output off, while
 producing 230 MB, so the model's own output path is inside the noise. Against a
 measured 148 s per orbit and roughly 106 s of model compute, the orbit is about
 five sixths compute, and the ceiling on every I/O-side lever is the rest.
-
-
-## Is `make -j` safe now, measured 2026-08-21
-
-The graph was re-derived from the source rather than read: for every file, the
-modules it `use`s, each resolved to the file defining it, checked against the
-prerequisites `make_plasim` declares. Run for all three configurations
-`compile.sh` can produce, since the module variables change which files are in
-`OBJ`.
-
-| configuration | OBJ members | members with no rule | missing edges |
-| --- | ---: | ---: | ---: |
-| serial, `most_compiler` | 35 | 0 | 0 |
-| MPI, `most_compiler_mpi` | 35 | 0 | 0 |
-| OpenMP, `most_compiler_omp` | 35 | 0 | **1** |
-
-The one edge is `utilities_omp.o`, which `use`s module `mpiomp` at lines 85 and
-106. `mpiomp` is defined in `mpimod_omp.f90`, and the rule names `plasimmod.o`
-and `carbonmod.o` only. `make -j16 utilities_omp.o` in a clean directory builds
-every declared prerequisite and then stops at `Cannot open module file
-'mpiomp.mod'`.
-
-**It does not bite, and what saves it is ordering rather than the graph.** Ten
-clean `make -e -j32 plasim.x` builds of the OpenMP configuration all passed,
-none failing on a missing module. `${MPIMOD}.o` is FIRST in `OBJ` and
-`${UTILMOD}.o` ninth, so make launches `mpimod_omp.o` immediately and it is
-finished long before anything asks for its `.mod`. The emptying of `plasim/bld`
-removed the stale-`.mod` mechanism that used to hide missing edges; this one is
-hidden by `OBJ` order instead.
-
-The fix is one line, adding `${MPIMOD}.o` to the `${UTILMOD}.o` rule. With it
-the clean-directory test passes and `mpimod_omp.o` is built as a prerequisite.
-It is inert in the other two configurations, being an ordering constraint on an
-object already in `OBJ`.
-
-### What parallelism is worth
-
-T21 L10 p1, OpenMP configuration, clean build each time, mean of two:
-
-| | wall | vs serial |
-| --- | ---: | ---: |
-| `-j1` | 15.8 s | -- |
-| `-j8` | 4.9 s | 3.2x |
-| `-j16` | 4.5 s | 3.5x |
-| `-j32` | 4.5 s | 3.5x |
-
-3.5x, saturating by `-j8`. The bound is the dependency chain through
-`plasimmod.o`, which nearly every other object depends on and which nothing can
-start before. Rule 4 makes the unit of work `rebuild_binaries.py`'s `MATRIX` rather than one
-executable, twelve on the T21/T42/T85/T127/T170 ladder, so at this rung the
-operation is roughly 3 minutes against roughly 1 and the higher rungs scale it.
-
-The win available is INSIDE each build and not across builds. Every
-configuration compiles in the same `plasim/bld`, which `compile.sh` empties on
-entry, so two configurations cannot build concurrently without one deleting the
-other's objects. That is why `rebuild_binaries.py` is serial across
-configurations and why it should stay that way until the build directory is
-per-configuration.

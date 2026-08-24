@@ -60,5 +60,15 @@ binary, because ExoPlaSim rebuilt before running. What was wrong was the
 PROVENANCE: the manifest, and so `check_consistency.py`, were describing an
 artifact that was replaced before use.
 
-Precision is now read from `config/planet.yaml` rather than passed positionally,
-so the declared value and the compiled one cannot drift again.
+Precision is read from `config/planet.yaml` rather than passed positionally, so
+the declared value and the compiled one cannot drift again.
+
+Two of this record's mechanisms are gone rather than fixed, and both remove the
+class rather than the instance. `compile.sh`'s positional parse was replaced by
+CMake and `build_model.py` on 2026-08-22, which check every argument against a
+list and exit non-zero on an unrecognised value; precision arrives as
+`PLASIM_PRECISION`. And the rebuild-on-first-use path that made the runs
+correct while the manifest was wrong is removed: a `Model` that finds no
+executable raises and names `build_model.py`, because building one silently is
+how the registry stopped describing the binaries that existed.
+`notes/audits/model-build-driver.md` has both.
