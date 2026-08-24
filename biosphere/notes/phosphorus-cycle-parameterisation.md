@@ -179,9 +179,9 @@ large carbon pool, so it is not a small one.
 
 `setptoc` ramps a soil organic matter pool's C:P from its maximum down to its
 minimum, linearly, as a driving quantity rises from `fmin` to `fmax`. `PMASS_SAT`
-and `PCONC_SAT` are the two `fmax` values. Both ramps are inert in the same
-direction the audit found them, and the reasons are different for the two
-constants.
+and `PCONC_SAT` are the two `fmax` values. Both ramps are inert, in the opposite
+directions the audit found them in, and the reason is a different one for each
+constant.
 
 ### `PMASS_SAT` is Parton, Stewart and Cole (1988) Fig. 3, read line for line
 
