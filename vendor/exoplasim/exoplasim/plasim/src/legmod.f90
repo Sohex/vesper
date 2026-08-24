@@ -396,15 +396,11 @@ implicit none
 real :: sp(2,NCSP)        ! Coefficients of spherical harmonics
 real :: fc(2,NLON/2,NLPP) ! Fourier coefficients
 
-integer :: j ! Loop index for spectral mode within one m
-integer :: k ! Index for the mirror latitude
+integer :: j ! Loop index for spectral mode, over all of them
 integer :: l ! Loop index for latitude
 integer :: m ! Loop index for zonal wavenumber m
 integer :: n ! Loop index for total wavenumber n
-integer :: w ! Index of the first spectral mode of one m
-
-real :: ze1, ze2 ! partial sums over the symmetric modes
-real :: zo1, zo2 ! partial sums over the antisymmetric modes
+integer :: w ! Running index of the spectral mode
 
 real :: zsp(2,NCSP) ! sp with the per-mode factor already in it
 
@@ -446,15 +442,11 @@ implicit none
 real :: sp(2,NCSP)        ! Coefficients of spherical harmonics
 real :: fc(2,NLON/2,NLPP) ! Fourier coefficients
 
-integer :: j ! Loop index for spectral mode within one m
-integer :: k ! Index for the mirror latitude
+integer :: j ! Loop index for spectral mode, over all of them
 integer :: l ! Loop index for latitude
 integer :: m ! Loop index for zonal wavenumber m
 integer :: n ! Loop index for total wavenumber n
-integer :: w ! Index of the first spectral mode of one m
-
-real :: ze1, ze2 ! partial sums over the symmetric modes
-real :: zo1, zo2 ! partial sums over the antisymmetric modes
+integer :: w ! Running index of the spectral mode
 
 real :: zsp(2,NCSP) ! sp with the per-mode factor already in it
 
@@ -498,19 +490,11 @@ real :: pz(2,NESP/2,NLEV)
 real :: pu(2,NLON/2,NLPP,NLEV)
 real :: pv(2,NLON/2,NLPP,NLEV)
 
-integer :: j ! Loop index for spectral mode within one m
-integer :: k ! Index for the mirror latitude
 integer :: l ! Loop index for latitude
 integer :: m ! Loop index for zonal wavenumber m
 integer :: n ! Loop index for total wavenumber n
 integer :: v ! Loop index for level
-integer :: w ! Index of the first spectral mode of one m
-
-! Eight products, each needing a symmetric and an antisymmetric partial sum.
-! Named for what they carry: zv/zu the weight matrix, z/d the field, 1/2 the
-! Fourier component, e/o the parity.
-real :: zvz1e, zvz1o, zvz2e, zvz2o, zvd1e, zvd1o, zvd2e, zvd2o
-real :: zuz1e, zuz1o, zuz2e, zuz2o, zud1e, zud1o, zud2e, zud2o
+integer :: w ! Running index of the spectral mode
 
 ! The two weights are pmat and qmat times per-mode factors, and each weight
 ! multiplies BOTH fields, so the factors go into the fields once per level
@@ -571,7 +555,6 @@ real :: pz(2,NESP/2,NLEV)
 real :: pu(2,NLON/2,NLPP,NLEV)
 real :: pv(2,NLON/2,NLPP,NLEV)
 
-integer :: k ! Loop index for southern latitude
 integer :: l ! Loop index for latitude
 integer :: m ! Loop index for zonal wavenumber m
 integer :: n ! Loop index for total wavenumber n
@@ -614,7 +597,6 @@ real, intent(in) :: vq(2,NLON/2,NLPP,NLEV)
 
 real, intent(out) :: q(2,NESP/2,NLEV)
 
-integer :: k ! Loop index for southern latitude
 integer :: l ! Loop index for latitude
 integer :: m ! Loop index for zonal wavenumber m
 integer :: n ! Loop index for total wavenumber n
@@ -660,7 +642,6 @@ real, intent(out) :: d(2,NESP/2,NLEV)
 real, intent(out) :: t(2,NESP/2,NLEV)
 real, intent(out) :: z(2,NESP/2,NLEV)
 
-integer :: k ! Loop index for southern latitude
 integer :: l ! Loop index for latitude
 integer :: m ! Loop index for zonal wavenumber m
 integer :: n ! Loop index for total wavenumber n
