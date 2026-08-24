@@ -898,3 +898,47 @@ the two equations meet, or the model carries a global energy fixer of the kind
 ECHAM, the IFS and CAM all carry for exactly this reason -- and a fixer is an
 admission, not a fix: it restores the total without restoring where the energy
 went.
+
+### How far the reconstruction reaches, and where it stops
+
+Two things were settled by pushing it to its limit, and both are worth keeping.
+
+**`wap` is the right field divided by about a hundred.** Regressed level by
+level against the same `omega/p` expression `calcgp` uses for `dw`, it
+correlates at 0.95 to 0.98 everywhere below the top layer, and the fitted scale
+times sigma is constant at 94 across every one of them. So `wap` is
+`omega = (zvgpg - ztptb) * p`, uniformly scaled -- a units conversion, hPa/s
+written as Pa/s, and not a physics error. `world-w51` carries that.
+
+**`P2` reduces to one quantity.** Expanding it,
+
+    P2 = akap * Tm * (omega/p)  +  akap * t0 * Sum_j c(j,k) D_j
+
+and the second piece is linear in the divergence with constant coefficients, so
+its global mean is zero if the divergence has no (0,0) mode. It does not: `sd`
+and `sdm` carry exactly zero there in every restart checked, at every level. So
+the model's global-mean temperature tendency is `akap * <Tm * omega/p>` and
+nothing else.
+
+That is also where the reconstruction stops. `<omega/p>` is a residual two parts
+in a thousand of that field's own RMS, and the model's `wap` and the rebuilt
+field -- correlated at 0.95 -- differ by more than that in the mean by a factor
+of three. **The quantity is far below the level at which the two agree**, so
+neither can settle its value, and the earlier attempt to read `P2` from outside
+was measuring its own residual. Failure-modes class 34, reached honestly this
+time: the instrument was pushed until it said so.
+
+What survives is an exact constraint rather than a measurement. Since
+`omega/p = D(ln p)/Dt`, mass conservation gives
+
+    integral (omega/p) dm  =  d/dt integral (ln p) dm
+
+and with sigma fixed that is the rate of change of the mass-weighted mean of
+`ln ps`, which the run's own mass drift bounds at a few times 1e-11 per second.
+The mass-weighted conversion therefore has to be the covariance term alone --
+the ordinary baroclinic conversion, the 0.3 W/m2 the flow supports -- and cannot
+be the 1.0 W/m2 the temperature equation removes.
+
+Which END of the conversion is wrong is not decidable from outside the model,
+and the route to it is on `world-0ov`: the kinetic side instrumented in the same
+arithmetic as `P2`, in the same run.
