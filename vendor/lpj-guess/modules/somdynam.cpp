@@ -253,7 +253,8 @@ void decayrates(double wcont,double gtemp_soil,double& k_soilfast,double& k_soil
 	// so the divisor is the Earth year. Dividing by the simulation year instead
 	// ran every litter and SOM pool through an Earth year of decomposition each
 	// orbit, which on this calendar is close to twice as fast per unit absolute
-	// time and halves equilibrium soil carbon.
+	// time and left equilibrium soil carbon at about half what the same litter
+	// input supports on Earth.
 	k_soilfast=k_soilfast10*gtemp_soil*moist_response/VESPER_EARTH_YEAR_DAYS;
 	if (tillage) {
 		k_soilfast *= TILLAGE_FACTOR; // Increased HR for crops (tillage)

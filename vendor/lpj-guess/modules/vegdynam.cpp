@@ -997,7 +997,8 @@ void mortality_guess(Stand& stand, Patch& patch, const Climate& climate, double 
 	// suppressed cohort Smith et al. (2001) kill per EARTH year, and mortality
 	// is imposed once per simulation year, so the Earth fraction has to be
 	// re-expressed over the shorter year rather than applied to it. Left at 0.3
-	// it would kill 0.3 per orbit, close to half again per Earth year.
+	// it kills 0.3 per orbit, which compounds to about 0.51 per Earth year
+	// against the 0.3 the number was calibrated to mean.
 	// biosphere/notes/time-base-unit-contract.md, class ABSOLUTE-RATE.
 	const double KMORTGREFF_PER_EARTH_YEAR = 0.3;
 	const double KMORTGREFF =
