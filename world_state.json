@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated": "2026-08-24T08:43:01.061799+00:00",
-  "git_commit": "9eedfec316e599efd6a07d696a2ad4cc00e1b5d7",
+  "generated": "2026-08-24T08:43:26.698207+00:00",
+  "git_commit": "b006ffb40ce31ced6c0969a36c7f294d167e5984",
   "generator": "scripts/world_state.py",
   "note": "Generated from the artifacts. Do not edit; re-run the generator. Only derived values live here. Findings are in `notes/`, with their evidence, and open work is in the `bd` issue tracker.",
   "planet": {
