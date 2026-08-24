@@ -160,6 +160,28 @@ def configure_otherargs(derived: dict) -> dict:
         # parameter for it and it is an ordinary `icemod_nl` key, so it goes
         # the same route N_DAYS_PER_YEAR does. CLIM-17.
         "TFREEZE@icemod_namelist": f"{derived['sea_water_freezing_point_k']:.4f}",
+        # THE OTHER THREE WAYS SALINITY REACHES THE MODEL, and they travel with
+        # the freezing point rather than behind it: a bracket that moves only
+        # TFREEZE moves one of four. Density is the mixed-layer heat capacity
+        # with the specific heat, and it is the snow-ice flooding threshold as
+        # the difference from ice density, where a one per cent density error
+        # is a ten per cent threshold error. world-9hb.
+        "CRHOS@icemod_namelist": f"{derived['sea_water_density_kg_m3']:.2f}",
+        "CPS@icemod_namelist": f"{derived['sea_water_heat_capacity_j_kg_k']:.2f}",
+        "CLFI@icemod_namelist": f"{derived['sea_ice_fusion_j_kg']:.1f}",
+        # THE DECLARED COLD START, icemod_nl. world-6fh. icemod refuses a cold
+        # start with no SST climatology and no declared profile, so these are
+        # not optional; they are written on a resume too because constructing
+        # the model over an existing run directory re-copies the shipped
+        # namelists, and a segment that lost them would refuse to start.
+        "TSST_EQ@icemod_namelist": f"{derived['cold_start_sst_equator_k']:.4f}",
+        "TSST_POL@icemod_namelist": f"{derived['cold_start_sst_pole_k']:.4f}",
+        "HICE_INI@icemod_namelist": f"{derived['cold_start_ice_thickness_m']:.4f}",
+        # THE TWO SEA-ICE LENGTHS, icemod_nl. Written unconditionally,
+        # defaults included, so the namelist in the run directory records what
+        # the arm ran with rather than leaving it to the binary. world-12c.
+        "XMAXD@icemod_namelist": f"{derived['sea_ice_max_thickness_m']:.4f}",
+        "HLEAD@icemod_namelist": f"{derived['sea_ice_lead_closing_m']:.4f}",
         # CLIM-16, oceanmod_nl. Written unconditionally, defaults included, so
         # the namelist in the run directory records what the arm actually ran
         # with instead of leaving it to the binary's compiled value.
@@ -210,6 +232,76 @@ def freezing_point_k(salinity_psu: float) -> float:
                          "polynomial is fitted over (0 to 42)")
     celsius = -0.0575 * s + 1.710523e-3 * s**1.5 - 2.154996e-4 * s**2
     return 273.15 + celsius
+
+
+def seawater_density(salinity_psu: float, celsius: float) -> float:
+    """Density of sea water at the surface, kg/m3.
+
+    EOS-80, the one-atmosphere international equation of state of sea water
+    (Millero and Poisson 1981), as printed in UNESCO technical paper 44. It
+    exists because `icemod.f90` carried `CRHOS = 1030.` labelled "at S=34.7",
+    and that constant is both half the mixed-layer heat capacity and, as the
+    difference `CRHOS - CRHOI`, the whole of the snow-ice flooding threshold.
+
+    Checked against EOS-80's own published check values below, which are right
+    answers this implementation either reproduces or fails.
+    """
+    s = float(salinity_psu)
+    if not 0.0 <= s <= 42.0:
+        raise ValueError(f"salinity {s} psu is outside the range EOS-80 is "
+                         "fitted over (0 to 42)")
+    t = float(celsius)
+    rho_w = (999.842594 + 6.793952e-2 * t - 9.095290e-3 * t**2
+             + 1.001685e-4 * t**3 - 1.120083e-6 * t**4 + 6.536332e-9 * t**5)
+    a = (8.24493e-1 - 4.0899e-3 * t + 7.6438e-5 * t**2 - 8.2467e-7 * t**3
+         + 5.3875e-9 * t**4)
+    b = -5.72466e-3 + 1.0227e-4 * t - 1.6546e-6 * t**2
+    c = 4.8314e-4
+    return rho_w + a * s + b * s**1.5 + c * s**2
+
+
+def seawater_heat_capacity(salinity_psu: float, celsius: float) -> float:
+    """Specific heat of sea water at the surface, J/(kg K).
+
+    UNESCO (1983) / Millero et al. (1973), at zero gauge pressure. It exists
+    because `oceanmod.f90` carried `CPS = 4180.` labelled "specific heat of sea
+    water", and 4180 is FRESH water at about 25 C: the check below is that this
+    polynomial reproduces the model's own constant at exactly the conditions
+    that constant actually describes, which is a right answer that can fail.
+    """
+    s = float(salinity_psu)
+    if not 0.0 <= s <= 42.0:
+        raise ValueError(f"salinity {s} psu is outside the range the UNESCO "
+                         "specific-heat polynomial is fitted over (0 to 42)")
+    t = float(celsius)
+    cp_pure = (4217.4 - 3.720283 * t + 0.1412855 * t**2
+               - 2.654387e-3 * t**3 + 2.093236e-5 * t**4)
+    a = -7.643575 + 0.1072763 * t - 1.38385e-3 * t**2
+    b = 0.1770383 - 4.07718e-3 * t + 5.148e-5 * t**2
+    return cp_pure + a * s + b * s**1.5
+
+
+# EOS-80's published check values. Tolerance is the precision they are printed
+# to; a mistyped coefficient moves the result far further than this.
+for _s, _t, _want in ((35.0, 25.0, 1023.343), (35.0, 5.0, 1027.675),
+                      (0.0, 5.0, 999.967)):
+    if abs(seawater_density(_s, _t) - _want) > 0.001:
+        raise RuntimeError(
+            f"the EOS-80 density polynomial gives "
+            f"{seawater_density(_s, _t):.4f} kg/m3 at S = {_s}, t = {_t} C, "
+            f"where EOS-80's own check value is {_want}. One of the two is "
+            "wrong and this is not a difference to average over.")
+
+# The specific-heat polynomial against the constant it replaces, at the
+# conditions that constant describes: fresh water near room temperature. If
+# this passes, `CPS = 4180.` was fresh water's value and not sea water's.
+_FRESH_WATER_CPS = 4180.0
+if abs(seawater_heat_capacity(0.0, 25.0) - _FRESH_WATER_CPS) > 1.0:
+    raise RuntimeError(
+        f"the UNESCO specific-heat polynomial gives "
+        f"{seawater_heat_capacity(0.0, 25.0):.2f} J/(kg K) for fresh water at "
+        f"25 C, where oceanmod.f90's CPS said {_FRESH_WATER_CPS}. The claim "
+        "that the compiled constant was fresh water's rests on this agreeing.")
 
 
 _REFERENCE_SALINITY = 34.7
@@ -275,6 +367,38 @@ def derive(config: dict, flux_ratio: float) -> dict:
         "ocean_salinity_psu": float(config["ocean"]["salinity_psu"]),
         "sea_water_freezing_point_k": freezing_point_k(
             config["ocean"]["salinity_psu"]),
+        # world-9hb. Density and specific heat are evaluated AT the freezing point
+        # of the declared salinity, not at some mean sea surface temperature:
+        # the flooding threshold is a property of the water the modelled ice
+        # floats in, and over the mixed layer's range the specific heat moves
+        # by a tenth of a per cent. One temperature for both keeps the pair
+        # consistent with each other and with TFREEZE.
+        "sea_water_density_kg_m3": seawater_density(
+            config["ocean"]["salinity_psu"],
+            freezing_point_k(config["ocean"]["salinity_psu"]) - 273.15),
+        "sea_water_heat_capacity_j_kg_k": seawater_heat_capacity(
+            config["ocean"]["salinity_psu"],
+            freezing_point_k(config["ocean"]["salinity_psu"]) - 273.15),
+        # DECLARED, not derived: the heat of fusion of sea ice is a function of
+        # the ice's own salinity and temperature, and icemod carries neither as
+        # a variable.
+        "sea_ice_fusion_j_kg": float(config["ocean"]["sea_ice_fusion_j_kg"]),
+        # world-6fh. The declared cold start. DECLARED and not derived: an SST
+        # field is what this model produces, so there is nothing here to
+        # compute one from, and the alternative was a constructed Earth field.
+        "cold_start_sst_equator_k": float(
+            config["ocean"]["cold_start"]["sst_equator_k"]),
+        "cold_start_sst_pole_k": float(
+            config["ocean"]["cold_start"]["sst_pole_k"]),
+        "cold_start_ice_thickness_m": float(
+            config["ocean"]["cold_start"]["sea_ice_thickness_m"]),
+        # world-12c. Negative means no maximum thickness. The lead-closing
+        # scale is DECLARED at ExoPlaSim's value rather than recalibrated;
+        # nothing here can recalibrate it.
+        "sea_ice_max_thickness_m": float(
+            config["surface"]["sea_ice_max_thickness_m"]),
+        "sea_ice_lead_closing_m": float(
+            config["surface"]["sea_ice_lead_closing_m"]),
         # CLIM-16. Ocean horizontal heat transport EXISTS; a constant
         # diffusivity is a BOUND on the missing transport rather than the
         # transport, and it is bracketed rather than tuned. NLEV_OCE is 1
@@ -1599,7 +1723,29 @@ def expected_namelist_keys(config: dict) -> dict:
         want["radmod_namelist"]["O3SCALE"] = float(o3)
     salinity = config.get("ocean", {}).get("salinity_psu")
     if salinity is not None:
+        celsius = freezing_point_k(salinity) - 273.15
         want["icemod_namelist"]["TFREEZE"] = round(freezing_point_k(salinity), 4)
+        want["icemod_namelist"]["CRHOS"] = round(
+            seawater_density(salinity, celsius), 2)
+        want["icemod_namelist"]["CPS"] = round(
+            seawater_heat_capacity(salinity, celsius), 2)
+    fusion = config.get("ocean", {}).get("sea_ice_fusion_j_kg")
+    if fusion is not None:
+        want["icemod_namelist"]["CLFI"] = round(float(fusion), 1)
+    cold = config.get("ocean", {}).get("cold_start")
+    if cold is not None:
+        want["icemod_namelist"]["TSST_EQ"] = round(
+            float(cold["sst_equator_k"]), 4)
+        want["icemod_namelist"]["TSST_POL"] = round(
+            float(cold["sst_pole_k"]), 4)
+        want["icemod_namelist"]["HICE_INI"] = round(
+            float(cold["sea_ice_thickness_m"]), 4)
+    ice_max = config.get("surface", {}).get("sea_ice_max_thickness_m")
+    if ice_max is not None:
+        want["icemod_namelist"]["XMAXD"] = round(float(ice_max), 4)
+    lead = config.get("surface", {}).get("sea_ice_lead_closing_m")
+    if lead is not None:
+        want["icemod_namelist"]["HLEAD"] = round(float(lead), 4)
     if energy_diagnostics_enabled(config):
         want["plasim_namelist"]["NENERGY"] = float(energy_diagnostics_level(config))
     if m.get("conversion_time_level", False):

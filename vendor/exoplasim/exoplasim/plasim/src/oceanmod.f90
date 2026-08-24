@@ -17,12 +17,15 @@
       parameter(NLPP = NLAT / NPRO)     ! Latitudes per process
       parameter(NHOR = NLON * NLPP)     ! Horizontal part
       parameter(NROOT = 0)              ! Master node
-      parameter(CRHOS=1030.)            ! Density of sea water (kg/m**3)
       parameter(CRHOI=920.)             ! Density of sea ice (kg/m**3)
-      parameter(CPS=4180.)              ! Specific heat of sea water (J/kg*K)
-      parameter(CLFI  = 3.28E5)         ! Heat of fusion of ice (J/kg)
-      parameter(PLARAD=6.371E6)         ! Earth radius (m)
       parameter(PI = 3.14159265359D0)   ! PI
+!
+!     THE PLANET RADIUS IS NOT A PARAMETER HERE. `hdiffo` works on an angular
+!     grid -- dlam is 2*pi/NLON and cphi, dphi and dmue are radians -- so the
+!     radius is what turns the angular Laplacian into a metric one, and a
+!     compiled Earth radius makes the realised diffusivity (a_earth/a)**2 times
+!     the coefficient the namelist asked for. It is taken from pumamod, which
+!     planet_nl sets, at the one place that uses it.
 !
 !     namelist parameter
 !
@@ -64,7 +67,17 @@
       real :: dtmix                     ! time step (s)
       real :: solar_day    = 86400.0    ! 24 * 60 * 60 (for Earth)
 !
+!
+!     THE SEA WATER CONSTANTS ARE NOT PARAMETERS HERE. All four come from
+!     icemod through oceanini, which is what stops the ice model and the
+!     ocean model holding different sea water: they are icemod_nl keys and
+!     icemod.f90 says what each one does. The defaults below are only what
+!     stands until oceanini is called.
+!
       real :: TFREEZE  = 271.25         ! Freezing point (K)
+      real :: CRHOS    = 1030.          ! Density of sea water (kg/m**3)
+      real :: CPS      = 3990.34        ! Specific heat of sea water (J/(kg*K))
+      real :: CLFI     = 3.28E5         ! Heat of fusion of sea ice (J/kg)
       
       real :: dlam                      ! delta longitude
       real :: dphi(NLAT)                ! delta latitude
@@ -93,7 +106,16 @@
       real :: ydsst(NHOR)  = 0.         ! heat flux from vdiff (w/m2)
       real :: yqhd(NHOR)   = 0.         ! heat flux from hdiff (w/m2)
 
-      real :: yclsst(NHOR,0:13)         ! climatological sst (K)
+!     -999 IS THE RECORD OF HAVING NO CLIMATOLOGY, and an initialiser rather
+!     than whatever the loader left in the page: this is a module-scope SAVE
+!     array, which -finit-real does not reach, and mpsurfgp leaves its
+!     argument untouched when code 169 is absent. What stood here had no
+!     initialiser at all beside four neighbours that do, and oceanini then
+!     clipped the uninitialised memory up to the freezing point and copied it
+!     into the ocean temperature, so every cold start began with the whole
+!     modelled ocean at its freezing point. The sentinel is a restart record,
+!     so it answers the same question on every continuation.
+      real :: yclsst(NHOR,0:13) = -999. ! climatological sst (K)
       real :: yfsst(NHOR,0:13) = 0.     ! flux corr. sst (W/m**2)
 
       real :: yclsst2(NHOR) = 0.        ! climatological sst (K)
@@ -126,7 +148,8 @@
 
 !     Threads instead of ranks: a thread owns what a rank owned.
 !     Inert without -fopenmp, so the MPI and serial builds are unchanged.
-!$omp threadprivate(cphi,cphih,dlam,dlayer,dmue,dphi,dtmix,gw,hdiffk,mldepth,mpinfo,mypid,myworld,&
+!$omp threadprivate(clfi,cphi,cphih,cps,crhos,dlam,dlayer,dmue,dphi,dtmix,gw,hdiffk,mldepth,&
+!$omp&  mpinfo,mypid,myworld,&
 !$omp&  naccuout,naomod,ndatim,ndiag,nentropy,newsurf,nfluko,ngui,nhdiff,nlsg,nocean,nout,noutput,&
 !$omp&  nperpetual_ocean,nprhor,nprint,nproc,nrestart,nstep,ntspd,nud,solar_day,taunc,tfreeze,&
 !$omp&  vdiffk,vdiffkl,version,ycliced,yclsst,yclsst2,ydsst,ydssta,yentro,yfldo,yfldoa,yfsst,yfsst2,&
@@ -142,10 +165,17 @@
 !
       subroutine oceanini(kstep,krestart,koutput,kdpy,kgui,psst,pmld    &
      &                   ,piflux,ktspd,psolday,oceanmod_namelist        &
-     &                   ,ocean_output, ifreezet)
+     &                   ,ocean_output, ifreezet, prhos, pcps, pclfi      &
+     &                   ,pcoldsst)
       use oceanmod
+!     Only the radius; pumamod's NLON, NLAT and NHOR are not oceanmod's.
+      use pumamod, only: plarad
 !
       real :: ifreezet
+      real :: prhos                 ! density of sea water, from icemod_nl
+      real :: pcps                  ! specific heat of sea water, from icemod_nl
+      real :: pclfi                 ! heat of fusion of sea ice, from icemod_nl
+      real :: pcoldsst(NHOR)        ! declared cold-start SST profile, icemod_nl
       real :: psst(NHOR),pmld(NHOR),piflux(NHOR)
       real (kind=8) :: zsi(NLAT)
       real (kind=8) :: zgw(NLAT)
@@ -212,6 +242,9 @@
       solar_day = psolday
       
       TFREEZE = ifreezet
+      CRHOS   = prhos
+      CPS     = pcps
+      CLFI    = pclfi
 !
 !     read and print namelist and distribute it
 !
@@ -248,6 +281,24 @@
       call mpbcrn(hdiffk,NLEV_OCE)
       call mpbcrn(dlayer,NLEV_OCE)
       call mpbcr(TFREEZE)
+      call mpbcr(CRHOS)
+      call mpbcr(CPS)
+      call mpbcr(CLFI)
+!
+!
+!     Horizontal diffusion runs on the planet radius planet_nl declared. Say so
+!     in the log, because hdiffk is stated in m2/s and the grid it acts on is
+!     angular: what the run integrated is unreadable from the namelist alone.
+!
+      if (nhdiff > 0) then
+         if (plarad <= 0.) then
+            call mpabort('oceanmod: nhdiff > 0 needs a planet radius, and '   &
+     &                 //'planet_nl has not set one')
+         endif
+         if (mypid == NROOT) then
+            write(nud,*) '* ocean horizontal diffusion on planet radius (m): ',plarad
+         endif
+      endif
 !
       do jlev=1,NLEV_OCE
          ymld(:,jlev) = dlayer(jlev)
@@ -270,6 +321,7 @@
 !
       if (nrestart == 0) then ! new start (read start file)
          call mpsurfgp('yls',yls,NHOR,1)
+         yclsst(:,:) = -999.
          call mpsurfgp('yclsst',yclsst,NHOR,14)
 
 !        make sure, that land sea mask values are 0 or 1
@@ -280,17 +332,31 @@
             yls(:) = 0.0
          endwhere
 !
-!        make clsst >= tfreeze
-!
-         yclsst(:,:) = MAX(yclsst(:,:),TFREEZE)
-!
 !        initialize sst
 !
-         call oceanget
-
-         do jlev=1,NLEV_OCE
-            ysst(:,jlev) = yclsst2(:)
-         enddo
+!        Either a climatology was read, in which case the ocean starts from it
+!        as it always has, or none was, in which case it starts from the
+!        DECLARED cold-start profile icemod built and yclsst stays at its
+!        sentinel. It stays there on purpose: yclsst is what nfluko relaxes
+!        toward, the declared profile is an initial condition and not a
+!        climatology, and a run that overwrote the sentinel with it would have
+!        no way left to tell the two apart on the next continuation.
+!
+         call mpmaxval(yclsst,NHOR,14,zclsst)
+         if (zclsst > 0.) then
+            yclsst(:,:) = MAX(yclsst(:,:),TFREEZE)
+            call oceanget
+            do jlev=1,NLEV_OCE
+               ysst(:,jlev) = yclsst2(:)
+            enddo
+         else
+            do jlev=1,NLEV_OCE
+               ysst(:,jlev) = MAX(pcoldsst(:),TFREEZE)
+            enddo
+            if (mypid == NROOT) then
+               write(nud,*) '* ocean cold start from the declared SST profile'
+            endif
+         endif
 
       else ! restart from restart file 
          if (mypid == NROOT) then
@@ -313,15 +379,43 @@
          call mpgetgp('yfldo'  ,yfldo  ,NHOR,   1)
 
          if (newsurf == 1) then ! Read new surface data
+            yclsst(:,:) = -999.
             call mpsurfgp('yclsst',yclsst,NHOR,14)
-            yclsst(:,:) = MAX(yclsst(:,:),TFREEZE)
+            call mpmaxval(yclsst,NHOR,14,zclsst)
+            if (zclsst > 0.) yclsst(:,:) = MAX(yclsst(:,:),TFREEZE)
          endif
       endif ! (nrestart == 0)
+!
+!     THE FLUX CORRECTION IS A RELAXATION TOWARD A CLIMATOLOGY, so a run with
+!     no climatology cannot have one. addfc reads yclsst2 as the temperature
+!     ice is held at, and mkfc relaxes the modelled SST toward it; with yclsst
+!     at its sentinel both would drive the ocean at a field that says only
+!     that no such field exists. icemod refuses nfluko on the same test.
+!
+      call mpmaxval(yclsst,NHOR,14,zclsst)
+      if (nfluko /= 0 .and. zclsst < 0.) then
+         call mpabort('oceanmod: nfluko needs a sea surface temperature '    &
+     &              //'climatology (code 169) to relax toward, and this '    &
+     &              //'run has none')
+      endif
+!     nocean = 0 does not integrate an ocean, it PRESCRIBES one: oceanstep
+!     sets ysst to yclsst2 every step. Same requirement, same refusal.
+      if (nocean == 0 .and. zclsst < 0.) then
+         call mpabort('oceanmod: nocean = 0 prescribes the sea surface '     &
+     &              //'temperature from a climatology (code 169), and this ' &
+     &              //'run has none')
+      endif
 !
 !     read flux correction
 !
       if (nfluko == 1) then
+         yfsst(:,:) = -999.
          call mpsurfgp('yfsst',yfsst,NHOR,14)
+         call mpmaxval(yfsst,NHOR,14,zfsst)
+         if (zfsst < -900.) then
+            call mpabort('oceanmod: nfluko = 1 needs the ocean flux '        &
+     &                 //'correction field (code 903), and this run has none')
+         endif
       endif
 !
 !     initialize lsg coupling
@@ -1321,6 +1415,10 @@
 
       subroutine hdiffo(psst)
       use oceanmod
+!     The planet radius, from planet_nl by way of pumamod. `only:` because
+!     pumamod also declares NLON, NLAT and NHOR and this routine means
+!     oceanmod's. tracermod.f90:168 reaches for plarad the same way.
+      use pumamod, only: plarad
       parameter(nsub=100)
 !
       real(kind=8) :: psst(NHOR,NLEV_OCE)

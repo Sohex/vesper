@@ -208,11 +208,23 @@ radiation:
   stellar_spectrum: k25v
 
 # DECLARED, 2026-08-18. Earth's value, and the point of the block is that it is
-# now VISIBLE rather than that it has moved. Salinity reaches the model through
-# one number, the freezing point of sea water, which `icemod.f90` hardcodes as
-# `TFREEZE = 271.25` with the comment "at S=34.7". So Earth's ocean was being
-# assumed by every run on this world without any file saying so, which is the
-# DUST-6 pattern.
+# now VISIBLE rather than that it has moved. Earth's ocean was being assumed by
+# every run on this world without any file saying so, which is the DUST-6
+# pattern.
+#
+# Salinity reaches the model through FOUR compiled numbers, not one, and
+# `notes/audits/model-earth-centrism.md` finding 10 found three of them
+# unreachable; world-9hb is the fix. All four are `icemod_nl` keys now and
+# `run_exoplasim.py` writes the first three from the salinity below:
+#   TFREEZE  the freezing point, which sets where sea ice forms at all.
+#   CRHOS    sea water density, which is the mixed-layer heat capacity with CPS
+#            and, as the difference from ice density, the whole of the snow-ice
+#            flooding threshold, where one per cent of density is ten per cent
+#            of the threshold.
+#   CPS      sea water specific heat. The compiled value was fresh water's.
+#   CLFI     the heat of fusion of sea ice, below.
+# A salinity bracket therefore moves the sea-ice feedback and not only one
+# threshold, which is what CLIM-17's arms are for.
 #
 # It is DECLARED and not DETERMINED because this project cannot compute it. A
 # real salinity is the steady state of riverine delivery against hydrothermal
@@ -245,6 +257,55 @@ ocean:
   horizontal_diffusivity_m2_s: 1000.0
   salinity_psu: 34.7
 
+  # DECLARED, 2026-08-24. WHAT A COLD START ON THIS WORLD BEGINS FROM.
+  #
+  # ExoPlaSim expects a sea surface temperature climatology (surface code 169)
+  # and a sea-ice climatology (210, 211) to start from, and this world has
+  # none: an SST field is what the model PRODUCES, so there is nothing to
+  # supply and nothing to derive one from. With those files absent the model
+  # used to leave its climatology at a -999 sentinel, test every ocean cell
+  # below the freezing point, build full ice cover from that, and shape it
+  # with an Earth Arctic-Antarctic table, while the ocean itself started at
+  # its freezing point everywhere. `notes/audits/model-earth-centrism.md`
+  # finding 1 measured it; world-6fh is the fix.
+  #
+  # So the cold start is DECLARED, and `icemod.f90` refuses to run a cold
+  # start that declares nothing. It is a smooth profile in latitude,
+  # sst_pole_k + (sst_equator_k - sst_pole_k)*cos(lat)**2, hemispherically
+  # symmetric BY CONSTRUCTION: an initial condition asymmetric between the
+  # hemispheres puts a difference into the answer that nothing in the world
+  # put there, and that asymmetry was the largest single artefact in the
+  # field this replaces.
+  #
+  # DECLARED and not DETERMINED, in the mixed_layer_depth_m sense: nothing
+  # here can compute it, it washes out, and the run it starts is a BOOTSTRAP
+  # whose numbers are not the baseline. What the two numbers are for:
+  #   sst_pole_k     is above the freezing point across the whole declared
+  #                  salinity bracket, S = 20 to 40, so a salinity arm cannot
+  #                  silently move the cold start from one side of the
+  #                  ice-albedo feedback to the other.
+  #   sst_equator_k  is a warm equator and about 27 K of equator-to-pole
+  #                  contrast. It is a first guess and claims nothing more.
+  # Together with a zero initial thickness the cold start is ICE-FREE, which
+  # is the side a flux sweep could not otherwise approach a branch from.
+  #
+  # A HYSTERESIS PROBE NEEDS BOTH SIDES. To start an arm iced, declare a
+  # sub-freezing sst_pole_k, or a non-zero sea_ice_thickness_m, or both; the
+  # three keys reach icemod_nl as TSST_EQ, TSST_POL and HICE_INI and the
+  # staged namelist is checked against this file.
+  cold_start:
+    sst_equator_k: 300.0
+    sst_pole_k: 273.0
+    sea_ice_thickness_m: 0.0
+
+  # DECLARED, and the one salinity-dependent constant that is not derived from
+  # the salinity above: the heat of fusion of sea ice is a function of the
+  # ice's OWN salinity and temperature, and `icemod.f90` carries neither as a
+  # variable. This is ExoPlaSim's compiled value, depressed below pure ice's
+  # 3.337e5 by brine content. It is an `icemod_nl` key so a bracket arm can
+  # move it; nothing here can compute it.
+  sea_ice_fusion_j_kg: 328000.0
+
 # PARTLY DETERMINED. Sea ice and the glacier settings are decided, and the
 # argument for the glacier block is in docs/src/reference/config-rationale.md.
 #
@@ -256,6 +317,38 @@ ocean:
 surface:
   mixed_layer_depth_m: 50.0
   sea_ice: true
+
+  # DECLARED, 2026-08-24. NO MAXIMUM SEA-ICE THICKNESS, which is what a
+  # negative value means to `icemod_nl`'s XMAXD. The compiled 9 m is Earth's
+  # Arctic multi-year maximum and is a stand-in for ice export, which is a
+  # process this model does not have: the error budget already carries "sea
+  # ice does not move" as a declared structural term, and half-parameterising
+  # it with a thickness cap makes that term dishonest rather than smaller.
+  #
+  # XMAXD is not only a clamp. `mkcflux` and `skintemp` zero the conductive
+  # heat flux once modelled ice reaches it, so a positive value stops basal
+  # growth outright, and what got past it was melted and paid for out of a
+  # global area-weighted sum spread over every other iced cell. That
+  # redistribution is gone; the limit now pays locally where it is switched
+  # on, and here it is switched off.
+  #
+  # Nothing is left unbounded by this. Conductive growth goes as the square
+  # root of time, because the flux through the ice falls as its thickness
+  # rises, so the modelled thickness is limited by the model's own physics
+  # rather than by a number. It is dormant at the current climate and live in
+  # any cold sweep arm. world-12c.
+  sea_ice_max_thickness_m: -1.0
+
+  # DECLARED, and EXPOSED rather than changed: the value is ExoPlaSim's.
+  # This is the whole of the model's lead parameterisation. A cell's ice
+  # compactness closes with an e-folding of this much new ice growth, and the
+  # compactness is then thresholded into the hard mask that albedo and
+  # roughness see, so this length alone sets how much ice must grow before a
+  # cell goes white. It is calibrated to Earth's Arctic and this world's year
+  # is half Earth's, so the ice grown per season is not the same; nothing here
+  # can recalibrate it, and it reaches `icemod_nl` as HLEAD so that a bracket
+  # arm can. world-12c.
+  sea_ice_lead_closing_m: 0.5
   glaciers:
     enabled: true
     min_snow_depth_m: 2.0
