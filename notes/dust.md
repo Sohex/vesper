@@ -218,7 +218,15 @@ phosphorus.
 
 `analysis/dust_forcing.json`, from `exoplasim/scripts/dust_forcing.py`, at a
 land-mean optical depth of 0.376 and on the refractive indices
-`aeolian/config/dust.yaml` declares:
+`aeolian/config/dust.yaml` declares.
+
+Every forcing table in this section is a row per SURFACE ALBEDO, and the
+albedos below are the ones `config/planet.yaml` carried when they were
+measured. The vegetated and playa entries have both moved down since, which
+moves the land rows and therefore the land half of every global mean;
+`world-zz6` regenerates the tables and re-reads the reopening verdict against
+them. The albedo dependence within each table is close to linear, so the rows
+bracket where the current values land.
 
 | surface | shortwave | longwave | net |
 | --- | ---: | ---: | ---: |

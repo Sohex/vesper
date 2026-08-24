@@ -1096,6 +1096,64 @@ def main() -> int:
                 f"reproduced from the runs lib/sensitivity.py names")
     except Exception as exc:
         rep.add(WARN, "flux-to-kelvin slope", f"not checked: {exc}")
+
+    # -- config's derived radiation scalings against the artifacts that made --
+    #    them
+    #
+    # Each of these is DERIVED: a generator computes it, prints it, and a human
+    # retypes it into `config/planet.yaml`. That route has no check on it, and
+    # it has already drifted twice elsewhere -- the CO2 shortwave fit in the
+    # model source, and the dust notes against the albedos the code now reads.
+    #
+    # Compared to the FULL-PRECISION value in the artifact, at the tolerance the
+    # config's own rounding implies: config carries three decimals, so half a
+    # unit in the last place is the largest disagreement that can be honest
+    # rounding, and anything beyond it is drift. That bound is arithmetic on the
+    # written precision, not a number picked to make today's values pass.
+    #
+    # The generator is named in each row so a failure says what to re-run.
+    try:
+        model = config["model"]
+        sw = ROOT / "exoplasim" / "analysis" / "shortwave_band_weights.json"
+        cloud = ROOT / "exoplasim" / "analysis" / "cloud_band_weight.json"
+        rows = [
+            ("h2o_sw_weight", sw, ("h2o", "weight"),
+             "exoplasim/scripts/shortwave_band_weights.py"),
+            ("co2_sw_weight", sw, ("co2", "weight"),
+             "exoplasim/scripts/shortwave_band_weights.py"),
+            ("cloud_absorption_scale", cloud, ("weight", "central"),
+             "exoplasim/scripts/cloud_band_weight.py"),
+        ]
+        problems, checked = [], []
+        for key, path, where, generator in rows:
+            if key not in model:
+                problems.append(f"{key} is not in config/planet.yaml")
+                continue
+            if not path.is_file():
+                problems.append(f"{key}: {rel(path)} is missing; run {generator}")
+                continue
+            node = json.loads(path.read_text(encoding="utf-8"))
+            for step in where:
+                node = node[step]
+            declared = float(model[key])
+            # Half a unit in the last decimal place the config actually wrote.
+            written = str(model[key])
+            places = len(written.split(".")[1]) if "." in written else 0
+            tol = 0.5 * 10.0 ** (-places)
+            if abs(declared - float(node)) > tol:
+                problems.append(
+                    f"{key} is {declared:g} in config but {float(node):.6g} in "
+                    f"{rel(path)} ({'.'.join(where)}), past the {tol:g} its own "
+                    f"{places} decimals allow: re-run {generator} or retype it")
+            else:
+                checked.append(f"{key} {declared:g}")
+        rep.add(FAIL if problems else OK,
+                "derived radiation scalings match their artifacts",
+                "; ".join(problems) if problems else
+                f"{len(checked)} compared: {', '.join(checked)}")
+    except Exception as exc:
+        rep.add(WARN, "derived radiation scalings match their artifacts",
+                f"not checked: {exc}")
     rep.show()
     return 1 if rep.failed else 0
 
