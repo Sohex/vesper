@@ -1067,6 +1067,38 @@ supplies the shortfall silently, and the surface is what the rest of the project
 reads. With the atmosphere no longer short those watts it stops drawing them
 down, so the flux partitioning relaxes toward correct.
 
+MEASURED, on the dry adiabatic arm, total energy trend in W/m2:
+
+    fixer off                        -0.6595
+    fixer targeting 26 - 27 only     +0.2203
+    fixer targeting 26 - 27 + 24     -0.0063
+
+with a settled correction of 0.53 to 0.60 W/m2 and a residual imbalance of
+about 0.01. The target matters: aiming at the adiabatic step alone zeroes
+`26 - 27` exactly, to +0.0004, and still leaves the total WORSE in the other
+direction, because `denergy24` -- the temperature hyperdiffusion's heating --
+is a source with no sink. The momentum diffusion's kinetic loss is booked back
+as heat by `mkdheat` and cancels; damping the temperature anomaly changes the
+mass-weighted mean with nothing to answer it. That first version passed its own
+acceptance test perfectly while making the budget worse, and was caught only
+because the criterion was the STATE trend rather than the term being aimed at.
+
+Three further defects, each found by a run rather than by reading:
+
+  IT DEADLOCKED. `nenergyfix` guards a block containing `mpsumbcr`, a
+  collective, and namelists are read on NROOT only, so the other ranks skipped
+  it and NROOT waited. `notes/audits/nlowio-collective-deadlock.md` records the
+  same failure for `nlowio`, which is why that one is broadcast.
+
+  IT WOUND UP WITHOUT BOUND. The correction was computed as a temperature
+  INCREMENT and added to `stt`, a TENDENCY, so the leapfrog's `delt2` meant only
+  a sixth of it landed and the controller never saw its own correction arrive.
+
+  IT SWALLOWED A TRANSIENT. The first step out of a restart shows an imbalance
+  of 252 W/m2 and unit gain takes the whole of it. Rate limited now, with a
+  divergence guard that names the runaway instead of leaving it to appear as a
+  blow-up in the dynamics -- and that guard is what produced the 252.
+
 Why it is dangerous: it MASKS the defect it compensates. A fixer whose magnitude
 nobody looks at turns a known 0.9 W/m2 into an unknown one that can grow. That is
 the whole reason the applied increment is reported rather than absorbed, and the

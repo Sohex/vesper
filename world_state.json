@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated": "2026-08-24T04:17:06.781990+00:00",
-  "git_commit": "95791b7e2f1d075e8348b8adb5a9ca479ccfce7d",
+  "generated": "2026-08-24T08:43:01.061799+00:00",
+  "git_commit": "9eedfec316e599efd6a07d696a2ad4cc00e1b5d7",
   "generator": "scripts/world_state.py",
   "note": "Generated from the artifacts. Do not edit; re-run the generator. Only derived values live here. Findings are in `notes/`, with their evidence, and open work is in the `bd` issue tracker.",
   "planet": {
@@ -140,8 +140,9 @@
       },
       "output_type": ".nc",
       "uniform_land_surface": true,
-      "energy_diagnostics": false,
+      "energy_diagnostics": true,
       "energy_diagnostics_3d": false,
+      "energy_fixer": true,
       "cloud_absorption_scale": 1.192,
       "ozone_scale": 0.794,
       "ozone_uv_weight": 0.335,
@@ -647,6 +648,19 @@
       "mean_surface_temperature_k": 293.55
     },
     {
+      "run_id": "run_2ad8bb6e2417",
+      "status": "smoke_complete",
+      "orbits_complete": 1,
+      "flux_earth": 0.945,
+      "cycle": null,
+      "resolution": "T42",
+      "land_albedo_source": "vegetated",
+      "source_build": "precarve-craton",
+      "glaciers": true,
+      "converged": null,
+      "mean_surface_temperature_k": 292.821
+    },
+    {
       "run_id": "run_2b2ecaac6a0d",
       "status": "smoke_complete",
       "orbits_complete": 1,
@@ -920,6 +934,19 @@
       "mean_surface_temperature_k": 292.841
     },
     {
+      "run_id": "run_519b1d0bda7f",
+      "status": "smoke_complete",
+      "orbits_complete": 1,
+      "flux_earth": 0.945,
+      "cycle": null,
+      "resolution": "T42",
+      "land_albedo_source": "vegetated",
+      "source_build": "precarve-craton",
+      "glaciers": true,
+      "converged": null,
+      "mean_surface_temperature_k": 292.821
+    },
+    {
       "run_id": "run_52a2ca58c895",
       "status": "smoke_complete",
       "orbits_complete": 16,
@@ -1050,6 +1077,19 @@
       "mean_surface_temperature_k": null
     },
     {
+      "run_id": "run_5efa9f2d57b3",
+      "status": "smoke_complete",
+      "orbits_complete": 1,
+      "flux_earth": 0.945,
+      "cycle": null,
+      "resolution": "T42",
+      "land_albedo_source": "vegetated",
+      "source_build": "precarve-craton",
+      "glaciers": true,
+      "converged": null,
+      "mean_surface_temperature_k": 292.821
+    },
+    {
       "run_id": "run_5fc69c269a28",
       "status": "smoke_complete",
       "orbits_complete": 3,
@@ -1087,6 +1127,19 @@
       "glaciers": true,
       "converged": null,
       "mean_surface_temperature_k": 293.403
+    },
+    {
+      "run_id": "run_61fa2a2c22a3",
+      "status": "smoke_complete",
+      "orbits_complete": 1,
+      "flux_earth": 0.945,
+      "cycle": null,
+      "resolution": "T42",
+      "land_albedo_source": "vegetated",
+      "source_build": "precarve-craton",
+      "glaciers": true,
+      "converged": null,
+      "mean_surface_temperature_k": 292.821
     },
     {
       "run_id": "run_621d9572f512",
@@ -1297,6 +1350,19 @@
       "mean_surface_temperature_k": 292.934
     },
     {
+      "run_id": "run_7e1e984be7fd",
+      "status": "smoke_complete",
+      "orbits_complete": 1,
+      "flux_earth": 0.945,
+      "cycle": null,
+      "resolution": "T42",
+      "land_albedo_source": "vegetated",
+      "source_build": "precarve-craton",
+      "glaciers": true,
+      "converged": null,
+      "mean_surface_temperature_k": 292.821
+    },
+    {
       "run_id": "run_805682553b7f",
       "status": "failed",
       "orbits_complete": 0,
@@ -1440,6 +1506,19 @@
       "mean_surface_temperature_k": null
     },
     {
+      "run_id": "run_9218eb36a4be",
+      "status": "smoke_complete",
+      "orbits_complete": 1,
+      "flux_earth": 0.945,
+      "cycle": null,
+      "resolution": "T42",
+      "land_albedo_source": "vegetated",
+      "source_build": "precarve-craton",
+      "glaciers": true,
+      "converged": null,
+      "mean_surface_temperature_k": 292.821
+    },
+    {
       "run_id": "run_930f014f268a",
       "status": "failed",
       "orbits_complete": 0,
@@ -1486,6 +1565,19 @@
       "cycle": null,
       "resolution": "T85",
       "land_albedo_source": "uniform",
+      "source_build": "precarve-craton",
+      "glaciers": true,
+      "converged": null,
+      "mean_surface_temperature_k": null
+    },
+    {
+      "run_id": "run_9a569e106748",
+      "status": "failed",
+      "orbits_complete": 0,
+      "flux_earth": 0.945,
+      "cycle": null,
+      "resolution": "T42",
+      "land_albedo_source": "vegetated",
       "source_build": "precarve-craton",
       "glaciers": true,
       "converged": null,
@@ -1607,6 +1699,19 @@
       "glaciers": true,
       "converged": null,
       "mean_surface_temperature_k": 293.051
+    },
+    {
+      "run_id": "run_b0e5f3bed5a2",
+      "status": "smoke_complete",
+      "orbits_complete": 1,
+      "flux_earth": 0.945,
+      "cycle": null,
+      "resolution": "T42",
+      "land_albedo_source": "vegetated",
+      "source_build": "precarve-craton",
+      "glaciers": true,
+      "converged": null,
+      "mean_surface_temperature_k": 292.821
     },
     {
       "run_id": "run_b549ae2200b3",
@@ -1752,6 +1857,32 @@
       "mean_surface_temperature_k": null
     },
     {
+      "run_id": "run_c3ba183d3c0a",
+      "status": "failed",
+      "orbits_complete": 0,
+      "flux_earth": 0.945,
+      "cycle": null,
+      "resolution": "T42",
+      "land_albedo_source": "vegetated",
+      "source_build": "precarve-craton",
+      "glaciers": true,
+      "converged": null,
+      "mean_surface_temperature_k": null
+    },
+    {
+      "run_id": "run_c53f6c71c47c",
+      "status": "smoke_complete",
+      "orbits_complete": 1,
+      "flux_earth": 0.945,
+      "cycle": null,
+      "resolution": "T42",
+      "land_albedo_source": "vegetated",
+      "source_build": "precarve-craton",
+      "glaciers": true,
+      "converged": null,
+      "mean_surface_temperature_k": 292.821
+    },
+    {
       "run_id": "run_cabc9197d57d",
       "status": "failed",
       "orbits_complete": 0,
@@ -1802,6 +1933,19 @@
       "glaciers": true,
       "converged": null,
       "mean_surface_temperature_k": 267.906
+    },
+    {
+      "run_id": "run_ce2340a5e03f",
+      "status": "failed",
+      "orbits_complete": 0,
+      "flux_earth": 0.945,
+      "cycle": null,
+      "resolution": "T42",
+      "land_albedo_source": "vegetated",
+      "source_build": "precarve-craton",
+      "glaciers": true,
+      "converged": null,
+      "mean_surface_temperature_k": null
     },
     {
       "run_id": "run_ce6f230e5991",
