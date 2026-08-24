@@ -337,3 +337,78 @@ the floor rather than a violation of it. `gamma 16` improves confinement to 0.67
 and buys timestep, and it is not obviously worth what it does to the energy
 budget. That is a decision with two measured sides rather than a defect to fix,
 and it should be taken against a longer window than two orbits.
+
+## Scrutiny of the derivation, and the trade re-examined
+
+*2026-08-23, after three corrections in one day made the rest worth re-testing.*
+
+### The load-bearing claim holds
+
+`tau_0 ~ 1/N` was the first rule tried, which is reason enough to test it against
+others rather than accept it. Fitting `log tau_0 = c - p log N` to ECHAM5's
+T31-T159 entries gives a free exponent of **p = 1.11**, and fixed exponents give
+mean absolute errors of 60% at p=0.5, 26% at p=0.75, **10.6% at p=1.0**, 18% at
+p=1.25 and 31% at p=1.5. The quoting precision alone -- whole hours, so plus or
+minus half an hour -- is 8% of the mean. So `p = 1` fits about as well as values
+quoted this coarsely can distinguish, and its neighbours are clearly worse. The
+advective reading survives.
+
+### The weak link is U, and it is weaker than the rule
+
+`tau ~ 1/U`, and "the eddy wind" has several defensible definitions. At T42:
+column eddy RMS 5.94 m/s gives 1.114 d, top-level eddy RMS 6.95 gives 0.952,
+total RMS including the jet 19.77 gives 0.335. **A 3.3x spread in the definition
+is a 3.3x spread in the answer.**
+
+Worse, the constant is ASSUMED TO BE ONE. ECHAM's implied 14.7 m/s at Earth T42
+is "one advective time" only if Earth's eddy wind, measured the same way as
+Vesper's 5.94, is also about 14.7. Earth's column-mean transient eddy RMS is
+nearer 8 to 10, which would make their constant 0.6 to 0.7 and this project's
+derived `tau` correspondingly 1.4 to 1.7 times too long. **Unresolved**: settling
+it needs Earth reanalysis reduced by the identical definition, which is not held
+here. Until then the derived damping carries a factor of roughly 1.5 of
+uncertainty on top of the definitional spread, and that is larger than most of
+the differences this note has been arguing about.
+
+### The other soft spots, named
+
+- `alpha = 4` and `n*/N = 0.381` are a CHOICE inside a family, not a derivation.
+- The confinement floor of 0.6 is a stated criterion, not a measured threshold.
+- The bite-point diagnostic fits an "inertial range" over m=5-14 at T42 and
+  measures a slope of about -2.0, where an enstrophy cascade would give -3. Ten
+  wavenumbers at the large-scale end may not be an inertial range at all, in
+  which case the bite point is measuring departure from something that is not a
+  cascade.
+
+### The trade is not an accounting artifact -- measured, not argued
+
+If the energy cost of `gamma 16` were the filter's own unbooked dissipation
+becoming visible, the kinetic-energy identity residual would EQUAL that
+dissipation and would SHRINK as the filter sharpens. Computed from the measured
+spectra, with the filter removing KE at `(1 - f^4)/dt` per mode:
+
+| | filter's KE removal | KE identity residual |
+| --- | ---: | ---: |
+| gamma 8 | 0.0837 W/m2 | -0.0000 |
+| gamma 16 | 0.0097 W/m2 | +0.1510 |
+
+Sharpening the filter cuts its removal by 0.074 W/m2 and OPENS the identity by
+0.151. Opposite directions, so the residual is not the filter's missing term.
+That also re-confirms the bound this project closed the unbooked-filter row on.
+
+**So the cost is real, and its mechanism is the time scheme.** `gamma 16`
+preserves sixty times more kinetic energy near the truncation, and the
+semi-implicit step does not conserve on those scales -- which is what
+`water-and-energy-closure.md` measured independently and what the timestep
+scaling of `26 - 27` says. The filter at `gamma 8` was not buying a good energy
+budget; it was **destroying the scales on which the budget fails**, which is not
+the same thing and looks identical in the diagnostics.
+
+That reframes the question of whether speed can be bought without spending
+physics. Between these two knobs it cannot: at fixed cost `gamma 8` has the
+better budget and `gamma 16` the better spectrum, and `gamma 16`'s longer stable
+step buys speed while making `26 - 27` worse in proportion. But the physics being
+"spent" was never being preserved by the filter in the first place. The lever
+that could give both is the TIME SCHEME, where the error actually lives, and
+that is the semi-implicit attribution `water-and-energy-closure.md` names as
+needing its own experiment.
