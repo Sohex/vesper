@@ -708,6 +708,56 @@ def declare_cold_start_seed(model, config: dict, is_cold: bool) -> None:
           f"the system clock and the run is unreproducible)")
 
 
+def declare_energy_fixer(model, config: dict) -> bool:
+    """Switch on the global energy fixer, which is a CORRECTION and not physics.
+
+    The adiabatic step must conserve total energy: the column enthalpy it gives
+    up has to equal the kinetic energy it takes on. It does not. Measured on a
+    dry adiabatic run, the temperature equation's conversion removes 1.02 W/m2
+    while the momentum equations receive 0.09, and essentially all of the
+    difference is in the REFERENCE half of the conversion, whose counterpart in
+    the momentum equations sits on the other side of the semi-implicit split.
+    That defect is `world-0ov`. This does not fix it.
+
+    What this does is put the missing energy back as a uniform warming, the way
+    ECHAM, the IFS and CAM all do. Without it the surface silently supplies the
+    shortfall -- across three filter settings the adiabatic term moved 2.08 W/m2
+    while the closed budget moved 0.013, with sensible heat flux up 2.17 and
+    latent up 1.48, about a tenth of the sensible flux on this planet -- and
+    downstream components read that as physics.
+
+    IT MASKS WHAT IT COMPENSATES, so the applied increment is printed by the
+    model at `ndiag` cadence and belongs on the manifest as a health metric: a
+    change in the underlying defect has to be able to show rather than be
+    absorbed. `world-mzy`.
+
+    The fixer reads `denergy26` and `denergy27`, so it needs the energy
+    diagnostics. Rather than switch them on quietly underneath the caller, which
+    would make a declared setting mean something it does not say, this raises.
+    """
+    fix = config["model"].get("energy_fixer")
+    if fix is None:
+        raise RuntimeError(
+            "model.energy_fixer is absent. It is a correction for a known "
+            "defect (world-0ov) and whether a run carries it changes what its "
+            "surface fluxes mean, so it is declared and never defaulted.")
+    if not fix:
+        model._edit_namelist("plasim_namelist", "NENERGYFIX", "0")
+        print("energy fixer: OFF (declared). The core's conversion loses about "
+              "0.9 W/m2 and the surface supplies it; see world-0ov.")
+        return False
+    if not config["model"].get("energy_diagnostics"):
+        raise RuntimeError(
+            "model.energy_fixer needs model.energy_diagnostics, because the "
+            "fixer is driven by denergy26 and denergy27. Declare both rather "
+            "than having one switch the other on underneath you.")
+    model._edit_namelist("plasim_namelist", "NENERGYFIX", "1")
+    print("energy fixer: ON (declared). A CORRECTION, not physics: it restores "
+          "the energy the adiabatic conversion loses without restoring where it "
+          "went. world-mzy; the defect is world-0ov.")
+    return True
+
+
 def declare_hyperdiffusion(model, config: dict) -> dict:
     """Write the derived horizontal diffusion, overriding the compiled branch.
 
@@ -1627,6 +1677,7 @@ def main() -> None:
     hyperdiffusion = declare_hyperdiffusion(model, config)
     dynamics_only = declare_dynamics_only(model, config)
     set_low_io(model, args.low_io)
+    energy_fixer = declare_energy_fixer(model, config)
     if enable_energy_diagnostics(model, config):
         n = register_energy_diagnostic_codes()
         print(f"energy diagnostics on: nenergy=1, {n} codes 360-387 registered "
@@ -1752,6 +1803,10 @@ def main() -> None:
         # against the config that was meant to.
         "hyperdiffusion": hyperdiffusion,
         "dynamics_only": dynamics_only,
+        # A CORRECTION and not physics; what it is correcting is world-0ov and
+        # the fixer itself is world-mzy. On the manifest because whether a run
+        # carries it changes what its surface fluxes mean.
+        "energy_fixer": energy_fixer,
         # Null when the run has no interactive emission, which is most of them.
         # Like prescribed_dust, the values are copied from the fields' own
         # provenance rather than from the config, so the manifest says what the

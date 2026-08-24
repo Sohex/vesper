@@ -1374,6 +1374,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
                    , psurf   , ptop    , ptop2   , taucool              &
                    , restim  , t0      , tfrc    , nstratosponge        &
                    , sigh    , nenergy , nener3d , nsponge , dampsp     &
+                   , nenergyfix                                          &
                    , l_aero
 !
 !     preset namelist parameter according to model set up
@@ -3032,6 +3033,11 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       real, allocatable :: zqgp(:,:),zpgp(:)
       real, allocatable :: zqmgp(:,:),zpmgp(:),ztgp(:,:)
 !
+!     the energy fixer's scratch: the imbalance, the column heat capacity it is
+!     spread over, and the weight sum that turns the pair into a per-area rate
+      real :: zfix(3)
+      real :: zfixw(NHOR)
+!
 !*    0. save prognostic variables at (t-dt)
 !        and the non-linear divergence tendency terms
 !
@@ -3116,6 +3122,36 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
         enddo
        enddo
 !
+      endif
+!
+!*    3b. THE ENERGY FIXER. THIS IS A CORRECTION AND IT IS NOT PHYSICS.
+!
+!     The adiabatic step is supposed to conserve total energy: the column
+!     enthalpy it gives up must equal the kinetic energy it takes on. In this
+!     model it does not. Measured on a dry adiabatic run, the temperature
+!     equation's conversion removes 1.02 W/m2 while the momentum equations
+!     receive 0.09, and essentially all of the difference sits in the REFERENCE
+!     half of the conversion, `tkp*(zvgpg-ztpta)`, which is explicit here while
+!     its counterpart in the momentum equations is implicit in the divergence
+!     solve above. The two ends are on opposite sides of the semi-implicit
+!     split and nothing makes them meet. That defect is world-0ov and it is NOT
+!     what this code fixes.
+!
+!     What this does is put the missing energy back, as a uniform warming, so
+!     the atmosphere is not left short. It is the same device ECHAM, the IFS and
+!     CAM all carry, and it has the same cost: it restores the TOTAL without
+!     restoring where the energy went, so it MASKS the defect it compensates.
+!     That is why the applied increment is reported rather than absorbed
+!     silently -- a change in the underlying defect has to be able to show. This
+!     fixer and its reporting are world-mzy.
+!
+!     The increment applied here was computed from the PREVIOUS step, at the end
+!     of the diagnostic block below. Applying it to `stt` rather than to `stp`
+!     is deliberate: the diagnostics further down read `stt`, so denergy01, 02
+!     and 26 all see the correction and cannot disagree with the state.
+!
+      if (nenergyfix > 0 .and. mypid == NROOT) then
+         stt(1,:) = stt(1,:) + denergyfix
       endif
 
 !     3a. Coupling for synchronization runs
@@ -3325,6 +3361,45 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
      &                     -zepot(:,jlev))/deltsec2/ga*dsigma(jlev)
         endif  
        enddo
+!
+!      THE ENERGY FIXER, second half: what to apply next step. See 3b above.
+!
+!      `denergy26 - denergy27` is the enthalpy the adiabatic step gave up less
+!      the kinetic energy it took on, which must be zero and is not. The
+!      correction is spread as a uniform temperature increment over the column
+!      heat capacity, so the energy it returns is proportional to the local mass.
+!
+!      This is an integral controller with unit gain, not a one-shot correction.
+!      The increment is already inside the imbalance measured above, so
+!      subtracting the residual leaves exactly minus the raw imbalance: it
+!      settles in one step and then tracks. Reading `denergy26 - denergy27` after
+!      a run with the fixer on therefore reports the RESIDUAL, near zero, and the
+!      size of the defect is `denergyfix` itself.
+!
+       if(nenergyfix > 0) then
+        zfix(:) = 0.0
+        jhor = 0
+        do jlat = 1 , NLPP
+         do jlon = 1 , NLON
+          jhor = jhor + 1
+          zfixw(jhor) = gwd(jlat)
+         enddo
+        enddo
+        zfix(1) = dot_product(denergy(:,26)-denergy(:,27),zfixw)
+        do jlev = 1 , NLEV
+         zfix(2) = zfix(2) + dot_product(acpd*(1.+adv*zqgp(:,jlev))     &
+     &                       *zpgp(:)/ga*dsigma(jlev),zfixw)
+        enddo
+        zfix(3) = sum(zfixw)
+        call mpsumbcr(zfix,3)
+        if (mypid == NROOT) then
+         denergyfix = denergyfix - zfix(1)*deltsec2/zfix(2)/ct
+         if (mod(nstep,ndiag) == 0) then
+          write(nud,'(A,I8,2E16.7)') ' ENERGY FIXER applied W/m2, K/step ', &
+     &      nstep, denergyfix*ct*zfix(2)/zfix(3)/deltsec2, denergyfix*ct
+         endif
+        endif
+       endif
        deallocate(zsd)
        deallocate(zsz)
        deallocate(zugp)

@@ -624,6 +624,55 @@ def main() -> int:
     except Exception as exc:
         rep.add(WARN, "timestep vs the per-rung table", f"not checked: {exc}")
 
+    # -- the energy fixer is declared, coherent, and matches the runs that ran --
+    #
+    # `model.energy_fixer` is a CORRECTION for the conversion defect (world-0ov),
+    # not physics, and whether a run carries it changes what its surface fluxes
+    # mean. Two things can go wrong quietly. It can be switched on without the
+    # diagnostics it is driven by, in which case the model runs with the switch
+    # set and the fixer does nothing. And a run on disk can claim it on its
+    # manifest while its namelist says otherwise, which is the claim the artifact
+    # is supposed to settle.
+    try:
+        model = config["model"]
+        fix = model.get("energy_fixer")
+        if fix is None:
+            rep.add(FAIL, "energy fixer declared",
+                    "model.energy_fixer is absent; whether a run carries the "
+                    "correction changes what its fluxes mean, so it is declared")
+        elif fix and not model.get("energy_diagnostics"):
+            rep.add(FAIL, "energy fixer declared",
+                    "model.energy_fixer is on and model.energy_diagnostics is "
+                    "off; the fixer is driven by denergy26 and denergy27 and "
+                    "would be a no-op with the switch set")
+        else:
+            rep.add(OK, "energy fixer declared",
+                    f"{'on' if fix else 'off'}, a correction for world-0ov")
+
+        runs = ROOT / "exoplasim" / "runs"
+        seen, bad = 0, []
+        for manifest in sorted(runs.glob("run_*/run_manifest.json")):
+            claim = json.loads(manifest.read_text()).get("energy_fixer")
+            if claim is None:
+                continue          # written before the fixer existed
+            nl = manifest.parent / "plasim_namelist"
+            if not nl.is_file():
+                continue
+            on = any(line.strip().upper().replace(" ", "").startswith("NENERGYFIX=1")
+                     for line in nl.read_text().splitlines())
+            seen += 1
+            if bool(claim) != on:
+                bad.append(f"{manifest.parent.name} claims {bool(claim)}, "
+                           f"namelist says {on}")
+        if bad:
+            rep.add(FAIL, "runs vs the energy fixer they claim",
+                    "; ".join(bad[:4]))
+        else:
+            rep.add(OK, "runs vs the energy fixer they claim",
+                    f"{seen} runs carry the stamp and all agree with their namelist")
+    except Exception as exc:
+        rep.add(WARN, "energy fixer declared", f"not checked: {exc}")
+
     # -- the derived diffusion table matches the rule it claims to come from --
     #
     # `model.hyperdiffusion.timescales_days` is DERIVED: vorticity damps on the

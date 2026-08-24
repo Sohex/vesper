@@ -1019,3 +1019,56 @@ That came from writing the reference term as `t0 * <omega/p>` instead of the
 model's `t0 * (zvgpg - ztpta)`; the two differ by `<ps Sum_j c(j,k) D_j>`,
 which vanishes unweighted and does not vanish weighted. The model's own
 expression gives -1.02 and the table above is what stands.
+
+## Which half of the conversion, and why that half
+
+`P2` has two halves and the model prints them separately. Mass-weighted, in the
+same units as `denergy02`, averaged over an orbit with the transient dropped:
+
+    anomaly half      akap * ztv2 * (omega/p)      -0.0439
+    reference half    tkp * (zvgpg - ztpta)        -0.9808
+    P2                                             -1.0247
+
+against a kinetic end of +0.086, so the miss is -0.939. **The anomaly half --
+the physical conversion, the one the flow actually supports -- is 0.04. The
+reference half carries all of it.**
+
+That is the half whose counterpart is on the other side of the semi-implicit
+split. `tkp = akap * t0` multiplies the reference temperature, and the reference
+part of the momentum equations' pressure-gradient force is NOT in `calcgp` at
+all: they carry `ztv1 = T_v - t0`, the anomaly only, and `R t0 grad(ln ps)` is
+handled implicitly in `spectrala` through the `z0 * spt` and `z0 * spm` terms of
+the divergence solve. One end explicit in gridpoint space, the other implicit in
+spectral space, evaluated at different time levels and through different
+operators, with nothing between them that forces them to agree.
+
+So the defect is not the conversion in general. It is the REFERENCE conversion,
+and the fix is to put its two ends on the same side of the split. That is a
+change to the semi-implicit scheme -- `bm1` would need rederiving and the
+stability revalidating -- which is why the correction below ships first.
+
+## The energy fixer, which is a correction and not a fix
+
+`model.energy_fixer`, default declared in `config/planet.yaml`, switched in the
+model by `nenergyfix`, tracked as `world-mzy`. Each step it takes the imbalance
+the model already reports, `denergy26 - denergy27`, and returns it as a uniform
+temperature increment spread over the column heat capacity, so the energy it
+gives back is proportional to the local mass.
+
+It is an integral controller with unit gain rather than a one-shot correction:
+the increment is already inside the imbalance measured after it, so subtracting
+the residual leaves exactly minus the raw imbalance. It settles in one step and
+then tracks. **Reading `denergy26 - denergy27` on a run with the fixer on
+therefore reports the RESIDUAL, near zero, and the size of the defect is
+`denergyfix` itself**, which the model prints and the manifest carries.
+
+Why it is worth having even though it fixes nothing: without it the surface
+supplies the shortfall silently, and the surface is what the rest of the project
+reads. With the atmosphere no longer short those watts it stops drawing them
+down, so the flux partitioning relaxes toward correct.
+
+Why it is dangerous: it MASKS the defect it compensates. A fixer whose magnitude
+nobody looks at turns a known 0.9 W/m2 into an unknown one that can grow. That is
+the whole reason the applied increment is reported rather than absorbed, and the
+reason `check_consistency.py` refuses a run whose manifest claims the fixer while
+its namelist says otherwise.

@@ -205,6 +205,13 @@
       integer :: nentropy = 0   ! switch for entropy diagnostics
       integer :: nentro3d = 0   ! switch for 3d entropy diagnostics
       integer :: nenergy  = 0   ! switch for energy diagnostics
+      integer :: nenergyfix = 0 ! switch for the energy fixer. NOT PHYSICS: a
+!                               ! correction for the conversion defect on
+!                               ! world-0ov, tracked as world-mzy. Default off,
+!                               ! so the code below is a no-op until declared.
+      real :: denergyfix = 0.0  ! the uniform temperature increment the fixer is
+!                               ! currently applying, non-dimensional. Carried
+!                               ! across timesteps; written only on NROOT.
       integer :: nener3d  = 0   ! switch for 3d energy diagnostics
       integer :: ndheat   = 1   ! switch for heating due to momentum dissipation
       integer :: nseedlen = 0   ! length of random seed (set by lib call)
@@ -973,6 +980,7 @@
 !$omp&  n_sea_points,n_start_month,n_start_step,n_start_year,n_steps_per_year,naccuout,nadv,nafter,&
 !$omp&  naqua,ncoeff,ndatim,ndel,ndesert,ndheat,ndiag,ndiagcf,ndiaggp,ndiaggp2d,ndiaggp3d,ndiagsp,&
 !$omp&  ndiagsp2d,ndiagsp3d,ndivdamp,ndl,nener3d,nenergy,nentro3d,nentropy,neqsig,nfilter,&
+!$omp&  nenergyfix,denergyfix,&
 !$omp&  nfilterexp,nfixorb,nflux,ngenkeplerian,nglspec,ngptfilter,ngui,nguidbg,nhcadence,nhcstp,&
 !$omp&  nhdiff,nhordif,nhurricane,nindex,nkits,nlowio,noutput,npackgp,npacksp,nperpetual,nprhor,&
 !$omp&  nprint,nproc,nqspec,nrad,nrdrag,nrestart,nrho,nscatsp,nseedlen,nsela,&
