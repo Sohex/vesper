@@ -1,6 +1,6 @@
 {
-  "generated": "2026-08-24T12:48:49.986506+00:00",
-  "git_commit": "41a5f7e3050c2734d4f2ef3c2d12c1d7b09e2e31",
+  "generated": "2026-08-24T13:02:03.865407+00:00",
+  "git_commit": "5a12ca0285257f4ed47de1c9a60c7f015e9d389f",
   "variant": "baseline",
   "note": "Offline dust: emission, transport and deposition from a climatology rather than inside the climate model. notes/dust.md says why; aeolian/README.md says what the numbers mean. The two shelter ends bracket how much the surrounding terrain shields an erodible patch, which this component does not claim to know.",
   "source_build": "precarve-craton-10m",
@@ -8,7 +8,7 @@
   "climatology": "exoplasim/analysis/climatology/bootstrap_regular_climatology.nc",
   "climatology_sha256": "166b11ae912049a5dae180194a59776748aa31b93f53802fbf1ec0273743ac92",
   "config_sha256": "fba657fa39a4e666b63cbef8fce3b35e28591646a2d2332e48701f027f1d48dc",
-  "dust_config_sha256": "d1714dd840a4b6907c088f0a73674f3a2fa9b4d9fd60b484d148b29e272baab8",
+  "dust_config_sha256": "0b92bafc8c1abdd11f69ca3206c233dc77d10fadaf2dcca22b09b7956127993b",
   "lake_solution": "hydrography/data/precarve-craton-10m/surface_water.nc",
   "excluded_time_bins": [],
   "excluded_because": "near-surface wind out of line with the other bins by more than 2.5x; see flag_anomalous_bins",
@@ -80,33 +80,33 @@
   },
   "shelter_bracket": {
     "low": {
-      "aeolian_z0_m": 3e-06,
-      "global_emission_Tg_per_earth_year": 44940.29,
-      "land_mean_aod": 1.67834,
-      "global_mean_aod": 1.01988,
-      "max_aod": 26.3286,
-      "land_mean_deposition_g_m2_per_earth_year": 117.1572,
-      "max_deposition_g_m2_per_earth_year": 1594.984,
+      "aeolian_z0_m": 3.3e-06,
+      "global_emission_Tg_per_earth_year": 47984.897,
+      "land_mean_aod": 1.78727,
+      "global_mean_aod": 1.08566,
+      "max_aod": 27.8448,
+      "land_mean_deposition_g_m2_per_earth_year": 124.9076,
+      "max_deposition_g_m2_per_earth_year": 1686.874,
       "transport_converged": true
     },
     "central": {
       "aeolian_z0_m": 0.0001,
-      "global_emission_Tg_per_earth_year": 2128.433,
-      "land_mean_aod": 0.08126,
-      "global_mean_aod": 0.04989,
-      "max_aod": 1.573,
-      "land_mean_deposition_g_m2_per_earth_year": 5.5508,
-      "max_deposition_g_m2_per_earth_year": 104.639,
+      "global_emission_Tg_per_earth_year": 2479.892,
+      "land_mean_aod": 0.09379,
+      "global_mean_aod": 0.05747,
+      "max_aod": 1.6921,
+      "land_mean_deposition_g_m2_per_earth_year": 6.4466,
+      "max_deposition_g_m2_per_earth_year": 111.243,
       "transport_converged": true
     },
     "high": {
       "aeolian_z0_m": 0.001,
-      "global_emission_Tg_per_earth_year": 0.0,
+      "global_emission_Tg_per_earth_year": 0.128,
       "land_mean_aod": 0.0,
       "global_mean_aod": 0.0,
-      "max_aod": 0.0,
-      "land_mean_deposition_g_m2_per_earth_year": 0.0,
-      "max_deposition_g_m2_per_earth_year": 0.0,
+      "max_aod": 0.0001,
+      "land_mean_deposition_g_m2_per_earth_year": 0.0002,
+      "max_deposition_g_m2_per_earth_year": 0.011,
       "transport_converged": true
     }
   },
@@ -116,7 +116,7 @@
     "forcing_threshold_w_m2": 1.5,
     "land_mean_aod_range": [
       0.0,
-      1.67834
+      1.78727
     ],
     "crosses": true,
     "forcing_is_DUST_2": "this script does not price the forcing"

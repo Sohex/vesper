@@ -171,7 +171,19 @@ drag_partition:
   # and small dunes is near the top. Emission goes as roughly u* cubed and u*
   # goes as 1/ln(z/z0), so this bracket is not a small correction.
   aeolian_z0_m: 1.0e-4
-  aeolian_z0_bracket_m: [3.0e-6, 1.0e-3]
+  # THE LOW END IS z0s ITSELF, and that is the physical floor rather than a
+  # choice. `drag_efficiency` computes 1 - ln(z0/z0s)/ln(a (x/z0s)^b), which is
+  # 1 at z0 = z0s: a bed whose only roughness is its own grains keeps all of its
+  # stress, and there is no such thing as less sheltering than none. The function
+  # clamps at `z0s * 1.0001` for exactly that reason.
+  #
+  # It was declared at 3.0e-6, BELOW the clamp, so that arm silently evaluated
+  # the clamp instead and any value at or under 3.3e-6 gave the identical drag
+  # partition. The bracket says it is over the sheltering, and at its low end the
+  # sheltering was saturated rather than bracketed. Stating the floor is honest
+  # about what that arm is: the no-sheltering LIMIT, not a surface anyone expects
+  # to find. world-494.
+  aeolian_z0_bracket_m: [3.3e-6, 1.0e-3]
 # --- the subgrid wind distribution -------------------------------------------
 #
 # NOT OPTIONAL, and the reason is arithmetic rather than taste. Emission goes as

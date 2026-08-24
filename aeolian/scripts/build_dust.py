@@ -316,20 +316,46 @@ def emission_over_weibull(u_star_mean: np.ndarray, u_star_t: np.ndarray,
     n = int(sw["quadrature_points"])
     from math import gamma
     # Weibull scale from the mean: mean = c Gamma(1 + 1/k).
-    scale = u_star_mean / gamma(1.0 + 1.0 / k)
-    # Quadrature on the cumulative distribution, which puts points where the
-    # mass is and keeps the steep tail resolved.
-    q = (np.arange(n) + 0.5) / n
-    # u at each quantile: u = c (-ln(1-q))^(1/k)
-    factor = (-np.log(1.0 - q)) ** (1.0 / k)
+    scale = np.maximum(u_star_mean / gamma(1.0 + 1.0 / k), 1e-12)
+
+    # THE QUADRATURE RUNS OVER THE ACTIVE REGION, IN SURVIVAL SPACE. Emission is
+    # zero below the threshold, so with `S = exp(-(u/c)^k)` the integral over the
+    # subgrid distribution is
+    #
+    #     E = integral_0^1 flux(u(q)) dq = integral_0^{S_t} flux(u(S)) dS,
+    #     S_t = exp(-(u_t/c)^k),   u(S) = c (-ln S)^(1/k)
+    #
+    # a FINITE integral whose whole domain emits. Spacing points evenly in S over
+    # [0, S_t] therefore spends every one of them where the flux is nonzero, and
+    # reaches arbitrarily far up the wind tail as S approaches zero.
+    #
+    # It used to space them evenly in `q` over the whole of [0, 1], which is the
+    # same integral and a far worse rule for it. Two things followed and both were
+    # measured on the first dust build over the T21 bootstrap. Almost every point
+    # fell BELOW the threshold and contributed nothing: at the central roughness
+    # 2.0% of the distribution emits, so 94 of 96 points were wasted. And the top
+    # point sat at the 99.479th percentile, 2.522 times the cell mean, so with a
+    # largest land-cell mean of 9.97 m/s nothing above 25.1 m/s existed anywhere
+    # on the planet -- while the run's own high-cadence sample reached 5.475 times
+    # the land mean. The roughest bracket end needs 32.7 m/s and reported
+    # EXACTLY ZERO, not because the wind never gets there but because the
+    # integrator could not represent it. world-494.
+    #
+    # What is still unresolved is `S < S_t / (2n)`, the top half-interval. The
+    # flux there is large but the measure is 1/(2n) of the active probability and
+    # the integrand grows only as a power of `-ln S`, so the omission is bounded
+    # and shrinks with n. That is a truncation; the previous rule had a CEILING.
+    st = np.exp(-np.clip((u_star_t / scale) ** k, 0.0, 700.0))
+    frac = (np.arange(n) + 0.5) / n
 
     st0 = em["u_star_st0_m_s"] * em.get("_gravity_scaling", 1.0)
     cd = em["cd0"] * np.exp(-em["ce"] * (u_star_st - st0) / st0)
     alpha = em["c_alpha"] * (u_star_st - st0) / st0
 
     total = np.zeros_like(u_star_mean)
-    for f in factor:
-        u = scale * f
+    for f in frac:
+        surv = np.maximum(st * f, 1e-300)
+        u = scale * (-np.log(surv)) ** (1.0 / k)
         active = u > u_star_t
         if not np.any(active):
             continue
@@ -338,7 +364,8 @@ def emission_over_weibull(u_star_mean: np.ndarray, u_star_t: np.ndarray,
                     / np.maximum(u_star_st, 1e-9)
                     * (u / np.maximum(u_star_t, 1e-9)) ** alpha)
         total += np.where(active & np.isfinite(flux), np.maximum(flux, 0.0), 0.0)
-    return total / n
+    # dS = S_t / n per point, where the old rule's uniform dq gave 1 / n.
+    return total * st / n
 
 
 def advect_to_steady_state(emission, u, v, loss_rate, lat, lon, cfg):
