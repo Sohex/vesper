@@ -28,6 +28,7 @@ import numpy as np
 
 import _paths
 import convert_restart as cv
+import reset_restart_accumulators as ra
 import restart_format as rf
 import restart_schema as rs
 import restart_transforms as rt
@@ -98,14 +99,18 @@ def _synthetic_template(src: cv.RestartState, nlat: int, real_bytes: int,
     records = []
     for rec in src.records:
         name = rec.name
-        if name in ("nlat",):
+        pol = rs.POLICY[name]
+        clean_zero = (pol.semantic == rs.ACCUMULATOR and pol.model_reset == "zero")
+        if name == "nlat":
             payload = struct.pack("<i", g.nlat)
         elif name == "nlon":
             payload = struct.pack("<i", g.nlon)
         elif name == "nrsp":
             payload = struct.pack("<i", g.nrsp)
         elif rec.nbytes == 4 and inventory[name].writer == "put_restart_integer":
-            payload = rec.payload                    # nlev, nlsoil, counters
+            # Counters arrive at the start of a window; nlev and nlsoil are
+            # geometry the target must agree with.
+            payload = b"\x00" * 4 if clean_zero else rec.payload
         elif name == "seed":
             payload = rec.payload
         elif rs.POLICY[name].action == rs.REQUIRE_EQUAL:
@@ -119,10 +124,15 @@ def _synthetic_template(src: cv.RestartState, nlat: int, real_bytes: int,
             n = counts[which]
             if name == "dls":
                 values = land
-            elif rs.POLICY[name].semantic == rs.STATIC_GRID and n % g.nugp == 0:
+            elif pol.semantic == rs.STATIC_GRID and n % g.nugp == 0:
                 # A recognisable value, so a fallback that reaches for the
                 # template shows up in the report as coming from here.
                 values = np.full(n, -7.0)
+            elif pol.model_reset == "sentinel":
+                # A template has to arrive CLEAN, and clean is not zero for a
+                # running minimum. The converter refuses a dirty one, so a
+                # fixture that zeroed these would be refused and rightly.
+                values = np.full(n, pol.reset_value)
             else:
                 values = np.zeros(n)
             payload = values.astype(dtype).tobytes()
@@ -368,14 +378,26 @@ def test_end_to_end(tmp: Path, donor: Path) -> list[str]:
     inventory = rs.inventory_from_source(MODEL_SRC)
     src = cv.load(donor)
 
-    # 1. The donor as its own template: same grid, same precision, no change.
-    cv.check_compatible(src, src, inventory)
-    records, reports = cv.convert(src, src)
+    # 1. The donor onto a template cut from itself: same grid, same precision.
+    # The template has to be CLEAN, which the donor is not -- a run does not end
+    # on an output boundary -- so it is normalised first, exactly as
+    # build_restart_template.py does it. The right answer is then the cleaned
+    # donor, byte for byte: nothing but the accumulation window may move.
+    ra.reset(donor, tmp / "template_t21")
+    clean = cv.load(tmp / "template_t21")
+    cv.check_compatible(src, clean, inventory)
+    records, reports = cv.convert(src, clean)
     rf.write(tmp / "identity", records, overwrite=True)
-    _require((tmp / "identity").read_bytes() == donor.read_bytes(),
-             "a conversion onto the donor's own grid and precision changed it")
-    said.append("the donor converted against itself is byte-identical: "
-                f"{len(records)} records, nothing moved")
+    _require((tmp / "identity").read_bytes() == (tmp / "template_t21").read_bytes(),
+             "a conversion onto the donor's own grid and precision moved "
+             "something other than the accumulation window")
+    moved = sum(1 for a, b in zip(rf.read(tmp / "identity"), src.records)
+                if a.payload != b.payload)
+    _require(moved > 0, "the cleaned template is identical to the donor, so "
+                        "this test cannot tell a conversion from a copy")
+    said.append(f"the donor converted onto a template cut from itself "
+                f"reproduces it byte for byte across {len(records)} records, "
+                f"with only the {moved} accumulation records moved")
 
     # 2. Up and back down. The spectral state has a right answer here.
     t42 = _synthetic_template(src, 64, 8, tmp / "template_t42")
@@ -386,8 +408,10 @@ def test_end_to_end(tmp: Path, donor: Path) -> list[str]:
     mid = cv.load(tmp / "t42")
     _require(mid.geometry.label == "T42", "the fixture did not reach T42")
 
-    cv.check_compatible(mid, src, inventory)
-    recs21, rep21 = cv.convert(mid, src)
+    # Back down onto the same clean T21 template. A dirty one is refused, and
+    # the donor itself is dirty: a run does not end on an output boundary.
+    cv.check_compatible(mid, clean, inventory)
+    recs21, rep21 = cv.convert(mid, clean)
     rf.write(tmp / "t21_again", recs21, overwrite=True)
     back = cv.load(tmp / "t21_again")
     spectral = [n for n, p in rs.POLICY.items()
@@ -448,13 +472,13 @@ def test_end_to_end(tmp: Path, donor: Path) -> list[str]:
     # Eight bytes down to four and back. The only thing that may have moved is
     # the narrowing, so the round trip is checked against the cast error the
     # report declared rather than against a tolerance invented here.
-    narrow = _synthetic_template(src, src.geometry.nlat, 4, tmp / "template_fp32")
+    narrow = _synthetic_template(src, src.geometry.nlat, 4, tmp / "template_fp32")  # noqa: E501
     fp32_state = cv.load(narrow)
     _require(fp32_state.real_bytes == 4, "the four-byte fixture is not four-byte")
     recs32, rep32 = cv.convert(src, fp32_state)
     rf.write(tmp / "fp32", recs32, overwrite=True)
     wide = cv.load(tmp / "fp32")
-    recs_back, _ = cv.convert(wide, src)
+    recs_back, _ = cv.convert(wide, clean)
     rf.write(tmp / "fp64_again", recs_back, overwrite=True)
     widened = cv.load(tmp / "fp64_again")
     declared = {r.name: r.detail.get("cast_abs_error", 0.0) for r in rep32}
@@ -492,8 +516,14 @@ def test_end_to_end(tmp: Path, donor: Path) -> list[str]:
     _refuses(lambda: rf.write(tmp / "identity", records),
              "overwriting an existing output without being told to",
              naming="exists")
+    # The donor is itself the control here: a run does not end on an output
+    # boundary, so its own restart is a template with a partial window in it.
+    _refuses(lambda: cv.check_compatible(src, src, inventory),
+             "a template whose accumulation window is partial",
+             naming="not at the value the model resets them to")
     said.append("refuses an unknown record, a template whose record set "
-                "differs, and an overwrite it was not asked for")
+                "differs, a template cut from a run mid-window, and an "
+                "overwrite it was not asked for")
     return said
 
 
