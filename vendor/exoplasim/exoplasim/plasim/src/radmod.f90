@@ -438,6 +438,7 @@
       
       
       real dl1,dl2,hinge,const1,const2,z1,z2,znet,wmin,lwmin,w1,w2,f1,f2,x
+      real zout1,zout2 !Band flux lying outside the albedo grid
       integer k,nw,j
      
       if (mypid == NROOT) then
@@ -543,6 +544,26 @@
      &                         *(wvg2(k+1)-wvg2(k))
         enddo
         z1 = z1 + 0.5*(bb1(1024)+bb2(1))*(wv2(1)-wv1(1024))
+
+!       The albedo grid does not span the model's bands. `wavelengths` runs
+!       0.34 to 14.01 microns, while band 1 begins at minwavel and band 2 runs
+!       to 100 microns. a1 and a2 below are integrated on the ALBEDO grid and
+!       normalised by z1 and z2, which are integrated on the SPECTRUM grid, so
+!       without the two terms added to every a1/a2 pair the quotient implicitly
+!       assigns ZERO reflectance to the flux outside the albedo grid. For a K
+!       dwarf that is 1.48 percent of band 1 and 0.06 percent of band 2, and it
+!       is one-signed dark on every surface. Each blend is held at its endpoint
+!       value across the gap, so numerator and denominator cover one interval.
+        zout1 = 0.0
+        zout2 = 0.0
+        do k=1,1023
+          if (wv1(k+1) .le. 1.0e-6*wavelengths(1)) then
+            zout1 = zout1 + 0.5*(bb1(k)+bb1(k+1))*(wv1(k+1)-wv1(k))
+          endif
+          if (wv2(k) .ge. 1.0e-6*wavelengths(965)) then
+            zout2 = zout2 + 0.5*(bb2(k)+bb2(k+1))*(wv2(k+1)-wv2(k))
+          endif
+        enddo
         zcross1 = zcross1+0.5*(bb1(1024)/((wv1(1024)*1.0e6)**4)+bb2(1)/((wv2(1)*1.0e6)**4)) &
      &                         *(wv2(1)-wv1(1024))
         zg1 = zg1 + 0.5*(bbg1(1024)+bbg2(1))*(wvg2(1)-wvg1(1024))
@@ -609,6 +630,8 @@
         zdenom1 = 0.01/z1
         zdenom2 = 0.01/z2
         
+        a1 = a1 + iceblend(1)*zout1   !Flux below the albedo grid
+        a2 = a2 + iceblend(965)*zout2 !Flux above the albedo grid
         a1 = zdenom1*a1 !Percent -> Decimal; normalization
         a2 = zdenom2*a2
         
@@ -646,6 +669,8 @@
             a2 = a2 + 0.5*(bb3(k)*iceblendmin(k)+bb3(k+1)*iceblendmin(k+1))* &
        &              1.0e-6*(wavelengths(k+1)-wavelengths(k))
         enddo
+        a1 = a1 + iceblendmin(1)*zout1   !Flux below the albedo grid
+        a2 = a2 + iceblendmin(965)*zout2 !Flux above the albedo grid
         a1 = zdenom1*a1 !Percent -> Decimal; normalization
         a2 = zdenom2*a2
         
@@ -668,6 +693,8 @@
             a2 = a2 + 0.5*(bb3(k)*iceblendmax(k)+bb3(k+1)*iceblendmax(k+1))* &
        &              1.0e-6*(wavelengths(k+1)-wavelengths(k))
         enddo
+        a1 = a1 + iceblendmax(1)*zout1   !Flux below the albedo grid
+        a2 = a2 + iceblendmax(965)*zout2 !Flux above the albedo grid
         a1 = zdenom1*a1 !Percent -> Decimal; normalization
         a2 = zdenom2*a2
         
@@ -690,6 +717,8 @@
             a2 = a2 + 0.5*(bb3(k)*seaicemin(k)+bb3(k+1)*seaicemin(k+1))* &
        &              1.0e-6*(wavelengths(k+1)-wavelengths(k))
         enddo
+        a1 = a1 + seaicemin(1)*zout1   !Flux below the albedo grid
+        a2 = a2 + seaicemin(965)*zout2 !Flux above the albedo grid
         a1 = zdenom1*a1 !Percent -> Decimal; normalization
         a2 = zdenom2*a2
         
@@ -712,6 +741,8 @@
             a2 = a2 + 0.5*(bb3(k)*seaicemax(k)+bb3(k+1)*seaicemax(k+1))* &
        &              1.0e-6*(wavelengths(k+1)-wavelengths(k))
         enddo
+        a1 = a1 + seaicemax(1)*zout1   !Flux below the albedo grid
+        a2 = a2 + seaicemax(965)*zout2 !Flux above the albedo grid
         a1 = zdenom1*a1 !Percent -> Decimal; normalization
         a2 = zdenom2*a2
         
@@ -734,6 +765,8 @@
             a2 = a2 + 0.5*(bb3(k)*glacalbmin(k)+bb3(k+1)*glacalbmin(k+1))* &
        &              1.0e-6*(wavelengths(k+1)-wavelengths(k))
         enddo
+        a1 = a1 + glacalbmin(1)*zout1   !Flux below the albedo grid
+        a2 = a2 + glacalbmin(965)*zout2 !Flux above the albedo grid
         a1 = zdenom1*a1 !Percent -> Decimal; normalization
         a2 = zdenom2*a2
         
@@ -756,6 +789,8 @@
             a2 = a2 + 0.5*(bb3(k)*groundblend(k)+bb3(k+1)*groundblend(k+1))* &
        &              1.0e-6*(wavelengths(k+1)-wavelengths(k))
         enddo
+        a1 = a1 + groundblend(1)*zout1   !Flux below the albedo grid
+        a2 = a2 + groundblend(965)*zout2 !Flux above the albedo grid
         a1 = zdenom1*a1 !Percent -> Decimal; normalization
         a2 = zdenom2*a2
         
@@ -778,6 +813,8 @@
             a2 = a2 + 0.5*(bb3(k)*oceanblend(k)+bb3(k+1)*oceanblend(k+1))* &
        &              1.0e-6*(wavelengths(k+1)-wavelengths(k))
         enddo
+        a1 = a1 + oceanblend(1)*zout1   !Flux below the albedo grid
+        a2 = a2 + oceanblend(965)*zout2 !Flux above the albedo grid
         a1 = zdenom1*a1 !Percent -> Decimal; normalization
         a2 = zdenom2*a2
         

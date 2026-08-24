@@ -49,6 +49,7 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import _paths  # noqa: F401
+from paths import rel  # noqa: E402  from lib/, put on sys.path by _paths
 
 ROOT = Path(__file__).resolve().parents[2]
 RUNS = ROOT / "exoplasim" / "runs"
@@ -242,7 +243,7 @@ def main() -> None:
               for k in args.kappa.split(",")]
     WORK.mkdir(parents=True, exist_ok=True)
     template = find_template(args.rung)
-    print(f"template: {template.relative_to(ROOT)}")
+    print(f"template: {rel(template)}")
 
     results = []
     for dt in dts:
@@ -273,7 +274,7 @@ def main() -> None:
             prior["generated"] = datetime.now(timezone.utc).isoformat()
             args.out.parent.mkdir(parents=True, exist_ok=True)
             args.out.write_text(json.dumps(prior, indent=2))
-    print(f"\nwrote {args.out.relative_to(ROOT)}")
+    print(f"\nwrote {rel(args.out)}")
 
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 {
   "generated": "2026-08-24",
   "generator": "analysis/ice_albedo.py",
-  "finding": "radmod.f90 normalises a numerator integrated on the 965-point blend grid by a denominator integrated on the 2048-point spectrum grid. The two do not span the same band-1 interval, so the quotient is not a reflectance.",
+  "finding": "radmod.f90's surface albedo quotient covers one interval in numerator and denominator. Before the repair the numerator stopped at the blend grid's 0.34 um while the denominator ran from minwavel, which assigned zero reflectance to 1.48 percent of band 1.",
   "spectrum_lowres": "exoplasim/inputs/stellarspectra/k25v.dat",
   "spectrum_hires": "exoplasim/inputs/stellarspectra/k25v_hr.dat",
   "spectrum_sha256": "50729d2432316108c45332eac45e6d36e7b6f7fd0c34c854bfc822533119cb51",
@@ -10,25 +10,47 @@
   "reproduction_tolerance": 1e-09,
   "band1_flux_fraction": 0.382372,
   "surfaces": {
+    "dsnowalb": {
+      "blend": "iceblend",
+      "surface": "snow, base",
+      "declared_default": 0.75,
+      "model_bands": [
+        0.763826,
+        0.406115
+      ],
+      "recorded_bands": [
+        0.763826,
+        0.406115
+      ],
+      "single_grid_bands": [
+        0.76369,
+        0.406324
+      ],
+      "band1_vs_alternative": 0.000136,
+      "band2_vs_alternative": -0.000209,
+      "hi_res_reference_bands": [
+        0.763785,
+        0.406105
+      ]
+    },
     "dsnowalbmx": {
       "blend": "iceblendmax",
       "surface": "snow, maximum",
       "declared_default": 0.8,
       "model_bands": [
-        0.968193,
-        0.585286
+        0.982784,
+        0.585295
       ],
       "recorded_bands": [
-        0.968193,
-        0.585286
+        0.982784,
+        0.585295
       ],
       "single_grid_bands": [
         0.982629,
         0.585611
       ],
-      "band1_error": -0.014437,
-      "band2_error": -0.000325,
-      "band1_error_relative": -0.014692,
+      "band1_vs_alternative": 0.000155,
+      "band2_vs_alternative": -0.000317,
       "hi_res_reference_bands": [
         0.982705,
         0.585277
@@ -39,20 +61,19 @@
       "surface": "snow, minimum",
       "declared_default": 0.4,
       "model_bands": [
-        0.500267,
-        0.272589
+        0.507825,
+        0.272612
       ],
       "recorded_bands": [
-        0.500267,
-        0.272589
+        0.507825,
+        0.272612
       ],
       "single_grid_bands": [
         0.507726,
         0.272741
       ],
-      "band1_error": -0.007459,
-      "band2_error": -0.000152,
-      "band1_error_relative": -0.014692,
+      "band1_vs_alternative": 9.9e-05,
+      "band2_vs_alternative": -0.000129,
       "hi_res_reference_bands": [
         0.507797,
         0.272605
@@ -63,20 +84,19 @@
       "surface": "sea ice, maximum",
       "declared_default": 0.7,
       "model_bands": [
-        0.878555,
-        0.472884
+        0.89181,
+        0.472898
       ],
       "recorded_bands": [
-        0.878555,
-        0.472884
+        0.89181,
+        0.472898
       ],
       "single_grid_bands": [
         0.891655,
         0.473147
       ],
-      "band1_error": -0.0131,
-      "band2_error": -0.000263,
-      "band1_error_relative": -0.014692,
+      "band1_vs_alternative": 0.000155,
+      "band2_vs_alternative": -0.000249,
       "hi_res_reference_bands": [
         0.891761,
         0.472886
@@ -87,20 +107,19 @@
       "surface": "sea ice, minimum",
       "declared_default": 0.5,
       "model_bands": [
-        0.626302,
-        0.339473
+        0.635755,
+        0.339491
       ],
       "recorded_bands": [
-        0.626302,
-        0.339473
+        0.635755,
+        0.339491
       ],
       "single_grid_bands": [
         0.635641,
         0.339662
       ],
-      "band1_error": -0.009339,
-      "band2_error": -0.000189,
-      "band1_error_relative": -0.014692,
+      "band1_vs_alternative": 0.000114,
+      "band2_vs_alternative": -0.000171,
       "hi_res_reference_bands": [
         0.63572,
         0.339482
@@ -111,32 +130,82 @@
       "surface": "glacier ice, minimum",
       "declared_default": 0.6,
       "model_bands": [
-        0.752429,
-        0.406179
+        0.763782,
+        0.406194
       ],
       "recorded_bands": [
-        0.752429,
-        0.406179
+        0.763782,
+        0.406194
       ],
       "single_grid_bands": [
         0.763648,
         0.406404
       ],
-      "band1_error": -0.011219,
-      "band2_error": -0.000226,
-      "band1_error_relative": -0.014692,
+      "band1_vs_alternative": 0.000134,
+      "band2_vs_alternative": -0.00021,
       "hi_res_reference_bands": [
         0.763741,
         0.406184
       ]
+    },
+    "dgroundalb": {
+      "blend": "groundblend",
+      "surface": "bare ground",
+      "declared_default": 0.2,
+      "model_bands": [
+        0.193545,
+        0.230023
+      ],
+      "recorded_bands": [
+        0.193545,
+        0.230023
+      ],
+      "single_grid_bands": [
+        0.194532,
+        0.230145
+      ],
+      "band1_vs_alternative": -0.000987,
+      "band2_vs_alternative": -0.000122,
+      "hi_res_reference_bands": [
+        0.193423,
+        0.230018
+      ]
+    },
+    "doceanalb": {
+      "blend": "oceanblend",
+      "surface": "open ocean",
+      "declared_default": 0.069,
+      "model_bands": [
+        0.07557,
+        0.063668
+      ],
+      "recorded_bands": [
+        0.07557,
+        0.063668
+      ],
+      "single_grid_bands": [
+        0.075547,
+        0.063643
+      ],
+      "band1_vs_alternative": 2.3e-05,
+      "band2_vs_alternative": 2.5e-05,
+      "hi_res_reference_bands": [
+        0.075559,
+        0.063668
+      ]
     }
   },
-  "broadband_error": {
-    "dsnowalbmx": -0.005721,
-    "dsnowalbmn": -0.002946,
-    "dicealbmx": -0.005172,
-    "dicealbmn": -0.003688,
-    "dglacalbmn": -0.004429
+  "band1_flux_outside_blend_grid": 0.014829,
+  "band2_flux_outside_blend_grid": 0.00056,
+  "broadband_vs_alternative": {
+    "dsnowalb": -7.7e-05,
+    "dsnowalbmx": -0.000137,
+    "dsnowalbmn": -4.2e-05,
+    "dicealbmx": -9.5e-05,
+    "dicealbmn": -6.2e-05,
+    "dglacalbmn": -7.8e-05,
+    "dgroundalb": -0.000453,
+    "doceanalb": 2.4e-05
   },
-  "note": "band1_error is what the mixed normalisation costs; it is one-signed DARKER on every surface, so the simulation's ice-albedo feedback is slightly stronger than a consistent integration gives, not weaker. The flat declarations at plasimmod.f90:428-432 never reach the radiation and are not the defect."
+  "note": "band1_vs_alternative is the residual choice between the two self-consistent repairs, not an error: extending the numerator against normalising by the blend grid's own flux. It is largest on ground, where holding an endpoint value across the gap is least representative. The flat declarations at plasimmod.f90:428-432 never reach the radiation and were never the defect."
 }
