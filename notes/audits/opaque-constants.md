@@ -575,9 +575,13 @@ period, `mixed_layer_depth_m`, `filter_kappa`, `filter_power`, `salinity_psu`,
 `cold_start_seed`. `N_DAYS_PER_YEAR` and `N_RUN_STEPS` are both correctly
 overridden past `configure()`'s Earth-360-day fallbacks.
 
-**`p_earth.f90`'s remaining constants are either overridden or inert.** `alr =
-0.0065`, `tropical_year = 31556956.0` and `nplanet = 3` are set, MPI-broadcast and
-never consumed anywhere in the live source. `solar_day` and `sidereal_day` are
+**Two of `p_earth.f90`'s remaining constants are inert.** `tropical_year =
+31556956.0` and `nplanet = 3` are set, MPI-broadcast and never consumed anywhere
+in the live source, case-insensitively checked. **`alr` is NOT one of them**: it
+is consumed as uppercase `ALR` eleven times in `setzt` (`plasim.f90:2219-2259`)
+and four times in `guimod.f90`, so it is live on the cold-start path and is the
+row in the table above rather than a clean item. A case-sensitive grep is what
+hid it. `solar_day` and `sidereal_day` are
 recomputed from `rotspd` at `plasim.f90:1490-1503`, so Earth's 86400 does not
 survive into a run and the convective cloud fit at `rainmod.f90:1926` gets the
 right day length. `ra1`, `ra2`, `ra4` and `tmelt` are properties of water.
@@ -628,6 +632,18 @@ components; or Orogen's generation constants.
 Tracked in the `bd` issue tracker under the `opaque-const` label, not restated
 here.
 
+Four audits ran over this fork on 2026-08-24, from different angles: this one,
+`model-earth-centrism.md` (`audit:model-earth-centrism`),
+`resolution-divergence.md` (`resdiv`) and `dead-code-and-unreachable-paths.md`
+(`deadcode`). Their task lists were deduplicated against each other on the same
+day. Two of this audit's beads were superseded as duplicates -- `world-st4` into
+`world-mll`, and `world-b3s` into the finer `world-ltc`/`world-qjq`/`world-ajx`
+decomposition -- and no two open beads across the four audits now cite the same
+line. Where two audits found different defects in the same constants, both beads
+were kept and linked: the gate tolerances (`world-134` and `world-2ic`), and the
+hyperdiffusion keys (`world-720` and `world-8bs`, which are the initial run and
+the continuation respectively).
+
 | finding | id |
 | --- | --- |
 | 1. hyperdiffusion reaches one model level of ten | `world-720` |
@@ -639,12 +655,12 @@ here.
 | 7. the roughness anchor is computed at Earth's gravity | `world-44l` |
 | 8. cloud liquid water and cloud optical depth | `world-ofn` |
 | 9. the boundary layer runs at compiled defaults | `world-e2k` |
-| 10. Earth's radius in `oceanmod`, under `clim-65` | `world-mll` |
+| 10. Earth's radius in `oceanmod`, under `clim-65` | `world-mll` (merged with `world-st4`) |
 | 11. a fourth lapse rate, and a 255 K clamp, in `pyburn` | `world-ld1` |
 | 12. the vertical grid comes from a subclass default | `world-a05` |
 | 13. `gamma` is 0.01 and the note says otherwise | `world-j6v` |
 | 14. `OMP_STACKSIZE` is absent from the run path | `world-3nk` |
-| 15. T31 is unbuildable and the ladder is spelled four more times | `world-b3s` |
+| 15. T31 is unbuildable and the ladder is spelled four more times | `world-ltc`, `world-qjq`, `world-ajx` |
 | 16. the albedo bracket collapses to one arm | `world-ue5` |
 | 17. the energy fixer's state is not in the restart | `world-fsr` |
 | 18. the diffuse aerosol two-stream is the direct one | `world-sv7` |
@@ -654,6 +670,6 @@ here.
 | the solar/sidereal timestep, latent below dt 12.4 min | `world-r8o` |
 | the run log's planet table | `world-1o4` |
 | `clim-68`'s stale citations and inverted sub-claim | `world-ylw` |
-| the compiled planet module, `akap`, and three inerts | `world-cwu` |
+| `akap` was not re-derived beside `gascon`, and two constants are inert | `world-cwu` |
 | `lake_dwmax_m` is not in config | `world-vus` |
 | two vegetation endmembers left at Earth-Sun values | `world-9m5` |
