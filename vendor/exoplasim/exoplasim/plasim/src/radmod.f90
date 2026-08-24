@@ -1821,6 +1821,19 @@
 !     this read 510 elements past the end of zsolars(2) on every rank and wrote
 !     8190 elements of buffer into the restart. solarini already uses the right
 !     idiom for this array. failure-modes.md class 18, CLIM-37.
+!
+!     THIS WRITE IS A CONFIGURATION FINGERPRINT AND NOT CHECKPOINTED STATE.
+!     Nothing reads it back: the get_restart_array block in radini is commented
+!     out, because CLIM-38 made solarini unconditional and the pair is rebuilt
+!     from the namelist and the spectrum at every start. It is kept because it
+!     is the only place a restart, handed on without its run directory, records
+!     which two-band split of the stellar constant the orbits were integrated
+!     with -- and the pair is live model state, not a diagnostic: swr forms the
+!     band-weighted surface albedo from it at nstartemp = 1. A restart whose
+!     zsolars disagrees with the configuration it is being resumed under is a
+!     different star, and the fingerprint is what makes that visible.
+!     exoplasim/scripts/restart_schema.py carries the conversion policy and
+!     says the same thing; world-5rq.
       if (mypid == NROOT) call put_restart_array('zsolars',zsolars,2,2,1)
       
 
