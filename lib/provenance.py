@@ -255,6 +255,10 @@ SURFACE_UNREAD_MODEL_KEYS = {
     # than its leaves because config_drift tests a block name before recursing,
     # so naming the block skips everything under it.
     "surface_albedo": frozenset({
+        # Read only by `build_surface_soil_water.py --lakes`, which writes the
+        # bucket depth over the lake fraction. Traced: `grep -c lake_dwmax_m`
+        # is 0 in this generator.
+        "model.lake_dwmax_m",
         "model.co2_sw_weight", "model.energy_diagnostics",
         "model.energy_diagnostics_3d", "model.h2o_sw_level",
         "model.h2o_sw_weight", "model.layers", "model.ncpus",
@@ -278,6 +282,10 @@ SURFACE_UNREAD_MODEL_KEYS = {
         "model.vegetation_albedo_bracket",
     }),
     "surface_roughness": frozenset({
+        # Read only by `build_surface_soil_water.py --lakes`, which writes the
+        # bucket depth over the lake fraction. Traced: `grep -c lake_dwmax_m`
+        # is 0 in this generator.
+        "model.lake_dwmax_m",
         "model.co2_sw_weight", "model.energy_diagnostics",
         "model.energy_diagnostics_3d", "model.geography_land_threshold",
         "model.h2o_sw_level", "model.h2o_sw_weight",
@@ -337,6 +345,10 @@ SURFACE_UNREAD_MODEL_KEYS = {
         "model.vegetation_albedo_bracket",
     }),
     "boundary_conditions": frozenset({
+        # Read only by `build_surface_soil_water.py --lakes`, which writes the
+        # bucket depth over the lake fraction. Traced: `grep -c lake_dwmax_m`
+        # is 0 in this generator.
+        "model.lake_dwmax_m",
         "model.barren_rock_classes", "model.co2_sw_weight",
         "model.energy_diagnostics", "model.energy_diagnostics_3d",
         "model.h2o_sw_level", "model.h2o_sw_weight",
