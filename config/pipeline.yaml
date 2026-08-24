@@ -673,7 +673,6 @@ one_offs:
   - exoplasim/scripts/verify_filter_fold.sh
   - exoplasim/scripts/build_model.py
   - exoplasim/scripts/verify_legendre_parity.py
-  - exoplasim/scripts/verify_latitude_pairing.py
   - exoplasim/scripts/compare_restarts.py
   - exoplasim/scripts/verify_symmetric_transform.py
   - exoplasim/scripts/verify_weight_factorisation.py

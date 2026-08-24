@@ -903,10 +903,6 @@ RUNG_TABLE_EXEMPT = {
         "enumerates SOURCE-TARGET grid pairs for the converter, which is a "
         "property of the conversion rather than a rung-to-dimension mapping; "
         "it maps no rung name to anything",
-    "exoplasim/scripts/verify_latitude_pairing.py":
-        "the pairing identity is a property of a LATITUDE COUNT and the cases "
-        "are chosen to span odd and even NLPP; they are not a rung table and "
-        "the file names no rung",
 }
 
 

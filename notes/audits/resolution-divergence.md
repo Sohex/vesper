@@ -332,7 +332,7 @@ restatements as audited, and how each differed:
 | `exoplasim/scripts/stability_probe.py` | five rungs | also globbed the binary across layers and ranks | closed, world-ltc |
 | `exoplasim/scripts/filter_timestep_matrix.py` | five rungs | restated SPAT-2's reasoning in the comment above the copy | closed, world-ltc: imports `rungs` |
 | `exoplasim/scripts/verify_gauss_weights.sh` | five latitude counts | 48, 96 and 160 never checked | closed, world-ltc: the sweep is `rungs.RUNGS` |
-| `exoplasim/scripts/verify_latitude_pairing.py` | a case list | comment said it covered the ladder; three rungs absent | still a list, and correctly so: `CASES` at `:43-48` pairs NLAT with NPRO to exercise both sides of the divisibility fallback, which is a test matrix and not a ladder restatement |
+| `exoplasim/scripts/verify_latitude_pairing.py` | a case list | comment said it covered the ladder; three rungs absent | DELETED under `world-h8o`: `ilatperm` went with the paired decomposition in `2508bedb`, so the gate could not run and there was nothing to point it at |
 | `scripts/archive_builds.py:56-57` | five expected grids | it gates archiving at `:150`, and the ACTIVE build has neither `exoplasim-T63` nor `grid-512x256`, so that build can never be archived | **UNCHANGED**; `EXPECTED_GRIDS` is still a literal list, and no lint reaches it. `world-txz` |
 
 `world-ltc` also widened the SPAT-2 lint that had missed most of them:
