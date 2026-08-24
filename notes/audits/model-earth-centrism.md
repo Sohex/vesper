@@ -590,12 +590,24 @@ asymmetry: the NLEV=20 equivalent (`plasim.f90:1459-1469`) requires
 this project runs, is unconditional. By mechanism II these are 20 and 100
 sidereal days, so 25 and 125 Earth days.
 
-An inherited Earth-tuned top-of-model sponge, live in every run, on layers near
-25 to 40 hPa, appearing in none of this project's declared parameters -- unlike
-the filter, the hyperdiffusion and the timestep, which are all argued in
-`config/planet.yaml`. Whether 20 days suits a 30-hour rotator at 1.31 g is the
-kind of question this project's conventions say is answered rather than
-inherited.
+An inherited Earth-tuned top-of-model sponge, live in every run, on the layers
+at sigma 0.025 and 0.094 -- 2.5 and 9.4 kPa on a 1 bar surface -- appearing in
+none of this project's declared parameters, unlike the filter, the
+hyperdiffusion and the timestep, which are all argued in `config/planet.yaml`.
+Whether 20 days suits a 30-hour rotator at 1.31 g is the kind of question this
+project's conventions say is answered rather than inherited.
+
+**THE SIGMA SET IN THIS DOCUMENT WAS THE WRONG ONE.** Measured 2026-08-24
+against `run_2b20e3324bb0/MOST_DIAG.00001`, whose vertical table reads 0.02500,
+0.09372, 0.18812, 0.29717, 0.42058, 0.55432, 0.69069, 0.81826, 0.92191, 0.98282,
+and whose namelist carries `NEQSIG = 4` and `PTOP = 5000.0`. The set this
+document used -- 0.038, 0.12, 0.21, 0.32, 0.44, 0.57, 0.70, 0.82, 0.92, 0.98 --
+is `plasim.f90`'s `neqsig == 0` fallback, which runs the same polynomial
+UNRESCALED and puts the model top at 7660 Pa instead of 5000. Every run on
+record is on the rescaled set. The two agree from level 3 down and differ by a
+third and a fifth at levels 1 and 2, which is exactly where a top-of-model
+sponge and a cloud-water profile are read. Finding 15's per-layer liquid-water
+table is computed on the fallback set and is `world-ofn`'s to redo.
 
 ## 21. The boundary-layer mixing length is a fixed number of metres in a sigma scheme
 
@@ -1010,7 +1022,7 @@ except below mu about 0.03, where the cell receives under 3 per cent of
 normal-incidence flux. Under 0.1 W/m2.
 
 **`tfrc`'s timescales cancel their `day_24hr` correctly** and relax over
-planetary rotations; the sponge sits on sigma 0.038 and 0.119, so it is
+planetary rotations; the sponge sits on sigma 0.025 and 0.094, so it is
 stratospheric rather than boundary-layer drag. `miscmod.f90:76` converts days to
 seconds using the planet's own rotation and is the one that is right, though
 inconsistent in convention with `plasim.f90`.

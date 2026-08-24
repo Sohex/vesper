@@ -101,9 +101,31 @@ energy sink proportional to it. `Phi0_k = Sum_j g(j,k) t0` is built from `t0`
 alone, and that note's finding is that `Phi0` weights the difference by up to 3.8
 times `t0`, giving `Cimp - Ct = -0.9588 W/m2` against a sink of `-0.7938`. **The
 defect the fork's energy fixer exists to mask scales with a number nobody
-chose**, and 250 K is Earth's mass-weighted tropospheric mean rather than this
-atmosphere's. It also sets the explicit gravity-wave limit `nconvtime` computes
+chose.** It also sets the explicit gravity-wave limit `nconvtime` computes
 (`plasim.f90:700`) and the blow-up floor at `plasim.f90:1338`.
+
+**Derived 2026-08-24, and the result is null.** The rule: the mass-weighted mean
+of the `setzt` profile over the model's own ten sigma levels, weights `dsigma`,
+on the `NEQSIG = 4` grid every run is on. Run on Earth's `gascon` and `ga` with
+`tgr` 288, `ALR` 0.0065 and `dtrop` 12000 it returns **248.45 K**, which
+identifies where the inherited 250.0 comes from and is what makes the rule the
+right one rather than a plausible one. Run on this atmosphere's `gascon` 287.017
+and `ga` 12.81 with the cold-start profile `world-wmw` declares -- 289.03 K,
+8.489 K/km, 9220 m -- it returns **249.35 K**.
+
+The two agree to 0.65 K, 0.26 per cent, so the sink moves by 0.002 W/m2 on a
+sink of 0.79. The agreement is not a coincidence and it is worth stating why:
+the vertical mass distribution is fixed by the sigma set, this world's surface
+temperature is within a kelvin of Earth's, and its tropopause temperature is
+within a kelvin of Earth's because the lapse rate and the tropopause height were
+scaled by the same atmosphere's constants. `t0` is a column-mean temperature,
+and this column has Earth's endpoints on Earth's mass distribution.
+
+What changes is not the number but its standing: `t0` is declared at 249.4 in
+`config/planet.yaml` with the rule above, so it moves when the profile does.
+Re-derive it from the baseline climatology's own mass-weighted mean once the
+canonical climatology lineage exists; the cold-start profile is the best
+estimate available before there is one.
 
 ## 4. The transform-equivalence gate certifies a filter the model stopped using
 
