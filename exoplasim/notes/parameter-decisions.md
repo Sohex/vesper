@@ -844,7 +844,7 @@ sea ice and the Planck response, not on which terrain produced it.
 | 0.9125 | `run_5aed450f3972` | 282.489 K | 282.491 K | 6.174% |
 | 0.968 | `run_1dbb75d05aca` | 293.741 K | 293.663 K | 0.206% |
 
-**201 K per unit flux ratio**, or 2.01 K per 0.01 — from the fitted asymptotes.
+**201 K per unit flux ratio**, or 2.01 K per 0.01, from the fitted asymptotes.
 Run means give 203 and drift-implied endpoints 206, so call it 201 to 206.
 
 Confirmed 2026-08-17 on the active build, which is what makes it usable rather
