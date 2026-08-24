@@ -287,6 +287,12 @@ SURFACE_UNREAD_MODEL_KEYS = {
         # world-9m5. tree_albedo and grass_albedo themselves are READ here and
         # are deliberately absent; only their brackets are unread.
         "model.tree_albedo_bracket", "model.grass_albedo_bracket",
+        # world-36g. The band pair moved out of this generator when the split
+        # became a per-material RATIO: the shapes come from
+        # analysis/rock_albedo_bands.json and analysis/vegetation_albedo.json
+        # and are applied to whatever level each material carries, so the
+        # config pair is now read only by run_exoplasim, as ALBFOREST.
+        "model.vegetation_albedo_bands",
     }),
     "surface_roughness": frozenset({
         # Read only by `build_surface_soil_water.py --lakes`, which writes the

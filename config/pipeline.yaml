@@ -107,7 +107,7 @@ steps:
     script: exoplasim/scripts/build_surface_albedo.py
     loop: [A, C]
     cost: minutes
-    needs: [lpj_run]
+    needs: [lpj_run, rock_albedo_bands, vegetation_albedo]
     writes: ["exoplasim/inputs/{res_lower}/albedo_report.json", "exoplasim/inputs/{res_lower}/orogen_{res}_surf_0174.sra", "exoplasim/inputs/{res_lower}/orogen_{res}_surf_0175.sra", "exoplasim/inputs/{res_lower}/orogen_{res}_surf_0176.sra", "exoplasim/inputs/{res_lower}/orogen_{res}_surf_0212.sra"]
     gate: >
       the `lpj_run` edge is loop C and is a BACK edge: the first pass of an
@@ -348,6 +348,18 @@ steps:
     cost: seconds
     needs: [stellar_spectrum]
     writes: [analysis/vegetation_albedo.json]
+
+  - id: rock_albedo_bands
+    script: analysis/rock_albedo_bands.py
+    cost: seconds
+    needs: [stellar_spectrum]
+    writes: [analysis/rock_albedo_bands.json]
+    gate: >
+      the two-band shape per rock class, which `surface_albedo` multiplies into
+      whatever level each material carries. It depends on the star and on the
+      lithology table, not on a build, so it sits outside every loop; a new rock
+      class in `vendor/orogen/js/lithology.js` makes it raise rather than
+      writing that class spectrally flat.
 
   - id: ice_albedo
     script: analysis/ice_albedo.py

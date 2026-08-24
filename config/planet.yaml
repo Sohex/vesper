@@ -868,12 +868,16 @@ model:
   # where it lowers a mineral's. The leaf ratio upper-bounds the canopy
   # correction, so the bracket runs from the uncorrected endmember to the
   # tails-carried ratio. The band pair is the same integrals split at 0.75 um,
-  # anchored so their flux-weighted combination is the broadband value; codes
-  # 175/176 carry it over vegetated ground, where one identical field used to
-  # assert that a canopy reflects equally either side of the split.
+  # anchored on the model's OWN band weights -- lib/stellar's reproduction of
+  # radmod's solarini, minwavel cut and band-edge interval included -- so that
+  # z1*band1 + z2*band2 returns the broadband value as an identity. Anchoring
+  # instead on the flux share of the range the leaves were measured over, which
+  # is 0.399 against the model's 0.382, recombines 0.0025 too bright; that is
+  # reported as band_recombination_residual_naive_anchor. Codes 175/176 carry
+  # the pair, and run_exoplasim passes it to landmod as ALBFOREST.
   vegetation_albedo: 0.165
   vegetation_albedo_bracket: [0.150, 0.171]
-  vegetation_albedo_bands: [0.075, 0.225]
+  vegetation_albedo_bands: [0.074, 0.222]
   # DERIVED 2026-08-24 by the same script and the same ratio. These are the
   # other two endmembers named in the same sentence of that finding: the
   # albedo of full tree cover and of full grass cover, which is what
