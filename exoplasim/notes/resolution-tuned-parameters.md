@@ -943,60 +943,79 @@ Which END of the conversion is wrong is not decidable from outside the model,
 and the route to it is on `world-0ov`: the kinetic side instrumented in the same
 arithmetic as `P2`, in the same run.
 
-## The model's omega/p misses an exact identity, and a correction to the reading above
+## The budget closes: the conversion carries the sink
+
+The mass-weighted enthalpy budget across `spectrala`, every term in the model's
+own arithmetic and in the same units and by the same formula as `denergy02`, so
+they are directly comparable. Averages over one orbit with the first three
+prints dropped as transient, W/m2:
+
+    P1   gt*gd                        -0.2989
+    P2   the conversion               -1.0247
+    P3   vertical advection           +0.6746
+    ---------------------------------------
+    gtn total, printed by the model   -0.6490
+    denergy02, the full tendency      -0.9542
+    => flux term <ps div(V T)>        -0.3051   by difference
+
+The flux term is the piece that had never been looked at: it contributes nothing
+to the global-mean TEMPERATURE tendency, because `mktend`'s (0,0) coefficient
+takes nothing from `gut` or `gvt`, but it contributes to the mass-weighted
+budget, which is the one the energy lives in. Recovering it closes both halves.
+
+**THE ADVECTION CONSERVES ENTHALPY.** If it did not, the identity
+
+    <ps (P1 + P3 + flux)>  +  <cp T dps/dt>  =  0
+
+would fail. It comes to +0.0705 and +0.0196, summing to **+0.090 W/m2** against
+a sink of 0.849 -- a tenth of it, and of the opposite sign.
+
+**THE CONVERSION DOES NOT.** Its two ends must cancel:
+
+    temperature equation, P2          -1.0247
+    kinetic energy gained, -denergy27 +0.0860
+    sum, which must be zero           -0.9387
+
+And the two together account for the whole thing:
+
+    -0.9387  (conversion)  +  0.0902  (advection)  =  -0.8486
+    denergy26 - denergy27                          =  -0.8486
+
+That is the sink, to the last digit, with nothing left over. **The temperature
+equation's adiabatic conversion removes 1.02 W/m2 of enthalpy while the momentum
+equations receive 0.09.**
+
+### The mechanism candidate, measured
 
 `omega/p` is `D(ln p)/Dt`, so mass conservation makes its mass-weighted integral
-the rate of change of the mass-weighted mean of `ln p`. With sigma fixed that is
-the rate of change of the mean of `ln ps`, which this run's own mass drift --
-317 ppm over an orbit -- bounds at a few times 1e-11 per second. An identity
-with a right answer.
+the rate of change of the mass-weighted mean of `ln p` -- with sigma fixed, of
+`ln ps`, which this run's own 317 ppm mass drift bounds at a few times 1e-11 per
+second. The model's own field, accumulated from the same `zvgpg - ztptb`
+expression `calcgp` builds `dw` from, gives +9.6e-10 early and +1.6e-10 late:
+**six to forty times the bound, positive at every print**, decaying with the flow
+rather than fluctuating about zero.
 
-A control patch accumulated it in the model's own arithmetic, from the same
-`zvgpg - ztptb` expression `calcgp` builds `dw` from:
+The conversion's two ends are also split across the semi-implicit scheme in a
+way that does not force them to match. The momentum equations carry
+`ztv1 = T_v - t0`, the temperature ANOMALY only, and the reference part of the
+pressure-gradient force is handled implicitly in `spectrala` through the
+`z0 * spt` and `z0 * spm` terms of the divergence solve. The temperature
+equation's reference conversion, `tkp * (zvgpg - ztpta)`, is explicit in
+gridpoint space. One end in each place, and nothing between them.
 
-    nstep     <omega/p> mass-weighted, 1/s
-    590080         +9.55e-10
-    591360         +1.04e-9
-    595200         +4.38e-10
-    598400         +2.36e-10
-    600960         +1.62e-10
+### Two readings of the same decomposition, and only one is the budget
 
-**Six to forty times the bound, positive at every print.** The excess is not
-noise: it is one-signed and it decays with the flow rather than fluctuating
-about zero. Through the reference term `tkp*(zvgpg - ztpta)` it is worth
-`akap * t0 * <omega/p>` = +1.2e-8 to +3.1e-8 K/s, which is +0.09 to +0.23 W/m2
-of spurious warming in the temperature equation.
+Both are true and they are not interchangeable.
 
-It has no counterpart in the momentum equations. Their pressure-gradient term
-carries `ztv1 = T_v - t0`, the temperature ANOMALY only; the reference part is
-handled implicitly in `spectrala` through the `z0 * spt` and `z0 * spm` terms of
-the divergence solve. So the two ends of the REFERENCE conversion sit on
-opposite sides of the semi-implicit split, one explicit in gridpoint space and
-one implicit in spectral space, and nothing forces the explicit one's global
-mean to match.
+  UNWEIGHTED and COMPLETE: the global-mean temperature tendency is exactly the
+  global mean of `gtn`, because the flux term contributes nothing at (0,0).
+  There P2 dominates and is negative.
 
-### The correction
+  MASS-WEIGHTED and, until the flux term was recovered, INCOMPLETE: this is the
+  enthalpy budget. There P2 is also dominant and negative, at -1.02.
 
-The same run shows that "P2 sets the sink", written above, over-read the
-unweighted decomposition. Both readings are right about different quantities and
-the difference matters:
-
-  UNWEIGHTED, and complete. `mktend`'s (0,0) coefficient takes nothing from
-  `gut` or `gvt`, so the global-mean TEMPERATURE tendency is exactly the global
-  mean of `gtn`, and there P2 dominates and is negative.
-
-  MASS-WEIGHTED, and NOT complete. The energy budget is mass-weighted, and the
-  horizontal flux term contributes to `<ps * dT/dt>` even though it contributes
-  nothing to `<dT/dt>`. Mass-weighted, P2 is small and POSITIVE, +0.04 to +0.22
-  W/m2, and P1 + P3 come to -1.28 W/m2 -- which the flux term, absent from
-  `gtn`, must largely offset.
-
-So the global-mean temperature tendency and the enthalpy budget are not the same
-decomposition, and only the second is the sink. What is established is that the
-conversion carries a one-signed violation of an exact identity worth up to 0.23
-W/m2; what is not is that the conversion carries all 0.87.
-
-The next instrument has to close the mass-weighted budget, which means the flux
-term as well: `<ps * div(V T)>` accumulated beside P1, P2 and P3 in the same
-run, with `<T * dps/dt>` beside it so the advective identity can be checked
-where it actually has to hold.
+An intermediate reading here put the mass-weighted P2 at small and positive.
+That came from writing the reference term as `t0 * <omega/p>` instead of the
+model's `t0 * (zvgpg - ztpta)`; the two differ by `<ps Sum_j c(j,k) D_j>`,
+which vanishes unweighted and does not vanish weighted. The model's own
+expression gives -1.02 and the table above is what stands.
