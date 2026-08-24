@@ -90,19 +90,26 @@ static const double PCONC_SAT = 0.02;
 // pools "both are equal to 0.0067 year-1". Do not read the equality as a defect
 // and do not split the two without a source that measures them apart. What
 // follows from it is that Eq. D10, dPssb/dt = USORB*Psorb - USSORB*Pssb, drives
-// the strongly sorbed pool to exactly the size of the sorbed pool, and stays
-// there, because nothing drains it: UOCC is declared below and never used, so
-// Soil::pmass_occluded is initialised, serialised and never written. Occlusion
-// is absent from this model, not slow.
+// the strongly sorbed pool to exactly the size of the sorbed pool and holds it
+// there, so the strongly sorbed pool is a stock and not a sink. Nothing drains
+// it: this model has no terminal occlusion, which is a declared gap and not a
+// slow process. biosphere/notes/phosphorus-cycle-parameterisation.md argues the
+// decision, and parameters.cpp refuses ifplim 1 while it stands.
 //
-// The published rates are per YEAR. Dividing by date.year_length() converts
-// them to per model day, which on this world's calendar is not per Earth day:
-// every annual rate in this file is converted the same way, and reclassifying
-// them by absolute time, seasonal cycle or accumulated flux is BIO-22's, not a
-// change to make here in isolation.
-static const double USORB = 0.0067 / date.year_length();
-static const double USSORB = 0.0067 / date.year_length();
-static const double UOCC = 1.0E-5 / date.year_length();
+// ABSOLUTE-RATE, per EARTH year: sorption is chemistry and does not know this
+// world's orbit, so the divisor is the Earth year and not the simulation year.
+// Dividing by date.year_length() delivered an Earth year of sorption every
+// orbit, which is close to twice the published rate per unit absolute time.
+// biosphere/notes/time-base-unit-contract.md.
+//
+// The reader is somfluxes(), which is called once per absolute day on the live
+// daily path. equilsom() also calls it twelve times per model year with
+// monthly-aggregated decay rates, so there these two constants act at 12/365 of
+// their intended speed. That is a rate of approach and not an equilibrium:
+// USORB == USSORB fixes the equilibrium at Pssb = Psorb whatever the constants
+// are, and equilsom's 40000 model years reach it either way.
+static const double USORB = 0.0067 / VESPER_EARTH_YEAR_DAYS;
+static const double USSORB = 0.0067 / VESPER_EARTH_YEAR_DAYS;
 
 ///////////////////////////////////////////////////////////////////////////////////////
 // FILE SCOPE GLOBAL VARIABLES
@@ -1691,13 +1698,25 @@ void soilpadd(Patch& patch) {
 	double shield = patch.get_climate().pwtr_shield;
 
 	if (param["file_pwtr"].str != "") {
-		// daily_pwtr = patch.get_climate().pwtr / date.year_length();
+		// The gridded route is already a per-absolute-day calculation: runoff is
+		// this day's runoff, so the result carries no year in it and needs no
+		// conversion. It is inactive on this world, which supplies no file_pwtr.
 		p_temp_effect = exp(-ea / R_gas_constant * (1 / (soiltemp + 273.0) - 1 / 284.15));
 		daily_pwtr = bi * (pcont / 100.0) * patch.soil.runoff * p_temp_effect * shield / 1000.0;
 	}
 	else {
-		//daily_pwtr = soil.soiltype.pwtr * temperature_modifier(soil.get_soil_temp_25()) * moisture_modifier(wfps) / date.year_length();
-		daily_pwtr = soil.soiltype.pwtr / date.year_length();
+		// The texture route, and the one this world takes. Soiltype::pwtr is
+		// ABSOLUTE-RATE, declared kgP/m2 per EARTH year, because rock weathering
+		// does not know this world's orbit; BIO-5 emits the field against that
+		// declaration. Dividing by date.year_length() delivered a whole Earth
+		// year of weathered phosphorus every orbit.
+		// biosphere/notes/time-base-unit-contract.md.
+		//
+		// It carries no temperature or moisture dependence. The gridded route
+		// takes temperature through p_temp_effect and neither route reads the
+		// water-filled pore space computed at the top of this function, so that
+		// local stands unused. Supplying a climate dependence here is BIO-5's.
+		daily_pwtr = soil.soiltype.pwtr / VESPER_EARTH_YEAR_DAYS;
 	}
 
 	//if (pmin_avail + daily_pwtr < PMASS_SAT || date.year <= freenyears) {
