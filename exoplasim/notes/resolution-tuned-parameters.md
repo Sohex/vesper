@@ -153,23 +153,57 @@ cascades to the truncation; the zonal-mean jet does not. Measured from
 14.7 implied for Earth. Vesper's eddies are slower and its grid boxes larger, so
 the same rule asks for LESS damping at a given truncation, not more.
 
-| rung | dx, km | tau_0 = dx/U | what the model uses now | too weak by |
-| --- | ---: | ---: | ---: | ---: |
-| T21 | 1144 | 2.23 d | 5.60 d | 2.5x |
-| T42 | 572 | 1.11 d | 0.76 d | 0.7x -- STRONGER than the rule |
-| T85 | 283 | 0.551 d | 5.60 d | 10.2x |
-| T127 | 189 | 0.368 d | 5.60 d | 15.2x |
-| T170 | 141 | 0.275 d | 5.60 d | 20.3x |
+**The rule's `tau` belongs to VORTICITY.** The argument is about the enstrophy
+cascade, and enstrophy is a vorticity quantity. That assignment is checkable on
+Earth: the rule gives 9.0 h at T42 against PlaSim's Earth-tuned `tau_xi` of
+7.2 h, agreeing to 25%. (An earlier version of this note compared the rule
+against `tau_T` instead and reported errors of 10 to 20 times; that was the
+wrong variable and the numbers below replace it.)
 
-**This explains the ladder.** T42 is the one rung whose setting was chosen for a
-grid of about its own fineness, and it lands within a factor of 1.5 of the rule
--- which is why T42 runs, and runs at a longer step than anything above it.
-Everything above inherits T21's number and is ten to twenty times under-damped,
-which is why those rungs fail LATE rather than refusing: the cascade arrives at
-the truncation faster than the damping removes it, and enstrophy accumulates
-until the state goes.
+The other three timescales keep T42's ratios to vorticity -- 0.200 for
+divergence, 2.533 for temperature, 0.333 for humidity. Those are INHERITED, not
+derived: they are taken from the one rung whose base the rule corroborates, and
+the T21 defaults disagree with them (5.09 for temperature against 2.533), which
+is one more sign that the two documented columns are independent tunings rather
+than a system.
 
-T21 is under-damped by 2.5x on this planet as well, and that is in scope.
+| rung | tau_xi = dx/U | tau_D | tau_T | tau_q | what the model uses, vorticity |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| T21 | 2.229 d | 0.446 | 5.646 | 0.743 | 0.49x -- **2.0x too strong** |
+| T42 | 1.114 d | 0.223 | 2.823 | 0.371 | 0.27x -- **3.7x too strong** |
+| T85 | 0.551 d | 0.110 | 1.395 | 0.184 | 2.00x -- 2x too weak |
+| T127 | 0.368 d | 0.074 | 0.934 | 0.123 | 2.99x -- 3x too weak |
+| T170 | 0.275 d | 0.055 | 0.697 | 0.092 | 4.00x -- 4x too weak |
+
+So the error is not one-signed. The fixed defaults are too STRONG at the coarse
+end and too WEAK at the fine end, crossing over between T42 and T85, which is
+what a resolution-independent number does against a rule that scales as `1/N`.
+
+### The shape is the larger defect, not the strength
+
+Damping rate as a fraction of the LOCAL cascade rate, which is what says whether
+the damping is confined to the scales it should be:
+
+| setting | at n = N/2 | at 0.7N | at 0.9N |
+| --- | ---: | ---: | ---: |
+| T21 as documented, alpha 2, n*/N 0.714 | 0.000 | 0.000 | 0.469 |
+| T42 as documented, alpha 4, n*/N 0.381 | 0.003 | 0.101 | 0.549 |
+| **T21's settings at T170**, alpha 2, n*/N 0.088 | **0.408** | 0.643 | 0.881 |
+
+**At T170 the inherited settings damp at 41% of the local cascade rate at HALF
+the truncation**, against T42's 0.3%. That is the `n*` defect: an absolute cutoff
+of 15 is 71% of the truncation at T21 and 8.8% of it at T170, so what is a
+confined grid-scale filter at T21 becomes a broad drag across the resolved
+spectrum at T170. Under-damped where the cascade arrives and over-damped
+everywhere it should not reach, at once.
+
+**Adopted: `alpha = 4` and `n*/N = 0.381` at every rung** -- T42's shape, applied
+as a FRACTION so the confinement is the same at every truncation. This is a
+choice within a family, not a unique derivation: the requirement is that damping
+stay subdominant to the local cascade across the resolved range and become
+comparable only at the truncation, and several `(alpha, n*/N)` pairs satisfy it.
+This pair is the one attached to the corroborated base, and the spectral
+diagnostic is what judges it.
 
 ### What the rule does not yet settle
 
