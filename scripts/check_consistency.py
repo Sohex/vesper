@@ -671,6 +671,62 @@ def main() -> int:
             rep.add(OK, "runs vs the energy fixer they claim",
                     f"{seen} runs carry the stamp and all agree with their namelist")
 
+        # -- what each run INTEGRATED with, against what was declared -------
+        #
+        # The config check above says the derivation is self-consistent. It says
+        # nothing about whether a run used it. `model.configure()` re-copies the
+        # shipped namelists on every continuation, so a setting written only at
+        # prepare time reverts partway through -- and the fallback for
+        # hyperdiffusion is a DIFFERENT OPERATOR, ndel 2 against 4 at T21.
+        # world-1nz; the baseline lost 84 of its 85 orbits to it.
+        want = {}
+        hd = (config.get("model") or {}).get("hyperdiffusion") or {}
+        rung = str(config["model"]["resolution"]).upper()
+        tau = (hd.get("timescales_days") or {}).get(rung)
+        if tau:
+            ntru = int(rung.lstrip("Tt"))
+            want = {"NDEL": float(hd["order_alpha"]),
+                    "NHDIFF": float(round(float(hd["cutoff_fraction"]) * ntru)),
+                    "TDISSD": float(tau["divergence"]),
+                    "TDISSZ": float(tau["vorticity"]),
+                    "TDISST": float(tau["temperature"]),
+                    "TDISSQ": float(tau["humidity"])}
+        drifted = []
+        checked = 0
+        for manifest in sorted(runs.glob("run_*/run_manifest.json")):
+            nl = manifest.parent / "plasim_namelist"
+            if not want or not nl.is_file():
+                continue
+            if str((json.loads(manifest.read_text()).get("physical") or {})
+                   .get("resolution", "")).upper() != rung:
+                continue          # another rung, another row of the table
+            got = {}
+            for line in nl.read_text().splitlines():
+                if "=" not in line:
+                    continue
+                k, _, v = line.partition("=")
+                k = k.strip().upper()
+                if k in want:
+                    try:
+                        got[k] = float(v.split("!")[0].strip())
+                    except ValueError:
+                        pass
+            checked += 1
+            missing = sorted(set(want) - set(got))
+            wrong = sorted(k for k in got if abs(got[k] - want[k]) > 1e-6)
+            if missing or wrong:
+                drifted.append(f"{manifest.parent.name}: "
+                               + (f"missing {missing} " if missing else "")
+                               + (f"differs {wrong}" if wrong else ""))
+        if drifted:
+            rep.add(FAIL, "runs vs the hyperdiffusion they declared",
+                    "; ".join(drifted[:3])
+                    + f" -- these integrated on the compiled default operator,"
+                      f" not the derived one (world-1nz)")
+        elif checked:
+            rep.add(OK, "runs vs the hyperdiffusion they declared",
+                    f"{checked} runs at {rung} carry the derived values")
+
         # -- and what the fixer actually had to put back --
         #
         # The fixer HIDES the defect it compensates: with it on, denergy26 minus

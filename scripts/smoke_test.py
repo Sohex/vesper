@@ -890,6 +890,47 @@ def check_configured_grid() -> list[str]:
     return []
 
 
+# Settings that configure() re-copies over on every continuation, so a run that
+# does not REAPPLY them integrates its later segments on the compiled defaults.
+# The file records three that were lost this way; the list is here so a fourth
+# cannot be added to run_exoplasim alone.
+REDECLARED_ON_CONTINUE = (
+    "declare_hyperdiffusion", "declare_energy_fixer", "declare_robert_filter",
+    "declare_dynamics_only", "declare_conversion_time_level",
+    "declare_dealias_conversion",
+)
+
+
+def check_continuation_redeclares_everything() -> list[str]:
+    """Whatever a prepare declares, a continuation declares again.
+
+    `model.configure()` re-copies the shipped namelists over the configured
+    ones every time it runs, so a setting written at prepare time and not
+    rewritten on continuation silently reverts partway through a run. That has
+    now happened three times in this file's history -- the stellar spectrum,
+    the shortwave gas weights, and hyperdiffusion.
+
+    Hyperdiffusion was the expensive one, because its fallback is not "off" but
+    a DIFFERENT OPERATOR: `plasim.f90:1443` gives T21 ndel 2 where the config
+    derives 4, grad^4 instead of grad^8. The production baseline integrated 84
+    of its 85 orbits that way. world-1nz.
+    """
+    cont = (ROOT / "exoplasim" / "scripts" / "continue_exoplasim.py").read_text(
+        encoding="utf-8")
+    prep = (ROOT / "exoplasim" / "scripts" / "run_exoplasim.py").read_text(
+        encoding="utf-8")
+    bad = []
+    for name in REDECLARED_ON_CONTINUE:
+        if f"def {name}(" not in prep:
+            bad.append(f"{name} is asserted here and run_exoplasim.py no "
+                       "longer defines it")
+        elif f"{name}(model, config)" not in cont:
+            bad.append(f"run_exoplasim declares {name} and "
+                       "continue_exoplasim.py never reapplies it, so a "
+                       "continued segment reverts to the compiled default")
+    return bad
+
+
 def check_restart_schema_covers_the_model() -> list[str]:
     """Every restart record the model writes has a policy, with the right reset.
 
@@ -1026,6 +1067,8 @@ def main() -> None:
                check_no_shadowed_imports(files)),
               ("the restart schema covers every record the model writes",
                check_restart_schema_covers_the_model()),
+              ("a continuation redeclares what a prepare declared",
+               check_continuation_redeclares_everything()),
               ("no artifact path carries a resolution literal",
                check_no_rung_literal_in_a_path(files)),
               ("the configured resolution matches its own grid dimensions",

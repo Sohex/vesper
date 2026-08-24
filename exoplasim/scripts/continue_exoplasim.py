@@ -24,6 +24,7 @@ from segments import SEGMENT_PURPOSES  # noqa: E402
 from run_exoplasim import (  # noqa: E402
     declare_parmode,
     declare_dynamics_only,
+    declare_hyperdiffusion,
     declare_energy_fixer,
     declare_robert_filter,
     declare_conversion_time_level,
@@ -545,6 +546,18 @@ def main() -> None:
         if config["model"].get("energy_diagnostics_3d", False):
             regular_codes = regular_codes + ENERGY_3D_CODES
     declare_dynamics_only(model, config)
+    # THE THIRD INSTANCE of the defect this file already records twice, for the
+    # stellar spectrum and for the shortwave gas weights: configure() re-copies
+    # the shipped namelists over the configured ones on every continuation, so
+    # anything not reapplied here stops applying partway through a run.
+    #
+    # Hyperdiffusion is the worst of the three to lose, because the fallback is
+    # not "no damping" but the compiled branch at plasim.f90:1443 -- a DIFFERENT
+    # OPERATOR. At T21 that is ndel 2 against the configured 4, grad^4 instead
+    # of grad^8, with humidity damped 7.4x harder and vorticity 2.0x. The
+    # baseline this project's climatology rests on integrated 84 of its 85
+    # orbits that way. world-1nz.
+    declare_hyperdiffusion(model, config)
     declare_energy_fixer(model, config)
     declare_robert_filter(model, config)
     declare_conversion_time_level(model, config)
