@@ -63,6 +63,20 @@ are the run's own trajectory; `diagnostic` is orbits run to measure the model
 rather than the planet, and those are kept out of convergence windows and
 climatologies. See `exoplasim/scripts/segments.py`.
 
+**canonical climatology lineage** -- the chain of runs the world's published
+numbers will finally rest on. **It does not exist yet.** Until it is declared,
+every build, every run and every climatology is disposable no matter what has
+consumed it, and a defect found in the model is never weighed against the cost of
+the output it invalidates. Declaring it is a decision, recorded in
+`docs/src/reference/builds.md`, and it is the point from which output starts
+being worth keeping.
+
+  The word exists because "baseline" was doing this job badly. A baseline run is
+  a POSITION IN ONE BUILD'S COMMISSIONING; the lineage is a statement about the
+  whole project having stopped moving underneath it. A build can have a perfectly
+  good baseline and still be disposable, and while the model is being corrected
+  every one of them is.
+
 **carve verdict** -- the finding: which basins overflow, per basin, with its
 evidence. `hydrography/analysis/carve_verdict.json`.
 

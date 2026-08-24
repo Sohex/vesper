@@ -74,7 +74,11 @@ do not renumber.
    "what needs updating". The durable set is small and complete: the planet
    code and seed, the carve list, `config/planet.yaml`, the code, the build
    recipe in `source/README.md`, and the decisions and findings about
-   MECHANISMS. A build is DISPOSABLE until a climate run has consumed it. `docs/src/reference/builds.md` has the argument.
+   MECHANISMS. A build is DISPOSABLE until a climate run has consumed it --
+   and **until the canonical climatology lineage is declared, so is every run,
+   climatology and build that has been consumed.** A defect in the model is
+   therefore never weighed against the cost of the output it invalidates.
+   `docs/src/reference/builds.md` has the argument.
 8. **Before an expensive run**, and after changing `source_build`:
 
        python scripts/check_consistency.py     # do the artifacts agree?
@@ -207,6 +211,9 @@ the definitions, the collisions and their cost history are in
   the build it produced.
 - **segment** -- a contiguous block of orbits added to a run; its purpose is
   DECLARED by the caller, and diagnostics stay out of climatologies.
+- **canonical climatology lineage** -- the run chain the world's numbers will
+  finally rest on. It DOES NOT EXIST YET; until it is declared, every build, run
+  and climatology is disposable whatever has consumed it.
 - **carve verdict / carve list** -- the finding with its evidence / the
   instruction Orogen consumes.
 - **marginal / bracketed / disputed** -- a landform / a disagreement between
