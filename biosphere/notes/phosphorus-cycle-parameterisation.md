@@ -493,15 +493,16 @@ break in a conservation sum.
 
 - `PFRAC_LEAFTOSAP`, and the modelling decision behind it: a scalar on a form
   the measurement rejects, or a nonlinear wood-leaf phosphorus relation.
-- `PMASS_SAT`'s driving pool. The constant is settled and is not the defect;
-  what is open is that `soil.pmass_labile` is a Hedley-labile pool and the
-  threshold is a resin-extractable one, eight times smaller.
-- `PCONC_SAT`, which has no phosphorus source in the paper the ramp cites or
-  anywhere else in the tree, and whose ramp that paper does not contain.
-- The `SURFHUMUS` P:C ratchet, and the missing `!ifplim` short-circuit beside
-  it.
+- `PMASS_SAT`'s driving pool, as WORLD-Z01O. The constant is settled and is not
+  the defect; what is open is that `soil.pmass_labile` is a Hedley-labile pool
+  and the threshold is a resin-extractable one, eight times smaller.
+- `PCONC_SAT`, as WORLD-PIDX, which has no phosphorus source in the paper the
+  ramp cites or anywhere else in the tree, and whose ramp that paper does not
+  contain.
+- The `SURFHUMUS` P:C ratchet and the missing `!ifplim` short-circuit beside it,
+  as WORLD-16PB.
 - Whether to represent terminal occlusion after all, now that the cited CENTURY
-  submodel is held and does carry it.
+  submodel is held and does carry it, as WORLD-2LCW.
 - Every derived value above is BRACKETED. A run that uses them has to say which
   end of each bracket it is on, and `parameters.cpp` refuses `ifplim 1`
   meanwhile.

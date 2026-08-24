@@ -106,7 +106,7 @@ static const double NCONC_SAT = 0.02;
 // constant reading a pool its source did not define. Converting the threshold
 // into this fork's labile-P currency, or driving setptoc with a
 // resin-equivalent fraction of that pool, is a modelling decision and not an
-// arithmetic one.
+// arithmetic one. WORLD-Z01O.
 //
 // PCONC_SAT has no phosphorus source at all. It carries NCONC_SAT's 0.02
 // exactly, and Parton, Stewart and Cole (1988) contains no counterpart to it:
@@ -122,7 +122,7 @@ static const double NCONC_SAT = 0.02;
 // Table 1). 0.02 is 26 to 64 times above the richest litter the model can
 // make, so the surface microbial pool sits at its MAXIMUM C:P of 80 always.
 // That bounds any replacement from above; nothing in the cited source anchors
-// it from below.
+// it from below. WORLD-PIDX.
 //
 // Neither value is changed here, because neither is settled by arithmetic:
 // PMASS_SAT is correct against its source and wrong against its driver, and
@@ -872,7 +872,8 @@ void somfluxes(Patch& patch, bool ifequilsom, bool tillage) {
 	// each day the way SLOWSOM and SOILMICRO are. Parton, Stewart and Cole
 	// (1988) has no humus pool to take a (ctop_max, ctop_min) pair from, so
 	// uncommenting this line would import SLOWSOM's pair without a source.
-	// Registered in biosphere/notes/phosphorus-cycle-parameterisation.md.
+	// WORLD-16PB, evidenced in
+	// biosphere/notes/phosphorus-cycle-parameterisation.md.
 	//setptoc(soil, pmin_mass, SURFHUMUS, 200.0, 90.0, 0.0, PMASS_SAT);
 
 

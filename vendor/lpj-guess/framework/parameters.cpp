@@ -1314,8 +1314,8 @@ void plib_callback(int callback) {
 		// world whose soil organic C:P is pinned at its most phosphorus-rich
 		// end and whose woody P demand is nitrogen's, and it produces it
 		// silently, which is worse than not running. Lift this refusal in the
-		// change that settles them, not before. BIO-34 and WORLD-PIDX; the
-		// evidence is in
+		// change that settles them, not before. BIO-34, WORLD-PIDX, WORLD-Z01O
+		// and WORLD-16PB; the evidence is in
 		// biosphere/notes/phosphorus-cycle-parameterisation.md.
 		if (ifplim) {
 			sendmessage("Error", "ifplim 1 is refused: PFRAC_LEAFTOSAP in guess.h has no "
@@ -1324,7 +1324,8 @@ void plib_callback(int callback) {
 				"value but reads a labile P pool its source did not define, so the soil C:P "
 				"ramp saturates everywhere; and the surface humus P:C ratchets downward "
 				"because no phosphorus ramp resets it. See "
-				"biosphere/notes/phosphorus-cycle-parameterisation.md, BIO-34 and WORLD-PIDX.");
+				"biosphere/notes/phosphorus-cycle-parameterisation.md, BIO-34, WORLD-PIDX, "
+				"WORLD-Z01O and WORLD-16PB.");
 			plibabort();
 		}
 
