@@ -260,6 +260,29 @@ surface:
     enabled: true
     min_snow_depth_m: 2.0
     initial_height_m: -1.0
+    # DETERMINED. NO CAP. landmod's compiled DSMAX is 5.0 m water equivalent,
+    # PlaSim's Earth seasonal-snow ceiling, chosen for a model where perennial
+    # ice arrives as a prescribed mask instead of being grown. It caps the same
+    # accumulator glaciermod builds ice orography from, so with the module
+    # enabled no gridcell could hold more than about 5.9 m of ice, the module's
+    # own 30 m ice-sheet test was unreachable, and everything above the cap was
+    # diagnosed as melt and pushed into runoff at the full snowfall rate.
+    #
+    # -1 is landmod's own "no limit". No finite replacement is offered because
+    # any figure would be invented: the cap has no physical content, and the
+    # accumulator is bounded below by melt and sublimation and above only by
+    # the snowfall a permanently frozen cell receives. The soil column is not
+    # exposed to unbounded depth either way -- landmod blends at most 1 m of
+    # physical snow into it. world-cwc.
+    max_snow_depth_m: -1.0
+    # DECLARED. Orbits of continuous cover at or above min_snow_depth_m before
+    # a gridcell converts to glacier. It was not a declared quantity at all:
+    # glaciermod tested a flag that was reset at every model invocation, so the
+    # duration WAS the segment length and changed meaning with the caller. 1.0
+    # is the duration the module's own header states and the one a
+    # one-orbit-per-invocation caller was already enforcing, so the criterion
+    # is unchanged and is now independent of how a run is cut. world-qpe.
+    persistence_orbits: 1.0
 
 # DETERMINED for the current configuration, and TRANSITIVE rather than a fact
 # about the world: resolution, layers, ranks and timestep are operational

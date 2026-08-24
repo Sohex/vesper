@@ -173,6 +173,22 @@ def configure_otherargs(derived: dict) -> dict:
         "ACL2@radmod_namelist": ", ".join(
             f"{v * derived['cloud_absorption_scale']:.6g}"
             for v in (0.05, 0.10, 0.20)),
+        # world-nfh, landmod_nl. Snow seen through a canopy is a mixture of the
+        # band's exposed snow with the band's canopy albedo, so the canopy
+        # albedo has to arrive per band. landmod's compiled default is the
+        # Earth-Sun broadband endmember in both bands.
+        "ALBFOREST@landmod_namelist": ", ".join(
+            f"{v:.6g}" for v in derived["vegetation_albedo_bands"]),
+        # world-qpe, glacier_nl. See derive().
+        "GLACPERSIST@glacier_namelist":
+            f"{derived['glacier_persistence_orbits']:.6g}",
+        # world-cwc, landmod_nl. configure(maxsnow=...) sets the same key and
+        # run_exoplasim passes it, so that the run's exported cfg records it;
+        # it is repeated HERE because continue_exoplasim.py's configure() call
+        # has no maxsnow argument, and without this the snow cap would revert
+        # to landmod's compiled 5 m on every continuation. That is CLIM-17's
+        # failure exactly, on a key whose whole purpose is to be lifted.
+        "DSMAX@landmod_namelist": f"{derived['max_snow_depth_m']:.6g}",
     }
 
 
@@ -275,6 +291,23 @@ def derive(config: dict, flux_ratio: float) -> dict:
         # which is the arm the prediction says has to come out bit-identical.
         "cloud_absorption_scale": float(
             config["model"].get("cloud_absorption_scale", 1.0)),
+        # CLIM/world-nfh. The canopy albedo the two forested-snow endmembers
+        # are mixed against, per band. landmod's default is the Earth-Sun
+        # broadband endmember in BOTH bands, which is the thing the finding is
+        # about, so this has to be passed for the fix to mean anything.
+        "vegetation_albedo_bands": [
+            float(v) for v in config["model"]["vegetation_albedo_bands"]],
+        # world-qpe. Orbits of continuous snow cover at or above GLACELIM
+        # before a gridcell becomes glacier. Written unconditionally so the
+        # namelist in the run directory records the criterion the segment
+        # actually ran with, rather than leaving it to the compiled default.
+        "glacier_persistence_orbits": float(
+            config["surface"].get("glaciers", {}).get(
+                "persistence_orbits", 1.0)),
+        # world-cwc. Metres of water equivalent, -1 for no limit.
+        "max_snow_depth_m": float(
+            config["surface"].get("glaciers", {}).get(
+                "max_snow_depth_m", -1.0)),
     }
 
 
@@ -1891,6 +1924,12 @@ def main() -> None:
             "mindepth": float(surface.get("glaciers", {}).get("min_snow_depth_m", 2.0)),
             "initialh": float(surface.get("glaciers", {}).get("initial_height_m", -1.0)),
         },
+        # world-cwc. landmod's compiled DSMAX is 5 m water equivalent, which is
+        # PlaSim's Earth seasonal-snow ceiling and caps the same accumulator
+        # glaciermod builds ice orography from. With the glacier module on, a
+        # cell that should glaciate instead manufactures meltwater at the
+        # snowfall rate forever.
+        maxsnow=derived["max_snow_depth_m"],
         ozone=bool(atmosphere["ozone"]),
         mldepth=float(surface["mixed_layer_depth_m"]),
         twobandalbedo=bool(config["radiation"]["two_band_albedo"]),
