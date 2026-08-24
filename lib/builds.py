@@ -188,6 +188,13 @@ def resolution_of(grid_dir: Path) -> str:
     if "-" in name:
         tag = name.rsplit("-", 1)[1].upper()
         if tag.startswith("T") and tag[1:].isdigit():
+            # AGAINST THE LADDER, not against the spelling. T-and-digits is a
+            # shape, not a rung: `exoplasim-T99` parsed cleanly and three
+            # surface-field generators wrote a whole family under it, so
+            # `inputs/t99/orogen_T99_surf_0129.sra` existed for a grid that
+            # cannot be built. `grid_export` above already refuses this way and
+            # this is the same rule. world-yop.
+            rungs.geometry(tag)
             return tag
     raise RuntimeError(
         f"cannot read a resolution from grid directory {name!r}; expected "
