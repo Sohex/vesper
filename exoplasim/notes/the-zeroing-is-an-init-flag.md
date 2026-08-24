@@ -158,9 +158,23 @@ model failing to reproduce and having been paid for once. It survives:
 scale, the control rejected, and the four-run bit-identity arm giving one hash,
 `fcf46ebbb1302d3a`.
 
-`checked` is usable because `rebuild_binaries.py` builds MPI binaries, which
-cannot run SHTns and therefore never meet the trap below. On a threaded build
-snan still trips on the library first, which is CLIM-82.
+`checked` was usable when this was written because `rebuild_binaries.py` then
+built MPI binaries, which cannot run SHTns and therefore never met the trap
+above. That is no longer the reason it is usable, because `world-38b` removed
+the MPI and serial build paths: every build is threaded and `nshtns` defaults
+to 1. **The profile is run with `NSHTNS=0`**, which is legmod, the reference arm
+`verify_shtns_model.sh` already compares against and the arm the 60-step results
+above were taken on. CLIM-82 decided the trap stays unmasked and recorded the
+exposure as a limitation of this profile on the threaded build, which is what
+choosing the transform at the namelist answers.
+
+What that does NOT answer is whether the trapping gate arms at all at `-O3`.
+`notes/audits/uninitialised-reads-and-implicit-save.md` finding 1 measured
+gfortran folding a signalling NaN to a quiet one before the arithmetic at `-O1`
+and above, in the case it measured, so the clean 60-step legmod result above is
+weaker evidence than it reads as -- it cannot separate "no uninitialised read"
+from "the trap was never armed". `world-5rs` carries the positive control that
+separates them.
 
 ## What this retires
 
