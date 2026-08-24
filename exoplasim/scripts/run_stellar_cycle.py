@@ -168,7 +168,6 @@ def make_model(
         source=str(source_dir),
         modelname=identifier,
         outputtype=model_cfg["output_type"],
-        hyperthreading=False,
     )
     model.configure(
         flux=cycle["mean_flux_w_m2"],

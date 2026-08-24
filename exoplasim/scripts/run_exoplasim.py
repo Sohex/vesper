@@ -90,18 +90,16 @@ SNAPSHOT_CODES = [
 OMP_STACKSIZE = "512M"
 
 
-def prepare_thread_stack(parmode: str) -> dict:
+def prepare_thread_stack() -> dict:
     """Give the threaded model the stack its spilled locals need.
 
-    Returns what was set, for the run manifest. A no-op for any other parmode:
-    those builds keep the locals in static storage and never touch a thread
-    stack.
+    Returns what was set, for the run manifest. Unconditional: world-38b left
+    one build and it is the threaded one, so there is no longer a parallel mode
+    that keeps these locals in static storage and never touches a thread stack.
     """
     import os
     import resource
 
-    if str(parmode).lower() != "omp":
-        return {"applied": False, "reason": f"parmode {parmode} is not threaded"}
     os.environ["OMP_STACKSIZE"] = os.environ.get("OMP_STACKSIZE", OMP_STACKSIZE)
     record = {"applied": True, "omp_stacksize": os.environ["OMP_STACKSIZE"]}
     soft, hard = resource.getrlimit(resource.RLIMIT_STACK)
@@ -1158,33 +1156,6 @@ def declare_robert_filter(model, config: dict) -> float | None:
     return float(value)
 
 
-def declare_parmode(config: dict) -> str:
-    """Which compiled parallel mode this run uses. DECLARED, never defaulted.
-
-    `mpi` distributes NLAT over ranks and launches through mpiexec; `omp`
-    distributes it over threads of one process, which is what the SHTns
-    transform path requires because SHTns's parallelism is threads. They are
-    different binaries built from a different flag line, and `nshtns` is 1 by
-    default in the threaded build and 0 in the MPI one -- so the parmode decides
-    which TRANSFORM integrates the run, not just how the work is spread.
-
-    It is declared rather than defaulted because upstream's API knew only `mpi`
-    and named its executable without a parmode, so a project that had moved to
-    the threaded build could not ask for it and silently kept running the other
-    one. That is what happened here: 179 runs, none of them threaded, while the
-    threaded binaries were built, verified and gated on. world-bdh.
-    """
-    mode = config["model"].get("parmode")
-    if mode is None:
-        raise RuntimeError(
-            "model.parmode is absent. It selects which compiled binary and "
-            "therefore which spectral transform integrates the run, so it is "
-            "declared and never defaulted. world-bdh.")
-    if mode not in ("mpi", "omp"):
-        raise RuntimeError(f"model.parmode must be 'mpi' or 'omp', not {mode!r}")
-    return mode
-
-
 def declare_dealias_conversion(model, config: dict) -> bool:
     """Truncate V.grad(ln ps) to the retained modes before the products. world-ly5.
 
@@ -1782,7 +1753,6 @@ def physical_fingerprint(config: dict, flux_ratio: float) -> dict:
         "resolution": str(m["resolution"]),
         "layers": int(m["layers"]),
         "ranks": int(m["ncpus"]),
-        "parmode": str(m.get("parmode", "mpi")),
         "precision_bytes": int(m["precision_bytes"]),
         "flux_ratio": round(float(flux_ratio), 6),
         "co2_ppm": round(1e6 * float(a["pCO2_bar"]), 3),
@@ -2152,13 +2122,7 @@ def main() -> None:
         "--ncpus", type=int, default=None,
         help="override model.ncpus for this run. Selects a different compiled "
              "binary, since ExoPlaSim builds one per (resolution, layers, "
-             "ranks, parmode); NLAT must divide by it")
-    parser.add_argument(
-        "--mpi-opts", type=str, default=None,
-        help="extra flags for mpiexec, e.g. "
-             "'--map-by pe-list=0,1,2,3,4,5,6,7:ordered --bind-to core'. The "
-             ":ordered qualifier is load-bearing -- without it the ranks share "
-             "one pool instead of getting a core each")
+             "threads) configuration; NLAT must divide by it")
     # DIAGNOSTIC. The model writes an output record every `nafter` timesteps and
     # defaults to one per EARTH day, 32 steps of 45 minutes. This planet's day is
     # 30 hours, which is exactly 40 steps, so the default samples the diurnal
@@ -2218,7 +2182,6 @@ def main() -> None:
         if args.ncpus < 1:
             raise ValueError("--ncpus must be positive")
         config["model"]["ncpus"] = int(args.ncpus)
-    mpi_opts = args.mpi_opts
     flux_ratio = float(
         config["orbit"]["baseline_flux_earth"]
         if args.flux_ratio is None else args.flux_ratio
@@ -2425,12 +2388,7 @@ def main() -> None:
     star = config["star"]
     model_cfg = config["model"]
     surface = config["surface"]
-    parmode = declare_parmode(config)
-    thread_stack = prepare_thread_stack(parmode)
-    if parmode == "omp" and mpi_opts:
-        raise RuntimeError(
-            "--mpi-opts was given but model.parmode is 'omp', which launches one "
-            "process and no mpiexec. The flags would be silently dropped.")
+    thread_stack = prepare_thread_stack()
     model = exo.Earthlike(
         resolution=model_cfg["resolution"],
         layers=int(model_cfg["layers"]),
@@ -2439,12 +2397,8 @@ def main() -> None:
         workdir=str(run_dir),
         modelname=identifier,
         outputtype=model_cfg["output_type"],
-        hyperthreading=False,
-        mpi_opts=mpi_opts,
-        parmode=parmode,
     )
-    print(f"parmode: {parmode} "
-          f"({'threads, SHTns transform' if parmode == 'omp' else 'ranks, legmod transform'})")
+    print(f"threads: {int(model_cfg['ncpus'])}, SHTns transform")
     model.configure(
         restartfile=None if restart_seed is None else str(restart_seed),
         flux=derived["stellar_flux_w_m2"],
@@ -2617,11 +2571,11 @@ def main() -> None:
     }
     # ExoPlaSim copies its whole run directory in, so every previously built
     # executable is present. Name the one this run will actually use rather than
-    # taking the last glob match, which sorts p8 after p16.
-    exe_suffix = "_omp" if str(model_cfg.get("parmode")) == "omp" else ""
+    # taking the last glob match, which sorts p8 after p16. Composed the way
+    # `build_model.executable_name` composes it, with no parallel-mode suffix.
     exe_path = run_dir / (
         f"most_plasim_t{int(str(model_cfg['resolution']).lstrip('Tt'))}"
-        f"_l{int(model_cfg['layers'])}_p{int(model_cfg['ncpus'])}{exe_suffix}.x"
+        f"_l{int(model_cfg['layers'])}_p{int(model_cfg['ncpus'])}.x"
     )
     if not exe_path.is_file():
         raise RuntimeError(f"expected executable {exe_path} is not in the run directory")
