@@ -526,6 +526,11 @@ carries at 0.42. It is not worth a model change and its rule-4 rebuild. What
 does the work instead is `first_record_tainted` on the segment, which a
 consumer already refuses.
 
+The arms are `run_953ee807d32f` and `run_2c42c68fe9ca`, one T42 orbit each,
+seeded from the same conversion of `run_2b20e3324bb0`'s restart onto a template
+cut from `run_8102b89a08ac`. All three ran on executable `eae6b0e89357`, so the
+comparison is paired on everything but the five records.
+
 `dqsat` is identically zero in every restart on disk -- written, carried, never
 populated -- so its rebuild is trivially satisfied.
 
