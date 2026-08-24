@@ -35,8 +35,10 @@
       use resmod
 
 !     ****************************************************************
-!     * The number of processes for processing on parallel machines  *
-!     * It must be a power of 2 e.g. (1, 2, 4, 8, ... NLAT)          *
+!     * The number of threads the transform team runs on.            *
+!     * NLAT must be DIVISIBLE by it, which is what mpstart in       *
+!     * mpimod_omp.f90 refuses on; a power of two is neither         *
+!     * required nor enforced anywhere. world-ljj.                   *
 !     ****************************************************************
 
       parameter(NPRO = NPRO_ATM)          ! Number of processes (CPUs)
@@ -48,8 +50,11 @@
 
       parameter(NLAT = NLAT_ATM)                !  Number of latitudes
 
-!     currently allowed values:  2,  4,  32,  48,  64, 128,  192,  256
-!     corresponding truncation: T1, T2, T21, T31, T42, T85, T127, T170
+!     The ladder lives in lib/rungs.py and this is a restatement of it,
+!     checked by rungs.check_restatements. NLAT by rung:
+!      32,  48,  64,  96, 128, 160,  192,  256
+!     T21, T31, T42, T63, T85, T106, T127, T170
+!     T63 and T106 transform on fft991mod; the rest on fftmod.
 
 !     ****************************************************************
 !     * Set the vertical resolution, a minimum of 5 is recommended   *

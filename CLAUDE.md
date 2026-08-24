@@ -263,8 +263,10 @@ New components get a sibling directory and read the same `config/planet.yaml`
 and `source/`. `lib/` holds the shared readers, and the list is the whole of it
 because "reuse them, do not reimplement" is unusable if it names half:
 `orogen.py` (the export, and the build registry), `builds.py` (build to path),
-`rungs.py` (the resolution ladder: rung to grid dimensions, and the check that
-config's `resolution`, `latitudes` and `longitudes` are one fact),
+`rungs.py` (the resolution ladder: rung to grid dimensions, which FFT module a
+rung transforms on, the check that config's `resolution`, `latitudes` and
+`longitudes` are one fact, and the check that every restatement of the ladder
+elsewhere in the tree agrees with it),
 `paths.py` (repo-relative paths), `gridding.py` (mesh-to-grid, the one grid
 convention), `orbit.py` (orbital period), `stellar.py` (spectrum, band split,
 Rayleigh coefficient), `sensitivity.py` (the one flux-to-kelvin conversion),
