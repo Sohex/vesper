@@ -1,0 +1,303 @@
+{
+  "schema_version": 1,
+  "generator": "exoplasim/scripts/close_term_energy.py",
+  "generator_sha256": "8ed578fe045de76fefa64382c0d390802a7b2e23896df3551326b687b89dfb05",
+  "run_dir": "/home/cfutro/docs/world/exoplasim/runs/run_3c49444e3c36",
+  "run_id": "run_3c49444e3c36",
+  "source_build": "precarve-craton",
+  "config_sha256": "8f849b7a890dfc25bee28ed3a6326e6e39ddec72eeebaa0493f992b99f042dc1",
+  "geography": "e66edc40",
+  "window": {
+    "first_orbit": 0,
+    "last_orbit": 0,
+    "orbits": 1,
+    "low_io_off": true,
+    "low_io_problems": []
+  },
+  "identities": {
+    "gridpoint_physics_closure": {
+      "statement": "sum(denergy 6,7,8,9,10,11,12,13,14,21,22) = denergy04",
+      "right_answer_w_m2": 0.0,
+      "sum_of_terms": {
+        "mean_w_m2": -10.140578909780567,
+        "spread_w_m2": NaN
+      },
+      "denergy04": {
+        "mean_w_m2": -10.138781566715098,
+        "spread_w_m2": NaN
+      },
+      "residual": {
+        "mean_w_m2": 0.0017973430654691924,
+        "spread_w_m2": NaN
+      }
+    },
+    "adiabatic_energy_conservation": {
+      "statement": "denergy26 - denergy27 = 0 across the adiabatic spectral step (enthalpy plus kinetic energy)",
+      "right_answer_w_m2": 0.0,
+      "enthalpy_tendency": {
+        "mean_w_m2": -0.48783276310735024,
+        "spread_w_m2": NaN
+      },
+      "minus_kinetic_tendency": {
+        "mean_w_m2": -1.4476026775652706,
+        "spread_w_m2": NaN
+      },
+      "residual": {
+        "mean_w_m2": 0.9597699144579204,
+        "spread_w_m2": NaN
+      }
+    },
+    "kinetic_energy_steady_state": {
+      "statement": "-denergy27 = denergy 21+22+23+25 in a settled run",
+      "right_answer_w_m2": 0.0,
+      "adiabatic_generation": {
+        "mean_w_m2": 1.4476026775652706,
+        "spread_w_m2": NaN
+      },
+      "frictional_heat_returned": {
+        "mean_w_m2": 1.4104423444487457,
+        "spread_w_m2": NaN
+      },
+      "residual": {
+        "mean_w_m2": 0.03716033311652489,
+        "spread_w_m2": NaN
+      }
+    }
+  },
+  "atmosphere_budget_w_m2": {
+    "radiative_convergence": {
+      "mean_w_m2": -62.669646070846326,
+      "spread_w_m2": NaN
+    },
+    "sensible_from_surface": {
+      "mean_w_m2": 24.617869590840915,
+      "spread_w_m2": NaN
+    },
+    "latent_from_surface": {
+      "mean_w_m2": 26.65089608867881,
+      "spread_w_m2": NaN
+    },
+    "latent_asymmetry": {
+      "mean_w_m2": -0.07059362062440044,
+      "spread_w_m2": NaN
+    },
+    "adiabatic_non_conservation": {
+      "mean_w_m2": 0.9597699144579204,
+      "spread_w_m2": NaN
+    },
+    "spectral_diffusion_of_heat": {
+      "mean_w_m2": -0.009050720645283035,
+      "spread_w_m2": NaN
+    },
+    "flux_route_total": {
+      "mean_w_m2": -11.400880391326606,
+      "spread_w_m2": NaN
+    },
+    "closed_total": {
+      "mean_w_m2": -10.520754818138368,
+      "spread_w_m2": NaN
+    },
+    "column_enthalpy_j_m2": 1805915912.610391
+  },
+  "terms_w_m2": {
+    "denergy01": {
+      "mean_w_m2": 1805915912.610391,
+      "spread_w_m2": NaN
+    },
+    "denergy02": {
+      "mean_w_m2": -0.5187917633095066,
+      "spread_w_m2": NaN
+    },
+    "denergy03": {
+      "mean_w_m2": -10.10387097889596,
+      "spread_w_m2": NaN
+    },
+    "denergy04": {
+      "mean_w_m2": -10.138781566715098,
+      "spread_w_m2": NaN
+    },
+    "denergy05": {
+      "mean_w_m2": 0.07077650428242445,
+      "spread_w_m2": NaN
+    },
+    "denergy06": {
+      "mean_w_m2": 0.0,
+      "spread_w_m2": NaN
+    },
+    "denergy07": {
+      "mean_w_m2": 24.617869590840915,
+      "spread_w_m2": NaN
+    },
+    "denergy08": {
+      "mean_w_m2": 0.0007689700850640983,
+      "spread_w_m2": NaN
+    },
+    "denergy09": {
+      "mean_w_m2": -123.4526563376317,
+      "spread_w_m2": NaN
+    },
+    "denergy10": {
+      "mean_w_m2": 60.78301030871226,
+      "spread_w_m2": NaN
+    },
+    "denergy11": {
+      "mean_w_m2": 8.155825628301459,
+      "spread_w_m2": NaN
+    },
+    "denergy12": {
+      "mean_w_m2": 18.47148755095267,
+      "spread_w_m2": NaN
+    },
+    "denergy13": {
+      "mean_w_m2": -0.000489029472404902,
+      "spread_w_m2": NaN
+    },
+    "denergy14": {
+      "mean_w_m2": -0.04701071119972016,
+      "spread_w_m2": NaN
+    },
+    "denergy15": {
+      "mean_w_m2": -9.170660738096723,
+      "spread_w_m2": NaN
+    },
+    "denergy16": {
+      "mean_w_m2": -18.47148730127819,
+      "spread_w_m2": NaN
+    },
+    "denergy17": {
+      "mean_w_m2": -217.3105066476538,
+      "spread_w_m2": NaN
+    },
+    "denergy18": {
+      "mean_w_m2": 93.85785028832522,
+      "spread_w_m2": NaN
+    },
+    "denergy19": {
+      "mean_w_m2": -142.15796046983135,
+      "spread_w_m2": NaN
+    },
+    "denergy20": {
+      "mean_w_m2": 236.01581079522023,
+      "spread_w_m2": NaN
+    },
+    "denergy21": {
+      "mean_w_m2": 0.5191305418735345,
+      "spread_w_m2": NaN
+    },
+    "denergy22": {
+      "mean_w_m2": 0.8114845777573455,
+      "spread_w_m2": NaN
+    },
+    "denergy23": {
+      "mean_w_m2": 0.0560720003400715,
+      "spread_w_m2": NaN
+    },
+    "denergy24": {
+      "mean_w_m2": -0.009050720645283035,
+      "spread_w_m2": NaN
+    },
+    "denergy25": {
+      "mean_w_m2": 0.023755224477794396,
+      "spread_w_m2": NaN
+    },
+    "denergy26": {
+      "mean_w_m2": -0.48783276310735024,
+      "spread_w_m2": NaN
+    },
+    "denergy27": {
+      "mean_w_m2": -1.4476026775652706,
+      "spread_w_m2": NaN
+    },
+    "denergy28": {
+      "mean_w_m2": 236.2791793113811,
+      "spread_w_m2": NaN
+    }
+  },
+  "fluxes_w_m2": {
+    "ntr": {
+      "mean_w_m2": 32.55073224787435,
+      "spread_w_m2": NaN
+    },
+    "rst": {
+      "mean_w_m2": 236.5474353891842,
+      "spread_w_m2": NaN
+    },
+    "rsut": {
+      "mean_w_m2": -85.04253540845421,
+      "spread_w_m2": NaN
+    },
+    "rlut": {
+      "mean_w_m2": -203.9967031644093,
+      "spread_w_m2": NaN
+    },
+    "rss": {
+      "mean_w_m2": 175.7644251134462,
+      "spread_w_m2": NaN
+    },
+    "rls": {
+      "mean_w_m2": -80.54404679472553,
+      "spread_w_m2": NaN
+    },
+    "hfss": {
+      "mean_w_m2": -24.617869590840915,
+      "spread_w_m2": NaN
+    },
+    "hfls": {
+      "mean_w_m2": -26.65089608867881,
+      "spread_w_m2": NaN
+    },
+    "hfns": {
+      "mean_w_m2": 43.30608857969954,
+      "spread_w_m2": NaN
+    }
+  },
+  "executable_sha256": "a4ccf1070247caa1a5fc225990c34b85596de40feb82ab3c6fe08ef7186a07ca",
+  "software": {
+    "python": "3.14.7",
+    "exoplasim": "3.4.2",
+    "numpy": "2.5.2",
+    "gfortran": "GNU Fortran (GCC) 16.2.1 20260810"
+  },
+  "per_orbit": [
+    {
+      "orbit": 0,
+      "denergy01": 1805915912.610391,
+      "denergy02": -0.5187917633095066,
+      "denergy03": -10.10387097889596,
+      "denergy04": -10.138781566715098,
+      "denergy05": 0.07077650428242445,
+      "denergy06": 0.0,
+      "denergy07": 24.617869590840915,
+      "denergy08": 0.0007689700850640983,
+      "denergy09": -123.4526563376317,
+      "denergy10": 60.78301030871226,
+      "denergy11": 8.155825628301459,
+      "denergy12": 18.47148755095267,
+      "denergy13": -0.000489029472404902,
+      "denergy14": -0.04701071119972016,
+      "denergy15": -9.170660738096723,
+      "denergy16": -18.47148730127819,
+      "denergy17": -217.3105066476538,
+      "denergy18": 93.85785028832522,
+      "denergy19": -142.15796046983135,
+      "denergy20": 236.01581079522023,
+      "denergy21": 0.5191305418735345,
+      "denergy22": 0.8114845777573455,
+      "denergy23": 0.0560720003400715,
+      "denergy24": -0.009050720645283035,
+      "denergy25": 0.023755224477794396,
+      "denergy26": -0.48783276310735024,
+      "denergy27": -1.4476026775652706,
+      "denergy28": 236.2791793113811,
+      "ntr": 32.55073224787435,
+      "rst": 236.5474353891842,
+      "rsut": -85.04253540845421,
+      "rlut": -203.9967031644093,
+      "rss": 175.7644251134462,
+      "rls": -80.54404679472553,
+      "hfss": -24.617869590840915,
+      "hfls": -26.65089608867881,
+      "hfns": 43.30608857969954
+    }
+  ]
+}

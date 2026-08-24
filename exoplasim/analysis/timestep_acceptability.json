@@ -1,0 +1,190 @@
+{
+  "note": "Filter strength x timestep x resolution. CLIM's physics-filter row and SPAT-11, which are one question. See exoplasim/notes/physics-filter-stability.md.",
+  "generated": "2026-08-24T00:12:28.610791+00:00",
+  "finished": "2026-08-24T00:58:02.237168+00:00",
+  "budget_hours": 4.5,
+  "status": "running",
+  "anchor": {
+    "t42_seconds_per_orbit_at_dt45": 90.0,
+    "measured_on": "2026-08-23, two arms at each timestep"
+  },
+  "rung_factor_current": {
+    "T21": 0.407,
+    "T42": 1.111,
+    "T85": 4.111,
+    "T127": 10.222,
+    "T170": 18.7
+  },
+  "already_measured_elsewhere": [
+    {
+      "rung": "T42",
+      "kappa": 8.0,
+      "dt": 45.0,
+      "adiabatic_residual_w_m2": 0.3147
+    },
+    {
+      "rung": "T42",
+      "kappa": 2.0,
+      "dt": 45.0,
+      "adiabatic_residual_w_m2": 0.402
+    },
+    {
+      "rung": "T42",
+      "kappa": 8.0,
+      "dt": 22.5,
+      "adiabatic_residual_w_m2": 0.1204
+    },
+    {
+      "rung": "T42",
+      "kappa": 2.0,
+      "dt": 22.5,
+      "adiabatic_residual_w_m2": 0.1637
+    },
+    {
+      "rung": "T42",
+      "kappa": null,
+      "dt": 22.5,
+      "adiabatic_residual_w_m2": 0.5575
+    },
+    {
+      "rung": "T42",
+      "kappa": null,
+      "dt": 45.0,
+      "outcome": "trap"
+    }
+  ],
+  "abandoned_rungs": {},
+  "completed": [
+    {
+      "track": "B",
+      "rung": "T42",
+      "kappa": 8.0,
+      "dt": 60.0,
+      "orbits": 1,
+      "energy": true,
+      "name": "X_T42_cand_dt60",
+      "priority": 10,
+      "returncode": 0,
+      "wall_s": 88.2,
+      "run_id": "run_3c49444e3c36",
+      "trapped": false,
+      "crashed": false,
+      "log": "/tmp/vesper-filter-matrix/logs/X_T42_cand_dt60.log",
+      "outcome": "ok",
+      "seconds_per_orbit": 77.0,
+      "rung_factor_measured": 1.141,
+      "identity": {
+        "adiabatic_residual_w_m2": 0.9597699144579204,
+        "adiabatic_spread_w_m2": NaN,
+        "kinetic_identity_w_m2": 0.03716033311652489
+      }
+    },
+    {
+      "track": "B",
+      "rung": "T42",
+      "kappa": 8.0,
+      "dt": 45.0,
+      "orbits": 1,
+      "energy": true,
+      "name": "X_T42_ctrl_dt45",
+      "priority": 10,
+      "returncode": 0,
+      "wall_s": 111.2,
+      "run_id": "run_fd22a4ad85fb",
+      "trapped": false,
+      "crashed": false,
+      "log": "/tmp/vesper-filter-matrix/logs/X_T42_ctrl_dt45.log",
+      "outcome": "ok",
+      "seconds_per_orbit": 100.0,
+      "rung_factor_measured": 1.111,
+      "identity": {
+        "adiabatic_residual_w_m2": 0.870058282970607,
+        "adiabatic_spread_w_m2": NaN,
+        "kinetic_identity_w_m2": 0.034663052052918975
+      }
+    },
+    {
+      "track": "B",
+      "rung": "T85",
+      "kappa": 8.0,
+      "dt": 75.0,
+      "orbits": 1,
+      "energy": true,
+      "name": "X_T85_cand_dt75",
+      "priority": 11,
+      "returncode": 1,
+      "wall_s": 44.2,
+      "run_id": "run_930f014f268a",
+      "trapped": true,
+      "crashed": true,
+      "log": "/tmp/vesper-filter-matrix/logs/X_T85_cand_dt75.log",
+      "outcome": "trap"
+    },
+    {
+      "track": "B",
+      "rung": "T85",
+      "kappa": 8.0,
+      "dt": 45.0,
+      "orbits": 1,
+      "energy": true,
+      "name": "X_T85_ctrl_dt45",
+      "priority": 11,
+      "returncode": 0,
+      "wall_s": 443.1,
+      "run_id": "run_b8277e57238a",
+      "trapped": false,
+      "crashed": false,
+      "log": "/tmp/vesper-filter-matrix/logs/X_T85_ctrl_dt45.log",
+      "outcome": "ok",
+      "seconds_per_orbit": 370.0,
+      "rung_factor_measured": 4.111,
+      "identity": {
+        "adiabatic_residual_w_m2": 1.0610741340658625,
+        "adiabatic_spread_w_m2": NaN,
+        "kinetic_identity_w_m2": 0.04731887544556801
+      }
+    },
+    {
+      "track": "B",
+      "rung": "T127",
+      "kappa": 8.0,
+      "dt": 36.0,
+      "orbits": 1,
+      "energy": true,
+      "name": "X_T127_cand_dt36",
+      "priority": 12,
+      "returncode": 1,
+      "wall_s": 473.3,
+      "run_id": "run_ce6f230e5991",
+      "trapped": true,
+      "crashed": true,
+      "log": "/tmp/vesper-filter-matrix/logs/X_T127_cand_dt36.log",
+      "outcome": "late_failure"
+    },
+    {
+      "track": "B",
+      "rung": "T127",
+      "kappa": 8.0,
+      "dt": 30.0,
+      "orbits": 1,
+      "energy": true,
+      "name": "X_T127_ctrl_dt30",
+      "priority": 12,
+      "returncode": 0,
+      "wall_s": 1572.8,
+      "run_id": "run_621d9572f512",
+      "trapped": false,
+      "crashed": false,
+      "log": "/tmp/vesper-filter-matrix/logs/X_T127_ctrl_dt30.log",
+      "outcome": "ok",
+      "seconds_per_orbit": 1380.0,
+      "rung_factor_measured": 10.222,
+      "identity": {
+        "adiabatic_residual_w_m2": 1.018611914217102,
+        "adiabatic_spread_w_m2": NaN,
+        "kinetic_identity_w_m2": 0.04541710907357177
+      }
+    }
+  ],
+  "skipped_for_budget": []
+}
