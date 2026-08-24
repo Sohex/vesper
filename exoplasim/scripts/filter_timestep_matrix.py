@@ -62,6 +62,7 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import _paths  # noqa: F401
+from paths import rel  # noqa: E402  from lib/, put on sys.path by _paths
 
 ROOT = Path(__file__).resolve().parents[2]
 CONFIG = ROOT / "config" / "planet.yaml"
@@ -234,7 +235,7 @@ def run_job(job: dict, base: dict, log_dir: Path) -> dict:
     crashed = bool(CRASH.search(text))
     result = {**job, "returncode": rc, "wall_s": round(elapsed, 1),
               "run_id": run_id, "trapped": trapped, "crashed": crashed,
-              "log": str(log.relative_to(ROOT)) if log.is_relative_to(ROOT) else str(log),
+              "log": rel(log),
               "outcome": ("refused" if trapped and failed_before_any_output(run_id) else
                           "late_failure" if trapped else
                           "crash" if crashed else
@@ -536,7 +537,7 @@ def main() -> None:
 
     flush("finished")
     print(f"\n{len(done)} jobs run, {len(skipped)} skipped for budget or disk")
-    print(f"wrote {out_path.relative_to(ROOT)}")
+    print(f"wrote {rel(out_path)}")
 
 
 if __name__ == "__main__":

@@ -70,6 +70,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import _paths  # noqa: F401
+from paths import rel  # noqa: E402  from lib/, put on sys.path by _paths
 
 ROOT = Path(__file__).resolve().parents[2]
 ANALYSIS = ROOT / "exoplasim" / "analysis"
@@ -199,7 +200,7 @@ def main() -> None:
                "spectrum": [float(x) for x in spec]}
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(payload, indent=2))
-    print(f"wrote {args.out.relative_to(ROOT)}")
+    print(f"wrote {rel(args.out)}")
     raise SystemExit(0 if verdict == "clean" else 1)
 
 

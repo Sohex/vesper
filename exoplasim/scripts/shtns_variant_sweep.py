@@ -43,16 +43,19 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import _paths  # noqa: F401  -- anchors ROOT below the way every script does
+import _paths  # noqa: F401
+from paths import rel  # noqa: E402  from lib/, put on sys.path by _paths
+import rungs  # noqa: E402  -- the ladder registry; _paths put lib on the path
 
 ROOT = Path(__file__).resolve().parents[2]
 PREFIX = ROOT / "vendor" / "shtns-install"
 PROBE_SRC = ROOT / "exoplasim" / "scripts" / "probe_shtns_variant_cost.c"
 GEN_MODE = "gauss"
 
-# The ladder, as build_model.py declares it. NLON is 2*NLAT throughout.
-RUNGS = [("T21", 21, 32), ("T42", 42, 64), ("T85", 85, 128),
-         ("T127", 127, 192), ("T170", 170, 256)]
+# The ladder that has compiled binaries, taken from `lib/gridding.py` -- the
+# one place it is written down -- rather than restated here. SPAT-2.
+RUNGS = [(r, rungs.geometry(r)[2], rungs.geometry(r)[0])
+         for r in ("T21", "T42", "T85", "T127", "T170")]
 VARIANTS = ["fly1", "fly2", "fly3", "fly4"]
 DEFAULT = "fly2"          # what SHT_QUICK_INIT pins, with no file involved
 MIN_GAIN = 5.0            # percent, declared before the sweep; see the docstring
@@ -258,7 +261,7 @@ def main() -> None:
     args.out.write_text(json.dumps(payload, indent=2))
     shutil.rmtree(work, ignore_errors=True)
 
-    print(f"\nwrote {args.out.relative_to(ROOT)}")
+    print(f"\nwrote {rel(args.out)}")
     adopted = [k for k, v in picks.items() if v["adopted"]]
     print(f"{len(adopted)} of {len(picks)} (rung, type) pairs beat {DEFAULT} "
           f"by more than {MIN_GAIN}% in every round"

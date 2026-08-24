@@ -56,9 +56,13 @@ import datetime
 import glob
 import hashlib
 import json
+import sys
 from pathlib import Path
 
 import numpy as np
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from lib.paths import rel  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 ECOSTRESS = ROOT / "references" / "ecospeclib-all"
@@ -191,9 +195,9 @@ def main() -> None:
     report = {
         "generated": datetime.date.today().isoformat(),
         "generator": "analysis/vegetation_albedo.py",
-        "spectrum": str(args.spectrum.relative_to(ROOT)),
+        "spectrum": rel(args.spectrum),
         "spectrum_sha256": hashlib.sha256(args.spectrum.read_bytes()).hexdigest(),
-        "library": str(args.library.relative_to(ROOT)),
+        "library": rel(args.library),
         "spectra_used": n,
         "per_class": {k: {"n": len(v),
                           "sun": round(float(np.mean([a for a, _ in v])), 4),

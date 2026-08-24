@@ -157,6 +157,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _paths import MODEL_SRC, PROJECT_ROOT, RUNS  # noqa: E402
+from paths import rel  # noqa: E402  from lib/, put on sys.path by _paths
 import restart_format  # noqa: E402
 from sra import read_sra  # noqa: E402
 
@@ -765,11 +766,7 @@ def main() -> int:
 
     if args.json:
         args.json.write_text(json.dumps(reports, indent=2) + "\n", encoding="utf-8")
-        try:
-            shown = args.json.relative_to(PROJECT_ROOT)
-        except ValueError:
-            shown = args.json
-        print(f"wrote {shown}")
+        print(f"wrote {rel(args.json)}")
     return 1 if bad else 0
 
 

@@ -104,6 +104,7 @@ import pandas as pd
 import pyogrio
 
 from _paths import DATA, PROJECT_ROOT
+from paths import rel  # noqa: E402  from lib/, put on sys.path by _paths
 
 # Purposes whose water level carries pumping drawdown. `Unknown` is NOT here:
 # see the docstring. `Exploration` is not production and is kept.
@@ -225,8 +226,8 @@ def main() -> None:
     }
     rp = args.out.with_suffix(".provenance.json")
     rp.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
-    print(f"\nwrote {args.out.relative_to(PROJECT_ROOT)}  ({len(df):,} sites)")
-    print(f"wrote {rp.relative_to(PROJECT_ROOT)}")
+    print(f"\nwrote {rel(args.out)}  ({len(df):,} sites)")
+    print(f"wrote {rel(rp)}")
 
 
 if __name__ == "__main__":

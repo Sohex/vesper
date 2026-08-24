@@ -122,7 +122,11 @@ import hashlib
 import json
 import re
 from math import log, sqrt
+import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from lib.paths import rel  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 RUGHEIMER = ROOT / "references" / (
@@ -400,7 +404,7 @@ def main() -> None:
 
     if not args.rugheimer.exists():
         raise SystemExit(
-            f"{args.rugheimer.relative_to(ROOT)} is not on disk. references/ "
+            f"{rel(args.rugheimer)} is not on disk. references/ "
             "PDFs are untracked; references/INDEX.md records the DOI.")
 
     import yaml
