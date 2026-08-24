@@ -45,6 +45,61 @@ SNAPSHOT_CODES = [
     318, 320, 321,
 ]
 
+# THE THREAD STACK, and it belongs here because this is where a run is launched.
+#
+# `-fopenmp` implies `-frecursive`, so the local arrays gfortran used to place in
+# static storage become stack-allocated and therefore per-thread. That is what
+# makes the threaded build work without declaring them, and it is also what makes
+# the default stack too small: `exoplasim/notes/threads-instead-of-ranks.md`
+# measured 463.1 MB of such locals at T170, the largest single one 14 MB, against
+# an 8 MB OMP_STACKSIZE default.
+#
+# TWO SETTINGS, because they size different stacks. OMP_STACKSIZE sizes the
+# NON-MASTER threads. The master runs on the process stack, which is the stack
+# rlimit, and `bench_ab.py` measured a T127 master overrunning a 16 MB limit and
+# segfaulting. Nine gate and bench scripts set both; the production launcher set
+# neither, so the one setting that decides whether a threaded run at the top of
+# the ladder survives at all existed only in the instruments.
+#
+# 512M IS NOT DERIVED. It is the value every gate has used and it is carried here
+# unchanged, so this is a fix to the launcher and not a change to what runs. What
+# it is worth: about 49 full-globe (NLON*NLAT*NLEV) float64 locals live at once at
+# T170. Deriving it from the deepest CONCURRENT set of live locals needs a
+# measurement nothing in this tree makes; `world-p4b` is that.
+#
+# Applied to THIS PROCESS before the model is launched. ExoPlaSim builds its
+# command as a shell string and runs it with shell=True, so the child inherits
+# both and neither the model package nor the namelist has to know.
+OMP_STACKSIZE = "512M"
+
+
+def prepare_thread_stack(parmode: str) -> dict:
+    """Give the threaded model the stack its spilled locals need.
+
+    Returns what was set, for the run manifest. A no-op for any other parmode:
+    those builds keep the locals in static storage and never touch a thread
+    stack.
+    """
+    import os
+    import resource
+
+    if str(parmode).lower() != "omp":
+        return {"applied": False, "reason": f"parmode {parmode} is not threaded"}
+    os.environ["OMP_STACKSIZE"] = os.environ.get("OMP_STACKSIZE", OMP_STACKSIZE)
+    record = {"applied": True, "omp_stacksize": os.environ["OMP_STACKSIZE"]}
+    soft, hard = resource.getrlimit(resource.RLIMIT_STACK)
+    try:
+        resource.setrlimit(resource.RLIMIT_STACK, (hard, hard))
+        record["stack_rlimit_soft"] = ("unlimited" if hard == resource.RLIM_INFINITY
+                                       else hard)
+    except (ValueError, OSError) as exc:
+        # Reported rather than swallowed: a master thread that cannot get its
+        # stack segfaults inside the model, which reads as the model crashing.
+        record["stack_rlimit_soft"] = soft
+        record["stack_rlimit_error"] = str(exc)
+    return record
+
+
 # High-cadence output is a gust distribution and nothing else, so this is the
 # near-surface wind alone: `spd` is what the Weibull is fitted to, and `ua`/`va`
 # are kept because a direction is what distinguishes a real gust from a reversing
@@ -2211,6 +2266,7 @@ def main() -> None:
     model_cfg = config["model"]
     surface = config["surface"]
     parmode = declare_parmode(config)
+    thread_stack = prepare_thread_stack(parmode)
     if parmode == "omp" and mpi_opts:
         raise RuntimeError(
             "--mpi-opts was given but model.parmode is 'omp', which launches one "
@@ -2525,6 +2581,10 @@ def main() -> None:
         # provenance rather than from the config, so the manifest says what the
         # run carried and not what a setting asked for.
         "dust_emission": emission,
+        # What stack the threaded model was actually launched with. On the
+        # manifest because a run that dies for want of it dies inside the model,
+        # which reads as the model crashing rather than as a launch setting.
+        "thread_stack": thread_stack,
         "postprocessor": {
             "regular_codes": regular_codes,
             "energy_diagnostics": energy_diagnostics_enabled(config),

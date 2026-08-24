@@ -26,11 +26,11 @@ W="${TMPDIR:-/tmp}/verify_roundtrip.$$"
 trap 'rm -rf "$W"' EXIT
 mkdir -p "$W"; cd "$W"
 
-case "$res" in
-  T21)  nlat=32  ;;  T31)  nlat=48  ;;  T42) nlat=64 ;;
-  T85)  nlat=128 ;;  T127) nlat=192 ;;  T170) nlat=256 ;;
-  *) echo "unknown resolution $res" >&2; exit 2 ;;
-esac
+# The ladder is `lib/rungs.py` and nowhere else. The `case` that stood here was
+# missing T63 and T106 and refused them as unknown resolutions; SPAT-2.
+PY="$REPO/.venv/bin/python"; [ -x "$PY" ] || PY=python3
+nlat=$("$PY" -c "import sys; sys.path.insert(0, '$REPO/lib'); import rungs; print(rungs.geometry('$res')[0])") || {
+  echo "unknown resolution $res: it is not a rung in lib/rungs.py" >&2; exit 2; }
 
 cp "$SRC"/plasimmod.f90 "$SRC"/legmod.f90 "$SRC"/fftmod.f90 \
    "$SRC"/gaussmod.f90 "$SRC"/specblock.f90 . 2>/dev/null

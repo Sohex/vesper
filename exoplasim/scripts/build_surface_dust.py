@@ -61,7 +61,7 @@ import yaml
 
 from _paths import CONFIG, INPUTS, PROJECT_ROOT  # noqa: E402  (puts lib/ on sys.path)
 import climatology  # noqa: E402  from lib/, put on sys.path by _paths
-from paths import climatology_path, rel  # noqa: E402
+from paths import climatology_path, rel, require_configured_grid  # noqa: E402
 from sra import write_sra
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -151,7 +151,8 @@ def main() -> None:
 
     config = yaml.safe_load(args.config.read_text(encoding="utf-8"))
     model = config["model"]
-    nlat, nlon = int(model["latitudes"]), int(model["longitudes"])
+    # nlat is not needed here: require_configured_grid below checks both.
+    nlon = int(model["longitudes"])
     resolution = str(model["resolution"]).upper()
 
     dust_cfg = yaml.safe_load(args.dust_config.read_text(encoding="utf-8"))
@@ -212,9 +213,10 @@ def main() -> None:
             climatology.annual_mean_of(ds, "ts"),
             weights=np.broadcast_to(np.cos(np.deg2rad(lat))[:, None],
                                     (len(lat), len(lon)))))
-    if (len(lat), len(lon)) != (nlat, nlon):
-        raise SystemExit(
-            f"climatology grid is {len(lat)}x{len(lon)}, config says {nlat}x{nlon}")
+    # The same guard `climatology_path` applies, called explicitly because
+    # `--climatology` can hand this an arbitrary file that never went through
+    # the resolver. One expression, in lib/paths.py.
+    require_configured_grid(args.climatology, config)
 
     with nc.Dataset(args.dust) as ds:
         dlat = np.asarray(ds["lat"][:], dtype=float)

@@ -47,7 +47,7 @@ import numpy as np
 import yaml
 
 from _paths import CONFIG, INPUTS, PROJECT_ROOT  # noqa: E402  (puts lib/ on sys.path)
-from paths import climatology_path, rel  # noqa: E402
+from paths import climatology_path, rel, require_configured_grid  # noqa: E402
 from provenance import config_stamp  # noqa: E402
 from sra import write_sra
 
@@ -97,7 +97,8 @@ def main() -> None:
                              "ceiling and evaporate at the potential rate")
     parser.add_argument("--lake-dwmax-m", type=float, default=None,
                         help="bucket depth on the lake fraction; defaults to "
-                             "model.lake_dwmax_m, else 0.2 m")
+                             "model.lake_dwmax_m, which is required when "
+                             "--lakes is given")
     args = parser.parse_args()
     if args.climatology is None:
         args.climatology = climatology_path()
@@ -127,10 +128,10 @@ def main() -> None:
         lat = np.asarray(data["lat"][:], dtype=float)
         lon = np.asarray(data["lon"][:], dtype=float)
         land = np.asarray(data["lsm"][0], dtype=float) > 0.5
-    if (len(lat), len(lon)) != (nlat, nlon):
-        raise SystemExit(
-            f"climatology grid is {len(lat)}x{len(lon)} but config says "
-            f"{nlat}x{nlon}")
+    # The same guard `climatology_path` applies, called explicitly because
+    # `--climatology` can hand this an arbitrary file that never went through
+    # the resolver. One expression, in lib/paths.py.
+    require_configured_grid(args.climatology, config)
 
     lon_signed = np.round(np.where(lon > 180.0, lon - 360.0, lon), COORD_DECIMALS)
     lat_rounded = np.round(lat, COORD_DECIMALS)
@@ -184,8 +185,20 @@ def main() -> None:
                 f"lake solution is on terrain {lake_terrain[:16]}, mesh is "
                 f"{mesh.terrain_hash[:16]}; re-run surface_water.py")
         f_lake = land_fraction_of_class(mesh, grid_export(config), lake)
-        depth = (args.lake_dwmax_m if args.lake_dwmax_m is not None
-                 else float(model.get("lake_dwmax_m", 0.2)))
+        # No fallback. The `.get(..., 0.2)` that stood here read as though
+        # config supplied the depth, and config had never carried the key at
+        # all, so the hardcoded number was what every run got -- confirmed in
+        # inputs/t21/orogen_T21_surf_0229_provenance.json.
+        if args.lake_dwmax_m is not None:
+            depth = float(args.lake_dwmax_m)
+        elif "lake_dwmax_m" in model:
+            depth = float(model["lake_dwmax_m"])
+        else:
+            raise SystemExit(
+                "config/planet.yaml has no `model.lake_dwmax_m`, and --lakes "
+                "needs it: it is the bucket depth written over the lake "
+                "fraction of every land cell and therefore part of the field. "
+                "Declare it there or pass --lake-dwmax-m.")
         before = float(field[land].mean())
         field = np.where(land, (1.0 - f_lake) * field + f_lake * depth, field)
         lake_report = {

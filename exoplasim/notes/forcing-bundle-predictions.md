@@ -365,10 +365,12 @@ baseline config does not move. `oceanmod.f90:208` sets `dlayer(NLEV_OCE) =
 mldepth`, so the key is a slab HEAT CAPACITY and nothing else.
 
 That makes the leading prediction exact rather than estimated. At 50 m, with
-seawater at 1025 kg/m3 and 3990 J/kg/K, the slab holds 2.045e8 J/m2/K. The
-orbital year is 1.579e7 s, so the annual forcing frequency is 3.978e-7 s-1 and
-`omega C` is **81.3 W/m2/K**, against a radiative damping of **1.18 W/m2/K**
-taken from `lib/sensitivity.py`'s canonical slope. The ratio is 69: this slab is
+the model's own sea water -- `oceanmod.f90`'s CRHOS 1030 kg/m3 and CPS 4180
+J/kg/K, as `close_state_energy.py` reads them -- the slab holds 2.153e8 J/m2/K.
+The orbital year is 1.579e7 s, so the annual forcing frequency is 3.978e-7 s-1
+and `omega C` is **85.6 W/m2/K**, against a radiative damping of **1.18
+W/m2/K** taken from `lib/sensitivity.py`'s canonical slope at a planetary
+albedo of 0.30. The ratio is 73: this slab is
 deep in the inertia-dominated regime, which the config's own note reaches
 qualitatively when it says this world's half-length year damps seasonality about
 twice as hard as Earth's ocean does.

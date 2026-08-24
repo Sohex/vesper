@@ -860,7 +860,10 @@ build_surface_roughness.py. Replaces the uniform dz0land = 2.0 m, which
 asserts forest-scale roughness over the salt-crust and playa share of land
 (`world_state.json` has the current figure). Those are closed-basin floors, flat by construction, and they are the
 cells the carve verdict integrates evaporation over: the default gives them
-7.7x the turbulent exchange a real playa surface has.
+about 8x the turbulent exchange a real playa surface has. The reference height
+that ratio is taken over is `lib/lapse.py:reference_height_m`, at this planet's
+gravity; the builder's report brackets it, because the height is linear in the
+lowest-level air temperature and the field is built before any run measures one.
 
 NVEG is 0 in these runs, so landmod.f90:409 takes dz0 = dz0clim directly and
 173 is the field that matters; SIMBA's separate vegetation and orographic

@@ -50,3 +50,60 @@ require_settled_bed() {
     echo "    SEED = 17,29,41,53,67,79,91,103" >&2
     return 1
 }
+
+
+# WHY THE GRID IS A PRECONDITION TOO. Every gate that sources this takes the
+# rung as an argument and builds its arms at that rung, but nothing looked at
+# what the BED is. A T42 bed handed "T85" builds T85 binaries, hands them N064
+# surface files, and dies inside the model on an SRA header -- which every one
+# of these gates reports as "an arm produced no restart", the same line it
+# prints for a genuine crash of the thing under test. The bed says its own grid
+# in the names of the files the model reads, so this reads it there.
+#
+# The executable the bed was made with says it too, and is checked when it is
+# present: `most_plasim_t42_l10_p16.x` and an N085 surface set cannot both be
+# right, and a bed assembled from two runs is worth catching before a build.
+require_bed_grid() {
+    local bed="$1" res="$2"
+    local here repo want got binary
+
+    here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    repo="$(cd "$here/../.." && pwd)"
+    local py="$repo/.venv/bin/python"; [ -x "$py" ] || py=python3
+    want="$("$py" -c "import sys; sys.path.insert(0, '$repo/lib'); import rungs; print(rungs.geometry('$res')[0])")" || {
+        echo "unknown resolution $res: it is not a rung in lib/rungs.py" >&2
+        return 1; }
+
+    got=""
+    for f in "$bed"/N???_surf_*.sra; do
+        [ -e "$f" ] || continue
+        got="$(basename "$f")"; got="${got#N}"; got="${got%%_*}"
+        got="$((10#$got))"
+        break
+    done
+    if [ -z "$got" ]; then
+        echo "refusing: no N???_surf_*.sra in $bed, so its grid cannot be read" >&2
+        echo "  and nothing here can tell whether it is a $res bed." >&2
+        return 1
+    fi
+    if [ "$got" != "$want" ]; then
+        echo "refusing: $bed carries N$(printf '%03d' "$got") surface files and $res is $want latitudes." >&2
+        echo "  The arms would be built at $res, handed this bed's inputs, and die" >&2
+        echo "  inside the model on an SRA header -- which reads here as 'an arm" >&2
+        echo "  produced no restart' and says nothing about the thing under test." >&2
+        return 1
+    fi
+
+    for binary in "$bed"/most_plasim_*.x; do
+        [ -e "$binary" ] || continue
+        case "$(basename "$binary")" in
+          most_plasim_"$(echo "$res" | tr 'A-Z' 'a-z')"_*) ;;
+          *) echo "refusing: $bed was made with $(basename "$binary") and $res was asked for." >&2
+             echo "  The surface files say $want latitudes, so the bed is assembled" >&2
+             echo "  from two runs and one of the two is wrong." >&2
+             return 1 ;;
+        esac
+        break
+    done
+    return 0
+}

@@ -51,7 +51,14 @@ SUMTOL=1e-15
 CONTROL_REV="${CONTROL_REV:-447fdac9}"
 
 resolutions=("$@")
-[ ${#resolutions[@]} -eq 0 ] && resolutions=(32 64 128 192 256)
+# The default sweep is the ladder, taken from `lib/rungs.py` rather than
+# written out: the five counts that stood here were the ladder with T31,
+# T63 and T106 missing. SPAT-2.
+if [ ${#resolutions[@]} -eq 0 ]; then
+    PY="$REPO/.venv/bin/python"; [ -x "$PY" ] || PY=python3
+    # shellcheck disable=SC2207
+    resolutions=($("$PY" -c "import sys; sys.path.insert(0, '$REPO/lib'); import rungs; print(' '.join(str(rungs.geometry(r)[0]) for r in rungs.RUNGS))"))
+fi
 
 rm -rf "$WORK"; mkdir -p "$WORK"
 cd "$WORK"

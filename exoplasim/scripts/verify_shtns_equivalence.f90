@@ -66,11 +66,23 @@
 !     step -- because a spectral filter and a rotating planet are exactly the
 !     two things the wrappers were missing, and neither was switched on here.
 !     A check may only simplify what it does not certify.
+!
+!     filterkappa and nfilterexp are `filter_kappa` and `filter_power` in
+!     config/planet.yaml and must equal them; scripts/smoke_test.py compares the
+!     two and fails on drift, because this pair went stale once and the gate
+!     said nothing. The strength matters to the VERDICT and not only to the
+!     realism of the setup: both arms carry the same skspgp(n), so the filter
+!     divides out of a per-mode ratio but not out of this gate's field norm,
+!     where it reweights the residual's spectrum against a denominator the low
+!     modes own. exp(-kappa*x^16)/exp(-kappa*x^8) peaks at exp(kappa/4) -- 7.39
+!     at kappa 8, at n/NTRU = (1/2)**(1/8) = 0.917 -- so a gate left at gamma 8
+!     passes the mid-to-high band, where the SHTns residual is largest, at up to
+!     a seventh of the amplitude the shipped configuration gives it.
       nfilter     = 2                  ! exponential, as the beds run it
       ngptfilter  = 1
       nspvfilter  = 1
       filterkappa = 8.0
-      nfilterexp  = 8
+      nfilterexp  = 16
       plavor      = EZ                 ! rotating, as the model runs it
       call legini
       call shtns_setup

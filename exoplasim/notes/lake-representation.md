@@ -206,9 +206,10 @@ matters for the climate, as a latent-versus-sensible partition error over the
 ### Roughness: do not supply 173 for lakes
 
 Assessed and rejected, rather than left undone. `dz0land` is 2.0 m and open water
-is about 1.5e-4 m. At this planet's lowest-level reference height of 141.6 m that
-is an exchange coefficient of 0.00882 against 0.00085: supplying water roughness
-would cut turbulent exchange on those cells by **10.4x**.
+is about 1.5e-4 m. At this planet's lowest-level reference height, which
+`lib/lapse.py:reference_height_m` derives hypsometrically at the configured
+gravity, supplying water roughness would cut turbulent exchange on those cells
+by about **11x** across the span in which surface water is liquid.
 
 Real lakes tolerate that because evaporation and a water column's heat capacity
 hold the surface cool. We have neither. A cell given water's roughness, land's
@@ -220,5 +221,5 @@ arrives with it.
 ### Separately: `dz0land = 2.0` m
 
 Superseded by `build_surface_roughness.py`, which supplies code 173 from land
-cover and subgrid relief; the 7.7x-excess-exchange argument that motivated it
+cover and subgrid relief; the excess-exchange argument that motivated it
 is in that script's header and `docs/src/reference/config-rationale.md`.

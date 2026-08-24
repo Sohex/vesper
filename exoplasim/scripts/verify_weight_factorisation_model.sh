@@ -43,6 +43,7 @@ WORK="$REPO/exoplasim/bench/_wfcheck"
 TOL=1e-10
 
 require_settled_bed "$bed"
+require_bed_grid "$bed" "$res"
 
 dirty="$(cd "$REPO" && git status --porcelain -- vendor/exoplasim/exoplasim/plasim/src)"
 if [ -n "$dirty" ]; then

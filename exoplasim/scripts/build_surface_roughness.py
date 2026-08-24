@@ -16,10 +16,14 @@ exchange coefficient as
 
     ce = k^2 / ln(z_ref / z0)^2
 
-so at this planet's 141.6 m lowest level the default gives 0.00882 against 0.00114
-for a real playa surface: **7.7x too much exchange** over the most barren ground
-on the planet, and therefore too much evaporation from precisely the basins whose
-water balance decides whether they survive.
+with `k` von Karman's constant and `z_ref` the height of the lowest model level,
+which `lib/lapse.py:reference_height_m` derives hypsometrically at THIS planet's
+gravity. Over the liquid-water span the default gives about 8.1 to 8.5 times the
+exchange a real playa surface would, and therefore that much too much evaporation
+from precisely the basins whose water balance decides whether they survive. The
+contrast is reported bracketed rather than at one temperature because `z_ref` is
+linear in the air temperature and this step runs before any climatology exists to
+measure one from.
 
 ## What this computes
 
@@ -86,8 +90,21 @@ from build_surface_albedo import MODE_FOREST_FRACTION
 from gridding import land_weighted, region_cells
 from provenance import config_stamp
 from orogen import Export, LAND
+# ONE derivation of the height a bulk transfer coefficient is taken over.
+# hydrography/scripts/carve_verdict.py builds the same z_ref for the same
+# reason; this file used to carry the EARTH-gravity answer as a literal.
+from lapse import reference_height_m
 
 ROUGHNESS_CODE = 173
+
+KARMAN = 0.4                     # von Karman's constant; `ce` uses its square.
+
+# The reference height is linear in the lowest-level air temperature and this
+# step runs before any climatology exists to measure one from, so the reported
+# exchange coefficients are BRACKETED over the range in which surface water is
+# liquid -- which is the range the field's consumer, lake and playa
+# evaporation, is defined over. Fixed here, before any field is built.
+CE_BRACKET_K = (273.15, 313.15)
 
 # landmod.f90:51, the uniform default this replaces.
 EXOPLASIM_DZ0LAND_M = 2.0
@@ -218,7 +235,16 @@ def main() -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
     write_sra(output, ROUGHNESS_CODE, field)
 
-    ce = lambda z0v: 0.16 / np.log(141.6 / np.maximum(z0v, 1e-6)) ** 2
+    z_ref = {t: reference_height_m(t, config) for t in CE_BRACKET_K}
+
+    def ce(z0v, t_air):
+        """Neutral bulk exchange coefficient at the lowest model level."""
+        return KARMAN ** 2 / np.log(z_ref[t_air] / np.maximum(z0v, 1e-6)) ** 2
+
+    def bracketed(z0v):
+        lo, hi = (float(ce(z0v, t)) for t in CE_BRACKET_K)
+        return [round(min(lo, hi), 6), round(max(lo, hi), 6)]
+
     report = {
         "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "code": ROUGHNESS_CODE,
@@ -241,11 +267,17 @@ def main() -> None:
         "land_min_m": round(float(z0[land_cells].min()), 6),
         "land_max_m": round(float(z0[land_cells].max()), 4),
         "exchange_coefficient": {
-            "note": "ce = k^2 / ln(141.6 / z0)^2, the quantity roughness acts through",
-            "uniform_default": round(float(ce(EXOPLASIM_DZ0LAND_M)), 6),
+            "note": "ce = k^2 / ln(z_ref / z0)^2, the quantity roughness acts "
+                    "through. z_ref is lib/lapse.py:reference_height_m at this "
+                    "planet's gravity; each value is [low, high] over "
+                    "reference_air_k, across which z_ref is linear.",
+            "karman": KARMAN,
+            "reference_air_k": list(CE_BRACKET_K),
+            "reference_height_m": [round(z_ref[t], 2) for t in CE_BRACKET_K],
+            "uniform_default": bracketed(EXOPLASIM_DZ0LAND_M),
             # ce rises with z0, so the roughest cell carries the largest ce.
-            "this_field_land_max": round(float(ce(z0[land_cells].max())), 6),
-            "this_field_land_min": round(float(ce(z0[land_cells].min())), 6),
+            "this_field_land_max": bracketed(z0[land_cells].max()),
+            "this_field_land_min": bracketed(z0[land_cells].min()),
         },
         "file": str(output),
     }

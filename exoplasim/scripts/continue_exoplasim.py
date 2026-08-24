@@ -24,6 +24,7 @@ from segments import SEGMENT_PURPOSES  # noqa: E402
 from run_exoplasim import (  # noqa: E402
     declare_parmode,
     declare_dry_constants,
+    prepare_thread_stack,
     declare_dynamics_only,
     declare_energy_fixer,
     declare_robert_filter,
@@ -408,6 +409,11 @@ def main() -> None:
     surface = config["surface"]
     landmap = surface_sra(config, 172).resolve()
     topomap = surface_sra(config, 129).resolve()
+    # The same stack the prepare gives the threaded model. A continuation
+    # launches the binary itself, so without this every segment after the first
+    # would run on the 8 MB default -- which is exactly the shape of the defect
+    # SHORTWAVE_GAS_KEYS' comment above describes for the namelist keys.
+    thread_stack = prepare_thread_stack(declare_parmode(config))
     model = exo.Earthlike(
         resolution=model_cfg["resolution"],
         layers=int(model_cfg["layers"]),
@@ -677,6 +683,7 @@ def main() -> None:
         {
             "start_year_index": start_year,
             "end_year_index": start_year + args.orbits - 1,
+            "thread_stack": thread_stack,
             "seasonal_output": args.seasonal_output,
             "low_io": bool(args.low_io),
             "high_cadence": bool(args.high_cadence),
