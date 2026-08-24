@@ -237,6 +237,11 @@
 !                               ! CONTROL for world-0ov, carried across steps and
 !                               ! written only on NROOT, after the reduction.
       integer :: nconvacc = 0   ! steps accumulated into dconvacc
+      real :: dconvspd(3) = 0.0 ! the same conversion on sdp either side of each
+!                               ! write to it in spectrald: in, between the two
+!                               ! adds, and out. world-pkf.
+      real :: dconvspa(4) = 0.0 ! their running sums and the sample count
+      real, allocatable :: dsdiv(:,:) ! the gathered sdp the two are built from
       real :: denergyd24 = 0.0  ! global mean of denergy(:,24), the enthalpy the
 !                               ! TEMPERATURE hyperdiffusion adds. Unlike the
 !                               ! momentum diffusion, whose kinetic loss mkdheat
@@ -1023,7 +1028,7 @@
 !$omp&  naqua,ncoeff,ndatim,ndel,ndesert,ndheat,ndiag,ndiagcf,ndiaggp,ndiaggp2d,ndiaggp3d,ndiagsp,&
 !$omp&  ndiagsp2d,ndiagsp3d,ndivdamp,ndl,nener3d,nenergy,nentro3d,nentropy,neqsig,nfilter,&
 !$omp&  nenergyfix,denergyfix,denergyd24,denergyacc,nenergyacc,nenergywin,&
-!$omp&  dconvacc,nconvacc,nconvtime,&
+!$omp&  dconvacc,nconvacc,nconvtime,dconvspd,dconvspa,dsdiv,&
 !$omp&  nfilterexp,nfixorb,nflux,ngenkeplerian,nglspec,ngptfilter,ngui,nguidbg,nhcadence,nhcstp,&
 !$omp&  nhdiff,nhordif,nhurricane,nindex,nkits,nlowio,noutput,npackgp,npacksp,nperpetual,nprhor,&
 !$omp&  nprint,nproc,nqspec,nrad,nrdrag,nrestart,nrho,nscatsp,nseedlen,nsela,&

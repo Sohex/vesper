@@ -1102,7 +1102,7 @@ gradient, quadratic in the prognostic variables, and the semi-implicit operator
 takes only what is linear in them.
 
 Bringing the divergence half back to time t is the other direction, and it is
-`model.conversion_time_level`. It takes that half out of the semi-implicit
+`model.conversion_time_level`. **Measured, it does not work.** It takes that half out of the semi-implicit
 treatment in the temperature equation while the divergence solve still treats the
 temperature implicitly, so what it is stable at is the EXPLICIT gravity-wave
 timestep,
@@ -1115,6 +1115,35 @@ model refuses the setting above the limit rather than integrating something that
 is not a solution. The route therefore costs a timestep 2.4 times shorter at
 every rung, and the section below is why a shorter timestep on its own buys
 nothing.
+
+### The first repair route is refuted, and SB81 says why
+
+A pair at 7.5 minutes, below the 9.5-minute limit so both arms are stable
+integrations, from the same restart, with the fixer off. Both stayed physical --
+temperature 189 to 313 K and surface pressure 605 to 1100 hPa in each, against
+190 to 313 and 604 to 1101 in the control -- so this is a comparison and not a
+blow-up:
+
+    conversion_time_level off, denergy26 - denergy27     -0.6265
+    conversion_time_level on                             +0.5168
+
+The sink does not fall. It changes sign and keeps four fifths of its size,
+against a threshold of one third fixed before the arms ran.
+
+**And that is what SB81 section 3e predicts.** Its conservation requirement is
+not that the temperature equation be internally consistent; it is that the
+conversion's advective part use `(1/p grad p)_k` "calculated in the same way as
+in the momentum equation". Taking the divergence half back to time t makes the
+temperature equation agree with itself and leaves it disagreeing with the
+momentum equation, whose reference pressure gradient is still implicit in the
+divergence solve. The mismatch moves rather than closes.
+
+Meeting SB81's actual condition would need the temperature equation's reference
+conversion on the same side of the split as the momentum equation's reference
+pressure gradient -- which is the implicit side, and the term is quadratic, so it
+cannot go there. **That is the argument for why every model in this class carries
+a fixer, and it is now this project's argument rather than an appeal to what
+ECHAM, the IFS and CAM happen to do.**
 
 ## The divergence the solve hands the conversion is not the one the model keeps
 
@@ -1168,10 +1197,37 @@ says those are not the modes.
 So three knobs have now been varied over large ranges and each moves the
 displacement by between a twentieth and a sixth: the timestep, the
 Robert-Asselin coefficient and the divergence damping. **The displacement is
-robust to all of them and is the whole of the sink.** What localises it is not
-another knob but the same control one level down -- the conversion printed
-immediately before and after each write to `sdp` in `spectrald`, which names the
-operation rather than bracketing it.
+robust to all of them and is the whole of the sink.** What localised it was not
+another knob but the same control one level down.
+
+### It is the damping add, and the chain closes end to end
+
+`spectrald` writes `sdp` exactly twice: once to add the diabatic tendency
+`gridpointd` built, once to add the friction and hyperdiffusion. The conversion
+printed either side of each names which. Running means over one orbit of the dry
+adiabatic arm, W/m2:
+
+    in    sdp as spectrala left it                    -0.7249
+    mid   after the diabatic tendency add             -0.7249
+    out   after the friction and diffusion add        +1.5571
+
+and in the same run `spectrala` reports `Ctp` = -0.7249 and, one step later,
+`Ct` = +1.5625. **Every link is measured: `Ctp` = `in`, `in` = `mid`, `out` =
+`Ct`.** The two controls live in different routines and agree to four digits, and
+the diabatic add moves the quantity by identically zero -- which it must, since
+`gridpointd` produces no divergence tendency with the surface stress and the
+vertical diffusion off.
+
+So the two watts a step is **the divergence damping**, and the sink is the
+conversion applied to divergence that the hyperdiffusion removes before it
+becomes the state.
+
+That is not in conflict with the damping arms above, which moved the sink by a
+sixth over a sixteenfold range. `1/(1 + delt2 tdissd sakpp)` is already near zero
+for the modes carrying the -2.28, so changing the rate moves only the marginal
+band where the factor is of order one; `Ct` itself moved just 14 percent across
+those same arms. **The damping is where the energy goes, and its strength is not
+the lever, because it is already removing essentially all of what it removes.**
 
 ## What the model's own two references say, and where this departs from them
 

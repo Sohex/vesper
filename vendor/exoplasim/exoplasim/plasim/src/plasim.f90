@@ -3022,6 +3022,64 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       end
 
 !     ====================
+!     SUBROUTINE CONVWEIGHT
+!     ====================
+
+      subroutine convweight(psd,pgq,pgp,pval)
+!     The reference conversion's divergence half on ONE divergence, mass
+!     weighted into W/m2 by denergy02's own formula and reduced over the globe.
+!     A CONTROL AND NOT A MODEL TERM. world-0ov, world-pkf.
+!
+!     `spectrala` prints this on the four divergences the adiabatic step has to
+!     hand, and the sink is the gap between two of them. What it could not say
+!     is WHICH operation opens the gap, because everything between the adiabatic
+!     t+dt and the state at t+dt is inside `spectrald`. This is the same
+!     quantity, callable, so `spectrald` can print it either side of each write
+!     to `sdp` and name the operation instead of bracketing it.
+!
+      use pumamod
+      real, intent(in)  :: psd(NESP,NLEV)
+      real, intent(in)  :: pgq(NHOR,NLEV)
+      real, intent(in)  :: pgp(NHOR)
+      real, intent(out) :: pval
+      real :: zwrk(NESP,NLEV)
+      real :: zgp(NHOR,NLEV)
+      real :: zw(NHOR)
+      real :: zs(2)
+
+      do jlev = 1 , NLEV
+         zwrk(:,jlev) = 0.0
+         do jlev2 = 1 , jlev
+            zwrk(:,jlev) = zwrk(:,jlev)                                 &
+     &                   - tkp(jlev) * c(jlev2,jlev) * psd(:,jlev2)
+         enddo
+      enddo
+      zwrk(:,:) = zwrk(:,:) * ct * ww
+      call sp2fl(zwrk,zgp,NLEV)
+      call fc2gp(zgp,NLON,NLPP*NLEV)
+
+      jhor = 0
+      do jlat = 1 , NLPP
+       do jlon = 1 , NLON
+        jhor = jhor + 1
+        zw(jhor) = gwd(jlat)
+       enddo
+      enddo
+
+      zs(:) = 0.0
+      do jlev = 1 , NLEV
+       zs(1) = zs(1)                                                    &
+     &  + dot_product(zgp(:,jlev)*acpd*(1.+adv*pgq(:,jlev))             &
+     &                *pgp(:)/ga*dsigma(jlev),zw)
+      enddo
+      zs(2) = sum(zw)
+      call mpsumbcr(zs,2)
+      pval = zs(1) / zs(2)
+
+      return
+      end
+
+!     ====================
 !     SUBROUTINE SPECTRALA
 !     ====================
 
@@ -4312,11 +4370,26 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !
 !     add tendencies from diabatic parameterizations
 !
+!     THE CONVERSION EITHER SIDE OF EACH WRITE TO sdp. A CONTROL, world-pkf.
+!     `spectrald` moves the reference conversion's divergence half by about two
+!     watts every step and that displacement is the whole of the adiabatic sink;
+!     these three prints say which of the two writes does it. `dsdiv` allocated
+!     only under the control, so this is a no-op below nenergy = 2.
+      if (nenergy > 1) then
+         allocate(dsdiv(NESP,NLEV))
+         call mpgallsp(dsdiv,sdp,NLEV)
+         call convweight(dsdiv,dq,dp,dconvspd(1))
+      endif
 
       szp = szp + delt2 * szt
       stp = stp + delt2 * stt
       sdp = sdp + delt2 * sdt
       if (nqspec == 1) sqp = sqp + delt2 * sqt
+
+      if (nenergy > 1) then
+         call mpgallsp(dsdiv,sdp,NLEV)
+         call convweight(dsdiv,dq,dp,dconvspd(2))
+      endif
 
 !
 !     franks diagnostic
@@ -4494,6 +4567,22 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       stp = stp + delt2 * stt
       sdp = sdp + delt2 * sdt
       if (nqspec == 1) sqp = sqp + delt2 * sqt
+
+      if (nenergy > 1) then
+         call mpgallsp(dsdiv,sdp,NLEV)
+         call convweight(dsdiv,dq,dp,dconvspd(3))
+         deallocate(dsdiv)
+         if (mypid == NROOT) then
+            if (nstep > nstep1 + ntspd) then
+               dconvspa(1:3) = dconvspa(1:3) + dconvspd(1:3)
+               dconvspa(4) = dconvspa(4) + 1.0
+            endif
+            if (mod(nstep,ndiag) == 0 .and. dconvspa(4) > 0.0) then
+               write(nud,'(A,I9,3E15.6)') ' CONVSPD in mid out ',       &
+     &            nstep, dconvspa(1:3) / dconvspa(4)
+            endif
+         endif
+      endif
 
 !     initial divergence damping for a smooth start of the model in case
 !     of steep orography (Mars) or unusual initial conditions
