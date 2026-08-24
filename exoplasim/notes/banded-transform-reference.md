@@ -125,10 +125,21 @@ scales it by the table's own largest magnitude.
 | T170 | 170 | 2.220e-12 | 0.35 | 4.833e-12 |
 
 The ratio to NTRU^2*eps stays between 0.12 and 0.35 over the whole ladder, so
-4*NTRU^2*eps clears it by between eleven and thirty-three times. The ratio is
-still climbing at T170, so the envelope holds over `lib/rungs.py` and is not
-argued beyond it: a rung above T170 needs it measured again before the bound is
-used there.
+4*NTRU^2*eps clears it by between eleven and thirty-three times. It is a
+measured maximum and not a trend: the ratio is 0.16 at T21, dips to 0.12 at
+T106, and is 0.34 and 0.35 at the top two rungs, so the next rung's ratio
+cannot be read off the shape of this column.
+
+**The ratio is still climbing at T170, so the envelope holds over `lib/rungs.py`
+and is not argued beyond it.** A rung above T170 does not inherit the bound. It
+has to be measured again first, and the measurement needs no build:
+`legini_recurrence` at `exoplasim/scripts/verify_weight_factorisation.py:34` is
+`legmod.f90:legini`'s own recurrence for one latitude, which is what produced
+the column above against the scipy table at the Gauss-Legendre nodes. Extend the
+table here, then either confirm four still clears the new rung or re-derive the
+coefficient in `verify_banded_transform.f90`'s `ztolp`. A gate failure at a new
+top rung before that is done is a bound that was never argued for that rung, not
+a defective build.
 
 ## What the compiled gate returns
 

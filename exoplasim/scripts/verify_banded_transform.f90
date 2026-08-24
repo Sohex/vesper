@@ -110,11 +110,23 @@
 !     order one, so the compounded error is bounded by the product of the
 !     two chain lengths. THE COEFFICIENT is an envelope rather than a
 !     fit: legini's own recurrence differs from the reference table by
-!     0.16*NTRU^2*eps at T21 rising to 0.35*NTRU^2*eps at T170, so four
-!     clears the whole declared ladder by between eleven and forty times.
-!     It is an envelope over lib/rungs.py and not beyond it: a rung above
-!     T170 would need the envelope re-measured before this bound is used
-!     there, because the ratio is still climbing at the top of the ladder.
+!     between 0.12*NTRU^2*eps and 0.35*NTRU^2*eps over the declared
+!     ladder, so four clears every rung on it by between eleven and
+!     thirty-three times. The ratio does not rise monotonically -- it is
+!     0.16 at T21, dips to 0.12 at T106, and is 0.34 at T127 and 0.35 at
+!     T170 -- so the envelope is a measured maximum and not a trend the
+!     next rung can be read off. The rung-by-rung table is in
+!     exoplasim/notes/banded-transform-reference.md, measured in Python
+!     from legini's own recurrence and needing no build.
+!
+!     THE ENVELOPE IS OVER lib/rungs.py AND NOT BEYOND IT, and it is
+!     still climbing at the top of the ladder. A rung above T170 does not
+!     inherit this bound: re-measure legini's table error against the
+!     reference at that rung, extend the table in the note, and either
+!     confirm four still clears it or re-derive the coefficient, BEFORE
+!     this gate is run there. Until that is done the failure at a new top
+!     rung is a bound that was never argued for it, not a defective
+!     build.
 !
 !     ztolb, the analysis, ABSOLUTE: 8*NLAT*eps*(1+pscale), where pscale
 !     is the largest |pmat| in the reference table. The analysis is a sum
