@@ -223,28 +223,6 @@
       end subroutine mpgagp
 
 
-      subroutine mpgallgp(pf,pp,klev) ! gather gridpoint to all
-      use pumamod
-      use mpiomp
-      integer :: klev
-      real :: pf(NUGP,klev)
-      real :: pp(NHOR,klev)
-      integer :: jlev, jlat, jg
-
-      do jlev = 1 , klev
-         do jlat = 1 , NLPP
-            jg = mypid*NLPP + jlat
-            zbufgp(1+(jg-1)*NLON:jg*NLON) =                             &
-     &         pp(1+(jlat-1)*NLON:jlat*NLON,jlev)
-         enddo
-!$omp barrier
-         pf(:,jlev) = zbufgp(:)
-!$omp barrier
-      enddo
-      return
-      end subroutine mpgallgp
-
-
       subroutine mpgacs(pcs) ! gather cross sections
       use pumamod
       use mpiomp
@@ -634,43 +612,6 @@
       end subroutine ompi_info
 
 
-!     ==================================================================
-!     Serial file paths. Every one of these already runs on the root
-!     alone in the MPI build, so they are the root thread's here too, and
-!     the gather or scatter around them is the one above.
-!     ==================================================================
-
-      subroutine mpreadgp(ktape,p,kdim,klev)
-      use pumamod
-      integer :: ktape, kdim, klev
-      real :: p(kdim,klev)
-      real :: z(NUGP,klev)
-      z = 0.0
-      if (mypid == NROOT) read (ktape) z(:,:)
-      if (kdim == NHOR) then
-         call mpscgp(z,p,klev)
-      else
-         if (mypid == NROOT) p = z
-      endif
-      return
-      end subroutine mpreadgp
-
-
-      subroutine mpwritegp(ktape,p,kdim,klev)
-      use pumamod
-      integer :: ktape, kdim, klev
-      real :: p(kdim,klev)
-      real :: z(NUGP,klev)
-      if (kdim == NHOR) then
-         call mpgagp(z,p,klev)
-         if (mypid == NROOT) write(ktape) z(1:NUGP,:)
-      else
-         if (mypid == NROOT) write(ktape) p(1:NUGP,:)
-      endif
-      return
-      end subroutine mpwritegp
-
-
       subroutine mpwritegph(ktape,p,kdim,klev,ihead)
       use pumamod
       integer :: ktape, kdim, klev
@@ -695,39 +636,6 @@
       endif
       return
       end subroutine mpwritegph
-
-
-      subroutine mpreadsp(ktape,p,kdim,klev)
-      use pumamod
-      integer :: ktape, kdim, klev
-      real :: p(kdim,klev)
-      real :: z(NESP,klev)
-      integer :: i, j
-      z = 0.0
-      if (mypid == NROOT) read(ktape) ((z(i,j),i=1,NRSP),j=1,klev)
-      if (kdim == NSPP) then
-         call mpscsp(z,p,klev)
-      else
-         if (mypid == NROOT) p = z
-      endif
-      return
-      end subroutine mpreadsp
-
-
-      subroutine mpwritesp(ktape,p,kdim,klev)
-      use pumamod
-      integer :: ktape, kdim, klev
-      real :: p(kdim,klev)
-      real :: z(NESP,klev)
-      integer :: i, j
-      if (kdim == NSPP) then
-         call mpgasp(z,p,klev)
-         if (mypid == NROOT) write(ktape) ((z(i,j),i=1,NRSP),j=1,klev)
-      else
-         if (mypid == NROOT) write(ktape) ((p(i,j),i=1,NRSP),j=1,klev)
-      endif
-      return
-      end subroutine mpwritesp
 
 
       subroutine mpgetsp(yn,p,kdim,klev)
@@ -830,22 +738,6 @@
       end subroutine mpabort
 
 
-!     ==================================================================
-!     Multirun. Not supported by this variant, and it says so rather than
-!     doing something plausible: two model instances in one process would
-!     share every threadprivate copy by instance as well as by thread.
-!     ==================================================================
-
-      subroutine mrsum(k)
-      integer :: k
-      return
-      end subroutine mrsum
-
-      subroutine mrbci(k)
-      integer :: k
-      return
-      end subroutine mrbci
-
       subroutine mrdiff(p,d,n)
       integer :: n
       real :: p(n)
@@ -856,28 +748,6 @@
       subroutine mrdimensions
       return
       end subroutine mrdimensions
-
-
-!     ==================================================================
-!     SUBROUTINE MPGATHERSP
-!     ==================================================================
-
-!     Make pf hold the full spectral field, given that each thread has
-!     contributed its own slice in pp.
-!
-!     Here that is a BARRIER and nothing else: pp is a pointer into pf, so
-!     the contribution was written in place and there is nothing to move.
-!     This is where the 105 GB a run of staging traffic went.
-
-      subroutine mpgathersp(pf,pp,klev)
-      use pumamod
-      use mpiomp
-      integer :: klev
-      real :: pf(NESP,klev)
-      real :: pp(NSPP,klev)
-!$omp barrier
-      return
-      end subroutine mpgathersp
 
 
 !     ==================================================================

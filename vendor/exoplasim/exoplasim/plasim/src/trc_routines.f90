@@ -494,60 +494,6 @@
       end
  
 !****6***0*********0*********0*********0*********0*********0**********72
-      subroutine fyppm(C,P,DC,fy1,fy2,IMR,JNP,j1,j2,A6,AR,AL,JORD)
-!****6***0*********0*********0*********0*********0*********0**********72
-      PARAMETER ( R3 = 1./3., R23 = 2./3. )
-      REAL C(IMR,*),fy1(IMR,*),P(IMR,*),DC(IMR,*),fy2(IMR,JNP)
-      REAL AR(IMR,JNP),AL(IMR,JNP),A6(IMR,JNP)
- 
-      IMH = IMR / 2
-      JMR = JNP - 1
-      j11 = j1-1
-      IMJM1 = IMR*(J2-J1+2)
-      len   = IMR*(J2-J1+3)
-      LMT = JORD - 3
- 
-      DO i=1,IMR*JMR
-      AL(i,2) = 0.5*(p(i,1)+p(i,2)) + (DC(i,1) - DC(i,2))*R3
-      AR(i,1) = AL(i,2)
-      ENDDO
-!
-! Poles:
-!
-      DO i=1,IMH
-      AL(i,1) = AL(i+IMH,2)
-      AL(i+IMH,1) = AL(i,2)
-!
-      AR(i,JNP) = AR(i+IMH,JMR)
-      AR(i+IMH,JNP) = AR(i,JMR)
-      enddo
-!
-      do i=1,len
-      A6(i,j11) = 3.*(p(i,j11)+p(i,j11)  - (AL(i,j11)+AR(i,j11)))
-      enddo
- 
-      if(LMT.le.2) call lmtppm(DC(1,j11),A6(1,j11),AR(1,j11), &
-                               AL(1,j11),P(1,j11),len,LMT)
- 
-      DO i=1,IMJM1
-      IF(C(i,j1).GT.0.) then
-      fy1(i,j1) = P(i,j11)
-      fy2(i,j1) = AR(i,j11) + 0.5*C(i,j1)*(AL(i,j11) - AR(i,j11) + &
-                               A6(i,j11)*(1.-R23*C(i,j1)) )
-      else
-      fy1(i,j1) = P(i,j1)
-      fy2(i,j1) = AL(i,j1) - 0.5*C(i,j1)*(AR(i,j1) - AL(i,j1) + &
-                              A6(i,j1)*(1.+R23*C(i,j1)))
-      endif
-      ENDDO
- 
-      DO i=1,IMJM1
-      fy2(i,j1) = fy2(i,j1) - fy1(i,j1)
-      ENDDO
-      return
-      end
- 
-!****6***0*********0*********0*********0*********0*********0**********72
       subroutine xadv(IMR,JNP,j1,j2,p,UA,JS,JN,IML,adx)
 !****6***0*********0*********0*********0*********0*********0**********72
       REAL p(IMR,JNP),adx(IMR,JNP),qtmp(-IMR:IMR+IMR),UA(IMR,JNP)
@@ -705,54 +651,6 @@
       endif
       enddo outer2
       endif
-      return
-      end
- 
-!****6***0*********0*********0*********0*********0*********0**********72
-      subroutine cosa(cosp,cose,JM,PI,DP)
-!****6***0*********0*********0*********0*********0*********0**********72
-      REAL cosp(*),cose(*),sine(JM)
- 
-      do j=2,JM
-         ph5  = -0.5*PI + (float(j-1)-0.5)*DP
-         sine(j) = SIN(ph5)
-      enddo
- 
-      do J=2,JM-1
-         cosp(J) = (sine(j+1)-sine(j))/DP
-      enddo
- 
-      cosp( 1) = 0.
-      cosp(JM) = 0.
- 
-! Define cosine at edges..
-
-      do j=2,JM
-         cose(j) = 0.5 * (cosp(j-1)+cosp(j))
-      enddo
-      cose(1) = cose(2)
-      return
-      end
- 
-!****6***0*********0*********0*********0*********0*********0**********72
-      subroutine cosc(cosp,cose,JNP,PI,DP)
-!****6***0*********0*********0*********0*********0*********0**********72
-      REAL cosp(*),cose(*)
-      phi = -0.5*PI
-      do j=2,JNP-1
-        phi  =  phi + DP
-        cosp(j) = cos(phi)
-      enddo
-      cosp(  1) = 0.
-      cosp(JNP) = 0.
- 
-      do j=2,JNP
-        cose(j) = 0.5*(cosp(j)+cosp(j-1))
-      enddo
- 
-      do j=2,JNP-1
-        cosp(j) = 0.5*(cose(j)+cose(j+1))
-      enddo
       return
       end
  

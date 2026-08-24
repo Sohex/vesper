@@ -1244,35 +1244,6 @@
     
 
 !****6***0*********0*********0*********0*********0*********0**********72
-    SUBROUTINE n2mmr(numrho,apart,rhop,rhog,im,jm,nl,   &
-                      mmr)
-! Convert number density (particles/m3) into mass mixing ratio (kg/kg)
-! Not currently in use but just in case...
-!****6***0*********0*********0*********0*********0*********0**********72
-    USE pumamod, ONLY: PI
-
-    IMPLICIT NONE
-    
-    integer,intent(in) :: im,jm,nl
-    real,intent(in) ::   numrho(im,jm,nl) ! Mixing ratio of aerosol
-    real,intent(in)    :: apart ! Particle radius
-    real,intent(in)    :: rhop ! Particle density
-    real,intent(in)    :: rhog(im,jm,nl) ! Bulk gas density
-    real,intent(out) :: mmr(im,jm,nl) ! Number density of aerosol
-    
-    REAL :: svol
-    REAL :: mpart
-    
-! (4/3) is INTEGER division; see mmr2n above.
-    svol = (4./3.)*PI*(apart**3) ! Sphere volume
-    mpart = svol*rhop ! Mass of one particle
-    
-    mmr = numrho*mpart/rhog
-    
-    RETURN
-    END
-
-!****6***0*********0*********0*********0*********0*********0**********72
     SUBROUTINE dustsrc(im,jm,nl,u,v,temp,rhog,delp1,snow,wsoil,dmmr)
 
 !   Wind-driven mineral dust emission, Kok et al. (2014) equations 18a and 18b.

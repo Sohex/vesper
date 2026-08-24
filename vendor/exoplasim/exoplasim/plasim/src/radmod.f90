@@ -1858,10 +1858,6 @@
 !
 !     compute cosine of zenit angle including daily cycle
 !
-!     the following PUMA *subs* are used:
-!
-!     ndayofyear : compute date and time from PUMA timestep
-!
 !     the following PUMA variables are used:
 !
 !     PI         : pi=3.14...
@@ -1873,16 +1869,9 @@
 !
 !**   1) compute day of the year and hour of the day
 !
-      interface
-         integer function ndayofyear(kstep)
-            integer, intent(in) :: kstep
-         end function ndayofyear
-      end interface
-
       if (nperpetual > 0) then
          zcday = nperpetual / real(m_days_per_year)
       else
-!          zcday = ndayofyear(nstep) ! from calmod
          zcday = mod(nstep,n_steps_per_year) / real(n_steps_per_year) !Actual fractional progression
       endif
 
@@ -1974,10 +1963,6 @@
 !
 !     compute ozon distribution
 !
-!     used subroutines:
-!
-!     ndayofyear : module calmod - compute day of year
-!
 !     the following variables from pumamod are used:
 !
 !     TWOPI    : 2*PI
@@ -1986,12 +1971,6 @@
 !
 !     local parameter and arrays
 !
-      interface
-         integer function ndayofyear(kstep)
-            integer, intent(in) :: kstep
-         end function ndayofyear
-      end interface
-
       integer :: jlat   ! latitude index
       integer :: jlev   ! level    index
       integer :: jh1
@@ -2013,7 +1992,6 @@
       real :: zo3(NHOR)
 
       if (no3 == 1) then ! compute synthetic ozone distribution
-!          zcday = ndayofyear(nstep) ! see calmod
          zcday = mod(nstep,n_steps_per_year) / real(n_steps_per_year)
          do jlat = 1 , NLPP
             jh2 = jlat * NLON     ! horizonatl index for end   of latitude
@@ -3747,7 +3725,6 @@
 !       orb_decl ----- Calculate the solar declination angle and
 !                               Earth/Sun distance factor for a given
 !                               time of the year.
-!       orb_print ---- Print out information on the orbital parameters
 !                               to use.
 !
 !     Code history
@@ -4374,57 +4351,3 @@
 !
       return
       end subroutine orb_decl
-
-!     ====================
-!     SUBROUTINE ORB_PRINT
-!     ====================
-
-      subroutine orb_print( iyear_AD, eccen, obliq, mvelp ,mypid,nroot,nud)
-!
-!     Print out the information on the input orbital characteristics
-!
-!     Original version:  Erik Kluzek
-!     Date:              Oct/1997
-!
-      use orbconst
-      implicit none
-!
-!     Input Arguments
-!     ---------------
-      real :: eccen  ! Earth's eccentricity factor (unitless) (typically 0 to 0.1)
-      real :: obliq  ! Earth's obliquity angle (degree's) (-90 to +90) (typically 22-26)
-      real :: mvelp  ! Earth's moving vernal equinox at perhelion (degree's) (0 to 360.0)
-      integer :: iyear_AD ! Year (AD) to simulate above earth's orbital parameters for
-      integer :: mypid    ! process id (PUMA MPI)
-      integer :: nroot    ! process id of root (PUMA MPI)
-      integer :: nud      ! diagnostics unit
-!
-      if ( iyear_AD .eq. ORB_NOT_YEAR_BASED )then
-        if ( obliq .eq. ORB_UNDEF_REAL )then
-         if(mypid==nroot) then
-          write(nud,*) 'Orbit parameters not set!'
-         end if
-        else
-         if(mypid==nroot) then
-          write(nud,*) 'Orbital parameters: '
-          write(nud,*) 'Obliquity (degree):              ', obliq
-          write(nud,*) 'Eccentricity (unitless):         ', eccen
-          write(nud,*) 'Long. of moving Perhelion (deg): ', mvelp
-         end if
-        end if
-      else
-        if ( iyear_AD .gt. 0 )then
-         if(mypid==nroot) then
-          write(nud,*) 'Orbital parameters calculated for given year: '   &
-     &               ,iyear_AD,' AD'
-         end if
-        else
-         if(mypid==nroot) then
-          write(nud,*) 'Orbital parameters calculated for given year: '   &
-     &               ,iyear_AD,' BC'
-         end if
-        end if
-      end if
-!
-      return
-      end subroutine orb_print

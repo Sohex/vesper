@@ -128,26 +128,6 @@
 
 
 !     ===================
-!     FUNCTION NDAYOFYEAR
-!     ===================
-
-      integer function ndayofyear(kstep)
-      use calmod
-      integer :: idatim(7)
-
-      if (n_days_per_year == 365) then
-         call step2cal(kstep,ntspd,idatim)
-         ndayofyear = idatim(3) + monaccu(idatim(2)-1)
-      else
-         call step2cal30(kstep,idatim)
-         ndayofyear = idatim(3) + m_days_per_month * (idatim(2)-1) !Day of month + (month-1)*30
-      endif
-
-      return
-      end
-
-
-!     ===================
 !     SUBROUTINE STEP2CAL
 !     ===================
 
@@ -408,21 +388,6 @@
      &           'Jul','Aug','Sep','Oct','Nov','Dec'/
       call ntomin(istep,imin,ihou,iday,imon,iyea)
       write (datch,20030) iday,mona(imon),iyea,ihou,imin
-20030 format(i2,'-',a3,'-',i4.4,2x,i2,':',i2.2)
-      end
-
-
-!     =================
-!     SUBROUTINE DTODAT
-!     =================
-
-      subroutine dtodat(id,datch)
-      integer :: id(6)
-      character(len=18) datch
-      character(len=3) mona(12)
-      data mona /'Jan','Feb','Mar','Apr','May','Jun',                   &
-     &           'Jul','Aug','Sep','Oct','Nov','Dec'/
-      write (datch,20030) id(3),mona(id(2)),id(1),id(4),id(5)
 20030 format(i2,'-',a3,'-',i4.4,2x,i2,':',i2.2)
       end
 

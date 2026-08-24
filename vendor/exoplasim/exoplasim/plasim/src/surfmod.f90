@@ -51,28 +51,6 @@
       end subroutine surfcode
 
 
-!     ===================
-!     SUBROUTINE SURFNAME
-!     ===================
-
-      subroutine surfname(kcode,yn)
-      use surfmod
-      integer :: kcode
-      character (len=*) :: yn
-
-!     Get name from code
-
-      do j = 1 , nsurnum
-         if (kcode == nsurcod(j)) then
-            yn = ysurnam(j)
-            return
-         endif
-      enddo
-      yn = 'UNKNOWN'
-      return
-      end subroutine surfname
-
-
 !     ==================
 !     SUBROUTINE CHECKIO
 !     ==================

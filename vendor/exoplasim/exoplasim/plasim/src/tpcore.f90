@@ -1071,7 +1071,6 @@
  
          if(JORD.LE.0 .or. JORD.GE.3) then
 !        PPM
-!!           call fyppm(C,P,DC2,fy1,fy2,IMR,JNP,j1,j2,A6,AR,AL,JORD)
              write(nud,*) 'PPM algorithm not yet adapted'
              stop
 

@@ -1,10 +1,11 @@
 !     ==================================================================
 !     Does mpimod_omp compute what mpimod computes?
 !
-!     Each of the 39 routines has an answer that can be written down in
+!     Every collective it covers has an answer that can be written down in
 !     advance, so this checks them against those answers rather than
 !     against another run of the model. It is built and run by
-!     verify_omp_collectives.sh.
+!     verify_omp_collectives.sh. It is also the only reader of mpsumr, which
+!     is why that routine survived world-ro6's sweep of the omp layer.
 !
 !     Worldbuilding frame: a correctness check on the Vesper climate
 !     model's parallel layer. Nothing here is about the simulated planet.

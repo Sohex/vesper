@@ -486,24 +486,6 @@ end
 
 
 ! ================
-! SUBROUTINE SP3FC
-! ================
-
-subroutine sp3fc
-use pumamod, only:NLEV,sd,st,sz,gd,gt,gz
-implicit none
-integer :: v ! Loop index for level
-
-do v = 1 , NLEV
-   call sp2fc(sd(1,v),gd(:,v))
-   call sp2fc(st(1,v),gt(:,v))
-   call sp2fc(sz(1,v),gz(:,v))
-enddo
-return
-end
-
-
-! ================
 ! SUBROUTINE DV2UV        !SP->GP
 ! ================
 

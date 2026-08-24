@@ -295,25 +295,3 @@
       return
       end
 
-
-!     =========================
-!     SUBROUTINE CHECK_EQUALITY
-!     =========================
-
-      subroutine check_equality(yn,pa,pb,k1,k2)
-      character (len=*) :: yn
-      real :: pa(k1,k2)
-      real :: pb(k1,k2)
-
-      do j2 = 1 , k2
-      do j1 = 1 , k1
-         if (pa(j1,j2) /= pb(j1,j2)) then
-            write(nud,*)'No Equality on ',yn,'(',j1,',',j2,')',pa(j1,j2),pb(j1,j2)
-            return
-         endif
-      enddo
-      enddo
-      write(nud,*)'Array {',yn,'} is OK'
-      return
-      end
-

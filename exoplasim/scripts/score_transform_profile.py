@@ -48,7 +48,7 @@ BUCKETS: dict[str, tuple[str, ...]] = {
     # The Legendre transform proper, including the four routines that fuse
     # physics into it (mktend, qtend, dv2uv, uv2dv).
     "legendre": (
-        "fc2sp_", "sp2fc_", "sp2fcdmu_", "sp2fl_", "sp3fc_",
+        "fc2sp_", "sp2fc_", "sp2fcdmu_", "sp2fl_",
         "dv2uv_", "uv2dv_", "mktend_", "qtend_", "invlega_", "invlegd_",
     ),
     # The longitudinal FFT. fftini_ builds the trig table and is startup, but it
@@ -63,7 +63,7 @@ BUCKETS: dict[str, tuple[str, ...]] = {
     "mpi": (
         "mpsumsc_", "mpsum_", "mpsumr_", "mpsumbcr_",
         "mpgallsp_", "mpgasp_", "mpscsp_", "mpgacs_",
-        "mpgagp_", "mpscgp_", "mpgallgp_", "mpbcr_", "mpbci_",
+        "mpgagp_", "mpscgp_", "mpbcr_", "mpbci_",
     ),
     # Accumulated every timestep whether or not anything is written
     # (plasim.f90:688 is unguarded), so it is per-step model work that a
@@ -79,7 +79,7 @@ BUCKETS: dict[str, tuple[str, ...]] = {
         "kuo_", "mkrain_", "mklsp_", "mkdca_", "mkshallow_", "mkcflux_",
         "vdiff_", "vdiffo_", "mkevap_", "mkdqtgp_", "surflx_", "getflx_",
         "getflxco_", "mkiflux_", "mkiflx_", "mkstress_", "mkshfl_",
-        "mksst_", "mkice_", "mkicec_", "mkicecf_", "mktsoil_", "skintemp_",
+        "mksst_", "mkice_", "mkicec_", "mktsoil_", "skintemp_",
         "iceget_", "oceanget_", "gsettle_", "subsnow_", "newtonraphson_",
         "cape_", "stability_check_", "getshear_", "ql_", "qld_", "lv_", "rv_",
         "ev_", "es_cc_", "e_plcl_", "density_", "trho_", "gettcll_", "poti_",
@@ -117,14 +117,14 @@ BUCKETS: dict[str, tuple[str, ...]] = {
     "aerosol_tracer": (
         "aerocore_", "aero_main_", "aeroprof_", "aero_surf_", "dustprof_",
         "dustsrc_", "tracer_main_", "tpcore_", "fct3d_", "xtp_", "ytp_",
-        "fxppm_", "fyppm_", "fzppm_", "xadv_", "xmist_", "ymist_", "qckxyz_",
+        "fxppm_", "fzppm_", "xadv_", "xmist_", "ymist_", "qckxyz_",
     ),
     "io": (
         "outgp_", "outsp_", "outsc_",
-        "writegp_", "writesp_", "writescalar_", "write_short_", "writecolumn_",
+        "writegp_", "writesp_", "writescalar_", "write_short_",
         "snapshotgp_", "snapshotsp_", "snapshotsc_", "snapshotdiag_",
         "hcadencegp_", "hcadencesp_", "hcadencesc_", "hcadencediag_",
-        "mpwritegp_", "mpwritegph_", "mpwritesp_", "mpreadgp_", "mpreadsp_",
+        "mpwritegph_",
     ),
     "startup": (
         "legini_", "inigau_", "inilat_", "inilat_.part.0", "initpm_", "initsi_",

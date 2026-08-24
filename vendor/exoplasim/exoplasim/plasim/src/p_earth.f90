@@ -189,12 +189,3 @@ return
 subroutine planet_step
 return
 end
-
-!          ===========
-!          PLANET_STOP
-!          ===========
-
-subroutine planet_stop
-return
-end
-

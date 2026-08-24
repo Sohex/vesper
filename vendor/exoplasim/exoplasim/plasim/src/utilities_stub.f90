@@ -89,27 +89,6 @@
  
 !--------------------------------------------------------------------72
 !
-!     Write a gridpoint array to a text file
-
-      subroutine finishuptext(dd,fname)
-      use pumamod
-      
-      character (len=*) :: fname
-      real :: dd(NHOR)
- 
-      
-      open(93,file=fname,status='unknown')
-      do i=1,nn
-        write(93) dd(:)
-      enddo
-      close(93)
-      
-      return
-      end subroutine finishuptext      
-      
-      
-!--------------------------------------------------------------------72
-!
 !     Write a gridpoint array to an unformatted file
 
       subroutine finishup(dd,fname)
@@ -127,63 +106,6 @@
       
       return
       end subroutine finishup
-      
-!--------------------------------------------------------------------72
-!
-!     Write a spectral array to an unformatted file
-
-      subroutine finishsp(dd,fname)
-      use pumamod
-      
-      character (len=*) :: fname
-      real :: dd(NSPP)
-      
-      
-      open(93,file=fname,form='unformatted')
-      write(93) dd(:)
-      close(93)
-
-      
-      return
-      end subroutine finishsp
-       
-!--------------------------------------------------------------------72
-!
-!  In single-thread mode, write a spectral array to an unformatted file
-
-      subroutine finishfsp(ddn,fname)
-      use pumamod
-      
-      character (len=*) :: fname
-      real :: dd(NESP)
-      
-      open(93,file=fname,form='unformatted')
-      write(93) dd(:)
-      close(93)
-     
-      return
-      end subroutine finishfsp
-           
-!--------------------------------------------------------------------72
-!
-!       Write a latitude array to an unformatted file
-
-      subroutine finishlat(dd,fname)
-      use pumamod
-      
-      character (len=*) :: fname
-      real :: dd(NLPP)
-
-
-      
-      open(93,file=fname,form='unformatted')
-      write(93) dd(:)
-      close(93)
-
-      
-      return
-      end subroutine finishlat
-
       
 !--------------------------------------------------------------------72
 !

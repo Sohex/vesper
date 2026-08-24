@@ -2,13 +2,12 @@
 !     utilities_omp.f90
 !     -----------------
 !     <utilities.f90> for the threads-instead-of-ranks build, selected by
-!     ${UTILMOD} in make_plasim beside MPIMOD=mpimod_omp.
+!     ${_utilmod} in plasim/CMakeLists.txt beside mpimod_omp.
 !
-!     Only mpgadn and mpgarn differ. They are RAW gathers, outside the
-!     39-routine contract mpimod owns, and they are the two sites the
-!     paired-decomposition survey caught for exactly that reason. The
-!     rest of this file is utilities.f90 unchanged: makeareas and
-!     finishlat already un-permute what these hand back, and every other
+!     Only mpgarn differs. It is a RAW gather, outside the contract mpimod
+!     owns, and it is the site the paired-decomposition survey caught for
+!     exactly that reason. The rest of this file is utilities.f90 unchanged:
+!     makeareas already un-permutes what it hands back, and every other
 !     routine here routes through mpgagp or mpscgp.
 !     =======================================
 
@@ -58,31 +57,10 @@
       return
       end subroutine makeareas
 
-!============ADDITIONAL MPIMOD UTILITIES===========================   
-      
-!     =================
-!     SUBROUTINE MPGADN
-!     =================
+!============ADDITIONAL MPIMOD UTILITIES===========================
 
-      subroutine mpgadn(pf,pp,n) ! gather double-precision values
-      use pumamod
-      use mpiomp
-      
-      integer :: n
-      real (kind = 8) :: pf(*)
-      real (kind = 8) :: pp(*)
-      
-      if (n*NPRO > NGEN) call mpabort('mpgadn: buffer too small')
-      zbufd(mypid*n+1:mypid*n+n) = pp(1:n)
-!$omp barrier
-      if (mypid == NROOT) pf(1:n*NPRO) = zbufd(1:n*NPRO)
-!$omp barrier
-      
-      return
-      end subroutine mpgadn
-      
 !     =================
-!     SUBROUTINE MPGADN
+!     SUBROUTINE MPGARN
 !     =================
 
       subroutine mpgarn(pf,pp,n) ! gather single-precision values
@@ -180,102 +158,6 @@
       end subroutine finishup
 
      
-!--------------------------------------------------------------------72
-!
-!     Write a gridpoint array to a text file
-
-      subroutine finishuptext(dd,fname)
-      use pumamod
-      
-      character (len=*) :: fname
-      real :: dd(NHOR)
-      real :: ddn(NUGP)
-      
-      
-      call mpgagp(ddn,dd,1)
-      
-      if (mypid==NROOT) then
-         open(93,file=fname,status='unknown')
-         do i=1,nn
-           write(93) ddn(:)
-         enddo
-         close(93)
-      endif
-      
-      return
-      end subroutine finishuptext      
-      
-!--------------------------------------------------------------------72
-!
-!     Write a spectral array to an unformatted file
-
-      subroutine finishsp(dd,fname)
-      use pumamod
-      
-      character (len=*) :: fname
-      real :: dd(NSPP)
-      real :: ddn(NESP)
-      
-      
-      call mpgasp(ddn,dd,1)
-      
-      if (mypid==NROOT) then
-         open(93,file=fname,form='unformatted')
-         write(93) ddn(:)
-         close(93)
-      endif
-      
-      return
-      end subroutine finishsp
-       
-!--------------------------------------------------------------------72
-!
-!  In single-thread mode, write a spectral array to an unformatted file
-
-      subroutine finishfsp(ddn,fname)
-      use pumamod
-      
-      character (len=*) :: fname
-      real ddn(NESP)
-      
-      if (mypid==NROOT) then
-         open(93,file=fname,form='unformatted')
-         write(93) ddn(:)
-         close(93)
-      endif
-      
-      return
-      end subroutine finishfsp
-           
-!--------------------------------------------------------------------72
-!
-!       Write a latitude array to an unformatted file
-
-      subroutine finishlat(dd,fname)
-      use pumamod
-      
-      character (len=*) :: fname
-      real :: dd(NLPP)
-      real :: ddn(NLAT)
-      real :: zlat(NLAT)
-      
-      call mpgarn(ddn,dd,NLPP)
-      
-!     A raw gather again, and this one goes straight to a file, so the record
-!     has to be in global latitude order like every other record the model
-!     writes.
-
-      
-      if (mypid==NROOT) then
-         open(93,file=fname,form='unformatted')
-         write(93) ddn(:)
-         close(93)
-      endif
-      
-      return
-      end subroutine finishlat
-
-      
 !--------------------------------------------------------------------72
 !
 !      Read a gridpoint array from an unformatted file

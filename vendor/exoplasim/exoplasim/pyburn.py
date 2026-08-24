@@ -282,15 +282,6 @@ def _getEndian(fbuffer):
             else: #We're in a little-Endian system, and the buffer was written in Big-Endian.
                 endian=">"
     return endian
-
-def _getmarkerlength(fbuffer,en):
-    '''Determine how many bytes were used for record markers'''
-    tag = struct.unpack(en+'i',fbuffer[:4])[0]
-    markerlength=4
-    if tag==0:
-        markerlength=8
-    return markerlength
-
 def _getwordlength(fbuffer,n,en,fmt='i'):
     '''Determine if we're dealing with 32-bit output or 64-bit.
     
@@ -325,51 +316,6 @@ def _getwordlength(fbuffer,n,en,fmt='i'):
     elif fmt=='f' and wordlength==8:
         fmt='d'
     return wordlength,fmt
-
-def _getknownwordlength(fbuffer,n,en,ml,mf):
-    '''Determine word length of a data variable in cases where we know that the header is 8 words and is 32-bit.
-    
-    Parameters
-    ----------
-    fbuffer : bytes
-        Binary bytes read from a file opened with ``mode='rb'`` and read with ``file.read()``. 
-    n : int
-        The index of the word at which to start, in bytes. A 32-bit word has length 4, so the current 
-        position in words would be 4*n assuming 4-byte words, or 8*n if 64 bits and 8-byte words.
-    en : str
-        Endianness, denoted by ">" or "<"
-    ml : int
-        Length of a record marker
-    mf : str
-        Format of the record marker ('i' or 'l')
-    
-    Returns
-    -------
-    int, str
-       Word length in bytes, and format string for a word--4 for 32 bit, and 8 for 64 bit. 
-       'f' for a 4-byte float, and 'd' for an 8-byte float.
-    '''
-    
-    htag = struct.unpack(en+mf,fbuffer[n:n+ml])
-    n+=ml
-    header = struct.unpack(en+8*'i',fbuffer[n:n+32])
-    n+=32+ml #Add one word for restatement of header length
-    dtag = struct.unpack(en+mf,fbuffer[n:n+ml])[0]
-    
-    dim1 = header[4]
-    dim2 = header[5]
-    
-    length = dim1*dim2
-    
-    wordlength = dtag//length #dtag tells us the length of the coming record in bytes, while length is the
-                              #length of the coming record in words. The ratio of the two is thus wordlength.
-    if wordlength==4:
-        fmt='f'
-    else:
-        fmt='d'
-    return wordlength,fmt
-
-
 def readrecord(fbuffer,n,en,ml,mf):
     '''Read a Fortran record from the buffer, starting at index n, and return the header, data, and updated n.
     
@@ -414,8 +360,7 @@ def _decoderecord(fbuffer,n,en,ml,mf):
     Callers promote to float64, which is the dtype ``np.asarray`` produced from
     the old tuple of Python floats, so both values and dtype are unchanged.
 
-    Word length is derived exactly as :py:func:`_getknownwordlength
-    <exoplasim.pyburn._getknownwordlength>` derives it, from the ratio of the
+    Word length is derived from the ratio of the
     record's length in bytes to its length in words, but without re-reading the
     header to do so.
 
@@ -450,93 +395,6 @@ def _decoderecord(fbuffer,n,en,ml,mf):
                          count=databytes//wl,offset=n)
     n+=databytes+ml #additional marker for restatement of datalength
     return header,view,n
-    
-def readvariablecode(fbuffer,kcode,en,ml,mf):
-    '''Seek through a binary output buffer and extract all records associated with a variable code.
-    
-    Note, assembling a variable list piece by piece in this way may be slower than reading **all** variables
-    at once, because it requires seeking all the way through the buffer multiple times for each variable.
-    This will likely only be faster if you only need a small number of variables.
-    
-    Parameters
-    ----------
-    fbuffer : bytes
-        Binary bytes read from a file opened with ``mode='rb'`` and read with ``file.read()``.
-    kcode : int
-        The integer code associated with the variable. For possible codes, refer to the 
-        ``Postprocessor Variable Codes. <postprocessor.html#postprocessor-variable-codes>`_
-    en : str
-        Endianness, denoted by ">" or "<"
-    ml : int
-        Length of a record marker
-    mf : str
-        Format of the record marker ('i' or 'l')
-    
-    Returns
-    -------
-    array-like, array-like
-        A tuple containing first the header, then the variable data, as one concatenated 1D variable.
-    '''
-    n = 0
-    mainheader,zsig,n = readrecord(fbuffer,n,en,ml,mf)
-    
-    dataheader = None
-    variable = None
-    _parts = []   # joined once at the end; see readallvariables
-    
-    markerfmt = en+mf
-    nbuffer = len(fbuffer)
-    while n<nbuffer:
-        
-        headerbytes = struct.unpack_from(markerfmt,fbuffer,n)[0]
-        n+=ml
-        header = struct.unpack_from(en+(headerbytes//4)*'i',fbuffer,n)
-        n+=headerbytes+ml
-        databytes = struct.unpack_from(markerfmt,fbuffer,n)[0]
-        n+=ml
-        if header[0]==kcode:
-            dataheader = header
-            wl = databytes//(header[4]*header[5])
-            _parts.append(np.frombuffer(fbuffer,
-                                        dtype=np.dtype(en+('f4' if wl==4 else 'f8')),
-                                        count=databytes//wl,offset=n))
-        #Either way, fast-forward past the data we have or have not just read.
-        n+=databytes+ml
-    
-    if _parts:
-        variable = (_parts[0].astype(np.float64) if len(_parts)==1
-                    else np.concatenate(_parts,dtype=np.float64))
-    
-    return dataheader, variable
-
-def _gettimevar(fbuffer):
-    '''Extract the time array, as an array of timesteps'''
-    
-    en = _getEndian(fbuffer)
-    ml,mf = _getwordlength(fbuffer,0,en)
-    
-    kcode = 139 #Use surface temperature to do this
-    time = []
-    n = 0
-    mainheader,zsig,n = readrecord(fbuffer,n,en,ml,mf)
-    
-    markerfmt = en+mf
-    nbuffer = len(fbuffer)
-    while n<nbuffer:
-        
-        headerbytes = struct.unpack_from(markerfmt,fbuffer,n)[0]
-        n+=ml
-        header = struct.unpack_from(en+(headerbytes//4)*'i',fbuffer,n)
-        n+=headerbytes+ml
-        databytes = struct.unpack_from(markerfmt,fbuffer,n)[0]
-        n+=ml
-        if header[0]==kcode:
-            time.append(header[6]) #nstep-nstep1 (timesteps since start of run)
-        n+=databytes+ml #This never decodes a payload; it only walks the records.
-    
-    return time
-    
-def readallvariables(fbuffer):
     '''Extract all variables and their headers from a file byte buffer.
     
     Doing this and then only keeping the codes you want may be faster than extracting variables one by one,
@@ -678,7 +536,6 @@ def readfile(filename):
     kcodes = list(variables.keys())
     kcodes.remove('sigmah')
     
-    #time = _gettimevar(fbuffer) #This means we do one additional sweep through the file
     time = variables["time"]
     ntimes = len(time)
     kcodes.remove("time")
@@ -4065,112 +3922,3 @@ def postprocess(rawfile,outfile,logfile=None,namelist=None,variables=None,mode='
     _log(logfile,"================================")
     _log(logfile,"| PYBURN FINISHED SUCCESSFULLY |")
     _log(logfile,"================================")
-    
-    
-def f2py_compile(source,
-            modulename='untitled',
-            extra_args='',
-            verbose=True,
-            source_fn=None,
-            extension='.f',
-            full_output=False
-           ):
-    """
-    Build extension module from a Fortran 77 source string with f2py.
-    Parameters
-    
-    This function used to exist in numpy prior to 2.0. It is reimplemented here.
-    ----------
-    source : str or bytes
-        Fortran source of module / subroutine to compile
-        .. versionchanged:: 1.16.0
-           Accept str as well as bytes
-    modulename : str, optional
-        The name of the compiled python module
-    extra_args : str or list, optional
-        Additional parameters passed to f2py
-        .. versionchanged:: 1.16.0
-            A list of args may also be provided.
-    verbose : bool, optional
-        Print f2py output to screen
-    source_fn : str, optional
-        Name of the file where the fortran source is written.
-        The default is to use a temporary file with the extension
-        provided by the ``extension`` parameter
-    extension : ``{'.f', '.f90'}``, optional
-        Filename extension if `source_fn` is not provided.
-        The extension tells which fortran standard is used.
-        The default is ``.f``, which implies F77 standard.
-        .. versionadded:: 1.11.0
-    full_output : bool, optional
-        If True, return a `subprocess.CompletedProcess` containing
-        the stdout and stderr of the compile process, instead of just
-        the status code.
-        .. versionadded:: 1.20.0
-    Returns
-    -------
-    result : int or `subprocess.CompletedProcess`
-        0 on success, or a `subprocess.CompletedProcess` if
-        ``full_output=True``
-    Examples
-    --------
-    .. literalinclude:: ../../source/f2py/code/results/compile_session.dat
-        :language: python
-    """
-    import tempfile
-    import shlex
-    import subprocess
-
-    if source_fn is None:
-        f, fname = tempfile.mkstemp(suffix=extension)
-        # f is a file descriptor so need to close it
-        # carefully -- not with .close() directly
-        os.close(f)
-    else:
-        fname = source_fn
-
-    if not isinstance(source, str):
-        source = str(source, 'utf-8')
-    try:
-        with open(fname, 'w') as f:
-            f.write(source)
-
-        args = ['-c', '-m', modulename, f.name]
-
-        if isinstance(extra_args, str):
-            is_posix = (os.name == 'posix')
-            extra_args = shlex.split(extra_args, posix=is_posix)
-
-        args.extend(extra_args)
-
-        c = [sys.executable,
-             '-c',
-             'import numpy.f2py as f2py2e;f2py2e.main()'] + args
-        try:
-            cp = subprocess.run(c, capture_output=True)
-        except OSError:
-            # preserve historic status code used by exec_command()
-            cp = subprocess.CompletedProcess(c, 127, stdout=b'', stderr=b'')
-        else:
-            if verbose:
-                print(cp.stdout.decode())
-    finally:
-        if source_fn is None:
-            os.remove(fname)
-
-    if full_output:
-        return cp
-    else:
-        return cp.returncode
-
-
-    
-        
-    
-    
-
-        
-        
-        
-    
-    

@@ -219,39 +219,6 @@
       return
       end
       
-!     ======================
-!     SUBROUTINE WRITECOLUMN
-!     ======================
-
-!     This will output a single column per timestep. Currently unused, but it could be.
-
-      subroutine writecolumn(kunit,pf,kcode,klev)
-      use pumamod
-      real :: pf
-      integer(kind=4) :: ihead(8)
-
-      istep = nstep
-      call ntomin(istep,nmin,nhour,nday,nmonth,nyear)
-
-      ihead(1) = kcode
-      ihead(2) = klev
-      ihead(3) = nday + 100 * nmonth + 10000 * nyear
-      ihead(4) = nmin + 100 * nhour
-      ihead(5) = 1
-      ihead(6) = 1
-      ihead(7) = nstep - nstep1
-      ihead(8) = m_days_per_year
-
-!     Guarded for the reason writesp and writescalar above are: one process, one
-!     unit 40, sixteen threads. Unused today and a trap in waiting otherwise.
-      if (mypid == NROOT) then
-         write (kunit) ihead
-         write (kunit) pf
-      endif
-
-      return
-      end
-      
 !     ================
 !     SUBROUTINE OUTSC
 !     ================

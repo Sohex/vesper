@@ -19,7 +19,6 @@
       parameter(TMELT=273.16)           ! melting temp. for snow (0 deg C)
                                         ! ALL DENSITIES IN (kg/m**3)
       parameter(CRHOI = 920.)           ! DENSITY OF ICE
-      parameter(CRHOF = 1003.8)         ! DENSITY OF 'FRESH' WATER AT S=5
       parameter(CRHOSN = 330.)          ! DENSITY OF SNOW
       parameter(CPI = 2070.)            ! SPECIFIC HEAT OF ICE (J/(kg*K))
       parameter(CPSN = 2090.)           ! SPECIFIC HEAT OF SNOW (J/(kg*K))
@@ -1415,55 +1414,6 @@
       endif
 !
       end subroutine mkicec
-
-!     =====================================================================
-!     SUBROUTINE mkicecf
-!     =====================================================================
-
-      subroutine mkicecf(picedc,piced,picec)
-      use icemod
-      real :: picedc(NHOR)  ! clim. thickness (input)
-      real :: piced(NHOR)   ! actual thickness (input)
-      real :: picec(NHOR)   ! new compactness (input & output)
-!
-!     debug arrays
-!
-      real, allocatable :: zprf1(:),zprf2(:),zprf3(:),zprf4(:)
-!
-!     compute new compactness 
-!
-      do jhor=1,NHOR
-       if(piced(jhor) > 0. .and. picedc(jhor) > 0) then
-        zdice=piced(jhor)-picedc(jhor)
-        if(zdice > 0.) then
-         picec(jhor)=1.-(1.-xclicec2(jhor))*exp(-zdice/hlead)
-        else
-         picec(jhor)=xclicec2(jhor)*sqrt(piced(jhor)/picedc(jhor))
-        endif
-       endif   
-      enddo
-!
-!     debug printout
-!
-      if (nprint==2) then
-       allocate(zprf1(NLON*NLAT))
-       allocate(zprf2(NLON*NLAT))
-       allocate(zprf3(NLON*NLAT))
-       call mpgagp(zprf1,picedc,1)
-       call mpgagp(zprf2,piced,1)
-       call mpgagp(zprf3,picec,1)
-       if(mypid==NROOT) then
-        write(nud,*)'In mkicecf: '
-        write(nud,*)'clim. ice thickness: ',zprf1(nprhor)
-        write(nud,*)'act.  ice thickness: ',zprf2(nprhor)
-        write(nud,*)'new ice compactness: ',zprf3(nprhor)
-       endif
-       deallocate(zprf1)
-       deallocate(zprf2)
-       deallocate(zprf3)
-      endif
-!
-      end subroutine mkicecf
 
 !     =====================================================================
 !     SUBROUTINE subsnow

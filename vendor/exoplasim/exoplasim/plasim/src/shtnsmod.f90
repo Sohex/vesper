@@ -560,16 +560,4 @@
       end subroutine sh_slice
 
 
-      subroutine shtns_teardown
-      if (.not. lshtns) return
-      call shtns_destroy(shtcfg)
-      shtcfg = c_null_ptr
-      if (allocated(shtinv)) deallocate(shtinv)
-      if (allocated(shtl1)) deallocate(shtl1)
-      if (allocated(shgdmu)) deallocate(shgdmu, shgdlam)
-      if (allocated(shrcsq)) deallocate(shrcsq)
-      lshtns = .false.
-      return
-      end subroutine shtns_teardown
-
       end module shtnsmod
