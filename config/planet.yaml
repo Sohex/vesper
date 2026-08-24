@@ -719,7 +719,50 @@ model:
   # Worth about +2.0 K on the arms' own measured slope, which is why the flux
   # re-derivation must follow it and not precede it.
   cloud_absorption_scale: 1.192
+  # SURFACE LONGWAVE EMISSIVITY, DECLARED AND NOT DERIVED. `radmod.f90`'s `lwr`
+  # wrote these as one literal, `zeps = dls + 0.98*(1-dls)`, so the modelled
+  # land emitted as a perfect blackbody by construction and everything the mask
+  # does not call land got 0.98. They are named keys now and these values
+  # reproduce that literal exactly, so declaring them changes no result.
+  #
+  # 1.0 over land is not a measurement and is not defended here. Bare rock,
+  # desert sand and salt crust are 0.90 to 0.95 broadband in the thermal window,
+  # and this world's barren land classes are a large fraction of its land; the
+  # cost is one-signed, overstated land emission plus the (1-eps) reflection of
+  # downward longwave that `lwr` discards outright while eps is 1. Sea water is
+  # 0.985 to 0.99, so 0.98 is slightly low in the same direction. The bracket to
+  # run an arm over is 0.90 to 1.0 for land and 0.98 to 0.99 for the rest.
+  #
+  # The honest answer is a per-cell field out of the lithology map rather than
+  # two scalars, which is `world-38y`. Until that exists these two make the
+  # assumption visible, put it in every run's namelist, and give it an arm.
+  land_longwave_emissivity: 1.0
+  sea_longwave_emissivity: 0.98
   ozone_scale: 0.794
+  # WHERE THE OZONE SITS, and it is a pressure, not an altitude. `mko3` builds
+  # its height coordinate hypsometrically from the model's own gascon and ga,
+  # correctly, and then places the profile against BO3 and CO3, which upstream
+  # carries as fixed geometric lengths in metres fitted to Earth. This planet's
+  # scale height is 0.7656 of Earth's, so upstream's 20 km is 3.6 scale heights
+  # here against 2.7 on Earth and the whole profile is pushed to the top of the
+  # model.
+  #
+  # The modelled photochemical maximum is set by pressure-like conditions --
+  # ultraviolet optical depth and three-body recombination density -- not by
+  # geometric altitude, so pressure is the invariant to hold. These are
+  # upstream's 20000 and 5000 scaled by (gascon/ga) over Earth's own, which is
+  # the same factor the heights they are compared against already carry. The
+  # ratio is 0.765592 at gascon 287.017, from the declared composition, and the
+  # gravity above.
+  #
+  # Holding it exactly reproduces Earth's own layer-by-layer share of the ozone
+  # column on this world's sigma levels, to machine precision, which is the
+  # falsifiable form of the claim: exoplasim/notes/ozone.md carries the numbers.
+  # This corrects a REDISTRIBUTION, not the column -- `ozone_scale` is the
+  # column -- so the budget effect is small and the top-layer heating rate is
+  # where it shows.
+  ozone_height_m: 15311.8
+  ozone_spread_m: 3828.0
   ozone_uv_weight: 0.335
   ozone_visible_weight: 0.914
   # The Lacis and Hansen shortwave gas absorptances are fractions of SOLAR flux,

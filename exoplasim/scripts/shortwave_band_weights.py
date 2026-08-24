@@ -72,6 +72,16 @@ in the Lacis and Hansen manner, to the closed form
 solar-weighted, so the patch carries the Sun's CO2 absorptance and `co2sww`
 re-weights it for the host exactly as `h2osww` re-weights Eq. 21.
 
+THE FIT MADE HERE IS NOT THE FIT THE MODEL RUNS, AND HAS NOT BEEN SINCE PHYS-10.
+Howard's band set is the only absorption data this file has, so the fit it makes
+is a Howard fit and always will be. `corrk_cross_check.py --fit` refitted the
+same closed form to HITRAN2020 through the correlated-k tables and that is what
+`radmod.f90` now carries, 7.2% weaker at this planet's CO2 path. Both are
+reported: `closed_form_fit` is this file's, which is what the patch header codes
+and what the cross-check compares against, and `closed_form_fit_in_radmod` is
+read out of the model source. Every PREDICTION here is priced on the model's,
+because a prediction about the other one is a prediction about no code.
+
 Two things separate the CO2 half from the H2O half and both are in
 `exoplasim/notes/shortwave-co2.md`. Every CO2 band shares its interval with
 water vapour, so CO2 is charged only with what water vapour leaves it; and the
@@ -99,6 +109,7 @@ import argparse
 import hashlib
 import json
 import math
+import re
 import tempfile
 import urllib.request
 from datetime import datetime, timezone
@@ -107,7 +118,7 @@ from pathlib import Path
 import numpy as np
 import yaml
 
-from _paths import ANALYSIS, CONFIG  # also puts lib/ on sys.path
+from _paths import ANALYSIS, CONFIG, MODEL_SRC  # also puts lib/ on sys.path
 from paths import climatology_path
 import sensitivity  # noqa: E402  from lib/
 
@@ -175,8 +186,10 @@ CO2_BANDS = {
     "1.4": dict(lo=6650.0, hi=7250.0, c=0.048, k=0.41, C=None, D=None, K=None, transition=80.0),
 }
 
-# radmod.f90:2393-2396, `lwr`'s own constants, reused rather than restated so
-# the shortwave CO2 column and the longwave one are the same quantity.
+# `lwr`'s own zmmair/zmmco2/zrco2 parameters in radmod.f90, reused rather than
+# restated so the shortwave CO2 column and the longwave one are the same
+# quantity. Cited by symbol: the line numbers moved by 37 under the fork's
+# multi-species aerosol work and the old ones now land in the cloud branch.
 ZMMAIR = 0.0289644          # molecular weight of air, kg/mol
 ZMMCO2 = 0.0440098          # molecular weight of CO2, kg/mol
 ZRCO2 = 1.9635              # CO2 density at STP, kg/m3
@@ -517,6 +530,43 @@ def fit_co2_closed_form(sun: Spectrum, water_cm: float, h2o: dict, h2o_scale: di
         "rms_relative_error": float(np.sqrt((residual ** 2).mean())),
         "water_path_cm": water_cm,
     }
+
+
+RADMOD = MODEL_SRC / "plasim" / "src" / "radmod.f90"
+
+
+def radmod_co2_fit(path: Path = RADMOD) -> dict:
+    """The four coefficients `swr` ACTUALLY runs, read out of the model source.
+
+    They are not the fit this file makes. PHYS-10 replaced the Howard-band fit
+    with one to HITRAN2020 through the Generic PCM correlated-k tables, by
+    `corrk_cross_check.py --fit`, and this file cannot reach that data: its own
+    absorptances come from Howard's band set and always will. So the model's
+    coefficients are READ rather than restated, and a divergence between the
+    source and this artifact becomes impossible instead of undetectable.
+
+    Parsed rather than hardcoded for the same reason: a later refit that edits
+    radmod.f90 and forgets the artifact cannot leave a superseded fit standing
+    here, and a rename or a deletion in the source raises rather than passing a
+    stale number through.
+    """
+    text = path.read_text()
+    out = {}
+    for key, name in (("a1", "zca1"), ("b1", "zcb1"), ("a2", "zca2"), ("b2", "zcb2")):
+        found = re.findall(rf"^\s*parameter\(\s*{name}\s*=\s*([0-9.eEdD+-]+)\s*\)",
+                           text, flags=re.MULTILINE)
+        if len(found) != 1:
+            raise ValueError(
+                f"{path}: expected exactly one parameter({name}=...), found {len(found)}"
+            )
+        out[key] = float(found[0].replace("D", "E").replace("d", "e"))
+    out["form"] = "A(u) = a1 ln(1 + b1 u) + a2 ln(1 + b2 u), u in atmos-cm"
+    out["source"] = (
+        "read from vendor/exoplasim/exoplasim/plasim/src/radmod.f90; fitted to "
+        "HITRAN2020 through the Generic PCM correlated-k tables by "
+        "exoplasim/scripts/corrk_cross_check.py --fit (PHYS-10)"
+    )
+    return out
 
 
 def h2o_bands(include_blue: bool) -> tuple[dict, dict]:
@@ -912,7 +962,13 @@ def main() -> None:
         "source": "Earth's measured near-infrared CO2 solar absorption",
     }
 
+    # Two fits, and they are not the same object. `co2_fit` is this file's own,
+    # to Howard's bands, and it is what the patch header codes and what
+    # `corrk_cross_check.py --fit` compares against. `model_fit` is what `swr`
+    # runs today. Every PREDICTION about a model run is priced on the model's,
+    # because a prediction about the other one is a prediction about no code.
     co2_fit = fit_co2_closed_form(sun, water, bands, scale)
+    model_fit = radmod_co2_fit()
 
     report = {
         "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -979,19 +1035,28 @@ def main() -> None:
             "weight_against_the_blackbody_the_model_is_actually_using": co2_weight_blackbody,
             "keeps_the_2.7um_band": CO2_KEEP_27UM,
             "closed_form_fit": co2_fit,
+            "closed_form_fit_in_radmod": model_fit,
             "per_band": co2_rows,
             "note": (
-                "ExoPlaSim's shortwave has no CO2 absorptance at all: radmod.f90 "
-                "carries CO2 only in lwr, from Sasamori (1968). The absorptance "
-                "here is solar-weighted, which is what "
-                "exoplasim/patches/exoplasim-3.4.2-co2-shortwave.patch codes; "
-                "`weight` is the namelist key co2sww that re-weights it for this "
-                "star, and 0.0 leaves the term absent as upstream has it."
+                "Upstream ExoPlaSim's shortwave has no CO2 absorptance at all: "
+                "radmod.f90 carries CO2 only in lwr, from Sasamori (1968). The "
+                "absorptance here is solar-weighted, and it is Howard's band set: "
+                "it is what exoplasim/patches/exoplasim-3.4.2-co2-shortwave.patch "
+                "codes and NOT what the fork runs. PHYS-10 refitted the closed "
+                "form to HITRAN2020 through the correlated-k tables, 7.2% weaker "
+                "at this planet's path, and closed_form_fit_in_radmod is that fit "
+                "read out of the model source. `weight` is the namelist key "
+                "co2sww that re-weights the absorptance for this star, and 0.0 "
+                "leaves the term absent as upstream has it."
             ),
         },
         "prediction_co2": {
-            "central": predict(config, round(co2_weight, 3), "co2", co2_fit),
-            "solar_weighted": predict(config, 1.0, "co2", co2_fit),
+            "central": predict(config, round(co2_weight, 3), "co2", model_fit),
+            "solar_weighted": predict(config, 1.0, "co2", model_fit),
+            "absorptance_source": (
+                "radmod.f90's own coefficients, closed_form_fit_in_radmod, not "
+                "the Howard fit in closed_form_fit"
+            ),
         },
     }
 
@@ -1036,11 +1101,21 @@ def main() -> None:
     print(f"  co2_sw_weight for config/planet.yaml: {round(co2_weight, 3)} "
           f"(2.7 um band dropped: {co2_star_no27 / co2_sun_no27:.3f}; "
           f"blackbody: {co2_weight_blackbody:.3f})")
-    print(f"  closed form for the patch: a1={co2_fit['a1']:.6g} b1={co2_fit['b1']:.6g} "
-          f"a2={co2_fit['a2']:.6g} b2={co2_fit['b2']:.6g}")
+    print(f"  closed form fitted here, to Howard's bands: a1={co2_fit['a1']:.6g} "
+          f"b1={co2_fit['b1']:.6g} a2={co2_fit['a2']:.6g} b2={co2_fit['b2']:.6g}")
     print(f"    max relative error {co2_fit['max_relative_error']:.4f}, "
           f"rms {co2_fit['rms_relative_error']:.4f}, over "
           f"{co2_fit['range_atmos_cm'][0]:.0f}-{co2_fit['range_atmos_cm'][1]:.0f} atmos-cm")
+    print(f"  closed form radmod.f90 RUNS, fitted to the line list: "
+          f"a1={model_fit['a1']:.6g} b1={model_fit['b1']:.6g} "
+          f"a2={model_fit['a2']:.6g} b2={model_fit['b2']:.6g}")
+    a_howard = float(co2_closed_form(co2_path, co2_fit["a1"], co2_fit["b1"],
+                                     co2_fit["a2"], co2_fit["b2"]))
+    a_model = float(co2_closed_form(co2_path, model_fit["a1"], model_fit["b1"],
+                                    model_fit["a2"], model_fit["b2"]))
+    print(f"    at this planet's path the two differ by "
+          f"{100 * (a_howard / a_model - 1):+.1f}% -- the predictions below are "
+          f"priced on the model's")
     pc = report["prediction_co2"]["central"]["predicted_change"]
     print(f"  atmospheric shortwave absorption {pc['atmospheric_shortwave_absorption']:+.2f} W/m2, "
           f"surface {pc['surface_net_shortwave']:+.2f}, "
@@ -1103,13 +1178,17 @@ def main() -> None:
                 f"{row['flux_fraction']:9.6f} {row['contribution']:9.6f}"
             )
         print(f"  {'total':>6} {'':>7} {'':>7} {'':>9} {co2_sun:9.6f}")
-        print("\nCO2 closed form against the integration it is fitted to:")
-        print(f"  {'u (atmos-cm)':>13} {'integrated':>11} {'closed form':>12}")
+        print("\nCO2 closed form against the integration it is fitted to,")
+        print("and against what radmod.f90 runs, which is fitted to the line list:")
+        print(f"  {'u (atmos-cm)':>13} {'integrated':>11} {'closed form':>12} {'radmod':>12}")
         for amount in (1.0, 10.0, 100.0, co2_path, 1000.0, 10000.0):
             exact = co2_absorptance(sun, amount, water, bands, scale)[0]
             fitted = float(co2_closed_form(
                 amount, co2_fit["a1"], co2_fit["b1"], co2_fit["a2"], co2_fit["b2"]))
-            print(f"  {amount:13.1f} {exact:11.6f} {fitted:12.6f}")
+            in_model = float(co2_closed_form(
+                amount, model_fit["a1"], model_fit["b1"],
+                model_fit["a2"], model_fit["b2"]))
+            print(f"  {amount:13.1f} {exact:11.6f} {fitted:12.6f} {in_model:12.6f}")
 
     print(f"\nwrote {out}")
 

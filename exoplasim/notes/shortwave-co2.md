@@ -154,19 +154,33 @@ blanketing pushing flux out of the blue and into the near infrared. Setting 1.51
 while the model runs a blackbody over-corrects by a tenth, which is the same trap
 `h2osww` has.
 
-## What the patch codes, and why it is a fit
+## What the model codes, and why it is a fit
 
-The patch cannot call an integration, so the solar-weighted absorptance is fitted
-to a closed form in the absorber amount u, in atmos-cm:
+`swr` cannot call an integration, so the solar-weighted absorptance is fitted to
+a closed form in the absorber amount u, in atmos-cm:
 
     A(u) = a1 ln(1 + b1 u) + a2 ln(1 + b2 u)
 
-with the constants in `radmod.f90` and in
-`exoplasim/analysis/shortwave_band_weights.json`, and `co2sww` re-weighting the
-result for the host exactly as `h2osww` re-weights Eq. 21. Over 1 to 1e4
-atmos-cm, which the model never leaves, the fit is within 4% of the integration
-at worst and 1.2% rms. On a 2.7 W/m2 term that is at most a tenth of a W/m2,
-which is smaller than the 2.7 um bracket and far smaller than the H2O
+with `co2sww` re-weighting the result for the host exactly as `h2osww`
+re-weights Eq. 21.
+
+**There are two fits to that form and only one of them runs.** The Howard fit is
+the one `shortwave_band_weights.py` can make, because Howard's band set is the
+only absorption data that script has; it is what the patch header codes and what
+`corrk_cross_check.py --fit` compares against, and it is the artifact's
+`co2.closed_form_fit`. PHYS-10 refitted the same form, over the same range and
+by the same protocol, to HITRAN2020 through the Generic PCM correlated-k tables,
+and that is what `radmod.f90` carries. At this planet's CO2 path the Howard fit
+is 7.7% stronger. The artifact records the running coefficients separately, in
+`co2.closed_form_fit_in_radmod`, read out of the model source rather than
+restated, so the two cannot silently diverge again; the argument for the refit
+is `exoplasim/notes/corrk-cross-check.md`.
+
+Over 1 to 1e4 atmos-cm, which the model never leaves, the Howard fit is within
+4% of its own integration at worst and 1.2% rms; the line-list fit is 4.6% over
+the 100 to 1000 atmos-cm a T42 column occupies and worse only at the far end of
+the range, where no column goes. On a 2.7 W/m2 term either residual is at most a
+tenth of a W/m2, smaller than the 2.7 um bracket and far smaller than the H2O
 reconstruction's own level error.
 
 Lacis and Hansen's Eq. 21 form was tried first and fits this curve worse while
@@ -175,10 +189,16 @@ column nothing in the scheme forbids. Two logarithms are the shape Howard's own
 strong-band fit has, stay positive and monotone everywhere, and cost two LOGs
 per layer.
 
+`co2sww` itself is untouched by the refit: it is a star-over-Sun RATIO and the
+two derivations agree on it to 0.03%.
+
 ## The prediction, made before the run
 
-Stated so the baseline re-run can falsify it, and priced against the baseline
-climatology rather than against Earth.
+Stated so the baseline re-run can falsify it, priced against the baseline
+climatology rather than against Earth, and priced on the Howard fit `swr`
+carried when it was made. PHYS-10's refit takes every row 7.2% weaker; the A3
+bundle carries that as its own row rather than restating this table, because the
+two changes have to be attributable separately.
 
 | quantity | change at co2sww = 1.510 |
 | --- | ---: |

@@ -75,6 +75,25 @@
       real    :: tswr3   = 0.0055 ! tuning of cloud s. scattering alb. range2
       real    :: tpofmt  = 1.00   ! tuning of point of mean transmittance
       real    :: acllwr  = 0.100  ! mass absorption coefficient for clouds (lwr)
+!
+!     SURFACE LONGWAVE EMISSIVITY, split by the land-sea mask. Upstream wrote
+!     zeps = dls + 0.98*(1-dls) as a literal in lwr, so the modelled land was a
+!     perfect blackbody by construction and everything the mask does not call
+!     land -- ocean and sea ice -- was 0.98, with no comment, no unit and no
+!     source anywhere. Named here so a run records what it emitted with; the
+!     defaults reproduce that literal exactly and no run changes.
+!
+!     Both are broadband thermal emissivities, dimensionless, 0 to 1, and both
+!     are DECLARED rather than derived. 1.0 over land is not a measurement:
+!     bare rock, desert sand and salt crust run 0.90 to 0.95 broadband, which
+!     on a world with a large barren land fraction is several W/m2 of
+!     one-signed overstated land emission, and the (1-eps) reflection of
+!     downward longwave at the foot of lwr is identically zero while eps is 1.
+!     Sea water is 0.985 to 0.99. A per-cell field derived from the lithology
+!     map is the honest answer and is a separate piece of work; these two
+!     scalars are what makes the omission visible and gives it an arm.
+      real    :: elwland = 1.0    ! surface lw emissivity, land
+      real    :: elwsea  = 0.98   ! surface lw emissivity, ocean and sea ice
       real    :: a0o3    = 0.25   ! parameter to define o3 profile
       real    :: a1o3    = 0.11   ! parameter to define o3 profile
       real    :: aco3    = 0.08   ! parameter to define o3 profile
@@ -388,7 +407,8 @@
 !     Inert without -fopenmp, so the MPI and serial builds are unchanged.
 !$omp threadprivate(a0o3,a1o3,acl2,acllwr,aco3,aerofile,aeroqlw,aeroqs,aodsp,apart,aqlw,bo3,bscat1,&
 !$omp&  bscat2,ch4,clgray,co2sww,co3,daerod,ddustcol,ddustod,desync,dftd0,dftde1,dftde2,dftu0,&
-!$omp&  dftue1,dftue2,dqo3cl,dusthsc,dustqlw,dustsc,eccf,gdist2,gmu0,gmu1,gsol0,gsolamp,gsolamp2,&
+!$omp&  dftue1,dftue2,dqo3cl,dusthsc,dustqlw,dustsc,eccf,elwland,elwsea,gdist2,gmu0,gmu1,gsol0,&
+!$omp&  gsolamp,gsolamp2,&
 !$omp&  gsolperiod,gsolperiod2,gsolphase,gsolphase2,gsolstart,h2oswl,h2osww,iaerint,iyrad,iyrbp,&
 !$omp&  l_aerorad,lambm,lambm0,ldustchk,lstarfile,meananom0r,minwavel,mvelpp,n2o,naerosp,nclouds,&
 !$omp&  ncstsol,ndcycle,ndustrad,necham,necham6,newrsc,nfixed,nlwr,no3,npbroaden,nradice,nrscat,&
@@ -902,6 +922,7 @@
      &               ,a0o3,a1o3,aco3,bo3,co3,toffo3,o3scale,newrsc,necham,necham6   &
      &               ,nsol,nclouds,nswrcl,nrscat,rcl1,rcl2,acl2,clgray,tpofmt   &
      &               ,acllwr,tswr1,tswr2,tswr3,th2oc,dawn,starbbtemp,nstartemp  &
+     &               ,elwland,elwsea                                            &
      &               ,nsimplealbedo,nstarfile,starfile,starfilehr,minwavel      &
      &               ,ndustrad,dustsc,dusthsc,dustqlw,aerofile,aeroqlw          &
      &               ,nsolcycle,gsolstart,gsolamp,gsolperiod,gsolphase   &
@@ -932,6 +953,8 @@
 !     tswr2   ! tuning of cloud back scattering c. range2
 !     tswr3   ! tuning of cloud s. scattering alb. range2
 !     th2oc   ! absorption coefficient for h2o continuum
+!     elwland : surface longwave emissivity over land (1)
+!     elwsea  : surface longwave emissivity over ocean and sea ice (1)
 !     dawn    : zenith angle threshhold for night
 !
 !     aerosol namelist parameters:
@@ -1060,6 +1083,8 @@
       call mpbcr(h2osww)
       call mpbcr(h2oswl)
       call mpbcr(co2sww)
+      call mpbcr(elwland)
+      call mpbcr(elwsea)
       call mpbcr(o3scale)
       call mpbcr(co2)
 !
@@ -1796,6 +1821,19 @@
 !     this read 510 elements past the end of zsolars(2) on every rank and wrote
 !     8190 elements of buffer into the restart. solarini already uses the right
 !     idiom for this array. failure-modes.md class 18, CLIM-37.
+!
+!     THIS WRITE IS A CONFIGURATION FINGERPRINT AND NOT CHECKPOINTED STATE.
+!     Nothing reads it back: the get_restart_array block in radini is commented
+!     out, because CLIM-38 made solarini unconditional and the pair is rebuilt
+!     from the namelist and the spectrum at every start. It is kept because it
+!     is the only place a restart, handed on without its run directory, records
+!     which two-band split of the stellar constant the orbits were integrated
+!     with -- and the pair is live model state, not a diagnostic: swr forms the
+!     band-weighted surface albedo from it at nstartemp = 1. A restart whose
+!     zsolars disagrees with the configuration it is being resumed under is a
+!     different star, and the fingerprint is what makes that visible.
+!     exoplasim/scripts/restart_schema.py carries the conversion policy and
+!     says the same thing; world-5rq.
       if (mypid == NROOT) call put_restart_array('zsolars',zsolars,2,2,1)
       
 
@@ -2657,11 +2695,18 @@
          zaert1(:,jlev) = (4.0*zaeru1(:))/zaerd1(:,jlev) ! transmission band 1
          zaerr1(:,jlev) = (zaeru1(:) + 1.0)*(zaeru1(:) - 1.0)*(EXP(zaertf1(:,jlev))-EXP(-zaertf1(:,jlev)))/zaerd1(:,jlev) ! reflection band 1
 
-         ! Next do scattered light
+         ! Next do scattered light. The DIFFUSE beam takes zmu00, so every
+         ! quantity below it must be the s one: zaertf1s and zaerd1s were
+         ! computed here and then never read, and the transmission and
+         ! reflection were built from the direct-beam zaertf1 and zaerd1, which
+         ! made the diffuse stream bit-identical to the direct one and dropped
+         ! the factor-of-2 diffusivity the scattered beam carries. zaeru1 is a
+         ! function of the single-scattering albedo and the backscatter ratio
+         ! only, so it is shared by both beams and is correct as it stands.
          zaertf1s(:,jlev) = MIN(25.,(ztemp1(:)*aod1(:,jlev))/zmu00)  ! effective t band 1 using zmu00 not zmu0!
-         zaerd1s(:,jlev) = (((zaeru1(:)+1.0)**2.0)*EXP(zaertf1(:,jlev)) - ((zaeru1(:)-1.0)**2.0)*EXP(-zaertf1(:,jlev))) ! denominator band 1
-         zaert1s(:,jlev) = (4.0*zaeru1(:))/zaerd1(:,jlev) ! transmission band 1
-         zaerr1s(:,jlev) = (zaeru1(:) + 1.0)*(zaeru1(:) - 1.0)*(EXP(zaertf1(:,jlev))-EXP(-zaertf1(:,jlev)))/zaerd1(:,jlev) ! reflection band 1
+         zaerd1s(:,jlev) = (((zaeru1(:)+1.0)**2.0)*EXP(zaertf1s(:,jlev)) - ((zaeru1(:)-1.0)**2.0)*EXP(-zaertf1s(:,jlev))) ! denominator band 1
+         zaert1s(:,jlev) = (4.0*zaeru1(:))/zaerd1s(:,jlev) ! transmission band 1
+         zaerr1s(:,jlev) = (zaeru1(:) + 1.0)*(zaeru1(:) - 1.0)*(EXP(zaertf1s(:,jlev))-EXP(-zaertf1s(:,jlev)))/zaerd1s(:,jlev) ! reflection band 1
         endwhere
 
       ! CONSERVATIVE SCATTERING, band 1. As ssa goes to 1 the u-factor diverges
@@ -2669,6 +2714,11 @@
       ! 2*b*tau/mu, so the two-stream collapses to T = 1/(1+b*tau/mu) and
       ! R = (b*tau/mu)/(1+b*tau/mu). That is the limit of the expressions
       ! above, not a different scheme.
+      !
+      ! The diffuse beam takes the same limit at mu = zmu00, so it gets its own
+      ! b*tau/mu and not a copy of the direct answer. Copying was what this
+      ! branch did when it was written, which made the defect above it read as
+      ! deliberate rather than as the transcription it was.
 
         where(losun(:) .and. aod1(:,jlev) > 0. .and. lcons1(:))
          ztcon(:) = zbs1(:)*aod1(:,jlev)/(zmu0+zero)
@@ -2676,10 +2726,11 @@
          zaerd1(:,jlev) = 1.0
          zaert1(:,jlev) = 1.0/(1.0+ztcon(:))
          zaerr1(:,jlev) = ztcon(:)/(1.0+ztcon(:))
+         ztcon(:) = zbs1(:)*aod1(:,jlev)/zmu00
          zaertf1s(:,jlev) = 0.
          zaerd1s(:,jlev) = 1.0
-         zaert1s(:,jlev) = zaert1(:,jlev)
-         zaerr1s(:,jlev) = zaerr1(:,jlev)
+         zaert1s(:,jlev) = 1.0/(1.0+ztcon(:))
+         zaerr1s(:,jlev) = ztcon(:)/(1.0+ztcon(:))
         endwhere
 
         where(losun(:) .and. aod1(:,jlev) > 0. .and. .not. lcons2(:))
@@ -2691,9 +2742,9 @@
          zaerr2(:,jlev) = (zaeru2(:) + 1.0)*(zaeru2(:) - 1.0)*(EXP(zaertf2(:,jlev))-EXP(-zaertf2(:,jlev)))/zaerd2(:,jlev) ! reflection band 2
 
          zaertf2s(:,jlev) = MIN(25.,(ztemp2(:)*aod2(:,jlev))/zmu00) ! effective t band 2
-         zaerd2s(:,jlev) = (((zaeru2(:)+1.0)**2.0)*EXP(zaertf2(:,jlev)) - ((zaeru2(:)-1.0)**2.0)*EXP(-zaertf2(:,jlev))) ! denominator band 2
-         zaert2s(:,jlev) = (4.0*zaeru2(:))/zaerd2(:,jlev) ! transmission band 2
-         zaerr2s(:,jlev) = (zaeru2(:) + 1.0)*(zaeru2(:) - 1.0)*(EXP(zaertf2(:,jlev))-EXP(-zaertf2(:,jlev)))/zaerd2(:,jlev) ! reflection band 2
+         zaerd2s(:,jlev) = (((zaeru2(:)+1.0)**2.0)*EXP(zaertf2s(:,jlev)) - ((zaeru2(:)-1.0)**2.0)*EXP(-zaertf2s(:,jlev))) ! denominator band 2
+         zaert2s(:,jlev) = (4.0*zaeru2(:))/zaerd2s(:,jlev) ! transmission band 2
+         zaerr2s(:,jlev) = (zaeru2(:) + 1.0)*(zaeru2(:) - 1.0)*(EXP(zaertf2s(:,jlev))-EXP(-zaertf2s(:,jlev)))/zaerd2s(:,jlev) ! reflection band 2
         endwhere
 
         where(losun(:) .and. aod1(:,jlev) > 0. .and. lcons2(:))
@@ -2702,10 +2753,11 @@
          zaerd2(:,jlev) = 1.0
          zaert2(:,jlev) = 1.0/(1.0+ztcon(:))
          zaerr2(:,jlev) = ztcon(:)/(1.0+ztcon(:))
+         ztcon(:) = zbs2(:)*aod2(:,jlev)/zmu00
          zaertf2s(:,jlev) = 0.
          zaerd2s(:,jlev) = 1.0
-         zaert2s(:,jlev) = zaert2(:,jlev)
-         zaerr2s(:,jlev) = zaerr2(:,jlev)
+         zaert2s(:,jlev) = 1.0/(1.0+ztcon(:))
+         zaerr2s(:,jlev) = ztcon(:)/(1.0+ztcon(:))
         endwhere
 
        enddo ! levels loop
@@ -3234,7 +3286,7 @@
 !*    top downward flux, surface grayness and surface upward flux
 !
       zbd(:,0)=SBK*zttop**4 !We could add IR flux from M dwarf host star here? --AYP
-      zeps(:)=dls(:)+0.98*(1.-dls(:))
+      zeps(:)=elwland*dls(:)+elwsea*(1.-dls(:))
       zbu(:,NLEP)=zeps(:)*zst4(:,NLEP)
       zbue1(:,NLEP)=0.
       zbue2(:,NLEP)=zbu(:,NLEP)

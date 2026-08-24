@@ -1,5 +1,17 @@
 # N aerosol species in the radiation, instead of one. CLIM-39.
 #
+# ITS DIFFUSE-BEAM LINES ARE SUPERSEDED AND THE SUBTREE IS RIGHT. The diff below
+# rewrites zaertf1s, zaerd1s, zaert1s and zaerr1s for the per-cell arrays and
+# preserves an upstream transcription error while doing so: zaerd1s was built
+# from the direct-beam zaertf1, and zaert1s and zaerr1s divided by the
+# direct-beam zaerd1, so the diffuse transmission and reflection came out
+# bit-identical to the direct ones and the factor-of-2 diffusivity the scattered
+# stream carries was absent. This patch's new conservative-scattering branch
+# then set zaert1s = zaert1 and zaerr1s = zaerr1 outright, which made the defect
+# read as deliberate. world-sv7 repaired both bands and both branches in the
+# subtree; nothing else in this patch is affected, and the multi-species work it
+# is about is unchanged.
+#
 # WHAT THIS IS FOR. aeolian/ produces three aerosol species and
 # analysis/error_budget.json prices all three: mineral dust at +0.34 to +0.61
 # W/m2, sea salt at -0.16 to -0.89, volcanic sulfate at -0.013 to -0.032. None

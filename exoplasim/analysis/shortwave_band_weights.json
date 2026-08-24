@@ -430,6 +430,14 @@
       "rms_relative_error": 0.01207293799232474,
       "water_path_cm": 2.789102482795715
     },
+    "closed_form_fit_in_radmod": {
+      "a1": 0.00030658,
+      "b1": 20.376,
+      "a2": 0.0038193,
+      "b2": 0.0039672,
+      "form": "A(u) = a1 ln(1 + b1 u) + a2 ln(1 + b2 u), u in atmos-cm",
+      "source": "read from vendor/exoplasim/exoplasim/plasim/src/radmod.f90; fitted to HITRAN2020 through the Generic PCM correlated-k tables by exoplasim/scripts/corrk_cross_check.py --fit (PHYS-10)"
+    },
     "per_band": {
       "15": {
         "mean_absorptance": 0.7873117045377523,
@@ -480,7 +488,7 @@
         "contribution": 0.00019014082732472294
       }
     },
-    "note": "ExoPlaSim's shortwave has no CO2 absorptance at all: radmod.f90 carries CO2 only in lwr, from Sasamori (1968). The absorptance here is solar-weighted, which is what exoplasim/patches/exoplasim-3.4.2-co2-shortwave.patch codes; `weight` is the namelist key co2sww that re-weights it for this star, and 0.0 leaves the term absent as upstream has it."
+    "note": "Upstream ExoPlaSim's shortwave has no CO2 absorptance at all: radmod.f90 carries CO2 only in lwr, from Sasamori (1968). The absorptance here is solar-weighted, and it is Howard's band set: it is what exoplasim/patches/exoplasim-3.4.2-co2-shortwave.patch codes and NOT what the fork runs. PHYS-10 refitted the closed form to HITRAN2020 through the correlated-k tables, 7.2% weaker at this planet's path, and closed_form_fit_in_radmod is that fit read out of the model source. `weight` is the namelist key co2sww that re-weights the absorptance for this star, and 0.0 leaves the term absent as upstream has it."
   },
   "prediction_co2": {
     "central": {
@@ -582,6 +590,7 @@
         "precipitation_mm_yr_full_compensation": -22.152481414630103,
         "flux_ratio_to_restore_the_design_mean": -0.001475232987307812
       }
-    }
+    },
+    "absorptance_source": "closed_form_fit, the Howard fit, because this stored report predates PHYS-10; a regeneration prices it on closed_form_fit_in_radmod instead and every number in this block falls by about 7.2%. It cannot be regenerated on this build: predict() needs a baseline climatology and config/planet.yaml declares none."
   }
 }

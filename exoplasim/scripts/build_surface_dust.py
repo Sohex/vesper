@@ -313,6 +313,26 @@ def main() -> None:
             "DUSTSC": 1.0,
             "DUSTHSC": scale_height,
             "DUSTQLW": dustqlw,
+            # AEROQLW is the SAME RATIO for the INTERACTIVE aerosol, and on this
+            # world it is the same number. radmod keeps the two keys apart
+            # because in general the transported tracer is whatever aero_nl's
+            # apart and rhop describe and need not be the prescribed field's
+            # dust; here it is. `dust_aerofile.py` builds the aerofile the
+            # interactive path reads by rescaling these same Mie efficiencies to
+            # `apart` while holding the mass extinction efficiency invariant --
+            # it refuses to write the file if the rescale moves it by more than
+            # 1e-9 -- so the band-1 extinction optical depth per unit dust mass
+            # is the same on both paths, and this ratio, which is a thermal
+            # absorption per unit band-1 extinction, is the same with it.
+            # `aerofile_qex2_over_qex1` above is the per-band form of that
+            # agreement, checked against the optics to 1e-5.
+            #
+            # It is written here rather than derived a second time because two
+            # derivations of one number is how they drift. world-24v: nothing in
+            # the project wrote AEROQLW at all, and radini ABORTS on an
+            # interactive aerosol with it left at zero, so the emitted-dust path
+            # had no longwave term structurally available.
+            "AEROQLW": dustqlw,
         },
         "longwave": {
             "planck_weighted_mass_absorption_m2_kg": kabs,
