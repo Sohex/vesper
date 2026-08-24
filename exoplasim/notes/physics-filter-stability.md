@@ -260,7 +260,19 @@ having a ground truth to check against.
 
 **The probe cannot see a late blow-up**, and T170 at dt 30 is the demonstration:
 it passes 400 steps and dies after 3.8 minutes of integration. A cell that
-"runs" under the probe has only been shown not to REFUSE.
+passes the probe has only been shown not to REFUSE, within the probe's own step
+count, and its outcome is labelled `no_refusal_in_steps` rather than `ran` for
+that reason.
+
+T85 at dt 75 is the sharper demonstration, because it first looked like the two
+instruments disagreeing. The probe passed it at 400 steps and the orbit-length
+arm failed after 44 seconds, which reads as a contradiction until the wall time
+is converted: 44 seconds at 0.0519 s a step is about 736 steps, so the failure
+is past where the probe stopped looking. The instruments agree. What was wrong
+was the CLASSIFIER -- a 120-second threshold separating refusals from late
+failures, which is meaningless across rungs where the same wall clock is one
+step at T170 and hundreds at T21. Runs are now classified by what they PRODUCED:
+a refusal writes no output record at all.
 
 ### Every ladder cell is ONE DRAW, and that is now fixed forward
 

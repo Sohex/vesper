@@ -107,11 +107,28 @@ RUNG_GRID = {"T21": (32, 64), "T42": (64, 128), "T85": (128, 256),
 OVERHEAD_S = 150.0
 
 TRAP = re.compile(r"SIGFPE|Floating-point exception")
-# A trap at the first radiation call and a blow-up twenty minutes in are both
-# SIGFPE and are not the same event. The wall clock separates them, and the
-# outcome records which: a refusal is a property of the configuration, a late
-# failure is the integration going unstable and has to be read as such.
-LATE_FAILURE_S = 120.0
+
+
+def failed_before_any_output(run_id: str | None) -> bool:
+    """Did it die before writing anything, or after integrating a while?
+
+    A refusal at the first radiation call and a blow-up thousands of steps in
+    are both SIGFPE and are not the same event. WALL TIME DOES NOT SEPARATE
+    THEM: the first attempt at this used a 120-second threshold, and T85 at
+    dt 75 failed after 44 seconds -- which at 0.0519 s a step is about 736
+    steps, an integration that went unstable, filed as a refusal. The same
+    wall clock is one step at T170 and hundreds at T21.
+
+    What separates them is what the run PRODUCED. A refusal writes no output
+    record at all: the directory holds the seeded restart and nothing else.
+    """
+    if not run_id:
+        return True
+    for d in (RUNS / f"{run_id}_crashed", RUNS / run_id):
+        if d.is_dir():
+            return not (any(d.glob("MOST.*")) or any(d.glob("plasim_output"))
+                        or any(d.glob("MOST_DIAG.*")))
+    return True
 CRASH = re.compile(r"crashed or begun producing garbage")
 
 
@@ -218,8 +235,8 @@ def run_job(job: dict, base: dict, log_dir: Path) -> dict:
     result = {**job, "returncode": rc, "wall_s": round(elapsed, 1),
               "run_id": run_id, "trapped": trapped, "crashed": crashed,
               "log": str(log.relative_to(ROOT)) if log.is_relative_to(ROOT) else str(log),
-              "outcome": ("late_failure" if trapped and elapsed > LATE_FAILURE_S else
-                          "trap" if trapped else
+              "outcome": ("refused" if trapped and failed_before_any_output(run_id) else
+                          "late_failure" if trapped else
                           "crash" if crashed else
                           "ok" if rc == 0 else "failed")}
     if run_id and (RUNS / run_id).is_dir():

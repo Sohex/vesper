@@ -165,7 +165,7 @@ def probe(rung: str, dt: float, kappa: float | None, steps: int,
     result = {"rung": rung, "dt_minutes": dt, "kappa": kappa, "ranks": ranks,
               "steps_short": short_steps, "steps_long": steps,
               "wall_short_s": round(t_short, 2),
-              "outcome": "refused" if trapped else "ran"}
+              "outcome": "refused" if trapped else "no_refusal_in_steps"}
     if trapped:
         result["failed_after_s"] = round(t_short, 2)
         frames = [ln.strip() for ln in text.splitlines() if re.match(r"^#\d+ ", ln.strip())]
@@ -222,8 +222,9 @@ def main() -> None:
             r = probe(args.rung, dt, kappa, args.steps, args.ranks, template)
             results.append(r)
             k = "off" if kappa is None else f"{kappa:g}"
-            if r["outcome"] == "ran":
-                print(f"  {args.rung} kappa {k:>3s} dt {dt:5.1f}  ran   "
+            if r["outcome"] != "refused":
+                print(f"  {args.rung} kappa {k:>3s} dt {dt:5.1f}  no refusal in "
+                      f"{r['steps_long']} steps, "
                       f"{r['seconds_per_step']:.4f} s/step -> "
                       f"{r['implied_seconds_per_orbit']/60:.1f} min/orbit  "
                       f"(startup {r['startup_s']:.0f} s; naive single run would "
