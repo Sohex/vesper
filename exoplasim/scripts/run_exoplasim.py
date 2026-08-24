@@ -708,6 +708,59 @@ def declare_cold_start_seed(model, config: dict, is_cold: bool) -> None:
           f"the system clock and the run is unreproducible)")
 
 
+def declare_hyperdiffusion(model, config: dict) -> dict:
+    """Write the derived horizontal diffusion, overriding the compiled branch.
+
+    ExoPlaSim hard-codes these for T21 and T42 only (`plasim.f90:1388`), and
+    every finer rung silently falls through to T21's -- which at T170 is four
+    times too weak at the truncation and, worse, damps at 41% of the LOCAL
+    CASCADE RATE at half the truncation, because `nhdiff` is an absolute
+    wavenumber worth 71% of T21's spectrum and 8.8% of T170's.
+
+    Setting them here is enough and needs no source change: `prolog` calls
+    `readnl` then `initpm`, `readnl` applies the branch and THEN reads the
+    namelist, and `initpm` builds the operator from whatever survived. Rule 4
+    does not apply.
+
+    `nhdiff` is an integer wavenumber, so the fraction is rounded; the rounding
+    is reported rather than hidden, because at coarse truncations one wavenumber
+    is a several-percent change in where the damping starts.
+
+    exoplasim/notes/resolution-tuned-parameters.md has the derivation.
+    """
+    model_cfg = config["model"]
+    hd = model_cfg.get("hyperdiffusion")
+    if not hd:
+        raise RuntimeError(
+            "model.hyperdiffusion is absent. Without it the run inherits T21's "
+            "damping at every rung above T42, which is the defect that block "
+            "exists to fix; see exoplasim/notes/resolution-tuned-parameters.md.")
+    rung = str(model_cfg["resolution"]).upper()
+    table = hd["timescales_days"]
+    if rung not in table:
+        raise RuntimeError(
+            f"model.hyperdiffusion.timescales_days has no entry for {rung}. The "
+            f"damping for a rung is derived from the rule, so a rung with no "
+            f"entry has no derived damping and must not fall back to T21's.")
+    tau = table[rung]
+    ntru = int(rung.lstrip("Tt"))
+    nhdiff = int(round(float(hd["cutoff_fraction"]) * ntru))
+    keys = {"NDEL": f"{int(hd['order_alpha'])}",
+            "NHDIFF": f"{nhdiff}",
+            "TDISSD": f"{float(tau['divergence'])}",
+            "TDISSZ": f"{float(tau['vorticity'])}",
+            "TDISST": f"{float(tau['temperature'])}",
+            "TDISSQ": f"{float(tau['humidity'])}"}
+    for key, value in keys.items():
+        model._edit_namelist("plasim_namelist", key, value)
+    print(f"hyperdiffusion: {rung} alpha={hd['order_alpha']} "
+          f"nhdiff={nhdiff} (n*/N={nhdiff/ntru:.3f}, asked {hd['cutoff_fraction']}) "
+          f"tau_vorticity={tau['vorticity']} d")
+    return {"rung": rung, "nhdiff": nhdiff, "cutoff_fraction_actual": nhdiff / ntru,
+            "order_alpha": int(hd["order_alpha"]), "timescales_days": dict(tau),
+            "eddy_wind_m_s": float(hd["eddy_wind_m_s"])}
+
+
 def enable_energy_diagnostics(model, config: dict) -> bool:
     """Set nenergy in plasim_nl, which the Python API does not expose.
 
@@ -1528,6 +1581,7 @@ def main() -> None:
         print(f"NWPD = {args.writes_per_day} writes/day "
               f"(default 1 samples 5 diurnal phases; see CLIM-11)")
     declare_cold_start_seed(model, config, args.restart_from is None)
+    hyperdiffusion = declare_hyperdiffusion(model, config)
     set_low_io(model, args.low_io)
     if enable_energy_diagnostics(model, config):
         n = register_energy_diagnostic_codes()
@@ -1649,6 +1703,10 @@ def main() -> None:
         # config, so a run says what burden and what longwave ratio it actually
         # carried instead of what a setting asked for.
         "prescribed_dust": dust,
+        # What damping this run actually got, including the rounded nhdiff, so a
+        # result can be read against the operator that produced it rather than
+        # against the config that was meant to.
+        "hyperdiffusion": hyperdiffusion,
         # Null when the run has no interactive emission, which is most of them.
         # Like prescribed_dust, the values are copied from the fields' own
         # provenance rather than from the config, so the manifest says what the

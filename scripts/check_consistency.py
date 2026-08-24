@@ -76,6 +76,7 @@ source, because they were all copies of the same wrong integral.
 from __future__ import annotations
 
 import json
+import math
 from pathlib import Path
 import sys
 
@@ -622,6 +623,42 @@ def main() -> int:
                     f"{rung} at {active} min, kappa {model.get('filter_kappa')}")
     except Exception as exc:
         rep.add(WARN, "timestep vs the per-rung table", f"not checked: {exc}")
+
+    # -- the derived diffusion table matches the rule it claims to come from --
+    #
+    # `model.hyperdiffusion.timescales_days` is DERIVED: vorticity damps on the
+    # advective time at the smallest resolved scale, pi*radius/(NTRU*eddy_wind),
+    # and the other three keep their ratios to it. A table that has drifted from
+    # its own rule is worse than no table, because it reads as derived.
+    try:
+        model = config["model"]
+        hd = model.get("hyperdiffusion") or {}
+        if not hd:
+            rep.add(WARN, "hyperdiffusion vs its rule", "no block declared")
+        else:
+            radius = float(config["planet"]["radius_earth"]) * 6371e3
+            wind = float(hd["eddy_wind_m_s"])
+            ratios = hd["ratios_to_vorticity"]
+            bad = []
+            for rung, tau in hd["timescales_days"].items():
+                ntru = int(str(rung).lstrip("Tt"))
+                base = math.pi * radius / (ntru * wind) / 86400.0
+                want = {"vorticity": base,
+                        "divergence": base * float(ratios["divergence"]),
+                        "temperature": base * float(ratios["temperature"]),
+                        "humidity": base * float(ratios["humidity"])}
+                for name, value in want.items():
+                    got = float(tau[name])
+                    # 1% of the value: the table is quoted to four decimals and
+                    # the ratios to three, so exact equality is not available.
+                    if abs(got - value) > 0.01 * value:
+                        bad.append(f"{rung}.{name}: table {got:g}, rule {value:.4f}")
+            rep.add(FAIL if bad else OK, "hyperdiffusion vs its rule",
+                    "; ".join(bad) if bad else
+                    f"{len(hd['timescales_days'])} rungs derive from "
+                    f"pi*a/(NTRU*{wind} m/s)")
+    except Exception as exc:
+        rep.add(WARN, "hyperdiffusion vs its rule", f"not checked: {exc}")
 
     # -- config blocks declare their determination status --------------------
     #

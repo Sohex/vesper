@@ -376,6 +376,54 @@ model:
   # `timestep_minutes` above is the ACTIVE value and must equal this table's
   # entry for `resolution`; check_consistency.py enforces that, because two
   # places holding a timestep is two places for them to disagree.
+  # DETERMINED, 2026-08-23. Horizontal diffusion, derived rather than inherited;
+  # exoplasim/notes/resolution-tuned-parameters.md carries the argument and
+  # references/ holds the three sources. ExoPlaSim hard-codes these for T21 and
+  # T42 only (plasim.f90:1388) and every finer rung silently falls through to
+  # T21's, which is 4x too weak at the truncation at T170 and -- the larger
+  # defect -- damps at 41% of the local cascade rate at HALF the truncation,
+  # because `nhdiff` is an absolute wavenumber worth 71% of T21's spectrum and
+  # 8.8% of T170's.
+  #
+  # THE RULE: damp the smallest resolved scale on its own advective time,
+  # tau_vorticity = pi * radius / (NTRU * eddy_wind). It is an enstrophy-cascade
+  # argument, so the timescale is VORTICITY's and the rest keep their ratios to
+  # it. Planet-agnostic by construction -- radius and wind, no Earth days. The
+  # literature does not derive its own numbers and says so, but ECHAM5's
+  # empirically tuned table across T31 to T159 implies a CONSTANT eddy wind of
+  # 12.6 to 17.5 m/s, which is the corroboration this rests on; the same rule
+  # gives 9.0 h at Earth T42 against PlaSim's Earth-tuned 7.2 h.
+  #
+  # These override the model's compiled branch: `readnl` reads the namelist
+  # AFTER setting it and `initpm` builds the operator after that, so no source
+  # change and no rebuild. Reaching the model as NDEL, NHDIFF, TDISSD, TDISSZ,
+  # TDISST, TDISSQ.
+  hyperdiffusion:
+    # Measured, not assumed: eddy RMS wind (departure from the zonal mean, which
+    # is what cascades -- the jet does not), area-weighted over the column, from
+    # run_4182235e9781 orbit 39. Re-measure if the climate moves materially.
+    eddy_wind_m_s: 5.94
+    # Shape, applied as a FRACTION so confinement is the same at every rung.
+    # T42's alpha and cutoff, which the confinement table shows is well confined;
+    # a choice within the family the requirement allows, not a unique derivation.
+    order_alpha: 4
+    cutoff_fraction: 0.381
+    # INHERITED from T42, not derived. The T21 defaults disagree with these
+    # (5.09 for temperature against 2.533), which is one more sign the two
+    # documented columns are independent tunings rather than a system.
+    ratios_to_vorticity:
+      divergence: 0.200
+      temperature: 2.533
+      humidity: 0.333
+    # DERIVED from the rule above by exoplasim/scripts/run_exoplasim.py, in days,
+    # and checked against it by scripts/check_consistency.py. Regenerate rather
+    # than edit.
+    timescales_days:
+      T21: {divergence: 0.4457, vorticity: 2.2285, temperature: 5.6449, humidity: 0.7421}
+      T42: {divergence: 0.2229, vorticity: 1.1143, temperature: 2.8224, humidity: 0.3711}
+      T85: {divergence: 0.1101, vorticity: 0.5506, temperature: 1.3946, humidity: 0.1833}
+      T127: {divergence: 0.0737, vorticity: 0.3685, temperature: 0.9334, humidity: 0.1227}
+      T170: {divergence: 0.0551, vorticity: 0.2753, temperature: 0.6973, humidity: 0.0917}
   resolution_timestep_minutes:
     T21: 45.0
     T42: 45.0
