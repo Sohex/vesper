@@ -251,6 +251,36 @@ instantiating a Model or running exoplasim.sysconfigure().""")
             config[setting[0]] = setting[1]
     return config
 
+RESOLUTIONS = {21: 32, 31: 48, 42: 64, 63: 96,
+               85: 128, 106: 160, 127: 192, 170: 256}
+
+
+def _resolve_rung(resolution):
+    """(truncation, latitudes) for a rung, however it was spelled.
+
+    Accepts "T42", "t42", 42 and 64. Anything else is an error rather than a
+    default: a resolution that quietly became another one is what this fork's
+    build system was rewritten to end.
+    """
+    by_lat = {v: k for k, v in RESOLUTIONS.items()}
+    key = resolution
+    if isinstance(key, str):
+        key = key.strip().upper()
+        if key.startswith("T") and key[1:].isdigit():
+            key = int(key[1:])
+        elif key.isdigit():
+            key = int(key)
+    if key in RESOLUTIONS:
+        return key, RESOLUTIONS[key]
+    if key in by_lat:
+        return by_lat[key], key
+    raise ValueError(
+        "Resolution %r unsupported. The ladder is %s (%s latitudes "
+        "respectively)." % (resolution,
+                            ", ".join("T%d" % t for t in RESOLUTIONS),
+                            ", ".join(str(n) for n in RESOLUTIONS.values())))
+
+
 class Model(object):
     """Create an ExoPlaSim model in a particular directory.
             
@@ -540,35 +570,19 @@ class Model(object):
         os.system("mkdir %s/"%self.workdir)
         self.currentyear=inityear
         
-        # Depending on how the user has entered the resolution, set the appropriate number
-        # of spectral modes and latitudes
-        if resolution=="T21" or resolution=="t21" or resolution==21 or resolution==32:
-            self.nsp=21
-            self.nlats=32
-        elif resolution=="T42" or resolution=="t42" or resolution==42 or resolution==64:
-            self.nsp=42
-            self.nlats=64
-        elif resolution=="T63" or resolution=="t63" or resolution==63 or resolution==96:
-            self.nsp=63
-            self.nlats=96
-            force991 = True
-        elif resolution=="T85" or resolution=="t85" or resolution==85 or resolution==128:
-            self.nsp=85
-            self.nlats=128
-        elif resolution=="T106" or resolution=="T106" or resolution==106 or resolution==160:
-            self.nsp=106
-            self.nlats=160
-            force991 = True
-        elif resolution=="T127" or resolution=="t127" or resolution==127 or resolution==192:
-            self.nsp=127
-            self.nlats=192
-        elif resolution=="T170" or resolution=="t170" or resolution==170 or resolution==256:
-            self.nsp=170
-            self.nlats=256
-        else:
-            raise ValueError("Resolution unsupported. ExoPlaSim supports T21, T42, T63, T85, "+
-                            "T106, T127, and T170 (32, 64, 96, 128, 160, 192, and 256 "+
-                            "latitudes respectively")
+        # The ladder, as one table rather than a dispatch chain. It is the same
+        # ladder as `lib/rungs.py`, `plasim/CMakeLists.txt` and the T31 data set
+        # in `plasim/dat/`, and it is written here as a table so those can be
+        # checked against each other. The chain this replaced accepted seven
+        # rungs where the ladder declares eight -- T31 was absent although
+        # `plasim/dat/T31` carries a complete surface set and both `mpstep` and
+        # `radmod` have a T31 branch -- and its T106 arm tested the string
+        # "T106" twice where "t106" was meant, so the lower-case spelling it
+        # advertised fell through to the ValueError. Which FFT module a rung
+        # needs is not a fact about this table: `lib/rungs.py:fft_module`
+        # derives it from the longitude count, and `build_model.py` is what
+        # acts on it.
+        self.nsp, self.nlats = _resolve_rung(resolution)
         
         # If the executable does not exist, then regardless of whether we've been asked
         # to recompile, we'll have to recompile

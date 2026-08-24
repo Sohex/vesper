@@ -124,3 +124,59 @@ def _fftmod_can_transform(nlon: int) -> bool:
     while r % 4 == 0:
         r //= 4
     return r in (1, 2, 3)
+
+
+# THE TWO RESTATEMENTS THAT CANNOT BE REMOVED. The model's build system and the
+# vendored ExoPlaSim package each need the ladder before this module is
+# reachable: CMake has no Python, and `vendor/exoplasim/exoplasim/__init__.py`
+# has to stay importable as an installed package that knows nothing about this
+# repository. So the ladder is written three times on purpose, and the other two
+# are CHECKED against this one rather than trusted. T31 is why: CMake's list
+# omitted 48 while this table declared T31, so `build_model.py --res T31`
+# resolved cleanly and then died at cmake configure, and the package's dispatch
+# chain accepted seven rungs where the ladder declares eight. world-ajx.
+RESTATEMENTS = (
+    ("vendor/exoplasim/exoplasim/plasim/CMakeLists.txt",
+     r'require_one_of\(PLASIM_NLAT\s+"\$\{PLASIM_NLAT\}"\s+([0-9 ]+)\)'),
+    ("vendor/exoplasim/exoplasim/__init__.py",
+     r'RESOLUTIONS = (\{[^}]*\})'),
+)
+
+
+def check_restatements(root) -> list[str]:
+    """Every place the ladder is restated, against this table. Empty when they agree.
+
+    A CHECK WITH A RIGHT ANSWER rather than a convention: each restatement has
+    to name exactly the latitude counts in `RUNGS`, and any disagreement is
+    reported as the two sets. Takes the repository root rather than resolving
+    one, so this module keeps knowing nothing but the ladder.
+    """
+    import ast
+    import re
+    from pathlib import Path
+
+    want = set(RUNGS.values())
+    problems = []
+    for rel, pattern in RESTATEMENTS:
+        path = Path(root) / rel
+        if not path.is_file():
+            problems.append(f"{rel} is not there, and it restates the ladder")
+            continue
+        m = re.search(pattern, path.read_text(encoding="utf-8"))
+        if m is None:
+            problems.append(
+                f"{rel} no longer carries the ladder in the shape this check "
+                f"reads ({pattern!r}); it restates the ladder and cannot go "
+                f"unchecked")
+            continue
+        body = m.group(1)
+        if body.lstrip().startswith("{"):
+            got = set(ast.literal_eval(body).values())
+        else:
+            got = {int(t) for t in body.split()}
+        if got != want:
+            problems.append(
+                f"{rel} allows latitudes {sorted(got)} and the ladder is "
+                f"{sorted(want)}: missing {sorted(want - got)}, extra "
+                f"{sorted(got - want)}")
+    return problems
