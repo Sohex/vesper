@@ -1840,6 +1840,11 @@ def expected_namelist_keys(config: dict) -> dict:
     Derived from `config/planet.yaml` and from nothing else -- deliberately not
     from the staging code, because a check built out of the staging lists tests
     only that they agree with themselves. CONS-9.
+
+    A float value is compared numerically. A STR value is a per-level array,
+    held as the `n*value` text a Fortran namelist replicates, and is compared as
+    text: that is the only comparison that tells a replicated array apart from a
+    scalar, and a namelist scalar assigned to an array sets element 1 only.
     """
     m = config["model"]
     want: dict = {"radmod_namelist": {}, "icemod_namelist": {}, "plasim_namelist": {},
@@ -1929,6 +1934,32 @@ def expected_namelist_keys(config: dict) -> dict:
         want["planet_namelist"]["ALR"] = float(profile["lapse_rate_k_per_m"])
         want["plasim_namelist"]["TGR"] = float(profile["surface_temperature_k"])
         want["plasim_namelist"]["DTROP"] = float(profile["tropopause_height_m"])
+    # THE FILTER AND THE HYPERDIFFUSION, the two sets world-8bs found missing
+    # from every continuation. They fail in opposite ways and both are silent.
+    # `configure()` writes FILTERKAPPA and NFILTEREXP unconditionally from its
+    # own defaults, so a dropped key is a WRONG value; it does not write NDEL,
+    # NHDIFF or TDISS* at all, so a dropped key is an ABSENT one and the model
+    # falls back to `readnl`'s compiled T21/T42 branch. Checking only the config
+    # keys catches the first; checking presence catches the second.
+    if m.get("filter_kappa") is not None:
+        want["plasim_namelist"]["FILTERKAPPA"] = float(m["filter_kappa"])
+    if m.get("filter_power") is not None:
+        want["plasim_namelist"]["NFILTEREXP"] = float(m["filter_power"])
+    hd = m.get("hyperdiffusion")
+    if hd:
+        rung = str(m["resolution"]).upper()
+        tau = hd["timescales_days"][rung]
+        ntru = int(rung.lstrip("Tt"))
+        want["plasim_namelist"]["NHDIFF"] = float(
+            round(float(hd["cutoff_fraction"]) * ntru))
+        # PER-LEVEL ARRAYS, compared as the replicated text the namelist holds.
+        # A scalar here would pass while levels 2..NLEV kept `readnl`'s values,
+        # which is world-720's failure and is exactly what this must not miss.
+        layers = int(m["layers"])
+        want["plasim_namelist"]["NDEL"] = f"{layers}*{int(hd['order_alpha'])}"
+        for key, field in (("TDISSD", "divergence"), ("TDISSZ", "vorticity"),
+                           ("TDISST", "temperature"), ("TDISSQ", "humidity")):
+            want["plasim_namelist"][key] = f"{layers}*{float(tau[field])}"
     return {f: keys for f, keys in want.items() if keys}
 
 
@@ -1950,10 +1981,21 @@ def verify_staged_namelists(run_dir: Path, config: dict) -> dict:
         path = run_dir / fname
         for key, want in keys.items():
             try:
-                got = float(namelist_value(path, key))
+                raw = namelist_value(path, key)
             except (KeyError, FileNotFoundError):
-                wrong.append(f"{key} absent from {fname}, config wants {want:g}")
+                wrong.append(f"{key} absent from {fname}, config wants {want}")
                 continue
+            # A str want is a per-level ARRAY, held as the `n*value` text a
+            # Fortran namelist replicates. Compared as text because that is the
+            # only form that distinguishes a replicated array from a scalar,
+            # and a scalar sets element 1 only. world-720, world-8bs.
+            if isinstance(want, str):
+                if raw.rstrip(",").strip() != want:
+                    wrong.append(f"{key} in {fname} is {raw!r}, config wants {want!r}")
+                checked[f"{key}@{fname}"] = raw
+                continue
+            try:
+                got = float(raw)
             except ValueError:
                 wrong.append(f"{key} in {fname} is not a number")
                 continue
