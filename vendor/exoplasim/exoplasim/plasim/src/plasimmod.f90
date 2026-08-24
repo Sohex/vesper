@@ -237,6 +237,13 @@
 !                               ! CONTROL for world-0ov, carried across steps and
 !                               ! written only on NROOT, after the reduction.
       integer :: nconvacc = 0   ! steps accumulated into dconvacc
+      integer :: ndealias = 0   ! switch for truncating V.grad(ln ps) to the
+!                               ! retained modes before the conversion and the
+!                               ! vertical advection use it. HS75 section 2's
+!                               ! option (ii); the grid is 3M+1 and those terms
+!                               ! are triple correlations needing 4M+1. Default
+!                               ! off: it changes what the model integrates.
+      real :: ddealias(2) = 0.0 ! the removed fraction's running sum and count
       real :: dconvspd(3) = 0.0 ! the same conversion on sdp either side of each
 !                               ! write to it in spectrald: in, between the two
 !                               ! adds, and out. world-pkf.
@@ -1028,7 +1035,7 @@
 !$omp&  naqua,ncoeff,ndatim,ndel,ndesert,ndheat,ndiag,ndiagcf,ndiaggp,ndiaggp2d,ndiaggp3d,ndiagsp,&
 !$omp&  ndiagsp2d,ndiagsp3d,ndivdamp,ndl,nener3d,nenergy,nentro3d,nentropy,neqsig,nfilter,&
 !$omp&  nenergyfix,denergyfix,denergyd24,denergyacc,nenergyacc,nenergywin,&
-!$omp&  dconvacc,nconvacc,nconvtime,dconvspd,dconvspa,dsdiv,&
+!$omp&  dconvacc,nconvacc,nconvtime,dconvspd,dconvspa,dsdiv,ndealias,ddealias,&
 !$omp&  nfilterexp,nfixorb,nflux,ngenkeplerian,nglspec,ngptfilter,ngui,nguidbg,nhcadence,nhcstp,&
 !$omp&  nhdiff,nhordif,nhurricane,nindex,nkits,nlowio,noutput,npackgp,npacksp,nperpetual,nprhor,&
 !$omp&  nprint,nproc,nqspec,nrad,nrdrag,nrestart,nrho,nscatsp,nseedlen,nsela,&

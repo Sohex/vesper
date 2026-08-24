@@ -288,6 +288,76 @@ return
 end
 
 
+! ==================
+! SUBROUTINE FC2SP_T
+! ==================
+
+subroutine fc2sp_t(fc,sp) ! Fourier to spectral, WITHOUT the physics filter
+! world-ly5. `fc2sp` carries `skgpsp` in `fgp` and `sp2fc` carries `skspgp` in
+! `fsp`, so a round trip through that pair is a truncation AND two applications
+! of the physics filter. A dealiasing truncation has to be the PROJECTION ALONE:
+! it removes what the truncation does not retain and must leave everything it
+! does retain exactly as it was. Anything else is a second physics change
+! wearing the first one's clothes, and the arm would not measure what it says.
+use legmod
+implicit none
+real, intent(in ) :: fc(2,NLON/2,NLPP)
+real, intent(out) :: sp(2,NESP/2)
+
+integer :: l ! Index for latitude
+integer :: m ! Index for zonal wavenumber
+integer :: n ! Index for total wavenumber
+integer :: w ! Index for spherical harmonic
+
+sp(:,:) = 0.0
+
+do l = 1 , NLPP
+  w = 1
+  do m = 1 , NTP1
+    do n = m , NTP1
+      sp(1,w) = sp(1,w) + pmat(w,l)*gwd(l) * fc(1,m,l)
+      sp(2,w) = sp(2,w) + pmat(w,l)*gwd(l) * fc(2,m,l)
+      w = w + 1
+    enddo ! n
+  enddo ! m
+enddo ! l
+return
+end
+
+
+! ==================
+! SUBROUTINE SP2FC_T
+! ==================
+
+subroutine sp2fc_t(sp,fc) ! Spectral to Fourier, WITHOUT the physics filter
+! The synthesis half of the pair above. See fc2sp_t.
+use legmod
+implicit none
+
+real :: sp(2,NCSP)
+real :: fc(2,NLON/2,NLPP)
+
+integer :: l ! Loop index for latitude
+integer :: m ! Loop index for zonal wavenumber m
+integer :: n ! Loop index for total wavenumber n
+integer :: w ! Index of the spectral mode
+
+fc(:,:,:) = 0.0
+
+do l = 1 , NLPP
+   w = 1
+   do m = 1 , NTP1
+      do n = m , NTP1
+         fc(1,m,l) = fc(1,m,l) + pmat(w,l) * sp(1,w)
+         fc(2,m,l) = fc(2,m,l) + pmat(w,l) * sp(2,w)
+         w = w + 1
+      enddo ! n
+   enddo ! m
+enddo ! l
+return
+end
+
+
 ! ================
 ! SUBROUTINE SP2FC
 ! ================

@@ -335,6 +335,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !     records for `nlowio`, which is why that one is broadcast fifty lines above.
       call mpbci(nenergyfix)  ! switch for the energy fixer, world-mzy
       call mpbci(nconvtime)   ! the conversion's time level, world-0ov
+      call mpbci(ndealias)    ! the conversion's dealiasing, world-ly5
       call mpbci(ndiaggp3d ) ! no of 3d gp diagnostic arrays
       call mpbci(ndiaggp2d ) ! no of 2d gp diagnostic arrays
       call mpbci(ndiagsp3d ) ! no of 3d sp diagnostic arrays
@@ -685,6 +686,16 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !     happened. This refuses rather than letting a declared setting integrate
 !     something that is not a solution. world-0ov.
 !
+!     NDEALIAS USES THE LEGENDRE PATH'S DECOMPOSITION -- a per-process partial
+!     from fc2sp_t, reduce-scattered and gathered back -- and SHTns integrates
+!     the whole globe and returns a finished field instead. The two are not
+!     interchangeable, so this refuses rather than transforming through a path
+!     whose partials mean something else. world-ly5.
+      if (ndealias > 0 .and. nshtns == 1) then
+         if (mypid == NROOT) write(nud,*)                                &
+     &      'NDEALIAS has no SHTns path; run the MPI build. world-ly5'
+         stop 'ndealias not implemented on the SHTns transform path'
+      endif
       if (nconvtime > 0) then
          zcgw  = sqrt(gascon * t0(NLEV) * ct / (1.0 - akap))
          zcgwd = plarad / (zcgw * sqrt(real(NTRU) * real(NTRU+1)))
@@ -1409,7 +1420,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
                    , psurf   , ptop    , ptop2   , taucool              &
                    , restim  , t0      , tfrc    , nstratosponge        &
                    , sigh    , nenergy , nener3d , nsponge , dampsp     &
-                   , nenergyfix, nconvtime                               &
+                   , nenergyfix, nconvtime, ndealias                    &
                    , l_aero
 !
 !     preset namelist parameter according to model set up
@@ -2854,6 +2865,77 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !     SUBROUTINE CALCGP
 !     =================
 
+      subroutine dealias_gp(pgp,klev,premoved)
+!     Project a gridpoint field onto the retained spectral modes and synthesise
+!     it back, so what enters the products below is band limited at NTRU.
+!     world-ly5, and it is Hoskins and Simmons (1975) section 2 option (ii).
+!
+!     WHY. Their sentence: "There are terms for which this grid is insufficient
+!     for removing aliased interactions. These terms are the triple correlation
+!     involved in the energy conversion term and in the vertical advection
+!     terms. These require in theory M_g >= 4M + 1." This model runs
+!     NLON = 3*NTRU + 1, which dealiases a product of TWO band-limited fields
+!     and not of three. Truncating `zvgpg` before it multiplies anything makes
+!     every product below quadratic in band-limited fields again, which the grid
+!     does dealias -- which is the whole of the remedy and is why it goes here,
+!     at the source, rather than on each term.
+!
+!     `premoved` is the fraction of the field's own norm the projection removes,
+!     globally and mass-unweighted. It is the measurement that decides the
+!     hypothesis on its own: if `zvgpg` carries nothing above NTRU then this is
+!     a no-op and the aliasing cannot be what the sink is made of.
+!
+      use pumamod
+      integer, intent(in)    :: klev
+      real,    intent(inout) :: pgp(NHOR,klev)
+      real,    intent(out)   :: premoved
+      real, allocatable :: zfc(:,:), zpart(:,:), zslice(:,:), zfull(:,:)
+      real :: zw(NHOR)
+      real :: zs(2)
+
+      allocate(zfc(NHOR,klev))
+      allocate(zpart(NESP,klev))
+      allocate(zslice(NSPP,klev))
+      allocate(zfull(NESP,klev))
+
+      zfc(:,:) = pgp(:,:)
+      call gp2fc(zfc,NLON,NLPP*klev)
+      do jlev = 1 , klev
+         call fc2sp_t(zfc(1,jlev),zpart(1,jlev))
+      enddo
+      call mpsumsc(zpart,zslice,klev)
+      call mpgallsp(zfull,zslice,klev)
+      do jlev = 1 , klev
+         call sp2fc_t(zfull(1,jlev),zfc(1,jlev))
+      enddo
+      call fc2gp(zfc,NLON,NLPP*klev)
+
+      jhor = 0
+      do jlat = 1 , NLPP
+       do jlon = 1 , NLON
+        jhor = jhor + 1
+        zw(jhor) = gwd(jlat)
+       enddo
+      enddo
+      zs(:) = 0.0
+      do jlev = 1 , klev
+       zs(1) = zs(1)                                                    &
+     &       + dot_product((pgp(:,jlev)-zfc(:,jlev))**2,zw)
+       zs(2) = zs(2) + dot_product(pgp(:,jlev)**2,zw)
+      enddo
+      call mpsumbcr(zs,2)
+      premoved = 0.0
+      if (zs(2) > 0.0) premoved = sqrt(zs(1)/zs(2))
+
+      pgp(:,:) = zfc(:,:)
+
+      deallocate(zfc)
+      deallocate(zpart)
+      deallocate(zslice)
+      deallocate(zfull)
+      return
+      end
+
       subroutine calcgp(gpm,gphi)
 !     gtn, gqn, guz, gvz and gvpp come from pumamod rather than the argument
 !     list. They are bands of full-globe arrays, and a band is not a contiguous
@@ -2878,6 +2960,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       real gvd(NHOR,NLEM)
 
       real ztv1(NHOR,NLEV),ztv2(NHOR,NLEV),zq(NHOR)
+      real zdealr
 
       do jlev = 1 , NLEV
          zvgpg(:,jlev) = rcsq  * (gu(:,jlev) * gpm + gv(:,jlev) * gpj)
@@ -2897,6 +2980,22 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
      &               -t0(jlev)
 
       enddo
+!
+!     THE DEALIASING TRUNCATION. world-ly5, default off. See dealias_gp above.
+!     It goes here, after zvgpg is formed and before anything multiplies it, so
+!     that the conversion, the vertical advection and the surface pressure
+!     tendency all see the same band-limited field.
+      if (ndealias > 0) then
+         call dealias_gp(zvgpg,NLEV,zdealr)
+         if (mypid == NROOT) then
+            ddealias(1) = ddealias(1) + zdealr
+            ddealias(2) = ddealias(2) + 1.0
+            if (mod(nstep,ndiag) == 0 .and. ddealias(2) > 0.0) then
+               write(nud,'(A,I9,2E15.6)') ' DEALIAS removed fraction ',  &
+     &            nstep, zdealr, ddealias(1)/ddealias(2)
+            endif
+         endif
+      endif
 
 !     *******
 !     * gvpp *

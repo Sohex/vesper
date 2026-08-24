@@ -845,6 +845,37 @@ def declare_robert_filter(model, config: dict) -> float | None:
     return float(value)
 
 
+def declare_dealias_conversion(model, config: dict) -> bool:
+    """Truncate V.grad(ln ps) to the retained modes before the products. world-ly5.
+
+    Hoskins and Simmons (1975) section 2, the paper `spectrala` cites: the
+    transform grid "is insufficient for removing aliased interactions" for "the
+    triple correlation involved in the energy conversion term and in the
+    vertical advection terms", which need `M_g >= 4M + 1`. This model runs
+    `NLON = 3*NTRU + 1`, the grid that dealiases a product of two band-limited
+    fields and not of three, so the conversion is aliased by construction.
+
+    ON, `calcgp` projects `zvgpg` onto the retained modes before anything
+    multiplies it, which makes every product downstream quadratic in band
+    limited fields again. That is HS75's own option (ii) and the cheaper of the
+    two they name; the other is a `4M + 1` transform grid.
+
+    IT CHANGES WHAT THE MODEL INTEGRATES, and it costs two extra transform pairs
+    a timestep. It also has no SHTns path -- the projection uses the Legendre
+    decomposition's partials -- and the model refuses rather than transforming
+    through a path whose partials mean something else.
+
+    Absent means off, so a config predating this reads exactly as it did.
+    """
+    if not config["model"].get("dealias_conversion", False):
+        return False
+    model._edit_namelist("plasim_namelist", "NDEALIAS", "1")
+    print("dealiasing: V.grad(ln ps) is truncated to the retained modes before "
+          "the conversion and the vertical advection use it. A CHANGE TO THE "
+          "DYNAMICS; world-ly5.")
+    return True
+
+
 def declare_conversion_time_level(model, config: dict) -> bool:
     """Put the reference conversion's two halves on one time level. world-0ov.
 
@@ -1363,6 +1394,8 @@ def expected_namelist_keys(config: dict) -> dict:
         want["plasim_namelist"]["NENERGY"] = float(energy_diagnostics_level(config))
     if m.get("conversion_time_level", False):
         want["plasim_namelist"]["NCONVTIME"] = 1.0
+    if m.get("dealias_conversion", False):
+        want["plasim_namelist"]["NDEALIAS"] = 1.0
     if m.get("robert_filter") is not None:
         want["planet_namelist"]["PNU"] = float(m["robert_filter"])
         if m.get("energy_diagnostics_3d", False):
@@ -1798,6 +1831,7 @@ def main() -> None:
     dynamics_only = declare_dynamics_only(model, config)
     robert_filter = declare_robert_filter(model, config)
     conversion_time_level = declare_conversion_time_level(model, config)
+    dealias_conversion = declare_dealias_conversion(model, config)
     set_low_io(model, args.low_io)
     energy_fixer = declare_energy_fixer(model, config)
     if enable_energy_diagnostics(model, config):
@@ -1926,6 +1960,7 @@ def main() -> None:
         "hyperdiffusion": hyperdiffusion,
         "dynamics_only": dynamics_only,
         "conversion_time_level": conversion_time_level,
+        "dealias_conversion": dealias_conversion,
         "robert_filter": robert_filter,
         # A CORRECTION and not physics; what it is correcting is world-0ov and
         # the fixer itself is world-mzy. On the manifest because whether a run

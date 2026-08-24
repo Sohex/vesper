@@ -1292,6 +1292,39 @@ Neither is tried. The first is what to try, because it is cheap and because
 aliasing is a property of the grid alone -- which is exactly the shape of a
 mechanism that three knobs could not move.
 
+### And the remedy is refuted, by an instrument that was not blunt
+
+`model.dealias_conversion` projects `zvgpg` onto the retained modes in `calcgp`,
+before anything multiplies it, so the conversion and the vertical advection both
+see a band-limited field. That is HS75's option (ii). The projection is
+filter-free on purpose -- `fc2sp` carries `skgpsp` and `sp2fc` carries `skspgp`,
+so a round trip through the model's own pair would truncate AND apply the physics
+filter twice -- and `fc2sp_t` and `sp2fc_t` are the projection alone.
+
+The arm reports how much it removes, which is what keeps this from being a null
+instrument reporting a null result:
+
+    fraction of zvgpg's norm removed by the projection     0.103
+
+So `rcsq = 1/cos^2`, applied in grid space to a product that is otherwise
+quadratic in band-limited fields, does carry `zvgpg` a tenth of the way above the
+truncation. The truncation is real. The sink does not care:
+
+                              off        on
+    denergy26 - denergy27   -0.7938   -0.8115
+    Cimp - Ct               -0.9588   -0.9663
+
+Two percent, and slightly the wrong way, against a third to pass and a tenth to
+refute, both fixed before the arms ran. **HS75's aliasing does not carry this
+sink**, which is what `world-pkf` already implied: the carrier is the damping
+removing divergence that the conversion is charged half of, and that is an
+operator-pairing effect with no aliasing in it.
+
+Worth keeping for what it cost to learn: the reference half is LINEAR in
+`zvgpg`, so a truncation could only ever have reached it through the content it
+removes, and a tenth of the norm turning out to be worth two percent of the sink
+is the measurement that says the removed content is not where the energy is.
+
 ### Two readings of the same decomposition, and only one is the budget
 
 Both are true and they are not interchangeable.
