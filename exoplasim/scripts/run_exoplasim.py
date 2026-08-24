@@ -1574,6 +1574,45 @@ def enable_dust_emission(model, run_dir: Path, config: dict) -> dict | None:
     shutil.copyfile(aerofile, run_dir / aerofile.name)
     model._edit_namelist("aero_namelist", "aerofile", f"'{aerofile.name}'")
 
+    # APART AND RHOP COME FROM THE FILE THE OPTICS WERE BUILT FOR, and they were
+    # written by nothing at all. `aeromod.f90` declares apart = 50 nm and
+    # rhop = 1000 kg/m3, a photochemical haze grain at water density, and
+    # `aero_ini` validates the fourteen emission constants and not these two, so
+    # an unwritten pair sits silently at the compiled values.
+    #
+    # WHAT THAT IS WORTH. `vels` is Stokes, v = 2 beta apart^2 ga (rhop - rhog) /
+    # (9 mu), so the radius enters squared: (2.2068e-6/5e-8)^2 = 1948, density
+    # 2.6, Cunningham 0.354 the other way, about 1790 net. The compiled default
+    # settles the grain at roughly a micrometre a second where the intended one
+    # falls at 0.21 cm/s, and sedimentation is the only removal term active at
+    # ldepvel = 0 and lwetdep = 0, so the burden would instead be set by the
+    # timestep-dependent bottom-layer scrub. `mmr2n` is off by the cube.
+    #
+    # The sidecar is the aerofile's own, beside the .dat: it is the file
+    # `dust_aerofile.py` writes the burden-matched radius into, derived for THIS
+    # planet's gravity, and it already carried a `namelist_values` block that
+    # nothing opened. world-906.
+    aero_prov = aerofile.with_name(aerofile.stem + ".provenance.json")
+    if not aero_prov.is_file():
+        raise RuntimeError(
+            f"{aero_prov} is missing. APART and RHOP live with the aerofile "
+            "they were derived for, not in the config; run "
+            "exoplasim/scripts/dust_aerofile.py.")
+    aero_values = dict(json.loads(aero_prov.read_text(encoding="utf-8"))
+                       ["namelist_values"])
+    for key in ("APART", "RHOP"):
+        if float(aero_values.get(key, 0.0)) <= 0.0:
+            raise RuntimeError(
+                f"{aero_prov} carries no positive {key}. The tracer's radius "
+                "and density set the settling velocity and the number density; "
+                "aeromod's compiled defaults are a 50 nm haze grain at water "
+                "density and are wrong by about three orders of magnitude in "
+                "the settling velocity.")
+        model._edit_namelist("aero_namelist", key, f"{float(aero_values[key])!r}")
+    print(f"  dust grain: APART = {float(aero_values['APART']):.4e} m, "
+          f"RHOP = {float(aero_values['RHOP']):g} kg/m3, from "
+          f"{aero_prov.name}")
+
     # WHETHER THE EMITTED DUST IS RADIATIVELY ACTIVE, and it is a switch now
     # rather than a pin. Both reasons it was pinned off have been repaired:
     #
@@ -1624,6 +1663,7 @@ def enable_dust_emission(model, run_dir: Path, config: dict) -> dict | None:
         "terrain_hash": prov["terrain_hash"],
         "field_sha256": prov["output_sha256"],
         "namelist_values": values,
+        "aerosol_namelist_values": aero_values,
         "radiatively_active": radiative,
         "aeroqlw": aeroqlw if radiative else None,
         "source_cells": prov["field_statistics"]["srcw_cells_nonzero"],

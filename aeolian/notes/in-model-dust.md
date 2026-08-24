@@ -526,10 +526,16 @@ every rank and they all have to agree about whether the collective read happens.
    reachable at all: `aero_namelist` is written by ExoPlaSim's own Python API
    and nothing in this project had ever touched it, so `ldepvel`, `vdaero`,
    `lwetdep`, `scava` and `scavb` were unreachable from the drivers and the
-   model aborted rather than run. The aerofile's provenance sidecar carries
-   `namelist_values` with `APART` and `RHOP` so that the run gets its radius
-   from the file the optics were built for rather than from a config that can
-   drift.
+   model aborted rather than run. `enable_dust_emission` reads TWO provenance
+   files, and the distinction is load-bearing: the source-field sidecar carries
+   the fourteen emission constants, and the AEROFILE's sidecar carries `APART`
+   and `RHOP`, so the run gets its grain radius and density from the file the
+   optics were built for rather than from a config that can drift. It refuses if
+   either is missing. Until world-906 only the first was read, and `aero_ini`
+   validates the emission constants and not the grain, so `apart` and `rhop`
+   would have sat silently at `aeromod`'s compiled 50 nm at water density --
+   about 1790x too slow in the settling velocity, with sedimentation the only
+   removal term active at `ldepvel = 0` and `lwetdep = 0`.
 5. **The longwave aerosol term.** The largest risk, inside the radiation
    solver. RESIDENT as `exoplasim-3.4.2-aerosol-longwave.patch`, written
    together with defect 1 on one branch because both live in `radmod.f90`.

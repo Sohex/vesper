@@ -763,24 +763,31 @@ None of these affects a run today. Each is recorded because it fires on a change
 this project already intends to make, and because a dormant Earth constant reads
 exactly like a live one to whoever throws the switch.
 
-**Dust would settle about 1790 times too slowly.** `aeromod.f90:43-44` declares
+**Dust would have settled about 1790 times too slowly.** `aeromod.f90` declares
 `apart = 50e-9` m and `rhop = 1000` kg/m3, a photochemical haze grain at water
-density, and both are in `aero_nl`. `run_exoplasim.py:1154-1252` writes every
-key in `prov["namelist_values"]`, and
-`aeolian/scripts/build_dust_source_fields.py:98-129` builds that dict with the
-fourteen `DUST*` keys and NEITHER `APART` NOR `RHOP`. The correct values exist
-unread in `exoplasim/data/dust/vesper_dust_aerosol.provenance.json` as
-`apart_m = 2.2068e-06` and `rhop_kg_m3 = 2600.0`, derived for this planet's
-gravity by `dust_aerofile.py:158`. Through `vels` at `aerocore.f90:1185` the
-radius contributes 1948, the density 2.602 and the Cunningham factor 0.354, so
-1793 net; sedimentation is the only removal term active by default, so the
-burden falls back on the timestep-dependent 99-per-cent-per-step scrub at
-`aerocore.f90:944`. Fires on `model.dust_emission`. Note that
-`aeolian/notes/in-model-dust.md:528` asserts the sidecar carries `APART` and
-`RHOP` in `namelist_values`, and the code does not do this. A new instance of
-the class in `aerosol-particle-radius.md`, not the audited one: that audit is
-about radmod's copy diverging from aeromod's, and this is about neither copy
-ever being set.
+density, and both are in `aero_nl`. `enable_dust_emission` wrote every key in
+the SOURCE-FIELD provenance, and `build_dust_source_fields.py` builds that dict
+with the fourteen `DUST*` keys and neither of these two, so nothing wrote them
+and `aero_ini` validates the emission constants and not the grain. Through
+`vels`, which is Stokes, the radius enters squared and contributes 1948, the
+density 2.602 and the Cunningham factor 0.354 the other way, so 1793 net; and
+sedimentation is the only removal term active at `ldepvel = 0` and
+`lwetdep = 0`, so the burden would instead have been set by the
+timestep-dependent 99-per-cent-per-step bottom-layer scrub. `mmr2n` was off by
+the cube.
+
+`enable_dust_emission` now reads the AEROFILE's own sidecar,
+`exoplasim/data/dust/vesper_dust_aerosol.provenance.json`, whose
+`namelist_values` block carried `APART = 2.2068e-06` and `RHOP = 2600.0`
+unread -- the burden-matched radius `dust_aerofile.py` derives for this planet's
+gravity -- and writes both into `aero_namelist`, refusing if the sidecar is
+missing or either value is not positive. Two provenance files reach that
+function and the distinction is load-bearing: the source-field sidecar carries
+the emission law, the aerofile sidecar carries the grain.
+
+A new instance of the class in `aerosol-particle-radius.md`, not the audited
+one: that audit is about radmod's copy diverging from aeromod's, and this was
+about neither copy ever being set.
 
 **SIMBA is Earth-fitted throughout, with two latent traps.** Unreachable at
 `NVEG = 0` and one namelist key away. `rlue = 3.4E-10` kg C/J
@@ -1127,7 +1134,7 @@ named because they were filed independently.
 | 27. runoff velocity constants | `world-529` |
 | 28. the run log identifies the planet as Earth | `world-1o4` |
 | mechanism I, the build compiles `p_earth` | `world-cwu`, `world-58v` |
-| dormant, dust `APART` and `RHOP` are never written | `world-906` |
+| dust `APART` and `RHOP` were never written | `world-906`, fixed |
 | dormant, SIMBA and its two traps | `world-9hv` |
 | dormant, `nfluko` relaxes toward the constructed field | `world-4ba` |
 | dormant, the radiation tuning is pinned at T21 | `world-ys9` |
