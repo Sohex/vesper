@@ -209,9 +209,23 @@
 !                               ! correction for the conversion defect on
 !                               ! world-0ov, tracked as world-mzy. Default off,
 !                               ! so the code below is a no-op until declared.
-      real :: denergyfix = 0.0  ! the uniform temperature increment the fixer is
-!                               ! currently applying, non-dimensional. Carried
-!                               ! across timesteps; written only on NROOT.
+      real :: denergyd24 = 0.0  ! global mean of denergy(:,24), the enthalpy the
+!                               ! TEMPERATURE hyperdiffusion adds. Unlike the
+!                               ! momentum diffusion, whose kinetic loss mkdheat
+!                               ! books back as heat, this one has no
+!                               ! counterpart anywhere: damping the temperature
+!                               ! anomaly changes the MASS-weighted mean even
+!                               ! though it preserves the unweighted one. Carried
+!                               ! from spectrald to the fixer in the next
+!                               ! spectrala, which is the only lag involved.
+      real :: denergyfix = 0.0  ! the uniform heating the fixer is currently
+!                               ! applying, as a NON-DIMENSIONAL TENDENCY and
+!                               ! not an increment: it is added to stt, and the
+!                               ! leapfrog turns a tendency into an increment by
+!                               ! multiplying by delt2. Getting that wrong makes
+!                               ! the controller blind to its own correction and
+!                               ! it winds up without bound. Carried across
+!                               ! timesteps; written only on NROOT.
       integer :: nener3d  = 0   ! switch for 3d energy diagnostics
       integer :: ndheat   = 1   ! switch for heating due to momentum dissipation
       integer :: nseedlen = 0   ! length of random seed (set by lib call)
@@ -980,7 +994,7 @@
 !$omp&  n_sea_points,n_start_month,n_start_step,n_start_year,n_steps_per_year,naccuout,nadv,nafter,&
 !$omp&  naqua,ncoeff,ndatim,ndel,ndesert,ndheat,ndiag,ndiagcf,ndiaggp,ndiaggp2d,ndiaggp3d,ndiagsp,&
 !$omp&  ndiagsp2d,ndiagsp3d,ndivdamp,ndl,nener3d,nenergy,nentro3d,nentropy,neqsig,nfilter,&
-!$omp&  nenergyfix,denergyfix,&
+!$omp&  nenergyfix,denergyfix,denergyd24,&
 !$omp&  nfilterexp,nfixorb,nflux,ngenkeplerian,nglspec,ngptfilter,ngui,nguidbg,nhcadence,nhcstp,&
 !$omp&  nhdiff,nhordif,nhurricane,nindex,nkits,nlowio,noutput,npackgp,npacksp,nperpetual,nprhor,&
 !$omp&  nprint,nproc,nqspec,nrad,nrdrag,nrestart,nrho,nscatsp,nseedlen,nsela,&

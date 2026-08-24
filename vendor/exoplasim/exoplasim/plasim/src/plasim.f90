@@ -328,6 +328,12 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       call mpbci(nentro3d  ) ! switch for 3d entropy diagnostics
       call mpbci(nenergy  )  ! switch for energy diagnostics
       call mpbci(nener3d  )  ! switch for 3d energy diagnostics
+!     WITHOUT THIS THE FIXER DEADLOCKS. The namelist is read on NROOT only, so
+!     an unbroadcast switch is 0 everywhere else -- and this one guards a block
+!     containing `mpsumbcr`, a COLLECTIVE. NROOT enters and waits for ranks that
+!     skipped it. Exactly the failure `notes/audits/nlowio-collective-deadlock.md`
+!     records for `nlowio`, which is why that one is broadcast fifty lines above.
+      call mpbci(nenergyfix)  ! switch for the energy fixer, world-mzy
       call mpbci(ndiaggp3d ) ! no of 3d gp diagnostic arrays
       call mpbci(ndiaggp2d ) ! no of 2d gp diagnostic arrays
       call mpbci(ndiagsp3d ) ! no of 3d sp diagnostic arrays
@@ -3036,6 +3042,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !     the energy fixer's scratch: the imbalance, the column heat capacity it is
 !     spread over, and the weight sum that turns the pair into a per-area rate
       real :: zfix(3)
+      real :: zfixr, zfixd, zfixc
       real :: zfixw(NHOR)
 !
 !*    0. save prognostic variables at (t-dt)
@@ -3385,7 +3392,16 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
           zfixw(jhor) = gwd(jlat)
          enddo
         enddo
-        zfix(1) = dot_product(denergy(:,26)-denergy(:,27),zfixw)
+!       THE TARGET IS THE SUM THAT MUST VANISH, not the adiabatic step alone.
+!       Total enthalpy change is denergy26 (spectrala) plus 24, 23 and 25
+!       (spectrald); total kinetic change is -denergy27 less the friction that
+!       23 and 25 book back as heat. The friction cancels by construction --
+!       mkdheat returns exactly what it removed -- so what is left to vanish is
+!       `26 - 27 + 24`. Targeting `26 - 27` alone zeroes the conversion defect
+!       and leaves the hyperdiffusion's +0.24 W/m2 as a net GAIN, which is
+!       measured: the trend went from -0.66 to +0.22.
+        zfix(1) = dot_product(denergy(:,26)-denergy(:,27),zfixw)         &
+     &          + denergyd24*sum(zfixw)
         do jlev = 1 , NLEV
          zfix(2) = zfix(2) + dot_product(acpd*(1.+adv*zqgp(:,jlev))     &
      &                       *zpgp(:)/ga*dsigma(jlev),zfixw)
@@ -3393,10 +3409,35 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
         zfix(3) = sum(zfixw)
         call mpsumbcr(zfix,3)
         if (mypid == NROOT) then
-         denergyfix = denergyfix - zfix(1)*deltsec2/zfix(2)/ct
-         if (mod(nstep,ndiag) == 0) then
-          write(nud,'(A,I8,2E16.7)') ' ENERGY FIXER applied W/m2, K/step ', &
-     &      nstep, denergyfix*ct*zfix(2)/zfix(3)/deltsec2, denergyfix*ct
+!        A TENDENCY, because stt is one. zfix(1)/zfix(2) is the imbalance over
+!        the column heat capacity in K/s, and dividing by ct*ww is the same
+!        conversion the diagnostics above apply in reverse. Writing an
+!        INCREMENT here instead makes only delt2 of it land, so the controller
+!        never sees its own correction arrive and winds up without bound.
+         zfixd = -zfix(1)/zfix(2)/(ct*ww)
+!        RATE LIMITED, and this is not caution for its own sake. The first step
+!        out of a restart shows an imbalance of order 250 W/m2 -- a startup
+!        transient, not the defect -- and a unit-gain controller swallows it
+!        whole and takes the model with it. What is being corrected is a
+!        systematic loss of order 1 W/m2 that varies on the timescale of the
+!        flow, so no single sample should move the correction far. Convergence
+!        costs about twenty steps and nothing can throw it.
+         zfixc = zfixd*ct*ww*zfix(2)/zfix(3)
+         if (abs(zfixc) > 0.05) zfixd = zfixd*0.05/abs(zfixc)
+         denergyfix = denergyfix + zfixd
+         zfixr = denergyfix*ct*ww*zfix(2)/zfix(3)
+!        A runaway has to announce itself rather than appear as a blow-up in the
+!        dynamics. The defect being corrected is of order 1 W/m2; this bound is
+!        two orders above it and catches divergence without firing on a start-up
+!        transient.
+         if (abs(zfixr) > 100.0) then
+          write(nud,*) 'ENERGY FIXER DIVERGED: applying ',zfixr,' W/m2 at step ',nstep
+          write(nud,*) 'the correction is not converging; see world-mzy'
+          stop 'energy fixer diverged'
+         endif
+         if (mod(nstep,ndiag) == 0 .or. nstep < nstep1+40) then
+          write(nud,'(A,I8,3E16.7)') ' ENERGY FIXER applied W/m2, K/day ', &
+     &      nstep, zfixr, denergyfix*ct*ww*86400.0, zfix(1)/zfix(3)
          endif
         endif
        endif
@@ -4035,6 +4076,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       real :: zsdt1(NSPP,NLEV),zsdt2(NSPP,NLEV)
       real :: zszt1(NSPP,NLEV),zszt2(NSPP,NLEV)
       real :: zsum3(1) ! must be an array because of the NAG compiler
+      real :: zd24(2) ! the fixer's carry of the temperature diffusion heating
 !
 !     franks diagnostics
 !
@@ -4350,6 +4392,22 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
      &                   *acpd*(1.+adv*dq(:,jlev))*dp(:)/ga*dsigma(jlev)
         endif 
        enddo
+!      Carry the temperature diffusion's unbalanced heating to the fixer, which
+!      runs in the next spectrala and cannot see this routine's terms otherwise.
+       if(nenergyfix > 0) then
+        zd24(1) = 0.0
+        zd24(2) = 0.0
+        jhor = 0
+        do jlat = 1 , NLPP
+         do jlon = 1 , NLON
+          jhor = jhor + 1
+          zd24(1) = zd24(1) + denergy(jhor,24)*gwd(jlat)
+          zd24(2) = zd24(2) + gwd(jlat)
+         enddo
+        enddo
+        call mpsumbcr(zd24,2)
+        denergyd24 = zd24(1)/zd24(2)
+       endif
        deallocate(ztt)
        deallocate(zttgp)
       endif
