@@ -3409,22 +3409,39 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
         zfix(3) = sum(zfixw)
         call mpsumbcr(zfix,3)
         if (mypid == NROOT) then
-!        A TENDENCY, because stt is one. zfix(1)/zfix(2) is the imbalance over
-!        the column heat capacity in K/s, and dividing by ct*ww is the same
-!        conversion the diagnostics above apply in reverse. Writing an
-!        INCREMENT here instead makes only delt2 of it land, so the controller
-!        never sees its own correction arrive and winds up without bound.
-         zfixd = -zfix(1)/zfix(2)/(ct*ww)
-!        RATE LIMITED, and this is not caution for its own sake. The first step
-!        out of a restart shows an imbalance of order 250 W/m2 -- a startup
-!        transient, not the defect -- and a unit-gain controller swallows it
-!        whole and takes the model with it. What is being corrected is a
-!        systematic loss of order 1 W/m2 that varies on the timescale of the
-!        flow, so no single sample should move the correction far. Convergence
-!        costs about twenty steps and nothing can throw it.
-         zfixc = zfixd*ct*ww*zfix(2)/zfix(3)
-         if (abs(zfixc) > 0.05) zfixd = zfixd*0.05/abs(zfixc)
-         denergyfix = denergyfix + zfixd
+!        WINDOWED, over one model day, and this is the point of the design.
+!        The PER-STEP imbalance swings by about 250 W/m2 either way -- that is
+!        the leapfrog's computational mode, undamped here because pnu is 0.0 --
+!        while the thing being corrected is a systematic loss of order half a
+!        watt. A controller that reacts step by step converges in the mean and
+!        wanders across -0.2 to +1.8 getting there, which is what it did.
+!        Averaging over ntspd steps takes the mode out and leaves the defect.
+!
+!        Only NROOT touches these accumulators, and only after the reduction,
+!        which is what keeps them free of a race under the threaded build.
+         denergyacc(1) = denergyacc(1) + zfix(1)
+         denergyacc(2) = denergyacc(2) + zfix(2)
+         denergyacc(3) = denergyacc(3) + zfix(3)
+         nenergyacc = nenergyacc + 1
+         if (nenergyacc >= ntspd) then
+!           THE FIRST WINDOW IS DISCARDED. It carries the start-up transient --
+!           the first step out of a restart shows an imbalance of order 250
+!           W/m2 -- and one such sample still moves a 64-step mean by four.
+            if (nenergywin > 0) then
+!              A TENDENCY, because stt is one. Writing an INCREMENT here makes
+!              only delt2 of it land, so the controller never sees its own
+!              correction arrive and winds up without bound.
+               zfixd = -denergyacc(1)/denergyacc(2)/(ct*ww)
+!              Unit gain on a clean window average converges in ONE window; the
+!              limit is a backstop against a pathological one, not a brake.
+               zfixc = zfixd*ct*ww*denergyacc(2)/denergyacc(3)
+               if (abs(zfixc) > 2.0) zfixd = zfixd*2.0/abs(zfixc)
+               denergyfix = denergyfix + zfixd
+            endif
+            nenergywin = nenergywin + 1
+            denergyacc(:) = 0.0
+            nenergyacc = 0
+         endif
          zfixr = denergyfix*ct*ww*zfix(2)/zfix(3)
 !        A runaway has to announce itself rather than appear as a blow-up in the
 !        dynamics. The defect being corrected is of order 1 W/m2; this bound is

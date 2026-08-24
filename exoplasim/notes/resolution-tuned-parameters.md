@@ -1099,6 +1099,38 @@ Three further defects, each found by a run rather than by reading:
   divergence guard that names the runaway instead of leaving it to appear as a
   blow-up in the dynamics -- and that guard is what produced the 252.
 
+### The controller is windowed, and the reason it is was wrong
+
+The correction is updated once per model day from the mean over that day, not
+every step. The argument for it was that the PER-STEP imbalance swings by about
+250 W/m2 either way -- the leapfrog's computational mode, undamped because `pnu`
+is 0.0 -- so a step-by-step controller should be chasing noise, and averaging it
+out should tighten the correction sharply.
+
+**It did not.** Same configuration, same restart, second half of the orbit:
+
+    per-step   mean +0.5594   range -0.200 to +1.830   span 2.030
+    windowed   mean +0.5560   range +0.000 to +1.645   span 1.645
+
+    total energy trend  -0.0063 per-step, -0.0079 windowed
+
+A nineteen percent tightening, and the trend is the same within the scatter. So
+the wander is NOT the computational mode: a 64-step average removes almost all
+of an alternating signal and removed a fifth of this. What is left is genuine
+day-to-day variation in the model's own energy imbalance, and no averaging
+window makes that go away because it is the quantity being tracked.
+
+The windowed form is kept anyway, on the grounds that survive: it targets the
+systematic mean rather than a sample of it, and it changes the forcing once a
+day instead of every step, which is less likely to interact with the dynamics.
+Not on the grounds it was built for.
+
+Only NROOT touches the accumulators, and only after the reduction. The obvious
+cheaper design -- accumulate locally on every rank and reduce once per window --
+races under the threaded build, where several threads run `spectrala` at once
+against module-level accumulators. The per-step reduction is free anyway,
+measured: 189 seconds an orbit with the fixer on against 191 with it off.
+
 Why it is dangerous: it MASKS the defect it compensates. A fixer whose magnitude
 nobody looks at turns a known 0.9 W/m2 into an unknown one that can grow. That is
 the whole reason the applied increment is reported rather than absorbed, and the

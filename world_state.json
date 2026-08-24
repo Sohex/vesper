@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated": "2026-08-24T08:57:25.793073+00:00",
-  "git_commit": "749a035d82c078736f7af832a86088e773800ae4",
+  "generated": "2026-08-24T09:06:14.254372+00:00",
+  "git_commit": "21fefbc5d37097245ae3a09b80f7a0200fa97a1b",
   "generator": "scripts/world_state.py",
   "note": "Generated from the artifacts. Do not edit; re-run the generator. Only derived values live here. Findings are in `notes/`, with their evidence, and open work is in the `bd` issue tracker.",
   "planet": {
@@ -1728,6 +1728,19 @@
     },
     {
       "run_id": "run_b0e5f3bed5a2",
+      "status": "smoke_complete",
+      "orbits_complete": 1,
+      "flux_earth": 0.945,
+      "cycle": null,
+      "resolution": "T42",
+      "land_albedo_source": "vegetated",
+      "source_build": "precarve-craton",
+      "glaciers": true,
+      "converged": null,
+      "mean_surface_temperature_k": 292.821
+    },
+    {
+      "run_id": "run_b3875dd5711d",
       "status": "smoke_complete",
       "orbits_complete": 1,
       "flux_earth": 0.945,

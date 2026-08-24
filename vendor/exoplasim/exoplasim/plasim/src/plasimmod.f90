@@ -209,6 +209,13 @@
 !                               ! correction for the conversion defect on
 !                               ! world-0ov, tracked as world-mzy. Default off,
 !                               ! so the code below is a no-op until declared.
+      real :: denergyacc(3) = 0.0 ! the fixer's window accumulators: imbalance,
+!                               ! column heat capacity, and weight sum. Written
+!                               ! ONLY on NROOT, after the reduction, which is
+!                               ! what keeps them free of a race under the
+!                               ! threaded build.
+      integer :: nenergyacc = 0 ! steps accumulated into the current window
+      integer :: nenergywin = 0 ! windows completed; the first is discarded
       real :: denergyd24 = 0.0  ! global mean of denergy(:,24), the enthalpy the
 !                               ! TEMPERATURE hyperdiffusion adds. Unlike the
 !                               ! momentum diffusion, whose kinetic loss mkdheat
@@ -994,7 +1001,7 @@
 !$omp&  n_sea_points,n_start_month,n_start_step,n_start_year,n_steps_per_year,naccuout,nadv,nafter,&
 !$omp&  naqua,ncoeff,ndatim,ndel,ndesert,ndheat,ndiag,ndiagcf,ndiaggp,ndiaggp2d,ndiaggp3d,ndiagsp,&
 !$omp&  ndiagsp2d,ndiagsp3d,ndivdamp,ndl,nener3d,nenergy,nentro3d,nentropy,neqsig,nfilter,&
-!$omp&  nenergyfix,denergyfix,denergyd24,&
+!$omp&  nenergyfix,denergyfix,denergyd24,denergyacc,nenergyacc,nenergywin,&
 !$omp&  nfilterexp,nfixorb,nflux,ngenkeplerian,nglspec,ngptfilter,ngui,nguidbg,nhcadence,nhcstp,&
 !$omp&  nhdiff,nhordif,nhurricane,nindex,nkits,nlowio,noutput,npackgp,npacksp,nperpetual,nprhor,&
 !$omp&  nprint,nproc,nqspec,nrad,nrdrag,nrestart,nrho,nscatsp,nseedlen,nsela,&
