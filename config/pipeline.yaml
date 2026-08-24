@@ -625,6 +625,7 @@ one_offs:
   # condition a caller chooses to make, not a product any step needs.
   - exoplasim/scripts/convert_restart.py
   - exoplasim/scripts/build_restart_template.py
+  - exoplasim/scripts/compare_equilibria.py
   - hydrography/scripts/validate_lake_solver.py
   - hydrography/scripts/build_earth_wtd_sites.py
   - hydrography/scripts/build_us_wtd_sites.py

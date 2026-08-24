@@ -121,10 +121,25 @@ def main() -> None:
     parser.add_argument("--window", type=int, default=10,
                         help="orbits in the test window. Counted back from the "
                              "last PRODUCTION orbit, not the last orbit")
+    parser.add_argument("--through", type=int, default=None, metavar="ORBITS",
+                        help="assess the run AS IF it had stopped after this "
+                             "many orbits, ignoring everything later. For "
+                             "asking when a run FIRST met the criteria rather "
+                             "than whether it meets them now -- which is what "
+                             "a relaxation time is, and what decides whether "
+                             "converting a coarse state into a finer one is "
+                             "worth the wall clock. Writes nothing under "
+                             "--output unless asked, so a sweep cannot "
+                             "overwrite the run's own verdict.")
     parser.add_argument("--output", type=Path, default=ANALYSIS / "convergence")
     args = parser.parse_args()
     run_dir = args.run_dir.resolve()
     files = output_files(run_dir)
+    if args.through is not None:
+        if args.through > len(files):
+            raise RuntimeError(
+                f"--through {args.through} but the run has {len(files)} orbits")
+        files = files[:args.through]
     if len(files) < args.window:
         raise RuntimeError("Not enough annual outputs for requested window")
 
@@ -345,7 +360,13 @@ def main() -> None:
     # overwrote the last, so a run's convergence record could not survive the
     # next run being assessed -- and assessing a run silently destroyed the
     # evidence for a previous one.
-    report_path = args.output / f"{run_dir.name}_convergence.json"
+    #
+    # A TRUNCATED assessment carries its length in the name and never takes the
+    # run's own. Sweeping `--through` to find when a run first converged would
+    # otherwise leave the verdict of whichever truncation ran last standing as
+    # the run's, which is the same defect one directory up.
+    suffix = "" if args.through is None else f"_through{args.through:03d}"
+    report_path = args.output / f"{run_dir.name}_convergence{suffix}.json"
     report_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
 
     # A run that has been assessed and misses is NOT "spinup_in_progress", and
