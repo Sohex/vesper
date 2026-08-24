@@ -708,6 +708,50 @@ def declare_cold_start_seed(model, config: dict, is_cold: bool) -> None:
           f"the system clock and the run is unreproducible)")
 
 
+def read_applied_energy_fix(run_dir: Path) -> dict | None:
+    """What the energy fixer actually had to put back, from the run's own diag.
+
+    The fixer restores the energy the adiabatic conversion loses (`world-0ov`),
+    and by doing so it HIDES that loss: with it on, `denergy26 - denergy27`
+    reports a residual near zero and the size of the defect is the correction
+    instead. So the correction has to be readable, or a known 0.85 W/m2 quietly
+    becomes an unknown one that can grow. `world-mzy`.
+
+    Taken from the model's own print rather than recomputed, so this cannot
+    disagree with what was applied. The first samples are dropped: the first
+    step out of a restart shows an imbalance of order 250 W/m2 and the rate
+    limiter spends its first steps climbing out of it, which is startup and not
+    the defect.
+    """
+    diags = sorted(run_dir.glob("MOST_DIAG.*"))
+    if not diags:
+        return None
+    # Anchored on the header rather than counted from the end, because the line
+    # carries a varying number of trailing diagnostics: after the label come the
+    # step and then the applied W/m2, and that order is what the model writes.
+    values = []
+    for line in diags[-1].read_text(errors="replace").splitlines():
+        if "ENERGY FIXER applied" not in line:
+            continue
+        tail = line.split("K/day", 1)[-1].split()
+        if len(tail) < 2:
+            continue
+        try:
+            values.append(float(tail[1]))
+        except ValueError:
+            continue
+    if len(values) < 8:
+        return None
+    settled = values[len(values) // 2:]
+    return {"applied_w_m2_mean": sum(settled) / len(settled),
+            "applied_w_m2_min": min(settled),
+            "applied_w_m2_max": max(settled),
+            "samples": len(settled),
+            "note": "the energy the fixer had to restore; a CORRECTION and not "
+                    "physics. It is the size of the defect on world-0ov, which "
+                    "the fixer otherwise hides. Second half of the run only."}
+
+
 def declare_energy_fixer(model, config: dict) -> bool:
     """Switch on the global energy fixer, which is a CORRECTION and not physics.
 
@@ -1835,6 +1879,21 @@ def main() -> None:
                 "smoke_complete" if args.run_years == 1 else "run_complete"
             )
             manifest["completed_orbits"] = args.run_years
+            if energy_fixer:
+                applied = read_applied_energy_fix(run_dir)
+                if applied is None:
+                    raise RuntimeError(
+                        "the energy fixer was declared on and the run's diag "
+                        "carries no readable correction. The fixer hides the "
+                        "defect it compensates, so a run that cannot report "
+                        "what it applied is a run whose fluxes nobody can "
+                        "check. world-mzy.")
+                manifest["energy_fixer_applied"] = applied
+                print(f"energy fixer applied {applied['applied_w_m2_mean']:+.4f} "
+                      f"W/m2 on average over the second half "
+                      f"({applied['applied_w_m2_min']:+.3f} to "
+                      f"{applied['applied_w_m2_max']:+.3f}); that is the size of "
+                      f"the defect on world-0ov, not a physical flux")
             # REGISTER THE BLOCK AS A SEGMENT, like a continuation does.
             # Without this the orbits this script writes carry no purpose and
             # no `low_io`, and CLIM-9's two defaults then disagree about them:

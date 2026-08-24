@@ -670,6 +670,40 @@ def main() -> int:
         else:
             rep.add(OK, "runs vs the energy fixer they claim",
                     f"{seen} runs carry the stamp and all agree with their namelist")
+
+        # -- and what the fixer actually had to put back --
+        #
+        # The fixer HIDES the defect it compensates: with it on, denergy26 minus
+        # denergy27 reports a residual near zero and the size of the loss is the
+        # correction instead. A correction nobody checks turns a known 0.85 W/m2
+        # into an unknown one that can grow, so the recorded magnitude is
+        # checked rather than merely stored. The bound is an order and a half
+        # above the defect, which catches a change in kind without firing on the
+        # controller's ordinary wander.
+        loud, quiet = [], []
+        for manifest in sorted(runs.glob("run_*/run_manifest.json")):
+            data = json.loads(manifest.read_text())
+            if not data.get("energy_fixer"):
+                continue
+            applied = data.get("energy_fixer_applied")
+            if applied is None:
+                quiet.append(manifest.parent.name)
+                continue
+            mean = float(applied["applied_w_m2_mean"])
+            if abs(mean) > 10.0:
+                loud.append(f"{manifest.parent.name} applied {mean:+.2f} W/m2")
+        if loud:
+            rep.add(FAIL, "what the energy fixer had to put back",
+                    "; ".join(loud[:4]) + " -- the defect on world-0ov is about "
+                    "0.6 W/m2, so this is a change in kind, not a wander")
+        elif quiet:
+            rep.add(WARN, "what the energy fixer had to put back",
+                    f"{len(quiet)} fixer runs predate the manifest field and "
+                    f"report nothing; the runner now refuses to finish without it")
+        else:
+            rep.add(OK, "what the energy fixer had to put back",
+                    "every fixer run records its correction and none is a "
+                    "change in kind")
     except Exception as exc:
         rep.add(WARN, "energy fixer declared", f"not checked: {exc}")
 
