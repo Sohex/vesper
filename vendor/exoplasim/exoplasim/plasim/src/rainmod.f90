@@ -28,7 +28,24 @@
       real :: pdeep   =999999.! pressure to destinguish deep and shallow con. 
       real :: pdeepth = 70000.! pressure threshold for shallow con. 
       real :: rkshallow = 10. ! diffusivity for shallow convection (m*m/s)
-      real :: gamma   = 0.01  ! tuning parameter for evaporation of precip.
+!
+!     THE PRECIPITATION RE-EVAPORATION FRACTION, and it is one number at every
+!     rung. Upstream set it to 0.007 when NTRU==42 .and. NLEV==10 and left it at
+!     0.01 otherwise, which is a 43 per cent step in a precipitation constant
+!     taken on a rung change, with no derivation on either side.
+!
+!     IT CANNOT BE A TRUNCATION EFFECT. gamma is applied as
+!     gamma*(qsat-q)*dsigma/deltsec2 at the four sites below, so it is the
+!     FRACTION of the sub-saturation deficit a falling hydrometeor evaporates
+!     PER TIMESTEP and carries no time unit: what it is worth depends on the
+!     step length and not on the truncation. This project gives T21 and T42 the
+!     same step, so the override could not have been compensating one. The
+!     branch is gone rather than re-keyed, because a constant that moves when
+!     the rung moves makes every cross-rung comparison carry a physics change it
+!     did not ask for. gamma is in rainmod_nl, so a run that wants a different
+!     value declares it.
+      real :: gamma   = 0.01  ! fraction of the sub-saturation deficit that
+                              ! falling precipitation evaporates per timestep
 
 !
 !     THE TWO CCM3 CLOUD-WATER CONSTANTS, which were bare literals in mkclouds
@@ -111,9 +128,6 @@
       if(NTRU==21 .and. NLEV==5) then
        nshallow=0
       endif 
-      if(NTRU==42 .and. NLEV==10) then
-       gamma=0.007
-      endif    
 !
       rcrit(:)=MAX(0.85,MAX(sigma(:),1.-sigma(:)))
 !

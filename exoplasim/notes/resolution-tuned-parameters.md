@@ -85,10 +85,17 @@ noise, since no configuration can clear it.
 
 ## 3. Two narrow ones
 
-`rainmod.f90:85` clears `nshallow` at T21 with 5 levels, and `rainmod.f90:88`
-sets `gamma=0.007` at T42 with 10 levels -- which this project's configuration
-does hit. `plasim.f90:1381` sets Rayleigh friction timescales when `NLEV==10`,
-which is resolution-independent and applies here.
+`rainini` clears `nshallow` at T21 with 5 levels, which this project's ten-layer
+configuration does not hit at either rung. `readnl` sets Rayleigh friction
+timescales when `NLEV==10`, which is resolution-independent and applies here.
+
+The third, `gamma=0.007` at T42 with 10 levels, is gone. `gamma` is the fraction
+of the sub-saturation deficit that falling precipitation evaporates per
+timestep, so what it is worth depends on the step length and not on the
+truncation, and both rungs here run the same step; the override was a 43 per
+cent step in a precipitation constant taken on a rung change with no derivation
+on either side. `rainmod.f90` carries the argument at the declaration. Every run
+this project has done is T21 and integrated 0.01, so nothing that exists moved.
 
 ## What is NOT free-floating
 
