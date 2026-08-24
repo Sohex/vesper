@@ -86,14 +86,16 @@ set -euo pipefail
 bed="$(cd "${1:?usage: verify_threaded_numerics.sh <bed> <res> <n> [reference]}" && pwd)"
 res="${2:?}"
 n="${3:?}"
-# THE REFERENCE IS THE SERIAL BUILD. This project builds and runs the threaded
-# OpenMP parmode and nothing else; the MPI path is being removed under
-# world-38b, so defaulting the reference arm to it would default this gate to a
-# configuration that will not exist. `mpi` is still accepted as an explicit
-# argument for as long as that build does, because a gate that can compare
-# against two independent references is worth more than one that can compare
-# against one -- but nothing should reach for it by accident.
-reference="${4:-serial}"  # serial or mpi; see the note on the hard fork
+# THERE IS NO REFERENCE BUILD LEFT. This gate's whole shape is the threaded
+# build against an INDEPENDENT one, and world-38b removed both independents:
+# `serial` and `mpi` are no longer build modes. It refuses rather than running,
+# because the name the mpi arm looked for is now the threaded binary's own name
+# and dropping the flag would compare the thing under test against itself and
+# pass. What replaces the reference is world-d5l's open question: a control
+# patch as the second side, a standalone driver, or this gate goes. The bounds
+# below and the control patch are kept because they are the part that survives
+# whichever answer that question gets.
+reference="${4:-none}"
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 REPO="$(cd "$HERE/../.." && pwd)"
@@ -151,12 +153,17 @@ build_arm() {
     fi
     case "$arm" in
       reference)
-        if [ "$reference" = "serial" ]; then
-            flags="--ranks 1 --parmode serial"; name="most_plasim_${low}_l10_p1.x"
-        else
-            flags="--ranks $n --parmode mpi";  name="most_plasim_${low}_l10_p${n}.x"
-        fi ;;
-      *) flags="--ranks $n --parmode omp"; name="most_plasim_${low}_l10_p${n}_omp.x" ;;
+        echo "refusing: there is no reference build to compare against." >&2
+        echo "  This gate runs the threaded build against an INDEPENDENT one," >&2
+        echo "  and world-38b left one build. --ranks 1 and the mpi arm are not" >&2
+        echo "  configurations build_model.py accepts any more, and the name the" >&2
+        echo "  mpi arm looked for, most_plasim_${low}_l10_p${n}.x, is now the" >&2
+        echo "  threaded binary itself: running it would compare the thing under" >&2
+        echo "  test against itself and pass." >&2
+        echo "  world-d5l is the decision -- a control patch as the second side," >&2
+        echo "  a standalone driver, or this gate goes. Do not repoint it." >&2
+        exit 2 ;;
+      *) flags="--ranks $n"; name="most_plasim_${low}_l10_p${n}.x" ;;
     esac
     : > "$stamp"
     # shellcheck disable=SC2086
@@ -175,26 +182,18 @@ run_arm() {
     ( cd "$d"
       rm -f ./*.x plasim_status Abort_Message
       sed -i "s/^ *N_RUN_STEPS *=.*/ N_RUN_STEPS = $steps /" plasim_namelist
-      # NSHTNS=0 ON BOTH ARMS, deliberately. This check is about the shared grid
-      # bands, not the transform: the MPI build cannot run SHTns at all, so
-      # leaving the threaded arm on its new default would compare two different
-      # transforms and read the difference as a band problem. It would also
-      # blunt the control, because SHTns rewrites the whole globe every step and
-      # masks an overlapping band -- which is exactly how a committed control
-      # patch once hid in plain sight.
+      # NSHTNS=0 ON EVERY ARM, deliberately. This check is about the shared
+      # grid bands, not the transform, so the arms have to differ in the bands
+      # and in nothing else. It also keeps the control sharp: SHTns rewrites
+      # the whole globe every step and masks an overlapping band, which is
+      # exactly how a committed control patch once hid in plain sight.
       sed -i "/^ *NSHTNS *=/d" plasim_namelist
       sed -i "2i\\ NSHTNS      =     0" plasim_namelist
       cp -f "$WORK/ref/$arm.x" ./probe.x
-      if [ "$arm" = "reference" ] && [ "$reference" != "serial" ]; then
-          mpiexec -np "$n" ./probe.x >run.log 2>&1
-      elif [ "$arm" = "reference" ]; then
-          ./probe.x >run.log 2>&1
-      else
-          export OMP_NUM_THREADS="$n" OMP_PROC_BIND=close OMP_PLACES=cores
-          export OMP_STACKSIZE=512M
-          ulimit -s unlimited
-          ./probe.x >run.log 2>&1
-      fi ) >/dev/null 2>&1 || true
+      export OMP_NUM_THREADS="$n" OMP_PROC_BIND=close OMP_PLACES=cores
+      export OMP_STACKSIZE=512M
+      ulimit -s unlimited
+      ./probe.x >run.log 2>&1 ) >/dev/null 2>&1 || true
     [ -f "$d/plasim_status" ]
 }
 
@@ -210,7 +209,7 @@ norm() {
         --tol "$TOL" --norm 2>/dev/null
 }
 
-echo "$res, $n threads against the $reference build"
+echo "$res, $n threads against the $reference build"   # refuses in build_arm
 echo "declared before the arms ran: tolerance $TOL, lengths [$STEPS],"
 echo "derived at $res: reassociation floor $floor = NLAT*NLON * float64 eps,"
 echo "  and $gained once rainmod.f90:92's (2*NLEV)^2 record gain is allowed for"

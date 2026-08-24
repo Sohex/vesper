@@ -1,5 +1,5 @@
 #!/bin/bash
-# Do mpimod_omp's 39 routines compute what mpimod's compute?
+# Do mpimod_omp's 39 collectives compute the answers written down here?
 #
 #   exoplasim/scripts/verify_omp_collectives.sh [nthreads] [nlat]
 #

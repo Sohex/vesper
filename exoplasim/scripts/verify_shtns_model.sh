@@ -84,7 +84,6 @@ REPO="$(cd "$HERE/../.." && pwd)"
 PKG="$REPO/vendor/exoplasim/exoplasim"
 BUILD="$REPO/.venv/bin/python $REPO/exoplasim/scripts/build_model.py"
 SRC="$PKG/plasim/src"
-low="$(echo "$res" | tr 'A-Z' 'a-z')"
 WORK="$REPO/exoplasim/bench/_shtnsmodel"
 TOL=1e-10
 STEPS="1 2 5 10 20 40"
@@ -131,7 +130,6 @@ trap restore EXIT
 build_arm() {
     local arm="$1"
     local stamp="$WORK/.stamp"
-    local name="most_plasim_${low}_l10_p${n}_omp.x"
     restore
     if [ "$arm" = "nofilter" ]; then
         local before after
@@ -157,7 +155,7 @@ build_arm() {
     # asked for beside it, so check_consistency reported the binary a run would
     # pick up as having unknown provenance -- rule 4 reached from inside a
     # check. world-v3d.
-    built=$( $BUILD --res "$res" --ranks "$n" --parmode omp --no-publish --print-path \
+    built=$( $BUILD --res "$res" --ranks "$n" --no-publish --print-path \
         2>"$WORK/build_$arm.log" ) || {
         echo "build failed: $arm (see $WORK/build_$arm.log)" >&2; exit 1; }
     [ -f "$built" ] && [ "$built" -nt "$stamp" ] || {

@@ -55,7 +55,7 @@ PKG="$REPO/vendor/exoplasim/exoplasim"
 BUILD="$REPO/.venv/bin/python $REPO/exoplasim/scripts/build_model.py"
 WORK="${TMPDIR:-/tmp}/verify_shared_determinism.$$"
 low="$(echo "$res" | tr 'A-Z' 'a-z')"
-name="most_plasim_${low}_l10_p${threads}_omp.x"
+name="most_plasim_${low}_l10_p${threads}.x"
 
 dirty="$(cd "$REPO" && git status --porcelain -- "vendor/exoplasim/exoplasim/plasim/src")"
 if [ -n "$dirty" ]; then
@@ -77,7 +77,7 @@ build() {
     # is here because that is not hypothetical: it happened, and a build from
     # before the fix was run under the name of the one after it.
     local stamp="$WORK/stamp"; : > "$stamp"
-    ( $BUILD --res "$res" --ranks "$threads" --parmode omp ) \
+    ( $BUILD --res "$res" --ranks "$threads" ) \
         >"$WORK/build.log" 2>&1 || true
     [ -f "$PKG/plasim/run/$name" ] || {
         echo "build failed: no $name (see $WORK/build.log)" >&2; exit 1; }
