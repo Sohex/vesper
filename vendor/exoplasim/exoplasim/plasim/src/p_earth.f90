@@ -12,7 +12,7 @@ logical :: lex
 namelist /planet_nl/ nfixorb, eccen, mvelp, obliq  &
                 , meananom0, rotspd, sidereal_day  &
                 , solar_day, sidereal_year, tropical_year &
-                , akap, alr, gascon, ra1, ra2, ra4 &
+                , akap, alr, alv, als, gascon, ra1, ra2, ra4, tmelt &
                 , pnu, ga, plarad, ngenkeplerian &
                 , gsol0 &
                 , yplanet
@@ -58,6 +58,18 @@ gascon  = 287.0       ! Gas constant
 ra1     = 610.78      ! Parameter for Magnus-Teten-Formula
 ra2     =  17.2693882 ! for saturation vapor pressure
 ra4     =  35.86      ! over liquid water
+! LIVE and NAMELIST-SETTABLE. These three set the modelled water's
+! thermodynamics: alv and als are the latent heats the condensation schemes
+! switch between at tmelt (rainmod.f90, fluxmod.f90), and tmelt is also the
+! freezing point every soil, snow, sea and ice routine tests against. The values
+! here are Earth's H2O and are the same ones plasimmod.f90 declares, so this
+! block changes nothing on its own; it puts them where a planet is configured
+! and in planet_nl, which is what makes them settable at all. Because all three
+! are threadprivate and only NROOT reads the namelist, plasim.f90 broadcasts
+! them beside akap and alr. world-58v.
+alv     = 2.5008E6    ! Latent heat of vaporization [J/kg]
+als     = 2.8345E6    ! Latent heat of sublimation [J/kg]
+tmelt   = 273.16      ! Melting point (H2O) [K]
 
 ! ********
 ! Numerics

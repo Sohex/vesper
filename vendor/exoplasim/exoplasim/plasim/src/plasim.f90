@@ -356,6 +356,13 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       call mpbcr(adv     )
       call mpbcr(akap    )
       call mpbcr(alr     )
+!     als, alv and tmelt are threadprivate and planet_nl now sets them
+!     (p_earth.f90), and only NROOT reads that namelist. Without these three
+!     every thread but the root would run the plasimmod default while the root
+!     ran the configured value. world-58v.
+      call mpbcr(als     )
+      call mpbcr(alv     )
+      call mpbcr(tmelt   )
       call mpbcr(cv      )
       call mpbcr(ct      )
       call mpbcr(dtep    )

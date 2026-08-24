@@ -672,11 +672,12 @@ Saturation over ice is about 25 per cent below saturation over liquid at 250 K,
 so cold-cloud condensation is systematically over-produced and the
 thermodynamics is internally inconsistent with its own latent heat.
 
-The ice coefficient set is already in the tree at `p_mars.f90:48-50`, as
-610.66/21.875/7.65. **This cannot be fixed from config as the tree is built:**
-`p_exo.f90` exposes `alv`, `als` and `tmelt` in `planet_nl` and `p_earth.f90`
-does not, and `p_earth` is what compiles. It needs a second branch rather than a
-different single set in any case, so it is a source change either way.
+The ice coefficient set that the Magnus formula needs over ice is
+610.66/21.875/7.65, measured on Earth's water. `alv`, `als` and `tmelt` are now
+in `planet_nl` on the module that compiles, so the latent heats and the
+switching temperature are settable, but `ra1`, `ra2` and `ra4` are one set and
+the fix needs a second BRANCH rather than a different single set. It is a source
+change either way. world-ako.
 
 ## 25. Snow and glacier densities are Earth compaction values
 

@@ -35,7 +35,6 @@ set(PLASIM_PRECISION "" CACHE STRING "bytes per real: 4 or 8")
 set(PLASIM_PARMODE   "" CACHE STRING "serial | mpi | omp")
 set(PLASIM_FFLAGS    "" CACHE STRING "the whole Fortran flag line, from config/planet.yaml")
 set(PLASIM_FFT       "fftmod"  CACHE STRING "fftmod | fft991mod")
-set(PLASIM_PLANET    "p_earth" CACHE STRING "p_earth | p_mars")
 set(PLASIM_SHTNS_PREFIX "" CACHE PATH "prefix holding include/shtns.f03 and lib/libshtns*.a")
 
 function(require_one_of name value)
@@ -63,7 +62,6 @@ require_one_of(PLASIM_NLAT      "${PLASIM_NLAT}"      32 48 64 96 128 160 192 25
 require_one_of(PLASIM_PRECISION "${PLASIM_PRECISION}" 4 8)
 require_one_of(PLASIM_PARMODE   "${PLASIM_PARMODE}"   serial mpi omp)
 require_one_of(PLASIM_FFT       "${PLASIM_FFT}"       fftmod fft991mod)
-require_one_of(PLASIM_PLANET    "${PLASIM_PLANET}"    p_earth p_mars)
 
 if(NOT PLASIM_NLEV MATCHES "^[0-9]+$" OR PLASIM_NLEV LESS 1)
     message(FATAL_ERROR "PLASIM_NLEV is '${PLASIM_NLEV}'; expected a positive integer.")
@@ -149,6 +147,12 @@ file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/resmod.f90"
 # this produces can be compared byte for byte against one the old build made.
 # The dependency EDGES are not listed anywhere here: Ninja scans the `use`
 # statements and derives them, which is the point of the change.
+# p_earth.f90 is a literal and there is no planet axis. This build has one
+# planet, so a switch here could only choose between the module that describes
+# it and a module that does not. The axis it replaces admitted p_earth and
+# p_mars, defaulted to p_earth, was never given a value by build_model.py, and
+# the one alternative it admitted had a doubled comma in its planet_nl
+# continuation and could not compile. world-58v.
 set(_sources
     shtnsmod.f90
     ${_mpimod}.f90
@@ -156,7 +160,7 @@ set(_sources
     guimod_stub.f90
     rainmod.f90
     simba.f90
-    ${PLASIM_PLANET}.f90
+    p_earth.f90
     carbonmod.f90
     hurricanemod.f90
     ${_utilmod}.f90
