@@ -14,6 +14,16 @@ has to be re-weighted. The CLOUD constants are the same scheme and were never
 touched -- `acl2` (cloud absorptivities, range 2) and `tswr3` (single-scattering
 albedo tuning, range 2) are Earth tunings. PHYS-11.
 
+ONLY ONE OF THOSE TWO KEYS ACTS, AND IT IS NOT `acl2`. `nswrcl` compiles to 1
+and every run records 1, which selects the COMPUTED-cloud branch of `swr`.
+`acl2` appears only in the prescribed-cloud branch the other side of that
+switch, so scaling it changes nothing. `tswr3` acts twice in the computed
+branch, once for the diffuse stream through `zb5` and once for the direct beam,
+so the weight this script produces reaches the model through `tswr3` alone.
+`clim-68` is open on what to do about that; nothing here depends on the
+resolution, because the weight is a property of the star and the droplets and
+not of which key carries it.
+
 The 2026-08-20 arm bundle measured what that omission is worth: +/-2.6 K over
 the declared 0.78 to 1.28 bracket, larger than the entire forcing bundle. That
 is why it matters. It is not why it is done: physics is not a knob, and a term
@@ -29,16 +39,21 @@ n(lambda), from Hale and Querry (1973) Table I, read from the paper into
 into a single-scattering albedo per wavelength, and the CO-ALBEDO 1 - omega0 is
 the cloud's absorption per scattering event.
 
-`acl2` is applied to RANGE-2 flux and range 2 is lambda > 0.75 um for either
+Both keys are applied to RANGE-2 flux and range 2 is lambda > 0.75 um for either
 star, so the weight is the ratio of flux-weighted co-albedo over that range:
 
     w = <1 - omega0>_star / <1 - omega0>_sun
 
+That is the quantity `tswr3` scales directly: the computed branch sets the
+layer's single-scattering albedo as `1 - tswr3*mu0^2*log(1000/tau)`, so `tswr3`
+multiplies the co-albedo and the ratio above is the right multiplier for it.
+
 TWO SCALINGS, REPORTED AS A BRACKET rather than resolved. In the weak-absorption
 limit a layer's absorptance is linear in the co-albedo; for a thick scattering
-layer the similarity relations make it go as the square root. `acl2` runs 0.05
-to 0.20 by level, which is neither limit outright, so both are computed and the
-answer is the range they span.
+layer the similarity relations make it go as the square root, and the two-stream
+solution below the key carries exactly that square root. Cloud layers here are
+neither limit outright, so both are computed and the answer is the range they
+span.
 
 THE SUN IS A 5772 K BLACKBODY, which is this project's established treatment and
 carries its own check: `lib/stellar.py:solar_partition_identity` reproduces
