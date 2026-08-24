@@ -346,11 +346,21 @@ FORCING_ITEMS = [
 
 # Items in their own units. No conversion invented.
 OTHER_ITEMS = [
-    ("slab depth, 25 m vs 50 m", "seasonal amplitude ~2x",
-     "STRUCTURAL. Amplitude scales as 1/(omega*C) and this world's year is half "
-     "Earth's, so 50 m damps seasonality about twice as hard as Earth's ocean "
-     "does. Coldest-month mean is what PFT survival gates on. One perturbation "
-     "run, ever, gives a permanent scaling for every later result."),
+    ("slab depth, 25 m and 100 m arms", "seasonal amplitude 1.51x and 0.66x",
+     "STRUCTURAL and MEASURED, archive CLIM-33. Amplitude scales as 1/(omega*C) "
+     "and this world's year is half Earth's, so 50 m damps seasonality about "
+     "twice as hard as Earth's ocean does; coldest-month mean is what PFT "
+     "survival gates on. The arms bracket the declared 50 m rather than "
+     "searching for a better value. The annual global mean is 0.000 K BY "
+     "CONSTRUCTION and measured so -- a heat capacity cannot move an "
+     "equilibrium -- with the 100 m arm under a millikelvin. The one route to "
+     "the mean is SEA ICE: the 25 m arm grew seasonal ice by 0.53% of the "
+     "planet, worth -0.428 W/m2 against the 80 to 129 W/m2 per unit ice "
+     "fraction that archive CLIM-17 derived for a different task and did not "
+     "fit to this one. Amplitude reached 1.51x at 25 m and 0.66x at 100 m "
+     "against a 2.00x/0.50x asymptote, compressed because two orbits from a "
+     "50 m-equilibrated state is a transient. What remains for this term is "
+     "the COLUMN rather than the slab: OCN-1."),
     ("no q-flux", "gradients too strong, ice too extensive",
      "STRUCTURAL in the sense that no ocean circulation is solved, but the "
      "claim that no cheap version exists was FALSE and is corrected here: "
@@ -378,6 +388,21 @@ OTHER_ITEMS = [
      "resolution, while the S=30 arm moved -0.474 W/m2 without an ice change. "
      "The mechanism is measured and the two-sided planetary prior remains "
      "declared rather than inferred (setting the key was archive CLIM-17)."),
+    ("sea ice does not move", "ice too extensive, sign taken from the peer",
+     "STRUCTURAL, and DECLARED here rather than priced: icemod.f90 runs "
+     "thermodynamics with no advection, transport, drift or dynamics -- ice "
+     "forms and melts in place. This is the configuration BIG-MITgcm runs and "
+     "names as a stated limitation, reporting excessive ice as its consequence "
+     "at a comparable resolution, so the direction comes from a peer report "
+     "rather than a guess and the term is not negligible on that evidence. No "
+     "kelvin is offered because none can be honestly computed here: the "
+     "correction requires an ocean surface velocity this slab does not have. "
+     "The eventual fix is small -- cGENIE's is a second-order explicit "
+     "transport on two prognostic fields using upper-ocean velocity, with a "
+     "diffusion term beside it, and no ice momentum equation at all -- so "
+     "declaring the term is not deferring an expensive decision. It is "
+     "one-signed against the ice-albedo feedback in the same direction as "
+     "PHYS-14's spectral error, and the two are independent. OCN-21."),
     ("roughness distribution", "land median 0.502 m under a 2.0 m mean",
      "Anchored to ExoPlaSim's tuned land mean, which the distribution says is "
      "carried by a rough tail. Anchoring inflates mid-range cells; direction "

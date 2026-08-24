@@ -353,6 +353,62 @@ that holds sea surface temperature. Evaporation is deliberately not recomputed,
 for moisture conservation, with rescaling precipitation and runoff considered
 and rejected. `notes/external-model-survey.md` section 59f.
 
+## 7b. Sea ice: ExoPlaSim stays authoritative, and the ocean returns a velocity rather than a state
+
+Adopting an offline circulation host lifts OCN-21's block as a side effect, since
+the block is that a slab ocean has no surface velocity to advect ice with and a
+circulation model produces exactly that. It also creates a question the heat
+transport decision did not have, because both components own sea ice: ExoPlaSim's
+`icemod` must run, being the atmosphere's lower boundary, and the circulation
+candidate ships `genie-goldsteinseaice` beside it.
+
+**ExoPlaSim's `icemod` is authoritative, and the return path carries the ocean's
+surface velocity, not its ice.** Ice stays prognostic in the atmosphere and gains
+an advection term driven by a field the ocean is already producing. That is the
+same shape as the heat-transport decision -- the ocean returns a transport agent
+and the atmosphere keeps the state.
+
+The alternative was available and is rejected. `icemod` already has the channel
+for it: `read_ice_surface` reads climatological sea surface temperature, ice
+cover and ice thickness as 14-month surface fields, `nice = 0` prescribes ice
+outright, and `nfluko = 1` diagnoses an ice flux correction from the mismatch
+against the prescribed thickness and clamps cover to it. Four arguments against
+using it, the first of which is decisive on its own:
+
+- **It severs the feedback this world's climate question is about.** Ice
+  prescribed from a previous pass cannot respond to the atmosphere within a run,
+  so a cooling excursion grows no ice. Albedo-driven bistability at the cold end
+  is what the design flux, the extreme-cold land fraction and the stellar cycle's
+  grand minima all turn on.
+- **`nfluko = 1` is a correction toward a target**, which is a knob in the sense
+  `docs/src/practice/failure-modes.md` class 16 names. It can bound the term; it
+  cannot be used to make the ice come out right.
+- **The lag is structural rather than incidental.** Heat-flux convergence
+  tolerates arriving from a previous pass because it is a smooth, large-scale
+  integral quantity. Ice fraction is a threshold field at a moving margin, and a
+  stale margin puts the wrong albedo at exactly the latitudes where the feedback
+  lives.
+- **It spends what the offline decision bought.** Ice returned from the ocean
+  arrives on the ocean grid and must be remapped onto every rung of the ladder,
+  and a fraction crossing a threshold is the worst case for conservative
+  remapping across a factor-of-twelve scale gap.
+
+The published synchronous coupling does the opposite -- ice temperature, height,
+fraction and albedo all come FROM the ocean -- and that is correct for a
+synchronous arrangement, where there is no lag. The argument does not transfer.
+
+**What this costs**: `icemod` has no advection at all, so the term has to be
+written. The reference is small -- a second-order explicit transport on two
+prognostic fields using upper-ocean velocity, with a diffusion term beside it and
+no ice momentum equation -- but it is a change under `vendor/exoplasim`, so
+CLAUDE.md rule 4 applies. Until it exists the term stands declared in
+`scripts/error_budget.py` rather than corrected.
+
+**One consequence for OCN-10's contract**: sea ice is not in the return set. The
+returned fields are heat-flux convergence and ocean surface velocity. Ice
+fraction, thickness and albedo remain ExoPlaSim's, and the ocean receives them as
+forcing rather than supplying them.
+
 ## 8. Integration with the terrestrial and biosphere audits
 
 The first version of this audit was written beside, rather than through, the

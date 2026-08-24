@@ -135,3 +135,51 @@ so because both ends sat below the measurement. The note's areas are therefore
 no longer a clean upper bound: the missing mass balance still argues they are
 too large, the corrected lapse argues they are too small, and only the redo
 settles which wins.
+
+## Extension, 2026-08-24: the resolution ladder never closes this gap
+
+The note says the question is entirely sub-grid and demonstrates it at T42. What
+it does not say is whether that survives the resolution ladder, and it does --
+which turns a property of the current configuration into a property of the
+problem.
+
+At 1.20 Earth radii the circumference is 48,090 km, so the ladder gives:
+
+| rung | longitudes | cell width |
+| --- | ---: | ---: |
+| T21 | 64 | 751 km |
+| T42 | 128 | 376 km |
+| T85 | 256 | 188 km |
+| T127 | 384 | 125 km |
+| T170 | 512 | 94 km |
+
+Against a 7.60 km Orogen mesh, the top of the ladder is still twelve times
+coarser than the terrain the glaciers sit on. The sub-grid peak excess that
+drives the whole result -- 1.065 km on land average, 2.969 km at the 90th
+percentile -- stays sub-grid at every rung this project will ever run.
+
+**So `glac = 0` is a permanent property of the model's orography rather than a
+statement about the world, and no rung of the ladder converts it into one.** The
+glacier answer is a diagnostic computed on the mesh, and the model's own glacier
+module is carried for its orographic feedback on the cells it can resolve rather
+than as the instrument that answers where the ice is. `analysis/ice_mask_freezing_height.py`
+is that diagnostic and PHYS-13 owns it.
+
+This is the same class of argument that put the ocean circulation offline: the
+quantity wanted lives at a scale the atmosphere will not be run at, so it is
+computed beside the atmosphere rather than inside it.
+
+**It also settles the flow question by removing its premise.** Ice flow would be
+worth porting if the model were about to resolve ice sheets; it is not, and the
+areas in this note are a few times Earth's mountain glaciation with no ice sheets
+at all. The port cost is separately prohibitive -- Earth geography welded into
+the source, dimensional limiters sitting on g^3 and g^4 quantities that bind
+about 2.2x more often at this gravity while truncating the effect being studied,
+and no namelist path to any material constant. `notes/external-model-survey.md`
+section 45d.
+
+The ordering that follows is PHYS-13, then CLIM-53's accelerator verdict, and
+flow is not on the board. Note for CLIM-53 that `newsnow.x` and `buildice.x`
+hardcode `NLAT = 32` and `NLON = 64`, so they are T21-only and would silently
+misread any higher rung -- which matters more against a ladder than against one
+resolution.
