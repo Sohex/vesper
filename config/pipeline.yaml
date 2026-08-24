@@ -681,6 +681,9 @@ one_offs:
   - exoplasim/scripts/cache_budget.py
   - exoplasim/scripts/probe_grid_contiguity.f90
   - exoplasim/scripts/verify_threaded_numerics.sh
+  - exoplasim/scripts/verify_banded_transform.sh
+  - exoplasim/scripts/verify_banded_transform.f90
+  - exoplasim/scripts/banded_transform_reference.py
   - exoplasim/scripts/verify_transform_roundtrip.sh
   - exoplasim/scripts/verify_transform_roundtrip.f90
   - exoplasim/scripts/probe_shtns_concurrency.f90
