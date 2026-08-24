@@ -406,7 +406,7 @@ def main() -> None:
     # launches the binary itself, so without this every segment after the first
     # would run on the 8 MB default -- which is exactly the shape of the defect
     # SHORTWAVE_GAS_KEYS' comment above describes for the namelist keys.
-    thread_stack = prepare_thread_stack()
+    thread_stack = prepare_thread_stack(config)
     model = exo.Earthlike(
         resolution=model_cfg["resolution"],
         layers=int(model_cfg["layers"]),

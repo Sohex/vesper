@@ -21,6 +21,7 @@ import yaml
 
 from _paths import CONFIG, INPUTS, PROJECT_ROOT, RUNS
 import reset_restart_accumulators
+import rungs
 
 
 EARTH_STANDARD_GRAVITY = 9.80665
@@ -78,11 +79,17 @@ SNAPSHOT_CODES = [
 # neither, so the one setting that decides whether a threaded run at the top of
 # the ladder survives at all existed only in the instruments.
 #
-# 512M IS NOT DERIVED. It is the value every gate has used and it is carried here
-# unchanged, so this is a fix to the launcher and not a change to what runs. What
-# it is worth: about 49 full-globe (NLON*NLAT*NLEV) float64 locals live at once at
-# T170. Deriving it from the deepest CONCURRENT set of live locals needs a
-# measurement nothing in this tree makes; `world-p4b` is that.
+# 512M IS BOUNDED BELOW RATHER THAN DERIVED, and the two are different claims.
+# `stack_floor.py` walks the model's call graph out of the parallel region and
+# sums the declared local arrays along the heaviest chain, which is the deepest
+# CONCURRENT set of declared locals: the floor at the top of the ladder is a
+# fraction of 512M, and the floor at every rung is checked here rather than
+# assumed. What the floor does NOT count is the temporaries gfortran
+# materialises for the whole-array and `where` expressions the physics is
+# written in; nothing in the source fixes their size, so the margin between the
+# floor and 512M is not derived and `world-p4b` is still what closes that.
+# `exoplasim/notes/thread-stack-floor.md` carries the numbers and the check
+# against a built binary.
 #
 # Applied to THIS PROCESS before the model is launched. ExoPlaSim builds its
 # command as a shell string and runs it with shell=True, so the child inherits
@@ -90,18 +97,50 @@ SNAPSHOT_CODES = [
 OMP_STACKSIZE = "512M"
 
 
-def prepare_thread_stack() -> dict:
-    """Give the threaded model the stack its spilled locals need.
+def _stack_bytes(value: str) -> int:
+    """An OMP_STACKSIZE string in bytes. Kilobytes with no unit, per the spec."""
+    text = str(value).strip()
+    unit = {"b": 1, "k": 1024, "m": 1024**2, "g": 1024**3}
+    factor = unit.get(text[-1:].lower(), 1024)
+    digits = text[:-1] if text[-1:].lower() in unit else text
+    return int(float(digits) * factor)
+
+
+def prepare_thread_stack(config: dict) -> dict:
+    """Give the threaded model the stack its locals need, and check it is enough.
 
     Returns what was set, for the run manifest. Unconditional: world-38b left
     one build and it is the threaded one, so there is no longer a parallel mode
     that keeps these locals in static storage and never touches a thread stack.
+
+    Refuses when the stack is below the floor `stack_floor.py` reads off the
+    model source at this rung. That is a check with a right answer rather than a
+    number carried forward: a run that cannot hold its own declared locals dies
+    inside the model, which reads as the model crashing.
     """
     import os
     import resource
 
+    import stack_floor
+    m = config["model"]
+    threads = int(m["ncpus"])
+    nlat, _, _ = rungs.geometry(str(m["resolution"]))
+    params = stack_floor.parameters(nlat, int(m["layers"]), threads)
+    frames, _, calls, defined = stack_floor.parse(int(m["precision_bytes"]), params)
+    (floor, chain), _ = stack_floor.heaviest_chain(frames, calls, defined)
+
     os.environ["OMP_STACKSIZE"] = os.environ.get("OMP_STACKSIZE", OMP_STACKSIZE)
-    record = {"applied": True, "omp_stacksize": os.environ["OMP_STACKSIZE"]}
+    record = {"applied": True, "omp_stacksize": os.environ["OMP_STACKSIZE"],
+              "declared_local_floor_bytes": floor,
+              "declared_local_floor_chain": chain}
+    if _stack_bytes(record["omp_stacksize"]) < floor:
+        raise RuntimeError(
+            f"OMP_STACKSIZE is {record['omp_stacksize']} and the declared local "
+            f"arrays on the heaviest chain out of the parallel region come to "
+            f"{floor / 1e6:.1f} MB at {m['resolution']} on {threads} threads "
+            f"({' -> '.join(chain)}). That floor counts no compiler temporaries, "
+            "so a stack at or near it is already too small. "
+            "exoplasim/scripts/stack_floor.py, world-p4b.")
     soft, hard = resource.getrlimit(resource.RLIMIT_STACK)
     try:
         resource.setrlimit(resource.RLIMIT_STACK, (hard, hard))
@@ -2388,7 +2427,7 @@ def main() -> None:
     star = config["star"]
     model_cfg = config["model"]
     surface = config["surface"]
-    thread_stack = prepare_thread_stack()
+    thread_stack = prepare_thread_stack(config)
     model = exo.Earthlike(
         resolution=model_cfg["resolution"],
         layers=int(model_cfg["layers"]),
