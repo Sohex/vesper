@@ -53,8 +53,33 @@ standard error of the fitted offset is 0.113 K against an allowance of 0.075 K,
 so the test is noise-dominated by half again. What is new is that the noise has
 a wall-clock price, and that the price is paid at the most expensive rung.
 
+## The T42 rung does not run at the T21 timestep
+
+`timestep_minutes` is one scalar in `config/planet.yaml` and does not move with
+the rung, so the first T42 arm ran at T21's 45 minutes. It integrated 46 orbits
+of ordinary climate and took a SIGFPE inside the 47th, on a gridpoint at -12.81
+K at the second level from the top. Nothing was building towards it: level 2's
+coldest cell held 190 K with no trend for the whole run. That is world-td3, and
+`exoplasim/notes/physics-filter-stability.md` carries the evidence.
+
+What it costs the ladder is the reason it belongs here. That note's stability
+grid qualifies a step on 400-step probes and one full orbit, and it already
+warns that a probe cannot see a late blow-up. **An orbit cannot see one
+either.** A step qualified for a two-orbit diagnostic is not thereby qualified
+for a commissioning run of eighty-five, and the only instrument that settles it
+is a run of the length actually intended.
+
+The ladder therefore runs T42 at dt 22.5, which that note measures as clean at
+kappa 8 and which is also the step T170 needs. The rungs are then compared at
+one step rather than each at its own margin -- which matters, because the same
+note measures the spectral core's energy residual falling from 0.31 to 0.12
+W/m2 when the step is halved. A ladder whose rungs each ran at their own
+largest stable step would be comparing equilibria that differ by their
+truncation error as well as by their resolution.
+
 ## What is not yet measured
 
 Whether a wider window removes the flicker without moving the orbit at which a
-run first genuinely settles, and what the T42 rung does -- both from cold and
-from a converted T21 state. Those are the arms this note is waiting on.
+run first genuinely settles, and what the T42 rung converges to -- both from
+cold and from a converted T21 state. Those are the arms this note is waiting
+on.
