@@ -108,7 +108,7 @@ is defined.**
 
 All under one definition, the model's: flux below 0.75 um over total flux, with
 everything below `minwavel` = 316.036116751 nm discarded from band 1 as
-`radmod.f90:235` does, and both sides truncated at 29.8873 um so the supports
+`radmod.f90:500` does, and both sides truncated at 29.8873 um so the supports
 match. `zcross/z1` is the star-dependent factor of the Rayleigh coefficient,
 `solarini`'s lambda^-4-weighted flux integral over the band-1 integral.
 
@@ -134,7 +134,7 @@ source and the project's own file.
 
 ### The mechanism, demonstrated without the oracle
 
-`exoplasim/makestellarspec.py:207` is `f2 = np.interp(w2, w, f)`. The model grid
+`makestellarspec.py` resampled with `f2 = np.interp(w2, w, f)`. The model grid
 `w2` is 1024 log-spaced points from 0.2 to 0.75 um and 1024 from 0.75 to 100 um,
 so R is about 775 in band 1 and about 209 in band 2, and the spectrum being
 sampled is R about 130,000. A point sample of a line-blanketed spectrum lands in
@@ -142,7 +142,13 @@ the continuum more often than in a line core, so it overestimates; line density
 is highest in the blue, so it overestimates band 1 more than band 2.
 
 Replacing the point sample with a flux-conserving rebin onto **the same 2048-point
-grid** gives 0.382383 against the point sample's 0.384340. The flux-conserving
+grid** gives 0.382383 against the point sample's 0.384340, and that replacement
+is what `makestellarspec.py` now does: `_rebin_conserving` integrates the source
+across each output bin and divides by the bin width, so the output's own
+trapezoidal integral reproduces the source's, with the bin edges taken as the
+ARITHMETIC midpoints of the output grid because that is the choice under which
+`np.trapz` over the output equals the sum of the bin integrals exactly. The
+defect and the argument are recorded at the top of the file. The flux-conserving
 version reproduces the full-resolution integral to 0.000003, so the grid is not
 the problem and the sampling is. Per-interval, point sample over flux-conserving:
 
