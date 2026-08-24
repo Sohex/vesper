@@ -65,7 +65,7 @@ import yaml
 from _paths import ANALYSIS, CONFIG, DATA, PROJECT_ROOT  # noqa: F401
 from builds import component_data, grid_export
 from climatology import annual_mean as weighted_annual_mean, bin_weights
-from gridding import (coupling_cells, coupling_ocean_fraction,
+from gridding import (coupling_cells, coupling_ocean_fraction, coupling_path,
                       require_index_alignment)
 from orbit import orbital_year_days
 from orogen import Export
@@ -482,14 +482,15 @@ def main() -> None:
     args = ap.parse_args()
 
     _build_data = component_data("hydrography", strict=True)
+    # LOADED BEFORE THE DEFAULTS, because one of them needs it: the coupling
+    # matrix is per rung and `coupling_path` reads `model.resolution`.
+    config = yaml.safe_load(args.config.read_text(encoding="utf-8"))
     if args.coupling is None:
-        args.coupling = _build_data / "coupling_exoplasim-T42.nc"
+        args.coupling = coupling_path(_build_data, config)
     if args.basins is None:
         args.basins = _build_data / "basins.nc"
     if args.climatology is None:
         args.climatology = climatology_path()
-
-    config = yaml.safe_load(args.config.read_text(encoding="utf-8"))
     basins = BasinSet(args.basins)
     # Ids come from the same file as the verdicts. See _basin_ids.
     basin_ids = _basin_ids(args.basins)

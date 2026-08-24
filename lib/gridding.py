@@ -284,6 +284,21 @@ def land_fraction_of_class(export: Export, grid_dir: Path, mask: np.ndarray):
 
 # --- the grid convention, and the one check that proves it ------------------
 
+def coupling_path(data_dir, config) -> Path:
+    """The coupling matrix for the CONFIGURED rung, not for T42.
+
+    Three scripts wrote `coupling_exoplasim-T42.nc` as a literal, which is
+    SPAT-2's finding -- the artifact paths still carry resolution literals -- and
+    it is not a cosmetic one: `require_index_alignment` compares the coupling's
+    column count against the land mask's and raises, so a T21 run does not read
+    a T42 coupling silently. It refuses, which is the good failure. But it
+    refuses at every caller, and the literal has to move once rather than three
+    times, so it lives here beside the code that owns the mapping.
+    """
+    resolution = str(config["model"]["resolution"]).upper()
+    return Path(data_dir) / f"coupling_exoplasim-{resolution}.nc"
+
+
 COUPLING_OCEAN_FRACTION_LIMIT = 0.10
 
 

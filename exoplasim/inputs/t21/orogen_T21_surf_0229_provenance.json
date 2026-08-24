@@ -1,49 +1,34 @@
 {
-  "terrain_hash": "ab0d679bd81360cd30fb67a3ce13e726b4aa1bb9ba7e4afb601c10aa13f9a526",
-  "generated": "2026-08-21T05:10:54.766939+00:00",
-  "mesh": {
-    "export_root": "exoplasim-T42",
-    "terrain_hash": "ab0d679bd81360cd30fb67a3ce13e726b4aa1bb9ba7e4afb601c10aa13f9a526",
-    "terrain_build": "precarve-craton-10m",
-    "terrain_build_note": "2026-08 resolution reference at 4x the region count: measurement artifact for the resolution audit, T42 only, ice mask not yet fixed",
-    "catalogue_hash": "e84e619dfc4dca6fab7a301144fdc964c1dcb7e73592f591c3b07dd6a6e73c5e",
-    "catalogue_known": false,
-    "drainage_hypothesis": {
-      "preserveListGiven": 0,
-      "carveListGiven": 0,
-      "carvedByRetainZero": 0,
-      "entries": []
-    },
-    "selection_source": "threshold",
-    "seed": 16236323,
-    "num_regions": 10000005,
-    "planet_radius_km": 7645.2,
-    "surface_area_km2": 734492839.5500951
+  "climatology": "exoplasim/analysis/climatology/bootstrap_regular_climatology.nc",
+  "generated": "2026-08-24T12:28:56+00:00",
+  "code": 229,
+  "field": "dwmax, maximum soil water capacity, metres",
+  "lakes": {
+    "source": "hydrography/data/precarve-craton-10m/surface_water.nc",
+    "lake_dwmax_m": 0.2,
+    "mean_lake_fraction_of_land_cells": 0.17149022056603716,
+    "land_mean_dwmax_before_m": 0.14195,
+    "land_mean_dwmax_after_m": 0.15005,
+    "ceiling": "annual lake evaporation is still capped by local precipitation; river water never re-enters dwatc"
   },
-  "grid": "exoplasim-T170",
-  "resolution": "T170",
-  "method": "Area-weighted land fraction per cell from the native mesh, thresholded; topography is the land-area-weighted mean elevation over land regions only.",
-  "land_definition": "surface_class == land (subaerial)",
-  "land_threshold": 0.5,
-  "gravity_m_s2": 12.81,
-  "land_fraction_gauss_weighted": 0.4295458465934337,
-  "mesh_land_fraction": 0.43284162878990173,
-  "land_cells": 66605,
-  "cells_below_mesh_resolution": 365,
-  "elevation_m": {
-    "min": -174.21831841663206,
-    "max": 4593.278884887698,
-    "mean": 285.5943596408824,
-    "cells_below_sea_level": 7217
-  },
-  "codes": [
-    172,
-    129
-  ],
-  "generator": "exoplasim/scripts/build_boundary_conditions.py",
+  "soil_map": "pedology/data/precarve-craton-10m/soilmap.txt",
+  "soil_map_sha256": "92f74f2878f2ad9ad3b6536c352fc53476f1ae88d144d9355c41a48a68b3d97f",
+  "config_sha256": "fba657fa39a4e666b63cbef8fce3b35e28591646a2d2332e48701f027f1d48dc",
+  "resolution": "T21",
+  "land_cells": 1019,
+  "land_cells_matched": 1019,
+  "land_cells_without_soil_left_at_default": 0,
+  "land_mean_capacity_m": 0.16708575541010162,
+  "exoplasim_uniform_default_m": 0.5,
+  "why_this_matters": "landmod.f90 computes runoff as the overflow of this bucket, so a uniform default makes runoff a namelist property rather than a soil property; the model's low land runoff ratio is the symptom.",
+  "enabled_by": "model.soil_water_source in config/planet.yaml (currently set to pedology). Changing the key is a configuration change continue_exoplasim.py refuses to resume across, so moving it blocks runs in flight.",
+  "output": "exoplasim/inputs/t21/orogen_T21_surf_0229.sra",
+  "output_sha256": "60600059bd28ab5d8b984bce93766039ca30f43c1f8824caaf7e25127665e055",
+  "git_commit": "2101459b6644e57ee50154ef07747775228daf39",
+  "generator": "exoplasim/scripts/build_surface_soil_water.py",
   "source_config": {
     "schema_version": 1,
-    "source_build": "precarve-craton",
+    "source_build": "precarve-craton-10m",
     "baseline_climatology": null,
     "planet": {
       "radius_earth": 1.2,
@@ -51,7 +36,10 @@
       "mass_earth": 1.881009,
       "rotation_hours": 30.0,
       "obliquity_degrees": 32.0,
-      "eccentricity": 0.02
+      "eccentricity": 0.02,
+      "rotation_direction": "prograde",
+      "longitude_positive": "east",
+      "prime_meridian": "orogen_export_zero"
     },
     "star": {
       "spectral_type": "K2.5V",
@@ -100,36 +88,91 @@
       }
     },
     "model": {
-      "resolution": "T42",
-      "latitudes": 64,
-      "longitudes": 128,
+      "resolution": "T21",
+      "latitudes": 32,
+      "longitudes": 64,
       "layers": 10,
       "precision_bytes": 8,
       "compile_flags": {
         "f90_opts": [
           "-O3",
           "-cpp",
-          "-ffixed-line-length-132",
           "-ffpe-trap=invalid,zero,overflow",
           "-ffpe-summary=none",
-          "-finit-real=zero",
-          "-march=znver4"
+          "-march=znver4",
+          "-funroll-loops",
+          "-g"
         ],
         "profiles": {
           "production": [],
           "checked": [
-            "-fcheck=all"
+            "-fcheck=all",
+            "-finit-real=snan"
           ]
         },
         "profile": "production"
       },
       "ncpus": 16,
+      "parmode": "omp",
       "timestep_minutes": 45.0,
       "physics_filter": "gp|exp|sp",
+      "filter_kappa": 8.0,
+      "filter_power": 16,
+      "cold_start_seed": 88888888,
+      "hyperdiffusion": {
+        "eddy_wind_m_s": 5.94,
+        "order_alpha": 4,
+        "cutoff_fraction": 0.381,
+        "ratios_to_vorticity": {
+          "divergence": 0.2,
+          "temperature": 2.533,
+          "humidity": 0.333
+        },
+        "timescales_days": {
+          "T21": {
+            "divergence": 0.4457,
+            "vorticity": 2.2285,
+            "temperature": 5.6449,
+            "humidity": 0.7421
+          },
+          "T42": {
+            "divergence": 0.2229,
+            "vorticity": 1.1143,
+            "temperature": 2.8224,
+            "humidity": 0.3711
+          },
+          "T85": {
+            "divergence": 0.1101,
+            "vorticity": 0.5506,
+            "temperature": 1.3946,
+            "humidity": 0.1833
+          },
+          "T127": {
+            "divergence": 0.0737,
+            "vorticity": 0.3685,
+            "temperature": 0.9334,
+            "humidity": 0.1227
+          },
+          "T170": {
+            "divergence": 0.0551,
+            "vorticity": 0.2753,
+            "temperature": 0.6973,
+            "humidity": 0.0917
+          }
+        }
+      },
+      "resolution_timestep_minutes": {
+        "T21": 45.0,
+        "T42": 45.0,
+        "T85": 45.0,
+        "T127": 30.0,
+        "T170": 22.5
+      },
       "output_type": ".nc",
       "uniform_land_surface": true,
-      "energy_diagnostics": false,
+      "energy_diagnostics": true,
       "energy_diagnostics_3d": false,
+      "energy_fixer": true,
       "cloud_absorption_scale": 1.192,
       "ozone_scale": 0.794,
       "ozone_uv_weight": 0.335,
@@ -138,7 +181,7 @@
       "h2o_sw_level": 1.127,
       "co2_sw_weight": 1.51,
       "roughness_source": "lithology",
-      "soil_water_source": "pedology",
+      "soil_water_source": "uniform",
       "land_albedo_source": "vegetated",
       "vegetation_albedo": 0.165,
       "vegetation_albedo_bracket": [
@@ -179,7 +222,5 @@
       "total_amplitude_flux_peak_to_peak": 0.06,
       "alignment_recurrence_earth_years": 314
     }
-  },
-  "config_sha256": "610904f5103447a89a393a551c0179e9b525ad604d6685df35933af64ed7c3e1",
-  "git_commit": "2e03ae0af517540edec3e1a03a1b40b934a7f88f"
+  }
 }

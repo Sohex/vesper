@@ -12,7 +12,7 @@
   ],
   "forest_fraction_value": 0.5,
   "vegetation": null,
-  "forest_fraction_land_mean": 0.3398707747484783,
+  "forest_fraction_land_mean": 0.3266031383878756,
   "lithology_albedo_overrides": {
     "playa_clastic": {
       "rock_id": 19,
@@ -29,8 +29,8 @@
       0.075,
       0.225
     ],
-    "band1_land_mean": 0.13281438108110938,
-    "band2_land_mean": 0.23477561350565287
+    "band1_land_mean": 0.10707143103021687,
+    "band2_land_mean": 0.20505237254657951
   },
   "barren_rock_classes": [
     "evaporite",
@@ -38,17 +38,26 @@
   ],
   "forest_note": "dforest blends snow albedo between forested and unforested endpoints, so it has to agree with the background albedo assumption. ExoPlaSim's default is a uniform 0.5.",
   "land_mean_bare_rock": 0.2482695493883222,
-  "land_mean_written": 0.19399112053583548,
+  "land_mean_written": 0.16585999594003445,
   "endmembers": {
     "note": "land-mean albedo of the two surface endmembers, on the overridden rock table and before lakes. Their difference is what the biosphere is worth; pair only these two.",
     "bare_rock": 0.2594608146857134,
     "vegetated": 0.19297601514203205
   },
-  "lakes": null,
+  "lakes": {
+    "source": "hydrography/data/precarve-craton-10m/surface_water.nc",
+    "terrain_hash": "ab0d679bd81360cd30fb67a3ce13e726b4aa1bb9ba7e4afb601c10aa13f9a526",
+    "lake_regions": 603824,
+    "lake_fraction_of_land": 0.1419118453528296,
+    "water_albedo": 0.06,
+    "land_mean_albedo_before": 0.192976,
+    "land_mean_albedo_after": 0.165951,
+    "delta": -0.027026
+  },
   "derived_evaporite": null,
   "exoplasim_default_albland": 0.22,
-  "land_min": 0.16515390558877513,
-  "land_max": 0.29300583337387126,
+  "land_min": 0.0790912067839082,
+  "land_max": 0.2687401592021295,
   "files": [
     "/home/cfutro/docs/world/exoplasim/inputs/t21/orogen_T21_surf_0174.sra",
     "/home/cfutro/docs/world/exoplasim/inputs/t21/orogen_T21_surf_0175.sra",
@@ -212,7 +221,7 @@
       "h2o_sw_level": 1.127,
       "co2_sw_weight": 1.51,
       "roughness_source": "lithology",
-      "soil_water_source": "pedology",
+      "soil_water_source": "uniform",
       "land_albedo_source": "vegetated",
       "vegetation_albedo": 0.165,
       "vegetation_albedo_bracket": [
@@ -254,6 +263,6 @@
       "alignment_recurrence_earth_years": 314
     }
   },
-  "config_sha256": "bea7f45c884d083294b7bf310767e626d36f9e4be77ace50bdc9908dcf8bf15d",
-  "git_commit": "cf02ec01267e7df1525a80d0b3ad898434c6961f"
+  "config_sha256": "fba657fa39a4e666b63cbef8fce3b35e28591646a2d2332e48701f027f1d48dc",
+  "git_commit": "2101459b6644e57ee50154ef07747775228daf39"
 }

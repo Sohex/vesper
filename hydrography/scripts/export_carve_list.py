@@ -565,8 +565,11 @@ def main() -> None:
     args = ap.parse_args()
 
     _bd = component_data("hydrography", strict=True)
+    # LOADED BEFORE THE DEFAULTS: `coupling_path` reads `model.resolution`,
+    # because the coupling matrix is per rung.
+    config = yaml.safe_load(args.config.read_text(encoding="utf-8"))
     if args.coupling is None:
-        args.coupling = _bd / "coupling_exoplasim-T42.nc"
+        args.coupling = cv.coupling_path(_bd, config)
     if args.basins is None:
         args.basins = _bd / "basins.nc"
     if args.out_list is None:
@@ -576,7 +579,6 @@ def main() -> None:
     if args.climatology is None:
         args.climatology = climatology_path()
 
-    config = yaml.safe_load(args.config.read_text(encoding="utf-8"))
     basins = BasinSet(args.basins)
     resolution = str(config["model"]["resolution"]).upper()
 

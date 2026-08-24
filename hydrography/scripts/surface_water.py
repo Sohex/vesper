@@ -118,7 +118,7 @@ def climate_fields(config):
 
 
 def per_basin_forcing(n_basins, lat, lon, runoff, precip, evaporation, sinks,
-                      export, lsm):
+                      export, lsm, config):
     """Catchment-mean runoff, and lake fluxes taken at each basin's sink.
 
     Runoff has to be integrated over the catchment, which is what the coupling
@@ -130,7 +130,7 @@ def per_basin_forcing(n_basins, lat, lon, runoff, precip, evaporation, sinks,
     # and it is the one place that owns how a coupling column maps to a
     # climatology column. Doing it twice is how they came to disagree in the
     # first place, and the mapping is the identity -- see basin_means.
-    coupling = data_dir() / "coupling_exoplasim-T42.nc"
+    coupling = cv.coupling_path(data_dir(), config)
     cv.require_index_alignment(coupling, lsm)
     means, _ = cv.basin_means(coupling, {"runoff": runoff}, n_basins)
     catchment_runoff = np.nan_to_num(means["runoff"])
@@ -338,7 +338,8 @@ def main():
     lat, lon, runoff, precip, evaporation, model_runoff, lsm = climate_fields(config)
     sinks = np.array([b.sink for b in export.basins])
     catchment_runoff, lake_precip, lake_evap = per_basin_forcing(
-        basins.n, lat, lon, runoff, precip, evaporation, sinks, export, lsm
+        basins.n, lat, lon, runoff, precip, evaporation, sinks, export, lsm,
+        config
     )
 
     # The solver works in km/year; the year is this world's, from lib/orbit.
