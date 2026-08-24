@@ -97,6 +97,39 @@ check `git status` in the worktree and name any link that block still fails to
 cover. That is what keeps the block complete: it is tested rather than
 remembered.
 
+## The git hooks, and the beads export they keep honest
+
+`core.hooksPath` points at `.beads/hooks`, so the hooks are TRACKED and apply in
+every checkout and worktree without an install step. Each is a thin shim around
+`bd hooks run <name>`, inside `BEGIN/END BEADS INTEGRATION` markers that
+`bd hooks install` regenerates. Anything added inside those markers is lost on
+the next beads upgrade; this project's own additions go after the END marker.
+
+`pre-commit` carries one such addition, and the reason is a trap worth knowing
+independently of the hook. **`export.auto` is debounced, not per-write.** A burst
+of `bd` commands writes `.beads/issues.jsonl` once, near the start, and the rest
+of the burst never reaches it -- so the export routinely lags the database by an
+arbitrary amount, and `git status` showing it clean is not evidence that it
+agrees with the tracker. Measured 2026-08-24: a `bd update` exported
+immediately, and a following run of two `bd supersede` calls and five
+`bd dep add` calls changed the file not at all.
+
+The hook therefore regenerates the export from the database and re-stages it,
+but only when it is ALREADY STAGED -- that is, only when you have decided to
+record tracker changes in this commit. It does nothing otherwise. An unstaged
+export that trails the database is the resting state of a derived artifact, not
+a work list, and an earlier version of this hook that tested mtimes to warn
+about it fired on every commit, because the beads block above it runs `bd` and
+touches the database first.
+
+Two consequences to expect rather than be surprised by. The export is a
+whole-database snapshot, so regenerating it picks up any concurrent session's
+bead writes as well: there is no per-session subset of it, and a shared snapshot
+is the correct outcome where a stale one is not. And during a rebase, merge or
+cherry-pick the hook stands down, because the export belongs to the commit being
+replayed rather than to the database as it stands now. `WORLD_SKIP_BEADS_EXPORT=1`
+bypasses it.
+
 ## The toolchain: what is declared, and what optimised libraries do not buy
 
 The model links glibc's `libm` and `libmvec`, `libgfortran` and Open MPI, and
