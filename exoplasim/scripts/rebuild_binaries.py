@@ -168,6 +168,17 @@ def assert_parmode_flags_agree() -> None:
 # how `writesp`, `writescalar` and `writecolumn` kept an unguarded write for as
 # long as they did: harmless under MPI, and corruption under threads. One
 # runtime, exercised.
+# EVERY ROW IS A RUNG SOMETHING IS MEANT TO RUN. None of them is an
+# executable-only cost artifact, and the question "is this rung runnable" is not
+# answered by the presence of its binary. Three things have to line up, and each
+# refuses by name when it does not: this matrix builds the executable,
+# `config/planet.yaml` declares the rung's hyperdiffusion timescales and its
+# timestep -- `declare_hyperdiffusion` refuses a rung with no entry rather than
+# letting it inherit T21's damping -- and the surface family for the rung has to
+# be staged under `exoplasim/inputs/<rung>/`, which `surface_field_report`
+# checks before the model is reached. A rung with a binary and no surface family
+# is not a runnable rung; it is an unfinished one, and `scripts/pipeline.py
+# --status` with that rung configured is what says which. world-3oj.
 MATRIX = [("T21", 10, 16, "omp"),
           ("T42", 10, 16, "omp"),
           ("T85", 10, 16, "omp"),
