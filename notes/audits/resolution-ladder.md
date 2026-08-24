@@ -113,6 +113,40 @@ W/m2 when the step is halved. A ladder whose rungs each ran at their own
 largest stable step would be comparing equilibria that differ by their
 truncation error as well as by their resolution.
 
+## The timestep moves the equilibrium further than the resolution does
+
+Three converged runs, 85 orbits each from cold, same build and same staged
+surface, differing one factor at a time:
+
+| run | rung | dt, min | mean T, K |
+| --- | --- | ---: | ---: |
+| `run_8044646ea7f0` | T21 | 45.0 | 297.458 |
+| `run_aaa95662e21a` | T21 | 22.5 | 295.867 |
+| `run_4fe5e6050df5` | T42 | 22.5 | 294.567 |
+
+| factor | change |
+| --- | ---: |
+| timestep, 45 to 22.5 at T21 | **-1.591 K** |
+| resolution, T21 to T42 at dt 22.5 | **-1.300 K** |
+| both | -2.891 K |
+
+**Halving the step moves the equilibrium by more than doubling the resolution
+does.** That is not a small correction to a resolution study; it is the larger
+of the two effects, and a ladder whose rungs each ran at their own largest
+stable step would have reported it as resolution sensitivity.
+
+It is also consistent in sign and rough size with what
+`exoplasim/notes/physics-filter-stability.md` measures independently: the
+spectral core's adiabatic non-conservation falls from 0.31 to 0.12 W/m2 when
+the step is halved at T42. A step that conserves worse warms the model, and
+halving it removes about 0.19 W/m2 of spurious heating -- which against this
+model's sensitivity is the right order for 1.6 K.
+
+The practical consequence for the ladder is the one already taken for stability
+reasons: **every rung runs at one step**, dt 22.5, which is what T170 needs.
+Otherwise the ladder measures resolution plus truncation error and reports the
+sum as resolution.
+
 ## What is not yet measured
 
 Whether a wider window removes the flicker without moving the orbit at which a
