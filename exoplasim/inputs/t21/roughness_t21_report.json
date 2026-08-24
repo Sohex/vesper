@@ -1,46 +1,36 @@
 {
+  "generated": "2026-08-24T11:53:02+00:00",
+  "code": 173,
+  "field": "dz0clim, total aerodynamic roughness length, metres",
   "terrain_hash": "ab0d679bd81360cd30fb67a3ce13e726b4aa1bb9ba7e4afb601c10aa13f9a526",
-  "generated": "2026-08-24T11:52:14.248224+00:00",
-  "mesh": {
-    "export_root": "/home/cfutro/docs/world/source/precarve-craton-10m/exoplasim-T42",
-    "terrain_hash": "ab0d679bd81360cd30fb67a3ce13e726b4aa1bb9ba7e4afb601c10aa13f9a526",
-    "terrain_build": "precarve-craton-10m",
-    "terrain_build_note": "2026-08 resolution reference at 4x the region count: measurement artifact for the resolution audit, all five grids, ice mask not yet fixed",
-    "catalogue_hash": "e84e619dfc4dca6fab7a301144fdc964c1dcb7e73592f591c3b07dd6a6e73c5e",
-    "catalogue_known": false,
-    "drainage_hypothesis": {
-      "preserveListGiven": 0,
-      "carveListGiven": 0,
-      "carvedByRetainZero": 0,
-      "entries": []
+  "replaces_uniform": 2.0,
+  "surface_z0_m": {
+    "bare": 0.003,
+    "canopy": 0.625,
+    "forest": 1.0,
+    "forest_fraction_used": 0.5
+  },
+  "orographic": {
+    "coefficient_solved": 0.004088,
+    "relation": "z0_oro = coefficient * stdev(elevation) within the cell",
+    "subgrid_stdev_m": {
+      "min": 0.0,
+      "median": 141.03,
+      "max": 1847.4
     },
-    "selection_source": "threshold",
-    "seed": 16236323,
-    "num_regions": 10000005,
-    "planet_radius_km": 7645.2,
-    "surface_area_km2": 734492839.5500951
+    "mesh_regions_per_land_cell_median": 1980
   },
-  "grid": "/home/cfutro/docs/world/source/precarve-craton-10m/exoplasim-T21",
-  "resolution": "T21",
-  "method": "Area-weighted land fraction per cell from the native mesh, thresholded; topography is the land-area-weighted mean elevation over land regions only.",
-  "land_definition": "surface_class == land (subaerial)",
-  "land_threshold": 0.5,
-  "gravity_m_s2": 12.81,
-  "land_fraction_gauss_weighted": 0.4276915732398812,
-  "mesh_land_fraction": 0.43284162878990173,
-  "land_cells": 1019,
-  "cells_below_mesh_resolution": 0,
-  "elevation_m": {
-    "min": -29.86749203766376,
-    "max": 2513.04870907386,
-    "mean": 302.2221568417596,
-    "cells_below_sea_level": 91
+  "land_mean_m": 2.0,
+  "land_min_m": 0.003781,
+  "land_max_m": 7.5717,
+  "exchange_coefficient": {
+    "note": "ce = k^2 / ln(141.6 / z0)^2, the quantity roughness acts through",
+    "uniform_default": 0.008817,
+    "this_field_land_max": 0.018655,
+    "this_field_land_min": 0.001443
   },
-  "codes": [
-    172,
-    129
-  ],
-  "generator": "exoplasim/scripts/build_boundary_conditions.py",
+  "file": "/home/cfutro/docs/world/exoplasim/inputs/t21/orogen_T21_surf_0173.sra",
+  "generator": "exoplasim/scripts/build_surface_roughness.py",
   "source_config": {
     "schema_version": 1,
     "source_build": "precarve-craton-10m",

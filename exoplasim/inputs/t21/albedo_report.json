@@ -1,46 +1,62 @@
 {
-  "terrain_hash": "ab0d679bd81360cd30fb67a3ce13e726b4aa1bb9ba7e4afb601c10aa13f9a526",
-  "generated": "2026-08-24T11:52:14.248224+00:00",
-  "mesh": {
-    "export_root": "/home/cfutro/docs/world/source/precarve-craton-10m/exoplasim-T42",
-    "terrain_hash": "ab0d679bd81360cd30fb67a3ce13e726b4aa1bb9ba7e4afb601c10aa13f9a526",
-    "terrain_build": "precarve-craton-10m",
-    "terrain_build_note": "2026-08 resolution reference at 4x the region count: measurement artifact for the resolution audit, all five grids, ice mask not yet fixed",
-    "catalogue_hash": "e84e619dfc4dca6fab7a301144fdc964c1dcb7e73592f591c3b07dd6a6e73c5e",
-    "catalogue_known": false,
-    "drainage_hypothesis": {
-      "preserveListGiven": 0,
-      "carveListGiven": 0,
-      "carvedByRetainZero": 0,
-      "entries": []
-    },
-    "selection_source": "threshold",
-    "seed": 16236323,
-    "num_regions": 10000005,
-    "planet_radius_km": 7645.2,
-    "surface_area_km2": 734492839.5500951
-  },
+  "mode": "vegetated",
+  "mesh": "/home/cfutro/docs/world/source/precarve-craton-10m/exoplasim-T42",
   "grid": "/home/cfutro/docs/world/source/precarve-craton-10m/exoplasim-T21",
   "resolution": "T21",
-  "method": "Area-weighted land fraction per cell from the native mesh, thresholded; topography is the land-area-weighted mean elevation over land regions only.",
-  "land_definition": "surface_class == land (subaerial)",
-  "land_threshold": 0.5,
-  "gravity_m_s2": 12.81,
-  "land_fraction_gauss_weighted": 0.4276915732398812,
-  "mesh_land_fraction": 0.43284162878990173,
-  "land_cells": 1019,
-  "cells_below_mesh_resolution": 0,
-  "elevation_m": {
-    "min": -29.86749203766376,
-    "max": 2513.04870907386,
-    "mean": 302.2221568417596,
-    "cells_below_sea_level": 91
-  },
+  "terrain_hash": "ab0d679bd81360cd30fb67a3ce13e726b4aa1bb9ba7e4afb601c10aa13f9a526",
   "codes": [
-    172,
-    129
+    174,
+    175,
+    176,
+    212
   ],
-  "generator": "exoplasim/scripts/build_boundary_conditions.py",
+  "forest_fraction_value": 0.5,
+  "vegetation": null,
+  "forest_fraction_land_mean": 0.3398707747484783,
+  "lithology_albedo_overrides": {
+    "playa_clastic": {
+      "rock_id": 19,
+      "albedo": 0.23,
+      "exported_albedo": 0.1899999976158142,
+      "regions": 1209816
+    }
+  },
+  "vegetation_albedo": {
+    "value": 0.165,
+    "source": "config model.vegetation_albedo unless --vegetation-albedo",
+    "derivation": "analysis/vegetation_albedo.json",
+    "bands_175_176": [
+      0.075,
+      0.225
+    ],
+    "band1_land_mean": 0.13281438108110938,
+    "band2_land_mean": 0.23477561350565287
+  },
+  "barren_rock_classes": [
+    "evaporite",
+    "playa_clastic"
+  ],
+  "forest_note": "dforest blends snow albedo between forested and unforested endpoints, so it has to agree with the background albedo assumption. ExoPlaSim's default is a uniform 0.5.",
+  "land_mean_bare_rock": 0.2482695493883222,
+  "land_mean_written": 0.19399112053583548,
+  "endmembers": {
+    "note": "land-mean albedo of the two surface endmembers, on the overridden rock table and before lakes. Their difference is what the biosphere is worth; pair only these two.",
+    "bare_rock": 0.2594608146857134,
+    "vegetated": 0.19297601514203205
+  },
+  "lakes": null,
+  "derived_evaporite": null,
+  "exoplasim_default_albland": 0.22,
+  "land_min": 0.16515390558877513,
+  "land_max": 0.29300583337387126,
+  "files": [
+    "/home/cfutro/docs/world/exoplasim/inputs/t21/orogen_T21_surf_0174.sra",
+    "/home/cfutro/docs/world/exoplasim/inputs/t21/orogen_T21_surf_0175.sra",
+    "/home/cfutro/docs/world/exoplasim/inputs/t21/orogen_T21_surf_0176.sra",
+    "/home/cfutro/docs/world/exoplasim/inputs/t21/orogen_T21_surf_0212.sra"
+  ],
+  "caveat": "Substrate albedo, not land-surface albedo. Vegetation and snow are applied by the model on top of this.",
+  "generator": "exoplasim/scripts/build_surface_albedo.py",
   "source_config": {
     "schema_version": 1,
     "source_build": "precarve-craton-10m",

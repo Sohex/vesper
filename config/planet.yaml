@@ -34,7 +34,12 @@ schema_version: 1
 
 # DETERMINED. lib/orogen.py is the registry: it holds the hash, the note, and
 # what superseded what.
-source_build: precarve-craton
+# CHANGED 2026-08-24 to the fine-support export. `precarve-craton` is 15.19 km
+# mean edge; this is about 10M regions and 7.60 km, and it fully samples what
+# Orogen resolves rather than an aggregate of it. Everything below a build is
+# worthless rather than stale when it moves (rule 7), which is why this moved at
+# the same time as the runs directory was cleared and the transform changed.
+source_build: precarve-craton-10m
 
 # DECLARED ABSENT. Null means no baseline is named, and `climatology_path()`
 # raises rather than falling back. That is the designed state and not a gap: a
@@ -263,9 +268,18 @@ surface:
 # scale, the band weights and the albedo values further down are determined
 # outright and each says so.
 model:
-  resolution: T42
-  latitudes: 64
-  longitudes: 128
+  # T21 AND THE GRID MOVE TOGETHER. `model.resolution` does not carry the grid:
+  # `read_sra` validates every staged surface file against `latitudes` and
+  # `longitudes`, so a resolution changed without them refuses its own inputs
+  # with an "Unexpected SRA header". SPAT-2.
+  #
+  # T21 as of 2026-08-24, so that the rung a diagnostic starts from is a SETTLED
+  # one. Every dry arm in world-bxr and world-0ov began from whatever restart was
+  # to hand; a commissioned T21 baseline is cheap enough to keep current and is
+  # what those investigations should have been reading.
+  resolution: T21
+  latitudes: 32
+  longitudes: 64
   layers: 10
   precision_bytes: 8
   # How the model binary is compiled. The flag line is stated in FULL here

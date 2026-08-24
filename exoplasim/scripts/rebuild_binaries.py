@@ -155,12 +155,20 @@ def assert_parmode_flags_agree() -> None:
 # every resolution, and NPRO must divide NLAT. The sweep binaries that settled
 # that are arms, built by `thread_count_sweep.sh` and not registered; these are
 # the configurations something is meant to RUN.
-MATRIX = [("T21", 10, 8, "mpi"), ("T21", 10, 16, "mpi"),
-          ("T42", 10, 8, "mpi"), ("T42", 10, 16, "mpi"), ("T42", 10, 32, "mpi"),
-          ("T85", 10, 16, "mpi"),
-          ("T127", 10, 8, "mpi"), ("T127", 10, 16, "mpi"), ("T127", 10, 32, "mpi"),
-          ("T170", 10, 8, "mpi"), ("T170", 10, 16, "mpi"), ("T170", 10, 32, "mpi"),
-          ("T21", 10, 16, "omp"),
+# THREADED ONLY, as of 2026-08-24. `nshtns` is 1 in the threaded build and 0 in
+# the MPI one, so the parmode picks the TRANSFORM and not merely how the work is
+# spread -- and SHTns is 5.1x legmod's transform on this host
+# (`exoplasim/notes/shtns-viability.md`). This project runs SHTns, so this is
+# what it builds.
+#
+# THE MPI ENTRIES ARE GONE RATHER THAN COMMENTED. They were built, verified and
+# gated on for as long as the threaded ones were, and the difference nobody
+# could see was that every run used the MPI ones and no run ever used the
+# threaded ones. Keeping a second registered runtime that nothing exercises is
+# how `writesp`, `writescalar` and `writecolumn` kept an unguarded write for as
+# long as they did: harmless under MPI, and corruption under threads. One
+# runtime, exercised.
+MATRIX = [("T21", 10, 16, "omp"),
           ("T42", 10, 16, "omp"),
           ("T85", 10, 16, "omp"),
           ("T127", 10, 16, "omp"),
@@ -241,8 +249,8 @@ def toolchain(profile: str) -> dict:
             # binary also records its own line, and this is the summary.
             "effective_f90_opts_by_parmode": {
                 pm: " ".join(effective_opts(profile, pm)) for pm in PARMODES},
-            "note": "The registry builds every configuration in MATRIX, MPI and "
-                    "threaded. A profiling build adds -fno-omit-frame-pointer "
+            "note": "The registry builds every configuration in MATRIX, which is "
+                    "threaded only. A profiling build adds -fno-omit-frame-pointer "
                     "and is an arm rather than a registry entry. build_model.py "
                     "is where a flag reaches the compiler."}
 
