@@ -1,6 +1,8 @@
-"""Path display helpers shared across components.
+"""Path helpers shared across components, and the guards on the climatology.
 
-One function, and it exists because of a specific recurring bug.
+`rel` exists because of a specific recurring bug; `climatology_path` is the one
+resolver for the product every downstream component is driven from, and
+`require_clean_io` and `require_configured_grid` are what it must survive.
 
 `Path.relative_to` RAISES when the path is not under the given root. Every script
 here prints "wrote <path>" relative to the project root, and that print happens
@@ -65,20 +67,73 @@ def climatology_path(name: str | None = None, root: Path | None = None) -> Path:
 
     `name` still accepts a directory under `exoplasim/analysis/` for the old
     layout, so existing callers that pass one keep working.
+
+    THE GRID IS CHECKED HERE. A climatology's name says nothing about its rung,
+    so changing `model.resolution` used to neither rename nor invalidate nor
+    refuse the declared file, and seven consumers then took the grid FROM the
+    file and computed on whatever rung it happened to carry.
+    `require_configured_grid` is what refuses that, and it is applied here so
+    every caller inherits it instead of two builders having their own copy.
     """
     import yaml
     project = Path(root) if root is not None else Path(__file__).resolve().parents[1]
-    if name is not None:
-        return (project / "exoplasim" / "analysis" / name
-                / "baseline_regular_climatology.nc")
     config = yaml.safe_load(
         (project / "config" / "planet.yaml").read_text(encoding="utf-8"))
-    declared = config.get("baseline_climatology")
-    if not declared:
+    if name is not None:
+        path = (project / "exoplasim" / "analysis" / name
+                / "baseline_regular_climatology.nc")
+    else:
+        declared = config.get("baseline_climatology")
+        if not declared:
+            raise SystemExit(
+                "config/planet.yaml has no `baseline_climatology`. Name one "
+                "there or pass --climatology; there is deliberately no "
+                "fallback.")
+        path = project / declared
+    # Only when it is there: a file that does not exist is the caller's error to
+    # report, and several of them say something more useful about it than this
+    # could.
+    if path.is_file():
+        require_configured_grid(path, config)
+    return path
+
+
+def require_configured_grid(climatology: Path, cfg: dict | None = None,
+                            root: Path | None = None) -> None:
+    """Refuse a climatology whose grid is not the configured rung's.
+
+    The rung is a property of the run that produced the file and appears
+    nowhere in its name, so nothing stopped a T21 climatology from driving a
+    T42 configuration. What that produces is not an error but a plausible
+    number computed on the wrong world, which is this project's most expensive
+    failure shape: `check_consistency.py` built its land-sea mask this way and
+    could therefore pass a T21 coupling for a T42 run.
+
+    `lib/rungs.py:model_grid` supplies the configured dimensions, and refuses a
+    `resolution` paired with another grid's `latitudes` before this compares
+    anything, so a stale config cannot be what the climatology is judged
+    against.
+    """
+    import yaml
+    if cfg is None:
+        project = Path(root) if root is not None else Path(__file__).resolve().parents[1]
+        cfg = yaml.safe_load(
+            (project / "config" / "planet.yaml").read_text(encoding="utf-8"))
+    import sys
+    lib = str(Path(__file__).resolve().parent)
+    if lib not in sys.path:
+        sys.path.insert(0, lib)
+    import rungs
+    rung, nlat, nlon = rungs.model_grid(cfg)
+    with Dataset(climatology) as ds:
+        got = (len(ds.dimensions["lat"]), len(ds.dimensions["lon"]))
+    if got != (nlat, nlon):
         raise SystemExit(
-            "config/planet.yaml has no `baseline_climatology`. Name one there "
-            "or pass --climatology; there is deliberately no fallback.")
-    return project / declared
+            f"{rel(climatology)} is {got[0]}x{got[1]} and config/planet.yaml "
+            f"is {rung}, {nlat}x{nlon}. A climatology carries no rung in its "
+            "name, so this is the only thing between a run at one resolution "
+            "and a product computed on another. Name a climatology built at "
+            f"{rung}, or move model.resolution to the rung this one is.")
 
 
 def require_clean_io(climatology: Path) -> None:

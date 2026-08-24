@@ -47,7 +47,7 @@ import numpy as np
 import yaml
 
 from _paths import CONFIG, INPUTS, PROJECT_ROOT  # noqa: E402  (puts lib/ on sys.path)
-from paths import climatology_path, rel  # noqa: E402
+from paths import climatology_path, rel, require_configured_grid  # noqa: E402
 from provenance import config_stamp  # noqa: E402
 from sra import write_sra
 
@@ -127,10 +127,10 @@ def main() -> None:
         lat = np.asarray(data["lat"][:], dtype=float)
         lon = np.asarray(data["lon"][:], dtype=float)
         land = np.asarray(data["lsm"][0], dtype=float) > 0.5
-    if (len(lat), len(lon)) != (nlat, nlon):
-        raise SystemExit(
-            f"climatology grid is {len(lat)}x{len(lon)} but config says "
-            f"{nlat}x{nlon}")
+    # The same guard `climatology_path` applies, called explicitly because
+    # `--climatology` can hand this an arbitrary file that never went through
+    # the resolver. One expression, in lib/paths.py.
+    require_configured_grid(args.climatology, config)
 
     lon_signed = np.round(np.where(lon > 180.0, lon - 360.0, lon), COORD_DECIMALS)
     lat_rounded = np.round(lat, COORD_DECIMALS)

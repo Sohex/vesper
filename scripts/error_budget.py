@@ -454,6 +454,12 @@ def land_water_balance(config) -> dict:
 
     # Through the one resolver, which raises when no baseline is named; the
     # str() here turned a null into the literal path "None".
+    #
+    # IT ALSO REFUSES A CLIMATOLOGY ON THE WRONG RUNG, which is what keeps this
+    # half and the albedo half describing one world. The albedo half resolves
+    # its report through `rungs.model_grid(config)` and this one takes its grid
+    # from the file, so before `require_configured_grid` existed a budget could
+    # combine a T21 hydrology with a T42 albedo and say nothing.
     path = paths.climatology_path(root=ROOT)
     with Dataset(path) as ds:
         nlat, nlon = len(ds.dimensions["lat"]), len(ds.dimensions["lon"])
@@ -473,6 +479,10 @@ def land_water_balance(config) -> dict:
     return {
         "source": str(Path(path).relative_to(ROOT)),
         "run_id": run_id,
+        # Recorded so the product says which rung it was computed on, rather
+        # than leaving that to be inferred from a filename that does not carry
+        # it. It is the configured one because the resolver refuses any other.
+        "grid": f"{nlat}x{nlon}",
         "land_precipitation_mm_per_earth_year": round(precipitation, 1),
         "land_evaporation_mm_per_earth_year": round(evaporation, 1),
         "runoff_residual_mm_per_earth_year": round(runoff, 1),
