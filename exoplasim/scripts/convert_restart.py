@@ -406,12 +406,42 @@ def sha256(path: Path) -> str:
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
+def _template_identity(template: Path) -> dict:
+    """What a consumer has to check the converted state against."""
+    prov = template_provenance(template)
+    if prov is None:
+        return {"provenance": None,
+                "warning": ("no provenance sidecar beside this template, so "
+                            "nothing here says which staged surface its static "
+                            "records are or which executable wrote it")}
+    return {"provenance": str(Path(str(template) + ".provenance.json")),
+            "executable": prov.get("executable"),
+            "source_build": prov.get("source_build"),
+            "config_sha256": prov.get("config_sha256"),
+            "surface_field_sha256": prov.get("surface_field_sha256"),
+            "cut_from_run": (prov.get("cut_from") or {}).get("run_id")}
+
+
 def _geometry_dict(state: RestartState) -> dict:
     g = state.geometry
     return {"truncation": g.label, "nlat": g.nlat, "nlon": g.nlon,
             "ntru": g.ntru, "nrsp": g.nrsp, "nesp": g.nesp, "nugp": g.nugp,
             "nlev": g.nlev, "nlsoil": g.nlsoil, "nlev_oce": g.nlev_oce,
             "nseedlen": g.nseedlen, "real_bytes": state.real_bytes}
+
+
+def template_provenance(template: Path) -> dict | None:
+    """The sidecar `build_restart_template.py` wrote beside a template.
+
+    It carries which executable wrote the template and, crucially, WHICH STAGED
+    SURFACE its static records are. A conversion is only sound onto a run whose
+    staged surface matches those hashes, and the conversion report is the only
+    thing a consumer has to check that against.
+    """
+    side = Path(str(template) + ".provenance.json")
+    if not side.is_file():
+        return None
+    return json.loads(side.read_text(encoding="utf-8"))
 
 
 def build_report(src, tgt, out_path, reports, source_manifest) -> dict:
@@ -433,7 +463,8 @@ def build_report(src, tgt, out_path, reports, source_manifest) -> dict:
         "source": {"path": str(src.path), "sha256": sha256(src.path),
                    **_geometry_dict(src)},
         "target_template": {"path": str(tgt.path), "sha256": sha256(tgt.path),
-                            **_geometry_dict(tgt)},
+                            **_geometry_dict(tgt),
+                            **_template_identity(tgt.path)},
         "output": {"path": str(out_path), "sha256": sha256(out_path)},
         "source_manifest": source_manifest,
         "config_rtol": CONFIG_RTOL,

@@ -479,30 +479,51 @@ conversion deliberately changes the represented state and the model is chaotic.
 
 ## What remains, and why it stops where it does
 
-The line is the model boundary. Framing, schema, precision, spectral
-projection, grid remapping, the refusals and the report are built, and each is
-provable against an identity or a conservation law without an executable. Three
-things are not, and none of them can be settled by reading:
+The converter, the template writer and the run integration are built. What is
+left is one thing, and it is blocked on the resolution ladder rather than on
+the converter.
 
-- **the template writer.** Either a target-build mode that initialises, calls
-  the model's own reset routines and writes a restart without advancing the
-  climate, or a tightly controlled one-step wrapper recipe. The second is
-  available today and needs validating that every accumulation counter lands at
-  its reset value; the first avoids maintaining cold defaults and sentinels
-  outside the model, and `tempmin`'s 1.0e3 is the argument for it.
-- **the model-owned post-load fixup.** A converted-restart path, enabled
-  explicitly, that recomputes grid areas and derived surface fields, enforces
-  land/ocean/glacier consistency, rebuilds humidity, albedo, roughness and the
-  saturation caches through the model's own routines, and resets every
-  accumulation window through its own reset routines. The converter already
-  names the records this must touch.
-- **`run_exoplasim.py` integration.** Ingesting the conversion report into
-  `initial_state`, validating the target surface hashes, recording the donor as
-  provenance, and teaching the `--restart-from` surface guard to recognise a
-  valid report. That guard today correctly refuses a donor restart whose
-  embedded roughness, capacity or albedo would supersede newly staged surface
-  files, and a converted restart resolves that only if the report's target
-  surface hashes match the run.
+**The template writer is settled and is not a model change.**
+`build_restart_template.py` cuts a template from a short run of the target
+build -- one T21 orbit costs 11.5 s of wall clock -- and normalises its
+accumulation window through `reset_restart_accumulators.py`. The objection to a
+Python-side writer was that it would mean maintaining the model's cold defaults
+and sentinel values by hand; that is answered, because the clean values are
+derived from `outreset` by `restart_schema.py` and held against it by
+`scripts/smoke_test.py` rather than typed out. The one-step recipe was rejected
+for a different reason than expected: a run does NOT end on an output boundary,
+so its restart carries a partial window whatever it is asked to do. The
+converter refuses a template that has one.
+
+**`run_exoplasim.py` reads the report.** A converted restart carries its
+conversion report beside it, the report's surface hashes are checked against
+the run's staged `.sra` files, and the donor is recorded as provenance rather
+than as lineage. A restart with neither a run manifest nor a report beside it
+is now refused: that case used to skip the surface guard entirely, because the
+guard reads the donor's manifest and there was none.
+
+**The model-owned post-load fixup is PRICED and not built.** The derived
+records -- `dalb`, `dsalb1`, `dsalb2`, `dz0`, `dqsat` -- arrive holding the
+template's values, and the model recomputes each of them during its first
+timestep, so the question is what one timestep of inconsistency costs. Measured
+by running the same converted state twice, once as the converter produces it
+and once with those five records taken from the donor, which at equal
+resolution is the perfect-fixup limit: the first output record differs by
+7.3e-4 K in surface temperature, 5.0e-2 W/m2 in reflected shortwave and 2.4e-2
+W/m2 in outgoing longwave. Beyond that record the two arms diverge the way any
+two nearby initial conditions diverge in this model, which is not the fixup's
+doing.
+
+Against the terms this project already carries -- the energy fixer at 0.42
+W/m2, the adiabatic sink at 0.6 to 1.4 -- a 0.05 W/m2 transient lasting one
+output record does not buy a model change and the rule-4 rebuild behind it.
+
+WHAT THAT MEASUREMENT DOES NOT COVER is the case the fixup exists for. At equal
+resolution the template's derived fields are already close to the donor's. A
+template at another rung is a different grid's state and the mismatch could be
+larger by any amount. Measuring that needs a target-resolution surface stack,
+which is SPAT-2, and until it exists the converter names the five records in
+its report and the model rebuilds them on its own.
 
 ## The decisions the contract rests on
 

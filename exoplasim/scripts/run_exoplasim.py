@@ -596,6 +596,65 @@ def register_energy_diagnostic_codes() -> int:
     return len(ENERGY_DIAGNOSTIC_CODES) + len(ENERGY_3D_CODES)
 
 
+def load_conversion_report(restart: Path, resolved: Path) -> dict | None:
+    """The report `convert_restart.py` wrote beside a converted restart.
+
+    Looked for beside the file rather than passed as a flag, so a converted
+    state carries its own provenance wherever it is moved to and cannot be
+    seeded from without it. The report's own output hash must match the file:
+    a report beside a DIFFERENT restart is worse than none, because it would
+    vouch for a state it does not describe.
+    """
+    for candidate in (Path(str(restart) + ".conversion.json"),
+                      restart.with_suffix(restart.suffix + ".conversion.json"),
+                      restart.with_suffix(".conversion.json")):
+        if candidate.is_file():
+            report = json.loads(candidate.read_text(encoding="utf-8"))
+            break
+    else:
+        return None
+    got = file_sha256(resolved)
+    want = (report.get("output") or {}).get("sha256")
+    if want != got:
+        raise RuntimeError(
+            f"{candidate} describes a restart with sha256 {want} and "
+            f"{resolved} has {got}. A conversion report beside the wrong "
+            "restart vouches for a state it does not describe; regenerate it "
+            "with convert_restart.py --report.")
+    report["__path__"] = str(candidate)
+    return report
+
+
+def conversion_surface_reason(report: dict, config: dict) -> str | None:
+    """Why this converted state's surface does not match what the run staged.
+
+    A converted restart's static surface records are the TEMPLATE's, and the
+    template was cut from a run that staged a particular set of `.sra` files.
+    If this run stages different ones, landmod will read the template's from
+    the restart and the staged files will be silently discarded -- which is the
+    same failure the donor-run guard below exists for, reached by a different
+    route.
+    """
+    template = report.get("target_template") or {}
+    hashes = template.get("surface_field_sha256")
+    if not hashes:
+        return ("the conversion report carries no surface hashes for its "
+                "target template, so nothing can say which surface the "
+                "converted state froze")
+    now = intended_surface_codes(config)
+    transparent = DUST_SURFACE_CODES
+    was = {int(c) for c in hashes}
+    if (was - transparent) != (now - transparent):
+        return (f"the template staged codes {sorted(was)} and this run stages "
+                f"{sorted(now)}")
+    changed = [c for c in sorted(now)
+               if surface_sra(config, c).is_file()
+               and hashes.get(str(c)) != file_sha256(surface_sra(config, c))]
+    if changed:
+        return f"content changed for code(s) {changed} since the template"
+    return None
+
+
 def intended_surface_codes(config: dict) -> set[int]:
     """Which surface fields this run supplies rather than leaving at defaults.
 
@@ -1634,6 +1693,7 @@ def main() -> None:
     # of the configuration alone.
     restart_seed = None
     superseded_surface = None
+    conversion = None
     if args.restart_from is not None:
         restart_seed = args.restart_from.resolve()
         if not restart_seed.is_file():
@@ -1677,7 +1737,43 @@ def main() -> None:
               f"value, {len(reset_info['never_reset_by_the_model'])} the model "
               "resets nowhere left as they were (CLIM-31)")
 
+        # A CONVERTED restart is not a donor run's file and has no run
+        # directory to carry a manifest. Its provenance is the conversion
+        # report `convert_restart.py` wrote beside it, which names the template
+        # its static surface records came from and the hash of every staged
+        # surface file that template was cut against. That is exactly what the
+        # guard below needs, so a converted state is checked rather than
+        # exempted.
+        conversion = load_conversion_report(seeded_from, restart_seed)
         src_manifest = seeded_from.parent / "run_manifest.json"
+        if conversion is not None:
+            reason = conversion_surface_reason(conversion, config)
+            if reason and args.superseded_surface_ok:
+                print(f"  OVERRIDDEN (--superseded-surface-ok): {reason}")
+                superseded_surface = reason
+                reason = None
+            if reason:
+                raise RuntimeError(
+                    "--restart-from refused a converted restart: " + reason
+                    + ". The converted state's static surface records come "
+                    "from its target template, not from this run's staged "
+                    ".sra files, so a mismatch means the run would integrate "
+                    "a surface it did not stage. Rebuild the template against "
+                    "the current surface with build_restart_template.py.")
+            print(f"  conversion report: "
+                  f"{conversion['source']['truncation']} -> "
+                  f"{conversion['target_template']['truncation']}, donor "
+                  f"{(conversion.get('source_manifest') or {}).get('run_id')}, "
+                  "target surface matches this run's staged files")
+        elif not src_manifest.is_file():
+            raise RuntimeError(
+                f"--restart-from refused: {seeded_from} has neither a "
+                "run_manifest.json beside it nor a conversion report, so "
+                "nothing says which surface it froze. A restart FREEZES soil "
+                "water, roughness and albedo -- landmod reads them from the "
+                "restart, not from the .sra -- and with no provenance that "
+                "cannot be ruled out. Seed from a run directory, or convert "
+                "with convert_restart.py, which writes the report this needs.")
         if src_manifest.is_file():
             src = json.loads(src_manifest.read_text(encoding="utf-8"))
             was = set((src.get("surface_fields") or {}).get("from_file") or [])
@@ -1949,6 +2045,25 @@ def main() -> None:
             "restart_from_sha256": file_sha256(seeded_from),
             "restart_from_run": seeded_from.parent.name,
             "accumulators_reset": [n for n, _ in reset_info["zeroed"]],
+            # A converted state BEGINS a lineage. The donor is provenance, not
+            # continuation: resolution conversion changes the represented state
+            # on purpose and the target model owns the equilibrium.
+            "conversion": None if conversion is None else {
+                "report": str(conversion["__path__"]),
+                "converter_version": conversion.get("converter_version"),
+                "from": conversion["source"]["truncation"],
+                "to": conversion["target_template"]["truncation"],
+                "real_bytes": [conversion["source"]["real_bytes"],
+                               conversion["target_template"]["real_bytes"]],
+                "donor_run": (conversion.get("source_manifest") or {}).get("run_id"),
+                "template": conversion["target_template"].get("path"),
+                "template_cut_from_run":
+                    conversion["target_template"].get("cut_from_run"),
+                "records_the_model_must_rebuild":
+                    conversion.get("expected_to_change_in_model_fixup"),
+                "whole_run_accumulators_restarted":
+                    conversion.get("whole_run_accumulators_restarted"),
+            },
             "seed_copy_sha256": file_sha256(restart_seed),
             "note": "Initial condition only; equilibrium is set by the forcing. "
                     "The accumulator records listed were zeroed in a copy before "
