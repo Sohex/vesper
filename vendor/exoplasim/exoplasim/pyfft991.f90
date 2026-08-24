@@ -789,8 +789,8 @@
 !     e.g. T63 (NLAT=96), T106 (NLAT=160)
 
       module fftmod
-      parameter(NRES = 8)
-      integer :: nallowed(NRES) = (/ 4, 64, 96, 128, 192, 256, 320, 384 /)
+      parameter(NRES = 9)
+      integer :: nallowed(NRES) = (/ 4, 64, 96, 128, 192, 256, 320, 384, 512 /)
 !     T1   - N4   : 4
 !     T21  - N64  : 8-4-2
 !     T31  - N96  : 8-4-3
@@ -800,6 +800,12 @@
 !     T106 - N320 : 8-5-4-2
 !     T127 - N384 : 8-4-4-3
 !     T170 - N512 : 8-4-4-4
+!     512 WAS DOCUMENTED IN THIS LIST AND MISSING FROM nallowed, so the
+!     module refused T170 while its own comment described the factorisation.
+!     set99 finds 8-4-4-4 with the single 8 first, which is the LA = N/IFAC
+!     that the radix-8 pass requires, and the puma and sam copies of this
+!     package have carried 512 all along. The refusal was the table, not the
+!     algorithm.
       integer :: lastn = 0
       integer :: ifax(10)
       real (kind=8) ,allocatable :: trigs(:)

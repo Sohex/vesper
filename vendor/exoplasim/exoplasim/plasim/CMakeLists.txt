@@ -28,7 +28,7 @@ project(plasim LANGUAGES Fortran C)
 # Required settings. Each one is checked; none has a default.
 # ---------------------------------------------------------------------------
 
-set(PLASIM_NLAT      "" CACHE STRING "latitudes (32 64 96 128 160 192 256)")
+set(PLASIM_NLAT      "" CACHE STRING "latitudes (32 48 64 96 128 160 192 256)")
 set(PLASIM_NLEV      "" CACHE STRING "vertical levels")
 set(PLASIM_NPRO      "" CACHE STRING "ranks (mpi) or threads (omp); 1 for serial")
 set(PLASIM_PRECISION "" CACHE STRING "bytes per real: 4 or 8")
@@ -54,7 +54,12 @@ foreach(v PLASIM_NLAT PLASIM_NLEV PLASIM_NPRO PLASIM_PRECISION PLASIM_PARMODE PL
     endif()
 endforeach()
 
-require_one_of(PLASIM_NLAT      "${PLASIM_NLAT}"      32 64 96 128 160 192 256)
+# THE LADDER, and it is `lib/rungs.py` that declares it. 48 is T31, which was
+# missing here: `plasim/dat/T31` carries a complete surface set, `plasim.f90`
+# has an mpstep branch for it and `radmod.f90` a tuning branch, and
+# build_model.py resolved --res T31 cleanly and then died at this line.
+# world-ajx.
+require_one_of(PLASIM_NLAT      "${PLASIM_NLAT}"      32 48 64 96 128 160 192 256)
 require_one_of(PLASIM_PRECISION "${PLASIM_PRECISION}" 4 8)
 require_one_of(PLASIM_PARMODE   "${PLASIM_PARMODE}"   serial mpi omp)
 require_one_of(PLASIM_FFT       "${PLASIM_FFT}"       fftmod fft991mod)

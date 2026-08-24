@@ -99,6 +99,11 @@ real (kind=8) :: zgwdcsq ! gw / cos2
 real (kind=8) :: zpli(NCSP)
 real (kind=8) :: zpld(NCSP)
 
+! The Lander-Hoskins critical wavenumber, scaled to this truncation, and the
+! truncation the namelist value is a wavenumber for. See the filter block below.
+real :: zhoskn0
+real, parameter :: zhoskref = 21.0
+
 do jlat = 1 , NLPP
 
 ! set p(0,0) and p(0,1)
@@ -165,6 +170,28 @@ enddo ! jlat
 skgpsp(:) = 1.0
 skspgp(:) = 1.0
 
+! ---------------------------------------------------------------------------
+! THE LANDER-HOSKINS CRITICAL WAVENUMBER, AS A FRACTION OF THE TRUNCATION.
+!
+! `landhoskn0` is an absolute total wavenumber, and its default was chosen at
+! one rung: 15 against a T21 truncation. Applied unscaled the filter
+! exp(-(n(n+1)/(n0(n0+1)))**2) confines the tail at T21 and removes most of the
+! RESOLVED spectrum at T85 and above, because n0 stays put while NTRU moves.
+! Every neighbouring filter in this block already normalises -- the exponential
+! by NTRU, Cesaro and Riesz-2 by NTP1 -- so the fixed one was the odd member
+! rather than a considered choice.
+!
+! So the critical wavenumber is the same FRACTION of the truncation at every
+! rung, and `zhoskref` is the truncation the namelist value is a wavenumber
+! for. At NTRU = 21 the scaling is exactly one and the filter is bit for bit
+! what it was; at every other rung the filter now cuts where it was meant to
+! rather than where T21 put it.
+!
+! Reading LANDHOSKN0 as "the critical wavenumber at the reference truncation"
+! is the whole of the change to that namelist key. world-cjk.
+! ---------------------------------------------------------------------------
+zhoskn0 = landhoskn0 * real(NTRU) / zhoskref
+
    
 do n=1,NTP1
    if (nfilter .eq. 0) then
@@ -182,8 +209,8 @@ do n=1,NTP1
 &                 nspvfilter*(exp(-filterkappa*(real(n)/NTRU)**nfilterexp))
    
    else if (nfilter .eq. 3) then !Lander-Hoskins physics filter
-     skgpsp(n) = (1-ngptfilter)*skgpsp(n) + ngptfilter*(exp(-(real(n)*real(n+1)/(landhoskn0*(landhoskn0+1)))**2))
-     skspgp(n) = (1-nspvfilter)*skspgp(n) + nspvfilter*(exp(-(real(n)*real(n+1)/(landhoskn0*(landhoskn0+1)))**2))
+     skgpsp(n) = (1-ngptfilter)*skgpsp(n) + ngptfilter*(exp(-(real(n)*real(n+1)/(zhoskn0*(zhoskn0+1)))**2))
+     skspgp(n) = (1-nspvfilter)*skspgp(n) + nspvfilter*(exp(-(real(n)*real(n+1)/(zhoskn0*(zhoskn0+1)))**2))
    
    else if (nfilter .eq. 4) then !Riesz-2 filter
      skgpsp(n) = (1-ngptfilter)*skgpsp(n) + ngptfilter*((1.0 - real(n)/(NTP1))**2)

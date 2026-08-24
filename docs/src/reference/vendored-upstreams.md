@@ -72,6 +72,14 @@ writes lands under `vendor/exoplasim/build/`, one directory per configuration,
 and in `plasim/run`, which is what keeps a twelve-binary rebuild from leaving
 the working tree dirty.
 
+`vendor/exoplasim/build/patched/` is the one exception to "one directory per
+configuration", and it exists because a configuration is not the whole identity
+of a binary. A verification arm that corrupts `plasim/src` in place writes a
+control patch marker first; `build_model.py` reads that marker, builds under
+`patched/` with a hash of what was patched in the directory name, and refuses
+to publish at all. Nothing under `patched/` is a registry entry, and a build
+directly under `build/` is always from the committed model source.
+
 **The fork does not use upstream's build system and no longer carries it.**
 `compile.sh`, `configure.sh`, `make_plasim` and the `most_compiler*` files are
 deleted; `plasim/CMakeLists.txt` and `exoplasim/scripts/build_model.py` replace

@@ -88,3 +88,95 @@ def model_grid(config: dict) -> tuple[str, int, int]:
             "stale rather than leaving a truncation paired with another "
             "grid's dimensions.")
     return rung, nlat, nlon
+
+
+def fft_module(rung: str) -> str:
+    """The Fortran FFT module that can transform this rung's longitudes.
+
+    `fftmod` is the radix 8-4-3-2 transform: `gp2fc` does one pass of radix 8,
+    then radix 4 while four or more remain, then a single radix 3 or radix 2
+    tail. It therefore transforms `8 * 4**k * r` with `r` in 1, 2, 3, and
+    NOTHING ELSE -- its `nallowed` table is that set, not an independent fact.
+    `fft991mod` is the FFT991 package, whose `set99` factorises with 8, 6, 5,
+    4, 3 and 2 and covers the lengths `fftmod` cannot.
+
+    DERIVED RATHER THAN LISTED, because a table is what went wrong: the
+    postprocessor named the two longitude counts that need `fft991mod` and
+    then tested them against a LATITUDE, so T63 and T106 both selected the
+    module that cannot transform them and the extension's bare Fortran `stop`
+    killed the interpreter with no traceback. world-i38.
+
+    `vendor/exoplasim/exoplasim/pyburn.py:_fftmodule` states the same rule for
+    the postprocessor's f2py extensions. That package stays importable on its
+    own and cannot import this one, so the rule is written twice on purpose;
+    each names the other.
+    """
+    _, nlon, _ = geometry(rung)
+    return "fftmod" if _fftmod_can_transform(nlon) else "fft991mod"
+
+
+def _fftmod_can_transform(nlon: int) -> bool:
+    """Whether `fftmod`'s radix loop covers `nlon` columns. See `fft_module`."""
+    n = int(nlon)
+    if n % 8:
+        return False
+    r = n // 8
+    while r % 4 == 0:
+        r //= 4
+    return r in (1, 2, 3)
+
+
+# THE TWO RESTATEMENTS THAT CANNOT BE REMOVED. The model's build system and the
+# vendored ExoPlaSim package each need the ladder before this module is
+# reachable: CMake has no Python, and `vendor/exoplasim/exoplasim/__init__.py`
+# has to stay importable as an installed package that knows nothing about this
+# repository. So the ladder is written three times on purpose, and the other two
+# are CHECKED against this one rather than trusted. T31 is why: CMake's list
+# omitted 48 while this table declared T31, so `build_model.py --res T31`
+# resolved cleanly and then died at cmake configure, and the package's dispatch
+# chain accepted seven rungs where the ladder declares eight. world-ajx.
+RESTATEMENTS = (
+    ("vendor/exoplasim/exoplasim/plasim/CMakeLists.txt",
+     r'require_one_of\(PLASIM_NLAT\s+"\$\{PLASIM_NLAT\}"\s+([0-9 ]+)\)'),
+    ("vendor/exoplasim/exoplasim/__init__.py",
+     r'RESOLUTIONS = (\{[^}]*\})'),
+)
+
+
+def check_restatements(root) -> list[str]:
+    """Every place the ladder is restated, against this table. Empty when they agree.
+
+    A CHECK WITH A RIGHT ANSWER rather than a convention: each restatement has
+    to name exactly the latitude counts in `RUNGS`, and any disagreement is
+    reported as the two sets. Takes the repository root rather than resolving
+    one, so this module keeps knowing nothing but the ladder.
+    """
+    import ast
+    import re
+    from pathlib import Path
+
+    want = set(RUNGS.values())
+    problems = []
+    for rel, pattern in RESTATEMENTS:
+        path = Path(root) / rel
+        if not path.is_file():
+            problems.append(f"{rel} is not there, and it restates the ladder")
+            continue
+        m = re.search(pattern, path.read_text(encoding="utf-8"))
+        if m is None:
+            problems.append(
+                f"{rel} no longer carries the ladder in the shape this check "
+                f"reads ({pattern!r}); it restates the ladder and cannot go "
+                f"unchecked")
+            continue
+        body = m.group(1)
+        if body.lstrip().startswith("{"):
+            got = set(ast.literal_eval(body).values())
+        else:
+            got = {int(t) for t in body.split()}
+        if got != want:
+            problems.append(
+                f"{rel} allows latitudes {sorted(got)} and the ladder is "
+                f"{sorted(want)}: missing {sorted(want - got)}, extra "
+                f"{sorted(got - want)}")
+    return problems

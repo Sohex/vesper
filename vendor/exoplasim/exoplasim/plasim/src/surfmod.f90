@@ -133,6 +133,7 @@
          if (klot == 1) then ! single array (no annual cycle)
             read (ncodunit,*,iostat=io) ih(:)
             call checkio(io,'get_surf_array 1')
+            call check_surf_header(ih,yf)
             read (ncodunit,*,iostat=io) pa(:,1)
             call checkio(io,'get_surf_array 2')
             ilot = 1
@@ -140,6 +141,7 @@
             do jlot = 1 , klot
                read (ncodunit,*,iostat=io) ih(:)
                if (io /= 0) exit ! end-of-file
+               call check_surf_header(ih,yf)
                read (ncodunit,*,iostat=io) pa(:,jlot)
                call checkio(io,'get_surf_array 3')
                ilot = jlot ! arrays read so far
@@ -176,6 +178,40 @@
       endif
       return
       end subroutine get_surf_array
+
+
+!     ============================
+!     SUBROUTINE CHECK_SURF_HEADER
+!     ============================
+
+      subroutine check_surf_header(kh,yf)
+      use surfmod
+      integer :: kh(8)              ! the eight-word SRA header just read
+      character (len=*) :: yf       ! the file it came from
+
+!     THE HEADER CARRIES THE GRID, AND IT USED TO BE READ AND DISCARDED.
+!     Word 5 is NLON and word 6 is NLAT, written by every producer of these
+!     files. get_surf_array read them into ih(:) and never looked, so a field
+!     on another rung's grid was taken by the list-directed read that follows:
+!     an oversized file silently truncated to the running model's NUGP, an
+!     undersized one an I/O error with no grid named. Nothing downstream can
+!     recover the grid afterwards, because the array it lands in is dimensioned
+!     by the COMPILE-TIME NLAT.
+!
+!     A named refusal rather than a warning, because the alternative is a run
+!     that integrates a rearranged planet and reports nothing. The project side
+!     already refuses this way -- read_sra compares the whole header -- and this
+!     is the model saying it for itself. world-fuh.
+
+      if (kh(5) /= NLON .or. kh(6) /= NLAT) then
+         write(nud,*) 'Surface file ',trim(yf),' is on the wrong grid'
+         write(nud,*) 'Header says NLON =',kh(5),' NLAT =',kh(6)
+         write(nud,*) 'This model is    NLON =',NLON,' NLAT =',NLAT
+         call mpabort('Surface file on the wrong grid')
+      endif
+
+      return
+      end subroutine check_surf_header
 
 
 !     =========================

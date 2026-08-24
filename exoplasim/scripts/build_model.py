@@ -31,6 +31,11 @@ so two configurations cannot delete each other's objects. The old build had one
 `plasim/bld` that it emptied on entry, which is why `rebuild_binaries.py` had to
 be serial across its twelve executables and why the tree needed marker files to
 notice it held the wrong configuration. Both go away.
+
+AND NOT THERE WHEN THE SOURCE IS PATCHED. A verification arm that corrupts
+`plasim/src` in place builds under `build/patched/` with a hash of what it
+patched in the directory name, and cannot publish. `patched_sources` carries
+that argument.
 """
 from __future__ import annotations
 
@@ -49,15 +54,21 @@ import rungs  # noqa: E402  -- the ladder registry; _paths put lib on the path
 PKG = PROJECT_ROOT / "vendor" / "exoplasim" / "exoplasim"
 PLASIM = PKG / "plasim"
 BUILD_ROOT = PROJECT_ROOT / "vendor" / "exoplasim" / "build"
+# WHERE A PATCHED SOURCE BUILDS. Never under BUILD_ROOT itself. See
+# `patched_sources` for the whole argument.
+PATCHED_ROOT = BUILD_ROOT / "patched"
 SHTNS_PREFIX = PROJECT_ROOT / "vendor" / "shtns-install"
+
+# The markers a verification arm writes into the model source before it corrupts
+# it. `scripts/smoke_test.py:check_no_control_patch` refuses to let either be
+# committed; this file refuses to let either reach the registry's build tag.
+CONTROL_MARKERS = ("CONTROL PATCH IN PROGRESS", "! CONTROL:")
 
 # Resolution name -> latitudes, from `lib/gridding.py`, which is the one place
 # the ladder is written down and checks each rung's name against its own grid.
 # A value outside it must be an ERROR: `-r 170` used to build T21 and say
 # nothing. SPAT-2.
 RESOLUTIONS = dict(rungs.RUNGS)
-# T63 and T106 are not powers of two in longitude and need the other FFT.
-NEEDS_FFT991 = {"T63", "T106"}
 
 PARMODES = ("serial", "mpi", "omp")
 
@@ -96,19 +107,70 @@ def resolve(res: str) -> tuple[str, int]:
         f"Latitude counts: {' '.join(str(v) for v in RESOLUTIONS.values())}.")
 
 
+def patched_sources() -> list[Path]:
+    """The model source files a verification arm has deliberately corrupted.
+
+    WHY THE BUILD HAS TO ASK. The tag below names every input that changes a
+    byte of the executable EXCEPT the state of the model source, so an arm that
+    patches `plasim/src` in place builds into the same directory the registry
+    entry claims. That happened: `verify_shtns_model.sh` strips the spectral
+    filter out of `shtnsmod.f90` for its control arm, and
+    `build/t21_l10_p16_omp_production/plasim.x` was left holding a binary with
+    zero filter sites while the live source had eleven. `--no-publish` keeps an
+    arm out of the model run directory; it does nothing about the build
+    directory, and `--print-path` hands the caller exactly that path. The
+    `drop+extra` hash exists to keep flag arms apart, and a source patch is an
+    arm the tag could not see. world-70k.
+
+    THE MARKER IS THE SIGNAL, and it is the one that already exists: a control
+    patch writes `CONTROL PATCH IN PROGRESS` or `! CONTROL:` into the file
+    BEFORE it corrupts it, precisely so a tree in that state is recognisable,
+    and `smoke_test.check_no_control_patch` refuses to let one be committed.
+    Reading the same marker here means there is one convention rather than two.
+    It cannot see a patch that only deletes code, which is why the rule is that
+    a control adds its marker first.
+    """
+    src = PLASIM / "src"
+    if not src.is_dir():
+        return []
+    out = []
+    for path in sorted(src.glob("*.f90")):
+        text = path.read_text(errors="replace")
+        if any(m in text for m in CONTROL_MARKERS):
+            out.append(path)
+    return out
+
+
+def source_state(patched: list[Path]) -> str:
+    """A short hash of the patched files, so two control arms do not collide.
+
+    The same shape as the extra-flag hash: an arm's identity is in its
+    directory's name, so two arms cannot land in one directory and quietly
+    reuse each other's objects.
+    """
+    h = hashlib.sha256()
+    for path in patched:
+        h.update(path.name.encode())
+        h.update(path.read_bytes())
+    return h.hexdigest()[:8]
+
+
 def tag(res: str, levels: int, ranks: int, parmode: str, profile: str,
-        frame_pointers: bool, extra: list[str]) -> str:
+        frame_pointers: bool, extra: list[str], source: str = "") -> str:
     """The build directory's name, and it names every input that changes a byte.
 
     Extra flags are hashed rather than spelled out, because they contain
     characters a directory name cannot carry -- but they ARE in the name, so two
     flag arms cannot land in one directory and quietly reuse each other's
-    objects."""
+    objects. `source` is the same thing for a patched model source, and it goes
+    under `PATCHED_ROOT` rather than beside the registry's builds."""
     parts = [res.lower(), f"l{levels}", f"p{ranks}", parmode, profile]
     if frame_pointers:
         parts.append("fp")
     if extra:
         parts.append("x" + hashlib.sha256(" ".join(extra).encode()).hexdigest()[:8])
+    if source:
+        parts.append("s" + source)
     return "_".join(parts)
 
 
@@ -165,13 +227,44 @@ def build(res_arg: str, levels: int, ranks: int, parmode: str, profile: str,
     # flag sweep. An arm's flags are part of its build directory's name.
     flags = flags + extra
 
-    fft = "fft991mod" if res in NEEDS_FFT991 else "fftmod"
+    # WHICH FFT, from the ladder registry and not from a set named here: the
+    # rule is which radix chain covers this rung's longitude count, and it is
+    # derived in `lib/rungs.py:fft_module` rather than listed. A hand-kept set
+    # was how the postprocessor came to route T63 and T106 into the module
+    # that cannot transform them. world-i38.
+    fft = rungs.fft_module(res)
     compiler = "mpif90" if parmode == "mpi" else "gfortran"
     if shutil.which(compiler) is None:
         raise SystemExit(f"{compiler} is not on PATH, and --parmode {parmode} needs it.")
 
-    bdir = BUILD_ROOT / tag(res, levels, ranks, parmode, profile, frame_pointers,
-                            drop + extra)
+    # A PATCHED SOURCE IS AN ARM, and an arm is not a registry entry. It gets
+    # its own root and its own hash, and it never publishes -- the registry's
+    # tag has to keep meaning "built from the committed model source", and a
+    # caller that reads --print-path gets the arm it asked for either way.
+    patched = patched_sources()
+    root, source = BUILD_ROOT, ""
+    if patched:
+        names = ", ".join(f.name for f in patched)
+        if publish:
+            # LOUD RATHER THAN DIVERTED, because a caller that asked to publish
+            # is a registry caller: `rebuild_binaries.py` builds the whole
+            # matrix this way, and a control patch left behind by an
+            # interrupted verification would otherwise be what the registry
+            # records the sha of.
+            raise SystemExit(
+                f"the model source carries a control patch marker in {names}, "
+                f"so this build would not be the model. An arm built from a "
+                f"patched source cannot publish under the registry's naming: "
+                f"pass --no-publish, or restore the source with "
+                f"`git checkout -- vendor/exoplasim/exoplasim/plasim/src`.")
+        root = PATCHED_ROOT
+        source = source_state(patched)
+        print(f"model source carries a control patch marker in {names}: "
+              f"building under {PATCHED_ROOT.name}/ so the registry's tag keeps "
+              f"meaning the committed source.", file=sys.stderr)
+
+    bdir = root / tag(res, levels, ranks, parmode, profile, frame_pointers,
+                      drop + extra, source)
     bdir.mkdir(parents=True, exist_ok=True)
 
     configure = [

@@ -27,23 +27,24 @@ invents. This number is what the core cannot avoid touching.
 """
 import argparse
 import sys
+from pathlib import Path
 
-# (NTRU, NLAT, NLON) per spectral truncation, as build_model.py resolves them.
-RESOLUTIONS = {
-    "T21":  (21,   32,   64),
-    "T31":  (31,   48,   96),
-    "T42":  (42,   64,  128),
-    "T85":  (85,  128,  256),
-    "T127": (127, 192,  384),
-    "T170": (170, 256,  512),
-    "T213": (213, 320,  640),
-}
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import _paths  # noqa: F401  -- anchors paths from the file, and puts lib on sys.path
+import rungs  # noqa: E402  -- the ladder registry, from lib/
+
+# THE LADDER COMES FROM lib/rungs.py and is not restated here. The copy that
+# used to sit at this line claimed in its comment that it mirrored
+# build_model.py and did not: it invented T213, which is on no ladder and has no
+# binary, and offered it through `--res` as though a per-die budget for it meant
+# something, while refusing T63 and T106, which are rungs. A budget is quotable,
+# so a rung it can be asked about has to be a rung that can be built. world-qjq.
 
 CEILING_MB = 32.0   # docs/src/reference/environment.md
 
 
 def budget(res: str, nthreads: int, per_die: int, nlev: int = 10):
-    ntru, nlat, nlon = RESOLUTIONS[res]
+    nlat, nlon, ntru = rungs.geometry(res)
     ncsp = (ntru + 1) * (ntru + 2) // 2
     nrsp = (ntru + 1) * (ntru + 2)
     nlpp = nlat // nthreads
@@ -89,7 +90,7 @@ def budget(res: str, nthreads: int, per_die: int, nlev: int = 10):
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--res", default="T170", choices=sorted(RESOLUTIONS))
+    ap.add_argument("--res", default="T170", choices=sorted(rungs.RUNGS))
     ap.add_argument("--threads", type=int, default=16)
     ap.add_argument("--per-die", type=int, default=8,
                     help="threads sharing one L3. 8 on a 7950X3D CCD.")
@@ -97,8 +98,9 @@ def main() -> int:
     ap.add_argument("--ceiling", type=float, default=CEILING_MB)
     a = ap.parse_args()
 
-    if a.threads <= 0 or RESOLUTIONS[a.res][1] % a.threads:
-        print(f"{a.res} has NLAT={RESOLUTIONS[a.res][1]}, which {a.threads} does not divide",
+    nlat = rungs.geometry(a.res)[0]
+    if a.threads <= 0 or nlat % a.threads:
+        print(f"{a.res} has NLAT={nlat}, which {a.threads} does not divide",
               file=sys.stderr)
         return 2
 
