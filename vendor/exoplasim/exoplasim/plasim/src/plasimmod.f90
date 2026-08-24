@@ -182,18 +182,20 @@
       integer :: ncoeff   =  0  ! number of modes to print
       integer :: ndiag    =  0  ! write diagnostics interval 0 = every 10th. day
       integer :: ngui     =  0  ! 1: run with GUI
+!     NOT A NAMELIST KEY. sellon selects the column the X11 GUI draws, and
+!     `change_sellon` in the uncompiled guimod.f90 is the only thing that ever
+!     writes it. It was in plasim_nl, where setting it did nothing in any
+!     buildable configuration: guimod_stub.f90 is what CMakeLists compiles and
+!     its column routines are bodyless. world-9fk.
       integer :: sellon   =  1  ! index of longitude for column mode
       integer :: nkits    =  3  ! number of initial timesteps
       integer :: nrestart =  0  ! 1 for true, 0 for false
       integer :: nrad     =  1  ! switches radiation off/on  1/0
-      integer :: nflux    =  1  ! vertical diffusion 1/0
       integer :: nadv     =  1  ! advection 1/0=(y/n)
       integer :: nhordif  =  1  ! horizontal diffusion 1/0=(y/n)
       integer :: neqsig   =  0  ! equidistant sigma levels (1/0)=(y/n) !2=log-equidistant; 3=pseudolog; 4=lin-equidistant
       integer :: nprint   =  0  ! comprehensive print out (only for checks!)
       integer :: nprhor   =  0  ! grid point for print out (only for checks!)
-      integer :: npacksp  =  0  ! pack spectral fields on output
-      integer :: npackgp  =  0  ! pack gridpoint fields on output
       integer :: naccuout =  0  ! accumulation counter for diagnistics
       integer :: ndiaggp  =  0  ! switch for frank's gp-diagnostic arrays
       integer :: ndiagsp  =  0  ! switch for frank's sp-diagnostic arrays
@@ -993,6 +995,8 @@
       integer, parameter :: PLALSG = 3
       parameter (NPARCS = 5)          ! Number of GUI parameters
       character(6) :: yguinam(NPARCS) ! Variable names for GUI display
+!     NOT A NAMELIST KEY, for the same reason as sellon above. Its only reader
+!     is initgui in the uncompiled guimod.f90. world-9fk.
       integer(kind=4) :: nguidbg   = 0        ! 1: GUI debug printout
       integer(kind=4) :: model     = PLASIM
       integer :: nshutdown = 0        ! Flag for shutdown request
@@ -1041,8 +1045,8 @@
 !$omp&  ndiagsp2d,ndiagsp3d,ndivdamp,ndl,nener3d,nenergy,nentro3d,nentropy,neqsig,nfilter,&
 !$omp&  nenergyfix,denergyfix,denergyd24,denergyacc,nenergyacc,nenergywin,&
 !$omp&  dconvacc,nconvacc,nconvtime,dconvspd,dconvspa,dsdiv,ndealias,ddealias,&
-!$omp&  nfilterexp,nfixorb,nflux,ngenkeplerian,nglspec,ngptfilter,ngui,nguidbg,nhcadence,nhcstp,&
-!$omp&  nhdiff,nhordif,nhurricane,nindex,nkits,nlowio,noutput,npackgp,npacksp,nperpetual,nprhor,&
+!$omp&  nfilterexp,nfixorb,ngenkeplerian,nglspec,ngptfilter,ngui,nguidbg,nhcadence,nhcstp,&
+!$omp&  nhdiff,nhordif,nhurricane,nindex,nkits,nlowio,noutput,nperpetual,nprhor,&
 !$omp&  nprint,nproc,nqspec,nrad,nrdrag,nrestart,nrho,nscatsp,nseedlen,nsela,&
 !$omp&  nshtns,nshutdown,nsnapshot,&
 !$omp&  nspinit,nsponge,nspvfilter,nstep,nstep1,nstps,nstpw,nstratosponge,nsync,ntime,ntpal,ntspd,&

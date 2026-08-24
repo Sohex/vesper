@@ -45,7 +45,6 @@
       real :: PEARTH = 79.0 ! Annual precipitation on modern Earth that is relevant for weathering.
                            ! 79 cm/yr (Chen 2002 & Schneider 2014)
       real :: WMAX = 1.0 ! Maximum weathering rate for the supply-limited case, in ubar/yr
-      real :: zeta = 0.0 !Dependence of max weathering on precipitation (not used)
       
       real :: psurf0 = 101100.0 !Mean sea-level pressure
 !
@@ -84,7 +83,7 @@
 !$omp threadprivate(avgweathering,aweathering,beta,carbon_namelist,cstep,dglobe,dpco2dt,frequency,&
 !$omp&  interval,istep,kact,krun,localavgprecip,localavgtemps,localavgweather,localprecip,&
 !$omp&  localweathering,ncarbon,nco2evolve,nsupply,pearth,psurf0,timeweight,tune1,tune2,vearth,&
-!$omp&  version,volcanco2,wmax,zeta)
+!$omp&  version,volcanco2,wmax)
 
       end module carbonmod
       
@@ -95,7 +94,7 @@
       subroutine carbonini
       use carbonmod
       
-      namelist/carbonmod_nl/ncarbon,volcanco2,kact,krun,beta,frequency,VEARTH,PEARTH,nsupply,WMAX,zeta,nco2evolve
+      namelist/carbonmod_nl/ncarbon,volcanco2,kact,krun,beta,frequency,VEARTH,PEARTH,nsupply,WMAX,nco2evolve
       
       if (mypid==NROOT) then
          open(23,file=carbon_namelist)
@@ -384,7 +383,10 @@
       namelist /plasim_nl/ &
      &               noutput,ngui,n_start_year,       &
      &               n_days_per_year,n_run_years,n_run_months,n_run_days,   &
-     &               kick,mpstep,naqua,ndiag,nguidbg,nqspec,  &  
+!     nguidbg is gone from here too, world-9fk: this group WRITES a new
+!     plasim_namelist, and plasim_nl no longer declares that name, so a key
+!     left here would abort the next read.
+     &               kick,mpstep,naqua,ndiag,nqspec,  &  
      &               nveg,nwpd,nprint,nsync,syncstr,psurf
       if (mypid == NROOT) then
       open(23,file=trim(plasim_namelist)//'.new',form='formatted')

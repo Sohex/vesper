@@ -7,7 +7,6 @@
 !
 !     namelist parameters:
 !
-      integer :: nfixer = 1 ! switch for negative humidity fix (1/0 : on/off)
       integer :: nudge  = 0 ! switch for t-nudging (1/0 : on/off, 2: flxcorr)
       real    :: tnudget = 10. ! timescale for t-nudging (days)
 !
@@ -25,7 +24,7 @@
 
 !     Threads instead of ranks: a thread owns what a rank owned.
 !     Inert without -fopenmp, so the MPI and serial builds are unchanged.
-!$omp threadprivate(dfnudge,dtnudge,nfixer,nudge,time4fix,time4mis,tnudget,version,zgw)
+!$omp threadprivate(dfnudge,dtnudge,nudge,time4fix,time4mis,tnudget,version,zgw)
 
       end module miscmod
 
@@ -38,7 +37,7 @@
 !
 !     initialization
 !
-      namelist/miscmod_nl/nfixer,nudge,tnudget
+      namelist/miscmod_nl/nudge,tnudget
 !
       if (mypid == NROOT) then
          open(11,file=miscmod_namelist)
@@ -52,7 +51,6 @@
          write(nud,miscmod_nl)
       endif
 
-      call mpbci(nfixer)
       call mpbci(nudge)
       call mpbcr(tnudget)
 
@@ -90,6 +88,13 @@
        call mksecond(zsec,0.)
        call mksecond(zsec1,0.)
       endif
+!     UNCONDITIONAL, and there is no key that says otherwise. `nfixer` was
+!     declared in miscmod_nl and commented as the on/off switch for this call,
+!     and it was tested nowhere: setting NFIXER=0 was silently ignored. The
+!     switch is gone rather than wired up, because negative specific humidity
+!     is not a state this model may integrate -- every zqsat, every latent heat
+!     and every tracer division below assumes q >= 0 -- so "off" was never a
+!     configuration, only a claim. world-bsp.
       call fixer
       if(ntime == 1) then
        call mksecond(zsec1,zsec1)
@@ -130,6 +135,23 @@
 
 
       subroutine fixer
+!
+!     Remove negative specific humidity by BORROWING moisture, first inside a
+!     column, then along a latitude row, then globally.
+!
+!     A MASS REDISTRIBUTION, and it runs every timestep. Column-integrated
+!     vapour is conserved to the extent that the global surplus covers the
+!     global deficit: the last step scales every positive value by
+!     (zzpos-zzneg)/zzpos and clips the negatives to zero, which moves the
+!     deficit onto the surplus and leaves the global integral where it was. In
+!     the branch where zzneg exceeds zzpos, zfac is negative and AMAX1 takes
+!     the whole column field to zero, which is a SINK and not a redistribution.
+!
+!     So a per-column water budget does not close across this call even when
+!     the global one does. Anything closing moisture or latent energy on a
+!     region has to carry the term; exoplasim/scripts/close_state_energy.py
+!     names it against its own vapour reservoir. world-bsp.
+!
       use miscmod
 !
       real zqn(NHOR,NLEV)    ! humidity in and out

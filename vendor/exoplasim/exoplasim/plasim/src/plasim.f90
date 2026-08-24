@@ -318,7 +318,6 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       call mpbci(n_start_year)
       call mpbci(n_start_month)
 
-      call mpbci(nflux   ) !
       call mpbci(nadv    ) !
       call mpbci(nhordif ) !
       call mpbci(nrad    ) !
@@ -1509,10 +1508,10 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
                    , ndel    , ndheat  , ndiag   , ndiagcf , ndiaggp    &
                    , ndiaggp2d , ndiaggp3d , ndesert                    &
                    , ndiagsp   , ndiagsp2d , ndiagsp3d, dttl            &
-                   , ndl     , nentropy, nentro3d, neqsig  , nflux      &
-                   , ngui    , nguidbg , nhdiff  , nhordif , nkits      &
+                   , ndl     , nentropy, nentro3d, neqsig               &
+                   , ngui    , nhdiff  , nhordif , nkits                &
                    , noutput , nlowio  , nstpw   , nsnapshot, nstps     &
-                   , npackgp , npacksp , nperpetual        , nprhor     &
+                   , nperpetual        , nprhor                         &
                    , nprint  , nqspec  , nrad    , nsela   , nshtns     &
                    , nsync                                             &
                    , ntime   , ntspd   , nveg    , nwpd    &
@@ -1520,7 +1519,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
                    , n_run_years , n_run_months  , n_run_days           &
                    , n_days_per_month, n_days_per_year, fixedlon        &
                    , nhcadence, hcstartstep, hcendstep, hcinterval      &
-                   , seed    , sellon  , nfilter , ngptfilter, nspvfilter   &
+                   , seed    , nfilter , ngptfilter, nspvfilter          &
                    , landhoskn0, nfilterexp, filterkappa                &
                    , syncstr , synctime, nrdrag  , frcmod               &
                    , dtep    , dtns    , dtrop   , dttrp                &

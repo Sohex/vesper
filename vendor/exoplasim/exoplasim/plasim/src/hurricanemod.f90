@@ -46,7 +46,6 @@
       
       integer :: hc_capture = 0
       integer :: nktrigger = 0 ! 1/0=yes/no Use the combined Komacek metric (exclude GPI etc)
-      integer :: ngpitrigger = 1 ! 1/0=yes/no This may be the only trigger that works reasonably well
       
 ! Thermodynamic Constants
       real :: CPD=1005.7       ! [J/kg.K] Specific heat of dry air at constant pressure
@@ -87,7 +86,7 @@
 !     Inert without -fopenmp, so the MPI and serial builds are unchanged.
 !$omp threadprivate(aa,allflag,alv0,baz,bb,ckcd,cl,cpd,cpv,cpvmcl,endthresh,eps,gpimask,gpithresh,&
 !$omp&  hc_capture,hc_indlog,hc_namelist,hc_output,k20flag,kstorms,laavmask,lavthresh,maxstormlen,&
-!$omp&  maxsurftemp,minstormlen,minsurftemp,mpotimask,ngpitrigger,nktrigger,nstormdiag,nstormlen,&
+!$omp&  maxsurftemp,minstormlen,minsurftemp,mpotimask,nktrigger,nstormdiag,nstormlen,&
 !$omp&  nstorms,nuh,rd,rvp,shear,sizethresh,swindmask,swindthresh,top,tsmask,ventimask,vithresh,&
 !$omp&  vmxthresh,vrmpimask,vrmthresh,wind,windflag,windmask,windthresh)
 
@@ -174,7 +173,7 @@
       
       namelist /hurricane_nl/ CKCD, VITHRESH, GPITHRESH, VMXTHRESH, LAVTHRESH, WINDTHRESH, &
      &                        SWINDTHRESH, VRMTHRESH, SIZETHRESH, baz, top, hc_capture, &
-     &                        nktrigger, ngpitrigger, nstorms, nstormdiag, ENDTHRESH, &
+     &                        nktrigger, nstorms, nstormdiag, ENDTHRESH, &
      &                        MAXSTORMLEN, MINSTORMLEN, MINSURFTEMP, MAXSURFTEMP 
       
       
@@ -210,7 +209,6 @@
       call mpbcr(top)
       call mpbci(hc_capture)
       call mpbci(nktrigger)
-      call mpbci(ngpitrigger)
       call mpbci(SIZETHRESH)
       call mpbci(ENDTHRESH)
       call mpbci(MINSTORMLEN)
@@ -350,9 +348,7 @@
       call mpgagp(zzf1,swind(:)*gpimask(:),1)
       if (mypid==NROOT) then
          swindmax=maxval(zzf1)
-         trigger=windtrigger*(nktrigger-1)+k20trigger*nktrigger!(nktrigger*(1-ngpitrigger)*k20trigger+ &
-!      &           (1-nktrigger)*(1-ngpitrigger)*alltrigger+ &
-!      &           npgitrigger*windtrigger)
+         trigger=windtrigger*(nktrigger-1)+k20trigger*nktrigger
          nstormlen = nstormlen + trigger
          if (hc_capture*trigger .gt. 0.5) then
             if (nwritehurricane < 1) then

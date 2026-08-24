@@ -15,7 +15,6 @@
 
 !     namelist parameter
 
-      integer :: nsurf = 1
       integer :: noromax = NTRU
 
       real :: doro(NHOR) = 0.0     ! orography
@@ -23,7 +22,7 @@
 
 !     Threads instead of ranks: a thread owns what a rank owned.
 !     Inert without -fopenmp, so the MPI and serial builds are unchanged.
-!$omp threadprivate(doro,nfreefo,noromax,nsurcod,nsurf,nsurnum,version,ysfile,ysurnam)
+!$omp threadprivate(doro,nfreefo,noromax,nsurcod,nsurnum,version,ysfile,ysurnam)
 
       end module surfmod
 
@@ -423,7 +422,7 @@
 !
 !     initialize surface parameter
 !
-      namelist/surfmod_nl/nspinit,nsurf,noromax
+      namelist/surfmod_nl/nspinit,noromax
 
       if (mypid == NROOT) then
        open(11,file=surfmod_namelist)
@@ -440,7 +439,6 @@
        write(nud,surfmod_nl)
       endif
 
-      call mpbci(nsurf)
       
       call glacierprep
 

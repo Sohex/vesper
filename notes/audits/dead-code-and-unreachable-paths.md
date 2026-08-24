@@ -326,15 +326,23 @@ have no writer anywhere in this project. Most of those are ordinary unused
 knobs. These are different: they are declared, documented, sometimes written,
 and read by no code at all.
 
-**`nfixer` is the one that matters.** Declared in `miscmod_nl`
-(`miscmod.f90:41`), default 1 at `:10`, commented "switch for negative humidity
-fix (1/0 : on/off)". It is tested nowhere: `miscstep` calls `fixer`
-unconditionally at `miscmod.f90:93`. `fixer` (`:132-198`) borrows moisture
-between columns to remove negative humidity, so a mass redistribution term
-documented as optional is in fact always on. This bears on the closure work in
-`exoplasim/scripts/close_*_energy.py`. It is not fork damage: the independently
-vendored PlaSim under `vendor/cgenie/genie-plasim/src/fortran/miscmod.f90:91`
-has the same unconditional call.
+**`nfixer` was the one that mattered, and it is gone.** It was declared in
+`miscmod_nl`, defaulted to 1 and was commented "switch for negative humidity fix
+(1/0 : on/off)", and it was tested nowhere: `miscstep` calls `fixer`
+unconditionally, so setting NFIXER=0 was silently ignored. Not fork damage --
+the independently vendored PlaSim under
+`vendor/cgenie/genie-plasim/src/fortran/miscmod.f90` has the same unconditional
+call. The switch was removed rather than wired up, because negative specific
+humidity is not a state this model may integrate and "off" was never a
+configuration.
+
+What the fixer does is now recorded where it runs: it borrows moisture between
+columns, first within a column, then along a latitude row, then globally, and
+the global step conserves the column integral except in the branch where the
+global deficit exceeds the global surplus, where it takes the field to zero and
+is a sink. So a global moisture or latent-energy closure carries no term for it
+and a regional one does. `exoplasim/scripts/close_state_energy.py` names it
+against its vapour reservoir.
 
 **`aeroqlw` is fork-added and has no writer.** Declared `radmod.f90:906`,
 defined `:305`, default 0.0, and described by the fork's own comment at
@@ -346,12 +354,21 @@ why `run_exoplasim.py:1242` pins `l_aerorad = 0`. The other half of that pin's
 stated rationale, that `aero_ini` never populates `apart` from the namelist, was
 fixed at `aeromod.f90:277` and the comment has not caught up.
 
-Read by nothing, and several of them written into every run: `nflux`,
-`npackgp`, `npacksp`, `nguidbg` (written `0` in all nine runs), `nsurf`, `zeta`
-(whose own declaration at `carbonmod.f90:48` says "not used", and which the
-shipped template writes into every `carbonmod_namelist`), and `ngpitrigger`.
-`sellon` is used only by the four GUI stub calls at `plasim.f90:2854-2857`, so
-it is a knob with no effect in any buildable configuration.
+Read by nothing, and now retired: `nflux`, `npackgp`, `npacksp`, `nsurf`,
+`zeta` (whose own declaration said "not used", and which the shipped
+`carbonmod_namelist` template wrote into every run) and `ngpitrigger` are gone
+from their groups, their declarations, their broadcasts and the shipped
+templates. Of the seven, only `nguidbg` and `zeta` were ever staged: `npackgp`,
+`npacksp` and `nsurf` appear in no template and no run, contrary to the earlier
+reading of this row.
+
+`nguidbg` and `sellon` are out of `plasim_nl` and out of the template but keep
+their module declarations, because their only reader is the uncompiled
+`guimod.f90` and the compiled build passes `sellon` to bodyless column routines
+in `guimod_stub.f90`. `nguidbg` also had a second declaration inside the private
+`plasim_nl` that `carbonmod`'s `psurfupdate` WRITES; that group emits a new
+`plasim_namelist`, and `plasim_nl` no longer declares the name, so it had to go
+from there too or the next read would abort.
 
 ## 6. What this makes of the earlier audit
 
