@@ -499,9 +499,23 @@ glaciers-off pair cannot share a run directory.
 
 ## Full audit of ExoPlaSim configuration
 
-`configure()` takes 102 parameters. We set 26; the rest sit at defaults. Audited
+`configure()` takes 102 parameters. We set 28; the rest sit at defaults. Audited
 against the source rather than the documentation, because several defaults are
 wrong for this world in ways nothing announces.
+
+TWO KINDS OF DEFAULT, and this audit originally conflated them. The scripts
+instantiate `exo.Earthlike`, not the base `Model`, and `Earthlike.configure` has
+its own signature: a parameter left unset there takes the SUBCLASS's value, not
+the library's. `vtype` and `modeltop` were the two that mattered, and the audit
+recorded `modeltop` as left at None and the resulting `PTOP` as the base
+default. Neither was true: at None, `configure`'s `if modeltop:` is false, `PTOP`
+is never written, and the model runs `plasimmod.f90`'s compiled 7500 Pa. The
+5000 Pa this project actually integrated came from `Earthlike`'s pin at 50 hPa,
+and `vtype = 4` came from the same signature and was not mentioned here at all.
+Both are now declared in `config/planet.yaml` as `model.vertical_grid` and
+`model.model_top_hpa`, passed explicitly, and checked by
+`verify_staged_namelists`. The values are unchanged, so nothing that has run
+moved.
 
 ### Changed as a result
 
@@ -555,7 +569,6 @@ bistability including glacier albedo hysteresis and excluding ice-sheet growth.
 - `co2weathering`, `evolveco2` False. CO2 is fixed at 450 ppm by design; a
   silicate-weathering feedback is a separate experiment.
 - `aquaplanet`, `desertplanet`, `drycore`, `aerosol`, `synchronous` all False.
-- `modeltop` None, giving `PTOP` 5000 Pa, appropriate for a 1 bar atmosphere.
 
 ### Left at defaults, but worth knowing
 

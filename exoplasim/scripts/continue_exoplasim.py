@@ -467,6 +467,13 @@ def main() -> None:
         ozone=bool(atmosphere["ozone"]),
         mldepth=float(surface["mixed_layer_depth_m"]),
         twobandalbedo=bool(config["radiation"]["two_band_albedo"]),
+        # DECLARED, not inherited. Earthlike.configure supplies vtype=4 and
+        # modeltop=50.0 from its own signature, so NEQSIG and PTOP reached the
+        # model from a library subclass default that no document here named.
+        # Passed explicitly so the vertical grid and the model top are config,
+        # and verified below like every other config-set key. world-a05.
+        vtype=int(model_cfg["vertical_grid"]),
+        modeltop=float(model_cfg["model_top_hpa"]),
         timestep=float(model_cfg["timestep_minutes"]),
         physicsfilter=model_cfg["physics_filter"],
         # RESTATED, and they have to be. `configure()` writes FILTERKAPPA and

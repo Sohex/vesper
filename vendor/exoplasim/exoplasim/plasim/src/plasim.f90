@@ -1864,6 +1864,26 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
        
       elseif(neqsig==4) then
       
+!      THE QUARTIC, and what fixes its coefficients. sigmah(zsk) with
+!      zsk = jlev/NLEV is a quartic with no quadratic term, so three free
+!      coefficients, and two of them are determined rather than fitted:
+!
+!        sigmah(1) = 1                 the last half-level IS the surface
+!        d sigmah/d zsk = 0 at zsk = 1 half-levels bunch at the surface, which
+!                                      is what puts resolution in the boundary
+!                                      layer
+!
+!      a1 + a3 + a4 = 1 and a1 + 3 a3 + 4 a4 = 0, so choosing a1 leaves no
+!      freedom: a4 = -(1 - 4 a1)/... solves to a3 = 1.75, a4 = -1.5 at
+!      a1 = 0.75. The ONE fitted number is a1, the slope at the model top, and
+!      it sets how much of the column the upper half spans. It is upstream's and
+!      carries no derivation there.
+!
+!      The three lines below are the whole of what neqsig==4 adds over the
+!      neqsig==0 fallback: shift the top half-level to zero, normalise, and map
+!      affinely onto [ptop/psurf, 1]. Without them the model top sits wherever
+!      the polynomial puts it at this NLEV -- sigma 0.0766, or 7660 Pa at ten
+!      layers -- and `ptop` is ignored. world-a05.
        do jlev=1,NLEV
         zsk=REAL(jlev)/REAL(NLEV)
         sigmah(jlev)=0.75*zsk+1.75*zsk**3-1.5*zsk**4

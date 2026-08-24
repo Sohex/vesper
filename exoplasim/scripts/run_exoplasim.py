@@ -1941,6 +1941,13 @@ def expected_namelist_keys(config: dict) -> dict:
     # NHDIFF or TDISS* at all, so a dropped key is an ABSENT one and the model
     # falls back to `readnl`'s compiled T21/T42 branch. Checking only the config
     # keys catches the first; checking presence catches the second.
+    # world-a05: NEQSIG and PTOP came from a library subclass default. Now they
+    # are config, and a continuation that dropped them would put the model top
+    # somewhere else without saying so. PTOP is written in Pa from hPa.
+    if m.get("vertical_grid") is not None:
+        want["plasim_namelist"]["NEQSIG"] = float(m["vertical_grid"])
+    if m.get("model_top_hpa") is not None:
+        want["plasim_namelist"]["PTOP"] = float(m["model_top_hpa"]) * 100.0
     if m.get("filter_kappa") is not None:
         want["plasim_namelist"]["FILTERKAPPA"] = float(m["filter_kappa"])
     if m.get("filter_power") is not None:
@@ -2379,6 +2386,13 @@ def main() -> None:
         ozone=bool(atmosphere["ozone"]),
         mldepth=float(surface["mixed_layer_depth_m"]),
         twobandalbedo=bool(config["radiation"]["two_band_albedo"]),
+        # DECLARED, not inherited. Earthlike.configure supplies vtype=4 and
+        # modeltop=50.0 from its own signature, so NEQSIG and PTOP reached the
+        # model from a library subclass default that no document here named.
+        # Passed explicitly so the vertical grid and the model top are config,
+        # and verified below like every other config-set key. world-a05.
+        vtype=int(model_cfg["vertical_grid"]),
+        modeltop=float(model_cfg["model_top_hpa"]),
         timestep=float(model_cfg["timestep_minutes"]),
         physicsfilter=model_cfg["physics_filter"],
         filterkappa=float(model_cfg["filter_kappa"]),
