@@ -65,9 +65,9 @@ at a boundary, and with a deliberately wrong arm as a negative control:
 | folded, `skspgp(n+1)` | `14a1535d8495a0f74c3fae2e66b9a146` -- IDENTICAL |
 | wrong, `skspgp(n)` | aborts in `legini` on an out-of-bounds `skspgp(0)` |
 
-`verify_fold_indexing.sh`. The negative control failing is what makes the
-positive result mean anything, and it failed harder than designed: the off-by-one
-reads index 0 and `-fcheck=all` catches it before the integration starts.
+The negative control failing is what makes the positive result mean anything,
+and it failed harder than designed: the off-by-one reads index 0 and
+`-fcheck=all` catches it before the integration starts.
 
 T127 cannot be tested by either route. With the physics filter disabled the
 ORIGINAL model reaches a NaN in `lwr_` within 20 steps and `-ffpe-trap` kills
@@ -127,7 +127,7 @@ Offered to `alphaparrot/ExoPlaSim` as PR #64 and declined, correctly.
 
 The maintainer's stated reason was that the fold is invalid -- that it takes
 coefficients from one side of a convolution and applies them to the other. That
-part is wrong, and `verify_fold_indexing.sh` above is the demonstration: `qi(w,l)`
+part is wrong, and the mode-indexing check above is the demonstration: `qi(w,l)`
 is the kernel and carries the mode index, so each mode keeps its own factor at
 every latitude and nothing crosses the summation. The pull request invited that
 doubt by claiming a verification it did not have.
@@ -149,8 +149,29 @@ warning-clean so a real one would be visible.
 ## Reproducing
 
 The change itself is a commit under `vendor/exoplasim`; `git log` on
-`plasim/src/legmod.f90` is the record. To re-check it:
+`plasim/src/legmod.f90` is the record.
 
-    exoplasim/scripts/verify_fold_indexing.sh                 # mode indexing, with a negative control
-    exoplasim/scripts/verify_fold_exactness.sh T85            # filters off, contraction off
+Both checks compare a folded build against an UNFOLDED one, and the unfolded
+source stopped being recoverable from the tree the moment the fold was
+committed: `git show HEAD:legmod.f90` returns the folded file. So a re-check
+builds its unfolded arm from a commit before `52b96305` and drives the
+comparison through the script that takes both executables as arguments:
+
+    exoplasim/scripts/verify_filter_fold.sh <bed> <unfolded.x> <folded.x> <ranks> <steps>
     exoplasim/scripts/bench_ab.py --bed ... --a ... --b ...   # the A/B
+
+with both arms built at `-ffp-contract=off`, which reaches the compiler as an
+`--extra-flag` to `build_model.py`.
+
+The mode-indexing check needs the test filter on top of that: an `nfilter`
+branch in `legini` setting `skgpsp(n)` and `skspgp(n)` to `2.0**(-mod(n,2))`,
+so the factor alternates between exact powers of two and an off-by-one in the
+mode index changes the factor on EVERY mode rather than only at a boundary,
+plus a third arm reading `skspgp(n)` as the negative control.
+
+The two scripts that drove those from a development worktree are in `52b96305`
+and were retired under world-en0. They recovered their unfolded arm with
+`git show HEAD:` and `git checkout --`, so from the commit that introduced them
+onward both arms were the same source: a repair that only repointed their paths
+would have made them pass without comparing anything, which is the defect this
+whole note is about.
