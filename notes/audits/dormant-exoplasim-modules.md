@@ -195,15 +195,20 @@ Selected against by a variant slot: `fft991mod.f90` (only T63 and T106 choose
 it, and neither is in the registry matrix), `p_mars.f90` (`PLASIM_PLANET`
 defaults to `p_earth` and `build_model.py` never passes the flag).
 
-Compiled by no configuration and reachable by no flag, because the build names
+Compiled by no configuration and reachable by no flag, because the build named
 them as literals with no variant slot at all: `rainmod_bm.f90`,
-`rainmod_mca.f90` and `rainmod_kuo_old.f90` (`CMakeLists.txt:152` hardcodes
-`rainmod.f90`), `cpl.f90`, `guimod.f90`, `pumax.c`, `mpimod_multi.f90`, and
-`p_exo.f90`, which `CMakeLists.txt:61` does not admit as a legal value.
+`rainmod_mca.f90` and `rainmod_kuo_old.f90` (`CMakeLists.txt` hardcodes
+`rainmod.f90`), `cpl.f90`, `guimod.f90`, `pumax.c`, and `p_exo.f90`, which
+`CMakeLists.txt` did not admit as a legal value.
 
 Dead in the tree rather than deselected: `icemod_template.f90`,
 `plasim_dummy.f90`, `readdat.f90`, `resmod_def.f90`, and `outdiag.f90`, which
-duplicates the subroutine that lives at `outmod.f90:1096`.
+duplicated the subroutine in `outmod.f90`.
+
+All of the above were deleted under world-cmz, and the unreferenced procedures
+inside the surviving modules under world-ro6. `mpimod_multi.f90` is the one
+exception still standing: it belongs to the MPI removal, world-38b, because the
+whole serial and mpi parmode axis goes at once.
 
 `notes/audits/dead-code-and-unreachable-paths.md` carries the line counts, the
 two build options that are accepted and cannot compile, and the consequence that

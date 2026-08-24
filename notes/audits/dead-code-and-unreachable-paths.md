@@ -140,17 +140,24 @@ build.
 doubled comma inside the `planet_nl` continuation, so `-DPLASIM_PLANET=p_mars`
 is a validated, documented option that fails the build.
 
-**`p_exo.f90` is not a legal value, and it is the one that matters.**
-`CMakeLists.txt:61` does not list it, and `exoplasim/scripts/build_model.py`
-never passes `-DPLASIM_PLANET` at all, so the CMake cache default `p_earth`
-always wins. `p_exo.f90` is the only planet module exposing `alv`, `als` and
-`tmelt` in `planet_nl`: the latent heat of vaporisation, the latent heat of
-sublimation, and the melting point. On this fork the module that would make the
-modelled water thermodynamics settable is the one the build refuses.
+**Resolved by world-58v.** `p_exo.f90` was never a legal value --
+`CMakeLists.txt` did not list it and `build_model.py` never passed
+`-DPLASIM_PLANET`, so the cache default `p_earth` always won -- and it was the
+only planet module exposing `alv`, `als` and `tmelt` in `planet_nl`: the latent
+heat of vaporisation, the latent heat of sublimation, and the melting point.
+Those three now live in `p_earth.f90`'s `planet_nl`, broadcast to every thread
+because they are threadprivate and only NROOT reads the namelist. The
+`PLASIM_PLANET` axis, `p_exo.f90` and `p_mars.f90` are gone, so there is one
+planet module and the modelled water thermodynamics are settable on it.
 
-**All fifteen are hashed into the binary registry.** `model_sources()` globs
-`SRC/*.f90`, so editing any file in this list invalidates all five binaries'
-provenance while changing nothing they contain.
+**They were hashed into the binary registry, and that is fixed.**
+`model_sources()` globbed `SRC/*.f90`, so editing any file in this list
+invalidated all five binaries' provenance while changing nothing they contain.
+world-cmz replaced the glob: the compiled set is now read out of
+`CMakeLists.txt`, so a file that sits in `plasim/src` and is in no source list
+cannot contribute to a binary's provenance. That is what makes the two files
+deliberately kept for clim-53 -- `newsnow.f90` and `buildice.f90` -- editable
+without invalidating anything.
 
 ### 2b. Whole trees, about 120 MB
 

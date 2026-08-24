@@ -64,13 +64,15 @@ verified" over both reversions.
 
 ## The four mechanisms
 
-**I. The build compiles Earth's planet module.** `plasim/CMakeLists.txt:38`
-defaults `PLASIM_PLANET` to `p_earth`, and `exoplasim/scripts/build_model.py`
-never sets it. A generic `p_exo.f90` sits beside it, unbuilt, and it is
-materially better for this purpose: it drops `yplanet="Earth"` and `nplanet=3`,
-zeroes the Earth Jan-1 `meananom0`, and adds `alv`, `als` and `tmelt` to
-`planet_nl`. Verified from the run's own log rather than inferred: the diag
-prints `YPLANET="Earth"`.
+**I. The build compiles Earth's planet module.** It is the ONLY planet module:
+`p_earth.f90`. `PLASIM_PLANET` and the unbuildable `p_exo.f90` and `p_mars.f90`
+beside it were removed under world-58v, and the three keys `p_exo.f90` alone
+exposed -- `alv`, `als` and `tmelt`, the latent heats of vaporisation and
+sublimation and the melting point -- are now in `p_earth.f90`'s `planet_nl` at
+the values `plasimmod.f90` already declared, broadcast to every thread. What
+remains Earth-shaped here is the module's identity, `yplanet="Earth"` and
+`nplanet=3` with the Earth Jan-1 `meananom0`, which the run's own diag prints
+as `YPLANET="Earth"`.
 
 **II. A namelist "day" is a sidereal day, and this project feeds it Earth
 days.** `day_24hr = 86400.0` (`plasimmod.f90:962`) is hardcoded, appears in no
