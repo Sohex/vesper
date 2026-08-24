@@ -290,14 +290,34 @@ not as a defect.
 CLIM-64 closed on the finding that `mkdheat` was the last hot legmod caller. It
 is not.
 
-`mkdheat` calls legmod's `sp2fl` at `plasim.f90:5092` and `:5106`, inside
-`if(nenergy > 0)` and outside every `nshtns` branch. The comment above that
-block describes it as off by default. `config/planet.yaml:502` declares
-`energy_diagnostics: true`, `run_exoplasim.py` maps that to `NENERGY = 1`, and
-`run_2b20e3324bb0/plasim_namelist:3` records `NENERGY = 1`. The block runs every
-timestep of every production run, and legmod's Legendre loops run with it,
-alongside `dv2uv` at `plasim.f90:3578` and `:3587` and the `sp2fc` that `sp2fl`
-calls.
+`mkdheat`'s two `sp2fl` calls were inside `if(nenergy > 0)` and outside every
+`nshtns` branch, under a comment describing the block as off by default.
+`config/planet.yaml` declares `energy_diagnostics` and every production
+namelist records `NENERGY = 1`, so the block runs every timestep of every run
+and legmod's Legendre loops ran with it. Both now take `sh_sp2gp` into `hddt_g`
+under `nshtns == 1`, the way the `zhe` transform above them already did, and the
+comment says what is true.
+
+`mkdheat` was not the only one, and this is the part CLIM-64 missed rather than
+got wrong about `mkdheat`. Thirteen more legmod transforms run per timestep
+inside live `nenergy` blocks with no `nshtns` branch, in `spectrala` and
+`spectrald`:
+
+| where | what | guard |
+| --- | --- | --- |
+| `spectrala` | six `sp2fl` | `nenergy > 0 .or. nentropy > 0` |
+| `spectrala` | two `dv2uv` | `nenergy > 0` |
+| `spectrala` | one `sp2fl` | `nenergy > 1` |
+| `spectrald` | one `sp2fl` | `nenergy > 0` |
+| `spectrald` | three `sp2fl` | `nenergy > 0 .or. nentropy > 0` |
+| `spectrald` | two `sp2fl` | `nenergy > 0` |
+
+None of them can be swapped in place, which is why `mkdheat` went first: they
+write into arrays the routine ALLOCATES per thread, and `sh_sp2gp` uses `!$omp
+do` and needs a shared full-globe destination. `mkdheat`'s did not, because
+`hddt_g` and its per-thread pointer already existed from CLIM-57. Converting the
+rest means giving each of those scratch arrays the same `_g` twin, which is the
+shape of work `exoplasim/notes/shared-spectral-state.md` describes.
 
 The rest of legmod is correctly retained and must not be read as dead. The axis
 is `nshtns`, a runtime namelist key, not the parmode: `verify_shtns_model.sh`

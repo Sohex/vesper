@@ -5348,16 +5348,39 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !     energy diagnostics
 !
       if(nenergy > 0) then
+!     NOT OFF BY DEFAULT. config/planet.yaml declares energy_diagnostics and
+!     every production namelist records NENERGY = 1, so this block runs on every
+!     timestep of every run. It said "off by default" and its two transforms were
+!     the last hot legmod callers in the model, outside every nshtns branch, so
+!     the SHTns build did the Legendre transform twice: once through the wrappers
+!     for the dynamics and once through legmod for this diagnostic. world-dr8.
+!
 !     zhd is finished with by here and is the right shape, so the diagnostic
-!     borrows it rather than keeping a seventh full array alive all timestep
-!     for a block that is off by default. The scaling goes on the PARTIAL
-!     before the gather, not on the gathered array afterwards: zhd is shared,
-!     and every thread scaling the whole of it would be a race on identical
-!     values. zsde is dead from the reduction above and is the right shape.
+!     borrows it rather than keeping a seventh full array alive all timestep.
+!     The scaling goes on the PARTIAL before the gather, not on the gathered
+!     array afterwards: zhd is shared, and every thread scaling the whole of it
+!     would be a race on identical values. zsde is dead from the reduction above
+!     and is the right shape.
        zsde(:,:)=zstt1(:,:)*ct*ww
        call mpgallspp(zhd,zsde,NLEV)
+#ifdef OMPSHARED
+       if (nshtns == 1) then
+!        Same contract as the zhe transform above: the wrapper has no trailing
+!        barrier, and hddt_g is what the whole team writes while hddt is this
+!        thread's band of it. The LEADING barrier matters as much: hddt still
+!        holds the heating rate the loop below this block's twin has been
+!        reading.
+!$omp barrier
+          call sh_sp2gp(zhd, hddt_g, NLEV)
+!$omp barrier
+       else
        call sp2fl(zhd,hddt,NLEV)
        call fc2gp(hddt,NLON,NLPP*NLEV)
+       endif
+#else
+       call sp2fl(zhd,hddt,NLEV)
+       call fc2gp(hddt,NLON,NLPP*NLEV)
+#endif
        denergy(:,23)=0.
        do jlev=1,NLEV
         denergy(:,23)=denergy(:,23)                                     &
@@ -5370,8 +5393,19 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
        enddo
        zsde(:,:)=zstt2(:,:)*ct*ww
        call mpgallspp(zhd,zsde,NLEV)
+#ifdef OMPSHARED
+       if (nshtns == 1) then
+!$omp barrier
+          call sh_sp2gp(zhd, hddt_g, NLEV)
+!$omp barrier
+       else
        call sp2fl(zhd,hddt,NLEV)
        call fc2gp(hddt,NLON,NLPP*NLEV)
+       endif
+#else
+       call sp2fl(zhd,hddt,NLEV)
+       call fc2gp(hddt,NLON,NLPP*NLEV)
+#endif
        denergy(:,25)=0.
        do jlev=1,NLEV
         denergy(:,25)=denergy(:,25)                                     &
