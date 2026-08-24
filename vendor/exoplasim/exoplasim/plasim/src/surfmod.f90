@@ -249,6 +249,19 @@
       call surfcode( 173,'dz0clim' )
       call surfcode(1730,'dz0climo')
       call surfcode( 174,'dalbcl'  )   ! background albedo
+!     CODES 175 AND 176 MEAN DIFFERENT THINGS IN AND OUT, and nothing renames
+!     them because .sra files already staged and postprocessed output already
+!     written both depend on the numbering they have.
+!
+!     IN: the staged BACKGROUND albedo of the bare surface, per band, which is
+!     what dalbclim1 and dalbclim2 are initialised from and what landstep falls
+!     back to where there is no snow.
+!
+!     OUT: outmod.f90 writes dalb -- the albedo of the surface as it actually
+!     is, snow, forest, glacier and sea ice included -- as code 175, and
+!     pyburn.py names it `alb`/`surface_albedo`. Code 176 is not written out at
+!     all. So an output 175 read as an input 175 is a background albedo that
+!     has had a cryosphere blended into it.
       call surfcode( 175,'dalbcl1' )   ! background albedo (<0.75 um)
       call surfcode( 176,'dalbcl2' )   ! background albedo (>0.75 um)
       call surfcode(1740,'dalbcls' )   ! albedo for bare soil

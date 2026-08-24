@@ -1,6 +1,40 @@
 ! =======================
 ! VEGETATION MODULE SIMBA              ! by Axel Kleidon & Pablo Paiewonsky
 ! =======================
+!
+! BEFORE ENABLING THIS MODULE. It is unreachable at NVEG = 0 and one namelist
+! key away from being live, and it is Earth-fitted throughout. What follows is
+! what a reader has to know before setting NVEG, and the two items that
+! silently break something else rather than merely being approximate:
+!
+! 1. NVEG = 2 AND A TWO-BAND SHORTWAVE ARE INCOMPATIBLE. vegstep sets dalb and
+!    NOT dsalb. At NSTARTEMP = 1 the radiation reads dsalb only, so SIMBA's
+!    vegetation albedo would have no radiative effect at all while its
+!    roughness and its soil water bucket would have their full effect. vegini
+!    refuses the combination rather than running a half-coupled surface. The
+!    positive form is a per-band vegetation albedo; there is no derivation for
+!    one here, so the refusal stands until there is.
+!
+! 2. NVEG = 2 OVERWRITES THE SOIL WATER BUCKET. vegstep assigns dwmax from
+!    SIMBA's own vwmax_min to vwmax_max range every timestep, which discards
+!    the pedology-derived staged code-229 field the bootstrap-to-baseline
+!    sequence exists to produce. NVEGWMAX in vegmod_nl decides which of the two
+!    owns dwmax; it defaults to SIMBA, which is upstream's behaviour, and
+!    vegini says at initialisation which field the run is using.
+!
+! Everything else in this module is an Earth calibration and is approximate
+! rather than broken: rlue is applied to dfd(:,NLEP), the BROADBAND downward
+! shortwave, rather than to the photosynthetically active fraction, which under
+! a redder star is a smaller share of the total than it is under the Sun;
+! ct_crit ramps from TMELT and is then flat forever, with no optimum and no
+! high-temperature cutoff; q10 is referenced to 283.16 K; co2_ref and co2_sens
+! are Harvey (1989)'s Earth beta factor; zlaimax, cveg_k, cveg_l, cveg_a and
+! cveg_f are Earth biome fits; valb_min, valb_max and vsalb_min are Earth-Sun
+! broadband albedos, and vsalb_min is a THIRD independent forested-snow albedo
+! constant, inconsistent with landmod's albforest masking and with anything
+! derived from a different spectrum. tau_veg and tau_soil in landmod are
+! scaled by the ORBITAL period, so Earth-calibrated turnover times become
+! turnover times in this planet's years rather than in Earth's.
 
 module vegmod
 use landmod
@@ -64,6 +98,7 @@ real            :: zwmax                ! bucket depth
 ! namelist variables
 
 integer         :: ncveg     = 1        ! vegetation accelerator
+integer         :: nvegwmax  = 1        ! 1: SIMBA owns dwmax, 0: the staged field does
 real            :: forgrow   = 1.0      ! 
 real            :: rinidagg  = 0.5      ! initial value for dagg(:)
 real            :: rinidsc   = 1.0      ! initial value for dsc(:)
@@ -123,7 +158,8 @@ real    :: zglacfree             ! glacier free fraction
 !     Inert without -fopenmp, so the MPI and serial builds are unchanged.
 !$omp threadprivate(adcsoil,adcveg,adlai,agpp,agppl,agppw,alitter,anogrow,anpp,aresh,cveg_e,cveg_g,&
 !$omp&  dagg,dcsoil,dcveg,dgpp,dgppl,dgppw,dgrow,dlai,dlitter,dmr,dnogrow,dnpp,dresh,dsc,dvsoil,&
-!$omp&  forgrow,ibiomass,jhor,ncveg,rinidagg,rinidmr,rinidsc,rinisoil,riniveg,veg_version,zalbsn,&
+!$omp&  forgrow,ibiomass,jhor,ncveg,nvegwmax,rinidagg,rinidmr,rinidsc,rinisoil,riniveg,&
+!$omp&  veg_version,zalbsn,&
 !$omp&  zbeta,zforest,zft,zglacfree,zgpp,zgppl,zgppw,zlaim,zlitter,znogrow,znpp,zres,zsvp,zvalb,&
 !$omp&  zveg,zvegm,zvpd,zvrhs,zvz0,zwmax)
 
@@ -136,10 +172,11 @@ end module vegmod
 
 subroutine vegini
 use vegmod
+use radmod, only: nstartemp
 implicit none
 
 namelist/vegmod_nl/ncveg,forgrow,rinidagg,rinidsc,rinidmr,rinisoil &
-                  ,riniveg
+                  ,riniveg,nvegwmax
 
 if (mypid == NROOT) then 
    open(12,file=vegmod_namelist)
@@ -155,7 +192,33 @@ if (mypid == NROOT) then
 endif
 
 call mpbci(ncveg)
+call mpbci(nvegwmax)
 call mpbcr(forgrow)
+
+! Item 1 of the module header: vegstep sets dalb and not dsalb, so at
+! NSTARTEMP = 1 SIMBA's albedo reaches the radiation nowhere while its
+! roughness and its bucket reach it everywhere. Refused rather than run.
+
+if (nveg == 2 .and. nstartemp == 1) then
+   write(nud,*)' *** error: NVEG = 2 with NSTARTEMP = 1.'
+   write(nud,*)' *** SIMBA sets dalb; the two-band shortwave reads dsalb.'
+   write(nud,*)' *** Its vegetation albedo would have no radiative effect'
+   write(nud,*)' *** while its roughness and soil water bucket would.'
+   write(nud,*)' *** Set NVEG = 1 for a diagnostic run, or NSTARTEMP = 0.'
+   stop 1
+endif
+
+! Item 2 of the module header: which field owns the soil water bucket.
+
+if (mypid == NROOT .and. nveg == 2) then
+   if (nvegwmax > 0) then
+      write(nud,*)' *** NVEGWMAX = 1: SIMBA sets dwmax every timestep, and'
+      write(nud,*)' *** the staged code-229 soil water capacity is discarded.'
+   else
+      write(nud,*)' *** NVEGWMAX = 0: the staged code-229 soil water capacity'
+      write(nud,*)' *** is kept and SIMBA does not write dwmax.'
+   endif
+endif
 call mpbcr(rinidagg)
 call mpbcr(rinidsc)
 call mpbcr(rinidmr)
@@ -481,8 +544,12 @@ do jhor = 1 , NHOR
 
     if (nveg == 2) then
        dz0(jhor)     = sqrt(zvz0*zvz0+dz0climo(jhor)*dz0climo(jhor))
-       dwmax(jhor)   = zwmax
+!      Item 2 of the module header. zwmax is SIMBA's own vwmax_min-to-
+!      vwmax_max range and overwrites whatever was staged as code 229.
+       if (nvegwmax > 0) dwmax(jhor) = zwmax
        drhs(jhor)    = zvrhs
+!      dalb only. dsalb is NOT set here, which is why vegini refuses this
+!      switch under a two-band shortwave; see item 1 of the module header.
        dalb(jhor)    = zvalb
        dforest(jhor) = zforest
        !!! TODO: CO2 coupling--both local as surface source/sinks and global source/sinks
