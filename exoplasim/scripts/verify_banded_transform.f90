@@ -53,8 +53,10 @@
 !     it is a synthesis routine with no partial sum and no reduction, its
 !     only band dependence is the `pmat` and `qmat` rows for the thread's
 !     own latitudes, and ARM A checks those rows directly against the
-!     reference. Its loop and its mirror combination are checked by
-!     exoplasim/scripts/verify_symmetric_transform.py.
+!     reference. Its loop is checked by
+!     exoplasim/scripts/verify_inverse_transform.py, against the
+!     matrix-vector product with the table and the per-mode factors it
+!     is handed, planetary vorticity included.
 !
 !     THE ARMS.
 !

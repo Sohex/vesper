@@ -45,7 +45,8 @@
 # THE CONTROL must fail, and choosing it took a wrong turn worth recording.
 # The obvious one -- every thread takes its NEIGHBOUR's band -- PASSES, because
 # it is not a mistake. The physics is per-point and does not consult mypid, and
-# a band's global position is set by the transfer routines through ilatperm
+# a band's global position is set by the transfer routines' own
+# `jg = mypid*NLPP + jlat` arithmetic -- mpimod_omp's mpscgp and mpgagp --
 # rather than by the pointer offset, so if thread 0 works band 1 and thread 1
 # works band 0 both bands are still computed correctly. The offset is a
 # relabelling, which is exactly why the conversion was inert.

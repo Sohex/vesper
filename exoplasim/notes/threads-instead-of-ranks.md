@@ -239,17 +239,12 @@ show in the two cases where something else can use the cycles.
 | 32 threads | whether the SMT refusal survives without the spin |
 | two concurrent 8-thread jobs | the throughput incumbent, where passive waiting should matter most |
 
-Two things to carry INTO the 32-thread arm rather than discover after it:
+One thing to carry INTO the 32-thread arm rather than discover after it:
 
 - **The restart incompatibility is unchanged.** A 16-way restart is unreadable
   at 32 because `NESP = NSPP * NPRO` gives 1904 against 1920. That is
   arithmetic, not an MPI property, so a favourable SMT result does not make 32
   adoptable on its own.
-- **At 32 the paired layout drops out at low resolution.** `LPAIRLAT` needs
-  `NPRO` to divide `NLAT/2`, and at T21 `mod(32,64)` is not zero, so 32 threads
-  falls back to contiguous latitudes and silently gives up the symmetry work.
-  T127 and T170 divide cleanly. A T21 arm at 32 would compare two different
-  algorithms and must be stated as such or dropped.
 
 ## What Stage 1 measured: it LOSES, by 19% and 26%
 

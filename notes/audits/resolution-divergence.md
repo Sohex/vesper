@@ -199,6 +199,18 @@ same correction as `fftmod`. The tables are the two modules' capability, not a
 restatement of the ladder, which is why they differ from each other and from
 `lib/rungs.py` on purpose.
 
+The same 48 sat in the third copy of this module,
+`vendor/cgenie/genie-plasim/src/fortran/fftmod.f90`, with the same radix chain
+and the same 8-3-2 comment. **Whether it could ever fire is settled by one
+parameter**: `genie-plasim` takes its grid from
+`genie-plasim/src/fortran/geniemod.f90:6`, `parameter(NLAT_ATM = 32)`, and
+`plasimmod.f90:77` sets `NLON = NLAT + NLAT`. The resolution is compile-time and
+fixed at N64, so 48 was unreachable without a source edit to that parameter --
+which is the same edit that would have hit the wrong transform. Corrected under
+`world-x4f` the way `world-78e` corrected the plasim copy, with one difference
+in the remedy recorded in the comment: this tree ships no `fft991mod`, so 48
+there would need a radix 6 rather than the other module.
+
 ## 7. Silent resolution dependence in the physics
 
 The four branches the earlier note found are the places the model KNOWS about

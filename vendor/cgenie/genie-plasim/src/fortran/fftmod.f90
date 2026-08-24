@@ -5,11 +5,10 @@
       module fftmod
       implicit none
       integer NRES
-      parameter(NRES = 13)
-      integer :: nallowed(NRES)=(/8,16,32,48,64,96,128,256,384,512,1024,2048,4096/)
+      parameter(NRES = 12)
+      integer :: nallowed(NRES)=(/8,16,32,64,96,128,256,384,512,1024,2048,4096/)
 !     T5    - N16   : 8-2
 !     T10   - N32   : 8-2-2
-!     T15   - N48   : 8-3-2
 !     T21   - N64   : 8-4-2
 !     T31   - N96   : 8-4-3
 !     T42   - N128  : 8-4-4
@@ -19,6 +18,13 @@
 !     T341  - N1024 : 8-4-4-4-2
 !     T682  - N2048 : 8-4-4-4-4
 !     T1365 - N4096 : 8-4-4-4-4-2
+!     N48 IS NOT HERE, and the 8-3-2 it was listed with is not what this
+!     module does. gp2fc applies radix 8, then radix 4 while four or more
+!     remain, then ONE radix 3 or radix 2 tail: 8 * 4**k * r with r in 1, 2, 3
+!     and nothing else. For n = 48 the tail count is 6, the radix-4 pass fires
+!     on it and leaves 1, and neither tail runs, so 32 of the required 48 is
+!     applied; fc2gp overshoots the other way. Both returned without an error.
+!     This tree has no fft991mod, so 48 needs a radix 6 here or nothing.
 
       integer :: lastn = 0
       real,allocatable :: trigs(:)
