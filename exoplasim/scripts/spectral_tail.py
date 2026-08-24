@@ -28,6 +28,14 @@ question -- a pile-up at the grid scale shows in `m` as clearly as in `n` -- and
 it is stated because the two are not the same spectrum and the slopes are not
 directly comparable to a quoted `n^-3`.
 
+**THE TRUNCATION IS THE MODEL'S, NOT THE FFT'S**, and getting this wrong is how
+the first run of this diagnostic produced three wrong conclusions. A T42 run on
+128 longitudes gives an FFT out to m=64, but the model represents nothing above
+m=42: the spectrum there sits at 1e-15, which is roundoff and not physics.
+Normalising by 64 made a bite at m=28 read as 0.44 of the truncation when it is
+0.67, and turned a filter that was inside its confinement requirement into one
+that appeared to be damping away a third of the resolved spectrum.
+
 THE CRITERIA, AND WHY THEY ARE THESE. The question is not the tail's slope in
 isolation -- a steep tail is what damping is supposed to produce -- but WHERE the
 spectrum departs from the flow's own inertial range. So fit the power law the
@@ -99,6 +107,24 @@ def ke_spectrum(run_dir: Path, first: int, last: int, level: int | None):
     return total / len(files)
 
 
+def truncation(run_dir: Path, override: int | None) -> int:
+    """The model's spectral truncation, which bounds the meaningful spectrum.
+
+    Not the FFT's Nyquist: a T42 run on 128 longitudes transforms out to m=64
+    and represents nothing above m=42. Taken from the run's own manifest so it
+    cannot disagree with what ran.
+    """
+    if override:
+        return int(override)
+    manifest = run_dir / "run_manifest.json"
+    if manifest.is_file():
+        res = json.loads(manifest.read_text())["physical"]["resolution"]
+        return int(str(res).lstrip("Tt"))
+    raise SystemExit(
+        f"no run_manifest.json in {run_dir} and no --truncation given; the "
+        f"spectrum cannot be normalised by a truncation nobody named")
+
+
 def slope(spec: np.ndarray, lo: int, hi: int) -> float:
     m = np.arange(len(spec))
     band = (m >= lo) & (m <= hi) & (spec > 0)
@@ -112,13 +138,16 @@ def main() -> None:
     ap.add_argument("run_dir", type=Path)
     ap.add_argument("--first", type=int, default=0)
     ap.add_argument("--last", type=int, default=0)
+    ap.add_argument("--truncation", type=int, default=None,
+                    help="spectral truncation; default is the run manifest's")
     ap.add_argument("--level", type=int, default=None,
                     help="model level index; default is the column mean")
     ap.add_argument("--out", type=Path, default=ANALYSIS / "spectral_tail.json")
     args = ap.parse_args()
 
     spec = ke_spectrum(args.run_dir, args.first, args.last, args.level)
-    n = len(spec) - 1
+    n = truncation(args.run_dir, args.truncation)
+    spec = spec[:n + 1]
     m = np.arange(len(spec))
     # The fit band ends at a THIRD of the truncation, not a half, so the search
     # above it can resolve a bite point well below 0.6N. With the band ending at

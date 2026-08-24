@@ -660,6 +660,42 @@ def main() -> int:
     except Exception as exc:
         rep.add(WARN, "hyperdiffusion vs its rule", f"not checked: {exc}")
 
+    # -- the filter is confined to the scales it is meant to damp -------------
+    #
+    # The physics filter, not the hyperdiffusion, is this model's small-scale
+    # damping: two to three orders of magnitude stronger at every scale. Where
+    # it overtakes the flow's own cascade is therefore where the model stops
+    # resolving, and at gamma 8 that was 0.41 of the truncation -- most of the
+    # rung being paid for and thrown away. This is a DEFAULT guard rather than a
+    # diagnostic to remember: a filter that reaches too far down fails here.
+    #
+    # Crossover of 2*kappa*x^gamma/dt against the cascade rate x/tau_vorticity:
+    #   x = (dt / (2 kappa tau))**(1/(gamma-1))
+    try:
+        model = config["model"]
+        hd = model.get("hyperdiffusion") or {}
+        rung = str(model.get("resolution", "")).upper()
+        kappa = float(model["filter_kappa"])
+        gamma = int(model["filter_power"])
+        dt = float(model["timestep_minutes"]) * 60.0
+        tau = float(hd["timescales_days"][rung]["vorticity"]) * 86400.0
+        reach = (dt / (2.0 * kappa * tau)) ** (1.0 / (gamma - 1))
+        floor = float(model.get("filter_confinement_floor", 0.60))
+        if not model.get("physics_filter"):
+            rep.add(OK, "filter confinement", "no filter configured")
+        elif reach < floor:
+            rep.add(FAIL, "filter confinement",
+                    f"{rung} at kappa {kappa:g}, gamma {gamma}, dt {dt/60:g} min "
+                    f"overtakes the cascade at {reach:.3f} of the truncation, "
+                    f"below the {floor:.2f} floor: everything above that is "
+                    f"resolution being damped away")
+        else:
+            rep.add(OK, "filter confinement",
+                    f"{rung} damps from {reach:.3f} of the truncation "
+                    f"(floor {floor:.2f})")
+    except Exception as exc:
+        rep.add(WARN, "filter confinement", f"not checked: {exc}")
+
     # -- config blocks declare their determination status --------------------
     #
     # A value that has never been decided must not be indistinguishable from one

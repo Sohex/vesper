@@ -341,8 +341,30 @@ model:
   # exoplasim/notes/physics-filter-stability.md) and its strength is therefore a
   # decision, not a detail. Scale-free in n/NTRU, so the same FRACTION of every
   # rung's spectrum is damped; the half-power point is n/NTRU = 0.737 at kappa 8.
+  # kappa sets the damping AT the truncation and gamma sets how far down the
+  # spectrum it reaches, and they are separable: f(N) = exp(-kappa) whatever
+  # gamma is. So kappa is the stability knob and gamma is the confinement knob,
+  # and one can be set without disturbing the other.
+  #
+  # kappa 8 is DETERMINED by the trap boundary of
+  # exoplasim/notes/physics-filter-stability.md: it takes the longest stable
+  # step at every rung measured, and weaker settings trap.
   filter_kappa: 8.0
-  filter_power: 8
+  # gamma is DERIVED, 2026-08-23, and was 8 until then. The filter -- not the
+  # hyperdiffusion, which is several hundred times weaker -- is this model's
+  # small-scale damping, and at gamma 8 it overtakes the flow's own cascade at
+  # 0.37 to 0.45 of the truncation depending on rung, measured at 0.44 on the
+  # T42 spectrum. Everything above that is damped away: resolution paid for in
+  # wall clock and discarded.
+  #
+  # The confinement requirement is the same one the hyperdiffusion was derived
+  # to -- damping subdominant to the local cascade until 0.6 of the truncation
+  # or above. Solving 2*kappa*x^gamma/dt = x/tau_vorticity for the crossover
+  # gives x = (dt / (2*kappa*tau))^(1/(gamma-1)), and requiring x >= 0.6 needs
+  # gamma >= 14.78 at the most demanding rung, which is T21. 16 is taken for
+  # margin and puts the crossover at 0.625 to 0.687 across the ladder.
+  # scripts/check_consistency.py recomputes this and fails if it is not met.
+  filter_power: 16
   # DECLARED. The seed for a COLD start's initial kick, and it is here because
   # without it there is none: `initrandom` (plasim.f90:2068) takes the namelist
   # SEED when seed(1) is non-zero and the SYSTEM CLOCK otherwise, and nothing in

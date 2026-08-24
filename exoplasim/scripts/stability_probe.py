@@ -133,7 +133,7 @@ def time_run(bed: Path, exe: str, ranks: int) -> tuple[float, bool, str]:
 
 
 def probe(rung: str, dt: float, kappa: float | None, steps: int,
-          ranks: int, template: Path) -> dict:
+          ranks: int, template: Path, gamma: int) -> dict:
     tag = ("off" if kappa is None else f"k{kappa:g}") + f"_dt{dt:g}"
     bed, exe = build_bed(rung, template, tag)
     # SEED is declared, not inherited: the template is a run directory made
@@ -149,8 +149,12 @@ def probe(rung: str, dt: float, kappa: float | None, steps: int,
     if kappa is None:
         keys |= {"NFILTER": "0", "NGPTFILTER": "0", "NSPVFILTER": "0"}
     else:
+        # NFILTEREXP too: kappa sets the damping AT the truncation and gamma
+        # sets how far down it reaches, and leaving gamma to whatever the
+        # template carried would vary the confinement between arms that differ
+        # only in kappa.
         keys |= {"NFILTER": "2", "NGPTFILTER": "1", "NSPVFILTER": "1",
-                 "FILTERKAPPA": f"{kappa}"}
+                 "FILTERKAPPA": f"{kappa}", "NFILTEREXP": f"{gamma}"}
     # TWO LENGTHS, AND THE SLOPE BETWEEN THEM. A single short run divides the
     # STARTUP cost -- Legendre setup, FFTW planning, staging -- over its own few
     # hundred steps, while an orbit divides it over fourteen thousand. Measured
@@ -204,10 +208,16 @@ def main() -> None:
                     help="timesteps per probe. The refusal fires on the first "
                          "radiation call, so this is already far more than that "
                          "failure needs; it is long enough to price a step.")
+    ap.add_argument("--gamma", type=int, default=None,
+                    help="filter power; default is config/planet.yaml's")
     ap.add_argument("--ranks", type=int, default=16)
     ap.add_argument("--out", type=Path, default=OUT)
     args = ap.parse_args()
 
+    if args.gamma is None:
+        args.gamma = int(yaml.safe_load(
+            (ROOT / "config" / "planet.yaml").read_text(encoding="utf-8")
+        )["model"]["filter_power"])
     dts = ([float(x) for x in args.sweep.split(",")] if args.sweep
            else [args.dt if args.dt else 45.0])
     kappas = [None if k.strip().lower() == "off" else float(k)
@@ -219,7 +229,8 @@ def main() -> None:
     results = []
     for dt in dts:
         for kappa in kappas:
-            r = probe(args.rung, dt, kappa, args.steps, args.ranks, template)
+            r = probe(args.rung, dt, kappa, args.steps, args.ranks, template,
+                      args.gamma)
             results.append(r)
             k = "off" if kappa is None else f"{kappa:g}"
             if r["outcome"] != "refused":

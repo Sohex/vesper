@@ -277,3 +277,63 @@ T170, through the timestep. Neither mechanism is strongly rung-dependent, so the
 late failures at T85 and above are not explained by damping at all and the
 ordinary candidate -- the advective CFL at the shorter grid spacing -- is back
 in front.
+
+## Corrected: the filter was not over-reaching, and the diagnostic was wrong
+
+*2026-08-23. Three claims in the section above do not survive their own test, and
+the cause was one defect in the instrument.*
+
+**The diagnostic normalised by the wrong truncation.** `spectral_tail.py` took
+the FFT's Nyquist as the truncation -- m=64 for a T42 run on 128 longitudes --
+where the model represents nothing above m=42. Everything from m=43 to 64 sits
+at 1e-15, which is roundoff. So a bite point at m=28 was reported as 0.44 of the
+truncation when it is 0.67, and a filter comfortably inside its confinement
+requirement was written up as damping away a third of the resolved spectrum.
+
+What that retracts:
+
+- **"The filter overtakes the cascade at 0.41 and the spectrum bites at 0.44,
+  agreeing to the resolution of the diagnostic."** The agreement was between a
+  correct calculation and a mis-normalised measurement. Against the model's
+  actual truncation the bite at gamma 8 is at **0.60**, marginal against the
+  0.60 floor rather than far below it.
+- **"The model is damping away everything above 0.44 of its truncation."** It is
+  not. Above 0.60 at gamma 8, and above 0.67 at gamma 16.
+- **"kappa sets stability and gamma does not."** Measured false: T42 at dt 90
+  refuses at gamma 8 and does not at gamma 16. `f(N) = exp(-kappa)` is indeed
+  independent of gamma, so the grid-scale damping is unchanged, but the trap
+  does not depend only on that.
+
+### What the gamma change actually buys, and what it costs
+
+Both arms from the settled T42 restart, two orbits, derived hyperdiffusion,
+differing only in `filter_power`:
+
+| | gamma 8 | gamma 16 |
+| --- | ---: | ---: |
+| spectral bite point | 0.60 of truncation | **0.67** |
+| KE preserved at 0.6 of the FFT range | reference | **60x more** |
+| T42 refusal at dt 90 | refuses | **runs** |
+| adiabatic residual, 26-27 | -0.458 | **-1.443** |
+| kinetic-energy identity | -0.000, closes | **+0.151, 7% open** |
+
+So it is a TRADE and not a free improvement: sharper confinement and a longer
+stable step, paid for with three times the adiabatic non-conservation and a
+kinetic-energy identity that stops closing. The identity closing is what says
+the dissipation is being booked, so 7% open is a real cost and not a cosmetic
+one.
+
+The derived hyperdiffusion carries its own share of that: at gamma 8 it moved
+`26 - 27` from +0.315 under PlaSim's T42 branch to -0.458, a sign change. That
+is the diffusion mattering to the energy budget while not mattering to the
+spectrum, which is consistent -- the identity is sensitive to the spectral state
+the diffusion shapes, not to the damping rate at the truncation alone.
+
+### Where that leaves the filter row
+
+Not where it was filed. The premise was that the filter reaches to 0.41 of the
+truncation and throws away a third of every rung; it reaches to 0.60, which is
+the floor rather than a violation of it. `gamma 16` improves confinement to 0.67
+and buys timestep, and it is not obviously worth what it does to the energy
+budget. That is a decision with two measured sides rather than a defect to fix,
+and it should be taken against a longer window than two orbits.
