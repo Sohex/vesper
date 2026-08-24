@@ -3,6 +3,25 @@
 *This is a COMPUTE change to the Vesper worldbuilding project's climate model.
 Nothing in it is about the simulated planet. Measured 2026-08-21.*
 
+**THE DECOMPOSITION DESCRIBED HERE IS DELETED.** `2508bedb` removed it, 515
+lines: seven paired branches in `legmod`, four in `mpimod`, three blocks each in
+`utilities` and `utilities_omp`, the un-permute in `plasim.f90`, `ilatperm`
+itself, the `LPAIRLAT` parameter and `shtnsmod`'s refusal that could no longer
+fire. The reason is the one the last section below anticipates from the other
+side: SHTns replaced `legmod` and cannot use a permuted layout, so the
+precondition this change existed to establish had nothing left to unblock. The
+deletion is bit inert and that was checked -- the T21 restart sha is
+`a7418dea572f853f` on both sides of it. `NLHP = NLPP / 2` survives in
+`plasimmod.f90:108` as a plain parameter.
+
+world-38b has since removed the MPI build entirely, so `mpimod.f90` and the four
+permutation sites named below no longer exist either.
+
+The record is kept for two things it establishes independently of the layout:
+what a survey of "routes through the primitives" misses, and what the two halves
+of the symmetric transform were measured to be worth. `world-h8o` is the gate
+that still tries to lift `ilatperm` out of `plasimmod.f90` and cannot.
+
 ## The change
 
 A latitude and its mirror carry the same associated Legendre values up to a
@@ -18,7 +37,7 @@ So the scatter is permuted instead. Process `r` gets the northern block
 makes local `l` and `NLPP+1-l` a mirror pair on every process. The gather undoes
 it, so nothing above `mpimod` can tell which layout it is running under.
 
-Two new compile-time parameters carry it, both in `plasimmod.f90`:
+Two new compile-time parameters carried it, both in `plasimmod.f90`:
 
     NLHP     = NLPP / 2
     LPAIRLAT = (mod(NLAT,2*NPRO) == 0)
@@ -83,9 +102,11 @@ would have surfaced only for someone building the model at one.
 
 ## The tests, and what each of them can fail
 
-**`verify_latitude_pairing.py`** lifts `ilatperm` verbatim out of
-`plasimmod.f90`, compiles it inside a parameter module for one `(NLAT, NPRO)`,
-and checks the map it produces: bijection, mirror pairing, the northern block
+**`verify_latitude_pairing.py`** lifted `ilatperm` verbatim out of
+`plasimmod.f90`, compiled it inside a parameter module for one `(NLAT, NPRO)`,
+and checked the map it produced. It cannot: the function is gone and the
+extraction raises. It is still declared as a gate in `config/pipeline.yaml`;
+`world-h8o`. What it checked: bijection, mirror pairing, the northern block
 contiguous and northernmost, identity at one process, identity where the
 divisibility fails. Seventeen cases across the resolution ladder.
 
