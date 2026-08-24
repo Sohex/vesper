@@ -111,12 +111,39 @@ DELIBERATELY_UNSCALED = (
     "est_max",        # saplings per m2 per growing season, not per Earth year
 )
 
-# Written as integers by plib, or read as a whole number of simulation years.
-WHOLE_NUMBER = ("nyear_spinup", "distinterval", "freenyears")
+# Declared as int by plib, so a fractional value would not parse. distinterval is
+# NOT here: parameters.cpp declares it double, and rounding a disturbance return
+# time to a whole number of orbits throws away precision for nothing.
+WHOLE_NUMBER = ("nyear_spinup", "freenyears")
 
 # Above this a value is a "no restriction" sentinel rather than a limit, and
 # scaling it would quietly turn it into one.
 SENTINEL_ABOVE = 1e4
+
+# The plib bounds declared in vendor/lpj-guess/framework/parameters.cpp for the
+# parameters this script rewrites. A conversion that leaves a value outside its
+# own declared range is a generation-time failure rather than a run-time one:
+# plib would reject the file, but only after a build and a launch, and only for
+# the first offending line. A large enough change of orbit can do it -- longevity
+# 500 leaves the 3000 ceiling below a sixth of an Earth year -- so this is a
+# guard against a future flux, not a hypothetical.
+DECLARED_BOUNDS = {
+    "nyear_spinup": (1, 10000),
+    "estinterval": (1, 10),
+    "distinterval": (1.0, 1.0e10),
+    "freenyears": (0, 1000),
+    "phengdd5ramp": (0.0, 1000.0),
+    "turnover_leaf": (0.0, 1.0),
+    "turnover_root": (0.0, 1.0),
+    "turnover_sap": (0.0, 1.0),
+    "gdd5min_est": (0.0, 5000.0),
+    "est_max": (1.0e-4, 1.0),
+    "longevity": (0.0, 3000.0),
+    "greff_min": (0.0, 1.0),
+    "leaflong": (0.1, 100.0),
+    "gdd0_min": (0.0, 100000.0),
+    "gdd0_max": (0.0, 100000.0),
+}
 
 
 UNIT = {
@@ -153,6 +180,61 @@ def render(name: str, value: float) -> str:
     return f"{value:.6g}"
 
 
+def self_check(factor: float, changes: list[dict]) -> None:
+    """Checks with a right answer, run every time the artifact is generated.
+
+    Each one can fail. That is the point: an identity, a declared range and a
+    round trip, rather than a comparison against whatever the last run produced.
+    """
+    both = set(ANNUAL_SUM) | set(YEAR_COUNT) | set(ANNUAL_RATE)
+    overlap = both & set(DELIBERATELY_UNSCALED)
+    if overlap:
+        raise SystemExit(
+            f"{', '.join(sorted(overlap))} is both scaled and deliberately "
+            f"unscaled. A parameter has exactly one class.")
+
+    # The Reich identity. Pft::initsla and Pft::init_cton_min multiply leaflong
+    # by VESPER_EARTH_MONTHS_PER_ORBIT, which is 12*factor, so rescaling leaflong
+    # by 1/factor has to leave the product at the Earth value. If this fails, SLA
+    # and leaf C:N have silently moved off their Earth calibration.
+    earth_months_per_orbit = 12.0 * factor
+    for change in changes:
+        if change["parameter"] != "leaflong":
+            continue
+        earth = change["from"] * 12.0
+        model = change["to"] * earth_months_per_orbit
+        if abs(model - earth) > 1e-4 * earth:
+            raise SystemExit(
+                f"leaflong {change['from']} -> {change['to']} does not preserve "
+                f"the Reich regression argument: {model:.6f} against "
+                f"{earth:.6f} absolute months.")
+
+    for change in changes:
+        name = change["parameter"]
+        lo, hi = DECLARED_BOUNDS[name]
+        if not (lo <= change["to"] <= hi):
+            raise SystemExit(
+                f"{name} {change['from']} -> {change['to']} falls outside the "
+                f"{lo} to {hi} range parameters.cpp declares for it. The orbit "
+                f"has moved far enough that this parameter needs a decision, "
+                f"not a rescale.")
+        # The conversion itself, checked against the class table rather than
+        # against whatever the last run produced.
+        exact = convert(change["class"], change["from"], factor)
+        if abs(exact - change["to"]) > 1e-6 * max(abs(exact), 1e-9):
+            raise SystemExit(
+                f"{name} recorded {change['to']} where its class gives {exact}.")
+        # And the rendering, which is where precision is actually lost. A whole
+        # number parameter can lose half a unit and nothing else may lose more
+        # than the six significant figures render() writes.
+        written = float(render(name, change["to"]))
+        tolerance = 0.5 if name in WHOLE_NUMBER else 1e-5 * max(abs(exact), 1e-9)
+        if abs(written - exact) > tolerance:
+            raise SystemExit(
+                f"{name} renders {exact} as {written}, losing more than "
+                f"{tolerance}. Widen render().")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", type=Path,
@@ -186,12 +268,17 @@ def main() -> None:
         if value <= 0.0 or value >= SENTINEL_ABOVE:
             return match.group(0)
         new = convert(kind, value, factor)
+        # The exact converted value, not the rendered one: the provenance has to
+        # answer "is this artifact still current?" against the conversion, and
+        # the rendering is checked separately in self_check.
         changes.append({"parameter": name, "class": kind,
-                        "from": value, "to": float(f"{new:.6g}")})
+                        "from": value, "to": new,
+                        "written": float(render(name, new))})
         return (f"{indent}{name}{gap}{render(name, new)}"
                 f"\t! {UNIT[kind]}; Earth calibration {value:g}")
 
     rescaled = pattern.sub(rescale, text)
+    self_check(factor, changes)
 
     # The shipped file's own inline comments on rescaled lines are replaced,
     # because several of them state the Earth unit and would now be wrong. The
@@ -272,7 +359,7 @@ def main() -> None:
     print(f"changed {len(changes)} parameter values:")
     for change in changes:
         print(f"   {change['class']:12s} {change['parameter']:14s} "
-              f"{change['from']:>8g} -> {change['to']:g}")
+              f"{change['from']:>8g} -> {change['written']:g}")
     print(f"\nwrote {rel(output)}")
     print(f"      {report_path.name}")
 
