@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "kind": "restart_template",
+  "generated": "2026-08-24T14:17:06.217783+00:00",
+  "generator": "exoplasim/scripts/build_restart_template.py",
+  "generator_sha256": "47443aaf5fd445c21cb08ced28e1d422f236cbfb1be3e989ef14766a618a04ab",
+  "schema_sha256": "bcc33cafd7115a9cece5b3d9da4ff03d7e133ee53ffbff5a2c54c0d8a95c2440",
+  "output": {
+    "path": "/home/cfutro/docs/world/exoplasim/inputs/templates/T21_l10_p16_omp.rest",
+    "sha256": "822cb65316d3363e1487494ef478853826eaa7cfd79baf5bb2423ccfa6feb738"
+  },
+  "cut_from": {
+    "run_dir": "exoplasim/runs/run_9df7ffa14256",
+    "run_id": "run_9df7ffa14256",
+    "restart": "exoplasim/runs/run_9df7ffa14256/plasim_restart",
+    "restart_sha256": "aba917e86b35ea0822366a09a2ae27ad4525906d6b6758738da0836a27003a0b",
+    "completed_orbits": 1,
+    "status": "smoke_complete"
+  },
+  "executable": {
+    "path": "/home/cfutro/docs/world/exoplasim/runs/run_9df7ffa14256/most_plasim_t21_l10_p16_omp.x",
+    "sha256": "88d3ec09863d5074269b446de9ad2a447a1dd00ec2694cb366f502a49f16859f",
+    "note": "Built precision is not encoded in the filename. If model.precision_bytes changes, pass recompile=True or remove the binary, or the old one is silently reused."
+  },
+  "physical": {
+    "resolution": "T21",
+    "layers": 10,
+    "ranks": 16,
+    "parmode": "omp",
+    "precision_bytes": 8,
+    "flux_ratio": 0.945,
+    "co2_ppm": 450.0,
+    "ch4_ppmv": 1.6,
+    "n2o_ppmv": 0.3,
+    "rotation_hours": 30.0,
+    "obliquity_degrees": 32.0,
+    "eccentricity": 0.02,
+    "glaciers": true,
+    "stellar_spectrum": "k25v",
+    "geography": "93c5a2c9"
+  },
+  "source_build": "precarve-craton-10m",
+  "config_sha256": "fba657fa39a4e666b63cbef8fce3b35e28591646a2d2332e48701f027f1d48dc",
+  "surface_field_sha256": {
+    "129": "2f2dc82952b2f78dd8986a7565da848cb50b15e55c91357178791d27f9f5897e",
+    "172": "6296c375694882846ba24378689eb47db150dd7f23f7300f9529f0e563d7fefb",
+    "173": "1746863d898ca1ff36f3a200d803344a1857748809825d0535d3f0eb954865c9",
+    "174": "6112fbf5a49d172c4823fe3b4b1f6d849706f3634004bd1faaf4b73c0e714687",
+    "175": "b846a5d5f53d032b0d4fca42ea8771da17768315b4f336f509431de706565ede",
+    "176": "aa48fec277c589fae1c9b7e95c7a9a1e849dfcb5ea7ff5d6a2e3ce7af4c3d092",
+    "212": "8b9935efef89c0baaec325080a9606dcc62589187969fa38fad9ff579dcce991"
+  },
+  "surface_fields": {
+    "from_file": [
+      129,
+      172,
+      173,
+      174,
+      175,
+      176,
+      212
+    ],
+    "unexpected_extra_files": [],
+    "uniform_defaults_declared": true,
+    "uniform_values": {
+      "dz0clim_roughness_m": 2.0,
+      "dwmax_field_capacity_m": "wsmax (Earth value)",
+      "dalbcl_background_albedo": 0.22,
+      "dforest_fraction": 0.5,
+      "dglac_glacier_mask": 0.0
+    },
+    "note": "Fields absent from the run directory are preset to uniform namelist values by landmod and never read from file."
+  },
+  "template": {
+    "geometry": "T21",
+    "real_bytes": 8,
+    "records": 199,
+    "nesp": 512,
+    "nseedlen": 8,
+    "unknown_records": [],
+    "accumulators_clean": 113,
+    "accumulators_dirty": [],
+    "accumulators_the_model_never_resets": [
+      "asndch"
+    ]
+  },
+  "note": "A clean accumulation window on the target executable's own record set and static surface. The prognostic and derived records are the donor run's and are overwritten or flagged by convert_restart.py; this is not a cold start."
+}

@@ -2487,6 +2487,7 @@
         do j=1,NLEP
           aadq(:,j)  = 0.
           aammr(:,j) = 0.
+          aanrho(:,j) = 0.
           aadt(:,j)  = 0.
           aadql(:,j) = 0.
           aadcc(:,j) = 0.
@@ -2625,6 +2626,7 @@
         do j=1,NLEP
           aadq(:,j)  = aadq(:,j)  + dq(:,j)
           aammr(:,j) = aammr(:,j) + mmr(:,j)  
+          aanrho(:,j) = aanrho(:,j) + nrho(:,j)
           aadt(:,j)  = aadt(:,j)  + dt(:,j)     
           aadql(:,j) = aadql(:,j) + dql(:,j)     
           aadcc(:,j) = aadcc(:,j) + dcc(:,j)            

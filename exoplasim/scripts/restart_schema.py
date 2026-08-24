@@ -495,9 +495,9 @@ POLICY.update(_acc(["agpp", "agppl", "agppw", "alitter", "anogrow", "anpp",
                     "aresh", "adcsoil", "adcveg", "adlai"]))
 
 
-# The four accumulators `outmod.f90:outreset` does not simply zero. Every tool
+# The three accumulators `outmod.f90:outreset` does not simply zero. Every tool
 # that writes a clean accumulator has to carry these, and the general rule --
-# "an accumulator's clean value is zero" -- is wrong for all four.
+# "an accumulator's clean value is zero" -- is wrong for all three.
 # `check_policy_covers_source` holds them against the source, which is how
 # `atsami` was found: reading the list by eye had missed it.
 POLICY["tempmin"] = Policy(
@@ -516,11 +516,6 @@ POLICY["asndch"] = Policy(
     why="net accumulated snow depth change. `outmod.f90:2459` has its reset "
         "commented out on purpose -- 'Let the net snow change keep "
         "accumulating' -- so it spans the whole run rather than the window")
-POLICY["aanrho"] = Policy(
-    ACCUMULATOR, RESET, model_reset="none",
-    why="accumulated aerosol number density. It is divided by naccuout at "
-        "`outmod.f90:508` exactly as aammr is, and unlike aammr it appears "
-        "in no reset at all")
 
 
 def check_policy_covers_source(src_dir: Path) -> list[str]:
@@ -782,3 +777,67 @@ def describe(records) -> tuple:
             f"the file says NRSP is {nrsp} and a T{geometry.ntru} grid gives "
             f"{geometry.nrsp}; the header and the grid disagree")
     return geometry, real_bytes
+
+
+# A declaration with an initial value: `real :: atsami(NHOR) = 1.E10`.
+_DECLARED = re.compile(
+    r"::\s*(?P<var>[a-z][a-z0-9_]*)\s*(\([^)]*\))?\s*="
+    r"\s*(?P<value>[-+]?(\d+\.?\d*|\.\d+)([eEdDqQ][-+]?\d+)?)\s*(!.*)?$",
+    re.IGNORECASE)
+
+
+def _fortran_real(token: str) -> float:
+    return float(re.sub("[dDqQ]", "e", token))
+
+
+def declared_initials_from_source(src_dir: Path) -> dict:
+    """{variable: its declared initial value}, over the compiled modules."""
+    src_dir = Path(src_dir)
+    declared: dict = {}
+    for module in compiled_modules(src_dir.parent):
+        for line in (src_dir / module).read_text(encoding="utf-8",
+                                                 errors="ignore").splitlines():
+            if line.lstrip().startswith("!"):
+                continue
+            m = _DECLARED.search(line.split("!")[0])
+            if m is not None:
+                declared.setdefault(m["var"].lower(),
+                                    _fortran_real(m["value"]))
+    return declared
+
+
+def check_first_window_matches_the_rest(src_dir: Path) -> list[str]:
+    """An accumulator starts a cold run at the value its reset would give it.
+
+    A right answer rather than a comparison. `nhcstp` starts at 1 and the model
+    writes output at `mod(nhcstp,nafter) == 0`, so a cold-started run's FIRST
+    output window accumulates from the declared initial value with no reset
+    before it -- every later window starts from `outreset`. If the two differ,
+    the first record of every cold start is a different quantity from the rest
+    of the run, and nothing says so.
+
+    `atsami` is why this exists: the running minimum surface air temperature
+    was declared at 0.0 and reset to 1.0e10, so `AMIN1(0.0, anything)` held it
+    at zero and the first output record of every cold start reported a minimum
+    of 0 K. Its maximum partner `atsama` is declared and reset at 0.0 alike,
+    which is what the pair should look like.
+    """
+    inventory = inventory_from_source(src_dir)
+    resets = model_resets_from_source(src_dir)
+    declared = declared_initials_from_source(src_dir)
+    problems = []
+    for name in sorted(POLICY):
+        pol = POLICY[name]
+        if pol.semantic != ACCUMULATOR or name not in inventory:
+            continue
+        var = inventory[name].variable.lower()
+        kind, value = derived_model_reset(name, inventory, resets)
+        if kind == "none" or var not in declared:
+            continue
+        want = 0.0 if kind == "zero" else value
+        if declared[var] != want:
+            problems.append(
+                f"'{name}' ({var}) is declared at {declared[var]:g} and reset "
+                f"to {want:g}, so a cold start's first output window is a "
+                "different quantity from every window after it")
+    return problems

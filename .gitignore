@@ -268,3 +268,11 @@ vendor/exoplasim/build/
 *.db
 .beads-credential-key
 .beads/proxieddb/
+
+# Restart templates are cut from a short run of the target build and are
+# regenerable from it: `build_restart_template.py --from-run`. The payload is a
+# restart, so it scales with the rung -- T170's is two orders above T21's -- and
+# it is output rather than durable under rule 7. The provenance sidecar beside
+# each one IS tracked, because it is the only record of which templates exist,
+# which executable wrote each, and which staged surface it is sound against.
+exoplasim/inputs/templates/*.rest

@@ -250,6 +250,68 @@ def solar_partition_identity(tolerance: float = 5.0e-4) -> float:
     return band1
 
 
+def band_reflectances(wavelength_um: np.ndarray, reflectance: np.ndarray,
+                      name: str | None = None, path: Path | None = None,
+                      temperature_k: float | None = None) -> dict:
+    """A surface reflectance integrated against the star, in the model's bands.
+
+    The two-band shortwave scheme carries a star's spectral shape by moving
+    flux BETWEEN the bands, so a surface whose two band constants are equal
+    receives none of it. This is the integral that produces constants which are
+    not equal, and it is the same operation for every surface: snow, glacier
+    ice, sea ice, ocean, rock.
+
+    `wavelength_um` and `reflectance` are the surface's own grid, ascending,
+    reflectance as a fraction. With `temperature_k` the weighting is a Planck
+    on `solarini`'s own grids, which is how the model's shipped constants were
+    made; otherwise it is the named or configured stellar spectrum, split at
+    the row boundary `_bands` applies rather than at a nominal 0.75 um.
+
+    Returns band1, band2 and broadband reflectance, the band-1 flux fraction
+    the recombination uses, the residual of that recombination against the
+    broadband value, and `flux_outside_measured`: the share of stellar flux
+    falling where the surface spectrum does not reach and its endpoint value is
+    held instead. That last number is reported rather than hidden because it is
+    the one assumption this integral makes.
+    """
+    if temperature_k is not None:
+        wv1, wv2 = _blackbody_grids()
+        bb1, bb2 = _planck(wv1, temperature_k), _planck(wv2, temperature_k)
+    else:
+        wavelength, flux = read_hires(path if path is not None
+                                      else spectrum_paths(name)[1])
+        wv1, bb1, wv2, bb2 = _bands(wavelength, flux)
+
+    lo, hi = float(wavelength_um[0]), float(wavelength_um[-1])
+    outside = 0.0
+    total = 0.0
+    means = []
+    for wv, bb in ((wv1, bb1), (wv2, bb2)):
+        um = wv * 1.0e6
+        r = np.interp(um, wavelength_um, reflectance)  # endpoint-held outside
+        means.append(float(np.trapezoid(r * bb, wv) / np.trapezoid(bb, wv)))
+        total += float(np.trapezoid(bb, wv))
+        beyond = (um < lo) | (um > hi)
+        if beyond.any():
+            outside += float(np.trapezoid(np.where(beyond, bb, 0.0), wv))
+
+    band1, band2 = means
+    f1, _ = _partition(wv1, bb1, wv2, bb2)
+    # The same integral over both bands at once, which is what band1 and band2
+    # must recombine to. Any residual is the band-edge interval `_partition`
+    # books to band 1 while the two band means split it at the row boundary.
+    broadband = f1 * band1 + (1.0 - f1) * band2
+    um_all = np.concatenate([wv1, wv2]) * 1.0e6
+    bb_all = np.concatenate([bb1, bb2])
+    r_all = np.interp(um_all, wavelength_um, reflectance)
+    direct = float(np.trapezoid(r_all * bb_all, np.concatenate([wv1, wv2]))
+                   / np.trapezoid(bb_all, np.concatenate([wv1, wv2])))
+    return {"band1": band1, "band2": band2, "broadband": broadband,
+            "band1_flux_fraction": f1,
+            "recombination_residual": broadband - direct,
+            "flux_outside_measured": outside / total}
+
+
 def _cross_section(wavelength_m: np.ndarray, flux: np.ndarray) -> float:
     """`solarini`'s `zcross`: the lambda^-4-weighted flux integral."""
     return float(np.trapezoid(flux / (wavelength_m * 1.0e6) ** 4, wavelength_m))

@@ -1,0 +1,98 @@
+{
+  "generated": "2026-08-24",
+  "generator": "analysis/ice_albedo.py",
+  "spectrum": "exoplasim/inputs/stellarspectra/k25v_hr.dat",
+  "spectrum_sha256": "50729d2432316108c45332eac45e6d36e7b6f7fd0c34c854bfc822533119cb51",
+  "library": "vendor/exoplasim/exoplasim/surfacespecs.py",
+  "library_sha256": "f82754cee486cd69efbc50a6e1b8b17a4b977184bb563f93949442a25ddc30a8",
+  "wavelengths": 965,
+  "band_split_um": 0.75,
+  "band1_flux_fraction": 0.3824,
+  "solar_tolerance": 0.02,
+  "flux_outside_measured_range": 0.006086,
+  "surfaces": {
+    "snow_albedo_max": {
+      "blend": "iceblendmax",
+      "declared_at": "plasimmod.f90 dsnowalbmx",
+      "model_constant": 0.8,
+      "solar_broadband": 0.8193,
+      "solar_check_residual": 0.0193,
+      "bands": [
+        0.983,
+        0.585
+      ],
+      "broadband": 0.737,
+      "shift_from_model_constant": -0.063,
+      "recombination_residual": 2.224e-05
+    },
+    "snow_albedo_min": {
+      "blend": "iceblendmin",
+      "declared_at": "plasimmod.f90 dsnowalbmn",
+      "model_constant": 0.4,
+      "solar_broadband": 0.41,
+      "solar_check_residual": 0.01,
+      "bands": [
+        0.508,
+        0.273
+      ],
+      "broadband": 0.363,
+      "shift_from_model_constant": -0.037,
+      "recombination_residual": 1.671e-05
+    },
+    "glacier_albedo_min": {
+      "blend": "glacalbmin",
+      "declared_at": "plasimmod.f90 dglacalbmn",
+      "model_constant": 0.6,
+      "solar_broadband": 0.615,
+      "solar_check_residual": 0.015,
+      "bands": [
+        0.764,
+        0.406
+      ],
+      "broadband": 0.543,
+      "shift_from_model_constant": -0.057,
+      "recombination_residual": 2.515e-05
+    },
+    "sea_ice_albedo_max": {
+      "blend": "seaicemax",
+      "declared_at": "icemod.f90 dicealbmx",
+      "model_constant": 0.7,
+      "solar_broadband": 0.7176,
+      "solar_check_residual": 0.0176,
+      "bands": [
+        0.892,
+        0.473
+      ],
+      "broadband": 0.633,
+      "shift_from_model_constant": -0.067,
+      "recombination_residual": 2.941e-05
+    },
+    "sea_ice_albedo_min": {
+      "blend": "seaicemin",
+      "declared_at": "icemod.f90 dicealbmn",
+      "model_constant": 0.5,
+      "solar_broadband": 0.5125,
+      "solar_check_residual": 0.0125,
+      "bands": [
+        0.636,
+        0.339
+      ],
+      "broadband": 0.453,
+      "shift_from_model_constant": -0.047,
+      "recombination_residual": 2.09e-05
+    }
+  },
+  "ocean_reference": {
+    "blend": "oceanblend",
+    "declared_at": "seamod.f90 doceanalb",
+    "model_constant": 0.069,
+    "solar_broadband": 0.0705,
+    "bands": [
+      0.076,
+      0.064
+    ],
+    "broadband": 0.068,
+    "verdict": "no key: water is flat across the split, so the re-weighting is worth about 0.002 and the band pair barely separates"
+  },
+  "note": "Bands are the star-flux-weighted integrals either side of the model's band edge, so their recombination at band1_flux_fraction reproduces the broadband value by construction; the residual is the band-edge interval solarini books to band 1. Every surface here is currently too BRIGHT in the model, one-signed against the ice-albedo feedback at the cold end."
+}

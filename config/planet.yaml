@@ -600,6 +600,37 @@ model:
   vegetation_albedo: 0.165
   vegetation_albedo_bracket: [0.150, 0.171]
   vegetation_albedo_bands: [0.075, 0.225]
+  # DERIVED 2026-08-24 by analysis/ice_albedo.py. The same operation as the
+  # vegetation pair above, on the surfaces it was never applied to: the model
+  # ships `dsnowalbmx(2)`, `dsnowalbmn(2)`, `dglacalbmn(2)`, `dicealbmx` and
+  # `dicealbmn` as two-element BAND arrays initialised from a scalar, so the
+  # simulation's snow, glacier ice and sea ice each reflect identically either
+  # side of 0.75 um. The two-band scheme carries a star's shape by moving flux
+  # BETWEEN the bands, so equal bands receive none of it and the k25v spectrum
+  # reached these surfaces not at all.
+  #
+  # The blends are ExoPlaSim's own, shipped in `exoplasim/surfacespecs.py` and
+  # read by nothing but `pRT.py`; weighting them by a 5772 K Planck reproduces
+  # every constant they were built to yield, which is what establishes them as
+  # the provenance before the star column is used. Each broadband value here
+  # falls below the constant it replaces, one-signed against the ice-albedo
+  # feedback at the cold end, and sea ice is the largest of them.
+  #
+  # Bands are the star-flux-weighted integrals either side of the model's band
+  # edge, so their recombination reproduces the broadband value by
+  # construction. The ocean is deliberately absent: water is flat across the
+  # split, the re-weighting is worth about 0.002, and `radmod` overwrites the
+  # constant with a zenith formula over open water anyway. OCN-7 and OCN-22.
+  snow_albedo_max: 0.737
+  snow_albedo_max_bands: [0.983, 0.585]
+  snow_albedo_min: 0.363
+  snow_albedo_min_bands: [0.508, 0.273]
+  glacier_albedo_min: 0.543
+  glacier_albedo_min_bands: [0.764, 0.406]
+  sea_ice_albedo_max: 0.633
+  sea_ice_albedo_max_bands: [0.892, 0.473]
+  sea_ice_albedo_min: 0.453
+  sea_ice_albedo_min_bands: [0.636, 0.339]
   # Playa clastics are about a quarter of this terrain's land and the largest
   # lever on its energy balance. The export's 0.19 comes from Post et al.'s
   # all-soils field mean, which is the right kind of measurement on the wrong

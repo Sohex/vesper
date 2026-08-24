@@ -813,7 +813,7 @@
       real :: aqvi(NHOR)  = 0. ! acculumated vertical integrated q
       real :: atsa(NHOR)  = 0. ! accumulated surface air temperature
       real :: atsama(NHOR)= 0. ! maximum surface air temperature
-      real :: atsami(NHOR)= 0. ! minimum surface air temperature
+      real :: atsami(NHOR)= 1.E10 ! minimum surface air temperature
       real :: ats0(NHOR)  = 0. ! accumulated surface temperature
       real :: azmuz(NHOR) = 0. ! mean cosine of solar zenith angle
       

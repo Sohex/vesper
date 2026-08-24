@@ -189,6 +189,35 @@ def check_compatible(src: RestartState, tgt: RestartState,
                 f"{pol.why}, so this is a configuration change rather than a "
                 "change of resolution")
 
+    # A template's accumulators must already be at the value the model resets
+    # them to. The converter takes them verbatim, so a template cut from a run
+    # mid-window hands the converted run somebody else's partial accumulation
+    # -- which is CLIM-31 again, by another route. `build_restart_template.py`
+    # is what makes one clean.
+    dirty = []
+    for rec in tgt.records:
+        pol = rs.POLICY.get(rec.name)
+        if pol is None or pol.semantic != rs.ACCUMULATOR:
+            continue
+        if pol.model_reset == "zero":
+            want = b"\x00" * rec.nbytes
+        elif pol.model_reset == "sentinel":
+            count = rec.nbytes // tgt.real_bytes
+            want = np.full(count, pol.reset_value,
+                           dtype=REAL[tgt.real_bytes]).tobytes()
+        else:
+            continue
+        if rec.payload != want:
+            dirty.append(rec.name)
+    if dirty:
+        shown = ", ".join(dirty[:8]) + (" ..." if len(dirty) > 8 else "")
+        problems.append(
+            f"{len(dirty)} of the template's accumulators are not at the "
+            f"value the model resets them to ({shown}). It was cut from a run "
+            "mid-window, so a conversion onto it would open the new run on "
+            "somebody else's partial accumulation. Run "
+            "build_restart_template.py on it first.")
+
     if problems:
         raise ConversionError("\n  - ".join(["this conversion is refused:"] + problems))
 

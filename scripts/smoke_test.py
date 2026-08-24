@@ -830,6 +830,13 @@ def check_restart_schema_covers_the_model() -> list[str]:
 
     `reset_restart_accumulators.py` reads the same policy, so a gap here is a
     seeded run opening mid-window on the donor's partial accumulation.
+
+    It also holds every accumulator's DECLARED initial value against its reset.
+    A cold run's first output window accumulates from the declaration with no
+    reset before it, so the two disagreeing makes the first record of every
+    cold start a different quantity from the rest of the run. That is what
+    `atsami` was: declared at 0.0, reset to 1.0e10, and a running minimum, so
+    the first record reported a minimum of 0 K.
     """
     sys.path.insert(0, str(ROOT / "exoplasim" / "scripts"))
     try:
@@ -839,7 +846,8 @@ def check_restart_schema_covers_the_model() -> list[str]:
     src = ROOT / "vendor" / "exoplasim" / "exoplasim" / "plasim" / "src"
     if not src.is_dir():
         return [f"{src} is missing; the vendored model source moved"]
-    return restart_schema.check_policy_covers_source(src)
+    return (restart_schema.check_policy_covers_source(src)
+            + restart_schema.check_first_window_matches_the_rest(src))
 
 
 def check_no_shadowed_imports(files: list[Path]) -> list[str]:
