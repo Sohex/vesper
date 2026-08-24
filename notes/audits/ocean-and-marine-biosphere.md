@@ -80,29 +80,41 @@ version exists". The cheap version of the BOUND is `nhdiff`, which
 `notes/audits/absent-and-inherited-physics.md` finding 1 established. The cheap
 version of the TERM is this, and it was not known when that finding was written.
 
-## 3. LSG is vendored, and it is not the switch it looks like
+## 3. LSG was vendored, and it was not the switch it looked like
 
-`vendor/exoplasim/exoplasim/lsg/src/lsgmod.f90` is 9,313 lines of a real
-three-dimensional geostrophic ocean. `oceanmod_nl` already carries `nlsg` and
-`naomod`, the atmosphere-to-ocean step ratio, and `most.c` knows how to build it.
-It looks like the answer. Four things in the source say otherwise.
+`vendor/exoplasim/exoplasim/lsg/src/lsgmod.f90` was 9,313 lines of a real
+three-dimensional geostrophic ocean. `oceanmod_nl` carries `nlsg` and `naomod`,
+the atmosphere-to-ocean step ratio, and `most.c` knew how to build it. It looked
+like the answer. Four things in the source said otherwise.
 
 - `most.c:2415`, comment and code together: "LSG works currently only with T21
-  PlaSim", and it FORCES `Resolution = RES_T21`. Production here is T42 with T85
+  PlaSim", and it FORCED `Resolution = RES_T21`. Production here is T42 with T85
   in loop D.
-- `plasim/src/cpl.f90` hardcodes the coupler grids as `nxa=64, nya=32` on the
+- `plasim/src/cpl.f90` hardcoded the coupler grids as `nxa=64, nya=32` on the
   atmosphere side and `nxo=72, nyot=76` on the ocean side, and the planet as
   `parameter(radea=6.371E6)`. This world's radius is 1.20 Earth.
 - The LSG grid is a fixed 72 x 76 x 22 present-day Earth configuration, and
-  `lsg/dat/` ships Earth bathymetry, an Earth runoff map and Earth restart
+  `lsg/dat/` shipped Earth bathymetry, an Earth runoff map and Earth restart
   fields to go with it.
-- `oceanmod.f90:334` is a hard error: LSG coupling requires
-  `n_days_per_year = 360`. This world's orbit is 182.8 Earth days at the
-  current flux, and its day is 30 hours.
+- `oceanmod.f90:437` is a hard error: LSG coupling requires
+  `n_days_per_year = 360`. That is a count of SIDEREAL DAYS PER ORBIT and is this
+  planet's 146, not a setting, so the requirement can never be met here.
 
-**Adopting LSG means forking it to a depth comparable to the LPJ-GUESS port and
-then running the atmosphere at T21.** Recorded here so that the next reader who
-finds `lsgmod.f90` does not re-discover the four constraints.
+**Adopting LSG meant forking it to a depth comparable to the LPJ-GUESS port and
+then running the atmosphere at T21.**
+
+**The four constraints were accepted and the source is deleted.** world-6ak and
+world-cmz removed the whole `lsg/` tree, `plasim/src/cpl.f90` and `most.c` as
+trees nothing builds, reads or ships. `plasim/CMakeLists.txt:183-184` still links
+a four-line `src/lsgmod.f90` stub and `cpl_stub.f90`, so the `nlsg > 0` branch
+compiles and refuses; `oceanmod.f90:418-434` carries the note at that branch.
+The bodies are recoverable from git if the verdict is ever revisited, and this
+section is the list of what a revisit would have to re-derive rather than
+re-discover.
+
+The candidate this project actually carries for the resolved tier is
+`vendor/cgenie`, under OCN-3. It is not an adopted component: nothing reads it
+and it does not build where it stands.
 
 ## 4. The exorheic fraction is a pre-carve LIMIT, and the drainage geometry gives no ceiling at all
 

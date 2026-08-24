@@ -1,8 +1,24 @@
-# NLOWIO = 0 deadlocks a patched model, and it was read as a compiler regression
+# NLOWIO = 0 deadlocked a patched model, and it was read as a compiler regression
 
-Measured 2026-08-18.
+Measured 2026-08-18, on the MPI build at sixteen ranks.
 
-## What is true
+**The fix is resident and the model has since lost its MPI arm.** `prolog`
+carries `call mpbci(nlowio)` and `call mpbci(nstpw)` (`plasim.f90:273-274`) with
+the reason at `:257-262`, and the patch stack that once held it is gone: the
+fork is edited in place. world-38b then removed the MPI and serial build paths,
+so the threaded build is one rank and the DEADLOCK half of this record cannot
+recur in the form it took -- there is no `MPI_Reduce` to meet an `MPI_Allreduce`.
+
+**The second defect can still recur and is the transferable half.** Under
+OpenMP, `mpbci` is a thread barrier and a copy of a threadprivate
+(`mpimod_omp.f90`), so a namelist scalar read on NROOT alone and not broadcast
+still leaves every other THREAD holding the compiled default. The corruption
+mechanism below -- a collective whose count matches on every task while the
+tasks contribute different fields into it -- needs only that divergence, not
+MPI. `plasim.f90:337-338` cites this record at a second key that had the same
+omission.
+
+## What was true
 
 `nlowio` is read from `plasim_nl` inside `if (mypid == NROOT)` in `prolog`
 (`plasim.f90`, `call readnl`) and is **never broadcast**. Its compiled default is
@@ -215,11 +231,15 @@ surface state, cloud, albedo, roughness and the entropy diagnostics.
 
 ## The fix
 
-`exoplasim-3.4.2-nlowio-broadcast.patch` adds `call mpbci(nlowio)` and
+`exoplasim-3.4.2-nlowio-broadcast.patch` added `call mpbci(nlowio)` and
 `call mpbci(nstpw)` to `prolog`, beside the `mpbci(nafter)` already there.
-`nstpw` is used off-NROOT nowhere today -- its one use, in `write_atmos_restart`,
-is inside `if (mypid == NROOT)` -- so broadcasting it changes nothing now and
-stops the same trap being reset later.
+`nstpw` was used off-NROOT nowhere -- its one use, in `write_atmos_restart`, is
+inside `if (mypid == NROOT)` -- so broadcasting it changed nothing then and stops
+the same trap being reset later.
+
+The patch stack is gone and the two calls are resident in `plasim.f90`. The
+comment above them is the durable half of this document: it names the mechanism
+at the place a reader would otherwise add a third unbroadcast key.
 
 At `NLOWIO = 1` the patch is a no-op by construction: the non-root ranks were
 already holding 1, which is what they now receive.

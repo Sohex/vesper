@@ -137,8 +137,9 @@ the error against the model's own open-water evaporation goes from 8.45% high to
 Both claims were superseded today. DUST-2 priced the forcing at +0.35 to +0.74
 W/m2 global mean with the sign surface-dependent and positive over bright basin
 fill, and the parent established that the aerosol **can** be switched on --
-`aero_ini` at `plasim.f90:190` reads `aero_nl` with `l_aerorad` and `aerofile`
-use-associated from `radmod`, before `radini`'s broadcast at line 439.
+`aero_ini` (called at `plasim.f90:217`, defined in `aeromod.f90`) reads `aero_nl`
+at `aeromod.f90:202` with `l_aerorad` and `aerofile` use-associated from
+`radmod`, before `radini`'s broadcast.
 
 Commits `86baba7` and `2153dcf` both describe updating this file. Neither
 contains it:
@@ -184,35 +185,48 @@ than first stated.
 Land evaporation is `mkevap` in `fluxmod.f90`, and its entire dependence on the
 land surface is one coefficient:
 
-    fluxmod.f90:658    zkdiff(:) = drhs(:) * zkonst1 * dtransh(:) / dt(:,NLEP)
+    fluxmod.f90:701    zkdiff(:) = drhs(:) * zkonst1 * dtransh(:) / dt(:,NLEP)
 
-`dtransh` is the turbulent transfer coefficient, assembled at `fluxmod.f90:264`
+`dtransh` is the turbulent transfer coefficient, assembled at `fluxmod.f90:324`
 from wind, stability and `z0` alone, so **roughness is a genuine vegetation
 channel into evaporation**. `drhs` is the bucket wetness factor, and over land at
-`NVEG = 0` it has exactly one source, `landmod.f90:407`:
+`NVEG = 0` it has exactly one source, `landmod.f90:517` and its restart-branch
+twin at `:684`:
 
-    drhs = min(1, dwatc / (drhsfull * dwmax))          drhsfull = 0.4
+    drhs = AMIN1(1., dwatc / (drhsfull * dwmax))       drhsfull = 0.4
 
-Hydrology is that one bucket: `landmod.f90:1097-1099` adds the water flux, spills
-the excess as `drunoff` and clips. The five `dsoilz` layers hold `dsoilt`,
+Hydrology is that one bucket: `landmod.f90:1223` spills the excess as `drunoff`
+and clips. The five `dsoilz` layers hold `dsoilt`,
 temperature, not water. Nothing in `landmod.f90`, `fluxmod.f90` or `surfmod.f90`
 mentions a root, a canopy, an interception store or a transpiration term, and the
 only match for "stomat" in the three files is a surface-code name at
-`surfmod.f90:237`.
+`surfmod.f90:257`.
 
 **Forest fraction is narrower than "a channel into the climate" suggests.** At
-`NVEG = 0`, `dforest` appears in `landmod.f90` only at lines 383-392 and 541-550,
-mixing the forested and unforested endpoints of the *snow* albedo. It is
-radiative, and reaches evaporation not at all.
+`NVEG = 0`, `dforest` appears in `landmod.f90` only where it is initialised or
+read (`:407`, `:427`) and where it mixes the forested and unforested endpoints of
+the *snow* albedo (`:493-502` and the corresponding restart-branch block). It is
+radiative, and reaches evaporation not at all. world-nfh rewrote that mixing to
+be per band against a canopy albedo; it did not change which term `dforest`
+reaches.
 
 **Switching SIMBA on would not supply the missing physics, which is the part
-worth knowing.** SIMBA does couple back when `nveg == 2`: `simba.f90:473-478`
+worth knowing.** SIMBA does couple back when `nveg == 2`: `simba.f90:545-553`
 overwrites `dz0`, `dwmax`, `drhs`, `dalb` and `dforest`, and its wetness factor
-is `zvrhs = dsc * min(1, dwatc/(zwmax * vws_crit))` at `simba.f90:456`. But
+is `zvrhs = dsc * min(1, dwatc/(zwmax * vws_crit))` at `simba.f90:528`. But
 `dsc`, named "stomatal conductance", is a *prescribed* field -- allocated to
-`rinidsc` at `simba.f90:157`, optionally read as surface code 1606, and never
+`rinidsc` at `simba.f90:229`, optionally read as surface code 1606, and never
 assigned again anywhere in the source -- and `dlai` is computed at
-`simba.f90:452` and used nowhere but output. So even with the vegetation module
+`simba.f90:524` and used nowhere but output.
+
+Two of those overwrites now announce themselves rather than happening silently,
+under world-9hv: `dwmax` is behind the `nvegwmax` key, defaulting to SIMBA as
+upstream did, with both arms printed at initialisation, so a run can keep the
+pedology-derived code-229 field; and `vegini` REFUSES `nveg == 2` under a
+two-band shortwave, because `vegstep` sets `dalb` and not `dsalb`, so SIMBA's
+vegetation albedo would have had no radiative effect while its roughness and
+bucket did. Neither adds a stomatal response, an LAI dependence or a rooting
+depth, which is this finding's point and is unchanged. So even with the vegetation module
 running, evaporation would carry no stomatal response and no LAI dependence, and
 there would still be no rooting depth. These runs have it off in any case:
 `exoplasim/notes/parameter-decisions.md` sets `vegetation` False, so `NVEG=0`,

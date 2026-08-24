@@ -19,8 +19,9 @@ Each is labelled [numeric], [inspection] or [physics] by how far it was checked.
 **This is the same defect the project already found and patched in the ozone
 terms, in the same scheme, left in the larger term.**
 
-`radmod.f90:1548` says of its shortwave code: "from Lacis & Hansen (1974) for
-clear sky (H2O, O3, Rayleigh)". Those absorptances are expressed as a fraction of
+`radmod.f90`'s shortwave says of itself: "from Lacis & Hansen (1974) for
+clear sky (H2O, O3, Rayleigh)", and the module head at `:104-118` now carries the
+re-weighting argument for both terms. Those absorptances are expressed as a fraction of
 TOTAL INCIDENT SOLAR FLUX, so each carries the Sun's share of flux in the band it
 represents. `docs/src/reference/config-rationale.md` states this exactly, for ozone:
 
@@ -39,7 +40,7 @@ puts more of its flux:
 
 | | share above 0.75 um | flux-share ratio to the Sun |
 | --- | ---: | ---: |
-| the Sun, the scheme's own reference (`zsolar1 = 0.517`, radmod.f90:311) | 0.483 | 1.000 |
+| the Sun, the scheme's own reference (`zsolar1 = 0.517`, `radmod.f90:365`) | 0.483 | 1.000 |
 | the 4965 K blackbody every run has actually used, finding 2 | 0.5715 | 1.183 |
 | k25v, the spectrum `config/planet.yaml` names | 0.6154 | 1.274 |
 
@@ -114,16 +115,17 @@ difference at all.
 
 ### 0.4184 is a 4965 K Planck curve, not this star
 
-`radmod.f90:813` takes the spectrum branch only when `NSTARFILE > 0`. Otherwise
-`solarini` builds a blackbody at `STARBBTEMP` and reports its partition in the
-same line of `MOST_DIAG`, with nothing distinguishing the two cases. Reproducing
+`solarini` takes the spectrum branch only when `nstarfile > 0`
+(`radmod.f90:48`, `:495`). Otherwise it builds a blackbody at `STARBBTEMP` and
+reports its partition in the same line of `MOST_DIAG`, with nothing
+distinguishing the two cases. Reproducing
 `solarini`'s own grid -- 1024 logarithmic points from `minwavel` to 0.75 um and
 1024 more from 0.75 to 100 um, trapezoidal, band edge assigned to band 1 --
 gives 0.418350 for a 4965 K Planck curve and 0.384383 for `k25v_hr.dat`. The
 model prints 0.418350399 and 0.384383172. Both to nine digits.
 
 The check that makes this an explanation rather than a coincidence:
-`radmod.f90:207` states that the scheme's default partitioning of 0.517 is what
+`radmod.f90:470` states that the scheme's default partitioning of 0.517 is what
 a 5772 K spectrum produces through this code. The same reproduction returns
 0.517000.
 
@@ -178,23 +180,29 @@ efficiencies are 779.4 and 766.9 m2/kg, so the chain value moved from 771.62 to
 net from +0.34 to +0.55 W/m2 and leaves every sign and every threshold in
 `notes/dust.md` where it was.
 
-### And the same subroutine gets the Rayleigh normalisation wrong
+### And the same subroutine got the Rayleigh normalisation wrong
 
 Found while pricing the above, because `solarini` prints `rcoeff` on the line
 after the band fractions and the two logs disagreed by more than the star does.
 
-`radmod.f90:311` computes `rcoeff`, which multiplies the Rayleigh optical depth
-at `radmod.f90:1928`, as the star's lambda^-4-weighted cross-section normalised
-to a 5772 K reference. The reference `bbg1`/`bbg2` is tabulated at lines 224-226
-on `solarini`'s OWN logarithmic grid. Lines 230-233 then overwrite `wv1`/`wv2`
-with the spectrum file's wavelengths, and the reference integrals at lines
-287-299 run afterwards -- so they pair the reference's Planck values with the
-FILE's wavelengths. The two grids start in different places, 316.036 nm against
-0.2 um, and lambda^-4 weighting makes the short end decisive.
+`solarini` computes `rcoeff` (`radmod.f90:596`), which multiplies the Rayleigh
+optical depth at `radmod.f90:2736`, as the star's lambda^-4-weighted
+cross-section normalised to a 5772 K reference. The reference `bbg1`/`bbg2` was
+tabulated on `solarini`'s OWN logarithmic grid; the spectrum branch then
+overwrote `wv1`/`wv2` with the FILE's wavelengths, and the reference integrals
+ran afterwards -- so they paired the reference's Planck values with the file's
+wavelengths. The two grids start in different places, 316.036 nm against 0.2 um,
+and lambda^-4 weighting makes the short end decisive.
 
-The blackbody branch is unaffected, because nothing overwrites the grid there.
-The defect exists only when a spectrum file is used, which is the case nothing
-has run in.
+The blackbody branch was unaffected, because nothing overwrote the grid there.
+The defect existed only when a spectrum file is used, which was the case nothing
+had run in.
+
+**FIXED, exactly as the paragraph below prescribes.** The reference wavelengths
+have their own arrays: `wvg1(1024)` and `wvg2(1024)` are declared at
+`radmod.f90:447-448` and filled from `wv1`/`wv2` at `:487-488` BEFORE the
+spectrum overwrite at `:495`, and every reference integral -- `zg1`, `zg2`,
+`zgcross1`, `zgcross2` at `:555-564` -- pairs `bbg*` with `wvg*`.
 
 | | `rcoeff` |
 | --- | ---: |
@@ -207,13 +215,12 @@ has run in.
 0.862014830 and 0.209731281, and the 5772 K row is exactly 1 by construction and
 comes out exactly 1.
 
-**This inverts the priority of the fix.** Staging the spectrum into the
-continuation runs, which is the obvious repair and is now done, moves `rcoeff`
-from 0.8620 to 0.2097: Rayleigh scattering 3.4x weaker than the runs have had,
-where the honest value is 0.7125 and is 17% weaker. So the script fix must not
-reach a production run before `solarini` is patched. The patch is small -- keep
-the reference wavelengths in their own arrays instead of reusing `wv1`/`wv2` --
-and it belongs in the same rebuild as any other `radmod.f90` change.
+**This inverted the priority of the fix.** Staging the spectrum into the
+continuation runs, which is the obvious repair and was done first, moves
+`rcoeff` from 0.8620 to 0.2097: Rayleigh scattering 3.4x weaker than the runs
+had had, where the honest value is 0.7125 and is 17% weaker. So the script fix
+had to not reach a production run before `solarini` was patched. It is patched,
+and the ordering constraint is discharged.
 
 ### The canonical value
 

@@ -13,8 +13,12 @@ sit between two components.
 
 **Two findings are new physics that is absent and reachable, one is an Earth
 constant inherited in silence, and two are citation gaps.** The most consequential
-is the first, because the error budget records it as unfixable and the model
-disagrees.
+is the first, because the error budget recorded it as unfixable and the model
+disagreed.
+
+Four are settled and one is open: `dust-14`, finding 2, dust deposition never
+reaching the cryosphere. Finding 1 settled somewhere neither the audit nor the
+budget entry expected, and finding 5 was overtaken twice.
 
 ---
 
@@ -27,11 +31,11 @@ disagrees.
 
 `oceanmod.f90` carries, in the ocean namelist:
 
-    integer :: nhdiff        = 0      ! switch for horizontal heat diffusion
-    real    :: hdiffk(NLEV_OCE) = 1.E3 ! horizontal diffusion coeff. [m**2/s]
+    integer :: nhdiff           = 0   ! switch for horizontal heat diffusion
+    real :: hdiffk(NLEV_OCE)  = 1.E3  ! horizontal diffusion coeff. [m**2/s]
 
-with `if(nhdiff > 0)` at line 844 doing the work, `nhdiff` broadcast at line 223
-and both it and `hdiffk` in the `oceanmod_namelist` read at line 150.
+at `:44` and `:53`, with `mksst` acting on `nhdiff > 0`, both broadcast at
+`:274` and `:278`, and both in the `oceanmod_namelist` read at `:188`.
 
 **A diffusive ocean heat transport is the cheap version, and it is one namelist
 key on the binary already built.** It is the standard slab-ocean treatment: it
@@ -57,6 +61,33 @@ Both are reasons to bracket it, not reasons to call it unreachable.
 transport exists. The argument for turning it on is that it exists, not that it
 improves any comparison, and if enabling it makes an agreement worse that is
 information rather than a reason to switch it off again.
+
+**The budget entry is corrected, and TWO THINGS ABOUT THIS TERM MOVED AFTERWARDS
+that the audit could not have seen.**
+
+First, the arms that ran were mislabelled. `hdiffo` divided the requested
+coefficient by a compiled `parameter(PLARAD=6.371E6)`, Earth's radius, on an
+angular grid where the radius is what supplies the metric, so every CLIM-16 and
+CLIM-19 arm realised `(a/a_earth)**2 = 1.4396` times the diffusivity it
+declared: the 300/1000/3000 bracket really ran 432/1440/4318. **world-mll**
+removed the parameter, so `hdiffo` takes the radius from `planet_nl` through
+`pumamod` and `oceanini` aborts if `nhdiff > 0` reaches it with no radius
+(`oceanmod.f90:290-292`). The conservation claim on that result does not depend
+on the coefficient's value and is untouched; the labels are, and `world-vho` is
+the relabelling.
+
+Second, and this is the part that changes the finding's verdict rather than its
+arithmetic: **the term is now STRUCTURALLY PERMANENT rather than merely
+unpriced.** `nfluko` is ExoPlaSim's actual q-flux, and both of its branches
+RELAX the modelled state toward a sea surface temperature and sea-ice
+climatology. This world has none -- an SST field is what the model PRODUCES --
+so there is nothing to relax toward, and the fields `nfluko` would have used
+were built from a `-999` sentinel. **world-6fh and world-4ba** made `icemod` and
+`oceanmod` refuse `nfluko` on that test rather than relax toward a constructed
+field. So diffusion is the bound this term gets, and a q-flux is not available
+here at any price. That is a stronger statement than the budget's original one
+and it is reached by a different route: not "no cheap version exists" but "the
+mechanism needs an observation this world cannot have".
 
 ## 2. Dust deposition reaches the soil and never reaches the cryosphere
 
@@ -100,8 +131,15 @@ large fraction of land and not only a glacier question.
 **And it puts a cryosphere term under the aeolian roughness bracket**, which
 `dust.yaml` already flags as "not a small correction" and which spans five orders
 of magnitude in the table above. That bracket was understood as controlling
-emission and the direct radiative effect. It now controls a snow albedo term as
-well, and nothing has said so.
+emission and the direct radiative effect. It also controls a snow albedo term,
+and nothing had said so.
+
+**OPEN, as `dust-14`.** Nothing in the cryosphere reads the deposition field and
+the coupling still runs one way. Two later findings bear on the same snow albedo
+and neither supplies this term: `world-nfh` fixed the canopy masking applied over
+snow, and `world-e5p` made code 175 archive the albedo the radiation actually
+used. Both are about the albedo the model computes from what it knows; this
+finding is about a forcing the model is never told.
 
 ## 3. Ocean salinity was undeclared; its declaration remains a bracket
 
@@ -136,6 +174,21 @@ Computing the budget still needs an ocean age and an outgassing history this
 project does not have. The implemented fix is therefore the declared salinity
 and derived `TFREEZE`; OCN-13/OCN-16 own any future salt and carbon ledgers.
 
+**One number was not the whole of it: salinity reached the model through FOUR
+compiled constants.** `notes/audits/model-earth-centrism.md` finding 10 found
+`CRHOS = 1030.` labelled "at S=34.7" in both `icemod` and `oceanmod`, `CPS =
+4180.` labelled sea water and carrying FRESH water's value, and `CLFI = 3.28E5`
+depressed by Earth brine content, none of them reachable. **world-9hb** made all
+four `icemod_nl` keys with one definition -- `oceanini` takes `prhos`, `pcps` and
+`pclfi` as arguments from `icemod` rather than declaring its own copies -- and
+`run_exoplasim.py` writes the first three from the declared `salinity_psu`.
+`CPS` moved to sea water's 3990.34, which is a physics change. That matters for
+this finding's own argument in a specific way: the snow-ice flooding threshold is
+the DIFFERENCE `CRHOS - CRHOI`, so a one per cent density error was a ten per
+cent threshold error, and the salinity bracket this audit says the world is least
+likely to sit inside now actually moves the sea-ice feedback rather than only the
+freezing point.
+
 ## 4. The soil field that closes the loop to the climate is uncited
 
 `pedology/config/pedogenesis.yaml`, above the `water:` block, says what the block
@@ -158,32 +211,67 @@ statement that it is declared."
 The values are not wrong. Volumetric available water capacity, field capacity
 minus wilting point, is conventionally around 0.05 to 0.10 for sand, 0.18 to 0.22
 for silt loam and 0.12 to 0.17 for clay, and the ordering with silt highest is
-the standard one and is the physically right shape. What is missing is the
+the standard one and is the physically right shape. What was missing is the
 citation, on the one pedology parameter that reaches the climate model.
 
-The `catena:` block below it is in the same state and matters for the same field,
-because it sets the regolith depth these are multiplied by:
+**Closed under LITH-24, and the way it closed is the finding's own point made
+sharper.** The block now carries Saxton and Rawls (2006) as its SOURCE and then
+says what that source does and does not license: the regression is over a
+CONTINUOUS mixture and explicitly excluded samples above 60 per cent clay, so a
+pure endmember is outside the data it was built on, and reading endmember values
+off it would be taking a number from a citation rather than from the paper --
+`docs/src/practice/failure-modes.md` class 9. So the three values are DECLARED,
+with the paper as the check on their ordering and magnitude rather than their
+origin, and each carries a bracket: sand [0.05, 0.10], silt [0.15, 0.25], clay
+[0.10, 0.18], organic [0.20, 0.40]. `build_soil.py` reports the spread across
+those brackets, because this field reaches the climate and a single number would
+hide what it is worth.
+
+The `catena:` block below it was in the same state and matters for the same
+field, because it sets the regolith depth these are multiplied by:
 `frost_production_bonus: 3.0`, `slope_transport: 4.0`, `slope_fines_loss: 0.35`,
-`maximum_fines_loss: 0.6`. Each carries reasoning and an order-of-magnitude
-argument, which is better than nothing and is honest, but none carries a source
-and none is labelled `declared` the way `dust.yaml` labels its own ungrounded
-constants. `dust.yaml` is the model to copy here: every constant either cites a
-paper or says it is declared and carries a bracket, and the component reports the
-spread across the bracket rather than the central value alone.
+`maximum_fines_loss: 0.6`. Each carried reasoning and an order-of-magnitude
+argument, which is better than nothing and is honest, but none carried a source
+and none was labelled `declared` the way `dust.yaml` labels its own ungrounded
+constants. `dust.yaml` was the model to copy, and it was copied: every one of the
+catena constants is labelled DECLARED with a bracket beside it and the reasoning
+kept -- `frost_production_bonus_bracket: [1.0, 10.0]` runs from no bonus at all
+to the order-of-magnitude literature figure,
+`slope_transport_bracket: [2.0, 8.0]` spans thinning half and twice as
+aggressive -- and the component reports the spread rather than the central value
+alone.
 
 ## 5. CH4 and N2O are absent, and the absence is not declared
 
-`config/planet.yaml`'s `atmosphere` block is N2, O2, Ar, CO2 and ozone. There is
-no methane and no nitrous oxide, and `docs/src/reference/config-rationale.md`'s `atmosphere`
-section does not mention them.
+`config/planet.yaml`'s `atmosphere` block was N2, O2, Ar, CO2 and ozone. There
+was no methane and no nitrous oxide, and
+`docs/src/reference/config-rationale.md`'s `atmosphere` section did not mention
+them.
 
-This is a model limitation rather than a configuration omission: PlaSim's
-longwave is Sasamori (1968) with water vapour, CO2 and ozone, so there is nothing
-to set. But the config reads as a composition that was chosen, and a reader will
-take the absence as a decision about the world rather than a property of the
-scheme. Given that the same block already carries a careful paragraph explaining
-why CO2 is prescribed and should be read as an assumption, one sentence saying
-the longwave carries three absorbers and what that leaves out belongs beside it.
+This was a model limitation rather than a configuration omission: PlaSim's
+longwave is Sasamori (1968) with water vapour, CO2 and ozone, so there was
+nothing to set. But the config read as a composition that was chosen, and a
+reader would take the absence as a decision about the world rather than a
+property of the scheme.
+
+**Overtaken twice, and the second time made the absence moot.** The declaration
+this finding asked for was written. Then CLIM-42 added the longwave band, so
+`radmod_nl` carries `ch4` and `n2o` (`radmod.f90:190-191`, broadcast at
+`:1112-1113`) and there IS something to set them to; and CLIM-43 measured what to
+set, from Rugheimer et al. (2013) at the epsilon Eridani grid point, which is
+this host to within 35 K. Both gases read the Sun case's values -- neither is
+enhanced at this star, because the enhancement turns on below 4750 K -- so
+`pCH4_bar` and `pN2O_bar` are declared at Earth's abundances and are an
+ASSUMPTION in the same sense `pCO2_bar` is, with the biogenic fluxes behind them
+held at modern Earth's. Priced at 0.799 W/m2 of global mean outgoing longwave
+against zero, which is 40 per cent of the offline answer, and 40 per cent is
+what this broadband scheme returns for CO2 as well.
+
+**The paragraph this finding asked for is now itself superseded and still
+stands.** `config/planet.yaml`'s preamble above the `atmosphere` key still says
+`radmod.f90` has no CH4 and no N2O term and that adding either means adding a
+band, four lines above the block that sets both and prices the band. Filed as
+`world-wu8`.
 
 ---
 
@@ -195,11 +283,11 @@ Recorded so they are not re-derived, in the spirit of
 **Gravity propagates correctly through the whole radiation scheme.** This was the
 obvious place for the DUST-6 pattern to have struck the largest term in the
 project, and it has not. In `radmod.f90`'s shortwave, every absorber amount
-divides by `ga`: ozone at line 2183, water vapour at 2187, CO2 at 2200. Rayleigh
-scattering carries an explicit `(9.80665/ga)` factor at lines 2208 and 2209. The
-longwave does the same at lines 2749 and 2751. The aerosol optical depth is built
-from a geometric layer thickness computed as `-dt*gascon/ga*ALOG(...)` at lines
-1791 and 1866. So the 23% reduction in atmospheric column mass that follows from
+divides by `ga`: ozone at `:2485`, water vapour at `:2491`, CO2 at `:2505`.
+Rayleigh scattering carries an explicit `9.80665/ga` factor at `:2514-2515` and
+`:2736`. The longwave does the same at `:3226` and `:3238`. The layer geometry
+the aerosol optical depth is built on is computed as `-dt*gascon/ga*ALOG(...)`
+at `:1602`, `:2004` and `:2088`. So the 23% reduction in atmospheric column mass that follows from
 1 bar at 12.81 m/s2 rather than at 9.81 is represented everywhere it should be,
 and 450 ppm here really is a smaller CO2 column than 450 ppm on Earth, correctly.
 
@@ -218,7 +306,12 @@ cover on a dry world is not being computed without a disturbance regime.
 
 **Sea ice is thermodynamic with snow and no drift**, which is the consistent
 choice beside a slab ocean, and both polar caps being land limits what ice export
-would do here anyway.
+would do here anyway. What the sweep did NOT check, and
+`notes/audits/model-earth-centrism.md` finding 26 later found, is that the
+thermodynamics carried an Earth Arctic lead-closing scale and a 9 m thickness
+clamp whose enforcement redistributed melt heat globally. Both are fixed under
+`world-12c`, and `config/planet.yaml` switches the clamp off entirely at
+`sea_ice_max_thickness_m: -1.0`.
 
 **The vegetation assumption is used consistently across components.**
 `build_surface_albedo.py --mode vegetated` paints everything outside
@@ -234,3 +327,9 @@ hydrography solver internals beyond what `carve-criterion-terms.md` already
 covers, the LPJ-GUESS PFT parameter set, the Mie code behind
 `analysis/dust_optics.json`, or the pedology weathering law's own constants
 beyond their citation state.
+
+The vendored model's own constants were also out of scope: this audit reads the
+switches and the parameters this project sets, not the Fortran behind them.
+`notes/audits/model-earth-centrism.md` took the same question into the fork,
+which is why several of its findings land on the same mechanisms as findings 1
+and 3 here and reach further into them.

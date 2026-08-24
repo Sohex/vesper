@@ -3,13 +3,20 @@
 Read 2026-08-18, against `vendor/exoplasim` and Cohen et al. (2024),
 `references/2307.10931v2.pdf`.
 
+**Fixed in this fork.** `aero_ini` use-associates radmod's copy under an alias,
+`use radmod, only: l_aerorad, aerofile, rad_apart => apart`
+(`aeromod.f90:192`), and assigns `rad_apart = apart` after the namelist read
+(`:277`), with the defect recorded at `:266-276`. The two copies cannot diverge.
+Everything below is what the divergence was and what it would have cost, which
+is still the argument for offering the fix upstream.
+
 ## The mechanism
 
 `apart`, the aerosol particle radius, is declared twice: in `aeromod` at 50e-9
-and in `radmod` at 50e-09. Only aeromod's is in a namelist. `aero_ini` reads
-`aero_nl` into aeromod's copy and use-associates `l_aerorad` and `aerofile` from
-radmod, but NOT `apart`, so radmod's copy keeps its compiled default however the
-run is configured.
+and in `radmod` at 50e-09. Only aeromod's is in a namelist. `aero_ini` read
+`aero_nl` into aeromod's copy and use-associated `l_aerorad` and `aerofile` from
+radmod, but NOT `apart`, so radmod's copy kept its compiled default however the
+run was configured.
 
 Both halves of the optical depth then disagree:
 
@@ -24,7 +31,14 @@ instead computes `nrho(r_true) * r_radmod^2`, and
 
     tau_computed / tau_intended = (r_radmod / r_true)^2 = (50e-9 / r_true)^2
 
-Both defaults are 50 nm, so the defect is dormant until a run sets `apart`.
+Both defaults are 50 nm, so the defect was dormant until a run set `apart`.
+This project would have set it: `world-906` found that `enable_dust_emission`
+wrote the fourteen `DUST*` keys and neither `APART` nor `RHOP`, and made it read
+both out of the aerofile's own sidecar, where `dust_aerofile.py` had derived
+`APART = 2.2068e-06` for this planet's gravity. Through the divergence that
+would have been `(50e-9/2.2068e-6)**2`, and through Stokes settling with the
+grain left at 50 nm it was worth about 1790 times too slow a fall speed.
+`notes/audits/model-earth-centrism.md` has the settling half.
 
 ## Why this is not a theoretical concern
 
@@ -228,3 +242,13 @@ yet offered upstream: the bottom-level sink that removes 99% of the layer per
 timestep, which is a rate that depends on the integration step and therefore is
 not a rate, and the absence of any longwave aerosol term, which gives a model
 that can cool with haze and cannot warm with it.
+
+**The longwave half is no longer absent in this fork.** `aeroqlw`
+(`radmod.f90:324`) is the thermal-IR absorption optical depth per unit band-1
+extinction optical depth for the INTERACTIVE aerosol, beside `dustqlw` for the
+prescribed field; the two are kept apart because the two paths carry different
+particles, and there is no defensible default for either, so `radini` ABORTS on
+an interactive aerosol with `aeroqlw` at zero (`radmod.f90:1382`). world-24v gave
+it a writer and turned the `l_aerorad` pin into a switch. The exclusion that made
+the two paths mutually exclusive is also gone: they no longer share one optical
+depth slot, so a prescribed column and a transported one can both act.

@@ -688,9 +688,10 @@ runs. This is the first reading of the ocean and ice streams in this project.
 interval of `nout` timesteps. Nothing in this project postprocesses them, and
 the codes are not the ones the atmospheric table uses. `ocean_output` carries
 901 to 906, 910, 939, 972 and 990; `ice_output` carries 701 to 714, 739, 741,
-769, 772 and 790 to 796. `osst` and `oheat` appear on 169 and 263 only in
-`plasim_dummy.f90:673`, and in pyburn's table those two numbers are the
-atmosphere's `tsa` and `hfns`.
+769, 772 and 790 to 796. `osst` and `oheat` appeared on 169 and 263 only in `plasim_dummy.f90`, which
+world-cmz deleted as a source no configuration compiled; in pyburn's table those
+two numbers are the atmosphere's `tsa` and `hfns`, which is the collision the
+observation was about and is unchanged.
 
 **`ice_output` is the better of the two and nothing had named it.** It carries
 the whole decomposition of what the atmosphere delivers: 701 the flux as the

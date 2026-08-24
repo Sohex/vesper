@@ -227,9 +227,9 @@ reads each one with `inquire(exist=)` and skips it silently when it is missing.
 
 The completed runs consequently used uniform land-surface properties: 2.0 m
 roughness, 0.22 background albedo, Earth field capacity, 0.5 forest fraction and
-no glacier mask. `landmod.f90:304-308` presets those before attempting the read,
-so the fallback is a set of namelist values rather than zeros, and nothing about
-the output is corrupt.
+no glacier mask. `landini` presets those at `landmod.f90:404-412` before
+attempting the read, so the fallback is a set of namelist values rather than
+zeros, and nothing about the output is corrupt.
 
 This is now a declared choice rather than an accident. `model.uniform_land_
 surface` in `config/planet.yaml` must be true, and `surface_field_report()`
@@ -474,12 +474,19 @@ Note that `pr` and `evap` are in m s-1, not mm/day. The conversion is 86400 x 10
 with `GLACELIM` 2.0 m water equivalent and `ICESHEETH` -1.
 
 The rationale recorded at enablement, the glacier orography feedback, was
-wrong: see "Corrected reasoning on glaciers" below. Snow is clipped at
-`dsmax` 5 m, the orography contribution is inert, and what the module buys is
-albedo persistence.
+wrong for the model as it then stood: see "Corrected reasoning on glaciers"
+below, and the correction to that correction at the foot of it. Snow WAS clipped
+at `dsmax` 5 m, which made the orography contribution inert and left albedo
+persistence as the whole of what the module bought. The cap is lifted now.
 
 The module is conservative. `ICESHEETH` -1 places no initial ice, so a glacier
-appears only where snow survives a full model year, and orbit 0 is bit-comparable
+appears only where snow survives a full model year. That criterion was not what
+it said: `glaciermod` tested a flag reset at every model INVOCATION, so the
+duration was the caller's segment length. It is a declared duration now,
+`surface.glaciers.persistence_orbits: 1.0`, counted in seconds by a `persistt`
+clock that is a restart record, so it survives a segment boundary and means the
+same thing however a run is cut. world-qpe. At one orbit per invocation the
+criterion is numerically unchanged. Orbit 0 is bit-comparable
 with the module on or off: 263.79 K against 263.77 K, glacier fraction exactly
 zero, mean land snow 9 mm. Whether it ever fires is an outcome, not an
 assumption. After one orbit the deepest land snow is 0.730 m, on a tropical
@@ -540,21 +547,42 @@ as code 212 by `build_surface_albedo.py`, tracking the albedo mode: 0 for
 
 ### Corrected reasoning on glaciers
 
-Enabling the glacier module is still right, but not for the reason recorded when
-it was switched on. `landmod.f90:839-845` hard-clips snow at `dsmax`, whose
-default is **5.0 m water equivalent**, and line 424 pins a glacier cell at exactly
-that. The glacier orography contribution is therefore capped at about five
-metres and is inert. PlaSim cannot grow an ice sheet, and raising `maxsnow` would
-not fix it, because without ice flow the accumulation zone would thicken into a
-tower rather than spread into a sheet.
+Enabling the glacier module was still right, but not for the reason recorded when
+it was switched on. `landstep` hard-clipped snow at `dsmax`, whose compiled
+default is **5.0 m water equivalent**, and `landini` pinned a glacier cell at
+exactly that. The glacier orography contribution was therefore capped at about
+five metres and was inert: `glacieroro` could not exceed 5.0/0.85, so PlaSim
+could not grow an ice sheet.
 
-What the module does contribute is albedo persistence. A glacier cell uses
-`albgmin`/`albgmax` instead of the snow curve, so it holds a minimum albedo of
-0.745 below 0.75 um where snow decays to 0.501 as it approaches melting. That
-hysteresis is a genuine bistability mechanism, and it is what the setting buys.
+What the module does contribute regardless is albedo persistence. A glacier cell
+uses `albgmin`/`albgmax` instead of the snow curve, so it holds a minimum albedo
+of 0.745 below 0.75 um where snow decays to 0.501 as it approaches melting. That
+hysteresis is a genuine bistability mechanism.
+
+### The cap is lifted, so the limitation above is not the one to state
+
+`dsmax` is a `landmod_nl` key (`landmod.f90:107`) and
+`config/planet.yaml` declares `surface.glaciers.max_snow_depth_m: -1.0`, which
+`landmod.f90:980` reads as no limit and `:540` reads as starting a glacier cell
+at zero and letting `glacierini` raise it to `glacelim`. world-cwc. No finite
+replacement is offered because any figure would be invented: the cap has no
+physical content, and the accumulator is bounded below by melt and sublimation
+and above only by the snowfall a permanently frozen cell receives. The soil
+column is not exposed to unbounded depth either way, because `landmod` blends at
+most 1 m of physical snow into it.
+
+So the accumulator is unbounded, `glacieroro` can grow, and `glaciermod`'s own
+30 m ice-sheet test is live code. The limitation that remains is the one the
+module's own documentation gives and the cap was hiding: **it does not MOVE
+ice.** Without flow the accumulation zone thickens into a tower rather than
+spreading into a sheet, so continental ice-sheet EXTENT is still underestimated
+and the growth is vertical. Everything above the cap used to be diagnosed as melt
+and pushed into runoff at the full snowfall rate, which is a separate error that
+is now gone.
 
 State the limitation plainly when interpreting: this experiment tests albedo
-bistability including glacier albedo hysteresis and excluding ice-sheet growth.
+bistability including glacier albedo hysteresis, with vertical ice-sheet growth
+and no ice flow.
 
 ### Left at defaults, deliberately
 
@@ -816,7 +844,7 @@ sea ice and the Planck response, not on which terrain produced it.
 | 0.9125 | `run_5aed450f3972` | 282.489 K | 282.491 K | 6.174% |
 | 0.968 | `run_1dbb75d05aca` | 293.741 K | 293.663 K | 0.206% |
 
-**201 K per unit flux ratio**, or 2.01 K per 0.01 — from the fitted asymptotes.
+**201 K per unit flux ratio**, or 2.01 K per 0.01, from the fitted asymptotes.
 Run means give 203 and drift-implied endpoints 206, so call it 201 to 206.
 
 Confirmed 2026-08-17 on the active build, which is what makes it usable rather
