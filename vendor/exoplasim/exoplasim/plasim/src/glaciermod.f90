@@ -258,6 +258,11 @@
         endif ! (mypid == NROOT)
         call mpscsp(sp,spm,1)
         
+!       A CELL-MEAN DEPTH AGAINST A COLUMN THRESHOLD. 30 m is the minimum ice
+!       thickness for a sheet to flow, which is a property of ice and not of the
+!       grid, but dsnowz here is the mean over the cell: a coarse cell that is
+!       half covered to 40 m does not flag while a fine cell fully covered to
+!       31 m does. Anchored to T21 in that sense. world-khn.
         where (dsnowz(:) > 30.0) dglac = 1.0 !If we have more than 30 m of lq H2O equivalent in snow/ice, it's a glacier
                                              !30 meters of ice is the minimum thickness for an ice sheet to flow
         where (dls(:) < 0.5) persistt = 0.0

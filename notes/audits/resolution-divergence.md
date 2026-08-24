@@ -183,8 +183,12 @@ turns a gridpoint field into a global mean rather than a convention that half
 the call sites follow. `icemod.f90` and `utilities.f90` already weighted
 correctly.
 
-**Absolute per-cell thresholds.** Each of these compares a gridcell mean against
-a constant chosen for one cell size, with no NLAT term:
+**Absolute per-cell thresholds, now declared as anchored.** Each of these
+compares a gridcell mean, or a raw cell count, against a constant chosen for one
+cell size, with no NLAT term. Each now says so at its declaration, and
+`exoplasim/notes/resolution-tuned-parameters.md` section 4 carries the list a
+convergence experiment has to account for. `snowcovz` was a bare 0.01 at seven
+sites and is now one named key in `landmod_nl`.
 
 | what | where | why it moves |
 | --- | --- | --- |

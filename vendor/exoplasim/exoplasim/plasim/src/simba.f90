@@ -535,7 +535,7 @@ do jhor = 1 , NHOR
 
       zalbsn = (albsmax - albsmin) * (dt(jhor,NLEP)-263.16) / (TMELT-263.16)
       zalbsn = max(albsmin,min(albsmax,albsmax-zalbsn))
-      zvalb  = zvalb+(zalbsn-zvalb)*dsnow(jhor)/(dsnow(jhor)+0.01)
+      zvalb  = zvalb+(zalbsn-zvalb)*dsnow(jhor)/(dsnow(jhor)+snowcovz)
       zvalb  = vsalb_min * zforest + zvalb * (1.-zforest)
       zvrhs  = 1.0
     endif

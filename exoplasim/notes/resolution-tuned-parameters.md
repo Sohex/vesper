@@ -97,6 +97,40 @@ cent step in a precipitation constant taken on a rung change with no derivation
 on either side. `rainmod.f90` carries the argument at the declaration. Every run
 this project has done is T21 and integrated 0.01, so nothing that exists moved.
 
+## 4. Thresholds anchored to one rung, and what SPAT-8 must attribute to them
+
+These are not resolution BRANCHES. Each is one constant that compares a gridcell
+mean, or a raw cell count, against a number chosen for one cell size, and none
+of them carries an NLAT term anywhere in this tree or upstream. They are kept at
+their values and declared as anchored to T21 rather than re-keyed, because a
+table of per-rung values would be the same undeclared fit written more times.
+
+A convergence experiment that changes rung changes all of these at once, so a
+difference between two rungs is not evidence about the dynamics until they are
+accounted for. The declaration is what makes that possible; the accounting is
+SPAT-8's.
+
+| constant | where | what moves with the rung |
+| --- | --- | --- |
+| `snowcovz`, the snow depth at half cell cover | `landmod`, and `simba` through it | the snow-covered fraction of a partially covered cell, hence the surface albedo. It was a bare 0.01 at seven sites and is now one named key in `landmod_nl` |
+| `rcrit`'s 0.85 floor | `rainmod`'s `rainini` | when cloud starts to form at a given cell-mean relative humidity. A smaller cell holds a narrower within-cell humidity distribution and should start later. The by-level modifier normalises by NLEV; the horizontal assumption does not |
+| `zcca` and `zccb` | `rainmod`'s `mkclouds` | convective cloud cover, fitted against a CELL-MEAN convective rain rate. The same simulated storm on a smaller cell gives a larger rate and more cover |
+| the 30 m glacier flag | `glaciermod` | 30 m is a property of ice, not of the grid, but it is applied to the cell MEAN snow depth: a coarse cell half covered to 40 m does not flag while a fine cell fully covered to 31 m does |
+| `dls > 0.5`, land or sea | `icemod` at seventeen sites, and elsewhere | which cells are ocean at all. This one has no rung-independent form: it is the discretisation of a fractional mask, and moving the rung moves the coastline |
+| `SIZETHRESH`, `ENDTHRESH`, `MINSTORMLEN`, `MAXSTORMLEN` | `hurricanemod` | storm size as an UNWEIGHTED cell count (30 cells is 1.46 per cent of the globe at T21 and 0.37 per cent at T42, and a different area at different latitudes within one rung) and storm duration in TIMESTEPS |
+
+`zumin`, the gustiness floor in `fluxmod`, was on this list. It is now applied in
+the units it is documented in; it is still a subgrid constant and still anchored,
+and its declaration says so.
+
+The hurricane thresholds are deliberately NOT converted to an area and a
+duration. That diagnostic is Earth-empirical end to end and stays off on this
+world: `LAVTHRESH` is an absolute vorticity against a planetary vorticity 0.8 of
+Earth's at a 30-hour day, `CPD` is hardcoded rather than tied to `acpd`, and `CL`
+is an admitted fudge. Making two of the thresholds rung-independent while the
+rest stay fitted to Earth buys a false look of correctness. If the diagnostic is
+ever wanted, all of them are a re-derivation.
+
 ## What is NOT free-floating
 
 The radiation's absorptances are fits -- Lacis-Hansen shortwave and Sasamori

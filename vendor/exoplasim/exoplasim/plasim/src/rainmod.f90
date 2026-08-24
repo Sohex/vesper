@@ -129,6 +129,12 @@
        nshallow=0
       endif 
 !
+!     THE CRITICAL RELATIVE HUMIDITY, and the 0.85 floor is the subgrid half.
+!     rcrit is the cell-mean relative humidity at which cloud starts to form, so
+!     it encodes an assumed distribution of humidity WITHIN the cell: a smaller
+!     cell holds a narrower distribution and should start later. The by-level
+!     modifier below normalises by NLEV; the horizontal assumption has no NLAT
+!     term anywhere. Anchored to T21. world-khn.
       rcrit(:)=MAX(0.85,MAX(sigma(:),1.-sigma(:)))
 !
       if(mypid==NROOT) then
@@ -1917,6 +1923,11 @@
 !
 
       parameter(zclmax=1.)
+!     THE CONVECTIVE CLOUD-COVER FIT, zcc = zcca + zccb*log(convective rain
+!     rate). The rate it is fitted against is a CELL MEAN, so the same simulated
+!     storm spread over a smaller cell gives a larger rate and more cover: the
+!     cloud fraction of a convecting region is rung dependent through this pair
+!     alone. Anchored to T21, with no NLAT term upstream. world-khn.
       parameter(zcca=0.245,zccb=0.125)
       parameter(zccmax=0.8,zccmin=0.05)
 

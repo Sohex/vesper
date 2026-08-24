@@ -15,6 +15,15 @@
 !
 !     namelist parameters
 !
+!     THE SUBGRID SNOW-COVER SCALE, and it was a bare 0.01 at seven sites. The
+!     snow-covered fraction of a cell is taken as dsnow/(dsnow + snowcovz), so
+!     snowcovz is the snow depth at which half the cell is covered: it stands in
+!     for the distribution of snow depth WITHIN the cell and therefore depends
+!     on how big the cell is. 1 cm is the canonical value and carries no NLAT
+!     term here or upstream. Anchored to T21; named and put in landmod_nl so a
+!     rung study can move it, rather than left as a literal in seven places.
+!     world-khn.
+      real    :: snowcovz = 0.01  ! snow depth at half cell cover (m water eq.)
       integer :: nlandt   = 1     ! switch for land model (1/0 : prog./clim)
       integer :: nlandw   = 1     ! switch for soil model (1/0 : prog./clim)
       integer :: newsurf  = 0     ! (dtcl,dwcl) 1: update from file, 2:reset 
@@ -188,6 +197,7 @@
 !$omp&  darea,dgroundalbnl,doro,dqs,drhsfull,drhsland,driver,dsmax,dsnowt,dsnowz,dsoilt,dsoilz,dtcl,&
 !$omp&  dtclim,dtclsoil,dts,dtsm,duroff,dvroff,dwatcini,dwater,dwcl,dwclim,dz0clim,dz0climo,dz0land,&
 !$omp&  dzglac,dztop,forcovmn,forcovmx,lversion,newsurf,nlandt,nlandw,nwatcini,nwetsoil,rhosnow,&
+!$omp&  snowcovz,&
 !$omp&  rinifor,rlue,rnbiocats,roffexp,roffpit,roffvel,&
 !$omp&  sicecap,sicediff,snowcap,snowdiff,soilcap,soildiff,tau_soil,tau_veg,wsmax)
 
@@ -244,6 +254,7 @@
      &                ,soildiff,sicediff,snowdiff,sicecap,snowcap       &
      &                ,rhosnow,roffvel,roffexp,roffpit                  &
      &                ,newsurf,rinifor,nwatcini,dwatcini,dgroundalb
+     &                ,snowcovz
 !
       dtclsoil(:) = tmelt
       dsoilt(:,:) = tmelt
@@ -360,6 +371,7 @@
       call mpbcr(dzglac)
       call mpbcr(dztop)
       call mpbcr(dsmax)
+      call mpbcr(snowcovz)
       call mpbcr(rlue)
       call mpbcr(co2conv)
       call mpbcr(tau_veg)
@@ -501,11 +513,11 @@
           zdalb2=(zalbmax2-zalbmin2)*(dts(jhor)-263.16)/(tmelt-263.16)
           zalbsnow2=MAX(zalbmin2,MIN(zalbmax2,zalbmax2-zdalb2))
           dalb(jhor)=dalbclim(jhor)                                     &
-     &        +(zalbsnow-dalbclim(jhor))*dsnow(jhor)/(dsnow(jhor)+0.01)
+     &        +(zalbsnow-dalbclim(jhor))*dsnow(jhor)/(dsnow(jhor)+snowcovz)
           dsalb(1,jhor) = dalbclim1(jhor)                               &
-     &        +(zalbsnow1-dalbclim1(jhor))*dsnow(jhor)/(dsnow(jhor)+0.01)
+     &        +(zalbsnow1-dalbclim1(jhor))*dsnow(jhor)/(dsnow(jhor)+snowcovz)
           dsalb(2,jhor) = dalbclim2(jhor)                               &
-     &        +(zalbsnow2-dalbclim2(jhor))*dsnow(jhor)/(dsnow(jhor)+0.01)
+     &        +(zalbsnow2-dalbclim2(jhor))*dsnow(jhor)/(dsnow(jhor)+snowcovz)
           drhs(jhor)=1.
          else
           dalb(jhor)=dalbclim(jhor)
@@ -668,11 +680,11 @@
          zdalb2=(zalbmax2-zalbmin2)*(dts(jhor)-263.16)/(tmelt-263.16)
          zalbsnow2=MAX(zalbmin2,MIN(zalbmax2,zalbmax2-zdalb2))
          dalb(jhor)=dalbclim(jhor)                                     &
-     &       +(zalbsnow-dalbclim(jhor))*dsnow(jhor)/(dsnow(jhor)+0.01)
+     &       +(zalbsnow-dalbclim(jhor))*dsnow(jhor)/(dsnow(jhor)+snowcovz)
          dsalb(1,jhor) = dalbclim1(jhor)                               &
-     &       +(zalbsnow1-dalbclim1(jhor))*dsnow(jhor)/(dsnow(jhor)+0.01)
+     &       +(zalbsnow1-dalbclim1(jhor))*dsnow(jhor)/(dsnow(jhor)+snowcovz)
          dsalb(2,jhor) = dalbclim2(jhor)                               &
-     &       +(zalbsnow2-dalbclim2(jhor))*dsnow(jhor)/(dsnow(jhor)+0.01)
+     &       +(zalbsnow2-dalbclim2(jhor))*dsnow(jhor)/(dsnow(jhor)+snowcovz)
          drhs(jhor)=1.
         else
          dalb(jhor)=dalbclim(jhor)

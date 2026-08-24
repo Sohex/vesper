@@ -67,6 +67,21 @@
       real :: MAXSURFTEMP=373.15 ! Maximum surface temperature to trigger (default 100 C)
       real :: WINDTHRESH=33.0  ! Lower-atmosphere windspeed necessary to count as a hurricane
       real :: SWINDTHRESH=20.5 ! Concurrent Surface wind speed necessary to count as a hurricane
+!     FOUR THRESHOLDS IN GRID UNITS, not physical ones. SIZETHRESH and ENDTHRESH
+!     are UNWEIGHTED counts of flagged gridpoints, so 30 cells is 1.46 per cent
+!     of the globe at T21 and 0.37 per cent at T42, and a different area at
+!     different latitudes within one rung. MINSTORMLEN and MAXSTORMLEN are in
+!     TIMESTEPS, so they are a different duration at every step length.
+!
+!     They are NOT converted to an area and a duration, and that is deliberate.
+!     This whole diagnostic is Earth-empirical end to end and stays off on this
+!     world (nstormdiag = 0): LAVTHRESH is an absolute vorticity threshold
+!     against a planetary vorticity 0.8 of Earth's at a 30-hour day, CPD is
+!     hardcoded rather than tied to acpd, and CL is an admitted fudge. Making
+!     two of the thresholds rung-independent while the rest stay fitted to
+!     Earth would buy a false look of correctness. If the diagnostic is ever
+!     wanted, all of them are a re-derivation and not a namelist tweak.
+!     world-khn and world-9d1.
       integer :: SIZETHRESH = 30 ! Number of cells where condition must be satisfied
       integer :: ENDTHRESH = 16 !Number of cells below which size has to stop for storm output to end
       integer :: MINSTORMLEN = 256 ! Minimum number of timesteps that must have elapsed for storm to count
