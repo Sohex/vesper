@@ -310,9 +310,17 @@ POLICY.update({
                        why="marks a restart whose accumulator set is complete"),
     "fixedlon": Policy(OPAQUE, REQUIRE_EQUAL,
                        why="the fixed substellar longitude is configuration"),
-    "zsolars": Policy(OPAQUE, REQUIRE_EQUAL,
-                      why="the two-band split of the stellar constant is "
-                          "derived from configuration, not from the grid"),
+    "zsolars": Policy(OPAQUE, TARGET,
+                      why="the two-band split of the stellar constant, written "
+                          "by radstop as a configuration fingerprint. NOTHING "
+                          "READS IT BACK: radstart recomputes the split from "
+                          "the namelist every time, so the stored value can "
+                          "only ever record what the donor run was configured "
+                          "with. TARGET and not REQUIRE_EQUAL for exactly that "
+                          "reason -- a converter that refused over it would be "
+                          "refusing on a value the model is about to discard, "
+                          "and converting a restart onto a new stellar "
+                          "configuration is a thing this project does"),
 })
 
 # --- controller state ------------------------------------------------------
