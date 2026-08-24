@@ -512,3 +512,60 @@ What it does say is that the adiabatic residual is not one thing, and that the
 timestep scaling measured under the old diffusion does not transfer. Any
 argument that leaned on "26 - 27 scales with dt" needs re-checking against the
 configuration it is being applied to.
+
+## Resolving the residual: it is paid for by the surface
+
+*Three arms, T42, dt 22.5, derived hyperdiffusion, differing only in the filter.
+Atmospheric budget, W/m2:*
+
+| term | gamma 8 | gamma 16 | no filter | spread |
+| --- | ---: | ---: | ---: | ---: |
+| radiative convergence | -94.587 | -95.643 | -96.467 | 1.881 |
+| sensible from the surface | 18.921 | 19.805 | 21.093 | 2.172 |
+| latent from the surface | 75.850 | 76.714 | 77.326 | 1.476 |
+| flux route total | +0.184 | +0.876 | +1.951 | 1.767 |
+| latent asymmetry | -0.047 | +0.076 | +0.252 | 0.300 |
+| **adiabatic non-conservation** | **-0.593** | **-1.683** | **-2.675** | **2.082** |
+| spectral diffusion of heat | +0.269 | +0.541 | +0.271 | 0.272 |
+| **closed total** | **-0.188** | **-0.190** | **-0.201** | **0.013** |
+
+**The adiabatic term moves by 2.082 W/m2 and the closed total moves by 0.013.**
+The compensation is the surface: sensible heat rises 2.17 and latent 1.48 as the
+filter is removed, against 1.88 more radiative loss. So the energy the adiabatic
+step destroys is replaced by drawing harder on the surface, and the model
+settles at a different equilibrium rather than drifting.
+
+That is the answer to where the residual goes, and it is not a benign one. The
+column enthalpy barely moves and no budget fails to close, so nothing in the
+ordinary diagnostics announces a problem -- but the surface exchange is inflated
+by about two watts per square metre to feed a numerical sink. A surface flux
+distorted to that degree is exactly the kind of thing downstream components read
+as physics.
+
+### What the residual is NOT, each eliminated rather than argued away
+
+- **Not a time-level error in the diagnostic.** `adm` is copied from `sdm` at the
+  head of `spectrala`, so it is the state at `t - dt`; `sdp` is a POINTER SLICE of
+  `sd` rather than a "plus" array, so the update writes `sd` in place and the
+  compared states are `t - dt` and `t + dt`. The step is `deltsec2` and the
+  division is right.
+- **Not the Robert-Asselin time filter.** `pnu` defaults to 0.0 and is absent
+  from every namelist here, so `pnu21 = 1` and the filter is a no-op. The caveat
+  in `water-and-energy-closure.md` about both terms carrying the time filter does
+  not apply to this project's runs.
+- **Not the physics filter's unbooked dissipation.** Sharpening the filter cuts
+  its KE removal by 0.074 W/m2 and OPENS the identity by 0.151 -- opposite
+  directions.
+- **Not the kinetic-energy side.** The steady-state KE identity closes in every
+  arm, -0.015 to +0.030 against a 2 W/m2 conversion, so the failure is on the
+  enthalpy half of `26 - 27`.
+
+### What is still open
+
+The MECHANISM inside `spectrala`. What is established is that it acts on the
+enthalpy side, scales with how much small-scale energy survives, and is
+compensated by surface fluxes rather than by drift. What is not established is
+which operation loses the energy -- the semi-implicit reference-state splitting
+is the obvious candidate and has not been tested, and testing it wants a dry
+adiabatic configuration where total energy must be exactly conserved and any
+drift is unambiguously the numerics.
