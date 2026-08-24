@@ -175,9 +175,11 @@ def main() -> int:
     manifest_path = args.from_run / "run_manifest.json"
     physical = (json.loads(manifest_path.read_text(encoding="utf-8"))
                 .get("physical", {}) if manifest_path.is_file() else {})
+    # No parallel-mode word: world-38b left one parallel mode, so it named
+    # nothing. The templates already on disk keep the name they were written
+    # with; the .provenance.json beside each is what identifies it.
     default_name = (f"{geometry.label}_l{geometry.nlev}"
-                    f"_p{physical.get('ranks', 'x')}"
-                    f"_{physical.get('parmode', 'x')}.rest")
+                    f"_p{physical.get('ranks', 'x')}.rest")
     output = args.output or (TEMPLATES / default_name)
     if output.exists() and not args.force:
         raise SystemExit(f"{output} exists; pass --force to replace it")

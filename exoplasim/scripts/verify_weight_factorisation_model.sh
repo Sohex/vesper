@@ -38,7 +38,7 @@ PKG="$REPO/vendor/exoplasim/exoplasim"
 BUILD="$REPO/.venv/bin/python $REPO/exoplasim/scripts/build_model.py"
 SRC="$PKG/plasim/src"
 low="$(echo "$res" | tr 'A-Z' 'a-z')"
-name="most_plasim_${low}_l10_p${ranks}_omp.x"
+name="most_plasim_${low}_l10_p${ranks}.x"
 WORK="$REPO/exoplasim/bench/_wfcheck"
 TOL=1e-10
 
@@ -83,10 +83,15 @@ build_arm() {
             echo "control patch missed" >&2; exit 1; }
         ;;
     esac
-    ( $BUILD --res "$res" --ranks "$ranks" --parmode omp ) \
+    # FRESHNESS: the name lost its parallel mode with world-38b, so it is now
+    # the name the MPI builds published. An existence test alone would compare
+    # arms against a binary this script did not build.
+    local stamp="$WORK/.stamp"; : > "$stamp"
+    ( $BUILD --res "$res" --ranks "$ranks" ) \
         >"$WORK/build_$arm.log" 2>&1 || true
-    [ -f "$PKG/plasim/run/$name" ] || {
-        echo "build failed: $arm (see $WORK/build_$arm.log)" >&2; exit 1; }
+    [ -f "$PKG/plasim/run/$name" ] && [ "$PKG/plasim/run/$name" -nt "$stamp" ] || {
+        echo "build failed or left an older binary of that name: $arm "\
+             "(see $WORK/build_$arm.log)" >&2; exit 1; }
     cp -f "$PKG/plasim/run/$name" "$WORK/ref/$arm.x"
     echo "built $arm  $(sha256sum "$WORK/ref/$arm.x" | cut -c1-16)"
 }

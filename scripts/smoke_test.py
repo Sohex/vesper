@@ -843,12 +843,6 @@ RUNG_OWNER = {
     "exoplasim/scripts/shtns_variant_sweep.py": "names the rungs it sweeps",
     "exoplasim/scripts/reproducibility_matrix.py":
         "the recipe, which names one executable",
-    "exoplasim/scripts/verify_fold_indexing.sh":
-        "cannot run at all: its paths point at a worktree that is gone. "
-        "world-en0 decides whether it stays before anyone repairs it",
-    "exoplasim/scripts/verify_fold_exactness.sh":
-        "cannot run at all: its paths point at a worktree that is gone. "
-        "world-en0 decides whether it stays before anyone repairs it",
 }
 
 

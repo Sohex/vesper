@@ -1,6 +1,0 @@
-# docs/requirements.txt
-sphinx==7.3.7
-sphinx-rtd-theme==2.0.0
-readthedocs-sphinx-search==0.3.1
-sphinxcontrib-programoutput==0.17
-myst_parser==3.0.1

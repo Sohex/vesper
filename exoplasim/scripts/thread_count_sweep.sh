@@ -22,10 +22,17 @@ COUNTS="${3:-2 4 8 16}"
 low=$(echo "$RES" | tr 'A-Z' 'a-z')
 
 for n in $COUNTS; do
-    ( $BUILD --res "$RES" --ranks "$n" --parmode omp ) \
+    # FRESHNESS, and it is not decoration. The binary's name lost its parallel
+    # mode with world-38b, so the name this looks for is the name an MPI build
+    # used to publish. An existence test alone would pick one of those up and
+    # sweep thread counts on a binary that has none.
+    stamp="$SCRATCH/.stamp"; : > "$stamp"
+    ( $BUILD --res "$RES" --ranks "$n" ) \
         > "$SCRATCH/ts_build_${RES}_$n.log" 2>&1
-    b="$PKG/plasim/run/most_plasim_${low}_l10_p${n}_omp.x"
-    [ -f "$b" ] || { echo "build failed at $n threads"; exit 1; }
+    b="$PKG/plasim/run/most_plasim_${low}_l10_p${n}.x"
+    [ -f "$b" ] && [ "$b" -nt "$stamp" ] || {
+        echo "build failed at $n threads, or left an older binary of that name"
+        exit 1; }
     cp "$b" "$SCRATCH/ts_${RES}_$n.x"
     echo "built $RES $n threads: $(sha256sum "$SCRATCH/ts_${RES}_$n.x" | cut -c1-12)"
 done

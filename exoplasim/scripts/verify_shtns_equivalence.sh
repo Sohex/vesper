@@ -44,9 +44,9 @@ cp "$SRC"/plasimmod.f90 "$SRC"/legmod.f90 "$SRC"/fftmod.f90 \
 cp "$HERE"/verify_shtns_equivalence.f90 drive.f90
 
 # shtnsmod calls mpabort on a configuration it refuses. That is the whole of
-# its dependency on the MPI layer, and mpimod_stub drags the restart I/O chain
-# in behind it, so the transform test gets a two-line abort instead of the
-# model's file handling.
+# its dependency on the parallel layer, and mpimod_omp drags the restart I/O
+# chain in behind it, so the transform test gets a two-line abort instead of
+# the model's file handling.
 cat > abortstub.f90 <<'EOF'
       subroutine mpabort(ytext)
       character(len=*) :: ytext

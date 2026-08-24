@@ -22,7 +22,6 @@ from provenance import config_drift  # noqa: E402
 from restart_surface import verify_restart_surface_fields  # noqa: E402
 from segments import SEGMENT_PURPOSES  # noqa: E402
 from run_exoplasim import (  # noqa: E402
-    declare_parmode,
     declare_dry_constants,
     declare_hyperdiffusion,
     prepare_thread_stack,
@@ -185,13 +184,6 @@ def main() -> None:
     parser.add_argument("--run", type=str, default=None,
                         help="run id or directory to continue (required)")
     parser.add_argument("--orbits", type=int, default=5)
-    parser.add_argument(
-        "--mpi-opts", type=str, default=None,
-        help="extra flags for mpiexec, threaded to the model exactly as "
-             "run_exoplasim.py threads them. The ':ordered' qualifier is "
-             "load-bearing on a pe-list: without it the ranks share one pool "
-             "instead of getting a core each, and the flag that looks like "
-             "the fix, --bind-to core, does not fix it")
     # WHAT THESE ORBITS ARE FOR, declared rather than inferred. It used to be
     # inferred from `--seasonal-output` plus the run's equilibrium cutoff, which
     # labelled a three-orbit low-I/O verification segment as climatology input;
@@ -414,7 +406,7 @@ def main() -> None:
     # launches the binary itself, so without this every segment after the first
     # would run on the 8 MB default -- which is exactly the shape of the defect
     # SHORTWAVE_GAS_KEYS' comment above describes for the namelist keys.
-    thread_stack = prepare_thread_stack(declare_parmode(config))
+    thread_stack = prepare_thread_stack(config)
     model = exo.Earthlike(
         resolution=model_cfg["resolution"],
         layers=int(model_cfg["layers"]),
@@ -424,20 +416,6 @@ def main() -> None:
         workdir=str(run_dir),
         modelname=identifier,
         outputtype=model_cfg["output_type"],
-        hyperthreading=False,
-        # A CONTINUATION HAS TO PIN THE PARMODE TOO. Without it the API defaults
-        # to `mpi` and looks for a binary this project no longer builds -- and
-        # worse, a project that still built both would resume a threaded run on
-        # the MPI transform and record neither the change nor the fact that
-        # `nshtns` had flipped underneath it. world-bdh.
-        parmode=declare_parmode(config),
-        # A continuation has to pin exactly as the prepare did. Without this the
-        # SETTLING orbit is placed and the MEASURED segment is not, so a 2x8
-        # concurrent pair -- the layout rank-layout-benchmark.md adopts for any
-        # bracket -- silently stacks two ranks per core for the half that gets
-        # read. Observed directly: every rank of both jobs on cores 0-7, two to
-        # a core, while cores 8-15 sat idle.
-        mpi_opts=args.mpi_opts,
     )
     model.configure(
         flux=derived["stellar_flux_w_m2"],

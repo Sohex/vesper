@@ -21,6 +21,7 @@ import yaml
 
 from _paths import CONFIG, INPUTS, PROJECT_ROOT, RUNS
 import reset_restart_accumulators
+import rungs
 
 
 EARTH_STANDARD_GRAVITY = 9.80665
@@ -78,11 +79,17 @@ SNAPSHOT_CODES = [
 # neither, so the one setting that decides whether a threaded run at the top of
 # the ladder survives at all existed only in the instruments.
 #
-# 512M IS NOT DERIVED. It is the value every gate has used and it is carried here
-# unchanged, so this is a fix to the launcher and not a change to what runs. What
-# it is worth: about 49 full-globe (NLON*NLAT*NLEV) float64 locals live at once at
-# T170. Deriving it from the deepest CONCURRENT set of live locals needs a
-# measurement nothing in this tree makes; `world-p4b` is that.
+# 512M IS BOUNDED BELOW RATHER THAN DERIVED, and the two are different claims.
+# `stack_floor.py` walks the model's call graph out of the parallel region and
+# sums the declared local arrays along the heaviest chain, which is the deepest
+# CONCURRENT set of declared locals: the floor at the top of the ladder is a
+# fraction of 512M, and the floor at every rung is checked here rather than
+# assumed. What the floor does NOT count is the temporaries gfortran
+# materialises for the whole-array and `where` expressions the physics is
+# written in; nothing in the source fixes their size, so the margin between the
+# floor and 512M is not derived and `world-p4b` is still what closes that.
+# `exoplasim/notes/thread-stack-floor.md` carries the numbers and the check
+# against a built binary.
 #
 # Applied to THIS PROCESS before the model is launched. ExoPlaSim builds its
 # command as a shell string and runs it with shell=True, so the child inherits
@@ -90,20 +97,50 @@ SNAPSHOT_CODES = [
 OMP_STACKSIZE = "512M"
 
 
-def prepare_thread_stack(parmode: str) -> dict:
-    """Give the threaded model the stack its spilled locals need.
+def _stack_bytes(value: str) -> int:
+    """An OMP_STACKSIZE string in bytes. Kilobytes with no unit, per the spec."""
+    text = str(value).strip()
+    unit = {"b": 1, "k": 1024, "m": 1024**2, "g": 1024**3}
+    factor = unit.get(text[-1:].lower(), 1024)
+    digits = text[:-1] if text[-1:].lower() in unit else text
+    return int(float(digits) * factor)
 
-    Returns what was set, for the run manifest. A no-op for any other parmode:
-    those builds keep the locals in static storage and never touch a thread
-    stack.
+
+def prepare_thread_stack(config: dict) -> dict:
+    """Give the threaded model the stack its locals need, and check it is enough.
+
+    Returns what was set, for the run manifest. Unconditional: world-38b left
+    one build and it is the threaded one, so there is no longer a parallel mode
+    that keeps these locals in static storage and never touches a thread stack.
+
+    Refuses when the stack is below the floor `stack_floor.py` reads off the
+    model source at this rung. That is a check with a right answer rather than a
+    number carried forward: a run that cannot hold its own declared locals dies
+    inside the model, which reads as the model crashing.
     """
     import os
     import resource
 
-    if str(parmode).lower() != "omp":
-        return {"applied": False, "reason": f"parmode {parmode} is not threaded"}
+    import stack_floor
+    m = config["model"]
+    threads = int(m["ncpus"])
+    nlat, _, _ = rungs.geometry(str(m["resolution"]))
+    params = stack_floor.parameters(nlat, int(m["layers"]), threads)
+    frames, _, calls, defined = stack_floor.parse(int(m["precision_bytes"]), params)
+    (floor, chain), _ = stack_floor.heaviest_chain(frames, calls, defined)
+
     os.environ["OMP_STACKSIZE"] = os.environ.get("OMP_STACKSIZE", OMP_STACKSIZE)
-    record = {"applied": True, "omp_stacksize": os.environ["OMP_STACKSIZE"]}
+    record = {"applied": True, "omp_stacksize": os.environ["OMP_STACKSIZE"],
+              "declared_local_floor_bytes": floor,
+              "declared_local_floor_chain": chain}
+    if _stack_bytes(record["omp_stacksize"]) < floor:
+        raise RuntimeError(
+            f"OMP_STACKSIZE is {record['omp_stacksize']} and the declared local "
+            f"arrays on the heaviest chain out of the parallel region come to "
+            f"{floor / 1e6:.1f} MB at {m['resolution']} on {threads} threads "
+            f"({' -> '.join(chain)}). That floor counts no compiler temporaries, "
+            "so a stack at or near it is already too small. "
+            "exoplasim/scripts/stack_floor.py, world-p4b.")
     soft, hard = resource.getrlimit(resource.RLIMIT_STACK)
     try:
         resource.setrlimit(resource.RLIMIT_STACK, (hard, hard))
@@ -1158,33 +1195,6 @@ def declare_robert_filter(model, config: dict) -> float | None:
     return float(value)
 
 
-def declare_parmode(config: dict) -> str:
-    """Which compiled parallel mode this run uses. DECLARED, never defaulted.
-
-    `mpi` distributes NLAT over ranks and launches through mpiexec; `omp`
-    distributes it over threads of one process, which is what the SHTns
-    transform path requires because SHTns's parallelism is threads. They are
-    different binaries built from a different flag line, and `nshtns` is 1 by
-    default in the threaded build and 0 in the MPI one -- so the parmode decides
-    which TRANSFORM integrates the run, not just how the work is spread.
-
-    It is declared rather than defaulted because upstream's API knew only `mpi`
-    and named its executable without a parmode, so a project that had moved to
-    the threaded build could not ask for it and silently kept running the other
-    one. That is what happened here: 179 runs, none of them threaded, while the
-    threaded binaries were built, verified and gated on. world-bdh.
-    """
-    mode = config["model"].get("parmode")
-    if mode is None:
-        raise RuntimeError(
-            "model.parmode is absent. It selects which compiled binary and "
-            "therefore which spectral transform integrates the run, so it is "
-            "declared and never defaulted. world-bdh.")
-    if mode not in ("mpi", "omp"):
-        raise RuntimeError(f"model.parmode must be 'mpi' or 'omp', not {mode!r}")
-    return mode
-
-
 def declare_dealias_conversion(model, config: dict) -> bool:
     """Truncate V.grad(ln ps) to the retained modes before the products. world-ly5.
 
@@ -1782,7 +1792,6 @@ def physical_fingerprint(config: dict, flux_ratio: float) -> dict:
         "resolution": str(m["resolution"]),
         "layers": int(m["layers"]),
         "ranks": int(m["ncpus"]),
-        "parmode": str(m.get("parmode", "mpi")),
         "precision_bytes": int(m["precision_bytes"]),
         "flux_ratio": round(float(flux_ratio), 6),
         "co2_ppm": round(1e6 * float(a["pCO2_bar"]), 3),
@@ -1881,15 +1890,18 @@ def expected_namelist_keys(config: dict) -> dict:
     from the staging code, because a check built out of the staging lists tests
     only that they agree with themselves. CONS-9.
 
-    A float value is compared numerically. A STR value is a per-level array,
-    held as the `n*value` text a Fortran namelist replicates, and is compared as
-    text: that is the only comparison that tells a replicated array apart from a
-    scalar, and a namelist scalar assigned to an array sets element 1 only.
+    A value is either a number or a SEQUENCE of numbers, and both go through one
+    comparison: the staged text is expanded into its elements, Fortran's
+    `n*value` replication included, and compared element by element at 1e-9.
+    LENGTH is half the check and is what tells a replicated array apart from a
+    scalar -- a namelist scalar assigned to an array sets element 1 only, so a
+    one-element ARRAY where the config wants NLEV of them is the world-720
+    failure and must not pass.
     """
     m = config["model"]
     want: dict = {"radmod_namelist": {}, "icemod_namelist": {}, "plasim_namelist": {},
                   "planet_namelist": {}, "landmod_namelist": {},
-                  "glacier_namelist": {}}
+                  "glacier_namelist": {}, "oceanmod_namelist": {}}
     for key, name, default in SHORTWAVE_GAS_KEYS:
         v = m.get(key)
         if v is not None and float(v) != default:
@@ -1907,6 +1919,31 @@ def expected_namelist_keys(config: dict) -> dict:
     # world-ayx, and unconditional for the same reason.
     want["radmod_namelist"]["BO3"] = float(m.get("ozone_height_m", 20000.0))
     want["radmod_namelist"]["CO3"] = float(m.get("ozone_spread_m", 5000.0))
+    # world-nfh, the per-band canopy albedo, and PHYS-11's cloud absorption
+    # pair. All three are written unconditionally by `configure_otherargs` and
+    # all three are ARRAYS or scale one: ALBFOREST is per band, ACL2 is the
+    # three-layer cloud triplet, and dropping either reverts the modelled
+    # surface and cloud to radmod's and landmod's compiled Earth-Sun broadband
+    # endmembers. ALBFOREST is the one this gate could not hold until the
+    # comparison carried sequences; world-2wd.
+    #
+    # Rounded to the six significant digits `configure_otherargs` writes, for
+    # AKAP's reason below: the comparison is against the value the namelist can
+    # hold and not against one more digit than it carries.
+    want["landmod_namelist"]["ALBFOREST"] = [
+        float(f"{float(v):.6g}") for v in m["vegetation_albedo_bands"]]
+    cloud_scale = float(m.get("cloud_absorption_scale", 1.0))
+    want["radmod_namelist"]["TSWR3"] = float(f"{0.0055 * cloud_scale:.6g}")
+    want["radmod_namelist"]["ACL2"] = [
+        float(f"{v * cloud_scale:.6g}") for v in (0.05, 0.10, 0.20)]
+    # CLIM-16, oceanmod_nl, and unconditional for the same reason. NLEV_OCE is
+    # 1 so HDIFFK is a one-element array, which is why one element is what this
+    # asks for.
+    ocean = config.get("ocean", {})
+    want["oceanmod_namelist"]["NHDIFF"] = float(
+        int(bool(ocean.get("horizontal_diffusion", False))))
+    want["oceanmod_namelist"]["HDIFFK"] = [
+        float(f"{float(ocean.get('horizontal_diffusivity_m2_s', 1.0e3)):.6g}")]
     # world-cwc and world-qpe, written unconditionally by configure_otherargs
     # for the same reason. DSMAX is the one CLIM-17 already lost once: a key
     # whose whole purpose is to be lifted reverts to the compiled 5 m on any
@@ -1999,14 +2036,15 @@ def expected_namelist_keys(config: dict) -> dict:
         ntru = int(rung.lstrip("Tt"))
         want["plasim_namelist"]["NHDIFF"] = float(
             round(float(hd["cutoff_fraction"]) * ntru))
-        # PER-LEVEL ARRAYS, compared as the replicated text the namelist holds.
-        # A scalar here would pass while levels 2..NLEV kept `readnl`'s values,
-        # which is world-720's failure and is exactly what this must not miss.
+        # PER-LEVEL ARRAYS, asked for at their full length. A scalar here would
+        # pass a value comparison while levels 2..NLEV kept `readnl`'s values,
+        # which is world-720's failure; it fails a LENGTH comparison, which is
+        # exactly what this must not miss.
         layers = int(m["layers"])
-        want["plasim_namelist"]["NDEL"] = f"{layers}*{int(hd['order_alpha'])}"
+        want["plasim_namelist"]["NDEL"] = [float(int(hd["order_alpha"]))] * layers
         for key, field in (("TDISSD", "divergence"), ("TDISSZ", "vorticity"),
                            ("TDISST", "temperature"), ("TDISSQ", "humidity")):
-            want["plasim_namelist"][key] = f"{layers}*{float(tau[field])}"
+            want["plasim_namelist"][key] = [float(tau[field])] * layers
     return {f: keys for f, keys in want.items() if keys}
 
 
@@ -2032,23 +2070,28 @@ def verify_staged_namelists(run_dir: Path, config: dict) -> dict:
             except (KeyError, FileNotFoundError):
                 wrong.append(f"{key} absent from {fname}, config wants {want}")
                 continue
-            # A str want is a per-level ARRAY, held as the `n*value` text a
-            # Fortran namelist replicates. Compared as text because that is the
-            # only form that distinguishes a replicated array from a scalar,
-            # and a scalar sets element 1 only. world-720, world-8bs.
-            if isinstance(want, str):
-                if raw.rstrip(",").strip() != want:
-                    wrong.append(f"{key} in {fname} is {raw!r}, config wants {want!r}")
-                checked[f"{key}@{fname}"] = raw
-                continue
+            wanted = [float(v) for v in want] if isinstance(want, (list, tuple)) \
+                else [float(want)]
             try:
-                got = float(raw)
+                got = namelist_elements(raw)
             except ValueError:
                 wrong.append(f"{key} in {fname} is not a number")
                 continue
-            if abs(got - want) > 1e-9:
-                wrong.append(f"{key} in {fname} is {got:g}, config wants {want:g}")
-            checked[f"{key}@{fname}"] = got
+            if len(got) != len(wanted):
+                # LENGTH FIRST. A scalar staged where the config wants a
+                # per-level array sets element 1 and leaves levels 2..NLEV at
+                # `readnl`'s compiled values, which reads as correct at every
+                # element the comparison would otherwise look at. world-720.
+                wrong.append(
+                    f"{key} in {fname} has {len(got)} element(s), config wants "
+                    f"{len(wanted)}: {raw!r}")
+            else:
+                for i, (g, w) in enumerate(zip(got, wanted), start=1):
+                    if abs(g - w) > 1e-9:
+                        where = f"{key} in {fname}" if len(wanted) == 1 \
+                            else f"element {i} of {key} in {fname}"
+                        wrong.append(f"{where} is {g:g}, config wants {w:g}")
+            checked[f"{key}@{fname}"] = got[0] if len(got) == 1 else got
     if wrong:
         raise SystemExit(
             "the staged namelists do not match config/planet.yaml:\n  "
@@ -2057,6 +2100,26 @@ def verify_staged_namelists(run_dir: Path, config: dict) -> dict:
               "Fix the staging rather than the check; see docs/src/practice/failure-modes.md "
               "class 22.")
     return checked
+
+
+def namelist_elements(raw: str) -> list[float]:
+    """A staged namelist value as the list of numbers the model will read.
+
+    Fortran's `n*value` replication is expanded, because a replicated array and
+    the same array written out element by element are the same value to the
+    model and must be the same value here. Raises ValueError on anything that
+    is not a number, which is what puts a logical or a string beyond this gate.
+    """
+    elements: list[float] = []
+    for token in raw.replace(",", " ").split():
+        count, star, value = token.partition("*")
+        if star:
+            elements.extend([float(value)] * int(count))
+        else:
+            elements.append(float(count))
+    if not elements:
+        raise ValueError(f"no numbers in {raw!r}")
+    return elements
 
 
 def namelist_value(path: Path, key: str) -> str:
@@ -2098,13 +2161,7 @@ def main() -> None:
         "--ncpus", type=int, default=None,
         help="override model.ncpus for this run. Selects a different compiled "
              "binary, since ExoPlaSim builds one per (resolution, layers, "
-             "ranks, parmode); NLAT must divide by it")
-    parser.add_argument(
-        "--mpi-opts", type=str, default=None,
-        help="extra flags for mpiexec, e.g. "
-             "'--map-by pe-list=0,1,2,3,4,5,6,7:ordered --bind-to core'. The "
-             ":ordered qualifier is load-bearing -- without it the ranks share "
-             "one pool instead of getting a core each")
+             "threads) configuration; NLAT must divide by it")
     # DIAGNOSTIC. The model writes an output record every `nafter` timesteps and
     # defaults to one per EARTH day, 32 steps of 45 minutes. This planet's day is
     # 30 hours, which is exactly 40 steps, so the default samples the diurnal
@@ -2164,7 +2221,6 @@ def main() -> None:
         if args.ncpus < 1:
             raise ValueError("--ncpus must be positive")
         config["model"]["ncpus"] = int(args.ncpus)
-    mpi_opts = args.mpi_opts
     flux_ratio = float(
         config["orbit"]["baseline_flux_earth"]
         if args.flux_ratio is None else args.flux_ratio
@@ -2371,12 +2427,7 @@ def main() -> None:
     star = config["star"]
     model_cfg = config["model"]
     surface = config["surface"]
-    parmode = declare_parmode(config)
-    thread_stack = prepare_thread_stack(parmode)
-    if parmode == "omp" and mpi_opts:
-        raise RuntimeError(
-            "--mpi-opts was given but model.parmode is 'omp', which launches one "
-            "process and no mpiexec. The flags would be silently dropped.")
+    thread_stack = prepare_thread_stack(config)
     model = exo.Earthlike(
         resolution=model_cfg["resolution"],
         layers=int(model_cfg["layers"]),
@@ -2385,12 +2436,8 @@ def main() -> None:
         workdir=str(run_dir),
         modelname=identifier,
         outputtype=model_cfg["output_type"],
-        hyperthreading=False,
-        mpi_opts=mpi_opts,
-        parmode=parmode,
     )
-    print(f"parmode: {parmode} "
-          f"({'threads, SHTns transform' if parmode == 'omp' else 'ranks, legmod transform'})")
+    print(f"threads: {int(model_cfg['ncpus'])}, SHTns transform")
     model.configure(
         restartfile=None if restart_seed is None else str(restart_seed),
         flux=derived["stellar_flux_w_m2"],
@@ -2563,11 +2610,11 @@ def main() -> None:
     }
     # ExoPlaSim copies its whole run directory in, so every previously built
     # executable is present. Name the one this run will actually use rather than
-    # taking the last glob match, which sorts p8 after p16.
-    exe_suffix = "_omp" if str(model_cfg.get("parmode")) == "omp" else ""
+    # taking the last glob match, which sorts p8 after p16. Composed the way
+    # `build_model.executable_name` composes it, with no parallel-mode suffix.
     exe_path = run_dir / (
         f"most_plasim_t{int(str(model_cfg['resolution']).lstrip('Tt'))}"
-        f"_l{int(model_cfg['layers'])}_p{int(model_cfg['ncpus'])}{exe_suffix}.x"
+        f"_l{int(model_cfg['layers'])}_p{int(model_cfg['ncpus'])}.x"
     )
     if not exe_path.is_file():
         raise RuntimeError(f"expected executable {exe_path} is not in the run directory")

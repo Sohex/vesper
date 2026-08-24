@@ -224,10 +224,6 @@ class Model(object):
     outputfaulttolerant : bool, optional
         If True, then if the postprocessing step fails, ExoPlaSim will print an error, but continue
         on to the next model year.
-    hyperthreading : bool, optional
-        If True, uses the --use-hwthread-cpus flag when calling the mpi executable
-    mpi_opts : str, optional
-        String of any additional keywords/flags that should be passed to mpiexec/mpirun
         
     Returns
     -------
@@ -269,9 +265,7 @@ class Model(object):
     """
     def __init__(self,resolution="T21",layers=10,ncpus=4,precision=8,debug=False,inityear=0,
                 recompile=False,optimization=None,mars=False,workdir="most",source=None,force991=False,
-                parmode="mpi",
-                modelname="MOST_EXP",outputtype=".npz",crashtolerant=False,outputfaulttolerant=False,
-                hyperthreading=True,mpi_opts=None):
+                modelname="MOST_EXP",outputtype=".npz",crashtolerant=False,outputfaulttolerant=False):
         
         global sourcedir
         
@@ -308,32 +302,16 @@ class Model(object):
             recompile=True
         
         self.ncpus = ncpus
-        # PARMODE IS PART OF THE EXECUTABLE'S IDENTITY, not a detail of ncpus.
-        # `mpi` distributes NLAT over ranks and launches through mpiexec; `omp`
-        # distributes it over threads of ONE process, which is what the SHTns
-        # transform path needs because SHTns's parallelism is threads. They are
-        # different binaries from a different flag line, and upstream's API knew
-        # only the first, so a project that had moved to `omp` could not ask for
-        # it and silently kept running `mpi`. That is what happened here: 179
-        # runs, none of them on the threaded build. world-bdh.
-        self.parmode = parmode
-        if self.parmode not in ("mpi","omp"):
-            raise ValueError("parmode must be 'mpi' or 'omp', not %r"%parmode)
-        if self.parmode == "omp":
-            # One process, ncpus threads. OMP_PLACES and OMP_PROC_BIND are not
-            # tuning: without them the runtime is free to migrate threads and the
-            # per-die working set the model is built around stops meaning
-            # anything.
-            self._exec = ("OMP_NUM_THREADS=%d OMP_PLACES=cores "
-                          "OMP_PROC_BIND=close ./"%self.ncpus)
-        elif self.ncpus>1:
-            self._exec = "mpiexec -np %d "%self.ncpus
-            if mpi_opts is not None:
-                self._exec += mpi_opts+" "
-            if hyperthreading and "--use-hwthread-cpus" not in self._exec:
-                self._exec += "--use-hwthread-cpus "
-        else:
-            self._exec = "./"
+        # ONE PROCESS, ncpus THREADS, and there is no other mode: world-38b
+        # removed the MPI build path, so `ncpus` is a thread count and the
+        # binary carries no parallel-mode suffix. OMP_PLACES and OMP_PROC_BIND
+        # are not tuning: without them the runtime is free to migrate threads
+        # and the per-die working set the model is built around stops meaning
+        # anything. OMP_STACKSIZE and the stack rlimit are set by
+        # `run_exoplasim.prepare_thread_stack` in the launching process, which
+        # this command inherits.
+        self._exec = ("OMP_NUM_THREADS=%d OMP_PLACES=cores "
+                      "OMP_PROC_BIND=close ./"%self.ncpus)
         self.layers = layers
         
         self.odir = os.getcwd()
@@ -364,8 +342,10 @@ class Model(object):
         if not source:
             source = "%s/plasim/run"%sourcedir
         
-        self.executable = source+"/most_plasim_t%d_l%d_p%d%s.x"%(
-            self.nsp,self.layers,ncpus,"_omp" if self.parmode=="omp" else "")
+        # The registry's name, composed the same way `build_model.executable_name`
+        # composes it. No parallel-mode suffix: there is one parallel mode.
+        self.executable = source+"/most_plasim_t%d_l%d_p%d.x"%(
+            self.nsp,self.layers,ncpus)
         
         #if self.burn7:
             #burnsource = "%s/postprocessor"%sourcedir
@@ -385,8 +365,7 @@ class Model(object):
                 "no executable at %s.\n"%self.executable +
                 "This fork does not compile on demand. Build it with:\n"
                 "  python exoplasim/scripts/build_model.py --res T%d "%self.nsp +
-                "--levels %d --ranks %d --parmode %s\n"%(self.layers,self.ncpus,
-                                                          self.parmode) +
+                "--levels %d --ranks %d\n"%(self.layers,self.ncpus) +
                 "or add the configuration to rebuild_binaries.py's MATRIX if it "
                 "should be part of the registry.")
         
@@ -3104,7 +3083,11 @@ References
                                     str((not self.twobandalbedo)*1))
             if key=="maxsnow":
                 self.maxsnow=value
-                if maxsnow:
+                # world-1ok: `maxsnow` is configure()'s parameter name and is
+                # unbound here. Tested against None rather than truthiness so a
+                # declared cap of zero sets DSMAX to zero instead of removing
+                # the key and reverting to landmod's compiled 5 m.
+                if self.maxsnow is not None:
                     self._edit_namelist("landmod_namelist","DSMAX",str(self.maxsnow))
                 else:
                     self._rm_namelist_param("landmod_namelist","DSMAX")
@@ -3271,7 +3254,7 @@ References
                 
             if key=="soildepth":
                 self.soildepth=value
-                self.dzsoils = np.array([0.4, 0.8, 1.6, 3.2, 6.4])*soildepth
+                self.dzsoils = np.array([0.4, 0.8, 1.6, 3.2, 6.4])*self.soildepth # world-1ok
                 self._edit_namelist("landmod_namelist",
                                     "DSOILZ",",".join(self.dzsoils.astype(str)))
                 
@@ -3344,7 +3327,7 @@ References
                     self._rm_postcodes("snapshot.nl",[322,323,324,325,326,327,328,329])
             if key=="nstorms":
                 self.nstorms=value
-                self._edit_namelist("hurricane_namelist","NSTORMS",str(self.int(nstorms)))
+                self._edit_namelist("hurricane_namelist","NSTORMS",str(int(self.nstorms))) # world-1ok
             if key=="stormcapture":
                 self.stormcapture=value
                 if self.stormcapture["toggle"]:
@@ -3397,7 +3380,7 @@ References
                     elif f"{sourcedir}/hazeconstants/{self.aerofile}.dat" in glob.glob(f"{sourcedir}/hazeconstants/*.dat"):
                         os.system(f"cp {sourcedir}/hazeconstants/{self.aerofile}.dat {self.workdir}/")
                     if self.aerofile[-4:]==".dat":
-                        self.aerofile=aerofile[:-4]
+                        self.aerofile=self.aerofile[:-4] # world-1ok
                     self.aerorad=True
                     self._edit_namelist("aero_namelist","l_aerorad",str(self.aerorad*1))
                     self._edit_namelist("aero_namelist","aerofile","'%s.dat'"%self.aerofile)
@@ -3416,7 +3399,7 @@ References
                     elif f"{sourcedir}/hazeconstants/{self.aerofile}.dat" in glob.glob(f"{sourcedir}/hazeconstants/*.dat"):
                         os.system(f"cp {sourcedir}/hazeconstants/{self.aerofile}.dat {self.workdir}/")
                     if self.aerofile[-4:]==".dat":
-                        self.aerofile=aerofile[:-4]
+                        self.aerofile=self.aerofile[:-4] # world-1ok
                     self.aerorad=True
                     self._edit_namelist("aero_namelist","l_aerorad",str(self.aerorad*1))
                     self._edit_namelist("aero_namelist","aerofile","'%s.dat'"%self.aerofile)
@@ -3480,7 +3463,7 @@ References
         if restim:
             #self._edit_namelist("plasim_namelist","RESTIM","%f,%d*0.0"%(self.top_restoretime,self.layers-1))
             self._edit_namelist("plasim_namelist","NSPONGE","1")
-            self._edit_namelist("plasim_namelist","DAMPSP","%"%self._top_restoretime)
+            self._edit_namelist("plasim_namelist","DAMPSP","%f"%self.top_restoretime) # world-qd4
         elif not restim and slowrotator:
             #self._edit_namelist("plasim_namelist","RESTIM","%f,%d*0.0"%(1.0,self.layers-1))
             self._edit_namelist("plasim_namelist","NSPONGE","1")

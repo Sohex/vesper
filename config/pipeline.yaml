@@ -669,10 +669,9 @@ one_offs:
   - exoplasim/scripts/split_legendre.py
   - exoplasim/scripts/sweep_compiler_flags.py
   - exoplasim/scripts/bench_ab.py
+  - exoplasim/scripts/stack_floor.py
   - exoplasim/scripts/verify_filter_fold.sh
   - exoplasim/scripts/build_model.py
-  - exoplasim/scripts/verify_fold_exactness.sh
-  - exoplasim/scripts/verify_fold_indexing.sh
   - exoplasim/scripts/verify_legendre_parity.py
   - exoplasim/scripts/verify_latitude_pairing.py
   - exoplasim/scripts/compare_restarts.py

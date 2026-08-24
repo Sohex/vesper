@@ -314,9 +314,8 @@ unless told they exist.
 | `split_legendre.py` | split that share by routine: what maps to a library call and what does not |
 | `sweep_compiler_flags.py` | interleaved A/B of compiler flag sets, timed on a bed |
 | `bench_ab.py` | interleaved A/B of two executables on one bed, paired per round |
+| `stack_floor.py` | the per-thread stack floor at a rung: the heaviest call chain out of the parallel region, summed over its declared local arrays, with `--validate` against a built binary's BSS |
 | `verify_filter_fold.sh` | bit-identity check on the Legendre filter fold, filters off |
-| `verify_fold_exactness.sh` | the same with FMA contraction disabled, which is what makes it exact |
-| `verify_fold_indexing.sh` | proves each spectral mode gets its OWN filter value, with a negative control |
 | `verify_legendre_parity.py` | checks P and its mu-derivative have opposite parity in legini's own recurrence |
 | `verify_latitude_pairing.py` | compiles `plasimmod.f90`'s own `ilatperm` and checks the paired decomposition gives each process a mirror pair per slot pair, with two negative controls |
 | `compare_restarts.py` | compares two restarts record by record and separates a regrouped sum from a different computation |

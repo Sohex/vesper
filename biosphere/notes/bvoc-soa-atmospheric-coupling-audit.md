@@ -60,8 +60,8 @@ and optical properties exist.
 
 It is not an aerosol model.  It does not oxidize VOCs, predict gas/particle
 partitioning, form or grow particles, transport separate organic size modes, or
-activate cloud droplets.  `vendor/exoplasim/docs/aeromod.rst` also states, and
-`radmod.f90` implements, that shortwave aerosol scattering and absorption act
+activate cloud droplets.  `radmod.f90:2763` and `:2827` weight every aerosol
+reflectivity by `(1 - dcc)`, so shortwave aerosol scattering and absorption act
 only in the cloud-free fraction.  Longwave extinction is additive with cloud
 transmission, but that does not repair the missing cloudy-sky shortwave term.
 
