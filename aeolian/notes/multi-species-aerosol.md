@@ -305,7 +305,7 @@ is no code change beyond the parameter, because every loop over species is
 already bounded by `naerosp` rather than unrolled.
 
 So the seam between this component and the SOA chain is one line and one
-decision, and the decision is not urgent: neither smoke nor SOA has a burden yet.
+decision, tracked as CLIM-85, and the decision is not urgent: neither smoke nor SOA has a burden yet.
 What must not happen quietly is the two arriving into one slot because four was
 the number when the array was written. Section 9 applies to both -- a prescribed
 species needs four ratios per band and no absolute cross-section -- so the cost
