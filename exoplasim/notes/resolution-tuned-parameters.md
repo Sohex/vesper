@@ -943,82 +943,147 @@ Which END of the conversion is wrong is not decidable from outside the model,
 and the route to it is on `world-0ov`: the kinetic side instrumented in the same
 arithmetic as `P2`, in the same run.
 
-## The budget closes: the conversion carries the sink
+## The budget closes, and the conversion has a second half nobody had booked
 
 The mass-weighted enthalpy budget across `spectrala`, every term in the model's
-own arithmetic and in the same units and by the same formula as `denergy02`, so
-they are directly comparable. Averages over one orbit with the first three
-prints dropped as transient, W/m2:
+own arithmetic and in the same units and by the same formula as `denergy02`.
+Averages over one orbit of the dry adiabatic arm with the first three prints
+dropped, W/m2:
 
     P1   gt*gd                        -0.2989
-    P2   the conversion               -1.0247
+    P2   the conversion in calcgp     -1.0247
     P3   vertical advection           +0.6746
     ---------------------------------------
     gtn total, printed by the model   -0.6490
     denergy02, the full tendency      -0.9542
-    => flux term <ps div(V T)>        -0.3051   by difference
+    => the remainder                  -0.3051   by difference
 
-The flux term is the piece that had never been looked at: it contributes nothing
-to the global-mean TEMPERATURE tendency, because `mktend`'s (0,0) coefficient
-takes nothing from `gut` or `gvt`, but it contributes to the mass-weighted
-budget, which is the one the energy lives in. Recovering it closes both halves.
+The remainder is not the flux term. `<ps div(V T)>` is in it, and so is the
+whole of the implicit temperature tendency `-tau . sdt` that `spectrala` step 3
+adds after `calcgp` has run. Both are invisible to the UNWEIGHTED decomposition
+and for the same reason -- `mktend`'s (0,0) coefficient takes nothing from `gut`
+or `gvt`, and `sdt(1:2,:)` is forced to zero -- and both contribute to the
+MASS-WEIGHTED budget, which is where the energy lives. One of them was
+recognised and the other was not.
 
-**THE ADVECTION CONSERVES ENTHALPY.** If it did not, the identity
+**The implicit term is the reference conversion's other half.** `tau` is built
+in `initsi` as the reference profile's vertical advection plus `tkp(k) c(j,k)`
+for j <= k, and that second piece is exactly the divergence part of
+`akap * t0 * omega/p`. `calcgp` carries only the advective part,
+`tkp * (zvgpg - ztpta)`, with `ztpta` summing `zvgpg` alone; the `D` the same
+expression would carry is subtracted implicitly in `spectrala` instead. So the
+reference conversion is applied in TWO PLACES and a budget that reads `gtn` and
+takes the rest by difference books one of them to the advection.
 
-    <ps (P1 + P3 + flux)>  +  <cp T dps/dt>  =  0
+Measured, `nenergy = 2`, one orbit of the same dry arm, first three prints
+dropped, W/m2:
 
-would fail. It comes to +0.0705 and +0.0196, summing to **+0.090 W/m2** against
-a sink of 0.849 -- a tenth of it, and of the opposite sign.
+    P2b   tkp*(zvgpg - ztpta), the advective half        -1.0079
+    Cimp  -tkp*c . sdt, the divergence half as applied   +0.2876
+    Cvad  the rest of -tau . sdt                          0.0000
+    Ct    -tkp*c . D(t), the same half at time t         +1.2464
+    Cdt   -tkp * D(t), its undifferenced part            +0.2385
+    denergy02                                            -0.8219
+    denergy26 - denergy27, the sink                      -0.7938
 
-**THE CONVERSION DOES NOT.** Its two ends must cancel:
+`Cvad` is zero and has to be: the rest of `tau` is the reference profile's own
+vertical advection, and `t0` is 250 K at every level, so `t01s2` vanishes
+identically. Everything in `tau` is conversion.
 
-    temperature equation, P2          -1.0247
-    kinetic energy gained, -denergy27 +0.0860
-    sum, which must be zero           -0.9387
+`P2b` here is `Cdt - Ct`, which is what the advective half's global integral
+reduces to once `<ps zvgpg_k> = -<ps D_k>` is used -- exact per level, because
+`ps (zvgpg_k + D_k)` is `div(ps V_k)`. It lands within 3 percent of the -0.9808
+the earlier control patch measured directly in `calcgp`, which is what validates
+both instruments against each other.
 
-And the two together account for the whole thing:
+**The correction to the attribution is +0.29 W/m2.** In this arm's window the
+conversion group is `P2a + P2b + Cimp` against the kinetic end, which is -0.69
+against a sink of -0.79, so the advection group is -0.10. The earlier pair was
+-0.94 against a sink of -0.85, with the advection group at +0.09. The conversion
+still carries most of the sink; what moves is that the advection group is a
+fifth of it and the same sign, rather than a tenth of it and the opposite sign.
+`P2a` is carried across from the direct control patch, at -0.0439: it is four
+percent of the group and the window difference on it is below the digits
+quoted.
 
-    -0.9387  (conversion)  +  0.0902  (advection)  =  -0.8486
-    denergy26 - denergy27                          =  -0.8486
+### At one time level the conversion conserves exactly, and that is an identity
 
-That is the sink, to the last digit, with nothing left over. **The temperature
-equation's adiabatic conversion removes 1.02 W/m2 of enthalpy while the momentum
-equations receive 0.09.**
+Write `c(j,k) = g(k,j) dsigma_j / dsigma_k`, which is how `initsi` builds it,
+and the reference conversion's mass-weighted integral collapses. With `Phi0_k =
+Sum_j g(j,k) t0` the reference profile's own geopotential over R,
 
-### The mechanism candidate, measured
+    advective half    -<ps Sum_k dsigma_k (Phi0_k - t0) V_k.grad(ln ps)>
+    divergence half   -<ps Sum_k dsigma_k Phi0_k D_k>
+    their sum         -<ps Sum_k dsigma_k t0 V_k.grad(ln ps)>
 
-`omega/p` is `D(ln p)/Dt`, so mass conservation makes its mass-weighted integral
-the rate of change of the mass-weighted mean of `ln p` -- with sigma fixed, of
-`ln ps`, which this run's own 317 ppm mass drift bounds at a few times 1e-11 per
-second. The model's own field, accumulated from the same `zvgpg - ztptb`
-expression `calcgp` builds `dw` from, gives +9.6e-10 early and +1.6e-10 late:
-**six to forty times the bound, positive at every print**, decaying with the flow
-rather than fluctuating about zero.
+because what the two halves differ by is `Sum_k dsigma_k Phi0_k` times
+`<ps (V_k.grad ln ps + D_k)>`, the global integral of a mass-flux divergence,
+which is zero. And that sum is exactly minus the work the reference part of the
+pressure-gradient force does on the flow. **The two halves cancel the kinetic
+end BETWEEN THEM, and neither does on its own**: `Phi0` runs from 956 K in the
+top layer to 6 K in the bottom while `t0` is 250 K everywhere, so the halves are
+each of order 1 W/m2 where their sum is of order 0.2.
 
-The conversion's two ends are also split across the semi-implicit scheme in a
-way that does not force them to match. The momentum equations carry
-`ztv1 = T_v - t0`, the temperature ANOMALY only, and the reference part of the
-pressure-gradient force is handled implicitly in `spectrala` through the
-`z0 * spt` and `z0 * spm` terms of the divergence solve. The temperature
-equation's reference conversion, `tkp * (zvgpg - ztpta)`, is explicit in
-gridpoint space. One end in each place, and nothing between them.
+The model prints the sum. `Cdt` is the reference conversion evaluated entirely
+at time t, +0.2385 W/m2, and by the identity that IS minus the reference
+pressure-gradient work at the same time level, to the accuracy of the
+`(1 + adv q)` factor the enthalpy weight carries and the kinetic one does not. The vertical discretisation
+conserves, to the digits printed, and the earlier reading of this -- that the
+reference half is where the sink lives because it is large -- was reading one
+half of a cancelling pair.
+
+## What is wrong is the time level, and its size is the sink
+
+The model does not apply `Ct`. It applies `Cimp`, because step 3 multiplies
+`tau` by `sdt`, and `sdt` is exactly the centred mean of the divergence at t-dt
+and t+dt -- `sdp = 2 sdt - adm` says so. The advective half is at t. So the
+identity that makes the two halves cancel, `<ps (V.grad ln ps + D)> = 0`, is
+evaluated with `V.grad ln ps` at t and `D` at the mean of t-dt and t+dt, and
+`Phi0` weights the difference by up to 3.8 times `t0`.
+
+    Cimp - Ct, the semi-implicit displacement    -0.9588
+    denergy26 - denergy27, the sink              -0.7938
+
+**The displacement is larger than the sink.** It is not a term alongside the
+others; it is the whole of the sink and then some, with the remaining terms
+returning a little of it.
+
+That is what "the two ends do not meet" means, stated in the model's own
+arithmetic, and it moves the fix. The reference conversion's discretisation is
+right and does not need correcting. What is split is a mass-flux divergence
+identity across two time levels of the semi-implicit scheme, so nothing about
+`c`, `g` or `tau` is where a repair goes.
+
+It also rules out the repair as first written. `tkp * (zvgpg - ztpta)` cannot be
+moved to the implicit side: it is a product of the wind and the surface-pressure
+gradient, quadratic in the prognostic variables, and the semi-implicit operator
+takes only what is linear in them. The routes that remain are to bring the
+divergence half back to time t and pay for the stability elsewhere, to evaluate
+the advective half on the same time mean the divergence half uses, which needs a
+second gridpoint pass, or to keep the global energy fixer, which is what ECHAM,
+the IFS and CAM all do for this.
 
 ### Two readings of the same decomposition, and only one is the budget
 
 Both are true and they are not interchangeable.
 
   UNWEIGHTED and COMPLETE: the global-mean temperature tendency is exactly the
-  global mean of `gtn`, because the flux term contributes nothing at (0,0).
-  There P2 dominates and is negative.
+  global mean of `gtn`. The flux term contributes nothing at (0,0), and neither
+  does `-tau . sdt`, because `sdt(1:2,:)` is forced to zero above it.
 
-  MASS-WEIGHTED and, until the flux term was recovered, INCOMPLETE: this is the
-  enthalpy budget. There P2 is also dominant and negative, at -1.02.
+  MASS-WEIGHTED and INCOMPLETE unless both of those are put back: this is the
+  enthalpy budget, and neither of them vanishes in it.
+
+The same sentence excludes a term from one reading and admits it to the other,
+which is how the implicit half went missing after the flux term had already
+taught the lesson.
 
 An intermediate reading here put the mass-weighted P2 at small and positive.
 That came from writing the reference term as `t0 * <omega/p>` instead of the
 model's `t0 * (zvgpg - ztpta)`; the two differ by `<ps Sum_j c(j,k) D_j>`,
-which vanishes unweighted and does not vanish weighted. The model's own
-expression gives -1.02 and the table above is what stands.
+which vanishes unweighted and does not vanish weighted. That difference is
+`Cimp` under another name, and reading it as an error rather than as a term is
+the same mistake a third time.
 
 ## Which half of the conversion, and why that half
 
@@ -1027,25 +1092,17 @@ same units as `denergy02`, averaged over an orbit with the transient dropped:
 
     anomaly half      akap * ztv2 * (omega/p)      -0.0439
     reference half    tkp * (zvgpg - ztpta)        -0.9808
-    P2                                             -1.0247
 
-against a kinetic end of +0.086, so the miss is -0.939. **The anomaly half --
-the physical conversion, the one the flow actually supports -- is 0.04. The
-reference half carries all of it.**
-
-That is the half whose counterpart is on the other side of the semi-implicit
-split. `tkp = akap * t0` multiplies the reference temperature, and the reference
-part of the momentum equations' pressure-gradient force is NOT in `calcgp` at
-all: they carry `ztv1 = T_v - t0`, the anomaly only, and `R t0 grad(ln ps)` is
+**The anomaly half, the physical conversion the flow actually supports, is
+0.04.** The reference half carries the rest of `P2`, and it is the half whose
+counterpart is on the other side of the semi-implicit split: the momentum
+equations carry `ztv1 = T_v - t0`, the anomaly only, and `R t0 grad(ln ps)` is
 handled implicitly in `spectrala` through the `z0 * spt` and `z0 * spm` terms of
-the divergence solve. One end explicit in gridpoint space, the other implicit in
-spectral space, evaluated at different time levels and through different
-operators, with nothing between them that forces them to agree.
+the divergence solve.
 
-So the defect is not the conversion in general. It is the REFERENCE conversion,
-and the fix is to put its two ends on the same side of the split. That is a
-change to the semi-implicit scheme -- `bm1` would need rederiving and the
-stability revalidating -- which is why the correction below ships first.
+That much survives. What does not is reading the reference half's size as the
+size of the defect. It is one half of a pair that cancels, and the section above
+measures the pair.
 
 ## The energy fixer, which is a correction and not a fix
 

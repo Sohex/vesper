@@ -583,12 +583,17 @@ the decomposition closes to 0.02 W/m2 and the residual is an offset in the
 reported top-of-atmosphere net radiation, and the source is the adiabatic
 spectral step.
 
-OFF as of 2026-08-19, because that is the whole of what it was turned on to
-answer and the answer is recorded. The surface half continuing as CLIM-11
-reads the ocean and ice output streams, not these terms. Back on for the
-first low-I/O-off block of any T85 run, where CLIM-1 requires
-`close_term_energy.py` to re-measure a quantity that is resolution- and
-timestep-dependent rather than carried from T42.
+ON, because `energy_fixer` is driven by `denergy26` and `denergy27` and cannot
+run without them. CLIM-1 also requires `close_term_energy.py` to re-measure on
+the first low-I/O-off block of any T85 run, since the quantity is resolution-
+and timestep-dependent rather than carried from T42.
+
+`2` rather than `true` asks additionally for the CONVERSION DECOMPOSITION, a
+control for world-0ov. It prints the adiabatic conversion's reference half both
+as the semi-implicit scheme applies it and as it stands at time t, in the same
+arithmetic and units as `denergy02`, so the displacement between the two can be
+read directly. It costs four extra spectral transforms a timestep and is for a
+diagnostic arm, not for production. `true` and `1` are the same setting.
 
 ## `ozone_scale`
 

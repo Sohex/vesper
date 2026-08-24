@@ -632,6 +632,20 @@ def energy_diagnostics_enabled(config: dict) -> bool:
     return bool(config["model"].get("energy_diagnostics", False))
 
 
+def energy_diagnostics_level(config: dict) -> int:
+    """NENERGY: 1 for the 28-term decomposition, 2 to add the conversion control.
+
+    `energy_diagnostics: 2` asks the model for the split of its adiabatic
+    conversion across the semi-implicit scheme, which is a CONTROL for world-0ov
+    and costs three extra spectral transforms a timestep. `true` and `1` both
+    mean 1, so a config predating this reads exactly as it did.
+    """
+    level = config["model"].get("energy_diagnostics", False)
+    if isinstance(level, bool):
+        return 1 if level else 0
+    return int(level)
+
+
 def set_low_io(model, low_io: bool) -> None:
     """Turn off PlaSim's low-I/O accumulation, so output is instantaneous.
 
@@ -757,11 +771,12 @@ def declare_energy_fixer(model, config: dict) -> bool:
 
     The adiabatic step must conserve total energy: the column enthalpy it gives
     up has to equal the kinetic energy it takes on. It does not. Measured on a
-    dry adiabatic run, the temperature equation's conversion removes 1.02 W/m2
-    while the momentum equations receive 0.09, and essentially all of the
-    difference is in the REFERENCE half of the conversion, whose counterpart in
-    the momentum equations sits on the other side of the semi-implicit split.
-    That defect is `world-0ov`. This does not fix it.
+    dry adiabatic run it loses about 0.8 W/m2, and the whole of that is the
+    reference conversion's two halves being taken at different time levels of
+    the semi-implicit scheme: the advective half is explicit at t, the
+    divergence half is applied on `sdt`, the centred mean of t-dt and t+dt, and
+    the displacement between them is -0.96 W/m2. That defect is `world-0ov`.
+    This does not fix it.
 
     What this does is put the missing energy back as a uniform warming, the way
     ECHAM, the IFS and CAM all do. Without it the surface silently supplies the
@@ -788,7 +803,7 @@ def declare_energy_fixer(model, config: dict) -> bool:
     if not fix:
         model._edit_namelist("plasim_namelist", "NENERGYFIX", "0")
         print("energy fixer: OFF (declared). The core's conversion loses about "
-              "0.9 W/m2 and the surface supplies it; see world-0ov.")
+              "0.8 W/m2 and the surface supplies it; see world-0ov.")
         return False
     if not config["model"].get("energy_diagnostics"):
         raise RuntimeError(
@@ -906,7 +921,8 @@ def enable_energy_diagnostics(model, config: dict) -> bool:
     """
     if not energy_diagnostics_enabled(config):
         return False
-    model._edit_namelist("plasim_namelist", "NENERGY", "1")
+    model._edit_namelist("plasim_namelist", "NENERGY",
+                         str(energy_diagnostics_level(config)))
     if config["model"].get("energy_diagnostics_3d", False):
         model._edit_namelist("plasim_namelist", "NENER3D", "1")
     return True
@@ -1288,7 +1304,7 @@ def expected_namelist_keys(config: dict) -> dict:
     if salinity is not None:
         want["icemod_namelist"]["TFREEZE"] = round(freezing_point_k(salinity), 4)
     if energy_diagnostics_enabled(config):
-        want["plasim_namelist"]["NENERGY"] = 1.0
+        want["plasim_namelist"]["NENERGY"] = float(energy_diagnostics_level(config))
         if m.get("energy_diagnostics_3d", False):
             want["plasim_namelist"]["NENER3D"] = 1.0
     return {f: keys for f, keys in want.items() if keys}

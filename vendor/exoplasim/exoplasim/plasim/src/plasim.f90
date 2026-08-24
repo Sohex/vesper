@@ -3045,6 +3045,22 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       real :: zfixr, zfixd, zfixc
       real :: zfixw(NHOR)
 !
+!     THE CONVERSION DECOMPOSITION, a CONTROL and not a model term (nenergy > 1).
+!     world-0ov. The reference conversion is split across the semi-implicit
+!     scheme: its advective half, tkp*(zvgpg-ztpta), is explicit in calcgp and
+!     its divergence half is the tkp*c part of tau, applied implicitly in step 3
+!     below. An enthalpy budget that reads calcgp's gtn and takes everything else
+!     BY DIFFERENCE therefore books that second half to advection, which is what
+!     the first attribution did. These arrays measure it directly, in the same
+!     arithmetic and the same units as denergy02, so the two halves can be added.
+!     zcnow holds the divergence at time t -- sd is still the state gridpointa
+!     read, and mpsyncsp does not advance it to t+dt until the end of this
+!     routine -- so the same term can be evaluated at the explicit half's time
+!     level and the semi-implicit displacement read off as the difference.
+      real, allocatable :: zcnow(:,:), zcsdt(:,:), zcwrk(:,:), zcgp(:,:)
+      real :: zcw(NHOR)
+      real :: zcs(8)
+!
 !*    0. save prognostic variables at (t-dt)
 !        and the non-linear divergence tendency terms
 !
@@ -3060,6 +3076,13 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       atm(:,:) = stm(:,:) ! temperature
       adt(:,:) = sdt(:,:) ! divergence tendency
       if (nqspec == 1) aqm(:,:) = sqm(:,:) ! spec.  humidity
+!
+!     The control's copy of the divergence at time t, taken BEFORE the solve
+!     overwrites sdt and before mpsyncsp advances sd. See the declaration.
+      if (nenergy > 1) then
+         allocate(zcnow(NESP,NLEV))
+         zcnow(:,:) = sd(:,:)
+      endif
 !
 !*    do the advective time step
 !
@@ -3135,14 +3158,16 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !
 !     The adiabatic step is supposed to conserve total energy: the column
 !     enthalpy it gives up must equal the kinetic energy it takes on. In this
-!     model it does not. Measured on a dry adiabatic run, the temperature
-!     equation's conversion removes 1.02 W/m2 while the momentum equations
-!     receive 0.09, and essentially all of the difference sits in the REFERENCE
-!     half of the conversion, `tkp*(zvgpg-ztpta)`, which is explicit here while
-!     its counterpart in the momentum equations is implicit in the divergence
-!     solve above. The two ends are on opposite sides of the semi-implicit
-!     split and nothing makes them meet. That defect is world-0ov and it is NOT
-!     what this code fixes.
+!     model it does not. Measured on a dry adiabatic run it loses about 0.8
+!     W/m2, and the whole of that is the REFERENCE conversion's two halves being
+!     taken at different time levels. `calcgp` carries the advective half,
+!     `tkp*(zvgpg-ztpta)`, at t; the divergence half is the `tkp*c` part of
+!     `tau` in step 3 above, applied on `sdt`, which is the centred mean of t-dt
+!     and t+dt. The identity that makes the two halves cancel the momentum
+!     equations' reference pressure-gradient work is `<ps (V.grad ln ps + D)> =
+!     0`, and it is split across those two time levels; the displacement is
+!     -0.96 W/m2. That defect is world-0ov and it is NOT what this code fixes;
+!     `nenergy = 2` is the control that measures it.
 !
 !     What this does is put the missing energy back, as a uniform warming, so
 !     the atmosphere is not left short. It is the same device ECHAM, the IFS and
@@ -3458,6 +3483,87 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
          endif
         endif
        endif
+!
+!      THE CONVERSION DECOMPOSITION. A CONTROL AND NOT A MODEL TERM. world-0ov.
+!
+!      Everything here is measured in denergy02's own arithmetic and units, so
+!      the pieces add to the terms the budget is already written in. What is new
+!      is the IMPLICIT half of the reference conversion: `calcgp` carries only
+!      `tkp*(zvgpg-ztpta)`, the advective half, and the divergence half is the
+!      `tkp*c` part of `tau` applied in step 3 above. A budget that reads gtn and
+!      takes the remainder by difference books that half to the advection, and
+!      the two halves are of opposite sign and comparable size, so the sign of
+!      the attribution depends on keeping them together.
+!
+!      Term 6 is the same conversion evaluated on the divergence at time t
+!      rather than on `sdt`. `sdt` is exactly the centred mean of t-dt and t+dt,
+!      the explicit half is at t, and 6 minus 4 is therefore the semi-implicit
+!      displacement between the conversion's two ends on its own.
+!
+       if (nenergy > 1) then
+        allocate(zcsdt(NESP,NLEV))
+        allocate(zcwrk(NESP,NLEV))
+        allocate(zcgp(NHOR,NLEV))
+        call mpgallsp(zcsdt,sdt,NLEV)
+        jhor = 0
+        do jlat = 1 , NLPP
+         do jlon = 1 , NLON
+          jhor = jhor + 1
+          zcw(jhor) = gwd(jlat)
+         enddo
+        enddo
+        zcs(:) = 0.0
+        zcs(1) = dot_product(denergy(:,2),zcw)
+        zcs(2) = dot_product(denergy(:,26),zcw)
+        zcs(3) = dot_product(denergy(:,27),zcw)
+        zcs(8) = sum(zcw)
+        do jterm = 1 , 4
+         do jlev = 1 , NLEV
+          zcwrk(:,jlev) = 0.0
+          do jlev2 = 1 , NLEV
+           if (jterm == 1) then
+            if (jlev2 <= jlev) zcwrk(:,jlev) = zcwrk(:,jlev)            &
+     &         - tkp(jlev) * c(jlev2,jlev) * zcsdt(:,jlev2)
+           else if (jterm == 2) then
+            zcwrk(:,jlev) = zcwrk(:,jlev)                               &
+     &         - tau(jlev2,jlev) * zcsdt(:,jlev2)
+            if (jlev2 <= jlev) zcwrk(:,jlev) = zcwrk(:,jlev)            &
+     &         + tkp(jlev) * c(jlev2,jlev) * zcsdt(:,jlev2)
+           else if (jterm == 3) then
+            if (jlev2 <= jlev) zcwrk(:,jlev) = zcwrk(:,jlev)            &
+     &         - tkp(jlev) * c(jlev2,jlev) * zcnow(:,jlev2)
+           endif
+          enddo
+          if (jterm == 4) zcwrk(:,jlev) = -tkp(jlev) * zcnow(:,jlev)
+         enddo
+         zcwrk(:,:) = zcwrk(:,:) * ct * ww
+         call sp2fl(zcwrk,zcgp,NLEV)
+         call fc2gp(zcgp,NLON,NLPP*NLEV)
+         do jlev = 1 , NLEV
+          zcs(3+jterm) = zcs(3+jterm)                                   &
+     &     + dot_product(zcgp(:,jlev)*acpd*(1.+adv*zqgp(:,jlev))        &
+     &                   *zpgp(:)/ga*dsigma(jlev),zcw)
+         enddo
+        enddo
+        call mpsumbcr(zcs,8)
+        if (mypid == NROOT) then
+!        THE FIRST MODEL DAY IS DROPPED, for the reason the fixer's window drops
+!        its first: the first step out of a restart carries an imbalance of order
+!        250 W/m2, and this is a mean over an orbit.
+         if (nstep > nstep1 + ntspd) then
+          dconvacc(1:7) = dconvacc(1:7) + zcs(1:7) / zcs(8)
+          dconvacc(8) = dconvacc(8) + 1.0
+          nconvacc = nconvacc + 1
+         endif
+         if (mod(nstep,ndiag) == 0 .and. nconvacc > 0) then
+          write(nud,'(A,I9,I9,7E15.6)') ' CONVDECOMP d02 d26 d27 cimp '//&
+     &      'cvadv ct dt ', nstep, nconvacc, dconvacc(1:7) / dconvacc(8)
+         endif
+        endif
+        deallocate(zcsdt)
+        deallocate(zcwrk)
+        deallocate(zcgp)
+       endif
        deallocate(zsd)
        deallocate(zsz)
        deallocate(zugp)
@@ -3473,6 +3579,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
        deallocate(zpmgp)
        deallocate(ztgp)
       endif
+      if (nenergy > 1) deallocate(zcnow)
 !
       return
       end

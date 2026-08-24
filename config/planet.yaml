@@ -483,11 +483,11 @@ model:
   # DETERMINED 2026-08-24. A CORRECTION AND NOT PHYSICS. The adiabatic step
   # must conserve total energy -- the column enthalpy it gives up has to equal
   # the kinetic energy it takes on -- and in this model it does not. Measured on
-  # a dry adiabatic run, the temperature equation's conversion removes 1.02 W/m2
-  # while the momentum equations receive 0.09, and essentially all of the
-  # difference sits in the REFERENCE half of the conversion, whose counterpart in
-  # the momentum equations is on the other side of the semi-implicit split. That
-  # defect is world-0ov and this does not fix it.
+  # a dry adiabatic run it loses about 0.8 W/m2, and the whole of that is the
+  # reference conversion's two halves being taken at different time levels: the
+  # advective half is explicit at t, the divergence half is applied on `sdt`,
+  # the centred mean of t-dt and t+dt, and the displacement between them is
+  # -0.96 W/m2. That defect is world-0ov and this does not fix it.
   #
   # What this does is put the missing energy back as a uniform warming, the way
   # ECHAM, the IFS and CAM all do. Without it the surface silently supplies the

@@ -407,6 +407,11 @@ given `--run`; it cannot recompute a name, which is the safer direction.
 `run_exoplasim.py` registers them at run time; patching the vendored tree would
 be undone silently by any reinstall of the untracked `.venv`.
 
+Setting it to `2` adds the conversion decomposition, a control for `world-0ov`:
+the adiabatic conversion's reference half as the semi-implicit scheme applies it
+and as it stands at time t, printed at `ndiag` cadence in `denergy02`'s own
+units. Four extra spectral transforms a timestep, for a diagnostic arm.
+
 **Patched source and per-configuration binaries.** ExoPlaSim compiles a separate
 executable for every (resolution, layers, ranks, parmode) configuration, so
 patching the source
