@@ -19,8 +19,10 @@ permutation sites named below no longer exist either.
 
 The record is kept for two things it establishes independently of the layout:
 what a survey of "routes through the primitives" misses, and what the two halves
-of the symmetric transform were measured to be worth. `world-h8o` is the gate
-that still tries to lift `ilatperm` out of `plasimmod.f90` and cannot.
+of the symmetric transform were measured to be worth. The gate that lifted
+`ilatperm` out of `plasimmod.f90`, `verify_latitude_pairing.py`, was deleted
+with its pipeline row under `world-h8o`: there was no function left to point it
+at, and repointing it would have made it pass vacuously.
 
 ## The change
 
@@ -104,11 +106,10 @@ would have surfaced only for someone building the model at one.
 
 **`verify_latitude_pairing.py`** lifted `ilatperm` verbatim out of
 `plasimmod.f90`, compiled it inside a parameter module for one `(NLAT, NPRO)`,
-and checked the map it produced. It cannot: the function is gone and the
-extraction raises. It is still declared as a gate in `config/pipeline.yaml`;
-`world-h8o`. What it checked: bijection, mirror pairing, the northern block
-contiguous and northernmost, identity at one process, identity where the
-divisibility fails. Seventeen cases across the resolution ladder.
+and checked the map it produced. It is DELETED, with the function it tested.
+What it checked: bijection, mirror pairing, the northern block contiguous and
+northernmost, identity at one process, identity where the divisibility fails.
+Seventeen cases across the resolution ladder.
 
 It carries TWO negative controls, because the two ways the function goes wrong
 fail different checks:

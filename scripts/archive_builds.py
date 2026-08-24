@@ -30,9 +30,12 @@ touched: they are small, they are what downstream work actually cites, and they
 are derived rather than regenerable in one pass.
 
 Anything the registry in `lib/orogen.py` does not know is SKIPPED, as is any
-build missing one of its five grid exports. `source_build` names the OLD build
-for as long as it takes to generate a new one, so "not active" and "superseded"
-are not the same claim, and only the registry can tell them apart.
+build whose exports are not written through -- `lib/builds.py`'s
+`incomplete_exports`, which asks whether each export the build carries is
+finished rather than whether the build carries a fixed list of grids.
+`source_build` names the OLD build for as long as it takes to generate a new
+one, so "not active" and "superseded" are not the same claim, and only the
+registry can tell them apart.
 """
 
 from __future__ import annotations
@@ -51,10 +54,6 @@ ARCHIVE = ROOT / "archive" / "builds"
 sys.path.insert(0, str(ROOT / "lib"))
 import builds  # noqa: E402
 from orogen import _KNOWN_TERRAIN_HASHES  # noqa: E402
-
-# A build is these five exports. Fewer means it is still being generated.
-EXPECTED_GRIDS = ["exoplasim-T21", "exoplasim-T42", "exoplasim-T63",
-                  "exoplasim-T85", "grid-512x256"]
 
 # Everything needed to identify a build and to date a result computed from it.
 # `params` is in here because it is the RECIPE. Without it a stub can identify a
@@ -125,7 +124,8 @@ def main() -> None:
         # the manifest beside its native mesh. SPAT-2.
         try:
             man = builds.mesh_export_of(d) / "manifest.json"
-        except RuntimeError:
+        except RuntimeError as exc:
+            print(f"  SKIP     {d.name:26}{size/1e9:>6.2f} GB  {exc}")
             continue
         if not man.is_file():
             print(f"  SKIP     {d.name:26}{size/1e9:>6.2f} GB  no T42 manifest")
@@ -147,10 +147,16 @@ def main() -> None:
             print(f"  SKIP     {d.name:26}{size/1e9:>6.2f} GB  NOT REGISTERED in "
                   f"lib/orogen.py -- register it or delete it by hand")
             continue
-        missing = [g for g in EXPECTED_GRIDS if not (d / g / "manifest.json").is_file()]
-        if missing:
-            print(f"  SKIP     {d.name:26}{size/1e9:>6.2f} GB  incomplete, missing "
-                  f"{', '.join(missing)}")
+        # WHAT MAKES A BUILD FINISHED is `builds.incomplete_exports`, which
+        # asks whether each export the build carries is written through
+        # rather than whether the build carries a fixed list of grids. The
+        # list used to be five literal names and the active build satisfied
+        # none of them; the recipe in source/README.md moved and the literal
+        # did not. world-txz.
+        incomplete = builds.incomplete_exports(d)
+        if incomplete:
+            print(f"  SKIP     {d.name:26}{size/1e9:>6.2f} GB  incomplete: "
+                  f"{'; '.join(incomplete)}")
             continue
 
         freed += size

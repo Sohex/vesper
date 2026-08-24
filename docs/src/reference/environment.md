@@ -158,10 +158,13 @@ largest single figure in this file.** It initialises every local real on entry
 to every routine, arrays included, and it cost 26.03% of T170 [+22.76, +27.29].
 The model does not need it: the restart is bit identical without it, and
 identical again under `-finit-real=snan` with the trap masked, so nothing
-uninitialised reaches a stored value. It now lives in the `checked` profile,
-where a read of an uninitialised local traps instead of quietly returning a
-zero. `exoplasim/notes/the-zeroing-is-an-init-flag.md` has the three gates and
-the one thing they exposed, which is in SHTns rather than in the model. The model is compute-bound
+uninitialised reached a stored value at the length the bench runs. The poisoned
+initialisation now lives in the `checked` profile as `-finit-real=snan`, which
+is run with `NSHTNS=0`: every build is threaded, and on the SHTns path the model
+faults inside the library at the first timestep before it can say anything about
+itself. `exoplasim/notes/the-zeroing-is-an-init-flag.md` has the three gates and
+the one thing they exposed, which is in SHTns rather than in the model; what
+that flag is worth in a profile compiled at `-O3` is `world-5rs`. The model is compute-bound
 inside its own Fortran, and 2 to 3% is what the whole distance from scalar code
 to AVX-512 is worth here, which is also the bound on what any further codegen
 work can return.

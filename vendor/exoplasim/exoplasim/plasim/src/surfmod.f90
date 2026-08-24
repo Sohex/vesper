@@ -151,6 +151,38 @@
           yc,ilot,klot
          endif
       else
+!        AN ABSENT REQUIRED FIELD IS AN ERROR, NOT AN INTERNAL INIT.
+!
+!        With no file the array is left untouched and the module default
+!        stands, and for two codes that default is a whole planet. Code 172
+!        is the land/sea mask, whose default in plasimmod.f90 is dls = 1.,
+!        ALL LAND; code 129 is the orography, whose default is doro = 0.0,
+!        flat. Absent together they integrate a flat entirely continental
+!        world and produce a full set of numbers for it, announced by one
+!        "Init internally" line indistinguishable from the thirteen a
+!        healthy run prints.
+!
+!        Upstream can afford the fallback because it ships Earth boundary
+!        fields, so absent means someone removed them. This project supplies
+!        every field itself and deletes the shipped ones on purpose, so
+!        absent is what a staging bug produces and there is no case where it
+!        is intended. The driver already refuses it, but a direct invocation
+!        of the executable bypasses the driver; this is the model saying it
+!        for itself, the way check_surf_header does for the wrong grid.
+!
+!        Aqua and desert planets are the exception and keep the fallback:
+!        both set dls and doro from their own branch in surfini and have no
+!        surface files by design, and landmod reads the same two codes with
+!        no mode guard of its own.
+         if ((icode == 129 .or. icode == 172) &
+             .and. naqua == 0 .and. ndesert == 0) then
+            write(nud,*) 'Required surface field ',yc,' [code =',icode, &
+                         '] has no file'
+            write(nud,*) 'Expected <',trim(yf),'>'
+            write(nud,*) 'Without it the compiled default stands: an all-land'
+            write(nud,*) 'mask at code 172, a flat surface at code 129.'
+            call mpabort('Required surface file missing')
+         endif
          write(nud,'(" * Init ",A10," [code =",I4,"] internally *")') yc,icode
       endif
       return

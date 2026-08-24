@@ -1,14 +1,16 @@
-# CH4 and N2O: what the radiation cannot carry, and what it is worth
+# CH4 and N2O: what the offline calculation says they are worth
 
 Worldbuilding. Vesper is an invented planet and this note is about the
-simulation of it: a toy climate model's radiation scheme and the trace gases it
-has no term for. Every quantity named here is a modelled field.
+simulation of it: a toy climate model's radiation scheme and two trace gases in
+it. Every quantity named here is a modelled field.
 
 Priced 2026-08-20 for CLIM-41; the mixing ratios measured 2026-08-20 for
-CLIM-43. `config/planet.yaml` already declares that PlaSim's longwave is
-Sasamori (1968) over water vapour, CO2 and ozone, that `radmod.f90` has no CH4
-and no N2O term, and that the direction is one-signed. What it says instead of
-a magnitude is "by whatever they would have been worth". This is that number.
+CLIM-43. This is the OFFLINE number, from line-by-line fits and independent of
+any band in the model. `radmod.f90` has carried both gases since CLIM-42, and
+`exoplasim/notes/trace-gas-band.md` measures that band against the number
+below: it returns 40 per cent of it, which is what this broadband scheme
+returns for CO2 as well. So this note is the reference, and the difference is
+the residual the scheme still misses.
 
 **It is the largest single item in the error budget.** The derivation is
 `analysis/trace_gas_forcing.py`, which writes `analysis/trace_gas_forcing.json`

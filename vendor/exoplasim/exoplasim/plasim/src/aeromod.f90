@@ -272,7 +272,9 @@
 !        burden-matched one. Hand the value across; radini broadcasts it,
 !        which is why this can sit inside the NROOT block. The two variables
 !        stay separate because radmod cannot use aeromod: aeromod already uses
-!        radmod, and make_plasim compiles it second.
+!        radmod, so the other direction is a circular use. Compile order is not
+!        written down anywhere to be relied on -- plasim/CMakeLists.txt lists
+!        the sources and Ninja scans the use statements to order them.
 !
          rad_apart = apart
       endif

@@ -156,12 +156,17 @@ orbit:
 # argument and says to re-run it.
 #
 # What this block CAN say is bounded by what the model reads. PlaSim's longwave
-# is Sasamori (1968) over water vapour, CO2 and ozone, and the shortwave adds
-# Rayleigh and the same three; radmod.f90 has no CH4 and no N2O term, so there
-# is nothing here to set them to. Their absence is a property of the radiation
-# scheme rather than a composition choice, and the direction is one-signed: a
-# world with them is warmer than this one at the same CO2, by whatever they
-# would have been worth. Adding either means adding a band, not a key.
+# is Sasamori (1968) over water vapour, CO2 and ozone, plus the resident
+# trace-gas band of CLIM-42, which carries CH4 and N2O; the shortwave adds
+# Rayleigh and the three Sasamori absorbers. So CH4 and N2O ARE keys here, set
+# below and converted to the ppmv radmod_nl wants by run_exoplasim.py.
+#
+# What remains absent is everything else: no CO, no SO2, no NH3, and no
+# collision-induced continuum for N2 or CO2, so there is nothing here to set
+# those to. Their absence is a property of the radiation scheme rather than a
+# composition choice, and the direction is one-signed: a world with them is
+# warmer than this one at the same CO2, by whatever they would have been worth.
+# Adding one means adding a band, not a key.
 atmosphere:
   pN2_bar: 0.78025
   pO2_bar: 0.21000
@@ -463,17 +468,32 @@ model:
       # mode index that aborted in legini instead of returning a plausible
       # wrong climate.
       # -finit-real=snan initialises every local real to a signalling NaN, so a
-      # read of one traps at the instruction that uses it rather than quietly
-      # returning a zero. It was in f90_opts as -finit-real=zero, where it cost
-      # 26.03% of T170 [+22.76, +27.29] and the model was measured not to need
-      # it: the restart is bit identical without it, and identical again under
-      # snan with the trap MASKED, so nothing uninitialised reaches a stored
-      # value. Moving it here is what that buys -- a check that can FAIL rather
-      # than a tax that hides what it protects against.
+      # read of one can trap at the instruction that uses it rather than
+      # quietly returning a zero. It was in f90_opts as -finit-real=zero, where
+      # it cost 26.03% of T170 [+22.76, +27.29] and the model was measured not
+      # to need it: the restart is bit identical without it, and identical
+      # again under snan with the trap MASKED, so nothing uninitialised reached
+      # a stored value at the length the bench runs.
       # exoplasim/notes/the-zeroing-is-an-init-flag.md.
-      # It is usable in THIS profile because these are MPI binaries, which
-      # cannot run SHTns. On a threaded build snan traps inside the library
-      # before it can say anything about the model, which is CLIM-70.
+      #
+      # HOW TO RUN IT: with NSHTNS=0. Every build is threaded and nshtns
+      # defaults to 1, and SHTns over-reads a lane of its own stack scratch,
+      # which under this flag holds the one bit pattern -ffpe-trap=invalid
+      # stops on. The model then faults in _an12_l at the first timestep,
+      # before it can say anything about itself. That is CLIM-82, measured on a
+      # threaded T170 build, and it decided the trap stays UNMASKED. NSHTNS=0
+      # selects legmod, which is the reference arm verify_shtns_model.sh
+      # already compares against, and the same note ran 60 steps at T21 and at
+      # T170 that way without a fault.
+      #
+      # WHAT IS SETTLED AND WHAT IS NOT. -fcheck=all is settled: it caught the
+      # CLIM-40 out-of-bounds. What -finit-real=snan is worth here is world-5rs,
+      # because f90_opts carries -O3 and
+      # notes/audits/uninitialised-reads-and-implicit-save.md finding 1 measured
+      # gfortran folding a signalling NaN to a quiet one before the arithmetic
+      # at -O1 and above, in the case it measured. The positive control that
+      # settles it -- a deliberate uninitialised read in the model, which must
+      # fault -- is written down in that issue.
       checked: ["-fcheck=all", "-finit-real=snan"]
     profile: production
   ncpus: 16

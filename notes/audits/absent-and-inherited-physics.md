@@ -267,11 +267,11 @@ held at modern Earth's. Priced at 0.799 W/m2 of global mean outgoing longwave
 against zero, which is 40 per cent of the offline answer, and 40 per cent is
 what this broadband scheme returns for CO2 as well.
 
-**The paragraph this finding asked for is now itself superseded and still
-stands.** `config/planet.yaml`'s preamble above the `atmosphere` key still says
-`radmod.f90` has no CH4 and no N2O term and that adding either means adding a
-band, four lines above the block that sets both and prices the band. Filed as
-`world-wu8`.
+**The paragraph this finding asked for was itself superseded and has been
+rewritten.** `config/planet.yaml`'s preamble above the `atmosphere` key said
+`radmod.f90` had no CH4 and no N2O term, four lines above the block that sets
+both and prices the band. `world-wu8` rewrote it to name the CLIM-42 band and
+to keep the one-signed direction argument for the absorbers that remain absent.
 
 ---
 

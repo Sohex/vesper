@@ -23,10 +23,17 @@ defect earlier, and what else of its class is sitting in `plasim/src`.
 is `config/planet.yaml`'s `model.compile_flags.f90_opts` and there is no
 `most_compiler*` file any more. `-finit-real=zero` has LEFT the production
 profile, which is finding 1's remedy: `-finit-real=snan` is in the `checked`
-profile instead, so poisoned initialisation lives where it can be trapped rather
-than in the line whose optimisation level folds it away. Whether the `checked`
-profile can still run that flag is `world-5rs`: its declaration justifies the
-flag by the binaries being MPI, and world-38b removed the MPI build.
+profile instead, so the poisoned initialisation is where a check can be run
+rather than where it is paid for on every production orbit.
+
+**That remedy is not yet a working trap, and `world-5rs` is where the decision
+sits.** Two things stand between it and one. The profile is `f90_opts` plus the
+two flags, so it compiles at `-O3`, which is the optimisation level finding 1
+measures the fold at -- the same level the sentence above says the production
+line folds it away at. And every build is threaded since world-38b, so the
+declaration now directs the profile to be run with `NSHTNS=0`; on the SHTns
+path the model faults inside the library at the first timestep. What the profile
+certainly still delivers is `-fcheck=all`.
 `notes/audits/model-build-flags.md` is the re-run of the whole line on the
 threaded build and is what a reader wanting today's flags should read.
 

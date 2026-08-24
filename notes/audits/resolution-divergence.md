@@ -93,15 +93,24 @@ mismatch.
 
 ## 3. A missing surface field is still not an error, and the default planet is all land
 
-`get_surf_array` handles an absent file by writing
+`get_surf_array` handled an absent file by writing
 `* Init <name> [code = NNNN] internally *` to the diagnostic unit, leaving
-`kread` at 0, and returning. `mpsurfgp` then leaves the array untouched, so the
-module default stands. **This half is unchanged**, and is `world-qml`.
+`kread` at 0, and returning. `mpsurfgp` then left the array untouched, so the
+module default stood.
 
 The default that matters is `plasimmod.f90`'s `dls = 1.`: the land/sea mask is
-all land. With `doro` at 0.0 the model integrates a flat, entirely continental
-planet, and says so only in a line indistinguishable from the thirteen other
+all land. With `doro` at 0.0 the model integrated a flat, entirely continental
+planet, and said so only in a line indistinguishable from the thirteen other
 codes it initialises internally on a healthy run.
+
+**Closed by `world-qml` for the two codes whose defaults are a planet.** Codes
+129 and 172 are now REQUIRED: an absent file for either aborts in
+`get_surf_array`, naming the code, the file it expected and what the compiled
+default would have been. Aqua and desert planets keep the fallback, because
+both set `dls` and `doro` from their own branch of `surfini` and have no
+surface files by design, and `landmod` reads the same two codes with no mode
+guard of its own. Every other code keeps the internal-init line: those defaults
+are values, not worlds.
 
 **The wrong-grid half is closed by world-fuh.** The same routine read the
 eight-word SRA header and never compared words 5 and 6 against `NLON` and
@@ -332,7 +341,7 @@ restatements as audited, and how each differed:
 | `exoplasim/scripts/stability_probe.py` | five rungs | also globbed the binary across layers and ranks | closed, world-ltc |
 | `exoplasim/scripts/filter_timestep_matrix.py` | five rungs | restated SPAT-2's reasoning in the comment above the copy | closed, world-ltc: imports `rungs` |
 | `exoplasim/scripts/verify_gauss_weights.sh` | five latitude counts | 48, 96 and 160 never checked | closed, world-ltc: the sweep is `rungs.RUNGS` |
-| `exoplasim/scripts/verify_latitude_pairing.py` | a case list | comment said it covered the ladder; three rungs absent | still a list, and correctly so: `CASES` at `:43-48` pairs NLAT with NPRO to exercise both sides of the divisibility fallback, which is a test matrix and not a ladder restatement |
+| `exoplasim/scripts/verify_latitude_pairing.py` | a case list | comment said it covered the ladder; three rungs absent | DELETED under `world-h8o`: `ilatperm` went with the paired decomposition in `2508bedb`, so the gate could not run and there was nothing to point it at |
 | `scripts/archive_builds.py:56-57` | five expected grids | it gates archiving at `:150`, and the ACTIVE build has neither `exoplasim-T63` nor `grid-512x256`, so that build can never be archived | **UNCHANGED**; `EXPECTED_GRIDS` is still a literal list, and no lint reaches it. `world-txz` |
 
 `world-ltc` also widened the SPAT-2 lint that had missed most of them:

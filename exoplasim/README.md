@@ -317,7 +317,6 @@ unless told they exist.
 | `stack_floor.py` | the per-thread stack floor at a rung: the heaviest call chain out of the parallel region, summed over its declared local arrays, with `--validate` against a built binary's BSS |
 | `verify_filter_fold.sh` | bit-identity check on the Legendre filter fold, filters off |
 | `verify_legendre_parity.py` | checks P and its mu-derivative have opposite parity in legini's own recurrence |
-| `verify_latitude_pairing.py` | compiles `plasimmod.f90`'s own `ilatperm` and checks the paired decomposition gives each process a mirror pair per slot pair, with two negative controls |
 | `compare_restarts.py` | compares two restarts record by record and separates a regrouped sum from a different computation |
 | `verify_symmetric_transform.py` | runs `legmod.f90`'s own `sp2fc` and `sp2fcdmu` against an associated Legendre table computed by scipy, one spectral mode at a time, with a negative control for each |
 | `verify_weight_factorisation.py` | checks that `legini`'s eight weight matrices are all P or Q times a per-mode and a per-latitude factor, which is what CLIM-48 rests on, with a negative control |
