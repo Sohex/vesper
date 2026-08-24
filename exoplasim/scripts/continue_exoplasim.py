@@ -22,6 +22,12 @@ from provenance import config_drift  # noqa: E402
 from restart_surface import verify_restart_surface_fields  # noqa: E402
 from segments import SEGMENT_PURPOSES  # noqa: E402
 from run_exoplasim import (  # noqa: E402
+    declare_parmode,
+    declare_dynamics_only,
+    declare_energy_fixer,
+    declare_robert_filter,
+    declare_conversion_time_level,
+    declare_dealias_conversion,
     SHORTWAVE_GAS_KEYS,
     trace_gas_ppmv,
     verify_staged_namelists,
@@ -411,6 +417,12 @@ def main() -> None:
         modelname=identifier,
         outputtype=model_cfg["output_type"],
         hyperthreading=False,
+        # A CONTINUATION HAS TO PIN THE PARMODE TOO. Without it the API defaults
+        # to `mpi` and looks for a binary this project no longer builds -- and
+        # worse, a project that still built both would resume a threaded run on
+        # the MPI transform and record neither the change nor the fact that
+        # `nshtns` had flipped underneath it. world-bdh.
+        parmode=declare_parmode(config),
         # A continuation has to pin exactly as the prepare did. Without this the
         # SETTLING orbit is placed and the MEASURED segment is not, so a 2x8
         # concurrent pair -- the layout rank-layout-benchmark.md adopts for any
@@ -517,9 +529,14 @@ def main() -> None:
     # rewrites the namelists on every continuation, so a key that is not
     # reapplied here silently reverts partway through a run. Checked against the
     # config after re-staging and before the segment starts.
-    staged_namelists = verify_staged_namelists(run_dir, config)
-    print(f"  namelists verified: {len(staged_namelists)} config-set keys "
-          f"present with the declared values")
+    # RE-APPLY BEFORE VERIFYING. `configure()` rewrites the namelists on every
+    # continuation, so every declared switch has to be set again here -- and the
+    # verification below is only meaningful once they have been. It ran first,
+    # which made it fail on a key this script was about to write and, worse,
+    # pass on the ones it never wrote at all: the energy fixer and the
+    # dynamics-only switches were dropped on every continuation and nothing
+    # said so. failure-modes class 22, which is the class this script's own
+    # comment above cites.
     regular_codes = list(REGULAR_CODES)
     if energy_diagnostics_enabled(config):
         enable_energy_diagnostics(model, config)
@@ -527,6 +544,14 @@ def main() -> None:
         regular_codes = regular_codes + ENERGY_DIAGNOSTIC_CODES
         if config["model"].get("energy_diagnostics_3d", False):
             regular_codes = regular_codes + ENERGY_3D_CODES
+    declare_dynamics_only(model, config)
+    declare_energy_fixer(model, config)
+    declare_robert_filter(model, config)
+    declare_conversion_time_level(model, config)
+    declare_dealias_conversion(model, config)
+    staged_namelists = verify_staged_namelists(run_dir, config)
+    print(f"  namelists verified: {len(staged_namelists)} config-set keys "
+          f"present with the declared values")
     model._add_postcodes("example.nl", regular_codes)
     model.cfgpostprocessor(
         ftype="regular",

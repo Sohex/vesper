@@ -1424,6 +1424,12 @@ def expected_namelist_keys(config: dict) -> dict:
         want["plasim_namelist"]["NCONVTIME"] = 1.0
     if m.get("dealias_conversion", False):
         want["plasim_namelist"]["NDEALIAS"] = 1.0
+    # THE FIXER IS A DECLARED SWITCH AND BELONGS IN THE CHECK. It is written on
+    # both branches -- 1 when on and 0 when off -- so its absence from a staged
+    # namelist means a continuation dropped it, which is exactly what this check
+    # exists to catch. failure-modes class 22.
+    if m.get("energy_fixer") is not None:
+        want["plasim_namelist"]["NENERGYFIX"] = 1.0 if m["energy_fixer"] else 0.0
     if m.get("robert_filter") is not None:
         want["planet_namelist"]["PNU"] = float(m["robert_filter"])
         if m.get("energy_diagnostics_3d", False):

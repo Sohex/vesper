@@ -809,6 +809,24 @@ the model is constructed on an existing run directory. So a continuation has to
 REAPPLY every configured key, and `continue_exoplasim.py` did -- from its own
 copy of the list.
 
+A second instance, found 2026-08-24 and worse in kind, because this time the
+guard against it was there and was running in the wrong ORDER.
+`continue_exoplasim.py` calls `verify_staged_namelists` -- the check written
+after the episode below -- and then re-applies the energy diagnostics AFTER it.
+So the check ran against a namelist the script was about to write, and failed on
+a key that was about to be correct. That much is noise. What it hid is that four
+other declared switches -- the energy fixer, the dynamics-only set, and the two
+new dynamics switches -- were never re-applied at all, so every continuation
+silently reverted them, and the check could not see it because those keys were
+not in `expected_namelist_keys` either. A run prepared with the energy fixer on
+and then continued was integrating without it, and nothing in the run said so.
+
+The shape to take from it: a re-apply guard is only as good as its ORDER and its
+COVERAGE, and both are separate claims from its existence. Re-apply first, verify
+second, and put every declared switch in the expected set -- including the ones
+written on both branches, because a switch written as `0` when off is a switch
+whose absence still means something went wrong.
+
 `run_exoplasim.py` staged five shortwave gas keys. `continue_exoplasim.py`
 restated the tuple with four, under a comment reading "all four", which was true
 on the day it was written. PHYS-9 then added `h2o_sw_level` to one copy. The
