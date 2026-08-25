@@ -1065,6 +1065,13 @@ one_offs:
   # artifact and nothing consumes it; it is a sensitivity study, not a product.
   # world-03x; notes/audits/dust-intensity-levers.md.
   - aeolian/scripts/dust_intensity_levers.py
+  # What aerodynamic roughness `playa_clastic` gets, as a geometric mixture
+  # of measured arid surfaces weighted by the landform bands the class is
+  # made of. Outside the graph because its output is a DERIVATION of two
+  # constants that are then carried in `aeolian/config/dust.yaml`, which is
+  # where every consumer reads them; nothing reads the JSON. world-ugkw;
+  # notes/audits/dust-intensity-levers.md section 4.
+  - aeolian/scripts/playa_roughness_mix.py
   - scripts/archive_runs.py
   - scripts/archive_builds.py
   - scripts/compare_exports.py
