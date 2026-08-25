@@ -574,30 +574,50 @@ model:
   # model takes a floating-point trap in the shortwave without it,
   # exoplasim/notes/physics-filter-stability.md) and its strength is therefore a
   # decision, not a detail. Scale-free in n/NTRU, so the same FRACTION of every
-  # rung's spectrum is damped; the half-power point is n/NTRU = 0.737 at kappa 8.
-  # kappa sets the damping AT the truncation and gamma sets how far down the
-  # spectrum it reaches, and they are separable: f(N) = exp(-kappa) whatever
-  # gamma is. So kappa is the stability knob and gamma is the confinement knob,
-  # and one can be set without disturbing the other.
+  # rung's spectrum is damped; the half-power point is n/NTRU = 0.858 at kappa 8
+  # and gamma 16, and it moves with gamma.
+  #
+  # WHERE IT IS APPLIED, because that is what its effect follows from.
+  # `legmod.f90` folds f(n) into every per-mode transform WEIGHT, both
+  # directions, and what passes through those weights is the nonlinear TENDENCY:
+  # no filtered value is ever stored back into the prognostic spectral state. So
+  # the filter attenuates the source that fills a wavenumber by a fixed factor
+  # rather than damping the state at a rate, and its spectral effect carries no
+  # timestep. Measured: halving MPSTEP at fixed kappa and gamma moves the
+  # spectrum by 0.1 to 0.2 sigma at T21 and T42, where a rate law
+  # 2*kappa*x^gamma/dt predicts several times the instrument's own bar.
+  # exoplasim/notes/filter-spectral-price.md.
+  #
+  # NOT SEPARABLE. f(NTRU) = exp(-kappa) is genuinely independent of gamma, but
+  # T42 at dt 90 refuses at gamma 8 and runs at gamma 16, so the trap does not
+  # depend on the grid-scale damping alone; and the spectral reach goes as
+  # kappa^(-1/gamma), so gamma sets how much of the spectrum kappa can touch.
   #
   # kappa 8 is DETERMINED by the trap boundary of
   # exoplasim/notes/physics-filter-stability.md: it takes the longest stable
-  # step at every rung measured, and weaker settings trap.
+  # step at every rung measured, and weaker settings trap. That is the only
+  # criterion that can see it. Against the SPECTRUM it is underdetermined and
+  # will stay so: the whole of kappa 8 is worth 0.196 dex of depletion at 0.8 of
+  # the truncation, a third of what is measured there at T42 and a fifth at T21,
+  # and a factor of two in kappa moves the confinement criterion by less than
+  # that criterion's own quantisation at every rung. Measured, not asserted.
   filter_kappa: 8.0
-  # gamma is DERIVED, 2026-08-23, and was 8 until then. The filter -- not the
-  # hyperdiffusion, which is several hundred times weaker -- is this model's
-  # small-scale damping, and at gamma 8 it overtakes the flow's own cascade at
-  # 0.37 to 0.45 of the truncation depending on rung, measured at 0.44 on the
-  # T42 spectrum. Everything above that is damped away: resolution paid for in
-  # wall clock and discarded.
+  # gamma is DERIVED, 2026-08-23, and was 8 until then. It was solved for from
+  # 2*kappa*x^gamma/dt = x/tau_vorticity, requiring the crossover x >= 0.6 at
+  # the most demanding rung, which is T21 and needs gamma >= 14.78; 16 is taken
+  # for margin. scripts/check_consistency.py recomputes that crossover and fails
+  # below the floor.
   #
-  # The confinement requirement is the same one the hyperdiffusion was derived
-  # to -- damping subdominant to the local cascade until 0.6 of the truncation
-  # or above. Solving 2*kappa*x^gamma/dt = x/tau_vorticity for the crossover
-  # gives x = (dt / (2*kappa*tau))^(1/(gamma-1)), and requiring x >= 0.6 needs
-  # gamma >= 14.78 at the most demanding rung, which is T21. 16 is taken for
-  # margin and puts the crossover at 0.625 to 0.687 across the ladder.
-  # scripts/check_consistency.py recomputes this and fails if it is not met.
+  # THE DERIVATION'S RATE LAW IS REFUTED AND THE VALUE IS KEPT. Two timestep
+  # pairs say the filter's spectral effect carries no 1/dt
+  # (exoplasim/notes/filter-spectral-price.md), so the crossover formula and the
+  # gate that recomputes it are answering with a dt that does not belong there.
+  # 16 survives the correction on the measurement rather than on the
+  # derivation: at gamma 16 the spectrum's departure from its own inertial range
+  # sits at 0.71 of the truncation at T42 against 0.69 at gamma 8, and a third
+  # less of the eddy kinetic energy is taken out of the damped band, on 24
+  # orbits. What it costs is 7 per cent of the kinetic-energy conversion left
+  # unbooked, read on two. world-3fpe carries the gate.
   filter_power: 16
   # DECLARED. The seed for a COLD start's initial kick, and it is here because
   # without it there is none: `initrandom` (plasim.f90:2068) takes the namelist
@@ -622,12 +642,20 @@ model:
   # floor and not a licence: the ceiling is where the model REFUSES or breaks,
   # not where it stops being right.
   #
-  #   rung   adopted   measured ceiling at kappa 8
+  #   rung   adopted   ceiling, MEASURED AT kappa 8 AND gamma 8
   #   T21      45        90 or coarser, untested above
   #   T42      45        60
   #   T85      45        45, untested above
   #   T127     30        30; dt 45 refuses outright
   #   T170     22.5      22.5; dt 30 starts and blows up after 3.8 min
+  #
+  # EVERY CEILING IS UNREAD AGAINST THE FILTER THE MODEL RUNS. The column was
+  # measured at gamma 8 and the model runs gamma 16, and T42 at dt 90 is known
+  # to refuse at the first and run at the second -- so at least one entry is
+  # wrong in the loose direction. The grid also declared no hyperdiffusion, so
+  # every cell ran the model's own presets rather than the values derived below.
+  # world-37tn carries the re-measurement and
+  # exoplasim/notes/physics-filter-stability.md carries what is contaminated.
   #
   # `timestep_minutes` above is the ACTIVE value and must equal this table's
   # entry for `resolution`; check_consistency.py enforces that, because two

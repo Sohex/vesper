@@ -1085,6 +1085,7 @@ one_offs:
   - exoplasim/scripts/filter_timestep_matrix.py
   - exoplasim/scripts/stability_probe.py
   - exoplasim/scripts/spectral_tail.py
+  - exoplasim/scripts/filter_spectral_cost.py
   - exoplasim/scripts/predict_ocean_terms.py
   # Stages a known field into a run directory and answers each criterion
   # against the stream that run wrote. Outside the graph: both products
