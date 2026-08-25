@@ -84,7 +84,6 @@ surface built then.
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 from pathlib import Path
 
@@ -99,7 +98,6 @@ import stellar
 from sra import write_sra
 from builds import resolution_of, grid_export, mesh_export
 from gridding import land_fraction_of_class, land_weighted, region_cells
-from paths import rel
 from provenance import config_stamp
 from orogen import Export, LAND
 
@@ -830,13 +828,18 @@ def main() -> None:
                    "snow are applied by the model on top of this."),
     }
     # Provenance stamp; lib/provenance.py owns the shape and the inert set.
-    # The two band-shape files are hashed beside it because they are inputs
-    # this generator reads and the config stamp does not cover them: a re-run
-    # of either moves 175 and 176 without moving a single config key.
-    report["band_shape_inputs"] = {
-        rel(path): hashlib.sha256(path.read_bytes()).hexdigest()
-        for path in (ROCK_BANDS, VEGETATION_BANDS) if path.is_file()}
-    report.update(config_stamp(config, "exoplasim/scripts/build_surface_albedo.py"))
+    # `inputs` is the half the config stamp cannot cover: every DERIVED FILE
+    # this generator read whose content no configuration key names. A re-run of
+    # either band-shape derivation moves 175 and 176 without moving a single
+    # config key, and `check_consistency.py` compares these hashes against the
+    # files as they now stand, on the same footing as the config stamp. The
+    # optional per-run inputs are listed too, because a lake solution or a
+    # climatology re-derived under the same name is the same failure.
+    inputs = [ROCK_BANDS, VEGETATION_BANDS]
+    inputs += [p for p in (args.vegetation, args.lakes, args.climatology)
+               if p is not None]
+    report.update(config_stamp(config, "exoplasim/scripts/build_surface_albedo.py",
+                               inputs=inputs))
     (output / "albedo_report.json").write_text(
         json.dumps(report, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(report, indent=2))

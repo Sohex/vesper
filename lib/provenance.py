@@ -480,7 +480,92 @@ SURFACE_INERT_CONFIG_KEYS = {
 }
 
 
-def config_stamp(config: dict, generator: str) -> dict:
+INPUT_STAMP_KEY = "source_inputs"
+
+
+def input_stamp(paths) -> dict:
+    """`{INPUT_STAMP_KEY: {repo-relative path: sha256}}` for files a generator READ.
+
+    THE CONFIG STAMP CANNOT SEE THESE AND THAT IS THE WHOLE REASON THIS EXISTS.
+    `config_drift` compares parsed configuration values, which is the right
+    check for a configuration key and is blind to a DERIVED FILE the generator
+    also reads. A derivation re-run -- a new spectrum, a corrected proxy, a rock
+    class added -- moves the file while every configuration key stays put, and
+    the artifact built from the old file goes on describing the old shapes with
+    nothing saying so. That is world-nvs2, seen first on the two band-shape
+    files under `analysis/` that set staged surface codes 175 and 176.
+
+    A file is hashed and not merely named, because the whole failure is that the
+    NAME is stable across the change: `analysis/rock_albedo_bands.json` is the
+    same path before and after its generator re-runs, exactly as
+    `build_stellar_spectrum.py` rewrites `<name>.dat` in place.
+
+    A path that does not exist is recorded as `None` rather than dropped. An
+    absent input is a fact about the artifact, and dropping it would make a
+    generator that later STOPS reading a file indistinguishable from one whose
+    input has gone.
+
+    Pass only files whose CONTENT the generator consumed. A mesh or grid export
+    is covered by `terrain_hash` and does not belong here; a configuration file
+    is covered by `source_config` and does not either.
+    """
+    from paths import rel
+    out = {}
+    for path in paths:
+        path = Path(path)
+        out[rel(path, PROJECT_ROOT)] = (
+            hashlib.sha256(path.read_bytes()).hexdigest() if path.is_file()
+            else None)
+    return {INPUT_STAMP_KEY: out}
+
+
+def input_drift(recorded: dict, root: Path | None = None) -> list[str]:
+    """Recorded inputs that have moved since the artifact was written.
+
+    Takes the `{path: sha256}` mapping, not the whole record, and returns one
+    line per input that has changed, appeared or gone -- empty when every
+    recorded input is byte-identical to the file at its path. The caller decides
+    what an empty record means: nothing to compare is not the same answer as
+    nothing moved, and `artifact_input_drift` keeps the two apart by returning
+    `None` for an artifact that carries no stamp at all.
+    """
+    root = PROJECT_ROOT if root is None else Path(root)
+    lines = []
+    for name, was in sorted((recorded or {}).items()):
+        path = root / name
+        now = (hashlib.sha256(path.read_bytes()).hexdigest() if path.is_file()
+               else None)
+        if now == was:
+            continue
+        if was is None:
+            lines.append(f"{name} did not exist when this was built and does now")
+        elif now is None:
+            lines.append(f"{name} was read at {was[:12]} and is now missing")
+        else:
+            lines.append(f"{name} has been rewritten since this was built "
+                         f"({was[:12]} -> {now[:12]})")
+    return lines
+
+
+def artifact_input_drift(path, root: Path | None = None) -> list[str] | None:
+    """Input drift under one generated artifact, or None if it carries no stamp.
+
+    The same three-valued shape as `artifact_drift`, and for the same reason:
+    an artifact that records no inputs is UNOBSERVABLE rather than current.
+    """
+    path = Path(path)
+    if path.suffix != ".json" or not path.is_file():
+        return None
+    try:
+        rec = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+    if not isinstance(rec, dict) or INPUT_STAMP_KEY not in rec:
+        return None
+    return input_drift(rec[INPUT_STAMP_KEY], root)
+
+
+def config_stamp(config: dict, generator: str, inputs=None) -> dict:
     """The provenance every generated input carries, in one place.
 
     `CLAUDE.md` requires every generated product to record its provenance, and
@@ -495,6 +580,10 @@ def config_stamp(config: dict, generator: str) -> dict:
     nothing prefers it. `generator` is here so the remedy is read off the
     artifact rather than guessed -- one message naming one script for three
     artifacts was wrong for two of them.
+
+    `inputs` are DERIVED FILES the generator read that no configuration key
+    names. They are hashed by `input_stamp`, which carries the argument for why
+    the config stamp cannot stand in for them.
     """
     import subprocess
     root = PROJECT_ROOT
@@ -505,12 +594,20 @@ def config_stamp(config: dict, generator: str) -> dict:
                                 check=True).stdout.strip()
     except Exception:
         commit = None
-    return {
+    stamp = {
         "generator": generator,
         "source_config": config,
         "config_sha256": hashlib.sha256(cfg_path.read_bytes()).hexdigest(),
         "git_commit": commit,
     }
+    # `inputs` is the half `source_config` cannot cover: derived files the
+    # generator read, hashed so a re-derivation under an unchanged name is
+    # visible. Absent means the generator reads no such file; an EMPTY sequence
+    # means it does and none were present, and the two are written differently
+    # so the check can tell them apart. `input_stamp` says why.
+    if inputs is not None:
+        stamp.update(input_stamp(inputs))
+    return stamp
 
 
 def unknown_inert_keys(inert, config: dict) -> list[str]:

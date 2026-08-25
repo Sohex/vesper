@@ -102,7 +102,7 @@ import yaml                          # noqa: E402
 import builds                        # noqa: E402
 from paths import rel                # noqa: E402
 from gridding import coupling_ocean_fraction   # noqa: E402
-from provenance import artifact_drift, BIOSPHERE_INERT_CONFIG_KEYS, INERT_CONFIG_KEYS, config_drift, unknown_inert_keys   # noqa: E402
+from provenance import artifact_drift, artifact_input_drift, BIOSPHERE_INERT_CONFIG_KEYS, INERT_CONFIG_KEYS, config_drift, unknown_inert_keys   # noqa: E402
 
 
 def land_sea_mask():
@@ -1420,6 +1420,54 @@ def main() -> int:
                 else "no generator names a key its own inert set calls unread")
     except Exception as exc:
         rep.add(WARN, "generated inputs vs their config", f"not checked: {exc}")
+
+    # -- staged fields vs the DERIVED FILES they were built from -------------
+    #
+    # The check above compares an artifact's CONFIG stamp against the current
+    # config, which is the right question for a configuration key and cannot see
+    # this one. A generator also reads derived files that no config key names --
+    # the two band-shape derivations under `analysis/` that set staged surface
+    # codes 175 and 176, a dust field, an optics table, a land-column contract.
+    # Re-running one of those derivations moves the file while every config key
+    # stays put, so the staged .sra goes on describing the previous shapes and
+    # the config check reports everything current. world-nvs2.
+    #
+    # It compares HASHES and not names, because the name is what is stable
+    # across the change: `analysis/rock_albedo_bands.json` is the same path
+    # before and after its own generator re-runs.
+    #
+    # It walks the pipeline graph's own `writes` rather than `INERT_CONFIG_KEYS`
+    # ON PURPOSE. An inert set is a claim about which config keys a generator
+    # reads and has to be traced by hand, so steps whose trace has not been done
+    # are deliberately absent from it -- `surface_dust` among them. An input
+    # hash needs no such claim, so this covers every step that stamps one.
+    try:
+        import pipeline as _pipeline
+        graph = _pipeline.load()
+        build = _pipeline.active_build()
+        moved, stamped = [], 0
+        for step in graph["steps"]:
+            for w in step.get("writes", []):
+                path = _pipeline.resolve(w, build)
+                lines = artifact_input_drift(path)
+                if lines is None:
+                    continue
+                stamped += 1
+                if lines:
+                    moved.append(f"{path.name}: {'; '.join(lines)} -> rerun "
+                                 f"{step.get('script')}")
+        if stamped == 0:
+            rep.add(WARN, "generated inputs vs the files they read",
+                    "no artifact on disk records the files it read")
+        else:
+            rep.add(FAIL if moved else OK,
+                    "generated inputs vs the files they read",
+                    "; ".join(moved) if moved
+                    else f"{stamped} stamped artifacts, every recorded input "
+                         f"unchanged since it was read")
+    except Exception as exc:
+        rep.add(WARN, "generated inputs vs the files they read",
+                f"not checked: {exc}")
 
     # -- runs vs the spectrum file they were integrated against --------------
     #

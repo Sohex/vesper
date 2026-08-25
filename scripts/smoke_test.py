@@ -573,6 +573,68 @@ def check_spectrum_guard() -> list[str]:
     return bad
 
 
+def check_input_stamp_guard() -> list[str]:
+    """A re-derived input file is detected under an unchanged name.
+
+    world-nvs2, and the same shape as `check_spectrum_guard` above: the config
+    stamp compares parsed configuration values and is blind to a DERIVED FILE a
+    generator read, because that file's name does not move when its own
+    generator re-runs. Every negative here is paired with the positive proving
+    the record was otherwise acceptable, or the refusal would prove nothing.
+    """
+    import json
+    import tempfile
+    from provenance import artifact_input_drift, input_drift, input_stamp
+
+    bad = []
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        read = root / "derived.json"
+        read.write_text('{"shape": 1}\n', encoding="utf-8")
+        absent = root / "never_written.json"
+
+        # The stamp keys a path relative to the PROJECT root, so a path outside
+        # it -- which this temporary directory is -- is keyed absolute. Read the
+        # keys back rather than assume either shape; `input_drift` joins them
+        # onto its `root` and an absolute key survives that join unchanged.
+        stamp = input_stamp([read, absent])["source_inputs"]
+        if stamp.get(str(read)) is None:
+            bad.append("a file that exists was stamped as absent")
+        if str(absent) not in stamp:
+            bad.append("an absent input was dropped from the stamp rather "
+                       "than recorded as absent")
+
+        if input_drift(stamp, root):
+            bad.append("an unchanged input was reported as moved")
+
+        read.write_text('{"shape": 2}\n', encoding="utf-8")
+        if not input_drift(stamp, root):
+            bad.append("a rewritten input was not reported")
+
+        absent.write_text("{}\n", encoding="utf-8")
+        if len(input_drift(stamp, root)) != 2:
+            bad.append("an input that appeared after the build was not reported")
+
+        read.unlink()
+        if not any("missing" in line for line in input_drift(stamp, root)):
+            bad.append("a deleted input was not reported as missing")
+
+        # And the artifact-facing wrapper's three-valued answer: None for a
+        # record with no stamp at all, which is UNOBSERVABLE and not "current".
+        unstamped = root / "unstamped_report.json"
+        unstamped.write_text(json.dumps({"generator": "x"}) + "\n",
+                             encoding="utf-8")
+        if artifact_input_drift(unstamped, root) is not None:
+            bad.append("an artifact with no input stamp was reported as checked")
+        stamped = root / "stamped_report.json"
+        stamped.write_text(json.dumps({"source_inputs": stamp}) + "\n",
+                           encoding="utf-8")
+        if not artifact_input_drift(stamped, root):
+            bad.append("artifact_input_drift did not see the drift its own "
+                       "input_drift reports")
+    return bad
+
+
 def check_slope_fit() -> list[str]:
     """`lib/orogen.py:local_slope_deg` reproduces a gradient it can get wrong.
 
@@ -1475,6 +1537,8 @@ def main() -> None:
                check_purge_never_reaches_the_terrain()),
               ("local_slope_deg reproduces an analytic gradient",
                check_slope_fit()),
+              ("a re-derived input file is caught under an unchanged name",
+               check_input_stamp_guard()),
               ("the convergence window follows the declared purposes",
                check_production_window()),
               ("no control patch is left in the model source",
