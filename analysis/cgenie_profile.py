@@ -272,6 +272,32 @@ CLASSIFICATION = {
     "invert_": ("serial", "the one-off LU factorisation behind ubarsolv, at initialisation only"),
     "island_": ("serial", "a path integral accumulated around each island boundary"),
     "matinv_gold_": ("serial", "the isles x isles island system"),
+    # biogeochemistry. BIOGEM's own work sits in two loops in biogem.f90: the
+    # column sweep `do n=1,n_vocn`, whose every argument is indexed by n with the
+    # reduction onto the grid after the loop, and an (i,j) loop beside it. The
+    # static checks that would break the first were already done under OCN-19: no
+    # SAVE or DATA, no writes to module-scope arrays since the state arrives
+    # through dummy arguments, and no initialised locals anywhere in
+    # biogem_box.f90.
+    "biogem_": ("parallel", "the driver's column sweep and its (i,j) loop"),
+    "biogem_tracercoupling_": ("parallel", "do n=1,n_vocn over the vectorised columns"),
+    "biogem_climate_": ("parallel", "per-cell climate handoff"),
+    "sub_box_remin_part": ("parallel", "one water column, reached from the n_vocn sweep"),
+    "sub_box_remin_dom": ("parallel", "one water column, reached from the n_vocn sweep"),
+    "sub_box_remin_redfield": ("parallel", "per-column stoichiometry"),
+    "sub_calc_bio_uptake": ("parallel", "per-column production"),
+    "sub_box_misc_geochem": ("parallel", "per-column geochemistry"),
+    "sub_calc_carb": ("leaf", "carbonate system solve, per cell"),
+    "sub_calc_carbconst": ("leaf", "carbonate constants, per cell"),
+    "fun_lib_conv_vsedtosed": ("parallel", "vector-to-grid conversion over cells"),
+    "fun_lib_conv_vocntoocn": ("parallel", "vector-to-grid conversion over cells"),
+    "fun_lib_conv_sedtovsed": ("parallel", "grid-to-vector conversion over cells"),
+    "fun_lib_conv_ocntovocn": ("parallel", "grid-to-vector conversion over cells"),
+    "diag_biogem_timeseries_": ("parallel", "diagnostic accumulation, a sum reduction over cells"),
+    "diag_biogem_": ("parallel", "diagnostic accumulation over cells"),
+    "cpl_comp_atmocn_": ("parallel", "per-cell composition exchange"),
+    "cpl_flux_ocnatm_": ("parallel", "per-cell flux exchange"),
+    "atchem_": ("parallel", "per-cell atmospheric chemistry"),
     # atmosphere (EMBM)
     "tstipa_": ("parallel", "Jacobi iteration: tq2 holds the whole previous iterate, so each sweep is data-parallel over cells with a barrier between sweeps"),
     "tstepa_": ("parallel", "the two-dimensional form of tstepo_flux's flux recycling"),
@@ -288,6 +314,10 @@ CLASSIFICATION = {
 # libm leaves called from inside the per-cell nests. They are pure and reentrant.
 _LIBM_LEAF = {"pow", "log", "exp", "sqrt", "log10", "atan2", "__ieee754_pow_fma",
               "pow@plt", "log@plt", "exp@plt"}
+# libgfortran leaves. BIOGEM dispatches tracer behaviour on string names, so these
+# are called from inside the per-cell loops; they are pure and reentrant.
+_LIBGFORTRAN_LEAF = {"_gfortran_select_string", "_gfortran_compare_string",
+                     "_gfortran_string_trim", "_gfortran_concat_string"}
 # The heap traffic tstepo_flux's array-section argument creates, one allocation
 # per wet cell per timestep. It is not a decomposition question: it is work that
 # should not exist. Counted apart so it never flatters either fraction.
@@ -295,18 +325,33 @@ _HEAP = {"malloc", "cfree", "free", "malloc@plt", "free@plt", "memcpy@plt",
          "memset@plt", "memmove", "__libc_malloc"}
 
 
+_MODMANGLE = re.compile(r"^__[A-Za-z_0-9]+_MOD_(.+)$")
+
+
+def base_symbol(sym: str) -> str:
+    """gfortran mangles a module procedure as __<module>_MOD_<name>. Strip that,
+    and the trailing underscore an external procedure carries, so one table
+    covers both shapes."""
+    m = _MODMANGLE.match(sym)
+    if m:
+        return m.group(1).lower()
+    return sym.lower()
+
+
 def classify(rows: list[dict]) -> dict:
     """Split the profile into what a thread team could divide and what it could not."""
     buckets = {"parallel": 0.0, "serial": 0.0, "heap": 0.0, "unclassified": 0.0}
     for row in rows:
         sym = row["symbol"]
-        kind, why = CLASSIFICATION.get(sym, (None, None))
+        kind, why = CLASSIFICATION.get(sym, CLASSIFICATION.get(base_symbol(sym), (None, None)))
         if kind in ("parallel", "leaf"):
             bucket = "parallel"
         elif kind == "serial":
             bucket = "serial"
         elif sym in _LIBM_LEAF:
             bucket, why = "parallel", "pure libm leaf of a per-cell nest"
+        elif sym in _LIBGFORTRAN_LEAF:
+            bucket, why = "parallel", "pure libgfortran leaf of a per-cell nest"
         elif sym in _HEAP or row.get("dso") == "libc.so.6":
             bucket, why = "heap", "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
         else:
@@ -334,7 +379,7 @@ def classify(rows: list[dict]) -> dict:
 
 def annotate(rows: list[dict], index: dict[str, dict]) -> list[dict]:
     for row in rows:
-        key = row["symbol"].lower().rstrip("_")
+        key = base_symbol(row["symbol"]).rstrip("_")
         meta = index.get(key)
         if meta:
             row.update(meta)

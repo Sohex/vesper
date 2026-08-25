@@ -297,6 +297,65 @@ anywhere below muffingen's declared 72 ceiling or at twice it.** What binds firs
 is the r^4 in the timestep, which threads do not touch, and that is OCN-20's
 territory rather than OCN-19's.
 
+## 2f. The biogeochemistry, which is what a real spin-up carries
+
+The three arms above are physics only: EMBM, GOLDSTEIN and sea ice with two
+tracers. A spin-up this project would actually run carries the biogeochemistry,
+which the cost note prices at 2.68 times the physics in instructions and 5.4
+times in seconds at the same grid. So the fraction that matters to a real budget
+is this one's. Measured from `configs/eb_go_gs_ac_bg_test.xml` unaltered except
+for its length -- 36 x 36 x 8, fourteen GOLDSTEIN tracers, ATCHEM and BIOGEM on
+-- over 100 model years, 24,062 samples, 481.2 G instructions, which is 4.81 per
+model year against the cost note's independently fitted 4.764.
+
+| | share |
+| --- | ---: |
+| `tstepo_flux`, the ocean's tracer transport | 37.94% |
+| BIOGEM, ATCHEM and the GEM libraries, all routines | 25.06% |
+| EMBM (`tstipa`, `surflux`, `embm`) | 8.03% |
+| `ubarsolv` | 1.07% |
+| heap traffic | 11.17% |
+
+| | share |
+| --- | ---: |
+| parallel over cells, columns or tracers | 84.17% |
+| serial (`ubarsolv`) | 1.08% |
+| heap traffic | 11.17% |
+| unclassified | 2.43% |
+
+The unclassified 2.43 per cent is a long tail of small per-cell GEM routines --
+`sub_calc_carb_rf0`, `fun_calc_isotope_fraction`, `fun_calc_rho` and about twenty
+more, none above 0.25 per cent -- which section 0's rule counts AGAINST the
+parallel fraction because they are not in the table. They are all per-cell, so
+the real parallel share is higher than 84.17 and the bound below is conservative.
+
+**With the heap traffic removed the sixteen-thread bound is 9.42**, against 12.47
+for the physics alone. The serial share falls to 1.08 per cent, because
+`ubarsolv` does not care how many tracers there are.
+
+Two things in this profile are not what the cost note's ratio suggests.
+
+**The ocean's tracer transport is still the largest single routine**, 37.94 per
+cent, larger than the whole of BIOGEM, ATCHEM and the GEM libraries put together
+at 25.06. So most of what the biogeochemistry costs is the OCEAN carrying its
+tracers rather than the geochemistry computing anything.
+
+**And that cost is not proportional to the tracer count.** `tstepo_flux` is 1.83
+G instructions per model year here with fourteen tracers. The physics-only arm at
+36 x 36 x 16 puts it at 1.61, which scaled to eight levels by the cost note's own
+level ratio -- an assumption, since the physics was not profiled at eight levels
+-- is about 0.96 with two tracers. Seven times the tracers costs about twice the
+transport, so the per-cell work in that routine, the density gradients and the
+isoneutral machinery and the Peclet numbers, dominates the per-tracer work inside
+the `l` loop. **The parallelism worth having is over CELLS; the tracer axis adds
+very little**, which is the opposite of what "the tracer loops are where the
+tracer count buys work worth dividing" in section 9h of the ocean audit expected.
+
+One incidental finding, recorded rather than pursued: `_gfortran_select_string`
+and `_gfortran_compare_string` together take 1.80 per cent of this run. BIOGEM
+dispatches tracer behaviour on string names, so Fortran string comparison is
+running inside the per-cell loops.
+
 ---
 
 # 3. What the parallelisation would cost to do
@@ -498,6 +557,17 @@ model year**. A 20,000-year spin-up is then about 1.1e14 instructions, roughly
 two hours on one core of this machine, against about one hour for the shipped
 36 x 36 x 16 grid as it stands today. Threading is a further bound of about 11 at
 sixteen threads on top of that.
+
+**And the spin-up that matters carries the biogeochemistry.** Section 2f measures
+EMBM at 8.03 per cent of the BIOGEM configuration, so removing it there leaves
+about 2.85 times the EMBM-free physics rather than the 2.68 the cost note quotes
+with EMBM in both. Applied to the 5.3 above, an EMBM-free 72 x 72 x 16 run with
+fourteen tracers, ATCHEM and BIOGEM costs about **15 G instructions per model
+year**, so 20,000 years is about 3.0e14. The biogeochemistry retires 5.94 G
+instructions per second against the physics's 11 to 18 -- a property of the
+carbonate arithmetic and the fourteen-tracer working set, measured twice hours
+apart by the cost note -- so that is of order **half a day on one core**, and
+section 2f's sixteen-thread bound of 9.42 sits on top of it.
 
 **This is a composition of measured pieces under one assumption that has not been
 demonstrated**, and the assumption is named in section 6: no EMBM-free
@@ -767,6 +837,12 @@ fact to state rather than one to avoid.
   spends nearly all of its time in a state that no run here samples, and the
   direction of the drift -- the parallel share rising, the serial share falling --
   is what makes the verdict safe rather than what makes it precise.
+- **The biogeochemistry was profiled at 36 x 36 x 8 only**, which is the grid the
+  shipped regression case ships for. Everything section 4a says about it at
+  72 x 72 x 16 is a ratio carried across a grid change, and the claim that the
+  ocean's tracer transport is not proportional to the tracer count rests on
+  scaling the physics-only arm from sixteen levels to eight by the cost note's own
+  level ratio, which is an assumption rather than a measurement.
 - **The 72 x 72 probe's circulation means nothing.** Its pair of advective
   wind-speed fields were made by replicating the 36 x 36 fields into 2 x 2
   blocks, so the instruction counts and the loop structure are a 72 x 72 x 16
