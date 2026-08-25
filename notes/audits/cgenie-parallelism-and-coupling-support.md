@@ -21,6 +21,20 @@ takes that document's costs as given and answers the question it left open.
 `git archive` and built there, because a worktree's ignored build products are
 symlinks into the shared checkout.
 
+**The headline.** It can be parallelised, and Amdahl's law is not what would stop
+it. The only genuinely serial routine is the barotropic streamfunction solve, and
+it is 1.83 per cent of retired instructions at the shipped grid and 2.57 at the
+doubled one; the tracer transport that is half the run divides over cells. The
+obstacle is a build flag rather than the loop structure, and the flag looks
+removable with a test that already ships. A tenth of the run turns out to be heap
+traffic for two-element array temporaries, which is a bigger and cheaper saving
+than threading and should be taken first. Together those change the budget enough
+that the ocean's grid stops being an affordability question below the generator's
+declared ceiling, and becomes a connectivity question -- so the recommendation is
+72 x 72 x 16 on connectivity grounds, with a conservative regrid whose weight
+matrix factorises into two one-dimensional operators because both grids are
+separable.
+
 ---
 
 # 0. The decision rule, fixed before the profile was read
