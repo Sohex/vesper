@@ -150,6 +150,26 @@ test('selection floors are physical, and explicit ids bypass them', () => {
     assert.equal(forced.selected.find(b => b.id === 'c').selectedBy, 'explicit');
 });
 
+test('the depth floor is compared in kilometres, not in model units', () => {
+    // The two currencies disagree wherever the height curve is not the
+    // identity, and BASIN_MIN_DEPTH_KM is declared, named and published as a
+    // physical depth. A fixture whose `depth` and `depthKm` agree cannot tell
+    // which one selectBasins read, so this one makes them disagree in both
+    // directions and each half can fail on its own.
+    const basins = [
+        // Deep in model units, far too shallow to be a landform. On high ground
+        // the quartic branch of the curve turns a small model-unit drop into a
+        // large physical one; this is the opposite case, and the saturation at
+        // model elevation 1 makes the extreme of it, where a depression's
+        // physical depth -- and so its lake capacity -- is exactly zero.
+        { id: 'model-deep', index: 0, parentIndex: -1, nestDepth: 0, depth: 1.0, depthKm: 0.0, areaKm2: 50000, cellCount: 500, volumeKm3: 100, sink: 1 },
+        // Shallow in model units, a real 400 m depression.
+        { id: 'km-deep', index: 1, parentIndex: -1, nestDepth: 0, depth: 0.001, depthKm: 0.4, areaKm2: 50000, cellCount: 500, volumeKm3: 50, sink: 2 },
+    ];
+    assert.deepEqual(selectBasins(basins, {}).selected.map(b => b.id), ['km-deep'],
+        'the physical depth decides, so a zero-capacity depression is out and a 400 m one is in');
+});
+
 test('nested basins are not auto-selected, and an unknown id warns', () => {
     const basins = [
         { id: 'outer', index: 0, parentIndex: -1, nestDepth: 0, depth: 1, depthKm: 1, areaKm2: 50000, cellCount: 500, volumeKm3: 100, sink: 1 },
@@ -787,6 +807,15 @@ test('basin enumeration order does not move when gravity does', () => {
     // This needs a real planet: it takes two basins of near-equal volume that
     // straddle sea level differently, and the synthetic crater world has only
     // one basin worth ordering. Reverting the sort key flips 13 basins here.
+    //
+    // WHICH basins are preserved is a separate question and gravity does move
+    // it, because the depth floor is a physical depth and relief scales as 1/g:
+    // the same model terrain is a physically shallower landform on a heavier
+    // planet, so fewer depressions clear a 50 m floor. That is a property of the
+    // floor and not a leak — the area and cell floors are horizontal and stay
+    // gravity-invariant, and the direction is one-way, so it is asserted as
+    // such below rather than waived. The ORDER of what survives is what
+    // basin_index depends on, and that is what must not move.
     const base = ctx().basins.selected.map(b => b.id);       // Earth g, reliefScale 1
     assert.ok(base.length > 1, 'need at least two basins for an ordering to exist');
 
@@ -794,10 +823,14 @@ test('basin enumeration order does not move when gravity does', () => {
         ...PARAMS, preserveBasins: true, planet: { gravityMS2: 2 * EARTH.gravityMS2 },
     })).basins.selected.map(b => b.id);
 
-    assert.deepEqual([...heavy].sort(), [...base].sort(),
-        'gravity must not change WHICH basins are preserved');
-    assert.deepEqual(heavy, base,
-        'gravity must not change the ORDER they are enumerated in');
+    const inBase = new Set(base);
+    assert.deepEqual(heavy.filter(id => !inBase.has(id)), [],
+        'higher gravity shrinks relief, so it may only DROP basins, never add one');
+    assert.ok(heavy.length < base.length,
+        'this fixture must actually exercise the shrinkage, or the assertion above is vacuous');
+    const inHeavy = new Set(heavy);
+    assert.deepEqual(heavy, base.filter(id => inHeavy.has(id)),
+        'gravity must not change the ORDER the survivors are enumerated in');
 });
 
 test('sha256 matches known vectors', () => {

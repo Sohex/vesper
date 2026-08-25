@@ -80,15 +80,21 @@ opposite sides of the crossover, and the larger one is governed by a fixed
 physical size in real km2. That is the sense in which the catalogue can be made
 physical, and at 10M regions in area it already is.
 
-## The depth floor is neither physical nor resolution-set
+## The depth floor was neither physical nor resolution-set
 
-`BASIN_MIN_DEPTH_KM` is compared against a depression's depth in the model's
-DIMENSIONLESS elevation parameter, not in kilometres. The comparison is
-deliberate: that is the currency the terrain noise the floor exists to reject
-lives in. What is not deliberate is that the constant, the manifest key
+Both builds in `source/` were selected with `BASIN_MIN_DEPTH_KM` compared
+against a depression's depth in the model's DIMENSIONLESS elevation parameter,
+not in kilometres, while the constant, the manifest key
 `resolution.minDepthKm` and the published `selectionCriteria.minDepthKm` all
-name a physical depth, so a consumer reasons about a 50 m floor that was never
-enforced.
+name a physical depth. A consumer of either build therefore reasons about a
+50 m floor that was never enforced, and the numbers below are what that cost.
+
+`selectBasins` now compares the floor against `b.depthKm`, and
+`basinResolutionContext` publishes `minDepthComparedIn` so the currency is
+read from the manifest rather than inferred. Neither build inherits that: the
+comparison is a selection criterion, so it reaches the catalogue only through
+a generation. The counterfactual table below is what the next one carries,
+measured on this terrain.
 
 The model-unit-to-km curve is quartic above sea level, linear below it, and
 SATURATES at model elevation 1. One threshold is therefore many physical depths.
@@ -110,16 +116,32 @@ set, which is what the carve list is drawn from:
 
 The saturation is the sharp end of it. A depression whose sink and spill both
 sit above model elevation 1 has a published physical depth of exactly zero and
-still clears the floor. `hydrography/data/*/basins.nc` carries the downstream
-consequence: 5 preserved basins on `precarve-craton` and 16 on
-`precarve-craton-10m` have `capacity_km3` of exactly zero, which is a preserved
-closed basin that can impound no water at all. The clamp is not confined to
-basins: 0.26% and 0.25% of land by area sits at or above model elevation 1 on
-the two builds, and every cell of it is published at the same `elevation_km`.
-That last figure belongs to whoever owns the relief curve, not to the catalogue.
+still clears the floor: 2 preserved basins on `precarve-craton` are in that
+state and none on `precarve-craton-10m`. The clamp is not confined to basins:
+0.26% and 0.25% of land by area sits at or above model elevation 1 on the two
+builds, and every cell of it is published at the same `elevation_km`. That last
+figure belongs to whoever owns the relief curve, not to the catalogue.
 
-Applying the same declared number to `depthKm` instead is a counterfactual, not
-a proposal, because it changes the preserved set and therefore the terrain:
+A preserved basin that can impound no water is a SEPARATE fault with a separate
+cause, and the depth floor is not it. `hydrography/data/*/basins.nc` gives
+`capacity_km3` of exactly zero for 5 preserved basins on `precarve-craton` and
+16 on `precarve-craton-10m`, and on the larger build not one of those 16 is
+shallow: their published `depthKm` runs from 0.046 to 1.644 km and 15 of the 16
+clear the declared floor in kilometres. What they share is
+`finalPreserved.retainedFraction` of exactly zero -- the depression the
+catalogue measured on the pre-conditioning surface does not exist on the final
+terrain, because the drainage conditioning breached its rim. It is not confined
+to those: the median preserved basin on both builds retains about 0.80 of its
+relief, 7,702 of 9,419 retain less than all of it, and 18 retain none. Making
+the depth floor physical does not remove them, and neither build carries a
+carve list, so this is the conditioning and not a verdict.
+
+MEASURED 2026-08-25 from `basins.preserved[].finalPreserved` in both manifests
+and `capacity_km3` in `hydrography/data/<build>/basins.nc`.
+
+Applying the same declared number to `depthKm` instead does not reach either
+build, because it changes the preserved set and therefore the terrain. This is
+what the next generation carries, measured on this one:
 
 | build | as built | with the floor in km | drops | admits |
 | --- | --- | --- | --- | --- |
@@ -168,6 +190,8 @@ below the declared area floor.
   keeps out eight.
 - Physics-limited: TRUE at 10M in area, where a fixed km2 floor governs.
 - Neither, in depth: the depth floor is compared in model units on both builds
-  and governs the catalogue at 10M. Making it physical is a change to the
-  selection criteria, which changes the terrain, so it is a loop A decision and
-  belongs with the generation that carries it rather than with this note.
+  and governs the catalogue at 10M. `selectBasins` now compares it in
+  kilometres, which makes it physical, but a selection criterion reaches a
+  catalogue only through a generation -- so on everything currently in
+  `source/` the verdict above still stands, and the change lands with the
+  generation `world-q5ig` carries.

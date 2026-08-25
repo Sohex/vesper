@@ -23,13 +23,21 @@ spanning a handful of cells is a mesh artifact whatever its area works out to.
 So a catalogue is PHYSICS-LIMITED when the absolute floors decide it and
 RESOLUTION-LIMITED when the cell count does.
 
-That framing has a third case, and this script measures it. The depth floor is
-compared against the depression's depth in the model's DIMENSIONLESS elevation
-parameter, not in kilometres, while being named and published in kilometres.
-The model-unit-to-km curve is strongly nonlinear above sea level and linear
-below it, so one model-unit threshold is many different physical depths
-depending on where the depression sits. A floor like that is neither physical
-nor resolution-set; it is unit-set, and no region count moves it.
+That framing has a third case, and this script measures it: a floor that is
+neither physical nor resolution-set but UNIT-SET, which no region count moves.
+`selectBasins` now compares the depth floor against the depression's physical
+depth, so the declared number means the same drop wherever the depression sits.
+An export made before that comparison was corrected compared against the depth
+in the model's DIMENSIONLESS elevation parameter instead, and the model-unit-to-
+km curve is quartic above sea level, linear below it, and saturates at model
+elevation 1, so one model-unit threshold was many different physical depths.
+
+Which currency a given export was selected in is read from
+`basins.resolution.minDepthComparedIn`, published by `basinResolutionContext`.
+An export predating that field was selected in model units, and this script says
+so rather than assuming the current code describes an older artifact --
+otherwise the REPRODUCTION control below would fail on every build in `source/`
+and take the whole measurement with it.
 
 ## The controls, which have right answers
 
@@ -90,16 +98,49 @@ from orogen import Export  # noqa: E402
 DEFAULT_BUILDS = ("precarve-craton", "precarve-craton-10m")
 
 
+# The two currencies the depth floor can have been compared in, keyed by what
+# `basinResolutionContext` publishes as `minDepthComparedIn`. An export made
+# before that field existed was selected in model units.
+DEPTH_KEY_BY_CURRENCY = {
+    "km": "depthKm",
+    "model elevation (dimensionless)": "depth",
+}
+LEGACY_DEPTH_CURRENCY = "model elevation (dimensionless)"
+
+
+def depth_currency(resolution: dict) -> tuple[str, str, bool]:
+    """Which currency this export's depth floor was compared in.
+
+    Returns (currency, catalogue key, whether the manifest said so). Reading it
+    from the artifact rather than from the current code is the point: the
+    reproduction control below is only evidence if it reconstructs the selection
+    that produced THIS export, and a build predating the correction was selected
+    in model units however `selectBasins` compares today.
+    """
+    declared = resolution.get("minDepthComparedIn")
+    currency = declared if declared is not None else LEGACY_DEPTH_CURRENCY
+    if currency not in DEPTH_KEY_BY_CURRENCY:
+        raise SystemExit(
+            f"manifest declares minDepthComparedIn={currency!r}, which this "
+            "script has no transcription for; add one rather than guessing")
+    return currency, DEPTH_KEY_BY_CURRENCY[currency], declared is not None
+
+
+def other_currency(currency: str) -> str:
+    return next(c for c in DEPTH_KEY_BY_CURRENCY if c != currency)
+
+
 def select(catalogue: list[dict], min_depth: float, min_area: float,
-           min_cells: int, depth_key: str = "depth") -> set[int]:
+           min_cells: int, depth_key: str) -> set[int]:
     """`selectBasins`'s threshold path, including the nesting rule.
 
     A transcription of `vendor/orogen/js/basins.js`, deliberately literal: the
     ordering is by (nestDepth, index) because the nesting filter asks whether an
     ANCESTOR is already chosen and that question only has a stable answer if
-    outer basins are considered first. `depth_key` exists so the counterfactual
-    below can ask what the same selection would do with the depth floor applied
-    to the physical depth instead of the model-unit one.
+    outer basins are considered first. `depth_key` is the currency the floor was
+    compared in on the export being read, which `depth_currency` takes from the
+    manifest; it is a required argument so that no call site can inherit a
+    default that is wrong for the artifact in front of it.
     """
     parent = [c["parentIndex"] for c in catalogue]
     qualifies = [
@@ -128,9 +169,10 @@ def select(catalogue: list[dict], min_depth: float, min_area: float,
 
 
 def controls(catalogue: list[dict], preserved_ids: set[str],
-             min_depth: float, min_area: float, min_cells: int) -> dict:
+             min_depth: float, min_area: float, min_cells: int,
+             depth_key: str) -> dict:
     """Reproduction and sensitivity. Either failing makes everything below void."""
-    rebuilt = select(catalogue, min_depth, min_area, min_cells)
+    rebuilt = select(catalogue, min_depth, min_area, min_cells, depth_key)
     rebuilt_ids = {catalogue[i]["id"] for i in rebuilt}
     reproduces = rebuilt_ids == preserved_ids
 
@@ -146,17 +188,19 @@ def controls(catalogue: list[dict], preserved_ids: set[str],
     # what "which floor decides this catalogue" means. So each floor is nudged
     # alone and the result REPORTED, and only the joint perturbation is a gate.
     looser = select(catalogue, min_depth / 2.0, min_area / 2.0,
-                    max(1, min_cells - 1))
-    tighter = select(catalogue, min_depth * 2.0, min_area * 2.0, min_cells * 2)
+                    max(1, min_cells - 1), depth_key)
+    tighter = select(catalogue, min_depth * 2.0, min_area * 2.0, min_cells * 2,
+                     depth_key)
     alone = {
         "min_cells_minus_one": select(catalogue, min_depth, min_area,
-                                      max(1, min_cells - 1)),
+                                      max(1, min_cells - 1), depth_key),
         "min_area_halved": select(catalogue, min_depth, min_area / 2.0,
-                                  min_cells),
+                                  min_cells, depth_key),
         "min_depth_halved": select(catalogue, min_depth / 2.0, min_area,
-                                   min_cells),
+                                   min_cells, depth_key),
     }
     return {
+        "depth_compared_against": depth_key,
         "reproduces_published_selection": reproduces,
         "reproduced_count": len(rebuilt_ids),
         "published_count": len(preserved_ids),
@@ -190,7 +234,8 @@ def ladder(catalogue: list[dict], chosen: set[int], area: np.ndarray) -> dict:
 
 
 def floors(catalogue: list[dict], chosen: set[int], area: np.ndarray,
-           min_depth: float, min_area: float, min_cells: int) -> dict:
+           min_depth: float, min_area: float, min_cells: int,
+           depth_key: str) -> dict:
     """What each floor costs, measured by relaxing it and re-selecting.
 
     Counting rejections directly would overstate every floor, because the
@@ -198,7 +243,7 @@ def floors(catalogue: list[dict], chosen: set[int], area: np.ndarray,
     honest question is what the PRESERVED set would have been, so each floor is
     relaxed and the whole selection re-run.
     """
-    depth = np.array([c["depth"] for c in catalogue])
+    depth = np.array([c[depth_key] for c in catalogue])
     cells = np.array([c["cellCount"] for c in catalogue])
     pass_depth, pass_area, pass_cells = (depth >= min_depth,
                                          area >= min_area,
@@ -208,7 +253,8 @@ def floors(catalogue: list[dict], chosen: set[int], area: np.ndarray,
         s = select(catalogue,
                    kw.get("min_depth", min_depth),
                    kw.get("min_area", min_area),
-                   kw.get("min_cells", min_cells))
+                   kw.get("min_cells", min_cells),
+                   depth_key)
         return {
             "preserved": len(s),
             "added_vs_as_built": len(s) - len(chosen),
@@ -234,29 +280,41 @@ def floors(catalogue: list[dict], chosen: set[int], area: np.ndarray,
 
 
 def depth_floor_units(catalogue: list[dict], chosen: set[int],
-                      min_depth: float, min_area: float,
-                      min_cells: int) -> dict:
-    """The depth floor is compared in model units and published in kilometres.
+                      min_depth: float, min_area: float, min_cells: int,
+                      currency: str, depth_key: str, declared: bool) -> dict:
+    """Which currency the depth floor was compared in, and what the other costs.
 
-    So the physical floor it enforces is not one number. This reports the range
-    of physical depths the single declared threshold corresponds to, how much of
-    the preserved set is shallower than the declared value, and what the
-    selection would be if the same threshold were applied to `depthKm`.
+    `minDepthKm` is declared, named and published as a physical depth.
+    `selectBasins` compares it against one. An export made before that
+    correction compared it against the depth in the model's dimensionless
+    elevation parameter, where the model-unit-to-km curve is quartic above sea
+    level, linear below it, and saturates at model elevation 1, so a single
+    threshold was many physical depths. This reports the range the declared
+    number actually demanded, how much of the preserved set is shallower than
+    the declared value, and what the OTHER currency would have selected.
     """
-    depth = np.array([c["depth"] for c in catalogue])
+    depth_model = np.array([c["depth"] for c in catalogue])
     depth_km = np.array([c["depthKm"] for c in catalogue])
+    compared = depth_model if depth_key == "depth" else depth_km
     sel = sorted(chosen)
 
     # Depressions sitting within a hair of the threshold: what physical depth
-    # did the declared number actually demand of them?
-    at_threshold = np.abs(depth - min_depth) < 0.02 * min_depth
-    in_km = select(catalogue, min_depth, min_area, min_cells,
-                   depth_key="depthKm")
+    # did the declared number actually demand of them? Under a km comparison
+    # this is the declared number itself, by construction, and the spread is the
+    # measurement that says so.
+    at_threshold = np.abs(compared - min_depth) < 0.02 * min_depth
+    other = other_currency(currency)
+    swapped = select(catalogue, min_depth, min_area, min_cells,
+                     DEPTH_KEY_BY_CURRENCY[other])
 
     return {
         "declared_value": min_depth,
         "declared_units_in_manifest": "km",
-        "units_actually_compared": "dimensionless model elevation",
+        "units_actually_compared": currency,
+        "units_declared_by_the_manifest": declared,
+        "units_source": ("basins.resolution.minDepthComparedIn" if declared
+                         else "absent from this manifest; the export predates "
+                              "the field and was selected in model units"),
         "physical_depth_at_the_threshold_km": {
             "samples": int(at_threshold.sum()),
             "min": float(depth_km[at_threshold].min()) if at_threshold.any() else None,
@@ -270,15 +328,18 @@ def depth_floor_units(catalogue: list[dict], chosen: set[int],
         },
         "preserved_shallower_than_declared": int((depth_km[sel] < min_depth).sum()),
         "preserved_shallower_than_declared_fraction": float((depth_km[sel] < min_depth).mean()),
-        "counterfactual_floor_in_km": {
-            "preserved": len(in_km),
-            "net_vs_as_built": len(in_km) - len(chosen),
-            "admitted_that_are_not_preserved_now": len(in_km - chosen),
-            "dropped_that_are_preserved_now": len(chosen - in_km),
+        "preserved_with_zero_physical_depth": int((depth_km[sel] <= 0.0).sum()),
+        "counterfactual_other_currency": {
+            "compared_in": other,
+            "preserved": len(swapped),
+            "net_vs_as_built": len(swapped) - len(chosen),
+            "admitted_that_are_not_preserved_now": len(swapped - chosen),
+            "dropped_that_are_preserved_now": len(chosen - swapped),
         },
-        "note": "A counterfactual, not a proposal. Changing the comparison "
-                "changes the preserved set and therefore the terrain, which is "
-                "a loop A decision and costs a generation.",
+        "note": "A counterfactual, not a proposal. The currency the floor is "
+                "compared in is a selection criterion, so changing it on a "
+                "build changes the preserved set and therefore the terrain, "
+                "which is a loop A decision and costs a generation.",
     }
 
 
@@ -362,8 +423,10 @@ def measure(label: str, root: Path) -> dict:
     min_area = float(resolution["minAreaKm2"])
     min_cells = int(resolution["minCells"])
     area = np.array([c["areaKm2"] for c in catalogue])
+    currency, depth_key, declared = depth_currency(resolution)
 
-    checks = controls(catalogue, preserved_ids, min_depth, min_area, min_cells)
+    checks = controls(catalogue, preserved_ids, min_depth, min_area, min_cells,
+                      depth_key)
     if not checks["reproduces_published_selection"]:
         raise SystemExit(
             f"{label}: the selection could not be reproduced from the published "
@@ -382,7 +445,7 @@ def measure(label: str, root: Path) -> dict:
             f"disagrees with the manifest's own landSeaMask counts, so one of "
             "the two is reading a different mask")
 
-    chosen = select(catalogue, min_depth, min_area, min_cells)
+    chosen = select(catalogue, min_depth, min_area, min_cells, depth_key)
     return {
         "label": label,
         "export": str(root.relative_to(PROJECT_ROOT)) if root.is_absolute() else str(root),
@@ -399,9 +462,11 @@ def measure(label: str, root: Path) -> dict:
         "resolution": resolution,
         "controls": checks,
         "ladder": ladder(catalogue, chosen, area),
-        "floors": floors(catalogue, chosen, area, min_depth, min_area, min_cells),
+        "floors": floors(catalogue, chosen, area, min_depth, min_area,
+                         min_cells, depth_key),
         "depth_floor_units": depth_floor_units(catalogue, chosen, min_depth,
-                                               min_area, min_cells),
+                                               min_area, min_cells, currency,
+                                               depth_key, declared),
         "below_sea_level_residue": residue,
         "manifest_sha256": _sha256(root / "manifest.json"),
     }
@@ -436,9 +501,15 @@ def main() -> None:
         print(f"  relaxing minCells would preserve "
               f"{f['relax_min_cells']['preserved']:,} "
               f"({f['relax_min_cells']['added_fraction_of_as_built']:+.1%})")
+        print(f"  depth floor compared in {d['units_actually_compared']}")
         print(f"  preserved shallower than the declared depth floor: "
               f"{d['preserved_shallower_than_declared']:,} "
               f"({d['preserved_shallower_than_declared_fraction']:.1%})")
+        cf = d['counterfactual_other_currency']
+        print(f"  comparing it in {cf['compared_in']} instead would preserve "
+              f"{cf['preserved']:,} ({cf['net_vs_as_built']:+,}): "
+              f"drops {cf['dropped_that_are_preserved_now']:,}, "
+              f"admits {cf['admitted_that_are_not_preserved_now']:,}")
         print(f"  below-sea-level dry land outside any preserved basin: "
               f"{res['area_km2']:,.0f} km2 "
               f"({res['area_fraction_of_land']:.4%} of land) over "
