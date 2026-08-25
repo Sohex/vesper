@@ -1211,6 +1211,14 @@ function summariseBasins(data) {
         sinkElevationKm: x.sinkElevationKm,
         spillElevationKm: x.spillElevationKm,
         depthKm: x.depthKm,
+        // The depth the selection floor was actually compared against: km on
+        // the reference-gravity curve, so it equals depthKm at Earth gravity
+        // and does not carry the 1/g scaling anywhere else. Published because
+        // reapplying `selectionCriteria` to this catalogue is how a consumer
+        // checks what the floor did, and that is not reconstructible from a
+        // scaled depth without inverting the scaling. `selectBasins` says why
+        // the criterion is in this currency.
+        selectionDepthKm: x.selectionDepthKm,
         areaKm2: x.areaKm2,
         volumeKm3: x.volumeKm3,
         cellCount: x.cellCount,

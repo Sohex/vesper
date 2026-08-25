@@ -545,13 +545,19 @@ export const FLOOD_CARVE_RADIUS_FRAC = 0.3;
 // is it noise?" — NOT "is this basin endorheic?". Endorheism is a water
 // balance and is decided downstream; see the header of js/basins.js.
 //
-// The depth floor sits above the detail-noise amplitude (DETAIL_NOISE_AMP_KM
-// plus the L2 pass) so noise pits can never qualify. The area floor is the
-// scale-invariance guarantee: it is an absolute physical number, so the same
-// planet preserves the same basins at 2K regions and at 2.5M. The cell floor
-// only binds at coarse resolutions, where an area threshold alone would admit
-// three-cell artifacts.
-export const BASIN_MIN_DEPTH_KM = 0.05;      // 50 m below spill — Death Valley is ~1.4 km
+// The depth floor is set by the detail noise: the L1 pass is unipolar and digs
+// no pits, and the L2 pass digs them to its own amplitude, which is this number.
+// Both are declared in km and inverted through the UNSCALED height curve, so a
+// noise pit is 50 m of reference relief whatever the planet's gravity is -- and
+// so this floor is compared in reference-gravity km, at the same amplitude, in
+// the same currency. `selectBasins` has the argument, and `heightKm` in
+// basins.js is where a depth on the actual planet comes from instead.
+//
+// The area floor is the scale-invariance guarantee: it is an absolute physical
+// number, so the same planet preserves the same basins at 2K regions and at
+// 2.5M. The cell floor only binds at coarse resolutions, where an area
+// threshold alone would admit three-cell artifacts.
+export const BASIN_MIN_DEPTH_KM = 0.05;      // 50 m below spill at reference gravity — Death Valley is ~1.4 km
 export const BASIN_MIN_AREA_KM2 = 1000;      // Qattara ~19,500; Death Valley playa ~3,000
 export const BASIN_MIN_CELLS = 12;           // resolution floor, not a size opinion
 export const BASIN_MAX_NEST_DEPTH = 3;       // how deep to recurse for sub-basins

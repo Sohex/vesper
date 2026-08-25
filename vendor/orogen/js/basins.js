@@ -25,6 +25,7 @@
 import { MinHeap } from './min-heap.js';
 import { avgCellAreaKm2, avgEdgeKm, uniformCellArea } from './geometry.js';
 import { scaledHeightKm } from './color-map.js';
+import { REFERENCE_GRAVITY_MS2 } from './planet-params.js';
 import {
     BASIN_MIN_DEPTH_KM, BASIN_MIN_AREA_KM2, BASIN_MIN_CELLS,
     BASIN_MAX_NEST_DEPTH, BASIN_HYPSOMETRY_LEVELS, BASIN_DIVIDE_RING_KM,
@@ -61,6 +62,14 @@ const heightKm = (modelElev, reliefScale = 1) =>
  * hand (tests) rather than by measureDepression.
  */
 const orderingVolume = (b) => b.orderingVolumeKm3 ?? b.volumeKm3;
+
+/**
+ * Selection key for the depth floor: the depression's depth in km on the
+ * REFERENCE-GRAVITY height curve. Same reason as orderingVolume, and the same
+ * fallback -- at Earth gravity it equals depthKm exactly. selectBasins has the
+ * argument for why the floor is compared here and not against depthKm.
+ */
+const selectionDepth = (b) => b.selectionDepthKm ?? b.depthKm;
 
 // ─────────────────────────────────────────────────────────────────────────
 //  Ocean topology
@@ -313,9 +322,20 @@ function measureDepression(mesh, r_elevation, group, component, cellArea, compon
     // the index. Same volume measured at unit relief: identical at Earth
     // gravity, and identical to the ordering every build before the 1/g fix
     // used, so that fix changes published numbers and nothing structural.
+    //
+    // WHICH basins are selected must not depend on gravity either, and for a
+    // stronger reason: selectBasins runs during generation, its result reaches
+    // inciseOutlets and buildBasinProtection, and those write the terrain. A
+    // selection key that moves with g moves r_elevation with it, which the
+    // generator's stated invariant forbids -- gravity enters at export.
+    // selectionDepthKm is the depth on the reference-gravity height curve, and
+    // the floor is compared against it. See selectBasins for the argument that
+    // this is the physically right currency and not a convenience.
     let orderingVolumeKm3 = volumeKm3;
+    let selectionDepthKm = spillH - sinkH;
     if (reliefScale !== 1) {
         const spillH1 = heightKm(level);
+        selectionDepthKm = spillH1 - heightKm(sinkElev);
         orderingVolumeKm3 = 0;
         for (let i = 0; i < members.length; i++) {
             const d = spillH1 - heightKm(r_elevation[members[i]]);
@@ -338,6 +358,12 @@ function measureDepression(mesh, r_elevation, group, component, cellArea, compon
         // Internal, deliberately not in the manifest whitelist: a sort key, not
         // a measurement. Equals volumeKm3 at Earth gravity.
         orderingVolumeKm3,
+        // A selection criterion rather than a measurement, but published,
+        // because `hydrography/scripts/catalogue_floor.py` reconstructs the
+        // selection from the manifest and can only do that if the artifact
+        // carries what the floor was compared against. Equals depthKm at Earth
+        // gravity.
+        selectionDepthKm,
         volumeModelUnits: volume,
         cellCount: members.length,
         spillFrom,
@@ -515,26 +541,52 @@ export function attachHypsometry(selected, r_elevation, cellArea, levels = BASIN
  *                BASIN_MIN_CELLS cells cover more ground than
  *                BASIN_MIN_AREA_KM2.
  *   depth      — and BASIN_MIN_DEPTH_KM below its spill, compared against the
- *                depression's PHYSICAL depth, `b.depthKm`. The constant, the
+ *                depression's depth in KILOMETRES ON THE REFERENCE-GRAVITY
+ *                HEIGHT CURVE, `b.selectionDepthKm`. Two claims, and they are
+ *                separate.
+ *
+ *                KILOMETRES, not `b.depth`, the depression's extent in the
+ *                model's DIMENSIONLESS elevation parameter. The constant, the
  *                `resolution.minDepthKm` manifest key and the published
- *                `selectionCriteria.minDepthKm` all name a physical depth, and
- *                this is where one is enforced, so the declared floor means the
- *                same drop wherever the depression sits. Comparing against
- *                `b.depth`, the depression's extent in the model's
- *                DIMENSIONLESS elevation parameter, would not: that curve is
- *                quartic above sea level, linear below it, and saturates at
- *                model elevation 1, so a single model-unit threshold admits
- *                depressions a few metres deep near sea level, demands hundreds
- *                of metres on high ground, and admits depressions lying wholly
- *                above the saturation whose physical depth — and therefore
- *                whose lake capacity — is exactly zero. Rejecting mesh-scale
- *                terrain noise is the area and cell floors' job: a depression
- *                clearing BASIN_MIN_AREA_KM2 and BASIN_MIN_CELLS is terrain the
- *                mesh resolves whatever currency its depth is read in.
- *                `basinResolutionContext` publishes `minDepthComparedIn` so a
- *                consumer of the manifest never has to infer the currency, and
- *                `hydrography/scripts/catalogue_floor.py` measures what the
- *                floor costs on a given build.
+ *                `selectionCriteria.minDepthKm` all name a length, and this is
+ *                where one is enforced. The model-unit curve is quartic above
+ *                sea level, linear below it, and saturates at model elevation
+ *                1, so a single model-unit threshold admits depressions a few
+ *                metres deep near sea level, demands hundreds of metres on high
+ *                ground, and admits depressions lying wholly above the
+ *                saturation whose depth -- and therefore whose lake capacity --
+ *                is exactly zero.
+ *
+ *                REFERENCE GRAVITY, not the planet's. Inside the generator
+ *                every kilometre is a reference-gravity kilometre: the detail
+ *                noise that digs the pits this floor exists to reject is
+ *                declared in km and inverted through the unscaled curve, so its
+ *                pit depth is 50 m of reference relief at any g, exactly this
+ *                floor. Comparing against `b.depthKm`, which carries the 1/g
+ *                scaling, would slide the floor away from the noise it is
+ *                calibrated against as gravity changed, and would do worse: the
+ *                selection reaches inciseOutlets and buildBasinProtection, so a
+ *                g-dependent floor makes the model terrain g-dependent, which
+ *                the generator's invariant forbids. Nothing is given up by
+ *                comparing at reference gravity, because Orogen multiplies the
+ *                WHOLE land relief distribution by reliefScale: a floor stated
+ *                against that distribution carries the same factor as the
+ *                depths it judges, and the two cancel. That is the same
+ *                cancellation the escarpment relief gate makes in
+ *                lithology.js's computeScarpPotential, for the same reason --
+ *                strength-supported relief is capped by sigma/(rho g) on both
+ *                sides of the inequality. Gravity enters at export, where
+ *                `depthKm` and `elevation_km` are what a water balance reads.
+ *
+ *                Rejecting mesh-scale terrain noise is the area and cell
+ *                floors' job: a depression clearing BASIN_MIN_AREA_KM2 and
+ *                BASIN_MIN_CELLS is terrain the mesh resolves whatever currency
+ *                its depth is read in. `basinResolutionContext` publishes
+ *                `minDepthComparedIn` so a consumer of the manifest never has
+ *                to infer the currency, `strip` in data-export.js publishes
+ *                `selectionDepthKm` so the criterion can be reapplied to the
+ *                artifact, and `hydrography/scripts/catalogue_floor.py`
+ *                measures what the floor costs on a given build.
  *
  * Explicit IDs bypass every floor: naming a basin means you want it.
  */
@@ -604,10 +656,11 @@ export function selectBasins(basins, opts = {}) {
     // Threshold-qualifying basins, outermost first, so the nesting filter below
     // can ask "is an ancestor already in?".
     const qualifies = (b) => enabled
-        // `b.depthKm`, not `b.depth`: the floor is declared, named and published
-        // as a physical depth, so it is compared as one. The docstring above has
-        // the argument and says what the model-unit comparison cost.
-        && b.depthKm >= minDepthKm
+        // Kilometres, and reference-gravity ones: the floor is declared, named
+        // and published as a length, and a selection made during generation may
+        // not depend on gravity. The docstring above has both arguments and says
+        // what the model-unit comparison cost.
+        && selectionDepth(b) >= minDepthKm
         && b.areaKm2 >= minAreaKm2
         && b.cellCount >= minCells;
 
@@ -1294,12 +1347,17 @@ export function basinResolutionContext(numRegions, radiusKm, opts = {}) {
         minCells,
         // The currency the depth floor is compared in, stated rather than left
         // to be inferred: `minDepthKm` above is enforced against the
-        // depression's physical depth, so the declared number is the drop it
-        // demands everywhere on the height curve. Published because a consumer
-        // reading a criteria block cannot otherwise tell a physical floor from
-        // a model-unit one wearing a physical name, and the two select very
-        // different catalogues. `selectBasins` has the argument.
-        minDepthComparedIn: 'km',
+        // depression's depth in km on the REFERENCE-GRAVITY height curve, so
+        // the declared number is the drop it demands everywhere on that curve
+        // and at every gravity. Published because a consumer reading a criteria
+        // block cannot otherwise tell it from a model-unit floor wearing a
+        // physical name, or from one that slides with the planet's gravity, and
+        // the three select very different catalogues. `selectBasins` has the
+        // argument. To turn the floor into a depth on THIS planet, multiply by
+        // `planet.reliefScale`: the catalogue's own `depthKm` carries that
+        // factor and this criterion deliberately does not.
+        minDepthComparedIn: 'km at reference gravity',
+        minDepthReferenceGravityMS2: REFERENCE_GRAVITY_MS2,
         minDepthIsPhysical: true,
         // Which floor binds, ON THE AVERAGE CELL. `cell` is the mean dual area
         // over the whole sphere, so this is a statement about the typical
