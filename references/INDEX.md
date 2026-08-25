@@ -490,8 +490,12 @@ data carry no spectrum at all, which is what makes the re-weighting possible.
 The correlated-k cross-check in `exoplasim/notes/shortwave-water-vapour.md` puts
 Eq. 21 10 to 15 per cent low, and that figure is one-signed and a lower bound
 because the correlated-k side carries no water vapour continuum. These are the
-published sources that would close it: line-by-line reference cases for the same
-quantity, and the spread across the codes that were scored on them.
+sources that close it, and each answers a different half. The continuum itself is
+the missing term, so `mlawer2012` supplies the formulation and `shine2012` how
+well it is known. The rest are what the parameterization is scored AGAINST:
+line-by-line reference cases for the same quantity, and the spread across the
+codes that were run on them, which is an envelope with a right answer rather
+than a mutual comparison.
 
 | file | citation | status |
 | --- | --- | --- |
