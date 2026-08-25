@@ -531,8 +531,12 @@ years and averaged per day and per cell from a steady state.
 across all twelve bins and all 8,192 cells, and PHYS-13 establishes that this is
 a grid artifact rather than a fact about the planet: corrected to each mesh
 region's elevation, land below freezing in the warmest month goes from 0.002 to
-1.657 percent, because the model evaluates its own high ground about 7.8 K too
-warm on average and 21.9 K in the top tenth. A temperature-driven ablation
+a small but nonzero percent, because the model evaluates its own high ground
+substantially too warm on average and much more so in the top tenth. The
+figures once quoted here -- 1.657 percent, 7.8 K and 21.9 K -- were measured on
+a climatology that no longer exists at the path they name and do not reproduce;
+`analysis/ice_mask_freezing_height.json` regenerates them and is where they
+should be read. A temperature-driven ablation
 scheme is the most sensitive possible consumer of exactly that bias, so run
 today it would return zero ice, confidently, for the wrong reason. The sequence
 that makes the question answerable is PHYS-13's ice mask, then CLIM-53's

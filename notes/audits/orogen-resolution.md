@@ -589,12 +589,17 @@ it. Against the mesh, the sub-grid peak excess `orog_max - orog_mean` on land is
 | 90th percentile | 2.969 |
 | maximum | 5.270 |
 
-and the warm-season environmental lapse rate is 7.372 K/km, measured from the
-climatology this project actually consumes rather than from a raw run file. So
-the surface energy balance is evaluated about 7.8 K too warm for the high ground
-in an average land cell and about 21.9 K too warm in the top tenth. Ice does not
-survive that, and the model is right to report none on the orography it was
-given.
+and the warm-season environmental lapse rate, MEASURED ON A CLIMATOLOGY THAT
+NO LONGER EXISTS at the path it names, was 7.372 K/km. That number and the
+sub-grid warm bias derived from it -- about 7.8 K for the high ground in an
+average land cell and about 21.9 K in the top tenth -- are not reproducible:
+`lib/lapse.py` returns 6.5198 K/km for the climatology now at that path. The
+MECHANISM is unaffected and is the point of this section: the surface energy
+balance is evaluated too warm for high ground because the model sees a cell
+mean, ice does not survive that, and the model is right to report none on the
+orography it was given. The magnitudes regenerate with
+`analysis/ice_mask_freezing_height.py` when the pipeline next reaches it, and
+should be re-read from that artifact rather than from here.
 
 These figures and the ones below are `analysis/ice_mask_freezing_height.py`,
 which is registered and re-runnable. Earlier drafts of this section quoted
