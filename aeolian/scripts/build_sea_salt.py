@@ -214,12 +214,13 @@ def main() -> None:
     rsdt_a = annual_mean(rst, weights) + annual_mean(rsut, weights)
     alb1_a = np.clip(annual_mean(alb1, weights), 0.0, 1.0)
     alb2_a = np.clip(annual_mean(alb2, weights), 0.0, 1.0)
-    # `hur` IS ALREADY IN PERCENT, whatever its units attribute says. Upstream
-    # ExoPlaSim's pyburn table labels code 157 as "1" while PlaSim writes it as
-    # a percentage, so a reader that trusts the attribute and multiplies by 100
-    # gets 100% everywhere, which through the growth curve is a factor of five
-    # on the optical depth. Nothing else in this project read `hur` before this
-    # script did. The range is checked below rather than assumed.
+    # `hur` IS IN PERCENT, and code 157 now declares it. Upstream ExoPlaSim's
+    # pyburn table labelled it "1" while PlaSim writes a percentage, so a reader
+    # that trusted the attribute and multiplied by 100 got 100% everywhere,
+    # which through the growth curve is a factor of five on the optical depth;
+    # WORLD-HF12 fixed the attribute rather than the values. A climatology
+    # postprocessed before that fix still carries the "1" attribute over
+    # percentage values, so the range is checked below rather than assumed.
     hur_a = np.clip(annual_mean(hur, weights), 0.0, 100.0)
     if not 1.0 < float(np.nanmax(hur_a)) <= 105.0:
         raise SystemExit(

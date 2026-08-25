@@ -128,15 +128,21 @@ within an interval, and the field carries a level axis rather than a
 near-surface value. A wind consumer takes the lowest level and inherits both
 properties, and `world-1qxu` owns closing it.
 
-### `hur` is a percentage declared as a fraction, on liquid saturation only
+### `hur` is a percentage, and is not the interval mean of relative humidity
 
-pyburn computes `rh = qq/zqsat * 100.0` and clips to `[0, 100]`, while
-`ilibrary` declares the units `1`. Confirmed on the bootstrap climatology, where
-`hur` reaches 100.0 (`world-hf12`). It also uses fixed liquid-water saturation
-coefficients,
-while the model's own saturation switches to the ice coefficients below `tmelt`
-through `plasimmod.f90`'s `ra2s`/`ra4s`, so the postprocessed relative humidity
-and the model's own saturation disagree below freezing.
+pyburn computes `rh = qq/zqsat * 100.0` and clips to `[0, 100]`. The values are
+a percentage and `ilibrary` declares `%`; it declared `1`, which is what
+`world-hf12` was. `zqsat` is formed on the model's own saturation branch, over
+ice below `tmelt` and over liquid water at or above it, through the same
+coefficients `plasimmod.f90`'s `ra1s`/`ra2s`/`ra4s` select and `rainmod.f90`
+calls at every one of its saturation sites.
+
+What remains true of the field, and is written onto it as a `comment`
+attribute: it is a nonlinear function of the INTERVAL MEAN temperature and the
+interval mean specific humidity, so it is not the interval mean of relative
+humidity. A climatology postprocessed before the units fix carries percentage
+values under a `1` attribute, so a reader checks the range rather than the
+attribute.
 
 ### The bins are not the calendar
 

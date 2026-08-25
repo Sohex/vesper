@@ -169,7 +169,7 @@ def main() -> None:
         coslat, cfg["transport"].get("polar_coslat_floor", 1e-3))
     ta_a, ps_a, pr_a = annual(ta), annual(ps) * 100.0, annual(pr)
     rho_a = ps_a * lev[-1] / (R_DRY * ta_a)
-    # `hur` is in percent whatever its units attribute says; see build_sea_salt.
+    # `hur` is in percent; see build_sea_salt for what the attribute used to say.
     rh_cell = annual(hur)
     if not 1.0 < float(np.nanmax(rh_cell)) <= 105.0:
         raise SystemExit("relative humidity is not a percentage; check `hur`")
