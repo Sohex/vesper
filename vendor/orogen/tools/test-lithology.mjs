@@ -23,7 +23,10 @@ import {
     COVER_SEQUENCE,
 } from '../js/lithology.js';
 import { runGeneratePipeline } from '../js/pipeline.js';
-import { LITHO_CARBONATE_LAT_DEG } from '../js/terrain-config.js';
+import { LITHO_CARBONATE_LAT_DEG, SCARP_MIN_RELIEF, SCARP_RELIEF_BASELINE_KM,
+         SCARP_RELIEF_INNER_KM } from '../js/terrain-config.js';
+import { avgEdgeKm, PLANET_RADIUS_KM } from '../js/geometry.js';
+import { scaledHeightKm } from '../js/color-map.js';
 import { hashTypedArray } from '../js/sha256.js';
 
 setDelaunator(Delaunator);
@@ -278,7 +281,7 @@ test('no erodibility contrast means no scarp', () => {
     // strength 0 makes every rock erode identically, so the contrast term is 0
     // everywhere and no cell can host a differential-retreat scarp.
     const flat = buildLithoState(litho, c.r_elevation, c.cellArea, 0);
-    const sp = computeScarpPotential(c.mesh, c.r_elevation, flat, c.neighborDist);
+    const sp = computeScarpPotential(c.mesh, c.r_elevation, flat);
     for (let r = 0; r < sp.length; r++) {
         assert.equal(sp[r], 0, `cell ${r} scarps despite uniform erodibility`);
     }
@@ -291,7 +294,7 @@ test('flat terrain hosts no scarp however strong the contrast', () => {
     // A dead-flat land surface: contrast and cover edges survive, relief does not.
     const flatElev = new Float32Array(c.mesh.numRegions);
     for (let r = 0; r < flatElev.length; r++) flatElev[r] = c.r_elevation[r] > 0 ? 1.0 : -1.0;
-    const sp = computeScarpPotential(c.mesh, flatElev, state, c.neighborDist);
+    const sp = computeScarpPotential(c.mesh, flatElev, state);
     for (let r = 0; r < sp.length; r++) {
         assert.equal(sp[r], 0, `cell ${r} scarps on flat ground`);
     }
@@ -304,10 +307,75 @@ test('scarp potential needs a cover edge, not just contrast and relief', () => {
     // Bury the interface everywhere: uniform thick cover means it never
     // daylights, so there is nothing for a scarp to retreat along.
     state.coverThicknessKm.fill(5);
-    const sp = computeScarpPotential(c.mesh, c.r_elevation, state, c.neighborDist);
+    const sp = computeScarpPotential(c.mesh, c.r_elevation, state);
     let nz = 0;
     for (let r = 0; r < sp.length; r++) if (sp[r] > 0) nz++;
     assert.equal(nz, 0, 'a fully buried interface should produce no scarps');
+});
+
+test('every scarp stands above the mean land height of its own ball', () => {
+    // The oracle is an INDEPENDENT walk of the same ball, written here rather
+    // than imported, so a change to the module's own loop cannot make this test
+    // agree with it by construction. What is asserted is the definition: relief
+    // is a rise of the near mean ABOVE the regional mean, so a region that
+    // scores at all must stand at least SCARP_MIN_RELIEF of the realised run
+    // above its own regional surroundings.
+    // The one-edge form this replaced fails it -- a region can be steeper than
+    // one lower neighbour while sitting below everything else around it.
+    const c = withLitho();
+    const sp = c.lithology.r_scarpPotential;
+    const { numRegions, adjOffset, adjList } = c.mesh;
+    const land = c.basins.r_isSubaerial;
+    const edgeKm = avgEdgeKm(numRegions, PLANET_RADIUS_KM);
+    const hops = Math.max(1, Math.round(SCARP_RELIEF_BASELINE_KM / edgeKm));
+    const innerHops = Math.min(Math.round(SCARP_RELIEF_INNER_KM / edgeKm), hops - 1);
+    const ballKm = hops * edgeKm;
+    const height = (r) => scaledHeightKm(c.r_elevation[r], 1, land[r] === 1);
+
+    let checked = 0;
+    for (let r = 0; r < numRegions; r++) {
+        if (sp[r] <= 0) continue;
+        let frontier = [r], seen = new Set([r]), sum = 0, count = 0, near = 0, nearCount = 0;
+        for (let d = 0; d <= hops; d++) {
+            const next = [];
+            for (const q of frontier) {
+                sum += height(q); count++;
+                if (d <= innerHops) { near += height(q); nearCount++; }
+                if (d === hops) continue;
+                for (let i = adjOffset[q]; i < adjOffset[q + 1]; i++) {
+                    const nb = adjList[i];
+                    if (seen.has(nb) || land[nb] !== 1) continue;
+                    seen.add(nb); next.push(nb);
+                }
+            }
+            frontier = next;
+        }
+        const rise = near / nearCount - sum / count;
+        assert.ok(rise / ballKm >= SCARP_MIN_RELIEF - 1e-12,
+            `region ${r} scores ${sp[r]} on a rise of ${(rise / ballKm).toExponential(3)}`);
+        checked++;
+    }
+    assert.ok(checked > 0, 'no region scored, so the assertion proved nothing');
+});
+
+test('sinking a region below its neighbourhood removes its own scarp', () => {
+    // Directional and falsifiable: the measure is one-sided, so the plateau
+    // side of a margin carries relief and the lowland below carries none.
+    // Dropping the highest-scoring region below everything within its ball
+    // must zero it.
+    const c = withLitho();
+    const litho = classifyLithology(c.mesh, c.r_xyz, c.r_elevation, c.tectonics, c.debugLayers, {});
+    const state = buildLithoState(litho, c.r_elevation, c.cellArea, 1);
+    const before = computeScarpPotential(c.mesh, c.r_elevation, state,
+        { isLand: c.basins.r_isSubaerial });
+    let peak = -1;
+    for (let r = 0; r < before.length; r++) if (peak < 0 || before[r] > before[peak]) peak = r;
+    assert.ok(before[peak] > 0, 'no region scored, so the assertion proved nothing');
+    const sunk = Float32Array.from(c.r_elevation);
+    sunk[peak] = 1e-4;                         // just above sea level, so still land
+    const after = computeScarpPotential(c.mesh, sunk, state,
+        { isLand: c.basins.r_isSubaerial });
+    assert.equal(after[peak], 0, `region ${peak} still scores ${after[peak]} from below`);
 });
 
 test('scarp potential is deterministic', () => {

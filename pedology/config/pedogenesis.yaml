@@ -782,6 +782,20 @@ catena:
   # bracket spans thinning that is half and twice as aggressive.
   slope_transport: 4.0
   slope_transport_bracket: [2.0, 8.0]
+  # The run the within-cell elevation spread is divided by to make tan(beta),
+  # in kilometres of ground. DECLARED here rather than read from the export,
+  # and that is the whole point of the key: the mesh spacing is a property of
+  # the region count and not of the terrain, so a gradient quoted over it
+  # doubles when the region count quadruples while the terrain converges
+  # (WORLD-UYFB, `analysis/subgrid_slope_support.py`). Thirty kilometres is
+  # above Orogen's measured ~20 km terrain-information floor, below which the
+  # generator designs no terrain and a shorter run would report mesh texture.
+  # It is a unit for the spread and not a sampling length: what has to transport
+  # here is the within-cell spread, and that is measured converged to 1.069x
+  # between this project's two builds. A statistic that SAMPLES the 15 to 30 km
+  # band does not converge, which is why the scarp relief term next door
+  # declares 90 km instead.
+  gradient_baseline_km: 30.0
   # Fines are shed preferentially, so what survives on a slope is coarser. This
   # is the fraction of the clay excess over the sand that migrates per unit
   # tan(beta), capped so a cliff does not go to pure sand. Both DECLARED.

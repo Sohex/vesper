@@ -249,7 +249,8 @@ export const FIELD_META = {
     scarp_potential: M('1', 'Relative likelihood that a sub-grid escarpment belongs here, 0..1. '
         + 'Orogen cannot resolve a cliff at this cell size; this marks where the ingredients are '
         + '(cover/basement erodibility contrast, proximity to where that interface daylights, and '
-        + 'enough local gradient) for a higher-resolution pass or a renderer to act on. '
+        + 'enough relief, meaning how far the ground stands above its own regional surroundings '
+        + 'between two declared lengths) for a higher-resolution pass or a renderer to act on. '
         + 'Cover is always the weaker layer here, so these are stripped-edge plateau margins '
         + 'rather than resistant-caprock cuestas.'),
 

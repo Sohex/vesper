@@ -688,10 +688,10 @@ export function runGeneratePipeline(params, onProgress = () => {}) {
         // Where escarpments would form. Computed against the FINAL terrain and
         // the post-erosion cover state, because it is erosion stripping the
         // cover that daylights the interface in the first place.
-        // reliefScale goes in because the relief term is a PHYSICAL gradient: the
-        // same terrain at a different gravity has different relief, and without
-        // it every scarp field would be gravity-blind.
-        const scarp = computeScarpPotential(mesh, r_elevation, lithoState, neighborDist,
+        // reliefScale goes in because the relief term is a PHYSICAL drop over a
+        // declared run: the same terrain at a different gravity has different
+        // relief, and without it every scarp field would be gravity-blind.
+        const scarp = computeScarpPotential(mesh, r_elevation, lithoState,
             { radiusKm: planet.radiusKm, reliefScale: planet.reliefScale,
               isLand: basins ? basins.r_isSubaerial : null });
         let scarpCells = 0;

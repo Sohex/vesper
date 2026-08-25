@@ -47,7 +47,10 @@ downloads. It refuses `HEAD` outright and returns 403 without a browser
 credentials. One-degree COG tiles, 4.2 MB each at 90 m, named
 `Copernicus_DSM_COG_30_N37_00_E095_00_DEM`. Read a tile straight out of S3 with
 `fsspec` and `rasterio.io.MemoryFile` rather than downloading it. Used for HYD-7
-to measure what representing a real basin at mesh scale costs its storage.
+to measure what representing a real basin at mesh scale costs its storage, and
+by `analysis/escarpment_relief_anchor.py`, which block-averages the southern
+African Great Escarpment to mesh scale to anchor the scarp relief thresholds
+against a measured escarpment rather than an inherited pair.
 
 **GLHYMPS**, Gleeson et al. (2014), on Borealis (a Dataverse instance) at
 `doi:10.5683/SP2/DLGXYO`. `GLHYMPS.zip` is 1.15 GB, CC-BY 4.0, and the file list
