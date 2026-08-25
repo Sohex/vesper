@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "criterion": "|mean_A - mean_B| <= 2.0 * sqrt(2) * max(SEM_A, SEM_B), declared before either arm was compared",
+  "window_orbits": 20,
+  "run_a": {
+    "path": "exoplasim/runs/run_4769c35837df",
+    "window": [
+      65,
+      84
+    ]
+  },
+  "run_b": {
+    "path": "exoplasim/runs/run_073d3e108760",
+    "window": [
+      65,
+      84
+    ]
+  },
+  "pattern": {
+    "surface_temperature_rms_k": 1.4520087445522194,
+    "spatial_correlation": 0.9936218121344004,
+    "note": "reported for context; two runs of a chaotic model differ in pattern at equilibrium and no bound is applied here"
+  },
+  "metrics": [
+    {
+      "metric": "surface_temperature_k",
+      "a": 291.6419161105685,
+      "b": 291.8294241171887,
+      "difference": 0.18750800662019174,
+      "sem": 0.018304980762512708,
+      "bound": 0.05177430410664814,
+      "sigmas": 7.243284476946337,
+      "within": false
+    },
+    {
+      "metric": "air_temperature_2m_k",
+      "a": 291.5407946887259,
+      "b": 291.72008517565916,
+      "difference": 0.17929048693326877,
+      "sem": 0.018245895998768545,
+      "bound": 0.05160718715821493,
+      "sigmas": 6.948275881946763,
+      "within": false
+    },
+    {
+      "metric": "precipitation_mm_day",
+      "a": 2.7430691014878006,
+      "b": 2.7426046079673982,
+      "difference": -0.0004644935204023426,
+      "sem": 0.003768095896237236,
+      "bound": 0.010657784641562204,
+      "sigmas": 0.08716511658360132,
+      "within": true
+    },
+    {
+      "metric": "sea_ice_fraction",
+      "a": 0.009013417690072021,
+      "b": 0.008441642148589652,
+      "difference": -0.0005717755414823694,
+      "sem": 0.00019469725106116084,
+      "bound": 0.0005506869860149063,
+      "sigmas": 2.0765899903321565,
+      "within": false
+    },
+    {
+      "metric": "toa_shortwave_up_w_m2",
+      "a": 78.85807799817525,
+      "b": 78.66991122552095,
+      "difference": -0.1881667726542986,
+      "sem": 0.049018901508437504,
+      "bound": 0.13864639065172657,
+      "sigmas": 2.7143407306860943,
+      "within": false
+    },
+    {
+      "metric": "toa_longwave_up_w_m2",
+      "a": 242.89460145429157,
+      "b": 243.11989368536155,
+      "difference": 0.22529223106997165,
+      "sem": 0.05245007882453796,
+      "bound": 0.14835122564239894,
+      "sigmas": 3.03728169544132,
+      "within": false
+    }
+  ],
+  "same_equilibrium": false
+}

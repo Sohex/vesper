@@ -610,13 +610,22 @@ def refactorvariable(variable,header,ntimes=None,nlev=10):
             
     return newvar
 
-# RESTORED. `world-ro6` removed this on 2026-08-24 as an unreferenced procedure.
-# It is referenced: `readfile` below calls it, and `readfile` is how every
-# postprocess of a raw model file begins. The sweep that removed it collected
-# FORTRAN subroutine headers out of plasim/src and could not see a Python
-# caller, so applying it to this file asked a question it had no way to answer.
-# Nothing caught it because no gate postprocesses a raw file: the first run
-# after the removal died in pyburn with NameError, having integrated fine.
+# RESTORED. `readfile` below is the only caller and it is on the live
+# postprocessing path -- `pyburn.postprocess` reaches it for every raw output
+# file -- so removing this left every run raising `NameError: readallvariables`
+# the moment it postprocessed its first orbit, having integrated fine.
+#
+# WHY THE SWEEP TOOK IT. `world-ro6` collected FORTRAN subroutine headers out of
+# plasim/src and matched them against the Fortran call graph. That is sound for
+# Fortran and blind on a Python file, so applying it here asked a question the
+# instrument could not answer; its verdict names four other pyburn procedures
+# and not this one, so it went out as collateral rather than as a finding. Four
+# of the five really were dead, which is why the result looked right. Nothing
+# caught it because no gate postprocesses a raw file.
+#
+# The joined-once accumulation below is the repair that took a T42 orbit's read
+# from 304 s to 29 s and is kept verbatim: restoring this function as the
+# deleting commit last saw it would have silently reverted it.
 def readallvariables(fbuffer):
     '''Extract all variables and their headers from a file byte buffer.
     
