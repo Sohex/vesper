@@ -37,10 +37,19 @@ and `restart_surface.py`.
 """
 from __future__ import annotations
 
+import functools
 import re
 import struct
 from dataclasses import dataclass
 from pathlib import Path
+
+import _paths
+
+# The vendored model this module reads shapes and constants out of, by default.
+# Every source-reading function here still takes an explicit `src_dir`, so a
+# caller working against another tree passes one; this is only what
+# `describe()` uses when it is handed a file and nothing else.
+MODEL_SRC = _paths.MODEL_SRC / "plasim" / "src"
 
 # ---------------------------------------------------------------------------
 # The mechanical half: what the model source says it writes.
@@ -753,6 +762,59 @@ def check_policy_covers_source(src_dir: Path) -> list[str]:
 # Geometry: the symbols a shape is written in, resolved for one file.
 # ---------------------------------------------------------------------------
 
+# `integer, parameter :: NLSOILWX = 8` and the fixed-form `parameter(NLSOIL=5)`.
+# Only a plain integer literal is taken: `NLAT = NLAT_ATM` and
+# `NGEN = max(NUGP, NESP*NLEV)` are derived from symbols this module already
+# owns, and a parser that guessed at them would answer with the wrong build's
+# geometry.
+_PARAMETER = re.compile(
+    r"^\s*(?:integer\s*(?:\([^)]*\))?\s*,\s*parameter\s*::\s*"
+    r"(?P<n1>[a-z][a-z0-9_]*)\s*=\s*(?P<v1>[-+]?\d+)"
+    r"|parameter\s*\(\s*(?P<n2>[a-z][a-z0-9_]*)\s*=\s*(?P<v2>[-+]?\d+)\s*\))\s*$",
+    re.IGNORECASE)
+
+
+@functools.lru_cache(maxsize=8)
+def _parameter_dimensions(src_dir: str) -> tuple:
+    return tuple(sorted(_scan_parameters(Path(src_dir)).items()))
+
+
+def _scan_parameters(src_dir: Path) -> dict:
+    out: dict = {}
+    for module in compiled_modules(src_dir.parent):
+        path = src_dir / module
+        if not path.is_file():
+            continue
+        for line in path.read_text(encoding="utf-8", errors="ignore").splitlines():
+            if line.lstrip().startswith("!"):
+                continue
+            m = _PARAMETER.match(line.split("!")[0])
+            if m is None:
+                continue
+            name = (m["n1"] or m["n2"]).upper()
+            value = int(m["v1"] if m["v1"] is not None else m["v2"])
+            out.setdefault(name, value)
+    return out
+
+
+def parameter_dimensions_from_source(src_dir=MODEL_SRC) -> dict:
+    """{SYMBOL: value} for every compile-time integer parameter in the model.
+
+    A restart record's shape is written in whatever symbols its call site uses,
+    and not all of them are derivable from NLAT. `dwatcl(NHOR,NLSOILWX)` is
+    shaped by a parameter declared in `landcolumn.f90`, so the length of that
+    record is a property of the SOURCE the writing executable was built from
+    and of nothing in the file. Reading it here is what keeps the schema from
+    carrying a second copy of a number the model already states, which is the
+    same reason `inventory_from_source` reads the call sites rather than
+    listing them.
+
+    Consulted only for symbols `Geometry.resolve` does not already own, so a
+    source `NLAT` local to a helper module can never shadow the file's own.
+    """
+    return dict(_parameter_dimensions(str(Path(src_dir))))
+
+
 @dataclass(frozen=True)
 class Geometry:
     """The dimensions a restart's record lengths are built out of.
@@ -775,6 +837,14 @@ class Geometry:
     nlev_oce: int
     nesp: int
     nseedlen: int
+    # A COMPILE-TIME parameter, not a header field: the model writes `dwatcl`
+    # and `dsoili` at NLSOILWX columns whatever `nlsoilw` the namelist asks
+    # for, zeroing the layers above it. It reaches a geometry from the source
+    # the writing executable was built from -- `parameter_dimensions_from_
+    # source` -- and is zero only where a caller built a Geometry by hand and
+    # did not supply it, which `resolve` refuses rather than silently sizing a
+    # record at nothing.
+    nlsoilwx: int = 0
 
     @property
     def nlon(self) -> int:
@@ -810,15 +880,34 @@ class Geometry:
         if isinstance(token, int):
             return token
         try:
-            return {"NUGP": self.nugp, "NRSP": self.nrsp, "NESP": self.nesp,
-                    "NLEV": self.nlev, "NLEP": self.nlep, "NLSOIL": self.nlsoil,
-                    "NLEV_OCE": self.nlev_oce, "NSEEDLEN": self.nseedlen,
-                    "NLAT": self.nlat, "NLON": self.nlon}[token]
+            value = {"NUGP": self.nugp, "NRSP": self.nrsp, "NESP": self.nesp,
+                     "NLEV": self.nlev, "NLEP": self.nlep, "NLSOIL": self.nlsoil,
+                     "NLEV_OCE": self.nlev_oce, "NSEEDLEN": self.nseedlen,
+                     "NLAT": self.nlat, "NLON": self.nlon,
+                     "NLSOILWX": self.nlsoilwx}[token]
         except KeyError:
             raise KeyError(
                 f"'{token}' is a dimension no geometry here knows. It came out "
                 "of a call site, so the model has grown a symbol this module "
-                "has not been taught.") from None
+                "has not been taught. Compile-time parameters are read by "
+                "parameter_dimensions_from_source(); add the symbol to "
+                "Geometry if the model derives it from NLAT instead."
+            ) from None
+        # Only the compile-time parameters are guarded here. NLSOIL,
+        # NLEV_OCE and NSEEDLEN are HEADER fields and legitimately zero on a
+        # file that carries no soil, no ocean or no seed; a shape using one of
+        # those on such a file gives a candidate count of zero, which matches
+        # no payload and is refused where the count is compared. NLSOILWX has
+        # no header to be absent from, so a zero there is a caller that did not
+        # supply it and would silently size every land-water record at nothing.
+        if token == "NLSOILWX" and value <= 0:
+            raise ValueError(
+                "NLSOILWX is a compile-time parameter of the model source and "
+                "this Geometry was built without one, so `dwatcl` and `dsoili` "
+                "would be sized at nothing. Build the Geometry through "
+                "describe(), or pass nlsoilwx from "
+                "parameter_dimensions_from_source().")
+        return value
 
     def elements(self, shape) -> int:
         n = 1
@@ -843,6 +932,37 @@ def element_count(name: str, geometry: Geometry, inventory) -> int:
 
 def candidate_counts(name: str, geometry: Geometry, inventory) -> list[int]:
     return [geometry.elements(shape) for shape in inventory[name].shapes]
+
+
+def check_every_shape_resolves(src_dir=MODEL_SRC) -> list[str]:
+    """Every dimension symbol a call site writes a shape in is one we can size.
+
+    `check_policy_covers_source` compares NAMES and stays green while a shape
+    names a symbol no geometry knows, which is what `dwatcl(NHOR,NLSOILWX)`
+    did: the policy covered `dwatcl`, and every attempt to predict its length
+    raised instead. This asks the resolver, and it is source-only -- no restart
+    file, no run output -- so it answers on a fresh checkout and on the day a
+    new dimension lands rather than the next time somebody converts a state.
+
+    The probe geometry is deliberately not a rung: nothing here depends on the
+    SIZES, only on whether each symbol is one `Geometry.resolve` handles.
+    """
+    params = parameter_dimensions_from_source(src_dir)
+    probe = Geometry(nlat=2, nlev=1, nlsoil=1, nlev_oce=1, nesp=6, nseedlen=1,
+                     nlsoilwx=params.get("NLSOILWX", 0))
+    problems = []
+    for name, rec in sorted(inventory_from_source(src_dir).items()):
+        for shape in rec.shapes:
+            for token in shape:
+                if isinstance(token, int):
+                    continue
+                try:
+                    probe.resolve(token)
+                except (KeyError, ValueError) as exc:
+                    problems.append(
+                        f"'{name}' is written at {rec.module}:{rec.line} with "
+                        f"shape {shape} and {exc}")
+    return sorted(set(problems))
 
 
 # ---------------------------------------------------------------------------
@@ -942,8 +1062,15 @@ def infer_real_bytes(by_name: dict, nlat: int, nlev: int, nrsp: int) -> int:
     return width
 
 
-def describe(records) -> tuple:
-    """(Geometry, real width) for a parsed restart, from its own headers."""
+def describe(records, src_dir=MODEL_SRC) -> tuple:
+    """(Geometry, real width) for a parsed restart, from its own headers.
+
+    `src_dir` supplies the compile-time parameters the headers cannot: a
+    restart states NLAT, NLEV and NLSOIL, but nothing in it says how many
+    layers `dwatcl` was written at. That is NLSOILWX in `landcolumn.f90` and it
+    comes from the source, so a caller reading a file written by another tree
+    passes that tree's source rather than trusting this one's.
+    """
     by_name = {rec.name: rec for rec in records}
     for needed in ("nlat", "nlon", "nlev", "nrsp"):
         if needed not in by_name:
@@ -963,7 +1090,8 @@ def describe(records) -> tuple:
         nlev_oce=_int(by_name["nlev_oce"]) if "nlev_oce" in by_name else 0,
         nesp=(by_name["aasosp"].nbytes // real_bytes
               if "aasosp" in by_name else nrsp),
-        nseedlen=by_name["seed"].nbytes // 4 if "seed" in by_name else 0)
+        nseedlen=by_name["seed"].nbytes // 4 if "seed" in by_name else 0,
+        nlsoilwx=parameter_dimensions_from_source(src_dir).get("NLSOILWX", 0))
     if geometry.nrsp != nrsp:
         raise ConversionError(
             f"the file says NRSP is {nrsp} and a T{geometry.ntru} grid gives "

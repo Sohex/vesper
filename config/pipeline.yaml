@@ -50,9 +50,11 @@ loops:
       convert to T85 at dt 22.5, converge; then continue at NLOWIO = 0 with
       high-cadence orbits for dust. Every conversion therefore happens at
       constant dt, so exactly one variable moves per step and a surprise after
-      a conversion is attributable to the support alone. A reconvergence is TEN
-      orbits, then THREE-orbit increments until the convergence criteria are
-      met. Advance only after the current support has settled, replaying A, B
+      a conversion is attributable to the support alone. A reconvergence is ONE
+      CONVERGENCE WINDOW, then THREE-orbit increments until the convergence
+      criteria are met; the criteria cannot be evaluated on fewer orbits than
+      they are taken over, and `assess_convergence.py` derives that window
+      rather than carrying a literal. Advance only after the current support has settled, replaying A, B
       and C on it. There is no between-rung convergence comparison: choosing
       T85 by decision removed the question one would answer, and nothing finer
       is being run to difference it against. The three

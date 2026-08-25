@@ -338,9 +338,18 @@ out of `plasim/CMakeLists.txt`, so nothing there needs touching.
 
 **The gate is `scripts/smoke_test.py`,** check "the restart schema covers every
 record the model writes". It goes red for a call site with no policy, for a
-policy entry no call site writes, and for an accumulator whose reset in
-`outreset` no longer matches what the schema records. Its own control shows it
-failing in all three directions.
+policy entry no call site writes, for a shape written in a dimension symbol no
+`Geometry` can size, and for an accumulator whose reset in `outreset` no longer
+matches what the schema records. Its own control shows it failing in all of
+those directions.
+
+**A NEW DIMENSION IS A SECOND THING TO ADD.** A shape is written in whatever
+symbols its call site uses, and covering the NAME does not make the length
+predictable: `dwatcl(NHOR,NLSOILWX)` had a policy from the day the land column
+landed and no geometry that could size it. Where the model derives the
+dimension from NLAT, it belongs in `Geometry`; where it is a compile-time
+`integer, parameter`, `parameter_dimensions_from_source()` reads it out of the
+source and nothing here restates the number.
 
 **An accumulator's clean value is not always zero.** `tempmin` resets to 1.0e3
 and `atsami` to 1.0e10, both running minima; `asndch` and `aanrho` are reset by
@@ -492,7 +501,7 @@ unless told they exist.
 | `continue_exoplasim.py` | resume a prepared run from its latest restart; `--purpose` says what the segment is for |
 | `restart_surface.py` | checks a restart's own copy of every staged surface field against the field it was built from; gates every resume, and `--self-test` proves it can fail |
 | `convert_restart.py` | converts a restart across horizontal resolution and real precision onto a template the target executable wrote, and reports what the conversion cost; the result is a NEW INITIAL CONDITION, never a continuation. `--inspect`, `--check-template`, `--dry-run`, and `--self-test` proves every transform against a control that fails |
-| `compare_equilibria.py` | asks whether two runs sit at the same equilibrium, against their own year-to-year scatter rather than a picked tolerance: two independent ten-orbit means of one climate differ by about sqrt(2) times the standard error, and the bound is two sigma on that. Reports the pattern difference alongside without thresholding it. For the resolution ladder, SPAT-8 |
+| `compare_equilibria.py` | asks whether two runs sit at the same equilibrium, against their own variability rather than a picked tolerance: the bound is two sigma on the difference of two window means. The standard error is `sigma * sqrt(tau / n)` with the integrated autocorrelation time measured over the longest stationary tail of each run, because consecutive orbits are not independent samples; a metric whose error cannot be bounded is reported indeterminate and the verdict refused. Reports the pattern difference alongside without thresholding it. For the resolution ladder, SPAT-8 |
 | `build_restart_template.py` | cuts a restart TEMPLATE from a short run of the target build: the target's own record set, precision, seed shape and staged static fields, with a clean accumulation window. `--audit` says whether an existing template is clean. `convert_restart.py` refuses a template that is not |
 | `restart_format.py` | the one restart parser and writer: names are found by position, not by looking like text. Imported, not run |
 | `restart_schema.py` | what every restart record IS. Its inventory is parsed out of the model's own `put_restart_*` call sites; its semantic policy is reviewed and checked in, and `check_policy_covers_source` fails if the model grows a record the policy has not been told about |
@@ -554,7 +563,7 @@ unless told they exist.
 | `thread_count_sweep.sh` | sweeps the OpenMP thread count at one resolution, pairwise against sixteen. The count is compiled in via `num_threads(NPRO)`, so it builds one binary per count first and `OMP_NUM_THREADS` does nothing; NPRO must divide NLAT. `notes/thread-count-by-resolution.md` has the verdict |
 | `attribute_barrier_wait.sh` | splits the OpenMP barrier cost per thread and maps each thread to the core and die it ran on, which is what separates "the team is too big" from "the work is unevenly spread". Needs a frame-pointer build (`compile.sh -g`) and records `--sample-cpu`, so the die column is measured rather than inferred from thread creation order |
 | `index_runs.py` | index every run by what it is, since a UUID says nothing |
-| `assess_convergence.py` | spin-up convergence against the predeclared criteria, over the last `--window` PRODUCTION orbits |
+| `assess_convergence.py` | spin-up convergence against the predeclared criteria, over the last `--window` PRODUCTION orbits. Reports what that window can RESOLVE beside every verdict, and the window each criterion would need at this run's own scatter and autocorrelation; `--through` assesses a prefix and writes into neither the run's manifest nor the run's own report |
 | `close_state_energy.py` | closes the energy budget against the PROGNOSTIC STATE, which is the check the flux diagnostics cannot fail |
 | `close_term_energy.py` | closes the model's INTERNAL budget against PlaSim's 28 terms; three identities, and it refuses a low-I/O window |
 | `score_rank_bench.py` | scores the rank-layout arms from restart mtimes, against the thresholds `notes/rank-layout-benchmark.md` declared before they ran |

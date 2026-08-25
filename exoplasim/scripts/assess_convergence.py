@@ -31,6 +31,11 @@ from numpy.polynomial.legendre import leggauss
 
 from _paths import ANALYSIS
 import close_state_energy
+# CLAUDE.md names lib/autocorrelation.py as the one place a standard error is
+# taken over a series with memory. Consecutive orbits of this model are not
+# independent samples, and every uncertainty here that was scaled as though
+# they were came back about half the size it should have been.
+import autocorrelation as ac
 # The one reader of the manifest's segment records; see
 # exoplasim/scripts/segments.py for what a purpose means.
 from segments import orbit_purposes, production_window
@@ -61,6 +66,55 @@ def slope(series: np.ndarray, window: int) -> float:
     return float(np.polyfit(x, y, 1)[0])
 
 
+def slope_standard_error(series: np.ndarray, window: int) -> float:
+    """The standard error of that slope, with the residual memory in it.
+
+    An ordinary least-squares slope over n points has variance
+    sigma^2 / sum((x - xbar)^2) ONLY when the residuals are independent. They
+    are not here, and the correction is the integrated autocorrelation time of
+    the residuals: var(slope) = sigma^2 * tau / sum((x - xbar)^2).
+
+    WHY IT MATTERS RATHER THAN BEING A REFINEMENT. The offset criterion falls
+    back to `slope * tau_expected` on a converged run, and tau_expected is
+    about ten orbits, so the slope's error is multiplied by ten before it is
+    compared with a 0.15 K allowance. A slope error that is understated by two
+    is a criterion whose statistic wanders by two, which is what made the
+    verdict on this project's T21 baseline flip seven times on a state that had
+    stopped moving. world-omn.
+    """
+    y = np.asarray(series[-window:], dtype=float)
+    n = y.size
+    if n < 4:
+        return float("nan")
+    x = np.arange(n, dtype=float)
+    fit = np.polyfit(x, y, 1)
+    residual = y - np.polyval(fit, x)
+    # Two parameters fitted, so n - 2 degrees of freedom.
+    variance = float(np.dot(residual, residual)) / (n - 2)
+    tau = ac.integrated_time(residual)["tau"]
+    sxx = float(np.dot(x - x.mean(), x - x.mean()))
+    return float(np.sqrt(variance * tau / sxx))
+
+
+def orbits_for_slope_standard_error(scatter: float, tau: float,
+                                    target: float) -> float:
+    """Window length at which a fitted slope's standard error reaches `target`.
+
+    var(slope) = scatter^2 * tau * 12 / (n (n^2 - 1)), so this inverts a cubic.
+    It is what prices a window: the answer to "how many orbits does this
+    criterion need before it is measuring the planet rather than the model's
+    own variability", in the units the run is bought in.
+    """
+    if target <= 0 or not all(np.isfinite([scatter, tau])) or scatter <= 0:
+        return float("nan")
+    need = (scatter ** 2) * max(tau, 1.0) * 12.0 / (target ** 2)
+    n = max(4.0, need ** (1.0 / 3.0))
+    for _ in range(64):                       # n(n^2-1) = need, by iteration
+        n = (need + n) ** (1.0 / 3.0)
+    return float(n)
+
+
+
 # The mixed layer's heat capacity and the radiative damping. Together they set
 # how long an approach takes, which is what turns a drift rate into a remaining
 # offset -- and the offset is what `OFFSET_TOLERANCE_K` passes or fails a run
@@ -75,6 +129,94 @@ _MLD = float(_yaml.safe_load(
     (Path(__file__).resolve().parents[2] / "config" / "planet.yaml")
     .read_text(encoding="utf-8"))["surface"]["mixed_layer_depth_m"])
 SLAB_HEAT_CAPACITY = _MLD * close_state_energy.CRHOS * close_state_energy.CPS
+
+
+# THE WINDOW, DERIVED RATHER THAN PICKED.
+#
+# The criterion that bounds the ANSWER rather than a rate is the extrapolated
+# offset, and on a settled run the exponential fit has nothing to grip, so the
+# fallback tests `slope * tau_expected` against 0.15 K. The slope's own error
+# is therefore multiplied by the relaxation time before the comparison, and the
+# window that criterion needs follows from
+#
+#     var(slope) = scatter^2 * tau * 12 / (n (n^2 - 1))
+#
+# with the bar that a threshold discriminates only when its statistic's
+# standard error is at most a third of it (`RESOLVING_FACTOR`, declared in
+# `main` before it was applied to anything).
+#
+# THE INPUTS ARE PRIOR MEASUREMENTS, EACH WITH A SOURCE, and the number below
+# is computed from them rather than typed, so nobody can move the window
+# without moving an input that has a citation. A ten-orbit window was in use
+# and it does not resolve this criterion: its statistic wandered between 0.031
+# and 0.255 against a 0.15 K allowance on a T21 baseline that had stopped
+# moving, and the verdict flipped seven times over twenty orbits. world-omn.
+#
+# THE ANSWER IS A BRACKET AND THIS IS ITS ESTIMATE. At tau = 1, the value if
+# consecutive orbits were independent, the window is 21 orbits; at tau = 9, the
+# value for a lag-1 correlation of 0.8, it is 44. The factor tau is what the
+# model's memory costs and everything else is what an independent series would
+# have needed anyway. `exoplasim/notes/convergence-lengths.md` carries the
+# bracket; every assessment reports the window ITS OWN run would need, which is
+# what follows the resolution up the ladder.
+NOMINAL_ORBIT_SCATTER_K = 0.07     # the T21 baseline's stationary spread, world-omn
+NOMINAL_TAU_ORBITS = 4.2           # (1+r)/(1-r) at r = 0.615, world-yj9o
+NOMINAL_RELAXATION_ORBITS = 10.0   # this planet's slab; each run reports its own
+# The same 0.15 K and the same factor of three the criteria use, restated here
+# only because the default has to exist before `main` runs. `main` asserts they
+# agree, so the two cannot drift.
+_OFFSET_TOLERANCE_K = 0.15
+_RESOLVING_FACTOR = 3.0
+# THE STATISTIC IS `|offset| + half_width`, NOT `offset`. Both terms are the
+# same slope error multiplied by the same relaxation time, so the quantity
+# compared with the tolerance has about twice the offset's scale. Sizing the
+# window on the offset alone would be sizing it for half the statistic.
+_OFFSET_STATISTIC_TERMS = 2.0
+
+
+def window_for_offset_criterion(scatter: float, tau: float,
+                                relaxation_orbits: float) -> float:
+    """The window at which the offset criterion starts to discriminate."""
+    return orbits_for_slope_standard_error(
+        scatter, tau, _OFFSET_TOLERANCE_K
+        / (_RESOLVING_FACTOR * _OFFSET_STATISTIC_TERMS * relaxation_orbits))
+
+
+DEFAULT_WINDOW_ORBITS = int(np.ceil(window_for_offset_criterion(
+    NOMINAL_ORBIT_SCATTER_K, NOMINAL_TAU_ORBITS, NOMINAL_RELAXATION_ORBITS)))
+
+
+# HOW LONG A RUN TAKES TO GET HERE, AS OPERATIONAL EXPERIENCE. These are what
+# this project has repeatedly seen, not a measured distribution, and they are
+# marked as experience wherever they are quoted so nobody later reads them as
+# an artifact-backed result. They belong beside the criteria because the
+# criteria are what decides a run is finished, and a window that is a large
+# fraction of the approach is testing the approach.
+#
+#   COLD START AT T21: about seventy orbits, seed- and initial-condition-
+#   dependent. `exoplasim/notes/parameter-decisions.md` records one converging
+#   on all six criteria after 70.
+#
+#   RECONVERGENCE after a timestep change or a resolution conversion: generally
+#   ten to twenty orbits. The state is already at a climate; what is settling
+#   is the model's response to a changed discretisation.
+#
+# The consequence for a window: a 10-orbit window is a seventh of a cold
+# start's approach and the whole of a reconvergence, so on the second it is
+# assessing orbits that are still moving by construction.
+CONVERGENCE_LENGTHS = {
+    "basis": "operational experience across this project's runs, not a "
+             "measured distribution; every number here is bracketed by what "
+             "has been seen rather than fitted",
+    "cold_start_t21_orbits": 70,
+    "cold_start_note": "seed- and initial-condition-dependent; "
+                       "exoplasim/notes/parameter-decisions.md records a cold "
+                       "start converging on all six criteria after 70 orbits",
+    "reconvergence_after_timestep_or_resolution_change_orbits": [10, 20],
+    "reconvergence_note": "the state is already at a climate; what settles is "
+                          "the response to a changed discretisation",
+    "recorded_in": "exoplasim/notes/convergence-lengths.md",
+}
 
 
 def relaxation_orbits(orbital_year_days: float, feedback_w_m2_k: float) -> float:
@@ -107,6 +249,12 @@ def approach_to_equilibrium(orbits: np.ndarray, series: np.ndarray,
     number; one such fit in this project's history sat 0.6 K from its own
     reported value.
 
+    THE INTERVAL IS AUTOCORRELATION-CORRECTED. `curve_fit` returns a covariance
+    scaled as though the residuals were independent draws, and orbits of this
+    model are not; the reported half width is widened by the root of the
+    residuals' integrated autocorrelation time, which is the factor that was
+    missing.
+
     Returns (asymptote, half_width, tau_orbits) or (nan, nan, nan) if the series
     will not support a fit.
     """
@@ -123,6 +271,19 @@ def approach_to_equilibrium(orbits: np.ndarray, series: np.ndarray,
         return float("nan"), float("nan"), float("nan")
     inf, tau = float(popt[0]), float(popt[2])
     err = float(np.sqrt(np.diag(pcov))[0]) if np.all(np.isfinite(pcov)) else float("nan")
+    # `curve_fit` SCALES ITS COVARIANCE AS THOUGH THE RESIDUALS WERE
+    # INDEPENDENT. They are not: consecutive orbits of this model carry memory,
+    # so the residual variance is spread over fewer independent samples than
+    # the fit counts and every diagonal of pcov comes back too small by the
+    # integrated autocorrelation time. The standard error goes as its root.
+    # This is the same defect `compare_equilibria.py` had in a different
+    # dress -- there the count was the window's, here it is the fit's --
+    # and correcting it can only widen the interval, which is the direction
+    # a convergence test must err in. world-yj9o.
+    residual = y - model(x, *popt)
+    tau_residual = ac.integrated_time(residual)["tau"]
+    if np.isfinite(err):
+        err *= float(np.sqrt(tau_residual))
     # A fit extrapolating beyond its own span is reported as such rather than
     # trusted: widen the interval by how far past the data the asymptote sits.
     if np.isfinite(tau) and tau > 0:
@@ -134,9 +295,16 @@ def approach_to_equilibrium(orbits: np.ndarray, series: np.ndarray,
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("run_dir", type=Path)
-    parser.add_argument("--window", type=int, default=10,
+    parser.add_argument("--window", type=int, default=DEFAULT_WINDOW_ORBITS,
                         help="orbits in the test window. Counted back from the "
-                             "last PRODUCTION orbit, not the last orbit")
+                             "last PRODUCTION orbit, not the last orbit. The "
+                             f"default, {DEFAULT_WINDOW_ORBITS}, is derived: it "
+                             "is the shortest window at which the offset "
+                             "criterion's statistic has a standard error of a "
+                             "third of its threshold, at the scatter and "
+                             "autocorrelation this model has been measured "
+                             "with. A shorter one does not test that criterion, "
+                             "it flips on it")
     parser.add_argument("--through", type=int, default=None, metavar="ORBITS",
                         help="assess the run AS IF it had stopped after this "
                              "many orbits, ignoring everything later. For "
@@ -144,9 +312,11 @@ def main() -> None:
                              "than whether it meets them now -- which is what "
                              "a relaxation time is, and what decides whether "
                              "converting a coarse state into a finer one is "
-                             "worth the wall clock. Writes nothing under "
-                             "--output unless asked, so a sweep cannot "
-                             "overwrite the run's own verdict.")
+                             "worth the wall clock. Its report carries the "
+                             "truncation in its name and it writes nothing "
+                             "into the run's manifest, so a sweep cannot "
+                             "overwrite the run's own verdict in either "
+                             "place.")
     parser.add_argument("--output", type=Path, default=ANALYSIS / "convergence")
     args = parser.parse_args()
     run_dir = args.run_dir.resolve()
@@ -276,9 +446,20 @@ def main() -> None:
     # it can only refuse a run, never pass one it should not.
     fit_usable = (np.isfinite(asymptote) and np.isfinite(half_width)
                   and abs(offset) < 20.0 and half_width < 5.0)
+    slope_se = slope_standard_error(arrays["ts"], w)
     if not fit_usable:
         offset = metrics["temperature_slope_k_per_orbit"] * tau_expected
-        half_width = abs(offset)
+        # THE FALLBACK'S HALF WIDTH IS TWO UNCERTAINTIES, NOT ONE. Carrying
+        # 100% of the offset covers tau_expected being wrong, and it was the
+        # whole interval; but the offset is a fitted SLOPE times tau_expected,
+        # and the slope over a short window has an error of its own that the
+        # multiplication magnifies by tau_expected. On a settled run that
+        # second term is the larger of the two, and leaving it out is what let
+        # `|offset| + half_width` wander across its own allowance on a state
+        # that had stopped moving. Added in quadrature: the two are
+        # independent, and this reduces to the old interval exactly where the
+        # slope is well determined. world-omn.
+        half_width = float(np.hypot(offset, tau_expected * slope_se))
         asymptote = metrics["temperature_mean_k"] + offset
     metrics.update({
         "temperature_asymptote_k": asymptote,
@@ -293,11 +474,34 @@ def main() -> None:
         "slab_heat_capacity_j_m2_k": SLAB_HEAT_CAPACITY,
         "remaining_offset_implied_by_drift_k":
             metrics["temperature_slope_k_per_orbit"] * tau_expected,
+        # The slope errors, with the residual memory in them. Reported for
+        # every slope the criteria threshold, so nobody has to take a
+        # threshold's word for what the window can see.
+        "temperature_slope_standard_error_k_per_orbit": slope_se,
+        "toa_balance_slope_standard_error_w_m2_per_orbit":
+            slope_standard_error(arrays["ntr"], w),
+        "surface_balance_slope_standard_error_w_m2_per_orbit":
+            slope_standard_error(arrays["hfns"], w),
+        "sea_ice_slope_standard_error_fraction_per_orbit":
+            slope_standard_error(arrays["sic"], w),
     })
 
     # 0.15 K against a 3 K design band: small enough that the band's edges mean
     # what they say, loose enough to be reachable. Stated before it was applied.
     OFFSET_TOLERANCE_K = 0.15
+
+    # WHEN A THRESHOLD IS MEASURING THE PLANET AND NOT THE INSTRUMENT. A
+    # criterion whose statistic has a standard error comparable to its own
+    # threshold does not discriminate; it flips. The bar, fixed here before it
+    # was applied to any assessment: the standard error of the statistic must
+    # be at most a third of the threshold it is compared with. Three is the
+    # smallest factor at which a statistic sitting on the threshold is more
+    # than a chance excursion from either side of it.
+    RESOLVING_FACTOR = 3.0
+    # The default window was sized from these two before `main` ran. One copy
+    # of each number, checked rather than trusted.
+    assert (OFFSET_TOLERANCE_K, RESOLVING_FACTOR) == (_OFFSET_TOLERANCE_K,
+                                                      _RESOLVING_FACTOR)
 
     # THE ENERGY-BALANCE CRITERION TESTS STORAGE, NOT REPORTED TOA. Changed
     # 2026-08-17, deliberately and with the reasoning recorded, because the two
@@ -328,7 +532,10 @@ def main() -> None:
     #   What is measurable. The storage estimate on a 10-orbit block differs from
     #   the same run's 20-orbit block by 0.111, 0.115 and 0.116 W/m2 on the three
     #   runs where both exist. A threshold below about 0.11 is measuring the
-    #   sampling noise of the estimator rather than the planet.
+    #   sampling noise of the estimator rather than the planet. That figure was
+    #   taken on 10-orbit blocks and the default window is now wider, so it is a
+    #   CEILING on the estimator's noise here rather than a live floor; the
+    #   binding bound is the temperature-derived one either way and 0.12 stands.
     #
     # The two land within 6% of each other, which is the argument for the number
     # rather than a coincidence to note: below 0.11 is unresolvable, above 0.118
@@ -350,6 +557,76 @@ def main() -> None:
             np.isfinite(offset) and np.isfinite(half_width)
             and abs(offset) + half_width < OFFSET_TOLERANCE_K),
     }
+    # WHAT THIS WINDOW CAN SEE, reported beside every verdict rather than
+    # assumed. Each row is a threshold, the standard error of the statistic it
+    # tests, and the window at which that error would fall to a third of it.
+    #
+    # THE COST OF THE MEMORY IS THE FACTOR TAU. An independent series would
+    # need `orbits_for_slope_standard_error` with tau = 1; the model has
+    # variability at the window's own timescale, so it needs tau times the
+    # variance and the window grows as the cube root of that. The required
+    # windows below are computed from THIS run's own residual scatter and its
+    # own autocorrelation, so they follow the resolution rather than being a
+    # number swept once at T21 and carried up the ladder.
+    ts_residual = arrays["ts"][-w:] - np.polyval(
+        np.polyfit(np.arange(w, dtype=float), arrays["ts"][-w:], 1),
+        np.arange(w, dtype=float))
+    ts_scatter = float(np.std(ts_residual, ddof=1)) if w > 2 else float("nan")
+    ts_memory = (ac.integrated_time(ts_residual) if w > 3
+                 else {"tau": float("nan"), "reliable": False,
+                       "lag1": float("nan")})
+    ts_tau = ts_memory["tau"]
+    resolving = {
+        "factor": RESOLVING_FACTOR,
+        "criterion": ("a threshold discriminates when the standard error of "
+                      "the statistic it tests is at most 1/factor of it"),
+        "window_orbits": w,
+        "temperature_residual_scatter_k": ts_scatter,
+        "temperature_residual_tau_orbits": ts_tau,
+        "temperature_residual_lag1": ts_memory["lag1"],
+        # TAU MEASURED INSIDE THE WINDOW IS A LOWER BOUND ON TAU. A span
+        # comparable to the correlation time cannot resolve it: on synthetic
+        # series with a known answer, a twenty-sample window recovers about
+        # half the true value and a ten-sample window barely more than one.
+        # Every number below inherits that, so the required window is a FLOOR
+        # and is labelled one until a stationary span long enough to carry the
+        # estimate exists. lib/autocorrelation.py.
+        "tau_estimated_from_the_window_itself": True,
+        "tau_span_supports_the_estimate": bool(ts_memory["reliable"]),
+        "required_window_is_a_lower_bound": not bool(ts_memory["reliable"]),
+        "rows": [],
+    }
+    for name, statistic_se, threshold in (
+            ("abs_temperature_slope", metrics[
+                "temperature_slope_standard_error_k_per_orbit"], 0.05),
+            ("abs_toa_slope", metrics[
+                "toa_balance_slope_standard_error_w_m2_per_orbit"], 0.05),
+            ("abs_surface_slope", metrics[
+                "surface_balance_slope_standard_error_w_m2_per_orbit"], 0.05),
+            ("abs_sea_ice_slope", metrics[
+                "sea_ice_slope_standard_error_fraction_per_orbit"], 0.001),
+            # The offset criterion tests a slope multiplied by tau_expected, so
+            # its statistic's error is that multiple of the slope's.
+            # The statistic is `|offset| + half_width` and both terms carry the
+            # same slope error times tau_expected, so its scale is twice the
+            # offset's. Sizing on the offset alone sizes for half the test.
+            ("extrapolated_offset",
+             _OFFSET_STATISTIC_TERMS * tau_expected * slope_se,
+             OFFSET_TOLERANCE_K)):
+        resolves = bool(np.isfinite(statistic_se)
+                        and statistic_se * RESOLVING_FACTOR <= threshold)
+        resolving["rows"].append({
+            "criterion": name, "threshold": threshold,
+            "statistic_standard_error": statistic_se,
+            "resolves": resolves})
+    resolving["window_orbits_for_offset_criterion"] = window_for_offset_criterion(
+        ts_scatter, ts_tau, tau_expected)
+    # The same window if the orbits were independent, so the price of the
+    # memory is visible rather than folded into one number.
+    resolving["window_orbits_for_offset_criterion_if_independent"] = \
+        window_for_offset_criterion(ts_scatter, 1.0, tau_expected)
+    resolving["default_window_orbits"] = DEFAULT_WINDOW_ORBITS
+
     report = {
         "run_dir": str(run_dir),
         "completed_orbits": len(files),
@@ -379,6 +656,15 @@ def main() -> None:
                    "2026-08-17; the offset itself is CLIM-1 and is still open, "
                    "which is why both numbers and their difference are recorded.",
         },
+        # REPORTED, NOT THRESHOLDED, and deliberately so. The criteria already
+        # fail closed on an interval too wide to clear the allowance, which is
+        # what a window that cannot resolve produces; adding a sixth criterion
+        # on the same fact would refuse the same runs twice. What this buys is
+        # the number a reader would otherwise have to sweep for: how many
+        # orbits the window needs, at THIS resolution and this run's own
+        # variability.
+        "resolving_power": resolving,
+        "convergence_lengths": CONVERGENCE_LENGTHS,
         "sufficiently_equilibrated_for_worldbuilding": bool(all(criteria.values())),
         "failed_criteria": sorted(name for name, ok in criteria.items() if not ok),
         "annual_records": records,
@@ -410,8 +696,19 @@ def main() -> None:
     # missing by 0.004 W/m2; that standard is preserved by recording the margin,
     # not by widening the threshold.
     failed = report["failed_criteria"]
+    # A TRUNCATED ASSESSMENT NEVER TOUCHES THE RUN'S MANIFEST. `--through`
+    # already keeps its report under its own filename so a sweep cannot
+    # overwrite the run's verdict one directory up -- and then wrote the same
+    # truncated verdict straight into the run itself: its status, its
+    # equilibrium cutoff and the whole assessment payload, taken from a
+    # prefix of the run. Sweeping `--through` to find when a run FIRST
+    # converged left the run recorded as having converged wherever the sweep
+    # happened to stop last, which is the exact defect the suffix was added to
+    # prevent. The sweep is how the window is priced, so this is not a corner.
     manifest_path = run_dir / "run_manifest.json"
-    if manifest_path.is_file():
+    if args.through is not None:
+        manifest_path = None
+    if manifest_path is not None and manifest_path.is_file():
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         if report["sufficiently_equilibrated_for_worldbuilding"]:
             manifest["status"] = "equilibrated_for_worldbuilding"
@@ -473,7 +770,7 @@ def main() -> None:
     # convergence result that lives only in an output folder cannot be found from
     # the run it describes.
     manifest_path = args.run_dir / "run_manifest.json"
-    if manifest_path.is_file():
+    if args.through is None and manifest_path.is_file():
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         manifest["convergence_assessment"] = payload
         manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")

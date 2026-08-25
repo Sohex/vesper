@@ -291,7 +291,10 @@ convention, and the reduction operators by field semantics: extensive,
 intensive, categorical, moments, expectation, and the ledger of what a
 reduction dropped), `orbit.py` (orbital period), `stellar.py` (spectrum, band split,
 Rayleigh coefficient), `sensitivity.py` (the one flux-to-kelvin conversion),
-`climatology.py` (time-bin weights), `lapse.py` (lapse rates, and the
+`climatology.py` (time-bin weights),
+`autocorrelation.py` (the integrated autocorrelation time, the effective
+sample size, and the ONE standard error of a mean over a series whose samples
+carry memory), `lapse.py` (lapse rates, and the
 height of the lowest model level),
 `surface_classes.py` (derived surface classes BY NAME),
 `sea_water.py` (the four numbers salinity reaches the model through, read

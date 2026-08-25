@@ -1600,6 +1600,95 @@ def check_per_level_namelist_keys_cover_every_level() -> list[str]:
     return bad
 
 
+def check_autocorrelation_estimator() -> list[str]:
+    """The one standard error over a series with memory recovers a known answer.
+
+    `lib/autocorrelation.py` decides whether two runs are at the same
+    equilibrium and whether one has converged, and before it existed both of
+    those took their error bar from the raw sample count. A test of it has to
+    be able to FAIL, so it is run on synthetic AR(1) series whose integrated
+    autocorrelation time is known in closed form, tau = (1+r)/(1-r), and
+    against the empirical spread of many independent window means -- the
+    quantity the estimator claims to predict.
+
+    EVERY TOLERANCE HERE WAS FIXED BEFORE THE ESTIMATOR WAS RUN ON A MODEL
+    SERIES, and the seed is fixed so the check is a check and not a lottery.
+    The controls are the specific wrong answers: an independent series must not
+    come back with memory, a trended series must be refused as non-stationary,
+    and the naive count must be shown to understate the error it was being used
+    for.
+    """
+    sys.path.insert(0, str(ROOT / "lib"))
+    try:
+        import numpy as np
+        import autocorrelation as ac
+    except ImportError as exc:
+        return [f"lib/autocorrelation.py does not import: {exc}"]
+
+    TAU_RTOL = 0.10          # tau, from a long series, to a tenth
+    SE_RTOL = 0.15           # predicted window-mean SE against the empirical spread
+    rng = np.random.default_rng(20260825)
+
+    BURN = 500                # discarded so every series starts stationary
+
+    def ar1(n, r, count=1):
+        """`count` independent AR(1) series of length n, unit marginal variance.
+
+        Generated across the ensemble rather than one at a time: the recursion
+        is over time and vectorised over the count, which is what keeps this a
+        check somebody will actually leave in the gate.
+        """
+        e = rng.standard_normal((count, n + BURN))
+        x = np.zeros((count, n + BURN))
+        s = np.sqrt(1.0 - r * r)
+        for i in range(1, n + BURN):
+            x[:, i] = r * x[:, i - 1] + s * e[:, i]
+        return x[:, BURN:]
+
+    bad = []
+    for r in (0.0, 0.3, 0.6, 0.8):
+        want = (1.0 + r) / (1.0 - r)
+        got = ac.integrated_time(ar1(20000, r)[0])["tau"]
+        if abs(got - want) > TAU_RTOL * want:
+            bad.append(f"AR(1) at r={r} has tau {want:.3f} and the estimator "
+                       f"returned {got:.3f}")
+
+    # THE CLAIM ITSELF: sigma * sqrt(tau / n) is the standard deviation of a
+    # window mean. Checked against the spread of 1500 independent windows.
+    for r, n in ((0.6, 20), (0.8, 20), (0.6, 60)):
+        tau = (1.0 + r) / (1.0 - r)
+        empirical = float(np.std(ar1(n, r, 1500).mean(axis=1), ddof=1))
+        predicted = float(np.sqrt(tau / n))
+        naive = float(1.0 / np.sqrt(n))
+        if abs(predicted - empirical) > SE_RTOL * empirical:
+            bad.append(f"at r={r}, n={n} a window mean's spread is "
+                       f"{empirical:.4f} and sigma*sqrt(tau/n) predicts "
+                       f"{predicted:.4f}")
+        # The control: the count-based form must be visibly wrong here, or
+        # this check is not testing anything the project did not already have.
+        if naive > 0.75 * empirical:
+            bad.append(f"at r={r}, n={n} the count-based standard error "
+                       f"{naive:.4f} is not detectably below the true "
+                       f"{empirical:.4f}, so this case proves nothing")
+
+    # A trend is not variability, and a tau taken across one describes the
+    # approach. The guard must refuse the second series and accept the first.
+    flat = ar1(200, 0.6)[0]
+    if not ac.stationary_enough(flat)["stationary"]:
+        bad.append("the stationarity guard refused a stationary AR(1) series")
+    trended = flat + 0.05 * np.arange(flat.size)
+    if ac.stationary_enough(trended)["stationary"]:
+        bad.append("the stationarity guard accepted a series with a trend "
+                   "larger than its own scatter")
+
+    # The window that a target standard error needs, against the relation it
+    # inverts. An identity, so it is exact rather than tolerant.
+    n = ac.samples_for_standard_error(sigma=0.07, tau=4.2, target=0.02)
+    if abs(0.07 * np.sqrt(4.2 / n) - 0.02) > 1e-12:
+        bad.append("samples_for_standard_error does not invert its own relation")
+    return bad
+
+
 def check_restart_schema_covers_the_model() -> list[str]:
     """Every restart record the model writes has a policy, with the right reset.
 
@@ -1621,6 +1710,13 @@ def check_restart_schema_covers_the_model() -> list[str]:
     `reset_restart_accumulators.py` reads the same policy, so a gap here is a
     seeded run opening mid-window on the donor's partial accumulation.
 
+    IT ALSO CHECKS THE RESOLVER, not only the names. A shape may be written in
+    a symbol no `Geometry` knows -- `dwatcl(NHOR,NLSOILWX)` was, from the day
+    the land column landed -- and the name check cannot see it, because the
+    name is covered and it is the LENGTH that cannot be predicted. That gap
+    reached the tree through `convert_restart.py --self-test`, which nothing
+    runs; `check_every_shape_resolves` needs no restart file and runs here.
+
     It also holds every accumulator's DECLARED initial value against its reset.
     A cold run's first output window accumulates from the declaration with no
     reset before it, so the two disagreeing makes the first record of every
@@ -1637,6 +1733,7 @@ def check_restart_schema_covers_the_model() -> list[str]:
     if not src.is_dir():
         return [f"{src} is missing; the vendored model source moved"]
     return (restart_schema.check_policy_covers_source(src)
+            + restart_schema.check_every_shape_resolves(src)
             + restart_schema.check_first_window_matches_the_rest(src))
 
 
@@ -2075,6 +2172,8 @@ def main() -> None:
                check_restart_schema_covers_the_model()),
               ("every postprocessor code requested is one something produces",
                check_requested_codes_are_produced()),
+              ("the autocorrelation estimator recovers a known answer",
+               check_autocorrelation_estimator()),
               ("the transform gates run the configured spectral filter",
                check_gate_filter_matches_config()),
               ("a continuation redeclares what a prepare declared",
