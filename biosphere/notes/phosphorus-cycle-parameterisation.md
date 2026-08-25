@@ -29,7 +29,7 @@ arithmetic off the source and the cited measurements.
 | `PFRAC_MINTOMAX` | `guess.h` | `Pft::init_ctop_limits` and `Pft::init_ctop_min` | 3.68 | dimensionless | McGroddy et al. (2004) foliar dispersion contrast; BRACKET 3.68 to 4.41 | yes, from 2.78 |
 | `PFRAC_MINTOMAX_CROPGREEN` | `guess.h` | `Pft::init_ctop_limits` | 7.77 | dimensionless | the same transfer applied to its nitrogen counterpart 5.0; cropland is refused under BIO-27 | yes, from 5.0 |
 | `PFRAC_LEAFTOROOT` | `guess.h` | `Pft::init_ctop_limits` | 1.16 | dimensionless | Yuan et al. (2011); root N:P is not separable from leaf N:P, so the nitrogen proportion carries; BRACKET 1.02 to 1.35 | no, and now for a reason |
-| `PFRAC_LEAFTOSAP` | `guess.h` | `Pft::init_ctop_limits` | 6.9 | dimensionless | UNDERIVED. Heineman et al. (2016) reject the fixed-proportion form for phosphorus | no |
+| `PFRAC_LEAFTOSAP` | `guess.h` | `Pft::init_ctop_limits`, then `canexch.cpp` sapwood P demand | 6.9 | dimensionless | UNDERIVED. Nitrogen's, for sapwood PLUS BARK, from Friend et al. (1997) Table 4 p. 254; Heineman et al. (2016) reject the proportional form for phosphorus, and what the model applies is 15.30 rather than 6.9 | no |
 | `PFRAC_MAXTOMIN` | `guess.h` | `Pft::init_ctop_limits` | 0.9 | dimensionless | nothing to transfer: the nitrogen original is declared arbitrary in `Pft::init_cton_limits` | no |
 | `PMASS_SAT` | `somdynam.cpp` | `somfluxes` through `setptoc`, and the P-limitation-off pin | 0.002 | kgP/m2 labile P | Parton, Stewart and Cole (1988) Fig. 3 p. 115, whose labile-P axis saturates at 2.0 gP/m2. DERIVED, and the driving pool is not the paper's | no, and the value is not the defect |
 | `PCONC_SAT` | `somdynam.cpp` | `somfluxes` and `equilsom` through `setptoc` | 0.02 | phosphorus fraction of litter dry mass | UNDERIVED. Nitrogen's value exactly, on a ramp the cited source does not contain. Bounded above by 7.6e-4 | no |
@@ -156,24 +156,218 @@ The bracket is the point estimates the test could not separate: live-root N:P of
 16.0 against leaf N:P of 13.8 and 18.2, giving contrasts of 1.16 and 0.879, so
 `PFRAC_LEAFTOROOT` between 1.02 and 1.35. The value in the source is inside it.
 
-## Sapwood: the form is refuted, so there is no scalar to derive
+One caveat this constant shares with `PFRAC_LEAFTOSAP`, established in the
+section below. It is applied to the leaf window's ENDPOINT and not to the tissue
+mean, so what reaches simulated fine-root phosphorus demand is
+`ctop_root_avr / ctop_leaf_avr` = 2.57, against 2.08 for
+`cton_root_avr / cton_leaf_avr` on the nitrogen side. The contrast derived here
+as 1.0 therefore arrives at the model as 1.238, because the leaf window was
+widened to 3.68 on the phosphorus side and its nitrogen counterpart was left at
+2.78.
 
-`PFRAC_LEAFTOSAP` is 6.9 from Friend et al. (1997), and a fixed proportion is a
-defensible form for nitrogen. Heineman et al. (2016) regress wood on leaf
-nutrient concentrations across 58 species and cannot distinguish the nitrogen
-exponent from 1, which is what a fixed proportion asserts. For phosphorus the
-same regression returns an exponent near 2, significantly above 1, and it is the
-strongest of their wood-leaf relationships.
+## Sapwood: the constant is nitrogen's, and it is not the quantity the model applies
 
-So wood C:P is not a fixed multiple of leaf C:P, and no scalar derived from that
-measurement would mean what this constant claims to mean. Deriving one anyway
-from the concentration means, 2557 ug/g wood N and 111 ug/g wood P against
-tropical foliar N:P, gives about 8. It is recorded and not adopted: it rests on
-one tropical gradient and on a form the same measurement rejects.
+Three claims are stacked inside `PFRAC_LEAFTOSAP`, and having both papers
+separates them. The element was never phosphorus, the tissue is not the model's
+sapwood, and the number the model actually applies to simulated sapwood is not
+6.9.
 
-Choosing between a refuted scalar and a nonlinear wood-leaf phosphorus relation
-is a modelling decision. It is what BIO-34 is still open on, and sapwood is a
-large carbon pool, so it is not a small one.
+### What 6.9 is in Friend et al. (1997)
+
+Table 4, p. 254, gives `X_C:N(f/p)` = 0.145, "relative C:N ratio between foliage
+and bark plus sapwood", in kgC kgN^-1 per kgC kgN^-1. Its reciprocal is 6.897.
+The companion `X_C:N(f/r)` = 0.86 has reciprocal 1.163, which is
+`PFRAC_LEAFTOROOT` and the nitrogen side's `frac_leaftoroot`. Two constants
+matching two reciprocals to three figures identifies the source beyond doubt.
+
+The text on p. 274 says what was fitted. `X_C:N(f/p)` is a mean across NINE
+species from Turner (1980) and Turner and Lambert (1981), calculated with a
+13 percent weighting for bark; those data are Eucalyptus spp. and planted
+Douglas-fir. `X_C:N(f/r)` is from Nambiar and Fife (1991) for Pinus radiata
+SEEDLINGS. Hybrid v3.0 applies both means to every one of its plant types, which
+is what Table 4 is for, and uses them in Eqs. 42 to 44 to hold the relative C:N
+ratios of foliage, sapwood plus bark, and fine roots FIXED while nitrogen is
+reallocated each year.
+
+Friend et al. (1997) contains no phosphorus. The word occurs once in the paper,
+in the title of the Turner (1980) reference. So 6.9 is a nitrogen figure carried
+across, it is a nitrogen figure for a tissue that includes bark, and it was
+fitted on nine temperate plantation and eucalypt species.
+
+### What the model applies is 15.30, not 6.9
+
+`PFRAC_LEAFTOSAP` is not applied as a tissue ratio. `init_ctop_limits` sets
+`ctop_sap_max = ctop_leaf_max * PFRAC_LEAFTOSAP` and
+`ctop_sap_min = PFRAC_MAXTOMIN * ctop_sap_max`, so the constant is the ratio of
+two window ENDPOINTS. What reaches the simulated plant is `canexch.cpp:1578`,
+where sapwood phosphorus demand is computed against a target C:P of
+`ctop_leaf_opt * ctop_sap_avr / ctop_leaf_avr`, and `ctop_leaf_opt` is that
+individual's own leaf C:P. So the multiplier `ctop_sap_avr / ctop_leaf_avr` is a
+proportion between two tissues' C:P, which is exactly the quantity both papers
+measure.
+
+`avg_ctop` is the harmonic mean, and the two windows have very different widths:
+`PFRAC_MINTOMAX` = 3.68 for leaves against 1/0.9 for sapwood. So
+
+    ctop_sap_avr / ctop_leaf_avr
+        = [2 * 0.9 / 1.9] * PFRAC_LEAFTOSAP * (1 + PFRAC_MINTOMAX) / 2
+        = 0.94737 * 6.9 * 2.34
+        = 15.30
+
+The nitrogen side is the same construction on its own window, 2.78, giving
+`cton_sap_avr / cton_leaf_avr` = 12.36 against Friend's own 6.897. This is
+therefore a whole-model form question and not a phosphorus one: on both elements
+the proportion the model applies to simulated sapwood is 1.79 (nitrogen) or 2.22
+(phosphorus) times the tissue proportion its source measured. The two factors
+differ only because the leaf window was widened to 3.68 on the phosphorus side
+and its nitrogen counterpart was not, so that change moved the effective sapwood
+and fine-root proportions by 2.34/1.89 = 1.238 as a side effect.
+`PFRAC_LEAFTOROOT` is in the same construction: 1.16 arrives at fine-root
+phosphorus demand as 2.57 against nitrogen's 2.08.
+
+That is a check that can fail and is failing: after `init_ctop_limits()`,
+`ctop_sap_avr / ctop_leaf_avr` should equal the tissue proportion the constant is
+sourced from, and it is 2.22 times it. Recorded and not changed, because the
+same defect is in the nitrogen limits that the established C-N configuration runs
+on, and because moving it is one of the decisions below rather than arithmetic.
+
+### Heineman et al. (2016) tests the form on the right element and nearly the right tissue
+
+Type II major axis regression of log species mean wood on log species mean leaf
+concentration, n = 58, Table 3. Phosphorus: slope 2.10, 95 percent CI 1.52 to
+3.17, r2 = 0.36; on phylogenetically independent contrasts, 2.22, CI 1.85 to
+2.67, r2 = 0.54. Nitrogen: slope 1.25, CI 0.83 to 1.95, r2 = 0.31; contrasts
+1.01, CI 0.84 to 1.23, r2 = 0.49. Calcium 1.93, potassium 1.97, magnesium 2.93.
+
+"Significantly above 1" is the paper's own claim and not an inference from the
+intervals: "For Ca, K, Mg and P, the slope of the wood vs leaf relationship (b)
+was significantly > 1", against "the slope ... did not differ from 1 for N ...,
+indicating that N scales isometrically between wood and leaf tissues". Nitrogen
+is the only one of the five elements that is isometric, and it is the internal
+control that makes the phosphorus result mean something: same 58 species, same
+regression, same plots, and a method that rejected isometry for everything would
+only be reporting its own sensitivity.
+
+One hazard for anyone re-deriving off the paper. Table 3's caption prints the
+model as `log(leaf) ~ log(a) + log(wood) x b`, which is the reverse of what was
+fitted. The discussion says the fitted direction outright, "the wood-leaf scaling
+exponent was ~2, meaning that, for example, a 10% increase in foliar P
+corresponds to a 20% increase in wood P", and the intercepts settle it: at the
+Table 2 species mean wood concentrations, wood-as-response returns leaf P
+1117 ug/g and leaf N 1.90 percent, both ordinary tropical foliage, while
+leaf-as-response returns leaf P 0.87 ug/g. Major axis regression is exactly
+reciprocal-symmetric, so reading the caption literally does not relabel the
+exponent, it inverts it to 0.48 and reverses the finding.
+
+The scope is one regional gradient. The 58 paired species are all at Fortuna in
+western Panama: six lower montane plots, 700 to 1500 m, mean annual temperature
+19 to 23 C, annual rainfall 4000 to 9000 mm, on rhyolitic tuff, andesite and
+porphyritic dacite with soil pH 3.6 to 5.6. The wider wood-only set is 106
+species over 10 plots including four lowland Canal watershed sites, and no leaf
+data. Wood is the outermost 5 cm annulus at breast height; leaves are three fully
+expanded SHADE leaves from three individuals per species, ground with petioles
+and rachii, collected in July 2010 against February 2011 for the Fortuna cores.
+Shade leaves were used because 43 percent of the species never reach the canopy,
+and the justification offered is that rank order of species mean N and P is
+preserved between sun and shade leaves, which supports an exponent and not a
+level. Wood P falls 35 percent from the outer 5 cm to the adjacent 5 to 10 cm
+annulus, in 88 of 110 trees and in 14 of 18 species tested individually; wood N
+has no consistent radial direction.
+
+So it licenses the rejection of the fixed proportion for phosphorus, with
+nitrogen as its own control. It does not license a global exponent: these are
+tropical lower montane angiosperms, with no needleleaf, temperate or boreal type
+in the sample. It does not license a whole-sapwood tissue ratio, because the
+outer annulus is the phosphorus-rich end of a 35 percent radial gradient. It does
+not license a sun-leaf level. And it does not license a scalar of any value,
+because it is the scalar form that it rejects.
+
+### The numbers, and the nitrogen check that could have failed
+
+At the Table 2 species mean wood concentrations, 111 ug/g P and 2557 ug/g N, the
+fitted lines put leaf P at 1117 ug/g and leaf N at 19027 ug/g. The tissue
+proportions those imply, as leaf concentration over wood concentration, are 7.44
+for nitrogen and 10.06 for phosphorus. A concentration proportion equals the
+sapwood-over-leaf C:N or C:P proportion whenever the two tissues' carbon
+fractions are alike, and species variation in tissue carbon is small against the
+fourfold nitrogen and thirtyfold phosphorus variation here, so it moves the level
+a little and leaves the exponent alone.
+
+The nitrogen figure is the check. Friend's nine temperate species with bark
+included give 6.90 and Heineman's 58 tropical species on the outer sapwood
+annulus give 7.44: an 8 percent difference across two continents, two tissue
+definitions and two methods. The construction therefore reproduces the nitrogen
+constant, so the phosphorus number from the same construction is not an artefact
+of the construction.
+
+The phosphorus figure is not a constant. Because the fitted exponent is 2.10 the
+proportion falls as leaf phosphorus rises, and over the observed span of species
+mean wood P, 19 to 668 ug/g, it runs monotonically from 25.4 down to 3.9, a
+factor of 6.4. The same computation on nitrogen over its observed 1300 to
+5800 ug/g runs 8.5 to 6.3, a factor of 1.35, and the slope it comes from is not
+separable from 1 anyway. A single number for phosphorus is not a value that is
+merely uncertain; it is a value that does not exist.
+
+The radial gradient moves the level and not the shape. `cmass_sap` is the whole
+simulated sapwood and Heineman measured its outer 5 cm, so applying the 35
+percent outer-to-inner decline to the whole pool raises the proportion from 10.06
+to 15.5. That is the bracket on a forced scalar: 10.1 to 15.5, against the
+nitrogen 6.9 the constant carries.
+
+### What any of this is worth to the modelled result
+
+The level first. The proportion the model applies is 15.30, which sits at the top
+of that 10.1 to 15.5 bracket, so simulated sapwood phosphorus demand per unit
+sapwood carbon is close to the tropical measurement at its sample mean. It is
+close by cancellation: a nitrogen constant too low for phosphorus, multiplied by
+a window factor of 2.22 that should not be there at all. Neither is a
+derivation and their product is not one either. Making the applied proportion
+equal 10.06 needs `PFRAC_LEAFTOSAP` = 4.54 and raises sapwood phosphorus demand
+per unit sapwood carbon by 52 percent; making it 15.5 needs 6.99 and changes it
+by -1.3 percent.
+
+The shape is worth more, and it is the part that is refuted. Across simulated
+plant types leaf C:P varies only through `sla`, as `sla^-0.80936`. The woody
+types' calculated `sla` runs from 9.300 for the needleleaf evergreens at three
+years' leaf longevity to 26.03 for the broadleaf types at half a year, so their
+leaf C:P spans a factor of 2.30, and under a fixed proportion their sapwood C:P
+spans the same 2.30. Under the measured exponent it would span 2.30^2.10 = 5.75,
+or 6.35 on the contrast-corrected slope.
+
+Anchored on the tropical broadleaf evergreen type, which is what Heineman
+measured, and at the observed 2.10: the boreal needleleaf evergreen type's
+sapwood C:P would be 56 percent higher than the fixed proportion gives it, so its
+sapwood phosphorus demand per unit sapwood carbon would be 36 percent lower; the
+broadleaf summergreen types' sapwood C:P would be 37 percent lower, so their
+demand would be 60 percent higher. Between those two the fixed form and the
+measured form differ by a factor of 2.50 in RELATIVE sapwood phosphorus demand,
+2.76 on the contrast-corrected slope. That is a competition effect among
+simulated plant types on a large carbon pool, and it is the whole of what the
+proportional form removes.
+
+### What is still open
+
+The refutation stands and is stronger than the summary that opened this row. The
+constant's own source measures a different element in a different tissue on nine
+temperate species; the one dataset that measures phosphorus in this model's own
+tissue rejects the proportional form the constant asserts; and the number the
+model applies is not the one the constant names. Nothing above derives a value
+and nothing above should: a proportion kept because it is convenient is a knob.
+
+Three decisions are needed and none of them is arithmetic.
+
+- Whether simulated sapwood C:P follows leaf C:P proportionally at all, or as a
+  power with an exponent measured on one tropical gradient and applied to
+  simulated boreal and temperate types.
+- If proportionally, whether the constant stays at the leaf window's endpoint or
+  moves to the tissue mean its source measures. That is the same question on the
+  nitrogen side, where the applied proportion is 12.36 against a sourced 6.897,
+  so it cannot be settled for phosphorus alone.
+- What anchors the level, given that the only paired leaf-and-sapwood phosphorus
+  measurement this project holds is one Panamanian fertility gradient.
+
+`ifplim 1` keeps refusing and keeps naming `PFRAC_LEAFTOSAP` until they are
+answered. BIO-34.
 
 ## The saturation pair: one is its source's value, and neither ramp works
 

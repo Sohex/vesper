@@ -250,20 +250,41 @@ const double PFRAC_MINTOMAX_CROPGREEN = 7.77;
 const double PFRAC_LEAFTOROOT = 1.16;
 
 /// Fraction between leaf and sapwood C:P ratio
-/** UNDERIVED, and the form is what blocks it. Its nitrogen counterpart is 6.9
- *  from Friend et al. (1997), and a fixed proportion is a defensible form for
- *  nitrogen: Heineman et al. (2016) regress wood on leaf nutrient
- *  concentrations across 58 species and cannot distinguish the N exponent from
- *  1. For phosphorus the same regression returns an exponent near 2, so wood
- *  C:P is not a fixed multiple of leaf C:P and no scalar derived from that data
- *  would mean what this constant claims to mean.
+/** UNDERIVED, and three separate things block it.
  *
- *  Deriving a scalar anyway from the concentration means, 2557 ug/g wood N and
- *  111 ug/g wood P against tropical foliar N:P, gives about 8. It is recorded
- *  and NOT adopted, because it rests on one tropical gradient and on a form the
- *  same measurement rejects. Choosing between a refuted scalar and a nonlinear
- *  wood-leaf P relation is a modelling decision, and it is BIO-34's remaining
- *  open item. P limitation is refused meanwhile, see parameters.cpp.
+ *  The element. 6.9 is the reciprocal of Friend et al. (1997) Table 4 p. 254,
+ *  X_C:N(f/p) = 0.145, the relative C:N ratio between foliage and BARK PLUS
+ *  SAPWOOD. That paper contains no phosphorus at all. Its p. 274 gives the fit:
+ *  a mean over NINE species from Turner (1980) and Turner and Lambert (1981),
+ *  Eucalyptus spp. and planted Douglas-fir, with a 13 percent weighting for
+ *  bark, applied to every plant type. PFRAC_LEAFTOROOT's 1.16 is the reciprocal
+ *  of the companion 0.86, from Pinus radiata seedlings.
+ *
+ *  The form. Heineman et al. (2016) regress log species mean wood on log
+ *  species mean leaf concentration by type II major axis over 58 tropical
+ *  species, and only nitrogen is isometric: N slope 1.25 (95% CI 0.83-1.95),
+ *  1.01 (0.84-1.23) on phylogenetic contrasts, against P slope 2.10 (1.52-3.17)
+ *  and 2.22 (1.85-2.67). "Significantly > 1" is that paper's own claim. So wood
+ *  C:P is not a fixed multiple of leaf C:P: over their observed wood P span the
+ *  implied proportion runs 25.4 down to 3.9, while nitrogen's runs 8.5 to 6.3.
+ *  A forced scalar would be BRACKETED 10.1 to 15.5, the ends being their
+ *  outer-annulus sample mean and that mean corrected for the 35 percent radial
+ *  decline in wood P. It is recorded and NOT adopted: it rests on one tropical
+ *  gradient and on a form the same measurement rejects.
+ *
+ *  The quantity. This constant is applied to a window ENDPOINT, while both
+ *  papers measure a tissue mean. canexch.cpp computes sapwood P demand against
+ *  ctop_leaf_opt * ctop_sap_avr / ctop_leaf_avr, and because avg_ctop() is a
+ *  harmonic mean over windows of width PFRAC_MINTOMAX and 1/PFRAC_MAXTOMIN that
+ *  multiplier is 0.94737 * 6.9 * (1 + 3.68) / 2 = 15.30, not 6.9. The nitrogen
+ *  side is the same construction on its 2.78 window and applies 12.36 against
+ *  Friend's own 6.897, so this one is not a phosphorus defect and cannot be
+ *  fixed here alone.
+ *
+ *  Choosing among a refuted scalar, a nonlinear wood-leaf P relation, and moving
+ *  the constant to the tissue mean is a modelling decision, and it is BIO-34's
+ *  remaining open item. P limitation is refused meanwhile, see parameters.cpp.
+ *  The arithmetic is in biosphere/notes/phosphorus-cycle-parameterisation.md.
  */
 const double PFRAC_LEAFTOSAP = 6.9;
 

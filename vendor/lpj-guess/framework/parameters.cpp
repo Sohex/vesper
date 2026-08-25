@@ -1284,9 +1284,19 @@ void plib_callback(int callback) {
 		// Two are not settled at all, and one is settled against its source
 		// but not against the pool it reads.
 		//
-		// PFRAC_LEAFTOSAP has no derivable scalar, because the one measurement
-		// of wood-against-leaf phosphorus scaling rejects the fixed-proportion
-		// form this constant assumes.
+		// PFRAC_LEAFTOSAP has no derivable scalar, and both papers behind it
+		// have now been read. Its 6.9 is the reciprocal of Friend et al. (1997)
+		// Table 4 p. 254, a NITROGEN ratio of foliage to bark PLUS sapwood over
+		// nine temperate species; that paper has no phosphorus in it. Heineman
+		// et al. (2016) measure the right element in nearly the right tissue
+		// over 58 tropical species and reject the proportional form for
+		// phosphorus while failing to reject it for nitrogen, which is the
+		// control that makes the phosphorus result mean something. And the
+		// constant is applied to a window endpoint where both papers measure a
+		// tissue mean, so what canexch.cpp applies to sapwood P demand is
+		// ctop_sap_avr / ctop_leaf_avr = 15.30, not 6.9. That last one is in the
+		// nitrogen limits too, at 12.36 against a sourced 6.897, so it cannot be
+		// settled for phosphorus alone.
 		//
 		// PCONC_SAT is the litter-P saturation threshold and carries
 		// NCONC_SAT's value exactly. Parton, Stewart and Cole (1988), which
@@ -1318,8 +1328,11 @@ void plib_callback(int callback) {
 		// and WORLD-16PB; the evidence is in
 		// biosphere/notes/phosphorus-cycle-parameterisation.md.
 		if (ifplim) {
-			sendmessage("Error", "ifplim 1 is refused: PFRAC_LEAFTOSAP in guess.h has no "
-				"phosphorus derivation; PCONC_SAT in somdynam.cpp still carries nitrogen's "
+			sendmessage("Error", "ifplim 1 is refused: PFRAC_LEAFTOSAP in guess.h is a "
+				"nitrogen ratio for sapwood plus bark, the one phosphorus measurement of "
+				"wood against leaf rejects its proportional form, and it is applied to a "
+				"window endpoint so sapwood P demand carries 15.30 rather than the 6.9 the "
+				"constant names; PCONC_SAT in somdynam.cpp still carries nitrogen's "
 				"saturation value and has no phosphorus source; PMASS_SAT is its source's "
 				"value but reads a labile P pool its source did not define, so the soil C:P "
 				"ramp saturates everywhere; and the surface humus P:C ratchets downward "
