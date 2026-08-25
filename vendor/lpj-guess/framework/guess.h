@@ -577,6 +577,34 @@ public:
 		}
 	}
 
+	/// Place the date on a given day of a given simulation year
+	/** For a run resuming from a state file at an arbitrary simulated day. The
+	 *  flags are set to the same values next() would have left them at on the
+	 *  way to this day, so a resumed run steps the same state machine as an
+	 *  uninterrupted one rather than a parallel one.
+	 *
+	 *  \param newyear  simulation year to resume in
+	 *  \param newday   julian day within it (0 = the first day of the year)
+	 */
+	void set_day(int newyear, int newday) {
+		year = newyear;
+		day = newday;
+		month = 0;
+		dayofmonth = newday;
+		while (month < 11 && dayofmonth >= ndaymonth[month]) {
+			dayofmonth -= ndaymonth[month];
+			month++;
+		}
+		islastmonth = (month == 11);
+		// next() tests ismidday first and only tests islastday when that fails,
+		// so a month whose midpoint IS its last day never sets islastday. Mirror
+		// that here rather than correcting it: a resumed run has to reproduce the
+		// uninterrupted run's flags, including where they are surprising.
+		ismidday = (dayofmonth == ndaymonth[month] / 2);
+		islastday = (!ismidday && dayofmonth == ndaymonth[month] - 1);
+		if (year >= nyear - 1) islastyear = true;
+	}
+
 	// \returns index (0-11) of previous month (11 if currently month 0).
 	int prevmonth() {
 		if (month > 0) return month - 1;

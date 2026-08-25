@@ -1,0 +1,113 @@
+# The Soil class against Soil::serialize, member by member.
+#
+# Worldbuilding frame: this is a classification of the Vesper project's
+# vegetation model source. Nothing here is a claim about the simulated planet.
+#
+# `Soil::serialize` in vendor/lpj-guess/modules/soil.cpp is the whole of what a
+# restarted column inherits. Every member of the class that it does NOT stream
+# is listed here in exactly one class, with the file:line that settles it.
+# biosphere/scripts/soil_restart_state_gate.py parses the class body in
+# vendor/lpj-guess/framework/guess.h and the serialize block against this file
+# and refuses if any member is unclassified, if a classified member turns out to
+# be serialized after all, or if `lost` is not empty.
+#
+# The point of writing the recomputed ones down is that they stay written down.
+# The sweep that produced this list found five members worth carrying and
+# sixty-five that would have been bytes changing no result, and without the
+# record the next sweep re-derives all seventy.
+#
+# The argument, and what each class means, is in
+# biosphere/notes/soil-restart-state.md.
+
+# Read before it is written on the first resumed day: state a restart does not
+# carry and the model then needs. The gate refuses while this is non-empty. It
+# is the place a future finding goes, not a list of accepted defects.
+lost: {}
+
+# Written from serialized state, or from a compile-time constant, before the
+# member's first read on any simulated day. Serializing one of these would add
+# state-file bytes that change no result.
+recomputed:
+  # Soil temperature and its layer properties. soil_temp_multilayer has an
+  # explicit restart branch, upstream's own, that recomputes exactly these.
+  T: "vendor/lpj-guess/modules/soil.cpp:3676 T[i] = T_soil[i] for every active layer, before the reads at :3699 and :3708"
+  T_soil: "vendor/lpj-guess/modules/soil.cpp:2836 update_from_yesterday copies the serialized T_soil_yesterday, called on the restart path at :3524"
+  temp_analyticsoln: "vendor/lpj-guess/modules/soil.cpp:414 and :449, both branches of soil_temp_analytic, called unconditionally from driver.cpp:919"
+  Di: "vendor/lpj-guess/modules/soil.cpp:3514 reset for every layer at the top of each daily soil_temp_multilayer"
+  Ci: "vendor/lpj-guess/modules/soil.cpp:3515 reset for every layer at the top of each daily soil_temp_multilayer"
+  Ki: "vendor/lpj-guess/modules/soil.cpp:3516 reset for every layer at the top of each daily soil_temp_multilayer"
+  lKorg: "vendor/lpj-guess/modules/soil.cpp:3492 log of a compile-time conductivity, recomputed in the restart branch"
+  lKpeat: "vendor/lpj-guess/modules/soil.cpp:3493 log of a compile-time conductivity, recomputed in the restart branch"
+  lKmin: "vendor/lpj-guess/modules/soil.cpp:3494 log of a compile-time conductivity, recomputed in the restart branch"
+  lKwater: "vendor/lpj-guess/modules/soil.cpp:3495 log of a compile-time conductivity, recomputed in the restart branch"
+  lKice: "vendor/lpj-guess/modules/soil.cpp:3496 log of a compile-time conductivity, recomputed in the restart branch"
+  lKair: "vendor/lpj-guess/modules/soil.cpp:3497 log of a compile-time conductivity, recomputed in the restart branch"
+  ngroundl: "vendor/lpj-guess/modules/soil.cpp:3499 set from the stand type in the restart branch, before the validity test at :3505"
+  firstTempCalc: "vendor/lpj-guess/modules/soil.cpp:3490, :3331 and :3524 are upstream's restart branches; every block this flag guards tests `restart` or `first_year == date.year` alongside it, so a resumed column takes the restart arm and not the cold-start arm"
+  por: "vendor/lpj-guess/modules/soil.cpp:3331 the restart arm of update_layer_fractions rewrites it from soiltype, and :3218 the peat arm rewrites it from constants"
+  Frac_org: "vendor/lpj-guess/modules/soil.cpp:3331 restart arm of update_layer_fractions"
+  Frac_min: "vendor/lpj-guess/modules/soil.cpp:3331 restart arm of update_layer_fractions"
+  Frac_peat: "vendor/lpj-guess/modules/soil.cpp:3368 set to zero for every layer in the restart arm; the peat arm at :3222 sets it from constants"
+  Fpwp_ref: "vendor/lpj-guess/modules/soil.cpp:3331 restart arm of update_layer_fractions"
+  # Geometry and layer indices. Constants, or recomputed every day.
+  acro_depth: "vendor/lpj-guess/modules/soil.cpp:283 NACROTELM * Dz_acro, compile-time constants, set in init_states"
+  cato_depth: "vendor/lpj-guess/modules/soil.cpp:284 SOILDEPTH_UPPER + SOILDEPTH_LOWER - acro_depth, compile-time constants"
+  acro_por: "vendor/lpj-guess/modules/soil.cpp:185 acrotelm_por - Fgas, compile-time constants"
+  cato_por: "vendor/lpj-guess/modules/soil.cpp:186 catotelm_por - Fgas, compile-time constants"
+  nsublayer1: "vendor/lpj-guess/modules/soil.cpp:275 SOILDEPTH_UPPER / Dz_soil, compile-time constants"
+  nsublayer2: "vendor/lpj-guess/modules/soil.cpp:276 SOILDEPTH_LOWER / Dz_soil, compile-time constants"
+  num_evaplayers: "vendor/lpj-guess/modules/soil.cpp:277 SOILDEPTH_EVAP / Dz_soil, compile-time constants"
+  IDX: "vendor/lpj-guess/modules/soil.cpp:3538 recomputed from ngroundl every day, before every array access taken through it"
+  MIDX: "vendor/lpj-guess/modules/soil.cpp:3539 recomputed from ngroundl every day"
+  SIDX: "vendor/lpj-guess/modules/soil.cpp:3577 recomputed from ngroundl and the active snow layers every day"
+  # Hydrology.
+  alwhc_init: "vendor/lpj-guess/modules/soil.cpp:2705 init_hydrology_variables, which the guard at :3589 now also enters on the restart path"
+  sub_water: "vendor/lpj-guess/modules/soil.cpp:1637 and :1639 write every sublayer in hydrology_peat before the read at :1654"
+  rain_melt: "vendor/lpj-guess/modules/soilwater.cpp:77 snow() rewrites it from today's precipitation and melt, before the reads in soil.cpp"
+  max_rain_melt: "vendor/lpj-guess/modules/soilwater.cpp:187 set from rain_melt in initial_infiltration, which framework.cpp:108 runs before soilwater"
+  percolate: "vendor/lpj-guess/modules/soilwater.cpp:186 recomputed daily from rain_melt"
+  snowdens: "vendor/lpj-guess/modules/soil.cpp:2864 update_snow_properties derives it from the serialized snow_active, snow_days and snow_days_prev; the early return at :2860 skips the write only while the snowpack is under a millimetre"
+  # Methane and gas. The `_yesterday` copies ARE the carried state and today's
+  # values are derived from them; the asymmetry is the design, not an omission.
+  CH4: "vendor/lpj-guess/modules/soilmethane.cpp:998 CH4[ii] = CH4_yesterday[ii] + CH4_prod[ii], from the serialized yesterday copy"
+  CH4_prod: "vendor/lpj-guess/modules/soilmethane.cpp:990 and :992 write both arms before the read at :994"
+  CH4_diss: "vendor/lpj-guess/modules/soilmethane.cpp:741, :769 and :775 write it on every path through calculate_gas_ebullition, from the serialized CH4_diss_yesterday"
+  CO2_soil: "vendor/lpj-guess/modules/soilmethane.cpp:1008 CO2_soil[ii] = CO2_soil_yesterday[ii] + CO2_soil_prod[ii], and :1170 zeroes the array at the end of every methane day"
+  CO2_soil_prod: "vendor/lpj-guess/modules/soilmethane.cpp:1003 unconditional daily rewrite before the reads at :1004 and :1008"
+  volume_liquid_water: "vendor/lpj-guess/modules/soilmethane.cpp:950 written for every active layer from the serialized Frac_water and Frac_water_belowpwp, before the first read at :455"
+  total_volume_water: "vendor/lpj-guess/modules/soilmethane.cpp:951 same step-1 write, before the first read at :437"
+  tiller_area: "vendor/lpj-guess/modules/soilmethane.cpp:602 calculate_tiller_areas rewrites every layer from live vegetation, called at :1050 before the reads at :651 and :1133"
+  k_O2: "vendor/lpj-guess/modules/soilmethane.cpp:358 update_daily_gas_parameters, called at :963 before the reads at :1041 and :1056"
+  k_CH4: "vendor/lpj-guess/modules/soilmethane.cpp:367 update_daily_gas_parameters, called at :963 before the reads at :1068 and :1133"
+  Ceq_O2: "vendor/lpj-guess/modules/soilmethane.cpp:389 update_daily_gas_parameters, called at :963 before the reads at :1041 and :1056"
+  Ceq_CH4: "vendor/lpj-guess/modules/soilmethane.cpp:402 update_daily_gas_parameters, called at :963 before the reads at :1068 and :1133"
+  dcflux_soil: "vendor/lpj-guess/modules/somdynam.cpp:1175 som_dynamics writes it, and framework.cpp:123 runs som_dynamics before methane_dynamics at :126"
+  # The wet/dry split of the nitrogen pools. Reconstructed from the serialized
+  # totals at the top of every ntransform call.
+  NH4_mass_w: "vendor/lpj-guess/modules/ntransform.cpp:208 substrate_partition sets it from the serialized NH4_mass, before the read at :543"
+  NH4_mass_d: "vendor/lpj-guess/modules/ntransform.cpp:215 total minus the wet share, before the read at :321"
+  NO3_mass_w: "vendor/lpj-guess/modules/ntransform.cpp:209 from the serialized NO3_mass, before the read at :415"
+  NO3_mass_d: "vendor/lpj-guess/modules/ntransform.cpp:216 total minus the wet share, before the read at :361"
+  NO2_mass_w: "vendor/lpj-guess/modules/ntransform.cpp:210 from the serialized NO2_mass, before the read at :436"
+  NO2_mass_d: "vendor/lpj-guess/modules/ntransform.cpp:217 total minus the wet share, before the read at :363"
+  NO_mass_w: "vendor/lpj-guess/modules/ntransform.cpp:212 from the serialized NO_mass, before the read at :523"
+  NO_mass_d: "vendor/lpj-guess/modules/ntransform.cpp:219 total minus the wet share, before the read at :512"
+  N2O_mass_w: "vendor/lpj-guess/modules/ntransform.cpp:211 from the serialized N2O_mass, before the read at :527"
+  N2O_mass_d: "vendor/lpj-guess/modules/ntransform.cpp:218 total minus the wet share, before the read at :516"
+  labile_carbon_w: "vendor/lpj-guess/modules/ntransform.cpp:213 from the serialized labile_carbon, before the read at :412"
+  labile_carbon_d: "vendor/lpj-guess/modules/ntransform.cpp:220 total minus the wet share, before the read at :494"
+
+# Written and read within one simulated day for reporting, or never read at all.
+# A difference in one of these is a difference in what the run says about
+# itself, not in what it simulates next.
+diagnostic:
+  firstHydrologyCalc: "vendor/lpj-guess/modules/soil.cpp:1773 is the only occurrence outside the declaration and init_states: the flag is cleared and never tested. Nothing branches on it"
+  SIDX_old: "vendor/lpj-guess/modules/soil.cpp:3602 and :3627 are the only writes and there is no read anywhere in the tree"
+  CH4_oxid: "vendor/lpj-guess/modules/soilmethane.cpp:1098 written for every active layer before the reads at :1099, :1100 and :1102, all within the same day"
+  CH4_ebull_ind: "vendor/lpj-guess/modules/soilmethane.cpp:732 zeroed and :753 written, consumed at :759 into the same day's ebullition total"
+  CH4_ebull_vol: "vendor/lpj-guess/modules/soilmethane.cpp:751 written and :753 read, two lines apart in one branch"
+  CH4_gas: "vendor/lpj-guess/modules/soilmethane.cpp:743 written before the reads at :744 and :763; the copy-out at :1218 feeds CH4_gas_yesterday, which nothing reads"
+  CH4_vgc: "vendor/lpj-guess/modules/soilmethane.cpp:745 written before the reads at :749 to :754, all in one branch of one day"
+  k_CO2: "vendor/lpj-guess/modules/soilmethane.cpp:376 written daily and never read: :1166 replaces the CO2 diffusion step with co2_store"
+  Ceq_CO2: "vendor/lpj-guess/modules/soilmethane.cpp:396 written daily and never read, for the same reason as k_CO2"
+  litterSolveSOM: "vendor/lpj-guess/modules/somdynam.cpp:1644 flushes it into the serialized solvesom on the first day of each month and :1645 clears it; every write is guarded on the equilsom window, which soil.cpp:145 closes before any post-spinup save point"

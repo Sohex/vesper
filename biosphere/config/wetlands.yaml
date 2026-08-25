@@ -69,16 +69,21 @@ hydrology:
   # A fixture that stops a run, resumes it, and requires the resumed state to
   # reproduce the uninterrupted one exactly. WET-3.
   restart_continuity_fixture: >-
-    biosphere/scripts/verify_lpj_restart_continuity.py, comparing a whole run
-    against one split at a simulated year boundary, table for table and row for
-    row, over every year from the restart point. The boundary is where it is
-    because framework/framework.cpp serializes exactly once, at the end of year
-    state_year - 1, and a restarted run resumes at day 0 of state_year and can
-    never reach that save point again: neither a mid-year stop nor ExoPlaSim's
-    zero-step round trip is expressible in this model, and WORLD-FUJ4 owns
-    giving it one. The fixture has not been RUN, because no compiled model or
-    built forcing exists until a baseline climatology does, and it exits saying
-    so rather than reporting a pass it did not earn.
+    biosphere/scripts/verify_lpj_restart_continuity.py, in three modes. The
+    default compares a whole run against one split at a simulated year boundary,
+    table for table and row for row, over every year from the restart point.
+    --one-day splits at an arbitrary simulated DAY and compares the two runs'
+    state files one day later, so state the serializer drops shows up as bytes
+    that differ after a single day rather than as a year of divergence.
+    --round-trip writes the state again with no day in between, which names what
+    the write and read of a state file does not carry. The last two exist
+    because WORLD-FUJ4 gave framework/framework.cpp a save point the caller can
+    place on any simulated day, and a restart that resumes on it; before that it
+    serialized exactly once, at the end of year state_year - 1, a restarted run
+    resumed at day 0 of state_year and could never reach that save point again,
+    and no run could both restart and save. No mode has been RUN, because no
+    compiled model or built forcing exists until a baseline climatology does,
+    and each exits saying so rather than reporting a pass it did not earn.
 
   # The prognostic peat-hydrology members the serializer must carry before an
   # arbitrary-day restart means anything. The gate reads Soil::serialize and
@@ -91,6 +96,23 @@ hydrology:
     - mwtp
     - Frac_ice
     - rootfrac
+    # The three quantities canopy_exchange reads on the day BEFORE the one that
+    # writes them: simulate_day runs it ahead of soilwater, so the simulated
+    # moss and graminoid photosynthesis of any day uses the water-table limits
+    # and the acrotelm CO2 hydrology_peat left yesterday. acro_co2 became a live
+    # difference rather than a latent one when WORLD-C4J8 unpinned awtp.
+    - acro_co2
+    - dmoss_wtp_limit
+    - dgraminoid_wtp_limit
+    # The annual accumulators. A restart at day 0 rebuilds all four before
+    # anything reads them; at any other day dec_snowdepth bars establishment,
+    # dthaw shortens GLOBFIRM's fire season, and mthaw and
+    # maxthawdepththisyear report a partial year as a whole one. WORLD-FUJ4
+    # made that restart expressible.
+    - dec_snowdepth
+    - dthaw
+    - mthaw
+    - maxthawdepththisyear
 
 # WET-2, and the support question WORLD-D9U4 owns. A saturated fraction is a
 # fraction of a POPULATION, and the only population this project holds is the

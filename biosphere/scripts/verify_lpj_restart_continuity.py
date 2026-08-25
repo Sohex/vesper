@@ -23,17 +23,40 @@ surface and no pore ice, whatever the run it continued had ended with.
 reads the serializer statically; this is the other half, and it is the half that
 can fail on behaviour.
 
-WHY IT IS A YEAR BOUNDARY AND NOT MID-YEAR. LPJ-GUESS serializes exactly once,
-at the end of simulation year `state_year - 1`, and a restarted run sets
-`date.year = state_year` and begins at day 0. `framework/framework.cpp` has no
-other save point, and a restarted run can never reach `state_year - 1` again, so
-neither a mid-year stop nor ExoPlaSim's zero-step round trip is expressible
-here: there is no second state file to compare the first against. The year
-boundary is what the model has, and it is enough, because `state_year` is the
-first simulated year every unserialized quantity can differ in. Giving this
-model a mid-year save point, and with it the zero-step round trip that names a
-lost quantity directly instead of reporting a year of divergence, is
-WORLD-FUJ4.
+THREE MODES, and the last two localise what the first only detects.
+
+  default       two runs of `--nyear` years, one whole and one split at the
+                year boundary before `--state-year`, compared over their OUTPUT
+                TABLES from that year on. This is the property every continued
+                run depends on and it is what fails first, but a lost quantity
+                reaches it as a whole simulated year of divergence.
+  --one-day     split at an arbitrary simulated day instead. Both arms write a
+                state file for the END of the SAME day, one simulated day after
+                the split, and the two files are compared byte for byte. One day
+                of arithmetic separates the branch from the comparison, so what
+                differs is what that one day did differently, not a year of
+                accumulated consequence.
+  --round-trip  restart from a state file and write the state again with NO
+                simulated day in between. Nothing integrates between the two
+                files, so every difference is something the write-and-read of a
+                state file does not carry.
+
+WHAT --round-trip CAN AND CANNOT SEE, stated because the answer is not the same
+as it is for the climate model. A record ExoPlaSim writes and then overwrites on
+the restart path shows up there; `world-8yyh` was found exactly that way. A Soil
+member LPJ-GUESS omits from `Soil::serialize` entirely cannot show up here,
+because it is absent from both files. So --round-trip is the check on the
+serializer's own symmetry, and --one-day is the check that names lost state: one
+simulated day is the shortest interval in which a member the restart did not
+carry can reach a member it did.
+
+WHY THIS WAS ONCE A YEAR BOUNDARY. LPJ-GUESS serialized exactly once, at the end
+of simulation year `state_year - 1`; a restarted run resumed at day 0 of
+`state_year` and could never reach that save point again, and a run could not
+both restart and save. There was no second state file to compare the first
+against. WORLD-FUJ4 gave `framework/framework.cpp` a save point the caller
+places on any simulated day (`state_day`), a save point separable from the
+restart point (`save_year`, `save_day`), and permission to do both in one run.
 
 WHAT IT NEEDS. A compiled `guess`, a driver, a soil map and a PFT file: the same
 inputs `run_lpj_guess.py` needs. None of them exists until a baseline
@@ -53,8 +76,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from _paths import (GENERATED, GUESS_BINARY, GUESS_SOURCE,  # noqa: E402
+import yaml  # noqa: E402
+
+from _paths import (CONFIG, GENERATED, GUESS_BINARY, GUESS_SOURCE,  # noqa: E402
                     PROJECT_ROOT, RUNS)
+
+from orbit import model_year_days  # lib/orbit.py, the year length  # noqa: E402
 
 import run_lpj_guess  # noqa: E402
 import wetland_gate  # noqa: E402
@@ -62,13 +89,21 @@ import wetland_gate  # noqa: E402
 # The serialization block plib takes as the later declaration. `state_path` is
 # absolute for the reason every other path in a generated instruction file is:
 # each rank chdirs into its own directory before reading anything.
+#
+# state_day and save_day name the LAST simulated day the state covers, -1 being
+# the year boundary and the default this model had before WORLD-FUJ4. A run
+# resumes on the day after state_year/state_day and writes its own state at the
+# end of save_year/save_day.
 SERIALIZATION = """
-! Restart continuity fixture. save_state writes at the END of year
-! state_year - 1; restart jumps date.year to state_year and starts at day 0.
+! Restart continuity fixture.
 state_year {state_year}
+state_day {state_day}
+save_year {save_year}
+save_day {save_day}
 save_state {save_state}
 restart {restart}
 state_path "{state_path}"
+save_path "{save_path}"
 """
 
 
@@ -85,7 +120,9 @@ def missing_inputs(driver: Path, soilmap: Path, pfts: Path) -> list[str]:
 
 
 def build_bed(bed: Path, paths: dict, settings: dict, state_dir: Path,
-              state_year: int, save_state: int, restart: int) -> Path:
+              state_year: int, save_state: int, restart: int,
+              state_day: int = -1, save_year: int | None = None,
+              save_day: int | None = None, save_dir: Path | None = None) -> Path:
     """One runnable directory, and the instruction file it runs."""
     bed.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(paths["pfts_source"], bed / "vesper_pfts.ins")
@@ -95,10 +132,67 @@ def build_bed(bed: Path, paths: dict, settings: dict, state_dir: Path,
     instruction = bed / "run.ins"
     instruction.write_text(
         run_lpj_guess.build_instruction(paths, settings)
-        + SERIALIZATION.format(state_year=state_year, save_state=save_state,
-                               restart=restart,
-                               state_path=state_dir.resolve()))
+        + SERIALIZATION.format(
+            state_year=state_year, state_day=state_day,
+            save_year=state_year if save_year is None else save_year,
+            save_day=state_day if save_day is None else save_day,
+            save_state=save_state, restart=restart,
+            state_path=state_dir.resolve(),
+            save_path=(state_dir if save_dir is None else save_dir).resolve()))
     return instruction
+
+
+def state_files(state_dir: Path) -> list[Path]:
+    """The per-rank state files, in a stable order, excluding the metadata."""
+    return sorted(p for p in state_dir.iterdir()
+                  if p.is_file() and p.name != "meta.bin")
+
+
+def compare_states(left: Path, right: Path, label_left: str,
+                   label_right: str) -> list[str]:
+    """Every way two state directories fail to hold the same bytes.
+
+    Byte equality, not a tolerance. Both directories were written by the same
+    executable from the same forcing at the same simulated instant, so anything
+    but identical bytes is a different simulated state.
+
+    The offset of the first difference is reported because it is the only handle
+    this format gives on WHICH member differs: the archive is an untagged stream
+    of raw object bytes in the order `serialize` writes them, with no names and
+    no record boundaries. It locates a difference; it does not name one. Naming
+    it is what `biosphere/config/soil_restart_state.yaml` and the daily output
+    tables are for.
+    """
+    failures: list[str] = []
+    left_files = state_files(left)
+    right_files = state_files(right)
+    if not left_files or not right_files:
+        failures.append(
+            f"no state files: {label_left} wrote {len(left_files)}, "
+            f"{label_right} wrote {len(right_files)}")
+        return failures
+    if [p.name for p in left_files] != [p.name for p in right_files]:
+        failures.append(
+            f"the two arms wrote different state files: "
+            f"{[p.name for p in left_files]} against "
+            f"{[p.name for p in right_files]}")
+        return failures
+
+    for a, b in zip(left_files, right_files):
+        first, second = a.read_bytes(), b.read_bytes()
+        if first == second:
+            continue
+        if len(first) != len(second):
+            failures.append(
+                f"{a.name}: {len(first)} bytes in {label_left} against "
+                f"{len(second)} in {label_right}")
+            continue
+        offset = next(i for i, (x, y) in enumerate(zip(first, second)) if x != y)
+        differing = sum(1 for x, y in zip(first, second) if x != y)
+        failures.append(
+            f"{a.name}: {differing} of {len(first)} bytes differ, first at "
+            f"offset {offset}")
+    return failures
 
 
 def run_bed(instruction: Path, ranks: int, tables: tuple[str, ...]) -> None:
@@ -196,6 +290,17 @@ def main() -> None:
     parser.add_argument("--state-year", type=int, default=8,
                         help="the year the split run resumes at; the first "
                              "year the two runs are compared over")
+    parser.add_argument("--state-day", type=int, default=None,
+                        help="the simulated day within --state-year the split "
+                             "is taken at, for --one-day and --round-trip. "
+                             "Default: the middle of the year, which is the one "
+                             "day of it that is neither the reset nor the flush")
+    parser.add_argument("--one-day", action="store_true",
+                        help="instead: split at --state-day and compare the two "
+                             "arms' STATE FILES one simulated day later")
+    parser.add_argument("--round-trip", action="store_true",
+                        help="instead: restart at --state-day and write the "
+                             "state again with NO simulated day in between")
     parser.add_argument("--ranks", type=int, default=4)
     parser.add_argument("--npatch", type=int, default=5)
     parser.add_argument("--bed", type=Path, default=None,
@@ -213,6 +318,13 @@ def main() -> None:
             f"--state-year {args.state_year} has to fall inside the run: a "
             "restart at year 0 continues nothing and a restart at the last "
             "year compares nothing.")
+
+    if args.one_day and args.round_trip:
+        raise SystemExit(
+            "--one-day and --round-trip are two different questions: one asks "
+            "what a simulated day did differently either side of a restart, the "
+            "other asks what the write and read of a state file does not carry. "
+            "Ask one.")
 
     if args.soilmap is None:
         import builds
@@ -239,7 +351,8 @@ def main() -> None:
     bed_root = args.bed or (RUNS / "restart_continuity")
     whole, resumed = bed_root / "whole", bed_root / "resumed"
     state_dir = bed_root / "state"
-    for path in (whole, resumed):
+    whole_state = bed_root / "state_whole"
+    for path in (whole, resumed, bed_root / "continued"):
         if path.exists():
             raise SystemExit(f"{path} exists; remove it before re-running")
     state_dir.mkdir(parents=True, exist_ok=True)
@@ -254,22 +367,96 @@ def main() -> None:
                 "nfix_a": 0.234, "nfix_b": -0.172, "ifbvoc": 0,
                 "outputs": tables, **wetland_gate.switches(active)}
 
-    run_bed(build_bed(whole, paths_for(whole),
-                      {**settings, "title": "restart_continuity_whole"},
-                      state_dir, args.state_year, 1, 0), args.ranks, tables)
-    run_bed(build_bed(resumed, paths_for(resumed),
-                      {**settings, "title": "restart_continuity_resumed"},
-                      state_dir, args.state_year, 0, 1), args.ranks, tables)
+    # The default split day. The middle of the simulation year is chosen before
+    # any result is seen and for a stated reason: day 0 is where every annual
+    # accumulator resets and the last day is where they flush, so both are days
+    # on which a member that is lost the rest of the year looks carried.
+    split_day = (args.state_day if args.state_day is not None
+                 else model_year_days(yaml.safe_load(CONFIG.read_text())) // 2)
+    mode = ("round-trip" if args.round_trip
+            else "one-day" if args.one_day else "annual")
 
-    failures = compare(whole, resumed, args.state_year, tables)
+    if mode == "annual":
+        run_bed(build_bed(whole, paths_for(whole),
+                          {**settings, "title": "restart_continuity_whole"},
+                          state_dir, args.state_year, 1, 0), args.ranks, tables)
+        run_bed(build_bed(resumed, paths_for(resumed),
+                          {**settings, "title": "restart_continuity_resumed"},
+                          state_dir, args.state_year, 0, 1), args.ranks, tables)
+        failures = compare(whole, resumed, args.state_year, tables)
+        headline = (f"{args.nyear} simulated years whole against a resume at "
+                    f"year {args.state_year}; {len(tables)} tables compared")
+        verdict = ("The resumed run is not the run it continues. Every "
+                   "difference above is simulated state the serializer does "
+                   "not carry.")
+
+    elif mode == "round-trip":
+        # One arm writes the state at the end of `split_day`. The other reads
+        # that state and writes it straight back out, having simulated nothing.
+        run_bed(build_bed(whole, paths_for(whole),
+                          {**settings, "title": "restart_round_trip_written"},
+                          state_dir, args.state_year, 1, 0,
+                          state_day=split_day), args.ranks, tables)
+        whole_state.mkdir(parents=True, exist_ok=True)
+        run_bed(build_bed(resumed, paths_for(resumed),
+                          {**settings, "title": "restart_round_trip_rewritten"},
+                          state_dir, args.state_year, 1, 1,
+                          state_day=split_day,
+                          save_dir=whole_state), args.ranks, tables)
+        failures = compare_states(state_dir, whole_state,
+                                  "written", "rewritten")
+        headline = (f"restart round trip at year {args.state_year} day "
+                    f"{split_day}: written against rewritten, no simulated day "
+                    "in between")
+        verdict = ("A difference here is state the write and read of a state "
+                   "file does not carry. It cannot be a member Soil::serialize "
+                   "omits entirely -- such a member is absent from both files "
+                   "-- so it is one the deserialize path reads and then "
+                   "overwrites.")
+
+    else:
+        # Both arms write the state for the END of the same simulated day. The
+        # whole arm reaches it uninterrupted; the split arm reaches it one day
+        # after resuming from the state written the day before.
+        whole_state.mkdir(parents=True, exist_ok=True)
+        run_bed(build_bed(whole, paths_for(whole),
+                          {**settings, "title": "restart_one_day_whole"},
+                          whole_state, args.state_year, 1, 0,
+                          state_day=split_day + 1), args.ranks, tables)
+        run_bed(build_bed(resumed, paths_for(resumed),
+                          {**settings, "title": "restart_one_day_split"},
+                          state_dir, args.state_year, 1, 0,
+                          state_day=split_day), args.ranks, tables)
+        continued = bed_root / "continued"
+        continued_state = bed_root / "state_continued"
+        continued_state.mkdir(parents=True, exist_ok=True)
+        run_bed(build_bed(continued, paths_for(continued),
+                          {**settings, "title": "restart_one_day_continued"},
+                          state_dir, args.state_year, 1, 1,
+                          state_day=split_day,
+                          save_year=args.state_year,
+                          save_day=split_day + 1,
+                          save_dir=continued_state), args.ranks, tables)
+        failures = compare_states(whole_state, continued_state,
+                                  "whole", "split")
+        headline = (f"one simulated day either side of a restart at year "
+                    f"{args.state_year} day {split_day}: state at the end of "
+                    f"day {split_day + 1}, whole against split")
+        verdict = ("The two arms are in different simulated states one day "
+                   "after the split. One day of arithmetic separates the branch "
+                   "from this comparison, so what differs is what that day did "
+                   "differently -- state the serializer did not carry reaching "
+                   "state it did.")
 
     report = {
         "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "generator": "biosphere/scripts/verify_lpj_restart_continuity.py",
+        "mode": mode,
         "nyear": args.nyear, "state_year": args.state_year,
+        "state_day": split_day if mode != "annual" else None,
         "ranks": args.ranks, "npatch": args.npatch,
         "wetlands_active": active,
-        "tables_compared": list(tables),
+        "tables_compared": list(tables) if mode == "annual" else [],
         "continuous": not failures,
         "failures": failures,
     }
@@ -277,14 +464,12 @@ def main() -> None:
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(report, indent=2) + "\n")
 
-    print(f"{args.nyear} simulated years whole against a resume at year "
-          f"{args.state_year}; {len(tables)} tables compared")
+    print(headline)
     for failure in failures:
         print(f"  {failure}")
     print(f"\nwrote {rel(out)}")
     if failures:
-        print("\nThe resumed run is not the run it continues. Every difference "
-              "above is simulated state the serializer does not carry.")
+        print(f"\n{verdict}")
         sys.exit(1)
 
 

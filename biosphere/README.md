@@ -454,20 +454,54 @@ python biosphere/scripts/wetland_gate.py --check-run runs/<id> # accept or rejec
 ```
 
 `verify_lpj_restart_continuity.py` is the behavioural half of the last of those
-four, where the serializer probe is the static half. It runs the same forcing
-twice, once whole and once split at a simulated year boundary, and requires the
-resumed run to reproduce the uninterrupted one table for table and row for row
-over every year from the restart point. The boundary is a year boundary because
-`framework.cpp` serializes exactly once, at the end of year `state_year - 1`,
-and a restarted run resumes at day 0 of `state_year` and can never reach that
-save point again -- so neither a mid-year stop nor the zero-step round trip that
-found `world-8yyh` in the climate model is expressible here, and WORLD-FUJ4 owns
-giving this model a save point that would make them expressible. It needs a
-compiled model and a built forcing and exits naming what is missing rather than
-reporting a pass it did not earn.
+four, where the two serializer probes are the static half. It runs the same
+forcing twice and requires the resumed run to reproduce the uninterrupted one,
+in three modes. The default splits at a simulated year boundary and compares the
+output tables from the restart point on. `--one-day` splits at an arbitrary
+simulated DAY and compares the two runs' state files one day later, so state the
+serializer drops appears as bytes that differ after a single day rather than as
+a year of divergence. `--round-trip` writes the state again with no simulated
+day in between, which names what the write and read of a state file does not
+carry -- the form that found `world-8yyh` in the climate model. The last two
+exist because WORLD-FUJ4 gave `framework.cpp` a save point the caller can place
+on any simulated day, a restart that resumes on it, and permission to do both in
+one run; before that it serialized exactly once, at the end of year
+`state_year - 1`. All three need a compiled model and a built forcing and exit
+naming what is missing rather than reporting a pass they did not earn.
 
 ```bash
 python biosphere/scripts/verify_lpj_restart_continuity.py --nyear 12 --state-year 8
+python biosphere/scripts/verify_lpj_restart_continuity.py --one-day --state-year 8 --state-day 120
+python biosphere/scripts/verify_lpj_restart_continuity.py --round-trip --state-year 8 --state-day 120
+```
+
+### What a restarted soil column inherits
+
+`soil_restart_state_gate.py` holds the other static half, and it covers the
+whole Soil class rather than the peat hydrology alone. `Soil::serialize` is
+everything a resumed column gets, and a member the class declares that the
+serializer does not stream is either state the restart drops or something the
+model rebuilds before it reads it -- indistinguishable in a diff, and the
+difference is the whole question. `biosphere/config/soil_restart_state.yaml`
+classifies every absent member as rebuilt-before-first-read, diagnostic, or
+lost, each with the file:line that settles it, and the gate parses both the
+class body and the serialize block and refuses on a member nothing accounts for,
+on a classification the serializer now contradicts, on a name the class has
+dropped, on a classification carrying no evidence, and on a non-empty `lost`
+block. Six fixtures built to be wrong in a named way run every time, plus the
+live declaration, which must be granted.
+
+Writing the rebuilt ones down is the point. The sweep behind the current
+classification found a handful worth carrying and sixty-odd that would have been
+state-file bytes changing no result, and without the record the next sweep
+re-derives all of them. A member added to the Soil class lands unclassified and
+stays there until someone decides what it is.
+`biosphere/notes/soil-restart-state.md` argues the classes and carries the
+findings.
+
+```bash
+python biosphere/scripts/soil_restart_state_gate.py
+python biosphere/scripts/soil_restart_state_gate.py --list-unclassified
 ```
 
 `run_lpj_guess.py` asks the gate and writes all four switches into the

@@ -738,6 +738,28 @@ steps:
       0, because a biosphere run with peat and methane off is a correct run.
       `lpj_run` needs it so the refusal sits on the path rather than beside it.
 
+  - id: soil_restart_state_gate
+    script: biosphere/scripts/soil_restart_state_gate.py
+    loop: B
+    cost: seconds
+    needs: []
+    writes: [biosphere/generated/soil_restart_state_report.json]
+    gate: >
+      what a restarted soil column inherits. Soil::serialize is the whole of it,
+      and a member of the Soil class absent from that block is either state the
+      restart drops or something the model rebuilds before it reads it -- the
+      two are indistinguishable in a diff. It parses the class body in
+      framework/guess.h and the serialize block in modules/soil.cpp against
+      biosphere/config/soil_restart_state.yaml, which classifies every absent
+      member with the file:line that settles it, and refuses on a member nothing
+      accounts for, on a classification the serializer now contradicts, on a
+      name the class has dropped, on a classification carrying no evidence, and
+      on a non-empty `lost` block. Six fixtures built to be wrong in a named way
+      run on every invocation, plus the live declaration, which must be granted.
+      A member added to the Soil class lands unclassified and stays there, which
+      is what keeps the sweep from having to be argued again. `lpj_run` needs it
+      so the refusal sits on the path rather than beside it.
+
   - id: ntransform_gate
     script: biosphere/scripts/ntransform_gate.py
     loop: B
@@ -845,7 +867,7 @@ steps:
     script: biosphere/scripts/run_lpj_guess.py
     loop: B
     cost: hours
-    needs: [lpj_driver, bvoc_gate, abiotic_nutrient_ledger, ntransform_gate, mineral_reactivity_gate, phenology_gate, acclimation_gate, wetland_gate]
+    needs: [lpj_driver, bvoc_gate, abiotic_nutrient_ledger, ntransform_gate, mineral_reactivity_gate, phenology_gate, acclimation_gate, wetland_gate, soil_restart_state_gate]
     writes: [biosphere/runs/]
 
   - id: prospectivity
@@ -936,13 +958,16 @@ checks:
   - id: verify_uninitialised_reads
     script: exoplasim/scripts/verify_uninitialised_reads.sh
   # Is a continued LPJ-GUESS run the same experiment as the run it continues?
-  # Two runs of the same length over the same forcing, one taken whole and one
-  # split at a simulated year boundary, compared table for table and row for row
-  # over every year from the restart point. State the serializer does not carry
-  # shows up as the resumed run integrating a year the uninterrupted run never
-  # had, which is a wrong answer rather than a different one. It is the
+  # Three modes over the same forcing. The default takes two runs of the same
+  # length, one whole and one split, and compares their output tables from the
+  # restart point on. `--one-day` splits at an arbitrary simulated DAY and
+  # compares the two runs' STATE FILES one day later, so lost state shows up as
+  # bytes that differ after one day rather than as a year of divergence.
+  # `--round-trip` restarts and writes the state again with no day in between,
+  # which names what the write-and-read of a state file does not carry. All
+  # three are wrong answers rather than merely different ones. It is the
   # behavioural half of the WET-3 restart repair, where the wetland_gate probe
-  # over Soil::serialize is the static half.
+  # and soil_restart_state_gate over Soil::serialize are the static half.
   #
   # LIKE the row above it takes arguments -- a run length, a restart year, a
   # rank count -- and it is not run by smoke_test. It needs a compiled model and
