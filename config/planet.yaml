@@ -912,17 +912,26 @@ model:
   # from the weight above. `h2o_sw_weight` is a star-over-Sun ratio, so an error
   # in the absolute level of Lacis and Hansen Eq. 21 divides straight out of it
   # and is not corrected by anything. Correlated-k against Eq. 21 at the same
-  # absorber amount runs 1.10 to 1.15 across the range and 1.127 at this
-  # planet's operating path, the cause being that Yamamoto's bands were measured
-  # at a Curtis-Godson effective pressure while Eq. 21 is refitted as though
-  # they held at standard pressure.
+  # absorber amount puts Eq. 21 low by 12.7% at this planet's operating path
+  # before the water vapour continuum, the cause being that Yamamoto's bands
+  # were measured at a Curtis-Godson effective pressure while Eq. 21 is refitted
+  # as though they held at standard pressure.
   #
-  # One-signed and a LOWER BOUND: the correlated-k side lacks the MT_CKD
-  # continuum too, so the real deficit is larger than 12.7%. Carried as a key
-  # rather than as a line in the error budget, per PHYS-9;
-  # `exoplasim/notes/corrk-cross-check.md` is the measurement. radmod.f90's
-  # default is 1.0, which is Eq. 21 unmodified.
-  h2o_sw_level: 1.127
+  # TWO-SIDED, and the continuum is why it is not 1.127. Neither the
+  # correlated-k tables nor Eq. 21 carries the MT_CKD-convention continuum, and
+  # the continuum ADDS absorption to the line-by-line side, so 1.127 was a floor
+  # rather than the answer. The missing term is 0.15 to 7.0% of the correlated-k
+  # absorptance and 3.1% is the estimate, which puts the level at 1.163 over a
+  # bracket of 1.129 to 1.206. The width is not resolvable here: it needs a
+  # line-by-line calculation with a continuum on this path.
+  #
+  # THE BRACKET ENDS ARE ARMS TO RUN, not an error bar on a settled number: the
+  # half-width is 0.38 K of mean surface temperature, against 0.10 K per 0.01 of
+  # this key. Carried as a key rather than as a line in the error budget, per
+  # PHYS-9; `exoplasim/notes/corrk-cross-check.md` is the measurement and the
+  # bound. radmod.f90's default is 1.0, which is Eq. 21 unmodified.
+  h2o_sw_level: 1.163
+  h2o_sw_level_bracket: [1.129, 1.206]
   co2_sw_weight: 1.510
   roughness_source: lithology
   # BOOTSTRAP: uniform. Soil water capacity comes from the pedology soil map as

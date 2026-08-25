@@ -109,12 +109,17 @@ level error**, and 1.301 to 1.363 is the bracket that produces.
 **Both halves of that were checked afterwards against a modern line list and both
 held.** `exoplasim/notes/corrk-cross-check.md` reruns this quantity from
 correlated-k tables on HITRAN2020, with these same two spectra: the weight comes
-out at 1.3271, inside the bracket, and the excess over Eq. 21 comes out at 1.127,
-which confirms the level offset is a deficit in Eq. 21's pressure treatment rather
-than an error here. The corollary is a separate defect: the model's absolute clear-sky water
-vapour shortwave absorption was low by about 12%, and `h2osww`, a ratio, does
-not touch it; `h2oswl` (PHYS-9, `config/planet.yaml` `h2o_sw_level: 1.127`)
-now carries that level correction.
+out at 1.3271, inside the bracket, and the excess over Eq. 21 comes out at 1.127
+before any water vapour continuum, which confirms the level offset is a deficit
+in Eq. 21's pressure treatment rather than an error here. Ramaswamy and
+Freidenreich (1992) Table I is a third determination of the same defect, scoring
+Lacis and Hansen against a line-by-line reference that carries no continuum
+either and finding them low by 8 to 11%. The corollary is a separate defect: the
+model's absolute clear-sky water vapour shortwave absorption is low by more than
+that once the continuum is in, and `h2osww`, a ratio, does not touch it;
+`h2oswl` (PHYS-9, `config/planet.yaml` `h2o_sw_level`) carries the level
+correction, two-sided, and `corrk-cross-check.md` is where its bracket is
+derived.
 
 The 0.72 and 0.81 um bands are the one assumed input here and it is worth saying
 so plainly. Howard never measured them; Yamamoto estimated them from Fowle's data

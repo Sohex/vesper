@@ -746,6 +746,38 @@ bracket, the checks that partly failed and what survives them, and the reason
 the value belongs to the k25v spectrum rather than to the blackbody `solarini`
 builds when `NSTARFILE` is 0.
 
+## `h2o_sw_level`
+
+```
+h2o_sw_level: 1.163
+h2o_sw_level_bracket: [1.129, 1.206]
+```
+
+A SECOND correction to the same water vapour term and a separate decision from
+the weight above, which is why it is a separate key. `h2o_sw_weight` is a
+star-over-Sun ratio, so an error in the absolute level of Lacis and Hansen
+Eq. 21 divides straight out of it and nothing else in the scheme touches it.
+Sets `H2OSWL`, which defaults to 1.0 and is Eq. 21 unmodified.
+
+Eq. 21 is low, and four independent constructions of the quantity say so: this
+project's reconstruction from Howard's bands, HITRAN2020 correlated-k on the same
+path, and Ramaswamy and Freidenreich (1992), who scored Lacis and Hansen against
+a line-by-line reference and found them under-absorbing. None of those carries a
+water vapour continuum, and neither does Eq. 21, so all of them are floors: the
+continuum absorbs in the WINDOWS between the bands, which a band sum has no
+absorption in at all.
+
+**The bracket is what the continuum is not known to.** Its ends are arms to run
+rather than an error bar on a settled number, and closing it needs a line-by-line
+calculation with a continuum on this path, which is a correlated-k bundle this
+project does not have. `exoplasim/notes/corrk-cross-check.md` derives the value
+and the bracket and states what each source contributed.
+
+There is no shortwave continuum term to set instead. `radmod.f90` has a water
+vapour continuum coefficient, `th2oc`, and it is in `lwr` only; `swr` has ozone
+in band 1 and water vapour in band 2 and nothing else, so the continuum reaches
+the shortwave through this key or not at all.
+
 ## `co2_sw_weight`
 
 ```

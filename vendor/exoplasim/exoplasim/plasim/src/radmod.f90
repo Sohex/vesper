@@ -138,13 +138,15 @@
 !     absolute level divides straight out of it. h2oswl is that level.
 !
 !     Eq. 21 is a fit to Yamamoto (1962), and a modern line list absorbs 12 to
-!     13% more at the same absorber amount: correlated-k over Eq. 21 runs 1.10
-!     to 1.15 across the range, median 1.134, and 1.127 at this planet's
-!     operating path. The cause is a pressure treatment, Yamamoto's bands being
-!     measured at a Curtis-Godson effective pressure while Eq. 21 is refitted as
-!     though they held at standard pressure. The deficit is also measured BEFORE
-!     the MT_CKD continuum, which the correlated-k side lacks too, so the true
-!     gap is larger than this and one-signed.
+!     13% more at the same absorber amount before any continuum: correlated-k
+!     over Eq. 21 runs 1.10 to 1.15 across the range, median 1.134, and 1.127 at
+!     this planet's operating path. The cause is a pressure treatment, Yamamoto's
+!     bands being measured at a Curtis-Godson effective pressure while Eq. 21 is
+!     refitted as though they held at standard pressure. Neither side carries the
+!     MT_CKD-convention continuum and the continuum absorbs in the WINDOWS, so it
+!     adds to the line-by-line side and 1.127 is a floor: with it the level is
+!     1.163 over a bracket of 1.129 to 1.206, and the bracket ends are arms to
+!     run rather than an error bar.
 !
 !     Default 1.0 reproduces Lacis & Hansen exactly, so a solar-host run is
 !     bit-identical and a rebuilt binary reproduces every run that exists until

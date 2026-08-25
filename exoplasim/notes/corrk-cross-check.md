@@ -381,14 +381,16 @@ combinations: -1 to -2% everywhere. It does NOT score original Lacis and Hansen
 -- its "old" water vapour scheme is `ramaswamy1992`'s already-corrected modified
 LH -- so nothing here is a second measurement of Eq. 21.
 
-### BAR 1: the key moves, to 1.16
+### BAR 1: the key moves, to 1.163
 
     correlated-k over Eq. 21, no continuum          1.127
     with the continuum, estimate                   1.163
     two-sided bound                        1.129 to 1.206
 
 1.163 - 1.127 = 0.036, which is 0.35 K and clears the 0.02 the bar was set at,
-so `h2o_sw_level` becomes **1.16** and stops being one-signed. The direction is
+so `h2o_sw_level` becomes **1.163** and stops being one-signed. The third digit is
+carried so the arithmetic above reproduces, not because it is resolved; the
+bracket is what says how well the number is known. The direction is
 the one that was declared: the continuum ADDS absorption to the line-by-line
 side, so it moves Eq. 21 further below a modern calculation, and 1.127 was a
 floor.

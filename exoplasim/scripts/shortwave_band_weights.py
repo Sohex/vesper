@@ -61,8 +61,24 @@ inside that envelope agrees with every published construction of the quantity;
 one outside it disagrees with all three. The envelope is evaluated at each water
 amount rather than as one scalar, because the spread is 1.91 at y = 0.01 and 1.04
 near y = 5, and it is widened by the +/-3% Howard state for the band absorptions
-the reconstruction is built from. The run raises on a miss rather than quoting a
-ratio of two integrals no source supports.
+the reconstruction is built from.
+
+THAT COMPARISON IS RECORDED AND DOES NOT GATE, and the reason is a measurement
+rather than a preference. HITRAN2020 correlated-k, computing the same defined
+quantity on the same path, misses the same widened envelope at every water amount
+from 0.1 to 10 cm and by the same 6 to 10 per cent, and that is a floor because
+it carries no water vapour continuum either. A bar a modern line list fails is
+not a bar on this reconstruction: what the envelope has established is that all
+three published curves are LOW. It is reported rather than widened.
+
+THE GATE IS THAT CORRELATED-K ANSWER ITSELF. `CORRK_RATIO_TO_EQ21`, from
+`exoplasim/notes/corrk-cross-check.md`, is this file's own `ratio_to_eq21`
+measured from a different absorption dataset -- 76 correlated-k bands on
+HITRAN2020 against Howard's nine -- at the same homogeneous 760 mm Hg path. Same
+numerator definition, same denominator, so the two must agree to within Howard's
++/-3%, which is the only stated accuracy either side carries, and the run raises
+if they do not. That keeps two measurements of one quantity from drifting apart
+in silence, which is what `h2o_sw_level` rests on.
 
 The solar reference is a BT-Settl 5772 K model built through the same blend as
 `build_stellar_spectrum.py` uses for the star, so grid, converter and any model
@@ -317,6 +333,43 @@ HOWARD_BAND_ABSORPTION_ACCURACY = 0.03
 # The only interval Lacis and Hansen state for Eq. 21, and the plotted range of
 # all three curves. No range is printed for Eq. 22 or Eq. 23.
 LH74_FIT_RANGE_CM = (0.01, 10.0)
+
+# AND THE ENVELOPE IS NOT A GATE, because a modern line list misses it too.
+#
+# `exoplasim/notes/corrk-cross-check.md` computes the same defined quantity from
+# HITRAN2020 correlated-k tables instead of Howard's bands, and it lands OUTSIDE
+# the widened envelope at every water amount from 0.1 to 10 cm, by 6 to 10 per
+# cent -- inside only at 0.01 cm, which is exactly where the reconstruction is
+# inside as well. That is a floor, because the correlated-k side carries no water
+# vapour continuum either and the continuum would push it further out.
+#
+# A bar that rejects a modern line-by-line calculation is not a bar on this
+# reconstruction. What has been established is that all three published curves
+# are LOW, not that this file is high. So the envelope comparison is kept and
+# reported -- it is the record of how far every construction of this quantity,
+# old and new, sits from what was published -- and it does not raise. It is NOT
+# widened to admit the miss; that would be a criterion chosen after the run.
+#
+# THE GATE THAT REPLACES IT compares this file's reconstruction against that
+# correlated-k answer at the path it was measured on, which is the same quantity
+# by the same definition with only the absorption data differing. The two must
+# not drift apart in silence: a change to the band set, to the spectra or to that
+# note's table has to show up somewhere, and this is where.
+CORRK_PATH_CM = 2.7891
+CORRK_RATIO_TO_EQ21 = 1.127
+# Howard's own +/-3% is the tolerance because it is the only stated accuracy
+# either side of the comparison carries. Fixed before the comparison was made.
+CORRK_AGREEMENT = HOWARD_BAND_ABSORPTION_ACCURACY
+
+# The level correction `config/planet.yaml` carries as `h2o_sw_level`, reported
+# here so the two derived numbers in this file's subject live in one place. It is
+# CORRK_RATIO_TO_EQ21 with the MT_CKD-convention water vapour continuum added,
+# which neither Eq. 21 nor the correlated-k tables have: the continuum absorbs in
+# the WINDOWS between the bands, so it adds to the line-by-line side and makes
+# Eq. 21's deficit larger. The bracket ends are arms to run rather than an error
+# bar, and `exoplasim/notes/corrk-cross-check.md` derives all three.
+H2O_SW_LEVEL = 1.163
+H2O_SW_LEVEL_BRACKET = (1.129, 1.206)
 
 
 def sha256(path: Path) -> str:
@@ -991,11 +1044,49 @@ def main() -> None:
         "worst_w": worst["w"],
         "worst_excess": worst["excess"],
         "inside": all(r["inside"] for r in envelope),
+        "gates": False,
+        "why_not_a_gate": (
+            "HITRAN2020 correlated-k falls outside this same widened envelope "
+            "at every amount from 0.1 to 10 cm, by 6 to 10 per cent, and that "
+            "is a floor because it carries no water vapour continuum either. A "
+            "bar a modern line list misses is not a bar on this "
+            "reconstruction: exoplasim/notes/corrk-cross-check.md. Reported, "
+            "not widened, and not raised on"),
         "source": (
             "Lacis and Hansen (1974) Eqs. 21, 22 and 23, the three curves of "
             "their Fig. 11, widened by Howard, Burch and Williams (1956) "
             "+/-3% on the band absorptions; declared as an inter-formula "
             "spread and not as an error bar, per LH74 p. 127"),
+    }
+
+    # THE GATE. The same quantity from a different absorption dataset, at the
+    # path corrk-cross-check.md measured on. Climatology-free by construction:
+    # the path is that note's recorded number, not this run's column.
+    a_corrk_path = absorptance(sun, bands, CORRK_PATH_CM, scale)
+    ratio_corrk_path = a_corrk_path / float(lacis_hansen_h2o(CORRK_PATH_CM))
+    apart = ratio_corrk_path / CORRK_RATIO_TO_EQ21 - 1.0
+    checks["reconstruction_vs_correlated_k"] = {
+        "w": CORRK_PATH_CM,
+        "reconstruction_over_eq21": ratio_corrk_path,
+        "correlated_k_over_eq21": CORRK_RATIO_TO_EQ21,
+        "apart": apart,
+        "tolerance": CORRK_AGREEMENT,
+        "inside": bool(abs(apart) <= CORRK_AGREEMENT),
+        "gates": True,
+        "source": (
+            "exoplasim/notes/corrk-cross-check.md, HITRAN2020 through the "
+            "LMD Generic PCM correlated-k tables at the same homogeneous "
+            "760 mm Hg path; tolerance is Howard, Burch and Williams (1956) "
+            "+/-3%, the only stated accuracy either side carries"),
+    }
+    checks["h2o_sw_level"] = {
+        "value": H2O_SW_LEVEL,
+        "bracket": list(H2O_SW_LEVEL_BRACKET),
+        "source": (
+            "CORRK_RATIO_TO_EQ21 with the MT_CKD-convention water vapour "
+            "continuum added, which neither side of it carries; derived in "
+            "exoplasim/notes/corrk-cross-check.md from shine2012 and "
+            "mlawer2012. The bracket ends are arms to run"),
     }
 
     water = args.water
@@ -1199,11 +1290,27 @@ def main() -> None:
         f"median {rec['ratio_to_eq21_median']:.3f}"
     )
     print(
-        f"  CHECK, against the envelope of Eqs. 21, 22 and 23 widened by "
-        f"Howard's {rec['howard_margin']*100:.0f}%: "
+        f"  RECORDED, not a gate: against the envelope of Eqs. 21, 22 and 23 "
+        f"widened by Howard's {rec['howard_margin']*100:.0f}%: "
         f"{'inside at every water amount' if rec['inside'] else 'OUTSIDE'}"
         f"; worst at w = {rec['worst_w']} cm, "
-        f"a factor of {rec['worst_excess']:.3f} past the band edge"
+        f"a factor of {rec['worst_excess']:.3f} past the band edge."
+        " Correlated-k misses the same envelope, so it does not gate"
+    )
+    ck2 = checks["reconstruction_vs_correlated_k"]
+    lev = checks["h2o_sw_level"]
+    print(
+        f"  CHECK, against HITRAN2020 correlated-k at w = {ck2['w']} cm: "
+        f"{ck2['reconstruction_over_eq21']:.4f} here against "
+        f"{ck2['correlated_k_over_eq21']:.4f} there, "
+        f"{abs(ck2['apart'])*100:.2f}% apart, tolerance "
+        f"{ck2['tolerance']*100:.0f}%: "
+        f"{'agrees' if ck2['inside'] else 'DISAGREES'}"
+    )
+    print(
+        f"  h2o_sw_level for config/planet.yaml: {lev['value']}, bracket "
+        f"{lev['bracket'][0]} to {lev['bracket'][1]} -- that ratio with the "
+        "water vapour continuum, which neither side of it carries"
     )
     print(f"water path {water:.3f} cm, from {water_source}")
     print(f"H2O shortwave weight at that path: {h2o_weight:.4f}")
@@ -1329,17 +1436,19 @@ def main() -> None:
     # miss on one does not hide the other's verdict. Raised AFTER the report is
     # written, so the numbers that failed are on disk to read.
     failures = []
-    if not rec["inside"]:
+    if not ck2["inside"]:
         failures.append(
-            f"the water vapour reconstruction falls outside the envelope of "
-            f"the three published absorptivity determinations Lacis and Hansen "
-            f"plot in their Fig. 11, widened by Howard's own +/-3%. Worst at "
-            f"w = {rec['worst_w']} cm, a factor of {rec['worst_excess']:.3f} "
-            f"past the band edge. Nothing here is tuned to that envelope, so a "
-            f"miss means this reconstruction disagrees with every published "
-            f"construction of the quantity it reproduces, and the weight it "
-            f"feeds is a ratio of two integrals no source supports. {out} "
-            "carries the per-amount numbers.")
+            f"at w = {ck2['w']} cm this file's Howard reconstruction is "
+            f"{ck2['reconstruction_over_eq21']:.4f} times Lacis and Hansen "
+            f"Eq. 21 and the HITRAN2020 correlated-k answer for the same "
+            f"defined quantity is {ck2['correlated_k_over_eq21']:.4f}, "
+            f"{abs(ck2['apart'])*100:.1f}% apart against a tolerance of "
+            f"{ck2['tolerance']*100:.0f}%. Two absorption datasets on one "
+            "quantity: a miss means the band set, the band intervals or the "
+            "spectra have moved here, or that "
+            "exoplasim/notes/corrk-cross-check.md's table has, and the level "
+            "correction h2o_sw_level rests on the two agreeing. "
+            f"{out} carries the numbers.")
 
     if not (ck["inside"] and ck["inside_dropping_the_2.7um_band"]):
         failures.append(
