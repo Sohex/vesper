@@ -1621,6 +1621,13 @@ def check_restart_schema_covers_the_model() -> list[str]:
     `reset_restart_accumulators.py` reads the same policy, so a gap here is a
     seeded run opening mid-window on the donor's partial accumulation.
 
+    IT ALSO CHECKS THE RESOLVER, not only the names. A shape may be written in
+    a symbol no `Geometry` knows -- `dwatcl(NHOR,NLSOILWX)` was, from the day
+    the land column landed -- and the name check cannot see it, because the
+    name is covered and it is the LENGTH that cannot be predicted. That gap
+    reached the tree through `convert_restart.py --self-test`, which nothing
+    runs; `check_every_shape_resolves` needs no restart file and runs here.
+
     It also holds every accumulator's DECLARED initial value against its reset.
     A cold run's first output window accumulates from the declaration with no
     reset before it, so the two disagreeing makes the first record of every
@@ -1637,6 +1644,7 @@ def check_restart_schema_covers_the_model() -> list[str]:
     if not src.is_dir():
         return [f"{src} is missing; the vendored model source moved"]
     return (restart_schema.check_policy_covers_source(src)
+            + restart_schema.check_every_shape_resolves(src)
             + restart_schema.check_first_window_matches_the_rest(src))
 
 

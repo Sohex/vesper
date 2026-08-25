@@ -45,6 +45,17 @@ class Failed(Exception):
     pass
 
 
+def _reason(exc: BaseException) -> str:
+    """One line for a section's verdict, naming the type unless it is `Failed`.
+
+    A `Failed` carries a sentence written to be read; anything else is a defect
+    in the harness or in what it tests, and the type is half the finding.
+    """
+    if isinstance(exc, Failed):
+        return str(exc)
+    return f"{type(exc).__name__}: {exc}"
+
+
 def _require(condition, what: str) -> None:
     if not condition:
         raise Failed(what)
@@ -102,9 +113,13 @@ def _synthetic_template(src: cv.RestartState, nlat: int, real_bytes: int,
     an invented one.
     """
     _, _, ntru = rungs.geometry(rungs.rung_of_latitudes(nlat))
+    # NLSOILWX travels from the donor's geometry rather than being looked up
+    # again: a conversion does not change the compile-time parameters, and a
+    # fixture that read its own would stop testing that they agree.
     g = rs.Geometry(nlat=nlat, nlev=src.geometry.nlev,
                     nlsoil=src.geometry.nlsoil, nlev_oce=src.geometry.nlev_oce,
-                    nesp=_round_up(ntru, src), nseedlen=src.geometry.nseedlen)
+                    nesp=_round_up(ntru, src), nseedlen=src.geometry.nseedlen,
+                    nlsoilwx=src.geometry.nlsoilwx)
     inventory = rs.inventory_from_source(MODEL_SRC)
     dtype = cv.REAL[real_bytes]
     weights = rt.build_weights(src.geometry.nlat, nlat)
@@ -224,6 +239,63 @@ def test_schema(donor: Path) -> list[str]:
                 "with none orphaned")
 
     state = cv.load(donor)
+
+    # EVERY DIMENSION SYMBOL A CALL SITE USES RESOLVES. `check_policy_covers_
+    # source` compares NAMES, so it stayed green while `dwatcl(NHOR,NLSOILWX)`
+    # named a symbol no geometry knew and every length prediction for the land
+    # column raised. This asks the resolver, which is the half that had the
+    # gap.
+    symbols = sorted({tok for rec in inventory.values() for shape in rec.shapes
+                      for tok in shape if not isinstance(tok, int)})
+    unresolved = []
+    for tok in symbols:
+        try:
+            state.geometry.resolve(tok)
+        except (KeyError, ValueError) as exc:
+            unresolved.append(f"{tok} ({type(exc).__name__})")
+    _require(not unresolved,
+             "the geometry cannot size every shape the model writes: "
+             + "; ".join(unresolved))
+    said.append(f"every one of the {len(symbols)} dimension symbols the call "
+                "sites use resolves in this donor's geometry")
+
+    # THE COMPILE-TIME PARAMETERS COME FROM THE SOURCE, with a right answer:
+    # the model's own declaration. A literal here would agree with the source
+    # on the day it was typed and never again.
+    params = rs.parameter_dimensions_from_source(MODEL_SRC)
+    declared = params.get("NLSOILWX")
+    _require(declared is not None,
+             "landcolumn.f90 declares NLSOILWX and the parameter reader did "
+             "not find it")
+    _require(state.geometry.nlsoilwx == declared,
+             f"the donor's geometry carries NLSOILWX {state.geometry.nlsoilwx} "
+             f"and the source declares {declared}")
+    _require(params.get("NLSOIL") == state.geometry.nlsoil,
+             f"the source declares NLSOIL {params.get('NLSOIL')} and the "
+             f"donor's header says {state.geometry.nlsoil}")
+    said.append(f"the compile-time dimensions are read from the model source, "
+                f"not carried here: NLSOILWX {declared}, NLSOIL "
+                f"{params.get('NLSOIL')}, and the donor's header agrees about "
+                "the one it states")
+
+    # NEGATIVE CONTROL: a geometry built without the source parameter must
+    # refuse, not size the land column's water records at nothing. Zero
+    # elements would match no payload, but it would reach the caller as "the
+    # schema predicts 0 bytes" rather than as the missing constant it is.
+    bare = rs.Geometry(nlat=state.geometry.nlat, nlev=state.geometry.nlev,
+                       nlsoil=state.geometry.nlsoil,
+                       nlev_oce=state.geometry.nlev_oce,
+                       nesp=state.geometry.nesp,
+                       nseedlen=state.geometry.nseedlen)
+    _refuses(lambda: bare.resolve("NLSOILWX"),
+             "a geometry with no NLSOILWX sized the land column anyway",
+             naming="NLSOILWX")
+    _require(bare.resolve("NUGP") == state.geometry.nugp,
+             "the guard on the compile-time parameter also refused a dimension "
+             "the header does derive")
+    said.append("negative control: a geometry built without the source "
+                "parameter refuses to size the land column's water records, "
+                "and still sizes everything derived from NLAT")
     for rec in state.records:
         if rs.POLICY[rec.name].action == rs.SEED:
             want = [state.geometry.nseedlen * 4]
@@ -646,8 +718,25 @@ def test_timestep() -> list:
 
 
 def run() -> int:
-    donor = _donor()
+    """Every section, each reporting its own verdict.
+
+    A SECTION MAY NOT TAKE THE HARNESS DOWN WITH IT. `Failed` alone was caught
+    here, so any other exception out of a section aborted the whole self-test
+    with a traceback and hid every section after it -- which is how a KeyError
+    on a dimension the schema had not been taught made the last four sections
+    unreachable for as long as the land column has existed. An unexpected
+    exception is still a failure and still exits non-zero; it is reported as
+    that one section's failure, with its type, and the rest run.
+
+    The donor is resolved inside the same guard, because "no run directory
+    holds a plasim_restart" is a condition of the tree and not a crash.
+    """
     sections = []
+    try:
+        donor = _donor()
+    except Exception as exc:                      # noqa: BLE001 - reported
+        print(f"donor: FAIL {_reason(exc)}")
+        return 1
     with tempfile.TemporaryDirectory(prefix="convert_restart_selftest_") as d:
         tmp = Path(d)
         for title, fn in (("framing", lambda: test_framing(tmp, donor)),
@@ -659,8 +748,8 @@ def run() -> int:
                           ("timestep contract", test_timestep)):
             try:
                 sections.append((title, fn(), None))
-            except Failed as exc:
-                sections.append((title, [], str(exc)))
+            except Exception as exc:              # noqa: BLE001 - reported
+                sections.append((title, [], _reason(exc)))
 
     failed = [t for t, _, err in sections if err]
     for title, lines, err in sections:

@@ -335,9 +335,18 @@ out of `plasim/CMakeLists.txt`, so nothing there needs touching.
 
 **The gate is `scripts/smoke_test.py`,** check "the restart schema covers every
 record the model writes". It goes red for a call site with no policy, for a
-policy entry no call site writes, and for an accumulator whose reset in
-`outreset` no longer matches what the schema records. Its own control shows it
-failing in all three directions.
+policy entry no call site writes, for a shape written in a dimension symbol no
+`Geometry` can size, and for an accumulator whose reset in `outreset` no longer
+matches what the schema records. Its own control shows it failing in all of
+those directions.
+
+**A NEW DIMENSION IS A SECOND THING TO ADD.** A shape is written in whatever
+symbols its call site uses, and covering the NAME does not make the length
+predictable: `dwatcl(NHOR,NLSOILWX)` had a policy from the day the land column
+landed and no geometry that could size it. Where the model derives the
+dimension from NLAT, it belongs in `Geometry`; where it is a compile-time
+`integer, parameter`, `parameter_dimensions_from_source()` reads it out of the
+source and nothing here restates the number.
 
 **An accumulator's clean value is not always zero.** `tempmin` resets to 1.0e3
 and `atsami` to 1.0e10, both running minima; `asndch` and `aanrho` are reset by
