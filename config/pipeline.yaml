@@ -698,6 +698,9 @@ one_offs:
   - exoplasim/scripts/score_rank_bench.py
   - exoplasim/scripts/reproducibility_matrix.py
   - exoplasim/scripts/diff_restarts.py
+  # Does a run taken in pieces write the same ecological stream as the
+  # same run taken whole? A verdict on two artifacts, generating nothing.
+  - exoplasim/scripts/compare_eco_streams.py
   - exoplasim/scripts/trace_gas_band_model.py
   - exoplasim/scripts/co2_overlap_589.py
   - exoplasim/scripts/reset_restart_accumulators.py

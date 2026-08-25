@@ -2461,3 +2461,214 @@
 !
       return
       end
+
+!     ==================
+!     SUBROUTINE ECOINI
+!     ==================
+!
+!     THE ECOLOGICAL STREAM. EFOR-2.
+!
+!     A second output stream, written at the interval an ecological consumer
+!     integrates over rather than at the interval a climate diagnostic wants.
+!     It exists because both alternatives are bad: accepting a twelve-bin
+!     seasonal reduction as weather, or writing the model's whole raw payload
+!     every timestep, which is about 15 GB per T42 orbit.
+!
+!     WHAT IT WRITES is the field set
+!     biosphere/notes/ecological-forcing-field-contract.md declares, in that
+!     document's units and with this model's own signs: upward fluxes are
+!     negative, so ecoswu, ecolwu and ecoevap come out at or below zero and the
+!     incident shortwave is a field of its own rather than something a consumer
+!     reconstructs from the net term and an albedo.
+!
+!     THREE THINGS IT DOES NOT DO, each of them the point of a separate stream:
+!     it does not carry the three-dimensional state, it does not sample
+!     instantaneously, and it does not leave a consumer to infer an interval
+!     from a record number. The interval is a whole number of timesteps,
+!     declared, and its bounds are written with every block.
+!
+      subroutine ecoini
+      use pumamod
+
+      integer (kind=4) :: ihead(8)   ! header of first data set
+      real    (kind=4) :: zsig(NUGP) ! first block contains settings
+
+      call ntomin(nstep,nmin,nhour,nday,nmonth,nyear)
+
+      ihead(1) = 333  ! ID for PUMA/PLASIM parameter block
+      ihead(2) = 0
+      ihead(3) = nday + 100 * nmonth + 10000 * nyear
+      ihead(4) = 0
+      ihead(5) = NLON
+      ihead(6) = NLAT
+      ihead(7) = NLEV
+      ihead(8) = NTRU
+
+      zsig(:)      = 0.0
+      zsig(1:NLEV) = sigmah(:)
+      zsig(NLEV+1) = m_days_per_year
+
+      open  (143,file=plasim_eco,form='unformatted')
+      write (143) ihead(:)
+      write (143) zsig(:)
+
+      return
+      end
+
+!     ====================
+!     SUBROUTINE ECOACCU
+!     ====================
+!
+!     Accumulate the ecological stream. Called every timestep, by every thread,
+!     beside outaccu.
+!
+      subroutine ecoaccu
+      use pumamod
+      use radmod
+
+      aecotas(:)  = aecotas(:)  + dtsa(:)
+      aecots(:)   = aecots(:)   + dt(:,NLEP)
+      aecops(:)   = aecops(:)   + dp(:)
+      aecohus(:)  = aecohus(:)  + dq(:,NLEV)
+!     WIND SPEED, not the speed of the mean wind. The two differ whenever the
+!     wind turns within an interval, always in the same direction, and no
+!     postprocessing of a mean vector can recover the difference. This is the
+!     whole reason the stream carries a wind at all: `spd` in the regular
+!     product is |mean vector| at model levels. world-1qxu.
+      aecowind(:) = aecowind(:) + sqrt(du(:,NLEV)*du(:,NLEV)                &
+     &                               + dv(:,NLEV)*dv(:,NLEV))
+      aecoswd(:)  = aecoswd(:)  + dfd(:,NLEP)
+      aecoswu(:)  = aecoswu(:)  + dfu(:,NLEP)
+      aecoswn(:)  = aecoswn(:)  + dswfl(:,NLEP)
+      aecolwn(:)  = aecolwn(:)  + dlwfl(:,NLEP)
+      aecolwu(:)  = aecolwu(:)  + dftu(:,NLEP)
+      aecoczen(:) = aecoczen(:) + gmu0(:)
+!     TWO CROSS-CUTTING PARTITIONS OF ONE TOTAL, and the stream carries the
+!     total plus one member of each. dprc and dprl each span both phases and
+!     dprs spans both processes (rainmod.f90), so prl + prc + prsn double counts
+!     the snow. A consumer takes rain as total minus snow and large-scale as
+!     total minus convective.
+      aecopr(:)   = aecopr(:)   + dprl(:) + dprc(:)
+      aecoprsn(:) = aecoprsn(:) + dprs(:)
+      aecoprc(:)  = aecoprc(:)  + dprc(:)
+      aecoevap(:) = aecoevap(:) + devap(:)
+
+!     Extrema of dtsa AND of dt(:,NLEP), named apart. The regular stream's maxt
+!     and mint are extrema of the second while its tas is a mean of the first,
+!     and a consumer cannot tell from the product which variable it has.
+      aecotasmx(:) = MAX(aecotasmx(:),dtsa(:))
+      aecotasmn(:) = MIN(aecotasmn(:),dtsa(:))
+      aecotsmx(:)  = MAX(aecotsmx(:),dt(:,NLEP))
+      aecotsmn(:)  = MIN(aecotsmn(:),dt(:,NLEP))
+
+      naccueco = naccueco + 1
+
+      return
+      end
+
+!     ==================
+!     SUBROUTINE ECOGP
+!     ==================
+!
+!     Write one ecological interval and its bounds. Called by every thread,
+!     because writegp and writescalar gather across them.
+!
+      subroutine ecogp
+      use pumamod
+
+      real :: zwork(NHOR)
+      real :: zn
+
+      zn = real(max(1,naccueco))
+
+!     THE INTERVAL, FIRST AND EXPLICITLY. Absolute seconds at the start and the
+!     end of the block, and its duration, from the model's own step counter
+!     rather than from a record index. A consumer that infers an interval from
+!     a record number cannot tell a missing block from a short one, and the
+!     acceptance check the forcing artifact is subject to is exactly that
+!     distinction.
+      call writescalar(143,real(nstep-naccueco)*deltsec,600)
+      call writescalar(143,real(nstep)*deltsec,601)
+      call writescalar(143,real(naccueco)*deltsec,602)
+
+!     Duration-weighted means. Every timestep is the same length, so the count
+!     is the weight.
+      zwork(:) = aecotas(:)  / zn
+      call writegp(143,zwork,610,0)
+      zwork(:) = aecots(:)   / zn
+      call writegp(143,zwork,611,0)
+      zwork(:) = aecops(:)   / zn
+      call writegp(143,zwork,612,0)
+      zwork(:) = aecohus(:)  / zn
+      call writegp(143,zwork,613,0)
+      zwork(:) = aecowind(:) / zn
+      call writegp(143,zwork,614,0)
+      zwork(:) = aecoswd(:)  / zn
+      call writegp(143,zwork,615,0)
+      zwork(:) = aecoswu(:)  / zn
+      call writegp(143,zwork,616,0)
+      zwork(:) = aecoswn(:)  / zn
+      call writegp(143,zwork,617,0)
+      zwork(:) = aecolwn(:)  / zn
+      call writegp(143,zwork,618,0)
+      zwork(:) = aecolwu(:)  / zn
+      call writegp(143,zwork,619,0)
+      zwork(:) = aecoczen(:) / zn
+      call writegp(143,zwork,620,0)
+
+!     Mean RATES over the interval, in the model's own m/s. Left as rates and
+!     not turned into depths here: the depth is the rate times the interval,
+!     the interval is written above, and the producer converting once is what
+!     stops a consumer converting twice.
+      zwork(:) = aecopr(:)   / zn
+      call writegp(143,zwork,621,0)
+      zwork(:) = aecoprsn(:) / zn
+      call writegp(143,zwork,622,0)
+      zwork(:) = aecoprc(:)  / zn
+      call writegp(143,zwork,623,0)
+      zwork(:) = aecoevap(:) / zn
+      call writegp(143,zwork,624,0)
+
+!     Extrema, undivided.
+      call writegp(143,aecotasmx,625,0)
+      call writegp(143,aecotasmn,626,0)
+      call writegp(143,aecotsmx,627,0)
+      call writegp(143,aecotsmn,628,0)
+
+      return
+      end
+
+!     ====================
+!     SUBROUTINE ECORESET
+!     ====================
+!
+!     Start a clean ecological interval. The extrema take sentinels rather than
+!     zero, and restart_schema.py's `model_reset` column is where that fact is
+!     held against this routine.
+!
+      subroutine ecoreset
+      use pumamod
+
+      aecotas(:)  = 0.
+      aecots(:)   = 0.
+      aecops(:)   = 0.
+      aecohus(:)  = 0.
+      aecowind(:) = 0.
+      aecoswd(:)  = 0.
+      aecoswu(:)  = 0.
+      aecoswn(:)  = 0.
+      aecolwn(:)  = 0.
+      aecolwu(:)  = 0.
+      aecoczen(:) = 0.
+      aecopr(:)   = 0.
+      aecoprsn(:) = 0.
+      aecoprc(:)  = 0.
+      aecoevap(:) = 0.
+      aecotasmx(:) = -1.0e3
+      aecotasmn(:) =  1.0e3
+      aecotsmx(:)  = -1.0e3
+      aecotsmn(:)  =  1.0e3
+      naccueco = 0
+
+      return
+      end

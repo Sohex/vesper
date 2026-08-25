@@ -599,6 +599,73 @@ POLICY["asndch"] = Policy(
         "accumulating' -- so it spans the whole run rather than the window")
 
 
+# THE ECOLOGICAL STREAM'S ACCUMULATORS, EFOR-2. A second output stream with its
+# own interval and its own counter, written for the biosphere rather than for a
+# climate diagnostic; `outmod.f90:ecoaccu` fills them and `ecoreset` clears them.
+#
+# They are here rather than under `_acc` because the four extrema do not reset
+# to zero and because a converted restart has to know that these are means over
+# a PARTIAL interval whose length is `naccueco`, not over `naccuout`. Divide by
+# the wrong counter and every field in the first block after a conversion is
+# scaled by the ratio of the two.
+POLICY.update(_acc([
+    "aecotas", "aecots", "aecops", "aecohus", "aecowind", "aecoswd", "aecoswu",
+    "aecoswn", "aecolwn", "aecolwu", "aecoczen", "aecopr", "aecoprsn",
+    "aecoprc", "aecoevap"]))
+POLICY.update({
+    "naccueco": Policy(
+        ACCUMULATOR, RESET, model_reset="zero",
+        why="how many timesteps of the ecological interval the accumulators "
+            "above already hold. Separate from naccuout because the two "
+            "streams have different intervals, and a counter that outlives "
+            "what it counts is the defect `accuvers` exists for"),
+    "ecovers": Policy(
+        OPAQUE, TARGET,
+        why="marks a restart that carries the ecological stream's partial "
+            "interval, on the same terms as accuvers. mpgetgp scatters an "
+            "uninitialised buffer when a record is absent, so the reader "
+            "needs a marker rather than a lowered nexcheck; a restart without "
+            "it starts the interval clean"),
+})
+for _n, _v in (("aecotasmx", -1.0e3), ("aecotsmx", -1.0e3),
+               ("aecotasmn", 1.0e3), ("aecotsmn", 1.0e3)):
+    POLICY[_n] = Policy(
+        ACCUMULATOR, RESET, model_reset="sentinel", reset_value=_v,
+        why="a running extremum of the ecological interval. `ecoreset` gives "
+            "it a sentinel and not zero, in BOTH directions: unlike the "
+            "regular stream's tempmax, a maximum zeroed here would report 0 K "
+            "for the rest of the run on any cell that never reaches it")
+
+
+def check_record_limit(src_dir: Path, emittable: int) -> list[str]:
+    """`restartmod.nresdim` is above the number of names the model can emit.
+
+    A CHECK WITH A RIGHT ANSWER, and one that has already been wrong.
+    `restart_ini` walks the restart file naming each record and stops the model
+    the moment it reaches `nresdim`. The limit stood at 200 while the call sites
+    could emit 215 names, so a configuration that wrote enough of the optional
+    records produced a restart it could not read back -- and the failure lands
+    at the START of the following segment, after the segment that wrote it has
+    finished and reported success.
+
+    The bound is the emittable count and not the count in any one file, because
+    which optional records a configuration writes is a namelist question and
+    this constant is compiled in.
+    """
+    text = (Path(src_dir) / "restartmod.f90").read_text(encoding="utf-8")
+    m = re.search(r"nresdim\s*=\s*(\d+)", text)
+    if m is None:
+        return ["restartmod.f90 declares no nresdim; restart_ini's record "
+                "limit cannot be checked"]
+    limit = int(m.group(1))
+    if limit <= emittable:
+        return [f"restartmod.f90 sets nresdim = {limit} and the model can emit "
+                f"{emittable} distinct restart records. restart_ini stops the "
+                f"model at the limit, so a run that writes them all produces a "
+                f"restart it cannot read back."]
+    return []
+
+
 def check_policy_covers_source(src_dir: Path) -> list[str]:
     """Every name the model can write has a policy, and no policy is orphaned.
 
@@ -608,6 +675,7 @@ def check_policy_covers_source(src_dir: Path) -> list[str]:
     """
     inventory = inventory_from_source(src_dir)
     problems = []
+    problems += check_record_limit(src_dir, len(inventory))
     for name in sorted(set(inventory) - set(POLICY)):
         rec = inventory[name]
         problems.append(

@@ -247,6 +247,44 @@ on the threaded build and 0 on the MPI build, which cannot run SHTns at all;
 legmod remains reachable with `NSHTNS = 0` and is the reference that gate
 compares against.
 
+## The ecological stream
+
+A second output stream, off by default, written for the biosphere rather than
+for a climate diagnostic. `NECO = 1` in `plasim_nl` turns it on and `NECOSTEP`
+sets its interval in timesteps; left at zero, `NECOSTEP` becomes `mtspd`, which
+is the number of timesteps in one absolute 24-hour day exactly, since prolog
+recomputes `mpstep` so that `mtspd * mpstep * 60 = day_24hr`. It writes
+`plasim_eco` on unit 143.
+
+WHY IT EXISTS. The two alternatives for driving a nonlinear ecological model
+are both bad: accepting the twelve-bin seasonal reduction as weather, or writing
+the model's whole raw payload every timestep, which is about 15 GB per T42
+orbit. This writes nineteen surface fields plus its own interval bounds, reduced
+at the producer with the operator each field's meaning calls for.
+`biosphere/notes/ecological-forcing-field-contract.md` is what it carries and
+why; `outmod.f90`'s `ecoaccu`, `ecogp` and `ecoreset` are the whole of the
+implementation.
+
+Three properties worth knowing:
+
+- **It cannot change a result.** The restarts written with `NECO = 1` and
+  `NECO = 0` are byte-identical: it reads state that already exists and writes
+  to a unit of its own.
+- **Its interval survives a restart.** The nineteen accumulators, the four
+  extrema and the counter `naccueco` are all serialized, behind an `ecovers`
+  marker on the same terms as `accuvers`, so an interval that straddles a
+  segment boundary is closed at the right step and covers the span it declares.
+  `compare_eco_streams.py` is the check, and it separates a structural failure
+  from a bounds failure from a payload failure because they have different
+  owners.
+- **Its VALUES across a boundary are only as exact as the model's state.** They
+  are not: `world-8yyh`, measured in
+  `notes/audits/ecological-stream-restart-continuity.md`.
+
+The codes are 600 to 602 for the interval and 610 to 628 for the fields;
+`compare_eco_streams.py` carries the name of each. Nothing teaches them to
+pyburn yet, because EFOR-3 reads the stream directly rather than through it.
+
 ## If you add or remove a restart record
 
 A `put_restart_integer`, `put_restart_real`, `put_restart_seed`,
@@ -288,6 +326,7 @@ unless told they exist.
 
 | script | what it does |
 | --- | --- |
+| `compare_eco_streams.py` | does a run taken in pieces write the same ecological stream as the same run taken whole? Reports structure, interval bounds, payload and headers separately, because they have different owners |
 | `build_boundary_conditions.py` | land mask and topography, integrated from the Orogen mesh |
 | `build_surface_albedo.py` | background land albedo from lithology, optionally composited with solved lakes |
 | `build_surface_roughness.py` | aerodynamic roughness length per cell, surface code 0173 |

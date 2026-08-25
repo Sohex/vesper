@@ -78,6 +78,7 @@
       character (256) :: plasim_output       = "plasim_output"
       character (256) :: plasim_snapshot     = "plasim_snapshot"
       character (256) :: plasim_hcadence     = "plasim_hcadence"
+      character (256) :: plasim_eco          = "plasim_eco"
       character (256) :: plasim_diag         = "plasim_diag"
       character (256) :: plasim_restart      = "plasim_restart"
       character (256) :: plasim_status       = "plasim_status"
@@ -170,6 +171,9 @@
       integer :: noutput  =  1  ! master switch for output: 0=no output
       integer :: nsnapshot = 0  ! switch for snapshot output
       integer :: nhcadence = 0  ! Switch for high-cadence snapshot output
+      integer :: neco      = 0  ! switch for the ecological output stream
+      integer :: necostep  = 0  ! timesteps per ecological interval, 0 = one solar_day
+      integer :: naccueco  = 0  ! counter for the ecological accumulation
       integer :: hcstartstep = -1 ! Timestep to start high-cadence output
       integer :: hcendstep = -1 ! Timestep on which to end high-cadence output (exclusive)
       integer :: hcinterval = 1 ! Number of timesteps per high-cadence output
@@ -862,6 +866,41 @@
       real :: asigrain(NHOR) = 0. !accumulated weathering-significant precipitation [mm/day]
       real :: tempmax(NHOR) = 0. !accumulated maximum temperature
       real :: tempmin(NHOR) = 1.0e3 !accumulated minimum temperature
+
+!     THE ECOLOGICAL STREAM. A second, purpose-specific output stream, written at
+!     the interval an ecological consumer actually integrates over rather than at
+!     the interval a climate diagnostic wants. It exists because the two
+!     alternatives are both bad: accepting a twelve-bin seasonal reduction as
+!     weather, or writing the model's whole raw payload every timestep. EFOR-2.
+!
+!     The reductions are the ones
+!     biosphere/notes/ecological-forcing-field-contract.md declares, and the
+!     signs are the model's own: upward fluxes are negative, so aecoswu, aecolwu
+!     and aecoevap come out at or below zero and incident shortwave is aecoswd.
+!
+!     Every one of these is serialized to the restart, because an accumulator
+!     that resets at a model-call boundary makes a continuation a different
+!     experiment: it would put a false weather boundary into the sequence at
+!     exactly the place a replay protocol later tests for a seam.
+      real :: aecotas(NHOR)   = 0.     ! near-surface air temperature, K
+      real :: aecots(NHOR)    = 0.     ! surface temperature, K
+      real :: aecops(NHOR)    = 0.     ! surface pressure, Pa
+      real :: aecohus(NHOR)   = 0.     ! lowest-level specific humidity, kg/kg
+      real :: aecowind(NHOR)  = 0.     ! lowest-level wind SPEED, m/s
+      real :: aecoswd(NHOR)   = 0.     ! incident surface shortwave, W/m2
+      real :: aecoswu(NHOR)   = 0.     ! upward surface shortwave, W/m2
+      real :: aecoswn(NHOR)   = 0.     ! net surface shortwave, W/m2
+      real :: aecolwn(NHOR)   = 0.     ! net surface longwave, W/m2
+      real :: aecolwu(NHOR)   = 0.     ! upward surface longwave, W/m2
+      real :: aecoczen(NHOR)  = 0.     ! cosine of the solar zenith angle
+      real :: aecopr(NHOR)    = 0.     ! total precipitation rate, m/s
+      real :: aecoprsn(NHOR)  = 0.     ! snowfall rate, m/s, a SUBSET of aecopr
+      real :: aecoprc(NHOR)   = 0.     ! convective precipitation rate, m/s
+      real :: aecoevap(NHOR)  = 0.     ! evaporation rate, m/s, negative upward
+      real :: aecotasmx(NHOR) = -1.0e3 ! maximum near-surface air temperature, K
+      real :: aecotasmn(NHOR) =  1.0e3 ! minimum near-surface air temperature, K
+      real :: aecotsmx(NHOR)  = -1.0e3 ! maximum surface temperature, K
+      real :: aecotsmn(NHOR)  =  1.0e3 ! minimum surface temperature, K
       
       real :: aaso(NESP)          = 0. !Accumulated quantities
       real :: aasp(NESP)          = 0.
@@ -1100,6 +1139,9 @@
 !$omp&  plasim_restart,plasim_snapshot,plasim_status,plasimversion,plavor,pnu,pnu21,precip,psurf,&
 !$omp&  ptop,ptop2,ra1,ra2,ra4,radmod_namelist,rainmod_namelist,rcs,rcsq,rdbrv,rdsig,restim,rotspd,&
 !$omp&  ra1i,ra2i,ra4i,&
+!$omp&  aecotas,aecots,aecops,aecohus,aecowind,aecoswd,aecoswu,aecoswn,aecolwn,aecolwu,aecoczen,&
+!$omp&  aecopr,aecoprsn,aecoprc,aecoevap,aecotasmx,aecotasmn,aecotsmx,aecotsmn,&
+!$omp&  neco,necostep,naccueco,plasim_eco,&
 !$omp&  sak,sakpp,sdd,sdipole,sdipolep,sdm,sdp,sdt,seamod_namelist,seed,sellon,sid,sidereal_day,&
 !$omp&  sidereal_year,sigh,sigma,sigmah,sigrain,so,solar_day,sop,span,spd,spm,spnorm,spp,spt,sqm,&
 !$omp&  sqout,sqp,sqt,sr1,sr2,srm,srp,std,stm,stp,stt,surfmod_namelist,syncstr,synctime,szd,szm,szp,&
