@@ -1334,9 +1334,6 @@
       real, intent(in ) :: ushear
       real, intent(out) :: gpi
       
-      integer :: i850 = 0
-!     Implicitly SAVE, so one copy shared by the whole team.
-!$omp threadprivate(i850)
       integer :: i600 = 0
 !     Implicitly SAVE, so one copy shared by the whole team.
 !$omp threadprivate(i600)

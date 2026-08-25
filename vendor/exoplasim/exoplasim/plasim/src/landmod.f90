@@ -2077,12 +2077,8 @@
       subroutine getalb
       use landmod
       
-      real :: aa = 5.2
-!     Implicitly SAVE, so one copy shared by the whole team.
-!$omp threadprivate(aa)
-      real :: yy = 4.0
-!     Implicitly SAVE, so one copy shared by the whole team.
-!$omp threadprivate(yy)
+      real, parameter :: aa = 5.2
+      real, parameter :: yy = 4.0
       real :: bf = 0.0
 !     Implicitly SAVE, so one copy shared by the whole team.
 !$omp threadprivate(bf)

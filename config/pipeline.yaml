@@ -957,6 +957,21 @@ checks:
   # reported again. Exit 1 on anything neither guarded nor classified.
   - id: lint_masked_domains
     script: exoplasim/scripts/lint_masked_domains.py
+  # Which declarations in plasim/src acquire SAVE inside a procedure body? A
+  # local with an initialiser is SAVEd, SAVE is static storage, and under
+  # -fopenmp static storage is one copy for the whole thread team -- which is
+  # the defect the Stage 1 thread port tripped over in glacierini. Under the
+  # deleted MPI arm each rank was a process and the same source was correct, so
+  # this class is reachable only since world-38b made every build threaded, and
+  # gfortran reports nothing about it at any warning level.
+  #
+  # A pure text parse, no build and no run. It over-reports the same way
+  # lint_masked_domains does, and each site's verdict lives either in an
+  # !$omp threadprivate directive beside the declaration or in the script's
+  # CLASSIFIED table, keyed on the variable name. Exit 1 on anything with
+  # neither.
+  - id: lint_implicit_save
+    script: exoplasim/scripts/lint_implicit_save.py
   # Does anything uninitialised reach a stored value, at the optimisation level
   # this project ships? The trapping form of that question does not arm at -O2
   # -- world-5rs measured the positive control -- and `-finit-real=zero` was
