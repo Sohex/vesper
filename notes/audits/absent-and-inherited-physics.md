@@ -126,8 +126,8 @@ The offline chain reports a FLUX in g/m2 per Earth year; the albedo response
 takes a surface-layer LOAD in g/m2. Converting one into the other needs a
 reservoir: dust accumulating in the layer the light sees, diluted by fresh
 snowfall, concentrated as melt removes the snow around it, and lost when the pack
-goes. That reservoir is the carrier this coupling needs, and nothing in the model
-holds it.
+goes. Some representation of that concentration is what this coupling needs, and
+nothing in the model holds one.
 
 **There is nowhere to receive it, at either end.** Checked against the code
 rather than assumed:
@@ -150,12 +150,39 @@ rather than assumed:
   in there either: it would wash out exactly where the snow is.
 
 So this is not a wiring gap. The quantity is of the right kind, unlike
-`world-hfsm`'s optical depths against a nutrient ledger, but it is a flux where
-the receiver would need a reservoir, and the reservoir, its restart record and
-the albedo function that would read it all have to be built. A peer at EMIC cost
-has built exactly that: `references/climber-x/src/smb/smb_params.f90` carries
-`lsnow_dust`, `w_snow_dust` and `dust_con_scale` as namelist switches, so this is
-a settled design elsewhere rather than an open one.
+`world-hfsm`'s optical depths against a nutrient ledger, but it is a flux and the
+receiver has to convert it into what an albedo can read. A peer at EMIC cost has
+done that: `references/climber-x/src/smb/smb_params.f90` carries `lsnow_dust`,
+`w_snow_dust` and `dust_con_scale` as namelist switches, so this is a settled
+design elsewhere rather than an open one.
+
+**The peer's conversion is cheaper than a reservoir, and its albedo end is dearer
+than one coefficient.** Read 2026-08-24 from `smb_surface_par.f90`. `dust_in_snow`
+takes the concentration in FALLING snow, `dust_dep/max(1e-7, snow)`, and
+multiplies it by a melt concentration factor `1 + (w_snow_max - w_snow)/w_snow_dust`
+capped at five, on the stated reasoning that meltwater scavenges only 10 to 30
+percent of the dust. The only state that requires is `w_snow_max`, the seasonal
+maximum snow water equivalent, one scalar per cell. No layered pack, no dust
+inventory, no restart record beyond that scalar.
+
+The cost sits at the other end. `surface_albedo` computes a snow GRAIN SIZE and a
+dust concentration and passes both to the same snow albedo routine, because dust
+absorption scales with the grain radius -- explicitly, as `(r/r0)**0.73` in the
+Dang et al. 2015 scheme, and through separate new-snow and aged-snow dust curves
+in the Warren and Wiscombe 1980 alternative. This model has no grain size at all,
+so a published dust coefficient transplanted onto the `albsmin`-to-`albsmax`
+temperature ramp above would be a value that does not mean what its source
+measured. That is what makes this a decision about which scheme to adopt rather
+than a coefficient to look up, and `clim-63` owns it:
+`exoplasim/notes/semi-scoping.md` records that the grain size, the dust term and
+the calibration joining them are one module.
+
+Two data anchors for the grain axis already exist and neither is used.
+`vendor/exoplasim/exoplasim/plasim/src/specblock.f90` ships `fsnowalb`,
+`msnowalb` and `csnowalb`, fine, medium and coarse grain snow reflectance over
+965 wavelengths; `radmod.f90` integrates the `iceblend` blends instead, and the
+one line that would have combined the three is commented out.
+`references/exocam/tools/spectral_albedos/snow100um.txt` is the second.
 
 The model has room to absorb it. From `run_b014469b8091/MOST_DIAG`, under `k25v`:
 fresh snow overall albedo 0.538, band 1 fresh 0.745 to 0.752, band-1 aged minimum
@@ -180,9 +207,12 @@ and nothing had said so.
 
 **OPEN, as `dust-14`, and it is a decision rather than a defect.** Nothing in the
 cryosphere reads the deposition field and the coupling still runs one way. What
-is now known is that closing it is not wiring: it costs a prognostic snow-dust
-reservoir, its restart record, an albedo function that reads it, and a rebuild of
-every binary. The soil end the finding's title contrasts it against is not
+is now known is that closing it is not wiring: it costs a seasonal maximum snow
+water equivalent and its restart record, a snow grain size the model does not
+have, an albedo function that reads both together, and a rebuild of every binary.
+`dust-14` is BLOCKED on `clim-63` by that middle term, on the decision to bring
+the grain size and the dust coefficient in together rather than anchor one on a
+model that has neither. The soil end the finding's title contrasts it against is not
 connected either -- `pedology/scripts/phosphorus_budget.py` says in as many words
 that it does not read `dust_baseline.nc`, and `ANUT-3` owns that. Deposition
 currently reaches neither. Two later findings bear on the same snow albedo

@@ -391,32 +391,54 @@ that rule 7 governs.
 what section 4 refuses.** MITgcmIS's Positive Degree Day scheme is rejected
 below because it drives ablation from 2 m air temperature alone. SEMI is the
 opposite kind of object. Its interface takes surface albedo and downward
-shortwave in FOUR components each, visible and near-infrared by direct and
-diffuse, together with the derivatives of downward shortwave with respect to
-albedo, plus cloud cover, downward longwave, a lapse rate, a cosine of zenith
-angle and dust.
+shortwave in FOUR components each, visible and near-infrared crossed with CLEAR
+SKY and CLOUDY SKY, together with the derivatives of downward shortwave with
+respect to albedo, plus cloud cover, downward longwave, a lapse rate, a cosine of
+zenith angle and dust. The `_dir` and `_dif` suffixes on those arguments are
+clear and cloudy, not direct beam and diffuse beam: `smb_def.f90`'s own comments
+say so, `rad_downscaling` recombines the pair by cloud fraction, and
+`coupler.f90` wires the `_dir` slots from the atmosphere's `_cs` fields. The
+zenith angle enters separately, through `coszm`, inside the snow albedo.
 
 That band structure is this project's own. The visible and near-infrared split
 is the same decomposition `lib/stellar.py` computes at 0.75 um and that
-`world_state.json` records as `flux_fraction_band1`, so the per-star reweighting
-already done maps onto SEMI's inputs instead of having to be invented. A scheme
-built for a two-band surface is the one kind of mass balance model a non-solar
-host does not immediately break.
+`world_state.json` records as `flux_fraction_band1`; the constant SEMI weights
+its two bands with is `frac_vu` in `references/climber-x/src/main/constants.f90`,
+a solar value, so substituting this star's is a one-constant change. The per-star
+reweighting already done maps onto SEMI's inputs instead of having to be
+invented. A scheme built for a two-band surface is the one kind of mass balance
+model a non-solar host does not immediately break.
 
-It also takes sub-grid surface elevation, an elevation standard deviation,
-surface slopes and elevation classes, and calls `downscaling_mod` for radiation,
-precipitation and wind. So it runs the surface balance on a DOWNSCALED field
-rather than on the cell mean. That is a third independent answer to the problem
-PHYS-13 and GRID-2 describe, and unlike the freezing-height criterion, which is
-a diagnostic, this one is a scheme that consumes the sub-grid distribution as an
-input. `smb_surface_par.f90` and `snow.f90` carry the surface side, and
-`snow_par` exposes `lsnow_dust`, `w_snow_dust` and `dust_con_scale`, so dust
-darkening of snow is a namelist switch rather than a gap. That is DUST-14,
-already solved in this model class.
+It also takes a sub-grid surface elevation, an elevation standard deviation and
+surface slopes, and calls `downscaling_mod` for radiation, precipitation and
+wind. So it runs the surface balance on a DOWNSCALED field rather than on the
+cell mean. That is a third independent answer to the problem PHYS-13 and GRID-2
+describe, and unlike the freezing-height criterion, which is a diagnostic, this
+one is a scheme that consumes the sub-grid statistics as an input. It does NOT
+tile a cell into elevation classes: the only elevation binning in the module is
+an output diagnostic in `smb_out.f90`, and the downscaling target is a separate
+finer grid, which `references/climber-x/nml/ice_grids.nml` shows to be polar
+stereographic domains centred on Greenland.
+
+`smb_surface_par.f90` and `snow.f90` carry the surface side, and `snow_par`
+exposes `lsnow_dust`, `w_snow_dust` and `dust_con_scale`, so dust darkening of
+snow is a namelist switch rather than a gap. That is DUST-14, already solved in
+this model class -- and it is solved TOGETHER WITH a snow grain size, which is
+why it cannot be lifted out on its own. `surface_albedo` computes the grain size
+and the dust concentration and hands both to one albedo routine, where the
+darkening scales as the grain radius to the 0.73 power. The dust concentration
+itself needs no prognostic reservoir: it is the ratio of deposition to snowfall
+times a melt concentration factor, and the only state is a seasonal maximum snow
+water equivalent.
 
 Two things in it do not transfer. Every constant is a PHYS-class inheritance,
 and `smb_bias_corr.f90` is a bias correction against Earth observations, which
 has no meaning on a world with none.
+
+`exoplasim/notes/semi-scoping.md` is the worked scoping against this project:
+the input list field by field, what ExoPlaSim already emits against what it would
+have to be made to emit, the adoption shape, and what a mass balance may claim
+when the generator has no time axis.
 
 **`references/climber-x/src/ch4` is a reduced atmospheric methane model, and WET-10 has a floor after
 all.** `ch4_model.f90` is 12 kB and is a partitioned-lifetime box: separate

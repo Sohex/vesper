@@ -1,0 +1,352 @@
+# SEMI as the surface mass balance candidate: what it needs, and what it brings
+
+Worldbuilding frame: this is a scoping read of external source against the
+Vesper project's climate model. Every field named is a model array or a model
+input; nothing here is about the real world.
+
+*Read 2026-08-24 from `references/climber-x/src/smb/`, which is READABLE
+REFERENCE and not a vendored component. Nothing was adopted in this pass: no
+`vendor/` addition, no `config/pipeline.yaml` step.*
+
+SEMI is CLIMBER-X's surface energy and mass balance model. `clim-63` asks
+whether it is the candidate and what it would cost; `dust-14` waits on the
+answer because the user's decision was to solve dust-on-snow once, correctly,
+inside whatever brings a snow grain size, rather than twice.
+
+## 1. The grain size arrives with SEMI, and it arrives coupled to the dust term
+
+This is the question the decision to wait turns on, and the answer is yes.
+
+`smb_surface_par.f90` is one module and it holds all three pieces. `surface_albedo`
+calls `snow_grain_size` when `snow_par%lsnow_aging` is set, calls `dust_in_snow`
+when `snow_par%lsnow_dust` is set, and then hands BOTH results to the same snow
+albedo routine. The two are arguments to one function, not two independent
+corrections:
+
+    call snow_albedo_dang(z_sur_std, snow_grain, dust_con, coszm, &
+                          alb_snow_vis_dir, alb_snow_nir_dir, alb_snow_vis_dif, alb_snow_nir_dif)
+
+Inside `snow_albedo_dang`, the coupling is explicit rather than incidental. The
+grain radius sets the clean-snow albedo through `rn = log10(r/r0)` with `r0` at
+100 um, and the same radius then scales the darkening: the black-carbon-equivalent
+loading is `H = c/c0*(r/r0)**0.73`, so a dust concentration darkens coarse snow
+more than fine snow, by a stated power. That exponent IS the reason a dust
+coefficient cannot be transplanted onto a grain-free ramp. `snow_albedo_ww`, the
+alternative under `isnow_albedo == 1`, reaches the same structure by a different
+route: it interpolates a tabulated Warren and Wiscombe dust curve in
+`log10(dust_con)` and then weights it by a snow-age factor derived from the same
+`snow_grain`, with separate coefficients for new and aged snow.
+
+So the premise the decision rested on holds. Adopting SEMI settles dust-14's
+blocker, because the grain size, the dust concentration, and the calibration that
+relates them are one object.
+
+**The calibration that comes with them**, from `references/climber-x/nml/smb_par.nml`
+and the `snow_par_type` defaults in `smb_params.f90`:
+
+- `isnow_albedo` selects Dang et al. 2015 over the CLIMBER-2 Warren and
+  Wiscombe 1980 scheme, and both are shipped.
+- The grain size runs between a fresh value and an old value, both declared, and
+  the ageing law between them is a CLIMBER-2 parameterisation tuned to MARv3.6
+  using the CROCUS snow model over Greenland. That provenance is stated in a
+  comment in `snow_grain_size` and it is an Earth calibration of a snow process,
+  not of a stellar spectrum.
+- `dust_con_scale` exists precisely to rescale the dust concentration for a
+  different imaginary refractive index, which is the knob a different dust
+  mineralogy would turn. It defaults to unity, so the shipped state is Dang's
+  own calibration untouched.
+- `w_snow_dust` is the melt concentration length: the snow water equivalent whose
+  melt doubles the dust concentration, capped at a five-fold increase, on the
+  reasoning that meltwater scavenges only 10 to 30 percent of the dust.
+
+**The dust term needs no prognostic reservoir.** `dust_in_snow` computes
+`dust_con = dust_dep/max(1e-7, snow)`, a concentration in FALLING snow, times the
+melt factor above. The only state involved is `w_snow_max`, the seasonal maximum
+snow water equivalent, one scalar per cell that `snow_update` raises whenever the
+pack is accumulating. `notes/audits/absent-and-inherited-physics.md` finding 2
+concluded that closing this coupling costs "a prognostic snow-dust reservoir, its
+restart record, an albedo function that reads it". The peer's answer is cheaper
+than that: a flux-ratio diagnostic, one extra scalar of state, and the albedo
+function.
+
+**And this project already holds the grain-resolved reflectance data.**
+`vendor/exoplasim/exoplasim/plasim/src/specblock.f90` ships `fsnowalb`,
+`msnowalb` and `csnowalb`: fine, medium and coarse grain snow reflectance over
+965 wavelengths. No code path selects among them -- `radmod.f90` uses the
+`iceblend` blends instead, and the one line that would have combined the three is
+commented out. So the grain axis has a data anchor in this tree already, unused,
+and `references/exocam/tools/spectral_albedos/snow100um.txt` is a second one.
+That matters for section 5 below.
+
+## 2. The four-component structure is real, but it is not direct and diffuse
+
+`clim-63` and `notes/external-model-survey.md` section 3f both describe SEMI's
+albedo and shortwave inputs as "visible and near-infrared by direct and diffuse".
+The count and the spectral axis are right; the second axis is not. The suffixes
+`_dir` and `_dif` in this module mean CLEAR SKY and CLOUDY SKY, and
+`smb_def.f90`'s own comments say so:
+
+    swd_sur_vis_dir   !! downward shortwave visible radiation at surface, clear sky [W/m2]
+    swd_sur_vis_dif   !! downward shortwave visible radiation at surface, cloudy [W/m2]
+
+`rad_downscaling` then recombines them by cloud fraction, `(1-cld)*clear +
+cld*cloudy`, rather than by a beam-splitting ratio, and `coupler.f90` wires
+`dswd_dalb_vis_dir` from the atmosphere's `dswd_dalb_vu_cs` -- `cs` for clear
+sky. A direct-beam versus diffuse-beam reading would send this project looking
+for a decomposition ExoPlaSim does not make and does not need to make.
+
+The zenith angle enters separately, through `coszm`, in the snow albedo itself.
+
+**The spectral axis IS this project's.** `constants.f90` sets `frac_vu = 0.45`,
+the fraction of the solar spectrum in the visible and ultraviolet, and
+`rad_downscaling` uses it to weight the two bands into a broadband flux. That is
+the same quantity `lib/stellar.py` computes at the 0.75 um split and
+`world_state.json` records, so the substitution is one constant and it is one
+this project has already derived for this star. The mapping in section 3f is
+verified.
+
+## 3. Field by field: what ExoPlaSim emits, what is derivable, and what is absent
+
+SEMI's column takes 32 inputs per cell per step. Grouped by what this project
+would have to do:
+
+**Already emitted.** Total precipitation, total cloud cover, surface wind speed,
+surface soil temperature, and the two-band surface albedo. The albedo is the
+useful one: `dsalb(1,:)` and `dsalb(2,:)` are archived as codes 174 and 184, with
+the broadband as 175, and after the wave-1 surface albedo work `landmod`'s snow
+albedo endpoints are themselves per band, `albsmin1/albsmax1` and
+`albsmin2/albsmax2`, driven from `dsnowalbmn`/`dsnowalbmx` which `radmod`
+computes by integrating a measured reflectance blend against this star's
+spectrum. SEMI wants four albedo components and ExoPlaSim has two: its surface
+albedo carries no cloud dependence, so the clear and cloudy arms are the same
+number, and the mapping is two fields used twice rather than two fields missing.
+
+**Derivable from what a run already writes.** Free-atmosphere temperature and the
+near-surface lapse rate, from the temperature profile and `lib/lapse.py`, which
+already owns the height of the lowest model level. Relative humidity, from the
+specific humidity and temperature. The daily-mean cosine of the zenith angle,
+from the orbit. Downward longwave at the surface and downward shortwave at the
+surface exist as `dftd(:,NLEP)` and `dfd(:,NLEP)`, codes 407 and 405, but only
+inside the level-resolved output rather than as surface diagnostics -- codes 176
+and 177 are the NET surface fluxes, not the downward ones.
+
+**Derivable only from a run configured to produce it.** The standard deviation of
+daily 2 m temperature, `tstd`, which `smb_ebal` uses for the sub-diurnal melt
+correction, needs daily sampling within the averaging period. The diurnal minimum
+of top-of-atmosphere downward shortwave, `swd_toa_min`, is the same class. The
+700 hPa winds are available through the postprocessor's pressure-level
+interpolation, but 700 hPa is itself an Earth choice -- it is the steering level
+for Greenland orographic precipitation -- and on a planet with a different scale
+height it is a declared choice rather than an inherited one.
+
+**Not emitted, and this is the model change.** The band-resolved downward
+shortwave at the surface, in both the clear-sky and the all-cloud limit: four
+fields. `radmod`'s `swr` computes `zfd1` and `zfd2` per band at every interface
+and then immediately sums them into `dfd`, so the band split exists inside the
+routine and is discarded. The clear-sky arm has a precedent already in the tree:
+`ndiagcf` re-calls `swr` with the cloud fraction zeroed and stores the result in
+`dclforc`. The all-cloud arm has no precedent -- CLIMBER-X's atmosphere computes
+`solar_sur_c` alongside `solar_sur_s`, an overcast limit rather than the actual
+sky, and ExoPlaSim's normal call gives the cloud-weighted sky only.
+
+**Not derivable in closed form.** The six derivatives: `dswd_dalb` for each of
+the four components, and `dswd_dz_nir` for the two near-infrared ones. In
+CLIMBER-X these are analytic derivatives of that model's own single-layer
+transmission-factor product, written out by hand in `swr.f90` around the
+`l_dswd_dalb` guard. They are inseparable from that scheme. ExoPlaSim's shortwave
+is a multi-layer adding cascade with the surface albedo entering as the bottom
+boundary reflectivity, so the derivative would have to be re-derived through the
+cascade or taken by finite difference -- two extra `swr` calls per radiation
+step, on the `ndiagcf` pattern. Either is real work and neither is a port.
+
+**Deliberately dropped.** `t2m_bias`, `prc_bias` and everything
+`smb_bias_corr.f90` does are corrections against Earth observations, of which
+this world has none. `dTvar` is an artificial interannual variability generator.
+`l_regional_climate_forcing` reads a regional climate model's output instead of
+downscaling, which is not a mode that exists here.
+
+## 4. The sub-grid side, and one input this project already has
+
+`clim-63` and section 3f list "sub-grid elevation, an elevation standard
+deviation, slopes and elevation classes". Three of those four are right and the
+fourth is not a SEMI structure at all.
+
+**Elevation classes do not exist in SEMI.** The only occurrence in the module is
+in `smb_out.f90`, binning ice AREA by elevation for output. SEMI does not tile a
+cell into elevation bands. It runs the whole balance on a separate, finer grid --
+`ice_grids.nml` defines polar stereographic domains from 80 km down, centred at
+70 degrees north and 45 degrees west, which is Greenland. So the sub-grid
+structure SEMI needs is a finer GRID plus per-cell statistics on it, not a
+sub-grid tiling.
+
+**The elevation standard deviation exists here today.** The Orogen export already
+carries `orog_std` per grid cell, with `orog_mean`, `orog_min`, `orog_max`,
+`orog_count`, `orog_anisotropy` and `orog_angle` beside it, in `planet.nc` and in
+`grid/`, on every emitted grid. The manifest's `subgridOrography` block documents
+them and states what an empty cell means. That is `z_sur_std` directly: SEMI uses
+it for the snow cover fraction over rough topography, for the ice fraction in
+`ice.f90`, and for a roughness albedo reduction in `snow_albedo_dang`. It is worth
+saying plainly because `grid-2` reads as though no sub-grid elevation statistic is
+persisted anywhere, and this one is. What `grid-2` is actually about -- the
+DISTRIBUTION of mesh elevations under a cell, which mean, standard deviation,
+minimum and maximum do not determine -- is a different and larger object, and
+SEMI does not need it.
+
+CLIMBER-X derives its own `z_sur_std` in `geo/hires_to_lowres.f90` by the law of
+total variance, combining a read-in sub-grid variance with the variance of the
+high-resolution cell means. The export's `orog_std` is the second of those two
+terms only, computed over mesh region centres. `notes/audits/orogen-resolution.md`
+already establishes that the generator designs nothing below about 20 km, so the
+first term is not available here at any region count and is `gw-6`'s.
+
+**The slopes would have to be built.** `topo_grad_map` needs `dz_dx_sur` and
+`dz_dy_sur` on the fine grid, for the wind-slope precipitation factor. The export
+gives `orog_anisotropy` and `orog_angle`, the eigenstructure of the slope
+covariance tensor within a coarse cell, which is a different object: it describes
+whether the sub-grid roughness is ridged and along which axis, not the resolved
+gradient of the fine field. Slopes on whatever fine grid is chosen would come
+from the mesh, and the gradient formula in `topo_grad_map` hardcodes `r_earth`
+and must not be ported as written.
+
+**The fine grid itself does not exist.** This is the real gap, and it is the
+same one `phys-13` and `grid-2` describe from two other directions. SEMI needs a
+grid on which land is resolved finely enough that the balance is not evaluated on
+a cell mean, an ice fraction and an ice albedo on it, and a mapping to and from
+the climate grid. `phys-13` establishes that the model's own orography evaluates
+its high ground far too warm for ice to survive, and that the sub-grid peak excess
+does not go away at any truncation the model can afford. A mass balance run on
+the coarse orography would return no ice, confidently and for the wrong reason,
+which is `clim-53`'s stated ordering argument and it applies to SEMI unchanged.
+
+## 5. Does SEMI survive the test that refused the positive-degree-day scheme?
+
+`clim-63` refuses MITgcmIS's PDD scheme for driving ablation from 2 m air
+temperature alone, blind to absorbed shortwave over ice, which is the term a
+K2.5V host changes most. SEMI is checked against the same test rather than
+assumed to pass it.
+
+**On the shortwave, it passes cleanly.** `smb_ebal` linearises a full surface
+energy balance and takes the melt flux as the residual at the melting point:
+`flx_melt = sh + lh + g + lw + swnet` evaluated with the skin temperature pinned
+to freezing, floored at zero. `num_sw = swnet` enters the skin temperature solve
+directly. `swnet` itself is assembled in `rad_downscaling` band by band against
+the band-resolved surface albedo. There is also a sub-diurnal correction that
+uses `swnet_min` to estimate the fraction of the step spent above freezing, so
+the scheme resolves melt that a step-mean temperature would miss. Absorbed
+shortwave over ice is the central term, not an absent one. It also ships a
+surface energy conservation check, `energy_cons_surf1` under `check_energy`,
+which is the kind of identity CLAUDE.md's testing convention asks for and which a
+port could keep as its acceptance test.
+
+**On the snow albedo, it carries the same class of defect this project has
+already found once.** Dang et al. 2015's coefficients -- 0.9856, -0.0202,
+-0.0125 for the diffuse visible clean-snow albedo, and the parallel sets for the
+other three components -- are fits to band-INTEGRATED albedo under a solar
+spectrum, with a visible/near-infrared boundary that is that scheme's own and not
+0.75 um. Under a K2.5V host, more flux sits in the near infrared and the
+in-band spectral distribution shifts, so the band-integrated fit no longer
+describes the band. That is `notes/external-model-survey.md` section 9b's finding
+arriving from a second model: snow and ice albedo endmembers were never
+re-derived for this star. The difference is that ExoPlaSim's endmembers CAN be
+re-derived, because it ships the reflectance spectra they came from, and Dang's
+cannot, because it ships only the fitted polynomials.
+
+So SEMI survives the refusal that killed the PDD scheme, and it inherits a
+smaller version of the problem section 9b names. That is not a reason to reject
+it -- physics is not a knob, and an energy balance with a spectrally imperfect
+albedo is strictly better than a temperature index with no shortwave at all --
+but it is the reason the adoption shape in section 6 is not a straight port.
+
+**The other inherited constants**, all PHYS-class, in one list so a port does not
+discover them one at a time: `frac_vu = 0.45` (section 2, this project has the
+replacement); `p0 = 1010 hPa` and `h_atm = 8600 m` in `smb_params`, both carrying
+`fixme` comments upstream, used by `topo_factors` to make a surface pressure --
+the scale height is gravity-dependent and must come from `config/planet.yaml`;
+`gamma = 5 K/km`, a declared lapse rate with an Earth ice-sheet provenance, where
+`lib/lapse.py` owns this project's; `r_earth` in `topo_grad_map`; `g` in the
+Richardson number in `resistance` and in `snow.f90`; the roughness lengths
+`z0m_ice` and `z0m_snow`; the emissivities; `dP_dT`, the Clausius-Clapeyron
+precipitation factor; and `wind_ele_fac`, whose own comment says to check it
+against CORDEX data. Snow density is a constant here, so unlike PALADYN's snow
+there is no compaction law and section 3b's gravity argument does not apply to
+this module.
+
+## 6. The adoption shape: a port, not a subtree, and not yet
+
+`docs/src/reference/vendored-upstreams.md` sets the rule. A subtree is a
+MAINTAINED FORK, taken when the work is fork-shaped -- when this project will
+edit the external code and wants provenance as a commit here. External source
+this project reads and will not edit lives under `references/` instead.
+`vendor/cgenie` is the boundary case and it is instructive: it is a subtree
+because two open rows are fork-shaped by construction, and it is still labelled a
+CANDIDATE that nothing reads and that does not build where it stands.
+
+SEMI does not meet that bar, and the reason is that almost nothing of the
+surrounding tree transfers.
+
+The module is 8,378 lines. The COLUMN -- `semi.f90`, `smb_surface_par.f90`,
+`smb_ebal.f90`, `smb_temp.f90`, `snow.f90`, `smb_grid.f90`, `downscaling.f90` --
+is about 1,900 of them, and its dependencies outside `smb/` are small and
+ordinary: a precision kind, a physical constants module, a namelist reader, a
+tridiagonal solver. That part is a clean, self-contained energy balance on a
+snow-over-ice column and it is genuinely portable.
+
+The other 6,400 lines are the driver, the grid machinery, the Earth bias
+corrections, the polar stereographic Greenland and Antarctic domains, the netCDF
+output, and CLIMBER-X's own timer and coupler contracts. None of it transfers.
+`smb_bias_corr.f90` has no meaning on a world with no observations, and
+`smb_simple.f90` and `smb_pdd.f90` are the alternatives `clim-63` already
+refused.
+
+So the shape is a PORT of the column into this project's own component
+directory, with the parameter block re-derived rather than copied, against the
+existing components -- not a subtree, and not a reimplementation from the paper
+either, because the code is the specification and the licences combine.
+GPL-3-or-later over ExoPlaSim's GPL-2-or-later is permitted with the combined
+work under GPL-3, which section 3d of the survey establishes.
+
+**Two things must exist before a port is worth starting**, and both are other
+rows:
+
+1. A fine grid with an ice mask on it. `phys-13`. Until then the balance runs on
+   an orography that evaluates its own high ground far too warm, and returns no
+   ice for the wrong reason.
+2. The four band-resolved downward shortwave surface diagnostics, in the
+   clear-sky and all-cloud limits, and a decision on how the six albedo and
+   elevation derivatives are obtained. That is a change to `radmod`, `outmod`,
+   `pyburn` and the diagnostic block, and it is the half of `clim-63` that is
+   ExoPlaSim work rather than CLIMBER-X reading.
+
+Item 2 has a cheaper first step that is worth naming: SEMI's derivatives exist to
+let the balance re-solve the surface albedo on the fine grid without re-running
+the radiation. A first port could hold the albedo fixed at the climate model's
+value, drop all six derivatives, and lose only the albedo feedback WITHIN the
+downscaling step. That is a defensible reduced form with a stated invalidity --
+it cannot represent a snow line moving inside a coarse cell during the melt
+season -- and it removes the hardest of the input requirements from the critical
+path.
+
+## 7. What a mass balance is allowed to claim, given no time axis
+
+`docs/src/reference/no-time-axis.md` binds anything that asks for a duration.
+SEMI itself is clean: it produces a rate in kg/m2/s, and every duration in it
+comes from the climate -- the model year, the SMB timestep, the climate update
+interval -- not from the terrain. Orogen is not asked for anything.
+
+Where it bites is the step after. A surface mass balance field is not an ice
+sheet. Turning one into ice geometry needs an ice dynamics model integrated over
+a duration, and there is no duration to integrate over; a declared window would be
+exactly the failure the document names, a number that is calibrated to an outcome
+being reasoned about as though it were measured.
+
+The document's own method gives the way through, and it is the standard one: ask
+what a randomly chosen moment looks like, which for a mass balance means solving
+for the EQUILIBRIUM rather than a history. The honest deliverables are the
+annual balance field itself and the surface at which it integrates to zero. Both
+are diagnostics of the climate, and neither needs a duration. Anything that asks
+how THICK the ice is, or how long it took, does, and `clim-53` is where the
+acceleration question and its declared invalidity already live.
+
+That also fixes what `dust-14` gets. The dust term changes the melt energy and
+therefore the equilibrium line, which is a statement the world can carry. It does
+not by itself say how much ice there is.
