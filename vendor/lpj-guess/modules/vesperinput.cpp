@@ -41,7 +41,7 @@ REGISTER_INPUT_MODULE("vesper", VesperInput)
 namespace {
 
 /// Little-endian, and both writer and reader are x86-64. Checked via the magic.
-const char DRIVER_MAGIC[8] = {'V','E','S','P','D','R','V','6'};
+const char DRIVER_MAGIC[8] = {'V','E','S','P','D','R','V','7'};
 
 /// Bins per year in the driver file. These are the MODEL's months, the same
 /// twelve VESPER_MONTH_LENGTHS sizes Date with, because interp_monthly_*
@@ -146,8 +146,15 @@ void VesperInput::read_driver() {
 		read_or_fail(in, &cell.lat, 1, "latitude");
 		read_or_fail(in, &cell.soilcode, 1, "soil code");
 		read_or_fail(in, &pad, 1, "padding");
-		read_or_fail(in, &cell.regolith_depth_m, 1, "regolith depth");
-		read_or_fail(in, &cell.bedrock_water_fraction, 1, "bedrock water fraction");
+		read_or_fail(in, &cell.soil_states.b, 1, "retention exponent");
+		read_or_fail(in, &cell.soil_states.saturation, 1, "saturation");
+		read_or_fail(in, &cell.soil_states.field_capacity, 1, "field capacity");
+		read_or_fail(in, &cell.soil_states.wilting_point, 1, "wilting point");
+		cell.layer_usable.resize(NSOILLAYER);
+		read_or_fail(in, &cell.layer_usable[0], NSOILLAYER, "layer usable shares");
+		// A cell whose driver was built without a soil map carries the sentinel
+		// rather than a curve, and the soil-code path is what runs for it.
+		cell.soil_states.declared = (cell.soil_states.saturation > 0.0);
 		if (cell.soilcode < 0 || cell.soilcode > 9) {
 			fclose(in);
 			fail("vesperinput: cell %d has invalid LPJ soil code %d",
@@ -296,14 +303,18 @@ bool VesperInput::getgridcell(Gridcell& gridcell) {
 	gridcell.climate.instype = NETSWRAD_TS;
 
 	if (have_soilmap) {
+		// The contract's states first: `get_soil` reads them and derives no
+		// retention curve of its own. WORLD-OF6N.
+		soilinput.set_contract_states(cell.soil_states);
 		soilinput.get_soil(cell.lon, cell.lat, gridcell);
+		apply_column_geometry(gridcell, cell.layer_usable);
 	}
 	else {
+		// No soil map, so no contract states and no texture to derive them
+		// from. The driver's single LPJ soil code is a texture class with its
+		// own tabulated capacities, and it carries no column geometry either.
 		soil_parameters(gridcell.soiltype, cell.soilcode);
 	}
-
-	apply_regolith_depth(gridcell, cell.regolith_depth_m,
-	                     cell.bedrock_water_fraction);
 
 	// Year 0 of this cell, so day 0 has data before getclimate first runs.
 	// getclimate re-interpolates at the start of every year after that.
@@ -315,18 +326,25 @@ bool VesperInput::getgridcell(Gridcell& gridcell) {
 	return true;
 }
 
-void VesperInput::apply_regolith_depth(Gridcell& gridcell, double depth_m,
-                                       double bedrock_fraction) {
+void VesperInput::apply_column_geometry(Gridcell& gridcell,
+                                        const std::vector<double>& layer_usable) {
 
-	// LPJ-GUESS gives every gridcell the same 1.5 m profile and derives its
-	// water capacity from texture alone. On a world where relief and erodibility
-	// are known, that is a real omission: a plant on 0.2 m of regolith over
-	// bedrock has a seventh of the water a plant on a deep profile has, and no
-	// combination of sand and clay fractions can express it.
+	// LPJ-GUESS gives every gridcell the same physical profile and derives its
+	// water capacity from texture alone. On a world where relief and
+	// erodibility are known, that is a real omission: a plant on 0.2 m of
+	// regolith over bedrock has a seventh of the water a plant on a deep
+	// profile has, and no combination of sand and clay fractions can express
+	// it.
 	//
-	// So each layer's capacity is scaled by the fraction of that layer which is
-	// actually regolith rather than rock. A layer entirely above the bedrock
-	// contact is untouched; one entirely below it holds nothing.
+	// So each layer's capacity is scaled by the share of that layer the soil
+	// column actually carries. THAT SHARE IS READ AND NOT DERIVED. It is the
+	// land column property contract's weathered-bedrock vertical rule -- the
+	// part of the layer above the regolith contact, plus the weathered-bedrock
+	// water fraction of the part below it, capped so sub-bedrock material can
+	// at most match the soil above -- evaluated once in
+	// pedology/scripts/land_column_properties.py and carried per layer in the
+	// driver file. The rule stood here and was transcribed there as well, which
+	// is two copies of one rule; WORLD-OF6N left one.
 	//
 	// This scales capacity, not the layer geometry: the layers still exist and
 	// still conduct heat, they simply hold less water. Rooting depth is
@@ -334,50 +352,22 @@ void VesperInput::apply_regolith_depth(Gridcell& gridcell, double depth_m,
 	// PFTs can reach on thin soil. Recorded rather than corrected, because
 	// changing rootdist would reach into PFT parameters that are Earth
 	// calibrations.
-
-	// Material below the bedrock contact still holds plant-available water, and
-	// deep-rooted woody plants demonstrably use it. `bedrock_fraction` is how
-	// much, per unit volume, relative to the soil above, and it arrives per cell
-	// from the pedology component as a function of weathering intensity. It can
-	// legitimately exceed 1: deeply weathered saprolite holds more water than the
-	// soil sitting on top of it.
 	//
-	// A hard floor is still needed, but only as a numerical guard and not as
-	// physics. LPJ-GUESS carries soil water as a fraction of each layer's
-	// capacity, computing `wcont = Faw_layer / soiltype.awc[layer]` in
-	// soilwater.cpp and canexch.cpp, so a layer at exactly zero divides by zero
-	// and the NaN propagates through the nitrogen substrate and zeroes the
-	// gridcell's vegetation silently, reporting zero LAI rather than failing.
-	const double NUMERICAL_FLOOR = 1.0e-4;
+	// The ceiling on the bedrock share is a limitation of this model and not of
+	// the world. Deeply weathered saprolite really does hold two to four times
+	// what its soil does, but LPJ-GUESS ties a layer's saturation capacity to
+	// its texture-derived porosity, and scaling `wsats` past that drives
+	// `Frac_air` negative in Soil::update_soil_diffusivities, which is a hard
+	// failure. Representing the upper half of the observed range needs a
+	// genuinely separate bedrock layer with its own porosity, which is what
+	// Lapides et al. (Biogeosciences 2024) added to this same model rather than
+	// rescaling the existing profile.
 
-	if (depth_m <= 0.0) {
-		return;
-	}
-
-	double bedrock = bedrock_fraction;
-	if (bedrock < NUMERICAL_FLOOR) {
-		bedrock = NUMERICAL_FLOOR;
-	}
-
-	// Capped at 1: sub-bedrock material can at most match the soil above, never
-	// exceed it. That is a limitation of this model, not of the world. Deeply
-	// weathered saprolite really does hold two to four times what its soil does,
-	// but LPJ-GUESS ties a layer's saturation capacity to its texture-derived
-	// porosity, and scaling `wsats` past that drives `Frac_air` negative in
-	// Soil::update_soil_diffusivities, which is a hard failure.
-	//
-	// Representing the upper half of the observed range needs a genuinely
-	// separate bedrock layer with its own porosity, which is what Lapides et al.
-	// (Biogeosciences 2024) added to this same model rather than rescaling the
-	// existing profile. Recorded here so the ceiling is visible in results.
-	if (bedrock > 1.0) {
-		bedrock = 1.0;
-	}
-
-	const double profile_mm = SOILDEPTH_UPPER + SOILDEPTH_LOWER;
-	double depth_mm = depth_m * 1000.0;
-	if (depth_mm >= profile_mm && bedrock >= 1.0) {
-		return;   // wholly regolith, or rock that holds as much; nothing to do
+	if ((int)layer_usable.size() != NSOILLAYER) {
+		fail("vesperinput: the driver carries %d per-layer usable shares and "
+		     "this binary has NSOILLAYER = %d. Rebuild the driver with "
+		     "build_lpj_driver.py against this profile.",
+		     (int)layer_usable.size(), (int)NSOILLAYER);
 	}
 
 	Soiltype& soil = gridcell.soiltype;
@@ -386,18 +376,27 @@ void VesperInput::apply_regolith_depth(Gridcell& gridcell, double depth_m,
 	const double lower_layer_mm = SOILDEPTH_LOWER
 		/ (double)(NSOILLAYER - NSOILLAYER_UPPER);
 
-	double top_mm = 0.0;
 	double kept_upper = 0.0;
 	double kept_lower = 0.0;
 	for (int layer = 0; layer < NSOILLAYER; layer++) {
 		const double thickness = (layer < NSOILLAYER_UPPER)
 			? upper_layer_mm : lower_layer_mm;
-		// Share of this layer above the bedrock contact. The rest is rock, and
-		// holds `bedrock` times what the same volume of soil would.
-		double regolith_share = (depth_mm - top_mm) / thickness;
-		regolith_share = regolith_share < 0.0 ? 0.0
-			: (regolith_share > 1.0 ? 1.0 : regolith_share);
-		const double usable = regolith_share + (1.0 - regolith_share) * bedrock;
+		const double usable = layer_usable[layer];
+
+		// A hard floor is a numerical guard and not physics, and the contract
+		// applies the same one where it computes the share. Checked rather than
+		// re-imposed: LPJ-GUESS carries soil water as a fraction of each
+		// layer's capacity, computing `wcont = Faw_layer / soiltype.awc[layer]`
+		// in soilwater.cpp and canexch.cpp, so a layer at exactly zero divides
+		// by zero and the NaN propagates through the nitrogen substrate and
+		// zeroes the gridcell's vegetation silently, reporting zero LAI rather
+		// than failing.
+		if (!(usable > 0.0)) {
+			fail("vesperinput: layer %d has a usable share of %g. A layer at "
+			     "zero capacity divides by zero in soilwater.cpp and zeroes "
+			     "the gridcell's vegetation without failing; the contract's "
+			     "numerical floor should have prevented it.", layer, usable);
+		}
 
 		soil.awc[layer] *= usable;
 		soil.wp[layer] *= usable;
@@ -409,7 +408,6 @@ void VesperInput::apply_regolith_depth(Gridcell& gridcell, double depth_m,
 		else {
 			kept_lower += usable * thickness;
 		}
-		top_mm += thickness;
 	}
 
 	// The aggregate two-layer figures have to move with the per-layer ones or

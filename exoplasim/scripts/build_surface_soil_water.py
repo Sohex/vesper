@@ -10,12 +10,24 @@ that bucket overflowing:
 back to the uniform namelist default of `wsmax = 0.5 m` everywhere. That default
 is why `model.uniform_land_surface` exists.
 
-`pedology/` computes the real capacity from texture and regolith depth, which is
-exactly the field being defaulted. Supplying it makes runoff a property of the
-soil rather than of a namelist, and the soil is in turn a product of the climate
-and the biosphere. That is the third loop in this pipeline.
+The capacity comes from the LAND COLUMN PROPERTY CONTRACT, which derives it
+from texture and regolith depth and is the one place in this pipeline that
+derives it at all. Supplying it makes runoff a property of the soil rather than
+of a namelist, and the soil is in turn a product of the climate and the
+biosphere. That is the third loop in this pipeline.
 
     python exoplasim/scripts/build_surface_soil_water.py
+
+**This reads and does not derive.** The field is
+`pedology/data/<build>/land_column_states_<res>.txt`, written by
+`pedology/scripts/land_column_properties.py`, whose `awc_mm` column is the
+plant-available capacity of the declared physical column: the contract's
+retention states at this world's gravity, integrated over its fifteen layers
+with the weathered-bedrock rule applied. The same file gives LPJ-GUESS its
+per-layer states, so the two land columns agree on how much water there is by
+construction. It used to be `soilmap.txt`'s `awc` column, which is pedology's
+own declared endmember mixture and a different capacity; WORLD-OF6N settled
+which of the two the world has.
 
 **Expect the effect to be small, and build it anyway.** The uniform bucket was
 once the leading suspect for this world's land runoff ratio, and an offline
@@ -61,15 +73,21 @@ EXOPLASIM_DEFAULT_WSMAX_M = 0.5
 COORD_DECIMALS = 4
 
 
-def read_soil_map(path: Path) -> dict[tuple[float, float], float]:
-    """Plant-available water capacity in mm, keyed by rounded coordinates."""
+def read_land_column_states(path: Path) -> dict[tuple[float, float], float]:
+    """Plant-available water capacity in mm, keyed by rounded coordinates.
+
+    From the contract's emitted states, not from the soil map. The two carry
+    columns that would both parse as a capacity, so the column name is checked
+    by name and the file is named in the error.
+    """
     lines = path.read_text().splitlines()
     header = lines[0].split()
-    if "awc" not in header:
+    if "awc_mm" not in header:
         raise SystemExit(
-            f"{path} has no awc column. Rebuild it with "
-            f"pedology/scripts/build_soil.py.")
-    column = header.index("awc")
+            f"{path} has no awc_mm column. It is the land column property "
+            "contract's emitted states; write it with "
+            "pedology/scripts/land_column_properties.py.")
+    column = header.index("awc_mm")
     capacity = {}
     for line in lines[1:]:
         parts = line.split()
@@ -81,8 +99,10 @@ def read_soil_map(path: Path) -> dict[tuple[float, float], float]:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, default=CONFIG)
-    parser.add_argument("--soil-map", type=Path,
-                        default=None)
+    parser.add_argument("--states", type=Path, default=None,
+                        help="the land column property contract's emitted "
+                             "per-cell states; defaults to the configured "
+                             "build's")
     # Resolved from config.baseline_climatology, not hardcoded. The default
     # here named `climatology_s096` until 2026-08-17: pre-carve terrain under
     # the superseded k2 spectrum. See lib/paths.py:climatology_path.
@@ -105,18 +125,19 @@ def main() -> None:
 
     config = yaml.safe_load(args.config.read_text(encoding="utf-8"))
     model = config["model"]
-    if args.soil_map is None:
+    if args.states is None:
         import sys as _sys
         _sys.path.insert(0, str(PROJECT_ROOT / "lib"))
         import builds as _b
-        args.soil_map = _b.soilmap(config)
+        args.states = _b.land_column_states(config)
     nlat, nlon = int(model["latitudes"]), int(model["longitudes"])
     resolution = str(model["resolution"]).upper()
 
-    if not args.soil_map.is_file():
+    if not args.states.is_file():
         raise SystemExit(
-            f"{args.soil_map} does not exist. Run pedology/scripts/build_soil.py.")
-    capacity_mm = read_soil_map(args.soil_map)
+            f"{args.states} does not exist. Run "
+            "pedology/scripts/land_column_properties.py.")
+    capacity_mm = read_land_column_states(args.states)
 
     # Grid and land mask come from the climatology, which is the boundary land
     # mask as the model itself saw it, and is the same grid pedology wrote its
@@ -225,8 +246,12 @@ def main() -> None:
         "code": SOIL_WATER_CODE,
         "field": "dwmax, maximum soil water capacity, metres",
         "lakes": lake_report,
-        "soil_map": rel(args.soil_map),
-        "soil_map_sha256": hashlib.sha256(args.soil_map.read_bytes()).hexdigest(),
+        "land_column_states": rel(args.states),
+        "land_column_states_sha256": hashlib.sha256(
+            args.states.read_bytes()).hexdigest(),
+        "capacity_source": "the land column property contract's awc_mm column. "
+                           "This script converts mm to m and installs it; it "
+                           "derives no capacity of its own.",
         "config_sha256": hashlib.sha256(args.config.read_bytes()).hexdigest(),
         "resolution": resolution,
         "land_cells": int(land.sum()),

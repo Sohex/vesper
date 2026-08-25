@@ -61,12 +61,18 @@ private:
 		double lon;
 		double lat;
 		int soilcode;
-		/// regolith thickness, m, from the pedology component
-		double regolith_depth_m;
-		/// plant-available water below the bedrock contact, as a fraction of
-		/// what the soil above holds per unit volume. From pedology, a function
-		/// of weathering intensity; see pedology/config/pedogenesis.yaml.
-		double bedrock_water_fraction;
+		/// The land column property contract's retention states for this cell.
+		/// Read, never derived: see SoilInput::ContractStates.
+		SoilInput::ContractStates soil_states;
+		/// Per physical layer, the share of that layer's capacity the column
+		/// carries. The contract's weathered-bedrock vertical rule, evaluated
+		/// by pedology/scripts/land_column_properties.py from regolith depth
+		/// and the weathered-bedrock water fraction, so the rule lives in one
+		/// place rather than here and there. One number per layer and not
+		/// three, because the same share scales that layer's available water,
+		/// its wilting point and its saturation: the material below the
+		/// regolith contact holds less of everything.
+		std::vector<double> layer_usable;
 		/// Climate, flattened as [year * bins + bin]. Sized years * bins.
 		/// mean air temperature, degrees C
 		std::vector<double> temp;
@@ -143,9 +149,9 @@ private:
 	/// Interpolates one year of the current cell's bins onto days
 	void interpolate(const Cell& cell, int year_index);
 
-	/// Scales soil water capacity by how much of each layer is really regolith
-	void apply_regolith_depth(Gridcell& gridcell, double depth_m,
-	                          double bedrock_fraction);
+	/// Applies the contract's per-layer usable shares to the soil water column
+	void apply_column_geometry(Gridcell& gridcell,
+	                           const std::vector<double>& layer_usable);
 
 	/// Reads the driver file into `cells`, failing loudly on any mismatch
 	void read_driver();

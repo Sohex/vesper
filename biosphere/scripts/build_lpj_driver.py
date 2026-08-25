@@ -1,9 +1,19 @@
 """Build the binary driver file LPJ-GUESS reads, from climate and lithology.
 
 One self-describing file carrying the gridlist, a soil code per cell derived from
-World Orogen lithology, and binned climate. `vesperinput.cpp` reads it.
+World Orogen lithology, the land column property contract's soil hydraulic
+states, and binned climate. `vesperinput.cpp` reads it.
 
-Three things are worth knowing about what goes in.
+Four things are worth knowing about what goes in.
+
+**The soil's hydraulic states are READ, not derived.** Saturation, field
+capacity, the wilting point, the retention closure's exponent and the share of
+each physical layer the soil column carries all come from
+`pedology/scripts/land_column_properties.py`, which is the one place in this
+pipeline that evaluates the closure. `soilinput.cpp` inverted the Cosby texture
+regressions for itself and `vesperinput.cpp` rescaled the profile by regolith
+depth for itself; WORLD-OF6N removed both, so a driver without these states
+leaves every cell on its LPJ soil code instead.
 
 **Land comes from `surface_class`, never `land_mask`.** The two disagree by 1.9%
 of the planet, all of it dry closed-basin floor below sea level that `land_mask`
@@ -57,13 +67,17 @@ from orogen import Export
 
 # V2 regolith depth, V3 bedrock water, V4 multiple years, V5 nitrogen deposition
 # read per Earth year rather than per orbit, V6 the fourth climate array named
-# for the variable it is actually the range of. V5 carries the same bytes as V4
-# and V6 the same bytes as V5; each differs only in what a field MEANS, which is
+# for the variable it is actually the range of, V7 the land column property
+# contract's retention states and per-layer usable shares in place of regolith
+# depth and bedrock fraction. V5 carries the same bytes as V4 and V6 the same
+# bytes as V5; each of those differs only in what a field MEANS, which is
 # exactly the change a magic has to catch, since such a file read by the wrong
-# binary looks perfectly valid. V5's change is argued in
-# biosphere/notes/time-base-unit-contract.md and V6's in
-# biosphere/notes/ecological-forcing-field-contract.md.
-MAGIC = b"VESPDRV6"
+# binary looks perfectly valid. V7 is the first that changes the bytes: two
+# doubles per cell become four plus one per physical layer. V5's change is
+# argued in biosphere/notes/time-base-unit-contract.md, V6's in
+# biosphere/notes/ecological-forcing-field-contract.md and V7's in
+# pedology/notes/land-column-property-contract.md.
+MAGIC = b"VESPDRV7"
 
 # Coordinate precision shared with pedology/scripts/build_soil.py, so the soil
 # map keys match exactly. See where lon_signed is rounded.
@@ -268,10 +282,11 @@ def main() -> None:
                         help="one or more climatologies, each one year of "
                              "forcing, cycled in the order given")
     parser.add_argument("--output", type=Path, default=None)
-    parser.add_argument("--soil-map", type=Path, default=None,
-                        help="pedology soilmap.txt, for its regolith depth "
-                             "column. Without it every cell is given the full "
-                             "profile depth, which is LPJ-GUESS's own default.")
+    parser.add_argument("--states", type=Path, default=None,
+                        help="the land column property contract's emitted "
+                             "per-cell states. Without them every cell falls "
+                             "back to its LPJ soil code, which carries its own "
+                             "tabulated capacities.")
     parser.add_argument("--ndep", type=float, default=0.5,
                         help="nitrogen deposition, kgN/ha per EARTH YEAR. "
                              "Absolute time, not per orbit: deposition is an "
@@ -379,41 +394,66 @@ def main() -> None:
     output = args.output or (GENERATED / "vesper_driver.bin")
     output.parent.mkdir(parents=True, exist_ok=True)
 
-    # Regolith depth, keyed on the same rounded coordinates the soil map uses.
-    # Absent, every cell gets LPJ-GUESS's full 1.5 m profile, which is what the
-    # unpatched model assumes anyway.
-    default_depth_m = 1.5
-    depth_by_coord: dict[tuple[float, float], float] = {}
-    bedrock_by_coord: dict[tuple[float, float], float] = {}
-    # Without a soil map, sub-bedrock layers keep the fresh-rock minimum. It is a
-    # declared physical value, not a numerical guard; see pedogenesis.yaml.
-    default_bedrock_fraction = 0.05
-    soil_map = args.soil_map
-    if soil_map is None:
-        candidate = builds.soilmap()
-        soil_map = candidate if candidate.is_file() else None
-    if soil_map is not None:
-        lines = soil_map.read_text().splitlines()
+    # THE SIMULATED SOIL'S RETENTION STATES, READ AND NOT DERIVED. The land
+    # column property contract is the one description of this world's soil
+    # hydraulics: `pedology/scripts/land_column_properties.py` evaluates the
+    # named closure at this planet's gravity and emits, per cell, saturation,
+    # field capacity, the wilting point, the closure's exponent and the share
+    # of each physical layer the soil column carries. `soilinput.cpp` derived
+    # its own from the Cosby regressions until WORLD-OF6N; it now refuses
+    # without these.
+    #
+    # Keyed on the same rounded coordinates the soil map uses. Absent, the
+    # sentinel goes in and `vesperinput` runs the driver's LPJ soil code path,
+    # which is a texture class with its own tabulated capacities and no column
+    # geometry.
+    # The physical layer count is the contract's, declared once. `vesperinput`
+    # checks what arrives against its compiled NSOILLAYER and refuses a
+    # mismatch, so a driver built against another profile fails by name rather
+    # than reading one array as another.
+    contract = yaml.safe_load(
+        (PROJECT_ROOT / "pedology" / "config" / "land_column_properties.yaml")
+        .read_text(encoding="utf-8"))
+    n_layers = int(contract["geometry"]["physical_layer_count"])
+
+    states_by_coord: dict[tuple[float, float], tuple[float, ...]] = {}
+    states_path = args.states
+    if states_path is None:
+        candidate = builds.land_column_states()
+        states_path = candidate if candidate.is_file() else None
+    if states_path is not None:
+        lines = Path(states_path).read_text().splitlines()
         header = lines[0].split()
-        for needed in ("depth", "bedrockfrac"):
+        usable_names = sorted(name for name in header
+                              if name.startswith("u") and name[1:].isdigit())
+        for needed in ("b", "theta_s", "theta_fc", "theta_wp"):
             if needed not in header:
                 raise SystemExit(
-                    f"{soil_map} has no {needed} column; rebuild it with "
-                    f"build_soil.py")
-        depth_column = header.index("depth")
-        bedrock_column = header.index("bedrockfrac")
+                    f"{states_path} has no {needed} column; write it with "
+                    "pedology/scripts/land_column_properties.py")
+        if len(usable_names) != n_layers:
+            raise SystemExit(
+                f"{states_path} carries {len(usable_names)} per-layer usable "
+                f"shares and the contract declares {n_layers} physical layers. "
+                "They are the contract's weathered-bedrock rule and vesperinput "
+                "applies them rather than deriving them; rewrite the states "
+                "with pedology/scripts/land_column_properties.py.")
+        index = [header.index(name) for name in
+                 ("b", "theta_s", "theta_fc", "theta_wp")]
+        index += [header.index(name) for name in usable_names]
         for line in lines[1:]:
             parts = line.split()
             key = (round(float(parts[0]), COORD_DECIMALS),
                    round(float(parts[1]), COORD_DECIMALS))
-            depth_by_coord[key] = float(parts[depth_column])
-            bedrock_by_coord[key] = float(parts[bedrock_column])
-        print(f"regolith depth from {soil_map.name}: {len(depth_by_coord)} cells")
+            states_by_coord[key] = tuple(float(parts[i]) for i in index)
+        print(f"land column states from {Path(states_path).name}: "
+              f"{len(states_by_coord)} cells, {n_layers} physical layers")
     else:
-        print("no soil map found; every cell gets the full 1.5 m profile")
+        print("no land column states found; every cell falls back to its LPJ "
+              "soil code")
 
     rows = np.argwhere(land)
-    missing_depth = 0
+    missing_states = 0
     with output.open("wb") as handle:
         handle.write(MAGIC)
         handle.write(struct.pack("<iiii", len(rows), nbins, year_length, nyears))
@@ -423,13 +463,16 @@ def main() -> None:
             handle.write(struct.pack("<dd", float(lon_signed[i]), float(lat[j])))
             handle.write(struct.pack("<ii", int(codes[j, i]), 0))
             key = (float(lon_signed[i]), float(lat[j]))
-            depth = depth_by_coord.get(key)
-            if depth is None:
-                depth = default_depth_m
-                missing_depth += 1
-            handle.write(struct.pack("<d", depth))
-            handle.write(struct.pack(
-                "<d", bedrock_by_coord.get(key, default_bedrock_fraction)))
+            states = states_by_coord.get(key)
+            if states is None:
+                # THE SENTINEL, and it is a saturation of zero. `vesperinput`
+                # takes a non-positive saturation as "no contract states" and
+                # runs the LPJ soil code path for that cell, which carries its
+                # own tabulated capacities. A plausible-looking default here
+                # would be a third derivation of the soil.
+                states = (0.0, 0.0, 0.0, 0.0) + (1.0,) * n_layers
+                missing_states += 1
+            handle.write(struct.pack(f"<{4 + n_layers}d", *states))
             # Flattened [year][bin], matching what vesperinput indexes.
             handle.write(tas[:, :, j, i].astype("<f8").tobytes())
             handle.write((pr[:, :, j, i] * bin_days[None, :]).astype("<f8").tobytes())
@@ -480,9 +523,20 @@ def main() -> None:
             "interval_to_month. Total conserved exactly; the seasonal "
             "distribution is what moves."),
         "land_cells": int(len(rows)),
-        "regolith_depth_source": (project_relative(soil_map)
-                                  if soil_map else "none, full profile assumed"),
-        "cells_without_depth": missing_depth,
+        "land_column_states_source": (project_relative(Path(states_path))
+                                      if states_path
+                                      else "none, LPJ soil codes assumed"),
+        "land_column_states_sha256": (
+            hashlib.sha256(Path(states_path).read_bytes()).hexdigest()
+            if states_path else None),
+        "physical_layers": n_layers,
+        "cells_without_land_column_states": missing_states,
+        "soil_hydraulics": (
+            "read from the land column property contract's emitted states and "
+            "derived nowhere in this pipeline but "
+            "pedology/scripts/land_column_properties.py. soilinput.cpp's Cosby "
+            "inversion and vesperinput.cpp's regolith rescaling were removed "
+            "under WORLD-OF6N."),
         "co2_ppm": co2_ppm,
         "ndep_kgn_ha_earth_year": args.ndep,
         "ndep_kgn_ha_absolute_day": args.ndep / orbit.EARTH_SIDEREAL_YEAR_DAYS,

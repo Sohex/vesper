@@ -357,50 +357,41 @@ SoilInput::SoilProperties SoilInput::get_lpj_organic_soil() {
 
 // Get and set soil properties based on mineral soil input.
 // NO P DATA IN MINERAL SOIL INPUT
+//
+// THIS READS THE LAND COLUMN PROPERTY CONTRACT AND DERIVES NO RETENTION STATE.
+// The Cosby (1984) inversion that stood here evaluated field capacity at
+// 10^2 cm of water and the wilting point at 10^4.2 cm, which are heads recorded
+// on Earth. A head is a pressure only through the local gravity, so on this
+// world those two heads name two different suctions from the ones they name in
+// Cosby's data. Air entry is a CAPILLARY pressure and the wilting point is a
+// PLANT pressure; both are invariant, so both of their heads scale together and
+// the wilting point does not move at all. Field capacity is a drainage
+// equilibrium against the weight of a column and is the one state whose
+// defining pressure carries gravity.
+//
+// Getting that right needs the whole closure evaluated in one frame, which is
+// what `pedology/scripts/land_column_properties.py` does, in pressure, once.
+// Two copies of a retention curve is what WORLD-OF6N removed; this side reads.
 SoilInput::SoilProperties SoilInput::get_mineral(coord c) {
 	coord C = find_closest_point(searchradius_soil, c);
 	SoilDataMineral& soil = mineral_map[C];
-	double silt = 1.0 - soil.sand - soil.clay;
 
-	// Equation 1 from Cosby 1984
-	// Psi = Psi_s * (Theta/Theta_s)^b
-	// Psi is the pressure head in cm
-	// *_s is the values at saturation
-	// Theta is the volumetric moisture content in percent
-	// Re-arranged to get the Theta
-	// Theta = Theta_s * (Psi/Psi_s)^(1/b)
+	if (!contract.declared) {
+		fail("SoilInput::get_mineral: no land column property contract states "
+		     "for this cell. The mineral soil path derives no retention curve "
+		     "of its own: saturation, field capacity, the wilting point and the "
+		     "Clapp-Hornberger exponent come from "
+		     "pedology/scripts/land_column_properties.py through the input "
+		     "module, and the `vesper` module is what supplies them.");
+	}
 
-	// from Table 4, Cosby 1984
-	double b = 3.10 + 15.7 * soil.clay - 0.3 * soil.sand;
-
-	double logPsi_s = 1.54 - 0.95 * soil.sand + 0.63 * silt;
-
-	// Theta_s in Cosby expressed as %
-	double Theta_s = 0.01 * (50.5 - 14.2 * soil.sand - 3.7 * soil.clay);
-
-	// Psi here is the reciprocal of the matric head's magnitude, so a LARGER
-	// Psi is a wetter soil and Psi_s, the air-entry value, is the wettest the
-	// inversion is defined for. Cosby eqn 1 holds only below air entry: at and
-	// above it the pore space is full and Theta is Theta_s. Without the clamp
-	// the inversion returns Theta_whc above Theta_s wherever Psi_whc exceeds
-	// Psi_s, which is the low-sand, low-clay corner of the texture triangle --
-	// sand at or below about 0.10 with clay at or below about 0.26, reaching
-	// Theta_whc/Theta_s of 1.135 at pure silt. Soil::wfps(0) then exceeds 1 at
-	// field capacity, outside the domain biosphere/config/ntransform.yaml
-	// declares for it and outside the domain of every water-filled-pore-space
-	// response in modules/ntransform.cpp. No cell of either current Vesper soil
-	// map is in that corner, so what kept it right was the map and not the
-	// code; this is the code.
-	double Psi_s = pow(10.0, -logPsi_s);
-	double Psi_wilt = min(pow(10.0, -4.2), Psi_s);
-	double Psi_whc = min(pow(10.0, -2.0), Psi_s);
-
-	double Theta_whc = Theta_s * pow((Psi_whc / Psi_s), 1.0 / b);
-	double Theta_wilt = Theta_s * pow((Psi_wilt / Psi_s),1.0 / b);
-
-	// A linear dependence between the percolation coefficient from Haxeltine 1996a
-	// and the texture dependent parameter b from Cosby 1984 was established
-	// K = 5.87 - 0.29*b
+	// The contract's exponent, and this model's own drainage fit on it. The fit
+	// is a linear dependence between Haxeltine (1996a)'s percolation
+	// coefficient and Cosby's b, K = 5.87 - 0.29*b, and it is a dimensionless
+	// drainage exponent rather than a conductivity: the contract's
+	// `flow.saturated_conductivity` is undeclared under LSHY-3 and cannot be
+	// recovered from this. What moved to the contract is b; the fit stays here.
+	const double b = contract.b;
 
 	SoilProperties soiltype;
 	soiltype.b = 5.87 - 0.29 * b;
@@ -408,21 +399,22 @@ SoilInput::SoilProperties SoilInput::get_mineral(coord c) {
 	soiltype.sand = soil.sand;
 	soiltype.clay = soil.clay;
 
-	soiltype.volumetric_whc_field_capacity = (Theta_whc - Theta_wilt);
+	soiltype.volumetric_whc_field_capacity =
+		(contract.field_capacity - contract.wilting_point);
 	soiltype.thermal_wilting_point = 0.2;
 	soiltype.thermal_15_whc = 0.15 * b + 0.05;
 	soiltype.thermal_field_capacity = 0.4;
-	soiltype.wilting_point = Theta_wilt;
-	soiltype.saturation_capacity = Theta_s;
+	soiltype.wilting_point = contract.wilting_point;
+	soiltype.saturation_capacity = contract.saturation;
 	soiltype.pH = soil.pH;
 	soiltype.soil_OC = soil.orgc;
 	soiltype.soilC = soil.soilC;
 
 	if (iforganicsoilproperties) { // Avoid rescaling of porosity twice.
-		soiltype.porosity = (1 - soil.orgc) * Theta_s + soil.orgc * organic_porosity; // Eq. 3 Lawrence and Slater, 2008
+		soiltype.porosity = (1 - soil.orgc) * contract.saturation + soil.orgc * organic_porosity; // Eq. 3 Lawrence and Slater, 2008
 	}
 	else {
-		soiltype.porosity = Theta_s;
+		soiltype.porosity = contract.saturation;
 	}
 
 	// The fork's mineral-texture path otherwise returns these uninitialized.

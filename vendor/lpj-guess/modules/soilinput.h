@@ -42,7 +42,43 @@ public:
 
 	/// Get and set the Soiltype-object in the current Gridcell-object.
 	void get_soil(double lon, double lat, Gridcell& gridcell);
-	
+
+	/// The land column property contract's retention states for one gridcell.
+	/** Vesper's simulated soil has ONE description of its retention curve and
+	 *  it is not derived here. `pedology/config/land_column_properties.yaml`
+	 *  names the closure -- Clapp-Hornberger on Cosby (1984) Table 4 -- and
+	 *  declares field capacity as a drainage equilibrium at rho_w * g * L,
+	 *  which on this world is not Earth's suction.
+	 *  `pedology/scripts/land_column_properties.py` evaluates it in PRESSURE
+	 *  and emits these per cell; the driver file carries them here.
+	 *
+	 *  `b` is the closure's exponent and is carried because a texture-dependent
+	 *  drainage rule needs it. It is NOT a conductivity: the contract's
+	 *  `flow.saturated_conductivity` is undeclared under LSHY-3, and this
+	 *  model's `perc_base = 5.87 - 0.29 * b` is a dimensionless drainage
+	 *  exponent fitted to Haxeltine's percolation coefficient. That fit stays
+	 *  this model's own; what the contract supplies is the exponent it reads.
+	 */
+	struct ContractStates {
+		/// False until a driver has supplied them, and get_mineral refuses then.
+		bool declared;
+		/// Clapp-Hornberger exponent, Cosby (1984) Table 4.
+		double b;
+		/// Volumetric water content at saturation.
+		double saturation;
+		/// Volumetric water content at the drainage equilibrium.
+		double field_capacity;
+		/// Volumetric water content at the plant limiting pressure.
+		double wilting_point;
+
+		ContractStates()
+			: declared(false), b(0.0), saturation(0.0),
+			  field_capacity(0.0), wilting_point(0.0) {}
+	};
+
+	/// Supply the contract's states for the cell get_soil is about to build.
+	void set_contract_states(const ContractStates& states) { contract = states; }
+
 	double STEP;
 
 private:
@@ -51,7 +87,10 @@ private:
 	void get_soil_organic(double lon, double lat, Gridcell& gridcell);
 
 	bool soil_code;
-	
+
+	/// The contract's states for the current cell, set before get_soil.
+	ContractStates contract;
+
 	double searchradius_soil;
 
 	coord find_closest_point(double searchradius, coord C);
