@@ -626,19 +626,31 @@ a source for each end, and the one-factor sensitivity registered over it. Its
 fast end is how fast Gifford (2003) reports respiration adjusting; its slow end
 is the memory time scale QUINCY declares for the acclimation of maintenance
 respiration, whose Eq. S23 is the relation this fork implements. `run_value_days`
-is which arm a run sits on and its sentinel is `undeclared`.
+is which arm a run sits on; its sentinel is `undeclared`, and under the path
+decision below that sentinel is the settled value rather than a pending one,
+because nothing is on either arm.
 
 The sensitivity carries no pass/fail bar, deliberately: the response is
 arithmetic on a first-order lag and was known before the registration was
 written, so a bar here would be a criterion chosen after the result it judges.
 It is carried as model-form uncertainty instead.
 
-The baseline takes the standard respiration path, which is what the CNP fork's
-own `global_p.ins` selects and what divides `respcoeff` by the tissue C:N
-windows. `acclimation_gate.py` enforces the state, executes the registered
+THE BASELINE TAKES THE STANDARD RESPIRATION PATH, and that is declared as
+`path.runs` with its argument and with what would reopen it, not inherited from
+whichever vendored instruction file is imported. `respiration_acclimated()`
+takes no `respcoeff` argument, so switching paths replaces a coefficient
+`Pft::init_cton_limits` has normalised by the tissue C:N windows with Sprugel et
+al. (1996)'s two fixed reference rates, and that moves the level of sapwood and
+fine-root maintenance respiration, changes what it depends on from leaf
+longevity to growth temperature, and gives up the invariance under a tissue C:N
+window rescaling that kept `respiration()` unmoved by the repair in
+`notes/plant-physiology-carbon-allocation-audit.md` finding 11. Acclimation is
+real and is not what is refused; a switch carrying two unsourced changes with it
+is. `acclimation_gate.py` enforces the state, executes the registered
 sensitivity on every invocation, refuses a declaration that disagrees with
-itself or with the run instruction, and refuses an acclimated path with no
-declared memory length.
+itself or with the run instruction, refuses an acclimated path with no declared
+memory length, and refuses a run instruction on a path the declaration did not
+decide on.
 
 ```bash
 python biosphere/scripts/acclimation_gate.py            # status, exit 0

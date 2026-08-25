@@ -33,6 +33,10 @@ enforcement, and it can fail:
              itself, or a run instruction naming a memory the declaration does
              not carry: outside the bracket, or set at all while the
              declaration says the memory is undeclared
+  path       the run instruction taking a respiration path the declaration did
+             not decide on. `path.runs` is a DECISION with its argument beside
+             it, so flipping `acclimated_respiration` in the run harness
+             without moving that line is a silent change of physics
 
 Fixtures run on every invocation, several of them built to be wrong in a named
 way: the shipped behaviour with no memory at all, a resume that drops the state,
@@ -49,6 +53,11 @@ keeps on each arm, how many days it lags, and what the basal multiplier's annual
 range becomes against the instantaneous temperature the routine used to run on.
 It carries no pass/fail bar, for the reason the declaration states. `--strict`
 refuses while the run's value is undeclared.
+
+WHICH PATH THE BASELINE RUNS is itself declared, as `path.runs`, with the
+argument for it and with what would reopen it. The gate holds
+`run_lpj_guess.py` to that line, so the two cannot drift apart and the
+acclimated path cannot be turned on without the decision moving with it.
 
     python biosphere/scripts/acclimation_gate.py            # status, exit 0
     python biosphere/scripts/acclimation_gate.py --strict   # refuses while the
@@ -276,6 +285,33 @@ def check_declaration(declaration: dict, *, enabled: int | None,
     memory = declaration.get("memory") or {}
     ends = memory.get("ends") or {}
 
+    # Which path the baseline runs is a decision, so it is declared and the run
+    # instruction is held to it. Without this the harness could take either path
+    # and the declaration would agree with both.
+    path = declaration.get("path")
+    if not isinstance(path, dict):
+        findings.append({"kind": "path", "what": "path",
+                         "detail": "no path block, so nothing says which "
+                                   "respiration path the baseline decided on"})
+    else:
+        runs = path.get("runs")
+        if not isinstance(runs, bool):
+            findings.append({"kind": "path", "what": "path.runs",
+                             "detail": f"{runs!r} is not true or false"})
+        elif enabled is not None and int(runs) != int(enabled):
+            findings.append({
+                "kind": "path", "what": "path.runs",
+                "detail": (f"the declaration decides {runs} and the run "
+                           f"instruction sets acclimated_respiration {enabled}")})
+        if not str(path.get("reason") or "").strip():
+            findings.append({"kind": "path", "what": "path.reason",
+                             "detail": "the decision carries no argument"})
+        if not str(path.get("reopens_on") or "").strip():
+            findings.append({
+                "kind": "path", "what": "path.reopens_on",
+                "detail": "the decision does not say what would change it, so it "
+                          "is a preference rather than a decision"})
+
     try:
         low, high = bracket_days(declaration)
     except Exception as exc:
@@ -373,6 +409,8 @@ def _reference_declaration() -> dict:
             },
             "run_value_days": UNDECLARED,
         },
+        "path": {"runs": False, "reason": "an argument",
+                 "reopens_on": "what would change it"},
         "sensitivity": {"factor": "acclim_resp_tau", "arms_days": [7.0, 30.0],
                         "responds": [], "threshold": "none",
                         "propagated_as": "model-form uncertainty"},
@@ -468,9 +506,24 @@ def _fixtures(length: int, declaration: dict) -> list[dict]:
 
     on_slow = copy.deepcopy(ref)
     on_slow["memory"]["run_value_days"] = ref_high
+    on_slow["path"]["runs"] = True
     cases.append(("a run on the slow arm, declared and asked for, is accepted",
                   not check_declaration(on_slow, enabled=1, run_tau=ref_high),
                   "clean"))
+
+    # Built to be wrong: the harness on the acclimated path with the decision
+    # still saying the standard one.
+    cases.append(("a run instruction taking a path the declaration did not "
+                  "decide on is refused",
+                  bool(check_declaration(ref, enabled=1, run_tau=None)),
+                  "undecided_path"))
+
+    # Built to be wrong: a decision with nothing that would change it.
+    unfalsifiable = copy.deepcopy(ref)
+    unfalsifiable["path"]["reopens_on"] = ""
+    cases.append(("a path decision that says nothing would change it is refused",
+                  bool(check_declaration(unfalsifiable, enabled=0, run_tau=None)),
+                  "unfalsifiable_path"))
 
     # Built to be wrong: a memory outside the bracket the declaration argues.
     cases.append(("a run instruction asking for a memory past the slow end is "
@@ -563,6 +616,7 @@ def main() -> int:
         },
         "seasonal_response_over_bracket": bracket,
         "declared_run_value_days": declaration["memory"]["run_value_days"],
+        "declared_path_runs": (declaration.get("path") or {}).get("runs"),
         "baseline_acclimated_respiration": baseline_enabled,
         "baseline_acclim_resp_tau": baseline_tau,
     }
@@ -595,6 +649,9 @@ def main() -> int:
               f"{registered['propagated_as']}")
         print(f"\n  declaration: {rel(DECLARATION)}, run_value_days "
               f"{report['declared_run_value_days']}")
+        print(f"  decided path: acclimated_respiration "
+              f"{int(bool(report['declared_path_runs']))}, and the run "
+              "instruction is held to it")
         print(f"  baseline: acclimated_respiration "
               f"{report['baseline_acclimated_respiration']}, "
               f"acclim_resp_tau {report['baseline_acclim_resp_tau']}")

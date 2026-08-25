@@ -1404,13 +1404,16 @@ void plib_callback(int callback) {
 		// the acute Lloyd and Taylor response and the nominal acclimation
 		// multiplier, and no acclimation was represented at all. Climate::tacc_air
 		// and Soil::tacc_root carry that memory now, and its e-folding time has
-		// no value this project can derive: Gifford (2003) reports respiration
-		// acclimating in as little as a week, QUINCY gives its lagged responses a
-		// process-specific memory whose length is in a supplement this project
-		// does not hold, and neither is a measurement of anything on this world.
-		// So the run declares it or the option does not start. There is
-		// deliberately no default, because a default here is an undeclared
-		// physiological memory. PCAR-3, and
+		// no value this project can derive, only a bracket with both ends
+		// sourced: Gifford (2003) reports respiration acclimating in as little
+		// as a week, and Thum et al. (2019)'s QUINCY supplement Table S1 gives
+		// 30 days for the acclimation of the temperature response of maintenance
+		// respiration in its Eq. S23, which is the relation this routine
+		// implements. Neither is a measurement of anything on this world. So the
+		// run declares it or the option does not start. There is deliberately no
+		// default, because a default here is an undeclared physiological memory.
+		// The bracket and the decision about which path runs are
+		// biosphere/config/respiration_acclimation.yaml. PCAR-3 and WORLD-UHFH;
 		// biosphere/notes/plant-physiology-carbon-allocation-audit.md finding 3.
 		if (acclimated_respiration && !itemparsed("acclim_resp_tau")) {
 			sendmessage("Error", "acclimated_respiration 1 needs acclim_resp_tau, the "

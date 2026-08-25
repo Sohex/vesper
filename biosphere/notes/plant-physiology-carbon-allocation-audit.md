@@ -154,13 +154,56 @@ falls from 1.74 on the instantaneous temperature to 1.71 and 1.47. So a
 fortnight's memory barely damps a seasonal cycle on a year this short; what it
 damps is synoptic variation, which is where the defect was largest.
 
-The baseline runs the standard respiration path, `acclimated_respiration 0`,
-which is what the CNP fork's own `global_p.ins` selects. That path divides
-`respcoeff` by the tissue C:N windows, so sapwood and fine-root maintenance
-respiration is invariant under the window rescaling recorded below; the
-acclimated path has no such compensation and moves maintenance respiration by up
-to the full rescaling factor. That interaction, and not the memory length, is
-what turning it on now waits on.
+### 3a. The baseline runs the standard respiration path, and that is decided
+
+`acclimated_respiration 0`, which is what the CNP fork's own `global_p.ins`
+selects. It is declared as `path.runs` in
+`biosphere/config/respiration_acclimation.yaml` with its argument and with what
+would reopen it, and `acclimation_gate.py` holds the run instruction to that
+line, so the path cannot be flipped without the decision moving with it.
+
+What decides it is not the memory length, which PCAR-11 bracketed with both ends
+sourced. It is that the acclimated path is not the standard path plus
+acclimation. `respiration_acclimated()` takes no `respcoeff` argument at all: it
+substitutes Sprugel et al. (1996)'s two fixed reference rates, 0.25 for wood and
+1.0 for fine roots, for a coefficient that `Pft::init_cton_limits` has already
+normalised by the tissue C:N windows. Three things move together when the switch
+is thrown, and only one of them is acclimation.
+
+**Level.** On the vendored Earth plant parameters -- `respcoeff` 1.0,
+`cton_root` 29, `cton_sap` 330, `frac_mintomax` 2.78, `frac_maxtomin` 0.9 -- the
+normalised `respcoeff` runs 0.63 to 1.72 across leaf longevities of 6 to 60
+months, because `cton_leaf_min` is a function of leaf longevity and the whole
+window is built outward from it. The acclimated wood coefficient runs 0.17 to
+0.30 and the fine-root one 0.69 to 1.21 over growth temperatures of 0 to 30 C.
+So the switch moves sapwood maintenance respiration down by a factor of 2 to 10
+and fine-root maintenance respiration by up to about 2 in either direction,
+before any acclimation dynamics run. Those are Earth parameter values and not
+Vesper's; what carries across is the structure and the order of the change.
+
+**What it depends on.** The normalised coefficient carries each simulated plant
+type's leaf longevity and no temperature. The acclimated one carries growth
+temperature and no leaf longevity, and is the same two numbers for every plant
+type in the model. They are not two calibrations of one coefficient.
+
+**Invariance.** The normalisation is what makes sapwood and fine-root
+maintenance respiration invariant under a rescaling of the tissue C:N windows,
+which is why the factor of 1.7905 recorded in finding 11 left `respiration()`
+alone. The acclimated path scales as `1/cton_sap` and `1/cton_root`, so the same
+rescaling would move maintenance respiration by up to that factor with nothing
+sourcing the move.
+
+Acclimation of respiration to a growth temperature is a real process and is not
+what is refused. What is refused is a switch that carries two unsourced changes
+with it and makes them inseparable from the one that is sourced, so no result on
+that path could be attributed to acclimation. What reopens it is an acclimated
+path whose basal level is reconciled with the `respcoeff` normalisation, so that
+the two paths differ in the acclimation term and in nothing else; that is a
+change to `respiration_acclimated()` and to `Pft::init_cton_limits`, not an
+instruction-file setting. `memory.run_value_days` therefore keeps its
+`undeclared` sentinel as a settled value rather than a pending one, and if the
+path is ever turned on the QUINCY end is the sourced value for this exact
+formulation.
 
 ### 4. Autotrophic respiration and construction cost are over-compressed
 
@@ -425,8 +468,8 @@ rescaling therefore moves nothing here.
 On the acclimated path it would. `respiration_acclimated()` substitutes a
 function of the growth temperature for `respcoeff` and never reads it (finding
 3), so there is no compensation and maintenance respiration scales as
-`1/cton_sap` and `1/cton_root` directly. PCAR-11 is what would turn that path on,
-and this is one of the two things it has to weigh.
+`1/cton_sap` and `1/cton_root` directly. That is one of the three reasons the
+path is decided against in finding 3a.
 
 The size of it on the acclimated path is bounded rather than known.
 `Individual::cton_sap()` returns
@@ -475,9 +518,10 @@ of it by cancellation. `ifplim 1` keeps refusing and keeps naming it. BIO-34.
 1. Correct the mixed rotation/physiology time base and respiration-acclimation
    state before measuring any response.
 2. Re-commission the biosphere on the mean-anchored tissue windows of finding 11.
-   They decide what fine-root and sapwood nutrient demand and, on the configured
-   acclimated path, maintenance respiration are, so no C-N number produced under
-   the max anchor survives them.
+   They decide what fine-root and sapwood nutrient demand is, and what
+   maintenance respiration would be on the acclimated path this project decided
+   against in finding 3a, so no C-N number produced under the max anchor
+   survives them.
 3. Finish BIO-23, BIO-25 and the live-plant trait registry so pressure, photons
    and coherent Earth-derived priors are explicit.
 4. Close the P-photosynthesis domain before BIO-10, and connect allocation to the
