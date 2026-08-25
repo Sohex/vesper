@@ -61,9 +61,12 @@ beside them is the double count, and it is one of the fixtures.
 
 `config/wetness.yaml` carries each class with the artifact it comes from, and
 for the ones with no source it carries the reason. Three of the audit's five
-have no source here. The saturated mineral class needs `f_sat`, which is
-unlicensed until the score in `config/topographic_index.yaml` passes, and which
-needs a water table as well. Seasonal inundation and peat need a season, and
+have no source here. The saturated mineral class needed `f_sat`, and the
+saturated-area closure is WITHDRAWN in `config/topographic_index.yaml`: the
+score that was the only thing able to license it was run and missed, and no
+narrower support can resolve the gain it would have had to show. So that class
+is absent permanently rather than pending, and this script forms no saturated
+share from any input. Seasonal inundation and peat need a season, and
 nothing in this component carries one: the lake solve is an annual equilibrium,
 the groundwater solve is a steady state, and every term reaching those stores in
 `config/land_water_ledger.yaml` has an annual interval floor. A wetness fraction
@@ -88,6 +91,7 @@ import gridding
 from orogen import Export, LAND
 
 CFG_PATH = Path(__file__).resolve().parents[1] / "config" / "wetness.yaml"
+TI_CFG = Path(__file__).resolve().parents[1] / "config" / "topographic_index.yaml"
 SCORE_PATH = ANALYSIS / "topographic_index_score.json"
 
 # The resolved classes, in the order a region is offered to them. ORDER IS NOT
@@ -290,33 +294,6 @@ def check_area_closure(shares: dict, areas: dict, land_area, covered,
     return worst
 
 
-def take_saturated_out(shares: dict, f_sat, covered, tol: float):
-    """The unresolved saturated share, taken OUT of the mineral class.
-
-    `f_sat` is a share of the CELL, from a rank statistic over that cell's whole
-    land area, and the resolved classes have already claimed part of that area.
-    So the saturated non-inundated mineral class is `min(f_sat, dry_mineral)`
-    and the mineral class keeps the rest. ADDING IT BESIDE THE RESOLVED CLASSES
-    IS THE DOUBLE COUNT this artifact exists to prevent, and it is a fixture.
-
-    THE CLAMP IS A DECISION AND IS REPORTED RATHER THAN ABSORBED. Where `f_sat`
-    exceeds what the resolved classes leave, the closure has predicted saturated
-    area that is already realised as open water or exposed basin floor -- the
-    wettest part of the cell, which is where a lake is. The resolved classes
-    win, because they are a solved result and the closure is a statistic; the
-    share of cells where that binds, and the area it removes, go in the report,
-    because a clamp that binds everywhere is a disagreement and not a detail.
-    """
-    out = dict(shares)
-    mineral = np.asarray(shares["dry_mineral"], dtype=np.float64)
-    f_sat = np.asarray(f_sat, dtype=np.float64)
-    sat = np.minimum(f_sat, mineral)
-    out["saturated_mineral"] = sat
-    out["dry_mineral"] = mineral - sat
-    binds = covered & (f_sat > mineral + tol)
-    return out, binds
-
-
 def check_partition(shares: dict, covered, tol: float, what: str) -> None:
     """Every share is a share, and together they are all of the cell's land.
 
@@ -344,18 +321,27 @@ def check_partition(shares: dict, covered, tol: float, what: str) -> None:
             "below. It is refused rather than renormalised.")
 
 
-def license_state() -> dict:
-    """Whether `f_sat` may be taken, read from the score and never decided here."""
-    if not SCORE_PATH.exists():
-        return {"consumers_licensed": False,
-                "reason": f"no score at {SCORE_PATH.name}"}
-    sc = json.loads(SCORE_PATH.read_text())
-    return {"consumers_licensed": bool(sc.get("consumers_licensed", False)),
+def closure_state() -> dict:
+    """The saturated-area closure's standing, read and never decided here.
+
+    `hydrography/config/topographic_index.yaml` carries the decision, because it
+    is a statement about what that component publishes. This script reads it and
+    records the score beside it as the evidence, so the artifact says why the
+    saturated class is absent without a reader having to follow two files.
+    """
+    ti = yaml.safe_load(TI_CFG.read_text(encoding="utf-8"))["closure"]
+    status = str(ti.get("status", "active"))
+    out = {"closure_status": status,
+           "withdrawn": status == "withdrawn",
+           "withdrawn_on": ti.get("withdrawn_on"),
+           "withdrawn_because": ti.get("withdrawn_because"),
+           "reason": "hydrography/config/topographic_index.yaml closure.status"}
+    if SCORE_PATH.exists():
+        sc = json.loads(SCORE_PATH.read_text())
+        out["score"] = {
             "observation_sets_required": sc.get("observation_sets_required"),
-            "per_set": {k: v.get("passes") for k, v in
-                        sc.get("runs", {}).items()},
-            "reason": "the declared score in "
-                      "hydrography/config/topographic_index.yaml"}
+            "per_set": {k: v.get("passes") for k, v in sc.get("runs", {}).items()}}
+    return out
 
 
 def read_config() -> dict:
@@ -485,31 +471,24 @@ def main() -> int:
     print(f"  {int(covered.sum()):,} of {ncell:,} cells hold land, "
           f"{int(estimated.sum()):,} hold at least {min_regions} land regions")
 
-    lic = license_state()
+    lic = closure_state()
     unresolved = {k: v["unavailable_reason"]
                   for k, v in cfg["classes"].items()
                   if "unavailable_reason" in v}
-    ti = data / f"topographic_index_{grid_name}.nc"
-    wt = data / "water_table.nc"
-    saturated = None
-    if lic["consumers_licensed"] and ti.is_file() and wt.is_file():
+    if not lic["withdrawn"]:
         raise SystemExit(
-            "f_sat is licensed and both inputs are present, and this script "
-            "does not yet form the saturated class from them. take_saturated_"
-            "out() is the rule and is under --selftest; wiring it needs the "
-            "f_grad arm to be carried along a member axis the way "
-            "build_groundwater_access.py carries the permeability bracket, "
-            "which is its own row. Refusing is deliberate: a class formed by "
-            "the first plausible reading of a bracketed closure is worse than "
-            "an absent one.")
-    reason = ("f_sat is not licensed: " + str(lic.get("reason"))
-              if not lic["consumers_licensed"] else
-              "f_sat is licensed but " + (
-                  f"{ti.name} is absent" if not ti.is_file()
-                  else f"{wt.name} is absent"))
+            "the saturated-area closure's status in "
+            "hydrography/config/topographic_index.yaml is "
+            f"{lic['closure_status']!r} and this script has no route that forms "
+            "a saturated class. It was withdrawn there on the declared score's "
+            "verdict; reviving it is a new closure with a new criterion, and "
+            "that criterion decides what a bracketed class means here before "
+            "any share is written. A class formed by the first plausible "
+            "reading of a revived closure is worse than an absent one.")
     unresolved["saturated_mineral"] = (
         cfg["classes"]["saturated_mineral"]["unavailable_reason"]
-        + " Measured here: " + reason)
+        + f" Read here from {lic['reason']}: {lic['closure_status']} on "
+        + f"{lic['withdrawn_on']}, {lic['withdrawn_because']}.")
     print("  classes with no source, declared and left absent:")
     for k in unresolved:
         print(f"    {k}")
@@ -528,12 +507,13 @@ def main() -> int:
         ds.classes_absent = json.dumps(unresolved)
         ds.exclusivity = (
             "One label per region, refused where two classes claim one or "
-            "where none does. The saturated non-inundated mineral class is "
-            "unresolved on this mesh and can only arrive as a climate-grid "
-            "area share taken OUT of dry_mineral, never added beside the "
-            "resolved classes; hydrography/notes/subgrid-water-table.md "
-            "section 5 is the decision and this file carries its cost.")
-        ds.consumers_licensed_f_sat = "yes" if lic["consumers_licensed"] else "no"
+            "where none does. The saturated non-inundated mineral class is not "
+            "here and is not pending: the saturated-area closure it would have "
+            "come from is withdrawn in hydrography/config/topographic_index."
+            "yaml on its declared score's verdict, so dry_mineral is the whole "
+            "of the land the resolved classes leave. hydrography/notes/"
+            "subgrid-water-table.md sections 5 to 7 carry the decision.")
+        ds.saturated_area_closure = lic["closure_status"]
         ds.source_build = export.root.parent.name
         ds.terrain_hash = export.terrain_hash
         ds.grid = grid_name
@@ -688,31 +668,20 @@ def _selftest() -> int:
     check("land claimed by no class is refused when no residual is named",
           caught, msg)
 
-    # 4. FIXTURE, the saturated share ADDED beside the resolved classes instead
-    #    of taken out of them. This is the double count the row is about, and
-    #    the partition check is what has to catch it: the shares still look like
-    #    shares and simply sum above one.
-    f_sat = np.full(ncell, 0.2)
+    # 4. FIXTURE, an unresolved climate-grid share ADDED beside the resolved
+    #    classes instead of taken out of them. That is the double count this
+    #    artifact exists to prevent, and the partition check is what has to
+    #    catch it: the shares still look like shares and simply sum above one.
+    #    No such class is written -- the one that would have been, the saturated
+    #    mineral share, comes from a closure that is withdrawn -- so this is a
+    #    standing guard on whatever unresolved class arrives next rather than a
+    #    test of a live path.
     added = dict(shares)
-    added["saturated_mineral"] = f_sat * covered
+    added["an_unresolved_grid_share"] = np.full(ncell, 0.2) * covered
     caught, msg = refuses(
         lambda: check_partition(added, covered, 1e-12, "fixture"))
-    check("a saturated share added beside the resolved classes is refused",
+    check("an unresolved grid share added beside the resolved classes is refused",
           caught, msg)
-
-    # 5. Taken OUT of the mineral class instead, the partition still closes and
-    #    the clamp is reported where the closure asks for more area than the
-    #    resolved classes leave.
-    taken, binds = take_saturated_out(shares, np.full(ncell, 0.9), covered, 1e-12)
-    ok = True
-    try:
-        check_partition(taken, covered, 1e-12, "fixture")
-    except SystemExit as exc:
-        ok, why = False, str(exc)
-    check("taken out of the mineral class, the partition still closes and the "
-          "clamp is reported",
-          ok and bool(binds[covered].any()),
-          "" if ok else why)
 
     # 6. THE NEGATIVE CONTROL. One cell, 97% dry upland and 3% lake. The share
     #    must be the lake's area, which a majority label returns as zero.

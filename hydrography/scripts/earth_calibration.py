@@ -185,9 +185,18 @@ def stage_mesh(tag: Path, n: int, quiet: bool) -> None:
     np.save(out, np.stack([x, y, z]))
 
 
-def solution_name(drain: str, et_lambda: float | None = None) -> str:
-    """Every variant is its own artifact, never an overwrite of the baseline."""
+def solution_name(drain: str, et_lambda: float | None = None,
+                  unconfined: bool = False) -> str:
+    """Every variant is its own artifact, never an overwrite of the baseline.
+
+    The transmissivity FORM is part of the name for the same reason `--drain`
+    and `--et-lambda` are: it is a different model, not a different setting, and
+    two forms writing over one name is how a cached stage silently answers a
+    question about the other one.
+    """
     base = "earth_solution" if drain == "none" else f"earth_solution_drain-{drain}"
+    if unconfined:
+        base += "_unconfined"
     return f"{base}.npz" if et_lambda is None else f"{base}_lam{et_lambda:g}.npz"
 
 
@@ -360,15 +369,28 @@ def stage_drainage(tag: Path, quiet: bool, region: str) -> None:
 
 def stage_solve(tag: Path, quiet: bool, river_km2: float | None, region: str,
                 drain: str = "none", drain_min_relief_m: float = 10.0,
-                et_lambda: float | None = None) -> None:
+                et_lambda: float | None = None, unconfined: bool = False,
+                thickness_m: float | None = None) -> None:
+    """The steady-state solve, confined by default and unconfined on request.
+
+    GW-24. `--unconfined` hands the solver a per-region aquifer BASE at
+    `surface - D` instead of a thickness multiplier, which is the whole
+    difference between the two forms: the confined one gets a fixed matrix and
+    the unconfined one reassembles the transmissivity from the head on every
+    Picard pass. `D` is the config's thickness unless `--thickness-m` overrides
+    it, and it names the same geometry under both forms so the two arms are
+    comparable at one number.
+    """
     rd = region_dir(tag, region)
-    out = rd / solution_name(drain, et_lambda)
+    out = rd / solution_name(drain, et_lambda, unconfined)
     if out.exists():
         print("  solve: cached")
         return
     cfg = yaml.safe_load((ROOT / "hydrography" / "config" / "groundwater.yaml")
                          .read_text(encoding="utf-8"))
-    D = cfg["aquifer"]["thickness_m"]
+    D = float(thickness_m if thickness_m is not None
+              else cfg["aquifer"]["thickness_m"])
+    min_saturated = float(cfg["aquifer"].get("min_saturated_thickness_m", 1.0))
     rho = cfg["fluid"]["density_kg_m3"]
     mu = cfg["fluid"]["dynamic_viscosity_pa_s"]
     xyz = np.load(tag / "earth_xyz.npy")
@@ -437,27 +459,49 @@ def stage_solve(tag: Path, quiet: bool, river_km2: float | None, region: str,
         fixed[wet] = np.nan_to_num(elev, nan=0.0)[wet]
         print(f"  baselevels: {wet.sum():,} river cells at >= {river_km2:.0e} km2")
 
+    # GW-24. The unconfined form reads a per-region aquifer BASE, and the base is
+    # the surface less the same D the confined form uses as a multiplier, so the
+    # two arms are the same geometry read two ways rather than two thicknesses.
+    surf = np.nan_to_num(elev, nan=0.0)
+    base_m = np.where(land, surf - D, np.nan) if unconfined else None
+    print(f"  transmissivity "
+          + ("UNCONFINED, T = K (h - z_bottom), base at surface - "
+             f"{D:.0f} m, floor {min_saturated:.1f} m"
+             if unconfined else f"confined, T = K D at {D:.0f} m"))
     t = time.time()
     res = gw.solve(ex, geom, k0_m_s=K, thickness_m=D,
                    recharge_m_s=rech / 1000.0 / (365.25 * 86400.0),
-                   surface_m=np.nan_to_num(elev, nan=0.0), conductive=cond,
+                   surface_m=surf, conductive=cond,
                    sea_level_m=0.0, et_max_m_s=et_max, et_lambda_m=et_lambda,
-                   fixed_head_m=fixed, verbose=not quiet)
+                   fixed_head_m=fixed, aquifer_base_m=base_m,
+                   min_saturated_m=min_saturated, verbose=not quiet)
     dep = res["depth_m"]
     print(f"  solve: {time.time()-t:.0f}s, conductive land {cond.sum():,}, "
           f"pinned {res['pinned'][cond].mean():.1%}, "
           f"median depth {np.median(dep[cond]):.2f} m")
+    if unconfined:
+        # A cell whose saturated column has reached the floor is on a NUMERICAL
+        # bound and its depth is a lower bound rather than a value. Reported
+        # because the note requires it before the arm is read.
+        at_floor = cond & (res["head_m"] - np.where(land, surf - D, 0.0)
+                           <= min_saturated * (1 + 1e-12))
+        print(f"    at the saturated-thickness floor: "
+              f"{at_floor[cond].mean():.2%} of conductive cells")
     np.savez_compressed(out, depth=dep, head=res["head_m"], elev=elev, land=land,
-                        cond=cond, rech=rech, K=K, pinned=res["pinned"])
+                        cond=cond, rech=rech, K=K, pinned=res["pinned"],
+                        thickness_m=np.float64(D),
+                        unconfined=np.bool_(unconfined))
 
 
 def stage_score(tag: Path, edge_km: float, quiet: bool, region: str,
                 confinement: str | None, drain: str = "none",
-                surface: str = "cell-mean", et_lambda: float | None = None) -> dict:
+                surface: str = "cell-mean", et_lambda: float | None = None,
+                unconfined: bool = False) -> dict:
     """Skill, not just residual moments. The bar and the ceiling are the note's."""
     import pandas as pd
     R = REGIONS[region]
-    sol = np.load(region_dir(tag, region) / solution_name(drain, et_lambda))
+    sol = np.load(region_dir(tag, region)
+                  / solution_name(drain, et_lambda, unconfined))
     xyz = np.load(tag / "earth_xyz.npy")
     obs = pd.read_csv(ROOT / "hydrography" / "data" / "earth_validation" / R["sites"],
                       low_memory=False)
@@ -648,7 +692,8 @@ def stage_benchmark(tag: Path, region: str, confinement: str | None) -> dict:
 
 
 def stage_calibrate(tag: Path, region: str, confinement: str | None,
-                    drain: str, et_lambda: float | None, splits: int = 20) -> dict:
+                    drain: str, et_lambda: float | None, splits: int = 20,
+                    unconfined: bool = False) -> dict:
     """Held-out skill after a two-parameter bias correction, over many splits.
 
     Direct R2 is negative because the model runs shallow, so the question worth
@@ -661,7 +706,8 @@ def stage_calibrate(tag: Path, region: str, confinement: str | None,
     import pandas as pd
     from scipy.stats import pearsonr
     R = REGIONS[region]
-    sol = np.load(region_dir(tag, region) / solution_name(drain, et_lambda))
+    sol = np.load(region_dir(tag, region)
+                  / solution_name(drain, et_lambda, unconfined))
     xyz = np.load(tag / "earth_xyz.npy")
     obs = pd.read_csv(ROOT / "hydrography" / "data" / "earth_validation" / R["sites"],
                       low_memory=False)
@@ -805,16 +851,74 @@ def stage_diagnostics(tag: Path, region: str, confinement: str | None,
                                   "rho_recharge": v[3], "rho_elevation": v[4]})
         print(f"    {lam:8.1f}{v[0]:10.2f}{v[1]:8.2f}{v[2]:+12.4f}{v[3]:+10.3f}{v[4]:+10.3f}")
 
-    print(f"\n  TRANSMISSIVITY: does raising D restore the dependence structure?")
-    print(f"    {'D (m)':>8s}{'median d':>10s}{'sd':>8s}{'r(mod,obs)':>12s}{'rho rech':>10s}{'rho elev':>10s}")
-    for D in (100.0, 1000.0, 5000.0, 20000.0):
-        v = run(thickness_m=D, et_max_m_s=1500.0 / 1000.0 / YR, et_lambda_m=1.0)
-        out["transmissivity_sweep"].append({"thickness_m": D, "median_depth_m": v[0],
-                                            "sd_m": v[1], "pearson": v[2],
-                                            "rho_recharge": v[3], "rho_elevation": v[4]})
-        print(f"    {D:8.0f}{v[0]:10.2f}{v[1]:8.2f}{v[2]:+12.4f}{v[3]:+10.3f}{v[4]:+10.3f}")
-    print(f"    observed: rho vs recharge {spearmanr(oc, rech[cs]).statistic:+.3f}, "
-          f"vs elevation {spearmanr(oc, elev[cs]).statistic:+.3f}")
+    gcfg = yaml.safe_load((ROOT / "hydrography" / "config" / "groundwater.yaml")
+                          .read_text(encoding="utf-8"))
+    crit = gcfg["aquifer"]["unconfined_criterion"]
+    min_saturated = float(gcfg["aquifer"].get("min_saturated_thickness_m", 1.0))
+    thicknesses = [float(v) for v in crit["thicknesses_m"]]
+    obs_rho_rech = float(spearmanr(oc, rech[cs]).statistic)
+    obs_rho_elev = float(spearmanr(oc, elev[cs]).statistic)
+
+    # GW-24, BOTH ARMS AT THE SAME THICKNESS. The confined arm answers GW-21's
+    # question -- the dependence structure IS reachable by transmissivity
+    # MAGNITUDE and the agreement does not follow -- and the unconfined arm is
+    # only interesting where it moves both at ONE D. `config/groundwater.yaml`
+    # declares that criterion, before any unconfined run of this harness, and it
+    # is read from there rather than restated here.
+    print(f"\n  TRANSMISSIVITY: does raising D restore the dependence structure,")
+    print(f"  and does the unconfined form reach one raising D did not?")
+    print(f"    {'form':>11s}{'D (m)':>8s}{'median d':>10s}{'sd':>8s}"
+          f"{'r(mod,obs)':>12s}{'rho rech':>10s}{'rho elev':>10s}")
+    for D in thicknesses:
+        for form in ("confined", "unconfined"):
+            base_m = (np.where(land, elev - D, np.nan)
+                      if form == "unconfined" else None)
+            v = run(thickness_m=D, et_max_m_s=1500.0 / 1000.0 / YR,
+                    et_lambda_m=1.0, aquifer_base_m=base_m,
+                    min_saturated_m=min_saturated)
+            out["transmissivity_sweep"].append(
+                {"form": form, "thickness_m": D, "median_depth_m": v[0],
+                 "sd_m": v[1], "pearson": v[2], "rho_recharge": v[3],
+                 "rho_elevation": v[4]})
+            print(f"    {form:>11s}{D:8.0f}{v[0]:10.2f}{v[1]:8.2f}"
+                  f"{v[2]:+12.4f}{v[3]:+10.3f}{v[4]:+10.3f}")
+    print(f"    observed: rho vs recharge {obs_rho_rech:+.3f}, "
+          f"vs elevation {obs_rho_elev:+.3f}")
+
+    # THE DECLARED CRITERION, EVALUATED. Two of three at one thickness and the
+    # third at another is a MISS: that is what raising D uniformly already does,
+    # and refusing it is the whole point of asking for one thickness.
+    by = {(r["form"], r["thickness_m"]): r for r in out["transmissivity_sweep"]}
+    per_D = []
+    for D in thicknesses:
+        c, u = by[("confined", D)], by[("unconfined", D)]
+        closer = lambda a, b, o: abs(a - o) < abs(b - o)  # noqa: E731
+        conds = {
+            "rho_elevation_closer_to_observed_than_confined":
+                bool(closer(u["rho_elevation"], c["rho_elevation"], obs_rho_elev)),
+            "rho_recharge_closer_to_observed_than_confined":
+                bool(closer(u["rho_recharge"], c["rho_recharge"], obs_rho_rech)),
+            "pearson_against_observed_higher_than_confined":
+                bool(u["pearson"] > c["pearson"]),
+        }
+        per_D.append({"thickness_m": D, "conditions": conds,
+                      "all_three": all(conds.values())})
+    out["unconfined_criterion"] = {
+        "declared_in": "hydrography/config/groundwater.yaml aquifer.unconfined_criterion",
+        "declared_on": crit["declared_on"],
+        "observed_rho_recharge": obs_rho_rech,
+        "observed_rho_elevation": obs_rho_elev,
+        "per_thickness": per_D,
+        "passes": any(d["all_three"] for d in per_D),
+        "note": "Two of three at one thickness and the third at another is a "
+                "MISS. Raising D uniformly already moves the dependence "
+                "structure without the agreement following, which is GW-21; "
+                "the criterion is that ONE thickness moves both.",
+    }
+    print(f"    UNCONFINED CRITERION: "
+          f"{'PASS' if out['unconfined_criterion']['passes'] else 'MISS'} -- "
+          + ", ".join(f"{d['thickness_m']:.0f} m "
+                      f"{sum(d['conditions'].values())}/3" for d in per_D))
 
     # attribution and the drain scan both need the DEM inside each cell
     d_ = nc.Dataset(str(CACHE / R["dem"]))
@@ -917,6 +1021,60 @@ def _auc(score, label) -> float:
         return float("nan")
     r = rankdata(np.asarray(score, dtype=np.float64))
     return float((r[label].sum() - n1 * (n1 + 1) / 2.0) / (n1 * n0))
+
+
+def _paired_gain_spread(cells, scores_a, scores_b, label, seed: int = 20260825,
+                        draws: int = 1000) -> dict:
+    """What spread the support itself puts on a paired AUC difference.
+
+    THE INSTRUMENT, NOT A CRITERION. `CLAUDE.md` requires an effect to be
+    weighed against the scatter of the instrument that reports it before the
+    number is believed, and the instrument here is the SUPPORT rather than the
+    bore count. A cell-scale predictor carries one value per cell, so every bore
+    inside a cell shares its score exactly and the independent units are the
+    CELLS. Scoring 73,451 bores through 37 cells reports an AUC to four decimals
+    that 37 units cannot resolve to four decimals, and a gain read off those
+    decimals would be a number about the reporting rather than about the
+    terrain.
+
+    So the resample is over cells, with replacement, carrying each drawn cell's
+    whole bore population; both predictors are re-scored on the SAME resample,
+    which is what makes the difference paired and keeps the two AUCs' shared
+    variation out of it. Reported and never compared against: it cannot move a
+    verdict, and it is what lets one be read.
+    """
+    rng = np.random.default_rng(seed)
+    cells = np.asarray(cells)
+    a = np.asarray(scores_a, dtype=np.float64)
+    b = np.asarray(scores_b, dtype=np.float64)
+    lab = np.asarray(label, dtype=bool)
+    uniq = np.unique(cells)
+    members = [np.flatnonzero(cells == c) for c in uniq]
+    obs = _auc(a, lab) - _auc(b, lab)
+    diffs = []
+    for _ in range(draws):
+        pick = rng.integers(0, uniq.size, uniq.size)
+        take = np.concatenate([members[i] for i in pick])
+        if lab[take].all() or not lab[take].any():
+            continue
+        diffs.append(_auc(a[take], lab[take]) - _auc(b[take], lab[take]))
+    d = np.asarray(diffs, dtype=np.float64)
+    return {
+        "independent_units": "cells",
+        "cells": int(uniq.size),
+        "bores": int(lab.size),
+        "resample_draws": int(d.size),
+        "observed_gain": float(obs),
+        "gain_stdev_over_cell_resamples": float(d.std(ddof=1)) if d.size > 1 else float("nan"),
+        "gain_p2.5": float(np.percentile(d, 2.5)) if d.size else float("nan"),
+        "gain_p97.5": float(np.percentile(d, 97.5)) if d.size else float("nan"),
+        "gain_share_of_resamples_positive": float((d > 0).mean()) if d.size else float("nan"),
+        "gain_exceeds_its_own_spread": bool(
+            d.size > 1 and abs(obs) > d.std(ddof=1)),
+        "note": "The scatter the SUPPORT puts on the difference. Reported so "
+                "the gain can be read against it; it is not a second criterion "
+                "and cannot move the verdict.",
+    }
 
 
 def stage_cti(tag: Path, region: str, quiet: bool) -> None:
@@ -1206,9 +1364,11 @@ def stage_fsat(tag: Path, edge_km: float, region: str, confinement: str | None,
             gap = abs(auc_ident - auc_cell_depth)
             auc = _auc(f_sat, lab)
             capped = float((f_max * np.exp(-fg * z) >= 1.0).mean())
+            spread = _paired_gain_spread(bore_cell[keep], f_sat, -z, lab)
             arm_out["f_grad"][f"{fg:g}"] = {
                 "auc_f_sat": auc,
                 "gain_over_cell_mean_depth": auc - auc_cell_depth,
+                "gain_against_the_support": spread,
                 "beats_declared_bar": bool(auc > bar),
                 "beats_same_support_depth": bool(auc > auc_cell_depth),
                 "attribution_identity_gap": gap,
@@ -1219,6 +1379,10 @@ def stage_fsat(tag: Path, edge_km: float, region: str, confinement: str | None,
             print(f"      f_grad {fg:g}/m: AUC {auc:.4f}  "
                   f"({auc - auc_cell_depth:+.4f} on the same-support depth)  "
                   f"identity gap {gap:.2e}  cap binds {capped:.1%}")
+            print(f"        the gain against the support that reports it: "
+                  f"{spread['observed_gain']:+.4f} on {spread['cells']} cells, "
+                  f"resampled spread {spread['gain_stdev_over_cell_resamples']:.4f}, "
+                  f"95% [{spread['gain_p2.5']:+.4f}, {spread['gain_p97.5']:+.4f}]")
         out["arms"][arm] = arm_out
 
     out["passes"] = bool(verdicts) and all(verdicts)
@@ -1274,6 +1438,14 @@ def main() -> None:
                     choices=["mesh", "fields", "perm", "drainage", "solve", "score",
                              "benchmark", "calibrate", "diagnostics",
                              "cti", "fsat", "all"])
+    ap.add_argument("--unconfined", action="store_true",
+                    help="GW-24: solve with T = K (h - z_bottom), the aquifer "
+                         "base at surface - D, instead of the confined T = K D. "
+                         "Its own solution artifact, never an overwrite.")
+    ap.add_argument("--thickness-m", type=float, default=None,
+                    help="override the config's aquifer thickness for this "
+                         "solve. Names the geometry under both forms: a "
+                         "multiplier confined, the depth to the base unconfined.")
     ap.add_argument("--river-km2", type=float, default=1e4,
                     help="upstream area above which a cell is a river and becomes a "
                          "fixed head at its own elevation (GW-17). 0 disables baselevels")
@@ -1307,7 +1479,8 @@ def main() -> None:
             stage_drainage(tag, args.quiet, args.region)
         elif st == "solve":
             stage_solve(tag, args.quiet, args.river_km2, args.region,
-                        args.drain, args.drain_min_relief_m, args.et_lambda)
+                        args.drain, args.drain_min_relief_m, args.et_lambda,
+                        args.unconfined, args.thickness_m)
         elif st == "benchmark":
             result = stage_benchmark(tag, args.region, args.confinement)
         elif st == "diagnostics":
@@ -1315,11 +1488,12 @@ def main() -> None:
                                        args.river_km2)
         elif st == "calibrate":
             result = stage_calibrate(tag, args.region, args.confinement,
-                                     args.drain, args.et_lambda)
+                                     args.drain, args.et_lambda,
+                                     unconfined=args.unconfined)
         elif st == "score":
             result = stage_score(tag, edge_km, args.quiet, args.region,
                                  args.confinement, args.drain, args.surface,
-                                 args.et_lambda)
+                                 args.et_lambda, args.unconfined)
         elif st == "cti":
             stage_cti(tag, args.region, args.quiet)
         elif st == "fsat":
@@ -1365,7 +1539,11 @@ def main() -> None:
         # only when it is set, so the keys already in the file keep their names.
         key = (f"{args.region}/{args.confinement or 'all'}/"
                f"drain-{args.drain}/{args.surface}/{edge_km:.2f}km"
-               + ("" if args.et_lambda is None else f"/lam{args.et_lambda:g}"))
+               + ("" if args.et_lambda is None else f"/lam{args.et_lambda:g}")
+               # The transmissivity FORM is a different model and not a setting,
+               # so it goes in the key for the same reason --et-lambda does.
+               + ("/unconfined" if args.unconfined else "")
+               + ("" if args.thickness_m is None else f"/D{args.thickness_m:g}"))
         payload.setdefault("runs", {})[key] = result
         args.out.write_text(json.dumps(payload, indent=2) + "\n")
         print(f"  wrote {args.out}")

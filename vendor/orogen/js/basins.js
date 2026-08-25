@@ -515,22 +515,26 @@ export function attachHypsometry(selected, r_elevation, cellArea, levels = BASIN
  *                BASIN_MIN_CELLS cells cover more ground than
  *                BASIN_MIN_AREA_KM2.
  *   depth      — and BASIN_MIN_DEPTH_KM below its spill, compared against the
- *                depression's depth in the model's DIMENSIONLESS elevation
- *                parameter. That is the currency the terrain noise this floor
- *                exists to reject lives in, which is why the threshold is
- *                calibrated there, and it is NOT a physical depth: the
- *                model-unit-to-km curve is quartic above sea level, linear
- *                below it, and saturates at model elevation 1, so one threshold
- *                is many different physical depths depending on where the
- *                depression sits. It admits depressions a few metres deep near
- *                sea level, demands hundreds of metres on high ground, and
- *                admits depressions lying wholly above the saturation whose
- *                published physical depth is exactly zero. The `Km` in the
- *                constant's name is the units it was reasoned in, not the units
- *                it is compared in; `basinResolutionContext` publishes that
- *                distinction so a consumer of the manifest does not have to
- *                infer it, and `hydrography/scripts/catalogue_floor.py`
- *                measures what it costs on a given build.
+ *                depression's PHYSICAL depth, `b.depthKm`. The constant, the
+ *                `resolution.minDepthKm` manifest key and the published
+ *                `selectionCriteria.minDepthKm` all name a physical depth, and
+ *                this is where one is enforced, so the declared floor means the
+ *                same drop wherever the depression sits. Comparing against
+ *                `b.depth`, the depression's extent in the model's
+ *                DIMENSIONLESS elevation parameter, would not: that curve is
+ *                quartic above sea level, linear below it, and saturates at
+ *                model elevation 1, so a single model-unit threshold admits
+ *                depressions a few metres deep near sea level, demands hundreds
+ *                of metres on high ground, and admits depressions lying wholly
+ *                above the saturation whose physical depth — and therefore
+ *                whose lake capacity — is exactly zero. Rejecting mesh-scale
+ *                terrain noise is the area and cell floors' job: a depression
+ *                clearing BASIN_MIN_AREA_KM2 and BASIN_MIN_CELLS is terrain the
+ *                mesh resolves whatever currency its depth is read in.
+ *                `basinResolutionContext` publishes `minDepthComparedIn` so a
+ *                consumer of the manifest never has to infer the currency, and
+ *                `hydrography/scripts/catalogue_floor.py` measures what the
+ *                floor costs on a given build.
  *
  * Explicit IDs bypass every floor: naming a basin means you want it.
  */
@@ -600,12 +604,10 @@ export function selectBasins(basins, opts = {}) {
     // Threshold-qualifying basins, outermost first, so the nesting filter below
     // can ask "is an ancestor already in?".
     const qualifies = (b) => enabled
-        // `b.depth`, not `b.depthKm`: the threshold is calibrated in model units
-        // and the physical depth it enforces therefore varies over the curve.
-        // The docstring above says what that costs. Changing it to `b.depthKm`
-        // changes the preserved set and therefore the terrain, so it is a
-        // regeneration decision rather than a correction to make in passing.
-        && b.depth >= minDepthKm
+        // `b.depthKm`, not `b.depth`: the floor is declared, named and published
+        // as a physical depth, so it is compared as one. The docstring above has
+        // the argument and says what the model-unit comparison cost.
+        && b.depthKm >= minDepthKm
         && b.areaKm2 >= minAreaKm2
         && b.cellCount >= minCells;
 
@@ -1277,15 +1279,15 @@ export function basinResolutionContext(numRegions, radiusKm, opts = {}) {
         minDepthKm,
         minAreaKm2,
         minCells,
-        // The depth floor is compared against the depression's depth in the
-        // model's dimensionless elevation parameter, not in km, so `minDepthKm`
-        // above is a model-unit number wearing a physical name. Published
-        // because a consumer reading a criteria block otherwise reasons about a
-        // 50 m floor that was never enforced: the same threshold admits
-        // depressions a few metres deep near sea level and demands hundreds of
-        // metres on high ground. `selectBasins` has the argument.
-        minDepthComparedIn: 'model elevation (dimensionless)',
-        minDepthIsPhysical: false,
+        // The currency the depth floor is compared in, stated rather than left
+        // to be inferred: `minDepthKm` above is enforced against the
+        // depression's physical depth, so the declared number is the drop it
+        // demands everywhere on the height curve. Published because a consumer
+        // reading a criteria block cannot otherwise tell a physical floor from
+        // a model-unit one wearing a physical name, and the two select very
+        // different catalogues. `selectBasins` has the argument.
+        minDepthComparedIn: 'km',
+        minDepthIsPhysical: true,
         // Which floor binds, ON THE AVERAGE CELL. `cell` is the mean dual area
         // over the whole sphere, so this is a statement about the typical
         // depression and not a guarantee about any particular one: local cell
@@ -1297,8 +1299,11 @@ export function basinResolutionContext(numRegions, radiusKm, opts = {}) {
         bindingFloor: minCells * cell > minAreaKm2 ? 'minCells' : 'minAreaKm2',
         bindingFloorBasis: 'mean cell area over the sphere',
         // And neither: the two floors above compare area against area, while
-        // the depth floor is in another currency entirely, so `bindingFloor`
-        // never names it however much of the catalogue it decides.
+        // the depth floor compares a length, so `bindingFloor` never names it
+        // however much of the catalogue it decides. Ask
+        // `hydrography/scripts/catalogue_floor.py`, which relaxes each floor and
+        // re-runs the whole selection, which of the three actually decided a
+        // given build.
         bindingFloorExcludes: 'minDepthKm',
     };
 }

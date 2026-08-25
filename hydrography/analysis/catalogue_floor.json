@@ -1,9 +1,9 @@
 {
   "note": "Modelled terrain of an invented planet. A pre-carve build is a LIMIT, not a state: every basin number here is what sits in source/ before any carve verdict has been applied.",
-  "generated": "2026-08-25T12:20:20.911145+00:00",
+  "generated": "2026-08-25T13:08:34.428890+00:00",
   "provenance": {
     "script": "hydrography/scripts/catalogue_floor.py",
-    "git_commit": "1170d31d3045ec4ce18a58b0bed4ac9912ffd531",
+    "git_commit": "38091908223eb10d34d0ee3f76f20060247ae101",
     "python": "3.14.7",
     "numpy": "2.5.2"
   },
@@ -27,6 +27,7 @@
         "bindingFloor": "minCells"
       },
       "controls": {
+        "depth_compared_against": "depth",
         "reproduces_published_selection": true,
         "reproduced_count": 3621,
         "published_count": 3621,
@@ -83,7 +84,9 @@
       "depth_floor_units": {
         "declared_value": 0.05,
         "declared_units_in_manifest": "km",
-        "units_actually_compared": "dimensionless model elevation",
+        "units_actually_compared": "model elevation (dimensionless)",
+        "units_declared_by_the_manifest": false,
+        "units_source": "absent from this manifest; the export predates the field and was selected in model units",
         "physical_depth_at_the_threshold_km": {
           "samples": 614,
           "min": 0.0,
@@ -97,13 +100,15 @@
         },
         "preserved_shallower_than_declared": 773,
         "preserved_shallower_than_declared_fraction": 0.21347694007180337,
-        "counterfactual_floor_in_km": {
+        "preserved_with_zero_physical_depth": 2,
+        "counterfactual_other_currency": {
+          "compared_in": "km",
           "preserved": 2879,
           "net_vs_as_built": -742,
           "admitted_that_are_not_preserved_now": 31,
           "dropped_that_are_preserved_now": 773
         },
-        "note": "A counterfactual, not a proposal. Changing the comparison changes the preserved set and therefore the terrain, which is a loop A decision and costs a generation."
+        "note": "A counterfactual, not a proposal. The currency the floor is compared in is a selection criterion, so changing it on a build changes the preserved set and therefore the terrain, which is a loop A decision and costs a generation."
       },
       "below_sea_level_residue": {
         "land_area_km2": 317310432.0,
@@ -157,6 +162,7 @@
         "bindingFloor": "minAreaKm2"
       },
       "controls": {
+        "depth_compared_against": "depth",
         "reproduces_published_selection": true,
         "reproduced_count": 9419,
         "published_count": 9419,
@@ -213,7 +219,9 @@
       "depth_floor_units": {
         "declared_value": 0.05,
         "declared_units_in_manifest": "km",
-        "units_actually_compared": "dimensionless model elevation",
+        "units_actually_compared": "model elevation (dimensionless)",
+        "units_declared_by_the_manifest": false,
+        "units_source": "absent from this manifest; the export predates the field and was selected in model units",
         "physical_depth_at_the_threshold_km": {
           "samples": 1789,
           "min": 0.0,
@@ -227,13 +235,15 @@
         },
         "preserved_shallower_than_declared": 2077,
         "preserved_shallower_than_declared_fraction": 0.22051173160632764,
-        "counterfactual_floor_in_km": {
+        "preserved_with_zero_physical_depth": 0,
+        "counterfactual_other_currency": {
+          "compared_in": "km",
           "preserved": 7471,
           "net_vs_as_built": -1948,
           "admitted_that_are_not_preserved_now": 129,
           "dropped_that_are_preserved_now": 2077
         },
-        "note": "A counterfactual, not a proposal. Changing the comparison changes the preserved set and therefore the terrain, which is a loop A decision and costs a generation."
+        "note": "A counterfactual, not a proposal. The currency the floor is compared in is a selection criterion, so changing it on a build changes the preserved set and therefore the terrain, which is a loop A decision and costs a generation."
       },
       "below_sea_level_residue": {
         "land_area_km2": 318136992.0,

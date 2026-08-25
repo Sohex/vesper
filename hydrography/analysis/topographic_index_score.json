@@ -1,7 +1,7 @@
 {
   "provenance": {
-    "generated": "2026-08-25T09:46:20+00:00",
-    "git_rev": "cffdb78c6fa72998a041e84ff4ed13fd4c6ee100",
+    "generated": "2026-08-25T13:16:55+00:00",
+    "git_rev": "7a79827473b8b0ff86a3222c518cfa49292b8f98",
     "numpy": "2.5.2",
     "sites": "hydrography/data/earth_validation/aus_wtd_sites.csv"
   },
@@ -10,7 +10,7 @@
       "issue": "GW-26",
       "region": "aus",
       "confinement": "all",
-      "edge_km": 15.190378953196356,
+      "edge_km": 15.189998357560416,
       "support": "T21 (32x64 equal-angle boxes)",
       "min_regions_per_cell": 10,
       "bar_auc": 0.573,
@@ -49,6 +49,19 @@
             "1.25": {
               "auc_f_sat": 0.45716584684951633,
               "gain_over_cell_mean_depth": -0.0009185886719138003,
+              "gain_against_the_support": {
+                "independent_units": "cells",
+                "cells": 34,
+                "bores": 53410,
+                "resample_draws": 1000,
+                "observed_gain": -0.0009185886719138003,
+                "gain_stdev_over_cell_resamples": 0.005922412524985324,
+                "gain_p2.5": -0.01929813094324404,
+                "gain_p97.5": 0.0006927847404901321,
+                "gain_share_of_resamples_positive": 0.176,
+                "gain_exceeds_its_own_spread": false,
+                "note": "The scatter the SUPPORT puts on the difference. Reported so the gain can be read against it; it is not a second criterion and cannot move the verdict."
+              },
               "beats_declared_bar": false,
               "beats_same_support_depth": false,
               "attribution_identity_gap": 0.0,
@@ -58,6 +71,19 @@
             "2.5": {
               "auc_f_sat": 0.4579236022224066,
               "gain_over_cell_mean_depth": -0.00016083329902355503,
+              "gain_against_the_support": {
+                "independent_units": "cells",
+                "cells": 34,
+                "bores": 53410,
+                "resample_draws": 1000,
+                "observed_gain": -0.00016083329902355503,
+                "gain_stdev_over_cell_resamples": 0.0012223200122458827,
+                "gain_p2.5": -0.0031102603442517197,
+                "gain_p97.5": 0.0,
+                "gain_share_of_resamples_positive": 0.0,
+                "gain_exceeds_its_own_spread": false,
+                "note": "The scatter the SUPPORT puts on the difference. Reported so the gain can be read against it; it is not a second criterion and cannot move the verdict."
+              },
               "beats_declared_bar": false,
               "beats_same_support_depth": false,
               "attribution_identity_gap": 0.0,
@@ -82,6 +108,19 @@
             "1.25": {
               "auc_f_sat": 0.47714964622420675,
               "gain_over_cell_mean_depth": 0.019065210702776614,
+              "gain_against_the_support": {
+                "independent_units": "cells",
+                "cells": 34,
+                "bores": 53410,
+                "resample_draws": 1000,
+                "observed_gain": 0.019065210702776614,
+                "gain_stdev_over_cell_resamples": 0.021277158664175434,
+                "gain_p2.5": -5.216855645471252e-05,
+                "gain_p97.5": 0.07251663859042173,
+                "gain_share_of_resamples_positive": 0.398,
+                "gain_exceeds_its_own_spread": false,
+                "note": "The scatter the SUPPORT puts on the difference. Reported so the gain can be read against it; it is not a second criterion and cannot move the verdict."
+              },
               "beats_declared_bar": false,
               "beats_same_support_depth": true,
               "attribution_identity_gap": 0.0,
@@ -91,6 +130,19 @@
             "2.5": {
               "auc_f_sat": 0.45808443552143013,
               "gain_over_cell_mean_depth": 0.0,
+              "gain_against_the_support": {
+                "independent_units": "cells",
+                "cells": 34,
+                "bores": 53410,
+                "resample_draws": 1000,
+                "observed_gain": 0.0,
+                "gain_stdev_over_cell_resamples": 0.0,
+                "gain_p2.5": 0.0,
+                "gain_p97.5": 0.0,
+                "gain_share_of_resamples_positive": 0.0,
+                "gain_exceeds_its_own_spread": false,
+                "note": "The scatter the SUPPORT puts on the difference. Reported so the gain can be read against it; it is not a second criterion and cannot move the verdict."
+              },
               "beats_declared_bar": false,
               "beats_same_support_depth": false,
               "attribution_identity_gap": 0.0,
@@ -107,7 +159,7 @@
       "issue": "GW-26",
       "region": "us",
       "confinement": "unconfined",
-      "edge_km": 15.190378953196356,
+      "edge_km": 15.189998357560416,
       "support": "T21 (32x64 equal-angle boxes)",
       "min_regions_per_cell": 10,
       "bar_auc": 0.573,
@@ -146,6 +198,19 @@
             "1.25": {
               "auc_f_sat": 0.6723141547963888,
               "gain_over_cell_mean_depth": 0.006829573410355172,
+              "gain_against_the_support": {
+                "independent_units": "cells",
+                "cells": 37,
+                "bores": 73451,
+                "resample_draws": 1000,
+                "observed_gain": 0.006829573410355172,
+                "gain_stdev_over_cell_resamples": 0.012852537980150404,
+                "gain_p2.5": -0.009384679194688522,
+                "gain_p97.5": 0.04447400212258153,
+                "gain_share_of_resamples_positive": 0.629,
+                "gain_exceeds_its_own_spread": false,
+                "note": "The scatter the SUPPORT puts on the difference. Reported so the gain can be read against it; it is not a second criterion and cannot move the verdict."
+              },
               "beats_declared_bar": true,
               "beats_same_support_depth": true,
               "attribution_identity_gap": 0.0,
@@ -155,6 +220,19 @@
             "2.5": {
               "auc_f_sat": 0.6712640401019792,
               "gain_over_cell_mean_depth": 0.00577945871594554,
+              "gain_against_the_support": {
+                "independent_units": "cells",
+                "cells": 37,
+                "bores": 73451,
+                "resample_draws": 1000,
+                "observed_gain": 0.00577945871594554,
+                "gain_stdev_over_cell_resamples": 0.010156548434498045,
+                "gain_p2.5": 0.0,
+                "gain_p97.5": 0.035127862423484195,
+                "gain_share_of_resamples_positive": 0.397,
+                "gain_exceeds_its_own_spread": false,
+                "note": "The scatter the SUPPORT puts on the difference. Reported so the gain can be read against it; it is not a second criterion and cannot move the verdict."
+              },
               "beats_declared_bar": true,
               "beats_same_support_depth": true,
               "attribution_identity_gap": 0.0,
@@ -179,6 +257,19 @@
             "1.25": {
               "auc_f_sat": 0.6718688080605912,
               "gain_over_cell_mean_depth": 0.006384226674557625,
+              "gain_against_the_support": {
+                "independent_units": "cells",
+                "cells": 37,
+                "bores": 73451,
+                "resample_draws": 1000,
+                "observed_gain": 0.006384226674557625,
+                "gain_stdev_over_cell_resamples": 0.012938033364288566,
+                "gain_p2.5": -0.009869344824955693,
+                "gain_p97.5": 0.04447400212258153,
+                "gain_share_of_resamples_positive": 0.548,
+                "gain_exceeds_its_own_spread": false,
+                "note": "The scatter the SUPPORT puts on the difference. Reported so the gain can be read against it; it is not a second criterion and cannot move the verdict."
+              },
               "beats_declared_bar": true,
               "beats_same_support_depth": true,
               "attribution_identity_gap": 0.0,
@@ -188,6 +279,19 @@
             "2.5": {
               "auc_f_sat": 0.668847520198659,
               "gain_over_cell_mean_depth": 0.0033629388126253934,
+              "gain_against_the_support": {
+                "independent_units": "cells",
+                "cells": 37,
+                "bores": 73451,
+                "resample_draws": 1000,
+                "observed_gain": 0.0033629388126253934,
+                "gain_stdev_over_cell_resamples": 0.011061738375415872,
+                "gain_p2.5": -0.010432077565139123,
+                "gain_p97.5": 0.034551530089449584,
+                "gain_share_of_resamples_positive": 0.374,
+                "gain_exceeds_its_own_spread": false,
+                "note": "The scatter the SUPPORT puts on the difference. Reported so the gain can be read against it; it is not a second criterion and cannot move the verdict."
+              },
               "beats_declared_bar": true,
               "beats_same_support_depth": true,
               "attribution_identity_gap": 0.0,
