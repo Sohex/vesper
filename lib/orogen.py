@@ -292,11 +292,45 @@ class Basin:
     final_flooded_area_km2: float
     final_volume_km3: float
     catchment_area_km2: float
+    # Depression relief on the two surfaces, in the generator's dimensionless
+    # elevation parameter. `natural_spill_depth` is what detectBasins measured
+    # on the pre-conditioning surface and is the basis Orogen's `retain`
+    # allowance is a fraction of; `final_spill_depth` is what survived. The two
+    # differ on almost every basin, which is why both are carried.
+    natural_spill_depth: float
+    final_spill_depth: float
+    final_spill_depth_km: float
+    retained_fraction: float | None
 
     @property
     def natural_hypsometry_is_usable(self) -> bool:
         """The natural curve is only safe where erosion barely touched the rim."""
         return self.final_volume_km3 >= 0.95 * self.natural_volume_km3
+
+    @property
+    def still_closed(self) -> bool:
+        """Is there still a depression on the finished terrain?
+
+        PRESERVED IS NOT THE SAME AS STILL CLOSED, and this is the field that
+        separates them. Preservation is a promise about ONE agent: the
+        drainage-enforcement carve will not lower a protected divide below its
+        floor, and `assertDividesNotLowered` proves it pass by pass. It is not
+        a promise about the depression, because hydraulic, thermal and glacial
+        erosion, ridge sharpening and soil creep all run over protected cells
+        by design, and the sink is deliberately left unprotected so the basin
+        floor can erode. On both registered builds the median preserved basin
+        keeps about four fifths of its relief, a sixth of them gain relief, and
+        a handful keep none at all.
+
+        A basin that keeps none impounds nothing: it is published as preserved,
+        with `retain: 1` and a hypsometry curve measured on a surface the
+        finished terrain no longer has. Consumers that need an impoundment --
+        a lake balance, a capacity, a carve verdict -- must test this rather
+        than membership of the preserved set.
+
+        notes/audits/basin-catalogue-floor.md carries the measurement.
+        """
+        return self.final_spill_depth > 0.0
 
 
 class Export:
@@ -468,6 +502,11 @@ class Export:
                 final_flooded_area_km2=float(fp["floodedAreaKm2"]),
                 final_volume_km3=float(fp["volumeKm3"]),
                 catchment_area_km2=float(fc["areaKm2"]),
+                natural_spill_depth=float(b["natural"]["spillDepth"]),
+                final_spill_depth=float(fp["spillDepth"] or 0.0),
+                final_spill_depth_km=float(fp["spillDepthKm"] or 0.0),
+                retained_fraction=(None if fp.get("retainedFraction") is None
+                                   else float(fp["retainedFraction"])),
             ))
         return out
 

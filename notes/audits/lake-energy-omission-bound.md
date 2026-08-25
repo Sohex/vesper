@@ -133,9 +133,31 @@ of the smaller term.
   `open_water_evaporation_from_routed_water` rather than in a new ledger entry:
   the seasonal energy omission is inside the mass omission already declared
   there, not beside it.
-- **The area and depth classes cannot be derived yet.** The accepted build
-  carries zero `INLAND_WATER` regions -- it is pre-carve, so it has no lakes --
-  and `hydrography/data/precarve-craton-10m/` is empty, so there is no basin
-  catalogue for it. The only `basins.nc` in the tree belongs to the superseded
-  `precarve-craton`, and a pre-carve build is a limit rather than a state.
-  Nothing above depends on either, which is why it could be bounded first.
+- **The area and depth classes can be derived, and they do not settle
+  anything.** `hydrography/data/precarve-craton-10m/` now carries `basins.nc`
+  with 9,419 basins and their level/area/volume curves, and `surface_water.nc`
+  with a solved lake set, so the catalogue side of the question is answerable.
+  What it answers with is a population that STRADDLES the only class boundary
+  identified above. Measured 2026-08-25 from `surface_water.nc` on both builds,
+  as mean lake depth (volume over area) at the solved equilibrium: about a third
+  of the lake area sits shallower than 10 m and about two thirds deeper, on both
+  builds, with the median between 18 and 27 m. A distribution split near the
+  middle cannot rank the levers, which is the same conclusion the three terms
+  above reach from the other direction.
+
+  Two reasons not to quote those shares as a result. The forcing is
+  `bootstrap_regular_climatology.nc`, a bootstrap and not a baseline, so the
+  lake extents are the terrain-only-field answer; and both builds are pre-carve,
+  so every basin number is a limit rather than a state. What survives both
+  caveats is the straddle, because moving the climate moves lakes along the
+  depth axis continuously and a third-to-two-thirds split does not become
+  one-sided under a plausible shift.
+
+- **The accepted build still carries zero `INLAND_WATER` regions**, confirmed
+  2026-08-25 by counting `surface_class` on
+  `source/precarve-craton-10m/exoplasim-T42/`: 4,328,736 land and 5,671,269
+  ocean, and no third class. That is structural rather than incidental --
+  `applyInlandWaterLevels` writes the class only for levels a caller supplies,
+  and no build in `source/` was given any -- so it does not lift by
+  regenerating. Nothing above depends on it, which is why the bound could be
+  taken first.

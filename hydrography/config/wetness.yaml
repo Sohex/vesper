@@ -77,22 +77,65 @@ classes:
       the scatter its own support puts on it, so no narrower criterion can
       license it either. This class is absent permanently rather than pending,
       and reviving it is a new closure with a new criterion. GW-26.
+  groundwater_fed:
+    support: climate_grid
+    source: >-
+      none yet. The tile LSHY-6 asks to keep distinct from upland soil and
+      from lake and playa: land whose water comes from the table rather than
+      from the season's rain.
+    unavailable_reason: >-
+      two candidate sources, and they fail for different
+      reasons, so a reader deciding whether to wait or to build needs both.
+      GW-26's saturated-area closure is withdrawn PERMANENTLY and reviving it
+      needs a different INSTRUMENT rather than a narrower criterion. World-n9sd
+      measured the instrument: resampling the cells, the gain the terrain half
+      carries over the cell-mean depth alone is at or below its own scatter on
+      all eight arms of both Earth observation sets, so point bore depths at
+      cell scale are blind to the effect and no cut of `sink_fraction` makes
+      them see it. What would license a revival is an AREAL observation -- a
+      measured saturation or inundation extent -- not more bores.
+      PLHY-5's `groundwater_access` needs no closure at all: it evaluates the
+      access criterion on the native regions where the depth lives and crosses
+      an AREA, which is exactly this tile. What it needs is `water_table.nc`,
+      and no build in `source/` has one -- `hydrography/data/<build>/` carries
+      none on either. The cost is the `groundwater` step and then
+      `groundwater_access`, both `cost: minutes` in `config/pipeline.yaml`, with
+      `groundwater` needing `surface_water` and a climatology first.
+    licensing_constraint: >-
+      whichever route revives it, the tile carries the
+      regime with it or it is not licensed. The depth it would come from scores
+      0.4581 against Earth's Australian bores, below the 0.5 of no
+      discrimination, and 0.6655 on the United States unconfined set, so it
+      works where lateral flow sets the head and not where the local sink does.
+      `groundwater_access_<grid>.nc` already reports the `sink_fraction` regime
+      share per cell, including its two kinds of no-answer. A share that mixes
+      the licensed regime with the unlicensed one is a number with no verdict
+      attached, which is what `area_proxy_from_cell_mean` below refuses in the
+      other direction.
   seasonal_inundation:
     support: region
-    unavailable_reason: nothing in this component carries a season yet. The lake
-      solve is an annual equilibrium, the groundwater solve is a steady state,
-      and `hydrography/config/land_water_ledger.yaml` gives every term reaching
-      these stores an annual `interval_floor`. Ownership is settled in
-      `hydrography/notes/land-water-ledger.md`, and it splits the quantity in
-      three: a closed BASIN's inundated area through the year is HYDROGRAPHY's,
-      it needs no curve that does not already exist in basins.nc, and its cost
-      is a periodic-steady-state lake balance over the climatology's own time
-      bins plus LSHY-6 lowering two interval floors; a FLOODPLAIN's is a routing
-      cell's, needs a height-above-nearest-drainage CDF and a routing model
-      neither of which exists here, and should not have an owner yet; and a
-      seasonally saturated SOIL is a water content rather than an area, so
-      neither the climate column nor the land model can supply one without a
-      saturated-fraction closure, and this project's is withdrawn.
+    source: >-
+      partial, and the partition matters. `land-water-ledger.md` splits this
+      quantity in three and only one of the three is hydrography's. That one
+      exists: `surface_water.nc` carries each closed basin's lake area in every
+      time bin of the climatology, from the periodic steady state
+      `lake_balance.solve_periodic` solves, with `basin_cycle_closed` saying
+      which basins are a cycle rather than a transient and `basin_has_season`
+      which carry a swing the hypsometric curve can express.
+    unavailable_reason: >-
+      what is missing is the crossing, not the quantity. The closed-basin area
+      above is per BASIN and this class is per REGION, and painting a bin's
+      lake area onto regions is the same operation `paint_lakes` performs for
+      the annual solve, once per bin. Until it does, this class stays absent
+      rather than approximated from the annual lake.
+      The other two thirds of the quantity are not hydrography's and are not
+      pending here. A FLOODPLAIN's inundated area needs a
+      height-above-nearest-drainage CDF and a routing model, neither of which
+      exists in this project, and it should not have an owner yet. A seasonally
+      saturated SOIL is a water content rather than an area, so neither the
+      climate column nor the land model can supply one without a
+      saturated-fraction closure, and this project's is withdrawn. Merging any
+      of the three is the double count this file exists to prevent.
   peat:
     support: region
     unavailable_reason: persistence over a seasonal cycle is what distinguishes

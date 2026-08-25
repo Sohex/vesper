@@ -296,7 +296,10 @@ terms:
     flux: undeclared
     producer: "hydrography surface_water.py per-basin lake precipitation"
     producer_units: km Earth-year-1 over the open-water area
-    interval_floor: annual
+    # Lowered from annual when surface_water.py gained a per-bin read. The value
+    # is taken at the basin's sink cell in each of the climatology's own bins,
+    # which a surface flux can be, having no storage between them. WORLD-15I0.
+    interval_floor: climatology_bin
     owner: lshy-6
     note: >
       Precipitation falling directly on open water. Quoted on the open-water
@@ -504,7 +507,11 @@ terms:
     flux: undeclared
     producer: "hydrography carve_verdict.penman_open_water"
     producer_units: km Earth-year-1 over the open-water area
-    interval_floor: annual
+    # Lowered from annual when reference_level_air gained a bin index. Penman
+    # already integrates the diurnal cycle for a Jensen reason, so evaluating it
+    # per bin is not a new kind of evaluation; the bin-weighted mean of the air
+    # it reads reproduces the annual read to machine precision. WORLD-15I0.
+    interval_floor: climatology_bin
     owner: lshy-6
     note: >
       Evaporation from lake and channel surfaces, at the open-water rate and
@@ -638,6 +645,29 @@ absences:
       freeze/thaw in the soil. Melt water therefore always infiltrates,
       whatever the soil temperature.
     owner: lshy-5
+  seasonal_phase_of_catchment_delivery:
+    what: >-
+      The hydrography path computes catchment runoff as the ANNUAL mean of
+      P - E over the catchment and cannot phase it through the year. Over one
+      cycle at steady state a land cell's storage returns to where it started,
+      so the annual mean is exactly the runoff that cell generated; clamping
+      the negative bins away instead would count the wet season's supply twice,
+      once as runoff and once as the water that refilled the soil the dry
+      season emptied. `carve_verdict.seasonal_rectification` measures what that
+      double count would add.
+    unrepresentable: >-
+      WHEN a catchment delivers its water, as distinct from how much. The
+      periodic lake balance therefore carries the season of the lake's own
+      surface fluxes, which are surface fluxes with no storage between bins,
+      and a catchment supply that is flat through the year. A basin whose lake
+      is small against its catchment has its season understated by whatever
+      the delivery's own phase is worth.
+      The quantity that would carry it is the climate column's `surface_runoff`
+      above, which the model supplies at its own timestep and which this path
+      rejects as an incomplete routed diagnostic. Closing this absence is
+      therefore the same decision as adopting `drunoff`, not a change to the
+      lake balance.
+    owner: lshy-6
   open_water_evaporation_from_routed_water:
     what: >
       Routed runoff accumulates in `driver` and discharges to the ocean.

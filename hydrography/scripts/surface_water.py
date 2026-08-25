@@ -1,19 +1,22 @@
 """Where the standing and running water is, under a real climate.
 
 `lake_balance.py` has always been able to solve for lake extent; what it lacked
-was forcing. This runs it against the ExoPlaSim baseline climatology through
-`coupling_*.nc`, and accumulates the same runoff down the drainage network to
-get river discharge. Two products, one water balance:
+was forcing. This runs it against whichever ExoPlaSim climatology
+`config/planet.yaml` names, through `coupling_*.nc`, and accumulates the same
+runoff down the drainage network to get river discharge. Two products, one water
+balance:
 
     data/<build>/surface_water.nc   per region: lake, lake depth, river discharge
                             per basin: area, level, volume, overflow
 
 This is the first thing in the project to decide `surface_class == 2`, which
 World Orogen deliberately leaves empty. It is a result, not a picture, and it
-carries the caveats of its forcing: the baseline run is T42 and predates the
-carve, and the lakes it implies are not fed back into it. A world with this much
-open water would evaporate more and be cloudier, so the climate that produced
-these lakes is not the climate that would exist with them.
+carries the caveats of its forcing, and the forcing is named on the artifact
+rather than assumed: a bootstrap climatology gives bootstrap lakes, and its
+numbers are not the baseline. The lakes are not fed back into the run that
+produced them either. A world with this much open water would evaporate more and
+be cloudier, so the climate that produced these lakes is not the climate that
+would exist with them.
 
     python hydrography/scripts/surface_water.py
 """
@@ -39,6 +42,7 @@ from paths import rel  # noqa: E402
 from provenance import staged_surface_field  # noqa: E402
 
 import builds  # noqa: E402
+import climatology  # noqa: E402
 import gridding  # noqa: E402
 
 # Set by main(), from config.baseline_climatology or --climatology. There is
@@ -65,8 +69,16 @@ def sha256(path):
     return h.hexdigest()
 
 
-def climate_fields(config):
+def climate_fields(config, bin_index=None):
     """Runoff, lake precipitation and open-water evaporation, m/s, on the grid.
+
+    `bin_index` evaluates the LAKE terms on one of the climatology's time bins
+    instead of on the annual mean, which is what the periodic lake balance is
+    integrated against. Everything acting on the water surface -- open-water
+    evaporation and the precipitation falling on it -- can be taken per bin,
+    because a surface flux has no storage between bins. Catchment runoff cannot;
+    see the note where it is computed. With `bin_index` absent this returns
+    exactly what it always did.
 
     Runoff is P-E, not the model's `mrro`. At steady state the two are the same
     thing: whatever falls on land and does not evaporate has to leave, and the
@@ -90,17 +102,36 @@ def climate_fields(config):
             "no climatology resolved; main() sets it from "
             "config.baseline_climatology or --climatology")
     with Dataset(clim) as ds:
-        pr = cv.annual_mean(ds, "pr")
-        evap = -cv.annual_mean(ds, "evap")     # code 182 is negative upward
-        mrro = cv.annual_mean(ds, "mrro")
-        rss, rls = cv.annual_mean(ds, "rss"), cv.annual_mean(ds, "rls")
+        if bin_index is None:
+            def take(name):
+                return cv.annual_mean(ds, name)
+        else:
+            k = int(bin_index)
+
+            def take(name):
+                return np.asarray(ds[name][k])
+        pr = take("pr")
+        evap = -take("evap")                   # code 182 is negative upward
+        mrro = take("mrro")
+        rss, rls = take("rss"), take("rls")
         lat = np.asarray(ds["lat"][:])
         lon = np.asarray(ds["lon"][:])
-        lsm = cv.annual_mean(ds, "lsm")
-        diurnal = cv.annual_mean(ds, "maxt") - cv.annual_mean(ds, "mint")
-    t_air, q_air, wind, p_air = cv.reference_level_air(clim)
+        lsm = take("lsm")
+        diurnal = take("maxt") - take("mint")
+        annual_pe = cv.annual_mean(ds, "pr") + cv.annual_mean(ds, "evap")
+    t_air, q_air, wind, p_air = cv.reference_level_air(clim, bin_index)
 
-    runoff = np.clip(pr - evap, 0.0, None)
+    # RUNOFF STAYS ANNUAL EVEN IN A BIN, and it is not an oversight. Over one
+    # cycle at steady state a land cell's storage returns to where it started,
+    # so annual(P - E) is exactly the runoff that cell generated; clamping the
+    # negative bins away instead counts the wet season's supply twice, once as
+    # runoff and once as the water that refilled the soil the dry season
+    # emptied. `carve_verdict.seasonal_rectification` measures what that would
+    # add. So the value here is the same annual number in every bin, and the
+    # seasonal PHASE of catchment delivery is a declared absence in
+    # `config/land_water_ledger.yaml` rather than a term computed from a
+    # quantity that cannot carry it.
+    runoff = np.clip(annual_pe, 0.0, None)
 
     # Through the one door. The path this used to build is keyed by the RUNG
     # alone while `surface_albedo` rewrites it per BUILD, so it could not say
@@ -364,6 +395,41 @@ def main():
 
     level = solution["level_km"]
     area = export.cell_area.astype(np.float64)
+
+    # --- the seasonal cycle, as a periodic steady state -------------------
+    # WORLD-15I0. The annual solve above answers where a basin settles if the
+    # forcing never changes; this integrates the same balance through the
+    # climatology's own bins and asks for the YEAR to close on itself. The lake
+    # terms are re-evaluated per bin because a surface flux has no storage
+    # between bins; the catchment term is the annual one in every bin, for the
+    # reason `climate_fields` gives where it computes it.
+    print("solving the periodic steady state")
+    with Dataset(_CLIM_FILE) as _ds:
+        bin_weights = climatology.bin_weights(np.asarray(_ds["time"][:]))
+    nbin = bin_weights.size
+    season_evap = np.zeros((nbin, basins.n))
+    season_precip = np.zeros((nbin, basins.n))
+    for k in range(nbin):
+        f_lat, f_lon, f_run, f_pr, f_ev, _, f_lsm = climate_fields(config, bin_index=k)
+        _, p_k, e_k = per_basin_forcing(basins.n, f_lat, f_lon, f_run, f_pr, f_ev,
+                                        sinks, export, f_lsm, config)
+        season_precip[k] = p_k * to_km_per_year
+        season_evap[k] = e_k * to_km_per_year
+    # Bin lengths in the SAME year the fluxes are per, which here is Vesper's,
+    # so the normalised weights are already that. See solve_periodic.
+    periodic = lb.solve_periodic(
+        basins,
+        np.tile(catchment_runoff * to_km_per_year, (nbin, 1)),
+        season_evap,
+        season_precip,
+        bin_weights,
+        area_resolution_km2=float(area.mean()),
+    )
+    n_refused = int((~periodic["closed"] & basins.has_impoundment).sum())
+    print(f"  closed in {periodic['cycles']} cycles; "
+          f"{int(periodic['seasonal'].sum())} basins carry a publishable season, "
+          f"{n_refused} refused for not closing")
+
     wet = paint_lakes(terminal, filled_km, area, solution["area_km2"])
     lake_depth = np.where(wet, level[np.maximum(terminal, 0)] - filled_km, 0.0)
 
@@ -395,7 +461,12 @@ def main():
     with Dataset(out, "w") as ds:
         ds.createDimension("region", n)
         ds.createDimension("basin", basins.n)
-        ds.title = "Lakes and rivers under the baseline climatology"
+        ds.createDimension("time_bin", nbin)
+        # Named from the forcing rather than asserted. A bootstrap run's numbers
+        # are NOT the baseline, `climatology_path` hands over whichever the
+        # config names, and stamping "baseline" on a bootstrap-forced lake set
+        # is how a limit comes to be quoted as a state.
+        ds.title = f"Lakes and rivers under {_CLIM_FILE.stem}"
         ds.terrain_hash = export.terrain_hash
         ds.setncattr("vesper_source_build", build.name)
         ds.forcing = rel(_CLIM_FILE)
@@ -417,11 +488,46 @@ def main():
             ("basin_overflow_km3_yr", solution["overflow_km3_per_year"], "f8", "basin",
              "km3 yr-1", "passed downstream once pinned at spill"),
             ("basin_fills_to_spill", solution["fills_to_spill"], "i1", "basin", "1", ""),
+            # The periodic steady state. WORLD-15I0.
+            ("basin_area_swing_km2", periodic["area_swing_km2"], "f8", "basin", "km2",
+             "peak-to-trough lake area over the cycle"),
+            ("basin_seasonal_amplitude", periodic["seasonal_amplitude"], "f8", "basin",
+             "1", "that swing as a share of the cycle-mean area"),
+            ("basin_residence_time_years", periodic["residence_time_years"], "f8",
+             "basin", "yr", "cycle-mean volume over annual inflow; what sets the "
+             "amplitude, and why the product is per basin rather than a headline"),
+            ("basin_has_season", periodic["seasonal"], "i1", "basin", "1",
+             "the cycle is published for this basin: the swing is at least a tenth "
+             "of its mean area AND at least one mean mesh cell. A zero is not a "
+             "claim that the basin is steady, it is a refusal to publish a swing "
+             "the hypsometric curve cannot express"),
+            ("basin_cycle_closed", periodic["closed"], "i1", "basin", "1",
+             "the year closed on itself to the declared tolerance. READ THIS "
+             "BEFORE the per-bin fields: a zero means the arrays below are a "
+             "transient, not a cycle, and the basin is refused"),
         ]:
             v = ds.createVariable(name, dtype, (dim,), zlib=True)
             v.units = units
             if note:
                 v.long_name = note
+            v[:] = data
+        for name, data, units, note in [
+            ("bin_weight", bin_weights, "1",
+             "share of one cycle each time bin spans, from lib/climatology.py"),
+        ]:
+            v = ds.createVariable(name, "f8", ("time_bin",), zlib=True)
+            v.units, v.long_name = units, note
+            v[:] = data
+        for name, data, units, note in [
+            ("basin_area_by_bin_km2", periodic["area_km2"], "km2",
+             "lake area in each time bin of the periodic steady state"),
+            ("basin_level_by_bin_km", periodic["level_km"], "km",
+             "lake surface in each time bin"),
+            ("basin_volume_by_bin_km3", periodic["volume_km3"], "km3",
+             "lake volume in each time bin"),
+        ]:
+            v = ds.createVariable(name, "f8", ("time_bin", "basin"), zlib=True)
+            v.units, v.long_name = units, note
             v[:] = data
 
     with Dataset(_CLIM_FILE) as ds:
@@ -445,6 +551,29 @@ def main():
                 np.average(runoff, weights=cell_weight) * SECONDS_PER_DAY * 1000),
             "land_mean_mrro_mm_per_day": float(
                 np.average(model_runoff, weights=cell_weight) * SECONDS_PER_DAY * 1000),
+        },
+        "periodic_steady_state": {
+            "time_bins": int(nbin),
+            "cycles_to_close": int(periodic["cycles"]),
+            "closure_relative_to_capacity": lb.PERIODIC_CLOSURE_RELATIVE,
+            "closure_floor_km3": lb.PERIODIC_CLOSURE_FLOOR_KM3,
+            "amplitude_publication_threshold": lb.SEASONAL_AMPLITUDE_MIN_FRACTION,
+            "amplitude_area_floor_km2": float(area.mean()),
+            "basins_closed": int(periodic["closed"].sum()),
+            "basins_refused_not_closed": n_refused,
+            "basins_refused_no_impoundment": int(periodic["refused_no_impoundment"].sum()),
+            "basins_with_published_season": int(periodic["seasonal"].sum()),
+            "seasonal_area_km2_at_peak": float(periodic["area_km2"].max(axis=0).sum()),
+            "seasonal_area_km2_at_trough": float(periodic["area_km2"].min(axis=0).sum()),
+            "what_carries_a_season": ("residence time, and the product is per basin "
+                                      "because of it: a deep terminal lake holds "
+                                      "years of supply and its surface barely moves "
+                                      "inside one, while a shallow playa's area is "
+                                      "almost all seasonal"),
+            "omission": ("the catchment's delivery is flat through the cycle. Only "
+                         "the lake's own surface fluxes carry a season here; "
+                         "land_water_ledger.yaml declares that as "
+                         "seasonal_phase_of_catchment_delivery"),
         },
         "open_water_evaporation": {
             "method": ("Penman combination, water albedo and roughness, NOT floored "

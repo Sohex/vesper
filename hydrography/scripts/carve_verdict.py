@@ -99,8 +99,15 @@ def saturation_vapour_pressure(temp_k):
     return 610.94 * np.exp(17.625 * (temp_k - 273.15) / (temp_k - 30.11))
 
 
-def reference_level_air(climatology):
+def reference_level_air(climatology, bin_index=None):
     """Temperature, humidity, wind and pressure of the air Penman reads.
+
+    `bin_index` takes ONE of the climatology's time bins instead of the annual
+    mean, which is what a seasonally resolved open-water evaporation is
+    evaluated on. It changes nothing about the annual path: with `bin_index`
+    absent this returns exactly the weighted annual mean it always did, and the
+    bin weights are the ones `lib/climatology.py` recovers, so summing the bins
+    under those weights returns the annual answer rather than approximating it.
 
     Returns `(t_air, q_air, wind, p_air)`, ALL FOUR AT THE LOWEST MODEL LEVEL,
     which `SIGMA_LOWEST` puts of order 300 m up.
@@ -142,10 +149,20 @@ def reference_level_air(climatology):
     require_clean_io(climatology)
     with Dataset(climatology) as ds:
         centres = np.asarray(ds["time"][:])
-        t_air = weighted_annual_mean(np.asarray(ds["ta"][:]), centres)[-1]
-        q_air = weighted_annual_mean(np.asarray(ds["hus"][:]), centres)[-1]
-        wind = weighted_annual_mean(np.asarray(ds["spd"][:]), centres)[-1]
-        p_air = weighted_annual_mean(np.asarray(ds["ps"][:]), centres) * 100.0 * SIGMA_LOWEST
+        if bin_index is None:
+            def take(name):
+                return weighted_annual_mean(np.asarray(ds[name][:]), centres)
+        else:
+            k = int(bin_index)
+            if not 0 <= k < centres.size:
+                raise IndexError(f"bin {k} outside the climatology's {centres.size}")
+
+            def take(name):
+                return np.asarray(ds[name][k])
+        t_air = take("ta")[-1]
+        q_air = take("hus")[-1]
+        wind = take("spd")[-1]
+        p_air = take("ps") * 100.0 * SIGMA_LOWEST
     return t_air, q_air, wind, p_air
 
 

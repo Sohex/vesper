@@ -88,8 +88,13 @@ TRANSFORM_PHASES = {
     "deposition": ("vapour", "ice"),
 }
 
-# The shortest interval a producing artifact can supply a term on.
-INTERVAL_FLOORS = ("instantaneous", "daily", "monthly", "annual", UNDECLARED)
+# The shortest interval a producing artifact can supply a term on, shortest
+# first. `climatology_bin` is one bin of the ExoPlaSim climatology the term is
+# evaluated on -- coarser than daily and finer than annual, and named for what
+# it is rather than approximated to `monthly`, because the bin count comes off
+# the file and a Vesper year is not twelve Earth months.
+INTERVAL_FLOORS = ("instantaneous", "daily", "climatology_bin", "monthly",
+                   "annual", UNDECLARED)
 
 
 def load(path: Path = DECLARATION) -> dict:

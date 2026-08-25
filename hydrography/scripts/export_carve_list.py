@@ -698,6 +698,15 @@ def main() -> None:
     n_carve = int((retain <= 0.0).sum())
     n_preserve = int((retain >= 1.0).sum())
     n_marginal = basins.n - n_carve - n_preserve
+    # Basins the drainage conditioning already flattened. They are published as
+    # preserved with retain 1 and impound nothing, so the balance above has no
+    # lake to run on and depth_at_spill_m falls back to its 1 m guard, which
+    # carves them at any coefficient. That is the right instruction, but it is
+    # arrived at by a floor rather than by a verdict, so it is counted and
+    # reported rather than left to look like a decision.
+    no_impoundment = ~basins.has_impoundment
+    n_no_impoundment = int(no_impoundment.sum())
+    n_no_impoundment_carved = int((no_impoundment & (retain <= 0.0)).sum())
 
     with Dataset(args.basins) as ds:
         ids = [str(x) for x in ds["basin_id"][:]]
@@ -761,6 +770,11 @@ def main() -> None:
 #   retain 0.0   {n_zero:4d} basins  carved
 #                            {n_carried:4d} of them carried forward, {n_carve:4d} decided here
 #
+# {n_no_impoundment:4d} of the entries above hold no water at spill at all: the
+# drainage conditioning took their rim down to their floor, and the catalogue
+# publishes them as preserved anyway. {n_no_impoundment_carved:d} of them carve here, on the 1 m
+# depth guard rather than on a water balance. notes/audits/basin-catalogue-floor.md.
+#
 # The counts above are of the whole {n_total:d}-entry catalogue. This pass could
 # only decide the {n_here:d} basins the current build still has; the rest were
 # carved by an earlier pass and are held at 0 to keep the loop monotone.
@@ -793,6 +807,17 @@ def main() -> None:
             "note": None if land_surface == "modelled" else
                     "The land surface is assumed rather than modelled, and the "
                     "albedo bracket puts that assumption at 3.7 to 7.1 K.",
+        },
+        "catalogue": {
+            "basins": basins.n,
+            "without_impoundment": n_no_impoundment,
+            "without_impoundment_carved": n_no_impoundment_carved,
+            "note": "A preserved basin is one the drainage conditioning was told "
+                    "not to breach by its CARVE passes; erosion, ridge sharpening "
+                    "and soil creep run over it regardless and the sink is left "
+                    "unprotected. These entries came out of that with no "
+                    "depression left, are published as preserved with retain 1, "
+                    "and have no water balance to decide.",
         },
         "method": {
             "test": "Q = runoff*(catchment - area_at_spill) - (E - P)*area_at_spill > 0",
@@ -976,6 +1001,10 @@ def main() -> None:
                 "lake_evaporation_km_per_year": round(float(e_pen[i]), 8),
                 "land_evaporation_km_per_year": round(float(e_wet[i]), 8),
                 "no_catchment_runoff": bool(runoff[i] <= 0),
+                # False where the conditioning left no depression. Every water
+                # quantity on this record is then meaningless and the retain is
+                # the 1 m guard, not a balance.
+                "has_impoundment": bool(basins.has_impoundment[i]),
             } for i in range(basins.n)
         ] + [
             {"id": bid, "verdict": "carve", "retain": 0.0,
