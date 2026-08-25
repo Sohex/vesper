@@ -2648,6 +2648,10 @@
 !
       subroutine ecogp
       use pumamod
+!     radmod for `orbnu`. The true anomaly lives in radmod and not in pumamod,
+!     so the interval record cannot be written without it; `outsc` in this same
+!     file takes code 50 from the same module for the same reason.
+      use radmod
 
       real :: zwork(NHOR)
       real :: zn
@@ -2669,6 +2673,25 @@
       call writescalar(143,real(nstep+1-naccueco)*deltsec,600)
       call writescalar(143,real(nstep+1)*deltsec,601)
       call writescalar(143,real(naccueco)*deltsec,602)
+
+!     THE ORBITAL POSITION, WITH THE BOUNDS AND NOT ACROSS STREAMS. The interval
+!     bounds fix where the block sits on the model's own clock; they do not fix
+!     where it sits on the orbit, because the orbit is eccentric and true anomaly
+!     is not linear in absolute time. Local solar phase IS linear in it -- the
+!     rotation is uniform -- so the forcing contract derives that one from the
+!     bounds and declares it derived, and carries this one because it cannot.
+!     The alternative is reading code 50 off unit 40 and matching an ecological
+!     interval against the regular stream's own cadence by position, which is
+!     exactly the cross-stream inference the explicit bounds exist to refuse.
+!     `orbnu` is radmod's true anomaly in radians, set in `solang` from the
+!     fractional day of step `nstep`; degrees here to match code 50, which is the
+!     only other place the model publishes it. It is the anomaly at the LAST
+!     timestep the block accumulated, so it lies inside [600,601] rather than on
+!     either bound: `solang` labels step `nstep` by `nstep`, while the state that
+!     step contributed is valid at `nstep+1`. Over a default interval of one
+!     absolute day the offset is one timestep of arc, and naming which instant it
+!     is costs nothing while leaving it unnamed cannot be recovered later.
+      call writescalar(143,orbnu*180./PI,603)
 
 !     Duration-weighted means. Every timestep is the same length, so the count
 !     is the weight.

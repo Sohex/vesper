@@ -494,6 +494,19 @@ def _declaration_fixtures() -> list[dict]:
                 return entry
         raise KeyError(pid)
 
+    def unowned_gap(d):
+        """An interval row declared absent from the producer with no owner.
+
+        The wrongness is BUILT rather than borrowed from whichever row happens
+        to be unproduced today. When world-wq8i made the orbital position a
+        produced record, no row was `not_produced` any more and a fixture that
+        only removed an owner stopped being wrong at all -- which is a fixture
+        that passes by accident, the one thing this block exists to refuse.
+        """
+        entry = d["interval_record"][-1]
+        entry["status"] = "not_produced"
+        entry.pop("owner", None)
+
     cases = [
         ("the declaration as it stands", declaration, None),
         ("a field row missing a column of the schema",
@@ -518,7 +531,7 @@ def _declaration_fixtures() -> list[dict]:
          {"every code the stream writes is declared",
           "every process names declared fields and a cadence it can account for"}),
         ("an interval row absent from the producer and naming no owner",
-         mutate(lambda d: d["interval_record"][-1].pop("owner")),
+         mutate(unowned_gap),
          "every interval-record row declares a status, and an absent one an owner"),
         ("a process requiring a field the contract does not declare",
          mutate(lambda d: process(d, "bio-23")["fields"].append("relative_humidity")),

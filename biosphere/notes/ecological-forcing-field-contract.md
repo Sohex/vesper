@@ -315,7 +315,7 @@ and must be labelled one.
 | --- | --- | --- |
 | interval start, interval end | seconds of absolute time since the block's declared origin | exact, never inferred from a record number |
 | interval duration | seconds | equal to end minus start; the two are both carried so a gap is detectable |
-| orbital position | true anomaly, degrees | `nu`, code 50 |
+| orbital position | true anomaly, degrees | `orbnu*180./PI`, code 603, at the interval's last timestep |
 | local solar phase | 1, fraction of a rotation | derived from the interval start and the rotation period, not from the calendar |
 | grid identity, source build, source run | strings | the artifact is refused if they disagree between intervals |
 
@@ -442,27 +442,33 @@ the issue requires the smooth-versus-event-resolved comparison to be MEASURED
 before adoption, so declaring an interval now would fix a threshold before the
 result it is judged against.
 
-## The orbital position is required per interval and is not produced
+## The orbital position is carried, and the solar phase is derived
 
 The audit's finding 4 requires each forcing interval to record its orbital
-position. The ecological stream records the bounds and the duration and no
-orbital quantity at all.
+position. The two coordinates it asks for are not alike, and the contract treats
+them differently for a reason that is about the orbit rather than about
+convenience.
 
 The local solar phase is derivable and is declared derived: rotation is uniform,
 so the artifact builder forms it exactly from the interval start and the
 rotation period, and a carried copy could only disagree with the bounds it would
 be derived from. True anomaly is not derivable the same way, because the orbit
-is eccentric and the anomaly is not linear in absolute time. The only place the
-model publishes it is code 50 on the regular stream, at that stream's own
-cadence, so taking it from there means matching an ecological interval against
-another stream's records by position -- the cross-stream inference the explicit
-bounds exist to refuse.
+is eccentric and the anomaly is not linear in absolute time. The only other
+place the model publishes it is code 50 on the regular stream, at that stream's
+own cadence, so taking it from there would mean matching an ecological interval
+against another stream's records by position -- the cross-stream inference the
+explicit bounds exist to refuse.
 
-What closes it is one `writescalar` of `orbnu*180./PI` beside the three bounds
-in `ecogp`, where the value is already in scope. The declaration carries the row
-with a `not_produced` status and the issue that owns it, so the gap is declared
-rather than absent, and the gate refuses an unproduced interval row that names
-no owner.
+So `ecogp` writes it, as code 603 beside the three bounds, from radmod's `orbnu`
+in degrees. The value is the anomaly at the last timestep the interval
+accumulated, which lies inside the bounds rather than on either of them:
+`solang` labels step `nstep` by `nstep` while the state that step contributed is
+valid at `nstep+1`. That is one timestep of arc over a default interval of one
+absolute day, and the record says which instant it is rather than leaving a
+consumer to assume the interval end.
+
+Adding a carried record is a contract version rise under this document's own
+policy, so the declaration is version 2.
 
 ## What this document does not settle
 

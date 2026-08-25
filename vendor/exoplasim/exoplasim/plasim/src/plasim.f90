@@ -517,7 +517,8 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
             call ecoini
 !           deltsec is not set until master, so the interval is reported in
 !           timesteps here and in seconds by the stream itself: ecogp writes
-!           the bounds and the duration as its first three records.
+!           the bounds, the duration and the orbital position as its first four
+!           records.
             write(nud,*) 'Ecological stream on: ',necostep,                 &
      &                   ' timesteps per interval (mtspd = ',mtspd,')'
          endif

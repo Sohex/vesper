@@ -1828,12 +1828,12 @@ def enable_energy_diagnostics(model, config: dict) -> bool:
     return True
 
 
-# The ecological stream's own codes, `outmod.f90:ecogp`. 600 to 602 are the
-# interval bounds and 610 to 628 the fields; `compare_eco_streams.FIELD_NAMES`
-# is the one table of what each field IS. They are listed here only so a
-# postprocessor code list can be refused for carrying one, and the refusal is
-# below.
-ECO_STREAM_CODES = frozenset(range(600, 603)) | frozenset(range(610, 629))
+# The ecological stream's own codes, `outmod.f90:ecogp`. 600 to 603 are the
+# interval record -- the three bounds and the orbital position -- and 610 to 628
+# the fields; `compare_eco_streams.FIELD_NAMES` is the one table of what each
+# field IS. They are listed here only so a postprocessor code list can be
+# refused for carrying one, and the refusal is below.
+ECO_STREAM_CODES = frozenset(range(600, 604)) | frozenset(range(610, 629))
 
 
 def refuse_eco_codes(codes: list[int], which: str) -> None:
