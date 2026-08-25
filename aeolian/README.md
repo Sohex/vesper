@@ -140,6 +140,21 @@ No vertical structure: a well-mixed column of declared scale height advected by
 a single steering wind. No inter-bin microphysics, which is correct for mineral
 dust because it neither coagulates nor grows appreciably.
 
+**No nocturnal-inversion low-level jet, and that one is a floor rather than a
+bracket.** The Bodele mechanism -- a sharp nocturnal inversion decoupling the
+surface, the jet above it mixing down after sunrise -- supplies a large share of
+Earth's dust from one dry lake bed, and `playa_clastic` is declared as that
+class's analogue here. The model has two levels below a kilometre and one below
+half a kilometre, so the inversion and the jet core both fall inside its single
+lowest layer; the wind that reaches this component is that layer's mean, and
+sampling it more often cannot recover a structure the model has no levels to
+form. Basin emission is therefore understated one-sidedly, at EVERY end of the
+roughness and vegetation brackets rather than at one of them, which is why it is
+a floor. Declared rather than parameterised: a jet parameterisation fitted to
+nothing this world can measure would be precision theatre. DUST-16;
+`notes/external-review-abl-obliquity-dust-carbon.md` point 1 carries the
+measurement and what would revisit it.
+
 ## One-off tools
 
 - `scripts/dust_runoff_sensitivity.py` -- one-off: converts a precipitation change into a basin count, which is what prices the catchment half of the dust question in `docs/src/pipeline/sequencing.md` A4. Registered under `one_offs` in `config/pipeline.yaml`.
