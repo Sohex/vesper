@@ -75,6 +75,7 @@ import yaml
 
 from _paths import ANALYSIS, CONFIG, PEDOGENESIS, PROJECT_ROOT, climatology_path
 
+import builds
 from brine_paths import ROCK_TO_MEYBECK
 from gridding import land_fraction_of_class
 from paths import rel
@@ -112,6 +113,24 @@ MEYBECK = PROJECT_ROOT / "pedology" / "data" / "reference" / "meybeck1987_tables
 
 def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+def grid_cell_area_km2(lat: np.ndarray, lon: np.ndarray,
+                       radius_km: float) -> np.ndarray:
+    """Area of every cell of a Gaussian grid, km2, shaped (nlat, nlon).
+
+    The rows are Gaussian latitudes and are NOT evenly spaced, so the bands run
+    between row midpoints rather than at a fixed spacing. The radius is the
+    export manifest's, not Earth's. One implementation, because two scripts
+    turn a flux per litre into a flux per year with it and a second copy is a
+    second chance to put Earth's radius in.
+    """
+    dlon = 2.0 * np.pi / len(lon)
+    edges = np.deg2rad(np.concatenate(
+        ([90.0], 0.5 * (lat[:-1] + lat[1:]), [-90.0])))
+    band = np.abs(np.sin(edges[:-1]) - np.sin(edges[1:]))
+    return (radius_km ** 2 * dlon * band)[:, None] * np.ones((1, len(lon)))
+
+
 
 
 def concentrations() -> tuple[dict[str, float], dict[str, float]]:
@@ -174,14 +193,7 @@ def main() -> None:
     silica_c, bicarb_c = concentrations()
 
     # Cell area on the sphere, km2, so fluxes are absolute rather than per-area.
-    radius_km = float(mesh.manifest["planet"]["radiusKm"])
-    dlon = 2.0 * np.pi / len(lon)
-    # Gaussian latitudes are uneven, so bands run between row midpoints rather
-    # than at a fixed spacing.
-    edges = np.deg2rad(np.concatenate(
-        ([90.0], 0.5 * (lat[:-1] + lat[1:]), [-90.0])))
-    band = np.abs(np.sin(edges[:-1]) - np.sin(edges[1:]))
-    area = (radius_km ** 2 * dlon * band)[:, None] * np.ones((1, len(lon)))
+    area = grid_cell_area_km2(lat, lon, float(mesh.manifest["planet"]["radiusKm"]))
 
     # Litres of runoff per cell per Earth year: mm -> m -> m3 -> l over km2.
     litres = runoff * 1e-3 * area * 1e6 * 1e3
@@ -230,8 +242,20 @@ def main() -> None:
     silica_mol = silica_flux * 1e-6
     co2_mol = co2_flux * 1e-6
 
-    endorheic = land_fraction_of_class(mesh, grid_dir,
-                                       mesh.is_endorheic.astype(bool))
+    # ENDORHEIC IS THE DRAINAGE FATE, NOT THE BASIN FLOOR. What this split is
+    # for is where a solute ENDS UP: silica delivered to a closed basin
+    # concentrates until it saturates, and endorheic carbonate precipitates on
+    # craton and never subducts. Both statements are about the catchment that
+    # drains to a sink, and Orogen's `is_endorheic` flags the sink itself -- the
+    # depression to be filled, per source/README.md -- which is a much smaller
+    # area. Using it counted only the solute released ON the floors and dropped
+    # everything released upstream that flows onto them. The terminal is
+    # hydrography's, and `hydrography` was already declared in this step's
+    # `needs` while nothing here read it.
+    hydro = builds.component_data("hydrography", config, strict=True)
+    with nc.Dataset(hydro / "regions.nc") as ds:
+        terminal_region = np.asarray(ds["terminal"][:])
+    endorheic = land_fraction_of_class(mesh, grid_dir, terminal_region >= 0)
 
     def total(field: np.ndarray, weight: np.ndarray | None = None) -> float:
         w = field if weight is None else field * weight
