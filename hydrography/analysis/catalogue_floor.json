@@ -1,9 +1,9 @@
 {
   "note": "Modelled terrain of an invented planet. A pre-carve build is a LIMIT, not a state: every basin number here is what sits in source/ before any carve verdict has been applied.",
-  "generated": "2026-08-25T13:08:34.428890+00:00",
+  "generated": "2026-08-25T16:59:44.871393+00:00",
   "provenance": {
     "script": "hydrography/scripts/catalogue_floor.py",
-    "git_commit": "38091908223eb10d34d0ee3f76f20060247ae101",
+    "git_commit": "084d2e14e510329986add1cdecb098ec5cce385f",
     "python": "3.14.7",
     "numpy": "2.5.2"
   },
@@ -87,6 +87,7 @@
         "units_actually_compared": "model elevation (dimensionless)",
         "units_declared_by_the_manifest": false,
         "units_source": "absent from this manifest; the export predates the field and was selected in model units",
+        "reference_gravity_depth_source": "reconstructed from the published spill and sink heights and planet.reliefScale; this export predates the field",
         "physical_depth_at_the_threshold_km": {
           "samples": 614,
           "min": 0.0,
@@ -100,13 +101,26 @@
         },
         "preserved_shallower_than_declared": 773,
         "preserved_shallower_than_declared_fraction": 0.21347694007180337,
+        "preserved_shallower_than_the_floor_it_was_judged_by": 0,
+        "preserved_reference_gravity_depth_km": {
+          "min": 0.0,
+          "p5": 0.0244645630624855,
+          "median": 0.16728555977046844
+        },
         "preserved_with_zero_physical_depth": 2,
-        "counterfactual_other_currency": {
-          "compared_in": "km",
-          "preserved": 2879,
-          "net_vs_as_built": -742,
-          "admitted_that_are_not_preserved_now": 31,
-          "dropped_that_are_preserved_now": 773
+        "counterfactual_other_currencies": {
+          "km at reference gravity": {
+            "preserved": 3065,
+            "net_vs_as_built": -556,
+            "admitted_that_are_not_preserved_now": 55,
+            "dropped_that_are_preserved_now": 611
+          },
+          "km": {
+            "preserved": 2879,
+            "net_vs_as_built": -742,
+            "admitted_that_are_not_preserved_now": 31,
+            "dropped_that_are_preserved_now": 773
+          }
         },
         "note": "A counterfactual, not a proposal. The currency the floor is compared in is a selection criterion, so changing it on a build changes the preserved set and therefore the terrain, which is a loop A decision and costs a generation."
       },
@@ -222,6 +236,7 @@
         "units_actually_compared": "model elevation (dimensionless)",
         "units_declared_by_the_manifest": false,
         "units_source": "absent from this manifest; the export predates the field and was selected in model units",
+        "reference_gravity_depth_source": "reconstructed from the published spill and sink heights and planet.reliefScale; this export predates the field",
         "physical_depth_at_the_threshold_km": {
           "samples": 1789,
           "min": 0.0,
@@ -235,13 +250,26 @@
         },
         "preserved_shallower_than_declared": 2077,
         "preserved_shallower_than_declared_fraction": 0.22051173160632764,
+        "preserved_shallower_than_the_floor_it_was_judged_by": 0,
+        "preserved_reference_gravity_depth_km": {
+          "min": 0.0007992986649842142,
+          "p5": 0.022906493489440016,
+          "median": 0.1669840253039091
+        },
         "preserved_with_zero_physical_depth": 0,
-        "counterfactual_other_currency": {
-          "compared_in": "km",
-          "preserved": 7471,
-          "net_vs_as_built": -1948,
-          "admitted_that_are_not_preserved_now": 129,
-          "dropped_that_are_preserved_now": 2077
+        "counterfactual_other_currencies": {
+          "km at reference gravity": {
+            "preserved": 8024,
+            "net_vs_as_built": -1395,
+            "admitted_that_are_not_preserved_now": 215,
+            "dropped_that_are_preserved_now": 1610
+          },
+          "km": {
+            "preserved": 7471,
+            "net_vs_as_built": -1948,
+            "admitted_that_are_not_preserved_now": 129,
+            "dropped_that_are_preserved_now": 2077
+          }
         },
         "note": "A counterfactual, not a proposal. The currency the floor is compared in is a selection criterion, so changing it on a build changes the preserved set and therefore the terrain, which is a loop A decision and costs a generation."
       },

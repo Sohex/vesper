@@ -25,12 +25,21 @@ RESOLUTION-LIMITED when the cell count does.
 
 That framing has a third case, and this script measures it: a floor that is
 neither physical nor resolution-set but UNIT-SET, which no region count moves.
-`selectBasins` now compares the depth floor against the depression's physical
-depth, so the declared number means the same drop wherever the depression sits.
-An export made before that comparison was corrected compared against the depth
-in the model's DIMENSIONLESS elevation parameter instead, and the model-unit-to-
-km curve is quartic above sea level, linear below it, and saturates at model
-elevation 1, so one model-unit threshold was many different physical depths.
+`selectBasins` now compares the depth floor against the depression's depth in km
+on the REFERENCE-GRAVITY height curve, so the declared number means the same drop
+wherever the depression sits and at whatever gravity the planet has. An export
+made before that comparison was corrected compared against the depth in the
+model's DIMENSIONLESS elevation parameter instead, and the model-unit-to-km curve
+is quartic above sea level, linear below it, and saturates at model elevation 1,
+so one model-unit threshold was many different physical depths.
+
+Reference gravity rather than the planet's, because the selection runs during
+generation and reaches the terrain -- `inciseOutlets` notches the rims of the
+selected set and `buildBasinProtection` constrains erosion over them -- while
+Orogen's design puts gravity at export. Orogen scales the whole land relief
+distribution by `reliefScale`, so a floor stated against that distribution
+carries the same factor as the depths it judges and the two cancel. To read the
+floor as a depth on Vesper, multiply the declared number by `planet.reliefScale`.
 
 Which currency a given export was selected in is read from
 `basins.resolution.minDepthComparedIn`, published by `basinResolutionContext`.
@@ -98,10 +107,29 @@ from orogen import Export  # noqa: E402
 DEFAULT_BUILDS = ("precarve-craton", "precarve-craton-10m")
 
 
-# The two currencies the depth floor can have been compared in, keyed by what
-# `basinResolutionContext` publishes as `minDepthComparedIn`. An export made
+# The currencies the depth floor can have been compared in, keyed by what
+# `basinResolutionContext` publishes as `minDepthComparedIn`, and mapped to the
+# catalogue field holding a depression's depth in that currency. An export made
 # before that field existed was selected in model units.
+#
+# The three are genuinely different selections, and the difference is not a
+# refinement of one number:
+#
+#   model elevation   the model's dimensionless height parameter. The curve to
+#                     km is quartic above sea level and saturates at 1, so one
+#                     threshold is many depths and some of them are zero.
+#   km                the depression's depth on THIS planet, which carries the
+#                     1/g relief scaling.
+#   km at reference   the same depth on the reference-gravity curve. This is
+#     gravity         what `selectBasins` compares, because the selection runs
+#                     during generation and reaches the terrain through
+#                     inciseOutlets and buildBasinProtection: a floor that moved
+#                     with gravity would move the model terrain with it. Orogen
+#                     scales the whole land relief distribution by reliefScale,
+#                     so the factor is on both sides of the inequality and
+#                     cancels. Gravity enters at export.
 DEPTH_KEY_BY_CURRENCY = {
+    "km at reference gravity": "selectionDepthKm",
     "km": "depthKm",
     "model elevation (dimensionless)": "depth",
 }
@@ -126,8 +154,34 @@ def depth_currency(resolution: dict) -> tuple[str, str, bool]:
     return currency, DEPTH_KEY_BY_CURRENCY[currency], declared is not None
 
 
-def other_currency(currency: str) -> str:
-    return next(c for c in DEPTH_KEY_BY_CURRENCY if c != currency)
+def other_currencies(currency: str) -> list[str]:
+    return [c for c in DEPTH_KEY_BY_CURRENCY if c != currency]
+
+
+def add_reference_gravity_depth(catalogue: list[dict], relief_scale: float) -> bool:
+    """Ensure every catalogue entry carries `selectionDepthKm`.
+
+    Exports made by the current generator publish it. Older ones do not, and the
+    counterfactual below needs it for them too, so it is reconstructed from the
+    published physical heights: `scaledHeightKm` multiplies POSITIVE heights by
+    reliefScale and leaves negative ones alone, matching `elevation_km`, so
+    undoing it is that same rule inverted. Doing it from the published km fields
+    rather than from the model-unit ones keeps the height curve itself in one
+    place -- the generator's -- instead of transcribing a quartic into Python
+    where it could drift.
+
+    Returns whether the field came from the artifact rather than this function.
+    """
+    if all("selectionDepthKm" in c for c in catalogue):
+        return True
+    if not relief_scale > 0:
+        raise SystemExit("manifest carries no usable planet.reliefScale, so the "
+                         "reference-gravity depth cannot be reconstructed")
+    unscale = lambda h: h / relief_scale if h > 0 else h
+    for c in catalogue:
+        c.setdefault("selectionDepthKm",
+                     unscale(c["spillElevationKm"]) - unscale(c["sinkElevationKm"]))
+    return False
 
 
 def select(catalogue: list[dict], min_depth: float, min_area: float,
@@ -281,31 +335,41 @@ def floors(catalogue: list[dict], chosen: set[int], area: np.ndarray,
 
 def depth_floor_units(catalogue: list[dict], chosen: set[int],
                       min_depth: float, min_area: float, min_cells: int,
-                      currency: str, depth_key: str, declared: bool) -> dict:
-    """Which currency the depth floor was compared in, and what the other costs.
+                      currency: str, depth_key: str, declared: bool,
+                      published_ref_depth: bool) -> dict:
+    """Which currency the depth floor was compared in, and what the others cost.
 
-    `minDepthKm` is declared, named and published as a physical depth.
-    `selectBasins` compares it against one. An export made before that
-    correction compared it against the depth in the model's dimensionless
-    elevation parameter, where the model-unit-to-km curve is quartic above sea
-    level, linear below it, and saturates at model elevation 1, so a single
-    threshold was many physical depths. This reports the range the declared
-    number actually demanded, how much of the preserved set is shallower than
-    the declared value, and what the OTHER currency would have selected.
+    `minDepthKm` is declared, named and published as a length, and
+    `selectBasins` compares it against one: the depression's depth in km on the
+    reference-gravity height curve. An export made before that correction
+    compared it against the depth in the model's dimensionless elevation
+    parameter, where the model-unit-to-km curve is quartic above sea level,
+    linear below it, and saturates at model elevation 1, so a single threshold
+    was many physical depths. This reports the range the declared number
+    actually demanded, how much of the preserved set is shallower than the
+    declared value, and what each OTHER currency would have selected.
     """
-    depth_model = np.array([c["depth"] for c in catalogue])
     depth_km = np.array([c["depthKm"] for c in catalogue])
-    compared = depth_model if depth_key == "depth" else depth_km
+    depth_ref = np.array([c["selectionDepthKm"] for c in catalogue])
+    compared = np.array([c[depth_key] for c in catalogue])
     sel = sorted(chosen)
 
     # Depressions sitting within a hair of the threshold: what physical depth
     # did the declared number actually demand of them? Under a km comparison
     # this is the declared number itself, by construction, and the spread is the
-    # measurement that says so.
+    # measurement that says so. Under the reference-gravity comparison it is the
+    # declared number times reliefScale, and the spread again says so.
     at_threshold = np.abs(compared - min_depth) < 0.02 * min_depth
-    other = other_currency(currency)
-    swapped = select(catalogue, min_depth, min_area, min_cells,
-                     DEPTH_KEY_BY_CURRENCY[other])
+    counterfactuals = {}
+    for other in other_currencies(currency):
+        swapped = select(catalogue, min_depth, min_area, min_cells,
+                         DEPTH_KEY_BY_CURRENCY[other])
+        counterfactuals[other] = {
+            "preserved": len(swapped),
+            "net_vs_as_built": len(swapped) - len(chosen),
+            "admitted_that_are_not_preserved_now": len(swapped - chosen),
+            "dropped_that_are_preserved_now": len(chosen - swapped),
+        }
 
     return {
         "declared_value": min_depth,
@@ -315,6 +379,10 @@ def depth_floor_units(catalogue: list[dict], chosen: set[int],
         "units_source": ("basins.resolution.minDepthComparedIn" if declared
                          else "absent from this manifest; the export predates "
                               "the field and was selected in model units"),
+        "reference_gravity_depth_source": (
+            "basins.catalogue[].selectionDepthKm" if published_ref_depth
+            else "reconstructed from the published spill and sink heights and "
+                 "planet.reliefScale; this export predates the field"),
         "physical_depth_at_the_threshold_km": {
             "samples": int(at_threshold.sum()),
             "min": float(depth_km[at_threshold].min()) if at_threshold.any() else None,
@@ -326,16 +394,21 @@ def depth_floor_units(catalogue: list[dict], chosen: set[int],
             "p5": float(np.percentile(depth_km[sel], 5)),
             "median": float(np.median(depth_km[sel])),
         },
+        # Against the declared number read as a depth on THIS planet. Under the
+        # reference-gravity comparison a preserved basin can sit below it and
+        # still clear the floor it was actually judged by, by up to the factor
+        # reliefScale; `preserved_shallower_than_the_floor_it_was_judged_by` is
+        # the one that must be zero on every build that declares a currency.
         "preserved_shallower_than_declared": int((depth_km[sel] < min_depth).sum()),
         "preserved_shallower_than_declared_fraction": float((depth_km[sel] < min_depth).mean()),
-        "preserved_with_zero_physical_depth": int((depth_km[sel] <= 0.0).sum()),
-        "counterfactual_other_currency": {
-            "compared_in": other,
-            "preserved": len(swapped),
-            "net_vs_as_built": len(swapped) - len(chosen),
-            "admitted_that_are_not_preserved_now": len(swapped - chosen),
-            "dropped_that_are_preserved_now": len(chosen - swapped),
+        "preserved_shallower_than_the_floor_it_was_judged_by": int((compared[sel] < min_depth).sum()),
+        "preserved_reference_gravity_depth_km": {
+            "min": float(depth_ref[sel].min()),
+            "p5": float(np.percentile(depth_ref[sel], 5)),
+            "median": float(np.median(depth_ref[sel])),
         },
+        "preserved_with_zero_physical_depth": int((depth_km[sel] <= 0.0).sum()),
+        "counterfactual_other_currencies": counterfactuals,
         "note": "A counterfactual, not a proposal. The currency the floor is "
                 "compared in is a selection criterion, so changing it on a "
                 "build changes the preserved set and therefore the terrain, "
@@ -424,6 +497,8 @@ def measure(label: str, root: Path) -> dict:
     min_cells = int(resolution["minCells"])
     area = np.array([c["areaKm2"] for c in catalogue])
     currency, depth_key, declared = depth_currency(resolution)
+    published_ref_depth = add_reference_gravity_depth(
+        catalogue, float(manifest.get("planet", {}).get("reliefScale", 0.0)))
 
     checks = controls(catalogue, preserved_ids, min_depth, min_area, min_cells,
                       depth_key)
@@ -466,7 +541,8 @@ def measure(label: str, root: Path) -> dict:
                          min_cells, depth_key),
         "depth_floor_units": depth_floor_units(catalogue, chosen, min_depth,
                                                min_area, min_cells, currency,
-                                               depth_key, declared),
+                                               depth_key, declared,
+                                               published_ref_depth),
         "below_sea_level_residue": residue,
         "manifest_sha256": _sha256(root / "manifest.json"),
     }
@@ -505,11 +581,11 @@ def main() -> None:
         print(f"  preserved shallower than the declared depth floor: "
               f"{d['preserved_shallower_than_declared']:,} "
               f"({d['preserved_shallower_than_declared_fraction']:.1%})")
-        cf = d['counterfactual_other_currency']
-        print(f"  comparing it in {cf['compared_in']} instead would preserve "
-              f"{cf['preserved']:,} ({cf['net_vs_as_built']:+,}): "
-              f"drops {cf['dropped_that_are_preserved_now']:,}, "
-              f"admits {cf['admitted_that_are_not_preserved_now']:,}")
+        for name, cf in d['counterfactual_other_currencies'].items():
+            print(f"  comparing it in {name} instead would preserve "
+                  f"{cf['preserved']:,} ({cf['net_vs_as_built']:+,}): "
+                  f"drops {cf['dropped_that_are_preserved_now']:,}, "
+                  f"admits {cf['admitted_that_are_not_preserved_now']:,}")
         print(f"  below-sea-level dry land outside any preserved basin: "
               f"{res['area_km2']:,.0f} km2 "
               f"({res['area_fraction_of_land']:.4%} of land) over "
